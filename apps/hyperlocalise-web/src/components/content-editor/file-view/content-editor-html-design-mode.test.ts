@@ -35,8 +35,9 @@ describe("isFullHtmlDocument", () => {
 
 describe("serializeDesignModeDocument", () => {
   it("serializes body innerHTML for fragments", () => {
-    document.body.innerHTML = "<p>Hello</p>";
-    expect(serializeDesignModeDocument(document, false)).toBe("<p>Hello</p>");
+    const doc = document.implementation.createHTMLDocument();
+    doc.body.innerHTML = "<p>Hello</p>";
+    expect(serializeDesignModeDocument(doc, false)).toBe("<p>Hello</p>");
   });
 
   it("includes head content for fragments parsed outside the body", () => {

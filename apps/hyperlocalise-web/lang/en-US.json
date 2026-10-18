@@ -699,6 +699,10 @@
     "defaultMessage": "Experiments",
     "description": "Hyperlab mock UI experiments panel title"
   },
+  "/Btv5OtACg": {
+    "defaultMessage": "{count, plural, one {Saved # changed segment as a draft.} other {Saved # changed segments as drafts.}}",
+    "description": "Toast after a Markdown or HTML File view save writes edited paragraphs back to segments"
+  },
   "/C7cczI0aP": {
     "defaultMessage": "Every hour",
     "description": "Summary for a scheduled automation that runs every hour"
@@ -2107,6 +2111,10 @@
     "defaultMessage": "Contentful webhook",
     "description": "Label for the Contentful webhook trigger"
   },
+  "1lU83WzoEM": {
+    "defaultMessage": "The file was saved, but its edits could not be written back to segments.",
+    "description": "Toast when the edited document could not be parsed back into segments"
+  },
   "1lkpRyh3Xt": {
     "defaultMessage": "Signals captured from approved work",
     "description": "Knowledge product visual mock card subtitle"
@@ -2755,6 +2763,10 @@
     "defaultMessage": "Reviews",
     "description": "App shell breadcrumb title for the reviews page"
   },
+  "2w737Ot4Fa": {
+    "defaultMessage": "Text",
+    "description": "Heading for the list of editable paragraphs or cells beside an Office file preview"
+  },
   "2w98ENBS95": {
     "defaultMessage": "Type",
     "description": "Label for the workspace files resource type filter"
@@ -2986,6 +2998,10 @@
   "3MzWPxEFTr": {
     "defaultMessage": "Open style guide",
     "description": "Accessible label for the style guide button in the app shell footer"
+  },
+  "3NV0GFE6VT": {
+    "defaultMessage": "Speaker notes, slide {number}",
+    "description": "Group heading for paragraphs in PowerPoint speaker notes"
   },
   "3NiEPa2gwT": {
     "defaultMessage": "the project",
@@ -4307,6 +4323,10 @@
     "defaultMessage": "Start for free",
     "description": "Primary self-serve CTA on marketing conversion sections"
   },
+  "5jD6oFvCYS": {
+    "defaultMessage": "Added, removed, or sentence-split paragraphs and edits blocked by QA keep only the file copy. Edit them in a segment view: {keys}",
+    "description": "Toast detail listing the segment keys whose File view edits were not saved"
+  },
   "5jQYM3pK9b": {
     "defaultMessage": "Definition",
     "description": "Label for the concept definition when adding from CAT"
@@ -5227,6 +5247,10 @@
     "defaultMessage": "Bring your content and your team into one studio.",
     "description": "Bottom CTA body on the multilingual Content Studio product page"
   },
+  "7PRORZkPL7": {
+    "defaultMessage": "Mute the launch film",
+    "description": "Accessible label for turning the Iris launch film sound off"
+  },
   "7QQUiWq0U1": {
     "defaultMessage": "Content Management API token",
     "description": "Label for the Contentful Management API token field"
@@ -6078,6 +6102,10 @@
   "8uE98Fo+Pv": {
     "defaultMessage": "Settings",
     "description": "Settings tab label in the marketing automation editor mock"
+  },
+  "8uYx7/RU25": {
+    "defaultMessage": "Unmute the launch film",
+    "description": "Accessible label for turning the Iris launch film sound on"
   },
   "8ubp0pkM3E": {
     "defaultMessage": "Keep them in Drive",
@@ -6963,6 +6991,10 @@
     "defaultMessage": "of any content type",
     "description": "Prose after the Contentful trigger name when every content type starts a run"
   },
+  "AQZXVFsnl+": {
+    "defaultMessage": "Iris | AI Localisation Engine for Multilingual Assets | Hyperlocalise",
+    "description": "Page title for the Iris waitlist page"
+  },
   "AQrXctSpNJ": {
     "defaultMessage": "Format",
     "description": "Import format field label"
@@ -7206,6 +7238,10 @@
   "AzSxI6EMSh": {
     "defaultMessage": "Try it in one market. Keep what works.",
     "description": "Hero headline for the Hyperlab product page"
+  },
+  "B+2R+CguDm": {
+    "defaultMessage": "Edits save as drafts. The preview is rebuilt from the saved text.",
+    "description": "Hint above the editable paragraphs or cells of an Office file in File view"
   },
   "B+9mu1WlLc": {
     "defaultMessage": "Succeeded",
@@ -9163,6 +9199,10 @@
     "defaultMessage": "Create",
     "description": "Submit button for create issue column dialog"
   },
+  "ENMJl6+UHz": {
+    "defaultMessage": "{count, plural, one {# edit was not saved to a segment.} other {# edits were not saved to segments.}}",
+    "description": "Toast title when some File view edits could not be written back to segments"
+  },
   "ENauN48xg5": {
     "defaultMessage": "created a project",
     "description": "Action for a project creation activity"
@@ -10347,6 +10387,10 @@
     "defaultMessage": "Export",
     "description": "Translation memory export operation label"
   },
+  "GZPe87SKjx": {
+    "defaultMessage": "Iris, the AI localisation engine",
+    "description": "Open Graph heading for the Iris waitlist page"
+  },
   "GZgOkkX0hj": {
     "defaultMessage": "Japanese (Japan)",
     "description": "Display name for BCP-47 locale ja-JP"
@@ -10634,6 +10678,10 @@
   "H//pE/RYmt": {
     "defaultMessage": "Our mission is to help every company reach the world without localisation becoming the bottleneck. We believe the future isn't replacing localisation professionals with AI. It's giving them an AI workforce that learns alongside them, understands product context, captures organisational knowledge, and removes the repetitive work that slows global releases.",
     "description": "Seventh paragraph of the founders note on the company page"
+  },
+  "H/6Z4vWchC": {
+    "defaultMessage": "Motion localisation",
+    "description": "Iris schema.org feature for motion localisation"
   },
   "H/CmKBQumj": {
     "defaultMessage": "Marketing",
@@ -11498,6 +11546,10 @@
   "IkCkDVLrow": {
     "defaultMessage": "Market context",
     "description": "Market context row label in the campaign context mock"
+  },
+  "IkjX3objbn": {
+    "defaultMessage": "Load more text",
+    "description": "Button that loads more paragraphs or cells into the Office File view list"
   },
   "IksPpT37Wn": {
     "defaultMessage": "{count} open",
@@ -12647,6 +12699,10 @@
     "defaultMessage": "Returned output {index} type",
     "description": "Return output type field"
   },
+  "L1iDRgwfcT": {
+    "defaultMessage": "Iris launch film playing in the background",
+    "description": "Accessible name for the decorative Iris launch video"
+  },
   "L1kbT9LQu4": {
     "defaultMessage": "Show more",
     "description": "Expands long evidence on a localisation audit finding"
@@ -13191,6 +13247,10 @@
     "defaultMessage": "25%",
     "description": "Hyperlab experiment mock rollout control for 25 percent"
   },
+  "M/LTTbnwGn": {
+    "defaultMessage": "Iris",
+    "description": "Navigation label for the Iris waitlist page"
+  },
   "M/bA5ZKYrc": {
     "defaultMessage": "Keywords added to rank tracking.",
     "description": "Toast after adding rank-tracking keywords"
@@ -13394,6 +13454,10 @@
   "MM0m7VaEfu": {
     "defaultMessage": "You do not have access to this translation memory's import and export history.",
     "description": "Import and export history unauthorized state description"
+  },
+  "MM2Ni9bZuS": {
+    "defaultMessage": "Paragraph {number}",
+    "description": "Label for one editable paragraph of a Word or PowerPoint file"
   },
   "MMFb5MTldp": {
     "defaultMessage": "{open} open · {inProgress} in progress · {resolved} resolved",
@@ -13998,6 +14062,10 @@
   "NMo/Dkl5Sm": {
     "defaultMessage": "No SERP snapshot for this keyword yet.",
     "description": "Empty SERP sheet body"
+  },
+  "NNpUXptuVe": {
+    "defaultMessage": "Other text",
+    "description": "Group heading for Office text that is not on a slide, sheet, or Word part"
   },
   "NO+1ZaqMKM": {
     "defaultMessage": "Column added",
@@ -15731,6 +15799,10 @@
     "defaultMessage": "Team deleted",
     "description": "Toast after a team is deleted successfully"
   },
+  "QZjNY0zpti": {
+    "defaultMessage": "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Create and adapt images, video, motion, and audio for every language. Join the waitlist.",
+    "description": "Meta description for the Iris waitlist page"
+  },
   "Qa2OXtJ4Ug": {
     "defaultMessage": "HTML",
     "description": "Load HTML SRX template"
@@ -15754,6 +15826,10 @@
   "QbB9yIc9Ea": {
     "defaultMessage": "Column",
     "description": "Button to open the add column dialog on the Issue Sheet page"
+  },
+  "Qbj8FRFVfp": {
+    "defaultMessage": "{count, plural, one {Save # draft} other {Save # drafts}}",
+    "description": "Button that saves edited Office paragraphs or cells as draft translations"
   },
   "Qbn+bjzsz0": {
     "defaultMessage": "Glossaries",
@@ -17151,6 +17227,10 @@
     "defaultMessage": "Live jobs assigned to you in the connected provider.",
     "description": "Description under the TMS jobs section for personal assigned scope"
   },
+  "TFy71zYatd": {
+    "defaultMessage": "Multilingual image localisation",
+    "description": "Iris schema.org feature for image localisation"
+  },
   "TGHvKVZXDF": {
     "defaultMessage": "The workflow for multilingual content operations.",
     "description": "Hero headline for the agents automation product page"
@@ -17278,6 +17358,10 @@
   "TUhxc0TwuH": {
     "defaultMessage": "Whoever already owns them—usually brand, legal, or localisation. Hyperlocalise does not replace that library. It reads it.",
     "description": "Guidelines FAQ answer about ownership"
+  },
+  "TV/xfNXFY0": {
+    "defaultMessage": "Slide {number}",
+    "description": "Group heading for paragraphs on a PowerPoint slide"
   },
   "TW8F48aPTu": {
     "defaultMessage": "+{count}",
@@ -18675,6 +18759,10 @@
     "defaultMessage": "Unable to import entries",
     "description": "Fallback error when translation memory import fails"
   },
+  "VxlBCadoU8": {
+    "defaultMessage": "Iris by Hyperlocalise",
+    "description": "Alternate schema.org name for the Iris product"
+  },
   "VyUTnEU0ZM": {
     "defaultMessage": "Try refreshing the page.",
     "description": "Fallback error when glossaries fail to load without a message"
@@ -20047,6 +20135,10 @@
     "defaultMessage": "External job ID",
     "description": "Detail row label for the provider job identifier"
   },
+  "YVSpc4Fgtj": {
+    "defaultMessage": "Header {number}",
+    "description": "Group heading for paragraphs in a Word page header"
+  },
   "YW2bfmVhJb": {
     "defaultMessage": "Findings",
     "description": "QA overview chart series label for finding counts"
@@ -20154,6 +20246,10 @@
   "YhT90BZluB": {
     "defaultMessage": "Delete concept",
     "description": "Destructive action to delete a glossary concept"
+  },
+  "YhXUDTQkrZ": {
+    "defaultMessage": "Audio localisation",
+    "description": "Iris schema.org feature for audio localisation"
   },
   "YhwlgG0Ruv": {
     "defaultMessage": "My work",
@@ -24163,6 +24259,10 @@
     "defaultMessage": "Run a test in Japan first, then keep the version that works. Your developer connects the site once.",
     "description": "Feature teaser early access description for Hyperlab"
   },
+  "fmDOQaEtb/": {
+    "defaultMessage": "Document",
+    "description": "Group heading for paragraphs in the body of a Word document"
+  },
   "fmHJLMYbQV": {
     "defaultMessage": "Keyboard shortcuts",
     "description": "Title of the Content Editor keyboard shortcuts dialog"
@@ -24230,6 +24330,10 @@
   "fu8eVhN1Ej": {
     "defaultMessage": "Show two or more versions and keep the one that works.",
     "description": "Hint for the A/B experiment type"
+  },
+  "fuGS+tbzu0": {
+    "defaultMessage": "{count, plural, one {# edit was not saved.} other {# edits were not saved.}} Check the highlighted fields.",
+    "description": "Error after saving Office File view edits when some drafts failed to save"
   },
   "fut6xXSrSN": {
     "defaultMessage": "Push {count, plural, one {# template} other {# templates}}",
@@ -25090,6 +25194,10 @@
   "hE2eacuTWG": {
     "defaultMessage": "Query actions",
     "description": "Aria label for the query detail overflow menu"
+  },
+  "hEEAW/iMSI": {
+    "defaultMessage": "Iris, the AI localisation engine for multilingual assets",
+    "description": "Visually hidden heading for the Iris waitlist page"
   },
   "hElFzW5+gy": {
     "defaultMessage": "Enter a valid BCP-47 locale (e.g. fr-FR, zh-Hant-TW).",
@@ -27018,6 +27126,10 @@
   "kZCWXTCLbW": {
     "defaultMessage": "Agents",
     "description": "Knowledge product visual memory node label"
+  },
+  "kbAlbZYGxZ": {
+    "defaultMessage": "Footer {number}",
+    "description": "Group heading for paragraphs in a Word page footer"
   },
   "kbpV8xkMoq": {
     "defaultMessage": "Comments",
@@ -29795,6 +29907,10 @@
     "defaultMessage": "String type",
     "description": "Label for the source string type filter"
   },
+  "pPaYbj0Q2H": {
+    "defaultMessage": "Video localisation",
+    "description": "Iris schema.org feature for video localisation"
+  },
   "pPpG4zo8Yj": {
     "defaultMessage": "Attach approved terminology, brand guidance, and market context so every person and agent works from the same source of truth.",
     "description": "Content Studio FAQ answer about brand voice"
@@ -31975,6 +32091,10 @@
     "defaultMessage": "Turn Slack requests and Canva boards into scoped localization work with context attached from the start.",
     "description": "Feature card body for Slack and design-tool intake"
   },
+  "tCdxVUY0DH": {
+    "defaultMessage": "Endnotes",
+    "description": "Group heading for Word endnotes"
+  },
   "tCoNRn2dnG": {
     "defaultMessage": "Delete Crowdin task?",
     "description": "Title of the delete Crowdin task confirmation dialog"
@@ -32250,6 +32370,10 @@
   "tlfeFkqvA8": {
     "defaultMessage": "All",
     "description": "QA review: all"
+  },
+  "tm2wgAMGK3": {
+    "defaultMessage": "Join the waitlist",
+    "description": "Primary button that opens the Iris Tally waitlist form"
   },
   "tmfZmWyVtO": {
     "defaultMessage": "Source files",
@@ -33591,6 +33715,10 @@
     "defaultMessage": "3 strings changed, 1 French typo corrected directly from the PR thread",
     "description": "PR summary shown after the agent fix in the review PR illustration"
   },
+  "w7GEIfNjc0": {
+    "defaultMessage": "Footnotes",
+    "description": "Group heading for Word footnotes"
+  },
   "w7J+PHlma7": {
     "defaultMessage": "Glossary guidance",
     "description": "Label for the glossary guidance button in the app shell footer"
@@ -33938,6 +34066,10 @@
   "wgpJwxQgNi": {
     "defaultMessage": "Loading plan usage",
     "description": "Accessible label for the plan usage summary skeleton"
+  },
+  "whMSAtiplz": {
+    "defaultMessage": "Comments",
+    "description": "Group heading for Word comments"
   },
   "whTnlyYlKA": {
     "defaultMessage": "Download {locale}",

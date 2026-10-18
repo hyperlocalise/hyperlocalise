@@ -611,6 +611,9 @@
   "/BDbP6ag0g": {
     "defaultMessage": "Expériences"
   },
+  "/Btv5OtACg": {
+    "defaultMessage": "{count, plural, one {Saved # changed segment as a draft.} other {Saved # changed segments as drafts.}}"
+  },
   "/C52lRfZjE": {
     "defaultMessage": "Rejoindre la liste d’attente"
   },
@@ -1865,6 +1868,9 @@
   "1krX2eFo9o": {
     "defaultMessage": "Webhook Contentful"
   },
+  "1lU83WzoEM": {
+    "defaultMessage": "The file was saved, but its edits could not be written back to segments."
+  },
   "1lkpRyh3Xt": {
     "defaultMessage": "Signaux capturés à partir du travail approuvé"
   },
@@ -2441,6 +2447,9 @@
   "2uwHtwT4Tc": {
     "defaultMessage": "Avis"
   },
+  "2w737Ot4Fa": {
+    "defaultMessage": "Text"
+  },
   "2w98ENBS95": {
     "defaultMessage": "Type"
   },
@@ -2674,6 +2683,9 @@
   },
   "3MzWPxEFTr": {
     "defaultMessage": "Ouvrir le guide de style"
+  },
+  "3NV0GFE6VT": {
+    "defaultMessage": "Speaker notes, slide {number}"
   },
   "3NiEPa2gwT": {
     "defaultMessage": "le projet"
@@ -3811,6 +3823,9 @@
   },
   "5ilEKzvkRa": {
     "defaultMessage": "Commencer gratuitement"
+  },
+  "5jD6oFvCYS": {
+    "defaultMessage": "Added, removed, or sentence-split paragraphs and edits blocked by QA keep only the file copy. Edit them in a segment view: {keys}"
   },
   "5jQYM3pK9b": {
     "defaultMessage": "Définition"
@@ -6311,6 +6326,9 @@
   "AzlAJgQRne": {
     "defaultMessage": "Impossible d’exporter le TMX"
   },
+  "B+2R+CguDm": {
+    "defaultMessage": "Edits save as drafts. The preview is rebuilt from the saved text."
+  },
   "B+9mu1WlLc": {
     "defaultMessage": "Succeeded"
   },
@@ -8014,6 +8032,9 @@
   },
   "ENDjImu9Gr": {
     "defaultMessage": "Derniers travaux"
+  },
+  "ENMJl6+UHz": {
+    "defaultMessage": "{count, plural, one {# edit was not saved to a segment.} other {# edits were not saved to segments.}}"
   },
   "ENauN48xg5": {
     "defaultMessage": "a créé un projet"
@@ -10043,6 +10064,9 @@
   "IkCkDVLrow": {
     "defaultMessage": "Contexte du marché"
   },
+  "IkjX3objbn": {
+    "defaultMessage": "Load more text"
+  },
   "IksPpT37Wn": {
     "defaultMessage": "{count} ouverts"
   },
@@ -11741,6 +11765,9 @@
   "MM0m7VaEfu": {
     "defaultMessage": "Vous n’avez pas accès à l’historique d’importation et d’exportation de cette mémoire de traduction."
   },
+  "MM2Ni9bZuS": {
+    "defaultMessage": "Paragraph {number}"
+  },
   "MMFb5MTldp": {
     "defaultMessage": "{open} ouvert · {inProgress} en cours · {resolved} résolu"
   },
@@ -12238,6 +12265,9 @@
   },
   "NNchKY9/XJ": {
     "defaultMessage": "Sources"
+  },
+  "NNpUXptuVe": {
+    "defaultMessage": "Other text"
   },
   "NO+1ZaqMKM": {
     "defaultMessage": "Colonne ajoutée"
@@ -13760,6 +13790,9 @@
   "QbB9yIc9Ea": {
     "defaultMessage": "Colonne"
   },
+  "Qbj8FRFVfp": {
+    "defaultMessage": "{count, plural, one {Save # draft} other {Save # drafts}}"
+  },
   "Qbn+bjzsz0": {
     "defaultMessage": "Glossaires"
   },
@@ -15094,6 +15127,9 @@
   },
   "TUvTVcL3il": {
     "defaultMessage": "Ouvrir dans Hyperlocalise"
+  },
+  "TV/xfNXFY0": {
+    "defaultMessage": "Slide {number}"
   },
   "TVxvj2B1bk": {
     "defaultMessage": "Aucun avis en attente"
@@ -17503,6 +17539,9 @@
   },
   "YUmBaBzXHy": {
     "defaultMessage": "ID de tâche externe"
+  },
+  "YVSpc4Fgtj": {
+    "defaultMessage": "Header {number}"
   },
   "YW2bfmVhJb": {
     "defaultMessage": "Constatations"
@@ -21134,6 +21173,9 @@
   "flcDp2zUQk": {
     "defaultMessage": "Testez d’abord au Japon, puis conservez la version qui fonctionne. Votre développeur connecte le site une seule fois."
   },
+  "fmDOQaEtb/": {
+    "defaultMessage": "Document"
+  },
   "fmHJLMYbQV": {
     "defaultMessage": "Raccourcis clavier"
   },
@@ -21184,6 +21226,9 @@
   },
   "fu8eVhN1Ej": {
     "defaultMessage": "Afficher au moins deux versions et conserver celle qui fonctionne."
+  },
+  "fuGS+tbzu0": {
+    "defaultMessage": "{count, plural, one {# edit was not saved.} other {# edits were not saved.}} Check the highlighted fields."
   },
   "fuMDhQC4xa": {
     "defaultMessage": "Aucun dépôt GitHub"
@@ -23629,6 +23674,9 @@
   },
   "kaCV+wVrsO": {
     "defaultMessage": "Ajouter une synchronisation de contenu"
+  },
+  "kbAlbZYGxZ": {
+    "defaultMessage": "Footer {number}"
   },
   "kbpV8xkMoq": {
     "defaultMessage": "Commentaires"
@@ -27953,6 +28001,9 @@
   "tCUf/LZUI9": {
     "defaultMessage": "Transformez les demandes Slack et les tableaux Canva en travaux de localisation cadrés, avec le contexte joint dès le départ."
   },
+  "tCdxVUY0DH": {
+    "defaultMessage": "Endnotes"
+  },
   "tCoNRn2dnG": {
     "defaultMessage": "Supprimer la tâche Crowdin ?"
   },
@@ -29387,6 +29438,9 @@
   "w79MA47tly": {
     "defaultMessage": "3 chaînes modifiées, 1 faute de français corrigée directement depuis le fil de discussion de la PR"
   },
+  "w7GEIfNjc0": {
+    "defaultMessage": "Footnotes"
+  },
   "w7J+PHlma7": {
     "defaultMessage": "Conseils du glossaire"
   },
@@ -29665,6 +29719,9 @@
   },
   "wgpJwxQgNi": {
     "defaultMessage": "Chargement de l’utilisation du forfait"
+  },
+  "whMSAtiplz": {
+    "defaultMessage": "Comments"
   },
   "whTnlyYlKA": {
     "defaultMessage": "Télécharger {locale}"
