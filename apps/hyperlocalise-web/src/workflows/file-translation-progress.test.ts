@@ -271,38 +271,46 @@ describe("completedFileTranslationKeys", () => {
 });
 
 describe("sourceKeysFromFileTranslationLock", () => {
-  const sourceEntries = {
-    "home.title": "Home",
-    "home.cta": "Start free trial",
-    "Sheet1!B3": "Cell",
-  };
+  it.each(["strings.fr-FR.xlsx", "strings.fr-FR.csv", "out/strings.fr-FR.TSV"])(
+    "strips the shared-workbook locale suffix for %s",
+    (filename) => {
+      expect(
+        sourceKeysFromFileTranslationLock(
+          ["home.title::fr-FR", "home.cta::fr-FR", "Sheet1!B3::fr-FR"],
+          filename,
+          "fr-FR",
+        ),
+      ).toEqual(["home.title", "home.cta", "Sheet1!B3"]);
+    },
+  );
 
-  it("strips the shared-workbook locale suffix so file jobs persist xlsx/csv keys", () => {
+  it("keeps both keys when a spreadsheet has foo and foo::locale", () => {
     expect(
       sourceKeysFromFileTranslationLock(
-        ["home.title::fr-FR", "home.cta::fr-FR", "Sheet1!B3::fr-FR"],
-        sourceEntries,
+        ["foo::fr-FR", "foo::fr-FR::fr-FR"],
+        "strings.fr-FR.xlsx",
         "fr-FR",
       ),
-    ).toEqual(["home.title", "home.cta", "Sheet1!B3"]);
+    ).toEqual(["foo", "foo::fr-FR"]);
   });
 
-  it("keeps unsuffixed JSON lock keys", () => {
+  it("does not strip non-spreadsheet lock keys that end in the locale", () => {
     expect(
-      sourceKeysFromFileTranslationLock(["home.title", "home.cta"], sourceEntries, "fr-FR"),
-    ).toEqual(["home.title", "home.cta"]);
-  });
-
-  it("does not strip when the lock key itself is a source key", () => {
-    const entries = { "path::key": "Value", "path::key::fr-FR": "Other" };
-    expect(
-      sourceKeysFromFileTranslationLock(["path::key::fr-FR", "path::key"], entries, "fr-FR"),
+      sourceKeysFromFileTranslationLock(
+        ["path::key::fr-FR", "path::key"],
+        "strings.fr-FR.json",
+        "fr-FR",
+      ),
     ).toEqual(["path::key::fr-FR", "path::key"]);
   });
 
-  it("leaves unknown suffixed keys unchanged so missing completions still fail closed", () => {
+  it("leaves spreadsheet keys without the target locale suffix unchanged", () => {
     expect(
-      sourceKeysFromFileTranslationLock(["missing.cta::fr-FR"], sourceEntries, "fr-FR"),
-    ).toEqual(["missing.cta::fr-FR"]);
+      sourceKeysFromFileTranslationLock(
+        ["home.title", "home.cta::de-DE"],
+        "strings.fr-FR.csv",
+        "fr-FR",
+      ),
+    ).toEqual(["home.title", "home.cta::de-DE"]);
   });
 });

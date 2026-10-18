@@ -99,31 +99,28 @@ export function completedFileTranslationKeys(lock: unknown, outputFilename: stri
   return Object.keys(entries?.[1] ?? {});
 }
 
+const SHARED_LOCALE_TARGET_EXTENSION = /\.(xlsx|csv|tsv)$/i;
+
 /**
- * Map lock completion keys onto source entry keys. Shared `.xlsx`/`.csv`/`.tsv`
- * lock identities are `key::locale` so two locales of one workbook stay distinct;
- * `hl entries` and CAT still use `key`. Strip the locale only when that yields a
- * source key and the unsuffixed lock key is not itself a source key.
+ * Map lock completion keys onto source entry keys. The CLI suffixes every
+ * `.xlsx`/`.csv`/`.tsv` lock identity with `::locale` so two locales of one
+ * workbook stay distinct; `hl entries` and CAT still use `key`. Spreadsheet keys
+ * are user-provided and may themselves end in `::locale`, so the suffix is
+ * stripped by target format rather than by checking which key exists.
  */
 export function sourceKeysFromFileTranslationLock(
   lockKeys: readonly string[],
-  sourceEntries: Readonly<Record<string, string>>,
+  outputFilename: string,
   targetLocale?: string,
 ): string[] {
   const locale = targetLocale?.trim();
-  const suffix = locale ? `::${locale}` : "";
-  return lockKeys.map((key) => {
-    if (Object.hasOwn(sourceEntries, key)) {
-      return key;
-    }
-    if (suffix && key.endsWith(suffix)) {
-      const stripped = key.slice(0, -suffix.length);
-      if (stripped && Object.hasOwn(sourceEntries, stripped)) {
-        return stripped;
-      }
-    }
-    return key;
-  });
+  if (!locale || !SHARED_LOCALE_TARGET_EXTENSION.test(outputFilename)) {
+    return [...lockKeys];
+  }
+  const suffix = `::${locale}`;
+  return lockKeys.map((key) =>
+    key.length > suffix.length && key.endsWith(suffix) ? key.slice(0, -suffix.length) : key,
+  );
 }
 
 export async function collectFileTranslationPageStep(input: {
@@ -181,7 +178,7 @@ export async function collectFileTranslationPageStep(input: {
       ...new Set([
         ...sourceKeysFromFileTranslationLock(
           completedFileTranslationKeys(lock, filename),
-          input.sourceEntries,
+          filename,
           locale,
         ),
         ...Object.keys(input.prefills[locale] ?? {}),
