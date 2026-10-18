@@ -50,6 +50,14 @@ describe("convertXlsToXlsx", () => {
     expect(isOk(first) && isOk(second) && Buffer.compare(first.value, second.value)).toBe(0);
   });
 
+  it("rejects oversized binary workbooks before converting", () => {
+    const content = new Uint8Array(64 * 1024 * 1024 + 1);
+    content.set([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
+
+    const result = convertXlsToXlsx(content);
+    expect(isErr(result) && result.error).toEqual({ code: "xlsx_too_large" });
+  });
+
   it("rejects content that is not a binary workbook", () => {
     for (const content of [
       new TextEncoder().encode("Key,English\nhome.title,Home\n"),

@@ -13,7 +13,10 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import * as XLSX from "xlsx";
 
-import { err, ok } from "@/lib/primitives/result/results";
+import { err, isOk, ok } from "@/lib/primitives/result/results";
+import { DOCX_CONTENT_TYPE, readDocxEntries } from "@/lib/translation/ooxml/docx-document";
+import { ooxmlFixture } from "@/lib/translation/ooxml/ooxml.fixture";
+import { PPTX_CONTENT_TYPE, readPptxEntries } from "@/lib/translation/ooxml/pptx-deck";
 import { multilingualXlsxFixture } from "@/lib/translation/xlsx/xlsx-workbook.fixture";
 import { XLSX_CONTENT_TYPE } from "@/lib/translation/xlsx/xlsx-workbook";
 
@@ -41,6 +44,8 @@ vi.mock("@/lib/projects/files/office-source-entries", () => ({
 
 import {
   loadProjectOfficeTranslationDownload,
+  officeTranslationDownloadFailure,
+  officeTranslationDownloadFilename,
   projectOfficeTranslationDownloadPath,
 } from "./office-translation-download";
 
@@ -65,6 +70,29 @@ function readyTranslations(overrides?: {
     translatedKeyCount: overrides?.translatedKeyCount ?? 1,
   };
 }
+
+describe("officeTranslationDownloadFilename", () => {
+  it("keeps Word and PowerPoint extensions and swaps .xls for .xlsx", () => {
+    expect(officeTranslationDownloadFilename("report.docx", { extension: ".docx" })).toBe(
+      "report.docx",
+    );
+    expect(officeTranslationDownloadFilename("slides/deck.pptx", { extension: ".pptx" })).toBe(
+      "slides/deck.pptx",
+    );
+    expect(officeTranslationDownloadFilename("legacy.xls", { extension: ".xlsx" })).toBe(
+      "legacy.xlsx",
+    );
+  });
+});
+
+describe("officeTranslationDownloadFailure", () => {
+  it("keeps Excel callers on xlsx_export_failed and Word/PowerPoint on office_export_failed", () => {
+    expect(officeTranslationDownloadFailure("copy/strings.xlsx").code).toBe("xlsx_export_failed");
+    expect(officeTranslationDownloadFailure("copy/legacy.xls").code).toBe("xlsx_export_failed");
+    expect(officeTranslationDownloadFailure("docs/report.docx").code).toBe("office_export_failed");
+    expect(officeTranslationDownloadFailure("slides/deck.pptx").code).toBe("office_export_failed");
+  });
+});
 
 describe("projectOfficeTranslationDownloadPath", () => {
   it("encodes the org, project, path, and locale for the File view URL", () => {
@@ -172,5 +200,95 @@ describe("loadProjectOfficeTranslationDownload", () => {
     expect(sheet.B2?.v).toBeUndefined();
     expect(sheet.B3?.v).toBe("Essai gratuit");
     expect(sheet.D3?.v).toBe("Start free trial");
+  });
+
+  it("writes ready translations into Word paragraphs and keeps untranslated source text", async () => {
+    mocks.getStoredFileContent.mockResolvedValue({
+      content: Buffer.from(await ooxmlFixture("docx-basic")),
+    });
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue(
+      readyTranslations({
+        prefilled: { "word/document.xml#0": "Rapport trimestriel" },
+        loadedKeyCount: 8,
+        translatedKeyCount: 1,
+      }),
+    );
+
+    const result = await loadProjectOfficeTranslationDownload({
+      ...INPUT,
+      sourcePath: "docs/report.docx",
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result) || !result.value) {
+      throw new Error("expected a generated Word file");
+    }
+    expect(result.value.contentType).toBe(DOCX_CONTENT_TYPE);
+    expect(result.value.extension).toBe(".docx");
+    const entries = await readDocxEntries(result.value.content);
+    if (!isOk(entries)) {
+      throw new Error(entries.error.code);
+    }
+    expect(entries.value.find((entry) => entry.key === "word/document.xml#0")?.text).toBe(
+      "Rapport trimestriel",
+    );
+    expect(entries.value.find((entry) => entry.key === "word/document.xml#5")?.text).toBe(
+      "Cell text",
+    );
+  });
+
+  it("writes ready translations into PowerPoint paragraphs and keeps untranslated source text", async () => {
+    mocks.getStoredFileContent.mockResolvedValue({
+      content: Buffer.from(await ooxmlFixture("pptx-basic")),
+    });
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue(
+      readyTranslations({
+        prefilled: { "ppt/slides/slide2.xml#0": "Bienvenue" },
+        loadedKeyCount: 3,
+        translatedKeyCount: 1,
+      }),
+    );
+
+    const result = await loadProjectOfficeTranslationDownload({
+      ...INPUT,
+      sourcePath: "slides/deck.pptx",
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result) || !result.value) {
+      throw new Error("expected a generated PowerPoint file");
+    }
+    expect(result.value.contentType).toBe(PPTX_CONTENT_TYPE);
+    expect(result.value.extension).toBe(".pptx");
+    const entries = await readPptxEntries(result.value.content);
+    if (!isOk(entries)) {
+      throw new Error(entries.error.code);
+    }
+    expect(entries.value.find((entry) => entry.key === "ppt/slides/slide2.xml#0")?.text).toBe(
+      "Bienvenue",
+    );
+    expect(entries.value.find((entry) => entry.key === "ppt/slides/slide1.xml#0")?.text).toBe(
+      "Price & plan",
+    );
+  });
+
+  it("propagates Office package errors from Word and PowerPoint templates", async () => {
+    mocks.getStoredFileContent.mockResolvedValue({ content: Buffer.from("not a zip") });
+
+    const docx = await loadProjectOfficeTranslationDownload({
+      ...INPUT,
+      sourcePath: "docs/report.docx",
+    });
+    const pptx = await loadProjectOfficeTranslationDownload({
+      ...INPUT,
+      sourcePath: "slides/deck.pptx",
+    });
+
+    expect(docx).toEqual(
+      err({ code: "invalid_office_file", format: "docx", message: "open package" }),
+    );
+    expect(pptx).toEqual(
+      err({ code: "invalid_office_file", format: "pptx", message: "open package" }),
+    );
   });
 });
