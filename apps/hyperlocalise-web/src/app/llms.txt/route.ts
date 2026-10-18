@@ -131,6 +131,7 @@ ${formatLinks(useCaseLinks)}
 - [Privacy](${SITE_URL}/en/privacy): Privacy policy.
 - [Terms](${SITE_URL}/en/terms): Cloud Service Agreement terms.
 - [Contact](${SITE_URL}/en/contact): Reach the Hyperlocalise team.
+- [Iris](${SITE_URL}/en/iris): Join the waitlist for Iris, the Hyperlocalise creative engine for multilingual content.
 
 ## Optional
 

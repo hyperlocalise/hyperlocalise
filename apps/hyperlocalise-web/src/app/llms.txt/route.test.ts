@@ -72,6 +72,9 @@ describe("llms.txt route", () => {
     expect(body).toContain(
       "[Contact](https://www.hyperlocalise.com/en/contact): Reach the Hyperlocalise team.",
     );
+    expect(body).toContain(
+      "[Iris](https://www.hyperlocalise.com/en/iris): Join the waitlist for Iris, the Hyperlocalise creative engine for multilingual content.",
+    );
     expect(body).not.toContain("github.com/hyperlocalise");
     expect(body).not.toContain("mailto:minh@hyperlocalise.com");
   });

@@ -79,6 +79,7 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/company")).toBe(false);
     expect(isUnsupportedLocalePath("/contact")).toBe(false);
     expect(isUnsupportedLocalePath("/startups")).toBe(false);
+    expect(isUnsupportedLocalePath("/iris")).toBe(false);
     expect(isUnsupportedLocalePath("/localisation-audit")).toBe(false);
     expect(isUnsupportedLocalePath("/localisation-audit/stripe-com")).toBe(false);
     expect(isUnsupportedLocalePath("/chat/acme/11111111-1111-4111-8111-111111111111")).toBe(false);
@@ -203,6 +204,16 @@ describe("proxy", () => {
 
     expect(response?.status).toBe(307);
     expect(response?.headers.get("location")).toBe("https://www.hyperlocalise.com/en/contact");
+    expect(authkitProxyMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects iris paths without a locale prefix", async () => {
+    authkitProxyMock.mockReset();
+
+    const response = await proxy(createRequest("/iris"), {} as never);
+
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get("location")).toBe("https://www.hyperlocalise.com/en/iris");
     expect(authkitProxyMock).not.toHaveBeenCalled();
   });
 
