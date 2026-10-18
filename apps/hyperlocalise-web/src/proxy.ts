@@ -100,6 +100,7 @@ const PUBLIC_LOCALIZED_PATHS = new Set([
   "/company",
   "/contact",
   "/startups",
+  "/iris",
   "/localisation-audit",
 ]);
 const PROTECTED_LOCALIZED_PREFIXES = ["/dashboard", "/org", "/claim-domain"];

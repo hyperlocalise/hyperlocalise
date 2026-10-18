@@ -78,6 +78,16 @@ describe("sitemap", () => {
     }
   });
 
+  it("includes the Iris waitlist page for each locale", async () => {
+    const entries = await sitemap();
+
+    for (const locale of SUPPORTED_APP_LOCALES) {
+      const iris = entries.find((entry) => entry.url === `${SITE_URL}/${locale}/iris`);
+      expect(iris).toBeDefined();
+      expect(iris?.alternates?.languages?.["x-default"]).toBe(`${SITE_URL}/en/iris`);
+    }
+  });
+
   it("includes the localisation audit landing page for each locale", async () => {
     const entries = await sitemap();
 
