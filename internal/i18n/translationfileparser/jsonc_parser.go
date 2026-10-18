@@ -148,34 +148,49 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 			continue
 		}
 
+		hasComments := len(pendingComments) > 0 || len(inlineComment) > 0
+		isObject := bytes.HasPrefix(valuePart, []byte("{")) && jsoncObjectValueSpansMultipleLines(valuePart)
+
+		// BOLT OPTIMIZATION: Skip key decoding, string concatenation, and fullKey construction
+		// for leaf keys without comments.
+		if !hasComments && !isObject {
+			continue
+		}
+
 		var fullKey string
 		var decodedKey string
 		if len(stackPrefix) == 0 {
 			var err error
 			decodedKey, err = decodeJSONKeyBytes(keyBytes)
 			if err != nil {
+				pendingComments = pendingComments[:0]
 				continue
 			}
 			fullKey = decodedKey
 		} else {
 			if bytes.IndexByte(keyBytes, '\\') == -1 && bytes.IndexByte(keyBytes, '"') == -1 {
 				decodedKey = string(keyBytes)
-				var b strings.Builder
-				b.Grow(len(stackPrefix) + len(keyBytes))
-				b.WriteString(stackPrefix)
-				b.Write(keyBytes)
-				fullKey = b.String()
+				if hasComments {
+					var b strings.Builder
+					b.Grow(len(stackPrefix) + len(keyBytes))
+					b.WriteString(stackPrefix)
+					b.Write(keyBytes)
+					fullKey = b.String()
+				}
 			} else {
 				var err error
 				decodedKey, err = decodeJSONKeyBytes(keyBytes)
 				if err != nil {
+					pendingComments = pendingComments[:0]
 					continue
 				}
-				var b strings.Builder
-				b.Grow(len(stackPrefix) + len(decodedKey))
-				b.WriteString(stackPrefix)
-				b.WriteString(decodedKey)
-				fullKey = b.String()
+				if hasComments {
+					var b strings.Builder
+					b.Grow(len(stackPrefix) + len(decodedKey))
+					b.WriteString(stackPrefix)
+					b.WriteString(decodedKey)
+					fullKey = b.String()
+				}
 			}
 		}
 
@@ -208,7 +223,7 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 			}
 		}
 
-		if bytes.HasPrefix(valuePart, []byte("{")) && jsoncObjectValueSpansMultipleLines(valuePart) {
+		if isObject {
 			// BOLT OPTIMIZATION: Avoid repeated strings.Join(stack, ".") by incrementally updating stackPrefix.
 			stack = append(stack, decodedKey)
 			stackPrefix += decodedKey + "."
