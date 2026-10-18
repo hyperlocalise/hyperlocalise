@@ -32,6 +32,7 @@ import { multilingualXlsxFixture } from "@/lib/translation/xlsx/xlsx-workbook.fi
 import { XLSX_CONTENT_TYPE } from "@/lib/translation/xlsx/xlsx-workbook";
 import { DOCX_CONTENT_TYPE, readDocxEntries } from "@/lib/translation/ooxml/docx-document";
 import { ooxmlFixture } from "@/lib/translation/ooxml/ooxml.fixture";
+import { PPTX_CONTENT_TYPE, readPptxEntries } from "@/lib/translation/ooxml/pptx-deck";
 import { defaultApiKeyPermissions } from "@/api/routes/api-key/api-key.schema";
 
 import {
@@ -259,6 +260,36 @@ describe("publicTranslationRoutes", () => {
     );
     expect(entries.value.find((entry) => entry.key === "word/document.xml#5")?.text).toBe(
       "Cell text",
+    );
+  });
+
+  it("writes ready translations into the paragraphs of a PowerPoint source", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await allowAllPermissions(apiKey);
+    const sourcePath = "slides/deck.pptx";
+    await seedOfficeSource({
+      project,
+      sourcePath,
+      contentType: PPTX_CONTENT_TYPE,
+      content: Buffer.from(await ooxmlFixture("pptx-basic")),
+    });
+    await approveTranslation(project, "ppt/slides/slide2.xml#0", "Bienvenue");
+
+    const response = await client.api.v1.projects[":projectId"].translations.download.$get(
+      { param: { projectId: project.id }, query: { sourcePath, locale: "fr" } },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe(PPTX_CONTENT_TYPE);
+    expect(response.headers.get("content-disposition")).toContain("deck-fr.pptx");
+    const entries = await readPptxEntries(new Uint8Array(await response.arrayBuffer()));
+    if (!entries.ok) throw new Error(entries.error.code);
+    expect(entries.value.find((entry) => entry.key === "ppt/slides/slide2.xml#0")?.text).toBe(
+      "Bienvenue",
+    );
+    expect(entries.value.find((entry) => entry.key === "ppt/slides/slide1.xml#0")?.text).toBe(
+      "Price & plan",
     );
   });
 
