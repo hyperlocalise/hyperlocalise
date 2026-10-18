@@ -122,7 +122,7 @@ Iwasang gamitin ang `--flatten` sa mga mensaheng ICU na ilalabas bilang iisang r
 Gumawa ng `i18n.yml` sa root ng repository (o sa ilalim ng directory ng iyong app kung inilalagay ng monorepo ang config katabi ng UI):
 
 ```yaml
-version: hyperlocalise@1.13.3
+version: hyperlocalise@1.13.4
 
 locales:
   source: en-US

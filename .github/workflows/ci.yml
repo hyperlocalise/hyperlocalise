@@ -106,7 +106,7 @@ jobs:
       - name: Install Hyperlocalise
         uses: ./install
         with:
-          version: 1.13.3
+          version: 1.13.4
 
       - name: Dry-run sync push
         run: hl sync push --dry-run

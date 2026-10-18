@@ -34,8 +34,8 @@ A native `.xlsx` upload was one Office file. Translators edited the whole workbo
 
 ## Follow-ups
 
-- Release the CLI with the xlsx parser, then bump `sandboxHyperlocaliseReleaseVersion` and the sandbox image `HYPERLOCALISE_VERSION`. This switches workbooks to the CLI. After that, remove the in-process reader from ingest and import; the TypeScript writer stays for downloads.
-- Public API, MCP, and chat file jobs do not accept `.xlsx` yet, because `supportedFileTranslationFileFormats` excludes it.
+- `sandboxHyperlocaliseReleaseVersion` and the sandbox image `HYPERLOCALISE_VERSION` are pinned to 1.13.4, so workbooks go through the CLI. Remove the in-process reader from ingest and import; the TypeScript writer stays for downloads.
+- Public API, MCP, and chat file jobs accept `.xlsx` because the sandbox CLI pin is at `hyperlocaliseCliOfficeReleaseVersion`.
 - Saving edits from File view back into segments.
 - An opt-in setting to import translations already in the workbook at upload.
 - The File view target reloads when the view mounts. It does not refresh while segments change in another view.

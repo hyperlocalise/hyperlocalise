@@ -122,7 +122,7 @@ export function FiltersPage({ savedCount, scope }: { savedCount: number; scope: 
 リポジトリのルート（または、モノレポで設定ファイルを UI の隣に置いている場合はアプリのディレクトリ内）に`i18n.yml`を作成します。
 
 ```yaml
-version: hyperlocalise@1.13.3
+version: hyperlocalise@1.13.4
 
 locales:
   source: en-US
