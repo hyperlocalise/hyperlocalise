@@ -13,10 +13,12 @@
 import type { Metadata } from "next";
 
 import { IrisPage } from "@/components/marketing/iris/iris-page";
+import { JsonLd } from "@/components/seo/json-ld";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
+import { buildIrisJsonLd } from "./build-iris-json-ld";
 import { getIrisRouteMetadata } from "./iris-route-metadata";
 
 type IrisRouteProps = {
@@ -32,6 +34,7 @@ export async function generateMetadata({ params }: IrisRouteProps): Promise<Meta
   return {
     title: metadata.title,
     description: metadata.description,
+    keywords: metadata.keywords,
     alternates: getLocalizedAlternates({ locale, path: "/iris" }),
     openGraph: localizedOpenGraph(locale, "/iris", {
       title: metadata.title,
@@ -41,6 +44,14 @@ export async function generateMetadata({ params }: IrisRouteProps): Promise<Meta
   };
 }
 
-export default function IrisRoutePage() {
-  return <IrisPage />;
+export default async function IrisRoutePage({ params }: IrisRouteProps) {
+  const { lang } = await params;
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+
+  return (
+    <>
+      <JsonLd data={buildIrisJsonLd(locale)} />
+      <IrisPage />
+    </>
+  );
 }

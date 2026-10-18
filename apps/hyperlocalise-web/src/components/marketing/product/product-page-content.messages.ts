@@ -70,6 +70,11 @@ export const productPageMessages = defineMessages({
     id: "wCH+Hr/sNP",
     description: "Navigation label for the Hyperlab product page",
   },
+  productNavIris: {
+    defaultMessage: "Iris",
+    id: "M/LTTbnwGn",
+    description: "Navigation label for the Iris waitlist page",
+  },
   visualAutomationLaunchRequest: {
     defaultMessage: "Launch request",
     id: "SmCgybn22Q",

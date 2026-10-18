@@ -15,12 +15,11 @@ import {
   createMarketingOgImage,
   marketingOgImageContentType,
   marketingOgImageSize,
-  toMarketingOgHeading,
 } from "@/lib/og/create-marketing-og-image";
 
 import { getIrisRouteMetadata } from "./iris-route-metadata";
 
-export const alt = "Iris by Hyperlocalise";
+export const alt = "Iris, the AI localisation engine for multilingual assets";
 export const size = marketingOgImageSize;
 export const contentType = marketingOgImageContentType;
 
@@ -34,7 +33,7 @@ export default async function Image({ params }: IrisOgImageProps) {
   const metadata = getIrisRouteMetadata(intl);
 
   return createMarketingOgImage({
-    heading: toMarketingOgHeading(metadata.title),
+    heading: metadata.ogHeading,
     description: metadata.description,
     locale: lang,
   });

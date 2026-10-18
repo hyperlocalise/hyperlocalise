@@ -96,6 +96,7 @@ export const ProductMenuOpen: Story = {
     await expect(body.getByText("Platform")).toBeInTheDocument();
     await expect(body.getByText("Use cases")).toBeInTheDocument();
     await expect(body.getByRole("link", { name: "Agent Automation" })).toBeInTheDocument();
+    await expect(body.getByRole("link", { name: "Iris" })).toBeInTheDocument();
     await expect(body.getByRole("link", { name: "Product localisation" })).toBeInTheDocument();
   },
 };

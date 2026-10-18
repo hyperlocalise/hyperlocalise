@@ -28,12 +28,17 @@ describe("iris waitlist links", () => {
   it("builds a muted looping YouTube cover embed", () => {
     const src = irisLaunchEmbedSrc();
 
-    expect(src).toContain(`https://www.youtube-nocookie.com/embed/${IRIS_LAUNCH_YOUTUBE_ID}?`);
+    expect(src).toContain(`https://www.youtube.com/embed/${IRIS_LAUNCH_YOUTUBE_ID}?`);
     expect(src).toContain("autoplay=1");
     expect(src).toContain("mute=1");
     expect(src).toContain("loop=1");
     expect(src).toContain(`playlist=${IRIS_LAUNCH_YOUTUBE_ID}`);
     expect(src).toContain("controls=0");
+    expect(src).toContain("cc_load_policy=0");
+    expect(src).toContain("enablejsapi=1");
+    expect(irisLaunchEmbedSrc(IRIS_LAUNCH_YOUTUBE_ID, "https://hyperlocalise.com")).toContain(
+      "origin=https%3A%2F%2Fhyperlocalise.com",
+    );
   });
 
   it("uses the YouTube poster as a still fallback", () => {

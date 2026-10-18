@@ -18,7 +18,7 @@ import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { IrisVideoBackground } from "./iris-video-background";
-import { irisLaunchEmbedSrc, irisLaunchPosterSrc } from "@/lib/iris/iris-waitlist";
+import { irisLaunchEmbedSrc } from "@/lib/iris/iris-waitlist";
 
 const useReducedMotionMock = vi.hoisted(() => vi.fn(() => false as boolean | null));
 
@@ -48,8 +48,8 @@ describe("IrisVideoBackground", () => {
       </IntlProvider>,
     );
 
-    expect(html).toContain(irisLaunchPosterSrc());
     expect(html).not.toContain("<iframe");
+    expect(html).not.toContain("<img");
   });
 
   it("mounts the autoplay embed after the client allows motion", async () => {
@@ -58,8 +58,11 @@ describe("IrisVideoBackground", () => {
     renderBackground();
 
     await waitFor(() => {
-      expect(document.querySelector("iframe")).toHaveAttribute("src", irisLaunchEmbedSrc());
+      const iframe = document.querySelector("iframe");
+      expect(iframe).toHaveAttribute("src", irisLaunchEmbedSrc(undefined, window.location.origin));
+      expect(iframe).toHaveClass("h-[min(100%,56.25vw)]", "w-[min(100%,177.78vh)]");
     });
+    expect(document.querySelector("img")).toBeNull();
   });
 
   it("keeps the poster when the client prefers reduced motion", async () => {

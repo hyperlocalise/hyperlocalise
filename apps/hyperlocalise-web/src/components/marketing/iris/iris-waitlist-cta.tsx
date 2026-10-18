@@ -15,6 +15,7 @@
 import { FormattedMessage } from "react-intl";
 
 import { irisPageMessages } from "./iris-page.messages";
+import { Button } from "@/components/ui/button";
 import { IRIS_WAITLIST_FORM_ID, IRIS_WAITLIST_URL } from "@/lib/iris/iris-waitlist";
 
 type TallyPopup = {
@@ -47,30 +48,36 @@ function loadTallyWidget() {
   document.body.appendChild(script);
 }
 
-export function IrisWaitlistCta({ className }: { className?: string }) {
+export function IrisWaitlistCta() {
   return (
-    <a
-      className={className}
-      href={IRIS_WAITLIST_URL}
-      onClick={(event) => {
-        const tally = tallyPopup();
-        if (!tally) {
-          return;
-        }
+    <Button
+      className="h-12 px-6 text-base"
+      nativeButton={false}
+      render={
+        <a
+          href={IRIS_WAITLIST_URL}
+          onClick={(event) => {
+            const tally = tallyPopup();
+            if (!tally) {
+              return;
+            }
 
-        event.preventDefault();
-        tally.openPopup(IRIS_WAITLIST_FORM_ID, {
-          layout: "modal",
-          overlay: true,
-          width: 480,
-        });
-      }}
-      onFocus={loadTallyWidget}
-      onMouseEnter={loadTallyWidget}
-      rel="noopener noreferrer"
-      target="_blank"
+            event.preventDefault();
+            tally.openPopup(IRIS_WAITLIST_FORM_ID, {
+              layout: "modal",
+              overlay: true,
+              width: 480,
+            });
+          }}
+          onFocus={loadTallyWidget}
+          onMouseEnter={loadTallyWidget}
+          rel="noopener noreferrer"
+          target="_blank"
+        />
+      }
+      size="lg"
     >
       <FormattedMessage {...irisPageMessages.joinWaitlist} />
-    </a>
+    </Button>
   );
 }

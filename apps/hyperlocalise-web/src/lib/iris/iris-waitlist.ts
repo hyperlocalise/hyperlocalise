@@ -19,7 +19,7 @@ export function irisLaunchPosterSrc(videoId = IRIS_LAUNCH_YOUTUBE_ID) {
   return `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
 }
 
-export function irisLaunchEmbedSrc(videoId = IRIS_LAUNCH_YOUTUBE_ID) {
+export function irisLaunchEmbedSrc(videoId = IRIS_LAUNCH_YOUTUBE_ID, origin?: string) {
   const params = new URLSearchParams({
     autoplay: "1",
     mute: "1",
@@ -34,7 +34,12 @@ export function irisLaunchEmbedSrc(videoId = IRIS_LAUNCH_YOUTUBE_ID) {
     disablekb: "1",
     fs: "0",
     cc_load_policy: "0",
+    enablejsapi: "1",
   });
 
-  return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
+  if (origin) {
+    params.set("origin", origin);
+  }
+
+  return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
 }
