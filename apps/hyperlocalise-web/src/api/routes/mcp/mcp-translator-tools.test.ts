@@ -476,4 +476,140 @@ describe("MCP translator tools", () => {
       output: { error: "forbidden" },
     });
   });
+
+  it("round-trips a translator comment on one translation", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const translator = fixture.createWorkosIdentityForOrganization(
+      stored.identity.organization,
+      "translator",
+    );
+
+    if (!stored.project.teamId) {
+      throw new Error("expected project team");
+    }
+
+    await grantTeamAccess(translator, stored.project.teamId);
+
+    const { keys } = await seedFileKeys({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      sourcePath: "locales/comments.json",
+      entries: [{ key: "title", text: "Title" }],
+    });
+    const [translationKey] = keys;
+    if (!translationKey) {
+      throw new Error("expected translation key");
+    }
+
+    const headers = await authenticatedMcpHeaders(translator);
+    const added = await readToolResult<{
+      comment?: { id: string; text: string; author: string | null };
+    }>(
+      await callMcpTool(headers, "add_translation_comment", {
+        projectId: stored.project.id,
+        translationKeyId: translationKey.id,
+        targetLocale: "fr-FR",
+        text: "Use formal tone.",
+      }),
+    );
+
+    expect(added.isError).toBe(false);
+    expect(added.output.comment).toEqual(
+      expect.objectContaining({
+        text: "Use formal tone.",
+      }),
+    );
+
+    const listed = await readToolResult<{
+      comments?: Array<{ id: string; text: string }>;
+    }>(
+      await callMcpTool(headers, "list_translation_comments", {
+        projectId: stored.project.id,
+        translationKeyId: translationKey.id,
+        targetLocale: "fr-FR",
+      }),
+    );
+
+    expect(listed.isError).toBe(false);
+    expect(listed.output.comments).toEqual([
+      expect.objectContaining({
+        id: added.output.comment?.id,
+        text: "Use formal tone.",
+      }),
+    ]);
+  });
+
+  it("forbids read-only members from adding comments", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const member = fixture.createWorkosIdentityForOrganization(
+      stored.identity.organization,
+      "member",
+    );
+
+    if (!stored.project.teamId) {
+      throw new Error("expected project team");
+    }
+
+    await grantTeamAccess(member, stored.project.teamId);
+
+    const { keys } = await seedFileKeys({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      sourcePath: "locales/member-comment.json",
+      entries: [{ key: "hello", text: "Hello" }],
+    });
+    const [translationKey] = keys;
+    if (!translationKey) {
+      throw new Error("expected translation key");
+    }
+
+    const headers = await authenticatedMcpHeaders(member);
+    const result = await readToolResult<{ error?: string }>(
+      await callMcpTool(headers, "add_translation_comment", {
+        projectId: stored.project.id,
+        translationKeyId: translationKey.id,
+        targetLocale: "fr-FR",
+        text: "Looks good.",
+      }),
+    );
+
+    expect(result).toMatchObject({
+      isError: true,
+      output: { error: "forbidden" },
+    });
+
+    const comments = await db
+      .select({ id: schema.projectTranslationComments.id })
+      .from(schema.projectTranslationComments)
+      .where(eq(schema.projectTranslationComments.translationKeyId, translationKey.id));
+    expect(comments).toEqual([]);
+  });
+
+  it("does not list comments for a locale the project does not target", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const { keys } = await seedFileKeys({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      sourcePath: "locales/locale.json",
+      entries: [{ key: "hello", text: "Hello" }],
+    });
+    const [translationKey] = keys;
+    if (!translationKey) {
+      throw new Error("expected translation key");
+    }
+
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const result = await readToolResult<{ error?: string }>(
+      await callMcpTool(headers, "list_translation_comments", {
+        projectId: stored.project.id,
+        translationKeyId: translationKey.id,
+        targetLocale: "de-DE",
+      }),
+    );
+
+    expect(result).toMatchObject({
+      isError: true,
+      output: { error: "translation_not_found" },
+    });
+  });
 });

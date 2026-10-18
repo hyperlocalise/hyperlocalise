@@ -10,7 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it } from "vite-plus/test";
+import JSZip from "jszip";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
@@ -19,7 +20,7 @@ import {
   cellLayoutXlsxFixture,
   multilingualXlsxFixture,
 } from "./xlsx-workbook.fixture";
-import { loadXlsxWorkbook, readXlsxEntries } from "./xlsx-workbook";
+import { checkXlsxArchiveSize, loadXlsxWorkbook, readXlsxEntries } from "./xlsx-workbook";
 
 async function load(content: Uint8Array) {
   const workbook = await loadXlsxWorkbook(content);
@@ -116,5 +117,20 @@ describe("readXlsxEntries", () => {
   it("rejects content that is not a workbook", async () => {
     const workbook = await loadXlsxWorkbook(new TextEncoder().encode("not a zip"));
     expect(isErr(workbook) && workbook.error).toEqual({ code: "invalid_xlsx" });
+  });
+
+  it("rejects archives whose declared unzipped size exceeds the cap", async () => {
+    const loadAsync = vi.spyOn(JSZip, "loadAsync").mockResolvedValue({
+      files: {
+        "xl/workbook.xml": { _data: { uncompressedSize: 256 * 1024 * 1024 + 1 } },
+      },
+    } as never);
+
+    try {
+      const result = await checkXlsxArchiveSize(new Uint8Array([0x50, 0x4b]));
+      expect(isErr(result) && result.error).toEqual({ code: "xlsx_too_large" });
+    } finally {
+      loadAsync.mockRestore();
+    }
   });
 });
