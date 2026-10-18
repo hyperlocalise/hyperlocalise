@@ -99,6 +99,33 @@ export function completedFileTranslationKeys(lock: unknown, outputFilename: stri
   return Object.keys(entries?.[1] ?? {});
 }
 
+/**
+ * Map lock completion keys onto source entry keys. Shared `.xlsx`/`.csv`/`.tsv`
+ * lock identities are `key::locale` so two locales of one workbook stay distinct;
+ * `hl entries` and CAT still use `key`. Strip the locale only when that yields a
+ * source key and the unsuffixed lock key is not itself a source key.
+ */
+export function sourceKeysFromFileTranslationLock(
+  lockKeys: readonly string[],
+  sourceEntries: Readonly<Record<string, string>>,
+  targetLocale?: string,
+): string[] {
+  const locale = targetLocale?.trim();
+  const suffix = locale ? `::${locale}` : "";
+  return lockKeys.map((key) => {
+    if (Object.hasOwn(sourceEntries, key)) {
+      return key;
+    }
+    if (suffix && key.endsWith(suffix)) {
+      const stripped = key.slice(0, -suffix.length);
+      if (stripped && Object.hasOwn(sourceEntries, stripped)) {
+        return stripped;
+      }
+    }
+    return key;
+  });
+}
+
 export async function collectFileTranslationPageStep(input: {
   sandboxId: string;
   inputFilename: string;
@@ -152,7 +179,11 @@ export async function collectFileTranslationPageStep(input: {
     }
     const keys = [
       ...new Set([
-        ...completedFileTranslationKeys(lock, filename),
+        ...sourceKeysFromFileTranslationLock(
+          completedFileTranslationKeys(lock, filename),
+          input.sourceEntries,
+          locale,
+        ),
         ...Object.keys(input.prefills[locale] ?? {}),
       ]),
     ].filter(

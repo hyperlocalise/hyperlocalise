@@ -17,6 +17,7 @@ import {
   collectHtmlTranslationPageEntries,
   completedFileTranslationKeys,
   isFileTranslationCliHardFailure,
+  sourceKeysFromFileTranslationLock,
 } from "./file-translation-progress";
 
 describe("collectCompletedTranslationPageEntries", () => {
@@ -266,5 +267,42 @@ describe("completedFileTranslationKeys", () => {
         "fr.json",
       ),
     ).toThrow();
+  });
+});
+
+describe("sourceKeysFromFileTranslationLock", () => {
+  const sourceEntries = {
+    "home.title": "Home",
+    "home.cta": "Start free trial",
+    "Sheet1!B3": "Cell",
+  };
+
+  it("strips the shared-workbook locale suffix so file jobs persist xlsx/csv keys", () => {
+    expect(
+      sourceKeysFromFileTranslationLock(
+        ["home.title::fr-FR", "home.cta::fr-FR", "Sheet1!B3::fr-FR"],
+        sourceEntries,
+        "fr-FR",
+      ),
+    ).toEqual(["home.title", "home.cta", "Sheet1!B3"]);
+  });
+
+  it("keeps unsuffixed JSON lock keys", () => {
+    expect(
+      sourceKeysFromFileTranslationLock(["home.title", "home.cta"], sourceEntries, "fr-FR"),
+    ).toEqual(["home.title", "home.cta"]);
+  });
+
+  it("does not strip when the lock key itself is a source key", () => {
+    const entries = { "path::key": "Value", "path::key::fr-FR": "Other" };
+    expect(
+      sourceKeysFromFileTranslationLock(["path::key::fr-FR", "path::key"], entries, "fr-FR"),
+    ).toEqual(["path::key::fr-FR", "path::key"]);
+  });
+
+  it("leaves unknown suffixed keys unchanged so missing completions still fail closed", () => {
+    expect(
+      sourceKeysFromFileTranslationLock(["missing.cta::fr-FR"], sourceEntries, "fr-FR"),
+    ).toEqual(["missing.cta::fr-FR"]);
   });
 });
