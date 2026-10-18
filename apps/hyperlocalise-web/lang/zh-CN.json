@@ -611,6 +611,9 @@
   "/BDbP6ag0g": {
     "defaultMessage": "Experiments"
   },
+  "/Btv5OtACg": {
+    "defaultMessage": "{count, plural, one {Saved # changed segment as a draft.} other {Saved # changed segments as drafts.}}"
+  },
   "/C52lRfZjE": {
     "defaultMessage": "加入候补名单"
   },
@@ -1865,6 +1868,9 @@
   "1krX2eFo9o": {
     "defaultMessage": "Contentful Webhook"
   },
+  "1lU83WzoEM": {
+    "defaultMessage": "The file was saved, but its edits could not be written back to segments."
+  },
   "1lkpRyh3Xt": {
     "defaultMessage": "从已批准的工作中捕获的信号"
   },
@@ -2441,6 +2447,9 @@
   "2uwHtwT4Tc": {
     "defaultMessage": "评价"
   },
+  "2w737Ot4Fa": {
+    "defaultMessage": "Text"
+  },
   "2w98ENBS95": {
     "defaultMessage": "Type"
   },
@@ -2674,6 +2683,9 @@
   },
   "3MzWPxEFTr": {
     "defaultMessage": "打开样式指南"
+  },
+  "3NV0GFE6VT": {
+    "defaultMessage": "Speaker notes, slide {number}"
   },
   "3NiEPa2gwT": {
     "defaultMessage": "项目"
@@ -3811,6 +3823,9 @@
   },
   "5ilEKzvkRa": {
     "defaultMessage": "免费开始"
+  },
+  "5jD6oFvCYS": {
+    "defaultMessage": "Added, removed, or sentence-split paragraphs and edits blocked by QA keep only the file copy. Edit them in a segment view: {keys}"
   },
   "5jQYM3pK9b": {
     "defaultMessage": "定义"
@@ -6311,6 +6326,9 @@
   "AzlAJgQRne": {
     "defaultMessage": "无法导出 TMX"
   },
+  "B+2R+CguDm": {
+    "defaultMessage": "Edits save as drafts. The preview is rebuilt from the saved text."
+  },
   "B+9mu1WlLc": {
     "defaultMessage": "已成功"
   },
@@ -8014,6 +8032,9 @@
   },
   "ENDjImu9Gr": {
     "defaultMessage": "最新任务"
+  },
+  "ENMJl6+UHz": {
+    "defaultMessage": "{count, plural, one {# edit was not saved to a segment.} other {# edits were not saved to segments.}}"
   },
   "ENauN48xg5": {
     "defaultMessage": "创建了一个项目"
@@ -10043,6 +10064,9 @@
   "IkCkDVLrow": {
     "defaultMessage": "市场背景"
   },
+  "IkjX3objbn": {
+    "defaultMessage": "Load more text"
+  },
   "IksPpT37Wn": {
     "defaultMessage": "{count} 个未解决北京pk"
   },
@@ -11741,6 +11765,9 @@
   "MM0m7VaEfu": {
     "defaultMessage": "您无权访问此翻译记忆库的导入和导出历史记录。"
   },
+  "MM2Ni9bZuS": {
+    "defaultMessage": "Paragraph {number}"
+  },
   "MMFb5MTldp": {
     "defaultMessage": "{open} 未解决 · {inProgress} 处理中 · {resolved} 已解决"
   },
@@ -12238,6 +12265,9 @@
   },
   "NNchKY9/XJ": {
     "defaultMessage": "Sources"
+  },
+  "NNpUXptuVe": {
+    "defaultMessage": "Other text"
   },
   "NO+1ZaqMKM": {
     "defaultMessage": "列已添加"
@@ -13760,6 +13790,9 @@
   "QbB9yIc9Ea": {
     "defaultMessage": "Column"
   },
+  "Qbj8FRFVfp": {
+    "defaultMessage": "{count, plural, one {Save # draft} other {Save # drafts}}"
+  },
   "Qbn+bjzsz0": {
     "defaultMessage": "Glossaries"
   },
@@ -15094,6 +15127,9 @@
   },
   "TUvTVcL3il": {
     "defaultMessage": "在 Hyperlocalise 中打开"
+  },
+  "TV/xfNXFY0": {
+    "defaultMessage": "Slide {number}"
   },
   "TVxvj2B1bk": {
     "defaultMessage": "没有待处理的评价"
@@ -17503,6 +17539,9 @@
   },
   "YUmBaBzXHy": {
     "defaultMessage": "外部任务 ID"
+  },
+  "YVSpc4Fgtj": {
+    "defaultMessage": "Header {number}"
   },
   "YW2bfmVhJb": {
     "defaultMessage": "调查结果"
@@ -21134,6 +21173,9 @@
   "flcDp2zUQk": {
     "defaultMessage": "先在日本进行测试，然后保留可行的版本。您的开发者只需连接网站一次。"
   },
+  "fmDOQaEtb/": {
+    "defaultMessage": "Document"
+  },
   "fmHJLMYbQV": {
     "defaultMessage": "键盘快捷键"
   },
@@ -21184,6 +21226,9 @@
   },
   "fu8eVhN1Ej": {
     "defaultMessage": "显示两个或更多版本，并保留可行的那个。"
+  },
+  "fuGS+tbzu0": {
+    "defaultMessage": "{count, plural, one {# edit was not saved.} other {# edits were not saved.}} Check the highlighted fields."
   },
   "fuMDhQC4xa": {
     "defaultMessage": "没有 GitHub 仓库"
@@ -23629,6 +23674,9 @@
   },
   "kaCV+wVrsO": {
     "defaultMessage": "添加内容同步"
+  },
+  "kbAlbZYGxZ": {
+    "defaultMessage": "Footer {number}"
   },
   "kbpV8xkMoq": {
     "defaultMessage": "评论"
@@ -27953,6 +28001,9 @@
   "tCUf/LZUI9": {
     "defaultMessage": "将 Slack 请求和 Canva 画板转化为范围明确的本地化工作，从一开始就附带相关上下文。"
   },
+  "tCdxVUY0DH": {
+    "defaultMessage": "Endnotes"
+  },
   "tCoNRn2dnG": {
     "defaultMessage": "删除 Crowdin 任务？"
   },
@@ -29387,6 +29438,9 @@
   "w79MA47tly": {
     "defaultMessage": "3 个字符串已更改，1 个法语拼写错误已直接在 PR 讨论串中更正"
   },
+  "w7GEIfNjc0": {
+    "defaultMessage": "Footnotes"
+  },
   "w7J+PHlma7": {
     "defaultMessage": "术语表指南"
   },
@@ -29665,6 +29719,9 @@
   },
   "wgpJwxQgNi": {
     "defaultMessage": "正在加载套餐使用情况"
+  },
+  "whMSAtiplz": {
+    "defaultMessage": "Comments"
   },
   "whTnlyYlKA": {
     "defaultMessage": "下载 {locale}"

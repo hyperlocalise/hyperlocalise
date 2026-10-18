@@ -122,7 +122,7 @@ Undgå `--flatten` på ICU-meddelelser, som du vil udsende som enkelte react-int
 Opret `i18n.yml` i roden af repositoriet (eller under din app-mappe, hvis monorepoet holder konfigurationen ved siden af brugergrænsefladen):
 
 ```yaml
-version: hyperlocalise@1.13.4
+version: hyperlocalise@1.13.3
 
 locales:
   source: en-US

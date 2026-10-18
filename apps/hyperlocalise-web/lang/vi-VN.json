@@ -611,6 +611,9 @@
   "/BDbP6ag0g": {
     "defaultMessage": "Experiments"
   },
+  "/Btv5OtACg": {
+    "defaultMessage": "{count, plural, one {Saved # changed segment as a draft.} other {Saved # changed segments as drafts.}}"
+  },
   "/C52lRfZjE": {
     "defaultMessage": "Tham gia danh sách chờ"
   },
@@ -1865,6 +1868,9 @@
   "1krX2eFo9o": {
     "defaultMessage": "Webhook Contentful"
   },
+  "1lU83WzoEM": {
+    "defaultMessage": "The file was saved, but its edits could not be written back to segments."
+  },
   "1lkpRyh3Xt": {
     "defaultMessage": "Các tín hiệu được ghi nhận từ công việc đã được phê duyệt"
   },
@@ -2441,6 +2447,9 @@
   "2uwHtwT4Tc": {
     "defaultMessage": "Đánh giá"
   },
+  "2w737Ot4Fa": {
+    "defaultMessage": "Text"
+  },
   "2w98ENBS95": {
     "defaultMessage": "Type"
   },
@@ -2674,6 +2683,9 @@
   },
   "3MzWPxEFTr": {
     "defaultMessage": "Mở hướng dẫn kiểu dáng"
+  },
+  "3NV0GFE6VT": {
+    "defaultMessage": "Speaker notes, slide {number}"
   },
   "3NiEPa2gwT": {
     "defaultMessage": "dự án"
@@ -3811,6 +3823,9 @@
   },
   "5ilEKzvkRa": {
     "defaultMessage": "Bắt đầu miễn phí"
+  },
+  "5jD6oFvCYS": {
+    "defaultMessage": "Added, removed, or sentence-split paragraphs and edits blocked by QA keep only the file copy. Edit them in a segment view: {keys}"
   },
   "5jQYM3pK9b": {
     "defaultMessage": "Định nghĩa"
@@ -6311,6 +6326,9 @@
   "AzlAJgQRne": {
     "defaultMessage": "Không thể xuất TMX"
   },
+  "B+2R+CguDm": {
+    "defaultMessage": "Edits save as drafts. The preview is rebuilt from the saved text."
+  },
   "B+9mu1WlLc": {
     "defaultMessage": "Đã thành công"
   },
@@ -8014,6 +8032,9 @@
   },
   "ENDjImu9Gr": {
     "defaultMessage": "Công vi��c mới nhất"
+  },
+  "ENMJl6+UHz": {
+    "defaultMessage": "{count, plural, one {# edit was not saved to a segment.} other {# edits were not saved to segments.}}"
   },
   "ENauN48xg5": {
     "defaultMessage": "đã tạo một dự án"
@@ -10043,6 +10064,9 @@
   "IkCkDVLrow": {
     "defaultMessage": "Bối cảnh thị trường"
   },
+  "IkjX3objbn": {
+    "defaultMessage": "Load more text"
+  },
   "IksPpT37Wn": {
     "defaultMessage": "{count} đang mở"
   },
@@ -11741,6 +11765,9 @@
   "MM0m7VaEfu": {
     "defaultMessage": "Bạn không có quyền truy cập vào lịch sử nhập và xuất của bộ nhớ dịch này."
   },
+  "MM2Ni9bZuS": {
+    "defaultMessage": "Paragraph {number}"
+  },
   "MMFb5MTldp": {
     "defaultMessage": "{open} đã mở · {inProgress} đang xử lý · {resolved} đã giải quyết"
   },
@@ -12238,6 +12265,9 @@
   },
   "NNchKY9/XJ": {
     "defaultMessage": "Sources"
+  },
+  "NNpUXptuVe": {
+    "defaultMessage": "Other text"
   },
   "NO+1ZaqMKM": {
     "defaultMessage": "Đã thêm cột"
@@ -13760,6 +13790,9 @@
   "QbB9yIc9Ea": {
     "defaultMessage": "Column"
   },
+  "Qbj8FRFVfp": {
+    "defaultMessage": "{count, plural, one {Save # draft} other {Save # drafts}}"
+  },
   "Qbn+bjzsz0": {
     "defaultMessage": "Bảng thuật ngữ"
   },
@@ -15094,6 +15127,9 @@
   },
   "TUvTVcL3il": {
     "defaultMessage": "Mở trong Hyperlocalise"
+  },
+  "TV/xfNXFY0": {
+    "defaultMessage": "Slide {number}"
   },
   "TVxvj2B1bk": {
     "defaultMessage": "Không có bài đánh giá nào đang chờ duyệt"
@@ -17503,6 +17539,9 @@
   },
   "YUmBaBzXHy": {
     "defaultMessage": "ID công việc bên ngoài"
+  },
+  "YVSpc4Fgtj": {
+    "defaultMessage": "Header {number}"
   },
   "YW2bfmVhJb": {
     "defaultMessage": "Phát hiện"
@@ -21134,6 +21173,9 @@
   "flcDp2zUQk": {
     "defaultMessage": "Trước tiên, hãy chạy thử nghiệm tại Nhật Bản, sau đó giữ lại phiên bản hoạt động hiệu quả. Nhà phát triển của bạn sẽ kết nối trang web một lần."
   },
+  "fmDOQaEtb/": {
+    "defaultMessage": "Document"
+  },
   "fmHJLMYbQV": {
     "defaultMessage": "Phím tắt bàn phím"
   },
@@ -21184,6 +21226,9 @@
   },
   "fu8eVhN1Ej": {
     "defaultMessage": "Hiển thị từ hai phiên bản trở lên và giữ lại phiên bản phù hợp."
+  },
+  "fuGS+tbzu0": {
+    "defaultMessage": "{count, plural, one {# edit was not saved.} other {# edits were not saved.}} Check the highlighted fields."
   },
   "fuMDhQC4xa": {
     "defaultMessage": "Không có kho lưu trữ GitHub nào"
@@ -23629,6 +23674,9 @@
   },
   "kaCV+wVrsO": {
     "defaultMessage": "Thêm đồng bộ hóa nội dung"
+  },
+  "kbAlbZYGxZ": {
+    "defaultMessage": "Footer {number}"
   },
   "kbpV8xkMoq": {
     "defaultMessage": "Bình luận"
@@ -27953,6 +28001,9 @@
   "tCUf/LZUI9": {
     "defaultMessage": "Biến các yêu cầu trên Slack và bảng Canva thành công việc bản địa hóa được xác định phạm vi, với ngữ cảnh được đính kèm ngay từ đầu."
   },
+  "tCdxVUY0DH": {
+    "defaultMessage": "Endnotes"
+  },
   "tCoNRn2dnG": {
     "defaultMessage": "Xóa tác vụ Crowdin?"
   },
@@ -29387,6 +29438,9 @@
   "w79MA47tly": {
     "defaultMessage": "Đã thay đổi 3 chuỗi, sửa trực tiếp 1 lỗi đánh máy tiếng Pháp từ chuỗi thảo luận PR"
   },
+  "w7GEIfNjc0": {
+    "defaultMessage": "Footnotes"
+  },
   "w7J+PHlma7": {
     "defaultMessage": "Hướng dẫn thuật ngữ"
   },
@@ -29665,6 +29719,9 @@
   },
   "wgpJwxQgNi": {
     "defaultMessage": "Đang tải mức sử dụng gói cước"
+  },
+  "whMSAtiplz": {
+    "defaultMessage": "Comments"
   },
   "whTnlyYlKA": {
     "defaultMessage": "Tải xuống {locale}"

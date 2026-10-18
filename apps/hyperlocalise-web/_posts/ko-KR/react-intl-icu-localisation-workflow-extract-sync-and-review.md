@@ -122,7 +122,7 @@ export function FiltersPage({ savedCount, scope }: { savedCount: number; scope: 
 저장소 루트에 `i18n.yml`를 생성하세요(또는 모노레포에서 UI 옆에 설정 파일을 두는 경우 앱 디렉터리 아래에):
 
 ```yaml
-version: hyperlocalise@1.13.4
+version: hyperlocalise@1.13.3
 
 locales:
   source: en-US
