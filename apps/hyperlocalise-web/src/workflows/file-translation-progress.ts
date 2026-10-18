@@ -99,6 +99,30 @@ export function completedFileTranslationKeys(lock: unknown, outputFilename: stri
   return Object.keys(entries?.[1] ?? {});
 }
 
+const SHARED_LOCALE_TARGET_EXTENSION = /\.(xlsx|csv|tsv)$/i;
+
+/**
+ * Map lock completion keys onto source entry keys. The CLI suffixes every
+ * `.xlsx`/`.csv`/`.tsv` lock identity with `::locale` so two locales of one
+ * workbook stay distinct; `hl entries` and CAT still use `key`. Spreadsheet keys
+ * are user-provided and may themselves end in `::locale`, so the suffix is
+ * stripped by target format rather than by checking which key exists.
+ */
+export function sourceKeysFromFileTranslationLock(
+  lockKeys: readonly string[],
+  outputFilename: string,
+  targetLocale?: string,
+): string[] {
+  const locale = targetLocale?.trim();
+  if (!locale || !SHARED_LOCALE_TARGET_EXTENSION.test(outputFilename)) {
+    return [...lockKeys];
+  }
+  const suffix = `::${locale}`;
+  return lockKeys.map((key) =>
+    key.length > suffix.length && key.endsWith(suffix) ? key.slice(0, -suffix.length) : key,
+  );
+}
+
 export async function collectFileTranslationPageStep(input: {
   sandboxId: string;
   inputFilename: string;
@@ -152,7 +176,11 @@ export async function collectFileTranslationPageStep(input: {
     }
     const keys = [
       ...new Set([
-        ...completedFileTranslationKeys(lock, filename),
+        ...sourceKeysFromFileTranslationLock(
+          completedFileTranslationKeys(lock, filename),
+          filename,
+          locale,
+        ),
         ...Object.keys(input.prefills[locale] ?? {}),
       ]),
     ].filter(

@@ -148,6 +148,31 @@ describe("collectFileTranslationPageStep HTML lock wiring", () => {
     });
   });
 
+  it("maps CLI shared-workbook lock keys onto source keys", async () => {
+    const outputFilename = "strings-fr-FR.xlsx";
+    readTranslatedFileMock.mockResolvedValue(
+      JSON.stringify(lockFor(outputFilename, ["home.title::fr-FR", "home.cta::fr-FR"])),
+    );
+    extractSandboxEntriesMock.mockResolvedValue({
+      ok: true,
+      entries: { "home.title": "Accueil", "home.cta": "Essai gratuit" },
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_xlsx",
+        inputFilename: "strings.xlsx",
+        outputFilenames: { "fr-FR": outputFilename },
+        sourceEntries: { "home.title": "Home", "home.cta": "Start free trial" },
+        sourceLocale: "en-US",
+        prefills: {},
+        confirmed: {},
+      }),
+    ).resolves.toEqual({
+      "fr-FR": { "home.title": "Accueil", "home.cta": "Essai gratuit" },
+    });
+  });
+
   it("omits confirmed HTML path keys and locales that have nothing new", async () => {
     const folded = extractHtmlIngestEntries(sourceHtml, { foldInline: true });
     const hash = legacyHtmlSegmentKey(folded["html.p"] ?? "", new Map());
