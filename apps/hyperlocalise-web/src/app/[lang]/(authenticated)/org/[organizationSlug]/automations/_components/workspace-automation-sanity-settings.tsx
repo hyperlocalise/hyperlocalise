@@ -505,8 +505,8 @@ export function WorkspaceAutomationSanitySettings({
           <p className="text-sm text-destructive">{errors.sanityDocumentTypes}</p>
         ) : form.sanityDataset ? (
           <p className="text-xs text-muted-foreground">
-            Only types with document- or field-level i18n in this dataset. Studio can list more
-            that are not localized.
+            Only types with document- or field-level i18n in this dataset. Studio can list more that
+            are not localized.
           </p>
         ) : null}
       </div>

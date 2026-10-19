@@ -18,6 +18,7 @@ import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import type { PipesProviderAvailability } from "@/lib/pipes/availability";
 import type { PipesConnectionStatus } from "@/lib/pipes/types";
 
 import { SanityConnectionPanel } from "./sanity-connection-panel";
@@ -32,8 +33,8 @@ const mocks = vi.hoisted(() => ({
     workosConfigured: true,
     providerConfigured: true,
     providerEnabled: true,
-    supportedAuthMethods: ["oauth", "api_key"] as const,
-  },
+    supportedAuthMethods: ["oauth", "api_key"],
+  } as PipesProviderAvailability,
   isLoading: false,
   isError: false,
   authorizeGet: vi.fn(),

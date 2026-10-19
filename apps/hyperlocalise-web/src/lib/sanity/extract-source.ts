@@ -98,7 +98,7 @@ function walkValue(value: unknown, prefix: string, out: SanityTranslationMap): v
   }
   const record = value as Record<string, unknown>;
   if (record._type && record._type !== "block" && typeof record._type === "string") {
-    if (record._type === "image" || record._type === "file") {
+    if (record._type === "image" || record._type === "file" || record._type === "slug") {
       return;
     }
   }

@@ -35,6 +35,21 @@ describe("extractSanityDocumentSourceMap", () => {
     expect(map["body.0.children.0.text"]).toBe("Hello");
   });
 
+  it("does not extract slug fields so translated documents keep the source slug", () => {
+    const map = extractSanityDocumentSourceMap({
+      i18nMode: "document",
+      sourceSanityLocale: "en",
+      document: {
+        _type: "post",
+        title: "Welcome",
+        slug: { _type: "slug", current: "welcome" },
+      },
+    });
+    expect(map.title).toBe("Welcome");
+    expect(map.slug).toBeUndefined();
+    expect(Object.keys(map).some((key) => key.startsWith("slug"))).toBe(false);
+  });
+
   it("field-level reads locale slot without locale in keys", () => {
     const map = extractSanityDocumentSourceMap({
       i18nMode: "field",
