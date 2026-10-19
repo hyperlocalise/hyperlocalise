@@ -162,6 +162,12 @@ import {
 } from "@/lib/knowledge-memory/knowledge-memory";
 import { workspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 
+// upload_sources accepts up to maxPublicUploadBytes, possibly base64-encoded,
+// so the transport body cap must leave room for that plus the JSON-RPC envelope.
+const MCP_REQUEST_BODY_ENVELOPE_BYTES = 1024 * 1024;
+const MAX_MCP_REQUEST_BODY_BYTES =
+  Math.ceil((maxPublicUploadBytes * 4) / 3) + MCP_REQUEST_BODY_ENVELOPE_BYTES;
+
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
   client_id: z.string().min(1).max(2048),
@@ -2877,6 +2883,7 @@ async function handleMcpTransport(
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
+    maxRequestBodySize: MAX_MCP_REQUEST_BODY_BYTES,
   });
 
   try {
