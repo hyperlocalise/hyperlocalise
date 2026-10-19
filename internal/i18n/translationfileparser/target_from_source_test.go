@@ -337,6 +337,9 @@ func TestMarshalTargetFromSourceCoversEveryParsedFileType(t *testing.T) {
 		".adoc":     "MarshalAsciiDoc",
 		".asciidoc": "MarshalAsciiDoc",
 		".asc":      "MarshalAsciiDoc",
+		".docx":     "MarshalDOCX",
+		".pptx":     "MarshalPPTX",
+		".xlsx":     "MarshalXLSX",
 	}
 
 	covered := map[string]struct{}{}
