@@ -58,6 +58,10 @@ import type {
   ProjectFileStringContextResponse,
 } from "@/api/routes/project/project.schema";
 
+import type {
+  CatDocumentParseBackBody,
+  CatDocumentParseBackResponse,
+} from "./go-svc-cat-document.types";
 import type { CatGroupVariant, CatGroupVariantsQuery } from "./go-svc-cat-groups.types";
 
 export class GoSvcCatApi {
@@ -156,6 +160,19 @@ export class GoSvcCatApi {
   ) {
     return this.request.json<ProjectFileContentEditorTranslationResponse>(
       catPath(organizationSlug, projectId, "translations"),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  /** Maps an edited Markdown or HTML target onto the file's segments without saving it. */
+  parseBackDocument(
+    organizationSlug: string,
+    projectId: string,
+    body: CatDocumentParseBackBody,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<CatDocumentParseBackResponse>(
+      catPath(organizationSlug, projectId, "document", "parse-back"),
       { method: "POST", body, ...options },
     );
   }

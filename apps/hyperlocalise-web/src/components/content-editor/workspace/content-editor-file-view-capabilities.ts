@@ -20,7 +20,13 @@ import {
 import type { ContentEditorContentKind } from "@/components/content-editor/shared/types";
 import type { ContentEditorWorkspaceViewMode } from "./content-editor-workspace-view-mode";
 
-export type ContentEditorFileViewFamily = "image" | "video" | "text" | "office" | "document";
+export type ContentEditorFileViewFamily =
+  | "image"
+  | "video"
+  | "text"
+  | "office"
+  | "document"
+  | "office-segments";
 
 export type ContentEditorFileViewerId =
   | "image"
@@ -126,6 +132,26 @@ export function resolveCatFileViewCapabilities(input: {
   }
 
   const extension = extensionOf(sourcePath);
+  // Office files ingested as keyed segments. Legacy uploads with no keys keep `office_file`
+  // segments and the stored-file viewer below.
+  if (contentKind !== "office_file" && inferSupportedOfficeTranslationFileFormat(sourcePath)) {
+    if (!nativeProject) {
+      return {
+        family: "text",
+        availableViews: segmentViews(input.multilingualViewAvailable),
+        defaultView: "side-by-side",
+        viewerId: null,
+      };
+    }
+
+    return {
+      family: "office-segments",
+      availableViews: documentAndSegmentViews(input.multilingualViewAvailable),
+      defaultView: "side-by-side",
+      viewerId: officeViewerIdForExtension(extension) ?? "docx",
+    };
+  }
+
   const officeFormat =
     contentKind === "office_file" || inferSupportedOfficeTranslationFileFormat(sourcePath);
   if (officeFormat) {

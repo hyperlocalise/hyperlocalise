@@ -158,6 +158,61 @@ describe("AutomationAssistantToolCall", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
+  it("names a workflow's steps and settings as the editor shows them", async () => {
+    render(
+      <IntlProvider locale="en">
+        <AutomationAssistantToolCall
+          summary={{
+            state: "done",
+            changes: [
+              {
+                kind: "node_configured",
+                nodeId: "notify_slack",
+                type: "action.notify_slack",
+                fields: ["channelId", "message"],
+              },
+              {
+                kind: "node_configured",
+                nodeId: "retry",
+                type: "logic.retry",
+                fields: ["maxAttempts", "jitter"],
+              },
+              { kind: "node_configured", nodeId: "retry", type: "logic.retry", fields: ["jitter"] },
+              {
+                kind: "edge_added",
+                source: "manual",
+                sourceHandle: null,
+                target: "notify_slack",
+                targetHandle: null,
+                sourceType: "trigger.manual",
+                targetType: "action.notify_slack",
+              },
+              {
+                kind: "edge_removed",
+                source: "manual",
+                sourceHandle: null,
+                target: "notify_slack",
+                targetHandle: null,
+              },
+              { kind: "rejected", op: "connect", code: "execution_cycle" },
+            ],
+          }}
+        />
+      </IntlProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button"));
+
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Changed Slack channel ID and Message on the Notify Slack step",
+      "Changed Max attempts and one other setting on the Retry step",
+      "Changed the settings of the Retry step",
+      "Connected Manual trigger to Notify Slack",
+      "Disconnected manual from notify_slack",
+      "Could not connect two steps",
+    ]);
+  });
+
   it("says when a call is running and when it failed", () => {
     const { unmount } = show({ state: "running" });
     expect(screen.getByText("Updating the setup…")).toBeTruthy();

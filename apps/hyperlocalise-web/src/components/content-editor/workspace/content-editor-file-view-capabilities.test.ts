@@ -115,10 +115,13 @@ describe("cat-file-view-capabilities", () => {
     ).toEqual(["comfortable", "side-by-side"]);
   });
 
-  it("keeps office and video on file view even when multilingual is configured", () => {
-    for (const sourcePath of ["docs/brief.docx", "media/promo.mp4"]) {
+  it("keeps keyless office and video on file view even when multilingual is configured", () => {
+    for (const input of [
+      { sourcePath: "docs/brief.docx", contentKind: "office_file" as const },
+      { sourcePath: "media/promo.mp4" },
+    ]) {
       expect(
-        resolveCatFileViewCapabilities({ sourcePath, multilingualViewAvailable: true })
+        resolveCatFileViewCapabilities({ ...input, multilingualViewAvailable: true })
           .availableViews,
       ).toEqual(["file"]);
     }
@@ -136,25 +139,90 @@ describe("cat-file-view-capabilities", () => {
     ).toEqual(["file"]);
   });
 
-  it("registers Univer viewers for office paths", () => {
-    expect(resolveCatFileViewCapabilities({ sourcePath: "docs/brief.docx" })).toEqual({
+  it("keeps keyless Office uploads on the stored-file viewers", () => {
+    expect(
+      resolveCatFileViewCapabilities({ sourcePath: "docs/brief.docx", contentKind: "office_file" }),
+    ).toEqual({
       family: "office",
       availableViews: ["file"],
       defaultView: "file",
       viewerId: "docx",
     });
-    expect(resolveCatFileViewCapabilities({ sourcePath: "sheets/rates.xlsx" }).viewerId).toBe(
-      "xlsx",
-    );
-    expect(resolveCatFileViewCapabilities({ sourcePath: "decks/pitch.pptx" }).viewerId).toBe(
-      "pptx",
-    );
+    expect(
+      resolveCatFileViewCapabilities({ sourcePath: "sheets/rates.xls", contentKind: "office_file" })
+        .viewerId,
+    ).toBe("xlsx");
+    expect(
+      resolveCatFileViewCapabilities({ sourcePath: "decks/pitch.pptx", contentKind: "office_file" })
+        .viewerId,
+    ).toBe("pptx");
     expect(
       resolveCatFileViewCapabilities({
         sourcePath: "CAT_ALL_FILES",
         contentKind: "office_file",
       }).family,
     ).toBe("office");
+  });
+
+  it("opens segmented Word, PowerPoint, and legacy Excel files in segment views", () => {
+    for (const [sourcePath, viewerId] of [
+      ["docs/brief.docx", "docx"],
+      ["decks/pitch.pptx", "pptx"],
+      ["sheets/rates.xls", "xlsx"],
+    ] as const) {
+      expect(resolveCatFileViewCapabilities({ sourcePath })).toEqual({
+        family: "office-segments",
+        availableViews: ["comfortable", "side-by-side", "file"],
+        defaultView: "side-by-side",
+        viewerId,
+      });
+    }
+  });
+
+  it("opens segmented Excel workbooks in segment views with a spreadsheet File view", () => {
+    expect(resolveCatFileViewCapabilities({ sourcePath: "sheets/rates.xlsx" })).toEqual({
+      family: "office-segments",
+      availableViews: ["comfortable", "side-by-side", "file"],
+      defaultView: "side-by-side",
+      viewerId: "xlsx",
+    });
+    expect(
+      resolveCatFileViewCapabilities({
+        sourcePath: "sheets/rates.xlsx",
+        contentKind: "document",
+        multilingualViewAvailable: true,
+      }),
+    ).toEqual({
+      family: "office-segments",
+      availableViews: ["comfortable", "side-by-side", "multilingual", "file"],
+      defaultView: "side-by-side",
+      viewerId: "xlsx",
+    });
+  });
+
+  it("keeps keyless Excel uploads on the Office File view", () => {
+    expect(
+      resolveCatFileViewCapabilities({
+        sourcePath: "sheets/rates.xlsx",
+        contentKind: "office_file",
+      }),
+    ).toEqual({
+      family: "office",
+      availableViews: ["file"],
+      defaultView: "file",
+      viewerId: "xlsx",
+    });
+  });
+
+  it("keeps provider Excel workbooks in string segment views", () => {
+    expect(
+      resolveCatFileViewCapabilities({ sourcePath: "sheets/rates.xlsx", providerKind: "crowdin" }),
+    ).toEqual({
+      family: "text",
+      availableViews: ["comfortable", "side-by-side"],
+      defaultView: "side-by-side",
+      viewerId: null,
+    });
   });
 
   it("defaults native html, markdown, mdx, and asciidoc to document view and also offers segment views", () => {

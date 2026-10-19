@@ -248,12 +248,11 @@ export function compileWorkflowIssues(
           ["unknown", "object", "array"].includes(field.type) && path.startsWith(field.path + "."),
       );
     if (!field && !dynamic && binding.path.length) return false;
+    // An output declared optional may be missing when the source has run, as a field read in a
+    // setting's text may be; the step reading it then stops with `missing_workflow_input`. Only a
+    // source that may not have run at all needs the binding to be optional or have a fallback.
     const conditional = !collect && !dominators.get(node.id)?.has(source.id);
-    return (
-      !(field?.optional || conditional) ||
-      Boolean(binding.optional) ||
-      Object.hasOwn(binding, "fallback")
-    );
+    return !conditional || Boolean(binding.optional) || Object.hasOwn(binding, "fallback");
   };
   for (const node of definition.nodes) {
     const config = node.config as unknown as Record<string, unknown>;
@@ -275,6 +274,16 @@ export function compileWorkflowIssues(
     for (const [name, value] of Object.entries(config))
       if (!node.inputs?.[name]) checkTemplates(value);
     const inputFields = getWorkflowInputFields(node);
+    if (node.config.kind === "logic.create_object") {
+      for (const field of node.config.fields) {
+        if (["__proto__", "prototype", "constructor"].includes(field.name)) {
+          add("invalid_node_config", node.id, undefined, {
+            field: `value.${field.id}`,
+            reason: "invalid",
+          });
+        }
+      }
+    }
     for (const field of inputFields)
       if (
         field.required &&

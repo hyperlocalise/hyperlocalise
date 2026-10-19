@@ -46,6 +46,17 @@ export const automationAssistantMessages = defineMessages({
     id: "fnD091ugod",
     description: "Placeholder of the box in the assistant panel where a follow-up request is typed",
   },
+  emptyWorkflow: {
+    defaultMessage: "Describe what this workflow should do, or ask for a change.",
+    id: "jSZ5KDgjs6",
+    description: "Empty state of the assistant panel beside a visual workflow, before any message",
+  },
+  composerPlaceholderWorkflow: {
+    defaultMessage: "Ask for a change, or say what this workflow should do.",
+    id: "JEi80S8Q14",
+    description:
+      "Placeholder of the box in the assistant panel beside a visual workflow, where a request is typed",
+  },
   composerLabel: {
     defaultMessage: "Message the automation assistant",
     id: "K4EZaisMM5",
@@ -79,6 +90,11 @@ export const automationAssistantMessages = defineMessages({
     id: "mJZ5RsrKnR",
     description: "Error under a message in the assistant panel when its turn fails",
   },
+  toolUpdatingWorkflow: {
+    defaultMessage: "Updating the workflow\u2026",
+    id: "dcomOTuPbB",
+    description: "Line in the assistant's reply while its tool is changing the visual workflow",
+  },
   toolUpdating: {
     defaultMessage: "Updating the setup\u2026",
     id: "iES04md+8d",
@@ -88,6 +104,11 @@ export const automationAssistantMessages = defineMessages({
     defaultMessage: "Updated the setup",
     id: "vW7W3YnMj8",
     description: "Line in the assistant's reply where its tool changed the page",
+  },
+  toolFailedWorkflow: {
+    defaultMessage: "The workflow could not be updated",
+    id: "qQZGFuhT3T",
+    description: "Line in the assistant's reply for a change to the visual workflow that failed",
   },
   toolFailed: {
     defaultMessage: "The setup could not be updated",
@@ -285,5 +306,121 @@ export const automationAssistantMessages = defineMessages({
     defaultMessage: "Keep",
     id: "KQXF59dqej",
     description: "Cancel button of the dialog shown before undoing a turn of the assistant",
+  },
+  toolLineNodeAdded: {
+    defaultMessage: "Added the {node} step",
+    id: "F7MPcZxBJI",
+    description:
+      "Line in the assistant's change list: a node was added to the workflow; {node} is the node type's title",
+  },
+  toolLineNodeRemoved: {
+    defaultMessage: "Removed the {node} step",
+    id: "JisM1jWILg",
+    description:
+      "Line in the assistant's change list: a node was removed from the workflow; {node} is the node type's title",
+  },
+  toolLineNodeConfigured: {
+    defaultMessage: "Changed {fields} on the {node} step",
+    id: "7tK9YSDkvx",
+    description:
+      "Line in the assistant's change list: a node's settings were changed; {fields} lists the settings, {node} is the node type's title",
+  },
+  toolLineEdgeAdded: {
+    defaultMessage: "Connected {source} to {target}",
+    id: "lEXKxwEywz",
+    description:
+      "Line in the assistant's change list: two workflow nodes were connected, named by their ids",
+  },
+  toolLineEdgeRemoved: {
+    defaultMessage: "Disconnected {source} from {target}",
+    id: "KXlC8hrmGf",
+    description:
+      "Line in the assistant's change list: a connection between two workflow nodes was removed, named by their ids",
+  },
+  toolLineWorkflowRenamed: {
+    defaultMessage: 'Renamed the workflow to "{name}"',
+    id: "NOPoUyz/8O",
+    description: "Line in the assistant's change list: the workflow was given a new name",
+  },
+  toolLineRejectedAdd: {
+    defaultMessage: "Could not add a step",
+    id: "2WCxnj9DvK",
+    description: "Line in the assistant's change list: adding a step to the workflow was refused",
+  },
+  toolLineRejectedRemove: {
+    defaultMessage: "Could not remove a step",
+    id: "qByVEBzLzv",
+    description:
+      "Line in the assistant's change list: removing a step from the workflow was refused",
+  },
+  toolLineRejectedConnect: {
+    defaultMessage: "Could not connect two steps",
+    id: "/QBr3H7p9k",
+    description: "Line in the assistant's change list: connecting two workflow steps was refused",
+  },
+  toolLineRejectedDisconnect: {
+    defaultMessage: "Could not disconnect two steps",
+    id: "fX43+IisLH",
+    description:
+      "Line in the assistant's change list: disconnecting two workflow steps was refused",
+  },
+  toolLineRejectedConfigure: {
+    defaultMessage: "Could not change a step's settings",
+    id: "e5EIKdt4+j",
+    description:
+      "Line in the assistant's change list: changing a workflow step's settings was refused",
+  },
+  toolLineRejectedRename: {
+    defaultMessage: "Could not rename the workflow",
+    id: "OSdBlPpXbz",
+    description: "Line in the assistant's change list: renaming the workflow was refused",
+  },
+  toolLineNodeConfiguredSettings: {
+    defaultMessage: "Changed the settings of the {node} step",
+    id: "JC/7r38rMk",
+    description:
+      "Line in the assistant's change list: a node's settings were changed, none of which has a name to show; {node} is the node type's title",
+  },
+  toolLineOtherSettings: {
+    defaultMessage: "{count, plural, one {one other setting} other {# other settings}}",
+    id: "091kJoAeYj",
+    description:
+      "The last item in the list of changed settings of a node, for settings with no name to show, as in 'Changed Message and one other setting'",
+  },
+  toolUpdatedWorkflow: {
+    defaultMessage: "Updated the workflow",
+    id: "bXMU39hmQJ",
+    description:
+      "Line in the assistant panel for a finished tool call on a visual workflow that did not list its changes",
+  },
+  toolUpdatedWorkflowCount: {
+    defaultMessage: "Updated the workflow · {count, plural, one {# change} other {# changes}}",
+    id: "UIxKl4gSfi",
+    description:
+      "Line in the assistant panel for a finished tool call on a visual workflow, which opens to list the changes",
+  },
+  toolNoChangesWorkflow: {
+    defaultMessage: "No changes made to the workflow",
+    id: "5NY8ijgpii",
+    description:
+      "Line in the assistant panel under a reply, or a tool call, that left the visual workflow as it was",
+  },
+  pageEditsCountWorkflow: {
+    defaultMessage: "You edited the workflow · {count, plural, one {# change} other {# changes}}",
+    id: "qwKm4yzub8",
+    description:
+      "Line above a message of the person's in the assistant panel, which opens to list what they changed on the visual workflow themselves before sending it",
+  },
+  changesOnCanvas: {
+    defaultMessage:
+      "The assistant’s changes are on the canvas. Undo takes them back. Nothing is saved until you click Save.",
+    id: "bZKwFr1ByM",
+    description:
+      "Line at the end of the assistant panel while a visual workflow holds changes of the assistant that are not saved",
+  },
+  pageEditWorkflowNameCleared: {
+    defaultMessage: "Cleared the workflow's name",
+    id: "VluH2EAHsX",
+    description: "Line in the list of what the person changed on the workflow themselves",
   },
 });

@@ -30,6 +30,7 @@ import {
 } from "@/lib/agents/workspace-automation-view-model";
 
 import {
+  AssistantSessionGoneError,
   AssistantSessionOutOfDateError,
   AssistantTurnInProgressError,
 } from "./automation-assistant-api";
@@ -387,7 +388,7 @@ describe("AutomationAssistantProvider", () => {
     await waitFor(() => {
       expect(screen.getByText("messages:user,agent")).toBeTruthy();
     });
-    expect(api.findAssistantSession).toHaveBeenCalledWith("acme", "automation-a");
+    expect(api.findAssistantSession).toHaveBeenCalledWith("acme", { automationId: "automation-a" });
     expect(changes).toEqual([]);
     expect(screen.getByText(/calls:0 changes:0/)).toBeTruthy();
   });
@@ -462,7 +463,9 @@ describe("AutomationAssistantProvider", () => {
         expect.objectContaining({ sessionId: "sess-new", lastTurnId: null }),
       );
     });
-    expect(api.createAssistantSession).toHaveBeenCalledWith("acme", "automation-a");
+    expect(api.createAssistantSession).toHaveBeenCalledWith("acme", {
+      automationId: "automation-a",
+    });
   });
 
   it("shows a handed-over request as working from the first render and sends it once the integrations are known", async () => {
@@ -636,6 +639,53 @@ describe("AutomationAssistantProvider", () => {
     await waitFor(() => {
       expect(screen.getByText(/status:idle .*failure:out_of_date/)).toBeTruthy();
     });
+    expect(screen.getByText("messages:user")).toBeTruthy();
+  });
+
+  it("sends to a new session when Start over in another tab ended the one it had", async () => {
+    const user = userEvent.setup();
+    const userMessage = (id: string, conversationId: string) => ({
+      id,
+      conversationId,
+      senderType: "user" as const,
+      senderEmail: null,
+      text: "Hi",
+      parts: null,
+      attachments: null,
+      createdAt: "",
+    });
+    api.findAssistantSession.mockResolvedValue({
+      session: session("sess-old", "automation-a"),
+      messages: [userMessage("m-old", "sess-old")],
+    });
+    api.createAssistantSession.mockResolvedValue(session("sess-new", "automation-a"));
+    api.streamAssistantTurn.mockImplementation(async function* (input: { sessionId: string }) {
+      yield* [];
+      if (input.sessionId === "sess-old") {
+        throw new AssistantSessionGoneError();
+      }
+    });
+    api.loadAssistantSession.mockResolvedValue({
+      session: session("sess-new", "automation-a"),
+      messages: [userMessage("m-new", "sess-new")],
+    });
+    renderProvider({ automationId: "automation-a", mode: "detail" });
+    await waitFor(() => {
+      expect(screen.getByText(/status:idle/)).toBeTruthy();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/status:idle .*failure:none/)).toBeTruthy();
+    });
+    expect(api.streamAssistantTurn.mock.calls.map(([input]) => input.sessionId)).toEqual([
+      "sess-old",
+      "sess-new",
+    ]);
+    expect(api.streamAssistantTurn).toHaveBeenLastCalledWith(
+      expect.objectContaining({ lastTurnId: null }),
+    );
     expect(screen.getByText("messages:user")).toBeTruthy();
   });
 });

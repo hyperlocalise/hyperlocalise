@@ -1,0 +1,4 @@
+ALTER TABLE "automation_assistant_sessions" ADD COLUMN "visual_workflow_id" uuid;--> statement-breakpoint
+ALTER TABLE "automation_assistant_sessions" ADD CONSTRAINT "automation_assistant_sessions_visual_workflow_id_visual_workflows_id_fk" FOREIGN KEY ("visual_workflow_id") REFERENCES "public"."visual_workflows"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "idx_automation_assistant_sessions_visual_workflow_author" ON "automation_assistant_sessions" USING btree ("visual_workflow_id","created_by_user_id");--> statement-breakpoint
+ALTER TABLE "automation_assistant_sessions" ADD CONSTRAINT "automation_assistant_sessions_one_subject" CHECK ("automation_assistant_sessions"."automation_id" IS NULL OR "automation_assistant_sessions"."visual_workflow_id" IS NULL);

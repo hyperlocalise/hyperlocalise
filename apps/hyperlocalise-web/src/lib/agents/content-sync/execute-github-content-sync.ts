@@ -20,6 +20,10 @@ import { runSandboxCommand } from "@/lib/translation/sandbox";
 import { isSafeRepositoryRelativePath } from "@/lib/i18n/safe-repository-path";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
+import {
+  loadProjectOfficeTranslationDownload,
+  officeTranslationDownloadFilename,
+} from "@/lib/projects/files/office-translation-download";
 import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 import { createLogger } from "@/lib/log";
 
@@ -35,8 +39,10 @@ import {
 import { buildPullTranslationsBranchName } from "@/lib/agents/github/github-repository-automation-pull-translations-branch";
 
 import {
+  buildContentSyncLocalePath,
   buildContentSyncLottiePushTarget,
   buildContentSyncPushCandidate,
+  isContentSyncOfficeCompatiblePath,
 } from "./content-sync-export";
 import { rewriteContentSyncProviderPath, rewriteContentSyncSourcePath } from "./content-sync-paths";
 import type { ContentSyncConfig } from "./content-sync-types";
@@ -288,6 +294,32 @@ async function pushGithubTranslations(input: {
     }
 
     for (const locale of targetLocales) {
+      if (isContentSyncOfficeCompatiblePath(providerPath)) {
+        const officeDownload = await loadProjectOfficeTranslationDownload({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          sourcePath: file.sourcePath,
+          targetLocale: locale,
+        });
+        if (isErr(officeDownload)) {
+          logger.warn(
+            { projectId: input.projectId, errorCode: officeDownload.error.code },
+            "content sync skipped Office export",
+          );
+          continue;
+        }
+        if (officeDownload.value && officeDownload.value.translatedKeyCount > 0) {
+          candidates.push({
+            targetPath: officeTranslationDownloadFilename(
+              buildContentSyncLocalePath(providerPath, locale),
+              officeDownload.value,
+            ),
+            content: officeDownload.value.content,
+          });
+        }
+        continue;
+      }
+
       const result = await loadProjectTranslationsAsPrefilledEntries({
         organizationId: input.organizationId,
         projectId: input.projectId,

@@ -28,7 +28,7 @@ export async function enqueueFileTranslationFollowUpStep(input: {
 
   const { and, desc, eq, inArray, sql } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database/client");
-  const { isSupportedFileTranslationFileFormat } = await import("@/lib/translation/file-formats");
+  const { isSandboxFileTranslationFormat } = await import("@/lib/translation/sandbox-cli-release");
   const { enqueueFileTranslationJob } =
     await import("@/lib/projects/jobs/enqueue-file-translation-job");
   const { createTranslationJobEventQueue } = await import("@/lib/workflow/queues");
@@ -51,7 +51,7 @@ export async function enqueueFileTranslationFollowUpStep(input: {
     return null;
   }
 
-  if (!isSupportedFileTranslationFileFormat(input.fileFormat as SupportedTranslationFileFormat)) {
+  if (!isSandboxFileTranslationFormat(input.fileFormat)) {
     console.warn("[file-translation-workflow] follow-up skipped; unsupported file format", {
       parentJobId: input.parentJobId,
       fileFormat: input.fileFormat,

@@ -446,7 +446,7 @@ func applyLockFilterWithReader(planned []Task, completed map[string]lockfile.Run
 	}
 
 	for _, task := range planned {
-		identity := preferredTaskIdentity(projectRoot, task.TargetPath, task.EntryKey)
+		identity := taskLockIdentity(projectRoot, task.TargetPath, task.TargetLocale, task.EntryKey)
 		sourceHash := taskLockSourceHash(task)
 		taskHashes := lockTaskHashCandidates(task)
 		taskHash := taskHashes[0]

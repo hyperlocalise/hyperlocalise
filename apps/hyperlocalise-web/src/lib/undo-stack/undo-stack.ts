@@ -28,6 +28,8 @@ export type UndoStep<T, D> = {
   description: D;
   /** Steps with the same key, close in time, merge into one (a burst of typing). */
   coalesceKey?: string;
+  /** Changes recorded with the same group while this step is on top merge into it. */
+  group?: string;
   createdAt: number;
   /** When the step was last merged into; the coalescing window is measured from here. */
   updatedAt: number;
@@ -63,6 +65,12 @@ export type UndoStackAction<T, D> =
       origin?: UndoOrigin;
       /** Replaces what `describe` would say, for changes the host names itself. */
       description?: D;
+      /**
+       * Merges the change into the step on top when that step has the same group and origin,
+       * however long ago it was recorded and whether or not it was sealed: one turn of the
+       * assistant's, say, which lands as several changes.
+       */
+      group?: string;
     }
   | { type: "seal" }
   | { type: "undo" }
@@ -105,16 +113,22 @@ export function createUndoStackReducer<T, D>(options: UndoStackOptions<T, D>) {
     const coalesceKey = options.coalesceKeyOf?.(description);
     const top = state.past.at(-1);
 
-    const merges =
-      coalesceKey !== undefined &&
+    const joinsGroup =
+      action.group !== undefined &&
       top !== undefined &&
-      top.coalesceKey === coalesceKey &&
-      !top.sealed &&
-      top.origin === "user" &&
-      origin === "user" &&
-      action.at - top.updatedAt <= window;
+      top.group === action.group &&
+      top.origin === origin;
+    const merges =
+      joinsGroup ||
+      (coalesceKey !== undefined &&
+        top !== undefined &&
+        top.coalesceKey === coalesceKey &&
+        !top.sealed &&
+        top.origin === "user" &&
+        origin === "user" &&
+        action.at - top.updatedAt <= window);
 
-    if (merges) {
+    if (merges && top) {
       const rest = state.past.slice(0, -1);
       // Typing that ends where it began leaves nothing to undo.
       if (options.isEqual(top.before, action.next)) {
@@ -136,6 +150,7 @@ export function createUndoStackReducer<T, D>(options: UndoStackOptions<T, D>) {
       after: action.next,
       description,
       coalesceKey,
+      group: action.group,
       createdAt: action.at,
       updatedAt: action.at,
       sealed: false,

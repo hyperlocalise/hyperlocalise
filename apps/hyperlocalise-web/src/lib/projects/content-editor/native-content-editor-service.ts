@@ -21,6 +21,7 @@ import type {
 } from "@/api/routes/project/project.schema";
 import { legacyNativeContentEditorSegmentLimit } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database/client";
+import { createLogger } from "@/lib/log";
 import {
   getLatestRepositorySourceFileVersion,
   getStoredFileContent,
@@ -51,6 +52,8 @@ import {
   isImageUrlContentKind,
 } from "@/lib/projects/files/image-url-translation-service";
 import { getVideoVariant, projectVideoAssetPath } from "@/lib/projects/files/video-variant-service";
+import { requeueKeylessOfficeSourceIngest } from "@/lib/projects/files/office-legacy-reingest";
+import { projectOfficeTranslationDownloadPath } from "@/lib/projects/files/office-translation-download";
 import {
   VIDEO_URL_CONTENT_KIND,
   isVideoUrlContentKind,
@@ -67,6 +70,8 @@ import {
   looksLikeVideoUrl,
 } from "@/lib/translation/file-formats";
 import { resolveLottieSourceKind } from "@/lib/translation/lottie/lottie-translation-export";
+
+const logger = createLogger("native-content-editor-service");
 
 function filenameFromSourcePath(sourcePath: string) {
   return sourcePath.split("/").at(-1) ?? sourcePath;
@@ -280,7 +285,24 @@ export class NativeContentEditorService extends ProjectServiceBase {
       );
     }
 
-    if (inferSupportedOfficeTranslationFileFormat(input.sourcePath)) {
+    const isOffice = Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
+    if (
+      isOffice &&
+      !(await this.hasKeysForFile({ ...input, repositorySourceFileId: sourceFile.id }))
+    ) {
+      await requeueKeylessOfficeSourceIngest({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+      }).catch((error: unknown) => {
+        logger.warn(
+          {
+            repositorySourceFileId: sourceFile.id,
+            errorName: error instanceof Error ? error.name : "unknown",
+          },
+          "failed to requeue Office ingest",
+        );
+      });
       return this.withSourceIngest(
         input,
         await this.buildOfficeCatFileResponse({
@@ -292,6 +314,12 @@ export class NativeContentEditorService extends ProjectServiceBase {
     }
 
     const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
+    const loadKeyedFileDocumentView = async () =>
+      isDocument
+        ? publicDocumentView(await this.loadDocumentView({ input, sourceFileId: sourceFile.id }))
+        : isOffice
+          ? await this.loadOfficeDocumentView({ input, sourceFileId: sourceFile.id })
+          : undefined;
     const paginationInput = input.pagination ?? {
       offset: 0,
       limit: legacyNativeContentEditorSegmentLimit,
@@ -330,14 +358,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
           visibleKeys,
           truncated,
           pagination: undefined,
-          documentView: isDocument
-            ? publicDocumentView(
-                await this.loadDocumentView({
-                  input,
-                  sourceFileId: sourceFile.id,
-                }),
-              )
-            : undefined,
+          documentView: await loadKeyedFileDocumentView(),
         }),
       );
     }
@@ -393,14 +414,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
         visibleKeys: keys,
         truncated: pagination.hasMore,
         pagination,
-        documentView: isDocument
-          ? publicDocumentView(
-              await this.loadDocumentView({
-                input,
-                sourceFileId: sourceFile.id,
-              }),
-            )
-          : undefined,
+        documentView: await loadKeyedFileDocumentView(),
       }),
     );
   }
@@ -728,6 +742,57 @@ export class NativeContentEditorService extends ProjectServiceBase {
       imageVariantId: variant?.id ?? null,
       hasTarget: Boolean(targetStoredFileId),
       approvalStatus: variant?.status ?? null,
+    };
+  }
+
+  private async hasKeysForFile(input: {
+    organizationId: string;
+    projectId: string;
+    repositorySourceFileId: string;
+  }) {
+    const keys = await this.translations.listKeysForFile({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      repositorySourceFileId: input.repositorySourceFileId,
+      limit: 1,
+    });
+    return keys.length > 0;
+  }
+
+  /** Segmented Office files have no stored target; File view previews the generated download. */
+  private async loadOfficeDocumentView(input: {
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+      targetLocale: string;
+      organizationSlug: string;
+    };
+    sourceFileId: string;
+  }): Promise<NonNullable<ProjectFileContentEditorQueueFile["documentView"]>> {
+    const latestVersion = await getLatestRepositorySourceFileVersion({
+      organizationId: input.input.organizationId,
+      projectId: input.input.projectId,
+      sourcePath: input.input.sourcePath,
+      db: this.database,
+    });
+
+    return {
+      externalStringId: documentFileExternalStringId(input.sourceFileId, input.input.sourcePath),
+      sourceAssetUrl: latestVersion
+        ? projectImageAssetPath({
+            organizationSlug: input.input.organizationSlug,
+            projectId: input.input.projectId,
+            fileId: latestVersion.storedFileId,
+          })
+        : null,
+      targetAssetUrl: projectOfficeTranslationDownloadPath({
+        organizationSlug: input.input.organizationSlug,
+        projectId: input.input.projectId,
+        sourcePath: input.input.sourcePath,
+        targetLocale: input.input.targetLocale,
+      }),
+      imageVariantId: null,
     };
   }
 
@@ -1280,12 +1345,14 @@ export class NativeContentEditorService extends ProjectServiceBase {
       }
 
       const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
+      const hasKeyedSegments =
+        isDocument || Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
       const fileBacked = isFileBackedCatSegmentId(
         input.externalStringId,
         sourceFile.id,
         input.sourcePath,
       );
-      if (fileBacked || !isDocument) {
+      if (fileBacked || !hasKeyedSegments) {
         if (!fileBacked) {
           return "not_found";
         }
@@ -1431,8 +1498,10 @@ export class NativeContentEditorService extends ProjectServiceBase {
       !isContentEditorAllFilesSourcePath(input.sourcePath) &&
       inferSupportedWholeFileTranslationFileFormat(input.sourcePath)
     ) {
-      const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
-      if (!isDocument) {
+      const hasKeyedSegments =
+        Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath)) ||
+        Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
+      if (!hasKeyedSegments) {
         return [];
       }
 

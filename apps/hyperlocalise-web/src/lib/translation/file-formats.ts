@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { sandboxCliParsesOffice } from "@/lib/translation/sandbox-cli-version";
+
 export const supportedTranslationFileFormats = [
   "json",
   "jsonc",
@@ -90,6 +92,10 @@ export const supportedFileTranslationFileFormats = [
   "jpeg",
   "webp",
   "mp4",
+  "docx",
+  "xlsx",
+  "xls",
+  "pptx",
 ] as const;
 
 export type SupportedFileTranslationFileFormat =
@@ -105,6 +111,7 @@ const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".xlif": "xliff",
   ".xliff": "xliff",
   ".po": "po",
+  ".pot": "po",
   ".ts": "qt-ts",
   ".html": "html",
   ".htm": "html",
@@ -194,7 +201,38 @@ export function isOfficeTranslationFileFormat(
   );
 }
 
-/** Binary whole-file formats that skip string-key extraction (images + video + office). */
+export const supportedSegmentedSpreadsheetTranslationFileFormats = ["xlsx", "xls"] as const;
+
+export type SupportedSegmentedSpreadsheetTranslationFileFormat =
+  (typeof supportedSegmentedSpreadsheetTranslationFileFormats)[number];
+
+/**
+ * Workbooks among the Office formats. Every Office format is extracted into keyed segments
+ * with a generated per-locale download; workbooks also key by locale column or cell.
+ */
+export function isSegmentedSpreadsheetTranslationFileFormat(
+  format: SupportedTranslationFileFormat,
+): format is SupportedSegmentedSpreadsheetTranslationFileFormat {
+  return supportedSegmentedSpreadsheetTranslationFileFormats.includes(
+    format as SupportedSegmentedSpreadsheetTranslationFileFormat,
+  );
+}
+
+export function inferSupportedSegmentedSpreadsheetTranslationFileFormat(
+  filename: string,
+): SupportedSegmentedSpreadsheetTranslationFileFormat | null {
+  const format = inferSupportedTranslationFileFormat(filename);
+  if (!format || !isSegmentedSpreadsheetTranslationFileFormat(format)) {
+    return null;
+  }
+
+  return format;
+}
+
+/**
+ * Binary whole-file formats (images + video + office). They skip sandbox string extraction;
+ * segmented spreadsheets are extracted in-process instead.
+ */
 export function isBinaryTranslationFileFormat(
   format: SupportedTranslationFileFormat,
 ): format is
@@ -255,11 +293,28 @@ export function inferSupportedTranslationFileFormat(
   return formatsByExtension[filename.slice(dotIndex).toLowerCase()] ?? null;
 }
 
+/** File translation job formats the pinned sandbox CLI can run, for user-facing lists. */
+export function availableFileTranslationFileFormats(
+  cliParsesOffice: boolean = sandboxCliParsesOffice(),
+): SupportedFileTranslationFileFormat[] {
+  return supportedFileTranslationFileFormats.filter(
+    (format) => cliParsesOffice || !isOfficeTranslationFileFormat(format),
+  );
+}
+
+/**
+ * The file translation job format for `filename`. Office files qualify only once the
+ * pinned sandbox CLI parses them; until then they are translated as segments in CAT.
+ */
 export function inferSupportedFileTranslationFileFormat(
   filename: string,
+  cliParsesOffice: boolean = sandboxCliParsesOffice(),
 ): SupportedFileTranslationFileFormat | null {
   const format = inferSupportedTranslationFileFormat(filename);
   if (!format || !isSupportedFileTranslationFileFormat(format)) {
+    return null;
+  }
+  if (!cliParsesOffice && isOfficeTranslationFileFormat(format)) {
     return null;
   }
 

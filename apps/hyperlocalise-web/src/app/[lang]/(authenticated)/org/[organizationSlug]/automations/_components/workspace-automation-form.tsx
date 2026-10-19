@@ -3338,8 +3338,11 @@ export function WorkspaceAutomationEditor({
   form: WorkspaceAutomationFormState;
   knowledgeAvailable?: boolean;
   mode: "create" | "detail";
-  /** Called with the form after each change the assistant makes; `onChange` when absent. */
-  onAssistantChange?: (next: WorkspaceAutomationFormState) => void;
+  /**
+   * Called with the form after each change the assistant makes, and the turn that made it;
+   * `onChange` when absent.
+   */
+  onAssistantChange?: (next: WorkspaceAutomationFormState, turn: string) => void;
   /** Called when the assistant's session for this page starts or ends. */
   onAssistantSessionChange?: (sessionId: string | null) => void;
   /** Called when a turn of the assistant's starts or stops running. */

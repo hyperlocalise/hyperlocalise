@@ -233,6 +233,39 @@ describe("figmaIntegrationRoutes", () => {
     expect(body).toMatchObject({ error: "figma_api_key_not_found" });
   });
 
+  it("rejects session when the backing API key is missing required permissions", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma scoped key",
+    });
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma scoped",
+      apiKeyId: apiKey.id,
+    });
+
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ permissions: ["files:read", "jobs:read"] })
+      .where(eq(schema.organizationApiKeys.id, apiKey.id));
+
+    const response = await client.api.integrations.figma.session.$get(undefined, {
+      headers: {
+        "X-Hyperlocalise-Connection-Token": created.connectionToken,
+      },
+    });
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "figma_api_key_missing_permissions",
+    });
+  });
+
   it("lists org projects on session without binding a connection to one", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
     await apiKeyFixture.authHeadersFor(identity);

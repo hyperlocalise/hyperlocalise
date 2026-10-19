@@ -130,4 +130,28 @@ export const projectFileCatWorkspaceMessages = defineMessages({
     id: "d32z52fN10",
     description: "BCP-47 locale code shown in parentheses next to a locale display name",
   },
+  documentDraftsSaved: {
+    defaultMessage:
+      "{count, plural, one {Saved # changed segment as a draft.} other {Saved # changed segments as drafts.}}",
+    id: "/Btv5OtACg",
+    description:
+      "Toast after a Markdown or HTML File view save writes edited paragraphs back to segments",
+  },
+  documentDraftsNotSaved: {
+    defaultMessage:
+      "{count, plural, one {# edit was not saved to a segment.} other {# edits were not saved to segments.}}",
+    id: "ENMJl6+UHz",
+    description: "Toast title when some File view edits could not be written back to segments",
+  },
+  documentDraftsNotSavedDetail: {
+    defaultMessage:
+      "Added, removed, or sentence-split paragraphs and edits blocked by QA keep only the file copy. Edit them in a segment view: {keys}",
+    id: "5jD6oFvCYS",
+    description: "Toast detail listing the segment keys whose File view edits were not saved",
+  },
+  documentParseBackFailed: {
+    defaultMessage: "The file was saved, but its edits could not be written back to segments.",
+    id: "1lU83WzoEM",
+    description: "Toast when the edited document could not be parsed back into segments",
+  },
 });

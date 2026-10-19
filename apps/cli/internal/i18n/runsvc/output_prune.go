@@ -31,7 +31,7 @@ func buildPlannedTargetMetadata(planned []Task) (map[string]stagedOutput, error)
 		if existing.sourceLocale != "" && existing.sourceLocale != task.SourceLocale {
 			return nil, fmt.Errorf("output staging conflict: %s has conflicting source locales", task.TargetPath)
 		}
-		if existing.targetLocale != "" && existing.targetLocale != task.TargetLocale {
+		if existing.targetLocale != "" && existing.targetLocale != task.TargetLocale && !sharedLocaleTargetPath(task.TargetPath) {
 			return nil, fmt.Errorf("output staging conflict: %s has conflicting target locales", task.TargetPath)
 		}
 		if existing.srxSpec != "" && task.SRXSpec != "" && existing.srxSpec != task.SRXSpec {

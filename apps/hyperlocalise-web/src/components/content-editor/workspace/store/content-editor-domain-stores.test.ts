@@ -333,9 +333,70 @@ describe("ContentEditorIntelligenceStore", () => {
     expect(intelligence.revealedAgentContextSegmentIds.has("seg-01")).toBe(true);
     expect(intelligence.contextLoadingSegmentIds.has("seg-01")).toBe(false);
   });
+
+  it("primes the add-to-glossary wizard and remembers created glossaries", () => {
+    const intelligence = new ContentEditorIntelligenceStore();
+
+    intelligence.setGlossaryDefinition("kept until remount");
+    intelligence.primeGlossaryWizard({
+      sourceTerm: "Dashboard",
+      targetTerm: "Bảng điều khiển",
+      selectedGlossaryId: "glossary-1",
+      defaultGlossaryName: "Shared with Product.",
+    });
+    intelligence.primeGlossaryWizard({
+      sourceTerm: "Later",
+      targetTerm: "Sau",
+      selectedGlossaryId: "glossary-2",
+      defaultGlossaryName: "Shared with Design.",
+    });
+
+    expect(intelligence.glossaryPrimaryTerm).toBe("Later");
+    expect(intelligence.glossaryTargetDraft).toBe("Sau");
+    expect(intelligence.glossarySelectedId).toBe("glossary-2");
+    expect(intelligence.glossaryNewName).toBe("Shared with Design.");
+    expect(intelligence.glossaryDefinition).toBe("");
+
+    intelligence.setGlossaryCreateDialogOpen(true, "Shared with Product.");
+    intelligence.rememberCreatedGlossary({
+      id: "glossary-created",
+      name: "Product team terms",
+      teamId: "team-product",
+    });
+
+    expect(intelligence.glossaryCreated).toEqual([
+      { id: "glossary-created", name: "Product team terms", teamId: "team-product" },
+    ]);
+    expect(intelligence.glossarySelectedId).toBe("glossary-created");
+    expect(intelligence.glossaryCreateDialogOpen).toBe(false);
+  });
 });
 
 describe("ContentEditorWorkspaceUiStore", () => {
+  it("tracks file-view dirty flags, source pane, and generate dialog", () => {
+    const ui = new ContentEditorWorkspaceUiStore();
+
+    ui.applyFileViewViewer("image");
+    expect(ui.fileViewSourcePaneVisible).toBe(true);
+
+    ui.setFileViewImageLayersDirty(true);
+    ui.setFileViewGenerateDialogOpen(true);
+    ui.toggleFileViewSourcePane();
+    expect(ui.fileViewImageLayersDirty).toBe(true);
+    expect(ui.fileViewGenerateDialogOpen).toBe(true);
+    expect(ui.fileViewSourcePaneVisible).toBe(false);
+
+    ui.applyFileViewViewer("markdown");
+    expect(ui.fileViewImageLayersDirty).toBe(false);
+    expect(ui.fileViewGenerateDialogOpen).toBe(false);
+    expect(ui.fileViewDocumentReviewBlocked).toBe(true);
+    expect(ui.fileViewSourcePaneVisible).toBe(false);
+
+    ui.applyFileViewViewer("markdown");
+    ui.setFileViewDocumentReviewBlocked(false);
+    expect(ui.fileViewDocumentReviewBlocked).toBe(false);
+  });
+
   it("opens one toolbar dialog at a time and keeps the export format across openings", () => {
     const ui = new ContentEditorWorkspaceUiStore();
 

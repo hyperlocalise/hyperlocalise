@@ -12,15 +12,23 @@
  */
 import "dotenv/config";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import * as XLSX from "xlsx";
 
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
-import { createStoredFile, ensureRepositorySourceFile } from "@/lib/file-storage/records";
+import {
+  createRepositorySourceFileVersion,
+  createStoredFile,
+  ensureRepositorySourceFile,
+} from "@/lib/file-storage/records";
+import { loadProjectOfficeSourceEntries } from "@/lib/projects/files/office-source-entries";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
+import { multilingualXlsxFixture } from "@/lib/translation/xlsx/xlsx-workbook.fixture";
+import { XLSX_CONTENT_TYPE } from "@/lib/translation/xlsx/xlsx-workbook";
 
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 import { createProjectTestFixture } from "./project.fixture";
@@ -259,5 +267,64 @@ describe("project file translation download route", () => {
     expect(response.headers.get("content-type")).toContain("application/json");
     expect(response.headers.get("content-disposition")).toContain("en-fr-FR.json");
     expect(JSON.parse(await response.text())).toEqual({ greeting: "Bonjour" });
+  });
+
+  it("generates a segmented Excel download when no translated workbook has been saved", async () => {
+    const sourcePath = "copy/strings.xlsx";
+    const fixture = await sourceFileFixture(sourcePath);
+    const storedFile = await createStoredFile({
+      organizationId: fixture.organization.id,
+      projectId: fixture.project.id,
+      role: "source",
+      sourceKind: "repository_file",
+      filename: "strings.xlsx",
+      contentType: XLSX_CONTENT_TYPE,
+      content: Buffer.from(multilingualXlsxFixture()),
+      metadata: { sourcePath },
+    });
+    await createRepositorySourceFileVersion({ storedFile, sourcePath });
+    const entries = await loadProjectOfficeSourceEntries({
+      organizationId: fixture.organization.id,
+      projectId: fixture.project.id,
+      storedFileId: storedFile.id,
+      sourcePath,
+    });
+    if (!entries.ok) {
+      throw new Error(`could not read fixture entries: ${entries.error.code}`);
+    }
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: fixture.organization.id,
+      projectId: fixture.project.id,
+      repositorySourceFileId: fixture.sourceFile.id,
+      entries: entries.value,
+    });
+    const [key] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.repositorySourceFileId, fixture.sourceFile.id),
+          eq(schema.projectTranslationKeys.key, "home.cta"),
+        ),
+      );
+    await db.insert(schema.projectTranslations).values({
+      organizationId: fixture.organization.id,
+      projectId: fixture.project.id,
+      translationKeyId: key.id,
+      targetLocale: LOCALE,
+      text: "Essai gratuit",
+      status: "approved",
+      provenance: "import",
+    });
+
+    const response = await fixture.download();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe(XLSX_CONTENT_TYPE);
+    expect(response.headers.get("content-disposition")).toContain("strings-fr-FR.xlsx");
+    const sheet = XLSX.read(new Uint8Array(await response.arrayBuffer()), { type: "array" }).Sheets
+      .Strings!;
+    expect(sheet.B3?.v).toBe("Essai gratuit");
+    expect(sheet.D3?.v).toBe("Start free trial");
   });
 });

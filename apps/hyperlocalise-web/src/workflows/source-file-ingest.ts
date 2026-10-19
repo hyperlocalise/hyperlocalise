@@ -17,8 +17,12 @@ import {
   isBinaryTranslationFileFormat,
   isDocumentTranslationFileFormat,
   isImageTranslationFileFormat,
+  isOfficeTranslationFileFormat,
+  isSegmentedSpreadsheetTranslationFileFormat,
   isVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
+import { sandboxEntriesLocaleOptions } from "@/lib/translation/sandbox-cli-release";
+import { sandboxCliParsesOffice } from "@/lib/translation/sandbox-cli-version";
 import type { SourceFileIngestEventData } from "@/lib/workflow/types";
 import {
   claimSourceFileIngestStep,
@@ -27,6 +31,8 @@ import {
   ensureImageVariantsForSourceFileStep,
   ensureVideoVariantsForSourceFileStep,
   extractSourceIngestEntriesStep,
+  extractOfficeSourceEntriesStep,
+  getProjectSourceLocaleStep,
   getProjectTargetLocalesStep,
   getStoredFileMetadataStep,
   markSourceFileIngestStateStep,
@@ -92,7 +98,13 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
     const inferredFormat = inferSupportedTranslationFileFormat(event.sourcePath);
     const isBinary = Boolean(inferredFormat && isBinaryTranslationFileFormat(inferredFormat));
     const isDocument = Boolean(inferredFormat && isDocumentTranslationFileFormat(inferredFormat));
-    if (isBinary || isDocument) {
+    const isOffice = Boolean(inferredFormat && isOfficeTranslationFileFormat(inferredFormat));
+    const isSpreadsheet = Boolean(
+      inferredFormat && isSegmentedSpreadsheetTranslationFileFormat(inferredFormat),
+    );
+    // The CLI never reads .xls, so legacy workbooks are always keyed in-process.
+    const officeParsedInSandbox = isOffice && inferredFormat !== "xls" && sandboxCliParsesOffice();
+    if ((isBinary || isDocument) && !officeParsedInSandbox) {
       const targetLocales = await getProjectTargetLocalesStep({
         organizationId: event.organizationId,
         projectId: event.projectId,
@@ -127,6 +139,45 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
         });
       }
 
+      if (isOffice) {
+        const entries = await extractOfficeSourceEntriesStep({
+          organizationId: event.organizationId,
+          projectId: event.projectId,
+          storedFileId: event.storedFileId,
+          sourcePath: event.sourcePath,
+        });
+        const reconciliation = await reconcileSourceFileTranslationKeysStep({
+          organizationId: event.organizationId,
+          projectId: event.projectId,
+          repositorySourceFileId,
+          sourceFileVersionId: event.sourceFileVersionId,
+          workflowRunId,
+          entries,
+        });
+
+        ingestCompleted = true;
+        if (reconciliation.status === "superseded") {
+          return { status: "skipped" as const, reason: "superseded" };
+        }
+
+        if (!event.reingest) {
+          await dispatchSourceUploadAutomationsStep({
+            organizationId: event.organizationId,
+            projectId: event.projectId,
+            sourceFileId: event.storedFileId,
+            sourceFileVersionId: event.sourceFileVersionId,
+            sourcePath: event.sourcePath,
+            sourceHash: claim.sourceHash,
+            targetAutomationId: event.targetAutomationId,
+          });
+        }
+
+        return {
+          status: "ingested" as const,
+          importedKeyCount: entries.length,
+        };
+      }
+
       if (isBinary) {
         await markSourceFileIngestStateStep({
           sourceFileVersionId: event.sourceFileVersionId,
@@ -138,15 +189,17 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
         });
 
         ingestCompleted = true;
-        await dispatchSourceUploadAutomationsStep({
-          organizationId: event.organizationId,
-          projectId: event.projectId,
-          sourceFileId: event.storedFileId,
-          sourceFileVersionId: event.sourceFileVersionId,
-          sourcePath: event.sourcePath,
-          sourceHash: claim.sourceHash,
-          targetAutomationId: event.targetAutomationId,
-        });
+        if (!event.reingest) {
+          await dispatchSourceUploadAutomationsStep({
+            organizationId: event.organizationId,
+            projectId: event.projectId,
+            sourceFileId: event.storedFileId,
+            sourceFileVersionId: event.sourceFileVersionId,
+            sourcePath: event.sourcePath,
+            sourceHash: claim.sourceHash,
+            targetAutomationId: event.targetAutomationId,
+          });
+        }
 
         return {
           status: "ingested" as const,
@@ -165,16 +218,32 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
     await prepareSourceIngestSandboxStep(sandboxId);
     await writeSourceIngestFileStep(sandboxId, inputFilename, content);
 
-    const segmentation = await loadSourceFileSegmentationStep({
-      organizationId: event.organizationId,
-      projectId: event.projectId,
-      repositorySourceFileId,
-    });
-    const srxSandbox = await writeSourceFileSegmentationSrxStep(sandboxId, segmentation);
+    let extractOptions: Parameters<typeof extractSourceIngestEntriesStep>[2];
+    if (isSpreadsheet) {
+      // Workbook keys address cells, so SRX spans would not map back onto the sheet.
+      const sourceLocale = await getProjectSourceLocaleStep({
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+      });
+      extractOptions = sandboxEntriesLocaleOptions(inputFilename, sourceLocale);
+    } else if (isOffice) {
+      // Document and slide keys address paragraphs, so SRX spans would not map back either.
+      extractOptions = {};
+    } else {
+      const segmentation = await loadSourceFileSegmentationStep({
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+        repositorySourceFileId,
+      });
+      const srxSandbox = await writeSourceFileSegmentationSrxStep(sandboxId, segmentation);
+      extractOptions = { srx: srxSandbox.srxFlag };
+    }
 
-    const extractedEntries = await extractSourceIngestEntriesStep(sandboxId, inputFilename, {
-      srx: srxSandbox.srxFlag,
-    });
+    const extractedEntries = await extractSourceIngestEntriesStep(
+      sandboxId,
+      inputFilename,
+      extractOptions,
+    );
     const entries = await parseHlEntriesStep(extractedEntries, {
       sourcePath: event.sourcePath,
       sourceContent: content,
@@ -194,15 +263,17 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
       return { status: "skipped" as const, reason: "superseded" };
     }
 
-    await dispatchSourceUploadAutomationsStep({
-      organizationId: event.organizationId,
-      projectId: event.projectId,
-      sourceFileId: event.storedFileId,
-      sourceFileVersionId: event.sourceFileVersionId,
-      sourcePath: event.sourcePath,
-      sourceHash: claim.sourceHash,
-      targetAutomationId: event.targetAutomationId,
-    });
+    if (!event.reingest) {
+      await dispatchSourceUploadAutomationsStep({
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+        sourceFileId: event.storedFileId,
+        sourceFileVersionId: event.sourceFileVersionId,
+        sourcePath: event.sourcePath,
+        sourceHash: claim.sourceHash,
+        targetAutomationId: event.targetAutomationId,
+      });
+    }
 
     return {
       status: "ingested" as const,

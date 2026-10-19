@@ -72,6 +72,9 @@ describe("llms.txt route", () => {
     expect(body).toContain(
       "[Contact](https://www.hyperlocalise.com/en/contact): Reach the Hyperlocalise team.",
     );
+    expect(body).toContain(
+      "[Iris](https://www.hyperlocalise.com/en/iris): Iris is Hyperlocalise's AI localisation engine for multilingual assets. It creates and localises images, video, motion, and audio for every language.",
+    );
     expect(body).not.toContain("github.com/hyperlocalise");
     expect(body).not.toContain("mailto:minh@hyperlocalise.com");
   });

@@ -29,6 +29,8 @@ export type VisualCatalogType =
   | "logic.if"
   | "logic.switch"
   | "logic.set"
+  | "logic.create_object"
+  | "logic.merge_objects"
   | "ai.agent"
   | "logic.for_each"
   | "logic.retry"
@@ -157,6 +159,15 @@ export type VisualNodeConfig =
       kind: "logic.set";
       assignments: VisualKeyValuePair[];
     }
+  | {
+      kind: "logic.create_object";
+      fields: VisualObjectField[];
+    }
+  | {
+      kind: "logic.merge_objects";
+      inputs: VisualObjectMergeInput[];
+      conflictPolicy: VisualObjectConflictPolicy;
+    }
   | { kind: "ai.agent"; prompt: string; onError?: VisualNodeErrorBehavior }
   | { kind: "logic.for_each"; collection: string }
   | {
@@ -228,6 +239,12 @@ export type VisualWorkflowRfEdgeData = {
 };
 
 export type VisualWorkflowRfEdge = Edge<VisualWorkflowRfEdgeData>;
+
+/**
+ * An edge as the canvas draws it: a stored edge, or a `reference` line for a field read inside a
+ * setting's text, which is only ever drawn and never stored with the workflow.
+ */
+export type VisualWorkflowCanvasEdge = Edge<{ kind?: "execution" | "data" | "reference" }>;
 
 export type CanonicalVisualWorkflowNode = WorkflowNodeContract & {
   id: string;
@@ -345,3 +362,17 @@ export type VisualSubworkflowField = {
   type: WorkflowValueType;
   required?: boolean;
 };
+
+export type VisualObjectField = {
+  id: string;
+  name: string;
+  type: WorkflowValueType;
+  defaultValue?: unknown;
+};
+
+export type VisualObjectMergeInput = {
+  id: string;
+  name: string;
+};
+
+export type VisualObjectConflictPolicy = "reject" | "first_wins" | "last_wins";

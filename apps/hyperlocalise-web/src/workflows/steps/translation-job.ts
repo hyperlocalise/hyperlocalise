@@ -334,6 +334,19 @@ export async function getRepositorySourcePathForStoredFileStep(
   return version?.sourcePath ?? null;
 }
 
+/** `.xlsx` bytes for a legacy `.xls` source, or `null` when the workbook cannot be read. */
+export async function convertXlsSourceForSandboxStep(
+  content: Buffer,
+): Promise<{ content: Buffer; contentType: string } | null> {
+  "use step";
+  const { convertXlsToXlsx } = await import("@/lib/translation/xlsx/xls-workbook");
+  const { XLSX_CONTENT_TYPE } = await import("@/lib/translation/xlsx/xlsx-workbook");
+  const converted = convertXlsToXlsx(content);
+  return converted.ok
+    ? { content: Buffer.from(converted.value), contentType: XLSX_CONTENT_TYPE }
+    : null;
+}
+
 export async function getStoredFileContentStep(fileId: string, organizationId: string) {
   "use step";
   const { get } = await import("@vercel/blob");

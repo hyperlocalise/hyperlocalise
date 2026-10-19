@@ -12,10 +12,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -44,6 +45,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 
+import { useHyperlabWorkspace } from "../store/hyperlab-workspace-context";
+
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
   useHyperlabClient,
@@ -54,12 +57,7 @@ import {
   type HyperlabExperiment,
   type HyperlabFlag,
 } from "./hyperlab-api";
-import {
-  addMonthsIsoDate,
-  inspectWallTime,
-  timezoneSelectItems,
-  todayIsoDate,
-} from "./hyperlab-schedule";
+import { inspectWallTime, timezoneSelectItems } from "./hyperlab-schedule";
 
 function CreateDialogTrigger({ children }: { children: ReactNode }) {
   return (
@@ -70,20 +68,18 @@ function CreateDialogTrigger({ children }: { children: ReactNode }) {
   );
 }
 
-export function HyperlabCreateExperimentDialog({ organizationSlug }: { organizationSlug: string }) {
+export const HyperlabCreateExperimentDialog = observer(function HyperlabCreateExperimentDialog({
+  organizationSlug,
+}: {
+  organizationSlug: string;
+}) {
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
   const client = useHyperlabClient();
-  const defaultZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Australia/Sydney";
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState<"toggle" | "ab">("toggle");
-  const [startDate, setStartDate] = useState(() => todayIsoDate(defaultZone));
-  const [startTime, setStartTime] = useState("09:00");
-  const [endDate, setEndDate] = useState(() => addMonthsIsoDate(todayIsoDate(defaultZone), 3));
-  const [endTime, setEndTime] = useState("17:00");
-  const [zone, setZone] = useState(defaultZone);
+  const { ui } = useHyperlabWorkspace();
+  const open = ui.createExperimentOpen;
+  const { name, kind, startDate, startTime, endDate, endTime, zone } = ui.createExperimentDraft;
 
   const timezoneItems = timezoneSelectItems(zone);
   const kindItems = [
@@ -118,8 +114,7 @@ export function HyperlabCreateExperimentDialog({ organizationSlug }: { organizat
     },
     onSuccess: async (experiment) => {
       toast.success(intl.formatMessage(messages.createSuccess));
-      setOpen(false);
-      setName("");
+      ui.resetCreateExperimentDialog();
       await queryClient.invalidateQueries({
         queryKey: hyperlabQueryKeys.experiments(organizationSlug),
       });
@@ -131,7 +126,7 @@ export function HyperlabCreateExperimentDialog({ organizationSlug }: { organizat
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(next) => ui.setCreateExperimentOpen(next)}>
       <CreateDialogTrigger>
         <FormattedMessage {...messages.createExperiment} />
       </CreateDialogTrigger>
@@ -159,7 +154,7 @@ export function HyperlabCreateExperimentDialog({ organizationSlug }: { organizat
               <Input
                 id="hyperlab-new-experiment-name"
                 value={name}
-                onChange={(event) => setName(event.target.value)}
+                onChange={(event) => ui.patchCreateExperimentDraft({ name: event.target.value })}
                 placeholder={intl.formatMessage(messages.experimentNamePlaceholder)}
                 required
               />
@@ -173,7 +168,7 @@ export function HyperlabCreateExperimentDialog({ organizationSlug }: { organizat
                 items={kindItems}
                 onValueChange={(next) => {
                   if (next === "toggle" || next === "ab") {
-                    setKind(next);
+                    ui.patchCreateExperimentDraft({ kind: next });
                   }
                 }}
               >
@@ -208,7 +203,9 @@ export function HyperlabCreateExperimentDialog({ organizationSlug }: { organizat
                     id="hyperlab-new-start-date"
                     type="date"
                     value={startDate}
-                    onChange={(event) => setStartDate(event.target.value)}
+                    onChange={(event) =>
+                      ui.patchCreateExperimentDraft({ startDate: event.target.value })
+                    }
                     required
                   />
                 </Field>
@@ -222,7 +219,9 @@ export function HyperlabCreateExperimentDialog({ organizationSlug }: { organizat
                     id="hyperlab-new-start-time"
                     type="time"
                     value={startTime}
-                    onChange={(event) => setStartTime(event.target.value)}
+                    onChange={(event) =>
+                      ui.patchCreateExperimentDraft({ startTime: event.target.value })
+                    }
                     required
                   />
                   {startWall.status === "nonexistent" || startWall.status === "invalid" ? (
@@ -247,7 +246,7 @@ export function HyperlabCreateExperimentDialog({ organizationSlug }: { organizat
                     items={timezoneItems}
                     onValueChange={(next) => {
                       if (next) {
-                        setZone(next);
+                        ui.patchCreateExperimentDraft({ zone: next });
                       }
                     }}
                   >
@@ -277,7 +276,9 @@ export function HyperlabCreateExperimentDialog({ organizationSlug }: { organizat
                     id="hyperlab-new-end-date"
                     type="date"
                     value={endDate}
-                    onChange={(event) => setEndDate(event.target.value)}
+                    onChange={(event) =>
+                      ui.patchCreateExperimentDraft({ endDate: event.target.value })
+                    }
                     required
                   />
                 </Field>
@@ -291,7 +292,9 @@ export function HyperlabCreateExperimentDialog({ organizationSlug }: { organizat
                     id="hyperlab-new-end-time"
                     type="time"
                     value={endTime}
-                    onChange={(event) => setEndTime(event.target.value)}
+                    onChange={(event) =>
+                      ui.patchCreateExperimentDraft({ endTime: event.target.value })
+                    }
                     required
                   />
                   {endWall.status === "nonexistent" || endWall.status === "invalid" ? (
@@ -323,17 +326,20 @@ export function HyperlabCreateExperimentDialog({ organizationSlug }: { organizat
       </DialogContent>
     </Dialog>
   );
-}
+});
 
-export function HyperlabCreateFlagDialog({ organizationSlug }: { organizationSlug: string }) {
+export const HyperlabCreateFlagDialog = observer(function HyperlabCreateFlagDialog({
+  organizationSlug,
+}: {
+  organizationSlug: string;
+}) {
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
   const client = useHyperlabClient();
-  const [open, setOpen] = useState(false);
-  const [key, setKey] = useState("");
-  const [kind, setKind] = useState<"experiment" | "config">("experiment");
-  const [description, setDescription] = useState("");
+  const { ui } = useHyperlabWorkspace();
+  const open = ui.createFlagOpen;
+  const { key, kind, description } = ui.createFlagDraft;
   const kindItems = [
     { value: "experiment", label: intl.formatMessage(messages.flagKindExperiment) },
     { value: "config", label: intl.formatMessage(messages.flagKindConfig) },
@@ -353,9 +359,7 @@ export function HyperlabCreateFlagDialog({ organizationSlug }: { organizationSlu
     },
     onSuccess: async (flag) => {
       toast.success(intl.formatMessage(messages.createSuccess));
-      setOpen(false);
-      setKey("");
-      setDescription("");
+      ui.resetCreateFlagDialog();
       await queryClient.invalidateQueries({ queryKey: hyperlabQueryKeys.flags(organizationSlug) });
       router.push(`/org/${organizationSlug}/hyperlab/flags/${flag.id}`);
     },
@@ -365,7 +369,7 @@ export function HyperlabCreateFlagDialog({ organizationSlug }: { organizationSlu
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(next) => ui.setCreateFlagOpen(next)}>
       <CreateDialogTrigger>
         <FormattedMessage {...messages.createFlag} />
       </CreateDialogTrigger>
@@ -393,7 +397,7 @@ export function HyperlabCreateFlagDialog({ organizationSlug }: { organizationSlu
               <Input
                 id="hyperlab-new-flag-key"
                 value={key}
-                onChange={(event) => setKey(event.target.value)}
+                onChange={(event) => ui.patchCreateFlagDraft({ key: event.target.value })}
                 placeholder="japan-checkout-cta"
                 required
               />
@@ -410,7 +414,7 @@ export function HyperlabCreateFlagDialog({ organizationSlug }: { organizationSlu
                 items={kindItems}
                 onValueChange={(next) => {
                   if (next === "experiment" || next === "config") {
-                    setKind(next);
+                    ui.patchCreateFlagDraft({ kind: next });
                   }
                 }}
               >
@@ -438,7 +442,7 @@ export function HyperlabCreateFlagDialog({ organizationSlug }: { organizationSlu
               <Input
                 id="hyperlab-new-flag-note"
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
+                onChange={(event) => ui.patchCreateFlagDraft({ description: event.target.value })}
               />
             </Field>
           </FieldGroup>
@@ -454,16 +458,20 @@ export function HyperlabCreateFlagDialog({ organizationSlug }: { organizationSlu
       </DialogContent>
     </Dialog>
   );
-}
+});
 
-export function HyperlabCreateAudienceDialog({ organizationSlug }: { organizationSlug: string }) {
+export const HyperlabCreateAudienceDialog = observer(function HyperlabCreateAudienceDialog({
+  organizationSlug,
+}: {
+  organizationSlug: string;
+}) {
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
   const client = useHyperlabClient();
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const { ui } = useHyperlabWorkspace();
+  const open = ui.createAudienceOpen;
+  const { name, description } = ui.createAudienceDraft;
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -479,9 +487,7 @@ export function HyperlabCreateAudienceDialog({ organizationSlug }: { organizatio
     },
     onSuccess: async (audience) => {
       toast.success(intl.formatMessage(messages.createSuccess));
-      setOpen(false);
-      setName("");
-      setDescription("");
+      ui.resetCreateAudienceDialog();
       await queryClient.invalidateQueries({
         queryKey: hyperlabQueryKeys.audiences(organizationSlug),
       });
@@ -493,7 +499,7 @@ export function HyperlabCreateAudienceDialog({ organizationSlug }: { organizatio
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(next) => ui.setCreateAudienceOpen(next)}>
       <CreateDialogTrigger>
         <FormattedMessage {...messages.createAudience} />
       </CreateDialogTrigger>
@@ -521,7 +527,7 @@ export function HyperlabCreateAudienceDialog({ organizationSlug }: { organizatio
               <Input
                 id="hyperlab-new-audience-name"
                 value={name}
-                onChange={(event) => setName(event.target.value)}
+                onChange={(event) => ui.patchCreateAudienceDraft({ name: event.target.value })}
                 placeholder={intl.formatMessage(messages.audienceNamePlaceholder)}
                 required
               />
@@ -533,7 +539,9 @@ export function HyperlabCreateAudienceDialog({ organizationSlug }: { organizatio
               <Textarea
                 id="hyperlab-new-audience-note"
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
+                onChange={(event) =>
+                  ui.patchCreateAudienceDraft({ description: event.target.value })
+                }
                 rows={3}
               />
             </Field>
@@ -550,9 +558,9 @@ export function HyperlabCreateAudienceDialog({ organizationSlug }: { organizatio
       </DialogContent>
     </Dialog>
   );
-}
+});
 
-export function HyperlabCreateKeyDialog({
+export const HyperlabCreateKeyDialog = observer(function HyperlabCreateKeyDialog({
   organizationSlug,
   onCreated,
 }: {
@@ -562,8 +570,9 @@ export function HyperlabCreateKeyDialog({
   const intl = useIntl();
   const queryClient = useQueryClient();
   const client = useHyperlabClient();
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
+  const { ui } = useHyperlabWorkspace();
+  const open = ui.createKeyOpen;
+  const name = ui.createKeyName;
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -578,8 +587,7 @@ export function HyperlabCreateKeyDialog({
     },
     onSuccess: async (body) => {
       toast.success(intl.formatMessage(messages.createSuccess));
-      setOpen(false);
-      setName("");
+      ui.resetCreateKeyDialog();
       onCreated(body.key.secret ?? "");
       await queryClient.invalidateQueries({ queryKey: hyperlabQueryKeys.keys(organizationSlug) });
     },
@@ -589,7 +597,7 @@ export function HyperlabCreateKeyDialog({
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(next) => ui.setCreateKeyOpen(next)}>
       <CreateDialogTrigger>
         <FormattedMessage {...messages.createKey} />
       </CreateDialogTrigger>
@@ -616,7 +624,7 @@ export function HyperlabCreateKeyDialog({
             <Input
               id="hyperlab-new-key-name"
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => ui.setCreateKeyName(event.target.value)}
               placeholder={intl.formatMessage(messages.keyNamePlaceholder)}
               required
             />
@@ -633,4 +641,4 @@ export function HyperlabCreateKeyDialog({
       </DialogContent>
     </Dialog>
   );
-}
+});

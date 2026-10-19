@@ -16,6 +16,7 @@ import (
 
 func newEntriesCmd() *cobra.Command {
 	var locale string
+	var sourceLocale string
 	var sourcePath string
 	var srxSpec string
 
@@ -38,6 +39,7 @@ func newEntriesCmd() *cobra.Command {
 				path,
 				content,
 				strings.TrimSpace(sourcePath),
+				strings.TrimSpace(sourceLocale),
 				strings.TrimSpace(locale),
 				strings.TrimSpace(srxSpec),
 			)
@@ -63,6 +65,12 @@ func newEntriesCmd() *cobra.Command {
 		"target locale for multi-locale files such as .xcstrings",
 	)
 	cmd.Flags().StringVar(
+		&sourceLocale,
+		"source-locale",
+		"",
+		"source locale for files that store locales as columns, such as .xlsx (defaults to --locale)",
+	)
+	cmd.Flags().StringVar(
 		&sourcePath,
 		"source",
 		"",
@@ -77,7 +85,7 @@ func newEntriesCmd() *cobra.Command {
 	return cmd
 }
 
-func readEntriesCommandOutput(path string, content []byte, sourcePath, locale, srxSpec string) (map[string]translationfileparser.EntriesCommandOutputValue, error) {
+func readEntriesCommandOutput(path string, content []byte, sourcePath, sourceLocale, locale, srxSpec string) (map[string]translationfileparser.EntriesCommandOutputValue, error) {
 	if sourcePath != "" {
 		ext := strings.ToLower(filepath.Ext(path))
 		if ext == ".md" || ext == ".mdx" {
@@ -118,7 +126,7 @@ func readEntriesCommandOutput(path string, content []byte, sourcePath, locale, s
 	}
 
 	strategy := translationfileparser.NewDefaultStrategy()
-	entries, err := strategy.ParseIngestEntries(path, content, locale)
+	entries, err := strategy.ParseIngestEntriesWithSourceLocale(path, content, sourceLocale, locale)
 	if err != nil {
 		return nil, err
 	}

@@ -362,7 +362,7 @@ JSON body while retaining their original file extension.
 | 404 | `project_not_found` | Project id is invalid or the project is not accessible |
 | 404 | `source_file_not_found` | No source file exists at the requested path |
 | 404 | `translations_not_found` | The source file has no translation keys |
-| 501 | `not_implemented` | Lottie translation download is not supported |
+| 501 | `not_implemented` | Lottie or Excel translation download is not supported |
 | 503 | `workos_membership_lookup_failed` | WorkOS membership could not be verified |
 
 Lottie sources (`.lottie`, or `.json` containing only Lottie text keys) are not
@@ -466,6 +466,7 @@ All paths below are relative to `/v1/orgs/{organizationSlug}/projects/{projectId
 | GET | `/files/detail/cat/segments/{id}/target` | Segment translation |
 | GET | `/files/detail/cat/segments/{id}/comments` | Segment comments |
 | POST | `/files/detail/cat/translations` | Save draft or approved translation |
+| POST | `/files/detail/cat/document/parse-back` | Map an edited Markdown or HTML document to changed segment targets |
 | POST, PATCH | `/files/detail/cat/translations/status` | Update translation status |
 | POST | `/files/detail/cat/comments` | Add a comment |
 | PATCH | `/files/detail/cat/comments/{id}/resolve` | Resolve a legacy native issue comment |

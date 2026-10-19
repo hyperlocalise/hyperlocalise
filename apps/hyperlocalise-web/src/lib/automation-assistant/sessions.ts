@@ -14,12 +14,12 @@ import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { convertToModelMessages, type ModelMessage, type UIMessage } from "ai";
 
 import {
-  describeAutomationSetupPageEdits,
-  readAutomationSetupPageEdits,
-  readAutomationSetupSnapshot,
-  toAutomationSetupHistoryParts,
-} from "@/lib/agents/workspace-automation-assistant";
-import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
+  describeAutomationAssistantPageEdits,
+  readAutomationAssistantPageEditsRecord,
+  readAutomationAssistantSnapshot,
+  toAutomationAssistantModelHistoryParts,
+  type AutomationAssistantSnapshot,
+} from "@/lib/agents/automation-assistant-editors";
 import { db, schema } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
@@ -36,6 +36,7 @@ export type AutomationAssistantSession = {
   organizationId: string;
   createdByUserId: string;
   automationId: string | null;
+  visualWorkflowId: string | null;
   title: string;
   turnStartedAt: Date | null;
   createdAt: Date;
@@ -60,6 +61,7 @@ function toSession(row: typeof sessions.$inferSelect): AutomationAssistantSessio
     organizationId: row.organizationId,
     createdByUserId: row.createdByUserId,
     automationId: row.automationId,
+    visualWorkflowId: row.visualWorkflowId,
     title: row.title,
     turnStartedAt: row.turnStartedAt,
     createdAt: row.createdAt,
@@ -88,19 +90,22 @@ function isUniqueViolation(error: unknown) {
 }
 
 /**
- * Makes a session for the person. One bound to an automation lives with it; one for a new
- * automation is kept for a day, so a turn still running when its page is left can finish. The
- * person's own sessions whose day is up are deleted first, so nothing sweeps them later.
+ * Makes a session for the person. One bound to an automation or a visual workflow lives with it;
+ * one for a new automation is kept for a day, so a turn still running when its page is left can
+ * finish. The person's own sessions whose day is up are deleted first, so nothing sweeps them
+ * later.
  *
- * A person has one session per saved automation: when they already have one, as when two tabs
- * on the automation each ask for the first, that one is returned and none is made.
+ * A person has one session per saved automation or workflow: when they already have one, as
+ * when two tabs on the automation each ask for the first, that one is returned and none is made.
  */
 export async function createAutomationAssistantSession(input: {
   organizationId: string;
   userId: string;
   automationId?: string | null;
+  visualWorkflowId?: string | null;
   firstMessageText?: string;
 }): Promise<AutomationAssistantSession> {
+  const bound = Boolean(input.automationId || input.visualWorkflowId);
   await db
     .delete(sessions)
     .where(and(eq(sessions.createdByUserId, input.userId), lt(sessions.expiresAt, new Date())));
@@ -115,14 +120,14 @@ export async function createAutomationAssistantSession(input: {
         title: (input.firstMessageText?.trim() || "Automation assistant").slice(0, TITLE_CHARS),
         createdByUserId: input.userId,
         automationId: input.automationId ?? null,
-        expiresAt: input.automationId
-          ? null
-          : new Date(now.getTime() + AUTOMATION_ASSISTANT_SESSION_TTL_MS),
+        visualWorkflowId: input.visualWorkflowId ?? null,
+        expiresAt: bound ? null : new Date(now.getTime() + AUTOMATION_ASSISTANT_SESSION_TTL_MS),
         lastMessageAt: now,
         createdAt: now,
         updatedAt: now,
       })
-      .onConflictDoNothing({ target: [sessions.automationId, sessions.createdByUserId] })
+      // Either unique index: one per automation and author, one per workflow and author.
+      .onConflictDoNothing()
       .returning();
     if (row) {
       return toSession(row);
@@ -133,7 +138,13 @@ export async function createAutomationAssistantSession(input: {
           userId: input.userId,
           automationId: input.automationId,
         })
-      : null;
+      : input.visualWorkflowId
+        ? await findAutomationAssistantSessionForVisualWorkflow({
+            organizationId: input.organizationId,
+            userId: input.userId,
+            visualWorkflowId: input.visualWorkflowId,
+          })
+        : null;
     if (existing) {
       return existing;
     }
@@ -169,8 +180,23 @@ export async function findAutomationAssistantSessionForAutomation(input: {
   return row ? toSession(row) : null;
 }
 
+/** The person's session about a saved visual workflow, which its editor resumes. */
+export async function findAutomationAssistantSessionForVisualWorkflow(input: {
+  organizationId: string;
+  userId: string;
+  visualWorkflowId: string;
+}): Promise<AutomationAssistantSession | null> {
+  const [row] = await db
+    .select()
+    .from(sessions)
+    .where(and(eq(sessions.visualWorkflowId, input.visualWorkflowId), ownedBy(input)))
+    .orderBy(desc(sessions.createdAt))
+    .limit(1);
+  return row ? toSession(row) : null;
+}
+
 export type AutomationAssistantSessionBindError =
-  /** The session belongs to another automation, or is gone. */
+  /** The session belongs to another automation or to a visual workflow, or is gone. */
   | { code: "session_already_bound" }
   /** The person already has a session for the automation, so this one stays unbound. */
   | { code: "automation_session_exists" };
@@ -191,6 +217,8 @@ export async function bindAutomationAssistantSession(input: {
       .where(
         and(
           eq(sessions.id, input.sessionId),
+          // A session about a visual workflow is never bound to an automation as well.
+          isNull(sessions.visualWorkflowId),
           or(isNull(sessions.automationId), eq(sessions.automationId, input.automationId)),
         ),
       )
@@ -282,17 +310,17 @@ export async function findAutomationAssistantLastTurnId(sessionId: string): Prom
   return row?.id ?? null;
 }
 
-/** How many of the newest replies are searched for the form the last turn left. */
+/** How many of the newest replies are searched for the page the last turn left. */
 const SNAPSHOT_LOOKBACK_REPLIES = 5;
 
 /**
- * The form as the assistant's last finished turn left it, or null when no turn has recorded one.
+ * The page as the assistant's last finished turn left it, or null when no turn has recorded it.
  * The next turn compares it with the page it is sent from, to learn what the person changed
  * themselves in between.
  */
-export async function findAutomationAssistantFormAfterLastTurn(
+export async function findAutomationAssistantSnapshotAfterLastTurn(
   sessionId: string,
-): Promise<WorkspaceAutomationFormState | null> {
+): Promise<AutomationAssistantSnapshot | null> {
   const rows = await db
     .select({ parts: messages.parts })
     .from(messages)
@@ -300,9 +328,9 @@ export async function findAutomationAssistantFormAfterLastTurn(
     .orderBy(desc(messages.createdAt))
     .limit(SNAPSHOT_LOOKBACK_REPLIES);
   for (const row of rows) {
-    const form = readAutomationSetupSnapshot(row.parts);
-    if (form) {
-      return form;
+    const snapshot = readAutomationAssistantSnapshot(row.parts);
+    if (snapshot) {
+      return snapshot;
     }
   }
   return null;
@@ -347,12 +375,14 @@ export async function loadAutomationAssistantModelMessages(
       }
       // What the person changed on the page before sending this is part of what happened, and
       // stays true, so the model is shown it with the message every time.
-      const edits = readAutomationSetupPageEdits(row.parts);
+      const record = readAutomationAssistantPageEditsRecord(row.parts);
       const text =
-        edits.length > 0 ? `${describeAutomationSetupPageEdits(edits)}\n\n${row.text}` : row.text;
+        record && record.edits.length > 0
+          ? `${describeAutomationAssistantPageEdits(record.editor, record.edits)}\n\n${row.text}`
+          : row.text;
       return [{ role: "user", parts: [{ type: "text", text }] }];
     }
-    const parts = toAutomationSetupHistoryParts(
+    const parts = toAutomationAssistantModelHistoryParts(
       row.parts ?? [{ type: "text", text: row.text }],
     ) as UIMessage["parts"];
     return parts.some((part) => part.type !== "step-start") ? [{ role: "assistant", parts }] : [];

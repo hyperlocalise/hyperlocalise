@@ -12,18 +12,19 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { PlusIcon, CaretDownIcon } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
+import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import {
-  emptyGlossaryTermMetadataDraft,
   GlossaryTermMetadataFields,
   glossaryTermMetadataToPayload,
-  type GlossaryTermMetadataDraft,
 } from "@/components/glossary/glossary-term-property-pickers";
+import { useOptionalCatWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
+import { ContentEditorIntelligenceStore } from "@/components/content-editor/workspace/store/content-editor-intelligence-store";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import type { GlossaryPartOfSpeech } from "@/lib/glossary/glossary";
@@ -61,14 +62,15 @@ import {
 
 const CREATE_TEAM_GLOSSARY_VALUE = "__create__";
 
-const preferredGlossaryTermMetadataDraft: GlossaryTermMetadataDraft = {
-  ...emptyGlossaryTermMetadataDraft,
-  status: "preferred",
-};
-
 export type { ContentEditorTeamGlossaryOption };
 
-export function ContentEditorAddToGlossary({
+function useAddToGlossaryStore() {
+  const workspace = useOptionalCatWorkspace();
+  const [localStore] = useState(() => new ContentEditorIntelligenceStore());
+  return workspace?.intelligenceState ?? localStore;
+}
+
+export const ContentEditorAddToGlossary = observer(function ContentEditorAddToGlossary({
   organizationSlug,
   projectId,
   teamId,
@@ -113,30 +115,36 @@ export function ContentEditorAddToGlossary({
     () => formatCatSharedWithTeamGlossaryName(intl, teamName),
     [intl, teamName],
   );
-  const [createdGlossaries, setCreatedGlossaries] = useState<ContentEditorTeamGlossaryOption[]>([]);
+  const store = useAddToGlossaryStore();
+  const glossaryWizardPrimedRef = useRef(false);
+  if (!glossaryWizardPrimedRef.current) {
+    glossaryWizardPrimedRef.current = true;
+    store.primeGlossaryWizard({
+      sourceTerm,
+      targetTerm,
+      selectedGlossaryId: scopedTeamGlossaries[0]?.id ?? "",
+      defaultGlossaryName,
+    });
+  }
   const glossaries = useMemo(() => {
     const seen = new Set(scopedTeamGlossaries.map((glossary) => glossary.id));
     return [
       ...scopedTeamGlossaries,
-      ...createdGlossaries.filter(
+      ...store.glossaryCreated.filter(
         (glossary) => !seen.has(glossary.id) && glossary.teamId === teamId,
       ),
     ];
-  }, [createdGlossaries, scopedTeamGlossaries, teamId]);
-  const [selectedGlossaryId, setSelectedGlossaryId] = useState(glossaries[0]?.id ?? "");
+  }, [store.glossaryCreated, scopedTeamGlossaries, teamId]);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [newGlossaryName, setNewGlossaryName] = useState(defaultGlossaryName);
-  const [primaryTerm, setPrimaryTerm] = useState(sourceTerm);
-  const [definition, setDefinition] = useState("");
-  const [translatable, setTranslatable] = useState(true);
-  const [targetDraft, setTargetDraft] = useState(targetTerm);
-  const [sourceMetadata, setSourceMetadata] = useState<GlossaryTermMetadataDraft>(
-    () => preferredGlossaryTermMetadataDraft,
-  );
-  const [targetMetadata, setTargetMetadata] = useState<GlossaryTermMetadataDraft>(
-    () => preferredGlossaryTermMetadataDraft,
-  );
+  const selectedGlossaryId = store.glossarySelectedId;
+  const isCreateDialogOpen = store.glossaryCreateDialogOpen;
+  const newGlossaryName = store.glossaryNewName;
+  const primaryTerm = store.glossaryPrimaryTerm;
+  const definition = store.glossaryDefinition;
+  const translatable = store.glossaryTranslatable;
+  const targetDraft = store.glossaryTargetDraft;
+  const sourceMetadata = store.glossarySourceMetadata;
+  const targetMetadata = store.glossaryTargetMetadata;
 
   const selectedGlossary =
     glossaries.find((glossary) => glossary.id === selectedGlossaryId) ?? glossaries[0];
@@ -183,11 +191,7 @@ export function ContentEditorAddToGlossary({
         name: body.glossary.name,
         teamId,
       };
-      setCreatedGlossaries((current) =>
-        current.some((glossary) => glossary.id === created.id) ? current : [...current, created],
-      );
-      setSelectedGlossaryId(created.id);
-      setIsCreateDialogOpen(false);
+      store.rememberCreatedGlossary(created);
       onTeamGlossaryCreated?.(created);
       toast.success(
         intl.formatMessage(contentEditorIntelligencePanelMessages.addToGlossaryCreateSuccess),
@@ -274,8 +278,7 @@ export function ContentEditorAddToGlossary({
 
   const openCreateDialog = () => {
     setPickerOpen(false);
-    setNewGlossaryName(defaultGlossaryName);
-    setIsCreateDialogOpen(true);
+    store.setGlossaryCreateDialogOpen(true, defaultGlossaryName);
   };
 
   return (
@@ -296,12 +299,12 @@ export function ContentEditorAddToGlossary({
           <Input
             id={primaryTermId}
             value={primaryTerm}
-            onChange={(event) => setPrimaryTerm(event.target.value)}
+            onChange={(event) => store.setGlossaryPrimaryTerm(event.target.value)}
             disabled={isBusy}
           />
           <GlossaryTermMetadataFields
             value={sourceMetadata}
-            onChange={setSourceMetadata}
+            onChange={(draft) => store.setGlossarySourceMetadata(draft)}
             disabled={isBusy}
           />
         </Field>
@@ -315,12 +318,12 @@ export function ContentEditorAddToGlossary({
             <Input
               id={targetTermId}
               value={targetDraft}
-              onChange={(event) => setTargetDraft(event.target.value)}
+              onChange={(event) => store.setGlossaryTargetDraft(event.target.value)}
               disabled={isBusy}
             />
             <GlossaryTermMetadataFields
               value={targetMetadata}
-              onChange={setTargetMetadata}
+              onChange={(draft) => store.setGlossaryTargetMetadata(draft)}
               disabled={isBusy}
             />
           </Field>
@@ -334,7 +337,7 @@ export function ContentEditorAddToGlossary({
           <Textarea
             id={definitionId}
             value={definition}
-            onChange={(event) => setDefinition(event.target.value)}
+            onChange={(event) => store.setGlossaryDefinition(event.target.value)}
             disabled={isBusy}
             rows={2}
             className="min-h-12"
@@ -343,7 +346,7 @@ export function ContentEditorAddToGlossary({
         <label className="flex min-w-0 items-center gap-2 text-sm text-foreground">
           <Checkbox
             checked={translatable}
-            onCheckedChange={(checked) => setTranslatable(checked === true)}
+            onCheckedChange={(checked) => store.setGlossaryTranslatable(checked === true)}
             disabled={isBusy}
           />
           <FormattedMessage
@@ -403,7 +406,7 @@ export function ContentEditorAddToGlossary({
                           value={`${glossary.id} ${glossary.name}`}
                           data-checked={selectedGlossary?.id === glossary.id || undefined}
                           onSelect={() => {
-                            setSelectedGlossaryId(glossary.id);
+                            store.setGlossarySelectedId(glossary.id);
                             setPickerOpen(false);
                           }}
                         >
@@ -444,7 +447,10 @@ export function ContentEditorAddToGlossary({
           </Button>
         </div>
       </div>
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      <Dialog
+        open={isCreateDialogOpen}
+        onOpenChange={(open) => store.setGlossaryCreateDialogOpen(open)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -463,7 +469,7 @@ export function ContentEditorAddToGlossary({
               <Input
                 id={newGlossaryNameId}
                 value={newGlossaryName}
-                onChange={(event) => setNewGlossaryName(event.target.value)}
+                onChange={(event) => store.setGlossaryNewName(event.target.value)}
                 disabled={createGlossary.isPending}
                 placeholder={defaultGlossaryName}
               />
@@ -474,7 +480,7 @@ export function ContentEditorAddToGlossary({
               type="button"
               variant="outline"
               disabled={createGlossary.isPending}
-              onClick={() => setIsCreateDialogOpen(false)}
+              onClick={() => store.setGlossaryCreateDialogOpen(false)}
             >
               <FormattedMessage
                 {...contentEditorIntelligencePanelMessages.addToGlossaryCreateCancel}
@@ -494,4 +500,4 @@ export function ContentEditorAddToGlossary({
       </Dialog>
     </div>
   );
-}
+});

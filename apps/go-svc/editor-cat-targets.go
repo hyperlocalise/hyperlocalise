@@ -187,7 +187,7 @@ func (api *editorCatAPI) loadSegmentTargets(r *http.Request, actor editorCatActo
 // UUID against the file table so batch targets match getSegmentTarget.
 func (api *editorCatAPI) resolvedEditorCatTargetKind(r *http.Request, actor editorCatActor, project editorCatProject, sourcePath, id string, sourceFileIDs map[string]string) (editorCatFileKind, error) {
 	kind := editorCatTargetKind(sourcePath, id)
-	if kind != editorCatKindText || !isEditorCatDocument(sourcePath) {
+	if kind != editorCatKindText || !isEditorCatSegmentedFile(sourcePath) {
 		return kind, nil
 	}
 	sourceFileID, cached := sourceFileIDs[sourcePath]
@@ -204,7 +204,7 @@ func (api *editorCatAPI) resolvedEditorCatTargetKind(r *http.Request, actor edit
 		sourceFileID = lookedUp
 	}
 	if sourceFileID != "" && id == sourceFileID {
-		return editorCatKindDocument, nil
+		return editorCatSourceKind(sourcePath), nil
 	}
 	return kind, nil
 }

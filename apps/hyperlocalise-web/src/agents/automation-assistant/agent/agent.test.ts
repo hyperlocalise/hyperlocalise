@@ -39,10 +39,38 @@ function context(automationId: string | null = null) {
 describe("createAutomationAssistantAgent", () => {
   it("has the setup tool and nothing else", () => {
     const agent = createAutomationAssistantAgent({
-      toolContext: { automationEditor: context() },
+      toolContext: { kind: "automation-editor", automationEditor: context() },
     });
 
     expect(Object.keys(agent.tools)).toEqual(["update_automation_setup"]);
+  });
+
+  it("has the canvas tool, and only that, on a visual workflow page", () => {
+    const agent = createAutomationAssistantAgent({
+      toolContext: {
+        kind: "visual-workflow-editor",
+        visualWorkflowEditor: {
+          kind: "visual-workflow-editor",
+          editorSessionId: "session-1",
+          visualWorkflowId: "workflow-1",
+          definition: {
+            schemaVersion: 3,
+            name: "x",
+            nodes: [],
+            edges: [],
+            editor: { positions: {} },
+          },
+          projectName: null,
+        },
+      },
+    });
+
+    expect(Object.keys(agent.tools)).toEqual(["edit_visual_workflow"]);
+    const instructions = buildAutomationAssistantInstructions("visual-workflow-editor");
+    expect(instructions).toContain("You are Hyperlocalise's automation assistant.");
+    expect(instructions).toContain("## Working on the visual workflow editor");
+    expect(instructions).toContain("### Node types");
+    expect(instructions).not.toContain("Skills you can attach");
   });
 
   it("is told who it is and which skills it can attach, and nothing about the page", () => {

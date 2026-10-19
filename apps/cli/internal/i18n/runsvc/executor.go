@@ -156,7 +156,7 @@ func newExecutorState(tasks []Task, projectRoot string, initialStaged map[string
 	}
 	for _, task := range tasks {
 		state.pendingByTarget[task.TargetPath]++
-		state.idsByTarget[task.TargetPath] = append(state.idsByTarget[task.TargetPath], preferredTaskIdentity(projectRoot, task.TargetPath, task.EntryKey))
+		state.idsByTarget[task.TargetPath] = append(state.idsByTarget[task.TargetPath], taskLockIdentity(projectRoot, task.TargetPath, task.TargetLocale, task.EntryKey))
 		existing := state.sourceByTarget[task.TargetPath]
 		if existing != "" && existing != task.SourcePath {
 			return nil, fmt.Errorf("output staging conflict: %s has conflicting source paths", task.TargetPath)
@@ -167,11 +167,15 @@ func newExecutorState(tasks []Task, projectRoot string, initialStaged map[string
 			return nil, fmt.Errorf("output staging conflict: %s has conflicting source locales", task.TargetPath)
 		}
 		state.sourceLocaleByTarget[task.TargetPath] = task.SourceLocale
-		existingLocale := state.localeByTarget[task.TargetPath]
+		localeKey := stagedOutputKey(task.TargetPath, task.TargetLocale)
+		existingLocale := state.localeByTarget[localeKey]
 		if existingLocale != "" && existingLocale != task.TargetLocale {
 			return nil, fmt.Errorf("output staging conflict: %s has conflicting target locales", task.TargetPath)
 		}
-		state.localeByTarget[task.TargetPath] = task.TargetLocale
+		state.localeByTarget[localeKey] = task.TargetLocale
+		if state.localeByTarget[task.TargetPath] == "" {
+			state.localeByTarget[task.TargetPath] = task.TargetLocale
+		}
 	}
 	return state, nil
 }
@@ -521,35 +525,42 @@ func (s *Service) flushIfTargetCompleted(targetPath, sourcePath string, state *e
 	}
 
 	state.stageMu.Lock()
-	output, ok := state.staged[targetPath]
+	outputs := snapshotStagedOutputsForPath(state.staged, targetPath)
 	state.stageMu.Unlock()
 
-	if !ok {
-		output = stagedOutput{entries: map[string]string{}, sourcePath: expectedSourcePath, sourceLocale: expectedSourceLocale, targetLocale: expectedTargetLocale}
-	} else if output.sourcePath == "" {
-		output.sourcePath = expectedSourcePath
+	if len(outputs) == 0 {
+		outputs = []stagedOutput{{entries: map[string]string{}, sourcePath: expectedSourcePath, sourceLocale: expectedSourceLocale, targetLocale: expectedTargetLocale}}
 	}
-	if output.sourceLocale == "" {
-		output.sourceLocale = expectedSourceLocale
-	}
-	if output.targetLocale == "" {
-		output.targetLocale = expectedTargetLocale
+	for i := range outputs {
+		if outputs[i].sourcePath == "" {
+			outputs[i].sourcePath = expectedSourcePath
+		}
+		if outputs[i].sourceLocale == "" {
+			outputs[i].sourceLocale = expectedSourceLocale
+		}
+		if outputs[i].targetLocale == "" {
+			outputs[i].targetLocale = expectedTargetLocale
+		}
 	}
 
 	ctx := state.runCtx
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	warnings, err := s.flushOutputForTargetWithMarkdownParityRetry(ctx, state.parityRetry, targetPath, output, state.pruneTargets[targetPath])
-	if err != nil {
-		state.stageMu.Lock()
-		delete(state.staged, targetPath)
-		state.stageMu.Unlock()
-		return err
+	var warnings []string
+	for _, output := range outputs {
+		targetWarnings, err := s.flushOutputForTargetWithMarkdownParityRetry(ctx, state.parityRetry, targetPath, output, state.pruneTargets[targetPath])
+		if err != nil {
+			state.stageMu.Lock()
+			deleteStagedOutputsForPath(state.staged, targetPath)
+			state.stageMu.Unlock()
+			return err
+		}
+		warnings = append(warnings, targetWarnings...)
 	}
 
 	state.stageMu.Lock()
-	delete(state.staged, targetPath)
+	deleteStagedOutputsForPath(state.staged, targetPath)
 	state.stageMu.Unlock()
 
 	state.pendingMu.Lock()
@@ -633,7 +644,7 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 	}
 
 	select {
-	case completions <- taskCompletion{identity: preferredTaskIdentity(s.projectRoot, task.TargetPath, task.EntryKey), entryKey: task.EntryKey, value: outputValue, sourceHash: sourceHash, taskHash: taskHash, targetPath: task.TargetPath, sourcePath: task.SourcePath, targetLocale: task.TargetLocale}:
+	case completions <- taskCompletion{identity: taskLockIdentity(s.projectRoot, task.TargetPath, task.TargetLocale, task.EntryKey), entryKey: task.EntryKey, value: outputValue, sourceHash: sourceHash, taskHash: taskHash, targetPath: task.TargetPath, sourcePath: task.SourcePath, targetLocale: task.TargetLocale}:
 		state.reportMu.Lock()
 		state.report.Succeeded++
 		state.report.TokenUsage = addTokenUsage(state.report.TokenUsage, toRunTokenUsage(usage))
@@ -777,8 +788,9 @@ func stageTaskOutput(staged map[string]stagedOutput, task Task, value string, st
 	sourceLocale := task.SourceLocale
 	targetLocale := task.TargetLocale
 	entryKey := task.EntryKey
+	key := stagedOutputKey(targetPath, targetLocale)
 
-	bucket, ok := staged[targetPath]
+	bucket, ok := staged[key]
 	if !ok {
 		bucket = stagedOutput{
 			entries:      map[string]string{},
@@ -788,7 +800,7 @@ func stageTaskOutput(staged map[string]stagedOutput, task Task, value string, st
 			srxSpec:      task.SRXSpec,
 			parserMode:   task.ParserMode,
 		}
-		staged[targetPath] = bucket
+		staged[key] = bucket
 	} else if bucket.sourcePath != sourcePath {
 		return fmt.Errorf("output staging conflict: %s has conflicting source paths", targetPath)
 	} else if bucket.sourceLocale != "" && bucket.sourceLocale != sourceLocale {
@@ -812,7 +824,7 @@ func stageTaskOutput(staged map[string]stagedOutput, task Task, value string, st
 		return fmt.Errorf("output staging conflict: %s already staged with different value", taskIdentity(targetPath, entryKey))
 	}
 	bucket.entries[entryKey] = value
-	staged[targetPath] = bucket
+	staged[key] = bucket
 	return nil
 }
 

@@ -30,6 +30,10 @@ import {
 } from "@/lib/zernio/agent-tools";
 import { listZernioConnections, resolveZernioConnectionWithApiKey } from "@/lib/zernio/connections";
 import type { ZernioConnectionError, ZernioConnectionWithApiKey } from "@/lib/zernio/types";
+import { MCP_CREATE_TOOL, MCP_READ_ONLY_TOOL } from "@/api/routes/mcp/mcp-tool-result";
+
+const ZERNIO_READ_TOOL = { ...MCP_READ_ONLY_TOOL, openWorldHint: true };
+const ZERNIO_CREATE_TOOL = { ...MCP_CREATE_TOOL, openWorldHint: true };
 
 function mcpToolError(code: string, message: string, details?: Record<string, unknown>) {
   return {
@@ -78,6 +82,7 @@ export function registerZernioMcpTools(server: McpServer, apiAuth: ApiAuthContex
   server.registerTool(
     "zernio_list_connections",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "List Zernio API key connections for this organization. Secrets are never returned. Use a connection id with the other zernio_* tools when more than one connection exists.",
       inputSchema: z.object({}),
@@ -101,6 +106,7 @@ export function registerZernioMcpTools(server: McpServer, apiAuth: ApiAuthContex
   server.registerTool(
     "zernio_list_accounts",
     {
+      annotations: ZERNIO_READ_TOOL,
       description:
         "List Zernio social and ads accounts for a connected API key. Use account _id as accountId when creating ads.",
       inputSchema: z.object({
@@ -123,6 +129,7 @@ export function registerZernioMcpTools(server: McpServer, apiAuth: ApiAuthContex
   server.registerTool(
     "zernio_list_ads",
     {
+      annotations: ZERNIO_READ_TOOL,
       description: "Read the Zernio ads tree (campaign → ad set → ad) with rolled-up metrics.",
       inputSchema: z.object({
         connectionId: connectionIdSchema,
@@ -145,6 +152,7 @@ export function registerZernioMcpTools(server: McpServer, apiAuth: ApiAuthContex
   server.registerTool(
     "zernio_get_ad",
     {
+      annotations: ZERNIO_READ_TOOL,
       description: "Get one Zernio ad by id, including creative, targeting, and metrics.",
       inputSchema: z.object({
         connectionId: connectionIdSchema,
@@ -167,6 +175,7 @@ export function registerZernioMcpTools(server: McpServer, apiAuth: ApiAuthContex
   server.registerTool(
     "zernio_create_ad",
     {
+      annotations: ZERNIO_CREATE_TOOL,
       description:
         "Create a paid ad through Zernio (POST /v1/ads/create) on Meta, Google, TikTok, LinkedIn, Pinterest, X, or OpenAI Ads. Creates campaign, ad set, and ad unless existingCampaignId or adSetId is set.",
       inputSchema: zernioCreateAdInputSchema.extend({
@@ -197,6 +206,7 @@ export function registerZernioMcpTools(server: McpServer, apiAuth: ApiAuthContex
   server.registerTool(
     "zernio_create_campaign",
     {
+      annotations: ZERNIO_CREATE_TOOL,
       description:
         "Create a standalone Zernio campaign without its first ad set. Ad sets join later via existingCampaignId on zernio_create_ad.",
       inputSchema: zernioCreateCampaignInputSchema.extend({

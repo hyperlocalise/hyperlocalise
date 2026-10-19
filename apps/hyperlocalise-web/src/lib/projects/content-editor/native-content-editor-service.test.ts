@@ -27,6 +27,12 @@ const getLatestRepositorySourceFileVersion = vi.fn();
 const getStoredFileContent = vi.fn();
 const getImageVariant = vi.fn();
 const getVideoVariant = vi.fn();
+const requeueKeylessOfficeSourceIngest = vi.fn();
+
+vi.mock("@/lib/projects/files/office-legacy-reingest", () => ({
+  requeueKeylessOfficeSourceIngest: (...args: unknown[]) =>
+    requeueKeylessOfficeSourceIngest(...args),
+}));
 
 vi.mock("@/lib/file-storage/records", () => ({
   getLatestRepositorySourceFileVersion: (...args: unknown[]) =>
@@ -88,6 +94,7 @@ describe("NativeContentEditorService.getCatFile", () => {
     getStoredFileContent.mockReset();
     getImageVariant.mockResolvedValue(null);
     getVideoVariant.mockResolvedValue(null);
+    requeueKeylessOfficeSourceIngest.mockResolvedValue(false);
     countKeysForFile.mockImplementation(async (input) => {
       if (input.queueFilter === "reviewed") {
         return 45;
@@ -419,7 +426,8 @@ describe("NativeContentEditorService.getCatFile", () => {
     });
   });
 
-  it("returns a synthetic office_file segment for docx sources", async () => {
+  it("returns a synthetic office_file segment for keyless docx sources", async () => {
+    listKeysForFile.mockResolvedValue([]);
     getLatestRepositorySourceFileVersion.mockResolvedValue({
       storedFileId: "stored_source_docx",
     });
@@ -438,7 +446,12 @@ describe("NativeContentEditorService.getCatFile", () => {
       organizationSlug: "acme",
     });
 
-    expect(listKeysForFile).not.toHaveBeenCalled();
+    expect(listKeysForFile).toHaveBeenCalledTimes(1);
+    expect(requeueKeylessOfficeSourceIngest).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "docs/brief.docx",
+    });
     expect(result?.segments).toHaveLength(1);
     expect(result?.segments[0]).toMatchObject({
       externalStringId: "file_1",
@@ -449,6 +462,103 @@ describe("NativeContentEditorService.getCatFile", () => {
       targetAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_target_docx",
       imageVariantId: "variant_docx",
     });
+  });
+
+  it("returns Excel workbook keys plus a File view of the generated workbook", async () => {
+    listKeysForFile.mockResolvedValue([
+      {
+        id: "key_xlsx",
+        key: "home.title",
+        sourceText: "Home",
+        context: "Navigation label",
+        type: "string",
+        maxLength: 20,
+        metadata: null,
+      },
+    ]);
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_xlsx",
+    });
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "sheets/strings v2.xlsx",
+      targetLocale: "fr-FR",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(listKeysForFile).toHaveBeenCalledWith(
+      expect.objectContaining({ repositorySourceFileId: "file_1", limit: 1 }),
+    );
+    expect(result?.segments).toHaveLength(1);
+    expect(result?.segments[0]).toMatchObject({
+      externalStringId: "key_xlsx",
+      key: "home.title",
+      sourceText: "Home",
+      context: "Navigation label",
+      maxLength: 20,
+    });
+    expect(result?.segments[0]?.contentKind).toBeUndefined();
+    expect(result?.documentView).toEqual({
+      externalStringId: "file_1",
+      sourceAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_source_xlsx",
+      targetAssetUrl:
+        "/api/orgs/acme/projects/project_1/files/translations/download?sourcePath=sheets%2Fstrings+v2.xlsx&locale=fr-FR",
+      imageVariantId: null,
+    });
+    expect(getImageVariant).not.toHaveBeenCalled();
+  });
+
+  it("keeps the Office File view for Excel uploads with no keys", async () => {
+    listKeysForFile.mockResolvedValue([]);
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_xlsx",
+    });
+    getImageVariant.mockResolvedValue({
+      id: "variant_xlsx",
+      storedFileId: "stored_target_xlsx",
+      status: "draft",
+    });
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "sheets/rates.xlsx",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(listKeysForFile).toHaveBeenCalledTimes(1);
+    expect(result?.documentView).toBeUndefined();
+    expect(result?.segments).toEqual([
+      expect.objectContaining({
+        externalStringId: "file_1",
+        key: "sheets/rates.xlsx",
+        contentKind: "office_file",
+        targetAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_target_xlsx",
+        imageVariantId: "variant_xlsx",
+      }),
+    ]);
+  });
+
+  it("keeps the Office File view when requeueing a keyless .xls workbook fails", async () => {
+    listKeysForFile.mockResolvedValue([]);
+    requeueKeylessOfficeSourceIngest.mockRejectedValue(new Error("workflow unavailable"));
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "sheets/rates.xls",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(requeueKeylessOfficeSourceIngest).toHaveBeenCalledTimes(1);
+    expect(result?.segments[0]?.contentKind).toBe("office_file");
   });
 
   it("returns ingested markdown keys plus a document view overlay", async () => {
@@ -963,6 +1073,38 @@ describe("NativeContentEditorService.getSegmentTarget", () => {
         ...segmentInput,
         sourcePath: "assets/hero.png",
         externalStringId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      }),
+    ).resolves.toBe("not_found");
+    expect(getTranslationsByKeyIds).not.toHaveBeenCalled();
+  });
+
+  it("resolves an Excel workbook segment key instead of the whole-file variant", async () => {
+    selectLimit.mockResolvedValue([{ id: "key-uuid", metadata: null }]);
+    getTranslationsByKeyIds.mockResolvedValue([
+      { id: "translation_1", text: "Accueil", status: "approved" },
+    ]);
+
+    await expect(
+      service.getSegmentTarget({
+        ...segmentInput,
+        sourcePath: "sheets/strings.xlsx",
+        externalStringId: "key-uuid",
+      }),
+    ).resolves.toEqual({
+      text: "Accueil",
+      externalTranslationId: "translation_1",
+      isApproved: true,
+      status: "approved",
+    });
+    expect(getImageVariant).not.toHaveBeenCalled();
+  });
+
+  it("rejects a key UUID on a legacy .xls workbook", async () => {
+    await expect(
+      service.getSegmentTarget({
+        ...segmentInput,
+        sourcePath: "sheets/strings.xls",
+        externalStringId: "key-uuid",
       }),
     ).resolves.toBe("not_found");
     expect(getTranslationsByKeyIds).not.toHaveBeenCalled();

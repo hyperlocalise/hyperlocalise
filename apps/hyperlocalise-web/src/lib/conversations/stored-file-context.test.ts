@@ -48,14 +48,14 @@ describe("stored file context", () => {
     ).toMatchObject({ fileFormat: "mp4" });
   });
 
-  it("skips office and unsupported uploads that cannot become file translation jobs", () => {
+  it("maps Office uploads the sandbox CLI can translate and skips unsupported files", () => {
     expect(
       toStoredTranslationFileRef({
         id: "file_docx",
         filename: "brief.docx",
         contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       }),
-    ).toBeNull();
+    ).toMatchObject({ fileFormat: "docx" });
     expect(
       toStoredTranslationFileRef({
         id: "file_pdf",

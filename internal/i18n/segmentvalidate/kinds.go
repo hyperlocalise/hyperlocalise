@@ -14,6 +14,7 @@ const (
 	FormatICUInvariant
 	FormatWebVTT
 	FormatAsciiDoc
+	FormatOffice
 )
 
 func KindForSourcePath(path string) FormatKind {
@@ -26,7 +27,7 @@ func KindForSourcePath(path string) FormatKind {
 	// BOLT OPTIMIZATION: Match common extensions directly on ext to avoid
 	// strings.ToLower heap allocation.
 	switch ext {
-	case ".json", ".properties", ".ini", ".po", ".csv", ".tsv", ".toml", ".arb", ".strings", ".xcstrings", ".xml", ".resx", ".resw", ".yml", ".yaml", ".ts":
+	case ".json", ".properties", ".ini", ".po", ".pot", ".csv", ".tsv", ".toml", ".arb", ".strings", ".xcstrings", ".xml", ".resx", ".resw", ".yml", ".yaml", ".ts":
 		return FormatICUInvariant
 	case ".html", ".htm", ".srt", ".sbv", ".svg":
 		return FormatHTML
@@ -38,6 +39,8 @@ func KindForSourcePath(path string) FormatKind {
 		return FormatWebVTT
 	case ".liquid":
 		return FormatLiquid
+	case ".docx", ".pptx":
+		return FormatOffice
 	}
 
 	// Fallback for uncommon casing or other extensions
@@ -52,6 +55,8 @@ func KindForSourcePath(path string) FormatKind {
 		return FormatWebVTT
 	case ".liquid":
 		return FormatLiquid
+	case ".docx", ".pptx":
+		return FormatOffice
 	default:
 		return FormatICUInvariant
 	}

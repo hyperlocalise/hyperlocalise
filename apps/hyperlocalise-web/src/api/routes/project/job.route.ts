@@ -49,7 +49,6 @@ import {
 } from "@/lib/billing/usage-control";
 import { isErr } from "@/lib/primitives/result/results";
 import {
-  enqueueJobCancelledActivity,
   enqueueJobCreatedActivity,
   enqueueJobFailedActivity,
 } from "@/lib/activity-log/job-automation-events";
@@ -110,6 +109,7 @@ import {
   workspaceJobParamsSchema,
 } from "./job.schema";
 import { updateNativeJob } from "@/lib/projects/jobs/update-native-job";
+import { cancelNativeJob } from "@/lib/projects/jobs/cancel-native-job";
 
 type CreateJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
@@ -1480,52 +1480,18 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       }
 
       const params = c.req.valid("param");
-      const updatedJob = await db.transaction(async (tx) => {
-        const [job] = await tx
-          .update(schema.jobs)
-          .set({
-            status: "cancelled",
-            workflowRunId: null,
-            lastError: null,
-            outcomePayload: {
-              code: "cancelled_by_user",
-              message: "Cancelled by user",
-            },
-            completedAt: new Date(),
-          })
-          .where(await activeJobWhere(c.var.auth, params.jobId))
-          .returning({ id: schema.jobs.id, kind: schema.jobs.kind });
-
-        return job;
+      const cancelled = await cancelNativeJob({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        jobId: params.jobId,
+        actorUserId: c.var.auth.user.localUserId,
+        accessWhere: await buildAccessibleJobsWhere(c.var.auth),
       });
 
-      if (!updatedJob) {
-        const [existingJob] = await db
-          .select({ id: schema.jobs.id })
-          .from(schema.jobs)
-          .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
-          .limit(1);
-
-        return existingJob
+      if (isErr(cancelled)) {
+        return cancelled.error.code === "job_action_unavailable"
           ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
           : notFoundResponse(c, "job_not_found", "Job not found");
       }
-
-      await recordJobEvents({
-        jobId: updatedJob.id,
-        actorUserId: c.var.auth.user.localUserId,
-        events: [{ type: "job_cancelled", payload: {} }],
-      });
-
-      await enqueueJobCancelledActivity({
-        actorCredentialId: null,
-        actorKind: "user",
-        actorUserId: c.var.auth.user.localUserId,
-        jobId: updatedJob.id,
-        kind: updatedJob.kind,
-        organizationId: c.var.auth.organization.localOrganizationId,
-        status: "cancelled",
-      });
 
       const [job] = await db
         .select(jobWithProjectSelect)

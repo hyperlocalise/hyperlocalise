@@ -284,7 +284,13 @@ export const productPagesBySlug = Object.fromEntries(
 
 export const productSlugs = productPages.map((page) => page.slug);
 
-export const productFooterLinks = productPages.map((page) => ({
-  productLabelKey: page.hero.eyebrowKey,
-  href: `/product/${page.slug}`,
-}));
+export const productFooterLinks = [
+  ...productPages.map((page) => ({
+    productLabelKey: page.hero.eyebrowKey,
+    href: `/product/${page.slug}`,
+  })),
+  {
+    productLabelKey: "productNavIris" as const,
+    href: "/iris",
+  },
+];

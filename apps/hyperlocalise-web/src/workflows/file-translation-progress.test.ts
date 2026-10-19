@@ -17,6 +17,7 @@ import {
   collectHtmlTranslationPageEntries,
   completedFileTranslationKeys,
   isFileTranslationCliHardFailure,
+  sourceKeysFromFileTranslationLock,
 } from "./file-translation-progress";
 
 describe("collectCompletedTranslationPageEntries", () => {
@@ -266,5 +267,65 @@ describe("completedFileTranslationKeys", () => {
         "fr.json",
       ),
     ).toThrow();
+  });
+});
+
+describe("sourceKeysFromFileTranslationLock", () => {
+  it.each(["strings.fr-FR.xlsx", "strings.fr-FR.csv", "out/strings.fr-FR.TSV"])(
+    "strips the shared-workbook locale suffix for %s",
+    (filename) => {
+      expect(
+        sourceKeysFromFileTranslationLock(
+          ["home.title::fr-FR", "home.cta::fr-FR", "Sheet1!B3::fr-FR"],
+          filename,
+          "fr-FR",
+        ),
+      ).toEqual(["home.title", "home.cta", "Sheet1!B3"]);
+    },
+  );
+
+  it("keeps both keys when a spreadsheet has foo and foo::locale", () => {
+    expect(
+      sourceKeysFromFileTranslationLock(
+        ["foo::fr-FR", "foo::fr-FR::fr-FR"],
+        "strings.fr-FR.xlsx",
+        "fr-FR",
+      ),
+    ).toEqual(["foo", "foo::fr-FR"]);
+  });
+
+  it("does not strip non-spreadsheet lock keys that end in the locale", () => {
+    expect(
+      sourceKeysFromFileTranslationLock(
+        ["path::key::fr-FR", "path::key"],
+        "strings.fr-FR.json",
+        "fr-FR",
+      ),
+    ).toEqual(["path::key::fr-FR", "path::key"]);
+  });
+
+  it("leaves spreadsheet keys without the target locale suffix unchanged", () => {
+    expect(
+      sourceKeysFromFileTranslationLock(
+        ["home.title", "home.cta::de-DE"],
+        "strings.fr-FR.csv",
+        "fr-FR",
+      ),
+    ).toEqual(["home.title", "home.cta::de-DE"]);
+  });
+
+  it("does not strip when the workflow locale is missing or blank", () => {
+    expect(sourceKeysFromFileTranslationLock(["home.title::fr-FR"], "file.csv")).toEqual([
+      "home.title::fr-FR",
+    ]);
+    expect(sourceKeysFromFileTranslationLock(["home.title::fr-FR"], "file.csv", "   ")).toEqual([
+      "home.title::fr-FR",
+    ]);
+  });
+
+  it("does not strip when lock locale casing differs from the workflow locale", () => {
+    expect(sourceKeysFromFileTranslationLock(["home.title::fr-fr"], "file.xlsx", "fr-FR")).toEqual([
+      "home.title::fr-fr",
+    ]);
   });
 });

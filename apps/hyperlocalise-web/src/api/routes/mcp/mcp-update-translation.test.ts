@@ -12,13 +12,30 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { getMessageFormatMock, getSegmentDetailMock, isLockedMock, saveTranslationMock } =
-  vi.hoisted(() => ({
-    getMessageFormatMock: vi.fn(),
-    getSegmentDetailMock: vi.fn(),
-    isLockedMock: vi.fn(),
-    saveTranslationMock: vi.fn(),
-  }));
+const {
+  enqueueApprovedActivityMock,
+  getMessageFormatMock,
+  getSegmentDetailMock,
+  isLockedMock,
+  saveTranslationMock,
+  updateStatusMock,
+} = vi.hoisted(() => ({
+  enqueueApprovedActivityMock: vi.fn(),
+  getMessageFormatMock: vi.fn(),
+  getSegmentDetailMock: vi.fn(),
+  isLockedMock: vi.fn(),
+  saveTranslationMock: vi.fn(),
+  updateStatusMock: vi.fn(),
+}));
+
+vi.mock("@/lib/activity-log/file-segment-events", () => ({
+  enqueueStringSegmentApprovedActivity: enqueueApprovedActivityMock,
+  sessionActivityActor: (userId: string | null | undefined) => ({
+    actorCredentialId: null,
+    actorKind: userId ? "user" : "system",
+    actorUserId: userId ?? null,
+  }),
+}));
 
 vi.mock("@/lib/projects/content-editor/content-editor-segment-lock-service", () => ({
   isCatSegmentLocked: isLockedMock,
@@ -27,13 +44,14 @@ vi.mock("@/lib/projects/content-editor/content-editor-segment-lock-service", () 
 vi.mock("@/lib/projects/content-editor/native-content-editor-service", () => ({
   getNativeProjectContentEditorSegmentDetail: getSegmentDetailMock,
   saveNativeProjectContentEditorTranslation: saveTranslationMock,
+  updateNativeProjectTranslationStatus: updateStatusMock,
 }));
 
 vi.mock("@/lib/projects/files/source-file-message-format", () => ({
   getRepositorySourceFileMessageFormat: getMessageFormatMock,
 }));
 
-import { updateMcpTranslation } from "./mcp-update-translation";
+import { setMcpTranslationStatus, updateMcpTranslation } from "./mcp-update-translation";
 
 const INPUT = {
   organizationId: "org_1",
@@ -43,12 +61,20 @@ const INPUT = {
   actorUserId: "user_1",
 };
 
-function stubSegment(sourceText: string) {
+function stubSegment(sourceText: string, targetText?: string) {
   getSegmentDetailMock.mockResolvedValue({
     segment: {
       sourcePath: "locales/en.json",
       sourceText,
     },
+    ...(targetText === undefined
+      ? {}
+      : {
+          target: {
+            text: targetText,
+            status: "draft",
+          },
+        }),
   });
 }
 
@@ -155,5 +181,178 @@ describe("updateMcpTranslation message format", () => {
       value: { targetText: "Bonjour {{name}} {{unused}}", status: "draft" },
     });
     expect(saveTranslationMock).toHaveBeenCalledOnce();
+  });
+
+  it("rejects an empty target when approve is requested", async () => {
+    stubSegment("Hello");
+    getMessageFormatMock.mockResolvedValue("auto");
+
+    const result = await updateMcpTranslation({
+      ...INPUT,
+      targetText: "   ",
+      approve: true,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "invalid_translation",
+      issues: [{ kind: "empty-target" }],
+    });
+    expect(getMessageFormatMock).not.toHaveBeenCalled();
+    expect(saveTranslationMock).not.toHaveBeenCalled();
+    expect(enqueueApprovedActivityMock).not.toHaveBeenCalled();
+  });
+
+  it("allows an empty draft when approve is not requested", async () => {
+    stubSegment("Hello");
+    getMessageFormatMock.mockResolvedValue("auto");
+    saveTranslationMock.mockResolvedValue({
+      text: "",
+      updatedAt: new Date("2026-10-11T00:00:00.000Z"),
+    });
+
+    const result = await updateMcpTranslation({
+      ...INPUT,
+      targetText: "",
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { targetText: "", status: "draft" },
+    });
+    expect(saveTranslationMock).toHaveBeenCalledOnce();
+    expect(enqueueApprovedActivityMock).not.toHaveBeenCalled();
+  });
+
+  it("enqueues approval activity when a valid target is saved and approved", async () => {
+    stubSegment("Hello {{name}}");
+    getMessageFormatMock.mockResolvedValue("i18next");
+    saveTranslationMock.mockResolvedValue({
+      text: "Bonjour {{name}}",
+      updatedAt: new Date("2026-10-11T00:00:00.000Z"),
+    });
+
+    const result = await updateMcpTranslation({
+      ...INPUT,
+      targetText: "Bonjour {{name}}",
+      approve: true,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { targetText: "Bonjour {{name}}", status: "approved" },
+    });
+    expect(enqueueApprovedActivityMock).toHaveBeenCalledOnce();
+    expect(enqueueApprovedActivityMock).toHaveBeenCalledWith({
+      actorCredentialId: null,
+      actorKind: "user",
+      actorUserId: INPUT.actorUserId,
+      organizationId: INPUT.organizationId,
+      projectId: INPUT.projectId,
+      segmentId: INPUT.translationKeyId,
+      sourcePath: "locales/en.json",
+      targetLocale: INPUT.targetLocale,
+    });
+  });
+});
+
+describe("setMcpTranslationStatus", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    isLockedMock.mockResolvedValue(false);
+    updateStatusMock.mockResolvedValue({
+      text: "Bonjour",
+      status: "approved",
+    });
+  });
+
+  it("rejects approval when the stored target is empty", async () => {
+    stubSegment("Hello", "   ");
+    getMessageFormatMock.mockResolvedValue("auto");
+
+    const result = await setMcpTranslationStatus({
+      ...INPUT,
+      status: "approved",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "invalid_translation",
+      issues: [{ kind: "empty-target" }],
+    });
+    expect(getMessageFormatMock).not.toHaveBeenCalled();
+    expect(updateStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects approval when the stored target drops a required placeholder", async () => {
+    stubSegment("Hello {{name}}", "Bonjour");
+    getMessageFormatMock.mockResolvedValue("i18next");
+
+    const result = await setMcpTranslationStatus({
+      ...INPUT,
+      status: "approved",
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: "invalid_translation",
+      issues: [expect.objectContaining({ kind: "missing-token", tokens: ["{{name}}"] })],
+    });
+    expect(updateStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("still allows reject or needs_review on an empty stored target", async () => {
+    stubSegment("Hello", "");
+    updateStatusMock.mockResolvedValue({
+      text: "",
+      status: "rejected",
+    });
+
+    const result = await setMcpTranslationStatus({
+      ...INPUT,
+      status: "rejected",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        targetText: "",
+        status: "rejected",
+        sourcePath: "locales/en.json",
+      },
+    });
+    expect(getMessageFormatMock).not.toHaveBeenCalled();
+    expect(updateStatusMock).toHaveBeenCalledOnce();
+  });
+
+  it("approves a valid stored target", async () => {
+    stubSegment("Hello {{name}}", "Bonjour {{name}}");
+    getMessageFormatMock.mockResolvedValue("i18next");
+    updateStatusMock.mockResolvedValue({
+      text: "Bonjour {{name}}",
+      status: "approved",
+    });
+
+    const result = await setMcpTranslationStatus({
+      ...INPUT,
+      status: "approved",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        targetText: "Bonjour {{name}}",
+        status: "approved",
+        sourcePath: "locales/en.json",
+      },
+    });
+    expect(updateStatusMock).toHaveBeenCalledWith({
+      organizationId: INPUT.organizationId,
+      projectId: INPUT.projectId,
+      translationKeyId: INPUT.translationKeyId,
+      targetLocale: INPUT.targetLocale,
+      status: "approved",
+      actorUserId: INPUT.actorUserId,
+    });
   });
 });

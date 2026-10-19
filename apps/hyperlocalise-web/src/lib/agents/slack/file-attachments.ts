@@ -20,7 +20,7 @@ import {
 import { createStoredFile } from "@/lib/file-storage/records";
 import {
   inferSupportedFileTranslationFileFormat,
-  supportedFileTranslationFileFormats,
+  availableFileTranslationFileFormats,
 } from "@/lib/translation/file-formats";
 
 type SlackAttachment = NonNullable<Message["attachments"]>[number];
@@ -147,7 +147,9 @@ export function buildUnsupportedSlackFilesMessage(attachments: SlackAttachment[]
     "I received the file upload, but it is not a supported text translation source yet.",
     "",
     "Supported file formats:",
-    supportedFileTranslationFileFormats.map((format) => `\`${format}\``).join(", "),
+    availableFileTranslationFileFormats()
+      .map((format) => `\`${format}\``)
+      .join(", "),
     "",
     "Unsupported files:",
     ...filenames,

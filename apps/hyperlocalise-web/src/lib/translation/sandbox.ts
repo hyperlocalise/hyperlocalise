@@ -74,6 +74,14 @@ export type ExtractSandboxEntriesResult =
   | { ok: true; entries: HlEntriesPayload }
   | { ok: false; exitCode: number; output: string };
 
+export type ExtractSandboxEntriesOptions = {
+  /** Source column for files that keep locales in columns, such as `.xlsx`. */
+  sourceLocale?: string;
+  locale?: string;
+  sourcePath?: string;
+  srx?: string;
+};
+
 export { hlEntriesPayloadToStringMap };
 
 function shellQuote(value: string): string {
@@ -881,8 +889,10 @@ export class HyperlocaliseCliRunner {
   async extractEntries(
     sandboxId: string,
     path: string,
-    options?: { locale?: string; sourcePath?: string; srx?: string },
+    options?: ExtractSandboxEntriesOptions,
   ): Promise<ExtractSandboxEntriesResult> {
+    const sourceLocale = options?.sourceLocale?.trim();
+    const sourceLocaleFlag = sourceLocale ? ` --source-locale ${shellQuote(sourceLocale)}` : "";
     const locale = options?.locale?.trim();
     const localeFlag = locale ? ` --locale ${shellQuote(locale)}` : "";
     const sourcePath = options?.sourcePath?.trim();
@@ -897,7 +907,7 @@ export class HyperlocaliseCliRunner {
     try {
       const result = await this.lifecycle.runCommand(sandboxId, "bash", [
         "-lc",
-        `hl entries ${shellQuote(path)}${localeFlag}${sourceFlag}${srxFlag} > ${shellQuote(outputPath)}`,
+        `hl entries ${shellQuote(path)}${sourceLocaleFlag}${localeFlag}${sourceFlag}${srxFlag} > ${shellQuote(outputPath)}`,
       ]);
       if (result.exitCode !== 0) {
         return { ok: false, exitCode: result.exitCode, output: result.output };
@@ -1145,7 +1155,7 @@ export async function writeCrowdinFileSandboxConfig(input: {
 export async function extractSandboxEntries(
   sandboxId: string,
   path: string,
-  options?: { locale?: string; sourcePath?: string; srx?: string },
+  options?: ExtractSandboxEntriesOptions,
 ): Promise<ExtractSandboxEntriesResult> {
   return defaultRunner.extractEntries(sandboxId, path, options);
 }

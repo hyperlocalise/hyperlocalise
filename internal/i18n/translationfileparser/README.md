@@ -32,10 +32,13 @@
 - `.svg` via `SVGParser` (`text`, `tspan`, `textPath`, `title`, and `desc`)
 - `.json` Lottie animations via `JSONParser` content detection (editable text layers only)
 - `.lottie` via `DotLottieParser` (dotLottie zip archives)
+- `.xlsx` via `XLSXParser` (Excel workbooks, multilingual and cell layouts)
+- `.docx` via `DOCXParser` (Word paragraphs)
+- `.pptx` via `PPTXParser` (PowerPoint slide paragraphs)
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, Qt Linguist TS, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, TSV, TOML, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX/RESW, Java properties, INI, SubRip/WebVTT/SBV subtitle, and SVG text parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, Qt Linguist TS, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, TSV, TOML, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX/RESW, Java properties, INI, SubRip/WebVTT/SBV subtitle, SVG text, Lottie, Excel, Word, and PowerPoint parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -63,6 +66,24 @@
 - Keys are prefixed with the entry path: `a/promo.json#layers[1].t.d.k[0].s.t`.
 - `MarshalDotLottie(template, values)` rebuilds the archive, rewriting only animations with changed text. Other entries (manifest, images, themes, state machines) are copied without recompression, and entry order, compression method, and timestamps are preserved.
 - Theme and slot overrides are not extracted. Animation entries larger than 64 MiB decompressed are rejected.
+
+### Excel (`.xlsx`)
+
+- Reads each visible sheet in one of two layouts, chosen from the first row and the source locale. Hidden sheets are skipped.
+- Multilingual sheets have a header naming the source locale (`English`, `en-US`, `en`). Each later row is one entry keyed by its key column (`key`, `id`, `context`), or `Sheet!N:N` when the key is empty or repeats an earlier one. Comment columns become entry context and length columns become `IngestEntry.MaxLength`.
+- Cell-layout sheets have no source column. Every text cell, including row 1, is one entry keyed `Sheet!B3`.
+- Formulas, numbers, dates, booleans, and text without letters are never entries.
+- `ParseSource`, `ParseWithLocale`, and `ParseIngestEntries` read the locale column. `ReadXLSXEntries(content, sourceLocale, locale)` reads a target column with source-derived keys.
+- `MarshalXLSX(template, values, sourceLocale, targetLocale)` writes into a copy of the template. A missing target column is appended with the locale code as header and the source column's width and styles. Empty values, unknown keys, and formula cells are skipped.
+- Header rules are mirrored in `apps/hyperlocalise-web/src/lib/translation/xlsx/xlsx-columns.ts`; keep both in sync.
+
+### Word and PowerPoint (`.docx`, `.pptx`)
+
+- One entry per paragraph, keyed `<part>#<index>`: `word/document.xml#12`, `ppt/slides/slide3.xml#4`. The index counts every paragraph in the part, including empty ones.
+- Word reads the main document, then headers, footers, footnotes, and endnotes. Tracked deletions are dropped and tracked insertions are kept. PowerPoint reads slides in presentation order; notes, layouts, masters, charts, and diagrams are not entries.
+- An entry's text uses the formatting that covers most of the paragraph. Other formatting, links, and non-text objects become `\x1eHLOXPH_<hex>_<n>\x1f` placeholders, and the entry context asks the model to keep them.
+- `MarshalDOCX(template, values)` and `MarshalPPTX(template, values)` rebuild only paragraphs whose value differs from the source, reading formatting from the template. Other parts are copied without recompression.
+- Rules are mirrored in `apps/hyperlocalise-web/src/lib/translation/ooxml`; `testdata/ooxml` goldens are shared by both test suites.
 
 ### JSONC
 
@@ -114,11 +135,12 @@
 
 ### PO
 
-- Reads `msgid` -> `msgstr` mappings.
-- Supports multiline quoted continuations.
-- For plural forms, uses `msgstr[0]` as the mapped value.
-- Skips header entry (`msgid ""`).
-- Ignores comments and `msgctxt` for now.
+- Reads `.po` and `.pot` catalogs.
+- Singular entries use `msgid` as the key. `msgctxt` is prefixed as `context||msgid` (Phrase Strings). Translator comments (`#`) and extracted comments (`#.`) are entry context. References (`#:`), flags, previous values (`#|`), and obsolete entries (`#~`) stay in the file and are not separate keys.
+- A non-empty `msgstr` is the translatable value. An empty `msgstr` falls back to `msgid` (and `msgid_plural` for plural slots other than `one`), which is how POT templates and Crowdin's default source are read. Header field `X-Crowdin-SourceKey: msgstr` disables that fallback.
+- Plural entries become one key per CLDR category in gettext index order: `msgid||one`, `msgid||other`, and, with context, `context||msgid||few`. Categories come from the `Plural-Forms` header when it matches a known rule, otherwise from the `Language` header. Two-form catalogs without a header use `one` and `other`.
+- `MarshalPOFileForLocale` writes every plural slot for the target locale, fills missing categories from `other`, removes `fuzzy` from entries it replaces, and rewrites header `Language` and `Plural-Forms`. A bare msgid key still fills the `one` slot so older lockfiles keep working.
+- The header entry (`msgid ""`) is not a translatable string.
 - Unreal Engine rich-text tags in `msgstr` (`<Style>text</>`, `<{name}>text</>`, and self-closing decorators such as `<img id="Health"/>`) become `\x1eHLUEPH_…\x1f` placeholders during parse. `MarshalPOFile` restores the original markup. Named HTML closes, unclosed openings, and prose in angle brackets stay ordinary text. See `docs/cli/reference/formats/gettext.mdx`.
 
 ### HTML

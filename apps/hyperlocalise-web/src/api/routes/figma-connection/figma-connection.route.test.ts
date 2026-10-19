@@ -166,6 +166,33 @@ describe("figmaConnectionRoutes", () => {
     );
   });
 
+  it("rejects Figma connection creation when the API key is missing write scopes", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    const headers = await apiKeyFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma read-only key",
+      permissions: ["files:read", "jobs:read"],
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["figma-connections"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Read-only Figma",
+          apiKeyId: apiKey.id,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "figma_api_key_missing_permissions",
+    });
+  });
+
   it("rejects Figma connection creation for members without write access", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("member");
     const headers = await apiKeyFixture.authHeadersFor(identity);

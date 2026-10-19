@@ -18,7 +18,7 @@ func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	}
 	switch ext {
-	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd", ".adoc", ".asciidoc", ".asc", ".strings", ".stringsdict", ".xcstrings", ".csv", ".tsv", ".toml", ".arb", ".ftl", ".html", ".htm", ".liquid", ".php", ".xml", ".resx", ".resw", ".properties", ".ini", ".srt", ".vtt", ".sbv", ".svg":
+	case ".xlf", ".xlif", ".xliff", ".po", ".pot", ".md", ".mdx", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd", ".adoc", ".asciidoc", ".asc", ".strings", ".stringsdict", ".xcstrings", ".csv", ".tsv", ".toml", ".arb", ".ftl", ".html", ".htm", ".liquid", ".php", ".xml", ".resx", ".resw", ".properties", ".ini", ".srt", ".vtt", ".sbv", ".svg":
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	case ".json", ".jsonc":
 		content, err := s.marshalJSONTargetWithFallback(path, sourcePath, values, pruneKeys)
@@ -28,6 +28,15 @@ func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale
 		return content, nil, err
 	case ".lottie":
 		content, err := s.marshalDotLottieTarget(path, sourcePath, values)
+		return content, nil, err
+	case ".xlsx":
+		content, err := s.marshalXLSXTarget(path, sourcePath, sourceLocale, targetLocale, values)
+		return content, nil, err
+	case ".docx":
+		content, err := s.marshalOfficeTarget(path, sourcePath, values, translationfileparser.MarshalDOCX)
+		return content, nil, err
+	case ".pptx":
+		content, err := s.marshalOfficeTarget(path, sourcePath, values, translationfileparser.MarshalPPTX)
 		return content, nil, err
 	default:
 		return nil, nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
@@ -69,7 +78,7 @@ func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale
 	if ext == ".liquid" {
 		return s.marshalLiquidTarget(path, sourcePath, stagedEntries)
 	}
-	if ext == ".xlf" || ext == ".xlif" || ext == ".xliff" || ext == ".po" || ext == ".strings" || ext == ".stringsdict" || ext == ".xcstrings" || ext == ".arb" || ext == ".ftl" || ext == ".php" || ext == ".xml" || ext == ".resx" || ext == ".resw" || ext == ".properties" || ext == ".ini" || ext == ".toml" || ext == ".srt" || ext == ".vtt" || ext == ".sbv" || ext == ".svg" || isJSTSLocaleModuleExt(ext) {
+	if ext == ".xlf" || ext == ".xlif" || ext == ".xliff" || ext == ".po" || ext == ".pot" || ext == ".strings" || ext == ".stringsdict" || ext == ".xcstrings" || ext == ".arb" || ext == ".ftl" || ext == ".php" || ext == ".xml" || ext == ".resx" || ext == ".resw" || ext == ".properties" || ext == ".ini" || ext == ".toml" || ext == ".srt" || ext == ".vtt" || ext == ".sbv" || ext == ".svg" || isJSTSLocaleModuleExt(ext) {
 		content, err := s.marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 		return content, nil, err
 	}
@@ -154,8 +163,8 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
 		return content, nil
-	case ".po":
-		content, err := translationfileparser.MarshalPOFile(template, values)
+	case ".po", ".pot":
+		content, err := translationfileparser.MarshalPOFileForLocale(template, values, targetLocale)
 		if err != nil {
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
@@ -284,6 +293,35 @@ func (s *Service) marshalDotLottieTarget(path, sourcePath string, values map[str
 		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
 	}
 	content, err := translationfileparser.MarshalDotLottie(sourceTemplate, values)
+	if err != nil {
+		return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+	}
+	return content, nil
+}
+
+// Excel targets are always written into a copy of the source workbook so new
+// rows, sheets, and formatting carry over. When the target path is the source
+// path, that copy already holds the other locales' columns.
+func (s *Service) marshalXLSXTarget(path, sourcePath, sourceLocale, targetLocale string, values map[string]string) ([]byte, error) {
+	sourceTemplate, err := s.readProjectFile(sourcePath)
+	if err != nil {
+		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+	}
+	content, err := translationfileparser.MarshalXLSX(sourceTemplate, values, sourceLocale, targetLocale)
+	if err != nil {
+		return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+	}
+	return content, nil
+}
+
+// Word and PowerPoint targets are written into a copy of the source package,
+// because paragraph keys address the source's structure.
+func (s *Service) marshalOfficeTarget(path, sourcePath string, values map[string]string, marshal func([]byte, map[string]string) ([]byte, error)) ([]byte, error) {
+	sourceTemplate, err := s.readProjectFile(sourcePath)
+	if err != nil {
+		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+	}
+	content, err := marshal(sourceTemplate, values)
 	if err != nil {
 		return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 	}

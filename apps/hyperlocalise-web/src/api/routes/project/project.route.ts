@@ -167,6 +167,11 @@ import {
 } from "@/lib/projects/files/video-url-translation-service";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import {
+  loadProjectOfficeTranslationDownload,
+  officeTranslationDownloadFailure,
+  officeTranslationDownloadFilename,
+} from "@/lib/projects/files/office-translation-download";
+import {
   fileVariantDownloadName,
   loadProjectFileVariant,
 } from "@/lib/projects/files/file-variant-download";
@@ -284,6 +289,7 @@ import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedFileTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
+  inferSupportedOfficeTranslationFileFormat,
   inferSupportedSourceUploadFormat,
   inferSupportedVideoTranslationFileFormat,
   inferSupportedWholeFileTranslationFileFormat,
@@ -3624,6 +3630,34 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return notFoundResponse(c, "source_file_not_found", "Source file not found");
         }
 
+        const extension = path.extname(query.sourcePath);
+        const baseName = path.basename(query.sourcePath, extension);
+        const suffix = baseName.endsWith(`-${query.locale}`)
+          ? baseName
+          : `${baseName}-${query.locale}`;
+        const filename = extension ? `${suffix}${extension}` : `${suffix}.json`;
+        const contentDisposition = `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
+
+        const officeDownload = await loadProjectOfficeTranslationDownload({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+          targetLocale: query.locale,
+        });
+        if (isErr(officeDownload)) {
+          const failure = officeTranslationDownloadFailure(query.sourcePath);
+          return internalErrorResponse(c, failure.code, failure.message);
+        }
+        if (officeDownload.value) {
+          const officeFilename = officeTranslationDownloadFilename(filename, officeDownload.value);
+          return c.body(new Uint8Array(officeDownload.value.content), 200, {
+            "Content-Type": officeDownload.value.contentType,
+            "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(officeFilename)}`,
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+          });
+        }
+
         if (inferSupportedWholeFileTranslationFileFormat(query.sourcePath)) {
           const fileVariant = await loadProjectFileVariant({
             organizationId,
@@ -3673,14 +3707,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         if (result.loadedKeyCount === 0) {
           return translationsNotFoundResponse(c);
         }
-
-        const extension = path.extname(query.sourcePath);
-        const baseName = path.basename(query.sourcePath, extension);
-        const suffix = baseName.endsWith(`-${query.locale}`)
-          ? baseName
-          : `${baseName}-${query.locale}`;
-        const filename = extension ? `${suffix}${extension}` : `${suffix}.json`;
-        const contentDisposition = `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
 
         const lottieDownload = await loadProjectLottieTranslationDownload({
           organizationId,
@@ -3963,7 +3989,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return invalidProjectPayloadResponse(c);
         }
 
-        if (!inferSupportedFileTranslationFileFormat(parsed.data.sourcePath)) {
+        if (
+          !inferSupportedFileTranslationFileFormat(parsed.data.sourcePath) &&
+          !inferSupportedOfficeTranslationFileFormat(parsed.data.sourcePath)
+        ) {
           return unsupportedProjectFileResponse(c, parsed.data.sourcePath);
         }
 

@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { addEdge, type Connection } from "@xyflow/react";
+import type { Connection } from "@xyflow/react";
 
 import {
   createDefaultConfig,
@@ -187,6 +187,33 @@ function pruneSequenceOutputEdges(
   );
 }
 
+function collectRemovedObjectPortIds(
+  currentPorts: readonly { id: string }[],
+  nextPorts: readonly { id: string }[],
+): Set<string> {
+  const nextIds = new Set(nextPorts.map((port) => port.id));
+
+  return new Set(currentPorts.map((port) => port.id).filter((portId) => !nextIds.has(portId)));
+}
+
+function pruneObjectValuePortEdges(
+  edges: readonly VisualWorkflowRfEdge[],
+  nodeId: string,
+  removedPortIds: ReadonlySet<string>,
+): VisualWorkflowRfEdge[] {
+  if (removedPortIds.size === 0) {
+    return [...edges];
+  }
+
+  return edges.filter((edge) => {
+    if (edge.target !== nodeId || !edge.targetHandle?.startsWith("value.")) {
+      return true;
+    }
+
+    return !removedPortIds.has(edge.targetHandle.slice("value.".length));
+  });
+}
+
 export function reconcileForEachBodyMembership(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
@@ -270,7 +297,64 @@ export function applyNodeConfigUpdate(
       edges: pruneSequenceOutputEdges(edges, nodeId, removedOutputIds),
     };
   }
+  if (
+    current?.data.config.kind === "logic.create_object" &&
+    nextConfig.kind === "logic.create_object"
+  ) {
+    return {
+      nodes: nextNodes,
+      edges: pruneObjectValuePortEdges(
+        edges,
+        nodeId,
+        collectRemovedObjectPortIds(current.data.config.fields, nextConfig.fields),
+      ),
+    };
+  }
+  if (
+    current?.data.config.kind === "logic.merge_objects" &&
+    nextConfig.kind === "logic.merge_objects"
+  ) {
+    return {
+      nodes: nextNodes,
+      edges: pruneObjectValuePortEdges(
+        edges,
+        nodeId,
+        collectRemovedObjectPortIds(current.data.config.inputs, nextConfig.inputs),
+      ),
+    };
+  }
   return { nodes: nextNodes, edges: [...edges] };
+}
+
+/**
+ * Adds an edge for a connection unless the same one is there, as React Flow's `addEdge` does and
+ * with the same id. Kept here because `@xyflow/react` is a client module: the assistant applies
+ * connections on the server with this file.
+ */
+function addEdge(
+  connection: Connection & Omit<Partial<VisualWorkflowRfEdge>, keyof Connection>,
+  edges: VisualWorkflowRfEdge[],
+): VisualWorkflowRfEdge[] {
+  const exists = edges.some(
+    (edge) =>
+      edge.source === connection.source &&
+      edge.target === connection.target &&
+      (edge.sourceHandle === connection.sourceHandle ||
+        (!edge.sourceHandle && !connection.sourceHandle)) &&
+      (edge.targetHandle === connection.targetHandle ||
+        (!edge.targetHandle && !connection.targetHandle)),
+  );
+  if (exists) {
+    return edges;
+  }
+  const { sourceHandle, targetHandle, ...rest } = connection;
+  const edge = {
+    ...rest,
+    id: `xy-edge__${connection.source}${sourceHandle || ""}-${connection.target}${targetHandle || ""}`,
+    ...(sourceHandle === null ? {} : { sourceHandle }),
+    ...(targetHandle === null ? {} : { targetHandle }),
+  } as VisualWorkflowRfEdge;
+  return [...edges, edge];
 }
 
 export function applyVisualWorkflowGraphConnection(

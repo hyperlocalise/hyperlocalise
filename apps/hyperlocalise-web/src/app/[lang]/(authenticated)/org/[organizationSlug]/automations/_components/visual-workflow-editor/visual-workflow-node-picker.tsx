@@ -161,6 +161,10 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeSwitch;
     case "logic.set":
       return messages.nodeSet;
+    case "logic.create_object":
+      return messages.nodeCreateObject;
+    case "logic.merge_objects":
+      return messages.nodeMergeObjects;
     case "ai.agent":
       return messages.nodeAi;
     case "logic.for_each":
@@ -210,6 +214,10 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeSwitchHint;
     case "logic.set":
       return messages.nodeSetHint;
+    case "logic.create_object":
+      return messages.nodeCreateObjectHint;
+    case "logic.merge_objects":
+      return messages.nodeMergeObjectsHint;
     case "ai.agent":
       return messages.nodeAiHint;
     case "logic.for_each":

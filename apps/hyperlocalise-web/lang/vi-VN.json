@@ -350,6 +350,9 @@
   "+h67bEnfK7": {
     "defaultMessage": "Time"
   },
+  "+hYvvi6oXu": {
+    "defaultMessage": "Cancel"
+  },
   "+i+mcUZPR+": {
     "defaultMessage": "Hyperlab"
   },
@@ -578,6 +581,9 @@
   "/8fHPQltQc": {
     "defaultMessage": "Khôi phục đúng ngữ cảnh khi cần."
   },
+  "/8khRIMh0p": {
+    "defaultMessage": "Allow access"
+  },
   "/9ZwuXxQ/T": {
     "defaultMessage": "Sao chép JSON"
   },
@@ -604,6 +610,9 @@
   },
   "/BDbP6ag0g": {
     "defaultMessage": "Experiments"
+  },
+  "/Btv5OtACg": {
+    "defaultMessage": "{count, plural, one {Saved # changed segment as a draft.} other {Saved # changed segments as drafts.}}"
   },
   "/C52lRfZjE": {
     "defaultMessage": "Tham gia danh sách chờ"
@@ -700,6 +709,9 @@
   },
   "/Q3+a6FMED": {
     "defaultMessage": "Bạn có thể chạy tối đa {count} cuộc trò chuyện cùng lúc."
+  },
+  "/QBr3H7p9k": {
+    "defaultMessage": "Could not connect two steps"
   },
   "/QZxo6jgZM": {
     "defaultMessage": "AcmePay có nên được giữ nguyên, không dịch, trong quy trình onboarding bằng tiếng Tây Ban Nha không?"
@@ -1064,6 +1076,9 @@
   "08svfZAX+A": {
     "defaultMessage": "đã xóa một mục trong bảng thuật ngữ"
   },
+  "091kJoAeYj": {
+    "defaultMessage": "{count, plural, one {one other setting} other {# other settings}}"
+  },
   "093XtFZn8Y": {
     "defaultMessage": "Theo dõi thông lượng và tình trạng ngôn ngữ địa phương"
   },
@@ -1325,6 +1340,9 @@
   "0d2hyvxzDu": {
     "defaultMessage": "Ngôn ngữ đích"
   },
+  "0dFZxKMyvL": {
+    "defaultMessage": "Run every step for real"
+  },
   "0dJl0iGob6": {
     "defaultMessage": "Loop"
   },
@@ -1399,6 +1417,9 @@
   },
   "0pg6zXLFtI": {
     "defaultMessage": "Quyền của vai trò"
+  },
+  "0pyGkDDDgZ": {
+    "defaultMessage": "Each trigger and each step that calls out has a Test tab in its settings for the values a test run uses."
   },
   "0qIbYrqvNR": {
     "defaultMessage": "Tiêu đề 1"
@@ -1577,6 +1598,9 @@
   "1Do2u8ufv7": {
     "defaultMessage": "Chưa có dự án gốc nào. Hãy tạo một dự án để bắt đầu."
   },
+  "1Dpcm8IxPm": {
+    "defaultMessage": "Test data taken from this run for {count, plural, one {# step} other {# steps}}."
+  },
   "1EFh6senwK": {
     "defaultMessage": "Người đánh giá"
   },
@@ -1681,6 +1705,9 @@
   },
   "1ToGNDd6TO": {
     "defaultMessage": "Files"
+  },
+  "1U9PZ5VcN2": {
+    "defaultMessage": "Clear"
   },
   "1UF6LNQQqI": {
     "defaultMessage": "Độ vừa vặn của hero"
@@ -1841,6 +1868,9 @@
   "1krX2eFo9o": {
     "defaultMessage": "Webhook Contentful"
   },
+  "1lU83WzoEM": {
+    "defaultMessage": "The file was saved, but its edits could not be written back to segments."
+  },
   "1lkpRyh3Xt": {
     "defaultMessage": "Các tín hiệu được ghi nhận từ công việc đã được phê duyệt"
   },
@@ -1936,6 +1966,9 @@
   },
   "2+doJ4Hdy3": {
     "defaultMessage": "Tiêu đề (đối tượng JSON)"
+  },
+  "2+el5hYSzQ": {
+    "defaultMessage": "Template"
   },
   "2+iIGrGb+G": {
     "defaultMessage": "Chuyển ngôn ngữ.\nXem có gì bị lỗi."
@@ -2096,6 +2129,9 @@
   "2EB3wgNEGj": {
     "defaultMessage": "Generate an MCP key in Ahrefs Account Settings → API Keys. Automations authenticate with Authorization: Bearer."
   },
+  "2Ejjbg+BRh": {
+    "defaultMessage": "Create a Figma connection in workspace Integrations first, then return to Figma and try again."
+  },
   "2Eln7MuWtc": {
     "defaultMessage": "Xóa"
   },
@@ -2221,6 +2257,9 @@
   },
   "2VWwjqjclF": {
     "defaultMessage": "Assignee"
+  },
+  "2WCxnj9DvK": {
+    "defaultMessage": "Could not add a step"
   },
   "2Wf+R5t111": {
     "defaultMessage": "{requestedLocale} không phải là ngôn ngữ đích của tệp này. Nhấp đúp vào một tệp hoặc sử dụng Xem chuỗi để mở không gian làm việc CAT cho {targetLocale}."
@@ -2408,6 +2447,9 @@
   "2uwHtwT4Tc": {
     "defaultMessage": "Đánh giá"
   },
+  "2w737Ot4Fa": {
+    "defaultMessage": "Text"
+  },
   "2w98ENBS95": {
     "defaultMessage": "Type"
   },
@@ -2467,6 +2509,9 @@
   },
   "319r5R8fnf": {
     "defaultMessage": "Được sử dụng trong một bài kiểm tra"
+  },
+  "31JruwfzqD": {
+    "defaultMessage": "Copied"
   },
   "31b9kvfP1i": {
     "defaultMessage": "Đang đọc phần khác biệt bản địa hoá..."
@@ -2639,6 +2684,9 @@
   "3MzWPxEFTr": {
     "defaultMessage": "Mở hướng dẫn kiểu dáng"
   },
+  "3NV0GFE6VT": {
+    "defaultMessage": "Speaker notes, slide {number}"
+  },
   "3NiEPa2gwT": {
     "defaultMessage": "dự án"
   },
@@ -2650,6 +2698,9 @@
   },
   "3OlJR3Fxjp": {
     "defaultMessage": "Tính thành viên của vòng lặp được suy ra tự động từ các kết nối đi ra từ cổng Each item."
+  },
+  "3PWsvMVfTw": {
+    "defaultMessage": "Add object input"
   },
   "3QmQFMO6jX": {
     "defaultMessage": "Ngôn ngữ"
@@ -2671,6 +2722,9 @@
   },
   "3URR9qLWsH": {
     "defaultMessage": "Có. Các agent của Hyperlocalise hoạt động trong những tích hợp như Slack, Teams và GitHub, để các nhóm có thể yêu cầu thực hiện công việc ngay tại nơi họ đang cộng tác. Các thao tác khả dụng phụ thuộc vào tích hợp và cấu hình không gian làm việc."
+  },
+  "3UVVqU60g6": {
+    "defaultMessage": "Ahrefs"
   },
   "3UtT5HKUXH": {
     "defaultMessage": "Continue"
@@ -3269,6 +3323,9 @@
   "4f79gyGj6Q": {
     "defaultMessage": "Đã mở {subject}"
   },
+  "4fBLqa8Qde": {
+    "defaultMessage": "Cancel"
+  },
   "4g0qoebzmh": {
     "defaultMessage": "Báo cáo chỉ thu thập hoạt động mới. Hoạt động trước đó không có sẵn, không phải là bằng không. Ngày và tuần sử dụng UTC."
   },
@@ -3533,6 +3590,9 @@
   "5C0es8ldjV": {
     "defaultMessage": "Giọng thương hiệu · Hướng dẫn phong cách"
   },
+  "5C3EksSWTF": {
+    "defaultMessage": "Choose a connection to authorize this Figma app install."
+  },
   "5CjwrQGWSz": {
     "defaultMessage": "Hệ thống"
   },
@@ -3589,6 +3649,9 @@
   },
   "5N7UDRdane": {
     "defaultMessage": "Kết nối khóa API Semrush để sử dụng dữ liệu SEO và lưu lượng truy cập trong các quy trình tự động hóa."
+  },
+  "5NY8ijgpii": {
+    "defaultMessage": "No changes made to the workflow"
   },
   "5OJwSyhCmS": {
     "defaultMessage": "Dự án"
@@ -3760,6 +3823,9 @@
   },
   "5ilEKzvkRa": {
     "defaultMessage": "Bắt đầu miễn phí"
+  },
+  "5jD6oFvCYS": {
+    "defaultMessage": "Added, removed, or sentence-split paragraphs and edits blocked by QA keep only the file copy. Edit them in a segment view: {keys}"
   },
   "5jQYM3pK9b": {
     "defaultMessage": "Định nghĩa"
@@ -3980,6 +4046,9 @@
   "6CovsOk2Kn": {
     "defaultMessage": "Sử dụng Hyperlocalise Agent"
   },
+  "6DeonnLXWl": {
+    "defaultMessage": "This Figma authorization request is missing or expired. Start again from Figma."
+  },
   "6DqYm4cuZL": {
     "defaultMessage": "Webhook"
   },
@@ -3997,6 +4066,9 @@
   },
   "6F6TSGIXMs": {
     "defaultMessage": "Tệp phải có thể truy cập công khai tại đúng đường dẫn."
+  },
+  "6GvRaMOu4p": {
+    "defaultMessage": "Create an API key with files and jobs permissions first."
   },
   "6Hh/TB07+q": {
     "defaultMessage": "Chọn tệp TMX hoặc CSV."
@@ -4316,6 +4388,9 @@
   "6zAmu9E3FT": {
     "defaultMessage": "Không thể xếp hàng chạy thủ công lúc này"
   },
+  "6zcjX66YhX": {
+    "defaultMessage": "Select an API key"
+  },
   "7+2d5ot9yA": {
     "defaultMessage": "See details"
   },
@@ -4544,6 +4619,9 @@
   "7PBZ6NZm7K": {
     "defaultMessage": "Đưa nội dung và đội ngũ của bạn vào cùng một studio."
   },
+  "7PRORZkPL7": {
+    "defaultMessage": "Mute the launch film"
+  },
   "7QPFtqQQDE": {
     "defaultMessage": "Miễn phí"
   },
@@ -4745,6 +4823,9 @@
   "7t3FQ5TrY6": {
     "defaultMessage": "Pháp lý · 6 trang · Đã kết nối"
   },
+  "7tK9YSDkvx": {
+    "defaultMessage": "Changed {fields} on the {node} step"
+  },
   "7tPiM+8vOJ": {
     "defaultMessage": "Đã áp dụng cho bản nháp này"
   },
@@ -4795,6 +4876,9 @@
   },
   "7zni895OkR": {
     "defaultMessage": "Đã tạo tính năng tự động hóa"
+  },
+  "7zsudhIRfP": {
+    "defaultMessage": "Insert a field into {label}"
   },
   "8+43PQyB4j": {
     "defaultMessage": "Nhận biết ngữ cảnh trên tất cả các nguồn nội dung"
@@ -5009,6 +5093,9 @@
   "8OHSn5eQCa": {
     "defaultMessage": "Thuật ngữ trong bảng thuật ngữ bị cấm"
   },
+  "8Oj/NozToL": {
+    "defaultMessage": "Choose a workspace API key with files and jobs read/write access."
+  },
   "8Oyr38Aj4F": {
     "defaultMessage": "Bắt đầu"
   },
@@ -5134,6 +5221,9 @@
   },
   "8bpns6mW0p": {
     "defaultMessage": "Phương thức xác thực"
+  },
+  "8bubQShwFP": {
+    "defaultMessage": "Move object field {index} up"
   },
   "8cCnIQ+Lhz": {
     "defaultMessage": "Không thể cập nhật dự án"
@@ -5282,6 +5372,9 @@
   "8uE98Fo+Pv": {
     "defaultMessage": "Cài đặt"
   },
+  "8uYx7/RU25": {
+    "defaultMessage": "Unmute the launch film"
+  },
   "8ubp0pkM3E": {
     "defaultMessage": "Giữ chúng trong Drive"
   },
@@ -5368,6 +5461,9 @@
   },
   "93i6HvwXyA": {
     "defaultMessage": "{count, plural, one {Tổng cộng có # chuỗi có thể dịch} other {Tổng cộng có # chuỗi có thể dịch}}"
+  },
+  "94INRlGgGA": {
+    "defaultMessage": "The test run could not start."
   },
   "94NuGR6Dav": {
     "defaultMessage": "{format} · {mode}"
@@ -6029,6 +6125,9 @@
   "AQFTimLagD": {
     "defaultMessage": "của bất kỳ loại nội dung nào"
   },
+  "AQZXVFsnl+": {
+    "defaultMessage": "Iris | AI Localisation Engine for Multilingual Assets | Hyperlocalise"
+  },
   "AQrXctSpNJ": {
     "defaultMessage": "Định dạng"
   },
@@ -6236,6 +6335,9 @@
   "AzlAJgQRne": {
     "defaultMessage": "Không thể xuất TMX"
   },
+  "B+2R+CguDm": {
+    "defaultMessage": "Edits save as drafts. The preview is rebuilt from the saved text."
+  },
   "B+9mu1WlLc": {
     "defaultMessage": "Đã thành công"
   },
@@ -6410,6 +6512,9 @@
   "BHCGhKF/Fb": {
     "defaultMessage": "Các dự án được tạo và quản lý trong không gian làm việc này."
   },
+  "BHHt9+y7Na": {
+    "defaultMessage": "Remove object field {index}"
+  },
   "BHmWNCONbs": {
     "defaultMessage": "Yêu cầu dùng thử: Guideline"
   },
@@ -6539,6 +6644,9 @@
   "Bb2DHr7bXd": {
     "defaultMessage": "Đã hủy công việc"
   },
+  "Bb2iyK74xB": {
+    "defaultMessage": "optional"
+  },
   "BbOj+wUXk0": {
     "defaultMessage": "Xuất bản một lần.  \nĐược tìm thấy ở mọi nơi."
   },
@@ -6604,6 +6712,9 @@
   },
   "BiKIjgXcMN": {
     "defaultMessage": "Mở các tích hợp"
+  },
+  "BicOZ7c8PB": {
+    "defaultMessage": "Authorize Figma"
   },
   "BjVwBrTuYP": {
     "defaultMessage": "{sourceLocale} → {targetLocale}"
@@ -6959,6 +7070,9 @@
   "CQEmCrymE3": {
     "defaultMessage": "Brand-claims-policy.pdf"
   },
+  "CQU1/0C8er": {
+    "defaultMessage": "Use as test data"
+  },
   "CR4EdyZSZI": {
     "defaultMessage": "Ai đủ điều kiện?"
   },
@@ -7099,6 +7213,9 @@
   },
   "Ck9MOHJiWV": {
     "defaultMessage": "Tên miền này đã được liên kết. Thay vào đó, hãy chỉnh sửa ngôn ngữ của tên miền."
+  },
+  "CkFkjy7fQ+": {
+    "defaultMessage": "Use test data"
   },
   "CkQ3yx9NoL": {
     "defaultMessage": "Knowledge"
@@ -7583,6 +7700,9 @@
   "DhOP2jRCDv": {
     "defaultMessage": "Mỗi đánh giá giúp đánh giá tiếp theo trở nên thông minh hơn"
   },
+  "Dhw0m5NXT1": {
+    "defaultMessage": "Fixed value"
+  },
   "Dhz9gdqnZ4": {
     "defaultMessage": "Quy trình tiếp theo bắt đầu thông minh hơn"
   },
@@ -7667,6 +7787,9 @@
   "DtVOLEpfXB": {
     "defaultMessage": "Văn bản dài"
   },
+  "Dtr9SPmsqm": {
+    "defaultMessage": "Done"
+  },
   "DuGUFMT/N4": {
     "defaultMessage": "truy vấn đã nhập khẩu"
   },
@@ -7696,6 +7819,9 @@
   },
   "Dx55FkCrgu": {
     "defaultMessage": "Liên kết hiện có"
+  },
+  "Dx5wD+SCfe": {
+    "defaultMessage": "Objects to merge"
   },
   "DxQL85kivW": {
     "defaultMessage": "Biến các bản tóm tắt ra mắt, tài sản chiến dịch và thông điệp theo khu vực thành nội dung đã được rà soát, phù hợp với văn hóa địa phương — với quy trình phê duyệt và kiểm soát bảng thuật ngữ được tích hợp sẵn."
@@ -7841,6 +7967,9 @@
   "EFds7VbW/w": {
     "defaultMessage": "95–99%"
   },
+  "EFqMJ3jrZJ": {
+    "defaultMessage": "Combine objects with an explicit conflict policy."
+  },
   "EGVRBepZ6Q": {
     "defaultMessage": "Tín dụng AI"
   },
@@ -7912,6 +8041,9 @@
   },
   "ENDjImu9Gr": {
     "defaultMessage": "Công vi��c mới nhất"
+  },
+  "ENMJl6+UHz": {
+    "defaultMessage": "{count, plural, one {# edit was not saved to a segment.} other {# edits were not saved to segments.}}"
   },
   "ENauN48xg5": {
     "defaultMessage": "đã tạo một dự án"
@@ -8099,6 +8231,9 @@
   "ElqTdiMapl": {
     "defaultMessage": "Duyệt các tệp nguồn từ nhà cung cấp TMS đã kết nối, sau đó mở một tệp trong Trình chỉnh sửa nội dung nếu được hỗ trợ."
   },
+  "ElvzqUrelV": {
+    "defaultMessage": "Outcome"
+  },
   "ElyQMTBOLz": {
     "defaultMessage": "Không thể cập nhật giới hạn ký tự"
   },
@@ -8272,6 +8407,9 @@
   },
   "F7I6G7lNye": {
     "defaultMessage": "Không thể tải các tệp dự án."
+  },
+  "F7MPcZxBJI": {
+    "defaultMessage": "Added the {node} step"
   },
   "F7WfKl5UxS": {
     "defaultMessage": "Không có hoạt động nào được ghi nhận cho các bộ lọc này. Hãy chạy bản dịch hoặc ghi lại thời gian để bắt đầu báo cáo."
@@ -8456,6 +8594,9 @@
   "FVe674aA/n": {
     "defaultMessage": "Heidi Health"
   },
+  "FWjftu2kiI": {
+    "defaultMessage": "Saved credential"
+  },
   "FXDqvAOc70": {
     "defaultMessage": "Đã tạo"
   },
@@ -8491,6 +8632,9 @@
   },
   "FaT5oUwQOq": {
     "defaultMessage": "Một trang có thể đang hoạt động nhưng vẫn vô hình. Domains cho thấy những khoảng trống trong từng ngôn ngữ, trên công cụ tìm kiếm và trong các câu trả lời của AI."
+  },
+  "FamtHptssa": {
+    "defaultMessage": "Figma connection deleted."
   },
   "Fb4AJ4nGEX": {
     "defaultMessage": "Tìm kiếm theo tên hoặc công việc"
@@ -8551,6 +8695,9 @@
   },
   "Fhrua/1XPG": {
     "defaultMessage": "Xem lại bản dịch mà không cần đoán chuỗi đó có nghĩa là gì"
+  },
+  "FhxuAfxzUP": {
+    "defaultMessage": "{count, plural, =0 {Every step uses its test data.} one {# step runs for real.} other {# steps run for real.}}"
   },
   "FiNdNgLOfB": {
     "defaultMessage": "Vì mỗi ngôn ngữ là một cơ hội khác để kết nối mọi người."
@@ -8897,6 +9044,9 @@
   "GYwOqW2z7j": {
     "defaultMessage": "Xuất biên soạn"
   },
+  "GZPe87SKjx": {
+    "defaultMessage": "Iris, the AI localisation engine"
+  },
   "GZgOkkX0hj": {
     "defaultMessage": "Tiếng Nhật (Nhật Bản)"
   },
@@ -8915,6 +9065,9 @@
   "GafA21RnmS": {
     "defaultMessage": "Chế độ hợp nhất"
   },
+  "GaqidMa6rb": {
+    "defaultMessage": "First object wins"
+  },
   "GausSgRE+l": {
     "defaultMessage": "Kết hợp các tín chỉ vào điểm số của bốn học phần."
   },
@@ -8927,8 +9080,14 @@
   "Gb5iBYRxAb": {
     "defaultMessage": "{current} / {max}"
   },
+  "GbD3NV3O9z": {
+    "defaultMessage": "Failed to regenerate the Figma connection token."
+  },
   "Gbi1Dt47vU": {
     "defaultMessage": "Quản lý các dự án, tích hợp, thông tin xác thực, nhóm và tài nguyên hướng dẫn; phê duyệt các bản đánh giá và ghi ngược."
+  },
+  "GcIOfZ18Z9": {
+    "defaultMessage": "Run test"
   },
   "GdV4Jl3WMg": {
     "defaultMessage": "Chạy khi Contentful gửi webhook tạo hoặc cập nhật mục nhập khớp."
@@ -9101,6 +9260,9 @@
   "Gx82rosgM3": {
     "defaultMessage": "Tiến vào các thị trường mới, tạo ra lượng nội dung đa ngôn ngữ gấp 10 lần với cùng số lượng nhân sự và duy trì chất lượng khi mở rộng quy mô."
   },
+  "GxutMPC4gp": {
+    "defaultMessage": "Configuration"
+  },
   "Gy9Swg1os7": {
     "defaultMessage": "Quyền truy cập đến {date}"
   },
@@ -9133,6 +9295,9 @@
   },
   "H//pE/RYmt": {
     "defaultMessage": "Sứ mệnh của chúng tôi là giúp mọi công ty vươn ra thế giới mà không để khâu bản địa hóa trở thành điểm nghẽn. Chúng tôi tin rằng tương lai không nằm ở việc thay thế các chuyên gia bản địa hóa bằng AI, mà là trao cho họ một lực lượng lao động AI học hỏi cùng họ, hiểu bối cảnh sản phẩm, tiếp thu kiến thức của tổ chức và loại bỏ những công việc lặp đi lặp lại làm chậm quá trình phát hành sản phẩm trên toàn cầu."
+  },
+  "H/6Z4vWchC": {
+    "defaultMessage": "Motion localisation"
   },
   "H/CmKBQumj": {
     "defaultMessage": "Marketing"
@@ -9350,6 +9515,9 @@
   "HV+orx8sr6": {
     "defaultMessage": "Phát hiện các thay đổi trong chuỗi và tự động dịch"
   },
+  "HVa66T0BGY": {
+    "defaultMessage": "{count, plural, one {# step ran for real} other {# steps ran for real}}"
+  },
   "HVlJ+nwIfE": {
     "defaultMessage": "Bản xem trước đã sẵn sàng. Hãy xem lại số lượng bên dưới, sau đó nhập các mục để ghi chúng vào bộ nhớ dịch thuật này."
   },
@@ -9379,6 +9547,9 @@
   },
   "HZtAltEBuQ": {
     "defaultMessage": "Ngữ cảnh được đính kèm trong tệp"
+  },
+  "Ha0TLn977I": {
+    "defaultMessage": "Object field {index} name"
   },
   "Ha7VIKn6vj": {
     "defaultMessage": "Hủy"
@@ -9464,6 +9635,9 @@
   "HmIchM6Zb8": {
     "defaultMessage": "Ngữ cảnh, vị trí và ý nghĩa sản phẩm của tài nguyên hình ảnh này do AI suy luận."
   },
+  "HmXZYnVvj0": {
+    "defaultMessage": "These steps call out for real in this test run. What they do happens and cannot be undone."
+  },
   "Hmhv+bwMHl": {
     "defaultMessage": "Thu hồi mã thông báo truy cập cá nhân"
   },
@@ -9481,6 +9655,9 @@
   },
   "HnQHQaB8I0": {
     "defaultMessage": "Nhập một từ duy nhất không có khoảng trắng."
+  },
+  "HnpxT9SEMg": {
+    "defaultMessage": "The page view can't keep this file as written, so it opened as code to avoid changing it."
   },
   "Ho5CjjaEBq": {
     "defaultMessage": "Thêm ngôn ngữ đích trong cài đặt dự án trước khi tạo tác vụ."
@@ -9541,6 +9718,9 @@
   },
   "HtM5Jg2cRQ": {
     "defaultMessage": "Tắt tính năng gộp chuỗi giống hệt nhau"
+  },
+  "HtVUcSTMS/": {
+    "defaultMessage": "On error is set to Continue, so the test run goes on past this step."
   },
   "Hv8dudDiIO": {
     "defaultMessage": "Trò chuyện, dịch thuật và lập trình"
@@ -9899,6 +10079,9 @@
   "IkCkDVLrow": {
     "defaultMessage": "Bối cảnh thị trường"
   },
+  "IkjX3objbn": {
+    "defaultMessage": "Load more text"
+  },
   "IksPpT37Wn": {
     "defaultMessage": "{count} đang mở"
   },
@@ -10163,6 +10346,9 @@
   "JC+c980Dxc": {
     "defaultMessage": "CSV"
   },
+  "JC/7r38rMk": {
+    "defaultMessage": "Changed the settings of the {node} step"
+  },
   "JC6yhq1JP6": {
     "defaultMessage": "SharePoint"
   },
@@ -10177,6 +10363,9 @@
   },
   "JEdlCIcj1G": {
     "defaultMessage": "Đang ngắt kết nối…"
+  },
+  "JEi80S8Q14": {
+    "defaultMessage": "Ask for a change, or say what this workflow should do."
   },
   "JHFSIHw0S8": {
     "defaultMessage": "Tùy chỉnh"
@@ -10253,6 +10442,12 @@
   "JPh5F8lV0A": {
     "defaultMessage": "GitHub"
   },
+  "JQZCOawuKC": {
+    "defaultMessage": "Figma app authorized. Return to Figma to finish connecting."
+  },
+  "JQuMZXhBtU": {
+    "defaultMessage": "Enter valid JSON."
+  },
   "JRTnSLtq//": {
     "defaultMessage": "Intercom"
   },
@@ -10294,6 +10489,9 @@
   },
   "JV74CwQ5fc": {
     "defaultMessage": "Đang làm mới…"
+  },
+  "JVogogkuBP": {
+    "defaultMessage": "Use last run"
   },
   "JWYwsX1bkl": {
     "defaultMessage": "Âm thanh lời nói cho lồng tiếng bản địa hóa, bản xem trước và câu trả lời của tác nhân."
@@ -10373,6 +10571,9 @@
   "JikjOnc0U+": {
     "defaultMessage": "Lưu không thành công"
   },
+  "JisM1jWILg": {
+    "defaultMessage": "Removed the {node} step"
+  },
   "JjXQ6VXECt": {
     "defaultMessage": "Access tokens"
   },
@@ -10390,6 +10591,9 @@
   },
   "Jlg9FCraTi": {
     "defaultMessage": "Đặt ngân sách dự án"
+  },
+  "JlldqkR4C6": {
+    "defaultMessage": "Reject conflicts"
   },
   "Jm9tR2PeYs": {
     "defaultMessage": "Chọn một dự án"
@@ -10462,6 +10666,9 @@
   },
   "JuVYR2r3yd": {
     "defaultMessage": "Menu điều hướng"
+  },
+  "JuzH9vR7ay": {
+    "defaultMessage": "Succeeds"
   },
   "JvZ26UFlte": {
     "defaultMessage": "Sau đó chạy {command} để xác thực."
@@ -10703,6 +10910,9 @@
   "KXkRSMd8ip": {
     "defaultMessage": "Patch"
   },
+  "KXlC8hrmGf": {
+    "defaultMessage": "Disconnected {source} from {target}"
+  },
   "KXnH/FP4XN": {
     "defaultMessage": "HTTP"
   },
@@ -10742,6 +10952,9 @@
   "KbRaMGCw9d": {
     "defaultMessage": "Ngày làm việc (UTC)"
   },
+  "KbaeWqdfEa": {
+    "defaultMessage": "This step has nothing to set up. Its outputs are on the Outputs tab."
+  },
   "Kbq8fI6g+r": {
     "defaultMessage": "Không thể xếp hàng tác vụ nhập liệu."
   },
@@ -10756,6 +10969,9 @@
   },
   "KdE//1z84h": {
     "defaultMessage": "Các mục cài đặt dự án"
+  },
+  "KdJvt1B/0f": {
+    "defaultMessage": "Add object field"
   },
   "Kdwno+5sGa": {
     "defaultMessage": "Không thể tải không gian làm việc CAT"
@@ -10922,6 +11138,9 @@
   "L1htF1IA3l": {
     "defaultMessage": "Ngữ cảnh đã được đính kèm"
   },
+  "L1iDRgwfcT": {
+    "defaultMessage": "Iris launch film playing in the background"
+  },
   "L1kbT9LQu4": {
     "defaultMessage": "Show more"
   },
@@ -10960,6 +11179,9 @@
   },
   "L9CYRKrj6S": {
     "defaultMessage": "Quản trị viên"
+  },
+  "LAhLwqc2EA": {
+    "defaultMessage": "Figma"
   },
   "LAx6QaaPwX": {
     "defaultMessage": "Chọn"
@@ -11369,11 +11591,17 @@
   "M/CX9tMhmy": {
     "defaultMessage": "25%"
   },
+  "M/LTTbnwGn": {
+    "defaultMessage": "Iris"
+  },
   "M/bA5ZKYrc": {
     "defaultMessage": "Đã thêm từ khóa vào tính năng theo dõi thứ hạng."
   },
   "M09MwVsnwY": {
     "defaultMessage": "Search"
+  },
+  "M0Sc0iJFfe": {
+    "defaultMessage": "More actions"
   },
   "M0cRkUTb0F": {
     "defaultMessage": "Tự động hóa này đã có số lượng tệp kiến thức tối đa."
@@ -11465,6 +11693,9 @@
   "M8XELItknC": {
     "defaultMessage": "Mở trong trình chỉnh sửa"
   },
+  "M9MtJAsUOq": {
+    "defaultMessage": "On error is set to Stop, so the test run stops at this step."
+  },
   "M9l7nT/Rpj": {
     "defaultMessage": "Đang chờ xác minh"
   },
@@ -11543,6 +11774,9 @@
   "MJXPKuSba6": {
     "defaultMessage": "Khối lượng"
   },
+  "MK78Fh8i76": {
+    "defaultMessage": "Error message"
+  },
   "MKqk5CAbrB": {
     "defaultMessage": "Quay lại mục tích hợp"
   },
@@ -11551,6 +11785,9 @@
   },
   "MM0m7VaEfu": {
     "defaultMessage": "Bạn không có quyền truy cập vào lịch sử nhập và xuất của bộ nhớ dịch này."
+  },
+  "MM2Ni9bZuS": {
+    "defaultMessage": "Paragraph {number}"
   },
   "MMFb5MTldp": {
     "defaultMessage": "{open} đã mở · {inProgress} đang xử lý · {resolved} đã giải quyết"
@@ -11761,6 +11998,9 @@
   },
   "Mojh5Scg1j": {
     "defaultMessage": "Chọn khu vực nơi không gian làm việc Intercom của bạn được lưu trữ."
+  },
+  "Mpd2ZhrVg/": {
+    "defaultMessage": "Choose an API key."
   },
   "Mpg1bKhmu2": {
     "defaultMessage": "Trạng thái phê duyệt"
@@ -12047,8 +12287,14 @@
   "NNchKY9/XJ": {
     "defaultMessage": "Sources"
   },
+  "NNpUXptuVe": {
+    "defaultMessage": "Other text"
+  },
   "NO+1ZaqMKM": {
     "defaultMessage": "Đã thêm cột"
+  },
+  "NOPoUyz/8O": {
+    "defaultMessage": "Renamed the workflow to \"{name}\""
   },
   "NP2wAmeM1j": {
     "defaultMessage": "Hạn chót"
@@ -12142,6 +12388,9 @@
   },
   "NanjjZ6X+o": {
     "defaultMessage": "Không có bộ nhớ dịch nào khớp với bộ lọc của bạn. <clear>Xóa bộ lọc</clear>"
+  },
+  "NbAZVkN3TH": {
+    "defaultMessage": "Another step reads this, so a test run needs it."
   },
   "NbLadz5lws": {
     "defaultMessage": "Thuộc tính"
@@ -12539,6 +12788,9 @@
   "OSUbc/2Yxx": {
     "defaultMessage": "Nhu cầu EN · FR · DE · JA so sánh"
   },
+  "OSdBlPpXbz": {
+    "defaultMessage": "Could not rename the workflow"
+  },
   "OSxEF0/gz3": {
     "defaultMessage": "Tự động hợp nhất các chuỗi trùng lặp."
   },
@@ -12658,6 +12910,9 @@
   },
   "OiGEycK9rN": {
     "defaultMessage": "Experiments"
+  },
+  "OiJHVksWWK": {
+    "defaultMessage": "On error is set to Branch, so the test run takes this step's error path."
   },
   "Oiey9nLAFp": {
     "defaultMessage": "Hyperlocalise đã cập nhật cấu hình webhook của Contentful."
@@ -13028,6 +13283,9 @@
   "PT4ucYt9VV": {
     "defaultMessage": "Forbidden"
   },
+  "PV2k2eiaiP": {
+    "defaultMessage": "Remove merge object {index}"
+  },
   "PVXHS+qpRe": {
     "defaultMessage": "Những người sáng lập"
   },
@@ -13174,6 +13432,9 @@
   },
   "Pq7Qwu7wbl": {
     "defaultMessage": "Đã bật"
+  },
+  "PqA9E3tXEb": {
+    "defaultMessage": "Failed to load Figma connections."
   },
   "PqqKKd0E77": {
     "defaultMessage": "Không thể tạo dự án"
@@ -13336,6 +13597,9 @@
   },
   "Q6oQuKFEbX": {
     "defaultMessage": "Mang theo ngăn xếp mô hình của riêng bạn"
+  },
+  "Q7NvaWMPza": {
+    "defaultMessage": "Error code"
   },
   "Q8OhM5eaVm": {
     "defaultMessage": "Lập trình"
@@ -13529,6 +13793,9 @@
   "QZh18oy2Qs": {
     "defaultMessage": "Đã xóa nhóm"
   },
+  "QZjNY0zpti": {
+    "defaultMessage": "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Create and adapt images, video, motion, and audio for every language. Join the waitlist."
+  },
   "Qa2OXtJ4Ug": {
     "defaultMessage": "HTML"
   },
@@ -13546,6 +13813,9 @@
   },
   "QbB9yIc9Ea": {
     "defaultMessage": "Column"
+  },
+  "Qbj8FRFVfp": {
+    "defaultMessage": "{count, plural, one {Save # draft} other {Save # drafts}}"
   },
   "Qbn+bjzsz0": {
     "defaultMessage": "Bảng thuật ngữ"
@@ -13718,6 +13988,9 @@
   "QvT2rHSxpM": {
     "defaultMessage": "Đã lưu các lớp"
   },
+  "Qw/ZLtBjN0": {
+    "defaultMessage": "Crowdin"
+  },
   "Qw3AuwhQJ4": {
     "defaultMessage": "Chuỗi đã bị ẩn"
   },
@@ -13837,6 +14110,9 @@
   },
   "RG2VP91ErR": {
     "defaultMessage": "Iterable"
+  },
+  "RHGI6JYY/i": {
+    "defaultMessage": "Create object"
   },
   "RHVJ0v0DYf": {
     "defaultMessage": "Không thể tải các lần chạy tự động hóa."
@@ -14582,6 +14858,9 @@
   "SuWouxpjlP": {
     "defaultMessage": "Retrying"
   },
+  "Supl3UvqqT": {
+    "defaultMessage": "Local development only. This token is shown once. Paste it into a locally running Figma app. Production uses Connect Hyperlocalise (OAuth)."
+  },
   "SusA/f3CfU": {
     "defaultMessage": "Chưa tìm thấy công việc Hyperlocalise nào cho dự án này."
   },
@@ -14663,6 +14942,9 @@
   "T0J/dVp/Dp": {
     "defaultMessage": "Actions"
   },
+  "T17lvAfQL0": {
+    "defaultMessage": "All test data (JSON)"
+  },
   "T1Sk0Af2ER": {
     "defaultMessage": "Đối chiếu"
   },
@@ -14729,6 +15011,9 @@
   "TCrPfIJsvP": {
     "defaultMessage": "Xem xét dự án"
   },
+  "TD3EETjvkY": {
+    "defaultMessage": "Add connection"
+  },
   "TDO0IYa70X": {
     "defaultMessage": "Đã xóa bình luận"
   },
@@ -14758,6 +15043,9 @@
   },
   "TFnG73Az5B": {
     "defaultMessage": "Các công việc đang hoạt động được giao cho bạn trong nhà cung cấp đã kết nối."
+  },
+  "TFy71zYatd": {
+    "defaultMessage": "Multilingual image localisation"
   },
   "TG1FpMpW2X": {
     "defaultMessage": "Chuyển đổi không gian làm việc"
@@ -14867,6 +15155,9 @@
   "TUvTVcL3il": {
     "defaultMessage": "Mở trong Hyperlocalise"
   },
+  "TV/xfNXFY0": {
+    "defaultMessage": "Slide {number}"
+  },
   "TVxvj2B1bk": {
     "defaultMessage": "Không có bài đánh giá nào đang chờ duyệt"
   },
@@ -14944,6 +15235,9 @@
   },
   "Tertld8DQl": {
     "defaultMessage": "Hyperlocalise kết nối các tín hiệu thay đổi từ CMS với dịch thuật, kiểm tra thuật ngữ và giám sát độ mới liên tục."
+  },
+  "TfUCgJttWd": {
+    "defaultMessage": "Construct an object from named typed values."
   },
   "TfZLiRg/Of": {
     "defaultMessage": "Cài đặt tài khoản"
@@ -15263,6 +15557,9 @@
   "UIvzDxY9Tn": {
     "defaultMessage": "Bắt đầu bằng {prefix}"
   },
+  "UIxKl4gSfi": {
+    "defaultMessage": "Updated the workflow · {count, plural, one {# change} other {# changes}}"
+  },
   "UJFX+3Y3fz": {
     "defaultMessage": "Nhánh lỗi"
   },
@@ -15304,6 +15601,9 @@
   },
   "UNee5IDZlj": {
     "defaultMessage": "Tinh chỉnh bản dịch"
+  },
+  "UNu4p11x2h": {
+    "defaultMessage": "Copy token"
   },
   "UO1B3Nh+0U": {
     "defaultMessage": "Công cụ"
@@ -15578,6 +15878,9 @@
   "UvtZVrIkJR": {
     "defaultMessage": "Xóa các cạnh trỏ đến những bước bị thiếu."
   },
+  "UwAnfXP81g": {
+    "defaultMessage": "This Figma connect request is missing or expired."
+  },
   "Uwe1uvQEJi": {
     "defaultMessage": "Hiển thị PR"
   },
@@ -15646,6 +15949,9 @@
   },
   "V21lzZzbHn": {
     "defaultMessage": "Không thể xuất các từ cho ngôn ngữ này."
+  },
+  "V2whWmooom": {
+    "defaultMessage": "Find a field"
   },
   "V3N8wNW3/m": {
     "defaultMessage": "Nhưng chúng tôi cũng chứng kiến thực tế đằng sau mỗi lần ra mắt toàn cầu thành công. Các đội ngũ bản địa hóa đã làm việc không mệt mỏi để theo kịp quá trình phát triển sản phẩm. Thông tin ngữ cảnh về sản phẩm nằm rải rác ở hàng chục nơi. Các câu hỏi được lặp lại giữa các dự án. Quá trình đánh giá kéo dài qua nhiều múi giờ. Khi sản phẩm được phát hành nhanh hơn, gánh nặng vận hành chỉ ngày càng tăng."
@@ -15727,6 +16033,9 @@
   },
   "VEHKmr6W1d": {
     "defaultMessage": "Phát hành"
+  },
+  "VElAUDjdAE": {
+    "defaultMessage": "Run {count, plural, one {# step} other {# steps}} for real?"
   },
   "VFS/q4p0GR": {
     "defaultMessage": "Múi giờ lịch trình"
@@ -15923,11 +16232,17 @@
   "VhXGN4Fsgz": {
     "defaultMessage": "Không thể tải đề xuất thị trường."
   },
+  "VhvPvEqliZ": {
+    "defaultMessage": "Connect Figma"
+  },
   "ViFhELlwfG": {
     "defaultMessage": "Nhận bản demo"
   },
   "Vj/gZDKJUv": {
     "defaultMessage": "Không có phân đoạn nào khớp với các bộ lọc hiện tại."
+  },
+  "VjG0Zt9Hr8": {
+    "defaultMessage": "Test"
   },
   "VkNsZOH7xT": {
     "defaultMessage": "Chọn một tổ chức"
@@ -15937,6 +16252,9 @@
   },
   "Vl/WJ79qHw": {
     "defaultMessage": "Kết nối Resend hoặc SendGrid trong <link>Tích hợp</link> để sử dụng thông báo qua email."
+  },
+  "VluH2EAHsX": {
+    "defaultMessage": "Cleared the workflow's name"
   },
   "Vm1k8EkL8L": {
     "defaultMessage": "Vấn đề"
@@ -15952,6 +16270,9 @@
   },
   "VoN3hfznUR": {
     "defaultMessage": "Thử lại"
+  },
+  "VoaTgvMGb7": {
+    "defaultMessage": "Use inline default"
   },
   "Vp/ZC71Tvv": {
     "defaultMessage": "Hyperlab là gì, trong một câu?"
@@ -16024,6 +16345,9 @@
   },
   "VxRWiDyH8o": {
     "defaultMessage": "Không thể nhập các mục"
+  },
+  "VxlBCadoU8": {
+    "defaultMessage": "Iris by Hyperlocalise"
   },
   "VyUTnEU0ZM": {
     "defaultMessage": "Hãy thử tải lại trang."
@@ -16120,6 +16444,9 @@
   },
   "W8paQ6RjZy": {
     "defaultMessage": "Tiến độ bản địa hóa trên các dự án TMS được liên kết hiện ra sao?"
+  },
+  "W9Pt1ytVfg": {
+    "defaultMessage": "Token starting with {prefix}"
   },
   "W9S7Ht69kS": {
     "defaultMessage": "Bộ nhớ kiến thức"
@@ -16292,6 +16619,9 @@
   "WYPwI9kUrL": {
     "defaultMessage": "Trang"
   },
+  "WYSFWtMM/n": {
+    "defaultMessage": "{reference} cannot be read here: that step does not run before this one."
+  },
   "WYgLOUJFzG": {
     "defaultMessage": "Lưu các lớp"
   },
@@ -16360,6 +16690,9 @@
   },
   "WikmHw1TGh": {
     "defaultMessage": "Ngôn ngữ: fr-FR, de-DE, ja-JP · hạn vào thứ Sáu"
+  },
+  "Wj5eGg6F2i": {
+    "defaultMessage": "Merge objects"
   },
   "WjB4ZUzNnv": {
     "defaultMessage": "Chỉ Nhật Bản"
@@ -16507,6 +16840,9 @@
   },
   "Wzlq8Ew/Ii": {
     "defaultMessage": "Khóa API"
+  },
+  "X+6eLCg8p5": {
+    "defaultMessage": "Edit as text"
   },
   "X+8j5AXyLj": {
     "defaultMessage": "Các nội dung công bố được phê duyệt theo Đạo luật AI của EU, các tuyên bố tiếp thị theo GDPR và cách diễn đạt về tuyên bố sức khỏe được lưu trữ trong thư viện này."
@@ -16784,6 +17120,9 @@
   "XYe4THixuv": {
     "defaultMessage": "Không thể tải các dự án"
   },
+  "XZ5ZBfMizx": {
+    "defaultMessage": "Uses test data from {steps}"
+  },
   "XaU9VG5iR6": {
     "defaultMessage": "Không thể thêm thành viên vào nhóm."
   },
@@ -16873,6 +17212,9 @@
   },
   "XlfDKFWw7A": {
     "defaultMessage": "Mang theo ngữ cảnh dùng chung, các bài đánh giá và kiểm tra hồi quy qua mọi lần đồng bộ để chất lượng không âm thầm suy giảm."
+  },
+  "XmEYDXugqn": {
+    "defaultMessage": "Create object fields"
   },
   "XmcWHG0JFP": {
     "defaultMessage": "Translation"
@@ -17228,6 +17570,9 @@
   "YUmBaBzXHy": {
     "defaultMessage": "ID công việc bên ngoài"
   },
+  "YVSpc4Fgtj": {
+    "defaultMessage": "Header {number}"
+  },
   "YW2bfmVhJb": {
     "defaultMessage": "Phát hiện"
   },
@@ -17318,6 +17663,9 @@
   "YhT90BZluB": {
     "defaultMessage": "Xóa khái niệm"
   },
+  "YhXUDTQkrZ": {
+    "defaultMessage": "Audio localisation"
+  },
   "YhwlgG0Ruv": {
     "defaultMessage": "Công việc của tôi"
   },
@@ -17341,6 +17689,9 @@
   },
   "YkALJEyJhF": {
     "defaultMessage": "Phân tích thay đổi"
+  },
+  "YkGSzDTzNH": {
+    "defaultMessage": "Runs for real in test runs"
   },
   "YkWm74hjVM": {
     "defaultMessage": "Đang tải thêm…"
@@ -17491,6 +17842,9 @@
   },
   "Z3S7OrVNyY": {
     "defaultMessage": "Tác nhân email đã được bật"
+  },
+  "Z3cwlcqzDt": {
+    "defaultMessage": "Conflict policy"
   },
   "Z3fCUPrSEf": {
     "defaultMessage": "Nhập khẩu"
@@ -17788,6 +18142,9 @@
   },
   "Zjsr28k65x": {
     "defaultMessage": "Bảng đánh giá nhiều thông tin, có chức năng phê duyệt hàng loạt và theo dõi vấn đề QA"
+  },
+  "ZkAbhQobmZ": {
+    "defaultMessage": "Display name"
   },
   "ZkAl1q2it8": {
     "defaultMessage": "Xử lý như hình ảnh"
@@ -18260,6 +18617,9 @@
   "adEnn5Hnc9": {
     "defaultMessage": "GitHub đã từ chối thông tin xác thực của ứng dụng trong môi trường này. Hãy đặt GITHUB_APP_ID thành App ID từ cài đặt GitHub App và GITHUB_APP_PRIVATE_KEY thành PEM khớp tương ứng (dùng các ngắt dòng \\n nguyên văn hoặc mã hóa base64 toàn bộ tệp)."
   },
+  "adR2DRzo2Q": {
+    "defaultMessage": "Enter a display name."
+  },
   "adTqYP7Vjb": {
     "defaultMessage": "Tất cả ngôn ngữ địa phương"
   },
@@ -18683,6 +19043,9 @@
   "bXM2sr8gtz": {
     "defaultMessage": "Đã sao chép khóa API vào bộ nhớ tạm"
   },
+  "bXMU39hmQJ": {
+    "defaultMessage": "Updated the workflow"
+  },
   "bXnJyD63X6": {
     "defaultMessage": "Kết nối Slack, Notion, Contentful và các công cụ còn lại. Sau đó, hãy để chiến dịch tiếp theo đi theo cùng một quy trình."
   },
@@ -18694,6 +19057,9 @@
   },
   "bYsksXFrGX": {
     "defaultMessage": "Hủy các thay đổi"
+  },
+  "bZKwFr1ByM": {
+    "defaultMessage": "The assistant’s changes are on the canvas. Undo takes them back. Nothing is saved until you click Save."
   },
   "bZmWrWqZb+": {
     "defaultMessage": "Đẩy nguồn"
@@ -18848,6 +19214,9 @@
   "bsA+uhksQg": {
     "defaultMessage": "Chưa có từ nào cho ngôn ngữ này."
   },
+  "bsLwr0ECfl": {
+    "defaultMessage": "Save"
+  },
   "bsU0qqr6A2": {
     "defaultMessage": "Tổng quan"
   },
@@ -18937,6 +19306,9 @@
   },
   "c3udbicBEE": {
     "defaultMessage": "drift ready"
+  },
+  "c43lsobCtO": {
+    "defaultMessage": "{count, plural, one {A test value is missing} other {# test values are missing}}"
   },
   "c4Om5rZTyf": {
     "defaultMessage": "Kết nối các hệ thống mà không gian làm việc này sử dụng cho nội dung nguồn, hoạt động cộng tác và bản dịch."
@@ -19127,6 +19499,9 @@
   "cRg9/fMFSw": {
     "defaultMessage": "Đã xảy ra lỗi khi kiểm tra miền này. Bạn có thể thử lại an toàn."
   },
+  "cRhF5oMlHA": {
+    "defaultMessage": "Remove"
+  },
   "cRtcug0AF8": {
     "defaultMessage": "Không chia nhỏ"
   },
@@ -19240,6 +19615,9 @@
   },
   "cgwAYz/R89": {
     "defaultMessage": "Cập nhật {providerName}"
+  },
+  "ch9gwSSThi": {
+    "defaultMessage": "Set {path} on the Test tab of {step}."
   },
   "ch9kNq8+UC": {
     "defaultMessage": "Kích thước không xác định"
@@ -19724,6 +20102,9 @@
   "dcbWLpn6f2": {
     "defaultMessage": "Ngày cập nhật không khả dụng"
   },
+  "dcomOTuPbB": {
+    "defaultMessage": "Updating the workflow…"
+  },
   "ddPY0So4Vu": {
     "defaultMessage": "Tiếng Ukraina (Ukraine)"
   },
@@ -19990,6 +20371,9 @@
   },
   "e55K7kZph5": {
     "defaultMessage": "Hreflang, độ bao phủ locale và chất lượng nội dung đa ngôn ngữ"
+  },
+  "e5EIKdt4+j": {
+    "defaultMessage": "Could not change a step's settings"
   },
   "e5w8XM92TM": {
     "defaultMessage": "đã ẩn một chuỗi"
@@ -20363,6 +20747,9 @@
   "eqUM05Hftm": {
     "defaultMessage": "Không gian làm việc này hỗ trợ tối đa {count} phần tử văn bản. Hãy xóa một phần tử trước khi thêm phần tử mới."
   },
+  "eqeg8nHR3p": {
+    "defaultMessage": "Enabled"
+  },
   "erXgCbsSqH": {
     "defaultMessage": "Xuất bộ lọc dưới dạng CSV"
   },
@@ -20446,6 +20833,9 @@
   },
   "f/Vobm5joW": {
     "defaultMessage": "Thêm hành động bộ nhớ bản dịch"
+  },
+  "f/XNJ63dud": {
+    "defaultMessage": "Merge object {index} name"
   },
   "f/b31Mw+9f": {
     "defaultMessage": "{count} đã tải{more}"
@@ -20708,6 +21098,9 @@
   "fWyfUTYZOq": {
     "defaultMessage": "Chọn một từ khóa để xem nhu cầu tìm kiếm và kết quả xếp hạng của từ khóa đó."
   },
+  "fX43+IisLH": {
+    "defaultMessage": "Could not disconnect two steps"
+  },
   "fXIJvHCrL6": {
     "defaultMessage": "Phân đoạn trước"
   },
@@ -20813,6 +21206,9 @@
   "flcDp2zUQk": {
     "defaultMessage": "Trước tiên, hãy chạy thử nghiệm tại Nhật Bản, sau đó giữ lại phiên bản hoạt động hiệu quả. Nhà phát triển của bạn sẽ kết nối trang web một lần."
   },
+  "fmDOQaEtb/": {
+    "defaultMessage": "Document"
+  },
   "fmHJLMYbQV": {
     "defaultMessage": "Phím tắt bàn phím"
   },
@@ -20863,6 +21259,9 @@
   },
   "fu8eVhN1Ej": {
     "defaultMessage": "Hiển thị từ hai phiên bản trở lên và giữ lại phiên bản phù hợp."
+  },
+  "fuGS+tbzu0": {
+    "defaultMessage": "{count, plural, one {# edit was not saved.} other {# edits were not saved.}} Check the highlighted fields."
   },
   "fuMDhQC4xa": {
     "defaultMessage": "Không có kho lưu trữ GitHub nào"
@@ -21032,6 +21431,9 @@
   "gAtWW1Oa92": {
     "defaultMessage": "Đưa trí tuệ dịch thuật vào quy trình bản địa hóa của bạn"
   },
+  "gBrgYSI8np": {
+    "defaultMessage": "Move merge object {index} down"
+  },
   "gBuKJZ8SD6": {
     "defaultMessage": "Đồng bộ"
   },
@@ -21070,6 +21472,9 @@
   },
   "gFvQ/JVP4A": {
     "defaultMessage": "Lỗi và cảnh báo theo thời gian"
+  },
+  "gGRRIh5EV/": {
+    "defaultMessage": "Linked to Figma brand {brandId}"
   },
   "gHUxugs0eg": {
     "defaultMessage": "Được thiết kế dành cho các nhóm bản địa hóa. Bắt đầu miễn phí ngay hôm nay."
@@ -21130,6 +21535,9 @@
   },
   "gNwdZXjHEr": {
     "defaultMessage": "Hủy"
+  },
+  "gO4ZluW8Rk": {
+    "defaultMessage": "Move merge object {index} up"
   },
   "gO74VPwdhY": {
     "defaultMessage": "Dữ liệu mẫu · Xu hướng trong bảy ngày chỉ mang tính minh họa."
@@ -21473,6 +21881,9 @@
   "h0dd/MaO2f": {
     "defaultMessage": "Thu thập các thay đổi chuỗi, mô tả PR, chuỗi thảo luận trên Slack và brief ra mắt để dịch giả hiểu vì sao nội dung đã thay đổi — không chỉ thấy phần diff."
   },
+  "h0hMmM+3k4": {
+    "defaultMessage": "Braze"
+  },
   "h11M7dgCU3": {
     "defaultMessage": "Team"
   },
@@ -21511,6 +21922,9 @@
   },
   "h3qjecOeg8": {
     "defaultMessage": "Mở {projectName} trong nhà cung cấp dịch vụ"
+  },
+  "h4LTn78oL0": {
+    "defaultMessage": "Regenerate token"
   },
   "h4qqRHFDUX": {
     "defaultMessage": "Gửi"
@@ -21578,6 +21992,9 @@
   "hE2eacuTWG": {
     "defaultMessage": "Thao tác truy vấn"
   },
+  "hEEAW/iMSI": {
+    "defaultMessage": "Iris, the AI localisation engine for multilingual assets"
+  },
   "hEICju0qcP": {
     "defaultMessage": "Yêu cầu quyền truy cập sớm vào Hyperlocalise."
   },
@@ -21628,6 +22045,9 @@
   },
   "hLYu5z/3mF": {
     "defaultMessage": "Xuất bản và tối ưu hóa nội dung web đa ngôn ngữ cho SEO, AEO và khả năng được tìm thấy tại địa phương."
+  },
+  "hLqs+EeEG8": {
+    "defaultMessage": "Connect this on the canvas."
   },
   "hMCKrgEEKW": {
     "defaultMessage": "Chưa có bình luận hoặc hoạt động nào. Hãy bắt đầu thảo luận."
@@ -22211,11 +22631,17 @@
   "iUA2MassCX": {
     "defaultMessage": "Chọn một cuộc trò chuyện để xem chi tiết"
   },
+  "iUENcP8UXx": {
+    "defaultMessage": "This step has nothing to set up. Its outputs are on the Outputs tab, and its sample event on the Test tab."
+  },
   "iUfm3OxPfC": {
     "defaultMessage": "Sync"
   },
   "iUgXrXTD7Q": {
     "defaultMessage": "Tiếng Do Thái (Israel)"
+  },
+  "iUhV4+Yq09": {
+    "defaultMessage": "Test runs call out for real for this step: requests are sent, content is generated and messages are delivered. Its test data is kept for when it uses test data again."
   },
   "iV4M/BRREW": {
     "defaultMessage": "Tệp đính kèm"
@@ -22252,6 +22678,9 @@
   },
   "ia5z3O+Lwm": {
     "defaultMessage": "Tạo và tạo lại video bản địa hóa cho văn bản hiển thị trên màn hình và âm thanh lời nói."
+  },
+  "iaKQFI88/f": {
+    "defaultMessage": "Failed to save Figma connection."
   },
   "iaUn+Dn3Pk": {
     "defaultMessage": "Không thể tải định dạng phần giữ chỗ."
@@ -22313,11 +22742,17 @@
   "ih/69cODWD": {
     "defaultMessage": "Sending…"
   },
+  "ihICBXS5Mu": {
+    "defaultMessage": "Save"
+  },
   "ihYGlJZXjP": {
     "defaultMessage": "Hành động GitHub"
   },
   "ihy++kxglc": {
     "defaultMessage": "Chọn ngôn ngữ"
+  },
+  "ijeBZJPxQs": {
+    "defaultMessage": "Semrush"
   },
   "il32pCskAo": {
     "defaultMessage": "Domains"
@@ -22414,6 +22849,9 @@
   },
   "iswoFpqCGE": {
     "defaultMessage": "PR GitHub"
+  },
+  "it+CxLEVkH": {
+    "defaultMessage": "Insert a field from an earlier step"
   },
   "it5/fNQT1d": {
     "defaultMessage": "Sử dụng ngôn ngữ địa phương"
@@ -22666,6 +23104,9 @@
   },
   "jSY7h//Jq9": {
     "defaultMessage": "So sánh với các đường cơ sở đã được phê duyệt"
+  },
+  "jSZ5KDgjs6": {
+    "defaultMessage": "Describe what this workflow should do, or ask for a change."
   },
   "jSv2EzfhBb": {
     "defaultMessage": "mỗi"
@@ -23063,6 +23504,9 @@
   "kBjfpWlIHs": {
     "defaultMessage": "Đang chạy"
   },
+  "kC1soSUZq7": {
+    "defaultMessage": "The event this trigger passes on when you test the workflow. Real runs use the real event."
+  },
   "kC3PfwuLdP": {
     "defaultMessage": "Search"
   },
@@ -23083,6 +23527,9 @@
   },
   "kE7O20HfQk": {
     "defaultMessage": "Còn lại (USD)"
+  },
+  "kEhYEqOX8G": {
+    "defaultMessage": "Disconnect"
   },
   "kF6mTL+t+j": {
     "defaultMessage": "{metric} theo ngày: {values}"
@@ -23117,6 +23564,9 @@
   "kHsmQCneif": {
     "defaultMessage": "Trigger"
   },
+  "kHvyGVv5TJ": {
+    "defaultMessage": "What this step returns in a test run while it uses its test data, in place of doing its work. Nothing is made up: a value left empty stops the test."
+  },
   "kIG+JJHbzJ": {
     "defaultMessage": "Đặt lại thu phóng"
   },
@@ -23144,6 +23594,9 @@
   "kMySdc7EDT": {
     "defaultMessage": "Hủy"
   },
+  "kN6qwzFh/5": {
+    "defaultMessage": "Fill with examples"
+  },
   "kNO9FnuZT5": {
     "defaultMessage": "Cần xem xét"
   },
@@ -23152,6 +23605,9 @@
   },
   "kNmR4YupCp": {
     "defaultMessage": "Thêm quy tắc"
+  },
+  "kO17DbZxuG": {
+    "defaultMessage": "Add a named field to construct an object."
   },
   "kO32zaHAd6": {
     "defaultMessage": "Không thể lưu tiêu đề"
@@ -23254,6 +23710,9 @@
   },
   "kaCV+wVrsO": {
     "defaultMessage": "Thêm đồng bộ hóa nội dung"
+  },
+  "kbAlbZYGxZ": {
+    "defaultMessage": "Footer {number}"
   },
   "kbpV8xkMoq": {
     "defaultMessage": "Bình luận"
@@ -23444,6 +23903,9 @@
   "kzAQTYATA+": {
     "defaultMessage": "Chọn liệu các cập nhật trong Hộp thư đến của Phiếu sự cố có được gửi đến email của bạn hay không."
   },
+  "kzH21n29Rp": {
+    "defaultMessage": "Step settings"
+  },
   "kzMTx+wIMg": {
     "defaultMessage": "Được cung cấp bởi API Google Domain Rank Overview của DataForSEO Labs."
   },
@@ -23528,6 +23990,9 @@
   "lAx3q9l5/u": {
     "defaultMessage": "Chọn các nhà cung cấp mô hình và công cụ mà đội ngũ của bạn tin tưởng. Để các tác nhân xử lý những công việc có thể lặp lại, trong khi con người vẫn luôn tham gia."
   },
+  "lB0h34jODa": {
+    "defaultMessage": "Deny"
+  },
   "lBt4D36OVV": {
     "defaultMessage": "Đóng thông báo cập nhật"
   },
@@ -23554,6 +24019,9 @@
   },
   "lES6CzVw2i": {
     "defaultMessage": "Tổng quan sản phẩm"
+  },
+  "lEXKxwEywz": {
+    "defaultMessage": "Connected {source} to {target}"
   },
   "lEmnokrrS2": {
     "defaultMessage": "đã tạo một tên miền được liên kết"
@@ -23680,6 +24148,9 @@
   },
   "lWsEWOz8r0": {
     "defaultMessage": "Địa chỉ nhận đã sẵn sàng. Gửi tệp hoặc hình ảnh cùng với ngôn ngữ đích để dịch qua email."
+  },
+  "lX5fkBbKOJ": {
+    "defaultMessage": "Figma is requesting access to localize designs through a Hyperlocalise workspace connection."
   },
   "lXXmdSGuM3": {
     "defaultMessage": "Kết nối lại {providerName} để tiếp tục sử dụng tích hợp này."
@@ -23914,6 +24385,9 @@
   },
   "m3RSvNywAR": {
     "defaultMessage": "Không thể tải hoạt động."
+  },
+  "m3elLgug6H": {
+    "defaultMessage": "When every step runs for real, a test run is a live run: Wait steps really wait. It never publishes."
   },
   "m3woOgoczi": {
     "defaultMessage": "3 giờ trước"
@@ -24275,6 +24749,9 @@
   "mhdxPi6b4a": {
     "defaultMessage": "Công việc của {providerName}"
   },
+  "mhtqPj5f5v": {
+    "defaultMessage": "Test settings"
+  },
   "mi29vosn6Y": {
     "defaultMessage": "Chọn một nhà cung cấp được hỗ trợ."
   },
@@ -24346,6 +24823,9 @@
   },
   "mq4F9HRaBq": {
     "defaultMessage": "Tên bộ quy tắc"
+  },
+  "mqYq/LYRBZ": {
+    "defaultMessage": "Show"
   },
   "mqq6dTwRZM": {
     "defaultMessage": "Đầu ra"
@@ -24514,6 +24994,9 @@
   },
   "nAUAvUF3jq": {
     "defaultMessage": "Các đầu ra được trả về"
+  },
+  "nB3IXQfE4i": {
+    "defaultMessage": "Move object field {index} down"
   },
   "nBWhU6jbvc": {
     "defaultMessage": "Mẫu"
@@ -24712,6 +25195,9 @@
   },
   "nVpf5SOxZJ": {
     "defaultMessage": "qua {name}"
+  },
+  "nWyqpLBFh/": {
+    "defaultMessage": "Last object wins"
   },
   "nXCktzp8yW": {
     "defaultMessage": "Quy trình tự động hóa"
@@ -25304,6 +25790,9 @@
   "oj7kgOJK5f": {
     "defaultMessage": "Trung tâm Tin cậy"
   },
+  "ojIy177KR7": {
+    "defaultMessage": "Create a workspace connection here. Designers then sign in from Figma with OAuth."
+  },
   "ojrPiYWxu8": {
     "defaultMessage": "Sao chép giá trị"
   },
@@ -25634,6 +26123,9 @@
   "pOmRJ5Mm9Y": {
     "defaultMessage": "Loại chuỗi"
   },
+  "pPaYbj0Q2H": {
+    "defaultMessage": "Video localisation"
+  },
   "pPpG4zo8Yj": {
     "defaultMessage": "Đính kèm thuật ngữ đã được phê duyệt, hướng dẫn về giọng điệu thương hiệu và bối cảnh thị trường để mọi người và tác nhân đều làm việc dựa trên cùng một nguồn thông tin chuẩn."
   },
@@ -25928,6 +26420,9 @@
   "pxQacxRowI": {
     "defaultMessage": "Đã hoàn tất"
   },
+  "py0C/2fMk8": {
+    "defaultMessage": "Failed to authorize the Figma app."
+  },
   "py4sv3RBJU": {
     "defaultMessage": "Đảm bảo giọng điệu thương hiệu và thuật ngữ"
   },
@@ -26042,6 +26537,9 @@
   "q8JPEoD1z3": {
     "defaultMessage": "Hiển thị tình trạng bản địa hóa trực tiếp trong GitHub để kỹ thuật và bản địa hóa cùng dùng chung một chế độ xem."
   },
+  "q8XoGsQB0C": {
+    "defaultMessage": "Delete"
+  },
   "q8jItOdlQf": {
     "defaultMessage": "Chọn lượt chạy của tác nhân"
   },
@@ -26098,6 +26596,9 @@
   },
   "qBw0XsEKyN": {
     "defaultMessage": "Luôn linh hoạt trên nhiều nhà cung cấp và nền tảng"
+  },
+  "qByVEBzLzv": {
+    "defaultMessage": "Could not remove a step"
   },
   "qCIzGw7LDA": {
     "defaultMessage": "Bản địa hóa email và tin nhắn trong ứng dụng theo hành vi trong Customer.io."
@@ -26186,6 +26687,9 @@
   "qNbrHndGz/": {
     "defaultMessage": "Kết nối Search Console cần được ủy quyền lại. Kết nối lại tại đây."
   },
+  "qOKUAtOaFb": {
+    "defaultMessage": "Object field {index} default"
+  },
   "qOrpKFZ2EU": {
     "defaultMessage": "Resource"
   },
@@ -26200,6 +26704,9 @@
   },
   "qQRYeCWT2J": {
     "defaultMessage": "Dán khóa API REST của Braze và chọn cụm REST tương ứng với phiên bản đó."
+  },
+  "qQZGFuhT3T": {
+    "defaultMessage": "The workflow could not be updated"
   },
   "qRVA5sizhD": {
     "defaultMessage": "Các gói đơn giản để đánh giá Hyperlocalise ngay hôm nay."
@@ -26363,6 +26870,9 @@
   "qmb/TOVO4K": {
     "defaultMessage": "Hình ảnh có tỷ lệ khác nhau. Sử dụng ngăn gốc để so sánh chúng."
   },
+  "qo0d24Hw+8": {
+    "defaultMessage": "Fails"
+  },
   "qoKQfRLzE9": {
     "defaultMessage": "Đang lấy mẫu các trang công khai và thư mục gốc của ngôn ngữ."
   },
@@ -26423,6 +26933,9 @@
   "qwBzCi54cg": {
     "defaultMessage": "{count, plural, =0 {Chưa được sử dụng} one {# dự án} other {# dự án}}"
   },
+  "qwKm4yzub8": {
+    "defaultMessage": "You edited the workflow · {count, plural, one {# change} other {# changes}}"
+  },
   "qxBrl7Yxqo": {
     "defaultMessage": "Thứ Hai"
   },
@@ -26452,6 +26965,9 @@
   },
   "qzupTaytsB": {
     "defaultMessage": "Chưa có hoạt động nào"
+  },
+  "r/zdhHnzwh": {
+    "defaultMessage": "Ran for real"
   },
   "r01vthnyrV": {
     "defaultMessage": "Tên bảng giá"
@@ -26798,6 +27314,9 @@
   "rgfO40Efmv": {
     "defaultMessage": "Chọn một thanh để lọc danh sách phát hiện bên dưới."
   },
+  "rh2+BteZ5e": {
+    "defaultMessage": "Object field {index} type"
+  },
   "rh4QHX9qYb": {
     "defaultMessage": "Không tìm thấy tệp nhà cung cấp nào cho dự án này."
   },
@@ -26806,6 +27325,9 @@
   },
   "rhfG3eu2aR": {
     "defaultMessage": "Chế độ kiểm tra"
+  },
+  "rhgvK4B/v1": {
+    "defaultMessage": "Workspace connection"
   },
   "riG8529T+y": {
     "defaultMessage": "General"
@@ -27073,6 +27595,9 @@
   },
   "sHEScxEFix": {
     "defaultMessage": "Editor"
+  },
+  "sHLZ/8LZoH": {
+    "defaultMessage": "Web search"
   },
   "sHQ6RKFJ37": {
     "defaultMessage": "Domains"
@@ -27515,6 +28040,9 @@
   "tCUf/LZUI9": {
     "defaultMessage": "Biến các yêu cầu trên Slack và bảng Canva thành công việc bản địa hóa được xác định phạm vi, với ngữ cảnh được đính kèm ngay từ đầu."
   },
+  "tCdxVUY0DH": {
+    "defaultMessage": "Endnotes"
+  },
   "tCoNRn2dnG": {
     "defaultMessage": "Xóa tác vụ Crowdin?"
   },
@@ -27767,6 +28295,9 @@
   "tlfeFkqvA8": {
     "defaultMessage": "All"
   },
+  "tm2wgAMGK3": {
+    "defaultMessage": "Join the waitlist"
+  },
   "tmfZmWyVtO": {
     "defaultMessage": "Tệp nguồn"
   },
@@ -27854,8 +28385,14 @@
   "u/GyZps3MY": {
     "defaultMessage": "{count, plural, one {Không thể dịch được # khối.} other {Không thể dịch được # khối.}}"
   },
+  "u/fBB4HZhM": {
+    "defaultMessage": "Figma connection saved."
+  },
   "u0JPXvQtPf": {
     "defaultMessage": "Nhà cung cấp đã cung cấp"
+  },
+  "u0c5HG4JX/": {
+    "defaultMessage": "In a test run"
   },
   "u0dyjBiqWo": {
     "defaultMessage": "Từ khóa"
@@ -27913,6 +28450,9 @@
   },
   "u8VX6gbiee": {
     "defaultMessage": "Không thể tải tệp đó lên lúc này."
+  },
+  "u9Qg5J09WM": {
+    "defaultMessage": "No fields from earlier steps."
   },
   "u9Z5lV8isJ": {
     "defaultMessage": "Không thể tải xuống bản dịch"
@@ -28748,6 +29288,9 @@
   "vmnQBcZ7YW": {
     "defaultMessage": "Chưa có gì ở đây unerquicklich"
   },
+  "vmv1R5ICX0": {
+    "defaultMessage": "API key"
+  },
   "vnJqxWYdFd": {
     "defaultMessage": "Đã xóa tính năng tự động hóa"
   },
@@ -28937,6 +29480,9 @@
   "w79MA47tly": {
     "defaultMessage": "Đã thay đổi 3 chuỗi, sửa trực tiếp 1 lỗi đánh máy tiếng Pháp từ chuỗi thảo luận PR"
   },
+  "w7GEIfNjc0": {
+    "defaultMessage": "Footnotes"
+  },
   "w7J+PHlma7": {
     "defaultMessage": "Hướng dẫn thuật ngữ"
   },
@@ -28981,6 +29527,9 @@
   },
   "wB36ZpuzG3": {
     "defaultMessage": "Đã thay đổi 3 chuỗi, 1 vấn đề dịch thuật được nêu ra trước khi hợp nhất"
+  },
+  "wBBk0AbwLo": {
+    "defaultMessage": "If this step fails"
   },
   "wBNC3JBHju": {
     "defaultMessage": "Ngày trong tuần"
@@ -29087,6 +29636,9 @@
   "wPaeLzlE/q": {
     "defaultMessage": "Nguồn và số từ khối lượng công việc theo dự án và ngôn ngữ bản địa"
   },
+  "wQGnFQYS2q": {
+    "defaultMessage": "Not set"
+  },
   "wQOKFwmzrC": {
     "defaultMessage": "Ngôn ngữ địa phương"
   },
@@ -29186,6 +29738,9 @@
   "wdhrNg8UHz": {
     "defaultMessage": "Mở công việc"
   },
+  "we+P5cHH+C": {
+    "defaultMessage": "Use test data everywhere"
+  },
   "weAVB6AXQJ": {
     "defaultMessage": "Tất cả thuật ngữ"
   },
@@ -29206,6 +29761,9 @@
   },
   "wgpJwxQgNi": {
     "defaultMessage": "Đang tải mức sử dụng gói cước"
+  },
+  "whMSAtiplz": {
+    "defaultMessage": "Comments"
   },
   "whTnlyYlKA": {
     "defaultMessage": "Tải xuống {locale}"
@@ -29326,6 +29884,9 @@
   },
   "wvvrX539Xf": {
     "defaultMessage": "Không thể tải tệp."
+  },
+  "wvz6JBopgC": {
+    "defaultMessage": "Connect Figma to Hyperlocalise"
   },
   "ww1ZEpMIQj": {
     "defaultMessage": "Bộ nhớ này chỉ được sử dụng bởi các dự án được liệt kê tại đây."
@@ -29485,6 +30046,9 @@
   },
   "xBKYTJYExq": {
     "defaultMessage": "Intercom"
+  },
+  "xC6Oep4Mv6": {
+    "defaultMessage": "Discard"
   },
   "xC7u8V65Ad": {
     "defaultMessage": "Tất cả tệp"
@@ -29831,6 +30395,9 @@
   "xsAaVb0T8m": {
     "defaultMessage": "Đang chờ xem xét"
   },
+  "xsPz0jjx3+": {
+    "defaultMessage": "Run for real"
+  },
   "xsZbCQ/A1V": {
     "defaultMessage": "Đã bao gồm"
   },
@@ -29926,6 +30493,9 @@
   },
   "y4hQxxj/zM": {
     "defaultMessage": "Xây dựng thư viện thuật ngữ của bạn"
+  },
+  "y50SdunZtN": {
+    "defaultMessage": "Copy this Figma connection token"
   },
   "y5nRcvmxtw": {
     "defaultMessage": "Hủy khi kết thúc kỳ thanh toán"
@@ -30431,6 +31001,9 @@
   "zDKQV1vdb3": {
     "defaultMessage": "Từ khóa"
   },
+  "zDoKlB01Q1": {
+    "defaultMessage": "Choose a project"
+  },
   "zEYxUcr2AM": {
     "defaultMessage": "Không có mô tả"
   },
@@ -30457,6 +31030,9 @@
   },
   "zI9Ceuo8wd": {
     "defaultMessage": "Truy vấn"
+  },
+  "zIdwJ1idG9": {
+    "defaultMessage": "Failed to delete Figma connection."
   },
   "zIhD8Y76tZ": {
     "defaultMessage": "Tiếp tục chỉnh sửa"
@@ -30487,6 +31063,9 @@
   },
   "zL0L4Vvw8O": {
     "defaultMessage": "Đã áp dụng khi xem xét CTA thanh toán DE"
+  },
+  "zL1SPi+Eok": {
+    "defaultMessage": "Open Integrations"
   },
   "zLa51T7B2l": {
     "defaultMessage": "Đang kiểm tra cấu hình kho lưu trữ"
@@ -30539,6 +31118,9 @@
   "zPtX/ng4pa": {
     "defaultMessage": "Các tác nhân trong công cụ của bạn"
   },
+  "zQBuwK1cWP": {
+    "defaultMessage": "Zernio"
+  },
   "zQIP2wjI8l": {
     "defaultMessage": "Blocked"
   },
@@ -30547,6 +31129,9 @@
   },
   "zR0I34Xobx": {
     "defaultMessage": "Xây dựng quy trình làm việc đa ngôn ngữ của bạn."
+  },
+  "zRCtWtCl4W": {
+    "defaultMessage": "Needed for a test run."
   },
   "zRMNg+Lp1z": {
     "defaultMessage": "Cơ hội mới"

@@ -131,6 +131,7 @@ ${formatLinks(useCaseLinks)}
 - [Privacy](${SITE_URL}/en/privacy): Privacy policy.
 - [Terms](${SITE_URL}/en/terms): Cloud Service Agreement terms.
 - [Contact](${SITE_URL}/en/contact): Reach the Hyperlocalise team.
+- [Iris](${SITE_URL}/en/iris): Iris is Hyperlocalise's AI localisation engine for multilingual assets. It creates and localises images, video, motion, and audio for every language.
 
 ## Optional
 

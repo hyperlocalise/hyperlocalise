@@ -12,8 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import Link from "next/link";
+import { observer } from "mobx-react-lite";
 import { useRouter } from "next/navigation";
 import {
   PlusIcon,
@@ -81,6 +82,10 @@ import { cn } from "@/lib/primitives/cn";
 
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
 import { useGlossary } from "./use-glossary";
+import {
+  GlossaryDetailPageStoreProvider,
+  useGlossaryDetailPageStore,
+} from "../store/glossary-detail-store-context";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -90,13 +95,6 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
 function formatDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : DATE_FORMATTER.format(date);
-}
-
-const modifiedPresetHours = { "24h": 24, "7d": 24 * 7, "30d": 24 * 30 } as const;
-
-function modifiedFromIso(preset: "" | "24h" | "7d" | "30d"): string | undefined {
-  if (!preset) return undefined;
-  return new Date(Date.now() - modifiedPresetHours[preset] * 3_600_000).toISOString();
 }
 
 function teamControlLevelDisplayLabel(
@@ -218,59 +216,33 @@ export function NativeGlossaryDetail({
   glossaryId: string;
   canManageGlossaries: boolean;
 }) {
+  return (
+    <GlossaryDetailPageStoreProvider organizationSlug={organizationSlug} glossaryId={glossaryId}>
+      <NativeGlossaryDetailView
+        organizationSlug={organizationSlug}
+        glossaryId={glossaryId}
+        canManageGlossaries={canManageGlossaries}
+      />
+    </GlossaryDetailPageStoreProvider>
+  );
+}
+
+const NativeGlossaryDetailView = observer(function NativeGlossaryDetailView({
+  organizationSlug,
+  glossaryId,
+  canManageGlossaries,
+}: {
+  organizationSlug: string;
+  glossaryId: string;
+  canManageGlossaries: boolean;
+}) {
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const store = useGlossaryDetailPageStore();
   const { client: goSvcClient } = useGoSvcClient();
-  const glossaryHref = `/org/${organizationSlug}/glossaries/${glossaryId}`;
-  const conceptHref = (id: string) => `${glossaryHref}/concepts/${id}`;
-  const [selectedConceptIds, setSelectedConceptIds] = useState<Set<string>>(new Set());
-  const [conceptSort, setConceptSort] = useState<"asc" | "desc">("asc");
-  const [conceptSearch, setConceptSearch] = useState("");
-  const [conceptLocale, setConceptLocale] = useState("");
-  const [conceptModified, setConceptModified] = useState<"" | "24h" | "7d" | "30d">("");
-  const [conceptLinguisticStatus, setConceptLinguisticStatus] = useState<
-    "" | (typeof glossaryTermStatusValues)[number]
-  >("");
-  const [conceptPartOfSpeech, setConceptPartOfSpeech] = useState<
-    "" | (typeof glossaryPartOfSpeechValues)[number]
-  >("");
-  const [conceptTermType, setConceptTermType] = useState<
-    "" | (typeof glossaryTermTypeValues)[number]
-  >("");
-  const [conceptGender, setConceptGender] = useState<"" | (typeof glossaryGenderValues)[number]>(
-    "",
-  );
-  const [conceptAuthor, setConceptAuthor] = useState("");
-  // Snapshot the applied last-modified cutoff so pagination cursors stay
-  // signed against the same filter hash across pages.
-  const [conceptModifiedFrom, setConceptModifiedFrom] = useState<string | undefined>();
-  const [conceptCursor, setConceptCursor] = useState<string | undefined>();
-  const [, setConceptCursorStack] = useState<string[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState("");
-  const [nameDraft, setNameDraft] = useState("");
-  const skipNameBlurSave = useRef(false);
+  const glossaryHref = store.glossaryHref;
   const glossaryFileInputRef = useRef<HTMLInputElement>(null);
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importDiagnostics, setImportDiagnostics] = useState<
-    Array<{ severity: string; code: string; message: string }>
-  >([]);
-  const [deleteGlossaryDialogOpen, setDeleteGlossaryDialogOpen] = useState(false);
-  const [exportDialogOpen, setExportDialogOpen] = useState(false);
-  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
-  const emptyFilterDraft = {
-    locale: "",
-    modified: "",
-    linguisticStatus: "",
-    partOfSpeech: "",
-    termType: "",
-    gender: "",
-    author: "",
-  };
-  const [filterDraft, setFilterDraft] = useState(emptyFilterDraft);
-  const [exportFormat, setExportFormat] = useState<"csv" | "tbx" | "xlsx">("tbx");
-  const [exportScope, setExportScope] = useState<"complete" | "filtered">("complete");
 
   const { glossaryQuery, glossary, canManage, canContribute, sourceLanguage } = useGlossary({
     organizationSlug,
@@ -279,24 +251,24 @@ export function NativeGlossaryDetail({
   });
 
   useEffect(() => {
-    if (glossary) setNameDraft(glossary.name);
-  }, [glossary?.name]);
+    if (glossary) store.syncNameDraft(glossary.name);
+  }, [glossary?.name, store]);
 
   const conceptsQuery = useQuery({
     queryKey: [
       "glossary-concepts-page",
       organizationSlug,
       glossaryId,
-      conceptSearch,
-      conceptLocale,
-      conceptModifiedFrom,
-      conceptLinguisticStatus,
-      conceptPartOfSpeech,
-      conceptTermType,
-      conceptGender,
-      conceptAuthor,
-      conceptCursor,
-      conceptSort,
+      store.conceptSearch,
+      store.conceptLocale,
+      store.conceptModifiedFrom,
+      store.conceptLinguisticStatus,
+      store.conceptPartOfSpeech,
+      store.conceptTermType,
+      store.conceptGender,
+      store.conceptAuthor,
+      store.conceptCursor,
+      store.conceptSort,
     ],
     enabled: true,
     queryFn: async () => {
@@ -309,17 +281,19 @@ export function NativeGlossaryDetail({
         query: {
           limit: "10",
           sort: "primary_term",
-          sortDir: conceptSort,
+          sortDir: store.conceptSort,
           includeArchived: "false" as const,
-          ...(conceptSearch.trim() ? { search: conceptSearch.trim() } : {}),
-          ...(conceptLocale ? { locale: conceptLocale } : {}),
-          ...(conceptModifiedFrom ? { modifiedFrom: conceptModifiedFrom } : {}),
-          ...(conceptLinguisticStatus ? { linguisticStatus: conceptLinguisticStatus } : {}),
-          ...(conceptPartOfSpeech ? { partOfSpeech: conceptPartOfSpeech } : {}),
-          ...(conceptTermType ? { termType: conceptTermType } : {}),
-          ...(conceptGender ? { gender: conceptGender } : {}),
-          ...(conceptAuthor ? { createdByUserId: conceptAuthor } : {}),
-          ...(conceptCursor ? { cursor: conceptCursor } : {}),
+          ...(store.conceptSearch.trim() ? { search: store.conceptSearch.trim() } : {}),
+          ...(store.conceptLocale ? { locale: store.conceptLocale } : {}),
+          ...(store.conceptModifiedFrom ? { modifiedFrom: store.conceptModifiedFrom } : {}),
+          ...(store.conceptLinguisticStatus
+            ? { linguisticStatus: store.conceptLinguisticStatus }
+            : {}),
+          ...(store.conceptPartOfSpeech ? { partOfSpeech: store.conceptPartOfSpeech } : {}),
+          ...(store.conceptTermType ? { termType: store.conceptTermType } : {}),
+          ...(store.conceptGender ? { gender: store.conceptGender } : {}),
+          ...(store.conceptAuthor ? { createdByUserId: store.conceptAuthor } : {}),
+          ...(store.conceptCursor ? { cursor: store.conceptCursor } : {}),
         },
       });
       if (!response.ok)
@@ -425,9 +399,6 @@ export function NativeGlossaryDetail({
     (project) => !attachedProjectIds.has(project.id),
   );
 
-  const allSelected =
-    concepts.length > 0 && concepts.every((concept) => selectedConceptIds.has(concept.id));
-
   const invalidateProjects = () =>
     queryClient.invalidateQueries({
       queryKey: ["glossary-projects", organizationSlug, glossaryId],
@@ -463,42 +434,16 @@ export function NativeGlossaryDetail({
       return { reportId: upload.reportId };
     },
     onSuccess: ({ reportId }) => {
-      setImportDialogOpen(false);
-      setImportDiagnostics([]);
-      setImportFile(null);
+      store.closeImportDialog();
       if (glossaryFileInputRef.current) glossaryFileInputRef.current.value = "";
       router.push(`${glossaryHref}/imports/${encodeURIComponent(reportId)}`);
     },
     onError: (error) => toast.error(error.message),
   });
 
-  const dropdownFilterValues = [
-    conceptLocale,
-    conceptModified,
-    conceptLinguisticStatus,
-    conceptPartOfSpeech,
-    conceptTermType,
-    conceptGender,
-    conceptAuthor,
-  ];
-  const activeDropdownFilterCount = dropdownFilterValues.filter(Boolean).length;
-  const activeFilterCount = (conceptSearch.trim() ? 1 : 0) + activeDropdownFilterCount;
-  const canExportFiltered = activeFilterCount > 0;
-  const filteredExportLocales = conceptLocale ? [conceptLocale] : [];
-
-  const clearAllConceptFilters = () => {
-    setConceptCursorStack([]);
-    setConceptCursor(undefined);
-    setConceptModifiedFrom(undefined);
-    setConceptSearch("");
-    setConceptLocale("");
-    setConceptModified("");
-    setConceptLinguisticStatus("");
-    setConceptPartOfSpeech("");
-    setConceptTermType("");
-    setConceptGender("");
-    setConceptAuthor("");
-  };
+  const activeDropdownFilterCount = store.activeDropdownFilterCount;
+  const activeFilterCount = store.activeFilterCount;
+  const canExportFiltered = store.canExportFiltered;
 
   const exportGlossary = useMutation({
     mutationFn: async (input: {
@@ -528,7 +473,7 @@ export function NativeGlossaryDetail({
       return { reportId: job.reportId };
     },
     onSuccess: ({ reportId }) => {
-      setExportDialogOpen(false);
+      store.setExportDialogOpen(false);
       router.push(`${glossaryHref}/imports/${encodeURIComponent(reportId)}`);
     },
     onError: (error) => toast.error(error.message),
@@ -571,22 +516,22 @@ export function NativeGlossaryDetail({
         queryClient.invalidateQueries({ queryKey: ["native-glossaries", organizationSlug] }),
       ]);
       toast.success(intl.formatMessage(messages.glossaryDeleted));
-      setDeleteGlossaryDialogOpen(false);
+      store.setDeleteGlossaryDialogOpen(false);
       router.push(`/org/${organizationSlug}/glossaries`);
     },
     onError: (error) => toast.error(error.message),
   });
 
   const saveGlossaryName = async () => {
-    const name = nameDraft.trim();
-    if (!name || !glossary || name === glossary.name) {
-      setNameDraft(glossary?.name ?? nameDraft);
+    const name = store.trimmedNameDraft();
+    if (!name || !glossary || !store.canSaveName(glossary.name)) {
+      store.syncNameDraft(glossary?.name ?? store.nameDraft);
       return;
     }
     try {
       await updateGlossaryName.mutateAsync(name);
     } catch (error) {
-      setNameDraft(glossary.name);
+      store.syncNameDraft(glossary.name);
       toast.error(
         error instanceof Error
           ? error.message
@@ -611,7 +556,7 @@ export function NativeGlossaryDetail({
     },
     onSuccess: async () => {
       await invalidateProjects();
-      setSelectedProjectId("");
+      store.clearSelectedProjectId();
       toast.success(intl.formatMessage(messages.projectAssigned));
     },
     onError: (error) => toast.error(error.message),
@@ -645,60 +590,12 @@ export function NativeGlossaryDetail({
   }
   if (conceptsQuery.isLoading) return <ConceptListSkeleton />;
 
-  const resetConceptCursor = (nextSearch = conceptSearch) => {
-    setConceptCursorStack([]);
-    setConceptCursor(undefined);
-    if (nextSearch !== conceptSearch) setConceptSearch(nextSearch);
-  };
-
-  const openFilterDialog = () => {
-    setFilterDraft({
-      locale: conceptLocale,
-      modified: conceptModified,
-      linguisticStatus: conceptLinguisticStatus,
-      partOfSpeech: conceptPartOfSpeech,
-      termType: conceptTermType,
-      gender: conceptGender,
-      author: conceptAuthor,
-    });
-    setFilterDialogOpen(true);
-  };
-
-  const updateFilterDraft = (key: keyof typeof emptyFilterDraft, value: string) => {
-    setFilterDraft((current) => ({ ...current, [key]: value === "all" ? "" : value }));
-  };
-
-  const applyConceptFilters = () => {
-    setConceptCursorStack([]);
-    setConceptCursor(undefined);
-    setConceptModifiedFrom(modifiedFromIso(filterDraft.modified as "" | "24h" | "7d" | "30d"));
-    setConceptLocale(filterDraft.locale);
-    setConceptModified(filterDraft.modified as "" | "24h" | "7d" | "30d");
-    setConceptLinguisticStatus(
-      filterDraft.linguisticStatus as (typeof glossaryTermStatusValues)[number] | "",
-    );
-    setConceptPartOfSpeech(
-      filterDraft.partOfSpeech as (typeof glossaryPartOfSpeechValues)[number] | "",
-    );
-    setConceptTermType(filterDraft.termType as (typeof glossaryTermTypeValues)[number] | "");
-    setConceptGender(filterDraft.gender as (typeof glossaryGenderValues)[number] | "");
-    setConceptAuthor(filterDraft.author);
-    setFilterDialogOpen(false);
-  };
-
   const goToNextConceptPage = () => {
-    const nextCursor = conceptsQuery.data?.nextCursor;
-    if (!nextCursor) return;
-    setConceptCursorStack((current) => [...current, conceptCursor ?? ""]);
-    setConceptCursor(nextCursor);
+    store.goToNextConceptPage(conceptsQuery.data?.nextCursor);
   };
 
   const goToPreviousConceptPage = () => {
-    setConceptCursorStack((current) => {
-      const next = [...current];
-      setConceptCursor(next.pop() || undefined);
-      return next;
-    });
+    store.goToPreviousConceptPage();
   };
 
   return (
@@ -731,13 +628,10 @@ export function NativeGlossaryDetail({
           <>
             <TypographyH1 className="sr-only">{glossary.name}</TypographyH1>
             <Textarea
-              value={nameDraft}
-              onChange={(event) => setNameDraft(event.currentTarget.value)}
+              value={store.nameDraft}
+              onChange={(event) => store.setNameDraft(event.currentTarget.value)}
               onBlur={() => {
-                if (skipNameBlurSave.current) {
-                  skipNameBlurSave.current = false;
-                  return;
-                }
+                if (store.consumeSkipNameBlurSave()) return;
                 void saveGlossaryName();
               }}
               onKeyDown={(event) => {
@@ -747,8 +641,7 @@ export function NativeGlossaryDetail({
                 }
                 if (event.key === "Escape") {
                   event.preventDefault();
-                  skipNameBlurSave.current = true;
-                  setNameDraft(glossary.name);
+                  store.revertNameDraft(glossary.name);
                   event.currentTarget.blur();
                 }
               }}
@@ -794,7 +687,7 @@ export function NativeGlossaryDetail({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setDeleteGlossaryDialogOpen(true)}
+              onClick={() => store.setDeleteGlossaryDialogOpen(true)}
               disabled={deleteGlossary.isPending}
             >
               <TrashIcon data-icon="inline-start" />
@@ -820,7 +713,7 @@ export function NativeGlossaryDetail({
                 <Button
                   type="button"
                   variant={activeDropdownFilterCount > 0 ? "default" : "outline"}
-                  onClick={openFilterDialog}
+                  onClick={() => store.openFilterDialog()}
                 >
                   <FunnelIcon data-icon="inline-start" />
                   <FormattedMessage {...messages.filtersButton} />
@@ -831,7 +724,7 @@ export function NativeGlossaryDetail({
                     type="button"
                     variant="outline"
                     disabled={importConcepts.isPending || exportGlossary.isPending}
-                    onClick={() => setImportDialogOpen(true)}
+                    onClick={() => store.setImportDialogOpen(true)}
                   >
                     {importConcepts.isPending ? (
                       <Spinner data-icon="inline-start" />
@@ -846,10 +739,7 @@ export function NativeGlossaryDetail({
                     type="button"
                     variant="outline"
                     disabled={exportGlossary.isPending || importConcepts.isPending}
-                    onClick={() => {
-                      setExportScope(canExportFiltered ? "filtered" : "complete");
-                      setExportDialogOpen(true);
-                    }}
+                    onClick={() => store.openExportDialog()}
                   >
                     {exportGlossary.isPending ? (
                       <Spinner data-icon="inline-start" />
@@ -875,8 +765,8 @@ export function NativeGlossaryDetail({
                 <input
                   id="glossary-concept-search"
                   type="search"
-                  value={conceptSearch}
-                  onChange={(event) => resetConceptCursor(event.currentTarget.value)}
+                  value={store.conceptSearch}
+                  onChange={(event) => store.setConceptSearch(event.currentTarget.value)}
                   placeholder={intl.formatMessage(messages.searchConceptsPlaceholder)}
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
@@ -899,12 +789,20 @@ export function NativeGlossaryDetail({
                 </TypographyP>
               ) : null}
               {activeFilterCount > 0 ? (
-                <Button type="button" variant="ghost" size="sm" onClick={clearAllConceptFilters}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => store.clearAllConceptFilters()}
+                >
                   <FormattedMessage {...messages.clearFilters} />
                 </Button>
               ) : null}
             </div>
-            <Dialog open={filterDialogOpen} onOpenChange={setFilterDialogOpen}>
+            <Dialog
+              open={store.filterDialogOpen}
+              onOpenChange={(open) => store.setFilterDialogOpen(open)}
+            >
               <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                   <DialogTitle>
@@ -918,9 +816,11 @@ export function NativeGlossaryDetail({
                   <EnumFilterSelect
                     id="glossary-filter-locale"
                     label={intl.formatMessage(messages.filterLanguagesLabel)}
-                    value={filterDraft.locale || "all"}
-                    displayValue={filterDraft.locale || intl.formatMessage(messages.filterAllValue)}
-                    onValueChange={(value) => updateFilterDraft("locale", value ?? "all")}
+                    value={store.filterDraft.locale || "all"}
+                    displayValue={
+                      store.filterDraft.locale || intl.formatMessage(messages.filterAllValue)
+                    }
+                    onValueChange={(value) => store.updateFilterDraft("locale", value ?? "all")}
                   >
                     <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
                       {intl.formatMessage(messages.filterAllValue)}
@@ -938,17 +838,17 @@ export function NativeGlossaryDetail({
                   <EnumFilterSelect
                     id="glossary-filter-modified"
                     label={intl.formatMessage(messages.filterLastModifiedLabel)}
-                    value={filterDraft.modified || "all"}
+                    value={store.filterDraft.modified || "all"}
                     displayValue={
-                      filterDraft.modified === "24h"
+                      store.filterDraft.modified === "24h"
                         ? intl.formatMessage(messages.lastModified24h)
-                        : filterDraft.modified === "7d"
+                        : store.filterDraft.modified === "7d"
                           ? intl.formatMessage(messages.lastModified7d)
-                          : filterDraft.modified === "30d"
+                          : store.filterDraft.modified === "30d"
                             ? intl.formatMessage(messages.lastModified30d)
                             : intl.formatMessage(messages.filterAllValue)
                     }
-                    onValueChange={(value) => updateFilterDraft("modified", value ?? "all")}
+                    onValueChange={(value) => store.updateFilterDraft("modified", value ?? "all")}
                   >
                     <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
                       {intl.formatMessage(messages.filterAllValue)}
@@ -966,13 +866,15 @@ export function NativeGlossaryDetail({
                   <EnumFilterSelect
                     id="glossary-filter-pos"
                     label={intl.formatMessage(messages.filterPartOfSpeechLabel)}
-                    value={filterDraft.partOfSpeech || "all"}
+                    value={store.filterDraft.partOfSpeech || "all"}
                     displayValue={
-                      filterDraft.partOfSpeech
-                        ? readableEnumLabel(filterDraft.partOfSpeech)
+                      store.filterDraft.partOfSpeech
+                        ? readableEnumLabel(store.filterDraft.partOfSpeech)
                         : intl.formatMessage(messages.filterAllValue)
                     }
-                    onValueChange={(value) => updateFilterDraft("partOfSpeech", value ?? "all")}
+                    onValueChange={(value) =>
+                      store.updateFilterDraft("partOfSpeech", value ?? "all")
+                    }
                   >
                     <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
                       {intl.formatMessage(messages.filterAllValue)}
@@ -986,13 +888,13 @@ export function NativeGlossaryDetail({
                   <EnumFilterSelect
                     id="glossary-filter-term-type"
                     label={intl.formatMessage(messages.filterTypeLabel)}
-                    value={filterDraft.termType || "all"}
+                    value={store.filterDraft.termType || "all"}
                     displayValue={
-                      filterDraft.termType
-                        ? readableEnumLabel(filterDraft.termType)
+                      store.filterDraft.termType
+                        ? readableEnumLabel(store.filterDraft.termType)
                         : intl.formatMessage(messages.filterAllValue)
                     }
-                    onValueChange={(value) => updateFilterDraft("termType", value ?? "all")}
+                    onValueChange={(value) => store.updateFilterDraft("termType", value ?? "all")}
                   >
                     <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
                       {intl.formatMessage(messages.filterAllValue)}
@@ -1006,13 +908,15 @@ export function NativeGlossaryDetail({
                   <EnumFilterSelect
                     id="glossary-filter-term-status"
                     label={intl.formatMessage(messages.filterStatusLabel)}
-                    value={filterDraft.linguisticStatus || "all"}
+                    value={store.filterDraft.linguisticStatus || "all"}
                     displayValue={
-                      filterDraft.linguisticStatus
-                        ? readableEnumLabel(filterDraft.linguisticStatus)
+                      store.filterDraft.linguisticStatus
+                        ? readableEnumLabel(store.filterDraft.linguisticStatus)
                         : intl.formatMessage(messages.filterAllValue)
                     }
-                    onValueChange={(value) => updateFilterDraft("linguisticStatus", value ?? "all")}
+                    onValueChange={(value) =>
+                      store.updateFilterDraft("linguisticStatus", value ?? "all")
+                    }
                   >
                     <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
                       {intl.formatMessage(messages.filterAllValue)}
@@ -1026,13 +930,13 @@ export function NativeGlossaryDetail({
                   <EnumFilterSelect
                     id="glossary-filter-gender"
                     label={intl.formatMessage(messages.filterGenderLabel)}
-                    value={filterDraft.gender || "all"}
+                    value={store.filterDraft.gender || "all"}
                     displayValue={
-                      filterDraft.gender
-                        ? readableEnumLabel(filterDraft.gender)
+                      store.filterDraft.gender
+                        ? readableEnumLabel(store.filterDraft.gender)
                         : intl.formatMessage(messages.filterAllValue)
                     }
-                    onValueChange={(value) => updateFilterDraft("gender", value ?? "all")}
+                    onValueChange={(value) => store.updateFilterDraft("gender", value ?? "all")}
                   >
                     <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
                       {intl.formatMessage(messages.filterAllValue)}
@@ -1046,23 +950,28 @@ export function NativeGlossaryDetail({
                   <EnumFilterSelect
                     id="glossary-filter-author"
                     label={intl.formatMessage(messages.filterAuthorLabel)}
-                    value={filterDraft.author || "all"}
+                    value={store.filterDraft.author || "all"}
                     displayValue={
-                      authorOptions.find((member) => member.userId === filterDraft.author)
+                      authorOptions.find((member) => member.userId === store.filterDraft.author)
                         ?.displayName ||
-                      filterDraft.author ||
+                      store.filterDraft.author ||
                       intl.formatMessage(messages.filterAllValue)
                     }
-                    onValueChange={(value) => updateFilterDraft("author", value ?? "all")}
+                    onValueChange={(value) => store.updateFilterDraft("author", value ?? "all")}
                   >
                     <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
                       {intl.formatMessage(messages.filterAllValue)}
                     </SelectItem>
                     {[
                       ...authorOptions,
-                      ...(filterDraft.author &&
-                      !authorOptions.some((member) => member.userId === filterDraft.author)
-                        ? [{ userId: filterDraft.author, displayName: filterDraft.author }]
+                      ...(store.filterDraft.author &&
+                      !authorOptions.some((member) => member.userId === store.filterDraft.author)
+                        ? [
+                            {
+                              userId: store.filterDraft.author,
+                              displayName: store.filterDraft.author,
+                            },
+                          ]
                         : []),
                     ].map((author) => (
                       <SelectItem
@@ -1079,19 +988,19 @@ export function NativeGlossaryDetail({
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={Object.values(filterDraft).every((value) => !value)}
-                    onClick={() => setFilterDraft(emptyFilterDraft)}
+                    disabled={store.filterDraftIsEmpty}
+                    onClick={() => store.clearFilterDraft()}
                   >
                     <FormattedMessage {...messages.clearFilters} />
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setFilterDialogOpen(false)}
+                    onClick={() => store.setFilterDialogOpen(false)}
                   >
                     <FormattedMessage {...messages.filtersCancel} />
                   </Button>
-                  <Button type="button" onClick={applyConceptFilters}>
+                  <Button type="button" onClick={() => store.applyConceptFilters()}>
                     <FormattedMessage {...messages.filtersApply} />
                   </Button>
                 </DialogFooter>
@@ -1116,13 +1025,11 @@ export function NativeGlossaryDetail({
                   <th className="w-10 px-3 py-2">
                     <Checkbox
                       aria-label="Select all concepts"
-                      checked={
-                        allSelected ? true : selectedConceptIds.size > 0 ? "indeterminate" : false
-                      }
+                      checked={store.conceptSelectionState(concepts.map((concept) => concept.id))}
                       onCheckedChange={(checked) =>
-                        setSelectedConceptIds(
-                          checked ? new Set(concepts.map((concept) => concept.id)) : new Set(),
-                        )
+                        checked
+                          ? store.selectAllConcepts(concepts.map((concept) => concept.id))
+                          : store.clearConceptSelection()
                       }
                     />
                   </th>
@@ -1130,12 +1037,9 @@ export function NativeGlossaryDetail({
                     <button
                       type="button"
                       className="font-medium"
-                      onClick={() => {
-                        setConceptSort((sort) => (sort === "asc" ? "desc" : "asc"));
-                        resetConceptCursor();
-                      }}
+                      onClick={() => store.toggleConceptSort()}
                     >
-                      {sourceLanguage.name} {conceptSort === "asc" ? "↑" : "↓"}
+                      {sourceLanguage.name} {store.conceptSort === "asc" ? "↑" : "↓"}
                     </button>
                   </th>
                   <th className="px-3 py-2">
@@ -1157,19 +1061,14 @@ export function NativeGlossaryDetail({
                   <tr
                     key={concept.id}
                     className="cursor-pointer border-b border-border last:border-b-0 hover:bg-muted/20"
-                    onClick={() => router.push(conceptHref(concept.id))}
+                    onClick={() => router.push(store.conceptHref(concept.id))}
                   >
                     <td className="px-3 py-3" onClick={(event) => event.stopPropagation()}>
                       <Checkbox
                         aria-label={`Select ${concept.primaryTerm}`}
-                        checked={selectedConceptIds.has(concept.id)}
+                        checked={store.selectedConceptIds.has(concept.id)}
                         onCheckedChange={(checked) =>
-                          setSelectedConceptIds((current) => {
-                            const next = new Set(current);
-                            if (checked) next.add(concept.id);
-                            else next.delete(concept.id);
-                            return next;
-                          })
+                          store.setConceptSelected(concept.id, Boolean(checked))
                         }
                       />
                     </td>
@@ -1212,7 +1111,7 @@ export function NativeGlossaryDetail({
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => setImportDialogOpen(true)}
+                        onClick={() => store.setImportDialogOpen(true)}
                       >
                         <UploadSimpleIcon data-icon="inline-start" />
                         <FormattedMessage {...messages.importGlossary} />
@@ -1223,13 +1122,14 @@ export function NativeGlossaryDetail({
               </div>
             ) : null}
           </div>
-          {conceptsQuery.isSuccess && (conceptsQuery.data?.pagination.hasMore || conceptCursor) ? (
+          {conceptsQuery.isSuccess &&
+          (conceptsQuery.data?.pagination.hasMore || store.conceptCursor) ? (
             <div className="flex items-center justify-between gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={!conceptCursor || conceptsQuery.isFetching}
+                disabled={!store.conceptCursor || conceptsQuery.isFetching}
                 onClick={goToPreviousConceptPage}
               >
                 <FormattedMessage {...messages.previousPage} />
@@ -1261,14 +1161,14 @@ export function NativeGlossaryDetail({
           {canManage ? (
             <div className="flex flex-col gap-2 sm:flex-row">
               <Select
-                value={selectedProjectId || null}
-                onValueChange={(value) => setSelectedProjectId(value ?? "")}
+                value={store.selectedProjectId || null}
+                onValueChange={(value) => store.setSelectedProjectId(value ?? "")}
               >
                 <SelectTrigger className="sm:max-w-sm">
                   <SelectValue>
-                    {selectedProjectId
-                      ? (availableProjects.find((project) => project.id === selectedProjectId)
-                          ?.name ?? selectedProjectId)
+                    {store.selectedProjectId
+                      ? (availableProjects.find((project) => project.id === store.selectedProjectId)
+                          ?.name ?? store.selectedProjectId)
                       : intl.formatMessage(messages.selectProjectPlaceholder)}
                   </SelectValue>
                 </SelectTrigger>
@@ -1284,8 +1184,8 @@ export function NativeGlossaryDetail({
               </Select>
               <Button
                 type="button"
-                disabled={!selectedProjectId || attachProject.isPending}
-                onClick={() => attachProject.mutate(selectedProjectId)}
+                disabled={!store.selectedProjectId || attachProject.isPending}
+                onClick={() => attachProject.mutate(store.selectedProjectId)}
               >
                 <FormattedMessage {...messages.assignToProject} />
               </Button>
@@ -1336,10 +1236,10 @@ export function NativeGlossaryDetail({
       </>
 
       <Dialog
-        open={canManage && exportDialogOpen}
+        open={canManage && store.exportDialogOpen}
         onOpenChange={(open) => {
           if (exportGlossary.isPending) return;
-          setExportDialogOpen(open);
+          store.setExportDialogOpen(open);
         }}
       >
         <DialogContent className="sm:max-w-lg">
@@ -1361,9 +1261,9 @@ export function NativeGlossaryDetail({
                   <Button
                     key={format}
                     type="button"
-                    variant={exportFormat === format ? "default" : "outline"}
+                    variant={store.exportFormat === format ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setExportFormat(format)}
+                    onClick={() => store.setExportFormat(format)}
                   >
                     {format.toUpperCase()}
                   </Button>
@@ -1377,18 +1277,18 @@ export function NativeGlossaryDetail({
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
-                  variant={exportScope === "complete" ? "default" : "outline"}
+                  variant={store.exportScope === "complete" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setExportScope("complete")}
+                  onClick={() => store.setExportScope("complete")}
                 >
                   <FormattedMessage {...messages.exportScopeComplete} />
                 </Button>
                 <Button
                   type="button"
-                  variant={exportScope === "filtered" ? "default" : "outline"}
+                  variant={store.exportScope === "filtered" ? "default" : "outline"}
                   size="sm"
                   disabled={!canExportFiltered}
-                  onClick={() => setExportScope("filtered")}
+                  onClick={() => store.setExportScope("filtered")}
                 >
                   <FormattedMessage {...messages.exportScopeFiltered} />
                   {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
@@ -1410,31 +1310,20 @@ export function NativeGlossaryDetail({
               type="button"
               variant="outline"
               disabled={exportGlossary.isPending}
-              onClick={() => setExportDialogOpen(false)}
+              onClick={() => store.setExportDialogOpen(false)}
             >
               <FormattedMessage {...messages.cancelEdit} />
             </Button>
             <Button
               type="button"
               disabled={
-                exportGlossary.isPending || (exportScope === "filtered" && !canExportFiltered)
+                exportGlossary.isPending || (store.exportScope === "filtered" && !canExportFiltered)
               }
               onClick={() => {
-                if (exportScope === "complete") {
-                  exportGlossary.mutate({ format: exportFormat, scope: "complete" });
+                if (store.exportScope === "complete") {
+                  exportGlossary.mutate(store.buildCompleteExportInput());
                 } else {
-                  exportGlossary.mutate({
-                    format: exportFormat,
-                    scope: "filtered",
-                    locales: filteredExportLocales,
-                    search: conceptSearch.trim() || undefined,
-                    modifiedFrom: conceptModifiedFrom,
-                    linguisticStatus: conceptLinguisticStatus || undefined,
-                    partOfSpeech: conceptPartOfSpeech || undefined,
-                    termType: conceptTermType || undefined,
-                    gender: conceptGender || undefined,
-                    createdByUserId: conceptAuthor || undefined,
-                  });
+                  exportGlossary.mutate(store.buildFilteredExportInput());
                 }
               }}
             >
@@ -1450,15 +1339,11 @@ export function NativeGlossaryDetail({
       </Dialog>
 
       <Dialog
-        open={canManage && importDialogOpen}
+        open={canManage && store.importDialogOpen}
         onOpenChange={(open) => {
           if (importConcepts.isPending) return;
-          setImportDialogOpen(open);
-          if (!open) {
-            setImportFile(null);
-            setImportDiagnostics([]);
-            if (glossaryFileInputRef.current) glossaryFileInputRef.current.value = "";
-          }
+          store.setImportDialogOpen(open);
+          if (!open && glossaryFileInputRef.current) glossaryFileInputRef.current.value = "";
         }}
       >
         <DialogContent className="sm:max-w-lg">
@@ -1481,8 +1366,7 @@ export function NativeGlossaryDetail({
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (!file) return;
-                setImportFile(file);
-                setImportDiagnostics([]);
+                store.setImportFile(file);
                 importConcepts.mutate(file);
               }}
             />
@@ -1497,7 +1381,7 @@ export function NativeGlossaryDetail({
                 <UploadSimpleIcon className="size-5" />
               )}
               <span className="text-sm font-medium text-foreground">
-                {importFile?.name ?? <FormattedMessage {...messages.selectGlossaryFile} />}
+                {store.importFile?.name ?? <FormattedMessage {...messages.selectGlossaryFile} />}
               </span>
               <span className="text-xs text-muted-foreground">
                 <FormattedMessage {...messages.importFormats} />
@@ -1515,13 +1399,13 @@ export function NativeGlossaryDetail({
                   : intl.formatMessage(messages.importTermsFailed)}
               </p>
             ) : null}
-            {importDiagnostics.length > 0 ? (
+            {store.importDiagnostics.length > 0 ? (
               <div className="grid gap-1.5" role="alert" aria-live="polite">
                 <p className="text-sm font-medium text-destructive">
                   <FormattedMessage {...messages.termsImportBlockedTitle} />
                 </p>
                 <ul className="grid list-disc gap-1 pl-5 text-xs text-muted-foreground">
-                  {importDiagnostics.map((entry, index) => (
+                  {store.importDiagnostics.map((entry, index) => (
                     // eslint-disable-next-line react/no-array-index-key
                     <li key={`${entry.code}-${index}`}>
                       {entry.message} <span className="font-mono">({entry.code})</span>
@@ -1536,7 +1420,7 @@ export function NativeGlossaryDetail({
               type="button"
               variant="outline"
               disabled={importConcepts.isPending}
-              onClick={() => setImportDialogOpen(false)}
+              onClick={() => store.setImportDialogOpen(false)}
             >
               <FormattedMessage {...messages.cancelEdit} />
             </Button>
@@ -1545,10 +1429,10 @@ export function NativeGlossaryDetail({
       </Dialog>
 
       <AlertDialog
-        open={deleteGlossaryDialogOpen}
+        open={store.deleteGlossaryDialogOpen}
         onOpenChange={(open) => {
           if (!deleteGlossary.isPending) {
-            setDeleteGlossaryDialogOpen(open);
+            store.setDeleteGlossaryDialogOpen(open);
           }
         }}
       >
@@ -1580,4 +1464,4 @@ export function NativeGlossaryDetail({
       </AlertDialog>
     </main>
   );
-}
+});

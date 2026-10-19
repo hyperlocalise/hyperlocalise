@@ -10,17 +10,29 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  check,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import type { UIMessage } from "ai";
 
 import { workspaceAutomations } from "./agents";
 import { messageSenderTypeEnum } from "./enums";
 import { organizations, users } from "./organizations";
+import { visualWorkflows } from "./visual-workflows";
 
 /**
- * Stores one person's chat with the automation assistant about one automation. A session is read
- * and written by its author alone, and is kept apart from the conversations the Inbox lists.
+ * Stores one person's chat with the automation assistant about one automation or one visual
+ * workflow. A session is read and written by its author alone, and is kept apart from the
+ * conversations the Inbox lists.
  */
 export const automationAssistantSessions = pgTable(
   "automation_assistant_sessions",
@@ -34,6 +46,10 @@ export const automationAssistantSessions = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     // Null while the automation the session is about has not been saved.
     automationId: uuid("automation_id").references(() => workspaceAutomations.id, {
+      onDelete: "cascade",
+    }),
+    // Set instead of the automation when the session is about a visual workflow, never with it.
+    visualWorkflowId: uuid("visual_workflow_id").references(() => visualWorkflows.id, {
       onDelete: "cascade",
     }),
     title: text("title").notNull(),
@@ -55,9 +71,19 @@ export const automationAssistantSessions = pgTable(
       table.automationId,
       table.createdByUserId,
     ),
+    // One session per visual workflow and author, the same way.
+    uniqueIndex("idx_automation_assistant_sessions_visual_workflow_author").on(
+      table.visualWorkflowId,
+      table.createdByUserId,
+    ),
     index("idx_automation_assistant_sessions_author_expires").on(
       table.createdByUserId,
       table.expiresAt,
+    ),
+    // A session is about one thing: an automation (perhaps not yet saved) or a visual workflow.
+    check(
+      "automation_assistant_sessions_one_subject",
+      sql`${table.automationId} IS NULL OR ${table.visualWorkflowId} IS NULL`,
     ),
   ],
 );

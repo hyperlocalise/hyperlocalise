@@ -165,6 +165,7 @@ func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 	route("GET "+cat+"/segments/{externalStringId}/variants", api.getSegmentGroupVariants)
 	route("GET "+cat+"/segments/{externalStringId}/comments", api.getSegmentComments)
 	route("POST "+cat+"/translations", api.saveTranslation)
+	route("POST "+cat+"/document/parse-back", api.parseBackDocument)
 	route("PATCH "+cat+"/translations/status", api.updateTranslationStatus)
 	route("POST "+cat+"/translations/status", api.updateTranslationStatus)
 	route("POST "+cat+"/comments", api.saveComment)
@@ -413,6 +414,19 @@ func isEditorCatBinaryWholeFile(sourcePath string) bool {
 	return kind == editorCatKindImage || kind == editorCatKindVideo || kind == editorCatKindOffice
 }
 
+// Office files ingested as paragraph or cell segments queue like documents.
+// Legacy uploads without keys stay whole-file on the source-file UUID.
+func isEditorCatOffice(sourcePath string) bool {
+	return editorCatSourceKind(sourcePath) == editorCatKindOffice
+}
+
+// isEditorCatSegmentedFile reports kinds whose segment UUIDs resolve as text
+// while the source-file UUID still addresses the whole file.
+func isEditorCatSegmentedFile(sourcePath string) bool {
+	kind := editorCatSourceKind(sourcePath)
+	return kind == editorCatKindDocument || kind == editorCatKindOffice
+}
+
 func isEditorCatDocument(sourcePath string) bool {
 	return editorCatSourceKind(sourcePath) == editorCatKindDocument
 }
@@ -427,7 +441,7 @@ func looksLikeEditorCatFileBackedAlias(id, sourcePath string) bool {
 
 func editorCatTargetKind(sourcePath, id string) editorCatFileKind {
 	kind := editorCatSourceKind(sourcePath)
-	if kind == editorCatKindDocument && !looksLikeEditorCatFileBackedAlias(id, sourcePath) {
+	if isEditorCatSegmentedFile(sourcePath) && !looksLikeEditorCatFileBackedAlias(id, sourcePath) {
 		return editorCatKindText
 	}
 	return kind

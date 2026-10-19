@@ -65,10 +65,10 @@ func (api *editorCatAPI) usesEditorCatWholeFileTarget(r *http.Request, actor edi
 	if isEditorCatAllFiles(sourcePath) {
 		return false
 	}
-	if isEditorCatBinaryWholeFile(sourcePath) {
+	if isEditorCatBinaryWholeFile(sourcePath) && !isEditorCatOffice(sourcePath) {
 		return true
 	}
-	if !isEditorCatDocument(sourcePath) {
+	if !isEditorCatSegmentedFile(sourcePath) {
 		return false
 	}
 	if looksLikeEditorCatFileBackedAlias(externalStringID, sourcePath) {

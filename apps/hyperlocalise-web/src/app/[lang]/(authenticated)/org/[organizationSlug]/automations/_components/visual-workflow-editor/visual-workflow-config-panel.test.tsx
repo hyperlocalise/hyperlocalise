@@ -12,9 +12,10 @@
  */
 // @vitest-environment happy-dom
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import type { Editor } from "@tiptap/core";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -23,7 +24,11 @@ import {
   createDefaultConfig,
   getVisualNodeDimensions,
 } from "@/lib/visual-workflows/catalog/node-catalog";
-import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
+import type {
+  VisualNodeConfig,
+  VisualObjectField,
+  VisualWorkflowRfNode,
+} from "@/lib/visual-workflows/schema/types";
 
 import { VisualWorkflowConfigPanel } from "./visual-workflow-config-panel";
 
@@ -67,6 +72,15 @@ vi.mock("./visual-workflow-resource-options", () => ({
     resourceOptionsFor: resourceOptionsMock.resourceOptionsFor,
   }),
 }));
+
+/** Replaces the text of a setting's rich text box, as typing over all of it would. */
+function replaceText(textbox: HTMLElement, text: string) {
+  const editor = (textbox as HTMLElement & { editor?: Editor }).editor;
+  if (!editor) throw new Error("not a rich text box");
+  act(() => {
+    editor.chain().selectAll().insertContent(text).run();
+  });
+}
 
 function renderPanel(ui: ReactNode) {
   const queryClient = new QueryClient({
@@ -347,7 +361,7 @@ describe("VisualWorkflowConfigPanel", () => {
       />,
     );
 
-    expect(screen.getByRole("textbox", { name: "Duration (ms)" })).toHaveValue("60000");
+    expect(screen.getByRole("textbox", { name: "Duration (ms)" })).toHaveTextContent("60000");
 
     await user.click(screen.getByRole("combobox", { name: "Wait mode" }));
     await user.click(await screen.findByRole("option", { name: "Until condition" }));
@@ -381,13 +395,14 @@ describe("VisualWorkflowConfigPanel", () => {
       />,
     );
 
-    expect(screen.getByRole("textbox", { name: "Condition" })).toHaveValue("status === 'ready'");
-    expect(screen.getByRole("textbox", { name: "Polling interval (ms)" })).toHaveValue("5000");
-    expect(screen.getByRole("textbox", { name: "Timeout (ms)" })).toHaveValue("300000");
-    const timeout = screen.getByRole("textbox", { name: "Timeout (ms)" });
-    fireEvent.change(timeout, {
-      target: { value: "600000" },
-    });
+    expect(screen.getByRole("textbox", { name: "Condition" })).toHaveTextContent(
+      "status === 'ready'",
+    );
+    expect(screen.getByRole("textbox", { name: "Polling interval (ms)" })).toHaveTextContent(
+      "5000",
+    );
+    expect(screen.getByRole("textbox", { name: "Timeout (ms)" })).toHaveTextContent("300000");
+    replaceText(screen.getByRole("textbox", { name: "Timeout (ms)" }), "600000");
 
     expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
       kind: "flow.wait",
@@ -417,9 +432,9 @@ describe("VisualWorkflowConfigPanel", () => {
     );
 
     const timestamp = screen.getByRole("textbox", { name: "Timestamp" });
-    expect(timestamp).toHaveValue("2026-10-01T10:00:00.000Z");
+    expect(timestamp).toHaveTextContent("2026-10-01T10:00:00.000Z");
 
-    fireEvent.change(timestamp, { target: { value: "2026-10-02T12:30:00.000Z" } });
+    replaceText(timestamp, "2026-10-02T12:30:00.000Z");
 
     expect(onChangeConfig.mock.calls.at(-1)?.[0]).toEqual({
       kind: "flow.wait",
@@ -831,9 +846,10 @@ describe("VisualWorkflowConfigPanel", () => {
       );
     });
 
-    it("shows a setting's fields as pills until it is clicked, and points at their steps", async () => {
+    it("shows the fields a setting reads as pills inside its text, and points at their steps", async () => {
       const user = userEvent.setup();
       const onPointStep = vi.fn();
+      const onChangeConfig = vi.fn();
       const http: VisualWorkflowRfNode = {
         id: "http",
         type: "action.http",
@@ -850,21 +866,67 @@ describe("VisualWorkflowConfigPanel", () => {
         ...slack.data.config,
         message: "{{ nodes.http.json.count }} new strings",
       } as typeof slack.data.config;
-      renderPanel(panel(slack, { nodes: [http, slack], edges: [], onPointStep }));
+      renderPanel(
+        panel(slack, {
+          nodes: [http, slack],
+          edges: [{ id: "e", source: "http", target: "slack", data: { kind: "execution" } }],
+          onPointStep,
+          onChangeConfig,
+        }),
+      );
 
-      const pill = screen.getByText("count");
+      const message = screen.getByRole("textbox", { name: "Message" });
+      await waitFor(() => expect(message).toHaveTextContent("HTTP Request›json.count new strings"));
+      const pill = screen.getByText("json.count").closest<HTMLElement>('[data-slot="field-pill"]')!;
       expect(pill).toHaveAttribute("title", "HTTP Request › json › count");
-      expect(screen.queryByRole("textbox", { name: "Message" })).not.toBeInTheDocument();
+      expect(pill).not.toHaveAttribute("data-broken");
 
       await user.hover(pill);
       expect(onPointStep).toHaveBeenLastCalledWith("http");
       await user.unhover(pill);
       expect(onPointStep).toHaveBeenLastCalledWith(null);
 
-      await user.click(screen.getByRole("button", { name: "Message" }));
-      expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
-        "{{ nodes.http.json.count }} new strings",
+      // Editing the text around a pill keeps the reference as it was written.
+      const editor = (message as HTMLElement & { editor?: Editor }).editor!;
+      act(() => {
+        editor.chain().focus("end").insertContent(" today").run();
+      });
+      expect(onChangeConfig).toHaveBeenLastCalledWith(
+        expect.objectContaining({ message: "{{ nodes.http.json.count }} new strings today" }),
       );
+    });
+
+    it("marks a pill whose step does not run before this one", async () => {
+      const http: VisualWorkflowRfNode = {
+        id: "http",
+        type: "action.http",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("action.http"),
+        data: {
+          catalogType: "action.http",
+          config: createDefaultConfig("action.http"),
+          runStatus: "idle",
+        },
+      };
+      const slack = slackNode();
+      slack.data.config = {
+        ...slack.data.config,
+        message: "{{ nodes.http.json.count }} and {{ nodes.gone.status }}",
+      } as typeof slack.data.config;
+      renderPanel(panel(slack, { nodes: [http, slack], edges: [] }));
+
+      const message = screen.getByRole("textbox", { name: "Message" });
+      await waitFor(() =>
+        expect(message.querySelectorAll('[data-slot="field-pill"]')).toHaveLength(2),
+      );
+      const pills = message.querySelectorAll('[data-slot="field-pill"]');
+      expect(pills[0]).toHaveAttribute("data-broken", "true");
+      expect(pills[0]).toHaveAttribute(
+        "title",
+        "HTTP Request › json › count cannot be read here: that step does not run before this one.",
+      );
+      expect(pills[1]).toHaveAttribute("data-broken", "true");
+      expect(pills[1]).toHaveTextContent("gone›status");
     });
 
     it("turns a fixed value stored by an older version into the setting's own text", async () => {
@@ -1010,6 +1072,246 @@ describe("VisualWorkflowConfigPanel", () => {
       outputFields: [{ id: "result-id", name: "result", type: "object", required: true }],
       onError: "stop",
     });
+  });
+
+  it("edits Create Object fields without changing their stable IDs", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+    const node: VisualWorkflowRfNode = {
+      id: "create-object",
+      type: "logic.create_object",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.create_object"),
+      data: {
+        catalogType: "logic.create_object",
+        config: {
+          kind: "logic.create_object",
+          fields: [
+            { id: "customer", name: "customerId", type: "string" },
+            { id: "locale", name: "locale", type: "string", defaultValue: "en" },
+          ],
+        },
+        runStatus: "idle",
+      },
+    };
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        issues={[
+          {
+            code: "missing_required_input",
+            nodeId: node.id,
+            field: "value.customer",
+            reason: "required",
+          },
+        ]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    const firstName = screen.getByRole("textbox", { name: "Object field 1 name" });
+    expect(firstName).toHaveAttribute("aria-invalid", "true");
+    fireEvent.change(firstName, { target: { value: "renamedCustomer" } });
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fields: [
+          expect.objectContaining({ id: "customer", name: "renamedCustomer" }),
+          expect.objectContaining({ id: "locale" }),
+        ],
+      }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Move object field 2 up" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fields: [
+          expect.objectContaining({ id: "locale" }),
+          expect.objectContaining({ id: "customer" }),
+        ],
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Add object field" }));
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      fields: [
+        expect.objectContaining({ id: "customer" }),
+        expect.objectContaining({ id: "locale" }),
+        expect.objectContaining({ name: "field3", type: "unknown" }),
+      ],
+    });
+  });
+
+  it("shows a wired Create Object field as a bound source and disables its default", () => {
+    const source: VisualWorkflowRfNode = {
+      id: "source",
+      type: "logic.set",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.set"),
+      data: {
+        catalogType: "logic.set",
+        config: createDefaultConfig("logic.set"),
+        runStatus: "idle",
+      },
+    };
+    const node: VisualWorkflowRfNode = {
+      id: "create-object",
+      type: "logic.create_object",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.create_object"),
+      data: {
+        catalogType: "logic.create_object",
+        config: {
+          kind: "logic.create_object",
+          fields: [{ id: "customer", name: "customerId", type: "string" }],
+        },
+        runStatus: "idle",
+      },
+    };
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        nodes={[source, node]}
+        edges={[
+          {
+            id: "wire",
+            source: "source",
+            target: "create-object",
+            sourceHandle: "value",
+            targetHandle: "value.customer",
+            data: { kind: "data" },
+          },
+        ]}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Set fields")).toBeInTheDocument();
+    expect(screen.getByText("› value")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Use inline default" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(
+      screen.queryByRole("textbox", { name: "Object field 1 default" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("configures Merge Objects ordering and conflict policy", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+    const node: VisualWorkflowRfNode = {
+      id: "merge-objects",
+      type: "logic.merge_objects",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.merge_objects"),
+      data: {
+        catalogType: "logic.merge_objects",
+        config: {
+          kind: "logic.merge_objects",
+          inputs: [
+            { id: "base", name: "Base" },
+            { id: "override", name: "Override" },
+          ],
+          conflictPolicy: "reject",
+        },
+        runStatus: "idle",
+      },
+    };
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Conflict policy" }));
+    await user.click(await screen.findByRole("option", { name: "Last object wins" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ conflictPolicy: "last_wins" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Move merge object 2 up" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        inputs: [
+          expect.objectContaining({ id: "override" }),
+          expect.objectContaining({ id: "base" }),
+        ],
+      }),
+    );
+    expect(screen.getByRole("button", { name: "Remove merge object 1" })).toBeDisabled();
+  });
+
+  it("keeps incomplete JSON object defaults while typing", () => {
+    const onChangeConfig = vi.fn();
+
+    function StatefulCreateObjectPanel() {
+      const [config, setConfig] = useState<
+        Extract<VisualNodeConfig, { kind: "logic.create_object" }>
+      >({
+        kind: "logic.create_object",
+        fields: [{ id: "metadata", name: "metadata", type: "object", defaultValue: {} }],
+      });
+      const node: VisualWorkflowRfNode = {
+        id: "create-object",
+        type: "logic.create_object",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("logic.create_object"),
+        data: {
+          catalogType: "logic.create_object",
+          config,
+          runStatus: "idle",
+        },
+      };
+
+      return (
+        <VisualWorkflowConfigPanel
+          node={node}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={(next) => {
+            onChangeConfig(next);
+            if (next.kind === "logic.create_object") {
+              setConfig(next);
+            }
+          }}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+        />
+      );
+    }
+
+    renderPanel(<StatefulCreateObjectPanel />);
+
+    const defaultInput = screen.getByRole("textbox", { name: "Object field 1 default" });
+    expect(defaultInput).toHaveValue("{}");
+
+    fireEvent.change(defaultInput, { target: { value: "{" } });
+    expect(defaultInput).toHaveValue("{");
+    expect(
+      onChangeConfig.mock.calls.some(
+        ([next]) =>
+          next.kind === "logic.create_object" &&
+          (next.fields[0] as VisualObjectField | undefined)?.defaultValue === "{",
+      ),
+    ).toBe(false);
+
+    fireEvent.change(defaultInput, { target: { value: '{"locale":"en"}' } });
+    expect(defaultInput).toHaveValue('{"locale":"en"}');
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fields: [expect.objectContaining({ defaultValue: { locale: "en" } })],
+      }),
+    );
   });
 });
 

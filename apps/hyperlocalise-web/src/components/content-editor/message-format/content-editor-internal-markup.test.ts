@@ -26,6 +26,13 @@ const lq0 = "\u001eHLLQPH_112233445566_0\u001f";
 const ue0 = "\u001eHLUEPH_AABBCCDDEEFF_0\u001f";
 
 describe("cat internal markup helpers", () => {
+  it("labels Word and PowerPoint formatting sentinels", () => {
+    const message = "Read the \u001eHLOXPH_6F30_0\u001fterms\u001eHLOXPH_6330_1\u001f first.";
+
+    expect(formatInternalMarkupForDisplay(message)).toBe("Read the OX#0termsOX#1 first.");
+    expect(extractInternalMarkupSpans(message).map((span) => span.family)).toEqual(["OX", "OX"]);
+  });
+
   it("extracts markdown boundary sentinels with short labels", () => {
     const message = `${md0}next-generation CAT tool${md1}`;
     const spans = extractInternalMarkupSpans(message);

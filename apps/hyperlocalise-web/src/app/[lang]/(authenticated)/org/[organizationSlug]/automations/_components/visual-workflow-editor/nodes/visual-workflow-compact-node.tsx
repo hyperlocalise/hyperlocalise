@@ -32,7 +32,7 @@ import {
 import { isExecutionHandleConnected } from "@/lib/visual-workflows/editor/visual-workflow-execution-ports";
 import { nodeSupportsErrorBranch } from "@/lib/visual-workflows/runtime/node-options";
 import type {
-  VisualWorkflowRfEdge,
+  VisualWorkflowCanvasEdge,
   VisualWorkflowRfNode,
 } from "@/lib/visual-workflows/schema/types";
 import { cn } from "@/lib/primitives/cn";
@@ -330,7 +330,8 @@ function DataPortLabel({
 
 export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<VisualWorkflowRfNode>) {
   const intl = useIntl();
-  const edges = useEdges<VisualWorkflowRfEdge>();
+  // The canvas's own list, which holds the drawn reference lines as well as the stored edges.
+  const edges = useEdges<VisualWorkflowCanvasEdge>();
   const { onAddFromNode, issueNodeIds, freshNodeIds, pointedNodeId, realNodeIds } =
     useVisualWorkflowCanvasActions();
   const hasIssue = issueNodeIds.has(id);
@@ -742,6 +743,10 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeSwitch;
     case "logic.set":
       return messages.nodeSet;
+    case "logic.create_object":
+      return messages.nodeCreateObject;
+    case "logic.merge_objects":
+      return messages.nodeMergeObjects;
     case "ai.agent":
       return messages.nodeAi;
     case "logic.for_each":

@@ -18,8 +18,9 @@ import { ContentEditorImageWorkspace } from "./content-editor-image-workspace";
 
 import type { MarkdownSelectionAiConfig } from "@/components/markdown-editor/markdown-selection-ai.types";
 import type { DocumentAssistantServices } from "@/components/document-editor/document-editor-assistant.types";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { observer } from "mobx-react-lite";
 import {
   PaintBrushIcon,
   ArrowLeftIcon,
@@ -70,11 +71,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { Title } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
+import { useOptionalCatWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
+import { ContentEditorWorkspaceUiStore } from "@/components/content-editor/workspace/store/content-editor-workspace-ui-store";
+
 import { contentEditorFileViewMessages } from "./content-editor-file-view.messages";
-import {
-  readCatFileViewSourcePaneVisible,
-  writeCatFileViewSourcePaneVisible,
-} from "./content-editor-file-view-source-pane";
 import { ContentEditorFileGenerateDialog } from "./content-editor-file-generate-dialog";
 import {
   FileViewHeader,
@@ -102,6 +102,10 @@ import {
   ContentEditorHtmlEditorPane,
 } from "./content-editor-html-editor-pane";
 import { contentEditorOfficeUploadAccept } from "./content-editor-office-mime";
+import {
+  ContentEditorOfficeSegmentFieldsPane,
+  type ContentEditorOfficeSegmentFieldsConfig,
+} from "./content-editor-office-segment-fields-pane";
 import type { ContentEditorOfficeKind } from "./content-editor-office-convert";
 
 const ContentEditorOfficeFileViewerPane = dynamic(
@@ -125,7 +129,21 @@ function isOfficeViewerId(
   return viewerId === "docx" || viewerId === "xlsx" || viewerId === "pptx";
 }
 
-export function ContentEditorFileViewPanel({
+/** Generated Office downloads are rebuilt on request, so a new query forces a fresh copy. */
+function withPreviewRevision(src: string | null, revision: number) {
+  if (!src || revision === 0) {
+    return src;
+  }
+  return `${src}${src.includes("?") ? "&" : "?"}revision=${revision}`;
+}
+
+function useFileViewUiStore() {
+  const workspace = useOptionalCatWorkspace();
+  const [localStore] = useState(() => new ContentEditorWorkspaceUiStore());
+  return workspace?.ui ?? localStore;
+}
+
+export const ContentEditorFileViewPanel = observer(function ContentEditorFileViewPanel({
   segment,
   viewerId,
   filename,
@@ -149,6 +167,7 @@ export function ContentEditorFileViewPanel({
   adaptiveWorkspaceEnabled = false,
   isDesignerPersona = false,
   intelligence,
+  officeSegments,
 }: {
   segment: ContentEditorSegment;
   viewerId: ContentEditorFileViewerId | null;
@@ -173,24 +192,31 @@ export function ContentEditorFileViewPanel({
   adaptiveWorkspaceEnabled?: boolean;
   isDesignerPersona?: boolean;
   intelligence?: ContentEditorSegmentIntelligence;
+  /** Edits a generated Office file through its segments instead of the file itself. */
+  officeSegments?: ContentEditorOfficeSegmentFieldsConfig;
 }) {
   const intl = useIntl();
+  const [previewRevision, setPreviewRevision] = useState(0);
   const uploadInputRef = useRef<HTMLInputElement>(null);
-  const [imageLayersDirty, setImageLayersDirty] = useState(false);
-  const [videoDirty, setVideoDirty] = useState(false);
-  const [documentReviewBlocked, setDocumentReviewBlocked] = useState(true);
-  const [saveActionsContainer, setSaveActionsContainer] = useState<HTMLDivElement | null>(null);
-  const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
-  const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
-  const isDocumentViewer = viewerId === "markdown" || viewerId === "html";
-  const [sourcePaneVisible, setSourcePaneVisible] = useState(() =>
-    readCatFileViewSourcePaneVisible(!isDocumentViewer),
+  const ui = useFileViewUiStore();
+  ui.applyFileViewViewer(viewerId);
+  const setImageLayersDirty = useCallback(
+    (dirty: boolean) => ui.setFileViewImageLayersDirty(dirty),
+    [ui],
   );
-  const [sourcePaneViewerId, setSourcePaneViewerId] = useState(viewerId);
-  if (sourcePaneViewerId !== viewerId) {
-    setSourcePaneViewerId(viewerId);
-    setSourcePaneVisible(readCatFileViewSourcePaneVisible(!isDocumentViewer));
-  }
+  const setVideoDirty = useCallback((dirty: boolean) => ui.setFileViewVideoDirty(dirty), [ui]);
+  const setDocumentReviewBlocked = useCallback(
+    (blocked: boolean) => ui.setFileViewDocumentReviewBlocked(blocked),
+    [ui],
+  );
+  const imageLayersDirty = ui.fileViewImageLayersDirty;
+  const videoDirty = ui.fileViewVideoDirty;
+  const documentReviewBlocked = ui.fileViewDocumentReviewBlocked;
+  const [saveActionsContainer, setSaveActionsContainer] = useState<HTMLDivElement | null>(null);
+  const generateDialogOpen = ui.fileViewGenerateDialogOpen;
+  const aiDrawerOpen = ui.fileViewAiDrawerOpen;
+  const isDocumentViewer = viewerId === "markdown" || viewerId === "html";
+  const sourcePaneVisible = ui.fileViewSourcePaneVisible;
   const agentBadges = [
     intelligence?.locationBreadcrumb,
     intelligence?.componentName,
@@ -206,9 +232,9 @@ export function ContentEditorFileViewPanel({
 
   useEffect(() => {
     if (!hasAiContext && aiDrawerOpen) {
-      setAiDrawerOpen(false);
+      ui.setFileViewAiDrawerOpen(false);
     }
-  }, [hasAiContext, aiDrawerOpen]);
+  }, [hasAiContext, aiDrawerOpen, ui]);
 
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(contentEditorFileViewMessages.approve);
@@ -249,18 +275,14 @@ export function ContentEditorFileViewPanel({
 
     try {
       await onRegenerate({ instructions: instructions || undefined });
-      setGenerateDialogOpen(false);
+      ui.setFileViewGenerateDialogOpen(false);
     } catch {
       // Keep the dialog open so the user can retry after a failed generation.
     }
   }
 
   function toggleSourcePane() {
-    setSourcePaneVisible((current) => {
-      const next = !current;
-      writeCatFileViewSourcePaneVisible(next);
-      return next;
-    });
+    ui.toggleFileViewSourcePane();
   }
 
   const targetFileActions = (
@@ -412,7 +434,7 @@ export function ContentEditorFileViewPanel({
                   type="button"
                   variant="outline"
                   size="xs"
-                  onClick={() => setAiDrawerOpen(true)}
+                  onClick={() => ui.setFileViewAiDrawerOpen(true)}
                   className={cn(
                     "gap-1",
                     aiDrawerOpen &&
@@ -457,7 +479,7 @@ export function ContentEditorFileViewPanel({
                       {onRegenerate ? (
                         <DropdownMenuItem
                           disabled={!canEdit || isImageBusy}
-                          onClick={() => setGenerateDialogOpen(true)}
+                          onClick={() => ui.setFileViewGenerateDialogOpen(true)}
                         >
                           <FormattedMessage
                             {...(hasTarget
@@ -587,6 +609,59 @@ export function ContentEditorFileViewPanel({
           selectionAi={selectionAi}
           assistant={documentAssistant}
         />
+      ) : officeKind && officeSegments ? (
+        <FileViewWorkspace>
+          <FileViewWorkspaceContent layout="split">
+            <div className="flex min-h-0 flex-1 flex-col">
+              <Columns
+                spacing="3u"
+                height="full"
+                alignY="stretch"
+                align="start"
+                collapseBelow="large"
+              >
+                <Column width="1/2">
+                  <FileViewPaneColumn>
+                    <ContentEditorOfficeSegmentFieldsPane
+                      {...officeSegments}
+                      onSaveDrafts={async (segmentIds) => {
+                        await officeSegments.onSaveDrafts(segmentIds);
+                        setPreviewRevision((revision) => revision + 1);
+                      }}
+                    />
+                  </FileViewPaneColumn>
+                </Column>
+                <Column width="1/2">
+                  <FileViewPaneColumn>
+                    {sourcePaneVisible ? (
+                      sourcePane
+                    ) : (
+                      <FileViewPane
+                        title={
+                          <FormattedMessage
+                            {...contentEditorFileViewMessages.targetHeading}
+                            values={{ locale: segment.targetLocale }}
+                          />
+                        }
+                      >
+                        <ContentEditorOfficeFileViewerPane
+                          key={previewRevision}
+                          kind={officeKind}
+                          role="target"
+                          src={withPreviewRevision(targetSrc, previewRevision)}
+                          seedSrc={sourceSrc}
+                          filename={displayName}
+                          isLoading={isSegmentTargetLoading}
+                          canEdit={false}
+                        />
+                      </FileViewPane>
+                    )}
+                  </FileViewPaneColumn>
+                </Column>
+              </Columns>
+            </div>
+          </FileViewWorkspaceContent>
+        </FileViewWorkspace>
       ) : (
         <FileViewWorkspace>
           <FileViewWorkspaceContent
@@ -659,7 +734,7 @@ export function ContentEditorFileViewPanel({
       {onRegenerate && !isMediaViewer ? (
         <ContentEditorFileGenerateDialog
           open={generateDialogOpen}
-          onOpenChange={setGenerateDialogOpen}
+          onOpenChange={(open) => ui.setFileViewGenerateDialogOpen(open)}
           mode={generateMode}
           viewerId={viewerId}
           isSubmitting={isImageBusy}
@@ -667,7 +742,7 @@ export function ContentEditorFileViewPanel({
         />
       ) : null}
       {adaptiveWorkspaceEnabled && hasAiContext ? (
-        <Sheet open={aiDrawerOpen} onOpenChange={setAiDrawerOpen}>
+        <Sheet open={aiDrawerOpen} onOpenChange={(open) => ui.setFileViewAiDrawerOpen(open)}>
           <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-md">
             <SheetHeader className="border-b border-border px-6 py-4">
               <div className="flex items-center gap-2">
@@ -753,4 +828,4 @@ export function ContentEditorFileViewPanel({
       ) : null}
     </div>
   );
-}
+});

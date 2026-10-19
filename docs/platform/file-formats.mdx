@@ -17,19 +17,83 @@ projects follow the [provider's capabilities](/platform/tms).
 | File family | Source upload extensions | Translation path | Review | Target export |
 | --- | --- | --- | --- | --- |
 | Application messages | `.json`, `.jsonc`, `.yaml`, `.yml`, `.arb`, `.strings`, `.stringsdict`, `.xcstrings`, `.ini`, `.toml`, `.xml`, `.resx`, `.resw`, `.properties`, `.php`, `.ftl`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.tsx`, `.mts`, `.cts` | File translation jobs | Segment views | Reconstructed target file |
-| Exchange and tabular catalogs | `.xlf`, `.xlif`, `.xliff`, `.po`, `.ts`, `.csv`, `.tsv` | File translation jobs | Segment views | Reconstructed target file |
+| Exchange and tabular catalogs | `.xlf`, `.xlif`, `.xliff`, `.po`, `.pot`, `.ts`, `.csv`, `.tsv` | File translation jobs | Segment views | Reconstructed target file |
 | HTML | `.html`, `.htm` | File translation jobs | Segment queue and File view | Reconstructed target file |
 | Liquid and SVG | `.liquid`, `.svg` | File translation jobs | Segment views | Reconstructed target file |
 | Documentation | `.md`, `.markdown`, `.mdown`, `.mkdn`, `.mdwn`, `.mkd`, `.mdx`, `.adoc`, `.asciidoc`, `.asc` | Document translation | File view | Stored target document |
 | Subtitles | `.srt`, `.vtt`, `.sbv` | File translation jobs | Segment views | Reconstructed subtitle file |
 | Images | `.png`, `.jpg`, `.jpeg`, `.webp` | Image translation workflow | Image file view | Stored target image |
 | Video | `.mp4` | Video translation workflow | Video file view | Stored target video |
-| Office documents | `.docx`, `.xlsx`, `.xls`, `.pptx` | Manual localization in File view | Upload or edit translated file | Stored target file when available |
+| Excel workbooks | `.xlsx`, `.xls` | Segment translation | Segment views and editable File view | Generated `.xlsx` workbook |
+| Word and PowerPoint | `.docx`, `.pptx` | Segment translation | Segment views and editable File view | Generated target document |
 
-Office files are not handled by automatic file translation jobs. Open File view
-and upload or edit the translated file there. Other translation workflows require
-an enabled provider and the relevant workspace access. A listed extension still
-needs valid content for its parser or viewer.
+Translation workflows require an enabled provider and the relevant workspace
+access. A listed extension still needs valid content for its parser or viewer.
+
+## Excel workbooks
+
+Native projects split each `.xlsx` upload into segments, using the same rules as
+the [CLI Excel guide](/cli/reference/formats/xlsx):
+
+- A sheet whose first row has a source-locale column, such as `English` or
+  `en-US`, is a string table. Each row is one segment, keyed by its `Key`, `ID`,
+  or `Context` column. `Comment` columns become segment context, and
+  `Length limit` columns become maximum lengths.
+- Any other visible sheet is a free-form document. Each text cell is one
+  segment keyed by its address, such as `Pricing!B3`.
+
+Formulas, numbers, cells without letters, and hidden sheets are not segments.
+Translate and review the segments in Comfortable, Side by side, or Multilingual
+view. File view lists the segments by sheet next to a preview of the target
+workbook generated from those translations; see
+[Edit Office files in File view](#edit-office-files-in-file-view).
+
+**Download translations** returns a copy of the source workbook with ready
+translations in the target locale's column, or in place for free-form sheets.
+Untranslated rows stay empty, and cells for other locales keep their existing
+text. Translations already in the workbook are not imported on upload; use
+**Import translations** with the filled workbook to load them.
+
+Legacy `.xls` workbooks are read with the same rules. Their translated download
+is an `.xlsx` workbook, so `strings.xls` downloads as `strings-fr.xlsx`.
+
+## Word and PowerPoint files
+
+Native projects split `.docx` and `.pptx` uploads into one segment per
+paragraph:
+
+- Word segments come from the document body, then headers, footers, footnotes,
+  and endnotes. Tracked deletions are left out and tracked insertions are read
+  as text, so the translated document has its tracked changes accepted.
+- PowerPoint segments come from slide text boxes and table cells, in slide
+  order. Speaker notes, charts, and SmartArt are not translated.
+- Each segment's context names its slide and shape, or its Word part and
+  paragraph style.
+
+A paragraph's main formatting is kept automatically. Text in other formatting,
+links, and objects such as images, fields, and footnote marks appear as tags
+like `OX#0`. Keep every tag in the translation; QA fails a segment that drops
+or adds one.
+
+**Download translations** returns a copy of the source file with ready
+translations in place. Untranslated paragraphs keep their source text.
+
+## Edit Office files in File view
+
+File view shows a field for every segment, grouped by slide, part, or sheet,
+next to a preview of the generated target file. Edit the fields, then select
+**Save drafts**. Each changed field is saved as a draft on its segment after QA
+runs, and the preview reloads. A field blocked by QA stays marked so you can fix
+it.
+
+Markdown and HTML files with segments save the whole edited file. Changed
+paragraphs are then saved as drafts on their segments. Added or removed
+paragraphs, and changed paragraphs that were split into sentences, keep the
+change only in the file; Platform lists them so you can edit those segments
+directly.
+
+Office files uploaded before segment support are split into segments the first
+time you open them.
 
 ## Choose a format guide
 
@@ -47,8 +111,8 @@ For a complete Platform workflow, start with one of these tutorials:
 Native source upload accepts the same catalog extensions as the
 [CLI file-format guides](/cli/reference/formats/overview). Upload
 `strings.xml` for Android string resources; other `.xml` files use the generic
-XML parser. Direct `.pot` upload is not supported: prepare a source-language
-`.po` first, then upload or sync that catalog. Native `.ts` uploads are Qt
+XML parser. `.pot` templates use the same gettext parser as `.po`: an empty
+`msgstr` is read from `msgid`. Native `.ts` uploads are Qt
 Linguist catalogs, not TypeScript locale modules.
 
 For local translation, use the [all-in-one Hyperlocalise CLI](/cli).
@@ -57,7 +121,7 @@ For local translation, use the [all-in-one Hyperlocalise CLI](/cli).
 
 1. [Create a project](/platform/projects/create-project) and choose source and target locales.
 2. [Upload your files](/platform/projects/files). The native upload screen accepts up to 10 files per batch.
-3. [Start translation](/platform/translation/start), or use the manual Office workflow above.
+3. [Start translation](/platform/translation/start).
 4. [Review the result](/platform/cat) in the view available for that file family.
 5. [Download translated files](/platform/translation/download) and check them in the consuming application.
 
@@ -69,8 +133,8 @@ Uploading alone does not start translation unless you configure a matching
 No. A Content Editor queue export contains filtered segments as CSV, TMX,
 XLF/XLIFF, or XLSX, up to 5,000 matching segments. It is useful for review and
 handoff. Use the project's **Download translations** action for complete target
-files. Document, image, video, and Office file views work with stored files rather
-than a segment queue.
+files. Document, image, and video file views work with stored files rather
+than a segment queue. Office downloads are generated from segment translations.
 
 ## Does Platform support every CLI or TMS file format?
 

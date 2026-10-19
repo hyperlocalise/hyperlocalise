@@ -27,6 +27,9 @@ export class DictionariesPageStore {
   createDialogOpen = false;
   createForm: DictionaryCreateForm = emptyDictionaryCreateForm();
   createErrors: { name?: string; submit?: string } = {};
+  detailLocale = "en-US";
+  detailWord = "";
+  detailSelectedProjectId = "";
 
   constructor(organizationSlug: string) {
     this.organizationSlug = organizationSlug;
@@ -56,5 +59,25 @@ export class DictionariesPageStore {
     this.createDialogOpen = false;
     this.createForm = emptyDictionaryCreateForm();
     this.createErrors = {};
+  }
+
+  setDetailLocale(locale: string) {
+    this.detailLocale = locale;
+  }
+
+  setDetailWord(word: string) {
+    this.detailWord = word;
+  }
+
+  clearDetailWord() {
+    this.detailWord = "";
+  }
+
+  setDetailSelectedProjectId(projectId: string) {
+    this.detailSelectedProjectId = projectId;
+  }
+
+  clearDetailSelectedProjectId() {
+    this.detailSelectedProjectId = "";
   }
 }
