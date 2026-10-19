@@ -22,7 +22,11 @@ import {
   listUnsupportedSanitySourceDocumentTypes,
   pickSanityLocaleSource,
 } from "./locale-catalog";
-import { isSanityHelperDocumentType, sanityDocumentTypeTitle } from "./localization-mode";
+import {
+  inferSanityDetectedI18nMode,
+  isSanityHelperDocumentType,
+  sanityDocumentTypeTitle,
+} from "./localization-mode";
 import type {
   SanityDocumentRecord,
   SanityFieldObject,
@@ -31,7 +35,6 @@ import type {
 import type {
   SanityDatasetSummary,
   SanityDocumentTypeSummary,
-  SanityI18nMode,
   SanityLocaleCatalogConfig,
   SanityLocaleSource,
   SanityManageProject,
@@ -227,38 +230,56 @@ export async function detectSanityDocumentTypes(input: {
       continue;
     }
 
-    let i18nMode: SanityI18nMode = "none";
     const languages = new Set<string>();
 
-    if (documentLevelTypes.has(typeName)) {
-      i18nMode = "document";
-      for (const lang of metadataLanguagesByType.get(typeName) ?? []) {
-        languages.add(lang);
+    const languageQuery = documentLevelTypes.has(typeName)
+      ? `*[_type == $type && defined(language)].language`
+      : `*[_type == $type && defined(language)][0...${SANITY_FIELD_LEVEL_SAMPLE_SIZE}].language`;
+    const langRows = await input.client.fetch<Array<{ language?: string } | string>>(
+      languageQuery,
+      { type: typeName },
+    );
+    const languageFieldTags: string[] = [];
+    for (const row of langRows) {
+      if (typeof row === "string" && row.trim()) {
+        languageFieldTags.push(row);
+      } else if (
+        typeof row === "object" &&
+        row &&
+        typeof row.language === "string" &&
+        row.language.trim()
+      ) {
+        languageFieldTags.push(row.language);
       }
-      const langRows = await input.client.fetch<Array<{ language?: string } | string>>(
-        `*[_type == $type && defined(language)].language`,
-        { type: typeName },
-      );
-      for (const row of langRows) {
-        if (typeof row === "string") {
-          languages.add(row);
-        } else if (row && typeof row.language === "string") {
-          languages.add(row.language);
-        }
-      }
-    } else {
+    }
+
+    let hasInternationalizedArray = false;
+    if (!documentLevelTypes.has(typeName) && languageFieldTags.length === 0) {
       const samples = await input.client.fetch<SanityDocumentRecord[]>(
         `*[_type == $type][0...${SANITY_FIELD_LEVEL_SAMPLE_SIZE}]`,
         { type: typeName },
       );
-      const sample = samples[0] ?? null;
-      if (sampleHasInternationalizedArray(sample)) {
-        i18nMode = "field";
+      hasInternationalizedArray = samples.some((doc) => sampleHasInternationalizedArray(doc));
+      if (hasInternationalizedArray) {
         for (const doc of samples) {
           for (const lang of collectInternationalizedArrayLanguages(doc)) {
             languages.add(lang);
           }
         }
+      }
+    }
+
+    const i18nMode = inferSanityDetectedI18nMode({
+      linkedInTranslationMetadata: documentLevelTypes.has(typeName),
+      hasLanguageField: languageFieldTags.length > 0,
+      hasInternationalizedArray,
+    });
+    if (i18nMode === "document") {
+      for (const lang of metadataLanguagesByType.get(typeName) ?? []) {
+        languages.add(lang);
+      }
+      for (const lang of languageFieldTags) {
+        languages.add(lang);
       }
     }
 
@@ -424,6 +445,17 @@ export async function fetchSanityDocumentById(
   return client.fetch<SanityDocumentRecord | null>(`*[_id == $id][0]`, {
     id: documentId,
   });
+}
+
+export async function fetchSanityPublishedOrDraftDocument(
+  client: SanityClient,
+  documentId: string,
+): Promise<SanityDocumentRecord | null> {
+  const publishedId = normalizeSanityPublishedDocumentId(documentId);
+  return (
+    (await fetchSanityDocumentById(client, `drafts.${publishedId}`)) ??
+    (await fetchSanityDocumentById(client, publishedId))
+  );
 }
 
 export async function patchSanityDraftDocument(input: {

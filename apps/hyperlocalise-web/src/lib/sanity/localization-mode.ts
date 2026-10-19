@@ -57,6 +57,21 @@ export function isSanityDocumentTypeLocalizable(
   return mode === "document" || mode === "field";
 }
 
+/** Document i18n does not require an existing translation.metadata link. */
+export function inferSanityDetectedI18nMode(input: {
+  linkedInTranslationMetadata: boolean;
+  hasLanguageField: boolean;
+  hasInternationalizedArray: boolean;
+}): SanityI18nMode {
+  if (input.linkedInTranslationMetadata || input.hasLanguageField) {
+    return "document";
+  }
+  if (input.hasInternationalizedArray) {
+    return "field";
+  }
+  return "none";
+}
+
 export function filterTranslatableSanityDocumentTypes<
   T extends { name: string; i18nMode: SanityI18nMode },
 >(types: readonly T[]): T[] {

@@ -36,7 +36,11 @@ import {
   normalizeSanityPublishedDocumentId,
 } from "./content-api";
 import { SANITY_DOCUMENT_IMPORT_CONCURRENCY, SANITY_IMPORT_STALE_CONFIG } from "./constants";
-import type { SanityDocumentRecord, SanityJsonObject } from "./sanity-field-value";
+import type {
+  SanityDocumentRecord,
+  SanityFieldValue,
+  SanityJsonObject,
+} from "./sanity-field-value";
 import {
   buildSanityDocumentSourcePath,
   hashSanityTranslationMap,
@@ -85,6 +89,45 @@ export type ImportSanityDocumentsResult = {
   translationsSkipped: number;
   translationsFailed: number;
 };
+
+export function parseSanityDocumentUpdatedAt(value: SanityFieldValue | undefined): Date | null {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function nextSanityImportWatermark(input: {
+  previous: Date | null;
+  succeededAt: readonly Date[];
+  failedAt: readonly Date[];
+  failedWithoutTimestamp?: boolean;
+}): Date | null {
+  if (input.failedWithoutTimestamp) {
+    return input.previous;
+  }
+  let next = input.previous;
+  for (const at of input.succeededAt) {
+    if (!next || at > next) {
+      next = at;
+    }
+  }
+  if (input.failedAt.length === 0) {
+    return next;
+  }
+  let earliestFail = input.failedAt[0]!;
+  for (const at of input.failedAt) {
+    if (at < earliestFail) {
+      earliestFail = at;
+    }
+  }
+  const cap = new Date(earliestFail.getTime() - 1);
+  if (!next || next > cap) {
+    return cap;
+  }
+  return next;
+}
 
 export function resolveSanitySourceIngestAction(input: {
   sourceContentUnchanged: boolean;
@@ -439,7 +482,24 @@ export async function runImportSanityDocuments(input: {
     translationsFailed: 0,
   };
 
-  let maxWatermark = cursorRow?.watermarkUpdatedAt ?? null;
+  const succeededUpdatedAt: Date[] = [];
+  const failedUpdatedAt: Date[] = [];
+  let failedWithoutTimestamp = false;
+
+  const recordImportTimestamp = (rawDoc: { _updatedAt?: SanityFieldValue }, failed: boolean) => {
+    const updatedAt = parseSanityDocumentUpdatedAt(rawDoc._updatedAt);
+    if (!updatedAt) {
+      if (failed) {
+        failedWithoutTimestamp = true;
+      }
+      return;
+    }
+    if (failed) {
+      failedUpdatedAt.push(updatedAt);
+      return;
+    }
+    succeededUpdatedAt.push(updatedAt);
+  };
 
   const detectedByType = new Map<string, Awaited<ReturnType<typeof detectSanityDocumentTypes>>>();
 
@@ -486,6 +546,7 @@ export async function runImportSanityDocuments(input: {
       });
       if (!isSanityDocumentTypeLocalizable(i18nMode)) {
         result.skipped += 1;
+        recordImportTimestamp(rawDoc, false);
         return;
       }
 
@@ -497,6 +558,7 @@ export async function runImportSanityDocuments(input: {
         const resolved = resolveSanityLocaleKey(docLanguage, typeLanguages);
         if (resolved !== sourceSanityLocale) {
           result.skipped += 1;
+          recordImportTimestamp(rawDoc, false);
           return;
         }
       }
@@ -508,6 +570,7 @@ export async function runImportSanityDocuments(input: {
       });
       if (Object.keys(sourceMap).length === 0) {
         result.skipped += 1;
+        recordImportTimestamp(rawDoc, false);
         return;
       }
 
@@ -577,6 +640,7 @@ export async function runImportSanityDocuments(input: {
             }),
           );
           result.failed += 1;
+          recordImportTimestamp(rawDoc, true);
           return;
         }
       } else {
@@ -596,6 +660,7 @@ export async function runImportSanityDocuments(input: {
         });
         if (!upload.ok || upload.value.destination !== "native") {
           result.failed += 1;
+          recordImportTimestamp(rawDoc, true);
           return;
         }
         sourceFileId = upload.value.file.id;
@@ -605,6 +670,7 @@ export async function runImportSanityDocuments(input: {
         });
         if (ingestOutcome !== "ingested") {
           result.failed += 1;
+          recordImportTimestamp(rawDoc, true);
           return;
         }
       }
@@ -721,19 +787,22 @@ export async function runImportSanityDocuments(input: {
         result.imported += 1;
       }
 
-      if (rawDoc._updatedAt) {
-        const updated = new Date(rawDoc._updatedAt);
-        if (!maxWatermark || updated > maxWatermark) {
-          maxWatermark = updated;
-        }
-      }
+      recordImportTimestamp(rawDoc, false);
     } catch (error) {
       if (typeof error === "object" && error !== null && isSanitySyncStaleConfigError(error)) {
         throw error;
       }
       logger.warn({ error, documentId: rawDoc._id }, "sanity_document_import_failed");
       result.failed += 1;
+      recordImportTimestamp(rawDoc, true);
     }
+  });
+
+  const maxWatermark = nextSanityImportWatermark({
+    previous: needsReconcile ? null : (cursorRow?.watermarkUpdatedAt ?? null),
+    succeededAt: succeededUpdatedAt,
+    failedAt: failedUpdatedAt,
+    failedWithoutTimestamp,
   });
 
   await writeIfCurrent(async (tx) => {
@@ -744,14 +813,18 @@ export async function runImportSanityDocuments(input: {
         organizationId: input.organizationId,
         watermarkUpdatedAt: maxWatermark,
         listCursor: encodeSanityImportScopeCursor(importScopeKey),
-        lastReconcileAt: needsReconcile ? new Date() : (cursorRow?.lastReconcileAt ?? null),
+        lastReconcileAt:
+          needsReconcile && result.failed === 0 ? new Date() : (cursorRow?.lastReconcileAt ?? null),
       })
       .onConflictDoUpdate({
         target: schema.sanitySyncCursors.automationId,
         set: {
           watermarkUpdatedAt: maxWatermark,
           listCursor: encodeSanityImportScopeCursor(importScopeKey),
-          lastReconcileAt: needsReconcile ? new Date() : (cursorRow?.lastReconcileAt ?? null),
+          lastReconcileAt:
+            needsReconcile && result.failed === 0
+              ? new Date()
+              : (cursorRow?.lastReconcileAt ?? null),
           updatedAt: new Date(),
         },
       });

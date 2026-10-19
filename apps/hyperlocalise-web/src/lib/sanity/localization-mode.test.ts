@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   filterTranslatableSanityDocumentTypes,
+  inferSanityDetectedI18nMode,
   isSanityDocumentTypeLocalizable,
   isSanityHelperDocumentType,
   sanityDocumentI18nModeLabel,
@@ -44,5 +45,36 @@ describe("sanity localization mode", () => {
     expect(isSanityDocumentTypeLocalizable("document")).toBe(true);
     expect(isSanityDocumentTypeLocalizable("none")).toBe(false);
     expect(sanityDocumentI18nModeLabel("field")).toBe("Field-level i18n");
+  });
+
+  it("treats language-field documents as document i18n before any metadata exists", () => {
+    expect(
+      inferSanityDetectedI18nMode({
+        linkedInTranslationMetadata: false,
+        hasLanguageField: true,
+        hasInternationalizedArray: false,
+      }),
+    ).toBe("document");
+    expect(
+      inferSanityDetectedI18nMode({
+        linkedInTranslationMetadata: true,
+        hasLanguageField: false,
+        hasInternationalizedArray: false,
+      }),
+    ).toBe("document");
+    expect(
+      inferSanityDetectedI18nMode({
+        linkedInTranslationMetadata: false,
+        hasLanguageField: false,
+        hasInternationalizedArray: true,
+      }),
+    ).toBe("field");
+    expect(
+      inferSanityDetectedI18nMode({
+        linkedInTranslationMetadata: false,
+        hasLanguageField: false,
+        hasInternationalizedArray: false,
+      }),
+    ).toBe("none");
   });
 });

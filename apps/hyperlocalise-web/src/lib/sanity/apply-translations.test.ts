@@ -115,4 +115,82 @@ describe("applySanityTranslationsToDocument", () => {
     expect(next.title).toBe("Hello");
     expect(next.sku).toBe("SKU-1");
   });
+
+  it("document-level writes portable text spans through array path segments", () => {
+    const next = applySanityTranslationsToDocument({
+      i18nMode: "document",
+      targetSanityLocale: "de",
+      document: {
+        _type: "page",
+        language: "en",
+        title: "Welcome",
+        body: [
+          {
+            _type: "block",
+            children: [{ _type: "span", text: "Hello" }],
+          },
+        ],
+      },
+      translations: {
+        title: "Willkommen",
+        "body.0.children.0.text": "Hallo",
+      },
+    });
+
+    expect(next.title).toBe("Willkommen");
+    expect(next.body).toEqual([
+      {
+        _type: "block",
+        children: [{ _type: "span", text: "Hallo" }],
+      },
+    ]);
+  });
+
+  it("field-level writes portable text spans inside the locale slot", () => {
+    const next = applySanityTranslationsToDocument({
+      i18nMode: "field",
+      sourceSanityLocale: "en",
+      targetSanityLocale: "de",
+      document: {
+        _type: "page",
+        body: [
+          {
+            _type: "internationalizedArrayPortableTextValue",
+            language: "en",
+            value: [
+              {
+                _type: "block",
+                children: [{ _type: "span", text: "Hello" }],
+              },
+            ],
+          },
+        ],
+      },
+      translations: { "body.0.children.0.text": "Hallo" },
+    });
+
+    expect(next.body).toEqual([
+      {
+        _type: "internationalizedArrayPortableTextValue",
+        language: "en",
+        value: [
+          {
+            _type: "block",
+            children: [{ _type: "span", text: "Hello" }],
+          },
+        ],
+      },
+      {
+        _type: "internationalizedArrayPortableTextValue",
+        language: "de",
+        _key: "de",
+        value: [
+          {
+            _type: "block",
+            children: [{ _type: "span", text: "Hallo" }],
+          },
+        ],
+      },
+    ]);
+  });
 });

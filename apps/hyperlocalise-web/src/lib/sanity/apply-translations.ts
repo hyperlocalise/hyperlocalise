@@ -24,39 +24,59 @@ import type {
 } from "./sanity-field-value";
 import { isSanityFieldObject } from "./sanity-field-value";
 
-function setAtPath(root: SanityFieldObject, path: string[], value: string): void {
+function isArrayIndex(key: string): boolean {
+  return /^\d+$/.test(key);
+}
+
+function childAtSegment(current: SanityFieldValue, key: string): SanityFieldValue | undefined {
+  if (Array.isArray(current)) {
+    if (!isArrayIndex(key)) {
+      return undefined;
+    }
+    return current[Number(key)];
+  }
+  if (isSanityFieldObject(current)) {
+    return current[key];
+  }
+  return undefined;
+}
+
+function setAtPath(root: SanityFieldValue, path: string[], value: string): void {
   if (path.length === 0) {
     return;
   }
   let current: SanityFieldValue = root;
   for (let index = 0; index < path.length - 1; index += 1) {
-    const key = path[index]!;
-    if (!isSanityFieldObject(current)) {
-      return;
-    }
-    const next: SanityFieldValue | undefined = current[key];
+    const next = childAtSegment(current, path[index]!);
     if (next === undefined || next === null) {
       return;
     }
     current = next;
   }
   const lastKey = path[path.length - 1]!;
-  if (!isSanityFieldObject(current)) {
+  if (Array.isArray(current)) {
+    if (!isArrayIndex(lastKey)) {
+      return;
+    }
+    const arrayIndex = Number(lastKey);
+    if (typeof current[arrayIndex] === "string") {
+      current[arrayIndex] = value;
+    }
     return;
   }
-  if (typeof current[lastKey] === "string") {
+  if (isSanityFieldObject(current) && typeof current[lastKey] === "string") {
     current[lastKey] = value;
   }
 }
 
-function applyToDocumentRoot(
-  document: SanityFieldObject,
+function applyToValue(
+  value: SanityFieldValue,
   translations: SanityTranslationMap,
-): SanityFieldObject {
-  const clone = structuredClone(document) as SanityFieldObject;
+): SanityFieldValue {
+  const clone = structuredClone(value);
   for (const [key, text] of Object.entries(translations)) {
     if (!key.includes(".")) {
-      if (typeof clone[key] === "string") {
+      if (isSanityFieldObject(clone) && typeof clone[key] === "string") {
         clone[key] = text;
       }
       continue;
@@ -64,6 +84,14 @@ function applyToDocumentRoot(
     setAtPath(clone, key.split("."), text);
   }
   return clone;
+}
+
+function applyToDocumentRoot(
+  document: SanityFieldObject,
+  translations: SanityTranslationMap,
+): SanityFieldObject {
+  const next = applyToValue(document, translations);
+  return isSanityFieldObject(next) ? next : document;
 }
 
 function fieldLevelLocaleValue(input: {
@@ -84,13 +112,13 @@ function fieldLevelLocaleValue(input: {
     input.sourceSanityLocale && input.sourceSanityLocale !== input.targetSanityLocale
       ? readSanityInternationalizedEntryValue(input.existing, input.sourceSanityLocale)
       : undefined;
-  const template: SanityFieldObject =
-    targetValue && isSanityFieldObject(targetValue)
+  const template: SanityFieldValue =
+    targetValue !== undefined
       ? structuredClone(targetValue)
-      : sourceValue && isSanityFieldObject(sourceValue)
+      : sourceValue !== undefined
         ? structuredClone(sourceValue)
         : {};
-  return applyToDocumentRoot(template, input.map);
+  return applyToValue(template, input.map);
 }
 
 function applyFieldLevelTranslations(input: {

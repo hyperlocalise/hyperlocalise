@@ -12,7 +12,11 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { resolveSanitySourceIngestAction } from "./import-sanity-documents";
+import {
+  nextSanityImportWatermark,
+  parseSanityDocumentUpdatedAt,
+  resolveSanitySourceIngestAction,
+} from "./import-sanity-documents";
 
 describe("resolveSanitySourceIngestAction", () => {
   it("reuses ingested unchanged content", () => {
@@ -31,5 +35,45 @@ describe("resolveSanitySourceIngestAction", () => {
         latestIngestState: "ingested",
       }),
     ).toBe("upload");
+  });
+});
+
+describe("nextSanityImportWatermark", () => {
+  it("does not advance past a failed document in the incremental window", () => {
+    const previous = new Date("2026-10-11T10:00:00.000Z");
+    const failed = new Date("2026-10-11T11:00:00.000Z");
+    const succeeded = new Date("2026-10-11T12:00:00.000Z");
+    expect(
+      nextSanityImportWatermark({
+        previous,
+        succeededAt: [succeeded],
+        failedAt: [failed],
+      })?.toISOString(),
+    ).toBe(new Date(failed.getTime() - 1).toISOString());
+  });
+
+  it("keeps the previous watermark when a failure has no timestamp", () => {
+    const previous = new Date("2026-10-11T10:00:00.000Z");
+    expect(
+      nextSanityImportWatermark({
+        previous,
+        succeededAt: [new Date("2026-10-11T12:00:00.000Z")],
+        failedAt: [],
+        failedWithoutTimestamp: true,
+      })?.toISOString(),
+    ).toBe(previous.toISOString());
+  });
+
+  it("advances to the latest success when nothing failed", () => {
+    expect(
+      nextSanityImportWatermark({
+        previous: new Date("2026-10-11T10:00:00.000Z"),
+        succeededAt: [new Date("2026-10-11T12:00:00.000Z")],
+        failedAt: [],
+      })?.toISOString(),
+    ).toBe("2026-10-11T12:00:00.000Z");
+    expect(parseSanityDocumentUpdatedAt("2026-10-11T12:00:00.000Z")?.toISOString()).toBe(
+      "2026-10-11T12:00:00.000Z",
+    );
   });
 });

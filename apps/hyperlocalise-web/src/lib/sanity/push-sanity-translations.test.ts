@@ -14,7 +14,9 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  isSanityRemoteDraftNewer,
   recordSanityPushSkip,
+  SANITY_REMOTE_NEWER_SLACK_MS,
   sourceKeysMissingApprovedTranslations,
   summarizeSanityPushResult,
 } from "./push-sanity-translations";
@@ -48,6 +50,22 @@ describe("sanity push skip reporting", () => {
     expect(recordSanityPushSkip({ locale: "ja", reason: "unsupported_for_type" }).message).toBe(
       "ja is not configured for this Sanity document type.",
     );
+    expect(recordSanityPushSkip({ locale: "de-DE", reason: "remote_newer" }).message).toBe(
+      "de-DE has a newer Sanity draft and overwrite is off.",
+    );
+  });
+
+  it("treats a remote draft as newer only after a previous push", () => {
+    const lastPushedAt = new Date("2026-10-11T12:00:00.000Z");
+    expect(isSanityRemoteDraftNewer(undefined, lastPushedAt)).toBe(false);
+    expect(isSanityRemoteDraftNewer("2026-10-11T13:00:00.000Z", null)).toBe(false);
+    expect(isSanityRemoteDraftNewer("2026-10-11T12:00:03.000Z", lastPushedAt)).toBe(false);
+    expect(
+      isSanityRemoteDraftNewer(
+        new Date(lastPushedAt.getTime() + SANITY_REMOTE_NEWER_SLACK_MS + 1).toISOString(),
+        lastPushedAt,
+      ),
+    ).toBe(true);
   });
 
   it("summarizes why locales were skipped", () => {
@@ -80,6 +98,14 @@ describe("sanity push skip reporting", () => {
         unmappedLocales: [],
       }),
     ).toBe("Skipped 1 locale because Sanity drafts are already up to date.");
+    expect(
+      summarizeSanityPushResult({
+        pushedLocales: 0,
+        failedLocales: 0,
+        skipped: [recordSanityPushSkip({ locale: "de-DE", reason: "remote_newer" })],
+        unmappedLocales: [],
+      }),
+    ).toBe("Skipped 1 locale because Sanity drafts were updated remotely.");
     expect(
       summarizeSanityPushResult({
         pushedLocales: 0,

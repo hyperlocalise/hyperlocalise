@@ -30,6 +30,7 @@ import { SANITY_PUSH_CONCURRENCY, SANITY_PUSH_STALE_CONFIG } from "./constants";
 import {
   createSanityDraftTranslationDocument,
   fetchSanityDocumentById,
+  fetchSanityPublishedOrDraftDocument,
   isSameSanityDocumentId,
   patchSanityDraftDocument,
   resolveSanityTranslatedDocumentId,
@@ -60,7 +61,10 @@ export type SanityPushSkipReason =
   | "unmapped"
   | "incomplete_translations"
   | "unchanged"
+  | "remote_newer"
   | "unsupported_for_type";
+
+export const SANITY_REMOTE_NEWER_SLACK_MS = 5000;
 
 export type SanityPushSkip = {
   locale: string;
@@ -89,9 +93,31 @@ export function sanityPushSkipMessage(skip: Omit<SanityPushSkip, "message">): st
       return `${skip.locale} is not fully approved (${skip.translatedKeyCount ?? 0} of ${skip.sourceKeyCount ?? 0} keys).`;
     case "unchanged":
       return `${skip.locale} is already pushed and overwrite is off.`;
+    case "remote_newer":
+      return `${skip.locale} has a newer Sanity draft and overwrite is off.`;
     case "unsupported_for_type":
       return `${skip.locale} is not configured for this Sanity document type.`;
   }
+}
+
+export function isSanityRemoteDraftNewer(
+  remoteUpdatedAt: string | undefined,
+  lastPushedAt: Date | null | undefined,
+): boolean {
+  if (!remoteUpdatedAt || !lastPushedAt) {
+    return false;
+  }
+  const remote = new Date(remoteUpdatedAt);
+  if (Number.isNaN(remote.getTime())) {
+    return false;
+  }
+  return remote.getTime() > lastPushedAt.getTime() + SANITY_REMOTE_NEWER_SLACK_MS;
+}
+
+function sanityDocumentUpdatedAt(
+  doc: { _updatedAt?: SanityFieldValue } | null,
+): string | undefined {
+  return typeof doc?._updatedAt === "string" ? doc._updatedAt : undefined;
 }
 
 export function recordSanityPushSkip(skip: Omit<SanityPushSkip, "message">): SanityPushSkip {
@@ -132,6 +158,9 @@ export function summarizeSanityPushResult(input: {
   }
   if (reasons.size === 1 && reasons.has("unchanged")) {
     return `Skipped ${skippedLocaleCount} ${localeLabel} because Sanity drafts are already up to date.`;
+  }
+  if (reasons.size === 1 && reasons.has("remote_newer")) {
+    return `Skipped ${skippedLocaleCount} ${localeLabel} because Sanity drafts were updated remotely.`;
   }
   if (reasons.size === 1 && reasons.has("unmapped")) {
     return `Skipped ${skippedLocaleCount} ${localeLabel} with no matching Sanity language tag.`;
@@ -396,6 +425,30 @@ export async function runPushSanityTranslations(input: {
           );
           result.skippedLocales += 1;
           continue;
+        }
+
+        if (!pushSettings.overwriteSanityDrafts) {
+          let remoteUpdatedAt = sanityDocumentUpdatedAt(sourceDoc);
+          if (mapping.i18nMode === "document") {
+            const targetId = resolveSanityTranslatedDocumentId(translatedDocumentIds, sanityLocale);
+            if (targetId && !isSameSanityDocumentId(targetId, mapping.documentId)) {
+              const remoteTarget = await fetchSanityPublishedOrDraftDocument(client, targetId);
+              remoteUpdatedAt = sanityDocumentUpdatedAt(remoteTarget);
+            } else {
+              remoteUpdatedAt = undefined;
+            }
+          }
+          if (isSanityRemoteDraftNewer(remoteUpdatedAt, mapping.lastPushedAt)) {
+            result.skipped.push(
+              recordSanityPushSkip({
+                locale: projectLocale,
+                documentId: mapping.documentId,
+                reason: "remote_newer",
+              }),
+            );
+            result.skippedLocales += 1;
+            continue;
+          }
         }
 
         if (mapping.i18nMode === "field") {
