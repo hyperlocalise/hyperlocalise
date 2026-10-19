@@ -12,6 +12,11 @@
  */
 
 import type { SanityTranslationMap } from "./document-json";
+import {
+  isSanityInternationalizedArray,
+  readSanityInternationalizedEntryValue,
+  upsertSanityInternationalizedEntry,
+} from "./internationalized-array";
 
 function setAtPath(root: Record<string, unknown>, path: string[], value: string): void {
   if (path.length === 0) {
@@ -31,14 +36,6 @@ function setAtPath(root: Record<string, unknown>, path: string[], value: string)
   const parent = current as Record<string, unknown>;
   if (typeof parent[lastKey] === "string") {
     parent[lastKey] = value;
-    return;
-  }
-  if (path.length >= 4 && path[path.length - 1] === "text") {
-    const textParent = current as Record<string, unknown>;
-    const existing = textParent[lastKey];
-    if (typeof existing === "string") {
-      textParent[lastKey] = value;
-    }
   }
 }
 
@@ -59,40 +56,39 @@ function applyToDocumentRoot(
   return clone;
 }
 
-function upsertInternationalizedEntry(
-  entries: unknown[],
-  language: string,
-  value: unknown,
-): unknown[] {
-  const next = [...entries];
-  const index = next.findIndex(
-    (entry) =>
-      entry &&
-      typeof entry === "object" &&
-      !Array.isArray(entry) &&
-      (entry as { language?: unknown }).language === language,
-  );
-  const row = { _type: "internationalizedArrayStringValue", language, value };
-  if (index >= 0) {
-    next[index] = { ...(next[index] as object), ...row };
-  } else {
-    next.push(row);
+function fieldLevelLocaleValue(input: {
+  existing: unknown[];
+  map: SanityTranslationMap;
+  targetSanityLocale: string;
+  sourceSanityLocale?: string;
+}): unknown {
+  if (input.map[""] !== undefined && Object.keys(input.map).length === 1) {
+    return input.map[""];
   }
-  return next;
+
+  const targetValue = readSanityInternationalizedEntryValue(
+    input.existing,
+    input.targetSanityLocale,
+  );
+  const sourceValue =
+    input.sourceSanityLocale && input.sourceSanityLocale !== input.targetSanityLocale
+      ? readSanityInternationalizedEntryValue(input.existing, input.sourceSanityLocale)
+      : undefined;
+  const template =
+    targetValue && typeof targetValue === "object" && !Array.isArray(targetValue)
+      ? structuredClone(targetValue as Record<string, unknown>)
+      : sourceValue && typeof sourceValue === "object" && !Array.isArray(sourceValue)
+        ? structuredClone(sourceValue as Record<string, unknown>)
+        : {};
+  return applyToDocumentRoot(template, input.map);
 }
 
-export function applySanityTranslationsToDocument(input: {
+function applyFieldLevelTranslations(input: {
   document: Record<string, unknown>;
-  i18nMode: "document" | "field";
   targetSanityLocale: string;
+  sourceSanityLocale?: string;
   translations: SanityTranslationMap;
 }): Record<string, unknown> {
-  if (input.i18nMode === "document") {
-    const next = applyToDocumentRoot(input.document, input.translations);
-    next.language = input.targetSanityLocale;
-    return next;
-  }
-
   const clone = structuredClone(input.document);
   const byField = new Map<string, SanityTranslationMap>();
   for (const [key, text] of Object.entries(input.translations)) {
@@ -110,32 +106,36 @@ export function applySanityTranslationsToDocument(input: {
 
   for (const [field, map] of byField) {
     const existing = clone[field];
-    let localeValue: unknown;
-    if (map[""] !== undefined && Object.keys(map).length === 1) {
-      localeValue = map[""];
-    } else {
-      const base =
-        Array.isArray(existing) && existing.length > 0
-          ? extractFieldLevelBase(existing, input.targetSanityLocale)
-          : {};
-      localeValue = applyToDocumentRoot(base as Record<string, unknown>, map);
+    if (!isSanityInternationalizedArray(existing)) {
+      continue;
     }
-    const entries = Array.isArray(existing) ? existing : [];
-    clone[field] = upsertInternationalizedEntry(entries, input.targetSanityLocale, localeValue);
+    clone[field] = upsertSanityInternationalizedEntry(
+      existing,
+      input.targetSanityLocale,
+      fieldLevelLocaleValue({
+        existing,
+        map,
+        targetSanityLocale: input.targetSanityLocale,
+        sourceSanityLocale: input.sourceSanityLocale,
+      }),
+    );
   }
 
   return clone;
 }
 
-function extractFieldLevelBase(entries: unknown[], targetLocale: string): Record<string, unknown> {
-  for (const entry of entries) {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-      continue;
-    }
-    const record = entry as { language?: unknown; value?: unknown };
-    if (record.language === targetLocale && record.value && typeof record.value === "object") {
-      return structuredClone(record.value as Record<string, unknown>);
-    }
+export function applySanityTranslationsToDocument(input: {
+  document: Record<string, unknown>;
+  i18nMode: "document" | "field";
+  targetSanityLocale: string;
+  sourceSanityLocale?: string;
+  translations: SanityTranslationMap;
+}): Record<string, unknown> {
+  if (input.i18nMode === "document") {
+    const next = applyToDocumentRoot(input.document, input.translations);
+    next.language = input.targetSanityLocale;
+    return next;
   }
-  return {};
+
+  return applyFieldLevelTranslations(input);
 }

@@ -18,6 +18,7 @@ export {
   readSanityPushSourcePaths,
   runPushSanityTranslations,
   type PushSanityTranslationsResult,
+  type SanityPushSkip,
 } from "./push-sanity-translations";
 export {
   getSanityPushEligibility,

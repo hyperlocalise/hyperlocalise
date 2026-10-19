@@ -41,8 +41,8 @@ describe("extractSanityDocumentSourceMap", () => {
       sourceSanityLocale: "en",
       document: {
         headline: [
-          { language: "en", value: "Hello" },
-          { language: "de", value: "Hallo" },
+          { _type: "internationalizedArrayStringValue", language: "en", value: "Hello" },
+          { _type: "internationalizedArrayStringValue", language: "de", value: "Hallo" },
         ],
       },
     });

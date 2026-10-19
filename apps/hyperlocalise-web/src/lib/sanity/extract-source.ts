@@ -12,6 +12,7 @@
  */
 
 import type { SanityTranslationMap } from "./document-json";
+import { isSanityInternationalizedArrayEntry } from "./internationalized-array";
 
 const SKIP_TOP_LEVEL_KEYS = new Set([
   "_id",
@@ -30,16 +31,6 @@ function isReference(value: unknown): boolean {
     !Array.isArray(value) &&
     "_ref" in (value as Record<string, unknown>)
   );
-}
-
-function isInternationalizedArrayEntry(
-  value: unknown,
-): value is { language?: unknown; value?: unknown } {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-  const record = value as Record<string, unknown>;
-  return "language" in record && "value" in record;
 }
 
 function isPortableTextBlock(value: unknown): value is {
@@ -93,7 +84,7 @@ function walkValue(value: unknown, prefix: string, out: SanityTranslationMap): v
     return;
   }
   if (Array.isArray(value)) {
-    if (value.length > 0 && value.every(isInternationalizedArrayEntry)) {
+    if (value.length > 0 && value.every(isSanityInternationalizedArrayEntry)) {
       return;
     }
     if (value.some(isPortableTextBlock)) {
@@ -128,7 +119,7 @@ export function extractFieldLevelLocaleValue(
     return undefined;
   }
   for (const entry of fieldValue) {
-    if (!isInternationalizedArrayEntry(entry)) {
+    if (!isSanityInternationalizedArrayEntry(entry)) {
       continue;
     }
     if (typeof entry.language === "string" && entry.language === sanityLocaleKey) {

@@ -55,7 +55,7 @@ export function createPushSanityTranslationsTool(session: WorkspaceOrchestratorS
 
       const output = {
         ...result,
-        summary: summary?.trim() || undefined,
+        ...(summary?.trim() ? { summary: summary.trim() } : {}),
       };
 
       if (result.failedLocales > 0 && result.pushedLocales === 0) {

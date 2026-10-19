@@ -26,14 +26,21 @@ import { ProjectTranslationService } from "@/lib/projects/translations/project-t
 import { applySanityTranslationsToDocument } from "./apply-translations";
 import { createSanityClient } from "./client";
 import { SANITY_PUSH_CONCURRENCY, SANITY_PUSH_STALE_CONFIG } from "./constants";
-import { fetchSanityDocumentById, patchSanityDraftDocument } from "./content-api";
+import {
+  createSanityDraftTranslationDocument,
+  fetchSanityDocumentById,
+  isSameSanityDocumentId,
+  patchSanityDraftDocument,
+  resolveSanityTranslatedDocumentId,
+  upsertSanityTranslationMetadataLink,
+} from "./content-api";
 import {
   hashSanityTranslationMap,
   parseSanityTranslationMapJson,
   readSanityTranslationMap,
 } from "./document-json";
 import { loadSanityPipesAccessToken } from "./pipes";
-import { mapProjectLocalesToSanity } from "./sanity-locale";
+import { mapProjectLocalesToSanity, normalizeSanityLocaleTag } from "./sanity-locale";
 import {
   assertLiveSanityAutomationConfigVersion,
   loadLiveSanityPushSettings,
@@ -47,12 +54,82 @@ import {
 
 const logger = createLogger("push-sanity-translations");
 
+export type SanityPushSkipReason = "unmapped" | "incomplete_translations" | "unchanged";
+
+export type SanityPushSkip = {
+  locale: string;
+  documentId?: string;
+  reason: SanityPushSkipReason;
+  message: string;
+  translatedKeyCount?: number;
+  sourceKeyCount?: number;
+};
+
 export type PushSanityTranslationsResult = {
   pushedLocales: number;
   skippedLocales: number;
   failedLocales: number;
   documentsProcessed: number;
+  unmappedLocales: string[];
+  skipped: SanityPushSkip[];
+  summary?: string;
 };
+
+export function sanityPushSkipMessage(skip: Omit<SanityPushSkip, "message">): string {
+  switch (skip.reason) {
+    case "unmapped":
+      return `${skip.locale} has no matching Sanity language tag.`;
+    case "incomplete_translations":
+      return `${skip.locale} is not fully approved (${skip.translatedKeyCount ?? 0} of ${skip.sourceKeyCount ?? 0} keys).`;
+    case "unchanged":
+      return `${skip.locale} is already pushed and overwrite is off.`;
+  }
+}
+
+export function recordSanityPushSkip(skip: Omit<SanityPushSkip, "message">): SanityPushSkip {
+  return { ...skip, message: sanityPushSkipMessage(skip) };
+}
+
+export function sourceKeysMissingApprovedTranslations(
+  sourceKeys: readonly string[],
+  approvedMap: Record<string, string>,
+): number {
+  return sourceKeys.filter((key) => approvedMap[key] === undefined).length;
+}
+
+export function summarizeSanityPushResult(input: {
+  pushedLocales: number;
+  failedLocales: number;
+  skipped: readonly SanityPushSkip[];
+  unmappedLocales: readonly string[];
+}): string | undefined {
+  const reasons = new Set(input.skipped.map((skip) => skip.reason));
+  for (const locale of input.unmappedLocales) {
+    if (input.skipped.some((skip) => skip.locale === locale && skip.reason === "unmapped")) {
+      continue;
+    }
+    reasons.add("unmapped");
+  }
+
+  if (reasons.size === 0) {
+    return undefined;
+  }
+
+  const skippedLocaleCount =
+    input.skipped.length > 0 ? input.skipped.length : input.unmappedLocales.length;
+  const localeLabel = skippedLocaleCount === 1 ? "locale" : "locales";
+
+  if (reasons.size === 1 && reasons.has("incomplete_translations")) {
+    return `Skipped ${skippedLocaleCount} ${localeLabel} because not every key is approved.`;
+  }
+  if (reasons.size === 1 && reasons.has("unchanged")) {
+    return `Skipped ${skippedLocaleCount} ${localeLabel} because Sanity drafts are already up to date.`;
+  }
+  if (reasons.size === 1 && reasons.has("unmapped")) {
+    return `Skipped ${skippedLocaleCount} ${localeLabel} with no matching Sanity language tag.`;
+  }
+  return `Skipped ${skippedLocaleCount} ${localeLabel}. See skip reasons for each locale.`;
+}
 
 export function readSanityPushSourcePaths(
   inputSnapshot: Record<string, unknown> | null | undefined,
@@ -190,6 +267,8 @@ export async function runPushSanityTranslations(input: {
     skippedLocales: 0,
     failedLocales: 0,
     documentsProcessed: 0,
+    unmappedLocales: [...localeMapping.unmappedProjectTargets],
+    skipped: [],
   };
 
   await mapWithConcurrency(mappings, SANITY_PUSH_CONCURRENCY, async (mapping) => {
@@ -224,11 +303,28 @@ export async function runPushSanityTranslations(input: {
 
       let pushedForDocument = 0;
       const lastPushHashes = { ...mapping.lastPushContentHash };
+      const translatedDocumentIds = { ...mapping.translatedDocumentIds };
+      const sourceSanityLocale = mapping.sourceLocale || localeMapping.sourceIntercomLocale || "";
+      let fieldLevelDocument = sourceDoc;
 
       for (let index = 0; index < localeMapping.jobTargetLocales.length; index += 1) {
         const projectLocale = localeMapping.jobTargetLocales[index]!;
         const sanityLocale = localeMapping.intercomTargetLocales[index];
         if (!sanityLocale) {
+          result.skipped.push(
+            recordSanityPushSkip({
+              locale: projectLocale,
+              documentId: mapping.documentId,
+              reason: "unmapped",
+            }),
+          );
+          result.skippedLocales += 1;
+          continue;
+        }
+        if (
+          sourceSanityLocale &&
+          normalizeSanityLocaleTag(sanityLocale) === normalizeSanityLocaleTag(sourceSanityLocale)
+        ) {
           continue;
         }
 
@@ -240,44 +336,87 @@ export async function runPushSanityTranslations(input: {
           approvedTranslationsOnly: true,
           readyTranslationsOnly: true,
         });
-        if (approved.translatedKeyCount < sourceKeys.length) {
+        const approvedMap = readSanityTranslationMap(approved.prefilled);
+        const missingKeyCount = sourceKeysMissingApprovedTranslations(sourceKeys, approvedMap);
+        if (missingKeyCount > 0) {
+          result.skipped.push(
+            recordSanityPushSkip({
+              locale: projectLocale,
+              documentId: mapping.documentId,
+              reason: "incomplete_translations",
+              translatedKeyCount: sourceKeys.length - missingKeyCount,
+              sourceKeyCount: sourceKeys.length,
+            }),
+          );
           result.skippedLocales += 1;
           continue;
         }
 
-        const approvedMap = readSanityTranslationMap(approved.prefilled);
         const contentHash = hashSanityTranslationMap(approvedMap);
         const previousHash = lastPushHashes[projectLocale];
         if (previousHash === contentHash && !pushSettings.overwriteSanityDrafts) {
+          result.skipped.push(
+            recordSanityPushSkip({
+              locale: projectLocale,
+              documentId: mapping.documentId,
+              reason: "unchanged",
+            }),
+          );
           result.skippedLocales += 1;
           continue;
         }
 
-        const nextDoc = applySanityTranslationsToDocument({
-          document: sourceDoc,
-          i18nMode: mapping.i18nMode,
-          targetSanityLocale: sanityLocale,
-          translations: approvedMap,
-        });
-
         if (mapping.i18nMode === "field") {
+          fieldLevelDocument = applySanityTranslationsToDocument({
+            document: fieldLevelDocument,
+            i18nMode: "field",
+            targetSanityLocale: sanityLocale,
+            sourceSanityLocale,
+            translations: approvedMap,
+          });
           await patchSanityDraftDocument({
             client,
             publishedDocumentId: mapping.documentId,
-            document: nextDoc,
+            document: fieldLevelDocument,
           });
         } else {
-          const translatedId = mapping.translatedDocumentIds?.[sanityLocale];
-          const targetId = translatedId ?? mapping.documentId;
-          await patchSanityDraftDocument({
-            client,
-            publishedDocumentId: targetId,
-            document: {
-              ...nextDoc,
-              _type: mapping.documentType,
-              language: sanityLocale,
-            },
+          const nextDoc = applySanityTranslationsToDocument({
+            document: sourceDoc,
+            i18nMode: "document",
+            targetSanityLocale: sanityLocale,
+            translations: approvedMap,
           });
+          const translatedPayload = {
+            ...nextDoc,
+            _type: mapping.documentType,
+            language: sanityLocale,
+          };
+          let targetId = resolveSanityTranslatedDocumentId(translatedDocumentIds, sanityLocale);
+          if (targetId && isSameSanityDocumentId(targetId, mapping.documentId)) {
+            targetId = undefined;
+          }
+
+          if (!targetId) {
+            targetId = await createSanityDraftTranslationDocument({
+              client,
+              document: translatedPayload,
+            });
+            await upsertSanityTranslationMetadataLink({
+              client,
+              sourceDocumentId: mapping.documentId,
+              sourceLocale: sourceSanityLocale,
+              targetLocale: sanityLocale,
+              targetDocumentId: targetId,
+              documentType: mapping.documentType,
+            });
+            translatedDocumentIds[sanityLocale] = targetId;
+          } else {
+            await patchSanityDraftDocument({
+              client,
+              publishedDocumentId: targetId,
+              document: translatedPayload,
+            });
+          }
         }
 
         lastPushHashes[projectLocale] = contentHash;
@@ -306,6 +445,7 @@ export async function runPushSanityTranslations(input: {
               lastError: null,
               lastPushedAt: new Date(),
               lastPushContentHash: lastPushHashes,
+              translatedDocumentIds,
               updatedAt: new Date(),
             })
             .where(eq(schema.sanityDocumentSyncStates.id, mapping.id));
@@ -330,5 +470,7 @@ export async function runPushSanityTranslations(input: {
     }
   });
 
+  result.skippedLocales = result.skipped.length;
+  result.summary = summarizeSanityPushResult(result);
   return result;
 }

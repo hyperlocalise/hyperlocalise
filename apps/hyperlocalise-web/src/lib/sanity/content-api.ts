@@ -13,6 +13,7 @@
 
 import { SANITY_MANAGE_API_BASE } from "./constants";
 import type { SanityClient } from "./client";
+import { isSanityInternationalizedArrayEntry } from "./internationalized-array";
 import { isSanityHelperDocumentType, sanityDocumentTypeTitle } from "./localization-mode";
 import type {
   SanityDatasetSummary,
@@ -108,19 +109,6 @@ function uniqueLanguages(values: readonly string[]): string[] {
   return out.toSorted((left, right) => left.localeCompare(right));
 }
 
-function isInternationalizedArrayEntry(
-  value: unknown,
-): value is { language?: unknown; value?: unknown } {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-  const record = value as { _type?: unknown; language?: unknown; value?: unknown };
-  if (!("language" in record) || !("value" in record)) {
-    return false;
-  }
-  return typeof record._type === "string" && record._type.startsWith("internationalizedArray");
-}
-
 function sampleHasInternationalizedArray(doc: Record<string, unknown> | null): boolean {
   if (!doc) {
     return false;
@@ -129,7 +117,7 @@ function sampleHasInternationalizedArray(doc: Record<string, unknown> | null): b
     if (!Array.isArray(value) || value.length === 0) {
       continue;
     }
-    if (isInternationalizedArrayEntry(value[0])) {
+    if (isSanityInternationalizedArrayEntry(value[0])) {
       return true;
     }
   }
@@ -144,7 +132,7 @@ export function collectInternationalizedArrayLanguages(doc: Record<string, unkno
       continue;
     }
     for (const entry of value) {
-      if (!isInternationalizedArrayEntry(entry)) {
+      if (!isSanityInternationalizedArrayEntry(entry)) {
         continue;
       }
       const language = entry.language;
@@ -300,8 +288,65 @@ export async function listSanityDocumentsForImport(input: {
   });
 }
 
+const SANITY_SYSTEM_FIELD_KEYS = new Set(["_id", "_rev", "_createdAt", "_updatedAt"]);
+const TRANSLATION_METADATA_TYPE = "translation.metadata";
+const TRANSLATION_METADATA_REF_ITEM_TYPE = "internationalizedArrayReferenceValue";
+
 export function normalizeSanityPublishedDocumentId(documentId: string): string {
   return documentId.replace(/^drafts\./, "");
+}
+
+export function isSameSanityDocumentId(left: string, right: string): boolean {
+  return normalizeSanityPublishedDocumentId(left) === normalizeSanityPublishedDocumentId(right);
+}
+
+export function omitSanitySystemFields(document: Record<string, unknown>): Record<string, unknown> {
+  const next: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(document)) {
+    if (!SANITY_SYSTEM_FIELD_KEYS.has(key)) {
+      next[key] = value;
+    }
+  }
+  return next;
+}
+
+export function resolveSanityTranslatedDocumentId(
+  ids: Record<string, string> | null | undefined,
+  locale: string,
+): string | undefined {
+  if (!ids) {
+    return undefined;
+  }
+  const exact = ids[locale]?.trim();
+  if (exact) {
+    return normalizeSanityPublishedDocumentId(exact);
+  }
+  const wanted = locale.trim().replace(/_/g, "-").toLowerCase();
+  if (!wanted) {
+    return undefined;
+  }
+  for (const [key, value] of Object.entries(ids)) {
+    if (key.trim().replace(/_/g, "-").toLowerCase() === wanted && value.trim()) {
+      return normalizeSanityPublishedDocumentId(value);
+    }
+  }
+  return undefined;
+}
+
+function sanityTranslationMetadataEntry(
+  locale: string,
+  documentId: string,
+  itemType: string,
+): Record<string, unknown> {
+  return {
+    _key: locale,
+    _type: itemType,
+    value: {
+      _type: "reference",
+      _ref: normalizeSanityPublishedDocumentId(documentId),
+      _weak: true,
+    },
+  };
 }
 
 export async function fetchSanityDocumentById(
@@ -329,9 +374,84 @@ export async function createSanityDraftTranslationDocument(input: {
   client: SanityClient;
   document: Record<string, unknown>;
 }): Promise<string> {
-  const { _id: _ignored, ...rest } = input.document;
-  const created = await input.client.create(rest as { _type: string });
-  return normalizeSanityPublishedDocumentId(String(created._id));
+  const publishedId = crypto.randomUUID();
+  const documentType = input.document._type;
+  if (typeof documentType !== "string" || !documentType.trim()) {
+    throw new Error("sanity_translation_document_type_required");
+  }
+  await input.client.create({
+    ...omitSanitySystemFields(input.document),
+    _id: `drafts.${publishedId}`,
+    _type: documentType,
+  } as { _id: string; _type: string });
+  return publishedId;
+}
+
+export async function upsertSanityTranslationMetadataLink(input: {
+  client: SanityClient;
+  sourceDocumentId: string;
+  sourceLocale: string;
+  targetLocale: string;
+  targetDocumentId: string;
+  documentType: string;
+}): Promise<void> {
+  const sourceId = normalizeSanityPublishedDocumentId(input.sourceDocumentId);
+  const existing = await input.client.fetch<{
+    _id: string;
+    translations?: Array<Record<string, unknown>>;
+    schemaTypes?: string[];
+  } | null>(
+    `*[_type == "translation.metadata" && references($id)][0]{ _id, translations, schemaTypes }`,
+    { id: sourceId },
+  );
+
+  const existingItemType = existing?.translations?.find(
+    (entry) => typeof entry._type === "string",
+  )?._type;
+  const itemType =
+    typeof existingItemType === "string" && existingItemType.trim()
+      ? existingItemType
+      : TRANSLATION_METADATA_REF_ITEM_TYPE;
+  const translations = Array.isArray(existing?.translations) ? [...existing.translations] : [];
+
+  const upsertEntry = (locale: string, documentId: string) => {
+    const row = sanityTranslationMetadataEntry(locale, documentId, itemType);
+    const index = translations.findIndex((entry) => entry._key === locale);
+    if (index >= 0) {
+      translations[index] = { ...translations[index], ...row };
+      return;
+    }
+    translations.push(row);
+  };
+
+  if (input.sourceLocale.trim()) {
+    upsertEntry(input.sourceLocale, sourceId);
+  }
+  upsertEntry(input.targetLocale, input.targetDocumentId);
+
+  const schemaTypes = [
+    ...new Set(
+      [...(existing?.schemaTypes ?? []), input.documentType].filter(
+        (typeName): typeName is string =>
+          typeof typeName === "string" && typeName.trim().length > 0,
+      ),
+    ),
+  ];
+  const document = {
+    _type: TRANSLATION_METADATA_TYPE,
+    schemaTypes,
+    translations,
+  };
+
+  if (existing?._id) {
+    await input.client.createOrReplace({
+      ...document,
+      _id: existing._id,
+    } as { _id: string; _type: string });
+    return;
+  }
+
+  await input.client.create(document as { _type: string });
 }
 
 export type SanityTranslationMetadataLink = {

@@ -20,7 +20,8 @@ import {
 } from "@/lib/file-storage/records";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
-import { parseSanityTranslationMapJson } from "./document-json";
+import { parseSanityTranslationMapJson, readSanityTranslationMap } from "./document-json";
+import { sourceKeysMissingApprovedTranslations } from "./push-sanity-translations";
 import { mapProjectLocalesToSanity } from "./sanity-locale";
 import { sanityMappingMatchesTarget } from "./sanity-sync-scope";
 
@@ -136,21 +137,19 @@ export async function getSanityPushEligibility(input: {
       projectId,
       sourcePath: mapping.sourcePath,
     });
-    let sourceKeyCount = 0;
+    let sourceKeys: string[] = [];
     if (latest?.storedFileId) {
       const stored = await getStoredFileContent({
         organizationId: input.organizationId,
         projectId,
         fileId: latest.storedFileId,
       });
-      sourceKeyCount = Object.keys(
-        parseSanityTranslationMapJson(stored.content.toString("utf8")),
-      ).length;
+      sourceKeys = Object.keys(parseSanityTranslationMapJson(stored.content.toString("utf8")));
     }
 
     const eligibleLocales: string[] = [];
     for (const projectLocale of localeMapping.jobTargetLocales) {
-      if (sourceKeyCount === 0) {
+      if (sourceKeys.length === 0) {
         continue;
       }
       const approved = await translationService.loadAsPrefilledEntries({
@@ -161,7 +160,8 @@ export async function getSanityPushEligibility(input: {
         approvedTranslationsOnly: true,
         readyTranslationsOnly: true,
       });
-      if (approved.translatedKeyCount >= sourceKeyCount) {
+      const approvedMap = readSanityTranslationMap(approved.prefilled);
+      if (sourceKeysMissingApprovedTranslations(sourceKeys, approvedMap) === 0) {
         eligibleLocales.push(projectLocale);
       }
     }

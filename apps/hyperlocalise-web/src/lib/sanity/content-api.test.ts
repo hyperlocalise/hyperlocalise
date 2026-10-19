@@ -12,7 +12,12 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { collectInternationalizedArrayLanguages } from "./content-api";
+import {
+  collectInternationalizedArrayLanguages,
+  isSameSanityDocumentId,
+  omitSanitySystemFields,
+  resolveSanityTranslatedDocumentId,
+} from "./content-api";
 
 describe("collectInternationalizedArrayLanguages", () => {
   it("reads language tags from internationalized array fields", () => {
@@ -35,5 +40,24 @@ describe("collectInternationalizedArrayLanguages", () => {
         variants: [{ language: "en", value: "unused" }],
       }),
     ).toEqual([]);
+  });
+});
+
+describe("sanity translated document ids", () => {
+  it("resolves published ids by locale tag and ignores the source document", () => {
+    expect(
+      resolveSanityTranslatedDocumentId({ en: "drafts.post-en", "de-DE": "post-de" }, "de-DE"),
+    ).toBe("post-de");
+    expect(resolveSanityTranslatedDocumentId({ en: "post-en" }, "en-US")).toBeUndefined();
+    expect(isSameSanityDocumentId("drafts.post-en", "post-en")).toBe(true);
+    expect(
+      omitSanitySystemFields({
+        _id: "post-en",
+        _rev: "rev",
+        _type: "post",
+        language: "en",
+        title: "Hello",
+      }),
+    ).toEqual({ _type: "post", language: "en", title: "Hello" });
   });
 });
