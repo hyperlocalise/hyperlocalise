@@ -16,13 +16,18 @@ import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { listAttachedProjectMemoryIds } from "@/lib/memory/ensure-default-native-project-memory";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 import { buildReportingMemoryMatchTsQuery } from "@/lib/translation/translation-memory-ts-query";
-import { countSourceWords, matchBucket, WORD_COUNT_VERSION } from "./word-analysis";
+import { countSourceWords, matchBucket } from "./word-analysis";
+import { MemoryMatchIndex, sourceSimilarity } from "./memory-match-index";
 import { wordCost } from "./money";
 
-import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+export { sourceSimilarity };
+
 const MEMORY_MATCH_CANDIDATE_LIMIT = 32;
 const REPORTING_BATCH_SIZE = 500;
-const REPORTING_MATCH_CONCURRENCY = 4;
+/** Entries per locale pair above which scoring falls back to per-string database lookups. */
+const MEMORY_INDEX_ENTRY_CAP = 1_000_000;
+/** Version 2: scores come from the in-memory bigram index on normalized text. */
+export const MATCH_ALGORITHM_VERSION = 2;
 
 export async function reportingStart(database: DatabaseClient = db) {
   await database.insert(schema.reportingRollout).values({ id: 1 }).onConflictDoNothing();
@@ -101,24 +106,43 @@ export async function resolveReportingRate(
   return rate ?? null;
 }
 
-/** Character edit similarity; the persisted algorithm version fixes its meaning. */
-export function sourceSimilarity(left: string, right: string): number {
-  const a = Array.from(left.normalize("NFC").trim()),
-    b = Array.from(right.normalize("NFC").trim());
-  if (a.join("") === b.join("")) return 100;
-  if (!a.length || !b.length) return 0;
-  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 1; i <= a.length; i++) {
-    const current = [i];
-    for (let j = 1; j <= b.length; j++)
-      current[j] = Math.min(
-        current[j - 1] + 1,
-        previous[j] + 1,
-        previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
-      );
-    previous = current;
+/**
+ * Loads the locale pair's approved memory sources once and scores every string against them in
+ * memory. Above the entry cap it falls back to one database lookup per string, so memory use
+ * stays bounded for very large memories.
+ */
+export async function loadMemoryMatchScorer(input: {
+  memoryIds: string[];
+  sourceLocale: string;
+  targetLocale: string;
+}): Promise<(sourceText: string) => Promise<number>> {
+  if (!input.memoryIds.length) return async () => 0;
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(schema.memoryEntries)
+    .where(approvedMemoryEntries(input));
+  if (count > MEMORY_INDEX_ENTRY_CAP) {
+    return (sourceText) => bestReportingMatchScore({ ...input, sourceText });
   }
-  return Math.floor(100 * (1 - previous[b.length] / Math.max(a.length, b.length)));
+  const rows = await db
+    .select({ source: schema.memoryEntries.normalizedSourceText })
+    .from(schema.memoryEntries)
+    .where(approvedMemoryEntries(input));
+  const index = new MemoryMatchIndex(rows.map((row) => row.source));
+  return async (sourceText) => index.bestScore(sourceText);
+}
+
+function approvedMemoryEntries(input: {
+  memoryIds: string[];
+  sourceLocale: string;
+  targetLocale: string;
+}) {
+  return and(
+    inArray(schema.memoryEntries.memoryId, input.memoryIds),
+    eq(schema.memoryEntries.sourceLocale, input.sourceLocale),
+    eq(schema.memoryEntries.targetLocale, input.targetLocale),
+    eq(schema.memoryEntries.reviewStatus, "approved"),
+  );
 }
 
 export async function bestReportingMatchScore(input: {
@@ -227,46 +251,21 @@ async function writeReportingAnalysis(input: {
   const uniqueTexts = [...new Set(Object.values(input.sourceEntries))];
   const scores = new Map<string, number | null>();
   if (memoryIds) {
-    const attachedMemoryIds = memoryIds;
-    for (let offset = 0; offset < uniqueTexts.length; offset += REPORTING_BATCH_SIZE) {
-      const texts = uniqueTexts.slice(offset, offset + REPORTING_BATCH_SIZE);
-      const exactTexts = new Set<string>();
-      if (attachedMemoryIds.length > 0) {
-        const exactRows = await db
-          .select({ text: schema.memoryEntries.normalizedSourceText })
-          .from(schema.memoryEntries)
-          .where(
-            and(
-              inArray(schema.memoryEntries.memoryId, attachedMemoryIds),
-              eq(schema.memoryEntries.sourceLocale, input.sourceLocale),
-              eq(schema.memoryEntries.targetLocale, input.targetLocale),
-              eq(schema.memoryEntries.reviewStatus, "approved"),
-              inArray(
-                schema.memoryEntries.normalizedSourceText,
-                texts.map(normalizeTranslationMemorySourceText),
-              ),
-            ),
-          );
-        for (const row of exactRows) exactTexts.add(row.text);
-      }
-      await mapWithConcurrency(texts, REPORTING_MATCH_CONCURRENCY, async (sourceText) => {
+    try {
+      const scorer = await loadMemoryMatchScorer({
+        memoryIds,
+        sourceLocale: input.sourceLocale,
+        targetLocale: input.targetLocale,
+      });
+      for (const sourceText of uniqueTexts) {
         try {
-          scores.set(
-            sourceText,
-            exactTexts.has(normalizeTranslationMemorySourceText(sourceText))
-              ? 100
-              : await bestReportingMatchScore({
-                  memoryIds: attachedMemoryIds,
-                  sourceLocale: input.sourceLocale,
-                  targetLocale: input.targetLocale,
-                  sourceText,
-                  skipExact: true,
-                }),
-          );
+          scores.set(sourceText, await scorer(sourceText));
         } catch {
           scores.set(sourceText, null);
         }
-      });
+      }
+    } catch {
+      console.warn("reporting_match_analysis_unavailable", { jobId: input.jobId });
     }
   }
   const seen = new Set<string>();
@@ -288,17 +287,13 @@ async function writeReportingAnalysis(input: {
       billable: input.billable ?? false,
       matchScore: score,
       bucket: matchBucket(score, repetition),
-      algorithmVersion: WORD_COUNT_VERSION,
+      algorithmVersion: MATCH_ALGORITHM_VERSION,
       rateId: rate?.id,
     };
   });
+  // The unique index on the analysis identity makes concurrent writes safe, so the job row is
+  // not locked: a lock here made every writer for a job, including content editor saves, queue.
   await db.transaction(async (tx) => {
-    if (input.jobId)
-      await tx
-        .select({ id: schema.jobs.id })
-        .from(schema.jobs)
-        .where(eq(schema.jobs.id, input.jobId))
-        .for("update");
     for (let offset = 0; offset < rows.length; offset += REPORTING_BATCH_SIZE) {
       const batch = rows.slice(offset, offset + REPORTING_BATCH_SIZE);
       await tx
@@ -344,6 +339,8 @@ export async function captureCompletions(
     sourceEntries: Record<string, string>;
     provenance: "human" | "automated";
     step?: "translation" | "review";
+    /** The person whose work this is; recorded on human completions. */
+    actorUserId?: string | null;
   },
   database: DatabaseClient = db,
 ) {
@@ -362,6 +359,7 @@ async function writeReportingCompletions(
     sourceEntries: Record<string, string>;
     provenance: "human" | "automated";
     step?: "translation" | "review";
+    actorUserId?: string | null;
   },
   database: DatabaseClient,
 ) {
@@ -432,6 +430,7 @@ async function writeReportingCompletions(
         step,
         targetLocale: input.targetLocale,
         analysisId: analysis.id,
+        actorUserId: input.actorUserId ?? null,
       })
       .onConflictDoNothing();
     if (input.provenance !== "human") continue;

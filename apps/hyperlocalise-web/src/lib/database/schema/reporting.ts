@@ -132,6 +132,8 @@ export const reportingActivity = pgTable(
     analysisId: uuid("analysis_id").references(() => reportingAnalyses.id),
     status: text("status"),
     durationMs: integer("duration_ms"),
+    /** The person whose work a completion records; null for automated work. */
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
   (t) => [
@@ -139,6 +141,15 @@ export const reportingActivity = pgTable(
     index("reporting_activity_filter").on(t.organizationId, t.projectId, t.createdAt),
   ],
 );
+/** Where the scheduled reporting capture got to in each organization's activity events. */
+export const reportingCaptureCursors = pgTable("reporting_capture_cursors", {
+  organizationId: uuid("organization_id")
+    .primaryKey()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  lastEventCreatedAt: timestamp("last_event_created_at", { withTimezone: true }).notNull(),
+  lastEventId: uuid("last_event_id").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 export const reportingTimeEntries = pgTable(
   "reporting_time_entries",
   {
