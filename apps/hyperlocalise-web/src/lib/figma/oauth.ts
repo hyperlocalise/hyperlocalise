@@ -19,9 +19,9 @@ import {
   webcrypto,
 } from "node:crypto";
 
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, exists, gt, isNull } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database/client";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { env } from "@/lib/env";
 
@@ -254,13 +254,68 @@ export async function createFigmaOauthAuthorizationCode(input: {
   return code;
 }
 
-export async function consumeFigmaOauthAuthorizationCode(input: {
-  code: string;
-  clientId: string;
-  redirectUri: string;
-  codeVerifier: string;
-}) {
-  const [row] = await db
+async function lockLiveOrganizationMembership(
+  database: DatabaseClient,
+  userId: string,
+  organizationId: string,
+) {
+  const [membership] = await database
+    .select({ id: schema.organizationMemberships.id })
+    .from(schema.organizationMemberships)
+    .where(
+      and(
+        eq(schema.organizationMemberships.userId, userId),
+        eq(schema.organizationMemberships.organizationId, organizationId),
+      ),
+    )
+    .limit(1)
+    .for("update");
+  return membership ?? null;
+}
+
+async function insertFigmaOauthTokens(
+  database: DatabaseClient,
+  input: { connectionId: string; userId: string; organizationId: string },
+) {
+  const accessToken = generateFigmaOauthAccessToken();
+  const refreshToken = generateFigmaOauthRefreshToken();
+  const now = Date.now();
+
+  const [inserted] = await database
+    .insert(schema.figmaOauthTokens)
+    .values({
+      connectionId: input.connectionId,
+      userId: input.userId,
+      organizationId: input.organizationId,
+      accessTokenHash: digestFigmaOauthToken(accessToken),
+      refreshTokenHash: digestFigmaOauthToken(refreshToken),
+      accessTokenExpiresAt: new Date(now + ACCESS_TOKEN_LIFETIME_SECONDS * 1000),
+      refreshTokenExpiresAt: new Date(now + REFRESH_TOKEN_LIFETIME_MS),
+    })
+    .returning({ id: schema.figmaOauthTokens.id });
+
+  if (!inserted) {
+    return null;
+  }
+
+  return {
+    accessToken,
+    refreshToken,
+    expiresIn: ACCESS_TOKEN_LIFETIME_SECONDS,
+    scope: FIGMA_OAUTH_SCOPE,
+  };
+}
+
+async function loadValidFigmaOauthAuthorizationCode(
+  input: {
+    code: string;
+    clientId: string;
+    redirectUri: string;
+    codeVerifier: string;
+  },
+  database: DatabaseClient,
+) {
+  const [row] = await database
     .select()
     .from(schema.figmaOauthAuthorizationCodes)
     .where(eq(schema.figmaOauthAuthorizationCodes.codeHash, digestFigmaOauthToken(input.code)))
@@ -280,22 +335,21 @@ export async function consumeFigmaOauthAuthorizationCode(input: {
     return null;
   }
 
-  const [consumed] = await db
+  return row;
+}
+
+async function markFigmaOauthAuthorizationCodeConsumed(database: DatabaseClient, codeId: string) {
+  const [consumed] = await database
     .update(schema.figmaOauthAuthorizationCodes)
     .set({ consumedAt: new Date() })
     .where(
       and(
-        eq(schema.figmaOauthAuthorizationCodes.id, row.id),
+        eq(schema.figmaOauthAuthorizationCodes.id, codeId),
         isNull(schema.figmaOauthAuthorizationCodes.consumedAt),
       ),
     )
     .returning({ id: schema.figmaOauthAuthorizationCodes.id });
-
-  if (!consumed) {
-    return null;
-  }
-
-  return row;
+  return consumed ?? null;
 }
 
 export async function issueFigmaOauthTokens(input: {
@@ -303,26 +357,43 @@ export async function issueFigmaOauthTokens(input: {
   userId: string;
   organizationId: string;
 }) {
-  const accessToken = generateFigmaOauthAccessToken();
-  const refreshToken = generateFigmaOauthRefreshToken();
-  const now = Date.now();
-
-  await db.insert(schema.figmaOauthTokens).values({
-    connectionId: input.connectionId,
-    userId: input.userId,
-    organizationId: input.organizationId,
-    accessTokenHash: digestFigmaOauthToken(accessToken),
-    refreshTokenHash: digestFigmaOauthToken(refreshToken),
-    accessTokenExpiresAt: new Date(now + ACCESS_TOKEN_LIFETIME_SECONDS * 1000),
-    refreshTokenExpiresAt: new Date(now + REFRESH_TOKEN_LIFETIME_MS),
+  return db.transaction(async (tx) => {
+    const membership = await lockLiveOrganizationMembership(tx, input.userId, input.organizationId);
+    if (!membership) {
+      return null;
+    }
+    return insertFigmaOauthTokens(tx, input);
   });
+}
 
-  return {
-    accessToken,
-    refreshToken,
-    expiresIn: ACCESS_TOKEN_LIFETIME_SECONDS,
-    scope: FIGMA_OAUTH_SCOPE,
-  };
+export async function exchangeFigmaOauthAuthorizationCode(input: {
+  code: string;
+  clientId: string;
+  redirectUri: string;
+  codeVerifier: string;
+}) {
+  return db.transaction(async (tx) => {
+    const row = await loadValidFigmaOauthAuthorizationCode(input, tx);
+    if (!row) {
+      return null;
+    }
+
+    const membership = await lockLiveOrganizationMembership(tx, row.userId, row.organizationId);
+    if (!membership) {
+      return null;
+    }
+
+    const consumed = await markFigmaOauthAuthorizationCodeConsumed(tx, row.id);
+    if (!consumed) {
+      return null;
+    }
+
+    return insertFigmaOauthTokens(tx, {
+      connectionId: row.connectionId,
+      userId: row.userId,
+      organizationId: row.organizationId,
+    });
+  });
 }
 
 export async function refreshFigmaOauthTokens(refreshToken: string) {
@@ -333,7 +404,22 @@ export async function refreshFigmaOauthTokens(refreshToken: string) {
     .where(eq(schema.figmaOauthTokens.refreshTokenHash, refreshTokenHash))
     .limit(1);
 
-  if (!row || row.revokedAt || row.refreshTokenExpiresAt.getTime() < Date.now()) {
+  if (!row || row.revokedAt || isFigmaOauthRefreshExpired(row)) {
+    return null;
+  }
+
+  const [membership] = await db
+    .select({ id: schema.organizationMemberships.id })
+    .from(schema.organizationMemberships)
+    .where(
+      and(
+        eq(schema.organizationMemberships.userId, row.userId),
+        eq(schema.organizationMemberships.organizationId, row.organizationId),
+      ),
+    )
+    .limit(1);
+  if (!membership) {
+    await revokeFigmaOauthTokenRow(row.id);
     return null;
   }
 
@@ -347,14 +433,13 @@ export async function refreshFigmaOauthTokens(refreshToken: string) {
       accessTokenHash: digestFigmaOauthToken(accessToken),
       refreshTokenHash: digestFigmaOauthToken(nextRefreshToken),
       accessTokenExpiresAt: new Date(now + ACCESS_TOKEN_LIFETIME_SECONDS * 1000),
-      refreshTokenExpiresAt: new Date(now + REFRESH_TOKEN_LIFETIME_MS),
-      revokedAt: null,
     })
     .where(
       and(
         eq(schema.figmaOauthTokens.id, row.id),
         eq(schema.figmaOauthTokens.refreshTokenHash, refreshTokenHash),
         isNull(schema.figmaOauthTokens.revokedAt),
+        liveOrganizationMembershipExists(row.userId, row.organizationId),
       ),
     )
     .returning({ id: schema.figmaOauthTokens.id });
@@ -419,6 +504,13 @@ export async function getFigmaConnectionByOauthAccessToken(
       schema.figmaConnections,
       eq(schema.figmaOauthTokens.connectionId, schema.figmaConnections.id),
     )
+    .innerJoin(
+      schema.organizationMemberships,
+      and(
+        eq(schema.organizationMemberships.userId, schema.figmaOauthTokens.userId),
+        eq(schema.organizationMemberships.organizationId, schema.figmaOauthTokens.organizationId),
+      ),
+    )
     .where(
       and(
         eq(schema.figmaOauthTokens.accessTokenHash, digestFigmaOauthToken(accessToken)),
@@ -438,6 +530,35 @@ export async function getFigmaConnectionByOauthAccessToken(
     apiKeyId: row.apiKeyId,
     enabled: row.enabled,
   };
+}
+
+function liveOrganizationMembershipExists(userId: string, organizationId: string) {
+  return exists(
+    db
+      .select({ id: schema.organizationMemberships.id })
+      .from(schema.organizationMemberships)
+      .where(
+        and(
+          eq(schema.organizationMemberships.userId, userId),
+          eq(schema.organizationMemberships.organizationId, organizationId),
+        ),
+      ),
+  );
+}
+
+function isFigmaOauthRefreshExpired(row: {
+  createdAt: Date;
+  refreshTokenExpiresAt: Date;
+}): boolean {
+  const issuedCapMs = row.createdAt.getTime() + REFRESH_TOKEN_LIFETIME_MS;
+  return Math.min(row.refreshTokenExpiresAt.getTime(), issuedCapMs) < Date.now();
+}
+
+async function revokeFigmaOauthTokenRow(tokenId: string): Promise<void> {
+  await db
+    .update(schema.figmaOauthTokens)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(schema.figmaOauthTokens.id, tokenId), isNull(schema.figmaOauthTokens.revokedAt)));
 }
 
 function generateFigmaOauthHandoffKey(): string {

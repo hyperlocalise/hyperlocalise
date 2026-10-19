@@ -14,6 +14,7 @@ import "dotenv/config";
 
 import { createHash } from "node:crypto";
 
+import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -44,15 +45,17 @@ vi.mock("@/lib/canva/auth", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import { revokeOrganizationMembershipAccess } from "@/api/auth/workos-sync";
 import type { AppType } from "@/api/typed-app";
 import { createCanvaConnection } from "@/lib/canva/connections";
 import {
   CANVA_OAUTH_REQUEST_COOKIE,
   createCanvaOauthAuthorizationRequest,
+  digestCanvaOauthToken,
   listCanvaOauthConsentConnections,
 } from "@/lib/canva/oauth";
 import { env } from "@/lib/env";
-import { db } from "@/lib/database/client";
+import { db, schema } from "@/lib/database/client";
 import { createApiKeyTestFixture } from "@/api/routes/api-key/api-key.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 
@@ -100,7 +103,48 @@ async function createConnectedWorkspace() {
     projectId: projectBody.project.id,
   });
 
-  return { auth, created };
+  return { auth, created, identity };
+}
+
+async function consentCanvaAuthorizationCode(connectionId: string) {
+  const consentResponse = await app.request("http://localhost/api/oauth/canva/consent", {
+    method: "POST",
+    headers: {
+      cookie: `${CANVA_OAUTH_REQUEST_COOKIE}=${requestCookie()}`,
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({ connectionId }).toString(),
+  });
+  const code = new URL(consentResponse.headers.get("location") ?? "").searchParams.get("code");
+  expect(code).toBeTruthy();
+  return code ?? "";
+}
+
+async function exchangeCanvaAuthorizationCode(code: string) {
+  return app.request("http://localhost/api/oauth/canva/token", {
+    method: "POST",
+    headers: {
+      authorization: basicAuthHeader(),
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: REDIRECT_URI,
+      code_verifier: VERIFIER,
+    }).toString(),
+  });
+}
+
+async function issueCanvaOauthTokens(connectionId: string) {
+  const tokenResponse = await exchangeCanvaAuthorizationCode(
+    await consentCanvaAuthorizationCode(connectionId),
+  );
+  expect(tokenResponse.status).toBe(200);
+  return (await tokenResponse.json()) as {
+    access_token: string;
+    refresh_token: string;
+  };
 }
 
 describe("canvaOauthRoutes", () => {
@@ -302,6 +346,161 @@ describe("canvaOauthRoutes", () => {
       }).toString(),
     });
     expect(revokedRefresh.status).toBe(400);
+  });
+
+  it("rejects refresh and access after the member leaves the organization", async () => {
+    const { auth, created } = await createConnectedWorkspace();
+    const tokens = await issueCanvaOauthTokens(created.connection.id);
+
+    await db
+      .delete(schema.organizationMemberships)
+      .where(
+        and(
+          eq(schema.organizationMemberships.userId, auth.user.localUserId),
+          eq(schema.organizationMemberships.organizationId, auth.organization.localOrganizationId),
+        ),
+      );
+
+    const sessionResponse = await client.api.integrations.canva.session.$get(
+      {},
+      {
+        headers: {
+          "X-Hyperlocalise-Access-Token": tokens.access_token,
+          Authorization: "Bearer canva-user-jwt",
+        },
+      },
+    );
+    expect(sessionResponse.status).toBe(401);
+
+    const refreshResponse = await app.request("http://localhost/api/oauth/canva/token", {
+      method: "POST",
+      headers: {
+        authorization: basicAuthHeader(),
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: tokens.refresh_token,
+      }).toString(),
+    });
+    expect(refreshResponse.status).toBe(400);
+
+    const [revoked] = await db
+      .select({ revokedAt: schema.canvaOauthTokens.revokedAt })
+      .from(schema.canvaOauthTokens)
+      .where(
+        eq(schema.canvaOauthTokens.refreshTokenHash, digestCanvaOauthToken(tokens.refresh_token)),
+      )
+      .limit(1);
+    expect(revoked?.revokedAt).not.toBeNull();
+  });
+
+  it("does not extend refresh token expiry when rotating tokens", async () => {
+    const { created } = await createConnectedWorkspace();
+    const tokens = await issueCanvaOauthTokens(created.connection.id);
+
+    const [before] = await db
+      .select({ refreshTokenExpiresAt: schema.canvaOauthTokens.refreshTokenExpiresAt })
+      .from(schema.canvaOauthTokens)
+      .where(
+        eq(schema.canvaOauthTokens.refreshTokenHash, digestCanvaOauthToken(tokens.refresh_token)),
+      )
+      .limit(1);
+    expect(before).toBeDefined();
+
+    const refreshResponse = await app.request("http://localhost/api/oauth/canva/token", {
+      method: "POST",
+      headers: {
+        authorization: basicAuthHeader(),
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: tokens.refresh_token,
+      }).toString(),
+    });
+    expect(refreshResponse.status).toBe(200);
+    const refreshed = (await refreshResponse.json()) as { refresh_token: string };
+
+    const [after] = await db
+      .select({ refreshTokenExpiresAt: schema.canvaOauthTokens.refreshTokenExpiresAt })
+      .from(schema.canvaOauthTokens)
+      .where(
+        eq(
+          schema.canvaOauthTokens.refreshTokenHash,
+          digestCanvaOauthToken(refreshed.refresh_token),
+        ),
+      )
+      .limit(1);
+    expect(after?.refreshTokenExpiresAt.getTime()).toBe(before!.refreshTokenExpiresAt.getTime());
+  });
+
+  it("rejects refresh after the original 90-day lifetime even if expiry was previously slid", async () => {
+    const { created } = await createConnectedWorkspace();
+    const tokens = await issueCanvaOauthTokens(created.connection.id);
+
+    await db
+      .update(schema.canvaOauthTokens)
+      .set({
+        createdAt: new Date(Date.now() - 91 * 24 * 60 * 60 * 1000),
+        refreshTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      })
+      .where(
+        eq(schema.canvaOauthTokens.refreshTokenHash, digestCanvaOauthToken(tokens.refresh_token)),
+      );
+
+    const refreshResponse = await app.request("http://localhost/api/oauth/canva/token", {
+      method: "POST",
+      headers: {
+        authorization: basicAuthHeader(),
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: tokens.refresh_token,
+      }).toString(),
+    });
+    expect(refreshResponse.status).toBe(400);
+  });
+
+  it("rejects authorization-code exchange after membership removal", async () => {
+    const { created, identity } = await createConnectedWorkspace();
+    const code = await consentCanvaAuthorizationCode(created.connection.id);
+
+    await revokeOrganizationMembershipAccess(db, {
+      workosMembershipId: identity.membership.workosMembershipId,
+      workosOrganizationId: identity.organization.workosOrganizationId,
+      workosUserId: identity.user.workosUserId,
+    });
+
+    const tokenResponse = await exchangeCanvaAuthorizationCode(code);
+    expect(tokenResponse.status).toBe(400);
+  });
+
+  it("does not leave an unrevoked Canva token when membership is removed during code exchange", async () => {
+    const { auth, created, identity } = await createConnectedWorkspace();
+    const code = await consentCanvaAuthorizationCode(created.connection.id);
+
+    const [tokenResponse] = await Promise.all([
+      exchangeCanvaAuthorizationCode(code),
+      revokeOrganizationMembershipAccess(db, {
+        workosMembershipId: identity.membership.workosMembershipId,
+        workosOrganizationId: identity.organization.workosOrganizationId,
+        workosUserId: identity.user.workosUserId,
+      }),
+    ]);
+    expect([200, 400]).toContain(tokenResponse.status);
+
+    const leftover = await db
+      .select({ revokedAt: schema.canvaOauthTokens.revokedAt })
+      .from(schema.canvaOauthTokens)
+      .where(
+        and(
+          eq(schema.canvaOauthTokens.userId, auth.user.localUserId),
+          eq(schema.canvaOauthTokens.organizationId, auth.organization.localOrganizationId),
+        ),
+      );
+    expect(leftover.some((token) => token.revokedAt === null)).toBe(false);
   });
 
   it("denies consent when the user cancels", async () => {

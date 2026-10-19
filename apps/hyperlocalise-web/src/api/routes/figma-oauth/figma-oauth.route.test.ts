@@ -14,6 +14,7 @@ import "dotenv/config";
 
 import { createHash } from "node:crypto";
 
+import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -35,15 +36,17 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import { revokeOrganizationMembershipAccess } from "@/api/auth/workos-sync";
 import type { AppType } from "@/api/typed-app";
 import { createFigmaConnection } from "@/lib/figma/connections";
 import {
   FIGMA_OAUTH_REQUEST_COOKIE,
   createFigmaOauthAuthorizationRequest,
+  digestFigmaOauthToken,
   listFigmaOauthConsentConnections,
 } from "@/lib/figma/oauth";
 import { env } from "@/lib/env";
-import { db } from "@/lib/database/client";
+import { db, schema } from "@/lib/database/client";
 import { createApiKeyTestFixture } from "@/api/routes/api-key/api-key.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 
@@ -91,7 +94,48 @@ async function createConnectedWorkspace() {
   });
   void projectBody;
 
-  return { auth, created };
+  return { auth, created, identity };
+}
+
+async function consentFigmaAuthorizationCode(connectionId: string) {
+  const consentResponse = await app.request("http://localhost/api/oauth/figma/consent", {
+    method: "POST",
+    headers: {
+      cookie: `${FIGMA_OAUTH_REQUEST_COOKIE}=${requestCookie()}`,
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({ connectionId }).toString(),
+  });
+  const code = new URL(consentResponse.headers.get("location") ?? "").searchParams.get("code");
+  expect(code).toBeTruthy();
+  return code ?? "";
+}
+
+async function exchangeFigmaAuthorizationCode(code: string) {
+  return app.request("http://localhost/api/oauth/figma/token", {
+    method: "POST",
+    headers: {
+      authorization: basicAuthHeader(),
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: REDIRECT_URI,
+      code_verifier: VERIFIER,
+    }).toString(),
+  });
+}
+
+async function issueFigmaOauthTokens(connectionId: string) {
+  const tokenResponse = await exchangeFigmaAuthorizationCode(
+    await consentFigmaAuthorizationCode(connectionId),
+  );
+  expect(tokenResponse.status).toBe(200);
+  return (await tokenResponse.json()) as {
+    access_token: string;
+    refresh_token: string;
+  };
 }
 
 describe("figmaOauthRoutes", () => {
@@ -422,6 +466,160 @@ describe("figmaOauthRoutes", () => {
       (left, right) => left - right,
     );
     expect(statuses).toEqual([200, 400]);
+  });
+
+  it("rejects refresh and access after the member leaves the organization", async () => {
+    const { auth, created } = await createConnectedWorkspace();
+    const tokens = await issueFigmaOauthTokens(created.connection.id);
+
+    await db
+      .delete(schema.organizationMemberships)
+      .where(
+        and(
+          eq(schema.organizationMemberships.userId, auth.user.localUserId),
+          eq(schema.organizationMemberships.organizationId, auth.organization.localOrganizationId),
+        ),
+      );
+
+    const sessionResponse = await client.api.integrations.figma.session.$get(
+      {},
+      {
+        headers: {
+          "X-Hyperlocalise-Access-Token": tokens.access_token,
+        },
+      },
+    );
+    expect(sessionResponse.status).toBe(401);
+
+    const refreshResponse = await app.request("http://localhost/api/oauth/figma/token", {
+      method: "POST",
+      headers: {
+        authorization: basicAuthHeader(),
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: tokens.refresh_token,
+      }).toString(),
+    });
+    expect(refreshResponse.status).toBe(400);
+
+    const [revoked] = await db
+      .select({ revokedAt: schema.figmaOauthTokens.revokedAt })
+      .from(schema.figmaOauthTokens)
+      .where(
+        eq(schema.figmaOauthTokens.refreshTokenHash, digestFigmaOauthToken(tokens.refresh_token)),
+      )
+      .limit(1);
+    expect(revoked?.revokedAt).not.toBeNull();
+  });
+
+  it("does not extend refresh token expiry when rotating tokens", async () => {
+    const { created } = await createConnectedWorkspace();
+    const tokens = await issueFigmaOauthTokens(created.connection.id);
+
+    const [before] = await db
+      .select({ refreshTokenExpiresAt: schema.figmaOauthTokens.refreshTokenExpiresAt })
+      .from(schema.figmaOauthTokens)
+      .where(
+        eq(schema.figmaOauthTokens.refreshTokenHash, digestFigmaOauthToken(tokens.refresh_token)),
+      )
+      .limit(1);
+    expect(before).toBeDefined();
+
+    const refreshResponse = await app.request("http://localhost/api/oauth/figma/token", {
+      method: "POST",
+      headers: {
+        authorization: basicAuthHeader(),
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: tokens.refresh_token,
+      }).toString(),
+    });
+    expect(refreshResponse.status).toBe(200);
+    const refreshed = (await refreshResponse.json()) as { refresh_token: string };
+
+    const [after] = await db
+      .select({ refreshTokenExpiresAt: schema.figmaOauthTokens.refreshTokenExpiresAt })
+      .from(schema.figmaOauthTokens)
+      .where(
+        eq(
+          schema.figmaOauthTokens.refreshTokenHash,
+          digestFigmaOauthToken(refreshed.refresh_token),
+        ),
+      )
+      .limit(1);
+    expect(after?.refreshTokenExpiresAt.getTime()).toBe(before!.refreshTokenExpiresAt.getTime());
+  });
+
+  it("rejects refresh after the original 90-day lifetime even if expiry was previously slid", async () => {
+    const { created } = await createConnectedWorkspace();
+    const tokens = await issueFigmaOauthTokens(created.connection.id);
+
+    await db
+      .update(schema.figmaOauthTokens)
+      .set({
+        createdAt: new Date(Date.now() - 91 * 24 * 60 * 60 * 1000),
+        refreshTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      })
+      .where(
+        eq(schema.figmaOauthTokens.refreshTokenHash, digestFigmaOauthToken(tokens.refresh_token)),
+      );
+
+    const refreshResponse = await app.request("http://localhost/api/oauth/figma/token", {
+      method: "POST",
+      headers: {
+        authorization: basicAuthHeader(),
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: tokens.refresh_token,
+      }).toString(),
+    });
+    expect(refreshResponse.status).toBe(400);
+  });
+
+  it("rejects authorization-code exchange after membership removal", async () => {
+    const { created, identity } = await createConnectedWorkspace();
+    const code = await consentFigmaAuthorizationCode(created.connection.id);
+
+    await revokeOrganizationMembershipAccess(db, {
+      workosMembershipId: identity.membership.workosMembershipId,
+      workosOrganizationId: identity.organization.workosOrganizationId,
+      workosUserId: identity.user.workosUserId,
+    });
+
+    const tokenResponse = await exchangeFigmaAuthorizationCode(code);
+    expect(tokenResponse.status).toBe(400);
+  });
+
+  it("does not leave an unrevoked Figma token when membership is removed during code exchange", async () => {
+    const { auth, created, identity } = await createConnectedWorkspace();
+    const code = await consentFigmaAuthorizationCode(created.connection.id);
+
+    const [tokenResponse] = await Promise.all([
+      exchangeFigmaAuthorizationCode(code),
+      revokeOrganizationMembershipAccess(db, {
+        workosMembershipId: identity.membership.workosMembershipId,
+        workosOrganizationId: identity.organization.workosOrganizationId,
+        workosUserId: identity.user.workosUserId,
+      }),
+    ]);
+    expect([200, 400]).toContain(tokenResponse.status);
+
+    const leftover = await db
+      .select({ revokedAt: schema.figmaOauthTokens.revokedAt })
+      .from(schema.figmaOauthTokens)
+      .where(
+        and(
+          eq(schema.figmaOauthTokens.userId, auth.user.localUserId),
+          eq(schema.figmaOauthTokens.organizationId, auth.organization.localOrganizationId),
+        ),
+      );
+    expect(leftover.some((token) => token.revokedAt === null)).toBe(false);
   });
 
   it("denies consent when the user cancels", async () => {

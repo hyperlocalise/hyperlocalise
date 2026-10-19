@@ -559,6 +559,8 @@ export type RevokeOrganizationMembershipAccessResult = {
   teamMembershipsDeleted: number;
   mcpSessionsDeleted: number;
   apiKeysRevoked: number;
+  figmaOauthTokensRevoked: number;
+  canvaOauthTokensRevoked: number;
 };
 
 export type MembershipRevocationActor = {
@@ -676,6 +678,46 @@ async function revokeOrganizationApiKeysForUser(
   };
 }
 
+async function revokePluginOauthTokensForUser(
+  database: DatabaseClient,
+  target: RevocationTarget,
+): Promise<
+  Pick<
+    RevokeOrganizationMembershipAccessResult,
+    "figmaOauthTokensRevoked" | "canvaOauthTokensRevoked"
+  >
+> {
+  const now = new Date();
+  const figmaRevoked = await database
+    .update(schema.figmaOauthTokens)
+    .set({ revokedAt: now })
+    .where(
+      and(
+        eq(schema.figmaOauthTokens.userId, target.userId),
+        eq(schema.figmaOauthTokens.organizationId, target.organizationId),
+        isNull(schema.figmaOauthTokens.revokedAt),
+      ),
+    )
+    .returning({ id: schema.figmaOauthTokens.id });
+
+  const canvaRevoked = await database
+    .update(schema.canvaOauthTokens)
+    .set({ revokedAt: now })
+    .where(
+      and(
+        eq(schema.canvaOauthTokens.userId, target.userId),
+        eq(schema.canvaOauthTokens.organizationId, target.organizationId),
+        isNull(schema.canvaOauthTokens.revokedAt),
+      ),
+    )
+    .returning({ id: schema.canvaOauthTokens.id });
+
+  return {
+    figmaOauthTokensRevoked: figmaRevoked.length,
+    canvaOauthTokensRevoked: canvaRevoked.length,
+  };
+}
+
 async function deleteTeamMembershipsAndMcpSessions(
   database: DatabaseClient,
   target: RevocationTarget,
@@ -745,6 +787,7 @@ async function revokeMembershipAccessForTarget(
   }
 
   const dependentDeletes = await deleteTeamMembershipsAndMcpSessions(database, target);
+  const pluginOauthRevocation = await revokePluginOauthTokensForUser(database, target);
   const apiKeyRevocation = await revokeOrganizationApiKeysForUser(
     database,
     target,
@@ -756,6 +799,7 @@ async function revokeMembershipAccessForTarget(
   return {
     organizationMembershipsDeleted: deletedMemberships.length,
     ...dependentDeletes,
+    ...pluginOauthRevocation,
     ...apiKeyRevocation,
   };
 }
@@ -784,6 +828,8 @@ export async function revokeOrganizationMembershipAccess(
       teamMembershipsDeleted: 0,
       mcpSessionsDeleted: 0,
       apiKeysRevoked: 0,
+      figmaOauthTokensRevoked: 0,
+      canvaOauthTokensRevoked: 0,
     };
   }
 

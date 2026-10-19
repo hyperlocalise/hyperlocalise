@@ -24,13 +24,12 @@ import {
   buildCanvaOauthRedirect,
   CANVA_OAUTH_REQUEST_COOKIE,
   CANVA_OAUTH_SCOPE,
-  consumeCanvaOauthAuthorizationCode,
   createCanvaOauthAuthorizationCode,
   createCanvaOauthAuthorizationRequest,
+  exchangeCanvaOauthAuthorizationCode,
   getCanvaOauthRedirectAllowlist,
   isAllowedCanvaOauthRedirectUri,
   isCanvaOauthConfigured,
-  issueCanvaOauthTokens,
   listCanvaOauthConsentConnections,
   parseCanvaOauthAuthorizationRequest,
   refreshCanvaOauthTokens,
@@ -325,21 +324,16 @@ export function createCanvaOauthRoutes(): Hono {
       }
 
       if (parsed.data.grant_type === "authorization_code") {
-        const consumed = await consumeCanvaOauthAuthorizationCode({
+        const tokens = await exchangeCanvaOauthAuthorizationCode({
           code: parsed.data.code,
           clientId: env.CANVA_OAUTH_CLIENT_ID ?? "",
           redirectUri: parsed.data.redirect_uri,
           codeVerifier: parsed.data.code_verifier,
         });
-        if (!consumed) {
+        if (!tokens) {
           return oauthError(c, "invalid_grant");
         }
 
-        const tokens = await issueCanvaOauthTokens({
-          connectionId: consumed.connectionId,
-          userId: consumed.userId,
-          organizationId: consumed.organizationId,
-        });
         return c.json(tokenResponse(tokens), 200);
       }
 
