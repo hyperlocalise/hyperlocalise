@@ -48,7 +48,7 @@ import {
   isSanityDocumentTypeLocalizable,
   sanityDocumentI18nModeLabel,
 } from "@/lib/sanity/localization-mode";
-import { resolveSanityLocaleKey } from "@/lib/sanity/sanity-locale";
+import { pickSanitySourceLocale, resolveSanityLocaleKey } from "@/lib/sanity/sanity-locale";
 import type { SanityDocumentTypeSummary, SanityManageProject } from "@/lib/sanity/types";
 
 const SANITY_EXISTING_TRANSLATION_POLICY_LABELS: Record<SanityExistingTranslationPolicy, string> = {
@@ -121,6 +121,25 @@ export function WorkspaceAutomationSanitySettings({
 
   const projects = projectsQuery.data ?? [];
   const selectedProject = projects.find((project) => project.id === form.sanityProjectId);
+
+  useEffect(() => {
+    if (!form.sanityEnabled || !sanityConnected || form.sanityProjectId.trim()) {
+      return;
+    }
+    const firstProject = projects[0];
+    if (!firstProject) {
+      return;
+    }
+    onChange({
+      ...form,
+      sanityProjectId: firstProject.id,
+      sanityDataset: "",
+      sanityDocumentTypes: [],
+      sanityDocumentTypeModes: {},
+      sanityLanguages: [],
+      sanityTargetLocales: [],
+    });
+  }, [form, onChange, projects, sanityConnected]);
 
   const datasetsQuery = useQuery({
     queryKey: ["sanity-datasets", organizationSlug, form.sanityProjectId],
@@ -235,19 +254,8 @@ export function WorkspaceAutomationSanitySettings({
   });
 
   const languageOptions = useMemo(
-    () =>
-      uniqueLocales([
-        ...form.sanityLanguages,
-        ...(documentTypesQuery.data?.languages ?? []),
-        form.sanitySourceLocale,
-        ...form.sanityTargetLocales,
-      ]),
-    [
-      documentTypesQuery.data?.languages,
-      form.sanityLanguages,
-      form.sanitySourceLocale,
-      form.sanityTargetLocales,
-    ],
+    () => uniqueLocales([...form.sanityLanguages, ...(documentTypesQuery.data?.languages ?? [])]),
+    [documentTypesQuery.data?.languages, form.sanityLanguages],
   );
 
   const localeMappingRows = useMemo(() => {
@@ -282,20 +290,30 @@ export function WorkspaceAutomationSanitySettings({
     if (languages.length === 0) {
       return;
     }
-    const unchanged =
+    const languagesUnchanged =
       languages.length === form.sanityLanguages.length &&
       languages.every((locale) => form.sanityLanguages.includes(locale));
-    if (unchanged) {
+    if (languagesUnchanged) {
+      if (form.sanityTargetLocales.length === 0) {
+        return;
+      }
+      onChange({
+        ...form,
+        sanityTargetLocales: [],
+      });
       return;
     }
     onChange({
       ...form,
       sanityLanguages: [...languages],
-      sanitySourceLocale: languages.includes(form.sanitySourceLocale)
-        ? form.sanitySourceLocale
-        : (languages[0] ?? form.sanitySourceLocale),
+      sanitySourceLocale: pickSanitySourceLocale({
+        catalog: languages,
+        currentSourceLocale: form.sanitySourceLocale,
+        projectSourceLocale,
+      }),
+      sanityTargetLocales: [],
     });
-  }, [documentTypesQuery.data?.languages, form, onChange, sanityConnected]);
+  }, [documentTypesQuery.data?.languages, form, onChange, projectSourceLocale, sanityConnected]);
 
   useEffect(() => {
     if (translatableDocumentTypesQuery.isLoading || translatableTypeNames.size === 0) {
@@ -315,6 +333,7 @@ export function WorkspaceAutomationSanitySettings({
       ...form,
       sanityDocumentTypes: pruned,
       sanityDocumentTypeModes: nextModes,
+      sanityTargetLocales: [],
       ...(pruned.length === 0 ? { sanityLanguages: [] } : {}),
     });
   }, [form, onChange, translatableDocumentTypesQuery.isLoading, translatableTypeNames]);
@@ -334,6 +353,7 @@ export function WorkspaceAutomationSanitySettings({
       ...form,
       sanityDocumentTypes: nextTypes,
       sanityDocumentTypeModes: nextModes,
+      sanityTargetLocales: [],
       ...(nextTypes.length === 0 ? { sanityLanguages: [] } : {}),
     });
   }
@@ -363,6 +383,7 @@ export function WorkspaceAutomationSanitySettings({
                 sanityDocumentTypes: [],
                 sanityDocumentTypeModes: {},
                 sanityLanguages: [],
+                sanityTargetLocales: [],
               });
             }}
           >
@@ -409,6 +430,7 @@ export function WorkspaceAutomationSanitySettings({
                 sanityDocumentTypes: [],
                 sanityDocumentTypeModes: {},
                 sanityLanguages: [],
+                sanityTargetLocales: [],
               });
             }}
             disabled={!form.sanityProjectId}
@@ -506,16 +528,24 @@ export function WorkspaceAutomationSanitySettings({
       <div className="space-y-2">
         <Label htmlFor="sanity-source-locale">Sanity source locale</Label>
         <Select
-          value={form.sanitySourceLocale}
+          value={form.sanitySourceLocale || undefined}
           onValueChange={(sanitySourceLocale) => {
             if (!sanitySourceLocale) {
               return;
             }
             onChange({ ...form, sanitySourceLocale });
           }}
-          disabled={languageOptions.length === 0}
+          disabled={
+            form.sanityDocumentTypes.length === 0 ||
+            languageOptions.length === 0 ||
+            !sanityConnected
+          }
         >
-          <SelectTrigger id="sanity-source-locale" className="w-full">
+          <SelectTrigger
+            id="sanity-source-locale"
+            className="w-full"
+            aria-invalid={Boolean(errors.sanitySourceLocale)}
+          >
             <SelectValue placeholder="Choose source locale">
               {form.sanitySourceLocale
                 ? formatLocaleOptionLabel(intl, form.sanitySourceLocale)
@@ -531,22 +561,30 @@ export function WorkspaceAutomationSanitySettings({
           </SelectContent>
         </Select>
         {errors.sanitySourceLocale ? (
-          <p className="text-sm text-destructive">{errors.sanitySourceLocale}</p>
-        ) : null}
-      </div>
-
-      {localeMappingRows.length > 0 ? (
-        <div className="space-y-2 text-sm">
-          <p className="font-medium">Locale mapping</p>
-          <ul className="space-y-1 text-muted-foreground">
+          <p data-slot="field-error" className="text-sm text-destructive">
+            {errors.sanitySourceLocale}
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            The Sanity language for original copy. It must be the same language as the project
+            source, for example English (United States) maps to English (en).
+          </p>
+        )}
+        {localeMappingRows.length > 0 ? (
+          <ul className="space-y-1 text-xs text-muted-foreground">
             {localeMappingRows.map((row) => (
               <li key={`${row.role}-${row.projectLocale}`}>
-                {row.projectLocale} → {row.sanityLocale ?? "unmapped"} ({row.role})
+                {formatLocaleOptionLabel(intl, row.projectLocale)}
+                {row.role === "source" ? " (source)" : ""}
+                {" → "}
+                {row.sanityLocale
+                  ? formatLocaleOptionLabel(intl, row.sanityLocale)
+                  : "Unmapped, skipped"}
               </li>
             ))}
           </ul>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       <label className="flex items-center gap-2 text-sm">
         <Checkbox

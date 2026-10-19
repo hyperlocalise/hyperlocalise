@@ -107,6 +107,18 @@ function uniqueLanguages(values: readonly string[]): string[] {
   return out.toSorted((left, right) => left.localeCompare(right));
 }
 
+function isInternationalizedArrayEntry(
+  value: unknown,
+): value is { language?: unknown; value?: unknown } {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    "language" in value &&
+    "value" in value
+  );
+}
+
 function sampleHasInternationalizedArray(doc: Record<string, unknown> | null): boolean {
   if (!doc) {
     return false;
@@ -115,18 +127,31 @@ function sampleHasInternationalizedArray(doc: Record<string, unknown> | null): b
     if (!Array.isArray(value) || value.length === 0) {
       continue;
     }
-    const first = value[0];
-    if (
-      first &&
-      typeof first === "object" &&
-      !Array.isArray(first) &&
-      "language" in first &&
-      "value" in first
-    ) {
+    if (isInternationalizedArrayEntry(value[0])) {
       return true;
     }
   }
   return false;
+}
+
+/** Collect `language` tags from Sanity internationalized-array fields on one document. */
+export function collectInternationalizedArrayLanguages(doc: Record<string, unknown>): string[] {
+  const languages = new Set<string>();
+  for (const value of Object.values(doc)) {
+    if (!Array.isArray(value)) {
+      continue;
+    }
+    for (const entry of value) {
+      if (!isInternationalizedArrayEntry(entry)) {
+        continue;
+      }
+      const language = entry.language;
+      if (typeof language === "string" && language.trim().length > 0) {
+        languages.add(language.trim());
+      }
+    }
+  }
+  return [...languages];
 }
 
 export async function detectSanityDocumentTypes(input: {
@@ -180,18 +205,16 @@ export async function detectSanityDocumentTypes(input: {
         }
       }
     } else {
-      const sample = await input.client.fetch<Record<string, unknown> | null>(
-        `*[_type == $type][0]`,
+      const samples = await input.client.fetch<Record<string, unknown>[]>(
+        `*[_type == $type][0...25]`,
         { type: typeName },
       );
+      const sample = samples[0] ?? null;
       if (sampleHasInternationalizedArray(sample)) {
         i18nMode = "field";
-        const fieldLangs = await input.client.fetch<string[]>(`*[_type == $type][].*[].language`, {
-          type: typeName,
-        });
-        for (const lang of fieldLangs) {
-          if (typeof lang === "string" && lang.trim()) {
-            languages.add(lang.trim());
+        for (const doc of samples) {
+          for (const lang of collectInternationalizedArrayLanguages(doc)) {
+            languages.add(lang);
           }
         }
       }

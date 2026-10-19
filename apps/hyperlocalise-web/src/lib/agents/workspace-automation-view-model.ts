@@ -545,7 +545,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
     sanityDocumentTypeModes: sanity?.documentTypeModes ? { ...sanity.documentTypeModes } : {},
     sanityLanguages: sanity?.languages ? [...sanity.languages] : [],
     sanitySourceLocale: sanity?.sourceLocale ?? "en",
-    sanityTargetLocales: sanity?.targetLocales ? [...sanity.targetLocales] : [],
+    sanityTargetLocales: [],
     sanityIncludeDrafts: Boolean(sanity?.includeDrafts),
     sanityOverwriteSanityDrafts: Boolean(sanity?.overwriteSanityDrafts),
     sanityExistingTranslationPolicy:
@@ -858,7 +858,7 @@ export function formStateToWorkspaceAutomationPayload(
             documentTypeModes: form.sanityDocumentTypeModes,
             languages: form.sanityLanguages,
             sourceLocale: form.sanitySourceLocale.trim() || "en",
-            targetLocales: form.sanityTargetLocales,
+            targetLocales: [],
             includeDrafts: form.sanityIncludeDrafts,
             overwriteSanityDrafts: form.sanityOverwriteSanityDrafts,
             existingTranslationPolicy: form.sanityExistingTranslationPolicy,
@@ -1108,8 +1108,12 @@ export function validateWorkspaceAutomationFormState(
     if (form.sanityDocumentTypes.length === 0) {
       errors.sanityDocumentTypes = "Choose at least one document type.";
     }
-    if (form.sanityLanguages.length === 0 && form.sanityTargetLocales.length === 0) {
+    if (form.sanityLanguages.length === 0) {
       errors.sanityDataset = "Load dataset languages before saving.";
+    }
+    if (!form.sanitySourceLocale.trim()) {
+      errors.sanitySourceLocale =
+        "Choose a Sanity source locale that matches the project source language.";
     }
   }
 
