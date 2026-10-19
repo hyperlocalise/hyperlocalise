@@ -45,6 +45,7 @@ import type {
   WorkspaceAutomationFormState,
 } from "@/lib/agents/workspace-automation-view-model";
 import { formatLocaleOptionLabel } from "@/lib/i18n/locale-display-names.messages";
+import { canonicalizeLocale } from "@/lib/i18n/locales";
 import type { SanityExistingTranslationPolicy } from "@/lib/sanity/existing-translation-policy";
 import {
   filterTranslatableSanityDocumentTypes,
@@ -94,12 +95,12 @@ function formatSanityLocaleLabel(
   tag: string,
   titleByTag: ReadonlyMap<string, string>,
 ): string {
-  const studioTitle = titleByTag.get(tag);
-  const display = formatLocaleOptionLabel(intl, tag);
-  if (studioTitle && studioTitle !== tag) {
-    return `${studioTitle} (${display})`;
+  const studioTitle = titleByTag.get(tag)?.trim();
+  const normalizedTag = canonicalizeLocale(tag) ?? tag;
+  if (studioTitle && studioTitle !== tag && studioTitle !== normalizedTag) {
+    return `${studioTitle} (${normalizedTag})`;
   }
-  return display;
+  return formatLocaleOptionLabel(intl, tag);
 }
 
 function localeSourceDescription(source: SanityLocaleSource, localeCount: number): string {
