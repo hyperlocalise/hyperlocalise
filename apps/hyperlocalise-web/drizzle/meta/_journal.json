@@ -1072,6 +1072,13 @@
       "when": 1792386253261,
       "tag": "0152_tiny_peter_quill",
       "breakpoints": true
+    },
+    {
+      "idx": 153,
+      "version": "7",
+      "when": 1792390000000,
+      "tag": "0153_figma_connections_drop_project_binding",
+      "breakpoints": true
     }
   ]
 }
