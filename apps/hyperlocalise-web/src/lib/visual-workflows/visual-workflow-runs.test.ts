@@ -156,6 +156,94 @@ function terminalWorkflowDefinition(
   };
 }
 
+function tryCatchWaitWorkflowDefinition(): VisualWorkflowDefinition {
+  return {
+    schemaVersion: 2,
+    name: "Try catch finally wait",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.scheduled",
+        config: {
+          kind: "trigger.scheduled",
+          schedule: { cadence: "daily", hourUtc: 9, timezone: "UTC" },
+        },
+      },
+      {
+        id: "boundary",
+        type: "logic.try_catch",
+        config: { kind: "logic.try_catch" },
+        bodyNodeIds: ["work"],
+      },
+      {
+        id: "work",
+        type: "flow.fail",
+        config: {
+          kind: "flow.fail",
+          errorCode: "HTTP_FAILED",
+          message: "The request failed.",
+        },
+      },
+      {
+        id: "recover",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [{ key: "result", value: "caught" }],
+        },
+      },
+      {
+        id: "wait",
+        type: "flow.wait",
+        config: {
+          kind: "flow.wait",
+          mode: "timestamp",
+          timestamp: "2099-01-01T00:00:00.000Z",
+        },
+      },
+    ],
+    edges: [
+      {
+        id: "start",
+        source: "trigger",
+        target: "boundary",
+        sourceHandle: null,
+        targetHandle: null,
+      },
+      {
+        id: "try",
+        source: "boundary",
+        target: "work",
+        sourceHandle: "try",
+        targetHandle: null,
+      },
+      {
+        id: "catch",
+        source: "boundary",
+        target: "recover",
+        sourceHandle: "catch",
+        targetHandle: null,
+      },
+      {
+        id: "finally",
+        source: "boundary",
+        target: "wait",
+        sourceHandle: "finally",
+        targetHandle: null,
+      },
+    ],
+    editor: {
+      positions: {
+        trigger: { x: 0, y: 0 },
+        boundary: { x: 200, y: 0 },
+        work: { x: 400, y: -80 },
+        recover: { x: 400, y: 80 },
+        wait: { x: 600, y: 0 },
+      },
+    },
+  };
+}
+
 function waitWorkflowDefinition(): VisualWorkflowDefinition {
   return {
     schemaVersion: 2,
@@ -982,6 +1070,56 @@ describe("visual workflow runs", () => {
       limit: 10,
     });
     expect(listed.map((row) => row.id)).toEqual([newer.id, older.id]);
+  });
+
+  it("reuses a Try body failure across slices while Finally waits", async () => {
+    const { organizationId, workflow } = await seedWorkflow({
+      definition: tryCatchWaitWorkflowDefinition(),
+    });
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      idempotencyKey: "try-catch-finally-wait",
+    });
+
+    const paused = await executeVisualWorkflowRun({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+
+    expect(paused?.status).toBe("running");
+    expect(paused?.executionPausedUntil).toBe("2099-01-01T00:00:00.000Z");
+
+    const first = await getVisualWorkflowRunById({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      runId: run.id,
+      includeNodeRuns: true,
+    });
+    const workRuns = first?.nodeRuns?.filter((nodeRun) => nodeRun.nodeId === "work") ?? [];
+    expect(workRuns).toHaveLength(1);
+    expect(workRuns[0]?.status).toBe("failed");
+    expect(workRuns[0]?.error).toMatchObject({ code: "HTTP_FAILED" });
+
+    const stillPaused = await executeVisualWorkflowRun({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+    expect(stillPaused?.status).toBe("running");
+
+    const second = await getVisualWorkflowRunById({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      runId: run.id,
+      includeNodeRuns: true,
+    });
+    expect(second?.nodeRuns?.filter((nodeRun) => nodeRun.nodeId === "work")).toHaveLength(1);
+    expect(second?.nodeRuns?.find((nodeRun) => nodeRun.nodeId === "work")?.attempt).toBe(
+      workRuns[0]?.attempt,
+    );
   });
 
   it("persists a Wait wakeup and resumes through the completed branch", async () => {

@@ -42,6 +42,18 @@ const emptyFileTranslationMemoryReuseResult = (): FileTranslationMemoryReuseResu
   matchesByKey: {},
 });
 
+/** Ten bind values per row; stay under PostgreSQL's 65,535-parameter limit. */
+export const FILE_TRANSLATION_MEMORY_WRITE_BATCH_SIZE = 500;
+
+function chunkItems<T>(items: readonly T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  const chunkSize = Math.max(size, 1);
+  for (let index = 0; index < items.length; index += chunkSize) {
+    chunks.push(items.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
+
 function sourceTextHash(sourceText: string) {
   return createHash("sha256").update(sourceText, "utf8").digest("hex");
 }
@@ -283,29 +295,30 @@ export class FileTranslationMemoryStore {
       }
     }
 
-    await db
-      .insert(schema.memoryEntries)
-      .values([...valueByConflictKey.values()])
-      .onConflictDoUpdate({
-        target: [
-          schema.memoryEntries.memoryId,
-          schema.memoryEntries.sourceLocale,
-          schema.memoryEntries.targetLocale,
-          schema.memoryEntries.normalizedSourceText,
-        ],
-        // Approved gold stays live. A later job may refresh drafts and rejected
-        // suggestions, but it must not overwrite a human-approved entry.
-        setWhere: sql`${schema.memoryEntries.reviewStatus} <> 'approved'`,
-        set: {
-          targetText: sql`excluded.target_text`,
-          provenance: sql`excluded.provenance`,
-          reviewStatus: sql`excluded.review_status`,
-          externalKey: sql`excluded.external_key`,
-          metadata: sql`excluded.metadata`,
-          version: incrementMemoryEntryVersionSql(),
-          updatedAt: sql`now()`,
-        },
-      });
+    const values = [...valueByConflictKey.values()];
+    // Approved gold stays live. A later job may refresh drafts and rejected
+    // suggestions, but it must not overwrite a human-approved entry.
+    const conflictUpdate = {
+      target: [
+        schema.memoryEntries.memoryId,
+        schema.memoryEntries.sourceLocale,
+        schema.memoryEntries.targetLocale,
+        schema.memoryEntries.normalizedSourceText,
+      ],
+      setWhere: sql`${schema.memoryEntries.reviewStatus} <> 'approved'`,
+      set: {
+        targetText: sql`excluded.target_text`,
+        provenance: sql`excluded.provenance`,
+        reviewStatus: sql`excluded.review_status`,
+        externalKey: sql`excluded.external_key`,
+        metadata: sql`excluded.metadata`,
+        version: incrementMemoryEntryVersionSql(),
+        updatedAt: sql`now()`,
+      },
+    };
+    for (const batch of chunkItems(values, FILE_TRANSLATION_MEMORY_WRITE_BATCH_SIZE)) {
+      await db.insert(schema.memoryEntries).values(batch).onConflictDoUpdate(conflictUpdate);
+    }
   }
 }
 

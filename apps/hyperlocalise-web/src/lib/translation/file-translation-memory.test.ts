@@ -187,6 +187,7 @@ vi.mock("@/lib/database/client", () => ({
 }));
 
 import {
+  FILE_TRANSLATION_MEMORY_WRITE_BATCH_SIZE,
   persistFileTranslationMemoryEntries,
   reuseFileTranslationMemoryEntries,
 } from "./file-memory";
@@ -333,6 +334,35 @@ describe("persistFileTranslationMemoryEntries", () => {
     });
 
     expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it("splits large upserts so each insert stays under the Postgres bind limit", async () => {
+    listAttachedMemoryIdsMock.mockResolvedValueOnce(["memory_1"]);
+    const overflowCount = FILE_TRANSLATION_MEMORY_WRITE_BATCH_SIZE + 1;
+    const sourceEntries = Object.fromEntries(
+      Array.from({ length: overflowCount }, (_, index) => [`key_${index}`, `Source ${index}`]),
+    );
+    const targetEntries = Object.fromEntries(
+      Array.from({ length: overflowCount }, (_, index) => [`key_${index}`, `Cible ${index}`]),
+    );
+
+    await persistFileTranslationMemoryEntries({
+      jobId: "job_1",
+      projectId: "project_1",
+      sourceEntries,
+      sourceFileHash: "hash_1",
+      sourceLocale: "en",
+      sourcePath: "locales/en.json",
+      targetEntries,
+      targetLocale: "fr",
+    });
+
+    expect(valuesMock).toHaveBeenCalledTimes(2);
+    expect(onConflictDoUpdateMock).toHaveBeenCalledTimes(2);
+    const batches = valuesMock.mock.calls.map((call) => call[0]);
+    expect(batches[0]).toHaveLength(FILE_TRANSLATION_MEMORY_WRITE_BATCH_SIZE);
+    expect(batches[1]).toHaveLength(1);
+    expect(batches.flat()).toHaveLength(overflowCount);
   });
 });
 

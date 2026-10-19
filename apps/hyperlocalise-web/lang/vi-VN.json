@@ -4619,6 +4619,9 @@
   "7PBZ6NZm7K": {
     "defaultMessage": "Đưa nội dung và đội ngũ của bạn vào cùng một studio."
   },
+  "7PRORZkPL7": {
+    "defaultMessage": "Mute the launch film"
+  },
   "7QPFtqQQDE": {
     "defaultMessage": "Miễn phí"
   },
@@ -5369,6 +5372,9 @@
   "8uE98Fo+Pv": {
     "defaultMessage": "Cài đặt"
   },
+  "8uYx7/RU25": {
+    "defaultMessage": "Unmute the launch film"
+  },
   "8ubp0pkM3E": {
     "defaultMessage": "Giữ chúng trong Drive"
   },
@@ -6118,6 +6124,9 @@
   },
   "AQFTimLagD": {
     "defaultMessage": "của bất kỳ loại nội dung nào"
+  },
+  "AQZXVFsnl+": {
+    "defaultMessage": "Iris | AI Localisation Engine for Multilingual Assets | Hyperlocalise"
   },
   "AQrXctSpNJ": {
     "defaultMessage": "Định dạng"
@@ -9035,6 +9044,9 @@
   "GYwOqW2z7j": {
     "defaultMessage": "Xuất biên soạn"
   },
+  "GZPe87SKjx": {
+    "defaultMessage": "Iris, the AI localisation engine"
+  },
   "GZgOkkX0hj": {
     "defaultMessage": "Tiếng Nhật (Nhật Bản)"
   },
@@ -9283,6 +9295,9 @@
   },
   "H//pE/RYmt": {
     "defaultMessage": "Sứ mệnh của chúng tôi là giúp mọi công ty vươn ra thế giới mà không để khâu bản địa hóa trở thành điểm nghẽn. Chúng tôi tin rằng tương lai không nằm ở việc thay thế các chuyên gia bản địa hóa bằng AI, mà là trao cho họ một lực lượng lao động AI học hỏi cùng họ, hiểu bối cảnh sản phẩm, tiếp thu kiến thức của tổ chức và loại bỏ những công việc lặp đi lặp lại làm chậm quá trình phát hành sản phẩm trên toàn cầu."
+  },
+  "H/6Z4vWchC": {
+    "defaultMessage": "Motion localisation"
   },
   "H/CmKBQumj": {
     "defaultMessage": "Marketing"
@@ -11123,6 +11138,9 @@
   "L1htF1IA3l": {
     "defaultMessage": "Ngữ cảnh đã được đính kèm"
   },
+  "L1iDRgwfcT": {
+    "defaultMessage": "Iris launch film playing in the background"
+  },
   "L1kbT9LQu4": {
     "defaultMessage": "Show more"
   },
@@ -11572,6 +11590,9 @@
   },
   "M/CX9tMhmy": {
     "defaultMessage": "25%"
+  },
+  "M/LTTbnwGn": {
+    "defaultMessage": "Iris"
   },
   "M/bA5ZKYrc": {
     "defaultMessage": "Đã thêm từ khóa vào tính năng theo dõi thứ hạng."
@@ -13772,6 +13793,9 @@
   "QZh18oy2Qs": {
     "defaultMessage": "Đã xóa nhóm"
   },
+  "QZjNY0zpti": {
+    "defaultMessage": "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Create and adapt images, video, motion, and audio for every language. Join the waitlist."
+  },
   "Qa2OXtJ4Ug": {
     "defaultMessage": "HTML"
   },
@@ -15019,6 +15043,9 @@
   },
   "TFnG73Az5B": {
     "defaultMessage": "Các công việc đang hoạt động được giao cho bạn trong nhà cung cấp đã kết nối."
+  },
+  "TFy71zYatd": {
+    "defaultMessage": "Multilingual image localisation"
   },
   "TG1FpMpW2X": {
     "defaultMessage": "Chuyển đổi không gian làm việc"
@@ -16318,6 +16345,9 @@
   },
   "VxRWiDyH8o": {
     "defaultMessage": "Không thể nhập các mục"
+  },
+  "VxlBCadoU8": {
+    "defaultMessage": "Iris by Hyperlocalise"
   },
   "VyUTnEU0ZM": {
     "defaultMessage": "Hãy thử tải lại trang."
@@ -17632,6 +17662,9 @@
   },
   "YhT90BZluB": {
     "defaultMessage": "Xóa khái niệm"
+  },
+  "YhXUDTQkrZ": {
+    "defaultMessage": "Audio localisation"
   },
   "YhwlgG0Ruv": {
     "defaultMessage": "Công việc của tôi"
@@ -21959,6 +21992,9 @@
   "hE2eacuTWG": {
     "defaultMessage": "Thao tác truy vấn"
   },
+  "hEEAW/iMSI": {
+    "defaultMessage": "Iris, the AI localisation engine for multilingual assets"
+  },
   "hEICju0qcP": {
     "defaultMessage": "Yêu cầu quyền truy cập sớm vào Hyperlocalise."
   },
@@ -26087,6 +26123,9 @@
   "pOmRJ5Mm9Y": {
     "defaultMessage": "Loại chuỗi"
   },
+  "pPaYbj0Q2H": {
+    "defaultMessage": "Video localisation"
+  },
   "pPpG4zo8Yj": {
     "defaultMessage": "Đính kèm thuật ngữ đã được phê duyệt, hướng dẫn về giọng điệu thương hiệu và bối cảnh thị trường để mọi người và tác nhân đều làm việc dựa trên cùng một nguồn thông tin chuẩn."
   },
@@ -28255,6 +28294,9 @@
   },
   "tlfeFkqvA8": {
     "defaultMessage": "All"
+  },
+  "tm2wgAMGK3": {
+    "defaultMessage": "Join the waitlist"
   },
   "tmfZmWyVtO": {
     "defaultMessage": "Tệp nguồn"
