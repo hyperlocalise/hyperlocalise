@@ -79,32 +79,37 @@ func (p POFileParser) Parse(content []byte) (map[string]string, error) {
 	return out, nil
 }
 
-func parsePOFileRaw(content []byte) (map[string]string, error) {
-	out := make(map[string]string, poOutputMapCapacity(content))
+type poParserState struct {
+	out           map[string]string
+	currentMsgID  poValue
+	currentMsgStr poValue
+	activeField   string
+	seenMsgID     bool
+	seenMsgStr    bool
+}
 
-	var currentMsgID poValue
-	var currentMsgStr poValue
-	activeField := ""
-	seenMsgID := false
-	seenMsgStr := false
-
-	flush := func() {
-		if !seenMsgID || !seenMsgStr {
-			return
-		}
-		key := currentMsgID.String()
-		if key == "" {
-			return // skip header entry (msgid "")
-		}
-		out[key] = currentMsgStr.String()
+func (state *poParserState) flush() {
+	if !state.seenMsgID || !state.seenMsgStr {
+		return
 	}
+	key := state.currentMsgID.String()
+	if key == "" {
+		return // skip header entry (msgid "")
+	}
+	state.out[key] = state.currentMsgStr.String()
+}
 
-	reset := func() {
-		currentMsgID.Reset()
-		currentMsgStr.Reset()
-		activeField = ""
-		seenMsgID = false
-		seenMsgStr = false
+func (state *poParserState) reset() {
+	state.currentMsgID.Reset()
+	state.currentMsgStr.Reset()
+	state.activeField = ""
+	state.seenMsgID = false
+	state.seenMsgStr = false
+}
+
+func parsePOFileRaw(content []byte) (map[string]string, error) {
+	state := poParserState{
+		out: make(map[string]string, poOutputMapCapacity(content)),
 	}
 
 	// BOLT OPTIMIZATION: Avoid strings.Split(string(content), "\n") to reduce allocations for large files.
@@ -120,7 +125,7 @@ func parsePOFileRaw(content []byte) (map[string]string, error) {
 		}
 		line := strings.TrimSpace(raw)
 
-		err := consumePOLine(lineNumber, line, &currentMsgID, &currentMsgStr, &activeField, &seenMsgID, &seenMsgStr, flush, reset)
+		err := state.consumePOLine(lineNumber, line)
 		if err != nil {
 			return nil, err
 		}
@@ -132,80 +137,80 @@ func parsePOFileRaw(content []byte) (map[string]string, error) {
 		lineNumber++
 	}
 
-	flush()
-	return out, nil
+	state.flush()
+	return state.out, nil
 }
 
-func consumePOLine(
-	lineNumber int,
-	line string,
-	currentMsgID, currentMsgStr *poValue,
-	activeField *string,
-	seenMsgID, seenMsgStr *bool,
-	flush, reset func(),
-) error {
+func (state *poParserState) consumePOLine(lineNumber int, line string) error {
 	if line == "" {
-		flush()
-		reset()
+		state.flush()
+		state.reset()
 		return nil
 	}
-	if line[0] == '#' {
-		*activeField = ""
+	// BOLT OPTIMIZATION: Fast byte-level dispatch for comments, continuation strings,
+	// and gettext field directives.
+	switch line[0] {
+	case '#':
+		state.activeField = ""
 		return nil
-	}
-
-	switch {
-	case strings.HasPrefix(line, "msgid "):
-		return handlePOMsgID(lineNumber, line[6:], currentMsgID, activeField, seenMsgID, flush, reset)
-	case strings.HasPrefix(line, "msgstr "):
-		return handlePOMsgStr(lineNumber, line[7:], currentMsgStr, activeField, seenMsgStr)
-	case strings.HasPrefix(line, "msgstr["):
-		return handlePOIndexedMsgStr(lineNumber, line, currentMsgStr, activeField, seenMsgStr)
-	case strings.HasPrefix(line, "msgid_plural "):
-		*activeField = ""
-		return nil
-	case strings.HasPrefix(line, "msgctxt "):
-		// Context is currently ignored by the map[string]string strategy output.
-		*activeField = ""
-		return nil
-	case line[0] == '"':
-		return handlePOContinuation(lineNumber, line, currentMsgID, currentMsgStr, *activeField)
+	case '"':
+		return state.handlePOContinuation(lineNumber, line)
+	case 'm':
+		switch {
+		case strings.HasPrefix(line, "msgid "):
+			return state.handlePOMsgID(lineNumber, line[6:])
+		case strings.HasPrefix(line, "msgstr "):
+			return state.handlePOMsgStr(lineNumber, line[7:])
+		case strings.HasPrefix(line, "msgstr["):
+			return state.handlePOIndexedMsgStr(lineNumber, line)
+		case strings.HasPrefix(line, "msgid_plural "):
+			state.activeField = ""
+			return nil
+		case strings.HasPrefix(line, "msgctxt "):
+			// Context is currently ignored by the map[string]string strategy output.
+			state.activeField = ""
+			return nil
+		default:
+			state.activeField = ""
+			return nil
+		}
 	default:
-		*activeField = ""
+		state.activeField = ""
 		return nil
 	}
 }
 
-func handlePOMsgID(lineNumber int, raw string, currentMsgID *poValue, activeField *string, seenMsgID *bool, flush, reset func()) error {
-	flush()
-	reset()
+func (state *poParserState) handlePOMsgID(lineNumber int, raw string) error {
+	state.flush()
+	state.reset()
 	v, err := parsePOQuoted(raw)
 	if err != nil {
 		return fmt.Errorf("line %d: parse msgid: %w", lineNumber, err)
 	}
-	currentMsgID.WriteString(v)
-	*activeField = "msgid"
-	*seenMsgID = true
+	state.currentMsgID.WriteString(v)
+	state.activeField = "msgid"
+	state.seenMsgID = true
 	return nil
 }
 
-func handlePOMsgStr(lineNumber int, raw string, currentMsgStr *poValue, activeField *string, seenMsgStr *bool) error {
+func (state *poParserState) handlePOMsgStr(lineNumber int, raw string) error {
 	v, err := parsePOQuoted(raw)
 	if err != nil {
 		return fmt.Errorf("line %d: parse msgstr: %w", lineNumber, err)
 	}
-	currentMsgStr.WriteString(v)
-	*activeField = "msgstr"
-	*seenMsgStr = true
+	state.currentMsgStr.WriteString(v)
+	state.activeField = "msgstr"
+	state.seenMsgStr = true
 	return nil
 }
 
-func handlePOIndexedMsgStr(lineNumber int, line string, currentMsgStr *poValue, activeField *string, seenMsgStr *bool) error {
+func (state *poParserState) handlePOIndexedMsgStr(lineNumber int, line string) error {
 	if !strings.HasPrefix(line, "msgstr[0]") {
-		*activeField = ""
+		state.activeField = ""
 		return nil
 	}
-	idx := strings.Index(line, "]")
+	// BOLT OPTIMIZATION: Use strings.IndexByte for fast byte scanning.
+	idx := strings.IndexByte(line, ']')
 	if idx < 0 || idx+1 >= len(line) {
 		return fmt.Errorf("line %d: invalid msgstr[0] format", lineNumber)
 	}
@@ -214,22 +219,22 @@ func handlePOIndexedMsgStr(lineNumber int, line string, currentMsgStr *poValue, 
 	if err != nil {
 		return fmt.Errorf("line %d: parse msgstr[0]: %w", lineNumber, err)
 	}
-	currentMsgStr.WriteString(v)
-	*activeField = "msgstr"
-	*seenMsgStr = true
+	state.currentMsgStr.WriteString(v)
+	state.activeField = "msgstr"
+	state.seenMsgStr = true
 	return nil
 }
 
-func handlePOContinuation(lineNumber int, line string, currentMsgID, currentMsgStr *poValue, activeField string) error {
+func (state *poParserState) handlePOContinuation(lineNumber int, line string) error {
 	v, err := parsePOQuoted(line)
 	if err != nil {
 		return fmt.Errorf("line %d: parse continued string: %w", lineNumber, err)
 	}
-	switch activeField {
+	switch state.activeField {
 	case "msgid":
-		currentMsgID.WriteString(v)
+		state.currentMsgID.WriteString(v)
 	case "msgstr":
-		currentMsgStr.WriteString(v)
+		state.currentMsgStr.WriteString(v)
 	}
 	return nil
 }
