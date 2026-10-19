@@ -201,6 +201,34 @@ describe("requeueKeylessOfficeSourceIngest", () => {
     }
     expect(enqueue).not.toHaveBeenCalled();
   });
+
+  it("lets only one concurrent open claim a keyless Office upload", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const version = await ingestedVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "docs/shared.docx",
+    });
+    const { queue, enqueue } = fakeQueue();
+    const input = {
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "docs/shared.docx",
+      queue,
+    };
+
+    const results = await Promise.all([
+      requeueKeylessOfficeSourceIngest(input),
+      requeueKeylessOfficeSourceIngest(input),
+    ]);
+
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(await ingestState(version.id)).toBe("pending");
+    expect(enqueue).toHaveBeenCalledOnce();
+    expect(enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceFileVersionId: version.id, reingest: true }),
+    );
+  });
 });
 
 describe("backfillKeylessOfficeSourceIngest", () => {
@@ -225,5 +253,56 @@ describe("backfillKeylessOfficeSourceIngest", () => {
     expect(enqueue).not.toHaveBeenCalledWith(
       expect.objectContaining({ sourceFileVersionId: older.id }),
     );
+  });
+
+  it("counts only claims that still match after SELECT, skipping a reconciled peer", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const scope = { organizationId: organization.id, projectId: project.id };
+    const keyless = await ingestedVersion({ ...scope, sourcePath: "docs/open.docx" });
+    const reconciled = await ingestedVersion({ ...scope, sourcePath: "docs/images-only.docx" });
+    await db
+      .update(schema.repositorySourceFileVersions)
+      .set({ ingestState: "ingesting", ingestWorkflowRunId: "run_empty" })
+      .where(eq(schema.repositorySourceFileVersions.id, reconciled.id));
+    await reconcileSourceFileTranslationKeys({
+      ...scope,
+      repositorySourceFileId: reconciled.repositorySourceFileId,
+      sourceFileVersionId: reconciled.id,
+      workflowRunId: "run_empty",
+      entries: [],
+    });
+    const { queue, enqueue } = fakeQueue();
+
+    await expect(backfillKeylessOfficeSourceIngest({ queue })).resolves.toEqual({ requeued: 1 });
+
+    expect(await ingestState(keyless.id)).toBe("pending");
+    expect(await ingestState(reconciled.id)).toBe("ingested");
+    expect(enqueue).toHaveBeenCalledOnce();
+    expect(enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceFileVersionId: keyless.id, reingest: true }),
+    );
+  });
+
+  it("pages past the default batch size so later keyless paths are not skipped", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const scope = { organizationId: organization.id, projectId: project.id };
+    const versions = await Promise.all(
+      ["docs/a.docx", "docs/b.pptx", "docs/c.xlsx"].map((sourcePath) =>
+        ingestedVersion({ ...scope, sourcePath }),
+      ),
+    );
+    const { queue, enqueue } = fakeQueue();
+
+    await expect(backfillKeylessOfficeSourceIngest({ queue, batchSize: 2 })).resolves.toEqual({
+      requeued: 3,
+    });
+
+    expect(enqueue).toHaveBeenCalledTimes(3);
+    for (const version of versions) {
+      expect(await ingestState(version.id)).toBe("pending");
+      expect(enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({ sourceFileVersionId: version.id }),
+      );
+    }
   });
 });

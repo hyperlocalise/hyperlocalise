@@ -173,6 +173,49 @@ describe("collectFileTranslationPageStep HTML lock wiring", () => {
     });
   });
 
+  it("maps locale-suffixed CSV lock keys onto source keys", async () => {
+    const outputFilename = "strings-fr-FR.csv";
+    readTranslatedFileMock.mockResolvedValue(
+      JSON.stringify(lockFor(outputFilename, ["home.title::fr-FR"])),
+    );
+    extractSandboxEntriesMock.mockResolvedValue({
+      ok: true,
+      entries: { "home.title": "Accueil" },
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_csv",
+        inputFilename: "strings.csv",
+        outputFilenames: { "fr-FR": outputFilename },
+        sourceEntries: { "home.title": "Home" },
+        sourceLocale: "en-US",
+        prefills: {},
+        confirmed: {},
+      }),
+    ).resolves.toEqual({ "fr-FR": { "home.title": "Accueil" } });
+  });
+
+  it("throws when extracting a completed spreadsheet output fails", async () => {
+    const outputFilename = "strings-fr-FR.csv";
+    readTranslatedFileMock.mockResolvedValue(
+      JSON.stringify(lockFor(outputFilename, ["home.title::fr-FR"])),
+    );
+    extractSandboxEntriesMock.mockResolvedValue({ ok: false });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_csv",
+        inputFilename: "strings.csv",
+        outputFilenames: { "fr-FR": outputFilename },
+        sourceEntries: { "home.title": "Home" },
+        sourceLocale: "en-US",
+        prefills: {},
+        confirmed: {},
+      }),
+    ).rejects.toThrow("failed to extract completed translations");
+  });
+
   it("collects path-key lock completions written by CLI 1.13.4", async () => {
     const sourceEntries = extractHtmlIngestEntries(sourceHtml);
 
