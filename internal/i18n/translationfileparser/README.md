@@ -135,11 +135,12 @@
 
 ### PO
 
-- Reads `msgid` -> `msgstr` mappings.
-- Supports multiline quoted continuations.
-- For plural forms, uses `msgstr[0]` as the mapped value.
-- Skips header entry (`msgid ""`).
-- Ignores comments and `msgctxt` for now.
+- Reads `.po` and `.pot` catalogs.
+- Singular entries use `msgid` as the key. `msgctxt` is prefixed as `context||msgid` (Phrase Strings). Translator comments (`#`) and extracted comments (`#.`) are entry context. References (`#:`), flags, previous values (`#|`), and obsolete entries (`#~`) stay in the file and are not separate keys.
+- A non-empty `msgstr` is the translatable value. An empty `msgstr` falls back to `msgid` (and `msgid_plural` for plural slots other than `one`), which is how POT templates and Crowdin's default source are read. Header field `X-Crowdin-SourceKey: msgstr` disables that fallback.
+- Plural entries become one key per CLDR category in gettext index order: `msgid||one`, `msgid||other`, and, with context, `context||msgid||few`. Categories come from the `Plural-Forms` header when it matches a known rule, otherwise from the `Language` header. Two-form catalogs without a header use `one` and `other`.
+- `MarshalPOFileForLocale` writes every plural slot for the target locale, fills missing categories from `other`, removes `fuzzy` from entries it replaces, and rewrites header `Language` and `Plural-Forms`. A bare msgid key still fills the `one` slot so older lockfiles keep working.
+- The header entry (`msgid ""`) is not a translatable string.
 - Unreal Engine rich-text tags in `msgstr` (`<Style>text</>`, `<{name}>text</>`, and self-closing decorators such as `<img id="Health"/>`) become `\x1eHLUEPH_…\x1f` placeholders during parse. `MarshalPOFile` restores the original markup. Named HTML closes, unclosed openings, and prose in angle brackets stay ordinary text. See `docs/cli/reference/formats/gettext.mdx`.
 
 ### HTML

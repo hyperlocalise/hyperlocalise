@@ -17,7 +17,7 @@ projects follow the [provider's capabilities](/platform/tms).
 | File family | Source upload extensions | Translation path | Review | Target export |
 | --- | --- | --- | --- | --- |
 | Application messages | `.json`, `.jsonc`, `.yaml`, `.yml`, `.arb`, `.strings`, `.stringsdict`, `.xcstrings`, `.ini`, `.toml`, `.xml`, `.resx`, `.resw`, `.properties`, `.php`, `.ftl`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.tsx`, `.mts`, `.cts` | File translation jobs | Segment views | Reconstructed target file |
-| Exchange and tabular catalogs | `.xlf`, `.xlif`, `.xliff`, `.po`, `.ts`, `.csv`, `.tsv` | File translation jobs | Segment views | Reconstructed target file |
+| Exchange and tabular catalogs | `.xlf`, `.xlif`, `.xliff`, `.po`, `.pot`, `.ts`, `.csv`, `.tsv` | File translation jobs | Segment views | Reconstructed target file |
 | HTML | `.html`, `.htm` | File translation jobs | Segment queue and File view | Reconstructed target file |
 | Liquid and SVG | `.liquid`, `.svg` | File translation jobs | Segment views | Reconstructed target file |
 | Documentation | `.md`, `.markdown`, `.mdown`, `.mkdn`, `.mdwn`, `.mkd`, `.mdx`, `.adoc`, `.asciidoc`, `.asc` | Document translation | File view | Stored target document |
@@ -111,8 +111,8 @@ For a complete Platform workflow, start with one of these tutorials:
 Native source upload accepts the same catalog extensions as the
 [CLI file-format guides](/cli/reference/formats/overview). Upload
 `strings.xml` for Android string resources; other `.xml` files use the generic
-XML parser. Direct `.pot` upload is not supported: prepare a source-language
-`.po` first, then upload or sync that catalog. Native `.ts` uploads are Qt
+XML parser. `.pot` templates use the same gettext parser as `.po`: an empty
+`msgstr` is read from `msgid`. Native `.ts` uploads are Qt
 Linguist catalogs, not TypeScript locale modules.
 
 For local translation, use the [all-in-one Hyperlocalise CLI](/cli).

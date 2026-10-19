@@ -5,9 +5,7 @@ description: "Extract backend messages to a POT template, maintain PO catalogs, 
 
 This tutorial connects a Gettext-based backend to Hyperlocalise Platform. Your extraction tool remains responsible for code scanning and the `.pot` template. Hyperlocalise syncs the resulting `.po` catalogs for translation and review.
 
-<Warning>
-The current Hyperlocalise PO parser is best suited to singular, context-free messages. It keys entries by `msgid`, ignores `msgctxt`, and writes only `msgstr` or `msgstr[0]`. Do not use this workflow for catalogs that depend on context-disambiguated duplicate `msgid` values or full Gettext plural arrays.
-</Warning>
+Hyperlocalise reads `.po` and `.pot` catalogs, including `msgctxt`, translator comments, and gettext plural forms. Plural strings are one entry per category (`one`, `other`, and the extra categories the target language needs). Writeback fills `msgstr[n]` for that language and updates the catalog header.
 
 ## Prerequisites
 
@@ -75,7 +73,7 @@ msgid "Saved filter: {name}"
 msgstr ""
 ```
 
-Commit `messages.pot`. It records source changes, but do not map it in `i18n.yml`: Hyperlocalise currently selects the PO parser for `.po`, not `.pot`.
+Commit `messages.pot`. You can map the `.pot` file directly. Hyperlocalise reads an empty `msgstr` as the `msgid` text. A source-language `.po` whose `msgstr` already holds the English text works the same way.
 
 ## 3. Create and update the source PO catalog
 
@@ -100,7 +98,7 @@ msgmerge \
   locale/messages.pot
 ```
 
-Ensure each English `msgstr` contains the source text. Hyperlocalise reads `msgid` as the stable key and `msgstr` as the source value. Empty source `msgstr` values do not provide content to translate.
+Hyperlocalise reads `msgid` as the stable key. A populated `msgstr` is the source text. An empty `msgstr` falls back to `msgid`, which is what a `.pot` template contains. `msgctxt` is part of the key (`context||msgid`). Plural forms use keys such as `msgid||one` and `msgid||other`.
 
 ## 4. Map PO catalogs
 
@@ -201,17 +199,17 @@ Keep protocol identifiers and error codes outside translatable `msgid` values.
 
 ## Troubleshooting
 
-### `sync push` ignores `messages.pot`
+### Context variants used to overwrite each other
 
-That is expected. Generate a source `.po` file from the POT template and map the `.po` file in `i18n.yml`.
+They no longer do. Each `msgctxt` is part of the key: `nav||Open` and `forum||Open` are different strings. The first run after this change translates context-specific and plural strings again, because their keys changed.
 
-### Context variants overwrite each other
+### A plural file has more `msgstr` lines than the source
 
-The current parser ignores `msgctxt`. Give messages distinct `msgid` values or keep that catalog outside this workflow.
+That is expected for languages with more plural categories than the source. Arabic gets six forms. Categories without their own translation are filled from `other`. The header `Plural-Forms` line matches the target language.
 
-### Only one plural form changes
+### Empty `msgstr` became the `msgid` text
 
-The current parser writes `msgstr` or `msgstr[0]`, not the complete plural array. Use singular messages for this workflow until full Gettext plural support is available.
+That is the `.pot` and Crowdin default. Put the real source text in `msgstr`, or set `X-Crowdin-SourceKey: msgstr` in the header when an empty `msgstr` must stay empty.
 
 ### Unreal Engine rich-text tags look like chips
 

@@ -54,7 +54,10 @@ func TestPOParserMultilineContinuations(t *testing.T) {
 msgid_plural "plural"
 " continuation"
 msgstr "value"`,
-			expected: map[string]string{"key": "value"},
+			expected: map[string]string{
+				"key||one":   "value",
+				"key||other": "plural continuation",
+			},
 		},
 		{
 			name: "msgstr[N] continuation does not leak into msgstr[0]",
@@ -64,7 +67,10 @@ msgstr[0] "value0"
 " continuation0"
 msgstr[1] "value1"
 " continuation1"`,
-			expected: map[string]string{"key": "value0 continuation0"},
+			expected: map[string]string{
+				"key||one":   "value0 continuation0",
+				"key||other": "value1 continuation1",
+			},
 		},
 		{
 			name: "msgctxt continuation does not leak into following fields",
@@ -72,7 +78,7 @@ msgstr[1] "value1"
 " continuation"
 msgid "key"
 msgstr "value"`,
-			expected: map[string]string{"key": "value"},
+			expected: map[string]string{"context continuation||key": "value"},
 		},
 		{
 			name: "multiple entries with continuations",
@@ -129,7 +135,7 @@ msgstr "val"
 	}
 }
 
-func TestPOParserMsgctxtWithDuplicateMsgidCollidesByMsgid(t *testing.T) {
+func TestPOParserMsgctxtDisambiguatesDuplicateMsgid(t *testing.T) {
 	content := []byte(`msgctxt "nav"
 msgid "home"
 msgstr "Accueil navigation"
@@ -139,16 +145,16 @@ msgid "home"
 msgstr "Accueil hero"
 `)
 
-	got, err := (POFileParser{}).Parse(content)
+	got, ctx, err := (POFileParser{}).ParseWithContext(content)
 	if err != nil {
 		t.Fatalf("parse po: %v", err)
 	}
 
-	if len(got) != 1 {
-		t.Fatalf("expected duplicate msgid to collapse to one key, got %+v", got)
+	if got["nav||home"] != "Accueil navigation" || got["hero||home"] != "Accueil hero" {
+		t.Fatalf("expected msgctxt to disambiguate msgid, got %+v", got)
 	}
-	if got["home"] != "Accueil hero" {
-		t.Fatalf("expected last msgid variant to win, got %+v", got)
+	if ctx["nav||home"] != "Context: nav" || ctx["hero||home"] != "Context: hero" {
+		t.Fatalf("expected msgctxt in entry context, got %+v", ctx)
 	}
 }
 

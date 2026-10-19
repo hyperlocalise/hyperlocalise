@@ -49,6 +49,8 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("copy.xlif")).toBe("xliff");
     expect(inferSupportedTranslationFileFormat("copy.xliff")).toBe("xliff");
     expect(inferSupportedTranslationFileFormat("messages.po")).toBe("po");
+    expect(inferSupportedTranslationFileFormat("messages.pot")).toBe("po");
+    expect(inferSupportedSourceUploadFormat("locale/messages.pot")).toBe("po");
     expect(inferSupportedTranslationFileFormat("translations/app_de.ts")).toBe("qt-ts");
     expect(inferSupportedFileTranslationFileFormat("app_fr.ts")).toBe("qt-ts");
     expect(inferSupportedTranslationFileFormat("page.html")).toBe("html");

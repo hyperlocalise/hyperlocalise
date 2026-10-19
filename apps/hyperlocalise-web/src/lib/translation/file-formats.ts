@@ -111,6 +111,7 @@ const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".xlif": "xliff",
   ".xliff": "xliff",
   ".po": "po",
+  ".pot": "po",
   ".ts": "qt-ts",
   ".html": "html",
   ".htm": "html",
