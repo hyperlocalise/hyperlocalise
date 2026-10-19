@@ -207,7 +207,7 @@ describe("captureEditorSaves", () => {
     expect(analyses).toHaveLength(0);
   });
 
-  it("skips past events of a workspace with Reports off without recording them", async () => {
+  it("leaves a workspace with Reports off unrecorded and keeps its cursor", async () => {
     resolveWorkspaceReportsFlagMock.mockResolvedValue(false);
     const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
     await insertSaveEvent({
@@ -224,6 +224,6 @@ describe("captureEditorSaves", () => {
       .select()
       .from(schema.reportingCaptureCursors)
       .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
-    expect(cursor).toBeDefined();
+    expect(cursor).toBeUndefined();
   });
 });

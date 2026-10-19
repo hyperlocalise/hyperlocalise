@@ -66,8 +66,9 @@ export async function captureEditorSaves(
     const events = await listPendingSaveEvents(organizationId, cutoff);
     if (events.length === 0) continue;
     if (!enabled) {
-      // Reports is off: advance past these events so they are not re-read every run.
-      await advanceCursor(events[events.length - 1]);
+      // Reports is off, or the flag could not be read (the check answers false either way):
+      // keep the cursor where it is, so a failed check never skips past a person's work. A
+      // workspace with Reports off costs one bounded query per run.
       result.organizationsSkipped += 1;
       continue;
     }
