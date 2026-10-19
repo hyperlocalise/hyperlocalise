@@ -213,9 +213,14 @@ export function SanityConnectionPanel({
     onSuccess: async () => {
       setApiToken("");
       setShowApiToken(false);
-      await queryClient.invalidateQueries({
-        queryKey: ["pipes", organizationSlug, SANITY_PIPES_SLUG],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["pipes", organizationSlug, SANITY_PIPES_SLUG],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["pipes", "availability", organizationSlug, SANITY_PIPES_SLUG],
+        }),
+      ]);
       toast.success(intl.formatMessage(sanityConnectionPanelMessages.saveApiTokenSucceeded));
     },
     onError: (error) => {

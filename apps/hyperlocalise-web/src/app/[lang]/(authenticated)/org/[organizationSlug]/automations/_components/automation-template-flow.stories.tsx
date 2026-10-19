@@ -79,6 +79,15 @@ export const IntercomTranslation: Story = {
   },
 };
 
+export const SanityTranslation: Story = {
+  ...templateStory("translate-sanity-documents"),
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByLabelText("Daily → Sanity → Create job → Translate with agent"),
+    ).toBeInTheDocument();
+  },
+};
+
 export const BrazeTranslation: Story = {
   ...templateStory("translate-braze-email-templates"),
   play: async ({ canvas }) => {

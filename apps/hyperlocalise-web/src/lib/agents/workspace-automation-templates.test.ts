@@ -112,6 +112,23 @@ describe("workspace automation templates", () => {
     });
   });
 
+  it("builds the Sanity template flow with brand, create job, and translate tools", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "translate-sanity-documents",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+    expect(template).not.toBeNull();
+
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "scheduled", label: "Daily" },
+      tools: [
+        { id: "sanity", label: "Sanity" },
+        { id: "create-job", label: "Create job" },
+        { id: "translate-with-agent", label: "Translate with agent" },
+      ],
+    });
+  });
+
   it("lists the Braze template under Popular and Marketing", () => {
     expect(
       listWorkspaceAutomationTemplates("popular", WORKSPACE_AUTOMATION_TEMPLATES_BASE).map(

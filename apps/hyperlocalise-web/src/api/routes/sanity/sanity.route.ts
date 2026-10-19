@@ -146,6 +146,7 @@ export function createSanityRoutes() {
       const result = await saveSanityPipesApiToken({
         localOrganizationId: c.var.auth.organization.localOrganizationId,
         workosUserId: c.var.auth.user.workosUserId,
+        workosOrganizationId: c.var.auth.organization.workosOrganizationId,
         apiToken,
       });
       if (isErr(result)) {

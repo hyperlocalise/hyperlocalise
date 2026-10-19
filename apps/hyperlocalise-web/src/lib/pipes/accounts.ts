@@ -51,6 +51,17 @@ async function loadWorkosOrganizationId(
   return ok(organization.workosOrganizationId);
 }
 
+async function resolveWorkosOrganizationId(input: {
+  localOrganizationId: string;
+  workosOrganizationId?: string | null;
+}): Promise<Result<string, PipesStatusError>> {
+  const explicit = input.workosOrganizationId?.trim();
+  if (explicit) {
+    return ok(explicit);
+  }
+  return loadWorkosOrganizationId(input.localOrganizationId);
+}
+
 function isNotFound(error: unknown): boolean {
   return error instanceof NotFoundException;
 }
@@ -59,13 +70,17 @@ export async function getPipesAccountStatus(input: {
   provider: PipesProviderSlug;
   localOrganizationId: string;
   workosUserId: string;
+  workosOrganizationId?: string | null;
 }): Promise<Result<PipesConnectionStatus, PipesStatusError>> {
   const workos = getWorkosServerClient();
   if (!workos) {
     return err(PIPES_UNAVAILABLE);
   }
 
-  const organizationIdResult = await loadWorkosOrganizationId(input.localOrganizationId);
+  const organizationIdResult = await resolveWorkosOrganizationId({
+    localOrganizationId: input.localOrganizationId,
+    workosOrganizationId: input.workosOrganizationId,
+  });
   if (isErr(organizationIdResult)) {
     return organizationIdResult;
   }
@@ -115,6 +130,7 @@ export async function upsertPipesApiKey(input: {
   provider: PipesProviderSlug;
   localOrganizationId: string;
   workosUserId: string;
+  workosOrganizationId?: string | null;
   secret: string;
 }): Promise<Result<PipesConnectionStatus, PipesCredentialError>> {
   const secret = input.secret.trim();
@@ -127,7 +143,10 @@ export async function upsertPipesApiKey(input: {
     return err(PIPES_UNAVAILABLE);
   }
 
-  const organizationIdResult = await loadWorkosOrganizationId(input.localOrganizationId);
+  const organizationIdResult = await resolveWorkosOrganizationId({
+    localOrganizationId: input.localOrganizationId,
+    workosOrganizationId: input.workosOrganizationId,
+  });
   if (isErr(organizationIdResult)) {
     return organizationIdResult;
   }

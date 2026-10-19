@@ -146,6 +146,7 @@ export function createPipesRoutes() {
         provider,
         localOrganizationId: c.var.auth.organization.localOrganizationId,
         workosUserId: c.var.auth.user.workosUserId,
+        workosOrganizationId: c.var.auth.organization.workosOrganizationId,
       });
 
       if (isErr(result)) {

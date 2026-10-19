@@ -13,7 +13,7 @@
 import { NotFoundException } from "@workos-inc/node";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { isErr, isOk } from "@/lib/primitives/result/results";
+import { isOk } from "@/lib/primitives/result/results";
 
 const mocks = vi.hoisted(() => ({
   getWorkosServerClient: vi.fn(),
@@ -29,6 +29,7 @@ import {
   getWorkosPipesProviderAvailability,
   isPipesProviderConnectable,
   isWorkosPipesConfigured,
+  resetPipesProviderAvailabilityCacheForTests,
   supportsPipesApiKey,
   supportsPipesOAuth,
 } from "./availability";
@@ -38,6 +39,7 @@ describe("pipes availability", () => {
     mocks.getWorkosServerClient.mockReset();
     mocks.getDataIntegration.mockReset();
     mocks.listUserDataProviders.mockReset();
+    resetPipesProviderAvailabilityCacheForTests();
   });
 
   it("reports WorkOS as not configured when the server client is missing", async () => {
@@ -130,13 +132,53 @@ describe("pipes availability", () => {
     }
   });
 
-  it("maps unexpected WorkOS errors to pipes_unavailable", async () => {
+  it("treats unexpected WorkOS integration errors as unavailable provider state", async () => {
     mocks.getWorkosServerClient.mockReturnValue({
       pipes: { getDataIntegration: mocks.getDataIntegration },
     });
     mocks.getDataIntegration.mockRejectedValue(new Error("upstream failure"));
 
     const result = await getWorkosPipesProviderAvailability("sanity");
-    expect(isErr(result)).toBe(true);
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value).toEqual({
+        workosConfigured: true,
+        providerConfigured: false,
+        providerEnabled: false,
+        supportedAuthMethods: ["oauth", "api_key"],
+      });
+      expect(isPipesProviderConnectable(result.value)).toBe(false);
+    }
+  });
+
+  it("falls back to default auth methods when listing user data providers times out", async () => {
+    vi.useFakeTimers();
+    mocks.getWorkosServerClient.mockReturnValue({
+      pipes: {
+        getDataIntegration: mocks.getDataIntegration,
+        listUserDataProviders: mocks.listUserDataProviders,
+      },
+    });
+    mocks.getDataIntegration.mockResolvedValue({ enabled: true });
+    mocks.listUserDataProviders.mockImplementation(
+      () =>
+        new Promise(() => {
+          /* never resolves */
+        }),
+    );
+
+    const resultPromise = getWorkosPipesProviderAvailability("sanity", {
+      workosUserId: "user_123",
+      workosOrganizationId: "org_123",
+    });
+    await vi.advanceTimersByTimeAsync(2_500);
+    const result = await resultPromise;
+    vi.useRealTimers();
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.supportedAuthMethods).toEqual(["oauth", "api_key"]);
+      expect(result.value.providerEnabled).toBe(true);
+    }
   });
 });

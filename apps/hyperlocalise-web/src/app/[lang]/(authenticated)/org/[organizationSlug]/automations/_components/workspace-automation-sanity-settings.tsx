@@ -12,12 +12,22 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -33,6 +43,11 @@ import type {
 } from "@/lib/agents/workspace-automation-view-model";
 import { formatLocaleOptionLabel } from "@/lib/i18n/locale-display-names.messages";
 import type { SanityExistingTranslationPolicy } from "@/lib/sanity/existing-translation-policy";
+import {
+  filterTranslatableSanityDocumentTypes,
+  isSanityDocumentTypeLocalizable,
+  sanityDocumentI18nModeLabel,
+} from "@/lib/sanity/localization-mode";
 import { resolveSanityLocaleKey } from "@/lib/sanity/sanity-locale";
 import type { SanityDocumentTypeSummary, SanityManageProject } from "@/lib/sanity/types";
 
@@ -56,6 +71,19 @@ function uniqueLocales(values: Array<string | null | undefined>): string[] {
   return locales;
 }
 
+function documentTypesTriggerLabel(selectedNames: string[]): string {
+  if (selectedNames.length === 0) {
+    return "Choose document types";
+  }
+  if (selectedNames.length === 1) {
+    return selectedNames[0]!;
+  }
+  if (selectedNames.length <= 3) {
+    return selectedNames.join(", ");
+  }
+  return `${selectedNames.length} document types`;
+}
+
 export function WorkspaceAutomationSanitySettings({
   organizationSlug,
   form,
@@ -74,6 +102,8 @@ export function WorkspaceAutomationSanitySettings({
   onChange: (next: WorkspaceAutomationFormState) => void;
 }) {
   const intl = useIntl();
+  const [documentTypePickerOpen, setDocumentTypePickerOpen] = useState(false);
+
   const projectsQuery = useQuery({
     queryKey: ["sanity-projects", organizationSlug],
     enabled: form.sanityEnabled && sanityConnected,
@@ -88,6 +118,9 @@ export function WorkspaceAutomationSanitySettings({
       return (body.projects ?? []) as SanityManageProject[];
     },
   });
+
+  const projects = projectsQuery.data ?? [];
+  const selectedProject = projects.find((project) => project.id === form.sanityProjectId);
 
   const datasetsQuery = useQuery({
     queryKey: ["sanity-datasets", organizationSlug, form.sanityProjectId],
@@ -106,15 +139,20 @@ export function WorkspaceAutomationSanitySettings({
     },
   });
 
-  const typeNamesQuery = useQuery({
-    queryKey: ["sanity-type-names", organizationSlug, form.sanityProjectId, form.sanityDataset],
+  const translatableDocumentTypesQuery = useQuery({
+    queryKey: [
+      "sanity-translatable-document-types",
+      organizationSlug,
+      form.sanityProjectId,
+      form.sanityDataset,
+    ],
     enabled:
       form.sanityEnabled &&
       sanityConnected &&
       Boolean(form.sanityProjectId) &&
       Boolean(form.sanityDataset),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].sanity.projects[
+      const typesResponse = await apiClient.api.orgs[":organizationSlug"].sanity.projects[
         ":projectId"
       ].datasets[":dataset"].types.$get({
         param: {
@@ -123,13 +161,40 @@ export function WorkspaceAutomationSanitySettings({
           dataset: form.sanityDataset,
         },
       });
-      if (!response.ok) {
+      if (!typesResponse.ok) {
         throw new Error("Failed to load Sanity document types");
       }
-      const body = await response.json();
-      return (body.typeNames ?? []) as string[];
+      const typeNames = ((await typesResponse.json()).typeNames ?? []) as string[];
+      if (typeNames.length === 0) {
+        return [] as SanityDocumentTypeSummary[];
+      }
+
+      const detectedResponse = await apiClient.api.orgs[":organizationSlug"].sanity.projects[
+        ":projectId"
+      ].datasets[":dataset"]["document-types"].$get({
+        param: {
+          organizationSlug,
+          projectId: form.sanityProjectId,
+          dataset: form.sanityDataset,
+        },
+        query: {
+          typeNames: typeNames.join(","),
+        },
+      });
+      if (!detectedResponse.ok) {
+        throw new Error("Failed to inspect Sanity document types");
+      }
+      const body = await detectedResponse.json();
+      const types = (body.types ?? []) as SanityDocumentTypeSummary[];
+      return filterTranslatableSanityDocumentTypes(types);
     },
   });
+
+  const translatableDocumentTypes = translatableDocumentTypesQuery.data ?? [];
+  const translatableTypeNames = useMemo(
+    () => new Set(translatableDocumentTypes.map((type) => type.name)),
+    [translatableDocumentTypes],
+  );
 
   const documentTypesQuery = useQuery({
     queryKey: [
@@ -232,15 +297,48 @@ export function WorkspaceAutomationSanitySettings({
     });
   }, [documentTypesQuery.data?.languages, form, onChange, sanityConnected]);
 
-  function toggleDocumentType(typeName: string) {
-    const selected = form.sanityDocumentTypes.includes(typeName);
+  useEffect(() => {
+    if (translatableDocumentTypesQuery.isLoading || translatableTypeNames.size === 0) {
+      return;
+    }
+    const pruned = form.sanityDocumentTypes.filter((name) => translatableTypeNames.has(name));
+    if (pruned.length === form.sanityDocumentTypes.length) {
+      return;
+    }
+    const nextModes = { ...form.sanityDocumentTypeModes };
+    for (const name of Object.keys(nextModes)) {
+      if (!pruned.includes(name)) {
+        delete nextModes[name];
+      }
+    }
     onChange({
       ...form,
-      sanityDocumentTypes: selected
-        ? form.sanityDocumentTypes.filter((entry) => entry !== typeName)
-        : [...form.sanityDocumentTypes, typeName],
+      sanityDocumentTypes: pruned,
+      sanityDocumentTypeModes: nextModes,
+      ...(pruned.length === 0 ? { sanityLanguages: [] } : {}),
+    });
+  }, [form, onChange, translatableDocumentTypesQuery.isLoading, translatableTypeNames]);
+
+  function toggleDocumentType(type: SanityDocumentTypeSummary) {
+    const selected = form.sanityDocumentTypes.includes(type.name);
+    const nextTypes = selected
+      ? form.sanityDocumentTypes.filter((entry) => entry !== type.name)
+      : [...form.sanityDocumentTypes, type.name];
+    const nextModes = { ...form.sanityDocumentTypeModes };
+    if (selected) {
+      delete nextModes[type.name];
+    } else if (isSanityDocumentTypeLocalizable(type.i18nMode)) {
+      nextModes[type.name] = type.i18nMode;
+    }
+    onChange({
+      ...form,
+      sanityDocumentTypes: nextTypes,
+      sanityDocumentTypeModes: nextModes,
+      ...(nextTypes.length === 0 ? { sanityLanguages: [] } : {}),
     });
   }
+
+  const selectedDocumentTypeNames = form.sanityDocumentTypes;
 
   return (
     <div className="space-y-4 rounded-lg border border-border p-4">
@@ -263,17 +361,24 @@ export function WorkspaceAutomationSanitySettings({
                 sanityProjectId: projectId,
                 sanityDataset: "",
                 sanityDocumentTypes: [],
+                sanityDocumentTypeModes: {},
                 sanityLanguages: [],
               });
             }}
           >
-            <SelectTrigger id="sanity-project">
-              <SelectValue placeholder="Choose a project" />
+            <SelectTrigger id="sanity-project" className="w-full">
+              <SelectValue placeholder="Choose a project">
+                {selectedProject?.displayName ?? form.sanityProjectId}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {(projectsQuery.data ?? []).map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.displayName}
+              {projects.map((project) => (
+                <SelectItem
+                  key={project.id}
+                  value={project.id}
+                  label={project.displayName || project.id}
+                >
+                  {project.displayName || project.id}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -302,17 +407,20 @@ export function WorkspaceAutomationSanitySettings({
                 ...form,
                 sanityDataset: dataset,
                 sanityDocumentTypes: [],
+                sanityDocumentTypeModes: {},
                 sanityLanguages: [],
               });
             }}
             disabled={!form.sanityProjectId}
           >
-            <SelectTrigger id="sanity-dataset">
-              <SelectValue placeholder="Choose a dataset" />
+            <SelectTrigger id="sanity-dataset" className="w-full">
+              <SelectValue placeholder="Choose a dataset">
+                {form.sanityDataset || undefined}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {(datasetsQuery.data ?? []).map((dataset) => (
-                <SelectItem key={dataset.name} value={dataset.name}>
+                <SelectItem key={dataset.name} value={dataset.name} label={dataset.name}>
                   {dataset.name}
                 </SelectItem>
               ))}
@@ -325,24 +433,70 @@ export function WorkspaceAutomationSanitySettings({
       </div>
 
       <div className="space-y-2">
-        <Label>Document types</Label>
-        {typeNamesQuery.isLoading ? (
+        <Label htmlFor="sanity-document-types">Document types</Label>
+        {!form.sanityDataset ? (
+          <p className="text-sm text-muted-foreground">Select a dataset first.</p>
+        ) : translatableDocumentTypesQuery.isLoading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Spinner />
-            Loading document types…
+            Loading translatable document types…
           </div>
+        ) : translatableDocumentTypesQuery.isError ? (
+          <p className="text-sm text-destructive">Failed to load document types.</p>
+        ) : translatableDocumentTypes.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No translatable document types found. Configure document- or field-level i18n in your
+            Sanity schema.
+          </p>
         ) : (
-          <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border border-border p-3">
-            {(typeNamesQuery.data ?? []).map((typeName) => (
-              <label key={typeName} className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={form.sanityDocumentTypes.includes(typeName)}
-                  onCheckedChange={() => toggleDocumentType(typeName)}
+          <Popover open={documentTypePickerOpen} onOpenChange={setDocumentTypePickerOpen}>
+            <PopoverTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!sanityConnected}
+                  className="w-full justify-between font-normal"
+                  id="sanity-document-types"
+                  aria-invalid={Boolean(errors.sanityDocumentTypes)}
                 />
-                {typeName}
-              </label>
-            ))}
-          </div>
+              }
+            >
+              <span className="truncate text-left">
+                {documentTypesTriggerLabel(selectedDocumentTypeNames)}
+              </span>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-[var(--anchor-width)] p-0">
+              <Command>
+                <CommandInput placeholder="Search document types" />
+                <CommandList label="Document types" aria-multiselectable={true}>
+                  <CommandEmpty>No matching document types.</CommandEmpty>
+                  <CommandGroup>
+                    {translatableDocumentTypes.map((type) => {
+                      const checked = form.sanityDocumentTypes.includes(type.name);
+                      const modeLabel = sanityDocumentI18nModeLabel(type.i18nMode);
+                      return (
+                        <CommandItem
+                          key={type.name}
+                          value={`${type.name} ${modeLabel}`}
+                          data-checked={checked || undefined}
+                          aria-checked={checked}
+                          onSelect={() => toggleDocumentType(type)}
+                        >
+                          <span className="min-w-0 flex-1 truncate">
+                            <span className="block truncate">{type.name}</span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {modeLabel}
+                            </span>
+                          </span>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         )}
         {errors.sanityDocumentTypes ? (
           <p className="text-sm text-destructive">{errors.sanityDocumentTypes}</p>
@@ -361,12 +515,16 @@ export function WorkspaceAutomationSanitySettings({
           }}
           disabled={languageOptions.length === 0}
         >
-          <SelectTrigger id="sanity-source-locale">
-            <SelectValue placeholder="Choose source locale" />
+          <SelectTrigger id="sanity-source-locale" className="w-full">
+            <SelectValue placeholder="Choose source locale">
+              {form.sanitySourceLocale
+                ? formatLocaleOptionLabel(intl, form.sanitySourceLocale)
+                : "Choose source locale"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {languageOptions.map((locale) => (
-              <SelectItem key={locale} value={locale}>
+              <SelectItem key={locale} value={locale} label={formatLocaleOptionLabel(intl, locale)}>
                 {formatLocaleOptionLabel(intl, locale)}
               </SelectItem>
             ))}
@@ -422,8 +580,10 @@ export function WorkspaceAutomationSanitySettings({
             })
           }
         >
-          <SelectTrigger id="sanity-existing-translation-policy">
-            <SelectValue />
+          <SelectTrigger id="sanity-existing-translation-policy" className="w-full">
+            <SelectValue>
+              {SANITY_EXISTING_TRANSLATION_POLICY_LABELS[form.sanityExistingTranslationPolicy]}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {(

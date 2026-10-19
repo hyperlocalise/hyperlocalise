@@ -104,6 +104,7 @@ export async function loadSanityPipesAccessToken(input: {
 export async function saveSanityPipesApiToken(input: {
   localOrganizationId: string;
   workosUserId: string;
+  workosOrganizationId?: string | null;
   apiToken: string;
 }): Promise<Result<SanityPipesConnectionStatus, SanityPipesError>> {
   if (!input.apiToken.trim()) {
@@ -114,6 +115,7 @@ export async function saveSanityPipesApiToken(input: {
     provider: SANITY_PIPES_SLUG,
     localOrganizationId: input.localOrganizationId,
     workosUserId: input.workosUserId,
+    workosOrganizationId: input.workosOrganizationId,
     secret: input.apiToken,
   });
   if (isErr(result)) {

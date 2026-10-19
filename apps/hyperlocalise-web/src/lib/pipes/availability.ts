@@ -12,16 +12,11 @@
  */
 import { NotFoundException } from "@workos-inc/node";
 
-import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { ok, type Result } from "@/lib/primitives/result/results";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
 
 import type { PipesProviderSlug } from "./providers";
 import type { PipesStatusError } from "./types";
-
-const PIPES_UNAVAILABLE: PipesStatusError = {
-  code: "pipes_unavailable",
-  message: "WorkOS is not configured, so this provider cannot connect through Pipes.",
-};
 
 export const PIPES_AUTH_METHOD_OAUTH = "oauth" as const;
 export const PIPES_AUTH_METHOD_API_KEY = "api_key" as const;
@@ -34,6 +29,47 @@ const DEFAULT_SUPPORTED_AUTH_METHODS: PipesProviderAuthMethod[] = [
   PIPES_AUTH_METHOD_OAUTH,
   PIPES_AUTH_METHOD_API_KEY,
 ];
+
+const USER_DATA_PROVIDERS_TIMEOUT_MS = 2_500;
+const AVAILABILITY_CACHE_TTL_MS = 60_000;
+
+type CachedAvailability = {
+  expiresAt: number;
+  value: PipesProviderAvailability;
+};
+
+const availabilityCache = new Map<string, CachedAvailability>();
+
+/** Test-only: clear cached WorkOS Pipes availability responses. */
+export function resetPipesProviderAvailabilityCacheForTests() {
+  availabilityCache.clear();
+}
+
+function availabilityCacheKey(
+  provider: PipesProviderSlug,
+  context: GetWorkosPipesProviderAvailabilityContext | undefined,
+): string {
+  if (!context) {
+    return `${provider}:anonymous`;
+  }
+  return `${provider}:${context.workosOrganizationId}:${context.workosUserId}`;
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((resolve) => {
+        timeoutId = setTimeout(() => resolve(fallback), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
 
 export type PipesProviderAvailability = {
   workosConfigured: boolean;
@@ -92,10 +128,14 @@ async function loadSupportedAuthMethods(
   }
 
   try {
-    const list = await workos.pipes.listUserDataProviders({
-      userId: context.workosUserId,
-      organizationId: context.workosOrganizationId,
-    });
+    const list = await withTimeout(
+      workos.pipes.listUserDataProviders({
+        userId: context.workosUserId,
+        organizationId: context.workosOrganizationId,
+      }),
+      USER_DATA_PROVIDERS_TIMEOUT_MS,
+      { object: "list" as const, data: [] },
+    );
     const providerEntry = list.data.find((entry) => entry.slug === provider);
     return normalizeSupportedAuthMethods(providerEntry?.authMethods);
   } catch {
@@ -103,10 +143,27 @@ async function loadSupportedAuthMethods(
   }
 }
 
+function unavailableProviderAvailability(
+  supportedAuthMethods: PipesProviderAuthMethod[],
+): PipesProviderAvailability {
+  return {
+    workosConfigured: true,
+    providerConfigured: false,
+    providerEnabled: false,
+    supportedAuthMethods,
+  };
+}
+
 export async function getWorkosPipesProviderAvailability(
   provider: PipesProviderSlug,
   context?: GetWorkosPipesProviderAvailabilityContext,
 ): Promise<Result<PipesProviderAvailability, PipesStatusError>> {
+  const cacheKey = availabilityCacheKey(provider, context);
+  const cached = availabilityCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return ok(cached.value);
+  }
+
   if (!isWorkosPipesConfigured()) {
     return ok({
       workosConfigured: false,
@@ -126,27 +183,34 @@ export async function getWorkosPipesProviderAvailability(
     });
   }
 
-  const supportedAuthMethods = await loadSupportedAuthMethods(workos, provider, context);
+  const [supportedAuthMethods, integrationResult] = await Promise.all([
+    loadSupportedAuthMethods(workos, provider, context),
+    workos.pipes
+      .getDataIntegration({ slug: provider })
+      .then((integration) => ({ ok: true as const, integration }))
+      .catch((error: unknown) => ({ ok: false as const, error })),
+  ]);
 
-  try {
-    const integration = await workos.pipes.getDataIntegration({ slug: provider });
-    return ok({
+  let availability: PipesProviderAvailability;
+  if (integrationResult.ok) {
+    availability = {
       workosConfigured: true,
       providerConfigured: true,
-      providerEnabled: Boolean(integration.enabled),
+      providerEnabled: Boolean(integrationResult.integration.enabled),
       supportedAuthMethods,
-    });
-  } catch (error) {
-    if (isNotFound(error)) {
-      return ok({
-        workosConfigured: true,
-        providerConfigured: false,
-        providerEnabled: false,
-        supportedAuthMethods,
-      });
-    }
-    return err(PIPES_UNAVAILABLE);
+    };
+  } else if (isNotFound(integrationResult.error)) {
+    availability = unavailableProviderAvailability(supportedAuthMethods);
+  } else {
+    availability = unavailableProviderAvailability(supportedAuthMethods);
   }
+
+  availabilityCache.set(cacheKey, {
+    expiresAt: Date.now() + AVAILABILITY_CACHE_TTL_MS,
+    value: availability,
+  });
+
+  return ok(availability);
 }
 
 export function isPipesProviderConnectable(availability: PipesProviderAvailability): boolean {

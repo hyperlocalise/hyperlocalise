@@ -29,3 +29,20 @@ export function isSanityDocumentTypeLocalizable(
 ): mode is "document" | "field" {
   return mode === "document" || mode === "field";
 }
+
+export function filterTranslatableSanityDocumentTypes<T extends { i18nMode: SanityI18nMode }>(
+  types: readonly T[],
+): T[] {
+  return types.filter((type) => isSanityDocumentTypeLocalizable(type.i18nMode));
+}
+
+export function sanityDocumentI18nModeLabel(mode: SanityI18nMode): string {
+  switch (mode) {
+    case "document":
+      return "Document-level i18n";
+    case "field":
+      return "Field-level i18n";
+    default:
+      return "Not localizable";
+  }
+}

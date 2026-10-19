@@ -20,6 +20,7 @@ export async function getPipesConnectionStatus(input: {
   provider: PipesProviderSlug;
   localOrganizationId: string;
   workosUserId: string;
+  workosOrganizationId?: string | null;
 }): Promise<Result<PipesConnectionStatus, PipesStatusError>> {
   return getPipesAccountStatus(input);
 }
