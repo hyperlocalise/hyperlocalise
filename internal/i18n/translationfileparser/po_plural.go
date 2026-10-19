@@ -48,7 +48,9 @@ var (
 	}
 	poPluralPolish = poPluralSpec{
 		categories: []string{"one", "few", "many", "other"},
-		formula:    "(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : n%100>=10 && n%100<=20 ? 2 : 3)",
+		// Integers such as 5, 21, and 25 are "many" (index 2). Index 3 is the
+		// fractional "other" slot, matching CLDR and Crowdin's Polish header.
+		formula: "(n==1 ? 0 : (n%10>=2 && n%10<=4) && (n%100<12 || n%100>14) ? 1 : n!=1 && (n%10>=0 && n%10<=1) || (n%10>=5 && n%10<=9) || (n%100>=12 && n%100<=14) ? 2 : 3)",
 	}
 	poPluralSlovenian = poPluralSpec{
 		categories: []string{"one", "two", "few", "other"},

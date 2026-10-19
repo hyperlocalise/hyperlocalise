@@ -3,6 +3,7 @@ package translationfileparser
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -598,6 +599,15 @@ func MarshalPOFileForLocale(template []byte, values map[string]string, targetLoc
 			writePORawLines(&out, []poRawLine{{raw: raw, newline: followedByNewline}})
 			entryStart = lineNumber + 1
 		} else {
+			// Compact catalogs omit the blank line between entries. A comment,
+			// msgctxt, or msgid after a finished msgstr starts the next entry.
+			// Flushing here keeps a later plural rebuild from deleting the
+			// header and the messages above it.
+			if poBufferHasMsgstr(entry) && poLineStartsNextEntry(trimmed) {
+				if err := flush(); err != nil {
+					return nil, err
+				}
+			}
 			if len(entry) == 0 {
 				entryStart = lineNumber
 			}
@@ -651,13 +661,14 @@ func rewritePOEntry(lines []poRawLine, startLine int, values map[string]string, 
 		targetCount := len(entry.forms)
 		if targetLocale != "" {
 			targetSpec := poPluralSpecForLocale(targetLocale)
-			if targetSpec.nplurals() != len(entry.forms) {
-				lookupCategories = targetSpec.categories
-				targetCount = targetSpec.nplurals()
-			}
+			lookupCategories = targetSpec.categories
+			targetCount = targetSpec.nplurals()
 		}
-		if targetCount != len(entry.forms) || poPluralHasCategoryKeys(values, base, categories, len(entry.forms)) {
-			return rebuildPOPlural(lines, entry, values, lookupCategories, targetCount)
+		// Same slot count can still mean different categories. Polish
+		// one/few/many/other and Slovenian one/two/few/other are both four
+		// forms, and writing the source order under the target header swaps them.
+		if targetCount != len(entry.forms) || !poCategoryOrderEqual(categories, lookupCategories) || poPluralHasCategoryKeys(values, base, lookupCategories, targetCount) {
+			return rebuildPOPlural(lines, entry, values, categories, lookupCategories, targetCount)
 		}
 	}
 	return rewritePOSingular(lines, entry, values, categories)
@@ -705,7 +716,7 @@ func lookupPOPlural(values map[string]string, base string, categories []string, 
 	return "", false
 }
 
-func rebuildPOPlural(lines []poRawLine, entry poBuiltEntry, values map[string]string, categories []string, count int) ([]poRawLine, error) {
+func rebuildPOPlural(lines []poRawLine, entry poBuiltEntry, values map[string]string, sourceCategories, categories []string, count int) ([]poRawLine, error) {
 	if count < 1 {
 		count = 1
 	}
@@ -722,7 +733,7 @@ func rebuildPOPlural(lines []poRawLine, entry poBuiltEntry, values map[string]st
 			replaced = true
 			continue
 		}
-		if i < len(entry.forms) && entry.forms[i] != "" && i < len(categories) && count == len(entry.forms) {
+		if i < len(entry.forms) && entry.forms[i] != "" && count == len(entry.forms) && poCategoryAt(sourceCategories, i) == poCategoryAt(categories, i) {
 			forms[i] = entry.forms[i]
 			continue
 		}
@@ -740,7 +751,7 @@ func rebuildPOPlural(lines []poRawLine, entry poBuiltEntry, values map[string]st
 	}
 
 	indent := ""
-	out := make([]poRawLine, 0, len(lines)+count)
+	out := make([]poRawLine, 0, poAllocCap(len(lines), count))
 	skipping := false
 	insertedAt := -1
 	lastFormNewline := true
@@ -1020,7 +1031,7 @@ func insertPOHeaderField(lines []string, field string) []string {
 
 func poHeaderValueLines(indent, header string, newline, crlf bool) []poRawLine {
 	parts := strings.SplitAfter(header, "\n")
-	lines := make([]poRawLine, 0, len(parts)+1)
+	lines := make([]poRawLine, 0, poAllocCap(len(parts), 1))
 	empty := indent + `msgstr ""`
 	if crlf {
 		empty += "\r"
@@ -1040,6 +1051,48 @@ func poHeaderValueLines(indent, header string, newline, crlf bool) []poRawLine {
 		lines[len(lines)-1].newline = newline
 	}
 	return lines
+}
+
+func poBufferHasMsgstr(entry []poRawLine) bool {
+	for _, line := range entry {
+		if strings.HasPrefix(strings.TrimSpace(line.raw), "msgstr") {
+			return true
+		}
+	}
+	return false
+}
+
+func poLineStartsNextEntry(trimmed string) bool {
+	if trimmed == "" {
+		return false
+	}
+	if trimmed[0] == '#' {
+		return true
+	}
+	if strings.HasPrefix(trimmed, "msgctxt ") {
+		return true
+	}
+	return strings.HasPrefix(trimmed, "msgid ")
+}
+
+func poCategoryOrderEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// poAllocCap adds extra to n without wrapping a length used as a slice capacity.
+func poAllocCap(n, extra int) int {
+	if extra <= 0 || n > math.MaxInt-extra {
+		return n
+	}
+	return n + extra
 }
 
 func stripPOCR(raw string) string {
