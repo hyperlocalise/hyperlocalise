@@ -46,6 +46,7 @@ func NewDefaultStrategy() *Strategy {
 	parsers[".xlif"] = XLIFFParser{}
 	parsers[".xliff"] = XLIFFParser{}
 	parsers[".po"] = POFileParser{}
+	parsers[".pot"] = POFileParser{}
 	parsers[".html"] = HTMLParser{}
 	parsers[".htm"] = HTMLParser{}
 	parsers[".liquid"] = LiquidParser{}

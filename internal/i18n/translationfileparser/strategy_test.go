@@ -681,11 +681,11 @@ msgstr[1] "articles"
 	if got["home.title"] != "Accueil Maison" {
 		t.Fatalf("unexpected home.title translation: %q", got["home.title"])
 	}
-	if got["items"] != "article" {
-		t.Fatalf("unexpected plural base translation: %q", got["items"])
+	if got["items||one"] != "article" || got["items||other"] != "articles" {
+		t.Fatalf("unexpected plural translations: %+v", got)
 	}
-	if len(got) != 3 {
-		t.Fatalf("unexpected parsed entry count: got %d want 3", len(got))
+	if len(got) != 4 {
+		t.Fatalf("unexpected parsed entry count: got %d want 4 (%+v)", len(got), got)
 	}
 }
 
