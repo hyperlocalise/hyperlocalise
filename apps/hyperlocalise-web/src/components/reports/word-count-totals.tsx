@@ -75,6 +75,7 @@ export function WordCountTotals({
             </TabsList>
           </Tabs>
           <Button
+            nativeButton={false}
             render={<a href={`${base}/word-counts?${csvParams}`} />}
             variant="outline"
             size="sm"

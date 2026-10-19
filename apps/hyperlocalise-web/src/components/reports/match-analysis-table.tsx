@@ -78,7 +78,12 @@ export function MatchAnalysisTable({ base, jobId }: { base: string; jobId: strin
           </p>
         </div>
         {rows.length > 0 ? (
-          <Button render={<a href={`${url}?format=csv`} />} variant="outline" size="sm">
+          <Button
+            nativeButton={false}
+            render={<a href={`${url}?format=csv`} />}
+            variant="outline"
+            size="sm"
+          >
             {intl.formatMessage(messages.downloadCsv)}
           </Button>
         ) : null}

@@ -296,12 +296,22 @@ export function ReportsWorkspace({
   const jobs = useQuery({
     queryKey: ["reports", organizationSlug, "jobs", appliedFilters.projectId],
     queryFn: () =>
-      reportingFetch<{ jobs: { id: string; title: string; projectId: string | null }[] }>(
+      reportingFetch<{
+        jobs: { id: string; title: string; projectId: string | null; createdAt: string }[];
+      }>(
         `${base}/jobs${appliedFilters.projectId ? `?projectId=${encodeURIComponent(appliedFilters.projectId)}` : ""}`,
       ),
   });
   const jobTitleById = new Map((jobs.data?.jobs ?? []).map((job) => [job.id, job.title]));
-  const jobOptions = (jobs.data?.jobs ?? []).map((job) => ({ value: job.id, label: job.title }));
+  // Tasks often share a name, so the picker adds when each one started.
+  const jobOptions = (jobs.data?.jobs ?? []).map((job) => ({
+    value: job.id,
+    label: `${job.title} · ${intl.formatDate(job.createdAt, {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "UTC",
+    })} UTC`,
+  }));
   if (filters.jobId && !jobTitleById.has(filters.jobId)) {
     jobOptions.unshift({ value: filters.jobId, label: filters.jobId });
   }
@@ -358,7 +368,7 @@ export function ReportsWorkspace({
               : label("notStarted")}
           </p>
         </div>
-        <Button render={<a href={base + "?" + csvParams} />} variant="outline">
+        <Button nativeButton={false} render={<a href={base + "?" + csvParams} />} variant="outline">
           {label("export")}
         </Button>
       </div>
@@ -367,7 +377,7 @@ export function ReportsWorkspace({
           (key) => (
             <Field key={key}>
               <FieldLabel htmlFor={`filter-${key}`}>
-                {label(key === "jobId" ? "taskFilter" : key)}
+                {label(key === "jobId" ? "task" : key)}
               </FieldLabel>
               {["projectId", "jobId", "targetLocale", "step", "interval"].includes(key) ? (
                 <select
@@ -469,7 +479,7 @@ export function ReportsWorkspace({
           <TableHeader>
             <TableRow>
               {columns.map((key) => (
-                <TableHead key={key}>{label(key as Label)}</TableHead>
+                <TableHead key={key}>{label(key === "jobId" ? "task" : (key as Label))}</TableHead>
               ))}
             </TableRow>
           </TableHeader>

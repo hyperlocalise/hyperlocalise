@@ -54,10 +54,10 @@ export const reportMessages = defineMessages({
     defaultMessage: "Task ID",
     description: "Translation reporting label",
   },
-  taskFilter: {
-    id: "4yhfLs/Kox",
+  task: {
+    id: "yVIGBzoY1L",
     defaultMessage: "Task",
-    description: "Label of the Reports filter that picks one task",
+    description: "Label for a task in the Reports filters and table",
   },
   targetLocale: {
     id: "wFAehxKEKp",

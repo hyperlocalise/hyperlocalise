@@ -220,6 +220,13 @@ describe("listReportJobs", () => {
       projectIds: [project.id],
     });
 
-    expect(jobs).toEqual([{ id: job.id, title: "Checkout strings", projectId: project.id }]);
+    expect(jobs).toEqual([
+      {
+        id: job.id,
+        title: "Checkout strings",
+        projectId: project.id,
+        createdAt: expect.anything(),
+      },
+    ]);
   });
 });

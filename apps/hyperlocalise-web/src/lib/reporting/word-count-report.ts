@@ -130,7 +130,12 @@ export async function queryWordVolume(input: {
   return result.rows;
 }
 
-export type ReportJobOption = { id: string; title: string; projectId: string | null };
+export type ReportJobOption = {
+  id: string;
+  title: string;
+  projectId: string | null;
+  createdAt: string;
+};
 
 /** Jobs that have Reports data, newest first, for the job picker. */
 export async function listReportJobs(input: {
@@ -141,7 +146,7 @@ export async function listReportJobs(input: {
   if (input.projectIds.length === 0) return [];
   const result = await db.execute<ReportJobOption>(sql`
     select j.id, coalesce(j.input_payload -> 'metadata' ->> 'title', j.id) as title,
-      j.project_id as "projectId"
+      j.project_id as "projectId", j.created_at as "createdAt"
     from jobs j
     where j.organization_id = ${input.organizationId}
       and j.project_id in (${sql.join(
