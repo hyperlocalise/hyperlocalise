@@ -33,8 +33,11 @@ const MEMORY_SLICE_ENTRIES = 300_000;
  * index: building costs about as much as two or three scans over the same entries.
  */
 const MEMORY_INDEX_MIN_QUERIES = 4;
-/** Version 2: scores come from the in-memory bigram index on normalized text. */
-export const MATCH_ALGORITHM_VERSION = 2;
+/**
+ * Version 3: 100 only for an exact copy of the source text (as translation reuse requires),
+ * otherwise at most 99; candidates come from the in-memory bigram index on normalized text.
+ */
+export const MATCH_ALGORITHM_VERSION = 3;
 
 export async function reportingStart(database: DatabaseClient = db) {
   await database.insert(schema.reportingRollout).values({ id: 1 }).onConflictDoNothing();
@@ -178,7 +181,7 @@ export async function scoreAgainstMemory(
   let after: string | undefined;
   for (;;) {
     const rows = await db
-      .select({ id: schema.memoryEntries.id, source: schema.memoryEntries.normalizedSourceText })
+      .select({ id: schema.memoryEntries.id, source: schema.memoryEntries.sourceText })
       .from(schema.memoryEntries)
       .where(
         and(approvedMemoryEntries(input), after ? gt(schema.memoryEntries.id, after) : undefined),

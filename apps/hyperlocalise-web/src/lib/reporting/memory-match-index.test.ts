@@ -12,7 +12,20 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { MemoryMatchIndex, MemorySourceScan, sourceSimilarity } from "./memory-match-index";
+import {
+  MemoryMatchIndex,
+  MemorySourceScan,
+  memoryMatchScore,
+  sourceSimilarity,
+} from "./memory-match-index";
+
+describe("memoryMatchScore", () => {
+  it("is 100 only for the same text, as translation reuse requires", () => {
+    expect(memoryMatchScore("Save", "Save")).toBe(100);
+    expect(memoryMatchScore("Save", "save")).toBe(99);
+    expect(memoryMatchScore("Save and close", "Save & close")).toBeLessThan(95);
+  });
+});
 
 describe("sourceSimilarity", () => {
   it("scores identical text as 100 and unrelated text low", () => {
@@ -32,8 +45,13 @@ describe("MemoryMatchIndex", () => {
     ...Array.from({ length: 500 }, (_, i) => `Checkout step ${i} confirm payment`),
   ]);
 
-  it("finds exact matches ignoring case and spacing", () => {
-    expect(index.bestScore("hello  WORLD")).toBe(100);
+  it("scores only an exact copy of the source text as 100", () => {
+    expect(index.bestScore("Hello world")).toBe(100);
+  });
+
+  it("scores text that differs only in case or spacing as 99, not 100", () => {
+    expect(index.bestScore("hello  WORLD")).toBe(99);
+    expect(index.bestScore("Hello world ")).toBe(99);
   });
 
   it("finds a match when a word is added, removed or changed", () => {
