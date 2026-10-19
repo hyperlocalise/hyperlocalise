@@ -21,6 +21,7 @@ import {
   extractHtmlIngestEntries,
   htmlCliPrefillsFromPathEntries,
   htmlCompletedPathKeysFromLock,
+  htmlSourceFallbackPathKeys,
   isHashedHtmlEntryKey,
   isHtmlTranslationSourcePath,
   legacyHtmlSegmentKey,
@@ -143,6 +144,24 @@ describe("html key shape helpers", () => {
     expect(isHashedHtmlEntryKey("html.p")).toBe(false);
     expect(isHashedHtmlEntryKey("html.body.p")).toBe(false);
     expect(isHashedHtmlEntryKey("html.0123456789abcde")).toBe(false);
+  });
+});
+
+describe("htmlSourceFallbackPathKeys", () => {
+  const html = "<p>Hello <strong>world</strong>!</p><div>Other</div>";
+
+  it("flags folded units rendered entirely as source", () => {
+    const target = "<p>Hello <strong>world</strong>!</p><div>Autre</div>";
+    const fallbacks = htmlSourceFallbackPathKeys(html, extractHtmlIngestEntries(target));
+    expect(fallbacks.has("html.p")).toBe(true);
+    expect(fallbacks.has("html.p.strong")).toBe(true);
+    expect(fallbacks.has("html.div")).toBe(false);
+  });
+
+  it("keeps a unit when any of its path keys changed", () => {
+    const target = "<p>Bonjour <strong>world</strong>!</p><div>Autre</div>";
+    const fallbacks = htmlSourceFallbackPathKeys(html, extractHtmlIngestEntries(target));
+    expect([...fallbacks]).toEqual([]);
   });
 });
 

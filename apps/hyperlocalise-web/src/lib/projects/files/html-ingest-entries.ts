@@ -224,6 +224,34 @@ export function htmlCompletedPathKeysFromLock(
   return [...out];
 }
 
+/** The CLI renderer writes source text for a whole folded unit when a translation
+ * drops placeholders or adds raw HTML, yet the lock still lists the unit as
+ * completed. Treat units whose every path key still reads as source as fallbacks.
+ * A genuine identity translation is skipped too; it stays editable in CAT. */
+export function htmlSourceFallbackPathKeys(
+  sourceHtml: string,
+  extracted: Record<string, string>,
+): Set<string> {
+  const sourceTexts = new Map(
+    extractHtmlIngestEntriesInOrder(sourceHtml).map((entry) => [entry.key, entry.text]),
+  );
+  const out = new Set<string>();
+  for (const unit of extractFoldedHtmlUnits(sourceHtml)) {
+    if (unit.pathKeys.length === 0) {
+      continue;
+    }
+    const allSource = unit.pathKeys.every(
+      (key) => extracted[key]?.trim() === sourceTexts.get(key)?.trim(),
+    );
+    if (allSource) {
+      for (const key of unit.pathKeys) {
+        out.add(key);
+      }
+    }
+  }
+  return out;
+}
+
 export function htmlCliPrefillsFromPathEntries(
   html: string,
   pathEntries: Record<string, string>,

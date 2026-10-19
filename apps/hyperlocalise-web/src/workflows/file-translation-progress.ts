@@ -143,6 +143,7 @@ export async function collectFileTranslationPageStep(input: {
   const {
     extractHtmlIngestEntries,
     htmlCompletedPathKeysFromLock,
+    htmlSourceFallbackPathKeys,
     isHtmlTranslationSourcePath,
     utf8FromStoredFileContent,
   } = await import("@/lib/projects/files/html-ingest-entries");
@@ -161,6 +162,7 @@ export async function collectFileTranslationPageStep(input: {
       const extracted = extractHtmlIngestEntries(
         utf8FromStoredFileContent(await readTranslatedFile(input.sandboxId, filename)),
       );
+      const sourceFallbacks = htmlSourceFallbackPathKeys(sourceHtml, extracted);
       const collected = collectHtmlTranslationPageEntries({
         sourceEntries: input.sourceEntries,
         extracted,
@@ -168,7 +170,7 @@ export async function collectFileTranslationPageStep(input: {
         completedPathKeys: htmlCompletedPathKeysFromLock(
           sourceHtml,
           completedFileTranslationKeys(lock, filename),
-        ),
+        ).filter((key) => !sourceFallbacks.has(key)),
       });
       if (Object.keys(collected).length > 0) {
         delta[locale] = collected;
