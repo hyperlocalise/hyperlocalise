@@ -116,6 +116,9 @@ const mcpGetReportInputSchema = z.object({
   jobId: reportQueryShape.jobId.describe("Optional job ID filter."),
   targetLocale: reportQueryShape.targetLocale.describe("Optional target locale filter."),
   step: reportQueryShape.step.describe("Optional workflow step filter: translation or review."),
+  page: reportQueryShape.page.describe(
+    "Page of rows, starting at 1. When truncated is true, request the next page.",
+  ),
 });
 
 function readJobMetadataString(inputPayload: unknown, field: "title" | "description") {
@@ -431,7 +434,7 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
         ...report,
         rows: report.rows.slice(0, MCP_REPORT_MAX_ROWS),
         totalRows: report.rows.length,
-        truncated: report.rows.length > MCP_REPORT_MAX_ROWS,
+        truncated: report.hasMore || report.rows.length > MCP_REPORT_MAX_ROWS,
       });
     },
   );

@@ -512,4 +512,19 @@ export const reportMessages = defineMessages({
       "Choose a rate matching the task language and step. Leave blank to use the project default.",
     description: "Translation reporting label",
   },
+  previousPage: {
+    id: "I21mr3bBqR",
+    defaultMessage: "Previous page",
+    description: "Button that shows the previous page of rows in the Reports table",
+  },
+  nextPage: {
+    id: "XrTShJJWH7",
+    defaultMessage: "Next page",
+    description: "Button that shows the next page of rows in the Reports table",
+  },
+  pageNumber: {
+    id: "j57d8OIZ0T",
+    defaultMessage: "Page {page}",
+    description: "Which page of rows the Reports table is showing",
+  },
 });

@@ -26,6 +26,7 @@ export const reportQuerySchema = z
     interval: z.enum(["day", "week"]).default("week"),
     view: z.enum(["overview", "words", "time", "costs"]).default("overview"),
     format: z.enum(["json", "csv"]).default("json"),
+    page: z.coerce.number().int().min(1).max(10_000).default(1),
   })
   .refine((v) => !v.from || !v.to || v.from <= v.to, { message: "Invalid date range" });
 export const rateSchema = z.object({

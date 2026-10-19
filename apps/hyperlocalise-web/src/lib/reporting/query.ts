@@ -17,6 +17,8 @@ import type { reportQuerySchema } from "@/api/routes/reports/reports.schema";
 import { csvCell } from "./word-analysis";
 
 export type ReportQuery = z.infer<typeof reportQuerySchema>;
+/** Rows per page of the Reports table; CSV exports are not paged. */
+export const REPORT_PAGE_SIZE = 200;
 export type ReportRow = {
   period: string;
   projectId: string | null;
@@ -50,6 +52,14 @@ export async function queryReport(input: {
       )})`
     : sql`false`;
   const includeCosts = input.financial;
+  // Bounds on the stored timestamps, so each table's (organization, project, time) index is used;
+  // comparing a converted value (`at time zone`) made every query read a workspace's whole history.
+  const start = sql`(${from}::date::timestamp at time zone 'UTC')`;
+  const end = sql`((${to}::date + 1)::timestamp at time zone 'UTC')`;
+  // The overview does not show jobs, so it is not split by them; that keeps a month to a few
+  // hundred rows instead of one per job.
+  const jobColumn = query.view === "overview" ? sql`null::text` : sql`job_id`;
+  const pageSize = query.format === "csv" ? null : REPORT_PAGE_SIZE;
   const result = await db.execute<ReportRow>(sql`
         with facts as (
             select a.organization_id, a.project_id, a.job_id, a.target_locale, a.step, a.created_at at time zone 'UTC' as occurred_at,
@@ -57,34 +67,40 @@ export async function queryReport(input: {
                 null::numeric as amount_usd, 0 as input_tokens, 0 as output_tokens,
                 case when a.kind='completion' and (s.words is null or s.bucket='unavailable') then 1 else 0 end as unavailable
             from reporting_activity a left join reporting_analyses s on s.id=a.analysis_id
+            where a.organization_id=${input.organizationId} and a.created_at >= ${start} and a.created_at < ${end}
             union all
             select n.organization_id,w.project_id,null,null,n.node_type,n.finished_at at time zone 'UTC',null,'workflow',0,0,
               (extract(epoch from (n.finished_at-n.started_at))*1000)::integer,null,0,0,0
             from visual_workflow_node_runs n join visual_workflow_runs r on r.id=n.run_id join visual_workflows w on w.id=r.visual_workflow_id
-            where n.started_at >= (select started_at from reporting_rollout where id=1) and n.finished_at is not null
+            where n.organization_id=${input.organizationId} and n.started_at >= (select started_at from reporting_rollout where id=1)
+              and n.finished_at >= ${start} and n.finished_at < ${end}
             union all
-            select organization_id,project_id,job_id,target_locale,step,work_date at time zone 'UTC',null,'time',0,minutes,0,null,0,0,0 from reporting_time_entries where not voided
+            select organization_id,project_id,job_id,target_locale,step,work_date at time zone 'UTC',null,'time',0,minutes,0,null,0,0,0 from reporting_time_entries
+            where organization_id=${input.organizationId} and not voided and work_date >= ${start} and work_date < ${end}
             union all
             select c.organization_id,c.project_id,c.job_id,c.target_locale,c.step,c.created_at at time zone 'UTC',null,c.kind,0,0,0,
                 case when ${includeCosts} then c.amount_usd else null end,c.input_tokens,c.output_tokens,
                 case when c.amount_usd is null then 1 else 0 end
-            from reporting_costs c where not c.voided and (${includeCosts} or c.kind='ai')
+            from reporting_costs c where c.organization_id=${input.organizationId} and not c.voided and (${includeCosts} or c.kind='ai')
+              and c.created_at >= ${start} and c.created_at < ${end}
 
         )
         select to_char(date_trunc(${query.interval}, occurred_at),'YYYY-MM-DD') as period,
-            project_id as "projectId",job_id as "jobId",target_locale as "targetLocale",step,bucket,kind,
+            project_id as "projectId",${jobColumn} as "jobId",target_locale as "targetLocale",step,bucket,kind,
             sum(words)::integer as words,sum(minutes)::integer as minutes,sum(duration_ms)::float8 as "durationMs",
             sum(amount_usd)::text as "amountUsd",coalesce(sum(input_tokens),0)::integer as "inputTokens",coalesce(sum(output_tokens),0)::integer as "outputTokens",
             sum(unavailable)::integer as unavailable,count(*)::integer as count
-        from facts where organization_id=${input.organizationId} and (${scope} or (${input.financial} and project_id is null))
-            and occurred_at >= ${from}::date and occurred_at < ${to}::date + interval '1 day'
+        from facts where (${scope} or (${input.financial} and project_id is null))
             ${query.projectId ? sql`and project_id=${query.projectId}` : sql``}
             ${query.jobId ? sql`and job_id=${query.jobId}` : sql``}
             ${query.targetLocale ? sql`and (target_locale=${query.targetLocale} or (target_locale is null and kind in ('ai','human','expense')))` : sql``}
             ${query.step ? sql`and step=${query.step}` : sql``}
             ${query.view === "words" ? sql`and kind='completion'` : query.view === "time" ? sql`and kind in ('time','workflow','status')` : query.view === "costs" ? sql`and kind in ('human','ai','expense')` : sql``}
-        group by period,project_id,job_id,target_locale,step,bucket,kind order by period desc,project_id,job_id,target_locale,step,bucket,kind
+        group by period,project_id,"jobId",target_locale,step,bucket,kind order by period desc,project_id,"jobId",target_locale,step,bucket,kind
+        ${pageSize === null ? sql`` : sql`limit ${pageSize + 1} offset ${(query.page - 1) * pageSize}`}
     `);
+  const hasMore = pageSize !== null && result.rows.length > pageSize;
+  const rows = hasMore ? result.rows.slice(0, pageSize!) : result.rows;
   const rollout = await db.execute<{ startedAt: string }>(
     sql`select started_at::text as "startedAt" from reporting_rollout where id=1`,
   );
@@ -92,7 +108,7 @@ export async function queryReport(input: {
     select coalesce(sum(words),0)::integer as "sourceWords",coalesce(sum(workload),0)::integer as "workloadWords" from (
       select job_id,segment_id,source_revision,max(words) as words,sum(words) as workload from reporting_analyses
       where organization_id=${input.organizationId} and (${scope})
-      and created_at >= ${from}::date and created_at < ${to}::date + interval '1 day'
+      and created_at >= ${start} and created_at < ${end}
       ${query.projectId ? sql`and project_id=${query.projectId}` : sql``}
       ${query.jobId ? sql`and job_id=${query.jobId}` : sql``}
       ${query.targetLocale ? sql`and target_locale=${query.targetLocale}` : sql``}
@@ -102,7 +118,9 @@ export async function queryReport(input: {
   `);
   return {
     analysis: sourceCounts.rows[0],
-    rows: result.rows,
+    rows,
+    page: query.page,
+    hasMore,
     startedAt: rollout.rows[0]?.startedAt ?? null,
     from,
     to,

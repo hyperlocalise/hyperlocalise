@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 "use client";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,18 @@ import type { ReportRow } from "@/lib/reporting/query";
 import { TaskReportingPanel } from "./task-reporting-panel";
 
 type Label = keyof typeof messages;
+
+/** Typed filters wait this long after the last keystroke before the report is requested again. */
+const FILTER_DEBOUNCE_MS = 400;
+
+function useDebouncedValue<T>(value: T, delayMs: number) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedValue(value), delayMs);
+    return () => clearTimeout(timeout);
+  }, [value, delayMs]);
+  return debouncedValue;
+}
 type Rate = {
   id: string;
   name: string;
@@ -228,6 +240,7 @@ export function ReportsWorkspace({
   const label = (key: Label) => intl.formatMessage(messages[key]);
   const base = `/api/orgs/${encodeURIComponent(organizationSlug)}/reports`;
   const [view, setView] = useState("overview");
+  const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
     from: new Date(Date.now() - 27 * 86400000).toISOString().slice(0, 10),
     to: new Date().toISOString().slice(0, 10),
@@ -237,10 +250,18 @@ export function ReportsWorkspace({
     step: "",
     interval: "week",
   });
+  const appliedFilters = useDebouncedValue(filters, FILTER_DEBOUNCE_MS);
   const params = new URLSearchParams({
-    ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value)),
+    ...Object.fromEntries(Object.entries(appliedFilters).filter(([, value]) => value)),
     view,
   });
+  const csvParams = new URLSearchParams(params);
+  csvParams.set("format", "csv");
+  params.set("page", String(page));
+  const updateFilter = (key: keyof typeof filters, value: string) => {
+    setFilters((previous) => ({ ...previous, [key]: value }));
+    setPage(1);
+  };
   const settings = useQuery({
     queryKey: ["reports", organizationSlug, "settings"],
     queryFn: () => reportingFetch<{ settings: Settings }>(base + "/settings"),
@@ -254,6 +275,8 @@ export function ReportsWorkspace({
           analysis?: { sourceWords: number; workloadWords: number };
           startedAt: string | null;
           financial: boolean;
+          page: number;
+          hasMore: boolean;
         };
       }>(base + "?" + params),
   });
@@ -308,7 +331,7 @@ export function ReportsWorkspace({
               : label("notStarted")}
           </p>
         </div>
-        <Button render={<a href={base + "?" + params + "&format=csv"} />} variant="outline">
+        <Button render={<a href={base + "?" + csvParams} />} variant="outline">
           {label("export")}
         </Button>
       </div>
@@ -321,9 +344,7 @@ export function ReportsWorkspace({
                 <select
                   id={`filter-${key}`}
                   value={filters[key]}
-                  onChange={(event) =>
-                    setFilters((previous) => ({ ...previous, [key]: event.target.value }))
-                  }
+                  onChange={(event) => updateFilter(key, event.target.value)}
                   className="h-9 rounded-md border bg-background px-3 text-sm"
                 >
                   {key !== "interval" ? <option value="">{label("all")}</option> : null}
@@ -346,9 +367,7 @@ export function ReportsWorkspace({
                   id={`filter-${key}`}
                   type={key === "from" || key === "to" ? "date" : "text"}
                   value={filters[key]}
-                  onChange={(event) =>
-                    setFilters((previous) => ({ ...previous, [key]: event.target.value }))
-                  }
+                  onChange={(event) => updateFilter(key, event.target.value)}
                 />
               )}
             </Field>
@@ -382,7 +401,13 @@ export function ReportsWorkspace({
       {filters.targetLocale ? (
         <p className="text-sm text-muted-foreground">{label("allocationHelp")}</p>
       ) : null}
-      <Tabs value={view} onValueChange={(value) => setView(String(value))}>
+      <Tabs
+        value={view}
+        onValueChange={(value) => {
+          setView(String(value));
+          setPage(1);
+        }}
+      >
         <TabsList>
           {(["overview", "words", "time", ...(financial ? ["costs"] : [])] as Label[]).map(
             (key) => (
@@ -450,7 +475,32 @@ export function ReportsWorkspace({
           </TableBody>
         </Table>
       )}
-      {filters.jobId ? <TaskReportingPanel base={base} jobId={filters.jobId} /> : null}
+      {page > 1 || report.data?.report.hasMore ? (
+        <div className="flex items-center gap-3 text-sm">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 1 || report.isFetching}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+          >
+            {label("previousPage")}
+          </Button>
+          <span className="tabular-nums text-muted-foreground">
+            {intl.formatMessage(messages.pageNumber, { page })}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!report.data?.report.hasMore || report.isFetching}
+            onClick={() => setPage((current) => current + 1)}
+          >
+            {label("nextPage")}
+          </Button>
+        </div>
+      ) : null}
+      {appliedFilters.jobId ? (
+        <TaskReportingPanel base={base} jobId={appliedFilters.jobId} />
+      ) : null}
       {view === "time" ? (
         <ReportingForm
           title="timeForm"

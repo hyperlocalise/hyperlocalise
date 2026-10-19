@@ -116,6 +116,8 @@ export function createReportsRoutes() {
           and(
             eq(schema.reportingAnalyses.organizationId, organizationId),
             eq(schema.reportingAnalyses.jobId, job.id),
+            // Earlier versions of a re-saved or re-analysed string are history, not workload.
+            eq(schema.reportingAnalyses.isCurrent, true),
           ),
         );
       const times = await db
