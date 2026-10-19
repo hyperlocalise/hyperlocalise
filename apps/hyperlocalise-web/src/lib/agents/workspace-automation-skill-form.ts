@@ -67,6 +67,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS: Record<
   notify_email: ["emailRecipients", "emailFrom"],
   import_intercom_articles: ["intercomHelpCenterId", "projectId"],
   push_intercom_translations: ["intercomHelpCenterId", "projectId"],
+  import_sanity_documents: ["sanityProjectId", "sanityDataset", "projectId"],
+  push_sanity_translations: ["sanityProjectId", "sanityDataset", "projectId"],
   import_braze_templates: ["projectId"],
   push_braze_templates: ["projectId"],
   import_braze_campaigns: ["projectId"],
@@ -140,6 +142,12 @@ function enableSkillTool(
         ...form,
         intercomEnabled: true,
       };
+    case "import_sanity_documents":
+    case "push_sanity_translations":
+      return {
+        ...form,
+        sanityEnabled: true,
+      };
     case "import_braze_templates":
     case "push_braze_templates":
       return {
@@ -206,6 +214,9 @@ function disableSkillTool(
     case "import_intercom_articles":
     case "push_intercom_translations":
       return { ...form, intercomEnabled: false };
+    case "import_sanity_documents":
+    case "push_sanity_translations":
+      return { ...form, sanityEnabled: false };
     case "import_braze_templates":
     case "push_braze_templates":
       return { ...form, brazeEnabled: false };

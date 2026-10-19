@@ -51,6 +51,7 @@ import {
   siCrowdin,
   siContentful,
   siIntercom,
+  siSanity,
 } from "simple-icons";
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
@@ -107,6 +108,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
 import { BRAZE_PIPES_SLUG } from "@/lib/braze/constants";
 import { INTERCOM_PIPES_SLUG } from "@/lib/intercom/constants";
+import { SANITY_PIPES_SLUG } from "@/lib/sanity/constants";
 import type { WorkspaceAutomationEditorTab } from "@/lib/navigation/workspace-automation-editor-tab";
 import { GITLAB_PIPES_SLUG } from "@/lib/gitlab/constants";
 import { createApiClient } from "@/lib/api-client";
@@ -183,6 +185,7 @@ import {
 import { WorkspaceAutomationBrazeCampaignsSettings } from "./workspace-automation-braze-campaigns-settings";
 import { WorkspaceAutomationBrazeSettings } from "./workspace-automation-braze-settings";
 import { WorkspaceAutomationIntercomSettings } from "./workspace-automation-intercom-settings";
+import { WorkspaceAutomationSanitySettings } from "./workspace-automation-sanity-settings";
 import { useScrollToFirstFieldError } from "./use-scroll-to-first-field-error";
 
 const api = createApiClient();
@@ -575,6 +578,7 @@ function toolCount(form: WorkspaceAutomationFormState) {
     Number(form.zernioEnabled) +
     Number(form.ahrefsEnabled) +
     Number(form.intercomEnabled) +
+    Number(form.sanityEnabled) +
     Number(form.webSearchEnabled)
   );
 }
@@ -942,6 +946,7 @@ function AddToolMenu({
   repositories,
   ahrefsConnected,
   intercomConnected,
+  sanityConnected,
   brazeConnected,
   semrushConnected,
   zernioConnected,
@@ -962,6 +967,7 @@ function AddToolMenu({
   repositories: GithubRepositoryOption[];
   ahrefsConnected: boolean;
   intercomConnected: boolean;
+  sanityConnected: boolean;
   brazeConnected: boolean;
   semrushConnected: boolean;
   zernioConnected: boolean;
@@ -1234,6 +1240,22 @@ function AddToolMenu({
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
                 </DropdownMenuHint>
               ) : !intercomConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.sanityEnabled || !sanityConnected}
+              onClick={() => onChange({ ...form, sanityEnabled: true })}
+            >
+              <AutomationToolMenuIcon icon={siSanity} />
+              Sanity documents
+              {form.sanityEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !sanityConnected ? (
                 <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
                 </DropdownMenuHint>
@@ -1573,6 +1595,7 @@ const SKILL_INTEGRATION_LABELS: Record<WorkspaceAutomationSkillIntegration, Mess
   crowdin: workspaceAutomationFormMessages.skillIntegrationCrowdin,
   contentful: workspaceAutomationFormMessages.skillIntegrationContentful,
   intercom: workspaceAutomationFormMessages.skillIntegrationIntercom,
+  sanity: workspaceAutomationFormMessages.skillIntegrationSanity,
   braze: workspaceAutomationFormMessages.skillIntegrationBraze,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
@@ -1611,6 +1634,8 @@ const SKILL_BRAND_ICONS: Partial<Record<WorkspaceAutomationSkillTool, SimpleIcon
   run_contentful_translation: siContentful,
   import_intercom_articles: siIntercom,
   push_intercom_translations: siIntercom,
+  import_sanity_documents: siSanity,
+  push_sanity_translations: siSanity,
 };
 
 const SKILL_TOOL_ICONS: Partial<Record<WorkspaceAutomationSkillTool, Icon>> = {
@@ -1938,6 +1963,7 @@ function ToolsSettings({
   repositories,
   ahrefsConnected,
   intercomConnected,
+  sanityConnected,
   brazeConnected,
   semrushConnections,
   zernioConnections,
@@ -1964,6 +1990,7 @@ function ToolsSettings({
   repositories: GithubRepositoryOption[];
   ahrefsConnected: boolean;
   intercomConnected: boolean;
+  sanityConnected: boolean;
   brazeConnected: boolean;
   semrushConnections: SemrushConnectionOption[];
   zernioConnections: ZernioConnectionOption[];
@@ -2666,6 +2693,43 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.sanityEnabled ? (
+          <EditorRow
+            icon={<AutomationToolMenuIcon icon={siSanity} />}
+            tone="external"
+            title={
+              <>
+                <span>Sanity documents</span>
+                {!sanityConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import documents on a schedule, translate in Jobs, then push approved translations when you are ready."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_sanity_documents")}
+                label="Remove Sanity"
+                onClick={() => onChange({ ...form, sanityEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationSanitySettings
+              organizationSlug={organizationSlug}
+              form={form}
+              errors={errors}
+              sanityConnected={sanityConnected}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
+              onChange={onChange}
+            />
+            <FieldError message={errors.sanity} />
+          </EditorRow>
+        ) : null}
+
         {form.brazeEnabled ? (
           <EditorRow
             icon={<BrazeToolIcon />}
@@ -3267,6 +3331,7 @@ function ToolsSettings({
           repositories={repositories}
           ahrefsConnected={ahrefsConnected}
           intercomConnected={intercomConnected}
+          sanityConnected={sanityConnected}
           brazeConnected={brazeConnected}
           semrushConnected={semrushConnected}
           zernioConnected={zernioConnected}
@@ -3577,6 +3642,24 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const sanityPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, SANITY_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: SANITY_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Sanity connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+        apiKeyLast4: string | null;
+      };
+    },
+  });
+
   const ahrefsPipesQuery = useQuery({
     queryKey: ["pipes", organizationSlug, AHREFS_PIPES_SLUG],
     queryFn: async () => {
@@ -3650,6 +3733,7 @@ export function WorkspaceAutomationEditor({
   const zernioConnections = zernioConnectionsQuery.data ?? [];
   const ahrefsConnected = Boolean(ahrefsPipesQuery.data?.connected);
   const intercomConnected = Boolean(intercomPipesQuery.data?.connected);
+  const sanityConnected = Boolean(sanityPipesQuery.data?.connected);
   const brazeConnected = Boolean(brazePipesQuery.data?.connected);
   const gitlabConnected = Boolean(gitlabPipesQuery.data?.connected);
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
@@ -3676,6 +3760,7 @@ export function WorkspaceAutomationEditor({
     crowdin: tmsProviderQuery.isSuccess ? crowdinConnected : undefined,
     contentful: contentfulConnectionsQuery.isSuccess ? contentfulConnected : undefined,
     intercom: intercomPipesQuery.isSuccess ? intercomConnected : undefined,
+    sanity: sanityPipesQuery.isSuccess ? sanityConnected : undefined,
     braze: brazePipesQuery.isSuccess ? brazeConnected : undefined,
     slack: slackQuery.isSuccess ? slackConnected : undefined,
     email: emailConnected
@@ -3743,6 +3828,7 @@ export function WorkspaceAutomationEditor({
     !resendPipesQuery.isPending &&
     !sendgridPipesQuery.isPending &&
     !intercomPipesQuery.isPending &&
+    !sanityPipesQuery.isPending &&
     !brazePipesQuery.isPending;
 
   const editor = (
@@ -3924,6 +4010,7 @@ export function WorkspaceAutomationEditor({
             repositories={repositories}
             ahrefsConnected={ahrefsConnected}
             intercomConnected={intercomConnected}
+            sanityConnected={sanityConnected}
             brazeConnected={brazeConnected}
             semrushConnections={semrushConnections}
             zernioConnections={zernioConnections}

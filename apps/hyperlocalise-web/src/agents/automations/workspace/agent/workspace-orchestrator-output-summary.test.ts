@@ -17,9 +17,11 @@ import {
   readImportBrazeCampaigns,
   readImportBrazeTemplates,
   readImportIntercomArticles,
+  readImportSanityDocuments,
   readPushBrazeCampaigns,
   readPushBrazeTemplates,
   readPushIntercomTranslations,
+  readPushSanityTranslations,
 } from "./workspace-orchestrator-output-summary";
 
 describe("buildWorkspaceOrchestratorOutputSummary", () => {
@@ -186,6 +188,35 @@ describe("buildWorkspaceOrchestratorOutputSummary", () => {
       status: "succeeded",
     });
   });
+
+  it("preserves Sanity import and push results from the current step", () => {
+    const outputSummary = buildWorkspaceOrchestratorOutputSummary(
+      { orchestratorEnqueuedAt: "2026-10-07T00:00:00.000Z" },
+      {
+        import_sanity_documents: {
+          imported: 2,
+          failed: 0,
+          status: "succeeded",
+        },
+        push_sanity_translations: {
+          pushedLocales: 1,
+          failedLocales: 0,
+          status: "succeeded",
+        },
+      },
+    );
+
+    expect(outputSummary.importSanityDocuments).toEqual({
+      imported: 2,
+      failed: 0,
+      status: "succeeded",
+    });
+    expect(outputSummary.pushSanityTranslations).toEqual({
+      pushedLocales: 1,
+      failedLocales: 0,
+      status: "succeeded",
+    });
+  });
 });
 
 describe("readImportIntercomArticles", () => {
@@ -290,6 +321,47 @@ describe("readPushBrazeTemplates", () => {
         {},
       ),
     ).toEqual({ pushedLocales: 2, failedLocales: 0 });
+  });
+});
+
+describe("readImportSanityDocuments", () => {
+  it("prefers the current step over a persisted summary", () => {
+    expect(
+      readImportSanityDocuments(
+        {
+          importSanityDocuments: { imported: 4, status: "stale" },
+        },
+        {
+          import_sanity_documents: { imported: 0, failed: 2, status: "partial" },
+        },
+      ),
+    ).toEqual({ imported: 0, failed: 2, status: "partial" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportSanityDocuments(
+        { importSanityDocuments: { status: "succeeded", failed: 0 } },
+        { import_sanity_documents: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushSanityTranslations", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushSanityTranslations(
+        {},
+        { push_sanity_translations: { pushedLocales: 0, failedLocales: 0 } },
+      ),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(
+      readPushSanityTranslations({ pushSanityTranslations: { status: "succeeded" } }, {}),
+    ).toBeNull();
   });
 });
 

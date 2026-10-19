@@ -158,6 +158,57 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["push_intercom_translations", "notify_slack"]);
   });
 
+  it("plans import-only tools for Sanity automations", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          sanity: {
+            enabled: true,
+            projectId: "proj-1",
+            dataset: "production",
+            documentTypes: ["article"],
+            documentTypeModes: {},
+            languages: ["en", "de"],
+            sourceLocale: "en",
+            targetLocales: ["de"],
+            includeDrafts: true,
+            overwriteSanityDrafts: true,
+            existingTranslationPolicy: "seed_empty",
+          },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["import_sanity_documents"]);
+  });
+
+  it("plans push-only tools for Sanity when operation is push_approved", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          sanity: {
+            enabled: true,
+            projectId: "proj-1",
+            dataset: "production",
+            documentTypes: ["article"],
+            documentTypeModes: {},
+            languages: ["en", "de"],
+            sourceLocale: "en",
+            targetLocales: ["de"],
+            includeDrafts: true,
+            overwriteSanityDrafts: true,
+            existingTranslationPolicy: "seed_empty",
+          },
+        },
+      }),
+      { operation: "push_approved" },
+    );
+
+    expect(plan.tools).toEqual(["push_sanity_translations"]);
+  });
+
   it("plans Braze push-only tools when operation is push_approved", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({

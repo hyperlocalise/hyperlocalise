@@ -23,6 +23,7 @@ import {
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationIntercomTool,
+  hasWorkspaceAutomationSanityTool,
   hasWorkspaceAutomationListIssuesTool,
   hasWorkspaceAutomationWebSearchTool,
   type WorkspaceAutomationRecord,
@@ -38,6 +39,8 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "run_contentful_translation",
   "import_intercom_articles",
   "push_intercom_translations",
+  "import_sanity_documents",
+  "push_sanity_translations",
   "import_braze_templates",
   "push_braze_templates",
   "import_braze_campaigns",
@@ -76,6 +79,8 @@ const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
   "run_contentful_translation",
   "import_intercom_articles",
   "push_intercom_translations",
+  "import_sanity_documents",
+  "push_sanity_translations",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -115,6 +120,9 @@ function workflowToolEnabled(
     case "import_intercom_articles":
     case "push_intercom_translations":
       return hasWorkspaceAutomationIntercomTool(toolConfig);
+    case "import_sanity_documents":
+    case "push_sanity_translations":
+      return hasWorkspaceAutomationSanityTool(toolConfig);
     case "import_braze_templates":
     case "push_braze_templates":
       return hasWorkspaceAutomationBrazeTool(toolConfig);
@@ -227,6 +235,17 @@ export function buildWorkspaceOrchestratorPlan(
       notificationToolEnabled(tool, automation.toolConfig),
     );
     return { tools: [intercomTool, ...notificationTools] };
+  }
+
+  if (hasWorkspaceAutomationSanityTool(automation.toolConfig)) {
+    const sanityTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_sanity_translations"
+        : "import_sanity_documents";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [sanityTool, ...notificationTools] };
   }
 
   if (hasWorkspaceAutomationBrazeCampaignsTool(automation.toolConfig)) {

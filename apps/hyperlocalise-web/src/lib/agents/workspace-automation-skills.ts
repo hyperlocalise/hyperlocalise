@@ -24,6 +24,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOLS = [
   "run_contentful_translation",
   "import_intercom_articles",
   "push_intercom_translations",
+  "import_sanity_documents",
+  "push_sanity_translations",
   "import_braze_templates",
   "push_braze_templates",
   "import_braze_campaigns",
@@ -208,6 +210,22 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     },
   },
   {
+    id: "translate-sanity-documents",
+    name: "Translate Sanity documents",
+    category: "translate",
+    description:
+      "Import Sanity documents into a project, open native translation jobs, and push approved translations on demand.",
+    grants:
+      "Reads Sanity documents through Pipes, writes JSON source files and native jobs. Push writes Sanity drafts when you run Push to Sanity.",
+    tools: ["import_sanity_documents", "push_sanity_translations"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["sanity", "headless cms"],
+      weak: ["document", "documents", "cms", "import", "translate"],
+    },
+  },
+  {
     id: "translate-intercom-articles",
     name: "Translate Intercom Help Center articles",
     category: "translate",
@@ -363,6 +381,7 @@ export type WorkspaceAutomationSkillIntegration =
   | "crowdin"
   | "contentful"
   | "intercom"
+  | "sanity"
   | "braze"
   | "slack"
   | "email";
@@ -377,6 +396,8 @@ const SKILL_TOOL_INTEGRATIONS: Record<
   run_contentful_translation: "contentful",
   import_intercom_articles: "intercom",
   push_intercom_translations: "intercom",
+  import_sanity_documents: "sanity",
+  push_sanity_translations: "sanity",
   import_braze_templates: "braze",
   push_braze_templates: "braze",
   import_braze_campaigns: "braze",
@@ -482,6 +503,9 @@ export function workspaceAutomationSkillToolEnabled(
     case "import_intercom_articles":
     case "push_intercom_translations":
       return Boolean(toolConfig.intercom?.enabled);
+    case "import_sanity_documents":
+    case "push_sanity_translations":
+      return Boolean(toolConfig.sanity?.enabled);
     case "import_braze_templates":
     case "push_braze_templates":
       return Boolean(toolConfig.braze?.enabled);

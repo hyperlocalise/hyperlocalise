@@ -1,0 +1,334 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { and, eq, inArray } from "drizzle-orm";
+
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
+import { db, schema } from "@/lib/database/client";
+import {
+  getLatestRepositorySourceFileVersion,
+  getStoredFileContent,
+} from "@/lib/file-storage/records";
+import { createLogger } from "@/lib/log";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+import { isErr } from "@/lib/primitives/result/results";
+import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
+
+import { applySanityTranslationsToDocument } from "./apply-translations";
+import { createSanityClient } from "./client";
+import { SANITY_PUSH_CONCURRENCY, SANITY_PUSH_STALE_CONFIG } from "./constants";
+import { fetchSanityDocumentById, patchSanityDraftDocument } from "./content-api";
+import {
+  hashSanityTranslationMap,
+  parseSanityTranslationMapJson,
+  readSanityTranslationMap,
+} from "./document-json";
+import { loadSanityPipesAccessToken } from "./pipes";
+import { mapProjectLocalesToSanity } from "./sanity-locale";
+import {
+  assertLiveSanityAutomationConfigVersion,
+  loadLiveSanityPushSettings,
+  withCurrentSanityAutomationConfig,
+} from "./sanity-sync-current";
+import {
+  buildSanityImportScopeKey,
+  isSanitySyncStaleConfigError,
+  sanityMappingMatchesTarget,
+} from "./sanity-sync-scope";
+
+const logger = createLogger("push-sanity-translations");
+
+export type PushSanityTranslationsResult = {
+  pushedLocales: number;
+  skippedLocales: number;
+  failedLocales: number;
+  documentsProcessed: number;
+};
+
+export function readSanityPushSourcePaths(
+  inputSnapshot: Record<string, unknown> | null | undefined,
+): string[] | undefined {
+  const raw = inputSnapshot?.sourcePaths;
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  return raw.filter(
+    (value): value is string => typeof value === "string" && value.trim().length > 0,
+  );
+}
+
+export function selectSanityPushMappings<T extends { sourcePath: string }>(
+  mappings: T[],
+  sourcePaths?: readonly string[],
+): T[] {
+  if (!sourcePaths) {
+    return mappings;
+  }
+  const selected = new Set(sourcePaths.filter((path) => path.trim().length > 0));
+  return mappings.filter((mapping) => selected.has(mapping.sourcePath));
+}
+
+export async function runPushSanityTranslations(input: {
+  organizationId: string;
+  automation: WorkspaceAutomationRecord;
+  sourcePaths?: string[];
+}): Promise<PushSanityTranslationsResult> {
+  const sanity = input.automation.toolConfig.sanity;
+  if (!sanity?.enabled || !sanity.workosUserId) {
+    throw new Error("sanity_not_configured");
+  }
+  const projectId = input.automation.projectId?.trim();
+  const sanityProjectId = sanity.projectId?.trim();
+  const dataset = sanity.dataset?.trim();
+  if (!projectId || !sanityProjectId || !dataset) {
+    throw new Error("sanity_project_required");
+  }
+
+  const importScopeKey = buildSanityImportScopeKey({
+    nativeProjectId: projectId,
+    sanityProjectId,
+    dataset,
+    documentTypes: sanity.documentTypes,
+  });
+
+  await assertLiveSanityAutomationConfigVersion(db, {
+    organizationId: input.organizationId,
+    automationId: input.automation.id,
+    configVersion: input.automation.configVersion,
+    scopeKey: importScopeKey,
+    staleErrorCode: SANITY_PUSH_STALE_CONFIG,
+    compare: "scope",
+  });
+
+  const pushSettings = await loadLiveSanityPushSettings(db, {
+    organizationId: input.organizationId,
+    automationId: input.automation.id,
+    scopeKey: importScopeKey,
+    staleErrorCode: SANITY_PUSH_STALE_CONFIG,
+  });
+
+  const tokenResult = await loadSanityPipesAccessToken({
+    localOrganizationId: input.organizationId,
+    workosUserId: sanity.workosUserId,
+  });
+  if (isErr(tokenResult)) {
+    throw new Error(tokenResult.error.code);
+  }
+
+  const [project] = await db
+    .select({
+      sourceLocale: schema.projects.sourceLocale,
+      targetLocales: schema.projects.targetLocales,
+    })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.id, projectId),
+        eq(schema.projects.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+  if (!project) {
+    throw new Error("sanity_native_project_required");
+  }
+
+  const sanityLanguages =
+    sanity.languages.length > 0
+      ? sanity.languages
+      : sanity.targetLocales.concat(sanity.sourceLocale);
+  const localeMapping = mapProjectLocalesToSanity({
+    projectSourceLocale: project.sourceLocale ?? "en",
+    projectTargetLocales: Array.isArray(project.targetLocales)
+      ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
+      : [],
+    intercomLocales: sanityLanguages,
+    configuredSourceLocale: sanity.sourceLocale,
+    configuredTargetLocales: sanity.targetLocales.length > 0 ? sanity.targetLocales : undefined,
+  });
+
+  const client = createSanityClient({
+    token: tokenResult.value,
+    projectId: sanityProjectId,
+    dataset,
+    includeDrafts: true,
+  });
+
+  const mappings = selectSanityPushMappings(
+    (
+      await db
+        .select()
+        .from(schema.sanityDocumentSyncStates)
+        .where(
+          and(
+            eq(schema.sanityDocumentSyncStates.organizationId, input.organizationId),
+            eq(schema.sanityDocumentSyncStates.automationId, input.automation.id),
+            inArray(schema.sanityDocumentSyncStates.status, ["active", "push_failed"]),
+          ),
+        )
+    ).filter((mapping) =>
+      sanityMappingMatchesTarget(mapping, {
+        projectId,
+        sanityProjectId,
+        dataset,
+      }),
+    ),
+    input.sourcePaths,
+  );
+
+  const translationService = new ProjectTranslationService();
+  const result: PushSanityTranslationsResult = {
+    pushedLocales: 0,
+    skippedLocales: 0,
+    failedLocales: 0,
+    documentsProcessed: 0,
+  };
+
+  await mapWithConcurrency(mappings, SANITY_PUSH_CONCURRENCY, async (mapping) => {
+    try {
+      const latest = await getLatestRepositorySourceFileVersion({
+        organizationId: input.organizationId,
+        projectId,
+        sourcePath: mapping.sourcePath,
+      });
+      if (!latest?.storedFileId) {
+        result.failedLocales += localeMapping.jobTargetLocales.length;
+        return;
+      }
+      const stored = await getStoredFileContent({
+        organizationId: input.organizationId,
+        projectId,
+        fileId: latest.storedFileId,
+      });
+      const sourceMap = parseSanityTranslationMapJson(stored.content.toString("utf8"));
+      const sourceKeys = Object.keys(sourceMap);
+      if (sourceKeys.length === 0) {
+        return;
+      }
+
+      const sourceDoc =
+        (await fetchSanityDocumentById(client, mapping.documentId)) ??
+        (await fetchSanityDocumentById(client, `drafts.${mapping.documentId}`));
+      if (!sourceDoc) {
+        result.failedLocales += localeMapping.jobTargetLocales.length;
+        return;
+      }
+
+      let pushedForDocument = 0;
+      const lastPushHashes = { ...mapping.lastPushContentHash };
+
+      for (let index = 0; index < localeMapping.jobTargetLocales.length; index += 1) {
+        const projectLocale = localeMapping.jobTargetLocales[index]!;
+        const sanityLocale = localeMapping.intercomTargetLocales[index];
+        if (!sanityLocale) {
+          continue;
+        }
+
+        const approved = await translationService.loadAsPrefilledEntries({
+          organizationId: input.organizationId,
+          projectId,
+          sourcePath: mapping.sourcePath,
+          targetLocale: projectLocale,
+          approvedTranslationsOnly: true,
+          readyTranslationsOnly: true,
+        });
+        if (approved.translatedKeyCount < sourceKeys.length) {
+          result.skippedLocales += 1;
+          continue;
+        }
+
+        const approvedMap = readSanityTranslationMap(approved.prefilled);
+        const contentHash = hashSanityTranslationMap(approvedMap);
+        const previousHash = lastPushHashes[projectLocale];
+        if (previousHash === contentHash && !pushSettings.overwriteSanityDrafts) {
+          result.skippedLocales += 1;
+          continue;
+        }
+
+        const nextDoc = applySanityTranslationsToDocument({
+          document: sourceDoc,
+          i18nMode: mapping.i18nMode,
+          targetSanityLocale: sanityLocale,
+          translations: approvedMap,
+        });
+
+        if (mapping.i18nMode === "field") {
+          await patchSanityDraftDocument({
+            client,
+            publishedDocumentId: mapping.documentId,
+            document: nextDoc,
+          });
+        } else {
+          const translatedId = mapping.translatedDocumentIds?.[sanityLocale];
+          const targetId = translatedId ?? mapping.documentId;
+          await patchSanityDraftDocument({
+            client,
+            publishedDocumentId: targetId,
+            document: {
+              ...nextDoc,
+              _type: mapping.documentType,
+              language: sanityLocale,
+            },
+          });
+        }
+
+        lastPushHashes[projectLocale] = contentHash;
+        result.pushedLocales += 1;
+        pushedForDocument += 1;
+      }
+
+      if (pushedForDocument > 0) {
+        result.documentsProcessed += 1;
+      }
+
+      await withCurrentSanityAutomationConfig(
+        {
+          organizationId: input.organizationId,
+          automationId: input.automation.id,
+          configVersion: input.automation.configVersion,
+          scopeKey: importScopeKey,
+          staleErrorCode: SANITY_PUSH_STALE_CONFIG,
+          compare: "scope",
+        },
+        async (tx) => {
+          await tx
+            .update(schema.sanityDocumentSyncStates)
+            .set({
+              status: "active",
+              lastError: null,
+              lastPushedAt: new Date(),
+              lastPushContentHash: lastPushHashes,
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.sanityDocumentSyncStates.id, mapping.id));
+        },
+      );
+    } catch (error) {
+      if (isSanitySyncStaleConfigError(error)) {
+        throw error;
+      }
+      logger.warn({ error, mappingId: mapping.id }, "sanity_push_failed");
+      await db
+        .update(schema.sanityDocumentSyncStates)
+        .set({
+          status: "push_failed",
+          lastError: {
+            message: error instanceof Error ? error.message : "sanity_push_failed",
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.sanityDocumentSyncStates.id, mapping.id));
+      result.failedLocales += 1;
+    }
+  });
+
+  return result;
+}

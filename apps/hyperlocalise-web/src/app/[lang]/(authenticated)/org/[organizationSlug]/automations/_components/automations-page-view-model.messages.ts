@@ -60,6 +60,11 @@ export const automationsPageViewModelMessages = defineMessages({
     id: "NGl2apEpYb",
     description: "Tool badge when a content sync uses Intercom",
   },
+  toolSanity: {
+    defaultMessage: "Sanity",
+    id: "YhWT741eyC",
+    description: "Tool badge when an automation uses Sanity",
+  },
   toolKnowledgeFiles: {
     defaultMessage: "Knowledge files",
     id: "l0dInWPeYD",

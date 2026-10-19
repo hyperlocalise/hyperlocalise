@@ -15,6 +15,7 @@
 import { toast } from "sonner";
 import { invalidateContentEditorBrazePushQueries } from "@/components/content-editor/page/content-editor-braze-push-queries";
 import { invalidateContentEditorIntercomPushQueries } from "@/components/content-editor/page/content-editor-intercom-push-queries";
+import { invalidateContentEditorSanityPushQueries } from "@/components/content-editor/page/content-editor-sanity-push-queries";
 
 import { NativeTargetProvider } from "./content-editor-native-target-context";
 import { ContentEditorPageWindowProvider } from "./content-editor-page-window";
@@ -654,6 +655,7 @@ export function ProjectFileContentEditorWorkspace({
               status: "approved",
             });
             invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
+            invalidateContentEditorSanityPushQueries(queryClient, organizationSlug, projectId);
             invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
             return "reviewed" as const;
           } catch (error) {
@@ -677,6 +679,7 @@ export function ProjectFileContentEditorWorkspace({
           throw new Error(await readApiError(response, statusFallback));
         }
         invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
+        invalidateContentEditorSanityPushQueries(queryClient, organizationSlug, projectId);
         invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
         return "reviewed" as const;
       }
@@ -693,6 +696,7 @@ export function ProjectFileContentEditorWorkspace({
       });
       if (translation.isApproved) {
         invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
+        invalidateContentEditorSanityPushQueries(queryClient, organizationSlug, projectId);
         invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
         return "reviewed";
       }
@@ -721,6 +725,7 @@ export function ProjectFileContentEditorWorkspace({
   const handleBulkApproveComplete = useCallback(() => {
     void invalidateQueue();
     invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
+    invalidateContentEditorSanityPushQueries(queryClient, organizationSlug, projectId);
     invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
   }, [invalidateQueue, organizationSlug, projectId, queryClient]);
 

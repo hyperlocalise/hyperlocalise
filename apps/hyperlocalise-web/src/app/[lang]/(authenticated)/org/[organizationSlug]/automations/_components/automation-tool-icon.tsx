@@ -13,7 +13,15 @@
  * Version 2.0 or later.
  */
 import { EnvelopeIcon, FoldersIcon, GlobeIcon, PlugsConnectedIcon } from "@phosphor-icons/react";
-import { siContentful, siCrowdin, siGithub, siGitlab, siIntercom, siSemrush } from "simple-icons";
+import {
+  siContentful,
+  siCrowdin,
+  siGithub,
+  siGitlab,
+  siIntercom,
+  siSanity,
+  siSemrush,
+} from "simple-icons";
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
 import { IntegrationLogo } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/integration-logo";
@@ -49,6 +57,8 @@ export function AutomationToolIcon({ toolId }: { toolId: AutomationListToolId })
       return <SimpleBrandIcon icon={siContentful} colored data-icon="inline-start" />;
     case "intercom":
       return <SimpleBrandIcon icon={siIntercom} colored data-icon="inline-start" />;
+    case "sanity":
+      return <SimpleBrandIcon icon={siSanity} colored data-icon="inline-start" />;
     case "braze":
       return <BrandLogo src="/images/braze-logo.svg" />;
     case "crowdin":

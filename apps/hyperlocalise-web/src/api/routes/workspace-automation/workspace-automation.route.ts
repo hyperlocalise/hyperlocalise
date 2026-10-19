@@ -49,6 +49,7 @@ import {
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationIntercomTool,
+  hasWorkspaceAutomationSanityTool,
   type WorkspaceAutomationConfigValidationError,
   type WorkspaceAutomationKind,
   type WorkspaceAutomationRepositoryTarget,
@@ -65,6 +66,11 @@ import {
   isIntercomPushRunActive,
   type IntercomPushArticle,
 } from "@/lib/intercom/push-eligibility";
+import {
+  getSanityPushEligibility,
+  isSanityPushRunActive,
+  type SanityPushDocument,
+} from "@/lib/sanity/push-eligibility";
 import {
   createWorkspaceAutomationKnowledgeFile,
   deleteWorkspaceAutomationKnowledgeFile,
@@ -619,6 +625,25 @@ export function createWorkspaceAutomationRoutes(
         };
       }
 
+      let sanityPush: {
+        eligibleLocaleCount: number;
+        mappedDocumentCount: number;
+        pushRunInProgress: boolean;
+        documents?: SanityPushDocument[];
+      } | null = null;
+      if (hasWorkspaceAutomationSanityTool(automation.toolConfig)) {
+        const eligibility = await getSanityPushEligibility({
+          organizationId,
+          automation,
+        });
+        sanityPush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedDocumentCount: eligibility?.mappedDocumentCount ?? 0,
+          pushRunInProgress: isSanityPushRunActive(recentRuns),
+          ...(includePushArticles ? { documents: eligibility?.documents ?? [] } : {}),
+        };
+      }
+
       let brazePush: {
         eligibleLocaleCount: number;
         mappedItemCount: number;
@@ -646,7 +671,7 @@ export function createWorkspaceAutomationRoutes(
         };
       }
 
-      return c.json({ automation, recentRuns, intercomPush, brazePush }, 200);
+      return c.json({ automation, recentRuns, intercomPush, sanityPush, brazePush }, 200);
     })
     .get("/:automationId/knowledge-files", validateAutomationParams, async (c) => {
       const params = c.req.valid("param");

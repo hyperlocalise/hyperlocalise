@@ -132,6 +132,34 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "translate-sanity-documents",
+    category: "popular",
+    name: "Translate Sanity documents",
+    description:
+      "Import Sanity documents into a native project on a schedule, localise in Jobs, then push approved translations when you are ready.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Sanity document localisation connector",
+      capabilities: [
+        "Import changed documents as JSON source files in the attached project",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push translations automatically on import — operators enqueue push separately",
+      ],
+      goal: "Keep Sanity documents in sync for localisation and write approved translations back as Sanity drafts.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-sanity-documents"],
+      name: "Translate Sanity documents",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      sanityEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-braze-email-templates",
     category: "popular",
     extraCategories: ["marketing"],
@@ -1056,6 +1084,10 @@ export function getWorkspaceAutomationTemplateFlow(
 
   if (form.intercomEnabled) {
     tools.push({ id: "intercom", label: "Intercom" });
+  }
+
+  if (form.sanityEnabled) {
+    tools.push({ id: "sanity", label: "Sanity" });
   }
 
   if (form.brazeEnabled || form.brazeCampaignsEnabled) {

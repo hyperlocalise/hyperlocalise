@@ -26,6 +26,7 @@ import {
   hasWorkspaceAutomationContentfulWorkflow,
   hasWorkspaceAutomationCrowdinTool,
   hasWorkspaceAutomationIntercomTool,
+  hasWorkspaceAutomationSanityTool,
   hasWorkspaceAutomationSemrushTool,
   hasWorkspaceAutomationWebSearchTool,
   hasWorkspaceAutomationZernioTool,
@@ -170,6 +171,7 @@ export const AUTOMATION_LIST_TOOL_IDS = [
   "knowledgeFiles",
   "contentful",
   "intercom",
+  "sanity",
   "braze",
   "crowdin",
   "webSearch",
@@ -267,6 +269,9 @@ export function resolveAutomationTools(
   }
   if (hasWorkspaceAutomationIntercomTool(toolConfig)) {
     addTool(tools, "intercom", intl.formatMessage(automationsPageViewModelMessages.toolIntercom));
+  }
+  if (hasWorkspaceAutomationSanityTool(toolConfig)) {
+    addTool(tools, "sanity", intl.formatMessage(automationsPageViewModelMessages.toolSanity));
   }
   if (
     hasWorkspaceAutomationBrazeTool(toolConfig) ||
