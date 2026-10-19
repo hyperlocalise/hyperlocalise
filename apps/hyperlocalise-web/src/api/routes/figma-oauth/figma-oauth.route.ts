@@ -29,11 +29,10 @@ import {
   createFigmaOauthHandoff,
   FIGMA_OAUTH_REQUEST_COOKIE,
   FIGMA_OAUTH_SCOPE,
-  consumeFigmaOauthAuthorizationCode,
+  exchangeFigmaOauthAuthorizationCode,
   getFigmaOauthRedirectAllowlist,
   isAllowedFigmaOauthRedirectUri,
   isFigmaOauthConfigured,
-  issueFigmaOauthTokens,
   listFigmaOauthConsentConnections,
   parseFigmaOauthAuthorizationRequest,
   readFigmaOauthHandoff,
@@ -387,21 +386,16 @@ export function createFigmaOauthRoutes(): Hono {
       }
 
       if (parsed.data.grant_type === "authorization_code") {
-        const consumed = await consumeFigmaOauthAuthorizationCode({
+        const tokens = await exchangeFigmaOauthAuthorizationCode({
           code: parsed.data.code,
           clientId: env.FIGMA_OAUTH_CLIENT_ID ?? "",
           redirectUri: parsed.data.redirect_uri,
           codeVerifier: parsed.data.code_verifier,
         });
-        if (!consumed) {
+        if (!tokens) {
           return oauthError(c, "invalid_grant");
         }
 
-        const tokens = await issueFigmaOauthTokens({
-          connectionId: consumed.connectionId,
-          userId: consumed.userId,
-          organizationId: consumed.organizationId,
-        });
         return c.json(tokenResponse(tokens), 200);
       }
 

@@ -36,6 +36,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import { revokeOrganizationMembershipAccess } from "@/api/auth/workos-sync";
 import type { AppType } from "@/api/typed-app";
 import { createFigmaConnection } from "@/lib/figma/connections";
 import {
@@ -93,10 +94,10 @@ async function createConnectedWorkspace() {
   });
   void projectBody;
 
-  return { auth, created };
+  return { auth, created, identity };
 }
 
-async function issueFigmaOauthTokens(connectionId: string) {
+async function consentFigmaAuthorizationCode(connectionId: string) {
   const consentResponse = await app.request("http://localhost/api/oauth/figma/consent", {
     method: "POST",
     headers: {
@@ -107,8 +108,11 @@ async function issueFigmaOauthTokens(connectionId: string) {
   });
   const code = new URL(consentResponse.headers.get("location") ?? "").searchParams.get("code");
   expect(code).toBeTruthy();
+  return code ?? "";
+}
 
-  const tokenResponse = await app.request("http://localhost/api/oauth/figma/token", {
+async function exchangeFigmaAuthorizationCode(code: string) {
+  return app.request("http://localhost/api/oauth/figma/token", {
     method: "POST",
     headers: {
       authorization: basicAuthHeader(),
@@ -116,11 +120,17 @@ async function issueFigmaOauthTokens(connectionId: string) {
     },
     body: new URLSearchParams({
       grant_type: "authorization_code",
-      code: code ?? "",
+      code,
       redirect_uri: REDIRECT_URI,
       code_verifier: VERIFIER,
     }).toString(),
   });
+}
+
+async function issueFigmaOauthTokens(connectionId: string) {
+  const tokenResponse = await exchangeFigmaAuthorizationCode(
+    await consentFigmaAuthorizationCode(connectionId),
+  );
   expect(tokenResponse.status).toBe(200);
   return (await tokenResponse.json()) as {
     access_token: string;
@@ -570,6 +580,46 @@ describe("figmaOauthRoutes", () => {
       }).toString(),
     });
     expect(refreshResponse.status).toBe(400);
+  });
+
+  it("rejects authorization-code exchange after membership removal", async () => {
+    const { created, identity } = await createConnectedWorkspace();
+    const code = await consentFigmaAuthorizationCode(created.connection.id);
+
+    await revokeOrganizationMembershipAccess(db, {
+      workosMembershipId: identity.membership.workosMembershipId,
+      workosOrganizationId: identity.organization.workosOrganizationId,
+      workosUserId: identity.user.workosUserId,
+    });
+
+    const tokenResponse = await exchangeFigmaAuthorizationCode(code);
+    expect(tokenResponse.status).toBe(400);
+  });
+
+  it("does not leave an unrevoked Figma token when membership is removed during code exchange", async () => {
+    const { auth, created, identity } = await createConnectedWorkspace();
+    const code = await consentFigmaAuthorizationCode(created.connection.id);
+
+    const [tokenResponse] = await Promise.all([
+      exchangeFigmaAuthorizationCode(code),
+      revokeOrganizationMembershipAccess(db, {
+        workosMembershipId: identity.membership.workosMembershipId,
+        workosOrganizationId: identity.organization.workosOrganizationId,
+        workosUserId: identity.user.workosUserId,
+      }),
+    ]);
+    expect([200, 400]).toContain(tokenResponse.status);
+
+    const leftover = await db
+      .select({ revokedAt: schema.figmaOauthTokens.revokedAt })
+      .from(schema.figmaOauthTokens)
+      .where(
+        and(
+          eq(schema.figmaOauthTokens.userId, auth.user.localUserId),
+          eq(schema.figmaOauthTokens.organizationId, auth.organization.localOrganizationId),
+        ),
+      );
+    expect(leftover.some((token) => token.revokedAt === null)).toBe(false);
   });
 
   it("denies consent when the user cancels", async () => {
