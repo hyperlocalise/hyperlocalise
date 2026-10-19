@@ -92,6 +92,9 @@ function createIntegrationsGetHandlers({
     http.get("/api/orgs/:organizationSlug/figma-connections", () =>
       HttpResponse.json({ figmaConnections: [] }),
     ),
+    http.get("/api/orgs/:organizationSlug/sanity-connections", () =>
+      HttpResponse.json({ sanityConnections: [] }),
+    ),
     http.get("/api/orgs/:organizationSlug/semrush-connections", () =>
       HttpResponse.json({ semrushConnections: [] }),
     ),

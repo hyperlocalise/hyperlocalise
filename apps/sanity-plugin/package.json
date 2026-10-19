@@ -1,0 +1,64 @@
+{
+  "name": "sanity-plugin-hyperlocalise",
+  "version": "1.0.0",
+  "description": "",
+  "keywords": [
+    "sanity",
+    "sanity-plugin"
+  ],
+  "homepage": "https://github.com/hyperlocalise/hyperlocalise#readme",
+  "bugs": {
+    "url": "https://github.com/hyperlocalise/hyperlocalise/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:hyperlocalise/hyperlocalise.git"
+  },
+  "license": "UNLICENSED",
+  "author": "Kha-Vi Nguyen <nguyenkhavi01032001@gmail.com>",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.tsx",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "plugin-kit verify-package --silent && pkg-utils build --strict --check --clean",
+    "format": "oxfmt",
+    "link-watch": "plugin-kit link-watch",
+    "lint": "oxlint",
+    "prepublishOnly": "npm run build",
+    "watch": "pkg-utils watch --strict"
+  },
+  "dependencies": {
+    "@sanity/icons": "^5.2.3",
+    "@sanity/ui": "^4.4.9"
+  },
+  "devDependencies": {
+    "@sanity/pkg-utils": "^13.0.15",
+    "@sanity/plugin-kit": "^10.0.14",
+    "@types/react": "^19.3.0",
+    "oxfmt": "^0.73.0",
+    "oxlint": "^1.88.0",
+    "oxlint-tsgolint": "^7.0.2004",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sanity": "^6.19.0",
+    "styled-components": "^6.6.0",
+    "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "react": "^18",
+    "sanity": "^5 || ^6.0.0-0"
+  },
+  "engines": {
+    "node": ">=20.19 <22 || >=22.12"
+  }
+}

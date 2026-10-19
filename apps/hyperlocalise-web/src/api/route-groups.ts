@@ -31,6 +31,7 @@ import { authRoutes } from "./routes/auth/auth.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
 import { createCanvaConnectionRoutes } from "./routes/canva-connection/canva-connection.route";
 import { createFigmaConnectionRoutes } from "./routes/figma-connection/figma-connection.route";
+import { createSanityConnectionRoutes } from "./routes/sanity-connection/sanity-connection.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
@@ -166,7 +167,8 @@ export function createOrgIntegrationsRoutes() {
     .route("/braze", createBrazeRoutes())
     .route("/intercom-connections", createIntercomConnectionRoutes())
     .route("/canva-connections", createCanvaConnectionRoutes())
-    .route("/figma-connections", createFigmaConnectionRoutes());
+    .route("/figma-connections", createFigmaConnectionRoutes())
+    .route("/sanity-connections", createSanityConnectionRoutes());
 }
 
 export function createOrgAgentsRoutes() {
