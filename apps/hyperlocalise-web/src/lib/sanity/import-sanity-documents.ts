@@ -290,6 +290,12 @@ async function upsertSanitySyncState(input: {
         schema.sanityDocumentSyncStates.documentId,
       ],
       set: {
+        projectId: input.projectId,
+        sanityProjectId: input.sanityProjectId,
+        dataset: input.dataset,
+        documentType: input.documentType,
+        i18nMode: input.i18nMode,
+        sourceLocale: input.sourceLocale,
         sourcePath: input.sourcePath,
         sourceContentHash: input.contentHash,
         sourceUpdatedAt: input.sourceUpdatedAt,

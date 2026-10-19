@@ -41,6 +41,7 @@ import {
   parseSanityTranslationMapJson,
   readSanityTranslationMap,
 } from "./document-json";
+import { extractSanityDocumentSourceMap } from "./extract-source";
 import { loadSanityPipesAccessToken } from "./pipes";
 import { isSanityLocaleSupportedForDocumentType } from "./locale-catalog";
 import { mapProjectLocalesToSanity, normalizeSanityLocaleTag } from "./sanity-locale";
@@ -62,7 +63,8 @@ export type SanityPushSkipReason =
   | "incomplete_translations"
   | "unchanged"
   | "remote_newer"
-  | "unsupported_for_type";
+  | "unsupported_for_type"
+  | "source_changed";
 
 export const SANITY_REMOTE_NEWER_SLACK_MS = 5000;
 
@@ -97,7 +99,16 @@ export function sanityPushSkipMessage(skip: Omit<SanityPushSkip, "message">): st
       return `${skip.locale} has a newer Sanity draft and overwrite is off.`;
     case "unsupported_for_type":
       return `${skip.locale} is not configured for this Sanity document type.`;
+    case "source_changed":
+      return "The Sanity source changed after import; re-import before pushing.";
   }
+}
+
+export function isSanityImportedSourceCurrent(input: {
+  liveSourceHash: string;
+  importedSourceHash: string;
+}): boolean {
+  return input.liveSourceHash === input.importedSourceHash;
 }
 
 export function isSanityRemoteDraftNewer(
@@ -167,6 +178,9 @@ export function summarizeSanityPushResult(input: {
   }
   if (reasons.size === 1 && reasons.has("unsupported_for_type")) {
     return `Skipped ${skippedLocaleCount} ${localeLabel} because the document type does not support that language.`;
+  }
+  if (reasons.size === 1 && reasons.has("source_changed")) {
+    return "Skipped because the Sanity source changed after import.";
   }
   return `Skipped ${skippedLocaleCount} ${localeLabel}. See skip reasons for each locale.`;
 }
@@ -385,6 +399,29 @@ export async function runPushSanityTranslations(input: {
       }
 
       const sourceSanityLocale = mapping.sourceLocale || localeMapping.sourceIntercomLocale || "";
+      const liveSourceHash = hashSanityTranslationMap(
+        extractSanityDocumentSourceMap({
+          document: sourceDoc,
+          i18nMode: mapping.i18nMode,
+          sourceSanityLocale,
+        }),
+      );
+      if (
+        !isSanityImportedSourceCurrent({
+          liveSourceHash,
+          importedSourceHash: mapping.sourceContentHash,
+        })
+      ) {
+        result.skipped.push(
+          recordSanityPushSkip({
+            locale: sourceSanityLocale || mapping.sourceLocale,
+            documentId: mapping.documentId,
+            reason: "source_changed",
+          }),
+        );
+        result.skippedLocales += 1;
+        return;
+      }
       let fieldLevelDocument = sourceDoc;
 
       for (let index = 0; index < localeMapping.jobTargetLocales.length; index += 1) {
@@ -572,7 +609,7 @@ export async function runPushSanityTranslations(input: {
         lastError: null,
         lastPushContentHash: lastPushHashes,
         translatedDocumentIds,
-        lastPushedAt: new Date(),
+        lastPushedAt: pushedForDocument > 0 ? new Date() : undefined,
       });
     } catch (error) {
       if (typeof error === "object" && error !== null && isSanitySyncStaleConfigError(error)) {

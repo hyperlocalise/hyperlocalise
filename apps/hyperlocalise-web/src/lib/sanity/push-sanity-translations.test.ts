@@ -14,6 +14,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  isSanityImportedSourceCurrent,
   isSanityRemoteDraftNewer,
   recordSanityPushSkip,
   SANITY_REMOTE_NEWER_SLACK_MS,
@@ -53,6 +54,24 @@ describe("sanity push skip reporting", () => {
     expect(recordSanityPushSkip({ locale: "de-DE", reason: "remote_newer" }).message).toBe(
       "de-DE has a newer Sanity draft and overwrite is off.",
     );
+    expect(recordSanityPushSkip({ locale: "en", reason: "source_changed" }).message).toBe(
+      "The Sanity source changed after import; re-import before pushing.",
+    );
+  });
+
+  it("requires a matching imported source hash before applying translations", () => {
+    expect(
+      isSanityImportedSourceCurrent({
+        liveSourceHash: "abc",
+        importedSourceHash: "abc",
+      }),
+    ).toBe(true);
+    expect(
+      isSanityImportedSourceCurrent({
+        liveSourceHash: "abc",
+        importedSourceHash: "def",
+      }),
+    ).toBe(false);
   });
 
   it("treats a remote draft as newer only after a previous push", () => {
@@ -114,5 +133,13 @@ describe("sanity push skip reporting", () => {
         unmappedLocales: ["zh-TW", "pt-BR"],
       }),
     ).toBe("Skipped 2 locales with no matching Sanity language tag.");
+    expect(
+      summarizeSanityPushResult({
+        pushedLocales: 0,
+        failedLocales: 0,
+        skipped: [recordSanityPushSkip({ locale: "en", reason: "source_changed" })],
+        unmappedLocales: [],
+      }),
+    ).toBe("Skipped because the Sanity source changed after import.");
   });
 });
