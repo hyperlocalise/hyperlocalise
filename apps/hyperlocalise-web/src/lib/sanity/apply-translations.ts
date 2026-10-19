@@ -17,33 +17,43 @@ import {
   readSanityInternationalizedEntryValue,
   upsertSanityInternationalizedEntry,
 } from "./internationalized-array";
+import type {
+  SanityDocumentRecord,
+  SanityFieldObject,
+  SanityFieldValue,
+} from "./sanity-field-value";
+import { isSanityFieldObject } from "./sanity-field-value";
 
-function setAtPath(root: Record<string, unknown>, path: string[], value: string): void {
+function setAtPath(root: SanityFieldObject, path: string[], value: string): void {
   if (path.length === 0) {
     return;
   }
-  let current: unknown = root;
+  let current: SanityFieldValue = root;
   for (let index = 0; index < path.length - 1; index += 1) {
     const key = path[index]!;
-    const segment = current as Record<string, unknown>;
-    const next = segment[key];
+    if (!isSanityFieldObject(current)) {
+      return;
+    }
+    const next: SanityFieldValue | undefined = current[key];
     if (next === undefined || next === null) {
       return;
     }
     current = next;
   }
   const lastKey = path[path.length - 1]!;
-  const parent = current as Record<string, unknown>;
-  if (typeof parent[lastKey] === "string") {
-    parent[lastKey] = value;
+  if (!isSanityFieldObject(current)) {
+    return;
+  }
+  if (typeof current[lastKey] === "string") {
+    current[lastKey] = value;
   }
 }
 
 function applyToDocumentRoot(
-  document: Record<string, unknown>,
+  document: SanityFieldObject,
   translations: SanityTranslationMap,
-): Record<string, unknown> {
-  const clone = structuredClone(document);
+): SanityFieldObject {
+  const clone = structuredClone(document) as SanityFieldObject;
   for (const [key, text] of Object.entries(translations)) {
     if (!key.includes(".")) {
       if (typeof clone[key] === "string") {
@@ -57,11 +67,11 @@ function applyToDocumentRoot(
 }
 
 function fieldLevelLocaleValue(input: {
-  existing: unknown[];
+  existing: SanityFieldValue[];
   map: SanityTranslationMap;
   targetSanityLocale: string;
   sourceSanityLocale?: string;
-}): unknown {
+}): SanityFieldValue {
   if (input.map[""] !== undefined && Object.keys(input.map).length === 1) {
     return input.map[""];
   }
@@ -74,22 +84,22 @@ function fieldLevelLocaleValue(input: {
     input.sourceSanityLocale && input.sourceSanityLocale !== input.targetSanityLocale
       ? readSanityInternationalizedEntryValue(input.existing, input.sourceSanityLocale)
       : undefined;
-  const template =
-    targetValue && typeof targetValue === "object" && !Array.isArray(targetValue)
-      ? structuredClone(targetValue as Record<string, unknown>)
-      : sourceValue && typeof sourceValue === "object" && !Array.isArray(sourceValue)
-        ? structuredClone(sourceValue as Record<string, unknown>)
+  const template: SanityFieldObject =
+    targetValue && isSanityFieldObject(targetValue)
+      ? structuredClone(targetValue)
+      : sourceValue && isSanityFieldObject(sourceValue)
+        ? structuredClone(sourceValue)
         : {};
   return applyToDocumentRoot(template, input.map);
 }
 
 function applyFieldLevelTranslations(input: {
-  document: Record<string, unknown>;
+  document: SanityDocumentRecord;
   targetSanityLocale: string;
   sourceSanityLocale?: string;
   translations: SanityTranslationMap;
-}): Record<string, unknown> {
-  const clone = structuredClone(input.document);
+}): SanityDocumentRecord {
+  const clone = structuredClone(input.document) as SanityDocumentRecord;
   const byField = new Map<string, SanityTranslationMap>();
   for (const [key, text] of Object.entries(input.translations)) {
     const dot = key.indexOf(".");
@@ -109,15 +119,16 @@ function applyFieldLevelTranslations(input: {
     if (!isSanityInternationalizedArray(existing)) {
       continue;
     }
+    const localeValue: SanityFieldValue = fieldLevelLocaleValue({
+      existing,
+      map,
+      targetSanityLocale: input.targetSanityLocale,
+      sourceSanityLocale: input.sourceSanityLocale,
+    });
     clone[field] = upsertSanityInternationalizedEntry(
       existing,
       input.targetSanityLocale,
-      fieldLevelLocaleValue({
-        existing,
-        map,
-        targetSanityLocale: input.targetSanityLocale,
-        sourceSanityLocale: input.sourceSanityLocale,
-      }),
+      localeValue,
     );
   }
 
@@ -125,12 +136,12 @@ function applyFieldLevelTranslations(input: {
 }
 
 export function applySanityTranslationsToDocument(input: {
-  document: Record<string, unknown>;
+  document: SanityDocumentRecord;
   i18nMode: "document" | "field";
   targetSanityLocale: string;
   sourceSanityLocale?: string;
   translations: SanityTranslationMap;
-}): Record<string, unknown> {
+}): SanityDocumentRecord {
   if (input.i18nMode === "document") {
     const next = applyToDocumentRoot(input.document, input.translations);
     next.language = input.targetSanityLocale;

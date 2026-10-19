@@ -13,14 +13,37 @@
 
 import { SANITY_MANAGE_API_BASE } from "./constants";
 import type { SanityClient } from "./client";
-import { isSanityInternationalizedArrayEntry } from "./internationalized-array";
+import {
+  collectInternationalizedArrayLanguages,
+  isSanityInternationalizedArrayEntry,
+} from "./internationalized-array";
+import {
+  listSanityLocaleCatalog,
+  listUnsupportedSanitySourceDocumentTypes,
+  pickSanityLocaleSource,
+} from "./locale-catalog";
 import { isSanityHelperDocumentType, sanityDocumentTypeTitle } from "./localization-mode";
+import type {
+  SanityDocumentRecord,
+  SanityFieldObject,
+  SanityStoredDocument,
+} from "./sanity-field-value";
 import type {
   SanityDatasetSummary,
   SanityDocumentTypeSummary,
   SanityI18nMode,
+  SanityLocaleCatalogConfig,
+  SanityLocaleSource,
   SanityManageProject,
 } from "./types";
+
+export {
+  DEFAULT_SANITY_LOCALE_CATALOG_CONFIG,
+  isValidSanitySchemaFieldName,
+  listSanityLocaleCatalog,
+  listSanityLocaleTags,
+  normalizeSanityLocaleCatalogConfig,
+} from "./locale-catalog";
 
 export class SanityApiError extends Error {
   readonly status: number;
@@ -32,9 +55,19 @@ export class SanityApiError extends Error {
   }
 }
 
-export function isSanityAuthError(error: unknown): boolean {
+export function isSanityAuthError(error: object): boolean {
   return error instanceof SanityApiError && (error.status === 401 || error.status === 403);
 }
+
+type SanityManageProjectRaw = {
+  id?: string;
+  projectId?: string;
+  displayName?: string;
+};
+
+type SanityManageDatasetRaw = {
+  name?: string;
+};
 
 export async function listSanityManageProjects(token: string): Promise<SanityManageProject[]> {
   const response = await fetch(`${SANITY_MANAGE_API_BASE}/projects`, {
@@ -43,7 +76,7 @@ export async function listSanityManageProjects(token: string): Promise<SanityMan
   if (!response.ok) {
     throw new SanityApiError("sanity_manage_projects_failed", response.status);
   }
-  const body = (await response.json()) as unknown;
+  const body = (await response.json()) as SanityManageProjectRaw[];
   if (!Array.isArray(body)) {
     return [];
   }
@@ -51,7 +84,7 @@ export async function listSanityManageProjects(token: string): Promise<SanityMan
     if (!entry || typeof entry !== "object") {
       return [];
     }
-    const record = entry as { id?: unknown; displayName?: unknown; projectId?: unknown };
+    const record = entry;
     const id =
       typeof record.id === "string"
         ? record.id
@@ -79,7 +112,7 @@ export async function listSanityDatasets(
   if (!response.ok) {
     throw new SanityApiError("sanity_datasets_failed", response.status);
   }
-  const body = (await response.json()) as unknown;
+  const body = (await response.json()) as SanityManageDatasetRaw[];
   if (!Array.isArray(body)) {
     return [];
   }
@@ -87,7 +120,7 @@ export async function listSanityDatasets(
     if (!entry || typeof entry !== "object") {
       return [];
     }
-    const name = (entry as { name?: unknown }).name;
+    const name = entry.name;
     if (typeof name !== "string" || name.trim().length === 0) {
       return [];
     }
@@ -109,7 +142,20 @@ function uniqueLanguages(values: readonly string[]): string[] {
   return out.toSorted((left, right) => left.localeCompare(right));
 }
 
-function sampleHasInternationalizedArray(doc: Record<string, unknown> | null): boolean {
+/** When Studio defines `locale` documents, only those tags are valid language options. */
+export function curateSanityLanguageTags(
+  discovered: readonly string[],
+  configuredLocaleTags: readonly string[],
+): string[] {
+  const list = uniqueLanguages(discovered);
+  if (configuredLocaleTags.length === 0) {
+    return list;
+  }
+  const allowed = new Set(uniqueLanguages(configuredLocaleTags));
+  return list.filter((tag) => allowed.has(tag));
+}
+
+function sampleHasInternationalizedArray(doc: SanityDocumentRecord | null): boolean {
   if (!doc) {
     return false;
   }
@@ -124,50 +170,57 @@ function sampleHasInternationalizedArray(doc: Record<string, unknown> | null): b
   return false;
 }
 
-/** Collect `language` tags from Sanity internationalized-array fields on one document. */
-export function collectInternationalizedArrayLanguages(doc: Record<string, unknown>): string[] {
-  const languages = new Set<string>();
-  for (const value of Object.values(doc)) {
-    if (!Array.isArray(value)) {
-      continue;
-    }
-    for (const entry of value) {
-      if (!isSanityInternationalizedArrayEntry(entry)) {
-        continue;
-      }
-      const language = entry.language;
-      if (typeof language === "string" && language.trim().length > 0) {
-        languages.add(language.trim());
-      }
-    }
-  }
-  return [...languages];
-}
+export { collectInternationalizedArrayLanguages } from "./internationalized-array";
+
+const SANITY_FIELD_LEVEL_SAMPLE_SIZE = 100;
+
+export type DetectSanityDocumentTypesResult = {
+  types: SanityDocumentTypeSummary[];
+  languages: string[];
+  localeSource: SanityLocaleSource;
+  unsupportedSourceTypes?: string[];
+};
 
 export async function detectSanityDocumentTypes(input: {
   client: SanityClient;
   typeNames: readonly string[];
-}): Promise<{ types: SanityDocumentTypeSummary[]; languages: string[] }> {
+  localeCatalog?: Partial<SanityLocaleCatalogConfig> | null;
+  sourceLocale?: string | null;
+}): Promise<DetectSanityDocumentTypesResult> {
   const selected = [...new Set(input.typeNames.map((name) => name.trim()).filter(Boolean))];
+  const catalogEntries = await listSanityLocaleCatalog(input.client, input.localeCatalog);
+  const catalogTags = uniqueLanguages(catalogEntries.map((entry) => entry.tag));
+  const curate = (tags: Iterable<string>) => curateSanityLanguageTags([...tags], catalogTags);
+
   const metadataRows = await input.client.fetch<
     Array<{ translations?: Array<{ _key?: string; type?: string }> }>
   >(`*[_type == "translation.metadata"]{ translations[]{ _key, "type": value->_type } }`);
 
   const documentLevelTypes = new Set<string>();
-  const documentLevelLanguages = new Set<string>();
+  const metadataLanguagesByType = new Map<string, Set<string>>();
   for (const row of metadataRows) {
     for (const translation of row.translations ?? []) {
-      if (typeof translation.type === "string" && translation.type.trim().length > 0) {
-        documentLevelTypes.add(translation.type.trim());
+      const typeName =
+        typeof translation.type === "string" && translation.type.trim().length > 0
+          ? translation.type.trim()
+          : null;
+      const localeKey =
+        typeof translation._key === "string" && translation._key.trim().length > 0
+          ? translation._key.trim()
+          : null;
+      if (typeName) {
+        documentLevelTypes.add(typeName);
       }
-      if (typeof translation._key === "string" && translation._key.trim().length > 0) {
-        documentLevelLanguages.add(translation._key.trim());
+      if (typeName && localeKey) {
+        const existing = metadataLanguagesByType.get(typeName) ?? new Set<string>();
+        existing.add(localeKey);
+        metadataLanguagesByType.set(typeName, existing);
       }
     }
   }
 
   const types: SanityDocumentTypeSummary[] = [];
-  const allLanguages = new Set<string>(documentLevelLanguages);
+  const allLanguages = new Set<string>();
 
   for (const typeName of selected) {
     if (isSanityHelperDocumentType(typeName)) {
@@ -179,10 +232,10 @@ export async function detectSanityDocumentTypes(input: {
 
     if (documentLevelTypes.has(typeName)) {
       i18nMode = "document";
-      for (const lang of documentLevelLanguages) {
+      for (const lang of metadataLanguagesByType.get(typeName) ?? []) {
         languages.add(lang);
       }
-      const langRows = await input.client.fetch<Array<{ language?: string }>>(
+      const langRows = await input.client.fetch<Array<{ language?: string } | string>>(
         `*[_type == $type && defined(language)].language`,
         { type: typeName },
       );
@@ -194,8 +247,8 @@ export async function detectSanityDocumentTypes(input: {
         }
       }
     } else {
-      const samples = await input.client.fetch<Record<string, unknown>[]>(
-        `*[_type == $type][0...25]`,
+      const samples = await input.client.fetch<SanityDocumentRecord[]>(
+        `*[_type == $type][0...${SANITY_FIELD_LEVEL_SAMPLE_SIZE}]`,
         { type: typeName },
       );
       const sample = samples[0] ?? null;
@@ -219,15 +272,7 @@ export async function detectSanityDocumentTypes(input: {
       continue;
     }
 
-    const localeTags =
-      await input.client.fetch<Array<{ tag?: string }>>(`*[_type == "locale"].tag`);
-    for (const row of localeTags) {
-      if (row && typeof row.tag === "string" && row.tag.trim()) {
-        languages.add(row.tag.trim());
-      }
-    }
-
-    const languageList = uniqueLanguages([...languages]);
+    const languageList = catalogTags.length > 0 ? catalogTags : curate(languages);
     for (const lang of languageList) {
       allLanguages.add(lang);
     }
@@ -239,9 +284,30 @@ export async function detectSanityDocumentTypes(input: {
     });
   }
 
+  const discoveredLanguages = uniqueLanguages([...allLanguages]);
+  const languages = catalogTags.length > 0 ? catalogTags : discoveredLanguages;
+  const localeSource = pickSanityLocaleSource(catalogTags.length, discoveredLanguages.length);
+
+  const typeLanguages = new Map(types.map((type) => [type.name, type.languages] as const));
+  const sourceLocale = input.sourceLocale?.trim();
+  const unsupportedSourceTypes =
+    sourceLocale && selected.length > 0
+      ? listUnsupportedSanitySourceDocumentTypes({
+          sourceLocale,
+          documentTypes: selected,
+          languagesByType: {},
+          fallbackLanguages: languages,
+          typeLanguages,
+        })
+      : undefined;
+
   return {
     types,
-    languages: uniqueLanguages([...allLanguages]),
+    languages,
+    localeSource,
+    ...(unsupportedSourceTypes && unsupportedSourceTypes.length > 0
+      ? { unsupportedSourceTypes }
+      : {}),
   };
 }
 
@@ -250,7 +316,7 @@ export async function listSanityDocumentsForImport(input: {
   documentTypes: readonly string[];
   watermarkIso: string | null;
   includeDrafts: boolean;
-}): Promise<Array<Record<string, unknown> & { _id: string; _type: string; _updatedAt?: string }>> {
+}): Promise<SanityStoredDocument[]> {
   const types = input.documentTypes.filter((type) => type !== "translation.metadata");
   if (types.length === 0) {
     return [];
@@ -259,20 +325,22 @@ export async function listSanityDocumentsForImport(input: {
     input.watermarkIso != null
       ? `*[_type in $types && _updatedAt > $watermark && !(_id in path("drafts.**"))]`
       : `*[_type in $types && !(_id in path("drafts.**"))]`;
-  const published = await input.client.fetch<
-    Array<Record<string, unknown> & { _id: string; _type: string; _updatedAt?: string }>
-  >(`${filter} | order(_updatedAt asc) { ... }`, {
-    types,
-    watermark: input.watermarkIso,
-  });
+  const published = await input.client.fetch<SanityStoredDocument[]>(
+    `${filter} | order(_updatedAt asc) { ... }`,
+    {
+      types,
+      watermark: input.watermarkIso,
+    },
+  );
 
   if (!input.includeDrafts) {
     return published;
   }
 
-  const draftRows = await input.client.fetch<
-    Array<Record<string, unknown> & { _id: string; _type: string; _updatedAt?: string }>
-  >(`*[_type in $types && _id in path("drafts.**")] | order(_updatedAt asc) { ... }`, { types });
+  const draftRows = await input.client.fetch<SanityStoredDocument[]>(
+    `*[_type in $types && _id in path("drafts.**")] | order(_updatedAt asc) { ... }`,
+    { types },
+  );
   const byPublishedId = new Map<string, (typeof published)[number]>();
   for (const doc of published) {
     byPublishedId.set(doc._id.replace(/^drafts\./, ""), doc);
@@ -300,8 +368,8 @@ export function isSameSanityDocumentId(left: string, right: string): boolean {
   return normalizeSanityPublishedDocumentId(left) === normalizeSanityPublishedDocumentId(right);
 }
 
-export function omitSanitySystemFields(document: Record<string, unknown>): Record<string, unknown> {
-  const next: Record<string, unknown> = {};
+export function omitSanitySystemFields(document: SanityDocumentRecord): SanityDocumentRecord {
+  const next: SanityDocumentRecord = {};
   for (const [key, value] of Object.entries(document)) {
     if (!SANITY_SYSTEM_FIELD_KEYS.has(key)) {
       next[key] = value;
@@ -337,7 +405,7 @@ function sanityTranslationMetadataEntry(
   locale: string,
   documentId: string,
   itemType: string,
-): Record<string, unknown> {
+): SanityFieldObject {
   return {
     _key: locale,
     _type: itemType,
@@ -352,8 +420,8 @@ function sanityTranslationMetadataEntry(
 export async function fetchSanityDocumentById(
   client: SanityClient,
   documentId: string,
-): Promise<Record<string, unknown> | null> {
-  return client.fetch<Record<string, unknown> | null>(`*[_id == $id][0]`, {
+): Promise<SanityDocumentRecord | null> {
+  return client.fetch<SanityDocumentRecord | null>(`*[_id == $id][0]`, {
     id: documentId,
   });
 }
@@ -361,7 +429,7 @@ export async function fetchSanityDocumentById(
 export async function patchSanityDraftDocument(input: {
   client: SanityClient;
   publishedDocumentId: string;
-  document: Record<string, unknown>;
+  document: SanityDocumentRecord;
 }): Promise<void> {
   const draftId = `drafts.${normalizeSanityPublishedDocumentId(input.publishedDocumentId)}`;
   await input.client.createOrReplace({
@@ -372,7 +440,7 @@ export async function patchSanityDraftDocument(input: {
 
 export async function createSanityDraftTranslationDocument(input: {
   client: SanityClient;
-  document: Record<string, unknown>;
+  document: SanityDocumentRecord;
 }): Promise<string> {
   const publishedId = crypto.randomUUID();
   const documentType = input.document._type;
@@ -398,7 +466,7 @@ export async function upsertSanityTranslationMetadataLink(input: {
   const sourceId = normalizeSanityPublishedDocumentId(input.sourceDocumentId);
   const existing = await input.client.fetch<{
     _id: string;
-    translations?: Array<Record<string, unknown>>;
+    translations?: SanityFieldObject[];
     schemaTypes?: string[];
   } | null>(
     `*[_type == "translation.metadata" && references($id)][0]{ _id, translations, schemaTypes }`,

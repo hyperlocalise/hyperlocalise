@@ -16,17 +16,23 @@ import { normalizeSourcePath } from "@/lib/file-storage/records";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 
 import { slugifySanityPathSegment } from "./names";
+import type {
+  SanityDocumentRecord,
+  SanityFieldObject,
+  SanityFieldValue,
+} from "./sanity-field-value";
+import { isSanityFieldObject } from "./sanity-field-value";
 
 export type SanityTranslationMap = Record<string, string>;
 
-export function isSanityTranslationMap(value: unknown): value is SanityTranslationMap {
+export function isSanityTranslationMap(value: SanityFieldValue): value is SanityTranslationMap {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return false;
   }
   return Object.values(value).every((entry) => typeof entry === "string");
 }
 
-export function readSanityTranslationMap(value: unknown): SanityTranslationMap {
+export function readSanityTranslationMap(value: SanityFieldValue): SanityTranslationMap {
   if (!isSanityTranslationMap(value)) {
     return {};
   }
@@ -52,7 +58,7 @@ export function parseSanityTranslationMapJson(text: string): SanityTranslationMa
   if (!parsed.ok) {
     return {};
   }
-  return readSanityTranslationMap(parsed.value);
+  return readSanityTranslationMap(parsed.value as SanityFieldValue);
 }
 
 export function hashSanityTranslationMap(map: SanityTranslationMap): string {
@@ -63,10 +69,10 @@ function sanityDocumentIdToken(documentId: string): string {
   return createHash("sha256").update(documentId).digest("hex").slice(0, 8);
 }
 
-export function readSanityDocumentSlug(doc: Record<string, unknown>): string {
+export function readSanityDocumentSlug(doc: SanityDocumentRecord): string {
   const slug = doc.slug;
-  if (slug && typeof slug === "object" && !Array.isArray(slug) && "current" in slug) {
-    const current = (slug as { current?: unknown }).current;
+  if (isSanityFieldObject(slug) && "current" in slug) {
+    const current = (slug as SanityFieldObject & { current?: SanityFieldValue }).current;
     if (typeof current === "string" && current.trim().length > 0) {
       return current.trim();
     }

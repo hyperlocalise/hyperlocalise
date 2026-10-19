@@ -12,7 +12,12 @@
  */
 
 import type { SanityTranslationMap } from "./document-json";
-import { isSanityInternationalizedArrayEntry } from "./internationalized-array";
+import {
+  isSanityInternationalizedArrayEntry,
+  readSanityInternationalizedEntryValue,
+} from "./internationalized-array";
+import type { SanityDocumentRecord, SanityFieldValue } from "./sanity-field-value";
+import { isPortableTextBlock, isSanityFieldObject, isSanityReference } from "./sanity-field-value";
 
 const SKIP_TOP_LEVEL_KEYS = new Set([
   "_id",
@@ -24,30 +29,11 @@ const SKIP_TOP_LEVEL_KEYS = new Set([
   "language",
 ]);
 
-function isReference(value: unknown): boolean {
-  return (
-    value !== null &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    "_ref" in (value as Record<string, unknown>)
-  );
-}
-
-function isPortableTextBlock(value: unknown): value is {
-  _type?: string;
-  children?: unknown[];
-} {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-  const record = value as Record<string, unknown>;
-  return record._type === "block" && Array.isArray(record.children);
-}
-
-function extractPortableText(value: unknown, prefix: string, out: SanityTranslationMap): void {
-  if (!Array.isArray(value)) {
-    return;
-  }
+function extractPortableText(
+  value: SanityFieldValue[],
+  prefix: string,
+  out: SanityTranslationMap,
+): void {
   for (let blockIndex = 0; blockIndex < value.length; blockIndex += 1) {
     const block = value[blockIndex];
     if (!isPortableTextBlock(block)) {
@@ -56,10 +42,10 @@ function extractPortableText(value: unknown, prefix: string, out: SanityTranslat
     const children = block.children ?? [];
     for (let childIndex = 0; childIndex < children.length; childIndex += 1) {
       const child = children[childIndex];
-      if (!child || typeof child !== "object" || Array.isArray(child)) {
+      if (!child || !isSanityFieldObject(child)) {
         continue;
       }
-      const text = (child as { text?: unknown }).text;
+      const text = child.text;
       if (typeof text === "string" && text.length > 0) {
         out[`${prefix}.${blockIndex}.children.${childIndex}.text`] = text;
       }
@@ -67,7 +53,11 @@ function extractPortableText(value: unknown, prefix: string, out: SanityTranslat
   }
 }
 
-function walkValue(value: unknown, prefix: string, out: SanityTranslationMap): void {
+function walkValue(
+  value: SanityFieldValue | undefined,
+  prefix: string,
+  out: SanityTranslationMap,
+): void {
   if (value === null || value === undefined) {
     return;
   }
@@ -80,7 +70,7 @@ function walkValue(value: unknown, prefix: string, out: SanityTranslationMap): v
   if (typeof value !== "object") {
     return;
   }
-  if (isReference(value)) {
+  if (isSanityReference(value)) {
     return;
   }
   if (Array.isArray(value)) {
@@ -96,13 +86,15 @@ function walkValue(value: unknown, prefix: string, out: SanityTranslationMap): v
     }
     return;
   }
-  const record = value as Record<string, unknown>;
-  if (record._type && record._type !== "block" && typeof record._type === "string") {
-    if (record._type === "image" || record._type === "file" || record._type === "slug") {
+  if (!isSanityFieldObject(value)) {
+    return;
+  }
+  if (value._type && value._type !== "block" && typeof value._type === "string") {
+    if (value._type === "image" || value._type === "file" || value._type === "slug") {
       return;
     }
   }
-  for (const [key, child] of Object.entries(record)) {
+  for (const [key, child] of Object.entries(value)) {
     if (key.startsWith("_")) {
       continue;
     }
@@ -112,25 +104,17 @@ function walkValue(value: unknown, prefix: string, out: SanityTranslationMap): v
 }
 
 export function extractFieldLevelLocaleValue(
-  fieldValue: unknown,
+  fieldValue: SanityFieldValue,
   sanityLocaleKey: string,
-): unknown {
+): SanityFieldValue | undefined {
   if (!Array.isArray(fieldValue)) {
     return undefined;
   }
-  for (const entry of fieldValue) {
-    if (!isSanityInternationalizedArrayEntry(entry)) {
-      continue;
-    }
-    if (typeof entry.language === "string" && entry.language === sanityLocaleKey) {
-      return entry.value;
-    }
-  }
-  return undefined;
+  return readSanityInternationalizedEntryValue(fieldValue, sanityLocaleKey);
 }
 
 export function extractSanityDocumentSourceMap(input: {
-  document: Record<string, unknown>;
+  document: SanityDocumentRecord;
   i18nMode: "document" | "field";
   sourceSanityLocale: string;
 }): SanityTranslationMap {
@@ -159,7 +143,7 @@ export function extractSanityDocumentSourceMap(input: {
 }
 
 export function extractSanityTargetLocaleMap(input: {
-  document: Record<string, unknown>;
+  document: SanityDocumentRecord;
   i18nMode: "document" | "field";
   targetSanityLocale: string;
 }): SanityTranslationMap {

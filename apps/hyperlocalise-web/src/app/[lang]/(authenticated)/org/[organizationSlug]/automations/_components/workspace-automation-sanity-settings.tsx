@@ -14,9 +14,11 @@
  */
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useIntl } from "react-intl";
+import { useIntl, type IntlShape } from "react-intl";
 
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
 import {
   Combobox,
   ComboboxChip,
@@ -50,8 +52,14 @@ import {
   sanityDocumentI18nModeLabel,
   sanityDocumentTypeTitle,
 } from "@/lib/sanity/localization-mode";
+import { isSanityLocaleSupportedForDocumentType } from "@/lib/sanity/locale-catalog";
 import { pickSanitySourceLocale, resolveSanityLocaleKey } from "@/lib/sanity/sanity-locale";
-import type { SanityDocumentTypeSummary, SanityManageProject } from "@/lib/sanity/types";
+import type {
+  SanityDocumentTypeSummary,
+  SanityLocaleCatalogEntry,
+  SanityLocaleSource,
+  SanityManageProject,
+} from "@/lib/sanity/types";
 
 const SANITY_EXISTING_TRANSLATION_POLICY_LABELS: Record<SanityExistingTranslationPolicy, string> = {
   seed_empty: "Only empty locales",
@@ -71,6 +79,38 @@ function uniqueLocales(values: Array<string | null | undefined>): string[] {
     locales.push(locale);
   }
   return locales;
+}
+
+function sanityLocaleCatalogQuery(form: WorkspaceAutomationFormState) {
+  return {
+    localeType: form.sanityLocaleCatalogDocumentType.trim() || "locale",
+    tagField: form.sanityLocaleCatalogTagField.trim() || "tag",
+    titleField: form.sanityLocaleCatalogTitleField.trim() || "name",
+  };
+}
+
+function formatSanityLocaleLabel(
+  intl: IntlShape,
+  tag: string,
+  titleByTag: ReadonlyMap<string, string>,
+): string {
+  const studioTitle = titleByTag.get(tag);
+  const display = formatLocaleOptionLabel(intl, tag);
+  if (studioTitle && studioTitle !== tag) {
+    return `${studioTitle} (${display})`;
+  }
+  return display;
+}
+
+function localeSourceDescription(source: SanityLocaleSource, localeCount: number): string {
+  if (source === "catalog") {
+    const label = localeCount === 1 ? "locale" : "locales";
+    return `From Locales collection (${localeCount} ${label}).`;
+  }
+  if (source === "inferred") {
+    return "Inferred from content. Add a Locales collection in Studio for an exact list.";
+  }
+  return "No locales found.";
 }
 
 export function WorkspaceAutomationSanitySettings({
@@ -206,6 +246,46 @@ export function WorkspaceAutomationSanitySettings({
     [translatableDocumentTypes],
   );
 
+  const localeCatalogQuery = sanityLocaleCatalogQuery(form);
+
+  const sanityLocalesQuery = useQuery({
+    queryKey: [
+      "sanity-locales",
+      organizationSlug,
+      form.sanityProjectId,
+      form.sanityDataset,
+      localeCatalogQuery.localeType,
+      localeCatalogQuery.tagField,
+      localeCatalogQuery.titleField,
+    ],
+    enabled:
+      form.sanityEnabled &&
+      sanityConnected &&
+      Boolean(form.sanityProjectId) &&
+      Boolean(form.sanityDataset),
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].sanity.projects[
+        ":projectId"
+      ].datasets[":dataset"].locales.$get({
+        param: {
+          organizationSlug,
+          projectId: form.sanityProjectId,
+          dataset: form.sanityDataset,
+        },
+        query: localeCatalogQuery,
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Sanity locales");
+      }
+      const body = await response.json();
+      return {
+        locales: (body.locales ?? []) as SanityLocaleCatalogEntry[],
+        languages: (body.languages ?? []) as string[],
+        source: (body.source === "catalog" ? "catalog" : "none") as SanityLocaleSource,
+      };
+    },
+  });
+
   const documentTypesQuery = useQuery({
     queryKey: [
       "sanity-document-types",
@@ -213,6 +293,10 @@ export function WorkspaceAutomationSanitySettings({
       form.sanityProjectId,
       form.sanityDataset,
       form.sanityDocumentTypes.join(","),
+      form.sanitySourceLocale,
+      localeCatalogQuery.localeType,
+      localeCatalogQuery.tagField,
+      localeCatalogQuery.titleField,
     ],
     enabled:
       form.sanityEnabled &&
@@ -231,6 +315,8 @@ export function WorkspaceAutomationSanitySettings({
         },
         query: {
           typeNames: form.sanityDocumentTypes.join(","),
+          sourceLocale: form.sanitySourceLocale.trim() || undefined,
+          ...localeCatalogQuery,
         },
       });
       if (!response.ok) {
@@ -240,13 +326,57 @@ export function WorkspaceAutomationSanitySettings({
       return {
         types: (body.types ?? []) as SanityDocumentTypeSummary[],
         languages: (body.languages ?? []) as string[],
+        localeSource: (body.localeSource ?? "none") as SanityLocaleSource,
+        unsupportedSourceTypes: (body.unsupportedSourceTypes ?? []) as string[],
       };
     },
   });
 
-  const languageOptions = useMemo(
-    () => uniqueLocales([...form.sanityLanguages, ...(documentTypesQuery.data?.languages ?? [])]),
-    [documentTypesQuery.data?.languages, form.sanityLanguages],
+  const localeTitleByTag = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const entry of sanityLocalesQuery.data?.locales ?? []) {
+      map.set(entry.tag, entry.title);
+    }
+    return map;
+  }, [sanityLocalesQuery.data?.locales]);
+
+  const sanityLocaleCatalog = useMemo(() => {
+    const fromLocalesCollection = uniqueLocales(sanityLocalesQuery.data?.languages ?? []);
+    if (fromLocalesCollection.length > 0) {
+      return fromLocalesCollection;
+    }
+    return uniqueLocales(documentTypesQuery.data?.languages ?? []);
+  }, [documentTypesQuery.data?.languages, sanityLocalesQuery.data?.languages]);
+
+  const resolvedLocaleSource = useMemo((): SanityLocaleSource => {
+    if (sanityLocalesQuery.data?.source === "catalog") {
+      return "catalog";
+    }
+    if (documentTypesQuery.data?.localeSource === "inferred") {
+      return "inferred";
+    }
+    if (sanityLocaleCatalog.length > 0) {
+      return "inferred";
+    }
+    return "none";
+  }, [
+    documentTypesQuery.data?.localeSource,
+    sanityLocalesQuery.data?.source,
+    sanityLocaleCatalog.length,
+  ]);
+
+  const resolvedSanityLanguages = sanityLocaleCatalog;
+
+  const languageOptions = sanityLocaleCatalog;
+
+  const selectedSanitySourceLocale = useMemo(
+    () =>
+      pickSanitySourceLocale({
+        catalog: sanityLocaleCatalog,
+        currentSourceLocale: form.sanitySourceLocale,
+        projectSourceLocale,
+      }),
+    [form.sanitySourceLocale, projectSourceLocale, sanityLocaleCatalog],
   );
 
   const localeMappingRows = useMemo(() => {
@@ -259,8 +389,10 @@ export function WorkspaceAutomationSanitySettings({
             {
               projectLocale: projectSource,
               sanityLocale:
-                resolveSanityLocaleKey(form.sanitySourceLocale || projectSource, sanityLocales) ??
-                resolveSanityLocaleKey(projectSource, sanityLocales),
+                resolveSanityLocaleKey(
+                  selectedSanitySourceLocale || projectSource,
+                  sanityLocales,
+                ) ?? resolveSanityLocaleKey(projectSource, sanityLocales),
               role: "source" as const,
             },
           ]
@@ -271,20 +403,60 @@ export function WorkspaceAutomationSanitySettings({
         role: "target" as const,
       })),
     ];
-  }, [form.sanitySourceLocale, languageOptions, projectSourceLocale, projectTargetLocales]);
+  }, [languageOptions, projectSourceLocale, projectTargetLocales, selectedSanitySourceLocale]);
+
+  function unsupportedTypesForSanityLocale(sanityLocale: string | null | undefined): string[] {
+    if (!sanityLocale) {
+      return [];
+    }
+    return form.sanityDocumentTypes.filter(
+      (typeName) =>
+        !isSanityLocaleSupportedForDocumentType({
+          sanityLocale,
+          documentType: typeName,
+          languagesByType: form.sanityLanguagesByType,
+          fallbackLanguages: languageOptions,
+        }),
+    );
+  }
+
+  useEffect(() => {
+    if (!form.sanityEnabled || !sanityConnected || sanityLocaleCatalog.length === 0) {
+      return;
+    }
+    if (selectedSanitySourceLocale === form.sanitySourceLocale) {
+      return;
+    }
+    onChange({
+      ...form,
+      sanitySourceLocale: selectedSanitySourceLocale,
+    });
+  }, [form, onChange, sanityConnected, sanityLocaleCatalog.length, selectedSanitySourceLocale]);
 
   useEffect(() => {
     if (!form.sanityEnabled || !sanityConnected) {
       return;
     }
-    const languages = documentTypesQuery.data?.languages ?? [];
+    const languages = resolvedSanityLanguages;
     if (languages.length === 0) {
       return;
     }
+    const nextLanguagesByType = Object.fromEntries(
+      (documentTypesQuery.data?.types ?? [])
+        .filter((type) => type.languages.length > 0)
+        .map((type) => [type.name, type.languages]),
+    );
     const languagesUnchanged =
       languages.length === form.sanityLanguages.length &&
       languages.every((locale) => form.sanityLanguages.includes(locale));
-    if (languagesUnchanged) {
+    const languagesByTypeUnchanged =
+      Object.keys(nextLanguagesByType).length === Object.keys(form.sanityLanguagesByType).length &&
+      Object.entries(nextLanguagesByType).every(
+        ([typeName, typeLanguages]) =>
+          form.sanityLanguagesByType[typeName]?.length === typeLanguages.length &&
+          typeLanguages.every((locale) => form.sanityLanguagesByType[typeName]?.includes(locale)),
+      );
+    if (languagesUnchanged && languagesByTypeUnchanged) {
       if (form.sanityTargetLocales.length === 0) {
         return;
       }
@@ -297,6 +469,7 @@ export function WorkspaceAutomationSanitySettings({
     onChange({
       ...form,
       sanityLanguages: [...languages],
+      sanityLanguagesByType: nextLanguagesByType,
       sanitySourceLocale: pickSanitySourceLocale({
         catalog: languages,
         currentSourceLocale: form.sanitySourceLocale,
@@ -304,7 +477,14 @@ export function WorkspaceAutomationSanitySettings({
       }),
       sanityTargetLocales: [],
     });
-  }, [documentTypesQuery.data?.languages, form, onChange, projectSourceLocale, sanityConnected]);
+  }, [
+    documentTypesQuery.data?.types,
+    form,
+    onChange,
+    projectSourceLocale,
+    resolvedSanityLanguages,
+    sanityConnected,
+  ]);
 
   useEffect(() => {
     if (translatableDocumentTypesQuery.isLoading || translatableTypeNames.size === 0) {
@@ -325,7 +505,7 @@ export function WorkspaceAutomationSanitySettings({
       sanityDocumentTypes: pruned,
       sanityDocumentTypeModes: nextModes,
       sanityTargetLocales: [],
-      ...(pruned.length === 0 ? { sanityLanguages: [] } : {}),
+      ...(pruned.length === 0 ? { sanityLanguages: [], sanityLanguagesByType: {} } : {}),
     });
   }, [form, onChange, translatableDocumentTypesQuery.isLoading, translatableTypeNames]);
 
@@ -347,7 +527,7 @@ export function WorkspaceAutomationSanitySettings({
       sanityDocumentTypes: nextNames,
       sanityDocumentTypeModes: nextModes,
       sanityTargetLocales: [],
-      ...(nextNames.length === 0 ? { sanityLanguages: [] } : {}),
+      ...(nextNames.length === 0 ? { sanityLanguages: [], sanityLanguagesByType: {} } : {}),
     });
   }
 
@@ -511,10 +691,55 @@ export function WorkspaceAutomationSanitySettings({
         ) : null}
       </div>
 
+      <Collapsible className="space-y-2 rounded-lg border border-border p-3">
+        <CollapsibleTrigger className="flex w-full items-center justify-between text-left text-sm font-medium">
+          Advanced: locale catalog
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-3 pt-3">
+          <div className="space-y-2">
+            <Label htmlFor="sanity-locale-document-type">Locale document type</Label>
+            <Input
+              id="sanity-locale-document-type"
+              value={form.sanityLocaleCatalogDocumentType}
+              onChange={(event) =>
+                onChange({ ...form, sanityLocaleCatalogDocumentType: event.target.value })
+              }
+              placeholder="locale"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sanity-locale-tag-field">Tag field</Label>
+            <Input
+              id="sanity-locale-tag-field"
+              value={form.sanityLocaleCatalogTagField}
+              onChange={(event) =>
+                onChange({ ...form, sanityLocaleCatalogTagField: event.target.value })
+              }
+              placeholder="tag"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sanity-locale-title-field">Title field</Label>
+            <Input
+              id="sanity-locale-title-field"
+              value={form.sanityLocaleCatalogTitleField}
+              onChange={(event) =>
+                onChange({ ...form, sanityLocaleCatalogTitleField: event.target.value })
+              }
+              placeholder="name"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Defaults match Sanity&apos;s recommended <code className="text-xs">locale</code>{" "}
+            documents. Change these only when your Studio uses different type or field names.
+          </p>
+        </CollapsibleContent>
+      </Collapsible>
+
       <div className="space-y-2">
         <Label htmlFor="sanity-source-locale">Sanity source locale</Label>
         <Select
-          value={form.sanitySourceLocale || undefined}
+          value={selectedSanitySourceLocale || undefined}
           onValueChange={(sanitySourceLocale) => {
             if (!sanitySourceLocale) {
               return;
@@ -522,8 +747,9 @@ export function WorkspaceAutomationSanitySettings({
             onChange({ ...form, sanitySourceLocale });
           }}
           disabled={
-            form.sanityDocumentTypes.length === 0 ||
+            !form.sanityDataset ||
             languageOptions.length === 0 ||
+            sanityLocalesQuery.isLoading ||
             !sanityConnected
           }
         >
@@ -533,15 +759,19 @@ export function WorkspaceAutomationSanitySettings({
             aria-invalid={Boolean(errors.sanitySourceLocale)}
           >
             <SelectValue placeholder="Choose source locale">
-              {form.sanitySourceLocale
-                ? formatLocaleOptionLabel(intl, form.sanitySourceLocale)
+              {selectedSanitySourceLocale
+                ? formatSanityLocaleLabel(intl, selectedSanitySourceLocale, localeTitleByTag)
                 : "Choose source locale"}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {languageOptions.map((locale) => (
-              <SelectItem key={locale} value={locale} label={formatLocaleOptionLabel(intl, locale)}>
-                {formatLocaleOptionLabel(intl, locale)}
+              <SelectItem
+                key={locale}
+                value={locale}
+                label={formatSanityLocaleLabel(intl, locale, localeTitleByTag)}
+              >
+                {formatSanityLocaleLabel(intl, locale, localeTitleByTag)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -552,22 +782,33 @@ export function WorkspaceAutomationSanitySettings({
           </p>
         ) : (
           <p className="text-xs text-muted-foreground">
+            {localeSourceDescription(resolvedLocaleSource, languageOptions.length)}
+          </p>
+        )}
+        {!errors.sanitySourceLocale ? (
+          <p className="text-xs text-muted-foreground">
             The Sanity language for original copy. It must be the same language as the project
             source, for example English (United States) maps to English (en).
           </p>
-        )}
+        ) : null}
         {localeMappingRows.length > 0 ? (
           <ul className="space-y-1 text-xs text-muted-foreground">
-            {localeMappingRows.map((row) => (
-              <li key={`${row.role}-${row.projectLocale}`}>
-                {formatLocaleOptionLabel(intl, row.projectLocale)}
-                {row.role === "source" ? " (source)" : ""}
-                {" → "}
-                {row.sanityLocale
-                  ? formatLocaleOptionLabel(intl, row.sanityLocale)
-                  : "Unmapped, skipped"}
-              </li>
-            ))}
+            {localeMappingRows.map((row) => {
+              const unsupportedTypes = unsupportedTypesForSanityLocale(row.sanityLocale);
+              return (
+                <li key={`${row.role}-${row.projectLocale}`}>
+                  {formatLocaleOptionLabel(intl, row.projectLocale)}
+                  {row.role === "source" ? " (source)" : ""}
+                  {" → "}
+                  {row.sanityLocale
+                    ? formatSanityLocaleLabel(intl, row.sanityLocale, localeTitleByTag)
+                    : "Unmapped, skipped"}
+                  {unsupportedTypes.length > 0
+                    ? ` (not on ${unsupportedTypes.map((typeName) => sanityDocumentTypeTitle(typeName)).join(", ")})`
+                    : ""}
+                </li>
+              );
+            })}
           </ul>
         ) : null}
       </div>

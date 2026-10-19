@@ -35,6 +35,8 @@ import {
   type WorkspaceAutomationWebSearchProvider,
 } from "./workspace-automation-types";
 import type { EmailProviderSlug } from "@/lib/email/constants";
+import { listUnsupportedSanitySourceDocumentTypes } from "@/lib/sanity/locale-catalog";
+import { sanityDocumentTypeTitle } from "@/lib/sanity/localization-mode";
 import { parseSlackConversationId } from "./slack/channel-query";
 import { isValidAutomationTimeZone } from "./automation-time-zones";
 import { hasWorkspaceAutomationScheduledWorkflow } from "./workspace-automation-scheduled-workflow";
@@ -121,7 +123,11 @@ export type WorkspaceAutomationFormState = {
   sanityDataset: string;
   sanityDocumentTypes: string[];
   sanityDocumentTypeModes: Record<string, "document" | "field">;
+  sanityLocaleCatalogDocumentType: string;
+  sanityLocaleCatalogTagField: string;
+  sanityLocaleCatalogTitleField: string;
   sanityLanguages: string[];
+  sanityLanguagesByType: Record<string, string[]>;
   sanitySourceLocale: string;
   sanityTargetLocales: string[];
   sanityIncludeDrafts: boolean;
@@ -399,7 +405,11 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     sanityDataset: "",
     sanityDocumentTypes: [],
     sanityDocumentTypeModes: {},
+    sanityLocaleCatalogDocumentType: "locale",
+    sanityLocaleCatalogTagField: "tag",
+    sanityLocaleCatalogTitleField: "name",
     sanityLanguages: [],
+    sanityLanguagesByType: {},
     sanitySourceLocale: "en",
     sanityTargetLocales: [],
     sanityIncludeDrafts: true,
@@ -543,7 +553,11 @@ export function createWorkspaceAutomationFormStateFromRecord(
     sanityDataset: sanity?.dataset ?? "",
     sanityDocumentTypes: sanity?.documentTypes ? [...sanity.documentTypes] : [],
     sanityDocumentTypeModes: sanity?.documentTypeModes ? { ...sanity.documentTypeModes } : {},
+    sanityLocaleCatalogDocumentType: sanity?.localeCatalog?.documentType ?? "locale",
+    sanityLocaleCatalogTagField: sanity?.localeCatalog?.tagField ?? "tag",
+    sanityLocaleCatalogTitleField: sanity?.localeCatalog?.titleField ?? "name",
     sanityLanguages: sanity?.languages ? [...sanity.languages] : [],
+    sanityLanguagesByType: sanity?.languagesByType ? { ...sanity.languagesByType } : {},
     sanitySourceLocale: sanity?.sourceLocale ?? "en",
     sanityTargetLocales: [],
     sanityIncludeDrafts: Boolean(sanity?.includeDrafts),
@@ -856,7 +870,13 @@ export function formStateToWorkspaceAutomationPayload(
             dataset: form.sanityDataset.trim() || undefined,
             documentTypes: form.sanityDocumentTypes,
             documentTypeModes: form.sanityDocumentTypeModes,
+            localeCatalog: {
+              documentType: form.sanityLocaleCatalogDocumentType.trim() || "locale",
+              tagField: form.sanityLocaleCatalogTagField.trim() || "tag",
+              titleField: form.sanityLocaleCatalogTitleField.trim() || "name",
+            },
             languages: form.sanityLanguages,
+            languagesByType: form.sanityLanguagesByType,
             sourceLocale: form.sanitySourceLocale.trim() || "en",
             targetLocales: [],
             includeDrafts: form.sanityIncludeDrafts,
@@ -1114,6 +1134,20 @@ export function validateWorkspaceAutomationFormState(
     if (!form.sanitySourceLocale.trim()) {
       errors.sanitySourceLocale =
         "Choose a Sanity source locale that matches the project source language.";
+    } else if (form.sanityDocumentTypes.length > 0 && form.sanityLanguages.length > 0) {
+      const typeLanguages = new Map(
+        Object.entries(form.sanityLanguagesByType).map(([name, languages]) => [name, languages]),
+      );
+      const unsupported = listUnsupportedSanitySourceDocumentTypes({
+        sourceLocale: form.sanitySourceLocale,
+        documentTypes: form.sanityDocumentTypes,
+        languagesByType: form.sanityLanguagesByType,
+        fallbackLanguages: form.sanityLanguages,
+        typeLanguages,
+      });
+      if (unsupported.length > 0) {
+        errors.sanitySourceLocale = `Source locale ${form.sanitySourceLocale} is not available for: ${unsupported.map((typeName) => sanityDocumentTypeTitle(typeName)).join(", ")}.`;
+      }
     }
   }
 

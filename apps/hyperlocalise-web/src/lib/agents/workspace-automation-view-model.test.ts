@@ -290,7 +290,57 @@ describe("workspace automation view model", () => {
       sourceLocale: "en",
       targetLocales: [],
       languages: ["en", "de"],
+      localeCatalog: {
+        documentType: "locale",
+        tagField: "tag",
+        titleField: "name",
+      },
     });
+  });
+
+  it("serializes Sanity locale catalog and per-type languages", () => {
+    const form = createDefaultWorkspaceAutomationFormState();
+    const payload = formStateToWorkspaceAutomationPayload({
+      ...form,
+      name: "Sanity",
+      instructions: "Import.",
+      projectId: "project-1",
+      sanityEnabled: true,
+      sanityProjectId: "abc",
+      sanityDataset: "production",
+      sanityDocumentTypes: ["post", "author"],
+      sanityLocaleCatalogDocumentType: "language",
+      sanityLocaleCatalogTagField: "code",
+      sanityLocaleCatalogTitleField: "label",
+      sanityLanguages: ["en", "de"],
+      sanityLanguagesByType: { post: ["en", "de"], author: ["de"] },
+      sanitySourceLocale: "en",
+    });
+    expect(payload.toolConfig.sanity).toMatchObject({
+      localeCatalog: {
+        documentType: "language",
+        tagField: "code",
+        titleField: "label",
+      },
+      languagesByType: { post: ["en", "de"], author: ["de"] },
+    });
+  });
+
+  it("blocks save when the Sanity source locale is missing on a selected type", () => {
+    const errors = validateWorkspaceAutomationFormState({
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Sanity",
+      instructions: "Import.",
+      projectId: "project-1",
+      sanityEnabled: true,
+      sanityProjectId: "abc",
+      sanityDataset: "production",
+      sanityDocumentTypes: ["post", "author"],
+      sanityLanguages: ["en", "de"],
+      sanityLanguagesByType: { post: ["en", "de"], author: ["de"] },
+      sanitySourceLocale: "en",
+    });
+    expect(errors.sanitySourceLocale).toMatch(/not available for/i);
   });
 
   it("prefills the Intercom Help Center template", () => {

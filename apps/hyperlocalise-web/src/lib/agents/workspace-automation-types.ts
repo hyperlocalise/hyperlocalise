@@ -365,6 +365,30 @@ const sanityDocumentTypeModesSchema = z
     }
   });
 
+const sanityLanguagesByTypeSchema = z
+  .record(z.string().trim().min(1).max(128), z.array(z.string().trim().min(1).max(32)).max(50))
+  .default({})
+  .superRefine((value, ctx) => {
+    if (Object.keys(value).length > 50) {
+      ctx.addIssue({
+        code: "custom",
+        message: "At most 50 document type language lists are allowed.",
+      });
+    }
+  });
+
+const sanityLocaleCatalogSchema = z
+  .object({
+    documentType: z.string().trim().min(1).max(128).default("locale"),
+    tagField: z.string().trim().min(1).max(64).default("tag"),
+    titleField: z.string().trim().min(1).max(64).default("name"),
+  })
+  .default({
+    documentType: "locale",
+    tagField: "tag",
+    titleField: "name",
+  });
+
 const sanityToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -373,7 +397,9 @@ const sanityToolConfigSchema = z
     dataset: z.string().trim().min(1).max(128).optional(),
     documentTypes: z.array(z.string().trim().min(1).max(128)).max(50).default([]),
     documentTypeModes: sanityDocumentTypeModesSchema,
+    localeCatalog: sanityLocaleCatalogSchema,
     languages: z.array(z.string().trim().min(1).max(32)).max(50).default([]),
+    languagesByType: sanityLanguagesByTypeSchema,
     sourceLocale: z.string().trim().min(1).max(32).default("en"),
     targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
     includeDrafts: z.boolean().default(true),
@@ -386,7 +412,13 @@ const sanityToolConfigSchema = z
     enabled: false,
     documentTypes: [],
     documentTypeModes: {},
+    localeCatalog: {
+      documentType: "locale",
+      tagField: "tag",
+      titleField: "name",
+    },
     languages: [],
+    languagesByType: {},
     sourceLocale: "en",
     targetLocales: [],
     includeDrafts: true,

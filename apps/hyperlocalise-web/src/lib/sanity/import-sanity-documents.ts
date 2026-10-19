@@ -36,6 +36,7 @@ import {
   normalizeSanityPublishedDocumentId,
 } from "./content-api";
 import { SANITY_DOCUMENT_IMPORT_CONCURRENCY, SANITY_IMPORT_STALE_CONFIG } from "./constants";
+import type { SanityDocumentRecord, SanityJsonObject } from "./sanity-field-value";
 import {
   buildSanityDocumentSourcePath,
   hashSanityTranslationMap,
@@ -197,7 +198,7 @@ async function upsertSanitySyncState(input: {
   contentHash: string;
   sourceUpdatedAt: Date | null;
   status: "active" | "import_failed";
-  lastError: Record<string, unknown> | null;
+  lastError: SanityJsonObject | null;
   importedTranslationHashes: Record<string, string>;
   translatedDocumentIds?: Record<string, string>;
   lastImportedAt?: Date | null;
@@ -247,7 +248,7 @@ async function upsertSanitySyncState(input: {
 
 async function collectTargetMaps(input: {
   client: ReturnType<typeof createSanityClient>;
-  document: Record<string, unknown>;
+  document: SanityDocumentRecord;
   publishedId: string;
   i18nMode: "document" | "field";
   sanityTargetLocales: readonly string[];
@@ -440,17 +441,41 @@ export async function runImportSanityDocuments(input: {
 
   let maxWatermark = cursorRow?.watermarkUpdatedAt ?? null;
 
+  const detectedByType = new Map<string, Awaited<ReturnType<typeof detectSanityDocumentTypes>>>();
+
+  const loadDetectedForType = async (typeName: string) => {
+    const cached = detectedByType.get(typeName);
+    if (cached) {
+      return cached;
+    }
+    const detected = await detectSanityDocumentTypes({
+      client,
+      typeNames: [typeName],
+      localeCatalog: sanity.localeCatalog,
+    });
+    detectedByType.set(typeName, detected);
+    return detected;
+  };
+
+  const languagesForDocumentType = (
+    typeName: string,
+    detected: Awaited<ReturnType<typeof detectSanityDocumentTypes>>,
+  ): string[] => {
+    const configured = sanity.languagesByType?.[typeName];
+    if (configured && configured.length > 0) {
+      return configured;
+    }
+    return detected.types.find((type) => type.name === typeName)?.languages ?? sanityLanguages;
+  };
+
   await mapWithConcurrency(listed, SANITY_DOCUMENT_IMPORT_CONCURRENCY, async (rawDoc) => {
     try {
       const documentType = String(rawDoc._type);
       const publishedId = normalizeSanityPublishedDocumentId(String(rawDoc._id));
       const typeModeOverride = sanity.documentTypeModes?.[documentType];
+      const detected = await loadDetectedForType(documentType);
       let detectedMode: "document" | "field" | "none" = typeModeOverride ?? "none";
       if (!typeModeOverride) {
-        const detected = await detectSanityDocumentTypes({
-          client,
-          typeNames: [documentType],
-        });
         const remoteMode = detected.types[0]?.i18nMode ?? "none";
         detectedMode = remoteMode;
       }
@@ -468,7 +493,8 @@ export async function runImportSanityDocuments(input: {
       if (i18nMode === "document") {
         const docLanguage =
           typeof fullDoc.language === "string" ? fullDoc.language : sanity.sourceLocale;
-        const resolved = resolveSanityLocaleKey(docLanguage, sanityLanguages);
+        const typeLanguages = languagesForDocumentType(documentType, detected);
+        const resolved = resolveSanityLocaleKey(docLanguage, typeLanguages);
         if (resolved !== sourceSanityLocale) {
           result.skipped += 1;
           return;
@@ -702,7 +728,7 @@ export async function runImportSanityDocuments(input: {
         }
       }
     } catch (error) {
-      if (isSanitySyncStaleConfigError(error)) {
+      if (typeof error === "object" && error !== null && isSanitySyncStaleConfigError(error)) {
         throw error;
       }
       logger.warn({ error, documentId: rawDoc._id }, "sanity_document_import_failed");

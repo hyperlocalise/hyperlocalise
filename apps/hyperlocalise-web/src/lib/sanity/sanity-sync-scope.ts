@@ -11,6 +11,8 @@
  * Version 2.0 or later.
  */
 
+import type { WorkspaceAutomationToolConfig } from "@/lib/agents/workspace-automation-types";
+
 import { SANITY_IMPORT_STALE_CONFIG, SANITY_PUSH_STALE_CONFIG } from "./constants";
 
 const SANITY_IMPORT_SCOPE_PREFIX = "scope:";
@@ -31,7 +33,7 @@ export class SanitySyncStaleConfigError extends Error {
   }
 }
 
-export function isSanitySyncStaleConfigError(error: unknown): error is SanitySyncStaleConfigError {
+export function isSanitySyncStaleConfigError(error: object): error is SanitySyncStaleConfigError {
   return error instanceof SanitySyncStaleConfigError;
 }
 
@@ -65,7 +67,7 @@ export function resolveSanityAutomationScopeFreshness(input: {
 
 export function readLiveSanityScopeKey(input: {
   projectId: string | null;
-  toolConfig: Record<string, unknown> | null | undefined;
+  toolConfig: WorkspaceAutomationToolConfig | null | undefined;
 }): string | null {
   const nativeProjectId = input.projectId?.trim();
   if (!nativeProjectId) {
@@ -98,7 +100,7 @@ export function readLiveSanityScopeKey(input: {
 }
 
 export function readLiveSanityOverwriteDrafts(
-  toolConfig: Record<string, unknown> | null | undefined,
+  toolConfig: WorkspaceAutomationToolConfig | null | undefined,
 ): boolean | null {
   const sanity = toolConfig?.sanity;
   if (!sanity || typeof sanity !== "object" || Array.isArray(sanity)) {

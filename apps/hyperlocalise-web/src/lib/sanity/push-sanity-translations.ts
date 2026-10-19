@@ -24,6 +24,7 @@ import { isErr } from "@/lib/primitives/result/results";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 import { applySanityTranslationsToDocument } from "./apply-translations";
+import type { SanityFieldValue } from "./sanity-field-value";
 import { createSanityClient } from "./client";
 import { SANITY_PUSH_CONCURRENCY, SANITY_PUSH_STALE_CONFIG } from "./constants";
 import {
@@ -40,6 +41,7 @@ import {
   readSanityTranslationMap,
 } from "./document-json";
 import { loadSanityPipesAccessToken } from "./pipes";
+import { isSanityLocaleSupportedForDocumentType } from "./locale-catalog";
 import { mapProjectLocalesToSanity, normalizeSanityLocaleTag } from "./sanity-locale";
 import {
   assertLiveSanityAutomationConfigVersion,
@@ -54,7 +56,11 @@ import {
 
 const logger = createLogger("push-sanity-translations");
 
-export type SanityPushSkipReason = "unmapped" | "incomplete_translations" | "unchanged";
+export type SanityPushSkipReason =
+  | "unmapped"
+  | "incomplete_translations"
+  | "unchanged"
+  | "unsupported_for_type";
 
 export type SanityPushSkip = {
   locale: string;
@@ -83,6 +89,8 @@ export function sanityPushSkipMessage(skip: Omit<SanityPushSkip, "message">): st
       return `${skip.locale} is not fully approved (${skip.translatedKeyCount ?? 0} of ${skip.sourceKeyCount ?? 0} keys).`;
     case "unchanged":
       return `${skip.locale} is already pushed and overwrite is off.`;
+    case "unsupported_for_type":
+      return `${skip.locale} is not configured for this Sanity document type.`;
   }
 }
 
@@ -128,13 +136,19 @@ export function summarizeSanityPushResult(input: {
   if (reasons.size === 1 && reasons.has("unmapped")) {
     return `Skipped ${skippedLocaleCount} ${localeLabel} with no matching Sanity language tag.`;
   }
+  if (reasons.size === 1 && reasons.has("unsupported_for_type")) {
+    return `Skipped ${skippedLocaleCount} ${localeLabel} because the document type does not support that language.`;
+  }
   return `Skipped ${skippedLocaleCount} ${localeLabel}. See skip reasons for each locale.`;
 }
 
 export function readSanityPushSourcePaths(
-  inputSnapshot: Record<string, unknown> | null | undefined,
+  inputSnapshot: object | null | undefined,
 ): string[] | undefined {
-  const raw = inputSnapshot?.sourcePaths;
+  if (!inputSnapshot || !("sourcePaths" in inputSnapshot)) {
+    return undefined;
+  }
+  const raw = (inputSnapshot as { sourcePaths?: SanityFieldValue }).sourcePaths;
   if (!Array.isArray(raw)) {
     return undefined;
   }
@@ -322,6 +336,24 @@ export async function runPushSanityTranslations(input: {
           continue;
         }
         if (
+          !isSanityLocaleSupportedForDocumentType({
+            sanityLocale,
+            documentType: mapping.documentType,
+            languagesByType: sanity.languagesByType ?? {},
+            fallbackLanguages: sanityLanguages,
+          })
+        ) {
+          result.skipped.push(
+            recordSanityPushSkip({
+              locale: projectLocale,
+              documentId: mapping.documentId,
+              reason: "unsupported_for_type",
+            }),
+          );
+          result.skippedLocales += 1;
+          continue;
+        }
+        if (
           sourceSanityLocale &&
           normalizeSanityLocaleTag(sanityLocale) === normalizeSanityLocaleTag(sourceSanityLocale)
         ) {
@@ -452,7 +484,7 @@ export async function runPushSanityTranslations(input: {
         },
       );
     } catch (error) {
-      if (isSanitySyncStaleConfigError(error)) {
+      if (typeof error === "object" && error !== null && isSanitySyncStaleConfigError(error)) {
         throw error;
       }
       logger.warn({ error, mappingId: mapping.id }, "sanity_push_failed");

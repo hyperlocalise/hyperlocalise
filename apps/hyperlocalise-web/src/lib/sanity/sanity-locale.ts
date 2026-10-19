@@ -42,8 +42,11 @@ export function pickSanitySourceLocale(input: {
   }
 
   const current = input.currentSourceLocale?.trim() || "";
-  if (current && catalog.includes(current)) {
-    return current;
+  if (current) {
+    const resolvedCurrent = resolveIntercomLocaleKey(current, catalog);
+    if (resolvedCurrent) {
+      return resolvedCurrent;
+    }
   }
 
   return "";

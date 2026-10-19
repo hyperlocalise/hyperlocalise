@@ -44,4 +44,14 @@ describe("pickSanitySourceLocale", () => {
       }),
     ).toBe("de");
   });
+
+  it("clears a stale current tag that is no longer in the catalog", () => {
+    expect(
+      pickSanitySourceLocale({
+        catalog: ["en", "de"],
+        currentSourceLocale: "ja",
+        projectSourceLocale: "ja-JP",
+      }),
+    ).toBe("");
+  });
 });

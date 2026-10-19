@@ -27,9 +27,12 @@ import {
   detectSanityDocumentTypes,
   isSanityAuthError,
   listSanityDatasets,
+  listSanityLocaleCatalog,
   listSanityManageProjects,
   SanityApiError,
 } from "@/lib/sanity/content-api";
+import { normalizeSanityLocaleCatalogConfig } from "@/lib/sanity/locale-catalog";
+import type { SanityLocaleCatalogConfig } from "@/lib/sanity/types";
 import { isSanityHelperDocumentType } from "@/lib/sanity/localization-mode";
 import { loadSanityPipesAccessToken, saveSanityPipesApiToken } from "@/lib/sanity/pipes";
 import type { SanityPipesError } from "@/lib/sanity/types";
@@ -38,6 +41,7 @@ import { isErr, type Result } from "@/lib/primitives/result/results";
 import {
   sanityDatasetParamsSchema,
   sanityDocumentTypesQuerySchema,
+  sanityLocaleCatalogQuerySchema,
   sanityProjectIdParamSchema,
   upsertSanityConnectionBodySchema,
 } from "./sanity.schema";
@@ -69,6 +73,30 @@ const validateDocumentTypesQuery = validator("query", (value, c) => {
   }
   return parsed.data;
 });
+
+const validateLocaleCatalogQuery = validator("query", (value, c) => {
+  const parsed = sanityLocaleCatalogQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_sanity_locale_catalog",
+      "Locale catalog query is invalid.",
+    );
+  }
+  return parsed.data;
+});
+
+function localeCatalogConfigFromQuery(query: {
+  localeType?: string;
+  tagField?: string;
+  titleField?: string;
+}): SanityLocaleCatalogConfig {
+  return normalizeSanityLocaleCatalogConfig({
+    documentType: query.localeType,
+    tagField: query.tagField,
+    titleField: query.titleField,
+  });
+}
 
 function canReadIntegrations(role: AuthVariables["auth"]["membership"]["role"]) {
   return hasCapability(role, "integrations:read");
@@ -105,7 +133,7 @@ function mapSanitySetupError(c: JsonContext, error: SanityPipesError) {
   return badRequestResponse(c, error.code, error.message);
 }
 
-function mapSanityProviderError(c: JsonContext, error: unknown) {
+function mapSanityProviderError(c: JsonContext, error: object) {
   if (error instanceof SanityApiError) {
     if (error.status === 401 || error.status === 403) {
       return unauthorizedResponse(
@@ -173,9 +201,11 @@ export function createSanityRoutes() {
         const projects = await listSanityManageProjects(tokenResult.value);
         return c.json({ projects }, 200);
       } catch (error) {
-        const mapped = mapSanityProviderError(c, error);
-        if (mapped) {
-          return mapped;
+        if (typeof error === "object" && error !== null) {
+          const mapped = mapSanityProviderError(c, error);
+          if (mapped) {
+            return mapped;
+          }
         }
         throw error;
       }
@@ -198,9 +228,11 @@ export function createSanityRoutes() {
         const datasets = await listSanityDatasets(tokenResult.value, projectId);
         return c.json({ datasets }, 200);
       } catch (error) {
-        const mapped = mapSanityProviderError(c, error);
-        if (mapped) {
-          return mapped;
+        if (typeof error === "object" && error !== null) {
+          const mapped = mapSanityProviderError(c, error);
+          if (mapped) {
+            return mapped;
+          }
         }
         throw error;
       }
@@ -241,13 +273,62 @@ export function createSanityRoutes() {
           200,
         );
       } catch (error) {
-        const mapped = mapSanityProviderError(c, error);
-        if (mapped) {
-          return mapped;
+        if (typeof error === "object" && error !== null) {
+          const mapped = mapSanityProviderError(c, error);
+          if (mapped) {
+            return mapped;
+          }
         }
         throw error;
       }
     })
+    .get(
+      "/projects/:projectId/datasets/:dataset/locales",
+      validateDatasetParams,
+      validateLocaleCatalogQuery,
+      async (c) => {
+        if (!canReadIntegrations(c.var.auth.membership.role)) {
+          return forbiddenResponse(c, "forbidden");
+        }
+
+        const { projectId, dataset } = c.req.valid("param");
+        const catalogQuery = c.req.valid("query");
+        const tokenResult = await loadSanityManageToken({
+          localOrganizationId: c.var.auth.organization.localOrganizationId,
+          workosUserId: c.var.auth.user.workosUserId,
+        });
+        if (isErr(tokenResult)) {
+          return mapSanitySetupError(c, tokenResult.error);
+        }
+
+        const client = createSanityClient({
+          token: tokenResult.value,
+          projectId,
+          dataset,
+        });
+
+        try {
+          const localeCatalog = localeCatalogConfigFromQuery(catalogQuery);
+          const locales = await listSanityLocaleCatalog(client, localeCatalog);
+          return c.json(
+            {
+              locales,
+              languages: locales.map((entry) => entry.tag),
+              source: locales.length > 0 ? ("catalog" as const) : ("none" as const),
+            },
+            200,
+          );
+        } catch (error) {
+          if (typeof error === "object" && error !== null) {
+            const mapped = mapSanityProviderError(c, error);
+            if (mapped) {
+              return mapped;
+            }
+          }
+          throw error;
+        }
+      },
+    )
     .get(
       "/projects/:projectId/datasets/:dataset/document-types",
       validateDatasetParams,
@@ -258,7 +339,7 @@ export function createSanityRoutes() {
         }
 
         const { projectId, dataset } = c.req.valid("param");
-        const { typeNames } = c.req.valid("query");
+        const { typeNames, sourceLocale, localeType, tagField, titleField } = c.req.valid("query");
         const tokenResult = await loadSanityManageToken({
           localOrganizationId: c.var.auth.organization.localOrganizationId,
           workosUserId: c.var.auth.user.workosUserId,
@@ -277,12 +358,26 @@ export function createSanityRoutes() {
           const detected = await detectSanityDocumentTypes({
             client,
             typeNames,
+            localeCatalog: localeCatalogConfigFromQuery({ localeType, tagField, titleField }),
+            sourceLocale,
           });
-          return c.json({ types: detected.types, languages: detected.languages }, 200);
+          return c.json(
+            {
+              types: detected.types,
+              languages: detected.languages,
+              localeSource: detected.localeSource,
+              ...(detected.unsupportedSourceTypes
+                ? { unsupportedSourceTypes: detected.unsupportedSourceTypes }
+                : {}),
+            },
+            200,
+          );
         } catch (error) {
-          const mapped = mapSanityProviderError(c, error);
-          if (mapped) {
-            return mapped;
+          if (typeof error === "object" && error !== null) {
+            const mapped = mapSanityProviderError(c, error);
+            if (mapped) {
+              return mapped;
+            }
           }
           throw error;
         }

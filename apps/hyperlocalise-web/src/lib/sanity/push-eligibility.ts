@@ -22,6 +22,8 @@ import { ProjectTranslationService } from "@/lib/projects/translations/project-t
 
 import { parseSanityTranslationMapJson, readSanityTranslationMap } from "./document-json";
 import { sourceKeysMissingApprovedTranslations } from "./push-sanity-translations";
+import { isSanityLocaleSupportedForDocumentType } from "./locale-catalog";
+import type { SanityFieldValue } from "./sanity-field-value";
 import { mapProjectLocalesToSanity } from "./sanity-locale";
 import { sanityMappingMatchesTarget } from "./sanity-sync-scope";
 
@@ -48,11 +50,11 @@ const EMPTY_SANITY_PUSH_ELIGIBILITY: SanityPushEligibility = {
   documents: [],
 };
 
-function sanityPushLastErrorMessage(lastError: Record<string, unknown> | null | undefined) {
-  if (!lastError) {
+function sanityPushLastErrorMessage(lastError: object | null | undefined) {
+  if (!lastError || !("message" in lastError)) {
     return null;
   }
-  const message = lastError.message;
+  const message = (lastError as { message?: SanityFieldValue }).message;
   return typeof message === "string" && message.trim().length > 0 ? message : null;
 }
 
@@ -148,8 +150,21 @@ export async function getSanityPushEligibility(input: {
     }
 
     const eligibleLocales: string[] = [];
-    for (const projectLocale of localeMapping.jobTargetLocales) {
+    for (let index = 0; index < localeMapping.jobTargetLocales.length; index += 1) {
+      const projectLocale = localeMapping.jobTargetLocales[index]!;
+      const sanityLocale = localeMapping.intercomTargetLocales[index];
       if (sourceKeys.length === 0) {
+        continue;
+      }
+      if (
+        !sanityLocale ||
+        !isSanityLocaleSupportedForDocumentType({
+          sanityLocale,
+          documentType: mapping.documentType,
+          languagesByType: sanity.languagesByType ?? {},
+          fallbackLanguages: sanityLanguages,
+        })
+      ) {
         continue;
       }
       const approved = await translationService.loadAsPrefilledEntries({
@@ -187,12 +202,16 @@ export async function getSanityPushEligibility(input: {
 }
 
 export function isSanityPushRunActive(
-  runs: ReadonlyArray<{ status: string; inputSnapshot?: Record<string, unknown> | null }>,
+  runs: ReadonlyArray<{ status: string; inputSnapshot?: object | null }>,
 ): boolean {
   return runs.some((run) => {
     if (run.status !== "queued" && run.status !== "running") {
       return false;
     }
-    return run.inputSnapshot?.operation === "push_approved";
+    if (!run.inputSnapshot || !("operation" in run.inputSnapshot)) {
+      return false;
+    }
+    const operation = (run.inputSnapshot as { operation?: SanityFieldValue }).operation;
+    return operation === "push_approved";
   });
 }

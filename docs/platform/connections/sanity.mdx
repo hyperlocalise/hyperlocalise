@@ -17,7 +17,9 @@ The automation uses this Sanity connection. Connect Sanity before you add the **
 
 Create or choose a [native project](/platform/projects/create-project) whose source locale and target locales map onto the Sanity language tags on the dataset. Exact tags match first. Language-only aliases such as `en` ↔ `en-US` are supported when only one regional form is present.
 
-After you select a project and dataset in the automation editor, load document types so Platform can list dataset languages. Use those codes on the project.
+After you select a project and dataset in the automation editor, Platform loads languages from your Sanity **Locales** collection when present (`locale` documents with a `tag` field, as used by `@sanity/document-internationalization` and `sanity-plugin-internationalized-array`). If that collection is missing, Platform infers tags from existing content. Map those codes onto the native project source and targets.
+
+Studio config files that hardcode `supportedLanguages` are not readable over the API; a shared Locales collection keeps Studio and Hyperlocalise aligned. Scope slug uniqueness by language in Studio when translated documents share slug values.
 
 ## Create the automation
 

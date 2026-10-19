@@ -12,7 +12,11 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { sanityDocumentTypesQuerySchema, upsertSanityConnectionBodySchema } from "./sanity.schema";
+import {
+  sanityDocumentTypesQuerySchema,
+  sanityLocaleCatalogQuerySchema,
+  upsertSanityConnectionBodySchema,
+} from "./sanity.schema";
 
 describe("upsertSanityConnectionBodySchema", () => {
   it("requires a non-empty api token", () => {
@@ -32,5 +36,31 @@ describe("sanityDocumentTypesQuerySchema", () => {
 
   it("defaults to an empty list when typeNames is omitted", () => {
     expect(sanityDocumentTypesQuerySchema.parse({})).toEqual({ typeNames: [] });
+  });
+
+  it("accepts locale catalog and source locale query params", () => {
+    expect(
+      sanityDocumentTypesQuerySchema.parse({
+        typeNames: "post",
+        sourceLocale: "en",
+        localeType: "language",
+        tagField: "code",
+        titleField: "label",
+      }),
+    ).toEqual({
+      typeNames: ["post"],
+      sourceLocale: "en",
+      localeType: "language",
+      tagField: "code",
+      titleField: "label",
+    });
+  });
+});
+
+describe("sanityLocaleCatalogQuerySchema", () => {
+  it("parses optional catalog field overrides", () => {
+    expect(sanityLocaleCatalogQuerySchema.parse({ localeType: "locale" })).toEqual({
+      localeType: "locale",
+    });
   });
 });

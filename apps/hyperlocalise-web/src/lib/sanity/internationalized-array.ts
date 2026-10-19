@@ -11,30 +11,59 @@
  * Version 2.0 or later.
  */
 
+import type { SanityDocumentRecord, SanityFieldValue } from "./sanity-field-value";
+
 const DEFAULT_INTERNATIONALIZED_ITEM_TYPE = "internationalizedArrayStringValue";
 
 export type SanityInternationalizedArrayEntry = {
   _type: string;
-  language?: unknown;
-  value?: unknown;
-  _key?: unknown;
+  language?: string;
+  value?: SanityFieldValue;
+  _key?: string;
 };
 
 export function isSanityInternationalizedArrayEntry(
-  value: unknown,
+  value: SanityFieldValue,
 ): value is SanityInternationalizedArrayEntry {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     return false;
   }
-  const record = value as { _type?: unknown; language?: unknown; value?: unknown };
-  if (!("language" in record) || !("value" in record)) {
+  const record = value as Partial<SanityInternationalizedArrayEntry>;
+  if (!("value" in record)) {
     return false;
   }
-  return typeof record._type === "string" && record._type.startsWith("internationalizedArray");
+  if (typeof record._type !== "string" || !record._type.startsWith("internationalizedArray")) {
+    return false;
+  }
+  const hasLanguage = typeof record.language === "string" && record.language.trim().length > 0;
+  const hasKey = typeof record._key === "string" && record._key.trim().length > 0;
+  return hasLanguage || hasKey;
 }
 
-export function isSanityInternationalizedArray(value: unknown): value is unknown[] {
+export function isSanityInternationalizedArray(
+  value: SanityFieldValue,
+): value is SanityInternationalizedArrayEntry[] {
   return Array.isArray(value) && value.some(isSanityInternationalizedArrayEntry);
+}
+
+/** Collect locale tags from internationalized-array fields on one document. */
+export function collectInternationalizedArrayLanguages(doc: SanityDocumentRecord): string[] {
+  const languages = new Set<string>();
+  for (const value of Object.values(doc)) {
+    if (!Array.isArray(value)) {
+      continue;
+    }
+    for (const entry of value) {
+      if (!isSanityInternationalizedArrayEntry(entry)) {
+        continue;
+      }
+      const language = sanityInternationalizedEntryLanguage(entry);
+      if (language) {
+        languages.add(language);
+      }
+    }
+  }
+  return [...languages];
 }
 
 function normalizeLocaleTag(locale: string): string {
@@ -44,11 +73,31 @@ function normalizeLocaleTag(locale: string): string {
 export function sanityInternationalizedEntryLanguage(
   entry: SanityInternationalizedArrayEntry,
 ): string | null {
-  return typeof entry.language === "string" && entry.language.trim() ? entry.language.trim() : null;
+  if (typeof entry.language === "string" && entry.language.trim()) {
+    return entry.language.trim();
+  }
+  if (typeof entry._key === "string" && entry._key.trim()) {
+    return entry._key.trim();
+  }
+  return null;
+}
+
+function sanityInternationalizedEntriesUseLanguageField(
+  entries: readonly SanityInternationalizedArrayEntry[],
+): boolean {
+  return entries.some(
+    (entry) => typeof entry.language === "string" && entry.language.trim().length > 0,
+  );
+}
+
+function asInternationalizedEntries(
+  entries: readonly SanityFieldValue[],
+): SanityInternationalizedArrayEntry[] {
+  return entries.filter(isSanityInternationalizedArrayEntry);
 }
 
 export function findSanityInternationalizedEntryIndex(
-  entries: readonly unknown[],
+  entries: readonly SanityFieldValue[],
   language: string,
 ): number {
   const wanted = normalizeLocaleTag(language);
@@ -65,9 +114,9 @@ export function findSanityInternationalizedEntryIndex(
 }
 
 export function readSanityInternationalizedEntryValue(
-  entries: readonly unknown[],
+  entries: readonly SanityFieldValue[],
   language: string,
-): unknown {
+): SanityFieldValue | undefined {
   const index = findSanityInternationalizedEntryIndex(entries, language);
   if (index < 0) {
     return undefined;
@@ -80,13 +129,14 @@ export function readSanityInternationalizedEntryValue(
 }
 
 export function upsertSanityInternationalizedEntry(
-  entries: unknown[],
+  entries: SanityFieldValue[],
   language: string,
-  value: unknown,
-): unknown[] {
+  value: SanityFieldValue,
+): SanityFieldValue[] {
   const next = [...entries];
   const index = findSanityInternationalizedEntryIndex(next, language);
-  const sibling = next.find(isSanityInternationalizedArrayEntry);
+  const typedEntries = asInternationalizedEntries(next);
+  const sibling = typedEntries[0];
   const itemType =
     (index >= 0 && isSanityInternationalizedArrayEntry(next[index])
       ? next[index]._type
@@ -97,23 +147,32 @@ export function upsertSanityInternationalizedEntry(
     typeof next[index]._key === "string"
       ? next[index]._key
       : language;
+  const includeLanguageField = sanityInternationalizedEntriesUseLanguageField(typedEntries);
 
   if (index >= 0 && isSanityInternationalizedArrayEntry(next[index])) {
-    next[index] = {
+    const updated: SanityInternationalizedArrayEntry = {
       ...next[index],
       _type: itemType,
       _key: existingKey,
-      language,
       value,
     };
+    if (includeLanguageField) {
+      updated.language = language;
+    } else {
+      delete updated.language;
+    }
+    next[index] = updated;
     return next;
   }
 
-  next.push({
+  const created: SanityInternationalizedArrayEntry = {
     _type: itemType,
     _key: language,
-    language,
     value,
-  });
+  };
+  if (includeLanguageField || typedEntries.length === 0) {
+    created.language = language;
+  }
+  next.push(created);
   return next;
 }

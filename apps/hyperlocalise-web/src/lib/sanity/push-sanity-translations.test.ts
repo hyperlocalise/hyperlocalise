@@ -45,6 +45,9 @@ describe("sanity push skip reporting", () => {
     expect(recordSanityPushSkip({ locale: "ja-JP", reason: "unmapped" }).message).toBe(
       "ja-JP has no matching Sanity language tag.",
     );
+    expect(recordSanityPushSkip({ locale: "ja", reason: "unsupported_for_type" }).message).toBe(
+      "ja is not configured for this Sanity document type.",
+    );
   });
 
   it("summarizes why locales were skipped", () => {

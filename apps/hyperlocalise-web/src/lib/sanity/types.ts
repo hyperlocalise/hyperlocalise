@@ -42,3 +42,16 @@ export type SanityManageProject = {
 export type SanityDatasetSummary = {
   name: string;
 };
+
+export type SanityLocaleCatalogConfig = {
+  documentType: string;
+  tagField: string;
+  titleField: string;
+};
+
+export type SanityLocaleCatalogEntry = {
+  tag: string;
+  title: string;
+};
+
+export type SanityLocaleSource = "catalog" | "inferred" | "none";

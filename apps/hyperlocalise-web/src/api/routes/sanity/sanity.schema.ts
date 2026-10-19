@@ -25,17 +25,26 @@ export const upsertSanityConnectionBodySchema = z.object({
   apiToken: z.string().trim().min(1).max(4096),
 });
 
-export const sanityDocumentTypesQuerySchema = z.object({
-  typeNames: z
-    .string()
-    .trim()
-    .optional()
-    .transform((value) =>
-      value
-        ? value
-            .split(",")
-            .map((entry) => entry.trim())
-            .filter(Boolean)
-        : [],
-    ),
+export const sanityLocaleCatalogQuerySchema = z.object({
+  localeType: z.string().trim().min(1).max(128).optional(),
+  tagField: z.string().trim().min(1).max(64).optional(),
+  titleField: z.string().trim().min(1).max(64).optional(),
 });
+
+export const sanityDocumentTypesQuerySchema = z
+  .object({
+    typeNames: z
+      .string()
+      .trim()
+      .optional()
+      .transform((value) =>
+        value
+          ? value
+              .split(",")
+              .map((entry) => entry.trim())
+              .filter(Boolean)
+          : [],
+      ),
+    sourceLocale: z.string().trim().min(1).max(32).optional(),
+  })
+  .merge(sanityLocaleCatalogQuerySchema);

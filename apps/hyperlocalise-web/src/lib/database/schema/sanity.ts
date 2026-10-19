@@ -13,6 +13,8 @@
 import { sql } from "drizzle-orm";
 import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
+import type { SanityJsonObject } from "@/lib/sanity/sanity-field-value";
+
 import { workspaceAutomations } from "./agents";
 import { organizations } from "./organizations";
 import { projects } from "./projects";
@@ -57,7 +59,7 @@ export const sanityDocumentSyncStates = pgTable(
       .$type<"active" | "archived" | "import_failed" | "push_failed">()
       .notNull()
       .default("active"),
-    lastError: jsonb("last_error").$type<Record<string, unknown> | null>(),
+    lastError: jsonb("last_error").$type<SanityJsonObject | null>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

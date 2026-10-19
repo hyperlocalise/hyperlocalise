@@ -14,10 +14,21 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   collectInternationalizedArrayLanguages,
+  curateSanityLanguageTags,
   isSameSanityDocumentId,
   omitSanitySystemFields,
   resolveSanityTranslatedDocumentId,
 } from "./content-api";
+
+describe("curateSanityLanguageTags", () => {
+  it("drops tags that are not configured locale documents", () => {
+    expect(curateSanityLanguageTags(["en", "de", "ja"], ["en", "de"])).toEqual(["de", "en"]);
+  });
+
+  it("keeps all discovered tags when no locale catalog exists", () => {
+    expect(curateSanityLanguageTags(["en", "ja"], [])).toEqual(["en", "ja"]);
+  });
+});
 
 describe("collectInternationalizedArrayLanguages", () => {
   it("reads language tags from internationalized array fields", () => {
