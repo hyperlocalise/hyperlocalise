@@ -108,7 +108,6 @@ import {
   setNativeProjectContentEditorKeyMaxLength,
   updateNativeProjectTranslationStatus,
 } from "@/lib/projects/content-editor/native-content-editor-service";
-import { captureNativeCatTranslationReporting } from "@/lib/projects/content-editor/native-cat-reporting-capture";
 import {
   trackNativeCatCommentProductUsage,
   trackNativeCatTranslationProductUsage,
@@ -1464,19 +1463,8 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           );
         }
 
-        const captured = await captureNativeCatTranslationReporting({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: params.projectId,
-          sourcePath: body.sourcePath,
-          translationKeyId: body.externalStringId,
-          targetLocale: body.targetLocale,
-          text: body.text,
-          approve: body.approve,
-        });
-        if (!captured) {
-          return badRequestResponse(c, "translation_key_not_found", "Translation key not found");
-        }
-
+        // Reports records Go-service saves from their activity events (reporting-capture cron);
+        // this route only keeps the product analytics event the browser sends after a save.
         trackNativeCatTranslationProductUsage({ approve: body.approve });
 
         return c.body(null, 204);

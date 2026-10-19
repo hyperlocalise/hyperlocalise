@@ -45,6 +45,7 @@ import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/gi
 import { createSandboxCleanupRoutes } from "./routes/cron/sandbox-cleanup.route";
 import { createSnapshotCleanupRoutes } from "./routes/cron/snapshot-cleanup.route";
 import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notification-digest.route";
+import { createReportingCaptureRoutes } from "./routes/cron/reporting-capture.route";
 import { createTranslationQaScanRoutes } from "./routes/cron/translation-qa-scan.route";
 import { createLocalisationAuditRoutes } from "./routes/localisation-audit/localisation-audit.route";
 import {
@@ -138,6 +139,7 @@ function createInternalRoutes(options: CreateAppOptions = {}) {
     .route("/cron/sandbox-cleanup", createSandboxCleanupRoutes())
     .route("/cron/snapshot-cleanup", createSnapshotCleanupRoutes())
     .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes())
+    .route("/cron/reporting-capture", createReportingCaptureRoutes())
     .route(
       "/cron/translation-qa-scan",
       createTranslationQaScanRoutes({
