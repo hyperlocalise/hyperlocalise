@@ -68,9 +68,10 @@ export function collectCompletedTranslationPageEntries(input: {
   return collected;
 }
 
-/** HTML keys are tag paths. The pinned sandbox CLI still hashes content, so the
- * lock and a re-extracted target file never share keys. Collect only path keys
- * that belong to lock-completed folded hashes; leftover source fallbacks stay out. */
+/** HTML keys are tag paths. CLI 1.13.3 hashed folded paragraphs, so the lock and
+ * a re-extracted target never share keys. CLI 1.13.4+ writes the same path keys
+ * as CAT. Collect only path keys that a lock completion named — leftover source
+ * fallbacks stay out. */
 export function collectHtmlTranslationPageEntries(input: {
   sourceEntries: Record<string, string>;
   extracted: Record<string, string>;
@@ -142,6 +143,7 @@ export async function collectFileTranslationPageStep(input: {
   const {
     extractHtmlIngestEntries,
     htmlCompletedPathKeysFromLock,
+    htmlSourceFallbackPathKeys,
     isHtmlTranslationSourcePath,
     utf8FromStoredFileContent,
   } = await import("@/lib/projects/files/html-ingest-entries");
@@ -160,6 +162,7 @@ export async function collectFileTranslationPageStep(input: {
       const extracted = extractHtmlIngestEntries(
         utf8FromStoredFileContent(await readTranslatedFile(input.sandboxId, filename)),
       );
+      const sourceFallbacks = htmlSourceFallbackPathKeys(sourceHtml, extracted);
       const collected = collectHtmlTranslationPageEntries({
         sourceEntries: input.sourceEntries,
         extracted,
@@ -167,7 +170,7 @@ export async function collectFileTranslationPageStep(input: {
         completedPathKeys: htmlCompletedPathKeysFromLock(
           sourceHtml,
           completedFileTranslationKeys(lock, filename),
-        ),
+        ).filter((key) => !sourceFallbacks.has(key)),
       });
       if (Object.keys(collected).length > 0) {
         delta[locale] = collected;

@@ -21,6 +21,7 @@ import {
   extractHtmlIngestEntries,
   htmlCliPrefillsFromPathEntries,
   htmlCompletedPathKeysFromLock,
+  htmlSourceFallbackPathKeys,
   isHashedHtmlEntryKey,
   isHtmlTranslationSourcePath,
   legacyHtmlSegmentKey,
@@ -146,6 +147,24 @@ describe("html key shape helpers", () => {
   });
 });
 
+describe("htmlSourceFallbackPathKeys", () => {
+  const html = "<p>Hello <strong>world</strong>!</p><div>Other</div>";
+
+  it("flags folded units rendered entirely as source", () => {
+    const target = "<p>Hello <strong>world</strong>!</p><div>Autre</div>";
+    const fallbacks = htmlSourceFallbackPathKeys(html, extractHtmlIngestEntries(target));
+    expect(fallbacks.has("html.p")).toBe(true);
+    expect(fallbacks.has("html.p.strong")).toBe(true);
+    expect(fallbacks.has("html.div")).toBe(false);
+  });
+
+  it("keeps a unit when any of its path keys changed", () => {
+    const target = "<p>Bonjour <strong>world</strong>!</p><div>Autre</div>";
+    const fallbacks = htmlSourceFallbackPathKeys(html, extractHtmlIngestEntries(target));
+    expect([...fallbacks]).toEqual([]);
+  });
+});
+
 describe("htmlCompletedPathKeysFromLock", () => {
   it("maps a folded CLI hash onto split path keys", () => {
     const html = "<p>Hello <strong>world</strong>!</p>";
@@ -191,6 +210,30 @@ describe("htmlCompletedPathKeysFromLock", () => {
     const second = legacyHtmlSegmentKey("Same", occurrences);
     expect(htmlCompletedPathKeysFromLock(html, [`${first}#srx.0`])).toEqual(["html.p"]);
     expect(htmlCompletedPathKeysFromLock(html, [second])).toEqual(["html.div"]);
+  });
+
+  it("keeps CLI 1.13.4 tag-path lock keys", () => {
+    const html = "<p>Hello <strong>world</strong>!</p>";
+    expect(htmlCompletedPathKeysFromLock(html, ["html.p", "html.p.strong"])).toEqual([
+      "html.p",
+      "html.p.strong",
+    ]);
+  });
+
+  it("strips #srx from tag-path lock keys", () => {
+    const html = "<p>Hello</p>";
+    expect(htmlCompletedPathKeysFromLock(html, ["html.p#srx.0"])).toEqual(["html.p"]);
+  });
+
+  it("maps hashed keys and keeps path keys from the same lock", () => {
+    const html = "<p>Hello <strong>world</strong>!</p><div>Other</div>";
+    const folded = extractHtmlIngestEntries(html, { foldInline: true });
+    const hash = legacyHtmlSegmentKey(folded["html.p"] ?? "", new Map());
+    expect(htmlCompletedPathKeysFromLock(html, [hash, "html.div"])).toEqual([
+      "html.p",
+      "html.p.strong",
+      "html.div",
+    ]);
   });
 });
 

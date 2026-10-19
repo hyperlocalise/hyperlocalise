@@ -208,11 +208,48 @@ export function htmlCompletedPathKeysFromLock(
   for (const key of completedLegacyKeys) {
     const match = HASHED_HTML_KEY.exec(key);
     const base = match ? `html.${match[1]}${match[2] ? `.${match[2]}` : ""}` : key;
-    for (const pathKey of hashToPaths.get(base) ?? []) {
-      out.add(pathKey);
+    const mapped = hashToPaths.get(base);
+    if (mapped && mapped.length > 0) {
+      for (const pathKey of mapped) {
+        out.add(pathKey);
+      }
+      continue;
+    }
+    // CLI 1.13.4+ writes tag-path lock keys (html.p, html.p.strong). Hashed
+    // 1.13.3 keys still expand through hashToPaths above.
+    if (!match && base.startsWith("html.")) {
+      out.add(base.replace(/#srx\.\d+$/, ""));
     }
   }
   return [...out];
+}
+
+/** The CLI renderer writes source text for a whole folded unit when a translation
+ * drops placeholders or adds raw HTML, yet the lock still lists the unit as
+ * completed. Treat units whose every path key still reads as source as fallbacks.
+ * A genuine identity translation is skipped too; it stays editable in CAT. */
+export function htmlSourceFallbackPathKeys(
+  sourceHtml: string,
+  extracted: Record<string, string>,
+): Set<string> {
+  const sourceTexts = new Map(
+    extractHtmlIngestEntriesInOrder(sourceHtml).map((entry) => [entry.key, entry.text]),
+  );
+  const out = new Set<string>();
+  for (const unit of extractFoldedHtmlUnits(sourceHtml)) {
+    if (unit.pathKeys.length === 0) {
+      continue;
+    }
+    const allSource = unit.pathKeys.every(
+      (key) => extracted[key]?.trim() === sourceTexts.get(key)?.trim(),
+    );
+    if (allSource) {
+      for (const key of unit.pathKeys) {
+        out.add(key);
+      }
+    }
+  }
+  return out;
 }
 
 export function htmlCliPrefillsFromPathEntries(

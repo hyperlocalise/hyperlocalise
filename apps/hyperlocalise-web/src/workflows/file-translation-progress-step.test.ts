@@ -216,6 +216,64 @@ describe("collectFileTranslationPageStep HTML lock wiring", () => {
     ).rejects.toThrow("failed to extract completed translations");
   });
 
+  it("collects path-key lock completions written by CLI 1.13.4", async () => {
+    const sourceEntries = extractHtmlIngestEntries(sourceHtml);
+
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path === ".hyperlocalise.lock.json") {
+        return JSON.stringify(lockFor("page.fr.html", ["html.p", "html.p.strong"]));
+      }
+      if (path === "page.html") {
+        return sourceHtml;
+      }
+      if (path === "page.fr.html") {
+        return targetHtml;
+      }
+      throw new Error(`unexpected sandbox read: ${path}`);
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_html_paths",
+        inputFilename: "page.html",
+        outputFilenames: { "fr-FR": "page.fr.html" },
+        sourceEntries,
+        prefills: {},
+        confirmed: {},
+      }),
+    ).resolves.toEqual({
+      "fr-FR": {
+        "html.p": "Bonjour ",
+        "html.p.strong": "monde",
+      },
+    });
+  });
+
+  it("skips path-key completions the renderer fell back to source for", async () => {
+    const sourceEntries = extractHtmlIngestEntries(sourceHtml);
+
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path === ".hyperlocalise.lock.json") {
+        return JSON.stringify(lockFor("page.fr.html", ["html.p", "html.p.strong"]));
+      }
+      if (path === "page.html" || path === "page.fr.html") {
+        return sourceHtml;
+      }
+      throw new Error(`unexpected sandbox read: ${path}`);
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_html_fallback",
+        inputFilename: "page.html",
+        outputFilenames: { "fr-FR": "page.fr.html" },
+        sourceEntries,
+        prefills: {},
+        confirmed: {},
+      }),
+    ).resolves.toEqual({});
+  });
+
   it("omits confirmed HTML path keys and locales that have nothing new", async () => {
     const folded = extractHtmlIngestEntries(sourceHtml, { foldInline: true });
     const hash = legacyHtmlSegmentKey(folded["html.p"] ?? "", new Map());
