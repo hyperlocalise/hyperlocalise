@@ -4619,6 +4619,9 @@
   "7PBZ6NZm7K": {
     "defaultMessage": "将您的内容和团队汇聚于一个工作室。"
   },
+  "7PRORZkPL7": {
+    "defaultMessage": "Mute the launch film"
+  },
   "7QPFtqQQDE": {
     "defaultMessage": "免费"
   },
@@ -5369,6 +5372,9 @@
   "8uE98Fo+Pv": {
     "defaultMessage": "设置"
   },
+  "8uYx7/RU25": {
+    "defaultMessage": "Unmute the launch film"
+  },
   "8ubp0pkM3E": {
     "defaultMessage": "将它们保存在云端硬盘中"
   },
@@ -6118,6 +6124,9 @@
   },
   "AQFTimLagD": {
     "defaultMessage": "任何内容类型的"
+  },
+  "AQZXVFsnl+": {
+    "defaultMessage": "Iris | AI Localisation Engine for Multilingual Assets | Hyperlocalise"
   },
   "AQrXctSpNJ": {
     "defaultMessage": "格式"
@@ -9035,6 +9044,9 @@
   "GYwOqW2z7j": {
     "defaultMessage": "导出"
   },
+  "GZPe87SKjx": {
+    "defaultMessage": "Iris, the AI localisation engine"
+  },
   "GZgOkkX0hj": {
     "defaultMessage": "日语（日本）"
   },
@@ -9283,6 +9295,9 @@
   },
   "H//pE/RYmt": {
     "defaultMessage": "我们的使命是帮助每家公司走向世界，而不让本地化成为瓶颈。我们相信，未来不是用 AI 取代本地化专业人士，而是为他们提供一支能够与他们共同学习的 AI 劳动力，理解产品背景、沉淀组织知识，并消除拖慢全球发布的重复性工作。"
+  },
+  "H/6Z4vWchC": {
+    "defaultMessage": "Motion localisation"
   },
   "H/CmKBQumj": {
     "defaultMessage": "Marketing"
@@ -11123,6 +11138,9 @@
   "L1htF1IA3l": {
     "defaultMessage": "已附加上下文"
   },
+  "L1iDRgwfcT": {
+    "defaultMessage": "Iris launch film playing in the background"
+  },
   "L1kbT9LQu4": {
     "defaultMessage": "Show more"
   },
@@ -11572,6 +11590,9 @@
   },
   "M/CX9tMhmy": {
     "defaultMessage": "25%"
+  },
+  "M/LTTbnwGn": {
+    "defaultMessage": "Iris"
   },
   "M/bA5ZKYrc": {
     "defaultMessage": "关键词已添加到排名跟踪。"
@@ -13772,6 +13793,9 @@
   "QZh18oy2Qs": {
     "defaultMessage": "团队已删除"
   },
+  "QZjNY0zpti": {
+    "defaultMessage": "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Create and adapt images, video, motion, and audio for every language. Join the waitlist."
+  },
   "Qa2OXtJ4Ug": {
     "defaultMessage": "HTML"
   },
@@ -15019,6 +15043,9 @@
   },
   "TFnG73Az5B": {
     "defaultMessage": "已在已连接的提供商中分配给您的实时任务。"
+  },
+  "TFy71zYatd": {
+    "defaultMessage": "Multilingual image localisation"
   },
   "TG1FpMpW2X": {
     "defaultMessage": "切换工作区"
@@ -16318,6 +16345,9 @@
   },
   "VxRWiDyH8o": {
     "defaultMessage": "无法导入条目"
+  },
+  "VxlBCadoU8": {
+    "defaultMessage": "Iris by Hyperlocalise"
   },
   "VyUTnEU0ZM": {
     "defaultMessage": "请尝试刷新页面。"
@@ -17632,6 +17662,9 @@
   },
   "YhT90BZluB": {
     "defaultMessage": "删除概念"
+  },
+  "YhXUDTQkrZ": {
+    "defaultMessage": "Audio localisation"
   },
   "YhwlgG0Ruv": {
     "defaultMessage": "我的工作"
@@ -21959,6 +21992,9 @@
   "hE2eacuTWG": {
     "defaultMessage": "查询操作"
   },
+  "hEEAW/iMSI": {
+    "defaultMessage": "Iris, the AI localisation engine for multilingual assets"
+  },
   "hEICju0qcP": {
     "defaultMessage": "请求抢先体验 Hyperlocalise。"
   },
@@ -26087,6 +26123,9 @@
   "pOmRJ5Mm9Y": {
     "defaultMessage": "字符串类型"
   },
+  "pPaYbj0Q2H": {
+    "defaultMessage": "Video localisation"
+  },
   "pPpG4zo8Yj": {
     "defaultMessage": "附上已批准的术语、品牌指南和市场背景，确保每个人和每个代理都以同一份事实依据为准。"
   },
@@ -28255,6 +28294,9 @@
   },
   "tlfeFkqvA8": {
     "defaultMessage": "All"
+  },
+  "tm2wgAMGK3": {
+    "defaultMessage": "Join the waitlist"
   },
   "tmfZmWyVtO": {
     "defaultMessage": "源文件"

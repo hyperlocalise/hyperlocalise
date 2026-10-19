@@ -4619,6 +4619,9 @@
   "7PBZ6NZm7K": {
     "defaultMessage": "Bringen Sie Ihre Inhalte und Ihr Team in einem Studio zusammen."
   },
+  "7PRORZkPL7": {
+    "defaultMessage": "Mute the launch film"
+  },
   "7QPFtqQQDE": {
     "defaultMessage": "Kostenlos"
   },
@@ -5369,6 +5372,9 @@
   "8uE98Fo+Pv": {
     "defaultMessage": "Einstellungen"
   },
+  "8uYx7/RU25": {
+    "defaultMessage": "Unmute the launch film"
+  },
   "8ubp0pkM3E": {
     "defaultMessage": "Bewahre sie in Drive auf"
   },
@@ -6118,6 +6124,9 @@
   },
   "AQFTimLagD": {
     "defaultMessage": "eines beliebigen Inhaltstyps"
+  },
+  "AQZXVFsnl+": {
+    "defaultMessage": "Iris | AI Localisation Engine for Multilingual Assets | Hyperlocalise"
   },
   "AQrXctSpNJ": {
     "defaultMessage": "Format"
@@ -9035,6 +9044,9 @@
   "GYwOqW2z7j": {
     "defaultMessage": "Exportieren"
   },
+  "GZPe87SKjx": {
+    "defaultMessage": "Iris, the AI localisation engine"
+  },
   "GZgOkkX0hj": {
     "defaultMessage": "Japanisch (Japan)"
   },
@@ -9283,6 +9295,9 @@
   },
   "H//pE/RYmt": {
     "defaultMessage": "Unsere Mission ist es, jedem Unternehmen dabei zu helfen, die Welt zu erreichen, ohne dass die Lokalisierung zum Engpass wird. Wir glauben, dass die Zukunft nicht darin liegt, Lokalisierungsfachkräfte durch KI zu ersetzen. Es geht darum, ihnen eine KI-Belegschaft an die Seite zu stellen, die gemeinsam mit ihnen lernt, den Produktkontext versteht, organisatorisches Wissen erfasst und die repetitive Arbeit beseitigt, die globale Veröffentlichungen verlangsamt."
+  },
+  "H/6Z4vWchC": {
+    "defaultMessage": "Motion localisation"
   },
   "H/CmKBQumj": {
     "defaultMessage": "Marketing"
@@ -11123,6 +11138,9 @@
   "L1htF1IA3l": {
     "defaultMessage": "Kontext angehängt"
   },
+  "L1iDRgwfcT": {
+    "defaultMessage": "Iris launch film playing in the background"
+  },
   "L1kbT9LQu4": {
     "defaultMessage": "Show more"
   },
@@ -11572,6 +11590,9 @@
   },
   "M/CX9tMhmy": {
     "defaultMessage": "25 %"
+  },
+  "M/LTTbnwGn": {
+    "defaultMessage": "Iris"
   },
   "M/bA5ZKYrc": {
     "defaultMessage": "Keywords zum Rank-Tracking hinzugefügt."
@@ -13772,6 +13793,9 @@
   "QZh18oy2Qs": {
     "defaultMessage": "Team gelöscht"
   },
+  "QZjNY0zpti": {
+    "defaultMessage": "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Create and adapt images, video, motion, and audio for every language. Join the waitlist."
+  },
   "Qa2OXtJ4Ug": {
     "defaultMessage": "HTML"
   },
@@ -15019,6 +15043,9 @@
   },
   "TFnG73Az5B": {
     "defaultMessage": "Live-Aufträge, die Ihnen beim verbundenen Anbieter zugewiesen sind."
+  },
+  "TFy71zYatd": {
+    "defaultMessage": "Multilingual image localisation"
   },
   "TG1FpMpW2X": {
     "defaultMessage": "Arbeitsbereich wechseln"
@@ -16318,6 +16345,9 @@
   },
   "VxRWiDyH8o": {
     "defaultMessage": "Einträge konnten nicht importiert werden"
+  },
+  "VxlBCadoU8": {
+    "defaultMessage": "Iris by Hyperlocalise"
   },
   "VyUTnEU0ZM": {
     "defaultMessage": "Versuchen Sie, die Seite zu aktualisieren."
@@ -17632,6 +17662,9 @@
   },
   "YhT90BZluB": {
     "defaultMessage": "Konzept löschen"
+  },
+  "YhXUDTQkrZ": {
+    "defaultMessage": "Audio localisation"
   },
   "YhwlgG0Ruv": {
     "defaultMessage": "Meine Arbeit"
@@ -21959,6 +21992,9 @@
   "hE2eacuTWG": {
     "defaultMessage": "Abfrageaktionen"
   },
+  "hEEAW/iMSI": {
+    "defaultMessage": "Iris, the AI localisation engine for multilingual assets"
+  },
   "hEICju0qcP": {
     "defaultMessage": "Fordern Sie frühzeitigen Zugang zu Hyperlocalise an."
   },
@@ -26087,6 +26123,9 @@
   "pOmRJ5Mm9Y": {
     "defaultMessage": "String-Typ"
   },
+  "pPaYbj0Q2H": {
+    "defaultMessage": "Video localisation"
+  },
   "pPpG4zo8Yj": {
     "defaultMessage": "Fügen Sie genehmigte Terminologie, Markenrichtlinien und Marktkontext an, damit alle Personen und Agenten mit derselben verlässlichen Grundlage arbeiten."
   },
@@ -28255,6 +28294,9 @@
   },
   "tlfeFkqvA8": {
     "defaultMessage": "Alle"
+  },
+  "tm2wgAMGK3": {
+    "defaultMessage": "Join the waitlist"
   },
   "tmfZmWyVtO": {
     "defaultMessage": "Quelldateien"
