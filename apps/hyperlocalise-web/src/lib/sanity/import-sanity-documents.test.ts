@@ -16,6 +16,7 @@ import {
   nextSanityImportWatermark,
   parseSanityDocumentUpdatedAt,
   resolveSanitySourceIngestAction,
+  sanityDocumentImportOutcome,
 } from "./import-sanity-documents";
 
 describe("resolveSanitySourceIngestAction", () => {
@@ -35,6 +36,55 @@ describe("resolveSanitySourceIngestAction", () => {
         latestIngestState: "ingested",
       }),
     ).toBe("upload");
+  });
+});
+
+describe("sanityDocumentImportOutcome", () => {
+  it("skips only when the source is unchanged and no target locales were written", () => {
+    expect(
+      sanityDocumentImportOutcome({
+        sourceUnchanged: true,
+        translationsImported: 0,
+        translationsFailed: 0,
+      }),
+    ).toBe("skipped");
+  });
+
+  it("counts a source-hash skip as imported when a missing target locale was seeded", () => {
+    expect(
+      sanityDocumentImportOutcome({
+        sourceUnchanged: true,
+        translationsImported: 1,
+        translationsFailed: 0,
+      }),
+    ).toBe("imported");
+  });
+
+  it("counts a source upload as imported even when every target locale is already present", () => {
+    expect(
+      sanityDocumentImportOutcome({
+        sourceUnchanged: false,
+        translationsImported: 0,
+        translationsFailed: 0,
+      }),
+    ).toBe("imported");
+  });
+
+  it("counts translation seed failures as failed so the watermark stays behind the document", () => {
+    expect(
+      sanityDocumentImportOutcome({
+        sourceUnchanged: true,
+        translationsImported: 0,
+        translationsFailed: 2,
+      }),
+    ).toBe("failed");
+    expect(
+      sanityDocumentImportOutcome({
+        sourceUnchanged: false,
+        translationsImported: 1,
+        translationsFailed: 1,
+      }),
+    ).toBe("failed");
   });
 });
 

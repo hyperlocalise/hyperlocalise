@@ -171,6 +171,43 @@ export function summarizeSanityPushResult(input: {
   return `Skipped ${skippedLocaleCount} ${localeLabel}. See skip reasons for each locale.`;
 }
 
+async function persistSanityPushMappingState(input: {
+  organizationId: string;
+  automationId: string;
+  configVersion: number;
+  scopeKey: string;
+  mappingId: string;
+  status: "active" | "push_failed";
+  lastError: { message: string } | null;
+  lastPushContentHash: Record<string, string>;
+  translatedDocumentIds: Record<string, string>;
+  lastPushedAt?: Date;
+}): Promise<void> {
+  await withCurrentSanityAutomationConfig(
+    {
+      organizationId: input.organizationId,
+      automationId: input.automationId,
+      configVersion: input.configVersion,
+      scopeKey: input.scopeKey,
+      staleErrorCode: SANITY_PUSH_STALE_CONFIG,
+      compare: "scope",
+    },
+    async (tx) => {
+      await tx
+        .update(schema.sanityDocumentSyncStates)
+        .set({
+          status: input.status,
+          lastError: input.lastError,
+          lastPushContentHash: input.lastPushContentHash,
+          translatedDocumentIds: input.translatedDocumentIds,
+          ...(input.lastPushedAt ? { lastPushedAt: input.lastPushedAt } : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.sanityDocumentSyncStates.id, input.mappingId));
+    },
+  );
+}
+
 export function readSanityPushSourcePaths(
   inputSnapshot: object | null | undefined,
 ): string[] | undefined {
@@ -315,6 +352,9 @@ export async function runPushSanityTranslations(input: {
   };
 
   await mapWithConcurrency(mappings, SANITY_PUSH_CONCURRENCY, async (mapping) => {
+    const lastPushHashes = { ...mapping.lastPushContentHash };
+    const translatedDocumentIds = { ...mapping.translatedDocumentIds };
+    let pushedForDocument = 0;
     try {
       const latest = await getLatestRepositorySourceFileVersion({
         organizationId: input.organizationId,
@@ -344,9 +384,6 @@ export async function runPushSanityTranslations(input: {
         return;
       }
 
-      let pushedForDocument = 0;
-      const lastPushHashes = { ...mapping.lastPushContentHash };
-      const translatedDocumentIds = { ...mapping.translatedDocumentIds };
       const sourceSanityLocale = mapping.sourceLocale || localeMapping.sourceIntercomLocale || "";
       let fieldLevelDocument = sourceDoc;
 
@@ -507,35 +544,36 @@ export async function runPushSanityTranslations(input: {
         lastPushHashes[projectLocale] = contentHash;
         result.pushedLocales += 1;
         pushedForDocument += 1;
+        await persistSanityPushMappingState({
+          organizationId: input.organizationId,
+          automationId: input.automation.id,
+          configVersion: input.automation.configVersion,
+          scopeKey: importScopeKey,
+          mappingId: mapping.id,
+          status: "active",
+          lastError: null,
+          lastPushContentHash: lastPushHashes,
+          translatedDocumentIds,
+          lastPushedAt: new Date(),
+        });
       }
 
       if (pushedForDocument > 0) {
         result.documentsProcessed += 1;
       }
 
-      await withCurrentSanityAutomationConfig(
-        {
-          organizationId: input.organizationId,
-          automationId: input.automation.id,
-          configVersion: input.automation.configVersion,
-          scopeKey: importScopeKey,
-          staleErrorCode: SANITY_PUSH_STALE_CONFIG,
-          compare: "scope",
-        },
-        async (tx) => {
-          await tx
-            .update(schema.sanityDocumentSyncStates)
-            .set({
-              status: "active",
-              lastError: null,
-              lastPushedAt: new Date(),
-              lastPushContentHash: lastPushHashes,
-              translatedDocumentIds,
-              updatedAt: new Date(),
-            })
-            .where(eq(schema.sanityDocumentSyncStates.id, mapping.id));
-        },
-      );
+      await persistSanityPushMappingState({
+        organizationId: input.organizationId,
+        automationId: input.automation.id,
+        configVersion: input.automation.configVersion,
+        scopeKey: importScopeKey,
+        mappingId: mapping.id,
+        status: "active",
+        lastError: null,
+        lastPushContentHash: lastPushHashes,
+        translatedDocumentIds,
+        lastPushedAt: new Date(),
+      });
     } catch (error) {
       if (typeof error === "object" && error !== null && isSanitySyncStaleConfigError(error)) {
         throw error;
@@ -548,6 +586,9 @@ export async function runPushSanityTranslations(input: {
           lastError: {
             message: error instanceof Error ? error.message : "sanity_push_failed",
           },
+          lastPushContentHash: lastPushHashes,
+          translatedDocumentIds,
+          ...(pushedForDocument > 0 ? { lastPushedAt: new Date() } : {}),
           updatedAt: new Date(),
         })
         .where(eq(schema.sanityDocumentSyncStates.id, mapping.id));

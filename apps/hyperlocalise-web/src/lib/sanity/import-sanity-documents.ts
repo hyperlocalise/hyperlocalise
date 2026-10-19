@@ -129,6 +129,20 @@ export function nextSanityImportWatermark(input: {
   return next;
 }
 
+export function sanityDocumentImportOutcome(input: {
+  sourceUnchanged: boolean;
+  translationsImported: number;
+  translationsFailed: number;
+}): "imported" | "skipped" | "failed" {
+  if (input.translationsFailed > 0) {
+    return "failed";
+  }
+  if (input.sourceUnchanged && input.translationsImported === 0) {
+    return "skipped";
+  }
+  return "imported";
+}
+
 export function resolveSanitySourceIngestAction(input: {
   sourceContentUnchanged: boolean;
   latestIngestState: string | null | undefined;
@@ -764,24 +778,35 @@ export async function runImportSanityDocuments(input: {
           sourceLocale: project.sourceLocale?.trim() || "en",
           targetLocales: jobTargetLocales,
         });
-        if (jobResult.ok) {
-          result.jobsCreated += 1;
-          result.jobIds.push(jobResult.jobId);
-          openJobs.push({ sourceFileId, targetLocales: jobTargetLocales });
-          if (input.automation.toolConfig.assignTranslateWithAgent?.enabled) {
-            const enqueueResult = await enqueueExistingFileTranslationJob({
-              organizationId: input.organizationId,
-              jobId: jobResult.jobId,
-              jobQueue,
-            });
-            if (!enqueueResult.ok) {
-              logger.warn({ jobId: jobResult.jobId }, "sanity_enqueue_job_failed");
-            }
+        if (!jobResult.ok) {
+          throw new Error(jobResult.code);
+        }
+        result.jobsCreated += 1;
+        result.jobIds.push(jobResult.jobId);
+        openJobs.push({ sourceFileId, targetLocales: jobTargetLocales });
+        if (input.automation.toolConfig.assignTranslateWithAgent?.enabled) {
+          const enqueueResult = await enqueueExistingFileTranslationJob({
+            organizationId: input.organizationId,
+            jobId: jobResult.jobId,
+            jobQueue,
+          });
+          if (!enqueueResult.ok) {
+            logger.warn({ jobId: jobResult.jobId }, "sanity_enqueue_job_failed");
           }
         }
       }
 
-      if (sourceUnchanged && translationResult.importedLocales.length === 0) {
+      const outcome = sanityDocumentImportOutcome({
+        sourceUnchanged,
+        translationsImported: translationResult.importedLocales.length,
+        translationsFailed: translationResult.failedLocales.length,
+      });
+      if (outcome === "failed") {
+        result.failed += 1;
+        recordImportTimestamp(rawDoc, true);
+        return;
+      }
+      if (outcome === "skipped") {
         result.skipped += 1;
       } else {
         result.imported += 1;
