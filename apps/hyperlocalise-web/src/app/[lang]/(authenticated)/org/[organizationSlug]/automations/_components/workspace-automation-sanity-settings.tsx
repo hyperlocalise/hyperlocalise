@@ -12,10 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo } from "react";
+import { CaretRightIcon } from "@phosphor-icons/react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useIntl, type IntlShape } from "react-intl";
 
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
@@ -53,7 +55,11 @@ import {
   sanityDocumentI18nModeLabel,
   sanityDocumentTypeTitle,
 } from "@/lib/sanity/localization-mode";
-import { isSanityLocaleSupportedForDocumentType } from "@/lib/sanity/locale-catalog";
+import {
+  isSanityLocaleSupportedForDocumentType,
+  isValidSanitySchemaFieldName,
+} from "@/lib/sanity/locale-catalog";
+import { cn } from "@/lib/primitives/cn";
 import { pickSanitySourceLocale, resolveSanityLocaleKey } from "@/lib/sanity/sanity-locale";
 import type {
   SanityDocumentTypeSummary,
@@ -61,6 +67,15 @@ import type {
   SanityLocaleSource,
   SanityManageProject,
 } from "@/lib/sanity/types";
+
+const DEFAULT_SANITY_LOCALE_CATALOG = {
+  documentType: "locale",
+  tagField: "tag",
+  titleField: "name",
+} as const;
+
+const SANITY_LOCALE_TAG_FIELD_SUGGESTIONS = ["tag", "code", "id"] as const;
+const SANITY_LOCALE_TITLE_FIELD_SUGGESTIONS = ["name", "title", "label"] as const;
 
 const SANITY_EXISTING_TRANSLATION_POLICY_LABELS: Record<SanityExistingTranslationPolicy, string> = {
   seed_empty: "Only empty locales",
@@ -82,12 +97,59 @@ function uniqueLocales(values: Array<string | null | undefined>): string[] {
   return locales;
 }
 
-function sanityLocaleCatalogQuery(form: WorkspaceAutomationFormState) {
+function normalizedLocaleCatalogFields(form: WorkspaceAutomationFormState) {
   return {
-    localeType: form.sanityLocaleCatalogDocumentType.trim() || "locale",
-    tagField: form.sanityLocaleCatalogTagField.trim() || "tag",
-    titleField: form.sanityLocaleCatalogTitleField.trim() || "name",
+    documentType:
+      form.sanityLocaleCatalogDocumentType.trim() || DEFAULT_SANITY_LOCALE_CATALOG.documentType,
+    tagField: form.sanityLocaleCatalogTagField.trim() || DEFAULT_SANITY_LOCALE_CATALOG.tagField,
+    titleField:
+      form.sanityLocaleCatalogTitleField.trim() || DEFAULT_SANITY_LOCALE_CATALOG.titleField,
   };
+}
+
+function sanityLocaleCatalogQuery(form: WorkspaceAutomationFormState) {
+  const fields = normalizedLocaleCatalogFields(form);
+  return {
+    localeType: fields.documentType,
+    tagField: fields.tagField,
+    titleField: fields.titleField,
+  };
+}
+
+function isDefaultLocaleCatalog(form: WorkspaceAutomationFormState): boolean {
+  const fields = normalizedLocaleCatalogFields(form);
+  return (
+    fields.documentType === DEFAULT_SANITY_LOCALE_CATALOG.documentType &&
+    fields.tagField === DEFAULT_SANITY_LOCALE_CATALOG.tagField &&
+    fields.titleField === DEFAULT_SANITY_LOCALE_CATALOG.titleField
+  );
+}
+
+function LocaleCatalogFieldSuggestions({
+  options,
+  current,
+  onPick,
+}: {
+  options: readonly string[];
+  current: string;
+  onPick: (value: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((option) => (
+        <Button
+          key={option}
+          type="button"
+          variant={current === option ? "secondary" : "outline"}
+          size="xs"
+          className="h-6 px-2 font-mono text-xs"
+          onClick={() => onPick(option)}
+        >
+          {option}
+        </Button>
+      ))}
+    </div>
+  );
 }
 
 function formatSanityLocaleLabel(
@@ -132,6 +194,7 @@ export function WorkspaceAutomationSanitySettings({
   onChange: (next: WorkspaceAutomationFormState) => void;
 }) {
   const intl = useIntl();
+  const [localeCatalogOpen, setLocaleCatalogOpen] = useState(false);
 
   const projectsQuery = useQuery({
     queryKey: ["sanity-projects", organizationSlug],
@@ -184,6 +247,36 @@ export function WorkspaceAutomationSanitySettings({
       }
       const body = await response.json();
       return (body.datasets ?? []) as Array<{ name: string }>;
+    },
+  });
+
+  const datasetTypeNamesQuery = useQuery({
+    queryKey: [
+      "sanity-dataset-type-names",
+      organizationSlug,
+      form.sanityProjectId,
+      form.sanityDataset,
+    ],
+    enabled:
+      form.sanityEnabled &&
+      sanityConnected &&
+      Boolean(form.sanityProjectId) &&
+      Boolean(form.sanityDataset),
+    queryFn: async () => {
+      const typesResponse = await apiClient.api.orgs[":organizationSlug"].sanity.projects[
+        ":projectId"
+      ].datasets[":dataset"].types.$get({
+        param: {
+          organizationSlug,
+          projectId: form.sanityProjectId,
+          dataset: form.sanityDataset,
+        },
+      });
+      if (!typesResponse.ok) {
+        throw new Error("Failed to load Sanity schema types");
+      }
+      const body = await typesResponse.json();
+      return (body.typeNames ?? []) as string[];
     },
   });
 
@@ -340,6 +433,41 @@ export function WorkspaceAutomationSanitySettings({
     }
     return map;
   }, [sanityLocalesQuery.data?.locales]);
+
+  const localeCatalogFields = normalizedLocaleCatalogFields(form);
+
+  const localeCatalogTypeOptions = useMemo(() => {
+    const names = new Set(datasetTypeNamesQuery.data ?? []);
+    if (localeCatalogFields.documentType) {
+      names.add(localeCatalogFields.documentType);
+    }
+    return [...names].toSorted((left, right) => left.localeCompare(right));
+  }, [datasetTypeNamesQuery.data, localeCatalogFields.documentType]);
+
+  const localeCatalogSummary = useMemo(() => {
+    if (!form.sanityDataset) {
+      return "Choose a dataset to detect locale documents";
+    }
+    if (sanityLocalesQuery.isFetching) {
+      return "Checking Locales collection…";
+    }
+    const locales = sanityLocalesQuery.data?.locales ?? [];
+    if (locales.length > 0) {
+      return `${locales.length} locale${locales.length === 1 ? "" : "s"} from ${localeCatalogFields.documentType}`;
+    }
+    if (!isDefaultLocaleCatalog(form)) {
+      return "No matching documents — try other field names";
+    }
+    return "No locale documents in dataset";
+  }, [
+    form,
+    form.sanityDataset,
+    localeCatalogFields.documentType,
+    sanityLocalesQuery.data?.locales,
+    sanityLocalesQuery.isFetching,
+  ]);
+
+  const localeCatalogPreviewLocales = sanityLocalesQuery.data?.locales ?? [];
 
   const sanityLocaleCatalog = useMemo(() => {
     const fromLocalesCollection = uniqueLocales(sanityLocalesQuery.data?.languages ?? []);
@@ -692,48 +820,214 @@ export function WorkspaceAutomationSanitySettings({
         ) : null}
       </div>
 
-      <Collapsible className="space-y-2 rounded-lg border border-border p-3">
-        <CollapsibleTrigger className="flex w-full items-center justify-between text-left text-sm font-medium">
-          Advanced: locale catalog
+      <Collapsible
+        open={localeCatalogOpen}
+        onOpenChange={setLocaleCatalogOpen}
+        className="rounded-lg border border-border p-3"
+      >
+        <CollapsibleTrigger className="flex w-full items-start justify-between gap-3 text-left">
+          <span className="flex min-w-0 items-start gap-2">
+            <CaretRightIcon
+              className={cn(
+                "mt-0.5 size-4 shrink-0 text-muted-foreground",
+                localeCatalogOpen && "rotate-90",
+              )}
+            />
+            <span className="min-w-0 space-y-0.5">
+              <span className="block text-sm font-medium">Locales collection</span>
+              <span className="block text-xs font-normal text-muted-foreground">
+                {localeCatalogSummary}
+              </span>
+            </span>
+          </span>
+          {!isDefaultLocaleCatalog(form) ? (
+            <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              Custom
+            </span>
+          ) : null}
         </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-3 pt-3">
-          <div className="space-y-2">
-            <Label htmlFor="sanity-locale-document-type">Locale document type</Label>
-            <Input
-              id="sanity-locale-document-type"
-              value={form.sanityLocaleCatalogDocumentType}
-              onChange={(event) =>
-                onChange({ ...form, sanityLocaleCatalogDocumentType: event.target.value })
-              }
-              placeholder="locale"
-            />
+        <CollapsibleContent className="space-y-4 pt-4">
+          <div className="space-y-2 rounded-md border border-border/60 bg-muted/30 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">Preview</p>
+              {(sanityLocalesQuery.isFetching || datasetTypeNamesQuery.isFetching) && (
+                <Spinner className="size-4" />
+              )}
+            </div>
+            {!form.sanityDataset ? (
+              <p className="text-xs text-muted-foreground">
+                Select a Sanity dataset to query locale documents in Content Lake.
+              </p>
+            ) : localeCatalogPreviewLocales.length > 0 ? (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  Language tags for the picker below come from published{" "}
+                  <code className="text-xs">{localeCatalogFields.documentType}</code> documents (
+                  <code className="text-xs">{localeCatalogFields.tagField}</code> → tag,{" "}
+                  <code className="text-xs">{localeCatalogFields.titleField}</code> → label).
+                </p>
+                <ul className="flex flex-wrap gap-1.5">
+                  {localeCatalogPreviewLocales.slice(0, 12).map((entry) => (
+                    <li
+                      key={entry.tag}
+                      className="rounded-md border border-border bg-background px-2 py-0.5 text-xs"
+                    >
+                      {formatSanityLocaleLabel(intl, entry.tag, localeTitleByTag)}
+                    </li>
+                  ))}
+                  {localeCatalogPreviewLocales.length > 12 ? (
+                    <li className="px-1 py-0.5 text-xs text-muted-foreground">
+                      +{localeCatalogPreviewLocales.length - 12} more
+                    </li>
+                  ) : null}
+                </ul>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                No published documents matched{" "}
+                <code className="text-xs">
+                  _type == &quot;{localeCatalogFields.documentType}&quot;
+                </code>{" "}
+                with a defined <code className="text-xs">{localeCatalogFields.tagField}</code>{" "}
+                field.
+                {isDefaultLocaleCatalog(form)
+                  ? " Add locale documents in Studio or map a custom type below."
+                  : " Try another document type or field name, or reset to Sanity defaults."}
+              </p>
+            )}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="sanity-locale-tag-field">Tag field</Label>
-            <Input
-              id="sanity-locale-tag-field"
-              value={form.sanityLocaleCatalogTagField}
-              onChange={(event) =>
-                onChange({ ...form, sanityLocaleCatalogTagField: event.target.value })
-              }
-              placeholder="tag"
-            />
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Map how Hyperlocalise reads your Studio Locales collection.
+            </p>
+            {!isDefaultLocaleCatalog(form) ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  onChange({
+                    ...form,
+                    sanityLocaleCatalogDocumentType: DEFAULT_SANITY_LOCALE_CATALOG.documentType,
+                    sanityLocaleCatalogTagField: DEFAULT_SANITY_LOCALE_CATALOG.tagField,
+                    sanityLocaleCatalogTitleField: DEFAULT_SANITY_LOCALE_CATALOG.titleField,
+                  })
+                }
+              >
+                Reset to Sanity defaults
+              </Button>
+            ) : null}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="sanity-locale-title-field">Title field</Label>
-            <Input
-              id="sanity-locale-title-field"
-              value={form.sanityLocaleCatalogTitleField}
-              onChange={(event) =>
-                onChange({ ...form, sanityLocaleCatalogTitleField: event.target.value })
-              }
-              placeholder="name"
-            />
+
+          <div className="grid gap-4 sm:grid-cols-1">
+            <div className="space-y-2">
+              <Label htmlFor="sanity-locale-document-type">Document type</Label>
+              {localeCatalogTypeOptions.length > 0 ? (
+                <Select
+                  value={localeCatalogFields.documentType}
+                  onValueChange={(documentType) => {
+                    if (!documentType) {
+                      return;
+                    }
+                    onChange({ ...form, sanityLocaleCatalogDocumentType: documentType });
+                  }}
+                  disabled={!form.sanityDataset}
+                >
+                  <SelectTrigger
+                    id="sanity-locale-document-type"
+                    className="w-full font-mono text-sm"
+                  >
+                    <SelectValue placeholder="locale">
+                      {localeCatalogFields.documentType}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {localeCatalogTypeOptions.map((typeName) => (
+                      <SelectItem key={typeName} value={typeName} label={typeName}>
+                        {typeName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id="sanity-locale-document-type"
+                  value={form.sanityLocaleCatalogDocumentType}
+                  onChange={(event) =>
+                    onChange({ ...form, sanityLocaleCatalogDocumentType: event.target.value })
+                  }
+                  placeholder={DEFAULT_SANITY_LOCALE_CATALOG.documentType}
+                  disabled={!form.sanityDataset}
+                  className="font-mono text-sm"
+                  aria-invalid={
+                    form.sanityLocaleCatalogDocumentType.trim().length > 0 &&
+                    !isValidSanitySchemaFieldName(localeCatalogFields.documentType)
+                  }
+                />
+              )}
+              <p className="text-xs text-muted-foreground">
+                Sanity document type that stores each language (usually{" "}
+                <code className="text-xs">locale</code>).
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sanity-locale-tag-field">Language tag field</Label>
+              <Input
+                id="sanity-locale-tag-field"
+                value={form.sanityLocaleCatalogTagField}
+                onChange={(event) =>
+                  onChange({ ...form, sanityLocaleCatalogTagField: event.target.value })
+                }
+                placeholder={DEFAULT_SANITY_LOCALE_CATALOG.tagField}
+                disabled={!form.sanityDataset}
+                className="font-mono text-sm"
+                aria-invalid={
+                  form.sanityLocaleCatalogTagField.trim().length > 0 &&
+                  !isValidSanitySchemaFieldName(localeCatalogFields.tagField)
+                }
+              />
+              <LocaleCatalogFieldSuggestions
+                options={SANITY_LOCALE_TAG_FIELD_SUGGESTIONS}
+                current={localeCatalogFields.tagField}
+                onPick={(tagField) => onChange({ ...form, sanityLocaleCatalogTagField: tagField })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Field whose value becomes the BCP-47 tag (for example{" "}
+                <code className="text-xs">en-US</code>
+                ).
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sanity-locale-title-field">Display name field</Label>
+              <Input
+                id="sanity-locale-title-field"
+                value={form.sanityLocaleCatalogTitleField}
+                onChange={(event) =>
+                  onChange({ ...form, sanityLocaleCatalogTitleField: event.target.value })
+                }
+                placeholder={DEFAULT_SANITY_LOCALE_CATALOG.titleField}
+                disabled={!form.sanityDataset}
+                className="font-mono text-sm"
+                aria-invalid={
+                  form.sanityLocaleCatalogTitleField.trim().length > 0 &&
+                  !isValidSanitySchemaFieldName(localeCatalogFields.titleField)
+                }
+              />
+              <LocaleCatalogFieldSuggestions
+                options={SANITY_LOCALE_TITLE_FIELD_SUGGESTIONS}
+                current={localeCatalogFields.titleField}
+                onPick={(titleField) =>
+                  onChange({ ...form, sanityLocaleCatalogTitleField: titleField })
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Optional label shown in the locale picker (falls back to the tag).
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Defaults match Sanity&apos;s recommended <code className="text-xs">locale</code>{" "}
-            documents. Change these only when your Studio uses different type or field names.
-          </p>
         </CollapsibleContent>
       </Collapsible>
 
