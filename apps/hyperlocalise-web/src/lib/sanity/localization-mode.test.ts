@@ -15,7 +15,9 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   filterTranslatableSanityDocumentTypes,
   isSanityDocumentTypeLocalizable,
+  isSanityHelperDocumentType,
   sanityDocumentI18nModeLabel,
+  sanityDocumentTypeTitle,
 } from "./localization-mode";
 
 describe("sanity localization mode", () => {
@@ -25,9 +27,17 @@ describe("sanity localization mode", () => {
         { name: "article", i18nMode: "document", languages: ["en"] },
         { name: "author", i18nMode: "none", languages: [] },
         { name: "page", i18nMode: "field", languages: ["en", "de"] },
-        { name: "locale", i18nMode: "none", languages: [] },
+        { name: "locale", i18nMode: "document", languages: ["en"] },
+        { name: "translation.metadata", i18nMode: "field", languages: ["en"] },
       ]).map((type) => type.name),
     ).toEqual(["article", "page"]);
+  });
+
+  it("labels schema type names the way Studio titles usually look", () => {
+    expect(sanityDocumentTypeTitle("post")).toBe("Post");
+    expect(sanityDocumentTypeTitle("landingPage")).toBe("Landing Page");
+    expect(isSanityHelperDocumentType("locale")).toBe(true);
+    expect(isSanityHelperDocumentType("post")).toBe(false);
   });
 
   it("labels i18n modes for the document type picker", () => {

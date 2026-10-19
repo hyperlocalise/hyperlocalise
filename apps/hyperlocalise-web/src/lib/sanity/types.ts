@@ -29,6 +29,7 @@ export type SanityI18nMode = "document" | "field" | "none";
 
 export type SanityDocumentTypeSummary = {
   name: string;
+  title: string;
   i18nMode: SanityI18nMode;
   languages: string[];
 };

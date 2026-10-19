@@ -30,6 +30,7 @@ import {
   listSanityManageProjects,
   SanityApiError,
 } from "@/lib/sanity/content-api";
+import { isSanityHelperDocumentType } from "@/lib/sanity/localization-mode";
 import { loadSanityPipesAccessToken, saveSanityPipesApiToken } from "@/lib/sanity/pipes";
 import type { SanityPipesError } from "@/lib/sanity/types";
 import { isErr, type Result } from "@/lib/primitives/result/results";
@@ -228,7 +229,17 @@ export function createSanityRoutes() {
         const typeNames = await client.fetch<string[]>(
           `array::unique(*[defined(_type) && !(_id in path("drafts.**"))]._type)`,
         );
-        return c.json({ typeNames: typeNames.filter((name) => typeof name === "string") }, 200);
+        return c.json(
+          {
+            typeNames: typeNames.filter(
+              (name): name is string =>
+                typeof name === "string" &&
+                name.trim().length > 0 &&
+                !isSanityHelperDocumentType(name),
+            ),
+          },
+          200,
+        );
       } catch (error) {
         const mapped = mapSanityProviderError(c, error);
         if (mapped) {

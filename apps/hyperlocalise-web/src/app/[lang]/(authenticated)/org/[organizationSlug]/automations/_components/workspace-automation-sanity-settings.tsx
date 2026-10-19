@@ -12,22 +12,23 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+} from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -47,6 +48,7 @@ import {
   filterTranslatableSanityDocumentTypes,
   isSanityDocumentTypeLocalizable,
   sanityDocumentI18nModeLabel,
+  sanityDocumentTypeTitle,
 } from "@/lib/sanity/localization-mode";
 import { pickSanitySourceLocale, resolveSanityLocaleKey } from "@/lib/sanity/sanity-locale";
 import type { SanityDocumentTypeSummary, SanityManageProject } from "@/lib/sanity/types";
@@ -71,19 +73,6 @@ function uniqueLocales(values: Array<string | null | undefined>): string[] {
   return locales;
 }
 
-function documentTypesTriggerLabel(selectedNames: string[]): string {
-  if (selectedNames.length === 0) {
-    return "Choose document types";
-  }
-  if (selectedNames.length === 1) {
-    return selectedNames[0]!;
-  }
-  if (selectedNames.length <= 3) {
-    return selectedNames.join(", ");
-  }
-  return `${selectedNames.length} document types`;
-}
-
 export function WorkspaceAutomationSanitySettings({
   organizationSlug,
   form,
@@ -102,7 +91,6 @@ export function WorkspaceAutomationSanitySettings({
   onChange: (next: WorkspaceAutomationFormState) => void;
 }) {
   const intl = useIntl();
-  const [documentTypePickerOpen, setDocumentTypePickerOpen] = useState(false);
 
   const projectsQuery = useQuery({
     queryKey: ["sanity-projects", organizationSlug],
@@ -204,7 +192,10 @@ export function WorkspaceAutomationSanitySettings({
         throw new Error("Failed to inspect Sanity document types");
       }
       const body = await detectedResponse.json();
-      const types = (body.types ?? []) as SanityDocumentTypeSummary[];
+      const types = ((body.types ?? []) as SanityDocumentTypeSummary[]).map((type) => ({
+        ...type,
+        title: type.title || sanityDocumentTypeTitle(type.name),
+      }));
       return filterTranslatableSanityDocumentTypes(types);
     },
   });
@@ -338,27 +329,27 @@ export function WorkspaceAutomationSanitySettings({
     });
   }, [form, onChange, translatableDocumentTypesQuery.isLoading, translatableTypeNames]);
 
-  function toggleDocumentType(type: SanityDocumentTypeSummary) {
-    const selected = form.sanityDocumentTypes.includes(type.name);
-    const nextTypes = selected
-      ? form.sanityDocumentTypes.filter((entry) => entry !== type.name)
-      : [...form.sanityDocumentTypes, type.name];
-    const nextModes = { ...form.sanityDocumentTypeModes };
-    if (selected) {
-      delete nextModes[type.name];
-    } else if (isSanityDocumentTypeLocalizable(type.i18nMode)) {
-      nextModes[type.name] = type.i18nMode;
+  const selectedDocumentTypes = useMemo(
+    () => translatableDocumentTypes.filter((type) => form.sanityDocumentTypes.includes(type.name)),
+    [form.sanityDocumentTypes, translatableDocumentTypes],
+  );
+
+  function setSelectedDocumentTypes(nextTypes: SanityDocumentTypeSummary[]) {
+    const nextNames = nextTypes.map((type) => type.name);
+    const nextModes: Record<string, "document" | "field"> = {};
+    for (const type of nextTypes) {
+      if (isSanityDocumentTypeLocalizable(type.i18nMode)) {
+        nextModes[type.name] = type.i18nMode;
+      }
     }
     onChange({
       ...form,
-      sanityDocumentTypes: nextTypes,
+      sanityDocumentTypes: nextNames,
       sanityDocumentTypeModes: nextModes,
       sanityTargetLocales: [],
-      ...(nextTypes.length === 0 ? { sanityLanguages: [] } : {}),
+      ...(nextNames.length === 0 ? { sanityLanguages: [] } : {}),
     });
   }
-
-  const selectedDocumentTypeNames = form.sanityDocumentTypes;
 
   return (
     <div className="space-y-4 rounded-lg border border-border p-4">
@@ -471,54 +462,44 @@ export function WorkspaceAutomationSanitySettings({
             Sanity schema.
           </p>
         ) : (
-          <Popover open={documentTypePickerOpen} onOpenChange={setDocumentTypePickerOpen}>
-            <PopoverTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={!sanityConnected}
-                  className="w-full justify-between font-normal"
-                  id="sanity-document-types"
-                  aria-invalid={Boolean(errors.sanityDocumentTypes)}
-                />
-              }
+          <Combobox
+            items={translatableDocumentTypes}
+            multiple
+            value={selectedDocumentTypes}
+            onValueChange={setSelectedDocumentTypes}
+            itemToStringValue={(type) =>
+              `${type.title} ${type.name} ${sanityDocumentI18nModeLabel(type.i18nMode)}`
+            }
+            disabled={!sanityConnected}
+          >
+            <ComboboxChips
+              id="sanity-document-types"
+              className="w-full"
+              aria-invalid={Boolean(errors.sanityDocumentTypes) || undefined}
             >
-              <span className="truncate text-left">
-                {documentTypesTriggerLabel(selectedDocumentTypeNames)}
-              </span>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-[var(--anchor-width)] p-0">
-              <Command>
-                <CommandInput placeholder="Search document types" />
-                <CommandList label="Document types" aria-multiselectable={true}>
-                  <CommandEmpty>No matching document types.</CommandEmpty>
-                  <CommandGroup>
-                    {translatableDocumentTypes.map((type) => {
-                      const checked = form.sanityDocumentTypes.includes(type.name);
-                      const modeLabel = sanityDocumentI18nModeLabel(type.i18nMode);
-                      return (
-                        <CommandItem
-                          key={type.name}
-                          value={`${type.name} ${modeLabel}`}
-                          data-checked={checked || undefined}
-                          aria-checked={checked}
-                          onSelect={() => toggleDocumentType(type)}
-                        >
-                          <span className="min-w-0 flex-1 truncate">
-                            <span className="block truncate">{type.name}</span>
-                            <span className="block truncate text-xs text-muted-foreground">
-                              {modeLabel}
-                            </span>
-                          </span>
-                        </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+              <ComboboxValue>
+                {selectedDocumentTypes.map((type) => (
+                  <ComboboxChip key={type.name}>{type.title}</ComboboxChip>
+                ))}
+              </ComboboxValue>
+              <ComboboxChipsInput placeholder="Search document types" />
+            </ComboboxChips>
+            <ComboboxContent>
+              <ComboboxEmpty>No matching document types.</ComboboxEmpty>
+              <ComboboxList>
+                {(type) => (
+                  <ComboboxItem key={type.name} value={type}>
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="block truncate">{type.title}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {sanityDocumentI18nModeLabel(type.i18nMode)}
+                      </span>
+                    </span>
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
         )}
         {errors.sanityDocumentTypes ? (
           <p className="text-sm text-destructive">{errors.sanityDocumentTypes}</p>

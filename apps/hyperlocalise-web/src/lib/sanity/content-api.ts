@@ -13,6 +13,7 @@
 
 import { SANITY_MANAGE_API_BASE } from "./constants";
 import type { SanityClient } from "./client";
+import { isSanityHelperDocumentType, sanityDocumentTypeTitle } from "./localization-mode";
 import type {
   SanityDatasetSummary,
   SanityDocumentTypeSummary,
@@ -110,13 +111,14 @@ function uniqueLanguages(values: readonly string[]): string[] {
 function isInternationalizedArrayEntry(
   value: unknown,
 ): value is { language?: unknown; value?: unknown } {
-  return (
-    value !== null &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    "language" in value &&
-    "value" in value
-  );
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as { _type?: unknown; language?: unknown; value?: unknown };
+  if (!("language" in record) || !("value" in record)) {
+    return false;
+  }
+  return typeof record._type === "string" && record._type.startsWith("internationalizedArray");
 }
 
 function sampleHasInternationalizedArray(doc: Record<string, unknown> | null): boolean {
@@ -180,8 +182,7 @@ export async function detectSanityDocumentTypes(input: {
   const allLanguages = new Set<string>(documentLevelLanguages);
 
   for (const typeName of selected) {
-    if (typeName === "translation.metadata") {
-      types.push({ name: typeName, i18nMode: "none", languages: [] });
+    if (isSanityHelperDocumentType(typeName)) {
       continue;
     }
 
@@ -221,7 +222,12 @@ export async function detectSanityDocumentTypes(input: {
     }
 
     if (i18nMode === "none") {
-      types.push({ name: typeName, i18nMode, languages: [] });
+      types.push({
+        name: typeName,
+        title: sanityDocumentTypeTitle(typeName),
+        i18nMode,
+        languages: [],
+      });
       continue;
     }
 
@@ -237,7 +243,12 @@ export async function detectSanityDocumentTypes(input: {
     for (const lang of languageList) {
       allLanguages.add(lang);
     }
-    types.push({ name: typeName, i18nMode, languages: languageList });
+    types.push({
+      name: typeName,
+      title: sanityDocumentTypeTitle(typeName),
+      i18nMode,
+      languages: languageList,
+    });
   }
 
   return {

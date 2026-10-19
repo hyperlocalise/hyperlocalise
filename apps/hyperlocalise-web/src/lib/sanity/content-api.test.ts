@@ -27,4 +27,13 @@ describe("collectInternationalizedArrayLanguages", () => {
       }),
     ).toEqual(["en", "de"]);
   });
+
+  it("ignores arrays that are not Sanity internationalized fields", () => {
+    expect(
+      collectInternationalizedArrayLanguages({
+        _type: "product",
+        variants: [{ language: "en", value: "unused" }],
+      }),
+    ).toEqual([]);
+  });
 });
