@@ -29,6 +29,21 @@ export const reportQuerySchema = z
     page: z.coerce.number().int().min(1).max(10_000).default(1),
   })
   .refine((v) => !v.from || !v.to || v.from <= v.to, { message: "Invalid date range" });
+export const wordCountQuerySchema = z
+  .object({
+    from: day.optional(),
+    to: day.optional(),
+    projectId: z.string().optional(),
+    targetLocale: z.string().optional(),
+    step: step.optional(),
+    groupBy: z.enum(["project", "job"]).default("project"),
+    format: z.enum(["json", "csv"]).default("json"),
+  })
+  .refine((v) => !v.from || !v.to || v.from <= v.to, { message: "Invalid date range" });
+export const exportFormatSchema = z.object({
+  format: z.enum(["json", "csv"]).default("json"),
+});
+export const reportJobsQuerySchema = z.object({ projectId: z.string().optional() });
 export const rateSchema = z.object({
   name: z.string().trim().min(1).max(100),
   sourceLocale: z.string().min(2).max(35),

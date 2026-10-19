@@ -24,7 +24,17 @@ import { hourlyCost } from "@/lib/reporting/money";
 import { resolveReportingRate, reportingStart } from "@/lib/reporting/capture";
 import { budgetSummary } from "@/lib/reporting/budgets";
 import {
+  listReportJobs,
+  matchAnalysisCsv,
+  queryJobMatchAnalysis,
+  queryWordVolume,
+  wordVolumeCsv,
+} from "@/lib/reporting/word-count-report";
+import {
   reportQuerySchema,
+  wordCountQuerySchema,
+  exportFormatSchema,
+  reportJobsQuerySchema,
   rateSchema,
   budgetSchema,
   taskRateSchema,
@@ -62,12 +72,50 @@ export function createReportsRoutes() {
       }
       return c.json({ report });
     })
+    .get("/word-counts", async (c) => {
+      const parsed = wordCountQuerySchema.safeParse(c.req.query());
+      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+      const today = new Date().toISOString().slice(0, 10);
+      const from =
+        parsed.data.from ?? new Date(Date.now() - 27 * 86400000).toISOString().slice(0, 10);
+      const to = parsed.data.to ?? today;
+      const rows = await queryWordVolume({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectIds: await getAccessibleProjectIds(c.var.auth),
+        from,
+        to,
+        groupBy: parsed.data.groupBy,
+        projectId: parsed.data.projectId,
+        targetLocale: parsed.data.targetLocale,
+        step: parsed.data.step,
+      });
+      if (parsed.data.format === "csv") {
+        c.header("Content-Type", "text/csv; charset=utf-8");
+        c.header("Content-Disposition", 'attachment; filename="word-counts.csv"');
+        return c.body(wordVolumeCsv(rows, parsed.data.groupBy));
+      }
+      return c.json({ wordCounts: { rows, from, to, groupBy: parsed.data.groupBy } });
+    })
+    .get("/jobs", async (c) => {
+      const parsed = reportJobsQuerySchema.safeParse(c.req.query());
+      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+      const jobs = await listReportJobs({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectIds: await getAccessibleProjectIds(c.var.auth),
+        projectId: parsed.data.projectId,
+      });
+      return c.json({ jobs });
+    })
     .get("/settings", async (c) => {
       const organizationId = c.var.auth.organization.localOrganizationId;
       const projectIds = await getAccessibleProjectIds(c.var.auth);
       const projects = projectIds.length
         ? await db
-            .select({ id: schema.projects.id, name: schema.projects.name })
+            .select({
+              id: schema.projects.id,
+              name: schema.projects.name,
+              targetLocales: schema.projects.targetLocales,
+            })
             .from(schema.projects)
             .where(inArray(schema.projects.id, projectIds))
         : [];
@@ -90,6 +138,27 @@ export function createReportsRoutes() {
           canManage: hasCapability(c.var.auth.membership.role, "billing:write"),
         },
       });
+    })
+    .get("/tasks/:jobId/match-analysis", async (c) => {
+      const parsed = exportFormatSchema.safeParse(c.req.query());
+      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+      const [job] = await db
+        .select({ id: schema.jobs.id })
+        .from(schema.jobs)
+        .where(
+          and(eq(schema.jobs.id, c.req.param("jobId")), await buildAccessibleJobsWhere(c.var.auth)),
+        );
+      if (!job) return notFoundResponse(c, "job_not_found");
+      const rows = await queryJobMatchAnalysis({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        jobId: job.id,
+      });
+      if (parsed.data.format === "csv") {
+        c.header("Content-Type", "text/csv; charset=utf-8");
+        c.header("Content-Disposition", 'attachment; filename="match-analysis.csv"');
+        return c.body(matchAnalysisCsv(rows));
+      }
+      return c.json({ matchAnalysis: { jobId: job.id, rows } });
     })
     .get("/tasks/:jobId", async (c) => {
       const organizationId = c.var.auth.organization.localOrganizationId;
