@@ -13,7 +13,7 @@
 import { eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
-import { getPipesAccountStatus, loadPipesApiKey } from "@/lib/pipes/accounts";
+import { getPipesAccountStatus, loadPipesApiKey, upsertPipesApiKey } from "@/lib/pipes/accounts";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { SANITY_PIPES_SLUG } from "./constants";
@@ -32,6 +32,11 @@ const SANITY_NOT_CONNECTED: SanityPipesError = {
 const SANITY_NEEDS_REAUTHORIZATION: SanityPipesError = {
   code: "sanity_pipes_needs_reauthorization",
   message: "Reconnect Sanity in Integrations, then try again.",
+};
+
+const SANITY_API_TOKEN_REQUIRED: SanityPipesError = {
+  code: "sanity_api_token_required",
+  message: "Paste a Sanity API token with Editor access or higher.",
 };
 
 function mapPipesError(code: string): SanityPipesError {
@@ -94,4 +99,28 @@ export async function loadSanityPipesAccessToken(input: {
     return err(mapPipesError(result.error.code));
   }
   return ok(result.value);
+}
+
+export async function saveSanityPipesApiToken(input: {
+  localOrganizationId: string;
+  workosUserId: string;
+  apiToken: string;
+}): Promise<Result<SanityPipesConnectionStatus, SanityPipesError>> {
+  if (!input.apiToken.trim()) {
+    return err(SANITY_API_TOKEN_REQUIRED);
+  }
+
+  const result = await upsertPipesApiKey({
+    provider: SANITY_PIPES_SLUG,
+    localOrganizationId: input.localOrganizationId,
+    workosUserId: input.workosUserId,
+    secret: input.apiToken,
+  });
+  if (isErr(result)) {
+    return err(mapPipesError(result.error.code));
+  }
+  return ok({
+    connected: result.value.connected,
+    needsReauthorization: result.value.needsReauthorization,
+  });
 }

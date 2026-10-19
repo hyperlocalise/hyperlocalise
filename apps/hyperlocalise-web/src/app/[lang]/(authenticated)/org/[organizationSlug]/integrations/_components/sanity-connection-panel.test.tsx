@@ -12,9 +12,9 @@
  */
 // @vitest-environment happy-dom
 
-import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => ({
   isError: false,
   authorizeGet: vi.fn(),
   disconnectDelete: vi.fn(),
+  sanityPut: vi.fn(),
   projectsGet: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
@@ -42,18 +43,6 @@ vi.mock("sonner", () => ({
     success: (...args: unknown[]) => mocks.toastSuccess(...args),
     error: (...args: unknown[]) => mocks.toastError(...args),
   },
-}));
-
-vi.mock("@workos-inc/authkit-nextjs/components", () => ({
-  useAccessToken: () => ({
-    getAccessToken: async () => "test-access-token",
-    loading: false,
-  }),
-}));
-
-vi.mock("@workos-inc/widgets", () => ({
-  WorkOsWidgets: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  Pipes: () => <div data-testid="workos-pipes-widget">Sanity Pipes widget</div>,
 }));
 
 vi.mock("./pipes-connection-panel", () => ({
@@ -78,6 +67,7 @@ vi.mock("@/lib/api-client", () => ({
             },
           },
           sanity: {
+            $put: (...args: unknown[]) => mocks.sanityPut(...args),
             projects: {
               $get: (...args: unknown[]) => mocks.projectsGet(...args),
             },
@@ -113,23 +103,25 @@ describe("SanityConnectionPanel", () => {
     mocks.isError = false;
     mocks.authorizeGet.mockReset();
     mocks.disconnectDelete.mockReset();
+    mocks.sanityPut.mockReset();
     mocks.projectsGet.mockReset();
     mocks.toastSuccess.mockReset();
     mocks.toastError.mockReset();
     window.location.href = "http://localhost/";
   });
 
-  it("shows OAuth and API token options when Connect is expanded", async () => {
+  it("shows authentication method and OAuth connect when expanded", async () => {
     renderPanel();
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
 
+    expect(await screen.findByLabelText("Authentication method")).toBeInTheDocument();
     expect(
-      await screen.findByText(
-        "Connect with OAuth or an API token through WorkOS Pipes. Use whichever method your Sanity project supports.",
+      screen.getByText(
+        "Authorize Hyperlocalise to access Sanity on your behalf through WorkOS Pipes.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Authorize with Sanity" })).toBeEnabled();
-    expect(screen.getByTestId("workos-pipes-widget")).toBeInTheDocument();
+    expect(screen.queryByTestId("workos-pipes-widget")).not.toBeInTheDocument();
   });
 
   it("starts the WorkOS authorize flow from Authorize with Sanity", async () => {
@@ -149,22 +141,27 @@ describe("SanityConnectionPanel", () => {
         "https://api.workos.com/data-integrations/sanity/authorize-redirect",
       );
     });
-    expect(mocks.authorizeGet).toHaveBeenCalledWith({
-      param: { organizationSlug: "acme", provider: "sanity" },
-    });
   });
 
-  it("shows reconnect options when reauthorization is required", async () => {
-    mocks.status = {
-      connected: true,
-      needsReauthorization: true,
-      apiKeyLast4: null,
-    };
+  it("saves an API token when API token method is selected", async () => {
+    mocks.sanityPut.mockResolvedValue({ ok: true, json: async () => ({ sanity: {} }) });
+    const user = userEvent.setup();
 
     renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+    await user.click(screen.getByRole("button", { name: "Connect" }));
+    await user.click(await screen.findByRole("combobox", { name: "Authentication method" }));
+    await user.click(await screen.findByRole("option", { name: "API token" }));
 
-    expect(await screen.findByRole("button", { name: "Authorize with Sanity" })).toBeEnabled();
-    expect(screen.getByTestId("workos-pipes-widget")).toBeInTheDocument();
+    const apiTokenInput = await screen.findByTestId("sanity-api-token-input");
+    await user.type(apiTokenInput, "sk-sanity-test-token");
+    await user.click(screen.getByRole("button", { name: "Save token" }));
+
+    await waitFor(() => {
+      expect(mocks.sanityPut).toHaveBeenCalledWith({
+        param: { organizationSlug: "acme" },
+        json: { apiToken: "sk-sanity-test-token" },
+      });
+    });
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Sanity API token saved.");
   });
 });

@@ -12,7 +12,16 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { sanityDocumentTypesQuerySchema } from "./sanity.schema";
+import { sanityDocumentTypesQuerySchema, upsertSanityConnectionBodySchema } from "./sanity.schema";
+
+describe("upsertSanityConnectionBodySchema", () => {
+  it("requires a non-empty api token", () => {
+    expect(upsertSanityConnectionBodySchema.parse({ apiToken: "sk-test" })).toEqual({
+      apiToken: "sk-test",
+    });
+    expect(() => upsertSanityConnectionBodySchema.parse({ apiToken: "   " })).toThrow();
+  });
+});
 
 describe("sanityDocumentTypesQuerySchema", () => {
   it("parses comma-separated type names", () => {

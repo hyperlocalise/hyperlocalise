@@ -12,7 +12,11 @@
  */
 
 export type SanityPipesError = {
-  code: "sanity_pipes_unavailable" | "sanity_not_connected" | "sanity_pipes_needs_reauthorization";
+  code:
+    | "sanity_pipes_unavailable"
+    | "sanity_not_connected"
+    | "sanity_pipes_needs_reauthorization"
+    | "sanity_api_token_required";
   message: string;
 };
 

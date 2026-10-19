@@ -21,6 +21,10 @@ export const sanityDatasetParamsSchema = z.object({
   dataset: z.string().trim().min(1).max(128),
 });
 
+export const upsertSanityConnectionBodySchema = z.object({
+  apiToken: z.string().trim().min(1).max(4096),
+});
+
 export const sanityDocumentTypesQuerySchema = z.object({
   typeNames: z
     .string()

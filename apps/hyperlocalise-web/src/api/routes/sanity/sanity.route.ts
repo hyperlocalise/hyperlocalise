@@ -30,7 +30,7 @@ import {
   listSanityManageProjects,
   SanityApiError,
 } from "@/lib/sanity/content-api";
-import { loadSanityPipesAccessToken } from "@/lib/sanity/pipes";
+import { loadSanityPipesAccessToken, saveSanityPipesApiToken } from "@/lib/sanity/pipes";
 import type { SanityPipesError } from "@/lib/sanity/types";
 import { isErr, type Result } from "@/lib/primitives/result/results";
 
@@ -38,6 +38,7 @@ import {
   sanityDatasetParamsSchema,
   sanityDocumentTypesQuerySchema,
   sanityProjectIdParamSchema,
+  upsertSanityConnectionBodySchema,
 } from "./sanity.schema";
 
 const validateProjectParams = validator("param", (value, c) => {
@@ -72,7 +73,27 @@ function canReadIntegrations(role: AuthVariables["auth"]["membership"]["role"]) 
   return hasCapability(role, "integrations:read");
 }
 
+function canWriteIntegrations(role: AuthVariables["auth"]["membership"]["role"]) {
+  return hasCapability(role, "integrations:write");
+}
+
+const validateUpsertConnectionBody = validator("json", (value, c) => {
+  const parsed = upsertSanityConnectionBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "sanity_api_token_required",
+      "Paste a Sanity API token with Editor access or higher.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
 function mapSanitySetupError(c: JsonContext, error: SanityPipesError) {
+  if (error.code === "sanity_api_token_required") {
+    return badRequestResponse(c, error.code, error.message);
+  }
   if (
     error.code === "sanity_pipes_unavailable" ||
     error.code === "sanity_not_connected" ||
@@ -116,6 +137,23 @@ async function loadSanityManageToken(input: {
 export function createSanityRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
+    .put("/", validateUpsertConnectionBody, async (c) => {
+      if (!canWriteIntegrations(c.var.auth.membership.role)) {
+        return forbiddenResponse(c, "forbidden");
+      }
+
+      const { apiToken } = c.req.valid("json");
+      const result = await saveSanityPipesApiToken({
+        localOrganizationId: c.var.auth.organization.localOrganizationId,
+        workosUserId: c.var.auth.user.workosUserId,
+        apiToken,
+      });
+      if (isErr(result)) {
+        return mapSanitySetupError(c, result.error);
+      }
+
+      return c.json({ sanity: result.value }, 200);
+    })
     .get("/projects", async (c) => {
       if (!canReadIntegrations(c.var.auth.membership.role)) {
         return forbiddenResponse(c, "forbidden");

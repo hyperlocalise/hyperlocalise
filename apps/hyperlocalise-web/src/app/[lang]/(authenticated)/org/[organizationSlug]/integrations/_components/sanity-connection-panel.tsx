@@ -12,10 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useState } from "react";
-import { ArrowUpRightIcon } from "@phosphor-icons/react";
-import { useAccessToken } from "@workos-inc/authkit-nextjs/components";
-import { Pipes, WorkOsWidgets } from "@workos-inc/widgets";
+import { useEffect, useId, useMemo, useState } from "react";
+import { ArrowUpRightIcon, EyeIcon, EyeSlashIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -23,12 +21,22 @@ import { toast } from "sonner";
 
 import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
 import { Button } from "@/components/ui/button";
-import { Box } from "@/components/ui/layout/box";
-import { Rows } from "@/components/ui/layout/rows";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyMuted, TypographyP } from "@/components/ui/typography";
 import { createApiClient } from "@/lib/api-client";
 import { resolveWorkspaceIntegrationSummary } from "@/lib/integrations/workspace-integrations";
+import {
+  OAUTH_AUTH_MODE,
+  PAT_AUTH_MODE,
+} from "@/lib/providers/contracts/external-tms-provider-credential";
 import { SANITY_PIPES_SLUG } from "@/lib/sanity/constants";
 import type { SanityManageProject } from "@/lib/sanity/types";
 
@@ -39,10 +47,9 @@ import { pipesConnectionPanelMessages } from "./pipes-connection-panel.messages"
 import { sanityConnectionPanelMessages } from "./sanity-connection-panel.messages";
 import { usePipesStatus } from "./pipes-connection-panel";
 
-import "@radix-ui/themes/styles.css";
-import "@workos-inc/widgets/styles.css";
-
 const api = createApiClient();
+
+type SanityAuthMode = typeof OAUTH_AUTH_MODE | typeof PAT_AUTH_MODE;
 
 export function SanityConnectionPanel({
   organizationSlug,
@@ -55,8 +62,12 @@ export function SanityConnectionPanel({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
-  const { getAccessToken, loading: accessTokenLoading } = useAccessToken();
+  const authMethodFieldId = useId();
+  const apiTokenFieldId = useId();
   const [expanded, setExpanded] = useState(false);
+  const [authMode, setAuthMode] = useState<SanityAuthMode>(OAUTH_AUTH_MODE);
+  const [apiToken, setApiToken] = useState("");
+  const [showApiToken, setShowApiToken] = useState(false);
   const statusQuery = usePipesStatus(organizationSlug, SANITY_PIPES_SLUG, expanded);
   const summary = useMemo(
     () => resolveWorkspaceIntegrationSummary(intl, SANITY_PIPES_SLUG),
@@ -68,6 +79,11 @@ export function SanityConnectionPanel({
   const needsReauthorization = Boolean(statusQuery.data?.needsReauthorization);
   const apiKeyLast4 = statusQuery.data?.apiKeyLast4 ?? null;
   const showConnectedDetails = isConnected && !needsReauthorization;
+  const isOAuthConnected = showConnectedDetails && !apiKeyLast4;
+  const isApiTokenConnected = showConnectedDetails && Boolean(apiKeyLast4);
+  const isOAuthMode = authMode === OAUTH_AUTH_MODE;
+  const isApiTokenMode = authMode === PAT_AUTH_MODE;
+  const trimmedApiToken = apiToken.trim();
 
   const projectsQuery = useQuery({
     queryKey: ["sanity-projects", organizationSlug],
@@ -88,15 +104,16 @@ export function SanityConnectionPanel({
   });
   const projects = projectsQuery.data ?? [];
 
-  async function resolvePipesAuthToken() {
-    const token = await getAccessToken();
-    if (!token) {
-      throw new Error(
-        intl.formatMessage(pipesConnectionPanelMessages.tokenRequired, { providerName }),
-      );
+  useEffect(() => {
+    if (!expanded) {
+      return;
     }
-    return token;
-  }
+    if (apiKeyLast4) {
+      setAuthMode(PAT_AUTH_MODE);
+    } else if (showConnectedDetails) {
+      setAuthMode(OAUTH_AUTH_MODE);
+    }
+  }, [expanded, apiKeyLast4, showConnectedDetails]);
 
   const oauthConnect = useMutation({
     mutationFn: async () => {
@@ -134,6 +151,38 @@ export function SanityConnectionPanel({
     },
   });
 
+  const saveApiToken = useMutation({
+    mutationFn: async (token: string) => {
+      const response = await api.api.orgs[":organizationSlug"].sanity.$put({
+        param: { organizationSlug },
+        json: { apiToken: token },
+      });
+      const body = (await response.json().catch(() => null)) as { message?: unknown } | null;
+      if (!response.ok) {
+        const serverMessage =
+          typeof body?.message === "string" && body.message.trim().length > 0 ? body.message : null;
+        throw new Error(
+          serverMessage ?? intl.formatMessage(sanityConnectionPanelMessages.saveApiTokenFailed),
+        );
+      }
+    },
+    onSuccess: async () => {
+      setApiToken("");
+      setShowApiToken(false);
+      await queryClient.invalidateQueries({
+        queryKey: ["pipes", organizationSlug, SANITY_PIPES_SLUG],
+      });
+      toast.success(intl.formatMessage(sanityConnectionPanelMessages.saveApiTokenSucceeded));
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : intl.formatMessage(sanityConnectionPanelMessages.saveApiTokenFailed),
+      );
+    },
+  });
+
   const disconnect = useMutation({
     mutationFn: async () => {
       const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$delete({
@@ -147,6 +196,9 @@ export function SanityConnectionPanel({
       await queryClient.invalidateQueries({
         queryKey: ["pipes", organizationSlug, SANITY_PIPES_SLUG],
       });
+      setApiToken("");
+      setShowApiToken(false);
+      setAuthMode(OAUTH_AUTH_MODE);
       setExpanded(false);
       toast.success(intl.formatMessage(sanityConnectionPanelMessages.disconnectedToast));
     },
@@ -175,6 +227,9 @@ export function SanityConnectionPanel({
       ? intl.formatMessage(pipesConnectionPanelMessages.reconnectHint, { providerName })
       : (summary?.detail ?? "");
 
+  const canSaveApiToken =
+    userCanManage && isApiTokenMode && trimmedApiToken.length > 0 && !saveApiToken.isPending;
+
   return (
     <CollapsibleIntegrationRow
       name={providerName}
@@ -184,61 +239,198 @@ export function SanityConnectionPanel({
       userIsAdmin={userCanManage}
       expanded={expanded}
       onExpandedChange={setExpanded}
-      isLoading={statusQuery.isLoading || accessTokenLoading}
+      isLoading={statusQuery.isLoading}
       isLast={isLast}
     >
       {statusQuery.isLoading ? (
         <Skeleton className="h-16 rounded-lg" />
-      ) : showConnectedDetails ? (
-        <Rows spacing="2u">
-          <Box padding="1.5u" background="canvas" border="standard" borderRadius="standard">
-            <Rows spacing="1u">
-              <TypographyP size="small" weight="medium" tone="content">
-                <FormattedMessage {...sanityConnectionPanelMessages.connectedStatus} />
-              </TypographyP>
-              {apiKeyLast4 ? (
-                <TypographyP size="xsmall" tone="subtle">
-                  {intl.formatMessage(sanityConnectionPanelMessages.tokenSuffix, {
-                    suffix: apiKeyLast4,
-                  })}
-                </TypographyP>
-              ) : null}
-              <TypographyP size="small" tone="subtle">
+      ) : (
+        <form
+          className="flex flex-col gap-5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (canSaveApiToken) {
+              saveApiToken.mutate(trimmedApiToken);
+            }
+          }}
+        >
+          {isOAuthConnected ? (
+            <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4 text-sm">
+              <p className="font-medium text-foreground">
+                <FormattedMessage {...sanityConnectionPanelMessages.oauthConnectedTitle} />
+              </p>
+              <p className="leading-6 text-muted-foreground">
+                <FormattedMessage {...sanityConnectionPanelMessages.oauthConnectedDescription} />
+              </p>
+            </div>
+          ) : null}
+
+          {isApiTokenConnected ? (
+            <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4 text-sm">
+              <p className="font-medium text-foreground">
+                <FormattedMessage {...sanityConnectionPanelMessages.apiTokenConnectedTitle} />
+              </p>
+              <p className="leading-6 text-muted-foreground">
+                {intl.formatMessage(sanityConnectionPanelMessages.tokenSuffix, {
+                  suffix: apiKeyLast4 ?? "",
+                })}
+              </p>
+              <p className="leading-6 text-muted-foreground">
+                <FormattedMessage {...sanityConnectionPanelMessages.apiTokenConnectedDescription} />
+              </p>
+            </div>
+          ) : null}
+
+          {showConnectedDetails ? (
+            <>
+              <p className="text-sm leading-6 text-muted-foreground">
                 <FormattedMessage {...sanityConnectionPanelMessages.connectedDescription} />
-              </TypographyP>
+              </p>
               {projectsQuery.isLoading ? <Skeleton className="h-4 w-32" /> : null}
               {projects.length > 0 ? (
-                <Rows spacing="0.5u">
-                  <TypographyP size="xsmall" weight="medium" tone="content">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-foreground">
                     <FormattedMessage {...sanityConnectionPanelMessages.projectsLabel} />
-                  </TypographyP>
-                  {projects.map((project) => (
-                    <TypographyP key={project.id} size="small" tone="content">
-                      {project.displayName}
-                    </TypographyP>
-                  ))}
-                </Rows>
+                  </p>
+                  <ul className="space-y-0.5 text-sm text-foreground">
+                    {projects.map((project) => (
+                      <li key={project.id}>{project.displayName}</li>
+                    ))}
+                  </ul>
+                </div>
               ) : projectsQuery.isSuccess ? (
-                <TypographyP size="xsmall" tone="subtle">
+                <p className="text-xs text-muted-foreground">
                   <FormattedMessage {...sanityConnectionPanelMessages.noProjects} />
-                </TypographyP>
+                </p>
               ) : null}
-            </Rows>
-          </Box>
-          <Box display="flex" flexWrap="wrap" gap="1u">
-            <Button
-              variant="outline"
-              size="sm"
-              render={<Link href={buildAutomationsPath(organizationSlug)} />}
-            >
-              <FormattedMessage {...sanityConnectionPanelMessages.openAutomations} />
-            </Button>
-            {userCanManage ? (
+            </>
+          ) : null}
+
+          {!showConnectedDetails || needsReauthorization || isApiTokenConnected ? (
+            <>
+              {needsReauthorization ? (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  <FormattedMessage
+                    {...pipesConnectionPanelMessages.reconnectHint}
+                    values={{ providerName }}
+                  />
+                </p>
+              ) : null}
+
+              {userCanManage ? (
+                <Field className="gap-2">
+                  <FieldLabel htmlFor={authMethodFieldId}>
+                    {intl.formatMessage(sanityConnectionPanelMessages.authenticationMethodLabel)}
+                  </FieldLabel>
+                  <FieldDescription>
+                    <FormattedMessage
+                      {...sanityConnectionPanelMessages.authenticationMethodDescription}
+                    />
+                  </FieldDescription>
+                  <Select
+                    value={authMode}
+                    onValueChange={(value) => {
+                      if (value === OAUTH_AUTH_MODE || value === PAT_AUTH_MODE) {
+                        setAuthMode(value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger id={authMethodFieldId} className="h-9 w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={OAUTH_AUTH_MODE}>
+                        {intl.formatMessage(sanityConnectionPanelMessages.oauthMethodOption)}
+                      </SelectItem>
+                      <SelectItem value={PAT_AUTH_MODE}>
+                        {intl.formatMessage(sanityConnectionPanelMessages.apiTokenMethodOption)}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              ) : null}
+
+              {isOAuthMode && !isOAuthConnected ? (
+                <>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    <FormattedMessage {...sanityConnectionPanelMessages.oauthConnectIntro} />
+                  </p>
+                  {userCanManage ? (
+                    <Button
+                      type="button"
+                      onClick={() => oauthConnect.mutate()}
+                      disabled={oauthConnect.isPending}
+                      className="w-fit"
+                    >
+                      {oauthConnect.isPending ? (
+                        <FormattedMessage
+                          {...sanityConnectionPanelMessages.oauthConnectingButton}
+                        />
+                      ) : (
+                        <FormattedMessage {...sanityConnectionPanelMessages.oauthConnectButton} />
+                      )}
+                      <ArrowUpRightIcon className="size-3.5" />
+                    </Button>
+                  ) : null}
+                </>
+              ) : null}
+
+              {isApiTokenMode ? (
+                <>
+                  {!isApiTokenConnected ? (
+                    <p className="text-sm leading-6 text-muted-foreground">
+                      <FormattedMessage {...sanityConnectionPanelMessages.apiTokenConnectIntro} />
+                    </p>
+                  ) : null}
+                  <Field className="gap-2">
+                    <FieldLabel htmlFor={apiTokenFieldId}>
+                      {intl.formatMessage(sanityConnectionPanelMessages.apiTokenLabel)}
+                    </FieldLabel>
+                    <div className="relative">
+                      <Input
+                        id={apiTokenFieldId}
+                        data-testid="sanity-api-token-input"
+                        type={showApiToken ? "text" : "password"}
+                        autoComplete="off"
+                        value={apiToken}
+                        disabled={!userCanManage || saveApiToken.isPending}
+                        onChange={(event) => setApiToken(event.target.value)}
+                        className="pe-9"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowApiToken((current) => !current)}
+                        disabled={!userCanManage || saveApiToken.isPending}
+                        className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                        aria-label={intl.formatMessage(
+                          showApiToken
+                            ? sanityConnectionPanelMessages.hideApiTokenAriaLabel
+                            : sanityConnectionPanelMessages.showApiTokenAriaLabel,
+                        )}
+                      >
+                        {showApiToken ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
+                      </button>
+                    </div>
+                    <FieldDescription>
+                      <FormattedMessage
+                        {...(isApiTokenConnected
+                          ? sanityConnectionPanelMessages.apiTokenRotateHint
+                          : sanityConnectionPanelMessages.apiTokenHint)}
+                      />
+                    </FieldDescription>
+                  </Field>
+                </>
+              ) : null}
+            </>
+          ) : null}
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            {userCanManage && isConnected ? (
               <Button
+                type="button"
                 variant="outline"
-                size="sm"
                 onClick={() => disconnect.mutate()}
-                disabled={disconnect.isPending}
+                disabled={disconnect.isPending || saveApiToken.isPending}
               >
                 {disconnect.isPending ? (
                   <FormattedMessage {...sanityConnectionPanelMessages.disconnecting} />
@@ -246,63 +438,32 @@ export function SanityConnectionPanel({
                   <FormattedMessage {...sanityConnectionPanelMessages.disconnect} />
                 )}
               </Button>
-            ) : null}
-          </Box>
-        </Rows>
-      ) : (
-        <Rows spacing="2u">
-          {needsReauthorization ? (
-            <TypographyP size="small" tone="subtle">
-              <FormattedMessage
-                {...pipesConnectionPanelMessages.reconnectHint}
-                values={{ providerName }}
-              />
-            </TypographyP>
-          ) : null}
-          <TypographyP size="small" tone="subtle">
-            <FormattedMessage {...sanityConnectionPanelMessages.connectMethodsIntro} />
-          </TypographyP>
-          <Box padding="1.5u" background="canvas" border="standard" borderRadius="standard">
-            <Rows spacing="1u">
-              <TypographyP size="small" weight="medium" tone="content">
-                <FormattedMessage {...sanityConnectionPanelMessages.oauthSectionTitle} />
-              </TypographyP>
-              <TypographyP size="xsmall" tone="subtle">
-                <FormattedMessage {...sanityConnectionPanelMessages.oauthSectionDescription} />
-              </TypographyP>
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                onClick={() => oauthConnect.mutate()}
-                disabled={oauthConnect.isPending}
-              >
-                {oauthConnect.isPending ? (
-                  <FormattedMessage {...sanityConnectionPanelMessages.oauthConnectingButton} />
-                ) : (
-                  <FormattedMessage {...sanityConnectionPanelMessages.oauthConnectButton} />
-                )}
-                <ArrowUpRightIcon className="size-3.5" />
-              </Button>
-            </Rows>
-          </Box>
-          <TypographyMuted className="text-center text-xs">
-            <FormattedMessage {...sanityConnectionPanelMessages.connectMethodDivider} />
-          </TypographyMuted>
-          <Box padding="1.5u" background="canvas" border="standard" borderRadius="standard">
-            <Rows spacing="1u">
-              <TypographyP size="small" weight="medium" tone="content">
-                <FormattedMessage {...sanityConnectionPanelMessages.apiTokenSectionTitle} />
-              </TypographyP>
-              <TypographyP size="xsmall" tone="subtle">
-                <FormattedMessage {...sanityConnectionPanelMessages.apiTokenSectionDescription} />
-              </TypographyP>
-              <WorkOsWidgets queryClient={queryClient}>
-                <Pipes authToken={resolvePipesAuthToken} filter={{ slugs: [SANITY_PIPES_SLUG] }} />
-              </WorkOsWidgets>
-            </Rows>
-          </Box>
-        </Rows>
+            ) : (
+              <div />
+            )}
+            <div className="flex flex-wrap gap-2 sm:ms-auto">
+              {showConnectedDetails ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  render={<Link href={buildAutomationsPath(organizationSlug)} />}
+                >
+                  <FormattedMessage {...sanityConnectionPanelMessages.openAutomations} />
+                </Button>
+              ) : null}
+              {userCanManage && isApiTokenMode ? (
+                <Button type="submit" disabled={!canSaveApiToken}>
+                  <FloppyDiskIcon />
+                  {saveApiToken.isPending ? (
+                    <FormattedMessage {...sanityConnectionPanelMessages.savingApiToken} />
+                  ) : (
+                    <FormattedMessage {...sanityConnectionPanelMessages.saveApiToken} />
+                  )}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </form>
       )}
     </CollapsibleIntegrationRow>
   );
