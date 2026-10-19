@@ -82,12 +82,23 @@ const SANITY_DATASET = "production";
 const DOCUMENT_ID = "doc-id";
 const DOCUMENT_TYPE = "article";
 
+const SOURCE_PATH = `sanity/${SANITY_PROJECT_ID}/${SANITY_DATASET}/${DOCUMENT_TYPE}/${DOCUMENT_ID}.json`;
+
 const sampleSegment = {
   key: "sanity.k.01TESTSEGMENTKEY",
   documentId: DOCUMENT_ID,
   documentType: DOCUMENT_TYPE,
   text: "Hello",
 };
+
+function sanityDocumentFields() {
+  return {
+    sanityProjectId: SANITY_PROJECT_ID,
+    dataset: SANITY_DATASET,
+    documentId: DOCUMENT_ID,
+    documentType: DOCUMENT_TYPE,
+  };
+}
 
 async function accessTokenHeaders(input: {
   connectionId: string;
@@ -341,7 +352,7 @@ describe("sanityIntegrationRoutes", () => {
     mocks.collectSanityPageMock.mockResolvedValue({
       projectId: projectBody.project.id,
       sourceFileId: "file_collected",
-      sourcePath: "sanity/files/file-key/page-id.json",
+      sourcePath: SOURCE_PATH,
       segmentCount: 3,
     });
 
@@ -349,8 +360,7 @@ describe("sanityIntegrationRoutes", () => {
       {
         json: {
           projectId: projectBody.project.id,
-          fileKey: "file-key",
-          pageId: "page-id",
+          ...sanityDocumentFields(),
           segments: [sampleSegment],
         },
       },
@@ -363,14 +373,13 @@ describe("sanityIntegrationRoutes", () => {
     await expect(response.json()).resolves.toEqual({
       projectId: projectBody.project.id,
       sourceFileId: "file_collected",
-      sourcePath: "sanity/files/file-key/page-id.json",
+      sourcePath: SOURCE_PATH,
       segmentCount: 3,
     });
     expect(mocks.collectSanityPageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         apiKeyId: apiKey.id,
-        fileKey: "file-key",
-        pageId: "page-id",
+        ...sanityDocumentFields(),
       }),
     );
     expect(mocks.startSanityLocalizationMock).not.toHaveBeenCalled();
@@ -406,13 +415,13 @@ describe("sanityIntegrationRoutes", () => {
         {
           locale: "en",
           isSource: true,
-          pages: [{ pageId: "page-id", status: "succeeded" }],
+          documents: [{ documentId: DOCUMENT_ID, status: "succeeded" }],
         },
       ],
-      pages: [
+      documents: [
         {
-          pageId: "page-id",
-          sourcePath: "sanity/files/file-key/page-id.json",
+          documentId: DOCUMENT_ID,
+          sourcePath: SOURCE_PATH,
           sourceFileId: "file_collected",
           segmentCount: 3,
         },
@@ -422,8 +431,9 @@ describe("sanityIntegrationRoutes", () => {
     const response = await client.api.integrations.sanity.locales.$get(
       {
         query: {
-          fileKey: "file-key",
-          pageIds: "page-id",
+          sanityProjectId: SANITY_PROJECT_ID,
+          dataset: SANITY_DATASET,
+          documentIds: DOCUMENT_ID,
           projectId: projectBody.project.id,
         },
       },
@@ -435,12 +445,12 @@ describe("sanityIntegrationRoutes", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       locales: expect.any(Array),
-      pages: expect.any(Array),
+      documents: expect.any(Array),
     });
     expect(mocks.listSanityPageLocaleStatusesMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        fileKey: "file-key",
-        pageIds: ["page-id"],
+        sanityProjectId: SANITY_PROJECT_ID,
+        documentIds: [DOCUMENT_ID],
       }),
     );
   });
@@ -482,18 +492,16 @@ describe("sanityIntegrationRoutes", () => {
       jobId: "job_created",
       generated: false,
       projectId: projectBody.project.id,
-      sourcePath: "sanity/file-key/page-id.json",
+      sourcePath: SOURCE_PATH,
     });
 
     const response = await client.api.integrations.sanity.jobs.$post(
       {
         json: {
           projectId: projectBody.project.id,
-          fileKey: "file-key",
-          pageId: "page-id",
+          documents: [{ ...sanityDocumentFields(), segments: [sampleSegment] }],
           targetLocales: ["fr-FR"],
           generate: false,
-          segments: [sampleSegment],
         },
       },
       {
@@ -507,15 +515,14 @@ describe("sanityIntegrationRoutes", () => {
         jobId: "job_created",
         generated: false,
         projectId: projectBody.project.id,
-        sourcePath: "sanity/file-key/page-id.json",
+        sourcePath: SOURCE_PATH,
       },
     });
     expect(mocks.startSanityLocalizationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generate: false,
         projectId: projectBody.project.id,
-        fileKey: "file-key",
-        pageId: "page-id",
+        ...sanityDocumentFields(),
       }),
     );
   });
@@ -557,15 +564,14 @@ describe("sanityIntegrationRoutes", () => {
       jobId: "job_generated",
       generated: true,
       projectId: projectBody.project.id,
-      sourcePath: "sanity/files/file-key/page-id.json",
+      sourcePath: SOURCE_PATH,
     });
 
     const response = await client.api.integrations.sanity.jobs.$post(
       {
         json: {
           projectId: projectBody.project.id,
-          fileKey: "file-key",
-          pageId: "page-id",
+          documents: [sanityDocumentFields()],
           targetLocales: ["vi"],
           generate: true,
         },
@@ -581,15 +587,14 @@ describe("sanityIntegrationRoutes", () => {
         jobId: "job_generated",
         generated: true,
         projectId: projectBody.project.id,
-        sourcePath: "sanity/files/file-key/page-id.json",
+        sourcePath: SOURCE_PATH,
       },
     });
     expect(mocks.startSanityLocalizationMock).not.toHaveBeenCalled();
     expect(mocks.generateSanityLocaleJobsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: projectBody.project.id,
-        fileKey: "file-key",
-        pageId: "page-id",
+        ...sanityDocumentFields(),
         targetLocales: ["vi"],
       }),
     );
@@ -621,10 +626,8 @@ describe("sanityIntegrationRoutes", () => {
     const response = await client.api.integrations.sanity.jobs.$post(
       {
         json: {
-          fileKey: "file-key",
-          pageId: "page-id",
+          documents: [{ ...sanityDocumentFields(), segments: [sampleSegment] }],
           generate: true,
-          segments: [sampleSegment],
         } as never,
       },
       {
@@ -674,8 +677,7 @@ describe("sanityIntegrationRoutes", () => {
       {
         query: {
           projectId: projectBody.project.id,
-          fileKey: "file-key",
-          pageId: "page-id",
+          ...sanityDocumentFields(),
         },
       },
       {
@@ -722,7 +724,7 @@ describe("sanityIntegrationRoutes", () => {
       kind: "source",
       sourcePage: {
         locale: "en-US",
-        sourcePath: "sanity/files/file-key/page-1.json",
+        sourcePath: SOURCE_PATH,
         needsReupload: false,
         entries: [{ key: sampleSegment.key, source: "Hello", knownTexts: ["Hola"] }],
       },
@@ -732,8 +734,7 @@ describe("sanityIntegrationRoutes", () => {
       {
         query: {
           projectId: projectBody.project.id,
-          fileKey: "file-key",
-          pageId: "page-id",
+          ...sanityDocumentFields(),
           locale: "en-US",
         },
       },
@@ -746,7 +747,7 @@ describe("sanityIntegrationRoutes", () => {
     await expect(response.json()).resolves.toEqual({
       sourcePage: {
         locale: "en-US",
-        sourcePath: "sanity/files/file-key/page-1.json",
+        sourcePath: SOURCE_PATH,
         needsReupload: false,
         entries: [{ key: sampleSegment.key, source: "Hello", knownTexts: ["Hola"] }],
       },

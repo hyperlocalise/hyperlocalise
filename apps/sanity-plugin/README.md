@@ -1,6 +1,5 @@
 # sanity-plugin-hyperlocalise
 
-
 ## Installation
 
 ```sh
@@ -20,7 +19,6 @@ export default defineConfig({
   plugins: [myPlugin({})],
 })
 ```
-
 
 ## Develop & test
 

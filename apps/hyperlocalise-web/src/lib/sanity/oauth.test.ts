@@ -34,10 +34,12 @@ function pkceChallenge(verifier: string) {
   return createHash("sha256").update(verifier).digest("base64url");
 }
 
+const REDIRECT_URI = "http://localhost:3000/connect/sanity/oauth/callback";
+
 function authorizationRequest(overrides: { redirectUri?: string; state?: string } = {}) {
   return createSanityOauthAuthorizationRequest({
     clientId: "test-sanity-oauth-client",
-    redirectUri: overrides.redirectUri ?? "https://www.sanity.com/apps/oauth/authorized",
+    redirectUri: overrides.redirectUri ?? REDIRECT_URI,
     codeChallenge: pkceChallenge(VERIFIER),
     codeChallengeMethod: "S256",
     scope: "sanity",
@@ -68,7 +70,7 @@ describe("Sanity OAuth authorization cookies", () => {
     const parsed = parseSanityOauthAuthorizationRequest(token);
     expect(parsed).toMatchObject({
       clientId: "test-sanity-oauth-client",
-      redirectUri: "https://www.sanity.com/apps/oauth/authorized",
+      redirectUri: REDIRECT_URI,
       codeChallengeMethod: "S256",
       scope: "sanity",
       state: "sanity-state",
@@ -116,29 +118,27 @@ describe("authenticateSanityOauthClient", () => {
 
 describe("Sanity OAuth redirects and tokens", () => {
   it("allows the default Sanity redirect and rejects unknown URIs", () => {
-    expect(isAllowedSanityOauthRedirectUri("https://www.sanity.com/apps/oauth/authorized")).toBe(
-      true,
-    );
+    expect(isAllowedSanityOauthRedirectUri(REDIRECT_URI)).toBe(true);
     expect(isAllowedSanityOauthRedirectUri("https://evil.example/callback")).toBe(false);
   });
 
   it("preserves state on success and error redirects", () => {
     expect(
       buildSanityOauthRedirect({
-        redirectUri: "https://www.sanity.com/apps/oauth/authorized",
+        redirectUri: REDIRECT_URI,
         code: "auth-code",
         state: "sanity-state",
       }),
-    ).toBe("https://www.sanity.com/apps/oauth/authorized?code=auth-code&state=sanity-state");
+    ).toBe(`${REDIRECT_URI}?code=auth-code&state=sanity-state`);
     expect(
       buildSanityOauthRedirect({
-        redirectUri: "https://www.sanity.com/apps/oauth/authorized",
+        redirectUri: REDIRECT_URI,
         error: "access_denied",
         errorDescription: "User declined",
         state: "sanity-state",
       }),
     ).toBe(
-      "https://www.sanity.com/apps/oauth/authorized?error=access_denied&error_description=User+declined&state=sanity-state",
+      `${REDIRECT_URI}?error=access_denied&error_description=User+declined&state=sanity-state`,
     );
   });
 

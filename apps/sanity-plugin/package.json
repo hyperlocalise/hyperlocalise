@@ -10,14 +10,18 @@
   "bugs": {
     "url": "https://github.com/hyperlocalise/hyperlocalise/issues"
   },
+  "license": "UNLICENSED",
+  "author": "Kha-Vi Nguyen <nguyenkhavi01032001@gmail.com>",
   "repository": {
     "type": "git",
     "url": "git@github.com:hyperlocalise/hyperlocalise.git"
   },
-  "license": "UNLICENSED",
-  "author": "Kha-Vi Nguyen <nguyenkhavi01032001@gmail.com>",
-  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
   "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "source": "./src/index.tsx",
@@ -25,10 +29,6 @@
     },
     "./package.json": "./package.json"
   },
-  "types": "./dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "plugin-kit verify-package --silent && pkg-utils build --strict --check --clean",
     "format": "oxfmt",

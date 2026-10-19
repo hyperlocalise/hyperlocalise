@@ -91,7 +91,8 @@ function base64Url(input: Buffer | string): string {
 }
 
 function sign(value: string): string {
-  return createHmac("sha256", getOauthSecret()).update(value).digest("base64url");
+  // HMAC over the OAuth request cookie payload (PKCE metadata), not a user password.
+  return createHmac("sha256", getOauthSecret()).update(value).digest("base64url"); // codeql[js/insufficient-password-hash]
 }
 
 function constantTimeEqual(left: string, right: string): boolean {
@@ -155,8 +156,8 @@ export function getSanityOauthRedirectAllowlist(): string[] {
     redirects.add(new URL("/connect/sanity/oauth/callback", publicAppUrl).href);
   }
 
-  if (env.NODE_ENV === "development") {
-    redirects.add("http://localhost:3000/connect/sanity/oauth/callback");
+  if (env.NODE_ENV === "development" || env.NODE_ENV === "test") {
+    redirects.add(DEFAULT_SANITY_REDIRECT_URI);
   }
 
   return [...redirects];

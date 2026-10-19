@@ -1,75 +1,82 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Box, Button, Card, Flex, Select, Stack, Text } from "@sanity/ui";
-import { useDataset, useProjectId } from "sanity";
+import {Box, Button, Card, Flex, Select, Stack, Text} from '@sanity/ui'
+import {useCallback, useEffect, useMemo, useState} from 'react'
+import {useDataset, useProjectId} from 'sanity'
 
-import { fetchSanitySession, resourceAuthFromSettings } from "./hyperlocalise-client";
-import type { HyperlocalisePluginOptions } from "./plugin-options";
-import { fetchSanityIntegrationHealth, runSanityOAuthHandoff } from "./sanity-oauth";
-import { loadSettings, saveSettings, type PluginSettings } from "./settings";
+import {fetchSanitySession, resourceAuthFromSettings} from './hyperlocalise-client'
+import type {HyperlocalisePluginOptions} from './plugin-options'
+import {fetchSanityIntegrationHealth, runSanityOAuthHandoff} from './sanity-oauth'
+import {loadSettings, saveSettings, type PluginSettings} from './settings'
 
-type Screen = "connect" | "project" | "workflow";
+type Screen = 'connect' | 'project' | 'workflow'
 
-export function HyperlocaliseTool({ pluginOptions }: { pluginOptions: HyperlocalisePluginOptions }) {
-  const sanityProjectId = useProjectId() ?? "";
-  const dataset = useDataset() ?? "production";
-  const [screen, setScreen] = useState<Screen>("connect");
-  const [settings, setSettings] = useState<PluginSettings>(() => loadSettings(sanityProjectId, dataset));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export function HyperlocaliseTool({pluginOptions}: {pluginOptions: HyperlocalisePluginOptions}) {
+  const sanityProjectId = useProjectId() ?? ''
+  const dataset = useDataset() ?? 'production'
+  const settingsScope = `${sanityProjectId}:${dataset}`
+  const [screen, setScreen] = useState<Screen>('connect')
+  const [loadedScope, setLoadedScope] = useState(settingsScope)
+  const [settings, setSettings] = useState<PluginSettings>(() =>
+    loadSettings(sanityProjectId, dataset),
+  )
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [sessionProjects, setSessionProjects] = useState<
-    Array<{ id: string; name: string; sourceLocale: string; targetLocales: string[] }>
-  >([]);
+    Array<{id: string; name: string; sourceLocale: string; targetLocales: string[]}>
+  >([])
 
-  const appUrl = settings.appUrl;
-  const auth = useMemo(() => resourceAuthFromSettings(settings), [settings]);
+  const appUrl = settings.appUrl
+  const auth = useMemo(() => resourceAuthFromSettings(settings), [settings])
 
-  useEffect(() => {
-    setSettings(loadSettings(sanityProjectId, dataset));
-  }, [sanityProjectId, dataset]);
+  if (loadedScope !== settingsScope) {
+    setLoadedScope(settingsScope)
+    setSettings(loadSettings(sanityProjectId, dataset))
+  }
+  if (!auth && screen !== 'connect') {
+    setScreen('connect')
+  }
 
   useEffect(() => {
     if (!auth) {
-      setScreen("connect");
-      return;
+      return
     }
     void (async () => {
       try {
-        const session = await fetchSanitySession({ appUrl, auth });
-        setSessionProjects(session.projects);
-        setScreen(settings.projectId ? "workflow" : "project");
+        const session = await fetchSanitySession({appUrl, auth})
+        setSessionProjects(session.projects)
+        setScreen(settings.projectId ? 'workflow' : 'project')
       } catch {
-        setScreen("connect");
+        setScreen('connect')
       }
-    })();
-  }, [auth, appUrl, settings.projectId]);
+    })()
+  }, [auth, appUrl, settings.projectId])
 
   const connect = useCallback(async () => {
-    setBusy(true);
-    setError(null);
+    setBusy(true)
+    setError(null)
     try {
-      const health = await fetchSanityIntegrationHealth(appUrl);
+      const health = await fetchSanityIntegrationHealth(appUrl)
       if (!health.sanityOauthConfigured || !health.sanityOauthClientId) {
-        throw new Error("Hyperlocalise OAuth is not configured for this app URL.");
+        throw new Error('Hyperlocalise OAuth is not configured for this app URL.')
       }
       const tokens = await runSanityOAuthHandoff({
         appUrl,
         clientId: health.sanityOauthClientId,
-      });
+      })
       const next = saveSettings(sanityProjectId, dataset, {
         ...settings,
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
-      });
-      setSettings(next);
-      setScreen("project");
+      })
+      setSettings(next)
+      setScreen('project')
     } catch (connectError) {
-      setError(connectError instanceof Error ? connectError.message : "Connect failed.");
+      setError(connectError instanceof Error ? connectError.message : 'Connect failed.')
     } finally {
-      setBusy(false);
+      setBusy(false)
     }
-  }, [appUrl, dataset, sanityProjectId, settings]);
+  }, [appUrl, dataset, sanityProjectId, settings])
 
-  if (screen === "connect") {
+  if (screen === 'connect') {
     return (
       <Box padding={4}>
         <Stack gap={4}>
@@ -77,21 +84,26 @@ export function HyperlocaliseTool({ pluginOptions }: { pluginOptions: Hyperlocal
             Connect Hyperlocalise
           </Text>
           <Text muted size={1}>
-            Sign in with OAuth to link this Studio to your workspace. Local development uses the same
-            PKCE handoff flow as production.
+            Sign in with OAuth to link this Studio to your workspace. Local development uses the
+            same PKCE handoff flow as production.
           </Text>
           {error ? (
             <Card padding={3} tone="critical">
               <Text size={1}>{error}</Text>
             </Card>
           ) : null}
-          <Button text="Connect Hyperlocalise" tone="primary" disabled={busy} onClick={() => void connect()} />
+          <Button
+            text="Connect Hyperlocalise"
+            tone="primary"
+            disabled={busy}
+            onClick={() => void connect()}
+          />
         </Stack>
       </Box>
-    );
+    )
   }
 
-  if (screen === "project") {
+  if (screen === 'project') {
     return (
       <Box padding={4}>
         <Stack gap={4}>
@@ -99,13 +111,13 @@ export function HyperlocaliseTool({ pluginOptions }: { pluginOptions: Hyperlocal
             Choose project
           </Text>
           <Select
-            value={settings.projectId ?? ""}
+            value={settings.projectId ?? ''}
             onChange={(event) => {
-              const projectId = event.currentTarget.value;
-              const next = saveSettings(sanityProjectId, dataset, { ...settings, projectId });
-              setSettings(next);
+              const projectId = event.currentTarget.value
+              const next = saveSettings(sanityProjectId, dataset, {...settings, projectId})
+              setSettings(next)
               if (projectId) {
-                setScreen("workflow");
+                setScreen('workflow')
               }
             }}
           >
@@ -118,7 +130,7 @@ export function HyperlocaliseTool({ pluginOptions }: { pluginOptions: Hyperlocal
           </Select>
         </Stack>
       </Box>
-    );
+    )
   }
 
   return (
@@ -136,8 +148,8 @@ export function HyperlocaliseTool({ pluginOptions }: { pluginOptions: Hyperlocal
                 ...settings,
                 accessToken: undefined,
                 refreshToken: undefined,
-              });
-              setScreen("connect");
+              })
+              setScreen('connect')
             }}
           />
         </Flex>
@@ -145,10 +157,10 @@ export function HyperlocaliseTool({ pluginOptions }: { pluginOptions: Hyperlocal
           Studio plugin options: {JSON.stringify(pluginOptions)}
         </Text>
         <Text size={1}>
-          Upload, Translate, and Apply for documents will use project{" "}
+          Upload, Translate, and Apply for documents will use project{' '}
           <strong>{settings.projectId}</strong> on dataset <strong>{dataset}</strong>.
         </Text>
       </Stack>
     </Box>
-  );
+  )
 }

@@ -1,4 +1,4 @@
 export type HyperlocalisePluginOptions = {
-  documentTypes?: string[];
-  fieldTypes?: string[];
-};
+  documentTypes?: string[]
+  fieldTypes?: string[]
+}
