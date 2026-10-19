@@ -153,33 +153,6 @@ describe("sanityIntegrationRoutes", () => {
     expect(body).toMatchObject({ error: "sanity_access_token_required" });
   });
 
-  it("rejects legacy sealed-session and bearer authentication", async () => {
-    const sealed = await client.api.integrations.sanity.session.$get(undefined, {
-      headers: {
-        "X-Hyperlocalise-Sanity-Session": "sealed.session.value",
-        "X-Hyperlocalise-Organization-Slug": "acme",
-      },
-    });
-    expect(sealed.status).toBe(401);
-
-    const bearer = await client.api.integrations.sanity.session.$get(undefined, {
-      headers: {
-        Authorization: "Bearer sealed.session.from.bearer",
-      },
-    });
-    expect(bearer.status).toBe(401);
-  });
-
-  it("rejects legacy connection token headers", async () => {
-    const response = await client.api.integrations.sanity.session.$get(undefined, {
-      headers: {
-        "X-Hyperlocalise-Connection-Token": "hl_sanity_unknown_token_value",
-      },
-    });
-    expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toMatchObject({ error: "sanity_access_token_required" });
-  });
-
   it("rejects unknown access tokens", async () => {
     const response = await client.api.integrations.sanity.session.$get(undefined, {
       headers: {

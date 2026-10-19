@@ -91,10 +91,9 @@ describe("sanityConnectionRoutes", () => {
       sanityConnection: {
         displayName: string;
       };
-      connectionToken?: string;
     };
     expect(body.sanityConnection.displayName).toBe("Marketing Sanity");
-    expect(body.connectionToken).toBeUndefined();
+    expect(body).not.toHaveProperty("connectionToken");
     expect(projectBody.project.id).toBeTruthy();
     expect(mocks.enqueueActivityLogEventMock).toHaveBeenCalledWith(
       expect.objectContaining({

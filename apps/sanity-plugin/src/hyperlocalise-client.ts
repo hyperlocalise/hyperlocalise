@@ -239,7 +239,7 @@ export async function fetchSanityLocaleStatusesFromApi(input: {
 
 export async function fetchCurrentSanityJob(input: {
   appUrl: string;
-  auth: string | SanityResourceAuth;
+  auth: SanityResourceAuth;
   fileKey: string;
   pageId: string;
   projectId: string;
@@ -265,7 +265,7 @@ export async function fetchCurrentSanityJob(input: {
 
 export async function getSanityJob(input: {
   appUrl: string;
-  auth: string | SanityResourceAuth;
+  auth: SanityResourceAuth;
   jobId: string;
 }): Promise<SanityDocumentJob> {
   const response = await fetch(
@@ -284,7 +284,7 @@ export async function getSanityJob(input: {
 
 export async function generateSanityLocaleJob(input: {
   appUrl: string;
-  auth: string | SanityResourceAuth;
+  auth: SanityResourceAuth;
   projectId: string;
   fileKey: string;
   pageId: string;
@@ -299,7 +299,7 @@ export async function generateSanityLocaleJob(input: {
 
 export async function generateSanityJob(input: {
   appUrl: string;
-  auth: string | SanityResourceAuth;
+  auth: SanityResourceAuth;
   jobId: string;
 }): Promise<void> {
   const response = await fetch(
@@ -349,7 +349,7 @@ export type SanitySourcePullPagePayload = {
 
 export async function pullSanitySourcePage(input: {
   appUrl: string;
-  auth: string | SanityResourceAuth;
+  auth: SanityResourceAuth;
   projectId: string;
   fileKey: string;
   pageId: string;
@@ -377,7 +377,7 @@ export async function pullSanitySourcePage(input: {
 
 export async function pullSanityTranslations(input: {
   appUrl: string;
-  auth: string | SanityResourceAuth;
+  auth: SanityResourceAuth;
   projectId: string;
   fileKey: string;
   pageId: string;
