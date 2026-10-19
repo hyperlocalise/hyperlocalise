@@ -68,9 +68,10 @@ export function collectCompletedTranslationPageEntries(input: {
   return collected;
 }
 
-/** HTML keys are tag paths. The pinned sandbox CLI still hashes content, so the
- * lock and a re-extracted target file never share keys. Collect only path keys
- * that belong to lock-completed folded hashes; leftover source fallbacks stay out. */
+/** HTML keys are tag paths. CLI 1.13.3 hashed folded paragraphs, so the lock and
+ * a re-extracted target never share keys. CLI 1.13.4+ writes the same path keys
+ * as CAT. Collect only path keys that a lock completion named — leftover source
+ * fallbacks stay out. */
 export function collectHtmlTranslationPageEntries(input: {
   sourceEntries: Record<string, string>;
   extracted: Record<string, string>;

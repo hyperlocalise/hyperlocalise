@@ -192,6 +192,30 @@ describe("htmlCompletedPathKeysFromLock", () => {
     expect(htmlCompletedPathKeysFromLock(html, [`${first}#srx.0`])).toEqual(["html.p"]);
     expect(htmlCompletedPathKeysFromLock(html, [second])).toEqual(["html.div"]);
   });
+
+  it("keeps CLI 1.13.4 tag-path lock keys", () => {
+    const html = "<p>Hello <strong>world</strong>!</p>";
+    expect(htmlCompletedPathKeysFromLock(html, ["html.p", "html.p.strong"])).toEqual([
+      "html.p",
+      "html.p.strong",
+    ]);
+  });
+
+  it("strips #srx from tag-path lock keys", () => {
+    const html = "<p>Hello</p>";
+    expect(htmlCompletedPathKeysFromLock(html, ["html.p#srx.0"])).toEqual(["html.p"]);
+  });
+
+  it("maps hashed keys and keeps path keys from the same lock", () => {
+    const html = "<p>Hello <strong>world</strong>!</p><div>Other</div>";
+    const folded = extractHtmlIngestEntries(html, { foldInline: true });
+    const hash = legacyHtmlSegmentKey(folded["html.p"] ?? "", new Map());
+    expect(htmlCompletedPathKeysFromLock(html, [hash, "html.div"])).toEqual([
+      "html.p",
+      "html.p.strong",
+      "html.div",
+    ]);
+  });
 });
 
 describe("htmlCliPrefillsFromPathEntries", () => {

@@ -208,8 +208,17 @@ export function htmlCompletedPathKeysFromLock(
   for (const key of completedLegacyKeys) {
     const match = HASHED_HTML_KEY.exec(key);
     const base = match ? `html.${match[1]}${match[2] ? `.${match[2]}` : ""}` : key;
-    for (const pathKey of hashToPaths.get(base) ?? []) {
-      out.add(pathKey);
+    const mapped = hashToPaths.get(base);
+    if (mapped && mapped.length > 0) {
+      for (const pathKey of mapped) {
+        out.add(pathKey);
+      }
+      continue;
+    }
+    // CLI 1.13.4+ writes tag-path lock keys (html.p, html.p.strong). Hashed
+    // 1.13.3 keys still expand through hashToPaths above.
+    if (!match && base.startsWith("html.")) {
+      out.add(base.replace(/#srx\.\d+$/, ""));
     }
   }
   return [...out];
