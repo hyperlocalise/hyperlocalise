@@ -26,6 +26,7 @@ import { reportMessages as messages } from "./reports.messages";
 import { MATCH_BUCKETS } from "@/lib/reporting/word-analysis";
 import type { ReportRow } from "@/lib/reporting/query";
 import { TaskReportingPanel } from "./task-reporting-panel";
+import { WordCountTotals } from "./word-count-totals";
 
 type Label = keyof typeof messages;
 
@@ -61,7 +62,7 @@ type Budget = {
   forecastWarning: "none" | "approaching" | "exceeded";
 };
 type Settings = {
-  projects: { id: string; name: string }[];
+  projects: { id: string; name: string; targetLocales: string[] | null }[];
   rates: Rate[];
   budgets: Budget[];
   financial: boolean;
@@ -259,7 +260,12 @@ export function ReportsWorkspace({
   csvParams.set("format", "csv");
   params.set("page", String(page));
   const updateFilter = (key: keyof typeof filters, value: string) => {
-    setFilters((previous) => ({ ...previous, [key]: value }));
+    // A task belongs to one project, so changing the project clears the task.
+    setFilters((previous) => ({
+      ...previous,
+      [key]: value,
+      ...(key === "projectId" ? { jobId: "" } : {}),
+    }));
     setPage(1);
   };
   const settings = useQuery({
@@ -287,6 +293,27 @@ export function ReportsWorkspace({
     value: project.id,
     label: project.name,
   }));
+  const jobs = useQuery({
+    queryKey: ["reports", organizationSlug, "jobs", appliedFilters.projectId],
+    queryFn: () =>
+      reportingFetch<{ jobs: { id: string; title: string; projectId: string | null }[] }>(
+        `${base}/jobs${appliedFilters.projectId ? `?projectId=${encodeURIComponent(appliedFilters.projectId)}` : ""}`,
+      ),
+  });
+  const jobTitleById = new Map((jobs.data?.jobs ?? []).map((job) => [job.id, job.title]));
+  const jobOptions = (jobs.data?.jobs ?? []).map((job) => ({ value: job.id, label: job.title }));
+  if (filters.jobId && !jobTitleById.has(filters.jobId)) {
+    jobOptions.unshift({ value: filters.jobId, label: filters.jobId });
+  }
+  const languageOptions = [
+    ...new Set(
+      (settings.data?.settings.projects ?? [])
+        .filter((project) => !filters.projectId || project.id === filters.projectId)
+        .flatMap((project) => project.targetLocales ?? []),
+    ),
+  ]
+    .sort((left, right) => left.localeCompare(right))
+    .map((locale) => ({ value: locale, label: locale }));
   const stepOptions = ["translation", "review"].map((value) => ({
     value,
     label: label(value as Label),
@@ -339,8 +366,10 @@ export function ReportsWorkspace({
         {(["from", "to", "projectId", "jobId", "targetLocale", "step", "interval"] as const).map(
           (key) => (
             <Field key={key}>
-              <FieldLabel htmlFor={`filter-${key}`}>{label(key)}</FieldLabel>
-              {["projectId", "step", "interval"].includes(key) ? (
+              <FieldLabel htmlFor={`filter-${key}`}>
+                {label(key === "jobId" ? "taskFilter" : key)}
+              </FieldLabel>
+              {["projectId", "jobId", "targetLocale", "step", "interval"].includes(key) ? (
                 <select
                   id={`filter-${key}`}
                   value={filters[key]}
@@ -350,12 +379,16 @@ export function ReportsWorkspace({
                   {key !== "interval" ? <option value="">{label("all")}</option> : null}
                   {(key === "projectId"
                     ? projectOptions
-                    : key === "step"
-                      ? stepOptions
-                      : [
-                          { value: "day", label: label("day") },
-                          { value: "week", label: label("week") },
-                        ]
+                    : key === "jobId"
+                      ? jobOptions
+                      : key === "targetLocale"
+                        ? languageOptions
+                        : key === "step"
+                          ? stepOptions
+                          : [
+                              { value: "day", label: label("day") },
+                              { value: "week", label: label("week") },
+                            ]
                   ).map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -365,7 +398,7 @@ export function ReportsWorkspace({
               ) : (
                 <Input
                   id={`filter-${key}`}
-                  type={key === "from" || key === "to" ? "date" : "text"}
+                  type="date"
                   value={filters[key]}
                   onChange={(event) => updateFilter(key, event.target.value)}
                 />
@@ -451,23 +484,27 @@ export function ReportsWorkspace({
                         )?.name ??
                         row.projectId ??
                         "—")
-                      : key === "amountUsd"
-                        ? row.amountUsd === null
-                          ? label("unknownCost")
-                          : intl.formatNumber(Number(row.amountUsd), {
-                              style: "currency",
-                              currency: "USD",
-                              maximumFractionDigits: 6,
-                            })
-                        : ["kind", "step", "bucket"].includes(key) &&
-                            row[key] &&
-                            row[key] in messages
-                          ? label(row[key] as Label)
-                          : key === "targetLocale" &&
-                              row.targetLocale === null &&
-                              ["ai", "human", "expense"].includes(row.kind)
-                            ? label("unallocated")
-                            : (row[key] ?? "—")}
+                      : key === "jobId"
+                        ? row.jobId
+                          ? (jobTitleById.get(row.jobId) ?? row.jobId)
+                          : "—"
+                        : key === "amountUsd"
+                          ? row.amountUsd === null
+                            ? label("unknownCost")
+                            : intl.formatNumber(Number(row.amountUsd), {
+                                style: "currency",
+                                currency: "USD",
+                                maximumFractionDigits: 6,
+                              })
+                          : ["kind", "step", "bucket"].includes(key) &&
+                              row[key] &&
+                              row[key] in messages
+                            ? label(row[key] as Label)
+                            : key === "targetLocale" &&
+                                row.targetLocale === null &&
+                                ["ai", "human", "expense"].includes(row.kind)
+                              ? label("unallocated")
+                              : (row[key] ?? "—")}
                   </TableCell>
                 ))}
               </TableRow>
@@ -497,6 +534,18 @@ export function ReportsWorkspace({
             {label("nextPage")}
           </Button>
         </div>
+      ) : null}
+      {view === "words" ? (
+        <WordCountTotals
+          base={base}
+          filters={{
+            from: appliedFilters.from,
+            to: appliedFilters.to,
+            projectId: appliedFilters.projectId,
+            targetLocale: appliedFilters.targetLocale,
+            step: appliedFilters.step,
+          }}
+        />
       ) : null}
       {appliedFilters.jobId ? (
         <TaskReportingPanel base={base} jobId={appliedFilters.jobId} />
