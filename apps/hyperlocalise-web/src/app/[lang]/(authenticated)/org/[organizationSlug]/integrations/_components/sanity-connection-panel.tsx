@@ -12,7 +12,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { ArrowUpRightIcon } from "@phosphor-icons/react";
+import { useAccessToken } from "@workos-inc/authkit-nextjs/components";
+import { Pipes, WorkOsWidgets } from "@workos-inc/widgets";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -23,17 +26,21 @@ import { Button } from "@/components/ui/button";
 import { Box } from "@/components/ui/layout/box";
 import { Rows } from "@/components/ui/layout/rows";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyP } from "@/components/ui/typography";
+import { TypographyMuted, TypographyP } from "@/components/ui/typography";
 import { createApiClient } from "@/lib/api-client";
 import { resolveWorkspaceIntegrationSummary } from "@/lib/integrations/workspace-integrations";
 import { SANITY_PIPES_SLUG } from "@/lib/sanity/constants";
 import type { SanityManageProject } from "@/lib/sanity/types";
 
 import { IntegrationLogo } from "./integration-logo";
-import { IntegrationRow } from "./integration-row";
+import { CollapsibleIntegrationRow } from "./integration-row";
+import { SimpleBrandIcon } from "./simple-brand-icon";
 import { pipesConnectionPanelMessages } from "./pipes-connection-panel.messages";
 import { sanityConnectionPanelMessages } from "./sanity-connection-panel.messages";
 import { usePipesStatus } from "./pipes-connection-panel";
+
+import "@radix-ui/themes/styles.css";
+import "@workos-inc/widgets/styles.css";
 
 const api = createApiClient();
 
@@ -48,6 +55,7 @@ export function SanityConnectionPanel({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { getAccessToken, loading: accessTokenLoading } = useAccessToken();
   const [expanded, setExpanded] = useState(false);
   const statusQuery = usePipesStatus(organizationSlug, SANITY_PIPES_SLUG, expanded);
   const summary = useMemo(
@@ -59,9 +67,11 @@ export function SanityConnectionPanel({
   const isConnected = Boolean(statusQuery.data?.connected);
   const needsReauthorization = Boolean(statusQuery.data?.needsReauthorization);
   const apiKeyLast4 = statusQuery.data?.apiKeyLast4 ?? null;
+  const showConnectedDetails = isConnected && !needsReauthorization;
+
   const projectsQuery = useQuery({
     queryKey: ["sanity-projects", organizationSlug],
-    enabled: expanded && isConnected,
+    enabled: expanded && showConnectedDetails,
     queryFn: async () => {
       const response = await api.api.orgs[":organizationSlug"].sanity.projects.$get({
         param: { organizationSlug },
@@ -78,18 +88,36 @@ export function SanityConnectionPanel({
   });
   const projects = projectsQuery.data ?? [];
 
-  const connect = useMutation({
+  async function resolvePipesAuthToken() {
+    const token = await getAccessToken();
+    if (!token) {
+      throw new Error(
+        intl.formatMessage(pipesConnectionPanelMessages.tokenRequired, { providerName }),
+      );
+    }
+    return token;
+  }
+
+  const oauthConnect = useMutation({
     mutationFn: async () => {
       const response = await api.api.orgs[":organizationSlug"].pipes[":provider"][
         "authorize-url"
       ].$get({
         param: { organizationSlug, provider: SANITY_PIPES_SLUG },
       });
+      const body = (await response.json().catch(() => null)) as {
+        url?: unknown;
+        message?: unknown;
+      } | null;
       if (!response.ok) {
-        throw new Error(intl.formatMessage(sanityConnectionPanelMessages.authorizeUrlFailedToast));
+        const serverMessage =
+          typeof body?.message === "string" && body.message.trim().length > 0 ? body.message : null;
+        throw new Error(
+          serverMessage ??
+            intl.formatMessage(sanityConnectionPanelMessages.authorizeUrlFailedToast),
+        );
       }
-      const body = await response.json();
-      if (!("url" in body) || typeof body.url !== "string" || body.url.length === 0) {
+      if (typeof body?.url !== "string" || body.url.trim().length === 0) {
         throw new Error(intl.formatMessage(sanityConnectionPanelMessages.authorizeUrlFailedToast));
       }
       return body.url;
@@ -131,11 +159,16 @@ export function SanityConnectionPanel({
     },
   });
 
-  const handleConnect = useCallback(() => {
-    connect.mutate();
-  }, [connect]);
+  const rowIcon = useMemo(() => {
+    if (summary?.logoSrc) {
+      return <IntegrationLogo src={summary.logoSrc} muted={!isConnected} />;
+    }
+    if (summary?.icon) {
+      return <SimpleBrandIcon icon={summary.icon} colored={isConnected} />;
+    }
+    return null;
+  }, [summary?.logoSrc, summary?.icon, isConnected]);
 
-  const action = !userCanManage ? "view-only" : isConnected ? "manage" : "connect";
   const description = statusQuery.isError
     ? intl.formatMessage(sanityConnectionPanelMessages.loadErrorDescription)
     : needsReauthorization
@@ -143,31 +176,21 @@ export function SanityConnectionPanel({
       : (summary?.detail ?? "");
 
   return (
-    <IntegrationRow
+    <CollapsibleIntegrationRow
       name={providerName}
       description={description}
-      icon={<IntegrationLogo src={summary?.logoSrc ?? "/images/sanity-logo.svg"} />}
-      iconMuted={!isConnected}
-      action={action}
+      icon={rowIcon}
+      isConnected={isConnected}
+      userIsAdmin={userCanManage}
       expanded={expanded}
       onExpandedChange={setExpanded}
-      onConnect={handleConnect}
-      isConnecting={connect.isPending}
-      isLoading={statusQuery.isLoading}
+      isLoading={statusQuery.isLoading || accessTokenLoading}
       isLast={isLast}
     >
       {statusQuery.isLoading ? (
         <Skeleton className="h-16 rounded-lg" />
-      ) : (
+      ) : showConnectedDetails ? (
         <Rows spacing="2u">
-          {needsReauthorization ? (
-            <TypographyP size="small" tone="subtle">
-              <FormattedMessage
-                {...pipesConnectionPanelMessages.reconnectHint}
-                values={{ providerName }}
-              />
-            </TypographyP>
-          ) : null}
           <Box padding="1.5u" background="canvas" border="standard" borderRadius="standard">
             <Rows spacing="1u">
               <TypographyP size="small" weight="medium" tone="content">
@@ -226,7 +249,61 @@ export function SanityConnectionPanel({
             ) : null}
           </Box>
         </Rows>
+      ) : (
+        <Rows spacing="2u">
+          {needsReauthorization ? (
+            <TypographyP size="small" tone="subtle">
+              <FormattedMessage
+                {...pipesConnectionPanelMessages.reconnectHint}
+                values={{ providerName }}
+              />
+            </TypographyP>
+          ) : null}
+          <TypographyP size="small" tone="subtle">
+            <FormattedMessage {...sanityConnectionPanelMessages.connectMethodsIntro} />
+          </TypographyP>
+          <Box padding="1.5u" background="canvas" border="standard" borderRadius="standard">
+            <Rows spacing="1u">
+              <TypographyP size="small" weight="medium" tone="content">
+                <FormattedMessage {...sanityConnectionPanelMessages.oauthSectionTitle} />
+              </TypographyP>
+              <TypographyP size="xsmall" tone="subtle">
+                <FormattedMessage {...sanityConnectionPanelMessages.oauthSectionDescription} />
+              </TypographyP>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={() => oauthConnect.mutate()}
+                disabled={oauthConnect.isPending}
+              >
+                {oauthConnect.isPending ? (
+                  <FormattedMessage {...sanityConnectionPanelMessages.oauthConnectingButton} />
+                ) : (
+                  <FormattedMessage {...sanityConnectionPanelMessages.oauthConnectButton} />
+                )}
+                <ArrowUpRightIcon className="size-3.5" />
+              </Button>
+            </Rows>
+          </Box>
+          <TypographyMuted className="text-center text-xs">
+            <FormattedMessage {...sanityConnectionPanelMessages.connectMethodDivider} />
+          </TypographyMuted>
+          <Box padding="1.5u" background="canvas" border="standard" borderRadius="standard">
+            <Rows spacing="1u">
+              <TypographyP size="small" weight="medium" tone="content">
+                <FormattedMessage {...sanityConnectionPanelMessages.apiTokenSectionTitle} />
+              </TypographyP>
+              <TypographyP size="xsmall" tone="subtle">
+                <FormattedMessage {...sanityConnectionPanelMessages.apiTokenSectionDescription} />
+              </TypographyP>
+              <WorkOsWidgets queryClient={queryClient}>
+                <Pipes authToken={resolvePipesAuthToken} filter={{ slugs: [SANITY_PIPES_SLUG] }} />
+              </WorkOsWidgets>
+            </Rows>
+          </Box>
+        </Rows>
       )}
-    </IntegrationRow>
+    </CollapsibleIntegrationRow>
   );
 }

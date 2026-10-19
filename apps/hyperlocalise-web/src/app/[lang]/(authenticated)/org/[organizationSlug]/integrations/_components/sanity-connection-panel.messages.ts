@@ -76,4 +76,46 @@ export const sanityConnectionPanelMessages = defineMessages({
     id: "2N6/VNF+/O",
     description: "Disconnect in progress",
   },
+  connectMethodsIntro: {
+    defaultMessage:
+      "Connect with OAuth or an API token through WorkOS Pipes. Use whichever method your Sanity project supports.",
+    id: "zxR2vWuUNy",
+    description: "Intro when choosing Sanity connection method",
+  },
+  oauthSectionTitle: {
+    defaultMessage: "OAuth",
+    id: "TzterDwIlB",
+    description: "Heading for Sanity OAuth connect section",
+  },
+  oauthSectionDescription: {
+    defaultMessage: "Authorize Hyperlocalise to access Sanity on your behalf.",
+    id: "dJiL6xRTN/",
+    description: "Helper text for Sanity OAuth connect",
+  },
+  oauthConnectButton: {
+    defaultMessage: "Authorize with Sanity",
+    id: "rqU5fqNTYZ",
+    description: "Button to start Sanity OAuth via WorkOS Pipes",
+  },
+  oauthConnectingButton: {
+    defaultMessage: "Redirecting…",
+    id: "pm1TRAF3RM",
+    description: "Button label while Sanity OAuth URL loads",
+  },
+  apiTokenSectionTitle: {
+    defaultMessage: "API token",
+    id: "OPALUIAEX/",
+    description: "Heading for Sanity API token connect section",
+  },
+  apiTokenSectionDescription: {
+    defaultMessage:
+      "Paste a token with Editor access or higher so automations can read content and write drafts.",
+    id: "6J//LkSaxm",
+    description: "Helper text above WorkOS Pipes widget for Sanity API token",
+  },
+  connectMethodDivider: {
+    defaultMessage: "Or",
+    id: "4QoIP+aO6O",
+    description: "Divider between OAuth and API token connect options",
+  },
 });
