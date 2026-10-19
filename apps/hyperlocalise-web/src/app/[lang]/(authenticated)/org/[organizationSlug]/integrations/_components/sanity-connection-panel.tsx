@@ -33,23 +33,25 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { createApiClient } from "@/lib/api-client";
 import { resolveWorkspaceIntegrationSummary } from "@/lib/integrations/workspace-integrations";
+import { isPipesProviderConnectable } from "@/lib/pipes/availability";
 import {
-  OAUTH_AUTH_MODE,
-  PAT_AUTH_MODE,
-} from "@/lib/providers/contracts/external-tms-provider-credential";
+  isSanityAuthMode,
+  SANITY_AUTH_MODE_API_TOKEN,
+  SANITY_AUTH_MODE_OAUTH,
+  type SanityAuthMode,
+} from "@/lib/sanity/auth-mode";
 import { SANITY_PIPES_SLUG } from "@/lib/sanity/constants";
 import type { SanityManageProject } from "@/lib/sanity/types";
 
 import { IntegrationLogo } from "./integration-logo";
-import { CollapsibleIntegrationRow } from "./integration-row";
+import { CollapsibleIntegrationRow, IntegrationRowFrame } from "./integration-row";
+import { integrationRowMessages } from "./integration-row.messages";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { pipesConnectionPanelMessages } from "./pipes-connection-panel.messages";
 import { sanityConnectionPanelMessages } from "./sanity-connection-panel.messages";
-import { usePipesStatus } from "./pipes-connection-panel";
+import { usePipesProviderAvailability, usePipesStatus } from "./pipes-connection-panel";
 
 const api = createApiClient();
-
-type SanityAuthMode = typeof OAUTH_AUTH_MODE | typeof PAT_AUTH_MODE;
 
 export function SanityConnectionPanel({
   organizationSlug,
@@ -65,10 +67,20 @@ export function SanityConnectionPanel({
   const authMethodFieldId = useId();
   const apiTokenFieldId = useId();
   const [expanded, setExpanded] = useState(false);
-  const [authMode, setAuthMode] = useState<SanityAuthMode>(OAUTH_AUTH_MODE);
+  const [authMode, setAuthMode] = useState<SanityAuthMode>(SANITY_AUTH_MODE_OAUTH);
   const [apiToken, setApiToken] = useState("");
   const [showApiToken, setShowApiToken] = useState(false);
-  const statusQuery = usePipesStatus(organizationSlug, SANITY_PIPES_SLUG, expanded);
+  const availabilityQuery = usePipesProviderAvailability(organizationSlug, SANITY_PIPES_SLUG);
+  const pipesConnectable = availabilityQuery.data
+    ? isPipesProviderConnectable(availabilityQuery.data)
+    : false;
+  const shouldLoadPipesStatus = availabilityQuery.isSuccess;
+  const statusQuery = usePipesStatus(
+    organizationSlug,
+    SANITY_PIPES_SLUG,
+    expanded,
+    shouldLoadPipesStatus,
+  );
   const summary = useMemo(
     () => resolveWorkspaceIntegrationSummary(intl, SANITY_PIPES_SLUG),
     [intl],
@@ -81,9 +93,14 @@ export function SanityConnectionPanel({
   const showConnectedDetails = isConnected && !needsReauthorization;
   const isOAuthConnected = showConnectedDetails && !apiKeyLast4;
   const isApiTokenConnected = showConnectedDetails && Boolean(apiKeyLast4);
-  const isOAuthMode = authMode === OAUTH_AUTH_MODE;
-  const isApiTokenMode = authMode === PAT_AUTH_MODE;
+  const isOAuthMode = authMode === SANITY_AUTH_MODE_OAUTH;
+  const isApiTokenMode = authMode === SANITY_AUTH_MODE_API_TOKEN;
   const trimmedApiToken = apiToken.trim();
+  const authModeLabel = isOAuthMode
+    ? intl.formatMessage(sanityConnectionPanelMessages.oauthMethodOption)
+    : intl.formatMessage(sanityConnectionPanelMessages.apiTokenMethodOption);
+  const showComingSoon =
+    availabilityQuery.isSuccess && !pipesConnectable && !isConnected && !statusQuery.isLoading;
 
   const projectsQuery = useQuery({
     queryKey: ["sanity-projects", organizationSlug],
@@ -109,9 +126,9 @@ export function SanityConnectionPanel({
       return;
     }
     if (apiKeyLast4) {
-      setAuthMode(PAT_AUTH_MODE);
+      setAuthMode(SANITY_AUTH_MODE_API_TOKEN);
     } else if (showConnectedDetails) {
-      setAuthMode(OAUTH_AUTH_MODE);
+      setAuthMode(SANITY_AUTH_MODE_OAUTH);
     }
   }, [expanded, apiKeyLast4, showConnectedDetails]);
 
@@ -198,7 +215,7 @@ export function SanityConnectionPanel({
       });
       setApiToken("");
       setShowApiToken(false);
-      setAuthMode(OAUTH_AUTH_MODE);
+      setAuthMode(SANITY_AUTH_MODE_OAUTH);
       setExpanded(false);
       toast.success(intl.formatMessage(sanityConnectionPanelMessages.disconnectedToast));
     },
@@ -211,6 +228,19 @@ export function SanityConnectionPanel({
     },
   });
 
+  const description = statusQuery.isError
+    ? intl.formatMessage(sanityConnectionPanelMessages.loadErrorDescription)
+    : needsReauthorization
+      ? intl.formatMessage(pipesConnectionPanelMessages.reconnectHint, { providerName })
+      : (summary?.detail ?? "");
+
+  const canSaveApiToken =
+    userCanManage &&
+    pipesConnectable &&
+    isApiTokenMode &&
+    trimmedApiToken.length > 0 &&
+    !saveApiToken.isPending;
+
   const rowIcon = useMemo(() => {
     if (summary?.logoSrc) {
       return <IntegrationLogo src={summary.logoSrc} muted={!isConnected} />;
@@ -221,14 +251,40 @@ export function SanityConnectionPanel({
     return null;
   }, [summary?.logoSrc, summary?.icon, isConnected]);
 
-  const description = statusQuery.isError
-    ? intl.formatMessage(sanityConnectionPanelMessages.loadErrorDescription)
-    : needsReauthorization
-      ? intl.formatMessage(pipesConnectionPanelMessages.reconnectHint, { providerName })
-      : (summary?.detail ?? "");
+  if (availabilityQuery.isLoading || (shouldLoadPipesStatus && statusQuery.isLoading)) {
+    return (
+      <CollapsibleIntegrationRow
+        name={providerName}
+        description={summary?.detail ?? ""}
+        icon={rowIcon}
+        isConnected={false}
+        userIsAdmin={userCanManage}
+        expanded={false}
+        onExpandedChange={() => {}}
+        isLoading
+        isLast={isLast}
+      />
+    );
+  }
 
-  const canSaveApiToken =
-    userCanManage && isApiTokenMode && trimmedApiToken.length > 0 && !saveApiToken.isPending;
+  if (showComingSoon) {
+    return (
+      <IntegrationRowFrame
+        open={false}
+        highlighted={false}
+        icon={rowIcon}
+        iconMuted
+        name={providerName}
+        description={intl.formatMessage(sanityConnectionPanelMessages.comingSoonDescription)}
+        showPanel={false}
+        action={
+          <Button type="button" variant="outline" size="sm" disabled>
+            <FormattedMessage {...integrationRowMessages.comingSoon} />
+          </Button>
+        }
+      />
+    );
+  }
 
   return (
     <CollapsibleIntegrationRow
@@ -330,19 +386,19 @@ export function SanityConnectionPanel({
                   <Select
                     value={authMode}
                     onValueChange={(value) => {
-                      if (value === OAUTH_AUTH_MODE || value === PAT_AUTH_MODE) {
+                      if (value != null && isSanityAuthMode(value)) {
                         setAuthMode(value);
                       }
                     }}
                   >
                     <SelectTrigger id={authMethodFieldId} className="h-9 w-full">
-                      <SelectValue />
+                      <SelectValue aria-label={authModeLabel}>{authModeLabel}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={OAUTH_AUTH_MODE}>
+                      <SelectItem value={SANITY_AUTH_MODE_OAUTH}>
                         {intl.formatMessage(sanityConnectionPanelMessages.oauthMethodOption)}
                       </SelectItem>
-                      <SelectItem value={PAT_AUTH_MODE}>
+                      <SelectItem value={SANITY_AUTH_MODE_API_TOKEN}>
                         {intl.formatMessage(sanityConnectionPanelMessages.apiTokenMethodOption)}
                       </SelectItem>
                     </SelectContent>

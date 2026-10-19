@@ -35,6 +35,12 @@ export const sanityConnectionPanelMessages = defineMessages({
     id: "azYeK5p8pM",
     description: "Integration row description when status query fails",
   },
+  comingSoonDescription: {
+    defaultMessage:
+      "Sanity through WorkOS Pipes is not enabled for this environment yet. An admin can enable the Sanity data integration in WorkOS.",
+    id: "8O4l4wC1UK",
+    description: "Integration row description when Sanity Pipes is unavailable",
+  },
   connectedStatus: {
     defaultMessage: "Connected",
     id: "Obrc0xXXmw",

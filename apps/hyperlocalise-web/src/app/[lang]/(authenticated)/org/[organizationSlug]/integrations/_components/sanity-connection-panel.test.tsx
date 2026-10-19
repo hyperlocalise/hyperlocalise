@@ -28,6 +28,11 @@ const mocks = vi.hoisted(() => ({
     needsReauthorization: false,
     apiKeyLast4: null,
   } as PipesConnectionStatus,
+  availability: {
+    workosConfigured: true,
+    providerConfigured: true,
+    providerEnabled: true,
+  },
   isLoading: false,
   isError: false,
   authorizeGet: vi.fn(),
@@ -46,6 +51,12 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("./pipes-connection-panel", () => ({
+  usePipesProviderAvailability: () => ({
+    data: mocks.availability,
+    isLoading: false,
+    isSuccess: true,
+    isError: false,
+  }),
   usePipesStatus: () => ({
     data: mocks.status,
     isLoading: mocks.isLoading,
@@ -99,6 +110,11 @@ describe("SanityConnectionPanel", () => {
       needsReauthorization: false,
       apiKeyLast4: null,
     };
+    mocks.availability = {
+      workosConfigured: true,
+      providerConfigured: true,
+      providerEnabled: true,
+    };
     mocks.isLoading = false;
     mocks.isError = false;
     mocks.authorizeGet.mockReset();
@@ -141,6 +157,18 @@ describe("SanityConnectionPanel", () => {
         "https://api.workos.com/data-integrations/sanity/authorize-redirect",
       );
     });
+  });
+
+  it("shows Coming soon when Sanity is not enabled in WorkOS Pipes", async () => {
+    mocks.availability = {
+      workosConfigured: true,
+      providerConfigured: true,
+      providerEnabled: false,
+    };
+
+    renderPanel();
+    expect(await screen.findByRole("button", { name: "Coming soon" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Connect" })).not.toBeInTheDocument();
   });
 
   it("saves an API token when API token method is selected", async () => {

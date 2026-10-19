@@ -23,6 +23,7 @@ import {
 import { BRAZE_PIPES_SLUG } from "@/lib/braze/constants";
 import { deleteBrazeConnectionSettings } from "@/lib/braze/settings";
 import { createPipesAuthorizeUrl, deletePipesConnectedAccount } from "@/lib/pipes/accounts";
+import { getWorkosPipesProviderAvailability } from "@/lib/pipes/availability";
 import { getPipesConnectionStatus } from "@/lib/pipes/status";
 import type { PipesStatus } from "@/lib/pipes/types";
 import { isErr } from "@/lib/primitives/result/results";
@@ -99,6 +100,19 @@ export function createPipesRoutes() {
       }
 
       return c.body(null, 204);
+    })
+    .get("/:provider/availability", validateProviderParams, async (c) => {
+      if (!canReadPipes(c.var.auth.membership.role)) {
+        return forbiddenResponse(c, "forbidden");
+      }
+
+      const { provider } = c.req.valid("param");
+      const result = await getWorkosPipesProviderAvailability(provider);
+      if (isErr(result)) {
+        return serviceUnavailableResponse(c, result.error.code, result.error.message);
+      }
+
+      return c.json({ availability: result.value }, 200);
     })
     .get("/:provider", validateProviderParams, async (c) => {
       if (!canReadPipes(c.var.auth.membership.role)) {
