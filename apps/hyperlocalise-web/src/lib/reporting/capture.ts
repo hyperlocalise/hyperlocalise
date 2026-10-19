@@ -17,7 +17,7 @@ import { listAttachedProjectMemoryIds } from "@/lib/memory/ensure-default-native
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 import { buildReportingMemoryMatchTsQuery } from "@/lib/translation/translation-memory-ts-query";
 import { countSourceWords, matchBucket } from "./word-analysis";
-import { MemoryMatchIndex, sourceSimilarity } from "./memory-match-index";
+import { MemoryMatchIndex, MemorySourceScan, sourceSimilarity } from "./memory-match-index";
 import { wordCost } from "./money";
 
 export { sourceSimilarity };
@@ -31,8 +31,8 @@ const REPORTING_BATCH_SIZE = 500;
  */
 const MEMORY_INDEX_ENTRY_CAP = 300_000;
 /**
- * Below this many strings the per-string lookups are cheaper than loading the index: indexing
- * costs about as much as two or three lookups over the same entries.
+ * Below this many strings a plain scan of the entries per string is cheaper than building the
+ * index: building costs about as much as two or three scans over the same entries.
  */
 const MEMORY_INDEX_MIN_QUERIES = 4;
 /** Version 2: scores come from the in-memory bigram index on normalized text. */
@@ -117,8 +117,9 @@ export async function resolveReportingRate(
 
 /**
  * Loads the locale pair's approved memory sources once and scores every string against them in
- * memory. For a handful of strings, or above the entry cap, it uses one database lookup per
- * string instead, so small saves stay cheap and memory use stays bounded.
+ * memory. A handful of strings are scanned against the entries instead of indexing them, with the
+ * same scores. Above the entry cap it uses one database lookup per string, so memory use stays
+ * bounded.
  */
 export async function loadMemoryMatchScorer(input: {
   memoryIds: string[];
@@ -129,7 +130,6 @@ export async function loadMemoryMatchScorer(input: {
 }): Promise<(sourceText: string) => Promise<number>> {
   if (!input.memoryIds.length) return async () => 0;
   const perStringLookup = (sourceText: string) => bestReportingMatchScore({ ...input, sourceText });
-  if (input.queryCount < MEMORY_INDEX_MIN_QUERIES) return perStringLookup;
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(schema.memoryEntries)
@@ -139,8 +139,12 @@ export async function loadMemoryMatchScorer(input: {
     .select({ source: schema.memoryEntries.normalizedSourceText })
     .from(schema.memoryEntries)
     .where(approvedMemoryEntries(input));
-  const index = new MemoryMatchIndex(rows.map((row) => row.source));
-  return async (sourceText) => index.bestScore(sourceText);
+  const sources = rows.map((row) => row.source);
+  const scorer =
+    input.queryCount < MEMORY_INDEX_MIN_QUERIES
+      ? new MemorySourceScan(sources)
+      : new MemoryMatchIndex(sources);
+  return async (sourceText) => scorer.bestScore(sourceText);
 }
 
 function approvedMemoryEntries(input: {

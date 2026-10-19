@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, lt, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
@@ -100,16 +100,18 @@ async function listOrganizationsWithPendingSaves(cutoff: Date): Promise<string[]
 }
 
 async function listPendingSaveEvents(organizationId: string, cutoff: Date): Promise<SaveEvent[]> {
+  const cursors = schema.reportingCaptureCursors;
   const [cursor] = await db
-    .select()
-    .from(schema.reportingCaptureCursors)
-    .where(eq(schema.reportingCaptureCursors.organizationId, organizationId));
+    .select({ organizationId: cursors.organizationId })
+    .from(cursors)
+    .where(eq(cursors.organizationId, organizationId));
   const events = schema.organizationActivityEvents;
+  // Compared against the stored cursor inside the database: its timestamp has microseconds, which
+  // a JavaScript Date would drop, so the last event already recorded would read as newer.
+  const stored = (column: typeof cursors.lastEventId | typeof cursors.lastEventCreatedAt) =>
+    sql`(select ${column} from ${cursors} where ${cursors.organizationId} = ${organizationId})`;
   const afterCursor = cursor
-    ? or(
-        gt(events.createdAt, cursor.lastEventCreatedAt),
-        and(eq(events.createdAt, cursor.lastEventCreatedAt), gt(events.id, cursor.lastEventId)),
-      )
+    ? sql`(${events.createdAt}, ${events.id}) > (${stored(cursors.lastEventCreatedAt)}, ${stored(cursors.lastEventId)})`
     : undefined;
   return db
     .select({

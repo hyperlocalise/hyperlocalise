@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { MemoryMatchIndex, sourceSimilarity } from "./memory-match-index";
+import { MemoryMatchIndex, MemorySourceScan, sourceSimilarity } from "./memory-match-index";
 
 describe("sourceSimilarity", () => {
   it("scores identical text as 100 and unrelated text low", () => {
@@ -56,5 +56,52 @@ describe("MemoryMatchIndex", () => {
 
   it("deduplicates entries and reports its size", () => {
     expect(new MemoryMatchIndex(["a b", "A  B", "c"]).size).toBe(2);
+  });
+});
+
+describe("MemorySourceScan", () => {
+  const sources = [
+    "Download the translated files once every language has been approved",
+    "Save your changes before you leave this page or they will be lost",
+    "日本語の翻訳を確認してください",
+    "a",
+    ...Array.from({ length: 500 }, (_, i) => `Checkout step ${i} confirm payment`),
+  ];
+  const index = new MemoryMatchIndex(sources);
+  const scan = new MemorySourceScan(sources);
+
+  it("gives the same scores as the index", () => {
+    const queries = [
+      "download the translated files once every language has been approved",
+      "Dxwnlxad txe traxslaxed fxles oxce exery lxnguxge hxs beex appxoved",
+      "Save your changes before you leave this page",
+      "日本語の翻訳を確認して下さい",
+      "Checkout step 12 confirm paymant",
+      "Quarterly revenue grew by twelve percent",
+      "a",
+      "b",
+      "",
+    ];
+    for (const query of queries) {
+      expect(scan.bestScore(query), query).toBe(index.bestScore(query));
+    }
+    expect(
+      scan.bestScore("Dxwnlxad txe traxslaxed fxles oxce exery lxnguxge hxs beex appxoved"),
+    ).toBe(80);
+  });
+
+  it("scores the same whatever order the entries were loaded in", () => {
+    // More entries tie on shared bigrams than are scored, and the closest one sorts first by text.
+    const tied = [
+      "aaaa bbbb",
+      ...Array.from({ length: 100 }, (_, i) => `bbbb aaaa b${String(i).padStart(3, "0")}`),
+    ];
+    const reversed = [...tied].reverse();
+    const query = "aaaa bbbc";
+    const expected = new MemoryMatchIndex(tied).bestScore(query);
+    expect(expected).toBe(sourceSimilarity(query, "aaaa bbbb"));
+    expect(new MemoryMatchIndex(reversed).bestScore(query)).toBe(expected);
+    expect(new MemorySourceScan(tied).bestScore(query)).toBe(expected);
+    expect(new MemorySourceScan(reversed).bestScore(query)).toBe(expected);
   });
 });

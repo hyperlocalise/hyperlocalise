@@ -12,7 +12,7 @@
  */
 import "dotenv/config";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
@@ -168,6 +168,31 @@ describe("captureEditorSaves", () => {
         ),
       );
     expect(completionsAfter).toHaveLength(2);
+  });
+
+  it("reads only events after the cursor when a new save arrives", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    const first = await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+    });
+    // A timestamp a JavaScript Date cannot hold exactly, as the database's own times usually are.
+    await db.execute(sql`
+      update organization_activity_events
+      set created_at = date_trunc('milliseconds', created_at) + interval '1 microsecond'
+      where id = ${first.id}
+    `);
+    expect((await captureEditorSaves({ now: LATER() })).eventsProcessed).toBe(1);
+
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[1],
+    });
+    expect((await captureEditorSaves({ now: LATER() })).eventsProcessed).toBe(1);
   });
 
   it("records an approval as the review step", async () => {

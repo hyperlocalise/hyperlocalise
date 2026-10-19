@@ -319,6 +319,56 @@ describe("reporting capture", () => {
     ).toBeGreaterThan(50);
   });
 
+  it("scores a string saved alone the same as one in a larger group", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    const [memory] = await db
+      .insert(schema.memories)
+      .values({ organizationId: organization.id, createdByUserId: user.id, name: "Reporting TM" })
+      .returning();
+    await db.insert(schema.projectMemories).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      memoryId: memory.id,
+    });
+    await db.insert(schema.memoryEntries).values({
+      memoryId: memory.id,
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceText: "Download the translated files once every language has been approved",
+      normalizedSourceText: normalizeTranslationMemorySourceText(
+        "Download the translated files once every language has been approved",
+      ),
+      targetText: "Téléchargez les fichiers traduits",
+      reviewStatus: "approved",
+    });
+    // Every word misspelled, so a keyword search finds nothing; the characters still match 80%.
+    const typos = "Dxwnlxad txe traxslaxed fxles oxce exery lxnguxge hxs beex appxoved";
+    const scoreOf = async (sourceEntries: Record<string, string>) => {
+      await captureAnalysis({
+        organizationId: organization.id,
+        projectId: project.id,
+        sourceLocale: "en-US",
+        targetLocale: "fr-FR",
+        sourceEntries,
+      });
+      const [row] = await db
+        .select({ matchScore: schema.reportingAnalyses.matchScore })
+        .from(schema.reportingAnalyses)
+        .where(
+          and(
+            eq(schema.reportingAnalyses.organizationId, organization.id),
+            eq(schema.reportingAnalyses.segmentId, Object.keys(sourceEntries)[0]),
+          ),
+        );
+      return row?.matchScore;
+    };
+
+    expect(await scoreOf({ alone: typos })).toBe(80);
+    expect(
+      await scoreOf({ grouped: typos, b: "Save and close", c: "Open", d: "Cancel", e: "Delete" }),
+    ).toBe(80);
+  });
+
   it("skips analysis capture when workspace reports is disabled", async () => {
     resolveWorkspaceReportsFlagMock.mockResolvedValue(false);
     const { organization, project } = await projectFixture.createStoredProjectFixture();
