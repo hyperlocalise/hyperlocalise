@@ -169,8 +169,9 @@ export async function requeueKeylessOfficeSourceIngest(input: {
 
 /** Re-keys every keyless Office upload, in batches ordered by version id. */
 export async function backfillKeylessOfficeSourceIngest(
-  input: { queue?: SourceFileIngestQueue } = {},
+  input: { queue?: SourceFileIngestQueue; batchSize?: number } = {},
 ) {
+  const batchSize = input.batchSize && input.batchSize > 0 ? input.batchSize : BACKFILL_BATCH_SIZE;
   let requeued = 0;
   let after: string | null = null;
   for (;;) {
@@ -188,7 +189,7 @@ export async function backfillKeylessOfficeSourceIngest(
         ),
       )
       .orderBy(asc(versions.id))
-      .limit(BACKFILL_BATCH_SIZE);
+      .limit(batchSize);
     if (batch.length === 0) {
       break;
     }

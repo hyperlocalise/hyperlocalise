@@ -313,4 +313,19 @@ describe("sourceKeysFromFileTranslationLock", () => {
       ),
     ).toEqual(["home.title", "home.cta::de-DE"]);
   });
+
+  it("does not strip when the workflow locale is missing or blank", () => {
+    expect(sourceKeysFromFileTranslationLock(["home.title::fr-FR"], "file.csv")).toEqual([
+      "home.title::fr-FR",
+    ]);
+    expect(sourceKeysFromFileTranslationLock(["home.title::fr-FR"], "file.csv", "   ")).toEqual([
+      "home.title::fr-FR",
+    ]);
+  });
+
+  it("does not strip when lock locale casing differs from the workflow locale", () => {
+    expect(sourceKeysFromFileTranslationLock(["home.title::fr-fr"], "file.xlsx", "fr-FR")).toEqual([
+      "home.title::fr-fr",
+    ]);
+  });
 });
