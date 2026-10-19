@@ -33,7 +33,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { createApiClient } from "@/lib/api-client";
 import { resolveWorkspaceIntegrationSummary } from "@/lib/integrations/workspace-integrations";
-import { isPipesProviderConnectable } from "@/lib/pipes/availability";
+import {
+  isPipesProviderConnectable,
+  supportsPipesApiKey,
+  supportsPipesOAuth,
+} from "@/lib/pipes/availability";
 import {
   isSanityAuthMode,
   SANITY_AUTH_MODE_API_TOKEN,
@@ -71,9 +75,12 @@ export function SanityConnectionPanel({
   const [apiToken, setApiToken] = useState("");
   const [showApiToken, setShowApiToken] = useState(false);
   const availabilityQuery = usePipesProviderAvailability(organizationSlug, SANITY_PIPES_SLUG);
-  const pipesConnectable = availabilityQuery.data
-    ? isPipesProviderConnectable(availabilityQuery.data)
+  const pipesAvailability = availabilityQuery.data;
+  const pipesConnectable = pipesAvailability
+    ? isPipesProviderConnectable(pipesAvailability)
     : false;
+  const oauthSupported = pipesAvailability ? supportsPipesOAuth(pipesAvailability) : false;
+  const apiKeySupported = pipesAvailability ? supportsPipesApiKey(pipesAvailability) : true;
   const shouldLoadPipesStatus = availabilityQuery.isSuccess;
   const statusQuery = usePipesStatus(
     organizationSlug,
@@ -87,14 +94,23 @@ export function SanityConnectionPanel({
   );
   const providerName = summary?.name ?? "Sanity";
   const userCanManage = !disabled;
+  const showAuthMethodSelect = userCanManage && oauthSupported && apiKeySupported;
   const isConnected = Boolean(statusQuery.data?.connected);
   const needsReauthorization = Boolean(statusQuery.data?.needsReauthorization);
   const apiKeyLast4 = statusQuery.data?.apiKeyLast4 ?? null;
   const showConnectedDetails = isConnected && !needsReauthorization;
   const isOAuthConnected = showConnectedDetails && !apiKeyLast4;
   const isApiTokenConnected = showConnectedDetails && Boolean(apiKeyLast4);
-  const isOAuthMode = authMode === SANITY_AUTH_MODE_OAUTH;
-  const isApiTokenMode = authMode === SANITY_AUTH_MODE_API_TOKEN;
+  const effectiveAuthMode: SanityAuthMode =
+    oauthSupported && apiKeySupported
+      ? authMode
+      : !oauthSupported && apiKeySupported
+        ? SANITY_AUTH_MODE_API_TOKEN
+        : oauthSupported && !apiKeySupported
+          ? SANITY_AUTH_MODE_OAUTH
+          : authMode;
+  const isOAuthMode = effectiveAuthMode === SANITY_AUTH_MODE_OAUTH;
+  const isApiTokenMode = effectiveAuthMode === SANITY_AUTH_MODE_API_TOKEN;
   const trimmedApiToken = apiToken.trim();
   const authModeLabel = isOAuthMode
     ? intl.formatMessage(sanityConnectionPanelMessages.oauthMethodOption)
@@ -127,10 +143,21 @@ export function SanityConnectionPanel({
     }
     if (apiKeyLast4) {
       setAuthMode(SANITY_AUTH_MODE_API_TOKEN);
-    } else if (showConnectedDetails) {
+    } else if (showConnectedDetails && oauthSupported) {
       setAuthMode(SANITY_AUTH_MODE_OAUTH);
+    } else if (!oauthSupported && apiKeySupported) {
+      setAuthMode(SANITY_AUTH_MODE_API_TOKEN);
     }
-  }, [expanded, apiKeyLast4, showConnectedDetails]);
+  }, [expanded, apiKeyLast4, showConnectedDetails, oauthSupported, apiKeySupported]);
+
+  useEffect(() => {
+    if (!availabilityQuery.isSuccess) {
+      return;
+    }
+    if (!oauthSupported && authMode === SANITY_AUTH_MODE_OAUTH) {
+      setAuthMode(SANITY_AUTH_MODE_API_TOKEN);
+    }
+  }, [availabilityQuery.isSuccess, oauthSupported, authMode]);
 
   const oauthConnect = useMutation({
     mutationFn: async () => {
@@ -236,7 +263,7 @@ export function SanityConnectionPanel({
 
   const canSaveApiToken =
     userCanManage &&
-    pipesConnectable &&
+    apiKeySupported &&
     isApiTokenMode &&
     trimmedApiToken.length > 0 &&
     !saveApiToken.isPending;
@@ -373,7 +400,7 @@ export function SanityConnectionPanel({
                 </p>
               ) : null}
 
-              {userCanManage ? (
+              {showAuthMethodSelect ? (
                 <Field className="gap-2">
                   <FieldLabel htmlFor={authMethodFieldId}>
                     {intl.formatMessage(sanityConnectionPanelMessages.authenticationMethodLabel)}
@@ -395,18 +422,22 @@ export function SanityConnectionPanel({
                       <SelectValue aria-label={authModeLabel}>{authModeLabel}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={SANITY_AUTH_MODE_OAUTH}>
-                        {intl.formatMessage(sanityConnectionPanelMessages.oauthMethodOption)}
-                      </SelectItem>
-                      <SelectItem value={SANITY_AUTH_MODE_API_TOKEN}>
-                        {intl.formatMessage(sanityConnectionPanelMessages.apiTokenMethodOption)}
-                      </SelectItem>
+                      {oauthSupported ? (
+                        <SelectItem value={SANITY_AUTH_MODE_OAUTH}>
+                          {intl.formatMessage(sanityConnectionPanelMessages.oauthMethodOption)}
+                        </SelectItem>
+                      ) : null}
+                      {apiKeySupported ? (
+                        <SelectItem value={SANITY_AUTH_MODE_API_TOKEN}>
+                          {intl.formatMessage(sanityConnectionPanelMessages.apiTokenMethodOption)}
+                        </SelectItem>
+                      ) : null}
                     </SelectContent>
                   </Select>
                 </Field>
               ) : null}
 
-              {isOAuthMode && !isOAuthConnected ? (
+              {isOAuthMode && oauthSupported && !isOAuthConnected ? (
                 <>
                   <p className="text-sm leading-6 text-muted-foreground">
                     <FormattedMessage {...sanityConnectionPanelMessages.oauthConnectIntro} />
@@ -415,7 +446,7 @@ export function SanityConnectionPanel({
                     <Button
                       type="button"
                       onClick={() => oauthConnect.mutate()}
-                      disabled={oauthConnect.isPending}
+                      disabled={oauthConnect.isPending || !pipesConnectable}
                       className="w-fit"
                     >
                       {oauthConnect.isPending ? (
@@ -431,7 +462,7 @@ export function SanityConnectionPanel({
                 </>
               ) : null}
 
-              {isApiTokenMode ? (
+              {isApiTokenMode && apiKeySupported ? (
                 <>
                   {!isApiTokenConnected ? (
                     <p className="text-sm leading-6 text-muted-foreground">
@@ -507,7 +538,7 @@ export function SanityConnectionPanel({
                   <FormattedMessage {...sanityConnectionPanelMessages.openAutomations} />
                 </Button>
               ) : null}
-              {userCanManage && isApiTokenMode ? (
+              {userCanManage && isApiTokenMode && apiKeySupported ? (
                 <Button type="submit" disabled={!canSaveApiToken}>
                   <FloppyDiskIcon />
                   {saveApiToken.isPending ? (

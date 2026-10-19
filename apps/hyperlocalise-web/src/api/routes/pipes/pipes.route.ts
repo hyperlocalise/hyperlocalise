@@ -23,7 +23,7 @@ import {
 import { BRAZE_PIPES_SLUG } from "@/lib/braze/constants";
 import { deleteBrazeConnectionSettings } from "@/lib/braze/settings";
 import { createPipesAuthorizeUrl, deletePipesConnectedAccount } from "@/lib/pipes/accounts";
-import { getWorkosPipesProviderAvailability } from "@/lib/pipes/availability";
+import { getWorkosPipesProviderAvailability, supportsPipesOAuth } from "@/lib/pipes/availability";
 import { getPipesConnectionStatus } from "@/lib/pipes/status";
 import type { PipesStatus } from "@/lib/pipes/types";
 import { isErr } from "@/lib/primitives/result/results";
@@ -55,6 +55,25 @@ export function createPipesRoutes() {
       }
 
       const { provider } = c.req.valid("param");
+      const availabilityResult = await getWorkosPipesProviderAvailability(provider, {
+        workosUserId: c.var.auth.user.workosUserId,
+        workosOrganizationId: c.var.auth.organization.workosOrganizationId,
+      });
+      if (isErr(availabilityResult)) {
+        return serviceUnavailableResponse(
+          c,
+          availabilityResult.error.code,
+          availabilityResult.error.message,
+        );
+      }
+      if (!supportsPipesOAuth(availabilityResult.value)) {
+        return serviceUnavailableResponse(
+          c,
+          "pipes_oauth_unavailable",
+          "This integration only supports API key authentication in WorkOS Pipes.",
+        );
+      }
+
       const organizationSlug = c.var.auth.organization.slug;
       const requestUrl = new URL(c.req.url);
       const result = await createPipesAuthorizeUrl({
@@ -107,7 +126,10 @@ export function createPipesRoutes() {
       }
 
       const { provider } = c.req.valid("param");
-      const result = await getWorkosPipesProviderAvailability(provider);
+      const result = await getWorkosPipesProviderAvailability(provider, {
+        workosUserId: c.var.auth.user.workosUserId,
+        workosOrganizationId: c.var.auth.organization.workosOrganizationId,
+      });
       if (isErr(result)) {
         return serviceUnavailableResponse(c, result.error.code, result.error.message);
       }

@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => ({
     workosConfigured: true,
     providerConfigured: true,
     providerEnabled: true,
+    supportedAuthMethods: ["oauth", "api_key"] as const,
   },
   isLoading: false,
   isError: false,
@@ -114,6 +115,7 @@ describe("SanityConnectionPanel", () => {
       workosConfigured: true,
       providerConfigured: true,
       providerEnabled: true,
+      supportedAuthMethods: ["oauth", "api_key"],
     };
     mocks.isLoading = false;
     mocks.isError = false;
@@ -164,11 +166,50 @@ describe("SanityConnectionPanel", () => {
       workosConfigured: true,
       providerConfigured: true,
       providerEnabled: false,
+      supportedAuthMethods: ["api_key"],
     };
 
     renderPanel();
     expect(await screen.findByRole("button", { name: "Coming soon" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Connect" })).not.toBeInTheDocument();
+  });
+
+  it("hides OAuth authorize when WorkOS only supports API key", async () => {
+    mocks.availability = {
+      workosConfigured: true,
+      providerConfigured: true,
+      providerEnabled: true,
+      supportedAuthMethods: ["api_key"],
+    };
+
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+
+    expect(await screen.findByTestId("sanity-api-token-input")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Authentication method")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Authorize with Sanity" })).not.toBeInTheDocument();
+  });
+
+  it("enables Save token after paste when WorkOS Pipes is disabled but a connection exists", async () => {
+    mocks.status = {
+      connected: true,
+      needsReauthorization: true,
+      apiKeyLast4: null,
+    };
+    mocks.availability = {
+      workosConfigured: true,
+      providerConfigured: true,
+      providerEnabled: false,
+      supportedAuthMethods: ["api_key"],
+    };
+    const user = userEvent.setup();
+
+    renderPanel();
+    await user.click(screen.getByRole("button", { name: "Manage" }));
+    const apiTokenInput = await screen.findByTestId("sanity-api-token-input");
+    await user.type(apiTokenInput, "sk-sanity-test-token");
+
+    expect(screen.getByRole("button", { name: "Save token" })).toBeEnabled();
   });
 
   it("saves an API token when API token method is selected", async () => {
