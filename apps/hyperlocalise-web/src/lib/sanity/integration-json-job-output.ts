@@ -19,10 +19,7 @@ import {
   isSourceTextKey,
   parseTranslationFile as parseCanvaTranslationFile,
 } from "@/lib/canva/segment-file";
-import {
-  isSanityStampSegmentKey,
-  parseTranslationFile as parseSanityTranslationFile,
-} from "@/lib/sanity/segment-file";
+import { isSanityStampSegmentKey, parseSanityTranslationFile } from "@/lib/sanity/segment-file";
 
 function hashedSourceLockAliases(sourceText: string): string[] {
   const sha256 = createHash("sha256").update(sourceText, "utf8").digest("hex");
