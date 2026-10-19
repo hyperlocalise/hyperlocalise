@@ -348,6 +348,8 @@ describe("revokeOrganizationMembershipAccess", () => {
       teamMembershipsDeleted: 0,
       mcpSessionsDeleted: 0,
       apiKeysRevoked: 0,
+      figmaOauthTokensRevoked: 0,
+      canvaOauthTokensRevoked: 0,
     });
   });
 
@@ -501,6 +503,152 @@ describe("revokeOrganizationMembershipAccess", () => {
     expect(departingKeyAfter?.revokedAt).not.toBeNull();
     expect(alreadyRevokedAfter?.revokedAt?.toISOString()).toBe(
       alreadyRevokedKey!.revokedAt!.toISOString(),
+    );
+  });
+
+  it("revokes the departing member's Figma and Canva OAuth tokens", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const departingIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "admin",
+    );
+
+    await syncWorkosIdentity(db, ownerIdentity);
+    const departing = await syncWorkosIdentity(db, departingIdentity);
+
+    const [ownerUser] = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.workosUserId, ownerIdentity.user.workosUserId))
+      .limit(1);
+
+    const [apiKey] = await db
+      .insert(schema.organizationApiKeys)
+      .values({
+        organizationId: departing.organization.id,
+        name: "Plugin PAT",
+        keyHash: `hash_plugin_${randomUUID()}`,
+        keyPrefix: "hl_plugi",
+        permissions: ["files:write", "jobs:write"],
+        createdByUserId: ownerUser!.id,
+      })
+      .returning({ id: schema.organizationApiKeys.id });
+
+    const [figmaConnection] = await db
+      .insert(schema.figmaConnections)
+      .values({
+        organizationId: departing.organization.id,
+        apiKeyId: apiKey!.id,
+        displayName: "Org Figma",
+        connectionTokenHash: `figma_conn_${randomUUID()}`,
+        connectionTokenPrefix: "hl_figma",
+      })
+      .returning({ id: schema.figmaConnections.id });
+
+    const [canvaConnection] = await db
+      .insert(schema.canvaConnections)
+      .values({
+        organizationId: departing.organization.id,
+        apiKeyId: apiKey!.id,
+        displayName: "Org Canva",
+        connectionTokenHash: `canva_conn_${randomUUID()}`,
+        connectionTokenPrefix: "hl_canva",
+      })
+      .returning({ id: schema.canvaConnections.id });
+
+    const [ownerFigmaToken] = await db
+      .insert(schema.figmaOauthTokens)
+      .values({
+        connectionId: figmaConnection!.id,
+        userId: ownerUser!.id,
+        organizationId: departing.organization.id,
+        accessTokenHash: `figma_at_owner_${randomUUID()}`,
+        refreshTokenHash: `figma_rt_owner_${randomUUID()}`,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        refreshTokenExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      })
+      .returning({ id: schema.figmaOauthTokens.id });
+
+    const [departingFigmaToken] = await db
+      .insert(schema.figmaOauthTokens)
+      .values({
+        connectionId: figmaConnection!.id,
+        userId: departing.user.id,
+        organizationId: departing.organization.id,
+        accessTokenHash: `figma_at_leaving_${randomUUID()}`,
+        refreshTokenHash: `figma_rt_leaving_${randomUUID()}`,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        refreshTokenExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      })
+      .returning({ id: schema.figmaOauthTokens.id });
+
+    const [departingCanvaToken] = await db
+      .insert(schema.canvaOauthTokens)
+      .values({
+        connectionId: canvaConnection!.id,
+        userId: departing.user.id,
+        organizationId: departing.organization.id,
+        accessTokenHash: `canva_at_leaving_${randomUUID()}`,
+        refreshTokenHash: `canva_rt_leaving_${randomUUID()}`,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        refreshTokenExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      })
+      .returning({ id: schema.canvaOauthTokens.id });
+
+    const alreadyRevokedAt = new Date("2026-01-01T00:00:00.000Z");
+    const [alreadyRevokedFigmaToken] = await db
+      .insert(schema.figmaOauthTokens)
+      .values({
+        connectionId: figmaConnection!.id,
+        userId: departing.user.id,
+        organizationId: departing.organization.id,
+        accessTokenHash: `figma_at_revoked_${randomUUID()}`,
+        refreshTokenHash: `figma_rt_revoked_${randomUUID()}`,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        refreshTokenExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+        revokedAt: alreadyRevokedAt,
+      })
+      .returning({
+        id: schema.figmaOauthTokens.id,
+        revokedAt: schema.figmaOauthTokens.revokedAt,
+      });
+
+    const result = await revokeOrganizationMembershipAccess(db, {
+      workosMembershipId: departingIdentity.membership.workosMembershipId,
+      workosOrganizationId: ownerIdentity.organization.workosOrganizationId,
+      workosUserId: departingIdentity.user.workosUserId,
+    });
+
+    expect(result.organizationMembershipsDeleted).toBe(1);
+    expect(result.figmaOauthTokensRevoked).toBe(1);
+    expect(result.canvaOauthTokensRevoked).toBe(1);
+
+    const [ownerFigmaAfter] = await db
+      .select({ revokedAt: schema.figmaOauthTokens.revokedAt })
+      .from(schema.figmaOauthTokens)
+      .where(eq(schema.figmaOauthTokens.id, ownerFigmaToken!.id))
+      .limit(1);
+    const [departingFigmaAfter] = await db
+      .select({ revokedAt: schema.figmaOauthTokens.revokedAt })
+      .from(schema.figmaOauthTokens)
+      .where(eq(schema.figmaOauthTokens.id, departingFigmaToken!.id))
+      .limit(1);
+    const [departingCanvaAfter] = await db
+      .select({ revokedAt: schema.canvaOauthTokens.revokedAt })
+      .from(schema.canvaOauthTokens)
+      .where(eq(schema.canvaOauthTokens.id, departingCanvaToken!.id))
+      .limit(1);
+    const [alreadyRevokedAfter] = await db
+      .select({ revokedAt: schema.figmaOauthTokens.revokedAt })
+      .from(schema.figmaOauthTokens)
+      .where(eq(schema.figmaOauthTokens.id, alreadyRevokedFigmaToken!.id))
+      .limit(1);
+
+    expect(ownerFigmaAfter?.revokedAt).toBeNull();
+    expect(departingFigmaAfter?.revokedAt).not.toBeNull();
+    expect(departingCanvaAfter?.revokedAt).not.toBeNull();
+    expect(alreadyRevokedAfter?.revokedAt?.toISOString()).toBe(
+      alreadyRevokedFigmaToken!.revokedAt!.toISOString(),
     );
   });
 });

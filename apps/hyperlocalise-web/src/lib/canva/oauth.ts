@@ -19,7 +19,7 @@ import {
   webcrypto,
 } from "node:crypto";
 
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, exists, gt, isNull } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -281,6 +281,20 @@ export async function consumeCanvaOauthAuthorizationCode(input: {
     return null;
   }
 
+  const [membership] = await db
+    .select({ id: schema.organizationMemberships.id })
+    .from(schema.organizationMemberships)
+    .where(
+      and(
+        eq(schema.organizationMemberships.userId, row.userId),
+        eq(schema.organizationMemberships.organizationId, row.organizationId),
+      ),
+    )
+    .limit(1);
+  if (!membership) {
+    return null;
+  }
+
   const [consumed] = await db
     .update(schema.canvaOauthAuthorizationCodes)
     .set({ consumedAt: new Date() })
@@ -327,13 +341,29 @@ export async function issueCanvaOauthTokens(input: {
 }
 
 export async function refreshCanvaOauthTokens(refreshToken: string) {
+  const refreshTokenHash = digestCanvaOauthToken(refreshToken);
   const [row] = await db
     .select()
     .from(schema.canvaOauthTokens)
-    .where(eq(schema.canvaOauthTokens.refreshTokenHash, digestCanvaOauthToken(refreshToken)))
+    .where(eq(schema.canvaOauthTokens.refreshTokenHash, refreshTokenHash))
     .limit(1);
 
-  if (!row || row.revokedAt || row.refreshTokenExpiresAt.getTime() < Date.now()) {
+  if (!row || row.revokedAt || isCanvaOauthRefreshExpired(row)) {
+    return null;
+  }
+
+  const [membership] = await db
+    .select({ id: schema.organizationMemberships.id })
+    .from(schema.organizationMemberships)
+    .where(
+      and(
+        eq(schema.organizationMemberships.userId, row.userId),
+        eq(schema.organizationMemberships.organizationId, row.organizationId),
+      ),
+    )
+    .limit(1);
+  if (!membership) {
+    await revokeCanvaOauthTokenRow(row.id);
     return null;
   }
 
@@ -347,10 +377,15 @@ export async function refreshCanvaOauthTokens(refreshToken: string) {
       accessTokenHash: digestCanvaOauthToken(accessToken),
       refreshTokenHash: digestCanvaOauthToken(nextRefreshToken),
       accessTokenExpiresAt: new Date(now + ACCESS_TOKEN_LIFETIME_SECONDS * 1000),
-      refreshTokenExpiresAt: new Date(now + REFRESH_TOKEN_LIFETIME_MS),
-      revokedAt: null,
     })
-    .where(and(eq(schema.canvaOauthTokens.id, row.id), isNull(schema.canvaOauthTokens.revokedAt)))
+    .where(
+      and(
+        eq(schema.canvaOauthTokens.id, row.id),
+        eq(schema.canvaOauthTokens.refreshTokenHash, refreshTokenHash),
+        isNull(schema.canvaOauthTokens.revokedAt),
+        liveOrganizationMembershipExists(row.userId, row.organizationId),
+      ),
+    )
     .returning({ id: schema.canvaOauthTokens.id });
 
   if (!updated) {
@@ -417,6 +452,13 @@ export async function getCanvaConnectionByOauthAccessToken(
       schema.canvaConnections,
       eq(schema.canvaOauthTokens.connectionId, schema.canvaConnections.id),
     )
+    .innerJoin(
+      schema.organizationMemberships,
+      and(
+        eq(schema.organizationMemberships.userId, schema.canvaOauthTokens.userId),
+        eq(schema.organizationMemberships.organizationId, schema.canvaOauthTokens.organizationId),
+      ),
+    )
     .where(
       and(
         eq(schema.canvaOauthTokens.accessTokenHash, digestCanvaOauthToken(accessToken)),
@@ -440,6 +482,35 @@ export async function getCanvaConnectionByOauthAccessToken(
     canvaBrandId: row.canvaBrandId,
     enabled: row.enabled,
   };
+}
+
+function liveOrganizationMembershipExists(userId: string, organizationId: string) {
+  return exists(
+    db
+      .select({ id: schema.organizationMemberships.id })
+      .from(schema.organizationMemberships)
+      .where(
+        and(
+          eq(schema.organizationMemberships.userId, userId),
+          eq(schema.organizationMemberships.organizationId, organizationId),
+        ),
+      ),
+  );
+}
+
+function isCanvaOauthRefreshExpired(row: {
+  createdAt: Date;
+  refreshTokenExpiresAt: Date;
+}): boolean {
+  const issuedCapMs = row.createdAt.getTime() + REFRESH_TOKEN_LIFETIME_MS;
+  return Math.min(row.refreshTokenExpiresAt.getTime(), issuedCapMs) < Date.now();
+}
+
+async function revokeCanvaOauthTokenRow(tokenId: string): Promise<void> {
+  await db
+    .update(schema.canvaOauthTokens)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(schema.canvaOauthTokens.id, tokenId), isNull(schema.canvaOauthTokens.revokedAt)));
 }
 
 export async function listCanvaOauthConsentConnections(

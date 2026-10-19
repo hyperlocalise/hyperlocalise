@@ -14,6 +14,7 @@ import "dotenv/config";
 
 import { createHash } from "node:crypto";
 
+import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -49,10 +50,11 @@ import { createCanvaConnection } from "@/lib/canva/connections";
 import {
   CANVA_OAUTH_REQUEST_COOKIE,
   createCanvaOauthAuthorizationRequest,
+  digestCanvaOauthToken,
   listCanvaOauthConsentConnections,
 } from "@/lib/canva/oauth";
 import { env } from "@/lib/env";
-import { db } from "@/lib/database/client";
+import { db, schema } from "@/lib/database/client";
 import { createApiKeyTestFixture } from "@/api/routes/api-key/api-key.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 
@@ -101,6 +103,38 @@ async function createConnectedWorkspace() {
   });
 
   return { auth, created };
+}
+
+async function issueCanvaOauthTokens(connectionId: string) {
+  const consentResponse = await app.request("http://localhost/api/oauth/canva/consent", {
+    method: "POST",
+    headers: {
+      cookie: `${CANVA_OAUTH_REQUEST_COOKIE}=${requestCookie()}`,
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({ connectionId }).toString(),
+  });
+  const code = new URL(consentResponse.headers.get("location") ?? "").searchParams.get("code");
+  expect(code).toBeTruthy();
+
+  const tokenResponse = await app.request("http://localhost/api/oauth/canva/token", {
+    method: "POST",
+    headers: {
+      authorization: basicAuthHeader(),
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code: code ?? "",
+      redirect_uri: REDIRECT_URI,
+      code_verifier: VERIFIER,
+    }).toString(),
+  });
+  expect(tokenResponse.status).toBe(200);
+  return (await tokenResponse.json()) as {
+    access_token: string;
+    refresh_token: string;
+  };
 }
 
 describe("canvaOauthRoutes", () => {
@@ -302,6 +336,121 @@ describe("canvaOauthRoutes", () => {
       }).toString(),
     });
     expect(revokedRefresh.status).toBe(400);
+  });
+
+  it("rejects refresh and access after the member leaves the organization", async () => {
+    const { auth, created } = await createConnectedWorkspace();
+    const tokens = await issueCanvaOauthTokens(created.connection.id);
+
+    await db
+      .delete(schema.organizationMemberships)
+      .where(
+        and(
+          eq(schema.organizationMemberships.userId, auth.user.localUserId),
+          eq(schema.organizationMemberships.organizationId, auth.organization.localOrganizationId),
+        ),
+      );
+
+    const sessionResponse = await client.api.integrations.canva.session.$get(
+      {},
+      {
+        headers: {
+          "X-Hyperlocalise-Access-Token": tokens.access_token,
+          Authorization: "Bearer canva-user-jwt",
+        },
+      },
+    );
+    expect(sessionResponse.status).toBe(401);
+
+    const refreshResponse = await app.request("http://localhost/api/oauth/canva/token", {
+      method: "POST",
+      headers: {
+        authorization: basicAuthHeader(),
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: tokens.refresh_token,
+      }).toString(),
+    });
+    expect(refreshResponse.status).toBe(400);
+
+    const [revoked] = await db
+      .select({ revokedAt: schema.canvaOauthTokens.revokedAt })
+      .from(schema.canvaOauthTokens)
+      .where(
+        eq(schema.canvaOauthTokens.refreshTokenHash, digestCanvaOauthToken(tokens.refresh_token)),
+      )
+      .limit(1);
+    expect(revoked?.revokedAt).not.toBeNull();
+  });
+
+  it("does not extend refresh token expiry when rotating tokens", async () => {
+    const { created } = await createConnectedWorkspace();
+    const tokens = await issueCanvaOauthTokens(created.connection.id);
+
+    const [before] = await db
+      .select({ refreshTokenExpiresAt: schema.canvaOauthTokens.refreshTokenExpiresAt })
+      .from(schema.canvaOauthTokens)
+      .where(
+        eq(schema.canvaOauthTokens.refreshTokenHash, digestCanvaOauthToken(tokens.refresh_token)),
+      )
+      .limit(1);
+    expect(before).toBeDefined();
+
+    const refreshResponse = await app.request("http://localhost/api/oauth/canva/token", {
+      method: "POST",
+      headers: {
+        authorization: basicAuthHeader(),
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: tokens.refresh_token,
+      }).toString(),
+    });
+    expect(refreshResponse.status).toBe(200);
+    const refreshed = (await refreshResponse.json()) as { refresh_token: string };
+
+    const [after] = await db
+      .select({ refreshTokenExpiresAt: schema.canvaOauthTokens.refreshTokenExpiresAt })
+      .from(schema.canvaOauthTokens)
+      .where(
+        eq(
+          schema.canvaOauthTokens.refreshTokenHash,
+          digestCanvaOauthToken(refreshed.refresh_token),
+        ),
+      )
+      .limit(1);
+    expect(after?.refreshTokenExpiresAt.getTime()).toBe(before!.refreshTokenExpiresAt.getTime());
+  });
+
+  it("rejects refresh after the original 90-day lifetime even if expiry was previously slid", async () => {
+    const { created } = await createConnectedWorkspace();
+    const tokens = await issueCanvaOauthTokens(created.connection.id);
+
+    await db
+      .update(schema.canvaOauthTokens)
+      .set({
+        createdAt: new Date(Date.now() - 91 * 24 * 60 * 60 * 1000),
+        refreshTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      })
+      .where(
+        eq(schema.canvaOauthTokens.refreshTokenHash, digestCanvaOauthToken(tokens.refresh_token)),
+      );
+
+    const refreshResponse = await app.request("http://localhost/api/oauth/canva/token", {
+      method: "POST",
+      headers: {
+        authorization: basicAuthHeader(),
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: tokens.refresh_token,
+      }).toString(),
+    });
+    expect(refreshResponse.status).toBe(400);
   });
 
   it("denies consent when the user cancels", async () => {
