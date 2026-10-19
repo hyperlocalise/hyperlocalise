@@ -170,14 +170,24 @@ describe("sanityIntegrationRoutes", () => {
     expect(bearer.status).toBe(401);
   });
 
-  it("rejects unknown connection tokens", async () => {
+  it("rejects legacy connection token headers", async () => {
     const response = await client.api.integrations.sanity.session.$get(undefined, {
       headers: {
         "X-Hyperlocalise-Connection-Token": "hl_sanity_unknown_token_value",
       },
     });
     expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toMatchObject({ error: "sanity_connection_not_found" });
+    await expect(response.json()).resolves.toMatchObject({ error: "sanity_access_token_required" });
+  });
+
+  it("rejects unknown access tokens", async () => {
+    const response = await client.api.integrations.sanity.session.$get(undefined, {
+      headers: {
+        "X-Hyperlocalise-Access-Token": "hl_sanity_at_unknown_token_value",
+      },
+    });
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({ error: "sanity_access_token_invalid" });
   });
 
   it("returns the workspace session and lists accessible projects", async () => {
@@ -199,10 +209,14 @@ describe("sanityIntegrationRoutes", () => {
       apiKeyId: apiKey.id,
     });
 
+    const integrationHeaders = await accessTokenHeaders({
+      connectionId: created.connection.id,
+      userId: auth.user.localUserId,
+      organizationId,
+    });
+
     const response = await client.api.integrations.sanity.session.$get(undefined, {
-      headers: {
-        "X-Hyperlocalise-Connection-Token": created.connectionToken,
-      },
+      headers: integrationHeaders,
     });
 
     expect(response.status).toBe(200);
@@ -229,15 +243,19 @@ describe("sanityIntegrationRoutes", () => {
       apiKeyId: apiKey.id,
     });
 
+    const integrationHeaders = await accessTokenHeaders({
+      connectionId: created.connection.id,
+      userId: auth.user.localUserId,
+      organizationId,
+    });
+
     await db
       .update(schema.organizationApiKeys)
       .set({ revokedAt: new Date() })
       .where(eq(schema.organizationApiKeys.id, apiKey.id));
 
     const response = await client.api.integrations.sanity.session.$get(undefined, {
-      headers: {
-        "X-Hyperlocalise-Connection-Token": created.connectionToken,
-      },
+      headers: integrationHeaders,
     });
 
     expect(response.status).toBe(401);
@@ -261,15 +279,19 @@ describe("sanityIntegrationRoutes", () => {
       apiKeyId: apiKey.id,
     });
 
+    const integrationHeaders = await accessTokenHeaders({
+      connectionId: created.connection.id,
+      userId: auth.user.localUserId,
+      organizationId,
+    });
+
     await db
       .update(schema.organizationApiKeys)
       .set({ permissions: ["files:read", "jobs:read"] })
       .where(eq(schema.organizationApiKeys.id, apiKey.id));
 
     const response = await client.api.integrations.sanity.session.$get(undefined, {
-      headers: {
-        "X-Hyperlocalise-Connection-Token": created.connectionToken,
-      },
+      headers: integrationHeaders,
     });
 
     expect(response.status).toBe(403);
@@ -299,10 +321,14 @@ describe("sanityIntegrationRoutes", () => {
       apiKeyId: apiKey.id,
     });
 
+    const integrationHeaders = await accessTokenHeaders({
+      connectionId: created.connection.id,
+      userId: auth.user.localUserId,
+      organizationId,
+    });
+
     const response = await client.api.integrations.sanity.session.$get(undefined, {
-      headers: {
-        "X-Hyperlocalise-Connection-Token": created.connectionToken,
-      },
+      headers: integrationHeaders,
     });
 
     expect(response.status).toBe(200);
@@ -333,6 +359,12 @@ describe("sanityIntegrationRoutes", () => {
       apiKeyId: apiKey.id,
     });
 
+    const integrationHeaders = await accessTokenHeaders({
+      connectionId: created.connection.id,
+      userId: auth.user.localUserId,
+      organizationId,
+    });
+
     mocks.collectSanityPageMock.mockResolvedValue({
       projectId: projectBody.project.id,
       sourceFileId: "file_collected",
@@ -350,9 +382,7 @@ describe("sanityIntegrationRoutes", () => {
         },
       },
       {
-        headers: {
-          "X-Hyperlocalise-Connection-Token": created.connectionToken,
-        },
+        headers: integrationHeaders,
       },
     );
 
@@ -392,6 +422,12 @@ describe("sanityIntegrationRoutes", () => {
       apiKeyId: apiKey.id,
     });
 
+    const integrationHeaders = await accessTokenHeaders({
+      connectionId: created.connection.id,
+      userId: auth.user.localUserId,
+      organizationId,
+    });
+
     mocks.listSanityPageLocaleStatusesMock.mockResolvedValue({
       locales: [
         {
@@ -419,9 +455,7 @@ describe("sanityIntegrationRoutes", () => {
         },
       },
       {
-        headers: {
-          "X-Hyperlocalise-Connection-Token": created.connectionToken,
-        },
+        headers: integrationHeaders,
       },
     );
 
@@ -438,7 +472,7 @@ describe("sanityIntegrationRoutes", () => {
     );
   });
 
-  it("creates a job when the connection token is valid and projectId is supplied", async () => {
+  it("creates a job when the access token is valid and projectId is supplied", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
     await apiKeyFixture.authHeadersFor(identity);
     const auth = globalThis.__testApiAuthContext!;
@@ -455,6 +489,12 @@ describe("sanityIntegrationRoutes", () => {
       userId: auth.user.localUserId,
       displayName: "Sanity jobs",
       apiKeyId: apiKey.id,
+    });
+
+    const integrationHeaders = await accessTokenHeaders({
+      connectionId: created.connection.id,
+      userId: auth.user.localUserId,
+      organizationId,
     });
 
     mocks.getAccessibleSanityProjectMock.mockResolvedValue({
@@ -484,9 +524,7 @@ describe("sanityIntegrationRoutes", () => {
         },
       },
       {
-        headers: {
-          "X-Hyperlocalise-Connection-Token": created.connectionToken,
-        },
+        headers: integrationHeaders,
       },
     );
 
@@ -528,6 +566,12 @@ describe("sanityIntegrationRoutes", () => {
       apiKeyId: apiKey.id,
     });
 
+    const integrationHeaders = await accessTokenHeaders({
+      connectionId: created.connection.id,
+      userId: auth.user.localUserId,
+      organizationId,
+    });
+
     mocks.getAccessibleSanityProjectMock.mockResolvedValue({
       id: projectBody.project.id,
       name: "Test project",
@@ -554,9 +598,7 @@ describe("sanityIntegrationRoutes", () => {
         },
       },
       {
-        headers: {
-          "X-Hyperlocalise-Connection-Token": created.connectionToken,
-        },
+        headers: integrationHeaders,
       },
     );
 
@@ -597,6 +639,12 @@ describe("sanityIntegrationRoutes", () => {
       apiKeyId: apiKey.id,
     });
 
+    const integrationHeaders = await accessTokenHeaders({
+      connectionId: created.connection.id,
+      userId: auth.user.localUserId,
+      organizationId,
+    });
+
     const response = await client.api.integrations.sanity.jobs.$post(
       {
         json: {
@@ -607,9 +655,7 @@ describe("sanityIntegrationRoutes", () => {
         } as never,
       },
       {
-        headers: {
-          "X-Hyperlocalise-Connection-Token": created.connectionToken,
-        },
+        headers: integrationHeaders,
       },
     );
 
@@ -636,6 +682,12 @@ describe("sanityIntegrationRoutes", () => {
       apiKeyId: apiKey.id,
     });
 
+    const integrationHeaders = await accessTokenHeaders({
+      connectionId: created.connection.id,
+      userId: auth.user.localUserId,
+      organizationId,
+    });
+
     mocks.pullSanityPageLocaleContentMock.mockResolvedValue({
       kind: "job",
       translations: {
@@ -654,9 +706,7 @@ describe("sanityIntegrationRoutes", () => {
         },
       },
       {
-        headers: {
-          "X-Hyperlocalise-Connection-Token": created.connectionToken,
-        },
+        headers: integrationHeaders,
       },
     );
 
@@ -689,6 +739,12 @@ describe("sanityIntegrationRoutes", () => {
       apiKeyId: apiKey.id,
     });
 
+    const integrationHeaders = await accessTokenHeaders({
+      connectionId: created.connection.id,
+      userId: auth.user.localUserId,
+      organizationId,
+    });
+
     mocks.pullSanityPageLocaleContentMock.mockResolvedValue({
       kind: "source",
       sourcePage: {
@@ -709,9 +765,7 @@ describe("sanityIntegrationRoutes", () => {
         },
       },
       {
-        headers: {
-          "X-Hyperlocalise-Connection-Token": created.connectionToken,
-        },
+        headers: integrationHeaders,
       },
     );
 
@@ -744,6 +798,12 @@ describe("sanityIntegrationRoutes", () => {
       apiKeyId: apiKey.id,
     });
 
+    const integrationHeaders = await accessTokenHeaders({
+      connectionId: created.connection.id,
+      userId: auth.user.localUserId,
+      organizationId,
+    });
+
     const [untouched] = await db
       .select({ lastUsedAt: schema.sanityConnections.lastUsedAt })
       .from(schema.sanityConnections)
@@ -751,9 +811,7 @@ describe("sanityIntegrationRoutes", () => {
     expect(untouched?.lastUsedAt).toBeNull();
 
     await client.api.integrations.sanity.session.$get(undefined, {
-      headers: {
-        "X-Hyperlocalise-Connection-Token": created.connectionToken,
-      },
+      headers: integrationHeaders,
     });
 
     const [touched] = await db
@@ -782,6 +840,12 @@ describe("sanityIntegrationRoutes", () => {
       apiKeyId: apiKey.id,
     });
 
+    const integrationHeaders = await accessTokenHeaders({
+      connectionId: created.connection.id,
+      userId: auth.user.localUserId,
+      organizationId,
+    });
+
     const disableResponse = await client.api.orgs[":organizationSlug"]["sanity-connections"][
       ":connectionId"
     ].$patch(
@@ -794,9 +858,7 @@ describe("sanityIntegrationRoutes", () => {
     expect(disableResponse.status).toBe(200);
 
     const response = await client.api.integrations.sanity.session.$get(undefined, {
-      headers: {
-        "X-Hyperlocalise-Connection-Token": created.connectionToken,
-      },
+      headers: integrationHeaders,
     });
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({ error: "sanity_connection_disabled" });
