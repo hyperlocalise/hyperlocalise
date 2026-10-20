@@ -19,6 +19,7 @@ The Go service already writes a `string_segment_translation_updated` or `string_
 - A cron route, `/api/cron/reporting-capture`, runs every five minutes. It records each saved occurrence through `captureAnalysis` and `captureCompletions`, with the acting user.
 - Progress is a cursor per organization in `reporting_capture_cursors`. Events are read in `(created_at, id)` order once they are two minutes old, because `created_at` is insert time, not commit time.
 - A workspace with Reports off has its position moved past its saves, since Reports records work from when it is turned on. Each run first waits for the feature flags to download and stops if they cannot, so a failed check never reads as off.
+- A run records saves in batches of 200, moving the position after each, loads each memory once, and starts no new batch after four minutes, inside the 300 s function limit.
 - The event only says what was saved. Text and source job are read from the state tables. Existing unique keys keep every write idempotent.
 - `reporting_activity` gains a nullable `actor_user_id`.
 - The browser no longer awaits the reporting request. The route only records product analytics. The web app's own save path writes no event, so it captures directly after the write.

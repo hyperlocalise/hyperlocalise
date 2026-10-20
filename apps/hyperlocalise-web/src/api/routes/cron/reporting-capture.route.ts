@@ -17,6 +17,11 @@ import { createLogger } from "@/lib/log";
 import { captureEditorSaves } from "@/lib/reporting/editor-save-capture";
 
 const logger = createLogger("cron-reporting-capture");
+/**
+ * A run starts no new batch after this long, a minute inside the 300 s function limit
+ * (`maxDuration` in the API catch-all route), so it ends cleanly and keeps its finished work.
+ */
+const CAPTURE_TIME_BUDGET_MS = 240_000;
 
 export function createReportingCaptureRoutes() {
   return new Hono().get("/", async (c) => {
@@ -40,7 +45,9 @@ export function createReportingCaptureRoutes() {
       return c.json({ error: "unauthorized" }, 401);
     }
 
-    const results = await captureEditorSaves();
+    const results = await captureEditorSaves({
+      signal: AbortSignal.timeout(CAPTURE_TIME_BUDGET_MS),
+    });
     logger.info(results, "cron tick completed");
     return c.json({ results }, 200);
   });

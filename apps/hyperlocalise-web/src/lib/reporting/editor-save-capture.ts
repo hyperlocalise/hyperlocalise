@@ -17,7 +17,7 @@ import { waitForWorkosFeatureFlags } from "@/lib/flags/workos-adapter";
 import { workspaceReportsFlag } from "@/lib/flags/workspace-flags";
 import { createLogger } from "@/lib/log";
 
-import { captureAnalysis, captureCompletions } from "./capture";
+import { MemoryScoreCache, recordAnalysis, recordCompletions } from "./capture";
 
 const logger = createLogger("reporting-editor-save-capture");
 
@@ -25,6 +25,8 @@ const logger = createLogger("reporting-editor-save-capture");
  * commit time, so a slow save can commit an event with an earlier timestamp than one already seen. */
 export const EDITOR_SAVE_CAPTURE_CUTOFF_MS = 2 * 60 * 1000;
 const EVENTS_PER_ORGANIZATION = 2_000;
+/** Saves recorded before a workspace's position moves, so a stopped run keeps its finished work. */
+const EVENTS_PER_BATCH = 200;
 /** How long a run waits for this instance's first download of feature flags before stopping. */
 const FLAGS_READY_TIMEOUT_MS = 10_000;
 const SAVE_EVENT_TYPES = ["string_segment_translation_updated", "string_segment_approved"] as const;
@@ -45,7 +47,7 @@ export type EditorSaveCaptureResult = {
   eventsProcessed: number;
   segmentsRecorded: number;
   /** Why the run stopped before checking every workspace, if it did. */
-  stopped: "flags_unavailable" | null;
+  stopped: "flags_unavailable" | "time_budget" | null;
 };
 
 type WorkspaceToCheck = {
@@ -63,6 +65,9 @@ export async function captureEditorSaves(
     now?: Date;
     /** Limits the run to these workspaces; every workspace when left out. */
     organizationIds?: string[];
+    /** Once aborted, the run starts no new batch and keeps what it has finished. */
+    signal?: AbortSignal;
+    eventsPerBatch?: number;
   } = {},
 ): Promise<EditorSaveCaptureResult> {
   const now = input.now ?? new Date();
@@ -83,7 +88,13 @@ export async function captureEditorSaves(
     result.stopped = "flags_unavailable";
     return result;
   }
-  for (const workspace of await listWorkspacesToCheck(cutoff, input.organizationIds)) {
+  const memoryCache = new MemoryScoreCache();
+  const eventsPerBatch = input.eventsPerBatch ?? EVENTS_PER_BATCH;
+  workspaces: for (const workspace of await listWorkspacesToCheck(cutoff, input.organizationIds)) {
+    if (input.signal?.aborted) {
+      result.stopped = "time_budget";
+      break;
+    }
     const { organizationId } = workspace;
     try {
       if (!(await readReportsFlag(workspace))) {
@@ -99,9 +110,16 @@ export async function captureEditorSaves(
         continue;
       }
       result.organizationsProcessed += 1;
-      result.segmentsRecorded += await recordSaves(organizationId, events);
-      result.eventsProcessed += events.length;
-      await advanceCursor(events[events.length - 1]);
+      for (let start = 0; start < events.length; start += eventsPerBatch) {
+        if (start > 0 && input.signal?.aborted) {
+          result.stopped = "time_budget";
+          break workspaces;
+        }
+        const batch = events.slice(start, start + eventsPerBatch);
+        result.segmentsRecorded += await recordSaves(organizationId, batch, memoryCache);
+        result.eventsProcessed += batch.length;
+        await advanceCursor(batch[batch.length - 1]);
+      }
     } catch (error) {
       logger.warn({ organizationId, error }, "editor save capture failed; will retry next run");
     }
@@ -272,7 +290,11 @@ function savedSegments(events: SaveEvent[]): SavedSegment[] {
   return [...latest.values()];
 }
 
-async function recordSaves(organizationId: string, events: SaveEvent[]): Promise<number> {
+async function recordSaves(
+  organizationId: string,
+  events: SaveEvent[],
+  memoryCache: MemoryScoreCache,
+): Promise<number> {
   const segments = savedSegments(events);
   if (segments.length === 0) return 0;
   const keyIds = [...new Set(segments.map((segment) => segment.translationKeyId))];
@@ -327,7 +349,14 @@ async function recordSaves(organizationId: string, events: SaveEvent[]): Promise
     group.push({ segment, sourceJobId });
     groups.set(groupKey, group);
   }
-  for (const group of groups.values()) {
+  // Groups of one project and language share a memory, so keeping them together lets the cache
+  // load it once.
+  const memoryOrder = (group: { segment: SavedSegment }[]) =>
+    `${group[0].segment.projectId}:${group[0].segment.targetLocale}`;
+  const ordered = [...groups.values()].sort((left, right) =>
+    memoryOrder(left).localeCompare(memoryOrder(right)),
+  );
+  for (const group of ordered) {
     const { segment, sourceJobId } = group[0];
     const sourceEntries = Object.fromEntries(
       group.map(({ segment }) => [
@@ -342,13 +371,16 @@ async function recordSaves(organizationId: string, events: SaveEvent[]): Promise
       sourceEntries,
       step: segment.step,
     };
-    await captureAnalysis({
-      ...shared,
-      projectId: segment.projectId,
-      sourceLocale: sourceLocaleByProject.get(segment.projectId) ?? "en",
-      billable: true,
-    });
-    await captureCompletions({ ...shared, provenance: "human", actorUserId: segment.actorUserId });
+    await recordAnalysis(
+      {
+        ...shared,
+        projectId: segment.projectId,
+        sourceLocale: sourceLocaleByProject.get(segment.projectId) ?? "en",
+        billable: true,
+      },
+      { memoryCache },
+    );
+    await recordCompletions({ ...shared, provenance: "human", actorUserId: segment.actorUserId });
     recorded += group.length;
   }
   return recorded;

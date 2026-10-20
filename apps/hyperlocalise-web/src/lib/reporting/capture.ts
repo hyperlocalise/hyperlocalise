@@ -113,6 +113,21 @@ export async function resolveReportingRate(
   return rate ?? null;
 }
 
+type LoadedMemory = {
+  key: string;
+  sources: string[];
+  scan?: MemorySourceScan;
+  index?: MemoryMatchIndex;
+};
+
+/**
+ * Keeps the memory a run loaded last, so groups of saves that share a memory load it once. It
+ * holds one memory at a time, and only one that fits in a single slice, to bound memory use.
+ */
+export class MemoryScoreCache {
+  loaded: LoadedMemory | null = null;
+}
+
 /**
  * Scores each source text against the locale pair's approved memory entries, 0 to 100. Entries are
  * loaded and scored in memory, a slice at a time for a memory larger than one slice. A handful of
@@ -125,12 +140,28 @@ export async function scoreAgainstMemory(
     targetLocale: string;
     sourceTexts: string[];
   },
-  options: { sliceEntries?: number } = {},
+  options: { sliceEntries?: number; cache?: MemoryScoreCache } = {},
 ): Promise<Map<string, number>> {
   const texts = [...new Set(input.sourceTexts)];
   const scores = new Map(texts.map((text) => [text, 0]));
   if (!input.memoryIds.length || texts.length === 0) return scores;
   const sliceEntries = options.sliceEntries ?? MEMORY_SLICE_ENTRIES;
+  const key = [[...input.memoryIds].sort().join(","), input.sourceLocale, input.targetLocale].join(
+    "|",
+  );
+  const score = (memory: LoadedMemory) => {
+    const scorer =
+      texts.length < MEMORY_INDEX_MIN_QUERIES
+        ? (memory.scan ??= new MemorySourceScan(memory.sources))
+        : (memory.index ??= new MemoryMatchIndex(memory.sources));
+    for (const text of texts) {
+      scores.set(text, Math.max(scores.get(text)!, scorer.bestScore(text)));
+    }
+  };
+  if (options.cache?.loaded?.key === key) {
+    score(options.cache.loaded);
+    return scores;
+  }
   let after: string | undefined;
   for (;;) {
     const rows = await db
@@ -141,15 +172,12 @@ export async function scoreAgainstMemory(
       )
       .orderBy(asc(schema.memoryEntries.id))
       .limit(sliceEntries);
-    const sources = rows.map((row) => row.source);
-    const scorer =
-      texts.length < MEMORY_INDEX_MIN_QUERIES
-        ? new MemorySourceScan(sources)
-        : new MemoryMatchIndex(sources);
-    for (const text of texts) {
-      scores.set(text, Math.max(scores.get(text)!, scorer.bestScore(text)));
+    const memory: LoadedMemory = { key, sources: rows.map((row) => row.source) };
+    score(memory);
+    if (rows.length < sliceEntries) {
+      if (after === undefined && options.cache) options.cache.loaded = memory;
+      return scores;
     }
-    if (rows.length < sliceEntries) return scores;
     after = rows[rows.length - 1].id;
   }
 }
@@ -167,7 +195,7 @@ function approvedMemoryEntries(input: {
   );
 }
 
-export async function captureAnalysis(input: {
+type AnalysisInput = {
   organizationId: string;
   projectId: string;
   jobId?: string;
@@ -176,7 +204,15 @@ export async function captureAnalysis(input: {
   sourceEntries: Record<string, string>;
   step?: "translation" | "review";
   billable?: boolean;
-}) {
+};
+
+/**
+ * Options for a caller that has already checked the Reports flag and must know when a write fails,
+ * such as the 5-minute capture task: `strict` skips the flag check and throws instead of logging.
+ */
+type StrictWriteOptions = { strict?: boolean };
+
+export async function captureAnalysis(input: AnalysisInput) {
   try {
     await writeReportingAnalysis(input);
   } catch (error) {
@@ -184,17 +220,19 @@ export async function captureAnalysis(input: {
   }
 }
 
-async function writeReportingAnalysis(input: {
-  organizationId: string;
-  projectId: string;
-  jobId?: string;
-  sourceLocale: string;
-  targetLocale: string;
-  sourceEntries: Record<string, string>;
-  step?: "translation" | "review";
-  billable?: boolean;
-}) {
-  if (!(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
+/** Writes an analysis like `captureAnalysis`, but throws on failure and skips the flag check. */
+export async function recordAnalysis(
+  input: AnalysisInput,
+  options: { memoryCache?: MemoryScoreCache } = {},
+) {
+  await writeReportingAnalysis(input, { ...options, strict: true });
+}
+
+async function writeReportingAnalysis(
+  input: AnalysisInput,
+  options: StrictWriteOptions & { memoryCache?: MemoryScoreCache } = {},
+) {
+  if (!options.strict && !(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
     return;
   }
   await reportingStart();
@@ -218,21 +256,26 @@ async function writeReportingAnalysis(input: {
   let memoryIds: string[] | null = null;
   try {
     memoryIds = await listAttachedProjectMemoryIds(input.projectId);
-  } catch {
+  } catch (error) {
+    if (options.strict) throw error;
     console.warn("reporting_match_analysis_unavailable", { jobId: input.jobId });
   }
   const uniqueTexts = [...new Set(Object.values(input.sourceEntries))];
   const scores = new Map<string, number | null>();
   if (memoryIds) {
     try {
-      const memoryScores = await scoreAgainstMemory({
-        memoryIds,
-        sourceLocale: input.sourceLocale,
-        targetLocale: input.targetLocale,
-        sourceTexts: uniqueTexts,
-      });
+      const memoryScores = await scoreAgainstMemory(
+        {
+          memoryIds,
+          sourceLocale: input.sourceLocale,
+          targetLocale: input.targetLocale,
+          sourceTexts: uniqueTexts,
+        },
+        { cache: options.memoryCache },
+      );
       for (const [sourceText, score] of memoryScores) scores.set(sourceText, score);
-    } catch {
+    } catch (error) {
+      if (options.strict) throw error;
       console.warn("reporting_match_analysis_unavailable", { jobId: input.jobId });
     }
   }
@@ -355,19 +398,18 @@ async function revisionsRecordedEarlier(input: {
   return found;
 }
 
-export async function captureCompletions(
-  input: {
-    organizationId: string;
-    jobId?: string;
-    targetLocale: string;
-    sourceEntries: Record<string, string>;
-    provenance: "human" | "automated";
-    step?: "translation" | "review";
-    /** The person whose work this is; recorded on human completions. */
-    actorUserId?: string | null;
-  },
-  database: DatabaseClient = db,
-) {
+type CompletionsInput = {
+  organizationId: string;
+  jobId?: string;
+  targetLocale: string;
+  sourceEntries: Record<string, string>;
+  provenance: "human" | "automated";
+  step?: "translation" | "review";
+  /** The person whose work this is; recorded on human completions. */
+  actorUserId?: string | null;
+};
+
+export async function captureCompletions(input: CompletionsInput, database: DatabaseClient = db) {
   try {
     await writeReportingCompletions(input, database);
   } catch (error) {
@@ -375,19 +417,17 @@ export async function captureCompletions(
   }
 }
 
+/** Writes completions like `captureCompletions`, but throws on failure and skips the flag check. */
+export async function recordCompletions(input: CompletionsInput) {
+  await writeReportingCompletions(input, db, { strict: true });
+}
+
 async function writeReportingCompletions(
-  input: {
-    organizationId: string;
-    jobId?: string;
-    targetLocale: string;
-    sourceEntries: Record<string, string>;
-    provenance: "human" | "automated";
-    step?: "translation" | "review";
-    actorUserId?: string | null;
-  },
+  input: CompletionsInput,
   database: DatabaseClient,
+  options: StrictWriteOptions = {},
 ) {
-  if (!(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
+  if (!options.strict && !(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
     return;
   }
   const step = input.step ?? "translation";

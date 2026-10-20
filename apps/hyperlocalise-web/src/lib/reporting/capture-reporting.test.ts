@@ -25,7 +25,13 @@ import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translat
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 import { captureAiUsage } from "./ai-cost";
-import { captureAnalysis, captureJobStatus, scoreAgainstMemory, sourceSimilarity } from "./capture";
+import {
+  captureAnalysis,
+  captureJobStatus,
+  MemoryScoreCache,
+  scoreAgainstMemory,
+  sourceSimilarity,
+} from "./capture";
 
 const resolveWorkspaceReportsFlagMock = vi.hoisted(() => vi.fn(async () => true));
 
@@ -419,6 +425,42 @@ describe("reporting capture", () => {
         { sliceEntries: 2 },
       ),
     ).toEqual(new Map([[input.sourceTexts[0], 80]]));
+  });
+
+  it("loads a memory once for scores that share it, through the cache", async () => {
+    const { organization, user } = await projectFixture.createStoredProjectFixture();
+    const [memory] = await db
+      .insert(schema.memories)
+      .values({ organizationId: organization.id, createdByUserId: user.id, name: "Cached TM" })
+      .returning();
+    await db.insert(schema.memoryEntries).values({
+      memoryId: memory.id,
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceText: "Hello world",
+      normalizedSourceText: normalizeTranslationMemorySourceText("Hello world"),
+      targetText: "Bonjour le monde",
+      reviewStatus: "approved",
+    });
+    const input = { memoryIds: [memory.id], sourceLocale: "en-US", targetLocale: "fr-FR" };
+    const cache = new MemoryScoreCache();
+    const selects = vi.spyOn(db, "select");
+
+    const first = await scoreAgainstMemory({ ...input, sourceTexts: ["Hello world"] }, { cache });
+    const loadsAfterFirst = selects.mock.calls.length;
+    const second = await scoreAgainstMemory(
+      { ...input, sourceTexts: ["Hello worlds", "Hello", "world", "Hello there world"] },
+      { cache },
+    );
+    expect(selects.mock.calls.length).toBe(loadsAfterFirst);
+    selects.mockRestore();
+    expect(first.get("Hello world")).toBe(100);
+    expect(second).toEqual(
+      await scoreAgainstMemory({
+        ...input,
+        sourceTexts: ["Hello worlds", "Hello", "world", "Hello there world"],
+      }),
+    );
   });
 
   it("skips analysis capture when workspace reports is disabled", async () => {

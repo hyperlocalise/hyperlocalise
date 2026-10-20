@@ -282,6 +282,63 @@ describe("captureEditorSaves", () => {
     expect(analyses).toHaveLength(0);
   });
 
+  it("stops before a new batch once the time is up, keeping the batches it finished", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    const saves = [];
+    for (const segmentId of keyIds) {
+      saves.push(
+        await insertSaveEvent({
+          organizationId: organization.id,
+          projectId: project.id,
+          actorUserId: user.id,
+          segmentId,
+        }),
+      );
+    }
+    // Reads as not aborted at the workspace's start, then aborted before its second batch.
+    let checks = 0;
+    const signal = {
+      get aborted() {
+        checks += 1;
+        return checks > 1;
+      },
+    } as AbortSignal;
+
+    const stopped = await captureEditorSaves({
+      now: LATER(),
+      organizationIds: [organization.id],
+      signal,
+      eventsPerBatch: 1,
+    });
+    expect(stopped).toMatchObject({ stopped: "time_budget", eventsProcessed: 1 });
+    const [cursor] = await db
+      .select()
+      .from(schema.reportingCaptureCursors)
+      .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
+    expect(cursor.lastEventId).toBe(saves[0].id);
+
+    const resumed = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    expect(resumed).toMatchObject({ stopped: null, eventsProcessed: 1 });
+  });
+
+  it("does nothing when the time is already up", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+    });
+
+    const result = await captureEditorSaves({
+      now: LATER(),
+      organizationIds: [organization.id],
+      signal: AbortSignal.abort(),
+    });
+    expect(result).toMatchObject({ stopped: "time_budget", eventsProcessed: 0 });
+    expect(mocks.reportsFlagRun).not.toHaveBeenCalled();
+  });
+
   it("passes over saves made while Reports is off, then records later ones once it is on", async () => {
     mocks.reportsFlagRun.mockResolvedValue(false);
     const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
