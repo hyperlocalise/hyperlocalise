@@ -50,6 +50,8 @@ export type EditorSaveCaptureResult = {
 export async function captureEditorSaves(
   input: {
     now?: Date;
+    /** Limits the run to these workspaces; every workspace when left out. */
+    organizationIds?: string[];
   } = {},
 ): Promise<EditorSaveCaptureResult> {
   const now = input.now ?? new Date();
@@ -60,7 +62,7 @@ export async function captureEditorSaves(
     eventsProcessed: 0,
     segmentsRecorded: 0,
   };
-  const organizations = await listOrganizationsWithPendingSaves(cutoff);
+  const organizations = await listOrganizationsWithPendingSaves(cutoff, input.organizationIds);
   for (const organizationId of organizations) {
     const enabled = await isWorkspaceReportsCaptureEnabled(organizationId);
     const events = await listPendingSaveEvents(organizationId, cutoff);
@@ -84,7 +86,11 @@ export async function captureEditorSaves(
   return result;
 }
 
-async function listOrganizationsWithPendingSaves(cutoff: Date): Promise<string[]> {
+async function listOrganizationsWithPendingSaves(
+  cutoff: Date,
+  organizationIds?: string[],
+): Promise<string[]> {
+  if (organizationIds?.length === 0) return [];
   const rows = await db.execute<{ organizationId: string }>(sql`
     select distinct e.organization_id as "organizationId"
     from organization_activity_events e
@@ -94,6 +100,14 @@ async function listOrganizationsWithPendingSaves(cutoff: Date): Promise<string[]
       sql`, `,
     )})
       and e.created_at <= ${cutoff}
+      ${
+        organizationIds
+          ? sql`and e.organization_id in (${sql.join(
+              organizationIds.map((id) => sql`${id}`),
+              sql`, `,
+            )})`
+          : sql``
+      }
       and (c.organization_id is null or (e.created_at, e.id) > (c.last_event_created_at, c.last_event_id))
   `);
   return rows.rows.map((row) => row.organizationId);

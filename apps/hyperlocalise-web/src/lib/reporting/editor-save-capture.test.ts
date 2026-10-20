@@ -110,6 +110,8 @@ async function insertSaveEvent(input: {
   return event;
 }
 
+// The task reads every workspace's events; other test files share the database and write save
+// events of their own, so each run here is limited to the test's workspace.
 describe("captureEditorSaves", () => {
   it("records every saved occurrence with the person, then advances the cursor", async () => {
     const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
@@ -122,7 +124,7 @@ describe("captureEditorSaves", () => {
       });
     }
 
-    const first = await captureEditorSaves({ now: LATER() });
+    const first = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
     expect(first.organizationsProcessed).toBe(1);
     expect(first.segmentsRecorded).toBe(2);
 
@@ -152,7 +154,7 @@ describe("captureEditorSaves", () => {
     expect(cursor).toBeDefined();
 
     // A second run finds nothing new for this workspace and changes nothing it recorded.
-    await captureEditorSaves({ now: LATER() });
+    await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
     const [cursorAfter] = await db
       .select()
       .from(schema.reportingCaptureCursors)
@@ -184,7 +186,10 @@ describe("captureEditorSaves", () => {
       set created_at = date_trunc('milliseconds', created_at) + interval '1 microsecond'
       where id = ${first.id}
     `);
-    expect((await captureEditorSaves({ now: LATER() })).eventsProcessed).toBe(1);
+    expect(
+      (await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] }))
+        .eventsProcessed,
+    ).toBe(1);
 
     await insertSaveEvent({
       organizationId: organization.id,
@@ -192,7 +197,10 @@ describe("captureEditorSaves", () => {
       actorUserId: user.id,
       segmentId: keyIds[1],
     });
-    expect((await captureEditorSaves({ now: LATER() })).eventsProcessed).toBe(1);
+    expect(
+      (await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] }))
+        .eventsProcessed,
+    ).toBe(1);
   });
 
   it("records an approval as the review step", async () => {
@@ -205,7 +213,7 @@ describe("captureEditorSaves", () => {
       eventType: "string_segment_approved",
     });
 
-    await captureEditorSaves({ now: LATER() });
+    await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
 
     const analyses = await db
       .select({ step: schema.reportingAnalyses.step })
@@ -223,7 +231,10 @@ describe("captureEditorSaves", () => {
       segmentId: keyIds[0],
     });
 
-    const result = await captureEditorSaves({ now: new Date() });
+    const result = await captureEditorSaves({
+      now: new Date(),
+      organizationIds: [organization.id],
+    });
     expect(result.eventsProcessed).toBe(0);
     const analyses = await db
       .select()
@@ -242,7 +253,7 @@ describe("captureEditorSaves", () => {
       segmentId: keyIds[0],
     });
 
-    const result = await captureEditorSaves({ now: LATER() });
+    const result = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
     expect(result.organizationsSkipped).toBe(1);
     expect(result.segmentsRecorded).toBe(0);
     const [cursor] = await db
