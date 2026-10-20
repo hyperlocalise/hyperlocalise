@@ -21,7 +21,7 @@ The Go service already writes a `string_segment_translation_updated` or `string_
 - A workspace the task has not seen before starts at the cut-off, and a workspace with Reports off has its position moved past its saves, since Reports records work from when it is turned on. Approvals made in an external translation tool name that tool's string id and are passed over. Each run first waits for the feature flags to download and stops if they cannot, so a failed check never reads as off.
 - A run records saves in batches of 200, moving the position after each, loads each memory once, and starts no new batch after four minutes, inside the 300 s function limit.
 - The event only says what was saved. Text and source job are read from the state tables. Existing unique keys keep every write idempotent.
-- `reporting_activity` gains a nullable `actor_user_id`.
+- `reporting_activity` gains a nullable `actor_user_id`. Events with `actorKind: agent` are recorded as automated, not billable, with no person. MCP tools now log their events that way, as the in-app agent tools already do, since an MCP call is an AI assistant acting for the person.
 - The browser no longer awaits the reporting request. The route only records product analytics. The web app's own save path writes no event, so it captures directly after the write.
 
 ### Matching runs in memory

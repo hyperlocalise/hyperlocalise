@@ -35,6 +35,7 @@ type SaveEvent = {
   id: string;
   organizationId: string;
   actorUserId: string | null;
+  actorKind: string;
   eventType: string;
   targetId: string;
   payload: Record<string, unknown>;
@@ -216,6 +217,7 @@ async function listPendingSaveEvents(organizationId: string, cutoff: Date): Prom
       id: events.id,
       organizationId: events.organizationId,
       actorUserId: events.actorUserId,
+      actorKind: events.actorKind,
       eventType: events.eventType,
       targetId: events.targetId,
       payload: events.payload,
@@ -282,6 +284,8 @@ type SavedSegment = {
   targetLocale: string;
   step: "translation" | "review";
   actorUserId: string | null;
+  /** Done by an AI agent (MCP tools, in-app agents): recorded as automated, not billable. */
+  automated: boolean;
 };
 
 /** One record per saved occurrence, language and step; the latest event wins. */
@@ -303,6 +307,7 @@ function savedSegments(events: SaveEvent[]): SavedSegment[] {
       targetLocale,
       step,
       actorUserId: event.actorUserId,
+      automated: event.actorKind === "agent",
     } as const;
     latest.set(`${projectId}:${event.targetId}:${targetLocale}:${step}`, segment);
   }
@@ -363,7 +368,7 @@ async function recordSaves(
     const translation = translationByKey.get(`${segment.translationKeyId}:${segment.targetLocale}`);
     if (!key || key.projectId !== segment.projectId || !translation?.text.trim()) continue;
     const sourceJobId = translation.sourceJobId ?? undefined;
-    const groupKey = `${segment.projectId}:${sourceJobId ?? ""}:${segment.targetLocale}:${segment.step}:${segment.actorUserId ?? ""}`;
+    const groupKey = `${segment.projectId}:${sourceJobId ?? ""}:${segment.targetLocale}:${segment.step}:${segment.actorUserId ?? ""}:${segment.automated}`;
     const group = groups.get(groupKey) ?? [];
     group.push({ segment, sourceJobId });
     groups.set(groupKey, group);
@@ -395,11 +400,15 @@ async function recordSaves(
         ...shared,
         projectId: segment.projectId,
         sourceLocale: sourceLocaleByProject.get(segment.projectId) ?? "en",
-        billable: true,
+        billable: !segment.automated,
       },
       { memoryCache },
     );
-    await recordCompletions({ ...shared, provenance: "human", actorUserId: segment.actorUserId });
+    await recordCompletions({
+      ...shared,
+      provenance: segment.automated ? "automated" : "human",
+      actorUserId: segment.automated ? null : segment.actorUserId,
+    });
     recorded += group.length;
   }
   return recorded;

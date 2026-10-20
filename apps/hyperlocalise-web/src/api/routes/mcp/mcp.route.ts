@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { mcpActivityActor } from "@/api/routes/mcp/mcp-activity-actor";
 import { createHash, randomUUID } from "node:crypto";
 
 import { and, desc, eq, gt, inArray, isNotNull, isNull } from "drizzle-orm";
@@ -84,7 +85,6 @@ import {
   issueSheetFeedQuerySchema,
   issueSheetUpdateIssueBodySchema,
 } from "@/api/routes/project/issue-sheet.schema";
-import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
 import { enqueueQueryCreatedActivity } from "@/lib/activity-log/query-events";
 import {
   IssueSheetService,
@@ -1766,7 +1766,7 @@ async function createMcpServerForRequest(
 
       if (createdIssue) {
         await enqueueQueryCreatedActivity({
-          ...sessionActivityActor(apiAuth.user.localUserId),
+          ...mcpActivityActor(apiAuth.user.localUserId),
           identifier: issue.identifier,
           organizationId: apiAuth.organization.localOrganizationId,
           projectId,

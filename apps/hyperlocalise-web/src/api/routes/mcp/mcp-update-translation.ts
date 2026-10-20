@@ -10,15 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { mcpActivityActor } from "@/api/routes/mcp/mcp-activity-actor";
 import {
   analyzeCatMessageFormat,
   compareCatMessageFormats,
   type ContentEditorMessageParityIssue,
 } from "@/components/content-editor/message-format/content-editor-message-format";
-import {
-  enqueueStringSegmentApprovedActivity,
-  sessionActivityActor,
-} from "@/lib/activity-log/file-segment-events";
+import { enqueueStringSegmentApprovedActivity } from "@/lib/activity-log/file-segment-events";
 import type { MessageFormat } from "@/lib/i18n/message-format";
 import { isCatSegmentLocked } from "@/lib/projects/content-editor/content-editor-segment-lock-service";
 import {
@@ -193,7 +191,7 @@ export async function updateMcpTranslation(input: {
 
   if (input.approve) {
     await enqueueStringSegmentApprovedActivity({
-      ...sessionActivityActor(input.actorUserId),
+      ...mcpActivityActor(input.actorUserId),
       organizationId: input.organizationId,
       projectId: input.projectId,
       segmentId: input.translationKeyId,

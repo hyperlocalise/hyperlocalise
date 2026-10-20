@@ -121,12 +121,13 @@ async function insertSaveEvent(input: {
   segmentId: string;
   eventType?: "string_segment_translation_updated" | "string_segment_approved";
   nextStatus?: string;
+  actorKind?: "user" | "agent";
 }) {
   const [event] = await db
     .insert(schema.organizationActivityEvents)
     .values({
       organizationId: input.organizationId,
-      actorKind: "user",
+      actorKind: input.actorKind ?? "user",
       actorUserId: input.actorUserId,
       eventType: input.eventType ?? "string_segment_translation_updated",
       targetKind: "string_segment",
@@ -259,6 +260,39 @@ describe("captureEditorSaves", () => {
       .where(eq(schema.reportingAnalyses.organizationId, organization.id));
     expect(analyses.find((row) => row.segmentId === keyIds[0])?.bucket).not.toBe("repetition");
     expect(analyses.find((row) => row.segmentId === keyIds[1])?.bucket).toBe("repetition");
+  });
+
+  it("records an approval made by an agent as automated, not billable, with no person", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+      eventType: "string_segment_approved",
+      actorKind: "agent",
+    });
+
+    await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+
+    const [analysis] = await db
+      .select({ id: schema.reportingAnalyses.id, billable: schema.reportingAnalyses.billable })
+      .from(schema.reportingAnalyses)
+      .where(eq(schema.reportingAnalyses.organizationId, organization.id));
+    expect(analysis.billable).toBe(false);
+    const activity = await db
+      .select({
+        kind: schema.reportingActivity.kind,
+        actorUserId: schema.reportingActivity.actorUserId,
+      })
+      .from(schema.reportingActivity)
+      .where(eq(schema.reportingActivity.organizationId, organization.id));
+    expect(activity).toEqual([{ kind: "completion", actorUserId: null }]);
+    const costs = await db
+      .select({ id: schema.reportingCosts.id })
+      .from(schema.reportingCosts)
+      .where(eq(schema.reportingCosts.organizationId, organization.id));
+    expect(costs).toEqual([]);
   });
 
   it("records an approval as the review step", async () => {
