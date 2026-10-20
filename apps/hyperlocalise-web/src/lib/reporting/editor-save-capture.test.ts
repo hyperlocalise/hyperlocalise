@@ -24,7 +24,7 @@ import { captureEditorSaves, EDITOR_SAVE_CAPTURE_CUTOFF_MS } from "./editor-save
 
 const mocks = vi.hoisted(() => ({
   // The capture task's own check, per workspace.
-  reportsFlagRun: vi.fn(async (): Promise<boolean> => true),
+  readWorkosFeatureFlag: vi.fn(async (): Promise<boolean> => true),
   // The check inside the shared capture functions.
   resolveWorkspaceReportsFlag: vi.fn(async () => true),
   waitForWorkosFeatureFlags: vi.fn(async () => true),
@@ -34,14 +34,17 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
   return {
     ...actual,
-    workspaceReportsFlag: { run: mocks.reportsFlagRun },
     resolveWorkspaceReportsFlag: mocks.resolveWorkspaceReportsFlag,
   };
 });
 
 vi.mock("@/lib/flags/workos-adapter", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/flags/workos-adapter")>();
-  return { ...actual, waitForWorkosFeatureFlags: mocks.waitForWorkosFeatureFlags };
+  return {
+    ...actual,
+    waitForWorkosFeatureFlags: mocks.waitForWorkosFeatureFlags,
+    readWorkosFeatureFlag: mocks.readWorkosFeatureFlag,
+  };
 });
 
 const projectFixture = createProjectTestFixture();
@@ -336,11 +339,11 @@ describe("captureEditorSaves", () => {
       signal: AbortSignal.abort(),
     });
     expect(result).toMatchObject({ stopped: "time_budget", eventsProcessed: 0 });
-    expect(mocks.reportsFlagRun).not.toHaveBeenCalled();
+    expect(mocks.readWorkosFeatureFlag).not.toHaveBeenCalled();
   });
 
   it("passes over saves made while Reports is off, then records later ones once it is on", async () => {
-    mocks.reportsFlagRun.mockResolvedValue(false);
+    mocks.readWorkosFeatureFlag.mockResolvedValue(false);
     const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
     const save = (segmentId: string) =>
       insertSaveEvent({
@@ -367,7 +370,7 @@ describe("captureEditorSaves", () => {
       .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
     expect(cursor.lastEventId).toBe(offSave.id);
 
-    mocks.reportsFlagRun.mockResolvedValue(true);
+    mocks.readWorkosFeatureFlag.mockResolvedValue(true);
     await save(keyIds[1]);
     await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
     expect(await recordedSegments()).toEqual([keyIds[1]]);
@@ -385,7 +388,7 @@ describe("captureEditorSaves", () => {
 
     const result = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
     expect(result.stopped).toBe("flags_unavailable");
-    expect(mocks.reportsFlagRun).not.toHaveBeenCalled();
+    expect(mocks.readWorkosFeatureFlag).not.toHaveBeenCalled();
     const cursors = await db
       .select()
       .from(schema.reportingCaptureCursors)
@@ -398,7 +401,7 @@ describe("captureEditorSaves", () => {
   });
 
   it("keeps a workspace's position when its flag check fails, and records on the next run", async () => {
-    mocks.reportsFlagRun.mockRejectedValue(new Error("organization lookup failed"));
+    mocks.readWorkosFeatureFlag.mockRejectedValue(new Error("flag evaluation failed"));
     const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
     await insertSaveEvent({
       organizationId: organization.id,
@@ -416,9 +419,24 @@ describe("captureEditorSaves", () => {
       .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
     expect(cursors).toEqual([]);
 
-    mocks.reportsFlagRun.mockResolvedValue(true);
+    mocks.readWorkosFeatureFlag.mockResolvedValue(true);
     const retry = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
     expect(retry.segmentsRecorded).toBe(1);
+  });
+
+  it("treats every workspace as Reports off when WorkOS flags are not configured", async () => {
+    mocks.waitForWorkosFeatureFlags.mockResolvedValue(false);
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+    });
+
+    const result = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    expect(result).toMatchObject({ organizationsSkipped: 1, segmentsRecorded: 0 });
+    expect(mocks.readWorkosFeatureFlag).not.toHaveBeenCalled();
   });
 
   it("gives a workspace with no saves a position, so later runs skip it cheaply", async () => {
@@ -431,8 +449,8 @@ describe("captureEditorSaves", () => {
       .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
     expect(cursors).toHaveLength(1);
 
-    mocks.reportsFlagRun.mockClear();
+    mocks.readWorkosFeatureFlag.mockClear();
     await captureEditorSaves({ now: new Date(), organizationIds: [organization.id] });
-    expect(mocks.reportsFlagRun).not.toHaveBeenCalled();
+    expect(mocks.readWorkosFeatureFlag).not.toHaveBeenCalled();
   });
 });

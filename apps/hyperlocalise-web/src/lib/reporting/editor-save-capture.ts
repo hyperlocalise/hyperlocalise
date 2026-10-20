@@ -13,8 +13,8 @@
 import { and, asc, eq, inArray, lt, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
-import { waitForWorkosFeatureFlags } from "@/lib/flags/workos-adapter";
-import { workspaceReportsFlag } from "@/lib/flags/workspace-flags";
+import { readWorkosFeatureFlag, waitForWorkosFeatureFlags } from "@/lib/flags/workos-adapter";
+import { WORKSPACE_REPORTS_FLAG } from "@/lib/flags/workos-flag-entities";
 import { createLogger } from "@/lib/log";
 
 import { MemoryScoreCache, recordAnalysis, recordCompletions } from "./capture";
@@ -79,8 +79,9 @@ export async function captureEditorSaves(
     segmentsRecorded: 0,
     stopped: null,
   };
+  let flagsConfigured: boolean;
   try {
-    await waitForWorkosFeatureFlags({ timeoutMs: FLAGS_READY_TIMEOUT_MS });
+    flagsConfigured = await waitForWorkosFeatureFlags({ timeoutMs: FLAGS_READY_TIMEOUT_MS });
   } catch (error) {
     // Until the flags are downloaded every check reads as off, which would pass over the saves of
     // workspaces that have Reports on. Stop without moving any position; the next run retries.
@@ -97,7 +98,7 @@ export async function captureEditorSaves(
     }
     const { organizationId } = workspace;
     try {
-      if (!(await readReportsFlag(workspace))) {
+      if (!(flagsConfigured && (await readReportsFlag(workspace)))) {
         // Reports records work from when it is turned on, so saves made while it is off are
         // passed over for good instead of being read again on every run.
         await moveCursorPastSaves(organizationId, cutoff);
@@ -127,12 +128,11 @@ export async function captureEditorSaves(
   return result;
 }
 
-/** Throws instead of answering false when the check fails, so a failure never reads as "off". */
-async function readReportsFlag(workspace: WorkspaceToCheck): Promise<boolean> {
-  const enabled = await workspaceReportsFlag.run({
-    identify: () => ({ organization: { id: workspace.workosOrganizationId } }),
+/** Throws when the check fails rather than answering false, so a failure never reads as "off". */
+function readReportsFlag(workspace: WorkspaceToCheck): Promise<boolean> {
+  return readWorkosFeatureFlag(WORKSPACE_REPORTS_FLAG, {
+    organization: { id: workspace.workosOrganizationId },
   });
-  return enabled === true;
 }
 
 const SAVE_EVENT_TYPE_LIST = sql.join(

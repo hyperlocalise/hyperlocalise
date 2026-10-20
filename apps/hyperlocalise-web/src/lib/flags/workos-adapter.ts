@@ -97,3 +97,21 @@ export async function waitForWorkosFeatureFlags(options: { timeoutMs: number }):
   await getFeatureFlagsRuntimeClient().waitUntilReady({ timeoutMs: options.timeoutMs });
   return true;
 }
+
+/**
+ * Checks one flag straight from the WorkOS client, for background work that must tell "off" from
+ * "could not check": unlike the adapter, which answers false on any error, it lets a failure
+ * through. Call it only after `waitForWorkosFeatureFlags` resolved to `true`; it does not wait.
+ */
+export async function readWorkosFeatureFlag(
+  key: string,
+  entities: WorkosFlagEntities,
+): Promise<boolean> {
+  const enabled = await Promise.resolve(
+    getFeatureFlagsRuntimeClient().isEnabled(key, {
+      organizationId: entities.organization?.id,
+      userId: entities.user?.id,
+    }),
+  );
+  return enabled === true;
+}
