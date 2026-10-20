@@ -95,7 +95,23 @@ async function createProjectWithSavedOccurrences() {
       provenance: "manual",
     });
   }
+  // A running task gives a workspace its position on first sight; start from just before now.
+  await db.execute(sql`
+    insert into reporting_capture_cursors (organization_id, last_event_created_at, last_event_id)
+    values (${organization.id}, now() - interval '1 second', '00000000-0000-0000-0000-000000000000')
+  `);
   return { organization, project, user, keyIds: keys.map((key) => key.id) };
+}
+
+async function positionOf(organizationId: string) {
+  const [position] = await db
+    .select({
+      lastEventId: schema.reportingCaptureCursors.lastEventId,
+      lastEventCreatedAt: schema.reportingCaptureCursors.lastEventCreatedAt,
+    })
+    .from(schema.reportingCaptureCursors)
+    .where(eq(schema.reportingCaptureCursors.organizationId, organizationId));
+  return position;
 }
 
 async function insertSaveEvent(input: {
@@ -386,14 +402,11 @@ describe("captureEditorSaves", () => {
       segmentId: keyIds[0],
     });
 
+    const before = await positionOf(organization.id);
     const result = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
     expect(result.stopped).toBe("flags_unavailable");
     expect(mocks.readWorkosFeatureFlag).not.toHaveBeenCalled();
-    const cursors = await db
-      .select()
-      .from(schema.reportingCaptureCursors)
-      .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
-    expect(cursors).toEqual([]);
+    expect(await positionOf(organization.id)).toEqual(before);
 
     mocks.waitForWorkosFeatureFlags.mockResolvedValue(true);
     const retry = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
@@ -410,14 +423,11 @@ describe("captureEditorSaves", () => {
       segmentId: keyIds[0],
     });
 
+    const before = await positionOf(organization.id);
     const failed = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
     expect(failed.segmentsRecorded).toBe(0);
     expect(failed.organizationsSkipped).toBe(0);
-    const cursors = await db
-      .select()
-      .from(schema.reportingCaptureCursors)
-      .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
-    expect(cursors).toEqual([]);
+    expect(await positionOf(organization.id)).toEqual(before);
 
     mocks.readWorkosFeatureFlag.mockResolvedValue(true);
     const retry = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
@@ -437,6 +447,50 @@ describe("captureEditorSaves", () => {
     const result = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
     expect(result).toMatchObject({ organizationsSkipped: 1, segmentsRecorded: 0 });
     expect(mocks.readWorkosFeatureFlag).not.toHaveBeenCalled();
+  });
+
+  it("starts a workspace it has not seen at the cut-off, without recording earlier saves", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    await db
+      .delete(schema.reportingCaptureCursors)
+      .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
+    const save = (segmentId: string) =>
+      insertSaveEvent({
+        organizationId: organization.id,
+        projectId: project.id,
+        actorUserId: user.id,
+        segmentId,
+      });
+    const earlier = await save(keyIds[0]);
+
+    const first = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    expect(first).toMatchObject({ organizationsStarted: 1, segmentsRecorded: 0 });
+    expect((await positionOf(organization.id)).lastEventId).toBe(earlier.id);
+
+    await save(keyIds[1]);
+    const next = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    expect(next.segmentsRecorded).toBe(1);
+  });
+
+  it("passes over an approval made in an external tool and records the saves around it", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: "1001",
+      eventType: "string_segment_approved",
+    });
+    const native = await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+    });
+
+    const result = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    expect(result).toMatchObject({ eventsProcessed: 2, segmentsRecorded: 1 });
+    expect((await positionOf(organization.id)).lastEventId).toBe(native.id);
   });
 
   it("gives a workspace with no saves a position, so later runs skip it cheaply", async () => {

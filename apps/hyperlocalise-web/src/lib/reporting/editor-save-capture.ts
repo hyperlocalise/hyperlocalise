@@ -44,6 +44,8 @@ type SaveEvent = {
 export type EditorSaveCaptureResult = {
   organizationsProcessed: number;
   organizationsSkipped: number;
+  /** Workspaces given a first position at the cut-off, without recording earlier saves. */
+  organizationsStarted: number;
   eventsProcessed: number;
   segmentsRecorded: number;
   /** Why the run stopped before checking every workspace, if it did. */
@@ -53,7 +55,12 @@ export type EditorSaveCaptureResult = {
 type WorkspaceToCheck = {
   organizationId: string;
   workosOrganizationId: string;
+  /** False the first time the task sees the workspace. */
+  hasPosition: boolean;
 };
+
+/** Native string ids are uuids; an external tool's id (e.g. a Crowdin string id) is not. */
+const NATIVE_STRING_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Records content editor saves for Reports from the activity events the Go service writes inside
@@ -75,6 +82,7 @@ export async function captureEditorSaves(
   const result: EditorSaveCaptureResult = {
     organizationsProcessed: 0,
     organizationsSkipped: 0,
+    organizationsStarted: 0,
     eventsProcessed: 0,
     segmentsRecorded: 0,
     stopped: null,
@@ -98,6 +106,13 @@ export async function captureEditorSaves(
     }
     const { organizationId } = workspace;
     try {
+      if (!workspace.hasPosition) {
+        // Reports records work from when the task first sees a workspace, so earlier saves in the
+        // activity log are not recorded as today's work. Saves after the cut-off are read next run.
+        await moveCursorPastSaves(organizationId, cutoff);
+        result.organizationsStarted += 1;
+        continue;
+      }
       if (!(flagsConfigured && (await readReportsFlag(workspace)))) {
         // Reports records work from when it is turned on, so saves made while it is off are
         // passed over for good instead of being read again on every run.
@@ -158,7 +173,8 @@ async function listWorkspacesToCheck(
         )})`
       : sql``;
   const rows = await db.execute<WorkspaceToCheck>(sql`
-    select c.organization_id as "organizationId", o.workos_organization_id as "workosOrganizationId"
+    select c.organization_id as "organizationId", o.workos_organization_id as "workosOrganizationId",
+      true as "hasPosition"
     from reporting_capture_cursors c
     join organizations o on o.id = c.organization_id
     cross join lateral (
@@ -172,7 +188,7 @@ async function listWorkspacesToCheck(
     ) pending
     where true ${onlyListed("c.organization_id")}
     union all
-    select o.id, o.workos_organization_id
+    select o.id, o.workos_organization_id, false
     from organizations o
     where not exists (select 1 from reporting_capture_cursors c where c.organization_id = o.id)
       ${onlyListed("o.id")}
@@ -275,6 +291,9 @@ function savedSegments(events: SaveEvent[]): SavedSegment[] {
     const projectId = event.payload.projectId;
     const targetLocale = event.payload.targetLocale;
     if (typeof projectId !== "string" || typeof targetLocale !== "string") continue;
+    // Approvals made in an external translation tool name the tool's own string id, which has no
+    // native string to record; looking it up as one would fail the whole batch on every run.
+    if (!NATIVE_STRING_ID.test(event.targetId)) continue;
     const approved =
       event.eventType === "string_segment_approved" || event.payload.nextStatus === "approved";
     const step = approved ? "review" : "translation";
