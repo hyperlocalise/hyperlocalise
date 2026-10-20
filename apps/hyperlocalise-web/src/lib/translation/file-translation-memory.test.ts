@@ -562,4 +562,27 @@ describe("reuseFileTranslationMemoryEntries", () => {
     expect(result.prefilled).toEqual({ brand: "Hyperlocalise" });
     expect(result.matchesByKey.workspace).toBeUndefined();
   });
+
+  it("looks up reusable memory entries in batches of 500 normalized sources", async () => {
+    whereMock.mockResolvedValue([]);
+    const sourceEntries = Object.fromEntries(
+      Array.from({ length: 501 }, (_, index) => [`key_${index}`, `Phrase ${index}`]),
+    );
+
+    await reuseFileTranslationMemoryEntries({
+      projectId: "project_1",
+      sourceEntries,
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+
+    const lookupBatches = inArrayMock.mock.calls
+      .filter((call) => call[0] === "normalizedSourceText")
+      .map((call) => call[1] as string[]);
+    expect(lookupBatches).toHaveLength(2);
+    expect(lookupBatches[0]).toHaveLength(500);
+    expect(lookupBatches[1]).toHaveLength(1);
+    expect(lookupBatches.flat()).toHaveLength(501);
+    expect(whereMock).toHaveBeenCalledTimes(2);
+  });
 });
