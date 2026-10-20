@@ -12,12 +12,56 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { CaretDownIcon } from "@phosphor-icons/react";
+import Image from "next/image";
+import type { ComponentProps, ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
+import { siSanity } from "simple-icons";
 
+import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
 import { Button } from "@/components/ui/button";
-import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
+import { brandLogomarkLightModeSvgSrc } from "@/lib/brand/brand-assets";
+import { cn } from "@/lib/primitives/cn";
 
 import { sanityOauthConsentMessages } from "./sanity-oauth-consent.messages";
+
+function OauthConsentSelect(props: ComponentProps<"select">) {
+  const { className, ...selectProps } = props;
+  return (
+    <div className="relative">
+      <select
+        {...selectProps}
+        className={cn(
+          "h-9 w-full appearance-none rounded-md border border-input bg-background ps-3 pe-10 text-sm",
+          className,
+        )}
+      />
+      <CaretDownIcon
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-muted-foreground"
+      />
+    </div>
+  );
+}
+
+function OauthPartnerLogoMark({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
 
 type ConsentConnectionOption = {
   connectionId: string;
@@ -46,26 +90,39 @@ export function SanityOauthConsentContent({
 }) {
   const intl = useIntl();
   const enabledConnections = connections.filter((connection) => connection.enabled);
-  const showConnectionPicker = enabledConnections.length > 0;
-  const showOrganizationPicker = !showConnectionPicker && organizations.length > 1;
+  const showConnectionPicker = enabledConnections.length > 1;
+  const singleConnectionId =
+    enabledConnections.length === 1 ? enabledConnections[0]?.connectionId : undefined;
+  const showOrganizationPicker = enabledConnections.length === 0 && organizations.length > 1;
   const singleOrganizationId =
-    !showConnectionPicker && !showOrganizationPicker ? organizations[0]?.organizationId : undefined;
+    enabledConnections.length === 0 && organizations.length === 1
+      ? organizations[0]?.organizationId
+      : undefined;
 
   return (
     <div className="flex min-h-dvh items-center justify-center px-4 py-6">
       <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-sm">
         <div className="mb-5 flex items-center justify-center gap-3">
-          <img
-            src="/images/sanity-logo.svg"
-            alt={intl.formatMessage(sanityOauthConsentMessages.sanityLogoAlt)}
-            className="size-10 rounded-lg"
-          />
-          <span aria-hidden className="h-px w-6 bg-border" />
-          <img
-            src={brandLogomarkSrc}
-            alt={intl.formatMessage(sanityOauthConsentMessages.hyperlocaliseLogoAlt)}
-            className="size-10 rounded-lg"
-          />
+          <OauthPartnerLogoMark>
+            <SimpleBrandIcon
+              icon={siSanity}
+              colored
+              role="img"
+              aria-hidden={false}
+              aria-label={intl.formatMessage(sanityOauthConsentMessages.sanityLogoAlt)}
+              className="size-6"
+            />
+          </OauthPartnerLogoMark>
+          <span aria-hidden className="h-px w-6 shrink-0 bg-border" />
+          <OauthPartnerLogoMark className="bg-background p-1.5">
+            <Image
+              src={brandLogomarkLightModeSvgSrc}
+              alt={intl.formatMessage(sanityOauthConsentMessages.hyperlocaliseLogoAlt)}
+              width={32}
+              height={32}
+              className="size-full object-contain"
+            />
+          </OauthPartnerLogoMark>
         </div>
 
         <div className="flex flex-col gap-2 text-center">
@@ -95,10 +152,9 @@ export function SanityOauthConsentContent({
             {showConnectionPicker ? (
               <label className="flex flex-col gap-2 text-left text-sm font-medium text-foreground">
                 <FormattedMessage {...sanityOauthConsentMessages.connectionLabel} />
-                <select
+                <OauthConsentSelect
                   name="connectionId"
                   required
-                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                   defaultValue={enabledConnections[0]?.connectionId}
                   aria-label={intl.formatMessage(sanityOauthConsentMessages.connectionLabel)}
                 >
@@ -106,20 +162,18 @@ export function SanityOauthConsentContent({
                     <option key={connection.connectionId} value={connection.connectionId}>
                       {connection.organizationName}
                       {connection.organizationSlug ? ` (${connection.organizationSlug})` : ""}
-                      {` · ${connection.displayName}`}
                     </option>
                   ))}
-                </select>
+                </OauthConsentSelect>
               </label>
             ) : null}
 
             {showOrganizationPicker ? (
               <label className="flex flex-col gap-2 text-left text-sm font-medium text-foreground">
                 <FormattedMessage {...sanityOauthConsentMessages.organizationLabel} />
-                <select
+                <OauthConsentSelect
                   name="organizationId"
                   required
-                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                   defaultValue={organizations[0]?.organizationId}
                   aria-label={intl.formatMessage(sanityOauthConsentMessages.organizationLabel)}
                 >
@@ -129,8 +183,12 @@ export function SanityOauthConsentContent({
                       {organization.organizationSlug ? ` (${organization.organizationSlug})` : ""}
                     </option>
                   ))}
-                </select>
+                </OauthConsentSelect>
               </label>
+            ) : null}
+
+            {singleConnectionId ? (
+              <input type="hidden" name="connectionId" value={singleConnectionId} />
             ) : null}
 
             {singleOrganizationId ? (

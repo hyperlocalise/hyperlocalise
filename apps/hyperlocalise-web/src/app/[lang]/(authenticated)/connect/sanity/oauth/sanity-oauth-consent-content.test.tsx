@@ -60,7 +60,7 @@ describe("SanityOauthConsentContent", () => {
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
-  it("shows a connection picker when enabled connections exist", () => {
+  it("hides the connection picker when only one enabled connection exists", () => {
     renderConsent({
       connections: [
         {
@@ -69,6 +69,30 @@ describe("SanityOauthConsentContent", () => {
           enabled: true,
           organizationName: "Acme",
           organizationSlug: "acme",
+        },
+      ],
+    });
+
+    expect(screen.queryByLabelText("Workspace connection")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Allow access" })).toBeInTheDocument();
+  });
+
+  it("shows a connection picker when multiple enabled connections exist", () => {
+    renderConsent({
+      connections: [
+        {
+          connectionId: "conn-1",
+          displayName: "Studio A",
+          enabled: true,
+          organizationName: "Acme",
+          organizationSlug: "acme",
+        },
+        {
+          connectionId: "conn-2",
+          displayName: "Studio B",
+          enabled: true,
+          organizationName: "Beta",
+          organizationSlug: "beta",
         },
       ],
     });
