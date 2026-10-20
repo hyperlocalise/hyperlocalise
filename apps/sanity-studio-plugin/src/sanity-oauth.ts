@@ -187,7 +187,7 @@ export async function pollSanityOauthHandoff(input: {
     { code: string } | { error: string; errorDescription?: string }
   > => {
     if (input.signal?.aborted) {
-      return readFinalHandoffOrCancel(input);
+      return waitForHandoffAfterPopupClosed(input);
     }
     if (Date.now() >= deadline) {
       throw new Error("OAuth sign-in timed out.");
@@ -215,7 +215,7 @@ export async function pollSanityOauthHandoff(input: {
     try {
       await delay(intervalMs, input.signal);
     } catch {
-      return readFinalHandoffOrCancel(input);
+      return waitForHandoffAfterPopupClosed(input);
     }
     return poll();
   };
@@ -223,27 +223,42 @@ export async function pollSanityOauthHandoff(input: {
   return poll();
 }
 
-async function readFinalHandoffOrCancel(input: {
+async function waitForHandoffAfterPopupClosed(input: {
   appUrl: string;
   readKey: string;
 }): Promise<{ code: string } | { error: string; errorDescription?: string }> {
-  try {
-    const payload = await readHandoffPoll({
-      appUrl: input.appUrl,
-      readKey: input.readKey,
-    });
-    if (payload.status === "done") {
-      if (payload.code) {
-        return { code: payload.code };
+  const maxAttempts = 30;
+  const intervalMs = 200;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      const payload = await readHandoffPoll({
+        appUrl: input.appUrl,
+        readKey: input.readKey,
+      });
+
+      if (payload.status === "done") {
+        if (payload.code) {
+          return { code: payload.code };
+        }
+        return {
+          error: payload.error ?? "access_denied",
+          errorDescription: payload.errorDescription,
+        };
       }
-      return {
-        error: payload.error ?? "access_denied",
-        errorDescription: payload.errorDescription,
-      };
+
+      if (payload.status === "expired") {
+        throw new Error("OAuth sign-in timed out.");
+      }
+    } catch (error) {
+      if (attempt === maxAttempts - 1) {
+        throw error;
+      }
     }
-  } catch {
-    // The popup closed before the last poll could finish.
+
+    await delay(intervalMs);
   }
+
   throw new Error(SANITY_OAUTH_CANCELLED);
 }
 

@@ -51,28 +51,30 @@ function OauthConsentSelectField({
   const selected = options.find((option) => option.value === value);
 
   return (
-    <Select
-      name={name}
-      required
-      value={value}
-      items={options}
-      onValueChange={(next) => {
-        if (next) {
-          onValueChange(next);
-        }
-      }}
-    >
-      <SelectTrigger id={fieldId} className="h-9 w-full bg-background">
-        <SelectValue>{selected?.label ?? value}</SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((option) => (
-          <SelectItem key={option.value} value={option.value} label={option.label}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <>
+      {/* Native POST: Base UI Select hidden inputs are not reliable form participants. */}
+      <input type="hidden" name={name} value={value} />
+      <Select
+        value={value}
+        items={options}
+        onValueChange={(next) => {
+          if (next) {
+            onValueChange(next);
+          }
+        }}
+      >
+        <SelectTrigger id={fieldId} className="h-9 w-full bg-background">
+          <SelectValue>{selected?.label ?? value}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value} label={option.label}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </>
   );
 }
 

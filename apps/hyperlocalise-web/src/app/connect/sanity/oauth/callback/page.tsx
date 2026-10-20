@@ -57,7 +57,10 @@ export default function SanityOAuthCallbackPage() {
       }
       if (code) {
         setDetail("Connected. Returning to Sanity Studio…");
-        window.close();
+        // Give the Studio poll loop time to read the completed handoff before this popup closes.
+        window.setTimeout(() => {
+          window.close();
+        }, 400);
         return;
       }
       setDetail("Missing authorization response. Close this window and try again.");
