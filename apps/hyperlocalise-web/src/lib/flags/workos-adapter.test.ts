@@ -45,6 +45,30 @@ vi.mock("@/lib/workos/config", () => ({
   }),
 }));
 
+describe("waitForWorkosFeatureFlags", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    waitUntilReady.mockReset();
+  });
+
+  it("resolves once the flags are downloaded, with the caller's time limit", async () => {
+    waitUntilReady.mockResolvedValue(undefined);
+
+    const { waitForWorkosFeatureFlags } = await import("./workos-adapter");
+
+    await expect(waitForWorkosFeatureFlags({ timeoutMs: 10_000 })).resolves.toBe(true);
+    expect(waitUntilReady).toHaveBeenCalledWith({ timeoutMs: 10_000 });
+  });
+
+  it("rejects when the flags cannot be downloaded in time", async () => {
+    waitUntilReady.mockRejectedValue(new Error("waitUntilReady timed out"));
+
+    const { waitForWorkosFeatureFlags } = await import("./workos-adapter");
+
+    await expect(waitForWorkosFeatureFlags({ timeoutMs: 10 })).rejects.toThrow("timed out");
+  });
+});
+
 describe("workosAdapter", () => {
   beforeEach(() => {
     vi.resetModules();

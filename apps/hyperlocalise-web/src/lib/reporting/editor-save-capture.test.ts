@@ -22,14 +22,26 @@ import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translat
 
 import { captureEditorSaves, EDITOR_SAVE_CAPTURE_CUTOFF_MS } from "./editor-save-capture";
 
-const resolveWorkspaceReportsFlagMock = vi.hoisted(() => vi.fn(async () => true));
+const mocks = vi.hoisted(() => ({
+  // The capture task's own check, per workspace.
+  reportsFlagRun: vi.fn(async (): Promise<boolean> => true),
+  // The check inside the shared capture functions.
+  resolveWorkspaceReportsFlag: vi.fn(async () => true),
+  waitForWorkosFeatureFlags: vi.fn(async () => true),
+}));
 
 vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
   return {
     ...actual,
-    resolveWorkspaceReportsFlag: resolveWorkspaceReportsFlagMock,
+    workspaceReportsFlag: { run: mocks.reportsFlagRun },
+    resolveWorkspaceReportsFlag: mocks.resolveWorkspaceReportsFlag,
   };
+});
+
+vi.mock("@/lib/flags/workos-adapter", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/flags/workos-adapter")>();
+  return { ...actual, waitForWorkosFeatureFlags: mocks.waitForWorkosFeatureFlags };
 });
 
 const projectFixture = createProjectTestFixture();
@@ -42,8 +54,10 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
-  resolveWorkspaceReportsFlagMock.mockReset();
-  resolveWorkspaceReportsFlagMock.mockResolvedValue(true);
+  for (const mock of Object.values(mocks)) {
+    mock.mockReset();
+    mock.mockResolvedValue(true);
+  }
   await projectFixture.cleanup();
 });
 
@@ -268,8 +282,42 @@ describe("captureEditorSaves", () => {
     expect(analyses).toHaveLength(0);
   });
 
-  it("leaves a workspace with Reports off unrecorded and keeps its cursor", async () => {
-    resolveWorkspaceReportsFlagMock.mockResolvedValue(false);
+  it("passes over saves made while Reports is off, then records later ones once it is on", async () => {
+    mocks.reportsFlagRun.mockResolvedValue(false);
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    const save = (segmentId: string) =>
+      insertSaveEvent({
+        organizationId: organization.id,
+        projectId: project.id,
+        actorUserId: user.id,
+        segmentId,
+      });
+    const recordedSegments = async () =>
+      (
+        await db
+          .select({ segmentId: schema.reportingAnalyses.segmentId })
+          .from(schema.reportingAnalyses)
+          .where(eq(schema.reportingAnalyses.organizationId, organization.id))
+      ).map((row) => row.segmentId);
+    const offSave = await save(keyIds[0]);
+
+    const off = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    expect(off.organizationsSkipped).toBe(1);
+    expect(await recordedSegments()).toEqual([]);
+    const [cursor] = await db
+      .select()
+      .from(schema.reportingCaptureCursors)
+      .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
+    expect(cursor.lastEventId).toBe(offSave.id);
+
+    mocks.reportsFlagRun.mockResolvedValue(true);
+    await save(keyIds[1]);
+    await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    expect(await recordedSegments()).toEqual([keyIds[1]]);
+  });
+
+  it("stops without moving any position when the feature flags are not downloaded", async () => {
+    mocks.waitForWorkosFeatureFlags.mockRejectedValue(new Error("waitUntilReady timed out"));
     const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
     await insertSaveEvent({
       organizationId: organization.id,
@@ -279,12 +327,55 @@ describe("captureEditorSaves", () => {
     });
 
     const result = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
-    expect(result.organizationsSkipped).toBe(1);
-    expect(result.segmentsRecorded).toBe(0);
-    const [cursor] = await db
+    expect(result.stopped).toBe("flags_unavailable");
+    expect(mocks.reportsFlagRun).not.toHaveBeenCalled();
+    const cursors = await db
       .select()
       .from(schema.reportingCaptureCursors)
       .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
-    expect(cursor).toBeUndefined();
+    expect(cursors).toEqual([]);
+
+    mocks.waitForWorkosFeatureFlags.mockResolvedValue(true);
+    const retry = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    expect(retry.segmentsRecorded).toBe(1);
+  });
+
+  it("keeps a workspace's position when its flag check fails, and records on the next run", async () => {
+    mocks.reportsFlagRun.mockRejectedValue(new Error("organization lookup failed"));
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+    });
+
+    const failed = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    expect(failed.segmentsRecorded).toBe(0);
+    expect(failed.organizationsSkipped).toBe(0);
+    const cursors = await db
+      .select()
+      .from(schema.reportingCaptureCursors)
+      .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
+    expect(cursors).toEqual([]);
+
+    mocks.reportsFlagRun.mockResolvedValue(true);
+    const retry = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    expect(retry.segmentsRecorded).toBe(1);
+  });
+
+  it("gives a workspace with no saves a position, so later runs skip it cheaply", async () => {
+    const { organization } = await projectFixture.createStoredProjectFixture();
+
+    await captureEditorSaves({ now: new Date(), organizationIds: [organization.id] });
+    const cursors = await db
+      .select()
+      .from(schema.reportingCaptureCursors)
+      .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
+    expect(cursors).toHaveLength(1);
+
+    mocks.reportsFlagRun.mockClear();
+    await captureEditorSaves({ now: new Date(), organizationIds: [organization.id] });
+    expect(mocks.reportsFlagRun).not.toHaveBeenCalled();
   });
 });
