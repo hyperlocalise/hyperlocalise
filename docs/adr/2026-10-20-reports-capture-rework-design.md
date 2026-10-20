@@ -26,7 +26,7 @@ The Go service already writes a `string_segment_translation_updated` or `string_
 
 ### Matching runs in memory
 
-- A job loads the approved source texts of its memories once and builds a character-bigram index. Each string scores the 64 entries sharing the most bigrams, with Levenshtein on normalized text, as `visual-context-match-lambda` does.
+- A job loads the approved source texts of its memories once and builds a character-bigram index. Each string scores the 64 entries whose bigrams overlap its own most relative to both sizes (Dice), with Levenshtein on normalized text, as `visual-context-match-lambda` does.
 - Fewer than four strings scan the loaded texts instead of indexing them, with the same scores. A memory over 300,000 entries per locale pair is loaded and scored in slices of that size, keeping each string's best score, so memory stays bounded and every string is scored the same way.
 - The job row is no longer locked. Instead, writes for one job, language and step take a short database lock after matching, so two captures of one string cannot both stay current. `algorithm_version` becomes 2.
 

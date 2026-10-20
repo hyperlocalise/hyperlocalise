@@ -50,31 +50,67 @@ function bigrams(text: string): Set<string> {
 interface Candidate {
   text: string;
   length: number;
+  /** Distinct bigrams in the entry. */
+  grams: number;
+  /** Distinct bigrams shared with the query. */
   shared: number;
 }
 
+/** Ranks candidates by bigram overlap relative to both texts' size (Dice), then by text. */
+function rankAbove(
+  left: { dice: number; text: string },
+  right: { dice: number; text: string },
+): boolean {
+  return left.dice > right.dice || (left.dice === right.dice && left.text < right.text);
+}
+
 /**
- * Scores exactly the entries sharing the most bigrams with the query. Ties at the cut go to the
- * lowest text, so the score does not depend on the order the entries were loaded in.
+ * Scores exactly the entries whose bigrams overlap the query's most, relative to the size of both
+ * (Dice), so many longer entries containing a short query cannot crowd out a near-identical one.
+ * Ties go to the lowest text, so the score does not depend on the order the entries were loaded in.
  */
-function bestCandidateScore(query: string, queryLength: number, candidates: Candidate[]): number {
-  const byShared: Candidate[][] = [];
+function bestCandidateScore(
+  query: string,
+  queryLength: number,
+  queryGrams: number,
+  candidates: Candidate[],
+): number {
+  // The CANDIDATE_LIMIT best, kept as a heap whose root is the weakest of them.
+  const heap: { dice: number; text: string }[] = [];
+  const weaker = (i: number, j: number) => rankAbove(heap[j], heap[i]);
+  const swap = (i: number, j: number) => ([heap[i], heap[j]] = [heap[j], heap[i]]);
   for (const candidate of candidates) {
     const { length } = candidate;
     if (Math.min(length, queryLength) < MIN_LENGTH_RATIO * Math.max(length, queryLength)) continue;
-    (byShared[candidate.shared] ??= []).push(candidate);
-  }
-  const picked: Candidate[] = [];
-  for (let shared = byShared.length - 1; shared > 0 && picked.length < CANDIDATE_LIMIT; shared--) {
-    const group = byShared[shared];
-    if (!group) continue;
-    if (picked.length + group.length > CANDIDATE_LIMIT) {
-      group.sort((a, b) => (a.text < b.text ? -1 : a.text > b.text ? 1 : 0));
+    const entry = {
+      dice: (2 * candidate.shared) / (queryGrams + candidate.grams),
+      text: candidate.text,
+    };
+    if (heap.length === CANDIDATE_LIMIT) {
+      if (!rankAbove(entry, heap[0])) continue;
+      heap[0] = entry;
+      for (let i = 0; ;) {
+        const left = 2 * i + 1;
+        const right = left + 1;
+        let weakest = i;
+        if (left < heap.length && weaker(left, weakest)) weakest = left;
+        if (right < heap.length && weaker(right, weakest)) weakest = right;
+        if (weakest === i) break;
+        swap(i, weakest);
+        i = weakest;
+      }
+    } else {
+      heap.push(entry);
+      for (let i = heap.length - 1; i > 0;) {
+        const parent = (i - 1) >> 1;
+        if (!weaker(i, parent)) break;
+        swap(i, parent);
+        i = parent;
+      }
     }
-    picked.push(...group.slice(0, CANDIDATE_LIMIT - picked.length));
   }
   let best = 0;
-  for (const candidate of picked) {
+  for (const candidate of heap) {
     best = Math.max(best, sourceSimilarity(query, candidate.text));
     if (best === 100) break;
   }
@@ -89,6 +125,7 @@ function bestCandidateScore(query: string, queryLength: number, candidates: Cand
 export class MemoryMatchIndex {
   private readonly entries: string[] = [];
   private readonly lengths: number[] = [];
+  private readonly gramCounts: number[] = [];
   private readonly exact = new Set<string>();
   private readonly postings = new Map<string, number[]>();
 
@@ -100,7 +137,9 @@ export class MemoryMatchIndex {
       this.entries.push(normalized);
       this.lengths.push(Array.from(normalized).length);
       this.exact.add(normalized);
-      for (const gram of bigrams(normalized)) {
+      const grams = bigrams(normalized);
+      this.gramCounts.push(grams.size);
+      for (const gram of grams) {
         let posting = this.postings.get(gram);
         if (!posting) this.postings.set(gram, (posting = []));
         posting.push(id);
@@ -117,7 +156,8 @@ export class MemoryMatchIndex {
     const query = normalizeTranslationMemorySourceText(sourceText);
     if (this.exact.has(query)) return 100;
     const counts = new Map<number, number>();
-    for (const gram of bigrams(query)) {
+    const queryGrams = bigrams(query);
+    for (const gram of queryGrams) {
       for (const id of this.postings.get(gram) ?? []) {
         counts.set(id, (counts.get(id) ?? 0) + 1);
       }
@@ -125,9 +165,10 @@ export class MemoryMatchIndex {
     const candidates = Array.from(counts, ([id, shared]) => ({
       text: this.entries[id],
       length: this.lengths[id],
+      grams: this.gramCounts[id],
       shared,
     }));
-    return bestCandidateScore(query, Array.from(query).length, candidates);
+    return bestCandidateScore(query, Array.from(query).length, queryGrams.size, candidates);
   }
 }
 
@@ -151,6 +192,7 @@ function bigramKeys(text: string): number[] {
 export class MemorySourceScan {
   private readonly entries: string[] = [];
   private readonly lengths: number[] = [];
+  private readonly gramCounts: number[] = [];
   private readonly exact = new Set<string>();
 
   constructor(sourceTexts: Iterable<string>) {
@@ -159,6 +201,7 @@ export class MemorySourceScan {
       if (this.exact.has(normalized)) continue;
       this.entries.push(normalized);
       this.lengths.push(Array.from(normalized).length);
+      this.gramCounts.push(bigramKeys(normalized).length);
       this.exact.add(normalized);
     }
   }
@@ -194,8 +237,8 @@ export class MemorySourceScan {
           previous = point;
         }
       }
-      if (shared > 0) candidates.push({ text, length, shared });
+      if (shared > 0) candidates.push({ text, length, grams: this.gramCounts[id], shared });
     }
-    return bestCandidateScore(query, queryLength, candidates);
+    return bestCandidateScore(query, queryLength, slots.size, candidates);
   }
 }

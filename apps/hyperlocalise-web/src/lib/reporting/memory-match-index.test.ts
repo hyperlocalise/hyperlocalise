@@ -54,6 +54,18 @@ describe("MemoryMatchIndex", () => {
     expect(index.bestScore("Quarterly revenue grew by twelve percent")).toBeLessThan(50);
   });
 
+  it("finds a near-identical short entry among many longer entries that contain the query", () => {
+    const longer = Array.from({ length: 80 }, (_, i) => `Account settings page ${i}`);
+    const alone = new MemoryMatchIndex(["Account settin"]).bestScore("Account settings");
+    expect(alone).toBe(87);
+    expect(new MemoryMatchIndex([...longer, "Account settin"]).bestScore("Account settings")).toBe(
+      alone,
+    );
+    expect(new MemorySourceScan([...longer, "Account settin"]).bestScore("Account settings")).toBe(
+      alone,
+    );
+  });
+
   it("deduplicates entries and reports its size", () => {
     expect(new MemoryMatchIndex(["a b", "A  B", "c"]).size).toBe(2);
   });
