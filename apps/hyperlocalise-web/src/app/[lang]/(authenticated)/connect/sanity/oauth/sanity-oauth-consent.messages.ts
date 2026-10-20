@@ -22,8 +22,8 @@ export const sanityOauthConsentMessages = defineMessages({
   },
   description: {
     defaultMessage:
-      "Sanity is requesting access to localize designs through a Hyperlocalise workspace connection.",
-    id: "rFEZbo8osm",
+      "Sanity is requesting access to upload documents, start translation jobs, and apply locales through this Hyperlocalise workspace.",
+    id: "YbEblYawWt",
     description: "Description for the Sanity OAuth consent page",
   },
   missingRequest: {
@@ -32,21 +32,25 @@ export const sanityOauthConsentMessages = defineMessages({
     id: "UeIGZOrfgq",
     description: "Error when the Sanity OAuth request cookie is missing",
   },
-  noConnections: {
-    defaultMessage:
-      "Create a Sanity connection in workspace Integrations first, then return to Sanity and try again.",
-    id: "s5cni4gno1",
-    description: "Empty state when the user has no Sanity connections to authorize",
-  },
-  openIntegrations: {
-    defaultMessage: "Open Integrations",
-    id: "pcqdOx7pF2",
-    description: "Link to create a Sanity connection before OAuth consent",
-  },
   connectionLabel: {
     defaultMessage: "Workspace connection",
     id: "Kx1E4UHhnr",
     description: "Label for the Sanity connection picker on the OAuth consent page",
+  },
+  organizationLabel: {
+    defaultMessage: "Workspace",
+    id: "iZS+Jl1+Sh",
+    description: "Label for the workspace picker on the Sanity OAuth consent page",
+  },
+  sanityLogoAlt: {
+    defaultMessage: "Sanity",
+    id: "aygAD3uUfX",
+    description: "Alt text for the Sanity mark on the OAuth consent page",
+  },
+  hyperlocaliseLogoAlt: {
+    defaultMessage: "Hyperlocalise",
+    id: "cszcBIv646",
+    description: "Alt text for the Hyperlocalise logomark on the OAuth consent page",
   },
   allow: {
     defaultMessage: "Allow access",

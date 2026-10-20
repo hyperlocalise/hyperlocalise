@@ -67,7 +67,6 @@ import {
 import { CanvaConnectionPanel } from "./canva-connection-panel";
 import { FigmaConnectionPanel } from "./figma-connection-panel";
 import { SanityConnectionPanel } from "./sanity-connection-panel";
-import { SanityStudioPluginConnectionPanel } from "./sanity-studio-plugin-connection-panel";
 import {
   ContentfulConnectionPanel,
   type ContentfulConnectionForm,
@@ -1067,10 +1066,6 @@ export function IntegrationsPageContent({
               </CollapsibleIntegrationRow>
               <CanvaConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
               <FigmaConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
-              <SanityStudioPluginConnectionPanel
-                organizationSlug={organizationSlug}
-                disabled={!userIsAdmin}
-              />
               <SanityConnectionPanel
                 organizationSlug={organizationSlug}
                 disabled={!userIsAdmin}

@@ -5,6 +5,7 @@ import { useClient, useDataset, useProjectId, useSchema } from "sanity";
 import { createDocumentLevelTranslation, patchCurrentDocumentDraft } from "./apply-studio-document";
 import { ConnectScreen, ProjectScreen } from "./connect-screens";
 import type { HyperlocalisePluginConfig } from "./config";
+import { HyperlocaliseIcon } from "./hyperlocalise-icon";
 import { extractDocumentSegments, readDocumentTitle } from "./extract-document-segments";
 import {
   collectSanityDocument,
@@ -22,7 +23,11 @@ import {
 import { defaultSelectedLocale, localeLabel, translateToOptionsForProject } from "./locale-label";
 import { projectLocalesMatch } from "./locale-map";
 import { resolveLocalizationMode, type LocalizationMode } from "./localization-mode";
-import { fetchSanityIntegrationHealth, runSanityOAuthHandoff } from "./sanity-oauth";
+import {
+  fetchSanityIntegrationHealth,
+  isSanityOauthCancelled,
+  runSanityOAuthHandoff,
+} from "./sanity-oauth";
 import { collectExcludedFieldNames, schemaI18nHints } from "./schema-hints";
 import { buildSanityDocumentSourcePath } from "./source-path";
 import { loadSettings, saveSettings, type PluginSettings } from "./settings";
@@ -230,7 +235,9 @@ export function HyperlocaliseDocumentWorkflow({
       setSettings(next);
       setScreen("project");
     } catch (connectError) {
-      setError(connectError instanceof Error ? connectError.message : "Connect failed.");
+      if (!isSanityOauthCancelled(connectError)) {
+        setError(connectError instanceof Error ? connectError.message : "Connect failed.");
+      }
     } finally {
       setBusy(null);
     }
@@ -494,9 +501,12 @@ export function HyperlocaliseDocumentWorkflow({
       <Stack gap={4}>
         <Flex align="center" justify="space-between">
           <Stack gap={2}>
-            <Text size={2} weight="semibold">
-              Hyperlocalise
-            </Text>
+            <Flex align="center" gap={2}>
+              <HyperlocaliseIcon width={18} height={18} />
+              <Text size={2} weight="semibold">
+                Hyperlocalise
+              </Text>
+            </Flex>
             {sessionOrg ? (
               <Text muted size={1}>
                 {sessionOrg.name}

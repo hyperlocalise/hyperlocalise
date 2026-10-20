@@ -16,6 +16,7 @@ import { resolveApiKeyTeamAccessContext } from "@/api/auth/api-key-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { generateApiKey, getApiKeyPrefix, hashApiKey } from "@/lib/security/api-keys";
 
 import type {
   SanityConnectionSession,
@@ -26,6 +27,7 @@ import type {
 type SanityConnectionRow = typeof schema.sanityConnections.$inferSelect;
 
 const REQUIRED_API_KEY_PERMISSIONS = ["files:read", "files:write", "jobs:read", "jobs:write"];
+const STUDIO_PLUGIN_CONNECTION_NAME = "Sanity Studio plugin";
 
 function serializeConnection(connection: SanityConnectionRow): SanityConnectionSummary {
   return {
@@ -193,6 +195,42 @@ export async function listSanityConnections(input: {
     .orderBy(desc(schema.sanityConnections.createdAt));
 
   return rows.map(serializeConnection);
+}
+
+export async function ensureSanityStudioPluginConnection(input: {
+  organizationId: string;
+  userId: string;
+}): Promise<SanityConnectionSummary> {
+  const existing = await listSanityConnections({ organizationId: input.organizationId });
+  const enabled = existing.find((connection) => connection.enabled);
+  if (enabled) {
+    return enabled;
+  }
+
+  const plainKey = generateApiKey();
+  const [apiKey] = await db
+    .insert(schema.organizationApiKeys)
+    .values({
+      organizationId: input.organizationId,
+      name: STUDIO_PLUGIN_CONNECTION_NAME,
+      keyHash: hashApiKey(plainKey),
+      keyPrefix: getApiKeyPrefix(plainKey),
+      permissions: [...REQUIRED_API_KEY_PERMISSIONS],
+      createdByUserId: input.userId,
+    })
+    .returning({ id: schema.organizationApiKeys.id });
+
+  if (!apiKey) {
+    throw new Error("sanity_api_key_create_failed");
+  }
+
+  const created = await createSanityConnection({
+    organizationId: input.organizationId,
+    userId: input.userId,
+    displayName: STUDIO_PLUGIN_CONNECTION_NAME,
+    apiKeyId: apiKey.id,
+  });
+  return created.connection;
 }
 
 export async function getSanityConnection(input: {

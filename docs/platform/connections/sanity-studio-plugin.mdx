@@ -14,20 +14,15 @@ For batch import and **Push to Sanity** from the Content editor, use [Localize S
 | Requirement | Description |
 | --- | --- |
 | Native project | A [native project](/platform/projects/create-project) with a source locale and the target locales you will apply. |
-| Personal access token | A [personal access token](/platform/settings#personal-access-tokens) with `files:read`, `files:write`, `jobs:read`, and `jobs:write`. Attach this token when you create the Studio plugin connection. |
+| Personal access token | First **Allow** on the consent screen creates a **Sanity Studio plugin** token and connection if none exist. Integrations remains available to rename or disable the connection. |
 | `sanity-plugin-hyperlocalise` | The plugin added to your Studio `sanity.config` (npm package or linked build). Sanity Studio v3 or later. |
 | i18n setup | Document-level (`language` field) or field-level (`internationalizedArray*` fields), listed in plugin options. |
 
 ## Connect the workspace
 
-1. Open workspace **Integrations** and expand **Sanity Studio plugin** (not the **Sanity** row used for automations).
-2. Enter a display name.
-3. Select the personal access token.
-4. Save.
+Editors connect with **OAuth only** from Studio. Choose **Allow** on the consent screen. If the workspace already has an enabled Studio plugin connection, consent reuses it. If it has none, Hyperlocalise creates a **Sanity Studio plugin** personal access token and connection. Use **Integrations** only to rename or disable that connection.
 
-Editors connect with **OAuth only** from Studio. Each grant is bound to the Studio **origin** (for example `https://your-project.sanity.studio` or `http://localhost:3333`). Hyperlocalise rejects API calls when the `Origin` header does not match the token.
-
-Create at least one enabled Studio plugin connection before OAuth consent can list an option.
+Each grant is bound to the Studio **origin** (for example `https://your-project.sanity.studio` or `http://localhost:3333`). Hyperlocalise rejects API calls when the `Origin` header does not match the token.
 
 ## Install the plugin in Studio
 
@@ -81,7 +76,7 @@ A schema type cannot be listed in both arrays.
 1. Open a document in Sanity Studio.
 2. Open the **Hyperlocalise** editor tab.
 3. Choose **Connect Hyperlocalise** and complete OAuth in the browser.
-4. On the consent screen, confirm the **Studio** origin and pick the workspace connection.
+4. On the consent screen, confirm the **Studio** origin and choose **Allow**.
 5. Select the native project.
 
 The **Hyperlocalise** top-level tool uses the same OAuth session.

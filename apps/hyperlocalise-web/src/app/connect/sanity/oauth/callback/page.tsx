@@ -52,10 +52,12 @@ export default function SanityOAuthCallbackPage() {
 
       if (error) {
         setDetail(errorDescription ?? error);
+        window.close();
         return;
       }
       if (code) {
-        setDetail("Connected. You can close this window and return to Sanity Studio.");
+        setDetail("Connected. Returning to Sanity Studio…");
+        window.close();
         return;
       }
       setDetail("Missing authorization response. Close this window and try again.");

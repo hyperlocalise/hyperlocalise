@@ -16,8 +16,8 @@ import { validator } from "hono/validator";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { z } from "zod";
 
-import { sanityCorsMiddleware } from "@/api/auth/sanity-cors";
 import { hasCapability } from "@/api/auth/policy";
+import { sanityCorsMiddleware } from "@/api/auth/sanity-cors";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { badRequestResponse } from "@/api/response.schema";
 import {
@@ -35,11 +35,13 @@ import {
   isSanityOauthConfigured,
   issueSanityOauthTokens,
   listSanityOauthConsentConnections,
+  listSanityOauthConsentOrganizations,
   parseSanityOauthAuthorizationRequest,
   readSanityOauthHandoff,
   refreshSanityOauthTokens,
   revokeSanityOauthToken,
 } from "@/lib/sanity/oauth";
+import { ensureSanityStudioPluginConnection } from "@/lib/sanity/connections";
 import { env } from "@/lib/env";
 
 const authorizationQuerySchema = z.object({
@@ -53,8 +55,14 @@ const authorizationQuerySchema = z.object({
   studio_origin: z.url().max(2048),
 });
 
+const optionalUuid = z.preprocess(
+  (value) => (value === "" || value === null || value === undefined ? undefined : value),
+  z.string().uuid().optional(),
+);
+
 const consentBodySchema = z.object({
-  connectionId: z.string().uuid(),
+  connectionId: optionalUuid,
+  organizationId: optionalUuid,
 });
 
 const tokenRequestSchema = z.discriminatedUnion("grant_type", [
@@ -256,11 +264,25 @@ export function createSanityOauthRoutes(): Hono {
         return c.redirect(signInUrl.toString(), 302);
       }
 
-      const connections = await listSanityOauthConsentConnections(auth.user.localUserId);
-      const connection = connections.find(
-        (candidate) => candidate.connectionId === parsedBody.data.connectionId,
+      const [connections, memberships] = await Promise.all([
+        listSanityOauthConsentConnections(auth.user.localUserId),
+        listSanityOauthConsentOrganizations(auth.user.localUserId),
+      ]);
+      const organizations = memberships.filter((organization) =>
+        hasCapability(organization.role, "provider_credentials:write"),
       );
-      if (!connection?.enabled) {
+      const selectedConnection = parsedBody.data.connectionId
+        ? connections.find((candidate) => candidate.connectionId === parsedBody.data.connectionId)
+        : undefined;
+      const organizationId =
+        selectedConnection?.organizationId ??
+        parsedBody.data.organizationId ??
+        auth.organization.localOrganizationId;
+      const writableOrganization = organizations.find(
+        (candidate) => candidate.organizationId === organizationId,
+      );
+
+      if (selectedConnection && !selectedConnection.enabled) {
         return c.redirect(
           buildSanityOauthRedirect({
             redirectUri: authRequest.redirectUri,
@@ -272,7 +294,7 @@ export function createSanityOauthRoutes(): Hono {
         );
       }
 
-      if (!hasCapability(connection.role, "provider_credentials:write")) {
+      if (!writableOrganization) {
         return c.redirect(
           buildSanityOauthRedirect({
             redirectUri: authRequest.redirectUri,
@@ -284,14 +306,24 @@ export function createSanityOauthRoutes(): Hono {
         );
       }
 
+      const connectionId =
+        selectedConnection && selectedConnection.enabled
+          ? selectedConnection.connectionId
+          : (
+              await ensureSanityStudioPluginConnection({
+                organizationId: writableOrganization.organizationId,
+                userId: auth.user.localUserId,
+              })
+            ).id;
+
       const code = await createSanityOauthAuthorizationCode({
         clientId: authRequest.clientId,
         redirectUri: authRequest.redirectUri,
         codeChallenge: authRequest.codeChallenge,
         studioOrigin: authRequest.studioOrigin,
         userId: auth.user.localUserId,
-        organizationId: connection.organizationId,
-        connectionId: connection.connectionId,
+        organizationId: writableOrganization.organizationId,
+        connectionId,
       });
       deleteCookie(c, SANITY_OAUTH_REQUEST_COOKIE, { path: "/" });
       return c.redirect(

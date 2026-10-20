@@ -72,6 +72,13 @@ export type SanityOauthConsentConnection = {
   role: OrganizationMembershipRole;
 };
 
+export type SanityOauthConsentOrganization = {
+  organizationId: string;
+  organizationName: string;
+  organizationSlug: string | null;
+  role: OrganizationMembershipRole;
+};
+
 const SANITY_OAUTH_HANDOFF_LIFETIME_MS = 10 * 60 * 1000;
 
 export type SanityOauthHandoffReadResult =
@@ -570,6 +577,26 @@ export async function listSanityOauthConsentConnections(
     .innerJoin(
       schema.sanityConnections,
       eq(schema.sanityConnections.organizationId, schema.organizations.id),
+    )
+    .where(eq(schema.organizationMemberships.userId, userId));
+
+  return rows;
+}
+
+export async function listSanityOauthConsentOrganizations(
+  userId: string,
+): Promise<SanityOauthConsentOrganization[]> {
+  const rows = await db
+    .select({
+      organizationId: schema.organizations.id,
+      organizationName: schema.organizations.name,
+      organizationSlug: schema.organizations.slug,
+      role: schema.organizationMemberships.role,
+    })
+    .from(schema.organizationMemberships)
+    .innerJoin(
+      schema.organizations,
+      eq(schema.organizationMemberships.organizationId, schema.organizations.id),
     )
     .where(eq(schema.organizationMemberships.userId, userId));
 

@@ -1,5 +1,6 @@
-import { TranslateIcon } from "@sanity/icons/Translate";
 import type { ComponentViewBuilder, StructureBuilder } from "sanity/structure";
+
+import { HyperlocaliseIcon } from "./hyperlocalise-icon";
 
 import { HyperlocaliseDocumentWorkflow } from "./app";
 import { parsePluginConfig, type HyperlocalisePluginConfig } from "./config";
@@ -46,6 +47,6 @@ export function hyperlocalisePlugin(
     .component(HyperlocaliseDocumentView)
     .id("hyperlocalise")
     .title("Hyperlocalise")
-    .icon(TranslateIcon)
+    .icon(HyperlocaliseIcon)
     .options(config);
 }

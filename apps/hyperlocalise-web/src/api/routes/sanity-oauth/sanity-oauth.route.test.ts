@@ -36,14 +36,16 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
-import { createSanityConnection } from "@/lib/sanity/connections";
+import { createSanityConnection, listSanityConnections } from "@/lib/sanity/connections";
 import {
   SANITY_OAUTH_REQUEST_COOKIE,
   createSanityOauthAuthorizationRequest,
   listSanityOauthConsentConnections,
 } from "@/lib/sanity/oauth";
 import { env } from "@/lib/env";
-import { db } from "@/lib/database/client";
+import { eq } from "drizzle-orm";
+
+import { db, schema } from "@/lib/database/client";
 import { createApiKeyTestFixture } from "@/api/routes/api-key/api-key.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 
@@ -427,6 +429,65 @@ describe("sanityOauthRoutes", () => {
       (left, right) => left - right,
     );
     expect(statuses).toEqual([200, 400]);
+  });
+
+  it("creates a PAT and Studio plugin connection when consent has no connection", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+
+    const firstConsent = await app.request("http://localhost/api/oauth/sanity/consent", {
+      method: "POST",
+      headers: {
+        cookie: `${SANITY_OAUTH_REQUEST_COOKIE}=${requestCookie()}`,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams().toString(),
+    });
+
+    expect(firstConsent.status).toBe(302);
+    const firstLocation = new URL(firstConsent.headers.get("location") ?? "");
+    expect(firstLocation.searchParams.get("code")).toBeTruthy();
+
+    const created = await listSanityConnections({
+      organizationId: auth.organization.localOrganizationId,
+    });
+    expect(created).toHaveLength(1);
+    expect(created[0]?.displayName).toBe("Sanity Studio plugin");
+    expect(created[0]?.enabled).toBe(true);
+
+    const [apiKey] = await db
+      .select({
+        name: schema.organizationApiKeys.name,
+        permissions: schema.organizationApiKeys.permissions,
+      })
+      .from(schema.organizationApiKeys)
+      .where(eq(schema.organizationApiKeys.id, created[0]!.apiKeyId))
+      .limit(1);
+    expect(apiKey?.name).toBe("Sanity Studio plugin");
+    expect(apiKey?.permissions).toEqual(
+      expect.arrayContaining(["files:read", "files:write", "jobs:read", "jobs:write"]),
+    );
+
+    const secondConsent = await app.request("http://localhost/api/oauth/sanity/consent", {
+      method: "POST",
+      headers: {
+        cookie: `${SANITY_OAUTH_REQUEST_COOKIE}=${requestCookie()}`,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams().toString(),
+    });
+
+    expect(secondConsent.status).toBe(302);
+    expect(
+      new URL(secondConsent.headers.get("location") ?? "").searchParams.get("code"),
+    ).toBeTruthy();
+
+    const reused = await listSanityConnections({
+      organizationId: auth.organization.localOrganizationId,
+    });
+    expect(reused).toHaveLength(1);
+    expect(reused[0]?.id).toBe(created[0]?.id);
   });
 
   it("denies consent when the user cancels", async () => {

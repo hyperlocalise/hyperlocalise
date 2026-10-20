@@ -1,4 +1,3 @@
-import { TranslateIcon } from "@sanity/icons/Translate";
 import { Box, Button, Card, Checkbox, Flex, Stack, Text } from "@sanity/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useClient, useDataset, useProjectId } from "sanity";
@@ -7,6 +6,7 @@ import { createDocumentLevelTranslation } from "./apply-studio-document";
 import { ConnectScreen, ProjectScreen } from "./connect-screens";
 import { parseBulkConfig, type HyperlocaliseBulkConfig } from "./config";
 import { ConfigErrorCard } from "./config-error";
+import { HyperlocaliseIcon } from "./hyperlocalise-icon";
 import { extractDocumentSegments, readDocumentTitle } from "./extract-document-segments";
 import {
   collectSanityDocument,
@@ -19,7 +19,11 @@ import {
 } from "./hyperlocalise-client";
 import { isRecord, readString } from "./json";
 import { defaultSelectedLocale, translateToOptionsForProject } from "./locale-label";
-import { fetchSanityIntegrationHealth, runSanityOAuthHandoff } from "./sanity-oauth";
+import {
+  fetchSanityIntegrationHealth,
+  isSanityOauthCancelled,
+  runSanityOAuthHandoff,
+} from "./sanity-oauth";
 import { buildSanityDocumentSourcePath } from "./source-path";
 import { loadSettings, saveSettings, type PluginSettings } from "./settings";
 
@@ -179,7 +183,9 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
       setSettings(next);
       setScreen("project");
     } catch (connectError) {
-      setError(connectError instanceof Error ? connectError.message : "Connect failed.");
+      if (!isSanityOauthCancelled(connectError)) {
+        setError(connectError instanceof Error ? connectError.message : "Connect failed.");
+      }
     } finally {
       setBusy(null);
     }
@@ -353,9 +359,12 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
       <Stack gap={4}>
         <Flex align="center" justify="space-between">
           <Stack gap={2}>
-            <Text size={2} weight="semibold">
-              Hyperlocalise bulk translation
-            </Text>
+            <Flex align="center" gap={2}>
+              <HyperlocaliseIcon width={18} height={18} />
+              <Text size={2} weight="semibold">
+                Hyperlocalise bulk translation
+              </Text>
+            </Flex>
             {sessionOrg ? (
               <Text muted size={1}>
                 {sessionOrg.name} · document-level only
@@ -489,7 +498,7 @@ export function hyperlocaliseTool(config: HyperlocaliseBulkConfig | unknown) {
   return {
     name: "hyperlocalise",
     title: "Hyperlocalise",
-    icon: TranslateIcon,
+    icon: HyperlocaliseIcon,
     component: parsed.ok
       ? function HyperlocaliseBulkTool() {
           return <HyperlocaliseBulkWorkflow config={parsed.data} />;

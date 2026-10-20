@@ -135,14 +135,23 @@ export async function createSanityOauthHandoff(appUrl: string): Promise<SanityOa
   return keys;
 }
 
+export const SANITY_OAUTH_CANCELLED = "OAuth sign-in was cancelled.";
+
+export function isSanityOauthCancelled(error: unknown): boolean {
+  return error instanceof Error && error.message === SANITY_OAUTH_CANCELLED;
+}
+
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) {
+    return Promise.reject(new Error(SANITY_OAUTH_CANCELLED));
+  }
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(resolve, ms);
     signal?.addEventListener(
       "abort",
       () => {
         window.clearTimeout(timer);
-        reject(new Error("OAuth sign-in was cancelled."));
+        reject(new Error(SANITY_OAUTH_CANCELLED));
       },
       { once: true },
     );
@@ -178,7 +187,7 @@ export async function pollSanityOauthHandoff(input: {
     { code: string } | { error: string; errorDescription?: string }
   > => {
     if (input.signal?.aborted) {
-      throw new Error("OAuth sign-in was cancelled.");
+      return readFinalHandoffOrCancel(input);
     }
     if (Date.now() >= deadline) {
       throw new Error("OAuth sign-in timed out.");
@@ -203,11 +212,39 @@ export async function pollSanityOauthHandoff(input: {
       };
     }
 
-    await delay(intervalMs, input.signal);
+    try {
+      await delay(intervalMs, input.signal);
+    } catch {
+      return readFinalHandoffOrCancel(input);
+    }
     return poll();
   };
 
   return poll();
+}
+
+async function readFinalHandoffOrCancel(input: {
+  appUrl: string;
+  readKey: string;
+}): Promise<{ code: string } | { error: string; errorDescription?: string }> {
+  try {
+    const payload = await readHandoffPoll({
+      appUrl: input.appUrl,
+      readKey: input.readKey,
+    });
+    if (payload.status === "done") {
+      if (payload.code) {
+        return { code: payload.code };
+      }
+      return {
+        error: payload.error ?? "access_denied",
+        errorDescription: payload.errorDescription,
+      };
+    }
+  } catch {
+    // The popup closed before the last poll could finish.
+  }
+  throw new Error(SANITY_OAUTH_CANCELLED);
 }
 
 export async function exchangeSanityAuthorizationCode(input: {
@@ -306,32 +343,57 @@ export async function runSanityOAuthHandoff(input: {
     state: handoff.writeKey,
   });
 
-  const popup = window.open(authorizeUrl, "hyperlocalise_sanity_oauth", "width=520,height=720");
+  const width = 520;
+  const height = 720;
+  const left = Math.round(window.screenX + (window.outerWidth - width) / 2);
+  const top = Math.round(window.screenY + (window.outerHeight - height) / 2);
+  const popup = window.open(
+    authorizeUrl,
+    "hyperlocalise_sanity_oauth",
+    `popup=yes,width=${width},height=${height},left=${left},top=${top}`,
+  );
   if (!popup) {
     throw new Error("Allow pop-ups for this Studio to connect with Hyperlocalise.");
   }
 
-  const callback = await pollSanityOauthHandoff({
-    appUrl: input.appUrl,
-    readKey: handoff.readKey,
-  });
-  popup.close();
-  if ("error" in callback) {
-    throw new Error(callback.errorDescription ?? "Hyperlocalise sign-in was cancelled.");
+  const controller = new AbortController();
+  const closedWatch = window.setInterval(() => {
+    if (popup.closed) {
+      controller.abort();
+    }
+  }, 400);
+
+  try {
+    const callback = await pollSanityOauthHandoff({
+      appUrl: input.appUrl,
+      readKey: handoff.readKey,
+      signal: controller.signal,
+    });
+    if (!popup.closed) {
+      popup.close();
+    }
+    if ("error" in callback) {
+      throw new Error(callback.errorDescription ?? SANITY_OAUTH_CANCELLED);
+    }
+
+    const tokens = await exchangeSanityAuthorizationCode({
+      appUrl: input.appUrl,
+      clientId: input.clientId,
+      code: callback.code,
+      codeVerifier: verifier,
+      redirectUri,
+    });
+
+    return {
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+    };
+  } finally {
+    window.clearInterval(closedWatch);
+    if (!popup.closed) {
+      popup.close();
+    }
   }
-
-  const tokens = await exchangeSanityAuthorizationCode({
-    appUrl: input.appUrl,
-    clientId: input.clientId,
-    code: callback.code,
-    codeVerifier: verifier,
-    redirectUri,
-  });
-
-  return {
-    accessToken: tokens.access_token,
-    refreshToken: tokens.refresh_token,
-  };
 }
 
 export function buildSanityAuthorizeUrl(input: {

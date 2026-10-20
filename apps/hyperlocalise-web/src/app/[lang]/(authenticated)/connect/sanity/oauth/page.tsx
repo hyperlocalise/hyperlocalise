@@ -12,9 +12,11 @@
  */
 import { cookies } from "next/headers";
 
+import { hasCapability } from "@/api/auth/policy";
 import {
   SANITY_OAUTH_REQUEST_COOKIE,
   listSanityOauthConsentConnections,
+  listSanityOauthConsentOrganizations,
   parseSanityOauthAuthorizationRequest,
 } from "@/lib/sanity/oauth";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
@@ -32,14 +34,20 @@ export default async function SanityOauthConsentPage() {
   const authRequest = parseSanityOauthAuthorizationRequest(
     cookieStore.get(SANITY_OAUTH_REQUEST_COOKIE)?.value ?? "",
   );
-  const connections = await listSanityOauthConsentConnections(auth.user.localUserId);
+  const [connections, memberships] = await Promise.all([
+    listSanityOauthConsentConnections(auth.user.localUserId),
+    listSanityOauthConsentOrganizations(auth.user.localUserId),
+  ]);
+  const organizations = memberships.filter((organization) =>
+    hasCapability(organization.role, "provider_credentials:write"),
+  );
 
   return (
     <SanityOauthConsentContent
       hasRequest={Boolean(authRequest)}
       studioOrigin={authRequest?.studioOrigin ?? null}
       connections={connections}
-      defaultOrganizationSlug={auth.organization.slug ?? null}
+      organizations={organizations}
     />
   );
 }
