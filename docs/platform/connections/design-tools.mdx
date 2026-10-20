@@ -1,9 +1,9 @@
 ---
 title: "Connect design tools"
-description: "Use Canva and Figma workspace connections for design translation workflows."
+description: "Use Canva, Figma, and Sanity Studio connections for in-context translation workflows."
 ---
 
-Design tool connections store a personal access token on the workspace. The Canva app and Figma plugin authenticate with OAuth access tokens or localhost connection tokens. Effective access is the token's scopes intersected with your membership, role, and project access.
+Design and CMS tool connections store a personal access token on the workspace. The Canva app, Figma plugin, and Sanity Studio plugin authenticate with OAuth access tokens (and Figma localhost connection tokens for development). Effective access is the token's scopes intersected with your membership, role, and project access.
 
 ## Canva
 
@@ -18,6 +18,14 @@ Follow the step-by-step guide: [Localize Figma](/platform/connections/figma).
 Create a Figma connection with a token. In the plugin, pick a native project, **Upload** source JSON (no job), **Translate** when you want a job, and **Apply** one locale at a time. Apply uses stored source stamps (`figma.k.*`); missing strings reset to source instead of leaving a previous language on the canvas.
 
 Plugin installation depends on how it is distributed to your team. If you do not have the plugin, [contact support](/platform/help/contact-support) for availability and installation guidance.
+
+## Sanity Studio
+
+Follow the step-by-step guide: [Localize Sanity Studio documents](/platform/connections/sanity-studio-plugin).
+
+Create a **Sanity Studio plugin** connection with a token. In the Studio document inspector, pick a native project, **Upload** source JSON for the open document, **Translate** when you want a job, and **Apply** one target locale at a time. OAuth grants are scoped to the Studio origin where the editor signed in.
+
+Batch import and Content editor **Push to Sanity** use the separate **Sanity** automation connection. See [Localize Sanity documents (automation)](/platform/connections/sanity).
 
 ## Resolve access or job failures
 

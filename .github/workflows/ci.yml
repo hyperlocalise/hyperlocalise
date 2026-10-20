@@ -14,6 +14,9 @@ on:
       - .github/workflows/canva-app.yml
       - apps/figma-plugin/**
       - .github/workflows/figma-plugin.yml
+      - apps/sanity-studio-plugin/**
+      - .github/workflows/sanity-studio-plugin.yml
+      - .github/workflows/sanity-studio-plugin-publish.yml
 
 permissions:
   contents: read

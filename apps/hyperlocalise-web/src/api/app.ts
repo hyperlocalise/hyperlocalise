@@ -31,6 +31,8 @@ import { createCanvaIntegrationRoutes } from "./routes/canva-integration/canva-i
 import { createCanvaOauthRoutes } from "./routes/canva-oauth/canva-oauth.route";
 import { createFigmaOauthRoutes } from "./routes/figma-oauth/figma-oauth.route";
 import { createFigmaIntegrationRoutes } from "./routes/figma-integration/figma-integration.route";
+import { createSanityOauthRoutes } from "./routes/sanity-oauth/sanity-oauth.route";
+import { createSanityIntegrationRoutes } from "./routes/sanity-integration/sanity-integration.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
 import { healthRoutes } from "./routes/health";
@@ -121,9 +123,11 @@ export function createApp(options: CreateAppOptions = {}): Hono<EvlogVariables> 
     )
     .route("/integrations/canva", createCanvaIntegrationRoutes({ ...options, jobQueue }))
     .route("/integrations/figma", createFigmaIntegrationRoutes({ ...options, jobQueue }))
+    .route("/integrations/sanity", createSanityIntegrationRoutes({ ...options, jobQueue }))
     .route("/webhooks", createWebhookRoutes(options))
     .route("/oauth/canva", createCanvaOauthRoutes())
-    .route("/oauth/figma", createFigmaOauthRoutes());
+    .route("/oauth/figma", createFigmaOauthRoutes())
+    .route("/oauth/sanity", createSanityOauthRoutes());
 }
 
 export const app = createApp();

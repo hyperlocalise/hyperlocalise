@@ -162,6 +162,18 @@ export async function cleanupWorkosTestRecords(input: {
         "DELETE FROM figma_connections WHERE organization_id = ANY($1::uuid[])",
         orgParams,
       );
+      await client.query(
+        "DELETE FROM sanity_plugin_oauth_authorization_codes WHERE organization_id = ANY($1::uuid[])",
+        orgParams,
+      );
+      await client.query(
+        "DELETE FROM sanity_plugin_oauth_tokens WHERE organization_id = ANY($1::uuid[])",
+        orgParams,
+      );
+      await client.query(
+        "DELETE FROM sanity_plugin_connections WHERE organization_id = ANY($1::uuid[])",
+        orgParams,
+      );
       await client.query("DELETE FROM projects WHERE organization_id = ANY($1::uuid[])", orgParams);
       await client.query(
         "DELETE FROM glossary_terms WHERE glossary_id IN (SELECT id FROM glossaries WHERE organization_id = ANY($1::uuid[]))",

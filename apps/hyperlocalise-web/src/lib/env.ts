@@ -286,6 +286,15 @@ export const env = createEnv({
     /** Comma-separated redirect URIs allowed for Figma plugin OAuth. */
     FIGMA_OAUTH_REDIRECT_URI: z.string().min(1).optional(),
 
+    /** Comma-separated browser origins allowed to call the Sanity Studio plugin API. */
+    SANITY_CORS_ORIGINS: z.string().min(1).optional(),
+
+    /** Public OAuth client id for the Sanity Studio plugin (PKCE, no client secret). */
+    SANITY_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+
+    /** Comma-separated redirect URIs allowed for Sanity Studio plugin OAuth. */
+    SANITY_OAUTH_REDIRECT_URI: z.string().min(1).optional(),
+
     /** Base URL for browser e2e tests. Defaults to http://localhost:3000. */
     E2E_BASE_URL: z.url().optional(),
 
@@ -422,6 +431,12 @@ export const env = createEnv({
       (isTestEnv
         ? "https://www.figma.com/apps/oauth/authorized,http://localhost:3000/connect/figma/oauth/callback,figma://oauth/callback"
         : undefined),
+    SANITY_CORS_ORIGINS: process.env.SANITY_CORS_ORIGINS,
+    SANITY_OAUTH_CLIENT_ID:
+      process.env.SANITY_OAUTH_CLIENT_ID ?? (isTestEnv ? "test-sanity-oauth-client" : undefined),
+    SANITY_OAUTH_REDIRECT_URI:
+      process.env.SANITY_OAUTH_REDIRECT_URI ??
+      (isTestEnv ? "http://localhost:3000/connect/sanity/oauth/callback" : undefined),
     E2E_BASE_URL: process.env.E2E_BASE_URL,
     GO_SVC_URL: process.env.GO_SVC_URL ?? (isTestEnv ? "http://127.0.0.1:8080" : undefined),
     NEXT_PUBLIC_WORKOS_REDIRECT_URI:

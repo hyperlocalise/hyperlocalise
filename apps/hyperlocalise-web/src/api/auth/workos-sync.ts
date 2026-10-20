@@ -561,6 +561,7 @@ export type RevokeOrganizationMembershipAccessResult = {
   apiKeysRevoked: number;
   figmaOauthTokensRevoked: number;
   canvaOauthTokensRevoked: number;
+  sanityOauthTokensRevoked: number;
 };
 
 export type MembershipRevocationActor = {
@@ -684,7 +685,7 @@ async function revokePluginOauthTokensForUser(
 ): Promise<
   Pick<
     RevokeOrganizationMembershipAccessResult,
-    "figmaOauthTokensRevoked" | "canvaOauthTokensRevoked"
+    "figmaOauthTokensRevoked" | "canvaOauthTokensRevoked" | "sanityOauthTokensRevoked"
   >
 > {
   const now = new Date();
@@ -712,9 +713,22 @@ async function revokePluginOauthTokensForUser(
     )
     .returning({ id: schema.canvaOauthTokens.id });
 
+  const sanityRevoked = await database
+    .update(schema.sanityOauthTokens)
+    .set({ revokedAt: now })
+    .where(
+      and(
+        eq(schema.sanityOauthTokens.userId, target.userId),
+        eq(schema.sanityOauthTokens.organizationId, target.organizationId),
+        isNull(schema.sanityOauthTokens.revokedAt),
+      ),
+    )
+    .returning({ id: schema.sanityOauthTokens.id });
+
   return {
     figmaOauthTokensRevoked: figmaRevoked.length,
     canvaOauthTokensRevoked: canvaRevoked.length,
+    sanityOauthTokensRevoked: sanityRevoked.length,
   };
 }
 
@@ -830,6 +844,7 @@ export async function revokeOrganizationMembershipAccess(
       apiKeysRevoked: 0,
       figmaOauthTokensRevoked: 0,
       canvaOauthTokensRevoked: 0,
+      sanityOauthTokensRevoked: 0,
     };
   }
 
