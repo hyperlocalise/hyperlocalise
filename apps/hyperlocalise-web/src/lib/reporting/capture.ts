@@ -11,25 +11,23 @@
  * Version 2.0 or later.
  */
 import { createHash } from "node:crypto";
-import { and, eq, desc, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, desc, gt, inArray, isNull, sql } from "drizzle-orm";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { listAttachedProjectMemoryIds } from "@/lib/memory/ensure-default-native-project-memory";
-import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
-import { buildReportingMemoryMatchTsQuery } from "@/lib/translation/translation-memory-ts-query";
 import { countSourceWords, matchBucket } from "./word-analysis";
 import { MemoryMatchIndex, MemorySourceScan, sourceSimilarity } from "./memory-match-index";
 import { wordCost } from "./money";
 
 export { sourceSimilarity };
 
-const MEMORY_MATCH_CANDIDATE_LIMIT = 32;
 const REPORTING_BATCH_SIZE = 500;
 /**
- * Entries per locale pair above which scoring falls back to per-string database lookups. The
- * index takes about 1.5 MB per 1,000 entries, and several jobs can share one function instance,
- * so this keeps a few concurrent jobs well inside a 2 GB function.
+ * Memory entries loaded and indexed at a time. A larger memory is scored one slice after another,
+ * keeping each string's best score. The index takes about 1.5 MB per 1,000 entries, and several
+ * jobs can share one function instance, so this keeps a few concurrent jobs well inside a 2 GB
+ * function.
  */
-const MEMORY_INDEX_ENTRY_CAP = 300_000;
+const MEMORY_SLICE_ENTRIES = 300_000;
 /**
  * Below this many strings a plain scan of the entries per string is cheaper than building the
  * index: building costs about as much as two or three scans over the same entries.
@@ -116,35 +114,44 @@ export async function resolveReportingRate(
 }
 
 /**
- * Loads the locale pair's approved memory sources once and scores every string against them in
- * memory. A handful of strings are scanned against the entries instead of indexing them, with the
- * same scores. Above the entry cap it uses one database lookup per string, so memory use stays
- * bounded.
+ * Scores each source text against the locale pair's approved memory entries, 0 to 100. Entries are
+ * loaded and scored in memory, a slice at a time for a memory larger than one slice. A handful of
+ * strings are scanned against the entries instead of indexing them, with the same scores.
  */
-export async function loadMemoryMatchScorer(input: {
-  memoryIds: string[];
-  sourceLocale: string;
-  targetLocale: string;
-  /** How many strings will be scored; decides whether loading the index pays off. */
-  queryCount: number;
-}): Promise<(sourceText: string) => Promise<number>> {
-  if (!input.memoryIds.length) return async () => 0;
-  const perStringLookup = (sourceText: string) => bestReportingMatchScore({ ...input, sourceText });
-  const [{ count }] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(schema.memoryEntries)
-    .where(approvedMemoryEntries(input));
-  if (count > MEMORY_INDEX_ENTRY_CAP) return perStringLookup;
-  const rows = await db
-    .select({ source: schema.memoryEntries.normalizedSourceText })
-    .from(schema.memoryEntries)
-    .where(approvedMemoryEntries(input));
-  const sources = rows.map((row) => row.source);
-  const scorer =
-    input.queryCount < MEMORY_INDEX_MIN_QUERIES
-      ? new MemorySourceScan(sources)
-      : new MemoryMatchIndex(sources);
-  return async (sourceText) => scorer.bestScore(sourceText);
+export async function scoreAgainstMemory(
+  input: {
+    memoryIds: string[];
+    sourceLocale: string;
+    targetLocale: string;
+    sourceTexts: string[];
+  },
+  options: { sliceEntries?: number } = {},
+): Promise<Map<string, number>> {
+  const texts = [...new Set(input.sourceTexts)];
+  const scores = new Map(texts.map((text) => [text, 0]));
+  if (!input.memoryIds.length || texts.length === 0) return scores;
+  const sliceEntries = options.sliceEntries ?? MEMORY_SLICE_ENTRIES;
+  let after: string | undefined;
+  for (;;) {
+    const rows = await db
+      .select({ id: schema.memoryEntries.id, source: schema.memoryEntries.normalizedSourceText })
+      .from(schema.memoryEntries)
+      .where(
+        and(approvedMemoryEntries(input), after ? gt(schema.memoryEntries.id, after) : undefined),
+      )
+      .orderBy(asc(schema.memoryEntries.id))
+      .limit(sliceEntries);
+    const sources = rows.map((row) => row.source);
+    const scorer =
+      texts.length < MEMORY_INDEX_MIN_QUERIES
+        ? new MemorySourceScan(sources)
+        : new MemoryMatchIndex(sources);
+    for (const text of texts) {
+      scores.set(text, Math.max(scores.get(text)!, scorer.bestScore(text)));
+    }
+    if (rows.length < sliceEntries) return scores;
+    after = rows[rows.length - 1].id;
+  }
 }
 
 function approvedMemoryEntries(input: {
@@ -157,55 +164,6 @@ function approvedMemoryEntries(input: {
     eq(schema.memoryEntries.sourceLocale, input.sourceLocale),
     eq(schema.memoryEntries.targetLocale, input.targetLocale),
     eq(schema.memoryEntries.reviewStatus, "approved"),
-  );
-}
-
-export async function bestReportingMatchScore(input: {
-  memoryIds: string[];
-  sourceLocale: string;
-  targetLocale: string;
-  sourceText: string;
-  skipExact?: boolean;
-}): Promise<number> {
-  if (!input.memoryIds.length) return 0;
-  const normalized = normalizeTranslationMemorySourceText(input.sourceText);
-  const [exact] = input.skipExact
-    ? []
-    : await db
-        .select({ id: schema.memoryEntries.id })
-        .from(schema.memoryEntries)
-        .where(
-          and(
-            inArray(schema.memoryEntries.memoryId, input.memoryIds),
-            eq(schema.memoryEntries.normalizedSourceText, normalized),
-            eq(schema.memoryEntries.sourceLocale, input.sourceLocale),
-            eq(schema.memoryEntries.targetLocale, input.targetLocale),
-            eq(schema.memoryEntries.reviewStatus, "approved"),
-          ),
-        )
-        .limit(1);
-  if (exact) return 100;
-  const tsQuery = buildReportingMemoryMatchTsQuery(input.sourceText);
-  if (!tsQuery) return 0;
-  const candidates = await db
-    .select({ source: schema.memoryEntries.sourceText })
-    .from(schema.memoryEntries)
-    .where(
-      and(
-        inArray(schema.memoryEntries.memoryId, input.memoryIds),
-        eq(schema.memoryEntries.sourceLocale, input.sourceLocale),
-        eq(schema.memoryEntries.targetLocale, input.targetLocale),
-        eq(schema.memoryEntries.reviewStatus, "approved"),
-        sql`${schema.memoryEntries.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
-      ),
-    )
-    .orderBy(
-      desc(sql`ts_rank(${schema.memoryEntries.searchVector}, to_tsquery('simple', ${tsQuery}))`),
-    )
-    .limit(MEMORY_MATCH_CANDIDATE_LIMIT);
-  return candidates.reduce(
-    (best, candidate) => Math.max(best, sourceSimilarity(input.sourceText, candidate.source)),
-    0,
   );
 }
 
@@ -267,19 +225,13 @@ async function writeReportingAnalysis(input: {
   const scores = new Map<string, number | null>();
   if (memoryIds) {
     try {
-      const scorer = await loadMemoryMatchScorer({
+      const memoryScores = await scoreAgainstMemory({
         memoryIds,
         sourceLocale: input.sourceLocale,
         targetLocale: input.targetLocale,
-        queryCount: uniqueTexts.length,
+        sourceTexts: uniqueTexts,
       });
-      for (const sourceText of uniqueTexts) {
-        try {
-          scores.set(sourceText, await scorer(sourceText));
-        } catch {
-          scores.set(sourceText, null);
-        }
-      }
+      for (const [sourceText, score] of memoryScores) scores.set(sourceText, score);
     } catch {
       console.warn("reporting_match_analysis_unavailable", { jobId: input.jobId });
     }

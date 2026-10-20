@@ -25,12 +25,7 @@ import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translat
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 import { captureAiUsage } from "./ai-cost";
-import {
-  bestReportingMatchScore,
-  captureAnalysis,
-  captureJobStatus,
-  sourceSimilarity,
-} from "./capture";
+import { captureAnalysis, captureJobStatus, scoreAgainstMemory, sourceSimilarity } from "./capture";
 
 const resolveWorkspaceReportsFlagMock = vi.hoisted(() => vi.fn(async () => true));
 
@@ -241,7 +236,7 @@ describe("reporting capture", () => {
     expect(costs).toHaveLength(1);
   });
 
-  it("matches approved memory entries with indexed lookup instead of a full scan", async () => {
+  it("matches approved memory entries", async () => {
     const { organization, project, user } = await projectFixture.createStoredProjectFixture();
     const [memory] = await db
       .insert(schema.memories)
@@ -276,20 +271,24 @@ describe("reporting capture", () => {
     });
 
     expect(
-      await bestReportingMatchScore({
-        memoryIds: [memory.id],
-        sourceLocale: "en-US",
-        targetLocale: "fr-FR",
-        sourceText: "Hello world",
-      }),
+      (
+        await scoreAgainstMemory({
+          memoryIds: [memory.id],
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          sourceTexts: ["Hello world"],
+        })
+      ).get("Hello world"),
     ).toBe(100);
     expect(
-      await bestReportingMatchScore({
-        memoryIds: [memory.id],
-        sourceLocale: "en-US",
-        targetLocale: "fr-FR",
-        sourceText: "Hello worlds!",
-      }),
+      (
+        await scoreAgainstMemory({
+          memoryIds: [memory.id],
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          sourceTexts: ["Hello worlds!"],
+        })
+      ).get("Hello worlds!"),
     ).toBeGreaterThan(80);
 
     await captureAnalysis({
@@ -310,12 +309,14 @@ describe("reporting capture", () => {
     expect(rows.find((row) => row.segmentId === "greeting")?.matchScore).toBe(100);
     expect(rows.find((row) => row.segmentId === "other")?.matchScore).toBeGreaterThan(80);
     expect(
-      await bestReportingMatchScore({
-        memoryIds: [memory.id],
-        sourceLocale: "en-US",
-        targetLocale: "fr-FR",
-        sourceText: "Hello brave world",
-      }),
+      (
+        await scoreAgainstMemory({
+          memoryIds: [memory.id],
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          sourceTexts: ["Hello brave world"],
+        })
+      ).get("Hello brave world"),
     ).toBeGreaterThan(50);
   });
 
@@ -367,6 +368,57 @@ describe("reporting capture", () => {
     expect(
       await scoreOf({ grouped: typos, b: "Save and close", c: "Open", d: "Cancel", e: "Delete" }),
     ).toBe(80);
+  });
+
+  it("scores a memory larger than one slice the same as one loaded whole", async () => {
+    const { organization, user } = await projectFixture.createStoredProjectFixture();
+    const [memory] = await db
+      .insert(schema.memories)
+      .values({ organizationId: organization.id, createdByUserId: user.id, name: "Sliced TM" })
+      .returning();
+    const sources = [
+      "Download the translated files once every language has been approved",
+      "Save your changes before you leave this page",
+      "Invite team members to collaborate on translations",
+      "Your subscription renews on the first day of every month",
+      "Connect a repository to pick up new strings",
+    ];
+    await db.insert(schema.memoryEntries).values(
+      sources.map((sourceText) => ({
+        memoryId: memory.id,
+        sourceLocale: "en-US",
+        targetLocale: "fr-FR",
+        sourceText,
+        normalizedSourceText: normalizeTranslationMemorySourceText(sourceText),
+        targetText: "Traduction",
+        reviewStatus: "approved" as const,
+      })),
+    );
+    const input = {
+      memoryIds: [memory.id],
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceTexts: [
+        "Dxwnlxad txe traxslaxed fxles oxce exery lxnguxge hxs beex appxoved",
+        "Save your changes before you leave the page",
+        "Invite team members to collaborate on translations",
+        "Quarterly invoices are emailed to the billing contact",
+        "Connect a repository",
+      ],
+    };
+
+    const whole = await scoreAgainstMemory(input);
+    expect(whole.get(input.sourceTexts[0])).toBe(80);
+    expect(whole.get(input.sourceTexts[2])).toBe(100);
+    for (const sliceEntries of [1, 2, 3]) {
+      expect(await scoreAgainstMemory(input, { sliceEntries })).toEqual(whole);
+    }
+    expect(
+      await scoreAgainstMemory(
+        { ...input, sourceTexts: [input.sourceTexts[0]] },
+        { sliceEntries: 2 },
+      ),
+    ).toEqual(new Map([[input.sourceTexts[0], 80]]));
   });
 
   it("skips analysis capture when workspace reports is disabled", async () => {
