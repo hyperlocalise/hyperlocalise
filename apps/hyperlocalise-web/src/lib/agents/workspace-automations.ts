@@ -157,6 +157,10 @@ const SKILL_VALIDATION_ERRORS = {
     code: "skill_tools_required",
     message: "A selected skill needs a tool that is not enabled.",
   },
+  cms_translation_skills_exclusive: {
+    code: "cms_translation_skills_exclusive",
+    message: "Choose one CMS translation skill per automation.",
+  },
 } as const satisfies Record<
   WorkspaceAutomationSkillValidationCode,
   WorkspaceAutomationConfigValidationError
@@ -945,6 +949,28 @@ export async function validateWorkspaceAutomationIntegrations(input: {
           });
         }
       }
+    }
+  }
+
+  const cmsToolCount = [
+    hasWorkspaceAutomationIntercomTool(input.toolConfig),
+    hasWorkspaceAutomationSanityTool(input.toolConfig),
+    hasWorkspaceAutomationBrazeTool(input.toolConfig),
+    hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig),
+    hasWorkspaceAutomationContentfulWorkflow(input.toolConfig),
+  ].filter(Boolean).length;
+  if (cmsToolCount > 1) {
+    const brazePairOnly =
+      hasWorkspaceAutomationBrazeTool(input.toolConfig) &&
+      hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig) &&
+      !hasWorkspaceAutomationIntercomTool(input.toolConfig) &&
+      !hasWorkspaceAutomationSanityTool(input.toolConfig) &&
+      !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig);
+    if (!brazePairOnly) {
+      return err({
+        code: "cms_translation_skills_exclusive",
+        message: "Choose one CMS translation skill per automation.",
+      });
     }
   }
 

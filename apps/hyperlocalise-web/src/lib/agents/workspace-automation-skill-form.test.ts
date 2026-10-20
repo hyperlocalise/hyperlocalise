@@ -152,6 +152,26 @@ describe("workspace automation skill form", () => {
     });
   });
 
+  it("does not attach Sanity alongside Intercom on one automation", () => {
+    const intercom = addSkillToWorkspaceAutomationForm(
+      createDefaultWorkspaceAutomationFormState(),
+      "translate-intercom-articles",
+    );
+    const sanitySkill = getWorkspaceAutomationSkill("translate-sanity-documents");
+    if (!sanitySkill) {
+      throw new Error("missing skill");
+    }
+
+    expect(resolveWorkspaceAutomationSkillAvailability(intercom, sanitySkill)).toBe(
+      "skill_exclusive",
+    );
+    expect(addSkillToWorkspaceAutomationForm(intercom, sanitySkill.id)).toBe(intercom);
+    expect(intercom).toMatchObject({
+      intercomEnabled: true,
+      sanityEnabled: false,
+    });
+  });
+
   it("removes only the tools no remaining skill needs", () => {
     const withBoth = addSkillToWorkspaceAutomationForm(
       addSkillToWorkspaceAutomationForm(

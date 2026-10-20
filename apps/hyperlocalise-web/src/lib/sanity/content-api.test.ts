@@ -16,8 +16,11 @@ import {
   collectInternationalizedArrayLanguages,
   curateSanityLanguageTags,
   isSameSanityDocumentId,
+  nextSanityTranslationMetadataDocument,
   omitSanitySystemFields,
+  readSanityTranslationMetadataLinks,
   resolveSanityTranslatedDocumentId,
+  sanityTranslationMetadataLocale,
 } from "./content-api";
 
 describe("curateSanityLanguageTags", () => {
@@ -70,5 +73,98 @@ describe("sanity translated document ids", () => {
         title: "Hello",
       }),
     ).toEqual({ _type: "post", language: "en", title: "Hello" });
+  });
+});
+
+describe("sanity translation metadata", () => {
+  it("reads language first and falls back to _key", () => {
+    expect(sanityTranslationMetadataLocale({ language: "de", _key: "uuid-1" })).toBe("de");
+    expect(sanityTranslationMetadataLocale({ _key: "fr" })).toBe("fr");
+    expect(sanityTranslationMetadataLocale({})).toBeNull();
+  });
+
+  it("matches existing links by language and keeps custom metadata fields", () => {
+    const next = nextSanityTranslationMetadataDocument({
+      existing: {
+        _id: "meta-1",
+        _rev: "rev",
+        _type: "translation.metadata",
+        slug: { _type: "slug", current: "lesson" },
+        schemaTypes: ["lesson"],
+        translations: [
+          {
+            _key: "uuid-en",
+            _type: "internationalizedArrayReferenceValue",
+            language: "en",
+            value: { _type: "reference", _ref: "lesson-en", _weak: true },
+          },
+        ],
+      },
+      sourceLocale: "en",
+      sourceDocumentId: "lesson-en",
+      targetLocale: "de",
+      targetDocumentId: "lesson-de",
+      documentType: "lesson",
+    });
+
+    expect(next.slug).toEqual({ _type: "slug", current: "lesson" });
+    expect(next.translations).toEqual([
+      {
+        _key: "uuid-en",
+        _type: "internationalizedArrayReferenceValue",
+        language: "en",
+        value: { _type: "reference", _ref: "lesson-en", _weak: true },
+      },
+      {
+        _key: "de",
+        _type: "internationalizedArrayReferenceValue",
+        language: "de",
+        value: { _type: "reference", _ref: "lesson-de", _weak: true },
+      },
+    ]);
+  });
+
+  it("does not append a duplicate when the locale already lives on language", () => {
+    const next = nextSanityTranslationMetadataDocument({
+      existing: {
+        _type: "translation.metadata",
+        translations: [
+          {
+            _key: "uuid-de",
+            _type: "internationalizedArrayReferenceValue",
+            language: "de",
+            value: { _type: "reference", _ref: "old-de", _weak: true },
+          },
+        ],
+      },
+      sourceLocale: "",
+      sourceDocumentId: "lesson-en",
+      targetLocale: "de",
+      targetDocumentId: "lesson-de",
+      documentType: "lesson",
+    });
+
+    expect(next.translations).toHaveLength(1);
+    expect(next.translations).toEqual([
+      {
+        _key: "uuid-de",
+        _type: "internationalizedArrayReferenceValue",
+        language: "de",
+        value: { _type: "reference", _ref: "lesson-de", _weak: true },
+      },
+    ]);
+  });
+
+  it("reads metadata links from language with a _key fallback", () => {
+    expect(
+      readSanityTranslationMetadataLinks([
+        { language: "de", _key: "uuid-de", ref: "drafts.lesson-de" },
+        { _key: "fr", ref: "lesson-fr" },
+        { language: "ja" },
+      ]),
+    ).toEqual([
+      { sanityLocale: "de", documentRef: "lesson-de" },
+      { sanityLocale: "fr", documentRef: "lesson-fr" },
+    ]);
   });
 });

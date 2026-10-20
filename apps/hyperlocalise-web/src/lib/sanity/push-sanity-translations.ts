@@ -67,6 +67,46 @@ export type SanityPushSkipReason =
   | "source_changed";
 
 export const SANITY_REMOTE_NEWER_SLACK_MS = 5000;
+const SANITY_CONTENT_HASH_PATTERN = /^[0-9a-f]{64}$/;
+
+export function encodeSanityLastPushRecord(hash: string, pushedAt: Date): string {
+  return `${hash}:${Math.floor(pushedAt.getTime() / 1000)}`;
+}
+
+export function parseSanityLastPushRecord(value: string | undefined): {
+  hash: string;
+  pushedAt: Date | null;
+} {
+  if (!value) {
+    return { hash: "", pushedAt: null };
+  }
+  const separatorIndex = value.indexOf(":");
+  if (separatorIndex === 64 && SANITY_CONTENT_HASH_PATTERN.test(value.slice(0, 64))) {
+    const pushedAtSeconds = Number(value.slice(65));
+    if (Number.isFinite(pushedAtSeconds) && pushedAtSeconds > 0) {
+      return {
+        hash: value.slice(0, 64),
+        pushedAt: new Date(pushedAtSeconds * 1000),
+      };
+    }
+    return { hash: value.slice(0, 64), pushedAt: null };
+  }
+  return { hash: value, pushedAt: null };
+}
+
+export function lastPushedAtForSanityLocale(
+  mapping: {
+    lastPushedAt: Date | null | undefined;
+    lastPushContentHash?: Record<string, string> | null;
+  },
+  locale: string,
+): Date | null {
+  const parsed = parseSanityLastPushRecord(mapping.lastPushContentHash?.[locale]);
+  if (parsed.pushedAt) {
+    return parsed.pushedAt;
+  }
+  return mapping.lastPushedAt ?? null;
+}
 
 export type SanityPushSkip = {
   locale: string;
@@ -488,8 +528,8 @@ export async function runPushSanityTranslations(input: {
         }
 
         const contentHash = hashSanityTranslationMap(approvedMap);
-        const previousHash = lastPushHashes[projectLocale];
-        if (previousHash === contentHash && !pushSettings.overwriteSanityDrafts) {
+        const previousPush = parseSanityLastPushRecord(lastPushHashes[projectLocale]);
+        if (previousPush.hash === contentHash && !pushSettings.overwriteSanityDrafts) {
           result.skipped.push(
             recordSanityPushSkip({
               locale: projectLocale,
@@ -512,7 +552,18 @@ export async function runPushSanityTranslations(input: {
               remoteUpdatedAt = undefined;
             }
           }
-          if (isSanityRemoteDraftNewer(remoteUpdatedAt, mapping.lastPushedAt)) {
+          if (
+            isSanityRemoteDraftNewer(
+              remoteUpdatedAt,
+              lastPushedAtForSanityLocale(
+                {
+                  lastPushedAt: mapping.lastPushedAt,
+                  lastPushContentHash: lastPushHashes,
+                },
+                projectLocale,
+              ),
+            )
+          ) {
             result.skipped.push(
               recordSanityPushSkip({
                 locale: projectLocale,
@@ -578,7 +629,8 @@ export async function runPushSanityTranslations(input: {
           }
         }
 
-        lastPushHashes[projectLocale] = contentHash;
+        const pushedAt = new Date();
+        lastPushHashes[projectLocale] = encodeSanityLastPushRecord(contentHash, pushedAt);
         result.pushedLocales += 1;
         pushedForDocument += 1;
         await persistSanityPushMappingState({
@@ -591,7 +643,7 @@ export async function runPushSanityTranslations(input: {
           lastError: null,
           lastPushContentHash: lastPushHashes,
           translatedDocumentIds,
-          lastPushedAt: new Date(),
+          lastPushedAt: pushedAt,
         });
       }
 

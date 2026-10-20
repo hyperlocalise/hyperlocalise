@@ -362,6 +362,33 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
 
 export const MAX_WORKSPACE_AUTOMATION_SKILLS = WORKSPACE_AUTOMATION_SKILLS.length;
 
+/** Document/CMS translation skills that each take over the orchestrator plan. */
+export const CMS_TRANSLATION_SKILL_IDS = [
+  "translate-sanity-documents",
+  "translate-intercom-articles",
+  "translate-braze-email-templates",
+  "translate-braze-campaigns",
+  "translate-contentful-entries",
+] as const;
+
+export function isCmsTranslationSkillId(skillId: string): boolean {
+  return (CMS_TRANSLATION_SKILL_IDS as readonly string[]).includes(skillId);
+}
+
+export function hasConflictingCmsTranslationSkills(skillIds: readonly string[]): boolean {
+  return new Set(skillIds.filter(isCmsTranslationSkillId)).size > 1;
+}
+
+export function cmsTranslationSkillConflictsWith(
+  skillIds: readonly string[],
+  skillId: string,
+): boolean {
+  if (!isCmsTranslationSkillId(skillId)) {
+    return false;
+  }
+  return skillIds.some((attached) => attached !== skillId && isCmsTranslationSkillId(attached));
+}
+
 export function getWorkspaceAutomationSkill(skillId: string): WorkspaceAutomationSkill | null {
   return WORKSPACE_AUTOMATION_SKILLS.find((skill) => skill.id === skillId) ?? null;
 }
@@ -463,7 +490,8 @@ export function listWorkspaceAutomationSkillTools(
 export type WorkspaceAutomationSkillValidationCode =
   | "skill_not_found"
   | "skill_trigger_incompatible"
-  | "skill_tools_required";
+  | "skill_tools_required"
+  | "cms_translation_skills_exclusive";
 
 /** First problem with the attached skills, or null when they fit the trigger and tool config. */
 export function validateWorkspaceAutomationSkills(input: {
@@ -471,6 +499,10 @@ export function validateWorkspaceAutomationSkills(input: {
   triggerMode: WorkspaceAutomationSkillTrigger;
   toolConfig: WorkspaceAutomationToolConfig;
 }): WorkspaceAutomationSkillValidationCode | null {
+  if (hasConflictingCmsTranslationSkills(input.skillIds)) {
+    return "cms_translation_skills_exclusive";
+  }
+
   for (const skillId of input.skillIds) {
     const skill = getWorkspaceAutomationSkill(skillId);
     if (!skill) {

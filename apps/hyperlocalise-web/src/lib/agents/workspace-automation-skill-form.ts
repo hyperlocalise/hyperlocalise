@@ -13,6 +13,7 @@
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import {
+  cmsTranslationSkillConflictsWith,
   getWorkspaceAutomationSkill,
   listWorkspaceAutomationSkillTools,
   resolveWorkspaceAutomationSkills,
@@ -285,12 +286,7 @@ export function resolveWorkspaceAutomationSkillAvailability(
   if (form.skillIds.includes(skill.id)) {
     return "attached";
   }
-  if (
-    (skill.id === "translate-braze-email-templates" &&
-      form.skillIds.includes("translate-braze-campaigns")) ||
-    (skill.id === "translate-braze-campaigns" &&
-      form.skillIds.includes("translate-braze-email-templates"))
-  ) {
+  if (cmsTranslationSkillConflictsWith(form.skillIds, skill.id)) {
     return "skill_exclusive";
   }
   return resolveTriggerWithSkill(form, skill) === null ? "trigger_mismatch" : "available";

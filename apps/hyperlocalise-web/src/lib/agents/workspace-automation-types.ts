@@ -722,6 +722,10 @@ export type WorkspaceAutomationConfigValidationError =
       message: "Choose either Braze Email Templates or Braze Campaigns & Canvas, not both.";
     }
   | {
+      code: "cms_translation_skills_exclusive";
+      message: "Choose one CMS translation skill per automation.";
+    }
+  | {
       code: "skill_not_found";
       message: "A selected skill is no longer available. Remove it and try again.";
     }

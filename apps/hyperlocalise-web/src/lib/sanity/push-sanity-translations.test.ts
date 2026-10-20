@@ -14,8 +14,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  encodeSanityLastPushRecord,
   isSanityImportedSourceCurrent,
   isSanityRemoteDraftNewer,
+  lastPushedAtForSanityLocale,
+  parseSanityLastPushRecord,
   recordSanityPushSkip,
   SANITY_REMOTE_NEWER_SLACK_MS,
   sourceKeysMissingApprovedTranslations,
@@ -85,6 +88,43 @@ describe("sanity push skip reporting", () => {
         lastPushedAt,
       ),
     ).toBe(true);
+  });
+
+  it("compares remote drafts against the locale's last push, not a later sibling", () => {
+    const localeAPushedAt = new Date("2026-10-11T12:00:00.000Z");
+    const localeBPushedAt = new Date("2026-10-11T14:00:00.000Z");
+    const hash = "a".repeat(64);
+    const mapping = {
+      lastPushedAt: localeBPushedAt,
+      lastPushContentHash: {
+        "de-DE": encodeSanityLastPushRecord(hash, localeAPushedAt),
+        "fr-FR": encodeSanityLastPushRecord(hash, localeBPushedAt),
+      },
+    };
+
+    expect(lastPushedAtForSanityLocale(mapping, "de-DE")?.toISOString()).toBe(
+      "2026-10-11T12:00:00.000Z",
+    );
+    expect(lastPushedAtForSanityLocale(mapping, "fr-FR")?.toISOString()).toBe(
+      "2026-10-11T14:00:00.000Z",
+    );
+    expect(lastPushedAtForSanityLocale(mapping, "ja-JP")?.toISOString()).toBe(
+      localeBPushedAt.toISOString(),
+    );
+    expect(
+      isSanityRemoteDraftNewer(
+        "2026-10-11T13:00:00.000Z",
+        lastPushedAtForSanityLocale(mapping, "de-DE"),
+      ),
+    ).toBe(true);
+    expect(
+      isSanityRemoteDraftNewer(
+        "2026-10-11T13:00:00.000Z",
+        lastPushedAtForSanityLocale(mapping, "fr-FR"),
+      ),
+    ).toBe(false);
+    expect(parseSanityLastPushRecord(hash)).toEqual({ hash, pushedAt: null });
+    expect(parseSanityLastPushRecord(mapping.lastPushContentHash["de-DE"]).hash).toBe(hash);
   });
 
   it("summarizes why locales were skipped", () => {

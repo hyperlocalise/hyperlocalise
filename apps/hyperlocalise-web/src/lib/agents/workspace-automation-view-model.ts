@@ -230,6 +230,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   skill_trigger_incompatible:
     "A selected skill does not work with this trigger. Remove it or change the trigger.",
   skill_tools_required: "A selected skill needs a tool that was removed. Add the skill again.",
+  cms_translation_skills_exclusive: "Choose one CMS translation skill per automation.",
   instructions_or_skill_required: "Add a skill or write instructions.",
   github_repository_target_required: "Choose a GitHub repository before enabling GitHub tools.",
   gitlab_repository_target_required: "Choose a GitLab project before enabling GitLab tools.",
@@ -1232,6 +1233,7 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "skill_not_found":
     case "skill_trigger_incompatible":
     case "skill_tools_required":
+    case "cms_translation_skills_exclusive":
       return { skills: message };
     case "instructions_or_skill_required":
       return { instructions: message };

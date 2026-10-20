@@ -27,10 +27,13 @@ import {
   isSanityHelperDocumentType,
   sanityDocumentTypeTitle,
 } from "./localization-mode";
-import type {
-  SanityDocumentRecord,
-  SanityFieldObject,
-  SanityStoredDocument,
+import { normalizeSanityLocaleTag } from "./sanity-locale";
+import {
+  isSanityFieldObject,
+  type SanityDocumentRecord,
+  type SanityFieldObject,
+  type SanityFieldValue,
+  type SanityStoredDocument,
 } from "./sanity-field-value";
 import type {
   SanityDatasetSummary,
@@ -196,8 +199,8 @@ export async function detectSanityDocumentTypes(input: {
   const curate = (tags: Iterable<string>) => curateSanityLanguageTags([...tags], catalogTags);
 
   const metadataRows = await input.client.fetch<
-    Array<{ translations?: Array<{ _key?: string; type?: string }> }>
-  >(`*[_type == "translation.metadata"]{ translations[]{ _key, "type": value->_type } }`);
+    Array<{ translations?: Array<{ _key?: string; language?: string; type?: string }> }>
+  >(`*[_type == "translation.metadata"]{ translations[]{ _key, language, "type": value->_type } }`);
 
   const documentLevelTypes = new Set<string>();
   const metadataLanguagesByType = new Map<string, Set<string>>();
@@ -207,10 +210,7 @@ export async function detectSanityDocumentTypes(input: {
         typeof translation.type === "string" && translation.type.trim().length > 0
           ? translation.type.trim()
           : null;
-      const localeKey =
-        typeof translation._key === "string" && translation._key.trim().length > 0
-          ? translation._key.trim()
-          : null;
+      const localeKey = sanityTranslationMetadataLocale(translation);
       if (typeName) {
         documentLevelTypes.add(typeName);
       }
@@ -422,19 +422,118 @@ export function resolveSanityTranslatedDocumentId(
   return undefined;
 }
 
+export function sanityTranslationMetadataLocale(entry: {
+  language?: unknown;
+  _key?: unknown;
+}): string | null {
+  if (typeof entry.language === "string" && entry.language.trim()) {
+    return entry.language.trim();
+  }
+  if (typeof entry._key === "string" && entry._key.trim()) {
+    return entry._key.trim();
+  }
+  return null;
+}
+
+function sanityTranslationMetadataLocalesMatch(left: string, right: string): boolean {
+  return normalizeSanityLocaleTag(left) === normalizeSanityLocaleTag(right);
+}
+
+function findSanityTranslationMetadataIndex(
+  translations: readonly SanityFieldValue[],
+  locale: string,
+): number {
+  return translations.findIndex((entry) => {
+    if (!isSanityFieldObject(entry)) {
+      return false;
+    }
+    const entryLocale = sanityTranslationMetadataLocale(entry);
+    return entryLocale !== null && sanityTranslationMetadataLocalesMatch(entryLocale, locale);
+  });
+}
+
 function sanityTranslationMetadataEntry(
   locale: string,
   documentId: string,
   itemType: string,
+  existing?: SanityFieldObject,
 ): SanityFieldObject {
+  const existingKey =
+    existing && typeof existing._key === "string" && existing._key.trim() ? existing._key : locale;
   return {
-    _key: locale,
+    ...existing,
+    _key: existingKey,
     _type: itemType,
+    language: locale,
     value: {
       _type: "reference",
       _ref: normalizeSanityPublishedDocumentId(documentId),
       _weak: true,
     },
+  };
+}
+
+export function nextSanityTranslationMetadataDocument(input: {
+  existing: SanityDocumentRecord | null;
+  sourceLocale: string;
+  sourceDocumentId: string;
+  targetLocale: string;
+  targetDocumentId: string;
+  documentType: string;
+}): SanityDocumentRecord {
+  const sourceId = normalizeSanityPublishedDocumentId(input.sourceDocumentId);
+  const translations = Array.isArray(input.existing?.translations)
+    ? [...input.existing.translations]
+    : [];
+  const existingItem = translations.find(
+    (entry) => isSanityFieldObject(entry) && typeof entry._type === "string",
+  );
+  const existingItemType =
+    existingItem !== undefined &&
+    isSanityFieldObject(existingItem) &&
+    typeof existingItem._type === "string"
+      ? existingItem._type
+      : null;
+  const itemType =
+    existingItemType && existingItemType.trim()
+      ? existingItemType
+      : TRANSLATION_METADATA_REF_ITEM_TYPE;
+
+  const upsertEntry = (locale: string, documentId: string) => {
+    const trimmed = locale.trim();
+    if (!trimmed) {
+      return;
+    }
+    const index = findSanityTranslationMetadataIndex(translations, trimmed);
+    const existingEntry =
+      index >= 0 && isSanityFieldObject(translations[index]) ? translations[index] : undefined;
+    const row = sanityTranslationMetadataEntry(trimmed, documentId, itemType, existingEntry);
+    if (index >= 0) {
+      translations[index] = row;
+      return;
+    }
+    translations.push(row);
+  };
+
+  upsertEntry(input.sourceLocale, sourceId);
+  upsertEntry(input.targetLocale, input.targetDocumentId);
+
+  const existingSchemaTypes = Array.isArray(input.existing?.schemaTypes)
+    ? input.existing.schemaTypes.filter(
+        (typeName): typeName is string => typeof typeName === "string",
+      )
+    : [];
+  const schemaTypes = [
+    ...new Set(
+      [...existingSchemaTypes, input.documentType].filter((typeName) => typeName.trim().length > 0),
+    ),
+  ];
+
+  return {
+    ...omitSanitySystemFields(input.existing ?? {}),
+    _type: TRANSLATION_METADATA_TYPE,
+    schemaTypes,
+    translations,
   };
 }
 
@@ -496,57 +595,23 @@ export async function upsertSanityTranslationMetadataLink(input: {
   documentType: string;
 }): Promise<void> {
   const sourceId = normalizeSanityPublishedDocumentId(input.sourceDocumentId);
-  const existing = await input.client.fetch<{
-    _id: string;
-    translations?: SanityFieldObject[];
-    schemaTypes?: string[];
-  } | null>(
-    `*[_type == "translation.metadata" && references($id)][0]{ _id, translations, schemaTypes }`,
+  const existing = await input.client.fetch<SanityDocumentRecord | null>(
+    `*[_type == "translation.metadata" && references($id)][0]`,
     { id: sourceId },
   );
-
-  const existingItemType = existing?.translations?.find(
-    (entry) => typeof entry._type === "string",
-  )?._type;
-  const itemType =
-    typeof existingItemType === "string" && existingItemType.trim()
-      ? existingItemType
-      : TRANSLATION_METADATA_REF_ITEM_TYPE;
-  const translations = Array.isArray(existing?.translations) ? [...existing.translations] : [];
-
-  const upsertEntry = (locale: string, documentId: string) => {
-    const row = sanityTranslationMetadataEntry(locale, documentId, itemType);
-    const index = translations.findIndex((entry) => entry._key === locale);
-    if (index >= 0) {
-      translations[index] = { ...translations[index], ...row };
-      return;
-    }
-    translations.push(row);
-  };
-
-  if (input.sourceLocale.trim()) {
-    upsertEntry(input.sourceLocale, sourceId);
-  }
-  upsertEntry(input.targetLocale, input.targetDocumentId);
-
-  const schemaTypes = [
-    ...new Set(
-      [...(existing?.schemaTypes ?? []), input.documentType].filter(
-        (typeName): typeName is string =>
-          typeof typeName === "string" && typeName.trim().length > 0,
-      ),
-    ),
-  ];
-  const document = {
-    _type: TRANSLATION_METADATA_TYPE,
-    schemaTypes,
-    translations,
-  };
-
-  if (existing?._id) {
+  const document = nextSanityTranslationMetadataDocument({
+    existing,
+    sourceLocale: input.sourceLocale,
+    sourceDocumentId: sourceId,
+    targetLocale: input.targetLocale,
+    targetDocumentId: input.targetDocumentId,
+    documentType: input.documentType,
+  });
+  const existingId = typeof existing?._id === "string" ? existing._id.trim() : "";
+  if (existingId) {
     await input.client.createOrReplace({
       ...document,
-      _id: existing._id,
+      _id: existingId,
     } as { _id: string; _type: string });
     return;
   }
@@ -559,24 +624,31 @@ export type SanityTranslationMetadataLink = {
   documentRef: string;
 };
 
+export function readSanityTranslationMetadataLinks(
+  translations: Array<{ _key?: string; language?: string; ref?: string }> | undefined,
+): SanityTranslationMetadataLink[] {
+  if (!translations) {
+    return [];
+  }
+  return translations.flatMap((entry) => {
+    const sanityLocale = sanityTranslationMetadataLocale(entry);
+    if (!sanityLocale || typeof entry.ref !== "string" || !entry.ref.trim()) {
+      return [];
+    }
+    return [{ sanityLocale, documentRef: entry.ref.replace(/^drafts\./, "") }];
+  });
+}
+
 export async function fetchSanityTranslationMetadataLinks(
   client: SanityClient,
   sourceDocumentId: string,
 ): Promise<SanityTranslationMetadataLink[]> {
   const publishedId = normalizeSanityPublishedDocumentId(sourceDocumentId);
   const row = await client.fetch<{
-    translations?: Array<{ _key?: string; ref?: string }>;
+    translations?: Array<{ _key?: string; language?: string; ref?: string }>;
   } | null>(
-    `*[_type == "translation.metadata" && references($id)][0]{ translations[]{ _key, "ref": value._ref } }`,
+    `*[_type == "translation.metadata" && references($id)][0]{ translations[]{ _key, language, "ref": value._ref } }`,
     { id: publishedId },
   );
-  if (!row?.translations) {
-    return [];
-  }
-  return row.translations.flatMap((entry) => {
-    if (typeof entry._key !== "string" || typeof entry.ref !== "string") {
-      return [];
-    }
-    return [{ sanityLocale: entry._key, documentRef: entry.ref.replace(/^drafts\./, "") }];
-  });
+  return readSanityTranslationMetadataLinks(row?.translations);
 }
