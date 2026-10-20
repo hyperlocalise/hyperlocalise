@@ -68,10 +68,20 @@ if (mocker) {
       mocker.reset();
     }
 
+    dropDisconnectedDatabase();
     vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
+}
+
+// The database client keeps `db` on globalThis and reuses it when the module is
+// evaluated again. Evaluated under an `@/lib/env` mock with no DATABASE_URL,
+// it stores a `db` with no connection, which every later file in the worker
+// would get. Dropping it lets the next evaluation build a connected one.
+function dropDisconnectedDatabase() {
+  const globalForDb = globalThis as { db?: { $client?: unknown } };
+  if (globalForDb.db && !globalForDb.db.$client) delete globalForDb.db;
 }
 
 function trackMockedModules(target: Mocker): Set<string> {
