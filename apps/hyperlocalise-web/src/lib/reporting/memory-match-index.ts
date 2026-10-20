@@ -16,6 +16,13 @@ import { normalizeTranslationMemorySourceText } from "@/lib/translation/normaliz
 const CANDIDATE_LIMIT = 64;
 /** A candidate must be at least this fraction of the query's length to reach a 50% score. */
 const MIN_LENGTH_RATIO = 0.5;
+/** The lowest score Reports puts in a match band rather than "new". */
+const LOWEST_BAND_SCORE = 50;
+/**
+ * Queries up to this many characters can reach the lowest band without sharing a bigram with the
+ * entry ("Yes" and "Yas"), so below that band they are also compared by shared characters.
+ */
+const SHORT_QUERY_LENGTH = 8;
 
 /** Character edit similarity on normalized text; 100 only for identical strings. */
 export function sourceSimilarity(left: string, right: string): number {
@@ -117,6 +124,37 @@ function bestCandidateScore(
   return best;
 }
 
+function withinLengthRatio(length: number, queryLength: number): boolean {
+  return Math.min(length, queryLength) >= MIN_LENGTH_RATIO * Math.max(length, queryLength);
+}
+
+/**
+ * Raises a short query's score from below the lowest band by ranking entries of a comparable
+ * length on shared characters instead of bigrams. `entryIds` must cover every entry whose length
+ * is within the length ratio of the query.
+ */
+function shortQueryScore(
+  query: string,
+  queryLength: number,
+  bigramScore: number,
+  entryIds: Iterable<number>,
+  entries: string[],
+  lengths: number[],
+): number {
+  if (bigramScore >= LOWEST_BAND_SCORE || queryLength > SHORT_QUERY_LENGTH) return bigramScore;
+  const queryChars = new Set(Array.from(query));
+  const candidates: Candidate[] = [];
+  for (const id of entryIds) {
+    const length = lengths[id];
+    if (!withinLengthRatio(length, queryLength)) continue;
+    const chars = new Set(Array.from(entries[id]));
+    let shared = 0;
+    for (const char of chars) if (queryChars.has(char)) shared++;
+    if (shared > 0) candidates.push({ text: entries[id], length, grams: chars.size, shared });
+  }
+  return Math.max(bigramScore, bestCandidateScore(query, queryLength, queryChars.size, candidates));
+}
+
 /**
  * Finds the closest of a fixed set of memory source texts to each query without a database
  * round trip per query. Entries are indexed by character bigrams; a query scores only the
@@ -128,15 +166,23 @@ export class MemoryMatchIndex {
   private readonly gramCounts: number[] = [];
   private readonly exact = new Set<string>();
   private readonly postings = new Map<string, number[]>();
+  /** Entries short enough to be compared with a short query, by length. */
+  private readonly shortIdsByLength = new Map<number, number[]>();
 
   constructor(sourceTexts: Iterable<string>) {
     for (const text of sourceTexts) {
       const normalized = normalizeTranslationMemorySourceText(text);
       if (this.exact.has(normalized)) continue;
       const id = this.entries.length;
+      const length = Array.from(normalized).length;
       this.entries.push(normalized);
-      this.lengths.push(Array.from(normalized).length);
+      this.lengths.push(length);
       this.exact.add(normalized);
+      if (length * MIN_LENGTH_RATIO <= SHORT_QUERY_LENGTH) {
+        let ids = this.shortIdsByLength.get(length);
+        if (!ids) this.shortIdsByLength.set(length, (ids = []));
+        ids.push(id);
+      }
       const grams = bigrams(normalized);
       this.gramCounts.push(grams.size);
       for (const gram of grams) {
@@ -168,7 +214,24 @@ export class MemoryMatchIndex {
       grams: this.gramCounts[id],
       shared,
     }));
-    return bestCandidateScore(query, Array.from(query).length, queryGrams.size, candidates);
+    const queryLength = Array.from(query).length;
+    const score = bestCandidateScore(query, queryLength, queryGrams.size, candidates);
+    return shortQueryScore(
+      query,
+      queryLength,
+      score,
+      this.shortIdsWithin(queryLength),
+      this.entries,
+      this.lengths,
+    );
+  }
+
+  private *shortIdsWithin(queryLength: number): Generator<number> {
+    const shortest = Math.ceil(queryLength * MIN_LENGTH_RATIO);
+    const longest = Math.floor(queryLength / MIN_LENGTH_RATIO);
+    for (let length = shortest; length <= longest; length++) {
+      yield* this.shortIdsByLength.get(length) ?? [];
+    }
   }
 }
 
@@ -239,6 +302,14 @@ export class MemorySourceScan {
       }
       if (shared > 0) candidates.push({ text, length, grams: this.gramCounts[id], shared });
     }
-    return bestCandidateScore(query, queryLength, slots.size, candidates);
+    const score = bestCandidateScore(query, queryLength, slots.size, candidates);
+    return shortQueryScore(
+      query,
+      queryLength,
+      score,
+      this.entries.keys(),
+      this.entries,
+      this.lengths,
+    );
   }
 }

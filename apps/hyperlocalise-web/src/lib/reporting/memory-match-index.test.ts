@@ -66,6 +66,19 @@ describe("MemoryMatchIndex", () => {
     );
   });
 
+  it("finds a short typo that shares no bigram with the entry", () => {
+    const entries = ["Yes", "Edit", ...Array.from({ length: 200 }, (_, i) => `Yellow ${i}`)];
+    for (const [query, entry] of [
+      ["Yas", "Yes"],
+      ["Exot", "Edit"],
+    ]) {
+      const expected = sourceSimilarity(query, entry);
+      expect(expected).toBeGreaterThanOrEqual(50);
+      expect(new MemoryMatchIndex(entries).bestScore(query), query).toBe(expected);
+      expect(new MemorySourceScan(entries).bestScore(query), query).toBe(expected);
+    }
+  });
+
   it("deduplicates entries and reports its size", () => {
     expect(new MemoryMatchIndex(["a b", "A  B", "c"]).size).toBe(2);
   });
