@@ -1,16 +1,14 @@
 import { SparklesIcon } from "@sanity/icons/Sparkles";
 import { Box, Button, Card, Flex, Select, Stack, Text } from "@sanity/ui";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useClient, useDataset, useProjectId, useSchema } from "sanity";
 
-import { createDocumentLevelTranslation, patchCurrentDocumentDraft } from "./apply-studio-document";
 import { ConnectScreen, ProjectScreen } from "./connect-screens";
 import type { HyperlocalisePluginConfig } from "./config";
 import { documentDisplayName, extractDocumentSegments } from "./extract-document-segments";
 import {
   createSanityJob,
   fetchCurrentSanityJob,
-  fetchSanityApplyPlan,
   fetchSanityLocaleStatusesFromApi,
   fetchSanitySession,
   getSanityJob,
@@ -32,18 +30,20 @@ import { buildSanityDocumentSourcePath } from "./source-path";
 import { loadSettings, saveSettings, type PluginSettings } from "./settings";
 import {
   actionLabel,
-  createLocaleVersionLabel,
+  writeLocaleVersionLabel,
   fetchDocumentLevelTargetRef,
   fieldLevelTargetHasContent,
+  emptyDocumentLocaleStatuses,
   hasHlTranslationForLocale,
+  lookupLocaleProgress,
   parseLocaleStatusesForDocument,
   uploadTargetLocaleFromSanity,
 } from "./target-translations";
+import { localeVersionWrittenMessage, writeStudioLocaleVersion } from "./write-studio-locale";
 import {
   DocumentHero,
   isActiveTranslationJobStatus,
-  isInFlightJobStatus,
-  isTerminalJobSuccess,
+  isJobReadyToWrite,
   publishedDocumentId,
   TranslationProgressBar,
   WorkflowHeader,
@@ -54,7 +54,7 @@ import {
 } from "./workflow-ui";
 
 type Screen = "connect" | "project" | "workflow";
-type BusyAction = "connect" | "upload" | "translate" | "apply" | null;
+type BusyAction = "connect" | "upload" | "translate" | "write" | null;
 
 function i18nApiMode(mode: LocalizationMode): "document" | "field" | null {
   if (mode === "document-level") {
@@ -96,12 +96,10 @@ export function HyperlocaliseDocumentWorkflow({
   const [selectedLocale, setSelectedLocale] = useState("");
   const [sourcePath, setSourcePath] = useState<string | null>(null);
   const [pageJob, setPageJob] = useState<SanityDocumentJob | null>(null);
-  const [documentHlStatus, setDocumentHlStatus] = useState<{
-    source: string;
-    byLocale: Record<string, string>;
-  }>({ source: "missing", byLocale: {} });
+  const [documentHlStatus, setDocumentHlStatus] = useState(emptyDocumentLocaleStatuses);
   const [sanityTargetReady, setSanityTargetReady] = useState(false);
   const [choosingProject, setChoosingProject] = useState(false);
+  const pendingWriteJobIdRef = useRef<string | null>(null);
   const auth = useMemo(() => resourceAuthFromSettings(settings), [settings]);
   const [sessionLoading, setSessionLoading] = useState(() => Boolean(auth));
 
@@ -181,7 +179,7 @@ export function HyperlocaliseDocumentWorkflow({
 
   const refreshDocumentHlStatus = useCallback(async () => {
     if (!auth || !settings.projectId || !apiI18nMode) {
-      setDocumentHlStatus({ source: "missing", byLocale: {} });
+      setDocumentHlStatus(emptyDocumentLocaleStatuses());
       return;
     }
     try {
@@ -195,7 +193,7 @@ export function HyperlocaliseDocumentWorkflow({
       });
       setDocumentHlStatus(parseLocaleStatusesForDocument(locales, publishedId));
     } catch {
-      setDocumentHlStatus({ source: "missing", byLocale: {} });
+      setDocumentHlStatus(emptyDocumentLocaleStatuses());
     }
   }, [apiI18nMode, appUrl, auth, dataset, publishedId, sanityProjectId, settings.projectId]);
 
@@ -273,26 +271,6 @@ export function HyperlocaliseDocumentWorkflow({
     sanityProjectId,
     settings.projectId,
   ]);
-
-  useEffect(() => {
-    if (!auth || !pageJob || !isActiveTranslationJobStatus(pageJob.status)) {
-      return;
-    }
-    const timer = window.setInterval(() => {
-      void getSanityJob({ appUrl, auth, jobId: pageJob.jobId })
-        .then((job) => {
-          setPageJob(job);
-          if (job.sourcePath) {
-            setSourcePath(job.sourcePath);
-          }
-          if (isTerminalJobSuccess(job.status)) {
-            setStatus("Translation finished. You can apply when ready.");
-          }
-        })
-        .catch(() => undefined);
-    }, SANITY_JOB_POLL_INTERVAL_MS);
-    return () => window.clearInterval(timer);
-  }, [appUrl, auth, pageJob]);
 
   const switchAccount = useCallback(() => {
     const next = saveSettings(sanityProjectId, dataset, {
@@ -457,8 +435,15 @@ export function HyperlocaliseDocumentWorkflow({
     setError(null);
     setStatus(null);
     try {
-      const sourceCollected = documentHlStatus.source === "succeeded";
-      const segments = sourceCollected ? undefined : buildSegments();
+      const segments = buildSegments();
+      if (segments.length === 0 && documentHlStatus.source !== "succeeded") {
+        setError(
+          localizationMode === "field-level"
+            ? `No ${project.sourceLocale} field content found on this document.`
+            : "No translatable text found on this document.",
+        );
+        return;
+      }
       const job = await createSanityJob({
         appUrl,
         auth,
@@ -470,9 +455,10 @@ export function HyperlocaliseDocumentWorkflow({
         documentTitle,
         sourceLocale: project.sourceLocale,
         targetLocales: [selectedLocale],
-        segments,
+        segments: segments.length > 0 ? segments : undefined,
         generate: true,
       });
+      pendingWriteJobIdRef.current = job.jobId;
       setSourcePath(job.sourcePath);
       setPageJob({
         jobId: job.jobId,
@@ -499,6 +485,7 @@ export function HyperlocaliseDocumentWorkflow({
     documentHlStatus.source,
     documentTitle,
     documentType,
+    localizationMode,
     project,
     publishedId,
     refreshDocumentHlStatus,
@@ -507,77 +494,91 @@ export function HyperlocaliseDocumentWorkflow({
     settings.projectId,
   ]);
 
-  const apply = useCallback(async () => {
-    if (
-      !auth ||
-      !settings.projectId ||
-      !project ||
-      !apiI18nMode ||
-      !selectedLocale ||
-      !resolvedSourcePath
-    ) {
-      return;
-    }
-    if (projectLocalesMatch(selectedLocale, project.sourceLocale)) {
-      setError("Pick a target locale to apply.");
-      return;
-    }
-    setBusy("apply");
-    setError(null);
-    setStatus(null);
-    try {
-      const plan = await fetchSanityApplyPlan({
+  const writeLocale = useCallback(
+    async (sourcePathOverride?: string | null) => {
+      const path = sourcePathOverride || resolvedSourcePath;
+      if (!auth || !settings.projectId || !project || !apiI18nMode || !selectedLocale || !path) {
+        throw new Error("Unable to write a locale version yet.");
+      }
+      return writeStudioLocaleVersion({
+        client,
         appUrl,
         auth,
         projectId: settings.projectId,
-        sourcePath: resolvedSourcePath,
+        sourcePath: path,
         document: documentPayload,
         i18nMode: apiI18nMode,
         sourceSanityLocale: project.sourceLocale,
         targetSanityLocale: selectedLocale,
+        sourceDocumentId: publishedId,
+        documentType,
       });
-      if (plan.missingKeys.length > 0) {
-        throw new Error(
-          `${plan.missingKeys.length} segments are missing approved translations. Finish them in Hyperlocalise first.`,
-        );
-      }
-      if (plan.i18nMode === "field") {
-        await patchCurrentDocumentDraft({
-          client,
-          publishedDocumentId: publishedId,
-          document: plan.document,
-        });
-      } else {
-        await createDocumentLevelTranslation({
-          client,
-          sourceDocumentId: publishedId,
-          sourceLocale: project.sourceLocale,
-          targetLocale: selectedLocale,
-          documentType,
-          translatedDocument: plan.document,
-        });
-      }
-      setStatus(`Created ${selectedLocale} version in Sanity.`);
+    },
+    [
+      apiI18nMode,
+      appUrl,
+      auth,
+      client,
+      documentPayload,
+      documentType,
+      project,
+      publishedId,
+      resolvedSourcePath,
+      selectedLocale,
+      settings.projectId,
+    ],
+  );
+
+  const apply = useCallback(async () => {
+    if (project && projectLocalesMatch(selectedLocale, project.sourceLocale)) {
+      setError("Pick a target locale to write.");
+      return;
+    }
+    setBusy("write");
+    setError(null);
+    setStatus(null);
+    try {
+      await writeLocale();
+      setStatus(localeVersionWrittenMessage(selectedLocale));
       await refreshDocumentHlStatus();
-    } catch (applyError) {
-      setError(applyError instanceof Error ? applyError.message : "Apply failed.");
+    } catch (writeError) {
+      setError(writeError instanceof Error ? writeError.message : "Write failed.");
     } finally {
       setBusy(null);
     }
-  }, [
-    apiI18nMode,
-    appUrl,
-    auth,
-    client,
-    documentPayload,
-    documentType,
-    project,
-    publishedId,
-    refreshDocumentHlStatus,
-    resolvedSourcePath,
-    selectedLocale,
-    settings.projectId,
-  ]);
+  }, [project, refreshDocumentHlStatus, selectedLocale, writeLocale]);
+
+  useEffect(() => {
+    if (!auth || !pageJob || !isActiveTranslationJobStatus(pageJob.status)) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void getSanityJob({ appUrl, auth, jobId: pageJob.jobId })
+        .then(async (job) => {
+          setPageJob(job);
+          if (job.sourcePath) {
+            setSourcePath(job.sourcePath);
+          }
+          void refreshDocumentHlStatus();
+          if (
+            !isJobReadyToWrite(job.status) ||
+            pendingWriteJobIdRef.current !== job.jobId
+          ) {
+            return;
+          }
+          pendingWriteJobIdRef.current = null;
+          try {
+            await writeLocale(job.sourcePath);
+            setStatus(localeVersionWrittenMessage(selectedLocale));
+            await refreshDocumentHlStatus();
+          } catch (writeError) {
+            setError(writeError instanceof Error ? writeError.message : "Write failed.");
+          }
+        })
+        .catch(() => undefined);
+    }, SANITY_JOB_POLL_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [appUrl, auth, pageJob, refreshDocumentHlStatus, selectedLocale, writeLocale]);
 
   const sourceCollected = documentHlStatus.source === "succeeded";
   const selectedHlStatus = useMemo(() => {
@@ -594,7 +595,25 @@ export function HyperlocaliseDocumentWorkflow({
     }
     return undefined;
   }, [documentHlStatus.byLocale, selectedLocale]);
-  const applyReady = hasHlTranslationForLocale(selectedHlStatus);
+  const selectedProgress = useMemo(() => {
+    if (!selectedLocale) {
+      return documentHlStatus.sourceProgress;
+    }
+    return lookupLocaleProgress(documentHlStatus.progressByLocale, selectedLocale);
+  }, [documentHlStatus.progressByLocale, documentHlStatus.sourceProgress, selectedLocale]);
+  const writeReady = hasHlTranslationForLocale(selectedHlStatus);
+  const activeJob = Boolean(pageJob && isActiveTranslationJobStatus(pageJob.status));
+  const progressStatus = activeJob
+    ? pageJob!.status
+    : selectedLocale
+      ? (selectedHlStatus ?? "missing")
+      : sourceCollected
+        ? "collected"
+        : "missing";
+  const showProgress =
+    Boolean(pageJob) ||
+    sourceCollected ||
+    Boolean(selectedProgress && selectedProgress.segmentCount > 0);
   const localeTags = selectedLocale ? [selectedLocale] : [];
 
   const translateTargetOptions = translateToOptionsForProject(
@@ -685,15 +704,31 @@ export function HyperlocaliseDocumentWorkflow({
             </Select>
           </WorkflowSection>
 
-          {pageJob ? (
-            <Card padding={3} tone={isInFlightJobStatus(pageJob.status) ? "primary" : "default"}>
-              <TranslationProgressBar status={pageJob.status} lastError={pageJob.lastError} />
-            </Card>
-          ) : null}
-
-          {!pageJob && sourceCollected ? (
-            <Card padding={3} tone="positive">
-              <TranslationProgressBar status="succeeded" />
+          {showProgress ? (
+            <Card
+              padding={3}
+              tone={
+                progressStatus === "failed" || progressStatus === "cancelled"
+                  ? "critical"
+                  : activeJob
+                    ? "primary"
+                    : !selectedLocale && sourceCollected
+                      ? "positive"
+                      : selectedProgress &&
+                          selectedProgress.approvedCount === selectedProgress.segmentCount &&
+                          selectedProgress.segmentCount > 0
+                        ? "positive"
+                        : selectedProgress && selectedProgress.reviewCount > 0
+                          ? "caution"
+                          : "default"
+              }
+            >
+              <TranslationProgressBar
+                status={progressStatus}
+                lastError={pageJob?.lastError}
+                progress={selectedProgress}
+                sourceOnly={!selectedLocale}
+              />
             </Card>
           ) : null}
 
@@ -726,9 +761,9 @@ export function HyperlocaliseDocumentWorkflow({
                 <Box flex={1} style={{ minWidth: 0 }}>
                   <Button
                     width="fill"
-                    text={createLocaleVersionLabel(localeTags)}
-                    disabled={busy !== null || !selectedLocale || !applyReady}
-                    loading={busy === "apply"}
+                    text={writeLocaleVersionLabel(localeTags)}
+                    disabled={busy !== null || !selectedLocale || !writeReady}
+                    loading={busy === "write"}
                     onClick={() => void apply()}
                   />
                 </Box>

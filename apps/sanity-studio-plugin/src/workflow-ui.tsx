@@ -3,6 +3,12 @@ import type { ReactNode } from "react";
 
 import { HyperlocaliseIcon } from "./hyperlocalise-icon";
 
+export type LocaleSegmentProgress = {
+  segmentCount: number;
+  approvedCount: number;
+  reviewCount: number;
+};
+
 export function publishedDocumentId(documentId: string): string {
   return documentId.replace(/^drafts\./, "");
 }
@@ -41,6 +47,11 @@ export function isTerminalJobSuccess(status: string): boolean {
   return status === "succeeded" || status === "completed";
 }
 
+/** Generation finished enough to write a locale draft (approval not required). */
+export function isJobReadyToWrite(status: string): boolean {
+  return isTerminalJobSuccess(status) || status === "waiting_for_review";
+}
+
 function jobProgressPercent(status: string): number {
   switch (status) {
     case "queued":
@@ -72,7 +83,7 @@ function jobProgressLabel(status: string): string {
     case "processing":
       return "Translating";
     case "waiting_for_review":
-      return "Ready for review";
+      return "Needs review";
     case "succeeded":
     case "completed":
       return "Translation complete";
@@ -83,10 +94,46 @@ function jobProgressLabel(status: string): string {
     case "cancelled":
       return "Cancelled";
     case "missing":
-      return "Not uploaded";
+      return "Untranslated";
     default:
       return "In progress";
   }
+}
+
+function translationProgressLabel(
+  status: string,
+  progress: LocaleSegmentProgress | null | undefined,
+  sourceOnly: boolean,
+): string {
+  if (status === "failed" || status === "cancelled") {
+    return jobProgressLabel(status);
+  }
+  if (isActiveTranslationJobStatus(status)) {
+    return jobProgressLabel(status);
+  }
+  if (sourceOnly) {
+    return status === "missing" ? "Not uploaded" : "Uploaded";
+  }
+  const total = progress?.segmentCount ?? 0;
+  const approved = progress?.approvedCount ?? 0;
+  const review = progress?.reviewCount ?? 0;
+  const filled = approved + review;
+  if (total > 0) {
+    if (filled === 0) {
+      return "Untranslated";
+    }
+    if (approved === total) {
+      return "Approved";
+    }
+    if (review > 0) {
+      return "Needs review";
+    }
+    return "Partially translated";
+  }
+  if (status === "succeeded" || status === "completed" || status === "collected") {
+    return "Untranslated";
+  }
+  return jobProgressLabel(status);
 }
 
 function progressTone(
@@ -107,19 +154,59 @@ function progressTone(
   return "default";
 }
 
+const APPROVED_BAR_COLOR = "var(--card-badge-positive-fg-color)";
+const REVIEW_BAR_COLOR = "var(--card-badge-caution-fg-color)";
+
+function segmentPercents(progress: LocaleSegmentProgress): {
+  approvedPct: number;
+  reviewPct: number;
+} {
+  const total = Math.max(progress.segmentCount, 0);
+  if (total === 0) {
+    return { approvedPct: 0, reviewPct: 0 };
+  }
+  return {
+    approvedPct: (progress.approvedCount / total) * 100,
+    reviewPct: (progress.reviewCount / total) * 100,
+  };
+}
+
 export function TranslationProgressBar({
   status,
   lastError,
   compact = false,
+  progress,
+  sourceOnly = false,
 }: {
   status: string;
   lastError?: string | null;
   compact?: boolean;
+  progress?: LocaleSegmentProgress | null;
+  sourceOnly?: boolean;
 }) {
   const percent = jobProgressPercent(status);
-  const label = jobProgressLabel(status);
-  const indeterminate = isActiveTranslationJobStatus(status);
+  const label = translationProgressLabel(status, progress, sourceOnly);
   const tone = progressTone(status);
+  const counts = progress ?? { segmentCount: 0, approvedCount: 0, reviewCount: 0 };
+  const { approvedPct, reviewPct } = segmentPercents(counts);
+  const filledCount = counts.approvedCount + counts.reviewCount;
+  const hasSegmentTotal = counts.segmentCount > 0;
+  const hasFilledSegments = filledCount > 0;
+  const indeterminate = isActiveTranslationJobStatus(status) && !hasFilledSegments;
+  const showSegmentBar = !sourceOnly && hasSegmentTotal && tone !== "critical" && !indeterminate;
+  const rightLabel = showSegmentBar
+    ? compact
+      ? `${Math.round(approvedPct)}% · ${Math.round(reviewPct)}%`
+      : `${Math.round(approvedPct)}% approved · ${Math.round(reviewPct)}% review`
+    : indeterminate
+      ? "…"
+      : sourceOnly
+        ? `${percent}%`
+        : hasSegmentTotal
+          ? compact
+            ? "0% · 0%"
+            : "0% approved · 0% review"
+          : `${percent}%`;
 
   return (
     <Stack gap={compact ? 2 : 3}>
@@ -127,15 +214,9 @@ export function TranslationProgressBar({
         <Text size={1} weight="medium">
           {label}
         </Text>
-        {!indeterminate ? (
-          <Text muted size={1}>
-            {percent}%
-          </Text>
-        ) : (
-          <Text muted size={1}>
-            …
-          </Text>
-        )}
+        <Text muted size={1}>
+          {rightLabel}
+        </Text>
       </Flex>
       <Box
         style={{
@@ -143,25 +224,47 @@ export function TranslationProgressBar({
           borderRadius: 999,
           background: "var(--card-border-color)",
           overflow: "hidden",
+          display: "flex",
         }}
       >
-        <Box
-          style={{
-            height: "100%",
-            width: indeterminate ? "45%" : `${percent}%`,
-            borderRadius: 999,
-            background:
-              tone === "critical"
-                ? "var(--card-badge-critical-fg-color)"
-                : tone === "positive"
-                  ? "var(--card-badge-positive-fg-color)"
-                  : "var(--card-badge-primary-fg-color)",
-            transition: indeterminate ? undefined : "width 240ms ease",
-            animation: indeterminate
-              ? "hyperlocalise-progress-indeterminate 1.2s ease-in-out infinite"
-              : undefined,
-          }}
-        />
+        {showSegmentBar ? (
+          <>
+            <Box
+              style={{
+                height: "100%",
+                width: `${approvedPct}%`,
+                background: APPROVED_BAR_COLOR,
+                transition: "width 240ms ease",
+              }}
+            />
+            <Box
+              style={{
+                height: "100%",
+                width: `${reviewPct}%`,
+                background: REVIEW_BAR_COLOR,
+                transition: "width 240ms ease",
+              }}
+            />
+          </>
+        ) : (
+          <Box
+            style={{
+              height: "100%",
+              width: indeterminate ? "45%" : `${percent}%`,
+              borderRadius: 999,
+              background:
+                tone === "critical"
+                  ? "var(--card-badge-critical-fg-color)"
+                  : tone === "positive"
+                    ? APPROVED_BAR_COLOR
+                    : "var(--card-badge-primary-fg-color)",
+              transition: indeterminate ? undefined : "width 240ms ease",
+              animation: indeterminate
+                ? "hyperlocalise-progress-indeterminate 1.2s ease-in-out infinite"
+                : undefined,
+            }}
+          />
+        )}
       </Box>
       {lastError ? (
         <Text size={1} style={{ color: "var(--card-badge-critical-fg-color)" }}>
@@ -348,7 +451,7 @@ export function WorkflowSection({
 }) {
   return (
     <Stack gap={2} style={{ width: "100%" }}>
-      <Text size={1} weight="semibold" style={{ textAlign: "center" }}>
+      <Text size={1} weight="semibold">
         {title}
       </Text>
       {children}

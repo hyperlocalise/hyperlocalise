@@ -155,10 +155,16 @@ export type CollectSanityDocumentResult = {
 
 export type SanityLocaleDocumentStatusName = SanityJobStatusName | "missing" | "idle";
 
+export type SanityLocaleProgress = {
+  segmentCount: number;
+  approvedCount: number;
+  reviewCount: number;
+};
+
 export type SanityLocaleDocumentStatus = {
   documentId: string;
   status: SanityLocaleDocumentStatusName;
-};
+} & SanityLocaleProgress;
 
 export type SanityLocaleStatus = {
   locale: string;

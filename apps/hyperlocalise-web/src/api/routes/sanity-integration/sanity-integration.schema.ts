@@ -76,7 +76,7 @@ export const sanityJobIdParamSchema = z.object({
   jobId: z.string().min(1).max(128),
 });
 
-export const applySanityPlanBodySchema = z.object({
+export const writeSanityTranslationsBodySchema = z.object({
   projectId: projectIdSchema,
   sourcePath: z.string().min(1).max(512),
   document: z.record(z.string(), z.unknown()),

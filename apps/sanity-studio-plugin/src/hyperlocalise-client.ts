@@ -64,6 +64,39 @@ async function readError(response: Response): Promise<ErrorPayload> {
   return parseErrorPayload(await readResponseJson(response));
 }
 
+const SANITY_API_ERROR_MESSAGES: Record<string, string> = {
+  sanity_document_not_collected:
+    "This document is not in Hyperlocalise yet. Add source-locale field content and try Translate again.",
+  sanity_no_text_segments: "No translatable text found on this document.",
+  sanity_source_ingest_timeout:
+    "Hyperlocalise is still ingesting the source file. Try Translate again in a few seconds.",
+  translation_job_queue_unavailable: "The translation queue is unavailable.",
+  job_not_enqueueable: "This translation job cannot be started.",
+  job_already_running: "A translation job is already running for this document.",
+  job_source_locale_not_in_project: "The project source locale does not match this document.",
+  job_target_locale_not_in_project: "That locale is not a target on this Hyperlocalise project.",
+  invalid_job_source_locale: "Invalid source locale.",
+  invalid_job_target_locale: "Invalid target locale.",
+  duplicate_job_target_locales: "The same target locale was requested twice.",
+};
+
+function readCount(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.floor(value)
+    : 0;
+}
+
+function messageForApiError(payload: ErrorPayload | null, fallbackMessage: string): string {
+  if (payload?.message) {
+    return payload.message;
+  }
+  const code = payload?.error;
+  if (code && SANITY_API_ERROR_MESSAGES[code]) {
+    return SANITY_API_ERROR_MESSAGES[code];
+  }
+  return fallbackMessage;
+}
+
 function throwIfFailed(
   response: Response,
   payload: ErrorPayload | null,
@@ -75,7 +108,7 @@ function throwIfFailed(
   }
   throw new HyperlocaliseClientError(
     payload?.error ?? fallbackCode,
-    payload?.message ?? fallbackMessage,
+    messageForApiError(payload, fallbackMessage),
   );
 }
 
@@ -423,6 +456,9 @@ export async function createSanityJob(input: {
 export type SanityLocaleDocumentStatusResponse = {
   documentId: string;
   status: string;
+  segmentCount: number;
+  approvedCount: number;
+  reviewCount: number;
 };
 
 export type SanityLocaleStatusResponse = {
@@ -457,7 +493,15 @@ function parseLocaleStatuses(value: unknown): {
           if (!documentId || !status) {
             return [];
           }
-          return [{ documentId, status }];
+          return [
+            {
+              documentId,
+              status,
+              segmentCount: readCount(document.segmentCount),
+              approvedCount: readCount(document.approvedCount),
+              reviewCount: readCount(document.reviewCount),
+            },
+          ];
         })
       : [];
     locales.push({
@@ -675,35 +719,43 @@ export async function pullSanitySourcePage(
   return sourcePage;
 }
 
-export type SanityApplyPlan = {
+export type SanityWritePlan = {
   i18nMode: "document" | "field";
   targetSanityLocale: string;
   document: Record<string, unknown>;
   missingKeys: string[];
+  translatedKeyCount: number;
 };
 
-function parseApplyPlan(value: unknown): SanityApplyPlan | null {
-  if (!isRecord(value) || !isRecord(value.plan)) {
+function parseWritePlan(value: unknown): SanityWritePlan | null {
+  if (!isRecord(value) || !isRecord(value.write)) {
     return null;
   }
-  const plan = value.plan;
-  const i18nMode = plan.i18nMode === "document" || plan.i18nMode === "field" ? plan.i18nMode : null;
-  const targetSanityLocale = readString(plan.targetSanityLocale);
-  if (!i18nMode || !targetSanityLocale || !isRecord(plan.document)) {
+  const write = value.write;
+  const i18nMode = write.i18nMode === "document" || write.i18nMode === "field" ? write.i18nMode : null;
+  const targetSanityLocale = readString(write.targetSanityLocale);
+  if (!i18nMode || !targetSanityLocale || !isRecord(write.document)) {
     return null;
   }
-  const missingKeys = Array.isArray(plan.missingKeys)
-    ? plan.missingKeys.filter((key): key is string => typeof key === "string")
+  const missingKeys = Array.isArray(write.missingKeys)
+    ? write.missingKeys.filter((key): key is string => typeof key === "string")
     : [];
+  const translatedKeyCount =
+    typeof write.translatedKeyCount === "number" && Number.isFinite(write.translatedKeyCount)
+      ? write.translatedKeyCount
+      : missingKeys.length === 0
+        ? 1
+        : 0;
   return {
     i18nMode,
     targetSanityLocale,
-    document: plan.document,
+    document: write.document,
     missingKeys,
+    translatedKeyCount,
   };
 }
 
-export async function fetchSanityApplyPlan(input: {
+export async function fetchSanityWritePlan(input: {
   appUrl: string;
   auth: SanityResourceAuth;
   projectId: string;
@@ -712,8 +764,8 @@ export async function fetchSanityApplyPlan(input: {
   i18nMode: "document" | "field";
   sourceSanityLocale: string;
   targetSanityLocale: string;
-}): Promise<SanityApplyPlan> {
-  const response = await fetch(apiUrl(input.appUrl, "/api/integrations/sanity/apply-plan"), {
+}): Promise<SanityWritePlan> {
+  const response = await fetch(apiUrl(input.appUrl, "/api/integrations/sanity/translations/write"), {
     method: "POST",
     headers: buildRequestHeaders(input.appUrl, input.auth),
     body: JSON.stringify({
@@ -729,17 +781,14 @@ export async function fetchSanityApplyPlan(input: {
   throwIfFailed(
     response,
     parseErrorPayload(payload),
-    "sanity_apply_plan_failed",
-    "Unable to build an apply plan.",
+    "sanity_write_failed",
+    "Unable to prepare Sanity write.",
   );
-  const plan = parseApplyPlan(payload);
-  if (!plan) {
-    throw new HyperlocaliseClientError(
-      "sanity_apply_plan_failed",
-      "Unable to build an apply plan.",
-    );
+  const write = parseWritePlan(payload);
+  if (!write) {
+    throw new HyperlocaliseClientError("sanity_write_failed", "Unable to prepare Sanity write.");
   }
-  return plan;
+  return write;
 }
 
 export async function pullSanityTranslations(

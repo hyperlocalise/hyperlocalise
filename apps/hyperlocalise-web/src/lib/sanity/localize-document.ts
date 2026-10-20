@@ -62,6 +62,7 @@ import type {
   SanityDocumentSegment,
   SanityJobStatusName,
   SanityLocaleDocumentStatus,
+  SanityLocaleProgress,
   SanityLocaleStatusesResult,
   SanityLocalizationStatus,
   SanityDocumentJob,
@@ -247,18 +248,23 @@ async function loadSanityEditorTranslationsBySourcePaths(input: {
   projectId: string;
   locales: string[];
   sourcePaths: string[];
-}): Promise<Map<string, Record<string, string>>> {
+}): Promise<{
+  texts: Map<string, Record<string, string>>;
+  progressRows: Map<string, Array<{ text: string; status: string }>>;
+}> {
   const locales = [...new Set(input.locales.map((locale) => locale.trim()).filter(Boolean))];
   const sourcePaths = [...new Set(input.sourcePaths.filter((path) => path.trim().length > 0))];
-  const result = new Map<string, Record<string, string>>();
+  const texts = new Map<string, Record<string, string>>();
+  const progressRows = new Map<string, Array<{ text: string; status: string }>>();
   if (locales.length === 0 || sourcePaths.length === 0) {
-    return result;
+    return { texts, progressRows };
   }
 
   const rows = await db
     .select({
       key: schema.projectTranslationKeys.key,
       text: schema.projectTranslations.text,
+      status: schema.projectTranslations.status,
       locale: schema.projectTranslations.targetLocale,
       sourcePath: schema.repositorySourceFiles.sourcePath,
     })
@@ -281,18 +287,24 @@ async function loadSanityEditorTranslationsBySourcePaths(input: {
     );
 
   for (const row of rows) {
-    if (row.text.trim().length === 0 || !isSanityStampSegmentKey(row.key)) {
+    if (!isSanityStampSegmentKey(row.key)) {
       continue;
     }
     const lookupKey = sanityEditorTranslationLookupKey(row.locale, row.sourcePath);
-    let segments = result.get(lookupKey);
+    const progress = progressRows.get(lookupKey) ?? [];
+    progress.push({ text: row.text, status: row.status });
+    progressRows.set(lookupKey, progress);
+    if (row.text.trim().length === 0) {
+      continue;
+    }
+    let segments = texts.get(lookupKey);
     if (!segments) {
       segments = {};
-      result.set(lookupKey, segments);
+      texts.set(lookupKey, segments);
     }
     segments[row.key] = row.text;
   }
-  return result;
+  return { texts, progressRows };
 }
 
 async function loadSanityEditorTranslationsBySourcePath(input: {
@@ -307,7 +319,7 @@ async function loadSanityEditorTranslationsBySourcePath(input: {
     locales: [input.locale],
     sourcePaths: [input.sourcePath],
   });
-  return batched.get(sanityEditorTranslationLookupKey(input.locale, input.sourcePath)) ?? {};
+  return batched.texts.get(sanityEditorTranslationLookupKey(input.locale, input.sourcePath)) ?? {};
 }
 
 async function mergeSanityTranslationsWithEditor(input: {
@@ -654,6 +666,35 @@ function countSanityTranslatedKeys(translations: Record<string, string>, total: 
   return Math.min(translated, total);
 }
 
+export function tallySanityLocaleProgress(
+  rows: ReadonlyArray<{ text?: string | null; status?: string | null }>,
+  segmentCount: number,
+): SanityLocaleProgress {
+  let approvedCount = 0;
+  let reviewCount = 0;
+  for (const row of rows) {
+    if (!row.text?.trim()) {
+      continue;
+    }
+    if (row.status === "approved") {
+      approvedCount += 1;
+    } else {
+      reviewCount += 1;
+    }
+  }
+  const filled = approvedCount + reviewCount;
+  const total = segmentCount > 0 ? segmentCount : filled;
+  return {
+    segmentCount: total,
+    approvedCount: Math.min(approvedCount, total),
+    reviewCount: Math.min(reviewCount, total),
+  };
+}
+
+function emptyLocaleProgress(segmentCount = 0): SanityLocaleProgress {
+  return { segmentCount, approvedCount: 0, reviewCount: 0 };
+}
+
 export async function collectSanityDocument(input: {
   auth: ApiAuthContext;
   apiKeyId: string;
@@ -923,10 +964,17 @@ export async function listSanityDocumentLocaleStatuses(input: {
   const sourceLocale = project.sourceLocale?.trim() || "en";
   const targetLocales = project.targetLocales ?? [];
 
-  const sourcePages: SanityLocaleDocumentStatus[] = documentIds.map((documentId) => ({
-    documentId,
-    status: collectedByPageId.has(documentId) ? "succeeded" : "missing",
-  }));
+  const sourcePages: SanityLocaleDocumentStatus[] = documentIds.map((documentId) => {
+    const collected = collectedByPageId.get(documentId);
+    const segmentCount = collected?.segmentCount ?? 0;
+    return {
+      documentId,
+      status: collected ? "succeeded" : "missing",
+      segmentCount,
+      approvedCount: collected ? segmentCount : 0,
+      reviewCount: 0,
+    };
+  });
 
   const locales: SanityLocaleStatusesResult["locales"] = [
     {
@@ -941,6 +989,7 @@ export async function listSanityDocumentLocaleStatuses(input: {
     documentId: string;
     sourcePath: string;
     segmentCount: number;
+    hasJob: boolean;
   }> = [];
 
   for (const locale of targetLocales) {
@@ -953,7 +1002,7 @@ export async function listSanityDocumentLocaleStatuses(input: {
     for (const documentId of documentIds) {
       const collected = collectedByPageId.get(documentId);
       if (!collected) {
-        localePages.push({ documentId, status: "missing" });
+        localePages.push({ documentId, status: "missing", ...emptyLocaleProgress() });
         continue;
       }
 
@@ -968,18 +1017,18 @@ export async function listSanityDocumentLocaleStatuses(input: {
           ),
       );
 
-      if (job) {
-        localePages.push({ documentId, status: publicSanityJobStatus(job.status) });
-        continue;
-      }
-
+      localePages.push({
+        documentId,
+        status: job ? publicSanityJobStatus(job.status) : "missing",
+        ...emptyLocaleProgress(collected.segmentCount),
+      });
       pendingEditorLookups.push({
         locale: trimmed,
         documentId,
         sourcePath: collected.sourcePath,
         segmentCount: collected.segmentCount,
+        hasJob: Boolean(job),
       });
-      localePages.push({ documentId, status: "missing" });
     }
 
     locales.push({
@@ -997,19 +1046,28 @@ export async function listSanityDocumentLocaleStatuses(input: {
   });
   const localePagesByLocale = new Map(locales.map((entry) => [entry.locale, entry.documents]));
   for (const pending of pendingEditorLookups) {
-    const editorSegments =
-      editorByLocaleAndPath.get(
-        sanityEditorTranslationLookupKey(pending.locale, pending.sourcePath),
-      ) ?? {};
-    if (countSanityTranslatedKeys(editorSegments, pending.segmentCount) === 0) {
-      continue;
-    }
+    const lookupKey = sanityEditorTranslationLookupKey(pending.locale, pending.sourcePath);
     const page = localePagesByLocale
       .get(pending.locale)
       ?.find((entry) => entry.documentId === pending.documentId);
-    if (page) {
-      page.status = "waiting_for_review";
+    if (!page) {
+      continue;
     }
+    const progress = tallySanityLocaleProgress(
+      editorByLocaleAndPath.progressRows.get(lookupKey) ?? [],
+      pending.segmentCount,
+    );
+    page.segmentCount = progress.segmentCount;
+    page.approvedCount = progress.approvedCount;
+    page.reviewCount = progress.reviewCount;
+    if (pending.hasJob) {
+      continue;
+    }
+    const editorSegments = editorByLocaleAndPath.texts.get(lookupKey) ?? {};
+    if (countSanityTranslatedKeys(editorSegments, pending.segmentCount) === 0) {
+      continue;
+    }
+    page.status = "waiting_for_review";
   }
 
   return { locales, documents: pages };

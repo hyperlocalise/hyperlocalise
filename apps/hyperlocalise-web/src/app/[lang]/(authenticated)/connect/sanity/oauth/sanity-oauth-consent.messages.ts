@@ -22,8 +22,8 @@ export const sanityOauthConsentMessages = defineMessages({
   },
   description: {
     defaultMessage:
-      "Sanity is requesting access to upload documents, start translation jobs, and apply locales through this Hyperlocalise workspace.",
-    id: "YbEblYawWt",
+      "Sanity is requesting access to upload documents, start translation jobs, and write locales through this Hyperlocalise workspace.",
+    id: "E+8Fn+px7Y",
     description: "Description for the Sanity OAuth consent page",
   },
   missingRequest: {

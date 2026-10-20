@@ -40,11 +40,11 @@ import { createLogger } from "@/lib/log";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { env } from "@/lib/env";
-import { buildSanityPluginApplyPlan } from "@/lib/sanity/build-apply-plan";
+import { buildSanityPluginWritePlan } from "@/lib/sanity/build-write-plan";
 import type { SanityDocumentRecord } from "@/lib/sanity/sanity-field-value";
 
 import {
-  applySanityPlanBodySchema,
+  writeSanityTranslationsBodySchema,
   collectSanityDocumentBodySchema,
   createSanityJobBodySchema,
   currentSanityJobQuerySchema,
@@ -114,13 +114,13 @@ const validateCurrentJobQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
-const validateApplyPlanBody = validator("json", (value, c) => {
-  const parsed = applySanityPlanBodySchema.safeParse(value);
+const validateWriteBody = validator("json", (value, c) => {
+  const parsed = writeSanityTranslationsBodySchema.safeParse(value);
   if (!parsed.success) {
     return badRequestResponse(
       c,
-      "invalid_sanity_apply_plan_payload",
-      "Sanity apply plan payload is invalid.",
+      "invalid_sanity_write_payload",
+      "Sanity write payload is invalid.",
       parsed.error.flatten(),
     );
   }
@@ -179,22 +179,23 @@ function localizeErrorResponse(
     return forbiddenResponse(c, message);
   }
 
-  const badRequestCodes = new Set([
-    "sanity_no_text_segments",
-    "sanity_document_not_collected",
-    "sanity_source_ingest_timeout",
-    "job_not_enqueueable",
-    "job_already_running",
-    "file_translation_job_required",
-    "native_job_required",
-    "job_source_locale_not_in_project",
-    "job_target_locale_not_in_project",
-    "duplicate_job_target_locales",
-    "invalid_job_source_locale",
-    "invalid_job_target_locale",
-  ]);
-  if (badRequestCodes.has(message)) {
-    return badRequestResponse(c, message);
+  const badRequestMessages: Record<string, string> = {
+    sanity_no_text_segments: "No translatable text found on this document.",
+    sanity_document_not_collected: "This document has not been uploaded to Hyperlocalise yet.",
+    sanity_source_ingest_timeout:
+      "Hyperlocalise is still ingesting the source file. Try again in a few seconds.",
+    job_not_enqueueable: "This translation job cannot be started.",
+    job_already_running: "A translation job is already running for this document.",
+    file_translation_job_required: "This action requires a file translation job.",
+    native_job_required: "This action requires a native project job.",
+    job_source_locale_not_in_project: "The project source locale does not match this document.",
+    job_target_locale_not_in_project: "That locale is not a target on this Hyperlocalise project.",
+    duplicate_job_target_locales: "The same target locale was requested twice.",
+    invalid_job_source_locale: "Invalid source locale.",
+    invalid_job_target_locale: "Invalid target locale.",
+  };
+  if (message in badRequestMessages) {
+    return badRequestResponse(c, message, badRequestMessages[message]);
   }
 
   sanityIntegrationLogger.warn("sanity integration request failed", {
@@ -410,14 +411,14 @@ export function createSanityIntegrationRoutes(options: CreateSanityIntegrationRo
         }
       },
     )
-    .post("/apply-plan", sanityConnectionAuthMiddleware, validateApplyPlanBody, async (c) => {
+    .post("/translations/write", sanityConnectionAuthMiddleware, validateWriteBody, async (c) => {
       const payload = c.req.valid("json");
       const connection = c.var.sanityConnection;
       await touchSanityConnectionUsage(connection.id);
 
       try {
         const auth = await resolveConnectionAuth(connection);
-        const plan = await buildSanityPluginApplyPlan({
+        const write = await buildSanityPluginWritePlan({
           auth,
           projectId: payload.projectId,
           sourcePath: payload.sourcePath,
@@ -426,7 +427,7 @@ export function createSanityIntegrationRoutes(options: CreateSanityIntegrationRo
           sourceSanityLocale: payload.sourceSanityLocale,
           targetSanityLocale: payload.targetSanityLocale,
         });
-        return c.json({ plan }, 200);
+        return c.json({ write }, 200);
       } catch (error) {
         return localizeErrorResponse(c, error);
       }

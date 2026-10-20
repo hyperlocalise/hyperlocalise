@@ -31,14 +31,15 @@ function fieldPathsFromStampKeys(translations: SanityTranslationMap): SanityTran
   return mapped;
 }
 
-export type SanityPluginApplyPlan = {
+export type SanityPluginWritePlan = {
   i18nMode: "document" | "field";
   targetSanityLocale: string;
   document: SanityDocumentRecord;
   missingKeys: string[];
+  translatedKeyCount: number;
 };
 
-export async function buildSanityPluginApplyPlan(input: {
+export async function buildSanityPluginWritePlan(input: {
   auth: ApiAuthContext;
   projectId: string;
   sourcePath: string;
@@ -46,7 +47,7 @@ export async function buildSanityPluginApplyPlan(input: {
   i18nMode: "document" | "field";
   sourceSanityLocale: string;
   targetSanityLocale: string;
-}): Promise<SanityPluginApplyPlan> {
+}): Promise<SanityPluginWritePlan> {
   const translationService = new ProjectTranslationService();
   const organizationId = input.auth.organization.localOrganizationId;
   const sourceFile = await translationService.getRepositorySourceFileByPath({
@@ -66,15 +67,15 @@ export async function buildSanityPluginApplyPlan(input: {
   });
   const sourceKeys = keyRows.map((row) => row.key);
 
-  const approved = await translationService.loadAsPrefilledEntries({
+  const loaded = await translationService.loadAsPrefilledEntries({
     organizationId,
     projectId: input.projectId,
     sourcePath: input.sourcePath,
     targetLocale: input.targetSanityLocale,
-    approvedTranslationsOnly: true,
-    readyTranslationsOnly: true,
+    approvedTranslationsOnly: false,
+    readyTranslationsOnly: false,
   });
-  const stampTranslations = readSanityTranslationMap(approved.prefilled);
+  const stampTranslations = readSanityTranslationMap(loaded.prefilled);
   const missingCount = sourceKeysMissingApprovedTranslations(sourceKeys, stampTranslations);
   const missingKeys =
     missingCount > 0 ? sourceKeys.filter((key) => !stampTranslations[key]?.trim()) : [];
@@ -93,5 +94,8 @@ export async function buildSanityPluginApplyPlan(input: {
     targetSanityLocale: input.targetSanityLocale,
     document,
     missingKeys,
+    translatedKeyCount: Object.keys(stampTranslations).filter((key) =>
+      stampTranslations[key]?.trim(),
+    ).length,
   };
 }

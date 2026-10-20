@@ -1,6 +1,6 @@
 ---
 title: "Localize Sanity Studio documents"
-description: "Connect Hyperlocalise from the Sanity Studio editor view or bulk tool, upload documents, translate, and apply approved locales."
+description: "Connect Hyperlocalise from the Sanity Studio editor view or bulk tool, upload documents, translate, and write locale drafts."
 ---
 
 Sanity does not translate. Hyperlocalise jobs do. Create a **Sanity Studio plugin** workspace connection, install `sanity-plugin-hyperlocalise`, then use the **Hyperlocalise** editor view or bulk tool to pick a [native project](/platform/projects/create-project), upload text, run translation jobs, and apply completed locales back into Studio.
@@ -115,7 +115,7 @@ Use locale tags from this list everywhere:
 - Set Sanity document `language` values and Locales collection `tag` fields to the same BCP-47 tags as the native project (exact match preferred; the plugin and API treat `en` and `en-US` as different tags).
 - After you add or remove targets in Hyperlocalise, reconnect or use **Change** on the project line so the plugin reloads the session list.
 
-Upload and **Create {locale} version** labels reflect the selected locale (for example **Upload (fr-FR)** and **Create fr-FR version**) only when that tag is a project target and, when configured, listed in `supportedLanguages`.
+Upload and **Write {locale} version** labels reflect the selected locale (for example **Upload (fr-FR)** and **Write fr-FR version**) only when that tag is a project target and, when configured, listed in `supportedLanguages`.
 
 ## Upload target locale text
 
@@ -128,24 +128,25 @@ If the source document is not in Hyperlocalise yet, Upload collects the source f
 
 ## Translate
 
-**Translate** starts an agent job for the locale selected under **Translate to**.
+**Translate** starts an agent job for the locale selected under **Translate to**, then writes that locale into Sanity when generation finishes. Approval is not required. Draft or review-ready strings are enough.
 
 - If the source is not collected yet, Translate sends source segments on the first run (same as before).
-- Review or approve strings in the [Content Editor](/platform/cat) when jobs require it.
+- When the job reaches **waiting for review** or **succeeded**, Hyperlocalise writes the Sanity locale draft automatically.
+- You can still review strings in the [Content Editor](/platform/cat); that review is optional for Studio write-back.
 
-## Create locale version in Studio
+## Write locale version in Studio
 
-**Create {locale} version** (for example **Create fr-FR version**) writes Hyperlocalise translations back into Sanity as a draft for that locale.
+**Write {locale} version** (for example **Write fr-FR version**) writes Hyperlocalise translations back into Sanity as a draft for that locale without starting a new job. If a locale document already exists, the same action overwrites that linked draft. Approval is not required.
 
 1. Pick the target locale under **Translate to**.
-2. Choose **Create {locale} version** when Hyperlocalise has any translation content for that locale (not only fully approved strings).
+2. Choose **Write {locale} version** when Hyperlocalise has any translation content for that locale.
 
 Behavior depends on i18n mode:
 
 - **Field-level**: Hyperlocalise patches the open document draft with the target locale slot on internationalized fields.
-- **Document-level**: Hyperlocalise creates or updates a draft translation document and links it through `translation.metadata`.
+- **Document-level**: Hyperlocalise writes a draft translation document and links it through `translation.metadata`, or overwrites the existing linked draft for that locale.
 
-Creating a locale version does not publish in Sanity. Publish from Studio after you review drafts.
+Writing a locale version does not publish in Sanity. Publish from Studio after you review drafts.
 
 ## Self-hosted and local Studio
 

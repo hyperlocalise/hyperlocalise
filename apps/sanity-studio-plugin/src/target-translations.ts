@@ -1,5 +1,6 @@
 import type { SanityClient } from "@sanity/client";
 
+import { findTranslationMetadataTargetRef } from "./apply-studio-document";
 import { extractDocumentTextMap } from "./extract-document-segments";
 import {
   collectSanityDocument,
@@ -9,7 +10,7 @@ import {
 import { isRecord } from "./json";
 import { projectLocalesMatch } from "./locale-map";
 import type { LocalizationMode } from "./localization-mode";
-import { publishedDocumentId } from "./workflow-ui";
+import { publishedDocumentId, type LocaleSegmentProgress } from "./workflow-ui";
 
 export function actionLabel(base: string, locales: string[]): string {
   const trimmed = locales.map((locale) => locale.trim()).filter(Boolean);
@@ -23,15 +24,15 @@ export function actionLabel(base: string, locales: string[]): string {
 }
 
 /** Label for writing Hyperlocalise translations back into Sanity as a locale document. */
-export function createLocaleVersionLabel(locales: string[]): string {
+export function writeLocaleVersionLabel(locales: string[]): string {
   const trimmed = locales.map((locale) => locale.trim()).filter(Boolean);
   if (trimmed.length === 1) {
-    return `Create ${trimmed[0]} version`;
+    return `Write ${trimmed[0]} version`;
   }
   if (trimmed.length > 1) {
-    return `Create ${trimmed.length} locale versions`;
+    return `Write ${trimmed.length} locale versions`;
   }
-  return "Create locale version";
+  return "Write locale version";
 }
 
 export function textMapToImportEntries(map: Map<string, string>): Record<string, string> {
@@ -46,19 +47,57 @@ export function textMapToImportEntries(map: Map<string, string>): Record<string,
   return entries;
 }
 
+export type DocumentLocaleStatuses = {
+  source: string;
+  byLocale: Record<string, string>;
+  sourceProgress: LocaleSegmentProgress;
+  progressByLocale: Record<string, LocaleSegmentProgress>;
+};
+
+const EMPTY_LOCALE_PROGRESS: LocaleSegmentProgress = {
+  segmentCount: 0,
+  approvedCount: 0,
+  reviewCount: 0,
+};
+
+export function emptyDocumentLocaleStatuses(): DocumentLocaleStatuses {
+  return {
+    source: "missing",
+    byLocale: {},
+    sourceProgress: EMPTY_LOCALE_PROGRESS,
+    progressByLocale: {},
+  };
+}
+
 type LocaleStatusResponse = {
   locale: string;
   isSource?: boolean;
-  documents: Array<{ documentId: string; status: string }>;
+  documents: Array<{
+    documentId: string;
+    status: string;
+    segmentCount?: number;
+    approvedCount?: number;
+    reviewCount?: number;
+  }>;
 };
+
+function readProgress(document: LocaleStatusResponse["documents"][number]): LocaleSegmentProgress {
+  return {
+    segmentCount: document.segmentCount ?? 0,
+    approvedCount: document.approvedCount ?? 0,
+    reviewCount: document.reviewCount ?? 0,
+  };
+}
 
 export function parseLocaleStatusesForDocument(
   locales: LocaleStatusResponse[],
   documentId: string,
-): { source: string; byLocale: Record<string, string> } {
+): DocumentLocaleStatuses {
   const published = publishedDocumentId(documentId);
   const byLocale: Record<string, string> = {};
+  const progressByLocale: Record<string, LocaleSegmentProgress> = {};
   let source = "missing";
+  let sourceProgress = EMPTY_LOCALE_PROGRESS;
   for (const localeEntry of locales) {
     const doc = localeEntry.documents.find(
       (entry) => publishedDocumentId(entry.documentId) === published,
@@ -68,11 +107,28 @@ export function parseLocaleStatusesForDocument(
     }
     if (localeEntry.isSource) {
       source = doc.status;
+      sourceProgress = readProgress(doc);
     } else {
       byLocale[localeEntry.locale] = doc.status;
+      progressByLocale[localeEntry.locale] = readProgress(doc);
     }
   }
-  return { source, byLocale };
+  return { source, byLocale, sourceProgress, progressByLocale };
+}
+
+export function lookupLocaleProgress(
+  byLocale: Record<string, LocaleSegmentProgress>,
+  locale: string,
+): LocaleSegmentProgress | undefined {
+  if (byLocale[locale]) {
+    return byLocale[locale];
+  }
+  for (const [key, value] of Object.entries(byLocale)) {
+    if (projectLocalesMatch(key, locale)) {
+      return value;
+    }
+  }
+  return undefined;
 }
 
 export function hasHlTranslationForLocale(status: string | undefined): boolean {
@@ -91,14 +147,7 @@ export async function fetchDocumentLevelTargetRef(
     `*[_type == "translation.metadata" && references($id)][0]{ translations }`,
     { id: published },
   );
-  if (!metadata?.translations) {
-    return null;
-  }
-  const entry = metadata.translations.find(
-    (row) => row.language && projectLocalesMatch(row.language, locale),
-  );
-  const ref = entry?.value?._ref;
-  return typeof ref === "string" && ref.length > 0 ? ref : null;
+  return findTranslationMetadataTargetRef(metadata?.translations, locale);
 }
 
 export async function fetchDocumentLevelTargetsMap(
@@ -121,11 +170,8 @@ export async function fetchDocumentLevelTargetsMap(
       }
       const byLocale: Record<string, string> = {};
       for (const locale of locales) {
-        const entry = metadata.translations.find(
-          (row) => row.language && projectLocalesMatch(row.language, locale),
-        );
-        const ref = entry?.value?._ref;
-        if (typeof ref === "string" && ref.length > 0) {
+        const ref = findTranslationMetadataTargetRef(metadata.translations, locale);
+        if (ref) {
           byLocale[locale] = ref;
         }
       }

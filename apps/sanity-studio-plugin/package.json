@@ -1,7 +1,7 @@
 {
   "name": "sanity-plugin-hyperlocalise",
   "version": "1.0.0",
-  "description": "Hyperlocalise translation view and bulk tool for Sanity Studio (OAuth, upload, translate, apply)",
+  "description": "Hyperlocalise translation view and bulk tool for Sanity Studio (OAuth, upload, translate, write)",
   "keywords": [
     "sanity",
     "sanity-plugin"

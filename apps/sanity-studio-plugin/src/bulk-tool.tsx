@@ -3,7 +3,7 @@ import { Box, Button, Card, Checkbox, Flex, Select, Stack, Text } from "@sanity/
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useClient, useDataset, useProjectId } from "sanity";
 
-import { createDocumentLevelTranslation } from "./apply-studio-document";
+import { writeStudioLocaleVersion } from "./write-studio-locale";
 import { ConnectScreen, ProjectScreen } from "./connect-screens";
 import { parseBulkConfig, type HyperlocaliseBulkConfig } from "./config";
 import { ConfigErrorCard } from "./config-error";
@@ -11,7 +11,6 @@ import { documentDisplayName, extractDocumentSegments } from "./extract-document
 import { HyperlocaliseIcon } from "./hyperlocalise-icon";
 import {
   createSanityJob,
-  fetchSanityApplyPlan,
   fetchSanityLocaleStatusesFromApi,
   fetchSanitySession,
   resourceAuthFromSettings,
@@ -30,16 +29,20 @@ import { loadSettings, saveSettings, type PluginSettings } from "./settings";
 import { projectLocalesMatch } from "./locale-map";
 import {
   actionLabel,
-  createLocaleVersionLabel,
+  writeLocaleVersionLabel,
+  emptyDocumentLocaleStatuses,
   fetchDocumentLevelTargetsMap,
   hasHlTranslationForLocale,
+  lookupLocaleProgress,
   parseLocaleStatusesForDocument,
+  type DocumentLocaleStatuses,
   uploadTargetLocaleFromSanity,
 } from "./target-translations";
 import {
   BulkActionProgress,
   documentListLabel,
   isActiveTranslationJobStatus,
+  isJobReadyToWrite,
   publishedDocumentId,
   TranslationProgressBar,
   WorkflowHeader,
@@ -50,7 +53,7 @@ import {
 } from "./workflow-ui";
 
 type Screen = "connect" | "project" | "workflow";
-type BusyAction = "connect" | "upload" | "translate" | "apply" | null;
+type BusyAction = "connect" | "upload" | "translate" | "write" | null;
 
 type ListedDocument = {
   _id: string;
@@ -85,9 +88,9 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
   const [documents, setDocuments] = useState<ListedDocument[]>([]);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [selectedLocale, setSelectedLocale] = useState("");
-  const [documentHlById, setDocumentHlById] = useState<
-    Record<string, { source: string; byLocale: Record<string, string> }>
-  >({});
+  const [documentHlById, setDocumentHlById] = useState<Record<string, DocumentLocaleStatuses>>(
+    {},
+  );
   const [targetsByDoc, setTargetsByDoc] = useState<Record<string, Record<string, string>>>({});
   const [bulkProgress, setBulkProgress] = useState<BulkProgress | null>(null);
   const [choosingProject, setChoosingProject] = useState(false);
@@ -179,7 +182,7 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
           dataset,
           documentIds: listed.map((row) => row._id),
         });
-        const nextHl: Record<string, { source: string; byLocale: Record<string, string> }> = {};
+        const nextHl: Record<string, DocumentLocaleStatuses> = {};
         for (const row of listed) {
           nextHl[row._id] = parseLocaleStatusesForDocument(locales, row._id);
         }
@@ -230,7 +233,7 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
         dataset,
         documentIds: documents.map((row) => row._id),
       });
-      const nextHl: Record<string, { source: string; byLocale: Record<string, string> }> = {};
+      const nextHl: Record<string, DocumentLocaleStatuses> = {};
       for (const row of documents) {
         nextHl[row._id] = parseLocaleStatusesForDocument(locales, row._id);
       }
@@ -341,7 +344,7 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
     return count;
   }, [lookupTargetRef, selectedDocuments, selectedLocale]);
 
-  const applyEligibleCount = useMemo(() => {
+  const writeEligibleCount = useMemo(() => {
     if (!selectedLocale) {
       return 0;
     }
@@ -388,7 +391,7 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
   }, [hasActiveTranslationJobs, refreshLocaleStatuses, screen]);
 
   const runForSelected = useCallback(
-    async (action: "upload" | "translate" | "apply") => {
+    async (action: "upload" | "translate" | "write") => {
       if (!auth || !settings.projectId || !project) {
         return;
       }
@@ -396,7 +399,7 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
         setError("Select at least one document.");
         return;
       }
-      if ((action === "upload" || action === "translate" || action === "apply") && !selectedLocale) {
+      if ((action === "upload" || action === "translate" || action === "write") && !selectedLocale) {
         setError("Select a target locale.");
         return;
       }
@@ -406,8 +409,8 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
       const total =
         action === "upload"
           ? uploadEligibleCount
-          : action === "apply"
-            ? applyEligibleCount
+          : action === "write"
+            ? writeEligibleCount
             : selectedDocuments.length;
       if (total === 0) {
         setError(
@@ -422,6 +425,12 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
       try {
         let processed = 0;
         let skipped = 0;
+        const pendingWrites: Array<{
+          listed: ListedDocument;
+          document: Record<string, unknown>;
+          documentType: string;
+          documentTitle: string;
+        }> = [];
         for (const listed of selectedDocuments) {
           const raw = await client.getDocument(listed._id);
           const fallback = await client.getDocument(`drafts.${listed._id}`);
@@ -442,7 +451,7 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
             sourceLocale: project.sourceLocale,
             customBlockTypes: config.customBlockTypes,
           });
-          const hl = documentHlById[listed._id] ?? { source: "missing", byLocale: {} };
+          const hl = documentHlById[listed._id] ?? emptyDocumentLocaleStatuses();
 
           if (action === "upload") {
             const targetRef = lookupTargetRef(listed._id, selectedLocale);
@@ -495,6 +504,7 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
               segments: sourceCollected ? undefined : segments,
               generate: true,
             });
+            pendingWrites.push({ listed, document, documentType, documentTitle });
             processed += 1;
             setBulkProgress({ action, current: processed, total });
             continue;
@@ -511,38 +521,86 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
             documentId: listed._id,
             documentTitle,
           });
-          const plan = await fetchSanityApplyPlan({
-            appUrl,
-            auth,
-            projectId: settings.projectId,
-            sourcePath,
-            document,
-            i18nMode: "document",
-            sourceSanityLocale: project.sourceLocale,
-            targetSanityLocale: selectedLocale,
-          });
-          if (plan.missingKeys.length > 0) {
+          try {
+            await writeStudioLocaleVersion({
+              client,
+              appUrl,
+              auth,
+              projectId: settings.projectId,
+              sourcePath,
+              document,
+              i18nMode: "document",
+              sourceSanityLocale: project.sourceLocale,
+              targetSanityLocale: selectedLocale,
+              sourceDocumentId: listed._id,
+              documentType,
+            });
+            processed += 1;
+            setBulkProgress({ action, current: processed, total });
+          } catch {
             skipped += 1;
-            continue;
           }
-          await createDocumentLevelTranslation({
-            client,
-            sourceDocumentId: listed._id,
-            sourceLocale: project.sourceLocale,
-            targetLocale: selectedLocale,
-            documentType,
-            translatedDocument: plan.document,
-          });
-          processed += 1;
-          setBulkProgress({ action, current: processed, total });
+        }
+        if (action === "translate" && pendingWrites.length > 0) {
+          const deadline = Date.now() + 5 * 60 * 1000;
+          while (Date.now() < deadline) {
+            const { locales } = await fetchSanityLocaleStatusesFromApi({
+              appUrl,
+              auth,
+              projectId: settings.projectId,
+              sanityProjectId,
+              dataset,
+              documentIds: pendingWrites.map((entry) => entry.listed._id),
+            });
+            const stillWaiting = pendingWrites.some((entry) => {
+              const hl = parseLocaleStatusesForDocument(locales, entry.listed._id);
+              const status = lookupLocaleStatus(hl.byLocale, selectedLocale);
+              if (!status) {
+                return true;
+              }
+              return !(
+                isJobReadyToWrite(status) ||
+                status === "failed" ||
+                status === "cancelled"
+              );
+            });
+            if (!stillWaiting) {
+              break;
+            }
+            await new Promise((resolve) => {
+              window.setTimeout(resolve, SANITY_JOB_POLL_INTERVAL_MS);
+            });
+          }
+          for (const entry of pendingWrites) {
+            const sourcePath = buildSanityDocumentSourcePath({
+              sanityProjectId,
+              dataset,
+              documentType: entry.documentType,
+              documentId: entry.listed._id,
+              documentTitle: entry.documentTitle,
+            });
+            try {
+              await writeStudioLocaleVersion({
+                client,
+                appUrl,
+                auth,
+                projectId: settings.projectId,
+                sourcePath,
+                document: entry.document,
+                i18nMode: "document",
+                sourceSanityLocale: project.sourceLocale,
+                targetSanityLocale: selectedLocale,
+                sourceDocumentId: entry.listed._id,
+                documentType: entry.documentType,
+              });
+            } catch {
+              skipped += 1;
+              processed = Math.max(0, processed - 1);
+            }
+          }
         }
         await refreshDocuments();
-        const verb =
-          action === "upload"
-            ? "Imported"
-            : action === "translate"
-              ? "Started translation for"
-              : "Created";
+        const verb = action === "upload" ? "Imported" : "Wrote";
         const skippedNote =
           skipped > 0 ? ` Skipped ${skipped} document${skipped === 1 ? "" : "s"}.` : "";
         setStatus(`${verb} ${processed} document${processed === 1 ? "" : "s"}.${skippedNote}`);
@@ -555,7 +613,7 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
     },
     [
       appUrl,
-      applyEligibleCount,
+      writeEligibleCount,
       auth,
       client,
       config.customBlockTypes,
@@ -619,8 +677,8 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
       ? "Uploading documents"
       : bulkProgress?.action === "translate"
         ? "Starting translations"
-        : bulkProgress?.action === "apply"
-          ? "Creating locale versions"
+        : bulkProgress?.action === "write"
+          ? "Writing locale versions"
           : "Working";
 
   return (
@@ -681,10 +739,13 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
         ) : (
           <Stack gap={3}>
             {documents.map((document) => {
-              const hl = documentHlById[document._id] ?? { source: "missing", byLocale: {} };
+              const hl = documentHlById[document._id] ?? emptyDocumentLocaleStatuses();
               const syncStatus = selectedLocale
                 ? (lookupLocaleStatus(hl.byLocale, selectedLocale) ?? "missing")
                 : hl.source;
+              const syncProgress = selectedLocale
+                ? lookupLocaleProgress(hl.progressByLocale, selectedLocale)
+                : hl.sourceProgress;
               return (
                 <Card key={document._id} padding={3} radius={2}>
                   <Flex align="flex-start" gap={3}>
@@ -707,7 +768,12 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
                           {document._type}
                         </Text>
                       </Stack>
-                      <TranslationProgressBar status={syncStatus} compact />
+                      <TranslationProgressBar
+                        status={syncStatus}
+                        progress={syncProgress}
+                        sourceOnly={!selectedLocale}
+                        compact
+                      />
                       {selectedLocale ? (
                         <Text muted size={0}>
                           {selectedLocale}
@@ -758,10 +824,10 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
             <Box flex={1} style={{ minWidth: 0 }}>
               <Button
                 width="fill"
-                text={createLocaleVersionLabel(localeTags)}
-                disabled={busy !== null || applyEligibleCount === 0}
-                loading={busy === "apply"}
-                onClick={() => void runForSelected("apply")}
+                text={writeLocaleVersionLabel(localeTags)}
+                disabled={busy !== null || writeEligibleCount === 0}
+                loading={busy === "write"}
+                onClick={() => void runForSelected("write")}
               />
             </Box>
           </Flex>

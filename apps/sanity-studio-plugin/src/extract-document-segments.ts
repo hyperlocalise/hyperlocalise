@@ -1,6 +1,7 @@
-import { createSanitySegment } from "./segment-file";
-import type { SanitySegment } from "./plugin-messages";
+import { projectLocalesMatch } from "./locale-map";
 import type { LocalizationMode } from "./localization-mode";
+import type { SanitySegment } from "./plugin-messages";
+import { createSanitySegment } from "./segment-file";
 
 const SKIP_TOP_LEVEL_KEYS = new Set([
   "_id",
@@ -28,13 +29,24 @@ function isPortableTextBlock(
   return value._type === "block" || customBlockTypes.includes(value._type);
 }
 
+function internationalizedEntryLocale(entry: Record<string, FieldValue>): string | null {
+  if (typeof entry.language === "string" && entry.language.trim()) {
+    return entry.language.trim();
+  }
+  if (typeof entry._key === "string" && entry._key.trim()) {
+    return entry._key.trim();
+  }
+  return null;
+}
+
 function isInternationalizedEntry(value: FieldValue): value is Record<string, FieldValue> {
-  return (
-    isRecord(value) &&
-    typeof value._type === "string" &&
-    value._type.startsWith("internationalizedArray") &&
-    "language" in value
-  );
+  if (!isRecord(value) || typeof value._type !== "string") {
+    return false;
+  }
+  if (!value._type.startsWith("internationalizedArray") || !("value" in value)) {
+    return false;
+  }
+  return internationalizedEntryLocale(value) !== null;
 }
 
 function readInternationalizedValue(
@@ -44,9 +56,13 @@ function readInternationalizedValue(
   if (!Array.isArray(fieldValue)) {
     return undefined;
   }
-  const match = fieldValue.find(
-    (entry) => isInternationalizedEntry(entry) && entry.language === locale,
-  );
+  const match = fieldValue.find((entry) => {
+    if (!isInternationalizedEntry(entry)) {
+      return false;
+    }
+    const entryLocale = internationalizedEntryLocale(entry);
+    return entryLocale !== null && projectLocalesMatch(entryLocale, locale);
+  });
   if (!isInternationalizedEntry(match)) {
     return undefined;
   }
