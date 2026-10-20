@@ -236,10 +236,18 @@ async function writeReportingAnalysis(input: {
       console.warn("reporting_match_analysis_unavailable", { jobId: input.jobId });
     }
   }
+  const revisionOf = (sourceText: string) => createHash("sha256").update(sourceText).digest("hex");
+  const recordedEarlier = await revisionsRecordedEarlier({
+    ...input,
+    step,
+    segmentIds: Object.keys(input.sourceEntries),
+    revisions: uniqueTexts.map(revisionOf),
+  });
   const seen = new Set<string>();
   const rows = Object.entries(input.sourceEntries).map(([segmentId, sourceText]) => {
     const normalized = sourceText.normalize("NFC").trim();
-    const repetition = seen.has(normalized);
+    const sourceRevision = revisionOf(sourceText);
+    const repetition = seen.has(normalized) || recordedEarlier.has(sourceRevision);
     seen.add(normalized);
     const score = memoryIds ? (scores.get(sourceText) ?? null) : null;
     return {
@@ -248,7 +256,7 @@ async function writeReportingAnalysis(input: {
       jobId: input.jobId ?? null,
       step,
       segmentId,
-      sourceRevision: createHash("sha256").update(sourceText).digest("hex"),
+      sourceRevision,
       sourceLocale: input.sourceLocale,
       targetLocale: input.targetLocale,
       words: countSourceWords(sourceText, input.sourceLocale),
@@ -297,6 +305,54 @@ async function writeReportingAnalysis(input: {
         });
     }
   });
+}
+
+/**
+ * Source revisions that already have a current analysis under another segment of the same job (or,
+ * outside a job, the same project), language and step. A copy recorded earlier makes this one a
+ * repetition, even when the two were saved and recorded in different runs.
+ */
+async function revisionsRecordedEarlier(input: {
+  organizationId: string;
+  projectId: string;
+  jobId?: string;
+  targetLocale: string;
+  step: "translation" | "review";
+  segmentIds: string[];
+  revisions: string[];
+}): Promise<Set<string>> {
+  const ownSegments = new Set(input.segmentIds);
+  const found = new Set<string>();
+  for (let offset = 0; offset < input.revisions.length; offset += REPORTING_BATCH_SIZE) {
+    const rows = await db
+      .select({
+        segmentId: schema.reportingAnalyses.segmentId,
+        sourceRevision: schema.reportingAnalyses.sourceRevision,
+      })
+      .from(schema.reportingAnalyses)
+      .where(
+        and(
+          eq(schema.reportingAnalyses.organizationId, input.organizationId),
+          input.jobId
+            ? eq(schema.reportingAnalyses.jobId, input.jobId)
+            : and(
+                isNull(schema.reportingAnalyses.jobId),
+                eq(schema.reportingAnalyses.projectId, input.projectId),
+              ),
+          eq(schema.reportingAnalyses.targetLocale, input.targetLocale),
+          eq(schema.reportingAnalyses.step, input.step),
+          eq(schema.reportingAnalyses.isCurrent, true),
+          inArray(
+            schema.reportingAnalyses.sourceRevision,
+            input.revisions.slice(offset, offset + REPORTING_BATCH_SIZE),
+          ),
+        ),
+      );
+    for (const row of rows) {
+      if (!ownSegments.has(row.segmentId)) found.add(row.sourceRevision);
+    }
+  }
+  return found;
 }
 
 export async function captureCompletions(

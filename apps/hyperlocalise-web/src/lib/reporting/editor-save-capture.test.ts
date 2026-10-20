@@ -203,6 +203,31 @@ describe("captureEditorSaves", () => {
     ).toBe(1);
   });
 
+  it("counts a repeated string as a repetition when its copies are recorded in different runs", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    const save = (segmentId: string) =>
+      insertSaveEvent({
+        organizationId: organization.id,
+        projectId: project.id,
+        actorUserId: user.id,
+        segmentId,
+      });
+    await save(keyIds[0]);
+    await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    await save(keyIds[1]);
+    await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+
+    const analyses = await db
+      .select({
+        segmentId: schema.reportingAnalyses.segmentId,
+        bucket: schema.reportingAnalyses.bucket,
+      })
+      .from(schema.reportingAnalyses)
+      .where(eq(schema.reportingAnalyses.organizationId, organization.id));
+    expect(analyses.find((row) => row.segmentId === keyIds[0])?.bucket).not.toBe("repetition");
+    expect(analyses.find((row) => row.segmentId === keyIds[1])?.bucket).toBe("repetition");
+  });
+
   it("records an approval as the review step", async () => {
     const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
     await insertSaveEvent({
