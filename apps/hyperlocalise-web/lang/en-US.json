@@ -319,6 +319,10 @@
     "defaultMessage": "Exit bulk selection",
     "description": "Keyboard shortcuts dialog row for leaving bulk selection mode"
   },
+  "+Xor30vD6J": {
+    "defaultMessage": "Last push failed",
+    "description": "Hint that the previous Sanity push for this document failed"
+  },
   "+YUbta511H": {
     "defaultMessage": "Open chat",
     "description": "Button to open the public web chat for this automation"
@@ -342,6 +346,10 @@
   "+auDy+Mwce": {
     "defaultMessage": "—",
     "description": "Placeholder when a usage feature has no reset date"
+  },
+  "+bTQr9RSSt": {
+    "defaultMessage": "Use only one CMS translation skill on this automation",
+    "description": "Hint on a CMS translation skill that cannot be added because another is already attached"
   },
   "+c45W5hmg7": {
     "defaultMessage": "Strings added:",
@@ -718,6 +726,10 @@
   "/E/r2gr9Yu": {
     "defaultMessage": "Approve",
     "description": "Primary action label in the marketing hero CAT workspace mock"
+  },
+  "/Fi6xT6jqV": {
+    "defaultMessage": "Could not start Sanity authorization.",
+    "description": "Toast when Sanity Pipes authorize URL fails"
   },
   "/FnHAPAn3P": {
     "defaultMessage": "Choose a connection to authorize this Canva app install.",
@@ -1439,6 +1451,10 @@
     "defaultMessage": "Retry remaining actions",
     "description": "Retry failed workflow actions"
   },
+  "0Xwa8SHaHR": {
+    "defaultMessage": "Clear",
+    "description": "Clear the Sanity document selection"
+  },
   "0Y2PNYvVoj": {
     "defaultMessage": "No video yet",
     "description": "Fallback empty state when a CAT video preview has no source URL"
@@ -1518,6 +1534,10 @@
   "0eU/dl/Oha": {
     "defaultMessage": "Save",
     "description": "Save Semrush connection button"
+  },
+  "0eh0U1m44o": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel the Sanity document picker"
   },
   "0h6ygVHD06": {
     "defaultMessage": "GTM brief",
@@ -2495,6 +2515,10 @@
     "defaultMessage": "Phrase",
     "description": "TMS provider brand name for Phrase"
   },
+  "2N6/VNF+/O": {
+    "defaultMessage": "Disconnecting…",
+    "description": "Disconnect in progress"
+  },
   "2NCNOSLgB8": {
     "defaultMessage": "Language mapping",
     "description": "Section for maprules"
@@ -2891,6 +2915,10 @@
     "defaultMessage": "Note",
     "description": "Document editor: callout kind"
   },
+  "37iUcUTgh4": {
+    "defaultMessage": "Choose OAuth or an API token. OAuth is recommended when your Sanity org supports it.",
+    "description": "Helper text for Sanity authentication method selector"
+  },
   "387cF7V3kv": {
     "defaultMessage": "{count} in progress",
     "description": "Badge showing in-progress issue count on the Issue Sheet page"
@@ -2954,6 +2982,10 @@
   "3FORZKT8kA": {
     "defaultMessage": "GitHub",
     "description": "Group label for the GitHub triggers in the trigger menu"
+  },
+  "3Fwkb+iT9m": {
+    "defaultMessage": "Search documents",
+    "description": "Accessible label for the Sanity document search field"
   },
   "3G3Ey6WZkU": {
     "defaultMessage": "Anthropic",
@@ -3170,6 +3202,10 @@
   "3iwjDXakJS": {
     "defaultMessage": "Know what translation is costing before the invoice arrives",
     "description": "Feature teaser early access title for reports"
+  },
+  "3jHsl1C8Cv": {
+    "defaultMessage": "Choose which mapped documents to write as Sanity drafts. This does not publish.",
+    "description": "Description of the Sanity document picker dialog"
   },
   "3ji5Nvlz3D": {
     "defaultMessage": "The website is generally well localised, with some issues to improve.",
@@ -4063,6 +4099,10 @@
     "defaultMessage": "System",
     "description": "System color theme option that follows the OS preference"
   },
+  "5Cmf9xtwtk": {
+    "defaultMessage": "Show API token",
+    "description": "Aria label to reveal Sanity API token field"
+  },
   "5ECVkGCnpd": {
     "defaultMessage": "If",
     "description": "Catalog title for the if/else node"
@@ -4098,6 +4138,10 @@
   "5H2Xr7AzgM": {
     "defaultMessage": "Website preview canvas",
     "description": "Aria label for the visual editor live preview region"
+  },
+  "5HqlbunlrW": {
+    "defaultMessage": "Disconnect",
+    "description": "Disconnect Sanity button"
   },
   "5JQnoYqOu1": {
     "defaultMessage": "Remove Zernio tool",
@@ -4558,6 +4602,10 @@
   "67CBDWHaYl": {
     "defaultMessage": "Only workspace admins can open the billing portal.",
     "description": "Note shown when the user cannot open the billing portal"
+  },
+  "67WAInF3FG": {
+    "defaultMessage": "Could not queue Sanity push",
+    "description": "Toast when queuing an Sanity push automation run fails"
   },
   "68ZSvMDw6F": {
     "defaultMessage": "No change",
@@ -5098,6 +5146,10 @@
   "78OEnC/JOf": {
     "defaultMessage": "Workspace slug",
     "description": "Label for the workspace slug field on account settings"
+  },
+  "78e/wES0A+": {
+    "defaultMessage": "Could not disconnect Sanity.",
+    "description": "Toast when Sanity disconnect fails"
   },
   "78uBrU8JbG": {
     "defaultMessage": "Start with a single seat, then add seats, agent runs, and automations as your content operations grow.",
@@ -5790,6 +5842,10 @@
   "8MkwvIyeaM": {
     "defaultMessage": "the last change",
     "description": "What an undo step did, after 'Undo' or 'Redo', when it changed several things at once"
+  },
+  "8O4l4wC1UK": {
+    "defaultMessage": "Sanity through WorkOS Pipes is not enabled for this environment yet. An admin can enable the Sanity data integration in WorkOS.",
+    "description": "Integration row description when Sanity Pipes is unavailable"
   },
   "8OHSn5eQCa": {
     "defaultMessage": "Forbidden glossary term",
@@ -7415,6 +7471,10 @@
     "defaultMessage": "Translatable",
     "description": "Label for the concept translatable toggle"
   },
+  "BEyFxTibmH": {
+    "defaultMessage": "Sanity API token saved.",
+    "description": "Toast after Sanity API token save succeeds"
+  },
   "BFGbjLDQqh": {
     "defaultMessage": "Events",
     "description": "Label for GitHub events on trigger node"
@@ -7838,6 +7898,10 @@
   "C+9nUAd/Jd": {
     "defaultMessage": "{displayName} saved. Connect your Crowdin account to continue.",
     "description": "Toast after saving Crowdin OAuth app when user OAuth is still required"
+  },
+  "C+kMaPXlg0": {
+    "defaultMessage": "OAuth (recommended)",
+    "description": "Sanity authentication method option for OAuth"
   },
   "C0+hlj1Es4": {
     "defaultMessage": "Could not start this chat. Try again.",
@@ -9735,6 +9799,10 @@
     "defaultMessage": "Automations",
     "description": "Sidebar nav label in marketing app shell mock"
   },
+  "FGNo/uvZ2J": {
+    "defaultMessage": "Could not load documents",
+    "description": "Error when mapped Sanity documents fail to load"
+  },
   "FHXR08HCFK": {
     "defaultMessage": "Record expense",
     "description": "Translation reporting label"
@@ -9750,6 +9818,10 @@
   "FHqHBUJ88J": {
     "defaultMessage": "Jobs failed to load.",
     "description": "Error title when the jobs list request fails"
+  },
+  "FIhOKfaVlC": {
+    "defaultMessage": "Push to Sanity",
+    "description": "Button that opens the dialog to write approved translations to Sanity"
   },
   "FJ2ymqjEF1": {
     "defaultMessage": "Something else",
@@ -10218,6 +10290,10 @@
   "G9IH7mtmIb": {
     "defaultMessage": "Codex",
     "description": "MCP client tab label for Codex"
+  },
+  "G9eQqJWzlH": {
+    "defaultMessage": "Sanity",
+    "description": "Name of the Sanity integration in the hint on a skill that needs it connected"
   },
   "GA/at1eIok": {
     "defaultMessage": "Close",
@@ -10990,6 +11066,10 @@
   "HbZmRDMHs3": {
     "defaultMessage": "Opening workspace…",
     "description": "Loading state while navigating into the job CAT workspace"
+  },
+  "Hbeo2X1h7u": {
+    "defaultMessage": "Push to Sanity",
+    "description": "Title of the Content editor dialog for choosing Sanity documents to push"
   },
   "HbhX7yojwm": {
     "defaultMessage": "the schedule",
@@ -11839,6 +11919,10 @@
     "defaultMessage": "Select a project above to load live glossaries and term bases from your connected provider.",
     "description": "Description prompting the user to select a TMS project for live glossaries"
   },
+  "JBRAW5Gd9X": {
+    "defaultMessage": "Sanity connected with API token",
+    "description": "Heading when Sanity is connected via API token"
+  },
   "JBqUQN0+J0": {
     "defaultMessage": "Switch domain",
     "description": "Menu label for the domain switcher in the breadcrumb"
@@ -12419,6 +12503,10 @@
     "defaultMessage": "Connect Canva to Hyperlocalise",
     "description": "Title for the Canva OAuth consent page"
   },
+  "KQrP3D1Cl+": {
+    "defaultMessage": "Paste a token from sanity.io/manage. It needs Editor access or higher so automations can read content and write drafts.",
+    "description": "Intro when connecting Sanity with an API token"
+  },
   "KREOm0BNYe": {
     "defaultMessage": "Imported",
     "description": "Glossary history imported event filter"
@@ -12671,6 +12759,10 @@
     "defaultMessage": "Could not update watch settings",
     "description": "Toast shown when watch or unwatch fails"
   },
+  "L+YqXrfYaG": {
+    "defaultMessage": "Overwrite Sanity drafts when the remote target is newer.",
+    "description": "Explains the selected automation overwrites newer Sanity drafts on push"
+  },
   "L+aQftO9Id": {
     "defaultMessage": "Re-run a body region with backoff",
     "description": "Retry policy node picker hint"
@@ -12746,6 +12838,10 @@
   "L8xTOJqX0d": {
     "defaultMessage": "Search: {value}",
     "description": "Active jobs filter chip showing the current search query"
+  },
+  "L9/oqyP9pk": {
+    "defaultMessage": "Loading documents",
+    "description": "Shown while mapped Sanity documents load"
   },
   "L9CYRKrj6S": {
     "defaultMessage": "Admin",
@@ -13563,6 +13659,10 @@
     "defaultMessage": "Tone: friendly, direct · CTA: short verb, max 24 characters.",
     "description": "Guideline body in brand chat answer"
   },
+  "MWDDRmwK/N": {
+    "defaultMessage": "Manage API projects visible to this token",
+    "description": "Label above project list"
+  },
   "MWGQAGG98v": {
     "defaultMessage": "Individual strings",
     "description": "Individual string view option"
@@ -13762,6 +13862,10 @@
   "MsnNcIq3o0": {
     "defaultMessage": "Trigger",
     "description": "Label for workflow trigger nodes in the preview canvas"
+  },
+  "MsvsV+2oWf": {
+    "defaultMessage": "Push {count, plural, one {# document} other {# documents}}",
+    "description": "Confirm pushing the selected Sanity documents as drafts"
   },
   "MszSNYsOAF": {
     "defaultMessage": "Compare search demand and content gaps across locales",
@@ -14759,6 +14863,10 @@
     "defaultMessage": "Regenerate image for {language}",
     "description": "Accessible label for the per-language regenerate button in the gallery"
   },
+  "Obrc0xXXmw": {
+    "defaultMessage": "Connected",
+    "description": "Heading when Sanity is connected"
+  },
   "ObwCSlFgt9": {
     "defaultMessage": "Query Semrush SEO and traffic data through your connected API key.",
     "description": "Description for the Semrush automation tool when a connection exists"
@@ -15254,6 +15362,10 @@
   "PYB6jMwARG": {
     "defaultMessage": "#{name} (private)",
     "description": "Slack channel option label for a private channel"
+  },
+  "PYRZ6kqxOc": {
+    "defaultMessage": "Search documents",
+    "description": "Placeholder for filtering mapped Sanity documents"
   },
   "PYVkjgnEZG": {
     "defaultMessage": "Check your inbox for a summary of this report.",
@@ -16471,6 +16583,10 @@
     "defaultMessage": "Validation unavailable",
     "description": "CAT format check label when segment validation service is unavailable"
   },
+  "Rp3MUONO/3": {
+    "defaultMessage": "Saving…",
+    "description": "Save in progress for Sanity API token"
+  },
   "RpaqVDCd+1": {
     "defaultMessage": "Import and export history could not be loaded",
     "description": "Import and export history error title"
@@ -17290,6 +17406,10 @@
   "TOG2/DBCrL": {
     "defaultMessage": "Auto-review settings saved.",
     "description": "Toast after Auto-review settings save successfully"
+  },
+  "TOOyOuwji9": {
+    "defaultMessage": "Sanity drafts queued",
+    "description": "Toast after an Sanity draft push automation run is queued"
   },
   "TOiXUpVFsO": {
     "defaultMessage": "Errors and warnings by project",
@@ -19063,6 +19183,10 @@
     "defaultMessage": "Preview ready",
     "description": "Legacy translation memory import preview status (read-only)"
   },
+  "WaxO5rJ9N1": {
+    "defaultMessage": "Could not save the Sanity API token.",
+    "description": "Toast when Sanity API token save fails"
+  },
   "Wbm7kwzdGk": {
     "defaultMessage": "Open Editor",
     "description": "Button to open the selected project file in the Content Editor"
@@ -20247,6 +20371,10 @@
     "defaultMessage": "Delete concept",
     "description": "Destructive action to delete a glossary concept"
   },
+  "YhWT741eyC": {
+    "defaultMessage": "Sanity",
+    "description": "Tool badge when an automation uses Sanity"
+  },
   "YhXUDTQkrZ": {
     "defaultMessage": "Audio localisation",
     "description": "Iris schema.org feature for audio localisation"
@@ -20654,6 +20782,10 @@
   "ZT0ZLYbp16": {
     "defaultMessage": "Could not retry the audit.",
     "description": "Error shown when retrying a localisation audit fails"
+  },
+  "ZT3mGAyTVi": {
+    "defaultMessage": "Authorize Hyperlocalise to access Sanity on your behalf through WorkOS Pipes.",
+    "description": "Intro when connecting Sanity with OAuth"
   },
   "ZTq/3uWeH1": {
     "defaultMessage": "Provenance",
@@ -21455,6 +21587,10 @@
     "defaultMessage": "Status",
     "description": "Marketing footer resource link label for the status page"
   },
+  "azYeK5p8pM": {
+    "defaultMessage": "Could not load Sanity connection status.",
+    "description": "Integration row description when status query fails"
+  },
   "b+el1VIvgt": {
     "defaultMessage": "Run {count, plural, one {# file} other {# files}}",
     "description": "Button to run the automation for selected source files"
@@ -21967,6 +22103,10 @@
     "defaultMessage": "This entry changed while you were editing. Load the latest version to continue.",
     "description": "Conflict message when a translation memory entry edit is stale"
   },
+  "bq5pHENeIr": {
+    "defaultMessage": "Paste a new token below to rotate credentials without disconnecting.",
+    "description": "Body when Sanity is connected via API token"
+  },
   "bqM/HZdSBC": {
     "defaultMessage": "Save provider",
     "description": "Save button label for non-OAuth TMS providers"
@@ -22230,6 +22370,10 @@
   "cHvtlHrefQ": {
     "defaultMessage": "Source image",
     "description": "Alt text for the CAT source image preview"
+  },
+  "cI9DCPgYRt": {
+    "defaultMessage": "No projects returned for this token.",
+    "description": "Empty state when project list is empty"
   },
   "cIUvYdnnCL": {
     "defaultMessage": "Raise issue",
@@ -22571,6 +22715,10 @@
     "defaultMessage": "Scheduled run",
     "description": "Flow node label"
   },
+  "cwHz/23Qd9": {
+    "defaultMessage": "Open automations",
+    "description": "Link to automations list"
+  },
   "cwqeMFXYQC": {
     "defaultMessage": "Pass",
     "description": "Status badge for a passed localisation audit criterion"
@@ -22718,6 +22866,10 @@
   "d9+py8mf04": {
     "defaultMessage": "Export filtered as XLSX",
     "description": "Glossary action to export the current language filter as XLSX"
+  },
+  "d9nNGb3zA6": {
+    "defaultMessage": "Select all",
+    "description": "Select every mapped Sanity document in the push dialog"
   },
   "dAN96XLBhS": {
     "defaultMessage": "No. Hyperlocalise works alongside your existing TMS. Keep using Phrase, Lokalise, Crowdin or Smartling while Hyperlocalise orchestrates AI agents, review workflows, context discovery and quality checks.",
@@ -22903,6 +23055,10 @@
     "defaultMessage": "Request invite",
     "description": "Overview Slack Connect card primary action"
   },
+  "dSWTPScGc1": {
+    "defaultMessage": "Keep Sanity drafts that teammates edited after the last push. Unchanged approved text is skipped.",
+    "description": "Explains the selected automation keeps newer Sanity drafts and skips unchanged locales"
+  },
   "dStMwhojOw": {
     "defaultMessage": "08:00 UTC",
     "description": "Schedule time pill in the marketing automation editor mock"
@@ -22922,6 +23078,10 @@
   "dTpIQVL71t": {
     "defaultMessage": "breadcrumb",
     "description": "Accessible name for the breadcrumb navigation landmark"
+  },
+  "dU3FCBwd7f": {
+    "defaultMessage": "Token ending in {suffix}",
+    "description": "Shows last four characters of connected token"
   },
   "dU5kt+ggA7": {
     "defaultMessage": "Assignee: {value}",
@@ -23010,6 +23170,10 @@
   "dcbWLpn6f2": {
     "defaultMessage": "Updated date unavailable",
     "description": "Fallback when a project has no usable updated timestamp"
+  },
+  "dci2Dmteni": {
+    "defaultMessage": "Leave blank to keep the current token.",
+    "description": "Hint when rotating an existing Sanity API token"
   },
   "dcomOTuPbB": {
     "defaultMessage": "Updating the workflow…",
@@ -25027,6 +25191,14 @@
     "defaultMessage": "Add sources",
     "description": "Button to return from global guidance to the source upload screen"
   },
+  "gz/zpenPqj": {
+    "defaultMessage": "Hyperlocalise uses your authorized Sanity session for import and draft push.",
+    "description": "Body when Sanity is connected via OAuth"
+  },
+  "gzPrVIj8XL": {
+    "defaultMessage": "Push policy",
+    "description": "Label for the selected automation Sanity push overwrite rule"
+  },
   "gzw597zx6d": {
     "defaultMessage": "Updated",
     "description": "Project card metadata label for last updated time"
@@ -26835,6 +27007,10 @@
     "defaultMessage": "URL",
     "description": "HTTP node URL field label"
   },
+  "k68En99ftY": {
+    "defaultMessage": "Sanity authorized with OAuth",
+    "description": "Heading when Sanity is connected via OAuth"
+  },
   "k6wO1BhuBw": {
     "defaultMessage": "Source video unavailable",
     "description": "Empty state when the CAT source video cannot be shown"
@@ -26938,6 +27114,10 @@
   "kG2XpVKA8Z": {
     "defaultMessage": "Scope, context, route",
     "description": "Automation product visual agent panel subtitle"
+  },
+  "kGCOhOWZ0P": {
+    "defaultMessage": "{ready} of {total} locales ready",
+    "description": "How many mapped locales are ready to push for one document"
   },
   "kGM2czQvBa": {
     "defaultMessage": "Approved",
@@ -27999,6 +28179,10 @@
     "defaultMessage": "What it helps with",
     "description": "Column label for what a pricing model is used for"
   },
+  "mDQhaViqkQ": {
+    "defaultMessage": "Automations with the Translate Sanity documents skill use this connection to read and write drafts.",
+    "description": "Body copy for connected Sanity panel"
+  },
   "mDY8Zlbd4D": {
     "defaultMessage": "cancelled a job",
     "description": "Action for job cancellation"
@@ -28706,6 +28890,10 @@
   "nOCS+qmeJF": {
     "defaultMessage": "Member",
     "description": "Organization membership role label for members"
+  },
+  "nODFNuVkFL": {
+    "defaultMessage": "Create the token in Sanity Manage under API → Tokens.",
+    "description": "Hint for new Sanity API token"
   },
   "nOnn7HtqN6": {
     "defaultMessage": "Clear filters",
@@ -30047,6 +30235,10 @@
     "defaultMessage": "Add selected markets",
     "description": "Submit button label"
   },
+  "pcA83SydbQ": {
+    "defaultMessage": "No mapped documents",
+    "description": "Empty state when an Sanity automation has no mapped documents"
+  },
   "pcjLSSIwsF": {
     "defaultMessage": "Select microphone...",
     "description": "Placeholder shown when no microphone is selected"
@@ -30162,6 +30354,10 @@
   "plpqSFRajq": {
     "defaultMessage": "Save project assignment",
     "description": "Button to save a domain project assignment"
+  },
+  "pm1TRAF3RM": {
+    "defaultMessage": "Redirecting…",
+    "description": "Button label while Sanity OAuth URL loads"
   },
   "pmPB2F7F47": {
     "defaultMessage": "Acme · Queries",
@@ -30626,6 +30822,10 @@
   "qUpTrGtrVw": {
     "defaultMessage": "SEO",
     "description": "Domains mock UI audit dimension label"
+  },
+  "qVCnKrNijs": {
+    "defaultMessage": "API token",
+    "description": "Label for Sanity API token input"
   },
   "qVSZOnYTAy": {
     "defaultMessage": "Meet Hyperlocalise",
@@ -31251,6 +31451,10 @@
     "defaultMessage": "Recently opened",
     "description": "Heading above the recently opened projects strip"
   },
+  "ra9Bi4NXJ2": {
+    "defaultMessage": "Save token",
+    "description": "Save Sanity API token button"
+  },
   "raG3uRf8nJ": {
     "defaultMessage": "Active",
     "description": "Active status badge"
@@ -31374,6 +31578,10 @@
   "rqH4qSNbvK": {
     "defaultMessage": "Connected as {accountLogin}. {repoSummary}",
     "description": "GitHub integration description when connected with a known account login"
+  },
+  "rqU5fqNTYZ": {
+    "defaultMessage": "Authorize with Sanity",
+    "description": "Button to start Sanity OAuth via WorkOS Pipes"
   },
   "rqW//zBYSL": {
     "defaultMessage": "String changes hide in large pull requests without clear localisation impact.",
@@ -31550,6 +31758,10 @@
   "s6NLAIiQ6o": {
     "defaultMessage": "Dictionary Deleted",
     "description": "Activity log event type label for dictionary deletion"
+  },
+  "s7/k1C/6Q6": {
+    "defaultMessage": "API token",
+    "description": "Sanity authentication method option for API token"
   },
   "s7935wKE28": {
     "defaultMessage": "Remove Semrush tool",
@@ -31991,6 +32203,10 @@
     "defaultMessage": "Notify Slack",
     "description": "Catalog title for the notify Slack action node"
   },
+  "t2J9JYDAdD": {
+    "defaultMessage": "Automation",
+    "description": "Label for choosing which Sanity automation to push with"
+  },
   "t2Wtf62nXs": {
     "defaultMessage": "Continue to project",
     "description": "Continue button label"
@@ -32155,6 +32371,10 @@
     "defaultMessage": "Sign in again to manage billing.",
     "description": "Error when the billing session is unauthorized"
   },
+  "tJ8Lpden5r": {
+    "defaultMessage": "Hide API token",
+    "description": "Aria label to hide Sanity API token field"
+  },
   "tJedwqsl7m": {
     "defaultMessage": "A/B test",
     "description": "Experiment type option for an A/B test"
@@ -32274,10 +32494,6 @@
   "tYBVGxIBlg": {
     "defaultMessage": "Syntax",
     "description": "Label for the placeholder syntax select"
-  },
-  "tYMhJaDhDu": {
-    "defaultMessage": "Use Email Templates or Campaigns & Canvas, not both",
-    "description": "Hint on a Braze skill that cannot be added because the other Braze skill is already attached"
   },
   "tYvhpR2krg": {
     "defaultMessage": "Coming soon",
@@ -33011,6 +33227,10 @@
     "defaultMessage": "Fix",
     "description": "Button to apply the suggested QA replacement"
   },
+  "uvMAUaKYI0": {
+    "defaultMessage": "Sanity disconnected.",
+    "description": "Toast after Sanity disconnect succeeds"
+  },
   "uvpc5HKX9c": {
     "defaultMessage": "Generate AI suggestion",
     "description": "Compact action to request an AI translation suggestion in side-by-side review"
@@ -33018,6 +33238,10 @@
   "uwkiRYaBX+": {
     "defaultMessage": "Apply voice, glossary, and legal guardrails",
     "description": "Workflow step 2 description for the marketing-localisation use case"
+  },
+  "uxSSj1bXpa": {
+    "defaultMessage": "No matching documents",
+    "description": "Empty state when document search matches nothing"
   },
   "uxTXRcu5Em": {
     "defaultMessage": "All Growth features, plus:",
@@ -34034,6 +34258,10 @@
   "wdhrNg8UHz": {
     "defaultMessage": "Open job",
     "description": "CTA for a failed or active job on project overview"
+  },
+  "wdsH3flxH3": {
+    "defaultMessage": "Authentication method",
+    "description": "Label for Sanity OAuth vs API token selector"
   },
   "we+P5cHH+C": {
     "defaultMessage": "Use test data everywhere",
