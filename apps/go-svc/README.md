@@ -692,6 +692,61 @@ sync role and removal through WorkOS organization memberships. Successful
 mutations write `member_invited`, `member_invite_resent`, `member_role_changed`,
 and `member_removed` events to `organization_activity_events`.
 
+## Workspace settings
+
+Organization-scoped workspace endpoints:
+
+| Method | Path | Authorization | Response |
+|--------|------|---------------|----------|
+| GET | `/workspace` | Active member | `200 {"workspace": {...}}` |
+| PATCH | `/workspace` | `workspace:update` (admin, localization_manager) | `200 {"workspace": {...}, "redirectTo": "..."}` |
+| DELETE | `/workspace` | `workspace:update` | `204`, empty body |
+
+The workspace response includes `id`, `workosOrganizationId`, `name`, `slug`, `lifecycleStatus`, `archivedAt`, and `identityProvider`. Slug and archive timestamp are nullable.
+
+### Validation and errors
+
+PATCH accepts optional `name` and `slug` fields, with at least one required. Validation enforces length, slug format, reserved words, and profanity restrictions using an embedded English dictionary.
+
+- `400 invalid_workspace_payload`: Invalid workspace settings.
+- `403 forbidden`: Insufficient permissions.
+- `409 workspace_slug_conflict`: Slug already exists, including concurrent conflicts.
+- `413 payload_too_large`: Request exceeds 1 MiB.
+- `500 workspace_identity_unavailable`: WorkOS name synchronization fails.
+
+Malformed or empty JSON currently returns `500 internal_error`.
+
+The profanity dictionary is embedded at build time. Regenerate it with:
+
+`node scripts/generate-workspace-profanity-list.mjs`
+
+Shared fixtures verify validation consistency across implementations.
+
+### Updates and lifecycle
+
+PATCH updates the workspace within a PostgreSQL transaction, holding a row lock during WorkOS name synchronization (20s timeout). Failed synchronization rolls back database changes.
+
+WorkOS and PostgreSQL are not atomically committed. If the database commit fails after WorkOS succeeds, the failure is logged for investigation. Subsequent successful name updates resynchronize WorkOS.
+
+DELETE soft-archives the workspace without deleting its data.
+
+Successful changes publish `workspace_updated` or `workspace_archived` activity events after commit. Publishing is best-effort and does not affect the API response.
+
+### Session handling
+
+PATCH returns `redirectTo` after a slug change. The Go API does not update browser cookies; active-organization cookie and session synchronization belong to the web application.
+
+### Integration tests
+
+PostgreSQL integration tests require explicit configuration:
+
+```bash
+GO_SVC_INTEGRATION=1 \
+DATABASE_URL=postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise \
+VALKEY_URL=redis://localhost:6379 \
+go test ./apps/go-svc -run 'TestWorkspaceSettings|TestWorkspaceIdentity' -v
+```
+
 ## Personal API keys
 
 Go serves user-owned personal access tokens at

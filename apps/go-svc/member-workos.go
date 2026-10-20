@@ -128,6 +128,12 @@ func (c *liveMemberWorkos) DeleteOrganizationMembership(ctx context.Context, mem
 	return c.doJSON(ctx, http.MethodDelete, "/user_management/organization_memberships/"+url.PathEscape(membershipID), nil, nil)
 }
 
+func (c *liveMemberWorkos) UpdateOrganizationName(ctx context.Context, workosOrganizationID, name string) error {
+	return c.doJSON(ctx, http.MethodPut, "/organizations/"+url.PathEscape(workosOrganizationID), map[string]string{
+		"name": name,
+	}, nil)
+}
+
 func (c *liveMemberWorkos) doJSON(ctx context.Context, method, path string, payload any, out any) error {
 	if c == nil || c.apiKey == "" {
 		return memberFailure(503, "workos_server_not_configured", "WorkOS server integration is not configured")
