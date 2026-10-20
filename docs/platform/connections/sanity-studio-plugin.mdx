@@ -1,9 +1,9 @@
 ---
 title: "Localize Sanity Studio documents"
-description: "Connect Hyperlocalise from the Sanity Studio document inspector, upload the open document, translate, and apply approved locales."
+description: "Connect Hyperlocalise from the Sanity Studio editor view or bulk tool, upload documents, translate, and apply approved locales."
 ---
 
-Sanity does not translate. Hyperlocalise jobs do. Create a **Sanity Studio plugin** workspace connection, install `sanity-plugin-hyperlocalise`, then use the **Hyperlocalise** document inspector to pick a [native project](/platform/projects/create-project), upload text from the **current document**, run translation jobs, and apply completed locales back into Studio.
+Sanity does not translate. Hyperlocalise jobs do. Create a **Sanity Studio plugin** workspace connection, install `sanity-plugin-hyperlocalise`, then use the **Hyperlocalise** editor view or bulk tool to pick a [native project](/platform/projects/create-project), upload text, run translation jobs, and apply completed locales back into Studio.
 
 Jobs use the project's source locale and target locales. `en` is not `en-US`. `zh-CN` is not `zh-TW`.
 
@@ -15,8 +15,8 @@ For batch import and **Push to Sanity** from the Content editor, use [Localize S
 | --- | --- |
 | Native project | A [native project](/platform/projects/create-project) with a source locale and the target locales you will apply. |
 | Personal access token | A [personal access token](/platform/settings#personal-access-tokens) with `files:read`, `files:write`, `jobs:read`, and `jobs:write`. Attach this token when you create the Studio plugin connection. |
-| `sanity-plugin-hyperlocalise` | The plugin added to your Studio `sanity.config` (npm package or linked build). |
-| i18n setup | Document-level (`language` field) or field-level (`internationalizedArray*` fields), configured in the plugin options. |
+| `sanity-plugin-hyperlocalise` | The plugin added to your Studio `sanity.config` (npm package or linked build). Sanity Studio v3 or later. |
+| i18n setup | Document-level (`language` field) or field-level (`internationalizedArray*` fields), listed in plugin options. |
 
 ## Connect the workspace
 
@@ -33,34 +33,62 @@ Create at least one enabled Studio plugin connection before OAuth consent can li
 
 ```ts
 import {defineConfig} from 'sanity'
-import {hyperlocalise} from 'sanity-plugin-hyperlocalise'
+import {structureTool} from 'sanity/structure'
+import {hyperlocalisePlugin, hyperlocaliseTool} from 'sanity-plugin-hyperlocalise'
+
+const languages = [
+  {id: 'en-US', title: 'English (US)'},
+  {id: 'fr-FR', title: 'French (France)'},
+]
+const documentLevelTypes = ['post']
+const fieldLevelTypes = ['product']
 
 export default defineConfig({
   plugins: [
-    hyperlocalise({
-      documentTypes: ['post'],
-      fieldTypes: ['product'],
+    structureTool({
+      defaultDocumentNode: (S, {schemaType}) => {
+        if ([...documentLevelTypes, ...fieldLevelTypes].includes(schemaType)) {
+          return S.document().views([
+            S.view.form(),
+            hyperlocalisePlugin(S, {
+              supportedLanguages: languages,
+              documentLocalizationSchemaTypes: documentLevelTypes,
+              fieldLocalizationSchemaTypes: fieldLevelTypes,
+            }),
+          ])
+        }
+        return S.document()
+      },
+    }),
+  ],
+  tools: [
+    hyperlocaliseTool({
+      supportedLanguages: languages,
+      schemaTypes: documentLevelTypes,
     }),
   ],
 })
 ```
 
-- **`documentTypes`**: document-level i18n (separate documents per locale, linked with `translation.metadata`).
-- **`fieldTypes`**: field-level i18n (internationalized array fields on one document).
+- **`documentLocalizationSchemaTypes`**: document-level i18n (separate documents per locale, linked with `translation.metadata`).
+- **`fieldLocalizationSchemaTypes`**: field-level i18n (internationalized array fields on one document).
+- **`hyperlocaliseTool`**: bulk upload, translate, and apply for document-level types only.
 
-If a type is not listed, the inspector shows that the document type is unsupported until you add it to one of these arrays.
+A schema type cannot be listed in both arrays.
 
 ## Connect from Studio
 
 1. Open a document in Sanity Studio.
-2. Open the **Hyperlocalise** document inspector.
+2. Open the **Hyperlocalise** editor tab.
 3. Choose **Connect Hyperlocalise** and complete OAuth in the browser.
 4. On the consent screen, confirm the **Studio** origin and pick the workspace connection.
-5. Select the native project in the inspector.
+5. Select the native project.
+
+The **Hyperlocalise** top-level tool uses the same OAuth session.
 
 ## Upload source text
 
-**Upload** writes source JSON for the **open document only**. It does not start a translation job.
+**Upload** writes source JSON for the **open document** (or selected documents in the bulk tool). It does not start a translation job.
 
 1. Confirm the document shows the **project source locale** (field-level) or is the source-language document (document-level).
 2. Choose **Upload**.
@@ -69,17 +97,17 @@ Each document is stored at `sanity/{sanityProjectId}/{dataset}/{documentType}/â€
 
 ## Translate
 
-**Translate** starts an agent job for the locale selected under **Translate to**.
+**Translate** starts an agent job for the locale (or locales, in bulk) selected under **Translate to**.
 
 - If the document is not uploaded yet, Translate collects it first when you have not uploaded separately.
 - Review or approve strings in the [Content Editor](/platform/cat) when jobs require it.
 
 ## Apply to Studio
 
-**Apply** writes Hyperlocalise-approved translations for **one** target locale.
+**Apply** writes Hyperlocalise-approved translations.
 
-1. Under **Translate to**, pick the target locale.
-2. Choose **Apply** when the document is collected and approved translations exist for that locale.
+1. Pick the target locale (one locale in the document view; one or more in the bulk tool).
+2. Choose **Apply** when approved translations exist for that locale.
 
 Behavior depends on i18n mode:
 
@@ -92,7 +120,7 @@ Apply does not publish in Sanity. Publish from Studio after you review drafts.
 
 - Register your Studio origin in Hyperlocalise `SANITY_CORS_ORIGINS` when it is not covered by defaults (`http://localhost:3333`, hosted `*.sanity.studio`).
 - Local Hyperlocalise (`http://localhost:3000`) uses the same PKCE handoff flow as production.
-- Package developers can use `link-watch` in `apps/sanity-studio-plugin` and link the package into an external Studio project.
+- Package developers can run `pnpm dev` in `apps/sanity-studio-plugin` (in-repo Studio on port 3333), or use `link-watch` plus yalc to test in an external Studio.
 
 See [Sanity Studio plugin OAuth](/contributing/sanity-studio-plugin-oauth) for authorization URLs and environment variables.
 

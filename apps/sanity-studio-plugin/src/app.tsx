@@ -1,15 +1,11 @@
-import {Box, Button, Card, Flex, Select, Stack, Text} from '@sanity/ui'
-import {useCallback, useEffect, useMemo, useState} from 'react'
-import {useClient, useDataset, useFormValue, useProjectId, useSchema} from 'sanity'
+import { Box, Button, Card, Flex, Select, Stack, Text } from "@sanity/ui";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useClient, useDataset, useProjectId, useSchema } from "sanity";
 
-import {
-  createDocumentLevelTranslation,
-  patchCurrentDocumentDraft,
-} from './apply-studio-document'
-import {
-  extractDocumentSegments,
-  readDocumentTitle,
-} from './extract-document-segments'
+import { createDocumentLevelTranslation, patchCurrentDocumentDraft } from "./apply-studio-document";
+import { ConnectScreen, ProjectScreen } from "./connect-screens";
+import type { HyperlocalisePluginConfig } from "./config";
+import { extractDocumentSegments, readDocumentTitle } from "./extract-document-segments";
 import {
   collectSanityDocument,
   createSanityJob,
@@ -22,160 +18,151 @@ import {
   SANITY_JOB_POLL_INTERVAL_MS,
   type SanityDocumentJob,
   type SanitySessionProject,
-} from './hyperlocalise-client'
-import {defaultSelectedLocale, localeLabel, translateToOptionsForProject} from './locale-label'
-import {projectLocalesMatch} from './locale-map'
-import {resolveLocalizationMode, type LocalizationMode} from './localization-mode'
-import type {HyperlocalisePluginOptions} from './plugin-options'
-import {fetchSanityIntegrationHealth, runSanityOAuthHandoff} from './sanity-oauth'
-import {buildSanityDocumentSourcePath} from './source-path'
-import {loadSettings, saveSettings, type PluginSettings} from './settings'
+} from "./hyperlocalise-client";
+import { defaultSelectedLocale, localeLabel, translateToOptionsForProject } from "./locale-label";
+import { projectLocalesMatch } from "./locale-map";
+import { resolveLocalizationMode, type LocalizationMode } from "./localization-mode";
+import { fetchSanityIntegrationHealth, runSanityOAuthHandoff } from "./sanity-oauth";
+import { collectExcludedFieldNames, schemaI18nHints } from "./schema-hints";
+import { buildSanityDocumentSourcePath } from "./source-path";
+import { loadSettings, saveSettings, type PluginSettings } from "./settings";
 
-type Screen = 'connect' | 'project' | 'workflow'
-type BusyAction = 'connect' | 'upload' | 'translate' | 'apply' | null
+type Screen = "connect" | "project" | "workflow";
+type BusyAction = "connect" | "upload" | "translate" | "apply" | null;
 
 function publishedDocumentId(documentId: string): string {
-  return documentId.replace(/^drafts\./, '')
+  return documentId.replace(/^drafts\./, "");
 }
 
-function i18nApiMode(mode: LocalizationMode): 'document' | 'field' | null {
-  if (mode === 'document-level') {
-    return 'document'
+function i18nApiMode(mode: LocalizationMode): "document" | "field" | null {
+  if (mode === "document-level") {
+    return "document";
   }
-  if (mode === 'field-level') {
-    return 'field'
+  if (mode === "field-level") {
+    return "field";
   }
-  return null
-}
-
-function schemaI18nHints(documentType: string, schema: ReturnType<typeof useSchema>) {
-  const type = schema.get(documentType)
-  const fields = type && 'fields' in type && Array.isArray(type.fields) ? type.fields : []
-  const hasLanguageField = fields.some((field) => field.name === 'language')
-  const hasInternationalizedArrayField = fields.some((field) => {
-    const fieldType = field.type
-    if (!fieldType || typeof fieldType !== 'object') {
-      return false
-    }
-    const name = 'name' in fieldType ? String(fieldType.name) : ''
-    return name.startsWith('internationalizedArray')
-  })
-  return {hasLanguageField, hasInternationalizedArrayField}
+  return null;
 }
 
 function isInFlightJobStatus(status: string): boolean {
-  return status === 'queued' || status === 'running' || status === 'processing'
+  return status === "queued" || status === "running" || status === "processing";
 }
 
-export function HyperlocaliseTool({
+export function HyperlocaliseDocumentWorkflow({
   pluginOptions,
   documentId,
   documentType,
+  document,
 }: {
-  pluginOptions: HyperlocalisePluginOptions
-  documentId: string
-  documentType: string
+  pluginOptions: HyperlocalisePluginConfig;
+  documentId: string;
+  documentType: string;
+  document: Record<string, unknown>;
 }) {
-  const sanityProjectId = useProjectId() ?? ''
-  const dataset = useDataset() ?? 'production'
-  const schema = useSchema()
-  const client = useClient({apiVersion: '2024-01-01'})
-  const rawDocument = useFormValue([]) as Record<string, unknown> | undefined
+  const sanityProjectId = useProjectId() ?? "";
+  const dataset = useDataset() ?? "production";
+  const schema = useSchema();
+  const client = useClient({ apiVersion: "2024-01-01" });
 
-  const settingsScope = `${sanityProjectId}:${dataset}`
-  const [screen, setScreen] = useState<Screen>('connect')
-  const [loadedScope, setLoadedScope] = useState(settingsScope)
+  const settingsScope = `${sanityProjectId}:${dataset}`;
+  const [screen, setScreen] = useState<Screen>("connect");
+  const [loadedScope, setLoadedScope] = useState(settingsScope);
   const [settings, setSettings] = useState<PluginSettings>(() =>
     loadSettings(sanityProjectId, dataset),
-  )
-  const [busy, setBusy] = useState<BusyAction>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [status, setStatus] = useState<string | null>(null)
-  const [sessionProjects, setSessionProjects] = useState<SanitySessionProject[]>([])
-  const [sessionOrg, setSessionOrg] = useState<{name: string} | null>(null)
-  const [selectedLocale, setSelectedLocale] = useState('')
-  const [sourcePath, setSourcePath] = useState<string | null>(null)
-  const [pageJob, setPageJob] = useState<SanityDocumentJob | null>(null)
-  const [collected, setCollected] = useState(false)
+  );
+  const [busy, setBusy] = useState<BusyAction>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [sessionProjects, setSessionProjects] = useState<SanitySessionProject[]>([]);
+  const [sessionOrg, setSessionOrg] = useState<{ name: string } | null>(null);
+  const [selectedLocale, setSelectedLocale] = useState("");
+  const [sourcePath, setSourcePath] = useState<string | null>(null);
+  const [pageJob, setPageJob] = useState<SanityDocumentJob | null>(null);
+  const [collected, setCollected] = useState(false);
 
-  const publishedId = publishedDocumentId(documentId)
-  const appUrl = settings.appUrl
-  const auth = useMemo(() => resourceAuthFromSettings(settings), [settings])
+  const publishedId = publishedDocumentId(documentId);
+  const appUrl = settings.appUrl;
+  const auth = useMemo(() => resourceAuthFromSettings(settings), [settings]);
   const project = useMemo(
     () => sessionProjects.find((entry) => entry.id === settings.projectId) ?? null,
     [sessionProjects, settings.projectId],
-  )
+  );
 
-  const {hasLanguageField, hasInternationalizedArrayField} = schemaI18nHints(documentType, schema)
+  const { hasLanguageField, hasInternationalizedArrayField } = schemaI18nHints(
+    documentType,
+    schema,
+  );
+  const excludeFieldNames = collectExcludedFieldNames(documentType, schema);
   const localizationMode = resolveLocalizationMode({
     documentType,
     options: pluginOptions,
     hasLanguageField,
     hasInternationalizedArrayField,
-  })
-  const apiI18nMode = i18nApiMode(localizationMode)
+  });
+  const apiI18nMode = i18nApiMode(localizationMode);
 
   if (loadedScope !== settingsScope) {
-    setLoadedScope(settingsScope)
-    setSettings(loadSettings(sanityProjectId, dataset))
+    setLoadedScope(settingsScope);
+    setSettings(loadSettings(sanityProjectId, dataset));
   }
-  if (!auth && screen !== 'connect') {
-    setScreen('connect')
+  if (!auth && screen !== "connect") {
+    setScreen("connect");
   }
 
   useEffect(() => {
     if (!auth) {
-      return
+      return;
     }
     void (async () => {
       try {
-        const session = await fetchSanitySession({appUrl, auth})
-        setSessionProjects(session.projects)
-        setSessionOrg(session.organization)
+        const session = await fetchSanitySession({ appUrl, auth });
+        setSessionProjects(session.projects);
+        setSessionOrg(session.organization);
         setSelectedLocale((current) =>
           defaultSelectedLocale(
             session.projects.find((entry) => entry.id === settings.projectId) ?? null,
             current,
+            pluginOptions.supportedLanguages,
           ),
-        )
-        setScreen(settings.projectId ? 'workflow' : 'project')
+        );
+        setScreen(settings.projectId ? "workflow" : "project");
       } catch {
-        setScreen('connect')
+        setScreen("connect");
       }
-    })()
-  }, [auth, appUrl, settings.projectId])
+    })();
+  }, [auth, appUrl, pluginOptions.supportedLanguages, settings.projectId]);
 
   useEffect(() => {
     if (!auth || !settings.projectId || !apiI18nMode) {
-      return
+      return;
     }
     void (async () => {
       try {
-        const {locales} = await fetchSanityLocaleStatusesFromApi({
+        const { locales } = await fetchSanityLocaleStatusesFromApi({
           appUrl,
           auth,
           projectId: settings.projectId!,
           sanityProjectId,
           dataset,
           documentIds: [publishedId],
-        })
+        });
         const docStatus = locales
           .flatMap((locale) => locale.documents)
-          .find((entry) => entry.documentId === publishedId)
-        setCollected(docStatus?.status === 'succeeded' || docStatus?.status === 'collected')
+          .find((entry) => entry.documentId === publishedId);
+        setCollected(docStatus?.status === "succeeded" || docStatus?.status === "collected");
       } catch {
-        setCollected(false)
+        setCollected(false);
       }
-    })()
-  }, [apiI18nMode, appUrl, auth, dataset, publishedId, sanityProjectId, settings.projectId])
+    })();
+  }, [apiI18nMode, appUrl, auth, dataset, publishedId, sanityProjectId, settings.projectId]);
 
   useEffect(() => {
     if (!auth || !settings.projectId || !apiI18nMode) {
-      return
+      return;
     }
     void (async () => {
       try {
-        const {job} = await fetchCurrentSanityJob({
+        const { job } = await fetchCurrentSanityJob({
           appUrl,
           auth,
           projectId: settings.projectId!,
@@ -183,69 +170,78 @@ export function HyperlocaliseTool({
           dataset,
           documentId: publishedId,
           documentType,
-        })
-        setPageJob(job)
+        });
+        setPageJob(job);
         if (job?.sourcePath) {
-          setSourcePath(job.sourcePath)
+          setSourcePath(job.sourcePath);
         }
       } catch {
-        setPageJob(null)
+        setPageJob(null);
       }
-    })()
-  }, [apiI18nMode, appUrl, auth, dataset, documentType, publishedId, sanityProjectId, settings.projectId])
+    })();
+  }, [
+    apiI18nMode,
+    appUrl,
+    auth,
+    dataset,
+    documentType,
+    publishedId,
+    sanityProjectId,
+    settings.projectId,
+  ]);
 
   useEffect(() => {
     if (!auth || !pageJob || !isInFlightJobStatus(pageJob.status)) {
-      return
+      return;
     }
     const timer = window.setInterval(() => {
-      void getSanityJob({appUrl, auth, jobId: pageJob.jobId})
+      void getSanityJob({ appUrl, auth, jobId: pageJob.jobId })
         .then((job) => {
-          setPageJob(job)
+          setPageJob(job);
           if (job.sourcePath) {
-            setSourcePath(job.sourcePath)
+            setSourcePath(job.sourcePath);
           }
-          if (job.status === 'completed') {
-            setStatus('Translation finished. You can apply when ready.')
+          if (job.status === "completed") {
+            setStatus("Translation finished. You can apply when ready.");
           }
         })
-        .catch(() => undefined)
-    }, SANITY_JOB_POLL_INTERVAL_MS)
-    return () => window.clearInterval(timer)
-  }, [appUrl, auth, pageJob])
+        .catch(() => undefined);
+    }, SANITY_JOB_POLL_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [appUrl, auth, pageJob]);
 
   const connect = useCallback(async () => {
-    setBusy('connect')
-    setError(null)
+    setBusy("connect");
+    setError(null);
     try {
-      const health = await fetchSanityIntegrationHealth(appUrl)
+      const health = await fetchSanityIntegrationHealth(appUrl);
       if (!health.sanityOauthConfigured || !health.sanityOauthClientId) {
-        throw new Error('Hyperlocalise OAuth is not configured for this app URL.')
+        throw new Error("Hyperlocalise OAuth is not configured for this app URL.");
       }
       const tokens = await runSanityOAuthHandoff({
         appUrl,
         clientId: health.sanityOauthClientId,
-      })
+      });
       const next = saveSettings(sanityProjectId, dataset, {
         ...settings,
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
-      })
-      setSettings(next)
-      setScreen('project')
+      });
+      setSettings(next);
+      setScreen("project");
     } catch (connectError) {
-      setError(connectError instanceof Error ? connectError.message : 'Connect failed.')
+      setError(connectError instanceof Error ? connectError.message : "Connect failed.");
     } finally {
-      setBusy(null)
+      setBusy(null);
     }
-  }, [appUrl, dataset, sanityProjectId, settings])
+  }, [appUrl, dataset, sanityProjectId, settings]);
 
-  const documentPayload = rawDocument ?? {}
-  const documentTitle = readDocumentTitle(documentPayload)
+  const documentPayload = document;
+  const documentTitle = readDocumentTitle(documentPayload);
 
   const buildSegments = useCallback(() => {
     if (!project || !apiI18nMode) {
-      return []
+      return [];
     }
     return extractDocumentSegments({
       document: documentPayload,
@@ -253,19 +249,23 @@ export function HyperlocaliseTool({
       documentType,
       i18nMode: localizationMode,
       sourceLocale: project.sourceLocale,
-    })
+      customBlockTypes: pluginOptions.customBlockTypes,
+      excludeFieldNames,
+    });
   }, [
     apiI18nMode,
     documentPayload,
     documentType,
+    excludeFieldNames,
     localizationMode,
+    pluginOptions.customBlockTypes,
     project,
     publishedId,
-  ])
+  ]);
 
   const resolvedSourcePath = useMemo(() => {
     if (sourcePath) {
-      return sourcePath
+      return sourcePath;
     }
     try {
       return buildSanityDocumentSourcePath({
@@ -274,24 +274,24 @@ export function HyperlocaliseTool({
         documentType,
         documentId: publishedId,
         documentTitle,
-      })
+      });
     } catch {
-      return null
+      return null;
     }
-  }, [dataset, documentTitle, documentType, publishedId, sanityProjectId, sourcePath])
+  }, [dataset, documentTitle, documentType, publishedId, sanityProjectId, sourcePath]);
 
   const upload = useCallback(async () => {
     if (!auth || !settings.projectId || !project || !apiI18nMode) {
-      return
+      return;
     }
-    const segments = buildSegments()
+    const segments = buildSegments();
     if (segments.length === 0) {
-      setError('No translatable text found on this document.')
-      return
+      setError("No translatable text found on this document.");
+      return;
     }
-    setBusy('upload')
-    setError(null)
-    setStatus(null)
+    setBusy("upload");
+    setError(null);
+    setStatus(null);
     try {
       const result = await collectSanityDocument({
         appUrl,
@@ -303,14 +303,14 @@ export function HyperlocaliseTool({
         documentType,
         documentTitle,
         segments,
-      })
-      setSourcePath(result.sourcePath)
-      setCollected(true)
-      setStatus(`Uploaded ${result.segmentCount} segments.`)
+      });
+      setSourcePath(result.sourcePath);
+      setCollected(true);
+      setStatus(`Uploaded ${result.segmentCount} segments.`);
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'Upload failed.')
+      setError(uploadError instanceof Error ? uploadError.message : "Upload failed.");
     } finally {
-      setBusy(null)
+      setBusy(null);
     }
   }, [
     apiI18nMode,
@@ -324,21 +324,21 @@ export function HyperlocaliseTool({
     publishedId,
     sanityProjectId,
     settings.projectId,
-  ])
+  ]);
 
   const translate = useCallback(async () => {
     if (!auth || !settings.projectId || !project || !apiI18nMode || !selectedLocale) {
-      return
+      return;
     }
     if (projectLocalesMatch(selectedLocale, project.sourceLocale)) {
-      setError('Pick a target locale to translate into.')
-      return
+      setError("Pick a target locale to translate into.");
+      return;
     }
-    setBusy('translate')
-    setError(null)
-    setStatus(null)
+    setBusy("translate");
+    setError(null);
+    setStatus(null);
     try {
-      const segments = collected ? undefined : buildSegments()
+      const segments = collected ? undefined : buildSegments();
       const job = await createSanityJob({
         appUrl,
         auth,
@@ -352,22 +352,22 @@ export function HyperlocaliseTool({
         targetLocales: [selectedLocale],
         segments,
         generate: true,
-      })
-      setSourcePath(job.sourcePath)
+      });
+      setSourcePath(job.sourcePath);
       setPageJob({
         jobId: job.jobId,
-        status: job.generated ? 'running' : 'queued',
+        status: job.generated ? "running" : "queued",
         projectId: job.projectId,
         sourcePath: job.sourcePath,
         targetLocales: [selectedLocale],
         lastError: null,
         translationsByLocale: {},
-      })
-      setStatus('Translation started.')
+      });
+      setStatus("Translation started.");
     } catch (translateError) {
-      setError(translateError instanceof Error ? translateError.message : 'Translate failed.')
+      setError(translateError instanceof Error ? translateError.message : "Translate failed.");
     } finally {
-      setBusy(null)
+      setBusy(null);
     }
   }, [
     apiI18nMode,
@@ -383,7 +383,7 @@ export function HyperlocaliseTool({
     sanityProjectId,
     selectedLocale,
     settings.projectId,
-  ])
+  ]);
 
   const apply = useCallback(async () => {
     if (
@@ -394,15 +394,15 @@ export function HyperlocaliseTool({
       !selectedLocale ||
       !resolvedSourcePath
     ) {
-      return
+      return;
     }
     if (projectLocalesMatch(selectedLocale, project.sourceLocale)) {
-      setError('Pick a target locale to apply.')
-      return
+      setError("Pick a target locale to apply.");
+      return;
     }
-    setBusy('apply')
-    setError(null)
-    setStatus(null)
+    setBusy("apply");
+    setError(null);
+    setStatus(null);
     try {
       const plan = await fetchSanityApplyPlan({
         appUrl,
@@ -413,18 +413,18 @@ export function HyperlocaliseTool({
         i18nMode: apiI18nMode,
         sourceSanityLocale: project.sourceLocale,
         targetSanityLocale: selectedLocale,
-      })
+      });
       if (plan.missingKeys.length > 0) {
         throw new Error(
           `${plan.missingKeys.length} segments are missing approved translations. Finish them in Hyperlocalise first.`,
-        )
+        );
       }
-      if (plan.i18nMode === 'field') {
+      if (plan.i18nMode === "field") {
         await patchCurrentDocumentDraft({
           client,
           publishedDocumentId: publishedId,
           document: plan.document,
-        })
+        });
       } else {
         await createDocumentLevelTranslation({
           client,
@@ -433,13 +433,13 @@ export function HyperlocaliseTool({
           targetLocale: selectedLocale,
           documentType,
           translatedDocument: plan.document,
-        })
+        });
       }
-      setStatus(`Applied ${localeLabel(selectedLocale)} translations to this document.`)
+      setStatus(`Applied ${localeLabel(selectedLocale)} translations to this document.`);
     } catch (applyError) {
-      setError(applyError instanceof Error ? applyError.message : 'Apply failed.')
+      setError(applyError instanceof Error ? applyError.message : "Apply failed.");
     } finally {
-      setBusy(null)
+      setBusy(null);
     }
   }, [
     apiI18nMode,
@@ -453,79 +453,44 @@ export function HyperlocaliseTool({
     resolvedSourcePath,
     selectedLocale,
     settings.projectId,
-  ])
+  ]);
 
-  const localeOptions = translateToOptionsForProject(project)
-  const translateTargetOptions = localeOptions.filter(
-    (option) => !project || !projectLocalesMatch(option.value, project.sourceLocale),
-  )
+  const translateTargetOptions = translateToOptionsForProject(
+    project,
+    pluginOptions.supportedLanguages,
+  );
 
-  if (screen === 'connect') {
+  if (screen === "connect") {
     return (
-      <Box padding={4} style={{width: 360, maxWidth: '100%'}}>
-        <Stack gap={4}>
-          <Text size={2} weight="semibold">
-            Connect Hyperlocalise
-          </Text>
-          <Text muted size={1}>
-            Sign in with OAuth to link this Studio to your workspace. Your org admin must create a
-            Studio plugin connection under Integrations first.
-          </Text>
-          {error ? (
-            <Card padding={3} tone="critical">
-              <Text size={1}>{error}</Text>
-            </Card>
-          ) : null}
-          <Button
-            text="Connect Hyperlocalise"
-            tone="primary"
-            disabled={busy === 'connect'}
-            loading={busy === 'connect'}
-            onClick={() => void connect()}
-          />
-        </Stack>
-      </Box>
-    )
+      <ConnectScreen error={error} busy={busy === "connect"} onConnect={() => void connect()} />
+    );
   }
 
-  if (screen === 'project') {
+  if (screen === "project") {
     return (
-      <Box padding={4} style={{width: 360, maxWidth: '100%'}}>
-        <Stack gap={4}>
-          <Text size={2} weight="semibold">
-            Choose project
-          </Text>
-          <Select
-            value={settings.projectId ?? ''}
-            onChange={(event) => {
-              const projectId = event.currentTarget.value
-              const next = saveSettings(sanityProjectId, dataset, {...settings, projectId})
-              setSettings(next)
-              setSelectedLocale(
-                defaultSelectedLocale(
-                  sessionProjects.find((entry) => entry.id === projectId) ?? null,
-                  selectedLocale,
-                ),
-              )
-              if (projectId) {
-                setScreen('workflow')
-              }
-            }}
-          >
-            <option value="">Select a Hyperlocalise project</option>
-            {sessionProjects.map((entry) => (
-              <option key={entry.id} value={entry.id}>
-                {entry.name}
-              </option>
-            ))}
-          </Select>
-        </Stack>
-      </Box>
-    )
+      <ProjectScreen
+        projectId={settings.projectId ?? ""}
+        projects={sessionProjects}
+        onSelect={(projectId) => {
+          const next = saveSettings(sanityProjectId, dataset, { ...settings, projectId });
+          setSettings(next);
+          setSelectedLocale(
+            defaultSelectedLocale(
+              sessionProjects.find((entry) => entry.id === projectId) ?? null,
+              selectedLocale,
+              pluginOptions.supportedLanguages,
+            ),
+          );
+          if (projectId) {
+            setScreen("workflow");
+          }
+        }}
+      />
+    );
   }
 
   return (
-    <Box padding={4} style={{width: 360, maxWidth: '100%'}}>
+    <Box padding={4} style={{ width: 420, maxWidth: "100%" }}>
       <Stack gap={4}>
         <Flex align="center" justify="space-between">
           <Stack gap={2}>
@@ -546,17 +511,17 @@ export function HyperlocaliseTool({
                 ...settings,
                 accessToken: undefined,
                 refreshToken: undefined,
-              })
-              setScreen('connect')
+              });
+              setScreen("connect");
             }}
           />
         </Flex>
 
-        {localizationMode === 'unsupported' ? (
+        {localizationMode === "unsupported" ? (
           <Card padding={3} tone="caution">
             <Text size={1}>
               This document type is not configured for document-level or field-level i18n. Add it to
-              the plugin `documentTypes` or `fieldTypes` options.
+              `documentLocalizationSchemaTypes` or `fieldLocalizationSchemaTypes`.
             </Text>
           </Card>
         ) : (
@@ -569,7 +534,7 @@ export function HyperlocaliseTool({
                 {documentType} · {publishedId}
               </Text>
               <Text muted size={1}>
-                Mode: {localizationMode === 'field-level' ? 'Field-level' : 'Document-level'}
+                Mode: {localizationMode === "field-level" ? "Field-level" : "Document-level"}
               </Text>
             </Stack>
 
@@ -591,7 +556,7 @@ export function HyperlocaliseTool({
             </Stack>
 
             {pageJob ? (
-              <Card padding={3} tone={isInFlightJobStatus(pageJob.status) ? 'primary' : 'default'}>
+              <Card padding={3} tone={isInFlightJobStatus(pageJob.status) ? "primary" : "default"}>
                 <Text size={1}>
                   Job {pageJob.jobId.slice(0, 8)}… · {pageJob.status}
                 </Text>
@@ -619,26 +584,25 @@ export function HyperlocaliseTool({
                 text="Upload"
                 tone="primary"
                 disabled={busy !== null}
-                loading={busy === 'upload'}
+                loading={busy === "upload"}
                 onClick={() => void upload()}
               />
               <Button
                 text="Translate"
                 disabled={busy !== null || !selectedLocale}
-                loading={busy === 'translate'}
+                loading={busy === "translate"}
                 onClick={() => void translate()}
               />
               <Button
                 text="Apply"
                 disabled={busy !== null || !selectedLocale || !collected}
-                loading={busy === 'apply'}
+                loading={busy === "apply"}
                 onClick={() => void apply()}
               />
             </Stack>
           </>
         )}
-
       </Stack>
     </Box>
-  )
+  );
 }

@@ -58,3 +58,13 @@ yalc.lock
 
 # Compiled plugin
 dist
+dist-studio
+
+# Dev studio secrets
+.env
+.env.*
+!.env.example
+dev-studio/.env
+
+# Sanity CLI cache
+.sanity

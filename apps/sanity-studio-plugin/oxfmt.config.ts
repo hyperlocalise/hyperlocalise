@@ -1,1 +1,1 @@
-export {default} from '@sanity/plugin-kit/oxfmt'
+export { default } from "@sanity/plugin-kit/oxfmt";

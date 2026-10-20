@@ -1,7 +1,7 @@
 {
   "name": "sanity-plugin-hyperlocalise",
   "version": "1.0.0",
-  "description": "Hyperlocalise translation inspector for Sanity Studio (OAuth, upload, translate, apply)",
+  "description": "Hyperlocalise translation view and bulk tool for Sanity Studio (OAuth, upload, translate, apply)",
   "keywords": [
     "sanity",
     "sanity-plugin"
@@ -17,16 +17,10 @@
     "url": "git+https://github.com/hyperlocalise/hyperlocalise.git",
     "directory": "apps/sanity-studio-plugin"
   },
-  "publishConfig": {
-    "access": "public",
-    "provenance": true,
-    "exports": {
-      ".": "./dist/index.js",
-      "./package.json": "./package.json"
-    }
-  },
   "files": [
-    "dist"
+    "dist",
+    "sanity.json",
+    "v2-incompatible.js"
   ],
   "type": "module",
   "sideEffects": false,
@@ -38,8 +32,18 @@
     },
     "./package.json": "./package.json"
   },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js",
+      "./package.json": "./package.json"
+    },
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "plugin-kit verify-package --silent && pkg-utils build --strict --check --clean",
+    "dev": "sanity dev --port 3333",
+    "dev:build": "sanity build dist-studio --yes",
     "format": "oxfmt",
     "link-watch": "plugin-kit link-watch",
     "lint": "oxlint",
@@ -48,9 +52,12 @@
   },
   "dependencies": {
     "@sanity/icons": "^5.2.3",
-    "@sanity/ui": "^4.4.9"
+    "@sanity/incompatible-plugin": "^1.0.5",
+    "@sanity/ui": "^4.4.9",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@sanity/document-internationalization": "^4.1.1",
     "@sanity/pkg-utils": "^13.0.15",
     "@sanity/plugin-kit": "^10.0.14",
     "@types/react": "^19.3.0",
@@ -60,13 +67,17 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "sanity": "^6.19.0",
+    "sanity-plugin-internationalized-array": "^3.2.2",
     "styled-components": "^6.6.0",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
-    "react": "^18",
-    "sanity": "^5 || ^6.0.0-0"
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19",
+    "sanity": "^3 || ^4 || ^5 || ^6.0.0-0",
+    "styled-components": "^6.1"
   },
+  "browserslist": "extends @sanity/browserslist-config",
   "engines": {
     "node": ">=20.19 <22 || >=22.12"
   }

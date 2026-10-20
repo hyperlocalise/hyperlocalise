@@ -67,3 +67,10 @@ jobs:
       - name: Build sanity-studio-plugin
         if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
         run: pnpm run build
+
+      - name: Build sanity-studio-plugin dev studio
+        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+        env:
+          SANITY_STUDIO_PROJECT_ID: placeholder
+          SANITY_STUDIO_DATASET: production
+        run: pnpm run dev:build

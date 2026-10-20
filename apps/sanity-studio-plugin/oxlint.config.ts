@@ -1,1 +1,1 @@
-export {default} from '@sanity/plugin-kit/oxlint'
+export { default } from "@sanity/plugin-kit/oxlint";

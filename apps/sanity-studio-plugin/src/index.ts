@@ -1,2 +1,7 @@
-export {hyperlocalise} from './plugin'
-export type {HyperlocalisePluginOptions} from './plugin-options'
+export { hyperlocalisePlugin } from "./document-view";
+export { hyperlocaliseTool } from "./bulk-tool";
+export type {
+  HyperlocaliseBulkConfig,
+  HyperlocaliseLanguage,
+  HyperlocalisePluginConfig,
+} from "./config";

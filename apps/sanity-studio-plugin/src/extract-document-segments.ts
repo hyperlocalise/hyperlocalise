@@ -1,34 +1,40 @@
-import {createSanitySegment} from './segment-file'
-import type {SanitySegment} from './plugin-messages'
-import type {LocalizationMode} from './localization-mode'
+import { createSanitySegment } from "./segment-file";
+import type { SanitySegment } from "./plugin-messages";
+import type { LocalizationMode } from "./localization-mode";
 
 const SKIP_TOP_LEVEL_KEYS = new Set([
-  '_id',
-  '_type',
-  '_rev',
-  '_createdAt',
-  '_updatedAt',
-  '_key',
-  'language',
-])
+  "_id",
+  "_type",
+  "_rev",
+  "_createdAt",
+  "_updatedAt",
+  "_key",
+  "language",
+]);
 
-type FieldValue = unknown
+type FieldValue = unknown;
 
 function isRecord(value: FieldValue): value is Record<string, FieldValue> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isPortableTextBlock(value: FieldValue): value is Record<string, FieldValue> {
-  return isRecord(value) && value._type === 'block'
+function isPortableTextBlock(
+  value: FieldValue,
+  customBlockTypes: string[] = [],
+): value is Record<string, FieldValue> {
+  if (!isRecord(value) || typeof value._type !== "string") {
+    return false;
+  }
+  return value._type === "block" || customBlockTypes.includes(value._type);
 }
 
 function isInternationalizedEntry(value: FieldValue): value is Record<string, FieldValue> {
   return (
     isRecord(value) &&
-    typeof value._type === 'string' &&
-    value._type.startsWith('internationalizedArray') &&
-    'language' in value
-  )
+    typeof value._type === "string" &&
+    value._type.startsWith("internationalizedArray") &&
+    "language" in value
+  );
 }
 
 function readInternationalizedValue(
@@ -36,127 +42,144 @@ function readInternationalizedValue(
   locale: string,
 ): FieldValue | undefined {
   if (!Array.isArray(fieldValue)) {
-    return undefined
+    return undefined;
   }
   const match = fieldValue.find(
     (entry) => isInternationalizedEntry(entry) && entry.language === locale,
-  )
+  );
   if (!isInternationalizedEntry(match)) {
-    return undefined
+    return undefined;
   }
-  return match.value
+  return match.value;
 }
 
-function extractPortableText(value: FieldValue[], prefix: string, out: Map<string, string>): void {
+function extractPortableText(
+  value: FieldValue[],
+  prefix: string,
+  out: Map<string, string>,
+  customBlockTypes: string[],
+): void {
   for (let blockIndex = 0; blockIndex < value.length; blockIndex += 1) {
-    const block = value[blockIndex]
-    if (!isPortableTextBlock(block)) {
-      continue
+    const block = value[blockIndex];
+    if (!isPortableTextBlock(block, customBlockTypes)) {
+      continue;
     }
-    const children = block.children
+    const children = block.children;
     if (!Array.isArray(children)) {
-      continue
+      continue;
     }
     for (let childIndex = 0; childIndex < children.length; childIndex += 1) {
-      const child = children[childIndex]
+      const child = children[childIndex];
       if (!isRecord(child)) {
-        continue
+        continue;
       }
-      const text = child.text
-      if (typeof text === 'string' && text.length > 0) {
-        out.set(`${prefix}.${blockIndex}.children.${childIndex}.text`, text)
+      const text = child.text;
+      if (typeof text === "string" && text.length > 0) {
+        out.set(`${prefix}.${blockIndex}.children.${childIndex}.text`, text);
       }
     }
   }
 }
 
-function walkValue(value: FieldValue | undefined, prefix: string, out: Map<string, string>): void {
+function walkValue(
+  value: FieldValue | undefined,
+  prefix: string,
+  out: Map<string, string>,
+  customBlockTypes: string[],
+  excludeFieldNames: Set<string>,
+): void {
   if (value === null || value === undefined) {
-    return
+    return;
   }
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     if (value.length > 0) {
-      out.set(prefix, value)
+      out.set(prefix, value);
     }
-    return
+    return;
   }
-  if (typeof value !== 'object') {
-    return
+  if (typeof value !== "object") {
+    return;
   }
   if (Array.isArray(value)) {
     if (value.length > 0 && value.every(isInternationalizedEntry)) {
-      return
+      return;
     }
-    if (value.some(isPortableTextBlock)) {
-      extractPortableText(value, prefix, out)
-      return
+    if (value.some((entry) => isPortableTextBlock(entry, customBlockTypes))) {
+      extractPortableText(value, prefix, out, customBlockTypes);
+      return;
     }
     for (let index = 0; index < value.length; index += 1) {
-      walkValue(value[index], `${prefix}.${index}`, out)
+      walkValue(value[index], `${prefix}.${index}`, out, customBlockTypes, excludeFieldNames);
     }
-    return
+    return;
   }
   if (isRecord(value)) {
-    if (value._type === 'image' || value._type === 'file' || value._type === 'slug') {
-      return
+    if (value._type === "image" || value._type === "file" || value._type === "slug") {
+      return;
     }
-    if (value._ref && value._type === 'reference') {
-      return
+    if (value._ref && value._type === "reference") {
+      return;
     }
     for (const [key, child] of Object.entries(value)) {
-      if (key.startsWith('_')) {
-        continue
+      if (key.startsWith("_") || excludeFieldNames.has(key)) {
+        continue;
       }
-      const nextPrefix = prefix ? `${prefix}.${key}` : key
-      walkValue(child, nextPrefix, out)
+      const nextPrefix = prefix ? `${prefix}.${key}` : key;
+      walkValue(child, nextPrefix, out, customBlockTypes, excludeFieldNames);
     }
   }
 }
 
 export function extractDocumentTextMap(input: {
-  document: Record<string, FieldValue>
-  i18nMode: LocalizationMode
-  sourceLocale: string
+  document: Record<string, FieldValue>;
+  i18nMode: LocalizationMode;
+  sourceLocale: string;
+  customBlockTypes?: string[];
+  excludeFieldNames?: string[];
 }): Map<string, string> {
-  const out = new Map<string, string>()
-  if (input.i18nMode === 'unsupported') {
-    return out
+  const out = new Map<string, string>();
+  if (input.i18nMode === "unsupported") {
+    return out;
   }
 
-  const i18nMode = input.i18nMode === 'field-level' ? 'field' : 'document'
+  const i18nMode = input.i18nMode === "field-level" ? "field" : "document";
+  const customBlockTypes = input.customBlockTypes ?? [];
+  const excludeFieldNames = new Set(input.excludeFieldNames ?? []);
 
   for (const [key, value] of Object.entries(input.document)) {
-    if (SKIP_TOP_LEVEL_KEYS.has(key) || key.startsWith('_')) {
-      continue
+    if (SKIP_TOP_LEVEL_KEYS.has(key) || key.startsWith("_") || excludeFieldNames.has(key)) {
+      continue;
     }
-    if (i18nMode === 'field') {
-      const localeValue = readInternationalizedValue(value, input.sourceLocale)
+    if (i18nMode === "field") {
+      const localeValue = readInternationalizedValue(value, input.sourceLocale);
       if (localeValue === undefined) {
-        continue
+        continue;
       }
-      if (typeof localeValue === 'string') {
+      if (typeof localeValue === "string") {
         if (localeValue.length > 0) {
-          out.set(key, localeValue)
+          out.set(key, localeValue);
         }
-        continue
+        continue;
       }
-      walkValue(localeValue, key, out)
-      continue
+      walkValue(localeValue, key, out, customBlockTypes, excludeFieldNames);
+      continue;
     }
-    walkValue(value, key, out)
+    walkValue(value, key, out, customBlockTypes, excludeFieldNames);
   }
-  return out
+  return out;
 }
 
 export function extractDocumentSegments(input: {
-  document: Record<string, FieldValue>
-  documentId: string
-  documentType: string
-  i18nMode: LocalizationMode
-  sourceLocale: string
+  document: Record<string, FieldValue>;
+  documentId: string;
+  documentType: string;
+  i18nMode: LocalizationMode;
+  sourceLocale: string;
+  customBlockTypes?: string[];
+  excludeFieldNames?: string[];
 }): SanitySegment[] {
-  const map = extractDocumentTextMap(input)
-  const segments: SanitySegment[] = []
+  const map = extractDocumentTextMap(input);
+  const segments: SanitySegment[] = [];
   for (const [fieldPath, text] of map.entries()) {
     segments.push(
       createSanitySegment({
@@ -165,23 +188,23 @@ export function extractDocumentSegments(input: {
         text,
         existingKey: `sanity.k.${fieldPath}`,
       }),
-    )
+    );
   }
-  return segments
+  return segments;
 }
 
 export function readDocumentTitle(document: Record<string, FieldValue>): string | undefined {
-  const title = document.title
-  if (typeof title === 'string' && title.trim()) {
-    return title.trim()
+  const title = document.title;
+  if (typeof title === "string" && title.trim()) {
+    return title.trim();
   }
   if (Array.isArray(title)) {
     const first = title.find(
-      (entry) => isInternationalizedEntry(entry) && typeof entry.value === 'string',
-    )
-    if (isInternationalizedEntry(first) && typeof first.value === 'string' && first.value.trim()) {
-      return first.value.trim()
+      (entry) => isInternationalizedEntry(entry) && typeof entry.value === "string",
+    );
+    if (isInternationalizedEntry(first) && typeof first.value === "string" && first.value.trim()) {
+      return first.value.trim();
     }
   }
-  return undefined
+  return undefined;
 }

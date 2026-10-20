@@ -9,7 +9,7 @@ Implementation lives in `apps/hyperlocalise-web` (`/api/oauth/sanity/*`, `/api/i
 
 ## Flow
 
-1. An editor chooses **Connect Hyperlocalise** in the document inspector.
+1. An editor chooses **Connect Hyperlocalise** in the Hyperlocalise editor view or bulk tool.
 2. The plugin opens `{ORIGIN}/api/oauth/sanity/authorize` with PKCE and `studio_origin={window.location.origin}`.
 3. Hyperlocalise signs the user in with WorkOS if needed, then shows consent at `/en/connect/sanity/oauth` to pick a workspace **Sanity Studio plugin** connection.
 4. The callback completes the handoff at `{ORIGIN}/connect/sanity/oauth/callback` → `/api/oauth/sanity/handoff/complete`.
