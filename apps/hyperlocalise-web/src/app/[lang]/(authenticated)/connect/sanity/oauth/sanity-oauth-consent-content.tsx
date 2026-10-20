@@ -12,35 +12,67 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { CaretDownIcon } from "@phosphor-icons/react";
 import Image from "next/image";
-import type { ComponentProps, ReactNode } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { siSanity } from "simple-icons";
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { brandLogomarkLightModeSvgSrc } from "@/lib/brand/brand-assets";
 import { cn } from "@/lib/primitives/cn";
 
 import { sanityOauthConsentMessages } from "./sanity-oauth-consent.messages";
 
-function OauthConsentSelect(props: ComponentProps<"select">) {
-  const { className, ...selectProps } = props;
+function formatWorkspaceOptionLabel(name: string, slug: string | null): string {
+  return slug ? `${name} (${slug})` : name;
+}
+
+function OauthConsentSelectField({
+  fieldId,
+  name,
+  value,
+  onValueChange,
+  options,
+}: {
+  fieldId: string;
+  name: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  const selected = options.find((option) => option.value === value);
+
   return (
-    <div className="relative">
-      <select
-        {...selectProps}
-        className={cn(
-          "h-9 w-full appearance-none rounded-md border border-input bg-background ps-3 pe-10 text-sm",
-          className,
-        )}
-      />
-      <CaretDownIcon
-        aria-hidden
-        className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-muted-foreground"
-      />
-    </div>
+    <Select
+      name={name}
+      required
+      value={value}
+      items={options}
+      onValueChange={(next) => {
+        if (next) {
+          onValueChange(next);
+        }
+      }}
+    >
+      <SelectTrigger id={fieldId} className="h-9 w-full bg-background">
+        <SelectValue>{selected?.label ?? value}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value} label={option.label}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -99,6 +131,24 @@ export function SanityOauthConsentContent({
       ? organizations[0]?.organizationId
       : undefined;
 
+  const connectionFieldId = useId();
+  const organizationFieldId = useId();
+  const [selectedConnectionId, setSelectedConnectionId] = useState(
+    () => enabledConnections[0]?.connectionId ?? "",
+  );
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState(
+    () => organizations[0]?.organizationId ?? "",
+  );
+
+  const connectionSelectOptions = enabledConnections.map((connection) => ({
+    value: connection.connectionId,
+    label: formatWorkspaceOptionLabel(connection.organizationName, connection.organizationSlug),
+  }));
+  const organizationSelectOptions = organizations.map((organization) => ({
+    value: organization.organizationId,
+    label: formatWorkspaceOptionLabel(organization.organizationName, organization.organizationSlug),
+  }));
+
   return (
     <div className="flex min-h-dvh items-center justify-center px-4 py-6">
       <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -150,41 +200,36 @@ export function SanityOauthConsentContent({
             className="mt-5 flex flex-col gap-4"
           >
             {showConnectionPicker ? (
-              <label className="flex flex-col gap-2 text-left text-sm font-medium text-foreground">
-                <FormattedMessage {...sanityOauthConsentMessages.connectionLabel} />
-                <OauthConsentSelect
+              <div className="flex flex-col gap-2 text-left">
+                <label htmlFor={connectionFieldId} className="text-sm font-medium text-foreground">
+                  <FormattedMessage {...sanityOauthConsentMessages.connectionLabel} />
+                </label>
+                <OauthConsentSelectField
+                  fieldId={connectionFieldId}
                   name="connectionId"
-                  required
-                  defaultValue={enabledConnections[0]?.connectionId}
-                  aria-label={intl.formatMessage(sanityOauthConsentMessages.connectionLabel)}
-                >
-                  {enabledConnections.map((connection) => (
-                    <option key={connection.connectionId} value={connection.connectionId}>
-                      {connection.organizationName}
-                      {connection.organizationSlug ? ` (${connection.organizationSlug})` : ""}
-                    </option>
-                  ))}
-                </OauthConsentSelect>
-              </label>
+                  value={selectedConnectionId}
+                  onValueChange={setSelectedConnectionId}
+                  options={connectionSelectOptions}
+                />
+              </div>
             ) : null}
 
             {showOrganizationPicker ? (
-              <label className="flex flex-col gap-2 text-left text-sm font-medium text-foreground">
-                <FormattedMessage {...sanityOauthConsentMessages.organizationLabel} />
-                <OauthConsentSelect
-                  name="organizationId"
-                  required
-                  defaultValue={organizations[0]?.organizationId}
-                  aria-label={intl.formatMessage(sanityOauthConsentMessages.organizationLabel)}
+              <div className="flex flex-col gap-2 text-left">
+                <label
+                  htmlFor={organizationFieldId}
+                  className="text-sm font-medium text-foreground"
                 >
-                  {organizations.map((organization) => (
-                    <option key={organization.organizationId} value={organization.organizationId}>
-                      {organization.organizationName}
-                      {organization.organizationSlug ? ` (${organization.organizationSlug})` : ""}
-                    </option>
-                  ))}
-                </OauthConsentSelect>
-              </label>
+                  <FormattedMessage {...sanityOauthConsentMessages.organizationLabel} />
+                </label>
+                <OauthConsentSelectField
+                  fieldId={organizationFieldId}
+                  name="organizationId"
+                  value={selectedOrganizationId}
+                  onValueChange={setSelectedOrganizationId}
+                  options={organizationSelectOptions}
+                />
+              </div>
             ) : null}
 
             {singleConnectionId ? (
