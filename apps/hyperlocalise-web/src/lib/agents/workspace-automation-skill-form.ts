@@ -13,6 +13,7 @@
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import {
+  cmsTranslationSkillConflictsWith,
   getWorkspaceAutomationSkill,
   listWorkspaceAutomationSkillTools,
   resolveWorkspaceAutomationSkills,
@@ -67,6 +68,13 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS: Record<
   notify_email: ["emailRecipients", "emailFrom"],
   import_intercom_articles: ["intercomHelpCenterId", "projectId"],
   push_intercom_translations: ["intercomHelpCenterId", "projectId"],
+  import_sanity_documents: ["sanityProjectId", "sanityDataset", "sanityDocumentTypes", "projectId"],
+  push_sanity_translations: [
+    "sanityProjectId",
+    "sanityDataset",
+    "sanityDocumentTypes",
+    "projectId",
+  ],
   import_braze_templates: ["projectId"],
   push_braze_templates: ["projectId"],
   import_braze_campaigns: ["projectId"],
@@ -140,6 +148,12 @@ function enableSkillTool(
         ...form,
         intercomEnabled: true,
       };
+    case "import_sanity_documents":
+    case "push_sanity_translations":
+      return {
+        ...form,
+        sanityEnabled: true,
+      };
     case "import_braze_templates":
     case "push_braze_templates":
       return {
@@ -206,6 +220,9 @@ function disableSkillTool(
     case "import_intercom_articles":
     case "push_intercom_translations":
       return { ...form, intercomEnabled: false };
+    case "import_sanity_documents":
+    case "push_sanity_translations":
+      return { ...form, sanityEnabled: false };
     case "import_braze_templates":
     case "push_braze_templates":
       return { ...form, brazeEnabled: false };
@@ -269,12 +286,7 @@ export function resolveWorkspaceAutomationSkillAvailability(
   if (form.skillIds.includes(skill.id)) {
     return "attached";
   }
-  if (
-    (skill.id === "translate-braze-email-templates" &&
-      form.skillIds.includes("translate-braze-campaigns")) ||
-    (skill.id === "translate-braze-campaigns" &&
-      form.skillIds.includes("translate-braze-email-templates"))
-  ) {
+  if (cmsTranslationSkillConflictsWith(form.skillIds, skill.id)) {
     return "skill_exclusive";
   }
   return resolveTriggerWithSkill(form, skill) === null ? "trigger_mismatch" : "available";

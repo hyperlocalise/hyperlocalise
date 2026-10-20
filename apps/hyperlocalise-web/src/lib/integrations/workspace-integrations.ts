@@ -61,10 +61,7 @@ export const workspacePipesCustomerEngagementSlugs = [
   "resend",
 ] as const satisfies readonly PipesProviderSlug[];
 
-export const workspacePipesCmsSlugs = [
-  "webflow",
-  "sanity",
-] as const satisfies readonly PipesProviderSlug[];
+export const workspacePipesCmsSlugs = ["webflow"] as const satisfies readonly PipesProviderSlug[];
 
 export const workspacePipesSeoToolSlugs = [
   "google-search-console",

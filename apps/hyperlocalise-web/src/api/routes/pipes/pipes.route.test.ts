@@ -102,6 +102,7 @@ describe("pipesRoutes", () => {
     expect(mocks.getPipesConnectionStatus).toHaveBeenCalledWith({
       provider: "ahrefs",
       localOrganizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
+      workosOrganizationId: globalThis.__testApiAuthContext!.organization.workosOrganizationId,
       workosUserId: identity.user.workosUserId,
     });
   });
@@ -132,6 +133,7 @@ describe("pipesRoutes", () => {
     expect(mocks.getPipesConnectionStatus).toHaveBeenCalledWith({
       provider: "google-search-console",
       localOrganizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
+      workosOrganizationId: globalThis.__testApiAuthContext!.organization.workosOrganizationId,
       workosUserId: identity.user.workosUserId,
     });
   });
@@ -159,6 +161,7 @@ describe("pipesRoutes", () => {
     expect(mocks.getPipesConnectionStatus).toHaveBeenCalledWith({
       provider: "notion",
       localOrganizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
+      workosOrganizationId: globalThis.__testApiAuthContext!.organization.workosOrganizationId,
       workosUserId: identity.user.workosUserId,
     });
   });

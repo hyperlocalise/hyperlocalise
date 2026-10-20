@@ -16,10 +16,12 @@ import { getAgentManifest, loadSharedSkill } from "@/agents/_runtime/loader";
 import { WORKSPACE_ORCHESTRATOR_TOOL_NAMES } from "@/agents/automations/workspace/agent/plan";
 
 import {
+  hasConflictingCmsTranslationSkills,
   listMissingWorkspaceAutomationSkillIntegrations,
   listWorkspaceAutomationSkillNamesByTool,
   listWorkspaceAutomationSkillTools,
   resolveWorkspaceAutomationSkills,
+  validateWorkspaceAutomationSkills,
   WORKSPACE_AUTOMATION_SKILLS,
   workspaceAutomationSkillToolEnabled,
 } from "./workspace-automation-skills";
@@ -145,6 +147,25 @@ describe("workspace automation skills", () => {
         "post-to-slack",
       ]),
     ).toEqual(["use_github_repository", "notify_slack"]);
+  });
+
+  it("rejects more than one CMS translation skill on the same automation", () => {
+    expect(
+      hasConflictingCmsTranslationSkills([
+        "translate-intercom-articles",
+        "translate-sanity-documents",
+      ]),
+    ).toBe(true);
+    expect(
+      hasConflictingCmsTranslationSkills(["translate-sanity-documents", "post-to-slack"]),
+    ).toBe(false);
+    expect(
+      validateWorkspaceAutomationSkills({
+        skillIds: ["translate-intercom-articles", "translate-sanity-documents"],
+        triggerMode: "manual",
+        toolConfig: {},
+      }),
+    ).toBe("cms_translation_skills_exclusive");
   });
 
   it("treats the GitHub repository tool as enabled only in agent mode", () => {

@@ -244,6 +244,105 @@ describe("workspace automation view model", () => {
     expect(state.webSearchProvider).toBe("exa");
   });
 
+  it("prefills the Sanity documents template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "translate-sanity-documents",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Translate Sanity documents",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      sanityEnabled: true,
+      createNativeTmsJobEnabled: true,
+      assignTranslateWithAgentEnabled: true,
+    });
+    expect(form?.skillIds).toEqual(["translate-sanity-documents"]);
+    expect(form?.sanityIncludeDrafts).toBe(true);
+    expect(form?.sanityOverwriteSanityDrafts).toBe(true);
+    expect(form?.sanityExistingTranslationPolicy).toBe("seed_empty");
+    expect(form?.sanityTargetLocales).toEqual([]);
+    expect(
+      workspaceAutomationFormCanActivate({
+        ...form!,
+        sanityProjectId: "abc123",
+        sanityDataset: "production",
+        sanityDocumentTypes: ["article"],
+        sanityLanguages: ["en", "de"],
+      }),
+    ).toBe(true);
+    expect(
+      formStateToWorkspaceAutomationPayload({
+        ...form!,
+        name: "Translate Sanity documents",
+        instructions: "Import Sanity documents.",
+        projectId: "project-1",
+        sanityProjectId: "abc123",
+        sanityDataset: "production",
+        sanityDocumentTypes: ["article"],
+        sanityLanguages: ["en", "de"],
+        sanitySourceLocale: "en",
+        sanityTargetLocales: ["de"],
+      }).toolConfig.sanity,
+    ).toMatchObject({
+      enabled: true,
+      sourceLocale: "en",
+      targetLocales: [],
+      languages: ["en", "de"],
+      localeCatalog: {
+        documentType: "locale",
+        tagField: "tag",
+        titleField: "name",
+      },
+    });
+  });
+
+  it("serializes Sanity locale catalog and per-type languages", () => {
+    const form = createDefaultWorkspaceAutomationFormState();
+    const payload = formStateToWorkspaceAutomationPayload({
+      ...form,
+      name: "Sanity",
+      instructions: "Import.",
+      projectId: "project-1",
+      sanityEnabled: true,
+      sanityProjectId: "abc",
+      sanityDataset: "production",
+      sanityDocumentTypes: ["post", "author"],
+      sanityLocaleCatalogDocumentType: "language",
+      sanityLocaleCatalogTagField: "code",
+      sanityLocaleCatalogTitleField: "label",
+      sanityLanguages: ["en", "de"],
+      sanityLanguagesByType: { post: ["en", "de"], author: ["de"] },
+      sanitySourceLocale: "en",
+    });
+    expect(payload.toolConfig.sanity).toMatchObject({
+      localeCatalog: {
+        documentType: "language",
+        tagField: "code",
+        titleField: "label",
+      },
+      languagesByType: { post: ["en", "de"], author: ["de"] },
+    });
+  });
+
+  it("blocks save when the Sanity source locale is missing on a selected type", () => {
+    const errors = validateWorkspaceAutomationFormState({
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Sanity",
+      instructions: "Import.",
+      projectId: "project-1",
+      sanityEnabled: true,
+      sanityProjectId: "abc",
+      sanityDataset: "production",
+      sanityDocumentTypes: ["post", "author"],
+      sanityLanguages: ["en", "de"],
+      sanityLanguagesByType: { post: ["en", "de"], author: ["de"] },
+      sanitySourceLocale: "en",
+    });
+    expect(errors.sanitySourceLocale).toMatch(/not available for/i);
+  });
+
   it("prefills the Intercom Help Center template", () => {
     const form = createWorkspaceAutomationFormStateFromTemplate(
       "translate-intercom-articles",
@@ -735,7 +834,7 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(deliveryOnly)).toEqual({
       trigger:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Braze, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Braze, Queries, Web Search, or Crowdin workflow tool.",
     });
     expect(
       validateWorkspaceAutomationFormState({ ...deliveryOnly, webSearchEnabled: true }),

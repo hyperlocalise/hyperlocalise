@@ -35,6 +35,8 @@ import {
   type WorkspaceAutomationWebSearchProvider,
 } from "./workspace-automation-types";
 import type { EmailProviderSlug } from "@/lib/email/constants";
+import { listUnsupportedSanitySourceDocumentTypes } from "@/lib/sanity/locale-catalog";
+import { sanityDocumentTypeTitle } from "@/lib/sanity/localization-mode";
 import { parseSlackConversationId } from "./slack/channel-query";
 import { isValidAutomationTimeZone } from "./automation-time-zones";
 import { hasWorkspaceAutomationScheduledWorkflow } from "./workspace-automation-scheduled-workflow";
@@ -116,6 +118,21 @@ export type WorkspaceAutomationFormState = {
   zernioConnectionId: string;
   ahrefsEnabled: boolean;
   intercomEnabled: boolean;
+  sanityEnabled: boolean;
+  sanityProjectId: string;
+  sanityDataset: string;
+  sanityDocumentTypes: string[];
+  sanityDocumentTypeModes: Record<string, "document" | "field">;
+  sanityLocaleCatalogDocumentType: string;
+  sanityLocaleCatalogTagField: string;
+  sanityLocaleCatalogTitleField: string;
+  sanityLanguages: string[];
+  sanityLanguagesByType: Record<string, string[]>;
+  sanitySourceLocale: string;
+  sanityTargetLocales: string[];
+  sanityIncludeDrafts: boolean;
+  sanityOverwriteSanityDrafts: boolean;
+  sanityExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   brazeEnabled: boolean;
   brazeCampaignsEnabled: boolean;
   brazeSourceLocale: string;
@@ -147,7 +164,12 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
   if (form.contentfulEnabled) {
     return true;
   }
-  if (form.intercomEnabled || form.brazeEnabled || form.brazeCampaignsEnabled) {
+  if (
+    form.intercomEnabled ||
+    form.sanityEnabled ||
+    form.brazeEnabled ||
+    form.brazeCampaignsEnabled
+  ) {
     return true;
   }
   if (form.createNativeTmsJobEnabled || form.assignTranslateWithAgentEnabled) {
@@ -184,6 +206,12 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "intercom"
     | "intercomHelpCenterId"
     | "intercomSourceLocale"
+    | "sanity"
+    | "sanityProjectId"
+    | "sanityDataset"
+    | "sanityDocumentTypes"
+    | "sanitySourceLocale"
+    | "sanityTargetLocales"
     | "braze"
     | "brazeSourceLocale"
     | "crowdinProjectId"
@@ -202,6 +230,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   skill_trigger_incompatible:
     "A selected skill does not work with this trigger. Remove it or change the trigger.",
   skill_tools_required: "A selected skill needs a tool that was removed. Add the skill again.",
+  cms_translation_skills_exclusive: "Choose one CMS translation skill per automation.",
   instructions_or_skill_required: "Add a skill or write instructions.",
   github_repository_target_required: "Choose a GitHub repository before enabling GitHub tools.",
   gitlab_repository_target_required: "Choose a GitLab project before enabling GitLab tools.",
@@ -220,7 +249,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_push_branches_required: "Add at least one branch pattern for GitHub triggers.",
   github_events_required: "Choose at least one GitHub event.",
   scheduled_workflow_required:
-    "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Braze, Queries, Web Search, or Crowdin workflow tool.",
+    "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Braze, Queries, Web Search, or Crowdin workflow tool.",
   intercom_not_connected: "Connect Intercom in Integrations before using it.",
   intercom_pipes_needs_reauthorization: "Reconnect Intercom in Integrations, then try again.",
   intercom_pipes_unavailable: "Intercom is unavailable until WorkOS Pipes is configured.",
@@ -231,6 +260,16 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
     "The source locale does not match an Intercom Help Center locale.",
   intercom_source_locale_mismatch:
     "The Intercom source locale must be the same language as the project source locale.",
+  sanity_not_connected: "Connect Sanity in Integrations before using it.",
+  sanity_pipes_needs_reauthorization: "Reconnect Sanity in Integrations, then try again.",
+  sanity_pipes_unavailable: "Sanity is unavailable until WorkOS Pipes is configured.",
+  sanity_project_required: "Choose a Sanity project and dataset.",
+  sanity_document_types_required: "Choose at least one Sanity document type.",
+  sanity_target_locales_unmapped:
+    "One or more selected Sanity target locales do not exist on this dataset.",
+  sanity_source_locale_unmapped: "The source locale does not match a Sanity language tag.",
+  sanity_source_locale_mismatch:
+    "The Sanity source locale must be the same language as the project source locale.",
   braze_not_connected: "Connect Braze in Integrations before using it.",
   braze_pipes_needs_reauthorization: "Reconnect Braze in Integrations, then try again.",
   braze_pipes_unavailable: "Braze is unavailable until WorkOS Pipes is configured.",
@@ -362,6 +401,21 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     zernioConnectionId: "",
     ahrefsEnabled: false,
     intercomEnabled: false,
+    sanityEnabled: false,
+    sanityProjectId: "",
+    sanityDataset: "",
+    sanityDocumentTypes: [],
+    sanityDocumentTypeModes: {},
+    sanityLocaleCatalogDocumentType: "locale",
+    sanityLocaleCatalogTagField: "tag",
+    sanityLocaleCatalogTitleField: "name",
+    sanityLanguages: [],
+    sanityLanguagesByType: {},
+    sanitySourceLocale: "en",
+    sanityTargetLocales: [],
+    sanityIncludeDrafts: true,
+    sanityOverwriteSanityDrafts: true,
+    sanityExistingTranslationPolicy: "seed_empty",
     brazeEnabled: false,
     brazeCampaignsEnabled: false,
     brazeSourceLocale: "en",
@@ -406,6 +460,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const zernio = automation.toolConfig.zernio;
   const ahrefs = automation.toolConfig.ahrefs;
   const intercom = automation.toolConfig.intercom;
+  const sanity = automation.toolConfig.sanity;
   const braze = automation.toolConfig.braze;
   const brazeCampaigns = automation.toolConfig.brazeCampaigns;
   const crowdin = automation.toolConfig.crowdin;
@@ -494,6 +549,25 @@ export function createWorkspaceAutomationFormStateFromRecord(
     zernioConnectionId: zernio?.connectionId ?? "",
     ahrefsEnabled: Boolean(ahrefs?.enabled),
     intercomEnabled: Boolean(intercom?.enabled),
+    sanityEnabled: Boolean(sanity?.enabled),
+    sanityProjectId: sanity?.projectId ?? "",
+    sanityDataset: sanity?.dataset ?? "",
+    sanityDocumentTypes: sanity?.documentTypes ? [...sanity.documentTypes] : [],
+    sanityDocumentTypeModes: sanity?.documentTypeModes ? { ...sanity.documentTypeModes } : {},
+    sanityLocaleCatalogDocumentType: sanity?.localeCatalog?.documentType ?? "locale",
+    sanityLocaleCatalogTagField: sanity?.localeCatalog?.tagField ?? "tag",
+    sanityLocaleCatalogTitleField: sanity?.localeCatalog?.titleField ?? "name",
+    sanityLanguages: sanity?.languages ? [...sanity.languages] : [],
+    sanityLanguagesByType: sanity?.languagesByType ? { ...sanity.languagesByType } : {},
+    sanitySourceLocale: sanity?.sourceLocale ?? "en",
+    sanityTargetLocales: [],
+    sanityIncludeDrafts: Boolean(sanity?.includeDrafts),
+    sanityOverwriteSanityDrafts: Boolean(sanity?.overwriteSanityDrafts),
+    sanityExistingTranslationPolicy:
+      sanity?.existingTranslationPolicy === "refresh_imported" ||
+      sanity?.existingTranslationPolicy === "overwrite_all"
+        ? sanity.existingTranslationPolicy
+        : "seed_empty",
     brazeEnabled: Boolean(braze?.enabled),
     brazeCampaignsEnabled: Boolean(brazeCampaigns?.enabled),
     brazeSourceLocale: brazeCampaigns?.sourceLocale ?? braze?.sourceLocale ?? "en",
@@ -789,6 +863,29 @@ export function formStateToWorkspaceAutomationPayload(
           },
         }
       : {}),
+    ...(form.sanityEnabled
+      ? {
+          sanity: {
+            enabled: true,
+            projectId: form.sanityProjectId.trim() || undefined,
+            dataset: form.sanityDataset.trim() || undefined,
+            documentTypes: form.sanityDocumentTypes,
+            documentTypeModes: form.sanityDocumentTypeModes,
+            localeCatalog: {
+              documentType: form.sanityLocaleCatalogDocumentType.trim() || "locale",
+              tagField: form.sanityLocaleCatalogTagField.trim() || "tag",
+              titleField: form.sanityLocaleCatalogTitleField.trim() || "name",
+            },
+            languages: form.sanityLanguages,
+            languagesByType: form.sanityLanguagesByType,
+            sourceLocale: form.sanitySourceLocale.trim() || "en",
+            targetLocales: [],
+            includeDrafts: form.sanityIncludeDrafts,
+            overwriteSanityDrafts: form.sanityOverwriteSanityDrafts,
+            existingTranslationPolicy: form.sanityExistingTranslationPolicy,
+          },
+        }
+      : {}),
     ...(form.createNativeTmsJobEnabled
       ? {
           createNativeTmsJob: {
@@ -1025,6 +1122,36 @@ export function validateWorkspaceAutomationFormState(
     }
   }
 
+  if (form.sanityEnabled) {
+    if (!form.sanityProjectId.trim() || !form.sanityDataset.trim()) {
+      errors.sanityProjectId = "Choose a Sanity project and dataset.";
+    }
+    if (form.sanityDocumentTypes.length === 0) {
+      errors.sanityDocumentTypes = "Choose at least one document type.";
+    }
+    if (form.sanityLanguages.length === 0) {
+      errors.sanityDataset = "Load dataset languages before saving.";
+    }
+    if (!form.sanitySourceLocale.trim()) {
+      errors.sanitySourceLocale =
+        "Choose a Sanity source locale that matches the project source language.";
+    } else if (form.sanityDocumentTypes.length > 0 && form.sanityLanguages.length > 0) {
+      const typeLanguages = new Map(
+        Object.entries(form.sanityLanguagesByType).map(([name, languages]) => [name, languages]),
+      );
+      const unsupported = listUnsupportedSanitySourceDocumentTypes({
+        sourceLocale: form.sanitySourceLocale,
+        documentTypes: form.sanityDocumentTypes,
+        languagesByType: form.sanityLanguagesByType,
+        fallbackLanguages: form.sanityLanguages,
+        typeLanguages,
+      });
+      if (unsupported.length > 0) {
+        errors.sanitySourceLocale = `Source locale ${form.sanitySourceLocale} is not available for: ${unsupported.map((typeName) => sanityDocumentTypeTitle(typeName)).join(", ")}.`;
+      }
+    }
+  }
+
   if (form.contentfulEnabled) {
     if (!form.contentfulConnectionId) {
       errors.contentfulConnectionId = "Choose a Contentful connection.";
@@ -1106,6 +1233,7 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "skill_not_found":
     case "skill_trigger_incompatible":
     case "skill_tools_required":
+    case "cms_translation_skills_exclusive":
       return { skills: message };
     case "instructions_or_skill_required":
       return { instructions: message };
@@ -1185,6 +1313,19 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "intercom_source_locale_unmapped":
     case "intercom_source_locale_mismatch":
       return { intercomSourceLocale: message };
+    case "sanity_not_connected":
+    case "sanity_pipes_needs_reauthorization":
+    case "sanity_pipes_unavailable":
+      return { sanity: message };
+    case "sanity_project_required":
+      return { sanityProjectId: message, sanityDataset: message };
+    case "sanity_document_types_required":
+      return { sanityDocumentTypes: message };
+    case "sanity_target_locales_unmapped":
+      return { sanityTargetLocales: message };
+    case "sanity_source_locale_unmapped":
+    case "sanity_source_locale_mismatch":
+      return { sanitySourceLocale: message };
     case "braze_not_connected":
     case "braze_pipes_needs_reauthorization":
     case "braze_pipes_unavailable":
@@ -1261,6 +1402,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.githubCommentEnabled ||
     form.contentfulEnabled ||
     form.intercomEnabled ||
+    form.sanityEnabled ||
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
     form.createNativeTmsJobEnabled ||

@@ -29,6 +29,11 @@ import {
   intercomLocalesShareLanguage,
   mapProjectLocalesToIntercom,
 } from "@/lib/intercom/intercom-locale";
+import { getSanityPipesConnectionStatus, resolveSanityPipesWorkosUserId } from "@/lib/sanity/pipes";
+import {
+  areSanitySourceLocalesCompatible,
+  mapProjectLocalesToSanity,
+} from "@/lib/sanity/sanity-locale";
 import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/lib/email/pipes";
 import { getGitLabPipesConnectionStatus, resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
@@ -66,6 +71,7 @@ import {
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationIntercomTool,
+  hasWorkspaceAutomationSanityTool,
   hasWorkspaceAutomationListIssuesTool,
   hoistLegacyWorkspaceAutomationProjectId,
   isContentSyncAutomation,
@@ -114,6 +120,9 @@ export function workspaceAutomationNeedsProject(input: {
   if (hasWorkspaceAutomationIntercomTool(input.toolConfig)) {
     return true;
   }
+  if (hasWorkspaceAutomationSanityTool(input.toolConfig)) {
+    return true;
+  }
   if (
     hasWorkspaceAutomationBrazeTool(input.toolConfig) ||
     hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig)
@@ -147,6 +156,10 @@ const SKILL_VALIDATION_ERRORS = {
   skill_tools_required: {
     code: "skill_tools_required",
     message: "A selected skill needs a tool that is not enabled.",
+  },
+  cms_translation_skills_exclusive: {
+    code: "cms_translation_skills_exclusive",
+    message: "Choose one CMS translation skill per automation.",
   },
 } as const satisfies Record<
   WorkspaceAutomationSkillValidationCode,
@@ -331,6 +344,30 @@ function validateWorkspaceAutomationConfig(input: {
       return err({
         code: "intercom_help_center_required",
         message: "Choose an Intercom Help Center for this automation.",
+      });
+    }
+  }
+
+  const sanityTools = input.toolConfig.sanity;
+  if (sanityTools?.enabled) {
+    if (!sanityTools.projectId?.trim() || !sanityTools.dataset?.trim()) {
+      return err({
+        code: "sanity_project_required",
+        message: "Choose a Sanity project and dataset for this automation.",
+      });
+    }
+    if (sanityTools.documentTypes.length === 0) {
+      return err({
+        code: "sanity_document_types_required",
+        message: "Choose at least one Sanity document type to import.",
+      });
+    }
+    const sanityLanguages =
+      sanityTools.languages.length > 0 ? sanityTools.languages : sanityTools.targetLocales;
+    if (sanityLanguages.length === 0) {
+      return err({
+        code: "sanity_project_required",
+        message: "Choose a Sanity project and dataset for this automation.",
       });
     }
   }
@@ -819,6 +856,124 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
+  if (input.toolConfig.sanity?.enabled) {
+    const sanity = input.toolConfig.sanity;
+    const workosUserId = sanity.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "sanity_not_connected",
+        message: "Connect Sanity in Integrations before using it.",
+      });
+    }
+
+    const status = await getSanityPipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "sanity_pipes_unavailable",
+        message: "WorkOS is not configured, so Sanity cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "sanity_pipes_needs_reauthorization",
+        message: "Reconnect Sanity in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "sanity_not_connected",
+        message: "Connect Sanity in Integrations before using it.",
+      });
+    }
+
+    const projectId = readOptionalProjectId(input.projectId);
+    if (projectId) {
+      const [project] = await database
+        .select({
+          sourceLocale: schema.projects.sourceLocale,
+          targetLocales: schema.projects.targetLocales,
+        })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, input.organizationId),
+            eq(schema.projects.id, projectId),
+          ),
+        )
+        .limit(1);
+
+      if (project) {
+        const projectSourceLocale = project.sourceLocale ?? "en";
+        const configuredSourceLocale = sanity.sourceLocale?.trim();
+        if (
+          configuredSourceLocale &&
+          !areSanitySourceLocalesCompatible(configuredSourceLocale, projectSourceLocale)
+        ) {
+          return err({
+            code: "sanity_source_locale_mismatch",
+            message:
+              "The Sanity source locale must be the same language as the project source locale.",
+          });
+        }
+
+        const sanityLanguages =
+          sanity.languages.length > 0 ? sanity.languages : sanity.targetLocales;
+        const localeMapping = mapProjectLocalesToSanity({
+          projectSourceLocale,
+          projectTargetLocales: Array.isArray(project.targetLocales)
+            ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
+            : [],
+          intercomLocales: sanityLanguages,
+          configuredSourceLocale: sanity.sourceLocale,
+          configuredTargetLocales:
+            sanity.targetLocales.length > 0 ? sanity.targetLocales : undefined,
+        });
+
+        if (!localeMapping.sourceIntercomLocale) {
+          return err({
+            code: "sanity_source_locale_unmapped",
+            message: "The source locale does not match a Sanity language tag.",
+          });
+        }
+
+        const configuredTargets = sanity.targetLocales.filter((locale) => locale.trim().length > 0);
+        if (configuredTargets.length > 0 && localeMapping.unmappedProjectTargets.length > 0) {
+          return err({
+            code: "sanity_target_locales_unmapped",
+            message: "One or more selected Sanity target locales do not exist on this dataset.",
+          });
+        }
+      }
+    }
+  }
+
+  const cmsToolCount = [
+    hasWorkspaceAutomationIntercomTool(input.toolConfig),
+    hasWorkspaceAutomationSanityTool(input.toolConfig),
+    hasWorkspaceAutomationBrazeTool(input.toolConfig),
+    hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig),
+    hasWorkspaceAutomationContentfulWorkflow(input.toolConfig),
+  ].filter(Boolean).length;
+  if (cmsToolCount > 1) {
+    const brazePairOnly =
+      hasWorkspaceAutomationBrazeTool(input.toolConfig) &&
+      hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig) &&
+      !hasWorkspaceAutomationIntercomTool(input.toolConfig) &&
+      !hasWorkspaceAutomationSanityTool(input.toolConfig) &&
+      !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig);
+    if (!brazePairOnly) {
+      return err({
+        code: "cms_translation_skills_exclusive",
+        message: "Choose one CMS translation skill per automation.",
+      });
+    }
+  }
+
   if (input.toolConfig.braze?.enabled && input.toolConfig.brazeCampaigns?.enabled) {
     return err({
       code: "braze_skills_exclusive",
@@ -1193,6 +1348,22 @@ async function stampPipesUsersOnToolConfig(input: {
       ...toolConfig,
       intercom: {
         ...toolConfig.intercom,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.sanity?.enabled) {
+    const workosUserId = await resolveSanityPipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      sanity: {
+        ...toolConfig.sanity,
         enabled: true,
         ...(workosUserId ? { workosUserId } : {}),
       },

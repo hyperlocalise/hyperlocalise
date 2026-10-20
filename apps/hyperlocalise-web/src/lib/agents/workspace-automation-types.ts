@@ -351,6 +351,81 @@ const brazeCampaignsToolConfigSchema = z
     overwriteWhenRemoteNewer: true,
   });
 
+const sanityDocumentTypeModeSchema = z.enum(["document", "field"]);
+
+const sanityDocumentTypeModesSchema = z
+  .record(z.string().trim().min(1).max(128), sanityDocumentTypeModeSchema)
+  .default({})
+  .superRefine((value, ctx) => {
+    if (Object.keys(value).length > 50) {
+      ctx.addIssue({
+        code: "custom",
+        message: "At most 50 document type mode overrides are allowed.",
+      });
+    }
+  });
+
+const sanityLanguagesByTypeSchema = z
+  .record(z.string().trim().min(1).max(128), z.array(z.string().trim().min(1).max(32)).max(50))
+  .default({})
+  .superRefine((value, ctx) => {
+    if (Object.keys(value).length > 50) {
+      ctx.addIssue({
+        code: "custom",
+        message: "At most 50 document type language lists are allowed.",
+      });
+    }
+  });
+
+const sanityLocaleCatalogSchema = z
+  .object({
+    documentType: z.string().trim().min(1).max(128).default("locale"),
+    tagField: z.string().trim().min(1).max(64).default("tag"),
+    titleField: z.string().trim().min(1).max(64).default("name"),
+  })
+  .default({
+    documentType: "locale",
+    tagField: "tag",
+    titleField: "name",
+  });
+
+const sanityToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    projectId: z.string().trim().min(1).max(128).optional(),
+    dataset: z.string().trim().min(1).max(128).optional(),
+    documentTypes: z.array(z.string().trim().min(1).max(128)).max(50).default([]),
+    documentTypeModes: sanityDocumentTypeModesSchema,
+    localeCatalog: sanityLocaleCatalogSchema,
+    languages: z.array(z.string().trim().min(1).max(32)).max(50).default([]),
+    languagesByType: sanityLanguagesByTypeSchema,
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
+    includeDrafts: z.boolean().default(true),
+    overwriteSanityDrafts: z.boolean().default(true),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+  })
+  .default({
+    enabled: false,
+    documentTypes: [],
+    documentTypeModes: {},
+    localeCatalog: {
+      documentType: "locale",
+      tagField: "tag",
+      titleField: "name",
+    },
+    languages: [],
+    languagesByType: {},
+    sourceLocale: "en",
+    targetLocales: [],
+    includeDrafts: true,
+    overwriteSanityDrafts: true,
+    existingTranslationPolicy: "seed_empty",
+  });
+
 const intercomToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -457,6 +532,7 @@ const toolConfigObjectSchema = z
     ahrefs: ahrefsToolConfigSchema.optional(),
     gitlab: gitlabToolConfigSchema.optional(),
     intercom: intercomToolConfigSchema.optional(),
+    sanity: sanityToolConfigSchema.optional(),
     braze: brazeToolConfigSchema.optional(),
     brazeCampaigns: brazeCampaignsToolConfigSchema.optional(),
     crowdin: crowdinToolConfigSchema.optional(),
@@ -520,6 +596,7 @@ export type WorkspaceAutomationZernioToolConfig = z.infer<typeof zernioToolConfi
 export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
 export type WorkspaceAutomationGitlabToolConfig = z.infer<typeof gitlabToolConfigSchema>;
 export type WorkspaceAutomationIntercomToolConfig = z.infer<typeof intercomToolConfigSchema>;
+export type WorkspaceAutomationSanityToolConfig = z.infer<typeof sanityToolConfigSchema>;
 export type WorkspaceAutomationBrazeToolConfig = z.infer<typeof brazeToolConfigSchema>;
 export type WorkspaceAutomationBrazeCampaignsToolConfig = z.infer<
   typeof brazeCampaignsToolConfigSchema
@@ -589,6 +666,38 @@ export type WorkspaceAutomationConfigValidationError =
       message: "The Intercom source locale must be the same language as the project source locale.";
     }
   | {
+      code: "sanity_not_connected";
+      message: "Connect Sanity in Integrations before using it.";
+    }
+  | {
+      code: "sanity_pipes_needs_reauthorization";
+      message: "Reconnect Sanity in Integrations, then try again.";
+    }
+  | {
+      code: "sanity_pipes_unavailable";
+      message: "WorkOS is not configured, so Sanity cannot connect through Pipes.";
+    }
+  | {
+      code: "sanity_project_required";
+      message: "Choose a Sanity project and dataset for this automation.";
+    }
+  | {
+      code: "sanity_document_types_required";
+      message: "Choose at least one Sanity document type to import.";
+    }
+  | {
+      code: "sanity_target_locales_unmapped";
+      message: "One or more selected Sanity target locales do not exist on this dataset.";
+    }
+  | {
+      code: "sanity_source_locale_unmapped";
+      message: "The source locale does not match a Sanity language tag.";
+    }
+  | {
+      code: "sanity_source_locale_mismatch";
+      message: "The Sanity source locale must be the same language as the project source locale.";
+    }
+  | {
       code: "braze_not_connected";
       message: "Connect Braze in Integrations before using it.";
     }
@@ -611,6 +720,10 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "braze_skills_exclusive";
       message: "Choose either Braze Email Templates or Braze Campaigns & Canvas, not both.";
+    }
+  | {
+      code: "cms_translation_skills_exclusive";
+      message: "Choose one CMS translation skill per automation.";
     }
   | {
       code: "skill_not_found";
@@ -858,6 +971,10 @@ export function hasWorkspaceAutomationGitlabTool(toolConfig: WorkspaceAutomation
 
 export function hasWorkspaceAutomationIntercomTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.intercom?.enabled);
+}
+
+export function hasWorkspaceAutomationSanityTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.sanity?.enabled);
 }
 
 export function hasWorkspaceAutomationBrazeTool(toolConfig: WorkspaceAutomationToolConfig) {

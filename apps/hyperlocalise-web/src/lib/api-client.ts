@@ -82,6 +82,7 @@ function createOrgSlugClient(origin: string) {
       "github-installation",
       "gitlab",
       "intercom",
+      "sanity",
     ]),
     ...pickClientPaths(workspace, ["workspace", "billing"]),
   };

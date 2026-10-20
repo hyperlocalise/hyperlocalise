@@ -28,6 +28,7 @@ export * from "./schema/zernio";
 export * from "./schema/ahrefs";
 export * from "./schema/braze";
 export * from "./schema/intercom";
+export * from "./schema/sanity";
 export * from "./schema/canva";
 export * from "./schema/figma";
 export * from "./schema/crowdin-app";

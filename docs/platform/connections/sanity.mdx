@@ -1,0 +1,66 @@
+---
+title: "Localize Sanity documents"
+description: "Import Sanity documents into a native project, translate them in Jobs, and push approved drafts back to Sanity."
+---
+
+Use a saved automation to import Sanity documents into a native project as JSON, translate them in [Jobs](/platform/translation/jobs), then write approved translations back to Sanity as drafts. Import never publishes to Sanity. **Push to Sanity** is a separate action.
+
+## Connect Sanity
+
+1. Open workspace **Integrations** and find **Sanity**, then choose **Connect**.
+2. Under **Authentication method**, choose **OAuth (recommended)** and select **Authorize with Sanity**, or choose **API token**, paste a token, and select **Save token**. Tokens need Editor access or higher for draft write-back.
+3. Confirm the connection shows as connected. Reauthorize or paste a new token if Platform asks you to.
+
+The automation uses this Sanity connection. Connect Sanity before you add the **Translate Sanity documents** skill.
+
+## Prepare the native project
+
+Create or choose a [native project](/platform/projects/create-project) whose source locale and target locales map onto the Sanity language tags on the dataset. Exact tags match first. Language-only aliases such as `en` ↔ `en-US` are supported when only one regional form is present.
+
+After you select a project and dataset in the automation editor, Platform loads languages from your Sanity **Locales** collection when present (`locale` documents with a `tag` field, as used by `@sanity/document-internationalization` and `sanity-plugin-internationalized-array`). If that collection is missing, Platform infers tags from existing content. Map those codes onto the native project source and targets.
+
+Studio config files that hardcode `supportedLanguages` are not readable over the API; a shared Locales collection keeps Studio and Hyperlocalise aligned. Scope slug uniqueness by language in Studio when translated documents share slug values.
+
+## Create the automation
+
+1. Open workspace **Automations** and select **New Automation**.
+2. Apply the **Translate Sanity documents** template, or add that skill from **Add Skill**.
+3. Attach the native project.
+4. Choose a **scheduled** or **manual** trigger. A schedule imports changed documents. It does not push translations.
+5. Under **Sanity documents**, set:
+   - **Sanity project** and **dataset**
+   - **Document types** to import
+   - **Sanity source locale**
+   - **Include draft documents on import** (on by default)
+   - **Existing Sanity translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**
+   - **Overwrite Sanity drafts when remote target is newer** (on by default)
+6. Save the automation.
+
+Sanity is not a trigger type. Use a schedule or **Run now** for import. Use **Push to Sanity** for write-back.
+
+## Import documents
+
+**Run now** or wait for the schedule. Import writes one JSON source file per document under `sanity/{projectId}/{dataset}/{documentType}/…`. Review those files in the project like other source files.
+
+Import does not write translations to Sanity.
+
+## Review and push drafts
+
+1. Translate and [approve](/platform/cat) every visible string for a mapped locale.
+2. In the Content editor header, choose **Ingest** to import the automation’s configured document set, or **Push to Sanity** when at least one mapped locale is fully approved and no push is already running.
+3. Confirm Sanity shows the new locale content as a **draft**. Publish in Sanity after you review those drafts.
+
+## Change or remove access
+
+Disconnect Sanity from **Integrations** when this workspace should stop using that Sanity account. Inspect automations that depend on the connection before you disconnect.
+
+If a project or dataset is missing, confirm the Sanity workspace and that you completed authorization. See [Connection troubleshooting](/platform/help/connections).
+
+## If import or push does not run
+
+- Confirm Sanity is connected and the automation is **Active**.
+- Confirm the project, dataset, and document types match the Sanity workspace.
+- Confirm project locales map onto the dataset language tags.
+- Open **Run History** for the failed document or locale.
+
+See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).

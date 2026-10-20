@@ -34,6 +34,7 @@ export const AUTOMATION_ASSISTANT_INTEGRATION_LABELS: Record<
   crowdin: workspaceAutomationFormMessages.skillIntegrationCrowdin,
   contentful: workspaceAutomationFormMessages.skillIntegrationContentful,
   intercom: workspaceAutomationFormMessages.skillIntegrationIntercom,
+  sanity: workspaceAutomationFormMessages.skillIntegrationSanity,
   braze: workspaceAutomationFormMessages.skillIntegrationBraze,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,

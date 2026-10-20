@@ -190,7 +190,7 @@ describe("listWorkspaceAutomationSetupSteps", () => {
         kind: "field",
         field: "trigger",
         message:
-          "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Braze, Queries, Web Search, or Crowdin workflow tool.",
+          "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Braze, Queries, Web Search, or Crowdin workflow tool.",
       },
     ]);
     expect(

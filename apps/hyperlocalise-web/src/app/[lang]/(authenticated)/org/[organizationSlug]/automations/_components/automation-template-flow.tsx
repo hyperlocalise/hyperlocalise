@@ -24,7 +24,7 @@ import {
   CheckSquareIcon,
   UploadSimpleIcon,
 } from "@phosphor-icons/react";
-import { siGithub, siIntercom } from "simple-icons";
+import { siGithub, siIntercom, siSanity } from "simple-icons";
 import Image from "next/image";
 
 import {
@@ -42,6 +42,7 @@ type IconBucket =
   | "email"
   | "contentful"
   | "intercom"
+  | "sanity"
   | "braze"
   | "web-search"
   | "web-chat"
@@ -50,7 +51,7 @@ type IconBucket =
   | "translate"
   | "validation";
 
-const BRAND_TOOL_IDS = new Set(["intercom", "braze", "contentful"]);
+const BRAND_TOOL_IDS = new Set(["intercom", "sanity", "braze", "contentful"]);
 
 function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucket {
   switch (node.id) {
@@ -73,6 +74,8 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
       return "contentful";
     case "intercom":
       return "intercom";
+    case "sanity":
+      return "sanity";
     case "braze":
       return "braze";
     case "web-search":
@@ -125,6 +128,8 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
       );
     case "intercom":
       return <SimpleBrandIcon icon={siIntercom} colored className={iconClassName} />;
+    case "sanity":
+      return <SimpleBrandIcon icon={siSanity} colored className={iconClassName} />;
     case "braze":
       return (
         <Image

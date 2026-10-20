@@ -45,6 +45,7 @@ import { createMemoryRoutes } from "./routes/memory/memory.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
 import { createGitlabRoutes } from "./routes/gitlab/gitlab.route";
 import { createIntercomRoutes } from "./routes/intercom/intercom.route";
+import { createSanityRoutes } from "./routes/sanity/sanity.route";
 import { createWorkspaceJobRoutes } from "./routes/project/job.route";
 import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
@@ -176,7 +177,8 @@ export function createOrgAgentsRoutes() {
     .route("/slack-connect", createSlackConnectRoutes())
     .route("/github-installation", createGithubInstallationRoutes())
     .route("/gitlab", createGitlabRoutes())
-    .route("/intercom", createIntercomRoutes());
+    .route("/intercom", createIntercomRoutes())
+    .route("/sanity", createSanityRoutes());
 }
 
 export function createOrgWorkspaceRoutes() {
