@@ -394,7 +394,8 @@ export function compileVisualWorkflowV3Definition(
       node.config.kind !== "flow.return" &&
       node.config.kind !== "flow.call_workflow" &&
       node.config.kind !== "logic.create_object" &&
-      node.config.kind !== "logic.merge_objects"
+      node.config.kind !== "logic.merge_objects" &&
+      node.config.kind !== "logic.select_path"
     )
       continue;
 

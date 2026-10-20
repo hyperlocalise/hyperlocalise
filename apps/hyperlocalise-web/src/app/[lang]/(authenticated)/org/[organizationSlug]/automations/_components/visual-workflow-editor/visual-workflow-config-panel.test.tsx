@@ -1313,6 +1313,46 @@ describe("VisualWorkflowConfigPanel", () => {
       }),
     );
   });
+
+  it("configures a Select Path and converts object and array path segments", () => {
+    const onChangeConfig = vi.fn();
+    const node: VisualWorkflowRfNode = {
+      id: "select-path",
+      type: "logic.select_path",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.select_path"),
+      data: {
+        catalogType: "logic.select_path",
+        config: {
+          kind: "logic.select_path",
+          path: ["customer", "orders", 0, "id"],
+          outputType: "string",
+          missingBehavior: "error",
+        },
+        runStatus: "idle",
+      },
+    };
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    const path = screen.getByRole("textbox", { name: "Path" });
+    expect(path).toHaveTextContent("customer.orders[0].id");
+    replaceText(path, "items[2].locale");
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ path: ["items", 2, "locale"] }),
+    );
+    expect(screen.getByLabelText("Output type")).toHaveTextContent("string");
+    expect(screen.getByLabelText("When the path is missing")).toHaveTextContent("Fail the step");
+  });
 });
 
 describe("Test tab", () => {

@@ -42,6 +42,26 @@ export function workflowAncestors(
   }
   return result;
 }
+
+function isValidSelectPath(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.length <= 32 &&
+    value.every(
+      (segment) =>
+        (typeof segment === "string" &&
+          segment.length > 0 &&
+          segment.length <= 256 &&
+          !["__proto__", "constructor", "prototype"].includes(segment)) ||
+        (typeof segment === "number" &&
+          Number.isInteger(segment) &&
+          segment >= 0 &&
+          segment <= 1_000_000),
+    )
+  );
+}
+
 export function compileWorkflowIssues(
   definition: VisualWorkflowDefinition,
 ): VisualWorkflowValidationIssue[] {
@@ -314,6 +334,10 @@ export function compileWorkflowIssues(
         invalid = true;
       if (binding.kind === "literal" && field && !matchesWorkflowType(binding.value, field.type))
         invalid = true;
+      if (node.config.kind === "logic.select_path" && name === "path") {
+        if (binding.kind === "literal" && !isValidSelectPath(binding.value)) invalid = true;
+        if (binding.kind !== "literal" && binding.kind !== "reference") invalid = true;
+      }
       if (binding.kind === "reference") {
         if (!checkReference(node, binding)) invalid = true;
         const source = nodes.get(binding.nodeId);

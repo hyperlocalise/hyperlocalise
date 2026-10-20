@@ -121,6 +121,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: GitMergeIcon,
   },
   {
+    type: "logic.select_path",
+    category: "logic",
+    enabled: true,
+    icon: PathIcon,
+  },
+  {
     type: "ai.agent",
     category: "ai",
     enabled: true,
@@ -276,6 +282,13 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         ],
         conflictPolicy: "reject",
       };
+    case "logic.select_path":
+      return {
+        kind: "logic.select_path",
+        path: [],
+        outputType: "unknown",
+        missingBehavior: "error",
+      };
     case "ai.agent":
       return { kind: "ai.agent", prompt: "", onError: "stop" };
     case "logic.for_each":
@@ -424,6 +437,10 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.fields.length === 1 ? "1 field" : `${config.fields.length} fields`;
     case "logic.merge_objects":
       return `${config.inputs.length} objects · ${config.conflictPolicy.replace("_", " ")}`;
+    case "logic.select_path":
+      return config.path.length > 0
+        ? config.path.map((segment) => String(segment)).join(" › ")
+        : "No path selected";
     case "ai.agent":
       return "Tools agent";
     case "logic.for_each":

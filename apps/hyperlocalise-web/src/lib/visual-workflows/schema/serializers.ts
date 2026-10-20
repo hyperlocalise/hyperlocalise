@@ -39,6 +39,7 @@ const ENABLED_TYPES = new Set<VisualCatalogType>([
   "logic.set",
   "logic.create_object",
   "logic.merge_objects",
+  "logic.select_path",
   "ai.agent",
   "logic.for_each",
   "flow.wait",

@@ -60,6 +60,7 @@ export const visualCatalogTypeSchema = z.enum([
   "logic.set",
   "logic.create_object",
   "logic.merge_objects",
+  "logic.select_path",
   "ai.agent",
   "logic.for_each",
   "logic.retry",
@@ -196,7 +197,7 @@ const visualObjectMergeInputsSchema = z
     }
   });
 
-export const visualNodeConfigSchema = z.discriminatedUnion("kind", [
+const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("trigger.manual") }),
   z.object({
     kind: z.literal("trigger.scheduled"),
@@ -315,6 +316,28 @@ export const visualNodeConfigSchema = z.discriminatedUnion("kind", [
     kind: z.literal("logic.merge_objects"),
     inputs: visualObjectMergeInputsSchema,
     conflictPolicy: z.enum(["reject", "first_wins", "last_wins"]),
+  }),
+  z.object({
+    kind: z.literal("logic.select_path"),
+    path: z
+      .array(
+        z.union([
+          z
+            .string()
+            .min(1)
+            .max(256)
+            .refine(
+              (segment) => !["__proto__", "prototype", "constructor"].includes(segment),
+              "unsafe_path_segment",
+            ),
+          z.number().int().nonnegative().max(1_000_000),
+        ]),
+      )
+      .min(1)
+      .max(32),
+    outputType: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+    missingBehavior: z.enum(["error", "optional", "default"]),
+    defaultValue: z.unknown().optional(),
   }),
   z.object({
     kind: z.literal("ai.agent"),
@@ -507,6 +530,45 @@ export const visualNodeConfigSchema = z.discriminatedUnion("kind", [
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
 ]);
+
+export const visualNodeConfigSchema = visualNodeConfigBaseSchema.superRefine((config, context) => {
+  if (config.kind !== "logic.select_path") return;
+
+  const hasDefault = Object.hasOwn(config, "defaultValue");
+  if (config.missingBehavior === "default" && !hasDefault) {
+    context.addIssue({
+      code: "custom",
+      path: ["defaultValue"],
+      message: "missing_path_default",
+    });
+    return;
+  }
+  if (config.missingBehavior !== "default" && hasDefault) {
+    context.addIssue({
+      code: "custom",
+      path: ["defaultValue"],
+      message: "unexpected_path_default",
+    });
+    return;
+  }
+  if (!hasDefault || config.outputType === "unknown") return;
+
+  const matchesType =
+    config.outputType === "array"
+      ? Array.isArray(config.defaultValue)
+      : config.outputType === "object"
+        ? config.defaultValue !== null &&
+          typeof config.defaultValue === "object" &&
+          !Array.isArray(config.defaultValue)
+        : typeof config.defaultValue === config.outputType;
+  if (!matchesType) {
+    context.addIssue({
+      code: "custom",
+      path: ["defaultValue"],
+      message: "incompatible_path_default",
+    });
+  }
+});
 
 export const workflowBindingSchema = z.intersection(
   z.discriminatedUnion("kind", [

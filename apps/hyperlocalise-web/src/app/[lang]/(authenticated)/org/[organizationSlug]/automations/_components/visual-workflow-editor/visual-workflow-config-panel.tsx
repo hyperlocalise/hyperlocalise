@@ -1480,6 +1480,77 @@ export function VisualWorkflowConfigPanel({
             </Button>
           </div>
         ) : null}
+        {config.kind === "logic.select_path" ? (
+          <div className="grid gap-3">
+            <TextField
+              id="vw-select-path"
+              label={intl.formatMessage(messages.selectPathPath)}
+              value={formatSelectPath(config.path)}
+              description={intl.formatMessage(messages.selectPathPathDescription)}
+              {...connectedInputProps("path")}
+              onChange={(value) => onChangeConfig({ ...config, path: parseSelectPath(value) })}
+            />
+            <SelectField
+              id="vw-select-path-output-type"
+              label={intl.formatMessage(messages.selectPathOutputType)}
+              value={config.outputType}
+              items={WORKFLOW_VALUE_TYPES.map((type) => ({ value: type, label: type }))}
+              onValueChange={(outputType) => {
+                if (!isWorkflowValueType(outputType)) return;
+                onChangeConfig({
+                  ...config,
+                  outputType,
+                  ...(config.missingBehavior === "default"
+                    ? { defaultValue: defaultValueForType(outputType) }
+                    : {}),
+                });
+              }}
+            />
+            <SelectField
+              id="vw-select-path-missing"
+              label={intl.formatMessage(messages.selectPathMissingBehavior)}
+              value={config.missingBehavior}
+              items={[
+                { value: "error", label: intl.formatMessage(messages.selectPathMissingError) },
+                {
+                  value: "optional",
+                  label: intl.formatMessage(messages.selectPathMissingOptional),
+                },
+                {
+                  value: "default",
+                  label: intl.formatMessage(messages.selectPathMissingDefault),
+                },
+              ]}
+              onValueChange={(missingBehavior) => {
+                if (missingBehavior === "default") {
+                  onChangeConfig({
+                    ...config,
+                    missingBehavior,
+                    defaultValue: defaultValueForType(config.outputType),
+                  });
+                } else if (missingBehavior === "error" || missingBehavior === "optional") {
+                  const { defaultValue: _removed, ...withoutDefault } = config;
+                  onChangeConfig({ ...withoutDefault, missingBehavior });
+                }
+              }}
+            />
+            {config.missingBehavior === "default" ? (
+              <div className="grid gap-1.5">
+                <Label htmlFor="vw-select-path-default">
+                  <FormattedMessage {...messages.selectPathDefaultValue} />
+                </Label>
+                <ObjectDefaultInput
+                  key={config.outputType}
+                  ariaLabel={intl.formatMessage(messages.selectPathDefaultValue)}
+                  value={config.defaultValue}
+                  type={config.outputType}
+                  invalid={invalidFields.has("defaultValue")}
+                  onChange={(defaultValue) => onChangeConfig({ ...config, defaultValue })}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {config.kind === "logic.for_each" ? (
           <TextAreaField
             id="vw-for-each-collection"
@@ -2516,6 +2587,27 @@ const WORKFLOW_VALUE_TYPES: readonly WorkflowValueType[] = [
 
 function isWorkflowValueType(value: string | null): value is WorkflowValueType {
   return WORKFLOW_VALUE_TYPES.includes(value as WorkflowValueType);
+}
+
+function formatSelectPath(path: readonly (string | number)[]): string {
+  return path
+    .map((segment, index) =>
+      typeof segment === "number" ? `[${segment}]` : `${index === 0 ? "" : "."}${segment}`,
+    )
+    .join("");
+}
+
+function parseSelectPath(value: string): (string | number)[] {
+  const path: (string | number)[] = [];
+  const matcher = /(?:^|\.)([^.[\]]+)|\[(\d+)\]/g;
+  let consumed = 0;
+  for (const match of value.matchAll(matcher)) {
+    if (match.index !== consumed) return [];
+    if (match[1] !== undefined) path.push(match[1]);
+    else if (match[2] !== undefined) path.push(Number(match[2]));
+    consumed = match.index + match[0].length;
+  }
+  return consumed === value.length ? path : [];
 }
 
 function defaultValueForType(type: WorkflowValueType): unknown {
