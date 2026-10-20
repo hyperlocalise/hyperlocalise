@@ -208,7 +208,7 @@ type AnalysisInput = {
 
 /**
  * Options for a caller that has already checked the Reports flag and must know when a write fails,
- * such as the 5-minute capture task: `strict` skips the flag check and throws instead of logging.
+ * such as the scheduled capture task: `strict` skips the flag check and throws instead of logging.
  */
 type StrictWriteOptions = { strict?: boolean };
 

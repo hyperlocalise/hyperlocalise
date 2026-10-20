@@ -16,7 +16,7 @@ The Go service already writes a `string_segment_translation_updated` or `string_
 
 ### Editor saves come from activity events
 
-- A cron route, `/api/cron/reporting-capture`, runs every five minutes. It records each saved occurrence through `captureAnalysis` and `captureCompletions`, with the acting user.
+- A cron route, `/api/cron/reporting-capture`, runs every 15 minutes, as the other frequent cron jobs do. It records each saved occurrence through `captureAnalysis` and `captureCompletions`, with the acting user.
 - Progress is a cursor per organization in `reporting_capture_cursors`. Events are read in `(created_at, id)` order once they are two minutes old, because `created_at` is insert time, not commit time.
 - A workspace with Reports off has its position moved past its saves, since Reports records work from when it is turned on. Each run first waits for the feature flags to download and stops if they cannot, so a failed check never reads as off.
 - A run records saves in batches of 200, moving the position after each, loads each memory once, and starts no new batch after four minutes, inside the 300 s function limit.
@@ -32,7 +32,7 @@ The Go service already writes a `string_segment_translation_updated` or `string_
 
 ## Consequences
 
-- Editor work appears in Reports up to five minutes after the save, with every occurrence and the person.
+- Editor work appears in Reports 2 to 17 minutes after the save, with every occurrence and the person. Each run records at most 2,000 saves per workspace, so a workspace saving more than 8,000 an hour would fall behind.
 - Saves no longer wait on Reports. Matching drops to about 0.02 s per string plus 0.6 s to load 200,000 entries.
 - The index takes about 1.5 MB per 1,000 entries, at most about 450 MB per job.
 - Reports depends on the Go save event's fields. `activity-log-contract.ts` types and tests them.
