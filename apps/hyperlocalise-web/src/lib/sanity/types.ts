@@ -129,6 +129,7 @@ export type SanitySourcePullEntry = {
   key: string;
   source: string;
   target?: string;
+  knownTexts: string[];
 };
 
 export type SanitySourcePullPage = {
@@ -167,5 +168,5 @@ export type SanityLocaleStatus = {
 
 export type SanityLocaleStatusesResult = {
   locales: SanityLocaleStatus[];
-  languages: string[];
+  documents: CollectedSanityDocument[];
 };

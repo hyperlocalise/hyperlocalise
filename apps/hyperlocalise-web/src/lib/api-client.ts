@@ -74,6 +74,7 @@ function createOrgSlugClient(origin: string) {
       "intercom-connections",
       "canva-connections",
       "figma-connections",
+      "sanity-connections",
     ]),
     ...pickClientPaths(agents, [
       "agent-email",

@@ -17,74 +17,73 @@ import { defineMessages } from "react-intl";
 export const sanityStudioPluginConnectionPanelMessages = defineMessages({
   rowName: {
     defaultMessage: "Sanity Studio plugin",
-    id: "kQ8m2pL9xR",
+    id: "BUlLAYC2D/",
     description: "Integrations row title for the Sanity Studio Hyperlocalise plugin",
   },
   rowDescription: {
-    defaultMessage:
-      "OAuth connections for the Hyperlocalise document inspector in Sanity Studio.",
-    id: "vN3w7hJ4sT",
+    defaultMessage: "OAuth connections for the Hyperlocalise document inspector in Sanity Studio.",
+    id: "Ut8l1LdDPW",
     description: "Integrations row description for the Sanity Studio plugin",
   },
   fetchFailed: {
     defaultMessage: "Unable to load Studio plugin connections.",
-    id: "bF6c1yM8kP",
+    id: "laYnV29ZSq",
     description: "Error when Studio plugin connections fail to load",
   },
   saveFailed: {
     defaultMessage: "Unable to save the connection.",
-    id: "dH9r5nW2qL",
+    id: "bVMruRpKiP",
     description: "Error when saving a Studio plugin connection fails",
   },
   saveSucceeded: {
     defaultMessage: "Studio plugin connection saved.",
-    id: "gJ2t8vX6mN",
+    id: "elAWDDUN6Q",
     description: "Toast when a Studio plugin connection is saved",
   },
   deleteFailed: {
     defaultMessage: "Unable to remove the connection.",
-    id: "pK4s9zC3wQ",
+    id: "8FuO/BC/c+",
     description: "Error when deleting a Studio plugin connection fails",
   },
   deleteSucceeded: {
     defaultMessage: "Studio plugin connection removed.",
-    id: "mR7u1aE5yH",
+    id: "lwgvZ9xUis",
     description: "Toast when a Studio plugin connection is removed",
   },
   displayNameRequired: {
     defaultMessage: "Enter a display name.",
-    id: "nT5w2bI8fG",
+    id: "Cb+/mJmwXa",
     description: "Validation when Studio plugin connection display name is empty",
   },
   apiKeyRequired: {
     defaultMessage: "Select an API key.",
-    id: "qW3e6oL9dV",
+    id: "iSlJS2Ett8",
     description: "Validation when Studio plugin connection API key is missing",
   },
   displayNameLabel: {
     defaultMessage: "Display name",
-    id: "xC8h4jP1sM",
+    id: "vHYlPb35Wz",
     description: "Label for Studio plugin connection display name field",
   },
   apiKeyLabel: {
     defaultMessage: "API key",
-    id: "yD2k7nR5tB",
+    id: "ELEQOeEjfE",
     description: "Label for Studio plugin connection API key field",
   },
   addConnection: {
     defaultMessage: "Add connection",
-    id: "zE9m3qU6vF",
+    id: "o+eSDrg1s2",
     description: "Button to add a Studio plugin connection",
   },
   enabled: {
     defaultMessage: "Enabled",
-    id: "aF1p4rW8xH",
+    id: "tC4GUVUAOj",
     description: "Badge when a Studio plugin connection is enabled",
   },
   oauthHint: {
     defaultMessage:
       "Editors connect from the Hyperlocalise inspector in Studio via OAuth. Each grant is bound to that Studio origin.",
-    id: "bG5s6tY2zJ",
+    id: "phnvkhj1NZ",
     description: "Help text explaining Studio plugin OAuth",
   },
 });

@@ -535,10 +535,13 @@ async function toSanityDocumentJob(input: {
   const sourcePath =
     readMetadataString(input.job.inputPayload, "sourcePath") ??
     normalizeSourcePath(
-      buildSanityDocumentSourcePath(
-        readMetadataString(input.job.inputPayload, "sanityProjectId") ?? "unknown",
-        readMetadataString(input.job.inputPayload, "sanityDocumentId") ?? "unknown",
-      ),
+      buildSanityDocumentSourcePath({
+        sanityProjectId: readMetadataString(input.job.inputPayload, "sanityProjectId") ?? "unknown",
+        dataset: readMetadataString(input.job.inputPayload, "sanityDataset") ?? "production",
+        documentType:
+          readMetadataString(input.job.inputPayload, "sanityDocumentType") ?? "document",
+        documentId: readMetadataString(input.job.inputPayload, "sanityDocumentId") ?? "unknown",
+      }),
     );
 
   let translationsByLocale: Record<string, Record<string, string>> = {};
@@ -1360,6 +1363,8 @@ export async function pullSanitySourcePageForUpload(input: {
   auth: ApiAuthContext;
   projectId: string;
   sanityProjectId: string;
+  dataset?: string;
+  documentType?: string;
   documentId: string;
 }): Promise<SanitySourcePullPage> {
   const project = await getAccessibleSanityProject(input.auth, input.projectId);
@@ -1374,6 +1379,8 @@ export async function pullSanitySourcePageForUpload(input: {
   const organizationId = input.auth.organization.localOrganizationId;
   const sourcePathDefault = buildSanityDocumentSourcePath({
     sanityProjectId: input.sanityProjectId,
+    dataset: input.dataset ?? "production",
+    documentType: input.documentType ?? "document",
     documentId: input.documentId,
   });
 
@@ -1433,6 +1440,8 @@ export async function pullSanityDocumentLocaleContent(input: {
   auth: ApiAuthContext;
   projectId: string;
   sanityProjectId: string;
+  dataset?: string;
+  documentType?: string;
   documentId: string;
   locale?: string;
 }): Promise<

@@ -162,7 +162,7 @@ export function HyperlocaliseTool({
         const docStatus = locales
           .flatMap((locale) => locale.documents)
           .find((entry) => entry.documentId === publishedId)
-        setCollected(docStatus?.status === 'collected')
+        setCollected(docStatus?.status === 'succeeded' || docStatus?.status === 'collected')
       } catch {
         setCollected(false)
       }
