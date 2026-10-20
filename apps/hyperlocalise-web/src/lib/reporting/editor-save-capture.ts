@@ -211,7 +211,10 @@ async function listWorkspaces(organizationIds?: string[]): Promise<WorkspaceToCh
 
 /**
  * Approvals passed by the position within the lookback, after the workspace was started, that have
- * no recorded review yet: queued approvals that reached the activity log late.
+ * no recorded review yet: queued approvals that reached the activity log late. Approvals carry no
+ * source revision, so one counts as recorded when a review of the string's current source text
+ * exists, or any review of it was written after the approval (the run that passed it recorded
+ * it). A review of an earlier source text written before the approval does not count.
  */
 async function listLateApprovals(organizationId: string, cutoff: Date): Promise<SaveEvent[]> {
   const rows = await db.execute<SaveEvent>(sql`
@@ -220,6 +223,9 @@ async function listLateApprovals(organizationId: string, cutoff: Date): Promise<
       e.payload, e.created_at as "createdAt"
     from organization_activity_events e
     join reporting_capture_cursors c on c.organization_id = e.organization_id
+    join project_translation_keys k
+      on k.organization_id = e.organization_id
+      and k.id::text = lower(e.target_id)
     where e.organization_id = ${organizationId}
       and e.event_type = 'string_segment_approved'
       and e.created_at >= greatest(c.started_at, ${new Date(cutoff.getTime() - LATE_APPROVAL_LOOKBACK_MS)}::timestamptz)
@@ -233,6 +239,10 @@ async function listLateApprovals(organizationId: string, cutoff: Date): Promise<
           and a.segment_id = e.target_id
           and a.target_locale = e.payload ->> 'targetLocale'
           and a.step = 'review'
+          and (
+            a.source_revision = encode(sha256(convert_to(k.source_text, 'UTF8')), 'hex')
+            or r.created_at >= e.created_at
+          )
       )
     order by e.created_at, e.id
     limit ${LATE_APPROVALS_PER_ORGANIZATION}

@@ -630,4 +630,51 @@ describe("captureEditorSaves", () => {
     });
     expect(again.lateApprovalsRecorded).toBe(0);
   });
+
+  it("records a late approval of a revised source text the string had an earlier review of", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    const approve = () =>
+      insertSaveEvent({
+        organizationId: organization.id,
+        projectId: project.id,
+        actorUserId: user.id,
+        segmentId: keyIds[0],
+        eventType: "string_segment_approved",
+      });
+    await approve();
+    const first = await captureEditorSaves({
+      now: minutesFromNow(3),
+      organizationIds: [organization.id],
+    });
+    expect(first).toMatchObject({ eventsProcessed: 1, lateApprovalsRecorded: 0 });
+    await db
+      .update(schema.projectTranslationKeys)
+      .set({ sourceText: "Hello brave world", normalizedSourceText: "hello brave world" })
+      .where(eq(schema.projectTranslationKeys.id, keyIds[0]));
+    await approve();
+
+    const late = await captureEditorSaves({
+      now: minutesFromNow(5),
+      organizationIds: [organization.id],
+    });
+    // Only the late approval: the first one was recorded by the run that passed it.
+    expect(late.lateApprovalsRecorded).toBe(1);
+    const reviews = await db
+      .select({ sourceRevision: schema.reportingAnalyses.sourceRevision })
+      .from(schema.reportingAnalyses)
+      .where(
+        and(
+          eq(schema.reportingAnalyses.organizationId, organization.id),
+          eq(schema.reportingAnalyses.segmentId, keyIds[0]),
+          eq(schema.reportingAnalyses.step, "review"),
+        ),
+      );
+    expect(new Set(reviews.map((review) => review.sourceRevision)).size).toBe(2);
+
+    const again = await captureEditorSaves({
+      now: minutesFromNow(5),
+      organizationIds: [organization.id],
+    });
+    expect(again.lateApprovalsRecorded).toBe(0);
+  });
 });
