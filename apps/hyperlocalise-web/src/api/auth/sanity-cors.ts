@@ -14,7 +14,7 @@ import { createMiddleware } from "hono/factory";
 
 import { env } from "@/lib/env";
 import { listActiveSanityPluginStudioOrigins } from "@/lib/sanity/oauth";
-import { DEFAULT_SANITY_STUDIO_ORIGINS } from "@/lib/sanity/origins";
+import { DEFAULT_SANITY_STUDIO_ORIGINS, isHostedSanityStudioOrigin } from "@/lib/sanity/origins";
 
 const ORIGIN_CACHE_TTL_MS = 60_000;
 let cachedGrantedOrigins: { expiresAt: number; origins: Set<string> } | null = null;
@@ -48,11 +48,23 @@ async function resolveAllowedOrigins(): Promise<Set<string>> {
 
 export const SANITY_INTEGRATION_ALLOWED_HEADERS = "Content-Type, X-Hyperlocalise-Access-Token";
 
+export function isAllowedSanityIntegrationOrigin(
+  origin: string | undefined,
+  allowedOrigins: ReadonlySet<string>,
+): origin is string {
+  if (!origin || origin === "null") {
+    return false;
+  }
+  return allowedOrigins.has(origin) || isHostedSanityStudioOrigin(origin);
+}
+
 export const sanityCorsMiddleware = createMiddleware(async (c, next) => {
   const origin = c.req.header("origin");
   const allowedOrigins = await resolveAllowedOrigins();
   const allowOrigin =
-    !origin || origin === "null" || allowedOrigins.has(origin) ? (origin ?? "*") : null;
+    !origin || origin === "null" || isAllowedSanityIntegrationOrigin(origin, allowedOrigins)
+      ? (origin ?? "*")
+      : null;
 
   if (allowOrigin) {
     c.header("Access-Control-Allow-Origin", allowOrigin === "null" ? "*" : allowOrigin);

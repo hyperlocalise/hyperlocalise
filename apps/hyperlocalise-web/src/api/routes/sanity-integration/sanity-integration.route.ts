@@ -283,6 +283,7 @@ export function createSanityIntegrationRoutes(options: CreateSanityIntegrationRo
           auth,
           projectId: query.projectId,
           sanityProjectId: query.sanityProjectId,
+          dataset: query.dataset,
           documentIds: query.documentIds,
         });
         return c.json(result, 200);
@@ -471,6 +472,7 @@ export function createSanityIntegrationRoutes(options: CreateSanityIntegrationRo
             auth,
             projectId: payload.projectId,
             sanityProjectId: payload.sanityProjectId,
+            dataset: payload.dataset,
             documentId: payload.documentId,
             targetLocale: payload.targetLocale,
             entries: payload.entries,

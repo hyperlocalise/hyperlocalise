@@ -448,6 +448,8 @@ describe("sanityIntegrationRoutes", () => {
     expect(mocks.importSanityPluginTargetTranslationsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: projectBody.project.id,
+        sanityProjectId: SANITY_PROJECT_ID,
+        dataset: SANITY_DATASET,
         documentId: DOCUMENT_ID,
         targetLocale: "fr-FR",
       }),
@@ -519,6 +521,7 @@ describe("sanityIntegrationRoutes", () => {
     expect(mocks.listSanityPageLocaleStatusesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         sanityProjectId: SANITY_PROJECT_ID,
+        dataset: SANITY_DATASET,
         documentIds: [DOCUMENT_ID],
       }),
     );

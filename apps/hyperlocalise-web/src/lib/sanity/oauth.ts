@@ -101,7 +101,8 @@ function base64Url(input: Buffer | string): string {
 
 function sign(value: string): string {
   // HMAC over the OAuth request cookie payload (PKCE metadata), not a user password.
-  return createHmac("sha256", getOauthSecret()).update(value).digest("base64url"); // codeql[js/insufficient-password-hash]
+  // codeql[js/insufficient-password-hash]
+  return createHmac("sha256", getOauthSecret()).update(value).digest("base64url");
 }
 
 function constantTimeEqual(left: string, right: string): boolean {

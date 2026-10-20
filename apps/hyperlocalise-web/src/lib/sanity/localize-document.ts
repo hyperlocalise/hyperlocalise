@@ -386,12 +386,17 @@ export function isSanityIntegrationJob(inputPayload: unknown) {
 /** True when job metadata points at this Sanity file and page. */
 export function sanityJobMatchesPage(
   inputPayload: unknown,
-  input: { sanityProjectId: string; documentId: string },
+  input: { sanityProjectId: string; documentId: string; dataset: string },
 ) {
+  const dataset = readMetadataString(inputPayload, "sanityDataset");
+  if (!dataset) {
+    return false;
+  }
   return (
     isSanityIntegrationJob(inputPayload) &&
     readMetadataString(inputPayload, "sanityProjectId") === input.sanityProjectId &&
-    readMetadataString(inputPayload, "sanityDocumentId") === input.documentId
+    readMetadataString(inputPayload, "sanityDocumentId") === input.documentId &&
+    dataset === input.dataset
   );
 }
 
@@ -796,6 +801,7 @@ export async function importSanityPluginTargetTranslations(input: {
   auth: ApiAuthContext;
   projectId: string;
   sanityProjectId: string;
+  dataset: string;
   documentId: string;
   targetLocale: string;
   entries: Record<string, string>;
@@ -821,6 +827,7 @@ export async function importSanityPluginTargetTranslations(input: {
     organizationId,
     projectId: project.id,
     sanityProjectId: input.sanityProjectId,
+    dataset: input.dataset,
     documentIds: [input.documentId],
   });
   const collected = pages.find((page) => page.documentId === input.documentId);
@@ -842,6 +849,7 @@ export async function listCollectedSanityDocuments(input: {
   organizationId: string;
   projectId: string;
   sanityProjectId: string;
+  dataset: string;
   documentIds: string[];
 }): Promise<CollectedSanityDocument[]> {
   const uniquePageIds = [
@@ -865,6 +873,7 @@ export async function listCollectedSanityDocuments(input: {
         eq(schema.storedFiles.role, "source"),
         sql`${schema.storedFiles.metadata}->>'integration' = 'sanity-plugin'`,
         sql`${schema.storedFiles.metadata}->>'sanityProjectId' = ${input.sanityProjectId}`,
+        sql`${schema.storedFiles.metadata}->>'sanityDataset' = ${input.dataset}`,
         or(
           ...uniquePageIds.map(
             (documentId) =>
@@ -907,6 +916,7 @@ async function listSanityDatasetJobs(input: {
   auth: ApiAuthContext;
   projectId: string;
   sanityProjectId: string;
+  dataset: string;
 }): Promise<SanityJobSnapshot[]> {
   const organizationId = input.auth.organization.localOrganizationId;
   const accessibleJobsWhere = await buildAccessibleJobsWhere(input.auth);
@@ -922,6 +932,7 @@ async function listSanityDatasetJobs(input: {
         accessibleJobsWhere,
         sql`${schema.jobs.inputPayload}->'metadata'->>'integration' = 'sanity-plugin'`,
         sql`${schema.jobs.inputPayload}->'metadata'->>'sanityProjectId' = ${input.sanityProjectId}`,
+        sql`${schema.jobs.inputPayload}->'metadata'->>'sanityDataset' = ${input.dataset}`,
       ),
     )
     .orderBy(desc(schema.jobs.createdAt));
@@ -929,7 +940,8 @@ async function listSanityDatasetJobs(input: {
   return rows.filter(
     (job) =>
       isSanityIntegrationJob(job.inputPayload) &&
-      readMetadataString(job.inputPayload, "sanityProjectId") === input.sanityProjectId,
+      readMetadataString(job.inputPayload, "sanityProjectId") === input.sanityProjectId &&
+      readMetadataString(job.inputPayload, "sanityDataset") === input.dataset,
   );
 }
 
@@ -937,6 +949,7 @@ export async function listSanityDocumentLocaleStatuses(input: {
   auth: ApiAuthContext;
   projectId: string;
   sanityProjectId: string;
+  dataset: string;
   documentIds: string[];
 }): Promise<SanityLocaleStatusesResult> {
   const project = await getAccessibleSanityProject(input.auth, input.projectId);
@@ -952,6 +965,7 @@ export async function listSanityDocumentLocaleStatuses(input: {
     organizationId,
     projectId: project.id,
     sanityProjectId: input.sanityProjectId,
+    dataset: input.dataset,
     documentIds,
   });
   const collectedByPageId = new Map(pages.map((page) => [page.documentId, page]));
@@ -959,6 +973,7 @@ export async function listSanityDocumentLocaleStatuses(input: {
     auth: input.auth,
     projectId: project.id,
     sanityProjectId: input.sanityProjectId,
+    dataset: input.dataset,
   });
 
   const sourceLocale = project.sourceLocale?.trim() || "en";
@@ -1011,6 +1026,7 @@ export async function listSanityDocumentLocaleStatuses(input: {
           sanityJobMatchesPage(candidate.inputPayload, {
             sanityProjectId: input.sanityProjectId,
             documentId,
+            dataset: input.dataset,
           }) &&
           readJobTargetLocales(candidate.inputPayload).some((target) =>
             sanityProjectLocalesMatch(target, trimmed),
@@ -1217,6 +1233,7 @@ export async function generateSanityLocaleJobs(input: {
   const collected = await findLatestSanityCollectedPage({
     auth: input.auth,
     sanityProjectId: input.sanityProjectId,
+    dataset: input.dataset,
     documentId: input.documentId,
     projectId: project.id,
   });
@@ -1245,6 +1262,7 @@ export async function generateSanityLocaleJobs(input: {
     metadata: {
       integration: "sanity-plugin",
       sanityProjectId: input.sanityProjectId,
+      sanityDataset: input.dataset,
       sanityDocumentId: input.documentId,
       sourcePath: collected.sourcePath,
     },
@@ -1273,6 +1291,7 @@ export async function generateSanityLocaleJobs(input: {
 async function findLatestSanityCollectedPage(input: {
   auth: ApiAuthContext;
   sanityProjectId: string;
+  dataset: string;
   documentId: string;
   projectId: string;
 }): Promise<{ sourceFileId: string; sourcePath: string } | null> {
@@ -1281,6 +1300,7 @@ async function findLatestSanityCollectedPage(input: {
     organizationId,
     projectId: input.projectId,
     sanityProjectId: input.sanityProjectId,
+    dataset: input.dataset,
     documentIds: [input.documentId],
   });
   const page = pages[0];
@@ -1335,6 +1355,7 @@ export async function getSanityLocalizationStatus(input: {
 async function findLatestSanityDocumentJob(input: {
   auth: ApiAuthContext;
   sanityProjectId: string;
+  dataset: string;
   documentId: string;
   projectId?: string;
 }): Promise<SanityJobSnapshot | null> {
@@ -1346,6 +1367,7 @@ async function findLatestSanityDocumentJob(input: {
     accessibleJobsWhere,
     sql`${schema.jobs.inputPayload}->'metadata'->>'integration' = 'sanity-plugin'`,
     sql`${schema.jobs.inputPayload}->'metadata'->>'sanityProjectId' = ${input.sanityProjectId}`,
+    sql`${schema.jobs.inputPayload}->'metadata'->>'sanityDataset' = ${input.dataset}`,
     sql`${schema.jobs.inputPayload}->'metadata'->>'sanityDocumentId' = ${input.documentId}`,
   ];
 
@@ -1489,9 +1511,11 @@ export async function pullSanitySourcePageForUpload(input: {
     documentId: input.documentId,
   });
 
+  const dataset = input.dataset?.trim() || "production";
   const collected = await findLatestSanityCollectedPage({
     auth: input.auth,
     sanityProjectId: input.sanityProjectId,
+    dataset,
     documentId: input.documentId,
     projectId: project.id,
   });
@@ -1545,7 +1569,7 @@ export async function pullSanityDocumentLocaleContent(input: {
   auth: ApiAuthContext;
   projectId: string;
   sanityProjectId: string;
-  dataset?: string;
+  dataset: string;
   documentType?: string;
   documentId: string;
   locale?: string;
@@ -1585,6 +1609,7 @@ function readJobTargetLocalesIncludes(inputPayload: unknown, locale: string): bo
 async function findLatestSanityDocumentJobForLocale(input: {
   auth: ApiAuthContext;
   sanityProjectId: string;
+  dataset: string;
   documentId: string;
   projectId: string;
   locale: string;
@@ -1593,6 +1618,7 @@ async function findLatestSanityDocumentJobForLocale(input: {
     auth: input.auth,
     projectId: input.projectId,
     sanityProjectId: input.sanityProjectId,
+    dataset: input.dataset,
   });
   return (
     jobs.find(
@@ -1600,6 +1626,7 @@ async function findLatestSanityDocumentJobForLocale(input: {
         sanityJobMatchesPage(job.inputPayload, {
           sanityProjectId: input.sanityProjectId,
           documentId: input.documentId,
+          dataset: input.dataset,
         }) && readJobTargetLocalesIncludes(job.inputPayload, input.locale),
     ) ?? null
   );
@@ -1609,6 +1636,7 @@ export async function pullSanityTranslationsForPage(input: {
   auth: ApiAuthContext;
   projectId: string;
   sanityProjectId: string;
+  dataset: string;
   documentId: string;
   locale?: string;
 }): Promise<{ jobId: null; status: "not_found" } | SanityDocumentJob> {
@@ -1624,6 +1652,7 @@ export async function pullSanityTranslationsForPage(input: {
     const job = await findLatestSanityDocumentJob({
       auth: input.auth,
       sanityProjectId: input.sanityProjectId,
+      dataset: input.dataset,
       documentId: input.documentId,
       projectId: project.id,
     });
@@ -1636,6 +1665,7 @@ export async function pullSanityTranslationsForPage(input: {
   const job = await findLatestSanityDocumentJobForLocale({
     auth: input.auth,
     sanityProjectId: input.sanityProjectId,
+    dataset: input.dataset,
     documentId: input.documentId,
     projectId: project.id,
     locale: requestedLocale,
@@ -1650,6 +1680,7 @@ export async function pullSanityTranslationsForPage(input: {
   const collected = await findLatestSanityCollectedPage({
     auth: input.auth,
     sanityProjectId: input.sanityProjectId,
+    dataset: input.dataset,
     documentId: input.documentId,
     projectId: project.id,
   });
@@ -1705,6 +1736,7 @@ export async function pullLatestSanityTranslations(input: {
   auth: ApiAuthContext;
   projectId: string;
   sanityProjectId: string;
+  dataset: string;
   documentId: string;
 }): Promise<{ jobId: null; status: "not_found" } | SanityDocumentJob> {
   return pullSanityTranslationsForPage(input);

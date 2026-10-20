@@ -14,3 +14,11 @@ export const DEFAULT_SANITY_STUDIO_ORIGINS = [
   "http://localhost:3333",
   "http://localhost:3334",
 ] as const;
+
+/** Hosted Sanity Studio, e.g. https://your-project.sanity.studio */
+const HOSTED_SANITY_STUDIO_ORIGIN_PATTERN =
+  /^https:\/\/[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.sanity\.studio$/;
+
+export function isHostedSanityStudioOrigin(origin: string): boolean {
+  return HOSTED_SANITY_STUDIO_ORIGIN_PATTERN.test(origin);
+}
