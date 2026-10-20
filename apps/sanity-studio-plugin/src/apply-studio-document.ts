@@ -41,9 +41,7 @@ export function translationMetadataEntryLocale(entry: {
   return null;
 }
 
-export function translationMetadataEntryRef(entry: {
-  value?: { _ref?: unknown };
-}): string | null {
+export function translationMetadataEntryRef(entry: { value?: { _ref?: unknown } }): string | null {
   const ref = entry.value?._ref;
   return typeof ref === "string" && ref.trim() ? normalizePublishedId(ref) : null;
 }
@@ -200,9 +198,7 @@ export async function createDocumentLevelTranslation(input: {
   const metadataDocument: SanityDocumentRecord = {
     ...omitSystemFields(existing ?? {}),
     _type: "translation.metadata",
-    schemaTypes: Array.isArray(existing?.schemaTypes)
-      ? existing.schemaTypes
-      : [input.documentType],
+    schemaTypes: Array.isArray(existing?.schemaTypes) ? existing.schemaTypes : [input.documentType],
     translations,
   };
 

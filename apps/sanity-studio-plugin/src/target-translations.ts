@@ -143,10 +143,9 @@ export async function fetchDocumentLevelTargetRef(
   const published = publishedDocumentId(sourceId);
   const metadata = await client.fetch<{
     translations?: Array<{ language?: string; value?: { _ref?: string } }>;
-  } | null>(
-    `*[_type == "translation.metadata" && references($id)][0]{ translations }`,
-    { id: published },
-  );
+  } | null>(`*[_type == "translation.metadata" && references($id)][0]{ translations }`, {
+    id: published,
+  });
   return findTranslationMetadataTargetRef(metadata?.translations, locale);
 }
 
@@ -161,10 +160,9 @@ export async function fetchDocumentLevelTargetsMap(
       const published = publishedDocumentId(sourceId);
       const metadata = await client.fetch<{
         translations?: Array<{ language?: string; value?: { _ref?: string } }>;
-      } | null>(
-        `*[_type == "translation.metadata" && references($id)][0]{ translations }`,
-        { id: published },
-      );
+      } | null>(`*[_type == "translation.metadata" && references($id)][0]{ translations }`, {
+        id: published,
+      });
       if (!metadata?.translations) {
         return;
       }
@@ -297,7 +295,9 @@ export async function uploadTargetLocaleFromSanity(input: {
 
   let targetDocument = input.sourceDocument;
   if (input.i18nMode === "document-level") {
-    const ref = input.targetRef ?? (await fetchDocumentLevelTargetRef(input.client, input.documentId, input.locale));
+    const ref =
+      input.targetRef ??
+      (await fetchDocumentLevelTargetRef(input.client, input.documentId, input.locale));
     if (!ref) {
       throw new Error(`No Sanity document found for ${input.locale}.`);
     }
@@ -306,13 +306,15 @@ export async function uploadTargetLocaleFromSanity(input: {
       throw new Error(`Unable to load ${input.locale} document from Sanity.`);
     }
     targetDocument = loaded;
-  } else if (!fieldLevelTargetHasContent({
-    document: input.sourceDocument,
-    locale: input.locale,
-    i18nMode: input.i18nMode,
-    customBlockTypes: input.customBlockTypes,
-    excludeFieldNames: input.excludeFieldNames,
-  })) {
+  } else if (
+    !fieldLevelTargetHasContent({
+      document: input.sourceDocument,
+      locale: input.locale,
+      i18nMode: input.i18nMode,
+      customBlockTypes: input.customBlockTypes,
+      excludeFieldNames: input.excludeFieldNames,
+    })
+  ) {
     throw new Error(`No ${input.locale} field content found on this document.`);
   }
 

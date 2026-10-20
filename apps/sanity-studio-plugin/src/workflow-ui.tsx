@@ -136,9 +136,7 @@ function translationProgressLabel(
   return jobProgressLabel(status);
 }
 
-function progressTone(
-  status: string,
-): "default" | "primary" | "positive" | "caution" | "critical" {
+function progressTone(status: string): "default" | "primary" | "positive" | "caution" | "critical" {
   if (status === "failed") {
     return "critical";
   }
@@ -351,13 +349,7 @@ export function WorkflowSessionLoading() {
   );
 }
 
-export function WorkflowHeader({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle?: string | null;
-}) {
+export function WorkflowHeader({ title, subtitle }: { title: string; subtitle?: string | null }) {
   return (
     <Stack gap={2} style={{ textAlign: "center" }}>
       <Flex align="center" gap={2} justify="center">
@@ -442,13 +434,7 @@ export function DocumentHero({
   );
 }
 
-export function WorkflowSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
+export function WorkflowSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <Stack gap={2} style={{ width: "100%" }}>
       <Text size={1} weight="semibold">

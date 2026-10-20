@@ -88,9 +88,7 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
   const [documents, setDocuments] = useState<ListedDocument[]>([]);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [selectedLocale, setSelectedLocale] = useState("");
-  const [documentHlById, setDocumentHlById] = useState<Record<string, DocumentLocaleStatuses>>(
-    {},
-  );
+  const [documentHlById, setDocumentHlById] = useState<Record<string, DocumentLocaleStatuses>>({});
   const [targetsByDoc, setTargetsByDoc] = useState<Record<string, Record<string, string>>>({});
   const [bulkProgress, setBulkProgress] = useState<BulkProgress | null>(null);
   const [choosingProject, setChoosingProject] = useState(false);
@@ -192,9 +190,7 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
       }
       try {
         const targetLocales =
-          selectedLocale.trim().length > 0
-            ? [selectedLocale]
-            : (project?.targetLocales ?? []);
+          selectedLocale.trim().length > 0 ? [selectedLocale] : (project?.targetLocales ?? []);
         const targets = await fetchDocumentLevelTargetsMap(
           client,
           listed.map((row) => row._id),
@@ -399,7 +395,10 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
         setError("Select at least one document.");
         return;
       }
-      if ((action === "upload" || action === "translate" || action === "write") && !selectedLocale) {
+      if (
+        (action === "upload" || action === "translate" || action === "write") &&
+        !selectedLocale
+      ) {
         setError("Select a target locale.");
         return;
       }
@@ -558,11 +557,7 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
               if (!status) {
                 return true;
               }
-              return !(
-                isJobReadyToWrite(status) ||
-                status === "failed" ||
-                status === "cancelled"
-              );
+              return !(isJobReadyToWrite(status) || status === "failed" || status === "cancelled");
             });
             if (!stillWaiting) {
               break;
@@ -685,11 +680,7 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
     <WorkflowPanel>
       <WorkflowHeader
         title="Bulk translation"
-        subtitle={
-          sessionOrg
-            ? `${sessionOrg.name} · document-level`
-            : "Document-level"
-        }
+        subtitle={sessionOrg ? `${sessionOrg.name} · document-level` : "Document-level"}
       />
       <WorkflowProjectLine
         projectName={workflowProjectLabel}
@@ -777,7 +768,9 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
                       {selectedLocale ? (
                         <Text muted size={0}>
                           {selectedLocale}
-                          {hl.source === "succeeded" ? " · source uploaded" : " · source not uploaded"}
+                          {hl.source === "succeeded"
+                            ? " · source uploaded"
+                            : " · source not uploaded"}
                         </Text>
                       ) : null}
                     </Stack>

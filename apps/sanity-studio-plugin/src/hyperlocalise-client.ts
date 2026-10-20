@@ -81,9 +81,7 @@ const SANITY_API_ERROR_MESSAGES: Record<string, string> = {
 };
 
 function readCount(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0
-    ? Math.floor(value)
-    : 0;
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
 }
 
 function messageForApiError(payload: ErrorPayload | null, fallbackMessage: string): string {
@@ -732,7 +730,8 @@ function parseWritePlan(value: unknown): SanityWritePlan | null {
     return null;
   }
   const write = value.write;
-  const i18nMode = write.i18nMode === "document" || write.i18nMode === "field" ? write.i18nMode : null;
+  const i18nMode =
+    write.i18nMode === "document" || write.i18nMode === "field" ? write.i18nMode : null;
   const targetSanityLocale = readString(write.targetSanityLocale);
   if (!i18nMode || !targetSanityLocale || !isRecord(write.document)) {
     return null;
@@ -765,18 +764,21 @@ export async function fetchSanityWritePlan(input: {
   sourceSanityLocale: string;
   targetSanityLocale: string;
 }): Promise<SanityWritePlan> {
-  const response = await fetch(apiUrl(input.appUrl, "/api/integrations/sanity/translations/write"), {
-    method: "POST",
-    headers: buildRequestHeaders(input.appUrl, input.auth),
-    body: JSON.stringify({
-      projectId: input.projectId,
-      sourcePath: input.sourcePath,
-      document: input.document,
-      i18nMode: input.i18nMode,
-      sourceSanityLocale: input.sourceSanityLocale,
-      targetSanityLocale: input.targetSanityLocale,
-    }),
-  });
+  const response = await fetch(
+    apiUrl(input.appUrl, "/api/integrations/sanity/translations/write"),
+    {
+      method: "POST",
+      headers: buildRequestHeaders(input.appUrl, input.auth),
+      body: JSON.stringify({
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        document: input.document,
+        i18nMode: input.i18nMode,
+        sourceSanityLocale: input.sourceSanityLocale,
+        targetSanityLocale: input.targetSanityLocale,
+      }),
+    },
+  );
   const payload = await readResponseJson(response);
   throwIfFailed(
     response,

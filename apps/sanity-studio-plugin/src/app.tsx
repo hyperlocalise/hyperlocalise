@@ -560,10 +560,7 @@ export function HyperlocaliseDocumentWorkflow({
             setSourcePath(job.sourcePath);
           }
           void refreshDocumentHlStatus();
-          if (
-            !isJobReadyToWrite(job.status) ||
-            pendingWriteJobIdRef.current !== job.jobId
-          ) {
+          if (!isJobReadyToWrite(job.status) || pendingWriteJobIdRef.current !== job.jobId) {
             return;
           }
           pendingWriteJobIdRef.current = null;
@@ -751,9 +748,7 @@ export function HyperlocaliseDocumentWorkflow({
                     width="fill"
                     text={actionLabel("Upload", localeTags)}
                     tone="primary"
-                    disabled={
-                      busy !== null || !project || !selectedLocale || !sanityTargetReady
-                    }
+                    disabled={busy !== null || !project || !selectedLocale || !sanityTargetReady}
                     loading={busy === "upload"}
                     onClick={() => void upload()}
                   />
