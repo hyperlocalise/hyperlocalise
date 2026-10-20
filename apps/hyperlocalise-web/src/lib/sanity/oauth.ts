@@ -10,14 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import {
-  createHash,
-  createHmac,
-  randomBytes,
-  scryptSync,
-  timingSafeEqual,
-  webcrypto,
-} from "node:crypto";
+import { createHash, randomBytes, scryptSync, timingSafeEqual, webcrypto } from "node:crypto";
 
 import { and, eq, gt, isNull } from "drizzle-orm";
 
@@ -100,9 +93,12 @@ function base64Url(input: Buffer | string): string {
 }
 
 function sign(value: string): string {
-  // HMAC over the OAuth request cookie payload (PKCE metadata), not a user password.
-  // codeql[js/insufficient-password-hash]
-  return createHmac("sha256", getOauthSecret()).update(value).digest("base64url");
+  return scryptSync(
+    value,
+    getOauthSecret(),
+    TOKEN_LOOKUP_DIGEST_BYTES,
+    TOKEN_LOOKUP_SCRYPT_OPTIONS,
+  ).toString("base64url");
 }
 
 function constantTimeEqual(left: string, right: string): boolean {
