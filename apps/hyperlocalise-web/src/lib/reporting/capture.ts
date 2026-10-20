@@ -521,7 +521,13 @@ async function writeReportingCompletions(
         analysisId: analysis.id,
         actorUserId: input.actorUserId ?? null,
       })
-      .onConflictDoNothing();
+      // One completion per analysis and step: when a person finishes a string a job already
+      // completed (a post-edit), the person is added to that completion rather than dropped.
+      .onConflictDoUpdate({
+        target: [schema.reportingActivity.organizationId, schema.reportingActivity.operationKey],
+        set: { actorUserId: sql`excluded.actor_user_id` },
+        where: sql`${schema.reportingActivity.actorUserId} is null and excluded.actor_user_id is not null`,
+      });
     if (input.provenance !== "human") continue;
     if (input.jobId) {
       const [taskRate] = await database

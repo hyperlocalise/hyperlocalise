@@ -28,6 +28,7 @@ import { captureAiUsage } from "./ai-cost";
 import {
   analysisScopeLockKey,
   captureAnalysis,
+  captureCompletions,
   captureJobStatus,
   MemoryScoreCache,
   scoreAgainstMemory,
@@ -499,6 +500,34 @@ describe("reporting capture", () => {
     holder.release();
     await Promise.all(captures);
     expect(await currentRows()).toHaveLength(1);
+  });
+
+  it("credits the person who post-edits a string a job already completed", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    const scope = {
+      organizationId: organization.id,
+      targetLocale: "fr-FR",
+      sourceEntries: { greeting: "Hello world" },
+    };
+    await captureAnalysis({
+      ...scope,
+      projectId: project.id,
+      sourceLocale: "en-US",
+      billable: true,
+    });
+    await captureCompletions({ ...scope, provenance: "automated" });
+    await captureCompletions({ ...scope, provenance: "human", actorUserId: user.id });
+
+    const completions = await db
+      .select({ actorUserId: schema.reportingActivity.actorUserId })
+      .from(schema.reportingActivity)
+      .where(
+        and(
+          eq(schema.reportingActivity.organizationId, organization.id),
+          eq(schema.reportingActivity.kind, "completion"),
+        ),
+      );
+    expect(completions).toEqual([{ actorUserId: user.id }]);
   });
 
   it("skips analysis capture when workspace reports is disabled", async () => {
