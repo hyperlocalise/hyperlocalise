@@ -200,6 +200,15 @@ func TestWorkspaceSettingsRoutes(t *testing.T) {
 	require.Equal(t, "active", f.stored(t).lifecycleStatus)
 }
 
+func TestWorkspaceSettingsUnavailableWithoutDatabase(t *testing.T) {
+	f := newWorkspaceSettingsFixture(t, "admin")
+	f.api.pool = nil
+	for _, method := range []string{http.MethodGet, http.MethodPatch, http.MethodDelete} {
+		rec := f.do(workspaceSettingsRequest{method: method, body: `{"name":"Renamed Co"}`, contentType: "application/json"})
+		requireWorkspaceError(t, rec, http.StatusServiceUnavailable, "workspace_unavailable", "Workspace settings are unavailable")
+	}
+}
+
 func TestWorkspaceSettingsUpdateAuthorization(t *testing.T) {
 	for role, allowed := range map[string]bool{
 		"admin": true, "localization_manager": true,
@@ -242,7 +251,7 @@ func TestWorkspaceSettingsUpdateValidation(t *testing.T) {
         {"path":["name"],"message":"Too small: expected string to have >=1 characters"},
         {"path":["slug"],"message":"Use lowercase letters, numbers, and single hyphens between words"}]}}`, rec.Body.String())
 
-	for _, body := range []string{`{}`, `null`, `[]`, `{"name":"Acme Test"}`, `{"slug":"a--b"}`, `{"name":"` + strings.Repeat("a", 121) + `"}`, `{"slug":"` + strings.Repeat("a", 81) + `"}`} {
+	for _, body := range []string{`{}`, `null`, `[]`, `{"name":"Acme Test"}`, `{"name":"Acme Test Workspace"}`, `{"slug":"a--b"}`, `{"name":"` + strings.Repeat("a", 121) + `"}`, `{"slug":"` + strings.Repeat("a", 81) + `"}`} {
 		requireWorkspaceError(t, f.patch(body), http.StatusBadRequest, "invalid_workspace_payload", "Workspace payload is invalid")
 	}
 	require.Equal(t, before, f.stored(t))

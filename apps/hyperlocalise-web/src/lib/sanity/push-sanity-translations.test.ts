@@ -19,8 +19,10 @@ import {
   isSanityRemoteDraftNewer,
   lastPushedAtForSanityLocale,
   parseSanityLastPushRecord,
+  readSanityPushSourcePaths,
   recordSanityPushSkip,
   SANITY_REMOTE_NEWER_SLACK_MS,
+  selectSanityPushMappings,
   sourceKeysMissingApprovedTranslations,
   summarizeSanityPushResult,
 } from "./push-sanity-translations";
@@ -181,5 +183,33 @@ describe("sanity push skip reporting", () => {
         unmappedLocales: [],
       }),
     ).toBe("Skipped because the Sanity source changed after import.");
+  });
+});
+
+describe("readSanityPushSourcePaths", () => {
+  it("returns only non-empty string paths from the run snapshot", () => {
+    expect(readSanityPushSourcePaths(undefined)).toBeUndefined();
+    expect(readSanityPushSourcePaths({})).toBeUndefined();
+    expect(readSanityPushSourcePaths({ sourcePaths: "sanity/page.json" })).toBeUndefined();
+    expect(
+      readSanityPushSourcePaths({
+        sourcePaths: ["sanity/page.json", "  ", 12, "sanity/author.json"],
+      }),
+    ).toEqual(["sanity/page.json", "sanity/author.json"]);
+  });
+});
+
+describe("selectSanityPushMappings", () => {
+  const mappings = [
+    { sourcePath: "sanity/page.json", documentId: "page-1" },
+    { sourcePath: "sanity/author.json", documentId: "author-1" },
+  ];
+
+  it("keeps every mapping when the snapshot does not select paths", () => {
+    expect(selectSanityPushMappings(mappings)).toEqual(mappings);
+  });
+
+  it("filters to the selected source paths", () => {
+    expect(selectSanityPushMappings(mappings, ["sanity/author.json", ""])).toEqual([mappings[1]]);
   });
 });
