@@ -293,6 +293,9 @@
   "+XceZn1/ER": {
     "defaultMessage": "Thoát chế độ chọn hàng loạt"
   },
+  "+Xor30vD6J": {
+    "defaultMessage": "Last push failed"
+  },
   "+YUbta511H": {
     "defaultMessage": "Mở trò chuyện"
   },
@@ -313,6 +316,9 @@
   },
   "+auDy+Mwce": {
     "defaultMessage": "—"
+  },
+  "+bTQr9RSSt": {
+    "defaultMessage": "Use only one CMS translation skill on this automation"
   },
   "+c45W5hmg7": {
     "defaultMessage": "Chuỗi được thêm:"
@@ -634,6 +640,9 @@
   },
   "/EOfWYVF9T": {
     "defaultMessage": "Tác nhân"
+  },
+  "/Fi6xT6jqV": {
+    "defaultMessage": "Could not start Sanity authorization."
   },
   "/FnHAPAn3P": {
     "defaultMessage": "Chọn một kết nối để cấp quyền cài đặt ứng dụng Canva này."
@@ -1283,6 +1292,9 @@
   "0XaMa+DGJ+": {
     "defaultMessage": "Thử lại các hành động còn lại"
   },
+  "0Xwa8SHaHR": {
+    "defaultMessage": "Clear"
+  },
   "0Y2PNYvVoj": {
     "defaultMessage": "Chưa có video nào"
   },
@@ -1354,6 +1366,9 @@
   },
   "0eU/dl/Oha": {
     "defaultMessage": "Lưu"
+  },
+  "0eh0U1m44o": {
+    "defaultMessage": "Cancel"
   },
   "0fORPZlrsy": {
     "defaultMessage": "Không gian làm việc của bạn trong nháy mắt — công việc được giao, hoạt động mới nhất và các dự án gần đây."
@@ -2198,6 +2213,9 @@
   "2N/8jZzb94": {
     "defaultMessage": "Phrase"
   },
+  "2N6/VNF+/O": {
+    "defaultMessage": "Disconnecting…"
+  },
   "2NCNOSLgB8": {
     "defaultMessage": "Ánh xạ ngôn ngữ"
   },
@@ -2573,6 +2591,9 @@
   "37bjYyK5rC": {
     "defaultMessage": "Tạo cờ"
   },
+  "37iUcUTgh4": {
+    "defaultMessage": "Choose OAuth or an API token. OAuth is recommended when your Sanity org supports it."
+  },
   "37yFkjafwR": {
     "defaultMessage": "Các chỉnh sửa của bạn đối với phân đoạn này chưa được lưu. Rời đi mà không lưu?"
   },
@@ -2638,6 +2659,9 @@
   },
   "3FORZKT8kA": {
     "defaultMessage": "GitHub"
+  },
+  "3Fwkb+iT9m": {
+    "defaultMessage": "Search documents"
   },
   "3G3Ey6WZkU": {
     "defaultMessage": "Anthropic"
@@ -2836,6 +2860,9 @@
   },
   "3iwjDXakJS": {
     "defaultMessage": "Biết trước chi phí dịch thuật trước khi nhận hóa đơn"
+  },
+  "3jHsl1C8Cv": {
+    "defaultMessage": "Choose which mapped documents to write as Sanity drafts. This does not publish."
   },
   "3ji5Nvlz3D": {
     "defaultMessage": "Trang web nhìn chung được bản địa hóa tốt, nhưng vẫn còn một số vấn đề cần cải thiện."
@@ -3596,6 +3623,9 @@
   "5CjwrQGWSz": {
     "defaultMessage": "Hệ thống"
   },
+  "5Cmf9xtwtk": {
+    "defaultMessage": "Show API token"
+  },
   "5ECVkGCnpd": {
     "defaultMessage": "If"
   },
@@ -3622,6 +3652,9 @@
   },
   "5H2Xr7AzgM": {
     "defaultMessage": "Canvas xem trước trang web"
+  },
+  "5HqlbunlrW": {
+    "defaultMessage": "Disconnect"
   },
   "5JQnoYqOu1": {
     "defaultMessage": "Xóa công cụ Zernio"
@@ -4015,6 +4048,9 @@
   },
   "67CBDWHaYl": {
     "defaultMessage": "Chỉ quản trị viên không gian làm việc mới có thể mở cổng thanh toán."
+  },
+  "67WAInF3FG": {
+    "defaultMessage": "Could not queue Sanity push"
   },
   "68KxHHw2pe": {
     "defaultMessage": "Advanced workflows"
@@ -4492,6 +4528,9 @@
   },
   "78OEnC/JOf": {
     "defaultMessage": "Slug không gian làm việc"
+  },
+  "78e/wES0A+": {
+    "defaultMessage": "Could not disconnect Sanity."
   },
   "78uBrU8JbG": {
     "defaultMessage": "Bắt đầu với một chỗ ngồi, sau đó thêm chỗ ngồi, lượt chạy tác nhân và quy trình tự động hóa khi hoạt động nội dung của bạn phát triển."
@@ -5086,6 +5125,9 @@
   },
   "8MmPpIGj4f": {
     "defaultMessage": "Chưa có công việc nào trong không gian làm việc."
+  },
+  "8O4l4wC1UK": {
+    "defaultMessage": "Sanity through WorkOS Pipes is not enabled for this environment yet. An admin can enable the Sanity data integration in WorkOS."
   },
   "8OAyrxftUP": {
     "defaultMessage": "Tham gia quyền truy cập sớm"
@@ -6482,6 +6524,9 @@
   "BERSauR8KR": {
     "defaultMessage": "Có thể dịch"
   },
+  "BEyFxTibmH": {
+    "defaultMessage": "Sanity API token saved."
+  },
   "BFGbjLDQqh": {
     "defaultMessage": "Events"
   },
@@ -6832,6 +6877,9 @@
   },
   "C+9nUAd/Jd": {
     "defaultMessage": "{displayName} đã được lưu. Kết nối tài khoản Crowdin của bạn để tiếp tục."
+  },
+  "C+kMaPXlg0": {
+    "defaultMessage": "OAuth (recommended)"
   },
   "C0+hlj1Es4": {
     "defaultMessage": "Không thể bắt đầu cuộc trò chuyện này. Vui lòng thử lại."
@@ -8492,6 +8540,9 @@
   "FG27myF7Bk": {
     "defaultMessage": "Tự động hóa"
   },
+  "FGNo/uvZ2J": {
+    "defaultMessage": "Could not load documents"
+  },
   "FHXR08HCFK": {
     "defaultMessage": "Ghi lại chi phí"
   },
@@ -8503,6 +8554,9 @@
   },
   "FHqHBUJ88J": {
     "defaultMessage": "Không thể tải danh sách công việc."
+  },
+  "FIhOKfaVlC": {
+    "defaultMessage": "Push to Sanity"
   },
   "FJ2ymqjEF1": {
     "defaultMessage": "Điều gì khác"
@@ -8896,6 +8950,9 @@
   },
   "G9IH7mtmIb": {
     "defaultMessage": "Codex"
+  },
+  "G9eQqJWzlH": {
+    "defaultMessage": "Sanity"
   },
   "GA/at1eIok": {
     "defaultMessage": "Đóng"
@@ -9574,6 +9631,9 @@
   },
   "HbZmRDMHs3": {
     "defaultMessage": "Đang mở không gian làm việc…"
+  },
+  "Hbeo2X1h7u": {
+    "defaultMessage": "Push to Sanity"
   },
   "HbhX7yojwm": {
     "defaultMessage": "lịch trình"
@@ -10337,6 +10397,9 @@
   "JB6oDpJ4ax": {
     "defaultMessage": "Chọn một dự án ở trên để tải bảng thuật ngữ trực tiếp và cơ sở thuật ngữ từ nhà cung cấp mà bạn đã kết nối."
   },
+  "JBRAW5Gd9X": {
+    "defaultMessage": "Sanity connected with API token"
+  },
   "JBqUQN0+J0": {
     "defaultMessage": "Chuyển đổi miền"
   },
@@ -10874,6 +10937,9 @@
   "KQoOqOSNYf": {
     "defaultMessage": "Kết nối Canva với Hyperlocalise"
   },
+  "KQrP3D1Cl+": {
+    "defaultMessage": "Paste a token from sanity.io/manage. It needs Editor access or higher so automations can read content and write drafts."
+  },
   "KREOm0BNYe": {
     "defaultMessage": "Đã nhập"
   },
@@ -11105,6 +11171,9 @@
   "KzyWBbcmTH": {
     "defaultMessage": "Không thể cập nhật cài đặt theo dõi"
   },
+  "L+YqXrfYaG": {
+    "defaultMessage": "Overwrite Sanity drafts when the remote target is newer."
+  },
   "L+aQftO9Id": {
     "defaultMessage": "Chạy lại một vùng nội dung với thời gian chờ tăng dần"
   },
@@ -11176,6 +11245,9 @@
   },
   "L8xTOJqX0d": {
     "defaultMessage": "Tìm kiếm: {value}"
+  },
+  "L9/oqyP9pk": {
+    "defaultMessage": "Loading documents"
   },
   "L9CYRKrj6S": {
     "defaultMessage": "Quản trị viên"
@@ -11873,6 +11945,9 @@
   "MVrchtGazs": {
     "defaultMessage": "Vui lòng cung cấp văn bản cần dịch."
   },
+  "MWDDRmwK/N": {
+    "defaultMessage": "Manage API projects visible to this token"
+  },
   "MWGQAGG98v": {
     "defaultMessage": "Chuỗi riêng lẻ"
   },
@@ -12031,6 +12106,9 @@
   },
   "MsnNcIq3o0": {
     "defaultMessage": "Trigger"
+  },
+  "MsvsV+2oWf": {
+    "defaultMessage": "Push {count, plural, one {# document} other {# documents}}"
   },
   "MszSNYsOAF": {
     "defaultMessage": "So sánh nhu cầu tìm kiếm và khoảng trống nội dung giữa các khu vực địa phương"
@@ -12869,6 +12947,9 @@
   "OaljrNEvvO": {
     "defaultMessage": "Tạo lại hình ảnh cho {language}"
   },
+  "Obrc0xXXmw": {
+    "defaultMessage": "Connected"
+  },
   "ObwCSlFgt9": {
     "defaultMessage": "Truy vấn dữ liệu SEO và lưu lượng truy cập Semrush thông qua khóa API đã kết nối của bạn."
   },
@@ -13309,6 +13390,9 @@
   },
   "PYIsQFA2Np": {
     "defaultMessage": "Nhập tên máy chủ, chẳng hạn như shop.example.com, không kèm đường dẫn URL."
+  },
+  "PYRZ6kqxOc": {
+    "defaultMessage": "Search documents"
   },
   "PYVkjgnEZG": {
     "defaultMessage": "Kiểm tra hộp thư đến của bạn để xem bản tóm tắt của báo cáo này."
@@ -14387,6 +14471,9 @@
   "Rp1ZcGydYx": {
     "defaultMessage": "Không thể xác thực"
   },
+  "Rp3MUONO/3": {
+    "defaultMessage": "Saving…"
+  },
   "RpVhGmmzel": {
     "defaultMessage": "Provider"
   },
@@ -15097,6 +15184,9 @@
   },
   "TOG2/DBCrL": {
     "defaultMessage": "Đã lưu cài đặt tự động xem xét."
+  },
+  "TOOyOuwji9": {
+    "defaultMessage": "Sanity drafts queued"
   },
   "TOiXUpVFsO": {
     "defaultMessage": "Lỗi và cảnh báo theo dự án"
@@ -16637,6 +16727,9 @@
   "WabecnK7ou": {
     "defaultMessage": "Đừng giải thích cùng một quy tắc hai lần. Hyperlocalise biến mọi bài đánh giá thành ngữ cảnh có thể tái sử dụng"
   },
+  "WaxO5rJ9N1": {
+    "defaultMessage": "Could not save the Sanity API token."
+  },
   "WbAkw38l3W": {
     "defaultMessage": "Xem các lần xuất hiện tại đây. Chuyển sang từng chuỗi riêng lẻ để chỉnh sửa bản dịch."
   },
@@ -17663,6 +17756,9 @@
   "YhT90BZluB": {
     "defaultMessage": "Xóa khái niệm"
   },
+  "YhWT741eyC": {
+    "defaultMessage": "Sanity"
+  },
   "YhXUDTQkrZ": {
     "defaultMessage": "Audio localisation"
   },
@@ -18031,6 +18127,9 @@
   },
   "ZT0ZLYbp16": {
     "defaultMessage": "Không thể thử lại quá trình kiểm tra bản địa hóa."
+  },
+  "ZT3mGAyTVi": {
+    "defaultMessage": "Authorize Hyperlocalise to access Sanity on your behalf through WorkOS Pipes."
   },
   "ZT4A78YiXg": {
     "defaultMessage": "Khách truy cập có thể tìm thấy phiên bản phù hợp của trang web không?"
@@ -18752,6 +18851,9 @@
   "az1dhUOnH0": {
     "defaultMessage": "Trạng thái"
   },
+  "azYeK5p8pM": {
+    "defaultMessage": "Could not load Sanity connection status."
+  },
   "b+el1VIvgt": {
     "defaultMessage": "Chạy {count, plural, one {# tệp} other {# tệp}}"
   },
@@ -19199,6 +19301,9 @@
   "bpsmIZ07ut": {
     "defaultMessage": "Mục này đã thay đổi trong khi bạn đang chỉnh sửa. Hãy tải phiên bản mới nhất để tiếp tục."
   },
+  "bq5pHENeIr": {
+    "defaultMessage": "Paste a new token below to rotate credentials without disconnecting."
+  },
   "bqM/HZdSBC": {
     "defaultMessage": "Lưu nhà cung cấp"
   },
@@ -19432,6 +19537,9 @@
   },
   "cHvtlHrefQ": {
     "defaultMessage": "Hình ảnh nguồn"
+  },
+  "cI9DCPgYRt": {
+    "defaultMessage": "No projects returned for this token."
   },
   "cIUvYdnnCL": {
     "defaultMessage": "Tạo vấn đề"
@@ -19733,6 +19841,9 @@
   "cvuRKz2hMS": {
     "defaultMessage": "Lần chạy đã lên lịch"
   },
+  "cwHz/23Qd9": {
+    "defaultMessage": "Open automations"
+  },
   "cwqeMFXYQC": {
     "defaultMessage": "Pass"
   },
@@ -19852,6 +19963,9 @@
   },
   "d9+py8mf04": {
     "defaultMessage": "Xuất nội dung đã lọc dưới dạng XLSX"
+  },
+  "d9nNGb3zA6": {
+    "defaultMessage": "Select all"
   },
   "dAN96XLBhS": {
     "defaultMessage": "Không. Hyperlocalise hoạt động cùng với TMS hiện có của bạn. Tiếp tục sử dụng Phrase, Lokalise, Crowdin hoặc Smartling, trong khi Hyperlocalise điều phối các tác nhân AI, quy trình đánh giá, khám phá ngữ cảnh và kiểm tra chất lượng."
@@ -20012,6 +20126,9 @@
   "dS3dXvwF6f": {
     "defaultMessage": "Yêu cầu lời mời"
   },
+  "dSWTPScGc1": {
+    "defaultMessage": "Keep Sanity drafts that teammates edited after the last push. Unchanged approved text is skipped."
+  },
   "dStMwhojOw": {
     "defaultMessage": "08:00 UTC"
   },
@@ -20026,6 +20143,9 @@
   },
   "dTpIQVL71t": {
     "defaultMessage": "breadcrumb"
+  },
+  "dU3FCBwd7f": {
+    "defaultMessage": "Token ending in {suffix}"
   },
   "dU5kt+ggA7": {
     "defaultMessage": "Người được giao: {value}"
@@ -20101,6 +20221,9 @@
   },
   "dcbWLpn6f2": {
     "defaultMessage": "Ngày cập nhật không khả dụng"
+  },
+  "dci2Dmteni": {
+    "defaultMessage": "Leave blank to keep the current token."
   },
   "dcomOTuPbB": {
     "defaultMessage": "Updating the workflow…"
@@ -21848,6 +21971,12 @@
   "gyVhBvCqLP": {
     "defaultMessage": "Thêm nguồn"
   },
+  "gz/zpenPqj": {
+    "defaultMessage": "Hyperlocalise uses your authorized Sanity session for import and draft push."
+  },
+  "gzPrVIj8XL": {
+    "defaultMessage": "Push policy"
+  },
   "gzw597zx6d": {
     "defaultMessage": "Updated"
   },
@@ -23453,6 +23582,9 @@
   "k66v97xuuE": {
     "defaultMessage": "URL"
   },
+  "k68En99ftY": {
+    "defaultMessage": "Sanity authorized with OAuth"
+  },
   "k6wO1BhuBw": {
     "defaultMessage": "Video nguồn không khả dụng"
   },
@@ -23548,6 +23680,9 @@
   },
   "kG2XpVKA8Z": {
     "defaultMessage": "Phạm vi, ngữ cảnh, tuyến đường"
+  },
+  "kGCOhOWZ0P": {
+    "defaultMessage": "{ready} of {total} locales ready"
   },
   "kGM2czQvBa": {
     "defaultMessage": "Đã duyệt"
@@ -24488,6 +24623,9 @@
   "mDNDpO0mIA": {
     "defaultMessage": "Hyperlocalise is an AI workforce that acts like your team of local experts.<desktopOnly><lineBreak></lineBreak>It understands market nuance, then translates and transcreates.</desktopOnly>"
   },
+  "mDQhaViqkQ": {
+    "defaultMessage": "Automations with the Translate Sanity documents skill use this connection to read and write drafts."
+  },
   "mDY8Zlbd4D": {
     "defaultMessage": "đã hủy một công việc"
   },
@@ -25093,6 +25231,9 @@
   },
   "nOCS+qmeJF": {
     "defaultMessage": "Thành viên"
+  },
+  "nODFNuVkFL": {
+    "defaultMessage": "Create the token in Sanity Manage under API → Tokens."
   },
   "nOPkXXYDPf": {
     "defaultMessage": "Trường nguồn"
@@ -26234,6 +26375,9 @@
   "pbPMcXnHkC": {
     "defaultMessage": "Thêm các thị trường đã chọn"
   },
+  "pcA83SydbQ": {
+    "defaultMessage": "No mapped documents"
+  },
   "pcjLSSIwsF": {
     "defaultMessage": "Chọn micrô..."
   },
@@ -26335,6 +26479,9 @@
   },
   "plpqSFRajq": {
     "defaultMessage": "Lưu phân công dự án"
+  },
+  "pm1TRAF3RM": {
+    "defaultMessage": "Redirecting…"
   },
   "pmPB2F7F47": {
     "defaultMessage": "Acme · Truy vấn"
@@ -26728,6 +26875,9 @@
   },
   "qUpTrGtrVw": {
     "defaultMessage": "SEO"
+  },
+  "qVCnKrNijs": {
+    "defaultMessage": "API token"
   },
   "qVSZOnYTAy": {
     "defaultMessage": "Khám phá Hyperlocalise"
@@ -27275,6 +27425,9 @@
   "ra0EyftjV0": {
     "defaultMessage": "Đã mở gần đây"
   },
+  "ra9Bi4NXJ2": {
+    "defaultMessage": "Save token"
+  },
   "raG3uRf8nJ": {
     "defaultMessage": "Đang hoạt động"
   },
@@ -27382,6 +27535,9 @@
   },
   "rqKQ19f7kE": {
     "defaultMessage": "Di chuyển các tệp nguồn vào dự án này và ghi lại các bản dịch đã hoàn chỉnh. Không cần lời nhắc."
+  },
+  "rqU5fqNTYZ": {
+    "defaultMessage": "Authorize with Sanity"
   },
   "rqW//zBYSL": {
     "defaultMessage": "Các thay đổi chuỗi ẩn mình trong các pull request lớn mà không có tác động rõ ràng đến bản địa hóa."
@@ -27526,6 +27682,9 @@
   },
   "s6NLAIiQ6o": {
     "defaultMessage": "Đã xóa từ điển"
+  },
+  "s7/k1C/6Q6": {
+    "defaultMessage": "API token"
   },
   "s7935wKE28": {
     "defaultMessage": "Xóa công cụ Semrush"
@@ -27953,6 +28112,9 @@
   "t2I2Yj3t0M": {
     "defaultMessage": "Thông báo Slack"
   },
+  "t2J9JYDAdD": {
+    "defaultMessage": "Automation"
+  },
   "t2Wtf62nXs": {
     "defaultMessage": "Tiếp tục đến dự án"
   },
@@ -28087,6 +28249,9 @@
   },
   "tJ4ESqRDu1": {
     "defaultMessage": "Đăng nhập lại để quản lý thanh toán."
+  },
+  "tJ8Lpden5r": {
+    "defaultMessage": "Hide API token"
   },
   "tJedwqsl7m": {
     "defaultMessage": "Thử nghiệm A/B"
@@ -28829,6 +28994,9 @@
   "uukLNszv2X": {
     "defaultMessage": "Tất cả các loại tài nguyên"
   },
+  "uvMAUaKYI0": {
+    "defaultMessage": "Sanity disconnected."
+  },
   "uvpc5HKX9c": {
     "defaultMessage": "Tạo gợi ý bằng AI"
   },
@@ -28837,6 +29005,9 @@
   },
   "uwkiRYaBX+": {
     "defaultMessage": "Áp dụng giọng điệu, bảng thuật ngữ và các rào chắn pháp lý"
+  },
+  "uxSSj1bXpa": {
+    "defaultMessage": "No matching documents"
   },
   "uxTXRcu5Em": {
     "defaultMessage": "Tất cả các tính năng của gói Growth, cùng với:"
@@ -29737,6 +29908,9 @@
   },
   "wdhrNg8UHz": {
     "defaultMessage": "Mở công việc"
+  },
+  "wdsH3flxH3": {
+    "defaultMessage": "Authentication method"
   },
   "we+P5cHH+C": {
     "defaultMessage": "Use test data everywhere"
