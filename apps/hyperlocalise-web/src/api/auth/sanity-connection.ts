@@ -50,7 +50,7 @@ export const sanityConnectionAuthMiddleware = createMiddleware<{
   }
 
   const requestOrigin = c.req.header("origin")?.trim();
-  if (requestOrigin && requestOrigin !== connection.studioOrigin) {
+  if (!requestOrigin || requestOrigin !== connection.studioOrigin) {
     return forbiddenResponse(
       c,
       "sanity_studio_origin_mismatch",

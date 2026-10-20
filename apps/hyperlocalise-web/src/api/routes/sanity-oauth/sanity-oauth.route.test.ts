@@ -15,9 +15,10 @@ import "dotenv/config";
 import { createHash } from "node:crypto";
 
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
+  reconcileWorkosMembershipsForUserMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -25,6 +26,15 @@ const mocks = vi.hoisted(() => ({
       null,
   ),
 }));
+
+vi.mock("@/api/auth/workos-membership-reconcile", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-membership-reconcile")>();
+
+  return {
+    ...actual,
+    reconcileWorkosMembershipsForUser: mocks.reconcileWorkosMembershipsForUserMock,
+  };
+});
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
@@ -104,6 +114,10 @@ describe("sanityOauthRoutes", () => {
     await db.$client.query("select 1");
   });
 
+  beforeEach(() => {
+    mocks.reconcileWorkosMembershipsForUserMock.mockResolvedValue({ status: "skipped" });
+  });
+
   afterEach(async () => {
     vi.clearAllMocks();
     await apiKeyFixture.cleanup();
@@ -152,9 +166,25 @@ describe("sanityOauthRoutes", () => {
     );
   });
 
+  it("rejects handoff creation without a trusted Studio origin", async () => {
+    const missingOrigin = await app.request("http://localhost/api/oauth/sanity/handoff", {
+      method: "POST",
+    });
+    expect(missingOrigin.status).toBe(400);
+    await expect(missingOrigin.json()).resolves.toEqual({ error: "invalid_request" });
+
+    const untrusted = await app.request("http://localhost/api/oauth/sanity/handoff", {
+      method: "POST",
+      headers: { Origin: "https://evil.example" },
+    });
+    expect(untrusted.status).toBe(400);
+    await expect(untrusted.json()).resolves.toEqual({ error: "invalid_request" });
+  });
+
   it("completes OAuth through the server-side handoff", async () => {
     const handoffResponse = await app.request("http://localhost/api/oauth/sanity/handoff", {
       method: "POST",
+      headers: { Origin: STUDIO_ORIGIN },
     });
     expect(handoffResponse.status).toBe(201);
     const handoff = (await handoffResponse.json()) as { readKey: string; writeKey: string };
@@ -195,6 +225,7 @@ describe("sanityOauthRoutes", () => {
     url.searchParams.set("redirect_uri", REDIRECT_URI);
     url.searchParams.set("code_challenge", pkceChallenge(VERIFIER));
     url.searchParams.set("code_challenge_method", "S256");
+    url.searchParams.set("state", "sanity-state");
     url.searchParams.set("studio_origin", STUDIO_ORIGIN);
 
     const response = await app.request(url);
@@ -202,9 +233,47 @@ describe("sanityOauthRoutes", () => {
     await expect(response.json()).resolves.toEqual({ error: "invalid_client" });
   });
 
+  it("rejects authorize when the handoff write key or studio origin does not match", async () => {
+    const handoffResponse = await app.request("http://localhost/api/oauth/sanity/handoff", {
+      method: "POST",
+      headers: { Origin: STUDIO_ORIGIN },
+    });
+    const handoff = (await handoffResponse.json()) as { writeKey: string };
+
+    const missingHandoff = new URL("http://localhost/api/oauth/sanity/authorize");
+    missingHandoff.searchParams.set("response_type", "code");
+    missingHandoff.searchParams.set("client_id", env.SANITY_OAUTH_CLIENT_ID ?? "");
+    missingHandoff.searchParams.set("redirect_uri", REDIRECT_URI);
+    missingHandoff.searchParams.set("code_challenge", pkceChallenge(VERIFIER));
+    missingHandoff.searchParams.set("code_challenge_method", "S256");
+    missingHandoff.searchParams.set("state", "not-a-handoff");
+    missingHandoff.searchParams.set("studio_origin", STUDIO_ORIGIN);
+    const missingResponse = await app.request(missingHandoff);
+    expect(missingResponse.status).toBe(400);
+    await expect(missingResponse.json()).resolves.toEqual({ error: "invalid_request" });
+
+    const mismatch = new URL("http://localhost/api/oauth/sanity/authorize");
+    mismatch.searchParams.set("response_type", "code");
+    mismatch.searchParams.set("client_id", env.SANITY_OAUTH_CLIENT_ID ?? "");
+    mismatch.searchParams.set("redirect_uri", REDIRECT_URI);
+    mismatch.searchParams.set("code_challenge", pkceChallenge(VERIFIER));
+    mismatch.searchParams.set("code_challenge_method", "S256");
+    mismatch.searchParams.set("state", handoff.writeKey);
+    mismatch.searchParams.set("studio_origin", "https://acme.sanity.studio");
+    const mismatchResponse = await app.request(mismatch);
+    expect(mismatchResponse.status).toBe(400);
+    await expect(mismatchResponse.json()).resolves.toEqual({ error: "invalid_request" });
+  });
+
   it("redirects signed-in users to the consent page", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
     await apiKeyFixture.authHeadersFor(identity);
+
+    const handoffResponse = await app.request("http://localhost/api/oauth/sanity/handoff", {
+      method: "POST",
+      headers: { Origin: STUDIO_ORIGIN },
+    });
+    const handoff = (await handoffResponse.json()) as { writeKey: string };
 
     const url = new URL("http://localhost/api/oauth/sanity/authorize");
     url.searchParams.set("response_type", "code");
@@ -212,7 +281,7 @@ describe("sanityOauthRoutes", () => {
     url.searchParams.set("redirect_uri", REDIRECT_URI);
     url.searchParams.set("code_challenge", pkceChallenge(VERIFIER));
     url.searchParams.set("code_challenge_method", "S256");
-    url.searchParams.set("state", "sanity-state");
+    url.searchParams.set("state", handoff.writeKey);
     url.searchParams.set("studio_origin", STUDIO_ORIGIN);
 
     const response = await app.request(url);
@@ -317,6 +386,7 @@ describe("sanityOauthRoutes", () => {
       {},
       {
         headers: {
+          Origin: STUDIO_ORIGIN,
           "X-Hyperlocalise-Access-Token": tokens.access_token,
         },
       },

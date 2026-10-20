@@ -469,15 +469,38 @@ function generateSanityOauthHandoffKey(): string {
   return randomCredentialBytes(32);
 }
 
-export async function createSanityOauthHandoff(): Promise<{ readKey: string; writeKey: string }> {
+export async function createSanityOauthHandoff(input: {
+  studioOrigin: string;
+}): Promise<{ readKey: string; writeKey: string }> {
   const readKey = generateSanityOauthHandoffKey();
   const writeKey = generateSanityOauthHandoffKey();
   await db.insert(schema.sanityOauthHandoffs).values({
     readKeyHash: digestSanityOauthToken(readKey),
     writeKeyHash: digestSanityOauthToken(writeKey),
+    studioOrigin: input.studioOrigin,
     expiresAt: new Date(Date.now() + SANITY_OAUTH_HANDOFF_LIFETIME_MS),
   });
   return { readKey, writeKey };
+}
+
+export async function getPendingSanityOauthHandoffByWriteKey(
+  writeKey: string,
+): Promise<{ studioOrigin: string } | null> {
+  const writeKeyHash = digestSanityOauthToken(writeKey);
+  const [row] = await db
+    .select({
+      studioOrigin: schema.sanityOauthHandoffs.studioOrigin,
+      expiresAt: schema.sanityOauthHandoffs.expiresAt,
+      completedAt: schema.sanityOauthHandoffs.completedAt,
+    })
+    .from(schema.sanityOauthHandoffs)
+    .where(eq(schema.sanityOauthHandoffs.writeKeyHash, writeKeyHash))
+    .limit(1);
+
+  if (!row || row.completedAt || row.expiresAt.getTime() < Date.now()) {
+    return null;
+  }
+  return { studioOrigin: row.studioOrigin };
 }
 
 export async function completeSanityOauthHandoff(input: {

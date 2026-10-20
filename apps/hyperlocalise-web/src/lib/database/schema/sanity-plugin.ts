@@ -120,6 +120,7 @@ export const sanityOauthHandoffs = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     readKeyHash: text("read_key_hash").notNull(),
     writeKeyHash: text("write_key_hash").notNull(),
+    studioOrigin: text("studio_origin").notNull(),
     code: text("code"),
     error: text("error"),
     errorDescription: text("error_description"),

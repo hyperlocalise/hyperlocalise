@@ -58,6 +58,11 @@ export function isAllowedSanityIntegrationOrigin(
   return allowedOrigins.has(origin) || isHostedSanityStudioOrigin(origin);
 }
 
+/** Trusted Studio hosts that may start OAuth (localhost defaults, SANITY_CORS_ORIGINS, hosted Studio). */
+export function isTrustedSanityStudioOrigin(origin: string | undefined): origin is string {
+  return isAllowedSanityIntegrationOrigin(origin, parseStaticAllowedOrigins());
+}
+
 export const sanityCorsMiddleware = createMiddleware(async (c, next) => {
   const origin = c.req.header("origin");
   const allowedOrigins = await resolveAllowedOrigins();

@@ -17,7 +17,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { z } from "zod";
 
 import { hasCapability } from "@/api/auth/policy";
-import { sanityCorsMiddleware } from "@/api/auth/sanity-cors";
+import { isTrustedSanityStudioOrigin, sanityCorsMiddleware } from "@/api/auth/sanity-cors";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { badRequestResponse } from "@/api/response.schema";
 import {
@@ -27,6 +27,7 @@ import {
   createSanityOauthAuthorizationCode,
   createSanityOauthAuthorizationRequest,
   createSanityOauthHandoff,
+  getPendingSanityOauthHandoffByWriteKey,
   SANITY_OAUTH_REQUEST_COOKIE,
   SANITY_OAUTH_SCOPE,
   consumeSanityOauthAuthorizationCode,
@@ -51,7 +52,7 @@ const authorizationQuerySchema = z.object({
   code_challenge: z.string().min(32).max(128),
   code_challenge_method: z.literal("S256"),
   scope: z.string().max(128).optional().default(SANITY_OAUTH_SCOPE),
-  state: z.string().max(512).optional(),
+  state: z.string().min(1).max(512),
   studio_origin: z.url().max(2048),
 });
 
@@ -209,6 +210,14 @@ export function createSanityOauthRoutes(): Hono {
         return oauthError(c, "invalid_redirect_uri");
       }
 
+      const handoff = await getPendingSanityOauthHandoffByWriteKey(query.state);
+      if (!handoff || handoff.studioOrigin !== query.studio_origin) {
+        return oauthError(c, "invalid_request");
+      }
+      if (!isTrustedSanityStudioOrigin(handoff.studioOrigin)) {
+        return oauthError(c, "invalid_request");
+      }
+
       const authRequest = createSanityOauthAuthorizationRequest({
         clientId: query.client_id,
         redirectUri: query.redirect_uri,
@@ -216,7 +225,7 @@ export function createSanityOauthRoutes(): Hono {
         codeChallengeMethod: query.code_challenge_method,
         scope: query.scope,
         state: query.state,
-        studioOrigin: query.studio_origin,
+        studioOrigin: handoff.studioOrigin,
       });
       setCookie(c, SANITY_OAUTH_REQUEST_COOKIE, authRequest, secureCookieOptions(15 * 60));
 
@@ -340,7 +349,12 @@ export function createSanityOauthRoutes(): Hono {
         return c.json({ error: "sanity_oauth_unconfigured" }, 503);
       }
 
-      const handoff = await createSanityOauthHandoff();
+      const studioOrigin = c.req.header("origin")?.trim();
+      if (!isTrustedSanityStudioOrigin(studioOrigin)) {
+        return oauthError(c, "invalid_request");
+      }
+
+      const handoff = await createSanityOauthHandoff({ studioOrigin });
       return c.json(handoff, 201);
     })
     .post("/handoff/complete", async (c) => {

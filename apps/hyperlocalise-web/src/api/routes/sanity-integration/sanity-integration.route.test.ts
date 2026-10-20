@@ -173,11 +173,55 @@ describe("sanityIntegrationRoutes", () => {
   it("rejects unknown access tokens", async () => {
     const response = await client.api.integrations.sanity.session.$get(undefined, {
       headers: {
+        Origin: STUDIO_ORIGIN,
         "X-Hyperlocalise-Access-Token": "hl_sanity_at_unknown_token_value",
       },
     });
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toMatchObject({ error: "sanity_access_token_invalid" });
+  });
+
+  it("rejects session requests without a matching Studio origin", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Sanity origin key",
+    });
+    const created = await createSanityConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Sanity origin",
+      apiKeyId: apiKey.id,
+    });
+    const tokens = await issueSanityOauthTokens({
+      connectionId: created.connection.id,
+      userId: auth.user.localUserId,
+      organizationId,
+      studioOrigin: STUDIO_ORIGIN,
+    });
+
+    const missingOrigin = await client.api.integrations.sanity.session.$get(undefined, {
+      headers: {
+        "X-Hyperlocalise-Access-Token": tokens.accessToken,
+      },
+    });
+    expect(missingOrigin.status).toBe(403);
+    await expect(missingOrigin.json()).resolves.toMatchObject({
+      error: "sanity_studio_origin_mismatch",
+    });
+
+    const mismatch = await client.api.integrations.sanity.session.$get(undefined, {
+      headers: {
+        Origin: "https://acme.sanity.studio",
+        "X-Hyperlocalise-Access-Token": tokens.accessToken,
+      },
+    });
+    expect(mismatch.status).toBe(403);
+    await expect(mismatch.json()).resolves.toMatchObject({
+      error: "sanity_studio_origin_mismatch",
+    });
   });
 
   it("returns the workspace session and lists accessible projects", async () => {
