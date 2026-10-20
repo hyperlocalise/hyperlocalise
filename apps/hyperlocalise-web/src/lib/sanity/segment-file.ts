@@ -88,6 +88,13 @@ export function buildSanityDocumentFileName(input: {
   return `${titleSlug}-${sanitizeSanityPublishedId(input.documentId)}.json`;
 }
 
+/** Repository paths for Studio plugin uploads (OAuth editor view / bulk tool). */
+export const SANITY_PLUGIN_SOURCE_PATH_PREFIX = "sanity-plugin";
+
+export function isSanityPluginSourcePath(sourcePath: string): boolean {
+  return sourcePath.startsWith(`${SANITY_PLUGIN_SOURCE_PATH_PREFIX}/`);
+}
+
 export function buildSanityDocumentSourcePath(input: {
   sanityProjectId: string;
   dataset: string;
@@ -95,7 +102,7 @@ export function buildSanityDocumentSourcePath(input: {
   documentId: string;
   documentTitle?: string;
 }): string {
-  const path = `sanity/${sanitizePathSegment(input.sanityProjectId, "unknown")}/${sanitizePathSegment(input.dataset, "production")}/${sanitizePathSegment(input.documentType, "document")}/${buildSanityDocumentFileName(
+  const path = `${SANITY_PLUGIN_SOURCE_PATH_PREFIX}/${sanitizePathSegment(input.sanityProjectId, "unknown")}/${sanitizePathSegment(input.dataset, "production")}/${sanitizePathSegment(input.documentType, "document")}/${buildSanityDocumentFileName(
     {
       documentId: input.documentId,
       documentTitle: input.documentTitle,

@@ -5,12 +5,18 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildSanityDocumentSourcePath,
+  isSanityPluginSourcePath,
   isSanityStampSegmentKey,
   parseSanityTranslationFile,
   segmentsToTranslationFile,
 } from "./segment-file";
 
 describe("sanity segment-file", () => {
+  it("detects Studio plugin source paths", () => {
+    expect(isSanityPluginSourcePath("sanity-plugin/p/d/post/doc.json")).toBe(true);
+    expect(isSanityPluginSourcePath("sanity/p/d/post/doc.json")).toBe(false);
+  });
+
   it("builds document source paths", () => {
     expect(
       buildSanityDocumentSourcePath({
@@ -20,7 +26,7 @@ describe("sanity segment-file", () => {
         documentId: "drafts.abc-123",
         documentTitle: "Launch Week",
       }),
-    ).toBe("sanity/abc12/production/post/launch-week-abc-123.json");
+    ).toBe("sanity-plugin/abc12/production/post/launch-week-abc-123.json");
   });
 
   it("accepts sanity.k.* keys only", () => {

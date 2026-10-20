@@ -102,4 +102,26 @@ export const pullSanityTranslationsQuerySchema = z.object({
   locale: z.string().min(1).max(32).optional(),
 });
 
+const sanityImportEntryKeySchema = z
+  .string()
+  .min(1)
+  .max(512)
+  .refine((key) => key.startsWith("sanity.k."), {
+    message: "import entry key must be a sanity.k.* stamp",
+  });
+
+export const importSanityTargetTranslationsBodySchema = z.object({
+  projectId: projectIdSchema,
+  sanityProjectId: z.string().min(1).max(128),
+  dataset: z.string().min(1).max(128),
+  documentId: z.string().min(1).max(256),
+  documentType: z.string().min(1).max(128),
+  targetLocale: z.string().min(2).max(32),
+  entries: z
+    .record(sanityImportEntryKeySchema, z.string().max(20_000))
+    .refine((record) => Object.keys(record).length > 0, {
+      message: "entries must include at least one translation",
+    }),
+});
+
 export type CreateSanityJobBody = z.infer<typeof createSanityJobBodySchema>;

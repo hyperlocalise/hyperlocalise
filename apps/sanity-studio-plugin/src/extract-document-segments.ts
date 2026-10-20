@@ -193,13 +193,12 @@ export function extractDocumentSegments(input: {
   return segments;
 }
 
-export function readDocumentTitle(document: Record<string, FieldValue>): string | undefined {
-  const title = document.title;
-  if (typeof title === "string" && title.trim()) {
-    return title.trim();
+function readLocalizedStringField(value: FieldValue): string | undefined {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
   }
-  if (Array.isArray(title)) {
-    const first = title.find(
+  if (Array.isArray(value)) {
+    const first = value.find(
       (entry) => isInternationalizedEntry(entry) && typeof entry.value === "string",
     );
     if (isInternationalizedEntry(first) && typeof first.value === "string" && first.value.trim()) {
@@ -207,4 +206,19 @@ export function readDocumentTitle(document: Record<string, FieldValue>): string 
     }
   }
   return undefined;
+}
+
+export function readDocumentTitle(document: Record<string, FieldValue>): string | undefined {
+  return readLocalizedStringField(document.title);
+}
+
+export function readDocumentName(document: Record<string, FieldValue>): string | undefined {
+  return readLocalizedStringField(document.name);
+}
+
+export function documentDisplayName(
+  document: Record<string, FieldValue>,
+  fallback = "Untitled document",
+): string {
+  return readDocumentTitle(document) ?? readDocumentName(document) ?? fallback;
 }

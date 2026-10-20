@@ -99,6 +99,12 @@ export function buildSanityDocumentSourcePath(input: {
   );
 }
 
+/** Repository paths for Sanity automation template imports. */
+export const SANITY_AUTOMATION_SOURCE_PATH_PREFIX = "sanity";
+
 export function isSanityDocumentSourcePath(sourcePath: string): boolean {
-  return sourcePath.startsWith("sanity/") && sourcePath.endsWith(".json");
+  return (
+    sourcePath.startsWith(`${SANITY_AUTOMATION_SOURCE_PATH_PREFIX}/`) &&
+    sourcePath.endsWith(".json")
+  );
 }

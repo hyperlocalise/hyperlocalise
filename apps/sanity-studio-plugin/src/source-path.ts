@@ -35,7 +35,7 @@ export function buildSanityDocumentSourcePath(input: {
   documentId: string;
   documentTitle?: string;
 }): string {
-  return `sanity/${sanitizePathSegment(input.sanityProjectId, "unknown")}/${sanitizePathSegment(input.dataset, "production")}/${sanitizePathSegment(input.documentType, "document")}/${buildSanityDocumentFileName(
+  return `sanity-plugin/${sanitizePathSegment(input.sanityProjectId, "unknown")}/${sanitizePathSegment(input.dataset, "production")}/${sanitizePathSegment(input.documentType, "document")}/${buildSanityDocumentFileName(
     {
       documentId: input.documentId,
       documentTitle: input.documentTitle,

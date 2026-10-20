@@ -31,6 +31,7 @@ import {
   getAccessibleSanityProject,
   getCurrentSanityDocumentJob,
   getSanityLocalizationStatus,
+  importSanityPluginTargetTranslations,
   listSanityDocumentLocaleStatuses,
   pullSanityDocumentLocaleContent,
   startSanityLocalization,
@@ -47,6 +48,7 @@ import {
   collectSanityDocumentBodySchema,
   createSanityJobBodySchema,
   currentSanityJobQuerySchema,
+  importSanityTargetTranslationsBodySchema,
   pullSanityTranslationsQuerySchema,
   sanityJobIdParamSchema,
   sanityLocalesQuerySchema,
@@ -132,6 +134,19 @@ const validatePullQuery = validator("query", (value, c) => {
       c,
       "invalid_sanity_translations_query",
       "Sanity translations query is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateImportTargetBody = validator("json", (value, c) => {
+  const parsed = importSanityTargetTranslationsBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_sanity_import_payload",
+      "Sanity import payload is invalid.",
       parsed.error.flatten(),
     );
   }
@@ -439,5 +454,30 @@ export function createSanityIntegrationRoutes(options: CreateSanityIntegrationRo
       } catch (error) {
         return localizeErrorResponse(c, error);
       }
-    });
+    })
+    .post(
+      "/translations/import",
+      sanityConnectionAuthMiddleware,
+      validateImportTargetBody,
+      async (c) => {
+        const payload = c.req.valid("json");
+        const connection = c.var.sanityConnection;
+        await touchSanityConnectionUsage(connection.id);
+
+        try {
+          const auth = await resolveConnectionAuth(connection);
+          const result = await importSanityPluginTargetTranslations({
+            auth,
+            projectId: payload.projectId,
+            sanityProjectId: payload.sanityProjectId,
+            documentId: payload.documentId,
+            targetLocale: payload.targetLocale,
+            entries: payload.entries,
+          });
+          return c.json(result, 201);
+        } catch (error) {
+          return localizeErrorResponse(c, error);
+        }
+      },
+    );
 }

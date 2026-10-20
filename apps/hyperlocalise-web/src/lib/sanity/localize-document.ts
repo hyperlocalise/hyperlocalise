@@ -42,6 +42,7 @@ import {
 import { parseIntegrationJsonFileExtracted } from "@/lib/sanity/integration-json-job-output";
 import { omitMultiWordSameAsSourceTranslations } from "@/lib/sanity/omit-multi-word-same-as-source";
 import { createLogger } from "@/lib/log";
+import { importApprovedProjectTranslationsFromEntries } from "@/lib/projects/translations/project-translation-service";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 const sanityLocalizeLogger = createLogger("sanity-localize");
@@ -748,6 +749,52 @@ export async function collectSanityDocument(input: {
     sourcePath,
     segmentCount,
   };
+}
+
+export async function importSanityPluginTargetTranslations(input: {
+  auth: ApiAuthContext;
+  projectId: string;
+  sanityProjectId: string;
+  documentId: string;
+  targetLocale: string;
+  entries: Record<string, string>;
+}): Promise<{ matched: number; imported: number; skipped: number }> {
+  const project = await getAccessibleSanityProject(input.auth, input.projectId);
+  if (!project) {
+    throw new Error("sanity_project_not_found");
+  }
+
+  if (isProjectSourceLocale(project.sourceLocale ?? "", input.targetLocale)) {
+    throw new Error("invalid_job_target_locale");
+  }
+
+  const projectTargetLocale = (project.targetLocales ?? []).find((locale) =>
+    sanityProjectLocalesMatch(locale, input.targetLocale),
+  );
+  if (!projectTargetLocale) {
+    throw new Error("job_target_locale_not_in_project");
+  }
+
+  const organizationId = input.auth.organization.localOrganizationId;
+  const pages = await listCollectedSanityDocuments({
+    organizationId,
+    projectId: project.id,
+    sanityProjectId: input.sanityProjectId,
+    documentIds: [input.documentId],
+  });
+  const collected = pages.find((page) => page.documentId === input.documentId);
+  if (!collected) {
+    throw new Error("sanity_document_not_collected");
+  }
+
+  return importApprovedProjectTranslationsFromEntries({
+    organizationId,
+    projectId: project.id,
+    sourcePath: collected.sourcePath,
+    targetLocale: projectTargetLocale,
+    entries: input.entries,
+    actorUserId: input.auth.user.localUserId,
+  });
 }
 
 export async function listCollectedSanityDocuments(input: {

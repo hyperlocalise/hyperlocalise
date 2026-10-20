@@ -1,3 +1,4 @@
+import { SparklesIcon } from "@sanity/icons/Sparkles";
 import { Box, Button, Card, Flex, Select, Stack, Text } from "@sanity/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useClient, useDataset, useProjectId, useSchema } from "sanity";
@@ -5,10 +6,8 @@ import { useClient, useDataset, useProjectId, useSchema } from "sanity";
 import { createDocumentLevelTranslation, patchCurrentDocumentDraft } from "./apply-studio-document";
 import { ConnectScreen, ProjectScreen } from "./connect-screens";
 import type { HyperlocalisePluginConfig } from "./config";
-import { HyperlocaliseIcon } from "./hyperlocalise-icon";
-import { extractDocumentSegments, readDocumentTitle } from "./extract-document-segments";
+import { documentDisplayName, extractDocumentSegments } from "./extract-document-segments";
 import {
-  collectSanityDocument,
   createSanityJob,
   fetchCurrentSanityJob,
   fetchSanityApplyPlan,
@@ -20,7 +19,7 @@ import {
   type SanityDocumentJob,
   type SanitySessionProject,
 } from "./hyperlocalise-client";
-import { defaultSelectedLocale, localeLabel, translateToOptionsForProject } from "./locale-label";
+import { defaultSelectedLocale, translateToOptionsForProject } from "./locale-label";
 import { projectLocalesMatch } from "./locale-map";
 import { resolveLocalizationMode, type LocalizationMode } from "./localization-mode";
 import {
@@ -31,13 +30,31 @@ import {
 import { collectExcludedFieldNames, schemaI18nHints } from "./schema-hints";
 import { buildSanityDocumentSourcePath } from "./source-path";
 import { loadSettings, saveSettings, type PluginSettings } from "./settings";
+import {
+  actionLabel,
+  createLocaleVersionLabel,
+  fetchDocumentLevelTargetRef,
+  fieldLevelTargetHasContent,
+  hasHlTranslationForLocale,
+  parseLocaleStatusesForDocument,
+  uploadTargetLocaleFromSanity,
+} from "./target-translations";
+import {
+  DocumentHero,
+  isActiveTranslationJobStatus,
+  isInFlightJobStatus,
+  isTerminalJobSuccess,
+  publishedDocumentId,
+  TranslationProgressBar,
+  WorkflowHeader,
+  WorkflowPanel,
+  WorkflowProjectLine,
+  WorkflowSection,
+  WorkflowSessionLoading,
+} from "./workflow-ui";
 
 type Screen = "connect" | "project" | "workflow";
 type BusyAction = "connect" | "upload" | "translate" | "apply" | null;
-
-function publishedDocumentId(documentId: string): string {
-  return documentId.replace(/^drafts\./, "");
-}
 
 function i18nApiMode(mode: LocalizationMode): "document" | "field" | null {
   if (mode === "document-level") {
@@ -47,10 +64,6 @@ function i18nApiMode(mode: LocalizationMode): "document" | "field" | null {
     return "field";
   }
   return null;
-}
-
-function isInFlightJobStatus(status: string): boolean {
-  return status === "queued" || status === "running" || status === "processing";
 }
 
 export function HyperlocaliseDocumentWorkflow({
@@ -83,15 +96,30 @@ export function HyperlocaliseDocumentWorkflow({
   const [selectedLocale, setSelectedLocale] = useState("");
   const [sourcePath, setSourcePath] = useState<string | null>(null);
   const [pageJob, setPageJob] = useState<SanityDocumentJob | null>(null);
-  const [collected, setCollected] = useState(false);
+  const [documentHlStatus, setDocumentHlStatus] = useState<{
+    source: string;
+    byLocale: Record<string, string>;
+  }>({ source: "missing", byLocale: {} });
+  const [sanityTargetReady, setSanityTargetReady] = useState(false);
+  const [choosingProject, setChoosingProject] = useState(false);
+  const auth = useMemo(() => resourceAuthFromSettings(settings), [settings]);
+  const [sessionLoading, setSessionLoading] = useState(() => Boolean(auth));
 
   const publishedId = publishedDocumentId(documentId);
   const appUrl = settings.appUrl;
-  const auth = useMemo(() => resourceAuthFromSettings(settings), [settings]);
   const project = useMemo(
     () => sessionProjects.find((entry) => entry.id === settings.projectId) ?? null,
     [sessionProjects, settings.projectId],
   );
+  const workflowProjectLabel = useMemo(() => {
+    if (project?.name) {
+      return project.name;
+    }
+    if (settings.projectId) {
+      return "Unknown project — choose again";
+    }
+    return "Not selected";
+  }, [project?.name, settings.projectId]);
 
   const { hasLanguageField, hasInternationalizedArrayField } = schemaI18nHints(
     documentType,
@@ -110,17 +138,21 @@ export function HyperlocaliseDocumentWorkflow({
     setLoadedScope(settingsScope);
     setSettings(loadSettings(sanityProjectId, dataset));
   }
-  if (!auth && screen !== "connect") {
-    setScreen("connect");
-  }
-
   useEffect(() => {
     if (!auth) {
+      setSessionLoading(false);
+      setScreen("connect");
       return;
     }
+
+    let cancelled = false;
+    setSessionLoading(true);
     void (async () => {
       try {
         const session = await fetchSanitySession({ appUrl, auth });
+        if (cancelled) {
+          return;
+        }
         setSessionProjects(session.projects);
         setSessionOrg(session.organization);
         setSelectedLocale((current) =>
@@ -132,34 +164,81 @@ export function HyperlocaliseDocumentWorkflow({
         );
         setScreen(settings.projectId ? "workflow" : "project");
       } catch {
-        setScreen("connect");
+        if (!cancelled) {
+          setScreen("connect");
+        }
+      } finally {
+        if (!cancelled) {
+          setSessionLoading(false);
+        }
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [auth, appUrl, pluginOptions.supportedLanguages, settings.projectId]);
 
-  useEffect(() => {
+  const refreshDocumentHlStatus = useCallback(async () => {
     if (!auth || !settings.projectId || !apiI18nMode) {
+      setDocumentHlStatus({ source: "missing", byLocale: {} });
       return;
     }
+    try {
+      const { locales } = await fetchSanityLocaleStatusesFromApi({
+        appUrl,
+        auth,
+        projectId: settings.projectId,
+        sanityProjectId,
+        dataset,
+        documentIds: [publishedId],
+      });
+      setDocumentHlStatus(parseLocaleStatusesForDocument(locales, publishedId));
+    } catch {
+      setDocumentHlStatus({ source: "missing", byLocale: {} });
+    }
+  }, [apiI18nMode, appUrl, auth, dataset, publishedId, sanityProjectId, settings.projectId]);
+
+  useEffect(() => {
+    void refreshDocumentHlStatus();
+  }, [refreshDocumentHlStatus]);
+
+  useEffect(() => {
+    if (!selectedLocale || localizationMode === "unsupported") {
+      setSanityTargetReady(false);
+      return;
+    }
+    if (localizationMode === "field-level") {
+      setSanityTargetReady(
+        fieldLevelTargetHasContent({
+          document: document,
+          locale: selectedLocale,
+          i18nMode: localizationMode,
+          customBlockTypes: pluginOptions.customBlockTypes,
+          excludeFieldNames,
+        }),
+      );
+      return;
+    }
+    let cancelled = false;
     void (async () => {
-      try {
-        const { locales } = await fetchSanityLocaleStatusesFromApi({
-          appUrl,
-          auth,
-          projectId: settings.projectId!,
-          sanityProjectId,
-          dataset,
-          documentIds: [publishedId],
-        });
-        const docStatus = locales
-          .flatMap((locale) => locale.documents)
-          .find((entry) => entry.documentId === publishedId);
-        setCollected(docStatus?.status === "succeeded" || docStatus?.status === "collected");
-      } catch {
-        setCollected(false);
+      const ref = await fetchDocumentLevelTargetRef(client, publishedId, selectedLocale);
+      if (!cancelled) {
+        setSanityTargetReady(Boolean(ref));
       }
     })();
-  }, [apiI18nMode, appUrl, auth, dataset, publishedId, sanityProjectId, settings.projectId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    client,
+    document,
+    excludeFieldNames,
+    localizationMode,
+    pluginOptions.customBlockTypes,
+    publishedId,
+    selectedLocale,
+  ]);
 
   useEffect(() => {
     if (!auth || !settings.projectId || !apiI18nMode) {
@@ -196,7 +275,7 @@ export function HyperlocaliseDocumentWorkflow({
   ]);
 
   useEffect(() => {
-    if (!auth || !pageJob || !isInFlightJobStatus(pageJob.status)) {
+    if (!auth || !pageJob || !isActiveTranslationJobStatus(pageJob.status)) {
       return;
     }
     const timer = window.setInterval(() => {
@@ -206,7 +285,7 @@ export function HyperlocaliseDocumentWorkflow({
           if (job.sourcePath) {
             setSourcePath(job.sourcePath);
           }
-          if (job.status === "completed") {
+          if (isTerminalJobSuccess(job.status)) {
             setStatus("Translation finished. You can apply when ready.");
           }
         })
@@ -214,6 +293,18 @@ export function HyperlocaliseDocumentWorkflow({
     }, SANITY_JOB_POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, [appUrl, auth, pageJob]);
+
+  const switchAccount = useCallback(() => {
+    const next = saveSettings(sanityProjectId, dataset, {
+      ...settings,
+      accessToken: undefined,
+      refreshToken: undefined,
+      projectId: undefined,
+    });
+    setSettings(next);
+    setChoosingProject(false);
+    setScreen("connect");
+  }, [dataset, sanityProjectId, settings]);
 
   const connect = useCallback(async () => {
     setBusy("connect");
@@ -244,7 +335,9 @@ export function HyperlocaliseDocumentWorkflow({
   }, [appUrl, dataset, sanityProjectId, settings]);
 
   const documentPayload = document;
-  const documentTitle = readDocumentTitle(documentPayload);
+  const documentTitle = documentDisplayName(documentPayload);
+  const localizationModeLabel =
+    localizationMode === "field-level" ? "Field-level i18n" : "Document-level i18n";
 
   const buildSegments = useCallback(() => {
     if (!project || !apiI18nMode) {
@@ -288,7 +381,7 @@ export function HyperlocaliseDocumentWorkflow({
   }, [dataset, documentTitle, documentType, publishedId, sanityProjectId, sourcePath]);
 
   const upload = useCallback(async () => {
-    if (!auth || !settings.projectId || !project || !apiI18nMode) {
+    if (!auth || !settings.projectId || !project || !apiI18nMode || !selectedLocale) {
       return;
     }
     const segments = buildSegments();
@@ -300,20 +393,31 @@ export function HyperlocaliseDocumentWorkflow({
     setError(null);
     setStatus(null);
     try {
-      const result = await collectSanityDocument({
+      const result = await uploadTargetLocaleFromSanity({
         appUrl,
         auth,
+        client,
         projectId: settings.projectId,
         sanityProjectId,
         dataset,
         documentId: publishedId,
         documentType,
         documentTitle,
-        segments,
+        locale: selectedLocale,
+        i18nMode: localizationMode,
+        sourceDocument: documentPayload,
+        sourceStatus: documentHlStatus.source,
+        sourceSegments: segments,
+        customBlockTypes: pluginOptions.customBlockTypes,
+        excludeFieldNames,
       });
-      setSourcePath(result.sourcePath);
-      setCollected(true);
-      setStatus(`Uploaded ${result.segmentCount} segments.`);
+      if (result.sourcePath) {
+        setSourcePath(result.sourcePath);
+      }
+      await refreshDocumentHlStatus();
+      setStatus(
+        `Imported ${result.imported} ${selectedLocale} translation${result.imported === 1 ? "" : "s"} into Hyperlocalise.`,
+      );
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Upload failed.");
     } finally {
@@ -324,12 +428,20 @@ export function HyperlocaliseDocumentWorkflow({
     appUrl,
     auth,
     buildSegments,
+    client,
     dataset,
+    documentHlStatus.source,
+    documentPayload,
     documentTitle,
     documentType,
+    excludeFieldNames,
+    localizationMode,
+    pluginOptions.customBlockTypes,
     project,
     publishedId,
+    refreshDocumentHlStatus,
     sanityProjectId,
+    selectedLocale,
     settings.projectId,
   ]);
 
@@ -345,7 +457,8 @@ export function HyperlocaliseDocumentWorkflow({
     setError(null);
     setStatus(null);
     try {
-      const segments = collected ? undefined : buildSegments();
+      const sourceCollected = documentHlStatus.source === "succeeded";
+      const segments = sourceCollected ? undefined : buildSegments();
       const job = await createSanityJob({
         appUrl,
         auth,
@@ -371,6 +484,7 @@ export function HyperlocaliseDocumentWorkflow({
         translationsByLocale: {},
       });
       setStatus("Translation started.");
+      await refreshDocumentHlStatus();
     } catch (translateError) {
       setError(translateError instanceof Error ? translateError.message : "Translate failed.");
     } finally {
@@ -381,12 +495,13 @@ export function HyperlocaliseDocumentWorkflow({
     appUrl,
     auth,
     buildSegments,
-    collected,
     dataset,
+    documentHlStatus.source,
     documentTitle,
     documentType,
     project,
     publishedId,
+    refreshDocumentHlStatus,
     sanityProjectId,
     selectedLocale,
     settings.projectId,
@@ -442,7 +557,8 @@ export function HyperlocaliseDocumentWorkflow({
           translatedDocument: plan.document,
         });
       }
-      setStatus(`Applied ${localeLabel(selectedLocale)} translations to this document.`);
+      setStatus(`Created ${selectedLocale} version in Sanity.`);
+      await refreshDocumentHlStatus();
     } catch (applyError) {
       setError(applyError instanceof Error ? applyError.message : "Apply failed.");
     } finally {
@@ -457,15 +573,38 @@ export function HyperlocaliseDocumentWorkflow({
     documentType,
     project,
     publishedId,
+    refreshDocumentHlStatus,
     resolvedSourcePath,
     selectedLocale,
     settings.projectId,
   ]);
 
+  const sourceCollected = documentHlStatus.source === "succeeded";
+  const selectedHlStatus = useMemo(() => {
+    if (!selectedLocale) {
+      return undefined;
+    }
+    if (documentHlStatus.byLocale[selectedLocale]) {
+      return documentHlStatus.byLocale[selectedLocale];
+    }
+    for (const [locale, status] of Object.entries(documentHlStatus.byLocale)) {
+      if (projectLocalesMatch(locale, selectedLocale)) {
+        return status;
+      }
+    }
+    return undefined;
+  }, [documentHlStatus.byLocale, selectedLocale]);
+  const applyReady = hasHlTranslationForLocale(selectedHlStatus);
+  const localeTags = selectedLocale ? [selectedLocale] : [];
+
   const translateTargetOptions = translateToOptionsForProject(
     project,
     pluginOptions.supportedLanguages,
   );
+
+  if (sessionLoading) {
+    return <WorkflowSessionLoading />;
+  }
 
   if (screen === "connect") {
     return (
@@ -478,6 +617,13 @@ export function HyperlocaliseDocumentWorkflow({
       <ProjectScreen
         projectId={settings.projectId ?? ""}
         projects={sessionProjects}
+        disabled={busy !== null}
+        showCancel={choosingProject && Boolean(settings.projectId)}
+        onCancel={() => {
+          setChoosingProject(false);
+          setScreen("workflow");
+        }}
+        onSwitchAccount={switchAccount}
         onSelect={(projectId) => {
           const next = saveSettings(sanityProjectId, dataset, { ...settings, projectId });
           setSettings(next);
@@ -489,6 +635,7 @@ export function HyperlocaliseDocumentWorkflow({
             ),
           );
           if (projectId) {
+            setChoosingProject(false);
             setScreen("workflow");
           }
         }}
@@ -497,122 +644,108 @@ export function HyperlocaliseDocumentWorkflow({
   }
 
   return (
-    <Box padding={4} style={{ width: 420, maxWidth: "100%" }}>
-      <Stack gap={4}>
-        <Flex align="center" justify="space-between">
-          <Stack gap={2}>
-            <Flex align="center" gap={2}>
-              <HyperlocaliseIcon width={18} height={18} />
-              <Text size={2} weight="semibold">
-                Hyperlocalise
-              </Text>
-            </Flex>
-            {sessionOrg ? (
-              <Text muted size={1}>
-                {sessionOrg.name}
-              </Text>
-            ) : null}
-          </Stack>
-          <Button
-            mode="bleed"
-            text="Reconnect"
-            onClick={() => {
-              saveSettings(sanityProjectId, dataset, {
-                ...settings,
-                accessToken: undefined,
-                refreshToken: undefined,
-              });
-              setScreen("connect");
-            }}
+    <WorkflowPanel>
+      <WorkflowHeader title="Hyperlocalise" subtitle={sessionOrg?.name ?? null} />
+      <WorkflowProjectLine
+        projectName={workflowProjectLabel}
+        disabled={busy !== null}
+        onChangeProject={() => {
+          setChoosingProject(true);
+          setScreen("project");
+        }}
+        onSwitchAccount={switchAccount}
+      />
+
+      {localizationMode === "unsupported" ? (
+        <Card padding={3} tone="caution">
+          <Text size={1}>
+            This document type is not configured for document-level or field-level i18n. Add it to
+            `documentLocalizationSchemaTypes` or `fieldLocalizationSchemaTypes`.
+          </Text>
+        </Card>
+      ) : (
+        <>
+          <DocumentHero
+            displayName={documentTitle}
+            documentType={documentType}
+            meta={localizationModeLabel}
           />
-        </Flex>
 
-        {localizationMode === "unsupported" ? (
-          <Card padding={3} tone="caution">
-            <Text size={1}>
-              This document type is not configured for document-level or field-level i18n. Add it to
-              `documentLocalizationSchemaTypes` or `fieldLocalizationSchemaTypes`.
-            </Text>
-          </Card>
-        ) : (
-          <>
-            <Stack gap={2}>
-              <Text size={1} weight="semibold">
-                Document
-              </Text>
-              <Text muted size={1}>
-                {documentType} · {publishedId}
-              </Text>
-              <Text muted size={1}>
-                Mode: {localizationMode === "field-level" ? "Field-level" : "Document-level"}
-              </Text>
-            </Stack>
+          <WorkflowSection title="Translate to">
+            <Select
+              value={selectedLocale}
+              onChange={(event) => setSelectedLocale(event.currentTarget.value)}
+            >
+              <option value="">Select locale</option>
+              {translateTargetOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </WorkflowSection>
 
-            <Stack gap={2}>
-              <Text size={1} weight="semibold">
-                Translate to
-              </Text>
-              <Select
-                value={selectedLocale}
-                onChange={(event) => setSelectedLocale(event.currentTarget.value)}
-              >
-                <option value="">Select locale</option>
-                {translateTargetOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </Stack>
+          {pageJob ? (
+            <Card padding={3} tone={isInFlightJobStatus(pageJob.status) ? "primary" : "default"}>
+              <TranslationProgressBar status={pageJob.status} lastError={pageJob.lastError} />
+            </Card>
+          ) : null}
 
-            {pageJob ? (
-              <Card padding={3} tone={isInFlightJobStatus(pageJob.status) ? "primary" : "default"}>
-                <Text size={1}>
-                  Job {pageJob.jobId.slice(0, 8)}… · {pageJob.status}
-                </Text>
-                {pageJob.lastError ? (
-                  <Text size={1} muted>
-                    {pageJob.lastError}
-                  </Text>
-                ) : null}
-              </Card>
-            ) : null}
+          {!pageJob && sourceCollected ? (
+            <Card padding={3} tone="positive">
+              <TranslationProgressBar status="succeeded" />
+            </Card>
+          ) : null}
 
-            {error ? (
-              <Card padding={3} tone="critical">
-                <Text size={1}>{error}</Text>
-              </Card>
-            ) : null}
-            {status ? (
-              <Card padding={3} tone="positive">
-                <Text size={1}>{status}</Text>
-              </Card>
-            ) : null}
+          {error ? (
+            <Card padding={3} tone="critical">
+              <Text size={1}>{error}</Text>
+            </Card>
+          ) : null}
+          {status ? (
+            <Card padding={3} tone="positive">
+              <Text size={1}>{status}</Text>
+            </Card>
+          ) : null}
 
+          <Card padding={3} radius={3} shadow={1}>
             <Stack gap={3}>
+              <Flex gap={2} wrap="nowrap">
+                <Box flex={1} style={{ minWidth: 0 }}>
+                  <Button
+                    width="fill"
+                    text={actionLabel("Upload", localeTags)}
+                    tone="primary"
+                    disabled={
+                      busy !== null || !project || !selectedLocale || !sanityTargetReady
+                    }
+                    loading={busy === "upload"}
+                    onClick={() => void upload()}
+                  />
+                </Box>
+                <Box flex={1} style={{ minWidth: 0 }}>
+                  <Button
+                    width="fill"
+                    text={createLocaleVersionLabel(localeTags)}
+                    disabled={busy !== null || !selectedLocale || !applyReady}
+                    loading={busy === "apply"}
+                    onClick={() => void apply()}
+                  />
+                </Box>
+              </Flex>
               <Button
-                text="Upload"
+                width="fill"
+                text={actionLabel("Translate", localeTags)}
+                icon={SparklesIcon}
                 tone="primary"
-                disabled={busy !== null}
-                loading={busy === "upload"}
-                onClick={() => void upload()}
-              />
-              <Button
-                text="Translate"
-                disabled={busy !== null || !selectedLocale}
+                disabled={busy !== null || !selectedLocale || !project}
                 loading={busy === "translate"}
                 onClick={() => void translate()}
               />
-              <Button
-                text="Apply"
-                disabled={busy !== null || !selectedLocale || !collected}
-                loading={busy === "apply"}
-                onClick={() => void apply()}
-              />
             </Stack>
-          </>
-        )}
-      </Stack>
-    </Box>
+          </Card>
+        </>
+      )}
+    </WorkflowPanel>
   );
 }

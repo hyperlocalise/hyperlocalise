@@ -311,6 +311,67 @@ export async function collectSanityDocument(input: {
   return result;
 }
 
+function parseImportTargetResult(value: unknown): {
+  matched: number;
+  imported: number;
+  skipped: number;
+} | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const matched = typeof value.matched === "number" ? value.matched : null;
+  const imported = typeof value.imported === "number" ? value.imported : null;
+  const skipped = typeof value.skipped === "number" ? value.skipped : null;
+  if (matched === null || imported === null || skipped === null) {
+    return null;
+  }
+  return { matched, imported, skipped };
+}
+
+export async function importSanityTargetTranslations(input: {
+  appUrl: string;
+  auth: SanityResourceAuth;
+  projectId: string;
+  sanityProjectId: string;
+  dataset: string;
+  documentId: string;
+  documentType: string;
+  targetLocale: string;
+  entries: Record<string, string>;
+}): Promise<{ matched: number; imported: number; skipped: number }> {
+  const response = await fetch(
+    apiUrl(input.appUrl, "/api/integrations/sanity/translations/import"),
+    {
+      method: "POST",
+      headers: buildRequestHeaders(input.appUrl, input.auth),
+      body: JSON.stringify({
+        projectId: input.projectId,
+        sanityProjectId: input.sanityProjectId,
+        dataset: input.dataset,
+        documentId: input.documentId,
+        documentType: input.documentType,
+        targetLocale: input.targetLocale,
+        entries: input.entries,
+      }),
+    },
+  );
+  const payload = await readResponseJson(response);
+  throwIfFailed(
+    response,
+    parseErrorPayload(payload),
+    "sanity_import_failed",
+    "Unable to import Sanity translations.",
+  );
+  const result = parseImportTargetResult(payload);
+  if (!result) {
+    throw new HyperlocaliseClientError(
+      "sanity_import_failed",
+      "Unable to import Sanity translations.",
+    );
+  }
+  return result;
+}
+
 export async function createSanityJob(input: {
   appUrl: string;
   auth: SanityResourceAuth;

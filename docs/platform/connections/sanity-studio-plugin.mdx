@@ -81,35 +81,71 @@ A schema type cannot be listed in both arrays.
 
 The **Hyperlocalise** top-level tool uses the same OAuth session.
 
-## Upload source text
+## Project locales list
 
-**Upload** writes source JSON for the **open document** (or selected documents in the bulk tool). It does not start a translation job.
+After you connect, the plugin loads each accessible native project from the Hyperlocalise session API (`GET /api/integrations/sanity/session`). Every project in that response includes a **source locale** and a **target locales** list—the same values you configure under **Settings → Locales** for that project. See [Manage project languages](/platform/projects/languages).
 
-1. Confirm the document shows the **project source locale** (field-level) or is the source-language document (document-level).
-2. Choose **Upload**.
+| Field | Meaning |
+| --- | --- |
+| `sourceLocale` | Language tag for source documents and collect/upload of source text (for example `en-US`). |
+| `targetLocales` | Language tags you can translate into and apply back (for example `fr-FR`, `de-DE`). The source locale is never a target. |
 
-Each document is stored at `sanity/{sanityProjectId}/{dataset}/{documentType}/…json`. Segments use stamped keys `sanity.k.*` in the JSON file, aligned with [automation imports](/platform/connections/sanity) for the same document.
+Example session fragment for one project:
+
+```json
+{
+  "session": {
+    "projects": [
+      {
+        "id": "proj_…",
+        "name": "Marketing site",
+        "sourceLocale": "en-US",
+        "targetLocales": ["fr-FR", "de-DE", "es-ES"]
+      }
+    ]
+  }
+}
+```
+
+**Translate to** (document view and bulk tool) only offer tags from that project's `targetLocales`. If you configure `supportedLanguages` in `sanity.config`, the plugin shows the **intersection**: a language must appear in both `supportedLanguages` and the project's `targetLocales`. When `supportedLanguages` is omitted, the plugin lists every project target locale.
+
+Use locale tags from this list everywhere:
+
+- Pick targets in the plugin only from the dropdown or checkboxes (do not type ad hoc tags in Studio-only config).
+- Set Sanity document `language` values and Locales collection `tag` fields to the same BCP-47 tags as the native project (exact match preferred; the plugin and API treat `en` and `en-US` as different tags).
+- After you add or remove targets in Hyperlocalise, reconnect or use **Change** on the project line so the plugin reloads the session list.
+
+Upload and **Create {locale} version** labels reflect the selected locale (for example **Upload (fr-FR)** and **Create fr-FR version**) only when that tag is a project target and, when configured, listed in `supportedLanguages`.
+
+## Upload target locale text
+
+**Upload (locale)** imports existing Sanity content for the selected target locale into Hyperlocalise as translations for the collected source file. It is enabled when that locale already exists in Studio (a linked translation document for document-level i18n, or field-level content for the locale).
+
+1. Pick a target locale from **Translate to** (document view or bulk tool). Only tags from the [project locales list](#project-locales-list) appear there.
+2. Choose **Upload (locale)** when the label shows your locale and the control is enabled.
+
+If the source document is not in Hyperlocalise yet, Upload collects the source first, then imports the target strings. Each source document is stored at `sanity-plugin/{sanityProjectId}/{dataset}/{documentType}/…json`. Segments use stamped keys `sanity.k.*` in the JSON file (same key format as [automation imports](/platform/connections/sanity), which use the `sanity/` path prefix).
 
 ## Translate
 
-**Translate** starts an agent job for the locale (or locales, in bulk) selected under **Translate to**.
+**Translate** starts an agent job for the locale selected under **Translate to**.
 
-- If the document is not uploaded yet, Translate collects it first when you have not uploaded separately.
+- If the source is not collected yet, Translate sends source segments on the first run (same as before).
 - Review or approve strings in the [Content Editor](/platform/cat) when jobs require it.
 
-## Apply to Studio
+## Create locale version in Studio
 
-**Apply** writes Hyperlocalise-approved translations.
+**Create {locale} version** (for example **Create fr-FR version**) writes Hyperlocalise translations back into Sanity as a draft for that locale.
 
-1. Pick the target locale (one locale in the document view; one or more in the bulk tool).
-2. Choose **Apply** when approved translations exist for that locale.
+1. Pick the target locale under **Translate to**.
+2. Choose **Create {locale} version** when Hyperlocalise has any translation content for that locale (not only fully approved strings).
 
 Behavior depends on i18n mode:
 
 - **Field-level**: Hyperlocalise patches the open document draft with the target locale slot on internationalized fields.
 - **Document-level**: Hyperlocalise creates or updates a draft translation document and links it through `translation.metadata`.
 
-Apply does not publish in Sanity. Publish from Studio after you review drafts.
+Creating a locale version does not publish in Sanity. Publish from Studio after you review drafts.
 
 ## Self-hosted and local Studio
 

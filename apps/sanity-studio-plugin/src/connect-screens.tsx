@@ -1,7 +1,7 @@
-import { Box, Button, Card, Flex, Select, Stack, Text } from "@sanity/ui";
+import { Button, Card, Flex, Select, Stack, Text } from "@sanity/ui";
 
 import type { SanitySessionProject } from "./hyperlocalise-client";
-import { HyperlocaliseIcon } from "./hyperlocalise-icon";
+import { WorkflowHeader, WorkflowPanel } from "./workflow-ui";
 
 export function ConnectScreen({
   error,
@@ -13,32 +13,24 @@ export function ConnectScreen({
   onConnect: () => void;
 }) {
   return (
-    <Box padding={4} style={{ width: 420, maxWidth: "100%" }}>
-      <Stack gap={4}>
-        <Flex align="center" gap={2}>
-          <HyperlocaliseIcon width={18} height={18} />
-          <Text size={2} weight="semibold">
-            Connect Hyperlocalise
-          </Text>
-        </Flex>
-        <Text muted size={1}>
-          Sign in with OAuth to link this Studio to your workspace. Your org admin must create a
-          Studio plugin connection under Integrations first.
-        </Text>
-        {error ? (
-          <Card padding={3} tone="critical">
-            <Text size={1}>{error}</Text>
-          </Card>
-        ) : null}
-        <Button
-          text="Connect Hyperlocalise"
-          tone="primary"
-          disabled={busy}
-          loading={busy}
-          onClick={onConnect}
-        />
-      </Stack>
-    </Box>
+    <WorkflowPanel>
+      <WorkflowHeader title="Connect Hyperlocalise" />
+      <Text muted size={1} style={{ textAlign: "center" }}>
+        Sign in with OAuth to link this Studio to your Hyperlocalise workspace.
+      </Text>
+      {error ? (
+        <Card padding={3} tone="critical">
+          <Text size={1}>{error}</Text>
+        </Card>
+      ) : null}
+      <Button
+        text="Connect Hyperlocalise"
+        tone="primary"
+        disabled={busy}
+        loading={busy}
+        onClick={onConnect}
+      />
+    </WorkflowPanel>
   );
 }
 
@@ -46,22 +38,26 @@ export function ProjectScreen({
   projectId,
   projects,
   onSelect,
+  showCancel,
+  onCancel,
+  onSwitchAccount,
+  disabled = false,
 }: {
   projectId: string;
   projects: SanitySessionProject[];
   onSelect: (projectId: string) => void;
+  showCancel?: boolean;
+  onCancel?: () => void;
+  onSwitchAccount?: () => void;
+  disabled?: boolean;
 }) {
   return (
-    <Box padding={4} style={{ width: 420, maxWidth: "100%" }}>
-      <Stack gap={4}>
-        <Flex align="center" gap={2}>
-          <HyperlocaliseIcon width={18} height={18} />
-          <Text size={2} weight="semibold">
-            Choose project
-          </Text>
-        </Flex>
+    <WorkflowPanel>
+      <WorkflowHeader title="Choose project" />
+      <Stack gap={3}>
         <Select
           value={projectId}
+          disabled={disabled}
           onChange={(event) => {
             onSelect(event.currentTarget.value);
           }}
@@ -73,7 +69,38 @@ export function ProjectScreen({
             </option>
           ))}
         </Select>
+        {showCancel || onSwitchAccount ? (
+          <Flex align="center" gap={1} wrap="wrap" justify="center">
+            {showCancel && onCancel ? (
+              <>
+                <Button
+                  mode="bleed"
+                  padding={2}
+                  fontSize={1}
+                  text="Cancel"
+                  disabled={disabled}
+                  onClick={onCancel}
+                />
+                {onSwitchAccount ? (
+                  <Text muted size={1}>
+                    ·
+                  </Text>
+                ) : null}
+              </>
+            ) : null}
+            {onSwitchAccount ? (
+              <Button
+                mode="bleed"
+                padding={2}
+                fontSize={1}
+                text="Switch Account"
+                disabled={disabled}
+                onClick={onSwitchAccount}
+              />
+            ) : null}
+          </Flex>
+        ) : null}
       </Stack>
-    </Box>
+    </WorkflowPanel>
   );
 }

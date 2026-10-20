@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   generateSanityLocalizationMock: vi.fn(),
   generateSanityLocaleJobsMock: vi.fn(),
   pullSanityPageLocaleContentMock: vi.fn(),
+  importSanityPluginTargetTranslationsMock: vi.fn(),
   getAccessibleSanityProjectMock: vi.fn(),
   reconcileWorkosMembershipsForUserMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -44,6 +45,7 @@ vi.mock("@/lib/sanity/localize-document", () => ({
   generateSanityLocalization: mocks.generateSanityLocalizationMock,
   generateSanityLocaleJobs: mocks.generateSanityLocaleJobsMock,
   pullSanityDocumentLocaleContent: mocks.pullSanityPageLocaleContentMock,
+  importSanityPluginTargetTranslations: mocks.importSanityPluginTargetTranslationsMock,
   getAccessibleSanityProject: mocks.getAccessibleSanityProjectMock,
 }));
 
@@ -387,6 +389,69 @@ describe("sanityIntegrationRoutes", () => {
       }),
     );
     expect(mocks.startSanityLocalizationMock).not.toHaveBeenCalled();
+  });
+
+  it("imports target locale translations for a collected document", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Sanity import key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const created = await createSanityConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Sanity import",
+      apiKeyId: apiKey.id,
+    });
+
+    const integrationHeaders = await accessTokenHeaders({
+      connectionId: created.connection.id,
+      userId: auth.user.localUserId,
+      organizationId,
+    });
+
+    mocks.importSanityPluginTargetTranslationsMock.mockResolvedValue({
+      matched: 1,
+      imported: 1,
+      skipped: 0,
+    });
+
+    const response = await createApp().request(
+      "http://localhost/api/integrations/sanity/translations/import",
+      {
+        method: "POST",
+        headers: {
+          ...integrationHeaders,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectId: projectBody.project.id,
+          ...sanityDocumentFields(),
+          targetLocale: "fr-FR",
+          entries: { [sampleSegment.key]: "Bonjour" },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({
+      matched: 1,
+      imported: 1,
+      skipped: 0,
+    });
+    expect(mocks.importSanityPluginTargetTranslationsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: projectBody.project.id,
+        documentId: DOCUMENT_ID,
+        targetLocale: "fr-FR",
+      }),
+    );
   });
 
   it("lists locale status from collected pages and jobs", async () => {

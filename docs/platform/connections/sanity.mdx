@@ -10,7 +10,7 @@ Use a saved automation to import Sanity documents into a native project as JSON,
 | **Studio editor view and bulk tool** | Editors translate the **open document** or selected documents from Sanity Studio (upload → translate → apply) | [Localize Sanity Studio documents](/platform/connections/sanity-studio-plugin) |
 | **Automations (this page)** | Batch import by project, dataset, and document type; push from the Content editor | This guide |
 
-These paths share JSON source paths under `sanity/{projectId}/{dataset}/…` but use different workspace connections: **Sanity Studio plugin** (OAuth from Studio) versus **Sanity** on this page (WorkOS Pipes for automations).
+Studio plugin uploads use `sanity-plugin/{projectId}/{dataset}/…`; automation imports on this page use `sanity/{projectId}/{dataset}/…`. Both use stamped segment keys `sanity.k.*` in the JSON file but different workspace connections: **Sanity Studio plugin** (OAuth from Studio) versus **Sanity** here (WorkOS Pipes for automations).
 
 ## Connect Sanity
 
@@ -22,11 +22,13 @@ The automation uses this Sanity connection. Connect Sanity before you add the **
 
 ## Prepare the native project
 
-Create or choose a [native project](/platform/projects/create-project) whose source locale and target locales map onto the Sanity language tags on the dataset. Exact tags match first. Language-only aliases such as `en` ↔ `en-US` are supported when only one regional form is present.
+Create or choose a [native project](/platform/projects/create-project), then set **source** and **target** locales under [project Settings → Locales](/platform/projects/languages). Translation jobs, import, and push only use tags in that list: one `sourceLocale` and one or more `targetLocales` (the source locale cannot be a target). The Studio plugin loads the same list from the session API after you pick a project; see [Project locales list](/platform/connections/sanity-studio-plugin#project-locales-list).
 
-After you select a project and dataset in the automation editor, Platform loads languages from your Sanity **Locales** collection when present (`locale` documents with a `tag` field, as used by `@sanity/document-internationalization` and `sanity-plugin-internationalized-array`). If that collection is missing, Platform infers tags from existing content. Map those codes onto the native project source and targets.
+**Use locale tags from the native project list on the Sanity side.** Document `language` fields, Locales collection `tag` values, and automation locale mappings should match those project tags. Exact tags match first. Language-only aliases such as `en` ↔ `en-US` are supported when only one regional form is present, but `en` is not `en-US` and `zh-CN` is not `zh-TW`. Do not add Sanity-only languages that are not configured as targets on the native project.
 
-Studio config files that hardcode `supportedLanguages` are not readable over the API; a shared Locales collection keeps Studio and Hyperlocalise aligned. Scope slug uniqueness by language in Studio when translated documents share slug values.
+After you select a project and dataset in the automation editor, Platform loads languages from your Sanity **Locales** collection when present (`locale` documents with a `tag` field, as used by `@sanity/document-internationalization` and `sanity-plugin-internationalized-array`). If that collection is missing, Platform infers tags from existing content. Map each inferred tag onto a locale in the project's `sourceLocale` / `targetLocales` list; drop or add project targets in Hyperlocalise when Sanity and the project list diverge.
+
+Studio config files that hardcode `supportedLanguages` are not readable over the API; keep that array aligned with the project target list (the plugin shows only the intersection). A shared Locales collection keeps Studio and Hyperlocalise aligned. Scope slug uniqueness by language in Studio when translated documents share slug values.
 
 ## Create the automation
 
@@ -37,7 +39,7 @@ Studio config files that hardcode `supportedLanguages` are not readable over the
 5. Under **Sanity documents**, set:
    - **Sanity project** and **dataset**
    - **Document types** to import
-   - **Sanity source locale**
+   - **Sanity source locale** (must match the native project `sourceLocale` or an allowed alias)
    - **Include draft documents on import** (on by default)
    - **Existing Sanity translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**
    - **Overwrite Sanity drafts when remote target is newer** (on by default)

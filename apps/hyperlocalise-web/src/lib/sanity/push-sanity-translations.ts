@@ -50,6 +50,7 @@ import {
   loadLiveSanityPushSettings,
   withCurrentSanityAutomationConfig,
 } from "./sanity-sync-current";
+import { isSanityPluginSourcePath } from "./segment-file";
 import {
   buildSanityImportScopeKey,
   isSanitySyncStaleConfigError,
@@ -385,12 +386,14 @@ export async function runPushSanityTranslations(input: {
             inArray(schema.sanityDocumentSyncStates.status, ["active", "push_failed"]),
           ),
         )
-    ).filter((mapping) =>
-      sanityMappingMatchesTarget(mapping, {
-        projectId,
-        sanityProjectId,
-        dataset,
-      }),
+    ).filter(
+      (mapping) =>
+        !isSanityPluginSourcePath(mapping.sourcePath) &&
+        sanityMappingMatchesTarget(mapping, {
+          projectId,
+          sanityProjectId,
+          dataset,
+        }),
     ),
     input.sourcePaths,
   );
