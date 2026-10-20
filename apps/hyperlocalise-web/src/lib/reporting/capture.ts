@@ -121,11 +121,13 @@ type LoadedMemory = {
 };
 
 /**
- * Keeps the memory a run loaded last, so groups of saves that share a memory load it once. It
- * holds one memory at a time, and only one that fits in a single slice, to bound memory use.
+ * Keeps what a run has already worked out, so groups of saves that share a memory load it once:
+ * the last memory loaded (one at a time, and only one that fits in a single slice, to bound memory
+ * use) and every score computed, so a memory scored in slices is not reloaded for each group.
  */
 export class MemoryScoreCache {
   loaded: LoadedMemory | null = null;
+  readonly scores = new Map<string, number>();
 }
 
 /**
@@ -142,13 +144,24 @@ export async function scoreAgainstMemory(
   },
   options: { sliceEntries?: number; cache?: MemoryScoreCache } = {},
 ): Promise<Map<string, number>> {
-  const texts = [...new Set(input.sourceTexts)];
-  const scores = new Map(texts.map((text) => [text, 0]));
-  if (!input.memoryIds.length || texts.length === 0) return scores;
+  const allTexts = [...new Set(input.sourceTexts)];
+  const scores = new Map(allTexts.map((text) => [text, 0]));
+  if (!input.memoryIds.length || allTexts.length === 0) return scores;
   const sliceEntries = options.sliceEntries ?? MEMORY_SLICE_ENTRIES;
   const key = [[...input.memoryIds].sort().join(","), input.sourceLocale, input.targetLocale].join(
     "|",
   );
+  const known = options.cache?.scores;
+  const texts = known ? allTexts.filter((text) => !known.has(`${key}\u0000${text}`)) : allTexts;
+  const remember = () => {
+    for (const text of allTexts) {
+      const cacheKey = `${key}\u0000${text}`;
+      if (known?.has(cacheKey)) scores.set(text, known.get(cacheKey)!);
+      else known?.set(cacheKey, scores.get(text)!);
+    }
+    return scores;
+  };
+  if (texts.length === 0) return remember();
   const score = (memory: LoadedMemory) => {
     const scorer =
       texts.length < MEMORY_INDEX_MIN_QUERIES
@@ -160,7 +173,7 @@ export async function scoreAgainstMemory(
   };
   if (options.cache?.loaded?.key === key) {
     score(options.cache.loaded);
-    return scores;
+    return remember();
   }
   let after: string | undefined;
   for (;;) {
@@ -176,10 +189,22 @@ export async function scoreAgainstMemory(
     score(memory);
     if (rows.length < sliceEntries) {
       if (after === undefined && options.cache) options.cache.loaded = memory;
-      return scores;
+      return remember();
     }
     after = rows[rows.length - 1].id;
   }
+}
+
+/**
+ * Scores a project's source texts against its memories into the run's cache in one pass, so the
+ * groups of saves that follow do not each load a memory that has to be read in slices.
+ */
+export async function prepareMemoryScores(
+  input: { projectId: string; sourceLocale: string; targetLocale: string; sourceTexts: string[] },
+  cache: MemoryScoreCache,
+) {
+  const memoryIds = await listAttachedProjectMemoryIds(input.projectId);
+  await scoreAgainstMemory({ ...input, memoryIds }, { cache });
 }
 
 function approvedMemoryEntries(input: {

@@ -116,6 +116,7 @@ export const reportingAnalyses = pgTable(
       .on(t.organizationId, t.jobId, t.segmentId, t.sourceRevision, t.targetLocale, t.step)
       .nullsNotDistinct(),
     index("reporting_analysis_project").on(t.organizationId, t.projectId, t.createdAt),
+    index("reporting_analysis_segment").on(t.organizationId, t.segmentId, t.targetLocale, t.step),
   ],
 );
 export const reportingActivity = pgTable(
@@ -148,6 +149,8 @@ export const reportingCaptureCursors = pgTable("reporting_capture_cursors", {
     .references(() => organizations.id, { onDelete: "cascade" }),
   lastEventCreatedAt: timestamp("last_event_created_at", { withTimezone: true }).notNull(),
   lastEventId: uuid("last_event_id").notNull(),
+  /** When the task first gave the workspace a position; nothing earlier is recorded. */
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 export const reportingTimeEntries = pgTable(

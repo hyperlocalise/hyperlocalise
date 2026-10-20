@@ -51,6 +51,8 @@ const projectFixture = createProjectTestFixture();
 const SOURCE_PATH = "locales/en.json";
 /** A time well past the capture cutoff, so freshly inserted events count as settled. */
 const LATER = () => new Date(Date.now() + EDITOR_SAVE_CAPTURE_CUTOFF_MS + 60_000);
+/** A run moves positions up to its cut-off, so a later save in a test is dated after it. */
+const minutesFromNow = (minutes: number) => new Date(Date.now() + minutes * 60_000);
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -122,6 +124,7 @@ async function insertSaveEvent(input: {
   eventType?: "string_segment_translation_updated" | "string_segment_approved";
   nextStatus?: string;
   actorKind?: "user" | "agent";
+  createdAt?: Date;
 }) {
   const [event] = await db
     .insert(schema.organizationActivityEvents)
@@ -139,6 +142,7 @@ async function insertSaveEvent(input: {
         targetLocale: "fr-FR",
         nextStatus: input.nextStatus ?? "draft",
       },
+      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
     })
     .returning({ id: schema.organizationActivityEvents.id });
   return event;
@@ -206,50 +210,40 @@ describe("captureEditorSaves", () => {
     expect(completionsAfter).toHaveLength(2);
   });
 
-  it("reads only events after the cursor when a new save arrives", async () => {
+  it("reads only events after the position when a new save arrives", async () => {
     const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
-    const first = await insertSaveEvent({
-      organizationId: organization.id,
-      projectId: project.id,
-      actorUserId: user.id,
-      segmentId: keyIds[0],
-    });
-    // A timestamp a JavaScript Date cannot hold exactly, as the database's own times usually are.
-    await db.execute(sql`
-      update organization_activity_events
-      set created_at = date_trunc('milliseconds', created_at) + interval '1 microsecond'
-      where id = ${first.id}
-    `);
-    expect(
-      (await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] }))
-        .eventsProcessed,
-    ).toBe(1);
-
-    await insertSaveEvent({
-      organizationId: organization.id,
-      projectId: project.id,
-      actorUserId: user.id,
-      segmentId: keyIds[1],
-    });
-    expect(
-      (await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] }))
-        .eventsProcessed,
-    ).toBe(1);
-  });
-
-  it("counts a repeated string as a repetition when its copies are recorded in different runs", async () => {
-    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
-    const save = (segmentId: string) =>
+    const save = (segmentId: string, createdAt?: Date) =>
       insertSaveEvent({
         organizationId: organization.id,
         projectId: project.id,
         actorUserId: user.id,
         segmentId,
+        createdAt,
       });
     await save(keyIds[0]);
-    await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
-    await save(keyIds[1]);
-    await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    const run = (minutes: number) =>
+      captureEditorSaves({ now: minutesFromNow(minutes), organizationIds: [organization.id] });
+    expect((await run(3)).eventsProcessed).toBe(1);
+
+    await save(keyIds[1], minutesFromNow(2));
+    expect((await run(5)).eventsProcessed).toBe(1);
+    expect((await run(5)).eventsProcessed).toBe(0);
+  });
+
+  it("counts a repeated string as a repetition when its copies are recorded in different runs", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    const save = (segmentId: string, createdAt?: Date) =>
+      insertSaveEvent({
+        organizationId: organization.id,
+        projectId: project.id,
+        actorUserId: user.id,
+        segmentId,
+        createdAt,
+      });
+    await save(keyIds[0]);
+    await captureEditorSaves({ now: minutesFromNow(3), organizationIds: [organization.id] });
+    await save(keyIds[1], minutesFromNow(2));
+    await captureEditorSaves({ now: minutesFromNow(5), organizationIds: [organization.id] });
 
     const analyses = await db
       .select({
@@ -348,30 +342,71 @@ describe("captureEditorSaves", () => {
         }),
       );
     }
-    // Reads as not aborted at the workspace's start, then aborted before its second batch.
+    // Not aborted for the workspace and its first batch (one memory pass, one group), then aborted
+    // when the second batch starts its memory pass.
     let checks = 0;
     const signal = {
       get aborted() {
         checks += 1;
-        return checks > 1;
+        return checks > 3;
       },
     } as AbortSignal;
 
     const stopped = await captureEditorSaves({
-      now: LATER(),
+      now: minutesFromNow(3),
       organizationIds: [organization.id],
       signal,
       eventsPerBatch: 1,
     });
     expect(stopped).toMatchObject({ stopped: "time_budget", eventsProcessed: 1 });
-    const [cursor] = await db
-      .select()
-      .from(schema.reportingCaptureCursors)
-      .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
-    expect(cursor.lastEventId).toBe(saves[0].id);
+    expect((await positionOf(organization.id)).lastEventId).toBe(saves[0].id);
 
-    const resumed = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    const resumed = await captureEditorSaves({
+      now: minutesFromNow(3),
+      organizationIds: [organization.id],
+    });
     expect(resumed).toMatchObject({ stopped: null, eventsProcessed: 1 });
+  });
+
+  it("stops between groups once the time is up, and records the whole batch next run", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+    });
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[1],
+      eventType: "string_segment_approved",
+    });
+    const before = await positionOf(organization.id);
+    // Not aborted for the workspace, the batch's memory pass and its first group; aborted at the
+    // second group (translation and review are separate groups).
+    let checks = 0;
+    const signal = {
+      get aborted() {
+        checks += 1;
+        return checks > 3;
+      },
+    } as AbortSignal;
+
+    const stopped = await captureEditorSaves({
+      now: minutesFromNow(3),
+      organizationIds: [organization.id],
+      signal,
+    });
+    expect(stopped).toMatchObject({ stopped: "time_budget", eventsProcessed: 0 });
+    expect(await positionOf(organization.id)).toEqual(before);
+
+    const resumed = await captureEditorSaves({
+      now: minutesFromNow(3),
+      organizationIds: [organization.id],
+    });
+    expect(resumed).toMatchObject({ stopped: null, eventsProcessed: 2, segmentsRecorded: 2 });
   });
 
   it("does nothing when the time is already up", async () => {
@@ -395,12 +430,13 @@ describe("captureEditorSaves", () => {
   it("passes over saves made while Reports is off, then records later ones once it is on", async () => {
     mocks.readWorkosFeatureFlag.mockResolvedValue(false);
     const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
-    const save = (segmentId: string) =>
+    const save = (segmentId: string, createdAt?: Date) =>
       insertSaveEvent({
         organizationId: organization.id,
         projectId: project.id,
         actorUserId: user.id,
         segmentId,
+        createdAt,
       });
     const recordedSegments = async () =>
       (
@@ -409,20 +445,24 @@ describe("captureEditorSaves", () => {
           .from(schema.reportingAnalyses)
           .where(eq(schema.reportingAnalyses.organizationId, organization.id))
       ).map((row) => row.segmentId);
-    const offSave = await save(keyIds[0]);
+    await save(keyIds[0]);
 
-    const off = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    const off = await captureEditorSaves({
+      now: minutesFromNow(3),
+      organizationIds: [organization.id],
+    });
     expect(off.organizationsSkipped).toBe(1);
     expect(await recordedSegments()).toEqual([]);
-    const [cursor] = await db
-      .select()
-      .from(schema.reportingCaptureCursors)
-      .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
-    expect(cursor.lastEventId).toBe(offSave.id);
+    expect(await positionOf(organization.id)).toBeUndefined();
 
     mocks.readWorkosFeatureFlag.mockResolvedValue(true);
-    await save(keyIds[1]);
-    await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    const started = await captureEditorSaves({
+      now: minutesFromNow(3),
+      organizationIds: [organization.id],
+    });
+    expect(started.organizationsStarted).toBe(1);
+    await save(keyIds[1], minutesFromNow(2));
+    await captureEditorSaves({ now: minutesFromNow(5), organizationIds: [organization.id] });
     expect(await recordedSegments()).toEqual([keyIds[1]]);
   });
 
@@ -488,21 +528,28 @@ describe("captureEditorSaves", () => {
     await db
       .delete(schema.reportingCaptureCursors)
       .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
-    const save = (segmentId: string) =>
+    const save = (segmentId: string, createdAt?: Date) =>
       insertSaveEvent({
         organizationId: organization.id,
         projectId: project.id,
         actorUserId: user.id,
         segmentId,
+        createdAt,
       });
-    const earlier = await save(keyIds[0]);
+    await save(keyIds[0]);
 
-    const first = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    const now = minutesFromNow(3);
+    const first = await captureEditorSaves({ now, organizationIds: [organization.id] });
     expect(first).toMatchObject({ organizationsStarted: 1, segmentsRecorded: 0 });
-    expect((await positionOf(organization.id)).lastEventId).toBe(earlier.id);
+    expect((await positionOf(organization.id)).lastEventCreatedAt).toEqual(
+      new Date(now.getTime() - EDITOR_SAVE_CAPTURE_CUTOFF_MS),
+    );
 
-    await save(keyIds[1]);
-    const next = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    await save(keyIds[1], minutesFromNow(2));
+    const next = await captureEditorSaves({
+      now: minutesFromNow(5),
+      organizationIds: [organization.id],
+    });
     expect(next.segmentsRecorded).toBe(1);
   });
 
@@ -515,7 +562,7 @@ describe("captureEditorSaves", () => {
       segmentId: "1001",
       eventType: "string_segment_approved",
     });
-    const native = await insertSaveEvent({
+    await insertSaveEvent({
       organizationId: organization.id,
       projectId: project.id,
       actorUserId: user.id,
@@ -523,22 +570,64 @@ describe("captureEditorSaves", () => {
     });
 
     const result = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
-    expect(result).toMatchObject({ eventsProcessed: 2, segmentsRecorded: 1 });
-    expect((await positionOf(organization.id)).lastEventId).toBe(native.id);
+    expect(result).toMatchObject({ eventsProcessed: 2, segmentsRecorded: 1, stopped: null });
+    const again = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    expect(again).toMatchObject({ eventsProcessed: 0, lateApprovalsRecorded: 0 });
   });
 
-  it("gives a workspace with no saves a position, so later runs skip it cheaply", async () => {
+  it("moves a workspace's position up to each run's cut-off, even without saves", async () => {
     const { organization } = await projectFixture.createStoredProjectFixture();
 
-    await captureEditorSaves({ now: new Date(), organizationIds: [organization.id] });
-    const cursors = await db
-      .select()
-      .from(schema.reportingCaptureCursors)
-      .where(eq(schema.reportingCaptureCursors.organizationId, organization.id));
-    expect(cursors).toHaveLength(1);
+    for (const minutes of [0, 15]) {
+      const now = minutesFromNow(minutes);
+      await captureEditorSaves({ now, organizationIds: [organization.id] });
+      expect((await positionOf(organization.id)).lastEventCreatedAt).toEqual(
+        new Date(now.getTime() - EDITOR_SAVE_CAPTURE_CUTOFF_MS),
+      );
+    }
+  });
 
-    mocks.readWorkosFeatureFlag.mockClear();
-    await captureEditorSaves({ now: new Date(), organizationIds: [organization.id] });
-    expect(mocks.readWorkosFeatureFlag).not.toHaveBeenCalled();
+  it("records an approval that reached the activity log after the run that passed it", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    await captureEditorSaves({ now: minutesFromNow(3), organizationIds: [organization.id] });
+    // Queued approvals carry the time they were queued: this one is dated behind the position.
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+      eventType: "string_segment_approved",
+    });
+    // One from before the workspace was started is not Reports' to record.
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[1],
+      eventType: "string_segment_approved",
+      createdAt: minutesFromNow(-60),
+    });
+
+    const late = await captureEditorSaves({
+      now: minutesFromNow(5),
+      organizationIds: [organization.id],
+    });
+    expect(late.lateApprovalsRecorded).toBe(1);
+    const reviews = await db
+      .select({ segmentId: schema.reportingAnalyses.segmentId })
+      .from(schema.reportingAnalyses)
+      .where(
+        and(
+          eq(schema.reportingAnalyses.organizationId, organization.id),
+          eq(schema.reportingAnalyses.step, "review"),
+        ),
+      );
+    expect(reviews).toEqual([{ segmentId: keyIds[0] }]);
+
+    const again = await captureEditorSaves({
+      now: minutesFromNow(5),
+      organizationIds: [organization.id],
+    });
+    expect(again.lateApprovalsRecorded).toBe(0);
   });
 });

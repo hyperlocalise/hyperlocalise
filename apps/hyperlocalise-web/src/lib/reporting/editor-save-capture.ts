@@ -17,7 +17,12 @@ import { readWorkosFeatureFlag, waitForWorkosFeatureFlags } from "@/lib/flags/wo
 import { WORKSPACE_REPORTS_FLAG } from "@/lib/flags/workos-flag-entities";
 import { createLogger } from "@/lib/log";
 
-import { MemoryScoreCache, recordAnalysis, recordCompletions } from "./capture";
+import {
+  MemoryScoreCache,
+  prepareMemoryScores,
+  recordAnalysis,
+  recordCompletions,
+} from "./capture";
 
 const logger = createLogger("reporting-editor-save-capture");
 
@@ -29,6 +34,13 @@ const EVENTS_PER_ORGANIZATION = 2_000;
 const EVENTS_PER_BATCH = 200;
 /** How long a run waits for this instance's first download of feature flags before stopping. */
 const FLAGS_READY_TIMEOUT_MS = 10_000;
+/**
+ * Approvals made in the web app or through MCP reach the activity log through a queue and carry
+ * the time they were queued, so one delivered late can land behind a position already passed.
+ * Each run looks back this far for approvals that were passed without being recorded.
+ */
+const LATE_APPROVAL_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+const LATE_APPROVALS_PER_ORGANIZATION = 500;
 const SAVE_EVENT_TYPES = ["string_segment_translation_updated", "string_segment_approved"] as const;
 
 type SaveEvent = {
@@ -47,6 +59,8 @@ export type EditorSaveCaptureResult = {
   organizationsSkipped: number;
   /** Workspaces given a first position at the cut-off, without recording earlier saves. */
   organizationsStarted: number;
+  /** Approvals recorded late because they reached the activity log after the run that passed them. */
+  lateApprovalsRecorded: number;
   eventsProcessed: number;
   segmentsRecorded: number;
   /** Why the run stopped before checking every workspace, if it did. */
@@ -84,6 +98,7 @@ export async function captureEditorSaves(
     organizationsProcessed: 0,
     organizationsSkipped: 0,
     organizationsStarted: 0,
+    lateApprovalsRecorded: 0,
     eventsProcessed: 0,
     segmentsRecorded: 0,
     stopped: null,
@@ -100,49 +115,68 @@ export async function captureEditorSaves(
   }
   const memoryCache = new MemoryScoreCache();
   const eventsPerBatch = input.eventsPerBatch ?? EVENTS_PER_BATCH;
-  workspaces: for (const workspace of await listWorkspacesToCheck(cutoff, input.organizationIds)) {
+  const reportsOff: string[] = [];
+  workspaces: for (const workspace of await listWorkspaces(input.organizationIds)) {
     if (input.signal?.aborted) {
       result.stopped = "time_budget";
       break;
     }
     const { organizationId } = workspace;
     try {
+      if (!(flagsConfigured && (await readReportsFlag(workspace)))) {
+        reportsOff.push(organizationId);
+        continue;
+      }
       if (!workspace.hasPosition) {
-        // Reports records work from when the task first sees a workspace, so earlier saves in the
-        // activity log are not recorded as today's work. Saves after the cut-off are read next run.
-        await moveCursorPastSaves(organizationId, cutoff);
+        // Reports records work from when the task first sees a workspace with Reports on, so
+        // earlier saves are not recorded as today's work. Later saves are read next run.
+        await moveCursorTo(organizationId, cutoff);
         result.organizationsStarted += 1;
         continue;
       }
-      if (!(flagsConfigured && (await readReportsFlag(workspace)))) {
-        // Reports records work from when it is turned on, so saves made while it is off are
-        // passed over for good instead of being read again on every run.
-        await moveCursorPastSaves(organizationId, cutoff);
-        result.organizationsSkipped += 1;
-        continue;
-      }
       const events = await listPendingSaveEvents(organizationId, cutoff);
-      if (events.length === 0) {
-        await moveCursorPastSaves(organizationId, cutoff);
-        continue;
-      }
-      result.organizationsProcessed += 1;
+      if (events.length > 0) result.organizationsProcessed += 1;
       for (let start = 0; start < events.length; start += eventsPerBatch) {
-        if (start > 0 && input.signal?.aborted) {
-          result.stopped = "time_budget";
-          break workspaces;
-        }
         const batch = events.slice(start, start + eventsPerBatch);
-        result.segmentsRecorded += await recordSaves(organizationId, batch, memoryCache);
+        result.segmentsRecorded += await recordSaves(
+          organizationId,
+          batch,
+          memoryCache,
+          input.signal,
+        );
         result.eventsProcessed += batch.length;
         await advanceCursor(batch[batch.length - 1]);
       }
+      if (events.length < EVENTS_PER_ORGANIZATION) {
+        // Nothing left before the cut-off: move up to it, so the next run reads only newer events.
+        await moveCursorTo(organizationId, cutoff);
+      }
+      const late = await listLateApprovals(organizationId, cutoff);
+      if (late.length > 0) {
+        await recordSaves(organizationId, late, memoryCache, input.signal);
+        result.lateApprovalsRecorded += late.length;
+      }
     } catch (error) {
+      if (error instanceof TimeBudgetReached) {
+        result.stopped = "time_budget";
+        break workspaces;
+      }
       logger.warn({ organizationId, error }, "editor save capture failed; will retry next run");
     }
   }
+  if (reportsOff.length > 0) {
+    // Reports records work from when it is turned on, so a workspace with it off keeps no
+    // position, and is started at the cut-off if Reports is turned on later.
+    await db
+      .delete(schema.reportingCaptureCursors)
+      .where(inArray(schema.reportingCaptureCursors.organizationId, reportsOff));
+    result.organizationsSkipped = reportsOff.length;
+  }
   return result;
 }
+
+/** Thrown between groups of saves once the run's time is up; the batch is retried next run. */
+class TimeBudgetReached extends Error {}
 
 /** Throws when the check fails rather than answering false, so a failure never reads as "off". */
 function readReportsFlag(workspace: WorkspaceToCheck): Promise<boolean> {
@@ -151,49 +185,57 @@ function readReportsFlag(workspace: WorkspaceToCheck): Promise<boolean> {
   });
 }
 
-const SAVE_EVENT_TYPE_LIST = sql.join(
-  SAVE_EVENT_TYPES.map((type) => sql`${type}`),
-  sql`, `,
-);
+/**
+ * Every workspace, with whether it has a position, in a different order each run so a workspace
+ * that keeps running out of time cannot hold back the ones after it.
+ */
+async function listWorkspaces(organizationIds?: string[]): Promise<WorkspaceToCheck[]> {
+  if (organizationIds?.length === 0) return [];
+  const rows = await db.execute<WorkspaceToCheck>(sql`
+    select o.id as "organizationId", o.workos_organization_id as "workosOrganizationId",
+      (c.organization_id is not null) as "hasPosition"
+    from organizations o
+    left join reporting_capture_cursors c on c.organization_id = o.id
+    ${
+      organizationIds
+        ? sql`where o.id in (${sql.join(
+            organizationIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})`
+        : sql``
+    }
+    order by random()
+  `);
+  return rows.rows;
+}
 
 /**
- * Workspaces with saves after their position, plus workspaces that have no position yet. Each
- * workspace with a position is checked from that position through the activity log's
- * (organization, time, id) index, so a run reads only saves made since the last one.
+ * Approvals passed by the position within the lookback, after the workspace was started, that have
+ * no recorded review yet: queued approvals that reached the activity log late.
  */
-async function listWorkspacesToCheck(
-  cutoff: Date,
-  organizationIds?: string[],
-): Promise<WorkspaceToCheck[]> {
-  if (organizationIds?.length === 0) return [];
-  const onlyListed = (column: string) =>
-    organizationIds
-      ? sql`and ${sql.raw(column)} in (${sql.join(
-          organizationIds.map((id) => sql`${id}`),
-          sql`, `,
-        )})`
-      : sql``;
-  const rows = await db.execute<WorkspaceToCheck>(sql`
-    select c.organization_id as "organizationId", o.workos_organization_id as "workosOrganizationId",
-      true as "hasPosition"
-    from reporting_capture_cursors c
-    join organizations o on o.id = c.organization_id
-    cross join lateral (
-      select 1
-      from organization_activity_events e
-      where e.organization_id = c.organization_id
-        and (e.created_at, e.id) > (c.last_event_created_at, c.last_event_id)
-        and e.created_at < ${cutoff}
-        and e.event_type in (${SAVE_EVENT_TYPE_LIST})
-      limit 1
-    ) pending
-    where true ${onlyListed("c.organization_id")}
-    union all
-    select o.id, o.workos_organization_id, false
-    from organizations o
-    where not exists (select 1 from reporting_capture_cursors c where c.organization_id = o.id)
-      ${onlyListed("o.id")}
-    order by 1
+async function listLateApprovals(organizationId: string, cutoff: Date): Promise<SaveEvent[]> {
+  const rows = await db.execute<SaveEvent>(sql`
+    select e.id, e.organization_id as "organizationId", e.actor_user_id as "actorUserId",
+      e.actor_kind as "actorKind", e.event_type as "eventType", e.target_id as "targetId",
+      e.payload, e.created_at as "createdAt"
+    from organization_activity_events e
+    join reporting_capture_cursors c on c.organization_id = e.organization_id
+    where e.organization_id = ${organizationId}
+      and e.event_type = 'string_segment_approved'
+      and e.created_at >= greatest(c.started_at, ${new Date(cutoff.getTime() - LATE_APPROVAL_LOOKBACK_MS)}::timestamptz)
+      and (e.created_at, e.id) <= (c.last_event_created_at, c.last_event_id)
+      and e.target_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      and not exists (
+        select 1
+        from reporting_analyses a
+        join reporting_activity r on r.analysis_id = a.id and r.kind = 'completion'
+        where a.organization_id = e.organization_id
+          and a.segment_id = e.target_id
+          and a.target_locale = e.payload ->> 'targetLocale'
+          and a.step = 'review'
+      )
+    order by e.created_at, e.id
+    limit ${LATE_APPROVALS_PER_ORGANIZATION}
   `);
   return rows.rows;
 }
@@ -253,22 +295,11 @@ async function advanceCursor(last: SaveEvent) {
   `);
 }
 
-/** Moves a workspace's position past every save older than the cutoff, without recording them. */
-async function moveCursorPastSaves(organizationId: string, cutoff: Date) {
+/** Moves a workspace's position up to the cut-off, starting it there if it has none. */
+async function moveCursorTo(organizationId: string, cutoff: Date) {
   await db.execute(sql`
     insert into reporting_capture_cursors (organization_id, last_event_created_at, last_event_id, updated_at)
-    select ${organizationId}::uuid, coalesce(latest.created_at, ${cutoff}::timestamptz),
-      coalesce(latest.id, '00000000-0000-0000-0000-000000000000'::uuid), now()
-    from (select 1) as one
-    left join lateral (
-      select e.created_at, e.id
-      from organization_activity_events e
-      where e.organization_id = ${organizationId}
-        and e.created_at < ${cutoff}
-        and e.event_type in (${SAVE_EVENT_TYPE_LIST})
-      order by e.created_at desc, e.id desc
-      limit 1
-    ) latest on true
+    values (${organizationId}, ${cutoff}, '00000000-0000-0000-0000-000000000000', now())
     on conflict (organization_id) do update
       set last_event_created_at = excluded.last_event_created_at,
           last_event_id = excluded.last_event_id,
@@ -318,6 +349,7 @@ async function recordSaves(
   organizationId: string,
   events: SaveEvent[],
   memoryCache: MemoryScoreCache,
+  signal: AbortSignal | undefined,
 ): Promise<number> {
   const segments = savedSegments(events);
   if (segments.length === 0) return 0;
@@ -380,7 +412,33 @@ async function recordSaves(
   const ordered = [...groups.values()].sort((left, right) =>
     memoryOrder(left).localeCompare(memoryOrder(right)),
   );
+  // Score each project and language's texts in one pass, so a memory read in slices is read once
+  // per batch rather than once per group.
+  const textsByMemory = new Map<
+    string,
+    { projectId: string; targetLocale: string; texts: string[] }
+  >();
   for (const group of ordered) {
+    const { projectId, targetLocale } = group[0].segment;
+    const entry = textsByMemory.get(memoryOrder(group)) ?? { projectId, targetLocale, texts: [] };
+    for (const { segment } of group)
+      entry.texts.push(keyById.get(segment.translationKeyId)!.sourceText);
+    textsByMemory.set(memoryOrder(group), entry);
+  }
+  for (const { projectId, targetLocale, texts } of textsByMemory.values()) {
+    if (signal?.aborted) throw new TimeBudgetReached();
+    await prepareMemoryScores(
+      {
+        projectId,
+        sourceLocale: sourceLocaleByProject.get(projectId) ?? "en",
+        targetLocale,
+        sourceTexts: texts,
+      },
+      memoryCache,
+    );
+  }
+  for (const group of ordered) {
+    if (signal?.aborted) throw new TimeBudgetReached();
     const { segment, sourceJobId } = group[0];
     const sourceEntries = Object.fromEntries(
       group.map(({ segment }) => [
