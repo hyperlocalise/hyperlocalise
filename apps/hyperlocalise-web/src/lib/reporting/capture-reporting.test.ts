@@ -26,6 +26,7 @@ import { normalizeTranslationMemorySourceText } from "@/lib/translation/normaliz
 
 import { captureAiUsage } from "./ai-cost";
 import {
+  analysisScopeLockKey,
   captureAnalysis,
   captureJobStatus,
   MemoryScoreCache,
@@ -461,6 +462,43 @@ describe("reporting capture", () => {
         sourceTexts: ["Hello worlds", "Hello", "world", "Hello there world"],
       }),
     );
+  });
+
+  it("keeps one current analysis when captures of different source texts compete", async () => {
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    const scope = {
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+    };
+    const currentRows = () =>
+      db
+        .select({ id: schema.reportingAnalyses.id })
+        .from(schema.reportingAnalyses)
+        .where(
+          and(
+            eq(schema.reportingAnalyses.organizationId, organization.id),
+            eq(schema.reportingAnalyses.segmentId, "greeting"),
+            eq(schema.reportingAnalyses.isCurrent, true),
+          ),
+        );
+    // Hold the scope's lock from another connection, so both captures reach it before either writes.
+    const holder = await db.$client.connect();
+    await holder.query("begin");
+    await holder.query("select pg_advisory_xact_lock(hashtextextended($1, 0))", [
+      analysisScopeLockKey({ ...scope, step: "translation" }),
+    ]);
+    const captures = ["Save changes", "Save all changes"].map((text) =>
+      captureAnalysis({ ...scope, sourceEntries: { greeting: text } }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(await currentRows()).toEqual([]);
+
+    await holder.query("commit");
+    holder.release();
+    await Promise.all(captures);
+    expect(await currentRows()).toHaveLength(1);
   });
 
   it("skips analysis capture when workspace reports is disabled", async () => {

@@ -280,39 +280,47 @@ async function writeReportingAnalysis(
     }
   }
   const revisionOf = (sourceText: string) => createHash("sha256").update(sourceText).digest("hex");
-  const recordedEarlier = await revisionsRecordedEarlier({
-    ...input,
-    step,
-    segmentIds: Object.keys(input.sourceEntries),
-    revisions: uniqueTexts.map(revisionOf),
-  });
-  const seen = new Set<string>();
-  const rows = Object.entries(input.sourceEntries).map(([segmentId, sourceText]) => {
-    const normalized = sourceText.normalize("NFC").trim();
-    const sourceRevision = revisionOf(sourceText);
-    const repetition = seen.has(normalized) || recordedEarlier.has(sourceRevision);
-    seen.add(normalized);
-    const score = memoryIds ? (scores.get(sourceText) ?? null) : null;
-    return {
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      jobId: input.jobId ?? null,
-      step,
-      segmentId,
-      sourceRevision,
-      sourceLocale: input.sourceLocale,
-      targetLocale: input.targetLocale,
-      words: countSourceWords(sourceText, input.sourceLocale),
-      billable: input.billable ?? false,
-      matchScore: score,
-      bucket: matchBucket(score, repetition),
-      algorithmVersion: MATCH_ALGORITHM_VERSION,
-      rateId: rate?.id,
-    };
-  });
-  // The unique index on the analysis identity makes concurrent writes safe, so the job row is
-  // not locked: a lock here made every writer for a job, including content editor saves, queue.
   await db.transaction(async (tx) => {
+    // One writer at a time per job (or, outside a job, project), language and step. Without it,
+    // two captures of different source texts for one string can each mark the old row stale
+    // before either new row exists, and both new rows stay current. Matching runs before this,
+    // so the lock is held only for the reads and writes below.
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${analysisScopeLockKey({ ...input, step })}, 0))`,
+    );
+    const recordedEarlier = await revisionsRecordedEarlier(
+      {
+        ...input,
+        step,
+        segmentIds: Object.keys(input.sourceEntries),
+        revisions: uniqueTexts.map(revisionOf),
+      },
+      tx,
+    );
+    const seen = new Set<string>();
+    const rows = Object.entries(input.sourceEntries).map(([segmentId, sourceText]) => {
+      const normalized = sourceText.normalize("NFC").trim();
+      const sourceRevision = revisionOf(sourceText);
+      const repetition = seen.has(normalized) || recordedEarlier.has(sourceRevision);
+      seen.add(normalized);
+      const score = memoryIds ? (scores.get(sourceText) ?? null) : null;
+      return {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        jobId: input.jobId ?? null,
+        step,
+        segmentId,
+        sourceRevision,
+        sourceLocale: input.sourceLocale,
+        targetLocale: input.targetLocale,
+        words: countSourceWords(sourceText, input.sourceLocale),
+        billable: input.billable ?? false,
+        matchScore: score,
+        bucket: matchBucket(score, repetition),
+        algorithmVersion: MATCH_ALGORITHM_VERSION,
+        rateId: rate?.id,
+      };
+    });
     for (let offset = 0; offset < rows.length; offset += REPORTING_BATCH_SIZE) {
       const batch = rows.slice(offset, offset + REPORTING_BATCH_SIZE);
       await tx
@@ -350,24 +358,41 @@ async function writeReportingAnalysis(
   });
 }
 
-/**
- * Source revisions that already have a current analysis under another segment of the same job (or,
- * outside a job, the same project), language and step. A copy recorded earlier makes this one a
- * repetition, even when the two were saved and recorded in different runs.
- */
-async function revisionsRecordedEarlier(input: {
+/** Names the scope that `writeReportingAnalysis` serializes its writes on. */
+export function analysisScopeLockKey(input: {
   organizationId: string;
   projectId: string;
   jobId?: string;
   targetLocale: string;
   step: "translation" | "review";
-  segmentIds: string[];
-  revisions: string[];
-}): Promise<Set<string>> {
+}): string {
+  const scope = input.jobId ? `job:${input.jobId}` : `project:${input.projectId}`;
+  return ["reporting-analysis", input.organizationId, scope, input.targetLocale, input.step].join(
+    ":",
+  );
+}
+
+/**
+ * Source revisions that already have a current analysis under another segment of the same job (or,
+ * outside a job, the same project), language and step. A copy recorded earlier makes this one a
+ * repetition, even when the two were saved and recorded in different runs.
+ */
+async function revisionsRecordedEarlier(
+  input: {
+    organizationId: string;
+    projectId: string;
+    jobId?: string;
+    targetLocale: string;
+    step: "translation" | "review";
+    segmentIds: string[];
+    revisions: string[];
+  },
+  database: DatabaseClient,
+): Promise<Set<string>> {
   const ownSegments = new Set(input.segmentIds);
   const found = new Set<string>();
   for (let offset = 0; offset < input.revisions.length; offset += REPORTING_BATCH_SIZE) {
-    const rows = await db
+    const rows = await database
       .select({
         segmentId: schema.reportingAnalyses.segmentId,
         sourceRevision: schema.reportingAnalyses.sourceRevision,
