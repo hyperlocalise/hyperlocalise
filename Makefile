@@ -42,6 +42,11 @@ build-visual-context-match-lambda: ## build the visual-context-match Lambda boot
 	@mkdir -p dist/visual-context-match-lambda
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/visual-context-match-lambda/bootstrap ./apps/visual-context-match-lambda
 
+.PHONY: build-guideline-ingest-lambda
+build-guideline-ingest-lambda: ## build the guideline-ingest Lambda bootstrap binary
+	@mkdir -p dist/guideline-ingest-lambda
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/guideline-ingest-lambda/bootstrap ./apps/guideline-ingest-lambda
+
 .PHONY: check-build-public-api
 check-build-public-api: ## check standalone public API service build
 	@go build -o /dev/null ./apps/public-api

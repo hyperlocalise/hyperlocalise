@@ -589,7 +589,7 @@ To enable guideline search, set `DATABASE_URL`, `TURBOPUFFER_API_KEY`,
 The prefix keeps development/staging/production indexes separate and must
 change if the embedding model or vector size changes. Use a US region;
 `google/gemini-embedding-2` inference is US-only. The PostgreSQL source reads
-the existing workspace/project guideline tables without a migration.
+the workspace/project knowledge memory notes and ready `guideline_documents` rows.
 
 - `POST /v1/guidelines/sync`: `{organizationId, projectId?, locale?}`.
   Reindexes current canonical revisions. Call explicitly during adoption/rebuilds.
@@ -597,9 +597,37 @@ the existing workspace/project guideline tables without a migration.
   Limit is 1–32. Returns mandatory canonical documents, verified passages, and
   `searchAvailable`. Search is hybrid BM25 plus native Gemini Embedding 2; indexing and retrieval are separate.
 
-The app's existing lexical guideline selection is unchanged. Transactional outbox
-integration and deletion-event delivery remain application adoption work. An index
-must never be the only retained copy of guideline content.
+The app's existing lexical guideline selection is unchanged. An index must never
+be the only retained copy of guideline content.
+
+Guideline documents are uploaded under `/v1/orgs/{org}/guidelines/documents` and
+`/v1/orgs/{org}/projects/{projectId}/guidelines/documents` (PDF, DOCX, Markdown,
+or text up to 25 MB; PNG/JPEG only when `GUIDELINE_IMAGE_UPLOADS_ENABLED=true`).
+`GET` list supports `limit` (default 50, max 200) and opaque `cursor` pagination
+via `nextCursor`.
+Uploads need object storage and `GUIDELINE_INGEST_SQS_QUEUE_URL`; without the
+queue they return 503. The `guideline-ingest` Lambda extracts and indexes each
+document, and `POST /internal/guidelines/sweep` republishes lost messages.
+
+Guideline checks need `AI_GATEWAY_API_KEY` (`AI_GATEWAY_BASE_URL` defaults to
+`https://ai-gateway.vercel.sh/v1`). `GUIDELINE_CHECK_MODEL` defaults to
+`openai/gpt-6-luna` and must support strict `json_schema` output. The same key
+enables reranking search hits with `voyage/rerank-3-lite`. Without turbopuffer,
+checks use mandatory guidelines only.
+
+- `POST /v1/orgs/{org}/guidelines/check`:
+  `{projectId?, sourceLocale?, targetLocale?, segments: [{id, source?, target?}], checks?}`.
+  Up to 50 segments and 16,000 characters. Returns cited `findings` with UTF-16
+  offsets and the cited `passages`. Metered per segment on Autumn `guideline_checks`.
+- `POST /internal/guidelines/check`: the same body plus `organizationId`, for
+  service-token callers that already enforced access.
+- `POST /internal/guidelines/retrieve`:
+  `{organizationId, projectId?, locales?, query, limit?}` for translation prompts.
+  Retrieves once per locale (at most 8; none means locale-independent documents
+  only) and returns uploaded documents only: mandatory ones whole in `documents`,
+  others as up to `limit` (default 8, max 16) search `passages`. Typed workspace
+  and project guidelines are excluded because the web app already selects them.
+  Service-token only.
 
 ## Activity logs
 

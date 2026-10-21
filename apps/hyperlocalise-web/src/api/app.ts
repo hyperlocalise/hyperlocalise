@@ -49,6 +49,7 @@ import { createSnapshotCleanupRoutes } from "./routes/cron/snapshot-cleanup.rout
 import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notification-digest.route";
 import { createReportingCaptureRoutes } from "./routes/cron/reporting-capture.route";
 import { createTranslationQaScanRoutes } from "./routes/cron/translation-qa-scan.route";
+import { createGuidelineIngestSweepRoutes } from "./routes/cron/guideline-ingest-sweep.route";
 import { createLocalisationAuditRoutes } from "./routes/localisation-audit/localisation-audit.route";
 import {
   createLocalisationAuditQueue,
@@ -144,6 +145,7 @@ function createInternalRoutes(options: CreateAppOptions = {}) {
     .route("/cron/snapshot-cleanup", createSnapshotCleanupRoutes())
     .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes())
     .route("/cron/reporting-capture", createReportingCaptureRoutes())
+    .route("/cron/guideline-ingest-sweep", createGuidelineIngestSweepRoutes())
     .route(
       "/cron/translation-qa-scan",
       createTranslationQaScanRoutes({

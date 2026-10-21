@@ -83,6 +83,9 @@ type handler struct {
 	workspace          *workspaceAPI
 	autumn             *autumn.Client
 	knowledgeMemories  *knowledgeMemoryAPI
+	guidelineDocuments *guidelineDocumentAPI
+	guidelineCheck     *guidelineCheckAPI
+	guidelineRetrieve  *guidelineRetrieveAPI
 	valkey             valkeyHealthClient
 	overviewCache      dictionaryWordsCache
 	researchCache      domainResearchCache
@@ -162,6 +165,44 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	if h.knowledgeMemories != nil {
 		h.knowledgeMemories.register(mux, verifier)
 	}
+	if h.guidelineDocuments != nil {
+		h.guidelineDocuments.register(mux, verifier)
+		mux.HandleFunc("POST /internal/guidelines/sweep", func(w http.ResponseWriter, r *http.Request) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+				return
+			}
+			if !requireServerCallToken(w, r) {
+				return
+			}
+			h.guidelineDocuments.sweep(w, r)
+		})
+	}
+	if h.guidelineCheck != nil {
+		h.guidelineCheck.register(mux, verifier)
+		mux.HandleFunc("POST /internal/guidelines/check", func(w http.ResponseWriter, r *http.Request) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+				return
+			}
+			if !requireServerCallToken(w, r) {
+				return
+			}
+			h.guidelineCheck.internalCheck(w, r)
+		})
+	}
+	if h.guidelineRetrieve != nil {
+		mux.HandleFunc("POST /internal/guidelines/retrieve", func(w http.ResponseWriter, r *http.Request) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+				return
+			}
+			if !requireServerCallToken(w, r) {
+				return
+			}
+			h.guidelineRetrieve.internalRetrieve(w, r)
+		})
+	}
 	validate := authMiddleware(verifier)(http.HandlerFunc(h.validateSegment))
 	editorExport := authMiddleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
@@ -219,6 +260,11 @@ func (h *handler) health(w http.ResponseWriter, r *http.Request) {
 		glossaryInterchange = h.glossaries.interchange
 	}
 	glossaryInterchangeHealth := checkDependencyHealth(r.Context(), glossaryInterchange)
+	var guidelineIngest healthPinger
+	if h.guidelineDocuments != nil && h.guidelineDocuments.publisher != nil {
+		guidelineIngest = h.guidelineDocuments.publisher
+	}
+	guidelineIngestHealth := checkDependencyHealth(r.Context(), guidelineIngest)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -226,6 +272,7 @@ func (h *handler) health(w http.ResponseWriter, r *http.Request) {
 		"status":               "ok",
 		"activity_log":         activityLog,
 		"glossary_interchange": glossaryInterchangeHealth,
+		"guideline_ingest":     guidelineIngestHealth,
 		"valkey":               valkey,
 		"postgres":             postgres,
 	})

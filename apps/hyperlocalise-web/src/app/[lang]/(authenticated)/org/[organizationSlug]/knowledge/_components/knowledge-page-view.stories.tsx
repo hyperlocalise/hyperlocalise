@@ -155,6 +155,7 @@ export const Loading: Story = {
 export const ReadOnly: Story = {
   args: {
     mode: "editor",
+    onAddSources: undefined,
     editor: createKnowledgeEditorViewFixture({
       canUpdateKnowledgeMemory: false,
       canSave: false,
@@ -163,7 +164,7 @@ export const ReadOnly: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Global guidance" })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Add sources" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Add sources" })).not.toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "History" })).toBeInTheDocument();
   },
 };
