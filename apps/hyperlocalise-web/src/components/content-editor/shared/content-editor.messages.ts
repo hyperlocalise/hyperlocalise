@@ -1469,6 +1469,21 @@ export const contentEditorVisualContextPanelMessages = defineMessages({
     id: "QRPmcpjd59",
     description: "Error when a visual context screenshot exceeds the upload size limit",
   },
+  dropIdle: {
+    defaultMessage: "Drag a screenshot here",
+    id: "3OmQiHHUCs",
+    description: "Idle label for the visual context screenshot dropzone",
+  },
+  dropOver: {
+    defaultMessage: "Drop to upload",
+    id: "9ho74TKeF3",
+    description: "Hover label when a screenshot is held over the visual context dropzone",
+  },
+  dropHint: {
+    defaultMessage: "PNG, JPEG, or WebP · up to 10 MB",
+    id: "JgOQxBC9to",
+    description: "Accepted types and size limit under the visual context dropzone",
+  },
 });
 
 export const contentEditorUnicodePanelMessages = defineMessages({
