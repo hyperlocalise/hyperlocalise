@@ -24,7 +24,7 @@ import type {
   MemoryEntryDetailResponse,
   MemoryEntryRecord,
 } from "@/api/routes/memory/memory.schema";
-import { ApiResponseError } from "@/lib/api-error";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 
 import { TmEntryExplorer } from "./tm-entry-explorer";
 
@@ -35,11 +35,25 @@ const navigation = vi.hoisted(() => ({
 }));
 
 const apiMocks = vi.hoisted(() => ({
-  getEntries: vi.fn(),
+  listEntries: vi.fn(),
   getEntry: vi.fn(),
   getReviewSummary: vi.fn(),
   bulkReview: vi.fn(),
   bulkDelete: vi.fn(),
+}));
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    loading: false,
+    client: {
+      memory: {
+        entries: {
+          list: (...args: unknown[]) => apiMocks.listEntries(...args),
+          get: (...args: unknown[]) => apiMocks.getEntry(...args),
+        },
+      },
+    },
+  }),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -59,7 +73,6 @@ vi.mock("@/lib/api-client-instance", () => ({
           "translation-memories": {
             ":memoryId": {
               entries: {
-                $get: (...args: unknown[]) => apiMocks.getEntries(...args),
                 "review-summary": {
                   $get: (...args: unknown[]) => apiMocks.getReviewSummary(...args),
                 },
@@ -68,9 +81,6 @@ vi.mock("@/lib/api-client-instance", () => ({
                 },
                 "bulk-delete": {
                   $post: (...args: unknown[]) => apiMocks.bulkDelete(...args),
-                },
-                ":entryId": {
-                  $get: (...args: unknown[]) => apiMocks.getEntry(...args),
                 },
               },
             },
@@ -124,10 +134,7 @@ function createPage(
 }
 
 function jsonResponse(body: MemoryEntriesResponse) {
-  return {
-    ok: true,
-    json: async () => body,
-  };
+  return body;
 }
 
 function createDetail(entry: MemoryEntryRecord): MemoryEntryDetailResponse {
@@ -201,7 +208,7 @@ describe("TmEntryExplorer", () => {
   beforeEach(() => {
     navigation.search = "";
     navigation.replace.mockReset();
-    apiMocks.getEntries.mockReset();
+    apiMocks.listEntries.mockReset();
     apiMocks.getEntry.mockReset();
     apiMocks.getReviewSummary.mockReset();
     apiMocks.bulkReview.mockReset();
@@ -210,16 +217,13 @@ describe("TmEntryExplorer", () => {
       ok: true,
       json: async () => ({ reviewSummary: { pending: 0, rejected: 0, sameAsSource: 0 } }),
     });
-    apiMocks.getEntry.mockImplementation(async () => ({
-      ok: true,
-      json: async () => createDetail(createEntry()),
-    }));
+    apiMocks.getEntry.mockImplementation(async () => createDetail(createEntry()));
     sessionStorage.clear();
   });
 
   it("shows a loading state before entries arrive", async () => {
     let resolvePage: ((value: ReturnType<typeof jsonResponse>) => void) | undefined;
-    apiMocks.getEntries.mockReturnValue(
+    apiMocks.listEntries.mockReturnValue(
       new Promise((resolve) => {
         resolvePage = resolve;
       }),
@@ -237,7 +241,7 @@ describe("TmEntryExplorer", () => {
   });
 
   it("shows empty-state import actions when the memory has no entries", async () => {
-    apiMocks.getEntries.mockResolvedValue(jsonResponse(createPage([])));
+    apiMocks.listEntries.mockResolvedValue(jsonResponse(createPage([])));
 
     renderExplorer({
       emptyActions: <button type="button">Import TMX or CSV</button>,
@@ -250,30 +254,31 @@ describe("TmEntryExplorer", () => {
 
   it("shows an empty filtered state from the server result", async () => {
     navigation.search = "search=invoice";
-    apiMocks.getEntries.mockResolvedValue(jsonResponse(createPage([])));
+    apiMocks.listEntries.mockResolvedValue(jsonResponse(createPage([])));
 
     renderExplorer();
 
     await waitFor(() => {
       expect(screen.getByText("No entries match this search.")).toBeInTheDocument();
     });
-    expect(apiMocks.getEntries).toHaveBeenCalledWith(
-      expect.objectContaining({
-        query: expect.objectContaining({ search: "invoice" }),
-      }),
-      expect.objectContaining({
-        init: expect.objectContaining({ signal: expect.any(AbortSignal) }),
-      }),
+    expect(apiMocks.listEntries).toHaveBeenCalledWith(
+      "acme",
+      "mem_1",
+      expect.objectContaining({ search: "invoice" }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
 
   it("shows an error state and retries the same query", async () => {
     const user = userEvent.setup();
-    apiMocks.getEntries
-      .mockResolvedValueOnce({
-        ok: false,
-        json: async () => ({ error: "memory_unavailable", message: "Unable to load entries." }),
-      })
+    apiMocks.listEntries
+      .mockRejectedValueOnce(
+        new GoSvcClientError({
+          code: "memory_unavailable",
+          message: "Unable to load entries.",
+          status: 503,
+        }),
+      )
       .mockResolvedValueOnce(jsonResponse(createPage([createEntry()])));
 
     renderExplorer();
@@ -287,7 +292,7 @@ describe("TmEntryExplorer", () => {
     await waitFor(() => {
       expect(screen.getByText("Checkout")).toBeInTheDocument();
     });
-    expect(apiMocks.getEntries).toHaveBeenCalledTimes(2);
+    expect(apiMocks.listEntries).toHaveBeenCalledTimes(2);
   });
 
   it("pages forward with the server cursor and can return to the first page", async () => {
@@ -301,24 +306,26 @@ describe("TmEntryExplorer", () => {
       sourceText: "Second page",
     });
 
-    apiMocks.getEntries.mockImplementation(async (args: { query?: { cursor?: string } }) => {
-      if (args.query?.cursor === "cursor-2") {
+    apiMocks.listEntries.mockImplementation(
+      async (_org: string, _memoryId: string, query?: { cursor?: string }) => {
+        if (query?.cursor === "cursor-2") {
+          return jsonResponse(
+            createPage([second], {
+              total: 2,
+              nextCursor: null,
+              pagination: { limit: 50, returned: 1, hasMore: false },
+            }),
+          );
+        }
         return jsonResponse(
-          createPage([second], {
+          createPage([first], {
             total: 2,
-            nextCursor: null,
-            pagination: { limit: 50, returned: 1, hasMore: false },
+            nextCursor: "cursor-2",
+            pagination: { limit: 50, returned: 1, hasMore: true },
           }),
         );
-      }
-      return jsonResponse(
-        createPage([first], {
-          total: 2,
-          nextCursor: "cursor-2",
-          pagination: { limit: 50, returned: 1, hasMore: true },
-        }),
-      );
-    });
+      },
+    );
 
     renderExplorer();
 
@@ -345,7 +352,7 @@ describe("TmEntryExplorer", () => {
 
   it("disables Previous on a deep-linked page when the cursor stack is missing", async () => {
     navigation.search = "cursor=cursor-3";
-    apiMocks.getEntries.mockResolvedValue(
+    apiMocks.listEntries.mockResolvedValue(
       jsonResponse(
         createPage([createEntry({ sourceText: "Deep page" })], {
           total: 150,
@@ -367,7 +374,7 @@ describe("TmEntryExplorer", () => {
   it("restores search, filters, and sort from the URL", async () => {
     navigation.search =
       "search=checkout&sourceLocale=en-US&targetLocale=fr-FR&reviewStatus=pending&origin=import&provider=crowdin&sort=updated_at&sortDir=asc";
-    apiMocks.getEntries.mockResolvedValue(jsonResponse(createPage([createEntry()])));
+    apiMocks.listEntries.mockResolvedValue(jsonResponse(createPage([createEntry()])));
 
     renderExplorer();
 
@@ -377,39 +384,38 @@ describe("TmEntryExplorer", () => {
     expect(screen.getByText(/Search: checkout/)).toBeInTheDocument();
     expect(screen.getByLabelText("Sort by")).toHaveTextContent("Modified");
     expect(screen.getByLabelText("Order")).toHaveTextContent("Oldest first");
-    expect(apiMocks.getEntries).toHaveBeenCalledWith(
+    expect(apiMocks.listEntries).toHaveBeenCalledWith(
+      "acme",
+      "mem_1",
       {
-        param: { organizationSlug: "acme", memoryId: "mem_1" },
-        query: {
-          limit: "50",
-          search: "checkout",
-          sourceLocale: "en-US",
-          targetLocale: "fr-FR",
-          reviewStatus: "pending",
-          origin: "import",
-          provider: "crowdin",
-          sort: "updated_at",
-          sortDir: "asc",
-        },
+        limit: 50,
+        search: "checkout",
+        sourceLocale: "en-US",
+        targetLocale: "fr-FR",
+        reviewStatus: "pending",
+        origin: "import",
+        provider: "crowdin",
+        sort: "updated_at",
+        sortDir: "asc",
       },
-      expect.objectContaining({
-        init: expect.objectContaining({ signal: expect.any(AbortSignal) }),
-      }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
 
   it("does not display a stale page after a newer query resolves first", async () => {
     const user = userEvent.setup();
     let resolveStale: ((value: ReturnType<typeof jsonResponse>) => void) | undefined;
-    apiMocks.getEntries
-      .mockImplementationOnce((_args, options: { init?: { signal?: AbortSignal } }) => {
-        return new Promise((resolve, reject) => {
-          options.init?.signal?.addEventListener("abort", () => {
-            reject(new DOMException("Aborted", "AbortError"));
+    apiMocks.listEntries
+      .mockImplementationOnce(
+        (_org: string, _memoryId: string, _query: unknown, options?: { signal?: AbortSignal }) => {
+          return new Promise((resolve, reject) => {
+            options?.signal?.addEventListener("abort", () => {
+              reject(new DOMException("Aborted", "AbortError"));
+            });
+            resolveStale = resolve;
           });
-          resolveStale = resolve;
-        });
-      })
+        },
+      )
       .mockImplementationOnce(async () =>
         jsonResponse(createPage([createEntry({ sourceText: "Invoice latest" })])),
       );
@@ -421,7 +427,7 @@ describe("TmEntryExplorer", () => {
 
     await waitFor(
       () => {
-        expect(apiMocks.getEntries).toHaveBeenCalledTimes(2);
+        expect(apiMocks.listEntries).toHaveBeenCalledTimes(2);
       },
       { timeout: 1500 },
     );
@@ -441,7 +447,7 @@ describe("TmEntryExplorer", () => {
   it("preserves query state when opening and returning from an entry", async () => {
     const user = userEvent.setup();
     navigation.search = "search=checkout";
-    apiMocks.getEntries.mockResolvedValue(jsonResponse(createPage([createEntry()])));
+    apiMocks.listEntries.mockResolvedValue(jsonResponse(createPage([createEntry()])));
 
     renderExplorer();
 
@@ -473,15 +479,18 @@ describe("TmEntryExplorer", () => {
 
   it("resets an invalid cursor to the first page", async () => {
     navigation.search = "cursor=expired";
-    apiMocks.getEntries.mockImplementation(async (args: { query?: { cursor?: string } }) => {
-      if (args.query?.cursor) {
-        throw new ApiResponseError("Cursor is invalid", {
-          code: "invalid_cursor",
-          status: 400,
-        });
-      }
-      return jsonResponse(createPage([createEntry()]));
-    });
+    apiMocks.listEntries.mockImplementation(
+      async (_org: string, _memoryId: string, query?: { cursor?: string }) => {
+        if (query?.cursor) {
+          throw new GoSvcClientError({
+            code: "invalid_cursor",
+            message: "Cursor is invalid",
+            status: 400,
+          });
+        }
+        return jsonResponse(createPage([createEntry()]));
+      },
+    );
 
     renderExplorer();
 
@@ -502,7 +511,7 @@ describe("TmEntryExplorer", () => {
       ok: true,
       json: async () => ({ reviewSummary: { pending: 3, rejected: 1, sameAsSource: 2 } }),
     });
-    apiMocks.getEntries.mockResolvedValue(jsonResponse(createPage([createEntry()])));
+    apiMocks.listEntries.mockResolvedValue(jsonResponse(createPage([createEntry()])));
 
     renderExplorer();
 
@@ -526,7 +535,7 @@ describe("TmEntryExplorer", () => {
       sourceText: "Save",
       targetText: "Guardar",
     });
-    apiMocks.getEntries.mockResolvedValue(jsonResponse(createPage([draft])));
+    apiMocks.listEntries.mockResolvedValue(jsonResponse(createPage([draft])));
     apiMocks.bulkReview.mockResolvedValue({
       ok: true,
       json: async () => ({ bulkReview: { updated: 1 } }),
@@ -560,7 +569,7 @@ describe("TmEntryExplorer", () => {
       sourceText: "Save",
       targetText: "Guardar",
     });
-    apiMocks.getEntries.mockResolvedValue(jsonResponse(createPage([draft])));
+    apiMocks.listEntries.mockResolvedValue(jsonResponse(createPage([draft])));
     apiMocks.bulkDelete.mockResolvedValue({
       ok: true,
       json: async () => ({ bulkDelete: { deleted: 1 } }),

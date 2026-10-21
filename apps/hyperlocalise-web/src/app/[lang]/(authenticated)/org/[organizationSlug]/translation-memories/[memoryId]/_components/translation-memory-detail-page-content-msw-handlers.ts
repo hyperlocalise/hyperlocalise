@@ -146,7 +146,7 @@ export function createTranslationMemoryDetailMswHandlers({
         })),
       }),
     ),
-    http.get("/api/orgs/:organizationSlug/translation-memories/:memoryId/entries", async () => {
+    http.get("*/v1/orgs/:organizationSlug/translation-memories/:memoryId/entries", async () => {
       if (entriesLoading) {
         await delay("infinite");
       }
@@ -162,13 +162,36 @@ export function createTranslationMemoryDetailMswHandlers({
       });
     }),
     http.get(
-      "/api/orgs/:organizationSlug/translation-memories/:memoryId/entries/:entryId",
+      "*/v1/orgs/:organizationSlug/translation-memories/:memoryId/entries/:entryId",
       ({ params }) => {
         const entry = currentEntries.find((item) => item.id === String(params.entryId));
         if (!entry) {
           return HttpResponse.json({ error: "memory_entry_not_found" }, { status: 404 });
         }
         return HttpResponse.json(createEntryDetail(entry));
+      },
+    ),
+    http.patch(
+      "*/v1/orgs/:organizationSlug/translation-memories/:memoryId/entries/:entryId",
+      async ({ params, request }) => {
+        const entry = currentEntries.find((item) => item.id === String(params.entryId));
+        if (!entry) {
+          return HttpResponse.json({ error: "memory_entry_not_found" }, { status: 404 });
+        }
+        const body = (await request.json()) as Partial<MemoryEntryRecord> & {
+          expectedVersion?: number;
+        };
+        if (body.expectedVersion !== undefined && body.expectedVersion !== entry.version) {
+          return HttpResponse.json({ error: "stale_memory_entry" }, { status: 409 });
+        }
+        const updated = {
+          ...entry,
+          ...body,
+          version: entry.version + 1,
+          updatedAt: new Date().toISOString(),
+        };
+        currentEntries = currentEntries.map((item) => (item.id === updated.id ? updated : item));
+        return HttpResponse.json(createEntryDetail(updated));
       },
     ),
     http.post(
