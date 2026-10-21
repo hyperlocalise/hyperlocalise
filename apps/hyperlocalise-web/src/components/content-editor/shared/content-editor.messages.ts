@@ -1488,8 +1488,8 @@ export const contentEditorVisualContextPanelMessages = defineMessages({
 
 export const contentEditorUnicodePanelMessages = defineMessages({
   title: {
-    defaultMessage: "Unicode",
-    id: "5Zw0t7KTMY",
+    defaultMessage: "Unicode table",
+    id: "PpU1kY1S8O",
     description: "Section heading for the CAT unicode character table",
   },
   category: {

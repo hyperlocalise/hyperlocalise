@@ -663,7 +663,7 @@ describe("ProjectFileContentEditorPageContent CAT shell", () => {
         "acme/web",
       );
     });
-    expect(screen.getByLabelText("GitHub repository")).toBeDisabled();
+    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
   });
 
   it("saves the chosen repository under the destination file preference key", async () => {

@@ -23,6 +23,8 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { ContentEditorActivityLogDialog } from "@/components/content-editor/activity-log/content-editor-activity-log-dialog";
+import { getCatShortcutLabel } from "@/components/content-editor/editor/content-editor-keyboard-shortcuts";
+import { ContentEditorShortcutHint } from "@/components/content-editor/editor/content-editor-shortcut-hints";
 import { contentEditorOverflowMenuMessages as messages } from "@/components/content-editor/shared/content-editor-chrome.messages";
 import { useOptionalCatWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
+import { useIsMac } from "@/hooks/use-is-mac";
 import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
 
 import { ContentEditorExportDialog } from "./content-editor-export-dialog";
@@ -51,6 +54,7 @@ export const ContentEditorOverflowMenu = observer(function ContentEditorOverflow
   isDownloadingFilteredView?: boolean;
 }) {
   const intl = useIntl();
+  const isMac = useIsMac();
   const store = useOptionalCatWorkspace();
 
   useHotkeys("?", () => store?.ui.openChromeDialog("shortcuts"), {
@@ -87,7 +91,7 @@ export const ContentEditorOverflowMenu = observer(function ContentEditorOverflow
               type="button"
               variant="outline"
               size="icon-sm"
-              className="size-8 shrink-0"
+              className="relative size-8 shrink-0"
               aria-label={intl.formatMessage(messages.triggerAria)}
               title={intl.formatMessage(messages.triggerAria)}
             />
@@ -98,6 +102,7 @@ export const ContentEditorOverflowMenu = observer(function ContentEditorOverflow
           ) : (
             <DotsThreeIcon className="size-4" aria-hidden />
           )}
+          <ContentEditorShortcutHint shortcut="openShortcuts" placement="below" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-60">
           {onDownloadFilteredView || activityScope ? (
@@ -126,7 +131,9 @@ export const ContentEditorOverflowMenu = observer(function ContentEditorOverflow
             <DropdownMenuItem onClick={() => ui.openChromeDialog("shortcuts")}>
               <KeyboardIcon className="size-4" aria-hidden />
               <FormattedMessage {...messages.keyboardShortcuts} />
-              <DropdownMenuShortcut>?</DropdownMenuShortcut>
+              <DropdownMenuShortcut>
+                {getCatShortcutLabel(isMac, "openShortcuts")}
+              </DropdownMenuShortcut>
             </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>

@@ -58,6 +58,8 @@ export type ContentEditorEditorPanelProps = {
   aiRecommendationError?: string;
   onPrevious: () => void;
   onNext: () => void;
+  onPreviousUntranslated?: () => void;
+  onNextUntranslated?: () => void;
   hasPreviousSegment: boolean;
   hasNextSegment: boolean;
   segmentShareUrl?: string | null;

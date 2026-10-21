@@ -1,5 +1,3 @@
-"use client";
-
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
@@ -21,6 +19,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { contentEditorEditorPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 
 import { ContentEditorEditorShortcutKbd } from "./content-editor-editor-shortcut-kbd";
+import { ContentEditorShortcutHint } from "./content-editor-shortcut-hints";
 
 export function ContentEditorEditorActions({
   primaryActionLabel,
@@ -50,7 +49,7 @@ export function ContentEditorEditorActions({
       {showApprove ? (
         <Button
           variant="default"
-          className="min-h-11 flex-1 sm:flex-none lg:min-h-0"
+          className="relative min-h-11 flex-1 sm:flex-none lg:min-h-0"
           onClick={onApprove}
           disabled={!canTriggerApprove}
         >
@@ -61,17 +60,20 @@ export function ContentEditorEditorActions({
             isMac={isMac}
             className="bg-primary-foreground/15 text-primary-foreground"
           />
+          {/* The inline key cap already shows the shortcut from lg up. */}
+          <ContentEditorShortcutHint shortcut="approve" className="lg:hidden" />
         </Button>
       ) : null}
       {onSaveDraft ? (
         <Button
           variant="outline"
-          className="min-h-11 flex-1 sm:flex-none lg:min-h-0"
+          className="relative min-h-11 flex-1 sm:flex-none lg:min-h-0"
           onClick={onSaveDraft}
           disabled={!canTriggerApprove}
         >
           {isSavingDraft ? <Spinner className="size-4" /> : <FloppyDiskIcon className="size-4" />}
           <FormattedMessage {...contentEditorEditorPanelMessages.saveAsDraft} />
+          <ContentEditorShortcutHint shortcut="saveDraft" />
         </Button>
       ) : null}
     </div>

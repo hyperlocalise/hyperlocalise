@@ -17,6 +17,10 @@ import { observer } from "mobx-react-lite";
 import { Fragment, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import {
+  getCatShortcutAriaKeys,
+  getCatShortcutLabel,
+} from "@/components/content-editor/editor/content-editor-keyboard-shortcuts";
 import { hasHiddenContentEditorFiles } from "@/components/content-editor/files/content-editor-visible-files";
 import { useContentEditorGrouping } from "@/components/content-editor/groups/content-editor-grouping-context";
 import { groupMessages } from "@/components/content-editor/groups/content-editor-groups.messages";
@@ -42,8 +46,10 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
 
 import type { ContentEditorQueueSort } from "./content-editor-queue-filter";
@@ -63,6 +69,7 @@ export const ContentEditorViewMenu = observer(function ContentEditorViewMenu({
   availableQueueSorts?: readonly ContentEditorQueueSort[];
 }) {
   const intl = useIntl();
+  const isMac = useIsMac();
   const store = useOptionalCatWorkspace();
   const grouping = useContentEditorGrouping();
   const selectedSegment = store?.selectedSegmentView ?? null;
@@ -221,16 +228,24 @@ export const ContentEditorViewMenu = observer(function ContentEditorViewMenu({
             <DropdownMenuCheckboxItem
               checked={!store.ui.filesPanelCollapsed}
               onCheckedChange={(checked) => store.ui.setFilesPanelCollapsed(!checked)}
+              aria-keyshortcuts={getCatShortcutAriaKeys(isMac, "toggleFilesPanel")}
             >
               <FormattedMessage {...messages.filesPanel} />
+              <DropdownMenuShortcut aria-hidden>
+                {getCatShortcutLabel(isMac, "toggleFilesPanel")}
+              </DropdownMenuShortcut>
             </DropdownMenuCheckboxItem>
           ) : null}
           {showDetailsToggle ? (
             <DropdownMenuCheckboxItem
               checked={!store.ui.detailsPanelCollapsed}
               onCheckedChange={(checked) => store.ui.setDetailsPanelCollapsed(!checked)}
+              aria-keyshortcuts={getCatShortcutAriaKeys(isMac, "toggleDetailsPanel")}
             >
               <FormattedMessage {...messages.detailsPanel} />
+              <DropdownMenuShortcut aria-hidden>
+                {getCatShortcutLabel(isMac, "toggleDetailsPanel")}
+              </DropdownMenuShortcut>
             </DropdownMenuCheckboxItem>
           ) : null}
         </DropdownMenuGroup>

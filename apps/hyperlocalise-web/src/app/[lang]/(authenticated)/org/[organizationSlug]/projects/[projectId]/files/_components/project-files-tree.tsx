@@ -109,6 +109,7 @@ export function ProjectFilesTree({
   ariaLabel,
   fillHeight = false,
   fileProgress,
+  searchQuery,
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
@@ -120,6 +121,8 @@ export function ProjectFilesTree({
   fillHeight?: boolean;
   /** Per-file progress for the active locale, shown as "translated% · approved%". */
   fileProgress?: readonly ProjectFileProgressRecord[];
+  /** Filters rows from a caller-owned input and hides the built-in search box. */
+  searchQuery?: string;
 }) {
   if (fileActions) {
     return (
@@ -132,6 +135,7 @@ export function ProjectFilesTree({
         ariaLabel={ariaLabel}
         fillHeight={fillHeight}
         fileProgress={fileProgress}
+        searchQuery={searchQuery}
       />
     );
   }
@@ -145,6 +149,7 @@ export function ProjectFilesTree({
       ariaLabel={ariaLabel}
       fillHeight={fillHeight}
       fileProgress={fileProgress}
+      searchQuery={searchQuery}
     />
   );
 }
@@ -158,6 +163,7 @@ function ProjectFilesTreeView({
   ariaLabel,
   fillHeight = false,
   fileProgress = NO_FILE_PROGRESS,
+  searchQuery,
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
@@ -167,7 +173,9 @@ function ProjectFilesTreeView({
   ariaLabel?: string;
   fillHeight?: boolean;
   fileProgress?: readonly ProjectFileProgressRecord[];
+  searchQuery?: string;
 }) {
+  const hasExternalSearch = searchQuery !== undefined;
   const intl = useIntl();
   const resolvedAriaLabel = ariaLabel ?? intl.formatMessage(messages.ariaLabel);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -307,7 +315,7 @@ function ProjectFilesTreeView({
     initialVisibleRowCount: Math.max(paths.length, 8),
     icons: PROJECT_FILES_TREE_ICONS,
     paths,
-    search: true,
+    search: !hasExternalSearch,
     searchBlurBehavior: "retain",
     fileTreeSearchMode: "hide-non-matches",
     composition: fileActions
@@ -373,6 +381,14 @@ function ProjectFilesTreeView({
   useEffect(() => {
     model.resetPaths(paths);
   }, [model, paths]);
+
+  useEffect(() => {
+    if (searchQuery === undefined) {
+      return;
+    }
+
+    model.setSearch(searchQuery.trim() || null);
+  }, [model, paths, searchQuery]);
 
   // Pierre has no decoration refresh API; re-setting icons re-renders every row.
   useEffect(() => {

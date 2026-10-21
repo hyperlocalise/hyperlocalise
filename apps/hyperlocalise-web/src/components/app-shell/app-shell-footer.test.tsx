@@ -25,6 +25,10 @@ import {
   EMPTY_CAT_ISSUE_GUIDANCE_STATUS,
   setCatIssueGuidanceStatus,
 } from "@/components/content-editor/issues/content-editor-issue-guidance-event";
+import {
+  EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS,
+  setCatGlossaryGuidanceStatus,
+} from "@/components/content-editor/intelligence/content-editor-glossary-guidance-event";
 import { planUsagePrimaryFeatureId } from "@/lib/billing/plan-usage";
 
 const autumnMocks = vi.hoisted(() => ({
@@ -60,6 +64,7 @@ afterEach(() => {
   autumnMocks.useCustomer.mockReset();
   autumnMocks.useListPlans.mockReset();
   setCatIssueGuidanceStatus(EMPTY_CAT_ISSUE_GUIDANCE_STATUS);
+  setCatGlossaryGuidanceStatus(EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS);
 });
 
 function renderFooter(
@@ -71,6 +76,7 @@ function renderFooter(
     showIssueGuidance?: boolean;
     showStyleGuide?: boolean;
     showGuideline?: boolean;
+    showGlossaryGuidance?: boolean;
   } = {},
 ) {
   const {
@@ -78,6 +84,7 @@ function renderFooter(
     projectId = null,
     showPlan = true,
     withChat = false,
+    showGlossaryGuidance = false,
     showIssueGuidance = false,
     showStyleGuide = false,
     showGuideline = false,
@@ -91,6 +98,7 @@ function renderFooter(
             organizationSlug={organizationSlug}
             projectId={projectId}
             showPlan={showPlan}
+            showGlossaryGuidance={showGlossaryGuidance}
             showIssueGuidance={showIssueGuidance}
             showStyleGuide={showStyleGuide}
             showGuideline={showGuideline}
@@ -230,6 +238,17 @@ describe("AppShellFooter", () => {
     } finally {
       window.removeEventListener(CAT_ISSUE_GUIDANCE_OPEN_EVENT, openListener);
     }
+  });
+
+  it("shows the glossary match count when matched terms have no preferred status", () => {
+    setCatGlossaryGuidanceStatus({ matchCount: 1, preferredCount: 0, notRecommendedCount: 0 });
+
+    renderFooter({ showPlan: false, showGlossaryGuidance: true });
+
+    const glossary = screen.getByRole("button", {
+      name: "Glossary guidance, concept matches available",
+    });
+    expect(glossary).toHaveTextContent("Glossary guidance1");
   });
 
   it("opens the guideline sheet when the knowledge flag is enabled", async () => {

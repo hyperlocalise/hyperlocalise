@@ -116,7 +116,7 @@ describe("ContentEditorSideBySideIntelligencePanel", () => {
 
     renderIntelligencePanel({ segment, onInsertCharacter });
 
-    expect(screen.queryByRole("heading", { name: "Unicode" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Unicode table" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Show unicode characters" }),
     ).not.toBeInTheDocument();

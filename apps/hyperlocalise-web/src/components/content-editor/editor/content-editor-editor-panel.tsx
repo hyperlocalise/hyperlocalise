@@ -97,6 +97,8 @@ export function ContentEditorEditorPanel({
   aiRecommendationError,
   onPrevious,
   onNext,
+  onPreviousUntranslated,
+  onNextUntranslated,
   hasPreviousSegment,
   hasNextSegment,
   segmentShareUrl = null,
@@ -152,15 +154,26 @@ export function ContentEditorEditorPanel({
   ]);
 
   const sectionResetKeys = [segment.id];
+  const isAssetSegment = isAssetEditorSegment(segment);
+  const resolvedOnSaveDraft = isAssetSegment || hasTranslationVariants ? undefined : onSaveDraft;
+  // Variant rows and assets have their own target controls; one-target edits would clobber them.
+  const canEditSingleTarget =
+    actionState.canEditTarget && !isAssetSegment && !hasTranslationVariants;
 
   useContentEditorEditorHotkeys({
     hasPreviousSegment,
     hasNextSegment,
     canTriggerApprove: actionState.canTriggerApprove,
     canTriggerFindContext: actionState.canTriggerFindContext,
+    canEditTarget: canEditSingleTarget && !isSegmentTargetLoading,
     onPrevious,
     onNext,
+    onPreviousUntranslated,
+    onNextUntranslated,
     onApprove,
+    onSaveDraft: resolvedOnSaveDraft,
+    onCopySource,
+    onClearTarget,
     onAskQuestion,
   });
 
@@ -274,9 +287,7 @@ export function ContentEditorEditorPanel({
               isApproving={isApproving}
               isSavingDraft={isSavingDraft}
               onApprove={onApprove}
-              onSaveDraft={
-                isAssetEditorSegment(segment) || hasTranslationVariants ? undefined : onSaveDraft
-              }
+              onSaveDraft={resolvedOnSaveDraft}
               showApprove={!hasTranslationVariants}
             />
           </ContentEditorSectionErrorBoundary>
