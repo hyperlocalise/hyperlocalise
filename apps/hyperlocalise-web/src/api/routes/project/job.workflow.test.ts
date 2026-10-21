@@ -239,7 +239,7 @@ describe("translation job workflow helpers", () => {
     expect(storedJob?.completedAt).toBeTruthy();
   });
 
-  it("records a finished string job for Reports when the workspace has Reports on", async () => {
+  it("records every requested language of a finished string job for Reports", async () => {
     resolveWorkspaceReportsFlagMock.mockResolvedValue(true);
     const { project, user } = await projectFixture.createStoredProjectFixture();
     const job = await insertJob({
@@ -251,10 +251,11 @@ describe("translation job workflow helpers", () => {
       inputPayload: {
         sourceText: "Your invoice is ready",
         sourceLocale: "en-US",
-        targetLocales: ["fr-FR", "de-DE"],
+        targetLocales: ["fr-FR", "de-DE", "ja-JP"],
       },
     });
 
+    // The model leaves ja-JP out and adds a language it was not asked for.
     await executeTranslationJob({
       runId: `run_${randomUUID()}`,
       event: { kind: "translation", jobId: job.id, projectId: project.id, type: "string" },
@@ -263,6 +264,7 @@ describe("translation job workflow helpers", () => {
           translations: [
             { locale: "fr-FR", text: "Votre facture est prête" },
             { locale: "de-DE", text: "" },
+            { locale: "es", text: "Tu factura está lista" },
           ],
         };
       },
@@ -278,6 +280,7 @@ describe("translation job workflow helpers", () => {
     expect(analyses.sort((a, b) => a.targetLocale.localeCompare(b.targetLocale))).toEqual([
       { targetLocale: "de-DE", words: 4 },
       { targetLocale: "fr-FR", words: 4 },
+      { targetLocale: "ja-JP", words: 4 },
     ]);
 
     const activity = await db

@@ -72,10 +72,11 @@ type StoredTranslationJob = NonNullable<Awaited<ReturnType<TranslationJobReposit
 
 /**
  * Records a finished string job for Reports: the word count and match band of its one source
- * string per target locale, then a completion for each locale that got a translation. The
- * analysis is written here, just before the completions that need it, rather than before
- * translating, so it never delays the job. AI cost is not recorded here: billing prices it
- * (`completeAndTrackBillableUsage`).
+ * string for every requested target locale, then a completion for each requested locale that got
+ * a translation. Locales the model left out still count as workload, and locales it was not asked
+ * for are ignored. The analysis is written here, just before the completions that need it, rather
+ * than before translating, so it never delays the job. AI cost is not recorded here: billing
+ * prices it (`completeAndTrackBillableUsage`).
  */
 async function recordStringJobReporting(input: {
   organizationId: string;
@@ -84,23 +85,29 @@ async function recordStringJobReporting(input: {
   sourceLocale: string;
   sourceText: string;
   segmentId: string;
+  targetLocales: string[];
   translations: StringTranslationJobResult["translations"];
 }) {
   const sourceEntries = { [input.segmentId]: input.sourceText };
-  for (const translation of input.translations) {
+  const translated = new Set(
+    input.translations
+      .filter((translation) => translation.text.trim())
+      .map((translation) => translation.locale),
+  );
+  for (const targetLocale of new Set(input.targetLocales)) {
     await captureAnalysis({
       organizationId: input.organizationId,
       projectId: input.projectId,
       jobId: input.jobId,
       sourceLocale: input.sourceLocale,
-      targetLocale: translation.locale,
+      targetLocale,
       sourceEntries,
     });
-    if (!translation.text.trim()) continue;
+    if (!translated.has(targetLocale)) continue;
     await captureCompletions({
       organizationId: input.organizationId,
       jobId: input.jobId,
-      targetLocale: translation.locale,
+      targetLocale,
       sourceEntries,
       provenance: "automated",
     });
@@ -449,6 +456,7 @@ class TranslationJobCompletionService {
           sourceLocale: parsedInput.data.sourceLocale,
           sourceText: parsedInput.data.sourceText,
           segmentId: parsedInput.data.translationKeyId ?? "source",
+          targetLocales: parsedInput.data.targetLocales,
           translations: input.result.translations,
         });
       }
