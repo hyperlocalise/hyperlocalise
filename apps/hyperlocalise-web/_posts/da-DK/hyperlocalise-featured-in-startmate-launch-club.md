@@ -1,8 +1,8 @@
 ---
-title: "Hyperlocalise Featured in Startmate: Speaking Everyone's Language"
+title: "Hyperlocalise omtalt i Startmate: Vi taler alles sprog"
 date: 2026-07-17T00:00:00.000Z
-excerpt: Startmate sat down with Hyperlocalise founder Minh Cung for a conversation on cultural nuance, AI localisation, and why word-for-word translation is never enough.
-category: Company
+excerpt: Startmate satte sig ned med Hyperlocalises grundlægger Minh Cung til en samtale om kulturelle nuancer, AI-lokalisering, og hvorfor ord-for-ord-oversættelse aldrig er nok.
+category: Virksomhed
 coverImage: /images/blog/startmate-speaking-everyones-language-minh-cung.png
 tags:
   - Startmate
@@ -17,32 +17,33 @@ tags:
   - brand voice
   - product localisation
 ---
-We are excited to share that Hyperlocalise has been featured by [Startmate](https://startmate.com/) in [*Speaking everyone's language: In Conversation with Minh Cung, Hyperlocalise*](https://startmate.com/writing/speaking-everyones-language-in-conversation-with-minh-cung-hyperlocalise) — an interview with our founder, [Minh Cung](https://www.linkedin.com/in/minhcung/).
 
-The piece, written by Taylor Jackson, captures the problem we see every day: companies expand into new markets, and their messaging stops landing. A phrase that works in Australia can miss completely in Asia. Translation that ignores culture does not just sound off — it can change meaning in ways teams never intended.
+Vi er begejstrede for at kunne dele, at Hyperlocalise er blevet omtalt af [Startmate](https://startmate.com/) i _[At tale alles sprog: En samtale med Minh Cung fra Hyperlocalise](https://startmate.com/writing/speaking-everyones-language-in-conversation-with-minh-cung-hyperlocalise)_ — et interview med vores grundlægger, [Minh Cung](https://www.linkedin.com/in/minhcung/).
 
-## The gap Startmate highlighted
+Artiklen, skrevet af Taylor Jackson, indfanger det problem, vi ser hver dag: Virksomheder udvider til nye markeder, og deres budskaber holder op med at ramme plet. En formulering, der fungerer i Australien, kan ramme helt ved siden af i Asien. Oversættelse, der ignorerer kulturen, lyder ikke bare forkert — den kan ændre betydningen på måder, som teams aldrig havde til hensigt.
 
-Startmate's interview focuses on a gap that localisation teams know well. Hiring locally in every market is expensive and slow. Leaving the work to already-stretched teams buried in spreadsheets is not much better.
+## Det hul, Startmate fremhævede
 
-As Minh put it in the conversation: localisation teams often do not have the capacity to grow. They are living in Excel. Hyperlocalise exists to free that capacity — so people can spend less time on mechanical work and more time on creative, cultural judgment.
+Startmates interview fokuserer på et problem, som lokaliseringsteams kender alt for godt. Det er dyrt og langsommeligt at ansætte lokalt på hvert marked. Det er ikke meget bedre at overlade arbejdet til teams, der i forvejen er pressede og begravet i regneark.
 
-That is the heart of what we are building. Our AI agents take marketing, product, and business content in one language and adapt it for another while preserving cultural nuance, brand consistency, and the constraints of the tools teams already use — including Canva, PDF, and Photoshop.
+Som Minh udtrykte det i samtalen: Lokaliseringsteams har ofte ikke kapacitet til at vokse. De lever i Excel. Hyperlocalise findes for at frigøre den kapacitet — så folk kan bruge mindre tid på mekanisk arbejde og mere tid på kreative, kulturelle vurderinger.
 
-## Why the story resonates
+Det er kernen i det, vi bygger. Vores AI-agenter tager marketing-, produkt- og virksomhedsindhold på ét sprog og tilpasser det til et andet, samtidig med at de bevarer kulturelle nuancer, brandkonsistens og kompatibilitet med de værktøjer, teams allerede bruger — herunder Canva, PDF og Photoshop.
 
-The interview also touches on something personal. Minh's own experience navigating language and culture in Australia shaped how he sees the problem. Meaning does not travel cleanly across borders. The tools that help teams keep that meaning intact still feel incomplete.
+## Hvorfor historien vækker genklang
 
-Minh joined [Startmate's Launch Club](https://startmate.com/) program, which gave early structure, pacing, and investor readiness while that idea took shape. The article also notes where we are now: running pilots, building waitlist interest across the US, Israel, and Europe, and working toward a longer-term vision of globalisation business intelligence — helping companies understand language alongside legal, cultural, and market context for every new market they enter.
+Interviewet berører også noget personligt. Minhs egne erfaringer med at navigere mellem sprog og kulturer i Australien har præget hans syn på problemet. Betydning lader sig ikke uden videre overføre på tværs af grænser. De værktøjer, der hjælper teams med at bevare betydningen intakt, virker stadig ufuldstændige.
 
-One example from the interview has stayed with us: students translating homework so their migrant parents can help them learn. Breaking language and cultural barriers is not only an enterprise problem. It is about equal opportunity.
+Minh deltog i [Startmates Launch Club](https://startmate.com/)-program, som gav tidlig struktur, et godt tempo og forberedelse til investorer, mens idéen tog form. Artiklen bemærker også, hvor vi er nu: Vi gennemfører pilotprojekter, opbygger interesse på ventelisten i USA, Israel og Europa og arbejder hen imod en langsigtet vision om business intelligence inden for globalisering – hvor vi hjælper virksomheder med at forstå sproget sammen med den juridiske, kulturelle og markedsmæssige kontekst for hvert nyt marked, de træder ind på.
 
-## Read the full conversation
+Et eksempel fra interviewet har gjort indtryk på os: Elever, der oversætter deres lektier, så deres indvandrerforældre kan hjælpe dem med at lære. At bryde sprog- og kulturbarrierer er ikke kun et problem for erhvervslivet. Det handler om lige muligheder.
 
-You can read the full Startmate interview here:
+## Læs hele samtalen
 
-[Speaking everyone's language: In Conversation with Minh Cung, Hyperlocalise](https://startmate.com/writing/speaking-everyones-language-in-conversation-with-minh-cung-hyperlocalise)
+Du kan læse hele Startmate-interviewet her:
 
-Thank you to [Startmate](https://startmate.com/) and Taylor Jackson for the conversation, and to everyone supporting Hyperlocalise as we build localisation that understands culture, not just words.
+[At tale alles sprog: I samtale med Minh Cung, Hyperlocalise](https://startmate.com/writing/speaking-everyones-language-in-conversation-with-minh-cung-hyperlocalise)
 
-If you are exploring how to adapt product and brand content for global markets without losing meaning, [join the waitlist](/) or [read more about translation intelligence](/blog/what-is-translation-intelligence).
+Tak til [Startmate](https://startmate.com/) og Taylor Jackson for samtalen og til alle, der støtter Hyperlocalise, mens vi udvikler lokalisering, der forstår kultur, ikke kun ord.
+
+Hvis du undersøger, hvordan du kan tilpasse produkt- og brandindhold til globale markeder uden at miste betydningen, [tilmeld dig ventelisten](/) eller [læs mere om oversættelsesintelligens](/blog/what-is-translation-intelligence).
