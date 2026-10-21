@@ -172,6 +172,10 @@ export async function listGoogleSharedDrives(input: {
   return ok(drives);
 }
 
+function escapeGoogleDriveQueryValue(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
 export async function listGoogleDriveChildren(input: {
   accessToken: string;
   folderId: string;
@@ -184,7 +188,7 @@ export async function listGoogleDriveChildren(input: {
 > {
   const folderId = input.folderId.trim();
   const params = new URLSearchParams({
-    q: `'${folderId.replace(/'/g, "\\'")}' in parents and trashed=false`,
+    q: `'${escapeGoogleDriveQueryValue(folderId)}' in parents and trashed=false`,
     fields: "nextPageToken,files(id,name,mimeType,size,modifiedTime,md5Checksum,parents,driveId)",
     pageSize: String(input.pageSize ?? 200),
     supportsAllDrives: "true",
@@ -300,10 +304,10 @@ export async function findGoogleDriveChildByName(input: {
   driveId?: string | null;
   signal?: AbortSignal;
 }): Promise<Result<GoogleDriveFileSummary | null, GoogleDrivePipesError>> {
-  const escapedName = input.name.replace(/'/g, "\\'");
-  let query = `'${input.parentId.replace(/'/g, "\\'")}' in parents and trashed=false and name='${escapedName}'`;
+  const escapedName = escapeGoogleDriveQueryValue(input.name);
+  let query = `'${escapeGoogleDriveQueryValue(input.parentId)}' in parents and trashed=false and name='${escapedName}'`;
   if (input.mimeType?.trim()) {
-    query += ` and mimeType='${input.mimeType.trim().replace(/'/g, "\\'")}'`;
+    query += ` and mimeType='${escapeGoogleDriveQueryValue(input.mimeType.trim())}'`;
   }
   const params = new URLSearchParams({
     q: query,

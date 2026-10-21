@@ -14,7 +14,11 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
-import { listGoogleDriveChildren, listGoogleSharedDrives } from "./drive-api";
+import {
+  findGoogleDriveChildByName,
+  listGoogleDriveChildren,
+  listGoogleSharedDrives,
+} from "./drive-api";
 
 describe("listGoogleSharedDrives", () => {
   afterEach(() => {
@@ -120,5 +124,47 @@ describe("listGoogleDriveChildren", () => {
       code: "google_drive_api_not_enabled",
       status: 403,
     });
+  });
+
+  it("escapes backslashes before quotes in folder queries", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ files: [] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await listGoogleDriveChildren({
+      accessToken: "token",
+      folderId: "foo\\'bar",
+    });
+
+    const url = String(fetchMock.mock.calls[0]?.[0]);
+    expect(new URL(url).searchParams.get("q")).toBe("'foo\\\\\\'bar' in parents and trashed=false");
+  });
+});
+
+describe("findGoogleDriveChildByName", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("escapes backslashes before quotes in name queries", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ files: [] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await findGoogleDriveChildByName({
+      accessToken: "token",
+      parentId: "p\\'id",
+      name: "n\\'ame",
+      mimeType: "type\\'x",
+    });
+
+    const url = String(fetchMock.mock.calls[0]?.[0]);
+    expect(new URL(url).searchParams.get("q")).toBe(
+      "'p\\\\\\'id' in parents and trashed=false and name='n\\\\\\'ame' and mimeType='type\\\\\\'x'",
+    );
   });
 });
