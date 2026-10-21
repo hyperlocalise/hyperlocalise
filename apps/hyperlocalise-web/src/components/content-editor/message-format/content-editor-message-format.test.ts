@@ -245,6 +245,17 @@ describe("cat message format utilities", () => {
     expect(analysis.placeholders).toHaveLength(2);
   });
 
+  it("drops leaked Office token names from the analyzed message", () => {
+    const open = "\u001eHLOXPH_6F30_0\u001f";
+    const close = "\u001eHLOXPH_6330_1\u001f";
+    const analysis = analyzeCatMessageFormat(
+      `${open}HLOXPH_6F30_0 レシピ${close} HLOXPH_6330_1 いちごとバニラのパンケーキ`,
+    );
+
+    expect(analysis.message).toBe(`${open}レシピ${close} いちごとバニラのパンケーキ`);
+    expect(analysis.tokens.map((token) => token.displayLabel)).toEqual(["OX#0", "OX#1"]);
+  });
+
   it("extracts Unreal PO HLUEPH tokens as markup chips", () => {
     const ue0 = "\u001eHLUEPH_AABBCCDDEEFF_0\u001f";
     const ue1 = "\u001eHLUEPH_112233445566_1\u001f";

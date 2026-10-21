@@ -87,6 +87,25 @@ export function stripLeakedInternalMarkupNames(text: string): string {
   return stripped.replace(EXTRA_HORIZONTAL_SPACE, " ");
 }
 
+/** Keeps `\x1eHL*PH…\x1f` sentinels and removes copied token names between them. */
+export function stripLeakedInternalMarkupFromStoredMessage(message: string): string {
+  if (!message.includes("HL")) {
+    return message;
+  }
+  const spans = extractInternalMarkupSpans(message);
+  if (spans.length === 0) {
+    return stripLeakedInternalMarkupNames(message);
+  }
+  let out = "";
+  let cursor = 0;
+  for (const span of spans) {
+    out += stripLeakedInternalMarkupNames(message.slice(cursor, span.start));
+    out += span.literal;
+    cursor = span.end;
+  }
+  return out + stripLeakedInternalMarkupNames(message.slice(cursor));
+}
+
 function leakedInternalTokenReplacement(text: string, match: string, offset: number): string {
   const end = offset + match.length;
   const leadSpace = match.startsWith(" ") || match.startsWith("\t");

@@ -17,6 +17,7 @@ import {
   formatInternalMarkupForDisplay,
   hasInternalMarkup,
   internalMarkupLabel,
+  stripLeakedInternalMarkupFromStoredMessage,
   stripLeakedInternalMarkupNames,
 } from "./content-editor-internal-markup";
 
@@ -46,6 +47,11 @@ describe("cat internal markup helpers", () => {
     expect(stripLeakedInternalMarkupNames("OX#0 HLOXPH_6F30_0 RECETTE OX#1")).toBe(
       "OX#0 RECETTE OX#1",
     );
+    expect(
+      stripLeakedInternalMarkupFromStoredMessage(
+        `${open}HLOXPH_6F30_0 レシピ${close} HLOXPH_6330_1 いちごとバニラのパンケーキ`,
+      ),
+    ).toBe(`${open}レシピ${close} いちごとバニラのパンケーキ`);
   });
 
   it("extracts markdown boundary sentinels with short labels", () => {

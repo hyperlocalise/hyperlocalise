@@ -37,7 +37,10 @@ import {
   normalizeMessageFormat,
 } from "@/lib/i18n/message-format";
 
-import { extractInternalMarkupSpans } from "./content-editor-internal-markup";
+import {
+  extractInternalMarkupSpans,
+  stripLeakedInternalMarkupFromStoredMessage,
+} from "./content-editor-internal-markup";
 
 export type ContentEditorMessageTokenKind =
   | "argument"
@@ -266,6 +269,7 @@ export function analyzeCatMessageFormat(
   options: { messageFormat?: MessageFormat | null } = {},
 ): ContentEditorMessageAnalysis {
   const format = normalizeMessageFormat(options.messageFormat);
+  message = stripLeakedInternalMarkupFromStoredMessage(message);
   const markupTokens = markupTokensFromMessage(message);
 
   if (!messageFormatParsesIcu(format)) {

@@ -35,6 +35,7 @@ import {
   shouldUseMarkdownCatDisplay,
   sourceHeadingIdLiteral,
 } from "@/components/content-editor/message-format/content-editor-markdown-display";
+import { stripLeakedInternalMarkupFromStoredMessage } from "@/components/content-editor/message-format/content-editor-internal-markup";
 import { formatMarkdownMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-markdown-markup";
 import {
   analyzeCatMessageFormat,
@@ -393,6 +394,7 @@ function ContentEditorMessageFormatParts({
   highlightWholeTerm: boolean;
 }) {
   const analysis = analyzeCatMessageFormat(message);
+  const displayMessage = analysis.message;
   const ranges = analysis.tokens
     .filter(
       (token) =>
@@ -410,7 +412,7 @@ function ContentEditorMessageFormatParts({
 
   if (ranges.length === 0) {
     return renderHighlightedPlainText(
-      message,
+      displayMessage,
       highlightTokens,
       highlightStatus,
       "plain",
@@ -422,21 +424,21 @@ function ContentEditorMessageFormatParts({
   const parts: Array<{ text: string; token?: ContentEditorMessageToken; key: string }> = [];
   ranges.forEach((token) => {
     if (cursor < token.start) {
-      parts.push({ key: `text-${cursor}`, text: message.slice(cursor, token.start) });
+      parts.push({ key: `text-${cursor}`, text: displayMessage.slice(cursor, token.start) });
     }
     parts.push({
       key: token.id,
       text:
         token.kind === "markup"
           ? (token.displayLabel ?? token.name)
-          : message.slice(token.start, token.end),
+          : displayMessage.slice(token.start, token.end),
       token,
     });
     cursor = token.end;
   });
 
-  if (cursor < message.length) {
-    parts.push({ key: `text-${cursor}`, text: message.slice(cursor) });
+  if (cursor < displayMessage.length) {
+    parts.push({ key: `text-${cursor}`, text: displayMessage.slice(cursor) });
   }
 
   return parts.map((part) =>
@@ -671,12 +673,14 @@ export function ContentEditorTargetEditor({
 
   function persistedEditorValue(activeEditor: NonNullable<ReturnType<typeof useEditor>>) {
     if (!markdownModeRef.current) {
-      return editorText(activeEditor);
+      return stripLeakedInternalMarkupFromStoredMessage(editorText(activeEditor));
     }
-    return persistMarkdownCatTarget(
-      sourceTextRef.current,
-      serializeMarkdownEditorDoc(activeEditor.getJSON()),
-      headingLiteralRef.current,
+    return stripLeakedInternalMarkupFromStoredMessage(
+      persistMarkdownCatTarget(
+        sourceTextRef.current,
+        serializeMarkdownEditorDoc(activeEditor.getJSON()),
+        headingLiteralRef.current,
+      ),
     );
   }
 
@@ -686,8 +690,10 @@ export function ContentEditorTargetEditor({
       createQaHighlightExtension(() => highlightRef.current),
     ],
     content: (markdownMode
-      ? markdownDisplayDocFromModel(markdownDisplayModel(value, sourceText))
-      : textDocFromValue(value)) as JSONContent,
+      ? markdownDisplayDocFromModel(
+          markdownDisplayModel(stripLeakedInternalMarkupFromStoredMessage(value), sourceText),
+        )
+      : textDocFromValue(stripLeakedInternalMarkupFromStoredMessage(value))) as JSONContent,
     editable: !disabled,
     immediatelyRender: false,
     onUpdate: ({ editor: activeEditor }) => {
@@ -738,8 +744,10 @@ export function ContentEditorTargetEditor({
 
     editor.commands.setContent(
       (markdownMode
-        ? markdownDisplayDocFromModel(markdownDisplayModel(value, sourceText))
-        : textDocFromValue(value)) as JSONContent,
+        ? markdownDisplayDocFromModel(
+            markdownDisplayModel(stripLeakedInternalMarkupFromStoredMessage(value), sourceText),
+          )
+        : textDocFromValue(stripLeakedInternalMarkupFromStoredMessage(value))) as JSONContent,
       { emitUpdate: false },
     );
   }, [editor, markdownMode, sourceText, value]);

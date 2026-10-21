@@ -35,6 +35,25 @@ const HELP_CENTER_URL =
 const MULTI_HELP_URL =
   "https://www.intercom.com/help/en/articles/8170953-create-and-manage-multiple-help-centers";
 
+describe("ContentEditorMessagePreview office tokens", () => {
+  it("hides leaked HLOXPH names next to OX chips", () => {
+    const open = "\u001eHLOXPH_6F30_0\u001f";
+    const close = "\u001eHLOXPH_6330_1\u001f";
+
+    renderWithContentEditorProviders(
+      <ContentEditorMessagePreview
+        message={`${open}HLOXPH_6F30_0 レシピ${close} HLOXPH_6330_1 いちごとバニラのパンケーキ`}
+      />,
+    );
+
+    expect(screen.getByText("OX#0")).toBeInTheDocument();
+    expect(screen.getByText("OX#1")).toBeInTheDocument();
+    expect(screen.getByText("レシピ")).toBeInTheDocument();
+    expect(screen.getByText(/いちごとバニラのパンケーキ/)).toBeInTheDocument();
+    expect(screen.queryByText(/HLOXPH_/)).not.toBeInTheDocument();
+  });
+});
+
 describe("ContentEditorMessagePreview markdown display", () => {
   it("hides Intercom heading ids", () => {
     renderWithContentEditorProviders(
