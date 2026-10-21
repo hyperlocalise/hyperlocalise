@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // An Office paragraph is one entry. Its text is the paragraph's visible text in
@@ -35,6 +36,12 @@ const (
 const ooxmlPreservePlaceholdersLine = "Preserve every placeholder token matching \\x1eHLOXPH_…\\x1f exactly (do not translate, remove, or rename them). Text between an opening and a closing token keeps that formatting, so move the pair with the words it wraps."
 
 var ooxmlTokenPattern = regexp.MustCompile(`\x1eHLOXPH_([A-F0-9]+)_([0-9]+)\x1f`)
+
+// Models sometimes echo the token name as visible text next to the real sentinel.
+var (
+	leakedOOXMLTokenName      = regexp.MustCompile(`[^\S\n]*HLOXPH_[A-F0-9]+_[0-9]+[^\S\n]*`)
+	extraOOXMLHorizontalSpace = regexp.MustCompile(`[^\S\n]{2,}`)
+)
 
 type ooxmlPiece struct {
 	atom bool
@@ -200,7 +207,7 @@ func (s ooxmlParagraphSpans) segment() string {
 			ordinal += 2
 		}
 	}
-	return b.String()
+	return strings.TrimRight(b.String(), " ")
 }
 
 func ooxmlToken(kind byte, index, ordinal int) string {
@@ -245,7 +252,7 @@ func parseOOXMLTranslation(translated string) []ooxmlTranslatedItem {
 	pos := 0
 	for _, match := range ooxmlTokenPattern.FindAllStringSubmatchIndex(translated, -1) {
 		if match[0] > pos {
-			items = append(items, ooxmlTranslatedItem{text: normalizeOOXMLText(translated[pos:match[0]])})
+			items = append(items, ooxmlTranslatedItem{text: normalizeOOXMLText(stripLeakedOOXMLTokenNames(translated[pos:match[0]]))})
 		}
 		kind, index, ok := decodeOOXMLToken(translated[match[2]:match[3]])
 		if ok {
@@ -254,9 +261,60 @@ func parseOOXMLTranslation(translated string) []ooxmlTranslatedItem {
 		pos = match[1]
 	}
 	if pos < len(translated) {
-		items = append(items, ooxmlTranslatedItem{text: normalizeOOXMLText(translated[pos:])})
+		items = append(items, ooxmlTranslatedItem{text: normalizeOOXMLText(stripLeakedOOXMLTokenNames(translated[pos:]))})
 	}
 	return items
+}
+
+// stripLeakedOOXMLTokenNames drops token names that were copied as plaintext. Real
+// sentinels stay intact because callers only pass the text between them.
+func stripLeakedOOXMLTokenNames(s string) string {
+	if !strings.Contains(s, "HLOXPH_") {
+		return s
+	}
+	var b strings.Builder
+	pos := 0
+	for _, match := range leakedOOXMLTokenName.FindAllStringIndex(s, -1) {
+		b.WriteString(s[pos:match[0]])
+		b.WriteString(leakedOOXMLTokenReplacement(s, match[0], match[1]))
+		pos = match[1]
+	}
+	b.WriteString(s[pos:])
+	return extraOOXMLHorizontalSpace.ReplaceAllString(b.String(), " ")
+}
+
+func leakedOOXMLTokenReplacement(s string, start, end int) string {
+	if start >= end {
+		return ""
+	}
+	leadSpace := s[start] == ' ' || s[start] == '\t'
+	trailSpace := s[end-1] == ' ' || s[end-1] == '\t'
+	if leadSpace && trailSpace {
+		return " "
+	}
+	if leadSpace && runeIsLetterAt(s, end) {
+		return " "
+	}
+	if trailSpace && runeIsLetterBefore(s, start) {
+		return " "
+	}
+	return ""
+}
+
+func runeIsLetterAt(s string, i int) bool {
+	if i >= len(s) {
+		return false
+	}
+	r, _ := utf8.DecodeRuneInString(s[i:])
+	return unicode.IsLetter(r)
+}
+
+func runeIsLetterBefore(s string, i int) bool {
+	if i <= 0 {
+		return false
+	}
+	r, _ := utf8.DecodeLastRuneInString(s[:i])
+	return unicode.IsLetter(r)
 }
 
 // normalizeOOXMLText turns other line separators into line breaks and drops

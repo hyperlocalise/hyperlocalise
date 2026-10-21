@@ -35,6 +35,8 @@ func TestKindForSourcePath(t *testing.T) {
 		{"/docs/GUIDE.ASC", FormatAsciiDoc},
 		{"/docs/brief.docx", FormatOffice},
 		{"/decks/LAUNCH.PPTX", FormatOffice},
+		{"word/document.xml#12", FormatOffice},
+		{"ppt/slides/slide1.xml#0", FormatOffice},
 		{"  spaced.md  ", FormatMarkdown},
 		{"noext", FormatICUInvariant},
 		{"", FormatICUInvariant},
@@ -415,5 +417,39 @@ func TestFirstValidationErrorOfficePlaceholders(t *testing.T) {
 	err := FirstValidationError("docs/brief.docx", source, "Lisez les conditions")
 	if err == nil || !strings.Contains(err.Error(), "office placeholder mismatch") {
 		t.Fatalf("expected office placeholder mismatch, got %v", err)
+	}
+}
+
+func TestValidateSegmentIgnoresTrailingRegularSpace(t *testing.T) {
+	source := "Lorem ipsum dolor sit amet consectetuer adipiscing elit sed do tempor incididunt ut labore et dolore magna aliqua. "
+	target := "Lorem ipsum dolor sit amet consectetuer adipiscing elit sed do tempor incididunt ut labore et dolore magna aliqua."
+	checks := ValidateSegment(Request{
+		SourceText: source,
+		TargetText: target,
+		SourcePath: "messages.json",
+	})
+	for _, check := range checks {
+		if check.Status == StatusFail {
+			t.Fatalf("unexpected fail %+v", check)
+		}
+	}
+}
+
+func TestValidateSegmentOfficeIgnoresTrailingWhitespace(t *testing.T) {
+	open := "\x1eHLOXPH_6F30_0\x1f"
+	closeToken := "\x1eHLOXPH_6330_1\x1f"
+	source := open + "Lorem ipsum dolor sit amet" + closeToken + " consectetuer adipiscing elit. "
+	target := open + "Lorem ipsum dolor sit amet" + closeToken + " エリートの成長を促し、労働と大きな苦痛を伴う時間を費やす。"
+	for _, path := range []string{"docs/brief.docx", "word/document.xml#12"} {
+		checks := ValidateSegment(Request{
+			SourceText: source,
+			TargetText: target,
+			SourcePath: path,
+		})
+		for _, check := range checks {
+			if check.Status == StatusFail {
+				t.Fatalf("%s: unexpected fail %+v", path, check)
+			}
+		}
 	}
 }

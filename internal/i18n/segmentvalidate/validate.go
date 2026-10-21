@@ -59,7 +59,9 @@ func ValidateSegment(req Request) []Check {
 	hasICUTokens, formatErr := validateForKindWithTokens(kind, format, req.SourceText, req.TargetText)
 	var hasProfileTokens bool
 	var profileErr error
-	if formatErr == nil && kind != FormatMarkdown {
+	// Markdown and Office restore layout from the source file. A trailing space
+	// on a Word paragraph is not a translation invariant — CJK targets drop it.
+	if formatErr == nil && kind != FormatMarkdown && kind != FormatOffice {
 		hasProfileTokens, profileErr = validateProfileParityWithTokens(format, req.SourceText, req.TargetText)
 	}
 

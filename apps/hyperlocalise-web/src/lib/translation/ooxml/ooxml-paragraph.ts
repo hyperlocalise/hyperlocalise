@@ -42,6 +42,8 @@ const PRESERVE_PLACEHOLDERS_LINE =
   "Preserve every placeholder token matching \\x1eHLOXPH_…\\x1f exactly (do not translate, remove, or rename them). Text between an opening and a closing token keeps that formatting, so move the pair with the words it wraps.";
 
 const TOKEN_PATTERN = new RegExp(`${OOXML_TOKEN_MARKER}([A-F0-9]+)_([0-9]+)\x1f`, "g");
+const LEAKED_TOKEN_NAME = /[^\S\n]*HLOXPH_[A-F0-9]+_[0-9]+[^\S\n]*/g;
+const EXTRA_HORIZONTAL_SPACE = /[^\S\n]{2,}/g;
 const LETTER_PATTERN = /\p{L}/u;
 
 export type OoxmlEntry = { key: string; text: string; context?: string };
@@ -228,7 +230,7 @@ export class OoxmlParagraph {
         ordinal += 2;
       }
     }
-    return out;
+    return out.replace(/ +$/, "");
   }
 
   write(out: string[], renderer: OoxmlRenderer, translated: string, writeText: OoxmlTextWriter) {
@@ -334,7 +336,9 @@ function parseOoxmlTranslation(translated: string): TranslatedItem[] {
   let pos = 0;
   for (const match of translated.matchAll(TOKEN_PATTERN)) {
     if (match.index > pos) {
-      items.push({ text: normalizeOoxmlText(translated.slice(pos, match.index)) });
+      items.push({
+        text: normalizeOoxmlText(stripLeakedOoxmlTokenNames(translated.slice(pos, match.index))),
+      });
     }
     const token = decodeOoxmlToken(match[1]!);
     if (token) {
@@ -343,9 +347,54 @@ function parseOoxmlTranslation(translated: string): TranslatedItem[] {
     pos = match.index + match[0].length;
   }
   if (pos < translated.length) {
-    items.push({ text: normalizeOoxmlText(translated.slice(pos)) });
+    items.push({ text: normalizeOoxmlText(stripLeakedOoxmlTokenNames(translated.slice(pos))) });
   }
   return items;
+}
+
+/** Drops token names copied as plaintext. Callers pass text between real sentinels. */
+export function stripLeakedOoxmlTokenNames(text: string): string {
+  return stripLeakedMarkupTokenNames(text, "HLOXPH_", LEAKED_TOKEN_NAME);
+}
+
+function stripLeakedMarkupTokenNames(text: string, marker: string, pattern: RegExp): string {
+  if (!text.includes(marker)) {
+    return text;
+  }
+  const stripped = text.replace(pattern, (match, offset: number) =>
+    leakedTokenReplacement(text, match, offset),
+  );
+  return stripped.replace(EXTRA_HORIZONTAL_SPACE, " ");
+}
+
+function leakedTokenReplacement(text: string, match: string, offset: number): string {
+  const end = offset + match.length;
+  const leadSpace = match.startsWith(" ") || match.startsWith("\t");
+  const trailSpace = match.endsWith(" ") || match.endsWith("\t");
+  if (leadSpace && trailSpace) {
+    return " ";
+  }
+  if (leadSpace && letterAt(text, end)) {
+    return " ";
+  }
+  if (trailSpace && letterBefore(text, offset)) {
+    return " ";
+  }
+  return "";
+}
+
+function letterAt(text: string, index: number): boolean {
+  if (index >= text.length) {
+    return false;
+  }
+  return /\p{L}/u.test(text[index]!);
+}
+
+function letterBefore(text: string, index: number): boolean {
+  if (index <= 0) {
+    return false;
+  }
+  return /\p{L}/u.test(text[index - 1]!);
 }
 
 /** Turns other line separators into line breaks and drops characters XML 1.0 cannot hold. */

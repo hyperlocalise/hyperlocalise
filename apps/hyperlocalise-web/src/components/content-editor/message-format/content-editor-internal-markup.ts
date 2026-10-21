@@ -32,6 +32,9 @@ const INTERNAL_MARKUP_PATTERN = new RegExp(
   "g",
 );
 
+const LEAKED_INTERNAL_TOKEN_NAME = /[^\S\n]*HL(?:MD|HT|LQ|UE|OX)PH_[A-Z0-9]+_[0-9]+[^\S\n]*/g;
+const EXTRA_HORIZONTAL_SPACE = /[^\S\n]{2,}/g;
+
 function familyFromMatch(raw: string): ContentEditorInternalMarkupFamily {
   switch (raw) {
     case "MD":
@@ -73,10 +76,39 @@ export function extractInternalMarkupSpans(message: string): ContentEditorIntern
   return spans;
 }
 
+/** Drops token names that a model copied as visible text next to real sentinels. */
+export function stripLeakedInternalMarkupNames(text: string): string {
+  if (!text.includes("HL")) {
+    return text;
+  }
+  const stripped = text.replace(LEAKED_INTERNAL_TOKEN_NAME, (match, offset: number) =>
+    leakedInternalTokenReplacement(text, match, offset),
+  );
+  return stripped.replace(EXTRA_HORIZONTAL_SPACE, " ");
+}
+
+function leakedInternalTokenReplacement(text: string, match: string, offset: number): string {
+  const end = offset + match.length;
+  const leadSpace = match.startsWith(" ") || match.startsWith("\t");
+  const trailSpace = match.endsWith(" ") || match.endsWith("\t");
+  if (leadSpace && trailSpace) {
+    return " ";
+  }
+  if (leadSpace && /\p{L}/u.test(text[end] ?? "")) {
+    return " ";
+  }
+  if (trailSpace && offset > 0 && /\p{L}/u.test(text[offset - 1] ?? "")) {
+    return " ";
+  }
+  return "";
+}
+
 /** Replace sentinels with short labels for plain-text UI (queue rows, etc.). */
 export function formatInternalMarkupForDisplay(message: string): string {
-  return message.replace(INTERNAL_MARKUP_PATTERN, (_literal, family: string, index: string) =>
-    internalMarkupLabel(familyFromMatch(family), Number.parseInt(index, 10)),
+  return stripLeakedInternalMarkupNames(
+    message.replace(INTERNAL_MARKUP_PATTERN, (_literal, family: string, index: string) =>
+      internalMarkupLabel(familyFromMatch(family), Number.parseInt(index, 10)),
+    ),
   );
 }
 

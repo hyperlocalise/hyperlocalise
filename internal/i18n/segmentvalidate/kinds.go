@@ -19,6 +19,9 @@ const (
 
 func KindForSourcePath(path string) FormatKind {
 	path = strings.TrimSpace(path)
+	if isOfficePackageKey(path) {
+		return FormatOffice
+	}
 	ext := filepath.Ext(path)
 	if ext == "" {
 		return FormatICUInvariant
@@ -60,4 +63,17 @@ func KindForSourcePath(path string) FormatKind {
 	default:
 		return FormatICUInvariant
 	}
+}
+
+// Office CAT keys are the package part plus paragraph index, e.g. word/document.xml#12.
+func isOfficePackageKey(path string) bool {
+	hash := strings.LastIndex(path, "#")
+	if hash <= 0 {
+		return false
+	}
+	part := strings.ToLower(path[:hash])
+	if !strings.HasSuffix(part, ".xml") {
+		return false
+	}
+	return strings.HasPrefix(part, "word/") || strings.HasPrefix(part, "ppt/")
 }

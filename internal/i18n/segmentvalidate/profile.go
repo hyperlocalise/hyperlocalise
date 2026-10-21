@@ -69,7 +69,7 @@ func validateWhitespaceProfileWithTokens(source, translated string) (bool, error
 	if sourceLeading != targetLeading {
 		parts = append(parts, "leading whitespace differs from source")
 	}
-	if sourceTrailing != targetTrailing {
+	if !equivalentTrailingWhitespace(sourceTrailing, targetTrailing) {
 		parts = append(parts, "trailing whitespace differs from source")
 	}
 	srcNBSP := countNBSP(sourceNorm)
@@ -134,6 +134,12 @@ func profileEdgeWhitespace(value string) (leading, trailing string) {
 
 func isASCIIEdgeWhitespace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\r' || b == '\n'
+}
+
+// Word paragraphs often end with a regular space. Tabs and line breaks still
+// have to match; only U+0020 on the edge is ignored.
+func equivalentTrailingWhitespace(source, target string) bool {
+	return strings.TrimRight(source, " ") == strings.TrimRight(target, " ")
 }
 
 func isProfileEdgeWhitespace(r rune) bool {

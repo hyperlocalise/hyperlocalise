@@ -17,6 +17,7 @@ import {
   formatInternalMarkupForDisplay,
   hasInternalMarkup,
   internalMarkupLabel,
+  stripLeakedInternalMarkupNames,
 } from "./content-editor-internal-markup";
 
 const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
@@ -31,6 +32,20 @@ describe("cat internal markup helpers", () => {
 
     expect(formatInternalMarkupForDisplay(message)).toBe("Read the OX#0termsOX#1 first.");
     expect(extractInternalMarkupSpans(message).map((span) => span.family)).toEqual(["OX", "OX"]);
+  });
+
+  it("hides leaked Office token names next to the labels", () => {
+    const open = "\u001eHLOXPH_6F30_0\u001f";
+    const close = "\u001eHLOXPH_6330_1\u001f";
+    const stored = `${open}HLOXPH_6F30_0 RECETTE${close} HLOXPH_6330_1 Pancakes à la fraise`;
+
+    expect(formatInternalMarkupForDisplay(stored)).toBe("OX#0RECETTEOX#1 Pancakes à la fraise");
+    expect(
+      formatInternalMarkupForDisplay("OX#0 HLOXPH_6F30_0 RECETTE OX#1 HLOXPH_6330_1 Pancakes"),
+    ).toBe("OX#0 RECETTE OX#1 Pancakes");
+    expect(stripLeakedInternalMarkupNames("OX#0 HLOXPH_6F30_0 RECETTE OX#1")).toBe(
+      "OX#0 RECETTE OX#1",
+    );
   });
 
   it("extracts markdown boundary sentinels with short labels", () => {
