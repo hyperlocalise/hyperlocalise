@@ -174,9 +174,12 @@ func TestGuidelineRetrieveReturnsUploadedDocumentsOnly(t *testing.T) {
 	require.True(t, result.Documents[0].Mandatory)
 	require.Equal(t, "Never translate Acme.", result.Documents[0].Content)
 	require.NotEmpty(t, result.Documents[0].Title)
+	require.Equal(t, mandatory.RevisionID, result.Documents[0].RevisionID)
+	require.Positive(t, result.Documents[0].Version)
 	require.Equal(t, searchedID, result.Documents[1].ID)
 	require.False(t, result.Documents[1].Mandatory)
 	require.Empty(t, result.Documents[1].Content)
+	require.Equal(t, searchedRevision, result.Documents[1].RevisionID)
 	require.Equal(t, []retrievedGuidelinePassage{
 		{ID: "p2", DocumentID: searchedID, Text: "Keep sentences short."},
 		{ID: "p1", DocumentID: searchedID, Text: "Use vous."},

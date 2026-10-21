@@ -46,11 +46,13 @@ type guidelineRetrievePayload struct {
 }
 
 type retrievedGuidelineDocument struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
-	Locale    string `json:"locale,omitempty"`
-	Mandatory bool   `json:"mandatory"`
-	Content   string `json:"content,omitempty"`
+	ID         string `json:"id"`
+	RevisionID string `json:"revisionId"`
+	Version    int    `json:"version"`
+	Title      string `json:"title"`
+	Locale     string `json:"locale,omitempty"`
+	Mandatory  bool   `json:"mandatory"`
+	Content    string `json:"content,omitempty"`
 }
 
 type retrievedGuidelinePassage struct {
@@ -238,7 +240,7 @@ func collectUploaded(results []guidelines.Result, limit int) collectedGuidelines
 // mergeQuery reloads metadata only for rows that are still ready and in the
 // requested project and locale scope. An empty locale matches unscoped rows only.
 const mergeQuery = `
-        select id::text, revision_id::text, title, coalesce(locale, '')
+        select id::text, revision_id::text, version, title, coalesce(locale, '')
         from guideline_documents
         where organization_id::text = $1 and id::text = any($2) and status = 'ready'
           and (project_id is null or project_id = $3)
@@ -263,16 +265,19 @@ func (api *guidelineRetrieveAPI) merge(ctx context.Context, scope guidelines.Sco
 		return guidelineRetrieveResult{}, err
 	}
 	defer rows.Close()
-	type metadata struct{ title, locale string }
+	type metadata struct {
+		revisionID, title, locale string
+		version                   int
+	}
 	byID := make(map[string]metadata, len(rowIDs))
 	for rows.Next() {
-		var rowID, revisionID string
+		var rowID string
 		var meta metadata
-		if err := rows.Scan(&rowID, &revisionID, &meta.title, &meta.locale); err != nil {
+		if err := rows.Scan(&rowID, &meta.revisionID, &meta.version, &meta.title, &meta.locale); err != nil {
 			return guidelineRetrieveResult{}, err
 		}
 		id := guidelinepg.UploadedDocumentID(rowID)
-		if retrieved := collected.revisions[id]; retrieved == "" || retrieved != revisionID {
+		if retrieved := collected.revisions[id]; retrieved == "" || retrieved != meta.revisionID {
 			continue
 		}
 		byID[id] = meta
@@ -286,7 +291,10 @@ func (api *guidelineRetrieveAPI) merge(ctx context.Context, scope guidelines.Sco
 			continue
 		}
 		content, isMandatory := mandatory[id]
-		merged.Documents = append(merged.Documents, retrievedGuidelineDocument{ID: id, Title: meta.title, Locale: meta.locale, Mandatory: isMandatory, Content: content})
+		merged.Documents = append(merged.Documents, retrievedGuidelineDocument{
+			ID: id, RevisionID: meta.revisionID, Version: meta.version, Title: meta.title, Locale: meta.locale,
+			Mandatory: isMandatory, Content: content,
+		})
 	}
 	for _, passage := range collected.passages {
 		if _, ok := byID[passage.DocumentID]; ok {

@@ -90,6 +90,8 @@ export type GuidelineRetrieveRequest = {
 
 export type RetrievedGuidelineDocument = {
   id: string;
+  revisionId: string;
+  version: number;
   title: string;
   locale?: string;
   mandatory: boolean;

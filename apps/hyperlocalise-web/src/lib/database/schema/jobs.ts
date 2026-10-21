@@ -87,6 +87,9 @@ export const jobs = pgTable(
     contextSnapshot: jsonb("context_snapshot")
       .$type<unknown>()
       .default(sql`'{}'::jsonb`),
+    // What the job gave the model (trigger, model, guideline versions, glossaries): ids and
+    // counts only. Shape is `GenerationProvenance` in `generation-provenance.ts`.
+    generationProvenance: jsonb("generation_provenance").$type<Record<string, unknown>>(),
     // When the job record was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When job state last changed.

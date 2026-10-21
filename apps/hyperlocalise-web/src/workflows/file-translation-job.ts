@@ -643,33 +643,75 @@ async function assembleFileTranslationContextStep(input: {
     throw new Error(`project ${input.projectId} not found`);
   }
 
-  const sourceText = (input.sourceText ?? input.sourceContent.toString("utf8")).slice(0, 500_000);
-  const attachedTerms = await listGlossaryTermsForProject({
-    organizationId: project.organizationId,
-    projectId: input.projectId,
-    sourceLocale: input.sourceLocale,
-    targetLocales: input.targetLocales,
-    maxPairs: FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT,
-  });
+  const { resolveWorkspaceKnowledgeFlag } = await import("@/lib/flags/workspace-flags");
+  const { loadTranslationGuidelines } = await import("@/lib/translation/context");
+  const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
+  const { resolveSandboxLlmProfile } = await import("@/lib/translation/sandbox-llm");
+  const { env } = await import("@/lib/env");
+  const { generationModelFromGatewayId, glossaryUses } =
+    await import("@/lib/translation/generation-provenance");
+  const { recordJobGenerationProvenance } =
+    await import("@/lib/translation/generation-provenance-store");
 
-  const glossaryTerms = attachedTerms
+  const sourceText = (input.sourceText ?? input.sourceContent.toString("utf8")).slice(0, 500_000);
+  const knowledgeMemoryEnabled = await resolveWorkspaceKnowledgeFlag({
+    organizationId: project.organizationId,
+  }).catch(() => false);
+  const [attachedTerms, guidelines, byok] = await Promise.all([
+    listGlossaryTermsForProject({
+      organizationId: project.organizationId,
+      projectId: input.projectId,
+      sourceLocale: input.sourceLocale,
+      targetLocales: input.targetLocales,
+      maxPairs: FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT,
+    }),
+    knowledgeMemoryEnabled
+      ? loadTranslationGuidelines({
+          project,
+          sourceLocale: input.sourceLocale,
+          targetLocales: input.targetLocales,
+          sourceText,
+          context: input.metadata?.context,
+          metadata: input.metadata,
+        })
+      : null,
+    loadSandboxByokCredential(project.organizationId),
+  ]);
+
+  const matchedTerms = attachedTerms
     .filter((term) => sourceContainsTerm(sourceText, term))
-    .slice(0, 50)
-    .map(({ sourceTerm, targetTerm, targetLocale, description, forbidden, caseSensitive }) => ({
+    .slice(0, 50);
+  const glossaryTerms = matchedTerms.map(
+    ({ sourceTerm, targetTerm, targetLocale, description, forbidden, caseSensitive }) => ({
       sourceTerm,
       targetTerm,
       targetLocale,
       description,
       forbidden,
       caseSensitive,
-    }));
+    }),
+  );
 
   const context = {
     projectName: project.name,
     projectTranslationContext: project.translationContext,
     jobContext: input.metadata?.context ?? null,
+    knowledgeMemory: guidelines?.text || null,
     glossaryTerms,
   } satisfies SandboxTranslationContext;
+
+  const llmProfile = resolveSandboxLlmProfile(env, byok);
+  await recordJobGenerationProvenance(input.jobId, {
+    model: byok
+      ? { provider: llmProfile.provider, model: llmProfile.model, credentialSource: "byok" }
+      : llmProfile.provider === "ai_gateway"
+        ? generationModelFromGatewayId(llmProfile.model, "gateway")
+        : { provider: llmProfile.provider, model: llmProfile.model, credentialSource: "gateway" },
+    guidelines: guidelines?.used ?? { documents: [] },
+    glossaries: glossaryUses(matchedTerms),
+    translationMemories: [],
+    customInstructions: Boolean(input.metadata?.instructions?.trim()),
+  });
 
   await db
     .update(schema.jobs)

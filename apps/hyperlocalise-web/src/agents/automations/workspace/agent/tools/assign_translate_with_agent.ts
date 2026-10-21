@@ -69,6 +69,12 @@ export function createAssignTranslateWithAgentTool(session: WorkspaceOrchestrato
         organizationId: session.organizationId,
         jobId: resolvedJobId,
         jobQueue,
+        trigger: {
+          kind: "automation",
+          automationId: session.automation.id,
+          runId: session.run.id,
+          name: session.automation.name,
+        },
       });
 
       if (!result.ok) {

@@ -20,7 +20,7 @@ import { loadUploadedGuidelinesContext } from "@/lib/knowledge-memory/uploaded-g
 import { assembleStringTranslationContextSnapshot } from "@/lib/translation/context";
 
 vi.mock("@/lib/knowledge-memory/uploaded-guidelines-context", () => ({
-  loadUploadedGuidelinesContext: vi.fn(async () => ""),
+  loadUploadedGuidelinesContext: vi.fn(async () => ({ text: "", documents: [] })),
 }));
 
 const fixture = createProjectTestFixture();
@@ -210,9 +210,10 @@ describe("assembleStringTranslationContextSnapshot", () => {
       updatedByUserId: user.id,
       content: "Workspace voice is calm.",
     });
-    vi.mocked(loadUploadedGuidelinesContext).mockResolvedValueOnce(
-      "### Brand guide\nNever translate Acme.",
-    );
+    vi.mocked(loadUploadedGuidelinesContext).mockResolvedValueOnce({
+      text: "### Brand guide\nNever translate Acme.",
+      documents: [],
+    });
 
     const result = await assembleStringTranslationContextSnapshot(
       project.id,
