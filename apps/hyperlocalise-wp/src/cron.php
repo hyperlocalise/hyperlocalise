@@ -26,6 +26,8 @@ final class Cron
 
     public static function activate(): void
     {
+        // The activation hook can run before plugins_loaded (WP-CLI, headless installs).
+        add_filter('cron_schedules', [self::class, 'add_schedule']);
         if (!wp_next_scheduled(self::HOOK)) {
             wp_schedule_event(time() + MINUTE_IN_SECONDS, self::SCHEDULE, self::HOOK);
         }
@@ -38,7 +40,7 @@ final class Cron
 
     public function register(): void
     {
-        add_filter('cron_schedules', [$this, 'add_schedule']);
+        add_filter('cron_schedules', [self::class, 'add_schedule']);
         add_action(self::HOOK, [$this, 'poll']);
         add_action('admin_init', [self::class, 'activate']);
     }
@@ -47,7 +49,7 @@ final class Cron
      * @param array<string, array<string, mixed>> $schedules
      * @return array<string, array<string, mixed>>
      */
-    public function add_schedule(array $schedules): array
+    public static function add_schedule(array $schedules): array
     {
         $schedules[self::SCHEDULE] = [
             'interval' => 5 * MINUTE_IN_SECONDS,
@@ -62,25 +64,7 @@ final class Cron
             return;
         }
 
-        $post_ids = get_posts([
-            'post_type' => 'any',
-            'post_status' => 'any',
-            'fields' => 'ids',
-            'posts_per_page' => self::BATCH_SIZE,
-            'orderby' => 'modified',
-            'order' => 'ASC',
-            'meta_query' => [
-                [
-                    'key' => TranslationService::STATUS_META,
-                    'value' => TranslationService::PENDING_STATUSES,
-                    'compare' => 'IN',
-                ],
-            ],
-            'suppress_filters' => true,
-            'lang' => '',
-        ]);
-
-        foreach ($post_ids as $post_id) {
+        foreach ($this->pending_post_ids() as $post_id) {
             try {
                 $this->service->refresh((int) $post_id, $this->settings->auto_apply());
             } catch (PluginError $error) {
@@ -89,5 +73,36 @@ final class Cron
                 }
             }
         }
+    }
+
+    /**
+     * Least recently checked first: every refresh updates the checked meta,
+     * so each run advances through the pending set.
+     *
+     * @return int[]
+     */
+    public function pending_post_ids(): array
+    {
+        $post_ids = get_posts([
+            'post_type' => 'any',
+            'post_status' => 'any',
+            'fields' => 'ids',
+            'posts_per_page' => self::BATCH_SIZE,
+            'meta_query' => [
+                'pending' => [
+                    'key' => TranslationService::STATUS_META,
+                    'value' => TranslationService::PENDING_STATUSES,
+                    'compare' => 'IN',
+                ],
+                'checked' => [
+                    'key' => TranslationService::CHECKED_META,
+                    'type' => 'NUMERIC',
+                ],
+            ],
+            'orderby' => ['checked' => 'ASC', 'ID' => 'ASC'],
+            'suppress_filters' => true,
+            'lang' => '',
+        ]);
+        return array_map('intval', $post_ids);
     }
 }

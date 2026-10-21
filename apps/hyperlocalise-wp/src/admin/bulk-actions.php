@@ -67,7 +67,12 @@ final class BulkActions
         $last_error = '';
 
         foreach (array_slice($post_ids, 0, self::MAX_POSTS) as $post_id) {
-            if (!current_user_can('edit_post', (int) $post_id)) {
+            $post_type = get_post_type((int) $post_id);
+            if (
+                !$post_type
+                || !current_user_can('edit_post', (int) $post_id)
+                || !TranslationService::can_create_translations($post_type)
+            ) {
                 $skipped++;
                 continue;
             }

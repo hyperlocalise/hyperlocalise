@@ -43,6 +43,8 @@ add_filter('pre_http_request', static function ($pre, array $args, string $url) 
             return $json(['job' => ['id' => 'job_1', 'type' => 'file', 'status' => 'queued']], 201);
         case '/v1/jobs/job_1/status':
             return $json(['job' => ['id' => 'job_1', 'status' => 'succeeded', 'lastError' => null]]);
+        case '/v1/jobs/job_review/status':
+            return $json(['job' => ['id' => 'job_review', 'status' => 'waiting_for_review', 'lastError' => null]]);
         case '/api/v1/projects/project_1/translations/download':
             parse_str((string) wp_parse_url($url, PHP_URL_QUERY), $query);
             $upload = get_option(HYPERLOCALISE_MOCK_UPLOAD, []);

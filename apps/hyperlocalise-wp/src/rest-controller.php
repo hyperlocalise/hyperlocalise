@@ -38,17 +38,17 @@ final class RestController
     public function register_routes(): void
     {
         $routes = [
-            'panel' => ['GET', 'panel'],
-            'send' => ['POST', 'send'],
-            'refresh' => ['POST', 'refresh'],
-            'apply' => ['POST', 'apply'],
+            'panel' => ['GET', 'panel', 'can_view'],
+            'send' => ['POST', 'send', 'can_translate'],
+            'refresh' => ['POST', 'refresh', 'can_translate'],
+            'apply' => ['POST', 'apply', 'can_translate'],
         ];
 
-        foreach ($routes as $path => [$method, $handler]) {
+        foreach ($routes as $path => [$method, $handler, $permission]) {
             register_rest_route(self::NAMESPACE, '/posts/(?P<id>\d+)/' . $path, [
                 'methods' => $method,
                 'callback' => [$this, $handler],
-                'permission_callback' => [$this, 'can_translate'],
+                'permission_callback' => [$this, $permission],
                 'args' => [
                     'id' => ['type' => 'integer', 'required' => true],
                 ],
@@ -59,16 +59,35 @@ final class RestController
     /**
      * @return bool|WP_Error
      */
+    public function can_view(WP_REST_Request $request)
+    {
+        return $this->authorize($request, false);
+    }
+
+    /**
+     * Sending and applying can both create translation posts: apply directly,
+     * send through cron auto-apply.
+     *
+     * @return bool|WP_Error
+     */
     public function can_translate(WP_REST_Request $request)
+    {
+        return $this->authorize($request, true);
+    }
+
+    /**
+     * @return bool|WP_Error
+     */
+    private function authorize(WP_REST_Request $request, bool $require_create)
     {
         $post = get_post((int) $request['id']);
         if (!$post || !$this->settings->supports_post_type($post->post_type)) {
             return new WP_Error('hyperlocalise_post_not_found', __('Post not found.', 'hyperlocalise'), ['status' => 404]);
         }
 
-        $post_type = get_post_type_object($post->post_type);
-        $can_create = $post_type && current_user_can($post_type->cap->edit_posts);
-        if (!$can_create || !current_user_can('edit_post', $post->ID)) {
+        $allowed = current_user_can('edit_post', $post->ID)
+            && (!$require_create || TranslationService::can_create_translations($post->post_type));
+        if (!$allowed) {
             return new WP_Error(
                 'hyperlocalise_forbidden',
                 __('You cannot translate this post.', 'hyperlocalise'),

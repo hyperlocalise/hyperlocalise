@@ -13,7 +13,7 @@ WordPress sites that need translation already run a multilingual plugin, usually
 - Ship `apps/hyperlocalise-wp` as a server-side PHP plugin. It writes into the active multilingual plugin through an `Adapter` interface. WPML and Polylang adapters ship first.
 - Authenticate with a personal access token stored in `wp_options` or the `HYPERLOCALISE_API_KEY` constant. No OAuth is needed because every API call runs on the WordPress server.
 - Use the existing public API only:
-  - `POST /api/v1/files` uploads one flat JSON source file per post at `wordpress/{host}/{post-type}/{post-id}.json`.
+  - `POST /api/v1/files` uploads one flat JSON source file per post at `wordpress/{site}/{post-type}/{post-id}.json`. `{site}` is the home URL's host plus path, so subdirectory multisites do not collide.
   - `POST /api/v1/jobs` creates one file job.
   - Job status is read from `api.hyperlocalise.com/v1/jobs/{id}/status`.
   - Translations are read from `/api/v1/projects/{id}/translations/download`.

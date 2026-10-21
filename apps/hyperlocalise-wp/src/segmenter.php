@@ -29,6 +29,8 @@ final class Segmenter
     ];
 
     private const PARAGRAPH_BREAK = '/(\n[ \t]*\n)/';
+    private const TAG = '/<(\/?)([a-zA-Z][a-zA-Z0-9-]*)\b[^>]*?(\/?)>/';
+    private const VOID_ELEMENTS = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr'];
 
     /** @var array<string, true> */
     private array $skipped_blocks;
@@ -85,6 +87,45 @@ final class Segmenter
         $text = (string) preg_replace('/\[[^\]]*\]/', '', strip_tags($html));
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         return preg_match('/[\p{L}\p{N}]/u', $text) === 1;
+    }
+
+    /**
+     * A translation may reorder inline tags but must keep the same tags and
+     * nest them correctly, or the block editor reports the block as invalid.
+     */
+    public static function same_markup(string $source, string $translated): bool
+    {
+        [$source_tags, $source_balanced] = self::tags($source);
+        [$translated_tags, $translated_balanced] = self::tags($translated);
+        sort($source_tags);
+        sort($translated_tags);
+        // Classic-editor chunks split on blank lines can be unbalanced in the source itself.
+        return $source_tags === $translated_tags && ($translated_balanced || !$source_balanced);
+    }
+
+    /**
+     * @return array{0: string[], 1: bool} Tag tokens such as `strong` and `/strong`, and whether they nest correctly.
+     */
+    private static function tags(string $html): array
+    {
+        preg_match_all(self::TAG, $html, $matches, PREG_SET_ORDER);
+        $tokens = [];
+        $open = [];
+        $balanced = true;
+        foreach ($matches as $match) {
+            $name = strtolower($match[2]);
+            $is_closing = $match[1] === '/';
+            $tokens[] = ($is_closing ? '/' : '') . $name;
+            if ($match[3] === '/' || in_array($name, self::VOID_ELEMENTS, true)) {
+                continue;
+            }
+            if (!$is_closing) {
+                $open[] = $name;
+            } elseif (array_pop($open) !== $name) {
+                $balanced = false;
+            }
+        }
+        return [$tokens, $balanced && $open === []];
     }
 
     /**

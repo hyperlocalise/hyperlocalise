@@ -31,6 +31,7 @@ final class Panel
             'waiting_for_review' => __('Ready (waiting for review)', 'hyperlocalise'),
             'failed' => __('Failed', 'hyperlocalise'),
             'cancelled' => __('Cancelled', 'hyperlocalise'),
+            TranslationService::STATUS_DETACHED => __('Sent from another site', 'hyperlocalise'),
         ];
         return $labels[$status] ?? $status;
     }
@@ -63,9 +64,14 @@ final class Panel
         }
 
         $job = $this->service->job($post->ID);
-        $this->render_job($post, $job);
+        $stale = $job !== null && $this->service->is_stale($post, $job);
+        $this->render_job($job, $stale);
         $this->render_languages($post, $context['targets'], $job);
-        $this->render_actions($job);
+        if (TranslationService::can_create_translations($post->post_type)) {
+            $this->render_actions($job, $stale);
+        } else {
+            $this->notice(__('You need permission to create posts of this type to translate it.', 'hyperlocalise'));
+        }
 
         return (string) ob_get_clean();
     }
@@ -73,7 +79,7 @@ final class Panel
     /**
      * @param array<string, mixed>|null $job
      */
-    private function render_job(WP_Post $post, ?array $job): void
+    private function render_job(?array $job, bool $stale): void
     {
         if ($job === null) {
             $this->notice(__('Not sent to Hyperlocalise yet.', 'hyperlocalise'));
@@ -98,7 +104,14 @@ final class Panel
             $this->notice((string) $job['last_error'], 'error');
         }
 
-        if (!empty($job['source_hash']) && $this->service->source_hash($post) !== $job['source_hash']) {
+        if ($status === TranslationService::STATUS_WAITING_FOR_REVIEW && !$stale) {
+            $this->notice(
+                __('Translations are waiting for review in Hyperlocalise. Saving now uses unreviewed text.', 'hyperlocalise'),
+                'warning'
+            );
+        }
+
+        if ($stale) {
             $this->notice(
                 __('The post changed since it was sent. Send it again to translate the new text.', 'hyperlocalise'),
                 'warning'
@@ -158,10 +171,10 @@ final class Panel
     /**
      * @param array<string, mixed>|null $job
      */
-    private function render_actions(?array $job): void
+    private function render_actions(?array $job, bool $stale): void
     {
         $pending = TranslationService::is_pending($job);
-        $ready = TranslationService::is_ready($job);
+        $ready = TranslationService::is_ready($job) && !$stale;
 
         echo '<div class="hyperlocalise-panel__actions">';
         $this->button('send', $job === null ? __('Send for translation', 'hyperlocalise') : __('Send again', 'hyperlocalise'), !$pending, !$ready);

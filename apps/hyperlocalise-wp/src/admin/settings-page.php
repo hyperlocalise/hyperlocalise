@@ -146,20 +146,20 @@ final class SettingsPage
                         </td>
                     </tr>
                     <tr>
-                        <th scope="row"><?php esc_html_e('Published translations', 'hyperlocalise'); ?></th>
+                        <th scope="row"><?php esc_html_e('Existing translations', 'hyperlocalise'); ?></th>
                         <td>
                             <fieldset>
-                                <label><input type="radio" name="<?php echo esc_attr($name); ?>[published_translations]" value="<?php echo esc_attr(Settings::PUBLISHED_SKIP); ?>" <?php checked($values['published_translations'], Settings::PUBLISHED_SKIP); ?>> <?php esc_html_e('Keep published translations unchanged', 'hyperlocalise'); ?></label><br>
-                                <label><input type="radio" name="<?php echo esc_attr($name); ?>[published_translations]" value="<?php echo esc_attr(Settings::PUBLISHED_UPDATE); ?>" <?php checked($values['published_translations'], Settings::PUBLISHED_UPDATE); ?>> <?php esc_html_e('Overwrite published translations', 'hyperlocalise'); ?></label>
+                                <label><input type="radio" name="<?php echo esc_attr($name); ?>[published_translations]" value="<?php echo esc_attr(Settings::PUBLISHED_SKIP); ?>" <?php checked($values['published_translations'], Settings::PUBLISHED_SKIP); ?>> <?php esc_html_e('Keep published and hand-edited translations unchanged', 'hyperlocalise'); ?></label><br>
+                                <label><input type="radio" name="<?php echo esc_attr($name); ?>[published_translations]" value="<?php echo esc_attr(Settings::PUBLISHED_UPDATE); ?>" <?php checked($values['published_translations'], Settings::PUBLISHED_UPDATE); ?>> <?php esc_html_e('Overwrite all existing translations', 'hyperlocalise'); ?></label>
                             </fieldset>
-                            <p class="description"><?php esc_html_e('New translations are always created as drafts.', 'hyperlocalise'); ?></p>
+                            <p class="description"><?php esc_html_e('New translations are always created as drafts. Drafts are updated only if nobody edited them since Hyperlocalise last saved them.', 'hyperlocalise'); ?></p>
                         </td>
                     </tr>
                     <tr>
                         <th scope="row"><?php esc_html_e('Automatic saving', 'hyperlocalise'); ?></th>
                         <td>
                             <label><input type="checkbox" name="<?php echo esc_attr($name); ?>[auto_apply]" value="1" <?php checked((bool) $values['auto_apply']); ?>> <?php esc_html_e('Save translations when a job finishes', 'hyperlocalise'); ?></label>
-                            <p class="description"><?php esc_html_e('WP-Cron checks running jobs every five minutes.', 'hyperlocalise'); ?></p>
+                            <p class="description"><?php esc_html_e('WP-Cron checks running jobs every five minutes. Jobs waiting for review are saved only when an editor selects Save translations.', 'hyperlocalise'); ?></p>
                         </td>
                     </tr>
                 </table>

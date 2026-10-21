@@ -7,7 +7,7 @@ Hyperlocalise does not store languages or translation relationships itself. The 
 ## How it works
 
 1. An editor selects **Send for translation** in the Hyperlocalise box on the post screen, or the **Send to Hyperlocalise** bulk action on the posts list.
-2. The plugin builds one flat JSON source file per post and uploads it to the project with `POST /api/v1/files`. The file is stored at `wordpress/{site-host}/{post-type}/{post-id}.json`.
+2. The plugin builds one flat JSON source file per post and uploads it to the project with `POST /api/v1/files`. The file is stored at `wordpress/{site}/{post-type}/{post-id}.json`, where `{site}` is the home URL's host and path, such as `example-com-fr` for `https://example.com/fr/`. Subdirectory multisites and several installs on one host therefore stay separate within a shared project.
 3. It creates a file job with `POST /api/v1/jobs`. The job targets every site language that maps to a project target locale.
 4. WP-Cron checks running jobs every five minutes through `GET https://api.hyperlocalise.com/v1/jobs/{id}/status`. Editors can also select **Check status**.
 5. When the job is ready, the plugin downloads each locale with `GET /api/v1/projects/{id}/translations/download`. It writes the result into the multilingual plugin's translation of the post.
@@ -15,9 +15,16 @@ Hyperlocalise does not store languages or translation relationships itself. The 
 Write-back rules:
 
 - New translations are created as **drafts** and linked to the source post.
-- Existing draft or pending translations are updated.
-- Published translations are kept unchanged unless **Overwrite published translations** is enabled.
+- An existing draft or pending translation is updated only if its title, excerpt, and content are unchanged since Hyperlocalise last saved it.
+- Published translations, hand-edited translations, and translations created outside Hyperlocalise are kept unchanged unless **Overwrite all existing translations** is selected.
+- Text the download returns unchanged from the source counts as untranslated. Languages with no translated text are skipped. Partly translated languages are saved, and the panel reports how many segments stayed in the source language.
+- A translated segment whose HTML tags differ from the source, by adding, dropping, or misnesting tags, is replaced with the source text, so blocks stay valid.
+- Cron saves jobs automatically only when they succeed. Jobs waiting for review are saved only when an editor selects **Save translations**.
+- Only one save runs per post at a time.
+- Each job records the site that sent it. A job copied to another site, such as a staging clone, is marked **Sent from another site** and never polled or saved there.
 - The featured image and page template are copied when a translation is created.
+- If the source post changed after it was sent, the translations are not saved. Segment keys follow block position, so the editor must send the post again.
+- Sending and saving need permission to edit the source post and to create posts of its type (`create_posts`).
 
 ### What gets translated
 
