@@ -118,6 +118,10 @@ export type WorkspaceAutomationFormState = {
   zernioConnectionId: string;
   ahrefsEnabled: boolean;
   intercomEnabled: boolean;
+  googleDriveEnabled: boolean;
+  googleDriveFolderIds: string[];
+  googleDriveTargetLocales: string[];
+  googleDriveIncludeTranslatedFiles: boolean;
   sanityEnabled: boolean;
   sanityProjectId: string;
   sanityDataset: string;
@@ -166,6 +170,7 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
   }
   if (
     form.intercomEnabled ||
+    form.googleDriveEnabled ||
     form.sanityEnabled ||
     form.brazeEnabled ||
     form.brazeCampaignsEnabled
@@ -206,6 +211,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "intercom"
     | "intercomHelpCenterId"
     | "intercomSourceLocale"
+    | "googleDrive"
     | "sanity"
     | "sanityProjectId"
     | "sanityDataset"
@@ -401,6 +407,10 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     zernioConnectionId: "",
     ahrefsEnabled: false,
     intercomEnabled: false,
+    googleDriveEnabled: false,
+    googleDriveFolderIds: [],
+    googleDriveTargetLocales: [],
+    googleDriveIncludeTranslatedFiles: false,
     sanityEnabled: false,
     sanityProjectId: "",
     sanityDataset: "",
@@ -460,6 +470,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const zernio = automation.toolConfig.zernio;
   const ahrefs = automation.toolConfig.ahrefs;
   const intercom = automation.toolConfig.intercom;
+  const googleDrive = automation.toolConfig.googleDrive;
   const sanity = automation.toolConfig.sanity;
   const braze = automation.toolConfig.braze;
   const brazeCampaigns = automation.toolConfig.brazeCampaigns;
@@ -549,6 +560,10 @@ export function createWorkspaceAutomationFormStateFromRecord(
     zernioConnectionId: zernio?.connectionId ?? "",
     ahrefsEnabled: Boolean(ahrefs?.enabled),
     intercomEnabled: Boolean(intercom?.enabled),
+    googleDriveEnabled: Boolean(googleDrive?.enabled),
+    googleDriveFolderIds: googleDrive?.folderIds ? [...googleDrive.folderIds] : [],
+    googleDriveTargetLocales: googleDrive?.targetLocales ? [...googleDrive.targetLocales] : [],
+    googleDriveIncludeTranslatedFiles: Boolean(googleDrive?.includeTranslatedFiles),
     sanityEnabled: Boolean(sanity?.enabled),
     sanityProjectId: sanity?.projectId ?? "",
     sanityDataset: sanity?.dataset ?? "",
@@ -863,6 +878,18 @@ export function formStateToWorkspaceAutomationPayload(
           },
         }
       : {}),
+    ...(form.googleDriveEnabled
+      ? {
+          googleDrive: {
+            enabled: true,
+            folderIds: form.googleDriveFolderIds,
+            fileIds: [],
+            targetLocales: form.googleDriveTargetLocales,
+            includeTranslatedFiles: form.googleDriveIncludeTranslatedFiles,
+            existingTranslationPolicy: "seed_empty",
+          },
+        }
+      : {}),
     ...(form.sanityEnabled
       ? {
           sanity: {
@@ -1120,6 +1147,10 @@ export function validateWorkspaceAutomationFormState(
     if (form.intercomHelpCenterLocales.length === 0 && form.intercomTargetLocales.length === 0) {
       errors.intercomHelpCenterId = "Load Help Center locales before saving.";
     }
+  }
+
+  if (form.googleDriveEnabled && form.googleDriveFolderIds.length === 0) {
+    errors.googleDrive = "Choose at least one connected Google Drive folder.";
   }
 
   if (form.sanityEnabled) {
@@ -1402,6 +1433,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.githubCommentEnabled ||
     form.contentfulEnabled ||
     form.intercomEnabled ||
+    form.googleDriveEnabled ||
     form.sanityEnabled ||
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||

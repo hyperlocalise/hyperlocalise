@@ -1093,6 +1093,13 @@
       "when": 1792546654843,
       "tag": "0155_productive_stepford_cuckoos",
       "breakpoints": true
+    },
+    {
+      "idx": 156,
+      "version": "7",
+      "when": 1792559488003,
+      "tag": "0156_fearless_mastermind",
+      "breakpoints": true
     }
   ]
 }

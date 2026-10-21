@@ -81,6 +81,7 @@ func NewDefaultStrategy() *Strategy {
 	parsers[".xlsx"] = XLSXParser{}
 	parsers[".docx"] = DOCXParser{}
 	parsers[".pptx"] = PPTXParser{}
+	parsers[".txt"] = PlainTextParser{}
 
 	for _, ext := range JSTSLocaleModuleExts {
 		parsers[ext] = JSTSLocaleModuleParser{}

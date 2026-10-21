@@ -244,6 +244,23 @@ describe("workspace automation view model", () => {
     expect(state.webSearchProvider).toBe("exa");
   });
 
+  it("prefills the Google Drive files template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "translate-google-drive-files",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Translate Google Drive files",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      googleDriveEnabled: true,
+      createNativeTmsJobEnabled: true,
+      assignTranslateWithAgentEnabled: true,
+    });
+    expect(form?.skillIds).toEqual(["translate-google-drive-files"]);
+  });
+
   it("prefills the Sanity documents template", () => {
     const form = createWorkspaceAutomationFormStateFromTemplate(
       "translate-sanity-documents",

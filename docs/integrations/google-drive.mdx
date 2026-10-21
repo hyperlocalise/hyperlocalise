@@ -1,0 +1,48 @@
+---
+title: Google Drive
+description: Connect Google Drive, manage folders, and sync translatable files through workspace automations.
+---
+
+# Google Drive
+
+Connect Google Drive with WorkOS Pipes, choose folders on the Integrations page, and use a workspace automation to import supported files into a Hyperlocalise project. Translations are written back under per-locale subfolders as `[locale] Filename.ext`.
+
+## Setup
+
+1. In **Integrations → Guidelines**, connect **Google Drive** (custom OAuth button; not the generic Pipes widget).
+2. After connecting, use **Add folders** to select My Drive or Shared Drive folders. You can add or remove folders anytime.
+3. Create or edit a workspace automation with the **Translate Google Drive files** skill, attach a native project, and select the connected folders.
+
+WorkOS must expose the Google Drive data integration with Drive API access for read and write. Restricted Google OAuth verification may be required for production.
+
+## Supported files
+
+| Source | Ingest format |
+| --- | --- |
+| Google Docs | DOCX |
+| Google Sheets | XLSX |
+| Google Slides | PPTX |
+| PDF | Markdown (text extraction via unpdf) |
+| Other supported project formats | Original extension (JSON, CSV, HTML, MD, DOCX, etc.) |
+
+## Write-back
+
+For each target locale (defaults to the project’s target locales), Hyperlocalise creates or updates:
+
+`ParentFolder/{locale}/[{locale}] OriginalName.ext`
+
+Google Docs, Sheets, and Slides are uploaded back as native Google file types when the source was a Google app file.
+
+## Known limitations
+
+- If Google Drive auto-converts an upload to a Google Doc, export returns DOCX and the original format (for example `.md`) cannot be recovered.
+- Google Apps Script, Drawings, Forms, and Sites are not translated.
+- Image, video, and audio files are skipped.
+- ZIP and other archive files are skipped.
+- PDF translations are Markdown text only; layout is not preserved.
+
+## Limits
+
+- **5,000** files shown in the Integrations folder browser (per folder listing).
+- **10** nested folder levels when walking connected folders.
+- **100 MB** maximum file size per file.

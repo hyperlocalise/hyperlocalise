@@ -53,6 +53,7 @@ export const WORKSPACE_AUTOMATION_INTEGRATION_NAMES: Record<
   contentful: "Contentful",
   intercom: "Intercom",
   sanity: "Sanity",
+  google_drive: "Google Drive",
   braze: "Braze",
   slack: "Slack",
   email: "an email provider (Resend or SendGrid)",

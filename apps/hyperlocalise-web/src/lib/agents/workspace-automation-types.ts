@@ -426,6 +426,27 @@ const sanityToolConfigSchema = z
     existingTranslationPolicy: "seed_empty",
   });
 
+const googleDriveToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    folderIds: z.array(z.string().uuid()).max(50).default([]),
+    fileIds: z.array(z.string().trim().min(1).max(128)).max(500).default([]),
+    targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
+    includeTranslatedFiles: z.boolean().default(false),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+  })
+  .default({
+    enabled: false,
+    folderIds: [],
+    fileIds: [],
+    targetLocales: [],
+    includeTranslatedFiles: false,
+    existingTranslationPolicy: "seed_empty",
+  });
+
 const intercomToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -532,6 +553,7 @@ const toolConfigObjectSchema = z
     ahrefs: ahrefsToolConfigSchema.optional(),
     gitlab: gitlabToolConfigSchema.optional(),
     intercom: intercomToolConfigSchema.optional(),
+    googleDrive: googleDriveToolConfigSchema.optional(),
     sanity: sanityToolConfigSchema.optional(),
     braze: brazeToolConfigSchema.optional(),
     brazeCampaigns: brazeCampaignsToolConfigSchema.optional(),
@@ -596,6 +618,7 @@ export type WorkspaceAutomationZernioToolConfig = z.infer<typeof zernioToolConfi
 export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
 export type WorkspaceAutomationGitlabToolConfig = z.infer<typeof gitlabToolConfigSchema>;
 export type WorkspaceAutomationIntercomToolConfig = z.infer<typeof intercomToolConfigSchema>;
+export type WorkspaceAutomationGoogleDriveToolConfig = z.infer<typeof googleDriveToolConfigSchema>;
 export type WorkspaceAutomationSanityToolConfig = z.infer<typeof sanityToolConfigSchema>;
 export type WorkspaceAutomationBrazeToolConfig = z.infer<typeof brazeToolConfigSchema>;
 export type WorkspaceAutomationBrazeCampaignsToolConfig = z.infer<
@@ -664,6 +687,26 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "intercom_source_locale_mismatch";
       message: "The Intercom source locale must be the same language as the project source locale.";
+    }
+  | {
+      code: "google_drive_not_connected";
+      message: "Connect Google Drive in Integrations before using it.";
+    }
+  | {
+      code: "google_drive_pipes_needs_reauthorization";
+      message: "Reconnect Google Drive in Integrations, then try again.";
+    }
+  | {
+      code: "google_drive_pipes_unavailable";
+      message: "WorkOS is not configured, so Google Drive cannot connect through Pipes.";
+    }
+  | {
+      code: "google_drive_folders_required";
+      message: "Choose at least one connected Google Drive folder for this automation.";
+    }
+  | {
+      code: "google_drive_target_locales_invalid";
+      message: "Target locales must be a subset of the project target locales.";
     }
   | {
       code: "sanity_not_connected";
@@ -975,6 +1018,10 @@ export function hasWorkspaceAutomationIntercomTool(toolConfig: WorkspaceAutomati
 
 export function hasWorkspaceAutomationSanityTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.sanity?.enabled);
+}
+
+export function hasWorkspaceAutomationGoogleDriveTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.googleDrive?.enabled);
 }
 
 export function hasWorkspaceAutomationBrazeTool(toolConfig: WorkspaceAutomationToolConfig) {

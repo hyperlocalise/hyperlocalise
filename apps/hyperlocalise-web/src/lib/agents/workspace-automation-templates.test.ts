@@ -66,6 +66,7 @@ describe("workspace automation templates", () => {
       "translate-on-source-upload",
       "translate-intercom-articles",
       "translate-sanity-documents",
+      "translate-google-drive-files",
       "translate-braze-email-templates",
       "translate-braze-campaigns",
       "translate-contentful-article",
@@ -123,6 +124,24 @@ describe("workspace automation templates", () => {
       trigger: { id: "scheduled", label: "Daily" },
       tools: [
         { id: "sanity", label: "Sanity" },
+        { id: "create-job", label: "Create job" },
+        { id: "translate-with-agent", label: "Translate with agent" },
+      ],
+    });
+  });
+
+  it("builds the Google Drive template flow with brand, create job, and translate tools", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "translate-google-drive-files",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+    expect(template).not.toBeNull();
+    expect(template?.category).toBe("popular");
+
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "scheduled", label: "Daily" },
+      tools: [
+        { id: "google-drive", label: "Google Drive" },
         { id: "create-job", label: "Create job" },
         { id: "translate-with-agent", label: "Translate with agent" },
       ],

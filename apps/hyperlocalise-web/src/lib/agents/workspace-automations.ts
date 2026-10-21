@@ -36,6 +36,10 @@ import {
 } from "@/lib/sanity/sanity-locale";
 import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/lib/email/pipes";
 import { getGitLabPipesConnectionStatus, resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
+import {
+  getGoogleDrivePipesConnectionStatus,
+  resolveGoogleDrivePipesWorkosUserId,
+} from "@/lib/google-drive/pipes";
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
 import { lockZernioConnectionForUpdate } from "@/lib/zernio/connections";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
@@ -856,6 +860,79 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
+  if (input.toolConfig.googleDrive?.enabled) {
+    const googleDrive = input.toolConfig.googleDrive;
+    const workosUserId = googleDrive.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "google_drive_not_connected",
+        message: "Connect Google Drive in Integrations before using it.",
+      });
+    }
+
+    const status = await getGoogleDrivePipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "google_drive_pipes_unavailable",
+        message: "WorkOS is not configured, so Google Drive cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "google_drive_pipes_needs_reauthorization",
+        message: "Reconnect Google Drive in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "google_drive_not_connected",
+        message: "Connect Google Drive in Integrations before using it.",
+      });
+    }
+
+    if (!googleDrive.folderIds.length) {
+      return err({
+        code: "google_drive_folders_required",
+        message: "Choose at least one connected Google Drive folder for this automation.",
+      });
+    }
+
+    const projectId = readOptionalProjectId(input.projectId);
+    if (projectId) {
+      const [project] = await database
+        .select({ targetLocales: schema.projects.targetLocales })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, input.organizationId),
+            eq(schema.projects.id, projectId),
+          ),
+        )
+        .limit(1);
+
+      if (project && googleDrive.targetLocales.length > 0) {
+        const projectTargets = Array.isArray(project.targetLocales)
+          ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
+          : [];
+        const allowed = new Set(projectTargets.map((locale) => locale.toLowerCase()));
+        const invalid = googleDrive.targetLocales.some(
+          (locale) => !allowed.has(locale.toLowerCase()),
+        );
+        if (invalid) {
+          return err({
+            code: "google_drive_target_locales_invalid",
+            message: "Target locales must be a subset of the project target locales.",
+          });
+        }
+      }
+    }
+  }
+
   if (input.toolConfig.sanity?.enabled) {
     const sanity = input.toolConfig.sanity;
     const workosUserId = sanity.workosUserId;
@@ -1364,6 +1441,22 @@ async function stampPipesUsersOnToolConfig(input: {
       ...toolConfig,
       sanity: {
         ...toolConfig.sanity,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.googleDrive?.enabled) {
+    const workosUserId = await resolveGoogleDrivePipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      googleDrive: {
+        ...toolConfig.googleDrive,
         enabled: true,
         ...(workosUserId ? { workosUserId } : {}),
       },

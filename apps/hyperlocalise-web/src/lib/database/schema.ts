@@ -29,6 +29,7 @@ export * from "./schema/ahrefs";
 export * from "./schema/braze";
 export * from "./schema/intercom";
 export * from "./schema/sanity";
+export * from "./schema/google-drive";
 export * from "./schema/sanity-plugin";
 export * from "./schema/canva";
 export * from "./schema/figma";

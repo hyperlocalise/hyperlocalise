@@ -31,6 +31,7 @@ const connectionsSchema = z.object({
   contentful: z.boolean().optional(),
   intercom: z.boolean().optional(),
   sanity: z.boolean().optional(),
+  google_drive: z.boolean().optional(),
   braze: z.boolean().optional(),
   slack: z.boolean().optional(),
   email: z.boolean().optional(),

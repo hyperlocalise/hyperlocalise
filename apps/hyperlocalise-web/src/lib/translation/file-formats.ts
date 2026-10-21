@@ -52,6 +52,7 @@ export const supportedTranslationFileFormats = [
   "xlsx",
   "xls",
   "pptx",
+  "txt",
 ] as const;
 
 export type SupportedTranslationFileFormat = (typeof supportedTranslationFileFormats)[number];
@@ -96,6 +97,7 @@ export const supportedFileTranslationFileFormats = [
   "xlsx",
   "xls",
   "pptx",
+  "txt",
 ] as const;
 
 export type SupportedFileTranslationFileFormat =
@@ -160,6 +162,7 @@ const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".xlsx": "xlsx",
   ".xls": "xls",
   ".pptx": "pptx",
+  ".txt": "txt",
 };
 
 export const supportedImageTranslationFileFormats = ["png", "jpeg", "webp"] as const;

@@ -32,6 +32,7 @@ import { createConversationRoutes } from "./routes/conversation/conversation.rou
 import { createCanvaConnectionRoutes } from "./routes/canva-connection/canva-connection.route";
 import { createFigmaConnectionRoutes } from "./routes/figma-connection/figma-connection.route";
 import { createSanityConnectionRoutes } from "./routes/sanity-connection/sanity-connection.route";
+import { createGoogleDriveRoutes } from "./routes/google-drive/google-drive.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
@@ -169,7 +170,8 @@ export function createOrgIntegrationsRoutes() {
     .route("/intercom-connections", createIntercomConnectionRoutes())
     .route("/canva-connections", createCanvaConnectionRoutes())
     .route("/figma-connections", createFigmaConnectionRoutes())
-    .route("/sanity-connections", createSanityConnectionRoutes());
+    .route("/sanity-connections", createSanityConnectionRoutes())
+    .route("/google-drive", createGoogleDriveRoutes());
 }
 
 export function createOrgAgentsRoutes() {

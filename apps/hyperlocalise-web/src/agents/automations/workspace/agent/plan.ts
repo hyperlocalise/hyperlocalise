@@ -23,6 +23,7 @@ import {
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationIntercomTool,
+  hasWorkspaceAutomationGoogleDriveTool,
   hasWorkspaceAutomationSanityTool,
   hasWorkspaceAutomationListIssuesTool,
   hasWorkspaceAutomationWebSearchTool,
@@ -41,6 +42,8 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "push_intercom_translations",
   "import_sanity_documents",
   "push_sanity_translations",
+  "import_google_drive_files",
+  "push_google_drive_translations",
   "import_braze_templates",
   "push_braze_templates",
   "import_braze_campaigns",
@@ -81,6 +84,8 @@ const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
   "push_intercom_translations",
   "import_sanity_documents",
   "push_sanity_translations",
+  "import_google_drive_files",
+  "push_google_drive_translations",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -123,6 +128,9 @@ function workflowToolEnabled(
     case "import_sanity_documents":
     case "push_sanity_translations":
       return hasWorkspaceAutomationSanityTool(toolConfig);
+    case "import_google_drive_files":
+    case "push_google_drive_translations":
+      return hasWorkspaceAutomationGoogleDriveTool(toolConfig);
     case "import_braze_templates":
     case "push_braze_templates":
       return hasWorkspaceAutomationBrazeTool(toolConfig);
@@ -246,6 +254,17 @@ export function buildWorkspaceOrchestratorPlan(
       notificationToolEnabled(tool, automation.toolConfig),
     );
     return { tools: [sanityTool, ...notificationTools] };
+  }
+
+  if (hasWorkspaceAutomationGoogleDriveTool(automation.toolConfig)) {
+    const googleDriveTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_google_drive_translations"
+        : "import_google_drive_files";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [googleDriveTool, ...notificationTools] };
   }
 
   if (hasWorkspaceAutomationBrazeCampaignsTool(automation.toolConfig)) {

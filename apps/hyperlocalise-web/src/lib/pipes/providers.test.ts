@@ -19,6 +19,7 @@ describe("pipes providers", () => {
     expect(isPipesProviderSlug("ahrefs")).toBe(true);
     expect(isPipesProviderSlug("braze")).toBe(true);
     expect(isPipesProviderSlug("intercom")).toBe(true);
+    expect(isPipesProviderSlug("google-drive")).toBe(true);
     expect(isPipesProviderSlug("unknown-provider")).toBe(false);
   });
 
@@ -32,7 +33,7 @@ describe("pipes providers", () => {
       expect.arrayContaining(["braze", "hubspot", "intercom", "mailchimp", "resend", "sendgrid"]),
     );
     expect(pipesProvidersForCategory("cms")).toEqual(expect.arrayContaining(["sanity", "webflow"]));
-    expect(pipesProvidersForCategory("guidelines")).toEqual(["notion"]);
+    expect(pipesProvidersForCategory("guidelines")).toEqual(["google-drive", "notion"]);
     expect(pipesProvidersForCategory("collaboration")).toEqual(["atlassian"]);
     expect(pipesProvidersForCategory("source-control")).toEqual(["gitlab"]);
   });
