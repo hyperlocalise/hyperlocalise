@@ -781,6 +781,17 @@ export type CrowdinPatchOperation = {
   value?: unknown;
 };
 
+export function crowdinTmSegmentReplaceTextOperation(
+  recordId: number,
+  text: string,
+): CrowdinPatchOperation {
+  return { op: "replace", path: `/records/${recordId}/text`, value: text };
+}
+
+export function crowdinTmSegmentRemoveRecordOperation(recordId: number): CrowdinPatchOperation {
+  return { op: "remove", path: `/records/${recordId}` };
+}
+
 export interface CrowdinTmConcordanceSearchRequest {
   sourceLanguageId: string;
   targetLanguageId: string;
@@ -2446,6 +2457,11 @@ export class CrowdinApiClient {
     return this.listPaginated<CrowdinTranslationMemory>("/tms");
   }
 
+  async getTranslationMemory(tmId: number): Promise<CrowdinTranslationMemory> {
+    const response = await this.get<CrowdinGetResponse<CrowdinTranslationMemory>>(`/tms/${tmId}`);
+    return response.data;
+  }
+
   async listTranslationMemorySegments(
     tmId: number,
     options?: {
@@ -2481,11 +2497,11 @@ export class CrowdinApiClient {
   async updateTranslationMemorySegment(
     tmId: number,
     segmentId: number,
-    records: Array<{ id: number; text: string }>,
+    operations: CrowdinPatchOperation[],
   ): Promise<CrowdinTranslationMemorySegment> {
     const response = await this.patch<CrowdinGetResponse<CrowdinTranslationMemorySegment>>(
       `/tms/${tmId}/segments/${segmentId}`,
-      { records },
+      operations,
     );
     return response.data;
   }

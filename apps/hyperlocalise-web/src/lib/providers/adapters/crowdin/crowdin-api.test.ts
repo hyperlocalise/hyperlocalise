@@ -30,6 +30,8 @@ import {
   CrowdinApiClient,
   CrowdinApiError,
   CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT,
+  crowdinTmSegmentRemoveRecordOperation,
+  crowdinTmSegmentReplaceTextOperation,
   extractCrowdinApiErrorSummary,
 } from "./crowdin-api";
 
@@ -1667,6 +1669,76 @@ describe("CrowdinApiClient", () => {
     expect(glossaries[0]?.projectIds).toEqual([42]);
     expect(memories).toHaveLength(1);
     expect(memories[0]?.segmentsCount).toBe(100);
+  });
+
+  it("loads a translation memory and patches a segment with RFC 6902 operations", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+      if (path.endsWith("/tms/9") && (!init || init.method === "GET")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 9,
+              name: "Product TM",
+              description: null,
+              languageId: "en",
+              languageIds: ["en", "fr"],
+              segmentsCount: 100,
+              projectIds: [42],
+              defaultProjectIds: [],
+              webUrl: "https://crowdin.com/tm/9",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.endsWith("/tms/9/segments/4") && init?.method === "PATCH") {
+        expect(JSON.parse(String(init.body))).toEqual([
+          { op: "replace", path: "/records/12/text", value: "Bonjour !" },
+          { op: "remove", path: "/records/13" },
+        ]);
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 4,
+              records: [{ id: 12, languageId: "fr", text: "Bonjour !" }],
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(null, { status: 204 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await expect(client.getTranslationMemory(9)).resolves.toMatchObject({
+      id: 9,
+      projectIds: [42],
+    });
+    await expect(
+      client.updateTranslationMemorySegment(9, 4, [
+        { op: "replace", path: "/records/12/text", value: "Bonjour !" },
+        { op: "remove", path: "/records/13" },
+      ]),
+    ).resolves.toMatchObject({
+      id: 4,
+      records: [{ id: 12, languageId: "fr", text: "Bonjour !" }],
+    });
+    await expect(client.deleteTranslationMemorySegment(9, 4)).resolves.toBeUndefined();
+  });
+
+  it("builds Crowdin TM segment JSON Patch operations", () => {
+    expect(crowdinTmSegmentReplaceTextOperation(12, "Bonjour !")).toEqual({
+      op: "replace",
+      path: "/records/12/text",
+      value: "Bonjour !",
+    });
+    expect(crowdinTmSegmentRemoveRecordOperation(13)).toEqual({
+      op: "remove",
+      path: "/records/13",
+    });
   });
 
   it("passes glossary pagination, ordering, user, and filter parameters", async () => {

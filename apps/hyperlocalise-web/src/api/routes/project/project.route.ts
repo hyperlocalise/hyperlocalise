@@ -1912,8 +1912,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId: c.var.auth.organization.localOrganizationId,
             actorUserId: c.var.auth.user.localUserId,
             sourceLocale: query.sourceLocale,
+            externalProjectId: target.externalProjectId,
             ref: {
               providerKind: "crowdin",
+              resourceId: query.resourceId,
               externalResourceId: query.externalResourceId,
               externalSegmentId: query.externalSegmentId,
             },
@@ -1955,8 +1957,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId: c.var.auth.organization.localOrganizationId,
             actorUserId: c.var.auth.user.localUserId,
             sourceLocale: body.sourceLocale,
+            externalProjectId: target.externalProjectId,
             ref: {
               providerKind: "crowdin",
+              resourceId: body.resourceId,
               externalResourceId: body.externalResourceId,
               externalSegmentId: body.externalSegmentId,
             },
@@ -2000,8 +2004,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId: c.var.auth.organization.localOrganizationId,
             actorUserId: c.var.auth.user.localUserId,
             sourceLocale: query.sourceLocale,
+            externalProjectId: target.externalProjectId,
             ref: {
               providerKind: "crowdin",
+              resourceId: query.resourceId,
               externalResourceId: query.externalResourceId,
               externalSegmentId: query.externalSegmentId,
             },
