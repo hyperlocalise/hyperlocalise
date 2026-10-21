@@ -39,6 +39,7 @@ import {
   inferSupportedTranslationFileFormat,
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
+import type { GenerationTrigger } from "@/lib/translation/generation-provenance";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 import { nativeFileJobSourceDisplayFields } from "./native-job-source-file-display";
@@ -92,6 +93,8 @@ export type EnqueueExistingFileTranslationJobInput = {
   organizationId: string;
   jobId: string;
   jobQueue: JobQueue<TranslationJobEventData>;
+  /** Who started the translation, kept in the job's generation provenance. */
+  trigger?: GenerationTrigger;
 };
 
 export type EnqueueExistingFileTranslationJobResult =
@@ -484,6 +487,7 @@ export async function enqueueExistingFileTranslationJob(
     .set({
       assigneeType: "agent",
       ownerUserId: null,
+      ...(input.trigger ? { generationProvenance: { trigger: input.trigger } } : {}),
       updatedAt: new Date(),
     })
     .where(and(eq(schema.jobs.id, job.id), eq(schema.jobs.organizationId, input.organizationId)));

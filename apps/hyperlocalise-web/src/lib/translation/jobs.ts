@@ -33,6 +33,8 @@ import {
 } from "@/lib/providers/capabilities/match-resolution";
 import { TranslationContextBuilder } from "@/lib/translation/context";
 import { OrganizationModelResolver } from "@/lib/translation/generation";
+import { generationModelFromGatewayId } from "@/lib/translation/generation-provenance";
+import { recordJobGenerationProvenance } from "@/lib/translation/generation-provenance-store";
 import type {
   StringTranslationGenerator,
   StringTranslationJobResult,
@@ -361,6 +363,15 @@ class TranslationJobExecutor {
         message: organizationGenerator.message,
       };
     }
+
+    await recordJobGenerationProvenance(claimedJob.id, {
+      model: generationModelFromGatewayId(
+        organizationGenerator.modelId,
+        organizationGenerator.credentialSource,
+      ),
+      ...contextResult.use,
+      customInstructions: Boolean(parsedInput.data.context?.trim()),
+    });
 
     const result = await organizationGenerator.translateStringJob(
       contextResult.context.toStringTranslationInput(

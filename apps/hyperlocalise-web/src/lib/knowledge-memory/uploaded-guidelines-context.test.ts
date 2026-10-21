@@ -23,8 +23,22 @@ import {
 
 const result: GuidelineRetrieveResult = {
   documents: [
-    { id: "doc:french", title: "French style", locale: "fr-FR", mandatory: false },
-    { id: "doc:brand", title: "Brand guide", mandatory: true, content: "Never translate Acme." },
+    {
+      id: "doc:french",
+      revisionId: "rev:french",
+      version: 1,
+      title: "French style",
+      locale: "fr-FR",
+      mandatory: false,
+    },
+    {
+      id: "doc:brand",
+      revisionId: "rev:brand",
+      version: 1,
+      title: "Brand guide",
+      mandatory: true,
+      content: "Never translate Acme.",
+    },
   ],
   passages: [
     { id: "p1", documentId: "doc:french", text: "Use vous." },
@@ -40,6 +54,7 @@ describe("formatUploadedGuidelines", () => {
         "### Brand guide\nNever translate Acme.",
         "### French style (fr-FR only)\nUse vous.\n\nKeep sentences short.",
       ].join("\n\n"),
+      includedDocumentIds: ["doc:brand", "doc:french"],
       omittedMandatoryDocumentIds: [],
     });
   });
@@ -47,8 +62,20 @@ describe("formatUploadedGuidelines", () => {
   it("truncates passages to the budget and drops sections that no longer fit", () => {
     const long: GuidelineRetrieveResult = {
       documents: [
-        { id: "doc:french", title: "French style", mandatory: false },
-        { id: "doc:german", title: "German style", mandatory: false },
+        {
+          id: "doc:french",
+          revisionId: "rev:french",
+          version: 1,
+          title: "French style",
+          mandatory: false,
+        },
+        {
+          id: "doc:german",
+          revisionId: "rev:german",
+          version: 1,
+          title: "German style",
+          mandatory: false,
+        },
       ],
       passages: [
         { id: "p1", documentId: "doc:french", text: "a".repeat(1_000) },
@@ -67,7 +94,14 @@ describe("formatUploadedGuidelines", () => {
     const oversized: GuidelineRetrieveResult = {
       ...result,
       documents: [
-        { id: "doc:huge", title: "Huge rules", mandatory: true, content: "a".repeat(1_000) },
+        {
+          id: "doc:huge",
+          revisionId: "rev:huge",
+          version: 1,
+          title: "Huge rules",
+          mandatory: true,
+          content: "a".repeat(1_000),
+        },
         ...result.documents,
       ],
     };
@@ -84,8 +118,22 @@ describe("formatUploadedGuidelines", () => {
   it("reports every mandatory document left out of a set that does not fit together", () => {
     const set: GuidelineRetrieveResult = {
       documents: [
-        { id: "doc:one", title: "One", mandatory: true, content: "a".repeat(300) },
-        { id: "doc:two", title: "Two", mandatory: true, content: "b".repeat(300) },
+        {
+          id: "doc:one",
+          revisionId: "rev:one",
+          version: 1,
+          title: "One",
+          mandatory: true,
+          content: "a".repeat(300),
+        },
+        {
+          id: "doc:two",
+          revisionId: "rev:two",
+          version: 1,
+          title: "Two",
+          mandatory: true,
+          content: "b".repeat(300),
+        },
       ],
       passages: [],
       searchAvailable: true,
@@ -100,11 +148,19 @@ describe("formatUploadedGuidelines", () => {
   it("skips documents without text", () => {
     expect(
       formatUploadedGuidelines({
-        documents: [{ id: "doc:empty", title: "Empty", mandatory: false }],
+        documents: [
+          {
+            id: "doc:empty",
+            revisionId: "rev:empty",
+            version: 1,
+            title: "Empty",
+            mandatory: false,
+          },
+        ],
         passages: [],
         searchAvailable: false,
       }),
-    ).toEqual({ text: "", omittedMandatoryDocumentIds: [] });
+    ).toEqual({ text: "", includedDocumentIds: [], omittedMandatoryDocumentIds: [] });
   });
 });
 
@@ -118,9 +174,25 @@ describe("loadUploadedGuidelinesContext", () => {
 
   it("retrieves per target locale and formats the result", async () => {
     const retrieve = vi.fn(async () => result);
-    await expect(loadUploadedGuidelinesContext(input, retrieve)).resolves.toContain(
-      "Never translate Acme.",
-    );
+    const context = await loadUploadedGuidelinesContext(input, retrieve);
+    expect(context.text).toContain("Never translate Acme.");
+    expect(context.documents).toEqual([
+      {
+        documentId: "doc:brand",
+        revisionId: "rev:brand",
+        version: 1,
+        title: "Brand guide",
+        mandatory: true,
+      },
+      {
+        documentId: "doc:french",
+        revisionId: "rev:french",
+        version: 1,
+        title: "French style",
+        mandatory: false,
+        locale: "fr-FR",
+      },
+    ]);
     expect(retrieve).toHaveBeenCalledWith(
       "org",
       { projectId: "project", locales: ["fr-FR"], query: "Acme checkout", limit: 8 },
@@ -147,13 +219,23 @@ describe("loadUploadedGuidelinesContext", () => {
     const retrieve = vi.fn(async () => ({
       ...result,
       documents: [
-        { id: "doc:huge", title: "Huge", mandatory: true, content: "a".repeat(10_000) },
+        {
+          id: "doc:huge",
+          revisionId: "rev:huge",
+          version: 1,
+          title: "Huge",
+          mandatory: true,
+          content: "a".repeat(10_000),
+        },
         ...result.documents,
       ],
     }));
     const context = await loadUploadedGuidelinesContext(input, retrieve);
-    expect(context).toContain("Never translate Acme.");
-    expect(context).toContain("did not fit the context budget");
+    expect(context.text).toContain("Never translate Acme.");
+    expect(context.text).toContain("did not fit the context budget");
+    expect(context.documents).toContainEqual(
+      expect.objectContaining({ documentId: "doc:huge", omitted: true }),
+    );
     expect(warn).toHaveBeenCalledWith(
       "[translation-context] mandatory uploaded guidelines exceed context budget",
       expect.objectContaining({ omittedDocumentIds: ["doc:huge"] }),
@@ -170,7 +252,10 @@ describe("loadUploadedGuidelinesContext", () => {
         status: 503,
       });
     });
-    await expect(loadUploadedGuidelinesContext(input, retrieve)).resolves.toBe("");
+    await expect(loadUploadedGuidelinesContext(input, retrieve)).resolves.toEqual({
+      text: "",
+      documents: [],
+    });
     expect(warn).toHaveBeenCalledWith(
       "[translation-context] uploaded guideline retrieval failed",
       expect.objectContaining({ code: "guideline_retrieve_failed", status: 503 }),

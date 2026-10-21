@@ -75,6 +75,7 @@ export type SandboxTranslationContext = {
   projectName?: string | null;
   projectTranslationContext?: string | null;
   jobContext?: string | null;
+  knowledgeMemory?: string | null;
   glossaryTerms?: Array<{
     sourceTerm: string;
     targetTerm: string;

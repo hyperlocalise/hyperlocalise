@@ -23,7 +23,17 @@ import {
   getKnowledgeMemoryForProject,
 } from "@/lib/knowledge-memory/knowledge-memory";
 import { selectKnowledgeMemoryContext } from "@/lib/knowledge-memory/knowledge-memory-selection";
+import type { KnowledgeMemoryRecord } from "@/lib/knowledge-memory/knowledge-memory.types";
 import { loadUploadedGuidelinesContext } from "@/lib/knowledge-memory/uploaded-guidelines-context";
+import {
+  NO_GUIDELINES_USED,
+  glossaryUses,
+  translationMemoryUses,
+  type GlossaryUse,
+  type GuidelinesUsed,
+  type TranslationMemoryUse,
+  type TypedGuidelineUse,
+} from "@/lib/translation/generation-provenance";
 import {
   TranslationContext,
   toContextGlossaryMatch,
@@ -56,6 +66,88 @@ async function loadProjectForContext(
 
   return project ?? null;
 }
+
+export type TranslationGuidelines = {
+  /** Guideline text for the prompt; empty when no guideline applies. */
+  text: string;
+  used: GuidelinesUsed;
+};
+
+const NO_TRANSLATION_GUIDELINES: TranslationGuidelines = { text: "", used: NO_GUIDELINES_USED };
+
+function typedGuidelineUse(
+  memory: KnowledgeMemoryRecord,
+  selectedText: string,
+): TypedGuidelineUse | undefined {
+  if (!memory.revisionId || !selectedText.trim()) return undefined;
+  return { revisionId: memory.revisionId, version: memory.version };
+}
+
+/**
+ * Selects the project, workspace and uploaded guidelines for a translation and records which of
+ * them reached the prompt.
+ */
+export async function loadTranslationGuidelines(input: {
+  project: Pick<
+    TranslationContextProjectRecord,
+    "id" | "name" | "organizationId" | "translationContext"
+  >;
+  sourceLocale: string;
+  targetLocales: string[];
+  sourceText: string;
+  context?: string | null;
+  metadata?: Record<string, string>;
+}): Promise<TranslationGuidelines> {
+  const [projectMemory, organizationMemory, uploadedGuidelines] = await Promise.all([
+    getKnowledgeMemoryForProject(input.project.id),
+    getKnowledgeMemoryForOrganization(input.project.organizationId),
+    loadUploadedGuidelinesContext({
+      organizationId: input.project.organizationId,
+      projectId: input.project.id,
+      targetLocales: input.targetLocales,
+      sourceText: input.sourceText,
+    }),
+  ]);
+  const selectionInput = {
+    sourceLocale: input.sourceLocale,
+    targetLocales: input.targetLocales,
+    sourceText: input.sourceText,
+    context: input.context ?? undefined,
+    metadata: input.metadata,
+    projectName: input.project.name,
+    projectTranslationContext: input.project.translationContext,
+  };
+  const projectGuideline = selectKnowledgeMemoryContext({
+    ...selectionInput,
+    content: projectMemory.content,
+  }).compactText;
+  const workspaceGuideline = selectKnowledgeMemoryContext({
+    ...selectionInput,
+    content: organizationMemory.content,
+  }).compactText;
+  const project = typedGuidelineUse(projectMemory, projectGuideline);
+  const workspace = typedGuidelineUse(organizationMemory, workspaceGuideline);
+
+  return {
+    text: composeScopedKnowledgeMemory({
+      projectGuideline,
+      workspaceGuideline,
+      uploadedGuidelines: uploadedGuidelines.text,
+    }),
+    used: {
+      ...(project ? { project } : {}),
+      ...(workspace ? { workspace } : {}),
+      documents: uploadedGuidelines.documents,
+    },
+  };
+}
+
+/** What a built context contributed to the prompt, for generation provenance. */
+export type TranslationContextUse = {
+  guidelines: GuidelinesUsed;
+  glossaries: GlossaryUse[];
+  translationMemories: TranslationMemoryUse[];
+};
 
 export class TranslationContextBuilder {
   private readonly glossaryService = new GlossaryConcordanceService();
@@ -92,44 +184,20 @@ export class TranslationContextBuilder {
 
     const providerKind = options?.providerKind ?? project.externalProviderKind ?? undefined;
 
-    const knowledgeMemoryPromise =
+    const guidelinesPromise =
       options?.knowledgeMemoryEnabled === true
-        ? Promise.all([
-            getKnowledgeMemoryForProject(project.id),
-            getKnowledgeMemoryForOrganization(project.organizationId),
-            loadUploadedGuidelinesContext({
-              organizationId: project.organizationId,
-              projectId: project.id,
-              targetLocales: jobInput.targetLocales,
-              sourceText: jobInput.sourceText,
-            }),
-          ]).then(([projectMemory, organizationMemory, uploadedGuidelines]) => {
-            const selectionInput = {
-              sourceLocale: jobInput.sourceLocale,
-              targetLocales: jobInput.targetLocales,
-              sourceText: jobInput.sourceText,
-              context: jobInput.context,
-              metadata: jobInput.metadata,
-              projectName: project.name,
-              projectTranslationContext: project.translationContext,
-            };
-
-            return composeScopedKnowledgeMemory({
-              projectGuideline: selectKnowledgeMemoryContext({
-                ...selectionInput,
-                content: projectMemory.content,
-              }).compactText,
-              workspaceGuideline: selectKnowledgeMemoryContext({
-                ...selectionInput,
-                content: organizationMemory.content,
-              }).compactText,
-              uploadedGuidelines,
-            });
+        ? loadTranslationGuidelines({
+            project,
+            sourceLocale: jobInput.sourceLocale,
+            targetLocales: jobInput.targetLocales,
+            sourceText: jobInput.sourceText,
+            context: jobInput.context,
+            metadata: jobInput.metadata,
           })
-        : Promise.resolve("");
+        : Promise.resolve(NO_TRANSLATION_GUIDELINES);
 
     if (options?.skipConcordance) {
-      const knowledgeMemory = await knowledgeMemoryPromise;
+      const guidelines = await guidelinesPromise;
 
       return {
         ok: true as const,
@@ -141,15 +209,20 @@ export class TranslationContextBuilder {
             translationContext: project.translationContext,
           },
           jobInput,
-          knowledgeMemory || null,
+          guidelines.text || null,
           [],
           [],
         ),
+        use: {
+          guidelines: guidelines.used,
+          glossaries: [],
+          translationMemories: [],
+        } satisfies TranslationContextUse,
       };
     }
 
-    const [knowledgeMemory, glossaryTerms, translationMemoryMatches] = await Promise.all([
-      knowledgeMemoryPromise,
+    const [guidelines, glossaryTerms, translationMemoryMatches] = await Promise.all([
+      guidelinesPromise,
       this.glossaryService
         .searchForContext({
           projectId,
@@ -191,10 +264,15 @@ export class TranslationContextBuilder {
           translationContext: project.translationContext,
         },
         jobInput,
-        knowledgeMemory || null,
+        guidelines.text || null,
         glossaryTerms,
         translationMemoryMatches,
       ),
+      use: {
+        guidelines: guidelines.used,
+        glossaries: glossaryUses(glossaryTerms),
+        translationMemories: translationMemoryUses(translationMemoryMatches),
+      } satisfies TranslationContextUse,
     };
   }
 }
