@@ -453,6 +453,9 @@ export function createSanityOauthRoutes(): Hono {
           organizationId: consumed.organizationId,
           studioOrigin: consumed.studioOrigin,
         });
+        if (!tokens) {
+          return oauthError(c, "invalid_grant");
+        }
         return c.json(tokenResponse(tokens), 200);
       }
 

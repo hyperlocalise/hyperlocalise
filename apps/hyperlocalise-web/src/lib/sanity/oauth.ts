@@ -12,9 +12,9 @@
  */
 import { createHash, randomBytes, scryptSync, timingSafeEqual, webcrypto } from "node:crypto";
 
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, exists, gt, isNull } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database/client";
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { env } from "@/lib/env";
 
@@ -306,33 +306,90 @@ export async function consumeSanityOauthAuthorizationCode(input: {
   return row;
 }
 
+async function lockLiveOrganizationMembership(
+  database: DatabaseClient,
+  userId: string,
+  organizationId: string,
+) {
+  const [membership] = await database
+    .select({ id: schema.organizationMemberships.id })
+    .from(schema.organizationMemberships)
+    .where(
+      and(
+        eq(schema.organizationMemberships.userId, userId),
+        eq(schema.organizationMemberships.organizationId, organizationId),
+      ),
+    )
+    .limit(1)
+    .for("update");
+  return membership ?? null;
+}
+
+function liveOrganizationMembershipExists(userId: string, organizationId: string) {
+  return exists(
+    db
+      .select({ id: schema.organizationMemberships.id })
+      .from(schema.organizationMemberships)
+      .where(
+        and(
+          eq(schema.organizationMemberships.userId, userId),
+          eq(schema.organizationMemberships.organizationId, organizationId),
+        ),
+      ),
+  );
+}
+
+function isSanityOauthRefreshExpired(row: {
+  createdAt: Date;
+  refreshTokenExpiresAt: Date;
+}): boolean {
+  const issuedCapMs = row.createdAt.getTime() + REFRESH_TOKEN_LIFETIME_MS;
+  return Math.min(row.refreshTokenExpiresAt.getTime(), issuedCapMs) < Date.now();
+}
+
+async function revokeSanityOauthTokenRow(tokenId: string): Promise<void> {
+  await db
+    .update(schema.sanityOauthTokens)
+    .set({ revokedAt: new Date() })
+    .where(
+      and(eq(schema.sanityOauthTokens.id, tokenId), isNull(schema.sanityOauthTokens.revokedAt)),
+    );
+}
+
 export async function issueSanityOauthTokens(input: {
   connectionId: string;
   userId: string;
   organizationId: string;
   studioOrigin: string;
 }) {
-  const accessToken = generateSanityOauthAccessToken();
-  const refreshToken = generateSanityOauthRefreshToken();
-  const now = Date.now();
+  return db.transaction(async (tx) => {
+    const membership = await lockLiveOrganizationMembership(tx, input.userId, input.organizationId);
+    if (!membership) {
+      return null;
+    }
 
-  await db.insert(schema.sanityOauthTokens).values({
-    connectionId: input.connectionId,
-    userId: input.userId,
-    organizationId: input.organizationId,
-    studioOrigin: input.studioOrigin,
-    accessTokenHash: digestSanityOauthToken(accessToken),
-    refreshTokenHash: digestSanityOauthToken(refreshToken),
-    accessTokenExpiresAt: new Date(now + ACCESS_TOKEN_LIFETIME_SECONDS * 1000),
-    refreshTokenExpiresAt: new Date(now + REFRESH_TOKEN_LIFETIME_MS),
+    const accessToken = generateSanityOauthAccessToken();
+    const refreshToken = generateSanityOauthRefreshToken();
+    const now = Date.now();
+
+    await tx.insert(schema.sanityOauthTokens).values({
+      connectionId: input.connectionId,
+      userId: input.userId,
+      organizationId: input.organizationId,
+      studioOrigin: input.studioOrigin,
+      accessTokenHash: digestSanityOauthToken(accessToken),
+      refreshTokenHash: digestSanityOauthToken(refreshToken),
+      accessTokenExpiresAt: new Date(now + ACCESS_TOKEN_LIFETIME_SECONDS * 1000),
+      refreshTokenExpiresAt: new Date(now + REFRESH_TOKEN_LIFETIME_MS),
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: ACCESS_TOKEN_LIFETIME_SECONDS,
+      scope: SANITY_OAUTH_SCOPE,
+    };
   });
-
-  return {
-    accessToken,
-    refreshToken,
-    expiresIn: ACCESS_TOKEN_LIFETIME_SECONDS,
-    scope: SANITY_OAUTH_SCOPE,
-  };
 }
 
 export async function refreshSanityOauthTokens(refreshToken: string) {
@@ -343,7 +400,22 @@ export async function refreshSanityOauthTokens(refreshToken: string) {
     .where(eq(schema.sanityOauthTokens.refreshTokenHash, refreshTokenHash))
     .limit(1);
 
-  if (!row || row.revokedAt || row.refreshTokenExpiresAt.getTime() < Date.now()) {
+  if (!row || row.revokedAt || isSanityOauthRefreshExpired(row)) {
+    return null;
+  }
+
+  const [membership] = await db
+    .select({ id: schema.organizationMemberships.id })
+    .from(schema.organizationMemberships)
+    .where(
+      and(
+        eq(schema.organizationMemberships.userId, row.userId),
+        eq(schema.organizationMemberships.organizationId, row.organizationId),
+      ),
+    )
+    .limit(1);
+  if (!membership) {
+    await revokeSanityOauthTokenRow(row.id);
     return null;
   }
 
@@ -357,14 +429,13 @@ export async function refreshSanityOauthTokens(refreshToken: string) {
       accessTokenHash: digestSanityOauthToken(accessToken),
       refreshTokenHash: digestSanityOauthToken(nextRefreshToken),
       accessTokenExpiresAt: new Date(now + ACCESS_TOKEN_LIFETIME_SECONDS * 1000),
-      refreshTokenExpiresAt: new Date(now + REFRESH_TOKEN_LIFETIME_MS),
-      revokedAt: null,
     })
     .where(
       and(
         eq(schema.sanityOauthTokens.id, row.id),
         eq(schema.sanityOauthTokens.refreshTokenHash, refreshTokenHash),
         isNull(schema.sanityOauthTokens.revokedAt),
+        liveOrganizationMembershipExists(row.userId, row.organizationId),
       ),
     )
     .returning({ id: schema.sanityOauthTokens.id });
@@ -429,6 +500,13 @@ export async function getSanityConnectionByOauthAccessToken(
     .innerJoin(
       schema.sanityConnections,
       eq(schema.sanityOauthTokens.connectionId, schema.sanityConnections.id),
+    )
+    .innerJoin(
+      schema.organizationMemberships,
+      and(
+        eq(schema.organizationMemberships.userId, schema.sanityOauthTokens.userId),
+        eq(schema.organizationMemberships.organizationId, schema.sanityOauthTokens.organizationId),
+      ),
     )
     .where(
       and(

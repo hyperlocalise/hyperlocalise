@@ -350,23 +350,47 @@ func TestMemberRemoveRevokesPluginOauthTokens(t *testing.T) {
 		"canva-at-"+userID, "canva-rt-"+userID).Scan(&canvaTokenID)
 	require.NoError(t, err)
 
+	var sanityConnectionID string
+	err = scope.Pool.QueryRow(t.Context(), `
+        insert into sanity_plugin_connections (
+            organization_id, api_key_id, display_name
+        ) values ($1, $2, 'Sanity')
+        returning id`,
+		scope.OrganizationID, apiKeyID).Scan(&sanityConnectionID)
+	require.NoError(t, err)
+
+	var sanityTokenID string
+	err = scope.Pool.QueryRow(t.Context(), `
+        insert into sanity_plugin_oauth_tokens (
+            connection_id, user_id, organization_id, studio_origin,
+            access_token_hash, refresh_token_hash,
+            access_token_expires_at, refresh_token_expires_at
+        ) values ($1, $2, $3, 'https://studio.example', $4, $5, now() + interval '1 hour', now() + interval '90 days')
+        returning id`,
+		sanityConnectionID, userID, scope.OrganizationID,
+		"sanity-at-"+userID, "sanity-rt-"+userID).Scan(&sanityTokenID)
+	require.NoError(t, err)
+
 	rec := memberRequest(api, scope, http.MethodDelete, scope.OrgPath("/members/"+workosUserID), "")
 	require.Equal(t, 204, rec.Code, rec.Body.String())
 
-	var figmaRevokedAt, canvaRevokedAt *string
+	var figmaRevokedAt, canvaRevokedAt, sanityRevokedAt *string
 	err = scope.Pool.QueryRow(t.Context(), `select revoked_at::text from figma_oauth_tokens where id=$1`, figmaTokenID).Scan(&figmaRevokedAt)
 	require.NoError(t, err)
 	require.NotNil(t, figmaRevokedAt)
 	err = scope.Pool.QueryRow(t.Context(), `select revoked_at::text from canva_oauth_tokens where id=$1`, canvaTokenID).Scan(&canvaRevokedAt)
 	require.NoError(t, err)
 	require.NotNil(t, canvaRevokedAt)
+	err = scope.Pool.QueryRow(t.Context(), `select revoked_at::text from sanity_plugin_oauth_tokens where id=$1`, sanityTokenID).Scan(&sanityRevokedAt)
+	require.NoError(t, err)
+	require.NotNil(t, sanityRevokedAt)
 }
 
 func TestMemberRemoveLeavesOtherMembersAndAlreadyRevokedPluginOauthTokens(t *testing.T) {
 	api, scope, _ := memberTestAPI(t, "admin")
 	departingUserID, departingWorkosUserID, _ := mustActiveMember(t, scope, uniqueTestEmail("plugin-oauth-scope"), "member")
 
-	insertPluginTokens := func(userID, label string, revoked bool) (figmaTokenID, canvaTokenID string, revokedAt *string) {
+	insertPluginTokens := func(userID, label string, revoked bool) (figmaTokenID, canvaTokenID, sanityTokenID string, revokedAt *string) {
 		t.Helper()
 		var apiKeyID string
 		err := scope.Pool.QueryRow(t.Context(), `
@@ -376,7 +400,7 @@ func TestMemberRemoveLeavesOtherMembersAndAlreadyRevokedPluginOauthTokens(t *tes
 			scope.OrganizationID, label+" PAT", "hash_"+label+"_"+userID, "hl_"+label, userID).Scan(&apiKeyID)
 		require.NoError(t, err)
 
-		var figmaConnectionID, canvaConnectionID string
+		var figmaConnectionID, canvaConnectionID, sanityConnectionID string
 		err = scope.Pool.QueryRow(t.Context(), `
         insert into figma_connections (
             organization_id, api_key_id, display_name, connection_token_hash, connection_token_prefix
@@ -390,6 +414,13 @@ func TestMemberRemoveLeavesOtherMembersAndAlreadyRevokedPluginOauthTokens(t *tes
         ) values ($1, $2, $3, $4, $5)
         returning id`,
 			scope.OrganizationID, apiKeyID, label+" Canva", "canva-hash-"+label+"-"+userID, "hl_can_"+label).Scan(&canvaConnectionID)
+		require.NoError(t, err)
+		err = scope.Pool.QueryRow(t.Context(), `
+        insert into sanity_plugin_connections (
+            organization_id, api_key_id, display_name
+        ) values ($1, $2, $3)
+        returning id`,
+			scope.OrganizationID, apiKeyID, label+" Sanity").Scan(&sanityConnectionID)
 		require.NoError(t, err)
 
 		revokedSQL := "null"
@@ -416,27 +447,41 @@ func TestMemberRemoveLeavesOtherMembersAndAlreadyRevokedPluginOauthTokens(t *tes
 			canvaConnectionID, userID, scope.OrganizationID,
 			"canva-at-"+label+"-"+userID, "canva-rt-"+label+"-"+userID).Scan(&canvaTokenID)
 		require.NoError(t, err)
-		return figmaTokenID, canvaTokenID, revokedAt
+		err = scope.Pool.QueryRow(t.Context(), `
+        insert into sanity_plugin_oauth_tokens (
+            connection_id, user_id, organization_id, studio_origin,
+            access_token_hash, refresh_token_hash,
+            access_token_expires_at, refresh_token_expires_at, revoked_at
+        ) values ($1, $2, $3, 'https://studio.example', $4, $5, now() + interval '1 hour', now() + interval '90 days', `+revokedSQL+`)
+        returning id`,
+			sanityConnectionID, userID, scope.OrganizationID,
+			"sanity-at-"+label+"-"+userID, "sanity-rt-"+label+"-"+userID).Scan(&sanityTokenID)
+		require.NoError(t, err)
+		return figmaTokenID, canvaTokenID, sanityTokenID, revokedAt
 	}
 
-	ownerFigmaID, ownerCanvaID, _ := insertPluginTokens(scope.UserID, "owner", false)
-	liveFigmaID, liveCanvaID, _ := insertPluginTokens(departingUserID, "live", false)
-	revokedFigmaID, _, priorRevokedAt := insertPluginTokens(departingUserID, "old", true)
+	ownerFigmaID, ownerCanvaID, ownerSanityID, _ := insertPluginTokens(scope.UserID, "owner", false)
+	liveFigmaID, liveCanvaID, liveSanityID, _ := insertPluginTokens(departingUserID, "live", false)
+	revokedFigmaID, _, _, priorRevokedAt := insertPluginTokens(departingUserID, "old", true)
 	require.NotNil(t, priorRevokedAt)
 
 	rec := memberRequest(api, scope, http.MethodDelete, scope.OrgPath("/members/"+departingWorkosUserID), "")
 	require.Equal(t, 204, rec.Code, rec.Body.String())
 
-	var ownerFigmaRevoked, ownerCanvaRevoked, liveFigmaRevoked, liveCanvaRevoked, stillRevoked *string
+	var ownerFigmaRevoked, ownerCanvaRevoked, ownerSanityRevoked, liveFigmaRevoked, liveCanvaRevoked, liveSanityRevoked, stillRevoked *string
 	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select revoked_at::text from figma_oauth_tokens where id=$1`, ownerFigmaID).Scan(&ownerFigmaRevoked))
 	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select revoked_at::text from canva_oauth_tokens where id=$1`, ownerCanvaID).Scan(&ownerCanvaRevoked))
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select revoked_at::text from sanity_plugin_oauth_tokens where id=$1`, ownerSanityID).Scan(&ownerSanityRevoked))
 	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select revoked_at::text from figma_oauth_tokens where id=$1`, liveFigmaID).Scan(&liveFigmaRevoked))
 	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select revoked_at::text from canva_oauth_tokens where id=$1`, liveCanvaID).Scan(&liveCanvaRevoked))
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select revoked_at::text from sanity_plugin_oauth_tokens where id=$1`, liveSanityID).Scan(&liveSanityRevoked))
 	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select revoked_at::text from figma_oauth_tokens where id=$1`, revokedFigmaID).Scan(&stillRevoked))
 	require.Nil(t, ownerFigmaRevoked)
 	require.Nil(t, ownerCanvaRevoked)
+	require.Nil(t, ownerSanityRevoked)
 	require.NotNil(t, liveFigmaRevoked)
 	require.NotNil(t, liveCanvaRevoked)
+	require.NotNil(t, liveSanityRevoked)
 	require.Equal(t, *priorRevokedAt, *stillRevoked)
 }
 

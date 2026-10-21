@@ -354,6 +354,61 @@ describe("revokeOrganizationMembershipAccess", () => {
     });
   });
 
+  it("revokes leftover plugin tokens when the membership row is already gone", async () => {
+    const identity = createWorkosIdentity();
+    const synced = await syncWorkosIdentity(db, identity);
+    const [apiKey] = await db
+      .insert(schema.organizationApiKeys)
+      .values({
+        organizationId: synced.organization.id,
+        name: "Sanity leftover PAT",
+        keyHash: `hash_sanity_${randomUUID()}`,
+        keyPrefix: "hl_sanity",
+        createdByUserId: synced.user.id,
+      })
+      .returning({ id: schema.organizationApiKeys.id });
+    const [sanityConnection] = await db
+      .insert(schema.sanityConnections)
+      .values({
+        organizationId: synced.organization.id,
+        apiKeyId: apiKey!.id,
+        displayName: "Leftover Sanity",
+      })
+      .returning({ id: schema.sanityConnections.id });
+    const [sanityToken] = await db
+      .insert(schema.sanityOauthTokens)
+      .values({
+        connectionId: sanityConnection!.id,
+        userId: synced.user.id,
+        organizationId: synced.organization.id,
+        studioOrigin: "https://studio.example",
+        accessTokenHash: `sanity_at_gone_${randomUUID()}`,
+        refreshTokenHash: `sanity_rt_gone_${randomUUID()}`,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        refreshTokenExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      })
+      .returning({ id: schema.sanityOauthTokens.id });
+
+    await db
+      .delete(schema.organizationMemberships)
+      .where(eq(schema.organizationMemberships.userId, synced.user.id));
+
+    const result = await revokeOrganizationMembershipAccess(db, {
+      workosMembershipId: identity.membership.workosMembershipId,
+      workosOrganizationId: identity.organization.workosOrganizationId,
+      workosUserId: identity.user.workosUserId,
+    });
+
+    expect(result.organizationMembershipsDeleted).toBe(0);
+    expect(result.sanityOauthTokensRevoked).toBe(1);
+    const [after] = await db
+      .select({ revokedAt: schema.sanityOauthTokens.revokedAt })
+      .from(schema.sanityOauthTokens)
+      .where(eq(schema.sanityOauthTokens.id, sanityToken!.id))
+      .limit(1);
+    expect(after?.revokedAt).not.toBeNull();
+  });
+
   it("emits membership-removal audits for each revoked token", async () => {
     const captured = mockAudit();
     const identity = createWorkosIdentity();
@@ -557,6 +612,15 @@ describe("revokeOrganizationMembershipAccess", () => {
       })
       .returning({ id: schema.canvaConnections.id });
 
+    const [sanityConnection] = await db
+      .insert(schema.sanityConnections)
+      .values({
+        organizationId: departing.organization.id,
+        apiKeyId: apiKey!.id,
+        displayName: "Org Sanity",
+      })
+      .returning({ id: schema.sanityConnections.id });
+
     const [ownerFigmaToken] = await db
       .insert(schema.figmaOauthTokens)
       .values({
@@ -596,6 +660,20 @@ describe("revokeOrganizationMembershipAccess", () => {
       })
       .returning({ id: schema.canvaOauthTokens.id });
 
+    const [departingSanityToken] = await db
+      .insert(schema.sanityOauthTokens)
+      .values({
+        connectionId: sanityConnection!.id,
+        userId: departing.user.id,
+        organizationId: departing.organization.id,
+        studioOrigin: "https://studio.example",
+        accessTokenHash: `sanity_at_leaving_${randomUUID()}`,
+        refreshTokenHash: `sanity_rt_leaving_${randomUUID()}`,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        refreshTokenExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      })
+      .returning({ id: schema.sanityOauthTokens.id });
+
     const alreadyRevokedAt = new Date("2026-01-01T00:00:00.000Z");
     const [alreadyRevokedFigmaToken] = await db
       .insert(schema.figmaOauthTokens)
@@ -623,6 +701,7 @@ describe("revokeOrganizationMembershipAccess", () => {
     expect(result.organizationMembershipsDeleted).toBe(1);
     expect(result.figmaOauthTokensRevoked).toBe(1);
     expect(result.canvaOauthTokensRevoked).toBe(1);
+    expect(result.sanityOauthTokensRevoked).toBe(1);
 
     const [ownerFigmaAfter] = await db
       .select({ revokedAt: schema.figmaOauthTokens.revokedAt })
@@ -639,6 +718,11 @@ describe("revokeOrganizationMembershipAccess", () => {
       .from(schema.canvaOauthTokens)
       .where(eq(schema.canvaOauthTokens.id, departingCanvaToken!.id))
       .limit(1);
+    const [departingSanityAfter] = await db
+      .select({ revokedAt: schema.sanityOauthTokens.revokedAt })
+      .from(schema.sanityOauthTokens)
+      .where(eq(schema.sanityOauthTokens.id, departingSanityToken!.id))
+      .limit(1);
     const [alreadyRevokedAfter] = await db
       .select({ revokedAt: schema.figmaOauthTokens.revokedAt })
       .from(schema.figmaOauthTokens)
@@ -648,6 +732,7 @@ describe("revokeOrganizationMembershipAccess", () => {
     expect(ownerFigmaAfter?.revokedAt).toBeNull();
     expect(departingFigmaAfter?.revokedAt).not.toBeNull();
     expect(departingCanvaAfter?.revokedAt).not.toBeNull();
+    expect(departingSanityAfter?.revokedAt).not.toBeNull();
     expect(alreadyRevokedAfter?.revokedAt?.toISOString()).toBe(
       alreadyRevokedFigmaToken!.revokedAt!.toISOString(),
     );
