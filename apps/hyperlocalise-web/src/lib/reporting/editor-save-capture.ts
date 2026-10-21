@@ -213,8 +213,9 @@ async function listWorkspaces(organizationIds?: string[]): Promise<WorkspaceToCh
  * Approvals passed by the position within the lookback, after the workspace was started, that have
  * no recorded review yet: queued approvals that reached the activity log late. Approvals carry no
  * source revision, so one counts as recorded when a review of the string's current source text
- * exists, or any review of it was written after the approval (the run that passed it recorded
- * it). A review of an earlier source text written before the approval does not count.
+ * exists, or any review of it is dated at or after the approval (the run that passed it recorded
+ * it with the approval's own time). A review of an earlier source text dated before the approval
+ * does not count.
  */
 async function listLateApprovals(organizationId: string, cutoff: Date): Promise<SaveEvent[]> {
   const rows = await db.execute<SaveEvent>(sql`
@@ -242,7 +243,9 @@ async function listLateApprovals(organizationId: string, cutoff: Date): Promise<
           and a.step = 'review'
           and (
             a.source_revision = encode(sha256(convert_to(k.source_text, 'UTF8')), 'hex')
-            or r.created_at >= e.created_at
+            -- Recorded work carries its save time to the millisecond, while the log keeps
+            -- microseconds; compared at full precision a review would look older than its approval.
+            or r.created_at >= date_trunc('milliseconds', e.created_at)
           )
       )
     order by e.created_at, e.id
@@ -328,6 +331,8 @@ type SavedSegment = {
   actorUserId: string | null;
   /** Done by an AI agent (MCP tools, in-app agents): recorded as automated, not billable. */
   automated: boolean;
+  /** When the save was made: Reports dates the work by it, not by when this task ran. */
+  occurredAt: Date;
 };
 
 /** One record per saved occurrence, language and step; the latest event wins. */
@@ -350,6 +355,7 @@ function savedSegments(events: SaveEvent[]): SavedSegment[] {
       step,
       actorUserId: event.actorUserId,
       automated: event.actorKind === "agent",
+      occurredAt: new Date(event.createdAt),
     } as const;
     latest.set(`${projectId}:${event.targetId}:${targetLocale}:${step}`, segment);
   }
@@ -463,6 +469,9 @@ async function recordSaves(
       targetLocale: segment.targetLocale,
       sourceEntries,
       step: segment.step,
+      occurredAt: Object.fromEntries(
+        group.map(({ segment }) => [segment.translationKeyId, segment.occurredAt]),
+      ),
     };
     await recordAnalysis(
       {

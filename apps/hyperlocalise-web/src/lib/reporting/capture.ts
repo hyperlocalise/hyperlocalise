@@ -232,6 +232,8 @@ type AnalysisInput = {
   sourceEntries: Record<string, string>;
   step?: "translation" | "review";
   billable?: boolean;
+  /** When each string's work was done, by segment id; recorded instead of the write time. */
+  occurredAt?: Record<string, Date>;
 };
 
 /**
@@ -347,6 +349,7 @@ async function writeReportingAnalysis(
         bucket: matchBucket(score, repetition),
         algorithmVersion: MATCH_ALGORITHM_VERSION,
         rateId: rate?.id,
+        createdAt: input.occurredAt?.[segmentId],
       };
     });
     for (let offset = 0; offset < rows.length; offset += REPORTING_BATCH_SIZE) {
@@ -460,6 +463,8 @@ type CompletionsInput = {
   step?: "translation" | "review";
   /** The person whose work this is; recorded on human completions. */
   actorUserId?: string | null;
+  /** When each string was finished, by segment id; recorded instead of the write time. */
+  occurredAt?: Record<string, Date>;
 };
 
 export async function captureCompletions(input: CompletionsInput, database: DatabaseClient = db) {
@@ -519,6 +524,7 @@ async function writeReportingCompletions(
         step,
         targetLocale: input.targetLocale,
         analysisId: analysis.id,
+        createdAt: input.occurredAt?.[analysis.segmentId],
       }));
     for (let offset = 0; offset < rows.length; offset += REPORTING_BATCH_SIZE) {
       await database
@@ -548,6 +554,7 @@ async function writeReportingCompletions(
         targetLocale: input.targetLocale,
         analysisId: analysis.id,
         actorUserId: input.actorUserId ?? null,
+        createdAt: input.occurredAt?.[analysis.segmentId],
       })
       // One completion per analysis and step: when a person finishes a string a job already
       // completed (a post-edit), the person is added to that completion rather than dropped.
@@ -595,6 +602,7 @@ async function writeReportingCompletions(
           rate && analysis.words !== null && analysis.bucket !== "unavailable"
             ? "rate"
             : "unpriced",
+        createdAt: input.occurredAt?.[analysis.segmentId],
       })
       .onConflictDoNothing();
   }
