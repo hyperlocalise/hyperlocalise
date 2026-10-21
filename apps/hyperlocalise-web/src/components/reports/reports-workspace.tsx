@@ -241,7 +241,6 @@ export function ReportsWorkspace({
   const label = (key: Label) => intl.formatMessage(messages[key]);
   const base = `/api/orgs/${encodeURIComponent(organizationSlug)}/reports`;
   const [view, setView] = useState("overview");
-  const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
     from: new Date(Date.now() - 27 * 86400000).toISOString().slice(0, 10),
     to: new Date().toISOString().slice(0, 10),
@@ -252,6 +251,12 @@ export function ReportsWorkspace({
     interval: "week",
   });
   const appliedFilters = useDebouncedValue(filters, FILTER_DEBOUNCE_MS);
+  // A page belongs to the filters and tab it was chosen under, so filters that apply after the
+  // typing delay start again at page 1 instead of carrying an old page over.
+  const pageScope = JSON.stringify({ ...appliedFilters, view });
+  const [pageState, setPageState] = useState({ scope: pageScope, page: 1 });
+  const page = pageState.scope === pageScope ? pageState.page : 1;
+  const goToPage = (next: number) => setPageState({ scope: pageScope, page: Math.max(1, next) });
   const params = new URLSearchParams({
     ...Object.fromEntries(Object.entries(appliedFilters).filter(([, value]) => value)),
     view,
@@ -259,19 +264,24 @@ export function ReportsWorkspace({
   const csvParams = new URLSearchParams(params);
   csvParams.set("format", "csv");
   params.set("page", String(page));
-  const updateFilter = (key: keyof typeof filters, value: string) => {
-    // A task belongs to one project, so changing the project clears the task.
-    setFilters((previous) => ({
-      ...previous,
-      [key]: value,
-      ...(key === "projectId" ? { jobId: "" } : {}),
-    }));
-    setPage(1);
-  };
   const settings = useQuery({
     queryKey: ["reports", organizationSlug, "settings"],
     queryFn: () => reportingFetch<{ settings: Settings }>(base + "/settings"),
   });
+  const updateFilter = (key: keyof typeof filters, value: string) => {
+    // A task belongs to one project, so changing the project clears the task, and a language the
+    // new project does not translate into would filter everything out while the picker read "All".
+    const projectLocales =
+      settings.data?.settings.projects.find((project) => project.id === value)?.targetLocales ?? [];
+    setFilters((previous) => ({
+      ...previous,
+      [key]: value,
+      ...(key === "projectId" ? { jobId: "" } : {}),
+      ...(key === "projectId" && value && !projectLocales.includes(previous.targetLocale)
+        ? { targetLocale: "" }
+        : {}),
+    }));
+  };
   const report = useQuery({
     queryKey: ["reports", organizationSlug, params.toString()],
     queryFn: () =>
@@ -323,6 +333,12 @@ export function ReportsWorkspace({
   ]
     .sort((left, right) => left.localeCompare(right))
     .map((locale) => ({ value: locale, label: locale }));
+  if (
+    filters.targetLocale &&
+    !languageOptions.some((option) => option.value === filters.targetLocale)
+  ) {
+    languageOptions.unshift({ value: filters.targetLocale, label: filters.targetLocale });
+  }
   // The cards count one step at a time, so a word translated and then reviewed is not counted twice.
   const cardStepDescription = intl.formatMessage(messages.cardStep, {
     step: label(appliedFilters.step === "review" ? "review" : "translation"),
@@ -450,13 +466,7 @@ export function ReportsWorkspace({
       {filters.targetLocale ? (
         <p className="text-sm text-muted-foreground">{label("allocationHelp")}</p>
       ) : null}
-      <Tabs
-        value={view}
-        onValueChange={(value) => {
-          setView(String(value));
-          setPage(1);
-        }}
-      >
+      <Tabs value={view} onValueChange={(value) => setView(String(value))}>
         <TabsList>
           {(["overview", "words", "time", ...(financial ? ["costs"] : [])] as Label[]).map(
             (key) => (
@@ -534,7 +544,7 @@ export function ReportsWorkspace({
             variant="outline"
             size="sm"
             disabled={page === 1 || report.isFetching}
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            onClick={() => goToPage(page - 1)}
           >
             {label("previousPage")}
           </Button>
@@ -545,7 +555,7 @@ export function ReportsWorkspace({
             variant="outline"
             size="sm"
             disabled={!report.data?.report.hasMore || report.isFetching}
-            onClick={() => setPage((current) => current + 1)}
+            onClick={() => goToPage(page + 1)}
           >
             {label("nextPage")}
           </Button>
