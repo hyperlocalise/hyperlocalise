@@ -27,7 +27,7 @@ import { translationKeysQueueOrderBy } from "@/lib/projects/translations/project
 import {
   projectTranslationRevisionColumns,
   recordProjectTranslationRevisions,
-  snapshotProjectTranslations,
+  writeProjectTranslations,
   type TranslationRevisionActor,
 } from "@/lib/projects/translations/project-translation-revisions";
 import { shouldRetrySameAsSourcePrefill } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
@@ -1066,31 +1066,36 @@ export class ProjectTranslationService extends ProjectServiceBase {
       return;
     }
 
-    const before = await snapshotProjectTranslations(this.database, {
-      organizationId: input.organizationId,
-      translationKeyIds: [key.id],
-      targetLocales: translationValues.map((translation) => translation.targetLocale),
-    });
-    const saved = await this.database
-      .insert(schema.projectTranslations)
-      .values(translationValues)
-      .onConflictDoUpdate({
-        target: [
-          schema.projectTranslations.translationKeyId,
-          schema.projectTranslations.targetLocale,
-        ],
-        set: {
-          text: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.text ELSE excluded.text END`,
-          status: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.status ELSE excluded.status END`,
-          provenance: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.provenance ELSE excluded.provenance END`,
-          sourceJobId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.source_job_id ELSE excluded.source_job_id END`,
-          reviewedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_at ELSE NULL END`,
-          reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
-          updatedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.updated_at ELSE now() END`,
-        },
-      })
-      .returning(projectTranslationRevisionColumns);
-    await recordProjectTranslationRevisions(this.database, { before, saved });
+    await writeProjectTranslations(
+      this.database,
+      {
+        organizationId: input.organizationId,
+        translationKeyIds: [key.id],
+        targetLocales: translationValues.map((translation) => translation.targetLocale),
+      },
+      async (tx, before) => {
+        const saved = await tx
+          .insert(schema.projectTranslations)
+          .values(translationValues)
+          .onConflictDoUpdate({
+            target: [
+              schema.projectTranslations.translationKeyId,
+              schema.projectTranslations.targetLocale,
+            ],
+            set: {
+              text: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.text ELSE excluded.text END`,
+              status: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.status ELSE excluded.status END`,
+              provenance: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.provenance ELSE excluded.provenance END`,
+              sourceJobId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.source_job_id ELSE excluded.source_job_id END`,
+              reviewedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_at ELSE NULL END`,
+              reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
+              updatedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.updated_at ELSE now() END`,
+            },
+          })
+          .returning(projectTranslationRevisionColumns);
+        await recordProjectTranslationRevisions(tx, { before, saved });
+      },
+    );
   }
 
   async persistFileJobTranslations(input: {
@@ -1179,31 +1184,36 @@ export class ProjectTranslationService extends ProjectServiceBase {
       translationValues,
       PROJECT_TRANSLATION_WRITE_BATCH_SIZE,
     )) {
-      const before = await snapshotProjectTranslations(this.database, {
-        organizationId: input.organizationId,
-        translationKeyIds: translationBatch.map((translation) => translation.translationKeyId),
-        targetLocales: [input.targetLocale],
-      });
-      const saved = await this.database
-        .insert(schema.projectTranslations)
-        .values(translationBatch)
-        .onConflictDoUpdate({
-          target: [
-            schema.projectTranslations.translationKeyId,
-            schema.projectTranslations.targetLocale,
-          ],
-          set: {
-            text: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.text ELSE excluded.text END`,
-            status: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.status ELSE excluded.status END`,
-            provenance: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.provenance ELSE excluded.provenance END`,
-            sourceJobId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.source_job_id ELSE excluded.source_job_id END`,
-            reviewedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_at ELSE NULL END`,
-            reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
-            updatedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.updated_at ELSE now() END`,
-          },
-        })
-        .returning(projectTranslationRevisionColumns);
-      await recordProjectTranslationRevisions(this.database, { before, saved });
+      await writeProjectTranslations(
+        this.database,
+        {
+          organizationId: input.organizationId,
+          translationKeyIds: translationBatch.map((translation) => translation.translationKeyId),
+          targetLocales: [input.targetLocale],
+        },
+        async (tx, before) => {
+          const saved = await tx
+            .insert(schema.projectTranslations)
+            .values(translationBatch)
+            .onConflictDoUpdate({
+              target: [
+                schema.projectTranslations.translationKeyId,
+                schema.projectTranslations.targetLocale,
+              ],
+              set: {
+                text: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.text ELSE excluded.text END`,
+                status: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.status ELSE excluded.status END`,
+                provenance: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.provenance ELSE excluded.provenance END`,
+                sourceJobId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.source_job_id ELSE excluded.source_job_id END`,
+                reviewedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_at ELSE NULL END`,
+                reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
+                updatedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.updated_at ELSE now() END`,
+              },
+            })
+            .returning(projectTranslationRevisionColumns);
+          await recordProjectTranslationRevisions(tx, { before, saved });
+        },
+      );
     }
   }
 
@@ -1301,36 +1311,36 @@ export class ProjectTranslationService extends ProjectServiceBase {
       translationValues,
       PROJECT_TRANSLATION_WRITE_BATCH_SIZE,
     )) {
-      const before = await snapshotProjectTranslations(this.database, {
-        organizationId: input.organizationId,
-        translationKeyIds: translationBatch.map((translation) => translation.translationKeyId),
-        targetLocales: [input.targetLocale],
-      });
-      const saved = await this.database
-        .insert(schema.projectTranslations)
-        .values(translationBatch)
-        .onConflictDoUpdate({
-          target: [
-            schema.projectTranslations.translationKeyId,
-            schema.projectTranslations.targetLocale,
-          ],
-          set: {
-            text: sql`excluded.text`,
-            status: sql`excluded.status`,
-            provenance: sql`excluded.provenance`,
-            sourceJobId: sql`NULL`,
-            reviewedAt: sql`excluded.reviewed_at`,
-            reviewedByUserId: sql`excluded.reviewed_by_user_id`,
-            updatedAt: sql`now()`,
-          },
-        })
-        .returning(projectTranslationRevisionColumns);
-      await recordProjectTranslationRevisions(this.database, {
-        before,
-        saved,
-        actor,
-        operationId,
-      });
+      await writeProjectTranslations(
+        this.database,
+        {
+          organizationId: input.organizationId,
+          translationKeyIds: translationBatch.map((translation) => translation.translationKeyId),
+          targetLocales: [input.targetLocale],
+        },
+        async (tx, before) => {
+          const saved = await tx
+            .insert(schema.projectTranslations)
+            .values(translationBatch)
+            .onConflictDoUpdate({
+              target: [
+                schema.projectTranslations.translationKeyId,
+                schema.projectTranslations.targetLocale,
+              ],
+              set: {
+                text: sql`excluded.text`,
+                status: sql`excluded.status`,
+                provenance: sql`excluded.provenance`,
+                sourceJobId: sql`NULL`,
+                reviewedAt: sql`excluded.reviewed_at`,
+                reviewedByUserId: sql`excluded.reviewed_by_user_id`,
+                updatedAt: sql`now()`,
+              },
+            })
+            .returning(projectTranslationRevisionColumns);
+          await recordProjectTranslationRevisions(tx, { before, saved, actor, operationId });
+        },
+      );
     }
 
     this.log.info(

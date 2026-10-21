@@ -13,7 +13,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import type { ActivityActorKind } from "@/lib/activity-log/activity-log-contract";
-import { schema, type DatabaseClient } from "@/lib/database/client";
+import { schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 
 const logger = createLogger("project-translation-revisions");
@@ -72,13 +72,56 @@ function defaultOperationId(row: ProjectTranslationRevisionSource): string | nul
   return row.provenance === "translation_job" && row.sourceJobId ? `job:${row.sourceJobId}` : null;
 }
 
+type ProjectTranslationWriteScope = {
+  organizationId: string;
+  translationKeyIds: string[];
+  targetLocales: string[];
+};
+
 /**
- * Reads the translations a write is about to change, so `recordProjectTranslationRevisions` can
- * skip rows the write left unchanged and keep the pre-history text of a translation's first edit.
+ * Runs a write to `project_translations` and its revisions in one transaction. `write` gets the
+ * transaction and the translations as they were once the keys were locked; it must write through
+ * that transaction and call `recordProjectTranslationRevisions` with it.
+ *
+ * The key rows are locked rather than the translations, because a translation that does not
+ * exist yet has no row to lock. The editor in go-svc takes the same key locks, so concurrent
+ * writes to a key run one at a time and each revision records the value its write left behind.
  */
-export async function snapshotProjectTranslations(
+export async function writeProjectTranslations<T>(
   database: DatabaseClient,
-  input: { organizationId: string; translationKeyIds: string[]; targetLocales: string[] },
+  scope: ProjectTranslationWriteScope,
+  write: (tx: DatabaseTransaction, before: ProjectTranslationSnapshots) => Promise<T>,
+): Promise<T> {
+  return database.transaction(async (tx) => {
+    await lockProjectTranslationKeys(tx, scope);
+    const before = await snapshotProjectTranslations(tx, scope);
+    return write(tx, before);
+  });
+}
+
+async function lockProjectTranslationKeys(
+  tx: DatabaseTransaction,
+  scope: ProjectTranslationWriteScope,
+) {
+  const keyIds = [...new Set(scope.translationKeyIds)];
+  if (keyIds.length === 0) return;
+  // Id order matches go-svc's key locks, so two writers covering the same keys cannot deadlock.
+  await tx
+    .select({ id: schema.projectTranslationKeys.id })
+    .from(schema.projectTranslationKeys)
+    .where(
+      and(
+        eq(schema.projectTranslationKeys.organizationId, scope.organizationId),
+        inArray(schema.projectTranslationKeys.id, keyIds),
+      ),
+    )
+    .orderBy(schema.projectTranslationKeys.id)
+    .for("no key update");
+}
+
+async function snapshotProjectTranslations(
+  database: DatabaseClient,
+  input: ProjectTranslationWriteScope,
 ): Promise<ProjectTranslationSnapshots> {
   const snapshots: ProjectTranslationSnapshots = new Map();
   if (input.translationKeyIds.length === 0 || input.targetLocales.length === 0) {
@@ -106,12 +149,13 @@ export async function snapshotProjectTranslations(
 /**
  * Appends a revision for each saved translation whose text or status changed. The first time a
  * translation with no history changes, its earlier state is kept as a baseline revision so the
- * edit can be undone. History never blocks a save: failures are logged and the save stands.
+ * edit can be undone. Call it inside `writeProjectTranslations`. History never blocks a save:
+ * the revisions are written in a savepoint, and a failure is logged and rolled back alone.
  *
  * @returns the new revision id for each changed translation id.
  */
 export async function recordProjectTranslationRevisions(
-  database: DatabaseClient,
+  tx: DatabaseTransaction,
   input: {
     before: ProjectTranslationSnapshots;
     saved: ProjectTranslationRevisionSource[];
@@ -128,44 +172,49 @@ export async function recordProjectTranslationRevisions(
     return revisionIds;
   }
   try {
-    const existingIds = changed.filter((row) => input.before.has(row.id)).map((row) => row.id);
-    const withHistory = new Set<string>();
-    if (existingIds.length > 0) {
-      const rows = await database
-        .selectDistinct({ translationId: schema.projectTranslationRevisions.translationId })
-        .from(schema.projectTranslationRevisions)
-        .where(inArray(schema.projectTranslationRevisions.translationId, existingIds));
-      for (const row of rows) withHistory.add(row.translationId);
-    }
-    const baselines = existingIds.flatMap((id) => {
-      const before = input.before.get(id);
-      if (!before || withHistory.has(id)) return [];
-      return [
-        {
-          ...revisionValues(before, revisionActorForProvenance(before.provenance)),
-          operationId: defaultOperationId(before),
-          createdAt: before.updatedAt,
-        },
-      ];
-    });
-    if (baselines.length > 0) {
-      await database.insert(schema.projectTranslationRevisions).values(baselines);
-    }
-    const inserted = await database
-      .insert(schema.projectTranslationRevisions)
-      .values(
-        changed.map((row) => ({
-          ...revisionValues(row, input.actor ?? revisionActorForProvenance(row.provenance)),
-          operationId: input.operationId ?? defaultOperationId(row),
-          createdAt: sql`clock_timestamp()`,
-        })),
-      )
-      .returning({
-        id: schema.projectTranslationRevisions.id,
-        translationId: schema.projectTranslationRevisions.translationId,
+    await tx.transaction(async (savepoint) => {
+      const existingIds = changed.filter((row) => input.before.has(row.id)).map((row) => row.id);
+      const withHistory = new Set<string>();
+      if (existingIds.length > 0) {
+        const rows = await savepoint
+          .selectDistinct({ translationId: schema.projectTranslationRevisions.translationId })
+          .from(schema.projectTranslationRevisions)
+          .where(inArray(schema.projectTranslationRevisions.translationId, existingIds));
+        for (const row of rows) withHistory.add(row.translationId);
+      }
+      const baselines = existingIds.flatMap((id) => {
+        const before = input.before.get(id);
+        if (!before || withHistory.has(id)) return [];
+        // A baseline belongs to no operation, so undoing the write that follows it (even a retry
+        // of the job that wrote the baseline's text) finds the baseline as the earlier state.
+        return [
+          {
+            ...revisionValues(before, revisionActorForProvenance(before.provenance)),
+            operationId: null,
+            createdAt: before.updatedAt,
+          },
+        ];
       });
-    for (const row of inserted) revisionIds.set(row.translationId, row.id);
+      if (baselines.length > 0) {
+        await savepoint.insert(schema.projectTranslationRevisions).values(baselines);
+      }
+      const inserted = await savepoint
+        .insert(schema.projectTranslationRevisions)
+        .values(
+          changed.map((row) => ({
+            ...revisionValues(row, input.actor ?? revisionActorForProvenance(row.provenance)),
+            operationId: input.operationId ?? defaultOperationId(row),
+            createdAt: sql`clock_timestamp()`,
+          })),
+        )
+        .returning({
+          id: schema.projectTranslationRevisions.id,
+          translationId: schema.projectTranslationRevisions.translationId,
+        });
+      for (const row of inserted) revisionIds.set(row.translationId, row.id);
+    });
   } catch (error) {
+    revisionIds.clear();
     logger.warn(
       { error, translationCount: changed.length },
       "failed to record project translation revisions",

@@ -63,7 +63,7 @@ import {
   projectTranslationRevisionColumns,
   recordProjectTranslationRevisions,
   revisionActorForProvenance,
-  snapshotProjectTranslations,
+  writeProjectTranslations,
   type TranslationRevisionActor,
 } from "@/lib/projects/translations/project-translation-revisions";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
@@ -1137,64 +1137,71 @@ export class NativeContentEditorService extends ProjectServiceBase {
       return null;
     }
 
-    const before = await snapshotProjectTranslations(this.database, {
-      organizationId: input.organizationId,
-      translationKeyIds: [key.id],
-      targetLocales: [input.targetLocale],
-    });
-    const [existing] = before.values();
-    const sourceJobId = input.sourceJobId ?? existing?.sourceJobId ?? undefined;
     const status = input.approve ? "approved" : "draft";
     const provenance = input.provenance ?? "manual";
     const reviewedAt = input.approve ? new Date() : null;
     const reviewedByUserId = input.approve ? (input.actorUserId ?? null) : null;
 
-    const [saved] = await this.database
-      .insert(schema.projectTranslations)
-      .values({
+    const { saved, sourceJobId } = await writeProjectTranslations(
+      this.database,
+      {
         organizationId: input.organizationId,
-        projectId: input.projectId,
-        translationKeyId: key.id,
-        targetLocale: input.targetLocale,
-        text: input.text,
-        status,
-        provenance,
-        sourceJobId: sourceJobId ?? null,
-        reviewedByUserId,
-        reviewedAt,
-      })
-      .onConflictDoUpdate({
-        target: [
-          schema.projectTranslations.translationKeyId,
-          schema.projectTranslations.targetLocale,
-        ],
-        set: {
-          text: input.text,
-          status,
-          provenance,
-          sourceJobId: sourceJobId ?? existing?.sourceJobId ?? null,
-          reviewedByUserId,
-          reviewedAt,
-          updatedAt: new Date(),
-        },
-      })
-      .returning({
-        ...projectTranslationRevisionColumns,
-        updatedAt: schema.projectTranslations.updatedAt,
-      });
+        translationKeyIds: [key.id],
+        targetLocales: [input.targetLocale],
+      },
+      async (tx, before) => {
+        const [existing] = before.values();
+        const sourceJobId = input.sourceJobId ?? existing?.sourceJobId ?? undefined;
+        const [saved] = await tx
+          .insert(schema.projectTranslations)
+          .values({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            translationKeyId: key.id,
+            targetLocale: input.targetLocale,
+            text: input.text,
+            status,
+            provenance,
+            sourceJobId: sourceJobId ?? null,
+            reviewedByUserId,
+            reviewedAt,
+          })
+          .onConflictDoUpdate({
+            target: [
+              schema.projectTranslations.translationKeyId,
+              schema.projectTranslations.targetLocale,
+            ],
+            set: {
+              text: input.text,
+              status,
+              provenance,
+              sourceJobId: sourceJobId ?? existing?.sourceJobId ?? null,
+              reviewedByUserId,
+              reviewedAt,
+              updatedAt: new Date(),
+            },
+          })
+          .returning({
+            ...projectTranslationRevisionColumns,
+            updatedAt: schema.projectTranslations.updatedAt,
+          });
+        if (saved) {
+          await recordProjectTranslationRevisions(tx, {
+            before,
+            saved: [saved],
+            actor: input.actor ?? {
+              actorKind: revisionActorForProvenance(provenance).actorKind,
+              actorUserId: input.actorUserId ?? null,
+            },
+          });
+        }
+        return { saved, sourceJobId };
+      },
+    );
 
     if (!saved) {
       return null;
     }
-
-    await recordProjectTranslationRevisions(this.database, {
-      before,
-      saved: [saved],
-      actor: input.actor ?? {
-        actorKind: revisionActorForProvenance(provenance).actorKind,
-        actorUserId: input.actorUserId ?? null,
-      },
-    });
 
     // This path writes no activity event, so Reports is recorded here, after the translation
     // is stored. Go-service saves are recorded from their events by the reporting-capture cron.
@@ -1236,11 +1243,6 @@ export class NativeContentEditorService extends ProjectServiceBase {
     actorUserId?: string;
     actor?: TranslationRevisionActor;
   }) {
-    const before = await snapshotProjectTranslations(this.database, {
-      organizationId: input.organizationId,
-      translationKeyIds: [input.translationKeyId],
-      targetLocales: [input.targetLocale],
-    });
     const reviewedAt =
       input.status === "approved" || input.status === "rejected" ? new Date() : null;
     const reviewedByUserId =
@@ -1248,32 +1250,45 @@ export class NativeContentEditorService extends ProjectServiceBase {
         ? (input.actorUserId ?? null)
         : null;
 
-    const [updated] = await this.database
-      .update(schema.projectTranslations)
-      .set({
-        status: input.status,
-        reviewedAt,
-        reviewedByUserId,
-      })
-      .where(
-        and(
-          eq(schema.projectTranslations.organizationId, input.organizationId),
-          eq(schema.projectTranslations.projectId, input.projectId),
-          eq(schema.projectTranslations.translationKeyId, input.translationKeyId),
-          eq(schema.projectTranslations.targetLocale, input.targetLocale),
-        ),
-      )
-      .returning(projectTranslationRevisionColumns);
+    const updated = await writeProjectTranslations(
+      this.database,
+      {
+        organizationId: input.organizationId,
+        translationKeyIds: [input.translationKeyId],
+        targetLocales: [input.targetLocale],
+      },
+      async (tx, before) => {
+        const [updated] = await tx
+          .update(schema.projectTranslations)
+          .set({
+            status: input.status,
+            reviewedAt,
+            reviewedByUserId,
+          })
+          .where(
+            and(
+              eq(schema.projectTranslations.organizationId, input.organizationId),
+              eq(schema.projectTranslations.projectId, input.projectId),
+              eq(schema.projectTranslations.translationKeyId, input.translationKeyId),
+              eq(schema.projectTranslations.targetLocale, input.targetLocale),
+            ),
+          )
+          .returning(projectTranslationRevisionColumns);
+        if (updated) {
+          await recordProjectTranslationRevisions(tx, {
+            before,
+            saved: [updated],
+            actor: input.actor ?? {
+              actorKind: input.actorUserId ? "user" : "system",
+              actorUserId: input.actorUserId ?? null,
+            },
+          });
+        }
+        return updated;
+      },
+    );
 
     if (updated) {
-      await recordProjectTranslationRevisions(this.database, {
-        before,
-        saved: [updated],
-        actor: input.actor ?? {
-          actorKind: input.actorUserId ? "user" : "system",
-          actorUserId: input.actorUserId ?? null,
-        },
-      });
       this.log.debug(
         {
           organizationId: input.organizationId,

@@ -23,7 +23,19 @@ type editorCatTranslationSnapshot struct {
 
 // lockEditorCatTranslation locks and reads the translation a write is about to change. It
 // returns nil when the string has no translation in the locale yet.
+//
+// The key row is locked first, because a translation that does not exist yet has no row to
+// lock. The web app's writers (lockProjectTranslationKeys) take the same lock, so every write
+// to a key, its snapshot and its revision run one at a time.
 func lockEditorCatTranslation(ctx context.Context, db dictionaryDB, organizationID, keyID, targetLocale string) (*editorCatTranslationSnapshot, error) {
+	if _, err := db.Exec(ctx, `
+        select 1 from project_translation_keys
+        where organization_id=$1 and id=$2
+        for no key update`,
+		organizationID, keyID,
+	); err != nil {
+		return nil, err
+	}
 	var snapshot editorCatTranslationSnapshot
 	err := db.QueryRow(ctx, `
         select id, text, status::text, provenance::text, source_job_id, updated_at, xmin::text
@@ -61,12 +73,11 @@ func recordEditorCatRevision(ctx context.Context, db dictionaryDB, organizationI
 		if _, err := db.Exec(ctx, `
             insert into project_translation_revisions (
                 organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
-                provenance, source_job_id, actor_kind, operation_id, created_at
+                provenance, source_job_id, actor_kind, created_at
             )
             select t.organization_id, t.project_id, t.id, t.translation_key_id, t.target_locale, $3::text,
                 $4::text::project_translation_status, $5::text::project_translation_provenance, $6::text,
                 case $5::text when 'agent' then 'agent' when 'manual' then 'user' else 'system' end,
-                case when $5::text = 'translation_job' and $6::text is not null then 'job:' || $6::text end,
                 $7::timestamptz
             from project_translations t
             where t.id=$1 and t.organization_id=$2
@@ -285,11 +296,7 @@ func (api *editorCatAPI) restoreSegmentRevision(r *http.Request, actor editorCat
 	if err != nil {
 		return nil, 0, editorCatFailure(404, "cat_revision_not_found", "Revision not found")
 	}
-	externalStringID := trimEditorCat(r.PathValue("externalStringId"))
-	if err := api.rejectIfLocked(r, actor, project, targetLocale, []string{externalStringID}); err != nil {
-		return nil, 0, err
-	}
-	keyID, err := api.requireTranslationKey(r, actor, project, sourcePath, externalStringID)
+	keyID, err := api.requireTranslationKey(r, actor, project, sourcePath, trimEditorCat(r.PathValue("externalStringId")))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -298,6 +305,17 @@ func (api *editorCatAPI) restoreSegmentRevision(r *http.Request, actor editorCat
 		return nil, 0, err
 	}
 	defer func() { _ = tx.Rollback(r.Context()) }()
+	// Locking a segment takes this key lock too, so the lock check below holds until commit.
+	if err := lockEditorCatKeys(r.Context(), tx, actor, project, []string{keyID}); err != nil {
+		return nil, 0, err
+	}
+	locked, err := editorCatLockedKeyIDs(r, tx, actor, project, targetLocale, []string{keyID})
+	if err != nil {
+		return nil, 0, err
+	}
+	if locked[canonicalEditorCatID(keyID)] {
+		return nil, 0, editorCatFailure(409, "cat_segment_locked", "This string is locked")
+	}
 	before, err := lockEditorCatTranslation(r.Context(), tx, actor.organizationID, keyID, targetLocale)
 	if err != nil {
 		return nil, 0, err

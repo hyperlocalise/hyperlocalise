@@ -18,7 +18,7 @@ import { enqueueJobFailedActivity } from "@/lib/activity-log/job-automation-even
 import {
   projectTranslationRevisionColumns,
   recordProjectTranslationRevisions,
-  snapshotProjectTranslations,
+  writeProjectTranslations,
 } from "@/lib/projects/translations/project-translation-revisions";
 import type { ReviewJobEventData } from "@/lib/workflow/types";
 
@@ -440,25 +440,30 @@ export async function executeNativeReviewJob(input: {
   const reviewedIds = rows.map((row) => row.translationId);
 
   if (reviewedIds.length > 0) {
-    const before = await snapshotProjectTranslations(db, {
-      organizationId: project.organizationId,
-      translationKeyIds: rows.map((row) => row.translationKeyId),
-      targetLocales: [targetLocale],
-    });
-    const saved = await db
-      .update(schema.projectTranslations)
-      .set({
-        status: blocking.length > 0 ? "needs_review" : "approved",
-        reviewedAt: blocking.length > 0 ? null : new Date(),
-      })
-      .where(inArray(schema.projectTranslations.id, reviewedIds))
-      .returning(projectTranslationRevisionColumns);
-    await recordProjectTranslationRevisions(db, {
-      before,
-      saved,
-      actor: { actorKind: "system", actorUserId: null },
-      operationId: `job:${input.jobId}`,
-    });
+    await writeProjectTranslations(
+      db,
+      {
+        organizationId: project.organizationId,
+        translationKeyIds: rows.map((row) => row.translationKeyId),
+        targetLocales: [targetLocale],
+      },
+      async (tx, before) => {
+        const saved = await tx
+          .update(schema.projectTranslations)
+          .set({
+            status: blocking.length > 0 ? "needs_review" : "approved",
+            reviewedAt: blocking.length > 0 ? null : new Date(),
+          })
+          .where(inArray(schema.projectTranslations.id, reviewedIds))
+          .returning(projectTranslationRevisionColumns);
+        await recordProjectTranslationRevisions(tx, {
+          before,
+          saved,
+          actor: { actorKind: "system", actorUserId: null },
+          operationId: `job:${input.jobId}`,
+        });
+      },
+    );
   }
 
   if (blocking.length === 0)
