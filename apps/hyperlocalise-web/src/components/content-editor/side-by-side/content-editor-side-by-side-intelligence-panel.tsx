@@ -192,6 +192,7 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
         intelligence={intelligence}
         segmentId={segment.id}
         segmentKey={segment.key}
+        contentKind={segment.contentKind}
         sourceText={segment.sourceText}
         targetText={segment.targetText}
         sourceLocale={segment.sourceLocale}

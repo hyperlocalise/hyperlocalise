@@ -40,6 +40,34 @@ describe("ContentEditorIntelligencePanel", () => {
     expect(screen.getByRole("button", { name: "Show unicode characters" })).toBeInTheDocument();
   });
 
+  it("hides the unicode table for image and video segments", () => {
+    const onInsertCharacter = vi.fn();
+
+    const { rerender } = renderWithContentEditorProviders(
+      <ContentEditorIntelligencePanel
+        intelligence={contentEditorIntelligenceFixture}
+        contentKind="image_url"
+        onInsertCharacter={onInsertCharacter}
+      />,
+    );
+
+    expect(screen.queryByRole("heading", { name: "Unicode" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Show unicode characters" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <ContentEditorIntelligencePanel
+        intelligence={contentEditorIntelligenceFixture}
+        contentKind="video_file"
+        onInsertCharacter={onInsertCharacter}
+      />,
+    );
+
+    expect(screen.queryByRole("heading", { name: "Unicode" })).not.toBeInTheDocument();
+    expect(onInsertCharacter).not.toHaveBeenCalled();
+  });
+
   it("finds context from the panel header", async () => {
     const user = userEvent.setup();
     const onFindContext = vi.fn();

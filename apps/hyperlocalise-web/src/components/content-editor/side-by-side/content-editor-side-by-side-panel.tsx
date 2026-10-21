@@ -30,6 +30,7 @@ import {
   contentEditorQueuePanelMessages,
   contentEditorSideBySidePanelMessages,
 } from "@/components/content-editor/shared/content-editor.messages";
+import { isContentEditorAssetContentKind } from "@/components/content-editor/shared/content-editor-content-kind";
 import { isSourceFileIngestInProgress } from "@/lib/projects/files/source-file-ingest-state";
 import type {
   ContentEditorFormatCheck,
@@ -511,7 +512,8 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
                 : undefined
             }
             onInsertCharacter={
-              intelligenceSegment
+              intelligenceSegment &&
+              !isContentEditorAssetContentKind(intelligenceSegment.contentKind)
                 ? (character) =>
                     onTargetChange(
                       intelligenceSegmentId,

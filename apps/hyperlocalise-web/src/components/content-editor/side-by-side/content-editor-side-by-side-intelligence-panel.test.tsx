@@ -105,6 +105,24 @@ describe("ContentEditorSideBySideIntelligencePanel", () => {
     expect(screen.queryByRole("button", { name: /Find context/i })).not.toBeInTheDocument();
   });
 
+  it("hides unicode insertion for image segments", () => {
+    const onInsertCharacter = vi.fn();
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      contentKind: "image_url" as const,
+      targetText: "https://cdn.example.com/hero.png",
+    };
+
+    renderIntelligencePanel({ segment, onInsertCharacter });
+
+    expect(screen.queryByRole("heading", { name: "Unicode" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Show unicode characters" }),
+    ).not.toBeInTheDocument();
+    expect(onInsertCharacter).not.toHaveBeenCalled();
+  });
+
   it("puts translation memory before character limit and shows a pencil", () => {
     renderIntelligencePanel({
       showMaxLengthEditor: true,

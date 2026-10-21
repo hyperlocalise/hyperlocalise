@@ -68,8 +68,10 @@ import {
   contentEditorEditorPanelMessages,
   contentEditorIntelligencePanelMessages,
 } from "@/components/content-editor/shared/content-editor.messages";
+import { isContentEditorAssetContentKind } from "@/components/content-editor/shared/content-editor-content-kind";
 import { emptyStateSourceLabel } from "@/components/content-editor/shared/empty-state-source-label";
 import type {
+  ContentEditorContentKind,
   ContentEditorSegmentIntelligence,
   ContentEditorTmMatchKind,
   ContentEditorTranslationMemoryMatch,
@@ -409,6 +411,7 @@ export function ContentEditorIntelligencePanel({
   intelligence,
   segmentId,
   segmentKey,
+  contentKind,
   sourceText = "",
   targetText = "",
   sourceLocale,
@@ -447,6 +450,7 @@ export function ContentEditorIntelligencePanel({
   intelligence: ContentEditorSegmentIntelligence;
   segmentId?: string;
   segmentKey?: string;
+  contentKind?: ContentEditorContentKind;
   sourceText?: string;
   targetText?: string;
   sourceLocale?: string;
@@ -948,10 +952,12 @@ export function ContentEditorIntelligencePanel({
               </PanelSection>
             ) : null}
 
-            <ContentEditorUnicodePanel
-              canInsert={canEditTranslations && !isTranslationLocked}
-              onInsertCharacter={onInsertCharacter}
-            />
+            {isContentEditorAssetContentKind(contentKind) ? null : (
+              <ContentEditorUnicodePanel
+                canInsert={canEditTranslations && !isTranslationLocked}
+                onInsertCharacter={onInsertCharacter}
+              />
+            )}
           </div>
         </PanelSectionResetKeyContext.Provider>
       </ScrollArea>
