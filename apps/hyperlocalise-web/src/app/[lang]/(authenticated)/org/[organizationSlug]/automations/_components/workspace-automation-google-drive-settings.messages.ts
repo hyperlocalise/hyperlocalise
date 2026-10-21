@@ -28,23 +28,23 @@ export const workspaceAutomationGoogleDriveSettingsMessages = defineMessages({
     description: "Label for how translated Drive files are named or placed",
   },
   prefix: {
-    id: "u4ZIbDx1T6",
-    defaultMessage: "Prefix with locale — [fr] Report.docx",
+    id: "Wsp7fFKzfm",
+    defaultMessage: "Prefix with locale — [vi-VN] overview.docx",
     description: "Google Drive translation output option: locale prefix",
   },
   suffix: {
-    id: "p8qxwEZsdN",
-    defaultMessage: "Suffix with locale — Report [fr].docx",
+    id: "4gTVuYuFjY",
+    defaultMessage: "Suffix with locale — overview [vi-VN].docx",
     description: "Google Drive translation output option: locale suffix",
   },
   underscore: {
-    id: "sHHdVo5uq9",
-    defaultMessage: "Underscore separator — Report_fr.docx",
+    id: "+d/T9QKI1U",
+    defaultMessage: "Underscore separator — overview_vi-VN.docx",
     description: "Google Drive translation output option: underscore locale",
   },
   folder: {
-    id: "byPw4l8ARp",
-    defaultMessage: "Folder per language — fr/Report.docx",
+    id: "TWyi7AS4VO",
+    defaultMessage: "Folder per language — vi-VN/overview.docx",
     description: "Google Drive translation output option: locale folder",
   },
   includeTranslatedFiles: {

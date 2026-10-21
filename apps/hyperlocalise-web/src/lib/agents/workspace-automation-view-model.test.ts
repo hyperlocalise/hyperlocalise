@@ -875,11 +875,19 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(deliveryOnly)).toEqual({
       trigger:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Braze, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Google Drive, Braze, Queries, Web Search, or Crowdin workflow tool.",
     });
     expect(
       validateWorkspaceAutomationFormState({ ...deliveryOnly, webSearchEnabled: true }),
     ).toEqual({});
+    expect(
+      validateWorkspaceAutomationFormState({
+        ...deliveryOnly,
+        projectId: "11111111-1111-4111-8111-111111111111",
+        googleDriveEnabled: true,
+        googleDriveFolderIds: ["11111111-1111-4111-8111-111111111111"],
+      }).trigger,
+    ).toBeUndefined();
     expect(
       validateWorkspaceAutomationFormState({ ...deliveryOnly, triggerMode: "manual" }),
     ).toEqual({});

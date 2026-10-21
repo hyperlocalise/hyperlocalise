@@ -50,7 +50,7 @@ export type PushGoogleDriveTranslationsResult = {
   failed: number;
 };
 
-function resolveTargetLocales(
+export function resolveGoogleDrivePushTargetLocales(
   automation: WorkspaceAutomationRecord,
   projectTargets: string[],
 ): string[] {
@@ -60,6 +60,29 @@ function resolveTargetLocales(
   }
   const allowed = new Set(projectTargets.map((locale) => locale.toLowerCase()));
   return configured.filter((locale) => allowed.has(locale.toLowerCase()));
+}
+
+export function readGoogleDrivePushSourcePaths(
+  inputSnapshot: Record<string, unknown> | null | undefined,
+): string[] | undefined {
+  const raw = inputSnapshot?.sourcePaths;
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  return raw.filter(
+    (value): value is string => typeof value === "string" && value.trim().length > 0,
+  );
+}
+
+export function selectGoogleDrivePushMappings<T extends { sourcePath: string }>(
+  mappings: T[],
+  sourcePaths?: readonly string[],
+): T[] {
+  if (!sourcePaths) {
+    return mappings;
+  }
+  const selected = new Set(sourcePaths.filter((path) => path.trim().length > 0));
+  return mappings.filter((mapping) => selected.has(mapping.sourcePath));
 }
 
 async function ensureLocaleFolder(input: {
@@ -174,6 +197,7 @@ function nativeUploadMime(sourceMimeType: string, fileMimeType: string): string 
 export async function runPushGoogleDriveTranslations(input: {
   organizationId: string;
   automation: WorkspaceAutomationRecord;
+  sourcePaths?: string[];
 }): Promise<PushGoogleDriveTranslationsResult> {
   const config = input.automation.toolConfig.googleDrive;
   if (!config?.enabled || !config.workosUserId) {
@@ -202,7 +226,7 @@ export async function runPushGoogleDriveTranslations(input: {
   }
 
   const translationOutput = resolveGoogleDriveTranslationOutput(config.translationOutput);
-  const targetLocales = resolveTargetLocales(
+  const targetLocales = resolveGoogleDrivePushTargetLocales(
     input.automation,
     (project.targetLocales as string[]) ?? [],
   );
@@ -210,15 +234,18 @@ export async function runPushGoogleDriveTranslations(input: {
     throw new Error("google_drive_target_locales_required");
   }
 
-  const mappings = await db
-    .select()
-    .from(schema.googleDriveFileSyncStates)
-    .where(
-      and(
-        eq(schema.googleDriveFileSyncStates.automationId, input.automation.id),
-        eq(schema.googleDriveFileSyncStates.status, "active"),
+  const mappings = selectGoogleDrivePushMappings(
+    await db
+      .select()
+      .from(schema.googleDriveFileSyncStates)
+      .where(
+        and(
+          eq(schema.googleDriveFileSyncStates.automationId, input.automation.id),
+          eq(schema.googleDriveFileSyncStates.status, "active"),
+        ),
       ),
-    );
+    input.sourcePaths,
+  );
 
   let pushed = 0;
   let skipped = 0;

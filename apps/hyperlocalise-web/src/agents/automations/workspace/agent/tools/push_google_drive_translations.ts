@@ -15,14 +15,17 @@ import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { updateWorkspaceAutomationRun } from "@/lib/agents/workspace-automations";
-import { runPushGoogleDriveTranslations } from "@/lib/google-drive/push-google-drive-translations";
+import {
+  readGoogleDrivePushSourcePaths,
+  runPushGoogleDriveTranslations,
+} from "@/lib/google-drive/push-google-drive-translations";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 
 export function createPushGoogleDriveTranslationsTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({
     description:
-      "Push translated project files back to Google Drive using the automation Translation output setting: [fr] Report.docx, Report [fr].docx, Report_fr.docx, or fr/Report.docx.",
+      "Push translated project files back to Google Drive using the automation Translation output setting: [vi-VN] overview.docx, overview [vi-VN].docx, overview_vi-VN.docx, or vi-VN/overview.docx.",
     inputSchema: z.object({
       summary: z.string().optional().describe("Optional operator note for the run record."),
     }),
@@ -35,6 +38,7 @@ export function createPushGoogleDriveTranslationsTool(session: WorkspaceOrchestr
       const result = await runPushGoogleDriveTranslations({
         organizationId: session.organizationId,
         automation: session.automation,
+        sourcePaths: readGoogleDrivePushSourcePaths(session.run.inputSnapshot),
       });
 
       const output = {

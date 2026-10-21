@@ -295,7 +295,7 @@ function validateWorkspaceAutomationConfig(input: {
     return err({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Braze, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Google Drive, Braze, Queries, Web Search, or Crowdin workflow tool.",
     });
   }
 
@@ -895,7 +895,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       });
     }
 
-    if (!googleDrive.folderIds.length) {
+    if (!googleDrive.folderIds.length && !googleDrive.fileIds.length) {
       return err({
         code: "google_drive_folders_required",
         message: "Choose at least one connected Google Drive folder or file for this automation.",

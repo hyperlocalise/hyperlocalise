@@ -234,7 +234,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     description:
       "Import Docs, Sheets, Slides, PDF, and plain files from connected Drive folders or files into a project and push translations back using the chosen Translation output.",
     grants:
-      "Reads and writes Google Drive files through Pipes for connected folders. Imports source files into the Content editor and writes copies as [fr] Report.docx, Report [fr].docx, Report_fr.docx, or fr/Report.docx.",
+      "Reads and writes Google Drive files through Pipes for connected folders. Imports source files into the Content editor and writes copies as [vi-VN] overview.docx, overview [vi-VN].docx, overview_vi-VN.docx, or vi-VN/overview.docx.",
     tools: ["import_google_drive_files", "push_google_drive_translations"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],

@@ -71,7 +71,7 @@ function readGoogleDriveConfig(automation: WorkspaceAutomationRecord) {
   if (!googleDrive?.enabled || !googleDrive.workosUserId) {
     throw new Error("google_drive_not_configured");
   }
-  if (!googleDrive.folderIds?.length) {
+  if (!googleDrive.folderIds?.length && !googleDrive.fileIds?.length) {
     throw new Error("google_drive_folders_required");
   }
   return googleDrive;
@@ -259,25 +259,37 @@ export async function runImportGoogleDriveFiles(input: {
   if (isErr(tokenResult)) {
     throw new Error(tokenResult.error.code);
   }
+  const accessToken = tokenResult.value;
 
-  const folders = await db
-    .select()
-    .from(schema.googleDriveFolders)
-    .where(
-      and(
-        eq(schema.googleDriveFolders.organizationId, input.organizationId),
-        inArray(schema.googleDriveFolders.id, config.folderIds),
-      ),
-    );
+  const folders =
+    config.folderIds.length > 0
+      ? await db
+          .select()
+          .from(schema.googleDriveFolders)
+          .where(
+            and(
+              eq(schema.googleDriveFolders.organizationId, input.organizationId),
+              inArray(schema.googleDriveFolders.id, config.folderIds),
+            ),
+          )
+      : [];
 
-  const fileAllowList =
-    config.fileIds && config.fileIds.length > 0 ? new Set(config.fileIds) : null;
   const toImport: WalkFile[] = [];
+  const translationOutput = resolveGoogleDriveTranslationOutput(config.translationOutput);
+  const includeTranslatedFiles = config.includeTranslatedFiles ?? false;
 
-  for (const folder of folders) {
+  async function collectDriveItem(inputItem: {
+    fileId: string;
+    driveId: string | null;
+    relativePath: string;
+    rootFolderId: string;
+  }) {
+    if (toImport.some((file) => file.fileId === inputItem.fileId)) {
+      return;
+    }
     const metaResult = await getGoogleDriveFile({
-      accessToken: tokenResult.value,
-      fileId: folder.folderId === "root" ? "root" : folder.folderId,
+      accessToken,
+      fileId: inputItem.fileId === "root" ? "root" : inputItem.fileId,
     });
     if (isErr(metaResult)) {
       throw new Error(metaResult.error.code);
@@ -285,22 +297,18 @@ export async function runImportGoogleDriveFiles(input: {
 
     if (metaResult.value.mimeType === GOOGLE_MIME.folder) {
       await walkGoogleDriveFolder({
-        accessToken: tokenResult.value,
-        rootFolderId: folder.folderId,
-        driveId: folder.driveId,
-        folderId: folder.folderId,
-        relativePath: "",
+        accessToken,
+        rootFolderId: inputItem.rootFolderId,
+        driveId: inputItem.driveId ?? metaResult.value.driveId,
+        folderId: inputItem.fileId,
+        relativePath: inputItem.relativePath,
         depth: 0,
-        includeTranslatedFiles: config.includeTranslatedFiles ?? false,
-        translationOutput: resolveGoogleDriveTranslationOutput(config.translationOutput),
-        fileIdAllowList: fileAllowList,
+        includeTranslatedFiles,
+        translationOutput,
+        fileIdAllowList: null,
         collected: toImport,
       });
-      continue;
-    }
-
-    if (fileAllowList && !fileAllowList.has(metaResult.value.id)) {
-      continue;
+      return;
     }
 
     toImport.push({
@@ -310,9 +318,27 @@ export async function runImportGoogleDriveFiles(input: {
       size: metaResult.value.size,
       modifiedTime: metaResult.value.modifiedTime,
       md5Checksum: metaResult.value.md5Checksum,
+      relativePath: inputItem.relativePath,
+      rootFolderId: metaResult.value.parents[0] ?? inputItem.rootFolderId,
+      driveId: inputItem.driveId ?? metaResult.value.driveId,
+    });
+  }
+
+  for (const folder of folders) {
+    await collectDriveItem({
+      fileId: folder.folderId,
+      driveId: folder.driveId,
       relativePath: "",
-      rootFolderId: metaResult.value.parents[0] ?? folder.folderId,
-      driveId: folder.driveId ?? metaResult.value.driveId,
+      rootFolderId: folder.folderId,
+    });
+  }
+
+  for (const fileId of config.fileIds ?? []) {
+    await collectDriveItem({
+      fileId,
+      driveId: null,
+      relativePath: "",
+      rootFolderId: fileId,
     });
   }
 
@@ -323,7 +349,7 @@ export async function runImportGoogleDriveFiles(input: {
   await mapWithConcurrency(toImport, GOOGLE_DRIVE_FILE_IMPORT_CONCURRENCY, async (file) => {
     try {
       const ingestPayload = await loadIngestBuffer({
-        accessToken: tokenResult.value,
+        accessToken,
         file,
       });
       if (!ingestPayload) {

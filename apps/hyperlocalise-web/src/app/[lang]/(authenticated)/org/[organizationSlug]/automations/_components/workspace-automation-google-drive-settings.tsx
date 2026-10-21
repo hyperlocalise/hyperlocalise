@@ -51,10 +51,10 @@ import { workspaceAutomationGoogleDriveSettingsMessages as messages } from "./wo
 const api = createApiClient();
 
 const TRANSLATION_OUTPUT_EXAMPLE: Record<GoogleDriveTranslationOutput, string> = {
-  prefix: "[fr] Report.docx",
-  suffix: "Report [fr].docx",
-  underscore: "Report_fr.docx",
-  folder: "fr/Report.docx",
+  prefix: "[vi-VN] overview.docx",
+  suffix: "overview [vi-VN].docx",
+  underscore: "overview_vi-VN.docx",
+  folder: "vi-VN/overview.docx",
 };
 
 const TRANSLATION_OUTPUT_MESSAGE: Record<
@@ -96,11 +96,14 @@ export function WorkspaceAutomationGoogleDriveSettings({
   const folders = foldersQuery.data ?? [];
 
   const selectedDriveIds = useMemo(() => {
-    const selected = new Set(form.googleDriveFolderIds);
-    return new Set(
-      folders.filter((folder) => selected.has(folder.id)).map((folder) => folder.folderId),
-    );
-  }, [folders, form.googleDriveFolderIds]);
+    const selectedRecords = new Set(form.googleDriveFolderIds);
+    return new Set([
+      ...folders
+        .filter((folder) => selectedRecords.has(folder.id))
+        .map((folder) => folder.folderId),
+      ...form.googleDriveFileIds,
+    ]);
+  }, [folders, form.googleDriveFileIds, form.googleDriveFolderIds]);
 
   const toggleSelection = useCallback(
     (change: {
@@ -108,22 +111,28 @@ export function WorkspaceAutomationGoogleDriveSettings({
       unselect: GoogleDriveTreeToggleChange[];
     }) => {
       const byDriveId = new Map(folders.map((folder) => [folder.folderId, folder.id]));
-      const next = new Set(form.googleDriveFolderIds);
+      const nextFolders = new Set(form.googleDriveFolderIds);
+      const nextFiles = new Set(form.googleDriveFileIds);
       for (const item of change.unselect) {
         const recordId = byDriveId.get(item.node.id);
         if (recordId) {
-          next.delete(recordId);
+          nextFolders.delete(recordId);
         }
+        nextFiles.delete(item.node.id);
       }
       for (const item of change.select) {
         const recordId = byDriveId.get(item.node.id);
         if (recordId) {
-          next.add(recordId);
+          nextFolders.add(recordId);
+          nextFiles.delete(item.node.id);
+          continue;
         }
+        nextFiles.add(item.node.id);
       }
       setForm({
         ...form,
-        googleDriveFolderIds: [...next],
+        googleDriveFolderIds: [...nextFolders],
+        googleDriveFileIds: [...nextFiles],
       });
     },
     [folders, form, setForm],

@@ -174,6 +174,14 @@ export function GoogleDriveFolderManagement({
           <TypographyP size="small" weight="medium">
             <FormattedMessage {...googleDriveFolderManagementMessages.browseFoldersTitle} />
           </TypographyP>
+          <GoogleDriveFolderTree
+            organizationSlug={organizationSlug}
+            disabled={disabled}
+            showTranslations={showTranslations}
+            selectedDriveIds={selectedFolderIds}
+            lockedDriveIds={connectedFolderIds}
+            onToggle={toggleFolderSelection}
+          />
           <div className="flex items-center gap-2">
             <Checkbox
               id="show-translated-drive-files"
@@ -184,14 +192,6 @@ export function GoogleDriveFolderManagement({
               <FormattedMessage {...googleDriveFolderManagementMessages.showTranslatedFiles} />
             </Label>
           </div>
-          <GoogleDriveFolderTree
-            organizationSlug={organizationSlug}
-            disabled={disabled}
-            showTranslations={showTranslations}
-            selectedDriveIds={selectedFolderIds}
-            lockedDriveIds={connectedFolderIds}
-            onToggle={toggleFolderSelection}
-          />
           <Button
             type="button"
             variant="secondary"

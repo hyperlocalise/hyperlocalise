@@ -37,10 +37,10 @@ export const googleDriveFolderManagementMessages = defineMessages({
     description: "Remove a connected folder",
   },
   showTranslatedFiles: {
-    id: "FNuaJvXmwE",
+    id: "nYo+gKPcNj",
     defaultMessage: "Show translation output files",
     description:
-      "Toggle to reveal locale-named Drive files and folders such as [fr] Report.docx or fr/",
+      "Toggle to reveal locale-named Drive files and folders such as [vi-VN] overview.docx or vi-VN/",
   },
   emptyFolders: {
     id: "adcrhyBSEG",

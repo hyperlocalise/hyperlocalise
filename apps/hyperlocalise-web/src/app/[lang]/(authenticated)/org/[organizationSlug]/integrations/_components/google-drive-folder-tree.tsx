@@ -15,16 +15,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  CaretRightIcon,
-  FileDocIcon,
-  FilePdfIcon,
-  FilePptIcon,
-  FileTextIcon,
-  FileXlsIcon,
-  FolderIcon,
-} from "@phosphor-icons/react";
+import { CaretRightIcon, FilePdfIcon, FolderIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
+import { siGoogledocs, siGoogledrive, siGooglesheets, siGoogleslides } from "simple-icons";
 import { toast } from "sonner";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -36,6 +29,7 @@ import { GOOGLE_MIME } from "@/lib/google-drive/constants";
 import { cn } from "@/lib/primitives/cn";
 
 import { googleDriveFolderManagementMessages } from "./google-drive-folder-management.messages";
+import { SimpleBrandIcon } from "./simple-brand-icon";
 
 const api = createApiClient();
 
@@ -83,7 +77,7 @@ function buildConnectedTree(items: GoogleDriveConnectedItem[]): GoogleDriveTreeN
       mimeType: item.mimeType ?? undefined,
       selectable: true,
       expanded: false,
-      childrenLoaded: true,
+      childrenLoaded: !isFolder,
       children: [],
     });
   }
@@ -113,6 +107,13 @@ function buildConnectedTree(items: GoogleDriveConnectedItem[]): GoogleDriveTreeN
     }
   }
   return roots;
+}
+
+function connectedItemsSignature(items: GoogleDriveConnectedItem[]) {
+  return items
+    .map((item) => item.folderId)
+    .toSorted()
+    .join("\n");
 }
 
 type DriveRoot = { id: string; name: string; kind: "my_drive" | "shared_drive" };
@@ -241,27 +242,35 @@ function buildRootNodes(drives: DriveRoot[]): GoogleDriveTreeNode[] {
   }));
 }
 
-const TREE_ICON_CLASS = "size-4 shrink-0 text-muted-foreground";
+const TREE_ICON_CLASS = "size-4 shrink-0";
+const GOOGLE_FOLDER_COLOR = "#F9AB00";
+const GOOGLE_PDF_COLOR = "#EA4335";
 
 function DriveItemIcon({ node }: { node: GoogleDriveTreeNode }) {
   if (node.isFolder) {
-    return <FolderIcon className={TREE_ICON_CLASS} />;
+    return (
+      <FolderIcon
+        className={TREE_ICON_CLASS}
+        style={{ color: GOOGLE_FOLDER_COLOR }}
+        weight="fill"
+      />
+    );
   }
 
   const mimeType = node.mimeType ?? "";
   if (mimeType === GOOGLE_MIME.document || mimeType.includes("wordprocessingml")) {
-    return <FileDocIcon className={TREE_ICON_CLASS} />;
+    return <SimpleBrandIcon icon={siGoogledocs} colored className={TREE_ICON_CLASS} />;
   }
   if (mimeType === GOOGLE_MIME.spreadsheet || mimeType.includes("spreadsheetml")) {
-    return <FileXlsIcon className={TREE_ICON_CLASS} />;
+    return <SimpleBrandIcon icon={siGooglesheets} colored className={TREE_ICON_CLASS} />;
   }
   if (mimeType === GOOGLE_MIME.presentation || mimeType.includes("presentationml")) {
-    return <FilePptIcon className={TREE_ICON_CLASS} />;
+    return <SimpleBrandIcon icon={siGoogleslides} colored className={TREE_ICON_CLASS} />;
   }
   if (mimeType === "application/pdf") {
-    return <FilePdfIcon className={TREE_ICON_CLASS} />;
+    return <FilePdfIcon className={TREE_ICON_CLASS} style={{ color: GOOGLE_PDF_COLOR }} />;
   }
-  return <FileTextIcon className={TREE_ICON_CLASS} />;
+  return <SimpleBrandIcon icon={siGoogledrive} colored className={TREE_ICON_CLASS} />;
 }
 
 function DriveFolderTreeRow({
@@ -348,6 +357,7 @@ export function GoogleDriveFolderTree({
   const [roots, setRoots] = useState<GoogleDriveTreeNode[]>([]);
   const [expandingKeys, setExpandingKeys] = useState<Set<string>>(new Set());
   const rootsRef = useRef<GoogleDriveTreeNode[]>([]);
+  const connectedSignatureRef = useRef("");
   rootsRef.current = roots;
 
   const drivesQuery = useQuery({
@@ -522,7 +532,13 @@ export function GoogleDriveFolderTree({
 
   useEffect(() => {
     if (connectedOnly) {
-      setRoots(buildConnectedTree(connectedItems ?? []));
+      const nextItems = connectedItems ?? [];
+      const signature = connectedItemsSignature(nextItems);
+      if (signature === connectedSignatureRef.current && rootsRef.current.length > 0) {
+        return;
+      }
+      connectedSignatureRef.current = signature;
+      setRoots(buildConnectedTree(nextItems));
       return;
     }
     if (!drivesQuery.data || roots.length > 0) {

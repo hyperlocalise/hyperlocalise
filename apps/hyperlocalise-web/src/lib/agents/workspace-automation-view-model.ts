@@ -125,6 +125,7 @@ export type WorkspaceAutomationFormState = {
   intercomEnabled: boolean;
   googleDriveEnabled: boolean;
   googleDriveFolderIds: string[];
+  googleDriveFileIds: string[];
   googleDriveTargetLocales: string[];
   googleDriveIncludeTranslatedFiles: boolean;
   googleDriveTranslationOutput: GoogleDriveTranslationOutput;
@@ -261,7 +262,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_push_branches_required: "Add at least one branch pattern for GitHub triggers.",
   github_events_required: "Choose at least one GitHub event.",
   scheduled_workflow_required:
-    "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Braze, Queries, Web Search, or Crowdin workflow tool.",
+    "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Google Drive, Braze, Queries, Web Search, or Crowdin workflow tool.",
   intercom_not_connected: "Connect Intercom in Integrations before using it.",
   intercom_pipes_needs_reauthorization: "Reconnect Intercom in Integrations, then try again.",
   intercom_pipes_unavailable: "Intercom is unavailable until WorkOS Pipes is configured.",
@@ -415,6 +416,7 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     intercomEnabled: false,
     googleDriveEnabled: false,
     googleDriveFolderIds: [],
+    googleDriveFileIds: [],
     googleDriveTargetLocales: [],
     googleDriveIncludeTranslatedFiles: false,
     googleDriveTranslationOutput: DEFAULT_GOOGLE_DRIVE_TRANSLATION_OUTPUT,
@@ -569,6 +571,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
     intercomEnabled: Boolean(intercom?.enabled),
     googleDriveEnabled: Boolean(googleDrive?.enabled),
     googleDriveFolderIds: googleDrive?.folderIds ? [...googleDrive.folderIds] : [],
+    googleDriveFileIds: googleDrive?.fileIds ? [...googleDrive.fileIds] : [],
     googleDriveTargetLocales: googleDrive?.targetLocales ? [...googleDrive.targetLocales] : [],
     googleDriveIncludeTranslatedFiles: Boolean(googleDrive?.includeTranslatedFiles),
     googleDriveTranslationOutput: resolveGoogleDriveTranslationOutput(
@@ -893,7 +896,7 @@ export function formStateToWorkspaceAutomationPayload(
           googleDrive: {
             enabled: true,
             folderIds: form.googleDriveFolderIds,
-            fileIds: [],
+            fileIds: form.googleDriveFileIds,
             targetLocales: form.googleDriveTargetLocales,
             includeTranslatedFiles: form.googleDriveIncludeTranslatedFiles,
             translationOutput: form.googleDriveTranslationOutput,
@@ -1160,7 +1163,11 @@ export function validateWorkspaceAutomationFormState(
     }
   }
 
-  if (form.googleDriveEnabled && form.googleDriveFolderIds.length === 0) {
+  if (
+    form.googleDriveEnabled &&
+    form.googleDriveFolderIds.length === 0 &&
+    form.googleDriveFileIds.length === 0
+  ) {
     errors.googleDrive = "Choose at least one connected Google Drive folder or file.";
   }
 
