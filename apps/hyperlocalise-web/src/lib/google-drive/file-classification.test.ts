@@ -17,6 +17,7 @@ import {
   classifyGoogleDriveItem,
   hideGoogleDriveTranslationOutputsOnIngest,
 } from "./file-classification";
+import { GOOGLE_DRIVE_MAX_FILE_BYTES, GOOGLE_DRIVE_MAX_FOLDER_DEPTH } from "./limits";
 
 describe("classifyGoogleDriveItem", () => {
   it("classifies Google Docs as supported docx ingest", () => {
@@ -142,6 +143,31 @@ describe("classifyGoogleDriveItem", () => {
         mimeType: "application/octet-stream",
       }),
     ).toMatchObject({ kind: "skipped", reason: "unsupported_plain_text" });
+  });
+
+  it("skips files over the size cap and folders deeper than the walk limit", () => {
+    expect(
+      classifyGoogleDriveItem({
+        name: "overview.docx",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        sizeBytes: GOOGLE_DRIVE_MAX_FILE_BYTES + 1,
+      }),
+    ).toMatchObject({ kind: "skipped", reason: "file_too_large" });
+    expect(
+      classifyGoogleDriveItem({
+        name: "overview.docx",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        folderDepth: GOOGLE_DRIVE_MAX_FOLDER_DEPTH + 1,
+      }),
+    ).toMatchObject({ kind: "skipped", reason: "folder_depth_exceeded" });
+    expect(
+      classifyGoogleDriveItem({
+        name: "overview.docx",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        sizeBytes: GOOGLE_DRIVE_MAX_FILE_BYTES,
+        folderDepth: GOOGLE_DRIVE_MAX_FOLDER_DEPTH,
+      }),
+    ).toMatchObject({ kind: "supported", ingestFormat: "docx" });
   });
 
   it("keeps prefix translation outputs when hide is off", () => {

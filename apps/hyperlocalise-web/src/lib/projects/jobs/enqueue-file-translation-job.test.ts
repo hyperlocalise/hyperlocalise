@@ -23,6 +23,7 @@ const {
   reserveUsageEventMock,
   selectLimitMock,
   transactionMock,
+  updateSetMock,
   jobQueueEnqueueMock,
   ensureAiFeaturesAllowedMock,
 } = vi.hoisted(() => ({
@@ -33,6 +34,7 @@ const {
   reserveUsageEventMock: vi.fn(),
   selectLimitMock: vi.fn(),
   transactionMock: vi.fn(),
+  updateSetMock: vi.fn(),
   jobQueueEnqueueMock: vi.fn(),
   ensureAiFeaturesAllowedMock: vi.fn(),
 }));
@@ -90,9 +92,10 @@ vi.mock("@/lib/database/client", () => {
       select: vi.fn(() => createSelectBuilder()),
       transaction: (...args: unknown[]) => transactionMock(...args),
       update: vi.fn(() => ({
-        set: vi.fn(() => ({
-          where: vi.fn(),
-        })),
+        set: (payload: unknown) => {
+          updateSetMock(payload);
+          return { where: vi.fn() };
+        },
       })),
     },
     schema: {
@@ -535,6 +538,46 @@ describe("enqueueExistingFileTranslationJob", () => {
         kind: "translation",
         type: "file",
         jobId: "job_queued",
+      }),
+    );
+  });
+
+  it("records an automation trigger on the job before enqueue", async () => {
+    selectLimitMock.mockResolvedValue([
+      {
+        id: "job_queued",
+        projectId: "project_1",
+        kind: "translation",
+        status: "queued",
+        type: "file",
+        externalProviderKind: null,
+      },
+    ]);
+    const trigger = {
+      kind: "automation" as const,
+      automationId: "auto-1",
+      runId: "run-1",
+      name: "Nightly Drive",
+    };
+
+    await expect(
+      enqueueExistingFileTranslationJob({
+        organizationId: "org_1",
+        jobId: "job_queued",
+        trigger,
+        jobQueue: { enqueue: jobQueueEnqueueMock } as never,
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      jobId: "job_queued",
+      projectId: "project_1",
+    });
+
+    expect(updateSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assigneeType: "agent",
+        ownerUserId: null,
+        generationProvenance: { trigger },
       }),
     );
   });

@@ -16,10 +16,12 @@ import {
   buildWorkspaceOrchestratorOutputSummary,
   readImportBrazeCampaigns,
   readImportBrazeTemplates,
+  readImportGoogleDriveFiles,
   readImportIntercomArticles,
   readImportSanityDocuments,
   readPushBrazeCampaigns,
   readPushBrazeTemplates,
+  readPushGoogleDriveTranslations,
   readPushIntercomTranslations,
   readPushSanityTranslations,
 } from "./workspace-orchestrator-output-summary";
@@ -378,6 +380,56 @@ describe("readPushIntercomTranslations", () => {
   it("rejects a persisted object missing pushedLocales", () => {
     expect(
       readPushIntercomTranslations({ pushIntercomTranslations: { status: "succeeded" } }, {}),
+    ).toBeNull();
+  });
+});
+
+describe("readImportGoogleDriveFiles", () => {
+  it("prefers the current step, then the persisted summary, then prior step results", () => {
+    expect(
+      readImportGoogleDriveFiles(
+        { importGoogleDriveFiles: { imported: 4, status: "stale" } },
+        { import_google_drive_files: { imported: 0, failed: 2 } },
+      ),
+    ).toEqual({ imported: 0, failed: 2 });
+    expect(
+      readImportGoogleDriveFiles({ importGoogleDriveFiles: { imported: 3, skipped: 1 } }, {}),
+    ).toEqual({ imported: 3, skipped: 1 });
+    expect(
+      readImportGoogleDriveFiles(
+        {
+          orchestratorStepResults: {
+            import_google_drive_files: { imported: 2, status: "succeeded" },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ imported: 2, status: "succeeded" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportGoogleDriveFiles(
+        { importGoogleDriveFiles: { status: "succeeded", failed: 0 } },
+        { import_google_drive_files: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushGoogleDriveTranslations", () => {
+  it("treats pushed 0 as a completed idempotent result", () => {
+    expect(
+      readPushGoogleDriveTranslations(
+        {},
+        { push_google_drive_translations: { pushed: 0, failed: 1 } },
+      ),
+    ).toEqual({ pushed: 0, failed: 1 });
+  });
+
+  it("rejects a persisted object missing pushed", () => {
+    expect(
+      readPushGoogleDriveTranslations({ pushGoogleDriveTranslations: { status: "succeeded" } }, {}),
     ).toBeNull();
   });
 });
