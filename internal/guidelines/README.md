@@ -55,6 +55,11 @@ hits are discarded. Search errors return `searchAvailable: false`; database erro
 fail the request. Mandatory documents are returned independently of ranking. A
 Service without an index returns mandatory documents only.
 
+`WithReranker` fetches up to 32 canonical hits and reorders them before trimming
+to the requested limit. go-svc uses `voyage/rerank-3-lite` through AI Gateway
+(`internal/rerank`) when `AI_GATEWAY_API_KEY` is set. A rerank failure keeps the
+index's RRF order.
+
 ## Checks
 
 `check.Checker` grounds an LLM review in retrieved guidelines. It retrieves once

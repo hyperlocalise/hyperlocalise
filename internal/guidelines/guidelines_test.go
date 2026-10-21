@@ -23,6 +23,7 @@ type fakeIndex struct {
 	onSearch func()
 	writes   []Document
 	deletes  []string
+	limit    int
 }
 
 func (s *fakeIndex) Upsert(_ context.Context, doc Document) error {
@@ -35,7 +36,8 @@ func (s *fakeIndex) DeleteThrough(_ context.Context, _ Scope, id string, _ int64
 	return s.err
 }
 
-func (s *fakeIndex) Search(context.Context, Query) ([]Chunk, error) {
+func (s *fakeIndex) Search(_ context.Context, query Query) ([]Chunk, error) {
+	s.limit = query.Limit
 	if s.onSearch != nil {
 		s.onSearch()
 	}
@@ -104,6 +106,61 @@ func TestRetrievalFailureAndRevisionChange(t *testing.T) {
 			}
 		})
 	}
+}
+
+type fakeReranker struct {
+	order    []int
+	err      error
+	passages []string
+	topN     int
+}
+
+func (r *fakeReranker) Rerank(_ context.Context, _ string, passages []string, topN int) ([]int, error) {
+	r.passages, r.topN = passages, topN
+	return r.order, r.err
+}
+
+func rerankFixture() (Document, []Chunk) {
+	doc := fixtureDocument()
+	doc.Content = "First rule.\n\nSecond rule.\n\nThird rule."
+	return doc, Chunks(doc)
+}
+
+func TestRetrieveReranksCandidates(t *testing.T) {
+	doc, chunks := rerankFixture()
+	index := &fakeIndex{hits: chunks}
+	reranker := &fakeReranker{order: []int{2, 0}}
+	result, err := NewService(&fakeSource{docs: []Document{doc}}, index, WithReranker(reranker)).Retrieve(t.Context(), doc.Scope, "rules", 2)
+	require.NoError(t, err)
+	require.Equal(t, rerankCandidates, index.limit)
+	require.Equal(t, []string{"First rule.", "Second rule.", "Third rule."}, reranker.passages)
+	require.Equal(t, 2, reranker.topN)
+	require.Equal(t, []Chunk{chunks[2], chunks[0]}, result.Passages)
+}
+
+func TestRetrieveKeepsIndexOrderWhenRerankFails(t *testing.T) {
+	for name, reranker := range map[string]*fakeReranker{
+		"error":           {err: errors.New("unavailable")},
+		"empty":           {},
+		"out of range":    {order: []int{5}},
+		"duplicate index": {order: []int{1, 1}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			doc, chunks := rerankFixture()
+			result, err := NewService(&fakeSource{docs: []Document{doc}}, &fakeIndex{hits: chunks}, WithReranker(reranker)).Retrieve(t.Context(), doc.Scope, "rules", 2)
+			require.NoError(t, err)
+			require.Equal(t, chunks[:2], result.Passages)
+		})
+	}
+}
+
+func TestRetrieveWithoutRerankerUsesCallerLimit(t *testing.T) {
+	doc, chunks := rerankFixture()
+	index := &fakeIndex{hits: chunks}
+	result, err := NewService(&fakeSource{docs: []Document{doc}}, index).Retrieve(t.Context(), doc.Scope, "rules", 2)
+	require.NoError(t, err)
+	require.Equal(t, 2, index.limit)
+	require.Equal(t, chunks[:2], result.Passages)
 }
 
 func TestChunksAndSync(t *testing.T) {
