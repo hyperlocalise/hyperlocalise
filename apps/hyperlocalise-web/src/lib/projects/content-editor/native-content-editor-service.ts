@@ -59,6 +59,13 @@ import {
   isVideoUrlContentKind,
 } from "@/lib/projects/files/video-url-translation-service";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
+import {
+  projectTranslationRevisionColumns,
+  recordProjectTranslationRevisions,
+  revisionActorForProvenance,
+  snapshotProjectTranslations,
+  type TranslationRevisionActor,
+} from "@/lib/projects/translations/project-translation-revisions";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 import {
   inferSupportedDocumentTranslationFileFormat,
@@ -1099,6 +1106,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
     actorUserId?: string;
     provenance?: "manual" | "translation_job" | "import" | "agent";
     sourceJobId?: string;
+    actor?: TranslationRevisionActor;
   }): Promise<(ProjectFileContentEditorTranslation & { updatedAt: Date }) | null> {
     const sourceFile = await this.translations.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
@@ -1129,16 +1137,12 @@ export class NativeContentEditorService extends ProjectServiceBase {
       return null;
     }
 
-    const [existing] = await this.database
-      .select({ sourceJobId: schema.projectTranslations.sourceJobId })
-      .from(schema.projectTranslations)
-      .where(
-        and(
-          eq(schema.projectTranslations.translationKeyId, key.id),
-          eq(schema.projectTranslations.targetLocale, input.targetLocale),
-        ),
-      )
-      .limit(1);
+    const before = await snapshotProjectTranslations(this.database, {
+      organizationId: input.organizationId,
+      translationKeyIds: [key.id],
+      targetLocales: [input.targetLocale],
+    });
+    const [existing] = before.values();
     const sourceJobId = input.sourceJobId ?? existing?.sourceJobId ?? undefined;
     const status = input.approve ? "approved" : "draft";
     const provenance = input.provenance ?? "manual";
@@ -1175,15 +1179,22 @@ export class NativeContentEditorService extends ProjectServiceBase {
         },
       })
       .returning({
-        id: schema.projectTranslations.id,
-        text: schema.projectTranslations.text,
-        status: schema.projectTranslations.status,
+        ...projectTranslationRevisionColumns,
         updatedAt: schema.projectTranslations.updatedAt,
       });
 
     if (!saved) {
       return null;
     }
+
+    await recordProjectTranslationRevisions(this.database, {
+      before,
+      saved: [saved],
+      actor: input.actor ?? {
+        actorKind: revisionActorForProvenance(provenance).actorKind,
+        actorUserId: input.actorUserId ?? null,
+      },
+    });
 
     // This path writes no activity event, so Reports is recorded here, after the translation
     // is stored. Go-service saves are recorded from their events by the reporting-capture cron.
@@ -1223,7 +1234,13 @@ export class NativeContentEditorService extends ProjectServiceBase {
     targetLocale: string;
     status: "needs_review" | "approved" | "rejected";
     actorUserId?: string;
+    actor?: TranslationRevisionActor;
   }) {
+    const before = await snapshotProjectTranslations(this.database, {
+      organizationId: input.organizationId,
+      translationKeyIds: [input.translationKeyId],
+      targetLocales: [input.targetLocale],
+    });
     const reviewedAt =
       input.status === "approved" || input.status === "rejected" ? new Date() : null;
     const reviewedByUserId =
@@ -1246,13 +1263,17 @@ export class NativeContentEditorService extends ProjectServiceBase {
           eq(schema.projectTranslations.targetLocale, input.targetLocale),
         ),
       )
-      .returning({
-        id: schema.projectTranslations.id,
-        text: schema.projectTranslations.text,
-        status: schema.projectTranslations.status,
-      });
+      .returning(projectTranslationRevisionColumns);
 
     if (updated) {
+      await recordProjectTranslationRevisions(this.database, {
+        before,
+        saved: [updated],
+        actor: input.actor ?? {
+          actorKind: input.actorUserId ? "user" : "system",
+          actorUserId: input.actorUserId ?? null,
+        },
+      });
       this.log.debug(
         {
           organizationId: input.organizationId,

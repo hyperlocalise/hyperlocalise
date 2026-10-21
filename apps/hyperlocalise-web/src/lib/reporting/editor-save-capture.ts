@@ -76,6 +76,7 @@ type WorkspaceToCheck = {
 
 /** Native string ids are uuids; an external tool's id (e.g. a Crowdin string id) is not. */
 const NATIVE_STRING_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UNDO_OPERATION_PREFIX = "undo:";
 
 /**
  * Records content editor saves for Reports from the activity events the Go service writes inside
@@ -339,6 +340,13 @@ function savedSegments(events: SaveEvent[]): SavedSegment[] {
     // Approvals made in an external translation tool name the tool's own string id, which has no
     // native string to record; looking it up as one would fail the whole batch on every run.
     if (!NATIVE_STRING_ID.test(event.targetId)) continue;
+    // Restoring an earlier version or undoing an operation puts back work already recorded.
+    if (typeof event.payload.restoredFromRevisionId === "string") continue;
+    if (
+      typeof event.payload.operationId === "string" &&
+      event.payload.operationId.startsWith(UNDO_OPERATION_PREFIX)
+    )
+      continue;
     const approved =
       event.eventType === "string_segment_approved" || event.payload.nextStatus === "approved";
     const step = approved ? "review" : "translation";

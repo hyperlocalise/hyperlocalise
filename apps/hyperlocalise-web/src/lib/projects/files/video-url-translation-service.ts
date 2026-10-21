@@ -23,6 +23,11 @@ import {
   localizedVideoOutputFilename,
 } from "@/lib/agents/video-localization";
 import { db, schema } from "@/lib/database/client";
+import {
+  recordProjectTranslationRevisions,
+  revisionActorForProvenance,
+  snapshotProjectTranslations,
+} from "@/lib/projects/translations/project-translation-revisions";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { publicMediaAssetUrl, publicMediaMetadata } from "@/lib/projects/files/public-media";
 import {
@@ -262,6 +267,11 @@ export async function localizeVideoUrlTranslation(input: {
     })
     .where(eq(schema.projectTranslationKeys.id, key.id));
 
+  const before = await snapshotProjectTranslations(db, {
+    organizationId: input.organizationId,
+    translationKeyIds: [key.id],
+    targetLocales: [input.targetLocale],
+  });
   const [translation] = await db
     .insert(schema.projectTranslations)
     .values({
@@ -300,6 +310,15 @@ export async function localizeVideoUrlTranslation(input: {
   if (!translation) {
     return err({ code: "key_not_found" });
   }
+
+  await recordProjectTranslationRevisions(db, {
+    before,
+    saved: [translation],
+    actor: {
+      actorKind: revisionActorForProvenance(translation.provenance).actorKind,
+      actorUserId: input.actorUserId ?? null,
+    },
+  });
 
   return ok({ translation, assetUrl, storedFileId: stored.id });
 }
@@ -392,6 +411,11 @@ export async function replaceVideoUrlTranslationBytes(input: {
     })
     .where(eq(schema.projectTranslationKeys.id, key.id));
 
+  const before = await snapshotProjectTranslations(db, {
+    organizationId: input.organizationId,
+    translationKeyIds: [key.id],
+    targetLocales: [input.targetLocale],
+  });
   const [translation] = await db
     .insert(schema.projectTranslations)
     .values({
@@ -430,6 +454,15 @@ export async function replaceVideoUrlTranslationBytes(input: {
   if (!translation) {
     return err({ code: "key_not_found" });
   }
+
+  await recordProjectTranslationRevisions(db, {
+    before,
+    saved: [translation],
+    actor: {
+      actorKind: revisionActorForProvenance(translation.provenance).actorKind,
+      actorUserId: input.actorUserId ?? null,
+    },
+  });
 
   return ok({ translation, assetUrl, storedFileId: stored.id });
 }

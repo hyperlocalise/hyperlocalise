@@ -15,6 +15,11 @@ import { and, eq, inArray, isNull, or } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { enqueueJobFailedActivity } from "@/lib/activity-log/job-automation-events";
+import {
+  projectTranslationRevisionColumns,
+  recordProjectTranslationRevisions,
+  snapshotProjectTranslations,
+} from "@/lib/projects/translations/project-translation-revisions";
 import type { ReviewJobEventData } from "@/lib/workflow/types";
 
 type ReviewJobConfig = {
@@ -435,13 +440,25 @@ export async function executeNativeReviewJob(input: {
   const reviewedIds = rows.map((row) => row.translationId);
 
   if (reviewedIds.length > 0) {
-    await db
+    const before = await snapshotProjectTranslations(db, {
+      organizationId: project.organizationId,
+      translationKeyIds: rows.map((row) => row.translationKeyId),
+      targetLocales: [targetLocale],
+    });
+    const saved = await db
       .update(schema.projectTranslations)
       .set({
         status: blocking.length > 0 ? "needs_review" : "approved",
         reviewedAt: blocking.length > 0 ? null : new Date(),
       })
-      .where(inArray(schema.projectTranslations.id, reviewedIds));
+      .where(inArray(schema.projectTranslations.id, reviewedIds))
+      .returning(projectTranslationRevisionColumns);
+    await recordProjectTranslationRevisions(db, {
+      before,
+      saved,
+      actor: { actorKind: "system", actorUserId: null },
+      operationId: `job:${input.jobId}`,
+    });
   }
 
   if (blocking.length === 0)

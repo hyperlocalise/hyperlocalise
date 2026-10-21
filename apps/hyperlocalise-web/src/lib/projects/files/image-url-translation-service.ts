@@ -20,6 +20,11 @@ import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
 import { mediaLocalizationOperationKey } from "@/lib/billing/media-localization-operation-key";
 import { ManagedAiCreditAccessError } from "@/lib/billing/managed-ai-credit";
 import { db, schema } from "@/lib/database/client";
+import {
+  recordProjectTranslationRevisions,
+  revisionActorForProvenance,
+  snapshotProjectTranslations,
+} from "@/lib/projects/translations/project-translation-revisions";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { fetchImageBytesFromUrl } from "@/lib/projects/files/image-variant-service";
 import { publicMediaAssetUrl, publicMediaMetadata } from "@/lib/projects/files/public-media";
@@ -240,6 +245,11 @@ export async function localizeImageUrlTranslation(input: {
     .set({ metadata, updatedAt: new Date() })
     .where(eq(schema.projectTranslationKeys.id, key.id));
 
+  const before = await snapshotProjectTranslations(db, {
+    organizationId: input.organizationId,
+    translationKeyIds: [key.id],
+    targetLocales: [input.targetLocale],
+  });
   const [translation] = await db
     .insert(schema.projectTranslations)
     .values({
@@ -278,6 +288,15 @@ export async function localizeImageUrlTranslation(input: {
   if (!translation) {
     return err({ code: "key_not_found" });
   }
+
+  await recordProjectTranslationRevisions(db, {
+    before,
+    saved: [translation],
+    actor: {
+      actorKind: revisionActorForProvenance(translation.provenance).actorKind,
+      actorUserId: input.actorUserId ?? null,
+    },
+  });
 
   return ok({ translation, assetUrl, storedFileId: stored.id });
 }
@@ -362,6 +381,11 @@ export async function replaceImageUrlTranslationBytes(input: {
     .set({ metadata, updatedAt: new Date() })
     .where(eq(schema.projectTranslationKeys.id, key.id));
 
+  const before = await snapshotProjectTranslations(db, {
+    organizationId: input.organizationId,
+    translationKeyIds: [key.id],
+    targetLocales: [input.targetLocale],
+  });
   const [translation] = await db
     .insert(schema.projectTranslations)
     .values({
@@ -400,6 +424,15 @@ export async function replaceImageUrlTranslationBytes(input: {
   if (!translation) {
     return err({ code: "key_not_found" });
   }
+
+  await recordProjectTranslationRevisions(db, {
+    before,
+    saved: [translation],
+    actor: {
+      actorKind: revisionActorForProvenance(translation.provenance).actorKind,
+      actorUserId: input.actorUserId ?? null,
+    },
+  });
 
   return ok({ translation, assetUrl, storedFileId: stored.id });
 }

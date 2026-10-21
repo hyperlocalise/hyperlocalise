@@ -12,6 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   index,
   integer,
@@ -125,6 +126,55 @@ export const projectTranslations = pgTable(
     uniqueIndex("project_translations_key_locale").on(table.translationKeyId, table.targetLocale),
     index("idx_project_translations_org_project").on(table.organizationId, table.projectId),
     index("idx_project_translations_status").on(table.projectId, table.status),
+  ],
+);
+
+/**
+ * Append-only history of `project_translations`: one row per write that changed text or status.
+ * Every writer records here (`project-translation-revisions.ts` in the web app,
+ * `editor-cat-revisions.go` in go-svc), so a past version can be restored.
+ */
+export const projectTranslationRevisions = pgTable(
+  "project_translation_revisions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    translationId: uuid("translation_id")
+      .notNull()
+      .references(() => projectTranslations.id, { onDelete: "cascade" }),
+    translationKeyId: uuid("translation_key_id")
+      .notNull()
+      .references(() => projectTranslationKeys.id, { onDelete: "cascade" }),
+    targetLocale: text("target_locale").notNull(),
+    text: text("text").notNull(),
+    status: projectTranslationStatusEnum("status").notNull(),
+    provenance: projectTranslationProvenanceEnum("provenance").notNull(),
+    sourceJobId: text("source_job_id").references(() => jobs.id, { onDelete: "set null" }),
+    actorKind: text("actor_kind").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    /** Groups revisions written together: a group save, a translation job (`job:<id>`), an undo. */
+    operationId: text("operation_id"),
+    restoredFromRevisionId: uuid("restored_from_revision_id").references(
+      (): AnyPgColumn => projectTranslationRevisions.id,
+      { onDelete: "set null" },
+    ),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_project_translation_revisions_translation").on(
+      table.translationId,
+      table.createdAt.desc(),
+    ),
+    index("idx_project_translation_revisions_operation").on(
+      table.organizationId,
+      table.projectId,
+      table.operationId,
+    ),
   ],
 );
 

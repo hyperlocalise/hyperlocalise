@@ -374,12 +374,14 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 				return nil, 0, err
 			}
 		}
-		var beforeRevision string
-		err = tx.QueryRow(r.Context(), `select xmin::text from project_translations where translation_key_id=$1 and target_locale=$2 for update`, occurrenceID, targetLocale).Scan(&beforeRevision)
-		if errors.Is(err, pgx.ErrNoRows) {
-			beforeRevision = "missing"
-		} else if err != nil {
+		var before *editorCatTranslationSnapshot
+		before, err = lockEditorCatTranslation(r.Context(), tx, actor.organizationID, occurrenceID, targetLocale)
+		if err != nil {
 			return nil, 0, err
+		}
+		beforeRevision := "missing"
+		if before != nil {
+			beforeRevision = before.revision
 		}
 		var id, text, savedStatus, afterRevision string
 		err = tx.QueryRow(r.Context(), `
@@ -406,9 +408,24 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		if err != nil {
 			return nil, 0, err
 		}
+		var revisionID string
+		revisionID, err = recordEditorCatRevision(r.Context(), tx, actor.organizationID, editorCatRevisionWrite{
+			translationID: id,
+			before:        before,
+			afterText:     text,
+			afterStatus:   savedStatus,
+			actorUserID:   actor.userID,
+			operationID:   operationID,
+		})
+		if err != nil {
+			return nil, 0, err
+		}
 		payload := map[string]any{
 			"projectId": project.ID, "segmentId": occurrenceID, "sourcePath": occurrencePath, "targetLocale": targetLocale,
 			"groupId": groupID, "beforeRevision": beforeRevision, "afterRevision": afterRevision, "nextStatus": savedStatus,
+		}
+		if revisionID != "" {
+			payload["revisionId"] = revisionID
 		}
 		if operationID != "" {
 			payload["operationId"] = operationID
@@ -482,8 +499,17 @@ func (api *editorCatAPI) updateTranslationStatus(r *http.Request, actor editorCa
 		reviewedAt = &now
 		reviewedBy = &actor.userID
 	}
+	tx, err := api.pool.Begin(r.Context())
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+	before, err := lockEditorCatTranslation(r.Context(), tx, actor.organizationID, keyID, trimEditorCat(body.TargetLocale))
+	if err != nil {
+		return nil, 0, err
+	}
 	var id, text, status string
-	err = api.pool.QueryRow(r.Context(), `
+	err = tx.QueryRow(r.Context(), `
         update project_translations
         set status=$5, reviewed_at=$6, reviewed_by_user_id=$7, updated_at=now()
         where organization_id=$1 and project_id=$2 and translation_key_id=$3 and target_locale=$4
@@ -494,6 +520,18 @@ func (api *editorCatAPI) updateTranslationStatus(r *http.Request, actor editorCa
 		return nil, 0, editorCatFailure(400, "translation_key_not_found", "Translation key not found")
 	}
 	if err != nil {
+		return nil, 0, err
+	}
+	if _, err = recordEditorCatRevision(r.Context(), tx, actor.organizationID, editorCatRevisionWrite{
+		translationID: id,
+		before:        before,
+		afterText:     text,
+		afterStatus:   status,
+		actorUserID:   actor.userID,
+	}); err != nil {
+		return nil, 0, err
+	}
+	if err = tx.Commit(r.Context()); err != nil {
 		return nil, 0, err
 	}
 	sourcePath := trimEditorCat(body.SourcePath)

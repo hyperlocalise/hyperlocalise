@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import { and, count, eq, ilike, inArray, or, sql } from "drizzle-orm";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import type {
   ProjectFileContentEditorQueueFilter,
@@ -24,6 +24,12 @@ import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecycle";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { translationKeysQueueOrderBy } from "@/lib/projects/translations/project-translation-queue-order";
+import {
+  projectTranslationRevisionColumns,
+  recordProjectTranslationRevisions,
+  snapshotProjectTranslations,
+  type TranslationRevisionActor,
+} from "@/lib/projects/translations/project-translation-revisions";
 import { shouldRetrySameAsSourcePrefill } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
 import { shouldPrefillTranslation } from "@/lib/projects/translations/translation-prefill";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
@@ -1060,7 +1066,12 @@ export class ProjectTranslationService extends ProjectServiceBase {
       return;
     }
 
-    await this.database
+    const before = await snapshotProjectTranslations(this.database, {
+      organizationId: input.organizationId,
+      translationKeyIds: [key.id],
+      targetLocales: translationValues.map((translation) => translation.targetLocale),
+    });
+    const saved = await this.database
       .insert(schema.projectTranslations)
       .values(translationValues)
       .onConflictDoUpdate({
@@ -1077,7 +1088,9 @@ export class ProjectTranslationService extends ProjectServiceBase {
           reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
           updatedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.updated_at ELSE now() END`,
         },
-      });
+      })
+      .returning(projectTranslationRevisionColumns);
+    await recordProjectTranslationRevisions(this.database, { before, saved });
   }
 
   async persistFileJobTranslations(input: {
@@ -1166,7 +1179,12 @@ export class ProjectTranslationService extends ProjectServiceBase {
       translationValues,
       PROJECT_TRANSLATION_WRITE_BATCH_SIZE,
     )) {
-      await this.database
+      const before = await snapshotProjectTranslations(this.database, {
+        organizationId: input.organizationId,
+        translationKeyIds: translationBatch.map((translation) => translation.translationKeyId),
+        targetLocales: [input.targetLocale],
+      });
+      const saved = await this.database
         .insert(schema.projectTranslations)
         .values(translationBatch)
         .onConflictDoUpdate({
@@ -1183,7 +1201,9 @@ export class ProjectTranslationService extends ProjectServiceBase {
             reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
             updatedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.updated_at ELSE now() END`,
           },
-        });
+        })
+        .returning(projectTranslationRevisionColumns);
+      await recordProjectTranslationRevisions(this.database, { before, saved });
     }
   }
 
@@ -1272,11 +1292,21 @@ export class ProjectTranslationService extends ProjectServiceBase {
       return { matched, imported, skipped };
     }
 
+    const operationId = `import:${randomUUID()}`;
+    const actor: TranslationRevisionActor = {
+      actorKind: reviewedByUserId ? "user" : "system",
+      actorUserId: reviewedByUserId,
+    };
     for (const translationBatch of chunkItems(
       translationValues,
       PROJECT_TRANSLATION_WRITE_BATCH_SIZE,
     )) {
-      await this.database
+      const before = await snapshotProjectTranslations(this.database, {
+        organizationId: input.organizationId,
+        translationKeyIds: translationBatch.map((translation) => translation.translationKeyId),
+        targetLocales: [input.targetLocale],
+      });
+      const saved = await this.database
         .insert(schema.projectTranslations)
         .values(translationBatch)
         .onConflictDoUpdate({
@@ -1293,7 +1323,14 @@ export class ProjectTranslationService extends ProjectServiceBase {
             reviewedByUserId: sql`excluded.reviewed_by_user_id`,
             updatedAt: sql`now()`,
           },
-        });
+        })
+        .returning(projectTranslationRevisionColumns);
+      await recordProjectTranslationRevisions(this.database, {
+        before,
+        saved,
+        actor,
+        operationId,
+      });
     }
 
     this.log.info(
