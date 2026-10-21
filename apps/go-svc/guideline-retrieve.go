@@ -143,7 +143,7 @@ func (api *guidelineRetrieveAPI) retrieve(ctx context.Context, payload guideline
 		slog.WarnContext(ctx, "guideline_retrieve_failed", "organization_id", organizationID, "project_id", scope.ProjectID, "locales", len(locales), "error", err)
 		return guidelineRetrieveResult{}, knowledgeMemoryFailure(503, "guideline_retrieve_failed", "Guideline retrieval failed")
 	}
-	return api.merge(ctx, organizationID, results, limit)
+	return api.merge(ctx, scope, locales, results, limit)
 }
 
 func normalizeRetrieveLocales(raw []string) ([]string, error) {
@@ -169,17 +169,28 @@ func normalizeRetrieveLocales(raw []string) ([]string, error) {
 }
 
 type collectedGuidelines struct {
-	mandatory       map[string]string
+	mandatory map[string]string
+	// revisions holds the revision each document was retrieved at, or "" when
+	// per-locale retrievals saw different revisions.
+	revisions       map[string]string
 	order           []string
 	passages        []retrievedGuidelinePassage
 	searchAvailable bool
+}
+
+func (c *collectedGuidelines) noteRevision(documentID, revisionID string) {
+	if previous, seen := c.revisions[documentID]; seen && previous != revisionID {
+		c.revisions[documentID] = ""
+		return
+	}
+	c.revisions[documentID] = revisionID
 }
 
 // collectUploaded keeps uploaded documents only. Mandatory documents are
 // returned whole, so their passages are dropped; other passages interleave
 // the per-locale rankings.
 func collectUploaded(results []guidelines.Result, limit int) collectedGuidelines {
-	collected := collectedGuidelines{mandatory: map[string]string{}, order: []string{}, passages: []retrievedGuidelinePassage{}, searchAvailable: len(results) > 0}
+	collected := collectedGuidelines{mandatory: map[string]string{}, revisions: map[string]string{}, order: []string{}, passages: []retrievedGuidelinePassage{}, searchAvailable: len(results) > 0}
 	for _, result := range results {
 		collected.searchAvailable = collected.searchAvailable && result.SearchAvailable
 		for _, doc := range result.Mandatory {
@@ -190,6 +201,7 @@ func collectUploaded(results []guidelines.Result, limit int) collectedGuidelines
 				collected.order = append(collected.order, doc.ID)
 			}
 			collected.mandatory[doc.ID] = doc.Content
+			collected.noteRevision(doc.ID, doc.RevisionID)
 		}
 	}
 	seenPassages := make(map[string]bool)
@@ -209,6 +221,7 @@ func collectUploaded(results []guidelines.Result, limit int) collectedGuidelines
 				continue
 			}
 			seenPassages[passage.ID] = true
+			collected.noteRevision(passage.DocumentID, passage.RevisionID)
 			if !referenced[passage.DocumentID] {
 				referenced[passage.DocumentID] = true
 				collected.order = append(collected.order, passage.DocumentID)
@@ -222,8 +235,18 @@ func collectUploaded(results []guidelines.Result, limit int) collectedGuidelines
 	return collected
 }
 
-// merge adds titles and locales, dropping documents deleted since retrieval.
-func (api *guidelineRetrieveAPI) merge(ctx context.Context, organizationID string, results []guidelines.Result, limit int) (guidelineRetrieveResult, error) {
+// mergeQuery reloads metadata only for rows that are still ready and in the
+// requested project and locale scope. An empty locale matches unscoped rows only.
+const mergeQuery = `
+        select id::text, revision_id::text, title, coalesce(locale, '')
+        from guideline_documents
+        where organization_id::text = $1 and id::text = any($2) and status = 'ready'
+          and (project_id is null or project_id = $3)
+          and (locale is null or locale = any($4))`
+
+// merge adds titles and locales, dropping documents that were deleted, left
+// ready status or scope, or got a new revision since retrieval.
+func (api *guidelineRetrieveAPI) merge(ctx context.Context, scope guidelines.Scope, locales []string, results []guidelines.Result, limit int) (guidelineRetrieveResult, error) {
 	collected := collectUploaded(results, limit)
 	merged := guidelineRetrieveResult{Documents: []retrievedGuidelineDocument{}, Passages: []retrievedGuidelinePassage{}, SearchAvailable: collected.searchAvailable}
 	order, mandatory := collected.order, collected.mandatory
@@ -235,7 +258,7 @@ func (api *guidelineRetrieveAPI) merge(ctx context.Context, organizationID strin
 		rowID, _ := uploadedRowID(id)
 		rowIDs = append(rowIDs, rowID)
 	}
-	rows, err := api.pool.Query(ctx, `select id::text, title, coalesce(locale, '') from guideline_documents where organization_id::text = $1 and id::text = any($2)`, organizationID, rowIDs)
+	rows, err := api.pool.Query(ctx, mergeQuery, scope.OrganizationID, rowIDs, scope.ProjectID, locales)
 	if err != nil {
 		return guidelineRetrieveResult{}, err
 	}
@@ -243,12 +266,16 @@ func (api *guidelineRetrieveAPI) merge(ctx context.Context, organizationID strin
 	type metadata struct{ title, locale string }
 	byID := make(map[string]metadata, len(rowIDs))
 	for rows.Next() {
-		var rowID string
+		var rowID, revisionID string
 		var meta metadata
-		if err := rows.Scan(&rowID, &meta.title, &meta.locale); err != nil {
+		if err := rows.Scan(&rowID, &revisionID, &meta.title, &meta.locale); err != nil {
 			return guidelineRetrieveResult{}, err
 		}
-		byID[guidelinepg.UploadedDocumentID(rowID)] = meta
+		id := guidelinepg.UploadedDocumentID(rowID)
+		if retrieved := collected.revisions[id]; retrieved == "" || retrieved != revisionID {
+			continue
+		}
+		byID[id] = meta
 	}
 	if err := rows.Err(); err != nil {
 		return guidelineRetrieveResult{}, err

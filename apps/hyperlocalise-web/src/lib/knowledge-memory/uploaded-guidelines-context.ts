@@ -42,14 +42,24 @@ function sectionHeading(document: { title: string; locale?: string }) {
   return document.locale ? `### ${title} (${document.locale} only)` : `### ${title}`;
 }
 
+function omittedMandatoryNotice(count: number) {
+  return `### Mandatory guidelines omitted\n${count} mandatory guideline document(s) did not fit the context budget and are not included. The mandatory guidelines above are incomplete.`;
+}
+
+export type FormattedUploadedGuidelines = {
+  text: string;
+  omittedMandatoryDocumentIds: string[];
+};
+
 /**
- * Mandatory documents come first in full, then search passages grouped by document,
- * all within maxChars. Sections that no longer fit are dropped.
+ * Mandatory documents are included whole or omitted, never truncated; omissions
+ * are stated in the text. Search passages grouped by document fill the rest of
+ * maxChars, and passage sections that no longer fit are truncated or dropped.
  */
 export function formatUploadedGuidelines(
   result: GuidelineRetrieveResult,
   maxChars = UPLOADED_GUIDELINES_CONTEXT_MAX_LENGTH,
-): string {
+): FormattedUploadedGuidelines {
   const passagesByDocument = new Map<string, string[]>();
   for (const passage of result.passages) {
     const texts = passagesByDocument.get(passage.documentId) ?? [];
@@ -57,30 +67,54 @@ export function formatUploadedGuidelines(
     passagesByDocument.set(passage.documentId, texts);
   }
 
-  const ordered = [
-    ...result.documents.filter((document) => document.mandatory),
-    ...result.documents.filter((document) => !document.mandatory),
-  ];
   const sections: string[] = [];
   let remaining = maxChars;
-  for (const document of ordered) {
-    const body = document.mandatory
-      ? (document.content ?? "").trim()
-      : (passagesByDocument.get(document.id) ?? []).filter(Boolean).join("\n\n");
+  const separator = () => (sections.length > 0 ? 2 : 0);
+  const push = (section: string) => {
+    remaining -= separator() + section.length;
+    sections.push(section);
+  };
+
+  const mandatory = result.documents.flatMap((document) => {
+    const body = document.mandatory ? (document.content ?? "").trim() : "";
+    return body ? [{ id: document.id, section: `${sectionHeading(document)}\n${body}` }] : [];
+  });
+  const mandatoryLength = mandatory.reduce(
+    (total, { section }, index) => total + section.length + (index > 0 ? 2 : 0),
+    0,
+  );
+  const noticeReserve =
+    mandatoryLength > maxChars ? omittedMandatoryNotice(mandatory.length).length + 2 : 0;
+  remaining -= noticeReserve;
+  const omittedMandatoryDocumentIds: string[] = [];
+  for (const { id, section } of mandatory) {
+    if (separator() + section.length > remaining) {
+      omittedMandatoryDocumentIds.push(id);
+      continue;
+    }
+    push(section);
+  }
+  remaining += noticeReserve;
+  if (omittedMandatoryDocumentIds.length > 0) {
+    push(omittedMandatoryNotice(omittedMandatoryDocumentIds.length));
+  }
+
+  for (const document of result.documents) {
+    if (document.mandatory) {
+      continue;
+    }
+    const body = (passagesByDocument.get(document.id) ?? []).filter(Boolean).join("\n\n");
     if (!body) {
       continue;
     }
     const heading = sectionHeading(document);
-    const separator = sections.length > 0 ? 2 : 0;
-    const available = remaining - separator - heading.length - 1;
+    const available = remaining - separator() - heading.length - 1;
     if (available < MIN_SECTION_CHARS) {
       break;
     }
-    const section = `${heading}\n${truncateToBudget(body, available)}`;
-    sections.push(section);
-    remaining -= separator + section.length;
+    push(`${heading}\n${truncateToBudget(body, available)}`);
   }
-  return sections.join("\n\n");
+  return { text: sections.join("\n\n"), omittedMandatoryDocumentIds };
 }
 
 /**
@@ -109,7 +143,16 @@ export async function loadUploadedGuidelinesContext(
       },
       { signal: AbortSignal.timeout(RETRIEVE_TIMEOUT_MS) },
     );
-    return formatUploadedGuidelines(result);
+    const formatted = formatUploadedGuidelines(result);
+    if (formatted.omittedMandatoryDocumentIds.length > 0) {
+      console.warn("[translation-context] mandatory uploaded guidelines exceed context budget", {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        omittedDocumentIds: formatted.omittedMandatoryDocumentIds,
+        maxLength: UPLOADED_GUIDELINES_CONTEXT_MAX_LENGTH,
+      });
+    }
+    return formatted.text;
   } catch (error) {
     console.warn("[translation-context] uploaded guideline retrieval failed", {
       organizationId: input.organizationId,

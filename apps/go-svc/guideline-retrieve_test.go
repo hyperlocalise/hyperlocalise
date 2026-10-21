@@ -70,6 +70,57 @@ func TestCollectUploadedInterleavesLocalesAndSkipsTypedGuidelines(t *testing.T) 
 	require.False(t, partial.searchAvailable)
 }
 
+func TestCollectUploadedClearsConflictingRevisions(t *testing.T) {
+	collected := collectUploaded([]guidelines.Result{
+		{Passages: []guidelines.Chunk{{ID: "a1", DocumentID: "doc:a", RevisionID: "r1"}, {ID: "b1", DocumentID: "doc:b", RevisionID: "r1"}}},
+		{Passages: []guidelines.Chunk{{ID: "a2", DocumentID: "doc:a", RevisionID: "r2"}, {ID: "b2", DocumentID: "doc:b", RevisionID: "r1"}}},
+	}, 4)
+	require.Equal(t, map[string]string{"doc:a": "", "doc:b": "r1"}, collected.revisions)
+}
+
+func guidelineRevision(t *testing.T, env *guidelineTestEnv, rowID string) string {
+	t.Helper()
+	var revisionID string
+	require.NoError(t, env.scope.Pool.QueryRow(t.Context(), `select revision_id::text from guideline_documents where id = $1`, rowID).Scan(&revisionID))
+	return revisionID
+}
+
+func TestGuidelineRetrieveDropsDocumentsChangedAfterRetrieval(t *testing.T) {
+	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
+	env := newGuidelineTestEnv(t, "admin")
+	path := env.scope.OrgPath("/guidelines/documents")
+	rows := map[string]string{}
+	for _, name := range []string{"kept", "replaced", "processing", "rescoped"} {
+		rows[name] = seedReadyGuideline(t, env, path, "Rule for "+name+".")
+	}
+	chunk := func(name string) guidelines.Chunk {
+		return guidelines.Chunk{ID: name, DocumentID: guidelinepg.UploadedDocumentID(rows[name]), RevisionID: guidelineRevision(t, env, rows[name]), Text: "Rule for " + name + "."}
+	}
+	retriever := &fakeGuidelineRetriever{byLocale: map[string]guidelines.Result{
+		"fr-FR": {
+			Mandatory:       []guidelines.Document{{ID: guidelinepg.UploadedDocumentID(rows["replaced"]), RevisionID: guidelineRevision(t, env, rows["replaced"]), Content: "Rule for replaced.", Mandatory: true}},
+			Passages:        []guidelines.Chunk{chunk("kept"), chunk("processing"), chunk("rescoped")},
+			SearchAvailable: true,
+		},
+	}}
+	env.handler.guidelineRetrieve = &guidelineRetrieveAPI{retriever: retriever, pool: env.scope.Pool}
+
+	_, err := env.scope.Pool.Exec(t.Context(), `update guideline_documents set revision_id = gen_random_uuid(), version = version + 1 where id = $1`, rows["replaced"])
+	require.NoError(t, err)
+	_, err = env.scope.Pool.Exec(t.Context(), `update guideline_documents set status = 'processing' where id = $1`, rows["processing"])
+	require.NoError(t, err)
+	_, err = env.scope.Pool.Exec(t.Context(), `update guideline_documents set locale = 'de-DE' where id = $1`, rows["rescoped"])
+	require.NoError(t, err)
+
+	rec := serveGuidelineRetrieve(env, `{"organizationId":"`+env.scope.OrganizationID+`","locales":["fr-FR"],"query":"rule"}`, true)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var result guidelineRetrieveResult
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &result))
+	require.Len(t, result.Documents, 1)
+	require.Equal(t, guidelinepg.UploadedDocumentID(rows["kept"]), result.Documents[0].ID)
+	require.Equal(t, []retrievedGuidelinePassage{{ID: "kept", DocumentID: guidelinepg.UploadedDocumentID(rows["kept"]), Text: "Rule for kept."}}, result.Passages)
+}
+
 func TestNormalizeRetrieveLocales(t *testing.T) {
 	locales, err := normalizeRetrieveLocales([]string{"fr_fr", "FR-fr", "de"})
 	require.NoError(t, err)
@@ -89,20 +140,22 @@ func TestGuidelineRetrieveReturnsUploadedDocumentsOnly(t *testing.T) {
 	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
 	env := newGuidelineTestEnv(t, "admin")
 	projectID := env.scope.MustProject(t, "", "Project")
-	mandatoryID := guidelinepg.UploadedDocumentID(seedReadyGuideline(t, env, env.scope.OrgPath("/guidelines/documents"), "Never translate Acme."))
-	searchedID := guidelinepg.UploadedDocumentID(seedReadyGuideline(t, env, env.scope.OrgPath("/guidelines/documents"), "Use vous.\n\nKeep sentences short."))
+	mandatoryRow := seedReadyGuideline(t, env, env.scope.OrgPath("/guidelines/documents"), "Never translate Acme.")
+	searchedRow := seedReadyGuideline(t, env, env.scope.OrgPath("/guidelines/documents"), "Use vous.\n\nKeep sentences short.")
+	mandatoryID, searchedID := guidelinepg.UploadedDocumentID(mandatoryRow), guidelinepg.UploadedDocumentID(searchedRow)
+	searchedRevision := guidelineRevision(t, env, searchedRow)
 
 	typed := guidelines.Document{ID: "workspace:" + env.scope.OrganizationID, Content: "Typed note", Mandatory: true}
-	mandatory := guidelines.Document{ID: mandatoryID, Content: "Never translate Acme.", Mandatory: true}
+	mandatory := guidelines.Document{ID: mandatoryID, RevisionID: guidelineRevision(t, env, mandatoryRow), Content: "Never translate Acme.", Mandatory: true}
 	retriever := &fakeGuidelineRetriever{byLocale: map[string]guidelines.Result{
 		"fr-FR": {
 			Mandatory:       []guidelines.Document{typed, mandatory},
-			Passages:        []guidelines.Chunk{{ID: "typed", DocumentID: typed.ID, Text: "Typed note"}, {ID: "m1", DocumentID: mandatoryID, Text: "Never translate Acme."}, {ID: "p1", DocumentID: searchedID, Text: "Use vous."}},
+			Passages:        []guidelines.Chunk{{ID: "typed", DocumentID: typed.ID, Text: "Typed note"}, {ID: "m1", DocumentID: mandatoryID, RevisionID: mandatory.RevisionID, Text: "Never translate Acme."}, {ID: "p1", DocumentID: searchedID, RevisionID: searchedRevision, Text: "Use vous."}},
 			SearchAvailable: true,
 		},
 		"de-DE": {
 			Mandatory:       []guidelines.Document{typed, mandatory},
-			Passages:        []guidelines.Chunk{{ID: "p2", DocumentID: searchedID, Text: "Keep sentences short."}, {ID: "p1", DocumentID: searchedID, Text: "Use vous."}},
+			Passages:        []guidelines.Chunk{{ID: "p2", DocumentID: searchedID, RevisionID: searchedRevision, Text: "Keep sentences short."}, {ID: "p1", DocumentID: searchedID, RevisionID: searchedRevision, Text: "Use vous."}},
 			SearchAvailable: true,
 		},
 	}}
