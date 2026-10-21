@@ -23,8 +23,22 @@ import {
 
 const result: GuidelineRetrieveResult = {
   documents: [
-    { id: "doc:french", revisionId: "rev:french", version: 1, title: "French style", locale: "fr-FR", mandatory: false },
-    { id: "doc:brand", revisionId: "rev:brand", version: 1, title: "Brand guide", mandatory: true, content: "Never translate Acme." },
+    {
+      id: "doc:french",
+      revisionId: "rev:french",
+      version: 1,
+      title: "French style",
+      locale: "fr-FR",
+      mandatory: false,
+    },
+    {
+      id: "doc:brand",
+      revisionId: "rev:brand",
+      version: 1,
+      title: "Brand guide",
+      mandatory: true,
+      content: "Never translate Acme.",
+    },
   ],
   passages: [
     { id: "p1", documentId: "doc:french", text: "Use vous." },
@@ -48,8 +62,20 @@ describe("formatUploadedGuidelines", () => {
   it("truncates passages to the budget and drops sections that no longer fit", () => {
     const long: GuidelineRetrieveResult = {
       documents: [
-        { id: "doc:french", revisionId: "rev:french", version: 1, title: "French style", mandatory: false },
-        { id: "doc:german", revisionId: "rev:german", version: 1, title: "German style", mandatory: false },
+        {
+          id: "doc:french",
+          revisionId: "rev:french",
+          version: 1,
+          title: "French style",
+          mandatory: false,
+        },
+        {
+          id: "doc:german",
+          revisionId: "rev:german",
+          version: 1,
+          title: "German style",
+          mandatory: false,
+        },
       ],
       passages: [
         { id: "p1", documentId: "doc:french", text: "a".repeat(1_000) },
@@ -68,7 +94,14 @@ describe("formatUploadedGuidelines", () => {
     const oversized: GuidelineRetrieveResult = {
       ...result,
       documents: [
-        { id: "doc:huge", revisionId: "rev:huge", version: 1, title: "Huge rules", mandatory: true, content: "a".repeat(1_000) },
+        {
+          id: "doc:huge",
+          revisionId: "rev:huge",
+          version: 1,
+          title: "Huge rules",
+          mandatory: true,
+          content: "a".repeat(1_000),
+        },
         ...result.documents,
       ],
     };
@@ -85,8 +118,22 @@ describe("formatUploadedGuidelines", () => {
   it("reports every mandatory document left out of a set that does not fit together", () => {
     const set: GuidelineRetrieveResult = {
       documents: [
-        { id: "doc:one", revisionId: "rev:one", version: 1, title: "One", mandatory: true, content: "a".repeat(300) },
-        { id: "doc:two", revisionId: "rev:two", version: 1, title: "Two", mandatory: true, content: "b".repeat(300) },
+        {
+          id: "doc:one",
+          revisionId: "rev:one",
+          version: 1,
+          title: "One",
+          mandatory: true,
+          content: "a".repeat(300),
+        },
+        {
+          id: "doc:two",
+          revisionId: "rev:two",
+          version: 1,
+          title: "Two",
+          mandatory: true,
+          content: "b".repeat(300),
+        },
       ],
       passages: [],
       searchAvailable: true,
@@ -101,7 +148,15 @@ describe("formatUploadedGuidelines", () => {
   it("skips documents without text", () => {
     expect(
       formatUploadedGuidelines({
-        documents: [{ id: "doc:empty", revisionId: "rev:empty", version: 1, title: "Empty", mandatory: false }],
+        documents: [
+          {
+            id: "doc:empty",
+            revisionId: "rev:empty",
+            version: 1,
+            title: "Empty",
+            mandatory: false,
+          },
+        ],
         passages: [],
         searchAvailable: false,
       }),
@@ -164,7 +219,14 @@ describe("loadUploadedGuidelinesContext", () => {
     const retrieve = vi.fn(async () => ({
       ...result,
       documents: [
-        { id: "doc:huge", revisionId: "rev:huge", version: 1, title: "Huge", mandatory: true, content: "a".repeat(10_000) },
+        {
+          id: "doc:huge",
+          revisionId: "rev:huge",
+          version: 1,
+          title: "Huge",
+          mandatory: true,
+          content: "a".repeat(10_000),
+        },
         ...result.documents,
       ],
     }));

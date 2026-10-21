@@ -88,7 +88,10 @@ function typedGuidelineUse(
  * them reached the prompt.
  */
 export async function loadTranslationGuidelines(input: {
-  project: Pick<TranslationContextProjectRecord, "id" | "name" | "organizationId" | "translationContext">;
+  project: Pick<
+    TranslationContextProjectRecord,
+    "id" | "name" | "organizationId" | "translationContext"
+  >;
   sourceLocale: string;
   targetLocales: string[];
   sourceText: string;
