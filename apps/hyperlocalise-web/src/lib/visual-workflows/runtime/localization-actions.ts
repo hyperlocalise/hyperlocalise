@@ -134,6 +134,18 @@ export async function runMachineTranslateAction(
 
   const existing = await findJobForStep({ ...input, projectId: input.projectId });
   if (existing) {
+    if (existing.status === "failed") {
+      return failure(
+        "translation_job_failed",
+        "The previous translation job for this step failed. No translation was queued.",
+      );
+    }
+    if (existing.status === "cancelled") {
+      return failure(
+        "translation_job_cancelled",
+        "The previous translation job for this step was cancelled.",
+      );
+    }
     return { ok: true, output: { jobId: existing.id, status: existing.status, targetLocales } };
   }
 
@@ -185,6 +197,12 @@ export async function runCreateTaskAction(
 
   const existing = await findJobForStep({ ...input, projectId: input.projectId });
   if (existing) {
+    if (existing.status === "failed") {
+      return failure("task_job_failed", "The previous task for this step failed.");
+    }
+    if (existing.status === "cancelled") {
+      return failure("task_job_cancelled", "The previous task for this step was cancelled.");
+    }
     return {
       ok: true,
       output: {
