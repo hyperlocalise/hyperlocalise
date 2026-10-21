@@ -39,6 +39,15 @@ import {
   stripInternalMarkupSentinels,
   stripLeakedInternalMarkupFromStoredMessage,
 } from "@/components/content-editor/message-format/content-editor-internal-markup";
+import {
+  joinOfficeTarget,
+  officeRunDisplayLines,
+  officeRunDocFromLines,
+  officeRunLayout,
+  serializeOfficeRunDoc,
+  splitOfficeTarget,
+  type OfficeRunLayout,
+} from "@/components/content-editor/message-format/content-editor-office-runs";
 import { formatMarkdownMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-markdown-markup";
 import {
   analyzeCatMessageFormat,
@@ -121,6 +130,46 @@ function textDocFromValue(value: string) {
       content: line ? [{ type: "text", text: line }] : undefined,
     })),
   };
+}
+
+function createOfficeRunKeyboardExtension(isActive: () => boolean) {
+  return Extension.create({
+    name: "contentEditorOfficeRunKeyboard",
+    addKeyboardShortcuts() {
+      return {
+        Enter: ({ editor }) => {
+          if (!isActive()) {
+            return false;
+          }
+          const { state } = editor;
+          const { $from } = state.selection;
+          if (!$from.parent.isTextblock) {
+            return false;
+          }
+          const paragraphIndex = $from.index(0);
+          if (paragraphIndex >= state.doc.childCount - 1) {
+            return false;
+          }
+          let pos = 0;
+          for (let index = 0; index <= paragraphIndex; index += 1) {
+            pos += state.doc.child(index).nodeSize;
+          }
+          editor.commands.setTextSelection(pos + 1);
+          return true;
+        },
+        Backspace: ({ editor }) => {
+          if (!isActive()) {
+            return false;
+          }
+          const { $from } = editor.state.selection;
+          if ($from.parentOffset !== 0) {
+            return false;
+          }
+          return $from.index(0) > 0;
+        },
+      };
+    },
+  });
 }
 
 function editorText(editor: NonNullable<ReturnType<typeof useEditor>>) {
@@ -271,6 +320,8 @@ function createCatMessageFormatExtension() {
   });
 }
 
+const officeRunKeyboardRef = { current: () => false };
+
 const contentEditorTargetEditorExtensions = [
   StarterKit.configure({
     heading: false,
@@ -280,6 +331,7 @@ const contentEditorTargetEditorExtensions = [
     },
   }),
   createCatMessageFormatExtension(),
+  createOfficeRunKeyboardExtension(() => officeRunKeyboardRef.current()),
 ] as unknown as Extensions;
 
 function tokenLabel(token: ContentEditorMessageToken) {
@@ -496,6 +548,26 @@ export function ContentEditorMessagePreview({
     [companionMessage, message],
   );
 
+  const officeLines = useMemo(() => officeRunDisplayLines(message), [message]);
+
+  if (officeLines) {
+    return (
+      <span className={cn("block whitespace-pre-wrap", className)}>
+        {officeLines.map((line, index) => (
+          <span key={index} className="block">
+            {renderHighlightedPlainText(
+              line,
+              highlightTokens,
+              highlightStatus,
+              `office-run-${index}`,
+              highlightWholeTerm,
+            )}
+          </span>
+        ))}
+      </span>
+    );
+  }
+
   if (markdown) {
     return (
       <span className={className}>
@@ -666,6 +738,31 @@ export function ContentEditorTargetEditor({
     [sourceAnalysis, targetAnalysis],
   );
   const targetSignatures = useMemo(() => presentTokenSignatures(targetAnalysis), [targetAnalysis]);
+  const officeLayout = useMemo(() => officeRunLayout(sourceText), [sourceText]);
+  const officeRunMode = useMemo(() => {
+    if (!officeLayout || markdownMode) {
+      return false;
+    }
+    const cleaned = stripLeakedInternalMarkupFromStoredMessage(value);
+    if (!cleaned.trim()) {
+      return true;
+    }
+    return splitOfficeTarget(value, officeLayout) !== null;
+  }, [officeLayout, markdownMode, value]);
+  const officeRunLines = useMemo(() => {
+    if (!officeLayout) {
+      return null;
+    }
+    const cleaned = stripLeakedInternalMarkupFromStoredMessage(value);
+    if (!cleaned.trim()) {
+      return officeLayout.runs.map(() => "");
+    }
+    return splitOfficeTarget(value, officeLayout);
+  }, [officeLayout, value]);
+  const officeLayoutRef = useRef<OfficeRunLayout | null>(null);
+  officeLayoutRef.current = officeRunMode ? officeLayout : null;
+  officeRunKeyboardRef.current = () => officeRunMode;
+
   const sourceTokens = sourceAnalysis.tokens.filter(
     (token) => token.kind !== "pound" && !isStructuralMarkdownMarkupToken(token, sourceText, value),
   );
@@ -674,7 +771,25 @@ export function ContentEditorTargetEditor({
     : stripInternalMarkupSentinels(value).length;
   const isOverMaxLength = maxLength !== undefined && characterCount > maxLength;
 
+  function editorContentFromValue(): JSONContent {
+    if (markdownMode) {
+      return markdownDisplayDocFromModel(
+        markdownDisplayModel(stripLeakedInternalMarkupFromStoredMessage(value), sourceText),
+      ) as JSONContent;
+    }
+    if (officeRunMode && officeRunLines) {
+      return officeRunDocFromLines(officeRunLines.map((line) => line.trim())) as JSONContent;
+    }
+    return textDocFromValue(stripLeakedInternalMarkupFromStoredMessage(value)) as JSONContent;
+  }
+
   function persistedEditorValue(activeEditor: NonNullable<ReturnType<typeof useEditor>>) {
+    const layout = officeLayoutRef.current;
+    if (layout && officeRunKeyboardRef.current()) {
+      return stripLeakedInternalMarkupFromStoredMessage(
+        joinOfficeTarget(serializeOfficeRunDoc(activeEditor.state.doc), layout),
+      );
+    }
     if (!markdownModeRef.current) {
       return stripLeakedInternalMarkupFromStoredMessage(editorText(activeEditor));
     }
@@ -692,11 +807,7 @@ export function ContentEditorTargetEditor({
       ...contentEditorTargetEditorExtensions,
       createQaHighlightExtension(() => highlightRef.current),
     ],
-    content: (markdownMode
-      ? markdownDisplayDocFromModel(
-          markdownDisplayModel(stripLeakedInternalMarkupFromStoredMessage(value), sourceText),
-        )
-      : textDocFromValue(stripLeakedInternalMarkupFromStoredMessage(value))) as JSONContent,
+    content: editorContentFromValue(),
     editable: !disabled,
     immediatelyRender: false,
     onUpdate: ({ editor: activeEditor }) => {
@@ -745,15 +856,8 @@ export function ContentEditorTargetEditor({
       return;
     }
 
-    editor.commands.setContent(
-      (markdownMode
-        ? markdownDisplayDocFromModel(
-            markdownDisplayModel(stripLeakedInternalMarkupFromStoredMessage(value), sourceText),
-          )
-        : textDocFromValue(stripLeakedInternalMarkupFromStoredMessage(value))) as JSONContent,
-      { emitUpdate: false },
-    );
-  }, [editor, markdownMode, sourceText, value]);
+    editor.commands.setContent(editorContentFromValue(), { emitUpdate: false });
+  }, [editor, markdownMode, officeRunLines, officeRunMode, sourceText, value]);
 
   useEffect(() => {
     if (autoFocus && editor) editor.commands.focus("end");
@@ -829,7 +933,7 @@ export function ContentEditorTargetEditor({
         <div className="flex justify-end px-1">{characterCountLabel}</div>
       ) : null}
 
-      {sourceTokens.length > 0 && !inline ? (
+      {sourceTokens.length > 0 && !inline && !officeRunMode ? (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="me-1 text-xs font-medium text-muted-foreground">
             <FormattedMessage {...contentEditorTargetEditorMessages.requiredTokens} />
