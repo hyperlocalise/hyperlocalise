@@ -590,8 +590,8 @@ async function resolveRevocationTarget(
     if (membership) {
       return membership;
     }
-
-    return null;
+    // Dashboard offboard deletes the membership row first. The later WorkOS
+    // webhook still carries organization_id and user_id for leftover tokens.
   }
 
   if (!input.workosOrganizationId || !input.workosUserId) {

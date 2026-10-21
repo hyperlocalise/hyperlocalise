@@ -70,6 +70,13 @@ func (api *memberAPI) revokeOrganizationMembershipAccess(ctx context.Context, ac
 		member.localUserID, actor.organizationID); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(ctx, `
+        update sanity_plugin_oauth_tokens
+        set revoked_at=now(), updated_at=now()
+        where user_id=$1 and organization_id=$2 and revoked_at is null`,
+		member.localUserID, actor.organizationID); err != nil {
+		return err
+	}
 
 	rows, err := tx.Query(ctx, `
         update organization_api_keys

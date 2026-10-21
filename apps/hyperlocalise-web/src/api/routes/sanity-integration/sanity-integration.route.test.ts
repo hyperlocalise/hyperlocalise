@@ -109,6 +109,9 @@ async function accessTokenHeaders(input: {
   organizationId: string;
 }) {
   const tokens = await issueSanityOauthTokens({ ...input, studioOrigin: STUDIO_ORIGIN });
+  if (!tokens) {
+    throw new Error("sanity oauth token issue failed");
+  }
   return {
     "X-Hyperlocalise-Access-Token": tokens.accessToken,
     Origin: STUDIO_ORIGIN,
@@ -201,6 +204,9 @@ describe("sanityIntegrationRoutes", () => {
       organizationId,
       studioOrigin: STUDIO_ORIGIN,
     });
+    if (!tokens) {
+      throw new Error("sanity oauth token issue failed");
+    }
 
     const missingOrigin = await client.api.integrations.sanity.session.$get(undefined, {
       headers: {

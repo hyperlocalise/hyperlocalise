@@ -113,8 +113,10 @@ of the owner's role at creation. Regression coverage lives in
     `forbidden`. Fresh reconcile fallback stays allowed inside the TTL.
 23. **Membership removal revokes the owner's tokens.**
     `revokeOrganizationMembershipAccess` sets `revoked_at` on every unrevoked
-    PAT owned by that user in that organization, in the same transaction as
-    membership deletion.
+    PAT and Figma/Canva/Sanity plugin OAuth token owned by that user in that
+    organization, in the same transaction as membership deletion. go-svc
+    `DELETE /members` must revoke the same plugin token tables. If the
+    membership row is already gone, resolve the target from WorkOS org+user.
 24. **`lastUsedAt` is non-blocking telemetry.** Write it only after
     authentication succeeds. Never fail the request if the write fails.
 

@@ -45,6 +45,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import { revokeOrganizationMembershipAccess } from "@/api/auth/workos-sync";
 import type { AppType } from "@/api/typed-app";
 import { createSanityConnection, listSanityConnections } from "@/lib/sanity/connections";
 import {
@@ -106,7 +107,7 @@ async function createConnectedWorkspace() {
   });
   void projectBody;
 
-  return { auth, created };
+  return { auth, created, identity };
 }
 
 describe("sanityOauthRoutes", () => {
@@ -499,6 +500,103 @@ describe("sanityOauthRoutes", () => {
       (left, right) => left - right,
     );
     expect(statuses).toEqual([200, 400]);
+  });
+
+  it("rejects authorization-code exchange after membership removal", async () => {
+    const { created, identity } = await createConnectedWorkspace();
+
+    const consentResponse = await app.request("http://localhost/api/oauth/sanity/consent", {
+      method: "POST",
+      headers: {
+        cookie: `${SANITY_OAUTH_REQUEST_COOKIE}=${requestCookie()}`,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ connectionId: created.connection.id }).toString(),
+    });
+    const code = new URL(consentResponse.headers.get("location") ?? "").searchParams.get("code");
+    expect(code).toBeTruthy();
+
+    await revokeOrganizationMembershipAccess(db, {
+      workosMembershipId: identity.membership.workosMembershipId,
+      workosOrganizationId: identity.organization.workosOrganizationId,
+      workosUserId: identity.user.workosUserId,
+    });
+
+    const tokenResponse = await app.request("http://localhost/api/oauth/sanity/token", {
+      method: "POST",
+      headers: {
+        authorization: basicAuthHeader(),
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code: code ?? "",
+        redirect_uri: REDIRECT_URI,
+        code_verifier: VERIFIER,
+      }).toString(),
+    });
+    expect(tokenResponse.status).toBe(400);
+  });
+
+  it("rejects refresh and Studio session after membership removal", async () => {
+    const { created, identity } = await createConnectedWorkspace();
+
+    const consentResponse = await app.request("http://localhost/api/oauth/sanity/consent", {
+      method: "POST",
+      headers: {
+        cookie: `${SANITY_OAUTH_REQUEST_COOKIE}=${requestCookie()}`,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ connectionId: created.connection.id }).toString(),
+    });
+    const code = new URL(consentResponse.headers.get("location") ?? "").searchParams.get("code");
+    const tokenResponse = await app.request("http://localhost/api/oauth/sanity/token", {
+      method: "POST",
+      headers: {
+        authorization: basicAuthHeader(),
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code: code ?? "",
+        redirect_uri: REDIRECT_URI,
+        code_verifier: VERIFIER,
+      }).toString(),
+    });
+    const tokens = (await tokenResponse.json()) as {
+      access_token: string;
+      refresh_token: string;
+    };
+
+    await revokeOrganizationMembershipAccess(db, {
+      workosMembershipId: identity.membership.workosMembershipId,
+      workosOrganizationId: identity.organization.workosOrganizationId,
+      workosUserId: identity.user.workosUserId,
+    });
+
+    const refreshResponse = await app.request("http://localhost/api/oauth/sanity/token", {
+      method: "POST",
+      headers: {
+        authorization: basicAuthHeader(),
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: tokens.refresh_token,
+      }).toString(),
+    });
+    expect(refreshResponse.status).toBe(400);
+
+    const sessionResponse = await client.api.integrations.sanity.session.$get(
+      {},
+      {
+        headers: {
+          Origin: STUDIO_ORIGIN,
+          "X-Hyperlocalise-Access-Token": tokens.access_token,
+        },
+      },
+    );
+    expect(sessionResponse.status).toBe(401);
   });
 
   it("creates a PAT and Studio plugin connection when consent has no connection", async () => {
