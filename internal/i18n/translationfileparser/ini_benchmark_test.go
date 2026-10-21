@@ -12,20 +12,21 @@ func createBenchmarkINIData(numSections, keysPerSection int) ([]byte, map[string
 
 	for s := 0; s < numSections; s++ {
 		secName := fmt.Sprintf("section_%d", s)
-		sb.WriteString(fmt.Sprintf("[%s]\n", secName))
-		sb.WriteString(fmt.Sprintf("; Comment for section %d\n", s))
+		fmt.Fprintf(&sb, "[%s]\n", secName)
+		fmt.Fprintf(&sb, "; Comment for section %d\n", s)
 		for k := 0; k < keysPerSection; k++ {
 			key := fmt.Sprintf("key_%d", k)
 			val := fmt.Sprintf("value_%d_%d", s, k)
 			flatKey := secName + "." + key
 			values[flatKey] = val + "_updated"
 
-			if k%3 == 0 {
-				sb.WriteString(fmt.Sprintf("%s = %q ; inline comment\n", key, val))
-			} else if k%3 == 1 {
-				sb.WriteString(fmt.Sprintf("%s = '%s'\n", key, val))
-			} else {
-				sb.WriteString(fmt.Sprintf("%s = %s\n", key, val))
+			switch k % 3 {
+			case 0:
+				fmt.Fprintf(&sb, "%s = %q ; inline comment\n", key, val)
+			case 1:
+				fmt.Fprintf(&sb, "%s = '%s'\n", key, val)
+			default:
+				fmt.Fprintf(&sb, "%s = %s\n", key, val)
 			}
 		}
 		sb.WriteString("\n")
