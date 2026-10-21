@@ -23,7 +23,11 @@ import { isErr } from "@/lib/primitives/result/results";
 import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-service";
 import { waitForSourceFileVersionIngest } from "@/lib/intercom/wait-for-source-file-ingest";
 
-import { GOOGLE_DRIVE_FILE_IMPORT_CONCURRENCY, GOOGLE_DRIVE_UPLOAD_SURFACE } from "./constants";
+import {
+  GOOGLE_DRIVE_FILE_IMPORT_CONCURRENCY,
+  GOOGLE_DRIVE_UPLOAD_SURFACE,
+  GOOGLE_MIME,
+} from "./constants";
 import {
   downloadGoogleDriveMedia,
   exportGoogleDriveFile,
@@ -35,7 +39,12 @@ import { GOOGLE_DRIVE_MAX_FOLDER_DEPTH } from "./limits";
 import { pdfBufferToMarkdown } from "./pdf-to-markdown";
 import { loadGoogleDrivePipesAccessToken } from "./pipes";
 import { buildGoogleDriveSourcePath } from "./source-path";
-import { stripExtension } from "./translation-filename";
+import {
+  isLocaleFolderName,
+  resolveGoogleDriveTranslationOutput,
+  stripExtension,
+  type GoogleDriveTranslationOutput,
+} from "./translation-filename";
 
 const logger = createLogger("import-google-drive-files");
 
@@ -76,6 +85,7 @@ async function walkGoogleDriveFolder(input: {
   relativePath: string;
   depth: number;
   includeTranslatedFiles: boolean;
+  translationOutput: GoogleDriveTranslationOutput;
   fileIdAllowList: Set<string> | null;
   collected: WalkFile[];
 }): Promise<void> {
@@ -102,9 +112,18 @@ async function walkGoogleDriveFolder(input: {
         sizeBytes: child.size,
         folderDepth: input.depth,
         hideTranslationOutputs: !input.includeTranslatedFiles,
+        relativePath: input.relativePath,
+        translationOutput: input.translationOutput,
       });
 
       if (classification.kind === "folder") {
+        if (
+          !input.includeTranslatedFiles &&
+          input.translationOutput === "folder" &&
+          isLocaleFolderName(child.name)
+        ) {
+          continue;
+        }
         await walkGoogleDriveFolder({
           ...input,
           folderId: child.id,
@@ -256,16 +275,44 @@ export async function runImportGoogleDriveFiles(input: {
   const toImport: WalkFile[] = [];
 
   for (const folder of folders) {
-    await walkGoogleDriveFolder({
+    const metaResult = await getGoogleDriveFile({
       accessToken: tokenResult.value,
-      rootFolderId: folder.folderId,
-      driveId: folder.driveId,
-      folderId: folder.folderId,
+      fileId: folder.folderId === "root" ? "root" : folder.folderId,
+    });
+    if (isErr(metaResult)) {
+      throw new Error(metaResult.error.code);
+    }
+
+    if (metaResult.value.mimeType === GOOGLE_MIME.folder) {
+      await walkGoogleDriveFolder({
+        accessToken: tokenResult.value,
+        rootFolderId: folder.folderId,
+        driveId: folder.driveId,
+        folderId: folder.folderId,
+        relativePath: "",
+        depth: 0,
+        includeTranslatedFiles: config.includeTranslatedFiles ?? false,
+        translationOutput: resolveGoogleDriveTranslationOutput(config.translationOutput),
+        fileIdAllowList: fileAllowList,
+        collected: toImport,
+      });
+      continue;
+    }
+
+    if (fileAllowList && !fileAllowList.has(metaResult.value.id)) {
+      continue;
+    }
+
+    toImport.push({
+      fileId: metaResult.value.id,
+      name: metaResult.value.name,
+      mimeType: metaResult.value.mimeType,
+      size: metaResult.value.size,
+      modifiedTime: metaResult.value.modifiedTime,
+      md5Checksum: metaResult.value.md5Checksum,
       relativePath: "",
-      depth: 0,
-      includeTranslatedFiles: config.includeTranslatedFiles ?? false,
-      fileIdAllowList: fileAllowList,
-      collected: toImport,
+      rootFolderId: metaResult.value.parents[0] ?? folder.folderId,
+      driveId: folder.driveId ?? metaResult.value.driveId,
     });
   }
 

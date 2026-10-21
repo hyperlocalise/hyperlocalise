@@ -15,7 +15,8 @@ export type GoogleDrivePipesError =
   | { code: "google_drive_pipes_unavailable"; message: string }
   | { code: "google_drive_not_connected"; message: string }
   | { code: "google_drive_pipes_needs_reauthorization"; message: string }
-  | { code: "google_drive_api_error"; message: string };
+  | { code: "google_drive_api_not_enabled"; message: string; status?: number }
+  | { code: "google_drive_api_error"; message: string; status?: number; reason?: string };
 
 export type GoogleDriveFileSummary = {
   id: string;

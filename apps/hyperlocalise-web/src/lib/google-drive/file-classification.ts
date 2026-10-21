@@ -20,7 +20,11 @@ import {
 
 import { GOOGLE_EXPORT_MIME, GOOGLE_MIME } from "./constants";
 import { GOOGLE_DRIVE_MAX_FILE_BYTES, GOOGLE_DRIVE_MAX_FOLDER_DEPTH } from "./limits";
-import { parseTranslationPrefix } from "./translation-filename";
+import {
+  isAnyTranslationOutputFile,
+  isTranslationOutputFile,
+  type GoogleDriveTranslationOutput,
+} from "./translation-filename";
 
 export type GoogleDriveSkipReason =
   | "unsupported_google_app"
@@ -82,6 +86,8 @@ export function classifyGoogleDriveItem(input: {
   sizeBytes?: number | null;
   folderDepth?: number;
   hideTranslationOutputs?: boolean;
+  relativePath?: string;
+  translationOutput?: GoogleDriveTranslationOutput;
 }): GoogleDriveFileClassification {
   const mimeType = input.mimeType.trim();
   const name = input.name.trim();
@@ -90,7 +96,19 @@ export function classifyGoogleDriveItem(input: {
     return { kind: "folder" };
   }
 
-  if (input.hideTranslationOutputs !== false && parseTranslationPrefix(name)) {
+  if (
+    input.hideTranslationOutputs !== false &&
+    (input.translationOutput
+      ? isTranslationOutputFile({
+          output: input.translationOutput,
+          name,
+          relativePath: input.relativePath,
+        })
+      : isAnyTranslationOutputFile({
+          name,
+          relativePath: input.relativePath,
+        }))
+  ) {
     return { kind: "skipped", reason: "translation_output" };
   }
 

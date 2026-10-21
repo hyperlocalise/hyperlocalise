@@ -259,6 +259,30 @@ describe("workspace automation view model", () => {
       assignTranslateWithAgentEnabled: true,
     });
     expect(form?.skillIds).toEqual(["translate-google-drive-files"]);
+    expect(form?.googleDriveTranslationOutput).toBe("folder");
+  });
+
+  it("hydrates Google Drive translation output from an existing automation record", () => {
+    const state = createWorkspaceAutomationFormStateFromRecord({
+      ...createAutomationSummary(),
+      toolConfig: {
+        googleDrive: {
+          enabled: true,
+          folderIds: [],
+          fileIds: [],
+          targetLocales: [],
+          includeTranslatedFiles: false,
+          translationOutput: "prefix",
+          existingTranslationPolicy: "seed_empty",
+        },
+      },
+    });
+
+    expect(state.googleDriveEnabled).toBe(true);
+    expect(state.googleDriveTranslationOutput).toBe("prefix");
+    expect(formStateToWorkspaceAutomationPayload(state).toolConfig.googleDrive).toMatchObject({
+      translationOutput: "prefix",
+    });
   });
 
   it("prefills the Sanity documents template", () => {

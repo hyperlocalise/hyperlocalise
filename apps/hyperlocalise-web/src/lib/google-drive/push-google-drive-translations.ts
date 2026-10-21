@@ -35,7 +35,12 @@ import {
   uploadGoogleDriveFile,
 } from "./drive-api";
 import { loadGoogleDrivePipesAccessToken } from "./pipes";
-import { buildTranslatedName, stripExtension } from "./translation-filename";
+import {
+  buildTranslatedDriveName,
+  formatDriveLocaleTag,
+  resolveGoogleDriveTranslationOutput,
+  stripExtension,
+} from "./translation-filename";
 
 const logger = createLogger("push-google-drive-translations");
 
@@ -196,6 +201,7 @@ export async function runPushGoogleDriveTranslations(input: {
     throw new Error(tokenResult.error.code);
   }
 
+  const translationOutput = resolveGoogleDriveTranslationOutput(config.translationOutput);
   const targetLocales = resolveTargetLocales(
     input.automation,
     (project.targetLocales as string[]) ?? [],
@@ -257,16 +263,21 @@ export async function runPushGoogleDriveTranslations(input: {
           continue;
         }
 
-        const localeFolderId = await ensureLocaleFolder({
-          accessToken: tokenResult.value,
-          parentId,
+        const driveName = buildTranslatedDriveName({
+          output: translationOutput,
           locale,
-          driveId: fileMeta.value.driveId,
-          cached: localeFolderCache,
+          fileName: translated.fileName,
         });
-
-        const { base, ext } = stripExtension(translated.fileName);
-        const driveName = buildTranslatedName(locale, base) + ext;
+        const localeFolderId =
+          translationOutput === "folder"
+            ? await ensureLocaleFolder({
+                accessToken: tokenResult.value,
+                parentId,
+                locale: formatDriveLocaleTag(locale),
+                driveId: fileMeta.value.driveId,
+                cached: localeFolderCache,
+              })
+            : parentId;
         const officeFormat = inferSupportedOfficeTranslationFileFormat(mapping.sourcePath);
         const uploadMime =
           officeFormat && mapping.mimeType.startsWith("application/vnd.google-apps.")

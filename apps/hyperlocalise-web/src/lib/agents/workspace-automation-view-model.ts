@@ -35,6 +35,11 @@ import {
   type WorkspaceAutomationWebSearchProvider,
 } from "./workspace-automation-types";
 import type { EmailProviderSlug } from "@/lib/email/constants";
+import {
+  DEFAULT_GOOGLE_DRIVE_TRANSLATION_OUTPUT,
+  resolveGoogleDriveTranslationOutput,
+  type GoogleDriveTranslationOutput,
+} from "@/lib/google-drive/translation-filename";
 import { listUnsupportedSanitySourceDocumentTypes } from "@/lib/sanity/locale-catalog";
 import { sanityDocumentTypeTitle } from "@/lib/sanity/localization-mode";
 import { parseSlackConversationId } from "./slack/channel-query";
@@ -122,6 +127,7 @@ export type WorkspaceAutomationFormState = {
   googleDriveFolderIds: string[];
   googleDriveTargetLocales: string[];
   googleDriveIncludeTranslatedFiles: boolean;
+  googleDriveTranslationOutput: GoogleDriveTranslationOutput;
   sanityEnabled: boolean;
   sanityProjectId: string;
   sanityDataset: string;
@@ -411,6 +417,7 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     googleDriveFolderIds: [],
     googleDriveTargetLocales: [],
     googleDriveIncludeTranslatedFiles: false,
+    googleDriveTranslationOutput: DEFAULT_GOOGLE_DRIVE_TRANSLATION_OUTPUT,
     sanityEnabled: false,
     sanityProjectId: "",
     sanityDataset: "",
@@ -564,6 +571,9 @@ export function createWorkspaceAutomationFormStateFromRecord(
     googleDriveFolderIds: googleDrive?.folderIds ? [...googleDrive.folderIds] : [],
     googleDriveTargetLocales: googleDrive?.targetLocales ? [...googleDrive.targetLocales] : [],
     googleDriveIncludeTranslatedFiles: Boolean(googleDrive?.includeTranslatedFiles),
+    googleDriveTranslationOutput: resolveGoogleDriveTranslationOutput(
+      googleDrive?.translationOutput,
+    ),
     sanityEnabled: Boolean(sanity?.enabled),
     sanityProjectId: sanity?.projectId ?? "",
     sanityDataset: sanity?.dataset ?? "",
@@ -886,6 +896,7 @@ export function formStateToWorkspaceAutomationPayload(
             fileIds: [],
             targetLocales: form.googleDriveTargetLocales,
             includeTranslatedFiles: form.googleDriveIncludeTranslatedFiles,
+            translationOutput: form.googleDriveTranslationOutput,
             existingTranslationPolicy: "seed_empty",
           },
         }
@@ -1150,7 +1161,7 @@ export function validateWorkspaceAutomationFormState(
   }
 
   if (form.googleDriveEnabled && form.googleDriveFolderIds.length === 0) {
-    errors.googleDrive = "Choose at least one connected Google Drive folder.";
+    errors.googleDrive = "Choose at least one connected Google Drive folder or file.";
   }
 
   if (form.sanityEnabled) {

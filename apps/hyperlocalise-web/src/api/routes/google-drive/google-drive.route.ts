@@ -23,14 +23,18 @@ import {
 } from "@/api/response.schema";
 import { classifyGoogleDriveItem } from "@/lib/google-drive/file-classification";
 import { GOOGLE_MIME } from "@/lib/google-drive/constants";
-import { listGoogleDriveChildren, listGoogleSharedDrives } from "@/lib/google-drive/drive-api";
+import {
+  getGoogleDriveFile,
+  listGoogleDriveChildren,
+  listGoogleSharedDrives,
+} from "@/lib/google-drive/drive-api";
 import {
   deleteGoogleDriveFolder,
   insertGoogleDriveFolder,
   listGoogleDriveFoldersForOrganization,
 } from "@/lib/google-drive/folder-records";
 import { loadGoogleDrivePipesAccessToken } from "@/lib/google-drive/pipes";
-import { isLocaleFolderName } from "@/lib/google-drive/translation-filename";
+import { isAnyTranslationOutputFile } from "@/lib/google-drive/translation-filename";
 import { GOOGLE_DRIVE_MAX_BROWSER_FILES } from "@/lib/google-drive/limits";
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -126,11 +130,7 @@ export function createGoogleDriveRoutes() {
         const hideTranslations = !query.showTranslations;
         const items = [];
         for (const file of childrenResult.value.files) {
-          if (
-            hideTranslations &&
-            file.mimeType !== GOOGLE_MIME.folder &&
-            isLocaleFolderName(file.name)
-          ) {
+          if (hideTranslations && isAnyTranslationOutputFile({ name: file.name })) {
             continue;
           }
           const classification = classifyGoogleDriveItem({
@@ -183,7 +183,35 @@ export function createGoogleDriveRoutes() {
       const folders = await listGoogleDriveFoldersForOrganization(
         c.var.auth.organization.localOrganizationId,
       );
-      return c.json({ folders }, 200);
+      const tokenResult = await loadDriveAccessToken(c);
+      const accessToken = isErr(tokenResult) ? null : tokenResult.value;
+      const enriched = await Promise.all(
+        folders.map(async (folder) => {
+          if (folder.folderId === "root") {
+            return {
+              ...folder,
+              mimeType: GOOGLE_MIME.folder,
+              isFolder: true,
+            };
+          }
+          if (!accessToken) {
+            return { ...folder, mimeType: null, isFolder: true };
+          }
+          const meta = await getGoogleDriveFile({
+            accessToken,
+            fileId: folder.folderId,
+          });
+          if (isErr(meta)) {
+            return { ...folder, mimeType: null, isFolder: true };
+          }
+          return {
+            ...folder,
+            mimeType: meta.value.mimeType,
+            isFolder: meta.value.mimeType === GOOGLE_MIME.folder,
+          };
+        }),
+      );
+      return c.json({ folders: enriched }, 200);
     })
     .post(
       "/folders",

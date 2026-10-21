@@ -24,12 +24,55 @@ describe("classifyGoogleDriveItem", () => {
     expect(result).toMatchObject({ kind: "supported", ingestKind: "google_doc" });
   });
 
-  it("skips translation-prefixed files by default", () => {
+  it("skips files inside locale folders by default", () => {
     const result = classifyGoogleDriveItem({
-      name: "[fr-FR] Report.docx",
+      name: "Report.docx",
       mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       sizeBytes: 1000,
+      relativePath: "Briefs/fr",
+      translationOutput: "folder",
     });
     expect(result).toMatchObject({ kind: "skipped", reason: "translation_output" });
+  });
+
+  it("skips every translation output format when no mode is set", () => {
+    const mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    expect(classifyGoogleDriveItem({ name: "[fr] Report.docx", mimeType })).toMatchObject({
+      kind: "skipped",
+      reason: "translation_output",
+    });
+    expect(classifyGoogleDriveItem({ name: "Report [fr].docx", mimeType })).toMatchObject({
+      kind: "skipped",
+      reason: "translation_output",
+    });
+    expect(classifyGoogleDriveItem({ name: "Report_fr.docx", mimeType })).toMatchObject({
+      kind: "skipped",
+      reason: "translation_output",
+    });
+  });
+
+  it("skips prefix, suffix, and underscore translation names", () => {
+    const mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    expect(
+      classifyGoogleDriveItem({
+        name: "[fr] Report.docx",
+        mimeType,
+        translationOutput: "prefix",
+      }),
+    ).toMatchObject({ kind: "skipped", reason: "translation_output" });
+    expect(
+      classifyGoogleDriveItem({
+        name: "Report [fr].docx",
+        mimeType,
+        translationOutput: "suffix",
+      }),
+    ).toMatchObject({ kind: "skipped", reason: "translation_output" });
+    expect(
+      classifyGoogleDriveItem({
+        name: "Report_fr.docx",
+        mimeType,
+        translationOutput: "underscore",
+      }),
+    ).toMatchObject({ kind: "skipped", reason: "translation_output" });
   });
 });

@@ -898,7 +898,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (!googleDrive.folderIds.length) {
       return err({
         code: "google_drive_folders_required",
-        message: "Choose at least one connected Google Drive folder for this automation.",
+        message: "Choose at least one connected Google Drive folder or file for this automation.",
       });
     }
 

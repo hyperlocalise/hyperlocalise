@@ -232,9 +232,9 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     name: "Translate Google Drive files",
     category: "translate",
     description:
-      "Import Docs, Sheets, Slides, PDF, and plain files from connected Drive folders into a project and push translations back to locale subfolders.",
+      "Import Docs, Sheets, Slides, PDF, and plain files from connected Drive folders or files into a project and push translations back using the chosen Translation output.",
     grants:
-      "Reads and writes Google Drive files through Pipes for connected folders. Imports source files into the Content editor and writes [locale] copies under per-locale subfolders.",
+      "Reads and writes Google Drive files through Pipes for connected folders. Imports source files into the Content editor and writes copies as [fr] Report.docx, Report [fr].docx, Report_fr.docx, or fr/Report.docx.",
     tools: ["import_google_drive_files", "push_google_drive_translations"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],

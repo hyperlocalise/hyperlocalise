@@ -68,6 +68,45 @@ function mapDriveFile(resource: DriveFileResource): GoogleDriveFileSummary | nul
   };
 }
 
+type GoogleApiErrorBody = {
+  error?: {
+    message?: string;
+    status?: string;
+    errors?: Array<{ reason?: string; message?: string }>;
+  };
+};
+
+const DRIVE_API_NOT_ENABLED_MESSAGE =
+  "The Google Drive API is not enabled for the OAuth project. Enable drive.googleapis.com in Google Cloud Console, then disconnect and reconnect Google Drive.";
+
+async function googleDriveErrorFromResponse(response: Response): Promise<GoogleDrivePipesError> {
+  let reason: string | undefined;
+  try {
+    const body = (await response.json()) as GoogleApiErrorBody;
+    reason =
+      body.error?.errors?.[0]?.reason?.trim() ||
+      body.error?.status?.trim() ||
+      body.error?.message?.trim();
+  } catch {
+    reason = undefined;
+  }
+  if (reason === "accessNotConfigured") {
+    return {
+      code: "google_drive_api_not_enabled",
+      status: response.status,
+      message: DRIVE_API_NOT_ENABLED_MESSAGE,
+    };
+  }
+  return {
+    code: "google_drive_api_error",
+    status: response.status,
+    reason,
+    message: reason
+      ? `Google Drive API returned ${response.status} (${reason}).`
+      : `Google Drive API returned ${response.status}.`,
+  };
+}
+
 async function driveFetch(
   accessToken: string,
   url: string,
@@ -81,10 +120,7 @@ async function driveFetch(
       headers,
     });
     if (!response.ok) {
-      return err({
-        code: "google_drive_api_error",
-        message: `Google Drive API returned ${response.status}.`,
-      });
+      return err(await googleDriveErrorFromResponse(response));
     }
     return ok(response);
   } catch {
@@ -112,6 +148,14 @@ export async function listGoogleSharedDrives(input: {
     const url = `${GOOGLE_DRIVE_API_BASE}/drives?${params.toString()}`;
     const responseResult = await driveFetch(input.accessToken, url, { signal: input.signal });
     if (isErr(responseResult)) {
+      // Shared-drive listing needs drive / drive.readonly. WorkOS often grants
+      // drive.file, which 403s here while My Drive file listing still works.
+      if (
+        responseResult.error.code === "google_drive_api_error" &&
+        responseResult.error.reason === "insufficientPermissions"
+      ) {
+        return ok([]);
+      }
       return err(responseResult.error);
     }
     const body = (await responseResult.value.json()) as DriveListDrivesResponse;

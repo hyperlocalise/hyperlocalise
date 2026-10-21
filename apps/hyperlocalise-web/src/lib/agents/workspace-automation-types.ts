@@ -25,6 +25,11 @@ import {
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
+import {
+  DEFAULT_GOOGLE_DRIVE_TRANSLATION_OUTPUT,
+  GOOGLE_DRIVE_TRANSLATION_OUTPUTS,
+} from "@/lib/google-drive/translation-filename";
+
 import { MAX_WORKSPACE_AUTOMATION_SKILLS } from "./workspace-automation-skills";
 
 export {
@@ -434,6 +439,7 @@ const googleDriveToolConfigSchema = z
     fileIds: z.array(z.string().trim().min(1).max(128)).max(500).default([]),
     targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
     includeTranslatedFiles: z.boolean().default(false),
+    translationOutput: z.enum(GOOGLE_DRIVE_TRANSLATION_OUTPUTS).default("folder"),
     existingTranslationPolicy: z
       .enum(["seed_empty", "refresh_imported", "overwrite_all"])
       .default("seed_empty"),
@@ -444,6 +450,7 @@ const googleDriveToolConfigSchema = z
     fileIds: [],
     targetLocales: [],
     includeTranslatedFiles: false,
+    translationOutput: DEFAULT_GOOGLE_DRIVE_TRANSLATION_OUTPUT,
     existingTranslationPolicy: "seed_empty",
   });
 
@@ -702,7 +709,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "google_drive_folders_required";
-      message: "Choose at least one connected Google Drive folder for this automation.";
+      message: "Choose at least one connected Google Drive folder or file for this automation.";
     }
   | {
       code: "google_drive_target_locales_invalid";

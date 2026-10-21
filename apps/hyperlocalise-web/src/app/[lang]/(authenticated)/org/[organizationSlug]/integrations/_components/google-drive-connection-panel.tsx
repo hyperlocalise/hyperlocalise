@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -35,6 +35,21 @@ import { usePipesStatus } from "./pipes-connection-panel";
 
 const api = createApiClient();
 
+const GOOGLE_DRIVE_OAUTH_WINDOW_NAME = "hyperlocalise-google-drive-oauth";
+const GOOGLE_DRIVE_OAUTH_WINDOW_FEATURES = "width=520,height=720,scrollbars=yes,resizable=yes";
+const PIPES_CONNECTED_MESSAGE = "hyperlocalise-pipes-connected";
+
+function isPipesConnectedMessage(data: unknown): data is { type: string; provider: string } {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "type" in data &&
+    data.type === PIPES_CONNECTED_MESSAGE &&
+    "provider" in data &&
+    data.provider === GOOGLE_DRIVE_PIPES_SLUG
+  );
+}
+
 export function GoogleDriveConnectionPanel({
   organizationSlug,
   disabled,
@@ -47,6 +62,7 @@ export function GoogleDriveConnectionPanel({
   const intl = useIntl();
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
+  const authWindowRef = useRef<Window | null>(null);
   const statusQuery = usePipesStatus(organizationSlug, GOOGLE_DRIVE_PIPES_SLUG, expanded);
   const summary = useMemo(
     () => resolveWorkspaceIntegrationSummary(intl, GOOGLE_DRIVE_PIPES_SLUG),
@@ -78,9 +94,25 @@ export function GoogleDriveConnectionPanel({
       return body.url;
     },
     onSuccess: (url) => {
-      window.location.href = url;
+      const popup = authWindowRef.current;
+      if (popup && !popup.closed) {
+        popup.location.href = url;
+        return;
+      }
+      const opened = window.open(
+        url,
+        GOOGLE_DRIVE_OAUTH_WINDOW_NAME,
+        GOOGLE_DRIVE_OAUTH_WINDOW_FEATURES,
+      );
+      if (!opened) {
+        toast.error(intl.formatMessage(googleDriveConnectionPanelMessages.popupBlockedToast));
+        return;
+      }
+      authWindowRef.current = opened;
     },
     onError: (error) => {
+      authWindowRef.current?.close();
+      authWindowRef.current = null;
       toast.error(
         error instanceof Error
           ? error.message
@@ -114,9 +146,66 @@ export function GoogleDriveConnectionPanel({
     },
   });
 
+  const refreshAfterOAuth = useCallback(async () => {
+    await queryClient.invalidateQueries({
+      queryKey: ["pipes", organizationSlug, GOOGLE_DRIVE_PIPES_SLUG],
+    });
+    setExpanded(true);
+  }, [organizationSlug, queryClient]);
+
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+      if (!isPipesConnectedMessage(event.data)) {
+        return;
+      }
+      void refreshAfterOAuth();
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [refreshAfterOAuth]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const popup = authWindowRef.current;
+      if (!popup || !popup.closed) {
+        return;
+      }
+      authWindowRef.current = null;
+      void refreshAfterOAuth();
+    }, 800);
+    return () => window.clearInterval(timer);
+  }, [refreshAfterOAuth]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("pipesCallback") !== GOOGLE_DRIVE_PIPES_SLUG) {
+      return;
+    }
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage(
+        { type: PIPES_CONNECTED_MESSAGE, provider: GOOGLE_DRIVE_PIPES_SLUG },
+        window.location.origin,
+      );
+    }
+    window.close();
+  }, []);
+
   const handleConnect = useCallback(() => {
+    const popup = window.open(
+      "about:blank",
+      GOOGLE_DRIVE_OAUTH_WINDOW_NAME,
+      GOOGLE_DRIVE_OAUTH_WINDOW_FEATURES,
+    );
+    if (!popup) {
+      toast.error(intl.formatMessage(googleDriveConnectionPanelMessages.popupBlockedToast));
+      return;
+    }
+    authWindowRef.current = popup;
     connect.mutate();
-  }, [connect]);
+  }, [connect, intl]);
 
   const action = !userCanManage ? "view-only" : isConnected ? "manage" : "connect";
   const description = statusQuery.isError

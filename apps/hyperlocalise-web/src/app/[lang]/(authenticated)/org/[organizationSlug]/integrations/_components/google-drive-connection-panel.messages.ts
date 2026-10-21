@@ -21,6 +21,11 @@ export const googleDriveConnectionPanelMessages = defineMessages({
     defaultMessage: "Could not start Google Drive authorization.",
     description: "Toast when Google Drive OAuth URL request fails",
   },
+  popupBlockedToast: {
+    id: "3u8x1hrri6",
+    defaultMessage: "Allow pop-ups to connect Google Drive.",
+    description: "Toast when the Google Drive OAuth window is blocked",
+  },
   disconnectFailed: {
     id: "tFFqz/8xPp",
     defaultMessage: "Could not disconnect Google Drive.",

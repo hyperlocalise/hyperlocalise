@@ -2713,7 +2713,7 @@ function ToolsSettings({
                 ) : null}
               </>
             }
-            description="Import connected Drive folders into the project, translate in the Content editor, then push locale copies back to Drive."
+            description="Import selected Drive folders and files into the project, translate in the Content editor, then push locale copies back to Drive."
             action={
               <DeleteToolButton
                 disabled={disabled}

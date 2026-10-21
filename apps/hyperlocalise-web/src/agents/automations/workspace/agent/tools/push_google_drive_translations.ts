@@ -22,7 +22,7 @@ import type { WorkspaceOrchestratorSession } from "../context";
 export function createPushGoogleDriveTranslationsTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({
     description:
-      "Push translated project files back to Google Drive under per-locale subfolders with [locale] filenames.",
+      "Push translated project files back to Google Drive using the automation Translation output setting: [fr] Report.docx, Report [fr].docx, Report_fr.docx, or fr/Report.docx.",
     inputSchema: z.object({
       summary: z.string().optional().describe("Optional operator note for the run record."),
     }),
