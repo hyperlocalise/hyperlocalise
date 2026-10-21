@@ -41,7 +41,7 @@ import {
 
 import { translateLocaleWithAgentDialogMessages as messages } from "./translate-locale-with-agent-dialog.messages";
 
-const PROJECT_FILES_LIMIT = 500;
+const PROJECT_FILES_PAGE_SIZE = 1_000;
 const CREATE_JOB_CONCURRENCY = 4;
 
 type AgentTranslatableFile = {
@@ -50,6 +50,45 @@ type AgentTranslatableFile = {
 };
 
 type CreateJobOutcome = { ok: true } | { ok: false; message: string };
+
+export async function fetchAllProjectFiles(
+  fetchPage: (page: { limit: number; offset: number }) => Promise<ProjectFileRecord[]>,
+): Promise<ProjectFileRecord[]> {
+  const files: ProjectFileRecord[] = [];
+  for (;;) {
+    const page = await fetchPage({ limit: PROJECT_FILES_PAGE_SIZE, offset: files.length });
+    files.push(...page);
+    if (page.length < PROJECT_FILES_PAGE_SIZE) {
+      return files;
+    }
+  }
+}
+
+export async function queueAgentTranslationJobs<T>(
+  items: T[],
+  createJob: (item: T) => Promise<CreateJobOutcome>,
+  fallbackMessage: string,
+) {
+  const outcomes = await mapWithConcurrency(
+    items,
+    CREATE_JOB_CONCURRENCY,
+    async (item): Promise<CreateJobOutcome> => {
+      try {
+        return await createJob(item);
+      } catch (error) {
+        return { ok: false, message: error instanceof Error ? error.message : fallbackMessage };
+      }
+    },
+  );
+
+  const createdCount = outcomes.filter((outcome) => outcome.ok).length;
+  const firstFailure = outcomes.find((outcome) => !outcome.ok);
+  return {
+    createdCount,
+    totalCount: outcomes.length,
+    errorMessage: firstFailure && !firstFailure.ok ? firstFailure.message : null,
+  };
+}
 
 export function selectAgentTranslatableFiles(
   files: readonly ProjectFileRecord[],
@@ -88,10 +127,10 @@ export function TranslateLocaleWithAgentDialog({
     enabled: open,
     queryFn: async () => {
       try {
-        const body = await goSvcClient.project.files(organizationSlug, projectId, {
-          limit: PROJECT_FILES_LIMIT,
+        return await fetchAllProjectFiles(async (page) => {
+          const body = await goSvcClient.project.files(organizationSlug, projectId, page);
+          return body.files as ProjectFileRecord[];
         });
-        return body.files as ProjectFileRecord[];
       } catch (error) {
         throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadFilesFailed)), {
           cause: error,
@@ -106,11 +145,10 @@ export function TranslateLocaleWithAgentDialog({
   );
 
   const createJobs = useMutation({
-    mutationFn: async (targetLocale: string) => {
-      const outcomes = await mapWithConcurrency(
+    mutationFn: (targetLocale: string) =>
+      queueAgentTranslationJobs(
         files,
-        CREATE_JOB_CONCURRENCY,
-        async (file): Promise<CreateJobOutcome> => {
+        async (file) => {
           const response = await apiClient.api.orgs[":organizationSlug"].projects[
             ":projectId"
           ].jobs.$post({
@@ -135,16 +173,8 @@ export function TranslateLocaleWithAgentDialog({
           }
           return { ok: true };
         },
-      );
-
-      const createdCount = outcomes.filter((outcome) => outcome.ok).length;
-      const firstFailure = outcomes.find((outcome) => !outcome.ok);
-      return {
-        createdCount,
-        totalCount: outcomes.length,
-        errorMessage: firstFailure && !firstFailure.ok ? firstFailure.message : null,
-      };
-    },
+        intl.formatMessage(messages.createFailed),
+      ),
     onSuccess: async ({ createdCount, totalCount, errorMessage }) => {
       if (createdCount > 0) {
         await Promise.all([

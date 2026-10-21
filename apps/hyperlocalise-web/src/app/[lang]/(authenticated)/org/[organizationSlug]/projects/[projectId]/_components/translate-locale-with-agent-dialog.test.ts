@@ -14,7 +14,11 @@ import { describe, expect, it } from "vite-plus/test";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 
-import { selectAgentTranslatableFiles } from "./translate-locale-with-agent-dialog";
+import {
+  fetchAllProjectFiles,
+  queueAgentTranslationJobs,
+  selectAgentTranslatableFiles,
+} from "./translate-locale-with-agent-dialog";
 
 function projectFile(overrides: Partial<ProjectFileRecord>): ProjectFileRecord {
   return {
@@ -60,5 +64,46 @@ describe("selectAgentTranslatableFiles", () => {
         }),
       ]),
     ).toEqual([{ storedFileId: "json-file", fileFormat: "json" }]);
+  });
+});
+
+describe("fetchAllProjectFiles", () => {
+  it("pages until the endpoint returns a short page", async () => {
+    const all = Array.from({ length: 1_250 }, (_, index) =>
+      projectFile({ storedFileId: `file-${index}` }),
+    );
+    const requests: Array<{ limit: number; offset: number }> = [];
+
+    const files = await fetchAllProjectFiles(async (page) => {
+      requests.push(page);
+      return all.slice(page.offset, page.offset + page.limit);
+    });
+
+    expect(files).toHaveLength(1_250);
+    expect(requests).toEqual([
+      { limit: 1_000, offset: 0 },
+      { limit: 1_000, offset: 1_000 },
+    ]);
+  });
+});
+
+describe("queueAgentTranslationJobs", () => {
+  it("keeps queuing and counts created jobs when a request throws", async () => {
+    const attempted: number[] = [];
+
+    const result = await queueAgentTranslationJobs(
+      [1, 2, 3, 4, 5],
+      async (item) => {
+        attempted.push(item);
+        if (item === 2) {
+          throw new Error("Network down");
+        }
+        return { ok: true };
+      },
+      "Failed",
+    );
+
+    expect(attempted.toSorted((left, right) => left - right)).toEqual([1, 2, 3, 4, 5]);
+    expect(result).toEqual({ createdCount: 4, totalCount: 5, errorMessage: "Network down" });
   });
 });
