@@ -588,7 +588,7 @@ describe("MCP project manager tools", () => {
 
     queryReportMock.mockResolvedValue({
       analysis: { sourceWords: 0, workloadWords: 0, completedWords: 0 },
-      rows: Array.from({ length: MCP_REPORT_MAX_ROWS + 3 }, (_, index) => ({
+      rows: Array.from({ length: MCP_REPORT_MAX_ROWS }, (_, index) => ({
         period: "2026-10-01",
         projectId: stored.project.id,
         jobId: null,
@@ -611,12 +611,15 @@ describe("MCP project manager tools", () => {
       timezone: "UTC",
       currency: "USD",
       financial: true,
+      page: 1,
+      hasMore: true,
     });
 
     const truncated = await readToolResult<{
       rows?: unknown[];
-      totalRows?: number;
+      rowsOnPage?: number;
       truncated?: boolean;
+      nextPage?: number | null;
     }>(await callMcpTool(adminHeaders, "get_report", { view: "overview" }));
 
     expect(disabled).toMatchObject({
@@ -629,7 +632,8 @@ describe("MCP project manager tools", () => {
     });
     expect(truncated.isError).toBe(false);
     expect(truncated.output.rows).toHaveLength(MCP_REPORT_MAX_ROWS);
-    expect(truncated.output.totalRows).toBe(MCP_REPORT_MAX_ROWS + 3);
+    expect(truncated.output.rowsOnPage).toBe(MCP_REPORT_MAX_ROWS);
     expect(truncated.output.truncated).toBe(true);
+    expect(truncated.output.nextPage).toBe(2);
   });
 });
