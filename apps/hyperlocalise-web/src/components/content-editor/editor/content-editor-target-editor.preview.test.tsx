@@ -36,6 +36,22 @@ const HELP_CENTER_URL =
 const MULTI_HELP_URL =
   "https://www.intercom.com/help/en/articles/8170953-create-and-manage-multiple-help-centers";
 
+describe("ContentEditorMessagePreview office tokens", () => {
+  it("shows one line per formatting run without OX labels", () => {
+    const open = "\u001eHLOXPH_6F30_0\u001f";
+    const close = "\u001eHLOXPH_6330_1\u001f";
+
+    renderWithContentEditorProviders(
+      <ContentEditorMessagePreview message={`${open}Serves ${close}8 people`} />,
+    );
+
+    expect(screen.getByText("Serves")).toBeInTheDocument();
+    expect(screen.getByText("8 people")).toBeInTheDocument();
+    expect(screen.queryByText(/OX#/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/HLOXPH_/)).not.toBeInTheDocument();
+  });
+});
+
 describe("ContentEditorMessagePreview markdown display", () => {
   it("hides Intercom heading ids", () => {
     renderWithContentEditorProviders(
@@ -118,6 +134,39 @@ describe("ContentEditorTargetEditor markdown display", () => {
     expect(screen.queryByText(/#h_8b76258d80/)).not.toBeInTheDocument();
     expect(screen.queryByText("Required tokens")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "MD#0" })).not.toBeInTheDocument();
+  });
+
+  it("hides Office formatting tokens and restores them on save", async () => {
+    const open = "\u001eHLOXPH_6F30_0\u001f";
+    const close = "\u001eHLOXPH_6330_1\u001f";
+    const sourceText = `${open}Serves ${close}8 people`;
+    const onChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorTargetEditor
+        sourceText={sourceText}
+        value={`${open}4人分${close}8人`}
+        onChange={onChange}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("4人分")).toBeInTheDocument();
+      expect(screen.getByText("8人")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/OX#/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Required tokens")).not.toBeInTheDocument();
+
+    const editor = document.querySelector(".tiptap") as HTMLElement;
+    const user = userEvent.setup();
+    await user.click(editor);
+    await user.type(editor, "!");
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+    const lastValue = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(lastValue).toBe(`${open}4人分${close}8人!`);
   });
 
   it("keeps ICU required tokens while hiding markdown link tokens", async () => {

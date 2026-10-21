@@ -88,6 +88,15 @@ export const SanityTranslation: Story = {
   },
 };
 
+export const GoogleDriveTranslation: Story = {
+  ...templateStory("translate-google-drive-files"),
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByLabelText("Daily → Google Drive → Create job → Translate with agent"),
+    ).toBeInTheDocument();
+  },
+};
+
 export const BrazeTranslation: Story = {
   ...templateStory("translate-braze-email-templates"),
   play: async ({ canvas }) => {

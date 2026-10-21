@@ -81,7 +81,9 @@ export function createPipesRoutes() {
         localOrganizationId: c.var.auth.organization.localOrganizationId,
         workosUserId: c.var.auth.user.workosUserId,
         ...(organizationSlug
-          ? { returnTo: `${requestUrl.origin}/org/${organizationSlug}/integrations` }
+          ? {
+              returnTo: `${requestUrl.origin}/org/${organizationSlug}/integrations?pipesCallback=${encodeURIComponent(provider)}`,
+            }
           : {}),
       });
 

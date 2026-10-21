@@ -78,6 +78,15 @@ func TestValidateWhitespaceProfile(t *testing.T) {
 	if err := validateWhitespaceProfile("Hello\t", "Hello\t"); err != nil {
 		t.Fatalf("expected trailing tab parity, got %v", err)
 	}
+	if err := validateWhitespaceProfile(
+		"Lorem ipsum dolor sit amet consectetuer adipiscing elit sed do tempor incididunt ut labore et dolore magna aliqua. ",
+		"Lorem ipsum dolor sit amet consectetuer adipiscing elit sed do tempor incididunt ut labore et dolore magna aliqua.",
+	); err != nil {
+		t.Fatalf("expected trailing regular space to be ignored, got %v", err)
+	}
+	if err := validateWhitespaceProfile("Hello\n", "Hello"); err == nil {
+		t.Fatal("expected trailing newline mismatch")
+	}
 }
 
 func TestProfileEdgeWhitespaceBoltFastPath(t *testing.T) {

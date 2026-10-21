@@ -551,6 +551,7 @@
                       "contributing/development",
                       "contributing/canva-app-oauth",
                       "contributing/figma-plugin-oauth",
+                      "contributing/google-drive-oauth",
                       "contributing/sanity-studio-plugin-oauth",
                       "contributing/lambda-deploy",
                       "contributing/release-maintenance"

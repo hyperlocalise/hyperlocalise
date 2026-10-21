@@ -26,6 +26,7 @@ import {
   type ProjectFileTreeActionsConfig,
 } from "./project-file-tree-context-menu";
 import { projectFilesTreeMessages as messages } from "./project-files-tree.messages";
+import { PROJECT_FILES_TREE_ICONS } from "./project-files-tree-icons";
 import { dedupeProjectFilesBySourcePath, formatBytes } from "./project-files-shared";
 import { buildProjectFileActionCapabilities } from "./use-project-file-actions";
 
@@ -195,6 +196,7 @@ function ProjectFilesTreeView({
       initialExpansion: "open",
       paths: nextPaths,
       initialVisibleRowCount: Math.max(nextPaths.length, 8),
+      icons: PROJECT_FILES_TREE_ICONS,
     });
   }, [pathsKey]);
 
@@ -280,6 +282,7 @@ function ProjectFilesTreeView({
     initialExpansion: "open",
     initialSelectedPaths: selectedPaths,
     initialVisibleRowCount: Math.max(paths.length, 8),
+    icons: PROJECT_FILES_TREE_ICONS,
     paths,
     search: true,
     searchBlurBehavior: "retain",

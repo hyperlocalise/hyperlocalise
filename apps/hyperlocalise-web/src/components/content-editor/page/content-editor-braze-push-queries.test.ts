@@ -12,7 +12,11 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { isBrazeCampaignSourcePath, isBrazeTemplateSourcePath } from "@/lib/braze/source-paths";
+import {
+  isBrazeCampaignSourcePath,
+  isBrazeSourcePath,
+  isBrazeTemplateSourcePath,
+} from "@/lib/braze/source-paths";
 
 import {
   brazeItemTitleFromSourcePath,
@@ -71,5 +75,6 @@ describe("brazeItemTitleFromSourcePath", () => {
     expect(isBrazeTemplateSourcePath("braze/templates/welcome-email.html")).toBe(true);
     expect(isBrazeCampaignSourcePath("braze/campaigns/welcome/email-a.json")).toBe(true);
     expect(isBrazeCampaignSourcePath("braze/templates/welcome-email.html")).toBe(false);
+    expect(isBrazeSourcePath("locales/en.json")).toBe(false);
   });
 });

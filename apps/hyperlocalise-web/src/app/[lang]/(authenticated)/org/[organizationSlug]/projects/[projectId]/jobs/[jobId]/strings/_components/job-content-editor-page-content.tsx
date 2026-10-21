@@ -46,6 +46,8 @@ import {
 import { jobCatPageContentMessages } from "./job-content-editor-page-content.messages";
 import { ContentEditorBrazeIngestButton } from "@/components/content-editor/page/content-editor-braze-ingest-button";
 import { ContentEditorBrazePushButton } from "@/components/content-editor/page/content-editor-braze-push-button";
+import { ContentEditorGoogleDriveIngestButton } from "@/components/content-editor/page/content-editor-google-drive-ingest-button";
+import { ContentEditorGoogleDrivePushButton } from "@/components/content-editor/page/content-editor-google-drive-push-button";
 import { ContentEditorIntercomIngestButton } from "@/components/content-editor/page/content-editor-intercom-ingest-button";
 import { ContentEditorIntercomPushButton } from "@/components/content-editor/page/content-editor-intercom-push-button";
 import { ContentEditorSanityIngestButton } from "@/components/content-editor/page/content-editor-sanity-ingest-button";
@@ -234,6 +236,7 @@ export function JobContentEditorPageContent({
         organizationSlug={organizationSlug}
         projectId={projectId}
         canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
         pageNavigationGuardRef={pageNavigationGuardRef}
       />
       <ContentEditorIntercomPushButton
@@ -247,6 +250,7 @@ export function JobContentEditorPageContent({
         organizationSlug={organizationSlug}
         projectId={projectId}
         canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
         pageNavigationGuardRef={pageNavigationGuardRef}
       />
       <ContentEditorSanityPushButton
@@ -264,6 +268,20 @@ export function JobContentEditorPageContent({
         pageNavigationGuardRef={pageNavigationGuardRef}
       />
       <ContentEditorBrazePushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorGoogleDriveIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorGoogleDrivePushButton
         organizationSlug={organizationSlug}
         projectId={projectId}
         canManageAutomations={canManageAutomations}

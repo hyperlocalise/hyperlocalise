@@ -604,6 +604,12 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "G9eQqJWzlH",
     description: "Name of the Sanity integration in the hint on a skill that needs it connected",
   },
+  skillIntegrationGoogleDrive: {
+    defaultMessage: "Google Drive",
+    id: "mCZ6rjBj9L",
+    description:
+      "Name of the Google Drive integration in the hint on a skill that needs it connected",
+  },
   skillIntegrationBraze: {
     defaultMessage: "Braze",
     id: "o0HXRhjJ+T",

@@ -32,6 +32,9 @@ const INTERNAL_MARKUP_PATTERN = new RegExp(
   "g",
 );
 
+const LEAKED_INTERNAL_TOKEN_NAME = /[^\S\n]*HL(?:MD|HT|LQ|UE|OX)PH_[A-Z0-9]+_[0-9]+[^\S\n]*/g;
+const EXTRA_HORIZONTAL_SPACE = /[^\S\n]{2,}/g;
+
 function familyFromMatch(raw: string): ContentEditorInternalMarkupFamily {
   switch (raw) {
     case "MD":
@@ -73,11 +76,64 @@ export function extractInternalMarkupSpans(message: string): ContentEditorIntern
   return spans;
 }
 
+/** Drops token names that a model copied as visible text next to real sentinels. */
+export function stripLeakedInternalMarkupNames(text: string): string {
+  if (!text.includes("HL")) {
+    return text;
+  }
+  const stripped = text.replace(LEAKED_INTERNAL_TOKEN_NAME, (match, offset: number) =>
+    leakedInternalTokenReplacement(text, match, offset),
+  );
+  return stripped.replace(EXTRA_HORIZONTAL_SPACE, " ");
+}
+
+/** Keeps `\x1eHL*PH…\x1f` sentinels and removes copied token names between them. */
+export function stripLeakedInternalMarkupFromStoredMessage(message: string): string {
+  if (!message.includes("HL")) {
+    return message;
+  }
+  const spans = extractInternalMarkupSpans(message);
+  if (spans.length === 0) {
+    return stripLeakedInternalMarkupNames(message);
+  }
+  let out = "";
+  let cursor = 0;
+  for (const span of spans) {
+    out += stripLeakedInternalMarkupNames(message.slice(cursor, span.start));
+    out += span.literal;
+    cursor = span.end;
+  }
+  return out + stripLeakedInternalMarkupNames(message.slice(cursor));
+}
+
+function leakedInternalTokenReplacement(text: string, match: string, offset: number): string {
+  const end = offset + match.length;
+  const leadSpace = match.startsWith(" ") || match.startsWith("\t");
+  const trailSpace = match.endsWith(" ") || match.endsWith("\t");
+  if (leadSpace && trailSpace) {
+    return " ";
+  }
+  if (leadSpace && /\p{L}/u.test(text[end] ?? "")) {
+    return " ";
+  }
+  if (trailSpace && offset > 0 && /\p{L}/u.test(text[offset - 1] ?? "")) {
+    return " ";
+  }
+  return "";
+}
+
 /** Replace sentinels with short labels for plain-text UI (queue rows, etc.). */
 export function formatInternalMarkupForDisplay(message: string): string {
-  return message.replace(INTERNAL_MARKUP_PATTERN, (_literal, family: string, index: string) =>
-    internalMarkupLabel(familyFromMatch(family), Number.parseInt(index, 10)),
+  return stripLeakedInternalMarkupNames(
+    message.replace(INTERNAL_MARKUP_PATTERN, (_literal, family: string, index: string) =>
+      internalMarkupLabel(familyFromMatch(family), Number.parseInt(index, 10)),
+    ),
   );
+}
+
+/** Removes sentinels so length checks count only visible text. */
+export function stripInternalMarkupSentinels(message: string): string {
+  return message.replace(INTERNAL_MARKUP_PATTERN, "");
 }
 
 export function hasInternalMarkup(message: string): boolean {

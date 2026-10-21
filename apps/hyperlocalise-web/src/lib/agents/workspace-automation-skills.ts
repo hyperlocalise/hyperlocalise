@@ -26,6 +26,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOLS = [
   "push_intercom_translations",
   "import_sanity_documents",
   "push_sanity_translations",
+  "import_google_drive_files",
+  "push_google_drive_translations",
   "import_braze_templates",
   "push_braze_templates",
   "import_braze_campaigns",
@@ -226,6 +228,22 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     },
   },
   {
+    id: "translate-google-drive-files",
+    name: "Translate Google Drive files",
+    category: "translate",
+    description:
+      "Import Google Docs, Sheets, Slides, and other Hyperlocalise source files from connected Drive folders or files into a project and push translations back using the chosen Translation output.",
+    grants:
+      "Reads and writes Google Drive files through Pipes for connected folders. Imports source files into the Content editor and writes copies as [vi-VN] overview.docx, overview [vi-VN].docx, overview_vi-VN.docx, or vi-VN/overview.docx.",
+    tools: ["import_google_drive_files", "push_google_drive_translations"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["google drive", "drive folder", "google docs"],
+      weak: ["docx", "sheet", "slides", "import", "translate"],
+    },
+  },
+  {
     id: "translate-intercom-articles",
     name: "Translate Intercom Help Center articles",
     category: "translate",
@@ -365,6 +383,7 @@ export const MAX_WORKSPACE_AUTOMATION_SKILLS = WORKSPACE_AUTOMATION_SKILLS.lengt
 /** Document/CMS translation skills that each take over the orchestrator plan. */
 export const CMS_TRANSLATION_SKILL_IDS = [
   "translate-sanity-documents",
+  "translate-google-drive-files",
   "translate-intercom-articles",
   "translate-braze-email-templates",
   "translate-braze-campaigns",
@@ -408,6 +427,7 @@ export type WorkspaceAutomationSkillIntegration =
   | "crowdin"
   | "contentful"
   | "intercom"
+  | "google_drive"
   | "sanity"
   | "braze"
   | "slack"
@@ -425,6 +445,8 @@ const SKILL_TOOL_INTEGRATIONS: Record<
   push_intercom_translations: "intercom",
   import_sanity_documents: "sanity",
   push_sanity_translations: "sanity",
+  import_google_drive_files: "google_drive",
+  push_google_drive_translations: "google_drive",
   import_braze_templates: "braze",
   push_braze_templates: "braze",
   import_braze_campaigns: "braze",
@@ -538,6 +560,9 @@ export function workspaceAutomationSkillToolEnabled(
     case "import_sanity_documents":
     case "push_sanity_translations":
       return Boolean(toolConfig.sanity?.enabled);
+    case "import_google_drive_files":
+    case "push_google_drive_translations":
+      return Boolean(toolConfig.googleDrive?.enabled);
     case "import_braze_templates":
     case "push_braze_templates":
       return Boolean(toolConfig.braze?.enabled);

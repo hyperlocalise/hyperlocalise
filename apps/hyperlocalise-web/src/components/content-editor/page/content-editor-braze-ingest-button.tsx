@@ -14,6 +14,7 @@
  */
 import { IntegrationLogo } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/integration-logo";
 import type { ContentEditorPageNavigationGuardRef } from "@/components/content-editor/workspace/content-editor-page-navigation-guard";
+import { isBrazeSourcePath } from "@/lib/braze/source-paths";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
 import { ContentEditorIngestButton } from "./content-editor-ingest-button";
@@ -37,11 +38,12 @@ export function ContentEditorBrazeIngestButton({
   pageNavigationGuardRef?: ContentEditorPageNavigationGuardRef;
 }) {
   const openSourcePath = isContentEditorAllFilesSourcePath(sourcePath) ? null : sourcePath;
+  const matchesFile = Boolean(openSourcePath && isBrazeSourcePath(openSourcePath));
   return (
     <ContentEditorIngestButton
       organizationSlug={organizationSlug}
       projectId={projectId}
-      canManageAutomations={canManageAutomations}
+      canManageAutomations={canManageAutomations && matchesFile}
       queryKey={contentEditorBrazeIngestQueryKey(organizationSlug, projectId, openSourcePath)}
       fetchCandidates={() =>
         fetchContentEditorBrazeIngestCandidates({

@@ -48,6 +48,7 @@ import { resolveContentSyncRepositoryTarget } from "@/lib/agents/content-sync/co
 import {
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationBrazeTool,
+  hasWorkspaceAutomationGoogleDriveTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
   type WorkspaceAutomationConfigValidationError,
@@ -66,6 +67,11 @@ import {
   isIntercomPushRunActive,
   type IntercomPushArticle,
 } from "@/lib/intercom/push-eligibility";
+import {
+  getGoogleDrivePushEligibility,
+  isGoogleDrivePushRunActive,
+  type GoogleDrivePushFile,
+} from "@/lib/google-drive/push-eligibility";
 import {
   getSanityPushEligibility,
   isSanityPushRunActive,
@@ -671,7 +677,29 @@ export function createWorkspaceAutomationRoutes(
         };
       }
 
-      return c.json({ automation, recentRuns, intercomPush, sanityPush, brazePush }, 200);
+      let googleDrivePush: {
+        eligibleLocaleCount: number;
+        mappedFileCount: number;
+        pushRunInProgress: boolean;
+        files?: GoogleDrivePushFile[];
+      } | null = null;
+      if (hasWorkspaceAutomationGoogleDriveTool(automation.toolConfig)) {
+        const eligibility = await getGoogleDrivePushEligibility({
+          organizationId,
+          automation,
+        });
+        googleDrivePush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedFileCount: eligibility?.mappedFileCount ?? 0,
+          pushRunInProgress: isGoogleDrivePushRunActive(recentRuns),
+          ...(includePushArticles ? { files: eligibility?.files ?? [] } : {}),
+        };
+      }
+
+      return c.json(
+        { automation, recentRuns, intercomPush, sanityPush, brazePush, googleDrivePush },
+        200,
+      );
     })
     .get("/:automationId/knowledge-files", validateAutomationParams, async (c) => {
       const params = c.req.valid("param");

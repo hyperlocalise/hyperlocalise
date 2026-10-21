@@ -206,7 +206,7 @@ describe("pipesRoutes", () => {
       provider: "intercom",
       localOrganizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
       workosUserId: identity.user.workosUserId,
-      returnTo: expect.stringMatching(/\/org\/.+\/integrations$/),
+      returnTo: expect.stringMatching(/\/org\/.+\/integrations\?pipesCallback=intercom$/),
     });
   });
 

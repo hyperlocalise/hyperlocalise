@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildSanityDocumentSourcePath,
+  isSanityCatSourcePath,
   isSanityPluginSourcePath,
   isSanityStampSegmentKey,
   parseSanityTranslationFile,
@@ -15,6 +16,9 @@ describe("sanity segment-file", () => {
   it("detects Studio plugin source paths", () => {
     expect(isSanityPluginSourcePath("sanity-plugin/p/d/post/doc.json")).toBe(true);
     expect(isSanityPluginSourcePath("sanity/p/d/post/doc.json")).toBe(false);
+    expect(isSanityCatSourcePath("sanity-plugin/p/d/post/doc.json")).toBe(true);
+    expect(isSanityCatSourcePath("sanity/p/d/post/doc.json")).toBe(true);
+    expect(isSanityCatSourcePath("locales/en.json")).toBe(false);
   });
 
   it("builds document source paths", () => {

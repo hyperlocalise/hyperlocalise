@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { stripLeakedInternalMarkupFromStoredMessage } from "@/components/content-editor/message-format/content-editor-internal-markup";
 import { isOpenIssueStatus } from "@/components/content-editor/queue/content-editor-queue-filter";
 import type {
   ContentEditorFileContext,
@@ -73,7 +74,7 @@ export function composeSegmentView(input: {
     ...(messageFormat ? { messageFormat } : {}),
     sourceLocale: fileContext.sourceLocale,
     targetLocale: fileContext.targetLocale,
-    targetText: draft?.targetText ?? "",
+    targetText: stripLeakedInternalMarkupFromStoredMessage(draft?.targetText ?? ""),
     status: draft?.status ?? "pending",
     ...(contextLabel ? { contextLabel } : {}),
     ...(maxLength != null ? { maxLength } : {}),

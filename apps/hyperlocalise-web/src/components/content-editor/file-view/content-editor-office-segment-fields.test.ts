@@ -89,4 +89,17 @@ describe("office field text", () => {
   it("keeps digits typed straight after a label", () => {
     expect(officeTargetFromFieldText("OX#010 jours", source)).toBe(`${open}10 jours`);
   });
+
+  it("drops leaked token names when saving a field", () => {
+    expect(
+      officeTargetFromFieldText(`OX#0 HLOXPH_6F30_0 conditions OX#1 HLOXPH_6330_1.`, source),
+    ).toBe(`${open} conditions ${close}.`);
+  });
+
+  it("keeps the source trailing space so Word paragraphs can be approved", () => {
+    const spaced = `${source} `;
+    expect(officeTargetFromFieldText("Lisez les OX#0conditionsOX#1.", spaced)).toBe(
+      `Lisez les ${open}conditions${close}. `,
+    );
+  });
 });

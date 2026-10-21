@@ -46,6 +46,21 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+export const HiddenWhenFileIsNotIntercom: Story = {
+  args: {
+    sourcePath: "locales/en.json",
+  },
+  parameters: {
+    msw: {
+      handlers: createContentEditorIntercomPushMswHandlers(),
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole("button", { name: "Push to Intercom" })).toBeNull();
+  },
+};
+
 export const HiddenWhenNotEligible: Story = {
   parameters: {
     msw: {

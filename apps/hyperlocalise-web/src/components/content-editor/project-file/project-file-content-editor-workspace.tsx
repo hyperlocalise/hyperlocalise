@@ -14,6 +14,7 @@
  */
 import { toast } from "sonner";
 import { invalidateContentEditorBrazePushQueries } from "@/components/content-editor/page/content-editor-braze-push-queries";
+import { invalidateContentEditorGoogleDrivePushQueries } from "@/components/content-editor/page/content-editor-google-drive-push-queries";
 import { invalidateContentEditorIntercomPushQueries } from "@/components/content-editor/page/content-editor-intercom-push-queries";
 import { invalidateContentEditorSanityPushQueries } from "@/components/content-editor/page/content-editor-sanity-push-queries";
 
@@ -675,6 +676,7 @@ export function ProjectFileContentEditorWorkspace({
             invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
             invalidateContentEditorSanityPushQueries(queryClient, organizationSlug, projectId);
             invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
+            invalidateContentEditorGoogleDrivePushQueries(queryClient, organizationSlug, projectId);
             return "reviewed" as const;
           } catch (error) {
             if (!isCatDeferredToApp(error)) {
@@ -699,6 +701,7 @@ export function ProjectFileContentEditorWorkspace({
         invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
         invalidateContentEditorSanityPushQueries(queryClient, organizationSlug, projectId);
         invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
+        invalidateContentEditorGoogleDrivePushQueries(queryClient, organizationSlug, projectId);
         return "reviewed" as const;
       }
 
@@ -716,6 +719,7 @@ export function ProjectFileContentEditorWorkspace({
         invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
         invalidateContentEditorSanityPushQueries(queryClient, organizationSlug, projectId);
         invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
+        invalidateContentEditorGoogleDrivePushQueries(queryClient, organizationSlug, projectId);
         return "reviewed";
       }
       return "needs_review";
@@ -745,6 +749,7 @@ export function ProjectFileContentEditorWorkspace({
     invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
     invalidateContentEditorSanityPushQueries(queryClient, organizationSlug, projectId);
     invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
+    invalidateContentEditorGoogleDrivePushQueries(queryClient, organizationSlug, projectId);
   }, [invalidateQueue, organizationSlug, projectId, queryClient]);
 
   const isKeyedDocumentFileView = (segmentId: string) =>

@@ -13,6 +13,7 @@
 import { z } from "zod";
 
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
+import { GOOGLE_DRIVE_TRANSLATION_OUTPUTS } from "@/lib/google-drive/translation-filename";
 
 import {
   contentSyncProviderSchema,
@@ -132,6 +133,12 @@ const formStateShape = {
   sanityIncludeDrafts: flag,
   sanityOverwriteSanityDrafts: flag,
   sanityExistingTranslationPolicy: z.enum(["seed_empty", "refresh_imported", "overwrite_all"]),
+  googleDriveEnabled: flag,
+  googleDriveFolderIds: z.array(z.string().uuid()).max(50),
+  googleDriveFileIds: z.array(z.string().trim().min(1).max(128)).max(500),
+  googleDriveTargetLocales: textList,
+  googleDriveIncludeTranslatedFiles: flag,
+  googleDriveTranslationOutput: z.enum(GOOGLE_DRIVE_TRANSLATION_OUTPUTS),
   webSearchEnabled: flag,
   webSearchProvider: workspaceAutomationWebSearchProviderSchema,
   // Listing every field here keeps the schema in step with the form: a field added to the form,
