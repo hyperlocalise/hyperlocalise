@@ -72,6 +72,13 @@ export const manageRatesSheetMessages = defineMessages({
       "This card's lines pay different shares by match band. Saving applies the shares shown here to every line.",
     description: "Warning when a rate card's lines differ in match band shares",
   },
+  differingPercentagesReadOnly: {
+    id: "u8ZgyX1le6",
+    defaultMessage:
+      "This card's lines pay different shares by match band; the first line's shares are shown.",
+    description:
+      "Note in the read-only rates panel when a card's lines differ in match band shares",
+  },
   rates: {
     id: "fUITrRb116",
     defaultMessage: "Rates",

@@ -56,6 +56,7 @@ import {
   wordCountsCsv,
 } from "@/lib/reporting/report-csv";
 import { resolvePeriod } from "@/lib/reporting/report-period";
+import { scopedProjectIds } from "@/lib/reporting/report-scope";
 import { getReportingStart } from "@/lib/reporting/reporting-start";
 import {
   queryAutomatedTime,
@@ -80,6 +81,7 @@ import {
   reportQuerySchema,
   wordCountQuerySchema,
   exportFormatSchema,
+  budgetsQuerySchema,
   reportTaskSearchSchema,
   activityQuerySchema,
   stepTimesQuerySchema,
@@ -414,12 +416,18 @@ export function createReportsRoutes() {
         rateCardName: rateCard ?? null,
       });
       if (format === "csv") return csv(c, "cost-estimate.csv", costEstimateCsv(estimate));
-      return c.json({ costEstimate: estimate });
+      return c.json({ costEstimate: { ...estimate, unit: filters.unit } });
     })
-    .get("/budgets", billingRead, reportQuery(exportFormatSchema), async (c) => {
+    .get("/budgets", billingRead, reportQuery(budgetsQuerySchema), async (c) => {
       const query = c.req.valid("query");
       const context = await reportContext(c);
-      const budgets = await queryBudgets(context);
+      const budgets = await queryBudgets({
+        organizationId: context.organizationId,
+        projectIds: scopedProjectIds({
+          projectIds: context.projectIds,
+          projectId: query.projectId,
+        }),
+      });
       if (query.format === "csv") return csv(c, "budgets.csv", budgetsCsv(budgets));
       return c.json({ budgets });
     })

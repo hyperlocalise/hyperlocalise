@@ -176,6 +176,36 @@ export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): Wo
   };
 }
 
+/** Word counts grouped by task, one row per task and language. */
+export function createReportsTaskWordCounts() {
+  return createReportsWordCounts({
+    rows: [
+      {
+        projectId: "project_help",
+        projectName: "Help centre",
+        jobId: "job_billing",
+        jobTitle: "Help centre: billing articles",
+        targetLocale: "fr-FR",
+        bands: { repetition: 2_000, new: 18_980 },
+        total: 20_980,
+      },
+      {
+        projectId: "project_web",
+        projectName: "Web app",
+        jobId: null,
+        jobTitle: null,
+        targetLocale: "de-DE",
+        bands: { new: 1_200 },
+        total: 1_200,
+      },
+    ],
+    bandTotals: { repetition: 2_000, new: 20_180 },
+    total: 22_180,
+    groupCount: 2,
+    pageSize: 50,
+  });
+}
+
 export const reportsLoggedTime: {
   period: typeof reportsPeriod;
   logged: LoggedTime;
@@ -374,7 +404,7 @@ export function reportsResponseBodies(settings = createReportsSettings()) {
     },
     time: { time: reportsLoggedTime },
     costs: { costs: reportsCosts },
-    "cost-estimate": { costEstimate: reportsCostEstimate },
+    "cost-estimate": { costEstimate: { ...reportsCostEstimate, unit: "words" as const } },
     budgets: { budgets: reportsBudgets },
     "rate-cards": { rateCards: reportsRateCards, canManage: settings.canManage },
     jobs: { jobs: reportsTasks },

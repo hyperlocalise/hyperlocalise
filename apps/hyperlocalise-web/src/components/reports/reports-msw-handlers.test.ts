@@ -49,6 +49,12 @@ describe("Reports Storybook handlers", () => {
     });
   });
 
+  it("answers word counts grouped by task with task rows", async () => {
+    const words = await (await fetch(`${base}/words?groupBy=task&unit=characters`)).json();
+    expect(words.wordCounts).toMatchObject({ groupBy: "task", unit: "characters" });
+    expect(words.wordCounts.rows[0].jobTitle).toBe("Help centre: billing articles");
+  });
+
   it("can play a member, and a failing section", async () => {
     server.use(...reportsMemberMswHandlers);
     expect((await (await fetch(`${base}/settings`)).json()).settings.financial).toBe(false);

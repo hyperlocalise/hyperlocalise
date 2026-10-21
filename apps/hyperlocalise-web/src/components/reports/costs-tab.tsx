@@ -55,6 +55,7 @@ export function CostsTab({ input, settings }: { input: SectionInput; settings: R
                 hasEarlierData: costs.data.period.hasEarlierData,
               }),
               costs.data.period.days,
+              (amount) => formatUsd(intl, amount.toFixed(8)),
             )}
           />
           <ReportStatCard

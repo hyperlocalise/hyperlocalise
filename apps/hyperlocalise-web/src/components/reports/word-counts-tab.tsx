@@ -60,8 +60,6 @@ export function WordCountsTab({
   const intl = useIntl();
   const counts = useWordCounts(input);
   const { state } = input;
-  const byTask = state.groupBy === "task";
-  const unitName = unitLabel(intl, state.unit);
   const taskName = (row: WordCountRow) =>
     row.jobId === null
       ? intl.formatMessage(messages.noTask)
@@ -94,69 +92,76 @@ export function WordCountsTab({
           href={reportDownloadUrl(input.organizationSlug, "words", wordCountsQuery(input))}
         />
       </div>
-      <p className="text-[13px] text-muted-foreground">
-        {intl.formatMessage(
-          state.mode === "arrived" ? messages.arrivedNote : messages.finishedNote,
-          {
-            unit: unitName,
-          },
-        )}{" "}
-        {state.unit === "characters" || state.unit === "characters_with_spaces"
-          ? intl.formatMessage(messages.charactersNote)
-          : null}
-      </p>
       <ReportSectionState
         query={counts}
         isEmpty={(data) => data.rows.length === 0}
         skeletonHeight={320}
       >
-        {(data) => (
-          <>
-            <MatchBandTable
-              label={intl.formatMessage(messages.tableLabel)}
-              rows={data.rows}
-              rowKey={(row) => `${row.jobId ?? ""}:${row.projectId}:${row.targetLocale}`}
-              bands={visibleBands(data.bandTotals)}
-              leading={[
-                byTask
-                  ? { key: "task", header: intl.formatMessage(messages.taskColumn), cell: taskName }
-                  : {
-                      key: "project",
-                      header: intl.formatMessage(messages.projectColumn),
-                      cell: (row) => row.projectName ?? row.projectId,
-                    },
-                {
-                  key: "language",
-                  header: intl.formatMessage(messages.languageColumn),
-                  cell: (row) => row.targetLocale,
-                  muted: true,
-                },
-              ]}
-              trailing={[
-                {
-                  key: "total",
-                  header: intl.formatMessage(messages.totalColumn),
-                  cell: (row) => formatCount(intl, row.total),
-                  numeric: true,
-                },
-              ]}
-              totals={{ bands: data.bandTotals, trailing: [formatCount(intl, data.total)] }}
-            />
-            {data.uncounted > 0 && state.unit !== "strings" ? (
+        {(data) => {
+          // Labels follow the counts on screen, which stay while the next ones load.
+          const byTask = data.groupBy === "task";
+          const unitName = unitLabel(intl, data.unit);
+          return (
+            <>
               <p className="text-[13px] text-muted-foreground">
-                {intl.formatMessage(pageMessages.notCounted, { count: data.uncounted })}
+                {intl.formatMessage(
+                  data.mode === "arrived" ? messages.arrivedNote : messages.finishedNote,
+                  { unit: unitName },
+                )}{" "}
+                {data.unit === "characters" || data.unit === "characters_with_spaces"
+                  ? intl.formatMessage(messages.charactersNote)
+                  : null}
               </p>
-            ) : null}
-            {byTask ? (
-              <ReportPager
-                page={data.page}
-                pageSize={data.pageSize}
-                total={data.groupCount}
-                onPage={(page) => onChange({ page })}
+              <MatchBandTable
+                label={intl.formatMessage(messages.tableLabel)}
+                rows={data.rows}
+                rowKey={(row) => `${row.jobId ?? ""}:${row.projectId}:${row.targetLocale}`}
+                bands={visibleBands(data.bandTotals)}
+                leading={[
+                  byTask
+                    ? {
+                        key: "task",
+                        header: intl.formatMessage(messages.taskColumn),
+                        cell: taskName,
+                      }
+                    : {
+                        key: "project",
+                        header: intl.formatMessage(messages.projectColumn),
+                        cell: (row) => row.projectName ?? row.projectId,
+                      },
+                  {
+                    key: "language",
+                    header: intl.formatMessage(messages.languageColumn),
+                    cell: (row) => row.targetLocale,
+                    muted: true,
+                  },
+                ]}
+                trailing={[
+                  {
+                    key: "total",
+                    header: intl.formatMessage(messages.totalColumn),
+                    cell: (row) => formatCount(intl, row.total),
+                    numeric: true,
+                  },
+                ]}
+                totals={{ bands: data.bandTotals, trailing: [formatCount(intl, data.total)] }}
               />
-            ) : null}
-          </>
-        )}
+              {data.uncounted > 0 && data.unit !== "strings" ? (
+                <p className="text-[13px] text-muted-foreground">
+                  {intl.formatMessage(pageMessages.notCounted, { count: data.uncounted })}
+                </p>
+              ) : null}
+              {byTask ? (
+                <ReportPager
+                  page={data.page}
+                  pageSize={data.pageSize}
+                  total={data.groupCount}
+                  onPage={(page) => onChange({ page })}
+                />
+              ) : null}
+            </>
+          );
+        }}
       </ReportSectionState>
     </div>
   );

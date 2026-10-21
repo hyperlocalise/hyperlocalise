@@ -62,6 +62,7 @@ export function TimeTab({
                 hasEarlierData: time.data.period.hasEarlierData,
               }),
               time.data.period.days,
+              (minutes) => formatDuration(intl, minutes),
             )}
           />
           <ReportStatCard
@@ -79,11 +80,18 @@ export function TimeTab({
                 time.data.automated.workflowSteps.reduce((sum, row) => sum + row.milliseconds, 0)) /
                 60_000,
             )}
-            detail={intl.formatMessage(messages.runs, {
-              count:
-                time.data.automated.taskRuns.runs +
-                time.data.automated.workflowSteps.reduce((sum, row) => sum + row.runs, 0),
-            })}
+            detail={[
+              intl.formatMessage(messages.runs, {
+                count:
+                  time.data.automated.taskRuns.runs +
+                  time.data.automated.workflowSteps.reduce((sum, row) => sum + row.runs, 0),
+              }),
+              input.state.jobId || input.state.targetLocale
+                ? intl.formatMessage(messages.automatedFiltersNote)
+                : null,
+            ]
+              .filter(Boolean)
+              .join(". ")}
           />
         </ReportStatCards>
       ) : null}

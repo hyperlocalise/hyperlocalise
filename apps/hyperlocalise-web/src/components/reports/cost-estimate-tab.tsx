@@ -105,7 +105,7 @@ export function CostEstimateTab({
         />
       </div>
       <ReportSectionState query={estimate} skeletonHeight={360}>
-        {(data) => <EstimateBody data={data} unitName={unitLabel(intl, input.state.unit)} />}
+        {(data) => <EstimateBody data={data} unitName={unitLabel(intl, data.unit)} />}
       </ReportSectionState>
     </div>
   );

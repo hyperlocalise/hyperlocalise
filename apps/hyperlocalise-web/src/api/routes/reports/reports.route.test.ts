@@ -204,6 +204,7 @@ describe("reports routes", () => {
       costEstimate: { rows: [], fixedFees: [] },
     });
     await expect(read("/budgets")).resolves.toEqual({ budgets: [] });
+    await expect(read("/budgets?projectId=project_missing")).resolves.toEqual({ budgets: [] });
     await expect(read("/rate-cards")).resolves.toEqual({ rateCards: [], canManage: true });
 
     const csv = await app.request(reportsUrl(slug, "/words?groupBy=task&format=csv"), { headers });

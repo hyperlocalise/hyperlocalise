@@ -181,3 +181,4 @@ export const rateCardSchema = z.object({
   /** Save as a new card; the name must not be taken. */
   create: z.boolean().default(false),
 });
+export const budgetsQuerySchema = z.object({ projectId: id.optional(), format });

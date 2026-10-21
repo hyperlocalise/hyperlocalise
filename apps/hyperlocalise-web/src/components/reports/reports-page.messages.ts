@@ -189,6 +189,11 @@ export const reportsPageMessages = defineMessages({
     defaultMessage: "Remove {task}",
     description: "Accessible name of the button that removes a chosen task",
   },
+  clearTask: {
+    id: "d9GlPy5r0y",
+    defaultMessage: "Show all tasks",
+    description: "Accessible name of the button that clears the chosen task",
+  },
   language: {
     id: "yoyVExO9DC",
     defaultMessage: "Language",
@@ -299,17 +304,32 @@ export const reportsPageMessages = defineMessages({
     defaultMessage: "Not matched",
     description: "Match band: strings that could not be compared with the translation memory",
   },
+  previousPeriod: {
+    id: "pQRCBKEJtT",
+    defaultMessage: "previous {days, plural, one {day} other {# days}}",
+    description: "The period a change is compared with: the same number of days just before",
+  },
+  belowOnePercent: {
+    id: "h+xR1ab29F",
+    defaultMessage: "under 1%",
+    description: "A share above zero but under one percent",
+  },
+  aboveNinetyNinePercent: {
+    id: "VgqRrRxHZ3",
+    defaultMessage: "over 99%",
+    description: "A share above 99 percent but not complete",
+  },
   changeAgainstPrevious: {
-    id: "ska6HGlyr1",
-    defaultMessage: "{change} vs previous {days} days",
+    id: "vLHxLYllnD",
+    defaultMessage: "{change} vs {previous}",
     description:
-      "Change of a number against the previous period of the same length, already formatted with its sign, such as +12% or +40",
+      "Change of a number against the previous period: the signed change, then the period it is compared with, such as +12% vs previous 28 days",
   },
   changePoints: {
-    id: "oYPcZMPhyc",
-    defaultMessage: "{change} {count, plural, one {point} other {points}} vs previous {days} days",
+    id: "CLpCQ8Q6NT",
+    defaultMessage: "{change} {count, plural, one {point} other {points}} vs {previous}",
     description:
-      "Change of a share against the previous period in percentage points; change is the signed number, count its size",
+      "Change of a share in percentage points; change is the signed number, count its size, previous the period compared with",
   },
   noEarlierData: {
     id: "4S+r62936U",

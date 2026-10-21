@@ -40,6 +40,12 @@ export const timeTabMessages = defineMessages({
     defaultMessage: "{count, plural, one {# run} other {# runs}}",
     description: "Detail under the automated time card",
   },
+  automatedFiltersNote: {
+    id: "/6jKEFW2XW",
+    defaultMessage:
+      "Automated run time follows the dates and project only, not the task or language chosen.",
+    description: "Note on the automated time card while a task or language filter is set",
+  },
   logTime: {
     id: "H3ZP4+H6tz",
     defaultMessage: "Log time",

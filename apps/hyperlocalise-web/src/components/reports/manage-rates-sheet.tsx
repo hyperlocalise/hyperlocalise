@@ -304,10 +304,14 @@ export function ManageRatesSheet({
                     </TableRow>
                   </TableBody>
                 </Table>
-                {differing && canManage ? (
+                {differing ? (
                   <Alert>
                     <AlertDescription>
-                      {intl.formatMessage(messages.differingPercentages)}
+                      {intl.formatMessage(
+                        canManage
+                          ? messages.differingPercentages
+                          : messages.differingPercentagesReadOnly,
+                      )}
                     </AlertDescription>
                   </Alert>
                 ) : null}

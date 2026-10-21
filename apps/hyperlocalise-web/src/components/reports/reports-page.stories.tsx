@@ -55,7 +55,8 @@ export const WordCountsByTask: Story = {
   },
   play: async ({ canvas }) => {
     const table = await canvas.findByRole("table", { name: "Word counts" });
-    await expect(within(table).getByText("Help centre")).toBeInTheDocument();
+    await expect(within(table).getByText("Help centre: billing articles")).toBeInTheDocument();
+    await expect(within(table).getByText("No task (content editor)")).toBeInTheDocument();
   },
 };
 

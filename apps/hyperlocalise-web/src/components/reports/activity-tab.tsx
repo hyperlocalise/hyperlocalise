@@ -276,13 +276,22 @@ function workflowStepName(nodeType: string) {
   );
 }
 
+/** A task or language is chosen, which some sections cannot follow. */
+function narrowedBeyondProject(input: SectionInput) {
+  return Boolean(input.state.jobId || input.state.targetLocale);
+}
+
 function StepTimesSection({ input }: { input: SectionInput }) {
   const intl = useIntl();
   const stepTimes = useStepTimes(input);
   return (
     <ReportSection
       title={intl.formatMessage(messages.stepTimes)}
-      description={intl.formatMessage(messages.stepTimesDetail)}
+      description={
+        narrowedBeyondProject(input)
+          ? `${intl.formatMessage(messages.stepTimesDetail)}. ${intl.formatMessage(messages.automatedFiltersNote)}`
+          : intl.formatMessage(messages.stepTimesDetail)
+      }
       actions={
         <DownloadCsvButton
           href={reportDownloadUrl(input.organizationSlug, "step-times", stepTimesQuery(input))}
@@ -386,7 +395,11 @@ function AiUsageSection({
   return (
     <ReportSection
       title={intl.formatMessage(messages.aiUsage)}
-      description={intl.formatMessage(messages.aiUsageDetail)}
+      description={
+        narrowedBeyondProject(input)
+          ? `${intl.formatMessage(messages.aiUsageDetail)} ${intl.formatMessage(messages.aiUsageFiltersNote)}`
+          : intl.formatMessage(messages.aiUsageDetail)
+      }
       actions={
         <>
           <SegmentedSwitch

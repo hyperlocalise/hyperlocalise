@@ -197,7 +197,7 @@ export function ReportsFilterBar({
         <>
           <ReportSelect
             label={intl.formatMessage(messages.rateCard)}
-            value={state.rateCard ?? settings.rateCardNames[0] ?? ALL}
+            value={chosenRateCard(state, settings) ?? ALL}
             disabled={settings.rateCardNames.length === 0}
             options={
               settings.rateCardNames.length
@@ -217,7 +217,9 @@ export function ReportsFilterBar({
 
 /** The rate card an estimate uses: the chosen one, else the workspace's first. */
 export function chosenRateCard(state: ReportsUrlState, settings: ReportSettings) {
-  return state.rateCard ?? settings.rateCardNames[0] ?? null;
+  // A card in the URL that no longer exists falls back like no choice at all.
+  const names: string[] = settings.rateCardNames;
+  return state.rateCard && names.includes(state.rateCard) ? state.rateCard : (names[0] ?? null);
 }
 
 function formatDay(intl: ReturnType<typeof useIntl>, day: string) {
@@ -243,20 +245,27 @@ function DateField({
   onChange: (value: string) => void;
 }) {
   const id = useId();
+  // Typing a date passes through dates out of range (a year starts 0002), so the field keeps
+  // what is typed and only a whole date in range reaches the report.
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const inRange = (day: string) =>
+    /^\d{4}-\d{2}-\d{2}$/.test(day) && (!min || day >= min) && day <= max;
   return (
     <Field className="w-auto">
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Input
         id={id}
         type="date"
-        value={value}
+        value={draft}
         min={min}
         max={max}
         className="w-40"
         onChange={(event) => {
-          const next = event.target.value;
-          if (next && (!min || next >= min) && next <= max) onChange(next);
+          setDraft(event.target.value);
+          if (inRange(event.target.value)) onChange(event.target.value);
         }}
+        onBlur={() => setDraft(value)}
       />
     </Field>
   );
@@ -349,7 +358,6 @@ function TaskPicker({
   const intl = useIntl();
   const id = useId();
   const { search, setDraft } = useTaskSearch();
-  const found = useReportTasks({ organizationSlug, projectId, search });
   const chosen = useReportTasks({
     organizationSlug,
     projectId: null,
@@ -357,6 +365,12 @@ function TaskPicker({
     enabled: Boolean(value),
   });
   const selected = value ? (chosen.data?.find((task) => task.id === value) ?? null) : null;
+  // The input shows the chosen task's title; that is not a search.
+  const found = useReportTasks({
+    organizationSlug,
+    projectId,
+    search: selected && search === selected.title ? "" : search,
+  });
   const text = label ?? intl.formatMessage(messages.task);
   return (
     <Field className={className ?? "w-full sm:w-64"}>
@@ -375,6 +389,7 @@ function TaskPicker({
           aria-label={text}
           placeholder={placeholder ?? intl.formatMessage(messages.allTasks)}
           showClear={Boolean(value)}
+          clearLabel={intl.formatMessage(messages.clearTask)}
           className="w-full"
         />
         <ComboboxContent>
@@ -413,7 +428,14 @@ function TasksPicker({
     ids: value,
     enabled: value.length > 0,
   });
-  const selected = value.flatMap((jobId) => chosen.data?.filter((task) => task.id === jobId) ?? []);
+  // Tasks picked here are known at once; looking them up again would lose a quick second pick.
+  const [picked, setPicked] = useState<Map<string, ReportTask>>(() => new Map());
+  const known = (jobId: string) =>
+    picked.get(jobId) ?? chosen.data?.find((task) => task.id === jobId);
+  const selected = value.flatMap((jobId) => {
+    const task = known(jobId);
+    return task ? [task] : [];
+  });
   return (
     <Field className="w-full sm:w-80">
       <FieldLabel htmlFor={id}>{intl.formatMessage(messages.tasks)}</FieldLabel>
@@ -425,9 +447,14 @@ function TasksPicker({
         itemToStringLabel={(task) => task.title}
         isItemEqualToValue={sameTask}
         onInputValueChange={(next) => setDraft(next)}
-        onValueChange={(tasks) =>
-          onChange(tasks.slice(0, MAX_ESTIMATE_TASKS).map((task) => task.id))
-        }
+        onValueChange={(tasks) => {
+          setPicked(
+            (current) => new Map([...current, ...tasks.map((task) => [task.id, task] as const)]),
+          );
+          // Chosen tasks not yet looked up stay chosen.
+          const unknown = value.filter((jobId) => !known(jobId));
+          onChange([...unknown, ...tasks.map((task) => task.id)].slice(0, MAX_ESTIMATE_TASKS));
+        }}
       >
         <ComboboxChips className="max-h-28 w-full overflow-y-auto">
           <ComboboxValue>

@@ -37,18 +37,21 @@ export function formatUsd(intl: IntlShape, value: string | null) {
   return intl.formatNumber(Number(value), { style: "currency", currency: "USD" });
 }
 
-/** A rate with more decimals than a total, since per-word rates are often fractions of a cent. */
+/** A rate with every decimal it was set with, since per-character rates are often tiny. */
 export function formatRateAmount(intl: IntlShape, value: string) {
   return intl.formatNumber(Number(value), {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
+    maximumFractionDigits: 8,
   });
 }
 
+/** A share as a whole percentage, never rounded up to 100% or down to 0% when it is neither. */
 export function formatShare(intl: IntlShape, share: number | null) {
   if (share === null) return "—";
+  if (share > 0 && share < 0.005) return intl.formatMessage(messages.belowOnePercent);
+  if (share >= 0.995 && share < 1) return intl.formatMessage(messages.aboveNinetyNinePercent);
   return intl.formatNumber(share, { style: "percent", maximumFractionDigits: 0 });
 }
 
@@ -60,8 +63,18 @@ export function formatDuration(intl: IntlShape, minutes: number) {
   });
 }
 
-/** How a headline number changed against the previous period, in a neutral sentence. */
-export function formatChange(intl: IntlShape, change: ReportChange, days: number) {
+/**
+ * How a headline number changed against the previous period, in a neutral sentence. When the
+ * previous value was 0 the change is the plain difference, written with `formatValue` so it is
+ * in the card's own unit (hours, dollars); a count by default.
+ */
+export function formatChange(
+  intl: IntlShape,
+  change: ReportChange,
+  days: number,
+  formatValue: (value: number) => string = (value) => intl.formatNumber(Math.round(value)),
+) {
+  const previous = intl.formatMessage(messages.previousPeriod, { days });
   switch (change.kind) {
     case "no_earlier_data":
       return intl.formatMessage(messages.noEarlierData);
@@ -71,7 +84,7 @@ export function formatChange(intl: IntlShape, change: ReportChange, days: number
       return intl.formatMessage(messages.changePoints, {
         change: intl.formatNumber(change.value, { signDisplay: "exceptZero" }),
         count: Math.abs(change.value),
-        days,
+        previous,
       });
     case "percent":
       return intl.formatMessage(messages.changeAgainstPrevious, {
@@ -79,12 +92,12 @@ export function formatChange(intl: IntlShape, change: ReportChange, days: number
           style: "percent",
           signDisplay: "exceptZero",
         }),
-        days,
+        previous,
       });
     case "difference":
       return intl.formatMessage(messages.changeAgainstPrevious, {
-        change: intl.formatNumber(Math.round(change.value), { signDisplay: "exceptZero" }),
-        days,
+        change: `${change.value > 0 ? "+" : change.value < 0 ? "-" : ""}${formatValue(Math.abs(change.value))}`,
+        previous,
       });
   }
 }

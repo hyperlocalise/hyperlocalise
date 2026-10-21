@@ -260,13 +260,19 @@ export function useCostEstimate(input: SectionInput) {
   });
 }
 
-export function useBudgets(organizationSlug: string) {
+export function budgetsQuery(projectId: string | null) {
+  return compact({ projectId: optional(projectId) });
+}
+
+export function useBudgets(organizationSlug: string, projectId: string | null) {
   const intl = useIntl();
+  const query = budgetsQuery(projectId);
   return useQuery({
-    queryKey: reportsQueryKey(organizationSlug, "budgets"),
+    queryKey: reportsQueryKey(organizationSlug, "budgets", query),
+    placeholderData: keepPreviousData,
     queryFn: async ({ signal }) => {
       const response = await reportsApi().budgets.$get(
-        { param: { organizationSlug }, query: {} },
+        { param: { organizationSlug }, query },
         { init: { signal } },
       );
       if (!response.ok)

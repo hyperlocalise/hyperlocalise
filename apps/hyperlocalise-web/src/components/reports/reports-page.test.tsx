@@ -112,7 +112,8 @@ describe("Reports page", () => {
       "Word counts",
       "Time",
     ]);
-    expect(callsTo("costs")).toEqual([]);
+    for (const endpoint of ["costs", "cost-estimate", "budgets", "rate-cards"])
+      expect(callsTo(endpoint)).toEqual([]);
   });
 
   it("shows only the filters the open tab uses", async () => {
