@@ -203,7 +203,7 @@ func TestMemberInviteRevokedNotDelivered(t *testing.T) {
 
 func TestMemberUpdateAndRemove(t *testing.T) {
 	api, scope, workos := memberTestAPI(t, "admin")
-	_, workosUserID, membershipID := mustActiveMember(t, scope, "promote-me@example.com", "member")
+	_, workosUserID, membershipID := mustActiveMember(t, scope, uniqueTestEmail("promote-me"), "member")
 
 	update := memberRequest(api, scope, http.MethodPatch, scope.OrgPath("/members/"+workosUserID), `{"role":"developer"}`)
 	require.Equal(t, 200, update.Code, update.Body.String())
@@ -360,6 +360,84 @@ func TestMemberRemoveRevokesPluginOauthTokens(t *testing.T) {
 	err = scope.Pool.QueryRow(t.Context(), `select revoked_at::text from canva_oauth_tokens where id=$1`, canvaTokenID).Scan(&canvaRevokedAt)
 	require.NoError(t, err)
 	require.NotNil(t, canvaRevokedAt)
+}
+
+func TestMemberRemoveLeavesOtherMembersAndAlreadyRevokedPluginOauthTokens(t *testing.T) {
+	api, scope, _ := memberTestAPI(t, "admin")
+	departingUserID, departingWorkosUserID, _ := mustActiveMember(t, scope, uniqueTestEmail("plugin-oauth-scope"), "member")
+
+	insertPluginTokens := func(userID, label string, revoked bool) (figmaTokenID, canvaTokenID string, revokedAt *string) {
+		t.Helper()
+		var apiKeyID string
+		err := scope.Pool.QueryRow(t.Context(), `
+        insert into organization_api_keys (organization_id, name, key_hash, key_prefix, created_by_user_id)
+        values ($1, $2, $3, $4, $5)
+        returning id`,
+			scope.OrganizationID, label+" PAT", "hash_"+label+"_"+userID, "hl_"+label, userID).Scan(&apiKeyID)
+		require.NoError(t, err)
+
+		var figmaConnectionID, canvaConnectionID string
+		err = scope.Pool.QueryRow(t.Context(), `
+        insert into figma_connections (
+            organization_id, api_key_id, display_name, connection_token_hash, connection_token_prefix
+        ) values ($1, $2, $3, $4, $5)
+        returning id`,
+			scope.OrganizationID, apiKeyID, label+" Figma", "figma-hash-"+label+"-"+userID, "hl_fig_"+label).Scan(&figmaConnectionID)
+		require.NoError(t, err)
+		err = scope.Pool.QueryRow(t.Context(), `
+        insert into canva_connections (
+            organization_id, api_key_id, display_name, connection_token_hash, connection_token_prefix
+        ) values ($1, $2, $3, $4, $5)
+        returning id`,
+			scope.OrganizationID, apiKeyID, label+" Canva", "canva-hash-"+label+"-"+userID, "hl_can_"+label).Scan(&canvaConnectionID)
+		require.NoError(t, err)
+
+		revokedSQL := "null"
+		if revoked {
+			revokedSQL = "now() - interval '1 day'"
+		}
+		err = scope.Pool.QueryRow(t.Context(), `
+        insert into figma_oauth_tokens (
+            connection_id, user_id, organization_id,
+            access_token_hash, refresh_token_hash,
+            access_token_expires_at, refresh_token_expires_at, revoked_at
+        ) values ($1, $2, $3, $4, $5, now() + interval '1 hour', now() + interval '90 days', `+revokedSQL+`)
+        returning id, revoked_at::text`,
+			figmaConnectionID, userID, scope.OrganizationID,
+			"figma-at-"+label+"-"+userID, "figma-rt-"+label+"-"+userID).Scan(&figmaTokenID, &revokedAt)
+		require.NoError(t, err)
+		err = scope.Pool.QueryRow(t.Context(), `
+        insert into canva_oauth_tokens (
+            connection_id, user_id, organization_id,
+            access_token_hash, refresh_token_hash,
+            access_token_expires_at, refresh_token_expires_at, revoked_at
+        ) values ($1, $2, $3, $4, $5, now() + interval '1 hour', now() + interval '90 days', `+revokedSQL+`)
+        returning id`,
+			canvaConnectionID, userID, scope.OrganizationID,
+			"canva-at-"+label+"-"+userID, "canva-rt-"+label+"-"+userID).Scan(&canvaTokenID)
+		require.NoError(t, err)
+		return figmaTokenID, canvaTokenID, revokedAt
+	}
+
+	ownerFigmaID, ownerCanvaID, _ := insertPluginTokens(scope.UserID, "owner", false)
+	liveFigmaID, liveCanvaID, _ := insertPluginTokens(departingUserID, "live", false)
+	revokedFigmaID, _, priorRevokedAt := insertPluginTokens(departingUserID, "old", true)
+	require.NotNil(t, priorRevokedAt)
+
+	rec := memberRequest(api, scope, http.MethodDelete, scope.OrgPath("/members/"+departingWorkosUserID), "")
+	require.Equal(t, 204, rec.Code, rec.Body.String())
+
+	var ownerFigmaRevoked, ownerCanvaRevoked, liveFigmaRevoked, liveCanvaRevoked, stillRevoked *string
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select revoked_at::text from figma_oauth_tokens where id=$1`, ownerFigmaID).Scan(&ownerFigmaRevoked))
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select revoked_at::text from canva_oauth_tokens where id=$1`, ownerCanvaID).Scan(&ownerCanvaRevoked))
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select revoked_at::text from figma_oauth_tokens where id=$1`, liveFigmaID).Scan(&liveFigmaRevoked))
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select revoked_at::text from canva_oauth_tokens where id=$1`, liveCanvaID).Scan(&liveCanvaRevoked))
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select revoked_at::text from figma_oauth_tokens where id=$1`, revokedFigmaID).Scan(&stillRevoked))
+	require.Nil(t, ownerFigmaRevoked)
+	require.Nil(t, ownerCanvaRevoked)
+	require.NotNil(t, liveFigmaRevoked)
+	require.NotNil(t, liveCanvaRevoked)
+	require.Equal(t, *priorRevokedAt, *stillRevoked)
 }
 
 func TestMemberRoleSyncRollback(t *testing.T) {

@@ -26,6 +26,7 @@ export async function captureNativeCatTranslationReporting(input: {
   approve?: boolean;
   provenance?: "manual" | "translation_job" | "import" | "agent";
   sourceJobId?: string;
+  actorUserId?: string | null;
 }): Promise<boolean> {
   const translations = new ProjectTranslationService(db);
   const sourceFile = await translations.getRepositorySourceFileByPath({
@@ -95,6 +96,7 @@ export async function captureNativeCatTranslationReporting(input: {
       sourceEntries: { [key.id]: key.sourceText },
       provenance: provenance === "manual" ? "human" : "automated",
       step,
+      actorUserId: provenance === "manual" ? input.actorUserId : null,
     });
   }
 

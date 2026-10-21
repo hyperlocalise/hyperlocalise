@@ -376,6 +376,31 @@ func (api *workspaceAPI) publishActivity(ctx context.Context, input activityLogE
 	}
 }
 
+func (api *workspaceSettingsAPI) publishActivity(ctx context.Context, input activityLogEventInput) {
+	if api.activityLog == nil {
+		slog.WarnContext(ctx, "workspace_settings_activity_log_publish_skipped",
+			"reason", "publisher_disabled",
+			"environment_variable", activityLogQueueURLEnv,
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+		)
+		return
+	}
+	publishCtx, cancel := context.WithTimeout(ctx, activityLogPublishTimeout)
+	defer cancel()
+	if err := api.activityLog.Publish(publishCtx, input); err != nil {
+		slog.ErrorContext(ctx, "workspace_settings_activity_log_publish_failed",
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+			"error", err,
+		)
+	}
+}
+
 func (api *projectAPI) publishActivity(ctx context.Context, input activityLogEventInput) {
 	if api.activityLog == nil {
 		slog.WarnContext(ctx, "project_activity_log_publish_skipped",

@@ -293,6 +293,9 @@
   "+XceZn1/ER": {
     "defaultMessage": "Quitter la sélection multiple"
   },
+  "+Xor30vD6J": {
+    "defaultMessage": "Last push failed"
+  },
   "+YUbta511H": {
     "defaultMessage": "Ouvrir le chat"
   },
@@ -313,6 +316,9 @@
   },
   "+auDy+Mwce": {
     "defaultMessage": "—"
+  },
+  "+bTQr9RSSt": {
+    "defaultMessage": "Use only one CMS translation skill on this automation"
   },
   "+c45W5hmg7": {
     "defaultMessage": "Chaînes ajoutées :"
@@ -634,6 +640,9 @@
   },
   "/EOfWYVF9T": {
     "defaultMessage": "Agents"
+  },
+  "/Fi6xT6jqV": {
+    "defaultMessage": "Could not start Sanity authorization."
   },
   "/FnHAPAn3P": {
     "defaultMessage": "Choisissez une connexion pour autoriser l’installation de cette application Canva."
@@ -1283,6 +1292,9 @@
   "0XaMa+DGJ+": {
     "defaultMessage": "Réessayer les actions restantes"
   },
+  "0Xwa8SHaHR": {
+    "defaultMessage": "Clear"
+  },
   "0Y2PNYvVoj": {
     "defaultMessage": "Pas encore de vidéo"
   },
@@ -1354,6 +1366,9 @@
   },
   "0eU/dl/Oha": {
     "defaultMessage": "Save"
+  },
+  "0eh0U1m44o": {
+    "defaultMessage": "Cancel"
   },
   "0fORPZlrsy": {
     "defaultMessage": "Votre espace de travail en un coup d’œil — tâches attribuées, dernières activités et projets récents."
@@ -2198,6 +2213,9 @@
   "2N/8jZzb94": {
     "defaultMessage": "Phrase"
   },
+  "2N6/VNF+/O": {
+    "defaultMessage": "Disconnecting…"
+  },
   "2NCNOSLgB8": {
     "defaultMessage": "Mappage des langues"
   },
@@ -2573,6 +2591,9 @@
   "37bjYyK5rC": {
     "defaultMessage": "Créer un indicateur"
   },
+  "37iUcUTgh4": {
+    "defaultMessage": "Choose OAuth or an API token. OAuth is recommended when your Sanity org supports it."
+  },
   "37yFkjafwR": {
     "defaultMessage": "Vos modifications apportées à ce segment n’ont pas été enregistrées. Quitter sans enregistrer ?"
   },
@@ -2638,6 +2659,9 @@
   },
   "3FORZKT8kA": {
     "defaultMessage": "GitHub"
+  },
+  "3Fwkb+iT9m": {
+    "defaultMessage": "Search documents"
   },
   "3G3Ey6WZkU": {
     "defaultMessage": "Anthropic"
@@ -2836,6 +2860,9 @@
   },
   "3iwjDXakJS": {
     "defaultMessage": "Sachez combien la traduction vous coûtera avant de recevoir la facture"
+  },
+  "3jHsl1C8Cv": {
+    "defaultMessage": "Choose which mapped documents to write as Sanity drafts. This does not publish."
   },
   "3ji5Nvlz3D": {
     "defaultMessage": "Le site web est généralement bien localisé, avec quelques points à améliorer."
@@ -3596,6 +3623,9 @@
   "5CjwrQGWSz": {
     "defaultMessage": "Système"
   },
+  "5Cmf9xtwtk": {
+    "defaultMessage": "Show API token"
+  },
   "5ECVkGCnpd": {
     "defaultMessage": "Si"
   },
@@ -3622,6 +3652,9 @@
   },
   "5H2Xr7AzgM": {
     "defaultMessage": "Canevas d’aperçu du site Web"
+  },
+  "5HqlbunlrW": {
+    "defaultMessage": "Disconnect"
   },
   "5JQnoYqOu1": {
     "defaultMessage": "Supprimer l’outil Zernio"
@@ -4015,6 +4048,9 @@
   },
   "67CBDWHaYl": {
     "defaultMessage": "Seuls les administrateurs de l’espace de travail peuvent ouvrir le portail de facturation."
+  },
+  "67WAInF3FG": {
+    "defaultMessage": "Could not queue Sanity push"
   },
   "68KxHHw2pe": {
     "defaultMessage": "Advanced workflows"
@@ -4492,6 +4528,9 @@
   },
   "78OEnC/JOf": {
     "defaultMessage": "Identifiant de l’espace de travail"
+  },
+  "78e/wES0A+": {
+    "defaultMessage": "Could not disconnect Sanity."
   },
   "78uBrU8JbG": {
     "defaultMessage": "Commencez avec un seul siège, puis ajoutez des sièges, des exécutions d’agent et des automatisations au fur et à mesure que vos opérations de contenu se développent."
@@ -5086,6 +5125,9 @@
   },
   "8MmPpIGj4f": {
     "defaultMessage": "Aucun travail dans l’espace de travail pour le moment."
+  },
+  "8O4l4wC1UK": {
+    "defaultMessage": "Sanity through WorkOS Pipes is not enabled for this environment yet. An admin can enable the Sanity data integration in WorkOS."
   },
   "8OAyrxftUP": {
     "defaultMessage": "Rejoindre l’accès anticipé"
@@ -6482,6 +6524,9 @@
   "BERSauR8KR": {
     "defaultMessage": "Traduisible"
   },
+  "BEyFxTibmH": {
+    "defaultMessage": "Sanity API token saved."
+  },
   "BFGbjLDQqh": {
     "defaultMessage": "Événements"
   },
@@ -6832,6 +6877,9 @@
   },
   "C+9nUAd/Jd": {
     "defaultMessage": "{displayName} enregistré. Connectez votre compte Crowdin pour continuer."
+  },
+  "C+kMaPXlg0": {
+    "defaultMessage": "OAuth (recommended)"
   },
   "C0+hlj1Es4": {
     "defaultMessage": "Impossible de démarrer cette conversation. Réessayez."
@@ -8492,6 +8540,9 @@
   "FG27myF7Bk": {
     "defaultMessage": "Automatisations"
   },
+  "FGNo/uvZ2J": {
+    "defaultMessage": "Could not load documents"
+  },
   "FHXR08HCFK": {
     "defaultMessage": "Enregistrer une dépense"
   },
@@ -8503,6 +8554,9 @@
   },
   "FHqHBUJ88J": {
     "defaultMessage": "Échec du chargement des offres d’emploi."
+  },
+  "FIhOKfaVlC": {
+    "defaultMessage": "Push to Sanity"
   },
   "FJ2ymqjEF1": {
     "defaultMessage": "Autre chose"
@@ -8896,6 +8950,9 @@
   },
   "G9IH7mtmIb": {
     "defaultMessage": "Codex"
+  },
+  "G9eQqJWzlH": {
+    "defaultMessage": "Sanity"
   },
   "GA/at1eIok": {
     "defaultMessage": "Fermer"
@@ -9574,6 +9631,9 @@
   },
   "HbZmRDMHs3": {
     "defaultMessage": "Ouverture de l’espace de travail…"
+  },
+  "Hbeo2X1h7u": {
+    "defaultMessage": "Push to Sanity"
   },
   "HbhX7yojwm": {
     "defaultMessage": "le calendrier"
@@ -10337,6 +10397,9 @@
   "JB6oDpJ4ax": {
     "defaultMessage": "Sélectionnez un projet ci-dessus pour charger les glossaires et bases terminologiques en temps réel depuis votre fournisseur connecté."
   },
+  "JBRAW5Gd9X": {
+    "defaultMessage": "Sanity connected with API token"
+  },
   "JBqUQN0+J0": {
     "defaultMessage": "Changer de domaine"
   },
@@ -10874,6 +10937,9 @@
   "KQoOqOSNYf": {
     "defaultMessage": "Connecter Canva à Hyperlocalise"
   },
+  "KQrP3D1Cl+": {
+    "defaultMessage": "Paste a token from sanity.io/manage. It needs Editor access or higher so automations can read content and write drafts."
+  },
   "KREOm0BNYe": {
     "defaultMessage": "Importé"
   },
@@ -11105,6 +11171,9 @@
   "KzyWBbcmTH": {
     "defaultMessage": "Impossible de mettre à jour les paramètres de suivi"
   },
+  "L+YqXrfYaG": {
+    "defaultMessage": "Overwrite Sanity drafts when the remote target is newer."
+  },
   "L+aQftO9Id": {
     "defaultMessage": "Réexécuter une région de corps avec un délai progressif"
   },
@@ -11176,6 +11245,9 @@
   },
   "L8xTOJqX0d": {
     "defaultMessage": "Rechercher : {value}"
+  },
+  "L9/oqyP9pk": {
+    "defaultMessage": "Loading documents"
   },
   "L9CYRKrj6S": {
     "defaultMessage": "Administrateur"
@@ -11873,6 +11945,9 @@
   "MVrchtGazs": {
     "defaultMessage": "Veuillez fournir le texte à traduire."
   },
+  "MWDDRmwK/N": {
+    "defaultMessage": "Manage API projects visible to this token"
+  },
   "MWGQAGG98v": {
     "defaultMessage": "Chaînes individuelles"
   },
@@ -12031,6 +12106,9 @@
   },
   "MsnNcIq3o0": {
     "defaultMessage": "Déclencheur"
+  },
+  "MsvsV+2oWf": {
+    "defaultMessage": "Push {count, plural, one {# document} other {# documents}}"
   },
   "MszSNYsOAF": {
     "defaultMessage": "Comparez la demande de recherche et les lacunes de contenu entre les différents marchés linguistiques"
@@ -12869,6 +12947,9 @@
   "OaljrNEvvO": {
     "defaultMessage": "Régénérer l’image pour {language}"
   },
+  "Obrc0xXXmw": {
+    "defaultMessage": "Connected"
+  },
   "ObwCSlFgt9": {
     "defaultMessage": "Interrogez les données SEO et de trafic de Semrush via votre clé API connectée."
   },
@@ -13309,6 +13390,9 @@
   },
   "PYIsQFA2Np": {
     "defaultMessage": "Saisissez un nom d’hôte tel que shop.example.com, sans chemin d’URL."
+  },
+  "PYRZ6kqxOc": {
+    "defaultMessage": "Search documents"
   },
   "PYVkjgnEZG": {
     "defaultMessage": "Consultez votre boîte de réception pour obtenir un résumé de ce rapport."
@@ -14387,6 +14471,9 @@
   "Rp1ZcGydYx": {
     "defaultMessage": "Validation indisponible"
   },
+  "Rp3MUONO/3": {
+    "defaultMessage": "Saving…"
+  },
   "RpVhGmmzel": {
     "defaultMessage": "Provider"
   },
@@ -15097,6 +15184,9 @@
   },
   "TOG2/DBCrL": {
     "defaultMessage": "Paramètres de révision automatique enregistrés."
+  },
+  "TOOyOuwji9": {
+    "defaultMessage": "Sanity drafts queued"
   },
   "TOiXUpVFsO": {
     "defaultMessage": "Erreurs et avertissements par projet"
@@ -16637,6 +16727,9 @@
   "WabecnK7ou": {
     "defaultMessage": "Arrêtez d’expliquer deux fois les mêmes règles. Hyperlocalise transforme chaque avis en contexte réutilisable"
   },
+  "WaxO5rJ9N1": {
+    "defaultMessage": "Could not save the Sanity API token."
+  },
   "WbAkw38l3W": {
     "defaultMessage": "Examinez les occurrences ici. Passez aux chaînes individuelles pour modifier une traduction."
   },
@@ -17663,6 +17756,9 @@
   "YhT90BZluB": {
     "defaultMessage": "Supprimer le concept"
   },
+  "YhWT741eyC": {
+    "defaultMessage": "Sanity"
+  },
   "YhXUDTQkrZ": {
     "defaultMessage": "Audio localisation"
   },
@@ -18031,6 +18127,9 @@
   },
   "ZT0ZLYbp16": {
     "defaultMessage": "Impossible de relancer l’audit."
+  },
+  "ZT3mGAyTVi": {
+    "defaultMessage": "Authorize Hyperlocalise to access Sanity on your behalf through WorkOS Pipes."
   },
   "ZT4A78YiXg": {
     "defaultMessage": "Les visiteurs peuvent-ils trouver la bonne version du site ?"
@@ -18752,6 +18851,9 @@
   "az1dhUOnH0": {
     "defaultMessage": "Statut"
   },
+  "azYeK5p8pM": {
+    "defaultMessage": "Could not load Sanity connection status."
+  },
   "b+el1VIvgt": {
     "defaultMessage": "Exécuter {count, plural, one {# fichier} other {# fichiers}}"
   },
@@ -19199,6 +19301,9 @@
   "bpsmIZ07ut": {
     "defaultMessage": "Cette entrée a été modifiée pendant que vous la modifiiez. Chargez la dernière version pour continuer."
   },
+  "bq5pHENeIr": {
+    "defaultMessage": "Paste a new token below to rotate credentials without disconnecting."
+  },
   "bqM/HZdSBC": {
     "defaultMessage": "Enregistrer le fournisseur"
   },
@@ -19432,6 +19537,9 @@
   },
   "cHvtlHrefQ": {
     "defaultMessage": "Image source"
+  },
+  "cI9DCPgYRt": {
+    "defaultMessage": "No projects returned for this token."
   },
   "cIUvYdnnCL": {
     "defaultMessage": "Signaler un problème"
@@ -19733,6 +19841,9 @@
   "cvuRKz2hMS": {
     "defaultMessage": "Exécution planifiée"
   },
+  "cwHz/23Qd9": {
+    "defaultMessage": "Open automations"
+  },
   "cwqeMFXYQC": {
     "defaultMessage": "Réussi"
   },
@@ -19852,6 +19963,9 @@
   },
   "d9+py8mf04": {
     "defaultMessage": "Exporter le filtre actuel au format XLSX"
+  },
+  "d9nNGb3zA6": {
+    "defaultMessage": "Select all"
   },
   "dAN96XLBhS": {
     "defaultMessage": "Non. Hyperlocalise fonctionne avec votre TMS existant. Continuez à utiliser Phrase, Lokalise, Crowdin ou Smartling, tandis que Hyperlocalise orchestre les agents d’IA, les workflows de révision, la découverte du contexte et les contrôles qualité."
@@ -20012,6 +20126,9 @@
   "dS3dXvwF6f": {
     "defaultMessage": "Demander une invitation"
   },
+  "dSWTPScGc1": {
+    "defaultMessage": "Keep Sanity drafts that teammates edited after the last push. Unchanged approved text is skipped."
+  },
   "dStMwhojOw": {
     "defaultMessage": "08:00 UTC"
   },
@@ -20026,6 +20143,9 @@
   },
   "dTpIQVL71t": {
     "defaultMessage": "breadcrumb"
+  },
+  "dU3FCBwd7f": {
+    "defaultMessage": "Token ending in {suffix}"
   },
   "dU5kt+ggA7": {
     "defaultMessage": "Responsable : {value}"
@@ -20101,6 +20221,9 @@
   },
   "dcbWLpn6f2": {
     "defaultMessage": "Date de mise à jour indisponible"
+  },
+  "dci2Dmteni": {
+    "defaultMessage": "Leave blank to keep the current token."
   },
   "dcomOTuPbB": {
     "defaultMessage": "Updating the workflow…"
@@ -21848,6 +21971,12 @@
   "gyVhBvCqLP": {
     "defaultMessage": "Ajouter des sources"
   },
+  "gz/zpenPqj": {
+    "defaultMessage": "Hyperlocalise uses your authorized Sanity session for import and draft push."
+  },
+  "gzPrVIj8XL": {
+    "defaultMessage": "Push policy"
+  },
   "gzw597zx6d": {
     "defaultMessage": "Updated"
   },
@@ -23453,6 +23582,9 @@
   "k66v97xuuE": {
     "defaultMessage": "URL"
   },
+  "k68En99ftY": {
+    "defaultMessage": "Sanity authorized with OAuth"
+  },
   "k6wO1BhuBw": {
     "defaultMessage": "Vidéo source indisponible"
   },
@@ -23548,6 +23680,9 @@
   },
   "kG2XpVKA8Z": {
     "defaultMessage": "Périmètre, contexte, route"
+  },
+  "kGCOhOWZ0P": {
+    "defaultMessage": "{ready} of {total} locales ready"
   },
   "kGM2czQvBa": {
     "defaultMessage": "Approuvé"
@@ -24488,6 +24623,9 @@
   "mDNDpO0mIA": {
     "defaultMessage": "Hyperlocalise is an AI workforce that acts like your team of local experts.<desktopOnly><lineBreak></lineBreak>It understands market nuance, then translates and transcreates.</desktopOnly>"
   },
+  "mDQhaViqkQ": {
+    "defaultMessage": "Automations with the Translate Sanity documents skill use this connection to read and write drafts."
+  },
   "mDY8Zlbd4D": {
     "defaultMessage": "a annulé une tâche"
   },
@@ -25093,6 +25231,9 @@
   },
   "nOCS+qmeJF": {
     "defaultMessage": "Member"
+  },
+  "nODFNuVkFL": {
+    "defaultMessage": "Create the token in Sanity Manage under API → Tokens."
   },
   "nOPkXXYDPf": {
     "defaultMessage": "Champ source"
@@ -26234,6 +26375,9 @@
   "pbPMcXnHkC": {
     "defaultMessage": "Ajouter les marchés sélectionnés"
   },
+  "pcA83SydbQ": {
+    "defaultMessage": "No mapped documents"
+  },
   "pcjLSSIwsF": {
     "defaultMessage": "Sélectionner un microphone..."
   },
@@ -26335,6 +26479,9 @@
   },
   "plpqSFRajq": {
     "defaultMessage": "Enregistrer l’affectation du projet"
+  },
+  "pm1TRAF3RM": {
+    "defaultMessage": "Redirecting…"
   },
   "pmPB2F7F47": {
     "defaultMessage": "Acme · Requêtes"
@@ -26728,6 +26875,9 @@
   },
   "qUpTrGtrVw": {
     "defaultMessage": "SEO"
+  },
+  "qVCnKrNijs": {
+    "defaultMessage": "API token"
   },
   "qVSZOnYTAy": {
     "defaultMessage": "Découvrez Hyperlocalise"
@@ -27275,6 +27425,9 @@
   "ra0EyftjV0": {
     "defaultMessage": "Récemment ouverts"
   },
+  "ra9Bi4NXJ2": {
+    "defaultMessage": "Save token"
+  },
   "raG3uRf8nJ": {
     "defaultMessage": "Actif"
   },
@@ -27382,6 +27535,9 @@
   },
   "rqKQ19f7kE": {
     "defaultMessage": "Déplacez les fichiers source dans ce projet et réécrivez-y les traductions prêtes à l’emploi. Aucune invite n’est nécessaire."
+  },
+  "rqU5fqNTYZ": {
+    "defaultMessage": "Authorize with Sanity"
   },
   "rqW//zBYSL": {
     "defaultMessage": "Les changements de chaîne se cachent dans les grandes pull requests sans impact clair sur la localisation."
@@ -27526,6 +27682,9 @@
   },
   "s6NLAIiQ6o": {
     "defaultMessage": "Dictionnaire supprimé"
+  },
+  "s7/k1C/6Q6": {
+    "defaultMessage": "API token"
   },
   "s7935wKE28": {
     "defaultMessage": "Supprimer l’outil Semrush"
@@ -27953,6 +28112,9 @@
   "t2I2Yj3t0M": {
     "defaultMessage": "Notifier Slack"
   },
+  "t2J9JYDAdD": {
+    "defaultMessage": "Automation"
+  },
   "t2Wtf62nXs": {
     "defaultMessage": "Continuer vers le projet"
   },
@@ -28087,6 +28249,9 @@
   },
   "tJ4ESqRDu1": {
     "defaultMessage": "Reconnectez-vous pour gérer la facturation."
+  },
+  "tJ8Lpden5r": {
+    "defaultMessage": "Hide API token"
   },
   "tJedwqsl7m": {
     "defaultMessage": "Test A/B"
@@ -28829,6 +28994,9 @@
   "uukLNszv2X": {
     "defaultMessage": "Tous les types de ressources"
   },
+  "uvMAUaKYI0": {
+    "defaultMessage": "Sanity disconnected."
+  },
   "uvpc5HKX9c": {
     "defaultMessage": "Générer une suggestion par IA"
   },
@@ -28837,6 +29005,9 @@
   },
   "uwkiRYaBX+": {
     "defaultMessage": "Appliquer la voix, le glossaire et les garde-fous juridiques"
+  },
+  "uxSSj1bXpa": {
+    "defaultMessage": "No matching documents"
   },
   "uxTXRcu5Em": {
     "defaultMessage": "Toutes les fonctionnalités du forfait Growth, plus :"
@@ -29737,6 +29908,9 @@
   },
   "wdhrNg8UHz": {
     "defaultMessage": "Ouvrir la tâche"
+  },
+  "wdsH3flxH3": {
+    "defaultMessage": "Authentication method"
   },
   "we+P5cHH+C": {
     "defaultMessage": "Use test data everywhere"

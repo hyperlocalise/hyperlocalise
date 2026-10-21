@@ -106,6 +106,7 @@ func main() {
 		seats:     fallbackMemberSeats{limit: localSeatFallbackLimit},
 		analytics: newGAProductUsageTrackerFromEnv(),
 	}
+	h.workspaceSettings = &workspaceSettingsAPI{activityLog: activityLogPublisher}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}
@@ -140,6 +141,9 @@ func main() {
 			return workosClient.OrganizationMembership().Get(ctx, id)
 		}
 		h.members.workos = newLiveMemberWorkos(key, workosAPIBaseURL())
+		if identity := newLiveMemberWorkos(key, workosAPIBaseURL()); identity != nil {
+			h.workspaceSettings.workos = identity
+		}
 	}
 	h.workspace = &workspaceAPI{membership: membershipLookup, activityLog: activityLogPublisher}
 	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
@@ -173,6 +177,7 @@ func main() {
 		h.notifications.pool = traced
 		h.teams.pool = traced
 		h.members.pool = traced
+		h.workspaceSettings.pool = traced
 		h.apiKeys.pool = traced
 		h.activityLogs.pool = traced
 		h.billing.pool = traced
@@ -230,6 +235,7 @@ func main() {
 	h.qaReports.membership = membershipLookup
 	h.teams.membership = membershipLookup
 	h.members.membership = membershipLookup
+	h.workspaceSettings.membership = membershipLookup
 	h.apiKeys.membership = membershipLookup
 	h.issueSheets.membership = membershipLookup
 	h.notifications.membership = membershipLookup

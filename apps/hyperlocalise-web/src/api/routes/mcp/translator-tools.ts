@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { mcpActivityActor } from "@/api/routes/mcp/mcp-activity-actor";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
@@ -35,7 +36,6 @@ import {
   enqueueStringSegmentApprovedActivity,
   enqueueStringSegmentCommentedActivity,
   enqueueStringSegmentStatusChangedActivity,
-  sessionActivityActor,
 } from "@/lib/activity-log/file-segment-events";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
@@ -248,7 +248,7 @@ export function registerTranslatorMcpTools(server: McpServer, apiAuth: ApiAuthCo
 
       trackNativeCatCommentProductUsage({ type: "comment" });
       await enqueueStringSegmentCommentedActivity({
-        ...sessionActivityActor(actorUserId),
+        ...mcpActivityActor(actorUserId),
         organizationId,
         projectId: project.id,
         segmentId: translationKeyId,
@@ -326,7 +326,7 @@ export function registerTranslatorMcpTools(server: McpServer, apiAuth: ApiAuthCo
       }
 
       const activityInput = {
-        ...sessionActivityActor(actorUserId),
+        ...mcpActivityActor(actorUserId),
         organizationId,
         projectId: project.id,
         segmentId: translationKeyId,

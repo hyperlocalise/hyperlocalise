@@ -64,6 +64,7 @@ func TestOrganizationCapabilityMapKeepsMemberCapabilities(t *testing.T) {
 		require.True(t, hasOrganizationCapability(role, "workspace:read"), role)
 		require.True(t, hasOrganizationCapability(role, "projects:read"), role)
 		require.True(t, hasOrganizationCapability(role, "jobs:read"), role)
+		require.Equal(t, managers[role], hasOrganizationCapability(role, "workspace:update"), role)
 		require.Equal(t, managers[role], hasOrganizationCapability(role, "members:invite"), role)
 		require.Equal(t, managers[role], hasOrganizationCapability(role, "teams:write"), role)
 		require.Equal(t, managers[role], hasOrganizationCapability(role, "api_keys:read"), role)

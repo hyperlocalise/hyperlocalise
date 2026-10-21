@@ -293,6 +293,9 @@
   "+XceZn1/ER": {
     "defaultMessage": "退出批量选择模式"
   },
+  "+Xor30vD6J": {
+    "defaultMessage": "Last push failed"
+  },
   "+YUbta511H": {
     "defaultMessage": "打开聊天"
   },
@@ -313,6 +316,9 @@
   },
   "+auDy+Mwce": {
     "defaultMessage": "—"
+  },
+  "+bTQr9RSSt": {
+    "defaultMessage": "Use only one CMS translation skill on this automation"
   },
   "+c45W5hmg7": {
     "defaultMessage": "已添加的字符串："
@@ -634,6 +640,9 @@
   },
   "/EOfWYVF9T": {
     "defaultMessage": "代理商"
+  },
+  "/Fi6xT6jqV": {
+    "defaultMessage": "Could not start Sanity authorization."
   },
   "/FnHAPAn3P": {
     "defaultMessage": "选择一个连接，以授权安装此 Canva 应用。"
@@ -1283,6 +1292,9 @@
   "0XaMa+DGJ+": {
     "defaultMessage": "重试剩余操作"
   },
+  "0Xwa8SHaHR": {
+    "defaultMessage": "Clear"
+  },
   "0Y2PNYvVoj": {
     "defaultMessage": "暂无视频"
   },
@@ -1354,6 +1366,9 @@
   },
   "0eU/dl/Oha": {
     "defaultMessage": "Save"
+  },
+  "0eh0U1m44o": {
+    "defaultMessage": "Cancel"
   },
   "0fORPZlrsy": {
     "defaultMessage": "一览您的工作区 — 分配的工作、最新活动和近期项目。"
@@ -2198,6 +2213,9 @@
   "2N/8jZzb94": {
     "defaultMessage": "Phrase"
   },
+  "2N6/VNF+/O": {
+    "defaultMessage": "Disconnecting…"
+  },
   "2NCNOSLgB8": {
     "defaultMessage": "语言映射"
   },
@@ -2573,6 +2591,9 @@
   "37bjYyK5rC": {
     "defaultMessage": "创建旗帜"
   },
+  "37iUcUTgh4": {
+    "defaultMessage": "Choose OAuth or an API token. OAuth is recommended when your Sanity org supports it."
+  },
   "37yFkjafwR": {
     "defaultMessage": "你对该段的编辑尚未保存。是否不保存就离开？"
   },
@@ -2638,6 +2659,9 @@
   },
   "3FORZKT8kA": {
     "defaultMessage": "GitHub"
+  },
+  "3Fwkb+iT9m": {
+    "defaultMessage": "Search documents"
   },
   "3G3Ey6WZkU": {
     "defaultMessage": "Anthropic"
@@ -2836,6 +2860,9 @@
   },
   "3iwjDXakJS": {
     "defaultMessage": "在发票到达之前，了解翻译费用】【。"
+  },
+  "3jHsl1C8Cv": {
+    "defaultMessage": "Choose which mapped documents to write as Sanity drafts. This does not publish."
   },
   "3ji5Nvlz3D": {
     "defaultMessage": "该网站的本地化总体良好，但仍有一些需要改进的问题。"
@@ -3596,6 +3623,9 @@
   "5CjwrQGWSz": {
     "defaultMessage": "系统"
   },
+  "5Cmf9xtwtk": {
+    "defaultMessage": "Show API token"
+  },
   "5ECVkGCnpd": {
     "defaultMessage": "If"
   },
@@ -3622,6 +3652,9 @@
   },
   "5H2Xr7AzgM": {
     "defaultMessage": "网站预览画布"
+  },
+  "5HqlbunlrW": {
+    "defaultMessage": "Disconnect"
   },
   "5JQnoYqOu1": {
     "defaultMessage": "移除 Zernio 工具"
@@ -4015,6 +4048,9 @@
   },
   "67CBDWHaYl": {
     "defaultMessage": "只有工作区管理员才能打开账单门户。"
+  },
+  "67WAInF3FG": {
+    "defaultMessage": "Could not queue Sanity push"
   },
   "68KxHHw2pe": {
     "defaultMessage": "Advanced workflows"
@@ -4492,6 +4528,9 @@
   },
   "78OEnC/JOf": {
     "defaultMessage": "工作区标识符"
+  },
+  "78e/wES0A+": {
+    "defaultMessage": "Could not disconnect Sanity."
   },
   "78uBrU8JbG": {
     "defaultMessage": "从一个席位开始，随着内容运营的发展，逐步增加席位、代理运行次数和自动化任务。"
@@ -5086,6 +5125,9 @@
   },
   "8MmPpIGj4f": {
     "defaultMessage": "工作区中尚无任务。"
+  },
+  "8O4l4wC1UK": {
+    "defaultMessage": "Sanity through WorkOS Pipes is not enabled for this environment yet. An admin can enable the Sanity data integration in WorkOS."
   },
   "8OAyrxftUP": {
     "defaultMessage": "加入抢先体验"
@@ -6482,6 +6524,9 @@
   "BERSauR8KR": {
     "defaultMessage": "可翻译的"
   },
+  "BEyFxTibmH": {
+    "defaultMessage": "Sanity API token saved."
+  },
   "BFGbjLDQqh": {
     "defaultMessage": "Events"
   },
@@ -6832,6 +6877,9 @@
   },
   "C+9nUAd/Jd": {
     "defaultMessage": "{displayName}已保存。连接您的 Crowdin 账户以继续。"
+  },
+  "C+kMaPXlg0": {
+    "defaultMessage": "OAuth (recommended)"
   },
   "C0+hlj1Es4": {
     "defaultMessage": "无法启动此聊天。请重试。"
@@ -8492,6 +8540,9 @@
   "FG27myF7Bk": {
     "defaultMessage": "Automations"
   },
+  "FGNo/uvZ2J": {
+    "defaultMessage": "Could not load documents"
+  },
   "FHXR08HCFK": {
     "defaultMessage": "记录费用"
   },
@@ -8503,6 +8554,9 @@
   },
   "FHqHBUJ88J": {
     "defaultMessage": "作业加载失败。"
+  },
+  "FIhOKfaVlC": {
+    "defaultMessage": "Push to Sanity"
   },
   "FJ2ymqjEF1": {
     "defaultMessage": "其他内容"
@@ -8896,6 +8950,9 @@
   },
   "G9IH7mtmIb": {
     "defaultMessage": "Codex"
+  },
+  "G9eQqJWzlH": {
+    "defaultMessage": "Sanity"
   },
   "GA/at1eIok": {
     "defaultMessage": "关闭"
@@ -9574,6 +9631,9 @@
   },
   "HbZmRDMHs3": {
     "defaultMessage": "正在打开工作区…"
+  },
+  "Hbeo2X1h7u": {
+    "defaultMessage": "Push to Sanity"
   },
   "HbhX7yojwm": {
     "defaultMessage": "日程安排"
@@ -10337,6 +10397,9 @@
   "JB6oDpJ4ax": {
     "defaultMessage": "选择上方的项目，以从您连接的提供商加载实时术语表和术语库。"
   },
+  "JBRAW5Gd9X": {
+    "defaultMessage": "Sanity connected with API token"
+  },
   "JBqUQN0+J0": {
     "defaultMessage": "切换域名"
   },
@@ -10874,6 +10937,9 @@
   "KQoOqOSNYf": {
     "defaultMessage": "将 Canva 连接到 Hyperlocalise"
   },
+  "KQrP3D1Cl+": {
+    "defaultMessage": "Paste a token from sanity.io/manage. It needs Editor access or higher so automations can read content and write drafts."
+  },
   "KREOm0BNYe": {
     "defaultMessage": "已导入"
   },
@@ -11105,6 +11171,9 @@
   "KzyWBbcmTH": {
     "defaultMessage": "无法更新关注设置"
   },
+  "L+YqXrfYaG": {
+    "defaultMessage": "Overwrite Sanity drafts when the remote target is newer."
+  },
   "L+aQftO9Id": {
     "defaultMessage": "带退避机制重新运行正文区域"
   },
@@ -11176,6 +11245,9 @@
   },
   "L8xTOJqX0d": {
     "defaultMessage": "搜索：{value}"
+  },
+  "L9/oqyP9pk": {
+    "defaultMessage": "Loading documents"
   },
   "L9CYRKrj6S": {
     "defaultMessage": "管理员"
@@ -11873,6 +11945,9 @@
   "MVrchtGazs": {
     "defaultMessage": "Please provide the English source text to translate."
   },
+  "MWDDRmwK/N": {
+    "defaultMessage": "Manage API projects visible to this token"
+  },
   "MWGQAGG98v": {
     "defaultMessage": "单个字符串"
   },
@@ -12031,6 +12106,9 @@
   },
   "MsnNcIq3o0": {
     "defaultMessage": "Trigger"
+  },
+  "MsvsV+2oWf": {
+    "defaultMessage": "Push {count, plural, one {# document} other {# documents}}"
   },
   "MszSNYsOAF": {
     "defaultMessage": "比较不同地区的搜索需求和内容空白"
@@ -12869,6 +12947,9 @@
   "OaljrNEvvO": {
     "defaultMessage": "为{language}重新生成图片"
   },
+  "Obrc0xXXmw": {
+    "defaultMessage": "Connected"
+  },
   "ObwCSlFgt9": {
     "defaultMessage": "通过已连接的 API 密钥查询 Semrush SEO 和流量数据。"
   },
@@ -13309,6 +13390,9 @@
   },
   "PYIsQFA2Np": {
     "defaultMessage": "请输入主机名，例如 shop.example.com，不要包含 URL 路径。"
+  },
+  "PYRZ6kqxOc": {
+    "defaultMessage": "Search documents"
   },
   "PYVkjgnEZG": {
     "defaultMessage": "请查收收件箱中的此报告摘要。"
@@ -14387,6 +14471,9 @@
   "Rp1ZcGydYx": {
     "defaultMessage": "验证不可用"
   },
+  "Rp3MUONO/3": {
+    "defaultMessage": "Saving…"
+  },
   "RpVhGmmzel": {
     "defaultMessage": "Provider"
   },
@@ -15097,6 +15184,9 @@
   },
   "TOG2/DBCrL": {
     "defaultMessage": "自动审核设置已保存。"
+  },
+  "TOOyOuwji9": {
+    "defaultMessage": "Sanity drafts queued"
   },
   "TOiXUpVFsO": {
     "defaultMessage": "各项目的错误和警告"
@@ -16637,6 +16727,9 @@
   "WabecnK7ou": {
     "defaultMessage": "不要再重复解释相同的规则。Hyperlocalise 将每次评审转化为可重复使用的上下文"
   },
+  "WaxO5rJ9N1": {
+    "defaultMessage": "Could not save the Sanity API token."
+  },
   "WbAkw38l3W": {
     "defaultMessage": "在此查看各处出现的位置。切换到单条字符串以编辑翻译。"
   },
@@ -17663,6 +17756,9 @@
   "YhT90BZluB": {
     "defaultMessage": "删除概念"
   },
+  "YhWT741eyC": {
+    "defaultMessage": "Sanity"
+  },
   "YhXUDTQkrZ": {
     "defaultMessage": "Audio localisation"
   },
@@ -18031,6 +18127,9 @@
   },
   "ZT0ZLYbp16": {
     "defaultMessage": "无法重试审核。"
+  },
+  "ZT3mGAyTVi": {
+    "defaultMessage": "Authorize Hyperlocalise to access Sanity on your behalf through WorkOS Pipes."
   },
   "ZT4A78YiXg": {
     "defaultMessage": "访客能找到正确的网站版本吗？"
@@ -18752,6 +18851,9 @@
   "az1dhUOnH0": {
     "defaultMessage": "状态"
   },
+  "azYeK5p8pM": {
+    "defaultMessage": "Could not load Sanity connection status."
+  },
   "b+el1VIvgt": {
     "defaultMessage": "运行 {count, plural, one {# 个文件} other {# 个文件}}"
   },
@@ -19199,6 +19301,9 @@
   "bpsmIZ07ut": {
     "defaultMessage": "此条目在您编辑期间发生了更改。请加载最新版本以继续。"
   },
+  "bq5pHENeIr": {
+    "defaultMessage": "Paste a new token below to rotate credentials without disconnecting."
+  },
   "bqM/HZdSBC": {
     "defaultMessage": "保存提供商"
   },
@@ -19432,6 +19537,9 @@
   },
   "cHvtlHrefQ": {
     "defaultMessage": "源图"
+  },
+  "cI9DCPgYRt": {
+    "defaultMessage": "No projects returned for this token."
   },
   "cIUvYdnnCL": {
     "defaultMessage": "提交问题"
@@ -19733,6 +19841,9 @@
   "cvuRKz2hMS": {
     "defaultMessage": "计划运行"
   },
+  "cwHz/23Qd9": {
+    "defaultMessage": "Open automations"
+  },
   "cwqeMFXYQC": {
     "defaultMessage": "Pass"
   },
@@ -19852,6 +19963,9 @@
   },
   "d9+py8mf04": {
     "defaultMessage": "将筛选结果导出为 XLSX"
+  },
+  "d9nNGb3zA6": {
+    "defaultMessage": "Select all"
   },
   "dAN96XLBhS": {
     "defaultMessage": "不可以。Hyperlocalise 可与您现有的 TMS 协同工作。您可以继续使用 Phrase、Lokalise、Crowdin 或 Smartling，同时由 Hyperlocalise 负责协调 AI 代理、审核工作流、上下文发现和质量检查。"
@@ -20012,6 +20126,9 @@
   "dS3dXvwF6f": {
     "defaultMessage": "请求邀请"
   },
+  "dSWTPScGc1": {
+    "defaultMessage": "Keep Sanity drafts that teammates edited after the last push. Unchanged approved text is skipped."
+  },
   "dStMwhojOw": {
     "defaultMessage": "08:00 UTC"
   },
@@ -20026,6 +20143,9 @@
   },
   "dTpIQVL71t": {
     "defaultMessage": "breadcrumb"
+  },
+  "dU3FCBwd7f": {
+    "defaultMessage": "Token ending in {suffix}"
   },
   "dU5kt+ggA7": {
     "defaultMessage": "负责人：{value}"
@@ -20101,6 +20221,9 @@
   },
   "dcbWLpn6f2": {
     "defaultMessage": "更新日期不可用"
+  },
+  "dci2Dmteni": {
+    "defaultMessage": "Leave blank to keep the current token."
   },
   "dcomOTuPbB": {
     "defaultMessage": "Updating the workflow…"
@@ -21848,6 +21971,12 @@
   "gyVhBvCqLP": {
     "defaultMessage": "添加来源"
   },
+  "gz/zpenPqj": {
+    "defaultMessage": "Hyperlocalise uses your authorized Sanity session for import and draft push."
+  },
+  "gzPrVIj8XL": {
+    "defaultMessage": "Push policy"
+  },
   "gzw597zx6d": {
     "defaultMessage": "Updated"
   },
@@ -23453,6 +23582,9 @@
   "k66v97xuuE": {
     "defaultMessage": "URL"
   },
+  "k68En99ftY": {
+    "defaultMessage": "Sanity authorized with OAuth"
+  },
   "k6wO1BhuBw": {
     "defaultMessage": "源视频不可用"
   },
@@ -23548,6 +23680,9 @@
   },
   "kG2XpVKA8Z": {
     "defaultMessage": "范围、上下文、路由"
+  },
+  "kGCOhOWZ0P": {
+    "defaultMessage": "{ready} of {total} locales ready"
   },
   "kGM2czQvBa": {
     "defaultMessage": "已批准"
@@ -24488,6 +24623,9 @@
   "mDNDpO0mIA": {
     "defaultMessage": "Hyperlocalise is an AI workforce that acts like your team of local experts.<desktopOnly><lineBreak></lineBreak>It understands market nuance, then translates and transcreates.</desktopOnly>"
   },
+  "mDQhaViqkQ": {
+    "defaultMessage": "Automations with the Translate Sanity documents skill use this connection to read and write drafts."
+  },
   "mDY8Zlbd4D": {
     "defaultMessage": "取消了一个任务"
   },
@@ -25093,6 +25231,9 @@
   },
   "nOCS+qmeJF": {
     "defaultMessage": "Member"
+  },
+  "nODFNuVkFL": {
+    "defaultMessage": "Create the token in Sanity Manage under API → Tokens."
   },
   "nOPkXXYDPf": {
     "defaultMessage": "源字段"
@@ -26234,6 +26375,9 @@
   "pbPMcXnHkC": {
     "defaultMessage": "添加所选市场"
   },
+  "pcA83SydbQ": {
+    "defaultMessage": "No mapped documents"
+  },
   "pcjLSSIwsF": {
     "defaultMessage": "选择麦克风……"
   },
@@ -26335,6 +26479,9 @@
   },
   "plpqSFRajq": {
     "defaultMessage": "保存项目分配"
+  },
+  "pm1TRAF3RM": {
+    "defaultMessage": "Redirecting…"
   },
   "pmPB2F7F47": {
     "defaultMessage": "Acme · 查询"
@@ -26728,6 +26875,9 @@
   },
   "qUpTrGtrVw": {
     "defaultMessage": "SEO"
+  },
+  "qVCnKrNijs": {
+    "defaultMessage": "API token"
   },
   "qVSZOnYTAy": {
     "defaultMessage": "认识 Hyperlocalise"
@@ -27275,6 +27425,9 @@
   "ra0EyftjV0": {
     "defaultMessage": "最近打开的 大发快三如何"
   },
+  "ra9Bi4NXJ2": {
+    "defaultMessage": "Save token"
+  },
   "raG3uRf8nJ": {
     "defaultMessage": "活跃"
   },
@@ -27382,6 +27535,9 @@
   },
   "rqKQ19f7kE": {
     "defaultMessage": "将源文件移入此项目，并将准备好的翻译写回。无需提示。"
+  },
+  "rqU5fqNTYZ": {
+    "defaultMessage": "Authorize with Sanity"
   },
   "rqW//zBYSL": {
     "defaultMessage": "字符串改动会隐藏在大型拉取请求中，而不清楚其本地化影响。"
@@ -27526,6 +27682,9 @@
   },
   "s6NLAIiQ6o": {
     "defaultMessage": "词典已删除"
+  },
+  "s7/k1C/6Q6": {
+    "defaultMessage": "API token"
   },
   "s7935wKE28": {
     "defaultMessage": "移除 Semrush 工具"
@@ -27953,6 +28112,9 @@
   "t2I2Yj3t0M": {
     "defaultMessage": "通知 Slack"
   },
+  "t2J9JYDAdD": {
+    "defaultMessage": "Automation"
+  },
   "t2Wtf62nXs": {
     "defaultMessage": "继续前往项目"
   },
@@ -28087,6 +28249,9 @@
   },
   "tJ4ESqRDu1": {
     "defaultMessage": "请重新登录以管理账单。"
+  },
+  "tJ8Lpden5r": {
+    "defaultMessage": "Hide API token"
   },
   "tJedwqsl7m": {
     "defaultMessage": "A/B 测试"
@@ -28829,6 +28994,9 @@
   "uukLNszv2X": {
     "defaultMessage": "所有资源类型"
   },
+  "uvMAUaKYI0": {
+    "defaultMessage": "Sanity disconnected."
+  },
   "uvpc5HKX9c": {
     "defaultMessage": "生成 AI 建议"
   },
@@ -28837,6 +29005,9 @@
   },
   "uwkiRYaBX+": {
     "defaultMessage": "应用语气、术语表和法律护栏"
+  },
+  "uxSSj1bXpa": {
+    "defaultMessage": "No matching documents"
   },
   "uxTXRcu5Em": {
     "defaultMessage": "包含 Growth 版的所有功能，另加："
@@ -29737,6 +29908,9 @@
   },
   "wdhrNg8UHz": {
     "defaultMessage": "打开职位"
+  },
+  "wdsH3flxH3": {
+    "defaultMessage": "Authentication method"
   },
   "we+P5cHH+C": {
     "defaultMessage": "Use test data everywhere"

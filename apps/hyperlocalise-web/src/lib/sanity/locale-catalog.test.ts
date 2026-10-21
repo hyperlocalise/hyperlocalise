@@ -15,9 +15,11 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   assertSanityLocaleCatalogConfig,
+  isSanityLocaleSupportedForDocumentType,
   isValidSanitySchemaFieldName,
   listUnsupportedSanitySourceDocumentTypes,
   pickSanityLocaleSource,
+  resolveSanityLanguagesForDocumentType,
 } from "./locale-catalog";
 
 describe("locale catalog helpers", () => {
@@ -57,5 +59,41 @@ describe("locale catalog helpers", () => {
       ]),
     });
     expect(unsupported).toEqual(["author"]);
+  });
+
+  it("uses per-type languages when present and otherwise falls back", () => {
+    expect(
+      resolveSanityLanguagesForDocumentType({
+        documentType: "author",
+        languagesByType: { author: ["de"], post: ["en", "de"] },
+        fallbackLanguages: ["en", "fr"],
+      }),
+    ).toEqual(["de"]);
+    expect(
+      resolveSanityLanguagesForDocumentType({
+        documentType: "page",
+        languagesByType: { author: ["de"] },
+        fallbackLanguages: ["en", "fr"],
+      }),
+    ).toEqual(["en", "fr"]);
+  });
+
+  it("rejects a locale that the document type does not publish", () => {
+    expect(
+      isSanityLocaleSupportedForDocumentType({
+        sanityLocale: "fr",
+        documentType: "author",
+        languagesByType: { author: ["de"] },
+        fallbackLanguages: ["en", "de", "fr"],
+      }),
+    ).toBe(false);
+    expect(
+      isSanityLocaleSupportedForDocumentType({
+        sanityLocale: "de-DE",
+        documentType: "author",
+        languagesByType: { author: ["de"] },
+        fallbackLanguages: ["en", "de"],
+      }),
+    ).toBe(true);
   });
 });

@@ -277,7 +277,9 @@ export function useContentEditorMutations(input: {
               ...(group ? { group } : {}),
             },
           );
-          await captureNativeCatTranslationSideEffectsViaApp({
+          // Product analytics only; Reports learns of the save from the Go service's activity
+          // event through the reporting-capture cron, so the save does not wait on this.
+          void captureNativeCatTranslationSideEffectsViaApp({
             organizationSlug: input.organizationSlug,
             projectId: input.projectId,
             sourcePath,
