@@ -50,6 +50,7 @@
 - Nested objects are flattened with dotted keys.
   - Example: `{ "home": { "title": "Accueil" } }` -> `home.title=Accueil`
 - Non-string leaf values are rejected.
+- Strict FormatJS-style objects are supported when each top-level key has a static `defaultMessage`. `description` is returned as entry context by `ParseWithContext` and `ParseIngestEntries`.
 
 ### Lottie (`.json`)
 
@@ -118,6 +119,7 @@
 - ICU plural/select messages and placeholders are treated as ordinary string values.
 - Mapping keys cannot contain `.`, `[`, or `]` because those characters are reserved for flattened dotted/index paths.
 - Non-string scalar leaves such as numbers, booleans, nulls, timestamps, anchors, and aliases are rejected with clear errors.
+- Immediate key/value `#` comments (`HeadComment` and `LineComment`) are returned as entry context by `ParseWithContext` and `ParseIngestEntries`. Ancestor mapping comments are not copied onto nested leaves.
 - `MarshalYAML(template, values)` rewrites only existing string leaves. It preserves key order and comments carried by `yaml.v3` nodes where possible, but YAML formatting and scalar style may be normalized during writeback.
 
 ### ARB
@@ -132,6 +134,7 @@
 - Reads keys from `id` first, then `name`, then `resname`.
 - Supports `<trans-unit>` (1.2) and `<unit>` (2.x).
 - Uses `<target>` when present, falls back to `<source>` when target is empty.
+- Unit and segment `<note>` / `<notes>` text is returned as entry context by `ParseWithContext` and `ParseIngestEntries`.
 
 ### PO
 
@@ -168,22 +171,25 @@
 - Preserves frontmatter blocks (`---`) unchanged.
 - Preserves fenced code blocks (``` and ~~~) unchanged.
 - Preserves Markdown syntax tokens and link destinations while extracting text segments.
+- Structural path and adjacent literal hints are returned as entry context by `ParseWithContext` and `ParseIngestEntries`.
 
 ### AsciiDoc
 
 - Extracts structural keys (`adoc.title`, `adoc.heading`, `adoc.paragraph`, ...).
 - Translates document titles, headings, paragraphs, list items, description lists, table cells, admonitions, and block titles.
 - Preserves YAML front matter, comments, attribute definitions, block macros, preprocessor directives, and verbatim blocks.
+- Structural path and adjacent literal hints are returned as entry context by `ParseWithContext` and `ParseIngestEntries`.
 - Protects inline code, links, cross references, attribute references, bare URLs, anchors, passthroughs, and issue references as placeholders.
 - Writes translated paragraphs as a single line.
 
 ### Apple Strings (`.strings`)
 
 - Parses `"key" = "value";` entries into `map[string]string`.
-- Ignores line comments (`// ...`) and block comments (`/* ... */`).
+- Ignores line comments (`// ...`) and block comments (`/* ... */`) during value extraction.
 - Decodes escaped sequences (`\n`, `\r`, `\t`, `\"`, `\\`) and unicode escapes (`\u`, `\Uhhhh`, surrogate pairs).
 - Supports multiline quoted value content.
 - Extracts optional max-length limits from leading entry comments using `hl:max-length=`, `max.length:`, `max length:`, or `character limit:` conventions.
+- Adjacent leading comments are returned as entry context by `ParseWithContext` and `ParseIngestEntries`.
 - `MarshalAppleStrings(template, values)` preserves template layout/comments/spacing and replaces only value literals.
 
 ### Apple Stringsdict (`.stringsdict`)
@@ -225,6 +231,7 @@
 - Flattens variation and substitution leaves using stable `::` paths.
   - Examples: `item_count::plural.one`, `search_label::device.mac`, `count_label::substitution.total::plural.other`.
 - Extracts optional max-length limits from entry-level `maxLength` / `characterLimit` JSON fields or from the entry `comment` using the same comment conventions as `.strings`.
+- Entry `comment` and variation context are returned as entry context by `ParseWithContext` and `ParseIngestEntries`.
 - Preserves comments, extraction state, string-unit state, substitutions metadata, and unrelated JSON fields on marshal.
 - `MarshalXCStrings(template, sourceTemplate, values, sourceLocale, targetLocale)` writes translated values under `localizations[targetLocale]` and emits deterministic, pretty-printed JSON.
 - Original whitespace and object ordering are normalized during writeback.
@@ -236,6 +243,7 @@
 - Parses `<string name="...">` values by resource name.
 - Parses `<plurals name="..."><item quantity="...">` values as `name.quantity`.
 - Skips resources marked `translatable="false"`.
+- Preceding XML comments at `<resources>` depth are returned as entry context by `ParseWithContext` and `ParseIngestEntries`. Comments immediately before `translatable="false"` resources are discarded.
 - Preserves comments, resource attributes such as `formatted`, namespace declarations, and unrelated whitespace when marshalling.
 - Preserves Android printf placeholders such as `%1$s` and `%d` as normal resource text.
 - Rejects unsupported translatable resource constructs such as `<string-array>` with clear errors.
@@ -250,6 +258,7 @@
   - Example: `<home><title>Welcome</title></home>` -> `home.title=Welcome`
 - `.resx` and `.resw` entries are supported.
   - Example: `<data name="home.title"><value>Welcome</value></data>` -> `home.title=Welcome`
+- Sibling `<comment>`, `<note>`, and similar metadata elements are returned as entry context by `ParseWithContext` and `ParseIngestEntries`.
 - Comments, attributes, and metadata elements such as `<metadata>`, `<comment>`, and `<resheader>` are preserved.
 - Android `<resources>`, XLIFF `<xliff>`, plist `<plist>`, and mixed-content XML values are rejected with clear errors rather than rewritten as generic XML.
 - CDATA values can be parsed, but changed translations are written back as escaped XML text rather than preserving the CDATA wrapper.

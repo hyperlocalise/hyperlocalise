@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -578,6 +579,45 @@ func TestStrategyParseWithContextIncludesFormatJSDescriptions(t *testing.T) {
 	}
 }
 
+func TestStrategyParseIngestEntriesIncludesFormatJSDescriptions(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	entries, err := s.ParseIngestEntries("en-US.json", []byte(`{
+  "checkout.submit": {"defaultMessage": "Submit", "description": "Checkout CTA"},
+  "home.title": {"defaultMessage": "Home"}
+}`), "")
+	if err != nil {
+		t.Fatalf("parse ingest entries: %v", err)
+	}
+	if entries["checkout.submit"] != (IngestEntry{Text: "Submit", Context: "Checkout CTA"}) {
+		t.Fatalf("unexpected checkout.submit ingest entry: %#v", entries["checkout.submit"])
+	}
+	if entries["home.title"] != (IngestEntry{Text: "Home"}) {
+		t.Fatalf("unexpected home.title ingest entry: %#v", entries["home.title"])
+	}
+
+	got := EncodeEntriesCommandOutput(entries)["checkout.submit"]
+	want := map[string]any{"text": "Submit", "context": "Checkout CTA"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("encoded entry mismatch\n got: %#v\nwant: %#v", got, want)
+	}
+}
+
+func TestStrategyParseIngestEntriesIncludesJSONCKeyComments(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	entries, err := s.ParseIngestEntries("en.jsonc", []byte(`{
+  // Greeting used on landing page.
+  "hello": "Bonjour"
+}`), "")
+	if err != nil {
+		t.Fatalf("parse ingest entries: %v", err)
+	}
+	if entries["hello"] != (IngestEntry{Text: "Bonjour", Context: "Greeting used on landing page."}) {
+		t.Fatalf("unexpected hello ingest entry: %#v", entries["hello"])
+	}
+}
+
 func TestStrategyParseWithContextIncludesJSONCKeyComments(t *testing.T) {
 	s := NewDefaultStrategy()
 
@@ -762,6 +802,101 @@ func TestStrategyParseWithContextMarkdownIncludesAdjacentHints(t *testing.T) {
 	if !found {
 		t.Fatalf("expected adjacent literal hints in at least one segment context, got %#v", ctx)
 	}
+}
+
+func TestStrategyParseIngestEntriesKeepsDeveloperContext(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	t.Run("resx comments", func(t *testing.T) {
+		entries, err := s.ParseIngestEntries("Resources.resx", []byte(`<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="home.title" xml:space="preserve">
+    <value>Welcome home</value>
+    <comment>Main heading</comment>
+  </data>
+</root>`), "")
+		if err != nil {
+			t.Fatalf("parse ingest entries: %v", err)
+		}
+		if entries["home.title"] != (IngestEntry{Text: "Welcome home", Context: "Main heading"}) {
+			t.Fatalf("unexpected home.title ingest entry: %#v", entries["home.title"])
+		}
+	})
+
+	t.Run("xliff notes", func(t *testing.T) {
+		entries, err := s.ParseIngestEntries("en.xliff", []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2">
+  <file source-language="en">
+    <body>
+      <trans-unit id="hello">
+        <source>Hello</source>
+        <note>Login greeting</note>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`), "")
+		if err != nil {
+			t.Fatalf("parse ingest entries: %v", err)
+		}
+		if entries["hello"] != (IngestEntry{Text: "Hello", Context: "Login greeting"}) {
+			t.Fatalf("unexpected hello ingest entry: %#v", entries["hello"])
+		}
+	})
+
+	t.Run("android comments", func(t *testing.T) {
+		entries, err := s.ParseIngestEntries("res/values/strings.xml", []byte(`<resources>
+  <!-- Login greeting -->
+  <string name="hello">Hello</string>
+</resources>`), "")
+		if err != nil {
+			t.Fatalf("parse ingest entries: %v", err)
+		}
+		if entries["hello"] != (IngestEntry{Text: "Hello", Context: "Login greeting"}) {
+			t.Fatalf("unexpected hello ingest entry: %#v", entries["hello"])
+		}
+	})
+
+	t.Run("yaml comments", func(t *testing.T) {
+		entries, err := s.ParseIngestEntries("en.yml", []byte("# Login greeting\nhello: Hello\n"), "")
+		if err != nil {
+			t.Fatalf("parse ingest entries: %v", err)
+		}
+		if entries["hello"] != (IngestEntry{Text: "Hello", Context: "Login greeting"}) {
+			t.Fatalf("unexpected hello ingest entry: %#v", entries["hello"])
+		}
+	})
+
+	t.Run("apple strings comments", func(t *testing.T) {
+		entries, err := s.ParseIngestEntries("Localizable.strings", []byte(`/* Login greeting */
+"hello" = "Hello";
+`), "")
+		if err != nil {
+			t.Fatalf("parse ingest entries: %v", err)
+		}
+		if entries["hello"] != (IngestEntry{Text: "Hello", Context: "Login greeting"}) {
+			t.Fatalf("unexpected hello ingest entry: %#v", entries["hello"])
+		}
+	})
+
+	t.Run("markdown structural context", func(t *testing.T) {
+		content := []byte("# Hello\n")
+		_, parseCtx, err := s.ParseWithContext("en/page.md", content)
+		if err != nil {
+			t.Fatalf("parse with context: %v", err)
+		}
+		entries, err := s.ParseIngestEntries("en/page.md", content, "")
+		if err != nil {
+			t.Fatalf("parse ingest entries: %v", err)
+		}
+		if len(parseCtx) == 0 {
+			t.Fatalf("expected markdown parse context")
+		}
+		for key, context := range parseCtx {
+			if entries[key].Context != context {
+				t.Fatalf("ingest dropped markdown context for %q: %#v", key, entries[key])
+			}
+		}
+	})
 }
 
 func TestJSONParserRejectsInvalidShape(t *testing.T) {

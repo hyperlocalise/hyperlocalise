@@ -5,6 +5,58 @@ import (
 	"testing"
 )
 
+func TestXLIFFParserParseWithContextIncludesNotes(t *testing.T) {
+	content := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2">
+  <file source-language="en">
+    <body>
+      <trans-unit id="hello">
+        <source>Hello</source>
+        <note>Login greeting</note>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`)
+
+	got, contextByKey, err := (XLIFFParser{}).ParseWithContext(content)
+	if err != nil {
+		t.Fatalf("parse xliff: %v", err)
+	}
+	if got["hello"] != "Hello" {
+		t.Fatalf("unexpected hello value: %q", got["hello"])
+	}
+	if contextByKey["hello"] != "Login greeting" {
+		t.Fatalf("unexpected hello context: %q", contextByKey["hello"])
+	}
+}
+
+func TestXLIFFParserParseWithContextIncludesXLIFF2Notes(t *testing.T) {
+	content := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="2.0" srcLang="en" xmlns="urn:oasis:names:tc:xliff:document:2.0">
+  <file id="f1">
+    <unit id="checkout.submit">
+      <notes>
+        <note>Checkout CTA</note>
+      </notes>
+      <segment>
+        <source>Submit</source>
+      </segment>
+    </unit>
+  </file>
+</xliff>`)
+
+	got, contextByKey, err := (XLIFFParser{}).ParseWithContext(content)
+	if err != nil {
+		t.Fatalf("parse xliff: %v", err)
+	}
+	if got["checkout.submit"] != "Submit" {
+		t.Fatalf("unexpected checkout.submit value: %q", got["checkout.submit"])
+	}
+	if contextByKey["checkout.submit"] != "Checkout CTA" {
+		t.Fatalf("unexpected checkout.submit context: %q", contextByKey["checkout.submit"])
+	}
+}
+
 func TestXLIFFParserPreservesInlineMarkupInTarget(t *testing.T) {
 	content := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2">

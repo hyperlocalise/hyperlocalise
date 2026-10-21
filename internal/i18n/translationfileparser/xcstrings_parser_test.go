@@ -186,6 +186,12 @@ func TestXCStringsParserExtractsMaxLengthFromEntryMetadata(t *testing.T) {
 	if entries["item_count::plural.other"].MaxLength != 30 {
 		t.Fatalf("expected plural.other max length 30, got %+v", entries["item_count::plural.other"])
 	}
+	if !strings.Contains(entries["title"].Context, "Screen title") {
+		t.Fatalf("expected title comment on ingest, got %+v", entries["title"])
+	}
+	if !strings.Contains(entries["item_count::plural.one"].Context, "Cart item count") {
+		t.Fatalf("expected item_count comment on ingest, got %+v", entries["item_count::plural.one"])
+	}
 }
 
 func TestParseXCStringsLocaleReadsRequestedTargetLocale(t *testing.T) {

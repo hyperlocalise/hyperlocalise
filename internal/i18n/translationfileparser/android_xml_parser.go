@@ -21,6 +21,7 @@ var androidXMLFragmentPool = sync.Pool{
 type androidResourceEntry struct {
 	key         string
 	sourceValue string
+	context     string
 	valueRaw    string
 	valueStart  int
 	valueEnd    int
@@ -37,6 +38,7 @@ type androidPluralState struct {
 	itemCount   int
 	hasOther    bool
 	startOffset int
+	context     string
 }
 
 type androidValueCapture struct {
@@ -44,19 +46,32 @@ type androidValueCapture struct {
 	name       string
 	innerStart int
 	depth      int
+	context    string
 }
 
 func (p AndroidXMLResourcesParser) Parse(content []byte) (map[string]string, error) {
+	values, _, err := p.ParseWithContext(content)
+	return values, err
+}
+
+func (p AndroidXMLResourcesParser) ParseWithContext(content []byte) (map[string]string, map[string]string, error) {
 	doc, err := parseAndroidResourceDocument(content)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	out := make(map[string]string, len(doc.entries))
+	var contextByKey map[string]string
 	for _, entry := range doc.entries {
 		out[entry.key] = entry.sourceValue
+		if context := strings.TrimSpace(entry.context); context != "" {
+			if contextByKey == nil {
+				contextByKey = make(map[string]string, len(doc.entries))
+			}
+			contextByKey[entry.key] = context
+		}
 	}
-	return out, nil
+	return out, contextByKey, nil
 }
 
 func (p AndroidXMLResourcesParser) parseWithPath(path string, content []byte) (map[string]string, map[string]string, error) {
@@ -64,11 +79,7 @@ func (p AndroidXMLResourcesParser) parseWithPath(path string, content []byte) (m
 		return nil, nil, fmt.Errorf("android resources: unsupported .xml file %q; only Android string resource files matching **/res/values*/strings.xml are supported", path)
 	}
 
-	values, err := p.Parse(content)
-	if err != nil {
-		return nil, nil, err
-	}
-	return values, nil, nil
+	return p.ParseWithContext(content)
 }
 
 // MarshalAndroidXMLResources preserves an Android resource XML template while
@@ -131,6 +142,7 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 	rootSeen := false
 	var plural *androidPluralState
 	var capture *androidValueCapture
+	var pendingContext string
 	seenKeys := make(map[string]struct{}, capacity)
 
 	for {
@@ -165,15 +177,24 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 
 			switch {
 			case depth == 1:
+				if androidResourceUntranslatable(token) {
+					pendingContext = ""
+					depth++
+					continue
+				}
 				offset := int(decoder.InputOffset())
 				nextCapture, nextPlural, err := handleAndroidTopLevelStart(text, decoder, token, seenKeys, offset)
 				if err != nil {
 					return androidResourceDocument{}, err
 				}
 				if nextCapture != nil {
+					nextCapture.context = pendingContext
+					pendingContext = ""
 					capture = nextCapture
 				}
 				if nextPlural != nil {
+					nextPlural.context = pendingContext
+					pendingContext = ""
 					plural = nextPlural
 				}
 			case depth == 2 && plural != nil:
@@ -183,10 +204,20 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 					return androidResourceDocument{}, err
 				}
 				if nextCapture != nil {
+					nextCapture.context = plural.context
 					capture = nextCapture
 				}
 			}
 			depth++
+		case xml.Comment:
+			if capture != nil || depth != 1 {
+				continue
+			}
+			comment := strings.TrimSpace(string(token))
+			if comment == "" {
+				continue
+			}
+			pendingContext = joinParserContext(pendingContext, comment)
 		case xml.EndElement:
 			if capture != nil {
 				if capture.depth == 0 && token.Name.Local == capture.name {
@@ -319,10 +350,20 @@ func finishAndroidValueCapture(text string, decoder *xml.Decoder, capture *andro
 	return androidResourceEntry{
 		key:         capture.key,
 		sourceValue: raw,
+		context:     capture.context,
 		valueRaw:    raw,
 		valueStart:  capture.innerStart,
 		valueEnd:    closeStart,
 	}, nil
+}
+
+func androidResourceUntranslatable(token xml.StartElement) bool {
+	for _, attr := range token.Attr {
+		if attr.Name.Local == "translatable" && strings.EqualFold(strings.TrimSpace(attr.Value), "false") {
+			return true
+		}
+	}
+	return false
 }
 
 func androidValidPluralQuantity(quantity string) bool {

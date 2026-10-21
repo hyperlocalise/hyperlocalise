@@ -111,3 +111,28 @@ func applyMaxLengthByKey(entries map[string]IngestEntry, maxLengthByKey map[stri
 	}
 	return out
 }
+
+func joinParserContext(parts ...string) string {
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if text := strings.TrimSpace(part); text != "" {
+			out = append(out, text)
+		}
+	}
+	return strings.Join(out, "\n")
+}
+
+func applyContextByKey(entries map[string]IngestEntry, contextByKey map[string]string) map[string]IngestEntry {
+	if len(contextByKey) == 0 {
+		return entries
+	}
+
+	out := make(map[string]IngestEntry, len(entries))
+	for key, entry := range entries {
+		if context := strings.TrimSpace(contextByKey[key]); context != "" {
+			entry.Context = context
+		}
+		out[key] = entry
+	}
+	return out
+}
