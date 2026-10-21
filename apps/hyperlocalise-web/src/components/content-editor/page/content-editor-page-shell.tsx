@@ -19,6 +19,7 @@ import {
   ContentEditorFilesSidebar,
   ContentEditorPageBody,
 } from "@/components/content-editor/files/content-editor-files-sidebar";
+import { ContentEditorPanelErrorBoundary } from "@/components/content-editor/workspace/content-editor-panel-error-boundary";
 import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
 import { cn } from "@/lib/primitives/cn";
 
@@ -69,20 +70,27 @@ export const ContentEditorPageShell = observer(function ContentEditorPageShell({
         onSidebarCollapsedChange={(collapsed) => ui.setFilesPanelCollapsed(collapsed)}
         sidebar={
           page.showFileSidebar ? (
-            <ContentEditorFilesSidebar
-              files={page.files}
-              selectedSourcePath={page.selectedSourcePath}
-              onSelectFile={actions.onSelectFile}
-              allFilesSelected={page.allFiles}
-              onSelectAllFiles={page.canUseAllFiles ? actions.onSelectAllFiles : undefined}
-              repositoryFullNames={page.repositoryFullNames}
-              selectedRepositoryFullName={page.selectedRepositoryFullName}
-              onRepositoryChange={actions.onRepositoryChange}
-            />
+            <ContentEditorPanelErrorBoundary scope="files" resetKeys={[page.files]}>
+              <ContentEditorFilesSidebar
+                files={page.files}
+                selectedSourcePath={page.selectedSourcePath}
+                onSelectFile={actions.onSelectFile}
+                allFilesSelected={page.allFiles}
+                onSelectAllFiles={page.canUseAllFiles ? actions.onSelectAllFiles : undefined}
+                repositoryFullNames={page.repositoryFullNames}
+                selectedRepositoryFullName={page.selectedRepositoryFullName}
+                onRepositoryChange={actions.onRepositoryChange}
+              />
+            </ContentEditorPanelErrorBoundary>
           ) : undefined
         }
       >
-        {children}
+        <ContentEditorPanelErrorBoundary
+          scope="workspace"
+          resetKeys={[page.selectedSourcePath, page.allFiles, page.targetLocale]}
+        >
+          {children}
+        </ContentEditorPanelErrorBoundary>
       </ContentEditorPageBody>
     </main>
   );

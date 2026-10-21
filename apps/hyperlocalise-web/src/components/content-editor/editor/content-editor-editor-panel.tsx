@@ -22,6 +22,7 @@ import { useIsMac } from "@/hooks/use-is-mac";
 import { useAiFeaturesUpgradeHref } from "@/lib/billing/ai-features-upgrade-href";
 
 import { contentEditorEditorPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
+import { ContentEditorSectionErrorBoundary } from "@/components/content-editor/workspace/content-editor-section-error-boundary";
 
 import { ContentEditorEditorActions } from "./content-editor-editor-actions";
 import { ContentEditorEditorAiRecommendation } from "./content-editor-editor-ai-recommendation";
@@ -150,6 +151,8 @@ export function ContentEditorEditorPanel({
     segment,
   ]);
 
+  const sectionResetKeys = [segment.id];
+
   useContentEditorEditorHotkeys({
     hasPreviousSegment,
     hasNextSegment,
@@ -163,145 +166,165 @@ export function ContentEditorEditorPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <ContentEditorEditorHeader
-        segment={segment}
-        segmentPosition={segmentPosition}
-        totalSegments={totalSegments}
-        isTargetDirty={isTargetDirty}
-        segmentShareUrl={segmentShareUrl}
-        hasPreviousSegment={hasPreviousSegment}
-        hasNextSegment={hasNextSegment}
-        isMac={isMac}
-        onPrevious={onPrevious}
-        onNext={onNext}
-        isNavigationBlocked={isApproving || isSavingDraft}
-        canEditTranslations={canEditTranslations}
-        onToggleLocked={onToggleLocked}
-        onAddToIssueSheet={onAddToIssueSheet}
-      />
+      <ContentEditorSectionErrorBoundary section="editor.header" resetKeys={sectionResetKeys}>
+        <ContentEditorEditorHeader
+          segment={segment}
+          segmentPosition={segmentPosition}
+          totalSegments={totalSegments}
+          isTargetDirty={isTargetDirty}
+          segmentShareUrl={segmentShareUrl}
+          hasPreviousSegment={hasPreviousSegment}
+          hasNextSegment={hasNextSegment}
+          isMac={isMac}
+          onPrevious={onPrevious}
+          onNext={onNext}
+          isNavigationBlocked={isApproving || isSavingDraft}
+          canEditTranslations={canEditTranslations}
+          onToggleLocked={onToggleLocked}
+          onAddToIssueSheet={onAddToIssueSheet}
+        />
+      </ContentEditorSectionErrorBoundary>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl space-y-6 px-4 py-5 sm:px-6 lg:space-y-7 lg:px-8 lg:py-8">
-          {isVideoEditorSegment(segment) || segment.looksLikeVideoUrl ? (
-            <ContentEditorEditorVideoSourceSection
-              segment={segment}
-              canEdit={actionState.canEditTarget}
-              isBusy={isImageBusy}
-              onTreatAsVideo={
-                onTreatAsVideo ? (treatAsVideo) => onTreatAsVideo(treatAsVideo) : undefined
-              }
-              onRegenerate={onRegenerateImage}
-            />
-          ) : isImageEditorSegment(segment) || segment.looksLikeImageUrl ? (
-            <ContentEditorEditorImageSourceSection
-              segment={segment}
-              canEdit={actionState.canEditTarget}
-              isBusy={isImageBusy}
-              onTreatAsImage={
-                onTreatAsImage ? (treatAsImage) => onTreatAsImage(treatAsImage) : undefined
-              }
-              onRegenerate={onRegenerateImage}
-            />
-          ) : (
-            <ContentEditorEditorSourceSection
-              sourceText={segment.sourceText}
-              targetText={segment.targetText}
-              sourceLocale={segment.sourceLocale}
-              segmentKey={segment.key}
-              sourcePath={segment.sourcePath}
-            />
-          )}
-
-          {isVideoEditorSegment(segment) ? (
-            <ContentEditorEditorVideoTargetSection
-              segment={segment}
-              canEdit={actionState.canEditTarget}
-              isBusy={isImageBusy}
-              isLoading={isSegmentTargetLoading}
-              onUpload={onUploadImage}
-              onRegenerate={onRegenerateImage}
-            />
-          ) : isImageEditorSegment(segment) ? (
-            <ContentEditorEditorImageTargetSection
-              segment={segment}
-              canEdit={actionState.canEditTarget}
-              isBusy={isImageBusy}
-              isGenerating={isImageGenerating}
-              isLoading={isSegmentTargetLoading}
-              onUpload={onUploadImage}
-              onRegenerate={onRegenerateImage}
-            />
-          ) : (
-            <ContentEditorGroupVariantsGate
-              segment={segment}
-              locale={segment.targetLocale}
-              ai={
-                canUseAiRecommendation || Boolean(upgradeHref)
-                  ? {
-                      intelligence,
-                      isLoading: isAiSuggestionLoading,
-                      error: aiRecommendationError,
-                      onGenerateAiRecommendation,
-                    }
-                  : undefined
-              }
-            >
-              <ContentEditorEditorTargetSection
+          <ContentEditorSectionErrorBoundary section="editor.source" resetKeys={sectionResetKeys}>
+            {isVideoEditorSegment(segment) || segment.looksLikeVideoUrl ? (
+              <ContentEditorEditorVideoSourceSection
                 segment={segment}
-                canEditTarget={actionState.canEditTarget}
-                isLoading={isSegmentTargetLoading}
-                onTargetChange={onTargetChange}
-                onCopySource={onCopySource}
-                onClearTarget={onClearTarget}
+                canEdit={actionState.canEditTarget}
+                isBusy={isImageBusy}
+                onTreatAsVideo={
+                  onTreatAsVideo ? (treatAsVideo) => onTreatAsVideo(treatAsVideo) : undefined
+                }
+                onRegenerate={onRegenerateImage}
               />
-            </ContentEditorGroupVariantsGate>
-          )}
+            ) : isImageEditorSegment(segment) || segment.looksLikeImageUrl ? (
+              <ContentEditorEditorImageSourceSection
+                segment={segment}
+                canEdit={actionState.canEditTarget}
+                isBusy={isImageBusy}
+                onTreatAsImage={
+                  onTreatAsImage ? (treatAsImage) => onTreatAsImage(treatAsImage) : undefined
+                }
+                onRegenerate={onRegenerateImage}
+              />
+            ) : (
+              <ContentEditorEditorSourceSection
+                sourceText={segment.sourceText}
+                targetText={segment.targetText}
+                sourceLocale={segment.sourceLocale}
+                segmentKey={segment.key}
+                sourcePath={segment.sourcePath}
+              />
+            )}
+          </ContentEditorSectionErrorBoundary>
 
-          <ContentEditorEditorActions
-            primaryActionLabel={resolvedPrimaryActionLabel}
-            isMac={isMac}
-            canTriggerApprove={actionState.canTriggerApprove}
-            isApproving={isApproving}
-            isSavingDraft={isSavingDraft}
-            onApprove={onApprove}
-            onSaveDraft={
-              isAssetEditorSegment(segment) || hasTranslationVariants ? undefined : onSaveDraft
-            }
-            showApprove={!hasTranslationVariants}
-          />
+          <ContentEditorSectionErrorBoundary section="editor.target" resetKeys={sectionResetKeys}>
+            {isVideoEditorSegment(segment) ? (
+              <ContentEditorEditorVideoTargetSection
+                segment={segment}
+                canEdit={actionState.canEditTarget}
+                isBusy={isImageBusy}
+                isLoading={isSegmentTargetLoading}
+                onUpload={onUploadImage}
+                onRegenerate={onRegenerateImage}
+              />
+            ) : isImageEditorSegment(segment) ? (
+              <ContentEditorEditorImageTargetSection
+                segment={segment}
+                canEdit={actionState.canEditTarget}
+                isBusy={isImageBusy}
+                isGenerating={isImageGenerating}
+                isLoading={isSegmentTargetLoading}
+                onUpload={onUploadImage}
+                onRegenerate={onRegenerateImage}
+              />
+            ) : (
+              <ContentEditorGroupVariantsGate
+                segment={segment}
+                locale={segment.targetLocale}
+                ai={
+                  canUseAiRecommendation || Boolean(upgradeHref)
+                    ? {
+                        intelligence,
+                        isLoading: isAiSuggestionLoading,
+                        error: aiRecommendationError,
+                        onGenerateAiRecommendation,
+                      }
+                    : undefined
+                }
+              >
+                <ContentEditorEditorTargetSection
+                  segment={segment}
+                  canEditTarget={actionState.canEditTarget}
+                  isLoading={isSegmentTargetLoading}
+                  onTargetChange={onTargetChange}
+                  onCopySource={onCopySource}
+                  onClearTarget={onClearTarget}
+                />
+              </ContentEditorGroupVariantsGate>
+            )}
+          </ContentEditorSectionErrorBoundary>
+
+          <ContentEditorSectionErrorBoundary section="editor.actions" resetKeys={sectionResetKeys}>
+            <ContentEditorEditorActions
+              primaryActionLabel={resolvedPrimaryActionLabel}
+              isMac={isMac}
+              canTriggerApprove={actionState.canTriggerApprove}
+              isApproving={isApproving}
+              isSavingDraft={isSavingDraft}
+              onApprove={onApprove}
+              onSaveDraft={
+                isAssetEditorSegment(segment) || hasTranslationVariants ? undefined : onSaveDraft
+              }
+              showApprove={!hasTranslationVariants}
+            />
+          </ContentEditorSectionErrorBoundary>
 
           {(canUseAiRecommendation || Boolean(upgradeHref)) &&
           !isAssetEditorSegment(segment) &&
           !hasTranslationVariants ? (
-            <ContentEditorEditorAiRecommendation
-              intelligence={intelligence}
-              isLoading={isAiSuggestionLoading}
-              error={aiRecommendationError}
-              onUseAiSuggestion={onUseAiSuggestion}
-              onGenerateAiRecommendation={onGenerateAiRecommendation}
-            />
+            <ContentEditorSectionErrorBoundary
+              section="editor.aiRecommendation"
+              resetKeys={sectionResetKeys}
+            >
+              <ContentEditorEditorAiRecommendation
+                intelligence={intelligence}
+                isLoading={isAiSuggestionLoading}
+                error={aiRecommendationError}
+                onUseAiSuggestion={onUseAiSuggestion}
+                onGenerateAiRecommendation={onGenerateAiRecommendation}
+              />
+            </ContentEditorSectionErrorBoundary>
           ) : null}
 
           {!isAssetEditorSegment(segment) ? (
-            <ContentEditorEditorFormatChecksSection
-              formatChecks={formatChecks}
-              isLoading={isFormatChecksLoading}
-            />
+            <ContentEditorSectionErrorBoundary
+              section="editor.formatChecks"
+              resetKeys={sectionResetKeys}
+            >
+              <ContentEditorEditorFormatChecksSection
+                formatChecks={formatChecks}
+                isLoading={isFormatChecksLoading}
+              />
+            </ContentEditorSectionErrorBoundary>
           ) : null}
 
-          <ContentEditorEditorCommentsSection
-            segment={segment}
-            isLoading={isCommentsLoading}
-            canAddComment={canAddComment}
-            supportsIssueComments={supportsIssueComments}
-            isPostingComment={isPostingComment}
-            isResolvingComment={isResolvingComment}
-            resolvingCommentId={resolvingCommentId}
-            commentPostError={commentPostError}
-            onAddComment={onAddComment}
-            onOpenIssueSheet={onAddToIssueSheet}
-            onResolveComment={onResolveComment}
-          />
+          <ContentEditorSectionErrorBoundary section="editor.comments" resetKeys={sectionResetKeys}>
+            <ContentEditorEditorCommentsSection
+              segment={segment}
+              isLoading={isCommentsLoading}
+              canAddComment={canAddComment}
+              supportsIssueComments={supportsIssueComments}
+              isPostingComment={isPostingComment}
+              isResolvingComment={isResolvingComment}
+              resolvingCommentId={resolvingCommentId}
+              commentPostError={commentPostError}
+              onAddComment={onAddComment}
+              onOpenIssueSheet={onAddToIssueSheet}
+              onResolveComment={onResolveComment}
+            />
+          </ContentEditorSectionErrorBoundary>
         </div>
       </div>
       {showKeyboardHints ? <ContentEditorEditorShortcutHintBar isMac={isMac} /> : null}

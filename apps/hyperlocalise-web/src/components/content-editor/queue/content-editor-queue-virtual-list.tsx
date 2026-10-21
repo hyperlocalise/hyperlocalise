@@ -25,6 +25,7 @@ import { ContentEditorLockedStringBadge } from "@/components/content-editor/segm
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
 import { contentEditorQueuePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
+import { ContentEditorSectionErrorBoundary } from "@/components/content-editor/workspace/content-editor-section-error-boundary";
 import { ContentEditorOccurrenceBadge } from "../groups/content-editor-occurrence-badge";
 import { isGroupTranslationDivergent } from "../groups/use-content-editor-group-variants";
 
@@ -135,88 +136,94 @@ export function ContentEditorQueueVirtualList({
               className="absolute top-0 left-0 w-full"
               style={{ transform: `translateY(${virtualRow.start}px)` }}
             >
-              <div
-                className={cn(
-                  "flex min-h-11 w-full items-start gap-2 rounded-lg px-2 py-2.5 transition-colors",
-                  selected
-                    ? "bg-grove-500/10 ring-1 ring-inset ring-grove-400/25"
-                    : "hover:bg-muted",
-                )}
+              <ContentEditorSectionErrorBoundary
+                section="queue.row"
+                className="my-1"
+                resetKeys={[segment.id, segment.targetText]}
               >
-                {showSelection && onToggleSegmentChecked ? (
-                  <label className="mt-1.5 flex shrink-0 cursor-pointer items-center">
-                    <input
-                      type="checkbox"
-                      className="size-4 rounded border-input accent-foreground"
-                      checked={isChecked}
-                      aria-label={intl.formatMessage(
-                        contentEditorQueuePanelMessages.selectSegmentAria,
-                        {
-                          key: segment.key,
-                        },
-                      )}
-                      onChange={(event) => {
-                        event.stopPropagation();
-                        onToggleSegmentChecked?.(segment.id, event.currentTarget.checked);
-                      }}
-                      onClick={(event) => event.stopPropagation()}
-                    />
-                  </label>
-                ) : null}
-
-                <button
-                  type="button"
-                  onClick={() => onSelectSegment(segment.id)}
-                  className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                <div
+                  className={cn(
+                    "flex min-h-11 w-full items-start gap-2 rounded-lg px-2 py-2.5 transition-colors",
+                    selected
+                      ? "bg-grove-500/10 ring-1 ring-inset ring-grove-400/25"
+                      : "hover:bg-muted",
+                  )}
                 >
-                  <span className="mt-0.5 w-5 shrink-0 font-mono text-xs text-muted-foreground">
-                    {String(segment.index).padStart(2, "0")}
-                  </span>
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <p className="line-clamp-2 text-sm text-foreground">
-                      {formatInternalMarkupForDisplay(segment.sourceText)}
-                    </p>
-                    <ContentEditorSegmentKeyMeta
-                      segmentKey={segment.key}
-                      sourcePath={segment.sourcePath}
-                      keyClassName="text-xs"
-                      trailing={
-                        segment.isHidden ||
-                        segment.isLocked ||
-                        (segment.occurrenceCount ?? 0) > 1 ? (
-                          <span className="flex shrink-0 items-center gap-1">
-                            {(segment.occurrenceCount ?? 0) > 1 ? (
-                              <ContentEditorOccurrenceBadge
-                                count={segment.occurrenceCount!}
-                                divergent={isGroupTranslationDivergent(
-                                  segment,
-                                  segment.targetLocale,
-                                )}
-                              />
-                            ) : null}
-                            {segment.isHidden ? (
-                              <ContentEditorHiddenStringBadge className="h-5 px-1.5 text-[0.625rem]" />
-                            ) : null}
-                            {segment.isLocked ? (
-                              <ContentEditorLockedStringBadge className="h-5 px-1.5 text-[0.625rem]" />
-                            ) : null}
-                          </span>
-                        ) : null
-                      }
-                    />
-                  </div>
-                  <div className="mt-1 flex shrink-0 flex-col items-center gap-1">
-                    {isDirty ? (
-                      <span
-                        className="size-2 rounded-full bg-bud-400"
+                  {showSelection && onToggleSegmentChecked ? (
+                    <label className="mt-1.5 flex shrink-0 cursor-pointer items-center">
+                      <input
+                        type="checkbox"
+                        className="size-4 rounded border-input accent-foreground"
+                        checked={isChecked}
                         aria-label={intl.formatMessage(
-                          contentEditorQueuePanelMessages.unsavedChangesAria,
+                          contentEditorQueuePanelMessages.selectSegmentAria,
+                          {
+                            key: segment.key,
+                          },
                         )}
+                        onChange={(event) => {
+                          event.stopPropagation();
+                          onToggleSegmentChecked?.(segment.id, event.currentTarget.checked);
+                        }}
+                        onClick={(event) => event.stopPropagation()}
                       />
-                    ) : null}
-                  </div>
-                </button>
-              </div>
+                    </label>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={() => onSelectSegment(segment.id)}
+                    className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                  >
+                    <span className="mt-0.5 w-5 shrink-0 font-mono text-xs text-muted-foreground">
+                      {String(segment.index).padStart(2, "0")}
+                    </span>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="line-clamp-2 text-sm text-foreground">
+                        {formatInternalMarkupForDisplay(segment.sourceText)}
+                      </p>
+                      <ContentEditorSegmentKeyMeta
+                        segmentKey={segment.key}
+                        sourcePath={segment.sourcePath}
+                        keyClassName="text-xs"
+                        trailing={
+                          segment.isHidden ||
+                          segment.isLocked ||
+                          (segment.occurrenceCount ?? 0) > 1 ? (
+                            <span className="flex shrink-0 items-center gap-1">
+                              {(segment.occurrenceCount ?? 0) > 1 ? (
+                                <ContentEditorOccurrenceBadge
+                                  count={segment.occurrenceCount!}
+                                  divergent={isGroupTranslationDivergent(
+                                    segment,
+                                    segment.targetLocale,
+                                  )}
+                                />
+                              ) : null}
+                              {segment.isHidden ? (
+                                <ContentEditorHiddenStringBadge className="h-5 px-1.5 text-[0.625rem]" />
+                              ) : null}
+                              {segment.isLocked ? (
+                                <ContentEditorLockedStringBadge className="h-5 px-1.5 text-[0.625rem]" />
+                              ) : null}
+                            </span>
+                          ) : null
+                        }
+                      />
+                    </div>
+                    <div className="mt-1 flex shrink-0 flex-col items-center gap-1">
+                      {isDirty ? (
+                        <span
+                          className="size-2 rounded-full bg-bud-400"
+                          aria-label={intl.formatMessage(
+                            contentEditorQueuePanelMessages.unsavedChangesAria,
+                          )}
+                        />
+                      ) : null}
+                    </div>
+                  </button>
+                </div>
+              </ContentEditorSectionErrorBoundary>
             </li>
           );
         })}
