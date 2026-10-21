@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const { insertMock, limitMock, onConflictDoUpdateMock, selectMock, valuesMock, whereMock } =
   vi.hoisted(() => {
-    const onConflictDoUpdateMock = vi.fn(() => undefined);
+    const onConflictDoUpdateMock = vi.fn(() => ({ returning: vi.fn(async () => []) }));
     const valuesMock = vi.fn(() => ({ onConflictDoUpdate: onConflictDoUpdateMock }));
     const insertMock = vi.fn(() => ({ values: valuesMock }));
     const limitMock = vi.fn(async (): Promise<unknown[]> => []);
@@ -70,6 +70,18 @@ vi.mock("@/lib/database/client", () => ({
       targetLocale: "targetLocale",
     },
   },
+}));
+
+vi.mock("./project-translation-revisions", () => ({
+  projectTranslationRevisionColumns: {},
+  recordProjectTranslationRevisions: vi.fn(async () => new Map()),
+  writeProjectTranslations: vi.fn(
+    async (
+      database: unknown,
+      _scope: unknown,
+      write: (tx: unknown, before: Map<string, unknown>) => Promise<unknown>,
+    ) => write(database, new Map()),
+  ),
 }));
 
 import { inArray } from "drizzle-orm";

@@ -125,6 +125,7 @@ async function insertSaveEvent(input: {
   nextStatus?: string;
   actorKind?: "user" | "agent";
   createdAt?: Date;
+  extraPayload?: Record<string, string>;
 }) {
   const [event] = await db
     .insert(schema.organizationActivityEvents)
@@ -141,6 +142,7 @@ async function insertSaveEvent(input: {
         sourcePath: SOURCE_PATH,
         targetLocale: "fr-FR",
         nextStatus: input.nextStatus ?? "draft",
+        ...input.extraPayload,
       },
       ...(input.createdAt ? { createdAt: input.createdAt } : {}),
     })
@@ -208,6 +210,40 @@ describe("captureEditorSaves", () => {
         ),
       );
     expect(completionsAfter).toHaveLength(2);
+  });
+
+  it("dates recorded work by when it was saved, not by when the task ran", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    // Saved half an hour from now, so the save time and the time of writing cannot coincide.
+    const savedAt = minutesFromNow(30);
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+      createdAt: savedAt,
+    });
+
+    await captureEditorSaves({
+      now: new Date(savedAt.getTime() + EDITOR_SAVE_CAPTURE_CUTOFF_MS + 60_000),
+      organizationIds: [organization.id],
+    });
+
+    const analyses = await db
+      .select({ createdAt: schema.reportingAnalyses.createdAt })
+      .from(schema.reportingAnalyses)
+      .where(eq(schema.reportingAnalyses.organizationId, organization.id));
+    expect(analyses.map((row) => row.createdAt.toISOString())).toEqual([savedAt.toISOString()]);
+    const completions = await db
+      .select({ createdAt: schema.reportingActivity.createdAt })
+      .from(schema.reportingActivity)
+      .where(
+        and(
+          eq(schema.reportingActivity.organizationId, organization.id),
+          eq(schema.reportingActivity.kind, "completion"),
+        ),
+      );
+    expect(completions.map((row) => row.createdAt.toISOString())).toEqual([savedAt.toISOString()]);
   });
 
   it("reads only events after the position when a new save arrives", async () => {
@@ -573,6 +609,27 @@ describe("captureEditorSaves", () => {
     expect(result).toMatchObject({ eventsProcessed: 2, segmentsRecorded: 1, stopped: null });
     const again = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
     expect(again).toMatchObject({ eventsProcessed: 0, lateApprovalsRecorded: 0 });
+  });
+
+  it("passes over restored versions and undone operations", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+      extraPayload: { restoredFromRevisionId: "00000000-0000-4000-8000-000000000001" },
+    });
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[1],
+      extraPayload: { operationId: "undo:00000000-0000-4000-8000-000000000002" },
+    });
+
+    const result = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    expect(result).toMatchObject({ eventsProcessed: 2, segmentsRecorded: 0, stopped: null });
   });
 
   it("moves a workspace's position up to each run's cut-off, even without saves", async () => {

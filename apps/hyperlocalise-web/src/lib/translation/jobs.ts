@@ -26,6 +26,7 @@ import {
   formatUsageControlError,
 } from "@/lib/billing/usage-control";
 import { isErr } from "@/lib/primitives/result/results";
+import { captureAnalysis, captureCompletions, captureJobStatus } from "@/lib/reporting/capture";
 import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
@@ -68,6 +69,50 @@ export type TranslationJobExecutionResult =
     };
 
 type StoredTranslationJob = NonNullable<Awaited<ReturnType<TranslationJobRepository["getStored"]>>>;
+
+/**
+ * Records a finished string job for Reports: the word count and match band of its one source
+ * string for every requested target locale, then a completion for each requested locale that got
+ * a translation. Locales the model left out still count as workload, and locales it was not asked
+ * for are ignored. The analysis is written here, just before the completions that need it, rather
+ * than before translating, so it never delays the job. AI cost is not recorded here: billing
+ * prices it (`completeAndTrackBillableUsage`).
+ */
+async function recordStringJobReporting(input: {
+  organizationId: string;
+  projectId: string;
+  jobId: string;
+  sourceLocale: string;
+  sourceText: string;
+  segmentId: string;
+  targetLocales: string[];
+  translations: StringTranslationJobResult["translations"];
+}) {
+  const sourceEntries = { [input.segmentId]: input.sourceText };
+  const translated = new Set(
+    input.translations
+      .filter((translation) => translation.text.trim())
+      .map((translation) => translation.locale),
+  );
+  for (const targetLocale of new Set(input.targetLocales)) {
+    await captureAnalysis({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      jobId: input.jobId,
+      sourceLocale: input.sourceLocale,
+      targetLocale,
+      sourceEntries,
+    });
+    if (!translated.has(targetLocale)) continue;
+    await captureCompletions({
+      organizationId: input.organizationId,
+      jobId: input.jobId,
+      targetLocale,
+      sourceEntries,
+      provenance: "automated",
+    });
+  }
+}
 
 class TranslationJobRepository {
   async getStored(jobId: string, projectId: string) {
@@ -291,6 +336,11 @@ class TranslationJobExecutor {
       .where(
         and(eq(schema.jobs.id, claimedJob.id), eq(schema.jobs.projectId, claimedJob.projectId)),
       );
+    await captureJobStatus({
+      jobId: claimedJob.id,
+      status: "running",
+      operationKey: `status:${claimedJob.workflowRunId}:running`,
+    });
 
     if (translateStringJobOverride) {
       const result = await translateStringJobOverride(
@@ -399,8 +449,23 @@ class TranslationJobCompletionService {
             error,
           });
         }
+        await recordStringJobReporting({
+          organizationId: project.organizationId,
+          projectId: input.projectId,
+          jobId: input.jobId,
+          sourceLocale: parsedInput.data.sourceLocale,
+          sourceText: parsedInput.data.sourceText,
+          segmentId: parsedInput.data.translationKeyId ?? "source",
+          targetLocales: parsedInput.data.targetLocales,
+          translations: input.result.translations,
+        });
       }
     }
+    await captureJobStatus({
+      jobId: input.jobId,
+      status: "succeeded",
+      operationKey: `status:${input.workflowRunId}:succeeded`,
+    });
 
     const operationKey = `job:${input.jobId}:translation_jobs`;
     const tokenUsage =
@@ -496,6 +561,12 @@ class TranslationJobCompletionService {
         `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
       );
     }
+    // Reports saw the job start running; without this it would stay running there for good.
+    await captureJobStatus({
+      jobId: input.jobId,
+      status: "failed",
+      operationKey: `status:${input.workflowRunId}:failed`,
+    });
 
     serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobFailed, {
       status: "failed",

@@ -116,6 +116,9 @@ const mcpGetReportInputSchema = z.object({
   jobId: reportQueryShape.jobId.describe("Optional job ID filter."),
   targetLocale: reportQueryShape.targetLocale.describe("Optional target locale filter."),
   step: reportQueryShape.step.describe("Optional workflow step filter: translation or review."),
+  page: reportQueryShape.page.describe(
+    "Page of rows, starting at 1. When truncated is true, request nextPage.",
+  ),
 });
 
 function readJobMetadataString(inputPayload: unknown, field: "title" | "description") {
@@ -400,7 +403,7 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
     "get_report",
     {
       annotations: MCP_READ_ONLY_TOOL,
-      description: `Get translation reporting for accessible projects: throughput, word counts by match bucket, logged time, or costs, bucketed by day or week. Returns at most ${MCP_REPORT_MAX_ROWS} rows.`,
+      description: `Get translation reporting for accessible projects: throughput, word counts by match bucket, logged time, or costs, bucketed by day or week. Returns one page of at most ${MCP_REPORT_MAX_ROWS} rows; when truncated is true, call again with page set to nextPage.`,
       inputSchema: mcpGetReportInputSchema,
     },
     async (input) => {
@@ -427,11 +430,15 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
         query: parsed.data,
       });
 
+      // The report comes a page at a time and its total is not counted, so the tool says how many
+      // rows this page holds and which page to ask for next.
+      const rows = report.rows.slice(0, MCP_REPORT_MAX_ROWS);
       return mcpToolJson({
         ...report,
-        rows: report.rows.slice(0, MCP_REPORT_MAX_ROWS),
-        totalRows: report.rows.length,
-        truncated: report.rows.length > MCP_REPORT_MAX_ROWS,
+        rows,
+        rowsOnPage: rows.length,
+        truncated: report.hasMore || report.rows.length > MCP_REPORT_MAX_ROWS,
+        nextPage: report.hasMore ? report.page + 1 : null,
       });
     },
   );

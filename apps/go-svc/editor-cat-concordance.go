@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -114,6 +115,40 @@ func (api *editorCatAPI) searchConcordanceMemory(r *http.Request, actor editorCa
 	return matches, rows.Err()
 }
 
+// filterEditorCatActivityEventTypes narrows the editor's event types to the requested ones, which
+// may be repeated or comma-separated. Unknown types are rejected.
+func filterEditorCatActivityEventTypes(allowed []string, requested []string) ([]string, error) {
+	if len(requested) == 0 {
+		return allowed, nil
+	}
+	allowedSet := make(map[string]bool, len(allowed))
+	for _, eventType := range allowed {
+		allowedSet[eventType] = true
+	}
+	selected := make([]string, 0, len(allowed))
+	seen := map[string]bool{}
+	for _, raw := range requested {
+		for _, part := range strings.Split(raw, ",") {
+			eventType := trimEditorCat(part)
+			if eventType == "" {
+				continue
+			}
+			if !allowedSet[eventType] {
+				return nil, editorCatFailure(400, "invalid_project_payload", "Invalid CAT query")
+			}
+			if !seen[eventType] {
+				seen[eventType] = true
+				selected = append(selected, eventType)
+			}
+		}
+	}
+	if len(selected) == 0 {
+		return allowed, nil
+	}
+	slices.Sort(selected)
+	return selected, nil
+}
+
 func (api *editorCatAPI) listActivityLogs(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
 	query := r.URL.Query()
 	sourcePath, err := requireEditorCatQuery(query, "sourcePath", 2048)
@@ -136,6 +171,29 @@ func (api *editorCatAPI) listActivityLogs(r *http.Request, actor editorCatActor,
 		"string_segment_unlocked",
 		"string_segment_commented",
 	}
+	eventTypes, err = filterEditorCatActivityEventTypes(eventTypes, query["eventTypes"])
+	if err != nil {
+		return nil, 0, err
+	}
+	actorKind := trimEditorCat(query.Get("actorKind"))
+	switch actorKind {
+	case "", "user", "agent", "api_key", "system":
+	default:
+		return nil, 0, editorCatFailure(400, "invalid_project_payload", "Invalid CAT query")
+	}
+	actorUserID := trimEditorCat(query.Get("actorUserId"))
+	if actorUserID != "" {
+		if actorUserID, err = parseEditorCatUUID(actorUserID); err != nil {
+			return nil, 0, editorCatFailure(400, "invalid_project_payload", "Invalid CAT query")
+		}
+	}
+	rawSince := trimEditorCat(query.Get("since"))
+	var since time.Time
+	if rawSince != "" {
+		if since, err = time.Parse(time.RFC3339, rawSince); err != nil {
+			return nil, 0, editorCatFailure(400, "invalid_project_payload", "Invalid CAT query")
+		}
+	}
 	segmentID := query.Get("segmentId")
 	targetLocale := query.Get("targetLocale")
 	groupID := query.Get("groupId")
@@ -144,6 +202,9 @@ func (api *editorCatAPI) listActivityLogs(r *http.Request, actor editorCatActor,
 	if segmentID != "" || targetLocale != "" || groupID != "" || sourcePaths != "" {
 		fingerprint += ":" + segmentID + ":" + targetLocale + ":" + groupID + ":" + sourcePaths
 	}
+	if actorKind != "" || actorUserID != "" || len(query["eventTypes"]) > 0 || rawSince != "" {
+		fingerprint += ":" + actorKind + ":" + actorUserID + ":" + strings.Join(eventTypes, ",") + ":" + rawSince
+	}
 	args := []any{actor.organizationID, eventTypes, project.ID}
 	conditions := []string{
 		"e.organization_id = $1",
@@ -151,6 +212,21 @@ func (api *editorCatAPI) listActivityLogs(r *http.Request, actor editorCatActor,
 		"(e.payload->>'projectId' = $3 or e.target_id = $3)",
 	}
 	argN := 4
+	if actorKind != "" {
+		conditions = append(conditions, "e.actor_kind = $"+strconv.Itoa(argN))
+		args = append(args, actorKind)
+		argN++
+	}
+	if actorUserID != "" {
+		conditions = append(conditions, "e.actor_user_id = $"+strconv.Itoa(argN)+"::uuid")
+		args = append(args, actorUserID)
+		argN++
+	}
+	if rawSince != "" {
+		conditions = append(conditions, "e.created_at >= $"+strconv.Itoa(argN))
+		args = append(args, since)
+		argN++
+	}
 	if !isEditorCatAllFiles(sourcePath) {
 		conditions = append(conditions, "e.payload->>'sourcePath' = $"+strconv.Itoa(argN))
 		args = append(args, sourcePath)

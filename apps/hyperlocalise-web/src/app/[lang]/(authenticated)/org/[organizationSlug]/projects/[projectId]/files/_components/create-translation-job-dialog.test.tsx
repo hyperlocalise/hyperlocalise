@@ -126,4 +126,40 @@ describe("CreateTranslationJobDialog", () => {
       }),
     );
   });
+
+  it("lets the user search and narrow the selected target locales", async () => {
+    apiMocks.jobsPost.mockResolvedValue(
+      new Response(JSON.stringify({ job: { id: "job_1" } }), { status: 200 }),
+    );
+
+    renderDialog();
+
+    expect(screen.getByText("fr-FR")).toBeInTheDocument();
+    expect(screen.getByText("de-DE")).toBeInTheDocument();
+    expect(screen.getByText("🇫🇷")).toBeInTheDocument();
+    expect(screen.getByText("🇩🇪")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(screen.getByRole("button", { name: "Translate with agent" })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Select all" }));
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+
+    const localeSearch = screen.getByPlaceholderText("Search locales…");
+    await userEvent.click(localeSearch);
+    await userEvent.type(localeSearch, "french");
+    await userEvent.click(await screen.findByRole("option", { name: /French \(France\)/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Translate with agent" }));
+
+    expect(apiMocks.jobsPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: {
+          type: "file",
+          fileInput: expect.objectContaining({
+            targetLocales: ["fr-FR"],
+          }),
+        },
+      }),
+    );
+  });
 });

@@ -59,6 +59,13 @@ import {
   isVideoUrlContentKind,
 } from "@/lib/projects/files/video-url-translation-service";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
+import {
+  projectTranslationRevisionColumns,
+  recordProjectTranslationRevisions,
+  revisionActorForProvenance,
+  writeProjectTranslations,
+  type TranslationRevisionActor,
+} from "@/lib/projects/translations/project-translation-revisions";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 import {
   inferSupportedDocumentTranslationFileFormat,
@@ -1099,6 +1106,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
     actorUserId?: string;
     provenance?: "manual" | "translation_job" | "import" | "agent";
     sourceJobId?: string;
+    actor?: TranslationRevisionActor;
   }): Promise<(ProjectFileContentEditorTranslation & { updatedAt: Date }) | null> {
     const sourceFile = await this.translations.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
@@ -1129,57 +1137,67 @@ export class NativeContentEditorService extends ProjectServiceBase {
       return null;
     }
 
-    const [existing] = await this.database
-      .select({ sourceJobId: schema.projectTranslations.sourceJobId })
-      .from(schema.projectTranslations)
-      .where(
-        and(
-          eq(schema.projectTranslations.translationKeyId, key.id),
-          eq(schema.projectTranslations.targetLocale, input.targetLocale),
-        ),
-      )
-      .limit(1);
-    const sourceJobId = input.sourceJobId ?? existing?.sourceJobId ?? undefined;
     const status = input.approve ? "approved" : "draft";
     const provenance = input.provenance ?? "manual";
     const reviewedAt = input.approve ? new Date() : null;
     const reviewedByUserId = input.approve ? (input.actorUserId ?? null) : null;
 
-    const [saved] = await this.database
-      .insert(schema.projectTranslations)
-      .values({
+    const { saved, sourceJobId } = await writeProjectTranslations(
+      this.database,
+      {
         organizationId: input.organizationId,
-        projectId: input.projectId,
-        translationKeyId: key.id,
-        targetLocale: input.targetLocale,
-        text: input.text,
-        status,
-        provenance,
-        sourceJobId: sourceJobId ?? null,
-        reviewedByUserId,
-        reviewedAt,
-      })
-      .onConflictDoUpdate({
-        target: [
-          schema.projectTranslations.translationKeyId,
-          schema.projectTranslations.targetLocale,
-        ],
-        set: {
-          text: input.text,
-          status,
-          provenance,
-          sourceJobId: sourceJobId ?? existing?.sourceJobId ?? null,
-          reviewedByUserId,
-          reviewedAt,
-          updatedAt: new Date(),
-        },
-      })
-      .returning({
-        id: schema.projectTranslations.id,
-        text: schema.projectTranslations.text,
-        status: schema.projectTranslations.status,
-        updatedAt: schema.projectTranslations.updatedAt,
-      });
+        translationKeyIds: [key.id],
+        targetLocales: [input.targetLocale],
+      },
+      async (tx, before) => {
+        const [existing] = before.values();
+        const sourceJobId = input.sourceJobId ?? existing?.sourceJobId ?? undefined;
+        const [saved] = await tx
+          .insert(schema.projectTranslations)
+          .values({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            translationKeyId: key.id,
+            targetLocale: input.targetLocale,
+            text: input.text,
+            status,
+            provenance,
+            sourceJobId: sourceJobId ?? null,
+            reviewedByUserId,
+            reviewedAt,
+          })
+          .onConflictDoUpdate({
+            target: [
+              schema.projectTranslations.translationKeyId,
+              schema.projectTranslations.targetLocale,
+            ],
+            set: {
+              text: input.text,
+              status,
+              provenance,
+              sourceJobId: sourceJobId ?? existing?.sourceJobId ?? null,
+              reviewedByUserId,
+              reviewedAt,
+              updatedAt: new Date(),
+            },
+          })
+          .returning({
+            ...projectTranslationRevisionColumns,
+            updatedAt: schema.projectTranslations.updatedAt,
+          });
+        if (saved) {
+          await recordProjectTranslationRevisions(tx, {
+            before,
+            saved: [saved],
+            actor: input.actor ?? {
+              actorKind: revisionActorForProvenance(provenance).actorKind,
+              actorUserId: input.actorUserId ?? null,
+            },
+          });
+        }
+        return { saved, sourceJobId };
+      },
+    );
 
     if (!saved) {
       return null;
@@ -1223,6 +1241,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
     targetLocale: string;
     status: "needs_review" | "approved" | "rejected";
     actorUserId?: string;
+    actor?: TranslationRevisionActor;
   }) {
     const reviewedAt =
       input.status === "approved" || input.status === "rejected" ? new Date() : null;
@@ -1231,26 +1250,43 @@ export class NativeContentEditorService extends ProjectServiceBase {
         ? (input.actorUserId ?? null)
         : null;
 
-    const [updated] = await this.database
-      .update(schema.projectTranslations)
-      .set({
-        status: input.status,
-        reviewedAt,
-        reviewedByUserId,
-      })
-      .where(
-        and(
-          eq(schema.projectTranslations.organizationId, input.organizationId),
-          eq(schema.projectTranslations.projectId, input.projectId),
-          eq(schema.projectTranslations.translationKeyId, input.translationKeyId),
-          eq(schema.projectTranslations.targetLocale, input.targetLocale),
-        ),
-      )
-      .returning({
-        id: schema.projectTranslations.id,
-        text: schema.projectTranslations.text,
-        status: schema.projectTranslations.status,
-      });
+    const updated = await writeProjectTranslations(
+      this.database,
+      {
+        organizationId: input.organizationId,
+        translationKeyIds: [input.translationKeyId],
+        targetLocales: [input.targetLocale],
+      },
+      async (tx, before) => {
+        const [updated] = await tx
+          .update(schema.projectTranslations)
+          .set({
+            status: input.status,
+            reviewedAt,
+            reviewedByUserId,
+          })
+          .where(
+            and(
+              eq(schema.projectTranslations.organizationId, input.organizationId),
+              eq(schema.projectTranslations.projectId, input.projectId),
+              eq(schema.projectTranslations.translationKeyId, input.translationKeyId),
+              eq(schema.projectTranslations.targetLocale, input.targetLocale),
+            ),
+          )
+          .returning(projectTranslationRevisionColumns);
+        if (updated) {
+          await recordProjectTranslationRevisions(tx, {
+            before,
+            saved: [updated],
+            actor: input.actor ?? {
+              actorKind: input.actorUserId ? "user" : "system",
+              actorUserId: input.actorUserId ?? null,
+            },
+          });
+        }
+        return updated;
+      },
+    );
 
     if (updated) {
       this.log.debug(

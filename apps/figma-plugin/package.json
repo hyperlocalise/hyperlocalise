@@ -12,23 +12,23 @@
   "dependencies": {
     "@create-figma-plugin/ui": "4.0.3",
     "@create-figma-plugin/utilities": "4.0.3",
-    "preact": "10.27.3"
+    "preact": "10.29.8"
   },
   "devDependencies": {
-    "@figma/plugin-typings": "^1.141.0",
-    "@preact/preset-vite": "^2.10.2",
+    "@figma/plugin-typings": "^1.142.0",
+    "@preact/preset-vite": "^2.10.6",
     "@testing-library/preact": "^3.2.4",
-    "@types/node": "24.13.3",
+    "@types/node": "24.19.2",
     "concurrently": "^10.0.6",
-    "dotenv": "18.0.5",
-    "jsdom": "^30.1.2",
-    "tsx": "4.23.13",
+    "dotenv": "18.0.8",
+    "jsdom": "^30.1.3",
+    "tsx": "4.23.15",
     "typescript": "5.9.3",
-    "vite-plugin-singlefile": "^2.3.3",
+    "vite-plugin-singlefile": "^2.3.4",
     "vite-plus": "catalog:"
   },
   "engines": {
     "node": "^22 || ^24"
   },
-  "packageManager": "pnpm@12.8.1"
+  "packageManager": "pnpm@12.14.0"
 }

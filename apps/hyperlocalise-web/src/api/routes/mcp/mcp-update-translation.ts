@@ -16,7 +16,10 @@ import {
   compareCatMessageFormats,
   type ContentEditorMessageParityIssue,
 } from "@/components/content-editor/message-format/content-editor-message-format";
-import { enqueueStringSegmentApprovedActivity } from "@/lib/activity-log/file-segment-events";
+import {
+  enqueueStringSegmentApprovedActivity,
+  enqueueStringSegmentTranslationUpdatedActivity,
+} from "@/lib/activity-log/file-segment-events";
 import type { MessageFormat } from "@/lib/i18n/message-format";
 import { isCatSegmentLocked } from "@/lib/projects/content-editor/content-editor-segment-lock-service";
 import {
@@ -180,6 +183,7 @@ export async function updateMcpTranslation(input: {
     approve: input.approve ?? false,
     actorUserId: input.actorUserId,
     provenance: "agent",
+    actor: mcpActivityActor(input.actorUserId),
   });
 
   if (!saved) {
@@ -188,6 +192,16 @@ export async function updateMcpTranslation(input: {
       error: "translation_not_found",
     };
   }
+
+  await enqueueStringSegmentTranslationUpdatedActivity({
+    ...mcpActivityActor(input.actorUserId),
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    segmentId: input.translationKeyId,
+    sourcePath: detail.segment.sourcePath,
+    targetLocale: input.targetLocale,
+    nextStatus: status,
+  });
 
   if (input.approve) {
     await enqueueStringSegmentApprovedActivity({
@@ -273,6 +287,7 @@ export async function setMcpTranslationStatus(input: {
     targetLocale: input.targetLocale,
     status: input.status,
     actorUserId: input.actorUserId,
+    actor: mcpActivityActor(input.actorUserId),
   });
 
   if (!translation) {

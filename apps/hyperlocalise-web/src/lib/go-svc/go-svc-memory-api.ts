@@ -15,6 +15,9 @@ import type {
   GoSvcRecord,
   GoSvcRequestOptions,
   MemoryEntry,
+  MemoryEntryDetail,
+  MemoryEntryListQuery,
+  MemoryEntryPage,
   MemoryExportJob,
   MemoryImportCancelResponse,
   MemoryImportQueueResponse,
@@ -128,18 +131,16 @@ export class GoSvcMemoryEntriesApi {
   list(
     organizationSlug: string,
     memoryId: string,
-    query: GoSvcPageQuery & { search?: string } = {},
+    query: MemoryEntryListQuery = {},
     options: GoSvcRequestOptions = {},
   ) {
-    return this.request.json<{
-      memoryEntries: MemoryEntry[];
-      total: number;
-      nextCursor: string | null;
-      pagination: { limit: number; returned: number; hasMore: boolean };
-    }>(orgPath(organizationSlug, "translation-memories", memoryId, "entries"), {
-      query,
-      ...options,
-    });
+    return this.request.json<MemoryEntryPage>(
+      orgPath(organizationSlug, "translation-memories", memoryId, "entries"),
+      {
+        query,
+        ...options,
+      },
+    );
   }
 
   create(
@@ -166,7 +167,7 @@ export class GoSvcMemoryEntriesApi {
     entryId: string,
     options: GoSvcRequestOptions = {},
   ) {
-    return this.request.json<{ memoryEntry: MemoryEntry }>(
+    return this.request.json<MemoryEntryDetail>(
       orgPath(organizationSlug, "translation-memories", memoryId, "entries", entryId),
       options,
     );
@@ -179,7 +180,7 @@ export class GoSvcMemoryEntriesApi {
     body: GoSvcRecord & { expectedVersion: number },
     options: GoSvcRequestOptions = {},
   ) {
-    return this.request.json<{ memoryEntry: MemoryEntry }>(
+    return this.request.json<MemoryEntryDetail>(
       orgPath(organizationSlug, "translation-memories", memoryId, "entries", entryId),
       { method: "PATCH", body, ...options },
     );

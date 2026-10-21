@@ -224,6 +224,23 @@ export type MemoryRecord = {
   updatedAt: string;
 } & GoSvcRecord;
 
+export type MemoryEntryListQuery = GoSvcPageQuery & {
+  cursor?: string;
+  search?: string;
+  sourceLocale?: string;
+  targetLocale?: string;
+  reviewStatus?: "approved" | "pending" | "rejected";
+  sameAsSource?: "true";
+  origin?: string;
+  provider?: string;
+  createdByUserId?: string;
+  modifiedFrom?: string;
+  modifiedTo?: string;
+  importBatchId?: string;
+  sort?: "created_at" | "updated_at";
+  sortDir?: "asc" | "desc";
+};
+
 export type MemoryEntry = {
   id: string;
   memoryId: string;
@@ -236,11 +253,68 @@ export type MemoryEntry = {
   reviewStatus: string;
   version: number;
   externalKey: string | null;
+  createdByUserId?: string | null;
+  modifiedByUserId?: string | null;
+  reviewedByUserId?: string | null;
+  importBatchId?: string | null;
   metadata: GoSvcRecord;
   createdAt: string;
   updatedAt: string;
   reviewedAt: string | null;
 } & GoSvcRecord;
+
+export type MemoryEntryActor = {
+  userId: string | null;
+  displayName: string | null;
+  at: string | null;
+  source: "created" | "modified" | "reviewed" | "imported" | "provider";
+};
+
+export type MemoryEntryDetail = {
+  memoryEntry: MemoryEntry;
+  provenance: {
+    origin: string;
+    provider: string | null;
+    importBatchId: string | null;
+    context: string | null;
+    created: MemoryEntryActor;
+    modified: MemoryEntryActor;
+    reviewed: MemoryEntryActor;
+    imported: MemoryEntryActor;
+    providerSupplied: MemoryEntryActor;
+  };
+  variants: Array<{
+    id: string;
+    sourceLocale: string;
+    targetLocale: string;
+    sourceText: string;
+    targetText: string;
+    context: string | null;
+    reviewStatus: string;
+  }>;
+  auditEvents: Array<{
+    id: string;
+    eventType: "created" | "updated" | "reviewed" | "imported" | "synced";
+    actorKind: "user" | "import" | "provider" | "system";
+    actorUserId: string | null;
+    actorDisplayName: string | null;
+    version: number;
+    changedFields: string[];
+    attributes: GoSvcRecord;
+    occurredAt: string;
+  }>;
+  capabilities: {
+    canEdit: boolean;
+    readOnlyReason: "external_tms" | "reference_only" | null;
+  };
+};
+
+export type MemoryEntryPage = {
+  memoryEntries: MemoryEntry[];
+  total: number;
+  nextCursor: string | null;
+  pagination: { limit: number; returned: number; hasMore: boolean };
+};
 
 export type MemoryProject = {
   projectId: string;

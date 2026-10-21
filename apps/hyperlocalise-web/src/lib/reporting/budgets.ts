@@ -41,7 +41,7 @@ export async function budgetSummary(organizationId: string, projectIds: string[]
     }>(sql`
             select a.words,a.bucket,r.rate,r.basis,r.percentages from reporting_analyses a left join reporting_rates r on r.id=a.rate_id join jobs j on j.id=a.job_id
             where a.organization_id=${organizationId} and a.project_id=${budget.projectId} and a.is_current and a.billable and j.status not in ('failed','cancelled')
-            and not exists(select 1 from reporting_activity e where e.analysis_id=a.id and e.kind='completion' and e.step=a.step)
+            and not exists(select 1 from reporting_activity e where e.organization_id=a.organization_id and e.operation_key='completion:' || a.id || ':' || a.step)
             and not exists(select 1 from reporting_task_rates t where t.organization_id=a.organization_id and t.job_id=a.job_id and t.step=a.step and t.override_usd is not null)
         `);
     let outstanding = BigInt(0),

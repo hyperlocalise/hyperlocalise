@@ -12,13 +12,25 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+} from "@/components/ui/combobox";
 import {
   Dialog,
   DialogContent,
@@ -27,12 +39,43 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import {
+  formatLocaleDisplayName,
+  formatLocaleOptionLabel,
+} from "@/lib/i18n/locale-display-names.messages";
+import { getLocaleFlagEmoji } from "@/lib/i18n/locales";
 import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
 
 import { createTranslationJobDialogMessages as messages } from "./create-translation-job-dialog.messages";
+
+type LocaleOption = {
+  id: string;
+  label: string;
+  searchValue: string;
+  flag: string | null;
+};
+
+function LocaleFlag({ flag }: { flag: string | null }) {
+  if (!flag) {
+    return null;
+  }
+
+  return (
+    <span aria-hidden="true" className="text-sm leading-none">
+      {flag}
+    </span>
+  );
+}
 
 type CreateTranslationJobDialogProps = {
   open: boolean;
@@ -44,6 +87,112 @@ type CreateTranslationJobDialogProps = {
   targetLocales: string[];
   onCreated?: (jobId: string) => void;
 };
+
+function sortLocaleCodes(locales: string[]) {
+  return [...locales].toSorted((left, right) =>
+    left.localeCompare(right, undefined, { sensitivity: "base" }),
+  );
+}
+
+function TargetLocalesField({
+  locales,
+  selectedLocales,
+  onChange,
+  disabled,
+}: {
+  locales: string[];
+  selectedLocales: string[];
+  onChange: (locales: string[]) => void;
+  disabled?: boolean;
+}) {
+  const intl = useIntl();
+  const fieldId = useId();
+  const localeOptions = useMemo<LocaleOption[]>(
+    () =>
+      locales.map((locale) => ({
+        id: locale,
+        label: formatLocaleDisplayName(intl, locale),
+        searchValue: formatLocaleOptionLabel(intl, locale),
+        flag: getLocaleFlagEmoji(locale),
+      })),
+    [intl, locales],
+  );
+  const selectedOptions = useMemo(
+    () => localeOptions.filter((option) => selectedLocales.includes(option.id)),
+    [localeOptions, selectedLocales],
+  );
+  const allSelected = locales.length > 0 && selectedLocales.length === locales.length;
+
+  return (
+    <Field className="gap-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <FieldLabel htmlFor={fieldId}>
+          <FormattedMessage {...messages.targetLocalesLabel} />
+        </FieldLabel>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-auto px-1.5 py-0.5 text-xs"
+          disabled={disabled || locales.length === 0}
+          onClick={() => onChange(allSelected ? [] : locales)}
+        >
+          <FormattedMessage {...(allSelected ? messages.clear : messages.selectAll)} />
+        </Button>
+      </div>
+      <Combobox
+        items={localeOptions}
+        multiple
+        value={selectedOptions}
+        onValueChange={(next) => onChange(sortLocaleCodes(next.map((option) => option.id)))}
+        itemToStringValue={(option) => option.searchValue}
+        disabled={disabled}
+      >
+        <ComboboxChips className="max-h-28 w-full overflow-y-auto">
+          <ComboboxValue>
+            {selectedOptions.map((option) => (
+              <ComboboxChip
+                key={option.id}
+                title={option.searchValue}
+                removeLabel={intl.formatMessage(messages.removeLocale, { locale: option.id })}
+              >
+                <span className="inline-flex items-center gap-1">
+                  <LocaleFlag flag={option.flag} />
+                  {option.id}
+                </span>
+              </ComboboxChip>
+            ))}
+          </ComboboxValue>
+          <ComboboxChipsInput
+            id={fieldId}
+            disabled={disabled}
+            placeholder={intl.formatMessage(messages.searchLocales)}
+          />
+        </ComboboxChips>
+        <ComboboxContent>
+          <ComboboxEmpty>
+            <FormattedMessage {...messages.noMatchingLocales} />
+          </ComboboxEmpty>
+          <ComboboxList>
+            {(option: LocaleOption) => (
+              <ComboboxItem key={option.id} value={option}>
+                <span className="flex min-w-0 flex-1 items-center gap-2">
+                  <LocaleFlag flag={option.flag} />
+                  <span className="min-w-0 flex-1 truncate">
+                    <span className="block truncate">{option.label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {option.id}
+                    </span>
+                  </span>
+                </span>
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+    </Field>
+  );
+}
 
 export function CreateTranslationJobDialog({
   open,
@@ -57,6 +206,7 @@ export function CreateTranslationJobDialog({
 }: CreateTranslationJobDialogProps) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const forceId = useId();
   const [selectedLocales, setSelectedLocales] = useState<string[]>(targetLocales);
   const [ignoreTranslationMemory, setIgnoreTranslationMemory] = useState(true);
 
@@ -124,14 +274,6 @@ export function CreateTranslationJobDialog({
     },
   });
 
-  function toggleLocale(locale: string) {
-    setSelectedLocales((current) =>
-      current.includes(locale)
-        ? current.filter((entry) => entry !== locale)
-        : [...current, locale].toSorted(),
-    );
-  }
-
   const pathLabel = file?.sourcePath ?? intl.formatMessage(messages.thisFile);
 
   return (
@@ -156,48 +298,38 @@ export function CreateTranslationJobDialog({
             <FormattedMessage {...messages.noTargetLocales} />
           </p>
         ) : (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              <FormattedMessage
-                {...messages.sourceLocale}
-                values={{
-                  locale: <span className="font-medium text-foreground">{sourceLocale}</span>,
-                }}
-              />
-            </p>
-            <div className="space-y-2">
-              {targetLocales.map((locale) => (
-                <label
-                  key={locale}
-                  className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    className="size-4 rounded border border-input accent-primary"
-                    checked={selectedLocales.includes(locale)}
-                    onChange={() => toggleLocale(locale)}
-                  />
-                  <span>{locale}</span>
-                </label>
-              ))}
-            </div>
-            <label className="flex cursor-pointer items-start gap-2 rounded-md border border-border px-3 py-2 text-sm">
-              <input
-                type="checkbox"
-                className="mt-0.5 size-4 rounded border border-input accent-primary"
+          <FieldGroup className="gap-4">
+            <Field className="gap-1">
+              <FieldLabel>
+                <FormattedMessage {...messages.sourceLocaleLabel} />
+              </FieldLabel>
+              <p className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+                <LocaleFlag flag={getLocaleFlagEmoji(sourceLocale)} />
+                {sourceLocale}
+              </p>
+            </Field>
+            <TargetLocalesField
+              locales={targetLocales}
+              selectedLocales={selectedLocales}
+              onChange={setSelectedLocales}
+              disabled={createJob.isPending}
+            />
+            <Field orientation="horizontal">
+              <Checkbox
+                id={forceId}
                 checked={ignoreTranslationMemory}
-                onChange={() => setIgnoreTranslationMemory((current) => !current)}
+                onCheckedChange={(checked) => setIgnoreTranslationMemory(checked === true)}
               />
-              <span className="space-y-1">
-                <span className="block font-medium text-foreground">
+              <FieldContent>
+                <FieldLabel htmlFor={forceId}>
                   <FormattedMessage {...messages.forceUntranslated} />
-                </span>
-                <span className="block text-muted-foreground">
+                </FieldLabel>
+                <FieldDescription>
                   <FormattedMessage {...messages.forceUntranslatedDescription} />
-                </span>
-              </span>
-            </label>
-          </div>
+                </FieldDescription>
+              </FieldContent>
+            </Field>
+          </FieldGroup>
         )}
 
         <DialogFooter>
