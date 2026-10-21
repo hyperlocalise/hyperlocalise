@@ -56,7 +56,7 @@ Import does not write translations to Sanity.
 ## Review and push drafts
 
 1. Translate and [approve](/platform/cat) every visible string for a mapped locale.
-2. In the Content editor header, choose **Ingest** to import the automation’s configured document set, or **Push to Sanity** when at least one mapped locale is fully approved and no push is already running.
+2. Open a Sanity document file in the Content editor. The header shows **Ingest** and **Push to Sanity** for that file. Choose **Ingest** to import the automation’s configured document set, or **Push to Sanity** when at least one mapped locale is fully approved and no push is already running.
 3. Confirm Sanity shows the new locale content as a **draft**. Publish in Sanity after you review those drafts.
 
 ## Change or remove access
@@ -70,6 +70,7 @@ If a project or dataset is missing, confirm the Sanity workspace and that you co
 - Confirm Sanity is connected and the automation is **Active**.
 - Confirm the project, dataset, and document types match the Sanity workspace.
 - Confirm project locales map onto the dataset language tags.
+- If **Ingest** or **Push to Sanity** is missing, open a Sanity document file. Those actions stay hidden on other files. Confirm an active Sanity automation is attached to the project and you can manage automations.
 - Open **Run History** for the failed document or locale.
 
 See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).

@@ -160,6 +160,35 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "translate-google-drive-files",
+    category: "popular",
+    name: "Translate Google Drive files",
+    description:
+      "Import Docs, Sheets, Slides, PDF, and plain files from connected Drive folders into a native project on a schedule, localise in Jobs, then push approved translations when you are ready.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Google Drive file localisation connector",
+      capabilities: [
+        "Import supported files from connected Drive folders into the attached project",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push translations automatically on import — operators enqueue push separately",
+        "Write approved translations using the automation Translation output setting",
+      ],
+      goal: "Keep Drive source files in sync for localisation and write approved translations back with the chosen name or folder pattern.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-google-drive-files"],
+      name: "Translate Google Drive files",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      googleDriveEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-braze-email-templates",
     category: "popular",
     extraCategories: ["marketing"],
@@ -1088,6 +1117,10 @@ export function getWorkspaceAutomationTemplateFlow(
 
   if (form.sanityEnabled) {
     tools.push({ id: "sanity", label: "Sanity" });
+  }
+
+  if (form.googleDriveEnabled) {
+    tools.push({ id: "google-drive", label: "Google Drive" });
   }
 
   if (form.brazeEnabled || form.brazeCampaignsEnabled) {

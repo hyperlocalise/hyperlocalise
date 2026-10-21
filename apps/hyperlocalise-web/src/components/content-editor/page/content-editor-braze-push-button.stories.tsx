@@ -46,6 +46,21 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+export const HiddenWhenFileIsNotBraze: Story = {
+  args: {
+    sourcePath: "locales/en.json",
+  },
+  parameters: {
+    msw: {
+      handlers: createContentEditorBrazePushMswHandlers(),
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole("button", { name: "Push to Braze" })).toBeNull();
+  },
+};
+
 export const HiddenWhenNotEligible: Story = {
   parameters: {
     msw: {

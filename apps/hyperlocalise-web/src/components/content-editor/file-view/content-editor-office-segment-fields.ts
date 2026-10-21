@@ -13,6 +13,7 @@
 import {
   extractInternalMarkupSpans,
   formatInternalMarkupForDisplay,
+  stripLeakedInternalMarkupNames,
 } from "@/components/content-editor/message-format/content-editor-internal-markup";
 
 export type OfficeSegmentGroupKind =
@@ -131,20 +132,34 @@ const MARKUP_LABEL_PATTERN = /(MD|HT|LQ|UE|OX)#(\d+)/g;
  * define stay as typed so QA reports them.
  */
 export function officeTargetFromFieldText(fieldText: string, sourceText: string): string {
+  fieldText = stripLeakedInternalMarkupNames(fieldText);
   const literals = new Map(
     extractInternalMarkupSpans(sourceText).map((span) => [span.label, span.literal]),
   );
-  if (literals.size === 0) {
-    return fieldText;
-  }
-  // A label can be followed by typed digits ("OX#1" then "0"), so take the longest known label.
-  return fieldText.replace(MARKUP_LABEL_PATTERN, (label, family: string, digits: string) => {
-    for (let length = digits.length; length > 0; length -= 1) {
-      const literal = literals.get(`${family}#${digits.slice(0, length)}`);
-      if (literal) {
-        return literal + digits.slice(length);
-      }
-    }
-    return label;
-  });
+  const restored =
+    literals.size === 0
+      ? fieldText
+      : fieldText.replace(MARKUP_LABEL_PATTERN, (label, family: string, digits: string) => {
+          // A label can be followed by typed digits ("OX#1" then "0"), so take the longest known label.
+          for (let length = digits.length; length > 0; length -= 1) {
+            const literal = literals.get(`${family}#${digits.slice(0, length)}`);
+            if (literal) {
+              return literal + digits.slice(length);
+            }
+          }
+          return label;
+        });
+  return applyOfficeEdgeWhitespace(sourceText, restored);
+}
+
+const OFFICE_EDGE_WHITESPACE = /^[ \t\r\n\u00a0]*/;
+
+function applyOfficeEdgeWhitespace(source: string, target: string): string {
+  const sourceLead = source.match(OFFICE_EDGE_WHITESPACE)?.[0] ?? "";
+  const sourceTrail = source.match(/[ \t\r\n\u00a0]*$/)?.[0] ?? "";
+  const targetLead = target.match(OFFICE_EDGE_WHITESPACE)?.[0] ?? "";
+  const targetTrail = target.match(/[ \t\r\n\u00a0]*$/)?.[0] ?? "";
+  return (
+    sourceLead + target.slice(targetLead.length, target.length - targetTrail.length) + sourceTrail
+  );
 }

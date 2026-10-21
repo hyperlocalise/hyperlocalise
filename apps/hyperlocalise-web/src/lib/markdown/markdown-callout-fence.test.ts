@@ -36,4 +36,11 @@ describe("isMarkdownCalloutFenceText", () => {
       true,
     );
   });
+
+  it("does not treat missing Crowdin keys or source text as markdown fences", () => {
+    expect(isMarkdownCalloutFenceEntry(null, ":::callout examples")).toBe(false);
+    expect(isMarkdownCalloutFenceEntry(undefined, ":::callout examples")).toBe(false);
+    expect(isMarkdownCalloutFenceEntry("md.Paragraph[4]/line[0]", null)).toBe(false);
+    expect(isMarkdownCalloutFenceText(null)).toBe(false);
+  });
 });

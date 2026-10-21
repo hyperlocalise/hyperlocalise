@@ -19,7 +19,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
 
-import { queryReport, reportCsv, type ReportRow } from "./query";
+import { queryReport, REPORT_PAGE_SIZE, reportCsv, type ReportRow } from "./query";
 
 const projectFixture = createProjectTestFixture();
 
@@ -152,6 +152,7 @@ function baseQuery(
     interval: "day" | "week";
     view: "overview" | "words" | "time" | "costs";
     format: "json" | "csv";
+    page: number;
   }> = {},
 ) {
   return {
@@ -160,6 +161,7 @@ function baseQuery(
     interval: "day" as const,
     view: "overview" as const,
     format: "json" as const,
+    page: 1,
     ...overrides,
   };
 }
@@ -255,7 +257,11 @@ describe("queryReport", () => {
     });
     expect(words.rows.map((row) => row.kind)).toEqual(["completion"]);
     expect(words.rows[0]).toMatchObject({ words: 25, durationMs: 1500 });
-    expect(words.analysis).toMatchObject({ sourceWords: 25, workloadWords: 25 });
+    expect(words.analysis).toMatchObject({
+      sourceWords: 25,
+      workloadWords: 25,
+      completedWords: 25,
+    });
 
     const time = await queryReport({
       organizationId: organization.id,
@@ -265,6 +271,8 @@ describe("queryReport", () => {
     });
     expect(time.rows.map((row) => row.kind).sort()).toEqual(["time"]);
     expect(time.rows[0]).toMatchObject({ minutes: 45 });
+    // The completed total comes from the server, so tabs without completion rows still show it.
+    expect(time.analysis.completedWords).toBe(25);
 
     const costs = await queryReport({
       organizationId: organization.id,
@@ -273,6 +281,161 @@ describe("queryReport", () => {
       query: baseQuery({ view: "costs" }),
     });
     expect(costs.rows.map((row) => row.kind).sort()).toEqual(["ai", "expense", "human"]);
+  });
+
+  it("includes facts at the first and last instants of the range in UTC and nothing outside", async () => {
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    const at = (iso: string) => ({
+      organizationId: organization.id,
+      projectId: project.id,
+      operationKey: `edge:${randomUUID()}`,
+      kind: "ai" as const,
+      step: "translation",
+      basis: "reported" as const,
+      inputTokens: 1,
+      outputTokens: 0,
+      createdAt: new Date(iso),
+    });
+    await db
+      .insert(schema.reportingCosts)
+      .values([
+        at("2026-07-31T23:59:59.999Z"),
+        at("2026-08-01T00:00:00.000Z"),
+        at("2026-08-31T23:59:59.999Z"),
+        at("2026-09-01T00:00:00.000Z"),
+      ]);
+
+    const report = await queryReport({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      financial: false,
+      query: baseQuery({ view: "costs" }),
+    });
+    expect(report.rows.reduce((sum, row) => sum + row.inputTokens, 0)).toBe(2);
+  });
+
+  it("does not split the overview by job", async () => {
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    await db.insert(schema.reportingCosts).values(
+      ["job_a", "job_b"].map((jobId) => ({
+        organizationId: organization.id,
+        projectId: project.id,
+        jobId: null as string | null,
+        operationKey: `ai:${jobId}:${randomUUID()}`,
+        kind: "ai" as const,
+        step: "translation",
+        targetLocale: "fr-FR",
+        basis: "reported" as const,
+        inputTokens: 10,
+        outputTokens: 0,
+        createdAt: IN_RANGE,
+      })),
+    );
+
+    const report = await queryReport({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      financial: false,
+      query: baseQuery({ view: "overview" }),
+    });
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0]).toMatchObject({ jobId: null, inputTokens: 20, count: 2 });
+  });
+
+  it("pages the table and says when more rows follow, but exports every row as CSV", async () => {
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    await db.insert(schema.reportingCosts).values(
+      Array.from({ length: REPORT_PAGE_SIZE + 5 }, (_, day) => ({
+        organizationId: organization.id,
+        projectId: project.id,
+        operationKey: `ai:${randomUUID()}`,
+        kind: "ai" as const,
+        step: "translation",
+        basis: "reported" as const,
+        inputTokens: 1,
+        outputTokens: 0,
+        createdAt: new Date(Date.UTC(2026, 0, 1) + day * 86_400_000),
+      })),
+    );
+    const range = { from: "2026-01-01", to: "2026-12-31", view: "costs" as const };
+
+    const first = await queryReport({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      financial: false,
+      query: baseQuery(range),
+    });
+    expect(first.rows).toHaveLength(REPORT_PAGE_SIZE);
+    expect(first.hasMore).toBe(true);
+
+    const second = await queryReport({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      financial: false,
+      query: baseQuery({ ...range, page: 2 }),
+    });
+    expect(second.rows).toHaveLength(5);
+    expect(second.hasMore).toBe(false);
+
+    const csv = await queryReport({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      financial: false,
+      query: baseQuery({ ...range, format: "csv" }),
+    });
+    expect(csv.rows).toHaveLength(REPORT_PAGE_SIZE + 5);
+  });
+
+  it("totals completed words across every page, for one step at a time", async () => {
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    const analyses = await db
+      .insert(schema.reportingAnalyses)
+      .values(
+        Array.from({ length: REPORT_PAGE_SIZE + 5 }, (_, day) => ({
+          organizationId: organization.id,
+          projectId: project.id,
+          step: day === 0 ? ("review" as const) : ("translation" as const),
+          segmentId: `seg_${randomUUID()}`,
+          sourceRevision: `rev_${randomUUID()}`,
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          words: 2,
+          billable: true,
+          bucket: "new" as const,
+          createdAt: new Date(Date.UTC(2026, 0, 1) + day * 86_400_000),
+        })),
+      )
+      .returning();
+    await db.insert(schema.reportingActivity).values(
+      analyses.map((analysis) => ({
+        organizationId: organization.id,
+        projectId: project.id,
+        operationKey: `completion:${randomUUID()}`,
+        kind: "completion" as const,
+        step: analysis.step,
+        targetLocale: "fr-FR",
+        analysisId: analysis.id,
+        createdAt: analysis.createdAt,
+      })),
+    );
+    const range = { from: "2026-01-01", to: "2026-12-31", view: "words" as const };
+
+    const second = await queryReport({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      financial: false,
+      query: baseQuery({ ...range, page: 2 }),
+    });
+    expect(second.rows.length).toBeLessThan(REPORT_PAGE_SIZE);
+    expect(second.analysis.completedWords).toBe((REPORT_PAGE_SIZE + 4) * 2);
+
+    const review = await queryReport({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      financial: false,
+      query: baseQuery({ ...range, step: "review" }),
+    });
+    expect(review.analysis.completedWords).toBe(2);
   });
 });
 

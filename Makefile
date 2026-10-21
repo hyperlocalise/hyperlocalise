@@ -1,6 +1,6 @@
 projectname?=hyperlocalise
 version?=$(shell git describe --abbrev=0 --tags 2>/dev/null || echo dev)
-golangci_lint_version?=v2.12.2
+golangci_lint_version?=v2.14.0
 gobin?=$(shell go env GOPATH)/bin
 golangci_lint_bin?=$(gobin)/golangci-lint
 default: help

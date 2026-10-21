@@ -49,9 +49,10 @@ function attachmentContentType(attachment: SlackAttachment) {
   return attachment.mimeType?.trim() || "application/octet-stream";
 }
 
-async function attachmentData(attachment: SlackAttachment) {
+async function attachmentData(attachment: SlackAttachment): Promise<Buffer> {
   if (attachment.fetchData) {
-    return attachment.fetchData();
+    const data = await attachment.fetchData();
+    return Buffer.isBuffer(data) ? data : Buffer.from(data);
   }
 
   const { data } = attachment;

@@ -27,6 +27,7 @@ import {
 import { queueBrazePushRun } from "@/lib/braze/queue-braze-push-run";
 import { buildAutomationsDetailHref } from "@/lib/navigation/workspace-automation-editor-tab";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
+import { isBrazeSourcePath } from "@/lib/braze/source-paths";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
 import { ContentEditorBrazePushDialog } from "./content-editor-braze-push-dialog";
@@ -64,7 +65,7 @@ export function ContentEditorBrazePushButton({
         projectId,
         sourcePath: openSourcePath,
       }),
-    enabled: canManageAutomations,
+    enabled: canManageAutomations && Boolean(openSourcePath && isBrazeSourcePath(openSourcePath)),
   });
 
   const navigateToPushRunHistory = (automationId: string) => {

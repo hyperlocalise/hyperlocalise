@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 "use client";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
@@ -26,8 +26,21 @@ import { reportMessages as messages } from "./reports.messages";
 import { MATCH_BUCKETS } from "@/lib/reporting/word-analysis";
 import type { ReportRow } from "@/lib/reporting/query";
 import { TaskReportingPanel } from "./task-reporting-panel";
+import { WordCountTotals } from "./word-count-totals";
 
 type Label = keyof typeof messages;
+
+/** Typed filters wait this long after the last keystroke before the report is requested again. */
+const FILTER_DEBOUNCE_MS = 400;
+
+function useDebouncedValue<T>(value: T, delayMs: number) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedValue(value), delayMs);
+    return () => clearTimeout(timeout);
+  }, [value, delayMs]);
+  return debouncedValue;
+}
 type Rate = {
   id: string;
   name: string;
@@ -49,7 +62,7 @@ type Budget = {
   forecastWarning: "none" | "approaching" | "exceeded";
 };
 type Settings = {
-  projects: { id: string; name: string }[];
+  projects: { id: string; name: string; targetLocales: string[] | null }[];
   rates: Rate[];
   budgets: Budget[];
   financial: boolean;
@@ -237,23 +250,49 @@ export function ReportsWorkspace({
     step: "",
     interval: "week",
   });
+  const appliedFilters = useDebouncedValue(filters, FILTER_DEBOUNCE_MS);
+  // A page belongs to the filters and tab it was chosen under, so filters that apply after the
+  // typing delay start again at page 1 instead of carrying an old page over.
+  const pageScope = JSON.stringify({ ...appliedFilters, view });
+  const [pageState, setPageState] = useState({ scope: pageScope, page: 1 });
+  const page = pageState.scope === pageScope ? pageState.page : 1;
+  const goToPage = (next: number) => setPageState({ scope: pageScope, page: Math.max(1, next) });
   const params = new URLSearchParams({
-    ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value)),
+    ...Object.fromEntries(Object.entries(appliedFilters).filter(([, value]) => value)),
     view,
   });
+  const csvParams = new URLSearchParams(params);
+  csvParams.set("format", "csv");
+  params.set("page", String(page));
   const settings = useQuery({
     queryKey: ["reports", organizationSlug, "settings"],
     queryFn: () => reportingFetch<{ settings: Settings }>(base + "/settings"),
   });
+  const updateFilter = (key: keyof typeof filters, value: string) => {
+    // A task belongs to one project, so changing the project clears the task, and a language the
+    // new project does not translate into would filter everything out while the picker read "All".
+    const projectLocales =
+      settings.data?.settings.projects.find((project) => project.id === value)?.targetLocales ?? [];
+    setFilters((previous) => ({
+      ...previous,
+      [key]: value,
+      ...(key === "projectId" ? { jobId: "" } : {}),
+      ...(key === "projectId" && value && !projectLocales.includes(previous.targetLocale)
+        ? { targetLocale: "" }
+        : {}),
+    }));
+  };
   const report = useQuery({
     queryKey: ["reports", organizationSlug, params.toString()],
     queryFn: () =>
       reportingFetch<{
         report: {
           rows: ReportRow[];
-          analysis?: { sourceWords: number; workloadWords: number };
+          analysis?: { sourceWords: number; workloadWords: number; completedWords: number };
           startedAt: string | null;
           financial: boolean;
+          page: number;
+          hasMore: boolean;
         };
       }>(base + "?" + params),
   });
@@ -264,6 +303,46 @@ export function ReportsWorkspace({
     value: project.id,
     label: project.name,
   }));
+  const jobs = useQuery({
+    queryKey: ["reports", organizationSlug, "jobs", appliedFilters.projectId],
+    queryFn: () =>
+      reportingFetch<{
+        jobs: { id: string; title: string; projectId: string | null; createdAt: string }[];
+      }>(
+        `${base}/jobs${appliedFilters.projectId ? `?projectId=${encodeURIComponent(appliedFilters.projectId)}` : ""}`,
+      ),
+  });
+  const jobTitleById = new Map((jobs.data?.jobs ?? []).map((job) => [job.id, job.title]));
+  // Tasks often share a name, so the picker adds when each one started.
+  const jobOptions = (jobs.data?.jobs ?? []).map((job) => ({
+    value: job.id,
+    label: `${job.title} · ${intl.formatDate(job.createdAt, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    })}`,
+  }));
+  if (filters.jobId && !jobTitleById.has(filters.jobId)) {
+    jobOptions.unshift({ value: filters.jobId, label: filters.jobId });
+  }
+  const languageOptions = [
+    ...new Set(
+      (settings.data?.settings.projects ?? [])
+        .filter((project) => !filters.projectId || project.id === filters.projectId)
+        .flatMap((project) => project.targetLocales ?? []),
+    ),
+  ]
+    .sort((left, right) => left.localeCompare(right))
+    .map((locale) => ({ value: locale, label: locale }));
+  if (
+    filters.targetLocale &&
+    !languageOptions.some((option) => option.value === filters.targetLocale)
+  ) {
+    languageOptions.unshift({ value: filters.targetLocale, label: filters.targetLocale });
+  }
+  // The cards count one step at a time, so a word translated and then reviewed is not counted twice.
+  const cardStepDescription = intl.formatMessage(messages.cardStep, {
+    step: label(appliedFilters.step === "review" ? "review" : "translation"),
+  });
   const stepOptions = ["translation", "review"].map((value) => ({
     value,
     label: label(value as Label),
@@ -304,11 +383,16 @@ export function ReportsWorkspace({
           <p className="mt-2 text-pretty text-sm text-muted-foreground">{label("prospective")}</p>
           <p className="mt-1 text-sm text-muted-foreground">
             {report.data?.report.startedAt
-              ? intl.formatMessage(messages.started, { date: report.data.report.startedAt })
+              ? intl.formatMessage(messages.started, {
+                  date: intl.formatDate(report.data.report.startedAt, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }),
+                })
               : label("notStarted")}
           </p>
         </div>
-        <Button render={<a href={base + "?" + params + "&format=csv"} />} variant="outline">
+        <Button nativeButton={false} render={<a href={base + "?" + csvParams} />} variant="outline">
           {label("export")}
         </Button>
       </div>
@@ -316,25 +400,29 @@ export function ReportsWorkspace({
         {(["from", "to", "projectId", "jobId", "targetLocale", "step", "interval"] as const).map(
           (key) => (
             <Field key={key}>
-              <FieldLabel htmlFor={`filter-${key}`}>{label(key)}</FieldLabel>
-              {["projectId", "step", "interval"].includes(key) ? (
+              <FieldLabel htmlFor={`filter-${key}`}>
+                {label(key === "jobId" ? "task" : key)}
+              </FieldLabel>
+              {["projectId", "jobId", "targetLocale", "step", "interval"].includes(key) ? (
                 <select
                   id={`filter-${key}`}
                   value={filters[key]}
-                  onChange={(event) =>
-                    setFilters((previous) => ({ ...previous, [key]: event.target.value }))
-                  }
+                  onChange={(event) => updateFilter(key, event.target.value)}
                   className="h-9 rounded-md border bg-background px-3 text-sm"
                 >
                   {key !== "interval" ? <option value="">{label("all")}</option> : null}
                   {(key === "projectId"
                     ? projectOptions
-                    : key === "step"
-                      ? stepOptions
-                      : [
-                          { value: "day", label: label("day") },
-                          { value: "week", label: label("week") },
-                        ]
+                    : key === "jobId"
+                      ? jobOptions
+                      : key === "targetLocale"
+                        ? languageOptions
+                        : key === "step"
+                          ? stepOptions
+                          : [
+                              { value: "day", label: label("day") },
+                              { value: "week", label: label("week") },
+                            ]
                   ).map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -344,11 +432,9 @@ export function ReportsWorkspace({
               ) : (
                 <Input
                   id={`filter-${key}`}
-                  type={key === "from" || key === "to" ? "date" : "text"}
+                  type="date"
                   value={filters[key]}
-                  onChange={(event) =>
-                    setFilters((previous) => ({ ...previous, [key]: event.target.value }))
-                  }
+                  onChange={(event) => updateFilter(key, event.target.value)}
                 />
               )}
             </Field>
@@ -360,6 +446,7 @@ export function ReportsWorkspace({
           <Card>
             <CardHeader>
               <CardTitle>{label("sourceWords")}</CardTitle>
+              <CardDescription>{cardStepDescription}</CardDescription>
             </CardHeader>
             <CardContent className="text-2xl tabular-nums">
               {intl.formatNumber(report.data.report.analysis.sourceWords)}
@@ -368,13 +455,10 @@ export function ReportsWorkspace({
           <Card>
             <CardHeader>
               <CardTitle>{label("workloadWords")}</CardTitle>
+              <CardDescription>{cardStepDescription}</CardDescription>
             </CardHeader>
             <CardContent className="text-2xl tabular-nums">
-              {intl.formatNumber(
-                rows
-                  .filter((row) => row.kind === "completion")
-                  .reduce((sum, row) => sum + row.words, 0),
-              )}
+              {intl.formatNumber(report.data.report.analysis.completedWords)}
             </CardContent>
           </Card>
         </div>
@@ -411,7 +495,7 @@ export function ReportsWorkspace({
           <TableHeader>
             <TableRow>
               {columns.map((key) => (
-                <TableHead key={key}>{label(key as Label)}</TableHead>
+                <TableHead key={key}>{label(key === "jobId" ? "task" : (key as Label))}</TableHead>
               ))}
             </TableRow>
           </TableHeader>
@@ -426,23 +510,27 @@ export function ReportsWorkspace({
                         )?.name ??
                         row.projectId ??
                         "—")
-                      : key === "amountUsd"
-                        ? row.amountUsd === null
-                          ? label("unknownCost")
-                          : intl.formatNumber(Number(row.amountUsd), {
-                              style: "currency",
-                              currency: "USD",
-                              maximumFractionDigits: 6,
-                            })
-                        : ["kind", "step", "bucket"].includes(key) &&
-                            row[key] &&
-                            row[key] in messages
-                          ? label(row[key] as Label)
-                          : key === "targetLocale" &&
-                              row.targetLocale === null &&
-                              ["ai", "human", "expense"].includes(row.kind)
-                            ? label("unallocated")
-                            : (row[key] ?? "—")}
+                      : key === "jobId"
+                        ? row.jobId
+                          ? (jobTitleById.get(row.jobId) ?? row.jobId)
+                          : "—"
+                        : key === "amountUsd"
+                          ? row.amountUsd === null
+                            ? label("unknownCost")
+                            : intl.formatNumber(Number(row.amountUsd), {
+                                style: "currency",
+                                currency: "USD",
+                                maximumFractionDigits: 6,
+                              })
+                          : ["kind", "step", "bucket"].includes(key) &&
+                              row[key] &&
+                              row[key] in messages
+                            ? label(row[key] as Label)
+                            : key === "targetLocale" &&
+                                row.targetLocale === null &&
+                                ["ai", "human", "expense"].includes(row.kind)
+                              ? label("unallocated")
+                              : (row[key] ?? "—")}
                   </TableCell>
                 ))}
               </TableRow>
@@ -450,7 +538,45 @@ export function ReportsWorkspace({
           </TableBody>
         </Table>
       )}
-      {filters.jobId ? <TaskReportingPanel base={base} jobId={filters.jobId} /> : null}
+      {page > 1 || report.data?.report.hasMore ? (
+        <div className="flex items-center gap-3 text-sm">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 1 || report.isFetching}
+            onClick={() => goToPage(page - 1)}
+          >
+            {label("previousPage")}
+          </Button>
+          <span className="tabular-nums text-muted-foreground">
+            {intl.formatMessage(messages.pageNumber, { page })}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!report.data?.report.hasMore || report.isFetching}
+            onClick={() => goToPage(page + 1)}
+          >
+            {label("nextPage")}
+          </Button>
+        </div>
+      ) : null}
+      {view === "words" ? (
+        <WordCountTotals
+          base={base}
+          filters={{
+            from: appliedFilters.from,
+            to: appliedFilters.to,
+            projectId: appliedFilters.projectId,
+            jobId: appliedFilters.jobId,
+            targetLocale: appliedFilters.targetLocale,
+            step: appliedFilters.step,
+          }}
+        />
+      ) : null}
+      {appliedFilters.jobId ? (
+        <TaskReportingPanel base={base} jobId={appliedFilters.jobId} />
+      ) : null}
       {view === "time" ? (
         <ReportingForm
           title="timeForm"

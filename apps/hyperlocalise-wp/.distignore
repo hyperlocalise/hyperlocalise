@@ -1,0 +1,13 @@
+/.distignore
+/.gitignore
+/.phpunit.result.cache
+/.wordpress-org
+/README.md
+/bin
+/build
+/composer.json
+/composer.lock
+/phpstan.neon.dist
+/phpunit.xml.dist
+/tests
+/vendor

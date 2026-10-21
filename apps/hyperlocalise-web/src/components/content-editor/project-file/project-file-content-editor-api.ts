@@ -19,6 +19,10 @@ import { defaultProjectFileContentEditorPageLimit } from "@/api/routes/project/p
 import type { ContentEditorFormatMessageIntl } from "@/components/content-editor/message-format/content-editor-message-format-i18n";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import {
+  canUseGoSvcCat,
+  type ContentEditorProjectSource,
+} from "@/components/content-editor/shared/content-editor-native-project";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
 
@@ -160,8 +164,16 @@ export async function fetchProjectFileContentEditorQueuePage(input: {
   intl: ContentEditorFormatMessageIntl;
   signal?: AbortSignal;
   goSvcClient?: GoSvcClient;
+  projectSource?: ContentEditorProjectSource | null;
 }) {
-  if (input.goSvcClient && !input.externalResourceId) {
+  if (
+    input.goSvcClient &&
+    canUseGoSvcCat({
+      projectId: input.projectId,
+      projectSource: input.projectSource,
+      externalResourceId: input.externalResourceId,
+    })
+  ) {
     try {
       const { contentEditorQueue } = await input.goSvcClient.cat.queue(
         input.organizationSlug,

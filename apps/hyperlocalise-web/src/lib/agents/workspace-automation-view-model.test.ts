@@ -244,6 +244,47 @@ describe("workspace automation view model", () => {
     expect(state.webSearchProvider).toBe("exa");
   });
 
+  it("prefills the Google Drive files template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "translate-google-drive-files",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Translate Google Drive files",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      googleDriveEnabled: true,
+      createNativeTmsJobEnabled: true,
+      assignTranslateWithAgentEnabled: true,
+    });
+    expect(form?.skillIds).toEqual(["translate-google-drive-files"]);
+    expect(form?.googleDriveTranslationOutput).toBe("folder");
+  });
+
+  it("hydrates Google Drive translation output from an existing automation record", () => {
+    const state = createWorkspaceAutomationFormStateFromRecord({
+      ...createAutomationSummary(),
+      toolConfig: {
+        googleDrive: {
+          enabled: true,
+          folderIds: [],
+          fileIds: [],
+          targetLocales: [],
+          includeTranslatedFiles: false,
+          translationOutput: "prefix",
+          existingTranslationPolicy: "seed_empty",
+        },
+      },
+    });
+
+    expect(state.googleDriveEnabled).toBe(true);
+    expect(state.googleDriveTranslationOutput).toBe("prefix");
+    expect(formStateToWorkspaceAutomationPayload(state).toolConfig.googleDrive).toMatchObject({
+      translationOutput: "prefix",
+    });
+  });
+
   it("prefills the Sanity documents template", () => {
     const form = createWorkspaceAutomationFormStateFromTemplate(
       "translate-sanity-documents",
@@ -834,11 +875,19 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(deliveryOnly)).toEqual({
       trigger:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Braze, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Google Drive, Braze, Queries, Web Search, or Crowdin workflow tool.",
     });
     expect(
       validateWorkspaceAutomationFormState({ ...deliveryOnly, webSearchEnabled: true }),
     ).toEqual({});
+    expect(
+      validateWorkspaceAutomationFormState({
+        ...deliveryOnly,
+        projectId: "11111111-1111-4111-8111-111111111111",
+        googleDriveEnabled: true,
+        googleDriveFolderIds: ["11111111-1111-4111-8111-111111111111"],
+      }).trigger,
+    ).toBeUndefined();
     expect(
       validateWorkspaceAutomationFormState({ ...deliveryOnly, triggerMode: "manual" }),
     ).toEqual({});

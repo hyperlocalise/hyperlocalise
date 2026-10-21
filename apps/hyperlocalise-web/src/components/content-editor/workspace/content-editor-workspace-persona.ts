@@ -11,6 +11,11 @@
  * Version 2.0 or later.
  */
 
+import {
+  readBrowserLocalStorageItem,
+  writeBrowserLocalStorageItem,
+} from "@/lib/primitives/browser-local-storage/browser-local-storage";
+
 /**
  * Workspace persona — a named layout preset that adapts the Editor to a
  * specific role and content type.
@@ -62,23 +67,15 @@ export function catWorkspacePersonaStorageKey(fileFamily: string): string {
 }
 
 export function readCatWorkspacePersona(fileFamily: string): ContentEditorWorkspacePersona | null {
-  try {
-    const raw = window.localStorage.getItem(catWorkspacePersonaStorageKey(fileFamily));
-    return isCatWorkspacePersona(raw) ? raw : null;
-  } catch {
-    return null;
-  }
+  const raw = readBrowserLocalStorageItem(catWorkspacePersonaStorageKey(fileFamily));
+  return isCatWorkspacePersona(raw) ? raw : null;
 }
 
 export function writeCatWorkspacePersona(
   fileFamily: string,
   persona: ContentEditorWorkspacePersona,
 ): void {
-  try {
-    window.localStorage.setItem(catWorkspacePersonaStorageKey(fileFamily), persona);
-  } catch {
-    // localStorage unavailable (private browsing, storage quota) — ignore silently
-  }
+  writeBrowserLocalStorageItem(catWorkspacePersonaStorageKey(fileFamily), persona);
 }
 
 /**

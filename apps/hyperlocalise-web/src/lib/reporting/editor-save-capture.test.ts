@@ -212,6 +212,40 @@ describe("captureEditorSaves", () => {
     expect(completionsAfter).toHaveLength(2);
   });
 
+  it("dates recorded work by when it was saved, not by when the task ran", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    // Saved half an hour from now, so the save time and the time of writing cannot coincide.
+    const savedAt = minutesFromNow(30);
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+      createdAt: savedAt,
+    });
+
+    await captureEditorSaves({
+      now: new Date(savedAt.getTime() + EDITOR_SAVE_CAPTURE_CUTOFF_MS + 60_000),
+      organizationIds: [organization.id],
+    });
+
+    const analyses = await db
+      .select({ createdAt: schema.reportingAnalyses.createdAt })
+      .from(schema.reportingAnalyses)
+      .where(eq(schema.reportingAnalyses.organizationId, organization.id));
+    expect(analyses.map((row) => row.createdAt.toISOString())).toEqual([savedAt.toISOString()]);
+    const completions = await db
+      .select({ createdAt: schema.reportingActivity.createdAt })
+      .from(schema.reportingActivity)
+      .where(
+        and(
+          eq(schema.reportingActivity.organizationId, organization.id),
+          eq(schema.reportingActivity.kind, "completion"),
+        ),
+      );
+    expect(completions.map((row) => row.createdAt.toISOString())).toEqual([savedAt.toISOString()]);
+  });
+
   it("reads only events after the position when a new save arrives", async () => {
     const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
     const save = (segmentId: string, createdAt?: Date) =>

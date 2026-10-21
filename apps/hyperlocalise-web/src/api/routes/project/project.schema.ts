@@ -701,12 +701,81 @@ export const projectFileCatConcordanceGlossaryTermSchema = z.object({
   forbidden: z.boolean(),
 });
 
+export const projectFileCatTmSegmentRefSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("native"),
+    memoryId: z.string().uuid(),
+    entryId: z.string().uuid(),
+  }),
+  z.object({
+    kind: z.literal("external"),
+    providerKind: z.literal("crowdin"),
+    resourceId: z.string().trim().min(1),
+    externalResourceId: z.string().trim().min(1),
+    externalSegmentId: z.string().trim().min(1),
+  }),
+]);
+
 export const projectFileCatConcordanceTranslationMemoryMatchSchema = z.object({
   id: z.string(),
   sourceText: z.string(),
   targetText: z.string(),
   matchPercent: z.number(),
   contextLabel: z.string().optional(),
+  canEdit: z.boolean().optional(),
+  canDelete: z.boolean().optional(),
+  segmentRef: projectFileCatTmSegmentRefSchema.optional(),
+});
+
+export const projectFileCatTmSegmentRecordSchema = z.object({
+  id: z.string(),
+  locale: z.string().trim().min(1).max(32),
+  text: z.string().max(100_000),
+  isSource: z.boolean(),
+  version: z.number().int().positive().optional(),
+});
+
+export const projectFileCatTmSegmentSchema = z.object({
+  source: projectFileCatTmSegmentRecordSchema,
+  records: z.array(projectFileCatTmSegmentRecordSchema),
+});
+
+export const projectFileCatTmSegmentResponseSchema = z.object({
+  tmSegment: projectFileCatTmSegmentSchema,
+});
+
+export const projectFileCatTmSegmentGetQuerySchema = z.object({
+  kind: z.literal("external"),
+  providerKind: z.literal("crowdin"),
+  resourceId: z.string().trim().min(1),
+  externalResourceId: z.string().trim().min(1),
+  externalSegmentId: z.string().trim().min(1),
+  sourceLocale: z.string().trim().min(1).max(32),
+});
+
+export const projectFileCatTmSegmentPatchBodySchema = z.object({
+  kind: z.literal("external"),
+  providerKind: z.literal("crowdin"),
+  resourceId: z.string().trim().min(1),
+  externalResourceId: z.string().trim().min(1),
+  externalSegmentId: z.string().trim().min(1),
+  sourceLocale: z.string().trim().min(1).max(32),
+  sourceText: z.string().min(1).max(100_000),
+  records: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1),
+        text: z.string().max(100_000),
+      }),
+    )
+    .min(1)
+    .max(64),
+});
+
+export const projectFileCatTmSegmentDeleteQuerySchema = projectFileCatTmSegmentGetQuerySchema;
+
+export const projectFileCatTmSegmentRecordParamsSchema = projectIdParamsSchema.extend({
+  recordId: z.string().trim().min(1),
 });
 
 export const projectFileCatConcordanceResponseSchema = z.object({
@@ -1108,6 +1177,11 @@ export type ProjectFileContentEditorConcordanceBody = z.infer<
 >;
 export type ProjectFileContentEditorConcordanceResponse = z.infer<
   typeof projectFileCatConcordanceResponseSchema
+>;
+export type ProjectFileCatTmSegment = z.infer<typeof projectFileCatTmSegmentSchema>;
+export type ProjectFileCatTmSegmentResponse = z.infer<typeof projectFileCatTmSegmentResponseSchema>;
+export type ProjectFileCatTmSegmentPatchBody = z.infer<
+  typeof projectFileCatTmSegmentPatchBodySchema
 >;
 export type ProjectFileContentEditorVisualContextBody = z.infer<
   typeof projectFileCatVisualContextBodySchema

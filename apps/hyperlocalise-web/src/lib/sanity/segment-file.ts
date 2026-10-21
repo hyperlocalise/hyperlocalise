@@ -95,6 +95,13 @@ export function isSanityPluginSourcePath(sourcePath: string): boolean {
   return sourcePath.startsWith(`${SANITY_PLUGIN_SOURCE_PATH_PREFIX}/`);
 }
 
+export function isSanityCatSourcePath(sourcePath: string): boolean {
+  return (
+    isSanityPluginSourcePath(sourcePath) ||
+    (sourcePath.startsWith("sanity/") && sourcePath.endsWith(".json"))
+  );
+}
+
 export function buildSanityDocumentSourcePath(input: {
   sanityProjectId: string;
   dataset: string;

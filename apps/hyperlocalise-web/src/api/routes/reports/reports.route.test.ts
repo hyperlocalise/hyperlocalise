@@ -118,6 +118,36 @@ describe("reports routes", () => {
     });
   });
 
+  it("serves word count totals and the job list, as JSON and CSV", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("localization_manager");
+    const headers = await fixture.authHeadersFor(identity);
+    const slug = identity.organization.slug ?? "missing-slug";
+
+    const totals = await app.request(reportsUrl(slug, "/word-counts?groupBy=job"), { headers });
+    expect(totals.status).toBe(200);
+    await expect(totals.json()).resolves.toMatchObject({
+      wordCounts: { rows: [], groupBy: "job" },
+    });
+
+    const csv = await app.request(reportsUrl(slug, "/word-counts?format=csv"), { headers });
+    expect(csv.status).toBe(200);
+    expect(csv.headers.get("content-type")).toContain("text/csv");
+    expect((await csv.text()).split("\r\n")[0]).toContain("analysedWords");
+
+    const jobs = await app.request(reportsUrl(slug, "/jobs"), { headers });
+    await expect(jobs.json()).resolves.toEqual({ jobs: [] });
+
+    const missing = await app.request(reportsUrl(slug, "/tasks/job_missing/match-analysis"), {
+      headers,
+    });
+    expect(missing.status).toBe(404);
+
+    const invalid = await app.request(reportsUrl(slug, "/word-counts?groupBy=person"), {
+      headers,
+    });
+    expect(invalid.status).toBe(400);
+  });
+
   it("denies report access when the feature flag is disabled", async () => {
     mocks.workspaceReportsFlagRunMock.mockResolvedValue(false);
     const identity = fixture.createWorkosIdentityWithRole("admin");

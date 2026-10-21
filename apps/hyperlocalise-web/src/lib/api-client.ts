@@ -75,6 +75,7 @@ function createOrgSlugClient(origin: string) {
       "canva-connections",
       "figma-connections",
       "sanity-connections",
+      "google-drive",
     ]),
     ...pickClientPaths(agents, [
       "agent-email",

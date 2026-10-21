@@ -10,9 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it } from "vite-plus/test";
+import { beforeEach, describe, expect, it } from "vite-plus/test";
 
-import { getAgentManifest, loadSharedSkill } from "@/agents/_runtime/loader";
+import {
+  clearAgentManifestCache,
+  getAgentManifest,
+  loadSharedSkill,
+} from "@/agents/_runtime/loader";
 import { WORKSPACE_ORCHESTRATOR_TOOL_NAMES } from "@/agents/automations/workspace/agent/plan";
 
 import {
@@ -27,6 +31,10 @@ import {
 } from "./workspace-automation-skills";
 
 describe("workspace automation skills", () => {
+  beforeEach(() => {
+    clearAgentManifestCache();
+  });
+
   it("has unique ids", () => {
     const ids = WORKSPACE_AUTOMATION_SKILLS.map((skill) => skill.id);
     expect(new Set(ids).size).toBe(ids.length);

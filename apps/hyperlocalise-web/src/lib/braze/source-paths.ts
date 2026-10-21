@@ -20,3 +20,7 @@ export function isBrazeTemplateSourcePath(sourcePath: string): boolean {
     sourcePath.startsWith("braze/templates/") || sourcePath.startsWith("braze/content-blocks/")
   );
 }
+
+export function isBrazeSourcePath(sourcePath: string): boolean {
+  return isBrazeCampaignSourcePath(sourcePath) || isBrazeTemplateSourcePath(sourcePath);
+}

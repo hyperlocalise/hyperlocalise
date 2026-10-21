@@ -16,6 +16,8 @@ import { siSanity } from "simple-icons";
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
 import type { ContentEditorPageNavigationGuardRef } from "@/components/content-editor/workspace/content-editor-page-navigation-guard";
+import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
+import { isSanityCatSourcePath } from "@/lib/sanity/segment-file";
 
 import { ContentEditorIngestButton } from "./content-editor-ingest-button";
 import {
@@ -28,23 +30,28 @@ export function ContentEditorSanityIngestButton({
   organizationSlug,
   projectId,
   canManageAutomations,
+  sourcePath = null,
   pageNavigationGuardRef,
 }: {
   organizationSlug: string;
   projectId: string;
   canManageAutomations: boolean;
+  sourcePath?: string | null;
   pageNavigationGuardRef?: ContentEditorPageNavigationGuardRef;
 }) {
+  const openSourcePath = isContentEditorAllFilesSourcePath(sourcePath) ? null : sourcePath;
+  const matchesFile = Boolean(openSourcePath && isSanityCatSourcePath(openSourcePath));
   return (
     <ContentEditorIngestButton
       organizationSlug={organizationSlug}
       projectId={projectId}
-      canManageAutomations={canManageAutomations}
-      queryKey={contentEditorSanityIngestQueryKey(organizationSlug, projectId)}
+      canManageAutomations={canManageAutomations && matchesFile}
+      queryKey={contentEditorSanityIngestQueryKey(organizationSlug, projectId, openSourcePath)}
       fetchCandidates={() =>
         fetchContentEditorSanityIngestCandidates({
           organizationSlug,
           projectId,
+          sourcePath: openSourcePath,
         })
       }
       invalidateKeys={[

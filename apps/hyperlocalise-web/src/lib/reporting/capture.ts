@@ -33,8 +33,11 @@ const MEMORY_SLICE_ENTRIES = 300_000;
  * index: building costs about as much as two or three scans over the same entries.
  */
 const MEMORY_INDEX_MIN_QUERIES = 4;
-/** Version 2: scores come from the in-memory bigram index on normalized text. */
-export const MATCH_ALGORITHM_VERSION = 2;
+/**
+ * Version 3: 100 only for an exact copy of the source text (as translation reuse requires),
+ * otherwise at most 99; candidates come from the in-memory bigram index on normalized text.
+ */
+export const MATCH_ALGORITHM_VERSION = 3;
 
 export async function reportingStart(database: DatabaseClient = db) {
   await database.insert(schema.reportingRollout).values({ id: 1 }).onConflictDoNothing();
@@ -178,7 +181,7 @@ export async function scoreAgainstMemory(
   let after: string | undefined;
   for (;;) {
     const rows = await db
-      .select({ id: schema.memoryEntries.id, source: schema.memoryEntries.normalizedSourceText })
+      .select({ id: schema.memoryEntries.id, source: schema.memoryEntries.sourceText })
       .from(schema.memoryEntries)
       .where(
         and(approvedMemoryEntries(input), after ? gt(schema.memoryEntries.id, after) : undefined),
@@ -229,6 +232,8 @@ type AnalysisInput = {
   sourceEntries: Record<string, string>;
   step?: "translation" | "review";
   billable?: boolean;
+  /** When each string's work was done, by segment id; recorded instead of the write time. */
+  occurredAt?: Record<string, Date>;
 };
 
 /**
@@ -344,6 +349,7 @@ async function writeReportingAnalysis(
         bucket: matchBucket(score, repetition),
         algorithmVersion: MATCH_ALGORITHM_VERSION,
         rateId: rate?.id,
+        createdAt: input.occurredAt?.[segmentId],
       };
     });
     for (let offset = 0; offset < rows.length; offset += REPORTING_BATCH_SIZE) {
@@ -457,6 +463,8 @@ type CompletionsInput = {
   step?: "translation" | "review";
   /** The person whose work this is; recorded on human completions. */
   actorUserId?: string | null;
+  /** When each string was finished, by segment id; recorded instead of the write time. */
+  occurredAt?: Record<string, Date>;
 };
 
 export async function captureCompletions(input: CompletionsInput, database: DatabaseClient = db) {
@@ -516,6 +524,7 @@ async function writeReportingCompletions(
         step,
         targetLocale: input.targetLocale,
         analysisId: analysis.id,
+        createdAt: input.occurredAt?.[analysis.segmentId],
       }));
     for (let offset = 0; offset < rows.length; offset += REPORTING_BATCH_SIZE) {
       await database
@@ -545,6 +554,7 @@ async function writeReportingCompletions(
         targetLocale: input.targetLocale,
         analysisId: analysis.id,
         actorUserId: input.actorUserId ?? null,
+        createdAt: input.occurredAt?.[analysis.segmentId],
       })
       // One completion per analysis and step: when a person finishes a string a job already
       // completed (a post-edit), the person is added to that completion rather than dropped.
@@ -592,6 +602,7 @@ async function writeReportingCompletions(
           rate && analysis.words !== null && analysis.bucket !== "unavailable"
             ? "rate"
             : "unpriced",
+        createdAt: input.occurredAt?.[analysis.segmentId],
       })
       .onConflictDoNothing();
   }

@@ -16,6 +16,9 @@ func TestEscapeXLIFFAttrValueEscapesControlAndAttributeWhitespace(t *testing.T) 
 		{name: "control character", in: "fr\x01", want: "fr\uFFFD"},
 		{name: "tab", in: "fr\tFR", want: "fr&#x9;FR"},
 		{name: "newline", in: "fr\nFR", want: "fr&#xA;FR"},
+		{name: "double quote", in: `fr"FR`, want: "fr&#34;FR"},
+		{name: "single quote", in: "fr'FR", want: "fr&#39;FR"},
+		{name: "both quotes", in: `fr"'FR`, want: "fr&#34;&#39;FR"},
 	}
 
 	for _, tt := range tests {
@@ -38,6 +41,16 @@ func TestMarshalXLIFFEscapesForbiddenLocaleCharacters(t *testing.T) {
 	}
 	if _, err := readXLIFF(out); err != nil {
 		t.Fatalf("marshaled XLIFF must remain parseable: %v", err)
+	}
+}
+
+func TestXliffQuotedAttrKeepsValueInsideOneAttribute(t *testing.T) {
+	got := xliffQuotedAttr("target-language", `fr" injected="yes`)
+	if got != ` target-language="fr&#34; injected=&#34;yes"` {
+		t.Fatalf("xliffQuotedAttr = %q", got)
+	}
+	if strings.Count(got, `"`) != 2 {
+		t.Fatalf("quoted attribute must use exactly two delimiters, got %q", got)
 	}
 }
 

@@ -28,6 +28,7 @@ import {
 import { queueIntercomPushRun } from "@/lib/intercom/queue-intercom-push-run";
 import { buildAutomationsDetailHref } from "@/lib/navigation/workspace-automation-editor-tab";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
+import { isIntercomSourcePath } from "@/lib/intercom/source-path";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
 import { ContentEditorIntercomPushDialog } from "./content-editor-intercom-push-dialog";
@@ -58,13 +59,15 @@ export function ContentEditorIntercomPushButton({
   const openSourcePath = isContentEditorAllFilesSourcePath(sourcePath) ? null : sourcePath;
 
   const candidatesQuery = useQuery({
-    queryKey: contentEditorIntercomPushQueryKey(organizationSlug, projectId),
+    queryKey: contentEditorIntercomPushQueryKey(organizationSlug, projectId, openSourcePath),
     queryFn: () =>
       fetchContentEditorIntercomPushCandidates({
         organizationSlug,
         projectId,
+        sourcePath: openSourcePath,
       }),
-    enabled: canManageAutomations,
+    enabled:
+      canManageAutomations && Boolean(openSourcePath && isIntercomSourcePath(openSourcePath)),
   });
 
   const navigateToPushRunHistory = (automationId: string) => {

@@ -24,6 +24,7 @@ import {
   ContentEditorMessagePreview,
   ContentEditorTargetEditor,
 } from "./content-editor-target-editor";
+import { insertTextIntoActiveContentEditorTarget } from "./content-editor-target-insert";
 
 const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
 const md1 = "\u001eHLMDPH_0EB5FD589564_1\u001f";
@@ -34,6 +35,22 @@ const HELP_CENTER_URL =
   "https://www.intercom.com/help/en/articles/56644-customize-your-help-center";
 const MULTI_HELP_URL =
   "https://www.intercom.com/help/en/articles/8170953-create-and-manage-multiple-help-centers";
+
+describe("ContentEditorMessagePreview office tokens", () => {
+  it("shows one line per formatting run without OX labels", () => {
+    const open = "\u001eHLOXPH_6F30_0\u001f";
+    const close = "\u001eHLOXPH_6330_1\u001f";
+
+    renderWithContentEditorProviders(
+      <ContentEditorMessagePreview message={`${open}Serves ${close}8 people`} />,
+    );
+
+    expect(screen.getByText("Serves")).toBeInTheDocument();
+    expect(screen.getByText("8 people")).toBeInTheDocument();
+    expect(screen.queryByText(/OX#/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/HLOXPH_/)).not.toBeInTheDocument();
+  });
+});
 
 describe("ContentEditorMessagePreview markdown display", () => {
   it("hides Intercom heading ids", () => {
@@ -119,6 +136,39 @@ describe("ContentEditorTargetEditor markdown display", () => {
     expect(screen.queryByRole("button", { name: "MD#0" })).not.toBeInTheDocument();
   });
 
+  it("hides Office formatting tokens and restores them on save", async () => {
+    const open = "\u001eHLOXPH_6F30_0\u001f";
+    const close = "\u001eHLOXPH_6330_1\u001f";
+    const sourceText = `${open}Serves ${close}8 people`;
+    const onChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorTargetEditor
+        sourceText={sourceText}
+        value={`${open}4人分${close}8人`}
+        onChange={onChange}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("4人分")).toBeInTheDocument();
+      expect(screen.getByText("8人")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/OX#/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Required tokens")).not.toBeInTheDocument();
+
+    const editor = document.querySelector(".tiptap") as HTMLElement;
+    const user = userEvent.setup();
+    await user.click(editor);
+    await user.type(editor, "!");
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+    const lastValue = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(lastValue).toBe(`${open}4人分${close}8人!`);
+  });
+
   it("keeps ICU required tokens while hiding markdown link tokens", async () => {
     renderWithContentEditorProviders(
       <ContentEditorTargetEditor
@@ -164,5 +214,29 @@ describe("ContentEditorTargetEditor markdown display", () => {
     expect(lastValue).toMatch(/^Nutzen Sie Articles als Grundlage!/);
     expect(lastValue).toContain(md0);
     expect(lastValue).not.toContain("#h_8b76258d80");
+  });
+});
+
+describe("ContentEditorTargetEditor unicode insert", () => {
+  it("inserts a registry character at the cursor", async () => {
+    const onChange = vi.fn();
+    renderWithContentEditorProviders(
+      <ContentEditorTargetEditor sourceText="Hello" value="Hello" onChange={onChange} />,
+    );
+
+    const editor = await waitFor(() => {
+      const node = document.querySelector(".tiptap");
+      expect(node).toBeTruthy();
+      return node as HTMLElement;
+    });
+
+    const user = userEvent.setup();
+    await user.click(editor);
+    expect(insertTextIntoActiveContentEditorTarget("€")).toBe(true);
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+    expect(onChange.mock.calls.at(-1)?.[0]).toContain("€");
   });
 });

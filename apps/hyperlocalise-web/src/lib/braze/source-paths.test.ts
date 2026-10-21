@@ -12,7 +12,11 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { isBrazeCampaignSourcePath, isBrazeTemplateSourcePath } from "./source-paths";
+import {
+  isBrazeCampaignSourcePath,
+  isBrazeSourcePath,
+  isBrazeTemplateSourcePath,
+} from "./source-paths";
 
 describe("braze source path helpers", () => {
   it("classifies campaign and Canvas paths without server-only imports", () => {
@@ -25,5 +29,11 @@ describe("braze source path helpers", () => {
     expect(isBrazeTemplateSourcePath("braze/templates/welcome-email.html")).toBe(true);
     expect(isBrazeTemplateSourcePath("braze/content-blocks/hero-promo.html")).toBe(true);
     expect(isBrazeTemplateSourcePath("braze/campaigns/welcome/email-a.json")).toBe(false);
+  });
+
+  it("matches any Braze CAT file", () => {
+    expect(isBrazeSourcePath("braze/templates/welcome-email.html")).toBe(true);
+    expect(isBrazeSourcePath("braze/campaigns/welcome/email-a.json")).toBe(true);
+    expect(isBrazeSourcePath("locales/en.json")).toBe(false);
   });
 });

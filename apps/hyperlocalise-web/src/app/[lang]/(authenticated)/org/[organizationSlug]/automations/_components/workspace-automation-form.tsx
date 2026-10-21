@@ -52,6 +52,7 @@ import {
   siContentful,
   siIntercom,
   siSanity,
+  siGoogledrive,
 } from "simple-icons";
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
@@ -109,6 +110,8 @@ import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
 import { BRAZE_PIPES_SLUG } from "@/lib/braze/constants";
 import { INTERCOM_PIPES_SLUG } from "@/lib/intercom/constants";
 import { SANITY_PIPES_SLUG } from "@/lib/sanity/constants";
+import { GOOGLE_DRIVE_PIPES_SLUG } from "@/lib/google-drive/constants";
+import { WorkspaceAutomationGoogleDriveSettings } from "./workspace-automation-google-drive-settings";
 import type { WorkspaceAutomationEditorTab } from "@/lib/navigation/workspace-automation-editor-tab";
 import { GITLAB_PIPES_SLUG } from "@/lib/gitlab/constants";
 import { createApiClient } from "@/lib/api-client";
@@ -1596,6 +1599,7 @@ const SKILL_INTEGRATION_LABELS: Record<WorkspaceAutomationSkillIntegration, Mess
   contentful: workspaceAutomationFormMessages.skillIntegrationContentful,
   intercom: workspaceAutomationFormMessages.skillIntegrationIntercom,
   sanity: workspaceAutomationFormMessages.skillIntegrationSanity,
+  google_drive: workspaceAutomationFormMessages.skillIntegrationGoogleDrive,
   braze: workspaceAutomationFormMessages.skillIntegrationBraze,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
@@ -1963,6 +1967,7 @@ function ToolsSettings({
   repositories,
   ahrefsConnected,
   intercomConnected,
+  googleDriveConnected,
   sanityConnected,
   brazeConnected,
   semrushConnections,
@@ -1990,6 +1995,7 @@ function ToolsSettings({
   repositories: GithubRepositoryOption[];
   ahrefsConnected: boolean;
   intercomConnected: boolean;
+  googleDriveConnected: boolean;
   sanityConnected: boolean;
   brazeConnected: boolean;
   semrushConnections: SemrushConnectionOption[];
@@ -2690,6 +2696,40 @@ function ToolsSettings({
               onChange={onChange}
             />
             <FieldError message={errors.intercom} />
+          </EditorRow>
+        ) : null}
+
+        {form.googleDriveEnabled ? (
+          <EditorRow
+            icon={<AutomationToolMenuIcon icon={siGoogledrive} />}
+            tone="external"
+            title={
+              <>
+                <span>Google Drive files</span>
+                {!googleDriveConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import selected Drive folders and files into the project, translate in the Content editor, then push locale copies back to Drive."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_google_drive_files")}
+                label="Remove Google Drive"
+                onClick={() => onChange({ ...form, googleDriveEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationGoogleDriveSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              setForm={onChange}
+              fieldErrors={errors}
+            />
+            <FieldError message={errors.googleDrive} />
           </EditorRow>
         ) : null}
 
@@ -3660,6 +3700,23 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const googleDrivePipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, GOOGLE_DRIVE_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: GOOGLE_DRIVE_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Google Drive connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
   const ahrefsPipesQuery = useQuery({
     queryKey: ["pipes", organizationSlug, AHREFS_PIPES_SLUG],
     queryFn: async () => {
@@ -3734,6 +3791,7 @@ export function WorkspaceAutomationEditor({
   const ahrefsConnected = Boolean(ahrefsPipesQuery.data?.connected);
   const intercomConnected = Boolean(intercomPipesQuery.data?.connected);
   const sanityConnected = Boolean(sanityPipesQuery.data?.connected);
+  const googleDriveConnected = Boolean(googleDrivePipesQuery.data?.connected);
   const brazeConnected = Boolean(brazePipesQuery.data?.connected);
   const gitlabConnected = Boolean(gitlabPipesQuery.data?.connected);
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
@@ -3761,6 +3819,7 @@ export function WorkspaceAutomationEditor({
     contentful: contentfulConnectionsQuery.isSuccess ? contentfulConnected : undefined,
     intercom: intercomPipesQuery.isSuccess ? intercomConnected : undefined,
     sanity: sanityPipesQuery.isSuccess ? sanityConnected : undefined,
+    google_drive: googleDrivePipesQuery.isSuccess ? googleDriveConnected : undefined,
     braze: brazePipesQuery.isSuccess ? brazeConnected : undefined,
     slack: slackQuery.isSuccess ? slackConnected : undefined,
     email: emailConnected
@@ -4010,6 +4069,7 @@ export function WorkspaceAutomationEditor({
             repositories={repositories}
             ahrefsConnected={ahrefsConnected}
             intercomConnected={intercomConnected}
+            googleDriveConnected={googleDriveConnected}
             sanityConnected={sanityConnected}
             brazeConnected={brazeConnected}
             semrushConnections={semrushConnections}

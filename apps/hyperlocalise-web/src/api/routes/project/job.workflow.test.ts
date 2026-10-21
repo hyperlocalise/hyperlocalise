@@ -44,6 +44,16 @@ import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 import { createProjectTestFixture } from "./project.fixture";
 
+const resolveWorkspaceReportsFlagMock = vi.hoisted(() => vi.fn(async () => false));
+
+vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
+  return {
+    ...actual,
+    resolveWorkspaceReportsFlag: resolveWorkspaceReportsFlagMock,
+  };
+});
+
 const projectFixture = createProjectTestFixture();
 
 async function insertProviderCredential(input: {
@@ -78,6 +88,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
   vi.clearAllMocks();
+  resolveWorkspaceReportsFlagMock.mockResolvedValue(false);
   await projectFixture.cleanup();
 });
 
@@ -228,6 +239,69 @@ describe("translation job workflow helpers", () => {
     expect(storedJob?.completedAt).toBeTruthy();
   });
 
+  it("records every requested language of a finished string job for Reports", async () => {
+    resolveWorkspaceReportsFlagMock.mockResolvedValue(true);
+    const { project, user } = await projectFixture.createStoredProjectFixture();
+    const job = await insertJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Your invoice is ready",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR", "de-DE", "ja-JP"],
+      },
+    });
+
+    // The model leaves ja-JP out and adds a language it was not asked for.
+    await executeTranslationJob({
+      runId: `run_${randomUUID()}`,
+      event: { kind: "translation", jobId: job.id, projectId: project.id, type: "string" },
+      async translateStringJob() {
+        return {
+          translations: [
+            { locale: "fr-FR", text: "Votre facture est prête" },
+            { locale: "de-DE", text: "" },
+            { locale: "es", text: "Tu factura está lista" },
+          ],
+        };
+      },
+    });
+
+    const analyses = await db
+      .select({
+        targetLocale: schema.reportingAnalyses.targetLocale,
+        words: schema.reportingAnalyses.words,
+      })
+      .from(schema.reportingAnalyses)
+      .where(eq(schema.reportingAnalyses.jobId, job.id));
+    expect(analyses.sort((a, b) => a.targetLocale.localeCompare(b.targetLocale))).toEqual([
+      { targetLocale: "de-DE", words: 4 },
+      { targetLocale: "fr-FR", words: 4 },
+      { targetLocale: "ja-JP", words: 4 },
+    ]);
+
+    const activity = await db
+      .select({
+        kind: schema.reportingActivity.kind,
+        status: schema.reportingActivity.status,
+        targetLocale: schema.reportingActivity.targetLocale,
+      })
+      .from(schema.reportingActivity)
+      .where(eq(schema.reportingActivity.jobId, job.id));
+    expect(activity.filter((row) => row.kind === "completion")).toEqual([
+      { kind: "completion", status: null, targetLocale: "fr-FR" },
+    ]);
+    expect(
+      activity
+        .filter((row) => row.kind === "status")
+        .map((row) => row.status ?? "")
+        .sort((a, b) => a.localeCompare(b)),
+    ).toEqual(["running", "succeeded"]);
+  });
+
   it("carries the knowledge memory capability from the event into translation context", async () => {
     const { organization, project, user } = await projectFixture.createStoredProjectFixture();
     await db.insert(schema.knowledgeMemories).values({
@@ -352,6 +426,43 @@ describe("translation job workflow helpers", () => {
         },
       }),
     ).rejects.toThrow("is not owned by workflow run run_stale");
+  });
+
+  it("records a failed job's failure for Reports so it does not stay running there", async () => {
+    resolveWorkspaceReportsFlagMock.mockResolvedValue(true);
+    const { project, user } = await projectFixture.createStoredProjectFixture();
+    const job = await insertJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "running",
+      workflowRunId: "run_failing",
+      inputPayload: {
+        sourceText: "Hello world",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+
+    await failTranslationJob({
+      jobId: job.id,
+      projectId: project.id,
+      workflowRunId: "run_failing",
+      code: "provider_unavailable",
+      message: "provider unavailable",
+    });
+
+    const statuses = await db
+      .select({ status: schema.reportingActivity.status })
+      .from(schema.reportingActivity)
+      .where(
+        and(
+          eq(schema.reportingActivity.jobId, job.id),
+          eq(schema.reportingActivity.kind, "status"),
+        ),
+      );
+    expect(statuses).toEqual([{ status: "failed" }]);
   });
 
   it("does not fail a job owned by another workflow run", async () => {

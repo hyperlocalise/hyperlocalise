@@ -14,6 +14,7 @@
  */
 import { toast } from "sonner";
 import { invalidateContentEditorBrazePushQueries } from "@/components/content-editor/page/content-editor-braze-push-queries";
+import { invalidateContentEditorGoogleDrivePushQueries } from "@/components/content-editor/page/content-editor-google-drive-push-queries";
 import { invalidateContentEditorIntercomPushQueries } from "@/components/content-editor/page/content-editor-intercom-push-queries";
 import { invalidateContentEditorSanityPushQueries } from "@/components/content-editor/page/content-editor-sanity-push-queries";
 
@@ -67,8 +68,11 @@ import type {
   ContentEditorSegmentIntelligence,
 } from "@/components/content-editor/shared/types";
 import {
+  canUseGoSvcCat,
   isContentEditorGroupingAvailable,
+  isExternalTmsContentEditorProject,
   isNativeContentEditorFile,
+  type ContentEditorProjectSource,
 } from "@/components/content-editor/shared/content-editor-native-project";
 import { ContentEditorGroupingView } from "../groups/content-editor-grouping-view";
 import type {
@@ -141,6 +145,7 @@ function toServerQueueFilterForExport(filter: ContentEditorQueueFilter) {
 export function ProjectFileContentEditorWorkspace({
   organizationSlug,
   projectId,
+  projectSource,
   sourceLocale,
   sourcePath,
   externalResourceId = null,
@@ -166,6 +171,7 @@ export function ProjectFileContentEditorWorkspace({
 }: {
   organizationSlug: string;
   projectId: string;
+  projectSource?: ContentEditorProjectSource;
   sourceLocale: string;
   sourcePath: string;
   externalResourceId?: string | null;
@@ -192,13 +198,24 @@ export function ProjectFileContentEditorWorkspace({
   const intl = useIntl();
   const queryClient = useQueryClient();
   const { client: goSvcClient } = useGoSvcClient();
+  const isExternalProject = isExternalTmsContentEditorProject({
+    projectId,
+    projectSource,
+  });
+  const catGoSvcClient = canUseGoSvcCat({
+    projectId,
+    projectSource,
+    externalResourceId,
+  })
+    ? goSvcClient
+    : undefined;
   const qaPolicyQuery = useQuery({
     queryKey: ["project-qa-reports", organizationSlug, projectId],
     queryFn: () =>
       createProjectQaReportClient(goSvcClient).listReports({
         param: { organizationSlug, projectId },
       }),
-    enabled: Boolean(organizationSlug && projectId),
+    enabled: Boolean(organizationSlug && projectId) && !isExternalProject,
     staleTime: 30_000,
   });
   const qaPolicy = qaPolicyQuery.data?.settings.checks ?? DEFAULT_QA_POLICY;
@@ -250,7 +267,7 @@ export function ProjectFileContentEditorWorkspace({
   const showLocaleSelector = !targetLocaleProp && (targetLocales?.length ?? 0) > 0;
   // Decided before the queue loads so the grouped flag never flips the queue key mid-load.
   const groupingSupported =
-    !externalResourceId && isContentEditorGroupingAvailable({ provider: null }, sourcePath);
+    Boolean(catGoSvcClient) && isContentEditorGroupingAvailable({ provider: null }, sourcePath);
   const groupingMode = useContentEditorGroupingMode({
     client: goSvcClient,
     organizationSlug,
@@ -304,7 +321,8 @@ export function ProjectFileContentEditorWorkspace({
     initialQueueFilterQualifier,
     initialQueueAdvanced,
     pageLimit,
-    goSvcClient,
+    goSvcClient: catGoSvcClient,
+    projectSource,
     sourcePaths: sourcePathsFilter,
     grouped: isGrouped,
   });
@@ -431,12 +449,13 @@ export function ProjectFileContentEditorWorkspace({
   } = useContentEditorMutations({
     organizationSlug,
     projectId,
+    projectSource,
     sourcePath,
     targetLocale,
     contentEditorFile,
     retainedSegmentIdentityRef,
     invalidateQueue,
-    goSvcClient,
+    goSvcClient: catGoSvcClient,
     groupScope: isGrouped
       ? {
           sourcePath,
@@ -517,7 +536,7 @@ export function ProjectFileContentEditorWorkspace({
     ],
   );
 
-  const isNativeProject = isNativeContentEditorFile(contentEditorFile);
+  const isNativeProject = !isExternalProject && isNativeContentEditorFile(contentEditorFile);
   const glossaryTermsForQaGate = useCallback(
     async (sourceText: string, targetLocale: string): Promise<ContentEditorGlossaryTerm[]> => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
@@ -657,6 +676,7 @@ export function ProjectFileContentEditorWorkspace({
             invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
             invalidateContentEditorSanityPushQueries(queryClient, organizationSlug, projectId);
             invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
+            invalidateContentEditorGoogleDrivePushQueries(queryClient, organizationSlug, projectId);
             return "reviewed" as const;
           } catch (error) {
             if (!isCatDeferredToApp(error)) {
@@ -681,6 +701,7 @@ export function ProjectFileContentEditorWorkspace({
         invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
         invalidateContentEditorSanityPushQueries(queryClient, organizationSlug, projectId);
         invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
+        invalidateContentEditorGoogleDrivePushQueries(queryClient, organizationSlug, projectId);
         return "reviewed" as const;
       }
 
@@ -698,6 +719,7 @@ export function ProjectFileContentEditorWorkspace({
         invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
         invalidateContentEditorSanityPushQueries(queryClient, organizationSlug, projectId);
         invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
+        invalidateContentEditorGoogleDrivePushQueries(queryClient, organizationSlug, projectId);
         return "reviewed";
       }
       return "needs_review";
@@ -727,6 +749,7 @@ export function ProjectFileContentEditorWorkspace({
     invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
     invalidateContentEditorSanityPushQueries(queryClient, organizationSlug, projectId);
     invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
+    invalidateContentEditorGoogleDrivePushQueries(queryClient, organizationSlug, projectId);
   }, [invalidateQueue, organizationSlug, projectId, queryClient]);
 
   const isKeyedDocumentFileView = (segmentId: string) =>

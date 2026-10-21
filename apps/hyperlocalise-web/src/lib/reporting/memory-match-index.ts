@@ -46,6 +46,22 @@ export function sourceSimilarity(left: string, right: string): number {
   return Math.floor(100 * (1 - previous[b.length] / longest));
 }
 
+/**
+ * The match score Reports records. 100 means the memory holds exactly this source text, the
+ * rule translation reuse applies before filling in a stored translation (`file-memory.ts`).
+ * Anything else, including text that differs only in case or spacing, scores at most 99.
+ */
+export function memoryMatchScore(sourceText: string, entrySourceText: string): number {
+  if (sourceText === entrySourceText) return 100;
+  return Math.min(
+    99,
+    sourceSimilarity(
+      normalizeTranslationMemorySourceText(sourceText),
+      normalizeTranslationMemorySourceText(entrySourceText),
+    ),
+  );
+}
+
 function bigrams(text: string): Set<string> {
   const chars = Array.from(text);
   const grams = new Set<string>();
@@ -164,20 +180,23 @@ export class MemoryMatchIndex {
   private readonly entries: string[] = [];
   private readonly lengths: number[] = [];
   private readonly gramCounts: number[] = [];
+  /** Raw source texts: only an exact copy is a 100% match. */
   private readonly exact = new Set<string>();
+  private readonly normalizedSeen = new Set<string>();
   private readonly postings = new Map<string, number[]>();
   /** Entries short enough to be compared with a short query, by length. */
   private readonly shortIdsByLength = new Map<number, number[]>();
 
   constructor(sourceTexts: Iterable<string>) {
     for (const text of sourceTexts) {
+      this.exact.add(text);
       const normalized = normalizeTranslationMemorySourceText(text);
-      if (this.exact.has(normalized)) continue;
+      if (this.normalizedSeen.has(normalized)) continue;
+      this.normalizedSeen.add(normalized);
       const id = this.entries.length;
       const length = Array.from(normalized).length;
       this.entries.push(normalized);
       this.lengths.push(length);
-      this.exact.add(normalized);
       if (length * MIN_LENGTH_RATIO <= SHORT_QUERY_LENGTH) {
         let ids = this.shortIdsByLength.get(length);
         if (!ids) this.shortIdsByLength.set(length, (ids = []));
@@ -197,10 +216,10 @@ export class MemoryMatchIndex {
     return this.entries.length;
   }
 
-  /** The best similarity score for the query, 0 to 100. */
+  /** The best match score for the query, 0 to 100; see `memoryMatchScore`. */
   bestScore(sourceText: string): number {
+    if (this.exact.has(sourceText)) return 100;
     const query = normalizeTranslationMemorySourceText(sourceText);
-    if (this.exact.has(query)) return 100;
     const counts = new Map<number, number>();
     const queryGrams = bigrams(query);
     for (const gram of queryGrams) {
@@ -216,13 +235,16 @@ export class MemoryMatchIndex {
     }));
     const queryLength = Array.from(query).length;
     const score = bestCandidateScore(query, queryLength, queryGrams.size, candidates);
-    return shortQueryScore(
-      query,
-      queryLength,
-      score,
-      this.shortIdsWithin(queryLength),
-      this.entries,
-      this.lengths,
+    return Math.min(
+      99,
+      shortQueryScore(
+        query,
+        queryLength,
+        score,
+        this.shortIdsWithin(queryLength),
+        this.entries,
+        this.lengths,
+      ),
     );
   }
 
@@ -256,23 +278,26 @@ export class MemorySourceScan {
   private readonly entries: string[] = [];
   private readonly lengths: number[] = [];
   private readonly gramCounts: number[] = [];
+  /** Raw source texts: only an exact copy is a 100% match. */
   private readonly exact = new Set<string>();
+  private readonly normalizedSeen = new Set<string>();
 
   constructor(sourceTexts: Iterable<string>) {
     for (const text of sourceTexts) {
+      this.exact.add(text);
       const normalized = normalizeTranslationMemorySourceText(text);
-      if (this.exact.has(normalized)) continue;
+      if (this.normalizedSeen.has(normalized)) continue;
+      this.normalizedSeen.add(normalized);
       this.entries.push(normalized);
       this.lengths.push(Array.from(normalized).length);
       this.gramCounts.push(bigramKeys(normalized).length);
-      this.exact.add(normalized);
     }
   }
 
-  /** The best similarity score for the query, 0 to 100. */
+  /** The best match score for the query, 0 to 100; see `memoryMatchScore`. */
   bestScore(sourceText: string): number {
+    if (this.exact.has(sourceText)) return 100;
     const query = normalizeTranslationMemorySourceText(sourceText);
-    if (this.exact.has(query)) return 100;
     const queryLength = Array.from(query).length;
     const slots = new Map(bigramKeys(query).map((key, slot) => [key, slot]));
     const lastSeen = new Int32Array(slots.size).fill(-1);
@@ -303,13 +328,9 @@ export class MemorySourceScan {
       if (shared > 0) candidates.push({ text, length, grams: this.gramCounts[id], shared });
     }
     const score = bestCandidateScore(query, queryLength, slots.size, candidates);
-    return shortQueryScore(
-      query,
-      queryLength,
-      score,
-      this.entries.keys(),
-      this.entries,
-      this.lengths,
+    return Math.min(
+      99,
+      shortQueryScore(query, queryLength, score, this.entries.keys(), this.entries, this.lengths),
     );
   }
 }

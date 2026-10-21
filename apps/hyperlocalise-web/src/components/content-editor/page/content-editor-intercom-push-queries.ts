@@ -15,6 +15,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { createAutomationsApi } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/automations-api";
 import { apiClient } from "@/lib/api-client-instance";
 import { hasWorkspaceAutomationIntercomTool } from "@/lib/agents/workspace-automation-types";
+import { isIntercomSourcePath } from "@/lib/intercom/source-path";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 export type ContentEditorIntercomPushCandidate = {
@@ -43,8 +44,14 @@ export function contentEditorIntercomPushArticlesQueryKey(
   return ["content-editor-intercom-push-articles", organizationSlug, automationId] as const;
 }
 
-export function contentEditorIntercomPushQueryKey(organizationSlug: string, projectId: string) {
-  return ["content-editor-intercom-push", organizationSlug, projectId] as const;
+export function contentEditorIntercomPushQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  sourcePath?: string | null,
+) {
+  return sourcePath
+    ? (["content-editor-intercom-push", organizationSlug, projectId, sourcePath] as const)
+    : (["content-editor-intercom-push", organizationSlug, projectId] as const);
 }
 
 export function invalidateContentEditorIntercomPushQueries(
@@ -63,7 +70,11 @@ const INTERCOM_PUSH_DETAIL_CONCURRENCY = 3;
 export async function fetchContentEditorIntercomPushCandidates(input: {
   organizationSlug: string;
   projectId: string;
+  sourcePath?: string | null;
 }): Promise<ContentEditorIntercomPushCandidate[]> {
+  if (!input.sourcePath || !isIntercomSourcePath(input.sourcePath)) {
+    return [];
+  }
   let automations;
   try {
     automations = await automationsApi.listAutomations(input.organizationSlug, {
@@ -122,14 +133,24 @@ export type ContentEditorIntercomIngestCandidate = {
   runInProgress: boolean;
 };
 
-export function contentEditorIntercomIngestQueryKey(organizationSlug: string, projectId: string) {
-  return ["content-editor-intercom-ingest", organizationSlug, projectId] as const;
+export function contentEditorIntercomIngestQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  sourcePath?: string | null,
+) {
+  return sourcePath
+    ? (["content-editor-intercom-ingest", organizationSlug, projectId, sourcePath] as const)
+    : (["content-editor-intercom-ingest", organizationSlug, projectId] as const);
 }
 
 export async function fetchContentEditorIntercomIngestCandidates(input: {
   organizationSlug: string;
   projectId: string;
+  sourcePath?: string | null;
 }): Promise<ContentEditorIntercomIngestCandidate[]> {
+  if (!input.sourcePath || !isIntercomSourcePath(input.sourcePath)) {
+    return [];
+  }
   let automations;
   try {
     automations = await automationsApi.listAutomations(input.organizationSlug, {

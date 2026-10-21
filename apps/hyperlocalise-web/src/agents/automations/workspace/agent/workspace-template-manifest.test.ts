@@ -168,6 +168,7 @@ describe("workspace template manifest", () => {
       "translate-on-source-upload",
       "translate-intercom-articles",
       "translate-sanity-documents",
+      "translate-google-drive-files",
       "translate-braze-email-templates",
       "translate-braze-campaigns",
       "translate-contentful-article",

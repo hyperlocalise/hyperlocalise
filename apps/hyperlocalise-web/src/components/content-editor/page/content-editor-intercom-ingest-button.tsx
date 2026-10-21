@@ -16,6 +16,8 @@ import { siIntercom } from "simple-icons";
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
 import type { ContentEditorPageNavigationGuardRef } from "@/components/content-editor/workspace/content-editor-page-navigation-guard";
+import { isIntercomSourcePath } from "@/lib/intercom/source-path";
+import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
 import { ContentEditorIngestButton } from "./content-editor-ingest-button";
 import {
@@ -28,23 +30,28 @@ export function ContentEditorIntercomIngestButton({
   organizationSlug,
   projectId,
   canManageAutomations,
+  sourcePath = null,
   pageNavigationGuardRef,
 }: {
   organizationSlug: string;
   projectId: string;
   canManageAutomations: boolean;
+  sourcePath?: string | null;
   pageNavigationGuardRef?: ContentEditorPageNavigationGuardRef;
 }) {
+  const openSourcePath = isContentEditorAllFilesSourcePath(sourcePath) ? null : sourcePath;
+  const matchesFile = Boolean(openSourcePath && isIntercomSourcePath(openSourcePath));
   return (
     <ContentEditorIngestButton
       organizationSlug={organizationSlug}
       projectId={projectId}
-      canManageAutomations={canManageAutomations}
-      queryKey={contentEditorIntercomIngestQueryKey(organizationSlug, projectId)}
+      canManageAutomations={canManageAutomations && matchesFile}
+      queryKey={contentEditorIntercomIngestQueryKey(organizationSlug, projectId, openSourcePath)}
       fetchCandidates={() =>
         fetchContentEditorIntercomIngestCandidates({
           organizationSlug,
           projectId,
+          sourcePath: openSourcePath,
         })
       }
       invalidateKeys={[

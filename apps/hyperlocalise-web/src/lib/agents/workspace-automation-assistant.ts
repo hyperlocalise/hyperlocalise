@@ -91,6 +91,7 @@ const INTEGRATIONS: readonly WorkspaceAutomationSkillIntegration[] = [
   "contentful",
   "intercom",
   "sanity",
+  "google_drive",
   "braze",
   "slack",
   "email",
@@ -128,7 +129,17 @@ export const automationSetupChangeLineSchema = z.discriminatedUnion("kind", [
     reason: z.enum(["needs_connection", "wrong_trigger"]),
     /** Integrations to connect before the skill can be attached. */
     integrations: z.array(
-      z.enum(["github", "crowdin", "contentful", "intercom", "sanity", "braze", "slack", "email"]),
+      z.enum([
+        "github",
+        "crowdin",
+        "contentful",
+        "intercom",
+        "sanity",
+        "google_drive",
+        "braze",
+        "slack",
+        "email",
+      ]),
     ),
   }),
 ]);

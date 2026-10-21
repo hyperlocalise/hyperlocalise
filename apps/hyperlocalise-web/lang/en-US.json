@@ -2547,10 +2547,6 @@
     "defaultMessage": "Name",
     "description": "Column header for access token name"
   },
-  "2RA1MDUmR3": {
-    "defaultMessage": "Source locale: {locale}",
-    "description": "Shows the project source locale in the create translation job dialog"
-  },
   "2RORR1xT6r": {
     "defaultMessage": "Retry",
     "description": "Retry policy node title"
@@ -14927,6 +14923,10 @@
     "defaultMessage": "Hyperlocalise updated the Contentful webhook configuration.",
     "description": "Toast description when an existing Contentful webhook is updated"
   },
+  "Oipi2K2qqU": {
+    "defaultMessage": "Remove {locale}",
+    "description": "Accessible label for removing a selected target locale chip"
+  },
   "OjbR5imOsw": {
     "defaultMessage": "Clear. Human. Confident.",
     "description": "Supporting note in the brand guidance illustration"
@@ -21367,6 +21367,10 @@
     "defaultMessage": "detached a glossary from a project",
     "description": "Action for detaching a glossary from a project"
   },
+  "aS5dF6gH7j": {
+    "defaultMessage": "Search unicode symbols",
+    "description": "Accessible label for the CAT unicode character search field"
+  },
   "aSYebYY/zD": {
     "defaultMessage": "Share of visitors",
     "description": "Label for rollout percentage"
@@ -21690,6 +21694,10 @@
   "b6mAqVt2e8": {
     "defaultMessage": "Provider",
     "description": "Label for the provider provenance field"
+  },
+  "b7Lm2vN9sE": {
+    "defaultMessage": "Commonly used",
+    "description": "Category label for translator-essential unicode characters"
   },
   "b7cQsDBNuy": {
     "defaultMessage": "Format",
@@ -26979,6 +26987,10 @@
     "defaultMessage": "Maya Chen",
     "description": "Marketing teammate name in the Slack launch intake mock"
   },
+  "k2nP8wQ1Lm": {
+    "defaultMessage": "Source locale",
+    "description": "Label for the project source locale in the create translation job dialog"
+  },
   "k3TrZpmKkB": {
     "defaultMessage": "Jobs created and tracked in this workspace.",
     "description": "Description under the native jobs section title"
@@ -28715,6 +28727,14 @@
     "defaultMessage": "Add case",
     "description": "Button to add a switch case"
   },
+  "n4pQ8xR2uK": {
+    "defaultMessage": "Unicode",
+    "description": "Section heading for the CAT unicode character table"
+  },
+  "n4rT6yU3Xz": {
+    "defaultMessage": "Target locales",
+    "description": "Label for the target locale multi-select in the create translation job dialog"
+  },
   "n5ZuB985rS": {
     "defaultMessage": "Longer drafts and review",
     "description": "Summary for Claude Sonnet on the pricing page"
@@ -29951,6 +29971,10 @@
     "defaultMessage": "Source & context",
     "description": "Issue list view preset for source and context issues"
   },
+  "p8vB1cE5Qa": {
+    "defaultMessage": "Search locales…",
+    "description": "Search placeholder for the target locale multi-select"
+  },
   "p97Cor56nd": {
     "defaultMessage": "Members",
     "description": "App shell breadcrumb title for the members page"
@@ -30050,6 +30074,10 @@
   "pKzlTiRlHt": {
     "defaultMessage": "Members",
     "description": "Group label for assignable workspace members"
+  },
+  "pL1kJ8hG6f": {
+    "defaultMessage": "Insert {name} ({code})",
+    "description": "Accessible label for a unicode character button in the CAT table"
   },
   "pM8pgX4u47": {
     "defaultMessage": "This removes the saved encrypted provider credentials. Reconnecting this provider will require entering the secret again.",
@@ -30839,6 +30867,10 @@
     "defaultMessage": "This project will be permanently deleted. Jobs, files, and shared context linked to it will lose their project association.",
     "description": "Delete project confirmation when the project name is unavailable"
   },
+  "qW3tY8uI0o": {
+    "defaultMessage": "Search symbols",
+    "description": "Placeholder for filtering the CAT unicode character table"
+  },
   "qWkW//wsRc": {
     "defaultMessage": "Failed to invite member",
     "description": "Error when inviting a workspace member fails"
@@ -31383,6 +31415,10 @@
     "defaultMessage": "Negative",
     "description": "Negative competitor sentiment"
   },
+  "rT6yU8iO0p": {
+    "defaultMessage": "Hide unicode characters",
+    "description": "Accessible label to collapse the CAT unicode table"
+  },
   "rTskJLTUfG": {
     "defaultMessage": "Started cloud agent",
     "description": "Console line in the translation flow illustration when an agent starts"
@@ -31738,6 +31774,10 @@
   "s3w5x5ZggY": {
     "defaultMessage": "{actor} · {date}",
     "description": "Glossary history event actor and timestamp"
+  },
+  "s3wD7fG2Hj": {
+    "defaultMessage": "Select all",
+    "description": "Select every project target locale in the create translation job dialog"
   },
   "s4VZkMnyhB": {
     "defaultMessage": "Attach this verified domain to a project or leave it unassigned.",
@@ -32287,6 +32327,10 @@
     "defaultMessage": "Connect an Anthropic key and use Sonnet for longer drafts and review notes. Anthropic bills this usage. It does not draw down your monthly AI credit.",
     "description": "Story for Claude Sonnet on the pricing page"
   },
+  "t9xK4mN6Pr": {
+    "defaultMessage": "Clear",
+    "description": "Clear every selected target locale in the create translation job dialog"
+  },
   "tAIkYXyE7a": {
     "defaultMessage": "A lab connected to the bigger picture.",
     "description": "Headline for the Hyperlab connected-products section"
@@ -32718,6 +32762,10 @@
   "u1tHtBGVvs": {
     "defaultMessage": "Could not extract text. Try again.",
     "description": "Image viewer: extractError"
+  },
+  "u1yL5oQ8St": {
+    "defaultMessage": "No matching locales.",
+    "description": "Empty state when locale search matches no project target locales"
   },
   "u2Jgj/8hB5": {
     "defaultMessage": "Segment validation returned invalid JSON.",
@@ -34030,6 +34078,10 @@
   "wE0HX7UKYn": {
     "defaultMessage": "Markdown/Text",
     "description": "Button to start a blank markdown knowledge memory document"
+  },
+  "wE4rT5yU7i": {
+    "defaultMessage": "Show unicode characters",
+    "description": "Accessible label to expand the collapsed CAT unicode table"
   },
   "wEBG0EIifq": {
     "defaultMessage": "Apply",
@@ -35966,6 +36018,10 @@
   "zX3UWO/7lH": {
     "defaultMessage": "This QA scan failed, so QA results may be out of date until a scan completes.",
     "description": "Inbox QA alert panel body when a scan failed"
+  },
+  "zX9cV2bN4m": {
+    "defaultMessage": "No symbols match “{query}”.",
+    "description": "Empty state when unicode character search has no matches"
   },
   "zXGYAzrnoH": {
     "defaultMessage": "General question",

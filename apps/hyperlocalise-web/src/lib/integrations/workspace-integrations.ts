@@ -30,7 +30,7 @@ import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external
 
 export const workspaceComingSoonCollaborationSlugs = ["microsoft-teams", "jira", "linear"] as const;
 
-export const workspaceComingSoonGuidelineSlugs = ["google-drive", "sharepoint"] as const;
+export const workspaceComingSoonGuidelineSlugs = ["sharepoint"] as const;
 
 export const workspaceComingSoonCustomerEngagementSlugs = [
   "iterable",

@@ -18,7 +18,11 @@ import {
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationBrazeTool,
 } from "@/lib/agents/workspace-automation-types";
-import { isBrazeCampaignSourcePath, isBrazeTemplateSourcePath } from "@/lib/braze/source-paths";
+import {
+  isBrazeCampaignSourcePath,
+  isBrazeSourcePath,
+  isBrazeTemplateSourcePath,
+} from "@/lib/braze/source-paths";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 export type ContentEditorBrazePushCandidate = {
@@ -84,13 +88,16 @@ function brazeAutomationMatchesSourcePath(
 ) {
   const isTemplates = hasWorkspaceAutomationBrazeTool(toolConfig);
   const isCampaigns = hasWorkspaceAutomationBrazeCampaignsTool(toolConfig);
-  if (sourcePath && isBrazeCampaignSourcePath(sourcePath)) {
+  if (!sourcePath || !isBrazeSourcePath(sourcePath)) {
+    return false;
+  }
+  if (isBrazeCampaignSourcePath(sourcePath)) {
     return isCampaigns;
   }
-  if (sourcePath && isBrazeTemplateSourcePath(sourcePath)) {
+  if (isBrazeTemplateSourcePath(sourcePath)) {
     return isTemplates;
   }
-  return isTemplates || isCampaigns;
+  return false;
 }
 
 function readRecentRunsInProgress(body: { recentRuns?: Array<{ status?: string }> }) {
@@ -102,6 +109,9 @@ export async function fetchContentEditorBrazePushCandidates(input: {
   projectId: string;
   sourcePath?: string | null;
 }): Promise<ContentEditorBrazePushCandidate[]> {
+  if (!input.sourcePath || !isBrazeSourcePath(input.sourcePath)) {
+    return [];
+  }
   let automations;
   try {
     automations = await automationsApi.listAutomations(input.organizationSlug, {
@@ -177,6 +187,9 @@ export async function fetchContentEditorBrazeIngestCandidates(input: {
   projectId: string;
   sourcePath?: string | null;
 }): Promise<ContentEditorBrazeIngestCandidate[]> {
+  if (!input.sourcePath || !isBrazeSourcePath(input.sourcePath)) {
+    return [];
+  }
   let automations;
   try {
     automations = await automationsApi.listAutomations(input.organizationSlug, {

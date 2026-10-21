@@ -1,0 +1,52 @@
+---
+title: "Google Drive OAuth (Pipes)"
+description: "Configure WorkOS Pipes and Google OAuth so workspaces can connect Google Drive in Integrations."
+---
+
+End-user workflow is in [Google Drive](/integrations/google-drive). This page is for Hyperlocalise operators enabling the connection on a deployment.
+
+Hyperlocalise connects through WorkOS Pipes with provider slug **`google-drive`**. Access tokens call the Google Drive API v3 (list shared drives, browse folders, export Google Workspace files, download binaries, create locale folders when needed, and upload or update translated files). All of those operations use `supportsAllDrives=true` so **My Drive** and **Shared drives** behave the same.
+
+## Required OAuth scope
+
+Configure **exactly this scope** on the WorkOS Google Drive provider (and on your Google OAuth client consent screen):
+
+| Scope | Required |
+| --- | --- |
+| `https://www.googleapis.com/auth/drive` | **Yes** |
+
+This is a **restricted** Google scope. Production apps must complete [Google OAuth app verification](https://support.google.com/cloud/answer/9110914) for restricted Drive scopes before all users can connect without an "unverified app" warning.
+
+**Do not substitute narrower scopes** for this integration:
+
+| Scope | Why it is not enough |
+| --- | --- |
+| `https://www.googleapis.com/auth/drive.readonly` | Import works, but push cannot create locale folders or upload translated files. |
+| `https://www.googleapis.com/auth/drive.file` | Only covers files the app created or opened with a picker. Hyperlocalise must read existing files in folders the admin browses and write into those folders without per-file picker grants. |
+
+Optional future work (Changes API incremental sync) uses the same **`drive`** scope; no extra scope is required beyond what import and push already need.
+
+## WorkOS Dashboard
+
+1. Open **Pipes** and enable the **Google Drive** provider with slug **`google-drive`** (must match Hyperlocalise `PIPES_PROVIDER_SLUGS`).
+2. Under provider scopes, add **`https://www.googleapis.com/auth/drive`**. Do not request unrelated Drive scopes unless you have a separate product reason.
+3. Add a short **description** for the consent widget (for example: read selected folders for translation import and write translated copies next to the source files).
+4. **Sandbox and production:** Use your own Google OAuth client (see below). Shared WorkOS Google credentials can connect but then fail Drive calls with `accessNotConfigured` if the issuer project does not have the Drive API enabled.
+5. Paste **Client ID** and **Client secret** into WorkOS, and use the **Redirect URI** WorkOS shows for that provider.
+6. Grant roles that manage Integrations permission to use the Pipes authorize-url flow for `google-drive`.
+7. After you change scopes, users must **Disconnect** and **Connect** again. Existing tokens keep the old grant.
+
+## Google Cloud Console
+
+1. In the project that owns the OAuth client, enable the **[Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com)**.
+2. Configure the **[OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent)** (Internal for workspace-only testing, External for customers).
+3. Create an **OAuth client ID** (type **Web application**).
+4. Add the **Authorized redirect URI** from the WorkOS Google Drive provider page (copy it from WorkOS; do not guess).
+5. On the consent screen, add scope **`https://www.googleapis.com/auth/drive`** (Display: "See, edit, create, and delete all of your Google Drive files").
+6. Submit **verification** for the restricted scope before general availability if the app is External.
+
+## Smoke check after setup
+
+1. Connect Google Drive from **Integrations → Guidelines** in staging.
+2. Expand **My Drive**. `accessNotConfigured` means enable **[Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com)** on the same Cloud project as the OAuth client, wait a minute, then disconnect and reconnect. `insufficientPermissions` means the token is missing **`drive`** (WorkOS default is often `drive.file`).
+3. Save a folder, run **Translate Google Drive files** import, open an imported Drive file in the Content editor, then use **Ingest** or **Push to Google Drive**. Confirm files appear using the automation **Translation output** setting (`[vi-VN] overview.docx`, `overview [vi-VN].docx`, `overview_vi-VN.docx`, or `vi-VN/overview.docx`).

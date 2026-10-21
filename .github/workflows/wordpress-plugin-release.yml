@@ -1,0 +1,113 @@
+name: WordPress Plugin Release
+
+on:
+  push:
+    tags:
+      - "wordpress-plugin-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wordpress-plugin-release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  wordpress-plugin-build:
+    name: Build WordPress plugin zip
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    defaults:
+      run:
+        working-directory: apps/hyperlocalise-wp
+    outputs:
+      version: ${{ steps.build.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: "7.4"
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+
+      - name: Lint and test
+        run: |
+          composer lint
+          composer test
+
+      - name: Build plugin zip
+        id: build
+        env:
+          TAG_VERSION: ${{ startsWith(github.ref, 'refs/tags/wordpress-plugin-v') && github.ref_name || '' }}
+        run: bin/build-zip.sh "${TAG_VERSION#wordpress-plugin-v}"
+
+      - name: Upload plugin zip
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hyperlocalise-wordpress-plugin
+          path: |
+            ${{ steps.build.outputs.zip-path }}
+            ${{ steps.build.outputs.build-dir }}
+          if-no-files-found: error
+
+  wordpress-plugin-github-release:
+    name: Publish GitHub release
+    needs: wordpress-plugin-build
+    if: startsWith(github.ref, 'refs/tags/wordpress-plugin-v')
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download plugin zip
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: hyperlocalise-wordpress-plugin
+          path: dist
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.wordpress-plugin-build.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" "dist/hyperlocalise-$VERSION.zip" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "WordPress plugin $VERSION" \
+            --notes "Install from Plugins → Add New → Upload Plugin in WordPress admin." \
+            --latest=false
+
+  # WordPress.org only accepts SVN commits after the plugin is approved.
+  # Set the WORDPRESS_ORG_DEPLOY repository variable to "true" once it is.
+  wordpress-plugin-wordpress-org:
+    name: Deploy to WordPress.org
+    needs: wordpress-plugin-build
+    if: startsWith(github.ref, 'refs/tags/wordpress-plugin-v') && vars.WORDPRESS_ORG_DEPLOY == 'true'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Download plugin build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: hyperlocalise-wordpress-plugin
+          path: apps/hyperlocalise-wp/build
+
+      - name: Deploy to WordPress.org SVN
+        uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2 # 2.3.0
+        env:
+          SVN_USERNAME: ${{ secrets.WORDPRESS_ORG_SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.WORDPRESS_ORG_SVN_PASSWORD }}
+          SLUG: hyperlocalise
+          VERSION: ${{ needs.wordpress-plugin-build.outputs.version }}
+          BUILD_DIR: apps/hyperlocalise-wp/build/hyperlocalise
+          ASSETS_DIR: apps/hyperlocalise-wp/.wordpress-org

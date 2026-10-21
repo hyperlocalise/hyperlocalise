@@ -887,6 +887,77 @@ export const contentEditorIntelligencePanelMessages = defineMessages({
     id: "rHDcSl4Kt4",
     description: "Button to apply a translation memory match to the target field",
   },
+  editTmSegment: {
+    defaultMessage: "Edit TM segment",
+    id: "jEjjYeEzuW",
+    description: "Button and dialog title for editing a translation memory unit",
+  },
+  editTmSegmentSave: {
+    defaultMessage: "Save",
+    id: "33oBuvwkTx",
+    description: "Save button on the edit TM segment dialog",
+  },
+  editTmSegmentCancel: {
+    defaultMessage: "Cancel",
+    id: "ltNQ+N6Q+g",
+    description: "Cancel button on the edit TM segment dialog",
+  },
+  editTmSegmentSaved: {
+    defaultMessage: "TM segment saved",
+    id: "cqINPDvh7d",
+    description: "Toast after a TM segment is saved from the content editor",
+  },
+  editTmSegmentSaveFailed: {
+    defaultMessage: "Unable to save the TM segment",
+    id: "fDkFUuHkmb",
+    description: "Fallback error when saving a TM segment from the content editor fails",
+  },
+  editTmSegmentLoadFailed: {
+    defaultMessage: "Unable to load the TM segment",
+    id: "VVZYa9dYk2",
+    description: "Error when the edit TM segment dialog cannot load locale variants",
+  },
+  editTmSegmentSourceRequired: {
+    defaultMessage: "Source text is required",
+    id: "Ctyr+N+gMR",
+    description: "Validation error when the TM source locale field is empty",
+  },
+  editTmSegmentTargetLocale: {
+    defaultMessage: "Language",
+    id: "dNHH1fTCnU",
+    description: "Label for the language picker on the edit TM segment dialog",
+  },
+  deleteTmLocale: {
+    defaultMessage: "Delete locale",
+    id: "BtlJ9IYjPk",
+    description: "Accessible label for deleting one locale from a TM segment",
+  },
+  deleteTmLocaleTitle: {
+    defaultMessage: "Delete this locale from the TM?",
+    id: "T0qDIxKkjq",
+    description: "Confirmation title before deleting one locale from a TM segment",
+  },
+  deleteTmLocaleDescription: {
+    defaultMessage:
+      "This removes the {locale} text from the translation memory. It does not change the current segment.",
+    id: "OM0OXDv6BN",
+    description: "Confirmation body before deleting one locale from a TM segment",
+  },
+  deleteTmLocaleConfirm: {
+    defaultMessage: "Delete",
+    id: "kEyZj9At7C",
+    description: "Confirm button for deleting one locale from a TM segment",
+  },
+  deleteTmLocaleDeleted: {
+    defaultMessage: "Locale removed from the TM",
+    id: "ocmWKpLcUN",
+    description: "Toast after a TM locale is deleted from the content editor",
+  },
+  deleteTmLocaleFailed: {
+    defaultMessage: "Unable to delete this locale from the TM",
+    id: "ZQSArkDg/X",
+    description: "Fallback error when deleting a TM locale from the content editor fails",
+  },
   copyGlossaryTerm: {
     defaultMessage: "Copy",
     id: "Rw5WXF50Q2",
@@ -1400,6 +1471,49 @@ export const contentEditorVisualContextPanelMessages = defineMessages({
   },
 });
 
+export const contentEditorUnicodePanelMessages = defineMessages({
+  title: {
+    defaultMessage: "Unicode",
+    id: "5Zw0t7KTMY",
+    description: "Section heading for the CAT unicode character table",
+  },
+  category: {
+    defaultMessage: "Commonly used",
+    id: "MFyr6tzoKS",
+    description: "Category label for translator-essential unicode characters",
+  },
+  searchPlaceholder: {
+    defaultMessage: "Search symbols",
+    id: "JXQ6OP7JfI",
+    description: "Placeholder for filtering the CAT unicode character table",
+  },
+  searchAria: {
+    defaultMessage: "Search unicode symbols",
+    id: "aQyJu30/D6",
+    description: "Accessible label for the CAT unicode character search field",
+  },
+  emptySearch: {
+    defaultMessage: "No symbols match “{query}”.",
+    id: "fzFR5CZA1L",
+    description: "Empty state when unicode character search has no matches",
+  },
+  insertAria: {
+    defaultMessage: "Insert {name} ({code})",
+    id: "8W1Ri/FiXa",
+    description: "Accessible label for a unicode character button in the CAT table",
+  },
+  expandAria: {
+    defaultMessage: "Show unicode characters",
+    id: "quty5keh4e",
+    description: "Accessible label to expand the collapsed CAT unicode table",
+  },
+  collapseAria: {
+    defaultMessage: "Hide unicode characters",
+    id: "P1e3b+MNYt",
+    description: "Accessible label to collapse the CAT unicode table",
+  },
+});
+
 export const contentEditorPanelErrorBoundaryMessages = defineMessages({
   queuePanelTitle: {
     defaultMessage: "Queue panel failed to load",
@@ -1416,6 +1530,11 @@ export const contentEditorPanelErrorBoundaryMessages = defineMessages({
     id: "W5kKZQXtt1",
     description: "Error boundary title when the CAT intelligence panel crashes",
   },
+  filesPanelTitle: {
+    defaultMessage: "Files panel failed to load",
+    id: "Ix5lU5trmn",
+    description: "Error boundary title when the Content Editor files sidebar crashes",
+  },
   workspaceTitle: {
     defaultMessage: "Content Editor failed to load",
     id: "X8XWn3q89C",
@@ -1431,6 +1550,11 @@ export const contentEditorPanelErrorBoundaryMessages = defineMessages({
     defaultMessage: "Try again",
     id: "27qrEmB3yO",
     description: "Button label to retry rendering a crashed CAT panel",
+  },
+  sectionDescription: {
+    defaultMessage: "This section couldn't load. The rest of the editor still works.",
+    id: "+Si+Oa4YaR",
+    description: "Inline error shown when one section inside a CAT panel crashes",
   },
 });
 

@@ -261,87 +261,93 @@ const ContentEditorWorkspaceContainerObserver = observer(
           />
         ) : null}
 
-        <ContentEditorQueueToolbarConnected
-          onQueueSearchChange={onQueueSearchChange}
-          onQueueFilterChange={controller.handleQueueFilterChange}
-          availableQueueFilters={availableQueueFilters}
-          queueSort={queueSort}
-          onQueueSortChange={onQueueSortChange}
-          availableQueueSorts={availableQueueSorts}
-          queueFilterQualifier={queueFilterQualifier}
-          onQueueFilterQualifierChange={onQueueFilterQualifierChange}
-          queueAdvanced={queueAdvanced}
-          onQueueAdvancedChange={onQueueAdvancedChange}
-          providerKind={lazySegment?.contentEditorFile?.provider?.kind}
-          organizationSlug={lazySegment?.organizationSlug}
-          projectId={lazySegment?.projectId}
-          isSearching={isQueueSearchPending}
-          isQueueLoading={isQueueBulkBlocked}
-          visibleCount={isQueueBulkBlocked ? 0 : controller.queueSegments.length}
-          onSelectAllVisible={() => {
-            // Placeholder or not-yet-ingested pages still expose the previous
-            // filter's segment ids.
-            if (isQueueBulkBlocked) {
-              return;
+        <ContentEditorPanelErrorBoundary
+          scope="queue"
+          className="h-auto"
+          resetKeys={[controller.queueFilter, queueSearch]}
+        >
+          <ContentEditorQueueToolbarConnected
+            onQueueSearchChange={onQueueSearchChange}
+            onQueueFilterChange={controller.handleQueueFilterChange}
+            availableQueueFilters={availableQueueFilters}
+            queueSort={queueSort}
+            onQueueSortChange={onQueueSortChange}
+            availableQueueSorts={availableQueueSorts}
+            queueFilterQualifier={queueFilterQualifier}
+            onQueueFilterQualifierChange={onQueueFilterQualifierChange}
+            queueAdvanced={queueAdvanced}
+            onQueueAdvancedChange={onQueueAdvancedChange}
+            providerKind={lazySegment?.contentEditorFile?.provider?.kind}
+            organizationSlug={lazySegment?.organizationSlug}
+            projectId={lazySegment?.projectId}
+            isSearching={isQueueSearchPending}
+            isQueueLoading={isQueueBulkBlocked}
+            visibleCount={isQueueBulkBlocked ? 0 : controller.queueSegments.length}
+            onSelectAllVisible={() => {
+              // Placeholder or not-yet-ingested pages still expose the previous
+              // filter's segment ids.
+              if (isQueueBulkBlocked) {
+                return;
+              }
+              store.selectAllVisible(controller.queueSegments.map((segment) => segment.id));
+            }}
+            onBulkApprove={() => {
+              if (isQueueBulkBlocked) {
+                return;
+              }
+              void controller.handleBulkApprove();
+            }}
+            onBulkSkip={() => {
+              if (isQueueBulkBlocked) {
+                return;
+              }
+              void controller.handleBulkSkip();
+            }}
+            onBulkHide={
+              review?.onBulkHide
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    void controller.handleBulkHide();
+                  }
+                : undefined
             }
-            store.selectAllVisible(controller.queueSegments.map((segment) => segment.id));
-          }}
-          onBulkApprove={() => {
-            if (isQueueBulkBlocked) {
-              return;
+            onBulkUnhide={
+              review?.onBulkUnhide
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    void controller.handleBulkUnhide();
+                  }
+                : undefined
             }
-            void controller.handleBulkApprove();
-          }}
-          onBulkSkip={() => {
-            if (isQueueBulkBlocked) {
-              return;
+            onBulkLock={
+              review?.onBulkLock || review?.onSetLocked
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    void controller.handleBulkLock();
+                  }
+                : undefined
             }
-            void controller.handleBulkSkip();
-          }}
-          onBulkHide={
-            review?.onBulkHide
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
+            onBulkUnlock={
+              review?.onBulkUnlock || review?.onSetLocked
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    void controller.handleBulkUnlock();
                   }
-                  void controller.handleBulkHide();
-                }
-              : undefined
-          }
-          onBulkUnhide={
-            review?.onBulkUnhide
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
-                  }
-                  void controller.handleBulkUnhide();
-                }
-              : undefined
-          }
-          onBulkLock={
-            review?.onBulkLock || review?.onSetLocked
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
-                  }
-                  void controller.handleBulkLock();
-                }
-              : undefined
-          }
-          onBulkUnlock={
-            review?.onBulkUnlock || review?.onSetLocked
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
-                  }
-                  void controller.handleBulkUnlock();
-                }
-              : undefined
-          }
-          onDownloadFilteredView={onDownloadFilteredView}
-          isDownloadingFilteredView={isDownloadingFilteredView}
-          adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
-        />
+                : undefined
+            }
+            onDownloadFilteredView={onDownloadFilteredView}
+            isDownloadingFilteredView={isDownloadingFilteredView}
+            adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
+          />
+        </ContentEditorPanelErrorBoundary>
 
         <ContentEditorPanelErrorBoundary
           scope="workspace"
