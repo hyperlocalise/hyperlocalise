@@ -20,9 +20,9 @@ Connect Google Drive, choose folders or files on the Integrations page, and use 
 2. Attach a native project and set source and target locales under [project Settings → Locales](/platform/projects/languages).
 3. Select the connected Google Drive folders and files to import from, then choose **Translation output**.
 4. Use a **manual** trigger or **schedule** for import. Import does not push translations to Drive.
-5. Open an imported Drive file in the Content editor. **Push to Google Drive** appears in the header for that file. Use it to write locale files back.
+5. Open an imported Drive file in the Content editor. **Ingest** and **Push to Google Drive** appear in the header for that file. **Ingest** queues the same import as Automations **Run now**. Use **Push to Google Drive** to write locale files back.
 
-Google Drive is not a trigger type. Use **Run now** or a schedule for import; push is a separate action.
+Google Drive is not a trigger type. Use **Ingest**, **Run now**, or a schedule for import; push is a separate action.
 
 ## Supported files
 
@@ -83,11 +83,11 @@ Source files:                         Translations:
                                         /decks/kickoff_vi-VN.pptx
 ```
 
-## If push does not appear
+## If ingest or push does not appear
 
-- Open a file imported from Google Drive. **Push to Google Drive** is hidden on Intercom, Sanity, Braze, and other project files.
-- Approve at least one mapped locale and confirm you can manage automations.
-- Wait until any in-progress push finishes.
+- Open a file imported from Google Drive. **Ingest** and **Push to Google Drive** stay hidden on Intercom, Sanity, Braze, and other project files.
+- Confirm an active Drive automation is attached to the project and you can manage automations. Ingest stays available before any locale is push-ready.
+- If **Push to Google Drive** is still missing, approve at least one mapped locale and wait until any in-progress push finishes.
 
 ## Known limitations
 

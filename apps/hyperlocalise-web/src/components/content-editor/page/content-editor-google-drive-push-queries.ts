@@ -63,6 +63,22 @@ export function invalidateContentEditorGoogleDrivePushQueries(
   });
 }
 
+export type ContentEditorGoogleDriveIngestCandidate = {
+  automationId: string;
+  name: string;
+  runInProgress: boolean;
+};
+
+export function contentEditorGoogleDriveIngestQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  sourcePath?: string | null,
+) {
+  return sourcePath
+    ? (["content-editor-google-drive-ingest", organizationSlug, projectId, sourcePath] as const)
+    : (["content-editor-google-drive-ingest", organizationSlug, projectId] as const);
+}
+
 const automationsApi = createAutomationsApi(apiClient);
 const GOOGLE_DRIVE_PUSH_DETAIL_CONCURRENCY = 3;
 
@@ -124,6 +140,62 @@ export async function fetchContentEditorGoogleDrivePushCandidates(input: {
   );
 
   return details.filter((entry): entry is ContentEditorGoogleDrivePushCandidate => entry != null);
+}
+
+export async function fetchContentEditorGoogleDriveIngestCandidates(input: {
+  organizationSlug: string;
+  projectId: string;
+  sourcePath?: string | null;
+}): Promise<ContentEditorGoogleDriveIngestCandidate[]> {
+  if (!input.sourcePath || !isGoogleDriveSourcePath(input.sourcePath)) {
+    return [];
+  }
+  let automations;
+  try {
+    automations = await automationsApi.listAutomations(input.organizationSlug, {
+      projectId: input.projectId,
+    });
+  } catch {
+    return [];
+  }
+
+  const driveAutomations = automations.filter(
+    (automation) =>
+      automation.status === "active" &&
+      hasWorkspaceAutomationGoogleDriveTool(automation.toolConfig),
+  );
+  if (driveAutomations.length === 0) {
+    return [];
+  }
+
+  const details = await mapWithConcurrency(
+    driveAutomations,
+    GOOGLE_DRIVE_PUSH_DETAIL_CONCURRENCY,
+    async (automation) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].automations[
+        ":automationId"
+      ].$get({
+        param: {
+          organizationSlug: input.organizationSlug,
+          automationId: automation.id,
+        },
+        query: {},
+      });
+      if (!response.ok) {
+        return null;
+      }
+      const body = await response.json();
+      return {
+        automationId: automation.id,
+        name: automation.name,
+        runInProgress: (body.recentRuns ?? []).some(
+          (run: { status?: string }) => run.status === "queued" || run.status === "running",
+        ),
+      } satisfies ContentEditorGoogleDriveIngestCandidate;
+    },
+  );
+
+  return details.filter((entry): entry is ContentEditorGoogleDriveIngestCandidate => entry != null);
 }
 
 export function googleDriveFileTitleFromSourcePath(sourcePath: string): string {
