@@ -121,9 +121,11 @@ export function ManageRatesSheet({
     if (draft || !selected) return;
     setName(selected.name);
     setDefaultBasis(selected.defaultBasis);
-    const first = selected.lines[0]?.percentages ?? {};
+    // Hourly lines are paid by the hour, so their band shares do not matter.
+    const priced = selected.lines.filter((line) => line.basis !== "hour");
+    const first = priced[0]?.percentages ?? {};
     setPercentages(first);
-    setDiffering(selected.lines.some((line) => !samePercentages(line.percentages, first)));
+    setDiffering(priced.some((line) => !samePercentages(line.percentages, first)));
     setLines(
       selected.lines.map((line) => ({
         key: line.id,
@@ -194,7 +196,10 @@ export function ManageRatesSheet({
 
   return (
     <Sheet open onOpenChange={(open) => (open ? null : onClose())}>
-      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-2xl">
+      <SheetContent
+        side="right"
+        className="w-full overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl"
+      >
         <SheetHeader>
           <SheetTitle>
             {intl.formatMessage(canManage ? messages.manageTitle : messages.viewTitle)}
@@ -203,7 +208,7 @@ export function ManageRatesSheet({
             {intl.formatMessage(canManage ? messages.manageSubtitle : messages.viewSubtitle)}
           </SheetDescription>
         </SheetHeader>
-        <div className="grid gap-6 px-6 pb-6">
+        <div className="grid gap-6 px-6 pb-6 [&>*]:min-w-0">
           {cards.isPending ? (
             <Skeleton className="h-64 w-full rounded-xl" />
           ) : list.length === 0 && !canManage ? (
@@ -421,6 +426,7 @@ function EditableLine({
       <TableCell>
         <ReportSelect
           className={narrow}
+          hideLabel
           label={intl.formatMessage(messages.sourceColumn)}
           value={line.sourceLocale}
           options={locales.sources.map((locale) => ({ value: locale, label: locale }))}
@@ -430,6 +436,7 @@ function EditableLine({
       <TableCell>
         <ReportSelect
           className={narrow}
+          hideLabel
           label={intl.formatMessage(messages.targetColumn)}
           value={line.targetLocale}
           options={locales.targets.map((locale) => ({ value: locale, label: locale }))}
@@ -439,6 +446,7 @@ function EditableLine({
       <TableCell>
         <ReportSelect
           className={narrow}
+          hideLabel
           label={intl.formatMessage(messages.stepColumn)}
           value={line.step}
           options={REPORT_STEPS.map((step) => ({ value: step, label: stepLabel(intl, step) }))}
@@ -448,6 +456,7 @@ function EditableLine({
       <TableCell>
         <ReportSelect
           className="w-full min-w-40"
+          hideLabel
           label={intl.formatMessage(messages.basisColumn)}
           value={line.basis}
           options={RATE_BASES.map((basis) => ({

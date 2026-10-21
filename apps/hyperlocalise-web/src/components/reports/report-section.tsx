@@ -145,7 +145,7 @@ export function ReportPager({
 /** A link that downloads a table as CSV, styled as a button. */
 export function DownloadCsvButton({ href }: { href: string }) {
   return (
-    <Button variant="outline" size="sm" render={<a href={href} download />}>
+    <Button variant="outline" size="sm" nativeButton={false} render={<a href={href} download />}>
       <FormattedMessage {...messages.downloadCsv} />
     </Button>
   );

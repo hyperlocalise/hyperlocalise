@@ -66,7 +66,7 @@ export function MatchBandTable<Row extends { bands: BandCounts }>({
   beforeRows?: { label: string; bands: Partial<Record<MatchBucket, ReactNode>> };
 }) {
   const intl = useIntl();
-  const numeric = "text-right tabular-nums";
+  const numeric = "text-right whitespace-nowrap tabular-nums";
   return (
     <Table aria-label={label}>
       <TableHeader>

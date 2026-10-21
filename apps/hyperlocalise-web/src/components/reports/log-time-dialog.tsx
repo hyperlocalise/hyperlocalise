@@ -112,6 +112,8 @@ export function LogTimeDialog({
         <div className="grid gap-4">
           {fixedJobId ? null : (
             <TaskPicker
+              className="w-full"
+              placeholder={intl.formatMessage(messages.chooseTask)}
               organizationSlug={organizationSlug}
               projectId={projectId}
               value={jobId}
@@ -132,6 +134,7 @@ export function LogTimeDialog({
             <ReportSelect
               className="w-full"
               label={intl.formatMessage(messages.languageColumn)}
+              placeholder={intl.formatMessage(messages.chooseLanguage)}
               value={targetLocale ?? ""}
               disabled={languages.length === 0}
               options={languages.map((locale) => ({ value: locale, label: locale }))}

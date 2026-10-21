@@ -101,6 +101,11 @@ export const timeTabMessages = defineMessages({
     defaultMessage: "Choose a task",
     description: "Placeholder of the task field in the log time dialog",
   },
+  chooseLanguage: {
+    id: "TMFHZf5Az+",
+    defaultMessage: "Choose a language",
+    description: "Placeholder of the language field in the log time dialog",
+  },
   date: {
     id: "7hvZqJJjAI",
     defaultMessage: "Date",

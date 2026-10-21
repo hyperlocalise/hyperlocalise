@@ -113,6 +113,11 @@ export const budgetsTabMessages = defineMessages({
     defaultMessage: "Project",
     description: "Label of the project field",
   },
+  chooseProject: {
+    id: "YoNT/y/382",
+    defaultMessage: "Choose a project",
+    description: "Placeholder of the project field in the set budget dialog",
+  },
   amount: {
     id: "wy28ovfnvf",
     defaultMessage: "Budget (USD)",

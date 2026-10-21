@@ -269,6 +269,8 @@ export function ReportSelect({
   onChange,
   disabled,
   className,
+  hideLabel,
+  placeholder,
 }: {
   label: string;
   value: string;
@@ -276,11 +278,17 @@ export function ReportSelect({
   onChange: (value: string) => void;
   disabled?: boolean;
   className?: string;
+  /** In a table row, where the column heading already says what the field is. */
+  hideLabel?: boolean;
+  /** Shown while nothing is chosen. */
+  placeholder?: string;
 }) {
   const id = useId();
   return (
     <Field className={className ?? "w-full sm:w-48"}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldLabel htmlFor={id} className={hideLabel ? "sr-only" : undefined}>
+        {label}
+      </FieldLabel>
       <Select
         value={value}
         disabled={disabled}
@@ -290,7 +298,8 @@ export function ReportSelect({
       >
         <SelectTrigger id={id} aria-label={label} className="w-full">
           <SelectValue>
-            {options.find((option) => option.value === value)?.label ?? value}
+            {options.find((option) => option.value === value)?.label ??
+              (value || <span className="text-muted-foreground">{placeholder}</span>)}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -326,12 +335,16 @@ function TaskPicker({
   value,
   onChange,
   label,
+  placeholder,
+  className,
 }: {
   organizationSlug: string;
   projectId: string | null;
   value: string | null;
   onChange: (jobId: string | null) => void;
   label?: string;
+  placeholder?: string;
+  className?: string;
 }) {
   const intl = useIntl();
   const id = useId();
@@ -346,7 +359,7 @@ function TaskPicker({
   const selected = value ? (chosen.data?.find((task) => task.id === value) ?? null) : null;
   const text = label ?? intl.formatMessage(messages.task);
   return (
-    <Field className="w-full sm:w-64">
+    <Field className={className ?? "w-full sm:w-64"}>
       <FieldLabel htmlFor={id}>{text}</FieldLabel>
       <Combobox<ReportTask>
         items={found.data ?? []}
@@ -360,7 +373,7 @@ function TaskPicker({
         <ComboboxInput
           id={id}
           aria-label={text}
-          placeholder={intl.formatMessage(messages.allTasks)}
+          placeholder={placeholder ?? intl.formatMessage(messages.allTasks)}
           showClear={Boolean(value)}
           className="w-full"
         />

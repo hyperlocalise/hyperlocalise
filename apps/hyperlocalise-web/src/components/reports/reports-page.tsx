@@ -70,16 +70,16 @@ export function ReportsPage({
 
   if (settings.isPending)
     return (
-      <main className="flex w-full flex-col gap-4">
+      <div className="flex w-full flex-col gap-4">
         <h1 className="sr-only">{intl.formatMessage(messages.title)}</h1>
         <Skeleton className="h-10 w-full max-w-xl rounded-lg" />
         <Skeleton className="h-[132px] w-full rounded-xl" />
         <Skeleton className="h-80 w-full rounded-xl" />
-      </main>
+      </div>
     );
   if (settings.isError || !settings.data)
     return (
-      <main className="flex w-full flex-col gap-4">
+      <div className="flex w-full flex-col gap-4">
         <h1 className="sr-only">{intl.formatMessage(messages.title)}</h1>
         <Alert variant="destructive">
           <WarningCircleIcon />
@@ -90,7 +90,7 @@ export function ReportsPage({
             </Button>
           </AlertAction>
         </Alert>
-      </main>
+      </div>
     );
 
   const data = settings.data;
@@ -101,7 +101,7 @@ export function ReportsPage({
   const rateCardName = chosenRateCard(effective, data);
 
   return (
-    <main className="flex w-full flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       <h1 className="sr-only">{intl.formatMessage(messages.title)}</h1>
       <p className="text-[13px] text-muted-foreground">
         {data.startedAt
@@ -180,6 +180,6 @@ export function ReportsPage({
           onClose={() => setRatesOpen(false)}
         />
       ) : null}
-    </main>
+    </div>
   );
 }

@@ -93,6 +93,7 @@ export function AddExpenseDialog({
             <ReportSelect
               className="w-full"
               label={intl.formatMessage(pageMessages.project)}
+              placeholder={intl.formatMessage(messages.chooseProject)}
               value={projectId}
               options={settings.projects.map((project) => ({
                 value: project.id,

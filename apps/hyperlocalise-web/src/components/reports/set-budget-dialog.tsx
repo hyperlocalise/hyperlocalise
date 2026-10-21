@@ -97,6 +97,7 @@ export function SetBudgetDialog({
           <ReportSelect
             className="w-full"
             label={intl.formatMessage(messages.project)}
+            placeholder={intl.formatMessage(messages.chooseProject)}
             value={projectId}
             options={settings.projects.map((project) => ({
               value: project.id,
