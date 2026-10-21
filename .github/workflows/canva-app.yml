@@ -65,7 +65,12 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         working-directory: ${{ github.workspace }}
-        run: git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+        run: |
+          # Vitest 5 uses `git diff BASE...HEAD`, which needs a merge-base.
+          # Checkout is depth 1, so HEAD is a shallow graft; deepen it and
+          # fetch enough base history to connect the two commits.
+          git fetch --no-tags --deepen=50
+          git fetch --no-tags --depth=50 origin "${BASE_SHA}"
 
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
