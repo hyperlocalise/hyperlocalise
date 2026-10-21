@@ -348,6 +348,12 @@ export const projectFileCatActivityLogQuerySchema = z.object({
   cursor: z.string().trim().min(1).max(2048).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   sourcePath: z.string().trim().min(1).max(2048),
+  /** Comma-separated string segment event types. */
+  eventTypes: z.string().optional(),
+  actorKind: z.enum(["user", "agent", "api_key", "system"]).optional(),
+  actorUserId: z.string().uuid().optional(),
+  /** RFC 3339 time; only events at or after it. */
+  since: z.string().datetime({ offset: true }).optional(),
 });
 
 export const projectFileCatPaginationSchema = z.object({

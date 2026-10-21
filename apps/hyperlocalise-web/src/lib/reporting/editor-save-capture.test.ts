@@ -125,6 +125,7 @@ async function insertSaveEvent(input: {
   nextStatus?: string;
   actorKind?: "user" | "agent";
   createdAt?: Date;
+  extraPayload?: Record<string, string>;
 }) {
   const [event] = await db
     .insert(schema.organizationActivityEvents)
@@ -141,6 +142,7 @@ async function insertSaveEvent(input: {
         sourcePath: SOURCE_PATH,
         targetLocale: "fr-FR",
         nextStatus: input.nextStatus ?? "draft",
+        ...input.extraPayload,
       },
       ...(input.createdAt ? { createdAt: input.createdAt } : {}),
     })
@@ -573,6 +575,27 @@ describe("captureEditorSaves", () => {
     expect(result).toMatchObject({ eventsProcessed: 2, segmentsRecorded: 1, stopped: null });
     const again = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
     expect(again).toMatchObject({ eventsProcessed: 0, lateApprovalsRecorded: 0 });
+  });
+
+  it("passes over restored versions and undone operations", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+      extraPayload: { restoredFromRevisionId: "00000000-0000-4000-8000-000000000001" },
+    });
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[1],
+      extraPayload: { operationId: "undo:00000000-0000-4000-8000-000000000002" },
+    });
+
+    const result = await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    expect(result).toMatchObject({ eventsProcessed: 2, segmentsRecorded: 0, stopped: null });
   });
 
   it("moves a workspace's position up to each run's cut-off, even without saves", async () => {

@@ -35,14 +35,26 @@ import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
+import {
+  ActivityFilterBar,
+  activityFilterQuery,
+  type ActivityFilters,
+} from "./content-editor-activity-filters";
 import { contentEditorActivityLogMessages as messages } from "./content-editor-activity-log.messages";
 
 function contentEditorActivityLogsQueryKey(
   organizationSlug: string,
   projectId: string,
   sourcePath: string,
+  filters: ActivityFilters,
 ) {
-  return ["content-editor-activity-logs", organizationSlug, projectId, sourcePath] as const;
+  return [
+    "content-editor-activity-logs",
+    organizationSlug,
+    projectId,
+    sourcePath,
+    filters,
+  ] as const;
 }
 
 export function ContentEditorActivityLogButton({
@@ -98,10 +110,11 @@ export function ContentEditorActivityLogDialog({
   const intl = useIntl();
   const { client: goSvcClient } = useGoSvcClient();
   const [now] = useState(() => Date.now());
+  const [filters, setFilters] = useState<ActivityFilters>({});
   const allFiles = isContentEditorAllFilesSourcePath(sourcePath);
 
   const activityQuery = useInfiniteQuery({
-    queryKey: contentEditorActivityLogsQueryKey(organizationSlug, projectId, sourcePath),
+    queryKey: contentEditorActivityLogsQueryKey(organizationSlug, projectId, sourcePath, filters),
     initialPageParam: undefined as string | undefined,
     enabled: open,
     queryFn: async ({ pageParam }) => {
@@ -110,6 +123,7 @@ export function ContentEditorActivityLogDialog({
           sourcePath,
           cursor: pageParam,
           limit: 50,
+          ...activityFilterQuery(filters),
         });
         return {
           activityLogs: result.activityLogs as ActivityLogItem[],
@@ -140,6 +154,8 @@ export function ContentEditorActivityLogDialog({
             />
           </DialogDescription>
         </DialogHeader>
+
+        <ActivityFilterBar filters={filters} onChange={setFilters} showFileEvents />
 
         <div className="max-h-[min(28rem,60vh)] overflow-y-auto">
           {activityQuery.isLoading ? (

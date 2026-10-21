@@ -409,6 +409,8 @@ export type ActivityPayloadByEventType = {
     nextStatus?: string;
     operationId?: string;
     operationMemberIds?: string[];
+    restoredFromRevisionId?: string;
+    revisionId?: string;
     sourceRevision?: string;
   };
   string_segment_approved: StringSegmentActivityPayload;

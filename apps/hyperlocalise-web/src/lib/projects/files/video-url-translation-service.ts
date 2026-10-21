@@ -23,6 +23,11 @@ import {
   localizedVideoOutputFilename,
 } from "@/lib/agents/video-localization";
 import { db, schema } from "@/lib/database/client";
+import {
+  recordProjectTranslationRevisions,
+  revisionActorForProvenance,
+  writeProjectTranslations,
+} from "@/lib/projects/translations/project-translation-revisions";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { publicMediaAssetUrl, publicMediaMetadata } from "@/lib/projects/files/public-media";
 import {
@@ -262,40 +267,61 @@ export async function localizeVideoUrlTranslation(input: {
     })
     .where(eq(schema.projectTranslationKeys.id, key.id));
 
-  const [translation] = await db
-    .insert(schema.projectTranslations)
-    .values({
+  const translation = await writeProjectTranslations(
+    db,
+    {
       organizationId: input.organizationId,
-      projectId: input.projectId,
-      translationKeyId: key.id,
-      targetLocale: input.targetLocale,
-      text: assetUrl,
-      status: "needs_review",
-      provenance: "agent",
-      metadata: {
-        contentKind: VIDEO_URL_CONTENT_KIND,
-        storedFileId: stored.id,
-      },
-    })
-    .onConflictDoUpdate({
-      target: [
-        schema.projectTranslations.translationKeyId,
-        schema.projectTranslations.targetLocale,
-      ],
-      set: {
-        text: assetUrl,
-        status: "needs_review",
-        provenance: "agent",
-        reviewedByUserId: null,
-        reviewedAt: null,
-        metadata: {
-          contentKind: VIDEO_URL_CONTENT_KIND,
-          storedFileId: stored.id,
-        },
-        updatedAt: new Date(),
-      },
-    })
-    .returning();
+      translationKeyIds: [key.id],
+      targetLocales: [input.targetLocale],
+    },
+    async (tx, before) => {
+      const [translation] = await tx
+        .insert(schema.projectTranslations)
+        .values({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          translationKeyId: key.id,
+          targetLocale: input.targetLocale,
+          text: assetUrl,
+          status: "needs_review",
+          provenance: "agent",
+          metadata: {
+            contentKind: VIDEO_URL_CONTENT_KIND,
+            storedFileId: stored.id,
+          },
+        })
+        .onConflictDoUpdate({
+          target: [
+            schema.projectTranslations.translationKeyId,
+            schema.projectTranslations.targetLocale,
+          ],
+          set: {
+            text: assetUrl,
+            status: "needs_review",
+            provenance: "agent",
+            reviewedByUserId: null,
+            reviewedAt: null,
+            metadata: {
+              contentKind: VIDEO_URL_CONTENT_KIND,
+              storedFileId: stored.id,
+            },
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      if (translation) {
+        await recordProjectTranslationRevisions(tx, {
+          before,
+          saved: [translation],
+          actor: {
+            actorKind: revisionActorForProvenance(translation.provenance).actorKind,
+            actorUserId: input.actorUserId ?? null,
+          },
+        });
+      }
+      return translation;
+    },
+  );
 
   if (!translation) {
     return err({ code: "key_not_found" });
@@ -392,40 +418,61 @@ export async function replaceVideoUrlTranslationBytes(input: {
     })
     .where(eq(schema.projectTranslationKeys.id, key.id));
 
-  const [translation] = await db
-    .insert(schema.projectTranslations)
-    .values({
+  const translation = await writeProjectTranslations(
+    db,
+    {
       organizationId: input.organizationId,
-      projectId: input.projectId,
-      translationKeyId: key.id,
-      targetLocale: input.targetLocale,
-      text: assetUrl,
-      status: "needs_review",
-      provenance: "manual",
-      metadata: {
-        contentKind: VIDEO_URL_CONTENT_KIND,
-        storedFileId: stored.id,
-      },
-    })
-    .onConflictDoUpdate({
-      target: [
-        schema.projectTranslations.translationKeyId,
-        schema.projectTranslations.targetLocale,
-      ],
-      set: {
-        text: assetUrl,
-        status: "needs_review",
-        provenance: "manual",
-        reviewedByUserId: null,
-        reviewedAt: null,
-        metadata: {
-          contentKind: VIDEO_URL_CONTENT_KIND,
-          storedFileId: stored.id,
-        },
-        updatedAt: new Date(),
-      },
-    })
-    .returning();
+      translationKeyIds: [key.id],
+      targetLocales: [input.targetLocale],
+    },
+    async (tx, before) => {
+      const [translation] = await tx
+        .insert(schema.projectTranslations)
+        .values({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          translationKeyId: key.id,
+          targetLocale: input.targetLocale,
+          text: assetUrl,
+          status: "needs_review",
+          provenance: "manual",
+          metadata: {
+            contentKind: VIDEO_URL_CONTENT_KIND,
+            storedFileId: stored.id,
+          },
+        })
+        .onConflictDoUpdate({
+          target: [
+            schema.projectTranslations.translationKeyId,
+            schema.projectTranslations.targetLocale,
+          ],
+          set: {
+            text: assetUrl,
+            status: "needs_review",
+            provenance: "manual",
+            reviewedByUserId: null,
+            reviewedAt: null,
+            metadata: {
+              contentKind: VIDEO_URL_CONTENT_KIND,
+              storedFileId: stored.id,
+            },
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      if (translation) {
+        await recordProjectTranslationRevisions(tx, {
+          before,
+          saved: [translation],
+          actor: {
+            actorKind: revisionActorForProvenance(translation.provenance).actorKind,
+            actorUserId: input.actorUserId ?? null,
+          },
+        });
+      }
+      return translation;
+    },
+  );
 
   if (!translation) {
     return err({ code: "key_not_found" });
