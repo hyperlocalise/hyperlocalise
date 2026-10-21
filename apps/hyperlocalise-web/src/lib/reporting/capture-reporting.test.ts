@@ -322,6 +322,16 @@ describe("reporting capture", () => {
           memoryIds: [memory.id],
           sourceLocale: "en-US",
           targetLocale: "fr-FR",
+          sourceTexts: ["hello world"],
+        })
+      ).get("hello world"),
+    ).toBe(99);
+    expect(
+      (
+        await scoreAgainstMemory({
+          memoryIds: [memory.id],
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
           sourceTexts: ["Hello brave world"],
         })
       ).get("Hello brave world"),

@@ -15,7 +15,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "./report-table";
+import { MatchAnalysisTable } from "./match-analysis-table";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -38,13 +38,6 @@ export function TaskReportingPanel({ base, jobId }: { base: string; jobId: strin
     queryFn: () =>
       reportingFetch<{
         taskReport: {
-          analyses: {
-            id: string;
-            segmentId: string;
-            targetLocale: string;
-            words: number | null;
-            bucket: string;
-          }[];
           timeEntries: {
             id: string;
             workDate: string;
@@ -57,26 +50,7 @@ export function TaskReportingPanel({ base, jobId }: { base: string; jobId: strin
   });
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-balance text-lg font-medium">{intl.formatMessage(messages.analysis)}</h2>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {(["segmentId", "targetLocale", "words", "bucket"] as const).map((key) => (
-              <TableHead key={key}>{intl.formatMessage(messages[key])}</TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {query.data?.taskReport.analyses.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell>{row.segmentId}</TableCell>
-              <TableCell>{row.targetLocale}</TableCell>
-              <TableCell>{row.words ?? "—"}</TableCell>
-              <TableCell>{row.bucket}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <MatchAnalysisTable base={base} jobId={jobId} />
       <h2 className="text-balance text-lg font-medium">
         {intl.formatMessage(messages.timeEntries)}
       </h2>
