@@ -772,6 +772,7 @@ function ProjectFileContentEditorPageContentInner({
       <ProjectFileContentEditorWorkspace
         organizationSlug={organizationSlug}
         projectId={projectId}
+        projectSource={projectQuery.data?.source}
         sourceLocale={sourceLocale}
         sourcePath={resolvedSourcePath}
         externalResourceId={allFiles ? null : resolvedExternalResourceId}
