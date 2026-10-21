@@ -98,6 +98,11 @@ async function pricedUnits(input: {
       ? sql.raw(`s.arrived_${unit}`)
       : sql.raw(`s.arrived_${unit} - s.arrived_done_${unit}`);
   const projects = sql`s.project_id in (${idList(input.projectIds)})`;
+  // Still to come counts only the uncounted strings that cannot all be among the done ones.
+  const uncounted =
+    input.measure === "chosen"
+      ? sql`s.arrived_uncounted`
+      : sql`greatest(s.arrived_uncounted - s.arrived_done_strings, 0)`;
   const tasks = input.jobIds?.length ? sql`and s.job_id in (${idList(input.jobIds)})` : sql``;
   const rows =
     input.measure === "chosen"
@@ -146,7 +151,7 @@ async function pricedUnits(input: {
         sum(${value("words")}) as words, sum(${value("strings")}) as strings,
         sum(${value("characters")}) as characters,
         sum(${value("characters_with_spaces")}) as characters_with_spaces,
-        sum(${value(input.unit)}) as shown, sum(s.arrived_uncounted) as uncounted
+        sum(${value(input.unit)}) as shown, sum(${uncounted}) as uncounted
       from (${rows}) s
       ${
         input.measure === "chosen"
@@ -192,7 +197,8 @@ async function pricedUnits(input: {
           sum(uncounted)::float8 as uncounted
         from resolved where ${chosenLanguage}
         group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
-        having sum(shown) > 0 or sum(words) > 0 or sum(uncounted) > 0
+        -- Every group with work in it, whatever unit is shown: money never depends on it.
+        having sum(strings) > 0 or sum(uncounted) > 0
       ) g) as groups,
       (select coalesce(json_agg(h), '[]') from (
         select r.project_id as "projectId", r.job_id as "jobId", r.step,

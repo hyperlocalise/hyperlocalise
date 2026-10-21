@@ -542,6 +542,78 @@ describe("cost estimate filters", () => {
   });
 });
 
+describe("uncounted and word-less strings", () => {
+  it("prices strings with no words but characters whatever unit is shown", async () => {
+    const workspace = await fixture.createWorkspace();
+    const { organization, project, createJob, addSummary } = workspace;
+    await createCard(workspace, "Characters", [line("ja-JP", "0.1", "character")]);
+    const job = await createJob();
+    await addSummary([
+      {
+        jobId: job.id,
+        targetLocale: "ja-JP",
+        bucket: "new",
+        day: "2026-06-01",
+        arrived: { words: 0, strings: 2, characters: 40, characters_with_spaces: 40 },
+      },
+    ]);
+    for (const unit of ["words", "strings", "characters"] as const) {
+      const estimate = await queryCostEstimate({
+        organizationId: organization.id,
+        projectIds: [project.id],
+        jobIds: [job.id],
+        unit,
+        rateCardName: "Characters",
+      });
+      expect(usd(estimate.totals.costUsd), unit).toBe(4);
+    }
+  });
+
+  it("marks still to come incomplete only for uncounted strings that must still be open", async () => {
+    const workspace = await fixture.createWorkspace();
+    const { organization, project, createProject, createJob, addSummary } = workspace;
+    const other = await createProject("Other");
+    await createCard(workspace, "Standard", [line("fr-FR", "1")]);
+    await db.insert(schema.reportingBudgets).values(
+      [project.id, other.id].map((projectId) => ({
+        organizationId: organization.id,
+        projectId,
+        budget: "100",
+        rateCardName: "Standard",
+      })),
+    );
+    const done = await createJob({ assigned: true });
+    const open = await createJob({ projectId: other.id, assigned: true });
+    await addSummary([
+      // Three strings, one done and one uncounted: the uncounted one may be the done one.
+      {
+        jobId: done.id,
+        targetLocale: "fr-FR",
+        day: "2026-06-01",
+        arrived: { words: 9, strings: 3 },
+        arrivedDone: { words: 4, strings: 1 },
+        uncounted: 1,
+      },
+      // Two uncounted strings and one done: at least one uncounted string is still open.
+      {
+        projectId: other.id,
+        jobId: open.id,
+        targetLocale: "fr-FR",
+        day: "2026-06-01",
+        arrived: { words: 9, strings: 3 },
+        arrivedDone: { words: 4, strings: 1 },
+        uncounted: 2,
+      },
+    ]);
+    const toCome = await queryStillToCome({
+      organizationId: organization.id,
+      projectIds: [project.id, other.id],
+    });
+    expect(toCome.get(project.id)).toEqual({ amountUsd: "5.00000000", incomplete: false });
+    expect(toCome.get(other.id)).toEqual({ amountUsd: "5.00000000", incomplete: true });
+  });
+});
+
 describe("costs", () => {
   it("sums what was spent in a period by project, with the previous period's total", async () => {
     const workspace = await fixture.createWorkspace();
