@@ -1,0 +1,291 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import "dotenv/config";
+
+import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+
+import { db } from "@/lib/database/client";
+
+import { createReportingTestFixture } from "./reporting.fixture";
+import { resolvePeriod } from "./report-period";
+import {
+  queryActivity,
+  queryFinishedByLanguage,
+  queryFinishedSeries,
+  queryTaskWords,
+  queryWordCounts,
+  WORD_COUNT_PAGE_SIZE,
+} from "./word-queries";
+
+const fixture = createReportingTestFixture();
+
+beforeAll(async () => {
+  await db.$client.query("select 1");
+});
+
+afterEach(async () => {
+  await fixture.cleanup();
+});
+
+const period = resolvePeriod({
+  from: "2026-06-08",
+  to: "2026-06-14",
+  today: "2026-10-21",
+  startedDay: "2026-01-01",
+});
+
+describe("word count queries", () => {
+  it("totals a period and the one before it in one read", async () => {
+    const { organization, project, addSummary } = await fixture.createWorkspace();
+    await addSummary([
+      // This period: 100 words arrive in French, 60 of them finished; 30 reviewed.
+      {
+        targetLocale: "fr-FR",
+        day: "2026-06-10",
+        source: 100,
+        arrived: 100,
+        arrivedDone: 60,
+        finished: 70,
+        uncounted: 2,
+      },
+      { targetLocale: "fr-FR", step: "review", day: "2026-06-11", arrived: 70, finished: 30 },
+      // The previous period, and a day outside both.
+      { targetLocale: "fr-FR", day: "2026-06-03", source: 40, arrived: 40, finished: 10 },
+      { targetLocale: "fr-FR", day: "2026-05-01", source: 999, arrived: 999 },
+    ]);
+    const scope = { organizationId: organization.id, projectIds: [project.id], period };
+
+    await expect(queryActivity({ ...scope, unit: "words" })).resolves.toEqual({
+      current: {
+        source: 100,
+        arrived: 100,
+        arrivedDone: 60,
+        finished: 70,
+        reviewed: 30,
+        uncounted: 2,
+      },
+      previous: {
+        source: 40,
+        arrived: 40,
+        arrivedDone: 0,
+        finished: 10,
+        reviewed: 0,
+        uncounted: 0,
+      },
+    });
+    // A project the viewer cannot open is never read, even when chosen.
+    await expect(
+      queryActivity({ ...scope, projectIds: [], projectId: project.id, unit: "words" }),
+    ).resolves.toMatchObject({ current: { arrived: 0 } });
+  });
+
+  it("splits finished work into people and automatic, by day and by week", async () => {
+    const { organization, project, addSummary } = await fixture.createWorkspace();
+    await addSummary([
+      { targetLocale: "fr-FR", day: "2026-06-09", finished: 50, finishedByPerson: 20 },
+      { targetLocale: "de-DE", day: "2026-06-09", finished: 10 },
+      { targetLocale: "de-DE", day: "2026-06-13", finished: 5, finishedByPerson: 5 },
+      { targetLocale: "de-DE", step: "review", day: "2026-06-13", finished: 99 },
+    ]);
+    const scope = {
+      organizationId: organization.id,
+      projectIds: [project.id],
+      unit: "words" as const,
+      step: "translation" as const,
+    };
+
+    const daily = await queryFinishedSeries({ ...scope, period });
+    expect(daily).toHaveLength(7);
+    expect(daily.find((point) => point.start === "2026-06-09")).toEqual({
+      start: "2026-06-09",
+      people: 20,
+      automatic: 40,
+    });
+    expect(daily.find((point) => point.start === "2026-06-10")).toEqual({
+      start: "2026-06-10",
+      people: 0,
+      automatic: 0,
+    });
+
+    const weekly = await queryFinishedSeries({
+      ...scope,
+      period: { ...period, from: "2026-06-03", interval: "week" },
+    });
+    // Weeks start on Monday: 1 June and 8 June.
+    expect(weekly).toEqual([
+      { start: "2026-06-01", people: 0, automatic: 0 },
+      { start: "2026-06-08", people: 25, automatic: 40 },
+    ]);
+
+    await expect(queryFinishedByLanguage({ ...scope, period })).resolves.toEqual([
+      { targetLocale: "fr-FR", units: 50 },
+      { targetLocale: "de-DE", units: 15 },
+    ]);
+  });
+
+  it("counts by project and language, with match bands as columns, in any unit", async () => {
+    const { organization, project, createProject, addSummary } = await fixture.createWorkspace();
+    const help = await createProject("Help centre");
+    await addSummary([
+      {
+        targetLocale: "ja-JP",
+        bucket: "new",
+        day: "2026-06-10",
+        arrived: { words: 12, strings: 2, characters: 40, characters_with_spaces: 44 },
+      },
+      {
+        targetLocale: "ja-JP",
+        bucket: "100",
+        day: "2026-06-12",
+        arrived: { words: 8, strings: 1, characters: 30, characters_with_spaces: 33 },
+      },
+      { projectId: help.id, targetLocale: "fr-FR", day: "2026-06-11", arrived: 5, uncounted: 1 },
+    ]);
+    const input = {
+      organizationId: organization.id,
+      projectIds: [project.id, help.id],
+      period,
+      step: "translation" as const,
+      mode: "arrived" as const,
+      groupBy: "project" as const,
+      page: 1,
+    };
+
+    const characters = await queryWordCounts({ ...input, unit: "characters" });
+    expect(characters.rows).toEqual([
+      {
+        projectId: project.id,
+        projectName: "Docs",
+        jobId: null,
+        jobTitle: null,
+        targetLocale: "ja-JP",
+        bands: { new: 40, "100": 30 },
+        total: 70,
+      },
+    ]);
+    expect(characters).toMatchObject({ bandTotals: { new: 40, "100": 30 }, total: 70 });
+
+    const words = await queryWordCounts({ ...input, unit: "words" });
+    expect(words.rows.map((row) => [row.projectName, row.total])).toEqual([
+      ["Docs", 20],
+      ["Help centre", 5],
+    ]);
+    expect(words).toMatchObject({ total: 25, uncounted: 1, groupCount: 2 });
+  });
+
+  it("pages tasks largest first and keeps totals across every page", async () => {
+    const { organization, project, createJob, addSummary } = await fixture.createWorkspace();
+    const jobs = [];
+    for (let index = 0; index < WORD_COUNT_PAGE_SIZE + 2; index += 1)
+      jobs.push(await createJob({ title: `Task ${index}` }));
+    await addSummary([
+      ...jobs.map((job, index) => ({
+        jobId: job.id,
+        targetLocale: "fr-FR",
+        day: "2026-06-10",
+        finished: index + 1,
+      })),
+      // Saved in the content editor outside any task.
+      { jobId: null, targetLocale: "fr-FR", day: "2026-06-10", finished: 1000 },
+    ]);
+    const input = {
+      organizationId: organization.id,
+      projectIds: [project.id],
+      period,
+      unit: "words" as const,
+      step: "translation" as const,
+      mode: "finished" as const,
+      groupBy: "task" as const,
+    };
+    const first = await queryWordCounts({ ...input, page: 1 });
+    expect(first.rows).toHaveLength(WORD_COUNT_PAGE_SIZE);
+    expect(first.rows[0]).toMatchObject({ jobId: null, jobTitle: null, total: 1000 });
+    expect(first.rows[1]).toMatchObject({ jobTitle: `Task ${WORD_COUNT_PAGE_SIZE + 1}` });
+    const allWords = 1000 + ((WORD_COUNT_PAGE_SIZE + 2) * (WORD_COUNT_PAGE_SIZE + 3)) / 2;
+    expect(first).toMatchObject({ groupCount: WORD_COUNT_PAGE_SIZE + 3, total: allWords });
+
+    const second = await queryWordCounts({ ...input, page: 2 });
+    expect(second.rows.map((row) => row.jobTitle)).toEqual(["Task 2", "Task 1", "Task 0"]);
+    expect(second.total).toBe(allWords);
+
+    const everything = await queryWordCounts({ ...input, page: 1, all: true });
+    expect(everything.rows).toHaveLength(WORD_COUNT_PAGE_SIZE + 3);
+
+    // One task chosen: only its rows.
+    const one = await queryWordCounts({ ...input, page: 1, jobIds: [jobs[0].id] });
+    expect(one.rows).toEqual([expect.objectContaining({ jobId: jobs[0].id, total: 1 })]);
+  });
+
+  it("reads a task's words over its whole life", async () => {
+    const { organization, createJob, addSummary } = await fixture.createWorkspace();
+    const job = await createJob();
+    await addSummary([
+      {
+        jobId: job.id,
+        targetLocale: "fr-FR",
+        bucket: "new",
+        day: "2026-01-10",
+        source: 10,
+        arrived: 10,
+        arrivedDone: 10,
+      },
+      {
+        jobId: job.id,
+        targetLocale: "de-DE",
+        bucket: "new",
+        day: "2026-01-10",
+        arrived: 10,
+        arrivedDone: 4,
+      },
+      {
+        jobId: job.id,
+        targetLocale: "de-DE",
+        bucket: "95-99",
+        day: "2026-03-02",
+        source: 3,
+        arrived: 3,
+      },
+      {
+        jobId: job.id,
+        targetLocale: "fr-FR",
+        step: "review",
+        day: "2026-03-02",
+        arrived: 10,
+        arrivedDone: 6,
+      },
+    ]);
+    const words = await queryTaskWords({
+      organizationId: organization.id,
+      jobId: job.id,
+      unit: "words",
+    });
+    expect(words.totals.translation).toEqual({
+      source: 13,
+      arrived: 23,
+      arrivedDone: 14,
+      uncounted: 0,
+    });
+    expect(words.totals.review).toMatchObject({ arrived: 10, arrivedDone: 6 });
+    expect(words.rows).toEqual([
+      {
+        targetLocale: "de-DE",
+        step: "translation",
+        bands: { new: 10, "95-99": 3 },
+        total: 13,
+        finished: 4,
+      },
+      { targetLocale: "fr-FR", step: "translation", bands: { new: 10 }, total: 10, finished: 10 },
+      { targetLocale: "fr-FR", step: "review", bands: { new: 10 }, total: 10, finished: 6 },
+    ]);
+  });
+});

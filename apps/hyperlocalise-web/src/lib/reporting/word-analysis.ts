@@ -110,6 +110,7 @@ export function reportingPeriod(date: Date, interval: "day" | "week") {
 
 export function csvCell(value: string | number | boolean | null | undefined): string {
   const text = String(value ?? "");
-  const safe = /^[=+@\-\t\r]/.test(text) ? "'" + text : text;
+  // A negative number cannot be a formula, so it stays a number in a spreadsheet.
+  const safe = /^[=+@\-\t\r]/.test(text) && !/^-\d+(\.\d+)?$/.test(text) ? "'" + text : text;
   return '"' + safe.replaceAll('"', '""') + '"';
 }

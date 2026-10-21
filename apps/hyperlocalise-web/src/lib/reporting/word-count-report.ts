@@ -135,19 +135,28 @@ export type ReportJobOption = {
   id: string;
   title: string;
   projectId: string | null;
+  status: string;
   createdAt: string;
 };
 
-/** Jobs that have Reports data, newest first, for the job picker. */
+/**
+ * Tasks that have Reports data, newest first, for the task picker: optionally only open ones,
+ * those whose title or id contains `q`, or the given ids.
+ */
 export async function listReportJobs(input: {
   organizationId: string;
   projectIds: string[];
   projectId?: string;
+  q?: string;
+  open?: boolean;
+  ids?: string[];
+  limit?: number;
 }): Promise<ReportJobOption[]> {
   if (input.projectIds.length === 0) return [];
+  const title = sql`coalesce(j.input_payload -> 'metadata' ->> 'title', j.id)`;
+  const pattern = input.q ? `%${input.q.replace(/[\\%_]/g, (match) => `\\${match}`)}%` : null;
   const result = await db.execute<ReportJobOption>(sql`
-    select j.id, coalesce(j.input_payload -> 'metadata' ->> 'title', j.id) as title,
-      j.project_id as "projectId", j.created_at as "createdAt"
+    select j.id, ${title} as title, j.project_id as "projectId", j.status, j.created_at as "createdAt"
     from jobs j
     where j.organization_id = ${input.organizationId}
       and j.project_id in (${sql.join(
@@ -155,12 +164,22 @@ export async function listReportJobs(input: {
         sql`, `,
       )})
       ${input.projectId ? sql`and j.project_id = ${input.projectId}` : sql``}
+      ${input.open ? sql`and j.status in ('queued', 'running', 'waiting_for_review')` : sql``}
+      ${pattern ? sql`and (${title} ilike ${pattern} or j.id ilike ${pattern})` : sql``}
+      ${
+        input.ids?.length
+          ? sql`and j.id in (${sql.join(
+              input.ids.map((id) => sql`${id}`),
+              sql`, `,
+            )})`
+          : sql``
+      }
       and exists (
         select 1 from reporting_analyses a
         where a.organization_id = j.organization_id and a.job_id = j.id
       )
     order by j.created_at desc
-    limit 200
+    limit ${input.limit ?? 200}
   `);
   return result.rows;
 }

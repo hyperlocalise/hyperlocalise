@@ -268,8 +268,20 @@ describe("listReportJobs", () => {
         id: job.id,
         title: "Checkout strings",
         projectId: project.id,
+        status: job.status,
         createdAt: expect.anything(),
       },
     ]);
+
+    const scope = { organizationId: organization.id, projectIds: [project.id] };
+    await expect(listReportJobs({ ...scope, q: "checkout" })).resolves.toHaveLength(1);
+    await expect(listReportJobs({ ...scope, q: "invoice" })).resolves.toEqual([]);
+    // Wildcards in the search are matched as themselves.
+    await expect(listReportJobs({ ...scope, q: "%" })).resolves.toEqual([]);
+    await expect(listReportJobs({ ...scope, ids: [job.id] })).resolves.toHaveLength(1);
+    await expect(listReportJobs({ ...scope, ids: ["job_other"] })).resolves.toEqual([]);
+    // The seeded task has finished, so it is not open.
+    expect(job.status).toBe("succeeded");
+    await expect(listReportJobs({ ...scope, open: true })).resolves.toEqual([]);
   });
 });

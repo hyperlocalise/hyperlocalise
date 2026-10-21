@@ -1,0 +1,194 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { AiUsage } from "./ai-usage";
+import type { BudgetRow, CostEstimate, Costs } from "./cost-queries";
+import type { AutomatedTime, LoggedTime, StepTime } from "./time-queries";
+import { csvCell, MATCH_BUCKETS } from "./word-analysis";
+import type { BandCounts, WordCounts } from "./word-queries";
+
+/** CSV downloads of the Reports page's tables. Headers are the JSON field names. */
+
+type Cell = string | number | boolean | null | undefined;
+
+function toCsv(header: string[], rows: Cell[][]): string {
+  return [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+}
+
+/** The match bands that have any units, in their usual order. */
+function bandsIn(totals: BandCounts) {
+  return MATCH_BUCKETS.filter((bucket) => (totals[bucket] ?? 0) > 0);
+}
+
+export function wordCountsCsv(counts: WordCounts, groupBy: "project" | "task"): string {
+  const bands = bandsIn(counts.bandTotals);
+  return toCsv(
+    [
+      "projectName",
+      ...(groupBy === "task" ? ["jobTitle", "jobId"] : []),
+      "targetLocale",
+      ...bands,
+      "total",
+    ],
+    counts.rows.map((row) => [
+      row.projectName,
+      ...(groupBy === "task" ? [row.jobTitle, row.jobId] : []),
+      row.targetLocale,
+      ...bands.map((bucket) => row.bands[bucket] ?? 0),
+      row.total,
+    ]),
+  );
+}
+
+export function loggedTimeCsv(time: LoggedTime): string {
+  return toCsv(
+    ["jobTitle", "jobId", "step", "targetLocale", "minutes", "people"],
+    time.rows.map((row) => [
+      row.jobTitle,
+      row.jobId,
+      row.step,
+      row.targetLocale,
+      row.minutes,
+      row.people,
+    ]),
+  );
+}
+
+export function stepTimesCsv(logged: StepTime[], automated: AutomatedTime): string {
+  return toCsv(
+    ["kind", "name", "minutes", "people", "runs"],
+    [
+      ...logged.map((row) => ["logged", row.step, row.minutes, row.people, null]),
+      [
+        "task_runs",
+        "translation",
+        Math.round(automated.taskRuns.milliseconds / 60_000),
+        null,
+        automated.taskRuns.runs,
+      ],
+      ...automated.workflowSteps.map((row) => [
+        "workflow_step",
+        row.nodeType,
+        Math.round(row.milliseconds / 60_000),
+        null,
+        row.runs,
+      ]),
+    ],
+  );
+}
+
+export function aiUsageCsv(usage: AiUsage, groupBy: "origin" | "model"): string {
+  const counts = ["calls", "inputTokens", "outputTokens", "images", "videos"] as const;
+  return groupBy === "origin"
+    ? toCsv(
+        ["origin", ...counts, "models", "channels"],
+        usage.byOrigin.map((row) => [
+          row.origin,
+          ...counts.map((key) => row[key]),
+          row.models.join("; "),
+          row.channels.join("; "),
+        ]),
+      )
+    : toCsv(
+        ["model", ...counts, "origins"],
+        usage.byModel.map((row) => [
+          row.model,
+          ...counts.map((key) => row[key]),
+          row.origins.join("; "),
+        ]),
+      );
+}
+
+export function costsCsv(costs: Costs): string {
+  return toCsv(
+    ["projectName", "projectId", "peopleUsd", "aiUsd", "expensesUsd", "totalUsd"],
+    costs.rows.map((row) => [
+      row.projectName,
+      row.projectId,
+      row.peopleUsd,
+      row.aiUsd,
+      row.expensesUsd,
+      row.totalUsd,
+    ]),
+  );
+}
+
+export function costEstimateCsv(estimate: CostEstimate): string {
+  const bands = bandsIn(estimate.totals.bands);
+  return toCsv(
+    [
+      "targetLocale",
+      "step",
+      "pricing",
+      "rateCardName",
+      "basis",
+      "rate",
+      ...bands,
+      "units",
+      "weighted",
+      "costUsd",
+    ],
+    [
+      ...estimate.rows.map((row) => [
+        row.targetLocale,
+        row.step,
+        row.pricing,
+        row.rateCardName,
+        row.basis,
+        row.rate,
+        ...bands.map((bucket) => row.bands[bucket] ?? 0),
+        row.units,
+        row.weighted === null ? null : Math.round(row.weighted * 100) / 100,
+        row.costUsd,
+      ]),
+      ...estimate.fixedFees.map((fee) => [
+        null,
+        fee.step,
+        "fixed",
+        null,
+        null,
+        null,
+        ...bands.map(() => null),
+        null,
+        null,
+        fee.amountUsd,
+      ]),
+    ],
+  );
+}
+
+export function budgetsCsv(budgets: BudgetRow[]): string {
+  return toCsv(
+    [
+      "projectName",
+      "projectId",
+      "budgetUsd",
+      "spentUsd",
+      "stillToComeUsd",
+      "forecastUsd",
+      "remainingUsd",
+      "status",
+      "incomplete",
+    ],
+    budgets.map((row) => [
+      row.projectName,
+      row.projectId,
+      row.budgetUsd,
+      row.spentUsd,
+      row.stillToComeUsd,
+      row.forecastUsd,
+      row.remainingUsd,
+      row.status,
+      row.incomplete,
+    ]),
+  );
+}

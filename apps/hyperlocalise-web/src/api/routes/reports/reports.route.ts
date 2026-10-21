@@ -10,19 +10,61 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { and, eq, inArray, desc, sql } from "drizzle-orm";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import { getAccessibleProjectIds, buildAccessibleJobsWhere } from "@/api/auth/team-access";
 import { createWorkspaceFeatureFlagMiddleware } from "@/api/middleware/workspace-feature-flag";
-import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
+import {
+  badRequestResponse,
+  conflictResponse,
+  forbiddenResponse,
+  notFoundResponse,
+} from "@/api/response.schema";
+import { isErr } from "@/lib/primitives/result/results";
 import { db, schema } from "@/lib/database/client";
 import { workspaceReportsFlag } from "@/lib/flags/workspace-flags";
 import { queryReport, reportCsv } from "@/lib/reporting/query";
 import { hourlyCost } from "@/lib/reporting/money";
 import { resolveReportingRate, reportingStart } from "@/lib/reporting/capture";
 import { budgetSummary } from "@/lib/reporting/budgets";
+import { queryAiUsage } from "@/lib/reporting/ai-usage";
+import {
+  queryBudgets,
+  queryCostEstimate,
+  queryCosts,
+  queryStillToCome,
+} from "@/lib/reporting/cost-queries";
+import {
+  isLiveRateLine,
+  listRateCards,
+  rateCardExists,
+  saveRateCard,
+} from "@/lib/reporting/rate-cards";
+import {
+  aiUsageCsv,
+  budgetsCsv,
+  costEstimateCsv,
+  costsCsv,
+  loggedTimeCsv,
+  stepTimesCsv,
+  wordCountsCsv,
+} from "@/lib/reporting/report-csv";
+import { resolvePeriod } from "@/lib/reporting/report-period";
+import { getReportingStart } from "@/lib/reporting/reporting-start";
+import {
+  queryAutomatedTime,
+  queryLoggedTime,
+  queryLoggedTimeBySteps,
+} from "@/lib/reporting/time-queries";
+import {
+  queryActivity,
+  queryFinishedByLanguage,
+  queryFinishedSeries,
+  queryTaskWords,
+  queryWordCounts,
+} from "@/lib/reporting/word-queries";
 import {
   listReportJobs,
   matchAnalysisCsv,
@@ -34,7 +76,16 @@ import {
   reportQuerySchema,
   wordCountQuerySchema,
   exportFormatSchema,
-  reportJobsQuerySchema,
+  reportTaskSearchSchema,
+  activityQuerySchema,
+  stepTimesQuerySchema,
+  aiUsageQuerySchema,
+  wordsQuerySchema,
+  loggedTimeQuerySchema,
+  costsQuerySchema,
+  costEstimateQuerySchema,
+  taskReportQuerySchema,
+  rateCardSchema,
   rateSchema,
   budgetSchema,
   taskRateSchema,
@@ -42,6 +93,31 @@ import {
   timeUpdateSchema,
   expenseSchema,
 } from "./reports.schema";
+
+type ReportsContext = Context<{ Variables: AuthVariables }>;
+
+/** The viewer's workspace, projects and money access, and the dates Reports can cover. */
+async function reportContext(c: ReportsContext) {
+  const organizationId = c.var.auth.organization.localOrganizationId;
+  const [projectIds, startedAt] = await Promise.all([
+    getAccessibleProjectIds(c.var.auth),
+    getReportingStart(organizationId),
+  ]);
+  return {
+    organizationId,
+    projectIds,
+    startedAt,
+    startedDay: startedAt ? startedAt.toISOString().slice(0, 10) : null,
+    today: new Date().toISOString().slice(0, 10),
+    financial: hasCapability(c.var.auth.membership.role, "billing:read"),
+  };
+}
+
+function csv(c: ReportsContext, filename: string, body: string) {
+  c.header("Content-Type", "text/csv; charset=utf-8");
+  c.header("Content-Disposition", `attachment; filename="${filename}"`);
+  return c.body(body);
+}
 
 export function createReportsRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
@@ -98,45 +174,343 @@ export function createReportsRoutes() {
       return c.json({ wordCounts: { rows, from, to, groupBy: parsed.data.groupBy } });
     })
     .get("/jobs", async (c) => {
-      const parsed = reportJobsQuerySchema.safeParse(c.req.query());
+      const parsed = reportTaskSearchSchema.safeParse(c.req.query());
       if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
       const jobs = await listReportJobs({
         organizationId: c.var.auth.organization.localOrganizationId,
         projectIds: await getAccessibleProjectIds(c.var.auth),
-        projectId: parsed.data.projectId,
+        ...parsed.data,
       });
       return c.json({ jobs });
     })
     .get("/settings", async (c) => {
-      const organizationId = c.var.auth.organization.localOrganizationId;
-      const projectIds = await getAccessibleProjectIds(c.var.auth);
-      const projects = projectIds.length
-        ? await db
-            .select({
-              id: schema.projects.id,
-              name: schema.projects.name,
-              targetLocales: schema.projects.targetLocales,
-            })
-            .from(schema.projects)
-            .where(inArray(schema.projects.id, projectIds))
-        : [];
-      if (!hasCapability(c.var.auth.membership.role, "billing:read"))
+      const context = await reportContext(c);
+      const { organizationId, projectIds } = context;
+      const role = c.var.auth.membership.role;
+      const [projects, pending] = await Promise.all([
+        projectIds.length
+          ? db
+              .select({
+                id: schema.projects.id,
+                name: schema.projects.name,
+                sourceLocale: schema.projects.sourceLocale,
+                targetLocales: schema.projects.targetLocales,
+              })
+              .from(schema.projects)
+              .where(inArray(schema.projects.id, projectIds))
+          : [],
+        db.execute<{ days: number; oldestMarkedAt: string | null }>(sql`
+          select count(*)::integer as days, min(marked_at) as "oldestMarkedAt"
+          from reporting_summary_queue where organization_id = ${organizationId}
+        `),
+      ]);
+      const shared = {
+        projects,
+        startedAt: context.startedAt?.toISOString() ?? null,
+        startedDay: context.startedDay,
+        today: context.today,
+        canLogTime: hasCapability(role, "jobs:write"),
+        // Days of recent work the summary has not counted yet.
+        summary: {
+          pendingDays: pending.rows[0].days,
+          oldestMarkedAt: pending.rows[0].oldestMarkedAt,
+        },
+      };
+      if (!context.financial)
         return c.json({
-          settings: { projects, rates: [], budgets: [], financial: false, canManage: false },
+          settings: {
+            ...shared,
+            rates: [],
+            budgets: [],
+            rateCardNames: [],
+            financial: false,
+            canManage: false,
+          },
         });
-      const rates = await db
-        .select()
-        .from(schema.reportingRates)
-        .where(eq(schema.reportingRates.organizationId, organizationId))
-        .orderBy(desc(schema.reportingRates.createdAt));
-      const budgets = await budgetSummary(organizationId, projectIds);
+      const [rates, budgets, rateCards] = await Promise.all([
+        db
+          .select()
+          .from(schema.reportingRates)
+          .where(eq(schema.reportingRates.organizationId, organizationId))
+          .orderBy(desc(schema.reportingRates.createdAt)),
+        budgetSummary(organizationId, projectIds),
+        listRateCards(organizationId),
+      ]);
       return c.json({
         settings: {
-          projects,
+          ...shared,
           rates,
           budgets,
+          rateCardNames: rateCards.map((card) => card.name),
           financial: true,
-          canManage: hasCapability(c.var.auth.membership.role, "billing:write"),
+          canManage: hasCapability(role, "billing:write"),
+        },
+      });
+    })
+    .get("/activity", async (c) => {
+      const parsed = activityQuerySchema.safeParse(c.req.query());
+      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+      const context = await reportContext(c);
+      const period = resolvePeriod({ ...parsed.data, ...context });
+      const { jobId, ...filters } = parsed.data;
+      const scope = { ...context, ...filters, jobIds: jobId ? [jobId] : undefined, period };
+      const [totals, series, byLanguage] = await Promise.all([
+        queryActivity(scope),
+        queryFinishedSeries({ ...scope, step: "translation" }),
+        queryFinishedByLanguage({ ...scope, step: "translation" }),
+      ]);
+      return c.json({
+        activity: { period, unit: parsed.data.unit, ...totals, series, byLanguage },
+      });
+    })
+    .get("/step-times", async (c) => {
+      const parsed = stepTimesQuerySchema.safeParse(c.req.query());
+      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+      const context = await reportContext(c);
+      const period = resolvePeriod({ ...parsed.data, ...context });
+      const { jobId, ...filters } = parsed.data;
+      const [logged, automated] = await Promise.all([
+        queryLoggedTimeBySteps({
+          ...context,
+          ...filters,
+          jobIds: jobId ? [jobId] : undefined,
+          period,
+        }),
+        queryAutomatedTime({
+          ...context,
+          projectId: filters.projectId,
+          period,
+          includeUnattributed: context.financial,
+        }),
+      ]);
+      if (parsed.data.format === "csv")
+        return csv(c, "step-times.csv", stepTimesCsv(logged, automated));
+      return c.json({ stepTimes: { period, logged, automated } });
+    })
+    .get("/ai-usage", async (c) => {
+      const parsed = aiUsageQuerySchema.safeParse(c.req.query());
+      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+      const context = await reportContext(c);
+      const period = resolvePeriod({ ...parsed.data, ...context });
+      const usage = await queryAiUsage({
+        ...context,
+        projectId: parsed.data.projectId,
+        period,
+        // AI used outside any project (chat, assistants, workspace automations) is workspace
+        // spending, shown to the roles that see billing.
+        includeUnattributed: context.financial,
+      });
+      if (parsed.data.format === "csv")
+        return csv(c, "ai-usage.csv", aiUsageCsv(usage, parsed.data.groupBy));
+      return c.json({ aiUsage: { period, ...usage } });
+    })
+    .get("/words", async (c) => {
+      const parsed = wordsQuerySchema.safeParse(c.req.query());
+      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+      const context = await reportContext(c);
+      const period = resolvePeriod({ ...parsed.data, ...context });
+      const { jobId, format, ...filters } = parsed.data;
+      const counts = await queryWordCounts({
+        ...context,
+        ...filters,
+        jobIds: jobId ? [jobId] : undefined,
+        period,
+        all: format === "csv",
+      });
+      if (format === "csv")
+        return csv(c, "word-counts.csv", wordCountsCsv(counts, parsed.data.groupBy));
+      return c.json({
+        wordCounts: {
+          period,
+          unit: filters.unit,
+          step: filters.step,
+          mode: filters.mode,
+          groupBy: filters.groupBy,
+          ...counts,
+        },
+      });
+    })
+    .get("/time", async (c) => {
+      const parsed = loggedTimeQuerySchema.safeParse(c.req.query());
+      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+      const context = await reportContext(c);
+      const period = resolvePeriod({ ...parsed.data, ...context });
+      const { jobId, format, ...filters } = parsed.data;
+      const [logged, automated] = await Promise.all([
+        queryLoggedTime({
+          ...context,
+          ...filters,
+          jobIds: jobId ? [jobId] : undefined,
+          period,
+          all: format === "csv",
+        }),
+        queryAutomatedTime({
+          ...context,
+          projectId: filters.projectId,
+          period,
+          includeUnattributed: context.financial,
+        }),
+      ]);
+      if (format === "csv") return csv(c, "time.csv", loggedTimeCsv(logged));
+      return c.json({ time: { period, logged, automated } });
+    })
+    .get("/costs", async (c) => {
+      const parsed = costsQuerySchema.safeParse(c.req.query());
+      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+      const context = await reportContext(c);
+      if (!context.financial) return forbiddenResponse(c, "report_costs_forbidden");
+      const period = resolvePeriod({ ...parsed.data, ...context });
+      const costs = await queryCosts({ ...context, ...parsed.data, period });
+      if (parsed.data.format === "csv") return csv(c, "costs.csv", costsCsv(costs));
+      return c.json({ costs: { period, ...costs } });
+    })
+    .get("/cost-estimate", async (c) => {
+      const parsed = costEstimateQuerySchema.safeParse(c.req.query());
+      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+      const context = await reportContext(c);
+      if (!context.financial) return forbiddenResponse(c, "report_costs_forbidden");
+      const { rateCard, format, ...filters } = parsed.data;
+      const estimate = await queryCostEstimate({
+        ...context,
+        ...filters,
+        rateCardName: rateCard ?? null,
+      });
+      if (format === "csv") return csv(c, "cost-estimate.csv", costEstimateCsv(estimate));
+      return c.json({ costEstimate: estimate });
+    })
+    .get("/budgets", async (c) => {
+      const parsed = exportFormatSchema.safeParse(c.req.query());
+      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+      const context = await reportContext(c);
+      if (!context.financial) return forbiddenResponse(c, "report_costs_forbidden");
+      const budgets = await queryBudgets(context);
+      if (parsed.data.format === "csv") return csv(c, "budgets.csv", budgetsCsv(budgets));
+      return c.json({ budgets });
+    })
+    .get("/rate-cards", async (c) => {
+      const role = c.var.auth.membership.role;
+      if (!hasCapability(role, "billing:read"))
+        return forbiddenResponse(c, "report_costs_forbidden");
+      const rateCards = await listRateCards(c.var.auth.organization.localOrganizationId);
+      return c.json({ rateCards, canManage: hasCapability(role, "billing:write") });
+    })
+    .put("/rate-cards", async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "billing:write"))
+        return forbiddenResponse(c, "report_costs_forbidden");
+      const parsed = rateCardSchema.safeParse(await c.req.json());
+      if (!parsed.success) return badRequestResponse(c, "invalid_rate_card");
+      const saved = await saveRateCard({
+        ...parsed.data,
+        organizationId: c.var.auth.organization.localOrganizationId,
+        actorId: c.var.auth.user.localUserId,
+      });
+      if (isErr(saved)) {
+        if (saved.error.code === "rate_card_exists")
+          return conflictResponse(c, "rate_card_exists", "A rate card with this name exists.");
+        if (saved.error.code === "rate_card_not_found")
+          return notFoundResponse(c, "rate_card_not_found");
+        return badRequestResponse(
+          c,
+          "duplicate_rate_line",
+          "Each language pair and step can have one rate on a card.",
+        );
+      }
+      return c.json({ rateCard: saved.value });
+    })
+    .get("/tasks/:jobId/report", async (c) => {
+      const parsed = taskReportQuerySchema.safeParse(c.req.query());
+      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const [job] = await db
+        .select()
+        .from(schema.jobs)
+        .where(
+          and(eq(schema.jobs.id, c.req.param("jobId")), await buildAccessibleJobsWhere(c.var.auth)),
+        );
+      if (!job) return notFoundResponse(c, "job_not_found");
+      const role = c.var.auth.membership.role;
+      const financial = hasCapability(role, "billing:read");
+      const userId = c.var.auth.user.localUserId;
+      const money = financial && job.projectId;
+      const [words, entries, estimate, stillToCome] = await Promise.all([
+        queryTaskWords({ organizationId, jobId: job.id, unit: parsed.data.unit }),
+        db.execute<{
+          id: string;
+          contributorId: string;
+          person: string | null;
+          step: string;
+          targetLocale: string;
+          workDate: string;
+          minutes: number;
+          note: string | null;
+        }>(sql`
+          select e.id, e.contributor_id as "contributorId",
+            coalesce(nullif(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email) as person,
+            e.step, e.target_locale as "targetLocale", e.work_date as "workDate", e.minutes, e.note
+          from reporting_time_entries e left join users u on u.id = e.contributor_id
+          where e.organization_id = ${organizationId} and e.job_id = ${job.id} and not e.voided
+          order by e.work_date desc, e.created_at desc
+        `),
+        money
+          ? queryCostEstimate({
+              organizationId,
+              projectIds: [job.projectId!],
+              jobIds: [job.id],
+              step: parsed.data.step,
+              unit: parsed.data.unit,
+              rateCardName: parsed.data.rateCard ?? null,
+            })
+          : null,
+        money
+          ? queryStillToCome({
+              organizationId,
+              projectIds: [job.projectId!],
+              jobIds: [job.id],
+              rateCardName: parsed.data.rateCard ?? null,
+            })
+          : null,
+      ]);
+      const payload = job.inputPayload as {
+        sourceLocale?: string;
+        targetLocales?: string[];
+        targetLocale?: string;
+        metadata?: { title?: string };
+      };
+      const canEditAll = hasCapability(role, "billing:write");
+      const canLog = hasCapability(role, "jobs:write");
+      return c.json({
+        taskReport: {
+          task: {
+            id: job.id,
+            title: payload.metadata?.title ?? job.id,
+            kind: job.kind,
+            status: job.status,
+            projectId: job.projectId,
+            createdAt: job.createdAt.toISOString(),
+            sourceLocale: payload.sourceLocale ?? null,
+            targetLocales:
+              payload.targetLocales ?? (payload.targetLocale ? [payload.targetLocale] : []),
+          },
+          unit: parsed.data.unit,
+          step: parsed.data.step,
+          words,
+          estimate,
+          stillToComeUsd: stillToCome
+            ? (stillToCome.get(job.projectId!)?.amountUsd ?? "0.00000000")
+            : null,
+          time: {
+            minutes: entries.rows.reduce((sum, entry) => sum + entry.minutes, 0),
+            people: new Set(entries.rows.map((entry) => entry.contributorId)).size,
+            // Other people's entries are shown to the roles that see what work costs.
+            entries: entries.rows
+              .filter((entry) => financial || entry.contributorId === userId)
+              .map(({ contributorId, ...entry }) => ({
+                ...entry,
+                own: contributorId === userId,
+                canEdit: canLog && (contributorId === userId || canEditAll),
+              })),
+          },
+          canLogTime: canLog,
         },
       });
     })
@@ -228,6 +602,14 @@ export function createReportsRoutes() {
       if (!parsed.success) return badRequestResponse(c, "invalid_budget");
       if (!(await getAccessibleProjectIds(c.var.auth)).includes(parsed.data.projectId))
         return notFoundResponse(c, "project_not_found");
+      if (
+        parsed.data.rateCardName &&
+        !(await rateCardExists(
+          c.var.auth.organization.localOrganizationId,
+          parsed.data.rateCardName,
+        ))
+      )
+        return badRequestResponse(c, "rate_card_not_found");
       const [budget] = await db
         .insert(schema.reportingBudgets)
         .values({ ...parsed.data, organizationId: c.var.auth.organization.localOrganizationId })
@@ -262,7 +644,9 @@ export function createReportsRoutes() {
               eq(schema.reportingRates.step, parsed.data.step),
             ),
           );
-        if (!rate) return badRequestResponse(c, "invalid_rate");
+        // An older version of a line, or one taken off its card, is no longer a rate to choose.
+        if (!rate || !(await isLiveRateLine(organizationId, rate.id)))
+          return badRequestResponse(c, "invalid_rate");
       }
       const taskRate = await db.transaction(async (tx) => {
         const [lockedJob] = await tx
