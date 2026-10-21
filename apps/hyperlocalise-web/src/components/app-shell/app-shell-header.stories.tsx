@@ -113,7 +113,7 @@ export const WithUpdateAnnouncement: Story = {
     );
   },
   play: async ({ canvas }) => {
-    await expect(await canvas.findByRole("link", { name: "Try it now" })).toBeInTheDocument();
+    await expect(await canvas.findByRole("link", { name: "Watch the film" })).toBeInTheDocument();
   },
 };
 

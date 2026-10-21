@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   IRIS_LAUNCH_YOUTUBE_ID,
+  IRIS_LAUNCH_YOUTUBE_WATCH_URL,
   IRIS_WAITLIST_FORM_ID,
   IRIS_WAITLIST_URL,
   irisLaunchEmbedSrc,
@@ -23,6 +24,12 @@ import {
 describe("iris waitlist links", () => {
   it("points the waitlist at the Tally form", () => {
     expect(IRIS_WAITLIST_URL).toBe(`https://tally.so/r/${IRIS_WAITLIST_FORM_ID}`);
+  });
+
+  it("points the launch film at the public YouTube watch page", () => {
+    expect(IRIS_LAUNCH_YOUTUBE_WATCH_URL).toBe(
+      `https://www.youtube.com/watch?v=${IRIS_LAUNCH_YOUTUBE_ID}`,
+    );
   });
 
   it("builds a muted looping YouTube cover embed", () => {
