@@ -40,7 +40,6 @@ import { buildProjectFileActionCapabilities } from "./use-project-file-actions";
 
 export const TREE_HEIGHT_PX = 480;
 
-const TREE_ICONS = { set: "complete", colored: true } as const;
 const NO_FILE_PROGRESS: readonly ProjectFileProgressRecord[] = [];
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
@@ -217,7 +216,6 @@ function ProjectFilesTreeView({
     return preloadFileTree({
       id: "project-files-tree",
       initialExpansion: "open",
-      icons: TREE_ICONS,
       paths: nextPaths,
       initialVisibleRowCount: Math.max(nextPaths.length, 8),
       icons: PROJECT_FILES_TREE_ICONS,
@@ -309,7 +307,6 @@ function ProjectFilesTreeView({
     initialVisibleRowCount: Math.max(paths.length, 8),
     icons: PROJECT_FILES_TREE_ICONS,
     paths,
-    icons: TREE_ICONS,
     search: true,
     searchBlurBehavior: "retain",
     fileTreeSearchMode: "hide-non-matches",
@@ -379,7 +376,7 @@ function ProjectFilesTreeView({
 
   // Pierre has no decoration refresh API; re-setting icons re-renders every row.
   useEffect(() => {
-    model.setIcons(TREE_ICONS);
+    model.setIcons(PROJECT_FILES_TREE_ICONS);
   }, [model, progressLookup]);
 
   useEffect(() => {
