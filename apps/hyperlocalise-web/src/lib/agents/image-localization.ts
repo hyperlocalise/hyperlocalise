@@ -37,9 +37,12 @@ export function getImageAttachments(message: Message): ImageLocalizationAttachme
   });
 }
 
-export function getImageAttachmentData(imageAttachment: ImageLocalizationAttachment) {
+export async function getImageAttachmentData(
+  imageAttachment: ImageLocalizationAttachment,
+): Promise<Buffer> {
   if (imageAttachment.fetchData) {
-    return imageAttachment.fetchData();
+    const data = await imageAttachment.fetchData();
+    return Buffer.isBuffer(data) ? data : Buffer.from(data);
   }
 
   const { data } = imageAttachment;
