@@ -27,6 +27,42 @@ describe("classifyGoogleDriveItem", () => {
     expect(result).toMatchObject({ kind: "supported", ingestKind: "google_doc" });
   });
 
+  it("classifies Google Sheets as supported xlsx ingest", () => {
+    expect(
+      classifyGoogleDriveItem({
+        name: "Budget",
+        mimeType: GOOGLE_MIME.spreadsheet,
+      }),
+    ).toMatchObject({ kind: "supported", ingestKind: "google_sheet", ingestFormat: "xlsx" });
+  });
+
+  it("classifies Google Slides as supported pptx ingest", () => {
+    expect(
+      classifyGoogleDriveItem({
+        name: "Kickoff",
+        mimeType: GOOGLE_MIME.presentation,
+      }),
+    ).toMatchObject({ kind: "supported", ingestKind: "google_slide", ingestFormat: "pptx" });
+  });
+
+  it("skips PDF because it is not a Hyperlocalise source format", () => {
+    expect(
+      classifyGoogleDriveItem({
+        name: "brief.pdf",
+        mimeType: "application/pdf",
+      }),
+    ).toMatchObject({ kind: "skipped", reason: "unsupported_extension" });
+  });
+
+  it("imports uploaded Office files as binary downloads", () => {
+    expect(
+      classifyGoogleDriveItem({
+        name: "overview.docx",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      }),
+    ).toMatchObject({ kind: "supported", ingestKind: "binary", ingestFormat: "docx" });
+  });
+
   it("skips files inside locale folders by default", () => {
     const result = classifyGoogleDriveItem({
       name: "Report.docx",

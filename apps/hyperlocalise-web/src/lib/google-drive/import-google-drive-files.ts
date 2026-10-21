@@ -39,7 +39,6 @@ import {
   hideGoogleDriveTranslationOutputsOnIngest,
 } from "./file-classification";
 import { GOOGLE_DRIVE_MAX_FOLDER_DEPTH } from "./limits";
-import { pdfBufferToMarkdown } from "./pdf-to-markdown";
 import { loadGoogleDrivePipesAccessToken } from "./pipes";
 import { buildGoogleDriveSourcePath } from "./source-path";
 import {
@@ -185,24 +184,6 @@ async function loadIngestBuffer(input: {
   });
   if (classification.kind !== "supported") {
     return null;
-  }
-
-  if (classification.ingestKind === "pdf_as_markdown") {
-    const download = await downloadGoogleDriveMedia({
-      accessToken: input.accessToken,
-      fileId: input.file.fileId,
-    });
-    if (isErr(download)) {
-      return null;
-    }
-    const markdown = await pdfBufferToMarkdown(download.value);
-    const { base } = stripExtension(input.file.name);
-    return {
-      buffer: Buffer.from(markdown, "utf8"),
-      fileName: `${base}.md`,
-      contentType: "text/markdown",
-      format: classification.ingestFormat,
-    };
   }
 
   if (classification.exportMimeType) {

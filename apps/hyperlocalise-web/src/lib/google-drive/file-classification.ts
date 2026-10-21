@@ -29,7 +29,6 @@ import {
 export type GoogleDriveSkipReason =
   | "unsupported_google_app"
   | "unsupported_shortcut"
-  | "unsupported_media"
   | "unsupported_archive"
   | "file_too_large"
   | "folder_depth_exceeded"
@@ -37,12 +36,7 @@ export type GoogleDriveSkipReason =
   | "unsupported_plain_text"
   | "translation_output";
 
-export type GoogleDriveIngestKind =
-  | "google_doc"
-  | "google_sheet"
-  | "google_slide"
-  | "pdf_as_markdown"
-  | "binary";
+export type GoogleDriveIngestKind = "google_doc" | "google_sheet" | "google_slide" | "binary";
 
 export type GoogleDriveFileClassification =
   | {
@@ -81,12 +75,6 @@ function isPlainTextFile(name: string, mimeType: string): boolean {
     return true;
   }
   return path.extname(name).toLowerCase() === ".txt";
-}
-
-function isMediaMime(mimeType: string): boolean {
-  return (
-    mimeType.startsWith("image/") || mimeType.startsWith("video/") || mimeType.startsWith("audio/")
-  );
 }
 
 export function hideGoogleDriveTranslationOutputsOnIngest(input: {
@@ -148,10 +136,6 @@ export function classifyGoogleDriveItem(input: {
     return { kind: "skipped", reason: "unsupported_shortcut" };
   }
 
-  if (isMediaMime(mimeType)) {
-    return { kind: "skipped", reason: "unsupported_media" };
-  }
-
   if (isArchiveName(name) || mimeType === "application/zip") {
     return { kind: "skipped", reason: "unsupported_archive" };
   }
@@ -190,15 +174,6 @@ export function classifyGoogleDriveItem(input: {
       ingestExtension: ".pptx",
       exportMimeType: GOOGLE_EXPORT_MIME.pptx,
       uploadMimeType: GOOGLE_MIME.presentation,
-    };
-  }
-
-  if (mimeType === "application/pdf") {
-    return {
-      kind: "supported",
-      ingestKind: "pdf_as_markdown",
-      ingestFormat: "markdown",
-      ingestExtension: ".md",
     };
   }
 

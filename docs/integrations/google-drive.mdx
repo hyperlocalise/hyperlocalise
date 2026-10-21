@@ -31,8 +31,9 @@ Google Drive is not a trigger type. Use **Ingest**, **Run now**, or a schedule f
 | Google Docs | DOCX |
 | Google Sheets | XLSX |
 | Google Slides | PPTX |
-| PDF | Markdown (text extraction via unpdf) |
-| Other supported project formats | Original extension (JSON, CSV, HTML, MD, DOCX, etc.). Plain text (`.txt`) is skipped. |
+| Other Hyperlocalise source formats on Drive | Original extension (JSON, CSV, HTML, MD, DOCX, PNG, MP4, and similar) |
+
+Drive skips files that are not Hyperlocalise source formats, including PDF and plain text (`.txt`).
 
 ## Write-back
 
@@ -93,10 +94,9 @@ Source files:                         Translations:
 
 - If Google Drive auto-converts an upload to a Google Doc, export returns DOCX and the original format (for example `.md`) cannot be recovered.
 - Google Apps Script, Drawings, Forms, and Sites are not translated.
-- Image, video, and audio files are skipped.
 - ZIP and other archive files are skipped.
-- PDF translations are Markdown text only; layout is not preserved.
-- Plain text (`.txt`) is skipped. The Content Editor cannot open those files yet.
+- PDF and plain text (`.txt`) are skipped.
+- Media and other files that are not Hyperlocalise source formats are skipped.
 - Push skips keyed formats that do not yet have a format-aware writer (Markdown, HTML, CSV, PO, YAML, and similar). JSON, ARB, Lottie, and Office files are written in the original format.
 
 ## Limits
