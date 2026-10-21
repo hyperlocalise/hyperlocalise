@@ -9,19 +9,32 @@ require (
 	charm.land/bubbletea/v2 v2.1.0
 	charm.land/lipgloss/v2 v2.0.6
 	charm.land/log/v2 v2.0.1
+	github.com/DataDog/dd-trace-go/contrib/aws/aws-sdk-go-v2/v2 v2.10.1
+	github.com/DataDog/dd-trace-go/contrib/jackc/pgx.v5/v2 v2.10.1
+	github.com/DataDog/dd-trace-go/contrib/log/slog/v2 v2.10.1
+	github.com/DataDog/dd-trace-go/contrib/net/http/v2 v2.10.1
+	github.com/DataDog/dd-trace-go/contrib/valkey-io/valkey-go/v2 v2.10.1
 	github.com/DataDog/dd-trace-go/v2 v2.11.2
-	github.com/DataDog/orchestrion v1.13.1
+	github.com/DataDog/orchestrion v1.14.0
+	github.com/HugoSmits86/nativewebp v1.3.0
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/antihax/optional v1.0.0
+	github.com/aws/aws-lambda-go v1.55.1
 	github.com/aws/aws-sdk-go-v2 v1.47.3
 	github.com/aws/aws-sdk-go-v2/config v1.33.9
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.9
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.3
+	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.50.5
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.52.5
+	github.com/aws/aws-sdk-go-v2/service/textract v1.49.5
 	github.com/aws/smithy-go v1.28.5
 	github.com/crowdin/crowdin-api-client-go v0.19.0
 	github.com/gobwas/glob v1.0.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.14.0
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/klippa-app/go-pdfium v1.21.3
 	github.com/lokalise/go-lokalise-api/v5 v5.1.0
 	github.com/mattn/go-isatty v0.0.24
 	github.com/openai/openai-go/v3 v3.84.0
@@ -29,8 +42,10 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/subosito/gotenv v1.6.0
+	github.com/tetratelabs/wazero v1.12.0
 	github.com/tidwall/jsonc v0.3.3
 	github.com/turbopuffer/turbopuffer-go/v2 v2.9.1
+	github.com/valkey-io/valkey-go v1.0.79
 	github.com/workos/workos-go/v10 v10.6.0
 	github.com/xuri/excelize/v2 v2.11.1-0.20261011032807-402e3bdd9eae
 	github.com/yuin/goldmark/v2 v2.1.6
@@ -38,30 +53,12 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.47.0
 	go.opentelemetry.io/otel/sdk v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
+	golang.org/x/image v0.47.0
 	golang.org/x/net v0.61.0
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sync v0.24.0
 	golang.org/x/text v0.43.0
 	gopkg.in/yaml.v3 v3.0.1
-)
-
-require (
-	github.com/DataDog/dd-trace-go/contrib/aws/aws-sdk-go-v2/v2 v2.10.1
-	github.com/DataDog/dd-trace-go/contrib/jackc/pgx.v5/v2 v2.10.1
-	github.com/DataDog/dd-trace-go/contrib/log/slog/v2 v2.10.1
-	github.com/DataDog/dd-trace-go/contrib/net/http/v2 v2.10.1
-	github.com/DataDog/dd-trace-go/contrib/valkey-io/valkey-go/v2 v2.10.1
-	github.com/HugoSmits86/nativewebp v1.3.0
-	github.com/aws/aws-lambda-go v1.55.1
-	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.50.5
-	github.com/aws/aws-sdk-go-v2/service/sqs v1.52.5
-	github.com/aws/aws-sdk-go-v2/service/textract v1.49.5
-	github.com/golang-jwt/jwt/v5 v5.3.1
-	github.com/google/uuid v1.6.0
-	github.com/klippa-app/go-pdfium v1.21.3
-	github.com/tetratelabs/wazero v1.12.0
-	github.com/valkey-io/valkey-go v1.0.79
-	golang.org/x/image v0.47.0
 )
 
 require (
