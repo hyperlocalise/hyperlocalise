@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { CaretDownIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -55,6 +55,8 @@ export type ProjectLocaleProgressListProps = {
   isError?: boolean;
   settingsHref: string;
   stringsHref?: string | null;
+  /** Rendered in an expanded row that still has untranslated work. */
+  renderAgentAction?: (row: ProjectLocaleProgressRow) => ReactNode;
 };
 
 function LocaleBadge({ locale }: { locale: string }) {
@@ -136,11 +138,13 @@ function LocaleProgressDetails({
   unit,
   onUnitChange,
   stringsHref,
+  renderAgentAction,
 }: {
   row: ProjectLocaleProgressRow;
   unit: LocaleProgressUnit;
   onUnitChange: (unit: LocaleProgressUnit) => void;
   stringsHref: string | null | undefined;
+  renderAgentAction: ProjectLocaleProgressListProps["renderAgentAction"];
 }) {
   const intl = useIntl();
   const counts = localeProgressCounts(row, unit);
@@ -166,6 +170,8 @@ function LocaleProgressDetails({
         queueFilter: "needs_review",
       })
     : null;
+  const agentAction =
+    renderAgentAction && remainingLocaleWork(row) > 0 ? renderAgentAction(row) : null;
 
   return (
     <Rows spacing="2u">
@@ -222,29 +228,34 @@ function LocaleProgressDetails({
         />
       </Rows>
 
-      <Row spacing="1.5u" align="spaceBetween" alignY="center">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-xs text-muted-foreground">{lastActivity}</span>
-        {translateHref && proofreadHref ? (
-          <Row spacing="1u" alignY="center">
-            <Button
-              nativeButton={false}
-              render={<Link href={translateHref} />}
-              size="sm"
-              variant="outline"
-            >
-              <FormattedMessage {...messages.translate} />
-            </Button>
-            <Button
-              nativeButton={false}
-              render={<Link href={proofreadHref} />}
-              size="sm"
-              variant="outline"
-            >
-              <FormattedMessage {...messages.proofread} />
-            </Button>
-          </Row>
+        {(translateHref && proofreadHref) || agentAction ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {translateHref && proofreadHref ? (
+              <>
+                <Button
+                  nativeButton={false}
+                  render={<Link href={translateHref} />}
+                  size="sm"
+                  variant="outline"
+                >
+                  <FormattedMessage {...messages.translate} />
+                </Button>
+                <Button
+                  nativeButton={false}
+                  render={<Link href={proofreadHref} />}
+                  size="sm"
+                  variant="outline"
+                >
+                  <FormattedMessage {...messages.proofread} />
+                </Button>
+              </>
+            ) : null}
+            {agentAction}
+          </div>
         ) : null}
-      </Row>
+      </div>
     </Rows>
   );
 }
@@ -252,9 +263,11 @@ function LocaleProgressDetails({
 function LocaleProgressItem({
   row,
   stringsHref,
+  renderAgentAction,
 }: {
   row: ProjectLocaleProgressRow;
   stringsHref: string | null | undefined;
+  renderAgentAction: ProjectLocaleProgressListProps["renderAgentAction"];
 }) {
   const intl = useIntl();
   const [open, setOpen] = useState(false);
@@ -331,6 +344,7 @@ function LocaleProgressItem({
               unit={unit}
               onUnitChange={setUnit}
               stringsHref={stringsHref}
+              renderAgentAction={renderAgentAction}
             />
           </Box>
         </CollapsibleContent>
@@ -346,6 +360,7 @@ export function ProjectLocaleProgressList({
   isError = false,
   settingsHref,
   stringsHref,
+  renderAgentAction,
 }: ProjectLocaleProgressListProps) {
   const intl = useIntl();
   const [query, setQuery] = useState("");
@@ -436,7 +451,12 @@ export function ProjectLocaleProgressList({
           ) : (
             <Rows spacing="1u">
               {visibleLocales.map((row) => (
-                <LocaleProgressItem key={row.locale} row={row} stringsHref={stringsHref} />
+                <LocaleProgressItem
+                  key={row.locale}
+                  row={row}
+                  stringsHref={stringsHref}
+                  renderAgentAction={renderAgentAction}
+                />
               ))}
             </Rows>
           )}
