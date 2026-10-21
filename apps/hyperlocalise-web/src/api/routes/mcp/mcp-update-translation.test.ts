@@ -14,6 +14,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const {
   enqueueApprovedActivityMock,
+  enqueueTranslationUpdatedActivityMock,
   getMessageFormatMock,
   getSegmentDetailMock,
   isLockedMock,
@@ -21,6 +22,7 @@ const {
   updateStatusMock,
 } = vi.hoisted(() => ({
   enqueueApprovedActivityMock: vi.fn(),
+  enqueueTranslationUpdatedActivityMock: vi.fn(),
   getMessageFormatMock: vi.fn(),
   getSegmentDetailMock: vi.fn(),
   isLockedMock: vi.fn(),
@@ -30,6 +32,7 @@ const {
 
 vi.mock("@/lib/activity-log/file-segment-events", () => ({
   enqueueStringSegmentApprovedActivity: enqueueApprovedActivityMock,
+  enqueueStringSegmentTranslationUpdatedActivity: enqueueTranslationUpdatedActivityMock,
 }));
 
 vi.mock("@/lib/projects/content-editor/content-editor-segment-lock-service", () => ({
@@ -139,6 +142,30 @@ describe("updateMcpTranslation message format", () => {
       },
     });
     expect(saveTranslationMock).toHaveBeenCalledOnce();
+  });
+
+  it("records the edit as the agent acting for the signed-in person", async () => {
+    stubSegment("Hello");
+    getMessageFormatMock.mockResolvedValue("auto");
+
+    await updateMcpTranslation({ ...INPUT, targetText: "Bonjour" });
+
+    expect(saveTranslationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provenance: "agent",
+        actor: { actorCredentialId: null, actorKind: "agent", actorUserId: INPUT.actorUserId },
+      }),
+    );
+    expect(enqueueTranslationUpdatedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "agent",
+        actorUserId: INPUT.actorUserId,
+        segmentId: INPUT.translationKeyId,
+        sourcePath: "locales/en.json",
+        targetLocale: INPUT.targetLocale,
+        nextStatus: "draft",
+      }),
+    );
   });
 
   it("still rejects a dropped ICU argument when the file is auto", async () => {
@@ -348,6 +375,7 @@ describe("setMcpTranslationStatus", () => {
       targetLocale: INPUT.targetLocale,
       status: "approved",
       actorUserId: INPUT.actorUserId,
+      actor: { actorCredentialId: null, actorKind: "agent", actorUserId: INPUT.actorUserId },
     });
   });
 });

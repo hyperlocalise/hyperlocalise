@@ -14,6 +14,7 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -23,10 +24,18 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import type { CatRevisionActorKind } from "@/lib/go-svc/go-svc-cat-revisions.types";
 import {
   fetchProjectFileContentEditorSegmentTarget,
   projectFileCatSegmentTargetQueryKey,
 } from "../project-file/use-content-editor-segment-target";
+import {
+  ActivityFilterBar,
+  activityFilterQuery,
+  type ActivityFilters,
+} from "./content-editor-activity-filters";
+import { revisionAuthorMessage, SegmentRevisions } from "./content-editor-segment-revisions";
+import { contentEditorSegmentRevisionsMessages as revisionMessages } from "./content-editor-segment-revisions.messages";
 
 type Scope = {
   client: GoSvcClient;
@@ -48,7 +57,7 @@ type Activity = {
   id: string;
   eventType: string;
   createdAt: string;
-  actor: { displayName: string };
+  actor: { displayName: string; kind: CatRevisionActorKind };
   payload: Record<string, unknown>;
 };
 const ActivityContext = createContext<((selection: Selection) => void) | null>(null);
@@ -81,7 +90,11 @@ export function SegmentActivityProvider({ children, ...scope }: Scope & { childr
 
 function ActivityPanel({ scope, selection }: { scope: Scope; selection: Selection }) {
   const intl = useIntl();
-  const [segmentId, setSegmentId] = useState(selection.segmentId);
+  const [occurrence, setOccurrence] = useState<{ id: string; sourcePath?: string } | undefined>(
+    selection.segmentId ? { id: selection.segmentId, sourcePath: selection.sourcePath } : undefined,
+  );
+  const [filters, setFilters] = useState<ActivityFilters>({});
+  const segmentId = occurrence?.id;
   const query = {
     sourcePath: selection.sourcePath ?? scope.sourcePath,
     sourcePaths: selection.sourcePaths,
@@ -89,7 +102,9 @@ function ActivityPanel({ scope, selection }: { scope: Scope; selection: Selectio
     segmentId,
     groupId: selection.groupId,
     limit: 50,
+    ...activityFilterQuery(filters),
   };
+  const occurrenceSourcePath = occurrence?.sourcePath ?? query.sourcePath;
   const logs = useInfiniteQuery({
     queryKey: ["content-editor-activity-logs", scope.organizationSlug, scope.projectId, query],
     initialPageParam: undefined as string | undefined,
@@ -185,8 +200,18 @@ function ActivityPanel({ scope, selection }: { scope: Scope; selection: Selectio
         </SheetDescription>
       </SheetHeader>
       <div className="flex flex-col gap-3 px-6 pb-6">
+        {segmentId && occurrenceSourcePath !== "*" ? (
+          <SegmentRevisions
+            key={`${segmentId}:${occurrenceSourcePath}`}
+            scope={scope}
+            segmentId={segmentId}
+            sourcePath={occurrenceSourcePath}
+            targetLocale={query.targetLocale}
+          />
+        ) : null}
+        <ActivityFilterBar filters={filters} onChange={setFilters} />
         {selection.groupId && segmentId ? (
-          <Button variant="outline" onClick={() => setSegmentId(undefined)}>
+          <Button variant="outline" onClick={() => setOccurrence(undefined)}>
             <FormattedMessage
               defaultMessage="All occurrences"
               id="wu4jBnO8Ot"
@@ -235,9 +260,27 @@ function ActivityPanel({ scope, selection }: { scope: Scope; selection: Selectio
             : entries.length;
           return (
             <article key={key} className="border-b py-3">
-              <p className="font-medium">
+              <p className="flex flex-wrap items-center gap-2 font-medium">
+                <Badge variant={event.actor.kind === "user" ? "secondary" : "outline"}>
+                  <FormattedMessage
+                    {...revisionAuthorMessage({
+                      actor: event.actor,
+                      provenance: event.actor.kind === "agent" ? "agent" : "manual",
+                    })}
+                  />
+                </Badge>
                 {event.actor.displayName} · {action(event.eventType)}
               </p>
+              {typeof event.payload.restoredFromRevisionId === "string" ? (
+                <p className="text-xs text-muted-foreground">
+                  <FormattedMessage {...revisionMessages.restoredLabel} />
+                </p>
+              ) : typeof event.payload.operationId === "string" &&
+                event.payload.operationId.startsWith("undo:") ? (
+                <p className="text-xs text-muted-foreground">
+                  <FormattedMessage {...revisionMessages.undoneLabel} />
+                </p>
+              ) : null}
               <p className="text-xs text-muted-foreground">
                 {intl.formatDate(event.createdAt)} · {intl.formatTime(event.createdAt)}
               </p>
@@ -263,7 +306,15 @@ function ActivityPanel({ scope, selection }: { scope: Scope; selection: Selectio
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => setSegmentId(String(entry.payload.segmentId))}
+                        onClick={() =>
+                          setOccurrence({
+                            id: String(entry.payload.segmentId),
+                            sourcePath:
+                              typeof entry.payload.sourcePath === "string"
+                                ? entry.payload.sourcePath
+                                : undefined,
+                          })
+                        }
                       >
                         <FormattedMessage
                           defaultMessage="This occurrence"

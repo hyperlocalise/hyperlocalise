@@ -133,6 +133,19 @@ type SegmentActivityInput = ActivityActor & {
   targetLocale?: string | null;
 };
 
+export async function enqueueStringSegmentTranslationUpdatedActivity(
+  input: SegmentActivityInput & { nextStatus: string },
+) {
+  return enqueueActivityLogEvent({
+    ...activityActor(input),
+    eventType: "string_segment_translation_updated",
+    organizationId: input.organizationId,
+    payload: { ...segmentPayload(input), nextStatus: input.nextStatus },
+    targetId: input.segmentId,
+    targetKind: "string_segment",
+  });
+}
+
 export async function enqueueStringSegmentApprovedActivity(input: SegmentActivityInput) {
   return enqueueActivityLogEvent({
     ...activityActor(input),

@@ -60,6 +60,17 @@ vi.mock("@/lib/database/client", () => ({
       organizationId: "organizationId",
       metadata: "metadata",
     },
+    projectTranslations: {
+      id: "id",
+      organizationId: "organizationId",
+      projectId: "projectId",
+      translationKeyId: "translationKeyId",
+      targetLocale: "targetLocale",
+      text: "text",
+      status: "status",
+      provenance: "provenance",
+      sourceJobId: "sourceJobId",
+    },
   },
 }));
 

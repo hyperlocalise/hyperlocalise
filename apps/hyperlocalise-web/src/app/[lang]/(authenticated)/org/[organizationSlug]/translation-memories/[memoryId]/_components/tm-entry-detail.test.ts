@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { ApiResponseError } from "@/lib/api-error";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 
 import { isStaleMemoryEntryError, tmEntryDetailQueryKey } from "./tm-entry-detail";
 
@@ -30,6 +31,15 @@ describe("tm entry detail helpers", () => {
     expect(
       isStaleMemoryEntryError(
         new ApiResponseError("changed", { code: "stale_memory_entry", status: 409 }),
+      ),
+    ).toBe(true);
+    expect(
+      isStaleMemoryEntryError(
+        new GoSvcClientError({
+          code: "stale_memory_entry",
+          message: "changed",
+          status: 409,
+        }),
       ),
     ).toBe(true);
     expect(

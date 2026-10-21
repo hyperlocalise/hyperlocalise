@@ -63,6 +63,13 @@ import type {
   CatDocumentParseBackResponse,
 } from "./go-svc-cat-document.types";
 import type { CatGroupVariant, CatGroupVariantsQuery } from "./go-svc-cat-groups.types";
+import type {
+  CatRestoreRevisionBody,
+  CatRestoreRevisionResponse,
+  CatSegmentRevisionsQuery,
+  CatSegmentRevisionsResponse,
+  CatUndoOperationResponse,
+} from "./go-svc-cat-revisions.types";
 
 export class GoSvcCatApi {
   constructor(private readonly request: GoSvcRequest) {}
@@ -136,6 +143,54 @@ export class GoSvcCatApi {
     return this.request.json<ProjectFileContentEditorSegmentTargetResponse>(
       catPath(organizationSlug, projectId, "segments", externalStringId, "target"),
       { query, ...options },
+    );
+  }
+
+  segmentRevisions(
+    organizationSlug: string,
+    projectId: string,
+    externalStringId: string,
+    query: CatSegmentRevisionsQuery,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<CatSegmentRevisionsResponse>(
+      catPath(organizationSlug, projectId, "segments", externalStringId, "revisions"),
+      { query, ...options },
+    );
+  }
+
+  restoreSegmentRevision(
+    organizationSlug: string,
+    projectId: string,
+    externalStringId: string,
+    revisionId: string,
+    body: CatRestoreRevisionBody,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<CatRestoreRevisionResponse>(
+      catPath(
+        organizationSlug,
+        projectId,
+        "segments",
+        externalStringId,
+        "revisions",
+        revisionId,
+        "restore",
+      ),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  /** Puts back every string an operation changed, skipping strings edited or locked since. */
+  undoOperation(
+    organizationSlug: string,
+    projectId: string,
+    operationId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<CatUndoOperationResponse>(
+      catPath(organizationSlug, projectId, "operations", operationId, "undo"),
+      { method: "POST", ...options },
     );
   }
 
