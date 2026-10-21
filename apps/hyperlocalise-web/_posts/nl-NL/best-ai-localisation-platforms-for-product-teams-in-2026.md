@@ -240,7 +240,7 @@ Lokalise is een uitstekende keuze voor:
 - Teams die vertaalupdates via de ether nodig hebben
 - Organisaties die ontwikkelaars, ontwerpers, vertalers en productmanagers samenbrengen in één proces
 
-### Where Hyperlocalise has an advantage
+### Waar Hyperlocalise een voordeel heeft
 
 Lokalise is voornamelijk het systeem waarin lokalisatieprojecten en teksten worden beheerd. Hyperlocalise is ontworpen als een intelligentie- en agentlaag die werkt met de systemen waarin product- en lokalisatiewerk al plaatsvindt.
 
@@ -273,7 +273,7 @@ LILT is bijzonder geschikt voor:
 - Bedrijven die menselijke validatie vereisen bij grote lanceringen
 - Enterprise-lokalisatieprogramma’s die de voorkeur geven aan een beheerde samenwerking
 
-### Important consideration
+### Belangrijke overweging
 
 Het model van LILT is mogelijk minder geschikt voor een klein productteam dat op zoek is naar een lichtgewicht zelfbedieningsomgeving voor softwarelokalisatie.
 

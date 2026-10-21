@@ -1,8 +1,8 @@
 ---
-title: What Is a Website Localisation Audit?
+title: Hvad er en audit af et websites lokalisering?
 date: 2026-08-13T00:00:00.000Z
-excerpt: Translating a website is only the beginning. A localisation audit scores technical implementation, language quality, product context, and visual experience — and tells you what to fix first.
-category: Product
+excerpt: At oversætte et website er kun begyndelsen. En lokaliseringsgennemgang vurderer den tekniske implementering, sproglige kvalitet, produktkontekst og visuelle oplevelse – og fortæller dig, hvad du skal rette først.
+category: Produkt
 tags:
   - localisation audit
   - website localisation
@@ -17,56 +17,57 @@ tags:
   - terminology consistency
   - RTL
 ---
-Translating a website is only the beginning of localisation.
 
-A site can have translated pages and still give international users a poor experience. A missing `hreflang` tag can hurt discoverability. An untranslated call to action can confuse visitors. A technically correct translation can still use the wrong product term. A longer German string can break a button on mobile.
+At oversætte et website er kun begyndelsen på lokalisering.
 
-The question a localisation audit answers is not "how many strings are translated?" It is:
+Et website kan have oversatte sider og stadig give internationale brugere en dårlig oplevelse. Et manglende `hreflang`-tag kan gøre det sværere at blive fundet. En oversat opfordring til handling kan forvirre besøgende. En teknisk korrekt oversættelse kan stadig bruge den forkerte produktbetegnelse. En længere tysk tekst kan få en knap til at gå i stykker på mobilen.
 
-> **Does your website feel like it was actually built for users in this locale?**
+Spørgsmålet, som en lokaliseringsrevision besvarer, er ikke "hvor mange strenge er oversat?" Det er:
 
-The Hyperlocalise Localisation Audit checks a website across four dimensions — technical, linguistic, contextual, and visual — and returns a single Localisation Score out of 100, plus the issues to fix first.
+> **Føles dit website, som om det faktisk er udviklet til brugere i denne region?**
 
-## What a localisation audit covers
+Hyperlocalise-lokaliseringsauditten gennemgår et website på fire områder — teknisk, sprogligt, kontekstuelt og visuelt — og giver en samlet lokaliseringsscore på 100 samt en liste over de problemer, der bør løses først.
 
-A localisation audit is not a translation checker, and it is not a generic website audit.
+## Hvad en lokaliseringsrevision omfatter
 
-Performance, accessibility, and SEO tools look at implementation. Translation QA looks at accuracy, grammar, and fluency. Neither gives a complete picture of a multilingual website.
+En lokaliseringsaudit er ikke en oversættelseskontrol, og det er ikke en generisk webstedsaudit.
 
-A localisation audit combines both perspectives:
+Værktøjer til ydeevne, tilgængelighed og SEO ser på implementeringen. Kvalitetssikring af oversættelser ser på nøjagtighed, grammatik og sproglig naturlighed. Ingen af delene giver et fuldstændigt billede af et flersproget website.
 
-| Audit            | Weight | What it answers                                       |
-| ---------------- | ------: | ----------------------------------------------------- |
-| Technical Audit  | 25%    | Is localisation implemented correctly?                |
-| Linguistic Audit | 25%    | Are translations accurate, natural, and consistent?   |
-| Contextual Audit | 25%    | Does localisation make sense in your product context? |
-| Visual Audit     | 25%    | Does the localised UI look and behave correctly?      |
+En lokaliseringsrevision kombinerer begge perspektiver:
 
-You get an overall score, a score for each area, and actionable findings with severity, evidence, and confidence.
+| Revision         | Vægt  | Hvad det besvarer                                      |
+| ---------------- | -----: | ----------------------------------------------------- |
+| Teknisk audit    |    25% | Er lokalisering implementeret korrekt?                |
+| Sproglig gennemgang |    25% | Er oversættelserne præcise, naturlige og konsekvente?   |
+| Kontekstuel gennemgang |    25% | Giver lokaliseringen mening i forbindelse med dit produkt? |
+| Visuel gennemgang |    25% | Ser den lokaliserede brugergrænseflade korrekt ud og fungerer den korrekt?      |
 
-## How to interpret the score
+Du får en samlet score, en score for hvert område samt handlingsorienterede fund med alvorlighedsgrad, dokumentation og konfidens.
 
-The overall score is a health indicator, not a replacement for the detailed findings. Always review the highest-severity issues first.
+## Sådan fortolkes scoren
 
-| Score  | Rating            | What it means                                                        |
+Den samlede score er en indikator for sundhedstilstanden, ikke en erstatning for de detaljerede fund. Gennemgå altid problemerne med den højeste alvorlighedsgrad først.
+
+| Score  | Bedømmelse        | Hvad det betyder                                                     |
 | ------ | ----------------- | -------------------------------------------------------------------- |
-| 90–100 | Excellent         | The localised experience is in strong shape                          |
-| 75–89  | Good              | The website is generally well localised, with some issues to improve |
-| 50–74  | Needs improvement | Users may encounter noticeable localisation problems                 |
-| 25–49  | Poor              | Significant localisation gaps are affecting the experience           |
-| 0–24   | Critical          | The localised experience has major problems that should be addressed |
+| 90–100 | Fremragende        | Den lokaliserede oplevelse er i rigtig god stand                     |
+| 75–89  | God              | Webstedet er generelt godt lokaliseret, men der er enkelte problemer, der bør forbedres |
+| 50–74  | Bør forbedres | Brugere kan opleve mærkbare lokaliseringsproblemer                 |
+| 25–49  | Dårlig            | Væsentlige lokaliseringsmangler påvirker oplevelsen           |
+| 0–24   | Kritisk          | Den lokaliserede oplevelse har alvorlige problemer, der bør løses |
 
-A website can have a good overall score and still have one critical issue on checkout, routing, or a high-traffic page. The score tells you where to look. The findings tell you what to fix.
+Et website kan have en god samlet score og stadig have ét kritisk problem i betalingsflowet, routing eller på en side med meget trafik. Scoren fortæller dig, hvor du skal kigge. Resultaterne fortæller dig, hvad du skal rette.
 
-## Technical audit: is localisation implemented correctly?
+## Teknisk audit: Er lokalisering implementeret korrekt?
 
-The Technical Audit checks the infrastructure behind a multilingual website: discoverability, routing, formatting, accessibility, and whether users and search engines can reach the correct locale.
+Den tekniske audit gennemgår infrastrukturen bag et flersproget website: hvor let det er at finde, routing, formatering, tilgængelighed, og om brugere og søgemaskiner kan nå frem til den korrekte sprogversion.
 
-### Locale detection and routing
+### Registrering af lokalitet og routing
 
 Pages should declare their language and locale correctly, for example `<html lang="fr-FR">`. The audit looks for missing language declarations, incorrect language or region codes, locale/content mismatches, and inconsistent identifiers.
 
-It also checks whether localised pages use a consistent URL structure:
+Den kontrollerer også, om lokaliserede sider bruger en ensartet URL-struktur:
 
 ```text
 /en/pricing
@@ -74,30 +75,30 @@ It also checks whether localised pages use a consistent URL structure:
 /de/pricing
 ```
 
-Common failures include missing localised routes, broken locale URLs, incorrect redirects, unexpected fallback to the default locale, and locale persistence problems.
+Almindelige fejl omfatter manglende lokaliserede ruter, ugyldige URL'er for sprogversioner, forkerte omdirigeringer, uventet fallback til standardsprogversionen og problemer med at bevare sprogvalget.
 
-### Language switcher and `hreflang`
+### Sprogskifter og `hreflang`
 
-Visitors should be able to change locale without losing the page they are viewing. Switching from `/fr/pricing` should land on `/de/pricing`, not the German homepage.
+Besøgende skal kunne ændre sprogindstilling uden at miste den side, de ser på. Når de skifter fra `/fr/pricing`, skal de lande på `/de/pricing`, ikke på den tyske hjemmeside.
 
-The audit also checks the relationships between localised versions of a page: missing `hreflang`, incorrect language or region codes, invalid URLs, missing reciprocal or self-references, incorrect `x-default`, and conflicts with canonical URLs.
+Revisionen kontrollerer også relationerne mellem lokaliserede versioner af en side: manglende `hreflang`, forkerte sprog- eller regionskoder, ugyldige URL'er, manglende gensidige referencer eller selvreferencer, forkerte `x-default` og konflikter med kanoniske URL'er.
 
-Localised pages should generally canonicalise to themselves. A French pricing page that canonicalises to the English version is a common SEO error:
+Lokaliserede sider bør generelt have sig selv som canonical URL. En fransk prisside, der angiver den engelske version som canonical, er en almindelig SEO-fejl:
 
 ```text
 /fr/pricing
 canonical → /en/pricing
 ```
 
-### Metadata, sitemaps, and structured data
+### Metadata, sitemaps og strukturerede data
 
-Important page metadata should be localised: titles, meta descriptions, Open Graph titles and descriptions, `og:locale`, and social sharing metadata.
+Vigtige sidemetadata skal lokaliseres: titler, metabeskrivelser, Open Graph-titler og -beskrivelser, `og:locale` og metadata til deling på sociale medier.
 
-The audit also checks whether localised URLs appear in the sitemap and resolve correctly, and, where applicable, whether structured data such as Product, WebPage, Breadcrumbs, FAQ, Organization, Article, and LocalBusiness is localised.
+Gennemgangen kontrollerer også, om lokaliserede URL'er findes i sitemapet og fører til de korrekte sider, og, hvor det er relevant, om strukturerede data såsom Produkt, Webside, Brødkrummer, FAQ, Organisation, Artikel og Lokal virksomhed er lokaliseret.
 
-### International formatting and accessibility
+### International formatering og tilgængelighed
 
-Locale-sensitive values should match the locale:
+Lokaletilpassede værdier skal følge lokaliteten:
 
 ```text
 US:  $1,234.56
@@ -105,19 +106,19 @@ DE:  1.234,56 €
 FR:  1 234,56 €
 ```
 
-That includes dates, times, numbers, currency, measurement units, and timezones.
+Det omfatter datoer, klokkeslæt, tal, valuta, måleenheder og tidszoner.
 
-Accessibility localisation covers `lang`, `aria-label`, accessible names, form labels, validation messages, and image `alt` text.
+Tilgængelighedslokalisering omfatter `lang`, `aria-label`, tilgængelige navne, formularlabels, valideringsmeddelelser og billeders `alt`-tekst.
 
-## Linguistic audit: is the language accurate, natural, and consistent?
+## Sproglig gennemgang: Er sproget korrekt, naturligt og konsekvent?
 
-The Linguistic Audit evaluates the language on the page. It goes beyond checking whether text has been translated. It asks whether the translation communicates the right meaning and sounds natural to users of the target locale.
+Den sproglige evaluering vurderer sproget på siden. Den går videre end blot at kontrollere, om teksten er oversat. Den undersøger, om oversættelsen formidler den rette betydning og lyder naturlig for brugere i det pågældende sprogområde.
 
-### Completeness and accuracy
+### Fuldstændighed og nøjagtighed
 
-Untranslated content is flagged, while brand names, product names, URLs, email addresses, code, proper nouns, and intentional English terminology are treated as expected exceptions.
+Ikke-oversat indhold markeres, mens brandnavne, produktnavne, URL'er, e-mailadresser, kode, egennavne og bevidst anvendt engelsk terminologi betragtes som forventede undtagelser.
 
-A French page that reads:
+En fransk side, hvor der står:
 
 ```text
 Bienvenue sur notre site.
@@ -125,15 +126,15 @@ Bienvenue sur notre site.
 Start your free trial
 ```
 
-would be flagged for the untranslated call to action.
+ville blive markeret for den uoversatte opfordring til handling.
 
-Accuracy checks look for missing or added meaning, incorrect interpretation, wrong numbers, wrong product actions, and incorrect terminology.
+Nøjagtighedskontroller leder efter manglende eller tilføjet betydning, forkert fortolkning, forkerte tal, forkerte produkthandlinger og forkert terminologi.
 
-### Fluency, terminology, and brand voice
+### Flydende sprog, terminologi og brandstemme
 
-A translation can be technically correct and still sound unnatural. The audit looks for awkward phrasing, unnatural sentence structure, grammar and spelling problems, machine-translation artifacts, and locale-specific writing conventions.
+En oversættelse kan være teknisk korrekt og stadig lyde unaturlig. Gennemgangen ser efter kluntede formuleringer, unaturlig sætningsstruktur, grammatiske fejl og stavefejl, spor af maskinoversættelse samt lokale skrivekonventioner.
 
-It also identifies concepts translated differently across the site:
+Det identificerer også begreber, der er oversat forskelligt på tværs af webstedet:
 
 ```text
 Workspace
@@ -143,129 +144,129 @@ Page 2 → Workspace
 Page 3 → Espace Workspace
 ```
 
-If the project has an approved glossary, glossary terminology takes precedence.
+Hvis projektet har en godkendt ordliste, har ordlistens terminologi forrang.
 
-Brand voice is evaluated against the intended tone — professional, friendly, concise, technical, conversational, premium, or playful — along with locale-specific grammar and style such as capitalisation, punctuation, formality, and agreement.
+Brandets tone vurderes ud fra den tilsigtede stil — professionel, venlig, kortfattet, teknisk, samtalende, eksklusiv eller legende — samt lokale grammatik- og stilregler, såsom brug af store og små bogstaver, tegnsætning, formalitetsniveau og kongruens.
 
-## Contextual audit: is the translation correct for this product?
+## Kontekstuel vurdering: Er oversættelsen korrekt for dette produkt?
 
-Context is one of the easiest parts of localisation to miss.
+Kontekst er en af de nemmeste dele af lokalisering at overse.
 
-A translation may be grammatically perfect and still be wrong for the place where it appears. The word "Cancel" could mean closing a dialog, cancelling a subscription, cancelling an order, or stopping an operation. The right translation depends on the product context.
+En oversættelse kan være grammatisk perfekt og stadig være forkert i den sammenhæng, den vises i. Ordet "Cancel" kan betyde at lukke en dialogboks, opsige et abonnement, annullere en ordre eller stoppe en handling. Den rigtige oversættelse afhænger af produktets kontekst.
 
-The Contextual Audit uses page, UI, terminology, and product context to evaluate whether translations make sense where they are used.
+Den kontekstuelle gennemgang bruger side-, brugergrænseflade-, terminologi- og produktkontekst til at vurdere, om oversættelser giver mening dér, hvor de bruges.
 
-### UI, product, and CTA intent
+### UI-, produkt- og CTA-intention
 
-The audit considers where a string appears — button, navigation, form, modal, tooltip, heading, error message, notification, menu, or checkout — and evaluates language against the product concepts on the page: feature names, plans, settings, account concepts, workflow actions, and product terminology.
+Gennemgangen tager højde for, hvor en tekststreng vises — på en knap, i navigationen, i en formular, i et modalvindue, i et værktøjstip, i en overskrift, i en fejlmeddelelse, i en notifikation, i en menu eller i betalingsflowet — og vurderer sproget i forhold til produktbegreberne på siden: funktionsnavne, abonnementer, indstillinger, kontobegreber, arbejdsgangshandlinger og produkterminologi.
 
-Calls to action deserve particular attention. "Start free trial", "Book now", "Save changes", "Delete account", and "Upgrade" must communicate the intended action in the target locale, not a generic equivalent.
+Handlingsopfordringer kræver særlig opmærksomhed. "Start gratis prøveperiode", "Book nu", "Gem ændringer", "Slet konto" og "Opgrader" skal formidle den tilsigtede handling på målsproget, ikke en generisk ækvivalent.
 
-### Glossary, translation memory, and culture
+### Ordliste, oversættelseshukommelse og kultur
 
-If a glossary or approved terminology is available, translations can be checked against preferred and forbidden terms, product names, and brand terminology.
+Hvis der findes en ordliste eller godkendt terminologi, kan oversættelser kontrolleres i forhold til foretrukne og forbudte termer, produktnavne og brandterminologi.
 
-Where previous approved translations exist, the audit can identify drift from translation memory.
+Hvis der findes tidligere godkendte oversættelser, kan gennemgangen identificere afvigelser fra oversættelseshukommelsen.
 
-Cultural adaptation looks at currency, dates, measurements, addresses, phone numbers, payment conventions, local examples, cultural references, and idioms. Not every difference is an error. Cultural findings are presented as recommendations or issues for review when appropriate.
+Kulturel tilpasning ser på valuta, datoer, måleenheder, adresser, telefonnumre, betalingskonventioner, lokale eksempler, kulturelle referencer og idiomer. Ikke alle forskelle er fejl. Kulturelle fund præsenteres, når det er relevant, som anbefalinger eller emner til gennemgang.
 
 Audience context also matters. Language that fits a consumer travel product may be wrong for an enterprise developer tool, a finance product, or healthcare.
 
-## Visual audit: does the localised website actually work?
+## Visuel kontrol: fungerer det lokaliserede website faktisk?
 
-Languages change the size, shape, and layout of content. The Visual Audit evaluates rendered pages to find problems that cannot be detected from source strings alone.
+Sprog ændrer indholdets størrelse, form og layout. Den visuelle gennemgang evaluerer renderede sider for at finde problemer, der ikke kan opdages ud fra kildestrenge alene.
 
-### Overflow, layout, and text expansion
+### Overløb, layout og tekstudvidelse
 
-English "Start free trial" becomes German "Kostenlose Testversion starten". If the German version no longer fits the button, the audit flags it.
+Det engelske "Start gratis prøveperiode" bliver til tysk "Kostenlose Testversion starten". Hvis den tyske version ikke længere passer på knappen, markerer kontrollen det.
 
-Other visual issues include clipped or truncated text, unexpected ellipsis, navigation and table overflow, overlapping elements, broken grids, misaligned content, modal overflow, unexpected wrapping, and incorrect spacing.
+Andre visuelle problemer omfatter afklippet eller afkortet tekst, uventede udeladelsesprikker, indhold, der flyder ud over navigation og tabeller, overlappende elementer, ødelagte gitre, forkert justeret indhold, indhold, der flyder ud over modaler, uventede linjeskift og forkert afstand.
 
-Localised pages can also behave differently at mobile, tablet, and desktop widths. The audit can evaluate key layouts across those breakpoints.
+Lokaliserede sider kan også opføre sig forskelligt ved mobil-, tablet- og desktopbredder. Auditeringen kan evaluere vigtige layouts på tværs af disse brydepunkter.
 
-### RTL, fonts, and localised assets
+### RTL, skrifttyper og lokaliserede ressourcer
 
-For RTL locales such as Arabic and Hebrew, the audit checks text direction, layout mirroring, navigation, alignment, icons, forms, sidebars, and modals.
+For RTL-lokaliteter som arabisk og hebraisk kontrollerer revisionen tekstretning, spejling af layout, navigation, justering, ikoner, formularer, sidebjælker og modaler.
 
-Typography must support the target scripts — including Arabic, Chinese, Japanese, Korean, Thai, Vietnamese, and Cyrillic. Missing glyphs, unexpected fallback fonts, inconsistent typography, incorrect line height, and rendering issues are flagged.
+Typografien skal understøtte målsprogenes skriftsystemer — herunder arabisk, kinesisk, japansk, koreansk, thai, vietnamesisk og kyrillisk. Manglende glyffer, uventede fallback-skrifttyper, inkonsekvent typografi, forkert linjehøjde og gengivelsesproblemer markeres.
 
-Language-specific visual assets also matter. A French page that contains a screenshot of English UI is a localisation gap, even if every string on the page is translated.
+Sprogspecifikke visuelle elementer er også vigtige. En fransk side, der indeholder et skærmbillede af en engelsksproget brugergrænseflade, er en mangel i lokaliseringen, selvom alle tekster på siden er oversat.
 
-The audit also checks whether localisation changes visual hierarchy: headings that become too long, CTAs that wrap, important text that loses emphasis, cards of inconsistent height, and navigation that becomes hard to scan.
+Revisionen kontrollerer også, om lokaliseringen ændrer det visuelle hierarki: overskrifter, der bliver for lange, CTA'er, der ombrydes, vigtig tekst, der mister sin fremhævelse, kort med uens højde og navigation, der bliver svær at skimme.
 
-## How findings are prioritised
+## Hvordan fund prioriteres
 
-Not every issue has the same impact. Each finding is assigned a severity so teams can fix the right things first.
+Ikke alle problemer har samme indvirkning. Hvert fund tildeles en alvorlighedsgrad, så teams kan rette de vigtigste ting først.
 
-**Critical** problems can severely damage the localised experience: an unavailable locale, an entirely untranslated page, the wrong locale being served, incorrect checkout currency, a major RTL layout break, or an inaccessible localised route.
+**Kritiske** problemer kan forringe den lokaliserede brugeroplevelse alvorligt: et utilgængeligt sprog, en helt uoversat side, forkert sprogversion, forkert valuta ved betaling, et større layoutbrud i RTL eller en utilgængelig lokaliseret rute.
 
-**High** issues affect usability, SEO, or translation quality: missing `hreflang`, an untranslated primary CTA, a major translation error, broken navigation, clipped important text, or incorrect product terminology.
+**Alvorlige** problemer påvirker brugervenlighed, SEO eller oversættelseskvalitet: manglende `hreflang`, en primær CTA, der ikke er oversat, en større oversættelsesfejl, ødelagt navigation, afskåret vigtig tekst eller forkert produkterminologi.
 
-**Medium** issues are noticeable and should be addressed: terminology inconsistency, missing localised metadata, secondary untranslated content, minor visual overflow, or missing localised alt text.
+**Mellemstore problemer** er synlige og bør håndteres: inkonsekvent terminologi, manglende lokaliserede metadata, sekundært uoversat indhold, mindre visuelle overskridelser eller manglende lokaliseret alternativ tekst.
 
-**Low** findings are quality improvements: slightly unnatural wording, minor style inconsistency, small formatting issues, or optional metadata improvements.
+**Lave** fund er kvalitetsforbedringer: lidt unaturlig formulering, mindre inkonsekvent stil, små formateringsproblemer eller valgfrie forbedringer af metadata.
 
-**Info** items are recommendations or opportunities that are not necessarily errors.
+**Info**-elementer er anbefalinger eller muligheder, som ikke nødvendigvis er fejl.
 
-AI-powered findings also include a confidence level where appropriate. High-confidence findings are more likely to be objective or deterministic — for example, missing `hreflang`. Lower-confidence findings, such as a potential cultural adaptation issue, should be treated as recommendations for review rather than definitive errors.
+AI-drevne fund omfatter også et konfidensniveau, hvor det er relevant. Fund med høj konfidens er mere tilbøjelige til at være objektive eller deterministiske – for eksempel manglende `hreflang`. Fund med lavere konfidens, såsom et potentielt problem med kulturel tilpasning, bør betragtes som anbefalinger til gennemgang snarere end som definitive fejl.
 
-## How the audit works
+## Sådan fungerer revisionen
 
-The audit starts from a website URL, discovers available locales, crawls localised pages, extracts content and metadata, renders pages, then runs the four analysis engines before calculating scores and generating a report.
+Auditten starter med en websteds-URL, finder de tilgængelige lokaliteter, crawler lokaliserede sider, udtrækker indhold og metadata, renderer siderne og kører derefter de fire analysemotorer, inden den beregner scorerne og genererer en rapport.
 
-Locale discovery uses signals such as URL structure, `hreflang`, sitemaps, language selectors, HTML metadata, and domains or subdomains.
+Lokalisering identificeres ved hjælp af signaler som URL-struktur, `hreflang`, sitemaps, sprogvalg, HTML-metadata og domæner eller underdomæner.
 
-Rendering the actual page matters. Visual issues caused by translated content often do not exist in the HTML source. The report includes the overall Localisation Score, four module scores, issues grouped by severity, affected pages, evidence, confidence, and recommended actions.
+Det er vigtigt, hvordan den faktiske side vises. Visuelle problemer, der skyldes oversat indhold, findes ofte ikke i HTML-kilden. Rapporten indeholder den samlede lokaliseringsscore, fire modulscorer, problemer grupperet efter alvorlighedsgrad, berørte sider, dokumentation, sikkerhed og anbefalede handlinger.
 
-## From findings to continuous quality
+## Fra fund til løbende kvalitet
 
-An audit should not stop at telling you what is wrong.
+En audit bør ikke nøjes med at fortælle dig, hvad der er galt.
 
-When Hyperlocalise identifies an issue, the finding can become the starting point for fixing it: untranslated content can be translated, terminology inconsistencies can be reviewed against approved terms, glossary violations can be updated, missing metadata can be localised, and visual overflow can be addressed in copy or layout.
+Når Hyperlocalise identificerer et problem, kan fundet blive udgangspunktet for at løse det: Ikke-oversat indhold kan oversættes, terminologiske uoverensstemmelser kan vurderes i forhold til godkendte termer, overtrædelser af ordlisten kan rettes, manglende metadata kan lokaliseres, og visuelle problemer med overløb kan løses ved at justere teksten eller layoutet.
 
-That creates a continuous workflow: audit, find issues, fix them, re-audit, monitor, and detect regressions.
+Det skaber en kontinuerlig arbejdsgang: auditér, find problemer, ret dem, auditér igen, overvåg og opdag regressioner.
 
-Localisation is not a one-time project. Every new feature, page, release, or translation can introduce new problems — new English strings, missing translations, glossary violations, broken `hreflang`, incorrect metadata, visual overflow, or routing regressions.
+Lokalisering er ikke et engangsprojekt. Hver ny funktion, side, udgivelse eller oversættelse kan medføre nye problemer — nye engelske strenge, manglende oversættelser, overtrædelser af ordlisten, ødelagt `hreflang`, forkerte metadata, tekst, der flyder ud over skærmen, eller problemer med routing.
 
-For teams that ship continuously, the goal is to move from a one-time localisation audit to continuous localisation quality monitoring.
+For teams, der løbende udgiver, er målet at gå fra en engangsrevision af lokaliseringen til løbende overvågning af lokaliseringskvaliteten.
 
-This is the same shift we described in [What Is Translation Intelligence?](/blog/what-is-translation-intelligence): translation output is no longer the bottleneck. Judgement, context, and regression detection are.
+Det er det samme skifte, som vi beskrev i [Hvad er Translation Intelligence?](/blog/what-is-translation-intelligence): Oversættelsesoutput er ikke længere flaskehalsen. Det er dømmekraft, kontekst og registrering af regressioner.
 
-## Frequently asked questions
+## Ofte stillede spørgsmål
 
-### Is this a translation checker?
+### Er dette et værktøj til at tjekke oversættelser?
 
-Not exactly. A translation checker focuses primarily on language quality. The Hyperlocalise Localisation Audit evaluates the entire localised website, including technical implementation, SEO, product context, and visual UI.
+Ikke helt. En oversættelseskontrol fokuserer primært på sproglig kvalitet. Hyperlocalise Localisation Audit evaluerer hele det lokaliserede website, herunder den tekniske implementering, SEO, produktkontekst og den visuelle brugergrænseflade.
 
-### Does a translated website automatically get a good score?
+### Får et oversat website automatisk en god score?
 
-1. A website can have fully translated content and still have problems with `hreflang`, locale routing, currency, date formatting, terminology, product context, visual layout, and accessibility. The score evaluates the overall experience.
+Nej. Et website kan have fuldt oversat indhold og stadig have problemer med `hreflang`, lokaliseringsrouting, valuta, datoformatering, terminologi, produktkontekst, visuelt layout og tilgængelighed. Scoren evaluerer den samlede oplevelse.
 
-### Can the audit detect untranslated content?
+### Kan auditten registrere uoversat indhold?
 
-Yes. It analyses localised pages to identify content that appears to remain in the source language, while accounting for brand names, URLs, product names, and other content that may intentionally remain unchanged.
+Ja. Det analyserer lokaliserede sider for at identificere indhold, der ser ud til stadig at være på kildesproget, samtidig med at der tages højde for brandnavne, URL'er, produktnavne og andet indhold, der med vilje kan være uændret.
 
-### Can it detect bad translations?
+### Kan den registrere dårlige oversættelser?
 
-The audit can identify potential issues involving meaning, fluency, terminology, grammar, and consistency. AI-powered findings include confidence information so teams can distinguish strong findings from items that may require human review.
+Auditten kan identificere potentielle problemer med betydning, sproglig naturlighed, terminologi, grammatik og konsistens. AI-drevne fund indeholder oplysninger om konfidensniveau, så teams kan skelne mellem fund med høj konfidens og punkter, der muligvis kræver menneskelig gennemgang.
 
-### Can it detect visual problems?
+### Kan den registrere visuelle problemer?
 
-Yes. The Visual Audit evaluates rendered localised pages and can identify text overflow, broken layouts, responsive issues, RTL problems, and localised asset issues.
+Ja. Den visuelle audit evaluerer renderede, lokaliserede sider og kan identificere tekstoverløb, ødelagte layouts, problemer med responsivt design, RTL-problemer og problemer med lokaliserede medieressourcer.
 
-### Does a low score mean the website is unusable?
+### Betyder en lav score, at webstedet er ubrugeligt?
 
-Not necessarily. The score is a health indicator. Always review the individual findings and their severity. A website may have a good overall score while still having one critical issue affecting an important page or user flow.
+Ikke nødvendigvis. Scoren er en indikator for sundhedstilstanden. Gennemgå altid de enkelte resultater og deres alvorlighedsgrad. Et website kan have en god samlet score og stadig have et kritisk problem, der påvirker en vigtig side eller brugerrejse.
 
-## Find localisation problems before your users do
+## Find lokaliseringsproblemer, før dine brugere gør det.
 
-Traditional website audits measure performance, accessibility, and SEO. Translation QA measures accuracy, grammar, and fluency. A localisation audit asks four questions together:
+Traditionelle websiteaudits måler ydeevne, tilgængelighed og SEO. Kvalitetssikring af oversættelser måler nøjagtighed, grammatik og hvor naturligt sproget flyder. En lokaliseringsaudit stiller fire spørgsmål på én gang:
 
-- Is localisation implemented correctly?
-- Is the translation correct and natural?
-- Is it appropriate for the product, audience, and situation?
-- Does the localised experience actually work for users?
+- Er lokaliseringen implementeret korrekt?
+- Er oversættelsen korrekt og naturlig?
+- Er det passende til produktet, målgruppen og situationen?
+- Fungerer den lokaliserede oplevelse rent faktisk for brugerne?
 
-Together, those answers are a more complete picture of localisation health.
+Tilsammen giver disse svar et mere komplet billede af lokaliseringsstatus.
 
-If you are building products for more than one market, that picture is worth having before customers find the gaps themselves. [Run a free localisation audit](/localisation-audit) or read more about [context-aware localisation](/blog/ai-translation-is-not-enough-context-aware-localisation).
+Hvis du udvikler produkter til mere end ét marked, er det værd at have det overblik, før kunderne selv opdager manglerne. [Få en gratis gennemgang af din lokalisering](/localisation-audit) eller læs mere om [kontekstbevidst lokalisering](/blog/ai-translation-is-not-enough-context-aware-localisation).
