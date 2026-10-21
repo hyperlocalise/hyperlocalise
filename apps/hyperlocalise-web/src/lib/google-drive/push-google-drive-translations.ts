@@ -15,17 +15,19 @@ import { createHash } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 
+import {
+  isContentSyncJsonCompatiblePath,
+  serializeContentSyncJsonExport,
+} from "@/lib/agents/content-sync/content-sync-export";
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { isErr } from "@/lib/primitives/result/results";
+import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import { loadProjectOfficeTranslationDownload } from "@/lib/projects/files/office-translation-download";
 import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
-import {
-  inferSupportedOfficeTranslationFileFormat,
-  inferSupportedSourceUploadFormat,
-} from "@/lib/translation/file-formats";
+import { inferSupportedOfficeTranslationFileFormat } from "@/lib/translation/file-formats";
 
 import { GOOGLE_EXPORT_MIME, GOOGLE_MIME } from "./constants";
 import {
@@ -35,6 +37,7 @@ import {
   uploadGoogleDriveFile,
 } from "./drive-api";
 import { loadGoogleDrivePipesAccessToken } from "./pipes";
+import { relativePathFromGoogleDriveSourcePath } from "./source-path";
 import {
   buildTranslatedDriveName,
   formatDriveLocaleTag,
@@ -85,6 +88,35 @@ export function selectGoogleDrivePushMappings<T extends { sourcePath: string }>(
   return mappings.filter((mapping) => selected.has(mapping.sourcePath));
 }
 
+async function ensureNamedFolder(input: {
+  accessToken: string;
+  parentId: string;
+  name: string;
+  driveId: string | null;
+}): Promise<string> {
+  const existing = await findGoogleDriveChildByName({
+    accessToken: input.accessToken,
+    parentId: input.parentId,
+    name: input.name,
+    mimeType: GOOGLE_MIME.folder,
+    driveId: input.driveId,
+  });
+  if (!isErr(existing) && existing.value) {
+    return existing.value.id;
+  }
+
+  const created = await createGoogleDriveFolder({
+    accessToken: input.accessToken,
+    parentId: input.parentId,
+    name: input.name,
+    driveId: input.driveId,
+  });
+  if (isErr(created)) {
+    throw new Error(created.error.code);
+  }
+  return created.value.id;
+}
+
 async function ensureLocaleFolder(input: {
   accessToken: string;
   parentId: string;
@@ -94,35 +126,45 @@ async function ensureLocaleFolder(input: {
 }): Promise<string> {
   const cached = input.cached[input.locale];
   if (cached) {
-    return cached;
+    const cachedMeta = await getGoogleDriveFile({
+      accessToken: input.accessToken,
+      fileId: cached,
+    });
+    if (!isErr(cachedMeta) && cachedMeta.value.parents.includes(input.parentId)) {
+      return cached;
+    }
+    delete input.cached[input.locale];
   }
 
-  const existing = await findGoogleDriveChildByName({
-    accessToken: input.accessToken,
-    parentId: input.parentId,
-    name: input.locale,
-    mimeType: GOOGLE_MIME.folder,
-    driveId: input.driveId,
-  });
-  if (!isErr(existing) && existing.value) {
-    input.cached[input.locale] = existing.value.id;
-    return existing.value.id;
-  }
-
-  const created = await createGoogleDriveFolder({
+  const folderId = await ensureNamedFolder({
     accessToken: input.accessToken,
     parentId: input.parentId,
     name: input.locale,
     driveId: input.driveId,
   });
-  if (isErr(created)) {
-    throw new Error(created.error.code);
-  }
-  input.cached[input.locale] = created.value.id;
-  return created.value.id;
+  input.cached[input.locale] = folderId;
+  return folderId;
 }
 
-async function loadTranslatedBytes(input: {
+async function ensureFolderPath(input: {
+  accessToken: string;
+  parentId: string;
+  segments: string[];
+  driveId: string | null;
+}): Promise<string> {
+  let parentId = input.parentId;
+  for (const segment of input.segments) {
+    parentId = await ensureNamedFolder({
+      accessToken: input.accessToken,
+      parentId,
+      name: segment,
+      driveId: input.driveId,
+    });
+  }
+  return parentId;
+}
+
+export async function loadTranslatedBytes(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
@@ -168,16 +210,31 @@ async function loadTranslatedBytes(input: {
   }
 
   const fileName = input.sourcePath.split("/").pop() ?? "file";
-  const format = inferSupportedSourceUploadFormat(fileName);
-  if (!format) {
+  const lottie = await loadProjectLottieTranslationDownload({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    prefilled: prefilled.prefilled,
+  });
+  if (isErr(lottie)) {
+    return null;
+  }
+  if (lottie.value) {
+    return {
+      buffer: lottie.value.content,
+      fileName,
+      mimeType: lottie.value.contentType,
+    };
+  }
+
+  if (!isContentSyncJsonCompatiblePath(input.sourcePath)) {
     return null;
   }
 
-  const serialized = JSON.stringify(prefilled.prefilled, null, 2);
   return {
-    buffer: Buffer.from(serialized, "utf8"),
+    buffer: serializeContentSyncJsonExport(prefilled.prefilled),
     fileName,
-    mimeType: format === "markdown" ? "text/markdown" : "application/octet-stream",
+    mimeType: "application/json",
   };
 }
 
@@ -297,12 +354,22 @@ export async function runPushGoogleDriveTranslations(input: {
         });
         const localeFolderId =
           translationOutput === "folder"
-            ? await ensureLocaleFolder({
+            ? await ensureFolderPath({
                 accessToken: tokenResult.value,
-                parentId,
-                locale: formatDriveLocaleTag(locale),
+                parentId: await ensureLocaleFolder({
+                  accessToken: tokenResult.value,
+                  parentId: mapping.folderId,
+                  locale: formatDriveLocaleTag(locale),
+                  driveId: fileMeta.value.driveId,
+                  cached: localeFolderCache,
+                }),
+                segments: relativePathFromGoogleDriveSourcePath(
+                  mapping.sourcePath,
+                  mapping.folderId,
+                )
+                  .split("/")
+                  .filter(Boolean),
                 driveId: fileMeta.value.driveId,
-                cached: localeFolderCache,
               })
             : parentId;
         const officeFormat = inferSupportedOfficeTranslationFileFormat(mapping.sourcePath);

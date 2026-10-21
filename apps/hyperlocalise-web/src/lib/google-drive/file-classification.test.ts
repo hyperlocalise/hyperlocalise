@@ -13,7 +13,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { GOOGLE_MIME } from "./constants";
-import { classifyGoogleDriveItem } from "./file-classification";
+import {
+  classifyGoogleDriveItem,
+  hideGoogleDriveTranslationOutputsOnIngest,
+} from "./file-classification";
 
 describe("classifyGoogleDriveItem", () => {
   it("classifies Google Docs as supported docx ingest", () => {
@@ -74,5 +77,54 @@ describe("classifyGoogleDriveItem", () => {
         translationOutput: "underscore",
       }),
     ).toMatchObject({ kind: "skipped", reason: "translation_output" });
+  });
+
+  it("skips plain text because the Content Editor cannot open it", () => {
+    expect(
+      classifyGoogleDriveItem({
+        name: "ascii-art.txt",
+        mimeType: "text/plain",
+      }),
+    ).toMatchObject({ kind: "skipped", reason: "unsupported_plain_text" });
+    expect(
+      classifyGoogleDriveItem({
+        name: "notes.txt",
+        mimeType: "application/octet-stream",
+      }),
+    ).toMatchObject({ kind: "skipped", reason: "unsupported_plain_text" });
+  });
+
+  it("keeps prefix translation outputs when hide is off", () => {
+    expect(
+      classifyGoogleDriveItem({
+        name: "[vi-VN] guide.md",
+        mimeType: "text/markdown",
+        translationOutput: "prefix",
+        hideTranslationOutputs: false,
+      }),
+    ).toMatchObject({ kind: "supported", ingestFormat: "markdown" });
+  });
+});
+
+describe("hideGoogleDriveTranslationOutputsOnIngest", () => {
+  it("hides outputs unless includeTranslatedFiles or the file was selected", () => {
+    expect(
+      hideGoogleDriveTranslationOutputsOnIngest({
+        explicitlySelected: false,
+        includeTranslatedFiles: false,
+      }),
+    ).toBe(true);
+    expect(
+      hideGoogleDriveTranslationOutputsOnIngest({
+        explicitlySelected: false,
+        includeTranslatedFiles: true,
+      }),
+    ).toBe(false);
+    expect(
+      hideGoogleDriveTranslationOutputsOnIngest({
+        explicitlySelected: true,
+        includeTranslatedFiles: false,
+      }),
+    ).toBe(false);
   });
 });

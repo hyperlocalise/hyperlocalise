@@ -34,7 +34,10 @@ import {
   getGoogleDriveFile,
   listGoogleDriveChildren,
 } from "./drive-api";
-import { classifyGoogleDriveItem } from "./file-classification";
+import {
+  classifyGoogleDriveItem,
+  hideGoogleDriveTranslationOutputsOnIngest,
+} from "./file-classification";
 import { GOOGLE_DRIVE_MAX_FOLDER_DEPTH } from "./limits";
 import { pdfBufferToMarkdown } from "./pdf-to-markdown";
 import { loadGoogleDrivePipesAccessToken } from "./pipes";
@@ -161,6 +164,8 @@ async function walkGoogleDriveFolder(input: {
 async function loadIngestBuffer(input: {
   accessToken: string;
   file: WalkFile;
+  hideTranslationOutputs: boolean;
+  translationOutput: GoogleDriveTranslationOutput;
 }): Promise<{ buffer: Buffer; fileName: string; contentType: string; format: string } | null> {
   const metaResult = await getGoogleDriveFile({
     accessToken: input.accessToken,
@@ -174,7 +179,9 @@ async function loadIngestBuffer(input: {
     name: input.file.name,
     mimeType: input.file.mimeType,
     sizeBytes: input.file.size,
-    hideTranslationOutputs: true,
+    hideTranslationOutputs: input.hideTranslationOutputs,
+    relativePath: input.file.relativePath,
+    translationOutput: input.translationOutput,
   });
   if (classification.kind !== "supported") {
     return null;
@@ -277,6 +284,7 @@ export async function runImportGoogleDriveFiles(input: {
   const toImport: WalkFile[] = [];
   const translationOutput = resolveGoogleDriveTranslationOutput(config.translationOutput);
   const includeTranslatedFiles = config.includeTranslatedFiles ?? false;
+  const explicitFileIds = new Set(config.fileIds ?? []);
 
   async function collectDriveItem(inputItem: {
     fileId: string;
@@ -351,6 +359,11 @@ export async function runImportGoogleDriveFiles(input: {
       const ingestPayload = await loadIngestBuffer({
         accessToken,
         file,
+        hideTranslationOutputs: hideGoogleDriveTranslationOutputsOnIngest({
+          explicitlySelected: explicitFileIds.has(file.fileId),
+          includeTranslatedFiles,
+        }),
+        translationOutput,
       });
       if (!ingestPayload) {
         failed += 1;

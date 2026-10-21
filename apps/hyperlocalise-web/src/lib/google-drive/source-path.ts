@@ -32,3 +32,17 @@ export function buildGoogleDriveSourcePath(input: {
     : `${GOOGLE_DRIVE_SOURCE_PATH_PREFIX}/${root}/${fileName}`;
   return path.posix.normalize(joined);
 }
+
+/** Folder segments under the connected root, without the file name. */
+export function relativePathFromGoogleDriveSourcePath(
+  sourcePath: string,
+  rootFolderId: string,
+): string {
+  const prefix = `${GOOGLE_DRIVE_SOURCE_PATH_PREFIX}/${sanitizeSegment(rootFolderId)}/`;
+  if (!sourcePath.startsWith(prefix)) {
+    return "";
+  }
+  const parts = sourcePath.slice(prefix.length).split("/").filter(Boolean);
+  parts.pop();
+  return parts.join("/");
+}

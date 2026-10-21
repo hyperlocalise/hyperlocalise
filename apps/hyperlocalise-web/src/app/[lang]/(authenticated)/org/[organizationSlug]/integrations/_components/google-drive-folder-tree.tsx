@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { createApiClient } from "@/lib/api-client";
+import { loadGoogleDriveBrowsePages } from "@/lib/google-drive/browse-pages";
 import { GOOGLE_MIME } from "@/lib/google-drive/constants";
 import { cn } from "@/lib/primitives/cn";
 
@@ -245,6 +246,36 @@ function buildRootNodes(drives: DriveRoot[]): GoogleDriveTreeNode[] {
 const TREE_ICON_CLASS = "size-4 shrink-0";
 const GOOGLE_FOLDER_COLOR = "#F9AB00";
 const GOOGLE_PDF_COLOR = "#EA4335";
+const GOOGLE_TEXT_FILE_BLUE = "#4285F4";
+
+function isGoogleDriveTextFile(node: GoogleDriveTreeNode) {
+  const mimeType = (node.mimeType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+  if (mimeType === "text/plain") {
+    return true;
+  }
+  return node.name.toLowerCase().endsWith(".txt");
+}
+
+function GoogleDriveTextFileIcon({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" className={className}>
+      <path
+        d="M6 2.75h8.2L18.25 6.8V21.25H6A1.25 1.25 0 0 1 4.75 20V4A1.25 1.25 0 0 1 6 2.75Z"
+        fill="#fff"
+        stroke="#DADCE0"
+        strokeWidth="1"
+      />
+      <path d="M5.75 2.75h12.5v5.1H5.75Z" fill={GOOGLE_TEXT_FILE_BLUE} />
+      <rect x="8" y="11.1" width="8" height="1.35" rx="0.65" fill={GOOGLE_TEXT_FILE_BLUE} />
+      <rect x="8" y="14" width="8" height="1.35" rx="0.65" fill={GOOGLE_TEXT_FILE_BLUE} />
+      <rect x="8" y="16.9" width="5.1" height="1.35" rx="0.65" fill={GOOGLE_TEXT_FILE_BLUE} />
+      <path d="M15.15 16.55 18.7 13.4v6.3Z" fill="#FBBC05" />
+      <path d="M15.15 16.55 12.2 19.7h6.5Z" fill="#34A853" />
+      <path d="M15.15 16.55 12.2 13.4v6.3Z" fill="#4285F4" />
+      <path d="M15.15 16.55 18.7 19.7H12.2Z" fill="#EA4335" />
+    </svg>
+  );
+}
 
 function DriveItemIcon({ node }: { node: GoogleDriveTreeNode }) {
   if (node.isFolder) {
@@ -269,6 +300,9 @@ function DriveItemIcon({ node }: { node: GoogleDriveTreeNode }) {
   }
   if (mimeType === "application/pdf") {
     return <FilePdfIcon className={TREE_ICON_CLASS} style={{ color: GOOGLE_PDF_COLOR }} />;
+  }
+  if (isGoogleDriveTextFile(node)) {
+    return <GoogleDriveTextFileIcon className={TREE_ICON_CLASS} />;
   }
   return <SimpleBrandIcon icon={siGoogledrive} colored className={TREE_ICON_CLASS} />;
 }
@@ -378,23 +412,34 @@ export function GoogleDriveFolderTree({
   const loadChildren = useCallback(
     async (node: GoogleDriveTreeNode) => {
       const folderId = node.id === "root" ? "root" : node.id;
-      const response = await api.api.orgs[":organizationSlug"]["google-drive"].children.$get({
-        param: { organizationSlug },
-        query: {
-          folderId,
-          ...(node.driveId ? { driveId: node.driveId } : {}),
-          showTranslations: showTranslations === true ? "true" : "false",
-          depth: String(node.depth + 1),
+      const items = await loadGoogleDriveBrowsePages({
+        fetchPage: async (pageToken) => {
+          const response = await api.api.orgs[":organizationSlug"]["google-drive"].children.$get({
+            param: { organizationSlug },
+            query: {
+              folderId,
+              ...(node.driveId ? { driveId: node.driveId } : {}),
+              showTranslations: showTranslations === true ? "true" : "false",
+              depth: String(node.depth + 1),
+              ...(pageToken ? { pageToken } : {}),
+            },
+          });
+          if (!response.ok) {
+            throw await driveApiError(
+              response,
+              intl.formatMessage(googleDriveFolderManagementMessages.browseFailed),
+            );
+          }
+          const body = await response.json();
+          return {
+            items: Array.isArray(body.items) ? (body.items as BrowseItem[]) : [],
+            nextPageToken:
+              typeof body.nextPageToken === "string" && body.nextPageToken.length > 0
+                ? body.nextPageToken
+                : null,
+          };
         },
       });
-      if (!response.ok) {
-        throw await driveApiError(
-          response,
-          intl.formatMessage(googleDriveFolderManagementMessages.browseFailed),
-        );
-      }
-      const body = await response.json();
-      const items = Array.isArray(body.items) ? (body.items as BrowseItem[]) : [];
       return items.map<GoogleDriveTreeNode>((item) => ({
         id: item.id,
         name: item.name,

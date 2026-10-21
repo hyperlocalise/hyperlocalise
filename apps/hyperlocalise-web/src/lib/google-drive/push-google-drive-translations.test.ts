@@ -11,12 +11,35 @@
  * Version 2.0 or later.
  */
 
-import { describe, expect, it } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { GOOGLE_EXPORT_MIME } from "./constants";
 import {
+  loadTranslatedBytes,
   readGoogleDrivePushSourcePaths,
   selectGoogleDrivePushMappings,
 } from "./push-google-drive-translations";
+
+const mocks = vi.hoisted(() => ({
+  loadProjectOfficeTranslationDownload: vi.fn(),
+  loadProjectTranslationsAsPrefilledEntries: vi.fn(),
+  loadProjectLottieTranslationDownload: vi.fn(),
+}));
+
+vi.mock("@/lib/projects/files/office-translation-download", () => ({
+  loadProjectOfficeTranslationDownload: (...args: unknown[]) =>
+    mocks.loadProjectOfficeTranslationDownload(...args),
+}));
+
+vi.mock("@/lib/projects/translations/project-translation-service", () => ({
+  loadProjectTranslationsAsPrefilledEntries: (...args: unknown[]) =>
+    mocks.loadProjectTranslationsAsPrefilledEntries(...args),
+}));
+
+vi.mock("@/lib/projects/files/lottie-translation-download", () => ({
+  loadProjectLottieTranslationDownload: (...args: unknown[]) =>
+    mocks.loadProjectLottieTranslationDownload(...args),
+}));
 
 describe("readGoogleDrivePushSourcePaths", () => {
   it("returns undefined when the snapshot omits sourcePaths", () => {
@@ -57,5 +80,107 @@ describe("selectGoogleDrivePushMappings", () => {
         ["google-drive/folder/overview.docx"],
       ),
     ).toEqual([{ sourcePath: "google-drive/folder/overview.docx" }]);
+  });
+});
+
+describe("loadTranslatedBytes", () => {
+  const input = {
+    organizationId: "org_1",
+    projectId: "project_1",
+    targetLocale: "vi-VN",
+    ingestFormat: "json",
+  };
+
+  beforeEach(() => {
+    mocks.loadProjectOfficeTranslationDownload.mockReset();
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockReset();
+    mocks.loadProjectLottieTranslationDownload.mockReset();
+  });
+
+  it("returns the office download for docx sources", async () => {
+    mocks.loadProjectOfficeTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: { content: Buffer.from("docx-bytes"), extension: ".docx" },
+    });
+
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/overview.docx",
+        ingestFormat: "docx",
+      }),
+    ).resolves.toEqual({
+      buffer: Buffer.from("docx-bytes"),
+      fileName: "overview.docx",
+      mimeType: GOOGLE_EXPORT_MIME.docx,
+    });
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+  });
+
+  it("serializes JSON-compatible catalogs", async () => {
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      prefilled: { hello: "xin chào" },
+      loadedKeyCount: 1,
+      truncated: false,
+    });
+    mocks.loadProjectLottieTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: null,
+    });
+
+    const result = await loadTranslatedBytes({
+      ...input,
+      sourcePath: "google-drive/folder/messages.json",
+    });
+    expect(result?.fileName).toBe("messages.json");
+    expect(result?.mimeType).toBe("application/json");
+    expect(result?.buffer.toString("utf8")).toContain('"hello": "xin chào"');
+  });
+
+  it("skips keyed formats without a format-aware writer", async () => {
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      prefilled: { hello: "xin chào" },
+      loadedKeyCount: 1,
+      truncated: false,
+    });
+    mocks.loadProjectLottieTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: null,
+    });
+
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/guide.md",
+        ingestFormat: "markdown",
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it("returns the Lottie export when the source is a Lottie file", async () => {
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      prefilled: { "layers.0.t": "xin chào" },
+      loadedKeyCount: 1,
+      truncated: false,
+    });
+    mocks.loadProjectLottieTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: {
+        content: Buffer.from("lottie-bytes"),
+        contentType: "application/json; charset=utf-8",
+        kind: "json",
+      },
+    });
+
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/intro.json",
+      }),
+    ).resolves.toEqual({
+      buffer: Buffer.from("lottie-bytes"),
+      fileName: "intro.json",
+      mimeType: "application/json; charset=utf-8",
+    });
   });
 });

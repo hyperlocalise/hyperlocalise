@@ -34,6 +34,7 @@ export type GoogleDriveSkipReason =
   | "file_too_large"
   | "folder_depth_exceeded"
   | "unsupported_extension"
+  | "unsupported_plain_text"
   | "translation_output";
 
 export type GoogleDriveIngestKind =
@@ -74,10 +75,28 @@ function isArchiveName(name: string): boolean {
   return ARCHIVE_EXTENSIONS.has(ext);
 }
 
+function isPlainTextFile(name: string, mimeType: string): boolean {
+  const mime = mimeType.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (mime === "text/plain") {
+    return true;
+  }
+  return path.extname(name).toLowerCase() === ".txt";
+}
+
 function isMediaMime(mimeType: string): boolean {
   return (
     mimeType.startsWith("image/") || mimeType.startsWith("video/") || mimeType.startsWith("audio/")
   );
+}
+
+export function hideGoogleDriveTranslationOutputsOnIngest(input: {
+  explicitlySelected: boolean;
+  includeTranslatedFiles: boolean;
+}): boolean {
+  if (input.explicitlySelected) {
+    return false;
+  }
+  return !input.includeTranslatedFiles;
 }
 
 export function classifyGoogleDriveItem(input: {
@@ -135,6 +154,10 @@ export function classifyGoogleDriveItem(input: {
 
   if (isArchiveName(name) || mimeType === "application/zip") {
     return { kind: "skipped", reason: "unsupported_archive" };
+  }
+
+  if (isPlainTextFile(name, mimeType)) {
+    return { kind: "skipped", reason: "unsupported_plain_text" };
   }
 
   if (mimeType === GOOGLE_MIME.document) {
