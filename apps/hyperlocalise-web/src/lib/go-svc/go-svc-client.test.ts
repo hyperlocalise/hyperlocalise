@@ -490,6 +490,52 @@ describe("GoSvcClient", () => {
     );
   });
 
+  it("lists, reads, and updates translation memory entries from go-svc", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          memoryEntries: [],
+          nextCursor: null,
+          total: 0,
+          pagination: { limit: 50, returned: 0, hasMore: false },
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          memoryEntry: { id: "entry-1" },
+          capabilities: { canEdit: true, readOnlyReason: null },
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          memoryEntry: { id: "entry-1", targetText: "Salut" },
+          capabilities: { canEdit: true, readOnlyReason: null },
+        }),
+      );
+    const client = clientWith(fetchMock);
+
+    await client.memory.entries.list("acme", "memory-1", {
+      limit: 50,
+      search: "invoice",
+      sourceLocale: "en-US",
+      reviewStatus: "pending",
+    });
+    await client.memory.entries.get("acme", "memory-1", "entry-1");
+    await client.memory.entries.update("acme", "memory-1", "entry-1", {
+      expectedVersion: 1,
+      targetText: "Salut",
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories/memory-1/entries?limit=50&search=invoice&sourceLocale=en-US&reviewStatus=pending`,
+    );
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories/memory-1/entries/entry-1`,
+    );
+    expect((fetchMock.mock.calls[2][1] as RequestInit).method).toBe("PATCH");
+  });
+
   it("lists translation memory interchange attempts from go-svc", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       Response.json({

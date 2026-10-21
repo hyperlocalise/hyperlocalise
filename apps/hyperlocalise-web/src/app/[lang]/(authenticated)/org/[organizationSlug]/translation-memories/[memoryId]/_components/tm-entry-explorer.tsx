@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyP } from "@/components/ui/typography";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { formatLocaleOptionLabel } from "@/lib/i18n/locale-display-names.messages";
 import { cn } from "@/lib/primitives/cn";
 
@@ -103,6 +104,7 @@ export const TmEntryExplorer = observer(function TmEntryExplorer({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const { state, searchDraft, setSearchDraft, updateState, clearFilters } =
     useTmEntryListUrlState();
   const pageStore = useOptionalTranslationMemoryDetailStore();
@@ -142,6 +144,7 @@ export const TmEntryExplorer = observer(function TmEntryExplorer({
       requestIdRef.current = requestId;
       try {
         const page = await fetchTmEntrySearchPage({
+          client: goSvcClient,
           organizationSlug,
           memoryId,
           state,

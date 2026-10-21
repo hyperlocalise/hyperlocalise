@@ -46,17 +46,18 @@ type memoryEntryRecord struct {
 
 const memoryEntryColumns = `e.id, e.memory_id, e.source_locale, e.target_locale, e.source_text, e.target_text, e.match_score, e.provenance, e.review_status, e.version, e.external_key, e.created_by_user_id, e.modified_by_user_id, e.reviewed_by_user_id, e.import_batch_id, e.metadata, e.created_at, e.updated_at, e.reviewed_at`
 
-func scanMemoryEntry(row pgx.Row) (memoryEntryRecord, error) {
+func scanMemoryEntry(row pgx.Row, extra ...any) (memoryEntryRecord, error) {
 	var e memoryEntryRecord
 	var created, updated time.Time
 	var reviewed *time.Time
 	var meta []byte
-	err := row.Scan(
+	dest := []any{
 		&e.ID, &e.MemoryID, &e.SourceLocale, &e.TargetLocale, &e.SourceText, &e.TargetText,
 		&e.MatchScore, &e.Provenance, &e.ReviewStatus, &e.Version, &e.ExternalKey,
 		&e.CreatedByUserID, &e.ModifiedByUserID, &e.ReviewedByUserID, &e.ImportBatchID,
 		&meta, &created, &updated, &reviewed,
-	)
+	}
+	err := row.Scan(append(dest, extra...)...)
 	if err != nil {
 		return e, err
 	}
@@ -126,61 +127,8 @@ func (api *memoryAPI) deleteMemoryEntryHandler(r *http.Request, actor memoryActo
 	return api.deleteMemoryEntry(r.Context(), actor, m, entryID)
 }
 
-func (api *memoryAPI) listMemoryEntries(r *http.Request, m memoryRecord) (any, int, error) {
-	limit, offset, err := memoryPage(r, 50, 100)
-	if err != nil {
-		limit, offset = 50, 0
-	}
-	search := trimMemoryInput(r.URL.Query().Get("search"))
-	where := `e.memory_id=$1`
-	args := []any{m.ID}
-	if search != "" {
-		args = append(args, "%"+search+"%")
-		where += ` and (e.source_text ilike $2 or e.target_text ilike $2 or coalesce(e.external_key,'') ilike $2)`
-	}
-	limitPos := len(args) + 1
-	offsetPos := len(args) + 2
-	args = append(args, limit, offset)
-	rows, err := api.pool.Query(r.Context(), `select `+memoryEntryColumns+` from memory_entries e where `+where+` order by e.created_at desc, e.id desc limit $`+itoa(limitPos)+` offset $`+itoa(offsetPos), args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-	entries := []memoryEntryRecord{}
-	for rows.Next() {
-		entry, scanErr := scanMemoryEntry(rows)
-		if scanErr != nil {
-			return nil, 0, scanErr
-		}
-		entries = append(entries, entry)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, err
-	}
-	countArgs := args[:len(args)-2]
-	var total int
-	err = api.pool.QueryRow(r.Context(), `select count(*) from memory_entries e where `+where, countArgs...).Scan(&total)
-	return map[string]any{
-		"memoryEntries": entries,
-		"total":         total,
-		"nextCursor":    nil,
-		"pagination": map[string]any{
-			"limit":    limit,
-			"returned": len(entries),
-			"hasMore":  offset+len(entries) < total,
-		},
-	}, 200, err
-}
-
 func (api *memoryAPI) getMemoryEntry(ctx context.Context, m memoryRecord, entryID string) (any, int, error) {
-	entry, err := scanMemoryEntry(api.pool.QueryRow(ctx, `select `+memoryEntryColumns+` from memory_entries e where e.id=$1 and e.memory_id=$2`, entryID, m.ID))
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, 0, missingMemory()
-	}
-	if err != nil {
-		return nil, 0, err
-	}
-	return map[string]any{"memoryEntry": entry}, 200, nil
+	return api.memoryEntryDetail(ctx, m, entryID)
 }
 
 func (api *memoryAPI) createMemoryEntry(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
@@ -327,7 +275,11 @@ func (api *memoryAPI) patchMemoryEntry(r *http.Request, actor memoryActor, m mem
 	if err != nil {
 		return nil, 0, err
 	}
-	return map[string]any{"memoryEntry": updated}, 200, nil
+	detail, status, detailErr := api.memoryEntryDetail(ctx, m, updated.ID)
+	if detailErr != nil {
+		return map[string]any{"memoryEntry": updated}, 200, nil
+	}
+	return detail, status, nil
 }
 
 func (api *memoryAPI) deleteMemoryEntry(ctx context.Context, actor memoryActor, m memoryRecord, entryID string) (any, int, error) {
