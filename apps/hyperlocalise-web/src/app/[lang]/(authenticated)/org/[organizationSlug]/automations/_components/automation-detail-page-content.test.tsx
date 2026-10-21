@@ -180,11 +180,17 @@ async function openDiscardMenu(user: ReturnType<typeof userEvent.setup>) {
 }
 
 function expectMenuItemDisabled(name: string) {
-  expect(screen.getByRole("menuitem", { name })).toHaveAttribute("aria-disabled", "true");
+  expect(screen.getByRole("menuitem", { name: new RegExp(`^${name}`) })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
 }
 
 function expectMenuItemEnabled(name: string) {
-  expect(screen.getByRole("menuitem", { name })).not.toHaveAttribute("aria-disabled", "true");
+  expect(screen.getByRole("menuitem", { name: new RegExp(`^${name}`) })).not.toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
 }
 
 describe("AutomationDetailPageContent write locking", () => {
@@ -441,6 +447,19 @@ describe("AutomationDetailPageContent save errors", () => {
     apiMocks.getAutomation.mockReset();
     apiMocks.patchAutomation.mockReset();
     slackMocks.isSlackChannelMissing.mockReset();
+  });
+
+  it("saves from the keyboard while the name field is focused", async () => {
+    const user = userEvent.setup();
+    mockSave();
+
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("textbox", { name: "Name" }));
+    await user.keyboard("{Control>}s{/Control}");
+
+    await vi.waitFor(() => expect(apiMocks.patchAutomation).toHaveBeenCalledOnce());
   });
 
   it("does not save while Slack cannot find the channel", async () => {
@@ -947,7 +966,7 @@ describe("AutomationDetailPageContent undo", () => {
     await vi.waitFor(() => expect(apiMocks.runAutomation).toHaveBeenCalledOnce());
 
     await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Undo" }));
+    await user.click(screen.getByRole("menuitem", { name: /Undo/ }));
 
     expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
       "Renamed automation",

@@ -32,6 +32,7 @@ import { cn } from "@/lib/primitives/cn";
 import type { VisualWorkflowStatus } from "@/lib/visual-workflows/visual-workflow-types";
 
 import { AutomationAssistantOpenButton } from "../automation-assistant-panel";
+import { AutomationShortcutAffordance, ShortcutHintAnchor } from "../automation-shortcut-hint";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 
 // The workflow's status and the switch that changes it, as one pill.
@@ -57,6 +58,7 @@ export function VisualWorkflowChrome({
   statusDisabled = false,
   onDelete,
   isDeleting = false,
+  onOpenShortcuts,
 }: {
   name: string;
   onNameChange: (name: string) => void;
@@ -77,6 +79,7 @@ export function VisualWorkflowChrome({
   statusDisabled?: boolean;
   onDelete?: () => void;
   isDeleting?: boolean;
+  onOpenShortcuts?: () => void;
 }) {
   const intl = useIntl();
   const previewOnly = intl.formatMessage(messages.previewOnly);
@@ -167,6 +170,7 @@ export function VisualWorkflowChrome({
       </Tabs>
 
       <div className="flex flex-1 items-center justify-end gap-2">
+        {onOpenShortcuts ? <AutomationShortcutAffordance onOpen={onOpenShortcuts} /> : null}
         {/* Renders nothing where the assistant is not offered. */}
         <AutomationAssistantOpenButton />
         {undoRedo}
@@ -215,13 +219,15 @@ export function VisualWorkflowChrome({
           </Button>
         ) : null}
         {onSave ? (
-          <Button type="button" size="sm" disabled={saveDisabled || isSaving} onClick={onSave}>
-            {isSaving ? (
-              <FormattedMessage {...messages.saving} />
-            ) : (
-              <FormattedMessage {...messages.save} />
-            )}
-          </Button>
+          <ShortcutHintAnchor shortcut="save">
+            <Button type="button" size="sm" disabled={saveDisabled || isSaving} onClick={onSave}>
+              {isSaving ? (
+                <FormattedMessage {...messages.saving} />
+              ) : (
+                <FormattedMessage {...messages.save} />
+              )}
+            </Button>
+          </ShortcutHintAnchor>
         ) : (
           <Tooltip>
             <TooltipTrigger

@@ -46,6 +46,7 @@ import type {
   VisualWorkflowRfNode,
 } from "@/lib/visual-workflows/schema/types";
 
+import { ShortcutHintAnchor, VisualWorkflowCanvasShortcutHints } from "../automation-shortcut-hint";
 import { VisualWorkflowCompactNode } from "./nodes/visual-workflow-compact-node";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { deriveForEachLoopRegion } from "@/lib/visual-workflows/editor/for-each-body-membership";
@@ -197,6 +198,7 @@ export function VisualWorkflowCanvas({
   onLoadSample,
   onTestWorkflow,
   testSettings,
+  fitViewRef,
 }: {
   nodes: VisualWorkflowRfNode[];
   edges: VisualWorkflowRfEdge[];
@@ -220,6 +222,8 @@ export function VisualWorkflowCanvas({
   onTestWorkflow: () => void;
   /** A control shown beside the Test workflow button. */
   testSettings?: ReactNode;
+  /** Filled with a function that fits the graph in the view while the canvas is shown. */
+  fitViewRef?: RefObject<(() => void) | null>;
 }) {
   const reactFlowRef = useRef<ReactFlowInstance<
     VisualWorkflowRfNode,
@@ -238,6 +242,17 @@ export function VisualWorkflowCanvas({
       viewCenterRef.current = null;
     };
   }, [viewCenterRef]);
+  useEffect(() => {
+    if (!fitViewRef) {
+      return;
+    }
+    fitViewRef.current = () => {
+      void reactFlowRef.current?.fitView({ padding: 0.2 });
+    };
+    return () => {
+      fitViewRef.current = null;
+    };
+  }, [fitViewRef]);
   const presentedEdges = useMemo(() => presentVisualWorkflowEdges(nodes, edges), [edges, nodes]);
   const referenceLineIds = useMemo(
     () =>
@@ -362,21 +377,30 @@ export function VisualWorkflowCanvas({
           position="bottom-center"
           className="flex items-center gap-2 border-0 bg-transparent p-0 shadow-none"
         >
-          <Button type="button" onClick={onTestWorkflow} disabled={isRunning || nodes.length === 0}>
-            {isRunning ? (
-              <FormattedMessage {...messages.testingWorkflow} />
-            ) : (
-              <FormattedMessage {...messages.testWorkflow} />
-            )}
-          </Button>
+          <ShortcutHintAnchor shortcut="primary">
+            <Button
+              type="button"
+              onClick={onTestWorkflow}
+              disabled={isRunning || nodes.length === 0}
+            >
+              {isRunning ? (
+                <FormattedMessage {...messages.testingWorkflow} />
+              ) : (
+                <FormattedMessage {...messages.testWorkflow} />
+              )}
+            </Button>
+          </ShortcutHintAnchor>
           {testSettings}
         </Panel>
       </Canvas>
+      <VisualWorkflowCanvasShortcutHints />
       {nodes.length === 0 ? (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2">
-          <Button type="button" className="pointer-events-auto" onClick={onAddFirstStep}>
-            <FormattedMessage {...messages.addFirstStep} />
-          </Button>
+          <ShortcutHintAnchor shortcut="addNode">
+            <Button type="button" className="pointer-events-auto" onClick={onAddFirstStep}>
+              <FormattedMessage {...messages.addFirstStep} />
+            </Button>
+          </ShortcutHintAnchor>
           <Button
             type="button"
             variant="outline"
