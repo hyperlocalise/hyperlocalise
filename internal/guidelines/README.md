@@ -73,5 +73,10 @@ passages apply the model is not called.
 go-svc serves `POST /v1/orgs/{org}/guidelines/check` for signed-in users and
 `POST /internal/guidelines/check` for trusted server callers such as MCP. Both
 meter usage per segment on the Autumn `guideline_checks` feature. The model is
-configured with `GUIDELINE_CHECK_MODEL`, `AI_GATEWAY_API_KEY`, and optionally
-`AI_GATEWAY_BASE_URL`; without them the routes return 503.
+configured with `AI_GATEWAY_API_KEY`, optionally `AI_GATEWAY_BASE_URL`, and
+`GUIDELINE_CHECK_MODEL` (default `openai/gpt-6-luna`); without the key the routes
+return 503.
+
+Translation prompts get uploaded documents from `POST /internal/guidelines/retrieve`,
+which uses the same `Service.Retrieve` path. Typed workspace and project guidelines
+reach the prompt through the web app's lexical selection instead.

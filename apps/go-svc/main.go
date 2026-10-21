@@ -243,6 +243,9 @@ func main() {
 	if checkModel != nil && checkRetriever != nil {
 		h.guidelineCheck.checker = check.New(checkRetriever, checkModel)
 	}
+	if checkRetriever != nil && guidelinePool != nil {
+		h.guidelineRetrieve = &guidelineRetrieveAPI{retriever: checkRetriever, pool: guidelinePool}
+	}
 
 	valkeyCtx, cancelValkey := context.WithTimeout(context.Background(), 5*time.Second)
 	valkeyClient, err := configureValkey(valkeyCtx)

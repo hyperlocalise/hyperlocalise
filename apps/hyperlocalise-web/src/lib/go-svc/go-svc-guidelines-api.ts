@@ -80,6 +80,29 @@ export type GuidelineCheckResult = {
 
 export type GuidelineSweepResult = { scanned: number; republished: number; failed: number };
 
+export type GuidelineRetrieveRequest = {
+  projectId?: string;
+  /** At most 8. Omit for documents that apply to every locale only. */
+  locales?: string[];
+  query: string;
+  limit?: number;
+};
+
+export type RetrievedGuidelineDocument = {
+  id: string;
+  title: string;
+  locale?: string;
+  mandatory: boolean;
+  /** Set for mandatory documents only. */
+  content?: string;
+};
+
+export type GuidelineRetrieveResult = {
+  documents: RetrievedGuidelineDocument[];
+  passages: { id: string; documentId: string; text: string }[];
+  searchAvailable: boolean;
+};
+
 type GuidelineDocumentListPage = {
   guidelineDocuments: GuidelineDocument[];
   nextCursor: string | null;
@@ -208,6 +231,22 @@ export class GoSvcGuidelinesApi {
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.json<GuidelineCheckResult>("/internal/guidelines/check", {
+      method: "POST",
+      body: { organizationId, ...body },
+      ...options,
+    });
+  }
+
+  /**
+   * Server-only: requires a client created with service authentication.
+   * Returns uploaded guideline documents only. Callers must authorize the project first.
+   */
+  internalRetrieve(
+    organizationId: string,
+    body: GuidelineRetrieveRequest,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<GuidelineRetrieveResult>("/internal/guidelines/retrieve", {
       method: "POST",
       body: { organizationId, ...body },
       ...options,

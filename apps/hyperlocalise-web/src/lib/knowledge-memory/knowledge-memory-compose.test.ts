@@ -53,4 +53,22 @@ describe("composeScopedKnowledgeMemory", () => {
       ].join("\n\n"),
     );
   });
+
+  it("appends uploaded guidelines under their own heading", () => {
+    expect(
+      composeScopedKnowledgeMemory({
+        projectGuideline: "Checkout buttons stay short.",
+        uploadedGuidelines: "### Brand guide\nNever translate Acme.",
+      }),
+    ).toBe(
+      [
+        "Checkout buttons stay short.",
+        "## Uploaded guidelines",
+        "### Brand guide\nNever translate Acme.",
+      ].join("\n\n"),
+    );
+    expect(composeScopedKnowledgeMemory({ uploadedGuidelines: "### Brand guide\nRule." })).toBe(
+      "## Uploaded guidelines\n\n### Brand guide\nRule.",
+    );
+  });
 });

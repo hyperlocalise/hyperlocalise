@@ -85,6 +85,7 @@ type handler struct {
 	knowledgeMemories  *knowledgeMemoryAPI
 	guidelineDocuments *guidelineDocumentAPI
 	guidelineCheck     *guidelineCheckAPI
+	guidelineRetrieve  *guidelineRetrieveAPI
 	valkey             valkeyHealthClient
 	overviewCache      dictionaryWordsCache
 	researchCache      domainResearchCache
@@ -188,6 +189,18 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 				return
 			}
 			h.guidelineCheck.internalCheck(w, r)
+		})
+	}
+	if h.guidelineRetrieve != nil {
+		mux.HandleFunc("POST /internal/guidelines/retrieve", func(w http.ResponseWriter, r *http.Request) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+				return
+			}
+			if !requireServerCallToken(w, r) {
+				return
+			}
+			h.guidelineRetrieve.internalRetrieve(w, r)
 		})
 	}
 	validate := authMiddleware(verifier)(http.HandlerFunc(h.validateSegment))

@@ -23,6 +23,8 @@ const (
 	// finishes near the work deadline can still track usage and write JSON.
 	guidelineCheckWriteSlack = 20 * time.Second
 	defaultAIGatewayBaseURL  = "https://ai-gateway.vercel.sh/v1"
+	// The model must support strict json_schema structured output.
+	defaultGuidelineCheckModel = "openai/gpt-6-luna"
 )
 
 func setGuidelineCheckWriteDeadline(w http.ResponseWriter) {
@@ -56,13 +58,16 @@ type guidelineCheckPayload struct {
 	Checks       []check.Field   `json:"checks"`
 }
 
-// newGuidelineCheckModel returns nil when the check model is not configured.
+// newGuidelineCheckModel returns nil when AI Gateway is not configured.
 func newGuidelineCheckModel() (check.Model, error) {
-	model := strings.TrimSpace(os.Getenv("GUIDELINE_CHECK_MODEL"))
 	apiKey := strings.TrimSpace(os.Getenv("AI_GATEWAY_API_KEY"))
-	if model == "" || apiKey == "" {
-		slog.Warn("guideline_check_disabled", "reason", "missing_model_configuration")
+	if apiKey == "" {
+		slog.Warn("guideline_check_disabled", "reason", "missing_ai_gateway_api_key")
 		return nil, nil
+	}
+	model := strings.TrimSpace(os.Getenv("GUIDELINE_CHECK_MODEL"))
+	if model == "" {
+		model = defaultGuidelineCheckModel
 	}
 	baseURL := strings.TrimSpace(os.Getenv("AI_GATEWAY_BASE_URL"))
 	if baseURL == "" {

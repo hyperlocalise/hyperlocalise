@@ -23,6 +23,7 @@ import {
   getKnowledgeMemoryForProject,
 } from "@/lib/knowledge-memory/knowledge-memory";
 import { selectKnowledgeMemoryContext } from "@/lib/knowledge-memory/knowledge-memory-selection";
+import { loadUploadedGuidelinesContext } from "@/lib/knowledge-memory/uploaded-guidelines-context";
 import {
   TranslationContext,
   toContextGlossaryMatch,
@@ -96,7 +97,13 @@ export class TranslationContextBuilder {
         ? Promise.all([
             getKnowledgeMemoryForProject(project.id),
             getKnowledgeMemoryForOrganization(project.organizationId),
-          ]).then(([projectMemory, organizationMemory]) => {
+            loadUploadedGuidelinesContext({
+              organizationId: project.organizationId,
+              projectId: project.id,
+              targetLocales: jobInput.targetLocales,
+              sourceText: jobInput.sourceText,
+            }),
+          ]).then(([projectMemory, organizationMemory, uploadedGuidelines]) => {
             const selectionInput = {
               sourceLocale: jobInput.sourceLocale,
               targetLocales: jobInput.targetLocales,
@@ -116,6 +123,7 @@ export class TranslationContextBuilder {
                 ...selectionInput,
                 content: organizationMemory.content,
               }).compactText,
+              uploadedGuidelines,
             });
           })
         : Promise.resolve("");

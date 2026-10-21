@@ -609,9 +609,11 @@ Uploads need object storage and `GUIDELINE_INGEST_SQS_QUEUE_URL`; without the
 queue they return 503. The `guideline-ingest` Lambda extracts and indexes each
 document, and `POST /internal/guidelines/sweep` republishes lost messages.
 
-Guideline checks need `GUIDELINE_CHECK_MODEL` and `AI_GATEWAY_API_KEY`
-(`AI_GATEWAY_BASE_URL` defaults to `https://ai-gateway.vercel.sh/v1`). Without
-turbopuffer, checks use mandatory guidelines only.
+Guideline checks need `AI_GATEWAY_API_KEY` (`AI_GATEWAY_BASE_URL` defaults to
+`https://ai-gateway.vercel.sh/v1`). `GUIDELINE_CHECK_MODEL` defaults to
+`openai/gpt-6-luna` and must support strict `json_schema` output. The same key
+enables reranking search hits with `voyage/rerank-3-lite`. Without turbopuffer,
+checks use mandatory guidelines only.
 
 - `POST /v1/orgs/{org}/guidelines/check`:
   `{projectId?, sourceLocale?, targetLocale?, segments: [{id, source?, target?}], checks?}`.
@@ -619,6 +621,13 @@ turbopuffer, checks use mandatory guidelines only.
   offsets and the cited `passages`. Metered per segment on Autumn `guideline_checks`.
 - `POST /internal/guidelines/check`: the same body plus `organizationId`, for
   service-token callers that already enforced access.
+- `POST /internal/guidelines/retrieve`:
+  `{organizationId, projectId?, locales?, query, limit?}` for translation prompts.
+  Retrieves once per locale (at most 8; none means locale-independent documents
+  only) and returns uploaded documents only: mandatory ones whole in `documents`,
+  others as up to `limit` (default 8, max 16) search `passages`. Typed workspace
+  and project guidelines are excluded because the web app already selects them.
+  Service-token only.
 
 ## Activity logs
 
