@@ -77,6 +77,7 @@ import type {
 
 import { normalizedCatGlossaryTermStatus } from "./content-editor-glossary-term-status";
 import { ContentEditorAddToGlossary } from "./content-editor-add-to-glossary";
+import { ContentEditorEditTmSegmentButton } from "./content-editor-edit-tm-segment";
 import { ContentEditorGlossaryConceptCard } from "./content-editor-glossary-concept-card";
 import { isCatGlossaryConceptVisibleForTargetLocale } from "./content-editor-glossary-utils";
 import {
@@ -263,11 +264,22 @@ function tmMatchBadgeLabel(
 function TranslationMemoryRow({
   match,
   onUse,
+  organizationSlug,
+  projectId,
+  sourceLocale,
+  onTmSegmentMutated,
 }: {
   match: ContentEditorTranslationMemoryMatch;
   onUse?: (match: ContentEditorTranslationMemoryMatch) => void;
+  organizationSlug?: string;
+  projectId?: string;
+  sourceLocale?: string;
+  onTmSegmentMutated?: () => void;
 }) {
   const intl = useIntl();
+  const canOpenEditor = Boolean(
+    match.canEdit && match.segmentRef && organizationSlug && projectId && sourceLocale,
+  );
 
   return (
     <li className="space-y-2 px-3 py-3">
@@ -287,11 +299,27 @@ function TranslationMemoryRow({
             </span>
           ) : null}
         </div>
-        {onUse ? (
-          <Button variant="outline" size="sm" className="h-8 shrink-0" onClick={() => onUse(match)}>
-            <FormattedMessage {...contentEditorIntelligencePanelMessages.useTmMatch} />
-          </Button>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-1">
+          {canOpenEditor && organizationSlug && projectId && sourceLocale ? (
+            <ContentEditorEditTmSegmentButton
+              match={match}
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              sourceLocale={sourceLocale}
+              onMutated={onTmSegmentMutated}
+            />
+          ) : null}
+          {onUse ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0"
+              onClick={() => onUse(match)}
+            >
+              <FormattedMessage {...contentEditorIntelligencePanelMessages.useTmMatch} />
+            </Button>
+          ) : null}
+        </div>
       </div>
       <div className="space-y-1">
         <p className="text-pretty text-sm leading-relaxed text-foreground">
@@ -310,9 +338,17 @@ const TM_COLLAPSED_MATCH_COUNT = 2;
 function TranslationMemoryMatchList({
   matches,
   onUse,
+  organizationSlug,
+  projectId,
+  sourceLocale,
+  onTmSegmentMutated,
 }: {
   matches: ContentEditorTranslationMemoryMatch[];
   onUse?: (match: ContentEditorTranslationMemoryMatch) => void;
+  organizationSlug?: string;
+  projectId?: string;
+  sourceLocale?: string;
+  onTmSegmentMutated?: () => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const hiddenCount = matches.length - TM_COLLAPSED_MATCH_COUNT;
@@ -325,7 +361,15 @@ function TranslationMemoryMatchList({
     <>
       <ul className="divide-y divide-border">
         {visibleMatches.map((match) => (
-          <TranslationMemoryRow key={match.id} match={match} onUse={onUse} />
+          <TranslationMemoryRow
+            key={match.id}
+            match={match}
+            onUse={onUse}
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            sourceLocale={sourceLocale}
+            onTmSegmentMutated={onTmSegmentMutated}
+          />
         ))}
       </ul>
       {peekMatch ? (
@@ -784,6 +828,14 @@ export function ContentEditorIntelligencePanel({
                   <TranslationMemoryMatchList
                     key={segmentId ?? segmentKey ?? "__default__"}
                     matches={intelligence.translationMemoryMatches}
+                    organizationSlug={
+                      canEditTranslations && !isTranslationLocked ? organizationSlug : undefined
+                    }
+                    projectId={canEditTranslations && !isTranslationLocked ? projectId : undefined}
+                    sourceLocale={
+                      canEditTranslations && !isTranslationLocked ? sourceLocale : undefined
+                    }
+                    onTmSegmentMutated={onGlossaryTermAdded}
                     onUse={
                       canEditTranslations && !isTranslationLocked && onUseTmMatch
                         ? handleUseTmMatch

@@ -202,6 +202,10 @@ import {
   projectFileCatSegmentQuerySchema,
   projectFileCatQuerySchema,
   projectFileCatConcordanceBodySchema,
+  projectFileCatTmSegmentGetQuerySchema,
+  projectFileCatTmSegmentPatchBodySchema,
+  projectFileCatTmSegmentDeleteQuerySchema,
+  projectFileCatTmSegmentRecordParamsSchema,
   projectFileCatCommentBodySchema,
   projectFileCatCommentResolveBodySchema,
   projectFileCatHiddenStringsBodySchema,
@@ -284,6 +288,12 @@ import {
   loadContentEditorSegmentConcordance,
   loadContentEditorSegmentVisualContext,
 } from "@/lib/translation/content-editor-core";
+import {
+  deleteContentEditorExternalTmSegmentRecord,
+  loadContentEditorExternalTmSegment,
+  updateContentEditorExternalTmSegment,
+  type ContentEditorExternalTmSegmentError,
+} from "@/lib/translation/content-editor-external-tm-segment";
 import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedFileTranslationFileFormat,
@@ -756,6 +766,51 @@ const validateProjectFileContentEditorConcordanceBody = validator("json", (value
 
   return parsed.data;
 });
+
+const validateProjectFileCatTmSegmentQuery = validator("query", (value, c) => {
+  const parsed = projectFileCatTmSegmentGetQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+  return parsed.data;
+});
+
+const validateProjectFileCatTmSegmentPatchBody = validator("json", (value, c) => {
+  const parsed = projectFileCatTmSegmentPatchBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+  return parsed.data;
+});
+
+const validateProjectFileCatTmSegmentDeleteQuery = validator("query", (value, c) => {
+  const parsed = projectFileCatTmSegmentDeleteQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+  return parsed.data;
+});
+
+const validateProjectFileCatTmSegmentRecordParams = validator("param", (value, c) => {
+  const parsed = projectFileCatTmSegmentRecordParamsSchema.safeParse(value);
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+  return parsed.data;
+});
+
+function contentEditorExternalTmSegmentErrorResponse(
+  c: Parameters<typeof notFoundResponse>[0],
+  error: ContentEditorExternalTmSegmentError,
+) {
+  if (error.code === "invalid_tm_segment") {
+    return badRequestResponse(c, error.code, error.message);
+  }
+  if (error.code === "tm_segment_unsupported") {
+    return badRequestResponse(c, error.code, error.message);
+  }
+  return notFoundResponse(c, error.code, error.message);
+}
 
 const validateProjectFileContentEditorVisualContextBody = validator("json", (value, c) => {
   const parsed = projectFileCatVisualContextBodySchema.safeParse(value);
@@ -1824,6 +1879,138 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           });
 
           return c.json({ concordance }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
+    .get(
+      "/:projectId/files/detail/cat/tm-segments",
+      validateProjectParams,
+      validateProjectFileCatTmSegmentQuery,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind !== "provider" || target.providerKind !== "crowdin") {
+          return badRequestResponse(
+            c,
+            "tm_segment_unsupported",
+            "This translation memory cannot be edited here",
+          );
+        }
+
+        try {
+          const result = await loadContentEditorExternalTmSegment({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            actorUserId: c.var.auth.user.localUserId,
+            sourceLocale: query.sourceLocale,
+            ref: {
+              providerKind: "crowdin",
+              externalResourceId: query.externalResourceId,
+              externalSegmentId: query.externalSegmentId,
+            },
+          });
+          if (isErr(result)) {
+            return contentEditorExternalTmSegmentErrorResponse(c, result.error);
+          }
+          return c.json({ tmSegment: result.value }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
+    .patch(
+      "/:projectId/files/detail/cat/tm-segments",
+      validateProjectParams,
+      validateProjectFileCatTmSegmentPatchBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind !== "provider" || target.providerKind !== "crowdin") {
+          return badRequestResponse(
+            c,
+            "tm_segment_unsupported",
+            "This translation memory cannot be edited here",
+          );
+        }
+
+        try {
+          const result = await updateContentEditorExternalTmSegment({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            actorUserId: c.var.auth.user.localUserId,
+            sourceLocale: body.sourceLocale,
+            ref: {
+              providerKind: "crowdin",
+              externalResourceId: body.externalResourceId,
+              externalSegmentId: body.externalSegmentId,
+            },
+            sourceText: body.sourceText,
+            records: body.records,
+          });
+          if (isErr(result)) {
+            return contentEditorExternalTmSegmentErrorResponse(c, result.error);
+          }
+          return c.json({ tmSegment: result.value }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
+    .delete(
+      "/:projectId/files/detail/cat/tm-segments/records/:recordId",
+      validateProjectFileCatTmSegmentRecordParams,
+      validateProjectFileCatTmSegmentDeleteQuery,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind !== "provider" || target.providerKind !== "crowdin") {
+          return badRequestResponse(
+            c,
+            "tm_segment_unsupported",
+            "This translation memory cannot be edited here",
+          );
+        }
+
+        try {
+          const result = await deleteContentEditorExternalTmSegmentRecord({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            actorUserId: c.var.auth.user.localUserId,
+            sourceLocale: query.sourceLocale,
+            ref: {
+              providerKind: "crowdin",
+              externalResourceId: query.externalResourceId,
+              externalSegmentId: query.externalSegmentId,
+            },
+            recordId: params.recordId,
+          });
+          if (isErr(result)) {
+            return contentEditorExternalTmSegmentErrorResponse(c, result.error);
+          }
+          return c.body(null, 204);
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }

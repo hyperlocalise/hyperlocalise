@@ -485,6 +485,7 @@ export class CrowdinTmsProvider extends TmsProvider {
     "translation_memory.import": implemented,
     "translation_memory.export": implemented,
     "translation_memory.search": implemented,
+    "translation_memory.write": implemented,
     "glossary.import": implemented,
     "glossary.export": implemented,
     "glossary.search": implemented,

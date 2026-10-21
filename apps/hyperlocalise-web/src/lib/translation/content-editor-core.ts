@@ -40,6 +40,7 @@ import type {
 } from "@/lib/providers/contracts/glossary-match";
 import { hasGlossaryExpectedTarget } from "@/lib/providers/contracts/glossary-match";
 import type { NormalizedTranslationMemoryMatch } from "@/lib/providers/contracts/translation-memory-match";
+import { catTranslationMemorySegmentAccess } from "@/lib/translation/content-editor-tm-segment";
 import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
@@ -237,6 +238,7 @@ function toCatTranslationMemoryMatch(
     matchPercent,
     matchKind: inferTmMatchKind(matchPercent, querySourceText, match.sourceText),
     contextLabel: match.memoryName,
+    ...catTranslationMemorySegmentAccess(match),
   };
 }
 

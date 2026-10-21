@@ -26,6 +26,7 @@ import type {
   ProjectFileContentEditorCommentResolveBody,
   ProjectFileContentEditorCommentResolveResponse,
   ProjectFileContentEditorCommentResponse,
+  ProjectFileCatTmSegmentResponse,
   ProjectFileContentEditorConcordanceBody,
   ProjectFileContentEditorConcordanceResponse,
   ProjectFileContentEditorHiddenStringsBody,
@@ -266,6 +267,47 @@ export class GoSvcCatApi {
     return this.request.json<ProjectFileContentEditorConcordanceResponse>(
       catPath(organizationSlug, projectId, "concordance"),
       { method: "POST", body, ...options },
+    );
+  }
+
+  tmSegment(
+    organizationSlug: string,
+    projectId: string,
+    entryId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<ProjectFileCatTmSegmentResponse>(
+      catPath(organizationSlug, projectId, "tm-segments", entryId),
+      options,
+    );
+  }
+
+  updateTmSegment(
+    organizationSlug: string,
+    projectId: string,
+    entryId: string,
+    body: {
+      sourceText: string;
+      records: Array<{ id: string; text: string; expectedVersion: number }>;
+    },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<ProjectFileCatTmSegmentResponse>(
+      catPath(organizationSlug, projectId, "tm-segments", entryId),
+      { method: "PATCH", body, ...options },
+    );
+  }
+
+  deleteTmSegmentRecord(
+    organizationSlug: string,
+    projectId: string,
+    entryId: string,
+    recordId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<void>(
+      catPath(organizationSlug, projectId, "tm-segments", entryId, "records", recordId),
+      { method: "DELETE", ...options },
     );
   }
 
