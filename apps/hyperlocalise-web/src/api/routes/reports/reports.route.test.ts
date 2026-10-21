@@ -216,6 +216,7 @@ describe("reports routes", () => {
       "/words?unit=pages",
       "/activity?from=2026-06-10&to=2026-06-01",
       `/cost-estimate?jobIds=${tooManyTasks}`,
+      "/cost-estimate",
       "/time?page=0",
     ]) {
       const response = await app.request(reportsUrl(slug, path), { headers });

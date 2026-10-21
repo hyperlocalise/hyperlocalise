@@ -355,20 +355,22 @@ export function createReportsRoutes() {
       return c.json({ time: { period, logged, automated } });
     })
     .get("/costs", async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "billing:read"))
+        return forbiddenResponse(c, "report_costs_forbidden");
       const parsed = costsQuerySchema.safeParse(c.req.query());
       if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
       const context = await reportContext(c);
-      if (!context.financial) return forbiddenResponse(c, "report_costs_forbidden");
       const period = resolvePeriod({ ...parsed.data, ...context });
       const costs = await queryCosts({ ...context, ...parsed.data, period });
       if (parsed.data.format === "csv") return csv(c, "costs.csv", costsCsv(costs));
       return c.json({ costs: { period, ...costs } });
     })
     .get("/cost-estimate", async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "billing:read"))
+        return forbiddenResponse(c, "report_costs_forbidden");
       const parsed = costEstimateQuerySchema.safeParse(c.req.query());
       if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
       const context = await reportContext(c);
-      if (!context.financial) return forbiddenResponse(c, "report_costs_forbidden");
       const { rateCard, format, ...filters } = parsed.data;
       const estimate = await queryCostEstimate({
         ...context,
@@ -379,10 +381,11 @@ export function createReportsRoutes() {
       return c.json({ costEstimate: estimate });
     })
     .get("/budgets", async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "billing:read"))
+        return forbiddenResponse(c, "report_costs_forbidden");
       const parsed = exportFormatSchema.safeParse(c.req.query());
       if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
       const context = await reportContext(c);
-      if (!context.financial) return forbiddenResponse(c, "report_costs_forbidden");
       const budgets = await queryBudgets(context);
       if (parsed.data.format === "csv") return csv(c, "budgets.csv", budgetsCsv(budgets));
       return c.json({ budgets });

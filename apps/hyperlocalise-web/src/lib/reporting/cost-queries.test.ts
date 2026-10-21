@@ -101,6 +101,7 @@ describe("cost estimate", () => {
     const estimate = await queryCostEstimate({
       organizationId: organization.id,
       projectIds: [project.id],
+      jobIds: [job.id],
       unit: "words",
       rateCardName: "Standard",
     });
@@ -138,6 +139,7 @@ describe("cost estimate", () => {
     const inCharacters = await queryCostEstimate({
       organizationId: organization.id,
       projectIds: [project.id],
+      jobIds: [job.id],
       unit: "characters",
       rateCardName: "Standard",
     });
@@ -161,6 +163,7 @@ describe("cost estimate", () => {
       queryCostEstimate({
         organizationId: organization.id,
         projectIds: [project.id],
+        jobIds: [first.id, second.id],
         unit: "words",
         rateCardName,
       });
@@ -301,8 +304,9 @@ describe("still to come and budgets", () => {
       organizationId: organization.id,
       projectIds: [project.id],
     });
-    // 6 words still to do in the assigned task, and in each of the two payable live rows.
-    expect(toCome.get(project.id)).toEqual({ amountUsd: "18.00000000", incomplete: false });
+    // 6 words still to do in the assigned task and in the open task's payable row; the tasks
+    // that ended will do no more work.
+    expect(toCome.get(project.id)).toEqual({ amountUsd: "12.00000000", incomplete: false });
 
     // Spent: people's work, expenses and billed AI on the project's tasks.
     const cost = (
@@ -345,8 +349,8 @@ describe("still to come and budgets", () => {
       projectId: project.id,
       projectName: "Docs",
       spentUsd: "80.50000000",
-      stillToComeUsd: "18.00000000",
-      forecastUsd: "98.50000000",
+      stillToComeUsd: "12.00000000",
+      forecastUsd: "92.50000000",
       remainingUsd: "19.50000000",
       status: "over_80",
       incomplete: false,

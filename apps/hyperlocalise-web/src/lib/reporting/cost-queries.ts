@@ -77,9 +77,9 @@ const OPEN_TASK = sql`j.status in ('queued', 'running', 'waiting_for_review')`;
 const LIVE_TASK = sql`j.status not in ('failed', 'cancelled')`;
 
 /**
- * Units of work, priced. `all` is every current string of the tasks (failed and cancelled tasks
- * left out); `toCome` is the unfinished part of open tasks assigned to a person, plus unfinished
- * work already marked payable.
+ * Units of work, priced. `chosen` is every current string of the given tasks, finished or not;
+ * `toCome` is the unfinished part of open tasks assigned to a person or marked payable, plus
+ * unfinished payable work saved outside any task. A task that ended will do no more work.
  */
 async function pricedUnits(input: {
   organizationId: string;
@@ -89,19 +89,46 @@ async function pricedUnits(input: {
   step?: ReportStep;
   unit: ReportUnit;
   rateCardName: string | null;
-  measure: "all" | "toCome";
+  measure: "chosen" | "toCome";
 }) {
   const value = (unit: string): SQL =>
-    input.measure === "all"
+    input.measure === "chosen"
       ? sql.raw(`s.arrived_${unit}`)
       : sql.raw(`s.arrived_${unit} - s.arrived_done_${unit}`);
-  const which =
-    input.measure === "all"
-      ? sql`(s.job_id is null or ${LIVE_TASK})`
-      : // The condition the partial index `reporting_daily_by_task_open` is built on.
-        sql`s.arrived_strings > s.arrived_done_strings
-          and ((${OPEN_TASK} and j.assignee_type = 'user' and j.owner_user_id is not null)
-            or (s.payable and (s.job_id is null or ${LIVE_TASK})))`;
+  const projects = sql`s.project_id in (${idList(input.projectIds)})`;
+  const tasks = input.jobIds?.length ? sql`and s.job_id in (${idList(input.jobIds)})` : sql``;
+  const rows =
+    input.measure === "chosen"
+      ? sql`select s.* from reporting_daily_by_task s
+          where s.organization_id = ${input.organizationId} and ${projects} ${tasks}`
+      : // Read task by task from the open tasks, through the summary's task index: tasks that
+        // ended hold most of a workspace's rows, and a planner scanning them all is far slower.
+        // Rows with as many strings done as arrived have nothing left to do.
+        sql`select s.* from jobs j
+          cross join lateral (
+            select s.* from reporting_daily_by_task s
+            where s.organization_id = ${input.organizationId} and s.job_id = j.id
+              and ${projects} ${tasks} and s.arrived_strings > s.arrived_done_strings
+              and (s.payable or (j.assignee_type = 'user' and j.owner_user_id is not null))
+            -- Keeps the planner from merging this into one join over every row.
+            offset 0
+          ) s
+          where j.organization_id = ${input.organizationId}
+            and j.project_id in (${idList(input.projectIds)}) and ${OPEN_TASK}
+          ${
+            input.jobIds?.length
+              ? sql``
+              : sql`union all
+                select s.* from reporting_daily_by_task s
+                where s.organization_id = ${input.organizationId} and ${projects}
+                  and s.job_id is null and s.payable and s.arrived_strings > s.arrived_done_strings`
+          }`;
+  // Only a task with its own rate, fee or time estimate is priced apart from the others, so
+  // still to come adds up the rest of a project's open tasks together.
+  const task =
+    input.measure === "chosen"
+      ? sql`s.job_id`
+      : sql`case when own.id is not null then s.job_id end`;
   const result = await db.execute<{
     groups: PricedGroup[];
     hourly: HourlyLine[];
@@ -110,19 +137,21 @@ async function pricedUnits(input: {
   }>(sql`
     with live as (${liveRateRows(input.organizationId)}),
     units as (
-      select s.project_id, s.job_id, s.source_locale, s.target_locale, s.step, s.bucket,
+      select s.project_id, ${task} as job_id, s.source_locale, s.target_locale, s.step, s.bucket,
         sum(${value("words")}) as words, sum(${value("strings")}) as strings,
         sum(${value("characters")}) as characters,
         sum(${value("characters_with_spaces")}) as characters_with_spaces,
         sum(${value(input.unit)}) as shown
-      from reporting_daily_by_task s
-      left join jobs j on j.id = s.job_id
-      where s.organization_id = ${input.organizationId}
-        and s.project_id in (${idList(input.projectIds)})
-        ${input.jobIds?.length ? sql`and s.job_id in (${idList(input.jobIds)})` : sql``}
+      from (${rows}) s
+      ${
+        input.measure === "chosen"
+          ? sql``
+          : sql`left join reporting_task_rates own on own.organization_id = ${input.organizationId}
+              and own.job_id = s.job_id and own.step = s.step`
+      }
+      where true
         ${input.targetLocale ? sql`and s.target_locale = ${input.targetLocale}` : sql``}
         ${input.step ? sql`and s.step = ${input.step}` : sql``}
-        and ${which}
       group by 1, 2, 3, 4, 5, 6
     ),
     resolved as (
@@ -231,12 +260,12 @@ async function fixedFees(input: {
       t.step, t.override_usd::text as "amountUsd"
     from reporting_task_rates t join jobs j on j.id = t.job_id
     where t.organization_id = ${input.organizationId} and t.override_usd is not null
-      and j.project_id in (${idList(input.projectIds)}) and ${LIVE_TASK}
+      and j.project_id in (${idList(input.projectIds)})
       ${input.jobIds?.length ? sql`and t.job_id in (${idList(input.jobIds)})` : sql``}
       ${input.step ? sql`and t.step = ${input.step}` : sql``}
       ${
         input.uncharged
-          ? sql`and not exists (select 1 from reporting_costs c
+          ? sql`and ${LIVE_TASK} and not exists (select 1 from reporting_costs c
               where c.organization_id = t.organization_id and c.operation_key = 'task-override:' || t.id)`
           : sql``
       }
@@ -287,9 +316,17 @@ export type CostEstimate = {
   };
 };
 
-/** What the chosen tasks will cost: every current string, finished or not, at the live rates. */
+/**
+ * What the chosen tasks will cost: every current string, finished or not, at the live rates.
+ * Tasks must be chosen (up to 50): a whole workspace's tasks hold millions of summary rows.
+ */
 export async function queryCostEstimate(
-  input: ReportScope & { step?: ReportStep; unit: ReportUnit; rateCardName: string | null },
+  input: Omit<ReportScope, "jobIds"> & {
+    jobIds: string[];
+    step?: ReportStep;
+    unit: ReportUnit;
+    rateCardName: string | null;
+  },
 ): Promise<CostEstimate> {
   const projectIds = scopedProjectIds(input);
   const empty: CostEstimate = {
@@ -310,9 +347,9 @@ export async function queryCostEstimate(
       incomplete: false,
     },
   };
-  if (projectIds.length === 0) return empty;
+  if (projectIds.length === 0 || input.jobIds.length === 0) return empty;
   const [priced, fees] = await Promise.all([
-    pricedUnits({ ...input, projectIds, measure: "all" }),
+    pricedUnits({ ...input, projectIds, measure: "chosen" }),
     fixedFees({ ...input, projectIds, uncharged: false }),
   ]);
   const lineKey = (line: { targetLocale: string; step: ReportStep; rateId: string | null }) =>
@@ -509,15 +546,22 @@ async function spending(input: {
     `),
     input.targetLocale
       ? Promise.resolve({ rows: [] })
-      : db.execute<{ projectId: string; amount: string; pending: number }>(sql`
+      : // Task by task through billing's task index: a planner joining the other way walks
+        // every usage row of the database.
+        db.execute<{ projectId: string; amount: string; pending: number }>(sql`
           select j.project_id as "projectId", round(coalesce(sum(u.amount_usd), 0), 8)::text as amount,
-            count(*) filter (where u.amount_usd is null)::integer as pending
-          from usage_events u join jobs j on j.id = u.job_id
-          where u.organization_id = ${input.organizationId}
+            count(*) filter (where u.id is not null and u.amount_usd is null)::integer as pending
+          from jobs j
+          cross join lateral (
+            select u.id, u.amount_usd from usage_events u
+            where u.job_id = j.id and u.organization_id = ${input.organizationId}
+              and u.feature_id = 'ai_tokens' and u.credential_source = 'gateway'
+              and u.status <> 'rejected'
+              ${within(sql`u.created_at`)}
+            offset 0
+          ) u
+          where j.organization_id = ${input.organizationId}
             and j.project_id in (${idList(input.projectIds)})
-            and u.feature_id = 'ai_tokens' and u.credential_source = 'gateway'
-            and u.status <> 'rejected'
-            ${within(sql`u.created_at`)}
           group by 1
         `),
   ]);

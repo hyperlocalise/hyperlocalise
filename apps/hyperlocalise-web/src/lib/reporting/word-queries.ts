@@ -213,9 +213,25 @@ export async function queryWordCounts(
   };
   const projectIds = scopedProjectIds(input);
   if (projectIds.length === 0) return empty;
-  const byTask = input.groupBy === "task" || (input.jobIds?.length ?? 0) > 0;
   const column = measure(input.mode, input.unit);
-  const group = input.groupBy === "task" ? sql`s.job_id` : sql`s.project_id`;
+  const filters = sql`s.organization_id = ${input.organizationId}
+    and s.project_id in (${idList(projectIds)})
+    ${input.jobIds?.length ? sql`and s.job_id in (${idList(input.jobIds)})` : sql``}
+    ${input.targetLocale ? sql`and s.target_locale = ${input.targetLocale}` : sql``}
+    and s.step = ${input.step}
+    and s.day between ${input.period.from} and ${input.period.to}`;
+  // Totals over every task can come from the smaller by-project table unless tasks are chosen.
+  const totalsTable = sql.raw(
+    input.jobIds?.length ? "reporting_daily_by_task s" : "reporting_daily_by_project s",
+  );
+  // Read from a `bands` table of bucket, units and uncounted strings.
+  const bandColumns = sql`
+    (select json_object_agg(bucket, units::float8) filter (where units > 0) from bands)
+      as "bandTotals",
+    (select coalesce(sum(uncounted), 0) from bands)::float8 as uncounted`;
+  const pageLimit = input.all
+    ? sql``
+    : sql`limit ${WORD_COUNT_PAGE_SIZE} offset ${(input.page - 1) * WORD_COUNT_PAGE_SIZE}`;
   const result = await db.execute<{
     groupCount: number;
     bandTotals: BandCounts | null;
@@ -227,38 +243,56 @@ export async function queryWordCounts(
       bucket: MatchBucket;
       units: number;
     }[];
-  }>(sql`
-    with grouped as (
-      select ${group} as group_id, s.project_id, s.target_locale, s.bucket,
-        sum(${column}) as units, sum(s.arrived_uncounted) as uncounted
-      from ${sql.raw(byTask ? "reporting_daily_by_task s" : "reporting_daily_by_project s")}
-      where s.organization_id = ${input.organizationId}
-        and s.project_id in (${idList(projectIds)})
-        ${input.jobIds?.length ? sql`and s.job_id in (${idList(input.jobIds)})` : sql``}
-        ${input.targetLocale ? sql`and s.target_locale = ${input.targetLocale}` : sql``}
-        and s.step = ${input.step}
-        and s.day between ${input.period.from} and ${input.period.to}
-      group by 1, 2, 3, 4
-    ), group_totals as (
-      select group_id, sum(units) as total from grouped group by 1 having sum(units) > 0
-    ), page as (
-      select group_id, total from group_totals
-      order by total desc, group_id nulls first
-      ${input.all ? sql`` : sql`limit ${WORD_COUNT_PAGE_SIZE} offset ${(input.page - 1) * WORD_COUNT_PAGE_SIZE}`}
-    )
-    select
-      (select count(*) from group_totals)::integer as "groupCount",
-      (select json_object_agg(bucket, units) from (
-        select bucket, sum(units)::float8 as units from grouped group by 1 having sum(units) > 0
-      ) b) as "bandTotals",
-      (select coalesce(sum(uncounted), 0) from grouped)::float8 as uncounted,
-      (select coalesce(json_agg(json_build_object(
-          'projectId', g.project_id, 'jobId', ${input.groupBy === "task" ? sql`g.group_id` : sql`null`},
-          'targetLocale', g.target_locale, 'bucket', g.bucket, 'units', g.units::float8
-        ) order by p.total desc, p.group_id nulls first), '[]')
-        from grouped g join page p on p.group_id is not distinct from g.group_id
-        where g.units > 0) as rows
-  `);
+  }>(
+    input.groupBy === "project"
+      ? sql`
+        with grouped as (
+          select s.project_id, s.target_locale, s.bucket, sum(${column}) as units,
+            sum(s.arrived_uncounted) as uncounted
+          from ${totalsTable} where ${filters}
+          group by 1, 2, 3
+        ), bands as (
+          select bucket, sum(units) as units, sum(uncounted) as uncounted from grouped group by 1
+        )
+        select (select count(*) from (
+            select project_id from grouped group by 1 having sum(units) > 0
+          ) projects)::integer as "groupCount", ${bandColumns},
+          (select coalesce(json_agg(json_build_object(
+              'projectId', g.project_id, 'jobId', null, 'targetLocale', g.target_locale,
+              'bucket', g.bucket, 'units', g.units::float8
+            )), '[]') from grouped g where g.units > 0) as rows`
+      : // Tasks are ranked by a total each, and only the page's tasks are read in full, task by
+        // task through the summary's task index.
+        sql`
+        with task_totals as (
+          select s.job_id, sum(${column}) as total from reporting_daily_by_task s where ${filters}
+          group by 1 having sum(${column}) > 0
+        ), page as (
+          select job_id, total from task_totals order by total desc, job_id nulls first ${pageLimit}
+        ), page_rows as (
+          select s.job_id, s.project_id, s.target_locale, s.bucket, sum(${column}) as units
+          from page p cross join lateral (
+            select s.* from reporting_daily_by_task s where s.job_id = p.job_id and ${filters}
+            offset 0
+          ) s
+          group by 1, 2, 3, 4
+          union all
+          select null, s.project_id, s.target_locale, s.bucket, sum(${column})
+          from reporting_daily_by_task s
+          where exists (select 1 from page where job_id is null) and s.job_id is null and ${filters}
+          group by 2, 3, 4
+        ), bands as (
+          select s.bucket, sum(${column}) as units, sum(s.arrived_uncounted) as uncounted
+          from ${totalsTable} where ${filters} group by 1
+        )
+        select (select count(*) from task_totals)::integer as "groupCount", ${bandColumns},
+          (select coalesce(json_agg(json_build_object(
+              'projectId', r.project_id, 'jobId', r.job_id, 'targetLocale', r.target_locale,
+              'bucket', r.bucket, 'units', r.units::float8
+            ) order by p.total desc, p.job_id nulls first), '[]')
+            from page_rows r join page p on p.job_id is not distinct from r.job_id
+            where r.units > 0) as rows`,
+  );
   const { groupCount, bandTotals, uncounted, rows } = result.rows[0];
   const names = await groupNames(rows);
   const merged = new Map<string, WordCountRow>();

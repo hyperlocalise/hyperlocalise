@@ -140,7 +140,8 @@ const jobIds = z
 export const costEstimateQuerySchema = z.object({
   projectId: id.optional(),
   targetLocale: scope.targetLocale,
-  jobIds: jobIds.optional(),
+  /** An estimate is for chosen tasks: at least one. */
+  jobIds: jobIds.pipe(z.array(id).min(1)),
   step: step.optional(),
   unit,
   rateCard: z.string().trim().min(1).max(100).optional(),
