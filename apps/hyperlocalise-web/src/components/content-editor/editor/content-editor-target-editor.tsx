@@ -35,7 +35,10 @@ import {
   shouldUseMarkdownCatDisplay,
   sourceHeadingIdLiteral,
 } from "@/components/content-editor/message-format/content-editor-markdown-display";
-import { stripLeakedInternalMarkupFromStoredMessage } from "@/components/content-editor/message-format/content-editor-internal-markup";
+import {
+  stripInternalMarkupSentinels,
+  stripLeakedInternalMarkupFromStoredMessage,
+} from "@/components/content-editor/message-format/content-editor-internal-markup";
 import { formatMarkdownMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-markdown-markup";
 import {
   analyzeCatMessageFormat,
@@ -668,7 +671,7 @@ export function ContentEditorTargetEditor({
   );
   const characterCount = markdownMode
     ? markdownDisplayModel(value, sourceText).visibleText.length
-    : value.length;
+    : stripInternalMarkupSentinels(value).length;
   const isOverMaxLength = maxLength !== undefined && characterCount > maxLength;
 
   function persistedEditorValue(activeEditor: NonNullable<ReturnType<typeof useEditor>>) {
@@ -793,7 +796,7 @@ export function ContentEditorTargetEditor({
           "focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50",
           "[&_.cat-mf-token]:rounded-md [&_.cat-mf-token]:px-1 [&_.cat-mf-token]:py-0.5 [&_.cat-mf-token]:font-mono [&_.cat-mf-token]:text-[0.9em]",
           // Collapse raw HL*PH sentinel glyphs; ::before paints the short MD#n / HT#n / LQ#n chip.
-          "[&_.cat-mf-markup-chip]:text-[0px] [&_.cat-mf-markup-chip]:leading-none",
+          "[&_.cat-mf-token.cat-mf-markup-chip]:text-[0px] [&_.cat-mf-token.cat-mf-markup-chip]:leading-none",
           "[&_.cat-mf-markup-chip::before]:content-[attr(data-cat-label)] [&_.cat-mf-markup-chip::before]:text-[0.9rem]",
           "[&_.cat-mf-markup-chip::before]:font-mono [&_.cat-mf-markup-chip::before]:leading-normal",
           "[&_.tiptap_p.is-editor-empty:first-child::before]:text-muted-foreground",

@@ -131,6 +131,11 @@ export function formatInternalMarkupForDisplay(message: string): string {
   );
 }
 
+/** Removes sentinels so length checks count only visible text. */
+export function stripInternalMarkupSentinels(message: string): string {
+  return message.replace(INTERNAL_MARKUP_PATTERN, "");
+}
+
 export function hasInternalMarkup(message: string): boolean {
   INTERNAL_MARKUP_PATTERN.lastIndex = 0;
   return INTERNAL_MARKUP_PATTERN.test(message);

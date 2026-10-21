@@ -17,6 +17,7 @@ import {
   formatInternalMarkupForDisplay,
   hasInternalMarkup,
   internalMarkupLabel,
+  stripInternalMarkupSentinels,
   stripLeakedInternalMarkupFromStoredMessage,
   stripLeakedInternalMarkupNames,
 } from "./content-editor-internal-markup";
@@ -52,6 +53,14 @@ describe("cat internal markup helpers", () => {
         `${open}HLOXPH_6F30_0 レシピ${close} HLOXPH_6330_1 いちごとバニラのパンケーキ`,
       ),
     ).toBe(`${open}レシピ${close} いちごとバニラのパンケーキ`);
+  });
+
+  it("removes sentinels so only visible text is counted", () => {
+    const stored =
+      "\u001eHLOXPH_6F30_0\u001fレシピ\u001eHLOXPH_6330_1\u001f\n\nいちごとバニラのパンケーキ";
+
+    expect(stripInternalMarkupSentinels(stored)).toBe("レシピ\n\nいちごとバニラのパンケーキ");
+    expect(stripInternalMarkupSentinels(stored)).toHaveLength(18);
   });
 
   it("extracts markdown boundary sentinels with short labels", () => {
