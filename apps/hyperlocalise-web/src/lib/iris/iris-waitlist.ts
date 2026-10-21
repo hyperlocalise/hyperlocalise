@@ -14,6 +14,7 @@
 export const IRIS_WAITLIST_FORM_ID = "EkDRAB";
 export const IRIS_WAITLIST_URL = `https://tally.so/r/${IRIS_WAITLIST_FORM_ID}`;
 export const IRIS_LAUNCH_YOUTUBE_ID = "oqTAEcsVFa0";
+export const IRIS_LAUNCH_YOUTUBE_WATCH_URL = `https://www.youtube.com/watch?v=${IRIS_LAUNCH_YOUTUBE_ID}`;
 
 export function irisLaunchPosterSrc(videoId = IRIS_LAUNCH_YOUTUBE_ID) {
   return `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;

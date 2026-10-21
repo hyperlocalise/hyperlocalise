@@ -41,4 +41,19 @@ export const updateAnnouncerMessages = defineMessages({
     id: "GXBIiv5A0x",
     description: "Body of the product update announcement for the Merge strings feature",
   },
+  irisTitle: {
+    defaultMessage: "Iris, the AI localisation engine",
+    id: "j6QPrX5Mze",
+    description: "Title of the product update announcement for the Iris launch teaser",
+  },
+  irisDescription: {
+    defaultMessage: "Create and adapt images, video, motion, and audio for every language.",
+    id: "/+3b0vXhJh",
+    description: "Body of the product update announcement for the Iris launch teaser",
+  },
+  watchFilm: {
+    defaultMessage: "Watch the film",
+    id: "6gNShj6TN8",
+    description: "Opens the Iris launch film on YouTube from the product update announcement card",
+  },
 });
