@@ -63,6 +63,7 @@ type RouteTitleKey =
   | "ranks"
   | "brand"
   | "qa"
+  | "reports"
   | "search-console"
   | "reviews"
   | "settings"
@@ -81,6 +82,7 @@ const PROJECT_SECTION_KEYS = {
   knowledge: true,
   locales: true,
   qa: true,
+  reports: true,
   reviews: true,
   settings: true,
   strings: true,
@@ -135,6 +137,7 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "ranks" ||
     value === "brand" ||
     value === "qa" ||
+    value === "reports" ||
     value === "search-console" ||
     value === "reviews" ||
     value === "settings" ||
@@ -414,6 +417,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         defaultMessage: "QA",
         id: "A4tXh3Cw8D",
         description: "App shell breadcrumb title for the QA page",
+      });
+    case "reports":
+      return intl.formatMessage({
+        defaultMessage: "Reports",
+        id: "4DlOuKeJPG",
+        description: "App shell breadcrumb title for the Reports page",
       });
     case "reviews":
       return intl.formatMessage({

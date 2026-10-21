@@ -257,7 +257,11 @@ describe("queryReport", () => {
     });
     expect(words.rows.map((row) => row.kind)).toEqual(["completion"]);
     expect(words.rows[0]).toMatchObject({ words: 25, durationMs: 1500 });
-    expect(words.analysis).toMatchObject({ sourceWords: 25, workloadWords: 25 });
+    expect(words.analysis).toMatchObject({
+      sourceWords: 25,
+      workloadWords: 25,
+      completedWords: 25,
+    });
 
     const time = await queryReport({
       organizationId: organization.id,
@@ -267,6 +271,8 @@ describe("queryReport", () => {
     });
     expect(time.rows.map((row) => row.kind).sort()).toEqual(["time"]);
     expect(time.rows[0]).toMatchObject({ minutes: 45 });
+    // The completed total comes from the server, so tabs without completion rows still show it.
+    expect(time.analysis.completedWords).toBe(25);
 
     const costs = await queryReport({
       organizationId: organization.id,
@@ -378,6 +384,58 @@ describe("queryReport", () => {
       query: baseQuery({ ...range, format: "csv" }),
     });
     expect(csv.rows).toHaveLength(REPORT_PAGE_SIZE + 5);
+  });
+
+  it("totals completed words across every page, for one step at a time", async () => {
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    const analyses = await db
+      .insert(schema.reportingAnalyses)
+      .values(
+        Array.from({ length: REPORT_PAGE_SIZE + 5 }, (_, day) => ({
+          organizationId: organization.id,
+          projectId: project.id,
+          step: day === 0 ? ("review" as const) : ("translation" as const),
+          segmentId: `seg_${randomUUID()}`,
+          sourceRevision: `rev_${randomUUID()}`,
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          words: 2,
+          billable: true,
+          bucket: "new" as const,
+          createdAt: new Date(Date.UTC(2026, 0, 1) + day * 86_400_000),
+        })),
+      )
+      .returning();
+    await db.insert(schema.reportingActivity).values(
+      analyses.map((analysis) => ({
+        organizationId: organization.id,
+        projectId: project.id,
+        operationKey: `completion:${randomUUID()}`,
+        kind: "completion" as const,
+        step: analysis.step,
+        targetLocale: "fr-FR",
+        analysisId: analysis.id,
+        createdAt: analysis.createdAt,
+      })),
+    );
+    const range = { from: "2026-01-01", to: "2026-12-31", view: "words" as const };
+
+    const second = await queryReport({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      financial: false,
+      query: baseQuery({ ...range, page: 2 }),
+    });
+    expect(second.rows.length).toBeLessThan(REPORT_PAGE_SIZE);
+    expect(second.analysis.completedWords).toBe((REPORT_PAGE_SIZE + 4) * 2);
+
+    const review = await queryReport({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      financial: false,
+      query: baseQuery({ ...range, step: "review" }),
+    });
+    expect(review.analysis.completedWords).toBe(2);
   });
 });
 

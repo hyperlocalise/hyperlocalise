@@ -278,7 +278,7 @@ export function ReportsWorkspace({
       reportingFetch<{
         report: {
           rows: ReportRow[];
-          analysis?: { sourceWords: number; workloadWords: number };
+          analysis?: { sourceWords: number; workloadWords: number; completedWords: number };
           startedAt: string | null;
           financial: boolean;
           page: number;
@@ -309,8 +309,7 @@ export function ReportsWorkspace({
     label: `${job.title} · ${intl.formatDate(job.createdAt, {
       dateStyle: "medium",
       timeStyle: "short",
-      timeZone: "UTC",
-    })} UTC`,
+    })}`,
   }));
   if (filters.jobId && !jobTitleById.has(filters.jobId)) {
     jobOptions.unshift({ value: filters.jobId, label: filters.jobId });
@@ -324,6 +323,10 @@ export function ReportsWorkspace({
   ]
     .sort((left, right) => left.localeCompare(right))
     .map((locale) => ({ value: locale, label: locale }));
+  // The cards count one step at a time, so a word translated and then reviewed is not counted twice.
+  const cardStepDescription = intl.formatMessage(messages.cardStep, {
+    step: label(appliedFilters.step === "review" ? "review" : "translation"),
+  });
   const stepOptions = ["translation", "review"].map((value) => ({
     value,
     label: label(value as Label),
@@ -364,7 +367,12 @@ export function ReportsWorkspace({
           <p className="mt-2 text-pretty text-sm text-muted-foreground">{label("prospective")}</p>
           <p className="mt-1 text-sm text-muted-foreground">
             {report.data?.report.startedAt
-              ? intl.formatMessage(messages.started, { date: report.data.report.startedAt })
+              ? intl.formatMessage(messages.started, {
+                  date: intl.formatDate(report.data.report.startedAt, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }),
+                })
               : label("notStarted")}
           </p>
         </div>
@@ -422,6 +430,7 @@ export function ReportsWorkspace({
           <Card>
             <CardHeader>
               <CardTitle>{label("sourceWords")}</CardTitle>
+              <CardDescription>{cardStepDescription}</CardDescription>
             </CardHeader>
             <CardContent className="text-2xl tabular-nums">
               {intl.formatNumber(report.data.report.analysis.sourceWords)}
@@ -430,13 +439,10 @@ export function ReportsWorkspace({
           <Card>
             <CardHeader>
               <CardTitle>{label("workloadWords")}</CardTitle>
+              <CardDescription>{cardStepDescription}</CardDescription>
             </CardHeader>
             <CardContent className="text-2xl tabular-nums">
-              {intl.formatNumber(
-                rows
-                  .filter((row) => row.kind === "completion")
-                  .reduce((sum, row) => sum + row.words, 0),
-              )}
+              {intl.formatNumber(report.data.report.analysis.completedWords)}
             </CardContent>
           </Card>
         </div>

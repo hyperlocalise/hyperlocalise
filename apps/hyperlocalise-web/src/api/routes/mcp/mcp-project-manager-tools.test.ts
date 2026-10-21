@@ -587,7 +587,7 @@ describe("MCP project manager tools", () => {
     );
 
     queryReportMock.mockResolvedValue({
-      analysis: { sourceWords: 0, workloadWords: 0 },
+      analysis: { sourceWords: 0, workloadWords: 0, completedWords: 0 },
       rows: Array.from({ length: MCP_REPORT_MAX_ROWS + 3 }, (_, index) => ({
         period: "2026-10-01",
         projectId: stored.project.id,

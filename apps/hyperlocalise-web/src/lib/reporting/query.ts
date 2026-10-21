@@ -101,8 +101,8 @@ export async function queryReport(input: {
     `);
   const hasMore = pageSize !== null && result.rows.length > pageSize;
   const rows = hasMore ? result.rows.slice(0, pageSize!) : result.rows;
-  const rollout = await db.execute<{ startedAt: string }>(
-    sql`select started_at::text as "startedAt" from reporting_rollout where id=1`,
+  const rollout = await db.execute<{ startedAt: Date }>(
+    sql`select started_at as "startedAt" from reporting_rollout where id=1`,
   );
   const sourceCounts = await db.execute<{ sourceWords: number; workloadWords: number }>(sql`
     select coalesce(sum(words),0)::integer as "sourceWords",coalesce(sum(workload),0)::integer as "workloadWords" from (
@@ -116,12 +116,27 @@ export async function queryReport(input: {
       group by job_id,segment_id,source_revision
     ) source_scope
   `);
+  // Every completion in range, not only the rows on the current page or tab; one step at a time
+  // (Translation unless a step is chosen), as "Source words" counts.
+  const completedCounts = await db.execute<{ completedWords: number }>(sql`
+    select coalesce(sum(words),0)::integer as "completedWords" from (
+      select s.words,a.project_id,a.job_id,a.target_locale,a.step from reporting_activity a
+      join reporting_analyses s on s.id=a.analysis_id
+      where a.organization_id=${input.organizationId} and a.kind='completion'
+      and a.created_at >= ${start} and a.created_at < ${end}
+    ) completed
+    where (${scope})
+      ${query.projectId ? sql`and project_id=${query.projectId}` : sql``}
+      ${query.jobId ? sql`and job_id=${query.jobId}` : sql``}
+      ${query.targetLocale ? sql`and target_locale=${query.targetLocale}` : sql``}
+      and step=${query.step ?? "translation"}
+  `);
   return {
-    analysis: sourceCounts.rows[0],
+    analysis: { ...sourceCounts.rows[0], completedWords: completedCounts.rows[0].completedWords },
     rows,
     page: query.page,
     hasMore,
-    startedAt: rollout.rows[0]?.startedAt ?? null,
+    startedAt: rollout.rows[0] ? new Date(rollout.rows[0].startedAt).toISOString() : null,
     from,
     to,
     timezone: "UTC" as const,

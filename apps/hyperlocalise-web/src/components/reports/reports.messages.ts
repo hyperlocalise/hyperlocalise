@@ -517,6 +517,12 @@ export const reportMessages = defineMessages({
       "Choose a rate matching the task language and step. Leave blank to use the project default.",
     description: "Translation reporting label",
   },
+  cardStep: {
+    id: "TninassIY+",
+    defaultMessage: "{step} step only",
+    description:
+      "Under a Reports total, the workflow step it counts, such as Translation or Review; shown even when the Step filter is All",
+  },
   previousPage: {
     id: "I21mr3bBqR",
     defaultMessage: "Previous page",
