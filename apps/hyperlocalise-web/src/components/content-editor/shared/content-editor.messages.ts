@@ -887,6 +887,72 @@ export const contentEditorIntelligencePanelMessages = defineMessages({
     id: "rHDcSl4Kt4",
     description: "Button to apply a translation memory match to the target field",
   },
+  editTmSegment: {
+    defaultMessage: "Edit TM segment",
+    id: "jEjjYeEzuW",
+    description: "Button and dialog title for editing a translation memory unit",
+  },
+  editTmSegmentSave: {
+    defaultMessage: "Save",
+    id: "33oBuvwkTx",
+    description: "Save button on the edit TM segment dialog",
+  },
+  editTmSegmentCancel: {
+    defaultMessage: "Cancel",
+    id: "ltNQ+N6Q+g",
+    description: "Cancel button on the edit TM segment dialog",
+  },
+  editTmSegmentSaved: {
+    defaultMessage: "TM segment saved",
+    id: "cqINPDvh7d",
+    description: "Toast after a TM segment is saved from the content editor",
+  },
+  editTmSegmentSaveFailed: {
+    defaultMessage: "Unable to save the TM segment",
+    id: "fDkFUuHkmb",
+    description: "Fallback error when saving a TM segment from the content editor fails",
+  },
+  editTmSegmentLoadFailed: {
+    defaultMessage: "Unable to load the TM segment",
+    id: "VVZYa9dYk2",
+    description: "Error when the edit TM segment dialog cannot load locale variants",
+  },
+  editTmSegmentSourceRequired: {
+    defaultMessage: "Source text is required",
+    id: "Ctyr+N+gMR",
+    description: "Validation error when the TM source locale field is empty",
+  },
+  deleteTmLocale: {
+    defaultMessage: "Delete locale",
+    id: "BtlJ9IYjPk",
+    description: "Accessible label for deleting one locale from a TM segment",
+  },
+  deleteTmLocaleTitle: {
+    defaultMessage: "Delete this locale from the TM?",
+    id: "T0qDIxKkjq",
+    description: "Confirmation title before deleting one locale from a TM segment",
+  },
+  deleteTmLocaleDescription: {
+    defaultMessage:
+      "This removes the {locale} text from the translation memory. It does not change the current segment.",
+    id: "OM0OXDv6BN",
+    description: "Confirmation body before deleting one locale from a TM segment",
+  },
+  deleteTmLocaleConfirm: {
+    defaultMessage: "Delete",
+    id: "kEyZj9At7C",
+    description: "Confirm button for deleting one locale from a TM segment",
+  },
+  deleteTmLocaleDeleted: {
+    defaultMessage: "Locale removed from the TM",
+    id: "ocmWKpLcUN",
+    description: "Toast after a TM locale is deleted from the content editor",
+  },
+  deleteTmLocaleFailed: {
+    defaultMessage: "Unable to delete this locale from the TM",
+    id: "ZQSArkDg/X",
+    description: "Fallback error when deleting a TM locale from the content editor fails",
+  },
   copyGlossaryTerm: {
     defaultMessage: "Copy",
     id: "Rw5WXF50Q2",
@@ -1459,6 +1525,11 @@ export const contentEditorPanelErrorBoundaryMessages = defineMessages({
     id: "W5kKZQXtt1",
     description: "Error boundary title when the CAT intelligence panel crashes",
   },
+  filesPanelTitle: {
+    defaultMessage: "Files panel failed to load",
+    id: "Ix5lU5trmn",
+    description: "Error boundary title when the Content Editor files sidebar crashes",
+  },
   workspaceTitle: {
     defaultMessage: "Content Editor failed to load",
     id: "X8XWn3q89C",
@@ -1474,6 +1545,11 @@ export const contentEditorPanelErrorBoundaryMessages = defineMessages({
     defaultMessage: "Try again",
     id: "27qrEmB3yO",
     description: "Button label to retry rendering a crashed CAT panel",
+  },
+  sectionDescription: {
+    defaultMessage: "This section couldn't load. The rest of the editor still works.",
+    id: "+Si+Oa4YaR",
+    description: "Inline error shown when one section inside a CAT panel crashes",
   },
 });
 

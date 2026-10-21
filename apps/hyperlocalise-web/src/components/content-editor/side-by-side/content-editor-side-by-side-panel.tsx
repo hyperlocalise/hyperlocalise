@@ -38,6 +38,7 @@ import type {
   ContentEditorSegmentIntelligence,
   ContentEditorTranslationMemoryMatch,
 } from "@/components/content-editor/shared/types";
+import { ContentEditorPanelErrorBoundary } from "@/components/content-editor/workspace/content-editor-panel-error-boundary";
 import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
 import { ContentEditorSideBySideResizableLayout } from "@/components/content-editor/workspace/content-editor-workspace-resizable-layout";
 import { getLocaleFlagEmoji } from "@/lib/i18n/locales";
@@ -397,45 +398,50 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
                 <FormattedMessage {...emptyCopy.message} values={emptyCopy.values} />
               </div>
             ) : (
-              <ContentEditorSideBySideVirtualList
-                segments={segments}
-                focusedSegmentId={focusedSegmentId}
-                dirtySegmentIds={dirtySegmentIds}
-                canEdit={canEditTranslations}
-                loadingSegmentIds={loadingSegmentIds}
-                isApproving={isApproving}
-                isSavingDraft={isSavingDraft}
-                isPostingComment={isPostingComment}
-                isLookingUpContext={isLookingUpContext}
-                isAiSuggestionLoading={isAiSuggestionLoading}
-                isFormatChecksLoading={isFormatChecksLoading}
-                isImageBusy={isImageBusy}
-                isImageGenerating={isImageGenerating}
-                generatingImageSegmentId={generatingImageSegmentId}
-                canUseAiRecommendation={canUseAiRecommendation}
-                focusedIntelligence={focusedIntelligence}
-                aiRecommendationError={aiRecommendationError}
-                formatChecks={formatChecks}
-                segmentFormatChecks={segmentFormatChecks}
-                formatCheckLoadingSegmentIds={formatCheckLoadingSegmentIds}
-                primaryActionLabel={primaryActionLabel}
-                segmentShareUrl={segmentShareUrl}
-                onFocusSegment={onFocusSegment}
-                onVisibleRangeChange={handleVisibleRangeChange}
-                onTargetChange={onTargetChange}
-                onApprove={onApprove}
-                onSaveDraft={onSaveDraft}
-                onAddToIssueSheet={onAddToIssueSheet}
-                onUseAiSuggestion={onUseAiSuggestion}
-                onGenerateAiRecommendation={onGenerateAiRecommendation}
-                onTreatAsImage={onTreatAsImage}
-                onTreatAsVideo={onTreatAsVideo}
-                onRegenerateImage={onRegenerateImage}
-                onUploadImage={onUploadImage}
-                hasMore={hasMoreQueue}
-                isLoadingMore={isFetchingPage}
-                onNearEnd={onLoadMoreQueue}
-              />
+              <ContentEditorPanelErrorBoundary
+                scope="editor"
+                resetKeys={[focusedSegmentId, segments.length]}
+              >
+                <ContentEditorSideBySideVirtualList
+                  segments={segments}
+                  focusedSegmentId={focusedSegmentId}
+                  dirtySegmentIds={dirtySegmentIds}
+                  canEdit={canEditTranslations}
+                  loadingSegmentIds={loadingSegmentIds}
+                  isApproving={isApproving}
+                  isSavingDraft={isSavingDraft}
+                  isPostingComment={isPostingComment}
+                  isLookingUpContext={isLookingUpContext}
+                  isAiSuggestionLoading={isAiSuggestionLoading}
+                  isFormatChecksLoading={isFormatChecksLoading}
+                  isImageBusy={isImageBusy}
+                  isImageGenerating={isImageGenerating}
+                  generatingImageSegmentId={generatingImageSegmentId}
+                  canUseAiRecommendation={canUseAiRecommendation}
+                  focusedIntelligence={focusedIntelligence}
+                  aiRecommendationError={aiRecommendationError}
+                  formatChecks={formatChecks}
+                  segmentFormatChecks={segmentFormatChecks}
+                  formatCheckLoadingSegmentIds={formatCheckLoadingSegmentIds}
+                  primaryActionLabel={primaryActionLabel}
+                  segmentShareUrl={segmentShareUrl}
+                  onFocusSegment={onFocusSegment}
+                  onVisibleRangeChange={handleVisibleRangeChange}
+                  onTargetChange={onTargetChange}
+                  onApprove={onApprove}
+                  onSaveDraft={onSaveDraft}
+                  onAddToIssueSheet={onAddToIssueSheet}
+                  onUseAiSuggestion={onUseAiSuggestion}
+                  onGenerateAiRecommendation={onGenerateAiRecommendation}
+                  onTreatAsImage={onTreatAsImage}
+                  onTreatAsVideo={onTreatAsVideo}
+                  onRegenerateImage={onRegenerateImage}
+                  onUploadImage={onUploadImage}
+                  hasMore={hasMoreQueue}
+                  isLoadingMore={isFetchingPage}
+                  onNearEnd={onLoadMoreQueue}
+                />
+              </ContentEditorPanelErrorBoundary>
             )}
 
             <div className="flex shrink-0 items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
@@ -467,75 +473,77 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
         </div>
       }
       intelligence={
-        <ContentEditorSideBySideIntelligencePanel
-          segment={intelligenceSegment}
-          intelligence={intelligence}
-          isLookingUpContext={isLookingUpContext}
-          isApproving={isApproving}
-          isSavingDraft={isSavingDraft}
-          isAiSuggestionLoading={isAiSuggestionLoading}
-          isFormatChecksLoading={isFormatChecksLoading}
-          formatChecks={formatChecks}
-          isConcordanceLoading={isConcordanceLoading}
-          isVisualContextLoading={isVisualContextLoading}
-          showAgentContext={showAgentContext}
-          showVisualContext={showVisualContext}
-          canUploadVisualContext={canUploadVisualContext}
-          isUploadingVisualContext={isUploadingVisualContext}
-          onUploadVisualContext={
-            onUploadVisualContext && intelligenceSegment
-              ? (file) => onUploadVisualContext(intelligenceSegmentId, file)
-              : undefined
-          }
-          canEditTranslations={canEditTranslations}
-          canLookupFreshContext={canLookupFreshContext}
-          canAddComment={canAddComment}
-          supportsIssueComments={supportsIssueComments}
-          isCommentsLoading={isCommentsLoading}
-          isPostingComment={isPostingComment}
-          isResolvingComment={isResolvingComment}
-          resolvingCommentId={resolvingCommentId}
-          commentPostError={commentPostError}
-          onAskQuestion={onAskQuestion}
-          onRefreshContext={onRefreshContext}
-          onUseTmMatch={
-            onUseTmMatch && intelligenceSegment
-              ? (match) => onUseTmMatch(intelligenceSegmentId, match)
-              : undefined
-          }
-          onInsertCharacter={
-            intelligenceSegment
-              ? (character) =>
-                  onTargetChange(
-                    intelligenceSegmentId,
-                    `${intelligenceSegment.targetText}${character}`,
-                  )
-              : undefined
-          }
-          onAddComment={
-            onAddComment && intelligenceSegment
-              ? (input) => onAddComment(intelligenceSegmentId, input)
-              : undefined
-          }
-          onResolveComment={
-            onResolveComment && intelligenceSegment
-              ? (commentId) => onResolveComment(intelligenceSegmentId, commentId)
-              : undefined
-          }
-          onOpenIssueSheet={
-            onAddToIssueSheet && intelligenceSegment
-              ? () => onAddToIssueSheet(intelligenceSegmentId)
-              : undefined
-          }
-          showMaxLengthEditor={showMaxLengthEditor}
-          isMaxLengthSaving={isMaxLengthSaving}
-          onSetMaxLength={onSetMaxLength}
-          placement="right"
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          onGlossaryTermAdded={onGlossaryTermAdded}
-          className="h-full"
-        />
+        <ContentEditorPanelErrorBoundary scope="intelligence" resetKeys={[intelligenceSegmentId]}>
+          <ContentEditorSideBySideIntelligencePanel
+            segment={intelligenceSegment}
+            intelligence={intelligence}
+            isLookingUpContext={isLookingUpContext}
+            isApproving={isApproving}
+            isSavingDraft={isSavingDraft}
+            isAiSuggestionLoading={isAiSuggestionLoading}
+            isFormatChecksLoading={isFormatChecksLoading}
+            formatChecks={formatChecks}
+            isConcordanceLoading={isConcordanceLoading}
+            isVisualContextLoading={isVisualContextLoading}
+            showAgentContext={showAgentContext}
+            showVisualContext={showVisualContext}
+            canUploadVisualContext={canUploadVisualContext}
+            isUploadingVisualContext={isUploadingVisualContext}
+            onUploadVisualContext={
+              onUploadVisualContext && intelligenceSegment
+                ? (file) => onUploadVisualContext(intelligenceSegmentId, file)
+                : undefined
+            }
+            canEditTranslations={canEditTranslations}
+            canLookupFreshContext={canLookupFreshContext}
+            canAddComment={canAddComment}
+            supportsIssueComments={supportsIssueComments}
+            isCommentsLoading={isCommentsLoading}
+            isPostingComment={isPostingComment}
+            isResolvingComment={isResolvingComment}
+            resolvingCommentId={resolvingCommentId}
+            commentPostError={commentPostError}
+            onAskQuestion={onAskQuestion}
+            onRefreshContext={onRefreshContext}
+            onUseTmMatch={
+              onUseTmMatch && intelligenceSegment
+                ? (match) => onUseTmMatch(intelligenceSegmentId, match)
+                : undefined
+            }
+            onInsertCharacter={
+              intelligenceSegment
+                ? (character) =>
+                    onTargetChange(
+                      intelligenceSegmentId,
+                      `${intelligenceSegment.targetText}${character}`,
+                    )
+                : undefined
+            }
+            onAddComment={
+              onAddComment && intelligenceSegment
+                ? (input) => onAddComment(intelligenceSegmentId, input)
+                : undefined
+            }
+            onResolveComment={
+              onResolveComment && intelligenceSegment
+                ? (commentId) => onResolveComment(intelligenceSegmentId, commentId)
+                : undefined
+            }
+            onOpenIssueSheet={
+              onAddToIssueSheet && intelligenceSegment
+                ? () => onAddToIssueSheet(intelligenceSegmentId)
+                : undefined
+            }
+            showMaxLengthEditor={showMaxLengthEditor}
+            isMaxLengthSaving={isMaxLengthSaving}
+            onSetMaxLength={onSetMaxLength}
+            placement="right"
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            onGlossaryTermAdded={onGlossaryTermAdded}
+            className="h-full"
+          />
+        </ContentEditorPanelErrorBoundary>
       }
     />
   );

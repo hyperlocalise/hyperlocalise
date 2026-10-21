@@ -26,6 +26,8 @@ import { apiClient } from "@/lib/api-client-instance";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
 
+import type { ContentEditorProjectSource } from "@/components/content-editor/shared/content-editor-native-project";
+import { canUseGoSvcCat } from "@/components/content-editor/shared/content-editor-native-project";
 import type {
   ContentEditorIssueType,
   ContentEditorQueueSegment,
@@ -113,9 +115,18 @@ function chunkItems<T>(items: T[], size: number): T[][] {
 
 function prefersGoSvcCat(input: {
   goSvcClient?: GoSvcClient;
+  projectId: string;
+  projectSource?: ContentEditorProjectSource | null;
   contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
 }) {
-  return Boolean(input.goSvcClient) && !input.contentEditorFile?.provider;
+  return (
+    Boolean(input.goSvcClient) &&
+    canUseGoSvcCat({
+      projectId: input.projectId,
+      projectSource: input.projectSource,
+    }) &&
+    !input.contentEditorFile?.provider
+  );
 }
 
 async function captureNativeCatTranslationSideEffectsViaApp(input: {
@@ -201,6 +212,7 @@ async function runNativeCat<T>(
 export function useContentEditorMutations(input: {
   organizationSlug: string;
   projectId: string;
+  projectSource?: ContentEditorProjectSource | null;
   sourcePath: string;
   targetLocale: string;
   contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;

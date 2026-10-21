@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import { autorun } from "mobx";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { createContentEditorWorkspaceState } from "@/components/content-editor/shared/content-editor.fixture";
 
@@ -23,6 +23,17 @@ import {
 } from "./store/content-editor-workspace-store-utils";
 
 describe("editor subscription boundaries", () => {
+  it("hydrates without throwing when the localStorage identifier is missing", () => {
+    vi.stubGlobal("localStorage", undefined);
+    vi.stubGlobal("window", undefined);
+
+    try {
+      expect(() => createCatWorkspace(createContentEditorWorkspaceState())).not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("keeps the ordered queue subscription stable when a draft changes", () => {
     const store = createCatWorkspace(createContentEditorWorkspaceState());
     let listReads = 0;

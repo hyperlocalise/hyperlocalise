@@ -745,6 +745,7 @@ export function JobContentEditorPageContent({
         <ProjectFileContentEditorWorkspace
           organizationSlug={organizationSlug}
           projectId={projectId}
+          projectSource={projectQuery.data?.source}
           sourceLocale={sourceLocale}
           sourcePath={CONTENT_EDITOR_ALL_FILES_SOURCE_PATH}
           targetLocale={selectedTargetLocale}
@@ -921,6 +922,7 @@ export function JobContentEditorPageContent({
         <ProjectFileContentEditorWorkspace
           organizationSlug={organizationSlug}
           projectId={projectId}
+          projectSource={projectQuery.data?.source}
           sourceLocale={sourceLocale}
           sourcePath={selectedFile.sourcePath}
           targetLocale={activeTargetLocale}
@@ -1049,6 +1051,7 @@ export function JobContentEditorPageContent({
       <ProjectFileContentEditorWorkspace
         organizationSlug={organizationSlug}
         projectId={projectId}
+        projectSource={projectQuery.data?.source}
         sourceLocale={sourceLocale}
         sourcePath={selectedFile.sourcePath}
         externalResourceId={selectedFile.provider.externalResourceId}

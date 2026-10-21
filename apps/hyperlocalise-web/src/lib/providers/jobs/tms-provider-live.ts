@@ -44,6 +44,7 @@ import {
   CROWDIN_GLOSSARY_LIST_LIMIT,
   CrowdinApiClient,
   CrowdinApiError,
+  crowdinSourceStringKey,
   extractCrowdinApiErrorSummary,
   isCrowdinCroqlWithinLimit,
   type CrowdinProject,
@@ -1051,7 +1052,7 @@ function mapCrowdinSourceStringToCatSegment(
 ) {
   return {
     externalStringId: String(sourceString.id),
-    key: sourceString.identifier,
+    key: crowdinSourceStringKey(sourceString),
     sourceText: crowdinCatSourceTextValue(sourceString.text),
     context: sourceString.context,
     type: sourceString.type ?? null,
@@ -1078,7 +1079,7 @@ function buildCrowdinSourceStringsPreviewContent(input: {
 
   const entries = input.strings.map((sourceString) => ({
     id: sourceString.id,
-    key: sourceString.identifier,
+    key: crowdinSourceStringKey(sourceString),
     text:
       typeof sourceString.text === "string"
         ? sourceString.text

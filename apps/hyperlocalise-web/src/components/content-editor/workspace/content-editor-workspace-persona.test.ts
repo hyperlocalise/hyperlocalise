@@ -82,30 +82,24 @@ describe("content-editor-workspace-persona", () => {
 
   describe("readCatWorkspacePersona / writeCatWorkspacePersona", () => {
     it("returns null when storage is empty", () => {
-      vi.stubGlobal("window", {
-        localStorage: { getItem: vi.fn().mockReturnValue(null), setItem: vi.fn() },
-      });
+      vi.stubGlobal("localStorage", { getItem: vi.fn().mockReturnValue(null), setItem: vi.fn() });
 
       expect(readCatWorkspacePersona("text")).toBeNull();
     });
 
     it("reads stored persona", () => {
-      vi.stubGlobal("window", {
-        localStorage: {
-          getItem: vi.fn().mockReturnValue("reviewer"),
-          setItem: vi.fn(),
-        },
+      vi.stubGlobal("localStorage", {
+        getItem: vi.fn().mockReturnValue("reviewer"),
+        setItem: vi.fn(),
       });
 
       expect(readCatWorkspacePersona("text")).toBe("reviewer");
     });
 
     it("rejects stored value that is not a valid persona", () => {
-      vi.stubGlobal("window", {
-        localStorage: {
-          getItem: vi.fn().mockReturnValue("something-invalid"),
-          setItem: vi.fn(),
-        },
+      vi.stubGlobal("localStorage", {
+        getItem: vi.fn().mockReturnValue("something-invalid"),
+        setItem: vi.fn(),
       });
 
       expect(readCatWorkspacePersona("text")).toBeNull();
@@ -113,9 +107,7 @@ describe("content-editor-workspace-persona", () => {
 
     it("writes persona to storage under the family-scoped key", () => {
       const setItem = vi.fn();
-      vi.stubGlobal("window", {
-        localStorage: { getItem: vi.fn(), setItem },
-      });
+      vi.stubGlobal("localStorage", { getItem: vi.fn(), setItem });
 
       writeCatWorkspacePersona("image", "designer");
 
@@ -126,7 +118,8 @@ describe("content-editor-workspace-persona", () => {
     });
 
     it("does not throw when localStorage is unavailable", () => {
-      vi.stubGlobal("window", {});
+      vi.stubGlobal("localStorage", undefined);
+      vi.stubGlobal("window", undefined);
       expect(() => writeCatWorkspacePersona("text", "translator")).not.toThrow();
       expect(readCatWorkspacePersona("text")).toBeNull();
     });

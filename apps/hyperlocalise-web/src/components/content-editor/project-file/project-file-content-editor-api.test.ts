@@ -219,6 +219,29 @@ describe("fetchProjectFileContentEditorQueuePage", () => {
       }),
     ).rejects.toThrow("CAT queue is unavailable.");
   });
+
+  it("loads connected TMS queues from Hono without probing go-svc", async () => {
+    const queue = createCatQueueResponse().contentEditorQueue;
+    contentEditorQueueGetMock.mockResolvedValue(jsonResponse({ contentEditorQueue: queue }));
+    const goSvcQueue = vi.fn();
+
+    const result = await fetchProjectFileContentEditorQueuePage({
+      ...contentEditorApiTestContext,
+      projectId: "ext:crowdin:902807",
+      projectSource: "external_tms",
+      search: "",
+      queueFilter: "all",
+      queueSort: "file_order",
+      limit: 50,
+      offset: 0,
+      intl: testIntl,
+      goSvcClient: { cat: { queue: goSvcQueue } } as never,
+    });
+
+    expect(result).toEqual(queue);
+    expect(goSvcQueue).not.toHaveBeenCalled();
+    expect(contentEditorQueueGetMock).toHaveBeenCalled();
+  });
 });
 
 describe("fetchProjectFileContentEditorSegmentTarget", () => {

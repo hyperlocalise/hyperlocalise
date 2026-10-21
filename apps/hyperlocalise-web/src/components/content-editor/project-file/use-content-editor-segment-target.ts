@@ -21,6 +21,8 @@ import { useIntl } from "react-intl";
 
 import type { ProjectFileContentEditorTranslation } from "@/api/routes/project/project.schema";
 import type { ContentEditorFormatMessageIntl } from "@/components/content-editor/message-format/content-editor-message-format-i18n";
+import type { ContentEditorProjectSource } from "@/components/content-editor/shared/content-editor-native-project";
+import { canUseGoSvcCat } from "@/components/content-editor/shared/content-editor-native-project";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
@@ -63,8 +65,16 @@ export async function fetchProjectFileContentEditorSegmentTarget(input: {
   intl: ContentEditorFormatMessageIntl;
   signal?: AbortSignal;
   goSvcClient?: GoSvcClient;
+  projectSource?: ContentEditorProjectSource | null;
 }) {
-  if (input.goSvcClient && !input.externalResourceId) {
+  if (
+    input.goSvcClient &&
+    canUseGoSvcCat({
+      projectId: input.projectId,
+      projectSource: input.projectSource,
+      externalResourceId: input.externalResourceId,
+    })
+  ) {
     try {
       const { target } = await input.goSvcClient.cat.segmentTarget(
         input.organizationSlug,

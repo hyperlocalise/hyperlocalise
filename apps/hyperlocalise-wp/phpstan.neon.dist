@@ -1,0 +1,11 @@
+parameters:
+    level: 6
+    phpVersion: 70400
+    paths:
+        - hyperlocalise.php
+        - uninstall.php
+        - src
+    bootstrapFiles:
+        - tests/phpstan-bootstrap.php
+    ignoreErrors:
+        - identifier: missingType.iterableValue
