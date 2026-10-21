@@ -53,6 +53,7 @@ const {
       initialSearch?: string;
       onOpenTranslationLocale?: (locale: string, key: string) => void;
       adaptiveWorkspaceEnabled?: boolean;
+      projectSource?: "native" | "external_tms";
     }) => (
       <div
         data-testid="content-editor-workspace"
@@ -147,6 +148,7 @@ vi.mock("@/components/content-editor/project-file/project-file-content-editor-wo
     targetLocale: string;
     targetLocales?: string[];
     adaptiveWorkspaceEnabled?: boolean;
+    projectSource?: "native" | "external_tms";
   }) => ProjectFileContentEditorWorkspaceMock(props),
 }));
 
@@ -214,7 +216,7 @@ function mockReadyProjectQuery() {
     isLoading: false,
     isError: false,
     isSuccess: true,
-    data: { sourceLocale: "en", targetLocales: ["vi", "fr-FR"] },
+    data: { source: "native", sourceLocale: "en", targetLocales: ["vi", "fr-FR"] },
     error: null,
   });
 }
@@ -336,6 +338,29 @@ describe("ProjectFileContentEditorPageContent CAT shell", () => {
     await screen.findByTestId("content-editor-workspace");
     const props = ProjectFileContentEditorWorkspaceMock.mock.calls.at(-1)?.[0];
     expect(props?.adaptiveWorkspaceEnabled).toBe(true);
+  });
+
+  it("tells the workspace when the project is a connected TMS", async () => {
+    useProjectPageQueryMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      data: { source: "external_tms", sourceLocale: "en", targetLocales: ["fr"] },
+      error: null,
+    });
+    render(
+      <ContentEditorTestProviders>
+        <ProjectFileContentEditorPageContent
+          organizationSlug="acme"
+          projectId="ext:crowdin:902807"
+          sourcePath="en-US.json"
+          highlightLocale="fr"
+        />
+      </ContentEditorTestProviders>,
+    );
+    await screen.findByTestId("content-editor-workspace");
+    const props = ProjectFileContentEditorWorkspaceMock.mock.calls.at(-1)?.[0];
+    expect(props?.projectSource).toBe("external_tms");
   });
 
   it("keeps the file list mounted and cached when selecting another file or going back", async () => {
