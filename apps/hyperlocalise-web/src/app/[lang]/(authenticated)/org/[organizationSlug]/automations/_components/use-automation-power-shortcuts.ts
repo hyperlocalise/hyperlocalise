@@ -15,7 +15,11 @@
 import { useEffectEvent, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import { hasOpenShortcutModal, isEditableShortcutTarget } from "./automation-shortcut-keys";
+import {
+  hasForeignShortcutModal,
+  hasOpenShortcutModal,
+  isEditableShortcutTarget,
+} from "./automation-shortcut-keys";
 import { useAutomationAssistant } from "./automation-assistant-session-provider";
 
 function ignoreWhenModal(): boolean {
@@ -112,7 +116,8 @@ export function useAutomationPowerShortcuts({
       enableOnFormTags: false,
       preventDefault: true,
       useKey: true,
-      ignoreEventWhen: (event) => isEditableShortcutTarget(event.target),
+      ignoreEventWhen: (event) =>
+        isEditableShortcutTarget(event.target) || hasForeignShortcutModal(),
     },
     [enabled],
   );

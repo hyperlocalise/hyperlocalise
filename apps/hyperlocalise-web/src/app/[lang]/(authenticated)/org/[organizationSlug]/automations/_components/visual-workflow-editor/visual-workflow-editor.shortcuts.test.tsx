@@ -122,6 +122,7 @@ describe("VisualWorkflowEditor shortcuts", () => {
     await user.keyboard("?");
     expect(screen.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeInTheDocument();
     expect(screen.getByText("Fit the canvas")).toBeInTheDocument();
+    expect(screen.queryByText("Configure with assistant")).not.toBeInTheDocument();
   });
 
   it("returns to the step picker with N after a step is selected", async () => {

@@ -77,6 +77,22 @@ describe("useAutomationPowerShortcuts", () => {
     expect(screen.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeInTheDocument();
     expect(screen.getByText("Test workflow")).toBeInTheDocument();
     expect(screen.getByText("Add a step")).toBeInTheDocument();
+    expect(screen.queryByText("Configure with assistant")).not.toBeInTheDocument();
+
+    await user.keyboard("?");
+    expect(screen.queryByRole("dialog", { name: "Keyboard shortcuts" })).not.toBeInTheDocument();
+  });
+
+  it("leaves the shortcut list closed while another dialog is open", async () => {
+    const user = userEvent.setup();
+    renderHarness({});
+
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    document.body.append(dialog);
+    await user.keyboard("?");
+    expect(screen.queryByRole("dialog", { name: "Keyboard shortcuts" })).not.toBeInTheDocument();
+    dialog.remove();
   });
 
   it("adds a step with N outside a field, and leaves N in a field", async () => {

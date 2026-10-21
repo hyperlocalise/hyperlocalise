@@ -15,9 +15,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  AUTOMATION_SHORTCUTS_DIALOG_ATTR,
   getAutomationShortcutKeys,
   getAutomationShortcutText,
   getRevealKeyLabel,
+  hasForeignShortcutModal,
   hasOpenShortcutModal,
   isEditableShortcutTarget,
   listAutomationShortcuts,
@@ -29,6 +31,8 @@ describe("automation shortcut keys", () => {
     expect(listAutomationShortcuts("visual_workflow")).toEqual(
       expect.arrayContaining(["addNode", "fitView", "primary"]),
     );
+    expect(listAutomationShortcuts("visual_workflow")).not.toContain("assistant");
+    expect(listAutomationShortcuts("visual_workflow", { assistant: true })).toContain("assistant");
   });
 
   it("names the modifier for the current platform", () => {
@@ -53,5 +57,24 @@ describe("automation shortcut keys", () => {
     box.remove();
     input.remove();
     expect(hasOpenShortcutModal()).toBe(false);
+    expect(hasForeignShortcutModal()).toBe(false);
+  });
+
+  it("lets the shortcuts list sit open without counting as a foreign modal", () => {
+    const list = document.createElement("div");
+    list.setAttribute("role", "dialog");
+    list.setAttribute(AUTOMATION_SHORTCUTS_DIALOG_ATTR, "");
+    const other = document.createElement("div");
+    other.setAttribute("role", "alertdialog");
+    document.body.append(list);
+
+    expect(hasOpenShortcutModal()).toBe(true);
+    expect(hasForeignShortcutModal()).toBe(false);
+
+    document.body.append(other);
+    expect(hasForeignShortcutModal()).toBe(true);
+
+    list.remove();
+    other.remove();
   });
 });

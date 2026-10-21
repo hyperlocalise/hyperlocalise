@@ -716,6 +716,29 @@ describe("AutomationDetailPageContent run with unsaved changes", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("does not queue another run from the keyboard while one is in flight", async () => {
+    const user = userEvent.setup();
+    mockAutomation();
+    let finishRun: (response: unknown) => void = () => undefined;
+    apiMocks.runAutomation.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishRun = resolve;
+        }),
+    );
+
+    renderPage(scheduledAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Run now" }));
+    await vi.waitFor(() => expect(apiMocks.runAutomation).toHaveBeenCalledOnce());
+    expect(screen.getByRole("button", { name: /Run now/ })).toBeDisabled();
+
+    await user.keyboard("{Control>}{Enter}{/Control}");
+    expect(apiMocks.runAutomation).toHaveBeenCalledOnce();
+
+    finishRun({ ok: true, status: 202, json: async () => ({}) });
+  });
+
   it("asks before running and does nothing on cancel", async () => {
     const user = userEvent.setup();
     mockAutomation();

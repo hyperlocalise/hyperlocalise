@@ -56,19 +56,21 @@ export function AutomationShortcutsDialog({
   onOpenChange,
   surface,
   mode = "detail",
+  assistant = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   surface: AutomationShortcutSurface;
   mode?: "create" | "detail";
+  assistant?: boolean;
 }) {
   const intl = useIntl();
   const isMac = useIsMac();
-  const rows = listAutomationShortcuts(surface);
+  const rows = listAutomationShortcuts(surface, { assistant });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" data-automation-shortcuts-dialog="">
         <DialogHeader>
           <DialogTitle>
             <FormattedMessage {...messages.dialogTitle} />

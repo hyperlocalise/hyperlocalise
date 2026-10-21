@@ -545,7 +545,17 @@ export function AutomationDetailPageContent({
     runMutation.mutate();
   };
 
+  const canRun =
+    (showRunButton || showSourceFileRunButton) &&
+    !runMutation.isPending &&
+    !sourceFileRunMutation.isPending &&
+    !writeInFlight &&
+    automation.status === "active";
+
   const requestRun = () => {
+    if (!canRun) {
+      return;
+    }
     if (hasChanges) {
       setRunPromptOpen(true);
       return;
@@ -560,7 +570,7 @@ export function AutomationDetailPageContent({
     saveMutation.mutate();
   };
   requestSaveRef.current = requestSave;
-  requestRunRef.current = showRunButton || showSourceFileRunButton ? requestRun : null;
+  requestRunRef.current = canRun ? requestRun : null;
 
   // Loose, not in a row of their own, so the editor's action row can wrap them on a narrow screen.
   const editorActions = (
@@ -971,6 +981,7 @@ export function AutomationDetailPageContent({
           open={shortcutsOpen}
           onOpenChange={setShortcutsOpen}
           surface="automation"
+          assistant={assistantEnabled}
         />
       </WorkspacePageShell>
     </AutomationShortcutRevealProvider>

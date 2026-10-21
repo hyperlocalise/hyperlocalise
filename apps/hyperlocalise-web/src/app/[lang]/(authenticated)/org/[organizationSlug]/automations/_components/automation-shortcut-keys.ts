@@ -24,6 +24,9 @@ export type AutomationShortcutId =
 
 export type AutomationShortcutSurface = "automation" | "visual_workflow";
 
+/** Marks the shortcuts list so `?` can close it while other dialogs stay untouched. */
+export const AUTOMATION_SHORTCUTS_DIALOG_ATTR = "data-automation-shortcuts-dialog";
+
 const AUTOMATION_SHORTCUTS: readonly AutomationShortcutId[] = [
   "save",
   "primary",
@@ -47,8 +50,10 @@ const VISUAL_WORKFLOW_SHORTCUTS: readonly AutomationShortcutId[] = [
 /** The shortcuts listed for a surface, in the order the dialog shows them. */
 export function listAutomationShortcuts(
   surface: AutomationShortcutSurface,
+  { assistant = false }: { assistant?: boolean } = {},
 ): readonly AutomationShortcutId[] {
-  return surface === "visual_workflow" ? VISUAL_WORKFLOW_SHORTCUTS : AUTOMATION_SHORTCUTS;
+  const rows = surface === "visual_workflow" ? VISUAL_WORKFLOW_SHORTCUTS : AUTOMATION_SHORTCUTS;
+  return assistant ? rows : rows.filter((id) => id !== "assistant");
 }
 
 export function getRevealKeyLabel(isMac: boolean): string {
@@ -98,4 +103,17 @@ export function isEditableShortcutTarget(target: EventTarget | null): boolean {
 /** A dialog or sheet already has the keyboard; page shortcuts wait. */
 export function hasOpenShortcutModal(root: ParentNode = document): boolean {
   return root.querySelector('[role="dialog"], [role="alertdialog"]') !== null;
+}
+
+/** True when a modal other than the shortcuts list is open. `?` can still close that list. */
+export function hasForeignShortcutModal(root: ParentNode = document): boolean {
+  for (const modal of root.querySelectorAll('[role="dialog"], [role="alertdialog"]')) {
+    if (
+      !(modal instanceof HTMLElement) ||
+      !modal.closest(`[${AUTOMATION_SHORTCUTS_DIALOG_ATTR}]`)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }

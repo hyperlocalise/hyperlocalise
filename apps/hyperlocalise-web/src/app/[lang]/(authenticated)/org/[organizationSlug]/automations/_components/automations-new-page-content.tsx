@@ -270,6 +270,7 @@ export function AutomationsNewPageContent({
           onOpenChange={setShortcutsOpen}
           surface="automation"
           mode="create"
+          assistant={assistantEnabled}
         />
       </WorkspacePageShell>
     </AutomationShortcutRevealProvider>

@@ -1036,6 +1036,9 @@ export function VisualWorkflowEditor({
   ]);
 
   const onTestWorkflowClick = useCallback(() => {
+    if (isRunning || nodes.length === 0) {
+      return;
+    }
     // A test run invents no values, so one that lacks any is not started.
     const firstMissing = missingTestValues[0];
     if (firstMissing) {
@@ -1084,6 +1087,7 @@ export function VisualWorkflowEditor({
     edges,
     effectiveTestSetup,
     intl,
+    isRunning,
     missingTestValues,
     nodes,
     realNodeIds,
@@ -1124,7 +1128,8 @@ export function VisualWorkflowEditor({
   const { shortcutsOpen, setShortcutsOpen } = useAutomationPowerShortcuts({
     enabled: !previewMode && !isSaving && !isDeleting,
     onSave: onSave ? handleSave : undefined,
-    onPrimary: activeTab === "editor" ? onTestWorkflowClick : undefined,
+    onPrimary:
+      activeTab === "editor" && !isRunning && nodes.length > 0 ? onTestWorkflowClick : undefined,
     onAddNode: activeTab === "editor" ? () => openPicker(null) : undefined,
     onFitView: activeTab === "editor" ? () => fitViewRef.current?.() : undefined,
   });
@@ -1381,6 +1386,7 @@ export function VisualWorkflowEditor({
           open={shortcutsOpen}
           onOpenChange={setShortcutsOpen}
           surface="visual_workflow"
+          assistant={Boolean(assistantEnabled && organizationSlug && visualWorkflowId)}
         />
       </div>
     </AutomationShortcutRevealProvider>
