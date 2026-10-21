@@ -22,7 +22,7 @@ import { validateTranslationSegment } from "./validate-segment";
 import { QA_MODES } from "./check-catalogue";
 import { applyQaPolicy, type QaCheckPolicy } from "./qa-policy";
 
-export const QA_CHECK_VERSION = 2;
+export const QA_CHECK_VERSION = 3;
 const responseSchema = z.object({
   checks: z.array(
     z.object({
@@ -43,6 +43,7 @@ const CHECK_TYPES = {
   "qa-numbers-mismatch": "numbers_mismatch",
   "qa-punctuation-mismatch": "punctuation_mismatch",
   "qa-character-case-mismatch": "character_case_mismatch",
+  "qa-unreachable-plural-case": "unreachable_plural_case",
   length: "length",
 } as const;
 

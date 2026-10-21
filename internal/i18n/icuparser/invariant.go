@@ -102,11 +102,41 @@ func SameICUBlocks(a, b []BlockSignature) bool {
 		return false
 	}
 	for i := range a {
-		if a[i].Arg != b[i].Arg || a[i].Type != b[i].Type || a[i].Offset != b[i].Offset || !slicesEqual(a[i].Options, b[i].Options) {
+		if a[i].Arg != b[i].Arg || a[i].Type != b[i].Type || a[i].Offset != b[i].Offset {
+			return false
+		}
+		if a[i].Type == "plural" || a[i].Type == "selectordinal" {
+			if !samePluralOptions(a[i].Options, b[i].Options) {
+				return false
+			}
+			continue
+		}
+		if !slicesEqual(a[i].Options, b[i].Options) {
 			return false
 		}
 	}
 	return true
+}
+
+// samePluralOptions keeps exact matches (=0, =1) and requires other on both
+// sides. CLDR categories (one, few, many, …) may differ by locale.
+func samePluralOptions(a, b []string) bool {
+	aExact, aHasOther := splitPluralOptions(a)
+	bExact, bHasOther := splitPluralOptions(b)
+	return aHasOther == bHasOther && slicesEqual(aExact, bExact)
+}
+
+func splitPluralOptions(options []string) (exact []string, hasOther bool) {
+	for _, option := range options {
+		if option == "other" {
+			hasOther = true
+			continue
+		}
+		if len(option) > 0 && option[0] == '=' {
+			exact = append(exact, option)
+		}
+	}
+	return exact, hasOther
 }
 
 func HasDuplicatePounds(blocks []BlockSignature) bool {

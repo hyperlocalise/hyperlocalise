@@ -85,6 +85,9 @@ func (api *qaReportAPI) ownedNativeProject(ctx context.Context, actor qaReportAc
 func qaReportSettingsPayload(actor qaReportActor, cadence string, lastRunAt *time.Time, policy []byte) map[string]any {
 	checks := map[string]qaCheckSetting{}
 	_ = json.Unmarshal(policy, &checks)
+	if _, ok := checks["unreachable_plural_case"]; !ok {
+		checks["unreachable_plural_case"] = qaCheckSetting{Enabled: true, Severity: "error"}
+	}
 	return map[string]any{
 		"cadence":           cadence,
 		"checks":            checks,
@@ -207,9 +210,13 @@ var qaPolicyCheckTypes = map[string]struct{}{
 	"not_localized": {}, "whitespace_only": {}, "same_as_source": {}, "escaped_char_mismatch": {},
 	"length": {}, "placeholder_mismatch": {}, "glossary_violation": {}, "format": {}, "spelling": {},
 	"numbers_mismatch": {}, "punctuation_mismatch": {}, "character_case_mismatch": {},
+	"unreachable_plural_case": {},
 }
 
 func validQaPolicy(checks map[string]qaCheckSetting) bool {
+	if _, ok := checks["unreachable_plural_case"]; !ok {
+		checks["unreachable_plural_case"] = qaCheckSetting{Enabled: true, Severity: "error"}
+	}
 	if len(checks) != len(qaPolicyCheckTypes) {
 		return false
 	}

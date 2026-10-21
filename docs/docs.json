@@ -233,11 +233,15 @@
                           "platform/tutorials/react-intl-icu",
                           "platform/tutorials/vue-i18n",
                           "platform/tutorials/i18next",
+                          "platform/tutorials/next-intl",
                           "platform/tutorials/ios-strings",
                           "platform/tutorials/android-string-resources",
+                          "platform/tutorials/flutter-arb",
                           "platform/tutorials/gettext-pot-po",
+                          "platform/tutorials/fluent",
                           "platform/tutorials/xliff",
-                          "platform/tutorials/qt-linguist"
+                          "platform/tutorials/qt-linguist",
+                          "platform/tutorials/dotnet-resx"
                         ]
                       }
                     ],

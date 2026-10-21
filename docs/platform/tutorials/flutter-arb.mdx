@@ -1,0 +1,183 @@
+---
+title: "Flutter ARB"
+description: "Keep Flutter Application Resource Bundles in git, review ICU messages in Platform, and regenerate AppLocalizations."
+---
+
+This tutorial connects a Flutter app that uses [ARB](https://docs.flutter.dev/ui/internationalization) files to Hyperlocalise Platform. You keep message values and `@key` metadata in the repository, review ICU in Platform, then run `flutter gen-l10n` on the approved files.
+
+`hl extract` does not scan Dart `AppLocalizations` calls. Treat `lib/l10n/app_en.arb` as the source of truth.
+
+## Prerequisites
+
+You need:
+
+- a Flutter app with `gen-l10n` enabled;
+- the [Hyperlocalise CLI](/cli/getting-started/install);
+- a Platform project with `en` as source and `fr` and `de` as targets; and
+- `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` in your environment.
+
+The example uses language-only ARB filenames:
+
+```text
+.
+├── l10n.yaml
+├── lib/
+│   └── l10n/
+│       ├── app_en.arb
+│       ├── app_fr.arb
+│       └── app_de.arb
+└── i18n.yml
+```
+
+For `en_US` or `fr_FR` files, set `i18n.yml` locales to the exact suffix in those names. `{{target}}` is written as configured, so `fr-FR` produces `app_fr-FR.arb`, not `app_fr_FR.arb`.
+
+## 1. Keep copy in ARB
+
+`l10n.yaml`:
+
+```yaml
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+```
+
+`lib/l10n/app_en.arb`:
+
+```json
+{
+  "@@locale": "en",
+  "savedFiltersTitle": "Saved filters",
+  "@savedFiltersTitle": {
+    "description": "Heading on the saved filters screen"
+  },
+  "filterSaved": "Saved {name}",
+  "@filterSaved": {
+    "description": "Confirmation after the user saves a filter",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "savedFilterCount": "{count, plural, =0 {No saved filters} one {# saved filter} other {# saved filters}}",
+  "@savedFilterCount": {
+    "description": "How many filters are saved",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+}
+```
+
+Use the generated getters in a widget:
+
+```dart
+final l10n = AppLocalizations.of(context)!;
+
+Text(l10n.savedFiltersTitle);
+Text(l10n.filterSaved(filterName));
+Text(l10n.savedFilterCount(savedCount));
+```
+
+Hyperlocalise translates message values such as `savedFiltersTitle`. Keys that start with `@`, including `@@locale` and `@savedFiltersTitle`, stay metadata. Writeback copies source metadata onto new messages and sets `@@locale` to the target locale.
+
+<Note>
+Do not set the file's message format to i18next. Flutter ARB uses ICU `{name}` and `{count, plural, …}`. Leave the format on **Auto** or **ICU**.
+</Note>
+
+## 2. Map the catalogs
+
+Create `i18n.yml`:
+
+```yaml
+locales:
+  source: en
+  targets:
+    - fr
+    - de
+
+buckets:
+  flutter:
+    files:
+      - from: lib/l10n/app_en.arb
+        to: lib/l10n/app_{{target}}.arb
+
+hyperlocalise:
+  project_id_env: HYPERLOCALISE_PROJECT_ID
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+```
+
+## 3. Catch missing keys in the source pull request
+
+Generate localizations, then compile:
+
+```bash
+flutter gen-l10n
+flutter analyze
+hl sync push --dry-run
+```
+
+Commit `app_en.arb` with the widget change. A missing ARB key fails the Dart build when the widget calls a getter that `gen-l10n` did not emit.
+
+## 4. Push and review
+
+After the source pull request merges:
+
+```bash
+hl sync push
+```
+
+Start generation through a **Source upload** automation or **New Request**. In **Content Editor**, review:
+
+- ICU arguments such as `{name}` and `{count}`;
+- plural and select branches, including locale-specific categories;
+- `@key` descriptions that explain where the string appears;
+- labels that must fit compact mobile layouts.
+
+Approve the translations before pulling them back.
+
+A Japanese target may drop English `one` and keep `other`. `hl check` reports `unreachable_plural_case` when a translation keeps a category the locale never selects.
+
+## 5. Pull and validate translations
+
+Run:
+
+```bash
+hl sync pull
+hl check --bucket flutter --quiet
+flutter gen-l10n
+flutter test
+```
+
+`hl check` reports missing target keys, placeholder mismatches, `icu_shape_mismatch`, and `unreachable_plural_case`. Then change the device or test locale and confirm `AppLocalizations` loads `app_fr.arb` and `app_de.arb`.
+
+Open a translation pull request containing the pulled ARB files and any regenerated Dart output your repo commits.
+
+## Troubleshooting
+
+### `flutter gen-l10n` ignores a pulled file
+
+The filename suffix must match a locale Flutter accepts. Compare the resolved `to` path from `hl sync pull --dry-run` with `arb-dir`. Hyphenated locales in `i18n.yml` do not become underscored Flutter names.
+
+### Content Editor shows no description
+
+Put the explanation on `@message.description`, not in a JSON comment. ARB comments are not catalog context.
+
+### Pull rewrites `@` objects
+
+That means a message value was stored under a metadata key. Message keys must not start with `@`.
+
+### `icu_shape_mismatch` after a locale-specific plural
+
+Argument names, block types, offsets, and exact matches such as `=0` must still match the source. CLDR categories may differ by locale. If `hl check` reports `unreachable_plural_case`, delete the unused case from the translation.
+
+## Next
+
+- [GitHub localisation workflow](/platform/tutorials/github-localisation-workflow)
+- [Android string resources](/platform/tutorials/android-string-resources)
+- [iOS Strings](/platform/tutorials/ios-strings)
+- [Translate Flutter ARB](/cli/reference/formats/arb)
+- [`check` reference](/cli/commands/check)

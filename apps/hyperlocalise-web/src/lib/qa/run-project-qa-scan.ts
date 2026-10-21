@@ -28,7 +28,7 @@ import {
 import { QA_CHECK_VERSION, validateScanSegment } from "./scan-segment-validation";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { capResolvedSpellcheckWords } from "@/lib/spellcheck-dictionary/normalize-word";
-import { DEFAULT_QA_POLICY, type QaCheckPolicy } from "./qa-policy";
+import { DEFAULT_QA_POLICY, resolveQaPolicy, type QaCheckPolicy } from "./qa-policy";
 import { notifyQaScanFailed, notifyQaScanSucceeded } from "./qa-scan-notifications";
 import { QaCliUnavailableError, validateQaPageInSandbox } from "./validate-page-in-sandbox";
 
@@ -318,7 +318,7 @@ export async function scanTranslationQaPage(input: {
   const acceptedWordsByLocale = acceptedSpellcheckWordsByLocale(wordRows.rows);
   const skippedChecksByLocale: Record<string, string[]> = {};
   const requests = keys.flatMap((key) => locales.map((targetLocale) => ({ key, targetLocale })));
-  const policy = run.checkPolicy ?? DEFAULT_QA_POLICY;
+  const policy = resolveQaPolicy(run.checkPolicy ?? DEFAULT_QA_POLICY);
   const segments = requests.map(({ key, targetLocale }, index) => {
     const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
     return {
@@ -752,7 +752,7 @@ function uniqueSortedLocales(locales: readonly string[]) {
 }
 
 function disabledQaCheckTypes(policy: QaCheckPolicy | null | undefined) {
-  const resolved = policy ? { ...DEFAULT_QA_POLICY, ...policy } : DEFAULT_QA_POLICY;
+  const resolved = resolveQaPolicy(policy);
   return translationQaCheckTypes.filter((checkType) => !resolved[checkType].enabled);
 }
 

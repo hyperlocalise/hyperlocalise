@@ -173,15 +173,14 @@ validate again. Missing files and orphaned keys are not repaired by `--fix`.
 
 ## What if the target language needs different plural categories?
 
-Plural categories depend on the locale. A target may legitimately need branches
-that differ from the source. The current CLI compares branch sets, argument names,
-block types, and offsets, so it can flag a valid locale-specific difference.
+Plural categories depend on the locale. A target may drop or add CLDR categories
+such as `one`, `few`, or `many`. `icu_shape_mismatch` still requires matching
+argument names, block types, offsets, and exact matches (`=0`, `=1`).
 
-Do not remove a needed grammatical form just to satisfy parity. Review the case
-with a speaker of the target language and test it in your runtime. If you must
-exclude `icu_shape_mismatch`, use a narrowly scoped check and keep explicit runtime
-tests for the affected messages. Other checks, including placeholder checks, remain
-necessary. The CLI does not currently provide a per-message parity allowlist.
+`unreachable_plural_case` flags a category the target locale never selects. Japanese
+has no `one` category, so delete that branch and keep `other`. Do not remove a
+needed grammatical form to silence the check. Cover `0`, `1`, and several items
+in runtime tests.
 
 ## Prevent repeat failures
 

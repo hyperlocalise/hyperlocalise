@@ -1,0 +1,233 @@
+---
+title: "next-intl and ICU messages"
+description: "Keep next-intl JSON catalogs in git, review ICU and rich-text tags in Platform, and load approved locales in the Next.js App Router."
+---
+
+This tutorial connects a Next.js app that uses [next-intl](https://next-intl.dev/) to Hyperlocalise Platform. You keep nested JSON catalogs in the repository, review ICU messages and rich-text tags in Platform, and load the approved files at runtime.
+
+`hl extract` scans React Intl descriptors in `.ts` and `.tsx` files. It does not scan `t('title')` or `useTranslations`. Treat the locale JSON as the source of truth, and fail the pull request when a component key is missing from `messages/en-US.json`.
+
+## Prerequisites
+
+You need:
+
+- a Next.js App Router app using `next-intl`;
+- the [Hyperlocalise CLI](/cli/getting-started/install);
+- a Platform project with `en-US` as source and `fr-FR` and `de-DE` as targets; and
+- `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` in your environment.
+
+The example uses:
+
+```text
+.
+├── src/components/saved-filters.tsx
+├── i18n/request.ts
+├── messages/
+│   ├── en-US.json
+│   ├── fr-FR.json
+│   └── de-DE.json
+└── i18n.yml
+```
+
+## 1. Keep copy in locale JSON
+
+Write nested JSON with stable keys. next-intl resolves dotted paths such as `filters.saved.title`.
+
+`messages/en-US.json`:
+
+```json
+{
+  "filters": {
+    "saved": {
+      "title": "Saved filters",
+      "confirmation": "Saved {name}",
+      "count": "{count, plural, =0 {No saved filters} one {# saved filter} other {# saved filters}}",
+      "help": "See the <guidelines>guidelines</guidelines>."
+    }
+  }
+}
+```
+
+Use those keys in a component:
+
+```tsx
+import { useTranslations } from "next-intl";
+
+export function SavedFilters({
+  name,
+  count,
+}: {
+  name: string;
+  count: number;
+}) {
+  const t = useTranslations("filters.saved");
+
+  return (
+    <section>
+      <h1>{t("title")}</h1>
+      <p>{t("confirmation", { name })}</p>
+      <p>{t("count", { count })}</p>
+      <p>
+        {t.rich("help", {
+          guidelines: (chunks) => <a href="/guidelines">{chunks}</a>,
+        })}
+      </p>
+    </section>
+  );
+}
+```
+
+ICU keeps plural branches in one message. Translators may change the prose, but they must keep `{name}`, `{count}`, valid plural syntax, and rich-text tag names such as `<guidelines>`.
+
+<Note>
+Do not set the file's message format to i18next. next-intl uses ICU `{name}` and tags, not `{{name}}`. Leave the format on **Auto** or **ICU**.
+</Note>
+
+## 2. Load catalogs in the app
+
+```ts
+import { getRequestConfig } from "next-intl/server";
+
+export default getRequestConfig(async ({ requestLocale }) => {
+  const locale = await requestLocale;
+
+  return {
+    locale,
+    messages: (await import(`../messages/${locale}.json`)).default,
+  };
+});
+```
+
+Server Components can also call `getTranslations` from `next-intl/server`. Wrap Client Components in `NextIntlClientProvider` so they inherit the same messages.
+
+## 3. Map the catalogs
+
+Create `i18n.yml`:
+
+```yaml
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+    - de-DE
+
+buckets:
+  web:
+    files:
+      - from: messages/{{source}}.json
+        to: messages/{{target}}.json
+
+hyperlocalise:
+  project_id_env: HYPERLOCALISE_PROJECT_ID
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+```
+
+Hyperlocalise treats nested JSON as dotted keys such as `filters.saved.title`. It rewrites string leaves and keeps object structure.
+
+If you split messages into several files per locale, add one mapping per file or merge the files before `getRequestConfig` loads them.
+
+## 4. Catch missing keys in the source pull request
+
+Type the English catalog into `next-intl` so TypeScript fails when a component calls a missing key:
+
+```ts
+import type enUS from "../messages/en-US.json";
+
+declare module "next-intl" {
+  interface AppConfig {
+    Messages: typeof enUS;
+  }
+}
+```
+
+Then preview the Platform upload:
+
+```yaml
+- name: Check next-intl keys
+  run: npx tsc --noEmit
+
+- uses: hyperlocalise/hyperlocalise/install@v1
+  with:
+    version: latest
+
+- name: Preview source upload
+  run: hl sync push --dry-run
+  env:
+    HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
+    HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
+```
+
+Commit `messages/en-US.json` with the component change.
+
+## 5. Push and review
+
+After the source pull request merges:
+
+```bash
+hl sync push
+```
+
+Start generation through a **Source upload** automation or **New Request**. In **Content Editor**, review:
+
+- ICU arguments such as `{name}` and `{count}`;
+- plural and select branches, including locale-specific categories;
+- rich-text tags such as `<guidelines>`;
+- labels that must fit compact layouts.
+
+Approve the translations before pulling them back.
+
+A Japanese target may drop English `one` and keep `other`. `hl check` reports `unreachable_plural_case` when a translation keeps a category the locale never selects.
+
+## 6. Pull and validate translations
+
+Run:
+
+```bash
+hl sync pull
+hl check --bucket web --quiet
+```
+
+`hl check` reports missing target keys, placeholder mismatches, `icu_shape_mismatch`, and `unreachable_plural_case`.
+
+```ts
+import { createTranslator } from "next-intl";
+import frFR from "../messages/fr-FR.json";
+
+const t = createTranslator({ locale: "fr-FR", messages: frFR });
+
+expect(t("filters.saved.confirmation", { name: "Inbox" })).toBe(
+  "Filtre Inbox enregistré",
+);
+expect(t("filters.saved.count", { count: 0 })).toMatch(/Aucun|0/);
+expect(t("filters.saved.count", { count: 1 })).toMatch(/1/);
+expect(t("filters.saved.count", { count: 5 })).toMatch(/5/);
+```
+
+Open a translation pull request containing the pulled JSON. Run unit, build, and visual tests before merging it.
+
+## Troubleshooting
+
+### A component shows the key instead of copy
+
+Confirm `messages/en-US.json` contains the nested path, `getRequestConfig` imports that file, and `useTranslations` uses the same namespace.
+
+### Content Editor flags `<guidelines>` as an HTML mismatch
+
+Keep the same tag names in the translation. next-intl maps those names to React at the call site. Do not translate `guidelines` inside the angle brackets.
+
+### Pull writes FormatJS-shaped JSON
+
+That happens when the source catalog is strict FormatJS (`defaultMessage` per id). next-intl expects nested string leaves. Keep source JSON in the nested shape shown above.
+
+### `icu_shape_mismatch` after a locale-specific plural
+
+Argument names, block types, offsets, and exact matches such as `=0` must still match the source. CLDR categories may differ by locale. If `hl check` reports `unreachable_plural_case`, delete the unused case from the translation.
+
+## Next
+
+- [GitHub localisation workflow](/platform/tutorials/github-localisation-workflow)
+- [React Intl and ICU](/platform/tutorials/react-intl-icu)
+- [i18next and interpolation placeholders](/platform/tutorials/i18next)
+- [i18n configuration](/cli/configuration/i18n-config)
+- [`check` reference](/cli/commands/check)

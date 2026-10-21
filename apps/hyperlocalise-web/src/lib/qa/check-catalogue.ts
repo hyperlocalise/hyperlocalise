@@ -19,4 +19,5 @@ export const QA_MODES = [
   "numbers_mismatch",
   "punctuation_mismatch",
   "character_case_mismatch",
+  "unreachable_plural_case",
 ] as const;

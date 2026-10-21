@@ -1,0 +1,18 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "pluralrules",
+    srcs = ["categories.go"],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/pluralrules",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@org_golang_x_text//feature/plural",
+        "@org_golang_x_text//language",
+    ],
+)
+
+go_test(
+    name = "pluralrules_test",
+    srcs = ["categories_test.go"],
+    embed = [":pluralrules"],
+)
