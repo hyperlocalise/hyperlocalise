@@ -16,7 +16,7 @@ import { createAutomationsApi } from "@/app/[lang]/(authenticated)/org/[organiza
 import { apiClient } from "@/lib/api-client-instance";
 import { hasWorkspaceAutomationSanityTool } from "@/lib/agents/workspace-automation-types";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
-import { isSanityPluginSourcePath } from "@/lib/sanity/segment-file";
+import { isSanityCatSourcePath, isSanityPluginSourcePath } from "@/lib/sanity/segment-file";
 
 export type ContentEditorSanityPushCandidate = {
   automationId: string;
@@ -44,8 +44,14 @@ export function contentEditorSanityPushDocumentsQueryKey(
   return ["content-editor-sanity-push-documents", organizationSlug, automationId] as const;
 }
 
-export function contentEditorSanityPushQueryKey(organizationSlug: string, projectId: string) {
-  return ["content-editor-sanity-push", organizationSlug, projectId] as const;
+export function contentEditorSanityPushQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  sourcePath?: string | null,
+) {
+  return sourcePath
+    ? (["content-editor-sanity-push", organizationSlug, projectId, sourcePath] as const)
+    : (["content-editor-sanity-push", organizationSlug, projectId] as const);
 }
 
 export function invalidateContentEditorSanityPushQueries(
@@ -64,7 +70,11 @@ const SANITY_PUSH_DETAIL_CONCURRENCY = 3;
 export async function fetchContentEditorSanityPushCandidates(input: {
   organizationSlug: string;
   projectId: string;
+  sourcePath?: string | null;
 }): Promise<ContentEditorSanityPushCandidate[]> {
+  if (!input.sourcePath || !isSanityCatSourcePath(input.sourcePath)) {
+    return [];
+  }
   let automations;
   try {
     automations = await automationsApi.listAutomations(input.organizationSlug, {
@@ -123,14 +133,24 @@ export type ContentEditorSanityIngestCandidate = {
   runInProgress: boolean;
 };
 
-export function contentEditorSanityIngestQueryKey(organizationSlug: string, projectId: string) {
-  return ["content-editor-sanity-ingest", organizationSlug, projectId] as const;
+export function contentEditorSanityIngestQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  sourcePath?: string | null,
+) {
+  return sourcePath
+    ? (["content-editor-sanity-ingest", organizationSlug, projectId, sourcePath] as const)
+    : (["content-editor-sanity-ingest", organizationSlug, projectId] as const);
 }
 
 export async function fetchContentEditorSanityIngestCandidates(input: {
   organizationSlug: string;
   projectId: string;
+  sourcePath?: string | null;
 }): Promise<ContentEditorSanityIngestCandidate[]> {
+  if (!input.sourcePath || !isSanityCatSourcePath(input.sourcePath)) {
+    return [];
+  }
   let automations;
   try {
     automations = await automationsApi.listAutomations(input.organizationSlug, {

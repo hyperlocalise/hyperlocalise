@@ -49,4 +49,4 @@ Optional future work (Changes API incremental sync) uses the same **`drive`** sc
 
 1. Connect Google Drive from **Integrations → Guidelines** in staging.
 2. Expand **My Drive**. `accessNotConfigured` means enable **[Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com)** on the same Cloud project as the OAuth client, wait a minute, then disconnect and reconnect. `insufficientPermissions` means the token is missing **`drive`** (WorkOS default is often `drive.file`).
-3. Save a folder, run **Translate Google Drive files** import, then **Push to Google Drive** and confirm files appear using the automation **Translation output** setting (`[vi-VN] overview.docx`, `overview [vi-VN].docx`, `overview_vi-VN.docx`, or `vi-VN/overview.docx`).
+3. Save a folder, run **Translate Google Drive files** import, open an imported Drive file in the Content editor, then **Push to Google Drive**. Confirm files appear using the automation **Translation output** setting (`[vi-VN] overview.docx`, `overview [vi-VN].docx`, `overview_vi-VN.docx`, or `vi-VN/overview.docx`).

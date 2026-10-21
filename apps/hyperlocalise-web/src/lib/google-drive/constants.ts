@@ -17,6 +17,10 @@ export const GOOGLE_DRIVE_UPLOAD_SURFACE = "google_drive" as const;
 
 export const GOOGLE_DRIVE_SOURCE_PATH_PREFIX = "google-drive";
 
+export function isGoogleDriveSourcePath(sourcePath: string): boolean {
+  return sourcePath.startsWith(`${GOOGLE_DRIVE_SOURCE_PATH_PREFIX}/`);
+}
+
 export const GOOGLE_DRIVE_FILE_IMPORT_CONCURRENCY = 4;
 
 export const GOOGLE_DRIVE_API_BASE = "https://www.googleapis.com/drive/v3";

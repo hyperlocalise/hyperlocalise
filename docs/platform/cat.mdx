@@ -35,7 +35,14 @@ Select a row in **Queue** or click a string in the preview. The Content Editor l
 
 On a native project, **Approve** saves the current target text. On a TMS-backed project, **Save to provider** (or **Approve**) writes the target back to the provider.
 
-When a [Braze](/platform/connections/braze) or [Intercom](/platform/connections/intercom) automation is attached to the project, the editor header can show **Ingest** next to **Push to Braze** or **Push to Intercom**. **Ingest** queues the same import as Automations **Run now**. Push writes copies or drafts to the connected service. Those actions do not publish. **Push to Braze** writes locale-suffixed email-template copies or campaign/Canvas translation maps, depending on the automation that owns the open file.
+The editor header shows **Ingest** and **Push** only for the open file:
+
+- [Google Drive](/integrations/google-drive) — **Push to Google Drive**
+- [Intercom](/platform/connections/intercom) — **Ingest** and **Push to Intercom**
+- [Sanity](/platform/connections/sanity) — **Ingest** and **Push to Sanity**
+- [Braze](/platform/connections/braze) — **Ingest** and **Push to Braze**
+
+Those actions stay hidden on other files and on the all-files queue. **Ingest** queues the same import as Automations **Run now**. Push writes copies or drafts to the connected service. Those actions do not publish. **Push to Braze** writes locale-suffixed email-template copies or campaign/Canvas translation maps, depending on the open file.
 
 Translators can prepare drafts; approval requires a reviewer, localization manager, or administrator with project access. See [Roles and permissions](/platform/workspace/roles).
 

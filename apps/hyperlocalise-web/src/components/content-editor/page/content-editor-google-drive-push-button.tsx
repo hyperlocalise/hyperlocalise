@@ -28,6 +28,7 @@ import {
 import { queueGoogleDrivePushRun } from "@/lib/google-drive/queue-google-drive-push-run";
 import { buildAutomationsDetailHref } from "@/lib/navigation/workspace-automation-editor-tab";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
+import { isGoogleDriveSourcePath } from "@/lib/google-drive/constants";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
 import { ContentEditorGoogleDrivePushDialog } from "./content-editor-google-drive-push-dialog";
@@ -58,13 +59,15 @@ export function ContentEditorGoogleDrivePushButton({
   const openSourcePath = isContentEditorAllFilesSourcePath(sourcePath) ? null : sourcePath;
 
   const candidatesQuery = useQuery({
-    queryKey: contentEditorGoogleDrivePushQueryKey(organizationSlug, projectId),
+    queryKey: contentEditorGoogleDrivePushQueryKey(organizationSlug, projectId, openSourcePath),
     queryFn: () =>
       fetchContentEditorGoogleDrivePushCandidates({
         organizationSlug,
         projectId,
+        sourcePath: openSourcePath,
       }),
-    enabled: canManageAutomations,
+    enabled:
+      canManageAutomations && Boolean(openSourcePath && isGoogleDriveSourcePath(openSourcePath)),
   });
 
   const navigateToPushRunHistory = (automationId: string) => {

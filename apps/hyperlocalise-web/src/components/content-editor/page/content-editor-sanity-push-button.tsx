@@ -29,6 +29,7 @@ import { queueSanityPushRun } from "@/lib/sanity/queue-sanity-push-run";
 import { buildAutomationsDetailHref } from "@/lib/navigation/workspace-automation-editor-tab";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
+import { isSanityCatSourcePath } from "@/lib/sanity/segment-file";
 
 import { ContentEditorSanityPushDialog } from "./content-editor-sanity-push-dialog";
 import { contentEditorSanityPushButtonMessages as messages } from "./content-editor-sanity-push-button.messages";
@@ -58,13 +59,15 @@ export function ContentEditorSanityPushButton({
   const openSourcePath = isContentEditorAllFilesSourcePath(sourcePath) ? null : sourcePath;
 
   const candidatesQuery = useQuery({
-    queryKey: contentEditorSanityPushQueryKey(organizationSlug, projectId),
+    queryKey: contentEditorSanityPushQueryKey(organizationSlug, projectId, openSourcePath),
     queryFn: () =>
       fetchContentEditorSanityPushCandidates({
         organizationSlug,
         projectId,
+        sourcePath: openSourcePath,
       }),
-    enabled: canManageAutomations,
+    enabled:
+      canManageAutomations && Boolean(openSourcePath && isSanityCatSourcePath(openSourcePath)),
   });
 
   const navigateToPushRunHistory = (automationId: string) => {

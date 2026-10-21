@@ -15,6 +15,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { createAutomationsApi } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/automations-api";
 import { apiClient } from "@/lib/api-client-instance";
 import { hasWorkspaceAutomationGoogleDriveTool } from "@/lib/agents/workspace-automation-types";
+import { isGoogleDriveSourcePath } from "@/lib/google-drive/constants";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 export type ContentEditorGoogleDrivePushCandidate = {
@@ -42,8 +43,14 @@ export function contentEditorGoogleDrivePushFilesQueryKey(
   return ["content-editor-google-drive-push-files", organizationSlug, automationId] as const;
 }
 
-export function contentEditorGoogleDrivePushQueryKey(organizationSlug: string, projectId: string) {
-  return ["content-editor-google-drive-push", organizationSlug, projectId] as const;
+export function contentEditorGoogleDrivePushQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  sourcePath?: string | null,
+) {
+  return sourcePath
+    ? (["content-editor-google-drive-push", organizationSlug, projectId, sourcePath] as const)
+    : (["content-editor-google-drive-push", organizationSlug, projectId] as const);
 }
 
 export function invalidateContentEditorGoogleDrivePushQueries(
@@ -62,7 +69,11 @@ const GOOGLE_DRIVE_PUSH_DETAIL_CONCURRENCY = 3;
 export async function fetchContentEditorGoogleDrivePushCandidates(input: {
   organizationSlug: string;
   projectId: string;
+  sourcePath?: string | null;
 }): Promise<ContentEditorGoogleDrivePushCandidate[]> {
+  if (!input.sourcePath || !isGoogleDriveSourcePath(input.sourcePath)) {
+    return [];
+  }
   let automations;
   try {
     automations = await automationsApi.listAutomations(input.organizationSlug, {

@@ -235,6 +235,7 @@ export function JobContentEditorPageContent({
         organizationSlug={organizationSlug}
         projectId={projectId}
         canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
         pageNavigationGuardRef={pageNavigationGuardRef}
       />
       <ContentEditorIntercomPushButton
@@ -248,6 +249,7 @@ export function JobContentEditorPageContent({
         organizationSlug={organizationSlug}
         projectId={projectId}
         canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
         pageNavigationGuardRef={pageNavigationGuardRef}
       />
       <ContentEditorSanityPushButton
