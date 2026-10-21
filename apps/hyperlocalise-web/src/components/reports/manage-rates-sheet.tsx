@@ -91,7 +91,8 @@ export function ManageRatesSheet({
   const intl = useIntl();
   const cards = useRateCards(organizationSlug);
   const save = useSaveRateCard(organizationSlug);
-  const canManage = cards.data?.canManage ?? false;
+  // Known before the cards load, so the panel never shows the wrong title while loading.
+  const canManage = settings.canManage;
   const [chosen, setChosen] = useState<string | null>(cardName);
   /** A card not saved yet: started blank, or a copy of the lines shown. */
   const [draft, setDraft] = useState<"blank" | "copy" | null>(null);
