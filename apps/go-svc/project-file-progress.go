@@ -58,7 +58,7 @@ func (api *projectAPI) fileProgress(ctx context.Context, actor projectActor, pro
 	}
 
 	rows, err := api.pool.Query(ctx, `
-		select f.source_path, k.source_text, coalesce(t.text, ''), coalesce(t.status, '')
+		select f.source_path, k.source_text, coalesce(t.text, ''), coalesce(t.status::text, '')
 		from project_translation_keys k
 		join repository_source_files f on f.id = k.repository_source_file_id
 			and f.organization_id = k.organization_id
