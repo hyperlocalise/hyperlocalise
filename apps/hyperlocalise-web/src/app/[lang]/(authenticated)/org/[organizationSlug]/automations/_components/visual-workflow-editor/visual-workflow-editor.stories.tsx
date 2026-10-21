@@ -1226,3 +1226,98 @@ export const CreateAndMergeObjectsNarrow: Story = {
     await expect(canvas.getByText(/requiresReview/)).toBeInTheDocument();
   },
 };
+
+const selectPathNodes = [
+  {
+    id: "source",
+    type: "logic.create_object" as const,
+    position: { x: 120, y: 180 },
+    data: {
+      catalogType: "logic.create_object" as const,
+      config: {
+        kind: "logic.create_object" as const,
+        fields: [
+          {
+            id: "customer",
+            name: "customer",
+            type: "object" as const,
+            defaultValue: { orders: [{ locale: "en-AU" }] },
+          },
+        ],
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: { value: { customer: { orders: [{ locale: "en-AU" }] } } },
+    },
+  },
+  {
+    id: "select",
+    type: "logic.select_path" as const,
+    position: { x: 500, y: 180 },
+    data: {
+      catalogType: "logic.select_path" as const,
+      config: {
+        kind: "logic.select_path" as const,
+        path: ["customer", "orders", 0, "locale"],
+        outputType: "string" as const,
+        missingBehavior: "default" as const,
+        defaultValue: "en",
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: { value: "en-AU", found: true },
+    },
+  },
+];
+
+export const SelectPathConfigured: Story = {
+  name: "Get Field — configured",
+  args: {
+    initialName: "Select customer locale",
+    initialNodes: selectPathNodes,
+    initialEdges: [
+      {
+        id: "execute",
+        source: "source",
+        target: "select",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: { kind: "execution" as const },
+      },
+      {
+        id: "value",
+        source: "source",
+        target: "select",
+        sourceHandle: "value",
+        targetHandle: "value",
+        data: { kind: "data" as const },
+      },
+    ],
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText("Data input: value, unknown", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data input: path, array, optional")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: value, string")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: found, boolean")).toBeInTheDocument();
+    const selectNode = canvas
+      .getByLabelText("Data output: found, boolean")
+      .closest(".react-flow__node");
+    await userEvent.click(selectNode!);
+    await expect(await canvas.findByRole("textbox", { name: "Path" })).toHaveValue(
+      "customer.orders[0].locale",
+    );
+    await expect(canvas.getByRole("textbox", { name: "Default value" })).toHaveValue("en");
+  },
+};
+
+export const SelectPathNarrow: Story = {
+  name: "Get Field — narrow",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: { ...SelectPathConfigured.args },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByText("Succeeded", {}, { timeout: 10_000 })).toBeInTheDocument();
+    await expect(canvas.getByText(/en-AU/)).toBeInTheDocument();
+  },
+};

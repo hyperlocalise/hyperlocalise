@@ -42,6 +42,26 @@ export function workflowAncestors(
   }
   return result;
 }
+
+function isValidSelectPath(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.length <= 32 &&
+    value.every(
+      (segment) =>
+        (typeof segment === "string" &&
+          segment.length > 0 &&
+          segment.length <= 256 &&
+          !["__proto__", "constructor", "prototype"].includes(segment)) ||
+        (typeof segment === "number" &&
+          Number.isInteger(segment) &&
+          segment >= 0 &&
+          segment <= 1_000_000),
+    )
+  );
+}
+
 export function compileWorkflowIssues(
   definition: VisualWorkflowDefinition,
 ): VisualWorkflowValidationIssue[] {
@@ -293,6 +313,12 @@ export function compileWorkflowIssues(
           config[field.name] === "")
       )
         add("invalid_node_config", node.id, undefined, { field: field.name, reason: "required" });
+    if (
+      node.config.kind === "logic.select_path" &&
+      node.config.path.length === 0 &&
+      !node.inputs?.path
+    )
+      add("invalid_node_config", node.id, undefined, { field: "path", reason: "required" });
     for (const field of node.outputFields ?? [])
       if (
         field.path.split(".").some((key) => ["__proto__", "constructor", "prototype"].includes(key))
@@ -314,6 +340,10 @@ export function compileWorkflowIssues(
         invalid = true;
       if (binding.kind === "literal" && field && !matchesWorkflowType(binding.value, field.type))
         invalid = true;
+      if (node.config.kind === "logic.select_path" && name === "path") {
+        if (binding.kind === "literal" && !isValidSelectPath(binding.value)) invalid = true;
+        if (binding.kind !== "literal" && binding.kind !== "reference") invalid = true;
+      }
       if (binding.kind === "reference") {
         if (!checkReference(node, binding)) invalid = true;
         const source = nodes.get(binding.nodeId);

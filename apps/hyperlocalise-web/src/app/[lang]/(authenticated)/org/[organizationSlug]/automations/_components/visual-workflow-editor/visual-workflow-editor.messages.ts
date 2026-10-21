@@ -265,6 +265,57 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "EFqMJ3jrZJ",
     description: "Catalog description for the merge objects node",
   },
+  nodeSelectPath: {
+    defaultMessage: "Get field",
+    id: "jWbeH4RHvb",
+    description: "Catalog title for the select path node",
+  },
+  nodeSelectPathHint: {
+    defaultMessage: "Read a typed value from an object or array using a safe path.",
+    id: "ODA33nKLhj",
+    description: "Catalog description for the select path node",
+  },
+  selectPathPath: {
+    defaultMessage: "Path",
+    id: "DIXy7xfZhs",
+    description: "Select Path path setting",
+  },
+  selectPathPathDescription: {
+    defaultMessage:
+      "Use dots for object keys and brackets for array indexes, for example customer.orders[0].id.",
+    id: "/9bgfNfWmW",
+    description: "Help for Select Path path syntax",
+  },
+  selectPathOutputType: {
+    defaultMessage: "Output type",
+    id: "S6w+8rFpja",
+    description: "Select Path declared output type setting",
+  },
+  selectPathMissingBehavior: {
+    defaultMessage: "When the path is missing",
+    id: "qG8OM8M72u",
+    description: "Select Path missing value behavior setting",
+  },
+  selectPathMissingError: {
+    defaultMessage: "Fail the step",
+    id: "oRNiCCPUi7",
+    description: "Select Path missing path error option",
+  },
+  selectPathMissingOptional: {
+    defaultMessage: "Return an optional value",
+    id: "aKysXi8qyT",
+    description: "Select Path optional missing value option",
+  },
+  selectPathMissingDefault: {
+    defaultMessage: "Use a default value",
+    id: "dTqGntxrW3",
+    description: "Select Path default missing value option",
+  },
+  selectPathDefaultValue: {
+    defaultMessage: "Default value",
+    id: "tt72kIaGyn",
+    description: "Select Path default value input",
+  },
   createObjectFields: {
     defaultMessage: "Create object fields",
     id: "XmEYDXugqn",

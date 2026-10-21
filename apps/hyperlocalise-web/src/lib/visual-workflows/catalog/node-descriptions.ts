@@ -49,6 +49,10 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     title: "Merge objects",
     purpose: "Combine objects with an explicit conflict policy.",
   },
+  "logic.select_path": {
+    title: "Get field",
+    purpose: "Read a typed value from an object or array using a safe path.",
+  },
   "ai.agent": { title: "AI Agent", purpose: "Placeholder agent step with tools." },
   "logic.for_each": { title: "Loop", purpose: "Iterate over a collection sequentially." },
   "logic.retry": { title: "Retry", purpose: "Re-run a body region with backoff." },

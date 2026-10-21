@@ -68,6 +68,12 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     conflictPolicy: messages.mergeObjectsConflictPolicy,
     inputs: messages.mergeObjectsInputs,
   },
+  "logic.select_path": {
+    path: messages.selectPathPath,
+    outputType: messages.selectPathOutputType,
+    missingBehavior: messages.selectPathMissingBehavior,
+    defaultValue: messages.selectPathDefaultValue,
+  },
   "ai.agent": { prompt: messages.aiPrompt, ...ON_ERROR },
   "logic.for_each": { collection: messages.forEachCollection },
   "logic.retry": {

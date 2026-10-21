@@ -19,6 +19,7 @@ import {
   resolveVisualWorkflowTemplate,
 } from "./expressions";
 import { executeCreateObject, executeMergeObjects } from "./object-nodes";
+import { executeSelectPath } from "./select-path-node";
 
 export function executeLogicVisualWorkflowNode(input: {
   node: CanonicalVisualWorkflowNode;
@@ -123,6 +124,16 @@ export function executeLogicVisualWorkflowNode(input: {
         conflictPolicy: node.config.conflictPolicy,
         resolvedConfig: node.config as unknown as Record<string, unknown>,
       });
+    case "logic.select_path": {
+      const resolvedConfig = node.config as unknown as Record<string, unknown>;
+      return executeSelectPath({
+        value: resolvedConfig.value,
+        path: node.config.path,
+        outputType: node.config.outputType,
+        missingBehavior: node.config.missingBehavior,
+        defaultValue: node.config.defaultValue,
+      });
+    }
     case "logic.for_each": {
       const items = resolveVisualWorkflowCollection(node.config.collection, context);
       return {

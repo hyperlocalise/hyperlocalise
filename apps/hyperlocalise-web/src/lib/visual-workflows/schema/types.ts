@@ -31,6 +31,7 @@ export type VisualCatalogType =
   | "logic.set"
   | "logic.create_object"
   | "logic.merge_objects"
+  | "logic.select_path"
   | "ai.agent"
   | "logic.for_each"
   | "logic.retry"
@@ -80,6 +81,8 @@ export type MockNodeRunStatus =
   | "handled_error"
   | "needs_attention";
 export type WorkflowValueType = "string" | "number" | "boolean" | "object" | "array" | "unknown";
+export type VisualSelectPathSegment = string | number;
+export type VisualSelectPathMissingBehavior = "error" | "optional" | "default";
 export type WorkflowBinding = (
   | { kind: "literal"; value: unknown }
   | { kind: "reference"; nodeId: string; path: (string | number)[] }
@@ -167,6 +170,13 @@ export type VisualNodeConfig =
       kind: "logic.merge_objects";
       inputs: VisualObjectMergeInput[];
       conflictPolicy: VisualObjectConflictPolicy;
+    }
+  | {
+      kind: "logic.select_path";
+      path: VisualSelectPathSegment[];
+      outputType: WorkflowValueType;
+      missingBehavior: VisualSelectPathMissingBehavior;
+      defaultValue?: unknown;
     }
   | { kind: "ai.agent"; prompt: string; onError?: VisualNodeErrorBehavior }
   | { kind: "logic.for_each"; collection: string }

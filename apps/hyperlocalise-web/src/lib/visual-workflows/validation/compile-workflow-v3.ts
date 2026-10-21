@@ -394,7 +394,8 @@ export function compileVisualWorkflowV3Definition(
       node.config.kind !== "flow.return" &&
       node.config.kind !== "flow.call_workflow" &&
       node.config.kind !== "logic.create_object" &&
-      node.config.kind !== "logic.merge_objects"
+      node.config.kind !== "logic.merge_objects" &&
+      node.config.kind !== "logic.select_path"
     )
       continue;
 
@@ -407,6 +408,19 @@ export function compileVisualWorkflowV3Definition(
           reason: "required",
         });
       }
+    }
+
+    if (
+      node.config.kind === "logic.select_path" &&
+      node.config.path.length === 0 &&
+      !Object.hasOwn(node.inputs ?? {}, "path")
+    ) {
+      issues.push({
+        code: "missing_required_input",
+        nodeId: node.id,
+        field: "path",
+        reason: "required",
+      });
     }
   }
 

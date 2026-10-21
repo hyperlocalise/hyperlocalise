@@ -113,6 +113,11 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     outputs: [output("value", "object")],
     mock: { value: {} },
   },
+  "logic.select_path": {
+    inputs: [field("value", "unknown"), field("path", "array", false)],
+    outputs: [output("value", "unknown"), output("found", "boolean")],
+    mock: { value: null, found: false },
+  },
   "logic.for_each": {
     inputs: [field("collection", "array")],
     outputs: [
@@ -200,8 +205,64 @@ export function matchesWorkflowType(value: unknown, type: WorkflowValueType): bo
   return typeof value === type;
 }
 
+function workflowValueType(value: unknown): WorkflowValueType {
+  if (Array.isArray(value)) return "array";
+  if (value !== null && typeof value === "object") return "object";
+  if (typeof value === "string") return "string";
+  if (typeof value === "number") return "number";
+  if (typeof value === "boolean") return "boolean";
+  return "unknown";
+}
+
+function inferLiteralSelectPathOutput(node: CanonicalVisualWorkflowNode): WorkflowValueType {
+  if (node.config.kind !== "logic.select_path") return "unknown";
+  const valueBinding = node.inputs?.value;
+  const pathBinding = node.inputs?.path;
+  if (valueBinding?.kind !== "literal" || (pathBinding && pathBinding.kind !== "literal"))
+    return "unknown";
+  const path = pathBinding?.value ?? node.config.path;
+  if (!Array.isArray(path) || path.length === 0 || path.length > 32) return "unknown";
+
+  let selected = valueBinding.value;
+  for (const segment of path) {
+    if (
+      (typeof segment === "string" &&
+        (segment.length === 0 ||
+          segment.length > 256 ||
+          ["__proto__", "prototype", "constructor"].includes(segment))) ||
+      (typeof segment === "number" &&
+        (!Number.isInteger(segment) || segment < 0 || segment > 1_000_000)) ||
+      (typeof segment !== "string" && typeof segment !== "number")
+    )
+      return "unknown";
+    if (Array.isArray(selected)) {
+      if (typeof segment !== "number" || !Object.hasOwn(selected, segment)) return "unknown";
+      selected = selected[segment];
+    } else if (
+      selected !== null &&
+      typeof selected === "object" &&
+      typeof segment === "string" &&
+      Object.hasOwn(selected, segment)
+    ) {
+      selected = (selected as Record<string, unknown>)[segment];
+    } else return "unknown";
+  }
+  return workflowValueType(selected);
+}
+
 export function getWorkflowOutputFields(node: CanonicalVisualWorkflowNode): WorkflowOutputField[] {
   const fields = new Map(NODE_CONTRACTS[node.type].outputs.map((field) => [field.path, field]));
+  if (node.config.kind === "logic.select_path") {
+    const outputType =
+      node.config.outputType === "unknown"
+        ? inferLiteralSelectPathOutput(node)
+        : node.config.outputType;
+    fields.set("value", {
+      path: "value",
+      type: outputType,
+      optional: node.config.missingBehavior === "optional",
+    });
+  }
   if (node.config.kind === "logic.set") {
     for (const assignment of node.config.assignments)
       fields.set(assignment.key, { path: assignment.key, type: "string" });
