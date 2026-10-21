@@ -32,9 +32,14 @@ import { ContentEditorEditorCommentsSection } from "@/components/content-editor/
 import { ContentEditorEditorFormatChecksSection } from "@/components/content-editor/editor/content-editor-editor-format-checks-section";
 import { ContentEditorShortcutHint } from "@/components/content-editor/editor/content-editor-shortcut-hints";
 import { ContentEditorIntelligencePanel } from "@/components/content-editor/intelligence/content-editor-intelligence-panel";
+import { ContentEditorUnicodePanel } from "@/components/content-editor/intelligence/content-editor-unicode-panel";
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
+import { isContentEditorAssetContentKind } from "@/components/content-editor/shared/content-editor-content-kind";
 import { isNativeContentEditorProviderKind } from "@/components/content-editor/shared/content-editor-native-project";
-import { contentEditorSideBySidePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
+import {
+  contentEditorSideBySidePanelMessages,
+  contentEditorUnicodePanelMessages,
+} from "@/components/content-editor/shared/content-editor.messages";
 import type {
   ContentEditorFormatCheck,
   ContentEditorSegment,
@@ -224,7 +229,6 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
         canLookupFreshContext={canLookupFreshContext}
         onRefreshContext={onRefreshContext}
         onUseTmMatch={onUseTmMatch}
-        onInsertCharacter={onInsertCharacter}
         onSetMaxLength={segment.isLocked ? undefined : onSetMaxLength}
         onGlossaryTermAdded={onGlossaryTermAdded}
         canTriggerFindContext={canTriggerFindContext}
@@ -255,17 +259,20 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
       const qaIssueCount = actionableFormatChecks(formatChecks).length;
       const commentCount =
         workspace.segmentComments.get(segment.id)?.length ?? segment.comments?.length ?? 0;
+      const showUnicodeTab = !isContentEditorAssetContentKind(segment.contentKind);
+      const resolvedTab = activeTab === "unicode" && !showUnicodeTab ? "details" : activeTab;
+      const canInsertUnicode = canEditTranslations && !segment.isLocked;
 
       return (
         <Tabs
-          value={activeTab}
+          value={resolvedTab}
           onValueChange={(value) =>
             setTabState({ tab: value as DetailsTab, revealNonce: qaDetailsRevealNonce })
           }
           className={cn("h-full min-h-0 gap-0 border-l border-border bg-background", className)}
         >
           <div className="flex shrink-0 items-center gap-1 border-b border-border px-2">
-            <TabsList variant="line" className="h-10">
+            <TabsList variant="line" className="h-10 min-w-0 flex-1 justify-start overflow-x-auto">
               <TabsTrigger value="details">
                 <FormattedMessage {...contentEditorSideBySidePanelMessages.detailsTab} />
               </TabsTrigger>
@@ -277,6 +284,11 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
                 <FormattedMessage {...contentEditorSideBySidePanelMessages.commentsTab} />
                 {commentCount > 0 ? <TabCount count={commentCount} tone="count" /> : null}
               </TabsTrigger>
+              {showUnicodeTab ? (
+                <TabsTrigger value="unicode">
+                  <FormattedMessage {...contentEditorUnicodePanelMessages.title} />
+                </TabsTrigger>
+              ) : null}
             </TabsList>
             <Button
               type="button"
@@ -315,6 +327,18 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
               {commentsPanel}
             </Box>
           </TabsContent>
+
+          {showUnicodeTab ? (
+            <TabsContent value="unicode" className="min-h-0 overflow-y-auto" data-inspector-unicode>
+              <Box paddingX="2u" paddingY="2u">
+                <ContentEditorUnicodePanel
+                  variant="tab"
+                  canInsert={canInsertUnicode}
+                  onInsertCharacter={onInsertCharacter}
+                />
+              </Box>
+            </TabsContent>
+          ) : null}
         </Tabs>
       );
     }
@@ -348,7 +372,15 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
             <Column width="content">
               <div className="min-h-0 border-t border-border lg:border-t-0 lg:border-l lg:w-[22rem]">
                 <Box paddingX="2u" paddingBottom="2u">
-                  {commentsPanel}
+                  <div className="space-y-4">
+                    {commentsPanel}
+                    {isContentEditorAssetContentKind(segment.contentKind) ? null : (
+                      <ContentEditorUnicodePanel
+                        canInsert={canEditTranslations && !segment.isLocked}
+                        onInsertCharacter={onInsertCharacter}
+                      />
+                    )}
+                  </div>
                 </Box>
               </div>
             </Column>
@@ -359,7 +391,7 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
   },
 );
 
-type DetailsTab = "details" | "qa" | "comments";
+type DetailsTab = "details" | "qa" | "comments" | "unicode";
 
 function TabCount({ count, tone = "count" }: { count: number; tone?: "count" | "alert" }) {
   return (

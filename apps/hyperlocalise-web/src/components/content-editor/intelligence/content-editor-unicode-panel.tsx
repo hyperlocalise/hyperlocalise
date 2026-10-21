@@ -85,13 +85,65 @@ function UnicodeCharacterButton({
   );
 }
 
+function UnicodeTableBody({
+  query,
+  onQueryChange,
+  characters,
+  canInsert,
+  onInsert,
+}: {
+  query: string;
+  onQueryChange: (query: string) => void;
+  characters: ContentEditorUnicodeCharacter[];
+  canInsert: boolean;
+  onInsert: (character: string) => void;
+}) {
+  const intl = useIntl();
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs font-medium text-muted-foreground">
+        <FormattedMessage {...contentEditorUnicodePanelMessages.category} />
+      </p>
+      <div className="relative">
+        <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder={intl.formatMessage(contentEditorUnicodePanelMessages.searchPlaceholder)}
+          aria-label={intl.formatMessage(contentEditorUnicodePanelMessages.searchAria)}
+          className="h-8 pl-8 text-xs"
+        />
+      </div>
+      {characters.length > 0 ? (
+        <div className="grid grid-cols-4 gap-0.5 sm:grid-cols-5">
+          {characters.map((character) => (
+            <UnicodeCharacterButton
+              key={character.codePoint}
+              character={character}
+              disabled={!canInsert}
+              onInsert={onInsert}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="py-2 text-sm text-muted-foreground">
+          <FormattedMessage {...contentEditorUnicodePanelMessages.emptySearch} values={{ query }} />
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function ContentEditorUnicodePanel({
   canInsert = true,
   defaultOpen = false,
+  variant = "section",
   onInsertCharacter,
 }: {
   canInsert?: boolean;
   defaultOpen?: boolean;
+  variant?: "section" | "tab";
   onInsertCharacter?: (character: string) => void;
 }) {
   const intl = useIntl();
@@ -107,6 +159,29 @@ export function ContentEditorUnicodePanel({
       return;
     }
     onInsertCharacter?.(character);
+  }
+
+  const table = (
+    <UnicodeTableBody
+      query={query}
+      onQueryChange={setQuery}
+      characters={characters}
+      canInsert={canInsert}
+      onInsert={handleInsert}
+    />
+  );
+
+  if (variant === "tab") {
+    return (
+      <TooltipProvider>
+        <div className="space-y-3">
+          <h3 className="sr-only">
+            <FormattedMessage {...contentEditorUnicodePanelMessages.title} />
+          </h3>
+          {table}
+        </div>
+      </TooltipProvider>
+    );
   }
 
   return (
@@ -138,42 +213,7 @@ export function ContentEditorUnicodePanel({
             />
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="space-y-3 border-t border-border px-3.5 py-3">
-              <p className="text-xs font-medium text-muted-foreground">
-                <FormattedMessage {...contentEditorUnicodePanelMessages.category} />
-              </p>
-              <div className="relative">
-                <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder={intl.formatMessage(
-                    contentEditorUnicodePanelMessages.searchPlaceholder,
-                  )}
-                  aria-label={intl.formatMessage(contentEditorUnicodePanelMessages.searchAria)}
-                  className="h-8 pl-8 text-xs"
-                />
-              </div>
-              {characters.length > 0 ? (
-                <div className="grid grid-cols-4 gap-0.5 sm:grid-cols-5">
-                  {characters.map((character) => (
-                    <UnicodeCharacterButton
-                      key={character.codePoint}
-                      character={character}
-                      disabled={!canInsert}
-                      onInsert={handleInsert}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="py-2 text-sm text-muted-foreground">
-                  <FormattedMessage
-                    {...contentEditorUnicodePanelMessages.emptySearch}
-                    values={{ query }}
-                  />
-                </p>
-              )}
-            </div>
+            <div className="border-t border-border px-3.5 py-3">{table}</div>
           </CollapsibleContent>
         </section>
       </Collapsible>

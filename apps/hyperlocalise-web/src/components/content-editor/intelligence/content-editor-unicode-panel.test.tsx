@@ -61,6 +61,19 @@ describe("ContentEditorUnicodePanel", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows the table immediately in the tab variant", () => {
+    renderWithContentEditorProviders(<ContentEditorUnicodePanel variant="tab" />);
+
+    expect(
+      screen.queryByRole("button", { name: "Show unicode characters" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Unicode table" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Search unicode symbols")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Insert NO-BREAK SPACE (U+00A0)" }),
+    ).toBeInTheDocument();
+  });
+
   it("disables insert when the translation is locked", async () => {
     const user = userEvent.setup();
     const onInsertCharacter = vi.fn();

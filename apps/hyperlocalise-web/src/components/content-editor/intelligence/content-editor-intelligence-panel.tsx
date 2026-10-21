@@ -989,7 +989,7 @@ export function ContentEditorIntelligencePanel({
               </PanelSection>
             ) : null}
 
-            {isContentEditorAssetContentKind(contentKind) ? null : (
+            {embedded || isContentEditorAssetContentKind(contentKind) ? null : (
               <ContentEditorUnicodePanel
                 canInsert={canEditTranslations && !isTranslationLocked}
                 onInsertCharacter={onInsertCharacter}

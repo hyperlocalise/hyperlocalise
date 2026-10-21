@@ -178,6 +178,7 @@ export const Default: Story = {
     ).toBeInTheDocument();
     await expect(canvas.queryByText(/AI recommendation/i)).not.toBeInTheDocument();
     await expect(canvas.getByRole("tab", { name: /Comments/i })).toHaveTextContent("2");
+    await expect(canvas.getByRole("tab", { name: "Unicode table" })).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("tab", { name: /QA checks/i }));
     await waitFor(() => expect(canvas.getByText(/Terminology consistency/i)).toBeInTheDocument(), {
       timeout: 3000,
@@ -199,6 +200,7 @@ export const Default: Story = {
       expect(canvas.getByRole("button", { name: /Treat as image/i })).toBeInTheDocument(),
     );
     await expect(canvas.getByText("https://placehold.co/640x360/png")).toBeInTheDocument();
+    await expect(canvas.queryByRole("tab", { name: "Unicode table" })).not.toBeInTheDocument();
   },
 };
 
