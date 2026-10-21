@@ -323,6 +323,20 @@ describe("reporting daily summary", () => {
       await save({ segment: "s1", text: "Hello world", locale: "fr-FR", on: "2026-06-08" });
       await check();
 
+      // A string finished automatically and later re-saved as a person's paid work, with no new
+      // completion: the day it was finished moves its words to payable.
+      await save({ segment: "s6", text: "Thank you", locale: "fr-FR", on: "2026-06-02" });
+      await finish({ segment: "s6", text: "Thank you", locale: "fr-FR", on: "2026-06-03" });
+      await check();
+      await save({
+        segment: "s6",
+        text: "Thank you",
+        locale: "fr-FR",
+        on: "2026-06-09",
+        billable: true,
+      });
+      await check();
+
       // A string whose words cannot be counted (an ICU message that does not parse).
       await save({
         segment: "s5",

@@ -111,7 +111,8 @@ export async function resolveReportingRate(
     )
     .orderBy(desc(schema.reportingRates.createdAt), desc(schema.reportingRates.id))
     .limit(1);
-  return rate ?? null;
+  // Rates are versioned rows: a line taken off the card is a newer, retired row.
+  return rate && !rate.retired ? rate : null;
 }
 
 type LoadedMemory = {
@@ -409,6 +410,7 @@ async function writeReportingAnalysis(
           set: { isCurrent: true, ...(input.billable ? { billable: true } : {}) },
         })
         .returning({
+          id: schema.reportingAnalyses.id,
           projectId: schema.reportingAnalyses.projectId,
           createdAt: schema.reportingAnalyses.createdAt,
           segmentId: schema.reportingAnalyses.segmentId,
@@ -416,6 +418,31 @@ async function writeReportingAnalysis(
           // An existing row keeps its original day; the write still changes that day.
           existed: sql<boolean>`xmax <> 0`,
         });
+      if (input.billable) {
+        // Turning an existing analysis billable moves its finished words to "payable" on the
+        // day it was finished, which may be another day than it arrived.
+        const existing = written.filter((row) => row.existed);
+        if (existing.length > 0) {
+          const finished = await tx
+            .select({
+              projectId: schema.reportingActivity.projectId,
+              createdAt: schema.reportingActivity.createdAt,
+            })
+            .from(schema.reportingActivity)
+            .where(
+              and(
+                eq(schema.reportingActivity.organizationId, input.organizationId),
+                inArray(
+                  schema.reportingActivity.operationKey,
+                  existing.map((row) => `completion:${row.id}:${step}`),
+                ),
+              ),
+            );
+          for (const row of finished) {
+            marks.push({ projectId: row.projectId, day: summaryDay(row.createdAt) });
+          }
+        }
+      }
       for (const row of [...superseded, ...written]) {
         marks.push({ projectId: row.projectId, day: summaryDay(row.createdAt) });
       }

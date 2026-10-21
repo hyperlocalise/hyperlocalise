@@ -151,7 +151,9 @@ export async function refreshSummaryDays(
           eq(schema.reportingSummaryQueue.projectId, projectId),
           inArray(schema.reportingSummaryQueue.day, days),
         ),
-      );
+      )
+      // Day order, as writers lock them, so a refresh and a write cannot deadlock.
+      .orderBy(asc(schema.reportingSummaryQueue.day));
     const dayList = sql`${`{${days.join(",")}}`}::date[]`;
     // The index covers the range from the first to the last day; the list then picks the
     // marked days inside it.
@@ -174,6 +176,7 @@ export async function refreshSummaryDays(
     // (a first import puts hundreds of thousands of strings on one day), which the planner's
     // estimates for a date range miss by orders of magnitude, and a plan made for one row that
     // meets thousands rereads a whole subquery for each.
+    await tx.execute(sql`drop table if exists reporting_summary_arrivals`);
     await tx.execute(sql`
       create temp table reporting_summary_arrivals on commit drop as
       select a.id, a.job_id, a.segment_id, a.source_revision, a.step, a.source_locale,
@@ -348,6 +351,20 @@ export async function refreshPendingSummary(
  * the first time Reports records anything for it.
  */
 export async function ensureSummaryBuilt(input: { organizationIds?: string[] } = {}) {
+  // A workspace with records from before the start was kept per workspace may not have written
+  // anything since; the capture task's own list of workspaces finds those it records saves for.
+  await db.execute(sql`
+    insert into reporting_workspaces (organization_id, started_at)
+    select c.organization_id, coalesce(least(
+      (select min(created_at) from reporting_analyses a where a.organization_id = c.organization_id),
+      (select min(created_at) from reporting_activity r where r.organization_id = c.organization_id)
+    ), c.started_at)
+    from reporting_capture_cursors c
+    where not exists (
+      select 1 from reporting_workspaces w where w.organization_id = c.organization_id
+    )
+    on conflict (organization_id) do nothing
+  `);
   const workspaces = await db
     .select({ organizationId: schema.reportingWorkspaces.organizationId })
     .from(schema.reportingWorkspaces)
@@ -376,6 +393,7 @@ export async function ensureSummaryBuilt(input: { organizationIds?: string[] } =
           select project_id, (created_at at time zone 'UTC')::date from reporting_activity
           where organization_id = ${organizationId} and kind = 'completion' and project_id is not null
         ) days
+        order by project_id, day
         on conflict (organization_id, project_id, day) do update
           set generation = reporting_summary_queue.generation + 1, marked_at = now()
       `);

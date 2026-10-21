@@ -366,7 +366,8 @@ export function createReportsRoutes() {
             rateId: rate?.id,
           })
           .returning();
-        if (rate?.basis !== "word" && taskRate?.overrideUsd == null)
+        // Logged time is priced only by an hourly rate; per-unit rates price finished work.
+        if ((!rate || rate.basis === "hour") && taskRate?.overrideUsd == null)
           await tx.insert(schema.reportingCosts).values({
             organizationId,
             projectId: job.projectId,
@@ -430,7 +431,7 @@ export function createReportsRoutes() {
           .update(schema.reportingTimeEntries)
           .set({ ...parsed.data, workDate })
           .where(eq(schema.reportingTimeEntries.id, entry.id));
-        if (rate?.basis !== "word")
+        if (!rate || rate.basis === "hour")
           await tx
             .update(schema.reportingCosts)
             .set({

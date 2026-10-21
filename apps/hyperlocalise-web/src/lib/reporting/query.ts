@@ -14,7 +14,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@/lib/database/client";
 import type { z } from "zod";
 import type { reportQuerySchema } from "@/api/routes/reports/reports.schema";
-import { getReportingStart } from "./reporting-start";
+import { reportingStart } from "./reporting-start";
 import { csvCell } from "./word-analysis";
 
 export type ReportQuery = z.infer<typeof reportQuerySchema>;
@@ -103,7 +103,9 @@ export async function queryReport(input: {
     `);
   const hasMore = pageSize !== null && result.rows.length > pageSize;
   const rows = hasMore ? result.rows.slice(0, pageSize!) : result.rows;
-  const startedAt = await getReportingStart(input.organizationId);
+  // Created here when nothing has recorded yet, so a workspace with older records (from before the
+  // start was kept per workspace) gets its start, and its visual workflow step times, at once.
+  const startedAt = await reportingStart(input.organizationId);
   const sourceCounts = await db.execute<{ sourceWords: number; workloadWords: number }>(sql`
     select coalesce(sum(words),0)::integer as "sourceWords",coalesce(sum(workload),0)::integer as "workloadWords" from (
       select job_id,segment_id,source_revision,max(words) as words,sum(words) as workload from reporting_analyses
@@ -136,7 +138,7 @@ export async function queryReport(input: {
     rows,
     page: query.page,
     hasMore,
-    startedAt: startedAt ? startedAt.toISOString() : null,
+    startedAt: startedAt.toISOString(),
     from,
     to,
     timezone: "UTC" as const,

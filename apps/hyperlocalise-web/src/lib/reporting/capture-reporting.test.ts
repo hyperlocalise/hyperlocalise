@@ -25,12 +25,14 @@ import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translat
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 import { captureAiUsage } from "./ai-cost";
+import { budgetSummary } from "./budgets";
 import {
   analysisScopeLockKey,
   captureAnalysis,
   captureCompletions,
   captureJobStatus,
   MemoryScoreCache,
+  resolveReportingRate,
   scoreAgainstMemory,
   sourceSimilarity,
 } from "./capture";
@@ -699,6 +701,98 @@ describe("reporting capture", () => {
       basis: "unpriced",
       inputTokens: 1200,
       outputTokens: 300,
+    });
+  });
+
+  it("treats a rate line taken off its card as no rate", async () => {
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    await db.insert(schema.reportingBudgets).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      budget: "1000.00000000",
+      rateCardName: "Standard",
+    });
+    const line = {
+      organizationId: organization.id,
+      name: "Standard",
+      sourceLocale: "en",
+      targetLocale: "fr-FR",
+      step: "translation" as const,
+      basis: "word" as const,
+      rate: "0.12000000",
+    };
+    await db.insert(schema.reportingRates).values({ ...line, createdAt: new Date("2026-01-01") });
+    const input = {
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en",
+      targetLocale: "fr-FR",
+      step: "translation" as const,
+    };
+    expect(await resolveReportingRate(input)).toMatchObject({ rate: "0.12000000" });
+    await db
+      .insert(schema.reportingRates)
+      .values({ ...line, retired: true, createdAt: new Date("2026-02-01") });
+    expect(await resolveReportingRate(input)).toBeNull();
+  });
+
+  it("forecasts a budget's unfinished per-character work and leaves AI out of its spend", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    await db.insert(schema.reportingBudgets).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      budget: "1000.00000000",
+      rateCardName: "Per character",
+    });
+    await db.insert(schema.reportingRates).values({
+      organizationId: organization.id,
+      name: "Per character",
+      sourceLocale: "en",
+      targetLocale: "ja-JP",
+      step: "translation",
+      basis: "character",
+      rate: "0.05000000",
+      percentages: { new: 100 },
+    });
+    const [job] = await db
+      .insert(schema.jobs)
+      .values({
+        id: `job_${randomUUID()}`,
+        organizationId: organization.id,
+        projectId: project.id,
+        createdByUserId: user.id,
+        kind: "translation",
+        status: "running",
+        workflowRunId: `run_${randomUUID()}`,
+        inputPayload: {},
+      })
+      .returning();
+    await captureAnalysis({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: job.id,
+      sourceLocale: "en",
+      targetLocale: "ja-JP",
+      sourceEntries: { greeting: "Hello world" },
+      billable: true,
+    });
+    await captureAiUsage({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: job.id,
+      invocationId: `usage_${randomUUID()}`,
+      provider: "openai",
+      model: "gpt-4o",
+      inputTokens: 100,
+      outputTokens: 40,
+    });
+
+    const [summary] = await budgetSummary(organization.id, [project.id]);
+    // "Hello world" still to translate: 10 characters at $0.05; the unpriced AI row is not spend.
+    expect(summary).toMatchObject({
+      accruedUsd: "0.00000000",
+      outstandingUsd: "0.50000000",
+      incomplete: false,
     });
   });
 });

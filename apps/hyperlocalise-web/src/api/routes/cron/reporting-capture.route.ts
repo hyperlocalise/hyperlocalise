@@ -53,8 +53,12 @@ export function createReportingCaptureRoutes() {
       signal: AbortSignal.timeout(CAPTURE_TIME_BUDGET_MS),
     });
     // Saves recorded above, and work recorded by jobs since the last run, reach the summary now.
+    // Capture's work is already saved, so a failed refresh is logged and retried next run.
     const summary = await refreshReportingSummary({
       signal: AbortSignal.timeout(Math.max(0, RUN_TIME_BUDGET_MS - (Date.now() - startedAt))),
+    }).catch((error: unknown) => {
+      logger.error({ error }, "reporting summary refresh failed");
+      return { error: "reporting_summary_refresh_failed" as const };
     });
     const results = { ...capture, summary };
     logger.info(results, "cron tick completed");

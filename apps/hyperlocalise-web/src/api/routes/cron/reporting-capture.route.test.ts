@@ -73,6 +73,19 @@ describe("reporting capture cron route", () => {
     expect(response.status).toBe(503);
   });
 
+  it("keeps the capture results when the summary refresh fails", async () => {
+    refreshReportingSummaryMock.mockRejectedValueOnce(new Error("refresh failed"));
+    const client = await createClient();
+    const response = await client.index.$get(
+      {},
+      { headers: { authorization: "Bearer cron-secret" } },
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      results: { eventsProcessed: 3, summary: { error: "reporting_summary_refresh_failed" } },
+    });
+  });
+
   it("records editor saves, then refreshes the summary, when authorized", async () => {
     const client = await createClient();
     const response = await client.index.$get(

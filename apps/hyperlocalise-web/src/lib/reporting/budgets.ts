@@ -30,16 +30,20 @@ export async function budgetSummary(organizationId: string, projectIds: string[]
     const costs = await db.execute<{ amount: string; unpriced: number }>(sql`
             select coalesce(sum(c.amount_usd),0)::text as amount, count(*) filter(where c.amount_usd is null)::integer as unpriced
             from reporting_costs c where c.organization_id=${organizationId} and c.project_id=${budget.projectId} and not c.voided
+              -- Reports no longer estimates AI prices; AI spend joins budgets from billing's charges.
+              and c.kind <> 'ai'
 
         `);
     const pending = await db.execute<{
       words: number | null;
+      characters: number | null;
+      charactersWithSpaces: number | null;
       bucket: typeof schema.reportingAnalyses.$inferSelect.bucket;
       rate: string | null;
       basis: string | null;
       percentages: Record<string, number> | null;
     }>(sql`
-            select a.words,a.bucket,r.rate,r.basis,r.percentages from reporting_analyses a left join reporting_rates r on r.id=a.rate_id join jobs j on j.id=a.job_id
+            select a.words,a.characters,a.characters_with_spaces as "charactersWithSpaces",a.bucket,r.rate,r.basis,r.percentages from reporting_analyses a left join reporting_rates r on r.id=a.rate_id join jobs j on j.id=a.job_id
             where a.organization_id=${organizationId} and a.project_id=${budget.projectId} and a.is_current and a.billable and j.status not in ('failed','cancelled')
             and not exists(select 1 from reporting_activity e where e.organization_id=a.organization_id and e.operation_key='completion:' || a.id || ':' || a.step)
             and not exists(select 1 from reporting_task_rates t where t.organization_id=a.organization_id and t.job_id=a.job_id and t.step=a.step and t.override_usd is not null)
@@ -48,11 +52,17 @@ export async function budgetSummary(organizationId: string, projectIds: string[]
       incomplete = costs.rows[0].unpriced > 0;
     for (const row of pending.rows) {
       if (row.basis === "hour") continue;
-      if (row.words === null || !row.rate || row.bucket === "unavailable") {
+      const units =
+        row.basis === "character"
+          ? row.characters
+          : row.basis === "character_with_spaces"
+            ? row.charactersWithSpaces
+            : row.words;
+      if (units === null || !row.rate || row.bucket === "unavailable") {
         incomplete = true;
         continue;
       }
-      outstanding += usdUnits(unitCost(row.rate, row.words, row.percentages?.[row.bucket] ?? 100));
+      outstanding += usdUnits(unitCost(row.rate, units, row.percentages?.[row.bucket] ?? 100));
     }
     const hours = await db.execute<{ estimated: number | null; logged: number; rate: string }>(sql`
             select t.estimated_minutes as estimated, coalesce((select sum(e.minutes) from reporting_time_entries e where e.job_id=a.job_id and e.step=r.step and not e.voided),0)::integer as logged, r.rate
