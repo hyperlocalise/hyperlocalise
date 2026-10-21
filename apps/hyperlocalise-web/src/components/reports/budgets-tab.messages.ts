@@ -148,6 +148,12 @@ export const budgetsTabMessages = defineMessages({
     defaultMessage: "Saving…",
     description: "Button text while saving",
   },
+  loadFailed: {
+    id: "T0nIeTVdtm",
+    defaultMessage:
+      "The budgets could not be loaded, so this cannot be saved. Close and try again.",
+    description: "Error in the set budget dialog when the existing budgets fail to load",
+  },
   saved: {
     id: "hWXCxydPO+",
     defaultMessage: "Budget saved.",

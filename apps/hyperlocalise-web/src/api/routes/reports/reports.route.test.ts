@@ -627,7 +627,7 @@ describe("reports routes", () => {
     });
   });
 
-  it("narrows budgets to one project, and never to a project the viewer cannot open", async () => {
+  it("narrows budgets to one project, and to none for a project the viewer has not got", async () => {
     const workspace = await reporting.createWorkspace();
     const { identity, organization, project, createProject } = workspace;
     const other = await createProject("Help centre");

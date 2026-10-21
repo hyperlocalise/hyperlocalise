@@ -109,12 +109,14 @@ export function SetBudgetDialog({
               label: project.name,
             }))}
             onChange={chooseProject}
+            disabled={!budgets.isSuccess}
           />
           <Field>
             <FieldLabel htmlFor={amountId}>{intl.formatMessage(messages.amount)}</FieldLabel>
             <Input
               id={amountId}
               inputMode="decimal"
+              disabled={!budgets.isSuccess}
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
             />
@@ -128,7 +130,13 @@ export function SetBudgetDialog({
               ...settings.rateCardNames.map((name) => ({ value: name, label: name })),
             ]}
             onChange={setRateCard}
+            disabled={!budgets.isSuccess}
           />
+          {budgets.isError ? (
+            <FieldError data-slot="field-error">
+              {intl.formatMessage(messages.loadFailed)}
+            </FieldError>
+          ) : null}
           {error ? <FieldError data-slot="field-error">{error}</FieldError> : null}
         </div>
         <DialogFooter>
