@@ -149,8 +149,9 @@ async function snapshotProjectTranslations(
 /**
  * Appends a revision for each saved translation whose text or status changed. The first time a
  * translation with no history changes, its earlier state is kept as a baseline revision so the
- * edit can be undone. Call it inside `writeProjectTranslations`. History never blocks a save:
- * the revisions are written in a savepoint, and a failure is logged and rolled back alone.
+ * edit can be undone. Call it inside `writeProjectTranslations`. A failure throws so the whole
+ * write rolls back: restore and undo treat the latest revision as the current value, so a
+ * translation change without its revision could be overwritten without a conflict.
  *
  * @returns the new revision id for each changed translation id.
  */
@@ -172,53 +173,51 @@ export async function recordProjectTranslationRevisions(
     return revisionIds;
   }
   try {
-    await tx.transaction(async (savepoint) => {
-      const existingIds = changed.filter((row) => input.before.has(row.id)).map((row) => row.id);
-      const withHistory = new Set<string>();
-      if (existingIds.length > 0) {
-        const rows = await savepoint
-          .selectDistinct({ translationId: schema.projectTranslationRevisions.translationId })
-          .from(schema.projectTranslationRevisions)
-          .where(inArray(schema.projectTranslationRevisions.translationId, existingIds));
-        for (const row of rows) withHistory.add(row.translationId);
-      }
-      const baselines = existingIds.flatMap((id) => {
-        const before = input.before.get(id);
-        if (!before || withHistory.has(id)) return [];
-        // A baseline belongs to no operation, so undoing the write that follows it (even a retry
-        // of the job that wrote the baseline's text) finds the baseline as the earlier state.
-        return [
-          {
-            ...revisionValues(before, revisionActorForProvenance(before.provenance)),
-            operationId: null,
-            createdAt: before.updatedAt,
-          },
-        ];
-      });
-      if (baselines.length > 0) {
-        await savepoint.insert(schema.projectTranslationRevisions).values(baselines);
-      }
-      const inserted = await savepoint
-        .insert(schema.projectTranslationRevisions)
-        .values(
-          changed.map((row) => ({
-            ...revisionValues(row, input.actor ?? revisionActorForProvenance(row.provenance)),
-            operationId: input.operationId ?? defaultOperationId(row),
-            createdAt: sql`clock_timestamp()`,
-          })),
-        )
-        .returning({
-          id: schema.projectTranslationRevisions.id,
-          translationId: schema.projectTranslationRevisions.translationId,
-        });
-      for (const row of inserted) revisionIds.set(row.translationId, row.id);
+    const existingIds = changed.filter((row) => input.before.has(row.id)).map((row) => row.id);
+    const withHistory = new Set<string>();
+    if (existingIds.length > 0) {
+      const rows = await tx
+        .selectDistinct({ translationId: schema.projectTranslationRevisions.translationId })
+        .from(schema.projectTranslationRevisions)
+        .where(inArray(schema.projectTranslationRevisions.translationId, existingIds));
+      for (const row of rows) withHistory.add(row.translationId);
+    }
+    const baselines = existingIds.flatMap((id) => {
+      const before = input.before.get(id);
+      if (!before || withHistory.has(id)) return [];
+      // A baseline belongs to no operation, so undoing the write that follows it (even a retry
+      // of the job that wrote the baseline's text) finds the baseline as the earlier state.
+      return [
+        {
+          ...revisionValues(before, revisionActorForProvenance(before.provenance)),
+          operationId: null,
+          createdAt: before.updatedAt,
+        },
+      ];
     });
+    if (baselines.length > 0) {
+      await tx.insert(schema.projectTranslationRevisions).values(baselines);
+    }
+    const inserted = await tx
+      .insert(schema.projectTranslationRevisions)
+      .values(
+        changed.map((row) => ({
+          ...revisionValues(row, input.actor ?? revisionActorForProvenance(row.provenance)),
+          operationId: input.operationId ?? defaultOperationId(row),
+          createdAt: sql`clock_timestamp()`,
+        })),
+      )
+      .returning({
+        id: schema.projectTranslationRevisions.id,
+        translationId: schema.projectTranslationRevisions.translationId,
+      });
+    for (const row of inserted) revisionIds.set(row.translationId, row.id);
   } catch (error) {
-    revisionIds.clear();
-    logger.warn(
+    logger.error(
       { error, translationCount: changed.length },
       "failed to record project translation revisions",
     );
+    throw error;
   }
   return revisionIds;
 }
