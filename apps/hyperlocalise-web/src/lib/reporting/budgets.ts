@@ -12,7 +12,7 @@
  */
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
-import { budgetWarning, usdUnits, usdString, wordCost, hourlyCost } from "./money";
+import { budgetWarning, usdUnits, usdString, unitCost, hourlyCost } from "./money";
 
 export async function budgetSummary(organizationId: string, projectIds: string[]) {
   if (!projectIds.length) return [];
@@ -52,7 +52,7 @@ export async function budgetSummary(organizationId: string, projectIds: string[]
         incomplete = true;
         continue;
       }
-      outstanding += usdUnits(wordCost(row.rate, row.words, row.percentages?.[row.bucket] ?? 100));
+      outstanding += usdUnits(unitCost(row.rate, row.words, row.percentages?.[row.bucket] ?? 100));
     }
     const hours = await db.execute<{ estimated: number | null; logged: number; rate: string }>(sql`
             select t.estimated_minutes as estimated, coalesce((select sum(e.minutes) from reporting_time_entries e where e.job_id=a.job_id and e.step=r.step and not e.voided),0)::integer as logged, r.rate

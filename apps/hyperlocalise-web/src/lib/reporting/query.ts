@@ -14,6 +14,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@/lib/database/client";
 import type { z } from "zod";
 import type { reportQuerySchema } from "@/api/routes/reports/reports.schema";
+import { getReportingStart } from "./reporting-start";
 import { csvCell } from "./word-analysis";
 
 export type ReportQuery = z.infer<typeof reportQuerySchema>;
@@ -72,7 +73,8 @@ export async function queryReport(input: {
             select n.organization_id,w.project_id,null,null,n.node_type,n.finished_at at time zone 'UTC',null,'workflow',0,0,
               (extract(epoch from (n.finished_at-n.started_at))*1000)::integer,null,0,0,0
             from visual_workflow_node_runs n join visual_workflow_runs r on r.id=n.run_id join visual_workflows w on w.id=r.visual_workflow_id
-            where n.organization_id=${input.organizationId} and n.started_at >= (select started_at from reporting_rollout where id=1)
+            where n.organization_id=${input.organizationId}
+              and n.started_at >= (select started_at from reporting_workspaces where organization_id=${input.organizationId})
               and n.finished_at >= ${start} and n.finished_at < ${end}
             union all
             select organization_id,project_id,job_id,target_locale,step,work_date at time zone 'UTC',null,'time',0,minutes,0,null,0,0,0 from reporting_time_entries
@@ -101,9 +103,7 @@ export async function queryReport(input: {
     `);
   const hasMore = pageSize !== null && result.rows.length > pageSize;
   const rows = hasMore ? result.rows.slice(0, pageSize!) : result.rows;
-  const rollout = await db.execute<{ startedAt: Date }>(
-    sql`select started_at as "startedAt" from reporting_rollout where id=1`,
-  );
+  const startedAt = await getReportingStart(input.organizationId);
   const sourceCounts = await db.execute<{ sourceWords: number; workloadWords: number }>(sql`
     select coalesce(sum(words),0)::integer as "sourceWords",coalesce(sum(workload),0)::integer as "workloadWords" from (
       select job_id,segment_id,source_revision,max(words) as words,sum(words) as workload from reporting_analyses
@@ -136,7 +136,7 @@ export async function queryReport(input: {
     rows,
     page: query.page,
     hasMore,
-    startedAt: rollout.rows[0] ? new Date(rollout.rows[0].startedAt).toISOString() : null,
+    startedAt: startedAt ? startedAt.toISOString() : null,
     from,
     to,
     timezone: "UTC" as const,

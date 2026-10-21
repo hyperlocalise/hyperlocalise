@@ -11,8 +11,14 @@
  * Version 2.0 or later.
  */
 import { describe, expect, it } from "vite-plus/test";
-import { countSourceWords, matchBucket, reportingPeriod, csvCell } from "./word-analysis";
-import { usdUnits, usdString, hourlyCost, wordCost, budgetWarning } from "./money";
+import {
+  countSourceCharacters,
+  countSourceWords,
+  matchBucket,
+  reportingPeriod,
+  csvCell,
+} from "./word-analysis";
+import { usdUnits, usdString, hourlyCost, unitCost, budgetWarning } from "./money";
 import { reportQuerySchema, rateSchema, timeSchema } from "@/api/routes/reports/reports.schema";
 
 describe("prospective translation accounting", () => {
@@ -40,15 +46,40 @@ describe("prospective translation accounting", () => {
     [null, "unavailable"],
     [101, "unavailable"],
   ] as const)("classifies %s", (score, expected) => expect(matchBucket(score)).toBe(expected));
+  it("counts characters as a reader sees them, with and without spaces", () => {
+    expect(countSourceCharacters("Hello world", "en")).toEqual({
+      withoutSpaces: 10,
+      withSpaces: 11,
+    });
+    expect(countSourceCharacters("日本語の翻訳を確認", "ja")).toEqual({
+      withoutSpaces: 9,
+      withSpaces: 9,
+    });
+    expect(countSourceCharacters("你好，世界", "zh")).toEqual({ withoutSpaces: 5, withSpaces: 5 });
+    // An emoji with a skin tone, and a letter with a combining accent, are one character each.
+    expect(countSourceCharacters("👍🏽 ok", "en")).toEqual({ withoutSpaces: 3, withSpaces: 4 });
+    expect(countSourceCharacters("e\u0301", "en")).toEqual({ withoutSpaces: 1, withSpaces: 1 });
+    // Tags, placeholders and arguments are not counted; every plural option is.
+    expect(countSourceCharacters("Hi {{name}} %s ${value}", "en")).toEqual({
+      withoutSpaces: 2,
+      withSpaces: 2,
+    });
+    expect(
+      countSourceCharacters("{count, plural, one {One file} other {Many files}}", "en"),
+    ).toEqual({ withoutSpaces: 16, withSpaces: 19 });
+    expect(countSourceCharacters("", "en")).toEqual({ withoutSpaces: 0, withSpaces: 0 });
+    expect(countSourceCharacters("{unclosed", "en")).toBeNull();
+  });
+
   it("gives repetitions precedence and never invents unavailable matches", () => {
     expect(matchBucket(100, true)).toBe("repetition");
     expect(matchBucket(null)).toBe("unavailable");
   });
   it("keeps decimal costs exact", () => {
     expect(usdString(usdUnits("0.10") + usdUnits("0.20"))).toBe("0.30000000");
-    expect(wordCost("0.12", 1000, 25)).toBe("30.00000000");
+    expect(unitCost("0.12", 1000, 25)).toBe("30.00000000");
     expect(hourlyCost("60", 15)).toBe("15.00000000");
-    expect(wordCost("0.00000001", 1)).toBe("0.00000001");
+    expect(unitCost("0.00000001", 1)).toBe("0.00000001");
     expect(() => usdUnits("-1")).toThrow();
   });
   it("warns at 80 and 100 percent without blocking work", () => {

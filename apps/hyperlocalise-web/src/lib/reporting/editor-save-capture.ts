@@ -22,6 +22,7 @@ import {
   prepareMemoryScores,
   recordAnalysis,
   recordCompletions,
+  reportingStart,
 } from "./capture";
 
 const logger = createLogger("reporting-editor-save-capture");
@@ -132,6 +133,7 @@ export async function captureEditorSaves(
         // Reports records work from when the task first sees a workspace with Reports on, so
         // earlier saves are not recorded as today's work. Later saves are read next run.
         await moveCursorTo(organizationId, cutoff);
+        await reportingStart(organizationId);
         result.organizationsStarted += 1;
         continue;
       }

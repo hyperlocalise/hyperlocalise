@@ -22,8 +22,9 @@ export function usdString(value: bigint): string {
   const absolute = value < BigInt(0) ? -value : value;
   return `${sign}${absolute / SCALE}.${String(absolute % SCALE).padStart(8, "0")}`;
 }
-export function wordCost(rate: string, words: number, payablePercent = 100): string {
-  return usdString((usdUnits(rate) * BigInt(words) * BigInt(payablePercent)) / BigInt(100));
+/** The cost of a number of units (words or characters) at a per-unit rate and payable share. */
+export function unitCost(rate: string, units: number, payablePercent = 100): string {
+  return usdString((usdUnits(rate) * BigInt(units) * BigInt(payablePercent)) / BigInt(100));
 }
 export function hourlyCost(rate: string, minutes: number): string {
   return usdString((usdUnits(rate) * BigInt(minutes) + BigInt(30)) / BigInt(60));

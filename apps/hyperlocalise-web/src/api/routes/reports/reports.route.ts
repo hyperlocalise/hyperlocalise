@@ -390,7 +390,7 @@ export function createReportsRoutes() {
         });
         return entry;
       });
-      await reportingStart();
+      await reportingStart(organizationId);
       return c.json({ timeEntry: { id: timeEntry.id } }, 201);
     })
     .patch("/time-entries/:id", async (c) => {

@@ -624,4 +624,81 @@ describe("reporting capture", () => {
       insertSpy.mockRestore();
     }
   });
+
+  it("prices a person's work in the rate's own unit", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    await db.insert(schema.reportingBudgets).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      budget: "1000.00000000",
+      rateCardName: "Per character",
+    });
+    await db.insert(schema.reportingRates).values({
+      organizationId: organization.id,
+      name: "Per character",
+      sourceLocale: "en",
+      targetLocale: "ja-JP",
+      step: "translation",
+      basis: "character",
+      rate: "0.05000000",
+      percentages: { new: 100 },
+    });
+    const sourceEntries = { greeting: "Hello world" };
+    await captureAnalysis({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en",
+      targetLocale: "ja-JP",
+      sourceEntries,
+      billable: true,
+    });
+    await captureCompletions({
+      organizationId: organization.id,
+      targetLocale: "ja-JP",
+      sourceEntries,
+      provenance: "human",
+      actorUserId: user.id,
+    });
+
+    const [cost] = await db
+      .select({ amountUsd: schema.reportingCosts.amountUsd, basis: schema.reportingCosts.basis })
+      .from(schema.reportingCosts)
+      .where(
+        and(
+          eq(schema.reportingCosts.organizationId, organization.id),
+          eq(schema.reportingCosts.kind, "human"),
+        ),
+      );
+    // "Hello world": 10 characters without spaces at $0.05.
+    expect(cost).toEqual({ amountUsd: "0.50000000", basis: "rate" });
+  });
+
+  it("records AI tokens without estimating a price", async () => {
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    const invocationId = `usage_${randomUUID()}`;
+    await captureAiUsage({
+      organizationId: organization.id,
+      projectId: project.id,
+      invocationId,
+      provider: "openai",
+      model: "gpt-4o",
+      inputTokens: 1200,
+      outputTokens: 300,
+    });
+    const [row] = await db
+      .select({
+        amountUsd: schema.reportingCosts.amountUsd,
+        basis: schema.reportingCosts.basis,
+        inputTokens: schema.reportingCosts.inputTokens,
+        outputTokens: schema.reportingCosts.outputTokens,
+      })
+      .from(schema.reportingCosts)
+      .where(eq(schema.reportingCosts.operationKey, `ai:${invocationId}`));
+    expect(row).toEqual({
+      amountUsd: null,
+      basis: "unpriced",
+      inputTokens: 1200,
+      outputTokens: 300,
+    });
+  });
 });

@@ -14,9 +14,13 @@ import { createHash } from "node:crypto";
 import { and, asc, eq, desc, gt, inArray, isNull, sql } from "drizzle-orm";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { listAttachedProjectMemoryIds } from "@/lib/memory/ensure-default-native-project-memory";
-import { countSourceWords, matchBucket } from "./word-analysis";
+import { countSourceCharacters, countSourceWords, matchBucket } from "./word-analysis";
 import { MemoryMatchIndex, MemorySourceScan, sourceSimilarity } from "./memory-match-index";
-import { wordCost } from "./money";
+import { unitCost } from "./money";
+import { markSummaryDays, refreshMarkedDays, summaryDay, type SummaryMark } from "./summary";
+import { reportingStart } from "./reporting-start";
+
+export { getReportingStart, reportingStart } from "./reporting-start";
 
 export { sourceSimilarity };
 
@@ -38,12 +42,6 @@ const MEMORY_INDEX_MIN_QUERIES = 4;
  * otherwise at most 99; candidates come from the in-memory bigram index on normalized text.
  */
 export const MATCH_ALGORITHM_VERSION = 3;
-
-export async function reportingStart(database: DatabaseClient = db) {
-  await database.insert(schema.reportingRollout).values({ id: 1 }).onConflictDoNothing();
-  const [rollout] = await database.select().from(schema.reportingRollout).limit(1);
-  return rollout.startedAt;
-}
 
 export async function isWorkspaceReportsCaptureEnabled(organizationId: string): Promise<boolean> {
   try {
@@ -244,7 +242,7 @@ type StrictWriteOptions = { strict?: boolean };
 
 export async function captureAnalysis(input: AnalysisInput) {
   try {
-    await writeReportingAnalysis(input);
+    await refreshMarkedDays(input.organizationId, await writeReportingAnalysis(input));
   } catch (error) {
     console.warn("reporting_analysis_failed", { jobId: input.jobId, error });
   }
@@ -258,14 +256,15 @@ export async function recordAnalysis(
   await writeReportingAnalysis(input, { ...options, strict: true });
 }
 
+/** Writes the analyses and returns the summary days they marked. */
 async function writeReportingAnalysis(
   input: AnalysisInput,
   options: StrictWriteOptions & { memoryCache?: MemoryScoreCache } = {},
-) {
+): Promise<SummaryMark[]> {
   if (!options.strict && !(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
-    return;
+    return [];
   }
-  await reportingStart();
+  await reportingStart(input.organizationId);
   if (input.jobId) {
     const [job] = await db
       .select({ id: schema.jobs.id })
@@ -279,7 +278,7 @@ async function writeReportingAnalysis(
           isNull(schema.externalJobDetails.jobId),
         ),
       );
-    if (!job) return;
+    if (!job) return [];
   }
   const step = input.step ?? "translation";
   const rate = await resolveReportingRate({ ...input, step });
@@ -310,7 +309,7 @@ async function writeReportingAnalysis(
     }
   }
   const revisionOf = (sourceText: string) => createHash("sha256").update(sourceText).digest("hex");
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     // One writer at a time per job (or, outside a job, project), language and step. Without it,
     // two captures of different source texts for one string can each mark the old row stale
     // before either new row exists, and both new rows stay current. Matching runs before this,
@@ -334,6 +333,7 @@ async function writeReportingAnalysis(
       const repetition = seen.has(normalized) || recordedEarlier.has(sourceRevision);
       seen.add(normalized);
       const score = memoryIds ? (scores.get(sourceText) ?? null) : null;
+      const characters = countSourceCharacters(sourceText, input.sourceLocale);
       return {
         organizationId: input.organizationId,
         projectId: input.projectId,
@@ -344,6 +344,8 @@ async function writeReportingAnalysis(
         sourceLocale: input.sourceLocale,
         targetLocale: input.targetLocale,
         words: countSourceWords(sourceText, input.sourceLocale),
+        characters: characters?.withoutSpaces ?? null,
+        charactersWithSpaces: characters?.withSpaces ?? null,
         billable: input.billable ?? false,
         matchScore: score,
         bucket: matchBucket(score, repetition),
@@ -352,16 +354,29 @@ async function writeReportingAnalysis(
         createdAt: input.occurredAt?.[segmentId],
       };
     });
+    const jobScope = input.jobId
+      ? eq(schema.reportingAnalyses.jobId, input.jobId)
+      : isNull(schema.reportingAnalyses.jobId);
+    const versions = (pairs: { segmentId: string; sourceRevision: string }[]) =>
+      sql.join(
+        pairs.map((pair) => sql`(${pair.segmentId}, ${pair.sourceRevision})`),
+        sql`, `,
+      );
+    const marks: SummaryMark[] = [];
+    // Versions whose earliest current analysis, the one their source counts sit on, may have
+    // moved: an old version that stopped being current here, a version current again, or one
+    // recorded at a past time (an editor save), which can now be the earliest.
+    const moved: { segmentId: string; sourceRevision: string }[] = [];
     for (let offset = 0; offset < rows.length; offset += REPORTING_BATCH_SIZE) {
       const batch = rows.slice(offset, offset + REPORTING_BATCH_SIZE);
-      await tx
+      // Only a current analysis of a different text stops being current: a re-save of the same
+      // text keeps its row as it is.
+      const superseded = await tx
         .update(schema.reportingAnalyses)
         .set({ isCurrent: false })
         .where(
           and(
-            input.jobId
-              ? eq(schema.reportingAnalyses.jobId, input.jobId)
-              : isNull(schema.reportingAnalyses.jobId),
+            jobScope,
             eq(schema.reportingAnalyses.organizationId, input.organizationId),
             inArray(
               schema.reportingAnalyses.segmentId,
@@ -369,9 +384,17 @@ async function writeReportingAnalysis(
             ),
             eq(schema.reportingAnalyses.targetLocale, input.targetLocale),
             eq(schema.reportingAnalyses.step, step),
+            eq(schema.reportingAnalyses.isCurrent, true),
+            sql`(${schema.reportingAnalyses.segmentId}, ${schema.reportingAnalyses.sourceRevision}) not in (${versions(batch)})`,
           ),
-        );
-      await tx
+        )
+        .returning({
+          projectId: schema.reportingAnalyses.projectId,
+          createdAt: schema.reportingAnalyses.createdAt,
+          segmentId: schema.reportingAnalyses.segmentId,
+          sourceRevision: schema.reportingAnalyses.sourceRevision,
+        });
+      const written = await tx
         .insert(schema.reportingAnalyses)
         .values(batch)
         .onConflictDoUpdate({
@@ -384,8 +407,42 @@ async function writeReportingAnalysis(
             schema.reportingAnalyses.step,
           ],
           set: { isCurrent: true, ...(input.billable ? { billable: true } : {}) },
+        })
+        .returning({
+          projectId: schema.reportingAnalyses.projectId,
+          createdAt: schema.reportingAnalyses.createdAt,
+          segmentId: schema.reportingAnalyses.segmentId,
+          sourceRevision: schema.reportingAnalyses.sourceRevision,
+          // An existing row keeps its original day; the write still changes that day.
+          existed: sql<boolean>`xmax <> 0`,
         });
+      for (const row of [...superseded, ...written]) {
+        marks.push({ projectId: row.projectId, day: summaryDay(row.createdAt) });
+      }
+      moved.push(...superseded);
+      moved.push(...written.filter((row) => row.existed || input.occurredAt));
     }
+    for (let offset = 0; offset < moved.length; offset += REPORTING_BATCH_SIZE) {
+      const others = await tx
+        .select({
+          projectId: schema.reportingAnalyses.projectId,
+          createdAt: schema.reportingAnalyses.createdAt,
+        })
+        .from(schema.reportingAnalyses)
+        .where(
+          and(
+            eq(schema.reportingAnalyses.organizationId, input.organizationId),
+            jobScope,
+            eq(schema.reportingAnalyses.step, step),
+            eq(schema.reportingAnalyses.isCurrent, true),
+            sql`(${schema.reportingAnalyses.segmentId}, ${schema.reportingAnalyses.sourceRevision}) in (${versions(moved.slice(offset, offset + REPORTING_BATCH_SIZE))})`,
+          ),
+        );
+      for (const row of others)
+        marks.push({ projectId: row.projectId, day: summaryDay(row.createdAt) });
+    }
+    await markSummaryDays(tx, input.organizationId, marks);
+    return marks;
   });
 }
 
@@ -469,7 +526,7 @@ type CompletionsInput = {
 
 export async function captureCompletions(input: CompletionsInput, database: DatabaseClient = db) {
   try {
-    await writeReportingCompletions(input, database);
+    await refreshMarkedDays(input.organizationId, await writeReportingCompletions(input, database));
   } catch (error) {
     console.warn("reporting_completions_failed", { jobId: input.jobId, error });
   }
@@ -480,17 +537,18 @@ export async function recordCompletions(input: CompletionsInput) {
   await writeReportingCompletions(input, db, { strict: true });
 }
 
+/** Writes the completions (and people's costs) and returns the summary days they marked. */
 async function writeReportingCompletions(
   input: CompletionsInput,
   database: DatabaseClient,
   options: StrictWriteOptions = {},
-) {
+): Promise<SummaryMark[]> {
   if (!options.strict && !(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
-    return;
+    return [];
   }
   const step = input.step ?? "translation";
   const segmentIds = Object.keys(input.sourceEntries);
-  if (segmentIds.length === 0) return;
+  if (segmentIds.length === 0) return [];
   const analyses = await database
     .select()
     .from(schema.reportingAnalyses)
@@ -506,16 +564,34 @@ async function writeReportingCompletions(
         inArray(schema.reportingAnalyses.segmentId, segmentIds),
       ),
     );
-  if (input.provenance === "automated") {
-    const rows = analyses
-      .filter((analysis) => {
-        const source = input.sourceEntries[analysis.segmentId];
-        return (
-          source !== undefined &&
-          createHash("sha256").update(source).digest("hex") === analysis.sourceRevision
-        );
-      })
-      .map((analysis) => ({
+  const finishedAnalyses = analyses.filter((analysis) => {
+    const source = input.sourceEntries[analysis.segmentId];
+    return (
+      source !== undefined &&
+      createHash("sha256").update(source).digest("hex") === analysis.sourceRevision
+    );
+  });
+  const analysisById = new Map(finishedAnalyses.map((analysis) => [analysis.id, analysis]));
+  const returnedCompletion = {
+    analysisId: schema.reportingActivity.analysisId,
+    projectId: schema.reportingActivity.projectId,
+    createdAt: schema.reportingActivity.createdAt,
+  };
+  return database.transaction(async (tx) => {
+    const marks: SummaryMark[] = [];
+    const markCompletion = (completion: {
+      analysisId: string | null;
+      projectId: string | null;
+      createdAt: Date;
+    }) => {
+      marks.push({ projectId: completion.projectId, day: summaryDay(completion.createdAt) });
+      // Finishing a string also changes what is done of the day it arrived on.
+      const analysis = completion.analysisId ? analysisById.get(completion.analysisId) : undefined;
+      if (analysis)
+        marks.push({ projectId: analysis.projectId, day: summaryDay(analysis.createdAt) });
+    };
+    if (input.provenance === "automated") {
+      const rows = finishedAnalyses.map((analysis) => ({
         organizationId: input.organizationId,
         projectId: analysis.projectId,
         jobId: input.jobId ?? null,
@@ -526,86 +602,92 @@ async function writeReportingCompletions(
         analysisId: analysis.id,
         createdAt: input.occurredAt?.[analysis.segmentId],
       }));
-    for (let offset = 0; offset < rows.length; offset += REPORTING_BATCH_SIZE) {
-      await database
+      for (let offset = 0; offset < rows.length; offset += REPORTING_BATCH_SIZE) {
+        const inserted = await tx
+          .insert(schema.reportingActivity)
+          .values(rows.slice(offset, offset + REPORTING_BATCH_SIZE))
+          .onConflictDoNothing()
+          .returning(returnedCompletion);
+        inserted.forEach(markCompletion);
+      }
+      await markSummaryDays(tx, input.organizationId, marks);
+      return marks;
+    }
+    for (const analysis of finishedAnalyses) {
+      const operationKey = `completion:${analysis.id}:${step}`;
+      const written = await tx
         .insert(schema.reportingActivity)
-        .values(rows.slice(offset, offset + REPORTING_BATCH_SIZE))
+        .values({
+          organizationId: input.organizationId,
+          projectId: analysis.projectId,
+          jobId: input.jobId ?? null,
+          operationKey,
+          kind: "completion",
+          step,
+          targetLocale: input.targetLocale,
+          analysisId: analysis.id,
+          actorUserId: input.actorUserId ?? null,
+          createdAt: input.occurredAt?.[analysis.segmentId],
+        })
+        // One completion per analysis and step: when a person finishes a string a job already
+        // completed (a post-edit), the person is added to that completion rather than dropped.
+        .onConflictDoUpdate({
+          target: [schema.reportingActivity.organizationId, schema.reportingActivity.operationKey],
+          set: { actorUserId: sql`excluded.actor_user_id` },
+          where: sql`${schema.reportingActivity.actorUserId} is null and excluded.actor_user_id is not null`,
+        })
+        .returning(returnedCompletion);
+      written.forEach(markCompletion);
+      if (input.provenance !== "human") continue;
+      if (input.jobId) {
+        const [taskRate] = await tx
+          .select()
+          .from(schema.reportingTaskRates)
+          .where(
+            and(
+              eq(schema.reportingTaskRates.jobId, input.jobId),
+              eq(schema.reportingTaskRates.step, step),
+            ),
+          );
+        if (taskRate?.overrideUsd !== null && taskRate?.overrideUsd !== undefined) continue;
+      }
+      const [rate] = analysis.rateId
+        ? await tx
+            .select()
+            .from(schema.reportingRates)
+            .where(eq(schema.reportingRates.id, analysis.rateId))
+        : [];
+      if (rate?.basis === "hour") continue;
+      // Priced in the rate's own unit, whatever unit a report later shows.
+      const units =
+        rate?.basis === "character"
+          ? analysis.characters
+          : rate?.basis === "character_with_spaces"
+            ? analysis.charactersWithSpaces
+            : analysis.words;
+      const priced = rate && units !== null && analysis.bucket !== "unavailable";
+      await tx
+        .insert(schema.reportingCosts)
+        .values({
+          organizationId: input.organizationId,
+          projectId: analysis.projectId,
+          jobId: input.jobId ?? null,
+          operationKey: `human:${analysis.id}:${step}`,
+          kind: "human",
+          step,
+          targetLocale: input.targetLocale,
+          rateId: rate?.id,
+          amountUsd: priced
+            ? unitCost(rate.rate, units, rate.percentages[analysis.bucket] ?? 100)
+            : null,
+          basis: priced ? "rate" : "unpriced",
+          createdAt: input.occurredAt?.[analysis.segmentId],
+        })
         .onConflictDoNothing();
     }
-    return;
-  }
-  for (const analysis of analyses) {
-    const source = input.sourceEntries[analysis.segmentId];
-    if (
-      source === undefined ||
-      createHash("sha256").update(source).digest("hex") !== analysis.sourceRevision
-    )
-      continue;
-    const operationKey = `completion:${analysis.id}:${step}`;
-    await database
-      .insert(schema.reportingActivity)
-      .values({
-        organizationId: input.organizationId,
-        projectId: analysis.projectId,
-        jobId: input.jobId ?? null,
-        operationKey,
-        kind: "completion",
-        step,
-        targetLocale: input.targetLocale,
-        analysisId: analysis.id,
-        actorUserId: input.actorUserId ?? null,
-        createdAt: input.occurredAt?.[analysis.segmentId],
-      })
-      // One completion per analysis and step: when a person finishes a string a job already
-      // completed (a post-edit), the person is added to that completion rather than dropped.
-      .onConflictDoUpdate({
-        target: [schema.reportingActivity.organizationId, schema.reportingActivity.operationKey],
-        set: { actorUserId: sql`excluded.actor_user_id` },
-        where: sql`${schema.reportingActivity.actorUserId} is null and excluded.actor_user_id is not null`,
-      });
-    if (input.provenance !== "human") continue;
-    if (input.jobId) {
-      const [taskRate] = await database
-        .select()
-        .from(schema.reportingTaskRates)
-        .where(
-          and(
-            eq(schema.reportingTaskRates.jobId, input.jobId),
-            eq(schema.reportingTaskRates.step, step),
-          ),
-        );
-      if (taskRate?.overrideUsd !== null && taskRate?.overrideUsd !== undefined) continue;
-    }
-    const [rate] = analysis.rateId
-      ? await database
-          .select()
-          .from(schema.reportingRates)
-          .where(eq(schema.reportingRates.id, analysis.rateId))
-      : [];
-    if (rate?.basis === "hour") continue;
-    await database
-      .insert(schema.reportingCosts)
-      .values({
-        organizationId: input.organizationId,
-        projectId: analysis.projectId,
-        jobId: input.jobId ?? null,
-        operationKey: `human:${analysis.id}:${step}`,
-        kind: "human",
-        step,
-        targetLocale: input.targetLocale,
-        rateId: rate?.id,
-        amountUsd:
-          rate && analysis.words !== null && analysis.bucket !== "unavailable"
-            ? wordCost(rate.rate, analysis.words, rate.percentages[analysis.bucket] ?? 100)
-            : null,
-        basis:
-          rate && analysis.words !== null && analysis.bucket !== "unavailable"
-            ? "rate"
-            : "unpriced",
-        createdAt: input.occurredAt?.[analysis.segmentId],
-      })
-      .onConflictDoNothing();
-  }
+    await markSummaryDays(tx, input.organizationId, marks);
+    return marks;
+  });
 }
 
 export async function captureJobStatus(input: {
@@ -636,7 +718,7 @@ async function writeJobStatus(input: {
     return;
   }
 
-  await reportingStart();
+  await reportingStart(ownedJob.organizationId);
   if (input.status === "succeeded") await captureTaskOverrides(input.jobId);
   const [job] = await db
     .select({
