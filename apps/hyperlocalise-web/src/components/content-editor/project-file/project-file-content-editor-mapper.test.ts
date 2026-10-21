@@ -101,6 +101,28 @@ describe("projectFileCatToWorkspaceState", () => {
     expect(state.selectedSegmentId).toBe("body");
   });
 
+  it("keeps Crowdin HTML strings whose key is missing", () => {
+    const state = projectFileCatToWorkspaceState(
+      contentEditorFile({
+        sourcePath: "home.html",
+        filename: "home.html",
+        segments: [
+          {
+            externalStringId: "1001",
+            key: null as unknown as string,
+            sourceText: "<p>Hello</p>",
+            context: null,
+            type: "text",
+          },
+        ],
+      }),
+      "en",
+      testIntl,
+    );
+
+    expect(state.queueSegments.map((segment) => segment.id)).toEqual(["1001"]);
+  });
+
   it("maps CAT content into workspace state without eager format checks", () => {
     const state = projectFileCatToWorkspaceState(contentEditorFile(), "en-GB", testIntl);
 
