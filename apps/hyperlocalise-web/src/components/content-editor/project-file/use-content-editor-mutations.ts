@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useRef, type MutableRefObject } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useIntl, type IntlShape } from "react-intl";
 
 import {
@@ -111,6 +111,22 @@ function chunkItems<T>(items: T[], size: number): T[][] {
     chunks.push(items.slice(index, index + size));
   }
   return chunks;
+}
+
+/** File-tree `isHidden` and per-file progress both change when strings are hidden. */
+function invalidateContentEditorFileMetadata(
+  queryClient: QueryClient,
+  organizationSlug: string,
+  projectId: string,
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: ["project-files", organizationSlug, projectId],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["project-file-progress", organizationSlug, projectId],
+    }),
+  ]);
 }
 
 function prefersGoSvcCat(input: {
@@ -875,7 +891,10 @@ export function useContentEditorMutations(input: {
       return { updatedCount, isHidden: mutationInput.isHidden };
     },
     onSuccess: async () => {
-      await input.invalidateQueue();
+      await Promise.all([
+        input.invalidateQueue(),
+        invalidateContentEditorFileMetadata(queryClient, input.organizationSlug, input.projectId),
+      ]);
     },
   });
 

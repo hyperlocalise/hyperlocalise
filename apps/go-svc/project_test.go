@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/stretchr/testify/require"
 )
@@ -87,6 +88,55 @@ func TestProjectRoutes(t *testing.T) {
 		rec := projectRequest(api, scope, scope.OrgPath("/projects/"+scope.ProjectID+"/files"))
 		require.Equal(t, http.StatusOK, rec.Code)
 		require.JSONEq(t, `{"files":[]}`, rec.Body.String())
+	})
+
+	t.Run("flags files whose strings are all hidden", func(t *testing.T) {
+		api, scope := projectTestAPI(t)
+		mustProjectFile := func(sourcePath string) string {
+			storedFileID := uuid.NewString()
+			_, err := scope.Pool.Exec(t.Context(), `
+                insert into stored_files (
+                    id, organization_id, project_id, role, source_kind,
+                    storage_provider, storage_key, storage_url, filename, content_type, byte_size, sha256
+                ) values ($1, $2, $3, 'source', 'repository_file', 'test', $1, $1, $4, 'application/json', 2, 'deadbeef')`,
+				storedFileID, scope.OrganizationID, scope.ProjectID, sourcePath)
+			require.NoError(t, err)
+			fileID := mustEditorCatSourceFile(t, scope, sourcePath)
+			_, err = scope.Pool.Exec(t.Context(), `
+                insert into repository_source_file_versions (repository_source_file_id, organization_id, project_id, source_path, stored_file_id)
+                values ($1, $2, $3, $4, $5)`,
+				fileID, scope.OrganizationID, scope.ProjectID, sourcePath, storedFileID)
+			require.NoError(t, err)
+			return fileID
+		}
+		hideKey := func(keyID string) {
+			_, err := scope.Pool.Exec(t.Context(), `update project_translation_keys set is_hidden=true where id=$1`, keyID)
+			require.NoError(t, err)
+		}
+
+		hiddenFileID := mustProjectFile("hidden.json")
+		hideKey(mustEditorCatKey(t, scope, hiddenFileID, "a", "A"))
+		hideKey(mustEditorCatKey(t, scope, hiddenFileID, "b", "B"))
+		mustEditorCatKey(t, scope, hiddenFileID, "fence", ":::")
+		mixedFileID := mustProjectFile("mixed.json")
+		hideKey(mustEditorCatKey(t, scope, mixedFileID, "a", "A"))
+		mustEditorCatKey(t, scope, mixedFileID, "b", "B")
+		mustProjectFile("empty.json")
+
+		rec := projectRequest(api, scope, scope.OrgPath("/projects/"+scope.ProjectID+"/files"))
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		var body struct {
+			Files []struct {
+				SourcePath string `json:"sourcePath"`
+				IsHidden   bool   `json:"isHidden"`
+			} `json:"files"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		hiddenByPath := map[string]bool{}
+		for _, file := range body.Files {
+			hiddenByPath[file.SourcePath] = file.IsHidden
+		}
+		require.Equal(t, map[string]bool{"empty.json": false, "hidden.json": true, "mixed.json": false}, hiddenByPath)
 	})
 
 	t.Run("applies native file filters and pagination in SQL", func(t *testing.T) {

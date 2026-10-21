@@ -25,4 +25,16 @@ export const contentEditorFilesSidebarMessages = defineMessages({
     id: "5Kkn3le6n+",
     description: "Accessible label for the source files tree in the content editor sidebar",
   },
+  hideHiddenFiles: {
+    defaultMessage: "Hide hidden files",
+    id: "evNuXp5plG",
+    description:
+      "Content editor file sidebar button that hides files whose strings are all hidden from translators",
+  },
+  showHiddenFiles: {
+    defaultMessage: "Show hidden files",
+    id: "ETBYkoWGcl",
+    description:
+      "Content editor file sidebar button that shows files whose strings are all hidden from translators",
+  },
 });

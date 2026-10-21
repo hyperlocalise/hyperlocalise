@@ -13,6 +13,7 @@
 // @vitest-environment happy-dom
 
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { QueryClient } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 import {
@@ -119,9 +120,19 @@ const onTranslationSaved = vi.fn();
 
 syncSegmentTargetAfterSaveMock.mockResolvedValue(undefined);
 
+function createMutationTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+}
+
 function renderCatMutations(
   contentEditorFile = createCatFileResponse().contentEditorFile,
   goSvcClient?: GoSvcClient,
+  queryClient?: QueryClient,
 ) {
   return renderHook(
     () =>
@@ -132,8 +143,31 @@ function renderCatMutations(
         onTranslationSaved,
         goSvcClient,
       }),
-    { wrapper: ContentEditorTestProviders },
+    {
+      wrapper: ({ children }) => (
+        <ContentEditorTestProviders queryClient={queryClient}>
+          {children}
+        </ContentEditorTestProviders>
+      ),
+    },
   );
+}
+
+function expectFileMetadataInvalidated(invalidateQueries: { mock: { calls: unknown[][] } }) {
+  expect(invalidateQueries).toHaveBeenCalledWith({
+    queryKey: [
+      "project-files",
+      contentEditorApiTestContext.organizationSlug,
+      contentEditorApiTestContext.projectId,
+    ],
+  });
+  expect(invalidateQueries).toHaveBeenCalledWith({
+    queryKey: [
+      "project-file-progress",
+      contentEditorApiTestContext.organizationSlug,
+      contentEditorApiTestContext.projectId,
+    ],
+  });
 }
 
 afterEach(() => {
@@ -489,12 +523,14 @@ describe("useContentEditorMutations", () => {
     expect(invalidateSegmentCommentsMock).toHaveBeenCalled();
   });
 
-  it("hides strings and invalidates the queue on success", async () => {
+  it("hides strings and invalidates the queue and file metadata on success", async () => {
     contentEditorStringsHiddenPostMock.mockResolvedValue(
       jsonResponse({ updatedCount: 2, isHidden: true }),
     );
+    const queryClient = createMutationTestQueryClient();
+    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
 
-    const { result } = renderCatMutations();
+    const { result } = renderCatMutations(undefined, undefined, queryClient);
 
     await act(async () => {
       const saved = await result.current.setStringsHidden({
@@ -514,6 +550,7 @@ describe("useContentEditorMutations", () => {
       }),
     );
     expect(invalidateQueue).toHaveBeenCalled();
+    expectFileMetadataInvalidated(invalidateQueries);
   });
 
   it("locks strings and invalidates the queue on success", async () => {
@@ -552,8 +589,10 @@ describe("useContentEditorMutations", () => {
         400,
       ),
     );
+    const queryClient = createMutationTestQueryClient();
+    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
 
-    const { result } = renderCatMutations();
+    const { result } = renderCatMutations(undefined, undefined, queryClient);
 
     await expect(
       result.current.setStringsHidden({
@@ -562,6 +601,7 @@ describe("useContentEditorMutations", () => {
       }),
     ).rejects.toThrow("Crowdin did not allow updating hidden strings.");
     expect(invalidateQueue).not.toHaveBeenCalled();
+    expect(invalidateQueries).not.toHaveBeenCalled();
   });
 
   it("omits externalResourceId for native projects without a provider", async () => {
@@ -633,16 +673,18 @@ describe("useContentEditorMutations", () => {
     await waitFor(() => expect(result.current.isSaving).toBe(false));
   });
 
-  it("hides native source strings and invalidates the queue", async () => {
+  it("hides native source strings and invalidates the queue and file metadata", async () => {
     contentEditorStringsHiddenPostMock.mockResolvedValue(
       jsonResponse({ updatedCount: 2, isHidden: true }),
     );
+    const queryClient = createMutationTestQueryClient();
+    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
 
     const nativeFile = {
       ...createCatFileResponse().contentEditorFile,
       provider: null,
     };
-    const { result } = renderCatMutations(nativeFile);
+    const { result } = renderCatMutations(nativeFile, undefined, queryClient);
 
     await act(async () => {
       const response = await result.current.setStringsHidden({
@@ -662,6 +704,7 @@ describe("useContentEditorMutations", () => {
       }),
     );
     expect(invalidateQueue).toHaveBeenCalled();
+    expectFileMetadataInvalidated(invalidateQueries);
   });
 
   it("chunks hidden-string updates to the native batch limit", async () => {

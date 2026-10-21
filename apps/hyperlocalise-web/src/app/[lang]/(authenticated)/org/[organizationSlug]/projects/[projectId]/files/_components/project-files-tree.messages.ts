@@ -40,4 +40,26 @@ export const projectFilesTreeMessages = defineMessages({
     id: "7mOZ9ibLkT",
     description: "Status badge when a native project file has no latest job",
   },
+  hidden: {
+    defaultMessage: "Hidden",
+    id: "5My8WoUYP+",
+    description: "Files tree marker for a file whose strings are all hidden from translators",
+  },
+  hiddenTitle: {
+    defaultMessage: "All strings in this file are hidden from translators",
+    id: "EYc+zrfrbQ",
+    description: "Tooltip for the hidden marker in the files tree",
+  },
+  progressTitle: {
+    defaultMessage:
+      "Translated {translated}% · Approved {approved}% · {total, plural, one {# string} other {# strings}}",
+    id: "Dzv9fpgY9X",
+    description:
+      "Tooltip for the translated and approved percentages shown next to a file in the files tree",
+  },
+  progressEmptyTitle: {
+    defaultMessage: "No strings to translate",
+    id: "v+LCGPo8P8",
+    description: "Tooltip for a file with no translatable strings in the files tree",
+  },
 });

@@ -17,6 +17,7 @@ import { observer } from "mobx-react-lite";
 import { Fragment, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { hasHiddenContentEditorFiles } from "@/components/content-editor/files/content-editor-visible-files";
 import { useContentEditorGrouping } from "@/components/content-editor/groups/content-editor-grouping-context";
 import { groupMessages } from "@/components/content-editor/groups/content-editor-groups.messages";
 import { contentEditorViewMenuMessages as messages } from "@/components/content-editor/shared/content-editor-chrome.messages";
@@ -179,6 +180,25 @@ export const ContentEditorViewMenu = observer(function ContentEditorViewMenu({
               <FormattedMessage {...groupMessages.projectDefault} />
             </DropdownMenuItem>
           ) : null}
+        </DropdownMenuGroup>
+      ),
+    });
+  }
+
+  if (store?.page.showFileSidebar && hasHiddenContentEditorFiles(store.page.files)) {
+    sections.push({
+      id: "files",
+      content: (
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>
+            <FormattedMessage {...messages.filesLabel} />
+          </DropdownMenuLabel>
+          <DropdownMenuCheckboxItem
+            checked={!store.ui.hiddenFilesHidden}
+            onCheckedChange={(checked) => store.ui.setHiddenFilesHidden(!checked)}
+          >
+            <FormattedMessage {...messages.showHiddenFiles} />
+          </DropdownMenuCheckboxItem>
         </DropdownMenuGroup>
       ),
     });

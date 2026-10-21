@@ -18,8 +18,12 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import type {
+  ProjectFileProgressRecord,
+  ProjectFileRecord,
+} from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
+import { apiClient } from "@/lib/api-client-instance";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
@@ -102,12 +106,17 @@ export async function fetchProjectFiles(
   limit: number = PROJECT_FILES_PAGE_SIZE,
   branch?: string | null,
   loadFailedMessage = "Failed to load project files",
+  options?: { includeHidden?: boolean },
 ) {
   const trimmedBranch = branch?.trim();
   if (parseProviderProjectId(projectId)) {
     const params = new URLSearchParams({ limit: String(limit) });
     if (trimmedBranch) {
       params.set("branch", trimmedBranch);
+    }
+    // Native files always carry `isHidden`; TMS files only resolve it on request.
+    if (options?.includeHidden) {
+      params.set("includeHidden", "true");
     }
 
     const response = await fetch(`${apiPath(organizationSlug, projectId)}?${params.toString()}`, {
@@ -131,6 +140,39 @@ export async function fetchProjectFiles(
   } catch (error) {
     throw new Error(goSvcErrorMessage(error, loadFailedMessage), { cause: error });
   }
+}
+
+export function projectFileProgressQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  locale: string,
+) {
+  return ["project-file-progress", organizationSlug, projectId, locale] as const;
+}
+
+/** Per-file progress for one locale. Native projects read go-svc; TMS projects read Hono. */
+export async function fetchProjectFileProgress(
+  goSvcClient: GoSvcClient,
+  organizationSlug: string,
+  projectId: string,
+  locale: string,
+): Promise<ProjectFileProgressRecord[]> {
+  if (parseProviderProjectId(projectId)) {
+    const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+      "file-progress"
+    ].$get({
+      param: { organizationSlug, projectId },
+      query: { locale },
+    });
+    if (!response.ok) {
+      throw await readApiResponseError(response, "Failed to load file progress");
+    }
+    const body = await response.json();
+    return "files" in body ? body.files : [];
+  }
+
+  const body = await goSvcClient.project.fileProgress(organizationSlug, projectId, locale);
+  return body.files;
 }
 
 function apiPath(organizationSlug: string, projectId: string) {

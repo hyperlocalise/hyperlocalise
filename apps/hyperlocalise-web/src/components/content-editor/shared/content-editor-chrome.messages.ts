@@ -60,6 +60,17 @@ export const contentEditorViewMenuMessages = defineMessages({
     id: "qbyieDePtF",
     description: "View menu toggle that shows or hides the string details panel",
   },
+  filesLabel: {
+    defaultMessage: "Files",
+    id: "tzsKa8xL6Z",
+    description: "View menu section label for file list options",
+  },
+  showHiddenFiles: {
+    defaultMessage: "Show hidden files",
+    id: "eGiW70wkpJ",
+    description:
+      "View menu toggle that shows or hides files whose strings are all hidden from translators",
+  },
 });
 
 export const contentEditorOverflowMenuMessages = defineMessages({

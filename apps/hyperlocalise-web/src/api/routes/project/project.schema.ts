@@ -231,6 +231,8 @@ export const projectFileRecordSchema = z.object({
     })
     .nullable(),
   localeReadiness: z.record(z.string(), z.unknown()).optional(),
+  /** Every string in the file is hidden from translators (Crowdin-style hidden file). */
+  isHidden: z.boolean().optional(),
 });
 
 export const projectFileTranslationDownloadQuerySchema = z.object({
@@ -259,6 +261,32 @@ export const projectFilesQuerySchema = z.object({
   syncState: z.string().trim().max(64).optional(),
   branch: z.string().trim().min(1).max(256).optional(),
   projectId: optionalProjectIdSchema,
+  /** Resolve `isHidden` for connected TMS files. Costs extra provider requests. */
+  includeHidden: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
+});
+
+export const projectFileProgressQuerySchema = z.object({
+  locale: z.string().trim().min(1).max(32),
+});
+
+/** Per-file progress for one target locale. Native rows key on `sourcePath`, TMS rows on `externalResourceId`. */
+export const projectFileProgressRecordSchema = z.object({
+  sourcePath: z.string().optional(),
+  externalResourceId: z.string().optional(),
+  translationProgress: z.number(),
+  approvalProgress: z.number(),
+  phrases: z.object({
+    total: z.number(),
+    translated: z.number(),
+    approved: z.number(),
+  }),
+});
+
+export const projectFileProgressResponseSchema = z.object({
+  files: z.array(projectFileProgressRecordSchema),
 });
 
 export const projectProviderBranchesResponseSchema = z.object({
@@ -1129,6 +1157,7 @@ export type ProjectFileRecord = z.infer<typeof projectFileRecordSchema>;
 export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;
 export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectProviderBranchesResponse = z.infer<typeof projectProviderBranchesResponseSchema>;
+export type ProjectFileProgressRecord = z.infer<typeof projectFileProgressRecordSchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileContentEditorQuery = z.infer<typeof projectFileCatQuerySchema>;
 export type ProjectFileContentEditorActivityLogQuery = z.infer<

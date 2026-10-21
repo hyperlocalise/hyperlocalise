@@ -484,6 +484,10 @@ export interface CrowdinLanguageProgress {
   approvalProgress: number;
 }
 
+export interface CrowdinFileProgress extends Omit<CrowdinLanguageProgress, "languageId"> {
+  fileId: number;
+}
+
 export interface CrowdinTaskDetails extends CrowdinTask {
   stringIds?: number[] | null;
 }
@@ -2252,6 +2256,22 @@ export class CrowdinApiClient {
     return this.listTranslationProgress(
       `/projects/${projectId}/files/${fileId}/languages/progress`,
       options,
+    );
+  }
+
+  /**
+   * Get translation progress for every file in one target language.
+   * Rows for branches and directories are dropped.
+   */
+  async listLanguageFileProgress(
+    projectId: number,
+    languageId: string,
+  ): Promise<CrowdinFileProgress[]> {
+    const rows = await this.listPaginated<
+      Omit<CrowdinFileProgress, "fileId"> & { fileId?: number }
+    >(`/projects/${projectId}/languages/${encodeURIComponent(languageId)}/progress`);
+    return rows.flatMap((row) =>
+      typeof row.fileId === "number" ? [row as CrowdinFileProgress] : [],
     );
   }
 
