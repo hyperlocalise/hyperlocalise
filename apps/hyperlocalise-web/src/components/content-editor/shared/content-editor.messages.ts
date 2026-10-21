@@ -1416,6 +1416,11 @@ export const contentEditorPanelErrorBoundaryMessages = defineMessages({
     id: "W5kKZQXtt1",
     description: "Error boundary title when the CAT intelligence panel crashes",
   },
+  filesPanelTitle: {
+    defaultMessage: "Files panel failed to load",
+    id: "Ix5lU5trmn",
+    description: "Error boundary title when the Content Editor files sidebar crashes",
+  },
   workspaceTitle: {
     defaultMessage: "Content Editor failed to load",
     id: "X8XWn3q89C",
@@ -1431,6 +1436,11 @@ export const contentEditorPanelErrorBoundaryMessages = defineMessages({
     defaultMessage: "Try again",
     id: "27qrEmB3yO",
     description: "Button label to retry rendering a crashed CAT panel",
+  },
+  sectionDescription: {
+    defaultMessage: "This section couldn't load. The rest of the editor still works.",
+    id: "+Si+Oa4YaR",
+    description: "Inline error shown when one section inside a CAT panel crashes",
   },
 });
 

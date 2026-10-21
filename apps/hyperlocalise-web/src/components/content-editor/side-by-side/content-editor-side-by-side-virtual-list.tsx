@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { isContentEditorImageGenerating } from "@/components/content-editor/project-file/content-editor-image-generation-state";
 import { cn } from "@/lib/primitives/cn";
+import { ContentEditorSectionErrorBoundary } from "@/components/content-editor/workspace/content-editor-section-error-boundary";
 
 import type {
   ContentEditorFormatCheck,
@@ -220,71 +221,77 @@ export function ContentEditorSideBySideVirtualList({
               className="absolute top-0 left-0 w-full"
               style={{ transform: `translateY(${virtualRow.start}px)` }}
             >
-              <ContentEditorSideBySideRow
-                segment={segment}
-                isFocused={segment.id === focusedSegmentId}
-                isDirty={dirtySegmentIds?.has(segment.id) ?? false}
-                canEdit={canEdit}
-                isTargetLoading={loadingSegmentIds?.has(segment.id) ?? false}
-                isApproving={isApproving && segment.id === focusedSegmentId}
-                isSavingDraft={isSavingDraft && segment.id === focusedSegmentId}
-                isPostingComment={isPostingComment}
-                isLookingUpContext={isLookingUpContext}
-                isAiSuggestionLoading={isAiSuggestionLoading && segment.id === focusedSegmentId}
-                isFormatChecksLoading={
-                  (formatCheckLoadingSegmentIds?.has(segment.id) ?? false) ||
-                  (isFormatChecksLoading && segment.id === focusedSegmentId)
-                }
-                isImageBusy={isImageBusy && segment.id === focusedSegmentId}
-                isImageGenerating={isContentEditorImageGenerating({
-                  isPending: isImageGenerating,
-                  pendingExternalStringId: generatingImageSegmentId,
-                  targetLocale: segment.targetLocale,
-                  externalStringId: segment.id,
-                })}
-                canUseAiRecommendation={canUseAiRecommendation}
-                intelligence={segment.id === focusedSegmentId ? focusedIntelligence : null}
-                aiRecommendationError={
-                  segment.id === focusedSegmentId ? aiRecommendationError : undefined
-                }
-                formatChecks={
-                  segmentFormatChecks?.[segment.id] ??
-                  (segment.id === focusedSegmentId ? formatChecks : [])
-                }
-                primaryActionLabel={primaryActionLabel}
-                segmentShareUrl={segment.id === focusedSegmentId ? segmentShareUrl : null}
-                onFocus={() => onFocusSegment(segment.id)}
-                onTargetChange={(value) => onTargetChange(segment.id, value)}
-                onApprove={onApprove ? () => onApprove(segment.id) : undefined}
-                onSaveDraft={onSaveDraft ? () => onSaveDraft(segment.id) : undefined}
-                onAddToIssueSheet={
-                  onAddToIssueSheet ? () => onAddToIssueSheet(segment.id) : undefined
-                }
-                onUseAiSuggestion={
-                  onUseAiSuggestion ? () => onUseAiSuggestion(segment.id) : undefined
-                }
-                onGenerateAiRecommendation={
-                  onGenerateAiRecommendation
-                    ? () => onGenerateAiRecommendation(segment.id)
-                    : undefined
-                }
-                onTreatAsImage={
-                  onTreatAsImage
-                    ? (treatAsImage) => onTreatAsImage(segment.id, treatAsImage)
-                    : undefined
-                }
-                onTreatAsVideo={
-                  onTreatAsVideo
-                    ? (treatAsVideo) => onTreatAsVideo(segment.id, treatAsVideo)
-                    : undefined
-                }
-                onRegenerateImage={
-                  onRegenerateImage ? () => onRegenerateImage(segment.id) : undefined
-                }
-                onUploadImage={
-                  onUploadImage ? (file) => onUploadImage(segment.id, file) : undefined
-                }
-              />
+              <ContentEditorSectionErrorBoundary
+                section="sideBySide.row"
+                className="mx-4 my-2"
+                resetKeys={[segment.id, segment.targetText]}
+              >
+                <ContentEditorSideBySideRow
+                  segment={segment}
+                  isFocused={segment.id === focusedSegmentId}
+                  isDirty={dirtySegmentIds?.has(segment.id) ?? false}
+                  canEdit={canEdit}
+                  isTargetLoading={loadingSegmentIds?.has(segment.id) ?? false}
+                  isApproving={isApproving && segment.id === focusedSegmentId}
+                  isSavingDraft={isSavingDraft && segment.id === focusedSegmentId}
+                  isPostingComment={isPostingComment}
+                  isLookingUpContext={isLookingUpContext}
+                  isAiSuggestionLoading={isAiSuggestionLoading && segment.id === focusedSegmentId}
+                  isFormatChecksLoading={
+                    (formatCheckLoadingSegmentIds?.has(segment.id) ?? false) ||
+                    (isFormatChecksLoading && segment.id === focusedSegmentId)
+                  }
+                  isImageBusy={isImageBusy && segment.id === focusedSegmentId}
+                  isImageGenerating={isContentEditorImageGenerating({
+                    isPending: isImageGenerating,
+                    pendingExternalStringId: generatingImageSegmentId,
+                    targetLocale: segment.targetLocale,
+                    externalStringId: segment.id,
+                  })}
+                  canUseAiRecommendation={canUseAiRecommendation}
+                  intelligence={segment.id === focusedSegmentId ? focusedIntelligence : null}
+                  aiRecommendationError={
+                    segment.id === focusedSegmentId ? aiRecommendationError : undefined
+                  }
+                  formatChecks={
+                    segmentFormatChecks?.[segment.id] ??
+                    (segment.id === focusedSegmentId ? formatChecks : [])
+                  }
+                  primaryActionLabel={primaryActionLabel}
+                  segmentShareUrl={segment.id === focusedSegmentId ? segmentShareUrl : null}
+                  onFocus={() => onFocusSegment(segment.id)}
+                  onTargetChange={(value) => onTargetChange(segment.id, value)}
+                  onApprove={onApprove ? () => onApprove(segment.id) : undefined}
+                  onSaveDraft={onSaveDraft ? () => onSaveDraft(segment.id) : undefined}
+                  onAddToIssueSheet={
+                    onAddToIssueSheet ? () => onAddToIssueSheet(segment.id) : undefined
+                  }
+                  onUseAiSuggestion={
+                    onUseAiSuggestion ? () => onUseAiSuggestion(segment.id) : undefined
+                  }
+                  onGenerateAiRecommendation={
+                    onGenerateAiRecommendation
+                      ? () => onGenerateAiRecommendation(segment.id)
+                      : undefined
+                  }
+                  onTreatAsImage={
+                    onTreatAsImage
+                      ? (treatAsImage) => onTreatAsImage(segment.id, treatAsImage)
+                      : undefined
+                  }
+                  onTreatAsVideo={
+                    onTreatAsVideo
+                      ? (treatAsVideo) => onTreatAsVideo(segment.id, treatAsVideo)
+                      : undefined
+                  }
+                  onRegenerateImage={
+                    onRegenerateImage ? () => onRegenerateImage(segment.id) : undefined
+                  }
+                  onUploadImage={
+                    onUploadImage ? (file) => onUploadImage(segment.id, file) : undefined
+                  }
+                />
+              </ContentEditorSectionErrorBoundary>
             </div>
           );
         })}
