@@ -103,6 +103,7 @@ import { useVisualWorkflowResourceOptions } from "./visual-workflow-resource-opt
 import { deriveReusableWorkflowContract } from "@/lib/visual-workflows/validation/subworkflow-validation";
 
 const ANY_PROJECT_VALUE = "__any_project__";
+const UNASSIGNED_VALUE = "__unassigned__";
 const CONTENT_SYNC_PROVIDERS: ContentSyncProvider[] = [
   "github",
   "gitlab",
@@ -2011,6 +2012,251 @@ export function VisualWorkflowConfigPanel({
             organizationSlug={organizationSlug}
             onChangeConfig={onChangeConfig}
           />
+        ) : null}
+        {config.kind === "action.machine_translate" ||
+        config.kind === "action.create_task" ||
+        config.kind === "action.check_progress" ||
+        config.kind === "action.run_qa" ? (
+          <TextField
+            id="vw-localization-project"
+            label={intl.formatMessage(messages.localizationProjectId)}
+            value={config.projectId}
+            {...connectedInputProps("projectId")}
+            onChange={(value) => onChangeConfig({ ...config, projectId: value })}
+            placeholder="{{ trigger.projectId }}"
+          />
+        ) : null}
+        {config.kind === "action.machine_translate" ||
+        config.kind === "action.create_task" ||
+        config.kind === "action.check_progress" ? (
+          <>
+            <TextField
+              id="vw-localization-source-file"
+              label={intl.formatMessage(
+                config.kind === "action.check_progress"
+                  ? messages.localizationSourceFileIdOptional
+                  : messages.localizationSourceFileId,
+              )}
+              value={config.sourceFileId}
+              {...connectedInputProps("sourceFileId")}
+              onChange={(value) => onChangeConfig({ ...config, sourceFileId: value })}
+              placeholder="{{ trigger.sourceFileId }}"
+            />
+            <TextField
+              id="vw-localization-target-locales"
+              label={intl.formatMessage(messages.localizationTargetLocales)}
+              description={intl.formatMessage(messages.localizationTargetLocalesHint)}
+              value={config.targetLocales}
+              {...connectedInputProps("targetLocales")}
+              onChange={(value) => onChangeConfig({ ...config, targetLocales: value })}
+              placeholder="fr-FR, de-DE"
+            />
+          </>
+        ) : null}
+        {config.kind === "action.machine_translate" ? (
+          <CheckboxField
+            id="vw-machine-translate-memory"
+            label={intl.formatMessage(messages.machineTranslateUseMemory)}
+            checked={config.useTranslationMemory !== false}
+            onCheckedChange={(checked) =>
+              onChangeConfig({ ...config, useTranslationMemory: checked })
+            }
+          />
+        ) : null}
+        {config.kind === "action.create_task" ? (
+          <>
+            <SelectField
+              id="vw-create-task-step"
+              label={intl.formatMessage(messages.createTaskStep)}
+              value={config.step}
+              items={[
+                { value: "translate", label: intl.formatMessage(messages.createTaskStepTranslate) },
+                { value: "edit", label: intl.formatMessage(messages.createTaskStepEdit) },
+                { value: "proofread", label: intl.formatMessage(messages.createTaskStepProofread) },
+              ]}
+              onValueChange={(value) => {
+                if (value !== "translate" && value !== "edit" && value !== "proofread") {
+                  return;
+                }
+                onChangeConfig({ ...config, step: value });
+              }}
+            />
+            <SelectField
+              id="vw-create-task-assignee"
+              label={intl.formatMessage(messages.createTaskAssignee)}
+              value={config.assigneeWorkosUserId || UNASSIGNED_VALUE}
+              items={[
+                {
+                  value: UNASSIGNED_VALUE,
+                  label: intl.formatMessage(messages.createTaskUnassigned),
+                },
+                ...resources.members.map((member) => ({
+                  value: member.workosUserId,
+                  label: member.label,
+                })),
+              ]}
+              onValueChange={(value) => {
+                if (!value) {
+                  return;
+                }
+                onChangeConfig({
+                  ...config,
+                  assigneeWorkosUserId: value === UNASSIGNED_VALUE ? "" : value,
+                });
+              }}
+            />
+            <TextField
+              id="vw-create-task-title"
+              label={intl.formatMessage(messages.createTaskTitle)}
+              value={config.title}
+              {...connectedInputProps("title")}
+              onChange={(value) => onChangeConfig({ ...config, title: value })}
+            />
+          </>
+        ) : null}
+        {config.kind === "action.check_progress" ? (
+          <TextField
+            id="vw-check-progress-job"
+            label={intl.formatMessage(messages.checkProgressJobId)}
+            description={intl.formatMessage(messages.checkProgressHint)}
+            value={config.jobId}
+            {...connectedInputProps("jobId")}
+            onChange={(value) => onChangeConfig({ ...config, jobId: value })}
+            placeholder="{{ nodes.machine_translate.jobId }}"
+          />
+        ) : null}
+        {config.kind === "action.crowdin_pre_translate" ||
+        config.kind === "action.crowdin_create_task" ||
+        config.kind === "action.crowdin_check_progress" ? (
+          <>
+            <TextField
+              id="vw-crowdin-project"
+              label={intl.formatMessage(messages.crowdinProjectId)}
+              description={intl.formatMessage(messages.crowdinConnectionHint)}
+              value={config.crowdinProjectId}
+              {...connectedInputProps("crowdinProjectId")}
+              onChange={(value) => onChangeConfig({ ...config, crowdinProjectId: value })}
+              placeholder="123456"
+            />
+            <TextField
+              id="vw-crowdin-files"
+              label={intl.formatMessage(
+                config.kind === "action.crowdin_check_progress"
+                  ? messages.crowdinFileIdsOptional
+                  : messages.crowdinFileIds,
+              )}
+              value={config.fileIds}
+              {...connectedInputProps("fileIds")}
+              onChange={(value) => onChangeConfig({ ...config, fileIds: value })}
+              placeholder="12, 14"
+            />
+            <TextField
+              id="vw-crowdin-languages"
+              label={intl.formatMessage(messages.crowdinLanguageIds)}
+              description={intl.formatMessage(messages.crowdinLanguageIdsHint)}
+              value={config.languageIds}
+              {...connectedInputProps("languageIds")}
+              onChange={(value) => onChangeConfig({ ...config, languageIds: value })}
+              placeholder="fr, de"
+            />
+          </>
+        ) : null}
+        {config.kind === "action.crowdin_pre_translate" ? (
+          <>
+            <SelectField
+              id="vw-crowdin-method"
+              label={intl.formatMessage(messages.crowdinPreTranslateMethod)}
+              value={config.method}
+              items={[
+                { value: "tm", label: intl.formatMessage(messages.crowdinMethodTm) },
+                { value: "mt", label: intl.formatMessage(messages.crowdinMethodMt) },
+                { value: "ai", label: intl.formatMessage(messages.crowdinMethodAi) },
+              ]}
+              onValueChange={(value) => {
+                if (value !== "tm" && value !== "mt" && value !== "ai") {
+                  return;
+                }
+                onChangeConfig({ ...config, method: value });
+              }}
+            />
+            {config.method === "mt" ? (
+              <TextField
+                id="vw-crowdin-engine"
+                label={intl.formatMessage(messages.crowdinEngineId)}
+                value={config.engineId}
+                onChange={(value) => onChangeConfig({ ...config, engineId: value })}
+              />
+            ) : null}
+            {config.method === "ai" ? (
+              <TextField
+                id="vw-crowdin-prompt"
+                label={intl.formatMessage(messages.crowdinAiPromptId)}
+                value={config.aiPromptId}
+                onChange={(value) => onChangeConfig({ ...config, aiPromptId: value })}
+              />
+            ) : null}
+          </>
+        ) : null}
+        {config.kind === "action.crowdin_create_task" ? (
+          <>
+            <SelectField
+              id="vw-crowdin-task-type"
+              label={intl.formatMessage(messages.crowdinTaskType)}
+              value={config.taskType}
+              items={[
+                { value: "translate", label: intl.formatMessage(messages.createTaskStepTranslate) },
+                { value: "proofread", label: intl.formatMessage(messages.createTaskStepProofread) },
+              ]}
+              onValueChange={(value) => {
+                if (value !== "translate" && value !== "proofread") {
+                  return;
+                }
+                onChangeConfig({ ...config, taskType: value });
+              }}
+            />
+            <TextField
+              id="vw-crowdin-assignees"
+              label={intl.formatMessage(messages.crowdinAssigneeIds)}
+              value={config.assigneeIds}
+              {...connectedInputProps("assigneeIds")}
+              onChange={(value) => onChangeConfig({ ...config, assigneeIds: value })}
+            />
+            <TextField
+              id="vw-crowdin-task-title"
+              label={intl.formatMessage(messages.crowdinTaskTitle)}
+              value={config.title}
+              {...connectedInputProps("title")}
+              onChange={(value) => onChangeConfig({ ...config, title: value })}
+            />
+            <TextAreaField
+              id="vw-crowdin-task-description"
+              label={intl.formatMessage(messages.crowdinTaskDescription)}
+              value={config.description}
+              {...connectedInputProps("description")}
+              onChange={(value) => onChangeConfig({ ...config, description: value })}
+            />
+          </>
+        ) : null}
+        {config.kind === "action.crowdin_check_progress" ? (
+          <>
+            <TextField
+              id="vw-crowdin-tasks"
+              label={intl.formatMessage(messages.crowdinTaskIds)}
+              description={intl.formatMessage(messages.crowdinProgressHint)}
+              value={config.taskIds}
+              {...connectedInputProps("taskIds")}
+              onChange={(value) => onChangeConfig({ ...config, taskIds: value })}
+              placeholder="{{ nodes.crowdin_create_task.taskIds }}"
+            />
+            <TextField
+              id="vw-crowdin-pre-translation"
+              label={intl.formatMessage(messages.crowdinPreTranslationId)}
+              value={config.preTranslationId}
+              {...connectedInputProps("preTranslationId")}
+              onChange={(value) => onChangeConfig({ ...config, preTranslationId: value })}
+              placeholder="{{ nodes.crowdin_pre_translate.preTranslationId }}"
+            />
+          </>
         ) : null}
         {config.kind === "ai.agent" ? (
           <>

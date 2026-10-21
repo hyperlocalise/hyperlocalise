@@ -25,6 +25,10 @@ const visualKeyValuePairSchema = z.object({
 
 const visualNodeErrorBehaviorSchema = z.enum(["stop", "continue", "branch"]);
 
+const visualTargetLocalesSchema = z.string().trim().max(2000);
+const visualIdListSchema = z.string().trim().max(2000);
+const visualCrowdinIdSchema = z.string().trim().max(256);
+
 const httpAuthSchema = z.object({
   type: z.enum(["none", "bearer", "api_key"]),
   token: z.string().max(4000).optional(),
@@ -55,6 +59,13 @@ export const visualCatalogTypeSchema = z.enum([
   "action.content_sync",
   "action.notify_slack",
   "action.notify_email",
+  "action.machine_translate",
+  "action.create_task",
+  "action.check_progress",
+  "action.run_qa",
+  "action.crowdin_pre_translate",
+  "action.crowdin_create_task",
+  "action.crowdin_check_progress",
   "logic.if",
   "logic.switch",
   "logic.set",
@@ -267,6 +278,70 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     recipients: z.string().trim().min(1).max(4000),
     subject: z.string().max(1000),
     message: z.string().max(4000),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.machine_translate"),
+    projectId: z.string().trim().max(128),
+    sourceFileId: z.string().trim().max(256),
+    targetLocales: visualTargetLocalesSchema,
+    useTranslationMemory: z.boolean().optional(),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.create_task"),
+    projectId: z.string().trim().max(128),
+    sourceFileId: z.string().trim().max(256),
+    targetLocales: visualTargetLocalesSchema,
+    step: z.enum(["translate", "edit", "proofread"]),
+    assigneeWorkosUserId: z.string().trim().max(256),
+    title: z.string().max(256),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.check_progress"),
+    projectId: z.string().trim().max(128),
+    sourceFileId: z.string().trim().max(256),
+    targetLocales: visualTargetLocalesSchema,
+    jobId: z.string().trim().max(256),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.run_qa"),
+    projectId: z.string().trim().max(128),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.crowdin_pre_translate"),
+    crowdinProjectId: visualCrowdinIdSchema,
+    fileIds: visualIdListSchema,
+    languageIds: visualTargetLocalesSchema,
+    method: z.enum(["tm", "mt", "ai"]),
+    engineId: visualCrowdinIdSchema,
+    aiPromptId: visualCrowdinIdSchema,
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.crowdin_create_task"),
+    crowdinProjectId: visualCrowdinIdSchema,
+    fileIds: visualIdListSchema,
+    languageIds: visualTargetLocalesSchema,
+    taskType: z.enum(["translate", "proofread"]),
+    assigneeIds: visualIdListSchema,
+    title: z.string().max(256),
+    description: z.string().max(4000),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.crowdin_check_progress"),
+    crowdinProjectId: visualCrowdinIdSchema,
+    fileIds: visualIdListSchema,
+    languageIds: visualTargetLocalesSchema,
+    taskIds: visualIdListSchema,
+    preTranslationId: z.string().trim().max(256),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({

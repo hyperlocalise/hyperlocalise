@@ -38,6 +38,40 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     title: "Send email",
     purpose: "Send a transactional email through Resend or SendGrid.",
   },
+  "action.machine_translate": {
+    title: "Machine translate",
+    purpose:
+      "Pre-translate a source file with translation memory and AI. Drafts land as needing review.",
+  },
+  "action.create_task": {
+    title: "Assign task",
+    purpose:
+      "Give a person a translate, post-edit, or proofread task on a source file, for MTPE and TEP steps.",
+  },
+  "action.check_progress": {
+    title: "Check progress",
+    purpose:
+      "Count untranslated, needing-review and approved strings, and a job's status. Use it as the condition of a Wait to pause until a step is done.",
+  },
+  "action.run_qa": {
+    title: "Run QA checks",
+    purpose: "Run the project's QA checks and report errors and warnings.",
+  },
+  "action.crowdin_pre_translate": {
+    title: "Crowdin pre-translate",
+    purpose:
+      "Pre-translate Crowdin files with translation memory, a machine translation engine, or an AI prompt.",
+  },
+  "action.crowdin_create_task": {
+    title: "Crowdin task",
+    purpose:
+      "Create a Crowdin translate or proofread task for each target language, assigned to Crowdin users.",
+  },
+  "action.crowdin_check_progress": {
+    title: "Crowdin progress",
+    purpose:
+      "Report Crowdin translation and approval progress, task statuses, and a pre-translation's status. Use it as the condition of a Wait to pause until Crowdin work is done.",
+  },
   "logic.if": { title: "If", purpose: "Branch on a condition." },
   "logic.switch": { title: "Switch", purpose: "Route to one of several branches." },
   "logic.set": { title: "Set fields", purpose: "Assign values into the workflow context." },

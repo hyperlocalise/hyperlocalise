@@ -251,6 +251,8 @@ function nodeConfigSchemaFor(type: VisualCatalogType): z.ZodObject<z.ZodRawShape
 const PROJECT_REASON = "it is one of the workspace's projects, which the assistant cannot see";
 const CONNECTED_SYSTEM_REASON =
   "it is one of the content systems connected to the workspace, which the assistant cannot see";
+const CROWDIN_CONNECTION_REASON =
+  "it is filled in from the person's own Crowdin connection when they save";
 const CALLED_WORKFLOW_REASON =
   "it comes from the workflow the person picks, one of the workspace's workflows, which the assistant cannot see";
 
@@ -276,6 +278,17 @@ const PERSON_ONLY_SETTINGS: Partial<Record<VisualCatalogType, Readonly<Record<st
     resourceKey:
       "it is picked from what the connected content system holds, which the assistant cannot see",
   },
+  "action.create_task": {
+    assigneeWorkosUserId:
+      "it is one of the workspace's members, which the assistant cannot see, and who does the work is the person's decision",
+  },
+  "action.crowdin_pre_translate": { workosUserId: CROWDIN_CONNECTION_REASON },
+  "action.crowdin_create_task": {
+    workosUserId: CROWDIN_CONNECTION_REASON,
+    assigneeIds:
+      "it is one of the Crowdin project's members, which the assistant cannot see, and who does the work is the person's decision",
+  },
+  "action.crowdin_check_progress": { workosUserId: CROWDIN_CONNECTION_REASON },
   "action.notify_slack": {
     channelId:
       "it takes the Slack channel's ID, not its name, which the assistant cannot look up, and where the message goes is the person's decision",

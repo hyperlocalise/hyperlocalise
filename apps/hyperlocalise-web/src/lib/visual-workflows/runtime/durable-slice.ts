@@ -34,6 +34,7 @@ import {
   collectRetryBodyNodeIds,
   collectRetryBodyNodeIdsForRetryNode,
   findRetryNodeForBodyNodeId,
+  isRepeatableVisualWorkflowAction,
   shouldReuseCompletedNodeRun,
 } from "../validation/retry-idempotency";
 import { isLogicRetryConfig } from "../schema/retry-policy";
@@ -255,6 +256,7 @@ export async function executeDurableWorkflowSlice(input: {
           .at(-1);
         const safe =
           args.node.config.kind === "flow.call_workflow" ||
+          isRepeatableVisualWorkflowAction(args.node.type) ||
           (args.node.config.kind === "action.http" &&
             (args.node.config.method === "GET" || Boolean(args.node.config.idempotencyHeader)));
         const real = runsForReal(args.node.id);
