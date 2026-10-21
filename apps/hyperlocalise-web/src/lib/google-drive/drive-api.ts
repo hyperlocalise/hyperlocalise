@@ -404,6 +404,7 @@ async function uploadGoogleDriveMultipart(input: {
   metadata: Record<string, unknown>;
   mimeType: string;
   content: Buffer;
+  query?: Record<string, string>;
   signal?: AbortSignal;
 }): Promise<Result<GoogleDriveFileSummary, GoogleDrivePipesError>> {
   const boundary = `hl_gdrive_${Date.now()}`;
@@ -418,6 +419,11 @@ async function uploadGoogleDriveMultipart(input: {
     supportsAllDrives: "true",
     fields: "id,name,mimeType,size,modifiedTime,md5Checksum,parents,driveId",
   });
+  if (input.query) {
+    for (const [key, value] of Object.entries(input.query)) {
+      params.set(key, value);
+    }
+  }
 
   const url = `${input.path}?${params.toString()}`;
   const responseResult = await driveFetch(input.accessToken, url, {
@@ -474,17 +480,15 @@ export async function uploadGoogleDriveFile(input: {
     }
     if (!isErr(existing)) {
       const previousParent = existing.value.parents[0];
-      const moveMetadata = {
-        ...metadataBase,
-        ...(previousParent
-          ? { addParents: input.parentId, removeParents: previousParent }
-          : { addParents: input.parentId }),
-      };
+      const moveQuery: Record<string, string> = previousParent
+        ? { addParents: input.parentId, removeParents: previousParent }
+        : { addParents: input.parentId };
       const moved = await uploadGoogleDriveMultipart({
         accessToken: input.accessToken,
         method: "PATCH",
         path: `${GOOGLE_DRIVE_UPLOAD_API_BASE}/files/${encodeURIComponent(existingFileId)}`,
-        metadata: moveMetadata,
+        metadata: metadataBase,
+        query: moveQuery,
         mimeType: input.mimeType,
         content: input.content,
         signal: input.signal,

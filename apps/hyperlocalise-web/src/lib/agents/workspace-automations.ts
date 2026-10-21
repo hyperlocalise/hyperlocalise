@@ -903,12 +903,20 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
 
     if (googleDrive.folderIds.length > 0) {
+      const credentialOwner = googleDrive.workosUserId?.trim();
+      if (!credentialOwner) {
+        return err({
+          code: "google_drive_not_connected",
+          message: "Connect Google Drive in Integrations before using it.",
+        });
+      }
       const connectedFolders = await database
         .select({ id: schema.googleDriveFolders.id })
         .from(schema.googleDriveFolders)
         .where(
           and(
             eq(schema.googleDriveFolders.organizationId, input.organizationId),
+            eq(schema.googleDriveFolders.connectedByWorkosUserId, credentialOwner),
             inArray(schema.googleDriveFolders.id, googleDrive.folderIds),
           ),
         );

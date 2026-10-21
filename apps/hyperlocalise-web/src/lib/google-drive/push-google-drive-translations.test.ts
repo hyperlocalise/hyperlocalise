@@ -114,6 +114,11 @@ describe("loadTranslatedBytes", () => {
       fileName: "overview.docx",
       mimeType: GOOGLE_EXPORT_MIME.docx,
     });
+    expect(mocks.loadProjectOfficeTranslationDownload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        approvedTranslationsOnly: true,
+      }),
+    );
     expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
   });
 
@@ -135,6 +140,13 @@ describe("loadTranslatedBytes", () => {
     expect(result?.fileName).toBe("messages.json");
     expect(result?.mimeType).toBe("application/json");
     expect(result?.buffer.toString("utf8")).toContain('"hello": "xin chào"');
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        readyTranslationsOnly: true,
+        approvedTranslationsOnly: true,
+        includeAllSourceKeys: true,
+      }),
+    );
   });
 
   it("skips keyed formats without a format-aware writer", async () => {

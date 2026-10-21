@@ -88,7 +88,15 @@ export function selectGoogleDrivePushMappings<T extends { sourcePath: string }>(
   return mappings.filter((mapping) => selected.has(mapping.sourcePath));
 }
 
-async function ensureNamedFolder(input: {
+function namedFolderCacheKey(input: {
+  parentId: string;
+  name: string;
+  driveId: string | null;
+}): string {
+  return `${input.parentId}\0${input.name}\0${input.driveId ?? ""}`;
+}
+
+async function resolveNamedFolder(input: {
   accessToken: string;
   parentId: string;
   name: string;
@@ -117,12 +125,34 @@ async function ensureNamedFolder(input: {
   return created.value.id;
 }
 
+async function ensureNamedFolder(input: {
+  accessToken: string;
+  parentId: string;
+  name: string;
+  driveId: string | null;
+  folderPromises?: Map<string, Promise<string>>;
+}): Promise<string> {
+  const cache = input.folderPromises;
+  if (!cache) {
+    return resolveNamedFolder(input);
+  }
+  const key = namedFolderCacheKey(input);
+  const pending = cache.get(key);
+  if (pending) {
+    return pending;
+  }
+  const promise = resolveNamedFolder(input);
+  cache.set(key, promise);
+  return promise;
+}
+
 async function ensureLocaleFolder(input: {
   accessToken: string;
   parentId: string;
   locale: string;
   driveId: string | null;
   cached: Record<string, string>;
+  folderPromises?: Map<string, Promise<string>>;
 }): Promise<string> {
   const cached = input.cached[input.locale];
   if (cached) {
@@ -141,6 +171,7 @@ async function ensureLocaleFolder(input: {
     parentId: input.parentId,
     name: input.locale,
     driveId: input.driveId,
+    folderPromises: input.folderPromises,
   });
   input.cached[input.locale] = folderId;
   return folderId;
@@ -151,6 +182,7 @@ async function ensureFolderPath(input: {
   parentId: string;
   segments: string[];
   driveId: string | null;
+  folderPromises?: Map<string, Promise<string>>;
 }): Promise<string> {
   let parentId = input.parentId;
   for (const segment of input.segments) {
@@ -159,6 +191,7 @@ async function ensureFolderPath(input: {
       parentId,
       name: segment,
       driveId: input.driveId,
+      folderPromises: input.folderPromises,
     });
   }
   return parentId;
@@ -178,6 +211,7 @@ export async function loadTranslatedBytes(input: {
       projectId: input.projectId,
       sourcePath: input.sourcePath,
       targetLocale: input.targetLocale,
+      approvedTranslationsOnly: true,
     });
     if (isErr(office) || !office.value) {
       return null;
@@ -204,6 +238,8 @@ export async function loadTranslatedBytes(input: {
     sourcePath: input.sourcePath,
     targetLocale: input.targetLocale,
     includeAllSourceKeys: true,
+    readyTranslationsOnly: true,
+    approvedTranslationsOnly: true,
   });
   if (prefilled.loadedKeyCount === 0 || prefilled.truncated) {
     return null;
@@ -312,6 +348,7 @@ export async function runPushGoogleDriveTranslations(input: {
   let pushed = 0;
   let skipped = 0;
   let failed = 0;
+  const folderPromises = new Map<string, Promise<string>>();
 
   await mapWithConcurrency(mappings, 4, async (mapping) => {
     try {
@@ -367,6 +404,7 @@ export async function runPushGoogleDriveTranslations(input: {
                   locale: formatDriveLocaleTag(locale),
                   driveId: fileMeta.value.driveId,
                   cached: localeFolderCache,
+                  folderPromises,
                 }),
                 segments: relativePathFromGoogleDriveSourcePath(
                   mapping.sourcePath,
@@ -375,6 +413,7 @@ export async function runPushGoogleDriveTranslations(input: {
                   .split("/")
                   .filter(Boolean),
                 driveId: fileMeta.value.driveId,
+                folderPromises,
               })
             : parentId;
         const officeFormat = inferSupportedOfficeTranslationFileFormat(mapping.sourcePath);

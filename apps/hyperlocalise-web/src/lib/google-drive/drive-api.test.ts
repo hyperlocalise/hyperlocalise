@@ -215,9 +215,11 @@ describe("uploadGoogleDriveFile", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const moveUrl = String(fetchMock.mock.calls[1]?.[0]);
     expect(moveUrl).toContain("/upload/drive/v3/files/old-file");
+    expect(moveUrl).toContain("addParents=parent-new");
+    expect(moveUrl).toContain("removeParents=parent-old");
     const moveInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
     expect(moveInit.method).toBe("PATCH");
-    expect(Buffer.from(moveInit.body as ArrayBuffer).toString("utf8")).toContain("addParents");
+    expect(Buffer.from(moveInit.body as ArrayBuffer).toString("utf8")).not.toContain("addParents");
   });
 });
 
