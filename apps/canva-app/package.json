@@ -27,7 +27,7 @@
   "devDependencies": {
     "@canva/cli": "^2.14.1",
     "@formatjs/cli": "6.16.35",
-    "@formatjs/ts-transformer": "4.5.1",
+    "@formatjs/ts-transformer": "4.4.19",
     "@ngrok/ngrok": "1.7.0",
     "@svgr/webpack": "8.1.0",
     "@testing-library/react": "16.3.3",
