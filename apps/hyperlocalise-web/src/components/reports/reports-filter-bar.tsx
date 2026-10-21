@@ -451,8 +451,9 @@ function TasksPicker({
           setPicked(
             (current) => new Map([...current, ...tasks.map((task) => [task.id, task] as const)]),
           );
-          // Chosen tasks not yet looked up stay chosen.
-          const unknown = value.filter((jobId) => !known(jobId));
+          // Chosen tasks still being looked up stay chosen; one the lookup did not return (a
+          // deleted task, or one the viewer cannot open) is dropped.
+          const unknown = chosen.isFetching ? value.filter((jobId) => !known(jobId)) : [];
           onChange([...unknown, ...tasks.map((task) => task.id)].slice(0, MAX_ESTIMATE_TASKS));
         }}
       >

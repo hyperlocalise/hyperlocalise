@@ -12,7 +12,7 @@
  */
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -30,7 +30,7 @@ import { Input } from "@/components/ui/input";
 
 import { budgetsTabMessages as messages } from "./budgets-tab.messages";
 import { ReportSelect } from "./reports-filter-bar";
-import { useSetBudget, type ReportSettings } from "./reports-queries";
+import { useBudgets, useSetBudget, type ReportSettings } from "./reports-queries";
 
 const USD = /^\d{1,12}(\.\d{1,8})?$/;
 const NONE = "__none__";
@@ -40,25 +40,22 @@ export function SetBudgetDialog({
   organizationSlug,
   settings,
   projectId: chosenProjectId,
-  budgets,
   onClose,
 }: {
   organizationSlug: string;
   settings: ReportSettings;
   projectId: string | null;
-  budgets: { projectId: string; budgetUsd: string; rateCardName: string | null }[];
   onClose: () => void;
 }) {
   const intl = useIntl();
   const setBudget = useSetBudget(organizationSlug);
-  const existing = (id: string) => budgets.find((row) => row.projectId === id);
+  // Every project's budget, whatever the page is filtered to, so choosing a project here shows
+  // what it has and saving never clears its rate card by mistake.
+  const budgets = useBudgets(organizationSlug, null);
+  const existing = (id: string) => budgets.data?.find((row) => row.projectId === id);
   const [projectId, setProjectId] = useState(chosenProjectId ?? "");
-  const [amount, setAmount] = useState(() =>
-    chosenProjectId ? String(Number(existing(chosenProjectId)?.budgetUsd ?? "") || "") : "",
-  );
-  const [rateCard, setRateCard] = useState(
-    (chosenProjectId && existing(chosenProjectId)?.rateCardName) || NONE,
-  );
+  const [amount, setAmount] = useState("");
+  const [rateCard, setRateCard] = useState(NONE);
   const [error, setError] = useState<string | null>(null);
   const amountId = useId();
 
@@ -68,6 +65,14 @@ export function SetBudgetDialog({
     setAmount(current ? String(Number(current.budgetUsd)) : "");
     setRateCard(current?.rateCardName ?? NONE);
   }
+
+  // Fill in the chosen project's budget once the budgets have loaded.
+  const loaded = budgets.isSuccess;
+  useEffect(() => {
+    if (loaded && chosenProjectId) chooseProject(chosenProjectId);
+    // Only when the budgets first arrive; later choices are the person's.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded]);
 
   async function save() {
     setError(null);
@@ -130,7 +135,7 @@ export function SetBudgetDialog({
           <Button variant="outline" onClick={onClose}>
             {intl.formatMessage(messages.cancel)}
           </Button>
-          <Button disabled={setBudget.isPending} onClick={() => void save()}>
+          <Button disabled={setBudget.isPending || !budgets.isSuccess} onClick={() => void save()}>
             {intl.formatMessage(setBudget.isPending ? messages.saving : messages.save)}
           </Button>
         </DialogFooter>

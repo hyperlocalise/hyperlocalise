@@ -276,9 +276,9 @@ function workflowStepName(nodeType: string) {
   );
 }
 
-/** A task or language is chosen, which some sections cannot follow. */
+/** A task, language or step is chosen, which some sections cannot follow. */
 function narrowedBeyondProject(input: SectionInput) {
-  return Boolean(input.state.jobId || input.state.targetLocale);
+  return Boolean(input.state.jobId || input.state.targetLocale || input.state.step === "review");
 }
 
 function StepTimesSection({ input }: { input: SectionInput }) {

@@ -162,14 +162,15 @@ export const activityTabMessages = defineMessages({
     description: "How many automated runs there were",
   },
   aiUsageFiltersNote: {
-    id: "edRckB8ACW",
-    defaultMessage: "AI usage follows the dates and project only, not the task or language chosen.",
+    id: "UyCh2vthT/",
+    defaultMessage:
+      "AI usage follows the dates and project only, not the task, language or step chosen.",
     description: "Note on AI usage while a task or language filter is set",
   },
   automatedFiltersNote: {
-    id: "gD38btCQHZ",
+    id: "W7VsUBEm6f",
     defaultMessage:
-      "Automated run time follows the dates and project only, not the task or language chosen.",
+      "Automated run time follows the dates and project only, not the task, language or step chosen.",
     description: "Note on automated step time while a task or language filter is set",
   },
   aiUsage: {

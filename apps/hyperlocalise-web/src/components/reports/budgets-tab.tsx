@@ -172,7 +172,6 @@ export function BudgetsTab({
           organizationSlug={organizationSlug}
           settings={settings}
           projectId={projectId}
-          budgets={budgets.data ?? []}
           onClose={() => setEditing(false)}
         />
       ) : null}

@@ -204,7 +204,6 @@ describe("reports routes", () => {
       costEstimate: { rows: [], fixedFees: [] },
     });
     await expect(read("/budgets")).resolves.toEqual({ budgets: [] });
-    await expect(read("/budgets?projectId=project_missing")).resolves.toEqual({ budgets: [] });
     await expect(read("/rate-cards")).resolves.toEqual({ rateCards: [], canManage: true });
 
     const csv = await app.request(reportsUrl(slug, "/words?groupBy=task&format=csv"), { headers });
@@ -626,6 +625,30 @@ describe("reports routes", () => {
       time: { minutes: 30, people: 1, entries: [] },
       canLogTime: true,
     });
+  });
+
+  it("narrows budgets to one project, and never to a project the viewer cannot open", async () => {
+    const workspace = await reporting.createWorkspace();
+    const { identity, organization, project, createProject } = workspace;
+    const other = await createProject("Help centre");
+    await db.insert(schema.reportingBudgets).values(
+      [project.id, other.id].map((projectId) => ({
+        organizationId: organization.id,
+        projectId,
+        budget: "100",
+      })),
+    );
+    const headers = await reporting.authHeadersFor(identity);
+    const slug = identity.organization.slug ?? "missing-slug";
+    const names = async (path: string) => {
+      const response = await app.request(reportsUrl(slug, path), { headers });
+      expect(response.status, path).toBe(200);
+      const body = (await response.json()) as { budgets: { projectName: string }[] };
+      return body.budgets.map((row) => row.projectName);
+    };
+    await expect(names("/budgets")).resolves.toEqual(["Docs", "Help centre"]);
+    await expect(names(`/budgets?projectId=${other.id}`)).resolves.toEqual(["Help centre"]);
+    await expect(names("/budgets?projectId=project_elsewhere")).resolves.toEqual([]);
   });
 
   it("denies report access when the feature flag is disabled", async () => {
