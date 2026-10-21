@@ -1,5 +1,5 @@
 {
-  "id": "a5b58d43-9e7e-43fd-b651-f2afd114b4a9",
+  "id": "18a00186-abd7-47c5-89a0-42d3b2b0f383",
   "prevId": "6d1ea4a6-52b5-44c3-a673-591291fb1ac3",
   "version": "7",
   "dialect": "postgresql",
@@ -14717,6 +14717,12 @@
         },
         "write_key_hash": {
           "name": "write_key_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "studio_origin": {
+          "name": "studio_origin",
           "type": "text",
           "primaryKey": false,
           "notNull": true

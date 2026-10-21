@@ -31,6 +31,7 @@ CREATE TABLE "sanity_plugin_oauth_handoffs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"read_key_hash" text NOT NULL,
 	"write_key_hash" text NOT NULL,
+	"studio_origin" text NOT NULL,
 	"code" text,
 	"error" text,
 	"error_description" text,
