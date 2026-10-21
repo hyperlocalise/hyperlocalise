@@ -25,6 +25,7 @@ export const translationQaCheckTypes = [
   "numbers_mismatch",
   "punctuation_mismatch",
   "character_case_mismatch",
+  "unreachable_plural_case",
 ] as const;
 
 export type TranslationQaCheckType = (typeof translationQaCheckTypes)[number];

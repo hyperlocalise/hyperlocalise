@@ -409,6 +409,11 @@ export const qaMessages = defineMessages({
     description: "QA review: character case mismatch",
     id: "0RJcnzvDSO",
   },
+  unreachable_plural_case: {
+    defaultMessage: "Unreachable plural case",
+    description: "QA review: unreachable_plural_case",
+    id: "0aZjyrf1Pz",
+  },
   enableCheck: {
     defaultMessage: "Enable {check}",
     description: "Enable translation QA check",

@@ -59,6 +59,41 @@ func TestPolicyRequiresCompleteCheckSet(t *testing.T) {
 	}
 }
 
+func TestPolicyDefaultsUnreachablePlural(t *testing.T) {
+	policy := DefaultPolicy()
+	delete(policy.Checks, "unreachable_plural_case")
+	policy.applyDefaults()
+	if err := policy.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	setting := policy.Checks["unreachable_plural_case"]
+	if !setting.Enabled || setting.Severity != "error" {
+		t.Fatalf("default = %+v", setting)
+	}
+}
+
+func TestValidateBatchFlagsUnreachablePlural(t *testing.T) {
+	policy := DefaultPolicy()
+	policy.Checks["spelling"] = Setting{Enabled: false, Severity: "warning"}
+	report, err := ValidateBatch(context.Background(), []Segment{{
+		ID: "one", SourceText: "{count, plural, one {# file} other {# files}}",
+		TargetText: "{count, plural, one {# 件} other {# 件}}",
+		SourcePath: "messages.json", TargetLocale: "ja",
+	}}, policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, finding := range report.Results[0].Checks {
+		if finding.CheckType == "unreachable_plural_case" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("checks = %+v", report.Results[0].Checks)
+	}
+}
+
 func TestGlossaryFindings(t *testing.T) {
 	policy := DefaultPolicy()
 	policy.GlossaryTerms = []GlossaryTerm{

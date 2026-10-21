@@ -48,6 +48,7 @@ const (
 	checkPlaceholder       = "placeholder_mismatch"
 	checkHTMLTag           = "html_tag_mismatch"
 	checkICUShape          = "icu_shape_mismatch"
+	checkUnreachablePlural = "unreachable_plural_case"
 	checkMarkdownAST       = "markdown_ast_mismatch"
 	checkWhitespaceOnly    = "whitespace_only"
 	checkEscapedChar       = "escaped_char_mismatch"
@@ -65,6 +66,7 @@ var (
 		checkPlaceholder,
 		checkHTMLTag,
 		checkICUShape,
+		checkUnreachablePlural,
 		checkMarkdownAST,
 		checkWhitespaceOnly,
 		checkEscapedChar,
@@ -640,13 +642,14 @@ func intersectChangedKeys(existing, changed map[string]struct{}, filterKey strin
 
 func restrictChecksForDiffMode(enabledChecks []string) []string {
 	allowed := map[string]struct{}{
-		checkNotLocalized:   {},
-		checkSameAsSource:   {},
-		checkWhitespaceOnly: {},
-		checkEscapedChar:    {},
-		checkPlaceholder:    {},
-		checkHTMLTag:        {},
-		checkICUShape:       {},
+		checkNotLocalized:      {},
+		checkSameAsSource:      {},
+		checkWhitespaceOnly:    {},
+		checkEscapedChar:       {},
+		checkPlaceholder:       {},
+		checkHTMLTag:           {},
+		checkICUShape:          {},
+		checkUnreachablePlural: {},
 	}
 	out := make([]string, 0, len(enabledChecks))
 	for _, check := range enabledChecks {
@@ -872,7 +875,7 @@ func fixTargetDedupeKey(sourcePath, targetPath, locale, key string) string {
 
 func isFixableFindingType(t string) bool {
 	switch t {
-	case checkNotLocalized, checkWhitespaceOnly, checkEscapedChar, checkPlaceholder, checkHTMLTag, checkICUShape:
+	case checkNotLocalized, checkWhitespaceOnly, checkEscapedChar, checkPlaceholder, checkHTMLTag, checkICUShape, checkUnreachablePlural:
 		return true
 	default:
 		return false
@@ -1324,6 +1327,23 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 						})
 					}
 				}
+			}
+		}
+		if _, ok := checkSet[checkUnreachablePlural]; ok && !isProseDocumentPath(targetPath) {
+			if cases := segmentvalidate.UnreachablePluralCases(locale, targetValue); len(cases) > 0 {
+				annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, false)
+				findings = append(findings, checkFinding{
+					Type:           checkUnreachablePlural,
+					Severity:       severityForCheck(checkUnreachablePlural),
+					Bucket:         bucketName,
+					Locale:         locale,
+					SourceFile:     sourcePath,
+					TargetFile:     targetPath,
+					Key:            key,
+					Message:        segmentvalidate.UnreachablePluralMessage(locale, cases),
+					AnnotationFile: annotationFile,
+					AnnotationLine: annotationLine,
+				})
 			}
 		}
 	}

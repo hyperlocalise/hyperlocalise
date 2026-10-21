@@ -30,7 +30,7 @@ import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { createProjectQaReportClient } from "@/lib/qa/qa-report-client";
 import { workspaceQaReportsQueryKey } from "@/lib/qa/use-workspace-qa-reports";
-import { DEFAULT_QA_POLICY, type QaCheckPolicy } from "@/lib/qa/qa-policy";
+import { DEFAULT_QA_POLICY, resolveQaPolicy, type QaCheckPolicy } from "@/lib/qa/qa-policy";
 import { translationQaCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
 import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
 import { QA_FILTER_ALL } from "@/components/qa/qa-filters-store";
@@ -180,7 +180,7 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
       await queryClient.invalidateQueries({ queryKey: listKey });
     },
   });
-  const policy = draftPolicy ?? settings?.checks ?? DEFAULT_QA_POLICY;
+  const policy = resolveQaPolicy(draftPolicy ?? settings?.checks ?? DEFAULT_QA_POLICY);
   const updateRule = (
     check: TranslationQaCheckType,
     change: Partial<QaCheckPolicy[TranslationQaCheckType]>,

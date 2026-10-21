@@ -1780,6 +1780,41 @@ Bonjour
 	})
 }
 
+func TestCheckCommandUnreachablePluralAndLocaleSpecificCategories(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "messages", "en.json")
+	targetPath := filepath.Join(dir, "messages", "ja.json")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"count":"{count, plural, one {# file} other {# files}}"}`), 0o600); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"count":"{count, plural, one {# 件} other {# 件}}"}`), 0o600); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"ja"})
+
+	report := executeCheckJSON(t, configPath, "", "--no-fail")
+	assertFindingType(t, report.Findings, checkUnreachablePlural)
+	for _, finding := range report.Findings {
+		if finding.Type == checkICUShape {
+			t.Fatalf("did not expect icu_shape_mismatch for ja one/other: %+v", finding)
+		}
+	}
+
+	if err := os.WriteFile(targetPath, []byte(`{"count":"{count, plural, other {# 件}}"}`), 0o600); err != nil {
+		t.Fatalf("write other-only target: %v", err)
+	}
+	report = executeCheckJSON(t, configPath, "", "--no-fail")
+	for _, finding := range report.Findings {
+		if finding.Type == checkUnreachablePlural || finding.Type == checkICUShape {
+			t.Fatalf("other-only ja should pass: %+v", finding)
+		}
+	}
+}
+
 func TestResolveEnabledChecks(t *testing.T) {
 	t.Run("includes override excludes", func(t *testing.T) {
 		stderr := os.Stderr
