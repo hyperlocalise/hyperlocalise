@@ -57,15 +57,19 @@ type memoryEntryEditCapabilities struct {
 }
 
 func (api *memoryAPI) memoryEntryDetail(ctx context.Context, m memoryRecord, entryID string) (any, int, error) {
+	return memoryEntryDetailFrom(ctx, api.pool, m, entryID)
+}
+
+func memoryEntryDetailFrom(ctx context.Context, db dictionaryDB, m memoryRecord, entryID string) (any, int, error) {
 	var normalized string
-	entry, err := scanMemoryEntry(api.pool.QueryRow(ctx, `select `+memoryEntryColumns+`, e.normalized_source_text from memory_entries e where e.id=$1 and e.memory_id=$2`, entryID, m.ID), &normalized)
+	entry, err := scanMemoryEntry(db.QueryRow(ctx, `select `+memoryEntryColumns+`, e.normalized_source_text from memory_entries e where e.id=$1 and e.memory_id=$2`, entryID, m.ID), &normalized)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, missingMemory()
 	}
 	if err != nil {
 		return nil, 0, err
 	}
-	names, err := api.memoryEntryActorNames(ctx, []string{
+	names, err := memoryEntryActorNames(ctx, db, []string{
 		stringOrEmpty(entry.CreatedByUserID),
 		stringOrEmpty(entry.ModifiedByUserID),
 		stringOrEmpty(entry.ReviewedByUserID),
@@ -73,11 +77,11 @@ func (api *memoryAPI) memoryEntryDetail(ctx context.Context, m memoryRecord, ent
 	if err != nil {
 		return nil, 0, err
 	}
-	variants, err := api.memoryEntryVariants(ctx, entry, normalized)
+	variants, err := memoryEntryVariants(ctx, db, entry, normalized)
 	if err != nil {
 		return nil, 0, err
 	}
-	events, err := api.memoryEntryAuditEvents(ctx, entry, names)
+	events, err := memoryEntryAuditEvents(ctx, db, entry, names)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -151,13 +155,13 @@ func memoryEntryNamedActor(userID *string, names map[string]string, at *string, 
 	return memoryEntryActor{UserID: userID, DisplayName: display, At: at, Source: source}
 }
 
-func (api *memoryAPI) memoryEntryActorNames(ctx context.Context, userIDs []string) (map[string]string, error) {
+func memoryEntryActorNames(ctx context.Context, db dictionaryDB, userIDs []string) (map[string]string, error) {
 	ids := uniqueNonEmpty(userIDs)
 	names := map[string]string{}
 	if len(ids) == 0 {
 		return names, nil
 	}
-	rows, err := api.pool.Query(ctx, `select id::text, nullif(trim(concat(coalesce(first_name,''),' ',coalesce(last_name,''))),'') from users where id=any($1::uuid[])`, ids)
+	rows, err := db.Query(ctx, `select id::text, nullif(trim(concat(coalesce(first_name,''),' ',coalesce(last_name,''))),'') from users where id=any($1::uuid[])`, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -175,10 +179,10 @@ func (api *memoryAPI) memoryEntryActorNames(ctx context.Context, userIDs []strin
 	return names, rows.Err()
 }
 
-func (api *memoryAPI) memoryEntryVariants(ctx context.Context, entry memoryEntryRecord, normalized string) ([]memoryEntryVariant, error) {
+func memoryEntryVariants(ctx context.Context, db dictionaryDB, entry memoryEntryRecord, normalized string) ([]memoryEntryVariant, error) {
 	variantGroupID := memoryEntryMetadataString(entry.Metadata, "variantGroupId")
 	context := memoryEntryMetadataString(entry.Metadata, "context")
-	rows, err := api.pool.Query(ctx, `
+	rows, err := db.Query(ctx, `
         select e.id, e.source_locale, e.target_locale, e.source_text, e.target_text, e.review_status, e.metadata
         from memory_entries e
         where e.memory_id=$1 and e.id<>$2 and (
@@ -205,8 +209,8 @@ func (api *memoryAPI) memoryEntryVariants(ctx context.Context, entry memoryEntry
 	return variants, rows.Err()
 }
 
-func (api *memoryAPI) memoryEntryAuditEvents(ctx context.Context, entry memoryEntryRecord, names map[string]string) ([]memoryEntryAuditEvent, error) {
-	rows, err := api.pool.Query(ctx, `
+func memoryEntryAuditEvents(ctx context.Context, db dictionaryDB, entry memoryEntryRecord, names map[string]string) ([]memoryEntryAuditEvent, error) {
+	rows, err := db.Query(ctx, `
         select e.id::text, e.event_type, e.actor_kind, e.actor_user_id, e.version, e.changed_fields, e.attributes, e.occurred_at,
                nullif(trim(concat(coalesce(u.first_name,''),' ',coalesce(u.last_name,''))),'')
         from memory_entry_events e

@@ -127,3 +127,80 @@ func TestMemoryEntryDetailAndPatch(t *testing.T) {
 	require.Contains(t, patch.Body.String(), `"capabilities"`)
 	require.Contains(t, patch.Body.String(), `"Salut"`)
 }
+
+func TestMemoryEntryPatchAuditAndReview(t *testing.T) {
+	api, scope := memoryTestAPI(t, "admin")
+	memoryID := scope.MustMemory(t, "", "Product TM")
+	entryID := mustMemoryEntry(t, scope, memoryID, "en-US", "fr-FR", "Hello", "Bonjour")
+	path := scope.OrgPath("/translation-memories/" + memoryID + "/entries/" + entryID)
+
+	type eventRow struct {
+		EventType     string
+		ChangedFields []string
+	}
+	events := func() []eventRow {
+		t.Helper()
+		rows, err := scope.Pool.Query(t.Context(), `select event_type, changed_fields from memory_entry_events where memory_entry_id=$1 order by occurred_at, id`, entryID)
+		require.NoError(t, err)
+		defer rows.Close()
+		out := []eventRow{}
+		for rows.Next() {
+			var row eventRow
+			require.NoError(t, rows.Scan(&row.EventType, &row.ChangedFields))
+			out = append(out, row)
+		}
+		require.NoError(t, rows.Err())
+		return out
+	}
+	reviewer := func() *string {
+		t.Helper()
+		var reviewedBy *string
+		require.NoError(t, scope.Pool.QueryRow(t.Context(), `select reviewed_by_user_id::text from memory_entries where id=$1`, entryID).Scan(&reviewedBy))
+		return reviewedBy
+	}
+
+	content := memoryRequest(api, scope, http.MethodPatch, path, `{"expectedVersion":1,"targetText":"Salut","reviewStatus":"approved"}`)
+	require.Equal(t, 200, content.Code, content.Body.String())
+	require.Nil(t, reviewer(), "unchanged reviewStatus must not stamp a reviewer")
+	require.Equal(t, []eventRow{
+		{EventType: "created", ChangedFields: []string{"sourceLocale", "targetLocale", "sourceText", "targetText"}},
+		{EventType: "updated", ChangedFields: []string{"targetText"}},
+	}, events())
+
+	noop := memoryRequest(api, scope, http.MethodPatch, path, `{"expectedVersion":2,"targetText":"Salut","reviewStatus":"approved"}`)
+	require.Equal(t, 200, noop.Code, noop.Body.String())
+	require.Contains(t, noop.Body.String(), `"version":2`)
+	require.Len(t, events(), 2)
+
+	review := memoryRequest(api, scope, http.MethodPatch, path, `{"expectedVersion":2,"reviewStatus":"rejected"}`)
+	require.Equal(t, 200, review.Code, review.Body.String())
+	require.NotNil(t, reviewer())
+	require.Equal(t, scope.UserID, *reviewer())
+	got := events()
+	require.Len(t, got, 3)
+	require.Equal(t, eventRow{EventType: "reviewed", ChangedFields: []string{"reviewStatus"}}, got[2])
+
+	var detail struct {
+		AuditEvents []struct {
+			EventType string `json:"eventType"`
+		} `json:"auditEvents"`
+	}
+	require.NoError(t, json.Unmarshal(review.Body.Bytes(), &detail))
+	require.Len(t, detail.AuditEvents, 3)
+	require.Equal(t, "reviewed", detail.AuditEvents[2].EventType)
+}
+
+func TestMemoryEntryPatchDuplicate(t *testing.T) {
+	api, scope := memoryTestAPI(t, "admin")
+	memoryID := scope.MustMemory(t, "", "Product TM")
+	mustMemoryEntry(t, scope, memoryID, "en-US", "fr-FR", "Hello", "Bonjour")
+	entryID := mustMemoryEntry(t, scope, memoryID, "en-US", "fr-FR", "World", "Monde")
+
+	rec := memoryRequest(api, scope, http.MethodPatch, scope.OrgPath("/translation-memories/"+memoryID+"/entries/"+entryID), `{"expectedVersion":1,"sourceText":"  hello "}`)
+	require.Equal(t, 409, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "duplicate_memory_entry")
+
+	var version int
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select version from memory_entries where id=$1`, entryID).Scan(&version))
+	require.Equal(t, 1, version)
+}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
@@ -215,7 +216,13 @@ func (api *memoryAPI) patchMemoryEntry(r *http.Request, actor memoryActor, m mem
 		return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
 	}
 	ctx := r.Context()
-	current, err := scanMemoryEntry(api.pool.QueryRow(ctx, `select `+memoryEntryColumns+` from memory_entries e where e.id=$1 and e.memory_id=$2`, entryID, m.ID))
+	tx, err := api.pool.Begin(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	var currentNormalized string
+	current, err := scanMemoryEntry(tx.QueryRow(ctx, `select `+memoryEntryColumns+`, e.normalized_source_text from memory_entries e where e.id=$1 and e.memory_id=$2 for update`, entryID, m.ID), &currentNormalized)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, missingMemory()
 	}
@@ -225,61 +232,153 @@ func (api *memoryAPI) patchMemoryEntry(r *http.Request, actor memoryActor, m mem
 	if current.Version != *payload.ExpectedVersion {
 		return nil, 0, memoryFailureDetails(409, "stale_memory_entry", "The translation memory entry was updated by someone else", map[string]any{"memoryEntry": current})
 	}
-	sourceLocale, targetLocale, sourceText, targetText := current.SourceLocale, current.TargetLocale, current.SourceText, current.TargetText
+	next := current
 	if payload.SourceLocale != nil {
-		sourceLocale = strings.ReplaceAll(trimMemoryInput(*payload.SourceLocale), "_", "-")
+		next.SourceLocale = strings.ReplaceAll(trimMemoryInput(*payload.SourceLocale), "_", "-")
 	}
 	if payload.TargetLocale != nil {
-		targetLocale = strings.ReplaceAll(trimMemoryInput(*payload.TargetLocale), "_", "-")
+		next.TargetLocale = strings.ReplaceAll(trimMemoryInput(*payload.TargetLocale), "_", "-")
 	}
 	if payload.SourceText != nil {
-		sourceText = *payload.SourceText
+		next.SourceText = *payload.SourceText
 	}
 	if payload.TargetText != nil {
-		targetText = *payload.TargetText
+		next.TargetText = *payload.TargetText
 	}
-	if sourceLocale == "" || targetLocale == "" || trimMemoryInput(sourceText) == "" || utf16Length(sourceText) > 100000 || utf16Length(targetText) > 100000 {
+	if next.SourceLocale == "" || next.TargetLocale == "" || trimMemoryInput(next.SourceText) == "" || utf16Length(next.SourceText) > 100000 || utf16Length(next.TargetText) > 100000 {
 		return nil, 0, invalidMemory()
 	}
-	matchScore := current.MatchScore
 	if payload.MatchScore != nil {
 		if *payload.MatchScore < 0 || *payload.MatchScore > 100 {
 			return nil, 0, invalidMemory()
 		}
-		matchScore = *payload.MatchScore
+		next.MatchScore = *payload.MatchScore
 	}
-	reviewStatus := current.ReviewStatus
-	var reviewedBy *string
-	var reviewedAt any
 	if payload.ReviewStatus != nil {
 		if *payload.ReviewStatus != "approved" && *payload.ReviewStatus != "pending" && *payload.ReviewStatus != "rejected" {
 			return nil, 0, invalidMemory()
 		}
-		reviewStatus = *payload.ReviewStatus
-		reviewedBy = &actor.userID
-		reviewedAt = time.Now().UTC()
+		next.ReviewStatus = *payload.ReviewStatus
 	}
-	metadata := []byte(current.Metadata)
 	if payload.Metadata != nil {
-		metadata = []byte(payload.Metadata)
+		next.Metadata = payload.Metadata
 	}
-	normalized := normalizeMemorySourceText(sourceText)
-	updated, err := scanMemoryEntry(api.pool.QueryRow(ctx, `update memory_entries as e set source_locale=$3, target_locale=$4, source_text=$5, normalized_source_text=$6, target_text=$7, match_score=$8, review_status=$9, metadata=$10::jsonb, modified_by_user_id=$11, reviewed_by_user_id=coalesce($12,reviewed_by_user_id), reviewed_at=coalesce($13,reviewed_at), version=version+1, updated_at=now() where id=$1 and memory_id=$2 and version=$14 returning `+memoryEntryColumns, entryID, m.ID, sourceLocale, targetLocale, sourceText, normalized, targetText, matchScore, reviewStatus, metadata, actor.userID, reviewedBy, reviewedAt, *payload.ExpectedVersion))
-	if errors.Is(err, pgx.ErrNoRows) {
-		latest, latestErr := scanMemoryEntry(api.pool.QueryRow(ctx, `select `+memoryEntryColumns+` from memory_entries e where e.id=$1 and e.memory_id=$2`, entryID, m.ID))
-		if latestErr == nil {
-			return nil, 0, memoryFailureDetails(409, "stale_memory_entry", "The translation memory entry was updated by someone else", map[string]any{"memoryEntry": latest})
+	contentFields := memoryEntryChangedContentFields(current, next)
+	reviewStatusChanged := next.ReviewStatus != current.ReviewStatus
+	if len(contentFields) == 0 && !reviewStatusChanged {
+		return api.commitMemoryEntryDetail(ctx, tx, m, current.ID)
+	}
+	normalized := normalizeMemorySourceText(next.SourceText)
+	if normalized != currentNormalized || next.SourceLocale != current.SourceLocale || next.TargetLocale != current.TargetLocale {
+		var duplicate string
+		err := tx.QueryRow(ctx, `select id from memory_entries where memory_id=$1 and source_locale=$2 and target_locale=$3 and normalized_source_text=$4 and id<>$5 limit 1`, m.ID, next.SourceLocale, next.TargetLocale, normalized, current.ID).Scan(&duplicate)
+		if err == nil {
+			return nil, 0, duplicateMemoryEntry()
 		}
-		return nil, 0, missingMemory()
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return nil, 0, err
+		}
+	}
+	now := time.Now().UTC()
+	updated, err := scanMemoryEntry(tx.QueryRow(ctx, `update memory_entries as e set source_locale=$3, target_locale=$4, source_text=$5, normalized_source_text=$6, target_text=$7, match_score=$8, review_status=$9, metadata=$10::jsonb, modified_by_user_id=$11, reviewed_by_user_id=case when $12::boolean then $11 else reviewed_by_user_id end, reviewed_at=case when $12::boolean then $13::timestamptz else reviewed_at end, version=version+1, updated_at=$13::timestamptz where id=$1 and memory_id=$2 and version=$14 returning `+memoryEntryColumns, current.ID, m.ID, next.SourceLocale, next.TargetLocale, next.SourceText, normalized, next.TargetText, next.MatchScore, next.ReviewStatus, []byte(next.Metadata), actor.userID, reviewStatusChanged, now, current.Version))
+	if isUniqueViolation(err) {
+		return nil, 0, duplicateMemoryEntry()
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, 0, memoryFailureDetails(409, "stale_memory_entry", "The translation memory entry was updated by someone else", map[string]any{"memoryEntry": current})
 	}
 	if err != nil {
 		return nil, 0, err
 	}
-	detail, status, detailErr := api.memoryEntryDetail(ctx, m, updated.ID)
-	if detailErr != nil {
-		return map[string]any{"memoryEntry": updated}, 200, nil
+	if err := recordMemoryEntryUpdateEvents(ctx, tx, current, updated, actor.userID, contentFields, reviewStatusChanged, now); err != nil {
+		return nil, 0, err
+	}
+	return api.commitMemoryEntryDetail(ctx, tx, m, updated.ID)
+}
+
+// The detail is read inside the transaction so a failed read rolls back the
+// update instead of returning a body that does not match the detail contract.
+func (api *memoryAPI) commitMemoryEntryDetail(ctx context.Context, tx pgx.Tx, m memoryRecord, entryID string) (any, int, error) {
+	detail, status, err := memoryEntryDetailFrom(ctx, tx, m, entryID)
+	if err != nil {
+		return nil, 0, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, 0, err
 	}
 	return detail, status, nil
+}
+
+func duplicateMemoryEntry() error {
+	return memoryFailure(409, "duplicate_memory_entry", "An entry with this source text and locale pair already exists")
+}
+
+func memoryEntryChangedContentFields(current, next memoryEntryRecord) []string {
+	fields := []string{}
+	if next.SourceLocale != current.SourceLocale {
+		fields = append(fields, "sourceLocale")
+	}
+	if next.TargetLocale != current.TargetLocale {
+		fields = append(fields, "targetLocale")
+	}
+	if next.SourceText != current.SourceText {
+		fields = append(fields, "sourceText")
+	}
+	if next.TargetText != current.TargetText {
+		fields = append(fields, "targetText")
+	}
+	if next.MatchScore != current.MatchScore {
+		fields = append(fields, "matchScore")
+	}
+	if !memoryEntryMetadataEqual(current.Metadata, next.Metadata) {
+		fields = append(fields, "metadata")
+	}
+	return fields
+}
+
+func memoryEntryMetadataEqual(a, b json.RawMessage) bool {
+	var left, right any
+	if json.Unmarshal(a, &left) != nil || json.Unmarshal(b, &right) != nil {
+		return string(a) == string(b)
+	}
+	return reflect.DeepEqual(left, right)
+}
+
+func recordMemoryEntryUpdateEvents(ctx context.Context, tx pgx.Tx, current, updated memoryEntryRecord, actorUserID string, contentFields []string, reviewStatusChanged bool, now time.Time) error {
+	var hasCreation bool
+	if err := tx.QueryRow(ctx, `select exists(select 1 from memory_entry_events where memory_entry_id=$1 and event_type in ('created','imported','synced'))`, current.ID).Scan(&hasCreation); err != nil {
+		return err
+	}
+	if !hasCreation {
+		created := synthesizeMemoryEntryCreationEvent(current)
+		attributes := map[string]any{"provenance": current.Provenance, "reviewStatus": current.ReviewStatus}
+		if current.ImportBatchID != nil {
+			attributes["importBatchId"] = *current.ImportBatchID
+		}
+		if _, err := tx.Exec(ctx, `insert into memory_entry_events (memory_entry_id, memory_id, event_type, actor_kind, actor_user_id, version, changed_fields, attributes, occurred_at) values ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::text::timestamptz)`, current.ID, current.MemoryID, created.EventType, created.ActorKind, current.CreatedByUserID, current.Version, mustMemoryEventJSON(created.ChangedFields), mustMemoryEventJSON(attributes), current.CreatedAt); err != nil {
+			return err
+		}
+	}
+	if len(contentFields) > 0 {
+		if _, err := tx.Exec(ctx, `insert into memory_entry_events (memory_entry_id, memory_id, event_type, actor_kind, actor_user_id, version, changed_fields, attributes, occurred_at) values ($1,$2,'updated','user',$3,$4,$5::jsonb,$6::jsonb,$7)`, updated.ID, updated.MemoryID, actorUserID, updated.Version, mustMemoryEventJSON(contentFields), mustMemoryEventJSON(map[string]any{"provenance": updated.Provenance}), now); err != nil {
+			return err
+		}
+	}
+	if reviewStatusChanged {
+		// Offset by 1ms so the review sorts after the content update.
+		if _, err := tx.Exec(ctx, `insert into memory_entry_events (memory_entry_id, memory_id, event_type, actor_kind, actor_user_id, version, changed_fields, attributes, occurred_at) values ($1,$2,'reviewed','user',$3,$4,'["reviewStatus"]'::jsonb,$5::jsonb,$6)`, updated.ID, updated.MemoryID, actorUserID, updated.Version, mustMemoryEventJSON(map[string]any{"reviewStatus": updated.ReviewStatus}), now.Add(time.Millisecond)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func mustMemoryEventJSON(value any) string {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return "{}"
+	}
+	return string(raw)
 }
 
 func (api *memoryAPI) deleteMemoryEntry(ctx context.Context, actor memoryActor, m memoryRecord, entryID string) (any, int, error) {
