@@ -30,6 +30,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import { ContentEditorEditorCommentsSection } from "@/components/content-editor/editor/content-editor-editor-comments-section";
 import { ContentEditorEditorFormatChecksSection } from "@/components/content-editor/editor/content-editor-editor-format-checks-section";
+import { ContentEditorShortcutHint } from "@/components/content-editor/editor/content-editor-shortcut-hints";
 import { ContentEditorIntelligencePanel } from "@/components/content-editor/intelligence/content-editor-intelligence-panel";
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
 import { isNativeContentEditorProviderKind } from "@/components/content-editor/shared/content-editor-native-project";
@@ -281,11 +282,12 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
               type="button"
               variant="ghost"
               size="icon-sm"
-              className="ms-auto size-8 shrink-0"
+              className="relative ms-auto size-8 shrink-0"
               aria-label={intl.formatMessage(contentEditorWorkspaceViewMessages.hideDetailsPanel)}
               onClick={() => workspace.ui.setDetailsPanelCollapsed(true)}
             >
               <XIcon className="size-4" />
+              <ContentEditorShortcutHint shortcut="toggleDetailsPanel" placement="below" />
             </Button>
           </div>
 

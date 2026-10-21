@@ -74,6 +74,27 @@ function getAdjacentSegmentId(
   return segments[nextIndex]?.id;
 }
 
+export function findAdjacentSegmentIdMatching(
+  segments: Pick<ContentEditorSegment, "id" | "key">[],
+  currentId: string,
+  direction: -1 | 1,
+  matches: (segmentId: string) => boolean,
+) {
+  const currentIndex = getSegmentQueueIndex(segments, currentId);
+  for (
+    let index = currentIndex + direction;
+    index >= 0 && index < segments.length;
+    index += direction
+  ) {
+    const segmentId = segments[index]?.id;
+    if (segmentId && matches(segmentId)) {
+      return segmentId;
+    }
+  }
+
+  return undefined;
+}
+
 export interface UseCatWorkspaceRuntimeInput {
   store: ContentEditorWorkspaceOrchestrator;
   dependencies?: PartialCatWorkspaceDependencies;
@@ -269,6 +290,27 @@ export function useContentEditorWorkspaceRuntime({
         : {}),
     };
 
+    const selectAdjacentUntranslated = (direction: -1 | 1) => {
+      const visibleSegments = store.getFilteredQueueSegments(queueFilter, usesServerQueueFilter);
+      const targetId = findAdjacentSegmentIdMatching(
+        visibleSegments,
+        store.selectedSegmentId,
+        direction,
+        (segmentId) => store.matchesQueueFilter(segmentId, "untranslated"),
+      );
+      if (!targetId) {
+        return;
+      }
+
+      pendingAdvanceFromSegmentIdRef.current = null;
+      store.setSelectedSegmentId(targetId);
+      if (direction === 1) {
+        onNextSegment?.();
+      } else {
+        onPreviousSegment?.();
+      }
+    };
+
     const navigation: ContentEditorWorkspaceNavigation = {
       onSelectSegment: (segmentId: string) => {
         const selectedSegmentId = store.findSegmentIdByKeyOrId(segmentId) ?? segmentId;
@@ -318,6 +360,12 @@ export function useContentEditorWorkspaceRuntime({
           }
         }
         onNextSegment?.();
+      },
+      onPreviousUntranslatedSegment: () => {
+        selectAdjacentUntranslated(-1);
+      },
+      onNextUntranslatedSegment: () => {
+        selectAdjacentUntranslated(1);
       },
       onReviewInSequence: () => {
         onReviewInSequence?.();

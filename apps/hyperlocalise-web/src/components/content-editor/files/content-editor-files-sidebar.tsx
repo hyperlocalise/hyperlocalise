@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { Fragment, useEffect, useState, type ReactNode } from "react";
-import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
+import { EyeIcon, EyeSlashIcon, MagnifyingGlassIcon, StackIcon } from "@phosphor-icons/react";
 import { useDefaultLayout } from "react-resizable-panels";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -24,7 +24,9 @@ import type {
 import { ContentEditorRepositorySelect } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/content-editor-header-pickers";
 import { contentEditorHeaderPickersMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/content-editor-header-pickers.messages";
 import { ProjectFilesTree } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files-tree";
+import { projectFilesTreeMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files-tree.messages";
 import { Button } from "@/components/ui/button";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import {
   CAT_PANEL_COLLAPSED_SIZE,
@@ -67,7 +69,9 @@ export function ContentEditorFilesSidebar({
   className?: string;
 }) {
   const intl = useIntl();
-  const showRepositorySelect = Boolean(repositoryFullNames && repositoryFullNames.length > 0);
+  const [searchQuery, setSearchQuery] = useState("");
+  // A single repository is auto-selected, so the switcher only earns space with a real choice.
+  const showRepositorySelect = Boolean(repositoryFullNames && repositoryFullNames.length > 1);
 
   const commitRepositorySelection = (destinationSourcePath: string) => {
     if (!onRepositoryChange || !selectedRepositoryFullName) {
@@ -109,17 +113,37 @@ export function ContentEditorFilesSidebar({
         className,
       )}
     >
-      <div className="space-y-3 border-b border-border px-3 py-3">
-        <div className="flex min-h-7 items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-foreground">
-            <FormattedMessage {...contentEditorFilesSidebarMessages.filesTitle} />
-          </h2>
+      <h2 className="sr-only">
+        <FormattedMessage {...contentEditorFilesSidebarMessages.filesTitle} />
+      </h2>
+      <div className="space-y-2 border-b border-border px-3 py-2.5">
+        {showRepositorySelect && repositoryFullNames ? (
+          <ContentEditorRepositorySelect
+            repositoryFullNames={repositoryFullNames}
+            selectedRepositoryFullName={selectedRepositoryFullName}
+            onRepositoryChange={handleRepositoryChange}
+          />
+        ) : null}
+
+        <div className="flex items-center gap-1">
+          <InputGroup className="h-8 min-w-0 flex-1">
+            <InputGroupAddon>
+              <MagnifyingGlassIcon className="size-4" aria-hidden />
+            </InputGroupAddon>
+            <InputGroupInput
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.currentTarget.value)}
+              placeholder={intl.formatMessage(projectFilesTreeMessages.searchFiles)}
+              aria-label={intl.formatMessage(projectFilesTreeMessages.searchFiles)}
+            />
+          </InputGroup>
           {onHiddenFilesHiddenChange ? (
             <Button
               type="button"
               variant="ghost"
               size="icon-sm"
-              className="size-7"
+              className="size-8 shrink-0 text-muted-foreground"
               aria-pressed={hiddenFilesHidden}
               aria-label={intl.formatMessage(
                 hiddenFilesHidden
@@ -141,38 +165,37 @@ export function ContentEditorFilesSidebar({
             </Button>
           ) : null}
         </div>
-
-        {onSelectAllFiles ? (
-          <Button
-            type="button"
-            variant={allFilesSelected ? "default" : "outline"}
-            size="sm"
-            className="h-8 w-full justify-start"
-            onClick={handleSelectAllFiles}
-          >
-            <FormattedMessage {...contentEditorHeaderPickersMessages.allFiles} />
-          </Button>
-        ) : null}
-
-        {showRepositorySelect && repositoryFullNames ? (
-          <ContentEditorRepositorySelect
-            repositoryFullNames={repositoryFullNames}
-            selectedRepositoryFullName={selectedRepositoryFullName}
-            onRepositoryChange={handleRepositoryChange}
-          />
-        ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 px-2 py-2">
-        <ProjectFilesTree
-          files={files}
-          selectedSourcePath={allFilesSelected ? "" : (selectedSourcePath ?? "")}
-          onSelectFile={handleSelectFile}
-          onActivateFile={handleSelectFile}
-          ariaLabel={intl.formatMessage(contentEditorFilesSidebarMessages.sourceFilesAriaLabel)}
-          fillHeight
-          fileProgress={fileProgress}
-        />
+      <div className="flex min-h-0 flex-1 flex-col px-2 py-2">
+        {onSelectAllFiles ? (
+          <button
+            type="button"
+            aria-pressed={allFilesSelected}
+            className={cn(
+              "flex h-7 w-full shrink-0 items-center gap-2 rounded-md px-2 text-start text-[13px] outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring",
+              allFilesSelected
+                ? "bg-muted font-medium text-foreground"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+            )}
+            onClick={handleSelectAllFiles}
+          >
+            <StackIcon className="size-4 shrink-0" aria-hidden />
+            <FormattedMessage {...contentEditorHeaderPickersMessages.allFiles} />
+          </button>
+        ) : null}
+        <div className="min-h-0 flex-1">
+          <ProjectFilesTree
+            files={files}
+            selectedSourcePath={allFilesSelected ? "" : (selectedSourcePath ?? "")}
+            onSelectFile={handleSelectFile}
+            onActivateFile={handleSelectFile}
+            ariaLabel={intl.formatMessage(contentEditorFilesSidebarMessages.sourceFilesAriaLabel)}
+            fillHeight
+            fileProgress={fileProgress}
+            searchQuery={searchQuery}
+          />
+        </div>
       </div>
 
       {footer ? <div className="border-t border-border">{footer}</div> : null}

@@ -104,7 +104,7 @@ export const UnicodeTable: Story = {
     onInsertCharacter: fn(),
   },
   play: async ({ canvas, args }) => {
-    await expect(canvas.getByRole("heading", { name: "Unicode" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Unicode table" })).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Show unicode characters" }));
     await expect(canvas.getByLabelText("Search unicode symbols")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Insert EURO SIGN (U+20AC)" }));

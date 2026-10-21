@@ -36,7 +36,7 @@ describe("ContentEditorIntelligencePanel", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Translation Intelligence" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Unicode" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Unicode table" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Show unicode characters" })).toBeInTheDocument();
   });
 
@@ -51,7 +51,7 @@ describe("ContentEditorIntelligencePanel", () => {
       />,
     );
 
-    expect(screen.queryByRole("heading", { name: "Unicode" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Unicode table" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Show unicode characters" }),
     ).not.toBeInTheDocument();
@@ -64,7 +64,7 @@ describe("ContentEditorIntelligencePanel", () => {
       />,
     );
 
-    expect(screen.queryByRole("heading", { name: "Unicode" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Unicode table" })).not.toBeInTheDocument();
     expect(onInsertCharacter).not.toHaveBeenCalled();
   });
 

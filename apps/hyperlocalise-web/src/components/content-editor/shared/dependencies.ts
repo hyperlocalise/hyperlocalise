@@ -43,6 +43,9 @@ export interface ContentEditorWorkspaceNavigation {
   onSelectSegment: (segmentId: string) => void;
   onPreviousSegment: () => void;
   onNextSegment: () => void;
+  /** Jumps within the loaded queue; does not page in more strings. */
+  onPreviousUntranslatedSegment?: () => void;
+  onNextUntranslatedSegment?: () => void;
   onReviewInSequence: () => void;
 }
 

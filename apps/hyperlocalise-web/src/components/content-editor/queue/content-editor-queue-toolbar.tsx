@@ -52,6 +52,7 @@ import {
 import { ContentEditorAdvancedQueueFilterDialog } from "./content-editor-advanced-queue-filter-dialog";
 import { ContentEditorOverflowMenu } from "./content-editor-overflow-menu";
 import { ContentEditorViewMenu } from "./content-editor-view-menu";
+import { ContentEditorShortcutHint } from "@/components/content-editor/editor/content-editor-shortcut-hints";
 import { contentEditorBulkBarMessages } from "@/components/content-editor/shared/content-editor-chrome.messages";
 import { contentEditorQueuePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 
@@ -199,10 +200,16 @@ export function ContentEditorQueueToolbar({
                 placeholder={intl.formatMessage(contentEditorQueuePanelMessages.searchPlaceholder)}
                 aria-label={intl.formatMessage(contentEditorQueuePanelMessages.searchAria)}
                 className="h-8 pl-9 font-mono text-xs"
+                data-content-editor-string-search="true"
               />
               {isSearching ? (
                 <Spinner className="absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2" />
-              ) : null}
+              ) : (
+                <ContentEditorShortcutHint
+                  shortcut="searchStrings"
+                  className="top-1/2 right-2 -translate-y-1/2"
+                />
+              )}
             </div>
           ) : null}
 

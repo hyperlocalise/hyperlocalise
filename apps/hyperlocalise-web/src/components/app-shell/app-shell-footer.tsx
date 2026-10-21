@@ -194,6 +194,16 @@ export function AppShellFooter({
                   >
                     <BookOpenTextIcon data-icon="inline-start" />
                     <FormattedMessage {...appShellFooterMessages.glossaryGuidanceLabel} />
+                    {glossaryGuidanceStatus.matchCount > 0 &&
+                    glossaryGuidanceStatus.preferredCount === 0 &&
+                    glossaryGuidanceStatus.notRecommendedCount === 0 ? (
+                      <span
+                        data-glossary-guidance-match-count
+                        className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-xs font-medium tabular-nums text-muted-foreground"
+                      >
+                        {glossaryGuidanceStatus.matchCount}
+                      </span>
+                    ) : null}
                     {glossaryGuidanceStatus.preferredCount > 0 ? (
                       <span className="inline-flex items-center gap-0.5 text-xs font-medium text-emerald-500">
                         <CheckCircleIcon className="size-4" aria-hidden="true" />

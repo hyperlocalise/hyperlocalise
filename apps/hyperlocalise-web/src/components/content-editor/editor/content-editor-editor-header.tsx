@@ -29,6 +29,7 @@ import { contentEditorEditorPanelMessages } from "@/components/content-editor/sh
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
 
 import { getCatShortcutLabel } from "./content-editor-keyboard-shortcuts";
+import { ContentEditorShortcutHint } from "./content-editor-shortcut-hints";
 
 export function ContentEditorEditorHeader({
   segment,
@@ -103,6 +104,7 @@ export function ContentEditorEditorHeader({
         <Button
           variant="ghost"
           size="icon-sm"
+          className="relative"
           onClick={onPrevious}
           disabled={isNavigationBlocked || !hasPreviousSegment}
           aria-label={intl.formatMessage(contentEditorEditorPanelMessages.previousSegmentAria)}
@@ -111,10 +113,12 @@ export function ContentEditorEditorHeader({
           })}
         >
           <ArrowLeftIcon className="size-4" />
+          <ContentEditorShortcutHint shortcut="previous" placement="below" />
         </Button>
         <Button
           variant="ghost"
           size="icon-sm"
+          className="relative"
           onClick={onNext}
           disabled={isNavigationBlocked || !hasNextSegment}
           aria-label={intl.formatMessage(contentEditorEditorPanelMessages.nextSegmentAria)}
@@ -123,6 +127,7 @@ export function ContentEditorEditorHeader({
           })}
         >
           <ArrowRightIcon className="size-4" />
+          <ContentEditorShortcutHint shortcut="next" placement="below" />
         </Button>
       </div>
     </div>

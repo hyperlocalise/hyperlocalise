@@ -36,6 +36,7 @@ import {
   TextTIcon,
   type Icon,
 } from "@phosphor-icons/react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { formatInternalMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-internal-markup";
@@ -58,6 +59,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ContentEditorEditorShortcutKbd } from "@/components/content-editor/editor/content-editor-editor-shortcut-kbd";
+import {
+  getCatShortcutHotkey,
+  type ContentEditorShortcutId,
+} from "@/components/content-editor/editor/content-editor-keyboard-shortcuts";
+import { ContentEditorShortcutHint } from "@/components/content-editor/editor/content-editor-shortcut-hints";
 import { contentEditorFindContextMessages } from "@/components/content-editor/shared/content-editor-chrome.messages";
 import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
@@ -267,6 +273,7 @@ function tmMatchBadgeLabel(
 function TranslationMemoryRow({
   match,
   onUse,
+  useShortcut,
   organizationSlug,
   projectId,
   sourceLocale,
@@ -274,6 +281,7 @@ function TranslationMemoryRow({
 }: {
   match: ContentEditorTranslationMemoryMatch;
   onUse?: (match: ContentEditorTranslationMemoryMatch) => void;
+  useShortcut?: ContentEditorShortcutId;
   organizationSlug?: string;
   projectId?: string;
   sourceLocale?: string;
@@ -316,10 +324,11 @@ function TranslationMemoryRow({
             <Button
               variant="outline"
               size="sm"
-              className="h-8 shrink-0"
+              className="relative h-8 shrink-0"
               onClick={() => onUse(match)}
             >
               <FormattedMessage {...contentEditorIntelligencePanelMessages.useTmMatch} />
+              {useShortcut ? <ContentEditorShortcutHint shortcut={useShortcut} /> : null}
             </Button>
           ) : null}
         </div>
@@ -337,6 +346,8 @@ function TranslationMemoryRow({
 }
 
 const TM_COLLAPSED_MATCH_COUNT = 2;
+const TM_MATCH_SHORTCUTS = ["useSuggestion1", "useSuggestion2", "useSuggestion3"] as const;
+const TM_MATCH_SHORTCUT_DIGITS = ["Digit1", "Digit2", "Digit3"];
 
 function TranslationMemoryMatchList({
   matches,
@@ -363,11 +374,12 @@ function TranslationMemoryMatchList({
   return (
     <>
       <ul className="divide-y divide-border">
-        {visibleMatches.map((match) => (
+        {visibleMatches.map((match, index) => (
           <TranslationMemoryRow
             key={match.id}
             match={match}
             onUse={onUse}
+            useShortcut={onUse ? TM_MATCH_SHORTCUTS[index] : undefined}
             organizationSlug={organizationSlug}
             projectId={projectId}
             sourceLocale={sourceLocale}
@@ -696,6 +708,31 @@ export function ContentEditorIntelligencePanel({
 
     onUseTmMatch(match);
   }
+
+  const canUseTmMatchShortcuts =
+    canEditTranslations &&
+    !isTranslationLocked &&
+    Boolean(onUseTmMatch) &&
+    !isConcordanceLoading &&
+    pendingLowMatch === null;
+  const tmMatches = intelligence.translationMemoryMatches;
+  useHotkeys(
+    TM_MATCH_SHORTCUTS.map((shortcut) => getCatShortcutHotkey(shortcut)).join(", "),
+    (event) => {
+      const index = TM_MATCH_SHORTCUT_DIGITS.indexOf(event.code);
+      const match = index >= 0 ? tmMatches?.[index] : undefined;
+      if (match) {
+        handleUseTmMatch(match);
+      }
+    },
+    {
+      enabled: canUseTmMatchShortcuts && Boolean(tmMatches?.length),
+      enableOnFormTags: false,
+      enableOnContentEditable: true,
+      preventDefault: true,
+    },
+    [canUseTmMatchShortcuts, tmMatches, handleUseTmMatch],
+  );
 
   function confirmLowMatchApply() {
     if (pendingLowMatch && onUseTmMatch) {
