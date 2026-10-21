@@ -107,10 +107,11 @@ const FINISHED_MEASURES = MEASURES.map((m) => `${m.finished} as ${m.column}`).jo
 const MAX_DAYS_PER_REFRESH = 400;
 /**
  * Above this many strings arriving in the refreshed days, their completions are found by scanning
- * the project's completions rather than one key lookup each (measured on a 380,000-string day:
- * 1.7 s against 3.8 s; on a 429-string day the lookups took 27 ms against 300 ms).
+ * the project's completions rather than one key lookup each (measured: 380,000 strings, 1.6 s
+ * against 2.1 s; 43,000, 0.28 s against 0.42 s; 6,200, 47 ms against 65 ms; 429, 300 ms against
+ * 18 ms).
  */
-const SCAN_COMPLETIONS_ABOVE = 20_000;
+const SCAN_COMPLETIONS_ABOVE = 2_000;
 
 /**
  * Works out the summary rows of one workspace and project again for the given UTC days, from the
@@ -169,16 +170,27 @@ export async function refreshSummaryDays(
           inArray(schema.reportingDailyByTask.day, days),
         ),
       );
-    // A day can hold a whole first import (hundreds of thousands of rows), where looking each
-    // row's completion up by its key takes seconds; scanning the project's completions once is
-    // then faster. For an ordinary day the key lookups are, by far.
+    // The day's arrivals go into a table of their own and are measured: work arrives in bursts
+    // (a first import puts hundreds of thousands of strings on one day), which the planner's
+    // estimates for a date range miss by orders of magnitude, and a plan made for one row that
+    // meets thousands rereads a whole subquery for each.
+    await tx.execute(sql`
+      create temp table reporting_summary_arrivals on commit drop as
+      select a.id, a.job_id, a.segment_id, a.source_revision, a.step, a.source_locale,
+        a.target_locale, a.bucket, a.billable, a.words, a.characters, a.characters_with_spaces,
+        a.created_at
+      from reporting_analyses a
+      where a.organization_id = ${organizationId} and a.project_id = ${projectId}
+        and a.is_current and ${inDays("a.created_at")}
+    `);
+    await tx.execute(sql`analyze reporting_summary_arrivals`);
     const [arrivalCount] = (
-      await tx.execute<{ rows: number }>(sql`
-        select count(*)::integer as rows from reporting_analyses a
-        where a.organization_id = ${organizationId} and a.project_id = ${projectId}
-          and a.is_current and ${inDays("a.created_at")}
-      `)
+      await tx.execute<{ rows: number }>(
+        sql`select count(*)::integer as rows from reporting_summary_arrivals`,
+      )
     ).rows;
+    // Looking each completion up by its key is fastest for an ordinary day; for a burst,
+    // scanning the project's completions once is.
     const completionsOfArrivals =
       (arrivalCount?.rows ?? 0) > (input.scanCompletionsAbove ?? SCAN_COMPLETIONS_ABOVE)
         ? sql`select d.analysis_id from reporting_activity d
@@ -188,11 +200,7 @@ export async function refreshSummaryDays(
             where d.organization_id = ${organizationId}
               and d.operation_key in (select 'completion:' || id || ':' || step from arrivals)`;
     await tx.execute(sql`
-      with arrivals as materialized (
-        select a.* from reporting_analyses a
-        where a.organization_id = ${organizationId} and a.project_id = ${projectId}
-          and a.is_current and ${inDays("a.created_at")}
-      ),
+      with arrivals as (select * from reporting_summary_arrivals),
       -- Source counts each text once however many languages it goes into: only on the earliest
       -- current analysis of the same task, string, text and step.
       firsts as (
