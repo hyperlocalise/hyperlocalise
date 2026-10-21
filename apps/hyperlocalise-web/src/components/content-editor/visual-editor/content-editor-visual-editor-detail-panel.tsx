@@ -203,6 +203,7 @@ export function ContentEditorVisualEditorDetailPanel({
             isTranslationLocked={Boolean(segment.isLocked)}
             canLookupFreshContext={false}
             onUseTmMatch={onUseTmMatch}
+            onInsertCharacter={(character) => onTargetChange(`${segment.targetText}${character}`)}
           />
         </div>
 

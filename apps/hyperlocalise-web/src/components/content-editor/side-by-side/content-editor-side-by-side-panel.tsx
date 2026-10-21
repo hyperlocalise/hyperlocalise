@@ -503,6 +503,15 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
               ? (match) => onUseTmMatch(intelligenceSegmentId, match)
               : undefined
           }
+          onInsertCharacter={
+            intelligenceSegment
+              ? (character) =>
+                  onTargetChange(
+                    intelligenceSegmentId,
+                    `${intelligenceSegment.targetText}${character}`,
+                  )
+              : undefined
+          }
           onAddComment={
             onAddComment && intelligenceSegment
               ? (input) => onAddComment(intelligenceSegmentId, input)

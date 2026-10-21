@@ -52,6 +52,10 @@ import {
 } from "@/components/content-editor/message-format/content-editor-message-token-styles";
 import { glossaryTermRanges } from "@/components/content-editor/intelligence/content-editor-glossary-checks";
 import { ContentEditorCharacterMeter } from "@/components/content-editor/segment/content-editor-character-meter";
+import {
+  markContentEditorTargetInsertFocused,
+  registerContentEditorTargetInsert,
+} from "@/components/content-editor/editor/content-editor-target-insert";
 import { contentEditorTargetEditorMessages } from "@/components/content-editor/shared/content-editor.messages";
 
 const TEXT_BLOCK_SEPARATOR = "\n";
@@ -747,6 +751,28 @@ export function ContentEditorTargetEditor({
   useEffect(() => {
     if (autoFocus && editor) editor.commands.focus("end");
   }, [autoFocus, editor]);
+
+  useEffect(() => {
+    if (!editor || disabled) {
+      return;
+    }
+
+    const insert = (text: string) => {
+      if (!editor.isEditable) {
+        return false;
+      }
+      editor.chain().focus().insertContent(text).run();
+      return true;
+    };
+
+    const unregister = registerContentEditorTargetInsert(insert);
+    const onFocus = () => markContentEditorTargetInsertFocused(insert);
+    editor.on("focus", onFocus);
+    return () => {
+      editor.off("focus", onFocus);
+      unregister();
+    };
+  }, [disabled, editor]);
 
   const highlightTokenKey = (highlightTokens ?? []).join("\0");
 

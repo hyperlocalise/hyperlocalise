@@ -75,6 +75,7 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
     onAskQuestion,
     onRefreshContext,
     onUseTmMatch,
+    onInsertCharacter,
     onAddComment,
     onOpenIssueSheet,
     onResolveComment,
@@ -114,6 +115,7 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
     onAskQuestion?: () => void;
     onRefreshContext?: () => void;
     onUseTmMatch?: (match: ContentEditorTranslationMemoryMatch) => void;
+    onInsertCharacter?: (character: string) => void;
     onAddComment?: (input: ContentEditorSegmentCommentInput) => void | Promise<void>;
     onOpenIssueSheet?: () => void;
     onResolveComment?: (commentId: string) => void | Promise<void>;
@@ -220,6 +222,7 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
         canLookupFreshContext={canLookupFreshContext}
         onRefreshContext={onRefreshContext}
         onUseTmMatch={onUseTmMatch}
+        onInsertCharacter={onInsertCharacter}
         onSetMaxLength={segment.isLocked ? undefined : onSetMaxLength}
         onGlossaryTermAdded={onGlossaryTermAdded}
         canTriggerFindContext={canTriggerFindContext}

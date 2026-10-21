@@ -94,6 +94,24 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+export const UnicodeTable: Story = {
+  args: {
+    intelligence: {
+      ...contentEditorIntelligenceFixture,
+      glossaryConcepts: undefined,
+      translationMemoryMatches: [],
+    },
+    onInsertCharacter: fn(),
+  },
+  play: async ({ canvas, args }) => {
+    await expect(canvas.getByRole("heading", { name: "Unicode" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Show unicode characters" }));
+    await expect(canvas.getByLabelText("Search unicode symbols")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Insert EURO SIGN (U+20AC)" }));
+    await expect(args.onInsertCharacter).toHaveBeenCalledWith("€");
+  },
+};
+
 export const Results: Story = {
   play: async ({ canvas }) => {
     await expect(

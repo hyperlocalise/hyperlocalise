@@ -24,6 +24,7 @@ import {
   ContentEditorMessagePreview,
   ContentEditorTargetEditor,
 } from "./content-editor-target-editor";
+import { insertTextIntoActiveContentEditorTarget } from "./content-editor-target-insert";
 
 const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
 const md1 = "\u001eHLMDPH_0EB5FD589564_1\u001f";
@@ -164,5 +165,29 @@ describe("ContentEditorTargetEditor markdown display", () => {
     expect(lastValue).toMatch(/^Nutzen Sie Articles als Grundlage!/);
     expect(lastValue).toContain(md0);
     expect(lastValue).not.toContain("#h_8b76258d80");
+  });
+});
+
+describe("ContentEditorTargetEditor unicode insert", () => {
+  it("inserts a registry character at the cursor", async () => {
+    const onChange = vi.fn();
+    renderWithContentEditorProviders(
+      <ContentEditorTargetEditor sourceText="Hello" value="Hello" onChange={onChange} />,
+    );
+
+    const editor = await waitFor(() => {
+      const node = document.querySelector(".tiptap");
+      expect(node).toBeTruthy();
+      return node as HTMLElement;
+    });
+
+    const user = userEvent.setup();
+    await user.click(editor);
+    expect(insertTextIntoActiveContentEditorTarget("€")).toBe(true);
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+    expect(onChange.mock.calls.at(-1)?.[0]).toContain("€");
   });
 });

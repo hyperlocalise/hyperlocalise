@@ -1400,6 +1400,49 @@ export const contentEditorVisualContextPanelMessages = defineMessages({
   },
 });
 
+export const contentEditorUnicodePanelMessages = defineMessages({
+  title: {
+    defaultMessage: "Unicode",
+    id: "5Zw0t7KTMY",
+    description: "Section heading for the CAT unicode character table",
+  },
+  category: {
+    defaultMessage: "Commonly used",
+    id: "MFyr6tzoKS",
+    description: "Category label for translator-essential unicode characters",
+  },
+  searchPlaceholder: {
+    defaultMessage: "Search symbols",
+    id: "JXQ6OP7JfI",
+    description: "Placeholder for filtering the CAT unicode character table",
+  },
+  searchAria: {
+    defaultMessage: "Search unicode symbols",
+    id: "aQyJu30/D6",
+    description: "Accessible label for the CAT unicode character search field",
+  },
+  emptySearch: {
+    defaultMessage: "No symbols match “{query}”.",
+    id: "fzFR5CZA1L",
+    description: "Empty state when unicode character search has no matches",
+  },
+  insertAria: {
+    defaultMessage: "Insert {name} ({code})",
+    id: "8W1Ri/FiXa",
+    description: "Accessible label for a unicode character button in the CAT table",
+  },
+  expandAria: {
+    defaultMessage: "Show unicode characters",
+    id: "quty5keh4e",
+    description: "Accessible label to expand the collapsed CAT unicode table",
+  },
+  collapseAria: {
+    defaultMessage: "Hide unicode characters",
+    id: "P1e3b+MNYt",
+    description: "Accessible label to collapse the CAT unicode table",
+  },
+});
+
 export const contentEditorPanelErrorBoundaryMessages = defineMessages({
   queuePanelTitle: {
     defaultMessage: "Queue panel failed to load",

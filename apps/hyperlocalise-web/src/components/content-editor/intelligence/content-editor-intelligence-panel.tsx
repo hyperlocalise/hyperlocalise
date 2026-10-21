@@ -88,6 +88,7 @@ import {
   ContentEditorShowLessButton,
   ContentEditorShowMoreFade,
 } from "./content-editor-show-more-fade";
+import { ContentEditorUnicodePanel } from "./content-editor-unicode-panel";
 import { ContentEditorVisualContextPanel } from "./content-editor-visual-context-panel";
 
 const EMPTY_CONTRIBUTOR_TEAMS: ContentEditorContributorTeam[] = [];
@@ -375,6 +376,7 @@ export function ContentEditorIntelligencePanel({
   canUploadVisualContext = false,
   isUploadingVisualContext = false,
   onUploadVisualContext,
+  onInsertCharacter,
 }: {
   intelligence: ContentEditorSegmentIntelligence;
   segmentId?: string;
@@ -418,6 +420,7 @@ export function ContentEditorIntelligencePanel({
   canUploadVisualContext?: boolean;
   isUploadingVisualContext?: boolean;
   onUploadVisualContext?: (file: File) => void | Promise<void>;
+  onInsertCharacter?: (character: string) => void;
 }) {
   const intl = useIntl();
   const isMac = useIsMac();
@@ -854,6 +857,11 @@ export function ContentEditorIntelligencePanel({
               )}
             </PanelSection>
           ) : null}
+
+          <ContentEditorUnicodePanel
+            canInsert={canEditTranslations && !isTranslationLocked}
+            onInsertCharacter={onInsertCharacter}
+          />
         </div>
       </ScrollArea>
 

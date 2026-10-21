@@ -36,6 +36,8 @@ describe("ContentEditorIntelligencePanel", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Translation Intelligence" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Unicode" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show unicode characters" })).toBeInTheDocument();
   });
 
   it("finds context from the panel header", async () => {
