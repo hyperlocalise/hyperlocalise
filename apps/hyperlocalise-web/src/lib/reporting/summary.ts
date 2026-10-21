@@ -14,6 +14,8 @@ import { and, asc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 
+import { reportingStart } from "./reporting-start";
+
 /**
  * The version of the daily summary's rules. A workspace whose summary was built under another
  * version is rebuilt in full, so raising this is how a change to the rules reaches old days.
@@ -176,7 +178,7 @@ export async function refreshSummaryDays(
     // (a first import puts hundreds of thousands of strings on one day), which the planner's
     // estimates for a date range miss by orders of magnitude, and a plan made for one row that
     // meets thousands rereads a whole subquery for each.
-    await tx.execute(sql`drop table if exists reporting_summary_arrivals`);
+    await tx.execute(sql`drop table if exists pg_temp.reporting_summary_arrivals`);
     await tx.execute(sql`
       create temp table reporting_summary_arrivals on commit drop as
       select a.id, a.job_id, a.segment_id, a.source_revision, a.step, a.source_locale,
@@ -353,18 +355,21 @@ export async function refreshPendingSummary(
 export async function ensureSummaryBuilt(input: { organizationIds?: string[] } = {}) {
   // A workspace with records from before the start was kept per workspace may not have written
   // anything since; the capture task's own list of workspaces finds those it records saves for.
-  await db.execute(sql`
-    insert into reporting_workspaces (organization_id, started_at)
-    select c.organization_id, coalesce(least(
-      (select min(created_at) from reporting_analyses a where a.organization_id = c.organization_id),
-      (select min(created_at) from reporting_activity r where r.organization_id = c.organization_id)
-    ), c.started_at)
-    from reporting_capture_cursors c
+  const unstarted = await db.execute<{ organizationId: string }>(sql`
+    select c.organization_id as "organizationId" from reporting_capture_cursors c
     where not exists (
       select 1 from reporting_workspaces w where w.organization_id = c.organization_id
     )
-    on conflict (organization_id) do nothing
+    ${
+      input.organizationIds
+        ? sql`and c.organization_id in (${sql.join(
+            input.organizationIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})`
+        : sql``
+    }
   `);
+  for (const { organizationId } of unstarted.rows) await reportingStart(organizationId);
   const workspaces = await db
     .select({ organizationId: schema.reportingWorkspaces.organizationId })
     .from(schema.reportingWorkspaces)

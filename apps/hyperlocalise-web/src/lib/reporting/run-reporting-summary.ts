@@ -24,6 +24,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/lib/database/client";
 
+import { reportingStart } from "./reporting-start";
 import { ensureSummaryBuilt, refreshPendingSummary, refreshSummaryDays } from "./summary";
 
 function option(name: string) {
@@ -40,12 +41,10 @@ async function seconds<T>(run: () => Promise<T>): Promise<[T, number]> {
 async function rebuild(organizationId: string | undefined) {
   const scope = organizationId ? sql`where organization_id = ${organizationId}` : sql``;
   // Workspaces with records from before the start was kept per workspace have no row yet.
-  await db.execute(sql`
-    insert into reporting_workspaces (organization_id, started_at)
-    select organization_id, min(created_at) from reporting_analyses ${scope}
-    group by organization_id
-    on conflict (organization_id) do nothing
-  `);
+  const workspaces = await db.execute<{ organizationId: string }>(
+    sql`select distinct organization_id as "organizationId" from reporting_analyses ${scope}`,
+  );
+  for (const workspace of workspaces.rows) await reportingStart(workspace.organizationId);
   await db.execute(sql`update reporting_workspaces set summary_version = null ${scope}`);
   const organizationIds = organizationId ? [organizationId] : undefined;
   const [queued, queueSeconds] = await seconds(() => ensureSummaryBuilt({ organizationIds }));

@@ -14,7 +14,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@/lib/database/client";
 import type { z } from "zod";
 import type { reportQuerySchema } from "@/api/routes/reports/reports.schema";
-import { reportingStart } from "./reporting-start";
+import { getReportingStart } from "./reporting-start";
 import { csvCell } from "./word-analysis";
 
 export type ReportQuery = z.infer<typeof reportQuerySchema>;
@@ -61,6 +61,8 @@ export async function queryReport(input: {
   // hundred rows instead of one per job.
   const jobColumn = query.view === "overview" ? sql`null::text` : sql`job_id`;
   const pageSize = query.format === "csv" ? null : REPORT_PAGE_SIZE;
+  // Visual workflow step times count from when Reports started recording; with no start yet, all.
+  const startedAt = await getReportingStart(input.organizationId);
   const result = await db.execute<ReportRow>(sql`
         with facts as (
             select a.organization_id, a.project_id, a.job_id, a.target_locale, a.step, a.created_at at time zone 'UTC' as occurred_at,
@@ -74,7 +76,7 @@ export async function queryReport(input: {
               (extract(epoch from (n.finished_at-n.started_at))*1000)::integer,null,0,0,0
             from visual_workflow_node_runs n join visual_workflow_runs r on r.id=n.run_id join visual_workflows w on w.id=r.visual_workflow_id
             where n.organization_id=${input.organizationId}
-              and n.started_at >= (select started_at from reporting_workspaces where organization_id=${input.organizationId})
+              ${startedAt ? sql`and n.started_at >= ${startedAt}` : sql``}
               and n.finished_at >= ${start} and n.finished_at < ${end}
             union all
             select organization_id,project_id,job_id,target_locale,step,work_date at time zone 'UTC',null,'time',0,minutes,0,null,0,0,0 from reporting_time_entries
@@ -103,9 +105,6 @@ export async function queryReport(input: {
     `);
   const hasMore = pageSize !== null && result.rows.length > pageSize;
   const rows = hasMore ? result.rows.slice(0, pageSize!) : result.rows;
-  // Created here when nothing has recorded yet, so a workspace with older records (from before the
-  // start was kept per workspace) gets its start, and its visual workflow step times, at once.
-  const startedAt = await reportingStart(input.organizationId);
   const sourceCounts = await db.execute<{ sourceWords: number; workloadWords: number }>(sql`
     select coalesce(sum(words),0)::integer as "sourceWords",coalesce(sum(workload),0)::integer as "workloadWords" from (
       select job_id,segment_id,source_revision,max(words) as words,sum(words) as workload from reporting_analyses
@@ -138,7 +137,7 @@ export async function queryReport(input: {
     rows,
     page: query.page,
     hasMore,
-    startedAt: startedAt.toISOString(),
+    startedAt: startedAt ? startedAt.toISOString() : null,
     from,
     to,
     timezone: "UTC" as const,
