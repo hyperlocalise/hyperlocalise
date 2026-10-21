@@ -85,6 +85,7 @@ import {
   projectFilesQueryKey,
   sortFilesByPath,
 } from "./project-files-tree-panel";
+import { ContentEditorFileProgressSync } from "./content-editor-file-progress-sync";
 import { projectFileCatPageContentMessages as messages } from "./project-file-content-editor-page-content.messages";
 
 type ProjectFileContentEditorGithubRepository = {
@@ -196,7 +197,10 @@ function ProjectFileContentEditorPageContentInner({
   });
 
   const filesQuery = useQuery({
-    queryKey: projectFilesQueryKey(organizationSlug, projectId, PROJECT_FILES_MAX_LIMIT, branch),
+    queryKey: [
+      ...projectFilesQueryKey(organizationSlug, projectId, PROJECT_FILES_MAX_LIMIT, branch),
+      "include-hidden",
+    ],
     queryFn: () =>
       fetchProjectFiles(
         goSvcClient,
@@ -205,6 +209,7 @@ function ProjectFileContentEditorPageContentInner({
         PROJECT_FILES_MAX_LIMIT,
         branch,
         intl.formatMessage(messages.unableToLoad),
+        { includeHidden: true },
       ),
     enabled: hasFileReference,
     placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId, branch),
@@ -787,6 +792,7 @@ function ProjectFileContentEditorPageContentInner({
         </>
       }
     >
+      <ContentEditorFileProgressSync organizationSlug={organizationSlug} projectId={projectId} />
       <ProjectFileContentEditorWorkspace
         organizationSlug={organizationSlug}
         projectId={projectId}

@@ -102,6 +102,8 @@ vi.mock("./project-files-tree-panel", () => ({
   fetchProjectFiles: (...args: unknown[]) => fetchProjectFilesMock(...args),
   findCachedProjectFiles: vi.fn(() => undefined),
   projectFilesQueryKey: () => ["project-files"],
+  fetchProjectFileProgress: vi.fn(async () => []),
+  projectFileProgressQueryKey: () => ["project-file-progress"],
   sortFilesByPath: (files: unknown[]) => files,
   PROJECT_FILES_MAX_LIMIT: 1000,
 }));

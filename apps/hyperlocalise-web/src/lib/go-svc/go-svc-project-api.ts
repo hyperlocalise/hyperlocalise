@@ -23,6 +23,7 @@ import type {
   WorkspaceFileRecord,
   WorkspaceFilesQuery,
 } from "./go-svc-client.types";
+import type { ProjectFileProgressRecord } from "@/api/routes/project/project.schema";
 import { orgPath, type GoSvcRequest } from "./go-svc-request";
 
 export class GoSvcProjectApi {
@@ -126,6 +127,18 @@ export class GoSvcProjectApi {
     return this.request.json<{ files: ProjectFileRecord[] }>(
       orgPath(organizationSlug, "projects", projectId, "files"),
       { query, ...options },
+    );
+  }
+
+  fileProgress(
+    organizationSlug: string,
+    projectId: string,
+    locale: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ files: ProjectFileProgressRecord[] }>(
+      orgPath(organizationSlug, "projects", projectId, "file-progress"),
+      { query: { locale }, ...options },
     );
   }
 

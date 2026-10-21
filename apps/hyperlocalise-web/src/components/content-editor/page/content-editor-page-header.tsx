@@ -22,6 +22,7 @@ import {
   ContentEditorFileTreePicker,
   ContentEditorLocaleSelect,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/content-editor-header-pickers";
+import { resolveVisibleContentEditorFiles } from "@/components/content-editor/files/content-editor-visible-files";
 import { ContentEditorActivityLogButton } from "@/components/content-editor/activity-log/content-editor-activity-log-dialog";
 import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
@@ -82,7 +83,12 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
         {showFilePicker ? (
           <div className={isFileViewOrDesigner ? "inline-flex" : "lg:hidden"}>
             <ContentEditorFileTreePicker
-              files={page.files}
+              files={resolveVisibleContentEditorFiles(
+                page.files,
+                ui.hiddenFilesHidden,
+                page.allFiles ? null : page.selectedSourcePath,
+              )}
+              fileProgress={page.fileProgress}
               selectedSourcePath={page.selectedSourcePath ?? ""}
               onSelectFile={actions.onSelectFile}
               allFilesSelected={page.allFiles}

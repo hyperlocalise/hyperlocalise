@@ -19,6 +19,10 @@ import {
   ContentEditorFilesSidebar,
   ContentEditorPageBody,
 } from "@/components/content-editor/files/content-editor-files-sidebar";
+import {
+  hasHiddenContentEditorFiles,
+  resolveVisibleContentEditorFiles,
+} from "@/components/content-editor/files/content-editor-visible-files";
 import { ContentEditorPanelErrorBoundary } from "@/components/content-editor/workspace/content-editor-panel-error-boundary";
 import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
 import { cn } from "@/lib/primitives/cn";
@@ -72,7 +76,11 @@ export const ContentEditorPageShell = observer(function ContentEditorPageShell({
           page.showFileSidebar ? (
             <ContentEditorPanelErrorBoundary scope="files" resetKeys={[page.files]}>
               <ContentEditorFilesSidebar
-                files={page.files}
+                files={resolveVisibleContentEditorFiles(
+                  page.files,
+                  ui.hiddenFilesHidden,
+                  page.allFiles ? null : page.selectedSourcePath,
+                )}
                 selectedSourcePath={page.selectedSourcePath}
                 onSelectFile={actions.onSelectFile}
                 allFilesSelected={page.allFiles}
@@ -80,6 +88,13 @@ export const ContentEditorPageShell = observer(function ContentEditorPageShell({
                 repositoryFullNames={page.repositoryFullNames}
                 selectedRepositoryFullName={page.selectedRepositoryFullName}
                 onRepositoryChange={actions.onRepositoryChange}
+                fileProgress={page.fileProgress}
+                hiddenFilesHidden={ui.hiddenFilesHidden}
+                onHiddenFilesHiddenChange={
+                  hasHiddenContentEditorFiles(page.files)
+                    ? (hidden) => ui.setHiddenFilesHidden(hidden)
+                    : undefined
+                }
               />
             </ContentEditorPanelErrorBoundary>
           ) : undefined

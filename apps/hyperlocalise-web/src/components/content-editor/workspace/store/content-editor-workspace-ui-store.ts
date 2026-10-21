@@ -27,9 +27,11 @@ import {
 import {
   readCatDetailsPanelCollapsed,
   readCatFilesPanelCollapsed,
+  readCatHiddenFilesHidden,
   readCatShortcutHintsHidden,
   writeCatDetailsPanelCollapsed,
   writeCatFilesPanelCollapsed,
+  writeCatHiddenFilesHidden,
   writeCatShortcutHintsHidden,
 } from "@/components/content-editor/workspace/content-editor-workspace-panel-state";
 import {
@@ -65,6 +67,8 @@ export class ContentEditorWorkspaceUiStore {
   detailsPanelCollapsed = readCatDetailsPanelCollapsed();
   /** Keyboard shortcut strip under the editor is turned off. */
   shortcutHintsHidden = readCatShortcutHintsHidden();
+  /** Files whose strings are all hidden are left out of the file tree and picker. */
+  hiddenFilesHidden = readCatHiddenFilesHidden();
   /** Toolbar dialog currently open, if any. Only one can be open at a time. */
   chromeDialog: ContentEditorChromeDialog | null = null;
   /** Format picked in the filtered export dialog; kept across openings. */
@@ -301,6 +305,15 @@ export class ContentEditorWorkspaceUiStore {
 
     this.shortcutHintsHidden = hidden;
     writeCatShortcutHintsHidden(hidden);
+  }
+
+  setHiddenFilesHidden(hidden: boolean) {
+    if (this.hiddenFilesHidden === hidden) {
+      return;
+    }
+
+    this.hiddenFilesHidden = hidden;
+    writeCatHiddenFilesHidden(hidden);
   }
 
   openChromeDialog(dialog: ContentEditorChromeDialog) {

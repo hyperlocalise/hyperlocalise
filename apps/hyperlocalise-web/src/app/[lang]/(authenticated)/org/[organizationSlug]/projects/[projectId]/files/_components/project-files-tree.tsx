@@ -19,8 +19,16 @@ import { preloadFileTree } from "@pierre/trees/ssr";
 import "@pierre/trees/web-components";
 import { useIntl, type IntlShape } from "react-intl";
 
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import type {
+  ProjectFileProgressRecord,
+  ProjectFileRecord,
+} from "@/api/routes/project/project.schema";
 
+import {
+  buildProjectFileProgressDecoration,
+  buildProjectFileProgressLookup,
+  findProjectFileProgress,
+} from "./project-files-tree-decoration";
 import {
   ProjectFileTreeContextMenu,
   type ProjectFileTreeActionsConfig,
@@ -31,6 +39,9 @@ import { dedupeProjectFilesBySourcePath, formatBytes } from "./project-files-sha
 import { buildProjectFileActionCapabilities } from "./use-project-file-actions";
 
 export const TREE_HEIGHT_PX = 480;
+
+const TREE_ICONS = { set: "complete", colored: true } as const;
+const NO_FILE_PROGRESS: readonly ProjectFileProgressRecord[] = [];
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -98,6 +109,7 @@ export function ProjectFilesTree({
   fileActions,
   ariaLabel,
   fillHeight = false,
+  fileProgress,
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
@@ -107,6 +119,8 @@ export function ProjectFilesTree({
   ariaLabel?: string;
   /** Stretch to the parent height instead of the fixed TREE_HEIGHT_PX. */
   fillHeight?: boolean;
+  /** Per-file progress for the active locale, shown as "translated% · approved%". */
+  fileProgress?: readonly ProjectFileProgressRecord[];
 }) {
   if (fileActions) {
     return (
@@ -118,6 +132,7 @@ export function ProjectFilesTree({
         fileActions={fileActions}
         ariaLabel={ariaLabel}
         fillHeight={fillHeight}
+        fileProgress={fileProgress}
       />
     );
   }
@@ -130,6 +145,7 @@ export function ProjectFilesTree({
       onActivateFile={onActivateFile}
       ariaLabel={ariaLabel}
       fillHeight={fillHeight}
+      fileProgress={fileProgress}
     />
   );
 }
@@ -142,6 +158,7 @@ function ProjectFilesTreeView({
   fileActions,
   ariaLabel,
   fillHeight = false,
+  fileProgress = NO_FILE_PROGRESS,
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
@@ -150,6 +167,7 @@ function ProjectFilesTreeView({
   fileActions?: ProjectFileTreeActionsConfig;
   ariaLabel?: string;
   fillHeight?: boolean;
+  fileProgress?: readonly ProjectFileProgressRecord[];
 }) {
   const intl = useIntl();
   const resolvedAriaLabel = ariaLabel ?? intl.formatMessage(messages.ariaLabel);
@@ -162,6 +180,10 @@ function ProjectFilesTreeView({
     () => new Map(displayFiles.map((file) => [file.sourcePath, file])),
     [displayFiles],
   );
+  const progressLookup = useMemo(
+    () => buildProjectFileProgressLookup(fileProgress),
+    [fileProgress],
+  );
   const selectedPaths =
     selectedSourcePath && fileByPath.has(selectedSourcePath) ? [selectedSourcePath] : [];
   const latestStateRef = useRef({
@@ -170,6 +192,7 @@ function ProjectFilesTreeView({
     intl,
     onSelectFile,
     onActivateFile,
+    progressLookup,
   });
   const [activeFileContextMenu, setActiveFileContextMenu] = useState<ActiveFileContextMenu | null>(
     null,
@@ -194,6 +217,7 @@ function ProjectFilesTreeView({
     return preloadFileTree({
       id: "project-files-tree",
       initialExpansion: "open",
+      icons: TREE_ICONS,
       paths: nextPaths,
       initialVisibleRowCount: Math.max(nextPaths.length, 8),
       icons: PROJECT_FILES_TREE_ICONS,
@@ -207,8 +231,9 @@ function ProjectFilesTreeView({
       intl,
       onActivateFile,
       onSelectFile,
+      progressLookup,
     };
-  }, [fileActions, fileByPath, intl, onActivateFile, onSelectFile]);
+  }, [fileActions, fileByPath, intl, onActivateFile, onSelectFile, progressLookup]);
 
   contextMenuHandlersRef.current = {
     onOpen: (itemPath, context) => {
@@ -284,6 +309,7 @@ function ProjectFilesTreeView({
     initialVisibleRowCount: Math.max(paths.length, 8),
     icons: PROJECT_FILES_TREE_ICONS,
     paths,
+    icons: TREE_ICONS,
     search: true,
     searchBlurBehavior: "retain",
     fileTreeSearchMode: "hide-non-matches",
@@ -311,15 +337,28 @@ function ProjectFilesTreeView({
         return null;
       }
 
-      const file = latestStateRef.current.fileByPath.get(context.item.path);
-      if (!file || file.provider) {
+      const {
+        fileByPath: files,
+        intl: latestIntl,
+        progressLookup: lookup,
+      } = latestStateRef.current;
+      const file = files.get(context.item.path);
+      if (!file) {
         return null;
       }
 
+      const progressDecoration = buildProjectFileProgressDecoration(
+        file,
+        findProjectFileProgress(lookup, file),
+        latestIntl,
+      );
+      if (progressDecoration || file.provider) {
+        return progressDecoration;
+      }
+
       return {
-        text:
-          file.latestJob?.status ?? latestStateRef.current.intl.formatMessage(messages.uploaded),
-        title: fileListMetadata(file, latestStateRef.current.intl),
+        text: file.latestJob?.status ?? latestIntl.formatMessage(messages.uploaded),
+        title: fileListMetadata(file, latestIntl),
       };
     },
     onSelectionChange: (nextSelectedPaths) => {
@@ -337,6 +376,11 @@ function ProjectFilesTreeView({
   useEffect(() => {
     model.resetPaths(paths);
   }, [model, paths]);
+
+  // Pierre has no decoration refresh API; re-setting icons re-renders every row.
+  useEffect(() => {
+    model.setIcons(TREE_ICONS);
+  }, [model, progressLookup]);
 
   useEffect(() => {
     if (!selectedSourcePath || !fileByPath.has(selectedSourcePath)) {

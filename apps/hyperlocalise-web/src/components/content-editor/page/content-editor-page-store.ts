@@ -12,7 +12,10 @@
  */
 import { makeAutoObservable } from "mobx";
 
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import type {
+  ProjectFileProgressRecord,
+  ProjectFileRecord,
+} from "@/api/routes/project/project.schema";
 
 export type ContentEditorPageChromeSnapshot = {
   files: ProjectFileRecord[];
@@ -30,8 +33,12 @@ export type ContentEditorPageChromeSnapshot = {
   showActivityLog?: boolean;
 };
 
+const NO_FILE_PROGRESS: ProjectFileProgressRecord[] = [];
+
 export class ContentEditorPageStore {
   files: ProjectFileRecord[] = [];
+  /** Per-file progress for `targetLocale`; empty until loaded or when unsupported. */
+  fileProgress: ProjectFileProgressRecord[] = NO_FILE_PROGRESS;
   selectedSourcePath: string | null = null;
   allFiles = false;
   canUseAllFiles = false;
@@ -63,6 +70,10 @@ export class ContentEditorPageStore {
     this.projectId = chrome.projectId;
     this.showFileSidebar = chrome.showFileSidebar;
     this.showActivityLog = chrome.showActivityLog ?? true;
+  }
+
+  setFileProgress(fileProgress: ProjectFileProgressRecord[] | undefined) {
+    this.fileProgress = fileProgress ?? NO_FILE_PROGRESS;
   }
 
   beginFileScopeChange(sourcePath: string, targetLocale: string) {

@@ -303,6 +303,7 @@ read-side preview.
 | PATCH | `/projects/{projectId}/content-editor-behavior` | Toggle identical-string grouping (`admin`/`localization_manager` only) |
 | GET | `/projects/{projectId}/content-editor-behavior/preview` | Preview of identical-string grouping (`admin`/`localization_manager` only) |
 | GET | `/projects/{projectId}/files` | Native repository files for one project |
+| GET | `/projects/{projectId}/file-progress?locale=` | Per-file translation and approval progress for one locale |
 | GET | `/workspace-files` | Native repository files across every accessible project |
 
 **Native projects only.** Every route above filters to `projects.source = 'native'`

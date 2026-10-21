@@ -13,10 +13,14 @@
  * Version 2.0 or later.
  */
 import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
 import { useDefaultLayout } from "react-resizable-panels";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import type {
+  ProjectFileProgressRecord,
+  ProjectFileRecord,
+} from "@/api/routes/project/project.schema";
 import { ContentEditorRepositorySelect } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/content-editor-header-pickers";
 import { contentEditorHeaderPickersMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/content-editor-header-pickers.messages";
 import { ProjectFilesTree } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files-tree";
@@ -41,10 +45,14 @@ export function ContentEditorFilesSidebar({
   repositoryFullNames,
   selectedRepositoryFullName = null,
   onRepositoryChange,
+  hiddenFilesHidden = false,
+  onHiddenFilesHiddenChange,
+  fileProgress,
   footer,
   className,
 }: {
   files: ProjectFileRecord[];
+  fileProgress?: readonly ProjectFileProgressRecord[];
   selectedSourcePath: string | null;
   onSelectFile: (sourcePath: string) => void;
   allFilesSelected?: boolean;
@@ -52,6 +60,9 @@ export function ContentEditorFilesSidebar({
   repositoryFullNames?: readonly string[];
   selectedRepositoryFullName?: string | null;
   onRepositoryChange?: (repositoryFullName: string, destinationSourcePath: string) => void;
+  hiddenFilesHidden?: boolean;
+  /** Offers the hidden-files toggle. Omit when no file is hidden. */
+  onHiddenFilesHiddenChange?: (hidden: boolean) => void;
   footer?: ReactNode;
   className?: string;
 }) {
@@ -99,9 +110,37 @@ export function ContentEditorFilesSidebar({
       )}
     >
       <div className="space-y-3 border-b border-border px-3 py-3">
-        <h2 className="text-sm font-semibold text-foreground">
-          <FormattedMessage {...contentEditorFilesSidebarMessages.filesTitle} />
-        </h2>
+        <div className="flex min-h-7 items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-foreground">
+            <FormattedMessage {...contentEditorFilesSidebarMessages.filesTitle} />
+          </h2>
+          {onHiddenFilesHiddenChange ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="size-7"
+              aria-pressed={hiddenFilesHidden}
+              aria-label={intl.formatMessage(
+                hiddenFilesHidden
+                  ? contentEditorFilesSidebarMessages.showHiddenFiles
+                  : contentEditorFilesSidebarMessages.hideHiddenFiles,
+              )}
+              title={intl.formatMessage(
+                hiddenFilesHidden
+                  ? contentEditorFilesSidebarMessages.showHiddenFiles
+                  : contentEditorFilesSidebarMessages.hideHiddenFiles,
+              )}
+              onClick={() => onHiddenFilesHiddenChange(!hiddenFilesHidden)}
+            >
+              {hiddenFilesHidden ? (
+                <EyeSlashIcon className="size-4" aria-hidden />
+              ) : (
+                <EyeIcon className="size-4" aria-hidden />
+              )}
+            </Button>
+          ) : null}
+        </div>
 
         {onSelectAllFiles ? (
           <Button
@@ -132,6 +171,7 @@ export function ContentEditorFilesSidebar({
           onActivateFile={handleSelectFile}
           ariaLabel={intl.formatMessage(contentEditorFilesSidebarMessages.sourceFilesAriaLabel)}
           fillHeight
+          fileProgress={fileProgress}
         />
       </div>
 

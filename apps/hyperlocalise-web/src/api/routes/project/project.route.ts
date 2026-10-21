@@ -87,6 +87,7 @@ import {
   getTmsProviderLiveFileDetail,
   getTmsProviderLiveProject,
   getTmsProviderLiveProjectLocaleReadiness,
+  listTmsProviderLiveFileProgress,
   listTmsProviderLiveFilesForProject,
   listTmsProviderLiveProjectBranches,
   saveTmsProviderLiveCatTranslation,
@@ -228,6 +229,7 @@ import {
   projectFileUploadBodySchema,
   projectFileTranslationImportBodySchema,
   projectFileTranslationDownloadQuerySchema,
+  projectFileProgressQuerySchema,
   projectFilesQuerySchema,
   projectIdParamsSchema,
   projectFileCatCommentIdParamsSchema,
@@ -990,6 +992,16 @@ function projectIdEncodingDiagnostics(rawProjectId: string, validatedProjectId: 
 
 const validateProjectFilesQuery = validator("query", (value, c) => {
   const parsed = projectFilesQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileProgressQuery = validator("query", (value, c) => {
+  const parsed = projectFileProgressQuerySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -3939,6 +3951,35 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         return tmsProviderLiveErrorResponse(c, error);
       }
     })
+    .get(
+      "/:projectId/file-progress",
+      validateProjectParams,
+      validateProjectFileProgressQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        // Native file progress is served by go-svc.
+        if (target.kind !== "provider") {
+          return c.json({ files: [] }, 200);
+        }
+
+        try {
+          const files = await listTmsProviderLiveFileProgress(
+            c.var.auth.organization.localOrganizationId,
+            target.externalProjectId,
+            { locale: query.locale, actorUserId: c.var.auth.user.localUserId },
+          );
+          return c.json({ files }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
     .get("/:projectId/files", validateProjectParams, validateProjectFilesQuery, async (c) => {
       const params = c.req.valid("param");
       const query = c.req.valid("query");
@@ -3952,7 +3993,12 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           const files = await listTmsProviderLiveFilesForProject(
             c.var.auth.organization.localOrganizationId,
             target.externalProjectId,
-            { limit: query.limit, branch: query.branch, actorUserId: c.var.auth.user.localUserId },
+            {
+              limit: query.limit,
+              branch: query.branch,
+              actorUserId: c.var.auth.user.localUserId,
+              includeHidden: query.includeHidden,
+            },
           );
           return c.json({ files }, 200);
         } catch (error) {

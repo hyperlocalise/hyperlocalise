@@ -1836,6 +1836,30 @@ describe("CrowdinApiClient", () => {
     expect(progress[0]?.translationProgress).toBe(50);
   });
 
+  it("lists per-file progress for one language and drops non-file rows", async () => {
+    const counts = {
+      words: { total: 20, translated: 10, approved: 5 },
+      phrases: { total: 10, translated: 5, approved: 2 },
+      translationProgress: 50,
+      approvalProgress: 25,
+    };
+    const fetchMock = vi.fn(async (url: string) => {
+      expect(url).toContain("/projects/1/languages/es-ES/progress");
+
+      return new Response(
+        JSON.stringify({
+          data: [{ data: { fileId: 9, ...counts } }, { data: { branchId: 3, ...counts } }],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const progress = await client.listLanguageFileProgress(1, "es-ES");
+
+    expect(progress).toEqual([{ fileId: 9, ...counts }]);
+  });
+
   it("editTaskFields rejects non-canonical Crowdin assignee ids", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify(createTaskPayload(9)), { status: 200 });

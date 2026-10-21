@@ -15,7 +15,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import type {
+  ProjectFileProgressRecord,
+  ProjectFileRecord,
+} from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -105,8 +108,10 @@ export function ContentEditorFileTreePicker({
   repositoryFullNames,
   selectedRepositoryFullName = null,
   onRepositoryChange,
+  fileProgress,
 }: {
   files: ProjectFileRecord[];
+  fileProgress?: readonly ProjectFileProgressRecord[];
   selectedSourcePath: string;
   onSelectFile: (sourcePath: string) => void;
   allFilesSelected?: boolean;
@@ -239,6 +244,7 @@ export function ContentEditorFileTreePicker({
                 setDialogSourcePath(sourcePath);
               }}
               onActivateFile={handleActivateFile}
+              fileProgress={fileProgress}
               ariaLabel={intl.formatMessage(
                 contentEditorHeaderPickersMessages.sourceFilesAriaLabel,
               )}
