@@ -10,7 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Hono, type Context } from "hono";
+import { Hono, type Context, type MiddlewareHandler } from "hono";
+import { createMiddleware } from "hono/factory";
+import { validator } from "hono/validator";
+import type { z } from "zod";
 import { and, eq, inArray, desc, sql } from "drizzle-orm";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
@@ -95,6 +98,47 @@ import {
   expenseSchema,
 } from "./reports.schema";
 
+/** A query string as the typed API client sends it: every parameter optional, as text. */
+type QueryInput<T extends z.ZodType> = { [K in keyof z.input<T>]?: string };
+
+/** Validates a report's query string, so the typed API client knows its parameters. */
+function reportQuery<T extends z.ZodType>(schema: T) {
+  return validator("query", (value, c) => {
+    const parsed = schema.safeParse(value);
+    if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+    return parsed.data;
+  }) as unknown as MiddlewareHandler<
+    { Variables: AuthVariables },
+    string,
+    { in: { query: QueryInput<T> }; out: { query: z.output<T> } }
+  >;
+}
+
+/** Validates a JSON body, so the typed API client knows its shape. */
+function reportBody<T extends z.ZodType>(schema: T, code: string) {
+  return validator("json", (value, c) => {
+    const parsed = schema.safeParse(value);
+    if (!parsed.success) return badRequestResponse(c, code);
+    return parsed.data;
+  }) as unknown as MiddlewareHandler<
+    { Variables: AuthVariables },
+    string,
+    { in: { json: z.input<T> }; out: { json: z.output<T> } }
+  >;
+}
+
+/** Refuses a request before its input is read when the viewer's role lacks a capability. */
+function requireCapability(capability: Parameters<typeof hasCapability>[1], error: string) {
+  return createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
+    if (!hasCapability(c.var.auth.membership.role, capability)) return forbiddenResponse(c, error);
+    await next();
+  });
+}
+
+const billingRead = requireCapability("billing:read", "report_costs_forbidden");
+const billingWrite = requireCapability("billing:write", "report_costs_forbidden");
+const canLogTime = requireCapability("jobs:write", "time_entry_forbidden");
+
 type ReportsContext = Context<{ Variables: AuthVariables }>;
 
 /** The viewer's workspace, projects and money access, and the dates Reports can cover. */
@@ -114,10 +158,14 @@ async function reportContext(c: ReportsContext) {
   };
 }
 
-function csv(c: ReportsContext, filename: string, body: string) {
+/**
+ * A CSV download. The page downloads through a plain link, never the typed API client, so this
+ * branch is left out of the route's response type and the client sees only the JSON response.
+ */
+function csv(c: ReportsContext, filename: string, body: string): never {
   c.header("Content-Type", "text/csv; charset=utf-8");
   c.header("Content-Disposition", `attachment; filename="${filename}"`);
-  return c.body(body);
+  return c.body(body) as never;
 }
 
 export function createReportsRoutes() {
@@ -174,13 +222,12 @@ export function createReportsRoutes() {
       }
       return c.json({ wordCounts: { rows, from, to, groupBy: parsed.data.groupBy } });
     })
-    .get("/jobs", async (c) => {
-      const parsed = reportTaskSearchSchema.safeParse(c.req.query());
-      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+    .get("/jobs", reportQuery(reportTaskSearchSchema), async (c) => {
+      const query = c.req.valid("query");
       const jobs = await listReportJobs({
         organizationId: c.var.auth.organization.localOrganizationId,
         projectIds: await getAccessibleProjectIds(c.var.auth),
-        ...parsed.data,
+        ...query,
       });
       return c.json({ jobs });
     })
@@ -248,12 +295,11 @@ export function createReportsRoutes() {
         },
       });
     })
-    .get("/activity", async (c) => {
-      const parsed = activityQuerySchema.safeParse(c.req.query());
-      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+    .get("/activity", reportQuery(activityQuerySchema), async (c) => {
+      const query = c.req.valid("query");
       const context = await reportContext(c);
-      const period = resolvePeriod({ ...parsed.data, ...context });
-      const { jobId, ...filters } = parsed.data;
+      const period = resolvePeriod({ ...query, ...context });
+      const { jobId, ...filters } = query;
       const scope = { ...context, ...filters, jobIds: jobId ? [jobId] : undefined, period };
       const [totals, series, byLanguage] = await Promise.all([
         queryActivity(scope),
@@ -261,15 +307,14 @@ export function createReportsRoutes() {
         queryFinishedByLanguage({ ...scope, step: "translation" }),
       ]);
       return c.json({
-        activity: { period, unit: parsed.data.unit, ...totals, series, byLanguage },
+        activity: { period, unit: query.unit, ...totals, series, byLanguage },
       });
     })
-    .get("/step-times", async (c) => {
-      const parsed = stepTimesQuerySchema.safeParse(c.req.query());
-      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+    .get("/step-times", reportQuery(stepTimesQuerySchema), async (c) => {
+      const query = c.req.valid("query");
       const context = await reportContext(c);
-      const period = resolvePeriod({ ...parsed.data, ...context });
-      const { jobId, ...filters } = parsed.data;
+      const period = resolvePeriod({ ...query, ...context });
+      const { jobId, ...filters } = query;
       const [logged, automated] = await Promise.all([
         queryLoggedTimeBySteps({
           ...context,
@@ -284,33 +329,29 @@ export function createReportsRoutes() {
           includeUnattributed: context.financial,
         }),
       ]);
-      if (parsed.data.format === "csv")
-        return csv(c, "step-times.csv", stepTimesCsv(logged, automated));
+      if (query.format === "csv") return csv(c, "step-times.csv", stepTimesCsv(logged, automated));
       return c.json({ stepTimes: { period, logged, automated } });
     })
-    .get("/ai-usage", async (c) => {
-      const parsed = aiUsageQuerySchema.safeParse(c.req.query());
-      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+    .get("/ai-usage", reportQuery(aiUsageQuerySchema), async (c) => {
+      const query = c.req.valid("query");
       const context = await reportContext(c);
-      const period = resolvePeriod({ ...parsed.data, ...context });
+      const period = resolvePeriod({ ...query, ...context });
       const usage = await queryAiUsage({
         ...context,
-        projectId: parsed.data.projectId,
+        projectId: query.projectId,
         period,
         // AI used outside any project (chat, assistants, workspace automations) is workspace
         // spending, shown to the roles that see billing.
         includeUnattributed: context.financial,
       });
-      if (parsed.data.format === "csv")
-        return csv(c, "ai-usage.csv", aiUsageCsv(usage, parsed.data.groupBy));
+      if (query.format === "csv") return csv(c, "ai-usage.csv", aiUsageCsv(usage, query.groupBy));
       return c.json({ aiUsage: { period, ...usage } });
     })
-    .get("/words", async (c) => {
-      const parsed = wordsQuerySchema.safeParse(c.req.query());
-      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+    .get("/words", reportQuery(wordsQuerySchema), async (c) => {
+      const query = c.req.valid("query");
       const context = await reportContext(c);
-      const period = resolvePeriod({ ...parsed.data, ...context });
-      const { jobId, format, ...filters } = parsed.data;
+      const period = resolvePeriod({ ...query, ...context });
+      const { jobId, format, ...filters } = query;
       const counts = await queryWordCounts({
         ...context,
         ...filters,
@@ -318,8 +359,7 @@ export function createReportsRoutes() {
         period,
         all: format === "csv",
       });
-      if (format === "csv")
-        return csv(c, "word-counts.csv", wordCountsCsv(counts, parsed.data.groupBy));
+      if (format === "csv") return csv(c, "word-counts.csv", wordCountsCsv(counts, query.groupBy));
       return c.json({
         wordCounts: {
           period,
@@ -331,12 +371,11 @@ export function createReportsRoutes() {
         },
       });
     })
-    .get("/time", async (c) => {
-      const parsed = loggedTimeQuerySchema.safeParse(c.req.query());
-      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+    .get("/time", reportQuery(loggedTimeQuerySchema), async (c) => {
+      const query = c.req.valid("query");
       const context = await reportContext(c);
-      const period = resolvePeriod({ ...parsed.data, ...context });
-      const { jobId, format, ...filters } = parsed.data;
+      const period = resolvePeriod({ ...query, ...context });
+      const { jobId, format, ...filters } = query;
       const [logged, automated] = await Promise.all([
         queryLoggedTime({
           ...context,
@@ -355,30 +394,19 @@ export function createReportsRoutes() {
       if (format === "csv") return csv(c, "time.csv", loggedTimeCsv(logged));
       return c.json({ time: { period, logged, automated } });
     })
-    .get("/costs", async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "billing:read"))
-        return forbiddenResponse(c, "report_costs_forbidden");
-      const parsed = costsQuerySchema.safeParse(c.req.query());
-      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+    .get("/costs", billingRead, reportQuery(costsQuerySchema), async (c) => {
+      const query = c.req.valid("query");
       const context = await reportContext(c);
-      const period = resolvePeriod({ ...parsed.data, ...context });
+      const period = resolvePeriod({ ...query, ...context });
       // Costs are for the roles that see billing, so AI charged outside any project is shown.
-      const costs = await queryCosts({
-        ...context,
-        ...parsed.data,
-        period,
-        includeUnattributed: true,
-      });
-      if (parsed.data.format === "csv") return csv(c, "costs.csv", costsCsv(costs));
+      const costs = await queryCosts({ ...context, ...query, period, includeUnattributed: true });
+      if (query.format === "csv") return csv(c, "costs.csv", costsCsv(costs));
       return c.json({ costs: { period, ...costs } });
     })
-    .get("/cost-estimate", async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "billing:read"))
-        return forbiddenResponse(c, "report_costs_forbidden");
-      const parsed = costEstimateQuerySchema.safeParse(c.req.query());
-      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+    .get("/cost-estimate", billingRead, reportQuery(costEstimateQuerySchema), async (c) => {
+      const query = c.req.valid("query");
       const context = await reportContext(c);
-      const { rateCard, format, ...filters } = parsed.data;
+      const { rateCard, format, ...filters } = query;
       const estimate = await queryCostEstimate({
         ...context,
         ...filters,
@@ -387,14 +415,11 @@ export function createReportsRoutes() {
       if (format === "csv") return csv(c, "cost-estimate.csv", costEstimateCsv(estimate));
       return c.json({ costEstimate: estimate });
     })
-    .get("/budgets", async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "billing:read"))
-        return forbiddenResponse(c, "report_costs_forbidden");
-      const parsed = exportFormatSchema.safeParse(c.req.query());
-      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+    .get("/budgets", billingRead, reportQuery(exportFormatSchema), async (c) => {
+      const query = c.req.valid("query");
       const context = await reportContext(c);
       const budgets = await queryBudgets(context);
-      if (parsed.data.format === "csv") return csv(c, "budgets.csv", budgetsCsv(budgets));
+      if (query.format === "csv") return csv(c, "budgets.csv", budgetsCsv(budgets));
       return c.json({ budgets });
     })
     .get("/rate-cards", async (c) => {
@@ -404,32 +429,33 @@ export function createReportsRoutes() {
       const rateCards = await listRateCards(c.var.auth.organization.localOrganizationId);
       return c.json({ rateCards, canManage: hasCapability(role, "billing:write") });
     })
-    .put("/rate-cards", async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "billing:write"))
-        return forbiddenResponse(c, "report_costs_forbidden");
-      const parsed = rateCardSchema.safeParse(await c.req.json());
-      if (!parsed.success) return badRequestResponse(c, "invalid_rate_card");
-      const saved = await saveRateCard({
-        ...parsed.data,
-        organizationId: c.var.auth.organization.localOrganizationId,
-        actorId: c.var.auth.user.localUserId,
-      });
-      if (isErr(saved)) {
-        if (saved.error.code === "rate_card_exists")
-          return conflictResponse(c, "rate_card_exists", "A rate card with this name exists.");
-        if (saved.error.code === "rate_card_not_found")
-          return notFoundResponse(c, "rate_card_not_found");
-        return badRequestResponse(
-          c,
-          "duplicate_rate_line",
-          "Each language pair and step can have one rate on a card.",
-        );
-      }
-      return c.json({ rateCard: saved.value });
-    })
-    .get("/tasks/:jobId/report", async (c) => {
-      const parsed = taskReportQuerySchema.safeParse(c.req.query());
-      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
+    .put(
+      "/rate-cards",
+      billingWrite,
+      reportBody(rateCardSchema, "invalid_rate_card"),
+      async (c) => {
+        const body = c.req.valid("json");
+        const saved = await saveRateCard({
+          ...body,
+          organizationId: c.var.auth.organization.localOrganizationId,
+          actorId: c.var.auth.user.localUserId,
+        });
+        if (isErr(saved)) {
+          if (saved.error.code === "rate_card_exists")
+            return conflictResponse(c, "rate_card_exists", "A rate card with this name exists.");
+          if (saved.error.code === "rate_card_not_found")
+            return notFoundResponse(c, "rate_card_not_found");
+          return badRequestResponse(
+            c,
+            "duplicate_rate_line",
+            "Each language pair and step can have one rate on a card.",
+          );
+        }
+        return c.json({ rateCard: saved.value });
+      },
+    )
+    .get("/tasks/:jobId/report", reportQuery(taskReportQuerySchema), async (c) => {
+      const query = c.req.valid("query");
       const organizationId = c.var.auth.organization.localOrganizationId;
       const [job] = await db
         .select()
@@ -443,7 +469,7 @@ export function createReportsRoutes() {
       const userId = c.var.auth.user.localUserId;
       const money = financial && job.projectId;
       const [words, entries, estimate, stillToCome] = await Promise.all([
-        queryTaskWords({ organizationId, jobId: job.id, unit: parsed.data.unit }),
+        queryTaskWords({ organizationId, jobId: job.id, unit: query.unit }),
         db.execute<{
           id: string;
           contributorId: string;
@@ -466,9 +492,9 @@ export function createReportsRoutes() {
               organizationId,
               projectIds: [job.projectId!],
               jobIds: [job.id],
-              step: parsed.data.step,
-              unit: parsed.data.unit,
-              rateCardName: parsed.data.rateCard ?? null,
+              step: query.step,
+              unit: query.unit,
+              rateCardName: query.rateCard ?? null,
             })
           : null,
         money
@@ -476,8 +502,8 @@ export function createReportsRoutes() {
               organizationId,
               projectIds: [job.projectId!],
               jobIds: [job.id],
-              step: parsed.data.step,
-              rateCardName: parsed.data.rateCard ?? null,
+              step: query.step,
+              rateCardName: query.rateCard ?? null,
             })
           : null,
       ]);
@@ -502,8 +528,8 @@ export function createReportsRoutes() {
             targetLocales:
               payload.targetLocales ?? (payload.targetLocale ? [payload.targetLocale] : []),
           },
-          unit: parsed.data.unit,
-          step: parsed.data.step,
+          unit: query.unit,
+          step: query.step,
           words,
           estimate,
           stillToCome: stillToCome
@@ -612,27 +638,21 @@ export function createReportsRoutes() {
       });
       return c.json({ rate }, 201);
     })
-    .put("/budgets", async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "billing:write"))
-        return forbiddenResponse(c, "report_costs_forbidden");
-      const parsed = budgetSchema.safeParse(await c.req.json());
-      if (!parsed.success) return badRequestResponse(c, "invalid_budget");
-      if (!(await getAccessibleProjectIds(c.var.auth)).includes(parsed.data.projectId))
+    .put("/budgets", billingWrite, reportBody(budgetSchema, "invalid_budget"), async (c) => {
+      const body = c.req.valid("json");
+      if (!(await getAccessibleProjectIds(c.var.auth)).includes(body.projectId))
         return notFoundResponse(c, "project_not_found");
       if (
-        parsed.data.rateCardName &&
-        !(await rateCardExists(
-          c.var.auth.organization.localOrganizationId,
-          parsed.data.rateCardName,
-        ))
+        body.rateCardName &&
+        !(await rateCardExists(c.var.auth.organization.localOrganizationId, body.rateCardName))
       )
         return badRequestResponse(c, "rate_card_not_found");
       const [budget] = await db
         .insert(schema.reportingBudgets)
-        .values({ ...parsed.data, organizationId: c.var.auth.organization.localOrganizationId })
+        .values({ ...body, organizationId: c.var.auth.organization.localOrganizationId })
         .onConflictDoUpdate({
           target: [schema.reportingBudgets.organizationId, schema.reportingBudgets.projectId],
-          set: parsed.data,
+          set: body,
         })
         .returning();
       return c.json({ budget });
@@ -722,18 +742,13 @@ export function createReportsRoutes() {
         );
       return c.json({ taskRate });
     })
-    .post("/time-entries", async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "jobs:write"))
-        return forbiddenResponse(c, "time_entry_forbidden");
-      const parsed = timeSchema.safeParse(await c.req.json());
-      if (!parsed.success) return badRequestResponse(c, "invalid_time_entry");
+    .post("/time-entries", canLogTime, reportBody(timeSchema, "invalid_time_entry"), async (c) => {
+      const body = c.req.valid("json");
       const organizationId = c.var.auth.organization.localOrganizationId;
       const [job] = await db
         .select()
         .from(schema.jobs)
-        .where(
-          and(eq(schema.jobs.id, parsed.data.jobId), await buildAccessibleJobsWhere(c.var.auth)),
-        );
+        .where(and(eq(schema.jobs.id, body.jobId), await buildAccessibleJobsWhere(c.var.auth)));
       if (!job?.projectId) return notFoundResponse(c, "job_not_found");
       const [external] = await db
         .select()
@@ -754,8 +769,8 @@ export function createReportsRoutes() {
         projectId: job.projectId,
         jobId: job.id,
         sourceLocale: payload.sourceLocale ?? project.sourceLocale ?? "en",
-        targetLocale: parsed.data.targetLocale,
-        step: parsed.data.step,
+        targetLocale: body.targetLocale,
+        step: body.step,
       });
       const timeEntry = await db.transaction(async (tx) => {
         await tx
@@ -769,14 +784,14 @@ export function createReportsRoutes() {
           .where(
             and(
               eq(schema.reportingTaskRates.jobId, job.id),
-              eq(schema.reportingTaskRates.step, parsed.data.step),
+              eq(schema.reportingTaskRates.step, body.step),
             ),
           );
         const [entry] = await tx
           .insert(schema.reportingTimeEntries)
           .values({
-            ...parsed.data,
-            workDate: new Date(parsed.data.workDate + "T00:00:00Z"),
+            ...body,
+            workDate: new Date(body.workDate + "T00:00:00Z"),
             organizationId,
             projectId: job.projectId!,
             contributorId: c.var.auth.user.localUserId,
@@ -811,9 +826,8 @@ export function createReportsRoutes() {
       await reportingStart(organizationId);
       return c.json({ timeEntry: { id: timeEntry.id } }, 201);
     })
-    .patch("/time-entries/:id", async (c) => {
-      const parsed = timeUpdateSchema.safeParse(await c.req.json());
-      if (!parsed.success) return badRequestResponse(c, "invalid_time_entry");
+    .patch("/time-entries/:id", reportBody(timeUpdateSchema, "invalid_time_entry"), async (c) => {
+      const body = c.req.valid("json");
       const organizationId = c.var.auth.organization.localOrganizationId;
       const [entry] = await db
         .select()
@@ -843,16 +857,16 @@ export function createReportsRoutes() {
               .from(schema.reportingRates)
               .where(eq(schema.reportingRates.id, entry.rateId))
           : [];
-        const workDate = new Date(parsed.data.workDate + "T00:00:00Z");
+        const workDate = new Date(body.workDate + "T00:00:00Z");
         await tx
           .update(schema.reportingTimeEntries)
-          .set({ ...parsed.data, workDate })
+          .set({ ...body, workDate })
           .where(eq(schema.reportingTimeEntries.id, entry.id));
         if (!rate || rate.basis === "hour")
           await tx
             .update(schema.reportingCosts)
             .set({
-              amountUsd: rate ? hourlyCost(rate.rate, parsed.data.minutes) : null,
+              amountUsd: rate ? hourlyCost(rate.rate, body.minutes) : null,
               createdAt: workDate,
             })
             .where(eq(schema.reportingCosts.timeEntryId, entry.id));
@@ -862,7 +876,7 @@ export function createReportsRoutes() {
           resourceId: entry.id,
           action: "time_updated",
           before: entry,
-          after: parsed.data,
+          after: body,
         });
       });
       return c.json({ timeEntry: { id: entry.id } });
@@ -907,22 +921,19 @@ export function createReportsRoutes() {
       });
       return c.body(null, 204);
     })
-    .post("/expenses", async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "billing:write"))
-        return forbiddenResponse(c, "report_costs_forbidden");
-      const parsed = expenseSchema.safeParse(await c.req.json());
-      if (!parsed.success) return badRequestResponse(c, "invalid_expense");
+    .post("/expenses", billingWrite, reportBody(expenseSchema, "invalid_expense"), async (c) => {
+      const body = c.req.valid("json");
       const organizationId = c.var.auth.organization.localOrganizationId;
-      if (!(await getAccessibleProjectIds(c.var.auth)).includes(parsed.data.projectId))
+      if (!(await getAccessibleProjectIds(c.var.auth)).includes(body.projectId))
         return notFoundResponse(c, "project_not_found");
-      if (parsed.data.jobId) {
+      if (body.jobId) {
         const [job] = await db
           .select()
           .from(schema.jobs)
           .where(
             and(
-              eq(schema.jobs.id, parsed.data.jobId),
-              eq(schema.jobs.projectId, parsed.data.projectId),
+              eq(schema.jobs.id, body.jobId),
+              eq(schema.jobs.projectId, body.projectId),
               eq(schema.jobs.organizationId, organizationId),
             ),
           );
@@ -930,7 +941,7 @@ export function createReportsRoutes() {
       }
       const [expense] = await db
         .insert(schema.reportingCosts)
-        .values({ ...parsed.data, organizationId, kind: "expense", basis: "manual" })
+        .values({ ...body, organizationId, kind: "expense", basis: "manual" })
         .onConflictDoNothing()
         .returning();
       return c.json({ expense: expense ?? null }, 201);
