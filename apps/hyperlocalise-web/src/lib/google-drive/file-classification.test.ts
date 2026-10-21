@@ -63,15 +63,29 @@ describe("classifyGoogleDriveItem", () => {
     ).toMatchObject({ kind: "supported", ingestKind: "binary", ingestFormat: "docx" });
   });
 
-  it("skips files inside locale folders by default", () => {
+  it("skips files inside target locale folders when configured", () => {
     const result = classifyGoogleDriveItem({
       name: "Report.docx",
       mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       sizeBytes: 1000,
-      relativePath: "Briefs/fr",
+      relativePath: "Briefs/vi-VN",
       translationOutput: "folder",
+      targetLocales: ["vi-VN"],
     });
     expect(result).toMatchObject({ kind: "skipped", reason: "translation_output" });
+  });
+
+  it("imports files under source locale folders that are not push targets", () => {
+    expect(
+      classifyGoogleDriveItem({
+        name: "overview.docx",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        sizeBytes: 1000,
+        relativePath: "Briefs/en",
+        translationOutput: "folder",
+        targetLocales: ["vi-VN"],
+      }),
+    ).toMatchObject({ kind: "supported", ingestFormat: "docx" });
   });
 
   it("skips every translation output format when no mode is set", () => {

@@ -15,10 +15,13 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
 import {
+  exportGoogleDriveFile,
   findGoogleDriveChildByName,
   listGoogleDriveChildren,
   listGoogleSharedDrives,
+  uploadGoogleDriveFile,
 } from "./drive-api";
+import { GOOGLE_DRIVE_MAX_FILE_BYTES } from "./limits";
 
 describe("listGoogleSharedDrives", () => {
   afterEach(() => {
@@ -140,6 +143,107 @@ describe("listGoogleDriveChildren", () => {
 
     const url = String(fetchMock.mock.calls[0]?.[0]);
     expect(new URL(url).searchParams.get("q")).toBe("'foo\\\\\\'bar' in parents and trashed=false");
+  });
+});
+
+describe("exportGoogleDriveFile", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("rejects export links on untrusted hosts", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 413,
+      json: async () => ({ error: { message: "too large" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await exportGoogleDriveFile({
+      accessToken: "token",
+      fileId: "doc-id",
+      exportMimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      exportLinks: {
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+          "https://evil.example/export",
+      },
+    });
+
+    expect(isErr(result)).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("uploadGoogleDriveFile", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("creates a new file when the cached id lives under a different parent", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: "old-file",
+          name: "[vi-VN] overview.docx",
+          mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          parents: ["parent-old"],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: "new-file",
+          name: "overview.docx",
+          mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          parents: ["parent-new"],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await uploadGoogleDriveFile({
+      accessToken: "token",
+      parentId: "parent-new",
+      name: "overview.docx",
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      content: Buffer.from("docx"),
+      existingFileId: "old-file",
+    });
+
+    expect(isOk(result)).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const moveUrl = String(fetchMock.mock.calls[1]?.[0]);
+    expect(moveUrl).toContain("/upload/drive/v3/files/old-file");
+    const moveInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect(moveInit.method).toBe("PATCH");
+    expect(Buffer.from(moveInit.body as ArrayBuffer).toString("utf8")).toContain("addParents");
+  });
+});
+
+describe("downloadGoogleDriveMedia", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("rejects downloads above the import size limit", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => new Uint8Array(GOOGLE_DRIVE_MAX_FILE_BYTES + 1),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { downloadGoogleDriveMedia } = await import("./drive-api");
+    const result = await downloadGoogleDriveMedia({
+      accessToken: "token",
+      fileId: "large-file",
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) {
+      throw new Error("expected err result");
+    }
+    expect(result.error.code).toBe("google_drive_file_too_large");
   });
 });
 

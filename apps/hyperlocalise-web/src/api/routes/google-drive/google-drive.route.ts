@@ -19,6 +19,7 @@ import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
   badRequestResponse,
   forbiddenResponse,
+  notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/response.schema";
 import { classifyGoogleDriveItem } from "@/lib/google-drive/file-classification";
@@ -34,7 +35,7 @@ import {
   listGoogleDriveFoldersForOrganization,
 } from "@/lib/google-drive/folder-records";
 import { loadGoogleDrivePipesAccessToken } from "@/lib/google-drive/pipes";
-import { isAnyTranslationOutputFile } from "@/lib/google-drive/translation-filename";
+import { isNamedTranslationOutputFile } from "@/lib/google-drive/translation-filename";
 import { GOOGLE_DRIVE_MAX_BROWSER_FILES } from "@/lib/google-drive/limits";
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -112,10 +113,9 @@ export function createGoogleDriveRoutes() {
         }
 
         const driveId = query.driveId && query.driveId !== "root" ? query.driveId : null;
-        const folderId = driveId ? query.folderId : query.folderId;
         const childrenResult = await listGoogleDriveChildren({
           accessToken: tokenResult.value,
-          folderId,
+          folderId: query.folderId,
           driveId,
           pageToken: query.pageToken,
         });
@@ -130,7 +130,11 @@ export function createGoogleDriveRoutes() {
         const hideTranslations = !query.showTranslations;
         const items = [];
         for (const file of childrenResult.value.files) {
-          if (hideTranslations && isAnyTranslationOutputFile({ name: file.name })) {
+          if (
+            hideTranslations &&
+            file.mimeType !== GOOGLE_MIME.folder &&
+            isNamedTranslationOutputFile(file.name)
+          ) {
             continue;
           }
           const classification = classifyGoogleDriveItem({
@@ -228,13 +232,35 @@ export function createGoogleDriveRoutes() {
         }
 
         const body = c.req.valid("json");
+        const tokenResult = await loadDriveAccessToken(c);
+        if (isErr(tokenResult)) {
+          return serviceUnavailableResponse(c, tokenResult.error.code, tokenResult.error.message);
+        }
+        const meta = await getGoogleDriveFile({
+          accessToken: tokenResult.value,
+          fileId: body.folderId,
+        });
+        if (isErr(meta)) {
+          if (meta.error.code === "google_drive_api_error" && meta.error.status === 404) {
+            return notFoundResponse(c, "google_drive_folder_not_found");
+          }
+          return serviceUnavailableResponse(c, meta.error.code, meta.error.message);
+        }
+        if (meta.value.mimeType !== GOOGLE_MIME.folder && body.folderId !== "root") {
+          return badRequestResponse(c, "invalid_payload", "Folder id must reference a folder.");
+        }
+        const pathSegments = body.pathLabel.split("/").filter(Boolean);
+        if (pathSegments.length > 0) {
+          pathSegments[pathSegments.length - 1] = meta.value.name;
+        }
+        const pathLabel = pathSegments.length > 0 ? pathSegments.join("/") : meta.value.name;
         const row = await insertGoogleDriveFolder({
           organizationId: c.var.auth.organization.localOrganizationId,
           connectedByWorkosUserId: c.var.auth.user.workosUserId,
-          driveId: body.driveId ?? null,
+          driveId: body.driveId ?? meta.value.driveId,
           folderId: body.folderId,
-          name: body.name,
-          pathLabel: body.pathLabel,
+          name: meta.value.name,
+          pathLabel,
         });
         if (!row) {
           return c.json({ folder: null, alreadyExists: true }, 200);

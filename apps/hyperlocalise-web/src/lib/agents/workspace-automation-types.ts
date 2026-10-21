@@ -712,6 +712,10 @@ export type WorkspaceAutomationConfigValidationError =
       message: "Choose at least one connected Google Drive folder or file for this automation.";
     }
   | {
+      code: "google_drive_folders_invalid";
+      message: "One or more Google Drive folders are not connected for this workspace.";
+    }
+  | {
       code: "google_drive_target_locales_invalid";
       message: "Target locales must be a subset of the project target locales.";
     }

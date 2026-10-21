@@ -17,6 +17,8 @@ import {
   buildTranslatedDriveName,
   isLocaleFolderName,
   isAnyTranslationOutputFile,
+  isNamedTranslationOutputFile,
+  isTargetLocaleFolderName,
   isTranslationOutputFile,
   parseTranslationPrefix,
   parseTranslationSuffix,
@@ -75,18 +77,45 @@ describe("translation-filename", () => {
       isTranslationOutputFile({
         output: "folder",
         name: "Report.docx",
-        relativePath: "fr",
+        relativePath: "vi-VN",
+        targetLocales: ["vi-VN"],
       }),
     ).toBe(true);
     expect(isTranslationOutputFile({ output: "folder", name: "Report.docx" })).toBe(false);
-    expect(isTranslationOutputFile({ output: "folder", name: "fr" })).toBe(true);
+    expect(
+      isTranslationOutputFile({
+        output: "folder",
+        name: "vi-VN",
+        targetLocales: ["vi-VN"],
+      }),
+    ).toBe(true);
+    expect(
+      isTranslationOutputFile({
+        output: "folder",
+        name: "en",
+        targetLocales: ["vi-VN"],
+      }),
+    ).toBe(false);
   });
 
-  test("isAnyTranslationOutputFile matches every format", () => {
+  test("isNamedTranslationOutputFile ignores locale folder names", () => {
+    expect(isNamedTranslationOutputFile("[fr] Report.docx")).toBe(true);
+    expect(isNamedTranslationOutputFile("en")).toBe(false);
+  });
+
+  test("isTargetLocaleFolderName matches automation targets only", () => {
+    expect(isTargetLocaleFolderName("vi-VN", ["vi-VN"])).toBe(true);
+    expect(isTargetLocaleFolderName("en", ["vi-VN"])).toBe(false);
+  });
+
+  test("isAnyTranslationOutputFile matches named outputs and locale paths", () => {
     expect(isAnyTranslationOutputFile({ name: "[fr] Report.docx" })).toBe(true);
     expect(isAnyTranslationOutputFile({ name: "Report [fr].docx" })).toBe(true);
     expect(isAnyTranslationOutputFile({ name: "Report_fr.docx" })).toBe(true);
-    expect(isAnyTranslationOutputFile({ name: "fr" })).toBe(true);
+    expect(isAnyTranslationOutputFile({ name: "fr" })).toBe(false);
+    expect(isAnyTranslationOutputFile({ name: "Report.docx", relativePath: "vi-VN/briefs" })).toBe(
+      true,
+    );
     expect(isAnyTranslationOutputFile({ name: "Report.docx" })).toBe(false);
   });
 });

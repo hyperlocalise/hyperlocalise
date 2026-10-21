@@ -90,6 +90,46 @@ export function pathHasLocaleFolder(relativePath: string): boolean {
   return relativePath.split("/").some((segment) => isLocaleFolderName(segment));
 }
 
+export function buildGoogleDriveTargetLocaleKeys(locales: readonly string[]): Set<string> {
+  const keys = new Set<string>();
+  for (const locale of locales) {
+    const tag = formatDriveLocaleTag(locale);
+    keys.add(tag.toLowerCase());
+  }
+  return keys;
+}
+
+export function isTargetLocaleFolderName(name: string, targetLocales: readonly string[]): boolean {
+  if (targetLocales.length === 0) {
+    return false;
+  }
+  const keys = buildGoogleDriveTargetLocaleKeys(targetLocales);
+  const trimmed = name.trim();
+  const canonical = canonicalizeLocale(trimmed.replace(/_/g, "-"));
+  if (!canonical) {
+    return false;
+  }
+  return keys.has(canonical.toLowerCase());
+}
+
+export function pathHasTargetLocaleFolder(
+  relativePath: string,
+  targetLocales: readonly string[],
+): boolean {
+  return relativePath
+    .split("/")
+    .some((segment) => isTargetLocaleFolderName(segment, targetLocales));
+}
+
+/** Prefix, suffix, and underscore translation file names (not locale folder names). */
+export function isNamedTranslationOutputFile(name: string): boolean {
+  return (
+    parseTranslationPrefix(name) !== null ||
+    parseTranslationSuffix(name) !== null ||
+    parseTranslationUnderscore(name) !== null
+  );
+}
+
 export function isLocaleFolderName(name: string): boolean {
   const trimmed = name.trim();
   if (!trimmed) {
@@ -136,9 +176,17 @@ export function isTranslationOutputFile(input: {
   output: GoogleDriveTranslationOutput;
   name: string;
   relativePath?: string;
+  targetLocales?: readonly string[];
 }): boolean {
   if (input.output === "folder") {
-    return pathHasLocaleFolder(input.relativePath ?? "") || isLocaleFolderName(input.name);
+    const targets = input.targetLocales;
+    if (targets && targets.length > 0) {
+      return (
+        pathHasTargetLocaleFolder(input.relativePath ?? "", targets) ||
+        isTargetLocaleFolderName(input.name, targets)
+      );
+    }
+    return pathHasLocaleFolder(input.relativePath ?? "");
   }
   if (input.output === "prefix") {
     return parseTranslationPrefix(input.name) !== null;
@@ -153,13 +201,10 @@ export function isAnyTranslationOutputFile(input: {
   name: string;
   relativePath?: string;
 }): boolean {
-  return GOOGLE_DRIVE_TRANSLATION_OUTPUTS.some((output) =>
-    isTranslationOutputFile({
-      output,
-      name: input.name,
-      relativePath: input.relativePath,
-    }),
-  );
+  if (isNamedTranslationOutputFile(input.name)) {
+    return true;
+  }
+  return pathHasLocaleFolder(input.relativePath ?? "");
 }
 
 export function stripExtension(filename: string): { base: string; ext: string } {

@@ -38,11 +38,12 @@ import {
   classifyGoogleDriveItem,
   hideGoogleDriveTranslationOutputsOnIngest,
 } from "./file-classification";
-import { GOOGLE_DRIVE_MAX_FOLDER_DEPTH } from "./limits";
+import { GOOGLE_DRIVE_MAX_FOLDER_DEPTH, GOOGLE_DRIVE_MAX_IMPORT_FILES } from "./limits";
 import { loadGoogleDrivePipesAccessToken } from "./pipes";
+import { resolveGoogleDrivePushTargetLocales } from "./push-google-drive-translations";
 import { buildGoogleDriveSourcePath } from "./source-path";
 import {
-  isLocaleFolderName,
+  isTargetLocaleFolderName,
   resolveGoogleDriveTranslationOutput,
   stripExtension,
   type GoogleDriveTranslationOutput,
@@ -54,6 +55,7 @@ export type ImportGoogleDriveFilesResult = {
   imported: number;
   skipped: number;
   failed: number;
+  truncated: number;
 };
 
 type WalkFile = {
@@ -88,15 +90,26 @@ async function walkGoogleDriveFolder(input: {
   depth: number;
   includeTranslatedFiles: boolean;
   translationOutput: GoogleDriveTranslationOutput;
+  targetLocales: readonly string[];
   fileIdAllowList: Set<string> | null;
   collected: WalkFile[];
+  maxFiles: number;
+  hitImportCap: { value: boolean };
 }): Promise<void> {
   if (input.depth > GOOGLE_DRIVE_MAX_FOLDER_DEPTH) {
+    return;
+  }
+  if (input.collected.length >= input.maxFiles) {
+    input.hitImportCap.value = true;
     return;
   }
 
   let pageToken: string | undefined;
   do {
+    if (input.collected.length >= input.maxFiles) {
+      input.hitImportCap.value = true;
+      return;
+    }
     const listResult = await listGoogleDriveChildren({
       accessToken: input.accessToken,
       folderId: input.folderId,
@@ -104,10 +117,18 @@ async function walkGoogleDriveFolder(input: {
       pageToken,
     });
     if (isErr(listResult)) {
-      throw new Error(listResult.error.code);
+      logger.warn("google_drive_import_list_failed", {
+        folderId: input.folderId,
+        code: listResult.error.code,
+      });
+      return;
     }
 
     for (const child of listResult.value.files) {
+      if (input.collected.length >= input.maxFiles) {
+        input.hitImportCap.value = true;
+        return;
+      }
       const classification = classifyGoogleDriveItem({
         name: child.name,
         mimeType: child.mimeType,
@@ -116,13 +137,14 @@ async function walkGoogleDriveFolder(input: {
         hideTranslationOutputs: !input.includeTranslatedFiles,
         relativePath: input.relativePath,
         translationOutput: input.translationOutput,
+        targetLocales: input.targetLocales,
       });
 
       if (classification.kind === "folder") {
         if (
           !input.includeTranslatedFiles &&
           input.translationOutput === "folder" &&
-          isLocaleFolderName(child.name)
+          isTargetLocaleFolderName(child.name, input.targetLocales)
         ) {
           continue;
         }
@@ -165,6 +187,7 @@ async function loadIngestBuffer(input: {
   file: WalkFile;
   hideTranslationOutputs: boolean;
   translationOutput: GoogleDriveTranslationOutput;
+  targetLocales: readonly string[];
 }): Promise<{ buffer: Buffer; fileName: string; contentType: string; format: string } | null> {
   const metaResult = await getGoogleDriveFile({
     accessToken: input.accessToken,
@@ -181,6 +204,7 @@ async function loadIngestBuffer(input: {
     hideTranslationOutputs: input.hideTranslationOutputs,
     relativePath: input.file.relativePath,
     translationOutput: input.translationOutput,
+    targetLocales: input.targetLocales,
   });
   if (classification.kind !== "supported") {
     return null;
@@ -234,10 +258,15 @@ export async function runImportGoogleDriveFiles(input: {
   const [project] = await db
     .select()
     .from(schema.projects)
-    .where(eq(schema.projects.id, projectId))
+    .where(
+      and(
+        eq(schema.projects.id, projectId),
+        eq(schema.projects.organizationId, input.organizationId),
+      ),
+    )
     .limit(1);
-  if (!project) {
-    throw new Error("project_not_found");
+  if (!project || project.source !== "native") {
+    throw new Error("google_drive_native_project_required");
   }
 
   const tokenResult = await loadGoogleDrivePipesAccessToken({
@@ -266,13 +295,22 @@ export async function runImportGoogleDriveFiles(input: {
   const translationOutput = resolveGoogleDriveTranslationOutput(config.translationOutput);
   const includeTranslatedFiles = config.includeTranslatedFiles ?? false;
   const explicitFileIds = new Set(config.fileIds ?? []);
+  const projectTargets = Array.isArray(project.targetLocales)
+    ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
+    : [];
+  const targetLocales = resolveGoogleDrivePushTargetLocales(input.automation, projectTargets);
+  let collectionFailures = 0;
+  const hitImportCap = { value: false };
 
   async function collectDriveItem(inputItem: {
     fileId: string;
     driveId: string | null;
     relativePath: string;
     rootFolderId: string;
-  }) {
+  }): Promise<void> {
+    if (toImport.length >= GOOGLE_DRIVE_MAX_IMPORT_FILES) {
+      return;
+    }
     if (toImport.some((file) => file.fileId === inputItem.fileId)) {
       return;
     }
@@ -281,7 +319,12 @@ export async function runImportGoogleDriveFiles(input: {
       fileId: inputItem.fileId === "root" ? "root" : inputItem.fileId,
     });
     if (isErr(metaResult)) {
-      throw new Error(metaResult.error.code);
+      collectionFailures += 1;
+      logger.warn("google_drive_import_item_unavailable", {
+        fileId: inputItem.fileId,
+        code: metaResult.error.code,
+      });
+      return;
     }
 
     if (metaResult.value.mimeType === GOOGLE_MIME.folder) {
@@ -294,8 +337,11 @@ export async function runImportGoogleDriveFiles(input: {
         depth: 0,
         includeTranslatedFiles,
         translationOutput,
+        targetLocales,
         fileIdAllowList: null,
         collected: toImport,
+        maxFiles: GOOGLE_DRIVE_MAX_IMPORT_FILES,
+        hitImportCap,
       });
       return;
     }
@@ -331,11 +377,14 @@ export async function runImportGoogleDriveFiles(input: {
     });
   }
 
+  const truncated = hitImportCap.value ? 1 : 0;
+  const filesToProcess = toImport;
+
   let imported = 0;
   let skipped = 0;
-  let failed = 0;
+  let failed = collectionFailures;
 
-  await mapWithConcurrency(toImport, GOOGLE_DRIVE_FILE_IMPORT_CONCURRENCY, async (file) => {
+  await mapWithConcurrency(filesToProcess, GOOGLE_DRIVE_FILE_IMPORT_CONCURRENCY, async (file) => {
     try {
       const ingestPayload = await loadIngestBuffer({
         accessToken,
@@ -345,6 +394,7 @@ export async function runImportGoogleDriveFiles(input: {
           includeTranslatedFiles,
         }),
         translationOutput,
+        targetLocales,
       });
       if (!ingestPayload) {
         failed += 1;
@@ -441,5 +491,5 @@ export async function runImportGoogleDriveFiles(input: {
     }
   });
 
-  return { imported, skipped, failed };
+  return { imported, skipped, failed, truncated };
 }

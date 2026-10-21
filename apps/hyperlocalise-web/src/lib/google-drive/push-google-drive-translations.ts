@@ -268,10 +268,15 @@ export async function runPushGoogleDriveTranslations(input: {
   const [project] = await db
     .select()
     .from(schema.projects)
-    .where(eq(schema.projects.id, projectId))
+    .where(
+      and(
+        eq(schema.projects.id, projectId),
+        eq(schema.projects.organizationId, input.organizationId),
+      ),
+    )
     .limit(1);
-  if (!project) {
-    throw new Error("project_not_found");
+  if (!project || project.source !== "native") {
+    throw new Error("google_drive_native_project_required");
   }
 
   const tokenResult = await loadGoogleDrivePipesAccessToken({

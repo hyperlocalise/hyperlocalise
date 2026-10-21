@@ -61,6 +61,17 @@ Drive skips unsupported rows (✗) and any other file that is not a Hyperlocalis
 
 For each target locale (defaults to the project’s target locales), Hyperlocalise creates or updates files using the automation **Translation output**. Google Docs, Sheets, and Slides are uploaded back as native Google file types when the source was a Google app file. Push writes Office, JSON/ARB, and Lottie in the original format. Other keyed formats (Markdown, HTML, CSV, PO, YAML, and similar) are skipped rather than written as JSON with the source extension.
 
+### Creating and updating Drive files
+
+Push **upserts** translations per imported source file and target locale. It does not search Drive by filename.
+
+- **First push** for a locale creates a new file in the folder implied by **Translation output**, then stores that file’s Drive id on the sync record for that source.
+- **Later pushes** upload into the same Drive file when translation content changed. Unchanged content is skipped (no Drive write).
+- If you change **Translation output** or folder layout, Hyperlocalise moves the stored file into the new parent when it can; otherwise it creates a new file and updates the stored id. Old copies may remain on Drive if the previous file cannot be moved or was deleted outside Hyperlocalise.
+- Files you added to Drive manually (or from an earlier workflow) are not merged by name. Only outputs from a prior successful push for that source and locale are updated.
+
+Import tracks the **source** file on Drive. Translation file ids are recorded on the first push for each locale.
+
 ### Folder per language
 
 ```text
@@ -124,5 +135,6 @@ Source files:                         Translations:
 ## Limits
 
 - **5,000** files shown in the Integrations folder browser (per folder listing).
+- **5,000** files imported per automation run (additional matches are skipped).
 - **10** nested folder levels when walking connected folders.
 - **100 MB** maximum file size per file.

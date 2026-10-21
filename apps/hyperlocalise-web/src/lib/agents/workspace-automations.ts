@@ -902,6 +902,24 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       });
     }
 
+    if (googleDrive.folderIds.length > 0) {
+      const connectedFolders = await database
+        .select({ id: schema.googleDriveFolders.id })
+        .from(schema.googleDriveFolders)
+        .where(
+          and(
+            eq(schema.googleDriveFolders.organizationId, input.organizationId),
+            inArray(schema.googleDriveFolders.id, googleDrive.folderIds),
+          ),
+        );
+      if (connectedFolders.length !== googleDrive.folderIds.length) {
+        return err({
+          code: "google_drive_folders_invalid",
+          message: "One or more Google Drive folders are not connected for this workspace.",
+        });
+      }
+    }
+
     const projectId = readOptionalProjectId(input.projectId);
     if (projectId) {
       const [project] = await database

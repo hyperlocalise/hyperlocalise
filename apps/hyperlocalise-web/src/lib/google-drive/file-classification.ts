@@ -22,6 +22,7 @@ import { GOOGLE_EXPORT_MIME, GOOGLE_MIME } from "./constants";
 import { GOOGLE_DRIVE_MAX_FILE_BYTES, GOOGLE_DRIVE_MAX_FOLDER_DEPTH } from "./limits";
 import {
   isAnyTranslationOutputFile,
+  isNamedTranslationOutputFile,
   isTranslationOutputFile,
   type GoogleDriveTranslationOutput,
 } from "./translation-filename";
@@ -95,6 +96,7 @@ export function classifyGoogleDriveItem(input: {
   hideTranslationOutputs?: boolean;
   relativePath?: string;
   translationOutput?: GoogleDriveTranslationOutput;
+  targetLocales?: readonly string[];
 }): GoogleDriveFileClassification {
   const mimeType = input.mimeType.trim();
   const name = input.name.trim();
@@ -110,8 +112,10 @@ export function classifyGoogleDriveItem(input: {
           output: input.translationOutput,
           name,
           relativePath: input.relativePath,
+          targetLocales: input.targetLocales,
         })
-      : isAnyTranslationOutputFile({
+      : isNamedTranslationOutputFile(name) ||
+        isAnyTranslationOutputFile({
           name,
           relativePath: input.relativePath,
         }))
