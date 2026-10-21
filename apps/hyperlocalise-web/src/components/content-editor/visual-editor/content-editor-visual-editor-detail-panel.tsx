@@ -27,6 +27,7 @@ import {
   SegmentStatusBadge,
   shouldShowSegmentStatusBadge,
 } from "@/components/content-editor/segment/content-editor-segment-status";
+import { isContentEditorAssetContentKind } from "@/components/content-editor/shared/content-editor-content-kind";
 import { contentEditorEditorPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type {
   ContentEditorSegmentCommentInput,
@@ -195,6 +196,7 @@ export function ContentEditorVisualEditorDetailPanel({
         <div className="border-t border-border [&>div]:lg:border-l-0">
           <ContentEditorIntelligencePanel
             intelligence={intelligence}
+            contentKind={segment.contentKind}
             sourceText={segment.sourceText}
             targetText={segment.targetText}
             showAgentContext={false}
@@ -203,6 +205,11 @@ export function ContentEditorVisualEditorDetailPanel({
             isTranslationLocked={Boolean(segment.isLocked)}
             canLookupFreshContext={false}
             onUseTmMatch={onUseTmMatch}
+            onInsertCharacter={
+              isContentEditorAssetContentKind(segment.contentKind)
+                ? undefined
+                : (character) => onTargetChange(`${segment.targetText}${character}`)
+            }
           />
         </div>
 

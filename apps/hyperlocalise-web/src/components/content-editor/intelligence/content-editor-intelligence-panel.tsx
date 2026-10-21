@@ -68,8 +68,10 @@ import {
   contentEditorEditorPanelMessages,
   contentEditorIntelligencePanelMessages,
 } from "@/components/content-editor/shared/content-editor.messages";
+import { isContentEditorAssetContentKind } from "@/components/content-editor/shared/content-editor-content-kind";
 import { emptyStateSourceLabel } from "@/components/content-editor/shared/empty-state-source-label";
 import type {
+  ContentEditorContentKind,
   ContentEditorSegmentIntelligence,
   ContentEditorTmMatchKind,
   ContentEditorTranslationMemoryMatch,
@@ -100,6 +102,7 @@ import {
   ContentEditorShowLessButton,
   ContentEditorShowMoreFade,
 } from "./content-editor-show-more-fade";
+import { ContentEditorUnicodePanel } from "./content-editor-unicode-panel";
 import { ContentEditorVisualContextPanel } from "./content-editor-visual-context-panel";
 
 const EMPTY_CONTRIBUTOR_TEAMS: ContentEditorContributorTeam[] = [];
@@ -408,6 +411,7 @@ export function ContentEditorIntelligencePanel({
   intelligence,
   segmentId,
   segmentKey,
+  contentKind,
   sourceText = "",
   targetText = "",
   sourceLocale,
@@ -441,10 +445,12 @@ export function ContentEditorIntelligencePanel({
   canUploadVisualContext = false,
   isUploadingVisualContext = false,
   onUploadVisualContext,
+  onInsertCharacter,
 }: {
   intelligence: ContentEditorSegmentIntelligence;
   segmentId?: string;
   segmentKey?: string;
+  contentKind?: ContentEditorContentKind;
   sourceText?: string;
   targetText?: string;
   sourceLocale?: string;
@@ -484,6 +490,7 @@ export function ContentEditorIntelligencePanel({
   canUploadVisualContext?: boolean;
   isUploadingVisualContext?: boolean;
   onUploadVisualContext?: (file: File) => void | Promise<void>;
+  onInsertCharacter?: (character: string) => void;
 }) {
   const intl = useIntl();
   const isMac = useIsMac();
@@ -944,6 +951,13 @@ export function ContentEditorIntelligencePanel({
                 )}
               </PanelSection>
             ) : null}
+
+            {isContentEditorAssetContentKind(contentKind) ? null : (
+              <ContentEditorUnicodePanel
+                canInsert={canEditTranslations && !isTranslationLocked}
+                onInsertCharacter={onInsertCharacter}
+              />
+            )}
           </div>
         </PanelSectionResetKeyContext.Provider>
       </ScrollArea>

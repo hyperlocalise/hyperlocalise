@@ -35,6 +35,7 @@ import {
 } from "@/components/content-editor/side-by-side/content-editor-side-by-side-panel";
 import type { ContentEditorWorkspaceViewProps } from "@/components/content-editor/shared/dependencies";
 import { contentEditorWorkspaceMessages } from "@/components/content-editor/shared/content-editor.messages";
+import { isContentEditorAssetContentKind } from "@/components/content-editor/shared/content-editor-content-kind";
 import { isNativeContentEditorProviderKind } from "@/components/content-editor/shared/content-editor-native-project";
 
 import {
@@ -954,6 +955,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           intelligence={selectedSegmentIntelligence}
           segmentId={editorSegment.id}
           segmentKey={editorSegment.key}
+          contentKind={editorSegment.contentKind}
           sourceText={editorSegment.sourceText}
           targetText={editorSegment.targetText}
           sourceLocale={editorSegment.sourceLocale}
@@ -995,6 +997,16 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           onFindContext={() => review.onAskQuestion(editorSegment.id)}
           onRefreshContext={() => review.onAskQuestion(editorSegment.id, { forceRefresh: true })}
           onUseTmMatch={(match) => editing.onUseTmMatch(editorSegment.id, match)}
+          onInsertCharacter={
+            isContentEditorAssetContentKind(editorSegment.contentKind)
+              ? undefined
+              : (character) => {
+                  editing.onTargetChange(
+                    editorSegment.id,
+                    `${editorSegment.targetText}${character}`,
+                  );
+                }
+          }
           onSetMaxLength={
             editing.onSetMaxLength
               ? (maxLength) => editing.onSetMaxLength!(editorSegment.id, maxLength)

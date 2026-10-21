@@ -30,6 +30,7 @@ import {
   contentEditorQueuePanelMessages,
   contentEditorSideBySidePanelMessages,
 } from "@/components/content-editor/shared/content-editor.messages";
+import { isContentEditorAssetContentKind } from "@/components/content-editor/shared/content-editor-content-kind";
 import { isSourceFileIngestInProgress } from "@/lib/projects/files/source-file-ingest-state";
 import type {
   ContentEditorFormatCheck,
@@ -508,6 +509,16 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
             onUseTmMatch={
               onUseTmMatch && intelligenceSegment
                 ? (match) => onUseTmMatch(intelligenceSegmentId, match)
+                : undefined
+            }
+            onInsertCharacter={
+              intelligenceSegment &&
+              !isContentEditorAssetContentKind(intelligenceSegment.contentKind)
+                ? (character) =>
+                    onTargetChange(
+                      intelligenceSegmentId,
+                      `${intelligenceSegment.targetText}${character}`,
+                    )
                 : undefined
             }
             onAddComment={
