@@ -187,6 +187,49 @@ describe("queryWordVolume", () => {
     expect(wordVolumeCsv(rows, "job").split("\r\n")[0]).toContain("jobTitle");
   });
 
+  it("totals only the chosen job when one is given", async () => {
+    const { organization, project, job } = await seedJob();
+    const [otherJob] = await db
+      .insert(schema.jobs)
+      .values({
+        id: `job_${randomUUID()}`,
+        organizationId: organization.id,
+        projectId: project.id,
+        createdByUserId: job.createdByUserId,
+        kind: "translation",
+        status: "succeeded",
+        inputPayload: { metadata: { title: "Other strings" } },
+      })
+      .returning();
+    await db.insert(schema.reportingAnalyses).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: otherJob.id,
+      step: "translation",
+      segmentId: "z",
+      sourceRevision: `rev_${randomUUID()}`,
+      sourceLocale: "en-US",
+      targetLocale: "de-DE",
+      words: 50,
+      bucket: "new",
+      createdAt: IN_RANGE,
+    });
+
+    const rows = await queryWordVolume({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      from: "2026-08-01",
+      to: "2026-08-31",
+      groupBy: "project",
+      jobId: job.id,
+      targetLocale: "de-DE",
+    });
+
+    expect(rows).toEqual([
+      expect.objectContaining({ targetLocale: "de-DE", analysedWords: 20, completedWords: 14 }),
+    ]);
+  });
+
   it("returns nothing outside the date range or the accessible projects", async () => {
     const { organization, project } = await seedJob();
 

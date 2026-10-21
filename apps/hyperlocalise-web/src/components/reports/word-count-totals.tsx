@@ -37,7 +37,14 @@ export function WordCountTotals({
   filters,
 }: {
   base: string;
-  filters: { from: string; to: string; projectId: string; targetLocale: string; step: string };
+  filters: {
+    from: string;
+    to: string;
+    projectId: string;
+    jobId: string;
+    targetLocale: string;
+    step: string;
+  };
 }) {
   const intl = useIntl();
   const [groupBy, setGroupBy] = useState<"project" | "job">("project");

@@ -80,6 +80,7 @@ export async function queryWordVolume(input: {
   to: string;
   groupBy: "project" | "job";
   projectId?: string;
+  jobId?: string;
   targetLocale?: string;
   step?: "translation" | "review";
 }): Promise<WordVolumeRow[]> {
@@ -92,6 +93,7 @@ export async function queryWordVolume(input: {
   )})`;
   const filters = sql`
     ${input.projectId ? sql`and a.project_id = ${input.projectId}` : sql``}
+    ${input.jobId ? sql`and a.job_id = ${input.jobId}` : sql``}
     ${input.targetLocale ? sql`and a.target_locale = ${input.targetLocale}` : sql``}
     and a.step = ${input.step ?? "translation"}`;
   const jobKey = input.groupBy === "job" ? sql`a.job_id` : sql`null::text`;

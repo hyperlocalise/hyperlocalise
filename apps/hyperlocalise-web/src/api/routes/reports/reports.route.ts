@@ -86,6 +86,7 @@ export function createReportsRoutes() {
         to,
         groupBy: parsed.data.groupBy,
         projectId: parsed.data.projectId,
+        jobId: parsed.data.jobId,
         targetLocale: parsed.data.targetLocale,
         step: parsed.data.step,
       });

@@ -568,6 +568,7 @@ export function ReportsWorkspace({
             from: appliedFilters.from,
             to: appliedFilters.to,
             projectId: appliedFilters.projectId,
+            jobId: appliedFilters.jobId,
             targetLocale: appliedFilters.targetLocale,
             step: appliedFilters.step,
           }}

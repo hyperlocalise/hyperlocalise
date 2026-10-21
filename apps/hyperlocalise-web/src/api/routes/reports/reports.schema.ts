@@ -34,6 +34,7 @@ export const wordCountQuerySchema = z
     from: day.optional(),
     to: day.optional(),
     projectId: z.string().optional(),
+    jobId: z.string().optional(),
     targetLocale: z.string().optional(),
     step: step.optional(),
     groupBy: z.enum(["project", "job"]).default("project"),
