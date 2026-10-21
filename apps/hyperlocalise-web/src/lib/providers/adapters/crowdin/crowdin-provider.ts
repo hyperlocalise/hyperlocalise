@@ -36,6 +36,7 @@ import {
   CROWDIN_RECENT_TASK_LIST_ORDER_BY,
   CrowdinApiClient,
   CrowdinApiError,
+  crowdinSourceStringKey,
   escapeCrowdinCroqlString,
   extractCrowdinApiErrorSummary,
   type CrowdinAiPrompt,
@@ -1385,7 +1386,7 @@ export class CrowdinTmsProvider extends TmsProvider {
 
       return {
         externalStringId: String(sourceString.id),
-        key: sourceString.identifier,
+        key: crowdinSourceStringKey(sourceString),
         sourceText: this.sourceTextValue(sourceString.text),
         context: sourceString.context,
         fileId: sourceString.fileId ? String(sourceString.fileId) : null,
@@ -2353,7 +2354,7 @@ export class CrowdinTmsProvider extends TmsProvider {
         resource: {
           type: "string",
           id: sourceString.id,
-          identifier: sourceString.identifier,
+          identifier: crowdinSourceStringKey(sourceString),
           text: this.formatProgressStringText(sourceString.text),
         },
         languages: stringTranslations.map((entry) => ({

@@ -12,15 +12,22 @@
  */
 
 /** Intercom `:::callout` / closing `:::` fences are markup, not translatable copy. */
-export function isMarkdownCalloutFenceText(value: string): boolean {
+export function isMarkdownCalloutFenceText(value: string | null | undefined): boolean {
+  if (typeof value !== "string") {
+    return false;
+  }
+
   const trimmed = value.trim();
   return trimmed === ":::" || trimmed.startsWith(":::callout");
 }
 
-export function isMarkdownTranslationKey(key: string): boolean {
-  return key.startsWith("md.") || key.startsWith("frontmatter/");
+export function isMarkdownTranslationKey(key: string | null | undefined): boolean {
+  return typeof key === "string" && (key.startsWith("md.") || key.startsWith("frontmatter/"));
 }
 
-export function isMarkdownCalloutFenceEntry(key: string, text: string): boolean {
+export function isMarkdownCalloutFenceEntry(
+  key: string | null | undefined,
+  text: string | null | undefined,
+): boolean {
   return isMarkdownTranslationKey(key) && isMarkdownCalloutFenceText(text);
 }
