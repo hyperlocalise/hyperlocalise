@@ -12,6 +12,8 @@
  */
 import "dotenv/config";
 
+import { randomUUID } from "node:crypto";
+
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
@@ -48,6 +50,7 @@ import { db, schema } from "@/lib/database/client";
 import { isOk } from "@/lib/primitives/result/results";
 import { saveRateCard } from "@/lib/reporting/rate-cards";
 import { createReportingTestFixture } from "@/lib/reporting/reporting.fixture";
+import { ensureDefaultWorkspaceTeamMembership } from "@/lib/teams/default-workspace-team";
 
 const app = createApp();
 const fixture = createAuthTestFixture();
@@ -218,6 +221,7 @@ describe("reports routes", () => {
       `/cost-estimate?jobIds=${tooManyTasks}`,
       "/cost-estimate",
       "/time?page=0",
+      "/activity?from=0000-01-01&to=0000-01-02",
     ]) {
       const response = await app.request(reportsUrl(slug, path), { headers });
       expect(response.status, path).toBe(400);
@@ -358,7 +362,7 @@ describe("reports routes", () => {
         },
       },
       estimate: { totals: { costUsd: "5.00000000" } },
-      stillToComeUsd: "3.00000000",
+      stillToCome: { amountUsd: "3.00000000", incomplete: false },
       time: { minutes: 45, people: 1, entries: [{ minutes: 45, own: true, canEdit: true }] },
     });
 
@@ -490,6 +494,105 @@ describe("reports routes", () => {
     expect(unknown.status).toBe(400);
     await expect(unknown.json()).resolves.toMatchObject({ error: "rate_card_not_found" });
     expect((await budget("Standard")).status).toBe(200);
+  });
+
+  it("shows a viewer only the projects their teams can open, and money and workspace-wide work only to billing roles", async () => {
+    const workspace = await reporting.createWorkspace();
+    const { identity, organization, user, project, createProject, createJob, addSummary } =
+      workspace;
+    const [secretTeam] = await db
+      .insert(schema.teams)
+      .values({ organizationId: organization.id, slug: "secret", name: "Secret" })
+      .returning();
+    const secret = await createProject("Secret", secretTeam!.id);
+    const translatorIdentity = reporting.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    const { user: translator } = await reporting.createLocalWorkosIdentity(translatorIdentity);
+    await ensureDefaultWorkspaceTeamMembership({
+      organizationId: organization.id,
+      userId: translator.id,
+    });
+    const today = new Date().toISOString().slice(0, 10);
+    const job = await createJob({ title: "Release strings" });
+    await addSummary([
+      { jobId: job.id, targetLocale: "fr-FR", day: today, arrived: 10 },
+      { projectId: secret.id, targetLocale: "fr-FR", day: today, arrived: 99 },
+    ]);
+    // AI used outside any project, and a workflow outside any project.
+    await db.insert(schema.usageEvents).values({
+      organizationId: organization.id,
+      featureId: "ai_tokens",
+      status: "tracking_succeeded",
+      operationKey: `test:${randomUUID()}`,
+      source: "chat_agent_turn",
+      dimensions: { input_tokens: 100, output_tokens: 10 },
+    });
+    const [workflow] = await db
+      .insert(schema.visualWorkflows)
+      .values({ organizationId: organization.id, name: "Workspace-wide" })
+      .returning();
+    const [run] = await db
+      .insert(schema.visualWorkflowRuns)
+      .values({
+        organizationId: organization.id,
+        visualWorkflowId: workflow!.id,
+        triggerSource: "manual",
+      })
+      .returning();
+    await db.insert(schema.visualWorkflowNodeRuns).values({
+      organizationId: organization.id,
+      runId: run!.id,
+      nodeId: "http",
+      nodeType: "action.http",
+      status: "succeeded",
+      startedAt: new Date(),
+      finishedAt: new Date(),
+    });
+    // Someone else's time on the task.
+    await db.insert(schema.reportingTimeEntries).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: job.id,
+      contributorId: user.id,
+      step: "translation",
+      targetLocale: "fr-FR",
+      workDate: new Date(`${today}T00:00:00Z`),
+      minutes: 30,
+    });
+    const slug = identity.organization.slug ?? "missing-slug";
+    const read = async (headers: Record<string, string>, path: string) => {
+      const response = await app.request(reportsUrl(slug, path), { headers });
+      expect(response.status, path).toBe(200);
+      return response.json();
+    };
+    const admin = await reporting.authHeadersFor(identity);
+    const viewer = await reporting.authHeadersFor(translatorIdentity);
+
+    const adminWords = await read(admin, "/words");
+    expect(adminWords.wordCounts.total).toBe(109);
+    const viewerWords = await read(viewer, "/words");
+    expect(
+      viewerWords.wordCounts.rows.map((row: { projectName: string }) => row.projectName),
+    ).toEqual(["Docs"]);
+    expect((await read(viewer, `/words?projectId=${secret.id}`)).wordCounts.rows).toEqual([]);
+    expect((await read(viewer, `/activity?projectId=${secret.id}`)).activity.current.arrived).toBe(
+      0,
+    );
+
+    expect((await read(admin, "/ai-usage")).aiUsage.totals.calls).toBe(1);
+    expect((await read(viewer, "/ai-usage")).aiUsage.totals.calls).toBe(0);
+    expect((await read(admin, "/step-times")).stepTimes.automated.workflowSteps).toHaveLength(1);
+    expect((await read(viewer, "/step-times")).stepTimes.automated.workflowSteps).toEqual([]);
+
+    const report = await read(viewer, `/tasks/${job.id}/report`);
+    expect(report.taskReport).toMatchObject({
+      estimate: null,
+      stillToCome: null,
+      time: { minutes: 30, people: 1, entries: [] },
+      canLogTime: true,
+    });
   });
 
   it("denies report access when the feature flag is disabled", async () => {

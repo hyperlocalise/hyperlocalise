@@ -15,7 +15,8 @@ import { RATE_BASES, REPORT_STEPS, REPORT_UNITS } from "@/lib/reporting/report-u
 import { MATCH_BUCKETS } from "@/lib/reporting/word-analysis";
 const usd = z.string().regex(/^\d{1,12}(\.\d{1,8})?$/);
 const step = z.enum(REPORT_STEPS);
-const day = z.iso.date();
+// Reports has nothing from before 2000, and the day maths needs a four-digit year.
+const day = z.iso.date().refine((value) => value >= "2000-01-01", { message: "Too early" });
 export const reportQuerySchema = z
   .object({
     from: day.optional(),

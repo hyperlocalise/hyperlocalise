@@ -58,6 +58,8 @@ type PricedGroup = {
   units: number;
   /** In the rate line's basis; 0 for hourly lines and unpriced or fixed-fee work. */
   basisUnits: number;
+  /** Strings whose units could not be counted, so they are priced at nothing. */
+  uncounted: number;
 };
 
 type HourlyLine = {
@@ -129,6 +131,9 @@ async function pricedUnits(input: {
     input.measure === "chosen"
       ? sql`s.job_id`
       : sql`case when own.id is not null then s.job_id end`;
+  const chosenLanguage = input.targetLocale
+    ? sql`target_locale = ${input.targetLocale}`
+    : sql`true`;
   const result = await db.execute<{
     groups: PricedGroup[];
     hourly: HourlyLine[];
@@ -141,7 +146,7 @@ async function pricedUnits(input: {
         sum(${value("words")}) as words, sum(${value("strings")}) as strings,
         sum(${value("characters")}) as characters,
         sum(${value("characters_with_spaces")}) as characters_with_spaces,
-        sum(${value(input.unit)}) as shown
+        sum(${value(input.unit)}) as shown, sum(s.arrived_uncounted) as uncounted
       from (${rows}) s
       ${
         input.measure === "chosen"
@@ -149,9 +154,7 @@ async function pricedUnits(input: {
           : sql`left join reporting_task_rates own on own.organization_id = ${input.organizationId}
               and own.job_id = s.job_id and own.step = s.step`
       }
-      where true
-        ${input.targetLocale ? sql`and s.target_locale = ${input.targetLocale}` : sql``}
-        ${input.step ? sql`and s.step = ${input.step}` : sql``}
+      where true ${input.step ? sql`and s.step = ${input.step}` : sql``}
       group by 1, 2, 3, 4, 5, 6
     ),
     resolved as (
@@ -185,28 +188,36 @@ async function pricedUnits(input: {
           sum(case when fixed then 0 when basis = 'word' then words
             when basis = 'character' then characters
             when basis = 'character_with_spaces' then characters_with_spaces else 0 end)::float8
-            as "basisUnits"
-        from resolved
+            as "basisUnits",
+          sum(uncounted)::float8 as uncounted
+        from resolved where ${chosenLanguage}
         group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
-        having sum(shown) > 0 or sum(words) > 0
+        having sum(shown) > 0 or sum(words) > 0 or sum(uncounted) > 0
       ) g) as groups,
       (select coalesce(json_agg(h), '[]') from (
         select r.project_id as "projectId", r.job_id as "jobId", r.step,
           r.target_locale as "targetLocale", r.rate_id as "rateId", r.rate::text as rate,
           t.estimated_minutes as "estimatedMinutes",
           (select coalesce(sum(e.minutes), 0) from reporting_time_entries e
-            where e.organization_id = ${input.organizationId} and e.job_id = r.job_id
-              and e.step = r.step and not e.voided)::integer as "loggedMinutes",
-          (count(*) over (partition by r.job_id, r.step))::integer as languages
+            where e.organization_id = ${input.organizationId} and e.project_id = r.project_id
+              and e.job_id = r.job_id and e.step = r.step and not e.voided)::integer
+            as "loggedMinutes",
+          r.languages
         from (
-          select distinct project_id, job_id, step, target_locale, rate_id, rate from resolved
-          where basis = 'hour' and not fixed and job_id is not null
+          -- Counted over every language of the task, so a language filter keeps each share.
+          select *, (count(*) over (partition by job_id, step))::integer as languages from (
+            select distinct project_id, job_id, step, target_locale, rate_id, rate from resolved
+            where basis = 'hour' and not fixed
+          ) lines
         ) r
+        -- Work outside any task, or in a task with no rate of its own, has no time estimate.
         left join reporting_task_rates t on t.organization_id = ${input.organizationId}
           and t.job_id = r.job_id and t.step = r.step
+        where ${input.targetLocale ? sql`r.target_locale = ${input.targetLocale}` : sql`true`}
       ) h) as hourly,
-      (select count(distinct job_id) from units)::integer as tasks,
-      (select count(distinct target_locale) from units)::integer as languages
+      (select count(distinct job_id) from units where ${chosenLanguage})::integer as tasks,
+      (select count(distinct target_locale) from units where ${chosenLanguage})::integer
+        as languages
   `);
   return result.rows[0];
 }
@@ -217,24 +228,28 @@ function paidPercent(percentages: BandPercentages | null, bucket: MatchBucket): 
   return percentages?.[band] ?? 100;
 }
 
+type HourlyCost = { cost: bigint; known: boolean; unestimated: boolean };
+
 /**
  * The cost of hourly lines: a task's time estimate for a step, shared evenly between the
- * languages it has on hourly lines. `remaining` takes off the time already logged.
+ * languages it has on hourly lines. `remaining` takes off the time already logged. A line
+ * whose task has no estimate adds nothing and marks the cost `unestimated`.
  */
 function hourlyCosts(lines: HourlyLine[], remaining: boolean, keyOf: (line: HourlyLine) => string) {
-  const costs = new Map<string, bigint | null>();
+  const costs = new Map<string, HourlyCost>();
   for (const line of lines) {
     const key = keyOf(line);
-    const previous = costs.get(key);
+    const entry = costs.get(key) ?? { cost: ZERO, known: false, unestimated: false };
+    costs.set(key, entry);
     if (line.estimatedMinutes === null) {
-      costs.set(key, null);
+      entry.unestimated = true;
       continue;
     }
     const minutes = remaining
       ? Math.max(0, line.estimatedMinutes - line.loggedMinutes)
       : line.estimatedMinutes;
-    const cost = usdUnits(hourlyCost(line.rate, minutes)) / BigInt(line.languages);
-    costs.set(key, previous === null ? null : (previous ?? ZERO) + cost);
+    entry.cost += usdUnits(hourlyCost(line.rate, minutes)) / BigInt(line.languages);
+    entry.known = true;
   }
   return costs;
 }
@@ -255,6 +270,7 @@ async function fixedFees(input: {
   step?: ReportStep;
   uncharged: boolean;
 }): Promise<FixedFee[]> {
+  if (input.projectIds.length === 0) return [];
   const result = await db.execute<FixedFee>(sql`
     select t.id, j.project_id as "projectId", t.job_id as "jobId", ${jobTitle("j")} as "jobTitle",
       t.step, t.override_usd::text as "amountUsd"
@@ -288,9 +304,12 @@ export type CostEstimateRow = {
   units: number;
   /** In the rate line's basis, after its band percentages. Null for hourly lines and no rate. */
   weighted: number | null;
+  /** Null when nothing in the row could be priced. */
   costUsd: string | null;
-  /** An hourly line on a task with no time estimate, so its cost is not known. */
+  /** An hourly line on a task with no time estimate: that task's part of the cost is missing. */
   unestimated: boolean;
+  /** Strings whose units could not be counted, priced at nothing. */
+  uncounted: number;
 };
 
 export type CostEstimate = {
@@ -298,6 +317,8 @@ export type CostEstimate = {
   pricingOrder: string;
   rows: CostEstimateRow[];
   fixedFees: Omit<FixedFee, "id" | "projectId">[];
+  /** Fixed fees belong to a task, not a language, so a language filter leaves them out. */
+  fixedFeesLeftOut: number;
   totals: {
     bands: BandCounts;
     units: number;
@@ -307,6 +328,8 @@ export type CostEstimate = {
     costUsd: string;
     /** Units with no rate, left out of the cost. */
     unpricedUnits: number;
+    /** Strings whose units could not be counted. */
+    uncounted: number;
     /** The share of the per-unit cost saved by match discounts, against paying every band in full. */
     memorySavings: number | null;
     tasks: number;
@@ -334,6 +357,7 @@ export async function queryCostEstimate(
     pricingOrder: PRICING_ORDER,
     rows: [],
     fixedFees: [],
+    fixedFeesLeftOut: 0,
     totals: {
       bands: {},
       units: 0,
@@ -341,6 +365,7 @@ export async function queryCostEstimate(
       weightedBasis: null,
       costUsd: usdString(ZERO),
       unpricedUnits: 0,
+      uncounted: 0,
       memorySavings: null,
       tasks: 0,
       languages: 0,
@@ -348,10 +373,11 @@ export async function queryCostEstimate(
     },
   };
   if (projectIds.length === 0 || input.jobIds.length === 0) return empty;
-  const [priced, fees] = await Promise.all([
+  const [priced, allFees] = await Promise.all([
     pricedUnits({ ...input, projectIds, measure: "chosen" }),
     fixedFees({ ...input, projectIds, uncharged: false }),
   ]);
+  const fees = input.targetLocale ? [] : allFees;
   const lineKey = (line: { targetLocale: string; step: ReportStep; rateId: string | null }) =>
     `${line.targetLocale}\u0000${line.step}\u0000${line.rateId}`;
   const hourly = hourlyCosts(priced.hourly, false, lineKey);
@@ -379,13 +405,20 @@ export async function queryCostEstimate(
         weighted: group.pricing === "rate" && group.basis !== "hour" ? 0 : null,
         costUsd: null,
         unestimated: false,
+        uncounted: 0,
         cost: group.pricing === "rate" ? ZERO : null,
       };
       rows.set(key, row);
     }
-    row.bands[group.bucket] = (row.bands[group.bucket] ?? 0) + group.units;
+    if (group.units > 0) row.bands[group.bucket] = (row.bands[group.bucket] ?? 0) + group.units;
     row.units += group.units;
-    totals.bands[group.bucket] = (totals.bands[group.bucket] ?? 0) + group.units;
+    // Uncounted strings matter only where work is priced per unit.
+    if (group.pricing === "rate" && group.basis !== "hour") {
+      row.uncounted += group.uncounted;
+      totals.uncounted += group.uncounted;
+    }
+    if (group.units > 0)
+      totals.bands[group.bucket] = (totals.bands[group.bucket] ?? 0) + group.units;
     totals.units += group.units;
     if (group.pricing === "none") totals.unpricedUnits += group.units;
     if (group.pricing !== "rate" || group.basis === "hour" || !group.rate) continue;
@@ -400,12 +433,12 @@ export async function queryCostEstimate(
   }
   for (const row of rows.values()) {
     if (row.pricing === "rate" && row.basis === "hour") {
-      // Work outside any task has no time estimate.
-      row.cost = hourly.get(lineKey(row)) ?? null;
-      row.unestimated = row.cost === null;
+      const hours = hourly.get(lineKey(row));
+      row.cost = hours?.known ? hours.cost : null;
+      row.unestimated = !hours || hours.unestimated;
     }
     if (row.cost !== null) cost += row.cost;
-    if (row.pricing === "none" || row.unestimated) totals.incomplete = true;
+    if (row.pricing === "none" || row.unestimated || row.uncounted > 0) totals.incomplete = true;
     row.costUsd = row.cost === null ? null : usdString(row.cost);
   }
   for (const fee of fees) cost += usdUnits(fee.amountUsd);
@@ -428,6 +461,7 @@ export async function queryCostEstimate(
           REPORT_STEPS.indexOf(left.step) - REPORT_STEPS.indexOf(right.step),
       ),
     fixedFees: fees.map(({ id: _id, projectId: _projectId, ...fee }) => fee),
+    fixedFeesLeftOut: allFees.length - fees.length,
     totals,
   };
 }
@@ -443,6 +477,7 @@ export async function queryStillToCome(input: {
   organizationId: string;
   projectIds: string[];
   jobIds?: string[];
+  step?: ReportStep;
   rateCardName?: string | null;
 }): Promise<Map<string, StillToCome>> {
   const byProject = new Map<string, { amount: bigint; incomplete: boolean }>();
@@ -468,6 +503,7 @@ export async function queryStillToCome(input: {
     const entry = project(group.projectId);
     if (group.pricing === "none") entry.incomplete = true;
     if (group.pricing !== "rate" || group.basis === "hour" || !group.rate) continue;
+    if (group.uncounted > 0) entry.incomplete = true;
     entry.amount += usdUnits(
       unitCost(
         group.rate,
@@ -476,18 +512,10 @@ export async function queryStillToCome(input: {
       ),
     );
   }
-  const hourly = hourlyCosts(
-    priced.hourly,
-    true,
-    (line) => `${line.projectId}\u0000${line.jobId}\u0000${line.step}\u0000${line.targetLocale}`,
-  );
-  for (const line of priced.hourly) {
-    const cost = hourly.get(
-      `${line.projectId}\u0000${line.jobId}\u0000${line.step}\u0000${line.targetLocale}`,
-    );
-    const entry = project(line.projectId);
-    if (cost === null || cost === undefined) entry.incomplete = true;
-    else entry.amount += cost;
+  for (const [projectId, hours] of hourlyCosts(priced.hourly, true, (line) => line.projectId)) {
+    const entry = project(projectId);
+    entry.amount += hours.cost;
+    if (hours.unestimated) entry.incomplete = true;
   }
   for (const fee of fees) project(fee.projectId).amount += usdUnits(fee.amountUsd);
   return new Map(

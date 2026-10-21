@@ -469,6 +469,7 @@ export function createReportsRoutes() {
               organizationId,
               projectIds: [job.projectId!],
               jobIds: [job.id],
+              step: parsed.data.step,
               rateCardName: parsed.data.rateCard ?? null,
             })
           : null,
@@ -498,8 +499,8 @@ export function createReportsRoutes() {
           step: parsed.data.step,
           words,
           estimate,
-          stillToComeUsd: stillToCome
-            ? (stillToCome.get(job.projectId!)?.amountUsd ?? "0.00000000")
+          stillToCome: stillToCome
+            ? (stillToCome.get(job.projectId!) ?? { amountUsd: "0.00000000", incomplete: false })
             : null,
           time: {
             minutes: entries.rows.reduce((sum, entry) => sum + entry.minutes, 0),

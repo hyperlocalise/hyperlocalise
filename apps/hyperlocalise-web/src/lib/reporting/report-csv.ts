@@ -136,6 +136,8 @@ export function costEstimateCsv(estimate: CostEstimate): string {
       "units",
       "weighted",
       "costUsd",
+      "jobTitle",
+      "jobId",
     ],
     [
       ...estimate.rows.map((row) => [
@@ -149,6 +151,8 @@ export function costEstimateCsv(estimate: CostEstimate): string {
         row.units,
         row.weighted === null ? null : Math.round(row.weighted * 100) / 100,
         row.costUsd,
+        null,
+        null,
       ]),
       ...estimate.fixedFees.map((fee) => [
         null,
@@ -161,6 +165,8 @@ export function costEstimateCsv(estimate: CostEstimate): string {
         null,
         null,
         fee.amountUsd,
+        fee.jobTitle,
+        fee.jobId,
       ]),
     ],
   );

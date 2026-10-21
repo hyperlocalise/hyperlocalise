@@ -73,14 +73,14 @@ export function createReportingTestFixture() {
     const stored = await projectFixture.createStoredProjectFixture();
     const { organization, user, project } = stored;
 
-    const createProject = async (name: string) => {
+    const createProject = async (name: string, teamId = project.teamId) => {
       const [created] = await db
         .insert(schema.projects)
         .values({
           id: `project_${randomUUID()}`,
           identifier: uniqueTestProjectIdentifier(),
           organizationId: organization.id,
-          teamId: project.teamId,
+          teamId,
           createdByUserId: user.id,
           name,
           description: "",

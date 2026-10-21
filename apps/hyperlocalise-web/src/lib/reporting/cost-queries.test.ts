@@ -366,6 +366,182 @@ describe("still to come and budgets", () => {
   });
 });
 
+describe("still to come in detail", () => {
+  it("counts open tasks of every open state, payable work outside any task, hourly time left and uncharged fees", async () => {
+    const workspace = await fixture.createWorkspace();
+    const { organization, project, user, createProject, createJob, addSummary } = workspace;
+    const hourlyProject = await createProject("Hourly work");
+    await createCard(workspace, "Mixed", [line("fr-FR", "1"), line("de-DE", "60", "hour")]);
+    await db.insert(schema.reportingBudgets).values(
+      [project.id, hourlyProject.id].map((projectId) => ({
+        organizationId: organization.id,
+        projectId,
+        budget: "1000",
+        rateCardName: "Mixed",
+      })),
+    );
+    const unfinished = (jobId: string | null, targetLocale: string, payable = false) => ({
+      jobId,
+      targetLocale,
+      payable,
+      day: "2026-06-01",
+      arrived: { words: 10, strings: 2 },
+      arrivedDone: { words: 4, strings: 1 },
+    });
+    const queued = await createJob({ status: "queued", assigned: true });
+    const reviewing = await createJob({ status: "waiting_for_review" });
+    await addSummary([
+      unfinished(queued.id, "fr-FR"),
+      unfinished(reviewing.id, "fr-FR", true),
+      unfinished(null, "fr-FR", true),
+    ]);
+    const toCome = await queryStillToCome({
+      organizationId: organization.id,
+      projectIds: [project.id, hourlyProject.id],
+    });
+    expect(toCome.get(project.id)).toEqual({ amountUsd: "18.00000000", incomplete: false });
+
+    // Hourly work: time estimated but not yet logged is still to come; a task with no estimate
+    // makes the amount incomplete rather than free.
+    const estimated = await createJob({ projectId: hourlyProject.id, assigned: true });
+    const unestimated = await createJob({ projectId: hourlyProject.id, assigned: true });
+    const feeTask = await createJob({ projectId: hourlyProject.id, status: "queued" });
+    const chargedTask = await createJob({ projectId: hourlyProject.id, status: "queued" });
+    await addSummary([
+      { ...unfinished(estimated.id, "de-DE"), projectId: hourlyProject.id },
+      { ...unfinished(unestimated.id, "de-DE"), projectId: hourlyProject.id },
+    ]);
+    const [, , charged] = await db
+      .insert(schema.reportingTaskRates)
+      .values([
+        {
+          organizationId: organization.id,
+          jobId: estimated.id,
+          step: "translation",
+          estimatedMinutes: 120,
+        },
+        {
+          organizationId: organization.id,
+          jobId: feeTask.id,
+          step: "translation",
+          overrideUsd: "50",
+        },
+        {
+          organizationId: organization.id,
+          jobId: chargedTask.id,
+          step: "translation",
+          overrideUsd: "70",
+        },
+      ])
+      .returning();
+    await db.insert(schema.reportingCosts).values({
+      organizationId: organization.id,
+      projectId: hourlyProject.id,
+      jobId: chargedTask.id,
+      operationKey: `task-override:${charged!.id}`,
+      kind: "human",
+      step: "translation",
+      amountUsd: "70",
+      basis: "manual",
+    });
+    await db.insert(schema.reportingTimeEntries).values({
+      organizationId: organization.id,
+      projectId: hourlyProject.id,
+      jobId: estimated.id,
+      contributorId: user.id,
+      step: "translation",
+      targetLocale: "de-DE",
+      workDate: new Date("2026-06-01T00:00:00Z"),
+      minutes: 30,
+    });
+    const hourly = await queryStillToCome({
+      organizationId: organization.id,
+      projectIds: [hourlyProject.id],
+    });
+    // 90 minutes left at $60, and the uncharged $50 fee.
+    expect(hourly.get(hourlyProject.id)).toEqual({ amountUsd: "140.00000000", incomplete: true });
+  });
+});
+
+describe("cost estimate filters", () => {
+  it("keeps each language's share of a task's time under a language filter, and leaves fixed fees out", async () => {
+    const workspace = await fixture.createWorkspace();
+    const { organization, project, createJob, addSummary } = workspace;
+    await createCard(workspace, "Hourly", [
+      line("fr-FR", "60", "hour"),
+      line("de-DE", "60", "hour"),
+      line("ja-JP", "1"),
+    ]);
+    const estimated = await createJob();
+    const unestimated = await createJob();
+    const fee = await createJob({ title: "Landing page" });
+    await addSummary([
+      { jobId: estimated.id, targetLocale: "fr-FR", day: "2026-06-01", arrived: 10 },
+      { jobId: estimated.id, targetLocale: "de-DE", day: "2026-06-01", arrived: 10 },
+      {
+        jobId: estimated.id,
+        targetLocale: "fr-FR",
+        step: "review",
+        day: "2026-06-01",
+        arrived: 10,
+      },
+      { jobId: unestimated.id, targetLocale: "fr-FR", day: "2026-06-01", arrived: 5 },
+      { jobId: fee.id, targetLocale: "fr-FR", day: "2026-06-01", arrived: 7 },
+      { jobId: unestimated.id, targetLocale: "ja-JP", day: "2026-06-01", arrived: 3, uncounted: 2 },
+    ]);
+    await db.insert(schema.reportingTaskRates).values([
+      {
+        organizationId: organization.id,
+        jobId: estimated.id,
+        step: "translation",
+        estimatedMinutes: 90,
+      },
+      { organizationId: organization.id, jobId: fee.id, step: "translation", overrideUsd: "300" },
+    ]);
+    const estimate = (extra: { targetLocale?: string; step?: "translation" | "review" } = {}) =>
+      queryCostEstimate({
+        organizationId: organization.id,
+        projectIds: [project.id],
+        jobIds: [estimated.id, unestimated.id, fee.id],
+        unit: "words",
+        rateCardName: "Hourly",
+        ...extra,
+      });
+
+    const french = await estimate({ targetLocale: "fr-FR", step: "translation" });
+    const hourlyRow = french.rows.find((row) => row.pricing === "rate");
+    // The estimated task's 90 minutes are shared with German; the other task has no estimate,
+    // which is flagged without losing the known part.
+    expect(hourlyRow).toMatchObject({ targetLocale: "fr-FR", unestimated: true });
+    expect(usd(hourlyRow!.costUsd)).toBe(45);
+    expect(french).toMatchObject({ fixedFees: [], fixedFeesLeftOut: 1 });
+    expect(usd(french.totals.costUsd)).toBe(45);
+    expect(french.totals).toMatchObject({ incomplete: true, languages: 1, tasks: 3 });
+
+    // Review work has no review rate on the card.
+    const review = await estimate({ step: "review" });
+    expect(review.rows).toEqual([expect.objectContaining({ step: "review", pricing: "none" })]);
+
+    // Strings whose words could not be counted make the cost incomplete.
+    const japanese = await estimate({ targetLocale: "ja-JP" });
+    expect(japanese.totals).toMatchObject({ uncounted: 2, incomplete: true });
+
+    // A line taken off the card prices nothing from then on.
+    await saveRateCard({
+      organizationId: organization.id,
+      actorId: workspace.user.id,
+      name: "Hourly",
+      defaultBasis: "word",
+      lines: [line("fr-FR", "60", "hour"), line("de-DE", "60", "hour")],
+      create: false,
+    });
+    const retired = await estimate({ targetLocale: "ja-JP" });
+    expect(retired.rows).toEqual([expect.objectContaining({ pricing: "none", costUsd: null })]);
+    const all = await estimate();
+    expect(usd(all.totals.costUsd)).toBe(90 + 300);
+  });
+});
+
 describe("costs", () => {
   it("sums what was spent in a period by project, with the previous period's total", async () => {
     const workspace = await fixture.createWorkspace();

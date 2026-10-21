@@ -203,4 +203,34 @@ describe("AI usage", () => {
     });
     expect(chosen.totals.calls).toBe(3);
   });
+
+  it("reads a fractional or unreadable token count without failing", async () => {
+    const { organization, project } = await fixture.createWorkspace();
+    await db.insert(schema.usageEvents).values(
+      [
+        { input_tokens: "12.5", output_tokens: 3, project_id: project.id },
+        { input_tokens: "many", output_tokens: null, project_id: project.id },
+      ].map((dimensions) => ({
+        organizationId: organization.id,
+        featureId: "ai_tokens" as const,
+        status: "tracking_succeeded" as const,
+        operationKey: `test:${randomUUID()}`,
+        source: "chat_agent_turn",
+        dimensions,
+        createdAt: new Date("2026-06-10T12:00:00Z"),
+      })),
+    );
+    const usage = await queryAiUsage({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      period: resolvePeriod({
+        from: "2026-06-08",
+        to: "2026-06-14",
+        today: "2026-10-21",
+        startedDay: "2026-01-01",
+      }),
+      includeUnattributed: false,
+    });
+    expect(usage.totals).toMatchObject({ calls: 2, inputTokens: 12.5, outputTokens: 3 });
+  });
 });

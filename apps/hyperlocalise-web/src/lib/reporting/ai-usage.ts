@@ -57,6 +57,12 @@ export type AiUsage = {
 const UUID = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
 const UUID_PATTERN = sql.raw(`'${UUID}'`);
 
+/** A token count from a usage row's dimensions; anything that is not a number counts as 0. */
+function tokens(key: "input_tokens" | "output_tokens") {
+  const value = sql.raw(`u.dimensions ->> '${key}'`);
+  return sql`case when ${value} ~ '^[0-9]+([.][0-9]+)?$' then (${value})::numeric else 0 end`;
+}
+
 /**
  * AI used in a period. A call counts towards a project through its task, the project recorded
  * on it or its parent, or its automation's project. Calls tied to no project are counted only
@@ -90,8 +96,8 @@ export async function queryAiUsage(
         coalesce(j.api_key_id, pj.api_key_id) is not null as via_api_key,
         coalesce(j.project_id, pj.project_id, u.dimensions ->> 'project_id',
           p.dimensions ->> 'project_id', a.project_id, arj.project_id) as project_id,
-        coalesce((u.dimensions ->> 'input_tokens')::bigint, 0) as input_tokens,
-        coalesce((u.dimensions ->> 'output_tokens')::bigint, 0) as output_tokens
+        ${tokens("input_tokens")} as input_tokens,
+        ${tokens("output_tokens")} as output_tokens
       from usage_events u
       left join usage_events p on p.operation_key = u.dimensions ->> 'parent_operation_key'
       left join jobs j on j.id = u.job_id
