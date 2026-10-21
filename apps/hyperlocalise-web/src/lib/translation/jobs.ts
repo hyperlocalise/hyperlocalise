@@ -561,6 +561,12 @@ class TranslationJobCompletionService {
         `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
       );
     }
+    // Reports saw the job start running; without this it would stay running there for good.
+    await captureJobStatus({
+      jobId: input.jobId,
+      status: "failed",
+      operationKey: `status:${input.workflowRunId}:failed`,
+    });
 
     serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobFailed, {
       status: "failed",

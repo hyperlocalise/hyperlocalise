@@ -428,6 +428,43 @@ describe("translation job workflow helpers", () => {
     ).rejects.toThrow("is not owned by workflow run run_stale");
   });
 
+  it("records a failed job's failure for Reports so it does not stay running there", async () => {
+    resolveWorkspaceReportsFlagMock.mockResolvedValue(true);
+    const { project, user } = await projectFixture.createStoredProjectFixture();
+    const job = await insertJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "running",
+      workflowRunId: "run_failing",
+      inputPayload: {
+        sourceText: "Hello world",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+
+    await failTranslationJob({
+      jobId: job.id,
+      projectId: project.id,
+      workflowRunId: "run_failing",
+      code: "provider_unavailable",
+      message: "provider unavailable",
+    });
+
+    const statuses = await db
+      .select({ status: schema.reportingActivity.status })
+      .from(schema.reportingActivity)
+      .where(
+        and(
+          eq(schema.reportingActivity.jobId, job.id),
+          eq(schema.reportingActivity.kind, "status"),
+        ),
+      );
+    expect(statuses).toEqual([{ status: "failed" }]);
+  });
+
   it("does not fail a job owned by another workflow run", async () => {
     const { project, user } = await projectFixture.createStoredProjectFixture();
     const job = await insertJob({
