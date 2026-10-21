@@ -98,13 +98,13 @@ export const projectLocaleProgressListMessages = defineMessages({
     description: "Shown when a locale has no translation updates",
   },
   translate: {
-    defaultMessage: "Translate",
-    id: "4ipjfzP7qr",
+    defaultMessage: "Open untranslated",
+    id: "KQRBauGZOL",
     description: "Link from a locale row into the content editor untranslated queue",
   },
   proofread: {
-    defaultMessage: "Proofread",
-    id: "lsmpBVLKpZ",
+    defaultMessage: "Open for review",
+    id: "AzhK1s7zGo",
     description: "Link from a locale row into the content editor review queue",
   },
   expand: {

@@ -18,6 +18,7 @@ import { PlusIcon, ArrowRightIcon, TranslateIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
+import { AiFeatureAction } from "@/components/billing/ai-feature-action";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { QaAttentionCard } from "@/components/qa/qa-attention-card";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import { ProjectLocaleProgressList } from "./project-locale-progress-list";
 import { projectOverviewPageContentMessages as messages } from "./project-overview-page-content.messages";
 import { ProjectPageShell, useProjectPageQuery } from "./project-page-shell";
 import { useProjectLocaleProgressQuery } from "./use-project-locale-progress";
+import { TranslateLocaleWithAgentDialog } from "./translate-locale-with-agent-dialog";
 import { useProjectOverviewJobsQuery } from "./use-project-overview-jobs";
 import {
   buildProjectOverviewJobItems,
@@ -302,6 +304,7 @@ export type ProjectOverviewPageContentViewProps = {
   isLocaleProgressError: boolean;
   onCreateJob?: () => void;
   qaAttentionCard?: ReactNode;
+  renderLocaleAgentAction?: (row: ProjectLocaleProgressRow) => ReactNode;
 };
 
 export function ProjectOverviewPageContentView({
@@ -318,6 +321,7 @@ export function ProjectOverviewPageContentView({
   isLocaleProgressError,
   onCreateJob,
   qaAttentionCard,
+  renderLocaleAgentAction,
 }: ProjectOverviewPageContentViewProps) {
   const intl = useIntl();
   const isNative = project?.source === "native";
@@ -404,6 +408,7 @@ export function ProjectOverviewPageContentView({
                 stringsHref={
                   showViewStrings ? buildProjectPath(organizationSlug, projectId, "strings") : null
                 }
+                renderAgentAction={renderLocaleAgentAction}
               />
               <Box paddingTop="1u">
                 <Columns spacing="4u" collapseBelow="large" alignY="start">
@@ -537,6 +542,8 @@ export function ProjectOverviewPageContent({
   projectId: string;
 }) {
   const [createJobOpen, setCreateJobOpen] = useState(false);
+  const [agentDialogOpen, setAgentDialogOpen] = useState(false);
+  const [agentLocale, setAgentLocale] = useState<string | null>(null);
   const projectQuery = useProjectPageQuery(organizationSlug, projectId);
   const jobsQuery = useProjectOverviewJobsQuery(organizationSlug, projectId, {
     enabled: projectQuery.isSuccess,
@@ -547,6 +554,7 @@ export function ProjectOverviewPageContent({
 
   const sourceLocale = projectQuery.data?.sourceLocale?.trim() || "en";
   const targetLocales = projectQuery.data?.targetLocales ?? [];
+  const isNative = projectQuery.data?.source === "native";
 
   return (
     <>
@@ -564,10 +572,37 @@ export function ProjectOverviewPageContent({
         isLocaleProgressError={localeProgressQuery.isError}
         onCreateJob={() => setCreateJobOpen(true)}
         qaAttentionCard={
-          projectQuery.data?.source === "native" ? (
+          isNative ? (
             <QaAttentionCard organizationSlug={organizationSlug} projectId={projectId} />
           ) : null
         }
+        renderLocaleAgentAction={
+          isNative
+            ? (row) => (
+                <AiFeatureAction organizationSlug={organizationSlug} size="sm">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      setAgentLocale(row.locale);
+                      setAgentDialogOpen(true);
+                    }}
+                  >
+                    <TranslateIcon />
+                    <FormattedMessage {...messages.translateLocaleWithAgent} />
+                  </Button>
+                </AiFeatureAction>
+              )
+            : undefined
+        }
+      />
+      <TranslateLocaleWithAgentDialog
+        open={agentDialogOpen}
+        onOpenChange={setAgentDialogOpen}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        sourceLocale={sourceLocale}
+        locale={agentLocale}
       />
       <CreateJobDialog
         open={createJobOpen}
