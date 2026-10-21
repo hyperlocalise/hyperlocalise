@@ -14,6 +14,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { getManagedLanguageModel } from "@/lib/providers/language-model";
 import {
+  billingModelFromSteps,
   extractGenerateResultTokenUsage,
   withAgentRuntimeUsageMetering,
 } from "@/lib/billing/agent-runtime-usage";
@@ -64,9 +65,13 @@ export async function extractImageText(input: {
             })),
           ),
           usage: result.usage,
+          billingModel: billingModelFromSteps(result),
         };
       },
-      extractTokenUsage: extractGenerateResultTokenUsage,
+      extractTokenUsage: (result) =>
+        result.billingModel ? extractGenerateResultTokenUsage(result) : null,
+      aiCreditModelId: (result) => result.billingModel?.modelId,
+      aiCreditCredentialSource: (result) => result.billingModel?.credentialSource,
       aiCreditSource: "image_text_extraction",
     });
     return ok(regions);

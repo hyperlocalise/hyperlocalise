@@ -56,6 +56,7 @@ const input = {
   provenance: "agent" as const,
 };
 const usage = { inputTokens: 5_000, outputTokens: 5_200, totalTokens: 10_200 };
+const steps = [{ model: { provider: "gateway", modelId: "openai/gpt-6-luna" } }];
 
 describe("localizeAndStoreDocumentVariant metering", () => {
   beforeEach(() => {
@@ -64,7 +65,7 @@ describe("localizeAndStoreDocumentVariant metering", () => {
   });
 
   it("records the regenerated document's tokens", async () => {
-    generateTextMock.mockResolvedValue({ text: "# Bonjour", finishReason: "stop", usage });
+    generateTextMock.mockResolvedValue({ text: "# Bonjour", finishReason: "stop", usage, steps });
 
     const result = await localizeAndStoreDocumentVariant(input);
 
@@ -79,7 +80,7 @@ describe("localizeAndStoreDocumentVariant metering", () => {
   });
 
   it("records tokens for a truncated document that is not stored", async () => {
-    generateTextMock.mockResolvedValue({ text: "# Bon", finishReason: "length", usage });
+    generateTextMock.mockResolvedValue({ text: "# Bon", finishReason: "length", usage, steps });
 
     const result = await localizeAndStoreDocumentVariant(input);
 

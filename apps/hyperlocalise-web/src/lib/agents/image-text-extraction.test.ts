@@ -19,16 +19,20 @@ vi.mock("@/lib/providers/language-model", () => ({
   getManagedLanguageModel: () => "managed-vision-model",
 }));
 const { meteringInputs } = vi.hoisted(() => ({ meteringInputs: [] as unknown[] }));
-vi.mock("@/lib/billing/agent-runtime-usage", () => ({
-  extractGenerateResultTokenUsage: (result: { usage?: unknown }) => result.usage ?? null,
-  withAgentRuntimeUsageMetering: async (meteringInput: {
-    run: () => Promise<unknown>;
-    extractTokenUsage?: (result: unknown) => unknown;
+vi.mock("@/lib/billing/agent-runtime-usage", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/billing/agent-runtime-usage")>()),
+  withAgentRuntimeUsageMetering: async <T>(meteringInput: {
+    run: () => Promise<T>;
+    extractTokenUsage?: (result: T) => unknown;
+    aiCreditModelId?: (result: T) => unknown;
+    aiCreditCredentialSource?: (result: T) => unknown;
   }) => {
     const result = await meteringInput.run();
     meteringInputs.push({
       ...meteringInput,
       tokenUsage: meteringInput.extractTokenUsage?.(result),
+      modelId: meteringInput.aiCreditModelId?.(result),
+      credentialSource: meteringInput.aiCreditCredentialSource?.(result),
     });
     return result;
   },
@@ -68,7 +72,11 @@ describe("image text extraction", () => {
   });
   it("meters the extraction call's tokens under its own source", async () => {
     const usage = { inputTokens: 900, outputTokens: 40, totalTokens: 940 };
-    vi.mocked(generateText).mockResolvedValue({ output: { regions: [] }, usage } as never);
+    vi.mocked(generateText).mockResolvedValue({
+      output: { regions: [] },
+      usage,
+      steps: [{ model: { provider: "gateway", modelId: "openai/gpt-6-luna" } }],
+    } as never);
     await extractImageText(input);
     expect(meteringInputs).toEqual([
       expect.objectContaining({
@@ -76,6 +84,8 @@ describe("image text extraction", () => {
         source: "image_text_extraction",
         aiCreditSource: "image_text_extraction",
         tokenUsage: usage,
+        modelId: "openai/gpt-6-luna",
+        credentialSource: "gateway",
       }),
     ]);
   });

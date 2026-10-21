@@ -11,26 +11,28 @@
  * Version 2.0 or later.
  */
 import {
+  billingModelFromSteps,
   extractGenerateResultTokenUsage,
   trackAiCallTokenUsage,
 } from "@/lib/billing/agent-runtime-usage";
-import { hyperlocaliseManagedGatewayModelId } from "@/lib/providers/language-model";
 
 import type { SubagentCallOptions, HyperlocaliseSubagentType } from "./types";
 import { repositorySubagent } from "./repository";
 
 type SubagentGenerate = {
-  generate(input: {
-    prompt: string;
-    options: SubagentCallOptions;
-  }): Promise<{ text: string; usage?: unknown; totalUsage?: unknown }>;
+  generate(input: { prompt: string; options: SubagentCallOptions }): Promise<{
+    text: string;
+    usage?: unknown;
+    totalUsage?: unknown;
+    steps?: ReadonlyArray<{ model?: { provider?: string; modelId?: string } }>;
+  }>;
 };
 
 const subagents: Record<HyperlocaliseSubagentType, SubagentGenerate> = {
   repository: repositorySubagent as SubagentGenerate,
 };
 
-/** Subagents run on the managed model; `usageSource` names the caller on the AI Credit row. */
+/** `usageSource` names the caller on the AI Credit row. */
 export async function runSubagent(
   subagentType: HyperlocaliseSubagentType,
   options: SubagentCallOptions,
@@ -40,12 +42,14 @@ export async function runSubagent(
     prompt: "Complete the task and return a concise summary for the end user.",
     options,
   });
-  await trackAiCallTokenUsage({
-    organizationId: options.toolContext.organizationId,
-    source: metering.usageSource,
-    tokenUsage: extractGenerateResultTokenUsage(result),
-    modelId: hyperlocaliseManagedGatewayModelId,
-    credentialSource: "gateway",
-  });
+  const billingModel = billingModelFromSteps(result);
+  if (billingModel) {
+    await trackAiCallTokenUsage({
+      organizationId: options.toolContext.organizationId,
+      source: metering.usageSource,
+      tokenUsage: extractGenerateResultTokenUsage(result),
+      ...billingModel,
+    });
+  }
   return { text: result.text };
 }

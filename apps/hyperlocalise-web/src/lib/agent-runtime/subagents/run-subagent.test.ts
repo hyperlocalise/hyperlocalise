@@ -40,6 +40,7 @@ describe("runSubagent", () => {
     repositoryGenerateMock.mockResolvedValue({
       text: "Found it in src/app.tsx:12.",
       usage: { inputTokens: 40_000, outputTokens: 900, totalTokens: 40_900 },
+      steps: [{ model: { provider: "gateway", modelId: "openai/gpt-6-luna" } }],
     });
 
     const result = await runSubagent("repository", options, {
@@ -54,6 +55,23 @@ describe("runSubagent", () => {
       modelId: "openai/gpt-6-luna",
       credentialSource: "gateway",
     });
+  });
+
+  it("records a run on the workspace's own key at no charge", async () => {
+    repositoryGenerateMock.mockResolvedValue({
+      text: "Found it.",
+      usage: { inputTokens: 100, outputTokens: 10, totalTokens: 110 },
+      steps: [{ model: { provider: "anthropic.messages", modelId: "claude-sonnet-4-5" } }],
+    });
+
+    await runSubagent("repository", options, { usageSource: "project_file_string_context_lookup" });
+
+    expect(trackAiCallTokenUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: "anthropic/claude-sonnet-4-5",
+        credentialSource: "byok",
+      }),
+    );
   });
 
   it("records nothing when the run fails", async () => {
