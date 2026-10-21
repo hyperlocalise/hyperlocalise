@@ -13,8 +13,10 @@
 import { generateText } from "ai";
 import { and, eq } from "drizzle-orm";
 
+import { extractAiSdkTokenUsage, trackAiCallTokenUsage } from "@/lib/billing/agent-runtime-usage";
 import { db, schema } from "@/lib/database/client";
 import { getStoredFileContent } from "@/lib/file-storage/records";
+import { hyperlocaliseManagedGatewayModelId } from "@/lib/providers/language-model";
 import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
@@ -139,6 +141,13 @@ export async function localizeAndStoreDocumentVariant(input: {
         instructions: input.instructions,
         sourceText,
       }),
+    });
+    await trackAiCallTokenUsage({
+      organizationId: input.organizationId,
+      source: "content_editor_document_regenerate",
+      tokenUsage: extractAiSdkTokenUsage(result.usage),
+      modelId: hyperlocaliseManagedGatewayModelId,
+      credentialSource: "gateway",
     });
 
     if (result.finishReason !== "stop") {

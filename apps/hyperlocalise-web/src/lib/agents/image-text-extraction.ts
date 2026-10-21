@@ -13,7 +13,10 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { getManagedLanguageModel } from "@/lib/providers/language-model";
-import { withAgentRuntimeUsageMetering } from "@/lib/billing/agent-runtime-usage";
+import {
+  extractGenerateResultTokenUsage,
+  withAgentRuntimeUsageMetering,
+} from "@/lib/billing/agent-runtime-usage";
 import {
   imageTextRegionSchema,
   imageTextRegionsSchema,
@@ -29,7 +32,7 @@ export async function extractImageText(input: {
   signal?: AbortSignal;
 }): Promise<Result<ImageTextRegion[], { code: "image_text_extraction_failed" }>> {
   try {
-    const regions = await withAgentRuntimeUsageMetering({
+    const { regions } = await withAgentRuntimeUsageMetering({
       organizationId: input.organizationId,
       operationKey: `image-text-extraction:${input.fileId}:${crypto.randomUUID()}`,
       source: "image_text_extraction",
@@ -52,14 +55,19 @@ export async function extractImageText(input: {
             },
           ],
         });
-        return imageTextRegionsSchema.parse(
-          result.output.regions.map((region) => ({
-            ...region,
-            id: crypto.randomUUID(),
-            translations: {},
-          })),
-        );
+        return {
+          regions: imageTextRegionsSchema.parse(
+            result.output.regions.map((region) => ({
+              ...region,
+              id: crypto.randomUUID(),
+              translations: {},
+            })),
+          ),
+          usage: result.usage,
+        };
       },
+      extractTokenUsage: extractGenerateResultTokenUsage,
+      aiCreditSource: "image_text_extraction",
     });
     return ok(regions);
   } catch {

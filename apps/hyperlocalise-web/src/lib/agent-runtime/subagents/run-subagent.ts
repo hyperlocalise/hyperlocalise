@@ -10,23 +10,42 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import {
+  extractGenerateResultTokenUsage,
+  trackAiCallTokenUsage,
+} from "@/lib/billing/agent-runtime-usage";
+import { hyperlocaliseManagedGatewayModelId } from "@/lib/providers/language-model";
+
 import type { SubagentCallOptions, HyperlocaliseSubagentType } from "./types";
 import { repositorySubagent } from "./repository";
 
 type SubagentGenerate = {
-  generate(input: { prompt: string; options: SubagentCallOptions }): Promise<{ text: string }>;
+  generate(input: {
+    prompt: string;
+    options: SubagentCallOptions;
+  }): Promise<{ text: string; usage?: unknown; totalUsage?: unknown }>;
 };
 
 const subagents: Record<HyperlocaliseSubagentType, SubagentGenerate> = {
   repository: repositorySubagent as SubagentGenerate,
 };
 
+/** Subagents run on the managed model; `usageSource` names the caller on the AI Credit row. */
 export async function runSubagent(
   subagentType: HyperlocaliseSubagentType,
   options: SubagentCallOptions,
+  metering: { usageSource: string },
 ): Promise<{ text: string }> {
-  return subagents[subagentType].generate({
+  const result = await subagents[subagentType].generate({
     prompt: "Complete the task and return a concise summary for the end user.",
     options,
   });
+  await trackAiCallTokenUsage({
+    organizationId: options.toolContext.organizationId,
+    source: metering.usageSource,
+    tokenUsage: extractGenerateResultTokenUsage(result),
+    modelId: hyperlocaliseManagedGatewayModelId,
+    credentialSource: "gateway",
+  });
+  return { text: result.text };
 }

@@ -37,9 +37,13 @@ import {
 } from "@/lib/agent-runtime/runs/agent-run-events";
 import { AI_FEATURES_REQUIRED_MESSAGE, ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import {
+  addAiTokenUsage,
+  extractAiSdkTokenUsage,
+  extractGenerateResultTokenUsage,
   reserveAgentRuntimeUsage,
   trackSucceededAgentRuntimeUsage,
 } from "@/lib/billing/agent-runtime-usage";
+import type { AiTokenUsage } from "@/lib/billing/usage-control";
 import { db } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { resolveWorkspaceVisualMockFlag } from "@/lib/flags/workspace-flags";
@@ -313,6 +317,7 @@ async function processSlackMessage(
     const languageModel = await resolveHyperlocaliseAgentLanguageModel({
       organizationId,
     });
+    let classificationTokenUsage: AiTokenUsage | null = null;
     const classification = await classifyConversation({
       currentMessage: message.text,
       conversationText,
@@ -320,6 +325,9 @@ async function processSlackMessage(
       hasStoredRepositoryContext: Boolean(storedRepositoryContext ?? storedGitLabContext),
       surface: "slack",
       model: languageModel.model,
+      onUsage: (usage) => {
+        classificationTokenUsage = extractAiSdkTokenUsage(usage);
+      },
     });
     log.info(
       {
@@ -530,10 +538,23 @@ async function processSlackMessage(
     });
 
     const result = await agent.generate({ messages: chatMessages });
+    const tokenUsage = addAiTokenUsage(
+      classificationTokenUsage,
+      extractGenerateResultTokenUsage(result),
+    );
     await trackSucceededAgentRuntimeUsage({
       organizationId,
       operationKey: usageOperationKey,
       dimensions: usageDimensions,
+      tokenUsage,
+      aiCreditModelId: tokenUsage ? languageModel.modelId : undefined,
+      aiCreditCredentialSource: tokenUsage
+        ? languageModel.source === "gateway"
+          ? "gateway"
+          : "byok"
+        : undefined,
+      aiCreditSource: "slack_agent_turn",
+      interactionId,
     });
 
     const screenshots = extractSuccessfulCaptureScreenshots(result);

@@ -66,6 +66,7 @@ import {
 } from "@/lib/translation/generation";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
+import { extractAiSdkTokenUsage, trackAiCallTokenUsage } from "@/lib/billing/agent-runtime-usage";
 
 export type {
   ContentEditorVisualContext,
@@ -576,7 +577,7 @@ export async function loadContentEditorSegmentVisualContext(
 
 export async function generateContentEditorAiRecommendation(
   input: ContentEditorAiRecommendationInput,
-  options?: { signal?: AbortSignal },
+  options?: { signal?: AbortSignal; usageSource?: string },
 ): Promise<Result<ContentEditorAiRecommendationResult, ContentEditorAiRecommendationError>> {
   const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
   if (!aiFeatures.ok) {
@@ -620,6 +621,7 @@ export async function generateContentEditorAiRecommendation(
     });
   }
 
+  let usage: unknown;
   try {
     const recommendation = await new ContentEditorRecommendationEngine(modelResult.model).recommend(
       input,
@@ -631,7 +633,12 @@ export async function generateContentEditorAiRecommendation(
         translationMemoryMatches:
           input.translationMemoryMatches ?? contextResult.snapshot.translationMemoryMatches ?? [],
       },
-      { signal: options?.signal },
+      {
+        signal: options?.signal,
+        onUsage: (value) => {
+          usage = value;
+        },
+      },
     );
 
     return ok(recommendation);
@@ -645,5 +652,15 @@ export async function generateContentEditorAiRecommendation(
       message:
         error instanceof Error ? error.message : "Failed to generate AI translation recommendation",
     });
+  } finally {
+    if (usage) {
+      await trackAiCallTokenUsage({
+        organizationId: input.organizationId,
+        source: options?.usageSource ?? "content_editor_ai_suggestion",
+        tokenUsage: extractAiSdkTokenUsage(usage),
+        modelId: modelResult.modelId,
+        credentialSource: modelResult.credentialSource,
+      });
+    }
   }
 }

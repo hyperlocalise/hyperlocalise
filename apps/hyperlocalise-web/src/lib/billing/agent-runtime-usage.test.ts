@@ -14,17 +14,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 
 import "dotenv/config";
 
-const { completeAndTrackBillableUsageMock, reserveUsageEventMock, ensureAiFeaturesAllowedMock } =
-  vi.hoisted(() => ({
-    completeAndTrackBillableUsageMock: vi.fn(),
-    reserveUsageEventMock: vi.fn(),
-    ensureAiFeaturesAllowedMock: vi.fn(),
-  }));
+const {
+  completeAndTrackBillableUsageMock,
+  reserveUsageEventMock,
+  ensureAiFeaturesAllowedMock,
+  trackAiCreditUsageInAutumnMock,
+} = vi.hoisted(() => ({
+  completeAndTrackBillableUsageMock: vi.fn(),
+  reserveUsageEventMock: vi.fn(),
+  ensureAiFeaturesAllowedMock: vi.fn(),
+  trackAiCreditUsageInAutumnMock: vi.fn(),
+}));
 
 vi.mock("@/lib/billing/usage-control", () => ({
   completeAndTrackBillableUsage: completeAndTrackBillableUsageMock,
   formatUsageControlError: (error: { code: string }) => error.code,
   reserveUsageEvent: reserveUsageEventMock,
+  trackAiCreditUsageInAutumn: trackAiCreditUsageInAutumnMock,
   usageFeatureIds: {
     agentRuns: "agent_runs",
   },
@@ -39,10 +45,11 @@ import {
   extractAiSdkTokenUsage,
   extractGenerateResultTokenUsage,
   reserveAgentRuntimeUsage,
+  trackAiCallTokenUsage,
   trackSucceededAgentRuntimeUsage,
   withAgentRuntimeUsageMetering,
 } from "@/lib/billing/agent-runtime-usage";
-import { ok } from "@/lib/primitives/result/results";
+import { err, ok } from "@/lib/primitives/result/results";
 
 describe("agent-runtime-usage", () => {
   beforeEach(() => {
@@ -302,5 +309,88 @@ describe("agent-runtime-usage", () => {
     ).resolves.toEqual({ text: "done" });
 
     expect(consoleError).toHaveBeenCalled();
+  });
+
+  it("passes a caller's source to the AI Credit row of an agent run", async () => {
+    completeAndTrackBillableUsageMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
+
+    await trackSucceededAgentRuntimeUsage({
+      organizationId: "org_123",
+      operationKey: "slack-agent-turn:msg:agent_runs",
+      tokenUsage: { inputTokens: 1, outputTokens: 2, totalTokens: 3 },
+      aiCreditModelId: "openai/gpt-6-luna",
+      aiCreditCredentialSource: "gateway",
+      aiCreditSource: "slack_agent_turn",
+    });
+
+    expect(completeAndTrackBillableUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ aiCreditSource: "slack_agent_turn" }),
+    );
+  });
+
+  it("records a single AI call's tokens as AI Credit under a fresh reference", async () => {
+    trackAiCreditUsageInAutumnMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
+    const tokenUsage = { inputTokens: 100, outputTokens: 20, totalTokens: 120 };
+
+    await trackAiCallTokenUsage({
+      organizationId: "org_123",
+      source: "content_editor_ai_suggestion",
+      tokenUsage,
+      modelId: "openai/gpt-6-luna",
+      credentialSource: "gateway",
+    });
+    await trackAiCallTokenUsage({
+      organizationId: "org_123",
+      source: "content_editor_ai_suggestion",
+      tokenUsage,
+      modelId: "openai/gpt-6-luna",
+      credentialSource: "gateway",
+    });
+
+    expect(trackAiCreditUsageInAutumnMock).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      parentOperationKey: expect.stringMatching(/^ai-call:content_editor_ai_suggestion:/),
+      tokenUsage,
+      source: "content_editor_ai_suggestion",
+      modelId: "openai/gpt-6-luna",
+      credentialSource: "gateway",
+      interactionId: undefined,
+    });
+    const [first, second] = trackAiCreditUsageInAutumnMock.mock.calls.map(
+      ([input]) => input.parentOperationKey,
+    );
+    expect(first).not.toBe(second);
+  });
+
+  it("records nothing for a call that reported no tokens", async () => {
+    await trackAiCallTokenUsage({
+      organizationId: "org_123",
+      source: "chat_translate_string",
+      tokenUsage: null,
+      modelId: "openai/gpt-6-luna",
+      credentialSource: "gateway",
+    });
+
+    expect(trackAiCreditUsageInAutumnMock).not.toHaveBeenCalled();
+  });
+
+  it("logs and continues when AI call token tracking fails or throws", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const input = {
+      organizationId: "org_123",
+      source: "content_editor_document_regenerate",
+      tokenUsage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
+      modelId: "openai/gpt-6-luna",
+      credentialSource: "gateway" as const,
+    };
+
+    trackAiCreditUsageInAutumnMock.mockResolvedValueOnce(
+      err({ code: "ai_credit_pricing_not_configured", surface: "x" }),
+    );
+    await expect(trackAiCallTokenUsage(input)).resolves.toBeUndefined();
+    trackAiCreditUsageInAutumnMock.mockRejectedValueOnce(new Error("database down"));
+    await expect(trackAiCallTokenUsage(input)).resolves.toBeUndefined();
+
+    expect(consoleError).toHaveBeenCalledTimes(2);
   });
 });

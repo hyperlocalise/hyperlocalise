@@ -173,7 +173,7 @@ describe("createCrowdinReviewTools", () => {
         sourceLocale: "en",
         targetLocale: "de",
       }),
-      { signal: abortSignal },
+      { signal: abortSignal, usageSource: "automation_recommend_translation" },
     );
     expect(result).toEqual({
       success: true,
