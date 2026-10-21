@@ -74,14 +74,15 @@ func parseINIDocument(content []byte) (iniDocument, error) {
 	}
 
 	text := string(content)
+	lineCountHint := strings.Count(text, "\n") + 1
 	doc := iniDocument{
 		template:   text,
-		entries:    make([]iniEntry, 0, 16),
+		entries:    make([]iniEntry, 0, lineCountHint),
 		sections:   nil,
 		insertAt:   map[string]int{"": 0},
 		hasSection: map[string]bool{"": true},
 	}
-	seen := make(map[string]int, 16)
+	seen := make(map[string]int, lineCountHint)
 	var pendingComments []string
 	pendingCommentStart := -1
 	currentSection := ""
@@ -189,17 +190,11 @@ func parseINISectionName(line string, lineNumber int) (string, error) {
 func parseINIEntry(text string, lineStart, lineEnd, first int, section string, comments []string, lineNumber int) (iniEntry, error) {
 	pos := lineStart + first
 	keyStart := pos
-	sep := -1
-	for i := pos; i < lineEnd; i++ {
-		ch := text[i]
-		if ch == '=' || ch == ':' {
-			sep = i
-			break
-		}
-	}
-	if sep < 0 {
+	relSep := strings.IndexAny(text[pos:lineEnd], "=:")
+	if relSep < 0 {
 		return iniEntry{}, fmt.Errorf("line %d: ini entry must use '=' or ':'", lineNumber)
 	}
+	sep := pos + relSep
 
 	key := strings.TrimSpace(text[keyStart:sep])
 	if key == "" {
@@ -261,6 +256,14 @@ func parseINIEntry(text string, lineStart, lineEnd, first int, section string, c
 
 func decodeINIQuoted(text string, start, end, lineNumber int) (string, int, error) {
 	quote := text[start]
+	if quoteIdx := strings.IndexByte(text[start+1:end], quote); quoteIdx >= 0 {
+		closePos := start + 1 + quoteIdx
+		inner := text[start+1 : closePos]
+		if strings.IndexByte(inner, '\\') < 0 {
+			return inner, closePos + 1, nil
+		}
+	}
+
 	var b strings.Builder
 	escaped := false
 	for i := start + 1; i < end; i++ {
@@ -350,56 +353,59 @@ func (d iniDocument) render(values map[string]string) []byte {
 		}
 		missingBySection[section] = append(missingBySection[section], localKey)
 	}
-	for section := range missingBySection {
-		slices.Sort(missingBySection[section])
-	}
 
-	insertOrder := 1
-	for _, section := range knownSections {
-		keys := missingBySection[section]
-		if len(keys) == 0 || !d.hasSection[section] {
-			continue
+	if len(missingBySection) > 0 {
+		for section := range missingBySection {
+			slices.Sort(missingBySection[section])
 		}
-		at := d.insertAt[section]
-		edits = append(edits, edit{
-			start: at,
-			end:   at,
-			text:  formatINIEntries(section, keys, values, newline, false),
-			order: insertOrder,
+
+		insertOrder := 1
+		for _, section := range knownSections {
+			keys := missingBySection[section]
+			if len(keys) == 0 || !d.hasSection[section] {
+				continue
+			}
+			at := d.insertAt[section]
+			edits = append(edits, edit{
+				start: at,
+				end:   at,
+				text:  formatINIEntries(section, keys, values, newline, false),
+				order: insertOrder,
+			})
+			insertOrder++
+		}
+
+		newSections := make([]string, 0, len(newSectionSet))
+		for section := range newSectionSet {
+			newSections = append(newSections, section)
+		}
+		slices.Sort(newSections)
+		if len(newSections) > 0 {
+			var b strings.Builder
+			if d.template != "" && !strings.HasSuffix(d.template, "\n") && !strings.HasSuffix(d.template, "\r") {
+				b.WriteString(newline)
+			}
+			for _, section := range newSections {
+				b.WriteString(formatINIEntries(section, missingBySection[section], values, newline, true))
+			}
+			edits = append(edits, edit{
+				start: len(d.template),
+				end:   len(d.template),
+				text:  b.String(),
+				order: insertOrder,
+			})
+		}
+
+		slices.SortFunc(edits, func(a, b edit) int {
+			if a.start != b.start {
+				return a.start - b.start
+			}
+			if a.end != b.end {
+				return a.end - b.end
+			}
+			return a.order - b.order
 		})
-		insertOrder++
 	}
-
-	newSections := make([]string, 0, len(newSectionSet))
-	for section := range newSectionSet {
-		newSections = append(newSections, section)
-	}
-	slices.Sort(newSections)
-	if len(newSections) > 0 {
-		var b strings.Builder
-		if d.template != "" && !strings.HasSuffix(d.template, "\n") && !strings.HasSuffix(d.template, "\r") {
-			b.WriteString(newline)
-		}
-		for _, section := range newSections {
-			b.WriteString(formatINIEntries(section, missingBySection[section], values, newline, true))
-		}
-		edits = append(edits, edit{
-			start: len(d.template),
-			end:   len(d.template),
-			text:  b.String(),
-			order: insertOrder,
-		})
-	}
-
-	slices.SortFunc(edits, func(a, b edit) int {
-		if a.start != b.start {
-			return a.start - b.start
-		}
-		if a.end != b.end {
-			return a.end - b.end
-		}
-		return a.order - b.order
-	})
 
 	var out strings.Builder
 	out.Grow(len(d.template))
@@ -510,6 +516,13 @@ func iniValueNeedsQuotes(value string) bool {
 }
 
 func encodeINIQuoted(value string, quote byte) string {
+	if quote == '"' && !strings.ContainsAny(value, "\\\n\t\r\"") {
+		return `"` + value + `"`
+	}
+	if quote == '\'' && !strings.ContainsAny(value, "\\\n\t\r'") {
+		return `'` + value + `'`
+	}
+
 	var b strings.Builder
 	b.Grow(len(value) + 2)
 	b.WriteByte(quote)
