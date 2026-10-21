@@ -180,11 +180,17 @@ async function openDiscardMenu(user: ReturnType<typeof userEvent.setup>) {
 }
 
 function expectMenuItemDisabled(name: string) {
-  expect(screen.getByRole("menuitem", { name })).toHaveAttribute("aria-disabled", "true");
+  expect(screen.getByRole("menuitem", { name: new RegExp(`^${name}`) })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
 }
 
 function expectMenuItemEnabled(name: string) {
-  expect(screen.getByRole("menuitem", { name })).not.toHaveAttribute("aria-disabled", "true");
+  expect(screen.getByRole("menuitem", { name: new RegExp(`^${name}`) })).not.toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
 }
 
 describe("AutomationDetailPageContent write locking", () => {
@@ -443,6 +449,19 @@ describe("AutomationDetailPageContent save errors", () => {
     slackMocks.isSlackChannelMissing.mockReset();
   });
 
+  it("saves from the keyboard while the name field is focused", async () => {
+    const user = userEvent.setup();
+    mockSave();
+
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("textbox", { name: "Name" }));
+    await user.keyboard("{Control>}s{/Control}");
+
+    await vi.waitFor(() => expect(apiMocks.patchAutomation).toHaveBeenCalledOnce());
+  });
+
   it("does not save while Slack cannot find the channel", async () => {
     const user = userEvent.setup();
     mockSave();
@@ -697,6 +716,29 @@ describe("AutomationDetailPageContent run with unsaved changes", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("does not queue another run from the keyboard while one is in flight", async () => {
+    const user = userEvent.setup();
+    mockAutomation();
+    let finishRun: (response: unknown) => void = () => undefined;
+    apiMocks.runAutomation.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishRun = resolve;
+        }),
+    );
+
+    renderPage(scheduledAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Run now" }));
+    await vi.waitFor(() => expect(apiMocks.runAutomation).toHaveBeenCalledOnce());
+    expect(screen.getByRole("button", { name: /Run now/ })).toBeDisabled();
+
+    await user.keyboard("{Control>}{Enter}{/Control}");
+    expect(apiMocks.runAutomation).toHaveBeenCalledOnce();
+
+    finishRun({ ok: true, status: 202, json: async () => ({}) });
+  });
+
   it("asks before running and does nothing on cancel", async () => {
     const user = userEvent.setup();
     mockAutomation();
@@ -947,7 +989,7 @@ describe("AutomationDetailPageContent undo", () => {
     await vi.waitFor(() => expect(apiMocks.runAutomation).toHaveBeenCalledOnce());
 
     await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Undo" }));
+    await user.click(screen.getByRole("menuitem", { name: /Undo/ }));
 
     expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
       "Renamed automation",

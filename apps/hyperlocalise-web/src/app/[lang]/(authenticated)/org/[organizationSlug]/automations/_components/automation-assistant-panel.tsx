@@ -31,6 +31,7 @@ import {
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
 import { cn } from "@/lib/primitives/cn";
 
+import { ShortcutHintAnchor } from "./automation-shortcut-hint";
 import { AutomationAssistantPrompt } from "./automation-assistant-prompt";
 import {
   AutomationAssistantPageEdits,
@@ -41,6 +42,7 @@ import {
   useAutomationAssistant,
   type AutomationAssistantFailure,
 } from "./automation-assistant-provider";
+import { useAutomationAssistantShortcut } from "./use-automation-power-shortcuts";
 
 const FAILURE_MESSAGES = {
   turn_in_progress: messages.turnInProgress,
@@ -364,21 +366,24 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
  */
 export function AutomationAssistantOpenButton() {
   const assistant = useAutomationAssistant();
+  useAutomationAssistantShortcut(Boolean(assistant));
   if (!assistant) {
     return null;
   }
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="xs"
-      aria-pressed={assistant.open}
-      className="border-primary/60 bg-background text-primary ring-3 ring-primary/15 hover:bg-primary/10 hover:text-primary aria-pressed:bg-primary/10"
-      onClick={() => assistant.setOpen(!assistant.open)}
-    >
-      <SparkleIcon />
-      <FormattedMessage {...messages.openButton} />
-    </Button>
+    <ShortcutHintAnchor shortcut="assistant">
+      <Button
+        type="button"
+        variant="outline"
+        size="xs"
+        aria-pressed={assistant.open}
+        className="border-primary/60 bg-background text-primary ring-3 ring-primary/15 hover:bg-primary/10 hover:text-primary aria-pressed:bg-primary/10"
+        onClick={() => assistant.setOpen(!assistant.open)}
+      >
+        <SparkleIcon />
+        <FormattedMessage {...messages.openButton} />
+      </Button>
+    </ShortcutHintAnchor>
   );
 }
 

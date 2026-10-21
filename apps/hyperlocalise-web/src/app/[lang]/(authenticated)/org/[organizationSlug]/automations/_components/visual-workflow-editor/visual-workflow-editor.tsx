@@ -125,6 +125,9 @@ import type { AutomationAssistantApi } from "../automation-assistant-api";
 import { AutomationAssistantSidePanel } from "../automation-assistant-panel";
 import { useAssistantUndoSteps } from "../automation-assistant-undo-steps";
 import { AutomationAssistantVisualWorkflowProvider } from "../automation-assistant-visual-workflow-provider";
+import { AutomationShortcutRevealProvider } from "../automation-shortcut-hint";
+import { AutomationShortcutsDialog } from "../automation-shortcuts-dialog";
+import { useAutomationPowerShortcuts } from "../use-automation-power-shortcuts";
 import type { VisualWorkflowsApi } from "../visual-workflows-api";
 
 const NO_FRESH_STEPS: ReadonlySet<string> = new Set();
@@ -231,6 +234,7 @@ export function VisualWorkflowEditor({
   const [isRunning, setIsRunning] = useState(false);
   const runAbortRef = useRef<AbortController | null>(null);
   const viewCenterRef = useRef<VisualWorkflowViewCenterReader | null>(null);
+  const fitViewRef = useRef<(() => void) | null>(null);
   // The graph as of the latest change, so changes made in one event build on each other before
   // the next render.
   const graphRef = useRef(history.form);
@@ -1032,6 +1036,9 @@ export function VisualWorkflowEditor({
   ]);
 
   const onTestWorkflowClick = useCallback(() => {
+    if (isRunning || nodes.length === 0) {
+      return;
+    }
     // A test run invents no values, so one that lacks any is not started.
     const firstMissing = missingTestValues[0];
     if (firstMissing) {
@@ -1080,6 +1087,7 @@ export function VisualWorkflowEditor({
     edges,
     effectiveTestSetup,
     intl,
+    isRunning,
     missingTestValues,
     nodes,
     realNodeIds,
@@ -1117,6 +1125,14 @@ export function VisualWorkflowEditor({
     void onSave(definition, prunedTestSetup);
     setFreshNodeIds(NO_FRESH_STEPS);
   }, [definition, onSave, prunedTestSetup]);
+  const { shortcutsOpen, setShortcutsOpen } = useAutomationPowerShortcuts({
+    enabled: !previewMode && !isSaving && !isDeleting,
+    onSave: onSave ? handleSave : undefined,
+    onPrimary:
+      activeTab === "editor" && !isRunning && nodes.length > 0 ? onTestWorkflowClick : undefined,
+    onAddNode: activeTab === "editor" ? () => openPicker(null) : undefined,
+    onFitView: activeTab === "editor" ? () => fitViewRef.current?.() : undefined,
+  });
 
   const handleStatusChange = useCallback(
     async (active: boolean) => {
@@ -1129,238 +1145,251 @@ export function VisualWorkflowEditor({
   );
 
   const editor = (
-    <div
-      ref={rootRef}
-      className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
-      data-undo-root="visual-workflow"
-    >
-      <div role="status" className="sr-only">
-        {undoAnnouncement ? <span key={undoAnnouncement.id}>{undoAnnouncement.text}</span> : null}
-      </div>
-      <VisualWorkflowChrome
-        name={name}
-        onNameChange={setName}
-        undoRedo={
-          <VisualWorkflowUndoRedoButtons
-            canUndo={history.canUndo}
-            canRedo={history.canRedo}
-            undoStep={history.undoStep}
-            redoStep={history.redoStep}
-            onUndo={runUndo}
-            onRedo={runRedo}
-          />
-        }
-        copied={copied}
-        onExport={onExport}
-        onCopy={onCopy}
-        onSave={onSave ? handleSave : undefined}
-        isSaving={isSaving}
-        saveDisabled={false}
-        previewMode={previewMode}
-        playgroundMode={playgroundMode}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        workflowStatus={workflowStatus}
-        onStatusChange={onStatusChange ? handleStatusChange : undefined}
-        statusDisabled={statusUpdating || (!isActive && saveDisabled)}
-        onDelete={onDelete}
-        isDeleting={isDeleting}
-      />
-      <VisualWorkflowRealTestDialog
-        steps={realTestSteps}
-        onOpenChange={(open) => {
-          if (!open) setRealTestSteps([]);
-        }}
-        onConfirm={() => {
-          setRealTestSteps([]);
-          void startTestRun();
-        }}
-      />
-      {activeTab === "executions" && organizationSlug && visualWorkflowId && visualWorkflowsApi ? (
-        <VisualWorkflowExecutionsPanel
-          organizationSlug={organizationSlug}
-          visualWorkflowId={visualWorkflowId}
-          visualWorkflowsApi={visualWorkflowsApi}
-          selectedRunId={selectedRunId}
-          onSelectRun={setSelectedRunId}
-          onUseRunAsTestData={(nodeRuns) => {
-            const fromRun = testDataFromRun(nodes, nodeRuns);
-            setTestSetup((current) => ({ ...current, data: { ...current.data, ...fromRun } }));
-            toast.success(
-              intl.formatMessage(messages.usedRunAsTestData, {
-                count: Object.keys(fromRun).length,
-              }),
-            );
+    <AutomationShortcutRevealProvider>
+      <div
+        ref={rootRef}
+        className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
+        data-undo-root="visual-workflow"
+      >
+        <div role="status" className="sr-only">
+          {undoAnnouncement ? <span key={undoAnnouncement.id}>{undoAnnouncement.text}</span> : null}
+        </div>
+        <VisualWorkflowChrome
+          name={name}
+          onNameChange={setName}
+          undoRedo={
+            <VisualWorkflowUndoRedoButtons
+              canUndo={history.canUndo}
+              canRedo={history.canRedo}
+              undoStep={history.undoStep}
+              redoStep={history.redoStep}
+              onUndo={runUndo}
+              onRedo={runRedo}
+            />
+          }
+          copied={copied}
+          onExport={onExport}
+          onCopy={onCopy}
+          onSave={onSave ? handleSave : undefined}
+          isSaving={isSaving}
+          saveDisabled={false}
+          previewMode={previewMode}
+          playgroundMode={playgroundMode}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          workflowStatus={workflowStatus}
+          onStatusChange={onStatusChange ? handleStatusChange : undefined}
+          statusDisabled={statusUpdating || (!isActive && saveDisabled)}
+          onDelete={onDelete}
+          isDeleting={isDeleting}
+          onOpenShortcuts={() => setShortcutsOpen(true)}
+        />
+        <VisualWorkflowRealTestDialog
+          steps={realTestSteps}
+          onOpenChange={(open) => {
+            if (!open) setRealTestSteps([]);
+          }}
+          onConfirm={() => {
+            setRealTestSteps([]);
+            void startTestRun();
           }}
         />
-      ) : (
-        <div className="relative flex min-h-0 min-w-0 flex-1">
-          <VisualWorkflowCanvasActionsProvider
-            onAddFromNode={openPicker}
-            issueNodeIds={issueNodeIds}
-            freshNodeIds={freshNodeIds}
-            pointedNodeId={pointedNodeId}
-            realNodeIds={realNodeIds}
-          >
-            <VisualWorkflowCanvas
-              nodes={nodes}
-              edges={edges}
-              isRunning={isRunning}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onBeforeDelete={onBeforeDelete}
-              onConnect={onConnect}
-              onReconnect={onReconnect}
-              onSelectionChange={onSelectionChange}
-              focusNode={focusNode}
-              viewCenterRef={viewCenterRef}
-              onAddFirstStep={() => openPicker(null)}
-              onLoadSample={() => {
-                const draft = sampleDraft ?? visualWorkflowDemoDraft;
-                load({ name: draft.name, nodes: draft.nodes, edges: draft.edges });
-                setSelectedNodeId(null);
-                setPanelMode("picker");
-                setAddFrom(null);
-                setMobilePanelOpen(false);
-              }}
-              onTestWorkflow={onTestWorkflowClick}
-              testSettings={
-                organizationSlug ? (
-                  <Popover>
-                    <PopoverTrigger
-                      render={
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="bg-background shadow-xs"
-                          aria-label={intl.formatMessage(messages.testSettings)}
-                          title={intl.formatMessage(messages.testSettings)}
-                        />
-                      }
-                    >
-                      <SlidersHorizontalIcon />
-                    </PopoverTrigger>
-                    <PopoverContent align="center" side="top" className="w-80">
-                      <PopoverHeader>
-                        <PopoverTitle>{intl.formatMessage(messages.testSettings)}</PopoverTitle>
-                        <PopoverDescription>
-                          {intl.formatMessage(messages.testSettingsHint)}
-                        </PopoverDescription>
-                      </PopoverHeader>
-                      <div className="mt-3 grid gap-2">
-                        <p className="text-sm">
-                          {intl.formatMessage(messages.testSettingsRealCount, {
-                            count: realNodeIds.size,
-                          })}
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={realNodeIds.size === 0}
-                            onClick={() => setEveryStepRunsForReal(false)}
-                          >
-                            {intl.formatMessage(messages.testSettingsUseTestDataEverywhere)}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={
-                              realNodeIds.size ===
-                              nodes.filter((node) => canRunForReal(node.data.catalogType)).length
-                            }
-                            onClick={() => setEveryStepRunsForReal(true)}
-                          >
-                            {intl.formatMessage(messages.testSettingsRunEverythingForReal)}
-                          </Button>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {intl.formatMessage(messages.testSettingsAllRealNote)}
-                        </p>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                ) : null
-              }
-            />
-            <div data-testid="visual-workflow-graph-edges" hidden>
-              {edges.map((edge) => (
-                <span
-                  key={edge.id}
-                  data-testid={`visual-workflow-edge-${edge.source}-${edge.target}-${edge.sourceHandle ?? "out"}`}
-                />
-              ))}
-            </div>
-          </VisualWorkflowCanvasActionsProvider>
-          <VisualWorkflowEditorPanel
-            open={mobilePanelOpen}
-            onClose={closeMobilePanel}
-            onOpenPicker={() => openPicker(null)}
-          >
-            {showConfig && selectedNode ? (
-              <VisualWorkflowConfigPanel
-                node={selectedNode}
-                organizationSlug={organizationSlug}
+        {activeTab === "executions" &&
+        organizationSlug &&
+        visualWorkflowId &&
+        visualWorkflowsApi ? (
+          <VisualWorkflowExecutionsPanel
+            organizationSlug={organizationSlug}
+            visualWorkflowId={visualWorkflowId}
+            visualWorkflowsApi={visualWorkflowsApi}
+            selectedRunId={selectedRunId}
+            onSelectRun={setSelectedRunId}
+            onUseRunAsTestData={(nodeRuns) => {
+              const fromRun = testDataFromRun(nodes, nodeRuns);
+              setTestSetup((current) => ({ ...current, data: { ...current.data, ...fromRun } }));
+              toast.success(
+                intl.formatMessage(messages.usedRunAsTestData, {
+                  count: Object.keys(fromRun).length,
+                }),
+              );
+            }}
+          />
+        ) : (
+          <div className="relative flex min-h-0 min-w-0 flex-1">
+            <VisualWorkflowCanvasActionsProvider
+              onAddFromNode={openPicker}
+              issueNodeIds={issueNodeIds}
+              freshNodeIds={freshNodeIds}
+              pointedNodeId={pointedNodeId}
+              realNodeIds={realNodeIds}
+            >
+              <VisualWorkflowCanvas
                 nodes={nodes}
                 edges={edges}
-                onChangeContract={(patch) =>
-                  setNodes((current) =>
-                    current.map((node) =>
-                      node.id === selectedNode.id
-                        ? { ...node, data: { ...node.data, ...patch } }
-                        : node,
-                    ),
-                  )
-                }
-                issues={issues}
-                onSelectNode={selectNode}
-                onShowNode={showNode}
-                onBack={() => {
-                  setPanelMode("picker");
+                isRunning={isRunning}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onBeforeDelete={onBeforeDelete}
+                onConnect={onConnect}
+                onReconnect={onReconnect}
+                onSelectionChange={onSelectionChange}
+                focusNode={focusNode}
+                viewCenterRef={viewCenterRef}
+                fitViewRef={fitViewRef}
+                onAddFirstStep={() => openPicker(null)}
+                onLoadSample={() => {
+                  const draft = sampleDraft ?? visualWorkflowDemoDraft;
+                  load({ name: draft.name, nodes: draft.nodes, edges: draft.edges });
                   setSelectedNodeId(null);
-                  deselectNodes();
+                  setPanelMode("picker");
+                  setAddFrom(null);
+                  setMobilePanelOpen(false);
                 }}
-                onChangeConfig={onChangeConfig}
-                onChangeNodeType={onChangeNodeType}
-                onDeleteNode={onDeleteNode}
-                testData={testData[selectedNode.id]}
-                allTestData={testData}
-                missingTestValues={missingTestValues.filter(
-                  (entry) => entry.nodeId === selectedNode.id,
-                )}
-                onChangeTestData={(value) => setStepTestData(selectedNode.id, value)}
-                testRunsForReal={realNodeIds.has(selectedNode.id)}
-                onChangeTestRunsForReal={
-                  canTestForReal ? (real) => setStepRunsForReal(selectedNode.id, real) : undefined
+                onTestWorkflow={onTestWorkflowClick}
+                testSettings={
+                  organizationSlug ? (
+                    <Popover>
+                      <PopoverTrigger
+                        render={
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="bg-background shadow-xs"
+                            aria-label={intl.formatMessage(messages.testSettings)}
+                            title={intl.formatMessage(messages.testSettings)}
+                          />
+                        }
+                      >
+                        <SlidersHorizontalIcon />
+                      </PopoverTrigger>
+                      <PopoverContent align="center" side="top" className="w-80">
+                        <PopoverHeader>
+                          <PopoverTitle>{intl.formatMessage(messages.testSettings)}</PopoverTitle>
+                          <PopoverDescription>
+                            {intl.formatMessage(messages.testSettingsHint)}
+                          </PopoverDescription>
+                        </PopoverHeader>
+                        <div className="mt-3 grid gap-2">
+                          <p className="text-sm">
+                            {intl.formatMessage(messages.testSettingsRealCount, {
+                              count: realNodeIds.size,
+                            })}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={realNodeIds.size === 0}
+                              onClick={() => setEveryStepRunsForReal(false)}
+                            >
+                              {intl.formatMessage(messages.testSettingsUseTestDataEverywhere)}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={
+                                realNodeIds.size ===
+                                nodes.filter((node) => canRunForReal(node.data.catalogType)).length
+                              }
+                              onClick={() => setEveryStepRunsForReal(true)}
+                            >
+                              {intl.formatMessage(messages.testSettingsRunEverythingForReal)}
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {intl.formatMessage(messages.testSettingsAllRealNote)}
+                          </p>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  ) : null
                 }
-                testFailure={testFailureOf(selectedNode, effectiveTestSetup)}
-                onChangeTestFailure={(failure) => setStepFailure(selectedNode.id, failure)}
-                requestedTab={requestedTab}
-                onDisconnectInput={onDisconnectInput}
-                onPointStep={setPointedNodeId}
               />
-            ) : (
-              <>
-                <VisualWorkflowNodePicker
-                  disableTriggers={hasTrigger || addFrom !== null}
-                  onPick={addNode}
-                />
-                <VisualWorkflowIssueList
-                  issues={issues}
+              <div data-testid="visual-workflow-graph-edges" hidden>
+                {edges.map((edge) => (
+                  <span
+                    key={edge.id}
+                    data-testid={`visual-workflow-edge-${edge.source}-${edge.target}-${edge.sourceHandle ?? "out"}`}
+                  />
+                ))}
+              </div>
+            </VisualWorkflowCanvasActionsProvider>
+            <VisualWorkflowEditorPanel
+              open={mobilePanelOpen}
+              onClose={closeMobilePanel}
+              onOpenPicker={() => openPicker(null)}
+            >
+              {showConfig && selectedNode ? (
+                <VisualWorkflowConfigPanel
+                  node={selectedNode}
+                  organizationSlug={organizationSlug}
                   nodes={nodes}
+                  edges={edges}
+                  onChangeContract={(patch) =>
+                    setNodes((current) =>
+                      current.map((node) =>
+                        node.id === selectedNode.id
+                          ? { ...node, data: { ...node.data, ...patch } }
+                          : node,
+                      ),
+                    )
+                  }
+                  issues={issues}
                   onSelectNode={selectNode}
                   onShowNode={showNode}
+                  onBack={() => {
+                    setPanelMode("picker");
+                    setSelectedNodeId(null);
+                    deselectNodes();
+                  }}
+                  onChangeConfig={onChangeConfig}
+                  onChangeNodeType={onChangeNodeType}
+                  onDeleteNode={onDeleteNode}
+                  testData={testData[selectedNode.id]}
+                  allTestData={testData}
+                  missingTestValues={missingTestValues.filter(
+                    (entry) => entry.nodeId === selectedNode.id,
+                  )}
+                  onChangeTestData={(value) => setStepTestData(selectedNode.id, value)}
+                  testRunsForReal={realNodeIds.has(selectedNode.id)}
+                  onChangeTestRunsForReal={
+                    canTestForReal ? (real) => setStepRunsForReal(selectedNode.id, real) : undefined
+                  }
+                  testFailure={testFailureOf(selectedNode, effectiveTestSetup)}
+                  onChangeTestFailure={(failure) => setStepFailure(selectedNode.id, failure)}
+                  requestedTab={requestedTab}
+                  onDisconnectInput={onDisconnectInput}
+                  onPointStep={setPointedNodeId}
                 />
-              </>
-            )}
-          </VisualWorkflowEditorPanel>
-          <AutomationAssistantSidePanel minRowWidth={ASSISTANT_SIDE_BY_SIDE_MIN_WIDTH_PX} />
-        </div>
-      )}
-    </div>
+              ) : (
+                <>
+                  <VisualWorkflowNodePicker
+                    disableTriggers={hasTrigger || addFrom !== null}
+                    onPick={addNode}
+                  />
+                  <VisualWorkflowIssueList
+                    issues={issues}
+                    nodes={nodes}
+                    onSelectNode={selectNode}
+                    onShowNode={showNode}
+                  />
+                </>
+              )}
+            </VisualWorkflowEditorPanel>
+            <AutomationAssistantSidePanel minRowWidth={ASSISTANT_SIDE_BY_SIDE_MIN_WIDTH_PX} />
+          </div>
+        )}
+        <AutomationShortcutsDialog
+          open={shortcutsOpen}
+          onOpenChange={setShortcutsOpen}
+          surface="visual_workflow"
+          assistant={Boolean(assistantEnabled && organizationSlug && visualWorkflowId)}
+        />
+      </div>
+    </AutomationShortcutRevealProvider>
   );
 
   // The assistant needs a saved workflow to keep its session for.

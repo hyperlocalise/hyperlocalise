@@ -45,6 +45,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -87,7 +88,15 @@ import { WorkspacePageShell } from "../../_components/workspace-resource-shared"
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
 import { AUTOMATION_ASSISTANT_PAGE_CLASS } from "./automation-assistant-panel";
 import { useAssistantUndoSteps } from "./automation-assistant-undo-steps";
-import { useAutomationUndoNotice } from "./automation-undo-controls";
+import {
+  AutomationShortcutAffordance,
+  AutomationShortcutRevealProvider,
+  ShortcutHintAnchor,
+} from "./automation-shortcut-hint";
+import { AutomationShortcutsDialog } from "./automation-shortcuts-dialog";
+import { automationShortcutsMessages } from "./automation-shortcuts.messages";
+import { useAutomationPowerShortcuts } from "./use-automation-power-shortcuts";
+import { useAutomationUndoNotice, useShortcutLabels } from "./automation-undo-controls";
 import { automationUndoMessages } from "./automation-undo.messages";
 import { isSlackChannelMissing } from "./slack-channel-select";
 import { useAutomationFieldErrors } from "./use-automation-field-errors";
@@ -491,6 +500,14 @@ export function AutomationDetailPageContent({
     onRedo: runRedo,
     onSeal: history.seal,
   });
+  const requestSaveRef = useRef<() => void>(() => undefined);
+  const requestRunRef = useRef<(() => void) | null>(null);
+  const { shortcutsOpen, setShortcutsOpen } = useAutomationPowerShortcuts({
+    enabled: Boolean(form) && !(saveMutation.isPending || deleteMutation.isPending),
+    onSave: () => requestSaveRef.current(),
+    onPrimary: () => requestRunRef.current?.(),
+  });
+  const { undoText, redoText } = useShortcutLabels();
 
   if (automationQuery.isLoading || !form || !automation) {
     return (
@@ -528,9 +545,37 @@ export function AutomationDetailPageContent({
     runMutation.mutate();
   };
 
+  const canRun =
+    (showRunButton || showSourceFileRunButton) &&
+    !runMutation.isPending &&
+    !sourceFileRunMutation.isPending &&
+    !writeInFlight &&
+    automation.status === "active";
+
+  const requestRun = () => {
+    if (!canRun) {
+      return;
+    }
+    if (hasChanges) {
+      setRunPromptOpen(true);
+      return;
+    }
+    startRun();
+  };
+
+  const requestSave = () => {
+    if (deleteInFlight || !hasChanges) {
+      return;
+    }
+    saveMutation.mutate();
+  };
+  requestSaveRef.current = requestSave;
+  requestRunRef.current = canRun ? requestRun : null;
+
   // Loose, not in a row of their own, so the editor's action row can wrap them on a narrow screen.
   const editorActions = (
     <>
+      <AutomationShortcutAffordance onOpen={() => setShortcutsOpen(true)} />
       {form.triggerMode === "web_chat" ? (
         <>
           <div className="hidden min-w-0 max-w-xs md:block">
@@ -556,51 +601,40 @@ export function AutomationDetailPageContent({
           </Button>
         </>
       ) : showRunButton || showSourceFileRunButton ? (
-        <Button
-          variant="outline"
-          onClick={() => {
-            // A run uses the saved automation, so unsaved changes are settled first.
-            if (hasChanges) {
-              setRunPromptOpen(true);
-              return;
+        <ShortcutHintAnchor shortcut="primary">
+          <Button
+            variant="outline"
+            onClick={requestRun}
+            disabled={
+              runMutation.isPending ||
+              sourceFileRunMutation.isPending ||
+              writeInFlight ||
+              automation.status !== "active"
             }
-            startRun();
-          }}
-          disabled={
-            runMutation.isPending ||
-            sourceFileRunMutation.isPending ||
-            writeInFlight ||
-            automation.status !== "active"
-          }
-        >
-          {runMutation.isPending || sourceFileRunMutation.isPending ? (
+          >
+            {runMutation.isPending || sourceFileRunMutation.isPending ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <PlayIcon data-icon="inline-start" />
+            )}
+            <FormattedMessage {...automationDetailPageContentMessages.runNow} />
+          </Button>
+        </ShortcutHintAnchor>
+      ) : null}
+      <ShortcutHintAnchor shortcut="save">
+        <Button onClick={requestSave} disabled={writeInFlight || !hasChanges}>
+          {saveInFlight ? (
             <Spinner data-icon="inline-start" />
           ) : (
-            <PlayIcon data-icon="inline-start" />
+            <FloppyDiskIcon data-icon="inline-start" />
           )}
-          <FormattedMessage {...automationDetailPageContentMessages.runNow} />
+          {saveInFlight ? (
+            <FormattedMessage {...automationDetailPageContentMessages.saving} />
+          ) : (
+            <FormattedMessage {...automationDetailPageContentMessages.saveChanges} />
+          )}
         </Button>
-      ) : null}
-      <Button
-        onClick={() => {
-          if (deleteInFlight) {
-            return;
-          }
-          saveMutation.mutate();
-        }}
-        disabled={writeInFlight || !hasChanges}
-      >
-        {saveInFlight ? (
-          <Spinner data-icon="inline-start" />
-        ) : (
-          <FloppyDiskIcon data-icon="inline-start" />
-        )}
-        {saveInFlight ? (
-          <FormattedMessage {...automationDetailPageContentMessages.saving} />
-        ) : (
-          <FormattedMessage {...automationDetailPageContentMessages.saveChanges} />
-        )}
-      </Button>
+      </ShortcutHintAnchor>
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
@@ -626,10 +660,17 @@ export function AutomationDetailPageContent({
           <DropdownMenuItem disabled={writeInFlight || !history.canUndo} onClick={runUndo}>
             <ArrowUUpLeftIcon />
             <FormattedMessage {...automationUndoMessages.undo} />
+            <DropdownMenuShortcut>{undoText}</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuItem disabled={writeInFlight || !history.canRedo} onClick={runRedo}>
             <ArrowUUpRightIcon />
             <FormattedMessage {...automationUndoMessages.redo} />
+            <DropdownMenuShortcut>{redoText}</DropdownMenuShortcut>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setShortcutsOpen(true)}>
+            <FormattedMessage {...automationShortcutsMessages.openShortcuts} />
+            <DropdownMenuShortcut>?</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -651,288 +692,298 @@ export function AutomationDetailPageContent({
   );
 
   return (
-    <WorkspacePageShell
-      ref={rootRef}
-      // With the assistant offered the page is two panes that fill the app's content area.
-      className={assistantEnabled ? AUTOMATION_ASSISTANT_PAGE_CLASS : "max-w-5xl"}
-      data-undo-root="automation"
-    >
-      <WorkspaceAutomationEditor
-        mode="detail"
-        organizationSlug={organizationSlug}
-        automationId={automationId}
-        form={form}
-        errors={errors}
-        knowledgeAvailable={knowledgeAvailable}
-        canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
-        assistantEnabled={assistantEnabled}
-        assistantHasUnsavedChanges={hasChanges}
-        footer={
-          <div className="pt-4">
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<OrgNavLink href={`/org/${organizationSlug}/automations`} />}
-            >
-              <FormattedMessage {...automationDetailPageContentMessages.backToAutomations} />
-            </Button>
-          </div>
-        }
-        onAssistantChange={applyAssistantChange}
-        onAssistantWorkingChange={setAssistantWorking}
-        onChange={history.change}
-        runHistory={recentRuns}
-        runHistoryRefreshing={automationQuery.isFetching && !automationQuery.isLoading}
-        onRefreshRunHistory={() => {
-          void automationQuery.refetch();
-        }}
-        initialEditorTab={initialEditorTab}
-        actions={editorActions}
-      />
-
-      <Dialog
-        open={sourceFileDialogOpen}
-        onOpenChange={(open) => {
-          if (sourceFileRunMutation.isPending) {
-            return;
-          }
-          setSourceFileDialogOpen(open);
-          if (!open) {
-            setSelectedSourcePaths([]);
-            setSourceFileSearch("");
-          }
-        }}
+    <AutomationShortcutRevealProvider>
+      <WorkspacePageShell
+        ref={rootRef}
+        // With the assistant offered the page is two panes that fill the app's content area.
+        className={assistantEnabled ? AUTOMATION_ASSISTANT_PAGE_CLASS : "max-w-5xl"}
+        data-undo-root="automation"
       >
-        <DialogContent className="flex max-h-[80vh] flex-col sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>
-              <FormattedMessage {...automationDetailPageContentMessages.selectSourceFilesTitle} />
-            </DialogTitle>
-            <DialogDescription>
-              <FormattedMessage
-                {...automationDetailPageContentMessages.selectSourceFilesDescription}
-              />
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            value={sourceFileSearch}
-            onChange={(event) => setSourceFileSearch(event.target.value)}
-            placeholder={intl.formatMessage(
-              automationDetailPageContentMessages.searchSourceFilesPlaceholder,
-            )}
-            aria-label={intl.formatMessage(
-              automationDetailPageContentMessages.searchSourceFilesLabel,
-            )}
-          />
-          <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
-            {sourceFilesQuery.isLoading ? (
-              <div className="flex items-center justify-center gap-2 p-8 text-muted-foreground">
-                <Spinner />
-                <FormattedMessage {...automationDetailPageContentMessages.loadingSourceFiles} />
-              </div>
-            ) : sourceFilesQuery.isError ? (
-              <p className="p-6 text-center text-sm text-destructive">
-                <FormattedMessage {...automationDetailPageContentMessages.loadSourceFilesError} />
-              </p>
-            ) : visibleSourceFiles.length === 0 ? (
-              <p className="p-6 text-center text-sm text-muted-foreground">
-                <FormattedMessage {...automationDetailPageContentMessages.noSourceFiles} />
-              </p>
-            ) : (
-              <div className="divide-y divide-border">
-                {visibleSourceFiles.map((file) => {
-                  const checked = selectedSourcePaths.includes(file.sourcePath);
-                  return (
-                    <label
-                      key={file.sourcePath}
-                      className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-muted/50"
-                    >
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={(nextChecked) => {
-                          setSelectedSourcePaths((current) =>
-                            nextChecked
-                              ? [...current, file.sourcePath]
-                              : current.filter((sourcePath) => sourcePath !== file.sourcePath),
-                          );
-                        }}
-                      />
-                      <span className="min-w-0 truncate font-mono text-xs">{file.sourcePath}</span>
-                    </label>
-                  );
-                })}
-                {sourceFilesQuery.hasNextPage ? (
-                  <div className="p-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="w-full"
-                      disabled={sourceFilesQuery.isFetchingNextPage}
-                      onClick={() => {
-                        void sourceFilesQuery.fetchNextPage();
-                      }}
-                    >
-                      {sourceFilesQuery.isFetchingNextPage ? (
-                        <>
-                          <Spinner data-icon="inline-start" />
-                          <FormattedMessage
-                            {...automationDetailPageContentMessages.loadingMoreSourceFiles}
-                          />
-                        </>
-                      ) : (
-                        <FormattedMessage
-                          {...automationDetailPageContentMessages.loadMoreSourceFiles}
+        <WorkspaceAutomationEditor
+          mode="detail"
+          organizationSlug={organizationSlug}
+          automationId={automationId}
+          form={form}
+          errors={errors}
+          knowledgeAvailable={knowledgeAvailable}
+          canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
+          assistantEnabled={assistantEnabled}
+          assistantHasUnsavedChanges={hasChanges}
+          footer={
+            <div className="pt-4">
+              <Button
+                variant="outline"
+                nativeButton={false}
+                render={<OrgNavLink href={`/org/${organizationSlug}/automations`} />}
+              >
+                <FormattedMessage {...automationDetailPageContentMessages.backToAutomations} />
+              </Button>
+            </div>
+          }
+          onAssistantChange={applyAssistantChange}
+          onAssistantWorkingChange={setAssistantWorking}
+          onChange={history.change}
+          runHistory={recentRuns}
+          runHistoryRefreshing={automationQuery.isFetching && !automationQuery.isLoading}
+          onRefreshRunHistory={() => {
+            void automationQuery.refetch();
+          }}
+          initialEditorTab={initialEditorTab}
+          actions={editorActions}
+        />
+
+        <Dialog
+          open={sourceFileDialogOpen}
+          onOpenChange={(open) => {
+            if (sourceFileRunMutation.isPending) {
+              return;
+            }
+            setSourceFileDialogOpen(open);
+            if (!open) {
+              setSelectedSourcePaths([]);
+              setSourceFileSearch("");
+            }
+          }}
+        >
+          <DialogContent className="flex max-h-[80vh] flex-col sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>
+                <FormattedMessage {...automationDetailPageContentMessages.selectSourceFilesTitle} />
+              </DialogTitle>
+              <DialogDescription>
+                <FormattedMessage
+                  {...automationDetailPageContentMessages.selectSourceFilesDescription}
+                />
+              </DialogDescription>
+            </DialogHeader>
+            <Input
+              value={sourceFileSearch}
+              onChange={(event) => setSourceFileSearch(event.target.value)}
+              placeholder={intl.formatMessage(
+                automationDetailPageContentMessages.searchSourceFilesPlaceholder,
+              )}
+              aria-label={intl.formatMessage(
+                automationDetailPageContentMessages.searchSourceFilesLabel,
+              )}
+            />
+            <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
+              {sourceFilesQuery.isLoading ? (
+                <div className="flex items-center justify-center gap-2 p-8 text-muted-foreground">
+                  <Spinner />
+                  <FormattedMessage {...automationDetailPageContentMessages.loadingSourceFiles} />
+                </div>
+              ) : sourceFilesQuery.isError ? (
+                <p className="p-6 text-center text-sm text-destructive">
+                  <FormattedMessage {...automationDetailPageContentMessages.loadSourceFilesError} />
+                </p>
+              ) : visibleSourceFiles.length === 0 ? (
+                <p className="p-6 text-center text-sm text-muted-foreground">
+                  <FormattedMessage {...automationDetailPageContentMessages.noSourceFiles} />
+                </p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {visibleSourceFiles.map((file) => {
+                    const checked = selectedSourcePaths.includes(file.sourcePath);
+                    return (
+                      <label
+                        key={file.sourcePath}
+                        className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-muted/50"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(nextChecked) => {
+                            setSelectedSourcePaths((current) =>
+                              nextChecked
+                                ? [...current, file.sourcePath]
+                                : current.filter((sourcePath) => sourcePath !== file.sourcePath),
+                            );
+                          }}
                         />
-                      )}
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setSourceFileDialogOpen(false)}
-              disabled={sourceFileRunMutation.isPending}
-            >
-              <FormattedMessage
-                {...automationDetailPageContentMessages.cancelSourceFileSelection}
-              />
-            </Button>
-            <Button
-              onClick={() => sourceFileRunMutation.mutate(selectedSourcePaths)}
-              disabled={selectedSourcePaths.length === 0 || sourceFileRunMutation.isPending}
-            >
-              {sourceFileRunMutation.isPending ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <PlayIcon data-icon="inline-start" />
+                        <span className="min-w-0 truncate font-mono text-xs">
+                          {file.sourcePath}
+                        </span>
+                      </label>
+                    );
+                  })}
+                  {sourceFilesQuery.hasNextPage ? (
+                    <div className="p-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="w-full"
+                        disabled={sourceFilesQuery.isFetchingNextPage}
+                        onClick={() => {
+                          void sourceFilesQuery.fetchNextPage();
+                        }}
+                      >
+                        {sourceFilesQuery.isFetchingNextPage ? (
+                          <>
+                            <Spinner data-icon="inline-start" />
+                            <FormattedMessage
+                              {...automationDetailPageContentMessages.loadingMoreSourceFiles}
+                            />
+                          </>
+                        ) : (
+                          <FormattedMessage
+                            {...automationDetailPageContentMessages.loadMoreSourceFiles}
+                          />
+                        )}
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
               )}
-              <FormattedMessage
-                {...automationDetailPageContentMessages.runSelectedSourceFiles}
-                values={{ count: selectedSourcePaths.length }}
-              />
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setSourceFileDialogOpen(false)}
+                disabled={sourceFileRunMutation.isPending}
+              >
+                <FormattedMessage
+                  {...automationDetailPageContentMessages.cancelSourceFileSelection}
+                />
+              </Button>
+              <Button
+                onClick={() => sourceFileRunMutation.mutate(selectedSourcePaths)}
+                disabled={selectedSourcePaths.length === 0 || sourceFileRunMutation.isPending}
+              >
+                {sourceFileRunMutation.isPending ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <PlayIcon data-icon="inline-start" />
+                )}
+                <FormattedMessage
+                  {...automationDetailPageContentMessages.runSelectedSourceFiles}
+                  values={{ count: selectedSourcePaths.length }}
+                />
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      <AlertDialog
-        open={deleteDialogOpen}
-        onOpenChange={(open) => {
-          if (deleteInFlight) {
-            return;
-          }
-          if (open && saveInFlight) {
-            return;
-          }
-          setDeleteDialogOpen(open);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              <FormattedMessage {...automationDetailPageContentMessages.deleteTitle} />
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {intl.formatMessage(automationDetailPageContentMessages.deleteDescription, {
-                automationName: automation.name,
-              })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteInFlight}>
-              <FormattedMessage {...automationDetailPageContentMessages.deleteCancel} />
-            </AlertDialogCancel>
-            <Button
-              variant="destructive"
-              disabled={writeInFlight}
-              onClick={() => {
-                if (saveInFlight) {
-                  return;
-                }
-                deleteMutation.mutate();
-              }}
-            >
-              {deleteInFlight ? <Spinner /> : <TrashIcon />}
-              {deleteInFlight ? (
-                <FormattedMessage {...automationDetailPageContentMessages.deleting} />
-              ) : (
-                <FormattedMessage {...automationDetailPageContentMessages.deleteConfirm} />
-              )}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <AlertDialog
+          open={deleteDialogOpen}
+          onOpenChange={(open) => {
+            if (deleteInFlight) {
+              return;
+            }
+            if (open && saveInFlight) {
+              return;
+            }
+            setDeleteDialogOpen(open);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                <FormattedMessage {...automationDetailPageContentMessages.deleteTitle} />
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {intl.formatMessage(automationDetailPageContentMessages.deleteDescription, {
+                  automationName: automation.name,
+                })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteInFlight}>
+                <FormattedMessage {...automationDetailPageContentMessages.deleteCancel} />
+              </AlertDialogCancel>
+              <Button
+                variant="destructive"
+                disabled={writeInFlight}
+                onClick={() => {
+                  if (saveInFlight) {
+                    return;
+                  }
+                  deleteMutation.mutate();
+                }}
+              >
+                {deleteInFlight ? <Spinner /> : <TrashIcon />}
+                {deleteInFlight ? (
+                  <FormattedMessage {...automationDetailPageContentMessages.deleting} />
+                ) : (
+                  <FormattedMessage {...automationDetailPageContentMessages.deleteConfirm} />
+                )}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      <AlertDialog open={runPromptOpen} onOpenChange={setRunPromptOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              <FormattedMessage {...automationDetailPageContentMessages.runUnsavedTitle} />
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              <FormattedMessage {...automationDetailPageContentMessages.runUnsavedDescription} />
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>
-              <FormattedMessage {...automationDetailPageContentMessages.runUnsavedCancel} />
-            </AlertDialogCancel>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                setRunPromptOpen(false);
-                discardChanges();
-                startRun();
-              }}
-            >
-              <FormattedMessage {...automationDetailPageContentMessages.discardAndRun} />
-            </Button>
-            <Button
-              onClick={() => {
-                setRunPromptOpen(false);
-                // The run is queued only once the save has gone through.
-                saveMutation.mutate(undefined, { onSuccess: startRun });
-              }}
-            >
-              <FormattedMessage {...automationDetailPageContentMessages.saveAndRun} />
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <AlertDialog open={runPromptOpen} onOpenChange={setRunPromptOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                <FormattedMessage {...automationDetailPageContentMessages.runUnsavedTitle} />
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                <FormattedMessage {...automationDetailPageContentMessages.runUnsavedDescription} />
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>
+                <FormattedMessage {...automationDetailPageContentMessages.runUnsavedCancel} />
+              </AlertDialogCancel>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setRunPromptOpen(false);
+                  discardChanges();
+                  startRun();
+                }}
+              >
+                <FormattedMessage {...automationDetailPageContentMessages.discardAndRun} />
+              </Button>
+              <Button
+                onClick={() => {
+                  setRunPromptOpen(false);
+                  // The run is queued only once the save has gone through.
+                  saveMutation.mutate(undefined, { onSuccess: startRun });
+                }}
+              >
+                <FormattedMessage {...automationDetailPageContentMessages.saveAndRun} />
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              <FormattedMessage {...automationDetailPageContentMessages.discardTitle} />
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              <FormattedMessage {...automationDetailPageContentMessages.discardDescription} />
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>
-              <FormattedMessage {...automationDetailPageContentMessages.discardCancel} />
-            </AlertDialogCancel>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                discardChanges();
-                setDiscardDialogOpen(false);
-              }}
-            >
-              <FormattedMessage {...automationDetailPageContentMessages.discardConfirm} />
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                <FormattedMessage {...automationDetailPageContentMessages.discardTitle} />
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                <FormattedMessage {...automationDetailPageContentMessages.discardDescription} />
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>
+                <FormattedMessage {...automationDetailPageContentMessages.discardCancel} />
+              </AlertDialogCancel>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  discardChanges();
+                  setDiscardDialogOpen(false);
+                }}
+              >
+                <FormattedMessage {...automationDetailPageContentMessages.discardConfirm} />
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      {leaveGuardDialog}
-      {undoConfirmDialog}
-    </WorkspacePageShell>
+        {leaveGuardDialog}
+        {undoConfirmDialog}
+        <AutomationShortcutsDialog
+          open={shortcutsOpen}
+          onOpenChange={setShortcutsOpen}
+          surface="automation"
+          assistant={assistantEnabled}
+        />
+      </WorkspacePageShell>
+    </AutomationShortcutRevealProvider>
   );
 }

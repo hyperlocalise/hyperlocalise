@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 // @vitest-environment happy-dom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { IntlProvider } from "react-intl";
@@ -19,20 +19,31 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 
+import { AutomationShortcutRevealProvider } from "../automation-shortcut-hint";
 import { VisualWorkflowChrome } from "./visual-workflow-chrome";
 
-function renderChrome(props: Partial<ComponentProps<typeof VisualWorkflowChrome>> = {}) {
+function renderChrome(
+  props: Partial<ComponentProps<typeof VisualWorkflowChrome>> = {},
+  options: { reveal?: boolean } = {},
+) {
+  const chrome = (
+    <VisualWorkflowChrome
+      name="Weekly digest"
+      onNameChange={vi.fn()}
+      copied={false}
+      onExport={vi.fn()}
+      onCopy={vi.fn()}
+      {...props}
+    />
+  );
   return render(
     <IntlProvider locale="en" messages={{}}>
       <TooltipProvider>
-        <VisualWorkflowChrome
-          name="Weekly digest"
-          onNameChange={vi.fn()}
-          copied={false}
-          onExport={vi.fn()}
-          onCopy={vi.fn()}
-          {...props}
-        />
+        {options.reveal ? (
+          <AutomationShortcutRevealProvider>{chrome}</AutomationShortcutRevealProvider>
+        ) : (
+          chrome
+        )}
       </TooltipProvider>
     </IntlProvider>,
   );
@@ -97,6 +108,18 @@ describe("VisualWorkflowChrome", () => {
     renderChrome({ workflowStatus: "draft", onStatusChange: vi.fn() });
 
     expect(screen.getByRole("switch", { name: "Inactive" })).not.toBeChecked();
+  });
+
+  it("reveals the save shortcut while Alt is held", () => {
+    renderChrome({ onSave: vi.fn(), onOpenShortcuts: vi.fn() }, { reveal: true });
+
+    expect(screen.getByRole("button", { name: "Hold Alt" })).toBeInTheDocument();
+    expect(screen.queryByRole("note", { name: "Keyboard shortcut" })).not.toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Alt" });
+    expect(screen.getByRole("note", { name: "Keyboard shortcut" })).toHaveTextContent("S");
+    fireEvent.keyUp(window, { key: "Alt" });
+    expect(screen.queryByRole("note", { name: "Keyboard shortcut" })).not.toBeInTheDocument();
   });
 
   it("marks Delete as destructive", async () => {

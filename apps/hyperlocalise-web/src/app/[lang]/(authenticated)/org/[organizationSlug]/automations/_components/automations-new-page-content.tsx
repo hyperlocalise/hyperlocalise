@@ -41,6 +41,13 @@ import { WorkspacePageShell } from "../../_components/workspace-resource-shared"
 import { bindAssistantSession } from "./automation-assistant-api";
 import { AUTOMATION_ASSISTANT_PAGE_CLASS } from "./automation-assistant-panel";
 import { useAssistantUndoSteps } from "./automation-assistant-undo-steps";
+import {
+  AutomationShortcutAffordance,
+  AutomationShortcutRevealProvider,
+  ShortcutHintAnchor,
+} from "./automation-shortcut-hint";
+import { AutomationShortcutsDialog } from "./automation-shortcuts-dialog";
+import { useAutomationPowerShortcuts } from "./use-automation-power-shortcuts";
 import { AutomationUndoRedoButtons, useAutomationUndoNotice } from "./automation-undo-controls";
 import { automationsNewPageContentMessages } from "./automations-new-page-content.messages";
 import { isSlackChannelMissing } from "./slack-channel-select";
@@ -189,9 +196,21 @@ export function AutomationsNewPageContent({
     onRedo: runRedo,
     onSeal: history.seal,
   });
+  const createAutomation = () => {
+    if (createMutation.isPending) {
+      return;
+    }
+    createMutation.mutate();
+  };
+  const { shortcutsOpen, setShortcutsOpen } = useAutomationPowerShortcuts({
+    enabled: !createMutation.isPending,
+    onSave: createAutomation,
+    onPrimary: createAutomation,
+  });
 
   const actions = (
     <>
+      <AutomationShortcutAffordance onOpen={() => setShortcutsOpen(true)} />
       <AutomationUndoRedoButtons
         canUndo={history.canUndo}
         canRedo={history.canRedo}
@@ -208,41 +227,52 @@ export function AutomationsNewPageContent({
       >
         <FormattedMessage {...automationsNewPageContentMessages.cancel} />
       </Button>
-      <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-        {createMutation.isPending ? (
-          <FormattedMessage {...automationsNewPageContentMessages.creating} />
-        ) : (
-          <FormattedMessage {...automationsNewPageContentMessages.createAutomation} />
-        )}
-      </Button>
+      <ShortcutHintAnchor shortcut="primary">
+        <Button onClick={createAutomation} disabled={createMutation.isPending}>
+          {createMutation.isPending ? (
+            <FormattedMessage {...automationsNewPageContentMessages.creating} />
+          ) : (
+            <FormattedMessage {...automationsNewPageContentMessages.createAutomation} />
+          )}
+        </Button>
+      </ShortcutHintAnchor>
     </>
   );
 
   return (
-    <WorkspacePageShell
-      ref={rootRef}
-      // With the assistant offered the page is two panes that fill the app's content area.
-      className={assistantEnabled ? AUTOMATION_ASSISTANT_PAGE_CLASS : "max-w-5xl"}
-      data-undo-root="automation"
-    >
-      <WorkspaceAutomationEditor
-        mode="create"
-        organizationSlug={organizationSlug}
-        form={form}
-        errors={errors}
-        knowledgeAvailable={knowledgeAvailable}
-        canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
-        assistantEnabled={assistantEnabled}
-        assistantHasUnsavedChanges={hasUnsavedChanges}
-        assistantInitialPrompt={assistantInitialPrompt}
-        onAssistantChange={applyAssistantChange}
-        onAssistantSessionChange={setAssistantSessionId}
-        onAssistantWorkingChange={setAssistantWorking}
-        onChange={history.change}
-        actions={actions}
-      />
-      {leaveGuardDialog}
-      {undoConfirmDialog}
-    </WorkspacePageShell>
+    <AutomationShortcutRevealProvider>
+      <WorkspacePageShell
+        ref={rootRef}
+        // With the assistant offered the page is two panes that fill the app's content area.
+        className={assistantEnabled ? AUTOMATION_ASSISTANT_PAGE_CLASS : "max-w-5xl"}
+        data-undo-root="automation"
+      >
+        <WorkspaceAutomationEditor
+          mode="create"
+          organizationSlug={organizationSlug}
+          form={form}
+          errors={errors}
+          knowledgeAvailable={knowledgeAvailable}
+          canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
+          assistantEnabled={assistantEnabled}
+          assistantHasUnsavedChanges={hasUnsavedChanges}
+          assistantInitialPrompt={assistantInitialPrompt}
+          onAssistantChange={applyAssistantChange}
+          onAssistantSessionChange={setAssistantSessionId}
+          onAssistantWorkingChange={setAssistantWorking}
+          onChange={history.change}
+          actions={actions}
+        />
+        {leaveGuardDialog}
+        {undoConfirmDialog}
+        <AutomationShortcutsDialog
+          open={shortcutsOpen}
+          onOpenChange={setShortcutsOpen}
+          surface="automation"
+          mode="create"
+          assistant={assistantEnabled}
+        />
+      </WorkspacePageShell>
+    </AutomationShortcutRevealProvider>
   );
 }

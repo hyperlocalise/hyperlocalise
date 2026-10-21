@@ -165,6 +165,24 @@ export const SampleWorkflow: Story = {
   },
 };
 
+export const KeyboardShortcuts: Story = {
+  name: "Keyboard shortcuts",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Hold Alt (Option on a Mac) to see each action's shortcut. Press ? for the full list. Save and test still run from a field; N and F do not.",
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowDemoDraft.name,
+    initialNodes: visualWorkflowDemoDraft.nodes,
+    initialEdges: visualWorkflowDemoDraft.edges,
+    onSave: fn(),
+  },
+};
+
 export const QuickAddBranches: Story = {
   name: "Quick-add Switch and For Each",
   args: {

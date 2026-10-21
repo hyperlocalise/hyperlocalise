@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { sheetMessages } from "@/components/ui/sheet.messages";
 import { cn } from "@/lib/primitives/cn";
 
+import { ShortcutHintAnchor } from "../automation-shortcut-hint";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 
 export function VisualWorkflowEditorPanel({
@@ -46,15 +47,12 @@ export function VisualWorkflowEditorPanel({
           onClick={onClose}
         />
       ) : (
-        <Button
-          type="button"
-          size="sm"
-          className="absolute end-3 bottom-16 z-10 md:hidden"
-          onClick={onOpenPicker}
-        >
-          <PlusIcon className="size-4" />
-          <FormattedMessage {...messages.addNode} />
-        </Button>
+        <ShortcutHintAnchor shortcut="addNode" className="absolute end-3 bottom-16 z-10 md:hidden">
+          <Button type="button" size="sm" onClick={onOpenPicker}>
+            <PlusIcon className="size-4" />
+            <FormattedMessage {...messages.addNode} />
+          </Button>
+        </ShortcutHintAnchor>
       )}
       <aside
         className={cn(

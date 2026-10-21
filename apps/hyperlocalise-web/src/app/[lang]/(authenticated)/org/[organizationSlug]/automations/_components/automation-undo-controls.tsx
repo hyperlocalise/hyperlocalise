@@ -28,6 +28,7 @@ import type {
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 import type { UndoStep } from "@/lib/undo-stack/undo-stack";
 
+import { ShortcutHintAnchor } from "./automation-shortcut-hint";
 import { automationUndoMessages } from "./automation-undo.messages";
 
 export type AutomationUndoStep = UndoStep<
@@ -147,44 +148,48 @@ export function AutomationUndoRedoButtons({
 
   return (
     <>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label={intl.formatMessage(automationUndoMessages.undo)}
-              disabled={disabled || !canUndo}
-              onClick={onUndo}
-            >
-              <ArrowUUpLeftIcon />
-            </Button>
-          }
-        />
-        <TooltipContent side="bottom">
-          {formatWorkspaceAutomationUndoText(intl, undoStep?.description, "undo")}
-          <ShortcutKeys keys={undoKeys} />
-        </TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label={intl.formatMessage(automationUndoMessages.redo)}
-              disabled={disabled || !canRedo}
-              onClick={onRedo}
-            >
-              <ArrowUUpRightIcon />
-            </Button>
-          }
-        />
-        <TooltipContent side="bottom">
-          {formatWorkspaceAutomationUndoText(intl, redoStep?.description, "redo")}
-          <ShortcutKeys keys={redoKeys} />
-        </TooltipContent>
-      </Tooltip>
+      <ShortcutHintAnchor shortcut="undo">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label={intl.formatMessage(automationUndoMessages.undo)}
+                disabled={disabled || !canUndo}
+                onClick={onUndo}
+              >
+                <ArrowUUpLeftIcon />
+              </Button>
+            }
+          />
+          <TooltipContent side="bottom">
+            {formatWorkspaceAutomationUndoText(intl, undoStep?.description, "undo")}
+            <ShortcutKeys keys={undoKeys} />
+          </TooltipContent>
+        </Tooltip>
+      </ShortcutHintAnchor>
+      <ShortcutHintAnchor shortcut="redo">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label={intl.formatMessage(automationUndoMessages.redo)}
+                disabled={disabled || !canRedo}
+                onClick={onRedo}
+              >
+                <ArrowUUpRightIcon />
+              </Button>
+            }
+          />
+          <TooltipContent side="bottom">
+            {formatWorkspaceAutomationUndoText(intl, redoStep?.description, "redo")}
+            <ShortcutKeys keys={redoKeys} />
+          </TooltipContent>
+        </Tooltip>
+      </ShortcutHintAnchor>
     </>
   );
 }
