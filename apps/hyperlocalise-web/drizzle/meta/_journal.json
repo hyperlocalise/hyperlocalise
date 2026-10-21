@@ -1072,13 +1072,6 @@
       "when": 1792394058113,
       "tag": "0152_cultured_unus",
       "breakpoints": true
-    },
-    {
-      "idx": 153,
-      "version": "7",
-      "when": 1792546548038,
-      "tag": "0153_sanity_studio_plugin",
-      "breakpoints": true
     }
   ]
 }
