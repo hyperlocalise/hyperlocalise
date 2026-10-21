@@ -4,6 +4,7 @@ import { normalizeAppUrl } from "./settings";
 
 const ACCESS_TOKEN_HEADER = "X-Hyperlocalise-Access-Token";
 export const SANITY_JOB_POLL_INTERVAL_MS = 1_500;
+export const SANITY_LOCALE_STATUS_DOCUMENT_ID_LIMIT = 50;
 
 export type SanityResourceAuth = {
   accessToken: string;
@@ -514,7 +515,38 @@ function parseLocaleStatuses(value: unknown): {
   };
 }
 
-export async function fetchSanityLocaleStatusesFromApi(input: {
+function chunkDocumentIds(documentIds: string[], size: number): string[][] {
+  const unique = [...new Set(documentIds.map((id) => id.trim()).filter(Boolean))];
+  const chunks: string[][] = [];
+  for (let index = 0; index < unique.length; index += size) {
+    chunks.push(unique.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function mergeLocaleStatusPages(
+  pages: Array<{ locales: SanityLocaleStatusResponse[]; documents: unknown[] }>,
+): { locales: SanityLocaleStatusResponse[]; documents: unknown[] } {
+  const localesByCode = new Map<string, SanityLocaleStatusResponse>();
+  const documents: unknown[] = [];
+  for (const page of pages) {
+    documents.push(...page.documents);
+    for (const locale of page.locales) {
+      const existing = localesByCode.get(locale.locale);
+      if (!existing) {
+        localesByCode.set(locale.locale, {
+          ...locale,
+          documents: [...locale.documents],
+        });
+        continue;
+      }
+      existing.documents.push(...locale.documents);
+    }
+  }
+  return { locales: [...localesByCode.values()], documents };
+}
+
+async function fetchSanityLocaleStatusChunk(input: {
   appUrl: string;
   auth: SanityResourceAuth;
   projectId: string;
@@ -544,6 +576,29 @@ export async function fetchSanityLocaleStatusesFromApi(input: {
     throw new HyperlocaliseClientError("sanity_locales_failed", "Unable to load locale status.");
   }
   return result;
+}
+
+export async function fetchSanityLocaleStatusesFromApi(input: {
+  appUrl: string;
+  auth: SanityResourceAuth;
+  projectId: string;
+  sanityProjectId: string;
+  dataset: string;
+  documentIds: string[];
+}): Promise<{ locales: SanityLocaleStatusResponse[]; documents: unknown[] }> {
+  const chunks = chunkDocumentIds(input.documentIds, SANITY_LOCALE_STATUS_DOCUMENT_ID_LIMIT);
+  if (chunks.length === 0) {
+    return { locales: [], documents: [] };
+  }
+  const pages = await Promise.all(
+    chunks.map((documentIds) =>
+      fetchSanityLocaleStatusChunk({
+        ...input,
+        documentIds,
+      }),
+    ),
+  );
+  return mergeLocaleStatusPages(pages);
 }
 
 type SanityDocumentQuery = {

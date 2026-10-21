@@ -315,15 +315,16 @@ export function createSanityOauthRoutes(): Hono {
         );
       }
 
-      const connectionId =
-        selectedConnection && selectedConnection.enabled
-          ? selectedConnection.connectionId
-          : (
-              await ensureSanityStudioPluginConnection({
-                organizationId: writableOrganization.organizationId,
-                userId: auth.user.localUserId,
-              })
-            ).id;
+      const connectionId = (
+        await ensureSanityStudioPluginConnection({
+          organizationId: writableOrganization.organizationId,
+          userId: auth.user.localUserId,
+          connectionId:
+            selectedConnection && selectedConnection.enabled
+              ? selectedConnection.connectionId
+              : undefined,
+        })
+      ).id;
 
       const code = await createSanityOauthAuthorizationCode({
         clientId: authRequest.clientId,

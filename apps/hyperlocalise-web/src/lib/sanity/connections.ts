@@ -197,16 +197,7 @@ export async function listSanityConnections(input: {
   return rows.map(serializeConnection);
 }
 
-export async function ensureSanityStudioPluginConnection(input: {
-  organizationId: string;
-  userId: string;
-}): Promise<SanityConnectionSummary> {
-  const existing = await listSanityConnections({ organizationId: input.organizationId });
-  const enabled = existing.find((connection) => connection.enabled);
-  if (enabled) {
-    return enabled;
-  }
-
+async function createStudioPluginApiKey(input: { organizationId: string; userId: string }) {
   const plainKey = generateApiKey();
   const [apiKey] = await db
     .insert(schema.organizationApiKeys)
@@ -224,6 +215,57 @@ export async function ensureSanityStudioPluginConnection(input: {
     throw new Error("sanity_api_key_create_failed");
   }
 
+  return apiKey;
+}
+
+async function replaceUnusableStudioPluginConnection(input: {
+  connection: SanityConnectionSummary;
+  userId: string;
+}): Promise<SanityConnectionSummary> {
+  try {
+    await assertApiKeyUsableForSanity({
+      organizationId: input.connection.organizationId,
+      apiKeyId: input.connection.apiKeyId,
+    });
+    return input.connection;
+  } catch {
+    const apiKey = await createStudioPluginApiKey({
+      organizationId: input.connection.organizationId,
+      userId: input.userId,
+    });
+    const replaced = await updateSanityConnection({
+      organizationId: input.connection.organizationId,
+      userId: input.userId,
+      connectionId: input.connection.id,
+      apiKeyId: apiKey.id,
+    });
+    if (!replaced) {
+      throw new Error("sanity_connection_replace_failed");
+    }
+    return replaced;
+  }
+}
+
+export async function ensureSanityStudioPluginConnection(input: {
+  organizationId: string;
+  userId: string;
+  connectionId?: string;
+}): Promise<SanityConnectionSummary> {
+  const existing = await listSanityConnections({ organizationId: input.organizationId });
+  const enabled = input.connectionId
+    ? existing.find((connection) => connection.id === input.connectionId && connection.enabled)
+    : existing.find((connection) => connection.enabled);
+  if (enabled) {
+    return replaceUnusableStudioPluginConnection({
+      connection: enabled,
+      userId: input.userId,
+    });
+  }
+
+  const apiKey = await createStudioPluginApiKey({
+    organizationId: input.organizationId,
+    userId: input.userId,
+  });
   const created = await createSanityConnection({
     organizationId: input.organizationId,
     userId: input.userId,

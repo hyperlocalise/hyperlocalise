@@ -17,7 +17,7 @@ import {
   SANITY_JOB_POLL_INTERVAL_MS,
   type SanitySessionProject,
 } from "./hyperlocalise-client";
-import { isRecord, readString } from "./json";
+import { readString } from "./json";
 import { defaultSelectedLocale, translateToOptionsForProject } from "./locale-label";
 import {
   fetchSanityIntegrationHealth,
@@ -33,6 +33,7 @@ import {
   emptyDocumentLocaleStatuses,
   fetchDocumentLevelTargetsMap,
   hasHlTranslationForLocale,
+  loadTargetDocument,
   lookupLocaleProgress,
   parseLocaleStatusesForDocument,
   type DocumentLocaleStatuses,
@@ -431,12 +432,7 @@ function HyperlocaliseBulkWorkflow({ config }: { config: HyperlocaliseBulkConfig
           documentTitle: string;
         }> = [];
         for (const listed of selectedDocuments) {
-          const raw = await client.getDocument(listed._id);
-          const fallback = await client.getDocument(`drafts.${listed._id}`);
-          const document = (isRecord(raw) ? raw : isRecord(fallback) ? fallback : null) as Record<
-            string,
-            unknown
-          > | null;
+          const document = await loadTargetDocument(client, listed._id);
           if (!document) {
             throw new Error(`Unable to load ${listed._id}.`);
           }

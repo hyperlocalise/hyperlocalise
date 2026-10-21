@@ -560,6 +560,44 @@ describe("sanityOauthRoutes", () => {
     expect(reused[0]?.id).toBe(created[0]?.id);
   });
 
+  it("rotates a revoked Studio plugin API key on consent", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Sanity Studio plugin",
+    });
+    const created = await createSanityConnection({
+      organizationId: auth.organization.localOrganizationId,
+      userId: auth.user.localUserId,
+      displayName: "Sanity Studio plugin",
+      apiKeyId: apiKey.id,
+    });
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ revokedAt: new Date() })
+      .where(eq(schema.organizationApiKeys.id, apiKey.id));
+
+    const consent = await app.request("http://localhost/api/oauth/sanity/consent", {
+      method: "POST",
+      headers: {
+        cookie: `${SANITY_OAUTH_REQUEST_COOKIE}=${requestCookie()}`,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams().toString(),
+    });
+
+    expect(consent.status).toBe(302);
+    expect(new URL(consent.headers.get("location") ?? "").searchParams.get("code")).toBeTruthy();
+
+    const connections = await listSanityConnections({
+      organizationId: auth.organization.localOrganizationId,
+    });
+    expect(connections).toHaveLength(1);
+    expect(connections[0]?.id).toBe(created.connection.id);
+    expect(connections[0]?.apiKeyId).not.toBe(apiKey.id);
+  });
+
   it("denies consent when the user cancels", async () => {
     const response = await app.request("http://localhost/api/oauth/sanity/deny", {
       method: "POST",
