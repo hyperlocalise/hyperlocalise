@@ -70,6 +70,28 @@ describe("entriesFromHlOutput", () => {
     ]);
   });
 
+  it("maps enriched hl entries output with FormatJS context", () => {
+    expect(
+      entriesFromHlOutput({
+        "checkout.submit": { text: "Submit", context: "Checkout CTA" },
+        "home.title": "Home",
+      }),
+    ).toEqual([
+      {
+        key: "checkout.submit",
+        text: "Submit",
+        context: "Checkout CTA",
+        type: "string",
+      },
+      {
+        key: "home.title",
+        text: "Home",
+        context: null,
+        type: "string",
+      },
+    ]);
+  });
+
   it("maps enriched hl entries output with maxLength metadata", () => {
     expect(
       entriesFromHlOutput({

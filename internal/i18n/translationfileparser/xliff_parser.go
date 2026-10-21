@@ -177,15 +177,21 @@ func xliffInner(content []byte, node *xliffElement) []byte {
 }
 
 func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
+	values, _, err := p.ParseWithContext(content)
+	return values, err
+}
+
+func (p XLIFFParser) ParseWithContext(content []byte) (map[string]string, map[string]string, error) {
 	elements, err := readXLIFF(content)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	entries, err := xliffEntries(elements)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	out := make(map[string]string, len(entries))
+	var contextByKey map[string]string
 	for _, entry := range entries {
 		value := xliffInner(content, entry.target)
 		if len(bytes.TrimSpace(value)) == 0 {
@@ -194,8 +200,47 @@ func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
 		if len(value) > 0 {
 			out[entry.key] = normalizeXLIFFMarkup(value)
 		}
+		if context := xliffEntryContext(content, entry); context != "" {
+			if contextByKey == nil {
+				contextByKey = make(map[string]string, len(entries))
+			}
+			contextByKey[entry.key] = context
+		}
 	}
-	return out, nil
+	return out, contextByKey, nil
+}
+
+func xliffEntryContext(content []byte, entry xliffEntry) string {
+	context := xliffNotes(content, entry.unit)
+	if entry.source != nil && entry.source.parent != nil && entry.source.parent != entry.unit {
+		context = joinParserContext(context, xliffNotes(content, entry.source.parent))
+	}
+	return context
+}
+
+func xliffNotes(content []byte, node *xliffElement) string {
+	if node == nil {
+		return ""
+	}
+	var parts []string
+	appendNote := func(note *xliffElement) {
+		if note == nil || !isXLIFFElement(note) || note.token.Name.Local != "note" {
+			return
+		}
+		if text := strings.TrimSpace(string(xliffInner(content, note))); text != "" {
+			parts = append(parts, text)
+		}
+	}
+	for _, child := range node.children {
+		if child.token.Name.Local == "notes" && isXLIFFElement(child) {
+			for _, note := range child.children {
+				appendNote(note)
+			}
+			continue
+		}
+		appendNote(child)
+	}
+	return strings.Join(parts, "\n")
 }
 
 // XLIFFSourceStructureEqual reports whether the same entry keys refer to the

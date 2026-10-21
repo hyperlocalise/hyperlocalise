@@ -16,12 +16,17 @@ import (
 type YAMLParser struct{}
 
 func (p YAMLParser) Parse(content []byte) (map[string]string, error) {
+	values, _, err := p.ParseWithContext(content)
+	return values, err
+}
+
+func (p YAMLParser) ParseWithContext(content []byte) (map[string]string, map[string]string, error) {
 	root, err := decodeYAMLDocument(content)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if root == nil {
-		return map[string]string{}, nil
+		return map[string]string{}, nil, nil
 	}
 
 	// BOLT OPTIMIZATION: Hint capacity for the result map based on content size
@@ -31,11 +36,12 @@ func (p YAMLParser) Parse(content []byte) (map[string]string, error) {
 		capacity = 4
 	}
 	out := make(map[string]string, capacity)
+	var contextByKey map[string]string
 
-	if err := flattenYAMLNode(out, "", root); err != nil {
-		return nil, err
+	if err := flattenYAMLNode(out, &contextByKey, "", root, ""); err != nil {
+		return nil, nil, err
 	}
-	return out, nil
+	return out, contextByKey, nil
 }
 
 func decodeYAMLDocument(content []byte) (*yaml.Node, error) {
@@ -72,12 +78,12 @@ func yamlDocumentRoot(doc *yaml.Node) *yaml.Node {
 	return doc
 }
 
-func flattenYAMLNode(out map[string]string, prefix string, node *yaml.Node) error {
+func flattenYAMLNode(out map[string]string, contextByKey *map[string]string, prefix string, node *yaml.Node, pairContext string) error {
 	switch node.Kind {
 	case yaml.MappingNode:
-		return flattenYAMLMapping(out, prefix, node)
+		return flattenYAMLMapping(out, contextByKey, prefix, node)
 	case yaml.SequenceNode:
-		return flattenYAMLSequence(out, prefix, node)
+		return flattenYAMLSequence(out, contextByKey, prefix, node)
 	case yaml.ScalarNode:
 		if node.Tag != "!!str" {
 			return fmt.Errorf("yaml key %q must be string, sequence, or mapping, got %s", prefix, yamlNodeTagName(node))
@@ -89,6 +95,12 @@ func flattenYAMLNode(out map[string]string, prefix string, node *yaml.Node) erro
 			return fmt.Errorf("yaml key %q appears more than once after flattening", prefix)
 		}
 		out[prefix] = node.Value
+		if context := strings.TrimSpace(pairContext); context != "" && contextByKey != nil {
+			if *contextByKey == nil {
+				*contextByKey = make(map[string]string)
+			}
+			(*contextByKey)[prefix] = context
+		}
 		return nil
 	case yaml.AliasNode:
 		return fmt.Errorf("yaml key %q uses alias/anchor, which is not supported for locale files", prefix)
@@ -97,7 +109,7 @@ func flattenYAMLNode(out map[string]string, prefix string, node *yaml.Node) erro
 	}
 }
 
-func flattenYAMLMapping(out map[string]string, prefix string, node *yaml.Node) error {
+func flattenYAMLMapping(out map[string]string, contextByKey *map[string]string, prefix string, node *yaml.Node) error {
 	for i := 0; i+1 < len(node.Content); i += 2 {
 		keyNode := node.Content[i]
 		valueNode := node.Content[i+1]
@@ -110,14 +122,14 @@ func flattenYAMLMapping(out map[string]string, prefix string, node *yaml.Node) e
 		if prefix != "" {
 			nextKey = prefix + "." + key
 		}
-		if err := flattenYAMLNode(out, nextKey, valueNode); err != nil {
+		if err := flattenYAMLNode(out, contextByKey, nextKey, valueNode, yamlPairContext(keyNode, valueNode)); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func flattenYAMLSequence(out map[string]string, prefix string, node *yaml.Node) error {
+func flattenYAMLSequence(out map[string]string, contextByKey *map[string]string, prefix string, node *yaml.Node) error {
 	if prefix == "" {
 		return fmt.Errorf("yaml root must be mapping, got sequence")
 	}
@@ -125,11 +137,46 @@ func flattenYAMLSequence(out map[string]string, prefix string, node *yaml.Node) 
 		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
 		// to reduce allocation and formatting overhead in recursive flattening.
 		nextKey := prefix + "[" + strconv.Itoa(idx) + "]"
-		if err := flattenYAMLNode(out, nextKey, item); err != nil {
+		if err := flattenYAMLNode(out, contextByKey, nextKey, item, yamlPairContext(nil, item)); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func yamlPairContext(keyNode, valueNode *yaml.Node) string {
+	return joinParserContext(
+		yamlCommentText(keyNode),
+		yamlCommentText(valueNode),
+	)
+}
+
+func yamlCommentText(node *yaml.Node) string {
+	if node == nil {
+		return ""
+	}
+	return joinParserContext(
+		yamlStripCommentMarkers(node.HeadComment),
+		yamlStripCommentMarkers(node.LineComment),
+	)
+}
+
+func yamlStripCommentMarkers(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	lines := strings.Split(raw, "\n")
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		line = strings.TrimPrefix(line, "#")
+		line = strings.TrimSpace(line)
+		if line != "" {
+			out = append(out, line)
+		}
+	}
+	return strings.Join(out, "\n")
 }
 
 func yamlMappingKey(node *yaml.Node, parent string) (string, error) {

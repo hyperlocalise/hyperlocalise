@@ -1437,6 +1437,29 @@ func ParseAsciiDocDocumentIR(content []byte) ParsedDocument {
 	return parsedDocumentFromAsciiDoc(doc)
 }
 
+func asciiDocIngestEntries(content []byte) map[string]IngestEntry {
+	doc, _ := parseAsciiDocDocument(stripBOM(content))
+	return applyContextByKey(parsedDocumentFromAsciiDoc(doc).ingestEntries(), asciiDocEntryContext(doc))
+}
+
+func asciiDocEntryContext(doc asciiDocDocument) map[string]string {
+	ctx := make(map[string]string, len(doc.parts))
+	for _, kc := range doc.keyContexts() {
+		if kc.partIndex < 0 || kc.partIndex >= len(doc.parts) {
+			continue
+		}
+		part := doc.parts[kc.partIndex]
+		if part.key == "" {
+			continue
+		}
+		ctx[part.key] = buildAsciiDocSegmentContext(kc.path, kc.prevLiteral, kc.nextLiteral)
+	}
+	if len(ctx) == 0 {
+		return nil
+	}
+	return ctx
+}
+
 func parsedDocumentFromAsciiDoc(doc asciiDocDocument) ParsedDocument {
 	out := ParsedDocument{
 		Format: DocumentFormatAsciiDoc,

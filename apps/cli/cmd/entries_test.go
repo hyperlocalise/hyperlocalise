@@ -54,6 +54,51 @@ func TestEntriesCommandExtractsMaxLengthFromAppleStrings(t *testing.T) {
 	}
 }
 
+func TestEntriesCommandIncludesFormatJSDescriptions(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "en-US.json")
+	content := []byte(`{
+  "checkout.submit": {"defaultMessage": "Submit", "description": "Checkout CTA"},
+  "home.title": {"defaultMessage": "Home"}
+}`)
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd("test")
+	out := bytes.NewBuffer(nil)
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"entries", path})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute entries: %v", err)
+	}
+
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+
+	var home string
+	if err := json.Unmarshal(payload["home.title"], &home); err != nil {
+		t.Fatalf("home.title decode: %v", err)
+	}
+	if home != "Home" {
+		t.Fatalf("home.title = %q, want Home", home)
+	}
+
+	var submit struct {
+		Text    string `json:"text"`
+		Context string `json:"context"`
+	}
+	if err := json.Unmarshal(payload["checkout.submit"], &submit); err != nil {
+		t.Fatalf("checkout.submit decode: %v", err)
+	}
+	if submit.Text != "Submit" || submit.Context != "Checkout CTA" {
+		t.Fatalf("unexpected checkout.submit payload: %+v", submit)
+	}
+}
+
 func TestEntriesCommandSRXUsesStrictFormatJSDetection(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "en.json")

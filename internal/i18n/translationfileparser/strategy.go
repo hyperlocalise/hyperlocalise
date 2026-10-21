@@ -102,8 +102,7 @@ func (p XMLParser) parseWithPath(path string, content []byte) (map[string]string
 	if IsAndroidStringResourcePath(path) {
 		return AndroidXMLResourcesParser{}.parseWithPath(path, content)
 	}
-	values, err := GenericXMLParser{}.Parse(content)
-	return values, nil, err
+	return GenericXMLParser{}.ParseWithContext(content)
 }
 
 // Register binds a parser to a file extension.
@@ -205,7 +204,7 @@ func (s *Strategy) ParseWithContext(path string, content []byte) (map[string]str
 }
 
 // ParseIngestEntries resolves a parser from the file path extension and returns entries
-// enriched with optional import metadata such as max-length limits.
+// enriched with optional import metadata such as max-length limits and parser context.
 func (s *Strategy) ParseIngestEntries(path string, content []byte, locale string) (map[string]IngestEntry, error) {
 	return s.ParseIngestEntriesWithSourceLocale(path, content, "", locale)
 }
@@ -221,16 +220,14 @@ func (s *Strategy) ParseIngestEntriesWithSourceLocale(path string, content []byt
 
 	if IsMarkdownDocumentExtension(path) {
 		mdx := IsMarkdownDocumentMDX(path)
-		doc := ParseMarkdownDocumentIR(content, mdx)
-		entries := doc.ingestEntries()
+		entries := markdownIngestEntries(content, mdx)
 		if entries == nil {
 			entries = map[string]IngestEntry{}
 		}
 		return entries, nil
 	}
 	if IsAsciiDocDocumentExtension(path) {
-		doc := ParseAsciiDocDocumentIR(content)
-		entries := doc.ingestEntries()
+		entries := asciiDocIngestEntries(content)
 		if entries == nil {
 			entries = map[string]IngestEntry{}
 		}
@@ -276,11 +273,19 @@ func (s *Strategy) ParseIngestEntriesWithSourceLocale(path string, content []byt
 		return entries, nil
 	}
 
-	values, err := s.ParseWithLocale(path, content, locale)
+	if locale != "" && (ext == ".csv" || ext == ".tsv") {
+		values, err := s.ParseWithLocale(path, content, locale)
+		if err != nil {
+			return nil, err
+		}
+		return IngestEntriesFromStringMap(values), nil
+	}
+
+	values, contextByKey, err := s.parseWithContext(path, content)
 	if err != nil {
 		return nil, err
 	}
-	return IngestEntriesFromStringMap(values), nil
+	return applyContextByKey(IngestEntriesFromStringMap(values), contextByKey), nil
 }
 
 func (s *Strategy) parseWithContext(path string, content []byte) (map[string]string, map[string]string, error) {
