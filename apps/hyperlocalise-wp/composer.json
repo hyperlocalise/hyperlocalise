@@ -13,12 +13,16 @@
         "szepeviktor/phpstan-wordpress": "^2.0"
     },
     "scripts": {
-        "lint": "find . -path ./vendor -prune -o -name '*.php' -exec php -l {} \\;",
+        "lint": "bin/lint.sh",
         "analyse": "phpstan analyse --memory-limit=1G",
-        "test": "phpunit"
+        "test": "phpunit",
+        "build": "bin/build-zip.sh"
     },
     "config": {
         "sort-packages": true,
+        "platform": {
+            "php": "7.4.33"
+        },
         "allow-plugins": {
             "phpstan/extension-installer": true
         }

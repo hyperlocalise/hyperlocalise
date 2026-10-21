@@ -85,7 +85,15 @@ composer install
 composer lint      # php -l on every file
 composer analyse   # PHPStan level 6 with WordPress stubs
 composer test      # unit tests for segmentation and locale matching
+composer build     # build/hyperlocalise-{version}.zip, without dev files
 ```
+
+CI (`.github/workflows/wordpress-plugin.yml`) runs on pull requests that touch this folder:
+
+- Lint and unit tests on PHP 7.4 and 8.4.
+- PHPStan.
+- The Playground smoke test (skipped on draft pull requests).
+- A build of the installable zip, uploaded as a workflow artifact.
 
 ### End-to-end smoke test
 
@@ -107,6 +115,15 @@ npx @wp-playground/cli@latest server \
 ```
 
 The mock accepts the token `hl_test_key` and project `project_1`. It returns French translations that swap a few English words and has no German translations. Sign in with `admin` / `password`.
+
+## Releasing
+
+1. Bump the version in three places: the `Version:` header and `HYPERLOCALISE_VERSION` in `hyperlocalise.php`, and `Stable tag:` in `readme.txt`. Add a changelog entry to `readme.txt`.
+2. Merge, then push a tag such as `wordpress-plugin-v0.2.0`.
+3. `.github/workflows/wordpress-plugin-release.yml` tests the plugin and builds the zip. It fails if the tag and the files disagree. It then publishes a GitHub release with `hyperlocalise-{version}.zip` attached.
+4. When the `WORDPRESS_ORG_DEPLOY` repository variable is `true`, the same workflow commits the build to the WordPress.org SVN repository. That requires the `WORDPRESS_ORG_SVN_USERNAME` and `WORDPRESS_ORG_SVN_PASSWORD` secrets. Directory banners and icons go in `.wordpress-org/`.
+
+The first WordPress.org submission is manual: upload the zip at [wordpress.org/plugins/developers/add](https://wordpress.org/plugins/developers/add/) and wait for review. Enable the SVN deploy after the `hyperlocalise` slug is approved.
 
 ## License
 
