@@ -14,9 +14,12 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { GOOGLE_EXPORT_MIME } from "./constants";
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
+
 import {
   loadTranslatedBytes,
   readGoogleDrivePushSourcePaths,
+  resolveGoogleDrivePushTargetLocales,
   selectGoogleDrivePushMappings,
 } from "./push-google-drive-translations";
 
@@ -40,6 +43,56 @@ vi.mock("@/lib/projects/files/lottie-translation-download", () => ({
   loadProjectLottieTranslationDownload: (...args: unknown[]) =>
     mocks.loadProjectLottieTranslationDownload(...args),
 }));
+
+function driveAutomation(targetLocales: string[]): WorkspaceAutomationRecord {
+  return {
+    id: "automation-1",
+    organizationId: "org-1",
+    authorUserId: "user-1",
+    status: "active",
+    name: "Google Drive files",
+    instructions: "",
+    projectId: "project-1",
+    triggerConfig: {
+      mode: "scheduled",
+      schedule: { cadence: "daily", hourUtc: 9, timezone: "UTC" },
+    },
+    repositoryTarget: { kind: "none" },
+    toolConfig: {
+      googleDrive: {
+        enabled: true,
+        workosUserId: "user-1",
+        folderIds: [],
+        fileIds: [],
+        targetLocales,
+        includeTranslatedFiles: false,
+        translationOutput: "folder",
+        existingTranslationPolicy: "seed_empty",
+      },
+    },
+    model: "openai/gpt-6-luna",
+    configVersion: 1,
+    nextRunAt: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+describe("resolveGoogleDrivePushTargetLocales", () => {
+  it("uses project targets when the automation list is empty", () => {
+    expect(resolveGoogleDrivePushTargetLocales(driveAutomation([]), ["vi-VN", "de-DE"])).toEqual([
+      "vi-VN",
+      "de-DE",
+    ]);
+  });
+
+  it("intersects automation locales with the project, case-insensitively", () => {
+    expect(
+      resolveGoogleDrivePushTargetLocales(driveAutomation(["vi-VN", "de-DE"]), ["vi-vn"]),
+    ).toEqual(["vi-VN"]);
+    expect(resolveGoogleDrivePushTargetLocales(driveAutomation(["ja-JP"]), ["vi-VN"])).toEqual([]);
+  });
+});
 
 describe("readGoogleDrivePushSourcePaths", () => {
   it("returns undefined when the snapshot omits sourcePaths", () => {
