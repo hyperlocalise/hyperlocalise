@@ -122,11 +122,11 @@ describe("generateContentEditorAiRecommendation metering", () => {
     });
 
     await generateContentEditorAiRecommendation(meteringInput, {
-      usageSource: "automation_recommend_translation",
+      usageSource: "workspace_crowdin_review_suggestion",
     });
 
     expect(trackAiCallTokenUsageMock).toHaveBeenCalledWith(
-      expect.objectContaining({ source: "automation_recommend_translation" }),
+      expect.objectContaining({ source: "workspace_crowdin_review_suggestion" }),
     );
   });
 

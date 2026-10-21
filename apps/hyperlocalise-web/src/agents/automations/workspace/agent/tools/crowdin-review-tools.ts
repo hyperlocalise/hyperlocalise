@@ -198,7 +198,7 @@ export function createCrowdinReviewTools(input: {
               }),
             ),
           },
-          { signal: abortSignal, usageSource: "automation_recommend_translation" },
+          { signal: abortSignal, usageSource: "workspace_crowdin_review_suggestion" },
         );
         if (isErr(result)) {
           return {
