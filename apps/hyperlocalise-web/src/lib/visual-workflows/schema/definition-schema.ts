@@ -333,7 +333,6 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
           z.number().int().nonnegative().max(1_000_000),
         ]),
       )
-      .min(1)
       .max(32),
     outputType: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
     missingBehavior: z.enum(["error", "optional", "default"]),

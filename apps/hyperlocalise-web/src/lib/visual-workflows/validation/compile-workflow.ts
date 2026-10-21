@@ -313,6 +313,12 @@ export function compileWorkflowIssues(
           config[field.name] === "")
       )
         add("invalid_node_config", node.id, undefined, { field: field.name, reason: "required" });
+    if (
+      node.config.kind === "logic.select_path" &&
+      node.config.path.length === 0 &&
+      !node.inputs?.path
+    )
+      add("invalid_node_config", node.id, undefined, { field: "path", reason: "required" });
     for (const field of node.outputFields ?? [])
       if (
         field.path.split(".").some((key) => ["__proto__", "constructor", "prototype"].includes(key))

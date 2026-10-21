@@ -409,6 +409,19 @@ export function compileVisualWorkflowV3Definition(
         });
       }
     }
+
+    if (
+      node.config.kind === "logic.select_path" &&
+      node.config.path.length === 0 &&
+      !Object.hasOwn(node.inputs ?? {}, "path")
+    ) {
+      issues.push({
+        code: "missing_required_input",
+        nodeId: node.id,
+        field: "path",
+        reason: "required",
+      });
+    }
   }
 
   return {

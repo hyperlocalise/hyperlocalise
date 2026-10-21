@@ -1482,13 +1482,13 @@ export function VisualWorkflowConfigPanel({
         ) : null}
         {config.kind === "logic.select_path" ? (
           <div className="grid gap-3">
-            <TextField
-              id="vw-select-path"
+            <SelectPathField
+              key={node.id}
               label={intl.formatMessage(messages.selectPathPath)}
-              value={formatSelectPath(config.path)}
               description={intl.formatMessage(messages.selectPathPathDescription)}
+              path={config.path}
               {...connectedInputProps("path")}
-              onChange={(value) => onChangeConfig({ ...config, path: parseSelectPath(value) })}
+              onChange={(path) => onChangeConfig({ ...config, path })}
             />
             <SelectField
               id="vw-select-path-output-type"
@@ -2597,17 +2597,60 @@ function formatSelectPath(path: readonly (string | number)[]): string {
     .join("");
 }
 
-function parseSelectPath(value: string): (string | number)[] {
+function parseSelectPath(value: string): (string | number)[] | null {
   const path: (string | number)[] = [];
   const matcher = /(?:^|\.)([^.[\]]+)|\[(\d+)\]/g;
   let consumed = 0;
   for (const match of value.matchAll(matcher)) {
-    if (match.index !== consumed) return [];
+    if (match.index !== consumed) return null;
     if (match[1] !== undefined) path.push(match[1]);
     else if (match[2] !== undefined) path.push(Number(match[2]));
     consumed = match.index + match[0].length;
   }
-  return consumed === value.length ? path : [];
+  return consumed === value.length ? path : null;
+}
+
+function SelectPathField({
+  label,
+  description,
+  path,
+  invalid,
+  port,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  path: readonly (string | number)[];
+  invalid?: boolean;
+  port?: BoundPort;
+  onChange: (path: (string | number)[]) => void;
+}) {
+  const formatted = formatSelectPath(path);
+  // Partial text such as `customer.` or `items[` cannot be stored as a path yet, so the
+  // draft is kept until it parses. It is dropped when the stored path changes elsewhere.
+  const [draft, setDraft] = useState<{ text: string; basePath: string } | null>(null);
+  const display = draft && draft.basePath === formatted ? draft.text : formatted;
+  const draftInvalid = parseSelectPath(display) === null;
+
+  return (
+    <TextField
+      id="vw-select-path"
+      label={label}
+      value={display}
+      description={description}
+      port={port}
+      invalid={invalid || draftInvalid}
+      onChange={(text) => {
+        const parsed = parseSelectPath(text);
+        if (parsed === null) {
+          setDraft({ text, basePath: formatted });
+          return;
+        }
+        setDraft({ text, basePath: formatSelectPath(parsed) });
+        onChange(parsed);
+      }}
+    />
+  );
 }
 
 function defaultValueForType(type: WorkflowValueType): unknown {

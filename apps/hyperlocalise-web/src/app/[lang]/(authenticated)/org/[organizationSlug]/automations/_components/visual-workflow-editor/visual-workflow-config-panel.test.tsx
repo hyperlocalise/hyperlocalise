@@ -1352,6 +1352,18 @@ describe("VisualWorkflowConfigPanel", () => {
     );
     expect(screen.getByLabelText("Output type")).toHaveTextContent("string");
     expect(screen.getByLabelText("When the path is missing")).toHaveTextContent("Fail the step");
+
+    onChangeConfig.mockClear();
+    replaceText(path, "items[");
+    expect(path).toHaveTextContent("items[");
+    expect(onChangeConfig).not.toHaveBeenCalled();
+    replaceText(path, "customer.");
+    expect(path).toHaveTextContent("customer.");
+    expect(onChangeConfig).not.toHaveBeenCalled();
+    replaceText(path, "customer.locale");
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ path: ["customer", "locale"] }),
+    );
   });
 });
 

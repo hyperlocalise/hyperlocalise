@@ -82,6 +82,35 @@ describe("Select Path compiler", () => {
     });
   });
 
+  it("requires a path when the static path is empty and no path is connected", () => {
+    const workflow = definition();
+    const select = workflow.nodes[1]!;
+    if (select.config.kind !== "logic.select_path") throw new Error("expected_select_path");
+    select.config.path = [];
+    select.inputs = { value: { kind: "literal", value: {} } };
+
+    expect(compileVisualWorkflowV3Definition(workflow).issues).toContainEqual({
+      code: "missing_required_input",
+      nodeId: "select",
+      field: "path",
+      reason: "required",
+    });
+  });
+
+  it("accepts an empty static path when the path input is bound", () => {
+    const workflow = definition();
+    const select = workflow.nodes[1]!;
+    if (select.config.kind !== "logic.select_path") throw new Error("expected_select_path");
+    select.config.path = [];
+    select.inputs = {
+      value: { kind: "literal", value: {} },
+      path: { kind: "literal", value: ["customer", "locale"] },
+    };
+
+    expect(compileVisualWorkflowV3Definition(workflow).issues).toEqual([]);
+    expect(validateVisualWorkflowV3Definition(workflow)).toEqual([]);
+  });
+
   it("rejects a dynamic path connection that is not an array", () => {
     const workflow = definition();
     workflow.edges.push(

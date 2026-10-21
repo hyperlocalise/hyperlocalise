@@ -97,6 +97,17 @@ describe("Select Path node contract", () => {
     ).toBe(false);
   });
 
+  it("allows an empty static path so the path can come from a connection", () => {
+    expect(
+      visualNodeConfigSchema.safeParse({
+        kind: "logic.select_path",
+        path: [],
+        outputType: "unknown",
+        missingBehavior: "error",
+      }).success,
+    ).toBe(true);
+  });
+
   it("requires a compatible default only for default behavior", () => {
     const base = {
       kind: "logic.select_path" as const,
