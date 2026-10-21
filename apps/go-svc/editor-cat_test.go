@@ -824,6 +824,13 @@ func TestEditorCatConcordance(t *testing.T) {
 	require.Equal(t, "Enregistrer", body.Concordance.GlossaryTerms[0].Target)
 	require.True(t, body.Concordance.GlossaryTerms[0].Approved)
 	require.Equal(t, 90, body.Concordance.TranslationMemoryMatches[0].MatchPercent)
+	require.True(t, body.Concordance.TranslationMemoryMatches[0].CanEdit)
+	require.True(t, body.Concordance.TranslationMemoryMatches[0].CanDelete)
+	require.Equal(t, &editorCatTmSegmentRef{
+		Kind:     "native",
+		MemoryID: memoryID,
+		EntryID:  entryID,
+	}, body.Concordance.TranslationMemoryMatches[0].SegmentRef)
 }
 
 func TestEditorCatSetHidden(t *testing.T) {

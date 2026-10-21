@@ -210,6 +210,20 @@ export interface ContentEditorGlossaryConcept {
   targetTerms: ContentEditorGlossaryConceptTerm[];
 }
 
+export type ContentEditorTmSegmentRef =
+  | {
+      kind: "native";
+      memoryId: string;
+      entryId: string;
+    }
+  | {
+      kind: "external";
+      providerKind: "crowdin";
+      resourceId: string;
+      externalResourceId: string;
+      externalSegmentId: string;
+    };
+
 export interface ContentEditorTranslationMemoryMatch {
   id: string;
   sourceText: string;
@@ -217,6 +231,9 @@ export interface ContentEditorTranslationMemoryMatch {
   matchPercent: number;
   matchKind?: ContentEditorTmMatchKind;
   contextLabel?: string;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  segmentRef?: ContentEditorTmSegmentRef;
 }
 
 export interface ContentEditorSegmentIntelligence {

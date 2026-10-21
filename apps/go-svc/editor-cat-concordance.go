@@ -17,12 +17,21 @@ type editorCatGlossaryTerm struct {
 	Forbidden bool   `json:"forbidden"`
 }
 
+type editorCatTmSegmentRef struct {
+	Kind     string `json:"kind"`
+	MemoryID string `json:"memoryId,omitempty"`
+	EntryID  string `json:"entryId,omitempty"`
+}
+
 type editorCatMemoryMatch struct {
-	ID           string `json:"id"`
-	SourceText   string `json:"sourceText"`
-	TargetText   string `json:"targetText"`
-	MatchPercent int    `json:"matchPercent"`
-	ContextLabel string `json:"contextLabel,omitempty"`
+	ID           string                 `json:"id"`
+	SourceText   string                 `json:"sourceText"`
+	TargetText   string                 `json:"targetText"`
+	MatchPercent int                    `json:"matchPercent"`
+	ContextLabel string                 `json:"contextLabel,omitempty"`
+	CanEdit      bool                   `json:"canEdit,omitempty"`
+	CanDelete    bool                   `json:"canDelete,omitempty"`
+	SegmentRef   *editorCatTmSegmentRef `json:"segmentRef,omitempty"`
 }
 
 func (api *editorCatAPI) loadConcordance(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
@@ -90,7 +99,7 @@ func (api *editorCatAPI) searchConcordanceGlossary(r *http.Request, actor editor
 
 func (api *editorCatAPI) searchConcordanceMemory(r *http.Request, actor editorCatActor, project editorCatProject, sourceLocale, targetLocale, pattern string) ([]editorCatMemoryMatch, error) {
 	rows, err := api.pool.Query(r.Context(), `
-        select e.id::text, e.source_text, e.target_text, e.match_score
+        select e.id::text, e.memory_id::text, e.source_text, e.target_text, e.match_score, m.name
         from project_memories pm
         join memories m on m.id = pm.memory_id
         join memory_entries e on e.memory_id = m.id
@@ -107,9 +116,13 @@ func (api *editorCatAPI) searchConcordanceMemory(r *http.Request, actor editorCa
 	matches := make([]editorCatMemoryMatch, 0)
 	for rows.Next() {
 		var match editorCatMemoryMatch
-		if err := rows.Scan(&match.ID, &match.SourceText, &match.TargetText, &match.MatchPercent); err != nil {
+		var memoryID string
+		if err := rows.Scan(&match.ID, &memoryID, &match.SourceText, &match.TargetText, &match.MatchPercent, &match.ContextLabel); err != nil {
 			return nil, err
 		}
+		match.CanEdit = true
+		match.CanDelete = true
+		match.SegmentRef = &editorCatTmSegmentRef{Kind: "native", MemoryID: memoryID, EntryID: match.ID}
 		matches = append(matches, match)
 	}
 	return matches, rows.Err()
