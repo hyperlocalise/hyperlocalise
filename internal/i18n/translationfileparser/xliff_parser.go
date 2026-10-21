@@ -453,7 +453,7 @@ func xliffTargetAttrs(source *xliffElement) string {
 			name = "xml:space"
 		}
 		if name != "" {
-			out.WriteString(" " + name + `="` + escapeXLIFFAttrValue(attr.Value) + `"`)
+			out.WriteString(xliffQuotedAttr(name, attr.Value))
 		}
 	}
 	return out.String()
@@ -553,22 +553,29 @@ func escapeXLIFFText(value string) string {
 }
 
 // escapeXLIFFAttrValue explicitly protects both attribute quote delimiters.
-// xml.EscapeText already escapes them; keep these replacements explicit for
-// static analyzers and to preserve the attribute contract if text escaping changes.
+// xml.EscapeText already escapes them; keep these replacements on every return
+// path so static analyzers treat the result as sanitized, and so the contract
+// holds if text escaping changes.
 func escapeXLIFFAttrValue(value string) string {
 	// Attribute values cannot reuse the text fast path: XML attribute-value
 	// normalization turns literal tabs and newlines into spaces, and forbidden
 	// code points must go through xml.EscapeText (U+FFFD) even without quotes.
-	if !strings.ContainsAny(value, "<>&'\"\r\t\n") && isXMLPlainCharData(value) {
-		return value
+	escaped := value
+	if strings.ContainsAny(value, "<>&'\"\r\t\n") || !isXMLPlainCharData(value) {
+		var out bytes.Buffer
+		out.Grow(len(value) + 16)
+		_ = xml.EscapeText(&out, []byte(value))
+		escaped = out.String()
 	}
-	var out bytes.Buffer
-	out.Grow(len(value) + 16)
-	_ = xml.EscapeText(&out, []byte(value))
-	escaped := out.String()
 	escaped = strings.ReplaceAll(escaped, `"`, "&#34;")
 	escaped = strings.ReplaceAll(escaped, "'", "&#39;")
 	return escaped
+}
+
+// xliffQuotedAttr builds ` name="value"` with quote replacement at the
+// concatenation site so go/unsafe-quoting can see the sanitizer.
+func xliffQuotedAttr(name, value string) string {
+	return " " + name + `="` + strings.ReplaceAll(escapeXLIFFAttrValue(value), `"`, "&#34;") + `"`
 }
 
 // setXLIFFTagAttr edits the value of an unqualified attribute only, preserving
@@ -616,7 +623,7 @@ func setXLIFFTagAttr(tag, name, value string) string {
 	if end > 0 && tag[end-1] == '/' {
 		end--
 	}
-	return tag[:end] + " " + name + `="` + escapeXLIFFAttrValue(value) + `"` + tag[end:]
+	return tag[:end] + xliffQuotedAttr(name, value) + tag[end:]
 }
 
 func isXLIFFWhitespace(c byte) bool {
@@ -670,7 +677,7 @@ func xliffInlineCodes(source *xliffElement, value string) (xliffInlineSignature,
 	var wrapper strings.Builder
 	wrapper.WriteString("<hyperlocalise-root")
 	for name, namespace := range namespaces {
-		wrapper.WriteString(" " + name + `="` + escapeXLIFFAttrValue(namespace) + `"`)
+		wrapper.WriteString(xliffQuotedAttr(name, namespace))
 	}
 	wrapper.WriteString(">" + value + "</hyperlocalise-root>")
 	decoder := xml.NewDecoder(strings.NewReader(wrapper.String()))
