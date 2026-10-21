@@ -26,9 +26,12 @@ import { normalizeTranslationMemorySourceText } from "@/lib/translation/normaliz
 
 import { captureAiUsage } from "./ai-cost";
 import {
-  bestReportingMatchScore,
+  analysisScopeLockKey,
   captureAnalysis,
+  captureCompletions,
   captureJobStatus,
+  MemoryScoreCache,
+  scoreAgainstMemory,
   sourceSimilarity,
 } from "./capture";
 
@@ -241,7 +244,7 @@ describe("reporting capture", () => {
     expect(costs).toHaveLength(1);
   });
 
-  it("matches approved memory entries with indexed lookup instead of a full scan", async () => {
+  it("matches approved memory entries", async () => {
     const { organization, project, user } = await projectFixture.createStoredProjectFixture();
     const [memory] = await db
       .insert(schema.memories)
@@ -276,20 +279,24 @@ describe("reporting capture", () => {
     });
 
     expect(
-      await bestReportingMatchScore({
-        memoryIds: [memory.id],
-        sourceLocale: "en-US",
-        targetLocale: "fr-FR",
-        sourceText: "Hello world",
-      }),
+      (
+        await scoreAgainstMemory({
+          memoryIds: [memory.id],
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          sourceTexts: ["Hello world"],
+        })
+      ).get("Hello world"),
     ).toBe(100);
     expect(
-      await bestReportingMatchScore({
-        memoryIds: [memory.id],
-        sourceLocale: "en-US",
-        targetLocale: "fr-FR",
-        sourceText: "Hello worlds!",
-      }),
+      (
+        await scoreAgainstMemory({
+          memoryIds: [memory.id],
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          sourceTexts: ["Hello worlds!"],
+        })
+      ).get("Hello worlds!"),
     ).toBeGreaterThan(80);
 
     await captureAnalysis({
@@ -310,13 +317,217 @@ describe("reporting capture", () => {
     expect(rows.find((row) => row.segmentId === "greeting")?.matchScore).toBe(100);
     expect(rows.find((row) => row.segmentId === "other")?.matchScore).toBeGreaterThan(80);
     expect(
-      await bestReportingMatchScore({
-        memoryIds: [memory.id],
+      (
+        await scoreAgainstMemory({
+          memoryIds: [memory.id],
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          sourceTexts: ["Hello brave world"],
+        })
+      ).get("Hello brave world"),
+    ).toBeGreaterThan(50);
+  });
+
+  it("scores a string saved alone the same as one in a larger group", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    const [memory] = await db
+      .insert(schema.memories)
+      .values({ organizationId: organization.id, createdByUserId: user.id, name: "Reporting TM" })
+      .returning();
+    await db.insert(schema.projectMemories).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      memoryId: memory.id,
+    });
+    await db.insert(schema.memoryEntries).values({
+      memoryId: memory.id,
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceText: "Download the translated files once every language has been approved",
+      normalizedSourceText: normalizeTranslationMemorySourceText(
+        "Download the translated files once every language has been approved",
+      ),
+      targetText: "Téléchargez les fichiers traduits",
+      reviewStatus: "approved",
+    });
+    // Every word misspelled, so a keyword search finds nothing; the characters still match 80%.
+    const typos = "Dxwnlxad txe traxslaxed fxles oxce exery lxnguxge hxs beex appxoved";
+    const scoreOf = async (sourceEntries: Record<string, string>) => {
+      await captureAnalysis({
+        organizationId: organization.id,
+        projectId: project.id,
         sourceLocale: "en-US",
         targetLocale: "fr-FR",
-        sourceText: "Hello brave world",
+        sourceEntries,
+      });
+      const [row] = await db
+        .select({ matchScore: schema.reportingAnalyses.matchScore })
+        .from(schema.reportingAnalyses)
+        .where(
+          and(
+            eq(schema.reportingAnalyses.organizationId, organization.id),
+            eq(schema.reportingAnalyses.segmentId, Object.keys(sourceEntries)[0]),
+          ),
+        );
+      return row?.matchScore;
+    };
+
+    expect(await scoreOf({ alone: typos })).toBe(80);
+    expect(
+      await scoreOf({ grouped: typos, b: "Save and close", c: "Open", d: "Cancel", e: "Delete" }),
+    ).toBe(80);
+  });
+
+  it("scores a memory larger than one slice the same as one loaded whole", async () => {
+    const { organization, user } = await projectFixture.createStoredProjectFixture();
+    const [memory] = await db
+      .insert(schema.memories)
+      .values({ organizationId: organization.id, createdByUserId: user.id, name: "Sliced TM" })
+      .returning();
+    const sources = [
+      "Download the translated files once every language has been approved",
+      "Save your changes before you leave this page",
+      "Invite team members to collaborate on translations",
+      "Your subscription renews on the first day of every month",
+      "Connect a repository to pick up new strings",
+    ];
+    await db.insert(schema.memoryEntries).values(
+      sources.map((sourceText) => ({
+        memoryId: memory.id,
+        sourceLocale: "en-US",
+        targetLocale: "fr-FR",
+        sourceText,
+        normalizedSourceText: normalizeTranslationMemorySourceText(sourceText),
+        targetText: "Traduction",
+        reviewStatus: "approved" as const,
+      })),
+    );
+    const input = {
+      memoryIds: [memory.id],
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceTexts: [
+        "Dxwnlxad txe traxslaxed fxles oxce exery lxnguxge hxs beex appxoved",
+        "Save your changes before you leave the page",
+        "Invite team members to collaborate on translations",
+        "Quarterly invoices are emailed to the billing contact",
+        "Connect a repository",
+      ],
+    };
+
+    const whole = await scoreAgainstMemory(input);
+    expect(whole.get(input.sourceTexts[0])).toBe(80);
+    expect(whole.get(input.sourceTexts[2])).toBe(100);
+    for (const sliceEntries of [1, 2, 3]) {
+      expect(await scoreAgainstMemory(input, { sliceEntries })).toEqual(whole);
+    }
+    expect(
+      await scoreAgainstMemory(
+        { ...input, sourceTexts: [input.sourceTexts[0]] },
+        { sliceEntries: 2 },
+      ),
+    ).toEqual(new Map([[input.sourceTexts[0], 80]]));
+  });
+
+  it("loads a memory once for scores that share it, through the cache", async () => {
+    const { organization, user } = await projectFixture.createStoredProjectFixture();
+    const [memory] = await db
+      .insert(schema.memories)
+      .values({ organizationId: organization.id, createdByUserId: user.id, name: "Cached TM" })
+      .returning();
+    await db.insert(schema.memoryEntries).values({
+      memoryId: memory.id,
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceText: "Hello world",
+      normalizedSourceText: normalizeTranslationMemorySourceText("Hello world"),
+      targetText: "Bonjour le monde",
+      reviewStatus: "approved",
+    });
+    const input = { memoryIds: [memory.id], sourceLocale: "en-US", targetLocale: "fr-FR" };
+    const cache = new MemoryScoreCache();
+    const selects = vi.spyOn(db, "select");
+
+    const first = await scoreAgainstMemory({ ...input, sourceTexts: ["Hello world"] }, { cache });
+    const loadsAfterFirst = selects.mock.calls.length;
+    const second = await scoreAgainstMemory(
+      { ...input, sourceTexts: ["Hello worlds", "Hello", "world", "Hello there world"] },
+      { cache },
+    );
+    expect(selects.mock.calls.length).toBe(loadsAfterFirst);
+    selects.mockRestore();
+    expect(first.get("Hello world")).toBe(100);
+    expect(second).toEqual(
+      await scoreAgainstMemory({
+        ...input,
+        sourceTexts: ["Hello worlds", "Hello", "world", "Hello there world"],
       }),
-    ).toBeGreaterThan(50);
+    );
+  });
+
+  it("keeps one current analysis when captures of different source texts compete", async () => {
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    const scope = {
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+    };
+    const currentRows = () =>
+      db
+        .select({ id: schema.reportingAnalyses.id })
+        .from(schema.reportingAnalyses)
+        .where(
+          and(
+            eq(schema.reportingAnalyses.organizationId, organization.id),
+            eq(schema.reportingAnalyses.segmentId, "greeting"),
+            eq(schema.reportingAnalyses.isCurrent, true),
+          ),
+        );
+    // Hold the scope's lock from another connection, so both captures reach it before either writes.
+    const holder = await db.$client.connect();
+    await holder.query("begin");
+    await holder.query("select pg_advisory_xact_lock(hashtextextended($1, 0))", [
+      analysisScopeLockKey({ ...scope, step: "translation" }),
+    ]);
+    const captures = ["Save changes", "Save all changes"].map((text) =>
+      captureAnalysis({ ...scope, sourceEntries: { greeting: text } }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(await currentRows()).toEqual([]);
+
+    await holder.query("commit");
+    holder.release();
+    await Promise.all(captures);
+    expect(await currentRows()).toHaveLength(1);
+  });
+
+  it("credits the person who post-edits a string a job already completed", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    const scope = {
+      organizationId: organization.id,
+      targetLocale: "fr-FR",
+      sourceEntries: { greeting: "Hello world" },
+    };
+    await captureAnalysis({
+      ...scope,
+      projectId: project.id,
+      sourceLocale: "en-US",
+      billable: true,
+    });
+    await captureCompletions({ ...scope, provenance: "automated" });
+    await captureCompletions({ ...scope, provenance: "human", actorUserId: user.id });
+
+    const completions = await db
+      .select({ actorUserId: schema.reportingActivity.actorUserId })
+      .from(schema.reportingActivity)
+      .where(
+        and(
+          eq(schema.reportingActivity.organizationId, organization.id),
+          eq(schema.reportingActivity.kind, "completion"),
+        ),
+      );
+    expect(completions).toEqual([{ actorUserId: user.id }]);
   });
 
   it("skips analysis capture when workspace reports is disabled", async () => {

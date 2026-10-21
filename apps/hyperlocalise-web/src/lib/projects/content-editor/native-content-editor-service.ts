@@ -1140,17 +1140,6 @@ export class NativeContentEditorService extends ProjectServiceBase {
       )
       .limit(1);
     const sourceJobId = input.sourceJobId ?? existing?.sourceJobId ?? undefined;
-    await captureNativeCatTranslationReporting({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      sourcePath: input.sourcePath,
-      translationKeyId: key.id,
-      targetLocale: input.targetLocale,
-      text: input.text,
-      approve: input.approve,
-      provenance: input.provenance,
-      sourceJobId,
-    });
     const status = input.approve ? "approved" : "draft";
     const provenance = input.provenance ?? "manual";
     const reviewedAt = input.approve ? new Date() : null;
@@ -1195,6 +1184,21 @@ export class NativeContentEditorService extends ProjectServiceBase {
     if (!saved) {
       return null;
     }
+
+    // This path writes no activity event, so Reports is recorded here, after the translation
+    // is stored. Go-service saves are recorded from their events by the reporting-capture cron.
+    await captureNativeCatTranslationReporting({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      translationKeyId: key.id,
+      targetLocale: input.targetLocale,
+      text: input.text,
+      approve: input.approve,
+      provenance: input.provenance,
+      sourceJobId,
+      actorUserId: input.actorUserId,
+    });
 
     this.log.debug(
       {

@@ -30,11 +30,6 @@ const {
 
 vi.mock("@/lib/activity-log/file-segment-events", () => ({
   enqueueStringSegmentApprovedActivity: enqueueApprovedActivityMock,
-  sessionActivityActor: (userId: string | null | undefined) => ({
-    actorCredentialId: null,
-    actorKind: userId ? "user" : "system",
-    actorUserId: userId ?? null,
-  }),
 }));
 
 vi.mock("@/lib/projects/content-editor/content-editor-segment-lock-service", () => ({
@@ -245,7 +240,7 @@ describe("updateMcpTranslation message format", () => {
     expect(enqueueApprovedActivityMock).toHaveBeenCalledOnce();
     expect(enqueueApprovedActivityMock).toHaveBeenCalledWith({
       actorCredentialId: null,
-      actorKind: "user",
+      actorKind: "agent",
       actorUserId: INPUT.actorUserId,
       organizationId: INPUT.organizationId,
       projectId: INPUT.projectId,
