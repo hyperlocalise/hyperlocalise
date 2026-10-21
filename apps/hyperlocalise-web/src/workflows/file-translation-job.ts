@@ -69,6 +69,7 @@ import {
   countPendingFileTranslations,
   nextFileTranslationPageDecision,
 } from "./file-translation-pagination";
+import { resolveFileTranslationSourceTexts } from "./file-translation-source-texts";
 
 import {
   collectFileTranslationPageStep,
@@ -653,7 +654,9 @@ async function assembleFileTranslationContextStep(input: {
   const { recordJobGenerationProvenance } =
     await import("@/lib/translation/generation-provenance-store");
 
-  const sourceText = (input.sourceText ?? input.sourceContent.toString("utf8")).slice(0, 500_000);
+  const { glossarySourceText, guidelineSourceText } = resolveFileTranslationSourceTexts(
+    input.sourceText ?? input.sourceContent.toString("utf8"),
+  );
   const knowledgeMemoryEnabled = await resolveWorkspaceKnowledgeFlag({
     organizationId: project.organizationId,
   }).catch(() => false);
@@ -670,7 +673,7 @@ async function assembleFileTranslationContextStep(input: {
           project,
           sourceLocale: input.sourceLocale,
           targetLocales: input.targetLocales,
-          sourceText,
+          sourceText: guidelineSourceText,
           context: input.metadata?.context,
           metadata: input.metadata,
         })
@@ -679,7 +682,7 @@ async function assembleFileTranslationContextStep(input: {
   ]);
 
   const matchedTerms = attachedTerms
-    .filter((term) => sourceContainsTerm(sourceText, term))
+    .filter((term) => sourceContainsTerm(glossarySourceText, term))
     .slice(0, 50);
   const glossaryTerms = matchedTerms.map(
     ({ sourceTerm, targetTerm, targetLocale, description, forbidden, caseSensitive }) => ({
