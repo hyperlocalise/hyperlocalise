@@ -922,6 +922,11 @@ export const contentEditorIntelligencePanelMessages = defineMessages({
     id: "Ctyr+N+gMR",
     description: "Validation error when the TM source locale field is empty",
   },
+  editTmSegmentTargetLocale: {
+    defaultMessage: "Language",
+    id: "dNHH1fTCnU",
+    description: "Label for the language picker on the edit TM segment dialog",
+  },
   deleteTmLocale: {
     defaultMessage: "Delete locale",
     id: "BtlJ9IYjPk",

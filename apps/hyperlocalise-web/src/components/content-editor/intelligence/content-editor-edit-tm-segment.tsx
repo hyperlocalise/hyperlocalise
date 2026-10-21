@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useState } from "react";
+import { observer } from "mobx-react-lite";
 import { PencilSimpleIcon, TrashIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -41,6 +42,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { readApiError } from "@/lib/api-error";
@@ -48,10 +56,38 @@ import { apiClient } from "@/lib/api-client-instance";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.messages";
-import type { ContentEditorTmSegment } from "@/lib/translation/content-editor-tm-segment";
+import type {
+  ContentEditorTmSegment,
+  ContentEditorTmSegmentRecord,
+} from "@/lib/translation/content-editor-tm-segment";
+import { useOptionalCatWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
 
 function draftKey(record: { id: string; locale: string }) {
   return `${record.id}:${record.locale}`;
+}
+
+function normalizeLocaleTag(locale: string) {
+  return locale.trim().replaceAll("_", "-").toLowerCase();
+}
+
+/** Exact tag match first, then a unique primary-language match (`fr` ↔ `fr-FR`). */
+export function findTmRecordForLocale(
+  records: ContentEditorTmSegmentRecord[],
+  locale: string | undefined,
+) {
+  if (!locale) {
+    return undefined;
+  }
+  const wanted = normalizeLocaleTag(locale);
+  const exact = records.find((record) => normalizeLocaleTag(record.locale) === wanted);
+  if (exact) {
+    return exact;
+  }
+  const wantedLanguage = wanted.split("-")[0];
+  const sameLanguage = records.filter(
+    (record) => normalizeLocaleTag(record.locale).split("-")[0] === wantedLanguage,
+  );
+  return sameLanguage.length === 1 ? sameLanguage[0] : undefined;
 }
 
 function draftsFromSegment(segment: ContentEditorTmSegment) {
@@ -109,7 +145,7 @@ export function ContentEditorEditTmSegmentButton({
   );
 }
 
-function ContentEditorEditTmSegmentDialog({
+const ContentEditorEditTmSegmentDialog = observer(function ContentEditorEditTmSegmentDialog({
   match,
   segmentRef,
   organizationSlug,
@@ -128,6 +164,10 @@ function ContentEditorEditTmSegmentDialog({
 }) {
   const intl = useIntl();
   const { client } = useGoSvcClient();
+  const workspace = useOptionalCatWorkspace();
+  const activeTargetLocale =
+    workspace?.selectedSegmentView?.targetLocale || workspace?.fileContext.targetLocale;
+  const [pickedRecordKey, setPickedRecordKey] = useState<string | null>(null);
   const [segment, setSegment] = useState<ContentEditorTmSegment | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -174,6 +214,12 @@ function ContentEditorEditTmSegmentDialog({
   }, [client, intl, organizationSlug, projectId, segmentRef, sourceLocale]);
 
   const sourceText = segment ? (drafts[draftKey(segment.source)] ?? segment.source.text) : "";
+  const targetRecords = segment?.records.filter((record) => !record.isSource) ?? [];
+  const activeLocaleRecord = findTmRecordForLocale(targetRecords, activeTargetLocale);
+  const pickedRecord =
+    activeLocaleRecord ??
+    targetRecords.find((record) => draftKey(record) === pickedRecordKey) ??
+    targetRecords[0];
 
   async function handleSave() {
     if (!segment) {
@@ -254,7 +300,7 @@ function ContentEditorEditTmSegmentDialog({
   return (
     <>
       <Dialog open onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[85dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
               <FormattedMessage {...contentEditorIntelligencePanelMessages.editTmSegment} />
@@ -267,41 +313,55 @@ function ContentEditorEditTmSegmentDialog({
               <Spinner className="size-5" />
             </div>
           ) : (
-            <FieldGroup>
-              {segment.records.map((record) => {
-                const localeLabel = formatLocaleDisplayName(intl, record.locale);
-                return (
-                  <Field key={`${record.id}:${record.locale}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <FieldLabel htmlFor={`tm-segment-${record.id}-${record.locale}`}>
-                        {localeLabel}
-                      </FieldLabel>
-                      {record.isSource || !match.canDelete ? null : (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={intl.formatMessage(
-                            contentEditorIntelligencePanelMessages.deleteTmLocale,
-                          )}
-                          onClick={() => setPendingDelete(record)}
-                        >
-                          <TrashIcon className="size-4" />
-                        </Button>
-                      )}
-                    </div>
-                    <Textarea
-                      id={`tm-segment-${record.id}-${record.locale}`}
-                      value={drafts[draftKey(record)] ?? record.text}
-                      onChange={(event) => {
-                        const value = event.currentTarget.value;
-                        setDrafts((current) => ({ ...current, [draftKey(record)]: value }));
-                      }}
-                      rows={2}
+            <FieldGroup className="-mx-1 min-h-0 overflow-y-auto px-1">
+              <TmSegmentRecordField
+                record={segment.source}
+                value={sourceText}
+                onChange={(value) =>
+                  setDrafts((current) => ({ ...current, [draftKey(segment.source)]: value }))
+                }
+              />
+              {!activeLocaleRecord && targetRecords.length > 1 && pickedRecord ? (
+                <Field>
+                  <FieldLabel htmlFor="tm-segment-target-locale">
+                    <FormattedMessage
+                      {...contentEditorIntelligencePanelMessages.editTmSegmentTargetLocale}
                     />
-                  </Field>
-                );
-              })}
+                  </FieldLabel>
+                  <Select
+                    value={draftKey(pickedRecord)}
+                    onValueChange={(value) => {
+                      if (typeof value === "string") {
+                        setPickedRecordKey(value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="tm-segment-target-locale" className="w-full min-w-0">
+                      <SelectValue>
+                        {() => formatLocaleDisplayName(intl, pickedRecord.locale)}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {targetRecords.map((record) => (
+                        <SelectItem key={draftKey(record)} value={draftKey(record)}>
+                          {formatLocaleDisplayName(intl, record.locale)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              ) : null}
+              {pickedRecord ? (
+                <TmSegmentRecordField
+                  key={draftKey(pickedRecord)}
+                  record={pickedRecord}
+                  value={drafts[draftKey(pickedRecord)] ?? pickedRecord.text}
+                  onChange={(value) =>
+                    setDrafts((current) => ({ ...current, [draftKey(pickedRecord)]: value }))
+                  }
+                  onDelete={match.canDelete ? () => setPendingDelete(pickedRecord) : undefined}
+                />
+              ) : null}
               {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
             </FieldGroup>
           )}
@@ -345,6 +405,46 @@ function ContentEditorEditTmSegmentDialog({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+});
+
+function TmSegmentRecordField({
+  record,
+  value,
+  onChange,
+  onDelete,
+}: {
+  record: ContentEditorTmSegmentRecord;
+  value: string;
+  onChange: (value: string) => void;
+  onDelete?: () => void;
+}) {
+  const intl = useIntl();
+  const id = `tm-segment-${record.id}-${record.locale}`;
+  return (
+    <Field>
+      <div className="flex items-center justify-between gap-2">
+        <FieldLabel htmlFor={id}>{formatLocaleDisplayName(intl, record.locale)}</FieldLabel>
+        {onDelete ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={intl.formatMessage(contentEditorIntelligencePanelMessages.deleteTmLocale)}
+            onClick={onDelete}
+          >
+            <TrashIcon className="size-4" />
+          </Button>
+        ) : null}
+      </div>
+      <Textarea
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value)}
+        rows={3}
+        className="max-h-48 overflow-y-auto"
+      />
+    </Field>
   );
 }
 
