@@ -1,0 +1,76 @@
+name: Sanity Studio Plugin CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - apps/sanity-studio-plugin/**
+      - .github/workflows/sanity-studio-plugin.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sanity-studio-plugin-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+
+jobs:
+  sanity-studio-plugin-check:
+    name: Sanity Studio Plugin Check
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    defaults:
+      run:
+        working-directory: apps/sanity-studio-plugin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          working-directory: apps/sanity-studio-plugin
+          cache: true
+          run-install: false
+
+      - name: Install sanity-studio-plugin dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Check sanity-studio-plugin
+        run: vp check
+
+  sanity-studio-plugin-build:
+    name: Sanity Studio Plugin Build
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    defaults:
+      run:
+        working-directory: apps/sanity-studio-plugin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          working-directory: apps/sanity-studio-plugin
+          cache: true
+          run-install: false
+
+      - name: Install sanity-studio-plugin dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Build sanity-studio-plugin
+        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+        run: pnpm run build
+
+      - name: Build sanity-studio-plugin dev studio
+        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+        env:
+          SANITY_STUDIO_PROJECT_ID: placeholder
+          SANITY_STUDIO_DATASET: production
+        run: pnpm run dev:build

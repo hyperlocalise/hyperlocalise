@@ -16,6 +16,7 @@ import { createAutomationsApi } from "@/app/[lang]/(authenticated)/org/[organiza
 import { apiClient } from "@/lib/api-client-instance";
 import { hasWorkspaceAutomationSanityTool } from "@/lib/agents/workspace-automation-types";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+import { isSanityPluginSourcePath } from "@/lib/sanity/segment-file";
 
 export type ContentEditorSanityPushCandidate = {
   automationId: string;
@@ -209,5 +210,8 @@ export async function fetchContentEditorSanityPushDocuments(input: {
     throw new Error("Failed to load Sanity push documents");
   }
   const body = await response.json();
-  return body.sanityPush?.documents ?? [];
+  const documents = body.sanityPush?.documents ?? [];
+  return documents.filter(
+    (document: ContentEditorSanityPushDocument) => !isSanityPluginSourcePath(document.sourcePath),
+  );
 }

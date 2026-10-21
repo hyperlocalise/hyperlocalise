@@ -1066,7 +1066,11 @@ export function IntegrationsPageContent({
               </CollapsibleIntegrationRow>
               <CanvaConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
               <FigmaConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
-              <SanityConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+              <SanityConnectionPanel
+                organizationSlug={organizationSlug}
+                disabled={!userIsAdmin}
+                isLast
+              />
               {workspacePipesCmsSlugs.map((slug, index) => (
                 <PipesConnectionPanel
                   key={slug}

@@ -19,6 +19,10 @@ Secrets are shown once. If you lost one, create a replacement, update the client
 
 Confirm **Integrations** → **Intercom** is connected for the workspace that owns the Help Center. Reauthorize if Platform asks you to. Check the automation’s **Intercom region** (`United States`, `European Union`, or `Australia`) and selected Help Center. Project locales must match Intercom locale codes exactly. See [Localize Intercom Help Center articles](/platform/connections/intercom).
 
+## Sanity Studio shows no target locales or Upload stays disabled
+
+The plugin does not define its own language list. After OAuth, it loads each native project's `sourceLocale` and `targetLocales` from the session API—the same tags as [project Settings → Locales](/platform/projects/languages). **Translate to** (document view and bulk tool) only lists project targets (and, when set, the intersection with `supportedLanguages` in `sanity.config`). Pick tags from that list and align Sanity `language` / Locales `tag` values with those project tags. After you change project locales in Hyperlocalise, use **Change** on the project line in the plugin to reload the session. See [Project locales list](/platform/connections/sanity-studio-plugin#project-locales-list) and [Localize Sanity Studio documents](/platform/connections/sanity-studio-plugin).
+
 ## A Canva job rejects the source locale
 
 The Canva app does not keep its own language list. Pick a native project in the app, then upload, apply, or translate. The job source is that project's source locale, and targets must already belong to that project. `en` is not `en-US`. Upload writes a new batch of page files after a preview confirm; apply uses that batch only. **Translate** uploads, runs the agent job, and applies the result. Open [project languages](/platform/projects/languages), then pick the project again in Canva so the app reloads the list. See [Localize Canva](/platform/connections/canva).

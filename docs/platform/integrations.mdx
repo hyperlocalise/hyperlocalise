@@ -12,6 +12,8 @@ Connect the systems that hold your content or provide tools for your workflows. 
 | Braze | [Localize Braze](/platform/connections/braze) (Email Templates or Campaigns & Canvas) |
 | Canva | [Localize Canva](/platform/connections/canva) |
 | Figma | [Localize Figma](/platform/connections/figma) |
+| Sanity (Studio inspector) | [Localize Sanity Studio documents](/platform/connections/sanity-studio-plugin) |
+| Sanity (automations) | [Localize Sanity documents (automation)](/platform/connections/sanity) |
 | Repository files through CI | [Connect the CLI](/platform/cli) |
 | An AI agent working with Platform | [Hosted MCP server](/platform/mcp) |
 | Custom file and job integrations | [Public API](/platform/api) |
@@ -27,6 +29,13 @@ Create a Canva connection with a personal token. Designers pick the native proje
 ## Figma
 
 Create a Figma connection with a personal token. Designers pick the native project in the Figma plugin. Jobs use that project's source and target languages. Follow [Localize Figma](/platform/connections/figma) to upload source pages (collect only), translate, and apply one locale at a time.
+
+## Sanity
+
+Hyperlocalise supports two Sanity workflows:
+
+- **Studio plugin**: Create a **Sanity Studio plugin** connection (personal access token). Editors OAuth from the `sanity-plugin-hyperlocalise` editor view or bulk tool, upload documents, translate, and write locale versions. Each OAuth grant is bound to the Studio origin. See [Localize Sanity Studio documents](/platform/connections/sanity-studio-plugin).
+- **Automations**: Connect **Sanity** (Pipes) for scheduled or manual import of document sets, translation in Jobs, and **Push to Sanity** from the Content editor. See [Localize Sanity documents (automation)](/platform/connections/sanity).
 
 ## GitLab
 

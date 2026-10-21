@@ -1,0 +1,84 @@
+{
+  "name": "sanity-plugin-hyperlocalise",
+  "version": "1.0.0",
+  "description": "Hyperlocalise translation view and bulk tool for Sanity Studio (OAuth, upload, translate, write)",
+  "keywords": [
+    "sanity",
+    "sanity-plugin"
+  ],
+  "homepage": "https://github.com/hyperlocalise/hyperlocalise#readme",
+  "bugs": {
+    "url": "https://github.com/hyperlocalise/hyperlocalise/issues"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Kha-Vi Nguyen <nguyenkhavi01032001@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hyperlocalise/hyperlocalise.git",
+    "directory": "apps/sanity-studio-plugin"
+  },
+  "files": [
+    "dist",
+    "sanity.json",
+    "v2-incompatible.js"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js",
+      "./package.json": "./package.json"
+    },
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "plugin-kit verify-package --silent && pkg-utils build --strict --check --clean",
+    "dev": "sanity dev --port 3333",
+    "dev:build": "sanity build dist-studio --yes",
+    "format": "oxfmt",
+    "link-watch": "plugin-kit link-watch",
+    "lint": "oxlint",
+    "prepublishOnly": "npm run build",
+    "watch": "pkg-utils watch --strict"
+  },
+  "dependencies": {
+    "@sanity/icons": "^5.2.3",
+    "@sanity/incompatible-plugin": "^1.0.5",
+    "@sanity/ui": "^4.4.9",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@sanity/document-internationalization": "^4.1.1",
+    "@sanity/pkg-utils": "^13.0.15",
+    "@sanity/plugin-kit": "^10.0.14",
+    "@types/react": "^19.3.0",
+    "oxfmt": "^0.73.0",
+    "oxlint": "^1.88.0",
+    "oxlint-tsgolint": "^7.0.2004",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sanity": "^6.19.0",
+    "sanity-plugin-internationalized-array": "^3.2.2",
+    "styled-components": "^6.6.0",
+    "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19",
+    "sanity": "^3 || ^4 || ^5 || ^6.0.0-0",
+    "styled-components": "^6.1"
+  },
+  "browserslist": "extends @sanity/browserslist-config",
+  "engines": {
+    "node": ">=20.19 <22 || >=22.12"
+  }
+}

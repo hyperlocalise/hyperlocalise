@@ -21,6 +21,7 @@ import {
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 import { parseSanityTranslationMapJson, readSanityTranslationMap } from "./document-json";
+import { isSanityPluginSourcePath } from "./segment-file";
 import { sourceKeysMissingApprovedTranslations } from "./push-sanity-translations";
 import { isSanityLocaleSupportedForDocumentType } from "./locale-catalog";
 import type { SanityFieldValue } from "./sanity-field-value";
@@ -134,6 +135,9 @@ export async function getSanityPushEligibility(input: {
   const documents: SanityPushDocument[] = [];
 
   for (const mapping of mappings) {
+    if (isSanityPluginSourcePath(mapping.sourcePath)) {
+      continue;
+    }
     const latest = await getLatestRepositorySourceFileVersion({
       organizationId: input.organizationId,
       projectId,

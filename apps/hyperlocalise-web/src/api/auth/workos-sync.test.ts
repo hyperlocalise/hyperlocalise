@@ -350,6 +350,7 @@ describe("revokeOrganizationMembershipAccess", () => {
       apiKeysRevoked: 0,
       figmaOauthTokensRevoked: 0,
       canvaOauthTokensRevoked: 0,
+      sanityOauthTokensRevoked: 0,
     });
   });
 

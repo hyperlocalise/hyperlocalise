@@ -51,6 +51,8 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/mcp")).toBe(false);
     expect(isUnsupportedLocalePath("/mcp/callback")).toBe(false);
     expect(isUnsupportedLocalePath("/mcp/consent")).toBe(false);
+    expect(isUnsupportedLocalePath("/connect/sanity/oauth/callback")).toBe(false);
+    expect(isUnsupportedLocalePath("/connect/figma/oauth/callback")).toBe(false);
   });
 
   it("allows opaque UUID roots used by BotID challenge scripts", () => {

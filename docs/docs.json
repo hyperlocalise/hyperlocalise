@@ -208,6 +208,7 @@
                       "platform/connections/github",
                       "platform/connections/intercom",
                       "platform/connections/sanity",
+                      "platform/connections/sanity-studio-plugin",
                       "platform/connections/braze",
                       "platform/connections/canva",
                       "platform/connections/figma",
@@ -550,6 +551,7 @@
                       "contributing/development",
                       "contributing/canva-app-oauth",
                       "contributing/figma-plugin-oauth",
+                      "contributing/sanity-studio-plugin-oauth",
                       "contributing/lambda-deploy",
                       "contributing/release-maintenance"
                     ],
