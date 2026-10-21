@@ -59,11 +59,6 @@ vi.mock("@/lib/database/client", () => ({
     reviewJobDetails: { jobId: "reviewJobId" },
     syncJobDetails: { jobId: "syncJobId" },
     assetManagementJobDetails: { jobId: "assetJobId" },
-    glossaries: { id: "glossaries" },
-    glossaryConcepts: { id: "glossaryConcepts" },
-    glossaryTerms: { id: "glossaryTerms" },
-    memories: { id: "memories" },
-    memoryEntries: { id: "memoryEntries" },
     projects: { id: "id", organizationId: "organizationId", teamId: "teamId" },
   },
 }));
@@ -185,19 +180,6 @@ describe("Agent Tools RBAC", () => {
         from: vi.fn(() => ({
           where: vi.fn(() => ({
             limit: vi.fn(async () => []),
-          })),
-          innerJoin: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => [
-                {
-                  glossaryId: "g_123",
-                  glossaryOrgId: "org_123",
-                  memoryOrgId: "org_123",
-                  controlLevel: "team",
-                  source: "native",
-                },
-              ]),
-            })),
           })),
         })),
       })),
