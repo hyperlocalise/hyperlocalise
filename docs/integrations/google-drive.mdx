@@ -5,62 +5,24 @@ description: Connect Google Drive, manage folders, and sync translatable files t
 
 # Google Drive
 
-Connect Google Drive with WorkOS Pipes, choose folders on the Integrations page, and use a workspace automation to import supported files into a Hyperlocalise project. Translations are written back under per-locale subfolders as `[locale] Filename.ext`.
+Connect Google Drive, choose folders on the Integrations page, and use a workspace automation to import supported files into a Hyperlocalise project. Translations are written back under per-locale subfolders as `[locale] Filename.ext`.
 
-## Setup
+## Connect Google Drive
 
-1. In **Integrations → Guidelines**, connect **Google Drive** (custom OAuth button; not the generic Pipes widget).
-2. After connecting, use **Add folders** to select My Drive or Shared Drive folders. You can add or remove folders anytime.
-3. Create or edit a workspace automation with the **Translate Google Drive files** skill, attach a native project, and select the connected folders.
+1. Open workspace **Integrations → Guidelines** and find **Google Drive**, then choose **Connect**.
+2. Sign in with Google and approve access when prompted. Hyperlocalise reads files in folders you select and writes translated copies under locale subfolders in those folders.
+3. After connecting, use **Add folders** to select **My Drive** or **Shared drive** folders. You can add or remove folders anytime.
+4. Reconnect if Integrations shows that authorization expired or needs to be renewed.
 
-Platform operators must configure WorkOS Pipes and Google OAuth before customers can connect in production. See [Google OAuth setup (WorkOS Pipes)](#google-oauth-setup-workos-pipes) below.
+## Create the automation
 
-## Google OAuth setup (WorkOS Pipes)
+1. Open workspace **Automations** and create or edit an automation with the **Translate Google Drive files** skill (or apply the **Translate Google Drive files** template).
+2. Attach a native project and set source and target locales under [project Settings → Locales](/platform/projects/languages).
+3. Select the connected Google Drive folders to import from.
+4. Use a **manual** trigger or **schedule** for import. Import does not push translations to Drive.
+5. After translation, use **Push to Google Drive** from the Content editor (or your orchestrator flow) to write locale files back.
 
-Hyperlocalise connects through WorkOS Pipes with provider slug **`google-drive`**. Tokens call the Google Drive API v3 (list shared drives, browse folders, export Google Workspace files, download binaries, create locale subfolders, and upload or update translated files). All of those operations use `supportsAllDrives=true` so **My Drive** and **Shared drives** behave the same.
-
-### Required OAuth scope
-
-Configure **exactly this scope** on the WorkOS Google Drive provider (and on your Google OAuth client consent screen):
-
-| Scope | Required |
-| --- | --- |
-| `https://www.googleapis.com/auth/drive` | **Yes** |
-
-This is a **restricted** Google scope. Production apps must complete [Google OAuth app verification](https://support.google.com/cloud/answer/9110914) for restricted Drive scopes before all users can connect without an "unverified app" warning.
-
-**Do not substitute narrower scopes** for this integration:
-
-| Scope | Why it is not enough |
-| --- | --- |
-| `https://www.googleapis.com/auth/drive.readonly` | Import works, but push cannot create locale subfolders or upload translated files. |
-| `https://www.googleapis.com/auth/drive.file` | Only covers files the app created or opened with a picker. Hyperlocalise must read existing files in folders the admin browses and write into those folders without per-file picker grants. |
-
-Optional future work (Changes API incremental sync) uses the same **`drive`** scope; no extra scope is required beyond what import and push already need.
-
-### WorkOS Dashboard
-
-1. Open **Pipes** and enable the **Google Drive** provider with slug **`google-drive`** (must match Hyperlocalise `PIPES_PROVIDER_SLUGS`).
-2. Under provider scopes, add **`https://www.googleapis.com/auth/drive`**. Do not request unrelated Drive scopes unless you have a separate product reason.
-3. Add a short **description** for the consent widget (for example: read selected folders for translation import and write translated copies under locale subfolders).
-4. **Sandbox:** WorkOS shared Google credentials are enough for early testing.
-5. **Production:** Create your own Google OAuth client (see below), paste **Client ID** and **Client secret** into WorkOS, and use the **Redirect URI** WorkOS shows for that provider.
-6. Grant roles that manage Integrations permission to use the Pipes widget / authorize-url flow for `google-drive`.
-
-### Google Cloud Console
-
-1. In the project that owns the OAuth client, enable the **[Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com)**.
-2. Configure the **[OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent)** (Internal for workspace-only testing, External for customers).
-3. Create an **OAuth client ID** (type **Web application**).
-4. Add the **Authorized redirect URI** from the WorkOS Google Drive provider page (copy it from WorkOS; do not guess).
-5. On the consent screen, add scope **`https://www.googleapis.com/auth/drive`** (Display: "See, edit, create, and delete all of your Google Drive files").
-6. Submit **verification** for the restricted scope before general availability if the app is External.
-
-### Smoke check after setup
-
-1. Connect Google Drive from **Integrations → Guidelines** in staging.
-2. Expand **My Drive** and a **Shared drive** in **Add folders** (403 here usually means missing **`drive`** scope or Drive API disabled).
-3. Save a folder, run **Translate Google Drive files** import, then **Push to Google Drive** and confirm files appear under `{folder}/{locale}/`.
+Google Drive is not a trigger type. Use **Run now** or a schedule for import; push is a separate action.
 
 ## Supported files
 
