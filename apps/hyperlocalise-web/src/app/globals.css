@@ -1090,6 +1090,389 @@ html,
   color: var(--muted-foreground);
 }
 
+/* ══ Sonner (components/ui/sonner.tsx) ══════════════════════════════════
+   Paper cards: one surface colour, a hairline instead of a drop shadow,
+   and status as a solid icon — never a filled toast. Sonner already
+   stacks and fans on hover; this only restyles it. */
+.toaster {
+  font-family: var(--font-sans);
+  --toast-mute: color-mix(in srgb, var(--foreground) 52%, var(--card));
+  --toast-wash: color-mix(in srgb, var(--foreground) 6%, var(--card));
+}
+
+.toaster [data-sonner-toast][data-styled="true"] {
+  gap: 12px;
+  padding: 12px 44px 12px 16px;
+  background: var(--card);
+  color: var(--foreground);
+  border: 0;
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.toaster [data-sonner-toast][data-styled="true"][data-expanded="false"][data-front="false"] {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--card));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+
+.toaster [data-sonner-toast]:focus-visible {
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 0 0 3px var(--ring);
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-icon] {
+  width: 18px;
+  height: 18px;
+}
+
+.toaster [data-sonner-toast][data-type="success"] [data-icon] {
+  color: var(--ds-green-700);
+}
+
+.toaster [data-sonner-toast][data-type="error"] [data-icon] {
+  color: var(--destructive);
+}
+
+.toaster [data-sonner-toast][data-type="warning"] [data-icon] {
+  color: var(--color-warning);
+}
+
+.toaster [data-sonner-toast][data-type="info"] [data-icon] {
+  color: var(--toast-mute);
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-title] {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+  letter-spacing: -0.01em;
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-description] {
+  font-size: 13px;
+  line-height: 17px;
+  color: var(--toast-mute);
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-button] {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--toast-wash);
+  color: inherit;
+  font-size: 13px;
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-button]:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-cancel] {
+  background: var(--toast-wash);
+  color: inherit;
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-close-button] {
+  top: 8px;
+  left: auto;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  transform: none;
+  border: 0;
+  background: none;
+  color: var(--toast-mute);
+}
+
+.toaster[dir="rtl"] [data-sonner-toast][data-styled="true"] [data-close-button] {
+  left: 8px;
+  right: auto;
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-close-button]:focus-visible,
+.toaster [data-sonner-toast][data-styled="true"]:hover [data-close-button]:hover {
+  background: var(--toast-wash);
+  border: 0;
+  color: var(--foreground);
+  box-shadow: none;
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-close-button]:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+/* Upload dropzone (components/ui/upload-dropzone.tsx). Tokens stay
+   on `.upl`: surface `--card`, ink `--foreground`, hairline `--border`,
+   progress `--ring`, tick `--ds-green-700`. */
+.upl {
+  --fill-on: var(--foreground);
+  --fill-slab: var(--card);
+  --font-ui: var(--font-sans);
+  --ink: var(--foreground);
+  --ok: var(--ds-green-700);
+  --pane-edge: var(--border);
+  --signal: var(--ring);
+  --upl-refuse: var(--destructive);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 300px;
+  font-family: var(--font-ui);
+  color: var(--fill-on, var(--ink));
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.upl[data-wide] {
+  width: 100%;
+}
+
+/* Fixed slot so shrinking the box around an upload does not move
+   the content below. */
+.upl-zone-wrap {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 176px;
+}
+
+.upl[data-compact] .upl-zone-wrap {
+  height: 112px;
+}
+
+.upl-zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  height: 176px;
+  padding: 0 16px;
+  overflow: hidden;
+  border-radius: var(--upl-r);
+  background: var(--fill-slab, var(--card));
+  box-shadow: 0 0 0 1px var(--pane-edge);
+  transition:
+    scale 420ms cubic-bezier(0.24, 1.34, 0.38, 1),
+    width 420ms cubic-bezier(0.24, 1.34, 0.38, 1),
+    height 420ms cubic-bezier(0.24, 1.34, 0.38, 1),
+    background-color 220ms ease;
+}
+
+.upl[data-compact] .upl-zone:not([data-busy]) {
+  height: 112px;
+}
+
+.upl-zone[data-over] {
+  scale: 1.02;
+}
+
+.upl-zone:focus-visible {
+  box-shadow: 0 0 0 2px var(--signal, #2231dd);
+}
+
+.upl-zone[data-gulp] {
+  animation: upl-gulp 460ms cubic-bezier(0.3, 1.2, 0.4, 1);
+}
+
+.upl-zone[data-gulp] .upl-icon {
+  animation: upl-open 460ms cubic-bezier(0.3, 1.4, 0.4, 1);
+}
+
+.upl-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--fill-on, #17181a) 6%, var(--fill-slab, #ffffff));
+  color: color-mix(in srgb, var(--fill-on, #17181a) 72%, var(--fill-slab, #ffffff));
+  transition:
+    translate 420ms cubic-bezier(0.24, 1.34, 0.38, 1),
+    background-color 220ms ease,
+    color 220ms ease;
+}
+
+.upl-zone[data-over] .upl-icon {
+  translate: 0 -4px;
+  color: var(--fill-on, var(--ink));
+}
+
+.upl-say {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  text-align: center;
+  letter-spacing: 0em;
+}
+
+.upl-say b {
+  font-weight: 500;
+}
+
+.upl-say span {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--fill-on, #17181a) 52%, var(--fill-slab, #ffffff));
+  letter-spacing: 0em;
+}
+
+.upl-zone[data-refuse] .upl-say b {
+  color: var(--upl-refuse, #e5484d);
+}
+
+.upl-now {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  flex: none;
+  animation: upl-land 420ms var(--upl-spring) both;
+}
+
+.upl-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 150px;
+}
+
+.upl-name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  letter-spacing: 0em;
+}
+
+.upl-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 14px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--fill-on, #17181a) 52%, var(--fill-slab, #ffffff));
+  letter-spacing: 0em;
+}
+
+.upl-track {
+  position: relative;
+  height: 4px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--fill-on, #17181a) 6%, var(--fill-slab, #ffffff));
+}
+
+.upl-bar {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--signal, #2231dd);
+  transform-origin: left center;
+}
+
+.upl-roll {
+  display: inline-flex;
+  line-height: 1em;
+  height: 1em;
+  overflow: hidden;
+}
+
+.upl-roll-col {
+  display: inline-block;
+  height: 1em;
+  overflow: hidden;
+}
+
+.upl-roll-strip {
+  display: flex;
+  flex-direction: column;
+  transition: transform 220ms cubic-bezier(0.24, 1.34, 0.38, 1);
+}
+
+.upl-roll-strip > span {
+  height: 1em;
+}
+
+.upl-end {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+
+.upl-tick {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ok, #15803d);
+  color: #fff;
+  animation: upl-pop 380ms cubic-bezier(0.3, 1.6, 0.4, 1) both;
+}
+
+.upl-page {
+  overflow: visible;
+}
+
+.upl-page-line {
+  stroke: color-mix(in srgb, var(--fill-on, #17181a) 32%, var(--fill-slab, #ffffff));
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.upl-page-ext {
+  fill: #fff;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  letter-spacing: 0em;
+}
+
+@keyframes upl-gulp {
+  0% {
+    scale: 1.02;
+  }
+  35% {
+    scale: 0.985;
+  }
+  70% {
+    scale: 1.006;
+  }
+  100% {
+    scale: 1;
+  }
+}
+
+@keyframes upl-open {
+  40% {
+    scale: 1.08;
+  }
+}
+
+@keyframes upl-land {
+  from {
+    opacity: 0;
+    scale: 0.85;
+    translate: 0 10px;
+  }
+}
+
+@keyframes upl-pop {
+  from {
+    scale: 0;
+  }
+}
+
 /* Theme switches crossfade the whole page as one snapshot (see theme-toggle.tsx). */
 :root[data-theme-transition] * {
   view-transition-name: none !important;

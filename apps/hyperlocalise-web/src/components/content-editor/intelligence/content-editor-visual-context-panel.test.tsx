@@ -95,4 +95,16 @@ describe("ContentEditorVisualContextPanel", () => {
     expect(onUpload).not.toHaveBeenCalled();
     expect(screen.getByText("Screenshots must be PNG, JPEG, or WebP.")).toBeInTheDocument();
   });
+
+  it("uses the dropzone as the empty upload state", () => {
+    renderWithContentEditorProviders(
+      <ContentEditorVisualContextPanel showPanel canUpload onUpload={vi.fn()} />,
+    );
+
+    expect(screen.getByRole("button", { name: "Drag a screenshot here" })).toBeInTheDocument();
+    expect(screen.getByText("PNG, JPEG, or WebP · up to 10 MB")).toBeInTheDocument();
+    expect(
+      screen.queryByText("No screenshots are attached to this string."),
+    ).not.toBeInTheDocument();
+  });
 });
