@@ -17,6 +17,9 @@ on:
       - apps/sanity-studio-plugin/**
       - .github/workflows/sanity-studio-plugin.yml
       - .github/workflows/sanity-studio-plugin-publish.yml
+      - apps/hyperlocalise-wp/**
+      - .github/workflows/wordpress-plugin.yml
+      - .github/workflows/wordpress-plugin-release.yml
 
 permissions:
   contents: read

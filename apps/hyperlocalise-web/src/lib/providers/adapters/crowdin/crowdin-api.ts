@@ -394,12 +394,20 @@ export interface CrowdinSourceString {
   fileId: number | null;
   branchId: number | null;
   directoryId: number | null;
-  identifier: string;
+  /** Null or empty for HTML/document strings that have no key. */
+  identifier: string | null;
   text: string | Record<string, string>;
   type: string;
   context: string | null;
   isHidden: boolean;
   labelIds: number[] | null;
+}
+
+export function crowdinSourceStringKey(
+  sourceString: Pick<CrowdinSourceString, "id" | "identifier">,
+): string {
+  const identifier = sourceString.identifier?.trim();
+  return identifier ? identifier : String(sourceString.id);
 }
 
 export interface CrowdinLabel {

@@ -1,0 +1,27 @@
+{
+    "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+    "preferredVersions": { "php": "7.4", "wp": "latest" },
+    "landingPage": "/wp-admin/edit.php",
+    "steps": [
+        { "step": "login" },
+        {
+            "step": "defineWpConfigConsts",
+            "consts": { "WP_DEBUG": true, "WP_DEBUG_DISPLAY": true }
+        },
+        {
+            "step": "installPlugin",
+            "pluginData": { "resource": "wordpress.org/plugins", "slug": "polylang" }
+        },
+        { "step": "activatePlugin", "pluginPath": "hyperlocalise-wp/hyperlocalise.php" },
+        { "step": "mkdir", "path": "/wordpress/wp-content/mu-plugins" },
+        {
+            "step": "cp",
+            "fromPath": "/wordpress/wp-content/plugins/hyperlocalise-wp/tests/playground/mock-hyperlocalise-api.php",
+            "toPath": "/wordpress/wp-content/mu-plugins/hyperlocalise-mock-api.php"
+        },
+        {
+            "step": "runPHP",
+            "code": "<?php require '/wordpress/wp-content/plugins/hyperlocalise-wp/tests/playground/setup.php';"
+        }
+    ]
+}

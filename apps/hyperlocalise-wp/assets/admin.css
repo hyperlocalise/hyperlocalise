@@ -1,0 +1,62 @@
+.hyperlocalise-panel.is-busy .hyperlocalise-panel__body {
+    opacity: 0.6;
+}
+
+.hyperlocalise-panel__message {
+    margin: 0 0 8px;
+    font-weight: 600;
+}
+
+.hyperlocalise-panel__message--error,
+.hyperlocalise-panel__notice--error,
+.hyperlocalise-panel__result--failed {
+    color: #b32d2e;
+}
+
+.hyperlocalise-panel__notice--warning {
+    color: #996800;
+}
+
+.hyperlocalise-panel__languages {
+    margin: 8px 0;
+}
+
+.hyperlocalise-panel__languages li {
+    margin-bottom: 6px;
+}
+
+.hyperlocalise-panel__muted,
+.hyperlocalise-panel__result {
+    color: #646970;
+}
+
+.hyperlocalise-panel__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 12px 0 8px;
+}
+
+.hyperlocalise-badge {
+    display: inline-block;
+    padding: 0 6px;
+    border-radius: 2px;
+    background: #f0f0f1;
+    font-weight: 600;
+}
+
+.hyperlocalise-badge--succeeded,
+.hyperlocalise-badge--waiting_for_review {
+    background: #edfaef;
+    color: #00731d;
+}
+
+.hyperlocalise-badge--failed,
+.hyperlocalise-badge--cancelled {
+    background: #fcf0f1;
+    color: #b32d2e;
+}
+
+.hyperlocalise-settings .form-table code {
+    white-space: nowrap;
+}

@@ -30,10 +30,19 @@ import {
   CrowdinApiClient,
   CrowdinApiError,
   CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT,
+  crowdinSourceStringKey,
   crowdinTmSegmentRemoveRecordOperation,
   crowdinTmSegmentReplaceTextOperation,
   extractCrowdinApiErrorSummary,
 } from "./crowdin-api";
+
+describe("crowdinSourceStringKey", () => {
+  it("falls back to the numeric string id when Crowdin omits an identifier", () => {
+    expect(crowdinSourceStringKey({ id: 1001, identifier: null })).toBe("1001");
+    expect(crowdinSourceStringKey({ id: 1001, identifier: "   " })).toBe("1001");
+    expect(crowdinSourceStringKey({ id: 1001, identifier: "hero.title" })).toBe("hero.title");
+  });
+});
 
 describe("CrowdinApiClient", () => {
   beforeEach(() => {
