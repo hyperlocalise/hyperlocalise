@@ -234,7 +234,8 @@ async function listLateApprovals(organizationId: string, cutoff: Date): Promise<
       and not exists (
         select 1
         from reporting_analyses a
-        join reporting_activity r on r.analysis_id = a.id and r.kind = 'completion'
+        join reporting_activity r on r.organization_id = a.organization_id
+          and r.operation_key = 'completion:' || a.id || ':review'
         where a.organization_id = e.organization_id
           and a.segment_id = e.target_id
           and a.target_locale = e.payload ->> 'targetLocale'

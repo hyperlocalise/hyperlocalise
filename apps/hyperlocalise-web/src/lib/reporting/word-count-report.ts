@@ -43,13 +43,12 @@ export async function queryJobMatchAnalysis(input: {
     select a.target_locale as "targetLocale", a.step, a.bucket,
       coalesce(sum(a.words), 0)::integer as "analysedWords",
       count(*)::integer as "analysedSegments",
-      coalesce(sum(a.words) filter (where done.analysis_id is not null), 0)::integer as "completedWords",
-      count(done.analysis_id)::integer as "completedSegments"
+      coalesce(sum(a.words) filter (where done.id is not null), 0)::integer as "completedWords",
+      count(done.id)::integer as "completedSegments"
     from reporting_analyses a
-    left join lateral (
-      select c.analysis_id from reporting_activity c
-      where c.analysis_id = a.id and c.kind = 'completion' limit 1
-    ) done on true
+    -- One completion per analysis and step, found by its operation key so the unique index is used.
+    left join reporting_activity done on done.organization_id = a.organization_id
+      and done.operation_key = 'completion:' || a.id || ':' || a.step
     where a.organization_id = ${input.organizationId} and a.job_id = ${input.jobId} and a.is_current
     group by a.target_locale, a.step, a.bucket
   `);
@@ -154,7 +153,10 @@ export async function listReportJobs(input: {
         sql`, `,
       )})
       ${input.projectId ? sql`and j.project_id = ${input.projectId}` : sql``}
-      and exists (select 1 from reporting_analyses a where a.job_id = j.id)
+      and exists (
+        select 1 from reporting_analyses a
+        where a.organization_id = j.organization_id and a.job_id = j.id
+      )
     order by j.created_at desc
     limit 200
   `);
