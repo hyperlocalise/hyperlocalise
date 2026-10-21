@@ -136,8 +136,8 @@ async function recountedRows(organizationId: string) {
 }
 
 /** Refreshes what writes marked, then checks the summary against a full recount. */
-async function expectSummaryMatchesRecount(organizationId: string) {
-  await refreshPendingSummary({ organizationIds: [organizationId] });
+async function expectSummaryMatchesRecount(organizationId: string, scanCompletionsAbove?: number) {
+  await refreshPendingSummary({ organizationIds: [organizationId], scanCompletionsAbove });
   const queued = await db
     .select()
     .from(schema.reportingSummaryQueue)
@@ -220,106 +220,123 @@ async function createWorkspace() {
 }
 
 describe("reporting daily summary", () => {
-  it("stays equal to a full recount through saves, finishes, edits and deletions", async () => {
-    const { organization, project, save, finish, createJob } = await createWorkspace();
-    const check = () => expectSummaryMatchesRecount(organization.id);
+  // Completions are found by key for an ordinary day and by scanning the project for a big one.
+  it.each([
+    ["looking completions up by key", undefined],
+    ["scanning the project's completions", 0],
+  ])(
+    "stays equal to a full recount through saves, finishes, edits and deletions, %s",
+    async (_, scanCompletionsAbove) => {
+      const { organization, project, save, finish, createJob } = await createWorkspace();
+      const check = () => expectSummaryMatchesRecount(organization.id, scanCompletionsAbove);
 
-    await save({ segment: "s1", text: "Hello world", locale: "fr-FR", on: "2026-06-01" });
-    await check();
-    await save({ segment: "s1", text: "Hello world", locale: "de-DE", on: "2026-06-02" });
-    await check();
-    await save({
-      segment: "s2",
-      text: "Good morning, everyone",
-      locale: "fr-FR",
-      on: "2026-06-02",
-      billable: true,
-    });
-    await check();
+      await save({ segment: "s1", text: "Hello world", locale: "fr-FR", on: "2026-06-01" });
+      await check();
+      await save({ segment: "s1", text: "Hello world", locale: "de-DE", on: "2026-06-02" });
+      await check();
+      await save({
+        segment: "s2",
+        text: "Good morning, everyone",
+        locale: "fr-FR",
+        on: "2026-06-02",
+        billable: true,
+      });
+      await check();
 
-    // Finishing a string marks the day it was finished and the day it arrived.
-    await finish({ segment: "s1", text: "Hello world", locale: "fr-FR", on: "2026-06-02" });
-    await check();
-    await finish({
-      segment: "s2",
-      text: "Good morning, everyone",
-      locale: "fr-FR",
-      on: "2026-06-03",
-      byPerson: true,
-    });
-    await check();
+      // Finishing a string marks the day it was finished and the day it arrived.
+      await finish({ segment: "s1", text: "Hello world", locale: "fr-FR", on: "2026-06-02" });
+      await check();
+      await finish({
+        segment: "s2",
+        text: "Good morning, everyone",
+        locale: "fr-FR",
+        on: "2026-06-03",
+        byPerson: true,
+      });
+      await check();
 
-    // A person post-edits a string already finished automatically: the earlier day moves the
-    // words from automatic to people.
-    await finish({
-      segment: "s1",
-      text: "Hello world",
-      locale: "fr-FR",
-      on: "2026-06-04",
-      byPerson: true,
-    });
-    await check();
+      // A person post-edits a string already finished automatically: the earlier day moves the
+      // words from automatic to people.
+      await finish({
+        segment: "s1",
+        text: "Hello world",
+        locale: "fr-FR",
+        on: "2026-06-04",
+        byPerson: true,
+      });
+      await check();
 
-    // An edit: the old French version stops being current; its German copy now holds the
-    // source count of the old text.
-    await save({ segment: "s1", text: "Hello there, world", locale: "fr-FR", on: "2026-06-05" });
-    await check();
+      // An edit: the old French version stops being current; its German copy now holds the
+      // source count of the old text.
+      await save({ segment: "s1", text: "Hello there, world", locale: "fr-FR", on: "2026-06-05" });
+      await check();
 
-    // A save dated before an existing copy of the same text takes over its source count.
-    await save({ segment: "s3", text: "Welcome", locale: "ja-JP", on: "2026-06-03" });
-    await check();
-    await save({ segment: "s3", text: "Welcome", locale: "fr-FR", on: "2026-06-01" });
-    await check();
+      // A save dated before an existing copy of the same text takes over its source count.
+      await save({ segment: "s3", text: "Welcome", locale: "ja-JP", on: "2026-06-03" });
+      await check();
+      await save({ segment: "s3", text: "Welcome", locale: "fr-FR", on: "2026-06-01" });
+      await check();
 
-    // A re-save of the same text keeps its row and day.
-    await save({
-      segment: "s2",
-      text: "Good morning, everyone",
-      locale: "fr-FR",
-      on: "2026-06-06",
-      billable: true,
-    });
-    await check();
+      // A re-save of the same text keeps its row and day.
+      await save({
+        segment: "s2",
+        text: "Good morning, everyone",
+        locale: "fr-FR",
+        on: "2026-06-06",
+        billable: true,
+      });
+      await check();
 
-    // Review is counted separately from translation.
-    await save({
-      segment: "s2",
-      text: "Good morning, everyone",
-      locale: "fr-FR",
-      on: "2026-06-06",
-      step: "review",
-    });
-    await finish({
-      segment: "s2",
-      text: "Good morning, everyone",
-      locale: "fr-FR",
-      on: "2026-06-07",
-      step: "review",
-      byPerson: true,
-    });
-    await check();
+      // Review is counted separately from translation.
+      await save({
+        segment: "s2",
+        text: "Good morning, everyone",
+        locale: "fr-FR",
+        on: "2026-06-06",
+        step: "review",
+      });
+      await finish({
+        segment: "s2",
+        text: "Good morning, everyone",
+        locale: "fr-FR",
+        on: "2026-06-07",
+        step: "review",
+        byPerson: true,
+      });
+      await check();
 
-    // Task work recorded at the time it happens, then the task is deleted.
-    const job = await createJob();
-    await save({ segment: "s4", text: "Release notes for 4.2", locale: "fr-FR", jobId: job.id });
-    await check();
-    await finish({ segment: "s4", text: "Release notes for 4.2", locale: "fr-FR", jobId: job.id });
-    await check();
-    await db.delete(schema.jobs).where(eq(schema.jobs.id, job.id));
-    await check();
+      // Task work recorded at the time it happens, then the task is deleted.
+      const job = await createJob();
+      await save({ segment: "s4", text: "Release notes for 4.2", locale: "fr-FR", jobId: job.id });
+      await check();
+      await finish({
+        segment: "s4",
+        text: "Release notes for 4.2",
+        locale: "fr-FR",
+        jobId: job.id,
+      });
+      await check();
+      await db.delete(schema.jobs).where(eq(schema.jobs.id, job.id));
+      await check();
 
-    // Going back to an earlier text makes that version current again.
-    await save({ segment: "s1", text: "Hello world", locale: "fr-FR", on: "2026-06-08" });
-    await check();
+      // Going back to an earlier text makes that version current again.
+      await save({ segment: "s1", text: "Hello world", locale: "fr-FR", on: "2026-06-08" });
+      await check();
 
-    // A string whose words cannot be counted (an ICU message that does not parse).
-    await save({ segment: "s5", text: "{count, plural, one {", locale: "fr-FR", on: "2026-06-08" });
-    await check();
+      // A string whose words cannot be counted (an ICU message that does not parse).
+      await save({
+        segment: "s5",
+        text: "{count, plural, one {",
+        locale: "fr-FR",
+        on: "2026-06-08",
+      });
+      await check();
 
-    const rows = await summaryRows(organization.id);
-    expect(rows.length).toBeGreaterThan(8);
-    expect(rows.every((row) => row.project_id === project.id)).toBe(true);
-  });
+      const rows = await summaryRows(organization.id);
+      expect(rows.length).toBeGreaterThan(8);
+      expect(rows.every((row) => row.project_id === project.id)).toBe(true);
+    },
+  );
 
   it("removes a deleted project's rows with it", async () => {
     const { organization, project, save, finish } = await createWorkspace();

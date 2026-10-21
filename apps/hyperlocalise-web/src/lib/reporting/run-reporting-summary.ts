@@ -17,8 +17,8 @@
  *   vp run reporting:summary time --organization <id>
  *
  * `rebuild` works out every day again for the chosen workspace, or for every workspace with
- * records. `time` refreshes the workspace's busiest project-day, then that project's last 28 days,
- * three times each, and prints the median.
+ * records. `time` refreshes the busiest project's busiest day, a typical (median) day of it, and
+ * its last 28 days, three times each, and prints the medians.
  */
 import { sql } from "drizzle-orm";
 
@@ -58,14 +58,22 @@ async function rebuild(organizationId: string | undefined) {
 }
 
 async function time(organizationId: string) {
-  const [busiest] = (
-    await db.execute<{ projectId: string; day: string }>(sql`
-      select project_id as "projectId", (created_at at time zone 'UTC')::date::text as day
-      from reporting_analyses where organization_id = ${organizationId} and project_id is not null
-      group by 1, 2 order by count(*) desc limit 1
+  const days = (
+    await db.execute<{ projectId: string; day: string; rows: number }>(sql`
+      select project_id as "projectId", (created_at at time zone 'UTC')::date::text as day,
+        count(*)::integer as rows
+      from reporting_analyses where organization_id = ${organizationId}
+        and project_id = (
+          select project_id from reporting_analyses
+          where organization_id = ${organizationId} and project_id is not null
+          group by project_id order by count(*) desc limit 1
+        )
+      group by 1, 2 order by count(*) desc
     `)
   ).rows;
+  const busiest = days[0];
   if (!busiest) throw new Error("the workspace has no records");
+  const typical = days[Math.floor(days.length / 2)]!;
   const lastDays = Array.from({ length: 28 }, (_, offset) => {
     const at = new Date(`${busiest.day}T00:00:00Z`);
     at.setUTCDate(at.getUTCDate() - offset);
@@ -85,7 +93,9 @@ async function time(organizationId: string) {
     JSON.stringify(
       {
         busiestDay: busiest,
-        oneDaySeconds: await median([busiest.day]),
+        busiestDaySeconds: await median([busiest.day]),
+        typicalDay: typical,
+        typicalDaySeconds: await median([typical.day]),
         twentyEightDaysSeconds: await median(lastDays),
       },
       null,

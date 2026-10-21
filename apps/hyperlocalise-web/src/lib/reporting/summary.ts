@@ -105,6 +105,12 @@ const FINISHED_MEASURES = MEASURES.map((m) => `${m.finished} as ${m.column}`).jo
 
 /** Days refreshed in one statement for one project: a first build is a year at most. */
 const MAX_DAYS_PER_REFRESH = 400;
+/**
+ * Above this many strings arriving in the refreshed days, their completions are found by scanning
+ * the project's completions rather than one key lookup each (measured on a 380,000-string day:
+ * 1.7 s against 3.8 s; on a 429-string day the lookups took 27 ms against 300 ms).
+ */
+const SCAN_COMPLETIONS_ABOVE = 20_000;
 
 /**
  * Works out the summary rows of one workspace and project again for the given UTC days, from the
@@ -112,7 +118,13 @@ const MAX_DAYS_PER_REFRESH = 400;
  * again meanwhile. Returns "busy" without waiting when another refresh of the project holds it.
  */
 export async function refreshSummaryDays(
-  input: { organizationId: string; projectId: string; days: string[] },
+  input: {
+    organizationId: string;
+    projectId: string;
+    days: string[];
+    /** Overrides `SCAN_COMPLETIONS_ABOVE`, so tests can check both ways give the same rows. */
+    scanCompletionsAbove?: number;
+  },
   database: DatabaseClient = db,
 ): Promise<"refreshed" | "busy"> {
   const { organizationId, projectId } = input;
@@ -157,7 +169,40 @@ export async function refreshSummaryDays(
           inArray(schema.reportingDailyByTask.day, days),
         ),
       );
+    // A day can hold a whole first import (hundreds of thousands of rows), where looking each
+    // row's completion up by its key takes seconds; scanning the project's completions once is
+    // then faster. For an ordinary day the key lookups are, by far.
+    const [arrivalCount] = (
+      await tx.execute<{ rows: number }>(sql`
+        select count(*)::integer as rows from reporting_analyses a
+        where a.organization_id = ${organizationId} and a.project_id = ${projectId}
+          and a.is_current and ${inDays("a.created_at")}
+      `)
+    ).rows;
+    const completionsOfArrivals =
+      (arrivalCount?.rows ?? 0) > (input.scanCompletionsAbove ?? SCAN_COMPLETIONS_ABOVE)
+        ? sql`select d.analysis_id from reporting_activity d
+            where d.organization_id = ${organizationId} and d.project_id = ${projectId}
+              and d.kind = 'completion' and d.analysis_id in (select id from arrivals)`
+        : sql`select d.analysis_id from reporting_activity d
+            where d.organization_id = ${organizationId}
+              and d.operation_key in (select 'completion:' || id || ':' || step from arrivals)`;
     await tx.execute(sql`
+      with arrivals as materialized (
+        select a.* from reporting_analyses a
+        where a.organization_id = ${organizationId} and a.project_id = ${projectId}
+          and a.is_current and ${inDays("a.created_at")}
+      ),
+      -- Source counts each text once however many languages it goes into: only on the earliest
+      -- current analysis of the same task, string, text and step.
+      firsts as (
+        select distinct on (o.job_id, o.segment_id, o.source_revision, o.step) o.id
+        from reporting_analyses o
+        where o.organization_id = ${organizationId} and o.is_current and o.project_id is not null
+          and o.segment_id in (select segment_id from arrivals)
+        order by o.job_id, o.segment_id, o.source_revision, o.step, o.created_at, o.target_locale, o.id
+      ),
+      done as (${completionsOfArrivals})
       insert into reporting_daily_by_task (organization_id, project_id, job_id, source_locale,
         target_locale, step, bucket, payable, day, ${sql.raw(MEASURE_COLUMNS)})
       select ${organizationId}, ${projectId}, job_id, source_locale, target_locale, step, bucket,
@@ -166,24 +211,10 @@ export async function refreshSummaryDays(
         select a.job_id, a.source_locale, a.target_locale, a.step, a.bucket, a.billable as payable,
           (a.created_at at time zone 'UTC')::date as day, ${sql.raw(ARRIVAL_MEASURES)}
         from (
-          select a.*,
-            exists (
-              select 1 from reporting_activity d
-              where d.organization_id = a.organization_id
-                and d.operation_key = 'completion:' || a.id || ':' || a.step
-            ) as done,
-            -- Source counts each text once however many languages it goes into: only on the
-            -- earliest current analysis of the same task, string, text and step.
-            not exists (
-              select 1 from reporting_analyses o
-              where o.organization_id = a.organization_id and o.segment_id = a.segment_id
-                and o.step = a.step and o.is_current and o.source_revision = a.source_revision
-                and o.job_id is not distinct from a.job_id
-                and (o.created_at, o.target_locale, o.id) < (a.created_at, a.target_locale, a.id)
-            ) as representative
-          from reporting_analyses a
-          where a.organization_id = ${organizationId} and a.project_id = ${projectId}
-            and a.is_current and ${inDays("a.created_at")}
+          select a.*, d.analysis_id is not null as done, f.id is not null as representative
+          from arrivals a
+          left join firsts f on f.id = a.id
+          left join (select distinct analysis_id from done) d on d.analysis_id = a.id
         ) a
         union all
         select f.job_id, f.source_locale, f.target_locale, f.step, f.bucket, f.payable, f.day,
@@ -254,7 +285,7 @@ export type SummaryRefreshResult = {
  * first, all of its marked days at once (up to `MAX_DAYS_PER_REFRESH`).
  */
 export async function refreshPendingSummary(
-  input: { signal?: AbortSignal; organizationIds?: string[] } = {},
+  input: { signal?: AbortSignal; organizationIds?: string[]; scanCompletionsAbove?: number } = {},
 ): Promise<Omit<SummaryRefreshResult, "workspacesQueuedForBuild">> {
   let daysRefreshed = 0;
   const skipped = new Set<string>();
@@ -287,7 +318,11 @@ export async function refreshPendingSummary(
       )
       .orderBy(asc(schema.reportingSummaryQueue.markedAt))
       .limit(MAX_DAYS_PER_REFRESH);
-    const outcome = await refreshSummaryDays({ ...next, days: marks.map((mark) => mark.day) });
+    const outcome = await refreshSummaryDays({
+      ...next,
+      days: marks.map((mark) => mark.day),
+      scanCompletionsAbove: input.scanCompletionsAbove,
+    });
     if (outcome === "refreshed") daysRefreshed += marks.length;
     else skipped.add(`${next.organizationId}:${next.projectId}`);
   }
