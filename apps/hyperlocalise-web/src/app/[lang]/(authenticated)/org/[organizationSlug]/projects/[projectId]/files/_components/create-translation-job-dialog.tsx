@@ -151,7 +151,11 @@ function TargetLocalesField({
         <ComboboxChips className="max-h-28 w-full overflow-y-auto">
           <ComboboxValue>
             {selectedOptions.map((option) => (
-              <ComboboxChip key={option.id} title={option.searchValue}>
+              <ComboboxChip
+                key={option.id}
+                title={option.searchValue}
+                removeLabel={intl.formatMessage(messages.removeLocale, { locale: option.id })}
+              >
                 <span className="inline-flex items-center gap-1">
                   <LocaleFlag flag={option.flag} />
                   {option.id}

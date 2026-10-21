@@ -65,6 +65,11 @@ export const createTranslationJobDialogMessages = defineMessages({
     id: "yRdJTRKT7s",
     description: "Empty state when locale search matches no project target locales",
   },
+  removeLocale: {
+    defaultMessage: "Remove {locale}",
+    id: "Oipi2K2qqU",
+    description: "Accessible label for removing a selected target locale chip",
+  },
   cancel: {
     defaultMessage: "Cancel",
     id: "v1ru55p+vf",

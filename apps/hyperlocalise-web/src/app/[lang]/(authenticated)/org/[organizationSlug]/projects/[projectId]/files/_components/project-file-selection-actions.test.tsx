@@ -83,10 +83,26 @@ function renderActions({
   );
 }
 
+function getTranslateDialog() {
+  return screen.getByRole("dialog", { name: "Translate with agent" });
+}
+
 function getDialogSubmitButton() {
-  return within(screen.getByRole("dialog", { name: "Translate with agent" })).getByRole("button", {
+  return within(getTranslateDialog()).getByRole("button", {
     name: "Translate with agent",
   });
+}
+
+function expectSelectedLocale(locale: string) {
+  expect(within(getTranslateDialog()).getByText(locale)).toBeInTheDocument();
+}
+
+function expectLocaleNotSelected(locale: string) {
+  expect(within(getTranslateDialog()).queryByText(locale)).not.toBeInTheDocument();
+}
+
+async function removeSelectedLocale(user: ReturnType<typeof userEvent.setup>, locale: string) {
+  await user.click(within(getTranslateDialog()).getByRole("button", { name: `Remove ${locale}` }));
 }
 
 describe("ProjectFileSelectionActions translation dialog", () => {
@@ -106,15 +122,15 @@ describe("ProjectFileSelectionActions translation dialog", () => {
     const view = render(renderActions({ targetLocales }), { wrapper: ContentEditorTestProviders });
 
     await user.click(screen.getByRole("button", { name: "Translate with agent" }));
-    await user.click(screen.getByLabelText("fr-FR"));
+    await removeSelectedLocale(user, "fr-FR");
 
-    expect(screen.getByLabelText("vi")).toBeChecked();
-    expect(screen.getByLabelText("fr-FR")).not.toBeChecked();
+    expectSelectedLocale("vi");
+    expectLocaleNotSelected("fr-FR");
 
     view.rerender(renderActions({ layout: "compact", targetLocales }));
 
-    expect(screen.getByLabelText("vi")).toBeChecked();
-    expect(screen.getByLabelText("fr-FR")).not.toBeChecked();
+    expectSelectedLocale("vi");
+    expectLocaleNotSelected("fr-FR");
 
     await user.click(getDialogSubmitButton());
 
@@ -139,15 +155,15 @@ describe("ProjectFileSelectionActions translation dialog", () => {
     const view = render(renderActions(), { wrapper: ContentEditorTestProviders });
 
     await user.click(screen.getByRole("button", { name: "Translate with agent" }));
-    await user.click(screen.getByLabelText("vi"));
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+    await removeSelectedLocale(user, "vi");
+    await user.click(within(getTranslateDialog()).getByRole("button", { name: "Cancel" }));
 
     view.rerender(renderActions({ targetLocales: ["de-DE"] }));
 
     await user.click(screen.getByRole("button", { name: "Translate with agent" }));
 
-    expect(screen.queryByLabelText("vi")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("de-DE")).toBeChecked();
+    expectLocaleNotSelected("vi");
+    expectSelectedLocale("de-DE");
 
     await user.click(getDialogSubmitButton());
 
@@ -166,8 +182,7 @@ describe("ProjectFileSelectionActions translation dialog", () => {
     render(renderActions(), { wrapper: ContentEditorTestProviders });
 
     await user.click(screen.getByRole("button", { name: "Translate with agent" }));
-    await user.click(screen.getByLabelText("vi"));
-    await user.click(screen.getByLabelText("fr-FR"));
+    await user.click(within(getTranslateDialog()).getByRole("button", { name: "Clear" }));
 
     expect(getDialogSubmitButton()).toBeDisabled();
     expect(jobsPostMock).not.toHaveBeenCalled();

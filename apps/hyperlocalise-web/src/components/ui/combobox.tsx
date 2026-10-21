@@ -16,7 +16,7 @@ import * as React from "react";
 import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
 
 import { cn } from "@/lib/primitives/cn";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
   InputGroup,
   InputGroupAddon,
@@ -224,9 +224,11 @@ function ComboboxChip({
   className,
   children,
   showRemove = true,
+  removeLabel,
   ...props
 }: ComboboxPrimitive.Chip.Props & {
   showRemove?: boolean;
+  removeLabel?: string;
 }) {
   return (
     <ComboboxPrimitive.Chip
@@ -240,9 +242,12 @@ function ComboboxChip({
       {children}
       {showRemove ? (
         <ComboboxPrimitive.ChipRemove
-          render={<Button variant="ghost" size="icon-xs" />}
-          className="-ms-1 opacity-50 hover:opacity-100"
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "icon-xs" }),
+            "-ms-1 opacity-50 hover:opacity-100",
+          )}
           data-slot="combobox-chip-remove"
+          aria-label={removeLabel}
         >
           <XIcon className="pointer-events-none" />
         </ComboboxPrimitive.ChipRemove>

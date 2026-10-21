@@ -14923,6 +14923,10 @@
     "defaultMessage": "Hyperlocalise updated the Contentful webhook configuration.",
     "description": "Toast description when an existing Contentful webhook is updated"
   },
+  "Oipi2K2qqU": {
+    "defaultMessage": "Remove {locale}",
+    "description": "Accessible label for removing a selected target locale chip"
+  },
   "OjbR5imOsw": {
     "defaultMessage": "Clear. Human. Confident.",
     "description": "Supporting note in the brand guidance illustration"
