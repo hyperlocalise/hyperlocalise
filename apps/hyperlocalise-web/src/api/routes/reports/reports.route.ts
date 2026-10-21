@@ -299,15 +299,16 @@ export function createReportsRoutes() {
       const query = c.req.valid("query");
       const context = await reportContext(c);
       const period = resolvePeriod({ ...query, ...context });
-      const { jobId, ...filters } = query;
+      const { jobId, step, ...filters } = query;
       const scope = { ...context, ...filters, jobIds: jobId ? [jobId] : undefined, period };
+      // The headline totals cover both steps; the charts show the chosen one.
       const [totals, series, byLanguage] = await Promise.all([
         queryActivity(scope),
-        queryFinishedSeries({ ...scope, step: "translation" }),
-        queryFinishedByLanguage({ ...scope, step: "translation" }),
+        queryFinishedSeries({ ...scope, step }),
+        queryFinishedByLanguage({ ...scope, step }),
       ]);
       return c.json({
-        activity: { period, unit: query.unit, ...totals, series, byLanguage },
+        activity: { period, unit: query.unit, step, ...totals, series, byLanguage },
       });
     })
     .get("/step-times", reportQuery(stepTimesQuerySchema), async (c) => {

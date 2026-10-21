@@ -104,7 +104,7 @@ const scope = {
 };
 
 export const activityQuerySchema = z
-  .object({ ...dates, ...scope, unit })
+  .object({ ...dates, ...scope, unit, step: step.default("translation") })
   .refine(datesInOrder, { message: "Invalid date range" });
 export const stepTimesQuerySchema = z
   .object({ ...dates, ...scope, format })
