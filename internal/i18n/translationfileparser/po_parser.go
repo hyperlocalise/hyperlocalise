@@ -824,8 +824,7 @@ func poPluralFormLines(indent string, forms []string, newline, crlf bool) []poRa
 
 func rewritePOSingular(lines []poRawLine, entry poBuiltEntry, values map[string]string, categories []string) ([]poRawLine, error) {
 	out := make([]poRawLine, 0, len(lines))
-	currentCtxt := ""
-	currentMsgid := ""
+	keyBase := poMessageKey(entry.msgctxt, entry.msgid)
 	active := ""
 	replacingForm := false
 	replaced := false
@@ -835,20 +834,10 @@ func rewritePOSingular(lines []poRawLine, entry poBuiltEntry, values map[string]
 		processed := false
 		switch {
 		case strings.HasPrefix(trimmed, "msgctxt "):
-			v, err := parsePOQuoted(trimmed[len("msgctxt "):])
-			if err != nil {
-				return nil, err
-			}
-			currentCtxt = v
 			active = "msgctxt"
 		case strings.HasPrefix(trimmed, "msgid_plural "):
 			active = "msgid_plural"
 		case strings.HasPrefix(trimmed, "msgid "):
-			v, err := parsePOQuoted(trimmed[len("msgid "):])
-			if err != nil {
-				return nil, err
-			}
-			currentMsgid = v
 			active = "msgid"
 		case strings.HasPrefix(trimmed, "msgstr["):
 			index, _, err := parsePOIndexedMsgStr(0, trimmed)
@@ -857,7 +846,6 @@ func rewritePOSingular(lines []poRawLine, entry poBuiltEntry, values map[string]
 			}
 			active = "msgstr"
 			replacingForm = false
-			keyBase := poMessageKey(currentCtxt, currentMsgid)
 			if value, ok := lookupPOPlural(values, keyBase, categories, index); ok {
 				replaced = true
 				replacingForm = true
@@ -870,7 +858,6 @@ func rewritePOSingular(lines []poRawLine, entry poBuiltEntry, values map[string]
 		case strings.HasPrefix(trimmed, "msgstr "):
 			active = "msgstr"
 			replacingForm = false
-			keyBase := poMessageKey(currentCtxt, currentMsgid)
 			if value, ok := values[keyBase]; ok {
 				replaced = true
 				replacingForm = true
@@ -878,24 +865,9 @@ func rewritePOSingular(lines []poRawLine, entry poBuiltEntry, values map[string]
 				processed = true
 			}
 		case strings.HasPrefix(trimmed, "\""):
-			switch active {
-			case "msgctxt":
-				v, err := parsePOQuoted(trimmed)
-				if err != nil {
-					return nil, err
-				}
-				currentCtxt += v
-			case "msgid":
-				v, err := parsePOQuoted(trimmed)
-				if err != nil {
-					return nil, err
-				}
-				currentMsgid += v
-			case "msgstr":
-				if replacingForm {
-					out = append(out, poRawLine{raw: preserveIndent(stripPOCR(raw)) + `""` + poCRSuffix(raw), newline: line.newline})
-					processed = true
-				}
+			if active == "msgstr" && replacingForm {
+				out = append(out, poRawLine{raw: preserveIndent(stripPOCR(raw)) + `""` + poCRSuffix(raw), newline: line.newline})
+				processed = true
 			}
 		}
 		if !processed {
@@ -909,10 +881,14 @@ func rewritePOSingular(lines []poRawLine, entry poBuiltEntry, values map[string]
 }
 
 func replacePOFieldLine(raw, field, value string) string {
-	var b strings.Builder
-	writePOQuotedSuffix(&b, stripPOCR(raw), field, value)
-	b.WriteString(poCRSuffix(raw))
-	return b.String()
+	indent := preserveIndent(stripPOCR(raw))
+	cr := poCRSuffix(raw)
+	if canWriteSimplePOQuoted(value) {
+		return indent + field + ` "` + value + `"` + cr
+	}
+	var stackBuf [256]byte
+	q := strconv.AppendQuote(stackBuf[:0], value)
+	return indent + field + " " + string(q) + cr
 }
 
 func clearPOFuzzyLines(lines []poRawLine) []poRawLine {
@@ -1106,13 +1082,6 @@ func poCRSuffix(raw string) string {
 	return ""
 }
 
-func writePOQuotedSuffix(w *strings.Builder, raw, field, value string) {
-	w.WriteString(preserveIndent(raw))
-	w.WriteString(field)
-	w.WriteByte(' ')
-	writePOQuotedValue(w, value)
-}
-
 func writePOQuotedValue(w *strings.Builder, value string) {
 	if canWriteSimplePOQuoted(value) {
 		w.WriteByte('"')
@@ -1120,7 +1089,9 @@ func writePOQuotedValue(w *strings.Builder, value string) {
 		w.WriteByte('"')
 		return
 	}
-	w.WriteString(strconv.Quote(value))
+	var stackBuf [256]byte
+	q := strconv.AppendQuote(stackBuf[:0], value)
+	w.Write(q)
 }
 
 func canWriteSimplePOQuoted(value string) bool {
