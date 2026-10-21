@@ -53,18 +53,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # Vitest --changed uses `git diff BASE...HEAD` and needs a merge-base.
+          # Depth 1 leaves HEAD as a shallow graft that later deepen cannot reconnect.
+          fetch-depth: 50
 
       - name: Fetch PR base for changed tests
         if: github.event.pull_request.draft
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         working-directory: ${{ github.workspace }}
-        run: |
-          # Vitest 5 uses `git diff BASE...HEAD`, which needs a merge-base.
-          # Checkout is depth 1, so HEAD is a shallow graft; deepen it and
-          # fetch enough base history to connect the two commits.
-          git fetch --no-tags --deepen=50
-          git fetch --no-tags --depth=50 origin "${BASE_SHA}"
+        run: git fetch --no-tags --depth=50 origin "${BASE_SHA}"
 
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
