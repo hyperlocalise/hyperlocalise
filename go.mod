@@ -1,6 +1,6 @@
 module github.com/hyperlocalise/hyperlocalise
 
-go 1.26.1
+go 1.27.3
 
 replace github.com/crowdin/crowdin-api-client-go => ./third_party/crowdin-api-client-go
 
@@ -9,7 +9,7 @@ require (
 	charm.land/bubbletea/v2 v2.1.0
 	charm.land/lipgloss/v2 v2.0.6
 	charm.land/log/v2 v2.0.1
-	github.com/DataDog/dd-trace-go/v2 v2.11.1
+	github.com/DataDog/dd-trace-go/v2 v2.11.2
 	github.com/DataDog/orchestrion v1.13.1
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/antihax/optional v1.0.0
@@ -24,14 +24,14 @@ require (
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/lokalise/go-lokalise-api/v5 v5.1.0
 	github.com/mattn/go-isatty v0.0.24
-	github.com/openai/openai-go/v3 v3.76.0
+	github.com/openai/openai-go/v3 v3.84.0
 	github.com/phrase/phrase-go/v4 v4.33.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/subosito/gotenv v1.6.0
 	github.com/tidwall/jsonc v0.3.3
-	github.com/turbopuffer/turbopuffer-go/v2 v2.9.0
-	github.com/workos/workos-go/v10 v10.5.0
+	github.com/turbopuffer/turbopuffer-go/v2 v2.9.1
+	github.com/workos/workos-go/v10 v10.6.0
 	github.com/xuri/excelize/v2 v2.11.1-0.20261011032807-402e3bdd9eae
 	github.com/yuin/goldmark/v2 v2.1.6
 	go.opentelemetry.io/otel v1.47.0
@@ -53,14 +53,14 @@ require (
 	github.com/DataDog/dd-trace-go/contrib/valkey-io/valkey-go/v2 v2.10.1
 	github.com/HugoSmits86/nativewebp v1.3.0
 	github.com/aws/aws-lambda-go v1.55.1
-	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.50.4
-	github.com/aws/aws-sdk-go-v2/service/sqs v1.52.4
-	github.com/aws/aws-sdk-go-v2/service/textract v1.49.4
+	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.50.5
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.52.5
+	github.com/aws/aws-sdk-go-v2/service/textract v1.49.5
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/klippa-app/go-pdfium v1.21.3
 	github.com/tetratelabs/wazero v1.12.0
-	github.com/valkey-io/valkey-go v1.0.78
+	github.com/valkey-io/valkey-go v1.0.79
 	golang.org/x/image v0.47.0
 )
 
@@ -81,15 +81,15 @@ require (
 	github.com/Antonboom/testifylint v1.6.4 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/ClickHouse/clickhouse-go-linter v1.2.1 // indirect
-	github.com/DataDog/datadog-agent/comp/core/tagger/origindetection v0.84.2 // indirect
-	github.com/DataDog/datadog-agent/pkg/obfuscate v0.84.2 // indirect
-	github.com/DataDog/datadog-agent/pkg/opentelemetry-mapping-go/otlp/attributes v0.84.2 // indirect
-	github.com/DataDog/datadog-agent/pkg/proto v0.84.2 // indirect
-	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.84.2 // indirect
-	github.com/DataDog/datadog-agent/pkg/trace v0.84.2 // indirect
-	github.com/DataDog/datadog-agent/pkg/trace/log v0.84.2 // indirect
-	github.com/DataDog/datadog-agent/pkg/trace/stats v0.84.2 // indirect
-	github.com/DataDog/datadog-agent/pkg/trace/traceutil v0.84.2 // indirect
+	github.com/DataDog/datadog-agent/comp/core/tagger/origindetection v0.84.4 // indirect
+	github.com/DataDog/datadog-agent/pkg/obfuscate v0.84.4 // indirect
+	github.com/DataDog/datadog-agent/pkg/opentelemetry-mapping-go/otlp/attributes v0.84.4 // indirect
+	github.com/DataDog/datadog-agent/pkg/proto v0.84.4 // indirect
+	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.84.4 // indirect
+	github.com/DataDog/datadog-agent/pkg/trace v0.84.4 // indirect
+	github.com/DataDog/datadog-agent/pkg/trace/log v0.84.4 // indirect
+	github.com/DataDog/datadog-agent/pkg/trace/stats v0.84.4 // indirect
+	github.com/DataDog/datadog-agent/pkg/trace/traceutil v0.84.4 // indirect
 	github.com/DataDog/datadog-go/v5 v5.9.1 // indirect
 	github.com/DataDog/go-libddwaf/v5 v5.0.1 // indirect
 	github.com/DataDog/go-runtime-metrics-internal v0.0.4-0.20260217080614-b0f4edc38a6d // indirect
@@ -97,7 +97,7 @@ require (
 	github.com/DataDog/go-tuf v1.1.1-0.5.2 // indirect
 	github.com/DataDog/sketches-go v1.4.8 // indirect
 	github.com/Djarvur/go-err113 v0.1.1 // indirect
-	github.com/Microsoft/go-winio v0.6.3 // indirect
+	github.com/Microsoft/go-winio v0.6.4 // indirect
 	github.com/MirrexOne/unqueryvet v1.5.4 // indirect
 	github.com/OpenPeeDeeP/depguard/v2 v2.2.1 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
@@ -170,7 +170,7 @@ require (
 	github.com/denis-tingaikin/go-header v0.5.0 // indirect
 	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
-	github.com/ebitengine/purego v0.11.1 // indirect
+	github.com/ebitengine/purego v0.11.2 // indirect
 	github.com/ettle/strcase v0.2.0 // indirect
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/fatih/structtag v1.2.0 // indirect
@@ -218,7 +218,7 @@ require (
 	github.com/gostaticanalysis/comment v1.5.0 // indirect
 	github.com/gostaticanalysis/forcetypeassert v0.2.0 // indirect
 	github.com/gostaticanalysis/nilerr v0.1.2 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.32.0 // indirect
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0 // indirect
 	github.com/hashicorp/go-version v1.9.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
@@ -236,8 +236,8 @@ require (
 	github.com/karamaru-alpha/copyloopvar v1.2.2 // indirect
 	github.com/kisielk/errcheck v1.20.0 // indirect
 	github.com/kkHAIKE/contextcheck v1.1.6 // indirect
-	github.com/klauspost/compress v1.20.1 // indirect
-	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
+	github.com/klauspost/compress v1.20.3 // indirect
+	github.com/klauspost/cpuid/v2 v2.4.1 // indirect
 	github.com/kulti/thelper v0.7.1 // indirect
 	github.com/kunwardeep/paralleltest v1.0.15 // indirect
 	github.com/ldez/exptostd v0.4.5 // indirect
@@ -285,7 +285,7 @@ require (
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/petermattis/goid v0.0.0-20260918085751-abfca077860b // indirect
-	github.com/philhofer/fwd v1.2.0 // indirect
+	github.com/philhofer/fwd v1.2.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/polyfloyd/go-errorlint v1.8.1-0.20250906200200-9b25878c4dea // indirect
@@ -368,10 +368,10 @@ require (
 	go.augendre.info/arangolint v0.4.0 // indirect
 	go.augendre.info/fatcontext v0.10.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/collector/component v1.68.0 // indirect
-	go.opentelemetry.io/collector/featuregate v1.68.0 // indirect
-	go.opentelemetry.io/collector/pdata v1.68.0 // indirect
-	go.opentelemetry.io/collector/pdata/pprofile v0.162.0 // indirect
+	go.opentelemetry.io/collector/component v1.69.0 // indirect
+	go.opentelemetry.io/collector/featuregate v1.69.0 // indirect
+	go.opentelemetry.io/collector/pdata v1.69.0 // indirect
+	go.opentelemetry.io/collector/pdata/pprofile v0.163.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.47.0 // indirect
 	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
@@ -382,22 +382,22 @@ require (
 	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
-	golang.org/x/exp v0.0.0-20261009195045-ca0d7ba23607 // indirect
+	golang.org/x/exp v0.0.0-20261014143641-f0251eb4aa3e // indirect
 	golang.org/x/exp/typeparams v0.0.0-20260811152304-ee035b5b010f // indirect
 	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/telemetry v0.0.0-20260924152758-ed294f943157 // indirect
+	golang.org/x/telemetry v0.0.0-20261009151841-97e8ea77aa2a // indirect
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
-	golang.org/x/tools v0.51.0 // indirect
+	golang.org/x/tools v0.52.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20261005182115-fad411399dd8 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20261005182115-fad411399dd8 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20261019180522-ce908d29299b // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20261019180522-ce908d29299b // indirect
 	google.golang.org/grpc v1.84.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	honnef.co/go/tools v0.8.1 // indirect
+	honnef.co/go/tools v0.8.2 // indirect
 	mvdan.cc/gofumpt v0.12.0 // indirect
 	mvdan.cc/unparam v0.0.0-20260823230713-2fa3d841b0c8 // indirect
 )
