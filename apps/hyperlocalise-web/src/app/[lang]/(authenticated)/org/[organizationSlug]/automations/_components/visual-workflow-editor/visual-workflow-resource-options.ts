@@ -27,6 +27,11 @@ export type VisualWorkflowProjectOption = {
   name: string;
 };
 
+export type VisualWorkflowMemberOption = {
+  workosUserId: string;
+  label: string;
+};
+
 export type VisualWorkflowGithubRepositoryOption = {
   id: string;
   fullName: string;
@@ -56,6 +61,20 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
     queryFn: async () => {
       const body = await goSvcClient.project.list(organizationSlug!);
       return (body.projects ?? []) as VisualWorkflowProjectOption[];
+    },
+  });
+
+  const membersQuery = useQuery({
+    queryKey: ["org-members", organizationSlug, "visual-workflow"],
+    enabled: enabled && !accessTokenLoading,
+    queryFn: async (): Promise<VisualWorkflowMemberOption[]> => {
+      const body = await goSvcClient.member.list(organizationSlug!);
+      return body.members
+        .filter((member) => member.status === "active")
+        .map((member) => ({
+          workosUserId: member.workosUserId,
+          label: member.displayName || member.email,
+        }));
     },
   });
 
@@ -120,6 +139,7 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
 
   return {
     projects,
+    members: membersQuery.data ?? [],
     repositories,
     contentfulConnections,
     workflows: (workflowsQuery.data ?? []).filter(

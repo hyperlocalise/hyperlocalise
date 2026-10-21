@@ -35,6 +35,17 @@ import {
   resolveHttpRequestBody,
   resolveKeyValuePairs,
 } from "./http-request";
+import {
+  runCrowdinCheckProgressAction,
+  runCrowdinCreateTaskAction,
+  runCrowdinPreTranslateAction,
+} from "./crowdin-actions";
+import {
+  runCheckProgressAction,
+  runCreateTaskAction,
+  runMachineTranslateAction,
+  runQaChecksAction,
+} from "./localization-actions";
 
 export type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 
@@ -57,6 +68,8 @@ export async function executeVisualWorkflowNode(input: {
   const { node, context } = input;
   const text = (value: string) =>
     input.inputsResolved ? value : resolveVisualWorkflowTemplate(value, context);
+  // A wired list setting holds the earlier step's array, not text.
+  const list = (value: unknown) => (typeof value === "string" ? text(value) : value);
   const logicResult = executeLogicVisualWorkflowNode({
     node,
     context,
@@ -171,6 +184,75 @@ export async function executeVisualWorkflowNode(input: {
         };
       }
     }
+    case "action.machine_translate":
+      return runMachineTranslateAction({
+        organizationId: input.organizationId,
+        idempotencyKey: input.idempotencyKey,
+        projectId: text(node.config.projectId).trim(),
+        sourceFileId: text(node.config.sourceFileId).trim(),
+        targetLocales: list(node.config.targetLocales),
+        useTranslationMemory: node.config.useTranslationMemory !== false,
+      });
+    case "action.create_task":
+      return runCreateTaskAction({
+        organizationId: input.organizationId,
+        idempotencyKey: input.idempotencyKey,
+        projectId: text(node.config.projectId).trim(),
+        sourceFileId: text(node.config.sourceFileId).trim(),
+        targetLocales: list(node.config.targetLocales),
+        step: node.config.step,
+        assigneeWorkosUserId: text(node.config.assigneeWorkosUserId).trim(),
+        title: text(node.config.title),
+      });
+    case "action.check_progress":
+      return runCheckProgressAction({
+        organizationId: input.organizationId,
+        projectId: text(node.config.projectId).trim(),
+        sourceFileId: text(node.config.sourceFileId).trim(),
+        targetLocales: list(node.config.targetLocales),
+        jobId: text(node.config.jobId).trim(),
+      });
+    case "action.run_qa":
+      return runQaChecksAction({
+        organizationId: input.organizationId,
+        projectId: text(node.config.projectId).trim(),
+      });
+    case "action.crowdin_pre_translate":
+      return runCrowdinPreTranslateAction({
+        organizationId: input.organizationId,
+        workosUserId: node.config.workosUserId?.trim(),
+        signal: input.signal,
+        crowdinProjectId: text(node.config.crowdinProjectId),
+        fileIds: list(node.config.fileIds),
+        languageIds: list(node.config.languageIds),
+        method: node.config.method,
+        engineId: text(node.config.engineId),
+        aiPromptId: text(node.config.aiPromptId),
+      });
+    case "action.crowdin_create_task":
+      return runCrowdinCreateTaskAction({
+        organizationId: input.organizationId,
+        workosUserId: node.config.workosUserId?.trim(),
+        signal: input.signal,
+        crowdinProjectId: text(node.config.crowdinProjectId),
+        fileIds: list(node.config.fileIds),
+        languageIds: list(node.config.languageIds),
+        taskType: node.config.taskType,
+        assigneeIds: list(node.config.assigneeIds),
+        title: text(node.config.title),
+        description: text(node.config.description),
+      });
+    case "action.crowdin_check_progress":
+      return runCrowdinCheckProgressAction({
+        organizationId: input.organizationId,
+        workosUserId: node.config.workosUserId?.trim(),
+        signal: input.signal,
+        crowdinProjectId: text(node.config.crowdinProjectId),
+        fileIds: list(node.config.fileIds),
+        languageIds: list(node.config.languageIds),
+        taskIds: list(node.config.taskIds),
+        preTranslationId: text(node.config.preTranslationId),
+      });
     case "action.content_sync": {
       const projectId = text(node.config.projectId).trim();
       const connectionId = text(node.config.connectionId).trim();

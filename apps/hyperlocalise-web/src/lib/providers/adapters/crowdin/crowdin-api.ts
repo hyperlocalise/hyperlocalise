@@ -518,6 +518,22 @@ export interface CrowdinCreateTaskRequest {
   dateTo?: string;
 }
 
+export interface CrowdinPreTranslationRequest {
+  languageIds: string[];
+  fileIds: number[];
+  method: "tm" | "mt" | "ai";
+  engineId?: number;
+  aiPromptId?: number;
+  autoApproveOption?: "all" | "exceptAutoSubstituted" | "perfectMatchOnly" | "none";
+  translateUntranslatedOnly?: boolean;
+}
+
+export interface CrowdinPreTranslation {
+  identifier: string;
+  status: "created" | "inProgress" | "canceled" | "failed" | "finished" | (string & {});
+  progress: number;
+}
+
 export interface CrowdinProjectMember {
   id: number;
   username: string;
@@ -2101,6 +2117,31 @@ export class CrowdinApiClient {
         exportApprovedOnly: input?.exportApprovedOnly ?? false,
         targetLanguageIds: input?.targetLanguageIds,
       },
+    );
+    return response.data;
+  }
+
+  /**
+   * Start an async pre-translation of files with translation memory, a machine translation
+   * engine, or an AI prompt.
+   */
+  async applyPreTranslation(
+    projectId: number,
+    request: CrowdinPreTranslationRequest,
+  ): Promise<CrowdinPreTranslation> {
+    const response = await this.post<CrowdinGetResponse<CrowdinPreTranslation>>(
+      `/projects/${projectId}/pre-translations`,
+      request,
+    );
+    return response.data;
+  }
+
+  async getPreTranslationStatus(
+    projectId: number,
+    preTranslationId: string,
+  ): Promise<CrowdinPreTranslation> {
+    const response = await this.get<CrowdinGetResponse<CrowdinPreTranslation>>(
+      `/projects/${projectId}/pre-translations/${encodeURIComponent(preTranslationId)}`,
     );
     return response.data;
   }

@@ -170,6 +170,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "YTpu1j7/Q4",
     description: "Node picker category for action nodes",
   },
+  categoryLocalization: {
+    defaultMessage: "Localization",
+    id: "06r9h28Hou",
+    description: "Node picker category for translation, review, and QA nodes",
+  },
   categoryLogic: {
     defaultMessage: "Logic",
     id: "tSRJft1T5O",
@@ -214,6 +219,76 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Pull source files into a project and push ready translations back.",
     id: "CBccpuuEIS",
     description: "Catalog description for the content sync action node",
+  },
+  nodeMachineTranslate: {
+    defaultMessage: "Machine translate",
+    id: "33i7nt5B7g",
+    description: "Catalog title for the machine translate node",
+  },
+  nodeMachineTranslateHint: {
+    defaultMessage: "Pre-translate a source file with translation memory and AI.",
+    id: "AjGg25iGEm",
+    description: "Catalog description for the machine translate node",
+  },
+  nodeCreateTask: {
+    defaultMessage: "Assign task",
+    id: "xfQ3fcFvbJ",
+    description: "Catalog title for the node that assigns translation work to a person",
+  },
+  nodeCreateTaskHint: {
+    defaultMessage: "Give a person a translate, post-edit, or proofread task.",
+    id: "mFMIBafAUJ",
+    description: "Catalog description for the assign task node",
+  },
+  nodeCheckProgress: {
+    defaultMessage: "Check progress",
+    id: "Lkk5mrUKMb",
+    description: "Catalog title for the translation progress node",
+  },
+  nodeCheckProgressHint: {
+    defaultMessage: "Count translated and approved strings, or wait until they are done.",
+    id: "etloN+Y7Fr",
+    description: "Catalog description for the translation progress node",
+  },
+  nodeRunQa: {
+    defaultMessage: "Run QA checks",
+    id: "gkhaBkZ+GM",
+    description: "Catalog title for the translation QA node",
+  },
+  nodeRunQaHint: {
+    defaultMessage: "Check a project's translations for errors and warnings.",
+    id: "srA8Bg6NQQ",
+    description: "Catalog description for the translation QA node",
+  },
+  nodeCrowdinPreTranslate: {
+    defaultMessage: "Crowdin pre-translate",
+    id: "FjC75ZSZ0M",
+    description: "Catalog title for the Crowdin pre-translate node",
+  },
+  nodeCrowdinPreTranslateHint: {
+    defaultMessage: "Pre-translate Crowdin files with translation memory, MT, or AI.",
+    id: "8vUA93J/PV",
+    description: "Catalog description for the Crowdin pre-translate node",
+  },
+  nodeCrowdinCreateTask: {
+    defaultMessage: "Crowdin task",
+    id: "4cSF1gEJIK",
+    description: "Catalog title for the node that creates Crowdin tasks",
+  },
+  nodeCrowdinCreateTaskHint: {
+    defaultMessage: "Create a Crowdin translate or proofread task for each language.",
+    id: "vgEORG2zYO",
+    description: "Catalog description for the Crowdin task node",
+  },
+  nodeCrowdinCheckProgress: {
+    defaultMessage: "Crowdin progress",
+    id: "NFtE+2yAq9",
+    description: "Catalog title for the Crowdin progress node",
+  },
+  nodeCrowdinCheckProgressHint: {
+    defaultMessage: "Check Crowdin progress and tasks, or wait until they are done.",
+    id: "AIftE8iyYl",
+    description: "Catalog description for the Crowdin progress node",
   },
   nodeIf: {
     defaultMessage: "If",
@@ -1662,6 +1737,181 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Project folder",
     id: "8R777UILAL",
     description: "Folder inside the Hyperlocalise project for content sync",
+  },
+  localizationProjectId: {
+    defaultMessage: "Project ID",
+    id: "7qPJACmQFj",
+    description: "Project setting on the translation, task, progress, and QA steps",
+  },
+  localizationSourceFileId: {
+    defaultMessage: "Source file ID",
+    id: "bEFIj9nf+a",
+    description: "Source file setting on the translation, task, and progress steps",
+  },
+  localizationSourceFileIdOptional: {
+    defaultMessage: "Source file ID (optional)",
+    id: "IT9fuYzCqC",
+    description:
+      "Optional source file setting on the progress step; empty checks the whole project",
+  },
+  localizationTargetLocales: {
+    defaultMessage: "Target locales",
+    id: "fPRMssSpBS",
+    description: "Comma-separated target locales on the translation, task, and progress steps",
+  },
+  localizationTargetLocalesHint: {
+    defaultMessage:
+      "Separate locales with commas. Leave empty for every target locale of the project.",
+    id: "o6AEWOMRJB",
+    description: "Help text under the target locales setting",
+  },
+  machineTranslateUseMemory: {
+    defaultMessage: "Reuse translation memory matches",
+    id: "tfNftmyIRC",
+    description: "Checkbox on the machine translate step",
+  },
+  createTaskStep: {
+    defaultMessage: "Task",
+    id: "iVBQQpasX9",
+    description: "Picker for the kind of work on the assign task step",
+  },
+  createTaskStepTranslate: {
+    defaultMessage: "Translate",
+    id: "iE7kZbhfQJ",
+    description: "Assign task step option: a person translates from scratch",
+  },
+  createTaskStepEdit: {
+    defaultMessage: "Post-edit",
+    id: "JlYoa6li0M",
+    description: "Assign task step option: a person edits machine or AI output",
+  },
+  createTaskStepProofread: {
+    defaultMessage: "Proofread",
+    id: "wEo1jzylG4",
+    description: "Assign task step option: a person proofreads edited translations",
+  },
+  createTaskAssignee: {
+    defaultMessage: "Assignee",
+    id: "qlnfAQRHov",
+    description: "Member picker on the assign task step",
+  },
+  createTaskUnassigned: {
+    defaultMessage: "Unassigned",
+    id: "z6CwBj1X+C",
+    description: "Assign task option that leaves the task without an assignee",
+  },
+  createTaskTitle: {
+    defaultMessage: "Task title (optional)",
+    id: "wFfOIZj5wX",
+    description: "Title of the job the assign task step creates",
+  },
+  checkProgressJobId: {
+    defaultMessage: "Job ID (optional)",
+    id: "KnQWJg+k9n",
+    description: "Job setting on the check progress step",
+  },
+  checkProgressHint: {
+    defaultMessage:
+      "To wait for people to finish, put this step in a Wait step's condition, for example isApproved.",
+    id: "3kHwpx5fUv",
+    description: "Help text on the check progress step",
+  },
+  crowdinProjectId: {
+    defaultMessage: "Crowdin project ID",
+    id: "t8uH650RAY",
+    description: "Numeric Crowdin project setting on the Crowdin steps",
+  },
+  crowdinConnectionHint: {
+    defaultMessage: "Runs with your Crowdin connection once you save the workflow.",
+    id: "CuAE1UAURF",
+    description: "Help text on Crowdin steps explaining whose Crowdin account they use",
+  },
+  crowdinFileIds: {
+    defaultMessage: "Crowdin file IDs",
+    id: "eM7fvx+kZE",
+    description: "Comma-separated Crowdin file IDs on the Crowdin steps",
+  },
+  crowdinFileIdsOptional: {
+    defaultMessage: "Crowdin file IDs (optional)",
+    id: "yI2t/LpKKW",
+    description: "Optional Crowdin file IDs on the Crowdin progress step; empty checks the project",
+  },
+  crowdinLanguageIds: {
+    defaultMessage: "Crowdin language IDs",
+    id: "rCZ7pu/N/u",
+    description: "Comma-separated Crowdin language IDs on the Crowdin steps",
+  },
+  crowdinLanguageIdsHint: {
+    defaultMessage:
+      "Separate IDs with commas, for example fr, de. Leave empty for every target language of the project.",
+    id: "bLUZ8jecPz",
+    description: "Help text under the Crowdin language IDs setting",
+  },
+  crowdinPreTranslateMethod: {
+    defaultMessage: "Method",
+    id: "4lAOeUm1kD",
+    description: "Picker for how the Crowdin pre-translate step translates",
+  },
+  crowdinMethodTm: {
+    defaultMessage: "Translation memory",
+    id: "Iz/vRg7yYf",
+    description: "Crowdin pre-translate method option",
+  },
+  crowdinMethodMt: {
+    defaultMessage: "Machine translation",
+    id: "KGh/pkMCst",
+    description: "Crowdin pre-translate method option",
+  },
+  crowdinMethodAi: {
+    defaultMessage: "AI prompt",
+    id: "d6RsWnHN5O",
+    description: "Crowdin pre-translate method option",
+  },
+  crowdinEngineId: {
+    defaultMessage: "MT engine ID",
+    id: "apAI8tlflI",
+    description: "Crowdin machine translation engine ID on the pre-translate step",
+  },
+  crowdinAiPromptId: {
+    defaultMessage: "AI prompt ID",
+    id: "o9f1rqFEpE",
+    description: "Crowdin AI prompt ID on the pre-translate step",
+  },
+  crowdinTaskType: {
+    defaultMessage: "Task type",
+    id: "9Dyjsfw5UG",
+    description: "Picker for the kind of Crowdin task",
+  },
+  crowdinAssigneeIds: {
+    defaultMessage: "Assignee user IDs (optional)",
+    id: "lOZKIlYzYj",
+    description: "Comma-separated Crowdin user IDs to assign the task to",
+  },
+  crowdinTaskTitle: {
+    defaultMessage: "Task title",
+    id: "/uTD7y2d2Z",
+    description: "Title of the Crowdin task",
+  },
+  crowdinTaskDescription: {
+    defaultMessage: "Description (optional)",
+    id: "JCMhEdFEIr",
+    description: "Description of the Crowdin task",
+  },
+  crowdinTaskIds: {
+    defaultMessage: "Crowdin task IDs (optional)",
+    id: "tG8dpOeDYA",
+    description: "Crowdin task IDs whose status the progress step reports",
+  },
+  crowdinPreTranslationId: {
+    defaultMessage: "Pre-translation ID (optional)",
+    id: "tsR11hdac9",
+    description: "Crowdin pre-translation whose status the progress step reports",
+  },
+  crowdinProgressHint: {
+    defaultMessage:
+      "To wait for Crowdin, put this step in a Wait step's condition, for example tasksDone or isApproved.",
+    id: "2CRZfybkI6",
+    description: "Help text on the Crowdin progress step",
   },
   selectProject: {
     defaultMessage: "Select a project",

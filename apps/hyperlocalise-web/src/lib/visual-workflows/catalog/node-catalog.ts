@@ -25,6 +25,10 @@ import {
   UploadSimpleIcon,
   BracketsCurlyIcon,
   GitMergeIcon,
+  TranslateIcon,
+  UserCheckIcon,
+  ChartBarIcon,
+  SealCheckIcon,
 } from "@phosphor-icons/react/ssr";
 
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
@@ -89,6 +93,48 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     category: "action",
     enabled: true,
     icon: EnvelopeIcon,
+  },
+  {
+    type: "action.machine_translate",
+    category: "localization",
+    enabled: true,
+    icon: TranslateIcon,
+  },
+  {
+    type: "action.create_task",
+    category: "localization",
+    enabled: true,
+    icon: UserCheckIcon,
+  },
+  {
+    type: "action.check_progress",
+    category: "localization",
+    enabled: true,
+    icon: ChartBarIcon,
+  },
+  {
+    type: "action.run_qa",
+    category: "localization",
+    enabled: true,
+    icon: SealCheckIcon,
+  },
+  {
+    type: "action.crowdin_pre_translate",
+    category: "localization",
+    enabled: true,
+    icon: TranslateIcon,
+  },
+  {
+    type: "action.crowdin_create_task",
+    category: "localization",
+    enabled: true,
+    icon: UserCheckIcon,
+  },
+  {
+    type: "action.crowdin_check_progress",
+    category: "localization",
+    enabled: true,
+    icon: ChartBarIcon,
   },
   {
     type: "logic.if",
@@ -197,6 +243,7 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
 export const VISUAL_CATALOG_CATEGORY_ORDER: readonly VisualCatalogCategory[] = [
   "trigger",
   "action",
+  "localization",
   "logic",
   "ai",
   "flow",
@@ -256,6 +303,70 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         recipients: "",
         subject: "",
         message: "",
+        onError: "stop",
+      };
+    case "action.machine_translate":
+      return {
+        kind: "action.machine_translate",
+        projectId: "",
+        sourceFileId: "",
+        targetLocales: "",
+        useTranslationMemory: true,
+        onError: "stop",
+      };
+    case "action.create_task":
+      return {
+        kind: "action.create_task",
+        projectId: "",
+        sourceFileId: "",
+        targetLocales: "",
+        step: "edit",
+        assigneeWorkosUserId: "",
+        title: "",
+        onError: "stop",
+      };
+    case "action.check_progress":
+      return {
+        kind: "action.check_progress",
+        projectId: "",
+        sourceFileId: "",
+        targetLocales: "",
+        jobId: "",
+        onError: "stop",
+      };
+    case "action.run_qa":
+      return { kind: "action.run_qa", projectId: "", onError: "stop" };
+    case "action.crowdin_pre_translate":
+      return {
+        kind: "action.crowdin_pre_translate",
+        crowdinProjectId: "",
+        fileIds: "",
+        languageIds: "",
+        method: "mt",
+        engineId: "",
+        aiPromptId: "",
+        onError: "stop",
+      };
+    case "action.crowdin_create_task":
+      return {
+        kind: "action.crowdin_create_task",
+        crowdinProjectId: "",
+        fileIds: "",
+        languageIds: "",
+        taskType: "proofread",
+        assigneeIds: "",
+        title: "",
+        description: "",
+        onError: "stop",
+      };
+    case "action.crowdin_check_progress":
+      return {
+        kind: "action.crowdin_check_progress",
+        crowdinProjectId: "",
+        fileIds: "",
+        languageIds: "",
+        taskIds: "",
+        preTranslationId: "",
         onError: "stop",
       };
     case "logic.if":
@@ -425,6 +536,24 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.channelId ? "Slack" : "Slack channel";
     case "action.notify_email":
       return config.from ? config.provider : "Email";
+    case "action.machine_translate":
+      return config.targetLocales.trim() || "All target locales";
+    case "action.create_task":
+      return config.step === "translate"
+        ? "Translate"
+        : config.step === "edit"
+          ? "Post-edit"
+          : "Proofread";
+    case "action.check_progress":
+      return config.jobId.trim() ? "Job and strings" : "Strings";
+    case "action.run_qa":
+      return config.projectId ? "Project QA" : "Select project";
+    case "action.crowdin_pre_translate":
+      return config.method === "tm" ? "Translation memory" : config.method === "mt" ? "MT" : "AI";
+    case "action.crowdin_create_task":
+      return config.taskType === "translate" ? "Translate" : "Proofread";
+    case "action.crowdin_check_progress":
+      return config.taskIds.trim() ? "Tasks and strings" : "Strings";
     case "logic.if":
       return config.condition.trim() ? "1 condition" : "No condition";
     case "logic.switch":

@@ -17,11 +17,31 @@ const EXTERNAL_TYPES: ReadonlySet<VisualCatalogType> = new Set([
   "action.content_sync",
   "action.notify_slack",
   "action.notify_email",
+  "action.machine_translate",
+  "action.create_task",
+  "action.crowdin_pre_translate",
+  "action.crowdin_create_task",
   "ai.agent",
+]);
+
+/**
+ * Actions that may run again with the same idempotency key without a duplicate effect: they only
+ * read, or they find the job an earlier attempt created under that key.
+ */
+const REPEATABLE_ACTION_TYPES: ReadonlySet<VisualCatalogType> = new Set([
+  "action.machine_translate",
+  "action.create_task",
+  "action.check_progress",
+  "action.run_qa",
+  "action.crowdin_check_progress",
 ]);
 
 export function isExternalVisualWorkflowNode(type: VisualCatalogType): boolean {
   return EXTERNAL_TYPES.has(type);
+}
+
+export function isRepeatableVisualWorkflowAction(type: VisualCatalogType): boolean {
+  return REPEATABLE_ACTION_TYPES.has(type);
 }
 
 export function isSafeIdempotentHttpNode(node: CanonicalVisualWorkflowNode): boolean {

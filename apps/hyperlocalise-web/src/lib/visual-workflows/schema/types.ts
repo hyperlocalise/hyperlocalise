@@ -26,6 +26,13 @@ export type VisualCatalogType =
   | "action.content_sync"
   | "action.notify_slack"
   | "action.notify_email"
+  | "action.machine_translate"
+  | "action.create_task"
+  | "action.check_progress"
+  | "action.run_qa"
+  | "action.crowdin_pre_translate"
+  | "action.crowdin_create_task"
+  | "action.crowdin_check_progress"
   | "logic.if"
   | "logic.switch"
   | "logic.set"
@@ -44,7 +51,15 @@ export type VisualCatalogType =
   | "logic.try_catch"
   | "flow.call_workflow";
 
-export type VisualCatalogCategory = "trigger" | "action" | "logic" | "ai" | "flow";
+export type VisualCatalogCategory = "trigger" | "action" | "localization" | "logic" | "ai" | "flow";
+
+/** Who works on a human task: translating from scratch, post-editing a draft, or proofreading. */
+export type VisualTaskStep = "translate" | "edit" | "proofread";
+
+export type VisualCrowdinTaskType = "translate" | "proofread";
+
+/** Pre-translates with translation memory, a machine translation engine, or an AI prompt. */
+export type VisualCrowdinPreTranslateMethod = "tm" | "mt" | "ai";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -150,6 +165,89 @@ export type VisualNodeConfig =
       recipients: string;
       subject: string;
       message: string;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.machine_translate";
+      projectId: string;
+      sourceFileId: string;
+      /** Comma-separated locales; empty means every target locale of the project. */
+      targetLocales: string;
+      useTranslationMemory?: boolean;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.create_task";
+      projectId: string;
+      sourceFileId: string;
+      /** Comma-separated locales; empty means every target locale of the project. */
+      targetLocales: string;
+      step: VisualTaskStep;
+      assigneeWorkosUserId: string;
+      title: string;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.check_progress";
+      projectId: string;
+      /** Limits the counts to the strings of one source file; empty counts the whole project. */
+      sourceFileId: string;
+      /** Comma-separated locales; empty means every target locale of the project. */
+      targetLocales: string;
+      /** A job whose status is reported alongside the counts. */
+      jobId: string;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.run_qa";
+      projectId: string;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.crowdin_pre_translate";
+      crowdinProjectId: string;
+      /** Comma-separated Crowdin file ids. */
+      fileIds: string;
+      /** Comma-separated Crowdin language ids; empty means every target language of the project. */
+      languageIds: string;
+      method: VisualCrowdinPreTranslateMethod;
+      /** The machine translation engine, when the method is mt. */
+      engineId: string;
+      /** The AI prompt, when the method is ai. */
+      aiPromptId: string;
+      /** Whose Crowdin connection the step uses; set by the server when the workflow is saved. */
+      workosUserId?: string;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.crowdin_create_task";
+      crowdinProjectId: string;
+      /** Comma-separated Crowdin file ids. */
+      fileIds: string;
+      /** Comma-separated Crowdin language ids; empty means every target language of the project. */
+      languageIds: string;
+      taskType: VisualCrowdinTaskType;
+      /** Comma-separated Crowdin user ids. */
+      assigneeIds: string;
+      title: string;
+      description: string;
+      /** Whose Crowdin connection the step uses; set by the server when the workflow is saved. */
+      workosUserId?: string;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.crowdin_check_progress";
+      crowdinProjectId: string;
+      /** Comma-separated Crowdin file ids; empty checks the whole project. */
+      fileIds: string;
+      /** Comma-separated Crowdin language ids; empty means every target language of the project. */
+      languageIds: string;
+      /** Comma-separated Crowdin task ids whose status is reported alongside the progress. */
+      taskIds: string;
+      /** A pre-translation whose status is reported alongside the progress. */
+      preTranslationId: string;
+      /** Whose Crowdin connection the step uses; set by the server when the workflow is saved. */
+      workosUserId?: string;
       onError?: VisualNodeErrorBehavior;
     }
   | { kind: "logic.if"; condition: string }

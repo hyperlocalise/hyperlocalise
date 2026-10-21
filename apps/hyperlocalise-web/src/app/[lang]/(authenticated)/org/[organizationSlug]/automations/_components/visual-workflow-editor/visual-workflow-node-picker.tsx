@@ -151,6 +151,20 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeHttp;
     case "action.content_sync":
       return messages.nodeContentSync;
+    case "action.machine_translate":
+      return messages.nodeMachineTranslate;
+    case "action.create_task":
+      return messages.nodeCreateTask;
+    case "action.check_progress":
+      return messages.nodeCheckProgress;
+    case "action.run_qa":
+      return messages.nodeRunQa;
+    case "action.crowdin_pre_translate":
+      return messages.nodeCrowdinPreTranslate;
+    case "action.crowdin_create_task":
+      return messages.nodeCrowdinCreateTask;
+    case "action.crowdin_check_progress":
+      return messages.nodeCrowdinCheckProgress;
     case "action.notify_slack":
       return messages.nodeNotifySlack;
     case "action.notify_email":
@@ -206,6 +220,20 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeHttpHint;
     case "action.content_sync":
       return messages.nodeContentSyncHint;
+    case "action.machine_translate":
+      return messages.nodeMachineTranslateHint;
+    case "action.create_task":
+      return messages.nodeCreateTaskHint;
+    case "action.check_progress":
+      return messages.nodeCheckProgressHint;
+    case "action.run_qa":
+      return messages.nodeRunQaHint;
+    case "action.crowdin_pre_translate":
+      return messages.nodeCrowdinPreTranslateHint;
+    case "action.crowdin_create_task":
+      return messages.nodeCrowdinCreateTaskHint;
+    case "action.crowdin_check_progress":
+      return messages.nodeCrowdinCheckProgressHint;
     case "action.notify_slack":
       return messages.nodeNotifySlackHint;
     case "action.notify_email":
@@ -253,6 +281,8 @@ function categoryMessage(category: VisualCatalogCategory) {
       return messages.categoryTrigger;
     case "action":
       return messages.categoryAction;
+    case "localization":
+      return messages.categoryLocalization;
     case "logic":
       return messages.categoryLogic;
     case "ai":

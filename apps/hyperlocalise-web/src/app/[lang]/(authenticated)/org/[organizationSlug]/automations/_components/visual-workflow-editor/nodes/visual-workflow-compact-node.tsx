@@ -733,6 +733,20 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeHttp;
     case "action.content_sync":
       return messages.nodeContentSync;
+    case "action.machine_translate":
+      return messages.nodeMachineTranslate;
+    case "action.create_task":
+      return messages.nodeCreateTask;
+    case "action.check_progress":
+      return messages.nodeCheckProgress;
+    case "action.run_qa":
+      return messages.nodeRunQa;
+    case "action.crowdin_pre_translate":
+      return messages.nodeCrowdinPreTranslate;
+    case "action.crowdin_create_task":
+      return messages.nodeCrowdinCreateTask;
+    case "action.crowdin_check_progress":
+      return messages.nodeCrowdinCheckProgress;
     case "action.notify_slack":
       return messages.nodeNotifySlack;
     case "action.notify_email":
