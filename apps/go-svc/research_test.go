@@ -3,10 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -77,15 +75,15 @@ func TestMarketVisibilityNormalizesOrganicMetrics(t *testing.T) {
 			Billing: dataforseo.APICallCost{CostUSD: 0.01},
 		},
 	}
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/market-visibility", bytes.NewBufferString(`{
-		"targetDomain":"example.com","marketId":"france-fr","locationCode":2250,"languageCode":"fr"
-	}`))
-	h.marketVisibility(rec, req)
 
-	require.Equal(t, http.StatusOK, rec.Code)
-	var body researchMarketVisibilityResponse
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	body, err := h.computeMarketVisibility(context.Background(), researchMarketVisibilityRequest{
+		TargetDomain: "example.com",
+		MarketID:     "france-fr",
+		LocationCode: 2250,
+		LanguageCode: "fr",
+	})
+
+	require.NoError(t, err)
 	require.Equal(t, "france-fr", body.MarketID)
 	require.Equal(t, 42, body.OrganicCount)
 	require.Equal(t, 1380.5, body.OrganicETV)
@@ -96,14 +94,16 @@ func TestMarketVisibilityNormalizesOrganicMetrics(t *testing.T) {
 func TestMarketVisibilityRequiresFields(t *testing.T) {
 	h := newHandler()
 	h.research = fakeResearch{}
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/market-visibility", bytes.NewBufferString(`{
+	req := httptest.NewRequest(http.MethodPost, "/market-visibility", bytes.NewBufferString(`{
 		"targetDomain":"example.com","marketId":"france-fr","locationCode":0,"languageCode":"fr"
 	}`))
-	h.marketVisibility(rec, req)
 
-	require.Equal(t, http.StatusBadRequest, rec.Code)
-	require.Contains(t, rec.Body.String(), "dataforseo_validation_error")
+	_, _, err := h.orgDomainMarketVisibility(req, workspaceActor{})
+
+	var failure *workspaceError
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, http.StatusBadRequest, failure.status)
+	require.Equal(t, "provider_validation_failed", failure.code)
 }
 
 func TestMarketOrganicMetricsEmptyAndMissing(t *testing.T) {
@@ -123,15 +123,15 @@ func TestMarketOrganicMetricsEmptyAndMissing(t *testing.T) {
 			Data: nil,
 		},
 	}
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/market-visibility", bytes.NewBufferString(`{
-		"targetDomain":"example.com","marketId":"france-fr","locationCode":2250,"languageCode":"fr"
-	}`))
-	h.marketVisibility(rec, req)
 
-	require.Equal(t, http.StatusOK, rec.Code)
-	var body researchMarketVisibilityResponse
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	body, err := h.computeMarketVisibility(context.Background(), researchMarketVisibilityRequest{
+		TargetDomain: "example.com",
+		MarketID:     "france-fr",
+		LocationCode: 2250,
+		LanguageCode: "fr",
+	})
+
+	require.NoError(t, err)
 	require.Equal(t, 0, body.OrganicCount)
 	require.Equal(t, 0.0, body.OrganicETV)
 	require.Equal(t, 0, body.Top10Count)
@@ -230,140 +230,6 @@ func (f fakeResearch) RankCheck(
 	return f.rank, f.rankErr
 }
 
-func TestExpandKeywordsRequiresConfiguration(t *testing.T) {
-	h := newHandler()
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/keywords", bytes.NewBufferString(`{
-		"keyword":"seo","locationCode":2840,"languageCode":"en"
-	}`))
-
-	h.expandKeywords(rec, req)
-
-	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
-	require.Contains(t, rec.Body.String(), "dataforseo_not_configured")
-}
-
-func TestExpandKeywordsReturnsNormalizedIdeas(t *testing.T) {
-	h := newHandler()
-	h.research = fakeResearch{
-		ideas: dataforseo.TaskResponse[[]dataforseo.KeywordDataItem]{
-			Data: []dataforseo.KeywordDataItem{{
-				"keyword": "seo tools",
-				"keyword_info": map[string]any{
-					"search_volume": float64(1200),
-					"cpc":           2.4,
-				},
-				"keyword_properties": map[string]any{
-					"keyword_difficulty": float64(38),
-				},
-				"search_intent_info": map[string]any{"main_intent": "commercial"},
-			}},
-			Billing: dataforseo.APICallCost{
-				Path:    []string{"v3", "dataforseo_labs", "google", "keyword_ideas", "live"},
-				CostUSD: 0.05,
-			},
-		},
-	}
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/keywords", bytes.NewBufferString(`{
-		"keyword":"seo","locationCode":2840,"languageCode":"en"
-	}`))
-	h.expandKeywords(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code)
-	var body researchKeywordsResponse
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
-	require.Equal(t, []dataforseo.KeywordIdea{{
-		Keyword: "seo tools",
-		Volume:  1200,
-		KD:      38,
-		CPC:     2.4,
-		Intent:  "commercial",
-	}}, body.Keywords)
-	require.Equal(t, 0.05, body.Billing.CostUSD)
-}
-
-func TestLiveSerpRequiresKeyword(t *testing.T) {
-	h := newHandler()
-	h.research = fakeResearch{}
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/serp", bytes.NewBufferString(`{
-		"locationCode":2250,"languageCode":"fr"
-	}`))
-	h.liveSerp(rec, req)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
-}
-
-func TestRankCheckMapsProviderValidation(t *testing.T) {
-	h := newHandler()
-	h.research = fakeResearch{
-		rankErr: &dataforseo.Error{
-			Code:    dataforseo.ErrorCodeValidation,
-			Message: "keyword and targetDomain are required",
-		},
-	}
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/rank-check", bytes.NewBufferString(`{
-		"keyword":"seo","keywordId":"kw_1","targetDomain":"example.com",
-		"locationCode":2840,"languageCode":"en"
-	}`))
-	h.rankCheck(rec, req)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
-	require.Contains(t, rec.Body.String(), "dataforseo_validation_error")
-}
-
-func TestRankCheckBatchCapsSize(t *testing.T) {
-	h := newHandler()
-	h.research = fakeResearch{}
-	payload := map[string]any{
-		"targetDomain": "example.com",
-		"locationCode": 2840,
-		"languageCode": "en",
-		"keywords":     make([]map[string]string, 21),
-	}
-	for i := range 21 {
-		payload["keywords"].([]map[string]string)[i] = map[string]string{
-			"keywordId": "kw",
-			"keyword":   "seo",
-		}
-	}
-	body, err := json.Marshal(payload)
-	require.NoError(t, err)
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/rank-check/batch", bytes.NewReader(body))
-	h.rankCheckBatch(rec, req)
-	require.Equal(t, http.StatusBadRequest, rec.Code)
-}
-
-func TestRankCheckBatchReturnsResults(t *testing.T) {
-	position := 6
-	h := newHandler()
-	h.research = fakeResearch{
-		rank: dataforseo.TaskResponse[dataforseo.RankCheckResult]{
-			Data: dataforseo.RankCheckResult{
-				KeywordID: "kw_1",
-				Keyword:   "seo tools",
-				Position:  &position,
-				URL:       "https://example.com/seo",
-			},
-		},
-	}
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/rank-check/batch", bytes.NewBufferString(`{
-		"targetDomain":"example.com","locationCode":2840,"languageCode":"en",
-		"keywords":[{"keywordId":"kw_1","keyword":"seo tools"}]
-	}`))
-	h.rankCheckBatch(rec, req)
-	require.Equal(t, http.StatusOK, rec.Code)
-	var body researchRankCheckBatchResponse
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
-	require.Len(t, body.Results, 1)
-	require.Equal(t, "seo tools", body.Results[0].Keyword)
-	require.Equal(t, &position, body.Results[0].Position)
-}
-
 func TestLegacyDomainResearchProxyRoutesAreNotRegistered(t *testing.T) {
 	h := newHandler()
 	h.research = fakeResearch{}
@@ -386,43 +252,4 @@ func TestLegacyDomainResearchProxyRoutesAreNotRegistered(t *testing.T) {
 		mux.ServeHTTP(rec, req)
 		require.Equal(t, http.StatusNotFound, rec.Code, path)
 	}
-}
-
-func TestRankCheckBatchUsesBoundedConcurrency(t *testing.T) {
-	var inFlight, maxInFlight atomic.Int32
-	h := newHandler()
-	h.research = fakeResearch{
-		onRank: func() {
-			n := inFlight.Add(1)
-			defer inFlight.Add(-1)
-			for {
-				current := maxInFlight.Load()
-				if n <= current || maxInFlight.CompareAndSwap(current, n) {
-					break
-				}
-			}
-			time.Sleep(40 * time.Millisecond)
-		},
-		rank: dataforseo.TaskResponse[dataforseo.RankCheckResult]{
-			Data: dataforseo.RankCheckResult{Keyword: "seo"},
-		},
-	}
-	keywords := make([]map[string]string, 8)
-	for i := range keywords {
-		keywords[i] = map[string]string{"keywordId": "kw", "keyword": "seo"}
-	}
-	body, err := json.Marshal(map[string]any{
-		"targetDomain": "example.com",
-		"locationCode": 2840,
-		"languageCode": "en",
-		"keywords":     keywords,
-	})
-	require.NoError(t, err)
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/v1/domains/research/rank-check/batch", bytes.NewReader(body))
-	h.rankCheckBatch(rec, req)
-	require.Equal(t, http.StatusOK, rec.Code)
-	require.Greater(t, maxInFlight.Load(), int32(1))
-	require.LessOrEqual(t, maxInFlight.Load(), int32(rankCheckConcurrency))
 }
