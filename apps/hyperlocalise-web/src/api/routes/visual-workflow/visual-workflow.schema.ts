@@ -12,6 +12,7 @@
  */
 import { z } from "zod";
 
+import { successEnvelopeSchema } from "@/api/response.schema";
 import { visualWorkflowV3DefinitionSchema } from "@/lib/visual-workflows/schema/definition-schema";
 import {
   visualWorkflowTestFailuresSchema,
@@ -91,6 +92,13 @@ export const workflowRetrySchema = z
 export const workflowWebhookUrlQuerySchema = z.object({
   tokenVersion: z.coerce.number().int().min(1).max(1_000_000),
 });
+export const visualWorkflowWebhookUrlSchema = z.object({
+  url: z.string().url(),
+});
+export const visualWorkflowWebhookUrlResponseSchema = successEnvelopeSchema(
+  "webhookUrl",
+  visualWorkflowWebhookUrlSchema,
+);
 export const workflowCredentialSchema = z
   .object({ name: z.string().trim().min(1).max(120), value: z.string().min(1).max(10000) })
   .strict();

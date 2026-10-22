@@ -765,4 +765,40 @@ describe("visual workflow routes", () => {
       error: "visual_workflow_run_not_found",
     });
   });
+
+  it("returns a resource-keyed webhook URL for a saved workflow", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createdResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"].$post(
+      {
+        param: { organizationSlug },
+        json: { name: "Inbound webhook" },
+      },
+      { headers },
+    );
+    expect(createdResponse.status).toBe(201);
+    const created = (await createdResponse.json()) as { visualWorkflow: { id: string } };
+
+    const response = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ]["webhook-url"].$get(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: created.visualWorkflow.id,
+        },
+        query: { tokenVersion: "1" },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toEqual({
+      webhookUrl: {
+        url: expect.stringContaining(`/api/webhooks/visual-workflows/${created.visualWorkflow.id}`),
+      },
+    });
+  });
 });

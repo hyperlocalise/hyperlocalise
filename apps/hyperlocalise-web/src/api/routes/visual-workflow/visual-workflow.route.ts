@@ -270,11 +270,13 @@ export function createVisualWorkflowRoutes() {
           ? new URL(env.HYPERLOCALISE_PUBLIC_APP_URL).origin
           : new URL(c.req.url).origin;
         return c.json({
-          url: buildVisualWorkflowWebhookUrl({
-            origin,
-            visualWorkflowId: workflow.id,
-            tokenVersion: c.req.valid("query").tokenVersion,
-          }),
+          webhookUrl: {
+            url: buildVisualWorkflowWebhookUrl({
+              origin,
+              visualWorkflowId: workflow.id,
+              tokenVersion: c.req.valid("query").tokenVersion,
+            }),
+          },
         });
       },
     )
