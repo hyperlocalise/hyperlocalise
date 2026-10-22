@@ -25,6 +25,7 @@ const {
   getInstallationOctokitMock,
   getMock,
   installCommandMock,
+  resolveHyperlocaliseAgentLanguageModelMock,
   stopMock,
   toolLoopAgentCtor,
 } = vi.hoisted(() => {
@@ -37,6 +38,11 @@ const {
   const getMock = vi.fn(async () => ({ stop: stopMock }));
   const getInstallationOctokitMock = vi.fn(async () => ({ auth: authMock }));
   const generateMock = vi.fn(async () => ({ text: "done" }));
+  const resolveHyperlocaliseAgentLanguageModelMock = vi.fn(async () => ({
+    model: { modelId: "x" } as unknown,
+    source: "gateway" as string,
+    modelId: "openai/x",
+  }));
   const toolLoopAgentCtor = vi.fn(function ToolLoopAgent(_options: unknown) {
     return { generate: generateMock };
   });
@@ -50,6 +56,7 @@ const {
     getInstallationOctokitMock,
     getMock,
     installCommandMock,
+    resolveHyperlocaliseAgentLanguageModelMock,
     stopMock,
     toolLoopAgentCtor,
   };
@@ -64,8 +71,11 @@ vi.mock("@/lib/agents/github/app", () => ({
 }));
 
 vi.mock("@/lib/agent-runtime/loops/hyperlocalise-agent", () => ({
-  getHyperlocaliseAgentModel: vi.fn(() => ({ modelId: "x" })),
   buildHyperlocaliseAgentInstructions: buildHyperlocaliseAgentInstructionsMock,
+}));
+
+vi.mock("@/lib/providers/organization-language-model", () => ({
+  resolveHyperlocaliseAgentLanguageModel: resolveHyperlocaliseAgentLanguageModelMock,
 }));
 
 vi.mock("@/lib/agent-runtime/tools/registry", () => ({ buildTools: buildToolsMock }));
@@ -118,6 +128,22 @@ describe("repositoryAgentWorkflow", () => {
       sourceReplyTarget: { source: "github", threadId: "thread_1" },
       summary: "done",
     });
+  });
+
+  it("runs on the workspace's own model when it has one", async () => {
+    const ownModel = { modelId: "claude-sonnet-5" };
+    resolveHyperlocaliseAgentLanguageModelMock.mockResolvedValueOnce({
+      model: ownModel,
+      source: "anthropic",
+      modelId: "anthropic/claude-sonnet-5",
+    });
+
+    await repositoryAgentWorkflow(baseTask as never);
+
+    expect(resolveHyperlocaliseAgentLanguageModelMock).toHaveBeenCalledWith({
+      organizationId: "org_1",
+    });
+    expect(toolLoopAgentCtor).toHaveBeenCalledWith(expect.objectContaining({ model: ownModel }));
   });
 
   it("cleans up disposable sandbox runs", async () => {

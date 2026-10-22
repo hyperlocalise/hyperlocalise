@@ -13,7 +13,6 @@
 import { and, eq } from "drizzle-orm";
 import { isStepCount, ToolLoopAgent } from "ai";
 
-import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
 import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import {
   extractGenerateResultTokenUsage,
@@ -23,6 +22,7 @@ import type { ContentfulAutomationExecutionEvent } from "@/lib/contentful/automa
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 import type {
   ContentfulAutomationExecutionError,
   ContentfulAutomationExecutionSuccess,
@@ -130,8 +130,11 @@ export async function runContentfulAgent(
     });
 
     const tools = buildContentfulAgentTools(session);
+    const languageModel = await resolveHyperlocaliseAgentLanguageModel({
+      organizationId: input.organizationId,
+    });
     const agent = new ToolLoopAgent({
-      model: getHyperlocaliseAgentModel(),
+      model: languageModel.model,
       instructions: composedInstructions,
       tools,
       activeTools: [CONTENTFUL_TRANSLATION_EXECUTOR_TOOL_NAME],
@@ -162,6 +165,8 @@ export async function runContentfulAgent(
         entry_id: run.entryId,
       },
       extractTokenUsage: extractGenerateResultTokenUsage,
+      aiCreditModelId: languageModel.modelId,
+      aiCreditCredentialSource: languageModel.source === "gateway" ? "gateway" : "byok",
       run: () =>
         agent.generate({
           messages: [

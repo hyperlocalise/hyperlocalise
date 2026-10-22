@@ -79,8 +79,12 @@ vi.mock("@/lib/database/client", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/agent-runtime/loops/model", () => ({
-  getHyperlocaliseAgentModel: () => getHyperlocaliseAgentModelMock(),
+vi.mock("@/lib/providers/organization-language-model", () => ({
+  resolveHyperlocaliseAgentLanguageModel: async () => ({
+    model: getHyperlocaliseAgentModelMock(),
+    source: "gateway",
+    modelId: "openai/test-model",
+  }),
 }));
 
 vi.mock("../tools/recall_knowledge_files", () => ({

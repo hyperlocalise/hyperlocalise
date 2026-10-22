@@ -658,6 +658,7 @@ async function handlePendingClarification(input: {
 
   const intent = await dependencies.interpretClarificationReply({
     text: message.text,
+    organizationId,
   });
   log.info(
     {
@@ -923,6 +924,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
       const intent = await dependencies.interpretEmailRequest({
         subject: raw.subject ?? "",
         text: message.text,
+        organizationId: organization.id,
       });
       log.info(
         {

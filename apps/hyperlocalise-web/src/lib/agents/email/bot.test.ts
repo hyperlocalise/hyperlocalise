@@ -452,6 +452,7 @@ describe("createEmailHandler", () => {
     expect(dependencies.interpretEmailRequest).toHaveBeenCalledWith({
       subject: "Translate from en to fr",
       text: "Please translate from en to fr",
+      organizationId: "org_123",
     });
     expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
   });

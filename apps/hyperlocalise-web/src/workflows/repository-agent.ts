@@ -56,8 +56,10 @@ async function runRepositoryAgentStep(input: {
 
   const { ToolLoopAgent } = await import("ai");
   const { db } = await import("@/lib/database/client");
-  const { buildHyperlocaliseAgentInstructions, getHyperlocaliseAgentModel } =
+  const { buildHyperlocaliseAgentInstructions } =
     await import("@/lib/agent-runtime/loops/hyperlocalise-agent");
+  const { resolveHyperlocaliseAgentLanguageModel } =
+    await import("@/lib/providers/organization-language-model");
   const { WORKFLOW_AGENT_TIMEOUT } = await import("@/lib/agent-runtime/subagents/constants");
   const { buildRepositoryGitHubContextInstructions } =
     await import("@/lib/agents/repository-context");
@@ -89,8 +91,11 @@ async function runRepositoryAgentStep(input: {
 
   ensureAgentSession(toolContext);
   const tools = filterToolSetByNames(buildTools(toolContext), [...repositoryWorkspaceToolNames]);
+  const languageModel = await resolveHyperlocaliseAgentLanguageModel({
+    organizationId: task.organizationId,
+  });
   const agent = new ToolLoopAgent({
-    model: getHyperlocaliseAgentModel(),
+    model: languageModel.model,
     tools,
     stopWhen: [(step) => step.steps.length >= agentStepLimit],
     timeout: WORKFLOW_AGENT_TIMEOUT,
@@ -125,6 +130,8 @@ async function runRepositoryAgentStep(input: {
       project_id: task.projectId,
     },
     extractTokenUsage: extractGenerateResultTokenUsage,
+    aiCreditModelId: languageModel.modelId,
+    aiCreditCredentialSource: languageModel.source === "gateway" ? "gateway" : "byok",
     run: () =>
       agent.generate({
         messages: [{ role: "user", content: task.instructions }],

@@ -13,7 +13,7 @@
 import { generateText, Output, type LanguageModel } from "ai";
 import { z } from "zod";
 
-import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
+import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 import type { EmailAgentIntentKind } from "./types";
 
 const emailRequestIntentSchema = z.object({
@@ -162,20 +162,24 @@ export function createClarificationInterpreter({ model }: CreateEmailRequestInte
 export async function interpretEmailRequest(input: {
   subject: string;
   text: string;
+  organizationId?: string;
 }): Promise<EmailRequestIntent> {
-  const interpret = createEmailRequestInterpreter({
-    model: getHyperlocaliseAgentModel(),
+  const { model } = await resolveHyperlocaliseAgentLanguageModel({
+    organizationId: input.organizationId,
   });
+  const interpret = createEmailRequestInterpreter({ model });
 
-  return interpret(input);
+  return interpret({ subject: input.subject, text: input.text });
 }
 
 export async function interpretClarificationReply(input: {
   text: string;
+  organizationId?: string;
 }): Promise<EmailRequestIntent> {
-  const interpret = createClarificationInterpreter({
-    model: getHyperlocaliseAgentModel(),
+  const { model } = await resolveHyperlocaliseAgentLanguageModel({
+    organizationId: input.organizationId,
   });
+  const interpret = createClarificationInterpreter({ model });
 
-  return interpret(input);
+  return interpret({ text: input.text });
 }

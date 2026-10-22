@@ -19,7 +19,7 @@ import {
   localizeImageAttachment,
   type ImageLocalizationAttachment,
 } from "@/lib/agents/image-localization";
-import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
+import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 
 import {
   createStoredSlackImageAttachment,
@@ -55,16 +55,16 @@ type InterpretSlackImageRequestInput = {
   messages?: SlackImageIntentMessage[];
 };
 
+type InterpretSlackImageRequestOptions = {
+  organizationId?: string;
+};
+
 type SlackImageStorageContext = {
   organizationId: string;
   projectId: string | null;
   createdByUserId: string | null;
   interactionId: string;
 };
-
-function getSlackImageIntentModel() {
-  return getHyperlocaliseAgentModel();
-}
 
 function normalizeLocale(locale: string) {
   const value = locale.trim().replaceAll("_", "-");
@@ -143,10 +143,14 @@ export function createSlackImageRequestInterpreter({
   };
 }
 
-export async function interpretSlackImageRequest(input: InterpretSlackImageRequestInput) {
-  const interpret = createSlackImageRequestInterpreter({
-    model: getSlackImageIntentModel(),
+export async function interpretSlackImageRequest(
+  input: InterpretSlackImageRequestInput,
+  options: InterpretSlackImageRequestOptions = {},
+) {
+  const { model } = await resolveHyperlocaliseAgentLanguageModel({
+    organizationId: options.organizationId,
   });
+  const interpret = createSlackImageRequestInterpreter({ model });
 
   return interpret(input);
 }
@@ -324,10 +328,10 @@ export async function handleSlackImageAttachments(
     return { handled: false, localizedCount: 0 };
   }
 
-  const intent = await interpretSlackImageRequest({
-    text: message.text,
-    messages: conversationMessages,
-  });
+  const intent = await interpretSlackImageRequest(
+    { text: message.text, messages: conversationMessages },
+    { organizationId: options.storage?.organizationId },
+  );
   const targetLocale = intent.targetLocale;
   const threadState = options.threadState ?? null;
   const storage = options.storage;
@@ -440,10 +444,10 @@ export async function handleSlackImageFollowUp(
     return { handled: false, localizedCount: 0 };
   }
 
-  const intent = await interpretSlackImageRequest({
-    text: message.text,
-    messages: options.conversationMessages ?? [],
-  });
+  const intent = await interpretSlackImageRequest(
+    { text: message.text, messages: options.conversationMessages ?? [] },
+    { organizationId: options.storage.organizationId },
+  );
 
   if (!intent.targetLocale) {
     return { handled: false, localizedCount: 0 };
