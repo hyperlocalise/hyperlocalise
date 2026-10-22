@@ -35,6 +35,8 @@ type MockVirtualizer = {
   getVirtualItems: () => MockVirtualItem[];
   getTotalSize: () => number;
   scrollToIndex: (index: number, options: { align: string }) => void;
+  scrollToOffset: (offset: number) => void;
+  getOffsetForIndex: (index: number, align: string) => [number, string];
   measureElement: () => undefined;
   scrollOffset: number;
   scrollRect: { height: number };
@@ -60,6 +62,8 @@ const virtualizer: MockVirtualizer = {
   getVirtualItems: () => virtualItems,
   getTotalSize: () => virtualizerCount * ROW_HEIGHT,
   scrollToIndex: vi.fn(),
+  scrollToOffset: vi.fn(),
+  getOffsetForIndex: (index: number) => [index * ROW_HEIGHT, "start"],
   measureElement: () => undefined,
   scrollOffset: 0,
   scrollRect: { height: ROW_HEIGHT * 2 },
@@ -113,5 +117,50 @@ describe("ContentEditorSideBySideVirtualList viewport range", () => {
       visibleSegmentIds: [segments[3]!.id, segments[4]!.id],
       loadSegmentIds: [segments[1]!.id, segments[2]!.id, segments[3]!.id, segments[4]!.id],
     });
+  });
+
+  it("does not keep loading while the viewport stays at the same end after a page appends", () => {
+    const onNearEnd = vi.fn();
+    const firstPage = contentEditorSegmentsFixture.slice(0, 12);
+    const nextPage = Array.from({ length: 12 }, (_, index) => ({
+      ...firstPage[index % firstPage.length]!,
+      id: `seg-next-${index}`,
+      index: firstPage.length + index + 1,
+    }));
+
+    const { rerender } = renderWithContentEditorProviders(
+      <ContentEditorSideBySideVirtualList
+        segments={firstPage}
+        focusedSegmentId={firstPage[0]!.id}
+        canEdit
+        onFocusSegment={vi.fn()}
+        onVisibleRangeChange={vi.fn()}
+        onTargetChange={vi.fn()}
+        hasMore
+        onNearEnd={onNearEnd}
+      />,
+    );
+
+    virtualItems = makeVirtualItems([8, 9, 10, 11]);
+    act(() => {
+      onVirtualizerChange?.(virtualizer);
+    });
+    expect(onNearEnd).toHaveBeenCalledTimes(1);
+
+    virtualItems = makeVirtualItems([20, 21, 22, 23]);
+    rerender(
+      <ContentEditorSideBySideVirtualList
+        segments={[...firstPage, ...nextPage]}
+        focusedSegmentId={firstPage[0]!.id}
+        canEdit
+        onFocusSegment={vi.fn()}
+        onVisibleRangeChange={vi.fn()}
+        onTargetChange={vi.fn()}
+        hasMore
+        onNearEnd={onNearEnd}
+      />,
+    );
+
+    expect(onNearEnd).toHaveBeenCalledTimes(1);
   });
 });

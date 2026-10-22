@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useNearEndPagination } from "../project-file/content-editor-near-end-pagination";
 import { useEditorPageWindow } from "../project-file/content-editor-page-window";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useRef } from "react";
@@ -58,30 +59,13 @@ export function ContentEditorQueueVirtualList({
 }) {
   const intl = useIntl();
   const parentRef = useRef<HTMLDivElement>(null);
-  const loadRequestedForLengthRef = useRef<string | null>(null);
-  const checkForNearEnd = useCallback(
-    (items: Array<{ index: number }>) => {
-      if (items.length === 0 || segments.length === 0) {
-        return;
-      }
-
-      const lastItem = items.at(-1);
-      if (
-        !lastItem ||
-        lastItem.index < Math.max(segments.length - Math.min(10, Math.ceil(segments.length / 3)), 0)
-      ) {
-        return;
-      }
-
-      if (!hasMore || isLoadingMore || loadRequestedForLengthRef.current === segments.at(-1)?.id) {
-        return;
-      }
-
-      loadRequestedForLengthRef.current = segments.at(-1)?.id ?? null;
-      onNearEnd?.();
-    },
-    [hasMore, isLoadingMore, onNearEnd, segments.length],
-  );
+  const checkForNearEnd = useNearEndPagination({
+    hasMore,
+    isLoadingMore,
+    itemCount: segments.length,
+    prefetchDistance: Math.min(10, Math.ceil(segments.length / 3)),
+    onNearEnd,
+  });
   const previousSelectedId = useRef<string | null>(null);
   const getItemKey = useCallback((index: number) => segments[index]?.id ?? index, [segments]);
   const virtualizer = useVirtualizer({
@@ -106,17 +90,14 @@ export function ContentEditorQueueVirtualList({
   }, [selectedSegmentId, segments, virtualizer]);
 
   useEffect(() => {
-    if (!isLoadingMore) {
-      loadRequestedForLengthRef.current = null;
-    }
-  }, [isLoadingMore]);
-
-  useEffect(() => {
     checkForNearEnd(virtualizer.getVirtualItems());
   }, [checkForNearEnd, virtualizer]);
 
   return (
-    <div ref={parentRef} className={cn("min-h-0 flex-1 overflow-auto px-4 pb-3", className)}>
+    <div
+      ref={parentRef}
+      className={cn("min-h-0 flex-1 overflow-auto [overflow-anchor:none] px-4 pb-3", className)}
+    >
       <ul className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
         {virtualizer.getVirtualItems().map((virtualRow) => {
           const segment = segments[virtualRow.index];

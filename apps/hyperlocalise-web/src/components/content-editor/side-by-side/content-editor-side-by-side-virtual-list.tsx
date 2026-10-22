@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useNearEndPagination } from "../project-file/content-editor-near-end-pagination";
 import { useEditorPageWindow } from "../project-file/content-editor-page-window";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useRef } from "react";
@@ -111,28 +112,13 @@ export function ContentEditorSideBySideVirtualList({
   className?: string;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
-  const loadRequestedForLengthRef = useRef<string | null>(null);
-
-  const checkForNearEnd = useCallback(
-    (items: Array<{ index: number }>) => {
-      if (items.length === 0 || segments.length === 0) {
-        return;
-      }
-
-      const lastItem = items.at(-1);
-      if (!lastItem || lastItem.index < Math.max(segments.length - 10, 0)) {
-        return;
-      }
-
-      if (!hasMore || isLoadingMore || loadRequestedForLengthRef.current === segments.at(-1)?.id) {
-        return;
-      }
-
-      loadRequestedForLengthRef.current = segments.at(-1)?.id ?? null;
-      onNearEnd?.();
-    },
-    [hasMore, isLoadingMore, onNearEnd, segments.length],
-  );
+  const checkForNearEnd = useNearEndPagination({
+    hasMore,
+    isLoadingMore,
+    itemCount: segments.length,
+    prefetchDistance: 10,
+    onNearEnd,
+  });
 
   const publishVisibleRange = useCallback(
     (
@@ -182,12 +168,6 @@ export function ContentEditorSideBySideVirtualList({
   }, [focusedSegmentId, segments, virtualizer]);
 
   useEffect(() => {
-    if (!isLoadingMore) {
-      loadRequestedForLengthRef.current = null;
-    }
-  }, [isLoadingMore]);
-
-  useEffect(() => {
     const virtualItems = virtualizer.getVirtualItems();
     const scrollElement = parentRef.current;
     checkForNearEnd(virtualItems);
@@ -205,7 +185,10 @@ export function ContentEditorSideBySideVirtualList({
   );
 
   return (
-    <div ref={parentRef} className={cn("min-h-0 flex-1 overflow-auto", className)}>
+    <div
+      ref={parentRef}
+      className={cn("min-h-0 flex-1 overflow-auto [overflow-anchor:none]", className)}
+    >
       <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
         {virtualizer.getVirtualItems().map((virtualRow) => {
           const segment = segments[virtualRow.index];
