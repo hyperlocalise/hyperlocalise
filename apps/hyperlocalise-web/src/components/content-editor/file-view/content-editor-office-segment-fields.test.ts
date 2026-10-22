@@ -50,6 +50,15 @@ describe("officeSegmentGroup", () => {
   it("numbers paragraphs from one", () => {
     expect(officeSegmentPosition("word/document.xml#0")).toEqual({ paragraph: 1 });
   });
+
+  it("groups PDF keys by page and block index", () => {
+    expect(officeSegmentGroup("page-3#2")).toEqual({
+      id: "page-3",
+      kind: "page",
+      number: 3,
+    });
+    expect(officeSegmentPosition("page-3#2")).toEqual({ block: 2 });
+  });
 });
 
 describe("groupOfficeSegments", () => {

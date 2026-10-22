@@ -12,6 +12,7 @@
  */
 import {
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedPdfTranslationFileFormat,
   inferSupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
@@ -27,7 +28,10 @@ export function isContentSyncLottieCompatiblePath(path: string): boolean {
 }
 
 export function isContentSyncOfficeCompatiblePath(path: string): boolean {
-  return inferSupportedOfficeTranslationFileFormat(path) !== null;
+  return (
+    inferSupportedOfficeTranslationFileFormat(path) !== null ||
+    inferSupportedPdfTranslationFileFormat(path) !== null
+  );
 }
 
 export function buildContentSyncLocalePath(providerPath: string, locale: string): string {

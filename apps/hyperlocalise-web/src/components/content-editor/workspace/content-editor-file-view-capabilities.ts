@@ -14,6 +14,7 @@ import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedPdfTranslationFileFormat,
   inferSupportedVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
@@ -34,6 +35,7 @@ export type ContentEditorFileViewerId =
   | "docx"
   | "xlsx"
   | "pptx"
+  | "pdf"
   | "markdown"
   | "html";
 
@@ -96,6 +98,8 @@ function officeViewerIdForExtension(extension: string | null): ContentEditorFile
       return "xlsx";
     case ".pptx":
       return "pptx";
+    case ".pdf":
+      return "pdf";
     default:
       return null;
   }
@@ -134,7 +138,11 @@ export function resolveCatFileViewCapabilities(input: {
   const extension = extensionOf(sourcePath);
   // Office files ingested as keyed segments. Legacy uploads with no keys keep `office_file`
   // segments and the stored-file viewer below.
-  if (contentKind !== "office_file" && inferSupportedOfficeTranslationFileFormat(sourcePath)) {
+  if (
+    contentKind !== "office_file" &&
+    (inferSupportedOfficeTranslationFileFormat(sourcePath) ||
+      inferSupportedPdfTranslationFileFormat(sourcePath))
+  ) {
     if (!nativeProject) {
       return {
         family: "text",

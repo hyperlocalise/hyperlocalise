@@ -34,6 +34,8 @@ export type ContentEditorOfficeSegmentFieldsConfig = {
   /** Segments of the file in file order, with unsaved edits applied. */
   segments: readonly ContentEditorSegment[];
   dirtySegmentIds: ReadonlySet<string>;
+  /** Segment keys that overflowed in the last generated target file download. */
+  overflowKeys?: ReadonlySet<string>;
   canEdit: boolean;
   hasMore: boolean;
   onLoadMore?: () => void;
@@ -63,6 +65,8 @@ function groupHeading(intl: IntlShape, group: OfficeSegmentGroup) {
       return intl.formatMessage(m.officeGroupComments);
     case "sheet":
       return group.name ?? intl.formatMessage(m.officeGroupOther);
+    case "page":
+      return intl.formatMessage(m.officeGroupPage, values);
     case "other":
       return group.name ?? intl.formatMessage(m.officeGroupOther);
   }
@@ -73,9 +77,13 @@ function fieldLabel(intl: IntlShape, key: string) {
   if (!position) {
     return key;
   }
-  return "cell" in position
-    ? position.cell
-    : intl.formatMessage(m.officeParagraph, { number: position.paragraph });
+  if ("cell" in position) {
+    return position.cell;
+  }
+  if ("block" in position) {
+    return intl.formatMessage(m.officePdfBlock, { number: position.block });
+  }
+  return intl.formatMessage(m.officeParagraph, { number: position.paragraph });
 }
 
 /**
@@ -90,6 +98,7 @@ export function ContentEditorOfficeSegmentFieldsPane({
   onLoadMore,
   onChange,
   onSaveDrafts,
+  overflowKeys,
 }: ContentEditorOfficeSegmentFieldsConfig) {
   const intl = useIntl();
   const [isSaving, startSaving] = useTransition();
@@ -147,11 +156,17 @@ export function ContentEditorOfficeSegmentFieldsPane({
                   const readOnly = !canEdit || Boolean(segment.isLocked) || isSaving;
                   const label = fieldLabel(intl, segment.key);
                   const sourceText = officeFieldText(segment.sourceText);
+                  const didOverflow = overflowKeys?.has(segment.key) ?? false;
                   return (
                     <li key={segment.id} className="flex flex-col gap-1">
                       <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
                         {label}
                       </span>
+                      {didOverflow ? (
+                        <p role="status" className="text-[11px] text-amber-700 dark:text-amber-500">
+                          <FormattedMessage {...m.officePdfOverflowField} />
+                        </p>
+                      ) : null}
                       <p className="text-xs whitespace-pre-wrap text-muted-foreground">
                         {sourceText}
                       </p>

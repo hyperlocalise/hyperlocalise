@@ -406,7 +406,7 @@ func editorCatSourceKind(sourcePath string) editorCatFileKind {
 		return editorCatKindImage
 	case ".mp4":
 		return editorCatKindVideo
-	case ".docx", ".xlsx", ".xls", ".pptx":
+	case ".docx", ".xlsx", ".xls", ".pptx", ".pdf":
 		return editorCatKindOffice
 	case ".html", ".htm", ".md", ".mdx", ".adoc", ".asciidoc", ".asc", ".txt":
 		return editorCatKindDocument

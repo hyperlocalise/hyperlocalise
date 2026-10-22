@@ -91,6 +91,8 @@ export function sourceContentType(path: string) {
       return "application/vnd.ms-excel";
     case "pptx":
       return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    case "pdf":
+      return "application/pdf";
     default:
       return "application/octet-stream";
   }

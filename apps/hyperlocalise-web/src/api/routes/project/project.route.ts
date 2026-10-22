@@ -3916,12 +3916,17 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
         if (officeDownload.value) {
           const officeFilename = officeTranslationDownloadFilename(filename, officeDownload.value);
-          return c.body(new Uint8Array(officeDownload.value.content), 200, {
+          const downloadHeaders: Record<string, string> = {
             "Content-Type": officeDownload.value.contentType,
             "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(officeFilename)}`,
             "X-Content-Type-Options": "nosniff",
             "Cache-Control": "no-store",
-          });
+          };
+          if (officeDownload.value.overflowKeys && officeDownload.value.overflowKeys.length > 0) {
+            downloadHeaders["X-Hyperlocalise-Overflow-Keys"] =
+              officeDownload.value.overflowKeys.join(",");
+          }
+          return c.body(new Uint8Array(officeDownload.value.content), 200, downloadHeaders);
         }
 
         if (inferSupportedWholeFileTranslationFileFormat(query.sourcePath)) {

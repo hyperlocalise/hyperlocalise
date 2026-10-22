@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   writeSourceIngestFileStep: vi.fn(),
   extractSourceIngestEntriesStep: vi.fn(),
   extractOfficeSourceEntriesStep: vi.fn(),
+  extractPdfSourceEntriesStep: vi.fn(),
   loadSourceFileSegmentationStep: vi.fn(),
   writeSourceFileSegmentationSrxStep: vi.fn(),
   parseHlEntriesStep: vi.fn(),
@@ -151,6 +152,26 @@ describe("sourceFileIngestWorkflow documents", () => {
       {},
       expect.objectContaining({ sourcePath: "pages/home.html", sourceContent: "{}" }),
     );
+  });
+
+  it("extracts PDF segments through go-svc without a sandbox", async () => {
+    mocks.extractPdfSourceEntriesStep.mockResolvedValue({ "page-1#1": "Hello" });
+    mocks.parseHlEntriesStep.mockResolvedValue([
+      { key: "page-1#1", text: "Hello", context: null, type: "string" },
+    ]);
+
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "docs/sample-local-pdf.pdf" }),
+    ).resolves.toEqual({
+      status: "ingested",
+      importedKeyCount: 1,
+    });
+
+    expect(mocks.extractPdfSourceEntriesStep).toHaveBeenCalledWith(
+      expect.objectContaining({ sourcePath: "docs/sample-local-pdf.pdf" }),
+    );
+    expect(mocks.createSourceIngestSandboxStep).not.toHaveBeenCalled();
+    expect(mocks.extractSourceIngestEntriesStep).not.toHaveBeenCalled();
   });
 
   it("does not extract keys for binary image files", async () => {

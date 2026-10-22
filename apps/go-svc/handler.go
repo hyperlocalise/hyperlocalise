@@ -160,7 +160,6 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 		h.registerDomainResearch(mux, verifier)
 		h.registerDomainSearchConsole(mux, verifier)
 		h.registerHyperlab(mux, verifier)
-		h.registerReporting(mux, verifier)
 		(&linkedDomainAPI{workspace: h.workspace, research: h.research, autumn: h.autumn}).register(mux, verifier)
 	}
 	if h.knowledgeMemories != nil {
@@ -221,6 +220,24 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 			return
 		}
 		h.validateSegment(w, r)
+	})
+	mux.HandleFunc("POST /internal/pdf/apply", func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" || !requireServerCallToken(w, r) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+			}
+			return
+		}
+		h.applyPDFTranslations(w, r)
+	})
+	mux.HandleFunc("POST /internal/pdf/entries", func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" || !requireServerCallToken(w, r) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+			}
+			return
+		}
+		h.extractPDFEntries(w, r)
 	})
 	mux.Handle("POST /v1/editor-export/filtered/serialize", editorExport)
 	for pattern, route := range map[string]http.HandlerFunc{

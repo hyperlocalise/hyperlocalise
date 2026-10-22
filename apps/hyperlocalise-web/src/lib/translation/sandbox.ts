@@ -904,13 +904,27 @@ export class HyperlocaliseCliRunner {
     // chunks, each orphaned byte becomes U+FFFD (�). Write entries to a file and
     // read bytes instead so CAT / pull persist valid Unicode.
     const outputPath = `/tmp/hl-entries-${randomUUID()}.json`;
+    const errorPath = `/tmp/hl-entries-${randomUUID()}.err`;
     try {
       const result = await this.lifecycle.runCommand(sandboxId, "bash", [
         "-lc",
-        `hl entries ${shellQuote(path)}${sourceLocaleFlag}${localeFlag}${sourceFlag}${srxFlag} > ${shellQuote(outputPath)}`,
+        [
+          `hl entries ${shellQuote(path)}${sourceLocaleFlag}${localeFlag}${sourceFlag}${srxFlag} > ${shellQuote(outputPath)} 2> ${shellQuote(errorPath)}`,
+          "code=$?",
+          `[ $code -eq 0 ] || cat ${shellQuote(errorPath)}`,
+          "exit $code",
+        ].join("; "),
       ]);
       if (result.exitCode !== 0) {
-        return { ok: false, exitCode: result.exitCode, output: result.output };
+        let output = result.output.trim();
+        if (!output) {
+          try {
+            output = (await this.lifecycle.readFile(sandboxId, errorPath)).toString("utf8").trim();
+          } catch {
+            // ignore missing stderr file
+          }
+        }
+        return { ok: false, exitCode: result.exitCode, output };
       }
 
       try {
@@ -928,7 +942,7 @@ export class HyperlocaliseCliRunner {
       }
     } finally {
       try {
-        await this.lifecycle.runCommand(sandboxId, "rm", ["-f", outputPath]);
+        await this.lifecycle.runCommand(sandboxId, "rm", ["-f", outputPath, errorPath]);
       } catch {
         // Best-effort cleanup; sandboxes are ephemeral.
       }

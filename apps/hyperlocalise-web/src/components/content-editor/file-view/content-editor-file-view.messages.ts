@@ -292,6 +292,21 @@ export const contentEditorFileViewMessages = defineMessages({
     id: "TV/xfNXFY0",
     description: "Group heading for paragraphs on a PowerPoint slide",
   },
+  officeGroupPage: {
+    defaultMessage: "Page {number}",
+    id: "reRrUxXowF",
+    description: "Group heading for PDF text blocks on a page",
+  },
+  officePdfBlock: {
+    defaultMessage: "Block {number}",
+    id: "HFlkkP2dXc",
+    description: "Field label for a PDF text block segment",
+  },
+  officePdfOverflowField: {
+    defaultMessage: "This block did not fit in the last generated PDF. Shorten the translation.",
+    id: "15qNbkynz0",
+    description: "Warning on a PDF segment field whose text overflowed the layout on download",
+  },
   officeGroupNotes: {
     defaultMessage: "Speaker notes, slide {number}",
     id: "3NV0GFE6VT",

@@ -14,7 +14,7 @@ import { z } from "zod";
 
 import { createVercelSandboxWorkspace } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 import { createLogger, serializeErrorForLog, type Logger } from "@/lib/log";
-import { installQaSpellingSandboxCommand } from "@/lib/vercel-sandbox-config";
+import { buildInstallQaSpellingSandboxCommand } from "@/lib/vercel-sandbox-config";
 import type { QaCheckPolicy } from "./qa-policy";
 import type { TranslationQaGlossaryTerm } from "./types";
 
@@ -193,7 +193,7 @@ export async function validateQaPageInSandbox(input: {
     const spellingStartedAt = Date.now();
     const spellingInstall = await workspace.runCommand("bash", [
       "-lc",
-      `export DICPATH=/usr/share/hunspell; ${installQaSpellingSandboxCommand}`,
+      `export DICPATH=/usr/share/hunspell; ${buildInstallQaSpellingSandboxCommand()}`,
     ]);
     log.info(
       {

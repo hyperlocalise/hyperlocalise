@@ -2713,6 +2713,9 @@ async function createMcpServerForRequest(
               "Could not write translations into the Office file",
             );
 
+          case "pdf_export_failed":
+            return mcpToolError("pdf_export_failed", "Could not write translations into the PDF");
+
           default:
             return assertNever(downloadError);
         }

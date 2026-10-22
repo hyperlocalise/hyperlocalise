@@ -245,7 +245,7 @@ var lottieTextKeyPattern = regexp.MustCompile(`^(?:layers|assets\[\d+\]\.layers)
 
 func isOfficeTranslationSource(sourcePath string) bool {
 	switch strings.ToLower(nodePathExtname(sourcePath)) {
-	case ".xlsx", ".xls", ".docx", ".pptx":
+	case ".xlsx", ".xls", ".docx", ".pptx", ".pdf":
 		return true
 	default:
 		return false

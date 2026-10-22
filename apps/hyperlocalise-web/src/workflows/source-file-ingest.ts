@@ -18,11 +18,12 @@ import {
   isDocumentTranslationFileFormat,
   isImageTranslationFileFormat,
   isOfficeTranslationFileFormat,
+  isPdfTranslationFileFormat,
   isSegmentedSpreadsheetTranslationFileFormat,
   isVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import { sandboxEntriesLocaleOptions } from "@/lib/translation/sandbox-cli-release";
-import { sandboxCliParsesOffice } from "@/lib/translation/sandbox-cli-version";
+import { sandboxCliParsesOffice, sandboxCliParsesPdf } from "@/lib/translation/sandbox-cli-version";
 import type { SourceFileIngestEventData } from "@/lib/workflow/types";
 import {
   claimSourceFileIngestStep,
@@ -32,6 +33,7 @@ import {
   ensureVideoVariantsForSourceFileStep,
   extractSourceIngestEntriesStep,
   extractOfficeSourceEntriesStep,
+  extractPdfSourceEntriesStep,
   getProjectSourceLocaleStep,
   getProjectTargetLocalesStep,
   getStoredFileMetadataStep,
@@ -67,6 +69,12 @@ function userFacingIngestFailureReason(error: unknown): string {
   if (message.includes("failed to extract entries")) {
     return "the file format could not be parsed into translation keys";
   }
+  if (
+    message.includes("pdf has no readable text layer") ||
+    message.includes("failed to extract entries from the PDF: pdf_no_text_layer")
+  ) {
+    return "No readable text was found. Export the PDF with selectable text and upload it again.";
+  }
   return message;
 }
 
@@ -99,12 +107,56 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
     const isBinary = Boolean(inferredFormat && isBinaryTranslationFileFormat(inferredFormat));
     const isDocument = Boolean(inferredFormat && isDocumentTranslationFileFormat(inferredFormat));
     const isOffice = Boolean(inferredFormat && isOfficeTranslationFileFormat(inferredFormat));
+    const isPdf = Boolean(inferredFormat && isPdfTranslationFileFormat(inferredFormat));
     const isSpreadsheet = Boolean(
       inferredFormat && isSegmentedSpreadsheetTranslationFileFormat(inferredFormat),
     );
+
+    if (isPdf) {
+      const extractedEntries = await extractPdfSourceEntriesStep({
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+        storedFileId: event.storedFileId,
+        sourcePath: event.sourcePath,
+      });
+      const entries = await parseHlEntriesStep(extractedEntries);
+
+      const reconciliation = await reconcileSourceFileTranslationKeysStep({
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+        repositorySourceFileId,
+        sourceFileVersionId: event.sourceFileVersionId,
+        workflowRunId,
+        entries,
+      });
+
+      ingestCompleted = true;
+      if (reconciliation.status === "superseded") {
+        return { status: "skipped" as const, reason: "superseded" };
+      }
+
+      if (!event.reingest) {
+        await dispatchSourceUploadAutomationsStep({
+          organizationId: event.organizationId,
+          projectId: event.projectId,
+          sourceFileId: event.storedFileId,
+          sourceFileVersionId: event.sourceFileVersionId,
+          sourcePath: event.sourcePath,
+          sourceHash: claim.sourceHash,
+          targetAutomationId: event.targetAutomationId,
+        });
+      }
+
+      return {
+        status: "ingested" as const,
+        importedKeyCount: entries.length,
+      };
+    }
+
     // The CLI never reads .xls, so legacy workbooks are always keyed in-process.
     const officeParsedInSandbox = isOffice && inferredFormat !== "xls" && sandboxCliParsesOffice();
-    if ((isBinary || isDocument) && !officeParsedInSandbox) {
+    const pdfParsedInSandbox = isPdf && sandboxCliParsesPdf();
+    if ((isBinary || isDocument) && !officeParsedInSandbox && !pdfParsedInSandbox) {
       const targetLocales = await getProjectTargetLocalesStep({
         organizationId: event.organizationId,
         projectId: event.projectId,
@@ -227,7 +279,7 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
       });
       extractOptions = sandboxEntriesLocaleOptions(inputFilename, sourceLocale);
     } else if (isOffice) {
-      // Document and slide keys address paragraphs, so SRX spans would not map back either.
+      // Document and slide keys address fixed layout positions, so SRX spans would not map back either.
       extractOptions = {};
     } else {
       const segmentation = await loadSourceFileSegmentationStep({

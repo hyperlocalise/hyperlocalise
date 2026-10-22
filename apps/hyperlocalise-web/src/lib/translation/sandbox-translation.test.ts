@@ -428,12 +428,12 @@ describe("sandbox command runner", () => {
       entries: { i02F07: vietnamese },
     });
 
-    expect(sandboxMocks.runCommand).toHaveBeenCalledWith({
+    expect(sandboxMocks.runCommand).toHaveBeenNthCalledWith(1, {
       cmd: "bash",
       args: [
         "-lc",
         expect.stringMatching(
-          /^hl entries 'lang\/vi-VN\.json' > '\/tmp\/hl-entries-[0-9a-f-]+\.json'$/,
+          /^hl entries 'lang\/vi-VN\.json' > '\/tmp\/hl-entries-[0-9a-f-]+\.json' 2> '\/tmp\/hl-entries-[0-9a-f-]+\.err'; code=\$\?; \[ \$code -eq 0 \] \|\| cat '\/tmp\/hl-entries-[0-9a-f-]+\.err'; exit \$code$/,
         ),
       ],
       // Parsing needs no model credentials, so ingest works without an LLM key.
@@ -445,7 +445,11 @@ describe("sandbox command runner", () => {
     });
     expect(sandboxMocks.runCommand).toHaveBeenCalledWith({
       cmd: "rm",
-      args: ["-f", expect.stringMatching(/^\/tmp\/hl-entries-[0-9a-f-]+\.json$/)],
+      args: [
+        "-f",
+        expect.stringMatching(/^\/tmp\/hl-entries-[0-9a-f-]+\.json$/),
+        expect.stringMatching(/^\/tmp\/hl-entries-[0-9a-f-]+\.err$/),
+      ],
       env: undefined,
       detached: true,
     });
@@ -470,13 +474,14 @@ describe("sandbox command runner", () => {
       }),
     ).resolves.toEqual({ ok: true, entries: { "home.title": "Accueil" } });
 
-    expect(sandboxMocks.runCommand).toHaveBeenCalledWith(
+    expect(sandboxMocks.runCommand).toHaveBeenNthCalledWith(
+      1,
       expect.objectContaining({
         cmd: "bash",
         args: [
           "-lc",
           expect.stringMatching(
-            /^hl entries 'strings\.xlsx' --source-locale 'en-US' --locale 'fr-FR' > '\/tmp\/hl-entries-[0-9a-f-]+\.json'$/,
+            /^hl entries 'strings\.xlsx' --source-locale 'en-US' --locale 'fr-FR' > '\/tmp\/hl-entries-[0-9a-f-]+\.json' 2> '\/tmp\/hl-entries-[0-9a-f-]+\.err'; code=\$\?; \[ \$code -eq 0 \] \|\| cat '\/tmp\/hl-entries-[0-9a-f-]+\.err'; exit \$code$/,
           ),
         ],
       }),
