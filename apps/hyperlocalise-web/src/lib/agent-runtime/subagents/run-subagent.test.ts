@@ -78,7 +78,7 @@ describe("runSubagent", () => {
     repositoryGenerateMock.mockRejectedValue(new Error("sandbox stopped"));
 
     await expect(
-      runSubagent("repository", options, { usageSource: "chat_repository_subagent" }),
+      runSubagent("repository", options, { usageSource: "project_file_string_context_lookup" }),
     ).rejects.toThrow("sandbox stopped");
     expect(trackAiCallTokenUsageMock).not.toHaveBeenCalled();
   });
