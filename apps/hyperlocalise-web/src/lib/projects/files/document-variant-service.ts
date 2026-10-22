@@ -15,7 +15,7 @@ import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { getStoredFileContent } from "@/lib/file-storage/records";
-import { getManagedLanguageModel } from "@/lib/providers/language-model";
+import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 import {
@@ -126,10 +126,11 @@ export async function localizeAndStoreDocumentVariant(input: {
     return err({ code: "source_bytes_missing" });
   }
 
-  const model = getManagedLanguageModel();
-
   let translatedText: string;
   try {
+    const { model } = await resolveHyperlocaliseAgentLanguageModel({
+      organizationId: input.organizationId,
+    });
     const result = await generateText({
       model,
       prompt: buildDocumentLocalizationPrompt({
