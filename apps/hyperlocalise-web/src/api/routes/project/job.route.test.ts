@@ -910,6 +910,79 @@ describe("workspace job update", () => {
     });
   });
 
+  it("persists and clears a native job due date", async () => {
+    const { identity, organization, project, user } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const [job] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+    });
+
+    const dueAt = "2026-05-01T17:00:00.000Z";
+    const setDue = await client.api.orgs[":organizationSlug"].jobs[":jobId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+        json: { dueAt },
+      },
+      { headers },
+    );
+
+    expect(setDue.status).toBe(200);
+    const setBody = (await setDue.json()) as { job: { dueAt: string | null } };
+    expect(setBody.job.dueAt).toBe(dueAt);
+
+    const [stored] = await db
+      .select({ dueAt: schema.jobs.dueAt })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, job.id))
+      .limit(1);
+    expect(stored?.dueAt?.toISOString()).toBe(dueAt);
+
+    const clearDue = await client.api.orgs[":organizationSlug"].jobs[":jobId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+        json: { dueAt: null },
+      },
+      { headers },
+    );
+
+    expect(clearDue.status).toBe(200);
+    const clearedBody = (await clearDue.json()) as { job: { dueAt: string | null } };
+    expect(clearedBody.job.dueAt).toBeNull();
+  });
+
+  it("rejects a due date that is not an offset datetime", async () => {
+    const { identity, organization, project, user } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const [job] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+        json: { dueAt: "2026-05-01" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+  });
+
   it("unassigns a native job owner", async () => {
     const { identity, organization, project, user } =
       await projectFixture.createStoredProjectFixture();

@@ -200,4 +200,26 @@ describe("runPickAssigneeAction with Crowdin people", () => {
 
     expect(result).toMatchObject({ ok: false, error: { code: "no_available_assignee" } });
   });
+
+  it("rejects an unknown job type and an invalid due date before loading people", async () => {
+    await expect(
+      runPickAssigneeAction({
+        ...base,
+        jobType: "dubbing",
+        rules: [rule()],
+        strategy: "first",
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { code: "unknown_job_type" } });
+
+    await expect(
+      runPickAssigneeAction({
+        ...base,
+        dueAt: "tomorrow morning",
+        rules: [rule()],
+        strategy: "first",
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { code: "invalid_due_date" } });
+
+    expect(loadCrowdinAssignees).not.toHaveBeenCalled();
+  });
 });
