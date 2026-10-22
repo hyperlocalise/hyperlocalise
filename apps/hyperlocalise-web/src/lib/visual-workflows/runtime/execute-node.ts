@@ -14,7 +14,11 @@ import { generateText, Output } from "ai";
 
 import { validateContentSyncConfig } from "@/lib/agents/content-sync/content-sync-config";
 import { executeContentSyncConfig } from "@/lib/agents/content-sync/execute-content-sync";
-import { extractAiSdkTokenUsage, trackAiCallTokenUsage } from "@/lib/billing/agent-runtime-usage";
+import {
+  credentialSourceForLanguageModel,
+  extractAiSdkTokenUsage,
+  trackAiCallTokenUsage,
+} from "@/lib/billing/agent-runtime-usage";
 import { db, schema } from "@/lib/database/client";
 import { isErr } from "@/lib/primitives/result/results";
 import {
@@ -512,7 +516,7 @@ export async function executeVisualWorkflowNode(input: {
           source: "visual_workflow_ai_step",
           tokenUsage: extractAiSdkTokenUsage(result.usage),
           modelId: languageModel.modelId,
-          credentialSource: languageModel.source === "gateway" ? "gateway" : "byok",
+          credentialSource: credentialSourceForLanguageModel(languageModel),
         });
         const json = structured ? result.output : undefined;
         return {

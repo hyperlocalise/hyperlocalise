@@ -15,7 +15,7 @@ import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
-import { trackAiCallTokenUsage } from "@/lib/billing/agent-runtime-usage";
+import { trackStringTranslationTokenUsage } from "@/lib/billing/agent-runtime-usage";
 import { db, schema } from "@/lib/database/client";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -362,15 +362,11 @@ export async function translateTextUnit(input: {
       translationMemoryMatches: contextSnapshot.snapshot.translationMemoryMatches,
     },
   });
-  if (result.tokenUsage?.modelId && result.tokenUsage.credentialSource) {
-    await trackAiCallTokenUsage({
-      organizationId: input.organizationId,
-      source: "contentful_field_translation",
-      tokenUsage: result.tokenUsage,
-      modelId: result.tokenUsage.modelId,
-      credentialSource: result.tokenUsage.credentialSource,
-    });
-  }
+  await trackStringTranslationTokenUsage({
+    organizationId: input.organizationId,
+    source: "contentful_field_translation",
+    tokenUsage: result.tokenUsage,
+  });
 
   const qaFindings: Array<Record<string, unknown>> = [];
   const translations: ContentfulDraftTranslation[] = [];

@@ -37,7 +37,7 @@ import {
 } from "@/lib/agent-runtime/runs/agent-run-events";
 import { AI_FEATURES_REQUIRED_MESSAGE, ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import {
-  addAiTokenUsage,
+  agentTurnTokenBilling,
   extractAiSdkTokenUsage,
   extractGenerateResultTokenUsage,
   reserveAgentRuntimeUsage,
@@ -538,21 +538,15 @@ async function processSlackMessage(
     });
 
     const result = await agent.generate({ messages: chatMessages });
-    const tokenUsage = addAiTokenUsage(
-      classificationTokenUsage,
-      extractGenerateResultTokenUsage(result),
-    );
     await trackSucceededAgentRuntimeUsage({
       organizationId,
       operationKey: usageOperationKey,
       dimensions: usageDimensions,
-      tokenUsage,
-      aiCreditModelId: tokenUsage ? languageModel.modelId : undefined,
-      aiCreditCredentialSource: tokenUsage
-        ? languageModel.source === "gateway"
-          ? "gateway"
-          : "byok"
-        : undefined,
+      ...agentTurnTokenBilling({
+        classificationTokenUsage,
+        turnTokenUsage: extractGenerateResultTokenUsage(result),
+        languageModel,
+      }),
       aiCreditSource: "slack_agent_turn",
       interactionId,
     });

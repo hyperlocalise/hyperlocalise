@@ -297,6 +297,32 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
   return result;
 }
 
+/** Our AI Gateway or the workspace's own key, for a model resolved per workspace. */
+export function credentialSourceForLanguageModel(languageModel: {
+  source: string;
+}): AiCreditCredentialSource {
+  return languageModel.source === "gateway" ? "gateway" : "byok";
+}
+
+/**
+ * Token billing for an agent turn that ran a classifier and then the agent on the same resolved
+ * model; model and key type are only set when there are tokens to bill.
+ */
+export function agentTurnTokenBilling(input: {
+  classificationTokenUsage: AiTokenUsage | null;
+  turnTokenUsage: AiTokenUsage | null;
+  languageModel: { modelId: string; source: string };
+}) {
+  const tokenUsage = addAiTokenUsage(input.classificationTokenUsage, input.turnTokenUsage);
+  return {
+    tokenUsage,
+    aiCreditModelId: tokenUsage ? input.languageModel.modelId : undefined,
+    aiCreditCredentialSource: tokenUsage
+      ? credentialSourceForLanguageModel(input.languageModel)
+      : undefined,
+  };
+}
+
 /**
  * The model that served a generate result, for billing: calls through our AI Gateway report the
  * provider `gateway`; anything else ran on the workspace's own key and is recorded at no charge.
@@ -347,6 +373,29 @@ export async function trackAiCallTokenUsage(
   }
 
   await recordAiCallTokenUsage({ ...input, tokenUsage });
+}
+
+/** Bills a string translation result, whose token usage carries the model that served it. */
+export async function trackStringTranslationTokenUsage(input: {
+  organizationId: string;
+  source: string;
+  tokenUsage:
+    | (AiTokenUsage & { modelId?: string; credentialSource?: AiCreditCredentialSource })
+    | null
+    | undefined;
+}) {
+  const { tokenUsage } = input;
+  if (!tokenUsage?.modelId || !tokenUsage.credentialSource) {
+    return;
+  }
+
+  await trackAiCallTokenUsage({
+    organizationId: input.organizationId,
+    source: input.source,
+    tokenUsage,
+    modelId: tokenUsage.modelId,
+    credentialSource: tokenUsage.credentialSource,
+  });
 }
 
 async function recordAiCallTokenUsage(input: AiCallTokenUsageInput & { tokenUsage: AiTokenUsage }) {

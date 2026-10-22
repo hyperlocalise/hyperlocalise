@@ -42,11 +42,14 @@ vi.mock("@/lib/billing/ai-features", () => ({
 }));
 
 import {
+  agentTurnTokenBilling,
   billingModelFromSteps,
+  credentialSourceForLanguageModel,
   extractAiSdkTokenUsage,
   extractGenerateResultTokenUsage,
   reserveAgentRuntimeUsage,
   trackAiCallTokenUsage,
+  trackStringTranslationTokenUsage,
   trackSucceededAgentRuntimeUsage,
   withAgentRuntimeUsageMetering,
 } from "@/lib/billing/agent-runtime-usage";
@@ -429,5 +432,78 @@ describe("agent-runtime-usage", () => {
     expect(deferred).toHaveLength(1);
     await deferred[0]!();
     expect(trackAiCreditUsageInAutumnMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("bills an agent turn's classifier and turn tokens at the resolved model", () => {
+    const classification = { inputTokens: 100, outputTokens: 10, totalTokens: 110 };
+    const turn = { inputTokens: 1000, outputTokens: 200, totalTokens: 1200 };
+
+    expect(
+      agentTurnTokenBilling({
+        classificationTokenUsage: classification,
+        turnTokenUsage: turn,
+        languageModel: { modelId: "openai/gpt-6-luna", source: "gateway" },
+      }),
+    ).toEqual({
+      tokenUsage: expect.objectContaining({
+        inputTokens: 1100,
+        outputTokens: 210,
+        totalTokens: 1310,
+      }),
+      aiCreditModelId: "openai/gpt-6-luna",
+      aiCreditCredentialSource: "gateway",
+    });
+    expect(
+      agentTurnTokenBilling({
+        classificationTokenUsage: null,
+        turnTokenUsage: turn,
+        languageModel: { modelId: "anthropic/claude-sonnet-4.5", source: "anthropic" },
+      }),
+    ).toMatchObject({
+      aiCreditModelId: "anthropic/claude-sonnet-4.5",
+      aiCreditCredentialSource: "byok",
+    });
+    expect(
+      agentTurnTokenBilling({
+        classificationTokenUsage: null,
+        turnTokenUsage: null,
+        languageModel: { modelId: "openai/gpt-6-luna", source: "gateway" },
+      }),
+    ).toEqual({
+      tokenUsage: null,
+      aiCreditModelId: undefined,
+      aiCreditCredentialSource: undefined,
+    });
+  });
+
+  it("treats only the gateway source as our AI Gateway", () => {
+    expect(credentialSourceForLanguageModel({ source: "gateway" })).toBe("gateway");
+    expect(credentialSourceForLanguageModel({ source: "openai" })).toBe("byok");
+  });
+
+  it("bills a string translation at the model its token usage names", async () => {
+    trackAiCreditUsageInAutumnMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
+
+    await trackStringTranslationTokenUsage({
+      organizationId: "org_123",
+      source: "chat_translate_string",
+      tokenUsage: {
+        inputTokens: 300,
+        outputTokens: 40,
+        totalTokens: 340,
+        modelId: "openai/gpt-6-luna",
+        credentialSource: "gateway",
+      },
+    });
+    await trackStringTranslationTokenUsage({
+      organizationId: "org_123",
+      source: "chat_translate_string",
+      tokenUsage: { inputTokens: 300, outputTokens: 40, totalTokens: 340 },
+    });
+
+    expect(trackAiCreditUsageInAutumnMock).toHaveBeenCalledTimes(1);
+    expect(trackAiCreditUsageInAutumnMock).toHaveBeenCalledWith(
+      expect.objectContaining({ modelId: "openai/gpt-6-luna", credentialSource: "gateway" }),
+    );
   });
 });

@@ -38,12 +38,12 @@ const mocks = vi.hoisted(() => {
       }),
     })),
     assembleStringTranslationContextSnapshot: vi.fn(),
-    trackAiCallTokenUsage: vi.fn(),
+    trackStringTranslationTokenUsage: vi.fn(),
   };
 });
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
-  trackAiCallTokenUsage: mocks.trackAiCallTokenUsage,
+  trackStringTranslationTokenUsage: mocks.trackStringTranslationTokenUsage,
 }));
 
 vi.mock("@/lib/log", () => ({
@@ -77,7 +77,7 @@ describe("contentful automation executor", () => {
     mocks.loggerWarn.mockClear();
     mocks.insert.mockClear();
     mocks.assembleStringTranslationContextSnapshot.mockReset();
-    mocks.trackAiCallTokenUsage.mockReset();
+    mocks.trackStringTranslationTokenUsage.mockReset();
     vi.mocked(localizeContentfulAssetForLocale).mockReset();
   });
 
@@ -122,12 +122,10 @@ describe("contentful automation executor", () => {
       localizedAssetCache: createLocalizedAssetCache(),
     });
 
-    expect(mocks.trackAiCallTokenUsage).toHaveBeenCalledWith({
+    expect(mocks.trackStringTranslationTokenUsage).toHaveBeenCalledWith({
       organizationId: "org-1",
       source: "contentful_field_translation",
       tokenUsage,
-      modelId: "openai/gpt-6-luna",
-      credentialSource: "gateway",
     });
   });
 

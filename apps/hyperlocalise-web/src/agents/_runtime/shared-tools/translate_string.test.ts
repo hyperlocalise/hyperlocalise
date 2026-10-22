@@ -12,11 +12,12 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { loadGeneratorMock, translateStringJobMock, trackAiCallTokenUsageMock } = vi.hoisted(() => ({
-  loadGeneratorMock: vi.fn(),
-  translateStringJobMock: vi.fn(),
-  trackAiCallTokenUsageMock: vi.fn(),
-}));
+const { loadGeneratorMock, translateStringJobMock, trackStringTranslationTokenUsageMock } =
+  vi.hoisted(() => ({
+    loadGeneratorMock: vi.fn(),
+    translateStringJobMock: vi.fn(),
+    trackStringTranslationTokenUsageMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/translation/generation", () => ({
   loadOrganizationTranslationGenerator: loadGeneratorMock,
@@ -26,7 +27,7 @@ vi.mock("@/lib/translation/context", () => ({
 }));
 vi.mock("@/agents/_runtime/loader", () => ({ loadSharedSkill: () => "" }));
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
-  trackAiCallTokenUsage: trackAiCallTokenUsageMock,
+  trackStringTranslationTokenUsage: trackStringTranslationTokenUsageMock,
 }));
 
 import { executeTranslateString } from "./translate_string";
@@ -60,12 +61,10 @@ describe("executeTranslateString", () => {
     );
 
     expect(result).toEqual({ translations: [{ locale: "fr", text: "Bonjour" }] });
-    expect(trackAiCallTokenUsageMock).toHaveBeenCalledWith({
+    expect(trackStringTranslationTokenUsageMock).toHaveBeenCalledWith({
       organizationId: "org_1",
       source: "chat_translate_string",
       tokenUsage,
-      modelId: "openai/gpt-6-luna",
-      credentialSource: "gateway",
     });
   });
 });
