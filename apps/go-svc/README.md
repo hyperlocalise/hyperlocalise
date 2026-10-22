@@ -691,6 +691,47 @@ go test ./apps/go-svc -run 'BillingResourceUsage|WorkspaceResourceSync'
 go test ./apps/go-svc/internal/autumn -run HTTPStatus
 ```
 
+## Reports (financial)
+
+Financial reporting APIs under `/v1/orgs/{organizationSlug}/reports`, covering word and time reports, costs, budgets, rates, time entries, and expenses.
+
+Requires workspace authentication, `DATABASE_URL`, and the `workspace-reports` feature flag. A disabled or unavailable flag returns `403 feature_unavailable`.
+
+| Method | Path | Capability | Description |
+|--------|------|------------|-------------|
+| GET | `/reports` | Member | Reports in JSON or CSV; cost view requires `billing:read` |
+| GET | `/reports/settings` | Member | Accessible projects, rates, and budget summaries |
+| GET | `/reports/tasks/{jobId}` | Member | Job analyses and time entries |
+| POST | `/reports/rates` | `billing:write` | Create a rate |
+| PUT | `/reports/budgets` | `billing:write` | Upsert a project budget |
+| PUT | `/reports/task-rates` | `billing:write` | Configure a job's rate before work starts |
+| POST | `/reports/time-entries` | `jobs:write` | Log time on a native job |
+| PATCH | `/reports/time-entries/{id}` | `jobs:write` | Edit own time entry; `billing:write` can edit others |
+| DELETE | `/reports/time-entries/{id}` | Owner or `billing:write` | Void a time entry and its costs |
+| POST | `/reports/expenses` | `billing:write` | Record an expense; idempotent by `operationKey` |
+
+**Access control:** `billing:read` allows admins and localization managers to view financial data; `billing:write` is admin-only. `jobs:write` excludes members. Project and job visibility follows team membership, with organization-wide access for admins and localization managers. Inaccessible resources return `404`.
+
+Non-financial users cannot access the cost view or financial settings, and see only their own time entries in task reports.
+
+**Money and dates:** USD amounts use 8-decimal fixed-point strings, with `big.Int` arithmetic. Reporting dates use UTC, with weeks starting Monday.
+
+### CSV export
+
+`GET /reports?format=csv` exports all matching rows without pagination.
+
+- Content type: `text/csv; charset=utf-8`
+- Filename: `translation-report.csv`
+- Financial users receive an additional `amountUsd` column.
+- All cells are quoted, with formula-injection protection.
+- Rows use CRLF separators, without a trailing newline or BOM.
+
+### Testing
+
+```bash
+GO_SVC_INTEGRATION=1 go test ./apps/go-svc -run 'Report|JSNumberString|ReadReportingBody|LoadReportingJob'
+```
+
 ## Members
 
 The browser calls `/v1/orgs/{organizationSlug}/members` on the Go service origin
