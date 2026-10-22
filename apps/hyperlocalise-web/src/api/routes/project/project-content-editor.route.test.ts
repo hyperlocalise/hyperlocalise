@@ -2547,6 +2547,38 @@ describe("project file CAT routes", () => {
     );
     expect(greetingSegment?.isLocked).toBeUndefined();
     expect(farewellSegment?.isLocked).toBe(true);
+
+    enqueueStringSegmentLockedActivityMock.mockClear();
+    const mixedUnlock = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [greeting!.id, farewell!.id],
+          isLocked: false,
+        },
+      },
+      { headers },
+    );
+    expect(mixedUnlock.status).toBe(200);
+    expect(await mixedUnlock.json()).toEqual({
+      contentEditorSegmentLock: { updatedCount: 1, isLocked: false },
+    });
+    expect(enqueueStringSegmentLockedActivityMock).toHaveBeenCalledTimes(1);
+    expect(enqueueStringSegmentLockedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isLocked: false,
+        itemCount: 1,
+        segmentId: farewell!.id,
+        segmentIds: [farewell!.id],
+      }),
+    );
   });
 
   it("locks Crowdin CAT segments without calling the provider hide API", async () => {

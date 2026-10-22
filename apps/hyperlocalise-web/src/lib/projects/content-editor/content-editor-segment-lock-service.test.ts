@@ -44,7 +44,11 @@ describe("CAT segment lock service", () => {
       isLocked: true,
       actorUserId: user.id,
     });
-    expect(locked).toEqual({ updatedCount: 2, isLocked: true });
+    expect(locked).toEqual({
+      updatedCount: 2,
+      isLocked: true,
+      externalStringIds: ["key-1", "key-2"],
+    });
 
     const lockedIds = await listLockedCatSegmentIds({
       organizationId: organization.id,
@@ -78,7 +82,11 @@ describe("CAT segment lock service", () => {
       isLocked: false,
       actorUserId: user.id,
     });
-    expect(unlocked).toEqual({ updatedCount: 1, isLocked: false });
+    expect(unlocked).toEqual({
+      updatedCount: 1,
+      isLocked: false,
+      externalStringIds: ["key-1"],
+    });
     expect(
       await isCatSegmentLocked({
         organizationId: organization.id,
@@ -113,7 +121,7 @@ describe("CAT segment lock service", () => {
       isLocked: true,
       actorUserId: user.id,
     });
-    expect(locked).toEqual({ updatedCount: 1, isLocked: true });
+    expect(locked).toEqual({ updatedCount: 1, isLocked: true, externalStringIds: ["1001"] });
 
     const queue = await attachCatSegmentLocks({
       organizationId: organization.id,
@@ -145,7 +153,7 @@ describe("CAT segment lock service", () => {
         isLocked: true,
         actorUserId: user.id,
       }),
-    ).toEqual({ updatedCount: 0, isLocked: true });
+    ).toEqual({ updatedCount: 0, isLocked: true, externalStringIds: [] });
 
     const first = await setCatSegmentLocks({
       organizationId: organization.id,
@@ -155,7 +163,11 @@ describe("CAT segment lock service", () => {
       isLocked: true,
       actorUserId: user.id,
     });
-    expect(first).toEqual({ updatedCount: 2, isLocked: true });
+    expect(first).toEqual({
+      updatedCount: 2,
+      isLocked: true,
+      externalStringIds: ["key-a", "key-b"],
+    });
 
     const relock = await setCatSegmentLocks({
       organizationId: organization.id,
@@ -165,7 +177,7 @@ describe("CAT segment lock service", () => {
       isLocked: true,
       actorUserId: user.id,
     });
-    expect(relock).toEqual({ updatedCount: 1, isLocked: true });
+    expect(relock).toEqual({ updatedCount: 1, isLocked: true, externalStringIds: ["key-a"] });
     expect(
       await isCatSegmentLocked({
         organizationId: organization.id,
@@ -184,7 +196,39 @@ describe("CAT segment lock service", () => {
         isLocked: false,
         actorUserId: user.id,
       }),
-    ).toEqual({ updatedCount: 0, isLocked: false });
+    ).toEqual({ updatedCount: 0, isLocked: false, externalStringIds: [] });
+
+    await db
+      .delete(schema.projectContentEditorSegmentLocks)
+      .where(eq(schema.projectContentEditorSegmentLocks.organizationId, organization.id));
+  });
+
+  it("reports only the locks a mixed unlock actually deleted", async () => {
+    const { organization, user, project } = await projectFixture.createStoredProjectFixture();
+
+    await setCatSegmentLocks({
+      organizationId: organization.id,
+      projectId: project.id,
+      targetLocale: "fr-FR",
+      externalStringIds: ["key-locked", "key-also-locked"],
+      isLocked: true,
+      actorUserId: user.id,
+    });
+
+    const unlocked = await setCatSegmentLocks({
+      organizationId: organization.id,
+      projectId: project.id,
+      targetLocale: "fr-FR",
+      externalStringIds: ["key-open", "key-also-locked", "key-locked", "key-open"],
+      isLocked: false,
+      actorUserId: user.id,
+    });
+
+    expect(unlocked).toEqual({
+      updatedCount: 2,
+      isLocked: false,
+      externalStringIds: ["key-also-locked", "key-locked"],
+    });
 
     await db
       .delete(schema.projectContentEditorSegmentLocks)

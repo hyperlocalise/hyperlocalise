@@ -91,32 +91,14 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   queueSegments,
   selectedSegment,
   dependencies,
-  isValidating: _isValidating = false,
-  isApproving = false,
-  isSavingDraft = false,
-  isPostingComment = false,
-  isResolvingComment = false,
-  resolvingCommentId = null,
-  commentPostError,
-  isLookingUpContext = false,
-  isConcordanceLoading = false,
-  isVisualContextLoading = false,
-  isAiSuggestionLoading = false,
-  isFormatChecksLoading = false,
   canLookupContext = false,
   canUseAiRecommendation = false,
-  showAgentContext = false,
   showVisualContext = false,
-  revealedAgentContextSegmentIds,
-  dirtySegmentIds,
   className,
   queueSearch,
   isQueueFetchingPage = false,
   isQueueListLoading = false,
   isQueueDataPending = false,
-  isTranslationViewLoading = false,
-  isCommentsLoading = false,
-  isSegmentTargetLoading = false,
   isImageBusy = false,
   isImageGenerating = false,
   generatingImageSegmentId,
@@ -125,8 +107,6 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   hasMoreQueue = false,
   onLoadMoreQueue,
   queueFilter,
-  checkedSegmentIds,
-  onToggleSegmentChecked,
   buildSegmentShareUrl,
   onIntelligencePanelVisible,
   organizationSlug,
@@ -135,6 +115,25 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   onReloadConcordance,
 }: ContentEditorWorkspaceViewProps) {
   const store = useContentEditorWorkspace();
+  const isApproving = store.isApproving;
+  const isSavingDraft = store.isSavingDraft;
+  const isPostingComment = store.isPostingComment;
+  const isResolvingComment = store.isResolvingComment;
+  const resolvingCommentId = store.resolvingCommentId;
+  const commentPostError = store.commentPostError;
+  const isLookingUpContext = store.isLookingUpContext;
+  const isConcordanceLoading = store.isLoadingConcordance;
+  const isVisualContextLoading = store.isLoadingVisualContext;
+  const isAiSuggestionLoading = store.isGeneratingAiRecommendation && canUseAiRecommendation;
+  const isFormatChecksLoading = store.isRunningFormatChecks || store.isValidating;
+  const revealedAgentContextSegmentIds = store.revealedAgentContextSegmentIds;
+  const showAgentContext = revealedAgentContextSegmentIds.has(store.selectedSegmentId);
+  const dirtySegmentIds = store.dirtySegmentIds;
+  const isCommentsLoading = store.isCommentsLoading;
+  const isSegmentTargetLoading = store.isSegmentTargetLoading;
+  const checkedSegmentIds = store.checkedSegmentIds;
+  const onToggleSegmentChecked = (segmentId: string, checked: boolean) =>
+    store.toggleSegmentChecked(segmentId, checked);
   const viewMode = store.ui.viewMode;
   const isAdaptiveEnabled = store.ui.adaptiveWorkspaceEnabled;
   const isReviewerPersona = isAdaptiveEnabled && store.ui.isReviewerPersona;
@@ -211,7 +210,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
     selectedSegmentIdForIntelligence,
   ]);
 
-  const showTranslationViewSkeleton = isTranslationViewLoading || store.ui.translationViewLoading;
+  const showTranslationViewSkeleton = store.ui.translationViewLoading;
 
   if (viewMode === "multilingual" && multilingual) {
     const isImageFile =
@@ -592,6 +591,12 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
               ? (segmentId, file) => void editing.onUploadImage?.(segmentId, file)
               : undefined
           }
+          onToggleLocked={
+            review.onSetLocked
+              ? (segmentId) =>
+                  review.onSetLocked?.([segmentId], !store.getSegmentView(segmentId)?.isLocked)
+              : undefined
+          }
           onAskQuestion={
             intelligenceSegment ? () => review.onAskQuestion(intelligenceSegment.id) : undefined
           }
@@ -898,7 +903,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           }
           onToggleLocked={
             review.onSetLocked
-              ? () => void review.onSetLocked?.([editorSegment.id], !editorSegment.isLocked)
+              ? () => review.onSetLocked?.([editorSegment.id], !editorSegment.isLocked)
               : undefined
           }
           aiRecommendationError={aiRecommendationError}

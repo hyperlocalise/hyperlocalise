@@ -68,7 +68,7 @@ export type ContentEditorEditorPanelProps = {
   onTreatAsVideo?: (treatAsVideo: boolean) => void;
   onRegenerateImage?: () => void;
   onUploadImage?: (file: File) => void;
-  onToggleLocked?: () => void;
+  onToggleLocked?: () => void | Promise<void>;
   /**
    * When true, renders the keyboard shortcut hint bar below the action buttons.
    * Enabled only in Translator persona when the adaptive workspace is active.

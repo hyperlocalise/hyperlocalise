@@ -101,6 +101,67 @@ export class ContentEditorIntelligenceStore {
     this.formatCheckLoadingSegmentIds = new Set();
   }
 
+  /** Drops everything that belonged to the previous file or locale. */
+  resetForFileScope() {
+    this.formatChecks = [];
+    this.segmentFormatChecks = {};
+    this.bySegment = {};
+    this.isValidating = false;
+    this.isGeneratingAiRecommendation = false;
+    this.isRunningFormatChecks = false;
+    this.isLoadingVisualContext = false;
+  }
+
+  setFileIntelligence(intelligence: ContentEditorSegmentIntelligence) {
+    this.fileIntelligence = intelligence;
+  }
+
+  replaceSegments(bySegment: Record<string, ContentEditorSegmentIntelligence>) {
+    this.bySegment = bySegment;
+  }
+
+  /** Checks shown for the selected segment. */
+  setSelectedChecks(checks: ContentEditorFormatCheck[]) {
+    this.formatChecks = checks;
+  }
+
+  replaceSegmentChecks(segmentFormatChecks: Record<string, ContentEditorFormatCheck[]>) {
+    this.segmentFormatChecks = segmentFormatChecks;
+  }
+
+  revealAgentContexts(segmentIds: Iterable<string>) {
+    this.revealedAgentContextSegmentIds = new Set([
+      ...this.revealedAgentContextSegmentIds,
+      ...segmentIds,
+    ]);
+  }
+
+  setValidating(validating: boolean) {
+    this.isValidating = validating;
+  }
+
+  setGeneratingAiRecommendation(generating: boolean) {
+    this.isGeneratingAiRecommendation = generating;
+  }
+
+  setRunningFormatChecks(running: boolean) {
+    this.isRunningFormatChecks = running;
+  }
+
+  setLoadingVisualContext(loading: boolean) {
+    this.isLoadingVisualContext = loading;
+  }
+
+  beginConcordanceLoad(segmentId: string) {
+    this.concordanceLoadingSegmentId = segmentId;
+  }
+
+  endConcordanceLoad(segmentId: string) {
+    if (this.concordanceLoadingSegmentId === segmentId) {
+      this.concordanceLoadingSegmentId = null;
+    }
+  }
+
   setChecks(segmentId: string, checks: ContentEditorFormatCheck[], isSelected: boolean) {
     this.segmentFormatChecks[segmentId] = checks;
     if (isSelected) {

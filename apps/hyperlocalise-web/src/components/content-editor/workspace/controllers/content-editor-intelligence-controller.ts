@@ -28,6 +28,27 @@ export interface ContentEditorIntelligenceControllerPorts {
   services?: ContentEditorWorkspaceServices;
 }
 
+/** Workspace surface the intelligence controller may read and change. */
+export type ContentEditorIntelligenceWorkspace = Pick<
+  ContentEditorWorkspaceOrchestrator,
+  | "beginConcordanceLoad"
+  | "beginContextLookup"
+  | "clearAgentContexts"
+  | "endConcordanceLoad"
+  | "endContextLookup"
+  | "fileScopeGeneration"
+  | "getSegmentView"
+  | "intelligence"
+  | "isFileScopeCurrent"
+  | "mergeSegmentIntelligence"
+  | "removeFormatCheck"
+  | "revealAgentContext"
+  | "segmentIntelligence"
+  | "selectedSegmentId"
+  | "setVisualContextLoading"
+  | "upsertFormatCheck"
+>;
+
 export class ContentEditorIntelligenceController {
   private ports: ContentEditorIntelligenceControllerPorts;
   private loadedSegmentIds = new Set<string>();
@@ -41,7 +62,7 @@ export class ContentEditorIntelligenceController {
   private disposed = false;
 
   constructor(
-    private readonly workspace: ContentEditorWorkspaceOrchestrator,
+    private readonly workspace: ContentEditorIntelligenceWorkspace,
     ports: ContentEditorIntelligenceControllerPorts,
   ) {
     this.ports = ports;
@@ -89,7 +110,7 @@ export class ContentEditorIntelligenceController {
       this.workspace.endConcordanceLoad(segmentId);
     }
     this.inFlight.clear();
-    this.workspace.isLoadingVisualContext = false;
+    this.workspace.setVisualContextLoading(false);
     this.visualContextLoadingSegmentId = null;
   }
 
@@ -208,7 +229,7 @@ export class ContentEditorIntelligenceController {
       return;
     }
     if (this.workspace.segmentIntelligence[segmentId]?.visualContext) {
-      this.workspace.isLoadingVisualContext = false;
+      this.workspace.setVisualContextLoading(false);
       this.visualContextLoadingSegmentId = null;
       return;
     }
@@ -217,7 +238,7 @@ export class ContentEditorIntelligenceController {
     }
 
     this.visualContextAttempts.add(segmentId);
-    this.workspace.isLoadingVisualContext = true;
+    this.workspace.setVisualContextLoading(true);
     this.visualContextLoadingSegmentId = segmentId;
     const fileScopeGeneration = this.workspace.fileScopeGeneration;
     void lookupSegmentVisualContext(segment)
@@ -244,7 +265,7 @@ export class ContentEditorIntelligenceController {
           segmentId === this.visualContextLoadingSegmentId &&
           this.workspace.isFileScopeCurrent(fileScopeGeneration)
         ) {
-          this.workspace.isLoadingVisualContext = false;
+          this.workspace.setVisualContextLoading(false);
           this.visualContextLoadingSegmentId = null;
         }
       });

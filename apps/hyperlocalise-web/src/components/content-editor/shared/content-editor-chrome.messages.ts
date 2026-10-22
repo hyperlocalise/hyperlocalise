@@ -304,16 +304,6 @@ export const contentEditorSegmentActionsMessages = defineMessages({
     id: "99GL6BjW2r",
     description: "Toast when copying a link to a string fails",
   },
-  lock: {
-    defaultMessage: "Lock string",
-    id: "DREQo1UjtT",
-    description: "Per-string menu item that locks the string",
-  },
-  unlock: {
-    defaultMessage: "Unlock string",
-    id: "wYm1Av6k2L",
-    description: "Per-string menu item that unlocks the string",
-  },
   activity: {
     defaultMessage: "View activity",
     id: "HB+x7NCsPK",

@@ -146,24 +146,9 @@ export interface ContentEditorWorkspaceViewProps {
   queueSegments: ContentEditorSegment[];
   selectedSegment: ContentEditorSegment | null;
   dependencies: ContentEditorWorkspaceDependencies;
-  isValidating?: boolean;
-  isApproving?: boolean;
-  isSavingDraft?: boolean;
-  isPostingComment?: boolean;
-  isResolvingComment?: boolean;
-  resolvingCommentId?: string | null;
-  commentPostError?: string;
-  isLookingUpContext?: boolean;
-  isConcordanceLoading?: boolean;
-  isVisualContextLoading?: boolean;
-  isAiSuggestionLoading?: boolean;
-  isFormatChecksLoading?: boolean;
   canLookupContext?: boolean;
   canUseAiRecommendation?: boolean;
-  showAgentContext?: boolean;
   showVisualContext?: boolean;
-  revealedAgentContextSegmentIds?: ReadonlySet<string>;
-  dirtySegmentIds?: ReadonlySet<string>;
   className?: string;
   queueSearch?: string;
   isQueueFetchingPage?: boolean;
@@ -171,7 +156,6 @@ export interface ContentEditorWorkspaceViewProps {
   isQueueListLoading?: boolean;
   /** Blocks bulk actions until the queue snapshot is ready. */
   isQueueDataPending?: boolean;
-  isTranslationViewLoading?: boolean;
   /** @deprecated Use isQueueListLoading or isQueueDataPending. */
   isQueueLoading?: boolean;
   queuePagination?: {
@@ -183,8 +167,6 @@ export interface ContentEditorWorkspaceViewProps {
   } | null;
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
-  isCommentsLoading?: boolean;
-  isSegmentTargetLoading?: boolean;
   isImageBusy?: boolean;
   /** Narrower than isImageBusy: only true while a target image is being generated. */
   isImageGenerating?: boolean;
@@ -192,8 +174,6 @@ export interface ContentEditorWorkspaceViewProps {
   generatingImageSegmentId?: string;
   isMaxLengthSaving?: boolean;
   queueFilter?: ContentEditorQueueFilter;
-  checkedSegmentIds?: ReadonlySet<string>;
-  onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
   buildSegmentShareUrl?: (segment: ContentEditorSegment) => string | null;
   onIntelligencePanelVisible?: (segmentId: string) => void;
   organizationSlug?: string;

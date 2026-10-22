@@ -334,6 +334,26 @@ export const contentEditorLockedStringMessages = defineMessages({
     id: "BLCf0utxhq",
     description: "Banner shown in the CAT editor when the current string is locked",
   },
+  lockTooltip: {
+    defaultMessage: "Lock string to prevent edits",
+    id: "IpKvraNyFr",
+    description: "Tooltip and accessible label for the button that locks the current string",
+  },
+  unlockTooltip: {
+    defaultMessage: "Unlock string to allow edits",
+    id: "EyL7n26FZN",
+    description: "Tooltip and accessible label for the button that unlocks the current string",
+  },
+  lockFailed: {
+    defaultMessage: "Could not lock this string. Try again.",
+    id: "xYZMz3piZI",
+    description: "Toast shown when locking a string fails",
+  },
+  unlockFailed: {
+    defaultMessage: "Could not unlock this string. Try again.",
+    id: "wW270rE3pJ",
+    description: "Toast shown when unlocking a string fails",
+  },
 });
 
 export const contentEditorGlossaryChecksMessages = defineMessages({
@@ -1602,6 +1622,11 @@ export const contentEditorWorkspaceViewModeMessages = defineMessages({
 });
 
 export const contentEditorSideBySidePanelMessages = defineMessages({
+  noTranslation: {
+    defaultMessage: "No translation yet",
+    id: "2JTdlEzKQS",
+    description: "Placeholder shown in a locked side-by-side row that has no translation",
+  },
   statusColumn: {
     defaultMessage: "Status",
     id: "02MXJJxV6e",
@@ -1646,6 +1671,16 @@ export const contentEditorSideBySidePanelMessages = defineMessages({
     defaultMessage: "Comments",
     id: "eHtPlX55/J",
     description: "Tab in the CAT details panel listing comments on the focused string",
+  },
+  activityTab: {
+    defaultMessage: "Activity",
+    id: "yppbhxn60H",
+    description: "Tab in the CAT details panel listing activity on the focused string",
+  },
+  detailsTabsLabel: {
+    defaultMessage: "String details sections",
+    id: "IkLXA6UrR5",
+    description: "Accessible label for the vertical tab rail in the CAT details panel",
   },
   keyField: {
     defaultMessage: "Key",

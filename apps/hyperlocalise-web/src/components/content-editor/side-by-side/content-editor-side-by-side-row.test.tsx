@@ -889,4 +889,45 @@ describe("ContentEditorSideBySideRow", () => {
 
     expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
   });
+
+  it("locks the focused row from the target toolbar", async () => {
+    const user = userEvent.setup();
+    const onToggleLocked = vi.fn();
+    renderRow({ onToggleLocked });
+
+    const lockButton = screen.getByRole("button", { name: "Lock string to prevent edits" });
+    expect(lockButton).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(lockButton);
+
+    expect(onToggleLocked).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a locked row read-only and offers unlock", async () => {
+    const user = userEvent.setup();
+    const onToggleLocked = vi.fn();
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = { ...state.segments!.find((item) => item.id === "seg-02")!, isLocked: true };
+
+    renderRow({ segment, isDirty: false, onToggleLocked });
+
+    expect(screen.getByText("This string is locked. Unlock it to edit.")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Approve/i })).not.toBeInTheDocument();
+
+    const unlockButton = screen.getByRole("button", { name: "Unlock string to allow edits" });
+    expect(unlockButton).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(unlockButton);
+
+    expect(onToggleLocked).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the lock toggle when the user cannot edit", () => {
+    renderRow({ canEdit: false, onToggleLocked: vi.fn() });
+
+    expect(
+      screen.queryByRole("button", { name: "Lock string to prevent edits" }),
+    ).not.toBeInTheDocument();
+  });
 });

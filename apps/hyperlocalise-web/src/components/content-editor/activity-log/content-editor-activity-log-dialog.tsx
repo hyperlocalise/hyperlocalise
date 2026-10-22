@@ -17,10 +17,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import {
-  ActivityLogList,
-  type ActivityLogItem,
-} from "@/app/[lang]/(authenticated)/org/[organizationSlug]/settings/_components/activity-log-list";
+import { ActivityLogList } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/settings/_components/activity-log-list";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,7 +28,6 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
-import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
@@ -40,6 +36,7 @@ import {
   activityFilterQuery,
   type ActivityFilters,
 } from "./content-editor-activity-filters";
+import { fetchContentEditorActivityLogs } from "./content-editor-activity-log-api";
 import { contentEditorActivityLogMessages as messages } from "./content-editor-activity-log.messages";
 
 function contentEditorActivityLogsQueryKey(
@@ -117,22 +114,15 @@ export function ContentEditorActivityLogDialog({
     queryKey: contentEditorActivityLogsQueryKey(organizationSlug, projectId, sourcePath, filters),
     initialPageParam: undefined as string | undefined,
     enabled: open,
-    queryFn: async ({ pageParam }) => {
-      try {
-        const result = await goSvcClient.cat.activityLogs(organizationSlug, projectId, {
-          sourcePath,
-          cursor: pageParam,
-          limit: 50,
-          ...activityFilterQuery(filters),
-        });
-        return {
-          activityLogs: result.activityLogs as ActivityLogItem[],
-          nextCursor: result.nextCursor ?? null,
-        };
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadError)));
-      }
-    },
+    queryFn: ({ pageParam, signal }) =>
+      fetchContentEditorActivityLogs({
+        goSvcClient,
+        organizationSlug,
+        projectId,
+        query: { sourcePath, cursor: pageParam, limit: 50, ...activityFilterQuery(filters) },
+        errorMessage: intl.formatMessage(messages.loadError),
+        signal,
+      }),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 

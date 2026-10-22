@@ -49,6 +49,7 @@ import {
   enqueueStringSegmentHiddenActivity,
   enqueueStringSegmentLockedActivity,
   enqueueStringSegmentStatusChangedActivity,
+  enqueueStringSegmentTranslationUpdatedActivity,
   sessionActivityActor,
 } from "@/lib/activity-log/file-segment-events";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
@@ -128,6 +129,7 @@ import {
   setCatSegmentLocks,
 } from "@/lib/projects/content-editor/content-editor-segment-lock-service";
 import { resolveProjectFileContentEditorPagination } from "@/lib/projects/content-editor/project-file-content-editor-pagination";
+import { listContentEditorActivityLogs } from "@/lib/projects/content-editor/content-editor-activity-log-service";
 import {
   getProjectFileDetail,
   listFilteredProjectFiles,
@@ -202,6 +204,7 @@ import {
   maxProjectFileUploadBytes,
   projectFileCatSegmentParamsSchema,
   projectFileCatSegmentQuerySchema,
+  projectFileCatProviderActivityLogQuerySchema,
   projectFileCatQuerySchema,
   projectFileCatConcordanceBodySchema,
   projectFileCatTmSegmentGetQuerySchema,
@@ -712,6 +715,16 @@ const validateProjectFileContentEditorSegmentParams = validator("param", (value,
 
 const validateProjectFileContentEditorSegmentQuery = validator("query", (value, c) => {
   const parsed = projectFileCatSegmentQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileContentEditorProviderActivityLogQuery = validator("query", (value, c) => {
+  const parsed = projectFileCatProviderActivityLogQuerySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -1320,6 +1333,40 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         return c.json({ contentEditorQueue: result.contentEditorQueue }, 200);
       },
     )
+    .get(
+      "/:projectId/files/detail/cat/activity-logs",
+      validateProjectParams,
+      validateProjectFileContentEditorProviderActivityLogQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind !== "provider" && !(await getOwnedProject(c.var.auth, params.projectId))) {
+          return projectNotFoundResponse(c);
+        }
+
+        const result = await listContentEditorActivityLogs({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+          segmentId: query.segmentId,
+          targetLocale: query.targetLocale,
+          eventTypes: query.eventTypes?.split(",").map((type) => type.trim()),
+          actorKind: query.actorKind,
+          since: query.since,
+          cursor: query.cursor,
+          limit: query.limit,
+        });
+        if (!result.ok) {
+          return badRequestResponse(c, result.error, "Activity log cursor is invalid");
+        }
+
+        return c.json({ activityLogs: result.activityLogs, nextCursor: result.nextCursor }, 200);
+      },
+    )
     .get("/:projectId/files/detail/cat/labels", validateProjectParams, async (c) => {
       const params = c.req.valid("param");
       const auth = c.var.auth;
@@ -1676,6 +1723,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               status: translation.isApproved ? "approved" : "draft",
             },
           );
+
+          await enqueueStringSegmentTranslationUpdatedActivity({
+            ...sessionActivityActor(c.var.auth.user.localUserId),
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            segmentId: body.externalStringId,
+            sourcePath: body.sourcePath,
+            targetLocale: body.targetLocale,
+            nextStatus: translation.isApproved ? "approved" : "translated",
+          });
 
           if (translation.isApproved) {
             await enqueueStringSegmentApprovedActivity({
@@ -2276,6 +2333,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               organizationId: c.var.auth.organization.localOrganizationId,
               projectId: params.projectId,
               segmentId: body.externalStringIds[0]!,
+              segmentIds: body.externalStringIds,
               sourcePath: body.sourcePath,
             });
 
@@ -2311,6 +2369,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           segmentId: body.externalStringIds[0]!,
+          segmentIds: body.externalStringIds,
           sourcePath: body.sourcePath,
         });
 
@@ -2355,18 +2414,30 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           actorUserId: c.var.auth.user.localUserId,
         });
 
-        await enqueueStringSegmentLockedActivity({
-          ...sessionActivityActor(c.var.auth.user.localUserId),
-          isLocked: body.isLocked,
-          itemCount: result.updatedCount,
-          organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: params.projectId,
-          segmentId: body.externalStringIds[0]!,
-          sourcePath: body.sourcePath,
-          targetLocale: body.targetLocale,
-        });
+        const changedIds = result.externalStringIds;
+        if (changedIds.length > 0) {
+          await enqueueStringSegmentLockedActivity({
+            ...sessionActivityActor(c.var.auth.user.localUserId),
+            isLocked: body.isLocked,
+            itemCount: result.updatedCount,
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            segmentId: changedIds[0]!,
+            segmentIds: changedIds,
+            sourcePath: body.sourcePath,
+            targetLocale: body.targetLocale,
+          });
+        }
 
-        return c.json({ contentEditorSegmentLock: result }, 200);
+        return c.json(
+          {
+            contentEditorSegmentLock: {
+              updatedCount: result.updatedCount,
+              isLocked: result.isLocked,
+            },
+          },
+          200,
+        );
       },
     )
     .post(

@@ -246,7 +246,12 @@ func (api *editorCatAPI) listActivityLogs(r *http.Request, actor editorCatActor,
 		argN++
 	}
 	if segmentID != "" {
-		conditions = append(conditions, "e.payload->>'segmentId' = $"+strconv.Itoa(argN))
+		placeholder := "$" + strconv.Itoa(argN)
+		conditions = append(conditions, `(e.payload->>'segmentId' = `+placeholder+` OR exists (
+			select 1
+			from jsonb_array_elements_text(coalesce(e.payload->'segmentIds', '[]'::jsonb)) as affected(segment_id)
+			where affected.segment_id = `+placeholder+`
+		))`)
 		args = append(args, segmentID)
 		argN++
 	}

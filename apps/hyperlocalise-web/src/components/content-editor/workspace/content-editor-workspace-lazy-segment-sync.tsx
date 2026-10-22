@@ -14,10 +14,11 @@
  */
 import { useLayoutEffect, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { reaction } from "mobx";
 import { useNativeTargetLoader } from "../project-file/content-editor-native-target-context";
-import { projectFileCatSegmentTargetQueryKey } from "../project-file/use-content-editor-segment-target";
-import type { ProjectFileContentEditorTranslation } from "@/api/routes/project/project.schema";
+import {
+  createSegmentTargetQuerySource,
+  segmentTargetQueryIdentity,
+} from "../project-file/use-content-editor-segment-target";
 import { observer } from "mobx-react-lite";
 
 import type { ProjectFileContentEditorQueueFile } from "@/api/routes/project/project.schema";
@@ -321,49 +322,22 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
         retainedSegmentIdentityRef.current = (externalStringId) =>
           store.segmentMeta.get(externalStringId);
       }
-      store.serverTargetLookup = (externalStringId) => {
-        const segment = store.segmentMeta.get(externalStringId);
-        return queryClient.getQueryData<ProjectFileContentEditorTranslation | null>(
-          projectFileCatSegmentTargetQueryKey({
-            organizationSlug,
-            projectId,
-            sourcePath: segment?.sourcePath || sourcePath,
-            targetLocale,
-            externalStringId,
-            externalResourceId,
-            resourceType,
-          }),
-        );
-      };
-      const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
-        const key = event.query.queryKey;
-        if (
-          key[0] !== "project-file-content-editor-segment-target" ||
-          key[1] !== organizationSlug ||
-          key[2] !== projectId ||
-          key[6] !== targetLocale
-        )
-          return;
-        const id = String(key[7]);
-        if (
-          event.type === "updated" &&
-          event.query.state.data !== undefined &&
-          store.segmentMeta.has(id)
-        ) {
-          store.applySegmentTarget(
-            id,
-            event.query.state.data as ProjectFileContentEditorTranslation | null,
-          );
-        }
-      });
-      const dispose = reaction(
-        () => [store.pendingWrites.size, store.dirtySegmentIds.size],
-        () => store.releaseCleanDrafts(),
+      const detach = store.attachServerTargetSource(
+        createSegmentTargetQuerySource(queryClient, {
+          organizationSlug,
+          projectId,
+          targetLocale,
+          // File-level ids are null for All Files. Each row's query key uses its own.
+          identityFor: (externalStringId) =>
+            segmentTargetQueryIdentity(store.segmentMeta.get(externalStringId), {
+              sourcePath,
+              externalResourceId,
+              resourceType,
+            }),
+        }),
       );
       return () => {
-        unsubscribe();
-        dispose();
-        store.serverTargetLookup = undefined;
+        detach();
         if (retainedSegmentIdentityRef) {
           retainedSegmentIdentityRef.current = null;
         }

@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { computed, makeAutoObservable, reaction, runInAction, type IReactionDisposer } from "mobx";
+import { computed, makeAutoObservable, reaction, type IReactionDisposer } from "mobx";
 
 import type {
   ProjectFileContentEditorComment,
@@ -18,7 +18,6 @@ import type {
 } from "@/api/routes/project/project.schema";
 import {
   findSegmentIdByKeyOrIdInQueue,
-  isOpenIssueStatus,
   isServerQueueFilter,
   orderCatQueueSegmentsSkippedLast,
   segmentMatchesQueueFilterFromInput,
@@ -30,37 +29,38 @@ import type {
   ContentEditorFormatCheck,
   ContentEditorQueueSegment,
   ContentEditorSegment,
-  ContentEditorSegmentComment,
   ContentEditorSegmentIntelligence,
   ContentEditorSegmentStatus,
   ContentEditorWorkspaceShell,
   ContentEditorWorkspaceState,
 } from "@/components/content-editor/shared/types";
-
-import {
-  segmentStatusFromTarget,
-  mapSegmentComments,
-} from "@/components/content-editor/project-file/project-file-content-editor-mapper";
-
-import type { ContentEditorWorkspaceViewMode } from "./content-editor-workspace-view-mode";
+import { mapSegmentComments } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 import { ContentEditorPageStore } from "@/components/content-editor/page/content-editor-page-store";
 
-import { ContentEditorIntelligenceStore } from "./store/content-editor-intelligence-store";
-import { ContentEditorQueueStore } from "./store/content-editor-queue-store";
-import { ContentEditorSegmentDraft } from "./store/content-editor-segment-draft";
-import { ContentEditorSegmentStore } from "./store/content-editor-segment-store";
-import { ContentEditorWorkspaceUiStore } from "./store/content-editor-workspace-ui-store";
-import { composeSegmentView, toQueueSegment } from "./store/content-editor-segment-view";
+import type { ContentEditorWorkspaceViewMode } from "./content-editor-workspace-view-mode";
 import { resolveCatFileViewCapabilities } from "./content-editor-file-view-capabilities";
 import {
-  collectSegmentsWithAgentContext,
-  hasSaveFailureCheck,
-  mergeSegmentIntelligenceOnHydrate,
-} from "./store/content-editor-workspace-store-utils";
+  ContentEditorQueueHydrator,
+  DEFAULT_CONTENT_EDITOR_FILE_CONTEXT,
+  type ContentEditorSnapshotShell,
+} from "./content-editor-queue-hydrator";
+import { ContentEditorBulkActionStore } from "./store/content-editor-bulk-action-store";
+import { ContentEditorIntelligenceStore } from "./store/content-editor-intelligence-store";
+import { ContentEditorQueueStore } from "./store/content-editor-queue-store";
+import type { ContentEditorSegmentDraft } from "./store/content-editor-segment-draft";
+import { ContentEditorSegmentStore } from "./store/content-editor-segment-store";
+import {
+  ContentEditorSegmentTargetSync,
+  type ContentEditorServerTargetSource,
+} from "./store/content-editor-segment-target-sync";
+import { composeSegmentView } from "./store/content-editor-segment-view";
+import { ContentEditorWorkspaceUiStore } from "./store/content-editor-workspace-ui-store";
 
 import { ContentEditorGroupVariantsRegistry } from "../groups/content-editor-group-variants-store";
 import { ContentEditorImageGenerationStore } from "../multilingual/content-editor-image-generation-store";
 import { MultilingualDrafts } from "../multilingual/content-editor-multilingual-drafts";
+
+export { resolveFileContext } from "./content-editor-queue-hydrator";
 
 export type CreateCatWorkspaceOptions = {
   initialViewMode?: ContentEditorWorkspaceViewMode;
@@ -73,100 +73,15 @@ type UnsavedNavigationPrompt = {
   proceed: () => void;
 };
 
-interface WorkspaceControllerLifecycle {
+export interface WorkspaceControllerLifecycle {
   start(): void;
   dispose(): void;
   invalidateFileScope?(): void;
 }
 
-const defaultFileContext: ContentEditorFileContext = {
-  sourcePath: "",
-  filename: "",
-  sourceLocale: "en",
-  targetLocale: "en",
-  providerKind: null,
-  canEditTranslations: true,
-  canAddComments: false,
-};
-
-function normalizeSnapshot(state: ContentEditorWorkspaceState): ContentEditorWorkspaceState {
-  const fileContext = resolveFileContext(state);
-  const queueSegments =
-    state.queueSegments.length > 0
-      ? state.queueSegments
-      : (state.segments ?? []).map(toQueueSegment);
-
-  return {
-    ...state,
-    fileContext,
-    queueSegments,
-  };
-}
-
-function queueSnapshotIdentity(state: ContentEditorWorkspaceState): string {
-  const queueSegments =
-    state.queueSegments.length > 0
-      ? state.queueSegments
-      : (state.segments ?? []).map((segment) => ({ id: segment.id }));
-  return queueSegments.map((segment) => segment.id).join("\0");
-}
-
-export function resolveFileContext(state: ContentEditorWorkspaceState): ContentEditorFileContext {
-  if (state.fileContext) {
-    return state.fileContext;
-  }
-
-  const firstSegment =
-    state.segments?.[0] ??
-    (state.queueSegments?.[0]
-      ? {
-          sourceLocale: defaultFileContext.sourceLocale,
-          targetLocale: defaultFileContext.targetLocale,
-        }
-      : undefined);
-
-  return {
-    sourcePath: state.intelligence.filePath ?? "",
-    filename: state.breadcrumbs?.[1] ?? "",
-    sourceLocale: firstSegment?.sourceLocale ?? defaultFileContext.sourceLocale,
-    targetLocale: firstSegment?.targetLocale ?? defaultFileContext.targetLocale,
-    providerKind: state.providerKind ?? null,
-    canEditTranslations: state.canEditTranslations !== false,
-    canAddComments: state.canAddComments === true,
-    truncated: Boolean(state.intelligence.constraints),
-  };
-}
-
-function intelligenceFromHydratedSegment(
-  segment: ContentEditorSegment,
-  existing: ContentEditorSegmentIntelligence | undefined,
-): ContentEditorSegmentIntelligence | undefined {
-  const segmentType = segment.tags?.find(
-    (tag) => !tag.includes("comment") && !tag.includes("issue"),
-  );
-  const patch: Partial<ContentEditorSegmentIntelligence> = {};
-
-  if (segment.contextLabel?.trim()) {
-    patch.productMeaning = segment.contextLabel.trim();
-  }
-
-  if (segmentType) {
-    patch.segmentType = segmentType;
-  }
-
-  if (segment.maxLength != null && segment.maxLength > 0) {
-    patch.maxLength = segment.maxLength;
-  }
-
-  if (Object.keys(patch).length === 0) {
-    return existing;
-  }
-
-  return {
-    glossaryTerms: [],
-    ...existing,
-    ...patch,
-  };
+/** State that belongs to one open file and locale, and is dropped when either changes. */
+interface FileScopedStore {
+  resetForFileScope(): void;
 }
 
 const EMPTY_LOADING_SEGMENT_IDS: ReadonlySet<string> = new Set<string>();
@@ -186,100 +101,33 @@ function loadingSegmentIdsEqual(left: ReadonlySet<string>, right: ReadonlySet<st
   return true;
 }
 
+/**
+ * Composes the workspace domain stores, owns cross-store derived state, and hosts the
+ * controller lifecycle. Server reconciliation lives in `targets` and the queue hydrator.
+ */
 export class ContentEditorWorkspaceOrchestrator {
-  serverTargetLookup:
-    | ((segmentId: string) => ProjectFileContentEditorTranslation | null | undefined)
-    | undefined;
-  serverTargetVersions = new Map<string, number>();
-  queueWindowIds: Set<string> | undefined;
-
-  targetState(segmentId: string) {
-    const draft = this.drafts.get(segmentId);
-    if (draft) return draft;
-    this.serverTargetVersions.get(segmentId);
-    const target = this.serverTargetLookup?.(segmentId);
-    if (target === undefined) return undefined;
-    return {
-      targetText: target?.text ?? "",
-      savedTargetText: target?.text ?? "",
-      isDirty: false,
-      status:
-        this.localStatusOverrides.get(segmentId) ??
-        segmentStatusFromTarget(
-          {
-            hasOpenIssues: this.segmentHasOpenIssues(segmentId),
-            groupStatus: this.segmentMeta.get(segmentId)?.groupStatus,
-          },
-          target,
-        ),
-    };
-  }
-
-  releaseCleanDrafts() {
-    if (!this.serverTargetLookup) return;
-    for (const [id, draft] of this.drafts) {
-      if (
-        !draft.isDirty &&
-        !this.pendingWrites.has(id) &&
-        !hasSaveFailureCheck(this.segmentFormatChecks[id] ?? [])
-      ) {
-        this.drafts.delete(id);
-        this.locallyCommittedTargetTexts.delete(id);
-        this.preSaveTargetTexts.delete(id);
-      }
-    }
-  }
-
   readonly multilingualDrafts = new MultilingualDrafts();
   readonly imageGenerations = new ContentEditorImageGenerationStore();
   readonly groupVariants = new ContentEditorGroupVariantsRegistry();
   readonly queue = new ContentEditorQueueStore();
   readonly segments = new ContentEditorSegmentStore();
   readonly intelligenceState = new ContentEditorIntelligenceStore();
+  readonly bulk = new ContentEditorBulkActionStore();
   readonly page = new ContentEditorPageStore();
+  readonly targets = new ContentEditorSegmentTargetSync({
+    queue: this.queue,
+    segments: this.segments,
+    intelligence: this.intelligenceState,
+  });
   readonly ui: ContentEditorWorkspaceUiStore;
+  private readonly hydrator: ContentEditorQueueHydrator;
+  private readonly fileScopedStores: readonly FileScopedStore[];
 
   jobTitle?: string;
   breadcrumbs?: string[];
   primaryActionLabel?: string;
-
-  fileContext: ContentEditorFileContext = defaultFileContext;
-
-  pendingWrites = new Map<string, "approve" | "draft">();
-
-  get isApproving() {
-    return this.pendingWrites.get(this.selectedSegmentId) === "approve";
-  }
-  get isSavingDraft() {
-    return this.pendingWrites.get(this.selectedSegmentId) === "draft";
-  }
-  isBulkActionPending = false;
-  bulkCompletedCount = 0;
-  bulkTotalCount = 0;
-
+  fileContext: ContentEditorFileContext = DEFAULT_CONTENT_EDITOR_FILE_CONTEXT;
   unsavedNavigationPrompt: UnsavedNavigationPrompt | null = null;
-
-  private lastHydratedSnapshot: ContentEditorWorkspaceState | null = null;
-  private lastHydratedQueueIdentity = "";
-  private initialSegmentJumpApplied = false;
-  /** Segment ids whose lazy (or snapshot) target payload has been applied at least once. */
-  hydratedTargetSegmentIds = new Set<string>();
-  /**
-   * Target text last committed via save/approve. Guards applySegmentTarget against
-   * stale lazy fetches that were in flight before the save completed.
-   */
-  private locallyCommittedTargetTexts = new Map<string, string>();
-  /**
-   * Draft saved text captured just before markSegmentSaved. A post-save lazy sync
-   * whose text equals this value is the in-flight pre-save response and must be
-   * ignored. Any other mismatch (e.g. server-normalized text) clears the guard.
-   */
-  private preSaveTargetTexts = new Map<string, string>();
-  /**
-   * Session-local status overrides (e.g. skip) that are not persisted to the provider.
-   * Survives queue hydration so skipped rows do not reappear under Needs Review.
-   */
-  localStatusOverrides = new Map<string, ContentEditorSegmentStatus>();
 
   validationSequence = 0;
   reviewSequence = 0;
@@ -296,11 +144,32 @@ export class ContentEditorWorkspaceOrchestrator {
     this.queue.filter = options?.initialQueueFilter ?? "all";
     this.queue.sort = options?.initialQueueSort ?? "file_order";
     this.queue.search = options?.initialSearch ?? "";
-    makeAutoObservable(
+    this.hydrator = new ContentEditorQueueHydrator({
+      queue: this.queue,
+      segments: this.segments,
+      intelligence: this.intelligenceState,
+      targets: this.targets,
+      ui: this.ui,
+      readShell: () => this.shellState,
+      applyShell: (shell) => this.applySnapshotShell(shell),
+    });
+    this.fileScopedStores = [
+      this.queue,
+      this.segments,
+      this.intelligenceState,
+      this.bulk,
+      this.targets,
+      this.groupVariants,
+      this.multilingualDrafts,
+      this.imageGenerations,
+    ];
+    makeAutoObservable<this, "hydrator" | "fileScopedStores" | "controllers">(
       this,
       {
+        hydrator: false,
+        fileScopedStores: false,
+        controllers: false,
         queueViewCache: false,
-        serverTargetLookup: false,
         validationSequence: false,
         reviewSequence: false,
         fileScopeGeneration: false,
@@ -350,54 +219,67 @@ export class ContentEditorWorkspaceOrchestrator {
     for (const controller of this.controllers) {
       controller.dispose();
     }
-    this.imageGenerations.cancelAll();
+    this.imageGenerations.dispose();
+  }
+
+  /** Reads clean targets from a lazy cache. Returns a function that detaches it. */
+  attachServerTargetSource(source: ContentEditorServerTargetSource) {
+    return this.targets.attachSource(source);
+  }
+
+  get pendingWrites(): ReadonlyMap<string, "approve" | "draft"> {
+    return this.segments.pendingWrites;
+  }
+
+  get isApproving() {
+    return this.segments.pendingWrites.get(this.selectedSegmentId) === "approve";
+  }
+
+  get isSavingDraft() {
+    return this.segments.pendingWrites.get(this.selectedSegmentId) === "draft";
+  }
+
+  get isBulkActionPending() {
+    return this.bulk.isPending;
+  }
+
+  get bulkCompletedCount() {
+    return this.bulk.completedCount;
+  }
+
+  get bulkTotalCount() {
+    return this.bulk.totalCount;
+  }
+
+  get localStatusOverrides(): ReadonlyMap<string, ContentEditorSegmentStatus> {
+    return this.targets.localStatusOverrides;
   }
 
   get selectedSegmentId() {
     return this.queue.selectedSegmentId;
   }
 
-  set selectedSegmentId(value: string) {
-    this.queue.selectedSegmentId = value;
-  }
-
   get queueFilter() {
     return this.queue.filter;
-  }
-
-  set queueFilter(value: ContentEditorQueueFilter) {
-    this.queue.filter = value;
   }
 
   get queueSort() {
     return this.queue.sort;
   }
 
-  set queueSort(value: ContentEditorQueueSort) {
-    this.queue.sort = value;
-  }
-
   get queueSearch() {
     return this.queue.search;
-  }
-
-  set queueSearch(value: string) {
-    this.queue.search = value;
   }
 
   get selectionMode() {
     return this.queue.selectionMode;
   }
 
-  get checkedSegmentIds() {
+  get checkedSegmentIds(): ReadonlySet<string> {
     return this.queue.checkedSegmentIds;
   }
 
-  set checkedSegmentIds(value: Set<string>) {
-    this.queue.checkedSegmentIds = value;
-  }
-
-  get segmentMeta() {
+  get segmentMeta(): ReadonlyMap<string, ContentEditorQueueSegment> {
     return this.queue.segmentMeta;
   }
 
@@ -405,11 +287,7 @@ export class ContentEditorWorkspaceOrchestrator {
     return this.segments.comments;
   }
 
-  set segmentComments(value: Map<string, ContentEditorSegmentComment[]>) {
-    this.segments.comments = value;
-  }
-
-  get drafts() {
+  get drafts(): ReadonlyMap<string, ContentEditorSegmentDraft> {
     return this.segments.drafts;
   }
 
@@ -417,146 +295,72 @@ export class ContentEditorWorkspaceOrchestrator {
     return this.intelligenceState.formatChecks;
   }
 
-  set formatChecks(value: ContentEditorFormatCheck[]) {
-    this.intelligenceState.formatChecks = value;
-  }
-
   get segmentFormatChecks() {
     return this.intelligenceState.segmentFormatChecks;
-  }
-
-  set segmentFormatChecks(value: Record<string, ContentEditorFormatCheck[]>) {
-    this.intelligenceState.segmentFormatChecks = value;
   }
 
   get intelligence() {
     return this.intelligenceState.fileIntelligence;
   }
 
-  set intelligence(value: ContentEditorSegmentIntelligence) {
-    this.intelligenceState.fileIntelligence = value;
-  }
-
   get segmentIntelligence() {
     return this.intelligenceState.bySegment;
   }
 
-  set segmentIntelligence(value: Record<string, ContentEditorSegmentIntelligence>) {
-    this.intelligenceState.bySegment = value;
-  }
-
-  get revealedAgentContextSegmentIds() {
+  get revealedAgentContextSegmentIds(): ReadonlySet<string> {
     return this.intelligenceState.revealedAgentContextSegmentIds;
-  }
-
-  set revealedAgentContextSegmentIds(value: Set<string>) {
-    this.intelligenceState.revealedAgentContextSegmentIds = value;
   }
 
   get isValidating() {
     return this.intelligenceState.isValidating;
   }
 
-  set isValidating(value: boolean) {
-    this.intelligenceState.isValidating = value;
-  }
-
   get isPostingComment() {
     return this.segments.isPostingComment;
-  }
-
-  set isPostingComment(value: boolean) {
-    this.segments.isPostingComment = value;
   }
 
   get isResolvingComment() {
     return this.segments.isResolvingComment;
   }
 
-  set isResolvingComment(value: boolean) {
-    this.segments.isResolvingComment = value;
-  }
-
   get resolvingCommentId() {
     return this.segments.resolvingCommentId;
-  }
-
-  set resolvingCommentId(value: string | null) {
-    this.segments.resolvingCommentId = value;
   }
 
   get commentPostError() {
     return this.segments.commentPostError;
   }
 
-  set commentPostError(value: string | undefined) {
-    this.segments.commentPostError = value;
-  }
-
   get isLookingUpContext() {
-    const selectedSegmentId =
-      this.findSegmentIdByKeyOrId(this.selectedSegmentId) ?? this.selectedSegmentId;
-    return this.intelligenceState.contextLoadingSegmentIds.has(selectedSegmentId);
+    return this.intelligenceState.contextLoadingSegmentIds.has(this.resolvedSelectedSegmentId);
   }
 
   get concordanceLoadingSegmentId() {
     return this.intelligenceState.concordanceLoadingSegmentId;
   }
 
-  set concordanceLoadingSegmentId(value: string | null) {
-    this.intelligenceState.concordanceLoadingSegmentId = value;
-  }
-
   get isLoadingVisualContext() {
     return this.intelligenceState.isLoadingVisualContext;
-  }
-
-  set isLoadingVisualContext(value: boolean) {
-    this.intelligenceState.isLoadingVisualContext = value;
   }
 
   get isGeneratingAiRecommendation() {
     return this.intelligenceState.isGeneratingAiRecommendation;
   }
 
-  set isGeneratingAiRecommendation(value: boolean) {
-    this.intelligenceState.isGeneratingAiRecommendation = value;
-  }
-
   get isRunningFormatChecks() {
     return this.intelligenceState.isRunningFormatChecks;
-  }
-
-  set isRunningFormatChecks(value: boolean) {
-    this.intelligenceState.isRunningFormatChecks = value;
   }
 
   get formatCheckLoadingSegmentIds(): ReadonlySet<string> {
     return this.intelligenceState.formatCheckLoadingSegmentIds;
   }
 
-  setFormatCheckLoading(segmentId: string, loading: boolean) {
-    this.intelligenceState.setFormatCheckLoading(segmentId, loading);
-  }
-
-  clearFormatCheckLoading() {
-    this.intelligenceState.clearFormatCheckLoading();
-  }
-
   get isSegmentTargetLoading() {
     return this.segments.targetLoadingSegmentIds.has(this.selectedSegmentId);
   }
 
-  set isSegmentTargetLoading(value: boolean) {
-    this.setSegmentTargetLoading(value);
-  }
-
   get isCommentsLoading() {
     return this.segments.commentsLoadingSegmentIds.has(this.selectedSegmentId);
-  }
-
-  set isCommentsLoading(value: boolean) {
-    this.setCommentsLoading(value);
   }
 
   get canEditTranslations() {
@@ -572,12 +376,8 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   get isLoadingConcordance() {
-    const selectedSegmentId =
-      this.findSegmentIdByKeyOrId(this.selectedSegmentId) ?? this.selectedSegmentId;
-    return (
-      this.concordanceLoadingSegmentId !== null &&
-      this.concordanceLoadingSegmentId === selectedSegmentId
-    );
+    const loadingSegmentId = this.concordanceLoadingSegmentId;
+    return loadingSegmentId !== null && loadingSegmentId === this.resolvedSelectedSegmentId;
   }
 
   get dirtySegmentIds(): ReadonlySet<string> {
@@ -605,6 +405,15 @@ export class ContentEditorWorkspaceOrchestrator {
     };
   }
 
+  /** Selected id resolved from a segment key, which deep links may use instead of the id. */
+  private get resolvedSelectedSegmentId() {
+    return this.findSegmentIdByKeyOrId(this.selectedSegmentId) ?? this.selectedSegmentId;
+  }
+
+  targetState(segmentId: string) {
+    return this.targets.targetState(segmentId);
+  }
+
   getSegmentView(segmentId: string): ContentEditorSegment | undefined {
     const meta = this.segmentMeta.get(segmentId);
     if (!meta) {
@@ -626,16 +435,7 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   segmentHasOpenIssues(segmentId: string) {
-    const openFromSheet = (this.segments.openIssueCounts.get(segmentId) ?? 0) > 0;
-    if (openFromSheet) {
-      return true;
-    }
-
-    return (
-      this.segmentComments
-        .get(segmentId)
-        ?.some((comment) => comment.type === "issue" && isOpenIssueStatus(comment.status)) ?? false
-    );
+    return this.segments.hasOpenIssues(segmentId);
   }
 
   matchesQueueFilter(segmentId: string, filter: ContentEditorQueueFilter) {
@@ -653,28 +453,28 @@ export class ContentEditorWorkspaceOrchestrator {
 
   getFilteredQueueSegments(filter: ContentEditorQueueFilter, usesServerQueueFilter: boolean) {
     let segments: ContentEditorQueueSegment[];
+    const localStatusOverrides = this.targets.localStatusOverrides;
 
     if (usesServerQueueFilter && isServerQueueFilter(filter)) {
-      if (this.localStatusOverrides.size === 0) {
-        segments = this.queueSegments;
-      } else {
-        // Trust the server page, but hide rows whose session-local status no longer
-        // matches (skip is not persisted; approve may race ahead of refetch).
-        segments = this.queueSegments.filter((meta) => {
-          if (!this.localStatusOverrides.has(meta.id)) {
-            return true;
-          }
-          return this.matchesQueueFilter(meta.id, filter);
-        });
-      }
+      // Trust the server page, but hide rows whose session-local status no longer
+      // matches (skip is not persisted; approve may race ahead of refetch).
+      segments =
+        localStatusOverrides.size === 0
+          ? this.queueSegments
+          : this.queueSegments.filter(
+              (meta) =>
+                !localStatusOverrides.has(meta.id) || this.matchesQueueFilter(meta.id, filter),
+            );
     } else if (filter === "all") {
       segments = this.queueSegments;
     } else {
       segments = this.queueSegments.filter((meta) => this.matchesQueueFilter(meta.id, filter));
     }
 
-    if (this.serverTargetLookup && this.queueWindowIds)
-      segments = segments.filter((segment) => this.queueWindowIds!.has(segment.id));
+    const windowIds = this.queue.windowIds;
+    if (this.targets.isSourceAttached() && windowIds) {
+      segments = segments.filter((segment) => windowIds.has(segment.id));
+    }
     return orderCatQueueSegmentsSkippedLast(segments, this.queue.sort, (meta) => {
       const draft = this.drafts.get(meta.id);
       return (draft?.status ?? "pending") === "skipped";
@@ -730,8 +530,7 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   get selectedSegmentView(): ContentEditorSegment | undefined {
-    const segmentId = this.findSegmentIdByKeyOrId(this.selectedSegmentId) ?? this.selectedSegmentId;
-    return this.getSegmentView(segmentId);
+    return this.getSegmentView(this.resolvedSelectedSegmentId);
   }
 
   get intelligenceSegmentId() {
@@ -782,19 +581,12 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   get selectedDraft(): ContentEditorSegmentDraft | undefined {
-    const segmentId = this.findSegmentIdByKeyOrId(this.selectedSegmentId) ?? this.selectedSegmentId;
-    return this.drafts.get(segmentId);
+    return this.drafts.get(this.resolvedSelectedSegmentId);
   }
 
   reset(initialState: ContentEditorWorkspaceState, initialSegmentKeyOrId?: string | null) {
-    this.lastHydratedSnapshot = null;
-    this.lastHydratedQueueIdentity = "";
-    this.initialSegmentJumpApplied = false;
-    this.hydratedTargetSegmentIds = new Set();
-    this.segments.clearFailedTargetSegmentIds();
-    this.locallyCommittedTargetTexts = new Map();
-    this.preSaveTargetTexts = new Map();
-    this.localStatusOverrides = new Map();
+    this.hydrator.reset();
+    this.targets.resetForFileScope();
     this.ingestQueue(initialState, initialSegmentKeyOrId);
   }
 
@@ -831,33 +623,10 @@ export class ContentEditorWorkspaceOrchestrator {
     this.fileScopeGeneration += 1;
     this.reviewSequence += 1;
     this.validationSequence += 1;
-    // Abort rather than orphan in-flight image generation so returning to this
-    // file cannot start a second request while the first is still running.
-    this.imageGenerations.cancelAll();
-    this.pendingWrites.clear();
-    this.isBulkActionPending = false;
-    this.isPostingComment = false;
-    this.isResolvingComment = false;
-    this.resolvingCommentId = null;
-    this.commentPostError = undefined;
-    this.isValidating = false;
-    this.isGeneratingAiRecommendation = false;
-    this.isRunningFormatChecks = false;
-    this.isLoadingVisualContext = false;
-    this.lastHydratedSnapshot = null;
-    this.lastHydratedQueueIdentity = "";
-    this.initialSegmentJumpApplied = false;
-    this.hydratedTargetSegmentIds = new Set();
-    this.segments.clearFailedTargetSegmentIds();
-    this.locallyCommittedTargetTexts = new Map();
-    this.preSaveTargetTexts = new Map();
-    this.localStatusOverrides = new Map();
-    this.applySnapshotQueueMeta([], {});
-    // The window lists the previous file's rows; left in place it hides every row of the next file.
-    this.queueWindowIds = undefined;
-    this.selectedSegmentId = "";
-    this.formatChecks = [];
-    this.segmentFormatChecks = {};
+    for (const store of this.fileScopedStores) {
+      store.resetForFileScope();
+    }
+    this.hydrator.reset();
     this.fileContext = {
       sourcePath: input.sourcePath,
       filename,
@@ -870,16 +639,11 @@ export class ContentEditorWorkspaceOrchestrator {
     };
     // Update persona for the new file's content family eagerly (before the
     // snapshot arrives) so the UI reflects the correct layout immediately.
-    const initialFamily = outgoingSegment
-      ? resolveCatFileViewCapabilities({
-          sourcePath: outgoingSegment.sourcePath,
-          contentKind: outgoingSegment.contentKind,
-          providerKind: this.fileContext.providerKind,
-        }).family
-      : resolveCatFileViewCapabilities({
-          sourcePath: input.sourcePath,
-          providerKind: this.fileContext.providerKind,
-        }).family;
+    const initialFamily = resolveCatFileViewCapabilities({
+      sourcePath: outgoingSegment?.sourcePath ?? input.sourcePath,
+      ...(outgoingSegment ? { contentKind: outgoingSegment.contentKind } : {}),
+      providerKind: this.fileContext.providerKind,
+    }).family;
     this.ui.applyFileFamily(initialFamily);
     this.page.beginFileScopeChange(input.sourcePath, input.targetLocale);
     this.ui.setTranslationViewLoading(true);
@@ -893,27 +657,18 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   hasHydratedTarget(segmentId: string) {
-    return this.hydratedTargetSegmentIds.has(segmentId);
+    return this.targets.hasHydrated(segmentId);
   }
 
   hasFailedTarget(segmentId: string) {
-    return this.segments.failedTargetSegmentIds.has(segmentId);
+    return this.targets.hasFailed(segmentId);
   }
 
   markSegmentTargetLoadFailed(segmentId: string) {
-    if (this.hasHydratedTarget(segmentId) || this.hasFailedTarget(segmentId)) {
-      return;
-    }
-
-    this.segments.markTargetLoadFailed(segmentId);
+    this.targets.markLoadFailed(segmentId);
   }
 
   clearSegmentTargetLoadFailed(segmentId: string) {
-    this.segments.clearTargetLoadFailed(segmentId);
-  }
-
-  private markTargetHydrated(segmentId: string) {
-    this.hydratedTargetSegmentIds.add(segmentId);
     this.segments.clearTargetLoadFailed(segmentId);
   }
 
@@ -924,213 +679,19 @@ export class ContentEditorWorkspaceOrchestrator {
     this.hydrateFromServerSnapshot(nextInitialState, initialSegmentKeyOrId);
   }
 
-  /**
-   * Query loading flags go false on a cache hit before ContentEditorQueryBridge writes
-   * this snapshot. Bulk actions must wait until the identities match.
-   */
   hasIngestedQueueSnapshot(snapshot: ContentEditorWorkspaceState | null): boolean {
-    if (!snapshot) {
-      return true;
-    }
-
-    return this.lastHydratedQueueIdentity === queueSnapshotIdentity(snapshot);
+    return this.hydrator.hasIngested(snapshot);
   }
 
   hydrateFromServerSnapshot(
     nextInitialState: ContentEditorWorkspaceState,
     initialSegmentKeyOrId?: string | null,
   ) {
-    const normalizedNext = normalizeSnapshot(nextInitialState);
-    const previousInitialState = this.lastHydratedSnapshot;
-    const currentShell = this.shellState;
-    const nextFileContext = resolveFileContext(normalizedNext);
-
-    runInAction(() => {
-      this.fileContext = nextFileContext;
-      // Seed the workspace persona for the incoming file's content family so
-      // auto-detection and per-family localStorage preferences apply immediately.
-      const initialSegment =
-        (initialSegmentKeyOrId
-          ? (normalizedNext.segments?.find(
-              (segment) =>
-                segment.id === initialSegmentKeyOrId || segment.key === initialSegmentKeyOrId,
-            ) ??
-            normalizedNext.queueSegments?.find(
-              (segment) =>
-                segment.id === initialSegmentKeyOrId || segment.key === initialSegmentKeyOrId,
-            ))
-          : undefined) ??
-        normalizedNext.segments?.[0] ??
-        normalizedNext.queueSegments?.[0];
-      const initialFamily =
-        nextFileContext.sourcePath === "*"
-          ? resolveCatFileViewCapabilities({
-              sourcePath:
-                initialSegment?.sourcePath ??
-                (initialSegment as { filePath?: string } | undefined)?.filePath,
-              contentKind: initialSegment?.contentKind,
-              providerKind: nextFileContext.providerKind,
-            }).family
-          : resolveCatFileViewCapabilities({
-              sourcePath: nextFileContext.sourcePath,
-              providerKind: nextFileContext.providerKind,
-            }).family;
-      this.ui.applyFileFamily(initialFamily);
-      this.jobTitle = normalizedNext.jobTitle;
-      this.breadcrumbs = normalizedNext.breadcrumbs;
-      this.primaryActionLabel = normalizedNext.primaryActionLabel;
-      this.intelligence = normalizedNext.intelligence;
-
-      if (!previousInitialState) {
-        if (normalizedNext.segments?.length) {
-          this.applySnapshotSegments(normalizedNext.segments, normalizedNext.segmentIntelligence);
-        } else {
-          this.applySnapshotQueueMeta(
-            normalizedNext.queueSegments,
-            normalizedNext.segmentIntelligence,
-          );
-        }
-        this.segmentFormatChecks = { ...normalizedNext.segmentFormatChecks };
-        this.formatChecks = normalizedNext.formatChecks;
-        this.segmentIntelligence = {
-          ...this.segmentIntelligence,
-          ...normalizedNext.segmentIntelligence,
-        };
-      } else {
-        this.mergeQueueMetaFromSnapshot(normalizedNext);
-        this.mergeFormatChecksFromHydration(currentShell, normalizedNext);
-        this.mergeIntelligenceFromHydration(currentShell, normalizedNext);
-      }
-
-      const nextSegmentIds = new Set(normalizedNext.queueSegments.map((segment) => segment.id));
-      const selectedDraftIsDirty = Boolean(this.drafts.get(this.selectedSegmentId)?.isDirty);
-      const retainedSelectedSegmentId =
-        (selectedDraftIsDirty || Boolean(this.serverTargetLookup)) &&
-        this.segmentMeta.has(this.selectedSegmentId)
-          ? this.selectedSegmentId
-          : null;
-      const selectedSegmentId = nextSegmentIds.has(this.selectedSegmentId)
-        ? this.selectedSegmentId
-        : (retainedSelectedSegmentId ??
-          normalizedNext.selectedSegmentId ??
-          normalizedNext.queueSegments[0]?.id ??
-          normalizedNext.segments?.[0]?.id ??
-          "");
-
-      this.selectedSegmentId = selectedSegmentId;
-      const visibleSegmentIds = new Set(nextSegmentIds);
-      if (retainedSelectedSegmentId) {
-        visibleSegmentIds.add(retainedSelectedSegmentId);
-      }
-      this.queue.reconcileVisibleIds(visibleSegmentIds);
-
-      const matchedSegmentId = initialSegmentKeyOrId
-        ? this.findSegmentIdByKeyOrId(initialSegmentKeyOrId)
-        : null;
-      if (matchedSegmentId && !this.initialSegmentJumpApplied && !selectedDraftIsDirty) {
-        this.initialSegmentJumpApplied = true;
-        this.selectedSegmentId = matchedSegmentId;
-      }
-
-      if (currentShell.selectedSegmentId !== this.selectedSegmentId) {
-        // Snapshot formatChecks are authoritative for the snapshot's selected segment.
-        // Prefer them over segmentFormatChecks, which may still hold defaults for that id.
-        this.formatChecks =
-          this.selectedSegmentId === normalizedNext.selectedSegmentId
-            ? normalizedNext.formatChecks
-            : (this.segmentFormatChecks[this.selectedSegmentId] ?? normalizedNext.formatChecks);
-      }
-
-      this.revealedAgentContextSegmentIds = new Set([
-        ...this.revealedAgentContextSegmentIds,
-        ...collectSegmentsWithAgentContext(normalizedNext),
-      ]);
-
-      this.lastHydratedSnapshot = normalizedNext;
-      this.lastHydratedQueueIdentity = queueSnapshotIdentity(normalizedNext);
-      this.ui.setTranslationViewLoading(false);
-    });
+    this.hydrator.hydrate(nextInitialState, initialSegmentKeyOrId);
   }
 
   applySegmentTarget(segmentId: string, target: ProjectFileContentEditorTranslation | null) {
-    if (!this.segmentMeta.has(segmentId)) {
-      return;
-    }
-
-    const targetText = target?.text ?? "";
-    const serverStatus = segmentStatusFromTarget(
-      {
-        hasOpenIssues: this.segmentHasOpenIssues(segmentId),
-        groupStatus: this.segmentMeta.get(segmentId)?.groupStatus,
-      },
-      target,
-    );
-    const status = this.localStatusOverrides.get(segmentId) ?? serverStatus;
-    const existingMeta = this.segmentMeta.get(segmentId);
-    if (existingMeta) {
-      const nextContentKind = target?.contentKind ?? existingMeta.contentKind;
-      const nextTargetAssetUrl =
-        target?.targetAssetUrl !== undefined ? target.targetAssetUrl : existingMeta.targetAssetUrl;
-      const nextImageVariantId =
-        target?.imageVariantId !== undefined ? target.imageVariantId : existingMeta.imageVariantId;
-      if (
-        existingMeta.contentKind !== nextContentKind ||
-        existingMeta.targetAssetUrl !== nextTargetAssetUrl ||
-        existingMeta.imageVariantId !== nextImageVariantId
-      ) {
-        this.segmentMeta.set(segmentId, {
-          ...existingMeta,
-          ...(nextContentKind ? { contentKind: nextContentKind } : {}),
-          ...(nextTargetAssetUrl !== undefined ? { targetAssetUrl: nextTargetAssetUrl } : {}),
-          ...(nextImageVariantId !== undefined ? { imageVariantId: nextImageVariantId } : {}),
-        });
-      }
-    }
-
-    const existingDraft = this.drafts.get(segmentId);
-    if (this.serverTargetLookup) {
-      this.serverTargetVersions.set(segmentId, (this.serverTargetVersions.get(segmentId) ?? 0) + 1);
-      existingDraft?.applyServerStatus(status);
-      this.markTargetHydrated(segmentId);
-      return;
-    }
-
-    if (existingDraft) {
-      if (existingDraft.isDirty) {
-        existingDraft.applyServerStatus(status);
-        this.markTargetHydrated(segmentId);
-        return;
-      }
-
-      const committedText = this.locallyCommittedTargetTexts.get(segmentId);
-      if (committedText !== undefined && committedText === existingDraft.savedTargetText) {
-        if (targetText !== committedText) {
-          const preSaveText = this.preSaveTargetTexts.get(segmentId);
-          if (preSaveText !== undefined && targetText === preSaveText) {
-            // In-flight pre-save fetch — ignore without clearing the guard.
-            this.markTargetHydrated(segmentId);
-            return;
-          }
-        }
-
-        // Exact match or server-normalized confirmation — clear and apply.
-        this.locallyCommittedTargetTexts.delete(segmentId);
-        this.preSaveTargetTexts.delete(segmentId);
-      }
-
-      if (existingDraft.targetText.trim() && !targetText.trim()) {
-        existingDraft.applyServerStatus(status);
-        this.markTargetHydrated(segmentId);
-        return;
-      }
-
-      existingDraft.applyServerTarget(targetText, status);
-      this.markTargetHydrated(segmentId);
-      return;
-    }
-
-    this.drafts.set(segmentId, new ContentEditorSegmentDraft(segmentId, targetText, status));
-    this.markTargetHydrated(segmentId);
+    this.targets.apply(segmentId, target);
   }
 
   applySegmentComments(segmentId: string, comments: ProjectFileContentEditorComment[]) {
@@ -1138,19 +699,8 @@ export class ContentEditorWorkspaceOrchestrator {
       return;
     }
 
-    const mappedComments = mapSegmentComments(comments);
-    this.segmentComments.set(segmentId, mappedComments);
-
-    const hasOpenIssues = this.segmentHasOpenIssues(segmentId);
-    const draft = this.drafts.get(segmentId);
-    if (
-      draft &&
-      hasOpenIssues &&
-      draft.status !== "reviewed" &&
-      this.localStatusOverrides.get(segmentId) !== "skipped"
-    ) {
-      draft.applyServerStatus("needs_review");
-    }
+    this.segments.setComments(segmentId, mapSegmentComments(comments));
+    this.flagNeedsReviewWhenIssuesOpen(segmentId);
   }
 
   applySegmentOpenIssueCount(segmentId: string, openIssueCount: number) {
@@ -1158,12 +708,15 @@ export class ContentEditorWorkspaceOrchestrator {
       return;
     }
 
-    this.segments.openIssueCounts.set(segmentId, openIssueCount);
+    this.segments.setOpenIssueCount(segmentId, openIssueCount);
+    this.flagNeedsReviewWhenIssuesOpen(segmentId);
+  }
 
+  private flagNeedsReviewWhenIssuesOpen(segmentId: string) {
     const draft = this.drafts.get(segmentId);
     if (
       draft &&
-      openIssueCount > 0 &&
+      this.segmentHasOpenIssues(segmentId) &&
       draft.status !== "reviewed" &&
       this.localStatusOverrides.get(segmentId) !== "skipped"
     ) {
@@ -1172,174 +725,22 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   setSegmentTargetLoading(loading: boolean, segmentId = this.selectedSegmentId) {
-    if (loading) {
-      this.segments.targetLoadingSegmentIds.add(segmentId);
-      this.segments.clearTargetLoadFailed(segmentId);
-    } else {
-      this.segments.targetLoadingSegmentIds.delete(segmentId);
-    }
+    this.segments.setTargetLoading(segmentId, loading);
   }
 
   setQueueTargetLoadingSegmentIds(segmentIds: readonly string[]) {
     this.segments.setQueueTargetLoadingSegmentIds(segmentIds);
-    for (const segmentId of segmentIds) {
-      this.segments.clearTargetLoadFailed(segmentId);
-    }
   }
 
   setCommentsLoading(loading: boolean, segmentId = this.selectedSegmentId) {
-    if (loading) this.segments.commentsLoadingSegmentIds.add(segmentId);
-    else this.segments.commentsLoadingSegmentIds.delete(segmentId);
+    this.segments.setCommentsLoading(segmentId, loading);
   }
 
-  private applySnapshotQueueMeta(
-    queueSegments: ContentEditorQueueSegment[],
-    segmentIntelligence: ContentEditorWorkspaceState["segmentIntelligence"] = {},
-  ) {
-    this.segmentMeta.clear();
-    this.segmentComments.clear();
-    this.segments.openIssueCounts.clear();
-    this.drafts.clear();
-    this.hydratedTargetSegmentIds = new Set();
-    this.segments.clearFailedTargetSegmentIds();
-    this.locallyCommittedTargetTexts = new Map();
-    this.preSaveTargetTexts = new Map();
-    this.segmentIntelligence = { ...segmentIntelligence };
-
-    for (const meta of queueSegments) {
-      this.segmentMeta.set(meta.id, meta);
-    }
-  }
-
-  private applySnapshotSegments(
-    segments: ContentEditorSegment[],
-    segmentIntelligence: ContentEditorWorkspaceState["segmentIntelligence"],
-  ) {
-    this.segmentMeta.clear();
-    this.segmentComments.clear();
-    this.segments.openIssueCounts.clear();
-    this.drafts.clear();
-    this.hydratedTargetSegmentIds = new Set();
-    this.segments.clearFailedTargetSegmentIds();
-    this.locallyCommittedTargetTexts = new Map();
-    this.preSaveTargetTexts = new Map();
-    this.segmentIntelligence = { ...segmentIntelligence };
-
-    for (const segment of segments) {
-      this.segmentMeta.set(segment.id, toQueueSegment(segment));
-      this.markTargetHydrated(segment.id);
-      if (segment.comments !== undefined) {
-        this.segmentComments.set(segment.id, segment.comments);
-      }
-      if (segment.hasOpenIssues) {
-        this.segments.openIssueCounts.set(segment.id, 1);
-      }
-      if (segment.targetText.trim() || segment.status !== "pending") {
-        this.drafts.set(
-          segment.id,
-          new ContentEditorSegmentDraft(segment.id, segment.targetText, segment.status),
-        );
-      }
-
-      const mergedIntelligence = intelligenceFromHydratedSegment(
-        segment,
-        this.segmentIntelligence[segment.id],
-      );
-      if (mergedIntelligence) {
-        this.segmentIntelligence[segment.id] = mergedIntelligence;
-      }
-    }
-  }
-
-  private mergeQueueMetaFromSnapshot(nextInitialState: ContentEditorWorkspaceState) {
-    this.queueWindowIds = new Set(nextInitialState.queueSegments.map((segment) => segment.id));
-    for (const meta of nextInitialState.queueSegments) {
-      this.segmentMeta.set(meta.id, meta);
-      const override = this.localStatusOverrides.get(meta.id);
-      if (!override) {
-        continue;
-      }
-
-      const draft = this.drafts.get(meta.id);
-      if (draft) {
-        draft.applyServerStatus(override);
-      } else {
-        this.drafts.set(meta.id, new ContentEditorSegmentDraft(meta.id, "", override));
-      }
-    }
-
-    const nextSegmentIds = new Set(nextInitialState.queueSegments.map((meta) => meta.id));
-    for (const segmentId of this.segmentMeta.keys()) {
-      if (!nextSegmentIds.has(segmentId)) {
-        const draft = this.drafts.get(segmentId);
-        const hasLocalOverride = this.localStatusOverrides.has(segmentId);
-        // Keep session-local skipped rows so the Skipped filter can still show them.
-        if (
-          !draft?.isDirty &&
-          !hasLocalOverride &&
-          !this.pendingWrites.has(segmentId) &&
-          !hasSaveFailureCheck(this.segmentFormatChecks[segmentId] ?? []) &&
-          !(this.serverTargetLookup && segmentId === this.selectedSegmentId)
-        ) {
-          this.serverTargetVersions.delete(segmentId);
-          this.drafts.delete(segmentId);
-          this.segmentMeta.delete(segmentId);
-          this.segmentComments.delete(segmentId);
-          this.segments.openIssueCounts.delete(segmentId);
-          this.hydratedTargetSegmentIds.delete(segmentId);
-          this.segments.clearTargetLoadFailed(segmentId);
-          this.locallyCommittedTargetTexts.delete(segmentId);
-          this.preSaveTargetTexts.delete(segmentId);
-        }
-      }
-    }
-  }
-
-  private mergeFormatChecksFromHydration(
-    currentShell: ContentEditorWorkspaceShell,
-    nextInitialState: ContentEditorWorkspaceState,
-  ) {
-    const segmentFormatChecks: Record<string, ContentEditorFormatCheck[]> = {
-      ...nextInitialState.segmentFormatChecks,
-    };
-
-    for (const segmentId of this.segmentMeta.keys()) {
-      const currentDraft = this.drafts.get(segmentId);
-      const currentChecks = currentShell.segmentFormatChecks?.[segmentId];
-
-      if (currentChecks && (currentDraft?.isDirty || hasSaveFailureCheck(currentChecks))) {
-        segmentFormatChecks[segmentId] = currentChecks;
-      }
-    }
-
-    this.segmentFormatChecks = segmentFormatChecks;
-    this.formatChecks =
-      currentShell.selectedSegmentId === this.selectedSegmentId
-        ? currentShell.formatChecks
-        : nextInitialState.formatChecks;
-  }
-
-  private mergeIntelligenceFromHydration(
-    currentShell: ContentEditorWorkspaceShell,
-    nextInitialState: ContentEditorWorkspaceState,
-  ) {
-    const segmentIntelligence: Record<string, ContentEditorSegmentIntelligence> = {
-      ...nextInitialState.segmentIntelligence,
-    };
-
-    for (const segmentId of this.segmentMeta.keys()) {
-      const merged = mergeSegmentIntelligenceOnHydrate({
-        nextInitialState,
-        currentState: currentShell,
-        segmentId,
-        existing: segmentIntelligence[segmentId],
-      });
-      if (merged) {
-        segmentIntelligence[segmentId] = merged;
-      }
-    }
-
-    this.segmentIntelligence = segmentIntelligence;
+  private applySnapshotShell(shell: ContentEditorSnapshotShell) {
+    this.fileContext = shell.fileContext;
+    this.jobTitle = shell.jobTitle;
+    this.breadcrumbs = shell.breadcrumbs;
+    this.primaryActionLabel = shell.primaryActionLabel;
   }
 
   setSelectedSegmentId(segmentId: string) {
@@ -1348,17 +749,7 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   setTargetText(segmentId: string, value: string) {
-    if (this.serverTargetLookup && !this.drafts.has(segmentId)) {
-      const target = this.targetState(segmentId);
-      this.drafts.set(
-        segmentId,
-        new ContentEditorSegmentDraft(
-          segmentId,
-          target?.targetText ?? "",
-          target?.status ?? "pending",
-        ),
-      );
-    }
+    this.targets.ensureDraftForEdit(segmentId);
     this.segments.setTargetText(segmentId, value, this.segmentMeta.has(segmentId));
   }
 
@@ -1367,16 +758,11 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   rememberLocalStatusOverride(segmentId: string, status: ContentEditorSegmentStatus) {
-    this.localStatusOverrides.set(segmentId, status);
+    this.targets.rememberLocalStatusOverride(segmentId, status);
   }
 
   markSegmentSaved(segmentId: string, targetText: string, status?: ContentEditorSegmentStatus) {
-    const draft = this.drafts.get(segmentId);
-    if (draft) {
-      this.preSaveTargetTexts.set(segmentId, draft.savedTargetText);
-    }
-    this.segments.markSaved(segmentId, targetText, status, this.segmentMeta.has(segmentId));
-    this.locallyCommittedTargetTexts.set(segmentId, targetText);
+    this.targets.markSaved(segmentId, targetText, status);
   }
 
   /**
@@ -1384,24 +770,22 @@ export class ContentEditorWorkspaceOrchestrator {
    * the active filter (e.g. approve while filtered to Needs Review). Keeps dirty drafts.
    */
   removeQueueSegmentIfClean(segmentId: string) {
-    if (!this.segmentMeta.has(segmentId)) {
-      return false;
-    }
-
-    const draft = this.drafts.get(segmentId);
-    if (draft?.isDirty) {
+    if (!this.segmentMeta.has(segmentId) || this.drafts.get(segmentId)?.isDirty) {
       return false;
     }
 
     this.queue.remove(segmentId);
-    this.drafts.delete(segmentId);
-    this.segmentComments.delete(segmentId);
-    this.segments.openIssueCounts.delete(segmentId);
-    this.hydratedTargetSegmentIds.delete(segmentId);
-    this.segments.clearTargetLoadFailed(segmentId);
-    this.locallyCommittedTargetTexts.delete(segmentId);
-    this.preSaveTargetTexts.delete(segmentId);
+    this.segments.evict(segmentId);
+    this.targets.forget(segmentId);
     return true;
+  }
+
+  beginWrite(segmentId: string, kind: "approve" | "draft") {
+    return this.segments.beginWrite(segmentId, kind);
+  }
+
+  endWrite(segmentId: string) {
+    this.segments.endWrite(segmentId);
   }
 
   setFormatChecks(segmentId: string, checks: ContentEditorFormatCheck[], isSelected: boolean) {
@@ -1429,18 +813,11 @@ export class ContentEditorWorkspaceOrchestrator {
       category: "qa",
     };
     const segmentChecks = this.segmentFormatChecks[segmentId] ?? this.formatChecks;
-    const nextSegmentChecks = [
-      saveFailureCheck,
-      ...segmentChecks.filter((check) => !check.id.startsWith("save-failed-")),
-    ];
-
-    this.segmentFormatChecks = {
-      ...this.segmentFormatChecks,
-      [segmentId]: nextSegmentChecks,
-    };
-    if (this.selectedSegmentId === segmentId) {
-      this.formatChecks = nextSegmentChecks;
-    }
+    this.setFormatChecks(
+      segmentId,
+      [saveFailureCheck, ...segmentChecks.filter((check) => !check.id.startsWith("save-failed-"))],
+      this.selectedSegmentId === segmentId,
+    );
   }
 
   removeFormatCheck(segmentId: string, checkId: string) {
@@ -1460,7 +837,7 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   setCheckedSegmentIds(next: ReadonlySet<string>) {
-    this.checkedSegmentIds = new Set(next);
+    this.queue.selectAll([...next]);
   }
 
   toggleSegmentChecked(segmentId: string, checked: boolean) {
@@ -1484,9 +861,9 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   pruneCheckedToVisible(visibleIds: ReadonlySet<string>) {
-    const next = new Set([...this.checkedSegmentIds].filter((id) => visibleIds.has(id)));
-    if (next.size !== this.checkedSegmentIds.size) {
-      this.checkedSegmentIds = next;
+    const next = [...this.checkedSegmentIds].filter((id) => visibleIds.has(id));
+    if (next.length !== this.checkedSegmentIds.size) {
+      this.queue.selectAll(next);
     }
   }
 
@@ -1542,7 +919,7 @@ export class ContentEditorWorkspaceOrchestrator {
 
   beginValidation(): number {
     this.validationSequence += 1;
-    this.isValidating = true;
+    this.intelligenceState.setValidating(true);
     return this.validationSequence;
   }
 
@@ -1552,17 +929,17 @@ export class ContentEditorWorkspaceOrchestrator {
 
   completeValidation(sequence: number): void {
     if (this.isValidationCurrent(sequence)) {
-      this.isValidating = false;
+      this.intelligenceState.setValidating(false);
     }
   }
 
   beginReview(options?: { includeAi?: boolean; showFormatChecksLoading?: boolean }): number {
     this.reviewSequence += 1;
     if (options?.includeAi) {
-      this.isGeneratingAiRecommendation = true;
+      this.intelligenceState.setGeneratingAiRecommendation(true);
     }
     if (options?.showFormatChecksLoading) {
-      this.isRunningFormatChecks = true;
+      this.intelligenceState.setRunningFormatChecks(true);
     }
     return this.reviewSequence;
   }
@@ -1572,13 +949,11 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   beginConcordanceLoad(segmentId: string) {
-    this.concordanceLoadingSegmentId = segmentId;
+    this.intelligenceState.beginConcordanceLoad(segmentId);
   }
 
   endConcordanceLoad(segmentId: string) {
-    if (this.concordanceLoadingSegmentId === segmentId) {
-      this.concordanceLoadingSegmentId = null;
-    }
+    this.intelligenceState.endConcordanceLoad(segmentId);
   }
 
   beginContextLookup(segmentId: string) {
@@ -1589,6 +964,18 @@ export class ContentEditorWorkspaceOrchestrator {
     this.intelligenceState.endContextLookup(segmentId);
   }
 
+  setVisualContextLoading(loading: boolean) {
+    this.intelligenceState.setLoadingVisualContext(loading);
+  }
+
+  setFormatCheckLoading(segmentId: string, loading: boolean) {
+    this.intelligenceState.setFormatCheckLoading(segmentId, loading);
+  }
+
+  clearFormatCheckLoading() {
+    this.intelligenceState.clearFormatCheckLoading();
+  }
+
   setReviewPhaseLoading(sequence: number, phase: "ai" | "formatChecks", loading: boolean): void {
     if (!this.isReviewCurrent(sequence)) {
       return;
@@ -1596,12 +983,32 @@ export class ContentEditorWorkspaceOrchestrator {
 
     switch (phase) {
       case "ai":
-        this.isGeneratingAiRecommendation = loading;
+        this.intelligenceState.setGeneratingAiRecommendation(loading);
         break;
       case "formatChecks":
-        this.isRunningFormatChecks = loading;
+        this.intelligenceState.setRunningFormatChecks(loading);
         break;
     }
+  }
+
+  beginCommentPost() {
+    this.segments.beginPostComment();
+  }
+
+  endCommentPost() {
+    this.segments.endPostComment();
+  }
+
+  beginCommentResolve(commentId: string) {
+    this.segments.beginResolveComment(commentId);
+  }
+
+  endCommentResolve() {
+    this.segments.endResolveComment();
+  }
+
+  failComment(message: string) {
+    this.segments.failComment(message);
   }
 }
 

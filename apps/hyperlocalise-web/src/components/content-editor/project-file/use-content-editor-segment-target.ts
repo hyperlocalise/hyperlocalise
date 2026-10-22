@@ -16,13 +16,20 @@ import { createContentEditorRequestScheduler } from "@/components/content-editor
 import { useNativeTargetLoader } from "./content-editor-native-target-context";
 import { CAT_CACHE_GC_TIME, installEditorCacheBudget } from "./content-editor-cache-budget";
 import { useMemo } from "react";
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useQueries,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+  type QueryKey,
+} from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
 import type { ProjectFileContentEditorTranslation } from "@/api/routes/project/project.schema";
 import type { ContentEditorFormatMessageIntl } from "@/components/content-editor/message-format/content-editor-message-format-i18n";
 import type { ContentEditorProjectSource } from "@/components/content-editor/shared/content-editor-native-project";
 import { canUseGoSvcCat } from "@/components/content-editor/shared/content-editor-native-project";
+import type { ContentEditorServerTargetSource } from "@/components/content-editor/workspace/store/content-editor-segment-target-sync";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
@@ -52,6 +59,98 @@ export function projectFileCatSegmentTargetQueryKey(input: {
     input.targetLocale,
     input.externalStringId,
   ] as const;
+}
+
+const SEGMENT_TARGET_QUERY_KEY_PREFIX = "project-file-content-editor-segment-target";
+
+type SegmentTargetQueryKey = ReturnType<typeof projectFileCatSegmentTargetQueryKey>;
+
+export type SegmentTargetQueryIdentity = {
+  sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
+};
+
+/**
+ * Query-key identity for one segment. All Files rows carry their own source path
+ * and resource id; file-level values are only the fallback when a row omits them.
+ */
+export function segmentTargetQueryIdentity(
+  segment:
+    | {
+        sourcePath?: string | null;
+        externalResourceId?: string | null;
+        resourceType?: "file" | "key" | null;
+      }
+    | undefined,
+  fallback: {
+    sourcePath: string;
+    externalResourceId?: string | null;
+    resourceType?: "file" | "key" | null;
+  },
+): SegmentTargetQueryIdentity {
+  return {
+    sourcePath: segment?.sourcePath?.trim() || fallback.sourcePath,
+    externalResourceId: segment?.externalResourceId ?? fallback.externalResourceId ?? null,
+    resourceType: segment?.resourceType ?? fallback.resourceType ?? undefined,
+  };
+}
+
+/** Reads a key built by `projectFileCatSegmentTargetQueryKey`, or null for any other query. */
+export function parseProjectFileCatSegmentTargetQueryKey(key: QueryKey) {
+  if (key[0] !== SEGMENT_TARGET_QUERY_KEY_PREFIX || key.length !== 8) {
+    return null;
+  }
+  const [, organizationSlug, projectId, sourcePath, , , targetLocale, externalStringId] =
+    key as SegmentTargetQueryKey;
+  return { organizationSlug, projectId, sourcePath, targetLocale, externalStringId };
+}
+
+/** Exposes cached segment targets for one file scope to the workspace store. */
+export function createSegmentTargetQuerySource(
+  queryClient: QueryClient,
+  scope: {
+    organizationSlug: string;
+    projectId: string;
+    targetLocale: string;
+    /** Every field of `projectFileCatSegmentTargetQueryKey`, resolved per segment. */
+    identityFor: (externalStringId: string) => SegmentTargetQueryIdentity;
+  },
+): ContentEditorServerTargetSource {
+  return {
+    get: (externalStringId) => {
+      const identity = scope.identityFor(externalStringId);
+      return queryClient.getQueryData<ProjectFileContentEditorTranslation | null>(
+        projectFileCatSegmentTargetQueryKey({
+          organizationSlug: scope.organizationSlug,
+          projectId: scope.projectId,
+          sourcePath: identity.sourcePath,
+          externalResourceId: identity.externalResourceId,
+          resourceType: identity.resourceType,
+          targetLocale: scope.targetLocale,
+          externalStringId,
+        }),
+      );
+    },
+    subscribe: (listener) =>
+      queryClient.getQueryCache().subscribe((event) => {
+        if (event.type !== "updated" || event.query.state.data === undefined) {
+          return;
+        }
+        const key = parseProjectFileCatSegmentTargetQueryKey(event.query.queryKey);
+        if (
+          key?.organizationSlug !== scope.organizationSlug ||
+          key.projectId !== scope.projectId ||
+          key.targetLocale !== scope.targetLocale
+        ) {
+          return;
+        }
+        listener(
+          key.externalStringId,
+          event.query.state.data as ProjectFileContentEditorTranslation | null,
+        );
+      }),
+  };
 }
 
 export async function fetchProjectFileContentEditorSegmentTarget(input: {

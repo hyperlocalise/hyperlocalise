@@ -388,6 +388,20 @@ export const projectFileCatActivityLogQuerySchema = z.object({
   since: z.string().datetime({ offset: true }).optional(),
 });
 
+/** Hono serves connected TMS activity, whose string IDs are provider IDs rather than UUIDs. */
+export const projectFileCatProviderActivityLogQuerySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  segmentId: z.string().trim().min(1).max(256).optional(),
+  targetLocale: z.string().min(1).max(128).optional(),
+  cursor: z.string().trim().min(1).max(2048).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  /** Comma-separated string segment event types. */
+  eventTypes: z.string().max(1024).optional(),
+  actorKind: z.enum(["user", "agent", "api_key", "system"]).optional(),
+  /** RFC 3339 time; only events at or after it. */
+  since: z.string().datetime({ offset: true }).optional(),
+});
+
 export const projectFileCatPaginationSchema = z.object({
   offset: z.number().int().min(0),
   limit: z.number().int().min(1),

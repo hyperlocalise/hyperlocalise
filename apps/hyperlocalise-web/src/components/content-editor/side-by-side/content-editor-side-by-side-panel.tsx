@@ -247,6 +247,7 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   onTreatAsVideo,
   onRegenerateImage,
   onUploadImage,
+  onToggleLocked,
   onAskQuestion,
   onRefreshContext,
   onUseTmMatch,
@@ -320,6 +321,7 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   onTreatAsVideo?: (segmentId: string, treatAsVideo: boolean) => void;
   onRegenerateImage?: (segmentId: string) => void;
   onUploadImage?: (segmentId: string, file: File) => void;
+  onToggleLocked?: (segmentId: string) => void | Promise<void>;
   onAskQuestion?: () => void;
   onRefreshContext?: () => void;
   onUseTmMatch?: (segmentId: string, match: ContentEditorTranslationMemoryMatch) => void;
@@ -438,6 +440,7 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
                   onTreatAsVideo={onTreatAsVideo}
                   onRegenerateImage={onRegenerateImage}
                   onUploadImage={onUploadImage}
+                  onToggleLocked={onToggleLocked}
                   hasMore={hasMoreQueue}
                   isLoadingMore={isFetchingPage}
                   onNearEnd={onLoadMoreQueue}

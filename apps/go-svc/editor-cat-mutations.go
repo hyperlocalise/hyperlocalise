@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -710,10 +711,42 @@ func (api *editorCatAPI) setHidden(r *http.Request, actor editorCatActor, projec
 	api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
 		eventType:  eventType,
 		segmentID:  ids[0],
+		segmentIDs: ids,
 		sourcePath: trimEditorCat(body.SourcePath),
 		itemCount:  int(tag.RowsAffected()),
 	})
 	return map[string]any{"updatedCount": tag.RowsAffected(), "isHidden": body.IsHidden}, 200, nil
+}
+
+// deleteEditorCatSegmentLocks removes existing locks and returns the requested ids that were deleted, in request order.
+func deleteEditorCatSegmentLocks(ctx context.Context, tx pgx.Tx, organizationID, projectID, targetLocale string, ids []string) ([]string, error) {
+	rows, err := tx.Query(ctx, `
+        delete from project_cat_segment_locks
+        where organization_id=$1 and project_id=$2 and target_locale=$3 and external_string_id = any($4::text[])
+        returning external_string_id`,
+		organizationID, projectID, targetLocale, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	deleted := make(map[string]struct{}, len(ids))
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		deleted[id] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	unlocked := make([]string, 0, len(deleted))
+	for _, id := range ids {
+		if _, ok := deleted[id]; ok {
+			unlocked = append(unlocked, id)
+		}
+	}
+	return unlocked, nil
 }
 
 func (api *editorCatAPI) setLocked(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
@@ -745,24 +778,24 @@ func (api *editorCatAPI) setLocked(r *http.Request, actor editorCatActor, projec
 		}
 	}
 	if !body.IsLocked {
-		tag, err := tx.Exec(r.Context(), `
-            delete from project_cat_segment_locks
-            where organization_id=$1 and project_id=$2 and target_locale=$3 and external_string_id = any($4::text[])`,
-			actor.organizationID, project.ID, targetLocale, ids)
+		unlocked, err := deleteEditorCatSegmentLocks(r.Context(), tx, actor.organizationID, project.ID, targetLocale, ids)
 		if err != nil {
 			return nil, 0, err
 		}
 		if err = tx.Commit(r.Context()); err != nil {
 			return nil, 0, err
 		}
-		api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
-			eventType:    "string_segment_unlocked",
-			segmentID:    ids[0],
-			sourcePath:   trimEditorCat(body.SourcePath),
-			targetLocale: targetLocale,
-			itemCount:    int(tag.RowsAffected()),
-		})
-		return map[string]any{"contentEditorSegmentLock": map[string]any{"updatedCount": tag.RowsAffected(), "isLocked": false}}, 200, nil
+		if len(unlocked) > 0 {
+			api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
+				eventType:    "string_segment_unlocked",
+				segmentID:    unlocked[0],
+				segmentIDs:   unlocked,
+				sourcePath:   trimEditorCat(body.SourcePath),
+				targetLocale: targetLocale,
+				itemCount:    len(unlocked),
+			})
+		}
+		return map[string]any{"contentEditorSegmentLock": map[string]any{"updatedCount": len(unlocked), "isLocked": false}}, 200, nil
 	}
 	_, err = tx.Exec(r.Context(), `
         insert into project_cat_segment_locks (
@@ -782,6 +815,7 @@ func (api *editorCatAPI) setLocked(r *http.Request, actor editorCatActor, projec
 	api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
 		eventType:    "string_segment_locked",
 		segmentID:    ids[0],
+		segmentIDs:   ids,
 		sourcePath:   trimEditorCat(body.SourcePath),
 		targetLocale: targetLocale,
 		itemCount:    len(ids),
@@ -1001,6 +1035,7 @@ func (api *editorCatAPI) rejectIfLocked(r *http.Request, actor editorCatActor, p
 type editorCatSegmentActivity struct {
 	eventType    string
 	segmentID    string
+	segmentIDs   []string
 	sourcePath   string
 	targetLocale string
 	itemCount    int
@@ -1022,6 +1057,9 @@ func (api *editorCatAPI) recordEditorCatSegmentActivity(r *http.Request, actor e
 	}
 	if activity.itemCount > 1 {
 		payload["itemCount"] = activity.itemCount
+	}
+	if len(activity.segmentIDs) > 1 {
+		payload["segmentIds"] = activity.segmentIDs
 	}
 	for key, value := range activity.extra {
 		payload[key] = value
