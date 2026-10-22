@@ -47,6 +47,16 @@ describe("AI usage origins", () => {
     expect(aiOrigin("something_new")).toBe("other");
   });
 
+  it("places one-off calls by their own source", () => {
+    expect(aiOrigin("content_editor_ai_suggestion")).toBe("translation");
+    expect(aiOrigin("content_editor_document_regenerate")).toBe("translation");
+    expect(aiOrigin("contentful_field_translation")).toBe("translation");
+    expect(aiOrigin("chat_translate_string")).toBe("assistants_and_chat");
+    expect(aiOrigin("project_file_string_context_lookup")).toBe("assistants_and_chat");
+    expect(aiOrigin("visual_workflow_ai_step")).toBe("running_automations");
+    expect(aiOrigin("workspace_crowdin_review_suggestion")).toBe("running_automations");
+  });
+
   it("tells channels apart", () => {
     expect(aiChannel("translation_job_create", true)).toBe("api");
     expect(aiChannel("translation_job_create", false)).toBe("app");
@@ -56,6 +66,9 @@ describe("AI usage origins", () => {
     expect(aiChannel("agent_run_create", false)).toBe("connected_tms");
     expect(aiChannel("workspace_gitlab_repository_agent", false)).toBe("gitlab");
     expect(aiChannel("workspace_orchestrator", false)).toBe("automation");
+    expect(aiChannel("visual_workflow_ai_step", false)).toBe("automation");
+    expect(aiChannel("contentful_field_translation", false)).toBe("contentful");
+    expect(aiChannel("content_editor_ai_suggestion", false)).toBe("app");
   });
 });
 
@@ -202,6 +215,56 @@ describe("AI usage", () => {
       includeUnattributed: true,
     });
     expect(chosen.totals.calls).toBe(3);
+  });
+
+  it("places a one-off call with no parent row by its own source and recorded project", async () => {
+    const { organization, project } = await fixture.createWorkspace();
+    const call = (source: string, dimensions: Record<string, unknown> = {}) => ({
+      organizationId: organization.id,
+      featureId: "ai_tokens" as const,
+      status: "tracking_succeeded" as const,
+      operationKey: `ai-call:${source}:${randomUUID()}:ai_tokens`,
+      source,
+      modelId: "gpt-6-luna",
+      credentialSource: "gateway" as const,
+      dimensions: {
+        input_tokens: 100,
+        output_tokens: 10,
+        parent_operation_key: `ai-call:${source}:${randomUUID()}`,
+        ...dimensions,
+      },
+      createdAt: new Date("2026-06-10T12:00:00Z"),
+    });
+    await db
+      .insert(schema.usageEvents)
+      .values([
+        call("content_editor_ai_suggestion"),
+        call("visual_workflow_ai_step"),
+        call("content_editor_document_regenerate", { project_id: project.id }),
+      ]);
+    const scope = {
+      organizationId: organization.id,
+      projectIds: [project.id],
+      period: resolvePeriod({
+        from: "2026-06-08",
+        to: "2026-06-14",
+        today: "2026-10-21",
+        startedDay: "2026-01-01",
+      }),
+    };
+
+    const workspaceWide = await queryAiUsage({ ...scope, includeUnattributed: true });
+    expect(workspaceWide.byOrigin).toEqual([
+      expect.objectContaining({ origin: "translation", calls: 2, channels: ["app"] }),
+      expect.objectContaining({
+        origin: "running_automations",
+        calls: 1,
+        channels: ["automation"],
+      }),
+    ]);
+    // Without a project on the record, a call counts only as AI used outside any project.
+    const projectOnly = await queryAiUsage({ ...scope, includeUnattributed: false });
+    expect(projectOnly.totals.calls).toBe(1);
   });
 
   it("reads a fractional or unreadable token count without failing", async () => {
