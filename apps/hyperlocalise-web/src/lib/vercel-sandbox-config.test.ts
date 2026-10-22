@@ -39,25 +39,18 @@ vi.mock("@/lib/env", () => ({
   env: envMock,
 }));
 
-import { sandboxHyperlocaliseReleaseVersion } from "@/lib/translation/sandbox-cli-version";
 import {
-  buildInstallQaSpellingSandboxCommand,
-  buildInstallRequiredSandboxToolsCommand,
   createConfiguredVercelSandbox,
   defaultVercelSandboxImage,
+  installQaSpellingSandboxCommand,
+  installRequiredSandboxToolsCommand,
   sandboxChromiumDnfPackages,
   sandboxPlaywrightVersion,
   sandboxRipgrepReleaseVersion,
   sandboxSnapshotExpirationMs,
   sandboxSnapshotRetentionCount,
 } from "@/lib/vercel-sandbox-config";
-
-const installQaSpellingSandboxCommand = buildInstallQaSpellingSandboxCommand(
-  sandboxHyperlocaliseReleaseVersion,
-);
-const installRequiredSandboxToolsCommand = buildInstallRequiredSandboxToolsCommand(
-  sandboxHyperlocaliseReleaseVersion,
-);
+import { sandboxHyperlocaliseReleaseVersion } from "@/lib/translation/sandbox-cli-version";
 
 describe("installQaSpellingSandboxCommand", () => {
   it("stages dictionaries with root privileges into DICPATH", () => {
