@@ -41,6 +41,7 @@ import {
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { apiClient } from "@/lib/api-client-instance";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { supportsProviderContentEditorFile } from "@/lib/providers/capabilities/provider-content-editor-capabilities";
 import { CONTENT_EDITOR_ALL_FILES_SOURCE_PATH } from "@/lib/projects/content-editor-all-files";
 import {
@@ -80,9 +81,12 @@ import {
 } from "../../jobs/[jobId]/strings/_components/select-job-content-editor-repository";
 import {
   fetchProjectFiles,
+  fetchProjectHiddenFileIds,
   findCachedProjectFiles,
+  markHiddenProjectFiles,
   PROJECT_FILES_MAX_LIMIT,
   projectFilesQueryKey,
+  projectHiddenFilesQueryKey,
   sortFilesByPath,
 } from "./project-files-tree-panel";
 import { ContentEditorFileProgressSync } from "./content-editor-file-progress-sync";
@@ -197,10 +201,7 @@ function ProjectFileContentEditorPageContentInner({
   });
 
   const filesQuery = useQuery({
-    queryKey: [
-      ...projectFilesQueryKey(organizationSlug, projectId, PROJECT_FILES_MAX_LIMIT, branch),
-      "include-hidden",
-    ],
+    queryKey: projectFilesQueryKey(organizationSlug, projectId, PROJECT_FILES_MAX_LIMIT, branch),
     queryFn: () =>
       fetchProjectFiles(
         goSvcClient,
@@ -209,10 +210,14 @@ function ProjectFileContentEditorPageContentInner({
         PROJECT_FILES_MAX_LIMIT,
         branch,
         intl.formatMessage(messages.unableToLoad),
-        { includeHidden: true },
       ),
     enabled: hasFileReference,
     placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId, branch),
+  });
+  const hiddenFilesQuery = useQuery({
+    queryKey: projectHiddenFilesQueryKey(organizationSlug, projectId),
+    queryFn: () => fetchProjectHiddenFileIds(organizationSlug, projectId),
+    enabled: hasFileReference && Boolean(parseProviderProjectId(projectId)),
   });
 
   const repositoriesQuery = useQuery({
@@ -239,10 +244,13 @@ function ProjectFileContentEditorPageContentInner({
 
   const contentEditorFiles = useMemo(
     () =>
-      sortFilesByPath(filesQuery.data ?? []).filter((entry) =>
-        canOpenProjectFileContentEditor(entry),
+      markHiddenProjectFiles(
+        sortFilesByPath(filesQuery.data ?? []).filter((entry) =>
+          canOpenProjectFileContentEditor(entry),
+        ),
+        hiddenFilesQuery.data,
       ),
-    [filesQuery.data],
+    [filesQuery.data, hiddenFilesQuery.data],
   );
 
   const canUseAllFiles = contentEditorAllFilesEnabled;

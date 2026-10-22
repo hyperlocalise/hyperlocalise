@@ -126,6 +126,9 @@ function invalidateContentEditorFileMetadata(
     queryClient.invalidateQueries({
       queryKey: ["project-file-progress", organizationSlug, projectId],
     }),
+    queryClient.invalidateQueries({
+      queryKey: ["project-hidden-files", organizationSlug, projectId],
+    }),
   ]);
 }
 

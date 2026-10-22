@@ -21,11 +21,12 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
-import { createProjectFileRecord } from "./project-files.fixture";
+import { createProjectFileRecord, providerProjectFilesFixture } from "./project-files.fixture";
 import {
   ProjectFilesTreePanel,
   fetchProjectFiles,
   findCachedProjectFiles,
+  markHiddenProjectFiles,
   PROJECT_FILES_PAGE_SIZE,
   projectFilesQueryKey,
 } from "./project-files-tree-panel";
@@ -99,17 +100,27 @@ describe("project files browser capacity", () => {
     expect(filesApi).toHaveBeenCalledWith("acme", "proj_1", { limit: PROJECT_FILES_PAGE_SIZE });
   });
 
-  it("asks connected TMS projects for hidden file flags on request", async () => {
+  it("lists connected TMS files without asking for hidden flags", async () => {
     const fetchMock = vi.fn(async () => Response.json({ files: [] }));
     vi.stubGlobal("fetch", fetchMock);
     const projectId = encodeProviderProjectId({ providerKind: "crowdin", externalProjectId: "42" });
 
-    await fetchProjectFiles({} as never, "acme", projectId, 1_000, null, "failed", {
-      includeHidden: true,
-    });
+    await fetchProjectFiles({} as never, "acme", projectId, 1_000);
 
     const [url] = fetchMock.mock.calls[0] as unknown as [string];
-    expect(new URL(url, "http://localhost").searchParams.get("includeHidden")).toBe("true");
+    expect(new URL(url, "http://localhost").searchParams.has("includeHidden")).toBe(false);
+  });
+
+  it("marks provider files listed as hidden", () => {
+    const [visible, hidden] = providerProjectFilesFixture;
+
+    const marked = markHiddenProjectFiles(
+      [visible, hidden],
+      new Set([hidden.provider!.externalResourceId]),
+    );
+
+    expect(marked[0]).toBe(visible);
+    expect(marked[1]).toEqual({ ...hidden, isHidden: true });
   });
 
   it("does not reuse another branch cache entry as placeholder data", () => {

@@ -21,6 +21,7 @@ import type {
   ProjectFileContent,
   ProjectFileDetailResponse,
   ProjectFileProgressRecord,
+  ProjectHiddenFileRecord,
 } from "@/api/routes/project/project.schema";
 import {
   buildSourceStringsPreviewContent,
@@ -296,7 +297,6 @@ export type TmsProviderLiveFile = {
     lastSyncedAt: string | null;
   };
   latestJob: null;
-  isHidden?: boolean;
 };
 
 export type TmsProviderLiveFileDetail = ProjectFileDetailResponse["file"];
@@ -2207,8 +2207,6 @@ export async function listTmsProviderLiveFilesForProject(
     context?: ActiveTmsProviderContext;
     projects?: ExternalTmsProjectMetadata[];
     actorUserId?: string | null;
-    /** Flag files whose strings are all hidden. Crowdin only; other providers have no hidden strings. */
-    includeHidden?: boolean;
   },
 ): Promise<TmsProviderLiveFile[]> {
   const context =
@@ -2266,13 +2264,11 @@ export async function listTmsProviderLiveFilesForProject(
       project: projectMetadata,
     }),
   );
-  const limited = options?.limit === null ? mapped : mapped.slice(0, options?.limit ?? 500);
-
-  if (!options?.includeHidden || context.providerKind !== "crowdin") {
-    return limited;
+  if (options?.limit === null) {
+    return mapped;
   }
 
-  return markCrowdinHiddenLiveFiles(context, externalProjectId, limited);
+  return mapped.slice(0, options?.limit ?? 500);
 }
 
 /**
@@ -2315,47 +2311,39 @@ export async function listTmsProviderLiveFileProgress(
   }
 }
 
-async function markCrowdinHiddenLiveFiles(
-  context: ActiveTmsProviderContext,
+/**
+ * Provider file ids whose strings are all hidden. Crowdin only; other providers
+ * have no hidden strings and return no rows.
+ */
+export async function listTmsProviderLiveHiddenFiles(
+  organizationId: string,
   externalProjectId: string,
-  files: TmsProviderLiveFile[],
-): Promise<TmsProviderLiveFile[]> {
+  options?: { actorUserId?: string | null },
+): Promise<ProjectHiddenFileRecord[]> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
   const projectId = Number(externalProjectId);
-  if (!Number.isInteger(projectId) || projectId <= 0) {
-    return files;
+  if (context.providerKind !== "crowdin" || !Number.isInteger(projectId) || projectId <= 0) {
+    return [];
   }
 
-  const fileIds = files.flatMap((file) => {
-    const fileId = Number(file.provider.externalResourceId);
-    return file.provider.resourceType === "file" && Number.isInteger(fileId) ? [fileId] : [];
-  });
   const client = new CrowdinApiClient({
     token: context.secretMaterial,
     baseUrl: context.credential.baseUrl ?? undefined,
   });
-
-  let hiddenFileIds: Set<number>;
   try {
-    hiddenFileIds = await findCrowdinHiddenFileIds(client, projectId, fileIds);
+    const hiddenFileIds = await findCrowdinHiddenFileIds(client, projectId);
+    return [...hiddenFileIds].map((fileId) => ({ externalResourceId: String(fileId) }));
   } catch (error) {
-    // The file list is still usable without hidden flags; never fail it over them.
+    // Hidden flags only decorate the file tree; never fail the editor over them.
     logger.warn("tms_provider_live_crowdin_hidden_files_failed", {
       organizationId: context.organizationId,
       externalProjectId,
       status: error instanceof CrowdinApiError ? error.status : null,
     });
-    return files;
+    return [];
   }
-
-  if (hiddenFileIds.size === 0) {
-    return files;
-  }
-
-  return files.map((file) =>
-    hiddenFileIds.has(Number(file.provider.externalResourceId))
-      ? { ...file, isHidden: true }
-      : file,
-  );
 }
 
 async function buildTmsProviderLiveFileDetail(

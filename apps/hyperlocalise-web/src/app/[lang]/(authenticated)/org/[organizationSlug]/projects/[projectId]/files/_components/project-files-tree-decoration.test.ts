@@ -53,47 +53,52 @@ describe("project files tree decoration", () => {
     ).toBeNull();
   });
 
-  it("colours translated and approved percentages", () => {
+  it("shows the translated percentage with the approved split in the tooltip", () => {
     const decoration = buildProjectFileProgressDecoration(
       createProjectFileRecord({ sourcePath: "en.json" }),
-      progress({ approvalProgress: 0 }),
+      progress({ translationProgress: 40, approvalProgress: 0 }),
       intl,
     );
 
-    expect(decoration).toMatchObject({
-      text: "100% · 0%",
-      title: "Translated 100% · Approved 0% · 12 strings",
-      parts: [
-        { text: "100%", color: "var(--ds-blue-900)" },
-        { text: " · ", color: "var(--muted-foreground)" },
-        { text: "0%", color: "var(--muted-foreground)" },
-      ],
+    expect(decoration).toEqual({
+      text: "40%",
+      title: "Translated 40% · Approved 0% · 12 strings",
+      parts: [{ text: "40%", color: "var(--ds-blue-900)" }],
     });
   });
 
-  it("marks hidden files with or without progress", () => {
-    const hiddenFile = createProjectFileRecord({ sourcePath: "en.json", isHidden: true });
+  it("colours untouched files muted and fully approved files green", () => {
+    const file = createProjectFileRecord({ sourcePath: "en.json" });
 
-    expect(buildProjectFileProgressDecoration(hiddenFile, null, intl)).toMatchObject({
-      text: "Hidden",
-    });
     expect(
       buildProjectFileProgressDecoration(
-        hiddenFile,
-        progress({ phrases: { total: 0, translated: 0, approved: 0 } }),
+        file,
+        progress({ translationProgress: 0, approvalProgress: 0 }),
         intl,
       ),
-    ).toMatchObject({
-      text: "Hidden · 100% · 97%",
-      title: "All strings in this file are hidden from translators\nNo strings to translate",
+    ).toMatchObject({ parts: [{ text: "0%", color: "var(--muted-foreground)" }] });
+    expect(
+      buildProjectFileProgressDecoration(file, progress({ approvalProgress: 100 }), intl),
+    ).toMatchObject({ parts: [{ text: "100%", color: "var(--ds-green-900)" }] });
+  });
+
+  it("replaces progress with a hidden marker on hidden files", () => {
+    const hiddenFile = createProjectFileRecord({ sourcePath: "en.json", isHidden: true });
+
+    expect(buildProjectFileProgressDecoration(hiddenFile, progress({}), intl)).toEqual({
+      text: "Hidden",
+      title: "All strings in this file are hidden from translators",
     });
   });
 
-  it("leaves visible files without progress to the caller", () => {
+  it("leaves visible files without progress or strings to the caller", () => {
+    const file = createProjectFileRecord({ sourcePath: "en.json" });
+
+    expect(buildProjectFileProgressDecoration(file, null, intl)).toBeNull();
     expect(
       buildProjectFileProgressDecoration(
-        createProjectFileRecord({ sourcePath: "en.json" }),
-        null,
+        file,
+        progress({ phrases: { total: 0, translated: 0, approved: 0 } }),
         intl,
       ),
     ).toBeNull();
