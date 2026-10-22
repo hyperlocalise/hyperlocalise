@@ -25,6 +25,7 @@ const PARSE_BACK_FORMATS: ReadonlySet<SupportedTranslationFileFormat> = new Set(
   "markdown",
   "mdx",
   "html",
+  "txt",
 ]);
 
 export function isParseBackDocumentPath(sourcePath: string) {

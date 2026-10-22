@@ -167,6 +167,7 @@ import {
   setTranslationKeyTreatAsVideo,
 } from "@/lib/projects/files/video-url-translation-service";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
+import { loadProjectSubtitleTranslationDownload } from "@/lib/projects/files/subtitle-translation-download";
 import {
   loadProjectOfficeTranslationDownload,
   officeTranslationDownloadFailure,
@@ -3918,6 +3919,26 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         if (lottieDownload.value) {
           return c.body(new Uint8Array(lottieDownload.value.content), 200, {
             "Content-Type": lottieDownload.value.contentType,
+            "Content-Disposition": contentDisposition,
+          });
+        }
+
+        const subtitleDownload = await loadProjectSubtitleTranslationDownload({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+          prefilled: result.prefilled,
+        });
+        if (isErr(subtitleDownload)) {
+          return internalErrorResponse(
+            c,
+            "subtitle_export_failed",
+            "Could not write translations into the subtitle file.",
+          );
+        }
+        if (subtitleDownload.value) {
+          return c.body(new Uint8Array(subtitleDownload.value.content), 200, {
+            "Content-Type": subtitleDownload.value.contentType,
             "Content-Disposition": contentDisposition,
           });
         }

@@ -54,6 +54,7 @@ import {
   isLossyDocumentRoundTrip,
   isAsciidocFilename,
   isMdxFilename,
+  isPlainTextFilename,
   serializeDocumentBlock,
 } from "@/components/document-editor/document-editor-extensions";
 import { getDocumentSuggestions } from "@/components/document-editor/document-editor-suggestions";
@@ -81,7 +82,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
 
-export const CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT = ".md,.markdown,.mdx,.adoc,.asciidoc,.asc";
+export const CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT =
+  ".md,.markdown,.mdx,.adoc,.asciidoc,.asc,.txt";
 
 type LoadedDocument = { status: "missing" } | { status: "ok"; text: string } | { status: "error" };
 
@@ -150,6 +152,8 @@ export function ContentEditorDocumentEditorPane({
   const isMac = useIsMac();
   const syntax = isMdxFilename(filename) ? "mdx" : "markdown";
   const isAsciidoc = isAsciidocFilename(filename);
+  const isPlainText = isPlainTextFilename(filename);
+  const isRawDocument = isAsciidoc || isPlainText;
   const editable = canEdit && Boolean(onSave);
   const [load, setLoad] = useState<LoadState>({ status: "loading" });
   const [fields, setFields] = useState<ContentEditorDocumentFrontmatterField[]>([]);
@@ -190,7 +194,7 @@ export function ContentEditorDocumentEditorPane({
       setLoad({ status: "loading" });
       setBaseline(null);
       setRestoreSaveError(false);
-      setCodeMode(isAsciidocFilename(filename));
+      setCodeMode(isAsciidocFilename(filename) || isPlainTextFilename(filename));
       setParseLossy(false);
       setPendingSuggestionCount(0);
       const [source, target] = await Promise.all([
@@ -250,10 +254,12 @@ export function ContentEditorDocumentEditorPane({
   const save = useCallback(
     async (text: string) => {
       await onSave?.(
-        new File([text], filename, { type: isAsciidoc ? "text/asciidoc" : "text/markdown" }),
+        new File([text], filename, {
+          type: isPlainText ? "text/plain" : isAsciidoc ? "text/asciidoc" : "text/markdown",
+        }),
       );
     },
-    [filename, isAsciidoc, onSave],
+    [filename, isAsciidoc, isPlainText, onSave],
   );
   const autosave = useDocumentAutosave({
     id: documentKey,
@@ -494,7 +500,7 @@ export function ContentEditorDocumentEditorPane({
                 {intl.formatMessage(messages.assistant)}
               </Button>
             ) : null}
-            {editable && !isAsciidoc ? (
+            {editable && !isRawDocument ? (
               <Button
                 size="xs"
                 variant="ghost"

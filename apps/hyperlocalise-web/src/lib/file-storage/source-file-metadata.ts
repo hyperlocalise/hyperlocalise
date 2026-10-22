@@ -51,6 +51,8 @@ export function sourceContentType(path: string) {
       return "text/markdown";
     case "asciidoc":
       return "text/asciidoc";
+    case "txt":
+      return "text/plain; charset=utf-8";
     case "csv":
       return "text/csv";
     case "tsv":

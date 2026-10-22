@@ -24,6 +24,7 @@ export const supportedTranslationFileFormats = [
   "markdown",
   "mdx",
   "asciidoc",
+  "txt",
   "strings",
   "stringsdict",
   "xcstrings",
@@ -68,6 +69,7 @@ export const supportedFileTranslationFileFormats = [
   "markdown",
   "mdx",
   "asciidoc",
+  "txt",
   "strings",
   "stringsdict",
   "xcstrings",
@@ -125,6 +127,7 @@ const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".adoc": "asciidoc",
   ".asciidoc": "asciidoc",
   ".asc": "asciidoc",
+  ".txt": "txt",
   ".strings": "strings",
   ".stringsdict": "stringsdict",
   ".xcstrings": "xcstrings",
@@ -251,6 +254,7 @@ export const supportedDocumentTranslationFileFormats = [
   "markdown",
   "mdx",
   "asciidoc",
+  "txt",
 ] as const;
 
 export type SupportedDocumentTranslationFileFormat =

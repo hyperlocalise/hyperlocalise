@@ -211,7 +211,7 @@ func TestLoadExistingTargetWithWarnings(t *testing.T) {
 
 	t.Run("non-json parse error", func(t *testing.T) {
 		svc.readFile = func(_ string) ([]byte, error) { return []byte("not-supported"), nil }
-		_, _, err := svc.loadExistingTargetWithWarnings("/tmp/target.txt", "fr")
+		_, _, err := svc.loadExistingTargetWithWarnings("/tmp/target.xyz", "fr")
 		if err == nil {
 			t.Fatalf("expected parse error for non-json unsupported format")
 		}

@@ -13,9 +13,10 @@ const DocumentEntriesMetaKey = "__hl_document"
 type DocumentFormat string
 
 const (
-	DocumentFormatMarkdown DocumentFormat = "markdown"
-	DocumentFormatMDX      DocumentFormat = "mdx"
-	DocumentFormatAsciiDoc DocumentFormat = "asciidoc"
+	DocumentFormatMarkdown  DocumentFormat = "markdown"
+	DocumentFormatMDX       DocumentFormat = "mdx"
+	DocumentFormatAsciiDoc  DocumentFormat = "asciidoc"
+	DocumentFormatPlainText DocumentFormat = "txt"
 )
 
 // DocumentBlockKind distinguishes CMS fields (frontmatter) from body blocks.

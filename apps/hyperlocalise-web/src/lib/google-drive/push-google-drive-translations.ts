@@ -24,10 +24,16 @@ import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { isErr } from "@/lib/primitives/result/results";
+import { getImageVariant } from "@/lib/projects/files/image-variant-service";
+import { loadProjectFileVariant } from "@/lib/projects/files/file-variant-download";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import { loadProjectOfficeTranslationDownload } from "@/lib/projects/files/office-translation-download";
+import { loadProjectSubtitleTranslationDownload } from "@/lib/projects/files/subtitle-translation-download";
 import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
-import { inferSupportedOfficeTranslationFileFormat } from "@/lib/translation/file-formats";
+import {
+  inferSupportedOfficeTranslationFileFormat,
+  inferSupportedTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 
 import { GOOGLE_EXPORT_MIME, GOOGLE_MIME } from "./constants";
 import {
@@ -260,6 +266,50 @@ export async function loadTranslatedBytes(input: {
       buffer: lottie.value.content,
       fileName,
       mimeType: lottie.value.contentType,
+    };
+  }
+
+  const subtitle = await loadProjectSubtitleTranslationDownload({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    prefilled: prefilled.prefilled,
+  });
+  if (isErr(subtitle)) {
+    return null;
+  }
+  if (subtitle.value) {
+    return {
+      buffer: subtitle.value.content,
+      fileName,
+      mimeType: subtitle.value.contentType,
+    };
+  }
+
+  if (inferSupportedTranslationFileFormat(input.sourcePath) === "txt") {
+    const variant = await getImageVariant({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      targetLocale: input.targetLocale,
+    });
+    if (variant?.status !== "approved") {
+      return null;
+    }
+    const fileVariant = await loadProjectFileVariant({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      locale: input.targetLocale,
+    });
+    if (!fileVariant) {
+      return null;
+    }
+    const buffer = Buffer.from(await new Response(fileVariant.body).arrayBuffer());
+    return {
+      buffer,
+      fileName,
+      mimeType: "text/plain; charset=utf-8",
     };
   }
 

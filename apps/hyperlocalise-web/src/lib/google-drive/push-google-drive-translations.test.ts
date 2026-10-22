@@ -27,6 +27,9 @@ const mocks = vi.hoisted(() => ({
   loadProjectOfficeTranslationDownload: vi.fn(),
   loadProjectTranslationsAsPrefilledEntries: vi.fn(),
   loadProjectLottieTranslationDownload: vi.fn(),
+  loadProjectSubtitleTranslationDownload: vi.fn(),
+  getImageVariant: vi.fn(),
+  loadProjectFileVariant: vi.fn(),
 }));
 
 vi.mock("@/lib/projects/files/office-translation-download", () => ({
@@ -42,6 +45,19 @@ vi.mock("@/lib/projects/translations/project-translation-service", () => ({
 vi.mock("@/lib/projects/files/lottie-translation-download", () => ({
   loadProjectLottieTranslationDownload: (...args: unknown[]) =>
     mocks.loadProjectLottieTranslationDownload(...args),
+}));
+
+vi.mock("@/lib/projects/files/subtitle-translation-download", () => ({
+  loadProjectSubtitleTranslationDownload: (...args: unknown[]) =>
+    mocks.loadProjectSubtitleTranslationDownload(...args),
+}));
+
+vi.mock("@/lib/projects/files/image-variant-service", () => ({
+  getImageVariant: (...args: unknown[]) => mocks.getImageVariant(...args),
+}));
+
+vi.mock("@/lib/projects/files/file-variant-download", () => ({
+  loadProjectFileVariant: (...args: unknown[]) => mocks.loadProjectFileVariant(...args),
 }));
 
 function driveAutomation(targetLocales: string[]): WorkspaceAutomationRecord {
@@ -148,6 +164,11 @@ describe("loadTranslatedBytes", () => {
     mocks.loadProjectOfficeTranslationDownload.mockReset();
     mocks.loadProjectTranslationsAsPrefilledEntries.mockReset();
     mocks.loadProjectLottieTranslationDownload.mockReset();
+    mocks.loadProjectSubtitleTranslationDownload.mockReset();
+    mocks.getImageVariant.mockReset();
+    mocks.loadProjectFileVariant.mockReset();
+    mocks.loadProjectSubtitleTranslationDownload.mockResolvedValue({ ok: true, value: null });
+    mocks.getImageVariant.mockResolvedValue(null);
   });
 
   it("returns the office download for docx sources", async () => {
@@ -220,6 +241,73 @@ describe("loadTranslatedBytes", () => {
         ingestFormat: "markdown",
       }),
     ).resolves.toBeNull();
+  });
+
+  it("returns approved plain text document variants as text/plain", async () => {
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      prefilled: { "txt.0001": "Translated notes" },
+      loadedKeyCount: 1,
+      truncated: false,
+    });
+    mocks.loadProjectLottieTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: null,
+    });
+    mocks.getImageVariant.mockResolvedValue({ status: "approved" });
+    mocks.loadProjectFileVariant.mockResolvedValue({
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("Translated notes"));
+          controller.close();
+        },
+      }),
+      contentType: "text/plain; charset=utf-8",
+      storedFilename: "notes.txt",
+    });
+
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/notes.txt",
+        ingestFormat: "txt",
+      }),
+    ).resolves.toEqual({
+      buffer: Buffer.from("Translated notes"),
+      fileName: "notes.txt",
+      mimeType: "text/plain; charset=utf-8",
+    });
+  });
+
+  it("returns subtitle exports for .srt sources", async () => {
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      prefilled: { "srt.0001": "xin chào" },
+      loadedKeyCount: 1,
+      truncated: false,
+    });
+    mocks.loadProjectLottieTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: null,
+    });
+    mocks.loadProjectSubtitleTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: {
+        content: Buffer.from("srt-bytes"),
+        contentType: "application/x-subrip",
+        extension: ".srt",
+      },
+    });
+
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/captions.srt",
+        ingestFormat: "srt",
+      }),
+    ).resolves.toEqual({
+      buffer: Buffer.from("srt-bytes"),
+      fileName: "captions.srt",
+      mimeType: "application/x-subrip",
+    });
   });
 
   it("returns the Lottie export when the source is a Lottie file", async () => {

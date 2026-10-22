@@ -12,6 +12,7 @@
  */
 
 import { createHash } from "node:crypto";
+import path from "node:path";
 
 import { and, eq, inArray } from "drizzle-orm";
 
@@ -237,9 +238,17 @@ async function loadIngestBuffer(input: {
   if (isErr(download)) {
     return null;
   }
+  let fileName = input.file.name;
+  if (
+    classification.ingestExtension &&
+    path.extname(fileName).toLowerCase() !== classification.ingestExtension
+  ) {
+    const { base } = stripExtension(fileName);
+    fileName = `${base}${classification.ingestExtension}`;
+  }
   return {
     buffer: download.value,
-    fileName: input.file.name,
+    fileName,
     contentType: input.file.mimeType,
     format: classification.ingestFormat,
   };

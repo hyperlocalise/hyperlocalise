@@ -34,7 +34,6 @@ export type GoogleDriveSkipReason =
   | "file_too_large"
   | "folder_depth_exceeded"
   | "unsupported_extension"
-  | "unsupported_plain_text"
   | "translation_output";
 
 export type GoogleDriveIngestKind = "google_doc" | "google_sheet" | "google_slide" | "binary";
@@ -68,14 +67,6 @@ const UNSUPPORTED_GOOGLE_MIMES = new Set<string>([
 function isArchiveName(name: string): boolean {
   const ext = path.extname(name).toLowerCase();
   return ARCHIVE_EXTENSIONS.has(ext);
-}
-
-function isPlainTextFile(name: string, mimeType: string): boolean {
-  const mime = mimeType.split(";")[0]?.trim().toLowerCase() ?? "";
-  if (mime === "text/plain") {
-    return true;
-  }
-  return path.extname(name).toLowerCase() === ".txt";
 }
 
 export function hideGoogleDriveTranslationOutputsOnIngest(input: {
@@ -144,8 +135,14 @@ export function classifyGoogleDriveItem(input: {
     return { kind: "skipped", reason: "unsupported_archive" };
   }
 
-  if (isPlainTextFile(name, mimeType)) {
-    return { kind: "skipped", reason: "unsupported_plain_text" };
+  const mimeBase = mimeType.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (mimeBase === "text/plain" && path.extname(name).toLowerCase() !== ".txt") {
+    return {
+      kind: "supported",
+      ingestKind: "binary",
+      ingestFormat: "txt",
+      ingestExtension: ".txt",
+    };
   }
 
   if (mimeType === GOOGLE_MIME.document) {

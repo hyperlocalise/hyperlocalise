@@ -114,6 +114,18 @@ func readEntriesCommandOutput(path string, content []byte, sourcePath, sourceLoc
 			aligned := translationfileparser.AlignAsciiDocTargetToSource(sourceContent, content)
 			return encodeDocumentEntriesCommandOutput(sourceDoc.WithBlockText(aligned), path, content, locale, srxSpec)
 		}
+		if translationfileparser.IsPlainTextDocumentExtension(path) {
+			if !translationfileparser.IsPlainTextDocumentExtension(sourcePath) {
+				return nil, fmt.Errorf("entries source extension %q does not match target extension %q", filepath.Ext(sourcePath), ext)
+			}
+			sourceContent, err := os.ReadFile(sourcePath)
+			if err != nil {
+				return nil, fmt.Errorf("read entries source %q: %w", sourcePath, err)
+			}
+			sourceDoc := translationfileparser.ParsePlainTextDocumentIR(sourceContent)
+			aligned := translationfileparser.AlignPlainTextTargetToSource(sourceContent, content)
+			return encodeDocumentEntriesCommandOutput(sourceDoc.WithBlockText(aligned), path, content, locale, srxSpec)
+		}
 	}
 
 	if translationfileparser.IsMarkdownDocumentExtension(path) {
@@ -122,6 +134,10 @@ func readEntriesCommandOutput(path string, content []byte, sourcePath, sourceLoc
 	}
 	if translationfileparser.IsAsciiDocDocumentExtension(path) {
 		doc := translationfileparser.ParseAsciiDocDocumentIR(content)
+		return encodeDocumentEntriesCommandOutput(doc, path, content, locale, srxSpec)
+	}
+	if translationfileparser.IsPlainTextDocumentExtension(path) {
+		doc := translationfileparser.ParsePlainTextDocumentIR(content)
 		return encodeDocumentEntriesCommandOutput(doc, path, content, locale, srxSpec)
 	}
 

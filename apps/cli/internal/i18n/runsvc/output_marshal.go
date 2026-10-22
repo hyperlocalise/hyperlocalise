@@ -18,7 +18,7 @@ func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	}
 	switch ext {
-	case ".xlf", ".xlif", ".xliff", ".po", ".pot", ".md", ".mdx", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd", ".adoc", ".asciidoc", ".asc", ".strings", ".stringsdict", ".xcstrings", ".csv", ".tsv", ".toml", ".arb", ".ftl", ".html", ".htm", ".liquid", ".php", ".xml", ".resx", ".resw", ".properties", ".ini", ".srt", ".vtt", ".sbv", ".svg":
+	case ".xlf", ".xlif", ".xliff", ".po", ".pot", ".md", ".mdx", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd", ".adoc", ".asciidoc", ".asc", ".txt", ".strings", ".stringsdict", ".xcstrings", ".csv", ".tsv", ".toml", ".arb", ".ftl", ".html", ".htm", ".liquid", ".php", ".xml", ".resx", ".resw", ".properties", ".ini", ".srt", ".vtt", ".sbv", ".svg":
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	case ".json", ".jsonc":
 		content, err := s.marshalJSONTargetWithFallback(path, sourcePath, values, pruneKeys)
@@ -65,12 +65,19 @@ func isHTMLFileExt(ext string) bool {
 	return ext == ".html" || ext == ".htm"
 }
 
+func isPlainTextFileExt(ext string) bool {
+	return ext == ".txt"
+}
+
 func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale string, values map[string]string, stagedEntries map[string]string) ([]byte, []string, error) {
 	if isMarkdownFileExt(ext) {
 		return s.marshalMarkdownTarget(path, sourcePath, stagedEntries)
 	}
 	if isAsciiDocFileExt(ext) {
 		return s.marshalAsciiDocTarget(path, sourcePath, stagedEntries)
+	}
+	if isPlainTextFileExt(ext) {
+		return s.marshalPlainTextTarget(path, sourcePath, stagedEntries)
 	}
 	if isHTMLFileExt(ext) {
 		return s.marshalHTMLTarget(path, sourcePath, stagedEntries)
@@ -402,6 +409,27 @@ func (s *Service) marshalAsciiDocTarget(path, sourcePath string, stagedEntries m
 
 	content, diags := translationfileparser.MarshalAsciiDocWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate, stagedEntries)
 	return content, asciiDocRenderWarnings(path, diags), nil
+}
+
+func (s *Service) marshalPlainTextTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {
+	sourceTemplate, err := s.readProjectFile(sourcePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+	}
+
+	targetTemplate, err := s.readProjectFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return translationfileparser.MarshalPlainText(sourceTemplate, stagedEntries), nil, nil
+		}
+		return nil, nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
+	}
+
+	aligned := translationfileparser.AlignPlainTextTargetToSource(sourceTemplate, targetTemplate)
+	for key, text := range stagedEntries {
+		aligned[key] = text
+	}
+	return translationfileparser.MarshalPlainText(sourceTemplate, aligned), nil, nil
 }
 
 func asciiDocRenderWarnings(path string, diags translationfileparser.AsciiDocRenderDiagnostics) []string {

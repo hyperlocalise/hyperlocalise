@@ -81,6 +81,7 @@ func NewDefaultStrategy() *Strategy {
 	parsers[".xlsx"] = XLSXParser{}
 	parsers[".docx"] = DOCXParser{}
 	parsers[".pptx"] = PPTXParser{}
+	parsers[".txt"] = PlainTextParser{}
 
 	for _, ext := range JSTSLocaleModuleExts {
 		parsers[ext] = JSTSLocaleModuleParser{}
@@ -228,6 +229,13 @@ func (s *Strategy) ParseIngestEntriesWithSourceLocale(path string, content []byt
 	}
 	if IsAsciiDocDocumentExtension(path) {
 		entries := asciiDocIngestEntries(content)
+		if entries == nil {
+			entries = map[string]IngestEntry{}
+		}
+		return entries, nil
+	}
+	if IsPlainTextDocumentExtension(path) {
+		entries := plainTextIngestEntries(content)
 		if entries == nil {
 			entries = map[string]IngestEntry{}
 		}
