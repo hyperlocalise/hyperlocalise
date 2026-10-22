@@ -74,13 +74,16 @@ describe("localizeAndStoreDocumentVariant metering", () => {
     const result = await localizeAndStoreDocumentVariant(input);
 
     expect(result.ok).toBe(true);
-    expect(trackAiCallTokenUsageMock).toHaveBeenCalledWith({
-      organizationId: "org_1",
-      source: "content_editor_document_regenerate",
-      tokenUsage: usage,
-      modelId: "openai/gpt-6-luna",
-      credentialSource: "gateway",
-    });
+    expect(trackAiCallTokenUsageMock).toHaveBeenCalledWith(
+      {
+        organizationId: "org_1",
+        source: "content_editor_document_regenerate",
+        tokenUsage: usage,
+        modelId: "openai/gpt-6-luna",
+        credentialSource: "gateway",
+      },
+      { defer: undefined },
+    );
   });
 
   it("records tokens for a truncated document that is not stored", async () => {
@@ -108,6 +111,18 @@ describe("localizeAndStoreDocumentVariant metering", () => {
         modelId: "anthropic/claude-sonnet-4-5",
         credentialSource: "byok",
       }),
+      { defer: undefined },
     );
+  });
+
+  it("hands the charge to the route to run after the response", async () => {
+    generateTextMock.mockResolvedValue({ text: "# Bonjour", finishReason: "stop", usage, steps });
+    const deferBilling = vi.fn();
+
+    await localizeAndStoreDocumentVariant({ ...input, deferBilling });
+
+    expect(trackAiCallTokenUsageMock).toHaveBeenCalledWith(expect.anything(), {
+      defer: deferBilling,
+    });
   });
 });

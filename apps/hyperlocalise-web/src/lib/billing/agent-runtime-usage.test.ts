@@ -409,4 +409,25 @@ describe("agent-runtime-usage", () => {
     expect(billingModelFromSteps({ steps: [] })).toBeNull();
     expect(billingModelFromSteps({})).toBeNull();
   });
+
+  it("charges a deferred AI call only when the deferred task runs", async () => {
+    trackAiCreditUsageInAutumnMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
+    const deferred: Array<() => Promise<unknown>> = [];
+
+    await trackAiCallTokenUsage(
+      {
+        organizationId: "org_123",
+        source: "content_editor_ai_suggestion",
+        tokenUsage: { inputTokens: 10, outputTokens: 2, totalTokens: 12 },
+        modelId: "openai/gpt-6-luna",
+        credentialSource: "gateway",
+      },
+      { defer: (task) => deferred.push(task) },
+    );
+
+    expect(trackAiCreditUsageInAutumnMock).not.toHaveBeenCalled();
+    expect(deferred).toHaveLength(1);
+    await deferred[0]!();
+    expect(trackAiCreditUsageInAutumnMock).toHaveBeenCalledTimes(1);
+  });
 });

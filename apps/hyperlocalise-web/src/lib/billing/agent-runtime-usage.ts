@@ -317,23 +317,40 @@ export function billingModelFromSteps(result: {
   return { modelId: `${model.provider.split(".")[0]}/${model.modelId}`, credentialSource: "byok" };
 }
 
-/**
- * Records the tokens of one AI call that is not part of an agent run or job, as
- * AI Credit only. `source` names where the call came from. Never throws: a
- * metering failure is logged and the caller's work continues.
- */
-export async function trackAiCallTokenUsage(input: {
+export type AiCallTokenUsageInput = {
   organizationId: string;
   source: string;
   tokenUsage: AiTokenUsage | null | undefined;
   modelId: string;
   credentialSource: AiCreditCredentialSource;
   interactionId?: string | null;
-}) {
+};
+
+/**
+ * Records the tokens of one AI call that is not part of an agent run or job, as
+ * AI Credit only. `source` names where the call came from. Never throws: a
+ * metering failure is logged and the caller's work continues. With `defer`, the
+ * charge runs after the response (Next's `after()` through `deferAfterResponse`).
+ */
+export async function trackAiCallTokenUsage(
+  input: AiCallTokenUsageInput,
+  options?: { defer?: (task: () => Promise<unknown>) => void },
+) {
   const tokenUsage = input.tokenUsage;
   if (!tokenUsage || tokenUsage.totalTokens <= 0) {
     return;
   }
+
+  if (options?.defer) {
+    options.defer(() => recordAiCallTokenUsage({ ...input, tokenUsage }));
+    return;
+  }
+
+  await recordAiCallTokenUsage({ ...input, tokenUsage });
+}
+
+async function recordAiCallTokenUsage(input: AiCallTokenUsageInput & { tokenUsage: AiTokenUsage }) {
+  const tokenUsage = input.tokenUsage;
 
   const operationKey = `ai-call:${input.source}:${randomUUID()}`;
   try {

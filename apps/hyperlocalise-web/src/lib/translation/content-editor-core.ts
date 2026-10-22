@@ -577,7 +577,11 @@ export async function loadContentEditorSegmentVisualContext(
 
 export async function generateContentEditorAiRecommendation(
   input: ContentEditorAiRecommendationInput,
-  options?: { signal?: AbortSignal; usageSource?: string },
+  options?: {
+    signal?: AbortSignal;
+    usageSource?: string;
+    deferBilling?: (task: () => Promise<unknown>) => void;
+  },
 ): Promise<Result<ContentEditorAiRecommendationResult, ContentEditorAiRecommendationError>> {
   const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
   if (!aiFeatures.ok) {
@@ -654,13 +658,16 @@ export async function generateContentEditorAiRecommendation(
     });
   } finally {
     if (usage) {
-      await trackAiCallTokenUsage({
-        organizationId: input.organizationId,
-        source: options?.usageSource ?? "content_editor_ai_suggestion",
-        tokenUsage: extractAiSdkTokenUsage(usage),
-        modelId: modelResult.modelId,
-        credentialSource: modelResult.credentialSource,
-      });
+      await trackAiCallTokenUsage(
+        {
+          organizationId: input.organizationId,
+          source: options?.usageSource ?? "content_editor_ai_suggestion",
+          tokenUsage: extractAiSdkTokenUsage(usage),
+          modelId: modelResult.modelId,
+          credentialSource: modelResult.credentialSource,
+        },
+        { defer: options?.deferBilling },
+      );
     }
   }
 }

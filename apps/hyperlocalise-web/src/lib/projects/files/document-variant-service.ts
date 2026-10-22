@@ -106,6 +106,7 @@ export async function localizeAndStoreDocumentVariant(input: {
   provenance: ProjectImageVariantProvenance;
   createdByUserId?: string | null;
   force?: boolean;
+  deferBilling?: (task: () => Promise<unknown>) => void;
 }): Promise<Result<typeof schema.projectImageVariants.$inferSelect, ImageVariantError>> {
   const existing = await getImageVariant({
     organizationId: input.organizationId,
@@ -147,12 +148,15 @@ export async function localizeAndStoreDocumentVariant(input: {
     });
     const billingModel = billingModelFromSteps(result);
     if (billingModel) {
-      await trackAiCallTokenUsage({
-        organizationId: input.organizationId,
-        source: "content_editor_document_regenerate",
-        tokenUsage: extractAiSdkTokenUsage(result.usage),
-        ...billingModel,
-      });
+      await trackAiCallTokenUsage(
+        {
+          organizationId: input.organizationId,
+          source: "content_editor_document_regenerate",
+          tokenUsage: extractAiSdkTokenUsage(result.usage),
+          ...billingModel,
+        },
+        { defer: input.deferBilling },
+      );
     }
 
     if (result.finishReason !== "stop") {

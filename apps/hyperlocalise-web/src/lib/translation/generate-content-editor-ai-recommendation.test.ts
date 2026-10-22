@@ -94,13 +94,16 @@ describe("generateContentEditorAiRecommendation metering", () => {
     const result = await generateContentEditorAiRecommendation(meteringInput);
 
     expect(result.ok).toBe(true);
-    expect(trackAiCallTokenUsageMock).toHaveBeenCalledWith({
-      organizationId: "org_1",
-      source: "content_editor_ai_suggestion",
-      tokenUsage: { inputTokens: 1200, outputTokens: 30, totalTokens: 1230 },
-      modelId: "anthropic/claude-sonnet-5.5",
-      credentialSource: "byok",
-    });
+    expect(trackAiCallTokenUsageMock).toHaveBeenCalledWith(
+      {
+        organizationId: "org_1",
+        source: "content_editor_ai_suggestion",
+        tokenUsage: { inputTokens: 1200, outputTokens: 30, totalTokens: 1230 },
+        modelId: "anthropic/claude-sonnet-5.5",
+        credentialSource: "byok",
+      },
+      { defer: undefined },
+    );
   });
 
   it("still records tokens when the suggestion is rejected after the call", async () => {
@@ -127,7 +130,22 @@ describe("generateContentEditorAiRecommendation metering", () => {
 
     expect(trackAiCallTokenUsageMock).toHaveBeenCalledWith(
       expect.objectContaining({ source: "workspace_crowdin_review_suggestion" }),
+      { defer: undefined },
     );
+  });
+
+  it("hands the charge to the route to run after the response", async () => {
+    generateTextMock.mockResolvedValue({
+      output: { suggestion: "Speichern", reasoning: "Standard UI verb." },
+      usage: { inputTokens: 10, outputTokens: 2, totalTokens: 12 },
+    });
+    const deferBilling = vi.fn();
+
+    await generateContentEditorAiRecommendation(meteringInput, { deferBilling });
+
+    expect(trackAiCallTokenUsageMock).toHaveBeenCalledWith(expect.anything(), {
+      defer: deferBilling,
+    });
   });
 
   it("records nothing when the model call fails", async () => {
