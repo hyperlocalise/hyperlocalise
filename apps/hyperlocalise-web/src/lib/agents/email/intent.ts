@@ -13,6 +13,8 @@
 import { generateText, Output, type LanguageModel } from "ai";
 import { z } from "zod";
 
+import { createLogger, serializeErrorForLog } from "@/lib/log";
+import type { ResolvedAgentLanguageModel } from "@/lib/providers/language-model";
 import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 import type { EmailAgentIntentKind } from "./types";
 
@@ -169,10 +171,37 @@ const unreadEmailRequestIntent: EmailRequestIntent = {
   missingFields: ["targetLocale"],
 };
 
-function warnUnreadEmailRequest(error: unknown) {
-  console.warn("Failed to read email request", {
-    error: error instanceof Error ? error.name : "unknown",
-  });
+const logger = createLogger("email-intent");
+
+/**
+ * Reads the request with the workspace's model. When the workspace's own key cannot be
+ * loaded or its model fails, the sender is asked for the target locale; failures on
+ * Hyperlocalise's model still throw, as before own keys were used here.
+ */
+async function interpretWithWorkspaceModel(
+  organizationId: string,
+  interpret: (model: ResolvedAgentLanguageModel["model"]) => Promise<EmailRequestIntent>,
+): Promise<EmailRequestIntent> {
+  let languageModel: ResolvedAgentLanguageModel;
+  try {
+    languageModel = await resolveHyperlocaliseAgentLanguageModel({ organizationId });
+  } catch (error) {
+    logger.warn({ err: serializeErrorForLog(error) }, "workspace model could not be loaded");
+    return unreadEmailRequestIntent;
+  }
+
+  try {
+    return await interpret(languageModel.model);
+  } catch (error) {
+    if (languageModel.source === "gateway") {
+      throw error;
+    }
+    logger.warn(
+      { err: serializeErrorForLog(error), source: languageModel.source },
+      "workspace model could not read the email request",
+    );
+    return unreadEmailRequestIntent;
+  }
 }
 
 export async function interpretEmailRequest(input: {
@@ -180,31 +209,16 @@ export async function interpretEmailRequest(input: {
   text: string;
   organizationId: string;
 }): Promise<EmailRequestIntent> {
-  try {
-    const { model } = await resolveHyperlocaliseAgentLanguageModel({
-      organizationId: input.organizationId,
-    });
-    return await createEmailRequestInterpreter({ model })({
-      subject: input.subject,
-      text: input.text,
-    });
-  } catch (error) {
-    warnUnreadEmailRequest(error);
-    return unreadEmailRequestIntent;
-  }
+  return interpretWithWorkspaceModel(input.organizationId, (model) =>
+    createEmailRequestInterpreter({ model })({ subject: input.subject, text: input.text }),
+  );
 }
 
 export async function interpretClarificationReply(input: {
   text: string;
   organizationId: string;
 }): Promise<EmailRequestIntent> {
-  try {
-    const { model } = await resolveHyperlocaliseAgentLanguageModel({
-      organizationId: input.organizationId,
-    });
-    return await createClarificationInterpreter({ model })({ text: input.text });
-  } catch (error) {
-    warnUnreadEmailRequest(error);
-    return unreadEmailRequestIntent;
-  }
+  return interpretWithWorkspaceModel(input.organizationId, (model) =>
+    createClarificationInterpreter({ model })({ text: input.text }),
+  );
 }

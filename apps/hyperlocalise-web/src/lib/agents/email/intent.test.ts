@@ -243,16 +243,29 @@ describe("interpretEmailRequest", () => {
     expect(generateTextMock).not.toHaveBeenCalled();
   });
 
-  it("asks for the target locale when the model call fails", async () => {
+  it("asks for the target locale when the workspace's own model fails", async () => {
     resolveHyperlocaliseAgentLanguageModelMock.mockResolvedValueOnce({
-      model: { modelId: "llama" },
-      source: "groq",
-      modelId: "groq/llama",
+      model: { modelId: "mistral-small-latest" },
+      source: "mistral",
+      modelId: "mistral/mistral-small-latest",
     });
     generateTextMock.mockRejectedValueOnce(new Error("response_format is not supported"));
 
     await expect(
       interpretClarificationReply({ text: "French please", organizationId: "org_1" }),
     ).resolves.toEqual(unreadIntent);
+  });
+
+  it("still throws when Hyperlocalise's model fails", async () => {
+    resolveHyperlocaliseAgentLanguageModelMock.mockResolvedValueOnce({
+      model: "openai/gpt-6-luna",
+      source: "gateway",
+      modelId: "openai/gpt-6-luna",
+    });
+    generateTextMock.mockRejectedValueOnce(new Error("gateway unavailable"));
+
+    await expect(
+      interpretEmailRequest({ subject: "Translate", text: "Please", organizationId: "org_1" }),
+    ).rejects.toThrow("gateway unavailable");
   });
 });

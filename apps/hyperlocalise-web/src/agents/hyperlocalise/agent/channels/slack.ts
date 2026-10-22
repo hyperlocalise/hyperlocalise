@@ -372,7 +372,7 @@ async function processSlackMessage(
       await removeEyesReaction(thread, message);
       wrapThreadPost(thread, interactionId);
       await handleSlackImageAttachments(thread, message, {
-        model: languageModel.model,
+        languageModel,
         imageAttachments,
         conversationMessages: imageIntentMessages,
         threadState,
@@ -388,7 +388,7 @@ async function processSlackMessage(
     } else if (threadHasStoredSlackImages(threadState)) {
       await removeEyesReaction(thread, message);
       const followUpResult = await handleSlackImageFollowUp(thread, message, {
-        model: languageModel.model,
+        languageModel,
         conversationMessages: imageIntentMessages,
         threadState,
         storage: imageStorageContext,

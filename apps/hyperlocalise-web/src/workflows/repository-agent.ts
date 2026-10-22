@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { getWorkflowMetadata } from "workflow";
+import { FatalError, getWorkflowMetadata } from "workflow";
 
 import type {
   RepositoryAgentGitHubContext,
@@ -91,8 +91,11 @@ async function runRepositoryAgentStep(input: {
 
   ensureAgentSession(toolContext);
   const tools = filterToolSetByNames(buildTools(toolContext), [...repositoryWorkspaceToolNames]);
+  // A stored key that cannot be loaded fails the same way on every retry.
   const languageModel = await resolveHyperlocaliseAgentLanguageModel({
     organizationId: task.organizationId,
+  }).catch((error: unknown) => {
+    throw new FatalError(error instanceof Error ? error.message : String(error));
   });
   const agent = new ToolLoopAgent({
     model: languageModel.model,

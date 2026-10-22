@@ -34,18 +34,50 @@ describe("interpretSlackImageRequest", () => {
 
     const intent = await interpretSlackImageRequest(
       { text: "Make this Japanese" },
-      { model: ownModel as never },
+      {
+        languageModel: {
+          model: ownModel as never,
+          source: "anthropic",
+          modelId: "anthropic/claude-sonnet-5",
+        },
+      },
     );
 
     expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({ model: ownModel }));
     expect(intent.targetLocale).toBe("ja");
   });
 
-  it("returns no target locale when the model call fails", async () => {
+  it("still throws when Hyperlocalise's model fails", async () => {
+    generateTextMock.mockRejectedValueOnce(new Error("gateway unavailable"));
+
+    await expect(
+      interpretSlackImageRequest(
+        { text: "Make this Japanese" },
+        {
+          languageModel: {
+            model: "openai/gpt-6-luna",
+            source: "gateway",
+            modelId: "openai/gpt-6-luna",
+          },
+        },
+      ),
+    ).rejects.toThrow("gateway unavailable");
+  });
+
+  it("returns no target locale when the workspace's own model fails", async () => {
     generateTextMock.mockRejectedValueOnce(new Error("response_format is not supported"));
 
     await expect(
-      interpretSlackImageRequest({ text: "Make this Japanese" }, { model: "groq/llama" as never }),
+      interpretSlackImageRequest(
+        { text: "Make this Japanese" },
+        {
+          languageModel: {
+            model: { modelId: "mistral-small-latest" } as never,
+            source: "mistral",
+            modelId: "mistral/mistral-small-latest",
+          },
+        },
+      ),
     ).resolves.toEqual({
       targetLocale: null,
       instructions: null,

@@ -13,6 +13,7 @@
 import { describe, expect, it, vi, beforeEach } from "vite-plus/test";
 
 vi.mock("workflow", () => ({
+  FatalError: class FatalError extends Error {},
   getWorkflowMetadata: vi.fn(() => ({ workflowRunId: "run_123" })),
 }));
 
@@ -167,6 +168,20 @@ describe("repositoryAgentWorkflow", () => {
         aiCreditCredentialSource: "byok",
       }),
     );
+  });
+
+  it("fails without running the agent when the workspace key cannot be loaded", async () => {
+    resolveHyperlocaliseAgentLanguageModelMock.mockRejectedValueOnce(
+      new Error("organization provider credential is incomplete"),
+    );
+
+    const result = await repositoryAgentWorkflow(baseTask as never);
+
+    expect(toolLoopAgentCtor).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      ok: false,
+      error: "organization provider credential is incomplete",
+    });
   });
 
   it("cleans up disposable sandbox runs", async () => {
