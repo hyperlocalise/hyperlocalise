@@ -238,6 +238,24 @@ describe("multilingual table", () => {
     await waitFor(() => expect(onLoadMore).toHaveBeenCalledOnce());
   });
 
+  it("does not request another page until the user leaves the end of the list", async () => {
+    const onLoadMore = vi.fn();
+    const { rerender } = renderTable({ segments: segments.slice(0, 5), hasMore: true, onLoadMore });
+    await waitFor(() => expect(onLoadMore).toHaveBeenCalledOnce());
+
+    rerender(
+      <ContentEditorMultilingualTable
+        config={config}
+        segments={segments.slice(0, 8)}
+        selectedSegmentId="key-0"
+        hasMore
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    expect(onLoadMore).toHaveBeenCalledOnce();
+  });
+
   it("does not request translations while the queue is pending", async () => {
     renderTable({ isLoading: true });
     await waitFor(() => expect(targetQuery).toHaveBeenCalled());

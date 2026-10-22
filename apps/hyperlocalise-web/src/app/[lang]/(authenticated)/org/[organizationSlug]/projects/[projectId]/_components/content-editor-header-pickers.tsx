@@ -13,6 +13,8 @@
  * Version 2.0 or later.
  */
 import { useEffect, useMemo, useState } from "react";
+import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
+import { CaretUpDownIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import type {
@@ -37,9 +39,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+import {
   formatLocaleDisplayName,
   formatLocaleOptionLabel,
 } from "@/lib/i18n/locale-display-names.messages";
+import { getLocaleFlagEmoji } from "@/lib/i18n/locales";
 
 import { CONTENT_EDITOR_ALL_FILES_SOURCE_PATH } from "@/lib/projects/content-editor-all-files";
 
@@ -276,43 +287,84 @@ export function ContentEditorLocaleSelect({
   onTargetLocaleChange: (targetLocale: string) => void;
 }) {
   const intl = useIntl();
-
-  const handleValueChange = (targetLocale: string | null) => {
-    if (targetLocale) {
-      onTargetLocaleChange(targetLocale);
-    }
-  };
+  const options = useMemo<ContentEditorLocaleOption[]>(
+    () =>
+      targetLocales.map((locale) => ({
+        locale,
+        label: formatLocaleDisplayName(intl, locale),
+        searchValue: formatLocaleOptionLabel(intl, locale),
+        flag: getLocaleFlagEmoji(locale),
+      })),
+    [intl, targetLocales],
+  );
+  const selectedOption = options.find((option) => option.locale === selectedTargetLocale) ?? null;
 
   return (
-    <Select value={selectedTargetLocale} onValueChange={handleValueChange}>
-      <SelectTrigger
-        className="h-8 w-auto max-w-36 shrink-0 font-mono text-xs"
+    <Combobox
+      items={options}
+      value={selectedOption}
+      onValueChange={(next) => {
+        if (next) {
+          onTargetLocaleChange(next.locale);
+        }
+      }}
+      itemToStringLabel={(option) => option.searchValue}
+      isItemEqualToValue={(item, value) => item.locale === value.locale}
+      disabled={targetLocales.length <= 1}
+    >
+      <ComboboxPrimitive.Trigger
+        className="flex h-8 w-auto max-w-36 shrink-0 items-center gap-1.5 rounded-lg border border-input bg-input/30 px-3 font-mono text-xs whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-input/50"
         aria-label={intl.formatMessage(contentEditorHeaderPickersMessages.targetLocaleAriaLabel)}
-        disabled={targetLocales.length <= 1}
       >
-        <LocaleIcon className="size-4 text-muted-foreground" />
-        <SelectValue
-          placeholder={intl.formatMessage(contentEditorHeaderPickersMessages.localePlaceholder)}
-        >
-          {selectedTargetLocale}
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent
-        align="start"
-        alignItemWithTrigger={false}
-        className="w-max min-w-[17rem] max-w-[min(22rem,calc(100vw-2rem))]"
-      >
-        {targetLocales.map((locale) => (
-          <SelectItem key={locale} value={locale} label={formatLocaleOptionLabel(intl, locale)}>
-            <LocaleIcon className="size-4 text-muted-foreground" />
-            <span className="truncate">{formatLocaleDisplayName(intl, locale)}</span>
-            <span className="font-mono text-muted-foreground">
-              {intl.formatMessage(contentEditorHeaderPickersMessages.localeCode, { locale })}
-            </span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+        <LocaleOptionFlag flag={selectedOption?.flag ?? null} />
+        <span className="truncate">
+          {selectedTargetLocale ||
+            intl.formatMessage(contentEditorHeaderPickersMessages.localePlaceholder)}
+        </span>
+        <CaretUpDownIcon className="pointer-events-none size-4 shrink-0 text-muted-foreground" />
+      </ComboboxPrimitive.Trigger>
+      <ComboboxContent className="w-max min-w-[17rem] max-w-[min(22rem,calc(100vw-2rem))]">
+        <ComboboxInput
+          showTrigger={false}
+          placeholder={intl.formatMessage(contentEditorHeaderPickersMessages.searchLocales)}
+          aria-label={intl.formatMessage(contentEditorHeaderPickersMessages.searchLocales)}
+        />
+        <ComboboxEmpty>
+          <FormattedMessage {...contentEditorHeaderPickersMessages.noMatchingLocales} />
+        </ComboboxEmpty>
+        <ComboboxList>
+          {(option: ContentEditorLocaleOption) => (
+            <ComboboxItem key={option.locale} value={option}>
+              <LocaleOptionFlag flag={option.flag} />
+              <span className="truncate">{option.label}</span>
+              <span className="font-mono text-muted-foreground">
+                {intl.formatMessage(contentEditorHeaderPickersMessages.localeCode, {
+                  locale: option.locale,
+                })}
+              </span>
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
+type ContentEditorLocaleOption = {
+  locale: string;
+  label: string;
+  searchValue: string;
+  flag: string | null;
+};
+
+function LocaleOptionFlag({ flag }: { flag: string | null }) {
+  if (!flag) {
+    return <LocaleIcon className="size-4 shrink-0 text-muted-foreground" />;
+  }
+  return (
+    <span aria-hidden="true" className="w-4 shrink-0 text-center text-sm leading-none">
+      {flag}
+    </span>
   );
 }
 

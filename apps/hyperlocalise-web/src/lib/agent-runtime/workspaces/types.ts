@@ -10,29 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-export type WorkspaceLifecyclePolicy =
-  | {
-      mode: "disposable";
-      timeoutMs: number;
-      destroyOnFinish: true;
-    }
-  | {
-      mode: "multi_turn";
-      idleTimeoutMs: number;
-      maxLifetimeMs: number;
-      destroyOnExpiry: true;
-      snapshotOnPause?: boolean;
-    };
-
-export type WorkspaceSecurityPolicy = {
-  network: "none" | "allowlisted" | "restricted";
-  secrets: "none" | "scoped_ephemeral";
-  writeAccess: "none" | "workspace_only" | "external_with_policy";
-  allowedCommands?: string[];
-  maxCommandRuntimeMs: number;
-  maxOutputBytes: number;
-};
-
 export type WorkspaceCommandResult = {
   exitCode: number;
   output: string;

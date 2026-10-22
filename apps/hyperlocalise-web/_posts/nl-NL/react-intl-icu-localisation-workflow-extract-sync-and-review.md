@@ -122,7 +122,7 @@ Vermijd `--flatten` bij ICU-berichten die je als afzonderlijke react-intl-eenhed
 Maak `i18n.yml` aan in de hoofdmap van de repository (of onder je appmap als de monorepo de configuratie naast de UI bewaart):
 
 ```yaml
-version: hyperlocalise@1.13.4
+version: hyperlocalise@1.13.5
 
 locales:
   source: en-US

@@ -65,6 +65,16 @@ export const contentEditorHeaderPickersMessages = defineMessages({
     id: "ZBPKpZ5WZT",
     description: "Locale code shown in parentheses next to the locale display name",
   },
+  searchLocales: {
+    defaultMessage: "Search locales",
+    id: "XcFJwnnrYw",
+    description: "Placeholder and label for the search box in the CAT header target locale picker",
+  },
+  noMatchingLocales: {
+    defaultMessage: "No matching locales",
+    id: "erBXPIZo2r",
+    description: "Empty state when the CAT header target locale search matches nothing",
+  },
 
   githubRepositoryAriaLabel: {
     defaultMessage: "GitHub repository",

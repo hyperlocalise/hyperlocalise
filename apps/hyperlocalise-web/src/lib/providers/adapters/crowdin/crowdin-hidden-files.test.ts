@@ -47,7 +47,18 @@ describe("findCrowdinHiddenFileIds", () => {
     );
   });
 
-  it("skips provider requests when no files are listed", async () => {
+  it("probes every file with hidden strings when no files are listed", async () => {
+    const listSourceStrings = vi.fn(async (_projectId: number, options?: { croql?: string }) =>
+      options?.croql === "is hidden" ? [sourceString(1), sourceString(9)] : [],
+    );
+
+    const hidden = await findCrowdinHiddenFileIds({ listSourceStrings }, 42);
+
+    expect(hidden).toEqual(new Set([1, 9]));
+    expect(listSourceStrings).toHaveBeenCalledTimes(3);
+  });
+
+  it("skips provider requests when an empty file list is passed", async () => {
     const listSourceStrings = vi.fn();
 
     const hidden = await findCrowdinHiddenFileIds({ listSourceStrings }, 42, []);

@@ -23,14 +23,15 @@ const CROWDIN_HIDDEN_FILE_PROBE_CONCURRENCY = 5;
  * Crowdin files carry no hidden flag; a file is hidden from translators when every
  * string in it is hidden. Only files that own at least one hidden string are probed
  * for a visible string, so the cost tracks the number of hidden strings, not files.
+ * Pass `fileIds` to only probe those files.
  */
 export async function findCrowdinHiddenFileIds(
   client: Pick<CrowdinApiClient, "listSourceStrings">,
   projectId: number,
-  fileIds: readonly number[],
+  fileIds?: readonly number[],
 ): Promise<Set<number>> {
-  const listedFileIds = new Set(fileIds);
-  if (listedFileIds.size === 0) {
+  const listedFileIds = fileIds ? new Set(fileIds) : null;
+  if (listedFileIds?.size === 0) {
     return new Set();
   }
 
@@ -41,7 +42,7 @@ export async function findCrowdinHiddenFileIds(
   const candidateFileIds = [
     ...new Set(
       hiddenStrings.flatMap((sourceString) =>
-        sourceString.fileId !== null && listedFileIds.has(sourceString.fileId)
+        sourceString.fileId !== null && (!listedFileIds || listedFileIds.has(sourceString.fileId))
           ? [sourceString.fileId]
           : [],
       ),

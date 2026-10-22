@@ -261,11 +261,15 @@ export const projectFilesQuerySchema = z.object({
   syncState: z.string().trim().max(64).optional(),
   branch: z.string().trim().min(1).max(256).optional(),
   projectId: optionalProjectIdSchema,
-  /** Resolve `isHidden` for connected TMS files. Costs extra provider requests. */
-  includeHidden: z
-    .enum(["true", "false"])
-    .transform((value) => value === "true")
-    .optional(),
+});
+
+/** A connected TMS file whose strings are all hidden, keyed by provider file id. */
+export const projectHiddenFileRecordSchema = z.object({
+  externalResourceId: z.string(),
+});
+
+export const projectHiddenFilesResponseSchema = z.object({
+  files: z.array(projectHiddenFileRecordSchema),
 });
 
 export const projectFileProgressQuerySchema = z.object({
@@ -1158,6 +1162,7 @@ export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;
 export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectProviderBranchesResponse = z.infer<typeof projectProviderBranchesResponseSchema>;
 export type ProjectFileProgressRecord = z.infer<typeof projectFileProgressRecordSchema>;
+export type ProjectHiddenFileRecord = z.infer<typeof projectHiddenFileRecordSchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileContentEditorQuery = z.infer<typeof projectFileCatQuerySchema>;
 export type ProjectFileContentEditorActivityLogQuery = z.infer<
