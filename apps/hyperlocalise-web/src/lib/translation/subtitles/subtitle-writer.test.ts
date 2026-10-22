@@ -120,4 +120,48 @@ describe("marshalSubtitles", () => {
     expect(text).toContain("Bonjour le monde");
     expect(text).toContain("This is a subtitle\non two lines");
   });
+
+  it("splits cues on Unicode whitespace-only separator lines", () => {
+    const template = `1
+00:00:00,000 --> 00:00:01,000
+Hello
+${"\u00a0"}
+2
+00:00:01,000 --> 00:00:02,000
+World
+`;
+
+    const result = marshalSubtitles(
+      template,
+      {
+        "srt.0001": "Bonjour",
+        "srt.0002": "Monde",
+      },
+      "srt",
+    );
+    expect(isErr(result)).toBe(false);
+    if (isErr(result)) {
+      return;
+    }
+    const text = result.value.toString("utf8");
+    expect(text).toContain("Bonjour");
+    expect(text).toContain("Monde");
+    expect(text).not.toMatch(/Bonjour[\s\S]*Monde[\s\S]*Bonjour/);
+  });
+
+  it("drops Unicode whitespace-only lines when encoding cue text", () => {
+    const template = "1\n00:00:00,000 --> 00:00:01,000\nHello\n\n";
+    const result = marshalSubtitles(
+      template,
+      { "srt.0001": "Bonjour\n\u00a0\nle monde\n\f\n" },
+      "srt",
+    );
+    expect(isErr(result)).toBe(false);
+    if (isErr(result)) {
+      return;
+    }
+    expect(result.value.toString("utf8")).toBe(
+      "1\n00:00:00,000 --> 00:00:01,000\nBonjour\nle monde\n\n",
+    );
+  });
 });

@@ -309,7 +309,15 @@ function isBlankSubtitleLine(value: string): boolean {
     if (c === 32 || c === 9 || c === 10 || c === 13 || c === 11 || c === 12) {
       continue;
     }
-    return false;
+    if (c < 0x80) {
+      return false;
+    }
+    for (const char of value.slice(i)) {
+      if (!/\p{White_Space}/u.test(char)) {
+        return false;
+      }
+    }
+    return true;
   }
   return true;
 }
