@@ -62,7 +62,7 @@ function FooterStoryFrame({ children }: { children: ReactNode }) {
 
 function GuidanceStatusFrame({ children }: { children: ReactNode }) {
   setCatIssueGuidanceStatus({ available: true, openIssueCount: 2 });
-  setCatGlossaryGuidanceStatus({ preferredCount: 2, notRecommendedCount: 1, matchCount: 2 });
+  setCatGlossaryGuidanceStatus({ isLoading: false, notRecommendedCount: 1, matchCount: 2 });
 
   useEffect(() => {
     return () => {
@@ -147,7 +147,7 @@ export const GuidanceAvailable: Story = {
     window.addEventListener(CAT_ISSUE_GUIDANCE_OPEN_EVENT, issueGuidanceOpened);
 
     const glossaryButton = canvas.getByRole("button", {
-      name: "Glossary guidance, concept matches available",
+      name: "Glossary guidance 2 concept matches 1 term not recommended",
     });
     const issuesButton = canvas.getByRole("button", { name: "Open Queries, 2 open" });
 
@@ -170,25 +170,41 @@ export const GuidanceAvailable: Story = {
   },
 };
 
-export const GlossaryDraftMatchAvailable: Story = {
+export const GlossaryMatchAvailable: Story = {
   args: {
     showGlossaryGuidance: true,
   },
   decorators: [
     (Story) => (
-      <GlossaryStatusFrame status={{ preferredCount: 0, notRecommendedCount: 0, matchCount: 1 }}>
+      <GlossaryStatusFrame status={{ isLoading: false, notRecommendedCount: 0, matchCount: 1 }}>
         <Story />
       </GlossaryStatusFrame>
     ),
   ],
   play: async ({ canvas }) => {
     const glossaryButton = canvas.getByRole("button", {
-      name: "Glossary guidance, concept matches available",
+      name: "Glossary guidance 1 concept match",
     });
 
-    await expect(glossaryButton).toBeInTheDocument();
-    await expect(within(glossaryButton).queryByText("1")).not.toBeInTheDocument();
-    await expect(within(glossaryButton).queryByText("2")).not.toBeInTheDocument();
+    await expect(within(glossaryButton).getByText("1")).toBeInTheDocument();
+  },
+};
+
+export const GlossaryLoading: Story = {
+  args: {
+    showGlossaryGuidance: true,
+  },
+  decorators: [
+    (Story) => (
+      <GlossaryStatusFrame status={{ isLoading: true, notRecommendedCount: 0, matchCount: 0 }}>
+        <Story />
+      </GlossaryStatusFrame>
+    ),
+  ],
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole("status", { name: "Checking for glossary matches" }),
+    ).toBeInTheDocument();
   },
 };
 
@@ -197,9 +213,7 @@ export const GlossaryDefault: Story = {
     showGlossaryGuidance: true,
   },
   play: async ({ canvas }) => {
-    await expect(
-      canvas.getByRole("button", { name: "Open glossary guidance" }),
-    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Glossary guidance" })).toBeInTheDocument();
   },
 };
 

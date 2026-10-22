@@ -196,6 +196,11 @@ export function useContentEditorWorkspaceRuntime({
     [intelligenceController],
   );
 
+  const handleLoadSegmentConcordance = useCallback(
+    (segmentId: string) => intelligenceController.ensureConcordance(segmentId),
+    [intelligenceController],
+  );
+
   const dependencies = useMemo<ContentEditorWorkspaceDependencies>(() => {
     const sendTextToGroupVariant = (segmentId: string, text: string) => {
       const locale = store.getSegmentView(segmentId)?.targetLocale;
@@ -389,6 +394,7 @@ export function useContentEditorWorkspaceRuntime({
     canLoadVisualContext,
     canUseAiRecommendation,
     handleIntelligencePanelVisible,
+    handleLoadSegmentConcordance,
     handleReloadConcordance: (segmentId: string) =>
       intelligenceController.reloadConcordance(segmentId),
   };

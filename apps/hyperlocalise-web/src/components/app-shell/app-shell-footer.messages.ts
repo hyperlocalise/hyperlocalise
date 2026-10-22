@@ -20,16 +20,23 @@ export const appShellFooterMessages = defineMessages({
     id: "ecG+jsddyC",
     description: "Accessible label for the support email button in the app shell footer",
   },
-  glossaryGuidanceAriaLabel: {
-    defaultMessage: "Open glossary guidance",
-    id: "WHrTXX3A2/",
-    description: "Accessible label for the glossary guidance button in the app shell footer",
-  },
-  glossaryGuidanceAvailableAriaLabel: {
-    defaultMessage: "Glossary guidance, concept matches available",
-    id: "Z4KBzMvHKO",
+  glossaryGuidanceLoading: {
+    defaultMessage: "Checking for glossary matches",
+    id: "r2k+y+3lqI",
     description:
-      "Accessible label for the glossary guidance button when concept matches are available",
+      "Screen reader text on the glossary guidance footer button while matches for the current string load",
+  },
+  glossaryGuidanceMatchCount: {
+    defaultMessage: "{count, plural, one {# concept match} other {# concept matches}}",
+    id: "JvhN7hS1FF",
+    description:
+      "Screen reader text for the glossary concept match count badge on the footer button",
+  },
+  glossaryGuidanceNotRecommendedCount: {
+    defaultMessage: "{count, plural, one {# term not recommended} other {# terms not recommended}}",
+    id: "rK7ozpqUVh",
+    description:
+      "Screen reader text for the badge counting not-recommended glossary terms in the current string",
   },
   glossaryGuidanceLabel: {
     defaultMessage: "Glossary guidance",

@@ -657,6 +657,23 @@ describe("ContentEditorIntelligenceController", () => {
       expect(workspace.revealedAgentContextSegmentIds.has("seg-02")).toBe(true);
     });
 
+    it("loads only concordance through ensureConcordance", async () => {
+      const lookupSegmentConcordance = vi.fn().mockResolvedValue({});
+      const lookupSegmentContext = vi.fn().mockResolvedValue("Cached repository context.");
+      const lookupSegmentVisualContext = vi.fn().mockResolvedValue({ screenshots: [] });
+      const { controller } = createController(undefined, {
+        intl,
+        services: { lookupSegmentConcordance, lookupSegmentContext, lookupSegmentVisualContext },
+      });
+
+      controller.ensureConcordance("seg-02");
+      controller.ensureConcordance("seg-02");
+
+      await vi.waitFor(() => expect(lookupSegmentConcordance).toHaveBeenCalledTimes(1));
+      expect(lookupSegmentContext).not.toHaveBeenCalled();
+      expect(lookupSegmentVisualContext).not.toHaveBeenCalled();
+    });
+
     it("replaces repository context without resetting CAT state or accepting a stale response", async () => {
       let resolveOldContext: ((context: string) => void) | undefined;
       const oldLookup = vi.fn(

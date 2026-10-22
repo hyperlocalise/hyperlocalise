@@ -189,18 +189,28 @@ export class ContentEditorIntelligenceController {
     return this.loadConcordance(segmentId);
   }
 
+  ensureConcordance(segmentId: string) {
+    if (
+      !this.ports.services?.lookupSegmentConcordance ||
+      this.concordanceAttempts.has(segmentId) ||
+      !this.workspace.getSegmentView(segmentId)
+    ) {
+      return;
+    }
+
+    this.concordanceAttempts.add(segmentId);
+    void this.loadConcordance(segmentId);
+  }
+
   panelVisible(segmentId: string) {
     const segment = this.workspace.getSegmentView(segmentId);
     if (!segment) {
       return;
     }
 
-    const { lookupSegmentConcordance, lookupSegmentContext, lookupSegmentVisualContext } =
-      this.ports.services ?? {};
-    if (lookupSegmentConcordance && !this.concordanceAttempts.has(segmentId)) {
-      this.concordanceAttempts.add(segmentId);
-      void this.loadConcordance(segmentId);
-    }
+    this.ensureConcordance(segmentId);
+
+    const { lookupSegmentContext, lookupSegmentVisualContext } = this.ports.services ?? {};
 
     if (
       lookupSegmentContext &&

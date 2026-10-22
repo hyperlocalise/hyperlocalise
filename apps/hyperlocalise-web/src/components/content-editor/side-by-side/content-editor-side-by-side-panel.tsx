@@ -261,7 +261,7 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   className,
   organizationSlug,
   projectId,
-  onGlossaryTermAdded,
+  onTmSegmentMutated,
 }: {
   segments: ContentEditorSegment[];
   focusedSegmentId: string;
@@ -338,7 +338,7 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   className?: string;
   organizationSlug?: string;
   projectId?: string;
-  onGlossaryTermAdded?: () => void;
+  onTmSegmentMutated?: () => void;
 }) {
   const store = useContentEditorWorkspace();
   const intelligenceSegmentId = store.intelligenceSegmentId;
@@ -545,7 +545,7 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
             placement="right"
             organizationSlug={organizationSlug}
             projectId={projectId}
-            onGlossaryTermAdded={onGlossaryTermAdded}
+            onTmSegmentMutated={onTmSegmentMutated}
             className="h-full"
           />
         </ContentEditorPanelErrorBoundary>

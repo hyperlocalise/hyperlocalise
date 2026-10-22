@@ -103,7 +103,7 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
     className,
     organizationSlug,
     projectId,
-    onGlossaryTermAdded,
+    onTmSegmentMutated,
   }: {
     segment: ContentEditorSegment | null;
     intelligence: ContentEditorSegmentIntelligence | null;
@@ -143,7 +143,7 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
     className?: string;
     organizationSlug?: string;
     projectId?: string;
-    onGlossaryTermAdded?: () => void;
+    onTmSegmentMutated?: () => void;
   }) {
     const intl = useIntl();
     const workspace = useContentEditorWorkspace();
@@ -210,21 +210,10 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
         segmentId={segment.id}
         segmentKey={segment.key}
         contentKind={segment.contentKind}
-        sourceText={segment.sourceText}
         targetText={segment.targetText}
         sourceLocale={segment.sourceLocale}
-        targetLocale={segment.targetLocale}
         organizationSlug={organizationSlug}
         projectId={projectId}
-        teamGlossaries={fileContext.teamGlossaries ?? []}
-        contributorTeams={fileContext.contributorTeams ?? []}
-        projectTeamId={fileContext.projectTeamId}
-        canContributeTeamGlossary={
-          Boolean(fileContext.canContributeTeamGlossary) &&
-          isNativeContentEditorProviderKind(fileContext.providerKind)
-        }
-        teamName={fileContext.teamName}
-        projectTeamSlug={fileContext.projectTeamSlug}
         isLookingUpContext={isLookingUpContext}
         isConcordanceLoading={isConcordanceLoading}
         isVisualContextLoading={isVisualContextLoading}
@@ -241,7 +230,7 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
         onRefreshContext={onRefreshContext}
         onUseTmMatch={onUseTmMatch}
         onSetMaxLength={segment.isLocked ? undefined : onSetMaxLength}
-        onGlossaryTermAdded={onGlossaryTermAdded}
+        onTmSegmentMutated={onTmSegmentMutated}
         canTriggerFindContext={canTriggerFindContext}
         onFindContext={onAskQuestion}
         embedded
