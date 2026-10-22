@@ -33,6 +33,11 @@ import {
   type SectionInput,
 } from "./reports-queries";
 
+/** AI charged outside any project, shown as its own row when there is any. */
+function hasOutsideProjects(data: { outsideProjects: { aiUsd: string } | null }) {
+  return Number(data.outsideProjects?.aiUsd ?? 0) > 0;
+}
+
 export function CostsTab({ input, settings }: { input: SectionInput; settings: ReportSettings }) {
   const intl = useIntl();
   const costs = useCosts(input);
@@ -90,7 +95,7 @@ export function CostsTab({ input, settings }: { input: SectionInput; settings: R
       <ReportSectionState query={costs}>
         {(data) => (
           <>
-            {data.rows.length === 0 && !(Number(data.outsideProjects?.aiUsd ?? 0) > 0) ? (
+            {data.rows.length === 0 && !hasOutsideProjects(data) ? (
               <ReportEmpty description={intl.formatMessage(messages.noCosts)} />
             ) : (
               <Table aria-label={intl.formatMessage(messages.tableLabel)}>
@@ -127,7 +132,7 @@ export function CostsTab({ input, settings }: { input: SectionInput; settings: R
                       <TableCell className={numeric}>{formatUsd(intl, row.totalUsd)}</TableCell>
                     </TableRow>
                   ))}
-                  {data.outsideProjects ? (
+                  {data.outsideProjects && hasOutsideProjects(data) ? (
                     <TableRow>
                       <TableCell className="text-muted-foreground">
                         {intl.formatMessage(messages.outsideProjects)}

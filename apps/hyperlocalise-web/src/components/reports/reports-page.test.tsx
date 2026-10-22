@@ -22,6 +22,8 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { ReportsPage } from "./reports-page";
 import {
   createReportsSettings,
+  reportsCostEstimate,
+  reportsCosts,
   reportsResponseBodies,
   type ReportsApiCall,
 } from "./reports.fixture";
@@ -178,15 +180,89 @@ describe("Reports page", () => {
       rateCard: "Standard 2026",
     });
     const rows = within(table).getAllByRole("row");
-    expect(rows.find((row) => row.textContent?.includes("ko-KR"))?.textContent).toContain(
-      "No rate",
+    const row = (language: string) =>
+      rows.find((candidate) => candidate.textContent?.includes(language))?.textContent;
+    expect(row("fr-FR")).toContain("No rate");
+    expect(row("de-DE")).toContain("$0.12 / word");
+    // Each row says which card applies to it and why, and the note names the card without a rate.
+    expect(row("de-DE")).toContain("Standard 2026 · budget");
+    expect(row("fr-FR")).toContain("Standard 2026 · chosen here");
+    expect(screen.getByText(/fr-FR has no rate on Standard 2026/)).toBeInTheDocument();
+  });
+
+  it("names each row's own card, not the one chosen, and leaves fixed fees without one", async () => {
+    mocks.search = "tab=estimate&tasks=job_release,job_billing&rateCard=Agency B";
+    const [priced, unpriced] = reportsCostEstimate.rows;
+    mocks.bodies["cost-estimate"] = {
+      costEstimate: {
+        ...reportsCostEstimate,
+        unit: "words",
+        rateCardName: "Agency B",
+        rows: [
+          { ...priced, pricedBy: ["task"] },
+          { ...unpriced, pricedBy: ["chosen"], rateCardName: "Agency B" },
+          {
+            ...unpriced,
+            targetLocale: "ja-JP",
+            pricing: "fixed",
+            pricedBy: [],
+            rateCardName: null,
+          },
+        ],
+      },
+    };
+    renderPage();
+    const table = await screen.findByRole("table", { name: "Cost estimate" });
+    const row = (language: string) =>
+      within(table)
+        .getAllByRole("row")
+        .find((candidate) => candidate.textContent?.startsWith(language));
+    expect(row("de-DE")?.textContent).toContain("Standard 2026 · task");
+    expect(row("fr-FR")?.textContent).toContain("Agency B · chosen here");
+    expect(within(row("ja-JP")!).getByText("Fixed fee")).toBeInTheDocument();
+    expect(row("ja-JP")?.textContent).not.toContain("Agency B");
+    expect(screen.getByText(/fr-FR has no rate on Agency B/)).toBeInTheDocument();
+  });
+
+  it("says when rows are priced by more than one card, and when the workspace has no card", async () => {
+    mocks.search = "tab=estimate&tasks=job_release";
+    const [priced] = reportsCostEstimate.rows;
+    const estimate = (rows: typeof reportsCostEstimate.rows, incomplete: boolean) => ({
+      costEstimate: {
+        ...reportsCostEstimate,
+        unit: "words",
+        rows,
+        totals: { ...reportsCostEstimate.totals, incomplete },
+      },
+    });
+    mocks.bodies["cost-estimate"] = estimate(
+      [
+        { ...priced, pricedBy: ["budget"] },
+        {
+          ...priced,
+          targetLocale: "ja-JP",
+          rateId: "rate_ja",
+          pricedBy: ["task"],
+          rateCardName: "Agency B",
+        },
+      ],
+      false,
     );
-    expect(rows.find((row) => row.textContent?.includes("de-DE"))?.textContent).toContain(
-      "$0.12 / word",
+    const { unmount } = renderPage();
+    expect(await screen.findByText("2 rate cards · translation and review")).toBeInTheDocument();
+    unmount();
+
+    mocks.bodies = reportsResponseBodies(createReportsSettings({ rateCardNames: [] }));
+    mocks.bodies["cost-estimate"] = estimate(
+      [{ ...reportsCostEstimate.rows[1], pricedBy: [], rateCardName: null }],
+      true,
     );
-    // Each row says which card priced it, and the note names the card without a rate.
-    expect(within(table).getAllByText("Standard 2026 · budget")).toHaveLength(2);
-    expect(screen.getByText(/ko-KR has no rate on Standard 2026/)).toBeInTheDocument();
+    renderPage();
+    const table = await screen.findByRole("table", { name: "Cost estimate" });
+    expect(within(table).getByText("No rate card")).toBeInTheDocument();
+    expect(
+      screen.getByText(/fr-FR has no rate card, because the workspace has none yet/),
+    ).toBeInTheDocument();
   });
 
   it("splits AI into on tasks and outside tasks, with AI outside any project as its own row", async () => {
@@ -220,5 +296,57 @@ describe("Reports page", () => {
       "$4,040.60",
     ]);
     expect(screen.getByText("Charged AI calls, on tasks and outside them")).toBeInTheDocument();
+  });
+
+  it("leaves out an empty outside-any-project row, and shows nothing spent only when nothing was", async () => {
+    mocks.search = "tab=costs";
+    const zero = {
+      aiUsd: "0.00000000",
+      aiOnTasksUsd: "0.00000000",
+      aiOutsideTasksUsd: "0.00000000",
+    };
+    mocks.bodies.costs = { costs: { ...reportsCosts, outsideProjects: zero } };
+    const { unmount } = renderPage();
+    const table = await screen.findByRole("table", { name: "Costs by project" });
+    expect(within(table).queryByText("Outside any project")).not.toBeInTheDocument();
+    unmount();
+
+    mocks.bodies.costs = { costs: { ...reportsCosts, rows: [], outsideProjects: zero } };
+    const { unmount: unmountEmpty } = renderPage();
+    expect(await screen.findByText("Nothing was spent in these dates.")).toBeInTheDocument();
+    unmountEmpty();
+
+    // Only AI outside any project: still a table, not "nothing spent".
+    mocks.bodies.costs = { costs: { ...reportsCosts, rows: [] } };
+    renderPage();
+    const outsideOnly = await screen.findByRole("table", { name: "Costs by project" });
+    expect(within(outsideOnly).getByText("Outside any project")).toBeInTheDocument();
+  });
+
+  it("leaves AI out while a language is chosen, and says so", async () => {
+    mocks.search = "tab=costs&language=de-DE";
+    const [project] = reportsCosts.rows;
+    mocks.bodies.costs = {
+      costs: {
+        ...reportsCosts,
+        rows: [{ ...project, aiUsd: null, aiOnTasksUsd: null, aiOutsideTasksUsd: null }],
+        outsideProjects: null,
+        totals: {
+          ...reportsCosts.totals,
+          aiUsd: null,
+          aiOnTasksUsd: null,
+          aiOutsideTasksUsd: null,
+        },
+      },
+    };
+    renderPage();
+    const table = await screen.findByRole("table", { name: "Costs by project" });
+    const cells = within(table)
+      .getAllByRole("row")
+      .find((row) => row.textContent?.startsWith("Web app"))
+      ?.querySelectorAll("td");
+    expect(Array.from(cells ?? [], (cell) => cell.textContent).slice(2, 4)).toEqual(["—", "—"]);
+    expect(within(table).queryByText("Outside any project")).not.toBeInTheDocument();
+    expect(screen.getByText(/AI charges are not split by language/)).toBeInTheDocument();
   });
 });

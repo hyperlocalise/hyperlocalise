@@ -288,10 +288,11 @@ export const reportsCostEstimate: CostEstimate = {
       uncounted: 0,
     },
     {
-      targetLocale: "ko-KR",
+      // Help centre's task: its budget has no card, and the chosen card has no fr-FR rate.
+      targetLocale: "fr-FR",
       step: "translation",
       pricing: "none",
-      pricedBy: ["budget"],
+      pricedBy: ["chosen"],
       rateCardName: "Standard 2026",
       rateId: null,
       basis: null,

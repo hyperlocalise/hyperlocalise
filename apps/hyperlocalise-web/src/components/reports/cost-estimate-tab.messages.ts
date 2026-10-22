@@ -67,6 +67,13 @@ export const costEstimateTabMessages = defineMessages({
     defaultMessage: "{card} · translation and review",
     description: "Detail under the estimated cost card: the rate card used",
   },
+  estimatedCostCards: {
+    id: "rRNJYrXxd5",
+    defaultMessage:
+      "{count, plural, one {# rate card} other {# rate cards}} · translation and review",
+    description:
+      "Detail under the estimated cost card when rows are priced by more than one rate card",
+  },
   estimatedCostNoCard: {
     id: "Hn0nYW2Eoc",
     defaultMessage: "Task and budget rates · translation and review",
@@ -180,42 +187,43 @@ export const costEstimateTabMessages = defineMessages({
       "Note under the estimate when some languages have no rate on the card that prices them; card is the rate card's name",
   },
   noCardNote: {
-    id: "/bw8Moam2N",
+    id: "a1lOL9DMxB",
     defaultMessage:
-      "{count, plural, one {{languages} has no rate card. Choose one above to price it.} other {{languages} have no rate card. Choose one above to price them.}}",
+      "{count, plural, one {{languages} has no rate card, because the workspace has none yet. Add one under Manage rates to price it.} other {{languages} have no rate card, because the workspace has none yet. Add one under Manage rates to price them.}}",
     description:
-      "Note under the estimate when no task, budget or chosen rate card prices some languages",
+      "Note under the estimate when the workspace has no rate card at all; Manage rates is the button that opens the rate cards",
   },
   pricedByColumn: {
-    id: "iBsFiq6yoU",
-    defaultMessage: "Priced by",
-    description: "Column heading: the rate card that priced the row, and why that card",
+    id: "01Xqzlo6od",
+    defaultMessage: "Rate card",
+    description:
+      "Column heading: the rate card that prices the row, or that has no rate for it, and why that card",
   },
   pricedByCell: {
-    id: "dbjn9gcPqw",
+    id: "A122otHF9H",
     defaultMessage: "{card} · {sources}",
     description:
-      "Priced by cell: a rate card's name, then why it priced the row, such as Agency B · budget",
+      "Rate card cell: a rate card's name, then why that card applies to the row, such as Agency B · budget",
   },
   pricedBy_task: {
-    id: "BTNzbV/iOk",
+    id: "clvzZNjf5F",
     defaultMessage: "task",
-    description: "Why a card priced a row: it is the task's own rate card",
+    description: "Why a card applies to a row: it is the task's own rate card",
   },
   pricedBy_budget: {
-    id: "My84WbcWq6",
+    id: "ERxDR4qEWS",
     defaultMessage: "budget",
-    description: "Why a card priced a row: it is the rate card of the project's budget",
+    description: "Why a card applies to a row: it is the rate card of the project's budget",
   },
   pricedBy_chosen: {
-    id: "Nad4L5QJXF",
+    id: "6lltmCDZue",
     defaultMessage: "chosen here",
-    description: "Why a card priced a row: it is the rate card chosen on this page",
+    description: "Why a card applies to a row: it is the rate card chosen on this page",
   },
   noRateCard: {
-    id: "BxAqRQAKnB",
+    id: "oQKRdWs09R",
     defaultMessage: "No rate card",
-    description: "Priced by cell when no rate card applies to the row",
+    description: "Rate card cell when no rate card applies to the row",
   },
   fixedFees: {
     id: "uCFqHd7i8y",

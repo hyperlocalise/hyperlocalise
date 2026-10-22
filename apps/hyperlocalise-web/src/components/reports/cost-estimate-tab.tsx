@@ -63,7 +63,7 @@ const PRICED_BY = {
   chosen: messages.pricedBy_chosen,
 } satisfies Record<PricedBy, unknown>;
 
-/** Which card priced a row, and why that one: "Agency B · budget". */
+/** Which card applies to a row, and why that one: "Agency B · budget". */
 function pricedByText(intl: Intl, row: Pick<EstimateRow, "pricing" | "pricedBy" | "rateCardName">) {
   if (row.pricing === "fixed") return "—";
   if (!row.rateCardName) return intl.formatMessage(messages.noRateCard);
@@ -146,6 +146,12 @@ function EstimateBody({ data, unitName }: { data: Estimate; unitName: string }) 
   const bands = visibleBands(totals.bands);
   const percentages = sharedPercentages(data.rows);
   const unrated = unratedByCard(data.rows);
+  // The cards that priced work: the one chosen here is only the last resort.
+  const pricingCards = new Set(
+    data.rows.flatMap((row) =>
+      row.pricing === "rate" && row.rateCardName ? [row.rateCardName] : [],
+    ),
+  );
   const showStep = new Set(data.rows.map((row) => row.step)).size > 1;
   return (
     <>
@@ -173,9 +179,11 @@ function EstimateBody({ data, unitName }: { data: Estimate; unitName: string }) 
           detail={
             totals.incomplete
               ? intl.formatMessage(messages.incomplete)
-              : data.rateCardName
-                ? intl.formatMessage(messages.estimatedCostDetail, { card: data.rateCardName })
-                : intl.formatMessage(messages.estimatedCostNoCard)
+              : pricingCards.size > 1
+                ? intl.formatMessage(messages.estimatedCostCards, { count: pricingCards.size })
+                : pricingCards.size === 1
+                  ? intl.formatMessage(messages.estimatedCostDetail, { card: [...pricingCards][0] })
+                  : intl.formatMessage(messages.estimatedCostNoCard)
           }
         />
         <ReportStatCard
@@ -285,7 +293,7 @@ function EstimateBody({ data, unitName }: { data: Estimate; unitName: string }) 
       ) : null}
       <div className="flex flex-col gap-1 text-[13px] text-muted-foreground">
         {unrated.map(({ card, languages }) => (
-          <p key={card ?? ""}>
+          <p key={card === null ? "none" : `card:${card}`}>
             {card
               ? intl.formatMessage(messages.noRateNote, {
                   languages: intl.formatList(languages),
