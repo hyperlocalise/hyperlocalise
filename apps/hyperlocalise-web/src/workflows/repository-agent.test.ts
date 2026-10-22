@@ -25,6 +25,7 @@ const {
   getInstallationOctokitMock,
   getMock,
   installCommandMock,
+  meteringSpy,
   resolveHyperlocaliseAgentLanguageModelMock,
   stopMock,
   toolLoopAgentCtor,
@@ -47,6 +48,8 @@ const {
     return { generate: generateMock };
   });
 
+  const meteringSpy = vi.fn();
+
   return {
     authMock,
     buildHyperlocaliseAgentInstructionsMock,
@@ -56,6 +59,7 @@ const {
     getInstallationOctokitMock,
     getMock,
     installCommandMock,
+    meteringSpy,
     resolveHyperlocaliseAgentLanguageModelMock,
     stopMock,
     toolLoopAgentCtor,
@@ -73,6 +77,19 @@ vi.mock("@/lib/agents/github/app", () => ({
 vi.mock("@/lib/agent-runtime/loops/hyperlocalise-agent", () => ({
   buildHyperlocaliseAgentInstructions: buildHyperlocaliseAgentInstructionsMock,
 }));
+
+vi.mock("@/lib/billing/agent-runtime-usage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/agent-runtime-usage")>();
+  return {
+    ...actual,
+    withAgentRuntimeUsageMetering: (
+      input: Parameters<typeof actual.withAgentRuntimeUsageMetering>[0],
+    ) => {
+      meteringSpy(input);
+      return actual.withAgentRuntimeUsageMetering(input);
+    },
+  };
+});
 
 vi.mock("@/lib/providers/organization-language-model", () => ({
   resolveHyperlocaliseAgentLanguageModel: resolveHyperlocaliseAgentLanguageModelMock,
@@ -144,6 +161,12 @@ describe("repositoryAgentWorkflow", () => {
       organizationId: "org_1",
     });
     expect(toolLoopAgentCtor).toHaveBeenCalledWith(expect.objectContaining({ model: ownModel }));
+    expect(meteringSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        aiCreditModelId: "anthropic/claude-sonnet-5",
+        aiCreditCredentialSource: "byok",
+      }),
+    );
   });
 
   it("cleans up disposable sandbox runs", async () => {

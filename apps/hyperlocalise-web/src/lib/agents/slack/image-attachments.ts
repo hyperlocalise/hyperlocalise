@@ -19,7 +19,6 @@ import {
   localizeImageAttachment,
   type ImageLocalizationAttachment,
 } from "@/lib/agents/image-localization";
-import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 
 import {
   createStoredSlackImageAttachment,
@@ -56,7 +55,14 @@ type InterpretSlackImageRequestInput = {
 };
 
 type InterpretSlackImageRequestOptions = {
-  organizationId?: string;
+  model: LanguageModel;
+};
+
+const unreadSlackImageRequestIntent: SlackImageRequestIntent = {
+  targetLocale: null,
+  instructions: null,
+  confidence: 0,
+  missingFields: ["targetLocale"],
 };
 
 type SlackImageStorageContext = {
@@ -143,16 +149,19 @@ export function createSlackImageRequestInterpreter({
   };
 }
 
+/** Reads the request; when the model call fails, returns an intent with no target locale. */
 export async function interpretSlackImageRequest(
   input: InterpretSlackImageRequestInput,
-  options: InterpretSlackImageRequestOptions = {},
-) {
-  const { model } = await resolveHyperlocaliseAgentLanguageModel({
-    organizationId: options.organizationId,
-  });
-  const interpret = createSlackImageRequestInterpreter({ model });
-
-  return interpret(input);
+  options: InterpretSlackImageRequestOptions,
+): Promise<SlackImageRequestIntent> {
+  try {
+    return await createSlackImageRequestInterpreter({ model: options.model })(input);
+  } catch (error) {
+    console.warn("Failed to read Slack image request", {
+      error: error instanceof Error ? error.name : "unknown",
+    });
+    return unreadSlackImageRequestIntent;
+  }
 }
 
 export function getSlackImageAttachments(message: Message): ImageLocalizationAttachment[] {
@@ -181,6 +190,7 @@ function buildLocalizedImageReplyMessage(imageName: string | undefined, targetLo
 }
 
 export type HandleSlackImageAttachmentsOptions = {
+  model: LanguageModel;
   imageAttachments?: ImageLocalizationAttachment[];
   conversationMessages?: SlackImageIntentMessage[];
   threadState?: SlackBotThreadState | null;
@@ -320,7 +330,7 @@ async function localizeSlackImageSources(input: {
 export async function handleSlackImageAttachments(
   thread: SlackImageThread,
   message: Message,
-  options: HandleSlackImageAttachmentsOptions = {},
+  options: HandleSlackImageAttachmentsOptions,
 ) {
   const imageAttachments = options.imageAttachments ?? getSlackImageAttachments(message);
   const conversationMessages = options.conversationMessages ?? [];
@@ -330,7 +340,7 @@ export async function handleSlackImageAttachments(
 
   const intent = await interpretSlackImageRequest(
     { text: message.text, messages: conversationMessages },
-    { organizationId: options.storage?.organizationId },
+    { model: options.model },
   );
   const targetLocale = intent.targetLocale;
   const threadState = options.threadState ?? null;
@@ -432,6 +442,7 @@ export async function handleSlackImageFollowUp(
   thread: SlackImageThread,
   message: Message,
   options: {
+    model: LanguageModel;
     conversationMessages?: SlackImageIntentMessage[];
     threadState?: SlackBotThreadState | null;
     storage: SlackImageStorageContext;
@@ -446,7 +457,7 @@ export async function handleSlackImageFollowUp(
 
   const intent = await interpretSlackImageRequest(
     { text: message.text, messages: options.conversationMessages ?? [] },
-    { organizationId: options.storage.organizationId },
+    { model: options.model },
   );
 
   if (!intent.targetLocale) {

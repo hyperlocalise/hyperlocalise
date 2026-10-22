@@ -159,27 +159,52 @@ export function createClarificationInterpreter({ model }: CreateEmailRequestInte
   };
 }
 
+/** A translate request with no locales, so the sender is asked for the target locale. */
+const unreadEmailRequestIntent: EmailRequestIntent = {
+  kind: "translate",
+  sourceLocale: null,
+  targetLocale: null,
+  instructions: null,
+  confidence: 0,
+  missingFields: ["targetLocale"],
+};
+
+function warnUnreadEmailRequest(error: unknown) {
+  console.warn("Failed to read email request", {
+    error: error instanceof Error ? error.name : "unknown",
+  });
+}
+
 export async function interpretEmailRequest(input: {
   subject: string;
   text: string;
-  organizationId?: string;
+  organizationId: string;
 }): Promise<EmailRequestIntent> {
-  const { model } = await resolveHyperlocaliseAgentLanguageModel({
-    organizationId: input.organizationId,
-  });
-  const interpret = createEmailRequestInterpreter({ model });
-
-  return interpret({ subject: input.subject, text: input.text });
+  try {
+    const { model } = await resolveHyperlocaliseAgentLanguageModel({
+      organizationId: input.organizationId,
+    });
+    return await createEmailRequestInterpreter({ model })({
+      subject: input.subject,
+      text: input.text,
+    });
+  } catch (error) {
+    warnUnreadEmailRequest(error);
+    return unreadEmailRequestIntent;
+  }
 }
 
 export async function interpretClarificationReply(input: {
   text: string;
-  organizationId?: string;
+  organizationId: string;
 }): Promise<EmailRequestIntent> {
-  const { model } = await resolveHyperlocaliseAgentLanguageModel({
-    organizationId: input.organizationId,
-  });
-  const interpret = createClarificationInterpreter({ model });
-
-  return interpret({ text: input.text });
+  try {
+    const { model } = await resolveHyperlocaliseAgentLanguageModel({
+      organizationId: input.organizationId,
+    });
+    return await createClarificationInterpreter({ model })({ text: input.text });
+  } catch (error) {
+    warnUnreadEmailRequest(error);
+    return unreadEmailRequestIntent;
+  }
 }

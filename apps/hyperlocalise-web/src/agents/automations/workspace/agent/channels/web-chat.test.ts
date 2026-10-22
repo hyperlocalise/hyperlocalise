@@ -25,6 +25,7 @@ const {
   createRecallKnowledgeFilesToolMock,
   toolLoopAgentMock,
   getHyperlocaliseAgentModelMock,
+  resolveLanguageModelMock,
 } = vi.hoisted(() => ({
   listRecentWebChatMessagesMock: vi.fn(),
   listWorkspaceAutomationKnowledgeFileContentsMock: vi.fn(),
@@ -36,6 +37,7 @@ const {
   createRecallKnowledgeFilesToolMock: vi.fn((_input?: unknown) => ({ execute: vi.fn() })),
   toolLoopAgentMock: vi.fn(),
   getHyperlocaliseAgentModelMock: vi.fn(() => "test-model"),
+  resolveLanguageModelMock: vi.fn(),
 }));
 
 vi.mock("ai", async (importOriginal) => {
@@ -80,11 +82,8 @@ vi.mock("@/lib/database/client", async (importOriginal) => {
 });
 
 vi.mock("@/lib/providers/organization-language-model", () => ({
-  resolveHyperlocaliseAgentLanguageModel: async () => ({
-    model: getHyperlocaliseAgentModelMock(),
-    source: "gateway",
-    modelId: "openai/test-model",
-  }),
+  resolveHyperlocaliseAgentLanguageModel: (input: { organizationId?: string }) =>
+    resolveLanguageModelMock(input),
 }));
 
 vi.mock("../tools/recall_knowledge_files", () => ({
@@ -135,6 +134,11 @@ async function readSseText(response: Response) {
 
 describe("createWebChatAgentUIStreamResponse", () => {
   beforeEach(() => {
+    resolveLanguageModelMock.mockImplementation(async () => ({
+      model: getHyperlocaliseAgentModelMock(),
+      source: "gateway",
+      modelId: "openai/test-model",
+    }));
     vi.clearAllMocks();
     reserveAgentRuntimeUsageMock.mockResolvedValue(true);
     trackSucceededAgentRuntimeUsageMock.mockResolvedValue(undefined);
@@ -254,6 +258,61 @@ describe("createWebChatAgentUIStreamResponse", () => {
       },
     ]);
     expect(getStored).toHaveBeenCalledWith({ keyOrUrl: "files/file-new" });
+  });
+
+  it("runs on the workspace's own model", async () => {
+    listRecentWebChatMessagesMock.mockResolvedValue([
+      { id: "msg-1", senderType: "user", text: "hello", attachments: [] },
+    ]);
+    const ownModel = { modelId: "claude-sonnet-5" };
+    resolveLanguageModelMock.mockResolvedValueOnce({
+      model: ownModel,
+      source: "anthropic",
+      modelId: "anthropic/claude-sonnet-5",
+    });
+    let capturedModel: unknown;
+    toolLoopAgentMock.mockImplementation(function ToolLoopAgent(settings: { model?: unknown }) {
+      capturedModel = settings.model;
+      return {
+        stream: vi.fn().mockResolvedValue({
+          toUIMessageStream: () =>
+            new ReadableStream({
+              start(controller) {
+                controller.close();
+              },
+            }),
+        }),
+      };
+    });
+
+    await readSseText(
+      createWebChatAgentUIStreamResponse({
+        conversationId: "conv-1",
+        lastUserMessageId: "msg-1",
+        automation: automation(),
+      }),
+    );
+
+    expect(resolveLanguageModelMock).toHaveBeenCalledWith({ organizationId: "org-1" });
+    expect(capturedModel).toBe(ownModel);
+  });
+
+  it("reserves no usage when the workspace key cannot be loaded", async () => {
+    listRecentWebChatMessagesMock.mockResolvedValue([
+      { id: "msg-1", senderType: "user", text: "hello", attachments: [] },
+    ]);
+    resolveLanguageModelMock.mockRejectedValueOnce(new Error("credential is incomplete"));
+
+    await readSseText(
+      createWebChatAgentUIStreamResponse({
+        conversationId: "conv-1",
+        lastUserMessageId: "msg-1",
+        automation: automation(),
+      }),
+    );
+
+    expect(reserveAgentRuntimeUsageMock).not.toHaveBeenCalled();
+    expect(toolLoopAgentMock).not.toHaveBeenCalled();
   });
 
   it("omits recall_knowledge_files when knowledge files are disabled", async () => {

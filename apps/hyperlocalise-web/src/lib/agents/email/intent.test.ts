@@ -14,10 +14,16 @@ import "dotenv/config";
 
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { createClarificationInterpreter, createEmailRequestInterpreter } from "./intent";
+import {
+  createClarificationInterpreter,
+  createEmailRequestInterpreter,
+  interpretClarificationReply,
+  interpretEmailRequest,
+} from "./intent";
 
-const { generateTextMock } = vi.hoisted(() => ({
+const { generateTextMock, resolveHyperlocaliseAgentLanguageModelMock } = vi.hoisted(() => ({
   generateTextMock: vi.fn(),
+  resolveHyperlocaliseAgentLanguageModelMock: vi.fn(),
 }));
 
 vi.mock("ai", async () => {
@@ -31,6 +37,10 @@ vi.mock("ai", async () => {
 
 vi.mock("@/lib/env", () => ({
   env: {},
+}));
+
+vi.mock("@/lib/providers/organization-language-model", () => ({
+  resolveHyperlocaliseAgentLanguageModel: resolveHyperlocaliseAgentLanguageModelMock,
 }));
 
 function expectGenerateTextUsesInstructions(expectedInstructions: string) {
@@ -178,5 +188,71 @@ describe("createEmailRequestInterpreter", () => {
       missingFields: [],
     });
     expectGenerateTextUsesInstructions("clarification reply");
+  });
+});
+
+describe("interpretEmailRequest", () => {
+  const unreadIntent = {
+    kind: "translate",
+    sourceLocale: null,
+    targetLocale: null,
+    instructions: null,
+    confidence: 0,
+    missingFields: ["targetLocale"],
+  };
+
+  it("reads the request with the workspace's model", async () => {
+    const ownModel = { modelId: "claude-sonnet-5" };
+    resolveHyperlocaliseAgentLanguageModelMock.mockResolvedValueOnce({
+      model: ownModel,
+      source: "anthropic",
+      modelId: "anthropic/claude-sonnet-5",
+    });
+    generateTextMock.mockResolvedValueOnce({
+      output: {
+        kind: "translate",
+        sourceLocale: "en",
+        targetLocale: "fr",
+        instructions: null,
+        confidence: 0.9,
+        missingFields: [],
+      },
+    });
+
+    const intent = await interpretEmailRequest({
+      subject: "Translate",
+      text: "English to French",
+      organizationId: "org_1",
+    });
+
+    expect(resolveHyperlocaliseAgentLanguageModelMock).toHaveBeenCalledWith({
+      organizationId: "org_1",
+    });
+    expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({ model: ownModel }));
+    expect(intent.targetLocale).toBe("fr");
+  });
+
+  it("asks for the target locale when the workspace key cannot be loaded", async () => {
+    resolveHyperlocaliseAgentLanguageModelMock.mockRejectedValueOnce(
+      new Error("organization provider credential is incomplete"),
+    );
+
+    await expect(
+      interpretEmailRequest({ subject: "Translate", text: "Please", organizationId: "org_1" }),
+    ).resolves.toEqual(unreadIntent);
+    expect(generateTextMock).not.toHaveBeenCalled();
+  });
+
+  it("asks for the target locale when the model call fails", async () => {
+    resolveHyperlocaliseAgentLanguageModelMock.mockResolvedValueOnce({
+      model: { modelId: "llama" },
+      source: "groq",
+      modelId: "groq/llama",
+    });
+    generateTextMock.mockRejectedValueOnce(new Error("response_format is not supported"));
+
+    await expect(
+      interpretClarificationReply({ text: "French please", organizationId: "org_1" }),
+    ).resolves.toEqual(unreadIntent);
   });
 });

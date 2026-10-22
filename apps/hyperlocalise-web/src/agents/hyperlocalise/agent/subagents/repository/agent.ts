@@ -41,6 +41,7 @@ ${SUBAGENT_NO_QUESTIONS_RULES}`;
 export const REPOSITORY_SYSTEM_PROMPT = buildRepositorySystemPrompt();
 
 export const repositorySubagent = new ToolLoopAgent({
+  // Replaced in prepareCall by the calling workspace's model.
   model: getHyperlocaliseAgentModel(),
   instructions: REPOSITORY_SYSTEM_PROMPT,
   stopWhen: isStepCount(SUBAGENT_STEP_LIMIT),

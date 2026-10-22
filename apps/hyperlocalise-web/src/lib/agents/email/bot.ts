@@ -632,7 +632,7 @@ async function handlePendingClarification(input: {
   message: Message;
   pending: PendingEmailAgentTask;
   dependencies: EmailHandlerDependencies;
-  organizationId?: string;
+  organizationId: string;
   conversationId?: string;
 }) {
   const { thread, message, pending, dependencies, organizationId, conversationId } = input;
