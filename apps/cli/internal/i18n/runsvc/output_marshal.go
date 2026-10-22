@@ -38,6 +38,8 @@ func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale
 	case ".pptx":
 		content, err := s.marshalOfficeTarget(path, sourcePath, values, translationfileparser.MarshalPPTX)
 		return content, nil, err
+	case ".pdf":
+		return s.marshalPDFTarget(path, sourcePath, values)
 	default:
 		return nil, nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
 	}
@@ -333,6 +335,22 @@ func (s *Service) marshalOfficeTarget(path, sourcePath string, values map[string
 		return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 	}
 	return content, nil
+}
+
+func (s *Service) marshalPDFTarget(path, sourcePath string, values map[string]string) ([]byte, []string, error) {
+	sourceTemplate, err := s.readProjectFile(sourcePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+	}
+	content, overflow, err := translationfileparser.MarshalPDF(sourceTemplate, values, "")
+	if err != nil {
+		return nil, nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+	}
+	var warnings []string
+	if len(overflow) > 0 {
+		warnings = []string{fmt.Sprintf("pdf text overflow for %d blocks in %q (keys: %s)", len(overflow), path, strings.Join(overflow, ", "))}
+	}
+	return content, warnings, nil
 }
 
 func isJSTSLocaleModuleExt(ext string) bool {

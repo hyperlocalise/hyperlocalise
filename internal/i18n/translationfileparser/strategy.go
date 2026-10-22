@@ -81,6 +81,7 @@ func NewDefaultStrategy() *Strategy {
 	parsers[".xlsx"] = XLSXParser{}
 	parsers[".docx"] = DOCXParser{}
 	parsers[".pptx"] = PPTXParser{}
+	parsers[".pdf"] = PDFParser{}
 	parsers[".txt"] = PlainTextParser{}
 
 	for _, ext := range JSTSLocaleModuleExts {
@@ -269,6 +270,12 @@ func (s *Strategy) ParseIngestEntriesWithSourceLocale(path string, content []byt
 			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
 		}
 		return ooxmlIngestEntries(entries), nil
+	case ".pdf":
+		entries, err := ReadPDFEntries(content)
+		if err != nil {
+			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return pdfIngestEntries(entries), nil
 	case ".xcstrings":
 		parser, ok := s.parsersByExt[ext].(XCStringsParser)
 		if !ok {

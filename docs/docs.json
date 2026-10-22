@@ -343,6 +343,7 @@
                           "cli/reference/formats/tsv",
                           "cli/reference/formats/xlsx",
                           "cli/reference/formats/docx",
+                          "cli/reference/formats/pdf",
                           "cli/reference/formats/pptx",
                           "cli/reference/formats/toml"
                         ]

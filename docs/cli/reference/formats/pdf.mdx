@@ -1,0 +1,34 @@
+---
+title: "Translate PDF documents with Hyperlocalise"
+sidebarTitle: "PDF documents"
+description: "Translate PDF files block by block and generate a target PDF with translated text in place."
+---
+
+Hyperlocalise reads the native text layer of a PDF, creates one segment per text
+block, and writes approved translations back into a copy of the source file.
+
+Supported extension: `.pdf`. Scanned PDFs without selectable text fail ingest.
+
+## What is translated
+
+- Text drawn on each page as PDF text objects, grouped into blocks by layout.
+- Keys look like `page-1#1` (page 1, block 1). Context reads `Page 1, block 1`.
+
+Text inside form XObjects, annotations, and form fields is not extracted.
+
+## Target PDF
+
+The CLI writes a target `application/pdf` from ready segment translations.
+Blocks that cannot fit after wrapping and font scaling are still written with
+the best-effort layout, then listed as overflow keys.
+
+## Configure your files
+
+Use one PDF per locale with a [path template](/cli/configuration/path-templates):
+
+```yaml
+files:
+  - source: content/handbook.pdf
+    targets:
+      - locales: [fr-FR, de-DE]
+```
