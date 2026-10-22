@@ -205,10 +205,10 @@ async function loadWorkspaceRoster(
 
 /**
  * Takes the next person in turn for one rule. The cursor row is locked for the pick, so runs at
- * the same time take different people, and a retry of the step run that made the last pick gets
- * that person again instead of moving the turn on.
+ * the same time take different people. Each step run stores its own pick, so a retry still gets
+ * that person after a later run has already moved the cursor.
  */
-async function takeTurn(input: {
+export async function takeRoundRobinTurn(input: {
   visualWorkflowId: string;
   nodeId: string;
   ruleId: string;
@@ -216,7 +216,8 @@ async function takeTurn(input: {
   stepKey?: string;
 }): Promise<string> {
   const cursors = schema.visualWorkflowAssignmentCursors;
-  const key = and(
+  const picks = schema.visualWorkflowAssignmentPicks;
+  const cursorKey = and(
     eq(cursors.workflowId, input.visualWorkflowId),
     eq(cursors.nodeId, input.nodeId),
     eq(cursors.ruleId, input.ruleId),
@@ -231,24 +232,43 @@ async function takeTurn(input: {
       })
       .onConflictDoNothing();
     const [cursor] = await tx
-      .select({ last: cursors.lastAssigneeId, lastStepKey: cursors.lastStepKey })
+      .select({ last: cursors.lastAssigneeId })
       .from(cursors)
-      .where(key)
+      .where(cursorKey)
       .for("update");
-    const last = cursor?.last ?? null;
-    if (
-      input.stepKey &&
-      cursor?.lastStepKey === input.stepKey &&
-      last &&
-      input.pool.includes(last)
-    ) {
-      return last;
+    if (input.stepKey) {
+      const [existing] = await tx
+        .select({ assigneeId: picks.assigneeId })
+        .from(picks)
+        .where(
+          and(
+            eq(picks.workflowId, input.visualWorkflowId),
+            eq(picks.nodeId, input.nodeId),
+            eq(picks.ruleId, input.ruleId),
+            eq(picks.stepKey, input.stepKey),
+          ),
+        );
+      if (existing && input.pool.includes(existing.assigneeId)) {
+        return existing.assigneeId;
+      }
     }
-    const next = nextInRotation(input.pool, last);
-    await tx
-      .update(cursors)
-      .set({ lastAssigneeId: next, lastStepKey: input.stepKey ?? null })
-      .where(key);
+    const next = nextInRotation(input.pool, cursor?.last ?? null);
+    await tx.update(cursors).set({ lastAssigneeId: next }).where(cursorKey);
+    if (input.stepKey) {
+      await tx
+        .insert(picks)
+        .values({
+          workflowId: input.visualWorkflowId,
+          nodeId: input.nodeId,
+          ruleId: input.ruleId,
+          stepKey: input.stepKey,
+          assigneeId: next,
+        })
+        .onConflictDoUpdate({
+          target: [picks.workflowId, picks.nodeId, picks.ruleId, picks.stepKey],
+          set: { assigneeId: next },
+        });
+    }
     return next;
   });
 }
@@ -325,7 +345,7 @@ export async function runPickAssigneeAction(input: {
   if (input.strategy === "least_busy") {
     assignee = leastBusy(pool, openJobs);
   } else if (input.strategy === "round_robin" && input.visualWorkflowId) {
-    assignee = await takeTurn({
+    assignee = await takeRoundRobinTurn({
       visualWorkflowId: input.visualWorkflowId,
       nodeId: input.nodeId,
       ruleId: matched?.rule.id ?? FALLBACK_RULE_ID,

@@ -77,12 +77,31 @@ export const visualWorkflowAssignmentCursors = pgTable(
     ruleId: text("rule_id").notNull(),
     // A WorkOS user ID or a Crowdin user ID, by where the step's people come from.
     lastAssigneeId: text("last_assignee_id"),
-    // The step run that made the last pick, so a retry of that run gets the same person.
-    lastStepKey: text("last_step_key"),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdateFn(() => new Date()),
   },
   (table) => [primaryKey({ columns: [table.workflowId, table.nodeId, table.ruleId] })],
+);
+
+/**
+ * The person a round-robin step already chose for one step run. Retries look this up so a later
+ * run that moved the cursor cannot make the same step pick again.
+ */
+export const visualWorkflowAssignmentPicks = pgTable(
+  "visual_workflow_assignment_picks",
+  {
+    workflowId: uuid("workflow_id")
+      .notNull()
+      .references(() => visualWorkflows.id, { onDelete: "cascade" }),
+    nodeId: text("node_id").notNull(),
+    ruleId: text("rule_id").notNull(),
+    stepKey: text("step_key").notNull(),
+    assigneeId: text("assignee_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workflowId, table.nodeId, table.ruleId, table.stepKey] }),
+  ],
 );
