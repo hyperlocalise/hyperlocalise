@@ -86,6 +86,7 @@ describe("localizeAndStoreDocumentVariant metering", () => {
         tokenUsage: usage,
         modelId: "openai/gpt-6-luna",
         credentialSource: "gateway",
+        projectId: "proj_1",
       },
       { defer: undefined },
     );

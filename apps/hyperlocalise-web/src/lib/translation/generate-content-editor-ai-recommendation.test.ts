@@ -101,6 +101,7 @@ describe("generateContentEditorAiRecommendation metering", () => {
         tokenUsage: { inputTokens: 1200, outputTokens: 30, totalTokens: 1230 },
         modelId: "anthropic/claude-sonnet-5.5",
         credentialSource: "byok",
+        projectId: "proj_1",
       },
       { defer: undefined },
     );

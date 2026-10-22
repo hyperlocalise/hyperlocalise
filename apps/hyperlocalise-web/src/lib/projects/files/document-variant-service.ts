@@ -153,6 +153,7 @@ export async function localizeAndStoreDocumentVariant(input: {
         tokenUsage: extractAiSdkTokenUsage(result.usage),
         modelId: languageModel.modelId,
         credentialSource: credentialSourceForLanguageModel(languageModel),
+        projectId: input.projectId,
       },
       { defer: input.deferBilling },
     );

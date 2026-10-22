@@ -665,6 +665,7 @@ export async function generateContentEditorAiRecommendation(
           tokenUsage: extractAiSdkTokenUsage(usage),
           modelId: modelResult.modelId,
           credentialSource: modelResult.credentialSource,
+          projectId: input.projectId,
         },
         { defer: options?.deferBilling },
       );

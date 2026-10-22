@@ -64,6 +64,7 @@ describe("executeTranslateString", () => {
     expect(trackStringTranslationTokenUsageMock).toHaveBeenCalledWith({
       organizationId: "org_1",
       source: "chat_translate_string",
+      projectId: "proj_1",
       tokenUsage,
     });
   });

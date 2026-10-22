@@ -31,6 +31,7 @@ export async function extractImageText(input: {
   content: Uint8Array;
   contentType: string;
   organizationId: string;
+  projectId?: string;
   fileId: string;
   signal?: AbortSignal;
 }): Promise<Result<ImageTextRegion[], { code: "image_text_extraction_failed" }>> {
@@ -39,7 +40,11 @@ export async function extractImageText(input: {
       organizationId: input.organizationId,
       operationKey: `image-text-extraction:${input.fileId}:${crypto.randomUUID()}`,
       source: "image_text_extraction",
-      dimensions: { surface: "image", file_id: input.fileId },
+      dimensions: {
+        surface: "image",
+        file_id: input.fileId,
+        ...(input.projectId ? { project_id: input.projectId } : {}),
+      },
       run: async () => {
         const result = await generateText({
           model: getManagedLanguageModel(),

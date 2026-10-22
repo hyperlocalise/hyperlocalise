@@ -30,7 +30,7 @@ vi.mock("@/lib/billing/agent-runtime-usage", async (importOriginal) => {
 import { runSubagent } from "./run-subagent";
 
 const options = {
-  toolContext: { organizationId: "org_1" },
+  toolContext: { organizationId: "org_1", projectId: "proj_1" },
   task: "Find context",
   instructions: "Search the repository.",
 } as never;
@@ -65,6 +65,7 @@ describe("runSubagent", () => {
       tokenUsage: usage,
       modelId: "openai/gpt-6-luna",
       credentialSource: "gateway",
+      projectId: "proj_1",
     });
   });
 

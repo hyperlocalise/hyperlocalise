@@ -56,6 +56,7 @@ export async function runSubagent(
     tokenUsage: extractGenerateResultTokenUsage(result),
     modelId: languageModel.modelId,
     credentialSource: credentialSourceForLanguageModel(languageModel),
+    projectId: options.toolContext.projectId,
   });
   return { text: result.text };
 }

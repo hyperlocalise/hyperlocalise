@@ -325,6 +325,8 @@ export type AiCallTokenUsageInput = {
   modelId: string;
   credentialSource: AiCreditCredentialSource;
   interactionId?: string | null;
+  /** Stored as `project_id` so Reports can place the call in its project. */
+  projectId?: string | null;
 };
 
 /**
@@ -354,6 +356,7 @@ export async function trackAiCallTokenUsage(
 export async function trackStringTranslationTokenUsage(input: {
   organizationId: string;
   source: string;
+  projectId?: string | null;
   tokenUsage:
     | (AiTokenUsage & { modelId?: string; credentialSource?: AiCreditCredentialSource })
     | null
@@ -370,6 +373,7 @@ export async function trackStringTranslationTokenUsage(input: {
     tokenUsage,
     modelId: tokenUsage.modelId,
     credentialSource: tokenUsage.credentialSource,
+    projectId: input.projectId,
   });
 }
 
@@ -386,6 +390,7 @@ async function recordAiCallTokenUsage(input: AiCallTokenUsageInput & { tokenUsag
       modelId: input.modelId,
       credentialSource: input.credentialSource,
       interactionId: input.interactionId ?? undefined,
+      dimensions: input.projectId ? { project_id: input.projectId } : undefined,
     });
 
     if (isErr(result)) {

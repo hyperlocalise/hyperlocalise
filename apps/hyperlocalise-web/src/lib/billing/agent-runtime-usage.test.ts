@@ -490,4 +490,23 @@ describe("agent-runtime-usage", () => {
       expect.objectContaining({ modelId: "openai/gpt-6-luna", credentialSource: "gateway" }),
     );
   });
+
+  it("stores the call's project on its token row for Reports", async () => {
+    trackAiCreditUsageInAutumnMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
+    const call = {
+      organizationId: "org_123",
+      source: "content_editor_ai_suggestion",
+      tokenUsage: { inputTokens: 10, outputTokens: 2, totalTokens: 12 },
+      modelId: "openai/gpt-6-luna",
+      credentialSource: "gateway" as const,
+    };
+
+    await trackAiCallTokenUsage({ ...call, projectId: "proj_1" });
+    await trackAiCallTokenUsage(call);
+
+    expect(trackAiCreditUsageInAutumnMock.mock.calls.map(([input]) => input.dimensions)).toEqual([
+      { project_id: "proj_1" },
+      undefined,
+    ]);
+  });
 });

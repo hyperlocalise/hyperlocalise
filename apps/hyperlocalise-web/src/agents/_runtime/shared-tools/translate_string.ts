@@ -75,6 +75,7 @@ export async function executeTranslateString(
   await trackStringTranslationTokenUsage({
     organizationId: organizationId,
     source: "chat_translate_string",
+    projectId: input.projectId,
     tokenUsage: result.tokenUsage,
   });
 

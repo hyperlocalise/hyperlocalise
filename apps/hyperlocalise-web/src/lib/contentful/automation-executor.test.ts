@@ -125,6 +125,7 @@ describe("contentful automation executor", () => {
     expect(mocks.trackStringTranslationTokenUsage).toHaveBeenCalledWith({
       organizationId: "org-1",
       source: "contentful_field_translation",
+      projectId: "project-1",
       tokenUsage,
     });
   });

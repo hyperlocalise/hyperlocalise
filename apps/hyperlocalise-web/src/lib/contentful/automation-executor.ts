@@ -365,6 +365,7 @@ export async function translateTextUnit(input: {
   await trackStringTranslationTokenUsage({
     organizationId: input.organizationId,
     source: "contentful_field_translation",
+    projectId: input.projectId,
     tokenUsage: result.tokenUsage,
   });
 

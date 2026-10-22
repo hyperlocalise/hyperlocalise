@@ -528,6 +528,7 @@ async function processSlackMessage(
       surface: "slack",
       agent_surface: "chat",
       repository_tools: Boolean(sandboxId),
+      ...(projectId ? { project_id: projectId } : {}),
     };
     await reserveAgentRuntimeUsage({
       organizationId,
