@@ -567,6 +567,7 @@ func TestOrgJobReadsShape(t *testing.T) {
 	require.Equal(t, "Project", native["projectName"])
 	require.Equal(t, nativeProjectID, native["projectId"])
 	require.Equal(t, "string", native["type"])
+	require.Contains(t, native, "dueAt")
 
 	rec = f.get(t, "/jobs/"+nativeID)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
@@ -577,7 +578,9 @@ func TestOrgJobReadsShape(t *testing.T) {
 	require.Equal(t, nativeID, detail.Job["id"])
 	require.Equal(t, "Project", detail.Job["projectName"])
 	require.Contains(t, detail.Job, "sourceFilename")
-	require.Len(t, detail.Job, 43)
+	require.Contains(t, detail.Job, "dueAt")
+	require.Nil(t, detail.Job["dueAt"])
+	require.Len(t, detail.Job, 44)
 
 	requireProjectJobsError(t, f.get(t, "/jobs/"+url.PathEscape(mirrorID)), http.StatusNotFound, "job_not_found", "Job not found")
 }
