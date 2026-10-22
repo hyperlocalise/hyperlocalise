@@ -55,47 +55,42 @@ export function findProjectFileProgress(
   );
 }
 
-function percentColor(percent: number, color: string) {
-  return percent > 0 ? color : MUTED_COLOR;
+function progressColor(progress: ProjectFileProgressRecord) {
+  if (progress.approvalProgress >= 100) return APPROVED_COLOR;
+  if (progress.translationProgress > 0) return TRANSLATED_COLOR;
+  return MUTED_COLOR;
 }
 
 /**
- * Crowdin-style row decoration: translated % in blue, approved % in green, and a
- * muted marker for files whose strings are all hidden. Returns null when there is
- * nothing to show so callers can fall back to their own decoration.
+ * Row decoration: a muted "Hidden" marker for files whose strings are all hidden,
+ * otherwise the translated % (green once fully approved). The tooltip carries the
+ * translated and approved split. Returns null when there is nothing to show so
+ * callers can fall back to their own decoration.
  */
 export function buildProjectFileProgressDecoration(
   file: ProjectFileRecord,
   progress: ProjectFileProgressRecord | null,
   intl: IntlShape,
 ): FileTreeRowDecoration | null {
-  const hiddenLabel = intl.formatMessage(messages.hidden);
-  const hiddenTitle = intl.formatMessage(messages.hiddenTitle);
-
-  if (!progress) {
-    return file.isHidden ? { text: hiddenLabel, title: hiddenTitle } : null;
+  if (file.isHidden) {
+    return {
+      text: intl.formatMessage(messages.hidden),
+      title: intl.formatMessage(messages.hiddenTitle),
+    };
   }
 
-  const translated = `${progress.translationProgress}%`;
-  const approved = `${progress.approvalProgress}%`;
-  const parts = [
-    ...(file.isHidden ? [{ text: `${hiddenLabel} · `, color: MUTED_COLOR }] : []),
-    { text: translated, color: percentColor(progress.translationProgress, TRANSLATED_COLOR) },
-    { text: " · ", color: MUTED_COLOR },
-    { text: approved, color: percentColor(progress.approvalProgress, APPROVED_COLOR) },
-  ];
-  const progressTitle =
-    progress.phrases.total === 0
-      ? intl.formatMessage(messages.progressEmptyTitle)
-      : intl.formatMessage(messages.progressTitle, {
-          translated: progress.translationProgress,
-          approved: progress.approvalProgress,
-          total: progress.phrases.total,
-        });
+  if (!progress || progress.phrases.total === 0) {
+    return null;
+  }
 
+  const text = `${progress.translationProgress}%`;
   return {
-    text: parts.map((part) => part.text).join(""),
-    title: file.isHidden ? `${hiddenTitle}\n${progressTitle}` : progressTitle,
-    parts,
+    text,
+    title: intl.formatMessage(messages.progressTitle, {
+      translated: progress.translationProgress,
+      approved: progress.approvalProgress,
+      total: progress.phrases.total,
+    }),
+    parts: [{ text, color: progressColor(progress) }],
   };
 }

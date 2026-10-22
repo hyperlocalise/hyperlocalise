@@ -42,6 +42,9 @@ export const TREE_HEIGHT_PX = 480;
 
 const NO_FILE_PROGRESS: readonly ProjectFileProgressRecord[] = [];
 
+/** Let the progress badge keep its width; long file names middle-truncate instead. */
+const PROJECT_FILES_TREE_UNSAFE_CSS = `[data-item-section="decoration"] { flex: 1 0 auto; }`;
+
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
@@ -73,6 +76,8 @@ function buildProjectFilesTreeStyle(fillHeight: boolean): CSSProperties {
     "--trees-selected-bg-override": "var(--muted)",
     "--trees-selected-fg-override": "var(--foreground)",
     "--trees-selected-focused-border-color-override": "var(--ring)",
+    "--trees-git-ignored-color-override": "var(--muted-foreground)",
+    "--trees-git-lane-width-override": "0px",
   } as CSSProperties;
 }
 
@@ -190,6 +195,13 @@ function ProjectFilesTreeView({
   const progressLookup = useMemo(
     () => buildProjectFileProgressLookup(fileProgress),
     [fileProgress],
+  );
+  const hiddenGitStatus = useMemo(
+    () =>
+      displayFiles.flatMap((file) =>
+        file.isHidden ? [{ path: file.sourcePath, status: "ignored" as const }] : [],
+      ),
+    [displayFiles],
   );
   const selectedPaths =
     selectedSourcePath && fileByPath.has(selectedSourcePath) ? [selectedSourcePath] : [];
@@ -315,6 +327,7 @@ function ProjectFilesTreeView({
     initialVisibleRowCount: Math.max(paths.length, 8),
     icons: PROJECT_FILES_TREE_ICONS,
     paths,
+    unsafeCSS: PROJECT_FILES_TREE_UNSAFE_CSS,
     search: !hasExternalSearch,
     searchBlurBehavior: "retain",
     fileTreeSearchMode: "hide-non-matches",
@@ -389,6 +402,11 @@ function ProjectFilesTreeView({
 
     model.setSearch(searchQuery.trim() || null);
   }, [model, paths, searchQuery]);
+
+  // Pierre's "ignored" git status dims the row name and icon, like gitignored files.
+  useEffect(() => {
+    model.setGitStatus(hiddenGitStatus.length > 0 ? hiddenGitStatus : undefined);
+  }, [model, hiddenGitStatus]);
 
   // Pierre has no decoration refresh API; re-setting icons re-renders every row.
   useEffect(() => {

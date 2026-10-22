@@ -106,17 +106,12 @@ export async function fetchProjectFiles(
   limit: number = PROJECT_FILES_PAGE_SIZE,
   branch?: string | null,
   loadFailedMessage = "Failed to load project files",
-  options?: { includeHidden?: boolean },
 ) {
   const trimmedBranch = branch?.trim();
   if (parseProviderProjectId(projectId)) {
     const params = new URLSearchParams({ limit: String(limit) });
     if (trimmedBranch) {
       params.set("branch", trimmedBranch);
-    }
-    // Native files always carry `isHidden`; TMS files only resolve it on request.
-    if (options?.includeHidden) {
-      params.set("includeHidden", "true");
     }
 
     const response = await fetch(`${apiPath(organizationSlug, projectId)}?${params.toString()}`, {
@@ -173,6 +168,43 @@ export async function fetchProjectFileProgress(
 
   const body = await goSvcClient.project.fileProgress(organizationSlug, projectId, locale);
   return body.files;
+}
+
+export function projectHiddenFilesQueryKey(organizationSlug: string, projectId: string) {
+  return ["project-hidden-files", organizationSlug, projectId] as const;
+}
+
+/** Provider file ids whose strings are all hidden. Native files already carry `isHidden`. */
+export async function fetchProjectHiddenFileIds(
+  organizationSlug: string,
+  projectId: string,
+): Promise<Set<string>> {
+  const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+    "hidden-files"
+  ].$get({
+    param: { organizationSlug, projectId },
+  });
+  if (!response.ok) {
+    throw await readApiResponseError(response, "Failed to load hidden files");
+  }
+  const body = await response.json();
+  return new Set("files" in body ? body.files.map((file) => file.externalResourceId) : []);
+}
+
+/** Flags provider files listed in `hiddenFileIds` as hidden. */
+export function markHiddenProjectFiles(
+  files: ProjectFileRecord[],
+  hiddenFileIds: ReadonlySet<string> | undefined,
+): ProjectFileRecord[] {
+  if (!hiddenFileIds?.size) {
+    return files;
+  }
+  return files.map((file) => {
+    const externalResourceId = file.provider?.externalResourceId;
+    return externalResourceId && hiddenFileIds.has(externalResourceId)
+      ? { ...file, isHidden: true }
+      : file;
+  });
 }
 
 function apiPath(organizationSlug: string, projectId: string) {

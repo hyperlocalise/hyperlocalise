@@ -20351,6 +20351,10 @@
     "defaultMessage": "Your account is signed in, but this workspace invitation has not been confirmed yet.",
     "description": "Access denied page summary when the user has a pending workspace invite"
   },
+  "XcFJwnnrYw": {
+    "defaultMessage": "Search locales",
+    "description": "Placeholder and label for the search box in the CAT header target locale picker"
+  },
   "XcFjhy5gkF": {
     "defaultMessage": "GPT-6 Astra (Fast)",
     "description": "Label for the OpenAI GPT-6 Astra fast automation model"
@@ -24610,6 +24614,10 @@
   "eqeg8nHR3p": {
     "defaultMessage": "Enabled",
     "description": "Badge shown when a Figma connection is enabled"
+  },
+  "erBXPIZo2r": {
+    "defaultMessage": "No matching locales",
+    "description": "Empty state when the CAT header target locale search matches nothing"
   },
   "erXgCbsSqH": {
     "defaultMessage": "Export filtered as CSV",
@@ -34186,10 +34194,6 @@
   "v+BgpDuXDb": {
     "defaultMessage": "Remove from this automation",
     "description": "Button that drops the content types the Contentful connection no longer sends from the automation's saved list"
-  },
-  "v+LCGPo8P8": {
-    "defaultMessage": "No strings to translate",
-    "description": "Tooltip for a file with no translatable strings in the files tree"
   },
   "v//TLtlSQz": {
     "defaultMessage": "Automation Workflow",

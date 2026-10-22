@@ -57,9 +57,4 @@ export const projectFilesTreeMessages = defineMessages({
     description:
       "Tooltip for the translated and approved percentages shown next to a file in the files tree",
   },
-  progressEmptyTitle: {
-    defaultMessage: "No strings to translate",
-    id: "v+LCGPo8P8",
-    description: "Tooltip for a file with no translatable strings in the files tree",
-  },
 });

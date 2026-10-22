@@ -168,6 +168,13 @@ function expectFileMetadataInvalidated(invalidateQueries: { mock: { calls: unkno
       contentEditorApiTestContext.projectId,
     ],
   });
+  expect(invalidateQueries).toHaveBeenCalledWith({
+    queryKey: [
+      "project-hidden-files",
+      contentEditorApiTestContext.organizationSlug,
+      contentEditorApiTestContext.projectId,
+    ],
+  });
 }
 
 afterEach(() => {

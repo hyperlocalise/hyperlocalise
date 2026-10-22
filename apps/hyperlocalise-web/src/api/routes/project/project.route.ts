@@ -89,6 +89,7 @@ import {
   getTmsProviderLiveProjectLocaleReadiness,
   listTmsProviderLiveFileProgress,
   listTmsProviderLiveFilesForProject,
+  listTmsProviderLiveHiddenFiles,
   listTmsProviderLiveProjectBranches,
   saveTmsProviderLiveCatTranslation,
   saveTmsProviderLiveCatComment,
@@ -3980,6 +3981,29 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
       },
     )
+    .get("/:projectId/hidden-files", validateProjectParams, async (c) => {
+      const params = c.req.valid("param");
+      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+      if (target.kind === "provider_unavailable") {
+        return providerProjectUnavailableResponse(c, target);
+      }
+
+      // Native files carry `isHidden` on the file list.
+      if (target.kind !== "provider") {
+        return c.json({ files: [] }, 200);
+      }
+
+      try {
+        const files = await listTmsProviderLiveHiddenFiles(
+          c.var.auth.organization.localOrganizationId,
+          target.externalProjectId,
+          { actorUserId: c.var.auth.user.localUserId },
+        );
+        return c.json({ files }, 200);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
     .get("/:projectId/files", validateProjectParams, validateProjectFilesQuery, async (c) => {
       const params = c.req.valid("param");
       const query = c.req.valid("query");
@@ -3993,12 +4017,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           const files = await listTmsProviderLiveFilesForProject(
             c.var.auth.organization.localOrganizationId,
             target.externalProjectId,
-            {
-              limit: query.limit,
-              branch: query.branch,
-              actorUserId: c.var.auth.user.localUserId,
-              includeHidden: query.includeHidden,
-            },
+            { limit: query.limit, branch: query.branch, actorUserId: c.var.auth.user.localUserId },
           );
           return c.json({ files }, 200);
         } catch (error) {
