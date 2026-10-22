@@ -20,6 +20,9 @@ const (
 	pdfMinLettersPerPage  = 16
 	pdfLineBaselineTol    = 2.5
 	pdfBlockLineGapFactor = 1.6
+	// Horizontal gap larger than this multiple of font size starts a new line
+	// so table cells and columns on the same baseline stay separate blocks.
+	pdfColumnGapFactor = 2.0
 )
 
 // PDFEntry is one translatable text block in a PDF.
@@ -260,7 +263,7 @@ func groupPDFSpansIntoBlocks(spans []pdfTextSpan) []pdfTextBlock {
 			continue
 		}
 		last := &lines[len(lines)-1]
-		if math.Abs(span.top-last.top) <= pdfLineBaselineTol {
+		if math.Abs(span.top-last.top) <= pdfLineBaselineTol && !pdfSpansHaveColumnGap(last.spans[len(last.spans)-1], span) {
 			last.spans = append(last.spans, span)
 			continue
 		}
@@ -298,6 +301,18 @@ func groupPDFSpansIntoBlocks(spans []pdfTextSpan) []pdfTextBlock {
 		blocks = append(blocks, block)
 	}
 	return blocks
+}
+
+func pdfSpansHaveColumnGap(prev, next pdfTextSpan) bool {
+	gap := next.left - prev.right
+	if gap <= 0 {
+		return false
+	}
+	fontSize := math.Max(float64(prev.fontSize), float64(next.fontSize))
+	if fontSize <= 0 {
+		fontSize = 12
+	}
+	return gap > fontSize*pdfColumnGapFactor
 }
 
 func pdfTextBlockFromSpans(spans []pdfTextSpan) pdfTextBlock {
@@ -431,7 +446,11 @@ func applyPDFBlockTranslation(instance pdfium.Pdfium, doc references.FPDF_DOCUME
 		fontSize = 12
 	}
 	minSize := fontSize * 0.7
-	fittedSize, lines, overflow := wrapPDFText(text, width, fontSize, minSize)
+	blockHeight := block.top - block.bottom
+	if blockHeight <= 0 {
+		blockHeight = float64(fontSize) * 1.2
+	}
+	fittedSize, lines, overflow := wrapPDFText(text, width, blockHeight, fontSize, minSize)
 	if overflow {
 		return pdfOverflowError{}
 	}
@@ -482,7 +501,9 @@ func applyPDFBlockTranslation(instance pdfium.Pdfium, doc references.FPDF_DOCUME
 		if err != nil {
 			return ErrPDFMalformed
 		}
-		_, _ = instance.FPDFText_SetText(&requests.FPDFText_SetText{PageObject: objResp.PageObject, Text: line})
+		if _, err := instance.FPDFText_SetText(&requests.FPDFText_SetText{PageObject: objResp.PageObject, Text: line}); err != nil {
+			return ErrPDFMalformed
+		}
 		_, _ = instance.FPDFPageObj_SetFillColor(&requests.FPDFPageObj_SetFillColor{
 			PageObject: objResp.PageObject,
 			FillColor:  block.fill,
@@ -503,24 +524,46 @@ func applyPDFBlockTranslation(instance pdfium.Pdfium, doc references.FPDF_DOCUME
 	return nil
 }
 
-func wrapPDFText(text string, width float64, fontSize float32, minSize float32) (float32, []string, bool) {
+func wrapPDFText(text string, width, blockHeight float64, fontSize float32, minSize float32) (float32, []string, bool) {
+	if blockHeight <= 0 {
+		blockHeight = float64(fontSize) * 1.2
+	}
 	size := fontSize
 	for {
 		lines := wrapPDFLines(text, width, size)
-		height := float64(len(lines)) * float64(size) * 1.2
-		blockHeight := float64(size) * 3
-		if height <= blockHeight || size <= minSize {
-			if height > blockHeight*2 && size <= minSize {
-				return size, lines, true
-			}
+		tooWide := pdfLinesExceedWidth(lines, width, size)
+		// One replacement line uses the original glyph box. Extra wrapped lines
+		// must fit the measured block height so they do not paint over neighbors.
+		fitsHeight := len(lines) <= 1
+		if !fitsHeight {
+			height := float64(size) + float64(len(lines)-1)*float64(size)*1.2
+			fitsHeight = height <= blockHeight
+		}
+		if fitsHeight && !tooWide {
 			return size, lines, false
+		}
+		if size <= minSize {
+			return size, lines, true
 		}
 		size -= 0.5
 		if size < minSize {
-			lines := wrapPDFLines(text, width, minSize)
-			return minSize, lines, true
+			size = minSize
 		}
 	}
+}
+
+func pdfLinesExceedWidth(lines []string, width float64, fontSize float32) bool {
+	charWidth := float64(fontSize) * 0.5
+	if charWidth <= 0 {
+		return false
+	}
+	maxChars := int(math.Max(1, width/charWidth))
+	for _, line := range lines {
+		if len([]rune(line)) > maxChars {
+			return true
+		}
+	}
+	return false
 }
 
 func wrapPDFLines(text string, width float64, fontSize float32) []string {
@@ -529,28 +572,52 @@ func wrapPDFLines(text string, width float64, fontSize float32) []string {
 		return []string{""}
 	}
 	charWidth := float64(fontSize) * 0.5
-	maxChars := int(math.Max(8, width/charWidth))
+	maxChars := int(math.Max(1, width/charWidth))
 	var lines []string
-	var current strings.Builder
+	var current []rune
+	flush := func() {
+		if len(current) == 0 {
+			return
+		}
+		lines = append(lines, string(current))
+		current = current[:0]
+	}
 	for _, word := range words {
-		nextLen := current.Len()
-		if nextLen > 0 {
-			nextLen++
+		for _, chunk := range splitPDFWord(word, maxChars) {
+			chunkRunes := []rune(chunk)
+			nextLen := len(current)
+			if nextLen > 0 {
+				nextLen++
+			}
+			nextLen += len(chunkRunes)
+			if nextLen > maxChars && len(current) > 0 {
+				flush()
+			}
+			if len(current) > 0 {
+				current = append(current, ' ')
+			}
+			current = append(current, chunkRunes...)
 		}
-		nextLen += len(word)
-		if nextLen > maxChars && current.Len() > 0 {
-			lines = append(lines, strings.TrimSpace(current.String()))
-			current.Reset()
-		}
-		if current.Len() > 0 {
-			current.WriteByte(' ')
-		}
-		current.WriteString(word)
 	}
-	if current.Len() > 0 {
-		lines = append(lines, current.String())
-	}
+	flush()
 	return lines
+}
+
+func splitPDFWord(word string, maxChars int) []string {
+	runes := []rune(word)
+	if maxChars <= 0 || len(runes) <= maxChars {
+		return []string{word}
+	}
+	chunks := make([]string, 0, (len(runes)+maxChars-1)/maxChars)
+	for len(runes) > 0 {
+		n := maxChars
+		if n > len(runes) {
+			n = len(runes)
+		}
+		chunks = append(chunks, string(runes[:n]))
+		runes = runes[n:]
+	}
+	return chunks
 }
 
 func validatePDFTargetScript(text string) error {
