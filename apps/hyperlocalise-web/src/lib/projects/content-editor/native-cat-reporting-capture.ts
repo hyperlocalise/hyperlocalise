@@ -15,6 +15,7 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 import { captureAnalysis, captureCompletions } from "@/lib/reporting/capture";
+import { openPersonTaskForString } from "@/lib/reporting/task-analysis";
 
 export async function captureNativeCatTranslationReporting(input: {
   organizationId: string;
@@ -68,14 +69,25 @@ export async function captureNativeCatTranslationReporting(input: {
       ),
     )
     .limit(1);
-  const sourceJobId = input.sourceJobId ?? existing?.sourceJobId ?? undefined;
+  const step = input.approve ? "review" : "translation";
+  const provenance = input.provenance ?? "manual";
+  // A save made while a task for people covers the string is that task's work; otherwise it
+  // belongs to the task that produced the translation.
+  const sourceJobId =
+    input.sourceJobId ??
+    (await openPersonTaskForString({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      repositorySourceFileId: sourceFile.id,
+      targetLocale: input.targetLocale,
+      step,
+    })) ??
+    existing?.sourceJobId ??
+    undefined;
   const [project] = await db
     .select({ sourceLocale: schema.projects.sourceLocale })
     .from(schema.projects)
     .where(eq(schema.projects.id, input.projectId));
-
-  const step = input.approve ? "review" : "translation";
-  const provenance = input.provenance ?? "manual";
 
   await captureAnalysis({
     organizationId: input.organizationId,

@@ -12,10 +12,13 @@
  */
 import "dotenv/config";
 
+import { randomUUID } from "node:crypto";
+
 import { and, eq, sql } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
+import { insertStoredSourceFile } from "@/api/routes/public-jobs/public-jobs.fixture";
 import { db, schema } from "@/lib/database/client";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
@@ -323,6 +326,91 @@ describe("captureEditorSaves", () => {
       .from(schema.reportingCosts)
       .where(eq(schema.reportingCosts.organizationId, organization.id));
     expect(costs).toEqual([]);
+  });
+
+  it("attributes a save to the open task for people that covers its file, language and step", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    const [sourceFile] = await db
+      .select({ id: schema.repositorySourceFiles.id })
+      .from(schema.repositorySourceFiles)
+      .where(
+        and(
+          eq(schema.repositorySourceFiles.projectId, project.id),
+          eq(schema.repositorySourceFiles.sourcePath, SOURCE_PATH),
+        ),
+      );
+    const storedFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "en.json",
+      contentType: "application/json",
+      sourceKind: "repository_file",
+      metadata: { sourcePath: SOURCE_PATH },
+    });
+    const [version] = await db
+      .insert(schema.repositorySourceFileVersions)
+      .values({
+        repositorySourceFileId: sourceFile!.id,
+        organizationId: organization.id,
+        projectId: project.id,
+        sourcePath: SOURCE_PATH,
+        storedFileId: storedFile.id,
+      })
+      .returning();
+    const [task] = await db
+      .insert(schema.jobs)
+      .values({
+        id: `job_${randomUUID()}`,
+        organizationId: organization.id,
+        projectId: project.id,
+        createdByUserId: user.id,
+        kind: "proofread",
+        status: "waiting_for_review",
+        inputPayload: { sourceLocale: "en-US", targetLocales: ["fr-FR"] },
+      })
+      .returning();
+    await db
+      .insert(schema.translationJobDetails)
+      .values({ jobId: task!.id, type: "file", sourceFileVersionId: version!.id });
+
+    // An approval is the proofread task's work; a translation has no open task of its own.
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+      eventType: "string_segment_approved",
+      nextStatus: "approved",
+    });
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[1],
+    });
+    await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+
+    const completions = await db
+      .select({
+        jobId: schema.reportingActivity.jobId,
+        step: schema.reportingActivity.step,
+        analysisId: schema.reportingActivity.analysisId,
+      })
+      .from(schema.reportingActivity)
+      .where(
+        and(
+          eq(schema.reportingActivity.organizationId, organization.id),
+          eq(schema.reportingActivity.kind, "completion"),
+        ),
+      );
+    expect(completions).toHaveLength(2);
+    expect(completions.find((row) => row.step === "review")?.jobId).toBe(task!.id);
+    expect(completions.find((row) => row.step === "translation")?.jobId).toBeNull();
+    const analyses = await db
+      .select({ jobId: schema.reportingAnalyses.jobId, step: schema.reportingAnalyses.step })
+      .from(schema.reportingAnalyses)
+      .where(eq(schema.reportingAnalyses.organizationId, organization.id));
+    expect(analyses.find((row) => row.step === "review")?.jobId).toBe(task!.id);
   });
 
   it("records an approval as the review step", async () => {

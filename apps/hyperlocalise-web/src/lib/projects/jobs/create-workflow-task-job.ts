@@ -22,6 +22,7 @@ import {
 } from "@/lib/file-storage/records";
 import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { startTaskAnalysis } from "@/lib/reporting/task-analysis-start";
 import {
   assertOrganizationCanEnqueueTranslationJobInTransaction,
   OrganizationJobBudgetExceededError,
@@ -153,6 +154,7 @@ export async function createWorkflowTaskJob(
   });
   const title = input.title?.trim() || `${STEP_TITLE_PREFIX[input.step]}: ${metadata.title}`;
   const jobId = `job_${randomUUID()}`;
+  let repositorySourceFileId: string | null = null;
 
   try {
     await db.transaction(async (tx) => {
@@ -170,6 +172,7 @@ export async function createWorkflowTaskJob(
         projectId: input.projectId,
         fileId: input.sourceFileId,
       });
+      repositorySourceFileId = sourceFileVersion?.repositorySourceFileId ?? null;
 
       await tx.insert(schema.jobs).values({
         id: jobId,
@@ -211,6 +214,19 @@ export async function createWorkflowTaskJob(
     projectId: input.projectId,
     status: "waiting_for_review",
   });
+
+  // The task runs no agent, so Reports records its strings now, in the background.
+  if (repositorySourceFileId) {
+    await startTaskAnalysis({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      jobId,
+      step: input.step === "proofread" ? "review" : "translation",
+      sourceLocale: input.sourceLocale,
+      targetLocales: input.targetLocales,
+      repositorySourceFileId,
+    });
+  }
 
   return ok({ jobId, ownerUserId });
 }

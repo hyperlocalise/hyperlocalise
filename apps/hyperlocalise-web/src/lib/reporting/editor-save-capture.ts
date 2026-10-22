@@ -24,6 +24,7 @@ import {
   recordCompletions,
   reportingStart,
 } from "./capture";
+import { openPersonTaskForString } from "./task-analysis";
 
 const logger = createLogger("reporting-editor-save-capture");
 
@@ -385,6 +386,7 @@ async function recordSaves(
     .select({
       id: schema.projectTranslationKeys.id,
       projectId: schema.projectTranslationKeys.projectId,
+      repositorySourceFileId: schema.projectTranslationKeys.repositorySourceFileId,
       sourceText: schema.projectTranslationKeys.sourceText,
     })
     .from(schema.projectTranslationKeys)
@@ -420,13 +422,35 @@ async function recordSaves(
   const sourceLocaleByProject = new Map(projects.map((row) => [row.id, row.sourceLocale ?? "en"]));
 
   let recorded = 0;
+  // A save made while a task for people covers the string is that task's work; otherwise it
+  // belongs to the task that produced the translation. One lookup per file, language and step.
+  const openTasks = new Map<string, Promise<string | undefined>>();
+  const openTaskFor = (segment: SavedSegment, repositorySourceFileId: string | null) => {
+    if (!repositorySourceFileId) return Promise.resolve(undefined);
+    const lookupKey = `${segment.projectId}:${repositorySourceFileId}:${segment.targetLocale}:${segment.step}`;
+    let found = openTasks.get(lookupKey);
+    if (!found) {
+      found = openPersonTaskForString({
+        organizationId,
+        projectId: segment.projectId,
+        repositorySourceFileId,
+        targetLocale: segment.targetLocale,
+        step: segment.step,
+      });
+      openTasks.set(lookupKey, found);
+    }
+    return found;
+  };
   // Group by job, language and step so one analysis call covers every occurrence saved together.
   const groups = new Map<string, { segment: SavedSegment; sourceJobId: string | undefined }[]>();
   for (const segment of segments) {
     const key = keyById.get(segment.translationKeyId);
     const translation = translationByKey.get(`${segment.translationKeyId}:${segment.targetLocale}`);
     if (!key || key.projectId !== segment.projectId || !translation?.text.trim()) continue;
-    const sourceJobId = translation.sourceJobId ?? undefined;
+    const sourceJobId =
+      (await openTaskFor(segment, key.repositorySourceFileId)) ??
+      translation.sourceJobId ??
+      undefined;
     const groupKey = `${segment.projectId}:${sourceJobId ?? ""}:${segment.targetLocale}:${segment.step}:${segment.actorUserId ?? ""}:${segment.automated}`;
     const group = groups.get(groupKey) ?? [];
     group.push({ segment, sourceJobId });
