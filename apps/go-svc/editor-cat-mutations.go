@@ -710,6 +710,7 @@ func (api *editorCatAPI) setHidden(r *http.Request, actor editorCatActor, projec
 	api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
 		eventType:  eventType,
 		segmentID:  ids[0],
+		segmentIDs: ids,
 		sourcePath: trimEditorCat(body.SourcePath),
 		itemCount:  int(tag.RowsAffected()),
 	})
@@ -758,6 +759,7 @@ func (api *editorCatAPI) setLocked(r *http.Request, actor editorCatActor, projec
 		api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
 			eventType:    "string_segment_unlocked",
 			segmentID:    ids[0],
+			segmentIDs:   ids,
 			sourcePath:   trimEditorCat(body.SourcePath),
 			targetLocale: targetLocale,
 			itemCount:    int(tag.RowsAffected()),
@@ -782,6 +784,7 @@ func (api *editorCatAPI) setLocked(r *http.Request, actor editorCatActor, projec
 	api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
 		eventType:    "string_segment_locked",
 		segmentID:    ids[0],
+		segmentIDs:   ids,
 		sourcePath:   trimEditorCat(body.SourcePath),
 		targetLocale: targetLocale,
 		itemCount:    len(ids),
@@ -1001,6 +1004,7 @@ func (api *editorCatAPI) rejectIfLocked(r *http.Request, actor editorCatActor, p
 type editorCatSegmentActivity struct {
 	eventType    string
 	segmentID    string
+	segmentIDs   []string
 	sourcePath   string
 	targetLocale string
 	itemCount    int
@@ -1022,6 +1026,9 @@ func (api *editorCatAPI) recordEditorCatSegmentActivity(r *http.Request, actor e
 	}
 	if activity.itemCount > 1 {
 		payload["itemCount"] = activity.itemCount
+	}
+	if len(activity.segmentIDs) > 1 {
+		payload["segmentIds"] = activity.segmentIDs
 	}
 	for key, value := range activity.extra {
 		payload[key] = value

@@ -871,6 +871,26 @@ func TestEditorCatSetLocked(t *testing.T) {
 	require.Contains(t, rec.Body.String(), `"isLocked":true`)
 }
 
+func TestEditorCatBulkLockActivityIncludesEverySegment(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "a.json")
+	first := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
+	second := mustEditorCatKey(t, scope, fileID, "bye", "Bye")
+	body := `{"sourcePath":"a.json","targetLocale":"fr","externalStringIds":["` + first + `","` + second + `"],"isLocked":true}`
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/strings/locked"), body)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	logs := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/activity-logs?sourcePath=a.json&targetLocale=fr&segmentId="+url.QueryEscape(second)), "")
+	require.Equal(t, http.StatusOK, logs.Code, logs.Body.String())
+	var listed struct {
+		ActivityLogs []activityLogListItem `json:"activityLogs"`
+	}
+	require.NoError(t, json.Unmarshal(logs.Body.Bytes(), &listed))
+	require.Len(t, listed.ActivityLogs, 1)
+	require.Equal(t, "string_segment_locked", listed.ActivityLogs[0].EventType)
+	require.ElementsMatch(t, []any{first, second}, listed.ActivityLogs[0].Payload["segmentIds"])
+}
+
 func TestEditorCatUnlock(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "translator")
 	fileID := mustEditorCatSourceFile(t, scope, "a.json")

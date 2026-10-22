@@ -133,7 +133,16 @@ export async function listContentEditorActivityLogs(
     conditions.push(sql`${events.payload}->>'sourcePath' = ${input.sourcePath}`);
   }
   if (input.segmentId) {
-    conditions.push(sql`${events.payload}->>'segmentId' = ${input.segmentId}`);
+    conditions.push(
+      or(
+        sql`${events.payload}->>'segmentId' = ${input.segmentId}`,
+        sql`exists (
+          select 1
+          from jsonb_array_elements_text(coalesce(${events.payload}->'segmentIds', '[]'::jsonb)) as affected(segment_id)
+          where affected.segment_id = ${input.segmentId}
+        )`,
+      ),
+    );
   }
   if (input.targetLocale) {
     conditions.push(

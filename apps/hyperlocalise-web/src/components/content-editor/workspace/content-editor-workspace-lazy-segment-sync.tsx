@@ -15,7 +15,10 @@
 import { useLayoutEffect, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNativeTargetLoader } from "../project-file/content-editor-native-target-context";
-import { createSegmentTargetQuerySource } from "../project-file/use-content-editor-segment-target";
+import {
+  createSegmentTargetQuerySource,
+  segmentTargetQueryIdentity,
+} from "../project-file/use-content-editor-segment-target";
 import { observer } from "mobx-react-lite";
 
 import type { ProjectFileContentEditorQueueFile } from "@/api/routes/project/project.schema";
@@ -324,10 +327,13 @@ export const ContentEditorWorkspaceLazySegmentSync = observer(
           organizationSlug,
           projectId,
           targetLocale,
-          externalResourceId,
-          resourceType,
-          sourcePathFor: (externalStringId) =>
-            store.segmentMeta.get(externalStringId)?.sourcePath || sourcePath,
+          // File-level ids are null for All Files. Each row's query key uses its own.
+          identityFor: (externalStringId) =>
+            segmentTargetQueryIdentity(store.segmentMeta.get(externalStringId), {
+              sourcePath,
+              externalResourceId,
+              resourceType,
+            }),
         }),
       );
       return () => {

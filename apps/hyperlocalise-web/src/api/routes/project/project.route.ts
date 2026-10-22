@@ -2333,6 +2333,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               organizationId: c.var.auth.organization.localOrganizationId,
               projectId: params.projectId,
               segmentId: body.externalStringIds[0]!,
+              segmentIds: body.externalStringIds,
               sourcePath: body.sourcePath,
             });
 
@@ -2368,6 +2369,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           segmentId: body.externalStringIds[0]!,
+          segmentIds: body.externalStringIds,
           sourcePath: body.sourcePath,
         });
 
@@ -2419,6 +2421,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           segmentId: body.externalStringIds[0]!,
+          segmentIds: body.externalStringIds,
           sourcePath: body.sourcePath,
           targetLocale: body.targetLocale,
         });

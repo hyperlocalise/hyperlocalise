@@ -65,6 +65,37 @@ const SEGMENT_TARGET_QUERY_KEY_PREFIX = "project-file-content-editor-segment-tar
 
 type SegmentTargetQueryKey = ReturnType<typeof projectFileCatSegmentTargetQueryKey>;
 
+export type SegmentTargetQueryIdentity = {
+  sourcePath: string;
+  externalResourceId?: string | null;
+  resourceType?: "file" | "key";
+};
+
+/**
+ * Query-key identity for one segment. All Files rows carry their own source path
+ * and resource id; file-level values are only the fallback when a row omits them.
+ */
+export function segmentTargetQueryIdentity(
+  segment:
+    | {
+        sourcePath?: string | null;
+        externalResourceId?: string | null;
+        resourceType?: "file" | "key" | null;
+      }
+    | undefined,
+  fallback: {
+    sourcePath: string;
+    externalResourceId?: string | null;
+    resourceType?: "file" | "key" | null;
+  },
+): SegmentTargetQueryIdentity {
+  return {
+    sourcePath: segment?.sourcePath?.trim() || fallback.sourcePath,
+    externalResourceId: segment?.externalResourceId ?? fallback.externalResourceId ?? null,
+    resourceType: segment?.resourceType ?? fallback.resourceType ?? undefined,
+  };
+}
+
 /** Reads a key built by `projectFileCatSegmentTargetQueryKey`, or null for any other query. */
 export function parseProjectFileCatSegmentTargetQueryKey(key: QueryKey) {
   if (key[0] !== SEGMENT_TARGET_QUERY_KEY_PREFIX || key.length !== 8) {
@@ -82,24 +113,25 @@ export function createSegmentTargetQuerySource(
     organizationSlug: string;
     projectId: string;
     targetLocale: string;
-    externalResourceId?: string | null;
-    resourceType?: "file" | "key";
-    sourcePathFor: (externalStringId: string) => string;
+    /** Every field of `projectFileCatSegmentTargetQueryKey`, resolved per segment. */
+    identityFor: (externalStringId: string) => SegmentTargetQueryIdentity;
   },
 ): ContentEditorServerTargetSource {
   return {
-    get: (externalStringId) =>
-      queryClient.getQueryData<ProjectFileContentEditorTranslation | null>(
+    get: (externalStringId) => {
+      const identity = scope.identityFor(externalStringId);
+      return queryClient.getQueryData<ProjectFileContentEditorTranslation | null>(
         projectFileCatSegmentTargetQueryKey({
           organizationSlug: scope.organizationSlug,
           projectId: scope.projectId,
-          sourcePath: scope.sourcePathFor(externalStringId),
+          sourcePath: identity.sourcePath,
+          externalResourceId: identity.externalResourceId,
+          resourceType: identity.resourceType,
           targetLocale: scope.targetLocale,
           externalStringId,
-          externalResourceId: scope.externalResourceId,
-          resourceType: scope.resourceType,
         }),
-      ),
+      );
+    },
     subscribe: (listener) =>
       queryClient.getQueryCache().subscribe((event) => {
         if (event.type !== "updated" || event.query.state.data === undefined) {

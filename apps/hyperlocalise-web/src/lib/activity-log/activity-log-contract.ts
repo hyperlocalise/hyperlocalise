@@ -199,6 +199,8 @@ type StringSegmentActivityPayload = {
   name: string;
   projectId: string;
   segmentId: string;
+  /** Every segment in a bulk hide or lock. Absent when the event is a single segment. */
+  segmentIds?: readonly string[];
   sourcePath: string;
   targetLocale?: string;
 };

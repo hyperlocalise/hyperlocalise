@@ -36,11 +36,16 @@ async function insertEvent(input: {
   organizationId: string;
   actorUserId: string | null;
   segmentId: string;
-  eventType?: "string_segment_translation_updated" | "string_segment_approved";
+  eventType?:
+    | "string_segment_translation_updated"
+    | "string_segment_approved"
+    | "string_segment_hidden"
+    | "string_segment_locked";
   targetLocale?: string;
   sourcePath?: string;
   projectId?: string;
   createdAt?: string;
+  payload?: Record<string, unknown>;
 }) {
   const [event] = await db
     .insert(schema.organizationActivityEvents)
@@ -57,6 +62,7 @@ async function insertEvent(input: {
         fileName: "home.json",
         segmentId: input.segmentId,
         targetLocale: input.targetLocale ?? "fr",
+        ...input.payload,
       },
       ...(input.createdAt ? { createdAt: sql`${input.createdAt}::timestamptz` } : {}),
     })
@@ -112,6 +118,55 @@ describe("listContentEditorActivityLogs", () => {
       target: { kind: "string_segment", id: "1001", displayName: "home.json" },
     });
     expect(result.nextCursor).toBeNull();
+  });
+
+  it("returns a bulk hide or lock to every segment it affected", async () => {
+    const { organization } = await projectFixture.createStoredProjectFixture();
+    const hidden = await insertEvent({
+      organizationId: organization.id,
+      actorUserId: null,
+      segmentId: "1001",
+      eventType: "string_segment_hidden",
+      payload: { segmentIds: ["1001", "1002"], itemCount: 2 },
+    });
+    await insertEvent({
+      organizationId: organization.id,
+      actorUserId: null,
+      segmentId: "1009",
+      eventType: "string_segment_locked",
+      payload: { segmentIds: ["1009", "1010"], itemCount: 2 },
+    });
+
+    const hiddenForSecond = await listContentEditorActivityLogs({
+      organizationId: organization.id,
+      projectId: PROJECT_ID,
+      sourcePath: SOURCE_PATH,
+      segmentId: "1002",
+      limit: 50,
+    });
+    const lockedForSecond = await listContentEditorActivityLogs({
+      organizationId: organization.id,
+      projectId: PROJECT_ID,
+      sourcePath: SOURCE_PATH,
+      segmentId: "1010",
+      targetLocale: "fr",
+      limit: 50,
+    });
+    const unrelated = await listContentEditorActivityLogs({
+      organizationId: organization.id,
+      projectId: PROJECT_ID,
+      sourcePath: SOURCE_PATH,
+      segmentId: "1003",
+      limit: 50,
+    });
+
+    expect(hiddenForSecond.ok && hiddenForSecond.activityLogs.map((item) => item.id)).toEqual([
+      hidden,
+    ]);
+    expect(
+      lockedForSecond.ok && lockedForSecond.activityLogs.map((item) => item.eventType),
+    ).toEqual(["string_segment_locked"]);
+    expect(unrelated.ok && unrelated.activityLogs).toEqual([]);
   });
 
   it("pages through events that share a millisecond without skipping any", async () => {
