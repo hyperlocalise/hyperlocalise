@@ -34,6 +34,7 @@ func (h *handler) registerReporting(mux *http.ServeMux, verifier SessionVerifier
 	route("GET "+base+"/tasks/{jobId}", h.getTaskReport)
 	route("POST "+base+"/rates", h.createReportingRate)
 	route("PUT "+base+"/budgets", h.upsertReportingBudget)
+	route("PUT "+base+"/task-rates", h.putTaskRate)
 	route("POST "+base+"/expenses", h.createReportingExpense)
 }
 
