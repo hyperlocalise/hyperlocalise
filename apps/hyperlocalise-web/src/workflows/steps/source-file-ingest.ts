@@ -81,7 +81,12 @@ export async function extractSourceIngestEntriesStep(
     locale: options?.locale,
   });
   if (!result.ok) {
-    throw new Error(`failed to extract entries for ${filePath}: exitCode=${result.exitCode}`);
+    const detail = result.output.trim();
+    throw new Error(
+      detail
+        ? `failed to extract entries for ${filePath}: exitCode=${result.exitCode}: ${detail}`
+        : `failed to extract entries for ${filePath}: exitCode=${result.exitCode}`,
+    );
   }
   return result.entries;
 }
@@ -130,6 +135,21 @@ export async function parseHlEntriesStep(
       ? applyHtmlIngestEntryKeys(options.sourcePath, sourceText, extractedEntries)
       : extractedEntries;
   return entriesFromHlOutput(payload, true);
+}
+
+export async function extractPdfSourceEntriesStep(input: {
+  organizationId: string;
+  projectId: string;
+  storedFileId: string;
+  sourcePath: string;
+}): Promise<import("@/lib/projects/files/hl-entries").HlEntriesPayload> {
+  "use step";
+  const { loadProjectPdfSourceEntries } = await import("@/lib/projects/files/pdf-source-entries");
+  const entries = await loadProjectPdfSourceEntries(input);
+  if (!entries.ok) {
+    throw new Error(`failed to extract entries from the PDF: ${entries.error.code}`);
+  }
+  return entries.value;
 }
 
 export async function extractOfficeSourceEntriesStep(input: {

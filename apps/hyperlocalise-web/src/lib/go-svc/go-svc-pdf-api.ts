@@ -10,6 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { HlEntriesPayload } from "@/lib/projects/files/hl-entries";
+import { parseHlEntriesJson } from "@/lib/projects/files/hl-entries";
+
 import { GoSvcClientError, type GoSvcRequest } from "./go-svc-request";
 
 export type ApplyPdfTranslationsInput = {
@@ -25,6 +28,37 @@ export type ApplyPdfTranslationsResult = {
 
 export class GoSvcPdfApi {
   constructor(private readonly request: GoSvcRequest) {}
+
+  async extractEntries(input: { template: Uint8Array }): Promise<HlEntriesPayload> {
+    const form = new FormData();
+    form.append(
+      "file",
+      new Blob([Buffer.from(input.template)], { type: "application/pdf" }),
+      "source.pdf",
+    );
+
+    const response = await this.request.response("/internal/pdf/entries", {
+      method: "POST",
+      body: form,
+    });
+    if (!response.ok) {
+      let message = "Could not read text from the PDF";
+      let code = "pdf_parse_failed";
+      try {
+        const body = (await response.json()) as { message?: string; error?: string };
+        if (body.message) message = body.message;
+        if (body.error) code = body.error;
+      } catch {
+        // ignore non-JSON errors
+      }
+      throw new GoSvcClientError({
+        code,
+        message,
+        status: response.status,
+      });
+    }
+    return parseHlEntriesJson((await response.json()) as Record<string, unknown>);
+  }
 
   async applyTranslations(input: ApplyPdfTranslationsInput): Promise<ApplyPdfTranslationsResult> {
     const form = new FormData();

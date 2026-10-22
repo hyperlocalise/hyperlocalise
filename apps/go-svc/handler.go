@@ -230,6 +230,15 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 		}
 		h.applyPDFTranslations(w, r)
 	})
+	mux.HandleFunc("POST /internal/pdf/entries", func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" || !requireServerCallToken(w, r) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+			}
+			return
+		}
+		h.extractPDFEntries(w, r)
+	})
 	mux.Handle("POST /v1/editor-export/filtered/serialize", editorExport)
 	for pattern, route := range map[string]http.HandlerFunc{
 		"PUT /v1/storage/object":         h.putObject,
