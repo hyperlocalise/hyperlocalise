@@ -157,6 +157,10 @@ func (h *handler) workspaceHandle(
 			w.WriteHeader(status)
 			return
 		}
+		if download, ok := value.(reportingCSV); ok {
+			writeReportingCSV(w, status, download)
+			return
+		}
 		writeJSON(w, status, value)
 	})
 }
