@@ -110,6 +110,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   queueFilter,
   buildSegmentShareUrl,
   onIntelligencePanelVisible,
+  onLoadSegmentConcordance,
   organizationSlug,
   projectId,
   nativeIssuesEnabled = false,
@@ -187,19 +188,40 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   const [uploadingVisualContextSegmentIds, setUploadingVisualContextSegmentIds] = useState<
     ReadonlySet<string>
   >(() => new Set());
-  // Glossary guidance in the footer depends on concordance for the selected segment, so load it
-  // even when the intelligence panel itself is hidden behind a tab or collapsed.
-  const shouldLoadSegmentIntelligence = Boolean(
+  const isIntelligencePanelVisible = Boolean(
+    selectedSegmentIdForIntelligence &&
+    (!isCompact || activePanel === "ai") &&
+    !isSideBySideDesktop &&
+    viewMode !== "multilingual",
+  );
+  const shouldLoadGlossaryConcordance = Boolean(
     selectedSegmentIdForIntelligence && viewMode !== "multilingual",
   );
 
   useEffect(() => {
-    if (!shouldLoadSegmentIntelligence) {
+    if (!selectedSegmentIdForIntelligence) {
+      return;
+    }
+
+    if (!isIntelligencePanelVisible && !isSideBySideDesktop) {
       return;
     }
 
     onIntelligencePanelVisible?.(selectedSegmentIdForIntelligence);
-  }, [onIntelligencePanelVisible, selectedSegmentIdForIntelligence, shouldLoadSegmentIntelligence]);
+  }, [
+    isIntelligencePanelVisible,
+    isSideBySideDesktop,
+    onIntelligencePanelVisible,
+    selectedSegmentIdForIntelligence,
+  ]);
+
+  useEffect(() => {
+    if (!shouldLoadGlossaryConcordance) {
+      return;
+    }
+
+    onLoadSegmentConcordance?.(selectedSegmentIdForIntelligence);
+  }, [onLoadSegmentConcordance, selectedSegmentIdForIntelligence, shouldLoadGlossaryConcordance]);
 
   const showTranslationViewSkeleton = store.ui.translationViewLoading;
 

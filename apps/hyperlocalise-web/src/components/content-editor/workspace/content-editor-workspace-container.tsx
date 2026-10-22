@@ -384,6 +384,7 @@ const ContentEditorWorkspaceContainerObserver = observer(
             queueFilter={controller.queueFilter}
             buildSegmentShareUrl={controller.resolvedBuildSegmentShareUrl}
             onIntelligencePanelVisible={controller.handleIntelligencePanelVisible}
+            onLoadSegmentConcordance={controller.handleLoadSegmentConcordance}
             organizationSlug={lazySegment?.organizationSlug}
             projectId={lazySegment?.projectId}
             nativeIssuesEnabled={nativeIssuesEnabled}

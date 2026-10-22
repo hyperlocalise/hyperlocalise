@@ -176,6 +176,8 @@ export interface ContentEditorWorkspaceViewProps {
   queueFilter?: ContentEditorQueueFilter;
   buildSegmentShareUrl?: (segment: ContentEditorSegment) => string | null;
   onIntelligencePanelVisible?: (segmentId: string) => void;
+  /** Loads only concordance, which glossary guidance needs even when the details panel is hidden. */
+  onLoadSegmentConcordance?: (segmentId: string) => void;
   organizationSlug?: string;
   projectId?: string;
   nativeIssuesEnabled?: boolean;
