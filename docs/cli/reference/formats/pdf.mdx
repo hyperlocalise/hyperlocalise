@@ -19,8 +19,8 @@ Text inside form XObjects, annotations, and form fields is not extracted.
 ## Target PDF
 
 The CLI writes a target `application/pdf` from ready segment translations.
-Blocks that cannot fit after wrapping and font scaling are listed as overflow
-keys.
+Blocks that cannot fit after wrapping and font scaling are still written with
+the best-effort layout, then listed as overflow keys.
 
 ## Configure your files
 

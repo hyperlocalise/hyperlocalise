@@ -36,6 +36,11 @@ go_test(
     name = "pdf_test",
     srcs = ["pdf_parser_test.go"],
     embed = [":translationfileparser"],
+    deps = [
+        "@com_github_klippa_app_go_pdfium//:go-pdfium",
+        "@com_github_klippa_app_go_pdfium//requests",
+        "@com_github_klippa_app_go_pdfium//structs",
+    ],
 )
 
 go_test(
@@ -132,5 +137,10 @@ go_test(
     ],
     data = glob(["testdata/**"]),
     embed = [":translationfileparser"],
-    deps = ["@com_github_xuri_excelize_v2//:excelize"],
+    deps = [
+        "@com_github_klippa_app_go_pdfium//:go-pdfium",
+        "@com_github_klippa_app_go_pdfium//requests",
+        "@com_github_klippa_app_go_pdfium//structs",
+        "@com_github_xuri_excelize_v2//:excelize",
+    ],
 )

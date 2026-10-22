@@ -7,7 +7,6 @@ import (
 	"math"
 	"slices"
 	"strings"
-	"unicode"
 
 	"github.com/klippa-app/go-pdfium"
 	"github.com/klippa-app/go-pdfium/enums"
@@ -17,7 +16,6 @@ import (
 )
 
 const (
-	pdfMinLettersPerPage  = 16
 	pdfLineBaselineTol    = 2.5
 	pdfBlockLineGapFactor = 1.6
 	// Horizontal gap larger than this multiple of font size starts a new line
@@ -84,20 +82,9 @@ type pdfTextBlock struct {
 	fill     structs.FPDF_COLOR
 }
 
-func pageHasMeaningfulText(text string) bool {
-	letters := 0
-	for _, r := range text {
-		if unicode.IsLetter(r) || unicode.IsNumber(r) {
-			letters++
-		}
-	}
-	return letters >= pdfMinLettersPerPage
-}
-
 // ReadPDFEntries extracts keyed text blocks from a PDF text layer.
 func ReadPDFEntries(content []byte) ([]PDFEntry, error) {
 	var entries []PDFEntry
-	var scannedOnly bool
 	err := withPDFiumInstance(context.Background(), func(instance pdfium.Pdfium) error {
 		doc, err := openPDFDocument(instance, content)
 		if err != nil {
@@ -109,17 +96,10 @@ func ReadPDFEntries(content []byte) ([]PDFEntry, error) {
 		if err != nil {
 			return ErrPDFMalformed
 		}
-		anyText := false
 		for page := 0; page < pageCount.PageCount; page++ {
-			blocks, pageText, pageScanned, err := readPDFPageBlocks(instance, doc, page)
+			blocks, err := readPDFPageBlocks(instance, doc, page)
 			if err != nil {
 				return err
-			}
-			if pageScanned {
-				scannedOnly = true
-			}
-			if strings.TrimSpace(pageText) != "" {
-				anyText = true
 			}
 			for i, block := range blocks {
 				text := strings.TrimSpace(block.text)
@@ -134,9 +114,6 @@ func ReadPDFEntries(content []byte) ([]PDFEntry, error) {
 					Context: pdfEntryContext(pageOne, blockOne),
 				})
 			}
-		}
-		if !anyText || (scannedOnly && len(entries) == 0) {
-			return ErrPDFNoTextLayer
 		}
 		return nil
 	})
@@ -162,11 +139,11 @@ func closePDFDocument(instance pdfium.Pdfium, doc references.FPDF_DOCUMENT) {
 	_, _ = instance.FPDF_CloseDocument(&requests.FPDF_CloseDocument{Document: doc})
 }
 
-func readPDFPageBlocks(instance pdfium.Pdfium, doc references.FPDF_DOCUMENT, pageIndex int) ([]pdfTextBlock, string, bool, error) {
+func readPDFPageBlocks(instance pdfium.Pdfium, doc references.FPDF_DOCUMENT, pageIndex int) ([]pdfTextBlock, error) {
 	page := requests.Page{ByIndex: &requests.PageByIndex{Document: doc, Index: pageIndex}}
 	textPageResp, err := instance.FPDFText_LoadPage(&requests.FPDFText_LoadPage{Page: page})
 	if err != nil {
-		return nil, "", false, ErrPDFMalformed
+		return nil, ErrPDFMalformed
 	}
 	defer func() {
 		_, _ = instance.FPDFText_ClosePage(&requests.FPDFText_ClosePage{TextPage: textPageResp.TextPage})
@@ -174,7 +151,7 @@ func readPDFPageBlocks(instance pdfium.Pdfium, doc references.FPDF_DOCUMENT, pag
 
 	countResp, err := instance.FPDFPage_CountObjects(&requests.FPDFPage_CountObjects{Page: page})
 	if err != nil {
-		return nil, "", false, ErrPDFMalformed
+		return nil, ErrPDFMalformed
 	}
 
 	var spans []pdfTextSpan
@@ -218,18 +195,7 @@ func readPDFPageBlocks(instance pdfium.Pdfium, doc references.FPDF_DOCUMENT, pag
 		})
 	}
 
-	pageText := extractPagePlainText(instance, page)
-	scanned := !pageHasMeaningfulText(pageText)
-	blocks := groupPDFSpansIntoBlocks(spans)
-	return blocks, pageText, scanned, nil
-}
-
-func extractPagePlainText(instance pdfium.Pdfium, page requests.Page) string {
-	resp, err := instance.GetPageText(&requests.GetPageText{Page: page})
-	if err != nil {
-		return ""
-	}
-	return resp.Text
+	return groupPDFSpansIntoBlocks(spans), nil
 }
 
 func groupPDFSpansIntoBlocks(spans []pdfTextSpan) []pdfTextBlock {
@@ -378,7 +344,7 @@ func MarshalPDF(template []byte, values map[string]string, targetLocale string) 
 		}
 
 		for page := 0; page < pageCount.PageCount; page++ {
-			blocks, _, _, err := readPDFPageBlocks(instance, doc, page)
+			blocks, err := readPDFPageBlocks(instance, doc, page)
 			if err != nil {
 				return err
 			}
@@ -451,9 +417,6 @@ func applyPDFBlockTranslation(instance pdfium.Pdfium, doc references.FPDF_DOCUME
 		blockHeight = float64(fontSize) * 1.2
 	}
 	fittedSize, lines, overflow := wrapPDFText(text, width, blockHeight, fontSize, minSize)
-	if overflow {
-		return pdfOverflowError{}
-	}
 	_ = targetLocale
 
 	if len(block.spans) == 1 && len(lines) == 1 {
@@ -462,20 +425,27 @@ func applyPDFBlockTranslation(instance pdfium.Pdfium, doc references.FPDF_DOCUME
 			Text:       lines[0],
 		}); err == nil {
 			if fittedSize != block.spans[0].fontSize {
-				_, _ = instance.FPDFTextObj_SetFontSize(&requests.FPDFTextObj_SetFontSize{
+				if _, err := instance.FPDFTextObj_SetFontSize(&requests.FPDFTextObj_SetFontSize{
 					PageObject: block.spans[0].pageObject,
 					FontSize:   fittedSize,
-				})
+				}); err != nil {
+					return ErrPDFMalformed
+				}
+			}
+			if overflow {
+				return pdfOverflowError{}
 			}
 			return nil
 		}
 	}
 
 	for _, span := range block.spans {
-		_, _ = instance.FPDFPage_RemoveObject(&requests.FPDFPage_RemoveObject{
+		if _, err := instance.FPDFPage_RemoveObject(&requests.FPDFPage_RemoveObject{
 			Page:       page,
 			PageObject: span.pageObject,
-		})
+		}); err != nil {
+			return ErrPDFMalformed
+		}
 		_, _ = instance.FPDFPageObj_Destroy(&requests.FPDFPageObj_Destroy{PageObject: span.pageObject})
 	}
 
@@ -504,15 +474,19 @@ func applyPDFBlockTranslation(instance pdfium.Pdfium, doc references.FPDF_DOCUME
 		if _, err := instance.FPDFText_SetText(&requests.FPDFText_SetText{PageObject: objResp.PageObject, Text: line}); err != nil {
 			return ErrPDFMalformed
 		}
-		_, _ = instance.FPDFPageObj_SetFillColor(&requests.FPDFPageObj_SetFillColor{
+		if _, err := instance.FPDFPageObj_SetFillColor(&requests.FPDFPageObj_SetFillColor{
 			PageObject: objResp.PageObject,
 			FillColor:  block.fill,
-		})
+		}); err != nil {
+			return ErrPDFMalformed
+		}
 		matrix := structs.FPDF_FS_MATRIX{A: 1, D: 1, E: float32(block.left), F: float32(y)}
-		_, _ = instance.FPDFPageObj_SetMatrix(&requests.FPDFPageObj_SetMatrix{
+		if _, err := instance.FPDFPageObj_SetMatrix(&requests.FPDFPageObj_SetMatrix{
 			PageObject: objResp.PageObject,
 			Transform:  matrix,
-		})
+		}); err != nil {
+			return ErrPDFMalformed
+		}
 		if _, err := instance.FPDFPage_InsertObject(&requests.FPDFPage_InsertObject{
 			Page:       page,
 			PageObject: objResp.PageObject,
@@ -520,6 +494,9 @@ func applyPDFBlockTranslation(instance pdfium.Pdfium, doc references.FPDF_DOCUME
 			return ErrPDFMalformed
 		}
 		y -= lineHeight
+	}
+	if overflow {
+		return pdfOverflowError{}
 	}
 	return nil
 }
@@ -656,82 +633,4 @@ func requiresPDFShaping(r rune) bool {
 	default:
 		return false
 	}
-}
-
-// buildTestPDFDocument creates a single-page PDF with the given lines (test helper).
-func buildTestPDFDocument(lines []string) ([]byte, error) {
-	var out []byte
-	err := withPDFiumInstance(context.Background(), func(instance pdfium.Pdfium) error {
-		newDoc, err := instance.FPDF_CreateNewDocument(&requests.FPDF_CreateNewDocument{})
-		if err != nil {
-			return err
-		}
-		doc := newDoc.Document
-		defer closePDFDocument(instance, doc)
-
-		pageResp, err := instance.FPDFPage_New(&requests.FPDFPage_New{
-			Document:  doc,
-			PageIndex: 0,
-			Width:     612,
-			Height:    792,
-		})
-		if err != nil {
-			return err
-		}
-		defer func() {
-			_, _ = instance.FPDF_ClosePage(&requests.FPDF_ClosePage{Page: pageResp.Page})
-		}()
-
-		page := requests.Page{ByReference: &pageResp.Page}
-		fontResp, err := instance.FPDFText_LoadStandardFont(&requests.FPDFText_LoadStandardFont{
-			Document: doc,
-			Font:     "Helvetica",
-		})
-		if err != nil {
-			return err
-		}
-		defer func() {
-			_, _ = instance.FPDFFont_Close(&requests.FPDFFont_Close{Font: fontResp.Font})
-		}()
-
-		y := float32(720)
-		for _, line := range lines {
-			objResp, err := instance.FPDFPageObj_CreateTextObj(&requests.FPDFPageObj_CreateTextObj{
-				Document: doc,
-				Font:     fontResp.Font,
-				FontSize: 14,
-			})
-			if err != nil {
-				return err
-			}
-			_, _ = instance.FPDFText_SetText(&requests.FPDFText_SetText{PageObject: objResp.PageObject, Text: line})
-			_, _ = instance.FPDFPageObj_SetMatrix(&requests.FPDFPageObj_SetMatrix{
-				PageObject: objResp.PageObject,
-				Transform:  structs.FPDF_FS_MATRIX{A: 1, D: 1, E: 72, F: y},
-			})
-			if _, err := instance.FPDFPage_InsertObject(&requests.FPDFPage_InsertObject{
-				Page:       page,
-				PageObject: objResp.PageObject,
-			}); err != nil {
-				return err
-			}
-			y -= 24
-		}
-		if _, err := instance.FPDFPage_GenerateContent(&requests.FPDFPage_GenerateContent{Page: page}); err != nil {
-			return err
-		}
-
-		saved, err := instance.FPDF_SaveAsCopy(&requests.FPDF_SaveAsCopy{
-			Document: doc,
-			Flags:    requests.SaveFlagNoIncremental,
-		})
-		if err != nil {
-			return err
-		}
-		if saved.FileBytes != nil {
-			out = bytes.Clone(*saved.FileBytes)
-		}
-		return nil
-	})
-	return out, err
 }
