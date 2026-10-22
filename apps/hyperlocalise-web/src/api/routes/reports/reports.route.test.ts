@@ -98,64 +98,38 @@ describe("reports routes", () => {
       settings: { financial: true, canManage: false },
     });
 
-    const created = await app.request(reportsUrl(slug, "/rates"), {
-      method: "POST",
+    const priced = await app.request(reportsUrl(slug, "/task-rates"), {
+      method: "PUT",
       headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify(rateBody),
+      body: JSON.stringify({ jobId: "job_any", step: "translation", rateCardName: "Default" }),
     });
-    expect(created.status).toBe(403);
-    await expect(created.json()).resolves.toMatchObject({ error: "report_costs_forbidden" });
+    expect(priced.status).toBe(403);
+    await expect(priced.json()).resolves.toMatchObject({ error: "report_costs_forbidden" });
   });
 
-  it("lets admins create rates", async () => {
+  it("serves the task list, and no longer serves the old Reports page's routes", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
     const slug = identity.organization.slug ?? "missing-slug";
 
-    const settings = await app.request(reportsUrl(slug, "/settings"), { headers });
-    await expect(settings.json()).resolves.toMatchObject({
-      settings: { financial: true, canManage: true },
-    });
-
-    const created = await app.request(reportsUrl(slug, "/rates"), {
-      method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify(rateBody),
-    });
-    expect(created.status).toBe(201);
-    await expect(created.json()).resolves.toMatchObject({
-      rate: { name: "Default", step: "translation" },
-    });
-  });
-
-  it("serves word count totals and the job list, as JSON and CSV", async () => {
-    const identity = fixture.createWorkosIdentityWithRole("localization_manager");
-    const headers = await fixture.authHeadersFor(identity);
-    const slug = identity.organization.slug ?? "missing-slug";
-
-    const totals = await app.request(reportsUrl(slug, "/word-counts?groupBy=job"), { headers });
-    expect(totals.status).toBe(200);
-    await expect(totals.json()).resolves.toMatchObject({
-      wordCounts: { rows: [], groupBy: "job" },
-    });
-
-    const csv = await app.request(reportsUrl(slug, "/word-counts?format=csv"), { headers });
-    expect(csv.status).toBe(200);
-    expect(csv.headers.get("content-type")).toContain("text/csv");
-    expect((await csv.text()).split("\r\n")[0]).toContain("analysedWords");
-
     const jobs = await app.request(reportsUrl(slug, "/jobs"), { headers });
     await expect(jobs.json()).resolves.toEqual({ jobs: [] });
 
-    const missing = await app.request(reportsUrl(slug, "/tasks/job_missing/match-analysis"), {
-      headers,
-    });
-    expect(missing.status).toBe(404);
-
-    const invalid = await app.request(reportsUrl(slug, "/word-counts?groupBy=person"), {
-      headers,
-    });
-    expect(invalid.status).toBe(400);
+    for (const [method, path] of [
+      ["GET", "/word-counts"],
+      ["GET", "/tasks/job_missing"],
+      ["GET", "/tasks/job_missing/match-analysis"],
+      ["POST", "/rates"],
+    ]) {
+      const response = await app.request(reportsUrl(slug, path), {
+        method,
+        headers: { ...headers, "Content-Type": "application/json" },
+        ...(method === "POST" ? { body: JSON.stringify(rateBody) } : {}),
+      });
+      expect(response.status, path).toBe(404);
+      // An unknown route, not a task the viewer cannot open.
+      expect(await response.text(), path).not.toContain("job_not_found");
+    }
   });
 
   it("serves each section of the Reports page in its own envelope", async () => {
@@ -377,7 +351,22 @@ describe("reports routes", () => {
       estimate: { totals: { costUsd: "5.00000000" } },
       stillToCome: { amountUsd: "3.00000000", incomplete: false },
       time: { minutes: 45, people: 1, entries: [{ minutes: 45, own: true, canEdit: true }] },
+      // Time is logged on translation, so its pricing can no longer change; review's still can.
+      pricing: [
+        { step: "translation", rateCardName: null, locked: true },
+        { step: "review", rateCardName: null, locked: false },
+      ],
+      canSetPricing: true,
     });
+
+    const csv = await app.request(
+      reportsUrl(slug, `/tasks/${job.id}/report?rateCard=Standard&format=csv`),
+      { headers },
+    );
+    expect(csv.headers.get("content-disposition")).toContain("task-report.csv");
+    const [header, row] = (await csv.text()).split("\r\n");
+    expect(header).toBe('"targetLocale","new","total","finished","weighted","costUsd"');
+    expect(row).toBe('"fr-FR","10","10","4","10","5.00"');
 
     const missing = await app.request(reportsUrl(slug, "/tasks/job_missing/report"), { headers });
     expect(missing.status).toBe(404);
@@ -453,7 +442,7 @@ describe("reports routes", () => {
     expect(costs).toEqual([{ amountUsd: "30.00000000", locale: "de-DE" }]);
   });
 
-  it("refuses retired rate lines and unknown rate cards for tasks and budgets", async () => {
+  it("prices a task's step by a card until work on it starts, and refuses unknown rate cards", async () => {
     const workspace = await reporting.createWorkspace();
     const { identity, organization, user, project, createJob } = workspace;
     const headers = {
@@ -461,56 +450,62 @@ describe("reports routes", () => {
       "Content-Type": "application/json",
     };
     const slug = identity.organization.slug ?? "missing-slug";
-    const job = await createJob({ status: "queued" });
-    const fr = {
-      sourceLocale: "en-US",
-      targetLocale: "fr-FR",
-      step: "translation" as const,
-      basis: "word" as const,
-      percentages: {},
-    };
-    const first = await saveRateCard({
+    // A task people work on from the start is never queued.
+    const job = await createJob({ status: "waiting_for_review" });
+    const saved = await saveRateCard({
       organizationId: organization.id,
       actorId: user.id,
       name: "Standard",
       defaultBasis: "word",
-      lines: [{ ...fr, rate: "0.10" }],
+      lines: [
+        {
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          step: "translation",
+          basis: "word",
+          rate: "0.12",
+          percentages: {},
+        },
+      ],
       create: true,
     });
-    const second = await saveRateCard({
-      organizationId: organization.id,
-      actorId: user.id,
-      name: "Standard",
-      defaultBasis: "word",
-      lines: [{ ...fr, rate: "0.12" }],
-      create: false,
-    });
-    if (!isOk(first) || !isOk(second)) throw new Error("expected the card to save");
-    const taskRate = (rateId: string) =>
+    if (!isOk(saved)) throw new Error("expected the card to save");
+    const price = (jobId: string, step: string, body: Record<string, unknown>) =>
       app.request(reportsUrl(slug, "/task-rates"), {
         method: "PUT",
         headers,
-        body: JSON.stringify({ jobId: job.id, step: "translation", rateId }),
+        body: JSON.stringify({ jobId, step, ...body }),
       });
-    const old = await taskRate(first.value.lines[0].id);
-    expect(old.status).toBe(400);
-    await expect(old.json()).resolves.toMatchObject({ error: "invalid_rate" });
-    // The old Reports page sends a line: the task takes the line's card.
-    const legacy = await taskRate(second.value.lines[0].id);
-    expect(legacy.status).toBe(200);
-    await expect(legacy.json()).resolves.toMatchObject({
-      taskRate: { rateCardName: "Standard", rateId: null, pricedAt: expect.any(String) },
-    });
-    const taskCard = (rateCardName: string) =>
-      app.request(reportsUrl(slug, "/task-rates"), {
-        method: "PUT",
-        headers,
-        body: JSON.stringify({ jobId: job.id, step: "translation", rateCardName }),
-      });
-    const missingCard = await taskCard("Nope");
+    const missingCard = await price(job.id, "translation", { rateCardName: "Nope" });
     expect(missingCard.status).toBe(400);
     await expect(missingCard.json()).resolves.toMatchObject({ error: "rate_card_not_found" });
-    expect((await taskCard("Standard")).status).toBe(200);
+    const priced = await price(job.id, "translation", {
+      rateCardName: "Standard",
+      estimatedMinutes: 90,
+    });
+    expect(priced.status).toBe(200);
+    await expect(priced.json()).resolves.toMatchObject({
+      taskRate: { rateCardName: "Standard", estimatedMinutes: 90, pricedAt: expect.any(String) },
+    });
+
+    // Once time is logged on the step its pricing is fixed; the other step's is not.
+    await db.insert(schema.reportingTimeEntries).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: job.id,
+      contributorId: user.id,
+      step: "translation",
+      targetLocale: "fr-FR",
+      workDate: new Date("2026-06-01T00:00:00Z"),
+      minutes: 30,
+    });
+    const locked = await price(job.id, "translation", { rateCardName: null });
+    expect(locked.status).toBe(400);
+    await expect(locked.json()).resolves.toMatchObject({ error: "task_rate_locked" });
+    expect((await price(job.id, "review", { overrideUsd: "250" })).status).toBe(200);
+    // A task that ended does no more work, so nothing about it can change.
+    const ended = await createJob({ status: "succeeded" });
+    expect((await price(ended.id, "translation", { rateCardName: "Standard" })).status).toBe(400);
 
     const budget = (rateCardName: string) =>
       app.request(reportsUrl(slug, "/budgets"), {

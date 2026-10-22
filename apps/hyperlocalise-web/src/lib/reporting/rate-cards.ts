@@ -127,20 +127,6 @@ export async function rateCardExists(
   return result.rows[0].found;
 }
 
-/** True when a rate row is its line's newest version and not retired, so a task may use it. */
-export async function isLiveRateLine(
-  organizationId: string,
-  rateId: string,
-  database: DatabaseClient = db,
-): Promise<boolean> {
-  const result = await database.execute<{ found: boolean }>(sql`
-    select exists(
-      select 1 from (${liveRateRows(organizationId)}) live where id = ${rateId} and not retired
-    ) as found
-  `);
-  return result.rows[0].found;
-}
-
 /** Holds a card's save lock until the transaction ends, so its lines cannot change meanwhile. */
 export async function lockRateCard(database: DatabaseClient, organizationId: string, name: string) {
   await database.execute(

@@ -14,7 +14,7 @@ import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { createMiddleware } from "hono/factory";
 import { validator } from "hono/validator";
 import type { z } from "zod";
-import { and, eq, inArray, desc, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import { getAccessibleProjectIds, buildAccessibleJobsWhere } from "@/api/auth/team-access";
@@ -31,7 +31,6 @@ import { workspaceReportsFlag } from "@/lib/flags/workspace-flags";
 import { queryReport, reportCsv } from "@/lib/reporting/query";
 import { hourlyCost } from "@/lib/reporting/money";
 import { resolveReportingRate, reportingStart } from "@/lib/reporting/capture";
-import { budgetSummary } from "@/lib/reporting/budgets";
 import { queryAiUsage } from "@/lib/reporting/ai-usage";
 import {
   queryBudgets,
@@ -40,7 +39,6 @@ import {
   queryStillToCome,
 } from "@/lib/reporting/cost-queries";
 import {
-  isLiveRateLine,
   lockRateCard,
   listRateCards,
   rateCardExists,
@@ -53,10 +51,13 @@ import {
   costsCsv,
   loggedTimeCsv,
   stepTimesCsv,
+  taskWordsCsv,
   wordCountsCsv,
 } from "@/lib/reporting/report-csv";
 import { resolvePeriod } from "@/lib/reporting/report-period";
 import { scopedProjectIds } from "@/lib/reporting/report-scope";
+import { REPORT_STEPS } from "@/lib/reporting/report-units";
+import { lockedPricingSteps } from "@/lib/reporting/task-pricing";
 import { getReportingStart } from "@/lib/reporting/reporting-start";
 import {
   queryAutomatedTime,
@@ -70,17 +71,9 @@ import {
   queryTaskWords,
   queryWordCounts,
 } from "@/lib/reporting/word-queries";
-import {
-  listReportJobs,
-  matchAnalysisCsv,
-  queryJobMatchAnalysis,
-  queryWordVolume,
-  wordVolumeCsv,
-} from "@/lib/reporting/word-count-report";
+import { listReportJobs } from "@/lib/reporting/word-count-report";
 import {
   reportQuerySchema,
-  wordCountQuerySchema,
-  exportFormatSchema,
   budgetsQuerySchema,
   reportTaskSearchSchema,
   activityQuerySchema,
@@ -92,7 +85,6 @@ import {
   costEstimateQuerySchema,
   taskReportQuerySchema,
   rateCardSchema,
-  rateSchema,
   budgetSchema,
   taskRateSchema,
   timeSchema,
@@ -199,31 +191,6 @@ export function createReportsRoutes() {
       }
       return c.json({ report });
     })
-    .get("/word-counts", async (c) => {
-      const parsed = wordCountQuerySchema.safeParse(c.req.query());
-      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
-      const today = new Date().toISOString().slice(0, 10);
-      const from =
-        parsed.data.from ?? new Date(Date.now() - 27 * 86400000).toISOString().slice(0, 10);
-      const to = parsed.data.to ?? today;
-      const rows = await queryWordVolume({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        projectIds: await getAccessibleProjectIds(c.var.auth),
-        from,
-        to,
-        groupBy: parsed.data.groupBy,
-        projectId: parsed.data.projectId,
-        jobId: parsed.data.jobId,
-        targetLocale: parsed.data.targetLocale,
-        step: parsed.data.step,
-      });
-      if (parsed.data.format === "csv") {
-        c.header("Content-Type", "text/csv; charset=utf-8");
-        c.header("Content-Disposition", 'attachment; filename="word-counts.csv"');
-        return c.body(wordVolumeCsv(rows, parsed.data.groupBy));
-      }
-      return c.json({ wordCounts: { rows, from, to, groupBy: parsed.data.groupBy } });
-    })
     .get("/jobs", reportQuery(reportTaskSearchSchema), async (c) => {
       const query = c.req.valid("query");
       const jobs = await listReportJobs({
@@ -268,29 +235,12 @@ export function createReportsRoutes() {
       };
       if (!context.financial)
         return c.json({
-          settings: {
-            ...shared,
-            rates: [],
-            budgets: [],
-            rateCardNames: [],
-            financial: false,
-            canManage: false,
-          },
+          settings: { ...shared, rateCardNames: [], financial: false, canManage: false },
         });
-      const [rates, budgets, rateCards] = await Promise.all([
-        db
-          .select()
-          .from(schema.reportingRates)
-          .where(eq(schema.reportingRates.organizationId, organizationId))
-          .orderBy(desc(schema.reportingRates.createdAt)),
-        budgetSummary(organizationId, projectIds),
-        listRateCards(organizationId),
-      ]);
+      const rateCards = await listRateCards(organizationId);
       return c.json({
         settings: {
           ...shared,
-          rates,
-          budgets,
           rateCardNames: rateCards.map((card) => card.name),
           financial: true,
           canManage: hasCapability(role, "billing:write"),
@@ -477,7 +427,7 @@ export function createReportsRoutes() {
       const financial = hasCapability(role, "billing:read");
       const userId = c.var.auth.user.localUserId;
       const money = financial && job.projectId;
-      const [words, entries, estimate, stillToCome] = await Promise.all([
+      const [words, entries, estimate, stillToCome, pricing, locked] = await Promise.all([
         queryTaskWords({ organizationId, jobId: job.id, unit: query.unit }),
         db.execute<{
           id: string;
@@ -515,7 +465,23 @@ export function createReportsRoutes() {
               rateCardName: query.rateCard ?? null,
             })
           : null,
+        financial
+          ? db
+              .select()
+              .from(schema.reportingTaskRates)
+              .where(
+                and(
+                  eq(schema.reportingTaskRates.organizationId, organizationId),
+                  eq(schema.reportingTaskRates.jobId, job.id),
+                ),
+              )
+          : [],
+        financial
+          ? lockedPricingSteps({ organizationId, jobId: job.id, status: job.status })
+          : null,
       ]);
+      if (query.format === "csv")
+        return csv(c, "task-report.csv", taskWordsCsv(words, estimate, query.step));
       const payload = job.inputPayload as {
         sourceLocale?: string;
         targetLocales?: string[];
@@ -557,95 +523,23 @@ export function createReportsRoutes() {
               })),
           },
           canLogTime: canLog,
+          // A task's own pricing, for each step: shown to the roles that see money.
+          pricing: locked
+            ? REPORT_STEPS.map((step) => {
+                const own = pricing.find((row) => row.step === step);
+                return {
+                  step,
+                  rateCardName: own?.rateCardName ?? null,
+                  pricedAt: own?.pricedAt?.toISOString() ?? null,
+                  estimatedMinutes: own?.estimatedMinutes ?? null,
+                  overrideUsd: own?.overrideUsd ?? null,
+                  locked: locked.has(step),
+                };
+              })
+            : null,
+          canSetPricing: canEditAll,
         },
       });
-    })
-    .get("/tasks/:jobId/match-analysis", async (c) => {
-      const parsed = exportFormatSchema.safeParse(c.req.query());
-      if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
-      const [job] = await db
-        .select({ id: schema.jobs.id })
-        .from(schema.jobs)
-        .where(
-          and(eq(schema.jobs.id, c.req.param("jobId")), await buildAccessibleJobsWhere(c.var.auth)),
-        );
-      if (!job) return notFoundResponse(c, "job_not_found");
-      const rows = await queryJobMatchAnalysis({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        jobId: job.id,
-      });
-      if (parsed.data.format === "csv") {
-        c.header("Content-Type", "text/csv; charset=utf-8");
-        c.header("Content-Disposition", 'attachment; filename="match-analysis.csv"');
-        return c.body(matchAnalysisCsv(rows));
-      }
-      return c.json({ matchAnalysis: { jobId: job.id, rows } });
-    })
-    .get("/tasks/:jobId", async (c) => {
-      const organizationId = c.var.auth.organization.localOrganizationId;
-      const [job] = await db
-        .select()
-        .from(schema.jobs)
-        .where(
-          and(eq(schema.jobs.id, c.req.param("jobId")), await buildAccessibleJobsWhere(c.var.auth)),
-        );
-      if (!job) return notFoundResponse(c, "job_not_found");
-      const analyses = await db
-        .select({
-          id: schema.reportingAnalyses.id,
-          segmentId: schema.reportingAnalyses.segmentId,
-          sourceRevision: schema.reportingAnalyses.sourceRevision,
-          targetLocale: schema.reportingAnalyses.targetLocale,
-          words: schema.reportingAnalyses.words,
-          bucket: schema.reportingAnalyses.bucket,
-          matchScore: schema.reportingAnalyses.matchScore,
-          createdAt: schema.reportingAnalyses.createdAt,
-        })
-        .from(schema.reportingAnalyses)
-        .where(
-          and(
-            eq(schema.reportingAnalyses.organizationId, organizationId),
-            eq(schema.reportingAnalyses.jobId, job.id),
-            // Earlier versions of a re-saved or re-analysed string are history, not workload.
-            eq(schema.reportingAnalyses.isCurrent, true),
-          ),
-        );
-      const times = await db
-        .select()
-        .from(schema.reportingTimeEntries)
-        .where(
-          and(
-            eq(schema.reportingTimeEntries.organizationId, organizationId),
-            eq(schema.reportingTimeEntries.jobId, job.id),
-            eq(schema.reportingTimeEntries.voided, false),
-          ),
-        );
-      const financial = hasCapability(c.var.auth.membership.role, "billing:read");
-      return c.json({
-        taskReport: {
-          analyses,
-          timeEntries: times
-            .filter((entry) => financial || entry.contributorId === c.var.auth.user.localUserId)
-            .map(({ rateId: _rateId, ...entry }) => entry),
-        },
-      });
-    })
-    .post("/rates", async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "billing:write"))
-        return forbiddenResponse(c, "report_costs_forbidden");
-      const parsed = rateSchema.safeParse(await c.req.json());
-      if (!parsed.success) return badRequestResponse(c, "invalid_rate");
-      const organizationId = c.var.auth.organization.localOrganizationId;
-      // As a card save does, so a task being priced sees the line on one side of that moment.
-      const rate = await db.transaction(async (tx) => {
-        await lockRateCard(tx, organizationId, parsed.data.name);
-        const [saved] = await tx
-          .insert(schema.reportingRates)
-          .values({ ...parsed.data, organizationId, createdAt: sql`clock_timestamp()` })
-          .returning();
-        return saved;
-      });
-      return c.json({ rate }, 201);
     })
     .put("/budgets", billingWrite, reportBody(budgetSchema, "invalid_budget"), async (c) => {
       const body = c.req.valid("json");
@@ -666,91 +560,68 @@ export function createReportsRoutes() {
         .returning();
       return c.json({ budget });
     })
-    .put("/task-rates", async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "billing:write"))
-        return forbiddenResponse(c, "report_costs_forbidden");
-      const parsed = taskRateSchema.safeParse(await c.req.json());
-      if (!parsed.success) return badRequestResponse(c, "invalid_task_rate");
-      const organizationId = c.var.auth.organization.localOrganizationId;
-      const [job] = await db
-        .select()
-        .from(schema.jobs)
-        .where(
-          and(eq(schema.jobs.id, parsed.data.jobId), await buildAccessibleJobsWhere(c.var.auth)),
-        );
-      if (!job) return notFoundResponse(c, "job_not_found");
-      const { rateId, ...pricing } = parsed.data;
-      let rateCardName = pricing.rateCardName;
-      if (rateCardName) {
-        if (!(await rateCardExists(organizationId, rateCardName)))
-          return badRequestResponse(c, "rate_card_not_found");
-      } else if (rateId) {
-        // The old Reports page still sends one rate line; the task takes that line's card.
-        const [rate] = await db
-          .select()
-          .from(schema.reportingRates)
-          .where(
-            and(
-              eq(schema.reportingRates.id, rateId),
-              eq(schema.reportingRates.organizationId, organizationId),
-              eq(schema.reportingRates.step, parsed.data.step),
-            ),
-          );
-        // An older version of a line, or one taken off its card, is no longer a rate to choose.
-        if (!rate || !(await isLiveRateLine(organizationId, rate.id)))
-          return badRequestResponse(c, "invalid_rate");
-        rateCardName = rate.name;
-      }
-      const taskRate = await db.transaction(async (tx) => {
-        const [lockedJob] = await tx
+    .put(
+      "/task-rates",
+      billingWrite,
+      reportBody(taskRateSchema, "invalid_task_rate"),
+      async (c) => {
+        const body = c.req.valid("json");
+        const organizationId = c.var.auth.organization.localOrganizationId;
+        const [job] = await db
           .select()
           .from(schema.jobs)
-          .where(eq(schema.jobs.id, job.id))
-          .for("update");
-        const activity = await tx.execute<{ started: boolean }>(sql`
-          select exists(select 1 from reporting_analyses where job_id=${job.id} and step=${parsed.data.step})
-            or exists(select 1 from reporting_costs where job_id=${job.id} and step=${parsed.data.step})
-            or exists(select 1 from reporting_time_entries where job_id=${job.id} and step=${parsed.data.step}) as started
-        `);
-        if (lockedJob.status !== "queued" || activity.rows[0].started) return null;
-        // The task keeps the card's prices as they are now; holding the card's save lock keeps a
-        // save in progress from landing on either side of that moment.
-        if (rateCardName) await lockRateCard(tx, organizationId, rateCardName);
-        const values = {
-          ...pricing,
-          rateCardName,
-          rateId: null,
-          pricedAt: rateCardName ? sql`clock_timestamp()` : null,
-        };
-        const [saved] = await tx
-          .insert(schema.reportingTaskRates)
-          .values({ ...values, organizationId })
-          .onConflictDoUpdate({
-            target: [
-              schema.reportingTaskRates.organizationId,
-              schema.reportingTaskRates.jobId,
-              schema.reportingTaskRates.step,
-            ],
-            set: values,
-          })
-          .returning();
-        await tx.insert(schema.reportingAudit).values({
-          organizationId,
-          actorId: c.var.auth.user.localUserId,
-          resourceId: saved.id,
-          action: "task_rate_saved",
-          after: saved,
+          .where(and(eq(schema.jobs.id, body.jobId), await buildAccessibleJobsWhere(c.var.auth)));
+        if (!job) return notFoundResponse(c, "job_not_found");
+        if (body.rateCardName && !(await rateCardExists(organizationId, body.rateCardName)))
+          return badRequestResponse(c, "rate_card_not_found");
+        const taskRate = await db.transaction(async (tx) => {
+          const [lockedJob] = await tx
+            .select()
+            .from(schema.jobs)
+            .where(eq(schema.jobs.id, job.id))
+            .for("update");
+          const locked = await lockedPricingSteps(
+            { organizationId, jobId: job.id, status: lockedJob.status },
+            tx,
+          );
+          if (locked.has(body.step)) return null;
+          // The task keeps the card's prices as they are now; holding the card's save lock keeps a
+          // save in progress from landing on either side of that moment.
+          if (body.rateCardName) await lockRateCard(tx, organizationId, body.rateCardName);
+          const values = {
+            ...body,
+            pricedAt: body.rateCardName ? sql`clock_timestamp()` : null,
+          };
+          const [saved] = await tx
+            .insert(schema.reportingTaskRates)
+            .values({ ...values, organizationId })
+            .onConflictDoUpdate({
+              target: [
+                schema.reportingTaskRates.organizationId,
+                schema.reportingTaskRates.jobId,
+                schema.reportingTaskRates.step,
+              ],
+              set: values,
+            })
+            .returning();
+          await tx.insert(schema.reportingAudit).values({
+            organizationId,
+            actorId: c.var.auth.user.localUserId,
+            resourceId: saved.id,
+            action: "task_rate_saved",
+            after: saved,
+          });
+          return saved;
         });
-        return saved;
-      });
-      if (!taskRate)
-        return badRequestResponse(
-          c,
-          "task_rate_locked",
-          "Task rates can only change before work starts.",
-        );
-      return c.json({ taskRate });
-    })
+        if (!taskRate)
+          return badRequestResponse(
+            c,
+            "task_rate_locked",
+            "A task's pricing can only change before work on that step starts.",
+          );
+        return c.json({ taskRate });
+      },
+    )
     .post("/time-entries", canLogTime, reportBody(timeSchema, "invalid_time_entry"), async (c) => {
       const body = c.req.valid("json");
       const organizationId = c.var.auth.organization.localOrganizationId;

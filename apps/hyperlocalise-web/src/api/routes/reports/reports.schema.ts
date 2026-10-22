@@ -31,31 +31,6 @@ export const reportQuerySchema = z
     page: z.coerce.number().int().min(1).max(10_000).default(1),
   })
   .refine((v) => !v.from || !v.to || v.from <= v.to, { message: "Invalid date range" });
-export const wordCountQuerySchema = z
-  .object({
-    from: day.optional(),
-    to: day.optional(),
-    projectId: z.string().optional(),
-    jobId: z.string().optional(),
-    targetLocale: z.string().optional(),
-    step: step.optional(),
-    groupBy: z.enum(["project", "job"]).default("project"),
-    format: z.enum(["json", "csv"]).default("json"),
-  })
-  .refine((v) => !v.from || !v.to || v.from <= v.to, { message: "Invalid date range" });
-export const exportFormatSchema = z.object({
-  format: z.enum(["json", "csv"]).default("json"),
-});
-export const reportJobsQuerySchema = z.object({ projectId: z.string().optional() });
-export const rateSchema = z.object({
-  name: z.string().trim().min(1).max(100),
-  sourceLocale: z.string().min(2).max(35),
-  targetLocale: z.string().min(2).max(35),
-  step,
-  basis: z.enum(RATE_BASES),
-  rate: usd,
-  percentages: z.partialRecord(z.enum(MATCH_BUCKETS), z.number().int().min(0).max(100)).default({}),
-});
 export const budgetSchema = z.object({
   projectId: z.string().min(1),
   budget: usd,
@@ -65,9 +40,7 @@ export const taskRateSchema = z.object({
   jobId: z.string().min(1),
   step,
   /** The task's own rate card; each language is priced by that card's line for it. */
-  rateCardName: z.string().min(1).max(100).nullable().default(null),
-  /** A rate line, as the old Reports page sends it: the task takes the line's card. */
-  rateId: z.uuid().nullable().default(null),
+  rateCardName: z.string().trim().min(1).max(100).nullable().default(null),
   estimatedMinutes: z.number().int().nonnegative().max(525600).nullable().default(null),
   overrideUsd: usd.nullable().default(null),
 });
@@ -155,6 +128,7 @@ export const taskReportQuerySchema = z.object({
   unit,
   step: step.default("translation"),
   rateCard: z.string().trim().min(1).max(100).optional(),
+  format,
 });
 export const reportTaskSearchSchema = z.object({
   projectId: id.optional(),

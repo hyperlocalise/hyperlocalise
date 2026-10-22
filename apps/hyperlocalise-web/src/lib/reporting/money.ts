@@ -29,9 +29,3 @@ export function unitCost(rate: string, units: number, payablePercent = 100): str
 export function hourlyCost(rate: string, minutes: number): string {
   return usdString((usdUnits(rate) * BigInt(minutes) + BigInt(30)) / BigInt(60));
 }
-export function budgetWarning(budget: string, cost: string): "none" | "approaching" | "exceeded" {
-  const limit = usdUnits(budget),
-    accrued = usdUnits(cost);
-  if (accrued >= limit) return "exceeded";
-  return accrued * BigInt(100) >= limit * BigInt(80) ? "approaching" : "none";
-}

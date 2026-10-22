@@ -12,9 +12,10 @@
  */
 import type { AiUsage } from "./ai-usage";
 import type { BudgetRow, CostEstimate, Costs } from "./cost-queries";
+import type { ReportStep } from "./report-units";
 import type { AutomatedTime, LoggedTime, StepTime } from "./time-queries";
 import { csvCell, MATCH_BUCKETS } from "./word-analysis";
-import type { BandCounts, WordCounts } from "./word-queries";
+import type { BandCounts, TaskWordRow, WordCounts } from "./word-queries";
 
 /** CSV downloads of the Reports page's tables. Headers are the JSON field names. */
 
@@ -226,6 +227,50 @@ export function budgetsCsv(budgets: BudgetRow[]): string {
       row.remainingUsd,
       row.status,
       row.incomplete,
+    ]),
+  );
+}
+
+/**
+ * A task's words by language for one step, as its Report tab shows them, with the weighted units
+ * and cost when the estimate is given (the roles that see money).
+ */
+export function taskWordsCsv(
+  words: { rows: TaskWordRow[] },
+  estimate: CostEstimate | null,
+  step: ReportStep,
+): string {
+  const rows = words.rows.filter((row) => row.step === step);
+  const totals: BandCounts = {};
+  for (const row of rows)
+    for (const [bucket, units] of Object.entries(row.bands))
+      totals[bucket as keyof BandCounts] = (totals[bucket as keyof BandCounts] ?? 0) + units;
+  const bands = bandsIn(totals);
+  const priced = (targetLocale: string) =>
+    estimate?.rows.filter((row) => row.targetLocale === targetLocale && row.step === step) ?? [];
+  const money = (targetLocale: string) => {
+    const lines = priced(targetLocale);
+    const weighted = lines.reduce<number | null>(
+      (sum, line) => (line.weighted === null ? sum : (sum ?? 0) + line.weighted),
+      null,
+    );
+    const cost = lines.reduce<number | null>(
+      (sum, line) => (line.costUsd === null ? sum : (sum ?? 0) + Number(line.costUsd)),
+      null,
+    );
+    return [
+      weighted === null ? null : Math.round(weighted * 100) / 100,
+      cost === null ? null : cost.toFixed(2),
+    ];
+  };
+  return toCsv(
+    ["targetLocale", ...bands, "total", "finished", ...(estimate ? ["weighted", "costUsd"] : [])],
+    rows.map((row) => [
+      row.targetLocale,
+      ...bands.map((bucket) => row.bands[bucket] ?? 0),
+      row.total,
+      row.finished,
+      ...(estimate ? money(row.targetLocale) : []),
     ]),
   );
 }

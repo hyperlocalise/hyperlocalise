@@ -25,7 +25,7 @@ import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translat
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 import { captureAiUsage } from "./ai-cost";
-import { budgetSummary } from "./budgets";
+import { queryBudgets } from "./cost-queries";
 import {
   analysisScopeLockKey,
   captureAnalysis,
@@ -36,6 +36,7 @@ import {
   scoreAgainstMemory,
   sourceSimilarity,
 } from "./capture";
+import { refreshPendingSummary } from "./summary";
 
 const resolveWorkspaceReportsFlagMock = vi.hoisted(() => vi.fn(async () => true));
 
@@ -787,11 +788,15 @@ describe("reporting capture", () => {
       outputTokens: 40,
     });
 
-    const [summary] = await budgetSummary(organization.id, [project.id]);
+    await refreshPendingSummary({ organizationIds: [organization.id] });
+    const [budget] = await queryBudgets({
+      organizationId: organization.id,
+      projectIds: [project.id],
+    });
     // "Hello world" still to translate: 10 characters at $0.05; the unpriced AI row is not spend.
-    expect(summary).toMatchObject({
-      accruedUsd: "0.00000000",
-      outstandingUsd: "0.50000000",
+    expect(budget).toMatchObject({
+      spentUsd: "0.00000000",
+      stillToComeUsd: "0.50000000",
       incomplete: false,
     });
   });

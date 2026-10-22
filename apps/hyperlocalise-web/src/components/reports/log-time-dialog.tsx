@@ -44,6 +44,7 @@ export function LogTimeDialog({
   settings,
   projectId,
   jobId: fixedJobId,
+  languages: fixedLanguages,
   onClose,
 }: {
   organizationSlug: string;
@@ -51,6 +52,8 @@ export function LogTimeDialog({
   projectId: string | null;
   /** On a task's own report the task is fixed. */
   jobId?: string;
+  /** The fixed task's languages, which its project's may not all be. */
+  languages?: string[];
   onClose: () => void;
 }) {
   const intl = useIntl();
@@ -71,7 +74,7 @@ export function LogTimeDialog({
     enabled: Boolean(jobId),
   }).data?.[0];
   const taskProject = settings.projects.find((project) => project.id === task?.projectId);
-  const languages = taskProject?.targetLocales ?? [];
+  const languages = fixedLanguages ?? taskProject?.targetLocales ?? [];
   const total = Number(hours || 0) * 60 + Number(minutes || 0);
 
   async function save() {

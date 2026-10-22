@@ -19,7 +19,7 @@ import { db, schema } from "@/lib/database/client";
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
 import { resolveReportingRate } from "./capture";
-import { isLiveRateLine, listRateCards, rateCardExists, saveRateCard } from "./rate-cards";
+import { listRateCards, rateCardExists, saveRateCard } from "./rate-cards";
 import { createReportingTestFixture } from "./reporting.fixture";
 
 const fixture = createReportingTestFixture();
@@ -126,15 +126,6 @@ describe("rate cards", () => {
     const fr = second.value.lines.find((entry) => entry.targetLocale === "fr-FR");
     expect(fr?.id).toBe(ids.get("fr-FR"));
     expect(second.value.lines.map((entry) => entry.targetLocale)).toEqual(["de-DE", "fr-FR"]);
-
-    await expect(isLiveRateLine(organization.id, ids.get("de-DE")!)).resolves.toBe(false);
-    await expect(
-      isLiveRateLine(
-        organization.id,
-        second.value.lines.find((e) => e.targetLocale === "de-DE")!.id,
-      ),
-    ).resolves.toBe(true);
-    await expect(isLiveRateLine(organization.id, ids.get("es-ES")!)).resolves.toBe(false);
 
     // Work recorded from now on for the retired language has no rate.
     await db.insert(schema.reportingBudgets).values({

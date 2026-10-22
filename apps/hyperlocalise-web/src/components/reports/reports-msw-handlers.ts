@@ -85,6 +85,22 @@ export function createReportsMswHandlers({
     http.put("*/api/orgs/:organizationSlug/reports/budgets", () =>
       HttpResponse.json({ budget: {} }),
     ),
+    http.get("*/api/orgs/:organizationSlug/reports/tasks/:jobId/report", async () => {
+      if (wait) await delay("infinite");
+      if (failing.includes("task-report"))
+        return HttpResponse.json({ error: "report_failed" }, { status: 500 });
+      return HttpResponse.json(bodies["task-report"]);
+    }),
+    http.put("*/api/orgs/:organizationSlug/reports/task-rates", () =>
+      HttpResponse.json(bodies["task-rates"]),
+    ),
+    http.patch("*/api/orgs/:organizationSlug/reports/time-entries/:id", ({ params }) =>
+      HttpResponse.json({ timeEntry: { id: params.id } }),
+    ),
+    http.delete(
+      "*/api/orgs/:organizationSlug/reports/time-entries/:id",
+      () => new HttpResponse(null, { status: 204 }),
+    ),
   ];
 }
 

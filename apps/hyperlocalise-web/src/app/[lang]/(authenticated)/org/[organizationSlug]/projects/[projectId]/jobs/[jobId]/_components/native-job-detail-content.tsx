@@ -12,7 +12,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ReportsWorkspace } from "@/components/reports/reports-workspace";
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -36,6 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
+import { TaskReport } from "@/components/reports/task-report";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
@@ -442,10 +442,13 @@ export function NativeJobDetailContent({
               )
             : undefined
         }
+        renderReportSection={
+          reportsEnabled && job && !isProviderBackedJob(job)
+            ? () => <TaskReport organizationSlug={organizationSlug} jobId={jobId} />
+            : undefined
+        }
         renderExtraMain={
-          showFailureNotice ||
-          (job && (isProviderBackedJob(job) || hasJobActivityFeed(job))) ||
-          reportsEnabled
+          showFailureNotice || (job && (isProviderBackedJob(job) || hasJobActivityFeed(job)))
             ? () => (
                 <>
                   {showFailureNotice && failureDetails ? (
@@ -470,12 +473,6 @@ export function NativeJobDetailContent({
                       projectId={projectId}
                       showProviderMetadata={false}
                       showAgentActions={false}
-                    />
-                  ) : reportsEnabled ? (
-                    <ReportsWorkspace
-                      organizationSlug={organizationSlug}
-                      projectId={projectId}
-                      jobId={jobId}
                     />
                   ) : null}
                 </>

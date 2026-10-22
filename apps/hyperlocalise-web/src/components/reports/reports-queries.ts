@@ -18,6 +18,7 @@ import { useIntl } from "react-intl";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import { addDays } from "@/lib/reporting/report-period";
+import type { ReportStep, ReportUnit } from "@/lib/reporting/report-units";
 
 import { reportsPageMessages as messages } from "./reports-page.messages";
 import type { ReportsUrlState } from "./reports-url-state";
@@ -299,6 +300,54 @@ export function useRateCards(organizationSlug: string, enabled = true) {
   });
 }
 
+/** What a task's Report tab shows: the unit, the step, and the card that prices last. */
+export type TaskReportView = { unit: ReportUnit; step: ReportStep; rateCard: string | null };
+
+export function taskReportQuery(view: TaskReportView) {
+  return compact({ unit: view.unit, step: view.step, rateCard: optional(view.rateCard) });
+}
+
+/** One task's words, money, time and pricing, for its Report tab. */
+export function useTaskReport(
+  organizationSlug: string,
+  jobId: string,
+  view: TaskReportView,
+  enabled = true,
+) {
+  const intl = useIntl();
+  const query = taskReportQuery(view);
+  return useQuery({
+    queryKey: reportsQueryKey(organizationSlug, "task-report", jobId, query),
+    placeholderData: keepPreviousData,
+    enabled,
+    queryFn: async ({ signal }) => {
+      const response = await reportsApi().tasks[":jobId"].report.$get(
+        { param: { organizationSlug, jobId }, query },
+        { init: { signal } },
+      );
+      if (!response.ok)
+        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
+      return (await response.json()).taskReport;
+    },
+  });
+}
+
+export type TaskReport = NonNullable<ReturnType<typeof useTaskReport>["data"]>;
+
+/** A link that downloads a task's words for one step as CSV. */
+export function taskReportDownloadUrl(
+  organizationSlug: string,
+  jobId: string,
+  view: TaskReportView,
+) {
+  return reportsApi()
+    .tasks[":jobId"].report.$url({
+      param: { organizationSlug, jobId },
+      query: { ...taskReportQuery(view), format: "csv" },
+    })
+    .toString();
+}
+
 /** Tasks with Reports data, for the task pickers: by search text, or the chosen ids. */
 export function useReportTasks(input: {
   organizationSlug: string;
@@ -429,6 +478,59 @@ export function useSetBudget(organizationSlug: string) {
       if (!response.ok)
         throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
       return response.json();
+    },
+    onSuccess: invalidate,
+  });
+}
+
+type TaskPricingBody = Parameters<ReturnType<typeof reportsApi>["task-rates"]["$put"]>[0]["json"];
+
+/** Saves a task's own pricing for one step: its rate card, time estimate and fixed fee. */
+export function useSetTaskPricing(organizationSlug: string) {
+  const intl = useIntl();
+  const invalidate = useInvalidateReports(organizationSlug);
+  return useMutation({
+    mutationFn: async (json: TaskPricingBody) => {
+      const response = await reportsApi()["task-rates"].$put({ param: { organizationSlug }, json });
+      if (!response.ok)
+        throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
+      return (await response.json()).taskRate;
+    },
+    onSuccess: invalidate,
+  });
+}
+
+type TimeUpdateBody = Parameters<
+  ReturnType<typeof reportsApi>["time-entries"][":id"]["$patch"]
+>[0]["json"];
+
+export function useEditTime(organizationSlug: string) {
+  const intl = useIntl();
+  const invalidate = useInvalidateReports(organizationSlug);
+  return useMutation({
+    mutationFn: async ({ id, ...json }: TimeUpdateBody & { id: string }) => {
+      const response = await reportsApi()["time-entries"][":id"].$patch({
+        param: { organizationSlug, id },
+        json,
+      });
+      if (!response.ok)
+        throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
+      return response.json();
+    },
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteTime(organizationSlug: string) {
+  const intl = useIntl();
+  const invalidate = useInvalidateReports(organizationSlug);
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await reportsApi()["time-entries"][":id"].$delete({
+        param: { organizationSlug, id },
+      });
+      if (!response.ok)
+        throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
     },
     onSuccess: invalidate,
   });

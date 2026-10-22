@@ -18,8 +18,8 @@ import {
   reportingPeriod,
   csvCell,
 } from "./word-analysis";
-import { usdUnits, usdString, hourlyCost, unitCost, budgetWarning } from "./money";
-import { reportQuerySchema, rateSchema, timeSchema } from "@/api/routes/reports/reports.schema";
+import { usdUnits, usdString, hourlyCost, unitCost } from "./money";
+import { rateCardSchema, reportQuerySchema, timeSchema } from "@/api/routes/reports/reports.schema";
 
 describe("prospective translation accounting", () => {
   it("counts literal ICU alternatives without counting arguments or tags", () => {
@@ -82,11 +82,6 @@ describe("prospective translation accounting", () => {
     expect(unitCost("0.00000001", 1)).toBe("0.00000001");
     expect(() => usdUnits("-1")).toThrow();
   });
-  it("warns at 80 and 100 percent without blocking work", () => {
-    expect(budgetWarning("100", "79.99")).toBe("none");
-    expect(budgetWarning("100", "80")).toBe("approaching");
-    expect(budgetWarning("100", "100")).toBe("exceeded");
-  });
   it("groups UTC weeks on Mondays across year boundaries", () => {
     expect(reportingPeriod(new Date("2026-01-04T23:59:59Z"), "week")).toBe("2025-12-29");
     expect(reportingPeriod(new Date("2026-01-05T00:00:00Z"), "week")).toBe("2026-01-05");
@@ -104,14 +99,18 @@ describe("prospective translation accounting", () => {
         .success,
     ).toBe(false);
     expect(
-      rateSchema.safeParse({
+      rateCardSchema.safeParse({
         name: "Default",
-        sourceLocale: "en",
-        targetLocale: "fr",
-        step: "translation",
-        basis: "word",
-        rate: "0.1",
-        percentages: { "100": 101 },
+        lines: [
+          {
+            sourceLocale: "en",
+            targetLocale: "fr",
+            step: "translation",
+            basis: "word",
+            rate: "0.1",
+            percentages: { "100": 101 },
+          },
+        ],
       }).success,
     ).toBe(false);
   });

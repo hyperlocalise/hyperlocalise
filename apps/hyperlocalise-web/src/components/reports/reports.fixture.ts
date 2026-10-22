@@ -17,7 +17,7 @@ import { resolvePeriod } from "@/lib/reporting/report-period";
 import type { AutomatedTime, LoggedTime, StepTime } from "@/lib/reporting/time-queries";
 import type { ActivityTotals, FinishedSeriesPoint, WordCounts } from "@/lib/reporting/word-queries";
 
-import type { ReportSettings } from "./reports-queries";
+import type { ReportSettings, TaskReport } from "./reports-queries";
 
 /** Sample Reports data for component tests, Storybook and its MSW handlers. */
 
@@ -37,8 +37,6 @@ function defaultReportsSettings(): ReportSettings {
     today: reportsToday,
     canLogTime: true,
     summary: { pendingDays: 0, oldestMarkedAt: null },
-    rates: [],
-    budgets: [],
     rateCardNames: ["Standard 2026", "Agency B"],
     financial: true,
     canManage: true,
@@ -400,6 +398,147 @@ export const reportsTasks = [
 ];
 
 /** The JSON body each Reports endpoint answers with, keyed by endpoint. */
+/** The Release task's own report, priced by its own Standard 2026 card on translation. */
+export const reportsTaskReport: TaskReport = {
+  task: {
+    id: "job_release",
+    title: "Release 4.2 strings",
+    kind: "translation",
+    status: "waiting_for_review",
+    projectId: "project_web",
+    createdAt: "2026-10-14T09:00:00.000Z",
+    sourceLocale: "en",
+    targetLocales: ["de-DE", "ja-JP"],
+  },
+  unit: "words",
+  step: "translation",
+  words: {
+    rows: [
+      {
+        targetLocale: "de-DE",
+        step: "translation",
+        bands: { "100": 1_200, new: 3_245 },
+        total: 4_445,
+        finished: 4_100,
+      },
+      {
+        targetLocale: "ja-JP",
+        step: "translation",
+        bands: { "100": 1_200, new: 3_245 },
+        total: 4_445,
+        finished: 3_500,
+      },
+      {
+        targetLocale: "de-DE",
+        step: "review",
+        bands: { new: 4_100 },
+        total: 4_100,
+        finished: 2_000,
+      },
+    ],
+    totals: {
+      translation: { source: 4_445, arrived: 8_890, arrivedDone: 7_600, uncounted: 0 },
+      review: { source: 4_100, arrived: 4_100, arrivedDone: 2_000, uncounted: 0 },
+    },
+  },
+  estimate: {
+    ...reportsCostEstimate,
+    rows: [
+      {
+        ...reportsCostEstimate.rows[0],
+        pricedBy: ["task"],
+        bands: { "100": 1_200, new: 3_245 },
+        units: 4_445,
+        weighted: 3_605,
+        costUsd: "432.60000000",
+      },
+      {
+        ...reportsCostEstimate.rows[1],
+        targetLocale: "ja-JP",
+        pricedBy: ["task"],
+        bands: { "100": 1_200, new: 3_245 },
+        units: 4_445,
+      },
+    ],
+    totals: {
+      ...reportsCostEstimate.totals,
+      bands: { "100": 2_400, new: 6_490 },
+      units: 8_890,
+      weighted: 3_605,
+      costUsd: "432.60000000",
+      unpricedUnits: 4_445,
+      tasks: 1,
+      languages: 2,
+    },
+  },
+  stillToCome: { amountUsd: "41.04000000", incomplete: true },
+  time: {
+    minutes: 450,
+    people: 2,
+    entries: [
+      {
+        id: "time_mina",
+        person: "Mina Sato",
+        step: "translation",
+        targetLocale: "ja-JP",
+        workDate: "2026-10-20T00:00:00.000Z",
+        minutes: 150,
+        note: "Checked UI length limits",
+        own: true,
+        canEdit: true,
+      },
+      {
+        id: "time_lukas",
+        person: "Lukas Brandt",
+        step: "translation",
+        targetLocale: "de-DE",
+        workDate: "2026-10-16T00:00:00.000Z",
+        minutes: 300,
+        note: null,
+        own: false,
+        canEdit: true,
+      },
+    ],
+  },
+  canLogTime: true,
+  pricing: [
+    {
+      step: "translation",
+      rateCardName: "Standard 2026",
+      pricedAt: "2026-10-14T09:00:00.000Z",
+      estimatedMinutes: null,
+      overrideUsd: null,
+      locked: true,
+    },
+    {
+      step: "review",
+      rateCardName: null,
+      pricedAt: null,
+      estimatedMinutes: 240,
+      overrideUsd: null,
+      locked: false,
+    },
+  ],
+  canSetPricing: true,
+};
+
+/** The task's report as a role that sees no money gets it: no cost, no pricing, own time only. */
+function memberTaskReport(): TaskReport {
+  return {
+    ...reportsTaskReport,
+    estimate: null,
+    stillToCome: null,
+    pricing: null,
+    canSetPricing: false,
+    time: {
+      ...reportsTaskReport.time,
+      entries: reportsTaskReport.time.entries
+        .filter((entry) => entry.own)
+        .map((entry) => ({ ...entry, canEdit: true })),
+    },
+  };
+}
+
 export function reportsResponseBodies(settings = createReportsSettings()) {
   return {
     settings: { settings },
@@ -421,6 +560,9 @@ export function reportsResponseBodies(settings = createReportsSettings()) {
     budgets: { budgets: reportsBudgets },
     "rate-cards": { rateCards: reportsRateCards, canManage: settings.canManage },
     jobs: { jobs: reportsTasks },
+    "task-report": { taskReport: settings.financial ? reportsTaskReport : memberTaskReport() },
+    "task-rates": { taskRate: {} },
+    "time-entry": { timeEntry: { id: "time_mina" } },
   };
 }
 
@@ -428,8 +570,8 @@ export type ReportsEndpoint = keyof ReturnType<typeof reportsResponseBodies>;
 
 export type ReportsApiCall = {
   endpoint: string;
-  method: "get" | "put" | "post";
-  args: { query?: Record<string, string>; json?: unknown };
+  method: "get" | "put" | "post" | "patch" | "delete";
+  args: { query?: Record<string, string>; json?: unknown; param?: Record<string, string> };
 };
 
 /** What a stand-in API client answers with, and the calls it received. */
@@ -454,6 +596,7 @@ const ENDPOINTS = [
   "jobs",
   "time-entries",
   "expenses",
+  "task-rates",
 ] as const;
 
 /** A stand-in for the typed API client's Reports routes, for component tests. */
@@ -470,16 +613,15 @@ export function reportsApiClient(state: ReportsApiState) {
       $get: answer("get"),
       $put: answer("put"),
       $post: answer("post"),
+      $patch: answer("patch"),
+      $delete: answer("delete"),
       $url: () => new URL(`http://localhost/${name}.csv`),
     };
   };
-  return {
-    api: {
-      orgs: {
-        ":organizationSlug": {
-          reports: Object.fromEntries(ENDPOINTS.map((name) => [name, endpoint(name)])),
-        },
-      },
-    },
-  };
+  const reports: Record<string, unknown> = Object.fromEntries(
+    ENDPOINTS.map((name) => [name, endpoint(name)]),
+  );
+  reports.tasks = { ":jobId": { report: endpoint("task-report") } };
+  reports["time-entries"] = { ...endpoint("time-entries"), ":id": endpoint("time-entry") };
+  return { api: { orgs: { ":organizationSlug": { reports } } } };
 }
