@@ -18,6 +18,10 @@ import {
   officeTranslationDownloadFailure,
   officeTranslationDownloadFilename,
 } from "@/lib/projects/files/office-translation-download";
+import {
+  loadProjectPdfTranslationDownload,
+  pdfTranslationDownloadFailure,
+} from "@/lib/projects/files/pdf-translation-download";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   getRepositorySourceFileByPath,
@@ -52,7 +56,8 @@ export type McpDownloadTranslationsResult =
         | "unsupported_binary_download"
         | "lottie_export_failed"
         | "xlsx_export_failed"
-        | "office_export_failed";
+        | "office_export_failed"
+        | "pdf_export_failed";
     }
   | {
       ok: false;
@@ -123,6 +128,29 @@ export async function downloadMcpTranslations(input: {
         sourcePath: input.sourcePath,
         contentEncoding: "base64",
         content: officeDownload.value.content.toString("base64"),
+      },
+    };
+  }
+
+  const pdfDownload = await loadProjectPdfTranslationDownload({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    targetLocale: input.locale,
+  });
+  if (isErr(pdfDownload)) {
+    return { ok: false, error: pdfTranslationDownloadFailure().code };
+  }
+  if (pdfDownload.value) {
+    return {
+      ok: true,
+      value: {
+        filename: downloadFilename(input.sourcePath, input.locale),
+        contentType: pdfDownload.value.contentType,
+        locale: input.locale,
+        sourcePath: input.sourcePath,
+        contentEncoding: "base64",
+        content: pdfDownload.value.content.toString("base64"),
       },
     };
   }

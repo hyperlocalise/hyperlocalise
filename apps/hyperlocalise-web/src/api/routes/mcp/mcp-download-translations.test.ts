@@ -18,12 +18,19 @@ const mocks = vi.hoisted(() => ({
   loadProjectLottieTranslationDownload: vi.fn(),
   inferSupportedTranslationFileFormat: vi.fn(),
   loadProjectOfficeTranslationDownload: vi.fn(),
+  loadProjectPdfTranslationDownload: vi.fn(),
 }));
 
 vi.mock("@/lib/projects/files/office-translation-download", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/projects/files/office-translation-download")>()),
   loadProjectOfficeTranslationDownload: (...args: unknown[]) =>
     mocks.loadProjectOfficeTranslationDownload(...args),
+}));
+
+vi.mock("@/lib/projects/files/pdf-translation-download", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/projects/files/pdf-translation-download")>()),
+  loadProjectPdfTranslationDownload: (...args: unknown[]) =>
+    mocks.loadProjectPdfTranslationDownload(...args),
 }));
 
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
@@ -53,6 +60,7 @@ describe("downloadMcpTranslations", () => {
     mocks.inferSupportedTranslationFileFormat.mockReturnValue("json");
     mocks.loadProjectLottieTranslationDownload.mockResolvedValue({ ok: true, value: null });
     mocks.loadProjectOfficeTranslationDownload.mockResolvedValue({ ok: true, value: null });
+    mocks.loadProjectPdfTranslationDownload.mockResolvedValue({ ok: true, value: null });
   });
 
   it("returns source_file_too_large with the key limit when prefill is truncated", async () => {
@@ -237,6 +245,61 @@ describe("downloadMcpTranslations", () => {
         content: Buffer.from("PK\x03\x04pptx").toString("base64"),
       },
     });
+  });
+
+  it("returns segmented PDF files as base64 before the binary format check", async () => {
+    mocks.loadProjectPdfTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: {
+        contentType: "application/pdf",
+        content: Buffer.from("%PDF-1.4"),
+        extension: ".pdf",
+        translatedKeyCount: 2,
+        overflowKeys: ["page-1#3"],
+      },
+    });
+
+    const pdf = await downloadMcpTranslations({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "docs/handbook.pdf",
+      locale: "fr-FR",
+    });
+
+    expect(pdf).toEqual({
+      ok: true,
+      value: {
+        filename: "handbook-fr-FR.pdf",
+        contentType: "application/pdf",
+        locale: "fr-FR",
+        sourcePath: "docs/handbook.pdf",
+        contentEncoding: "base64",
+        content: Buffer.from("%PDF-1.4").toString("base64"),
+      },
+    });
+    expect(mocks.loadProjectPdfTranslationDownload).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "docs/handbook.pdf",
+      targetLocale: "fr-FR",
+    });
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+  });
+
+  it("maps PDF export failures to pdf_export_failed", async () => {
+    mocks.loadProjectPdfTranslationDownload.mockResolvedValue({
+      ok: false,
+      error: { code: "pdf_export_failed", message: "Could not write translations into the PDF." },
+    });
+
+    await expect(
+      downloadMcpTranslations({
+        organizationId: "org_1",
+        projectId: "project_1",
+        sourcePath: "docs/handbook.pdf",
+        locale: "fr-FR",
+      }),
+    ).resolves.toEqual({ ok: false, error: "pdf_export_failed" });
   });
 
   it("maps Office export failures to format-specific MCP errors", async () => {

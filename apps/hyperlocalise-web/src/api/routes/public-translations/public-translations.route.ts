@@ -25,6 +25,10 @@ import {
   officeTranslationDownloadFilename,
 } from "@/lib/projects/files/office-translation-download";
 import {
+  loadProjectPdfTranslationDownload,
+  pdfTranslationDownloadFailure,
+} from "@/lib/projects/files/pdf-translation-download";
+import {
   getRepositorySourceFileByPath,
   loadProjectTranslationsAsPrefilledEntries,
 } from "@/lib/projects/translations/project-translation-service";
@@ -114,6 +118,33 @@ export function createPublicTranslationRoutes() {
             "Content-Type": officeDownload.value.contentType,
             "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(officeFilename)}`,
           });
+        }
+
+        const pdfDownload = await loadProjectPdfTranslationDownload({
+          organizationId,
+          projectId: project.id,
+          sourcePath: query.sourcePath,
+          targetLocale: query.locale,
+        });
+        if (isErr(pdfDownload)) {
+          if (pdfDownload.error.code === "pdf_export_failed") {
+            return internalErrorResponse(c, "pdf_export_failed", pdfDownload.error.message);
+          }
+          if (pdfDownload.error.code === "source_content_not_found") {
+            return sourceFileNotFoundResponse(c);
+          }
+          const failure = pdfTranslationDownloadFailure();
+          return internalErrorResponse(c, failure.code, failure.message);
+        }
+        if (pdfDownload.value) {
+          const headers: Record<string, string> = {
+            "Content-Type": pdfDownload.value.contentType,
+            "Content-Disposition": contentDisposition,
+          };
+          if (pdfDownload.value.overflowKeys.length > 0) {
+            headers["X-Hyperlocalise-Overflow-Keys"] = pdfDownload.value.overflowKeys.join(",");
+          }
+          return c.body(new Uint8Array(pdfDownload.value.content), 200, headers);
         }
 
         const result = await loadProjectTranslationsAsPrefilledEntries({

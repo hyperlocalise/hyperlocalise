@@ -18,6 +18,7 @@ import {
   isDocumentTranslationFileFormat,
   isImageTranslationFileFormat,
   isOfficeTranslationFileFormat,
+  isPdfTranslationFileFormat,
   isSegmentedSpreadsheetTranslationFileFormat,
   isVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
@@ -64,8 +65,13 @@ function userFacingIngestFailureReason(error: unknown): string {
   ) {
     return "failed to prepare the translation parser environment";
   }
-  if (message.includes("failed to extract entries")) {
-    return "the file format could not be parsed into translation keys";
+  if (
+    message.includes("failed to extract entries") ||
+    message.includes("pdf has no readable text layer")
+  ) {
+    return message.includes("pdf has no readable text layer")
+      ? "the PDF has no selectable text layer (scanned PDFs are not supported)"
+      : "the file format could not be parsed into translation keys";
   }
   return message;
 }
@@ -99,6 +105,7 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
     const isBinary = Boolean(inferredFormat && isBinaryTranslationFileFormat(inferredFormat));
     const isDocument = Boolean(inferredFormat && isDocumentTranslationFileFormat(inferredFormat));
     const isOffice = Boolean(inferredFormat && isOfficeTranslationFileFormat(inferredFormat));
+    const isPdf = Boolean(inferredFormat && isPdfTranslationFileFormat(inferredFormat));
     const isSpreadsheet = Boolean(
       inferredFormat && isSegmentedSpreadsheetTranslationFileFormat(inferredFormat),
     );
@@ -226,8 +233,8 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
         projectId: event.projectId,
       });
       extractOptions = sandboxEntriesLocaleOptions(inputFilename, sourceLocale);
-    } else if (isOffice) {
-      // Document and slide keys address paragraphs, so SRX spans would not map back either.
+    } else if (isOffice || isPdf) {
+      // Document, slide, and PDF block keys address layout units, so SRX spans would not map back.
       extractOptions = {};
     } else {
       const segmentation = await loadSourceFileSegmentationStep({

@@ -73,6 +73,20 @@ describe("cat-file-view-capabilities", () => {
     expect(capabilities.defaultView).toBe("file");
   });
 
+  it("keeps segment views for PDF paths without a file preview", () => {
+    const capabilities = resolveCatFileViewCapabilities({
+      sourcePath: "docs/handbook.pdf",
+    });
+
+    expect(capabilities).toEqual({
+      family: "text",
+      availableViews: ["comfortable", "side-by-side"],
+      defaultView: "side-by-side",
+      viewerId: null,
+    });
+    expect(isCatFileViewAvailable(capabilities)).toBe(false);
+  });
+
   it("keeps segment views for string resource files", () => {
     const capabilities = resolveCatFileViewCapabilities({
       sourcePath: "locales/en.json",

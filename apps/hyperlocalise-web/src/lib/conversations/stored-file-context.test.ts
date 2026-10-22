@@ -48,7 +48,7 @@ describe("stored file context", () => {
     ).toMatchObject({ fileFormat: "mp4" });
   });
 
-  it("maps Office uploads the sandbox CLI can translate and skips unsupported files", () => {
+  it("maps Office and PDF uploads the sandbox CLI can translate and skips unsupported files", () => {
     expect(
       toStoredTranslationFileRef({
         id: "file_docx",
@@ -61,6 +61,13 @@ describe("stored file context", () => {
         id: "file_pdf",
         filename: "brief.pdf",
         contentType: "application/pdf",
+      }),
+    ).toMatchObject({ fileFormat: "pdf" });
+    expect(
+      toStoredTranslationFileRef({
+        id: "file_rtf",
+        filename: "brief.rtf",
+        contentType: "application/rtf",
       }),
     ).toBeNull();
   });

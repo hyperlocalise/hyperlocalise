@@ -53,6 +53,7 @@ export const supportedTranslationFileFormats = [
   "xlsx",
   "xls",
   "pptx",
+  "pdf",
 ] as const;
 
 export type SupportedTranslationFileFormat = (typeof supportedTranslationFileFormats)[number];
@@ -98,6 +99,7 @@ export const supportedFileTranslationFileFormats = [
   "xlsx",
   "xls",
   "pptx",
+  "pdf",
 ] as const;
 
 export type SupportedFileTranslationFileFormat =
@@ -163,6 +165,7 @@ const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".xlsx": "xlsx",
   ".xls": "xls",
   ".pptx": "pptx",
+  ".pdf": "pdf",
 };
 
 export const supportedImageTranslationFileFormats = ["png", "jpeg", "webp"] as const;
@@ -176,6 +179,10 @@ export type SupportedVideoTranslationFileFormat =
   (typeof supportedVideoTranslationFileFormats)[number];
 
 export const supportedOfficeTranslationFileFormats = ["docx", "xlsx", "xls", "pptx"] as const;
+
+export const supportedPdfTranslationFileFormats = ["pdf"] as const;
+
+export type SupportedPdfTranslationFileFormat = (typeof supportedPdfTranslationFileFormats)[number];
 
 export type SupportedOfficeTranslationFileFormat =
   (typeof supportedOfficeTranslationFileFormats)[number];
@@ -202,6 +209,12 @@ export function isOfficeTranslationFileFormat(
   return supportedOfficeTranslationFileFormats.includes(
     format as SupportedOfficeTranslationFileFormat,
   );
+}
+
+export function isPdfTranslationFileFormat(
+  format: SupportedTranslationFileFormat,
+): format is SupportedPdfTranslationFileFormat {
+  return supportedPdfTranslationFileFormats.includes(format as SupportedPdfTranslationFileFormat);
 }
 
 export const supportedSegmentedSpreadsheetTranslationFileFormats = ["xlsx", "xls"] as const;
@@ -369,6 +382,17 @@ export function inferSupportedOfficeTranslationFileFormat(
   return format;
 }
 
+export function inferSupportedPdfTranslationFileFormat(
+  filename: string,
+): SupportedPdfTranslationFileFormat | null {
+  const format = inferSupportedTranslationFileFormat(filename);
+  if (!format || !isPdfTranslationFileFormat(format)) {
+    return null;
+  }
+
+  return format;
+}
+
 export function inferSupportedBinaryTranslationFileFormat(
   filename: string,
 ):
@@ -446,7 +470,11 @@ export function getLocaleScanExtensions(): string[] {
   const extensions = new Set<string>();
 
   for (const [extension, format] of Object.entries(formatsByExtension)) {
-    if (isSupportedFileTranslationFileFormat(format) && !isBinaryTranslationFileFormat(format)) {
+    if (
+      isSupportedFileTranslationFileFormat(format) &&
+      !isBinaryTranslationFileFormat(format) &&
+      !isPdfTranslationFileFormat(format)
+    ) {
       extensions.add(extension.slice(1));
     }
   }

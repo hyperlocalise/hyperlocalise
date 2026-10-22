@@ -90,8 +90,8 @@ describe("useProjectFileActions", () => {
 
   it("disables agent translation when the native file is not runnable", () => {
     const unsupportedFile = createProjectFileRecord({
-      sourcePath: "marketing/brief.pdf",
-      storedFileId: "file_brief_pdf",
+      sourcePath: "marketing/brief.rtf",
+      storedFileId: "file_brief_rtf",
     });
     const missingStoredFile = createProjectFileRecord({
       sourcePath: "marketing/home.json",
