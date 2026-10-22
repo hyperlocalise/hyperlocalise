@@ -38,6 +38,7 @@ import {
 } from "@/lib/reporting/cost-queries";
 import {
   isLiveRateLine,
+  lockRateCard,
   listRateCards,
   rateCardExists,
   saveRateCard,
@@ -361,7 +362,13 @@ export function createReportsRoutes() {
       if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
       const context = await reportContext(c);
       const period = resolvePeriod({ ...parsed.data, ...context });
-      const costs = await queryCosts({ ...context, ...parsed.data, period });
+      // Costs are for the roles that see billing, so AI charged outside any project is shown.
+      const costs = await queryCosts({
+        ...context,
+        ...parsed.data,
+        period,
+        includeUnattributed: true,
+      });
       if (parsed.data.format === "csv") return csv(c, "costs.csv", costsCsv(costs));
       return c.json({ costs: { period, ...costs } });
     })
@@ -401,7 +408,7 @@ export function createReportsRoutes() {
       if (!hasCapability(c.var.auth.membership.role, "billing:write"))
         return forbiddenResponse(c, "report_costs_forbidden");
       const parsed = rateCardSchema.safeParse(await c.req.json());
-      if (!parsed.success) return badRequestResponse(c, "invalid_rate_card");
+      if (!parsed.success) return badRequestResponse(c, "rate_card_not_found");
       const saved = await saveRateCard({
         ...parsed.data,
         organizationId: c.var.auth.organization.localOrganizationId,
@@ -637,13 +644,19 @@ export function createReportsRoutes() {
           and(eq(schema.jobs.id, parsed.data.jobId), await buildAccessibleJobsWhere(c.var.auth)),
         );
       if (!job) return notFoundResponse(c, "job_not_found");
-      if (parsed.data.rateId) {
+      const { rateId, ...pricing } = parsed.data;
+      let rateCardName = pricing.rateCardName;
+      if (rateCardName) {
+        if (!(await rateCardExists(organizationId, rateCardName)))
+          return badRequestResponse(c, "rate_card_not_found");
+      } else if (rateId) {
+        // The old Reports page still sends one rate line; the task takes that line's card.
         const [rate] = await db
           .select()
           .from(schema.reportingRates)
           .where(
             and(
-              eq(schema.reportingRates.id, parsed.data.rateId),
+              eq(schema.reportingRates.id, rateId),
               eq(schema.reportingRates.organizationId, organizationId),
               eq(schema.reportingRates.step, parsed.data.step),
             ),
@@ -651,6 +664,7 @@ export function createReportsRoutes() {
         // An older version of a line, or one taken off its card, is no longer a rate to choose.
         if (!rate || !(await isLiveRateLine(organizationId, rate.id)))
           return badRequestResponse(c, "invalid_rate");
+        rateCardName = rate.name;
       }
       const taskRate = await db.transaction(async (tx) => {
         const [lockedJob] = await tx
@@ -664,16 +678,25 @@ export function createReportsRoutes() {
             or exists(select 1 from reporting_time_entries where job_id=${job.id} and step=${parsed.data.step}) as started
         `);
         if (lockedJob.status !== "queued" || activity.rows[0].started) return null;
+        // The task keeps the card's prices as they are now; holding the card's save lock keeps a
+        // save in progress from landing on either side of that moment.
+        if (rateCardName) await lockRateCard(tx, organizationId, rateCardName);
+        const values = {
+          ...pricing,
+          rateCardName,
+          rateId: null,
+          pricedAt: rateCardName ? sql`clock_timestamp()` : null,
+        };
         const [saved] = await tx
           .insert(schema.reportingTaskRates)
-          .values({ ...parsed.data, organizationId })
+          .values({ ...values, organizationId })
           .onConflictDoUpdate({
             target: [
               schema.reportingTaskRates.organizationId,
               schema.reportingTaskRates.jobId,
               schema.reportingTaskRates.step,
             ],
-            set: parsed.data,
+            set: values,
           })
           .returning();
         await tx.insert(schema.reportingAudit).values({

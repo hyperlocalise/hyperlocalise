@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import { createHash } from "node:crypto";
-import { and, asc, eq, desc, gt, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, desc, gt, inArray, isNull, lte, sql } from "drizzle-orm";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { listAttachedProjectMemoryIds } from "@/lib/memory/ensure-default-native-project-memory";
 import { countSourceCharacters, countSourceWords, matchBucket } from "./word-analysis";
@@ -52,6 +52,11 @@ export async function isWorkspaceReportsCaptureEnabled(organizationId: string): 
   }
 }
 
+/**
+ * The rate line that prices work: from the task's own rate card, as the card was when the task
+ * was priced; else from its project budget's card, as it is now. The first card found prices
+ * every language, so a language it has no line for has no rate. Null when none applies.
+ */
 export async function resolveReportingRate(
   input: {
     organizationId: string;
@@ -63,7 +68,7 @@ export async function resolveReportingRate(
   },
   database: DatabaseClient = db,
 ) {
-  const [override] = input.jobId
+  const [taskRate] = input.jobId
     ? await database
         .select()
         .from(schema.reportingTaskRates)
@@ -75,18 +80,8 @@ export async function resolveReportingRate(
           ),
         )
     : [];
-  if (override?.rateId) {
-    const [rate] = await database
-      .select()
-      .from(schema.reportingRates)
-      .where(
-        and(
-          eq(schema.reportingRates.id, override.rateId),
-          eq(schema.reportingRates.organizationId, input.organizationId),
-        ),
-      );
-    return rate ?? null;
-  }
+  if (taskRate?.rateCardName)
+    return rateLine(database, input, taskRate.rateCardName, taskRate.pricedAt);
   const [budget] = await database
     .select()
     .from(schema.reportingBudgets)
@@ -97,16 +92,32 @@ export async function resolveReportingRate(
       ),
     );
   if (!budget?.rateCardName) return null;
+  return rateLine(database, input, budget.rateCardName, null);
+}
+
+/** A card's line for a language pair and step, as of `asOf` (now when null). */
+async function rateLine(
+  database: DatabaseClient,
+  input: {
+    organizationId: string;
+    sourceLocale: string;
+    targetLocale: string;
+    step: "translation" | "review";
+  },
+  name: string,
+  asOf: Date | null,
+) {
   const [rate] = await database
     .select()
     .from(schema.reportingRates)
     .where(
       and(
         eq(schema.reportingRates.organizationId, input.organizationId),
-        eq(schema.reportingRates.name, budget.rateCardName),
+        eq(schema.reportingRates.name, name),
         eq(schema.reportingRates.sourceLocale, input.sourceLocale),
         eq(schema.reportingRates.targetLocale, input.targetLocale),
         eq(schema.reportingRates.step, input.step),
+        asOf ? lte(schema.reportingRates.createdAt, asOf) : undefined,
       ),
     )
     .orderBy(desc(schema.reportingRates.createdAt), desc(schema.reportingRates.id))

@@ -195,7 +195,7 @@ async function reads(organizationId: string) {
     queryStillToCome({ organizationId, projectIds, rateCardName }),
   );
   await measure("budgets", () => queryBudgets({ organizationId, projectIds }));
-  await measure("costs, 28 days", () => queryCosts(scope));
+  await measure("costs, 28 days", () => queryCosts({ ...scope, includeUnattributed: true }));
   await measure("logged time, one page", () => queryLoggedTime({ ...scope, page: 1 }));
   await measure("logged time by step", () => queryLoggedTimeBySteps(scope));
   await measure("automated time", () =>

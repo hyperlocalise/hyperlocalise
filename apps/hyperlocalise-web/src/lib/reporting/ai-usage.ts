@@ -14,6 +14,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/lib/database/client";
 
+import { attributedUsage } from "./ai-attribution";
 import {
   AI_IMAGE_SOURCES,
   AI_ORIGINS,
@@ -54,9 +55,6 @@ export type AiUsage = {
   totals: UsageTotals;
 };
 
-const UUID = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
-const UUID_PATTERN = sql.raw(`'${UUID}'`);
-
 /** A token count from a usage row's dimensions; anything that is not a number counts as 0. */
 function tokens(key: "input_tokens" | "output_tokens") {
   const value = sql.raw(`u.dimensions ->> '${key}'`);
@@ -64,9 +62,8 @@ function tokens(key: "input_tokens" | "output_tokens") {
 }
 
 /**
- * AI used in a period. A call counts towards a project through its task, the project recorded
- * on it or its parent, or its automation's project. Calls tied to no project are counted only
- * when `includeUnattributed` is set and no project is chosen.
+ * AI used in a period, placed in projects by `attributedUsage`. Calls tied to no project are
+ * counted only when `includeUnattributed` is set and no project is chosen.
  */
 export async function queryAiUsage(
   input: Omit<ReportScope, "jobIds" | "targetLocale"> & {
@@ -92,28 +89,17 @@ export async function queryAiUsage(
     outputTokens: number;
   }>(sql`
     with calls as (
-      select u.feature_id, u.model_id, coalesce(p.source, u.source) as source, ar.kind as agent_run_kind,
-        coalesce(j.api_key_id, pj.api_key_id) is not null as via_api_key,
-        coalesce(j.project_id, pj.project_id, u.dimensions ->> 'project_id',
-          p.dimensions ->> 'project_id', a.project_id, arj.project_id) as project_id,
+      select feature_id, model_id, source, agent_run_kind, via_api_key, project_id,
         ${tokens("input_tokens")} as input_tokens,
         ${tokens("output_tokens")} as output_tokens
-      from usage_events u
-      left join usage_events p on p.operation_key = u.dimensions ->> 'parent_operation_key'
-      left join jobs j on j.id = u.job_id
-      left join jobs pj on pj.id = p.job_id
-      left join workspace_automations a on a.id = case
-        when p.dimensions ->> 'automation_id' ~ ${UUID_PATTERN}
-        then (p.dimensions ->> 'automation_id')::uuid end
-      left join agent_runs ar on ar.id = case
-        when p.source = 'agent_run_create' and split_part(p.operation_key, ':', 2) ~ ${UUID_PATTERN}
-        then split_part(p.operation_key, ':', 2)::uuid end
-      left join jobs arj on arj.id = ar.hyperlocalise_job_id
-      where u.organization_id = ${input.organizationId}
-        and u.created_at >= ${dayStart(input.period.from)} and u.created_at < ${dayEnd(input.period.to)}
-        and u.status <> 'rejected'
-        and (u.feature_id = 'ai_tokens'
-          or (u.feature_id = 'agent_runs' and u.source in (${idList(media)})))
+      from (${attributedUsage({
+        organizationId: input.organizationId,
+        where: sql`u.created_at >= ${dayStart(input.period.from)}
+          and u.created_at < ${dayEnd(input.period.to)}
+          and u.status <> 'rejected'
+          and (u.feature_id = 'ai_tokens'
+            or (u.feature_id = 'agent_runs' and u.source in (${idList(media)})))`,
+      })}) u
     )
     select source, agent_run_kind as "agentRunKind", model_id as model, via_api_key as "viaApiKey",
       feature_id = 'agent_runs' as media, count(*)::integer as calls,

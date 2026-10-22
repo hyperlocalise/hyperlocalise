@@ -141,6 +141,13 @@ export async function isLiveRateLine(
   return result.rows[0].found;
 }
 
+/** Holds a card's save lock until the transaction ends, so its lines cannot change meanwhile. */
+export async function lockRateCard(database: DatabaseClient, organizationId: string, name: string) {
+  await database.execute(
+    sql`select pg_advisory_xact_lock(hashtext(${`reporting-rate-card:${organizationId}:${name}`}))`,
+  );
+}
+
 export type RateLineInput = Omit<RateLine, "id">;
 
 export type SaveRateCardError =
@@ -179,9 +186,7 @@ export async function saveRateCard(input: {
   }
   return db.transaction(async (tx) => {
     // Two saves of one card would each add rows for the other's lines.
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtext(${`reporting-rate-card:${input.organizationId}:${input.name}`}))`,
-    );
+    await lockRateCard(tx, input.organizationId, input.name);
     const exists = await rateCardExists(input.organizationId, input.name, tx);
     if (input.create && exists)
       return err<RateCard, SaveRateCardError>({ code: "rate_card_exists" });

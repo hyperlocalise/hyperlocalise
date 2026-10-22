@@ -194,7 +194,11 @@ describe("reports routes", () => {
     });
     await expect(read("/time")).resolves.toMatchObject({ time: { logged: { rows: [] } } });
     await expect(read("/costs")).resolves.toMatchObject({
-      costs: { rows: [], totals: { totalUsd: "0.00000000" } },
+      costs: {
+        rows: [],
+        outsideProjects: { aiUsd: "0.00000000" },
+        totals: { totalUsd: "0.00000000" },
+      },
     });
     await expect(read("/cost-estimate?jobIds=job_a,job_b")).resolves.toMatchObject({
       costEstimate: { rows: [], fixedFees: [] },
@@ -208,6 +212,12 @@ describe("reports routes", () => {
     expect((await csv.text()).split("\r\n")[0]).toBe(
       '"projectName","jobTitle","jobId","targetLocale","total"',
     );
+    // AI charged outside any project is a row with no project.
+    const costs = await app.request(reportsUrl(slug, "/costs?format=csv"), { headers });
+    expect((await costs.text()).split("\r\n")).toEqual([
+      '"projectName","projectId","peopleUsd","aiOnTasksUsd","aiOutsideTasksUsd","aiUsd","expensesUsd","totalUsd"',
+      '"","","","","0.00000000","0.00000000","","0.00000000"',
+    ]);
   });
 
   it("rejects malformed queries", async () => {
@@ -440,7 +450,7 @@ describe("reports routes", () => {
     expect(costs).toEqual([{ amountUsd: "30.00000000", locale: "de-DE" }]);
   });
 
-  it("refuses retired rate lines for tasks and unknown rate cards for budgets", async () => {
+  it("refuses retired rate lines and unknown rate cards for tasks and budgets", async () => {
     const workspace = await reporting.createWorkspace();
     const { identity, organization, user, project, createJob } = workspace;
     const headers = {
@@ -482,7 +492,22 @@ describe("reports routes", () => {
     const old = await taskRate(first.value.lines[0].id);
     expect(old.status).toBe(400);
     await expect(old.json()).resolves.toMatchObject({ error: "invalid_rate" });
-    expect((await taskRate(second.value.lines[0].id)).status).toBe(200);
+    // The old Reports page sends a line: the task takes the line's card.
+    const legacy = await taskRate(second.value.lines[0].id);
+    expect(legacy.status).toBe(200);
+    await expect(legacy.json()).resolves.toMatchObject({
+      taskRate: { rateCardName: "Standard", rateId: null, pricedAt: expect.any(String) },
+    });
+    const taskCard = (rateCardName: string) =>
+      app.request(reportsUrl(slug, "/task-rates"), {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ jobId: job.id, step: "translation", rateCardName }),
+      });
+    const missingCard = await taskCard("Nope");
+    expect(missingCard.status).toBe(400);
+    await expect(missingCard.json()).resolves.toMatchObject({ error: "rate_card_not_found" });
+    expect((await taskCard("Standard")).status).toBe(200);
 
     const budget = (rateCardName: string) =>
       app.request(reportsUrl(slug, "/budgets"), {

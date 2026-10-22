@@ -16,9 +16,12 @@ import { randomUUID } from "node:crypto";
 
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
+import { sql } from "drizzle-orm";
+
 import { db, schema } from "@/lib/database/client";
 import { isOk } from "@/lib/primitives/result/results";
 
+import { resolveReportingRate } from "./capture";
 import {
   budgetStatus,
   queryBudgets,
@@ -150,7 +153,7 @@ describe("cost estimate", () => {
   it("uses a task's own rate, then the project budget's card, then the chosen card", async () => {
     const workspace = await fixture.createWorkspace();
     const { organization, project, createJob, addSummary } = workspace;
-    const perWord = await createCard(workspace, "Per word", [line("fr-FR", "0.10")]);
+    await createCard(workspace, "Per word", [line("fr-FR", "0.10")]);
     await createCard(workspace, "Per character", [line("fr-FR", "0.01", "character")]);
     const first = await createJob();
     const second = await createJob();
@@ -172,7 +175,7 @@ describe("cost estimate", () => {
     expect(usd((await estimate("Per word")).totals.costUsd)).toBe(2);
     expect(usd((await estimate("Per character")).totals.costUsd)).toBe(1);
     expect((await estimate(null)).rows).toEqual([
-      expect.objectContaining({ pricing: "none", units: 20 }),
+      expect.objectContaining({ pricing: "none", units: 20, pricedBy: [], rateCardName: null }),
     ]);
 
     await db.insert(schema.reportingBudgets).values({
@@ -187,16 +190,117 @@ describe("cost estimate", () => {
       organizationId: organization.id,
       jobId: first.id,
       step: "translation",
-      rateId: perWord.lines[0].id,
+      rateCardName: "Per word",
+      pricedAt: sql`clock_timestamp()`,
     });
     const mixed = await estimate("Per word");
-    expect(mixed.rows.map((row) => [row.rateCardName, row.basis, usd(row.costUsd)])).toEqual(
+    expect(
+      mixed.rows.map((row) => [row.rateCardName, row.basis, usd(row.costUsd), row.pricedBy]),
+    ).toEqual(
       expect.arrayContaining([
-        ["Per word", "word", 1],
-        ["Per character", "character", 0.5],
+        ["Per word", "word", 1, ["task"]],
+        ["Per character", "character", 0.5, ["budget"]],
       ]),
     );
     expect(usd(mixed.totals.costUsd)).toBe(1.5);
+  });
+
+  it("prices a task by its own card's line for each language, as the card was when the task was priced", async () => {
+    const workspace = await fixture.createWorkspace();
+    const { organization, project, createJob, addSummary } = workspace;
+    await createCard(workspace, "Standard", [line("fr-FR", "0.10"), line("ja-JP", "0.20")]);
+    await createCard(workspace, "Agency", [line("fr-FR", "0.05"), line("de-DE", "0.07")]);
+    await db.insert(schema.reportingBudgets).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      budget: "100",
+      rateCardName: "Agency",
+    });
+    const priced = await createJob();
+    const other = await createJob();
+    await addSummary(
+      [priced.id, other.id].flatMap((jobId) =>
+        ["fr-FR", "ja-JP", "de-DE"].map((targetLocale) => ({
+          jobId,
+          targetLocale,
+          day: "2026-06-01",
+          arrived: 10,
+        })),
+      ),
+    );
+    await db.insert(schema.reportingTaskRates).values({
+      organizationId: organization.id,
+      jobId: priced.id,
+      step: "translation",
+      rateCardName: "Standard",
+      pricedAt: sql`clock_timestamp()`,
+    });
+    // The card changes after the task was priced: the task keeps the earlier prices.
+    const saved = await saveRateCard({
+      organizationId: organization.id,
+      actorId: workspace.user.id,
+      name: "Standard",
+      defaultBasis: "word",
+      lines: [line("fr-FR", "0.30"), line("de-DE", "0.40")],
+      create: false,
+    });
+    expect(isOk(saved)).toBe(true);
+    const estimate = await queryCostEstimate({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      jobIds: [priced.id],
+      unit: "words",
+      rateCardName: "Standard",
+    });
+    expect(
+      estimate.rows.map((row) => [
+        row.targetLocale,
+        row.pricing,
+        row.rateCardName,
+        row.pricedBy,
+        usd(row.costUsd),
+      ]),
+    ).toEqual([
+      // The task's card had no de-DE line when it was priced; the budget's card is not asked.
+      ["de-DE", "none", "Standard", ["task"], null],
+      ["fr-FR", "rate", "Standard", ["task"], 1],
+      ["ja-JP", "rate", "Standard", ["task"], 2],
+    ]);
+
+    // A task without its own card takes the budget's, which has no ja-JP line.
+    const budgeted = await queryCostEstimate({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      jobIds: [other.id],
+      unit: "words",
+      rateCardName: "Standard",
+    });
+    expect(
+      budgeted.rows.map((row) => [
+        row.targetLocale,
+        row.rateCardName,
+        row.pricedBy,
+        usd(row.costUsd),
+      ]),
+    ).toEqual([
+      ["de-DE", "Agency", ["budget"], 0.7],
+      ["fr-FR", "Agency", ["budget"], 0.5],
+      ["ja-JP", "Agency", ["budget"], null],
+    ]);
+
+    // Recorded work is priced the same way.
+    const rate = (jobId: string, targetLocale: string) =>
+      resolveReportingRate({
+        organizationId: organization.id,
+        projectId: project.id,
+        jobId,
+        sourceLocale: "en-US",
+        targetLocale,
+        step: "translation",
+      });
+    expect((await rate(priced.id, "fr-FR"))?.rate).toBe("0.10000000");
+    expect(await rate(priced.id, "de-DE")).toBeNull();
+    expect((await rate(other.id, "fr-FR"))?.rate).toBe("0.05000000");
   });
 
   it("prices hourly lines from the task's time estimate and adds fixed fees", async () => {
@@ -308,7 +412,7 @@ describe("still to come and budgets", () => {
     // that ended will do no more work.
     expect(toCome.get(project.id)).toEqual({ amountUsd: "12.00000000", incomplete: false });
 
-    // Spent: people's work, expenses and billed AI on the project's tasks.
+    // Spent: people's work, expenses and billed AI in the project, on its tasks or not.
     const cost = (
       kind: "human" | "expense" | "ai",
       amountUsd: string | null,
@@ -331,16 +435,24 @@ describe("still to come and budgets", () => {
         cost("human", "1000", { voided: true }),
         cost("ai", "1000", { basis: "estimated" }),
       ]);
-    await db.insert(schema.usageEvents).values({
+    const charge = (amountUsd: string, extra: Partial<typeof schema.usageEvents.$inferInsert>) => ({
       organizationId: organization.id,
-      featureId: "ai_tokens",
-      status: "tracking_succeeded",
+      featureId: "ai_tokens" as const,
+      status: "tracking_succeeded" as const,
       operationKey: `test:${randomUUID()}`,
       source: "translation_job_complete",
       credentialSource: "gateway",
-      amountUsd: "2.5",
-      jobId: assigned.id,
+      amountUsd,
+      ...extra,
     });
+    await db.insert(schema.usageEvents).values([
+      charge("2.5", { jobId: assigned.id }),
+      // Charged in the project outside any task, such as an editor suggestion.
+      charge("1", {
+        source: "content_editor_ai_suggestion",
+        dimensions: { project_id: project.id },
+      }),
+    ]);
     const [budget] = await queryBudgets({
       organizationId: organization.id,
       projectIds: [project.id],
@@ -348,10 +460,10 @@ describe("still to come and budgets", () => {
     expect(budget).toMatchObject({
       projectId: project.id,
       projectName: "Docs",
-      spentUsd: "80.50000000",
+      spentUsd: "81.50000000",
       stillToComeUsd: "12.00000000",
-      forecastUsd: "92.50000000",
-      remainingUsd: "19.50000000",
+      forecastUsd: "93.50000000",
+      remainingUsd: "18.50000000",
       status: "over_80",
       incomplete: false,
     });
@@ -647,7 +759,8 @@ describe("costs", () => {
         cost("expense", "4", "2026-06-12", { projectId: other.id }),
         cost("human", "8", "2026-06-03"),
       ]);
-    const billed = (amountUsd: string | null, credentialSource: string, day: string) => ({
+    type UsageRow = typeof schema.usageEvents.$inferInsert;
+    const billed = (amountUsd: string | null, credentialSource: string, day: string): UsageRow => ({
       organizationId: organization.id,
       featureId: "ai_tokens" as const,
       status: "tracking_succeeded" as const,
@@ -658,11 +771,60 @@ describe("costs", () => {
       jobId: job.id,
       createdAt: at(day),
     });
+    // A call with no task of its own, priced as AI credit: `parent` is the row it belongs to.
+    const charge = (
+      amountUsd: string,
+      day: string,
+      extra: { dimensions?: Record<string, string>; parent?: string } = {},
+    ): UsageRow => ({
+      ...billed(amountUsd, "gateway", day),
+      source: "agent_runtime_complete",
+      jobId: null,
+      dimensions: {
+        ...extra.dimensions,
+        parent_operation_key: extra.parent ?? `none:${randomUUID()}`,
+      },
+    });
+    const run = (
+      operationKey: string,
+      source: string,
+      dimensions: Record<string, string> = {},
+    ): UsageRow => ({
+      organizationId: organization.id,
+      featureId: "agent_runs" as const,
+      status: "tracking_succeeded" as const,
+      operationKey,
+      source,
+      dimensions,
+      createdAt: at("2026-06-12"),
+    });
+    const [tmsRun] = await db
+      .insert(schema.agentRuns)
+      .values({
+        organizationId: organization.id,
+        providerKind: "crowdin",
+        externalJobId: "42",
+        kind: "translate",
+        hyperlocaliseJobId: job.id,
+      })
+      .returning();
+    const tmsKey = `agent-run:${tmsRun!.id}:agent_runs`;
+    const slackKey = `slack:${randomUUID()}`;
     await db.insert(schema.usageEvents).values([
       billed("1.25", "gateway", "2026-06-10"),
       billed(null, "gateway", "2026-06-11"),
       // On the workspace's own provider key: nothing billed through us.
       billed("0", "byok", "2026-06-11"),
+      // A connected TMS run on the task: on the task, through the run.
+      run(tmsKey, "agent_run_create"),
+      charge("0.2", "2026-06-12", { parent: tmsKey }),
+      // An editor suggestion in the project, with no task.
+      charge("0.4", "2026-06-12", { dimensions: { project_id: project.id } }),
+      // A Slack turn whose run names the other project.
+      run(slackKey, "slack_agent_turn", { project_id: other.id }),
+      charge("0.3", "2026-06-12", { parent: slackKey }),
+      // Chat with no project.
+      charge("0.1", "2026-06-12"),
     ]);
     const period = resolvePeriod({
       from: "2026-06-08",
@@ -670,35 +832,53 @@ describe("costs", () => {
       today: "2026-10-21",
       startedDay: "2026-01-01",
     });
-    const costs = await queryCosts({
-      organizationId: organization.id,
-      projectIds: [project.id, other.id],
-      period,
-    });
+    const scope = { organizationId: organization.id, projectIds: [project.id, other.id], period };
+    const costs = await queryCosts({ ...scope, includeUnattributed: true });
     expect(costs.rows).toEqual([
       {
         projectId: project.id,
         projectName: "Docs",
         peopleUsd: "10.50000000",
-        aiUsd: "1.25000000",
+        aiUsd: "1.85000000",
+        aiOnTasksUsd: "1.45000000",
+        aiOutsideTasksUsd: "0.40000000",
         expensesUsd: "3.00000000",
-        totalUsd: "14.75000000",
+        totalUsd: "15.35000000",
       },
       {
         projectId: other.id,
         projectName: "Help centre",
         peopleUsd: "0.00000000",
-        aiUsd: "0.00000000",
+        aiUsd: "0.30000000",
+        aiOnTasksUsd: "0.00000000",
+        aiOutsideTasksUsd: "0.30000000",
         expensesUsd: "4.00000000",
-        totalUsd: "4.00000000",
+        totalUsd: "4.30000000",
       },
     ]);
+    // AI outside any project is its own line, in the totals and in the AI outside tasks.
     expect(costs).toMatchObject({
-      totals: { totalUsd: "18.75000000" },
+      outsideProjects: { aiUsd: "0.10000000" },
+      totals: {
+        aiUsd: "2.25000000",
+        aiOnTasksUsd: "1.45000000",
+        aiOutsideTasksUsd: "0.80000000",
+        totalUsd: "19.75000000",
+      },
       previousTotalUsd: "8.00000000",
       unpriced: 1,
       pendingAi: 1,
     });
+    const projectsOnly = await queryCosts({ ...scope, includeUnattributed: false });
+    expect(projectsOnly.outsideProjects).toBeNull();
+    expect(projectsOnly.totals.totalUsd).toBe("19.65000000");
+    const oneProject = await queryCosts({
+      ...scope,
+      projectId: other.id,
+      includeUnattributed: true,
+    });
+    expect(oneProject.outsideProjects).toBeNull();
+    expect(oneProject.totals.totalUsd).toBe("4.30000000");
 
     // AI charges have no language, so a language filter leaves them out, and says so.
     const french = await queryCosts({
@@ -706,10 +886,18 @@ describe("costs", () => {
       projectIds: [project.id],
       targetLocale: "fr-FR",
       period,
+      includeUnattributed: true,
     });
     expect(french.rows).toEqual([
-      expect.objectContaining({ peopleUsd: "10.50000000", aiUsd: null, expensesUsd: "0.00000000" }),
+      expect.objectContaining({
+        peopleUsd: "10.50000000",
+        aiUsd: null,
+        aiOnTasksUsd: null,
+        aiOutsideTasksUsd: null,
+        expensesUsd: "0.00000000",
+      }),
     ]);
     expect(french.totals.aiUsd).toBeNull();
+    expect(french.outsideProjects).toBeNull();
   });
 });

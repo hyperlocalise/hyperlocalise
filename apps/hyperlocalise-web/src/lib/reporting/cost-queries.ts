@@ -14,6 +14,7 @@ import { sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/database/client";
 
+import { attributedUsage } from "./ai-attribution";
 import { hourlyCost, unitCost, usdString, usdUnits } from "./money";
 import { liveRateRows, type BandPercentages } from "./rate-cards";
 import type { ReportPeriod } from "./report-period";
@@ -38,10 +39,17 @@ import type { BandCounts } from "./word-queries";
 
 const ZERO = BigInt(0);
 
-/** A task's own rate, else its project budget's card, else the card chosen on the page. */
-const PRICING_ORDER = "task rate, then the project budget's rate card, then the chosen card";
+/**
+ * A task's own rate card, else its project budget's card, else the card chosen on the page. The
+ * first card found prices every language: a language it has no line for has no rate.
+ */
+const PRICING_ORDER = "task's rate card, then the project budget's rate card, then the chosen card";
 
 type Pricing = "rate" | "fixed" | "none";
+
+/** Which card priced work: the task's own, its project budget's, or the one chosen on the page. */
+const PRICED_BY = ["task", "budget", "chosen"] as const;
+export type PricedBy = (typeof PRICED_BY)[number];
 
 type PricedGroup = {
   projectId: string;
@@ -49,7 +57,10 @@ type PricedGroup = {
   step: ReportStep;
   bucket: MatchBucket;
   pricing: Pricing;
+  /** Null when no card applies at all. */
+  pricedBy: PricedBy | null;
   rateId: string | null;
+  /** The card that priced the work, or that has no line for it. */
   rateCardName: string | null;
   basis: RateBasis | null;
   rate: string | null;
@@ -146,6 +157,18 @@ async function pricedUnits(input: {
     languages: number;
   }>(sql`
     with live as (${liveRateRows(input.organizationId)}),
+    -- Each task card's lines as the card was when its task was priced: the newest row of each
+    -- line from then on. Few tasks have a card, so this is read once, not row by row.
+    task_lines as (
+      select distinct on (t.job_id, t.step, r.source_locale, r.target_locale)
+        t.job_id, t.step, r.source_locale, r.target_locale, r.id, r.basis, r.rate,
+        r.percentages, r.retired
+      from reporting_task_rates t
+      join reporting_rates r on r.organization_id = t.organization_id
+        and r.name = t.rate_card_name and r.step = t.step and r.created_at <= t.priced_at
+      where t.organization_id = ${input.organizationId} and t.rate_card_name is not null
+      order by t.job_id, t.step, r.source_locale, r.target_locale, r.created_at desc, r.id desc
+    ),
     units as (
       select s.project_id, ${task} as job_id, s.source_locale, s.target_locale, s.step, s.bucket,
         sum(${value("words")}) as words, sum(${value("strings")}) as strings,
@@ -164,18 +187,24 @@ async function pricedUnits(input: {
     ),
     resolved as (
       select u.*, t.override_usd is not null as fixed,
-        case when t.rate_id is not null then tr.id else l.id end as rate_id,
-        case when t.rate_id is not null then tr.name else l.name end as card,
-        case when t.rate_id is not null then tr.basis else l.basis end as basis,
-        case when t.rate_id is not null then tr.rate else l.rate end as rate,
-        case when t.rate_id is not null then tr.percentages else l.percentages end as percentages
+        case when t.rate_card_name is not null then 'task'
+          when b.rate_card_name is not null then 'budget'
+          when ${input.rateCardName}::text is not null then 'chosen' end as priced_by,
+        case when t.rate_card_name is not null then tr.id else l.id end as rate_id,
+        coalesce(t.rate_card_name, b.rate_card_name, ${input.rateCardName}::text) as card,
+        case when t.rate_card_name is not null then tr.basis else l.basis end as basis,
+        case when t.rate_card_name is not null then tr.rate else l.rate end as rate,
+        case when t.rate_card_name is not null then tr.percentages else l.percentages end
+          as percentages
       from units u
       left join reporting_task_rates t on t.organization_id = ${input.organizationId}
         and t.job_id = u.job_id and t.step = u.step
-      left join reporting_rates tr on tr.id = t.rate_id
+      left join task_lines tr on t.rate_card_name is not null and not tr.retired
+        and tr.job_id = u.job_id and tr.step = u.step
+        and tr.source_locale = u.source_locale and tr.target_locale = u.target_locale
       left join reporting_budgets b on b.organization_id = ${input.organizationId}
         and b.project_id = u.project_id
-      left join live l on t.rate_id is null and not l.retired
+      left join live l on t.rate_card_name is null and not l.retired
         and l.name = coalesce(b.rate_card_name, ${input.rateCardName}::text)
         and l.source_locale = u.source_locale and l.target_locale = u.target_locale
         and l.step = u.step
@@ -184,6 +213,7 @@ async function pricedUnits(input: {
       (select coalesce(json_agg(g), '[]') from (
         select project_id as "projectId", target_locale as "targetLocale", step, bucket,
           case when fixed then 'fixed' when rate_id is null then 'none' else 'rate' end as pricing,
+          case when fixed then null else priced_by end as "pricedBy",
           case when fixed then null else rate_id end as "rateId",
           case when fixed then null else card end as "rateCardName",
           case when fixed then null else basis end as basis,
@@ -196,7 +226,7 @@ async function pricedUnits(input: {
             as "basisUnits",
           sum(uncounted)::float8 as uncounted
         from resolved where ${chosenLanguage}
-        group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+        group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
         -- Every group with work in it, whatever unit is shown: money never depends on it.
         having sum(strings) > 0 or sum(uncounted) > 0
       ) g) as groups,
@@ -301,6 +331,9 @@ export type CostEstimateRow = {
   step: ReportStep;
   /** `fixed`: the task has a fixed fee instead (listed in `fixedFees`); `none`: no rate. */
   pricing: Pricing;
+  /** Which cards priced the row, in pricing order; empty when no card applies. */
+  pricedBy: PricedBy[];
+  /** The card that priced the row, or that has no rate for its language. */
   rateCardName: string | null;
   rateId: string | null;
   basis: RateBasis | null;
@@ -394,13 +427,20 @@ export async function queryCostEstimate(
     perUnitFull = ZERO;
   const bases = new Set<RateBasis>();
   for (const group of priced.groups) {
-    const key = `${group.targetLocale}\u0000${group.step}\u0000${group.pricing}\u0000${group.rateId}`;
+    const key = [
+      group.targetLocale,
+      group.step,
+      group.pricing,
+      group.rateCardName,
+      group.rateId,
+    ].join("\u0000");
     let row = rows.get(key);
     if (!row) {
       row = {
         targetLocale: group.targetLocale,
         step: group.step,
         pricing: group.pricing,
+        pricedBy: [],
         rateCardName: group.rateCardName,
         rateId: group.rateId,
         basis: group.basis,
@@ -416,6 +456,7 @@ export async function queryCostEstimate(
       };
       rows.set(key, row);
     }
+    if (group.pricedBy && !row.pricedBy.includes(group.pricedBy)) row.pricedBy.push(group.pricedBy);
     if (group.units > 0) row.bands[group.bucket] = (row.bands[group.bucket] ?? 0) + group.units;
     row.units += group.units;
     // Uncounted strings matter only where work is priced per unit.
@@ -460,7 +501,10 @@ export async function queryCostEstimate(
   return {
     ...empty,
     rows: [...rows.values()]
-      .map(({ cost: _cost, ...row }) => row)
+      .map(({ cost: _cost, ...row }) => ({
+        ...row,
+        pricedBy: PRICED_BY.filter((source) => row.pricedBy.includes(source)),
+      }))
       .sort(
         (left, right) =>
           left.targetLocale.localeCompare(right.targetLocale) ||
@@ -535,18 +579,28 @@ export async function queryStillToCome(input: {
 type Spending = {
   people: bigint;
   expenses: bigint;
-  /** Null when the costs are filtered by language: billing's AI charges have none. */
-  ai: bigint | null;
+  /** Billing's AI charges on the project's tasks; null when the costs are filtered by language. */
+  aiOnTasks: bigint | null;
+  /** Billing's AI charges in the project with no task, such as content editor suggestions. */
+  aiOutsideTasks: bigint | null;
   /** People's work with no rate, so no amount. */
   unpriced: number;
   /** Billed AI calls whose charge billing has not received yet. */
   pendingAi: number;
 };
 
+type SpendingResult = {
+  byProject: Map<string, Spending>;
+  /** Billing's AI charges tied to no project, when asked for and not filtered by language. */
+  outsideProjects: { ai: bigint; pendingAi: number } | null;
+};
+
 /**
  * Money spent per project: people's work and expenses as recorded, and billing's charges for AI
- * on the projects' tasks through our AI gateway (calls on the workspace's own provider key cost
- * the workspace nothing through us). With no days given, everything spent so far.
+ * through our AI gateway (calls on the workspace's own provider key cost the workspace nothing
+ * through us), placed in projects by `attributedUsage`. A charge on a task counts by its task,
+ * one with no task by its recorded project, so none counts twice. With no days given,
+ * everything spent so far.
  */
 async function spending(input: {
   organizationId: string;
@@ -554,50 +608,57 @@ async function spending(input: {
   from?: string;
   to?: string;
   targetLocale?: string;
-}): Promise<Map<string, Spending>> {
+  outsideProjects?: boolean;
+}): Promise<SpendingResult> {
   const byProject = new Map<string, Spending>();
-  if (input.projectIds.length === 0) return byProject;
+  const withAi = !input.targetLocale;
+  const outside = withAi && Boolean(input.outsideProjects);
+  if (input.projectIds.length === 0 && !outside) return { byProject, outsideProjects: null };
   const within = (column: SQL) =>
     input.from && input.to
       ? sql`and ${column} >= ${dayStart(input.from)} and ${column} < ${dayEnd(input.to)}`
       : sql``;
+  const projects = input.projectIds.length
+    ? sql`project_id in (${idList(input.projectIds)})`
+    : sql`false`;
   const [recorded, ai] = await Promise.all([
-    db.execute<{
-      projectId: string;
-      kind: "human" | "expense";
-      amount: string;
-      unpriced: number;
-    }>(sql`
-      select c.project_id as "projectId", c.kind, round(coalesce(sum(c.amount_usd), 0), 8)::text as amount,
-        count(*) filter (where c.amount_usd is null)::integer as unpriced
-      from reporting_costs c
-      where c.organization_id = ${input.organizationId}
-        and c.project_id in (${idList(input.projectIds)})
-        and not c.voided and c.kind in ('human', 'expense')
-        ${input.targetLocale ? sql`and c.target_locale = ${input.targetLocale}` : sql``}
-        ${within(sql`c.created_at`)}
-      group by 1, 2
-    `),
-    input.targetLocale
-      ? Promise.resolve({ rows: [] })
-      : // Task by task through billing's task index: a planner joining the other way walks
-        // every usage row of the database.
-        db.execute<{ projectId: string; amount: string; pending: number }>(sql`
-          select j.project_id as "projectId", round(coalesce(sum(u.amount_usd), 0), 8)::text as amount,
-            count(*) filter (where u.id is not null and u.amount_usd is null)::integer as pending
-          from jobs j
-          cross join lateral (
-            select u.id, u.amount_usd from usage_events u
-            where u.job_id = j.id and u.organization_id = ${input.organizationId}
-              and u.feature_id = 'ai_tokens' and u.credential_source = 'gateway'
-              and u.status <> 'rejected'
-              ${within(sql`u.created_at`)}
-            offset 0
-          ) u
-          where j.organization_id = ${input.organizationId}
-            and j.project_id in (${idList(input.projectIds)})
-          group by 1
-        `),
+    input.projectIds.length
+      ? db.execute<{
+          projectId: string;
+          kind: "human" | "expense";
+          amount: string;
+          unpriced: number;
+        }>(sql`
+          select c.project_id as "projectId", c.kind, round(coalesce(sum(c.amount_usd), 0), 8)::text as amount,
+            count(*) filter (where c.amount_usd is null)::integer as unpriced
+          from reporting_costs c
+          where c.organization_id = ${input.organizationId}
+            and c.project_id in (${idList(input.projectIds)})
+            and not c.voided and c.kind in ('human', 'expense')
+            ${input.targetLocale ? sql`and c.target_locale = ${input.targetLocale}` : sql``}
+            ${within(sql`c.created_at`)}
+          group by 1, 2
+        `)
+      : Promise.resolve({ rows: [] }),
+    withAi
+      ? db.execute<{
+          projectId: string | null;
+          onTask: boolean;
+          amount: string;
+          pending: number;
+        }>(sql`
+          select project_id as "projectId", job_id is not null as "onTask",
+            round(coalesce(sum(amount_usd), 0), 8)::text as amount,
+            count(*) filter (where amount_usd is null)::integer as pending
+          from (${attributedUsage({
+            organizationId: input.organizationId,
+            where: sql`u.feature_id = 'ai_tokens' and u.credential_source = 'gateway'
+              and u.status <> 'rejected' ${within(sql`u.created_at`)}`,
+          })}) charges
+          where ${outside ? sql`(${projects} or project_id is null)` : projects}
+          group by 1, 2
+        `)
+      : Promise.resolve({ rows: [] }),
   ]);
   const project = (projectId: string) => {
     let entry = byProject.get(projectId);
@@ -605,7 +666,8 @@ async function spending(input: {
       entry = {
         people: ZERO,
         expenses: ZERO,
-        ai: input.targetLocale ? null : ZERO,
+        aiOnTasks: withAi ? ZERO : null,
+        aiOutsideTasks: withAi ? ZERO : null,
         unpriced: 0,
         pendingAi: 0,
       };
@@ -613,88 +675,138 @@ async function spending(input: {
     }
     return entry;
   };
-  for (const row of recorded.rows) {
+  for (const row of recorded.rows as {
+    projectId: string;
+    kind: "human" | "expense";
+    amount: string;
+    unpriced: number;
+  }[]) {
     const entry = project(row.projectId);
     if (row.kind === "human") entry.people += usdUnits(row.amount);
     else entry.expenses += usdUnits(row.amount);
     entry.unpriced += row.unpriced;
   }
-  for (const row of ai.rows as { projectId: string; amount: string; pending: number }[]) {
+  const outsideProjects = outside ? { ai: ZERO, pendingAi: 0 } : null;
+  for (const row of ai.rows as {
+    projectId: string | null;
+    onTask: boolean;
+    amount: string;
+    pending: number;
+  }[]) {
+    if (row.projectId === null) {
+      outsideProjects!.ai += usdUnits(row.amount);
+      outsideProjects!.pendingAi += row.pending;
+      continue;
+    }
     const entry = project(row.projectId);
-    entry.ai = (entry.ai ?? ZERO) + usdUnits(row.amount);
+    if (row.onTask) entry.aiOnTasks = (entry.aiOnTasks ?? ZERO) + usdUnits(row.amount);
+    else entry.aiOutsideTasks = (entry.aiOutsideTasks ?? ZERO) + usdUnits(row.amount);
     entry.pendingAi += row.pending;
   }
-  return byProject;
+  return { byProject, outsideProjects };
+}
+
+function aiTotal(entry: Spending | undefined) {
+  return entry ? (entry.aiOnTasks ?? ZERO) + (entry.aiOutsideTasks ?? ZERO) : ZERO;
 }
 
 function spentTotal(entry: Spending | undefined) {
-  return entry ? entry.people + entry.expenses + (entry.ai ?? ZERO) : ZERO;
+  return entry ? entry.people + entry.expenses + aiTotal(entry) : ZERO;
 }
 
 export type CostRow = {
   projectId: string;
   projectName: string;
   peopleUsd: string;
+  /** Both parts of the project's AI; null when the costs are filtered by language. */
   aiUsd: string | null;
+  aiOnTasksUsd: string | null;
+  aiOutsideTasksUsd: string | null;
   expensesUsd: string;
   totalUsd: string;
 };
 
 export type Costs = {
   rows: CostRow[];
+  /** AI charged with no project (chat, assistants), when no project is chosen. */
+  outsideProjects: { aiUsd: string } | null;
+  /** Every row, and AI outside any project when it is shown. */
   totals: Omit<CostRow, "projectId" | "projectName">;
   previousTotalUsd: string;
   unpriced: number;
   pendingAi: number;
 };
 
-/** What was spent in a period, by project, with the previous period's total. */
+/**
+ * What was spent in a period, by project, with the previous period's total. With
+ * `includeUnattributed` and no project chosen, AI charged outside any project is added as its
+ * own line and in the totals, so the workspace's total covers all of billing's AI charges.
+ */
 export async function queryCosts(
-  input: Omit<ReportScope, "jobIds"> & { period: ReportPeriod },
+  input: Omit<ReportScope, "jobIds"> & { period: ReportPeriod; includeUnattributed: boolean },
 ): Promise<Costs> {
   const projectIds = scopedProjectIds(input);
+  const outsideProjects = input.includeUnattributed && !input.projectId;
   const [current, previous, names] = await Promise.all([
-    spending({ ...input, projectIds, from: input.period.from, to: input.period.to }),
+    spending({
+      ...input,
+      projectIds,
+      from: input.period.from,
+      to: input.period.to,
+      outsideProjects,
+    }),
     spending({
       ...input,
       projectIds,
       from: input.period.previousFrom,
       to: input.period.previousTo,
+      outsideProjects,
     }),
     projectNames(projectIds),
   ]);
   const languageFiltered = Boolean(input.targetLocale);
-  const sum = { people: ZERO, expenses: ZERO, ai: ZERO };
+  const sum = { people: ZERO, expenses: ZERO, aiOnTasks: ZERO, aiOutsideTasks: ZERO };
   let unpriced = 0,
-    pendingAi = 0;
+    pendingAi = current.outsideProjects?.pendingAi ?? 0;
+  const ai = (amount: bigint | null) => (amount === null ? null : usdString(amount));
   const rows: CostRow[] = [];
-  for (const [projectId, entry] of current) {
+  for (const [projectId, entry] of current.byProject) {
     sum.people += entry.people;
     sum.expenses += entry.expenses;
-    sum.ai += entry.ai ?? ZERO;
+    sum.aiOnTasks += entry.aiOnTasks ?? ZERO;
+    sum.aiOutsideTasks += entry.aiOutsideTasks ?? ZERO;
     unpriced += entry.unpriced;
     pendingAi += entry.pendingAi;
     rows.push({
       projectId,
       projectName: names.get(projectId) ?? projectId,
       peopleUsd: usdString(entry.people),
-      aiUsd: entry.ai === null ? null : usdString(entry.ai),
+      aiUsd: languageFiltered ? null : usdString(aiTotal(entry)),
+      aiOnTasksUsd: ai(entry.aiOnTasks),
+      aiOutsideTasksUsd: ai(entry.aiOutsideTasks),
       expensesUsd: usdString(entry.expenses),
       totalUsd: usdString(spentTotal(entry)),
     });
   }
   rows.sort((left, right) => left.projectName.localeCompare(right.projectName));
+  const outsideAi = current.outsideProjects?.ai ?? ZERO;
+  const allAi = sum.aiOnTasks + sum.aiOutsideTasks + outsideAi;
+  const previousTotal =
+    [...previous.byProject.values()].reduce((total, entry) => total + spentTotal(entry), ZERO) +
+    (previous.outsideProjects?.ai ?? ZERO);
   return {
     rows,
+    outsideProjects: current.outsideProjects ? { aiUsd: usdString(outsideAi) } : null,
     totals: {
       peopleUsd: usdString(sum.people),
-      aiUsd: languageFiltered ? null : usdString(sum.ai),
+      aiUsd: languageFiltered ? null : usdString(allAi),
+      aiOnTasksUsd: languageFiltered ? null : usdString(sum.aiOnTasks),
+      // AI outside any project has no task either, so the two AI parts still add up.
+      aiOutsideTasksUsd: languageFiltered ? null : usdString(sum.aiOutsideTasks + outsideAi),
       expensesUsd: usdString(sum.expenses),
-      totalUsd: usdString(sum.people + sum.expenses + sum.ai),
+      totalUsd: usdString(sum.people + sum.expenses + allAi),
     },
-    previousTotalUsd: usdString(
-      [...previous.values()].reduce((total, entry) => total + spentTotal(entry), ZERO),
-    ),
+    previousTotalUsd: usdString(previousTotal),
     unpriced,
     pendingAi,
   };
@@ -748,7 +860,7 @@ export async function queryBudgets(input: {
   `);
   const projectIds = budgets.rows.map((row) => row.projectId);
   if (projectIds.length === 0) return [];
-  const [spent, toCome] = await Promise.all([
+  const [{ byProject: spent }, toCome] = await Promise.all([
     spending({ organizationId: input.organizationId, projectIds }),
     queryStillToCome({ organizationId: input.organizationId, projectIds }),
   ]);

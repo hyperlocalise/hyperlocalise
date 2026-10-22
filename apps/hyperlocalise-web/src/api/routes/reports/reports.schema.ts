@@ -64,6 +64,9 @@ export const budgetSchema = z.object({
 export const taskRateSchema = z.object({
   jobId: z.string().min(1),
   step,
+  /** The task's own rate card; each language is priced by that card's line for it. */
+  rateCardName: z.string().min(1).max(100).nullable().default(null),
+  /** A rate line, as the old Reports page sends it: the task takes the line's card. */
   rateId: z.uuid().nullable().default(null),
   estimatedMinutes: z.number().int().nonnegative().max(525600).nullable().default(null),
   overrideUsd: usd.nullable().default(null),

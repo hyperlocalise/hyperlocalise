@@ -110,15 +110,43 @@ export function aiUsageCsv(usage: AiUsage, groupBy: "origin" | "model"): string 
 
 export function costsCsv(costs: Costs): string {
   return toCsv(
-    ["projectName", "projectId", "peopleUsd", "aiUsd", "expensesUsd", "totalUsd"],
-    costs.rows.map((row) => [
-      row.projectName,
-      row.projectId,
-      row.peopleUsd,
-      row.aiUsd,
-      row.expensesUsd,
-      row.totalUsd,
-    ]),
+    [
+      "projectName",
+      "projectId",
+      "peopleUsd",
+      "aiOnTasksUsd",
+      "aiOutsideTasksUsd",
+      "aiUsd",
+      "expensesUsd",
+      "totalUsd",
+    ],
+    [
+      ...costs.rows.map((row) => [
+        row.projectName,
+        row.projectId,
+        row.peopleUsd,
+        row.aiOnTasksUsd,
+        row.aiOutsideTasksUsd,
+        row.aiUsd,
+        row.expensesUsd,
+        row.totalUsd,
+      ]),
+      // AI charged outside any project: a row with no project.
+      ...(costs.outsideProjects
+        ? [
+            [
+              null,
+              null,
+              null,
+              null,
+              costs.outsideProjects.aiUsd,
+              costs.outsideProjects.aiUsd,
+              null,
+              costs.outsideProjects.aiUsd,
+            ],
+          ]
+        : []),
+    ],
   );
 }
 
@@ -129,6 +157,7 @@ export function costEstimateCsv(estimate: CostEstimate): string {
       "targetLocale",
       "step",
       "pricing",
+      "pricedBy",
       "rateCardName",
       "basis",
       "rate",
@@ -144,6 +173,7 @@ export function costEstimateCsv(estimate: CostEstimate): string {
         row.targetLocale,
         row.step,
         row.pricing,
+        row.pricedBy.join(" "),
         row.rateCardName,
         row.basis,
         row.rate,
@@ -158,6 +188,7 @@ export function costEstimateCsv(estimate: CostEstimate): string {
         null,
         fee.step,
         "fixed",
+        null,
         null,
         null,
         null,
