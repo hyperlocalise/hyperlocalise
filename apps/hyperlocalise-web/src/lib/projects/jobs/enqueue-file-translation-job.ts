@@ -36,7 +36,7 @@ import {
   OrganizationJobBudgetExceededError,
 } from "@/lib/security/organization-operation-budget";
 import {
-  inferSupportedTranslationFileFormat,
+  inferSupportedFileTranslationFileFormat,
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import type { GenerationTrigger } from "@/lib/translation/generation-provenance";
@@ -287,7 +287,7 @@ export async function createFileTranslationJob(
     return { ok: false, code: "source_file_not_found", message: "Source file not found." };
   }
 
-  const inferredFileFormat = inferSupportedTranslationFileFormat(sourceFile.filename);
+  const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
   if (!inferredFileFormat) {
     return {
       ok: false,

@@ -23,7 +23,7 @@ import {
   isVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import { sandboxEntriesLocaleOptions } from "@/lib/translation/sandbox-cli-release";
-import { sandboxCliParsesOffice, sandboxCliParsesPdf } from "@/lib/translation/sandbox-cli-version";
+import { sandboxCliParsesOffice } from "@/lib/translation/sandbox-cli-version";
 import type { SourceFileIngestEventData } from "@/lib/workflow/types";
 import {
   claimSourceFileIngestStep,
@@ -155,8 +155,7 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
 
     // The CLI never reads .xls, so legacy workbooks are always keyed in-process.
     const officeParsedInSandbox = isOffice && inferredFormat !== "xls" && sandboxCliParsesOffice();
-    const pdfParsedInSandbox = isPdf && sandboxCliParsesPdf();
-    if ((isBinary || isDocument) && !officeParsedInSandbox && !pdfParsedInSandbox) {
+    if ((isBinary || isDocument) && !officeParsedInSandbox) {
       const targetLocales = await getProjectTargetLocalesStep({
         organizationId: event.organizationId,
         projectId: event.projectId,

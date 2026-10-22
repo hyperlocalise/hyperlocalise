@@ -237,13 +237,6 @@ export const env = createEnv({
     VERCEL_SANDBOX_IMAGE: z.string().min(1).optional(),
 
     /**
-     * Override the hyperlocalise CLI GitHub release installed into Vercel sandboxes.
-     * Defaults to the production pin (`1.13.6`) when unset. Example: `1.13.5` before
-     * `v1.13.6` is published.
-     */
-    SANDBOX_HYPERLOCALISE_CLI_VERSION: z.string().min(1).optional(),
-
-    /**
      * Env-backed decide for release flag `release-sandbox-vcr-image`.
      * When true (and `VERCEL_SANDBOX_IMAGE` is set), sandboxes create from the
      * custom VCR image instead of the managed `vercel/sandbox/node:26` image.
@@ -416,7 +409,6 @@ export const env = createEnv({
     TRANSLATION_QA_SCAN_MAX_PROJECTS_PER_TICK:
       process.env.TRANSLATION_QA_SCAN_MAX_PROJECTS_PER_TICK,
     VERCEL_SANDBOX_IMAGE: process.env.VERCEL_SANDBOX_IMAGE,
-    SANDBOX_HYPERLOCALISE_CLI_VERSION: process.env.SANDBOX_HYPERLOCALISE_CLI_VERSION,
     RELEASE_SANDBOX_VCR_IMAGE: process.env.RELEASE_SANDBOX_VCR_IMAGE,
     RELEASE_QA_SANDBOX_VCR_IMAGE: process.env.RELEASE_QA_SANDBOX_VCR_IMAGE,
     CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),

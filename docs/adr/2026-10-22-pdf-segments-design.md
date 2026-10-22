@@ -7,8 +7,10 @@ PDF uploads were skipped in Google Drive sync and could not be opened as keyed s
 ## Decisions
 
 - PDF text blocks are extracted in Go with PDFium (WebAssembly), keyed as `page-<n>#<blockIndex>` with context `Page N, block M`.
-- Ingest and file translation jobs use the sandbox CLI (`hl entries` / `hl run`), like Office formats once the CLI pin reaches 1.13.6.
-- Target PDFs are generated in go-svc (`POST /internal/pdf/apply`) by replacing text objects in the source layout. The web app downloads through the existing Office download path.
+- Ingest uses go-svc (`POST /internal/pdf/entries`), which calls the same
+  `translationfileparser` package as the CLI. Target PDFs are generated in go-svc
+  (`POST /internal/pdf/apply`) by replacing text objects in the source layout.
+  The web app downloads through the existing Office download path.
 - Scanned PDFs without a native text layer fail ingest with a clear message. OCR is not used for project sources.
 - Arabic, Hebrew, and Indic targets return `ErrPDFScriptUnsupported` because PDFium does not shape those scripts.
 

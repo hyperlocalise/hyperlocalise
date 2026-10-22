@@ -17,7 +17,7 @@ import {
   isHyperlocaliseSandboxVcrImageEnabledForScope,
   type VercelSandboxImageScope,
 } from "@/lib/flags/release-flags";
-import { resolveSandboxHyperlocaliseReleaseVersion } from "@/lib/translation/sandbox-cli-version";
+import { sandboxHyperlocaliseReleaseVersion } from "@/lib/translation/sandbox-cli-version";
 
 export type { VercelSandboxImageScope } from "@/lib/flags/release-flags";
 
@@ -172,7 +172,7 @@ export const installChromiumSystemDependenciesFunction = [
 ].join("\n");
 
 export function buildInstallRequiredSandboxToolsCommand(
-  cliVersion: string = resolveSandboxHyperlocaliseReleaseVersion(),
+  cliVersion: string = sandboxHyperlocaliseReleaseVersion,
 ): string {
   return [
     installRipgrepFromGithubRelease,
@@ -215,7 +215,7 @@ export function buildInstallRequiredSandboxToolsCommand(
 
 /** Ensures Hunspell and the pinned dictionary set are available for QA CLI spelling checks. */
 export function buildInstallQaSpellingSandboxCommand(
-  cliVersion: string = resolveSandboxHyperlocaliseReleaseVersion(),
+  cliVersion: string = sandboxHyperlocaliseReleaseVersion,
 ): string {
   return [
     'DICPATH="${DICPATH:-/usr/share/hunspell}"',

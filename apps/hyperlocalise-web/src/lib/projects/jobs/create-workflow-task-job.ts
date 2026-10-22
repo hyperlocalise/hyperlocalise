@@ -26,7 +26,7 @@ import {
   assertOrganizationCanEnqueueTranslationJobInTransaction,
   OrganizationJobBudgetExceededError,
 } from "@/lib/security/organization-operation-budget";
-import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
+import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { VisualTaskStep } from "@/lib/visual-workflows/schema/types";
 
 import { mergeNativeFileTranslationJobMetadata } from "./enqueue-file-translation-job";
@@ -105,7 +105,7 @@ export async function createWorkflowTaskJob(
   if (!sourceFile) {
     return err({ code: "source_file_not_found", message: "Source file not found." });
   }
-  const fileFormat = inferSupportedTranslationFileFormat(sourceFile.filename);
+  const fileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
   if (!fileFormat) {
     return err({
       code: "unsupported_source_file_format",

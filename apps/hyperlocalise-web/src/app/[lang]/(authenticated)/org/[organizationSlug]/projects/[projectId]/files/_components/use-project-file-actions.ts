@@ -21,10 +21,7 @@ import {
   canOpenProjectFileContentEditor,
 } from "@/lib/projects/project-file-content-editor-routing";
 import { sourcePathSupportsSrxSegmentation } from "@/lib/i18n/srx/format-supports";
-import {
-  inferSupportedFileTranslationFileFormat,
-  isSupportedSourceUploadFormat,
-} from "@/lib/translation/file-formats";
+import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 import { useProjectFileActionsMessages } from "./use-project-file-actions.messages";
 
@@ -62,8 +59,7 @@ export function buildProjectFileActionCapabilities({
   const canTranslateWithAgent =
     isNativeFile &&
     Boolean(file.storedFileId) &&
-    (isSupportedSourceUploadFormat(file.sourcePath) ||
-      Boolean(inferSupportedFileTranslationFileFormat(file.sourcePath))) &&
+    Boolean(inferSupportedFileTranslationFileFormat(file.sourcePath)) &&
     targetLocales.length > 0;
   const contentEditorHref = buildProjectFileContentEditorHref(
     organizationSlug,

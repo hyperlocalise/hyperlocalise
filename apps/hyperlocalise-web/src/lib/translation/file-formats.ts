@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { sandboxCliParsesOffice, sandboxCliParsesPdf } from "@/lib/translation/sandbox-cli-version";
+import { sandboxCliParsesOffice } from "@/lib/translation/sandbox-cli-version";
 
 export const supportedTranslationFileFormats = [
   "json",
@@ -99,7 +99,6 @@ export const supportedFileTranslationFileFormats = [
   "xlsx",
   "xls",
   "pptx",
-  "pdf",
 ] as const;
 
 export type SupportedFileTranslationFileFormat =
@@ -315,17 +314,10 @@ export function inferSupportedTranslationFileFormat(
 /** File translation job formats the pinned sandbox CLI can run, for user-facing lists. */
 export function availableFileTranslationFileFormats(
   cliParsesOffice: boolean = sandboxCliParsesOffice(),
-  cliParsesPdf: boolean = sandboxCliParsesPdf(),
 ): SupportedFileTranslationFileFormat[] {
-  return supportedFileTranslationFileFormats.filter((format) => {
-    if (!cliParsesOffice && isOfficeTranslationFileFormat(format)) {
-      return false;
-    }
-    if (!cliParsesPdf && isPdfTranslationFileFormat(format)) {
-      return false;
-    }
-    return true;
-  });
+  return supportedFileTranslationFileFormats.filter(
+    (format) => cliParsesOffice || !isOfficeTranslationFileFormat(format),
+  );
 }
 
 /**
@@ -335,16 +327,12 @@ export function availableFileTranslationFileFormats(
 export function inferSupportedFileTranslationFileFormat(
   filename: string,
   cliParsesOffice: boolean = sandboxCliParsesOffice(),
-  cliParsesPdf: boolean = sandboxCliParsesPdf(),
 ): SupportedFileTranslationFileFormat | null {
   const format = inferSupportedTranslationFileFormat(filename);
   if (!format || !isSupportedFileTranslationFileFormat(format)) {
     return null;
   }
   if (!cliParsesOffice && isOfficeTranslationFileFormat(format)) {
-    return null;
-  }
-  if (!cliParsesPdf && isPdfTranslationFileFormat(format)) {
     return null;
   }
 

@@ -259,6 +259,8 @@ describe("translation file formats", () => {
 
   it("rejects unsupported file extensions", () => {
     expect(inferSupportedTranslationFileFormat("brief.pdf")).toBe("pdf");
+    expect(inferSupportedFileTranslationFileFormat("brief.pdf")).toBeNull();
+    expect(availableFileTranslationFileFormats()).not.toContain("pdf");
     expect(inferSupportedTranslationFileFormat("no-extension")).toBeNull();
   });
 

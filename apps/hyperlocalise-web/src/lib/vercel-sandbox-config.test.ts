@@ -39,7 +39,7 @@ vi.mock("@/lib/env", () => ({
   env: envMock,
 }));
 
-import { defaultSandboxHyperlocaliseReleaseVersion } from "@/lib/translation/sandbox-cli-version";
+import { sandboxHyperlocaliseReleaseVersion } from "@/lib/translation/sandbox-cli-version";
 import {
   buildInstallQaSpellingSandboxCommand,
   buildInstallRequiredSandboxToolsCommand,
@@ -53,10 +53,10 @@ import {
 } from "@/lib/vercel-sandbox-config";
 
 const installQaSpellingSandboxCommand = buildInstallQaSpellingSandboxCommand(
-  defaultSandboxHyperlocaliseReleaseVersion,
+  sandboxHyperlocaliseReleaseVersion,
 );
 const installRequiredSandboxToolsCommand = buildInstallRequiredSandboxToolsCommand(
-  defaultSandboxHyperlocaliseReleaseVersion,
+  sandboxHyperlocaliseReleaseVersion,
 );
 
 describe("installQaSpellingSandboxCommand", () => {
@@ -148,7 +148,7 @@ describe("installRequiredSandboxToolsCommand", () => {
 
   it("installs hyperlocalise from pinned GitHub releases", () => {
     expect(installRequiredSandboxToolsCommand).toContain(
-      `HL_VERSION="${defaultSandboxHyperlocaliseReleaseVersion}"`,
+      `HL_VERSION="${sandboxHyperlocaliseReleaseVersion}"`,
     );
     expect(installRequiredSandboxToolsCommand).toContain(
       "install_hyperlocalise_from_github_release",

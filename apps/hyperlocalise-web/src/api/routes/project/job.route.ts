@@ -41,7 +41,7 @@ import {
   ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
 } from "@/lib/file-storage/records";
-import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
+import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import {
   formatUsageControlError,
   reserveUsageEvent,
@@ -461,7 +461,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           return notFoundResponse(c, "source_file_not_found", "Source file not found");
         }
 
-        const inferredFileFormat = inferSupportedTranslationFileFormat(sourceFile.filename);
+        const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
         if (!inferredFileFormat) {
           return badRequestResponse(
             c,
