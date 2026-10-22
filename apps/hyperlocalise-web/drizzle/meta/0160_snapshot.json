@@ -1,5 +1,5 @@
 {
-  "id": "d6395c41-1d04-41f6-922a-821344ed31c5",
+  "id": "5a46a717-a1f8-417f-8c2c-33fdcef0fe5f",
   "prevId": "04c429e5-9ced-4c55-b3a7-a0150a7525fb",
   "version": "7",
   "dialect": "postgresql",
@@ -20999,12 +20999,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "last_step_key": {
-          "name": "last_step_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -21036,6 +21030,80 @@
             "workflow_id",
             "node_id",
             "rule_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.visual_workflow_assignment_picks": {
+      "name": "visual_workflow_assignment_picks",
+      "schema": "",
+      "columns": {
+        "workflow_id": {
+          "name": "workflow_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "node_id": {
+          "name": "node_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rule_id": {
+          "name": "rule_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "step_key": {
+          "name": "step_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "assignee_id": {
+          "name": "assignee_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "visual_workflow_assignment_picks_workflow_id_visual_workflows_id_fk": {
+          "name": "visual_workflow_assignment_picks_workflow_id_visual_workflows_id_fk",
+          "tableFrom": "visual_workflow_assignment_picks",
+          "tableTo": "visual_workflows",
+          "columnsFrom": [
+            "workflow_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "visual_workflow_assignment_picks_workflow_id_node_id_rule_id_step_key_pk": {
+          "name": "visual_workflow_assignment_picks_workflow_id_node_id_rule_id_step_key_pk",
+          "columns": [
+            "workflow_id",
+            "node_id",
+            "rule_id",
+            "step_key"
           ]
         }
       },
