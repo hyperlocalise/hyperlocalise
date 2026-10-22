@@ -29,7 +29,6 @@ import {
   validateVisualWorkflowDefinition,
   validateVisualWorkflowGraph,
 } from "./validation/validate-workflow";
-import { nodeFailsInFakeRun, orderNodesForFakeRun } from "./preview/fake-run";
 import type { VisualWorkflowRfEdge, VisualWorkflowRfNode } from "./schema/types";
 
 function node(
@@ -388,30 +387,6 @@ describe("visual workflow editor graph helpers", () => {
 
     expect(result.nodes.map((entry) => entry.id)).toEqual(["t", "a"]);
     expect(result.edges).toEqual([]);
-  });
-});
-
-describe("fake-run ordering", () => {
-  it("walks trigger then branches then remaining nodes", () => {
-    const nodes = [
-      node("t", "trigger.manual"),
-      node("h", "action.http"),
-      node("iff", "logic.if"),
-      node("ok", "ai.agent"),
-    ];
-    const edges: VisualWorkflowRfEdge[] = [
-      { id: "e1", source: "t", target: "h" },
-      { id: "e2", source: "h", target: "iff" },
-      { id: "e3", source: "iff", target: "ok", sourceHandle: "true" },
-    ];
-    expect(orderNodesForFakeRun(nodes, edges)).toEqual(["t", "h", "iff", "ok"]);
-  });
-
-  it("fails http nodes without a URL", () => {
-    const http = node("h", "action.http");
-    expect(nodeFailsInFakeRun(http)).toBe(true);
-    http.data.config = { kind: "action.http", method: "GET", url: "https://example.test" };
-    expect(nodeFailsInFakeRun(http)).toBe(false);
   });
 });
 

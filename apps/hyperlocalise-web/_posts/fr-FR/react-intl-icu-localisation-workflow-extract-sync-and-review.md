@@ -122,7 +122,7 @@ export function FiltersPage({ savedCount, scope }: { savedCount: number; scope: 
 Créez `i18n.yml` à la racine du dépôt (ou dans votre répertoire d’application si le monorepo conserve la configuration à côté de l’interface utilisateur) :
 
 ```yaml
-version: hyperlocalise@1.13.4
+version: hyperlocalise@1.13.5
 
 locales:
   source: en-US

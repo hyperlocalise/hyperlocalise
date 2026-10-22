@@ -13,11 +13,7 @@
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
-
-vi.mock("@/workflows/steps/workspace-automation-run-sync", () => ({
-  syncWorkspaceAutomationRunsForGithubJobStep: vi.fn().mockResolvedValue(undefined),
-}));
+import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database/client";
 
