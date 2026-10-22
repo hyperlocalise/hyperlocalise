@@ -14,7 +14,7 @@ import { generateText } from "ai";
 import { and, eq } from "drizzle-orm";
 
 import {
-  billingModelFromSteps,
+  credentialSourceForLanguageModel,
   extractAiSdkTokenUsage,
   trackAiCallTokenUsage,
 } from "@/lib/billing/agent-runtime-usage";
@@ -134,11 +134,11 @@ export async function localizeAndStoreDocumentVariant(input: {
 
   let translatedText: string;
   try {
-    const { model } = await resolveHyperlocaliseAgentLanguageModel({
+    const languageModel = await resolveHyperlocaliseAgentLanguageModel({
       organizationId: input.organizationId,
     });
     const result = await generateText({
-      model,
+      model: languageModel.model,
       prompt: buildDocumentLocalizationPrompt({
         sourceLocale: input.sourceLocale,
         targetLocale: input.targetLocale,
@@ -146,18 +146,16 @@ export async function localizeAndStoreDocumentVariant(input: {
         sourceText,
       }),
     });
-    const billingModel = billingModelFromSteps(result);
-    if (billingModel) {
-      await trackAiCallTokenUsage(
-        {
-          organizationId: input.organizationId,
-          source: "content_editor_document_regenerate",
-          tokenUsage: extractAiSdkTokenUsage(result.usage),
-          ...billingModel,
-        },
-        { defer: input.deferBilling },
-      );
-    }
+    await trackAiCallTokenUsage(
+      {
+        organizationId: input.organizationId,
+        source: "content_editor_document_regenerate",
+        tokenUsage: extractAiSdkTokenUsage(result.usage),
+        modelId: languageModel.modelId,
+        credentialSource: credentialSourceForLanguageModel(languageModel),
+      },
+      { defer: input.deferBilling },
+    );
 
     if (result.finishReason !== "stop") {
       return err({

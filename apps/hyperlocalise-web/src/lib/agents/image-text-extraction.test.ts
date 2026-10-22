@@ -17,6 +17,7 @@ import { extractImageText } from "./image-text-extraction";
 vi.mock("ai", () => ({ generateText: vi.fn(), Output: { object: vi.fn((input) => input) } }));
 vi.mock("@/lib/providers/language-model", () => ({
   getManagedLanguageModel: () => "managed-vision-model",
+  hyperlocaliseManagedGatewayModelId: "openai/gpt-6-luna",
 }));
 const { meteringInputs } = vi.hoisted(() => ({ meteringInputs: [] as unknown[] }));
 vi.mock("@/lib/billing/agent-runtime-usage", async (importOriginal) => ({
@@ -24,15 +25,15 @@ vi.mock("@/lib/billing/agent-runtime-usage", async (importOriginal) => ({
   withAgentRuntimeUsageMetering: async <T>(meteringInput: {
     run: () => Promise<T>;
     extractTokenUsage?: (result: T) => unknown;
-    aiCreditModelId?: (result: T) => unknown;
-    aiCreditCredentialSource?: (result: T) => unknown;
+    aiCreditModelId?: string;
+    aiCreditCredentialSource?: string;
   }) => {
     const result = await meteringInput.run();
     meteringInputs.push({
       ...meteringInput,
       tokenUsage: meteringInput.extractTokenUsage?.(result),
-      modelId: meteringInput.aiCreditModelId?.(result),
-      credentialSource: meteringInput.aiCreditCredentialSource?.(result),
+      modelId: meteringInput.aiCreditModelId,
+      credentialSource: meteringInput.aiCreditCredentialSource,
     });
     return result;
   },
@@ -75,7 +76,6 @@ describe("image text extraction", () => {
     vi.mocked(generateText).mockResolvedValue({
       output: { regions: [] },
       usage,
-      steps: [{ model: { provider: "gateway", modelId: "openai/gpt-6-luna" } }],
     } as never);
     await extractImageText(input);
     expect(meteringInputs).toEqual([

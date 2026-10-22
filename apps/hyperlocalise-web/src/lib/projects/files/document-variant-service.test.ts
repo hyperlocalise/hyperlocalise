@@ -20,8 +20,9 @@ const { generateTextMock, trackAiCallTokenUsageMock, replaceImageVariantBytesMoc
   }),
 );
 
+const { resolveModelMock } = vi.hoisted(() => ({ resolveModelMock: vi.fn() }));
 vi.mock("@/lib/providers/organization-language-model", () => ({
-  resolveHyperlocaliseAgentLanguageModel: async () => ({ model: "workspace-model" }),
+  resolveHyperlocaliseAgentLanguageModel: resolveModelMock,
 }));
 
 vi.mock("ai", () => ({ generateText: generateTextMock }));
@@ -60,16 +61,20 @@ const input = {
   provenance: "agent" as const,
 };
 const usage = { inputTokens: 5_000, outputTokens: 5_200, totalTokens: 10_200 };
-const steps = [{ model: { provider: "gateway", modelId: "openai/gpt-6-luna" } }];
 
 describe("localizeAndStoreDocumentVariant metering", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     replaceImageVariantBytesMock.mockResolvedValue({ ok: true, value: { id: "variant_1" } });
+    resolveModelMock.mockResolvedValue({
+      model: "openai/gpt-6-luna",
+      modelId: "openai/gpt-6-luna",
+      source: "gateway",
+    });
   });
 
   it("records the regenerated document's tokens", async () => {
-    generateTextMock.mockResolvedValue({ text: "# Bonjour", finishReason: "stop", usage, steps });
+    generateTextMock.mockResolvedValue({ text: "# Bonjour", finishReason: "stop", usage });
 
     const result = await localizeAndStoreDocumentVariant(input);
 
@@ -87,7 +92,7 @@ describe("localizeAndStoreDocumentVariant metering", () => {
   });
 
   it("records tokens for a truncated document that is not stored", async () => {
-    generateTextMock.mockResolvedValue({ text: "# Bon", finishReason: "length", usage, steps });
+    generateTextMock.mockResolvedValue({ text: "# Bon", finishReason: "length", usage });
 
     const result = await localizeAndStoreDocumentVariant(input);
 
@@ -97,18 +102,19 @@ describe("localizeAndStoreDocumentVariant metering", () => {
   });
 
   it("records a document regenerated on the workspace's own key at no charge", async () => {
-    generateTextMock.mockResolvedValue({
-      text: "# Bonjour",
-      finishReason: "stop",
-      usage,
-      steps: [{ model: { provider: "anthropic.messages", modelId: "claude-sonnet-4-5" } }],
+    resolveModelMock.mockResolvedValue({
+      model: {},
+      modelId: "anthropic/claude-sonnet-4.5",
+      source: "anthropic",
     });
+    generateTextMock.mockResolvedValue({ text: "# Bonjour", finishReason: "stop", usage });
 
     await localizeAndStoreDocumentVariant(input);
 
+    expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({ model: {} }));
     expect(trackAiCallTokenUsageMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        modelId: "anthropic/claude-sonnet-4-5",
+        modelId: "anthropic/claude-sonnet-4.5",
         credentialSource: "byok",
       }),
       { defer: undefined },
@@ -116,7 +122,7 @@ describe("localizeAndStoreDocumentVariant metering", () => {
   });
 
   it("hands the charge to the route to run after the response", async () => {
-    generateTextMock.mockResolvedValue({ text: "# Bonjour", finishReason: "stop", usage, steps });
+    generateTextMock.mockResolvedValue({ text: "# Bonjour", finishReason: "stop", usage });
     const deferBilling = vi.fn();
 
     await localizeAndStoreDocumentVariant({ ...input, deferBilling });

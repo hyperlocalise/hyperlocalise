@@ -28,6 +28,7 @@ const callOptionsSchema = z.object({
   toolContext: z.custom<SubagentCallOptions["toolContext"]>(),
   task: z.string(),
   instructions: z.string(),
+  languageModel: z.custom<SubagentCallOptions["languageModel"]>().optional(),
 });
 
 function buildRepositorySystemPrompt() {
@@ -55,9 +56,11 @@ export const repositorySubagent = new ToolLoopAgent({
 
     const tools = buildSubagentToolSet(options.toolContext, "repository");
     const activeTools = Object.keys(tools) as Array<keyof typeof tools>;
-    const languageModel = await resolveHyperlocaliseAgentLanguageModel({
-      organizationId: options.toolContext.organizationId,
-    });
+    const languageModel =
+      options.languageModel ??
+      (await resolveHyperlocaliseAgentLanguageModel({
+        organizationId: options.toolContext.organizationId,
+      }));
 
     return {
       ...settings,

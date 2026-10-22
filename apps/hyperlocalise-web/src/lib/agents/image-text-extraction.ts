@@ -12,9 +12,11 @@
  */
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { getManagedLanguageModel } from "@/lib/providers/language-model";
 import {
-  billingModelFromSteps,
+  getManagedLanguageModel,
+  hyperlocaliseManagedGatewayModelId,
+} from "@/lib/providers/language-model";
+import {
   extractGenerateResultTokenUsage,
   withAgentRuntimeUsageMetering,
 } from "@/lib/billing/agent-runtime-usage";
@@ -65,13 +67,11 @@ export async function extractImageText(input: {
             })),
           ),
           usage: result.usage,
-          billingModel: billingModelFromSteps(result),
         };
       },
-      extractTokenUsage: (result) =>
-        result.billingModel ? extractGenerateResultTokenUsage(result) : null,
-      aiCreditModelId: (result) => result.billingModel?.modelId,
-      aiCreditCredentialSource: (result) => result.billingModel?.credentialSource,
+      extractTokenUsage: extractGenerateResultTokenUsage,
+      aiCreditModelId: hyperlocaliseManagedGatewayModelId,
+      aiCreditCredentialSource: "gateway",
       aiCreditSource: "image_text_extraction",
     });
     return ok(regions);

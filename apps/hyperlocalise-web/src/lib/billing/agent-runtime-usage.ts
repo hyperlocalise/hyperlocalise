@@ -262,9 +262,7 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
   run: () => Promise<T>;
   extractTokenUsage?: (result: T) => AiTokenUsage | null;
   aiCreditModelId?: string | ((result: T) => string | undefined);
-  aiCreditCredentialSource?:
-    | AiCreditCredentialSource
-    | ((result: T) => AiCreditCredentialSource | undefined);
+  aiCreditCredentialSource?: AiCreditCredentialSource;
   aiCreditSource?: string;
 }): Promise<T> {
   await beginAgentRuntimeUsage({
@@ -287,10 +285,7 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
       typeof input.aiCreditModelId === "function"
         ? input.aiCreditModelId(result)
         : input.aiCreditModelId,
-    aiCreditCredentialSource:
-      typeof input.aiCreditCredentialSource === "function"
-        ? input.aiCreditCredentialSource(result)
-        : input.aiCreditCredentialSource,
+    aiCreditCredentialSource: input.aiCreditCredentialSource,
     aiCreditSource: input.aiCreditSource,
   });
 
@@ -321,26 +316,6 @@ export function agentTurnTokenBilling(input: {
       ? credentialSourceForLanguageModel(input.languageModel)
       : undefined,
   };
-}
-
-/**
- * The model that served a generate result, for billing: calls through our AI Gateway report the
- * provider `gateway`; anything else ran on the workspace's own key and is recorded at no charge.
- * Own-key model ids are a label only (`<provider>/<model>`).
- */
-export function billingModelFromSteps(result: {
-  steps?: ReadonlyArray<{ model?: { provider?: string; modelId?: string } }>;
-}): { modelId: string; credentialSource: AiCreditCredentialSource } | null {
-  const model = result.steps?.find((step) => step.model?.provider && step.model.modelId)?.model;
-  if (!model?.provider || !model.modelId) {
-    return null;
-  }
-
-  if (model.provider === "gateway") {
-    return { modelId: model.modelId, credentialSource: "gateway" };
-  }
-
-  return { modelId: `${model.provider.split(".")[0]}/${model.modelId}`, credentialSource: "byok" };
 }
 
 export type AiCallTokenUsageInput = {

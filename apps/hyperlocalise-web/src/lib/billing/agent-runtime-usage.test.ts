@@ -43,7 +43,6 @@ vi.mock("@/lib/billing/ai-features", () => ({
 
 import {
   agentTurnTokenBilling,
-  billingModelFromSteps,
   credentialSourceForLanguageModel,
   extractAiSdkTokenUsage,
   extractGenerateResultTokenUsage,
@@ -396,21 +395,6 @@ describe("agent-runtime-usage", () => {
     await expect(trackAiCallTokenUsage(input)).resolves.toBeUndefined();
 
     expect(consoleError).toHaveBeenCalledTimes(2);
-  });
-
-  it("bills a call by the model that actually served it", () => {
-    expect(
-      billingModelFromSteps({
-        steps: [{ model: { provider: "gateway", modelId: "openai/gpt-6-luna" } }],
-      }),
-    ).toEqual({ modelId: "openai/gpt-6-luna", credentialSource: "gateway" });
-    expect(
-      billingModelFromSteps({
-        steps: [{ model: { provider: "openai.chat", modelId: "llama-3" } }],
-      }),
-    ).toEqual({ modelId: "openai/llama-3", credentialSource: "byok" });
-    expect(billingModelFromSteps({ steps: [] })).toBeNull();
-    expect(billingModelFromSteps({})).toBeNull();
   });
 
   it("charges a deferred AI call only when the deferred task runs", async () => {
