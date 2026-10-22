@@ -20,8 +20,8 @@ import { REPORT_STEPS, type ReportStep } from "./report-units";
  * A task's own pricing for a step (its rate card, time estimate or fixed fee) can change only
  * before work on that step starts, so the work already recorded keeps one price. Work has
  * started once Reports holds a string, a cost of work (not an expense) or logged time for the
- * task and step, or the task has ended. Tasks people work on from the start are never queued, so
- * the task's status alone cannot say.
+ * task and step, deleted ones aside, or the task has ended. Tasks people work on from the start
+ * are never queued, so the task's status alone cannot say.
  */
 
 const OPEN_STATUSES = new Set(["queued", "running", "waiting_for_review"]);
@@ -37,9 +37,9 @@ export async function lockedPricingSteps(
     where exists(select 1 from reporting_analyses a where a.organization_id = ${input.organizationId}
         and a.job_id = ${input.jobId} and a.step = s.step)
       or exists(select 1 from reporting_costs c where c.organization_id = ${input.organizationId}
-        and c.job_id = ${input.jobId} and c.step = s.step and c.kind <> 'expense')
+        and c.job_id = ${input.jobId} and c.step = s.step and c.kind <> 'expense' and not c.voided)
       or exists(select 1 from reporting_time_entries e where e.organization_id = ${input.organizationId}
-        and e.job_id = ${input.jobId} and e.step = s.step)
+        and e.job_id = ${input.jobId} and e.step = s.step and not e.voided)
   `);
   return new Set(result.rows.map((row) => row.step));
 }

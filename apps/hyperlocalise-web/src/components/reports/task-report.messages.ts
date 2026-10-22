@@ -42,6 +42,12 @@ export const taskReportMessages = defineMessages({
     defaultMessage: "{count, plural, one {# language} other {# languages}}",
     description: "How many languages a task goes into",
   },
+  unitsToReview: {
+    id: "dalTb90IqB",
+    defaultMessage: "{unit} to review",
+    description:
+      "Task report card on the review step: the task's units to review, such as Words to review",
+  },
   finished: {
     id: "TL04QkH28w",
     defaultMessage: "Finished",
@@ -253,6 +259,23 @@ export const taskReportMessages = defineMessages({
     id: "MYndkwv0uy",
     defaultMessage: "None",
     description: "Shown when the task has no rate card, time estimate or fee of its own",
+  },
+  ended: {
+    id: "Ln7uhbB78F",
+    defaultMessage: "Task ended",
+    description:
+      "Shown instead of the edit button when the task has ended, so its pricing can no longer change",
+  },
+  fixedFeeCell: {
+    id: "nSql9wAeyC",
+    defaultMessage: "Fixed fee",
+    description: "Cost cell of a language whose step is priced at a fixed fee for the whole task",
+  },
+  fixedFeeNote: {
+    id: "EXZ7+kRFEu",
+    defaultMessage:
+      "This step has a fixed fee of {amount} for the whole task, counted in the total.",
+    description: "Note under the match analysis when the step is priced at a fixed fee",
   },
   locked: {
     id: "RASl2I0Pxg",

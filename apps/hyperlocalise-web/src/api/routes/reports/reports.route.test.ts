@@ -365,8 +365,34 @@ describe("reports routes", () => {
     );
     expect(csv.headers.get("content-disposition")).toContain("task-report.csv");
     const [header, row] = (await csv.text()).split("\r\n");
-    expect(header).toBe('"targetLocale","new","total","finished","weighted","costUsd"');
-    expect(row).toBe('"fr-FR","10","10","4","10","5.00"');
+    expect(header).toBe('"targetLocale","new","total","finished","weighted","costUsd","pricing"');
+    expect(row).toBe('"fr-FR","10","10","4","10","5.00","rate"');
+
+    // Pricing is money: a localization manager reads it, only an admin sets it, others see none.
+    const viewAs = async (role: "localization_manager" | "translator") => {
+      const other = reporting.createWorkosIdentityForOrganization(identity.organization, role);
+      const { user: person } = await reporting.createLocalWorkosIdentity(other);
+      await ensureDefaultWorkspaceTeamMembership({
+        organizationId: organization.id,
+        userId: person.id,
+      });
+      const answer = await app.request(reportsUrl(slug, `/tasks/${job.id}/report`), {
+        headers: await reporting.authHeadersFor(other),
+      });
+      return (await answer.json()).taskReport;
+    };
+    await expect(viewAs("localization_manager")).resolves.toMatchObject({
+      pricing: [{ step: "translation" }, { step: "review" }],
+      canSetPricing: false,
+    });
+    await expect(viewAs("translator")).resolves.toMatchObject({
+      estimate: null,
+      stillToCome: null,
+      pricing: null,
+      canSetPricing: false,
+      // Other people's time is listed only for the roles that see money.
+      time: { entries: [] },
+    });
 
     const missing = await app.request(reportsUrl(slug, "/tasks/job_missing/report"), { headers });
     expect(missing.status).toBe(404);
@@ -502,6 +528,18 @@ describe("reports routes", () => {
     const locked = await price(job.id, "translation", { rateCardName: null });
     expect(locked.status).toBe(400);
     await expect(locked.json()).resolves.toMatchObject({ error: "task_rate_locked" });
+    // Time logged by mistake and deleted is not work.
+    await db.insert(schema.reportingTimeEntries).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: job.id,
+      contributorId: user.id,
+      step: "review",
+      targetLocale: "fr-FR",
+      workDate: new Date("2026-06-01T00:00:00Z"),
+      minutes: 15,
+      voided: true,
+    });
     expect((await price(job.id, "review", { overrideUsd: "250" })).status).toBe(200);
     // A task that ended does no more work, so nothing about it can change.
     const ended = await createJob({ status: "succeeded" });

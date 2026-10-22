@@ -232,8 +232,9 @@ export function budgetsCsv(budgets: BudgetRow[]): string {
 }
 
 /**
- * A task's words by language for one step, as its Report tab shows them, with the weighted units
- * and cost when the estimate is given (the roles that see money).
+ * A task's words by language for one step, as its Report tab shows them, with the weighted units,
+ * cost and pricing when the estimate is given (the roles that see money). A fixed fee belongs to
+ * the whole step, so it is a row of its own with no language.
  */
 export function taskWordsCsv(
   words: { rows: TaskWordRow[] },
@@ -258,19 +259,43 @@ export function taskWordsCsv(
       (sum, line) => (line.costUsd === null ? sum : (sum ?? 0) + Number(line.costUsd)),
       null,
     );
+    const pricing = lines.some((line) => line.pricing === "fixed")
+      ? "fixed"
+      : lines.length && lines.every((line) => line.pricing === "none")
+        ? "none"
+        : "rate";
     return [
       weighted === null ? null : Math.round(weighted * 100) / 100,
       cost === null ? null : cost.toFixed(2),
+      pricing,
     ];
   };
+  const fees = estimate?.fixedFees.filter((fee) => fee.step === step) ?? [];
   return toCsv(
-    ["targetLocale", ...bands, "total", "finished", ...(estimate ? ["weighted", "costUsd"] : [])],
-    rows.map((row) => [
-      row.targetLocale,
-      ...bands.map((bucket) => row.bands[bucket] ?? 0),
-      row.total,
-      row.finished,
-      ...(estimate ? money(row.targetLocale) : []),
-    ]),
+    [
+      "targetLocale",
+      ...bands,
+      "total",
+      "finished",
+      ...(estimate ? ["weighted", "costUsd", "pricing"] : []),
+    ],
+    [
+      ...rows.map((row) => [
+        row.targetLocale,
+        ...bands.map((bucket) => row.bands[bucket] ?? 0),
+        row.total,
+        row.finished,
+        ...(estimate ? money(row.targetLocale) : []),
+      ]),
+      ...fees.map((fee) => [
+        null,
+        ...bands.map(() => null),
+        null,
+        null,
+        null,
+        Number(fee.amountUsd).toFixed(2),
+        "fixed",
+      ]),
+    ],
   );
 }

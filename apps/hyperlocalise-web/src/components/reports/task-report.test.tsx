@@ -22,6 +22,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   createReportsSettings,
   reportsResponseBodies,
+  reportsTaskReport,
   type ReportsApiCall,
 } from "./reports.fixture";
 import { TaskReport } from "./task-report";
@@ -104,6 +105,53 @@ describe("Task report", () => {
     const review = await screen.findByRole("table", { name: "Task match analysis" });
     await waitFor(() => expect(rowOf(review, "ja-JP")).toBeUndefined());
     expect(rowOf(review, "de-DE")?.textContent).toContain("4,100");
+    expect(screen.getByText("Words to review")).toBeInTheDocument();
+  });
+
+  it("shows a step's fixed fee, which no language's row holds, and says the task ended", async () => {
+    const estimate = reportsTaskReport.estimate!;
+    mocks.bodies["task-report"] = {
+      taskReport: {
+        ...reportsTaskReport,
+        task: { ...reportsTaskReport.task, status: "succeeded" },
+        estimate: {
+          ...estimate,
+          rows: estimate.rows.map((line) => ({
+            ...line,
+            pricing: "fixed",
+            weighted: null,
+            costUsd: null,
+          })),
+          fixedFees: [
+            {
+              jobId: "job_release",
+              jobTitle: "Release",
+              step: "translation",
+              amountUsd: "250.00000000",
+            },
+          ],
+          totals: { ...estimate.totals, weighted: null, costUsd: "250.00000000" },
+        },
+        pricing: reportsTaskReport.pricing!.map((step) => ({ ...step, locked: true })),
+      },
+    };
+    renderReport();
+    const table = await screen.findByRole("table", { name: "Task match analysis" });
+    expect(rowOf(table, "de-DE")?.textContent).toContain("Fixed fee");
+    expect(rowOf(table, "Total")?.textContent).toContain("$250.00");
+    expect(
+      screen.getByText(
+        "This step has a fixed fee of $250.00 for the whole task, counted in the total.",
+      ),
+    ).toBeInTheDocument();
+    const pricing = screen.getByRole("table", { name: "Task pricing by step" });
+    expect(within(pricing).getAllByText("Task ended")).toHaveLength(2);
+  });
+
+  it("offers a retry when the settings cannot load", async () => {
+    mocks.statuses.settings = 500;
+    renderReport();
+    expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 
   it("lets a step's pricing change until its work starts", async () => {
@@ -196,7 +244,8 @@ describe("Task report", () => {
     expect(screen.getByText("Only your own entries are listed.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open in Reports" })).toHaveAttribute(
       "href",
-      "/org/acme/projects/project_web/reports?tab=words&task=job_release&group=task",
+      // Dated from the task's start, not the last 28 days.
+      "/org/acme/projects/project_web/reports?tab=words&range=custom&from=2026-10-14&to=2026-10-21&task=job_release&group=task",
     );
   });
 });

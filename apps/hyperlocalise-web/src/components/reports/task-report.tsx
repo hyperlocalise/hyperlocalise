@@ -56,6 +56,9 @@ import { UnitSwitch } from "./word-counts-tab";
 import { wordCountsTabMessages as wordMessages } from "./word-counts-tab.messages";
 
 type Intl = ReturnType<typeof useIntl>;
+
+/** A task in one of these can still be worked on. */
+const OPEN_STATUSES = new Set(["queued", "running", "waiting_for_review"]);
 type WordRow = TaskReportData["words"]["rows"][number];
 type StepPricing = NonNullable<TaskReportData["pricing"]>[number];
 type TimeEntry = TaskReportData["time"]["entries"][number];
@@ -74,16 +77,28 @@ function utcDay(intl: Intl, value: string) {
  * Where "Open in Reports" goes: the task's estimate for the roles that see money, otherwise its
  * word counts, on its project's Reports page (the workspace's for a task outside any project).
  */
-function reportsHref(organizationSlug: string, task: TaskReportData["task"], financial: boolean) {
+function reportsHref(
+  organizationSlug: string,
+  task: TaskReportData["task"],
+  settings: ReportSettings,
+) {
   const path = task.projectId
     ? buildProjectPath(organizationSlug, task.projectId, "reports")
     : buildOrganizationPath(organizationSlug, "reports");
-  return buildReportsHref(
-    path,
-    financial
-      ? { ...DEFAULT_REPORTS_STATE, tab: "estimate", jobIds: [task.id] }
-      : { ...DEFAULT_REPORTS_STATE, tab: "words", groupBy: "task", jobId: task.id },
-  );
+  if (settings.financial)
+    return buildReportsHref(path, { ...DEFAULT_REPORTS_STATE, tab: "estimate", jobIds: [task.id] });
+  // Word counts are dated, so they cover the task's whole life, from when Reports could see it.
+  const created = task.createdAt.slice(0, 10);
+  const from = settings.startedDay && settings.startedDay > created ? settings.startedDay : created;
+  return buildReportsHref(path, {
+    ...DEFAULT_REPORTS_STATE,
+    tab: "words",
+    groupBy: "task",
+    jobId: task.id,
+    range: "custom",
+    from,
+    to: settings.today,
+  });
 }
 
 /** A task's own report, on its Report tab: its whole life, whatever the dates. */
@@ -106,7 +121,8 @@ export function TaskReport({
     { unit, step, rateCard },
     Boolean(settings.data),
   );
-  const loading = settings.isPending || report.isPending;
+  // Until settings load the report waits, which TanStack Query counts as pending too.
+  const loading = !settings.isError && (settings.isPending || report.isPending);
   const query = {
     data:
       settings.data && report.data ? { settings: settings.data, report: report.data } : undefined,
@@ -123,7 +139,7 @@ export function TaskReport({
             {/* A link, not a button: it goes to another page. */}
             <Link
               className={buttonVariants({ variant: "outline" })}
-              href={reportsHref(organizationSlug, data.task, loaded.financial)}
+              href={reportsHref(organizationSlug, data.task, loaded)}
             >
               {intl.formatMessage(messages.openInReports)}
               <ArrowSquareOutIcon aria-hidden />
@@ -157,6 +173,7 @@ export function TaskReport({
               jobId={jobId}
               pricing={data.pricing}
               canEdit={data.canSetPricing}
+              ended={!OPEN_STATUSES.has(data.task.status)}
               rateCardNames={loaded.rateCardNames}
             />
           ) : null}
@@ -176,7 +193,10 @@ function TaskCards({ data, step }: { data: TaskReportData; step: ReportStep }) {
   return (
     <ReportStatCards>
       <ReportStatCard
-        label={intl.formatMessage(messages.unitsToTranslate, { unit: unitLabel(intl, data.unit) })}
+        label={intl.formatMessage(
+          step === "review" ? messages.unitsToReview : messages.unitsToTranslate,
+          { unit: unitLabel(intl, data.unit) },
+        )}
         value={formatCount(intl, totals.arrived)}
         detail={intl.formatMessage(messages.unitsDetail, {
           source: formatCount(intl, totals.source),
@@ -220,7 +240,7 @@ function TaskCards({ data, step }: { data: TaskReportData; step: ReportStep }) {
   );
 }
 
-type AnalysisRow = WordRow & { weighted: number | null; costUsd: string | null };
+type AnalysisRow = WordRow & { weighted: number | null; costUsd: string | null; fixed: boolean };
 
 /** The step's rows by language, with the estimate's weighted units and cost beside them. */
 function analysisRows(data: TaskReportData, step: ReportStep): AnalysisRow[] {
@@ -242,6 +262,8 @@ function analysisRows(data: TaskReportData, step: ReportStep): AnalysisRow[] {
         ...row,
         weighted: weighted ?? null,
         costUsd: cost === null || cost === undefined ? null : cost.toFixed(8),
+        // Its step has a fixed fee for the whole task, listed below the table.
+        fixed: Boolean(priced?.some((line) => line.pricing === "fixed")),
       };
     });
 }
@@ -259,6 +281,18 @@ function MatchAnalysis({ data, step }: { data: TaskReportData; step: ReportStep 
   const sum = (pick: (row: AnalysisRow) => number) =>
     rows.reduce((total, row) => total + pick(row), 0);
   const uncounted = data.words.totals[step].uncounted;
+  const fees = data.estimate?.fixedFees.filter((fee) => fee.step === step) ?? [];
+  const notes = [
+    ...fees.map((fee) =>
+      intl.formatMessage(messages.fixedFeeNote, { amount: formatUsd(intl, fee.amountUsd) }),
+    ),
+    ...(data.unit === "characters" || data.unit === "characters_with_spaces"
+      ? [intl.formatMessage(wordMessages.charactersNote)]
+      : []),
+    ...(uncounted > 0 && data.unit !== "strings"
+      ? [intl.formatMessage(pageMessages.notCounted, { count: uncounted })]
+      : []),
+  ];
   return (
     <div className="flex flex-col gap-3">
       <MatchBandTable
@@ -298,7 +332,10 @@ function MatchAnalysis({ data, step }: { data: TaskReportData; step: ReportStep 
                 {
                   key: "cost",
                   header: intl.formatMessage(messages.costColumn),
-                  cell: (row: AnalysisRow) => formatUsd(intl, row.costUsd),
+                  cell: (row: AnalysisRow) =>
+                    row.fixed && row.costUsd === null
+                      ? intl.formatMessage(messages.fixedFeeCell)
+                      : formatUsd(intl, row.costUsd),
                   numeric: true,
                 },
               ]
@@ -318,7 +355,7 @@ function MatchAnalysis({ data, step }: { data: TaskReportData; step: ReportStep 
             ...(money && data.estimate
               ? [
                   data.estimate.totals.weighted === null
-                    ? null
+                    ? "—"
                     : formatCount(intl, data.estimate.totals.weighted),
                   formatUsd(intl, data.estimate.totals.costUsd),
                 ]
@@ -326,14 +363,7 @@ function MatchAnalysis({ data, step }: { data: TaskReportData; step: ReportStep 
           ],
         }}
       />
-      <p className="text-[13px] text-muted-foreground">
-        {data.unit === "characters" || data.unit === "characters_with_spaces"
-          ? intl.formatMessage(wordMessages.charactersNote)
-          : null}{" "}
-        {uncounted > 0 && data.unit !== "strings"
-          ? intl.formatMessage(pageMessages.notCounted, { count: uncounted })
-          : null}
-      </p>
+      {notes.length ? <p className="text-[13px] text-muted-foreground">{notes.join(" ")}</p> : null}
     </div>
   );
 }
@@ -448,12 +478,15 @@ function PricingSection({
   jobId,
   pricing,
   canEdit,
+  ended,
   rateCardNames,
 }: {
   organizationSlug: string;
   jobId: string;
   pricing: StepPricing[];
   canEdit: boolean;
+  /** The task has ended, so nothing about its pricing can change. */
+  ended: boolean;
   rateCardNames: string[];
 }) {
   const intl = useIntl();
@@ -499,7 +532,7 @@ function PricingSection({
               <TableCell className="text-right">
                 {row.locked ? (
                   <span className="text-[13px] text-muted-foreground">
-                    {intl.formatMessage(messages.locked)}
+                    {intl.formatMessage(ended ? messages.ended : messages.locked)}
                   </span>
                 ) : canEdit ? (
                   <Button
