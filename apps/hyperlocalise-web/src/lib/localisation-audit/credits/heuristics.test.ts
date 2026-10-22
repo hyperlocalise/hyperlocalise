@@ -1033,6 +1033,38 @@ describe("methodology v2 checks", () => {
     ).toEqual(expect.objectContaining({ severity: "info" }));
   });
 
+  it("rejects three-letter hreflang language subtags", () => {
+    const outcome = technicalHeuristicScorers.hreflang!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/",
+          htmlLang: "en",
+          hreflang: [
+            { locale: "eng", href: "https://example.com/" },
+            { locale: "fr", href: "https://example.com/fr/" },
+          ],
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/fr/",
+          htmlLang: "fr",
+          hreflang: [
+            { locale: "eng", href: "https://example.com/" },
+            { locale: "fr", href: "https://example.com/fr/" },
+          ],
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(
+      outcome.findings.some(
+        (finding) =>
+          finding.id.startsWith("hreflang-code-") && finding.evidence?.includes("eng") === true,
+      ),
+    ).toBe(true);
+  });
+
   it("rejects hreflang codes that only pass through ICU aliases", () => {
     const outcome = technicalHeuristicScorers.hreflang!(
       context([
@@ -1144,6 +1176,59 @@ describe("methodology v2 checks", () => {
     expect(outcome.findings[0]?.summary).toContain('"Contact sales"');
   });
 
+  it("does not treat an omitted chrome label as a translation", () => {
+    const sourceNav = [
+      { href: "https://example.com/pricing", text: "Pricing" },
+      { href: "https://example.com/features", text: "Features" },
+      { href: "https://example.com/customers", text: "Customers" },
+      { href: "https://example.com/contact", text: "Contact sales" },
+      { href: "https://example.com/signin", text: "Sign in" },
+      { href: "https://example.com/blog", text: "Blog" },
+    ];
+    const outcome = linguisticHeuristicScorers["terminology-consistency"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/",
+          htmlLang: "en",
+          anchors: sourceNav,
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/pricing",
+          htmlLang: "en",
+          anchors: sourceNav,
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/de/",
+          htmlLang: "de",
+          anchors: [
+            { href: "https://example.com/de/pricing", text: "Preise" },
+            { href: "https://example.com/de/features", text: "Funktionen" },
+            { href: "https://example.com/de/customers", text: "Kunden" },
+            { href: "https://example.com/de/contact", text: "Contact sales" },
+            { href: "https://example.com/de/signin", text: "Anmelden" },
+            { href: "https://example.com/de/blog", text: "Blog" },
+          ],
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/de/preise",
+          htmlLang: "de",
+          anchors: [
+            { href: "https://example.com/de/pricing", text: "Preise" },
+            { href: "https://example.com/de/features", text: "Funktionen" },
+            { href: "https://example.com/de/customers", text: "Kunden" },
+            { href: "https://example.com/de/signin", text: "Anmelden" },
+            { href: "https://example.com/de/blog", text: "Blog" },
+          ],
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings).toHaveLength(0);
+    expect(outcome.score).toBe(100);
+  });
+
   it("is not applicable without rendered layout measurements", () => {
     const pages = [
       emptyCrawledPage({ url: "https://example.com/", htmlLang: "en" }),
@@ -1208,5 +1293,38 @@ describe("methodology v2 checks", () => {
     if (responsive.status !== "scored") return;
     expect(responsive.score).toBe(50);
     expect(responsive.findings[0]?.evidence).toContain("64px");
+  });
+
+  it("does not score clipped text without a matching source viewport", () => {
+    const viewport = (width: number, clippedText: Array<{ tag: string; text: string }>) => ({
+      width,
+      horizontalOverflowPx: 0,
+      clippedText,
+      offscreen: [],
+    });
+    const outcome = visualHeuristicScorers["text-overflow"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/",
+          htmlLang: "en",
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/de/",
+          htmlLang: "de",
+          layout: {
+            viewports: [viewport(1440, [{ tag: "button", text: "Kostenlos testen" }])],
+          },
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/de/preise",
+          htmlLang: "de",
+          layout: {
+            viewports: [viewport(1440, [{ tag: "a", text: "Preise und Pakete" }])],
+          },
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("na");
   });
 });

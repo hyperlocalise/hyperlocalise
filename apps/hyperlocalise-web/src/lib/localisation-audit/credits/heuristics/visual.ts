@@ -542,8 +542,9 @@ function breakageProblem(viewport: LocalisationAuditLayoutViewport): LayoutProbl
 
 /**
  * Score a rendered-layout problem on localized pages. A problem only counts
- * against localisation when the source-language sibling is cleaner, so a
- * layout bug that also exists on the source page is not blamed on translation.
+ * against localisation when both the localized page and its source-language
+ * sibling have the requested viewport and the source page is cleaner. Pages
+ * without a comparable source measurement are skipped.
  */
 function scoreRenderedLayout(
   context: AuditCreditContext,
@@ -573,12 +574,13 @@ function scoreRenderedLayout(
     if (page.status < 200 || page.status >= 400) continue;
     const viewport = pickViewport(page, input.viewport);
     if (!viewport) continue;
+    const sibling = sourceByPath.get(pathWithoutLocale(page.url) ?? "");
+    const siblingViewport = sibling ? pickViewport(sibling, input.viewport) : null;
+    if (!siblingViewport) continue;
     inspected += 1;
     const problem = input.measure(viewport);
     if (problem.count === 0) continue;
-    const sibling = sourceByPath.get(pathWithoutLocale(page.url) ?? "");
-    const siblingViewport = sibling ? pickViewport(sibling, input.viewport) : null;
-    if (siblingViewport && input.measure(siblingViewport).count >= problem.count) continue;
+    if (input.measure(siblingViewport).count >= problem.count) continue;
     failingPages.add(page.url);
     const detail = input.finding(page, problem, viewport.width);
     findings.push(

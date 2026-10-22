@@ -181,14 +181,17 @@ function regionSubtag(locale: string): string | null {
 }
 
 /**
- * Whether an hreflang value is a known language with an optional ISO 3166-1 /
- * UN M.49 region. Rejects deprecated region aliases such as `en-UK` (use `en-GB`).
+ * Whether an hreflang value is a known ISO 639-1 language with an optional
+ * ISO 3166-1 / UN M.49 region. Search engines ignore three-letter language
+ * subtags and deprecated region aliases such as `en-UK` (use `en-GB`).
  */
 export function isValidHreflangCode(value: string): boolean {
   const normalized = normalizeLocale(value);
   if (normalized === "x-default") return true;
   if (!isWellFormedHtmlLang(normalized)) return false;
-  if (LANGUAGE_DISPLAY_NAMES && !LANGUAGE_DISPLAY_NAMES.of(languageOf(normalized))) {
+  const language = languageOf(normalized);
+  if (!/^[a-z]{2}$/.test(language)) return false;
+  if (LANGUAGE_DISPLAY_NAMES && !LANGUAGE_DISPLAY_NAMES.of(language)) {
     return false;
   }
   const region = regionSubtag(normalized);
