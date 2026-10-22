@@ -15,7 +15,8 @@ import {
   writeBrowserLocalStorageItem,
 } from "@/lib/primitives/browser-local-storage/browser-local-storage";
 
-export const CAT_FILES_PANEL_COLLAPSED_STORAGE_KEY = "content-editor-files-panel-collapsed:v1";
+// v2: v1 was written by the viewport pin on first paint / resize across `lg`.
+export const CAT_FILES_PANEL_COLLAPSED_STORAGE_KEY = "content-editor-files-panel-collapsed:v2";
 export const CAT_DETAILS_PANEL_COLLAPSED_STORAGE_KEY = "content-editor-details-panel-collapsed:v1";
 export const CAT_SHORTCUT_HINTS_HIDDEN_STORAGE_KEY = "content-editor-shortcut-hints-hidden:v1";
 export const CAT_HIDDEN_FILES_HIDDEN_STORAGE_KEY = "content-editor-hidden-files-hidden:v1";

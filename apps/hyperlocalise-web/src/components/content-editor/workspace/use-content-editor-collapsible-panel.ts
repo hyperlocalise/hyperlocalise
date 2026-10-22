@@ -31,6 +31,13 @@ export function useContentEditorCollapsiblePanel({
 }) {
   const panelRef = usePanelRef();
   const collapsedRef = useRef(collapsed);
+  const applyingRef = useRef(false);
+  if (collapsed !== undefined && collapsedRef.current !== collapsed) {
+    // Mark the next resize as programmatic before children flush. Viewport
+    // pin/unpin changes `collapsed` while the pane is still at 0%, and that
+    // measurement must not be reported as a user drag.
+    applyingRef.current = true;
+  }
   collapsedRef.current = collapsed;
 
   const applyCollapsed = useCallback(
@@ -41,11 +48,13 @@ export function useContentEditorCollapsiblePanel({
       }
 
       if (shouldCollapse && !panel.isCollapsed()) {
+        applyingRef.current = true;
         panel.collapse();
         return;
       }
 
       if (!shouldCollapse && panel.isCollapsed()) {
+        applyingRef.current = true;
         panel.expand();
       }
     },
@@ -69,13 +78,14 @@ export function useContentEditorCollapsiblePanel({
 
       const isCollapsed = size.asPercentage === 0;
       if (isCollapsed === target) {
+        applyingRef.current = false;
         return;
       }
 
       // The panel's imperative handle is a no-op until the group has computed
       // its first layout, so an initially collapsed pane has to be applied on
       // this first measurement rather than from the mount effect.
-      if (prevSize === undefined) {
+      if (prevSize === undefined || applyingRef.current) {
         applyCollapsed(target);
         return;
       }

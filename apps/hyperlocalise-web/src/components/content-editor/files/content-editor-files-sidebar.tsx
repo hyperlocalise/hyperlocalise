@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useState, useSyncExternalStore, type ReactNode } from "react";
 import { EyeIcon, EyeSlashIcon, MagnifyingGlassIcon, StackIcon } from "@phosphor-icons/react";
 import { useDefaultLayout } from "react-resizable-panels";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -224,22 +224,31 @@ const WORKSPACE_MIN_SIZE = "28rem";
 /** Complement of the compact workspace breakpoint in `content-editor-workspace.tsx`. */
 const FILES_SIDEBAR_QUERY = "(min-width: 1024px)";
 
+function subscribeFilesSidebarAvailable(onStoreChange: () => void) {
+  const mediaQuery = window.matchMedia(FILES_SIDEBAR_QUERY);
+  mediaQuery.addEventListener("change", onStoreChange);
+  return () => mediaQuery.removeEventListener("change", onStoreChange);
+}
+
+function getFilesSidebarAvailable() {
+  return window.matchMedia(FILES_SIDEBAR_QUERY).matches;
+}
+
+/** Desktop-first so hydration does not start the pane collapsed. */
+function getFilesSidebarAvailableServerSnapshot() {
+  return true;
+}
+
 /**
  * The file tree is only offered from the `lg` breakpoint up; narrower viewports
  * reach files through the header picker instead.
  */
 function useFilesSidebarAvailable() {
-  const [isAvailable, setIsAvailable] = useState(false);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(FILES_SIDEBAR_QUERY);
-    const sync = () => setIsAvailable(mediaQuery.matches);
-    sync();
-    mediaQuery.addEventListener("change", sync);
-    return () => mediaQuery.removeEventListener("change", sync);
-  }, []);
-
-  return isAvailable;
+  return useSyncExternalStore(
+    subscribeFilesSidebarAvailable,
+    getFilesSidebarAvailable,
+    getFilesSidebarAvailableServerSnapshot,
+  );
 }
 
 export function ContentEditorPageBody({
