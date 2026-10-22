@@ -18,6 +18,7 @@ import {
   isCompanyProfileIncomplete,
   mergeCompanyProfiles,
 } from "@/lib/localisation-audit/company-profile";
+import { LOCALISATION_AUDIT_METHODOLOGY_VERSION } from "@/lib/localisation-audit/credits/catalog";
 import { runLocalisationAuditCredits } from "@/lib/localisation-audit/credits/runner";
 import { hasLocalisationAuditSuccessfulPage } from "@/lib/localisation-audit/report-coverage";
 import {
@@ -201,9 +202,10 @@ export async function analyzeLocalisationAuditStep(input: {
     focusLocales: input.focusLocales,
     sitemap: input.sitemap,
   });
-  const { score, dimensionScores } = aggregateLocalisationAuditCredits(scored.credits, {
-    localeCount: scored.detectedLocales.length,
-  });
+  const { score, dimensionScores, localeCoverageFactor } = aggregateLocalisationAuditCredits(
+    scored.credits,
+    { localeCount: scored.detectedLocales.length },
+  );
   const completedAt = new Date().toISOString();
 
   const report: LocalisationAuditReport = {
@@ -226,6 +228,8 @@ export async function analyzeLocalisationAuditStep(input: {
     dimensionScores,
     credits: scored.credits,
     companyProfile,
+    methodologyVersion: LOCALISATION_AUDIT_METHODOLOGY_VERSION,
+    localeCoverageFactor,
   };
 
   const teaser: LocalisationAuditTeaser = {
@@ -233,13 +237,15 @@ export async function analyzeLocalisationAuditStep(input: {
     domainKey: input.domainKey,
     domainSlug: input.domainSlug,
     detectedLocales: scored.detectedLocales,
-    headlineFindings: pickHeadlineFindings(scored.findings, 3),
+    headlineFindings: pickHeadlineFindings(scored.findings, 3, scored.credits),
     findingsCount: scored.findings.length,
     pagesCrawled: input.pages.length,
     completedAt,
     dimensionScores,
     credits: scored.credits,
     companyProfile,
+    methodologyVersion: LOCALISATION_AUDIT_METHODOLOGY_VERSION,
+    localeCoverageFactor,
   };
 
   const completed = await completeLocalisationAudit({

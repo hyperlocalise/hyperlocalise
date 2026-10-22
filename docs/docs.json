@@ -251,8 +251,11 @@
                     "group": "Website and market research",
                     "pages": [
                       "platform/domains",
+                      "platform/research/audit-to-domain-tutorial",
                       "platform/research/verify-domain",
-                      "platform/research/keywords-and-ranks"
+                      "platform/research/keywords-and-ranks",
+                      "platform/research/localisation-audit",
+                      "platform/research/localisation-audit-checks"
                     ],
                     "expanded": false
                   },

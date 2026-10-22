@@ -90,6 +90,7 @@ export default async function LocalisationAuditResultRoutePage({
       ? await getLocalisationAuditStanding({
           domainSlug: audit.domainSlug,
           score: audit.score,
+          methodologyVersion: audit.teaser?.methodologyVersion ?? 1,
         }).catch(() => null)
       : null;
 

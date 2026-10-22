@@ -16,7 +16,7 @@ import { contextualHeuristicScorers } from "./heuristics/contextual";
 import { linguisticHeuristicScorers } from "./heuristics/linguistic";
 import { technicalHeuristicScorers } from "./heuristics/technical";
 import { visualHeuristicScorers } from "./heuristics/visual";
-import { detectLocales } from "./shared";
+import { detectLocales, resolveFocusLocaleCode } from "./shared";
 import type { AuditCreditContext } from "./types";
 import { EMPTY_SITEMAP_SIGNAL, emptyCrawledPage } from "../types";
 
@@ -28,7 +28,7 @@ function context(
   return {
     pages,
     focusLocales,
-    detectedLocales: extras?.detectedLocales ?? detectLocales(pages, focusLocales),
+    detectedLocales: extras?.detectedLocales ?? detectLocales(pages),
     sitemap: extras?.sitemap ?? EMPTY_SITEMAP_SIGNAL,
   };
 }
@@ -155,7 +155,7 @@ describe("technical heuristic credits", () => {
     expect(missing[0]?.summary).toContain("3 sampled pages");
   });
 
-  it("scores missing hreflang as high severity when multiple locales exist", () => {
+  it("scores missing hreflang as zero when multiple locales exist", () => {
     const outcome = technicalHeuristicScorers.hreflang!(
       context([
         emptyCrawledPage({ url: "https://example.com/", htmlLang: "en" }),
@@ -166,7 +166,7 @@ describe("technical heuristic credits", () => {
     expect(outcome).toEqual(
       expect.objectContaining({
         status: "scored",
-        score: 38,
+        score: 0,
         findings: [
           expect.objectContaining({
             id: "hreflang-missing",
@@ -518,62 +518,55 @@ describe("technical heuristic credits", () => {
   });
 
   it("detects subdomain locale signals and normalizes underscore locale tags", () => {
-    const locales = detectLocales(
-      [
-        emptyCrawledPage({
-          url: "https://fr.example.com/",
-          htmlLang: "fr_FR",
-          hreflang: [{ locale: "x-default", href: "https://example.com/" }],
-        }),
-      ],
-      ["pt_BR"],
-    );
-    expect(locales.map((entry) => entry.locale).toSorted()).toEqual(["fr-fr", "pt-br"]);
+    const locales = detectLocales([
+      emptyCrawledPage({
+        url: "https://fr.example.com/",
+        htmlLang: "fr_FR",
+        hreflang: [{ locale: "x-default", href: "https://example.com/" }],
+      }),
+    ]);
+    expect(locales.map((entry) => entry.locale).toSorted()).toEqual(["fr-fr"]);
     expect(locales.find((entry) => entry.locale === "fr-fr")?.source).toBe("html_lang");
     expect(locales.some((entry) => entry.locale === "x-default")).toBe(false);
   });
 
-  it("resolves English language names in focus locales", () => {
-    const locales = detectLocales([], ["French", "German"]);
-    expect(locales.map((entry) => entry.locale).toSorted()).toEqual(["de", "fr"]);
-    expect(locales.every((entry) => entry.source === "focus")).toBe(true);
+  it("resolves English language names in focus locales without counting them as detected", () => {
+    expect(resolveFocusLocaleCode("French")).toBe("fr");
+    expect(resolveFocusLocaleCode("pt_BR")).toBe("pt-br");
+    expect(
+      detectLocales([emptyCrawledPage({ url: "https://example.com/", htmlLang: "en" })]),
+    ).toEqual([{ locale: "en", source: "html_lang", sampleUrl: "https://example.com/" }]);
   });
 
   it("keeps subdomain language when html lang is absent", () => {
-    const locales = detectLocales(
-      [emptyCrawledPage({ url: "https://fr.example.com/", htmlLang: null })],
-      [],
-    );
+    const locales = detectLocales([
+      emptyCrawledPage({ url: "https://fr.example.com/", htmlLang: null }),
+    ]);
     expect(locales.map((entry) => entry.locale)).toEqual(["fr"]);
     expect(locales[0]?.source).toBe("url_subdomain");
   });
 
   it("maps region URL prefixes to language-region locale signals", () => {
-    const locales = detectLocales(
-      [emptyCrawledPage({ url: "https://example.com/au/pricing", htmlLang: "en" })],
-      [],
-    );
+    const locales = detectLocales([
+      emptyCrawledPage({ url: "https://example.com/au/pricing", htmlLang: "en" }),
+    ]);
     expect(locales.map((entry) => entry.locale)).toEqual(["en-au"]);
     expect(locales[0]?.source).toBe("url_prefix");
   });
 
   it("keeps UN M.49 html lang tags such as es-419", () => {
-    const locales = detectLocales(
-      [emptyCrawledPage({ url: "https://www.dropbox.com/es/", htmlLang: "es-419" })],
-      [],
-    );
+    const locales = detectLocales([
+      emptyCrawledPage({ url: "https://www.dropbox.com/es/", htmlLang: "es-419" }),
+    ]);
     expect(locales.map((entry) => entry.locale)).toEqual(["es-419"]);
     expect(locales[0]?.source).toBe("html_lang");
   });
 
   it("keeps bare language and region markets as distinct locales", () => {
-    const locales = detectLocales(
-      [
-        emptyCrawledPage({ url: "https://example.com/en/pricing", htmlLang: "en" }),
-        emptyCrawledPage({ url: "https://example.com/au/pricing", htmlLang: "en" }),
-      ],
-      [],
-    );
+    const locales = detectLocales([
+      emptyCrawledPage({ url: "https://example.com/en/pricing", htmlLang: "en" }),
+      emptyCrawledPage({ url: "https://example.com/au/pricing", htmlLang: "en" }),
+    ]);
     expect(locales.map((entry) => entry.locale).toSorted()).toEqual(["en", "en-au"]);
   });
 
@@ -695,7 +688,7 @@ describe("linguistic heuristic credits", () => {
     ).toBe(true);
   });
 
-  it("keeps Latin-script completeness inconclusive when there is no exact CTA overlap", () => {
+  it("passes Latin-script completeness when both pages have CTAs and none overlap", () => {
     const outcome = linguisticHeuristicScorers["translation-completeness"]!(
       context([
         emptyCrawledPage({
@@ -708,6 +701,26 @@ describe("linguistic heuristic credits", () => {
           url: "https://example.com/fr/pricing",
           htmlLang: "fr",
           buttons: ["Commencer l'essai"],
+          textSample: "Bienvenue sur notre page tarifs pour les equipes produit.",
+        }),
+      ]),
+    );
+
+    expect(outcome).toEqual({ status: "scored", score: 100, findings: [] });
+  });
+
+  it("keeps Latin-script completeness inconclusive when target pages have no CTAs", () => {
+    const outcome = linguisticHeuristicScorers["translation-completeness"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/en/pricing",
+          htmlLang: "en",
+          buttons: ["Start free trial"],
+          textSample: "Welcome to our pricing page for growing product teams worldwide.",
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/fr/pricing",
+          htmlLang: "fr",
           textSample: "Bienvenue sur notre page tarifs pour les equipes produit.",
         }),
       ]),
@@ -742,11 +755,7 @@ describe("linguistic heuristic credits", () => {
       ]),
     );
 
-    expect(outcome.status).toBe("inconclusive");
-    if (outcome.status !== "inconclusive") return;
-    expect(
-      (outcome.findings ?? []).some((finding) => finding.title === "Untranslated call to action"),
-    ).toBe(false);
+    expect(outcome).toEqual({ status: "scored", score: 100, findings: [] });
   });
 
   it("still flags leftover source-language CTA copy on Latin-script locale pages", () => {
@@ -798,7 +807,7 @@ describe("contextual heuristic credits", () => {
     expect(outcome.status).toBe("na");
   });
 
-  it("still flags US-style dollar amounts on a non-English page", () => {
+  it("leaves dollar amounts to international formatting instead of double-counting them", () => {
     const outcome = contextualHeuristicScorers["cultural-adaptation"]!(
       context([
         emptyCrawledPage({
@@ -809,9 +818,36 @@ describe("contextual heuristic credits", () => {
       ]),
     );
 
+    expect(outcome.status).toBe("na");
+  });
+
+  it("flags US phone numbers on locale pages outside North America", () => {
+    const outcome = contextualHeuristicScorers["cultural-adaptation"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/",
+          htmlLang: "en",
+          textSample: "Call us on +1 (415) 555-0100 for sales.",
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/de/kontakt",
+          htmlLang: "de-DE",
+          textSample: "Rufen Sie uns an: +1 (415) 555-0100.",
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/fr/contact",
+          htmlLang: "fr-FR",
+          textSample: "Appelez-nous au +33 1 23 45 67 89.",
+        }),
+      ]),
+    );
+
     expect(outcome.status).toBe("scored");
     if (outcome.status !== "scored") return;
-    expect(outcome.findings.some((finding) => finding.id.startsWith("cultural-"))).toBe(true);
+    expect(outcome.score).toBe(50);
+    expect(outcome.findings.map((finding) => finding.url)).toEqual([
+      "https://example.com/de/kontakt",
+    ]);
   });
 });
 
@@ -915,7 +951,7 @@ describe("visual heuristic credits", () => {
         }),
       ]),
     );
-    expect(outcome).toEqual({ status: "scored", score: 92, findings: [] });
+    expect(outcome).toEqual({ status: "scored", score: 100, findings: [] });
   });
 
   it("does not score visual hierarchy when headings are not excessively long", () => {
@@ -935,6 +971,11 @@ describe("visual heuristic credits", () => {
   it("still flags headings that are excessively long", () => {
     const outcome = visualHeuristicScorers["visual-hierarchy"]!(
       context([
+        emptyCrawledPage({
+          url: "https://example.com/",
+          htmlLang: "en",
+          headings: ["Store and share your files"],
+        }),
         emptyCrawledPage({
           url: "https://example.com/de/",
           htmlLang: "de",
@@ -969,5 +1010,203 @@ describe("visual heuristic credits", () => {
     );
 
     expect(outcome.status).toBe("na");
+  });
+});
+
+describe("methodology v2 checks", () => {
+  const navAnchors = (labels: string[]) =>
+    labels.map((text, index) => ({ href: `https://example.com/${index}`, text }));
+
+  it("does not penalise single-locale routing beyond the coverage factor", () => {
+    const outcome = technicalHeuristicScorers["locale-routing"]!(
+      context([
+        emptyCrawledPage({ url: "https://example.com/", htmlLang: "en" }),
+        emptyCrawledPage({ url: "https://example.com/pricing", htmlLang: "en" }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.score).toBe(100);
+    expect(
+      outcome.findings.find((finding) => finding.id === "locale-routing-single-locale"),
+    ).toEqual(expect.objectContaining({ severity: "info" }));
+  });
+
+  it("rejects hreflang codes that only pass through ICU aliases", () => {
+    const outcome = technicalHeuristicScorers.hreflang!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/",
+          htmlLang: "en",
+          hreflang: [
+            { locale: "en-UK", href: "https://example.com/" },
+            { locale: "fr", href: "https://example.com/fr/" },
+          ],
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/fr/",
+          htmlLang: "fr",
+          hreflang: [
+            { locale: "en-UK", href: "https://example.com/" },
+            { locale: "fr", href: "https://example.com/fr/" },
+          ],
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.score).toBe(0);
+    const code = outcome.findings.find((finding) => finding.id.startsWith("hreflang-code-"));
+    expect(code?.advice).toContain("en-GB");
+  });
+
+  it("fails hreflang pages whose alternates do not link back", () => {
+    const outcome = technicalHeuristicScorers.hreflang!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/",
+          htmlLang: "en",
+          hreflang: [
+            { locale: "en", href: "https://example.com/" },
+            { locale: "fr", href: "https://example.com/fr/" },
+            { locale: "x-default", href: "https://example.com/" },
+          ],
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/fr/",
+          htmlLang: "fr",
+          hreflang: [
+            { locale: "fr", href: "https://example.com/fr/" },
+            { locale: "x-default", href: "https://example.com/" },
+          ],
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.score).toBe(50);
+    expect(outcome.findings.some((finding) => finding.id.startsWith("hreflang-reciprocal-"))).toBe(
+      true,
+    );
+  });
+
+  it("treats a site without canonical tags as not applicable", () => {
+    const outcome = technicalHeuristicScorers["canonical-urls"]!(
+      context([
+        emptyCrawledPage({ url: "https://example.com/", htmlLang: "en" }),
+        emptyCrawledPage({ url: "https://example.com/fr/", htmlLang: "fr" }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("na");
+  });
+
+  it("flags chrome labels left untranslated on some target pages", () => {
+    const sourceNav = ["Pricing", "Features", "Customers", "Contact sales", "Sign in"];
+    const outcome = linguisticHeuristicScorers["terminology-consistency"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/",
+          htmlLang: "en",
+          anchors: navAnchors(sourceNav),
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/pricing",
+          htmlLang: "en",
+          anchors: navAnchors(sourceNav),
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/de/",
+          htmlLang: "de",
+          anchors: navAnchors([
+            "Preise",
+            "Funktionen",
+            "Kunden",
+            "Vertrieb kontaktieren",
+            "Anmelden",
+          ]),
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/de/preise",
+          htmlLang: "de",
+          anchors: navAnchors(["Preise", "Funktionen", "Kunden", "Contact sales", "Anmelden"]),
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.score).toBe(80);
+    expect(outcome.findings).toHaveLength(1);
+    expect(outcome.findings[0]?.summary).toContain('"Contact sales"');
+  });
+
+  it("is not applicable without rendered layout measurements", () => {
+    const pages = [
+      emptyCrawledPage({ url: "https://example.com/", htmlLang: "en" }),
+      emptyCrawledPage({ url: "https://example.com/de/", htmlLang: "de" }),
+    ];
+
+    expect(visualHeuristicScorers["text-overflow"]!(context(pages)).status).toBe("na");
+    expect(visualHeuristicScorers["layout-breakage"]!(context(pages)).status).toBe("na");
+    expect(visualHeuristicScorers["responsive-localisation"]!(context(pages)).status).toBe("na");
+  });
+
+  it("blames clipped text on localisation only when the source page is cleaner", () => {
+    const viewport = (
+      width: number,
+      clippedText: Array<{ tag: string; text: string }>,
+      horizontalOverflowPx = 0,
+    ) => ({ width, horizontalOverflowPx, clippedText, offscreen: [] });
+    const pages = [
+      emptyCrawledPage({
+        url: "https://example.com/",
+        htmlLang: "en",
+        layout: {
+          viewports: [
+            viewport(1440, [{ tag: "a", text: "Read the long legal footer" }]),
+            viewport(390, []),
+          ],
+        },
+      }),
+      emptyCrawledPage({
+        url: "https://example.com/de/",
+        htmlLang: "de",
+        layout: {
+          viewports: [
+            viewport(1440, [
+              { tag: "a", text: "Lesen Sie die lange rechtliche Fußzeile" },
+              { tag: "button", text: "Kostenlos testen" },
+            ]),
+            viewport(390, [], 64),
+          ],
+        },
+      }),
+      emptyCrawledPage({
+        url: "https://example.com/fr/",
+        htmlLang: "fr",
+        layout: {
+          viewports: [
+            viewport(1440, [{ tag: "a", text: "Lire le long pied de page juridique" }]),
+            viewport(390, []),
+          ],
+        },
+      }),
+    ];
+
+    const overflow = visualHeuristicScorers["text-overflow"]!(context(pages));
+    expect(overflow.status).toBe("scored");
+    if (overflow.status !== "scored") return;
+    expect(overflow.score).toBe(50);
+    expect(overflow.findings.map((finding) => finding.url)).toEqual(["https://example.com/de/"]);
+
+    const responsive = visualHeuristicScorers["responsive-localisation"]!(context(pages));
+    expect(responsive.status).toBe("scored");
+    if (responsive.status !== "scored") return;
+    expect(responsive.score).toBe(50);
+    expect(responsive.findings[0]?.evidence).toContain("64px");
   });
 });

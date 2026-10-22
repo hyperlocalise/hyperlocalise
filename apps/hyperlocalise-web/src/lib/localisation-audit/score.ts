@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { creditById } from "./credits/catalog";
 import type {
   LocalisationAuditCreditResult,
   LocalisationAuditDimension,
@@ -34,11 +35,6 @@ const SEVERITY_RANK: Record<LocalisationAuditFindingSeverity, number> = {
   info: 4,
 };
 
-function mean(values: number[]): number {
-  if (values.length === 0) return 0;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
 function roundScore(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
@@ -55,12 +51,41 @@ export function localeCoverageFactor(localeCount: number): number {
   return 1;
 }
 
+/**
+ * Only measured (heuristic) results count toward scores. AI-assessed results are
+ * reported for review, like Lighthouse's "additional items to manually check".
+ */
+export function isScoredCredit(credit: LocalisationAuditCreditResult): boolean {
+  return credit.method === "heuristic" && credit.score != null;
+}
+
+export function creditWeight(creditId: string): number {
+  return creditById(creditId)?.weight ?? 1;
+}
+
+function weightedMean(credits: LocalisationAuditCreditResult[]): number | null {
+  let total = 0;
+  let weights = 0;
+  for (const credit of credits) {
+    const weight = creditWeight(credit.id);
+    total += credit.score! * weight;
+    weights += weight;
+  }
+  return weights === 0 ? null : total / weights;
+}
+
+/**
+ * Lighthouse-style aggregation. Each dimension is the weighted mean of its scored
+ * credits. The overall score is the weighted mean of every scored credit, scaled
+ * by locale coverage so single-locale sites cannot top the leaderboard.
+ */
 export function aggregateLocalisationAuditCredits(
   credits: LocalisationAuditCreditResult[],
   options?: { localeCount?: number },
 ): {
   score: number;
   dimensionScores: LocalisationAuditDimensionScores;
+  localeCoverageFactor: number;
 } {
   const dimensionScores: LocalisationAuditDimensionScores = {
     technical: null,
@@ -69,29 +94,20 @@ export function aggregateLocalisationAuditCredits(
     visual: null,
   };
 
-  const applicableScores: number[] = [];
+  const scoredCredits = credits.filter(isScoredCredit);
   for (const dimension of DIMENSIONS) {
-    const scores = credits
-      .filter(
-        (credit) =>
-          credit.dimension === dimension && credit.method !== "na" && credit.score != null,
-      )
-      .map((credit) => credit.score!);
-    if (scores.length === 0) {
-      continue;
-    }
-    const averaged = roundScore(mean(scores));
-    dimensionScores[dimension] = averaged;
-    applicableScores.push(averaged);
+    const averaged = weightedMean(scoredCredits.filter((credit) => credit.dimension === dimension));
+    dimensionScores[dimension] = averaged == null ? null : roundScore(averaged);
   }
 
-  const base = applicableScores.length === 0 ? 0 : mean(applicableScores);
+  const base = weightedMean(scoredCredits) ?? 0;
   const coverage =
     options?.localeCount === undefined ? 1 : localeCoverageFactor(options.localeCount);
 
   return {
     score: roundScore(base * coverage),
     dimensionScores,
+    localeCoverageFactor: coverage,
   };
 }
 
@@ -139,11 +155,16 @@ export function collapseRepeatedFindings(
   return collapsed;
 }
 
+/** Findings from scored credits lead; AI-assessed findings only fill remaining slots. */
 export function pickHeadlineFindings(
   findings: LocalisationAuditFinding[],
   limit = 3,
+  credits: LocalisationAuditCreditResult[] = [],
 ): LocalisationAuditFinding[] {
-  return findings
-    .toSorted((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])
-    .slice(0, limit);
+  const unscored = new Set(
+    credits.filter((credit) => credit.method === "luna").map((credit) => credit.id),
+  );
+  const rank = (finding: LocalisationAuditFinding) =>
+    (finding.creditId && unscored.has(finding.creditId) ? 10 : 0) + SEVERITY_RANK[finding.severity];
+  return findings.toSorted((a, b) => rank(a) - rank(b)).slice(0, limit);
 }

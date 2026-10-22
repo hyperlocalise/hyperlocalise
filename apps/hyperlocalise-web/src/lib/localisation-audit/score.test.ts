@@ -49,29 +49,42 @@ function finding(
 }
 
 describe("aggregateLocalisationAuditCredits", () => {
-  it("averages applicable credits equally within each dimension and 4x25 overall", () => {
+  it("weights credits by catalog weight within dimensions and overall", () => {
     const result = aggregateLocalisationAuditCredits([
-      credit({ id: "a", dimension: "technical", score: 80 }),
-      credit({ id: "b", dimension: "technical", score: 100 }),
-      credit({ id: "c", dimension: "linguistic", score: 60 }),
-      credit({ id: "d", dimension: "contextual", score: 40 }),
-      credit({ id: "e", dimension: "visual", score: 20 }),
+      credit({ id: "hreflang", dimension: "technical", score: 80 }),
+      credit({ id: "sitemap", dimension: "technical", score: 100 }),
+      credit({ id: "translation-completeness", dimension: "linguistic", score: 60 }),
+      credit({ id: "cta-intent", dimension: "contextual", score: 40 }),
+      credit({ id: "text-expansion", dimension: "visual", score: 20 }),
     ]);
 
+    // hreflang 3, sitemap 1, completeness 5, cta-intent 2, text-expansion 1.
     expect(result.dimensionScores).toEqual({
-      technical: 90,
+      technical: 85,
       linguistic: 60,
       contextual: 40,
       visual: 20,
     });
-    expect(result.score).toBe(53);
+    expect(result.score).toBe(62);
+    expect(result.localeCoverageFactor).toBe(1);
+  });
+
+  it("reports AI-assessed credits without scoring them", () => {
+    const measured = [credit({ id: "hreflang", dimension: "technical", score: 80 })];
+    const withLuna = aggregateLocalisationAuditCredits([
+      ...measured,
+      credit({ id: "fluency", dimension: "linguistic", score: 0, method: "luna" }),
+    ]);
+
+    expect(withLuna.score).toBe(aggregateLocalisationAuditCredits(measured).score);
+    expect(withLuna.dimensionScores.linguistic).toBeNull();
   });
 
   it("excludes N/A credits from the dimension mean instead of treating them as zero", () => {
     const result = aggregateLocalisationAuditCredits([
       credit({ id: "hreflang", dimension: "technical", score: 80 }),
       credit({ id: "sitemap", dimension: "technical", score: null, method: "na" }),
-      credit({ id: "fluency", dimension: "linguistic", score: 100 }),
+      credit({ id: "terminology-consistency", dimension: "linguistic", score: 100 }),
       credit({ id: "glossary-compliance", dimension: "contextual", score: null, method: "na" }),
       credit({ id: "cta-intent", dimension: "contextual", score: 50 }),
       credit({ id: "rtl-support", dimension: "visual", score: null, method: "na" }),
@@ -81,7 +94,7 @@ describe("aggregateLocalisationAuditCredits", () => {
     expect(result.dimensionScores.technical).toBe(80);
     expect(result.dimensionScores.contextual).toBe(50);
     expect(result.dimensionScores.visual).toBe(90);
-    expect(result.score).toBe(80);
+    expect(result.score).toBe(79);
   });
 
   it("leaves dimensions with only N/A credits as null instead of 100", () => {
@@ -98,7 +111,7 @@ describe("aggregateLocalisationAuditCredits", () => {
       contextual: 40,
       visual: null,
     });
-    expect(result.score).toBe(60);
+    expect(result.score).toBe(64);
   });
 
   it("clamps the overall score to [0, 100]", () => {
@@ -129,6 +142,7 @@ describe("aggregateLocalisationAuditCredits", () => {
     const single = aggregateLocalisationAuditCredits(credits, { localeCount: 1 });
     const multi = aggregateLocalisationAuditCredits(credits, { localeCount: 4 });
     expect(single.score).toBe(72);
+    expect(single.localeCoverageFactor).toBe(0.72);
     expect(multi.score).toBe(100);
     expect(multi.score).toBeGreaterThan(single.score);
     expect(localeCoverageFactor(0)).toBe(0.55);
@@ -172,6 +186,22 @@ describe("pickHeadlineFindings", () => {
     ];
 
     expect(pickHeadlineFindings(findings, 3).map((item) => item.id)).toEqual(["c1", "w1", "h1"]);
+  });
+
+  it("puts findings from scored credits ahead of AI-assessed findings", () => {
+    const findings = [
+      finding("critical", "luna-1", { creditId: "fluency" }),
+      finding("medium", "measured-1", { creditId: "hreflang" }),
+    ];
+    const credits = [
+      credit({ id: "fluency", dimension: "linguistic", score: 20, method: "luna" }),
+      credit({ id: "hreflang", dimension: "technical", score: 70 }),
+    ];
+
+    expect(pickHeadlineFindings(findings, 2, credits).map((item) => item.id)).toEqual([
+      "measured-1",
+      "luna-1",
+    ]);
   });
 
   it("does not mutate the input order", () => {

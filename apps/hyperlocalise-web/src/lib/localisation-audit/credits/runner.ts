@@ -59,7 +59,7 @@ export async function runLocalisationAuditCredits(input: {
   focusLocales: string[];
   sitemap?: LocalisationAuditSitemapSignal;
 }): Promise<CreditRunResult> {
-  const detectedLocales = detectLocales(input.pages, input.focusLocales);
+  const detectedLocales = detectLocales(input.pages);
   const context: AuditCreditContext = {
     pages: input.pages,
     focusLocales: input.focusLocales,

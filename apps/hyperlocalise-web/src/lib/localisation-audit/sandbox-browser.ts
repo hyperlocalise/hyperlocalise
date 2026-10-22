@@ -21,6 +21,7 @@ import { isBlockedHost, isPublicHttpUrl } from "@/lib/security/ssrf-guard";
 import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
 
 import type { HtmlPageRenderer, RenderedHtmlPage } from "./crawl-renderer";
+import { parseAuditPageLayout } from "./layout";
 import { AuditBrowserSetupError } from "./sandbox-browser-error";
 import { LOCALISATION_AUDIT_USER_AGENT } from "./user-agent";
 
@@ -32,6 +33,12 @@ export const AUDIT_BROWSER_NAV_TIMEOUT_MS = 20_000;
 export const AUDIT_BROWSER_NETWORKIDLE_TIMEOUT_MS = 4_000;
 export const AUDIT_BROWSER_SETTLE_MS = 400;
 export const AUDIT_BROWSER_VIEWPORT = { width: 1440, height: 1000 } as const;
+export const AUDIT_BROWSER_MOBILE_VIEWPORT = { width: 390, height: 844 } as const;
+export const AUDIT_BROWSER_LAYOUT_LIMITS = {
+  maxElements: 12,
+  maxTextChars: 120,
+  tolerancePx: 2,
+} as const;
 
 /**
  * Playwright + Chromium baked into the hyperlocalise-sandbox VCR image.
@@ -79,7 +86,8 @@ export function prepareAuditBrowserRuntimeCommand() {
 
 /**
  * CJS script that runs inside the sandbox. It launches one Chromium, visits
- * each vetted URL, waits for JS to settle, and writes rendered HTML to disk.
+ * each vetted URL, waits for JS to settle, writes rendered HTML to disk, and
+ * records layout measurements at desktop and mobile widths.
  */
 export function buildAuditPlaywrightScript() {
   return `
@@ -93,6 +101,80 @@ const maxHtmlBytes = ${MAX_PUBLIC_HTTP_RESPONSE_BYTES};
 const navTimeoutMs = ${AUDIT_BROWSER_NAV_TIMEOUT_MS};
 const networkIdleTimeoutMs = ${AUDIT_BROWSER_NETWORKIDLE_TIMEOUT_MS};
 const settleMs = ${AUDIT_BROWSER_SETTLE_MS};
+const mobileViewport = ${JSON.stringify(AUDIT_BROWSER_MOBILE_VIEWPORT)};
+const layoutLimits = ${JSON.stringify(AUDIT_BROWSER_LAYOUT_LIMITS)};
+
+// Runs in the page. Reports horizontal page overflow, text clipped by its own
+// box, and elements cut off by the right viewport edge. Elements inside
+// horizontally scrollable or clipped containers (carousels, off-canvas menus)
+// are skipped because overflow there is usually intentional.
+function measureAuditLayout(limits) {
+  const viewportWidth = window.innerWidth;
+  const textOf = (element) =>
+    (element.innerText || element.textContent || "")
+      .trim()
+      .replace(/\\s+/g, " ")
+      .slice(0, limits.maxTextChars);
+  const isVisible = (element) => {
+    const style = getComputedStyle(element);
+    if (style.display === "none" || style.visibility === "hidden") return false;
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  };
+  const insideHorizontalClip = (element) => {
+    for (let node = element.parentElement; node && node !== document.body; node = node.parentElement) {
+      if (getComputedStyle(node).overflowX !== "visible") return true;
+    }
+    return false;
+  };
+
+  const clippedText = [];
+  for (const element of document.querySelectorAll("button, a, label, h1, h2, h3, [role=button], [role=tab]")) {
+    if (clippedText.length >= limits.maxElements) break;
+    if (!isVisible(element)) continue;
+    const style = getComputedStyle(element);
+    if (style.display === "inline" || element.clientWidth === 0) continue;
+    const text = textOf(element);
+    if (!text) continue;
+    const clipsX =
+      element.scrollWidth > element.clientWidth + 1 &&
+      (style.overflowX === "hidden" || style.overflowX === "clip" || style.textOverflow === "ellipsis");
+    const clipsY =
+      element.scrollHeight > element.clientHeight + 1 &&
+      (style.overflowY === "hidden" || style.overflowY === "clip");
+    if (clipsX || clipsY) clippedText.push({ tag: element.tagName.toLowerCase(), text });
+  }
+
+  const offscreen = [];
+  for (const element of document.querySelectorAll("button, a, h1, h2, h3, p, label, input")) {
+    if (offscreen.length >= limits.maxElements) break;
+    if (!isVisible(element)) continue;
+    const rect = element.getBoundingClientRect();
+    const straddlesRightEdge = rect.left < viewportWidth && rect.right > viewportWidth + limits.tolerancePx;
+    if (!straddlesRightEdge || insideHorizontalClip(element)) continue;
+    offscreen.push({ tag: element.tagName.toLowerCase(), text: textOf(element) });
+  }
+
+  return {
+    width: viewportWidth,
+    horizontalOverflowPx: Math.max(0, Math.round(document.documentElement.scrollWidth - viewportWidth)),
+    clippedText,
+    offscreen,
+  };
+}
+
+async function measureLayout(page) {
+  const viewports = [];
+  try {
+    viewports.push(await page.evaluate(measureAuditLayout, layoutLimits));
+    await page.setViewportSize(mobileViewport);
+    await page.waitForTimeout(settleMs);
+    viewports.push(await page.evaluate(measureAuditLayout, layoutLimits));
+  } catch {
+    // Layout data is optional; visual checks fall back to not applicable.
+  }
+  return viewports.length > 0 ? { viewports } : null;
+}
 
 function parseIpv4Octets(hostname) {
   const octets = hostname.split(".");
@@ -216,7 +298,8 @@ function truncateHtml(html) {
       }
       const htmlPath = path.join(outputDir, pages.length + ".html");
       fs.writeFileSync(htmlPath, truncateHtml(await page.content()));
-      pages.push({ requestedUrl: url, url: finalUrl, status, htmlPath });
+      const layout = await measureLayout(page);
+      pages.push({ requestedUrl: url, url: finalUrl, status, htmlPath, layout });
     } catch (error) {
       pages.push({
         requestedUrl: url,
@@ -243,6 +326,7 @@ type AuditBrowserManifestPage = {
   status: number;
   htmlPath?: string;
   error?: string;
+  layout?: unknown;
 };
 
 async function readSandboxText(sandbox: Sandbox, filePath: string): Promise<string | null> {
@@ -354,6 +438,7 @@ export async function createAuditBrowserSession(): Promise<HtmlPageRenderer> {
           url: page.url,
           status: page.status,
           html,
+          layout: parseAuditPageLayout(page.layout),
         });
       }
       return rendered;
