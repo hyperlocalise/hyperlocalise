@@ -365,6 +365,7 @@ describe("finishDurableRepositoryAgent", () => {
       operationKey: "usage:run-1",
       dimensions: { runId: "run-1" },
       tokenUsage: { inputTokens: 1, outputTokens: 1 },
+      aiCreditModelId: "anthropic/claude-sonnet-5",
     });
     expect(recordRepositoryAgentSuccessMock).not.toHaveBeenCalled();
   });

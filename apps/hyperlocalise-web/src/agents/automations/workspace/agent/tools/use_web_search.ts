@@ -127,6 +127,7 @@ export function createUseWebSearchTool(session: WorkspaceOrchestratorSession) {
           provider,
         },
         extractTokenUsage: extractGenerateResultTokenUsage,
+        aiCreditModelId: resolveWorkspaceAutomationModel(session.automation.model),
         run: () =>
           agent.generate({
             messages: [

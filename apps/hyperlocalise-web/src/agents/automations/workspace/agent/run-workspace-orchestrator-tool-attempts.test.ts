@@ -290,6 +290,30 @@ describe("workspace orchestrator cancellation", () => {
     expect(mocks.completeUsage).toHaveBeenCalled();
   });
 
+  it("bills the run's tokens at the automation's own model", async () => {
+    mocks.getRun.mockResolvedValue(run("cancelled"));
+    mocks.getAutomation.mockResolvedValue({
+      id: "automation-1",
+      name: "Automation",
+      repositoryTarget: { kind: "none" },
+      skillIds: [],
+      instructions: null,
+      triggerConfig: { mode: "manual" },
+      model: "anthropic/claude-sonnet-5",
+    });
+
+    await completeWorkspaceOrchestratorRun({
+      ...runInput,
+      planTools: ["notify_slack"],
+      state: { ...emptyState, terminalStatus: "succeeded" },
+      usage: { inputTokens: 100, outputTokens: 20, totalTokens: 120 },
+    });
+
+    expect(mocks.completeUsage).toHaveBeenCalledWith(
+      expect.objectContaining({ aiCreditModelId: "anthropic/claude-sonnet-5" }),
+    );
+  });
+
   it("does not overwrite a cancelled run with failed", async () => {
     mocks.getRun.mockResolvedValue(run("cancelled"));
 

@@ -99,6 +99,7 @@ export function createUseZernioTool(session: WorkspaceOrchestratorSession) {
           connection_id: connectionResult.value.connection.id,
         },
         extractTokenUsage: extractGenerateResultTokenUsage,
+        aiCreditModelId: resolveWorkspaceAutomationModel(session.automation.model),
         run: () =>
           agent.generate({
             messages: [

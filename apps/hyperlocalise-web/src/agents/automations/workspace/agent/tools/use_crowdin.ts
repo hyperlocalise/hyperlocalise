@@ -93,6 +93,7 @@ export function createUseCrowdinTool(session: WorkspaceOrchestratorSession) {
           project_id: projectId,
         },
         extractTokenUsage: extractGenerateResultTokenUsage,
+        aiCreditModelId: resolveWorkspaceAutomationModel(session.automation.model),
         run: () =>
           agent.generate({
             abortSignal,

@@ -121,6 +121,7 @@ export async function runRepositoryAgentInProcess(input: {
     source: input.start.usage.source,
     dimensions: input.start.usage.dimensions,
     extractTokenUsage: extractGenerateResultTokenUsage,
+    aiCreditModelId: input.start.model,
     run: () =>
       agent.generate({
         messages: [{ role: "user", content: input.start.prompt }] as ModelMessage[],

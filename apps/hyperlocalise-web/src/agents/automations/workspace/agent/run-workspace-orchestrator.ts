@@ -672,6 +672,7 @@ export async function completeWorkspaceOrchestratorRun(
     operationKey: usageOperationKey(run.id),
     dimensions: usageDimensions(automation.id),
     tokenUsage: extractAiSdkTokenUsage(input.usage),
+    aiCreditModelId: resolveWorkspaceAutomationModel(automation.model),
   });
 
   await updateWorkspaceAutomationRun({

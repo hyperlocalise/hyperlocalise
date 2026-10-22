@@ -116,6 +116,7 @@ export function createUseAhrefsTool(session: WorkspaceOrchestratorSession) {
             workos_user_id: ahrefs.workosUserId,
           },
           extractTokenUsage: extractGenerateResultTokenUsage,
+          aiCreditModelId: resolveWorkspaceAutomationModel(session.automation.model),
           run: () =>
             agent.generate({
               messages: [
