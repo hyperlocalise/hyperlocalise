@@ -197,6 +197,7 @@ describe("runCreateTaskAction", () => {
         step: "edit",
         assigned: true,
         targetLocales: ["fr-FR"],
+        dueAt: null,
       },
     });
     expect(mocks.createWorkflowTaskJob).not.toHaveBeenCalled();
@@ -250,6 +251,7 @@ describe("runCreateTaskAction", () => {
         step: "proofread",
         assigned: true,
         targetLocales: ["fr-FR"],
+        dueAt: null,
       },
     });
     expect(mocks.createWorkflowTaskJob).toHaveBeenCalledOnce();
