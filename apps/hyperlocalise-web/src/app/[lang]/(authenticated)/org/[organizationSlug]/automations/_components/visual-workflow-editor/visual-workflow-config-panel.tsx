@@ -2117,6 +2117,7 @@ export function VisualWorkflowConfigPanel({
         ) : null}
         {config.kind === "action.pick_assignee" ? (
           <PickAssigneeFields
+            key={node.id}
             config={config}
             members={resources.members}
             connectedInputProps={connectedInputProps}
@@ -2926,6 +2927,21 @@ function AssigneePeopleField({
   return <MemberPickerField {...props} description={description} />;
 }
 
+function parseCrowdinUserIds(text: string): string[] {
+  return [
+    ...new Set(
+      text
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function sameCrowdinUserIds(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+}
+
 /** Crowdin users by id; the draft keeps what is typed, such as a trailing comma, between edits. */
 function CrowdinUserIdsField({
   id,
@@ -2941,6 +2957,9 @@ function CrowdinUserIdsField({
   onChange: (ids: string[]) => void;
 }) {
   const [draft, setDraft] = useState(() => value.join(", "));
+  if (!sameCrowdinUserIds(parseCrowdinUserIds(draft), value)) {
+    setDraft(value.join(", "));
+  }
   return (
     <TextField
       id={id}
@@ -2950,14 +2969,7 @@ function CrowdinUserIdsField({
       placeholder="12, 14"
       onChange={(next) => {
         setDraft(next);
-        onChange([
-          ...new Set(
-            next
-              .split(",")
-              .map((entry) => entry.trim())
-              .filter(Boolean),
-          ),
-        ]);
+        onChange(parseCrowdinUserIds(next));
       }}
     />
   );
