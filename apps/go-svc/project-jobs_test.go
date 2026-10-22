@@ -585,6 +585,31 @@ func TestOrgJobReadsShape(t *testing.T) {
 	requireProjectJobsError(t, f.get(t, "/jobs/"+url.PathEscape(mirrorID)), http.StatusNotFound, "job_not_found", "Job not found")
 }
 
+func TestOrgJobReadsNativeDueAt(t *testing.T) {
+	f := newProjectJobsFixture(t, "admin")
+	dueAt := time.Date(2026, 5, 1, 17, 0, 0, 123000000, time.UTC)
+	jobID := mustProjectJob(t, f.scope, projectJobSeed{jobType: "string", updatedAt: time.Now()})
+	_, err := f.scope.Pool.Exec(t.Context(), `update jobs set due_at = $2 where id = $1`, jobID, dueAt)
+	require.NoError(t, err)
+
+	rec := f.get(t, "/jobs/"+jobID)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var detail struct {
+		Job map[string]any `json:"job"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &detail))
+	require.Equal(t, "2026-05-01T17:00:00.123Z", detail.Job["dueAt"])
+
+	list := f.get(t, "/jobs")
+	require.Equal(t, http.StatusOK, list.Code, list.Body.String())
+	var body struct {
+		Jobs []map[string]any `json:"jobs"`
+	}
+	require.NoError(t, json.Unmarshal(list.Body.Bytes(), &body))
+	require.Len(t, body.Jobs, 1)
+	require.Equal(t, "2026-05-01T17:00:00.123Z", body.Jobs[0]["dueAt"])
+}
+
 func TestOrgJobReadsTeamAccess(t *testing.T) {
 	type seeded struct{ mine, theirs, noProject, assignedTheirs, createdTheirs, createdMine string }
 	seed := func(t *testing.T, f projectJobsFixture) seeded {
