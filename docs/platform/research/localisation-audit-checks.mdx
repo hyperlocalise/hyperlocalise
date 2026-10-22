@@ -1,0 +1,75 @@
+---
+title: "Localisation audit checks"
+description: "Every check in the localisation audit, its weight, and how it is measured."
+---
+
+This page lists every check in the [localisation audit](/platform/research/localisation-audit). The weight sets how much a check counts toward its dimension and the overall score.
+
+The **How it is scored** column uses three labels:
+
+- **Measured:** scored from page data the same way on every run.
+- **Measured, AI fallback:** measured when the evidence is clear. When it is ambiguous, an AI review is shown but not scored.
+- **AI-assessed:** reviewed by a language model and shown under **AI-assessed, not scored**. It never changes the score.
+
+"Share of pages" means the score is the percentage of inspected pages that pass.
+
+## Technical
+
+| Check | Weight | How it is scored | What fails a page |
+| --- | --- | --- | --- |
+| Locale detection | 3 | Measured, share of pages | `html lang` is missing, is not a valid language code, or does not match the locale in the URL. |
+| Locale routing | 3 | Measured, share of pages | A localized URL does not resolve. Mixing routing styles, such as path prefixes on some pages and subdomains on others, caps the score at 80. |
+| Language switcher | 2 | Measured, AI fallback | Language links drop the current path and send visitors to the locale homepage. |
+| hreflang | 3 | Measured, share of pages | No self-reference, an invalid code (for example `en-UK` instead of `en-GB`, or a three-letter tag such as `eng`), an invalid or broken target URL, or an alternate that does not link back. If no page has hreflang, the check scores 0. A missing `x-default` is reported but does not fail the page. |
+| Canonical URLs | 2 | Measured, share of pages | The canonical is invalid or points to a different locale. Not applicable when no page declares a canonical. |
+| Localized SEO metadata | 2 | Measured | Page titles or meta descriptions are not localized, or `og:locale` does not match the page. |
+| Sitemap | 1 | Measured | No valid sitemap is found, `robots.txt` is missing or does not reference the sitemap with an absolute URL, or the sitemap leaves out localized URLs or locales published on the site. |
+| Structured data | 1 | Measured, share of pages | JSON-LD `inLanguage` does not match the page locale. A missing `inLanguage` is reported but does not fail the page. |
+| International formatting | 2 | Measured, AI fallback, share of pages | Currency, numbers, or dates do not fit the page locale, such as US dollar amounts on a German page, or Eastern Arabic-Indic numerals and Hijri-only dates on an Arabic page. |
+| Accessibility localisation | 2 | Measured, AI fallback, share of pages | `aria-label` or `alt` text is left in the source language on a localized page. |
+
+hreflang applies only when the audit finds more than one locale.
+
+## Linguistic
+
+| Check | Weight | How it is scored | What it looks for |
+| --- | --- | --- | --- |
+| Translation completeness | 5 | Measured, AI fallback, share of pages | Calls to action or other visible text left identical to the source language on a localized page. |
+| Terminology consistency | 2 | Measured | A navigation or footer label that is translated on some pages of a language but left in the source language on others. The check matches the same control by href, so a label that is simply omitted on another template is not a failure. Needs at least two pages per language with shared site navigation. |
+| Cross-page consistency | 1 | Not scored | Disabled, because small label differences across pages are usually noise. |
+| Translation accuracy | 3 | AI-assessed | Target copy keeps the source meaning, numbers, and product actions. |
+| Fluency | 2 | AI-assessed | Copy reads naturally, without machine-translation artifacts. |
+| Brand voice | 1 | AI-assessed | Localized copy keeps the source tone. |
+| Grammar and style | 2 | AI-assessed | Grammar, punctuation, and style fit the locale. |
+
+## Contextual
+
+| Check | Weight | How it is scored | What it looks for |
+| --- | --- | --- | --- |
+| CTA intent | 2 | Measured, AI fallback | Localized calls to action still describe the intended product action. |
+| Cultural adaptation | 2 | Measured, share of pages | A US-format phone number on a localized page for a market outside North America. Not applicable when no page shows a phone number. Currency is covered by international formatting, so it is not counted twice. |
+| UI context | 1 | AI-assessed | Translations fit the component: button, navigation, form, modal, or error. |
+| Product context | 1 | AI-assessed | Language matches product concepts such as plans, settings, and workflows. |
+| Contextual meaning | 1 | AI-assessed | Strings make sense in their surrounding page context. |
+| Audience context | 1 | AI-assessed | Tone and wording fit the audience of each market. |
+| Glossary compliance | 3 | Not applicable | Needs a project glossary, which the public audit does not have. |
+| Translation memory consistency | 2 | Not applicable | Needs approved translation memory, which the public audit does not have. |
+
+## Visual
+
+| Check | Weight | How it is scored | What fails a page |
+| --- | --- | --- | --- |
+| Text expansion | 1 | Measured, share of pages | Localized text is much longer than the source page, which puts pressure on fixed-size UI. |
+| RTL support | 3 | Measured, AI fallback, share of pages | A right-to-left page does not set `dir="rtl"`, or its CSS forces `direction: ltr`. Physical CSS such as `margin-left` is reported but does not fail the page. |
+| Font and script support | 2 | Measured, share of pages | The page text contains missing-glyph boxes ("tofu"), which means the fonts do not cover the script. |
+| CJK typography | 1 | Measured, share of pages | Korean text uses `word-break: break-all` or omits `word-break: keep-all`, or a Chinese, Japanese, or Korean form uses Western name fields. A page with no Korean word-break rule in its CSS is reported but does not fail. |
+| Localized images and assets | 1 | Measured, AI fallback, share of pages | An image and its `alt` text still look like the source-locale version. |
+| Visual hierarchy | 1 | Measured, AI fallback, share of pages | A localized heading is long enough to crowd the layout. |
+| Component consistency | 1 | Measured, AI fallback | Repeated components, such as button sets, differ across locales. |
+| Text overflow | 3 | Measured in the browser, share of pages | At 1440px, buttons, links, labels, or headings have text cut off by their own box. |
+| Layout breakage | 3 | Measured in the browser, share of pages | At 1440px, the page scrolls sideways or pushes elements past the right edge. |
+| Responsive localisation | 2 | Measured in the browser, share of pages | At 390px, the page scrolls sideways or clips labels. |
+
+The three browser checks only fail a localized page when both pages have the same viewport measurement and the source-language version is cleaner. A layout bug that also exists on the source page is a design issue, not a localisation issue, so it is not counted. Pages without a matching source viewport are skipped. Elements inside carousels and other horizontally scrolling containers are skipped, because overflow there is usually intentional.
+
+These checks are not applicable when layout measurements are not available for any localized page.

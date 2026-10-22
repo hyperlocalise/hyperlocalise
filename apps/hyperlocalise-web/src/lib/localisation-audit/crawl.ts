@@ -12,8 +12,12 @@
  */
 import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/public-http-fetch";
 
-import type { CrawlLocalisationAuditSampleOptions, HtmlPageRenderer } from "./crawl-renderer";
-import { LOCALE_PREFIX, pathLocaleFromUrl, resolveFocusLocaleCode } from "./credits/shared";
+import type {
+  CrawlLocalisationAuditSampleOptions,
+  HtmlPageRenderer,
+  RenderedHtmlPage,
+} from "./crawl-renderer";
+import { LOCALE_PREFIX, resolveFocusLocaleCode, urlRoutingLocale } from "./credits/shared";
 import { detectLocalisationAuditCrawlBlock } from "./crawl-block";
 import { crawledPageFromSignals, parsePageSignals } from "./html-parse";
 import { AuditBrowserSetupError } from "./sandbox-browser-error";
@@ -147,6 +151,28 @@ function parseSitemapLocs(xml: string): string[] {
     .filter(Boolean);
 }
 
+/** hrefs from `<xhtml:link rel="alternate" hreflang="…" href="…">` sitemap alternates. */
+function parseSitemapAlternateHrefs(xml: string): string[] {
+  return [...xml.matchAll(/<xhtml:link\b[^>]*>/gi)].flatMap((match) => {
+    const tag = match[0];
+    if (!/hreflang\s*=/i.test(tag)) return [];
+    const href = tag.match(/href\s*=\s*["']([^"']+)["']/i)?.[1]?.trim();
+    return href ? [href] : [];
+  });
+}
+
+/** Same site, including locale subdomains such as fr.example.com for example.com. */
+function sameSiteOrLocaleSubdomain(originHost: string, url: string): boolean {
+  if (sameHost(originHost, url)) return true;
+  try {
+    const base = originHost.replace(/^www\./, "");
+    const host = new URL(url).hostname;
+    return host.endsWith(`.${base}`) && urlRoutingLocale(url) != null;
+  } catch {
+    return false;
+  }
+}
+
 function parseRobotsSitemaps(robots: string): string[] {
   const urls: string[] = [];
   for (const line of robots.split(/\r?\n/)) {
@@ -194,24 +220,32 @@ async function fetchSitemapSignals(origin: string): Promise<LocalisationAuditSit
       sitemapUrls.delete(sitemapUrl);
       continue;
     }
-    const locs = parseSitemapLocs(xml);
     const looksLikeIndex = /<sitemapindex/i.test(xml);
-    for (const loc of locs) {
+    const entries = looksLikeIndex
+      ? parseSitemapLocs(xml)
+      : [...parseSitemapLocs(xml), ...parseSitemapAlternateHrefs(xml)];
+    for (const loc of entries) {
       const absolute = toAbsoluteUrl(sitemapUrl, loc);
-      if (!absolute || !sameHost(originHost, absolute)) {
+      if (!absolute) {
         continue;
       }
-      if (looksLikeIndex && nestedQueue.length + fetchedSitemaps.size < MAX_NESTED_SITEMAPS) {
-        nestedQueue.push(absolute);
-        sitemapUrls.add(absolute);
-        continue;
-      }
-      try {
-        if (pathLocaleFromUrl(absolute) && localizedUrls.length < MAX_SITEMAP_URLS) {
-          localizedUrls.push(absolute);
+      if (looksLikeIndex) {
+        if (
+          sameHost(originHost, absolute) &&
+          nestedQueue.length + fetchedSitemaps.size < MAX_NESTED_SITEMAPS
+        ) {
+          nestedQueue.push(absolute);
+          sitemapUrls.add(absolute);
         }
-      } catch {
-        // ignore malformed loc
+        continue;
+      }
+      if (
+        sameSiteOrLocaleSubdomain(originHost, absolute) &&
+        urlRoutingLocale(absolute) &&
+        !localizedUrls.includes(absolute) &&
+        localizedUrls.length < MAX_SITEMAP_URLS
+      ) {
+        localizedUrls.push(absolute);
       }
     }
   }
@@ -257,12 +291,15 @@ function scoreCandidate(url: string, origin: string): number {
   }
 }
 
-function pageFromRendered(html: string, url: string, status: number): LocalisationAuditCrawledPage {
-  return crawledPageFromSignals({
-    url,
-    status,
-    signals: parsePageSignals(html),
-  });
+function pageFromRendered(rendered: RenderedHtmlPage): LocalisationAuditCrawledPage {
+  return {
+    ...crawledPageFromSignals({
+      url: rendered.url,
+      status: rendered.status,
+      signals: parsePageSignals(rendered.html),
+    }),
+    layout: rendered.layout ?? null,
+  };
 }
 
 async function defaultCreateRenderer(): Promise<HtmlPageRenderer> {
@@ -316,7 +353,7 @@ async function crawlLocalisationAuditSampleInner(
       };
     }
 
-    const homePage = pageFromRendered(homeRendered.html, homeRendered.url, homeRendered.status);
+    const homePage = pageFromRendered(homeRendered);
     const signals = parsePageSignals(homeRendered.html);
     const originHost = new URL(input.origin).hostname;
     const seeded = new Set<string>([homePage.url]);
@@ -362,7 +399,7 @@ async function crawlLocalisationAuditSampleInner(
       if (detectLocalisationAuditCrawlBlock(rendered.status, rendered.html)) {
         continue;
       }
-      const page = pageFromRendered(rendered.html, rendered.url, rendered.status);
+      const page = pageFromRendered(rendered);
       // Ranked seeds use pre-render URLs; Playwright may land on a redirected final URL.
       pagesByUrl.set(rendered.requestedUrl, page);
       pagesByUrl.set(rendered.url, page);

@@ -34,8 +34,21 @@ export type LocalisationAuditCriterion = {
   status: LocalisationAuditCriterionStatus;
   score: number | null;
   method: LocalisationAuditCreditResult["method"];
+  /** Relative weight within the overall score. */
+  weight: number;
+  /** False for AI-assessed results, which are shown for review but do not affect scores. */
+  scored: boolean;
   findings: LocalisationAuditFinding[];
 };
+
+/** Methodology 1 averaged AI-assessed credits into the score; later versions do not. */
+function creditCountsTowardScore(
+  credit: LocalisationAuditCreditResult,
+  methodologyVersion: number,
+): boolean {
+  if (credit.method === "na" || credit.score == null) return false;
+  return methodologyVersion < 2 || credit.method === "heuristic";
+}
 
 export function creditCriterionStatus(
   credit: LocalisationAuditCreditResult,
@@ -59,7 +72,9 @@ export function creditCriterionStatus(
 export function buildLocalisationAuditCriteria(
   credits: LocalisationAuditCreditResult[],
   findings: LocalisationAuditFinding[] = [],
+  options?: { methodologyVersion?: number },
 ): LocalisationAuditCriterion[] {
+  const methodologyVersion = options?.methodologyVersion ?? 1;
   const findingsByCredit = new Map<string, LocalisationAuditFinding[]>();
   for (const finding of findings) {
     if (!finding.creditId) continue;
@@ -85,6 +100,8 @@ export function buildLocalisationAuditCriteria(
           status: creditCriterionStatus(credit),
           score: credit.score,
           method: credit.method,
+          weight: definition.weight,
+          scored: creditCountsTowardScore(credit, methodologyVersion),
           findings: findingsByCredit.get(credit.id) ?? [],
         } satisfies LocalisationAuditCriterion,
       ];
@@ -97,18 +114,21 @@ export function groupLocalisationAuditCriteria(criteria: LocalisationAuditCriter
   const watch: LocalisationAuditCriterion[] = [];
   const failed: LocalisationAuditCriterion[] = [];
   const notApplicable: LocalisationAuditCriterion[] = [];
+  const aiAssessed: LocalisationAuditCriterion[] = [];
 
   for (const criterion of criteria) {
-    if (criterion.status === "pass") {
+    if (criterion.status === "na") {
+      notApplicable.push(criterion);
+    } else if (!criterion.scored) {
+      aiAssessed.push(criterion);
+    } else if (criterion.status === "pass") {
       passed.push(criterion);
     } else if (criterion.status === "watch") {
       watch.push(criterion);
-    } else if (criterion.status === "fail") {
-      failed.push(criterion);
     } else {
-      notApplicable.push(criterion);
+      failed.push(criterion);
     }
   }
 
-  return { passed, watch, failed, notApplicable };
+  return { passed, watch, failed, notApplicable, aiAssessed };
 }

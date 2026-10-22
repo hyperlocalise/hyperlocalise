@@ -36,6 +36,7 @@ import {
   upsertLocalisationAuditLeadForDelivery,
   verifyLocalisationAuditReportToken,
 } from "./store";
+import { LOCALISATION_AUDIT_METHODOLOGY_VERSION } from "./credits/catalog";
 import {
   LOCALISATION_AUDIT_DAILY_RUN_LIMIT,
   LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS,
@@ -771,6 +772,7 @@ describe("localisation audit leaderboard", () => {
         score: 91,
         domainKey: keys[0]!,
         domainSlug: first.audit.domainSlug,
+        methodologyVersion: LOCALISATION_AUDIT_METHODOLOGY_VERSION,
         detectedLocales: [],
         headlineFindings: [],
         findingsCount: 2,
@@ -807,6 +809,7 @@ describe("localisation audit leaderboard", () => {
         score: 62,
         domainKey: keys[1]!,
         domainSlug: second.audit.domainSlug,
+        methodologyVersion: LOCALISATION_AUDIT_METHODOLOGY_VERSION,
         detectedLocales: [],
         headlineFindings: [],
         findingsCount: 4,

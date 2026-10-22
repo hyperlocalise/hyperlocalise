@@ -34,6 +34,7 @@ import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typogra
 import { clientAnalytics } from "@/lib/analytics/client";
 import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
 import { isLocalisationAuditSignInCtaEnabled } from "@/lib/flags/localisation-audit-sign-in-ctas";
+import { LOCALISATION_AUDIT_METHODOLOGY_VERSION } from "@/lib/localisation-audit/credits/catalog";
 import {
   buildLocalisationAuditCriteria,
   groupLocalisationAuditCriteria,
@@ -421,6 +422,11 @@ function CriterionRow({
             <span className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
               {dimensionLabel}
             </span>
+            {criterion.scored ? (
+              <span className="text-xs text-muted-foreground">
+                {copy.criteriaWeightLabel({ weight: criterion.weight })}
+              </span>
+            ) : null}
           </div>
           <p className="mt-1 text-pretty text-sm text-muted-foreground">{criterion.rubric}</p>
           {showFindings && criterion.findings.length > 0 ? (
@@ -436,6 +442,7 @@ function CriterionRow({
 
 function CriteriaGroup({
   heading,
+  description,
   criteria,
   copy,
   showFindings,
@@ -446,6 +453,7 @@ function CriteriaGroup({
   collapseLabel,
 }: {
   heading: string;
+  description?: string;
   criteria: LocalisationAuditCriterion[];
   copy: ReturnType<typeof getLocalisationAuditResultCopy>;
   showFindings: boolean;
@@ -460,18 +468,25 @@ function CriteriaGroup({
   if (criteria.length === 0) return null;
 
   const list = (
-    <ul className="mt-4 space-y-4">
-      {criteria.map((criterion) => (
-        <CriterionRow
-          key={criterion.id}
-          criterion={criterion}
-          copy={copy}
-          showFindings={showFindings}
-          domainKey={domainKey}
-          dimensionLabel={dimensionLabels[criterion.dimension]}
-        />
-      ))}
-    </ul>
+    <>
+      {description ? (
+        <TypographyP className="mt-2 max-w-2xl" tone="subtle">
+          {description}
+        </TypographyP>
+      ) : null}
+      <ul className="mt-4 space-y-4">
+        {criteria.map((criterion) => (
+          <CriterionRow
+            key={criterion.id}
+            criterion={criterion}
+            copy={copy}
+            showFindings={showFindings}
+            domainKey={domainKey}
+            dimensionLabel={dimensionLabels[criterion.dimension]}
+          />
+        ))}
+      </ul>
+    </>
   );
 
   if (!expandLabel || !collapseLabel) {
@@ -508,7 +523,7 @@ function AuditCriteriaList({
   copy: ReturnType<typeof getLocalisationAuditResultCopy>;
   domainKey: string;
 }) {
-  const { passed, watch, failed, notApplicable } = grouped;
+  const { passed, watch, failed, notApplicable, aiAssessed } = grouped;
   const dimensionLabels = {
     technical: copy.dimensionTechnicalShort,
     linguistic: copy.dimensionLinguisticShort,
@@ -559,6 +574,19 @@ function AuditCriteriaList({
         defaultOpen={failed.length === 0 && watch.length === 0}
         expandLabel={copy.criteriaExpandPassed}
         collapseLabel={copy.criteriaCollapsePassed}
+      />
+
+      <CriteriaGroup
+        heading={copy.criteriaAiAssessedHeading({ count: aiAssessed.length })}
+        description={copy.criteriaAiAssessedBody}
+        criteria={aiAssessed}
+        copy={copy}
+        showFindings
+        domainKey={domainKey}
+        dimensionLabels={dimensionLabels}
+        defaultOpen={false}
+        expandLabel={copy.criteriaExpandAiAssessed}
+        collapseLabel={copy.criteriaCollapseAiAssessed}
       />
 
       <CriteriaGroup
@@ -1127,7 +1155,6 @@ export function LocalisationAuditResult({
               : null;
   const dimensionScores = report?.dimensionScores ?? teaser?.dimensionScores;
   const allFindings = report?.findings ?? teaser?.headlineFindings ?? [];
-  const fixFirst = prioritizeFindings(allFindings);
   const companyProfile = report?.companyProfile ?? teaser?.companyProfile ?? null;
   const displayName = companyProfile?.name?.trim() || audit.domainKey;
   const ctaBody =
@@ -1139,13 +1166,20 @@ export function LocalisationAuditResult({
   const freshness = audit.completedAt ?? teaser?.completedAt ?? report?.completedAt ?? null;
   const freshnessLabel = freshness ? formatReportDate(freshness, appLocale) : null;
   const credits = report?.credits ?? teaser?.credits ?? [];
+  const methodologyVersion = report?.methodologyVersion ?? teaser?.methodologyVersion ?? 1;
+  const coverageFactor = report?.localeCoverageFactor ?? teaser?.localeCoverageFactor ?? 1;
+  const coverageReductionPercent = Math.round((1 - coverageFactor) * 100);
   const groupedCriteria = groupLocalisationAuditCriteria(
-    buildLocalisationAuditCriteria(credits, allFindings),
+    buildLocalisationAuditCriteria(credits, allFindings, { methodologyVersion }),
   );
   const findingsUnderCriteria = new Set(
-    [...groupedCriteria.failed, ...groupedCriteria.watch].flatMap((criterion) =>
-      criterion.findings.map((finding) => finding.id),
+    [...groupedCriteria.failed, ...groupedCriteria.watch, ...groupedCriteria.aiAssessed].flatMap(
+      (criterion) => criterion.findings.map((finding) => finding.id),
     ),
+  );
+  const unscoredCreditIds = new Set(groupedCriteria.aiAssessed.map((criterion) => criterion.id));
+  const fixFirst = prioritizeFindings(
+    allFindings.filter((finding) => !finding.creditId || !unscoredCreditIds.has(finding.creditId)),
   );
   const otherFindings = allFindings.filter((finding) => !findingsUnderCriteria.has(finding.id));
   const hasCriteria = credits.length > 0;
@@ -1244,6 +1278,16 @@ export function LocalisationAuditResult({
           <TypographyP className="mt-4 max-w-2xl text-white/80" wrapStyle="pretty" size="large">
             {interpretation}
           </TypographyP>
+          {coverageReductionPercent > 0 ? (
+            <p className="mt-2 max-w-2xl text-pretty text-sm text-white/75">
+              {copy.scoreCoverageAdjustment({ percent: coverageReductionPercent })}
+            </p>
+          ) : null}
+          {score != null && methodologyVersion < LOCALISATION_AUDIT_METHODOLOGY_VERSION ? (
+            <p className="mt-2 max-w-2xl text-pretty text-sm text-white/75">
+              {copy.scoreLegacyMethodology}
+            </p>
+          ) : null}
           {dimensionScores ? (
             <ul className="mt-8 grid max-w-2xl grid-cols-2 gap-6 sm:grid-cols-4">
               <li>

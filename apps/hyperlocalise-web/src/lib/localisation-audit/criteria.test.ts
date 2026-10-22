@@ -124,4 +124,22 @@ describe("groupLocalisationAuditCriteria", () => {
     expect(grouped.passed.map((item) => item.id)).toEqual(["canonical-urls"]);
     expect(grouped.notApplicable.map((item) => item.id)).toEqual(["glossary-compliance"]);
   });
+
+  it("separates AI-assessed criteria from scored ones on current reports", () => {
+    const credits = [
+      credit({ id: "hreflang", score: 40 }),
+      credit({ id: "fluency", dimension: "linguistic", score: 50, method: "luna" }),
+    ];
+
+    const current = groupLocalisationAuditCriteria(
+      buildLocalisationAuditCriteria(credits, [], { methodologyVersion: 2 }),
+    );
+    expect(current.failed.map((item) => item.id)).toEqual(["hreflang"]);
+    expect(current.aiAssessed.map((item) => item.id)).toEqual(["fluency"]);
+    expect(current.failed[0]).toMatchObject({ scored: true, weight: 3 });
+
+    const legacy = groupLocalisationAuditCriteria(buildLocalisationAuditCriteria(credits));
+    expect(legacy.failed.map((item) => item.id)).toEqual(["hreflang", "fluency"]);
+    expect(legacy.aiAssessed).toEqual([]);
+  });
 });

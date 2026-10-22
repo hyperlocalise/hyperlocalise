@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { Script } from "node:vm";
+
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const sandboxMocks = vi.hoisted(() => ({
@@ -93,6 +95,10 @@ describe("audit Playwright script", () => {
     expect(script).toContain('hostname.startsWith("::ffff:")');
     expect(script).toContain("first === 192 && second === 0");
     expect(script).toContain("second === 18 || second === 19");
+    expect(script).toContain("page.setViewportSize(mobileViewport)");
+    expect(script).toContain("function measureAuditLayout(limits)");
+    expect(script).toContain(".replace(/\\s+/g");
+    expect(() => new Script(script)).not.toThrow();
     expect(prepareAuditBrowserRuntimeCommand()).toContain("browser_runtime_missing");
     expect(prepareAuditBrowserRuntimeCommand()).not.toContain("npm ");
     expect(prepareAuditBrowserRuntimeCommand()).not.toContain("install chromium");
@@ -136,6 +142,17 @@ describe("createAuditBrowserSession", () => {
                 url: "https://example.com/en",
                 status: 200,
                 htmlPath: "/tmp/hl-audit-browser/0.html",
+                layout: {
+                  viewports: [
+                    { width: 1440, horizontalOverflowPx: 0, clippedText: [], offscreen: [] },
+                    {
+                      width: 390,
+                      horizontalOverflowPx: 48,
+                      clippedText: [{ tag: "button", text: "Kostenlos testen" }],
+                      offscreen: [],
+                    },
+                  ],
+                },
               },
             ],
           }),
@@ -157,6 +174,17 @@ describe("createAuditBrowserSession", () => {
         url: "https://example.com/en",
         status: 200,
         html: "<html lang='en'><title>EN</title><body>Hello</body></html>",
+        layout: {
+          viewports: [
+            { width: 1440, horizontalOverflowPx: 0, clippedText: [], offscreen: [] },
+            {
+              width: 390,
+              horizontalOverflowPx: 48,
+              clippedText: [{ tag: "button", text: "Kostenlos testen" }],
+              offscreen: [],
+            },
+          ],
+        },
       },
     ]);
     expect(assertResolvablePublicHttpUrlMock).toHaveBeenCalledWith("https://example.com/");

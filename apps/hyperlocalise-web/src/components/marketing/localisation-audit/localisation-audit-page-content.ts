@@ -821,6 +821,61 @@ export function getLocalisationAuditResultCopy(locale: string) {
       id: "pw9PHi/ZLr",
       description: "Control to collapse not-applicable localisation audit criteria",
     }),
+    criteriaAiAssessedHeading: (values: { count: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "AI-assessed, not scored ({count})",
+          id: "58rI5iuou2",
+          description:
+            "Heading for localisation audit criteria reviewed by a language model that do not affect the score",
+        },
+        values,
+      ),
+    criteriaAiAssessedBody: intl.formatMessage({
+      defaultMessage:
+        "A language model reviewed these checks. They can point you to issues worth a look, but they do not affect the score because model judgements can vary between runs.",
+      id: "Clx4aOGiiD",
+      description:
+        "Explanation of why AI-assessed localisation audit criteria are excluded from the score",
+    }),
+    criteriaExpandAiAssessed: intl.formatMessage({
+      defaultMessage: "Show AI-assessed checks",
+      id: "/q7tj4NaYr",
+      description: "Control to expand AI-assessed localisation audit criteria",
+    }),
+    criteriaCollapseAiAssessed: intl.formatMessage({
+      defaultMessage: "Hide AI-assessed checks",
+      id: "FKhi2+Kwrj",
+      description: "Control to collapse AI-assessed localisation audit criteria",
+    }),
+    criteriaWeightLabel: (values: { weight: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "Weight {weight}",
+          id: "AGfyX1m5DY",
+          description:
+            "Relative weight of a scored localisation audit criterion in the overall score",
+        },
+        values,
+      ),
+    scoreCoverageAdjustment: (values: { percent: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage:
+            "The overall score is reduced by {percent}% because we found few locales on the site.",
+          id: "CjUoMPR8JB",
+          description:
+            "Note under the localisation audit score explaining the locale coverage adjustment",
+        },
+        values,
+      ),
+    scoreLegacyMethodology: intl.formatMessage({
+      defaultMessage:
+        "This score uses an earlier scoring method. Run the audit again to compare it with current reports.",
+      id: "EaqWpTaaGg",
+      description:
+        "Note on a localisation audit report that was scored before the current methodology",
+    }),
     linguisticHeading: intl.formatMessage({
       defaultMessage: "Linguistic notes",
       id: "tP1cicvIzZ",

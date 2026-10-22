@@ -14,6 +14,8 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 
+import { LOCALISATION_AUDIT_METHODOLOGY_VERSION } from "./credits/catalog";
+
 import {
   LocalisationAuditDailyQuotaExceededError,
   localisationAuditDailyRunLimit,
@@ -167,7 +169,12 @@ export type LocalisationAuditLeaderboardEntry = {
   completedAt: Date | null;
   companyName: string | null;
   logoUrl: string | null;
+  /** Scoring rules the score was produced under; older versions rank after current ones. */
+  methodologyVersion: number;
 };
+
+/** Teasers stored before versioning were scored under methodology 1. */
+const teaserMethodologyVersion = sql<number>`coalesce((${schema.localisationAudits.teaser}->>'methodologyVersion')::int, 1)`;
 
 /**
  * Public leaderboard of succeeded teaser scores (highest first).
@@ -186,6 +193,7 @@ export async function listLocalisationAuditLeaderboard(limit = 25) {
       logoUrl: sql<
         string | null
       >`nullif(${schema.localisationAudits.teaser}->'companyProfile'->>'logoUrl', '')`,
+      methodologyVersion: teaserMethodologyVersion,
     })
     .from(schema.localisationAudits)
     .where(
@@ -197,6 +205,7 @@ export async function listLocalisationAuditLeaderboard(limit = 25) {
       ),
     )
     .orderBy(
+      desc(teaserMethodologyVersion),
       desc(schema.localisationAudits.score),
       desc(schema.localisationAudits.completedAt),
       asc(schema.localisationAudits.domainKey),
@@ -214,6 +223,7 @@ export async function listLocalisationAuditLeaderboard(limit = 25) {
         completedAt: row.completedAt,
         companyName: jsonText(row.companyName),
         logoUrl: httpUrl(row.logoUrl),
+        methodologyVersion: Number(row.methodologyVersion),
       } satisfies LocalisationAuditLeaderboardEntry,
     ];
   });
@@ -228,10 +238,11 @@ export type LocalisationAuditStanding = {
   averageScore: number | null;
 };
 
-/** Rank among all publishable teaser scores. */
+/** Rank among publishable teaser scores produced under the same methodology. */
 export async function getLocalisationAuditStanding(input: {
   domainSlug: string;
   score: number;
+  methodologyVersion?: number;
 }): Promise<LocalisationAuditStanding | null> {
   const [stats] = await db
     .select({
@@ -247,6 +258,7 @@ export async function getLocalisationAuditStanding(input: {
         isNotNull(schema.localisationAudits.score),
         isNotNull(schema.localisationAudits.teaser),
         reportHasSuccessfulPage,
+        sql`${teaserMethodologyVersion} = ${input.methodologyVersion ?? LOCALISATION_AUDIT_METHODOLOGY_VERSION}`,
       ),
     );
 
