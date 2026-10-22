@@ -90,8 +90,8 @@ describe("useProjectFileActions", () => {
 
   it("disables agent translation when the native file is not runnable", () => {
     const unsupportedFile = createProjectFileRecord({
-      sourcePath: "marketing/brief.pdf",
-      storedFileId: "file_brief_pdf",
+      sourcePath: "marketing/notes.rtf",
+      storedFileId: "file_brief_rtf",
     });
     const missingStoredFile = createProjectFileRecord({
       sourcePath: "marketing/home.json",
@@ -121,6 +121,19 @@ describe("useProjectFileActions", () => {
     expect(result.current.translateDisabledTitle).toBe(
       "Upload a supported file and add target locales in project settings to translate with agent.",
     );
+  });
+
+  it("enables agent translation for native PDF source files", () => {
+    const { result } = renderProjectFileActions({
+      file: createProjectFileRecord({
+        sourcePath: "marketing/brief.pdf",
+        storedFileId: "file_brief_pdf",
+      }),
+    });
+
+    expect(result.current.isNativeFile).toBe(true);
+    expect(result.current.canTranslateWithAgent).toBe(true);
+    expect(result.current.translateDisabledTitle).toBeUndefined();
   });
 
   it("enables agent translation for native image source files", () => {

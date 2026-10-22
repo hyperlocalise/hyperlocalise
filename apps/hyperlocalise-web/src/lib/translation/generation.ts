@@ -665,7 +665,4 @@ export async function loadOrganizationTranslationModel(projectId: string) {
   return defaultModelResolver.resolveModel(projectId);
 }
 
-/** @deprecated Use `loadOrganizationTranslationGenerator` instead. */
-export const loadOrganizationOpenAITranslationGenerator = loadOrganizationTranslationGenerator;
-
 export const translationPromptPolicy = new TranslationPromptPolicy();

@@ -62,6 +62,13 @@ describe("stored file context", () => {
         filename: "brief.pdf",
         contentType: "application/pdf",
       }),
+    ).toMatchObject({ fileFormat: "pdf" });
+    expect(
+      toStoredTranslationFileRef({
+        id: "file_rtf",
+        filename: "notes.rtf",
+        contentType: "application/rtf",
+      }),
     ).toBeNull();
   });
 

@@ -404,14 +404,14 @@ describe("enqueueFileTranslationJob", () => {
 
   it("rejects unsupported source file formats", async () => {
     getStoredFileForJobScopeMock.mockResolvedValue({
-      id: "file_pdf",
-      filename: "brief.pdf",
+      id: "file_rtf",
+      filename: "notes.rtf",
     });
 
     const result = await enqueueFileTranslationJob({
       organizationId: "org_1",
       projectId: "project_1",
-      sourceFileId: "file_pdf",
+      sourceFileId: "file_rtf",
       sourceLocale: "en-US",
       targetLocales: ["fr-FR"],
       jobQueue: { enqueue: jobQueueEnqueueMock } as never,

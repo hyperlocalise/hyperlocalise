@@ -58,51 +58,9 @@ export const supportedTranslationFileFormats = [
 
 export type SupportedTranslationFileFormat = (typeof supportedTranslationFileFormats)[number];
 
-export const supportedFileTranslationFileFormats = [
-  "json",
-  "jsonc",
-  "yaml",
-  "arb",
-  "xliff",
-  "po",
-  "qt-ts",
-  "html",
-  "markdown",
-  "mdx",
-  "asciidoc",
-  "txt",
-  "strings",
-  "stringsdict",
-  "xcstrings",
-  "csv",
-  "tsv",
-  "toml",
-  "ini",
-  "xml",
-  "resx",
-  "resw",
-  "properties",
-  "php",
-  "ftl",
-  "javascript",
-  "liquid",
-  "srt",
-  "vtt",
-  "sbv",
-  "svg",
-  "lottie",
-  "png",
-  "jpeg",
-  "webp",
-  "mp4",
-  "docx",
-  "xlsx",
-  "xls",
-  "pptx",
-] as const;
+export const supportedFileTranslationFileFormats = supportedTranslationFileFormats;
 
-export type SupportedFileTranslationFileFormat =
-  (typeof supportedFileTranslationFileFormats)[number];
+export type SupportedFileTranslationFileFormat = SupportedTranslationFileFormat;
 
 const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".json": "json",
@@ -290,6 +248,7 @@ export function isWholeFileTranslationFileFormat(
   | SupportedImageTranslationFileFormat
   | SupportedVideoTranslationFileFormat
   | SupportedOfficeTranslationFileFormat
+  | SupportedPdfTranslationFileFormat
   | SupportedDocumentTranslationFileFormat {
   return isBinaryTranslationFileFormat(format) || isDocumentTranslationFileFormat(format);
 }
@@ -329,7 +288,7 @@ export function inferSupportedFileTranslationFileFormat(
   cliParsesOffice: boolean = sandboxCliParsesOffice(),
 ): SupportedFileTranslationFileFormat | null {
   const format = inferSupportedTranslationFileFormat(filename);
-  if (!format || !isSupportedFileTranslationFileFormat(format)) {
+  if (!format) {
     return null;
   }
   if (!cliParsesOffice && isOfficeTranslationFileFormat(format)) {
@@ -427,6 +386,7 @@ export function inferSupportedWholeFileTranslationFileFormat(
   | SupportedImageTranslationFileFormat
   | SupportedVideoTranslationFileFormat
   | SupportedOfficeTranslationFileFormat
+  | SupportedPdfTranslationFileFormat
   | SupportedDocumentTranslationFileFormat
   | null {
   const format = inferSupportedTranslationFileFormat(filename);

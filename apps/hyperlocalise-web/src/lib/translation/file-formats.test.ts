@@ -170,7 +170,7 @@ describe("translation file formats", () => {
     expect(inferSupportedFileTranslationFileFormat("messages.json", false)).toBe("json");
     expect(availableFileTranslationFileFormats(false)).not.toContain("docx");
     expect(availableFileTranslationFileFormats(true)).toEqual(
-      expect.arrayContaining(["json", "docx", "xlsx", "xls", "pptx"]),
+      expect.arrayContaining(["json", "docx", "xlsx", "xls", "pptx", "pdf"]),
     );
     expect(inferSupportedSegmentedSpreadsheetTranslationFileFormat("legacy.xls")).toBe("xls");
     expect(inferSupportedSegmentedSpreadsheetTranslationFileFormat("deck.pptx")).toBeNull();
@@ -257,11 +257,13 @@ describe("translation file formats", () => {
     expect(accept.split(",")).not.toEqual(expect.arrayContaining([".png", ".mp4", ".docx"]));
   });
 
-  it("rejects unsupported file extensions", () => {
+  it("accepts PDF and rejects unknown extensions", () => {
     expect(inferSupportedTranslationFileFormat("brief.pdf")).toBe("pdf");
-    expect(inferSupportedFileTranslationFileFormat("brief.pdf")).toBeNull();
-    expect(availableFileTranslationFileFormats()).not.toContain("pdf");
+    expect(inferSupportedFileTranslationFileFormat("brief.pdf")).toBe("pdf");
+    expect(availableFileTranslationFileFormats()).toContain("pdf");
+    expect(isWholeFileTranslationFileFormat("pdf")).toBe(true);
     expect(inferSupportedTranslationFileFormat("no-extension")).toBeNull();
+    expect(inferSupportedFileTranslationFileFormat("notes.rtf")).toBeNull();
   });
 
   it("returns locale scan extensions for supported file formats", () => {

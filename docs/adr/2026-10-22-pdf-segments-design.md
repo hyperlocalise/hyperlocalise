@@ -11,6 +11,8 @@ PDF uploads were skipped in Google Drive sync and could not be opened as keyed s
   `translationfileparser` package as the CLI. Target PDFs are generated in go-svc
   (`POST /internal/pdf/apply`) by replacing text objects in the source layout.
   The web app downloads through the existing Office download path.
+- File translation jobs treat PDF like other sandbox `hl entries` / `hl run`
+  formats. Those jobs use the same parser as the CLI.
 - Scanned PDFs without a native text layer fail ingest with a clear message. OCR is not used for project sources.
 - Arabic, Hebrew, and Indic targets return `ErrPDFScriptUnsupported` because PDFium does not shape those scripts.
 

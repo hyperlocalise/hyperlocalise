@@ -52,6 +52,7 @@ describe("isSandboxFileTranslationFormat", () => {
 
   it("rejects formats outside file translation", () => {
     expect(isSandboxFileTranslationFormat("rtf", true)).toBe(false);
+    expect(isSandboxFileTranslationFormat("pdf", true)).toBe(true);
   });
 });
 

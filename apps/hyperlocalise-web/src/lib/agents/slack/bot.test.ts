@@ -1973,13 +1973,13 @@ describe("handleSubscribedMessage", () => {
   it("rejects unsupported Slack file attachments before calling the model", async () => {
     const { thread, posts } = createThread();
     const message = createMessage({
-      text: "Translate this PDF to French",
+      text: "Translate this RTF to French",
       attachments: [
         {
           type: "file",
-          name: "brief.pdf",
-          mimeType: "application/pdf",
-          fetchData: vi.fn(async () => Buffer.from("pdf")),
+          name: "notes.rtf",
+          mimeType: "application/rtf",
+          fetchData: vi.fn(async () => Buffer.from("rtf")),
         },
       ],
     });
@@ -2019,9 +2019,9 @@ describe("handleSubscribedMessage", () => {
       attachments: [
         {
           type: "file",
-          name: "brief.pdf",
-          mimeType: "application/pdf",
-          fetchData: vi.fn(async () => Buffer.from("pdf")),
+          name: "notes.rtf",
+          mimeType: "application/rtf",
+          fetchData: vi.fn(async () => Buffer.from("rtf")),
         },
         {
           type: "image",
@@ -2077,7 +2077,7 @@ describe("handleSubscribedMessage", () => {
     );
     expect(agentGenerateMock).not.toHaveBeenCalled();
     expect(posts).toEqual([
-      { markdown: expect.stringContaining("brief.pdf") },
+      { markdown: expect.stringContaining("notes.rtf") },
       SLACK_PROCESSING_ACK_POST,
       {
         raw: expect.stringContaining("localized version of banner.png for fr"),

@@ -74,9 +74,6 @@ export type ConfiguredVercelSandboxCreateOptions = VercelSandboxCreateOptions & 
  */
 export const defaultVercelSandboxImage = "vercel/sandbox/node:26";
 
-/** @deprecated Prefer {@link defaultVercelSandboxImage}. */
-export const defaultVercelSandboxRuntime = "node26";
-
 /**
  * Sandboxes are persistent by default, so every `stop()` (including the
  * stop/resume recovery path) can mint a snapshot. Expire them on the same
