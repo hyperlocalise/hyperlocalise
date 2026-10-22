@@ -591,6 +591,12 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
               ? (segmentId, file) => void editing.onUploadImage?.(segmentId, file)
               : undefined
           }
+          onToggleLocked={
+            review.onSetLocked
+              ? (segmentId) =>
+                  review.onSetLocked?.([segmentId], !store.getSegmentView(segmentId)?.isLocked)
+              : undefined
+          }
           onAskQuestion={
             intelligenceSegment ? () => review.onAskQuestion(intelligenceSegment.id) : undefined
           }
@@ -897,7 +903,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           }
           onToggleLocked={
             review.onSetLocked
-              ? () => void review.onSetLocked?.([editorSegment.id], !editorSegment.isLocked)
+              ? () => review.onSetLocked?.([editorSegment.id], !editorSegment.isLocked)
               : undefined
           }
           aiRecommendationError={aiRecommendationError}

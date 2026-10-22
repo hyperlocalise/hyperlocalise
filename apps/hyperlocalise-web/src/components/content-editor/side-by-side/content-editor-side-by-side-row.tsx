@@ -17,6 +17,7 @@ import {
   EraserIcon,
   ImageIcon,
   FloppyDiskIcon,
+  LockIcon,
   TranslateIcon,
   VideoIcon,
 } from "@phosphor-icons/react";
@@ -71,8 +72,10 @@ import {
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
 import { ContentEditorSegmentTags } from "@/components/content-editor/segment/content-editor-segment-tags";
 import { ContentEditorSegmentActionsMenu } from "@/components/content-editor/segment/content-editor-segment-actions-menu";
+import { ContentEditorSegmentLockToggle } from "@/components/content-editor/segment/content-editor-segment-lock-toggle";
 import {
   contentEditorEditorPanelMessages,
+  contentEditorLockedStringMessages,
   contentEditorSideBySidePanelMessages,
 } from "@/components/content-editor/shared/content-editor.messages";
 import type {
@@ -144,6 +147,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   onTreatAsVideo,
   onRegenerateImage,
   onUploadImage,
+  onToggleLocked,
 }: {
   segment: ContentEditorSegment;
   isFocused: boolean;
@@ -176,6 +180,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   onTreatAsVideo?: (treatAsVideo: boolean) => void;
   onRegenerateImage?: () => void;
   onUploadImage?: (file: File) => void;
+  onToggleLocked?: () => void | Promise<void>;
 }) {
   const intl = useIntl();
   const isMac = useIsMac();
@@ -250,7 +255,10 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
     isFocused && !isAssetSegment && (isFormatChecksLoading || qaIssues.length > 0);
   const showStringMenu =
     isFocused && (Boolean(segmentShareUrl) || showIssueSheetAction || Boolean(openActivity));
-  const showActionBar = showReviewActions || showStringMenu;
+  const showLockToggle = isFocused && canEdit && Boolean(onToggleLocked);
+  const isLockedTextTarget = Boolean(segment.isLocked) && !isAssetSegment;
+  const showToolbarLockToggle = showLockToggle && !isLockedTextTarget;
+  const showActionBar = showReviewActions || showStringMenu || showToolbarLockToggle;
   const copySourceLabel = intl.formatMessage(contentEditorEditorPanelMessages.copySource);
   const clearTargetLabel = intl.formatMessage(contentEditorEditorPanelMessages.clearTarget);
   const segmentTags = segment.tags ?? [];
@@ -406,12 +414,54 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
         {primaryActions}
         <div className="ms-auto flex items-center gap-0.5">
           {trigger}
+          {showToolbarLockToggle && onToggleLocked ? (
+            <ContentEditorSegmentLockToggle
+              isLocked={Boolean(segment.isLocked)}
+              onToggle={onToggleLocked}
+              disabled={isActionBlocked}
+            />
+          ) : null}
           {secondaryActions}
         </div>
       </div>
     );
   };
   const reviewActions = renderTargetToolbar(null);
+  const lockedTextTarget = (
+    <Rows spacing="1.5u">
+      <div className={cn(CELL_BOX_CLASS_NAME, "bg-muted/40")}>
+        {segment.targetText.trim() ? (
+          <Text size="small" wrapStyle="pretty">
+            <ContentEditorMessagePreview
+              message={segment.targetText}
+              companionMessage={segment.sourceText}
+            />
+          </Text>
+        ) : (
+          <Text size="small" tone="subtle">
+            <FormattedMessage {...contentEditorSideBySidePanelMessages.noTranslation} />
+          </Text>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <LockIcon className="size-3.5 text-muted-foreground" aria-hidden />
+        <Text size="xsmall" tone="subtle">
+          <FormattedMessage {...contentEditorLockedStringMessages.lockedBanner} />
+        </Text>
+        <div className="ms-auto flex items-center gap-0.5">
+          {showLockToggle && onToggleLocked ? (
+            <ContentEditorSegmentLockToggle
+              isLocked
+              showLabel
+              onToggle={onToggleLocked}
+              disabled={isActionBlocked}
+            />
+          ) : null}
+          {secondaryActions}
+        </div>
+      </div>
+    </Rows>
+  );
 
   return (
     <div
@@ -534,6 +584,8 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                 </Rows>
               ) : isTargetLoading && !segment.targetText.trim() ? (
                 <Skeleton className="h-10 w-full rounded-lg" />
+              ) : isLockedTextTarget ? (
+                lockedTextTarget
               ) : (
                 <ContentEditorGroupVariantsGate
                   segment={segment}

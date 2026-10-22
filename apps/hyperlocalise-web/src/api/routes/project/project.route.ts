@@ -2414,19 +2414,30 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           actorUserId: c.var.auth.user.localUserId,
         });
 
-        await enqueueStringSegmentLockedActivity({
-          ...sessionActivityActor(c.var.auth.user.localUserId),
-          isLocked: body.isLocked,
-          itemCount: result.updatedCount,
-          organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: params.projectId,
-          segmentId: body.externalStringIds[0]!,
-          segmentIds: body.externalStringIds,
-          sourcePath: body.sourcePath,
-          targetLocale: body.targetLocale,
-        });
+        const changedIds = result.externalStringIds;
+        if (changedIds.length > 0) {
+          await enqueueStringSegmentLockedActivity({
+            ...sessionActivityActor(c.var.auth.user.localUserId),
+            isLocked: body.isLocked,
+            itemCount: result.updatedCount,
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            segmentId: changedIds[0]!,
+            segmentIds: changedIds,
+            sourcePath: body.sourcePath,
+            targetLocale: body.targetLocale,
+          });
+        }
 
-        return c.json({ contentEditorSegmentLock: result }, 200);
+        return c.json(
+          {
+            contentEditorSegmentLock: {
+              updatedCount: result.updatedCount,
+              isLocked: result.isLocked,
+            },
+          },
+          200,
+        );
       },
     )
     .post(

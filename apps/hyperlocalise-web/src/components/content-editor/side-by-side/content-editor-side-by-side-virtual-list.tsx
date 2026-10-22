@@ -67,6 +67,7 @@ export function ContentEditorSideBySideVirtualList({
   onTreatAsVideo,
   onRegenerateImage,
   onUploadImage,
+  onToggleLocked,
   hasMore = false,
   isLoadingMore = false,
   onNearEnd,
@@ -106,6 +107,7 @@ export function ContentEditorSideBySideVirtualList({
   onTreatAsVideo?: (segmentId: string, treatAsVideo: boolean) => void;
   onRegenerateImage?: (segmentId: string) => void;
   onUploadImage?: (segmentId: string, file: File) => void;
+  onToggleLocked?: (segmentId: string) => void | Promise<void>;
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onNearEnd?: () => void;
@@ -273,6 +275,7 @@ export function ContentEditorSideBySideVirtualList({
                   onUploadImage={
                     onUploadImage ? (file) => onUploadImage(segment.id, file) : undefined
                   }
+                  onToggleLocked={onToggleLocked ? () => onToggleLocked(segment.id) : undefined}
                 />
               </ContentEditorSectionErrorBoundary>
             </div>
