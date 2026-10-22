@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
@@ -13,7 +14,7 @@ func reportingActorFor(scope *testenv.Scope, role string) workspaceActor {
 
 func mustReportingProject(t *testing.T, scope *testenv.Scope, id string, teamID *string) string {
 	t.Helper()
-	id = scope.Slug + "_" + id
+	id = id + "_" + strings.ReplaceAll(scope.Slug, "-", "")
 	scope.MustProject(t, id, id)
 	_, err := scope.Pool.Exec(t.Context(), `update projects set team_id=$1 where id=$2`, teamID, id)
 	require.NoError(t, err)
@@ -22,7 +23,7 @@ func mustReportingProject(t *testing.T, scope *testenv.Scope, id string, teamID 
 
 func mustReportingJob(t *testing.T, scope *testenv.Scope, id string, projectID *string) string {
 	t.Helper()
-	id = scope.Slug + "_" + id
+	id = id + "_" + scope.Slug
 	_, err := scope.Pool.Exec(t.Context(), `
         insert into jobs (id, organization_id, project_id, kind, status, input_payload)
         values ($1, $2, $3, 'translation', 'queued', '{}'::jsonb)`,

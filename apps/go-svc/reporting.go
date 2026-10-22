@@ -10,14 +10,44 @@ import (
 	"time"
 )
 
+const (
+	workspaceReportsFlag = "workspace-reports"
+	reportingFlagMessage = "Reports is not enabled for this workspace"
+)
+
 var (
 	reportingUSDPattern  = regexp.MustCompile(`^\d{1,12}(\.\d{1,8})?$`)
 	reportingStepOptions = []string{"translation", "review"}
 	reportingMatchBucket = []string{"repetition", "100", "95-99", "85-94", "75-84", "50-74", "new", "unavailable"}
 )
 
+func (h *handler) registerReporting(mux *http.ServeMux, verifier SessionVerifier) {
+	base := orgRoutePrefix + "/reports"
+	route := func(pattern string, fn func(*http.Request, workspaceActor) (any, int, error)) {
+		registerAuthenticated(mux, verifier, pattern, h.workspaceHandle(
+			workspaceReportsFlag, reportingFlagMessage, "Insufficient permissions",
+			func(workspaceActor) bool { return true }, fn,
+		))
+	}
+	route("GET "+base, h.getReport)
+	route("GET "+base+"/settings", h.getReportSettings)
+	route("GET "+base+"/tasks/{jobId}", h.getTaskReport)
+}
+
 func reportingInvalid(code string) error {
 	return workspaceFailure(400, code, "Request payload is invalid")
+}
+
+func reportingForbidden(code string) error {
+	return workspaceFailure(403, code, "Insufficient permissions")
+}
+
+func reportingNotFound(code string) error {
+	return workspaceFailure(404, code, "Resource not found")
+}
+
+func formatReportingTime(t time.Time) string {
+	return t.UTC().Format("2006-01-02T15:04:05.000Z")
 }
 
 type reportingBody struct {
