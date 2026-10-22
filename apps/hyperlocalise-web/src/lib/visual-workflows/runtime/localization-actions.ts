@@ -373,7 +373,7 @@ export async function runListSourceFilesAction(
 
   const versions = schema.repositorySourceFileVersions;
   const pathPrefix = input.pathPrefix.trim().replace(/^\/+/, "");
-  const rows = await db
+  const latestByFile = db
     .selectDistinctOn([versions.repositorySourceFileId], {
       sourceFileId: versions.storedFileId,
       path: versions.sourcePath,
@@ -386,11 +386,18 @@ export async function runListSourceFilesAction(
         pathPrefix ? sql`starts_with(${versions.sourcePath}, ${pathPrefix})` : undefined,
       ),
     )
-    .orderBy(versions.repositorySourceFileId, desc(versions.createdAt), desc(versions.id));
-
-  const files = rows
-    .toSorted((left, right) => left.path.localeCompare(right.path))
-    .slice(0, MAX_LISTED_SOURCE_FILES);
+    .orderBy(versions.repositorySourceFileId, desc(versions.createdAt), desc(versions.id))
+    .as("latest_source_files");
+  const rows = await db
+    .select({
+      sourceFileId: latestByFile.sourceFileId,
+      path: latestByFile.path,
+    })
+    .from(latestByFile)
+    .orderBy(latestByFile.path)
+    .limit(MAX_LISTED_SOURCE_FILES + 1);
+  const truncated = rows.length > MAX_LISTED_SOURCE_FILES;
+  const files = truncated ? rows.slice(0, MAX_LISTED_SOURCE_FILES) : rows;
 
   return {
     ok: true,
@@ -398,7 +405,7 @@ export async function runListSourceFilesAction(
       files,
       sourceFileIds: files.map((file) => file.sourceFileId),
       count: files.length,
-      truncated: rows.length > files.length,
+      truncated,
     },
   };
 }
