@@ -49,7 +49,7 @@ export function createUseAhrefsTool(session: WorkspaceOrchestratorSession) {
     description:
       "Query Ahrefs SEO data through the connected Ahrefs MCP server. Use available Ahrefs tools to gather keyword, backlink, ranking, and site metrics.",
     inputSchema: useAhrefsInputSchema,
-    execute: async ({ objective }) => {
+    execute: async ({ objective }, { toolCallId } = {}) => {
       const ahrefs = session.automation.toolConfig.ahrefs;
       if (!ahrefs?.enabled || !ahrefs.workosUserId) {
         throw new Error("ahrefs_not_configured");
@@ -108,7 +108,7 @@ export function createUseAhrefsTool(session: WorkspaceOrchestratorSession) {
 
         const result = await withAgentRuntimeUsageMetering({
           organizationId: session.organizationId,
-          operationKey: `workspace-ahrefs:${session.run.id}:agent_runs`,
+          operationKey: `workspace-ahrefs:${session.run.id}:${toolCallId ?? crypto.randomUUID()}:agent_runs`,
           source: "workspace_ahrefs_agent",
           dimensions: {
             surface: "automation",

@@ -47,7 +47,7 @@ export function createUseCrowdinTool(session: WorkspaceOrchestratorSession) {
     description:
       "Look up Crowdin glossary, translation memory, style guidance, and translation recommendations for strings under review. Pass source strings, locales, and surrounding context from prior steps.",
     inputSchema: useCrowdinInputSchema,
-    execute: async ({ objective }, { abortSignal } = {}) => {
+    execute: async ({ objective }, { abortSignal, toolCallId } = {}) => {
       const crowdin = session.automation.toolConfig.crowdin;
       const projectId = crowdin?.projectId?.trim();
       if (!crowdin?.enabled || !projectId) {
@@ -85,7 +85,7 @@ export function createUseCrowdinTool(session: WorkspaceOrchestratorSession) {
 
       const result = await withAgentRuntimeUsageMetering({
         organizationId: session.organizationId,
-        operationKey: `workspace-crowdin:${session.run.id}:agent_runs`,
+        operationKey: `workspace-crowdin:${session.run.id}:${toolCallId ?? crypto.randomUUID()}:agent_runs`,
         source: "workspace_crowdin_agent",
         dimensions: {
           surface: "automation",

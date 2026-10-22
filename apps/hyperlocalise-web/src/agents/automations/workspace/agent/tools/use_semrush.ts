@@ -49,7 +49,7 @@ export function createUseSemrushTool(session: WorkspaceOrchestratorSession) {
     description:
       "Query Semrush SEO, traffic, and project data through the connected Semrush MCP server. Use discovery tools, get_report_schema, and execute_report as needed.",
     inputSchema: useSemrushInputSchema,
-    execute: async ({ objective }) => {
+    execute: async ({ objective }, { toolCallId } = {}) => {
       const semrush = session.automation.toolConfig.semrush;
       if (!semrush?.enabled || !semrush.connectionId) {
         throw new Error("semrush_not_configured");
@@ -116,7 +116,7 @@ export function createUseSemrushTool(session: WorkspaceOrchestratorSession) {
 
         const result = await withAgentRuntimeUsageMetering({
           organizationId: session.organizationId,
-          operationKey: `workspace-semrush:${session.run.id}:agent_runs`,
+          operationKey: `workspace-semrush:${session.run.id}:${toolCallId ?? crypto.randomUUID()}:agent_runs`,
           source: "workspace_semrush_agent",
           dimensions: {
             surface: "automation",

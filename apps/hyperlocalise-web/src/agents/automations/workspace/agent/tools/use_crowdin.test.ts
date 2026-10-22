@@ -36,9 +36,13 @@ vi.mock("ai", async (importOriginal) => {
   };
 });
 
+const { meteringMock } = vi.hoisted(() => ({
+  meteringMock: vi.fn(async ({ run }: { run: () => Promise<unknown> }) => run()),
+}));
+
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
   extractGenerateResultTokenUsage: vi.fn(),
-  withAgentRuntimeUsageMetering: vi.fn(async ({ run }: { run: () => Promise<unknown> }) => run()),
+  withAgentRuntimeUsageMetering: meteringMock,
 }));
 
 vi.mock("./crowdin-review-tools", () => ({
@@ -153,6 +157,30 @@ describe("createUseCrowdinTool", () => {
       expect.objectContaining({
         abortSignal,
       }),
+    );
+  });
+
+  it("bills each use in one run under its own reference, at the automation's model", async () => {
+    const current = session({ crowdin: { enabled: true, projectId: "ext:crowdin:42" } });
+    const tool = createUseCrowdinTool(current);
+
+    await tool.execute!(
+      { objective: "Review Save in German" },
+      { toolCallId: "call-1", messages: [], context: {} },
+    );
+    await tool.execute!(
+      { objective: "Review Cancel in German" },
+      { toolCallId: "call-2", messages: [], context: {} },
+    );
+
+    const keys = meteringMock.mock.calls.map(
+      ([input]) => (input as { operationKey: string }).operationKey,
+    );
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).toContain("call-1");
+    expect(keys[1]).toContain("call-2");
+    expect(meteringMock).toHaveBeenCalledWith(
+      expect.objectContaining({ aiCreditModelId: expect.any(String) }),
     );
   });
 });
