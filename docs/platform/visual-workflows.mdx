@@ -7,7 +7,7 @@ Visual workflows compose fixed automation steps on a canvas. Open **Automations 
 
 ## Build and connect data
 
-1. Choose a manual, scheduled, GitHub, or source-upload trigger.
+1. Choose a manual, scheduled, GitHub, source-upload, or **Webhook** trigger.
 2. Add HTTP, AI, Slack, email, condition, switch, Set, For each, Sequence, Retry, or **Call workflow** nodes.
 3. Connect execution order on the canvas.
 4. Select a node. Its settings open on the **Configuration** tab. A setting that can take its value from an earlier step shows a port mark beside its name: type a value, insert fields from earlier steps by typing `{{` or with the braces button beside the box, or wire the port on the canvas. An inserted field shows as a pill naming its step and field; a red pill names a step that does not run before this one. Backspace removes a pill whole. On the canvas, each pill draws a thin dashed line from the field it reads to the setting's port; it cannot be selected or moved. Data wires are thin solid lines, and the connections that decide the order steps run in are thicker. A wired setting shows which step feeds it.
@@ -40,6 +40,34 @@ Use **Stop**, **Return**, and **Fail** when a branch should finish the workflow 
 | **Fail** | A branch should stop with a stable, machine-readable error | Set an error code (uppercase letters, digits, underscores; for example `INVALID_ORDER`) and a short message (up to 500 characters). The run fails at that node with a controlled terminal error. |
 
 These nodes have no outgoing execution edges. When one runs on a parallel path, unsettled sibling branches are cancelled so later steps do not keep executing.
+
+## Start from an inbound webhook
+
+Use a **Webhook** trigger when another system should start the workflow with an HTTP POST, for example a CMS event, a TMS callback, or a CI notification.
+
+1. Add **Webhook** as the only trigger, then **Save** the workflow.
+2. On the trigger's **Configuration** tab, copy the **Webhook URL**. The URL includes a secret token; anyone with it can start the workflow, so treat it like a password.
+3. **Publish** and keep the workflow **Active**. Paused workflows ignore inbound requests.
+4. Send `POST` to the URL with the token in the `x-hyperlocalise-webhook-token` header or the `token` query parameter. The request body becomes the trigger's `body` field (JSON object when the payload is JSON; form fields when `Content-Type` is `application/x-www-form-urlencoded`; plain text otherwise). Query parameters are exposed as `query`. Each delivery gets a `deliveryId`.
+5. Optional: send an `Idempotency-Key` header so retries start only one run. Without it, Hyperlocalise generates a delivery id per request.
+6. To invalidate a leaked URL, select **Reset URL** on the trigger. The old URL keeps working until you **Publish** again.
+
+The endpoint accepts bodies up to 256 KiB and responds with `202` when a run is queued. Duplicate deliveries with the same idempotency key return the original run id. Webhook-triggered workflows are not reusable with **Call workflow** (that contract requires a **Manual** trigger).
+
+## Route people and due dates
+
+Human steps in MTPE and TEP flows can set owners and deadlines on native jobs and Crowdin tasks.
+
+| Step | Use it to |
+| --- | --- |
+| **Pick assignee** | Choose one person from a ordered rule table on locale, job type, size, and due date. Spread work **first listed**, **round-robin**, or to the **least busy** person (fewest open native jobs, or open Crowdin tasks when people come from Crowdin). Wire `assigneeId` into **Assign task** or **Update job**. |
+| **Assign task** | Create a translate, post-edit, or proofread task on a source file with an optional assignee and **due date** (ISO 8601, for example `2026-05-01T17:00:00Z`). |
+| **Update job** | Reassign a native job, rename it, or set or clear its due date. Leave assignee or due date empty to keep the current value. |
+| **Crowdin task** | Create Crowdin translate or proofread tasks with optional assignees and a deadline. |
+
+On **Pick assignee**, rules are checked from top to bottom; the first rule whose conditions all match wins. An empty condition matches anything. A rule that sets **Due within (hours)** only matches work that already has a due date within that window (or overdue). Multi-locale work must match every locale on the rule. **People from** can be workspace members or Crowdin project members (by Crowdin user id). If no rule matches and fallback people are empty, the step fails so an error branch can handle it.
+
+Job types accept common aliases such as `post-edit`, `MTPE`, and `review` for translate, edit, and proofread steps.
 
 ## Call reusable workflows
 

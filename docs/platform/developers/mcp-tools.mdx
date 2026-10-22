@@ -172,11 +172,14 @@ The response contains `findings`, `passages`, `searchAvailable`, and `model`. Ea
 
 ### Jobs
 
-| Tool           | Description                                                                                        |
-| -------------- | -------------------------------------------------------------------------------------------------- |
-| `run_workflow` | Create and enqueue a string or file translation job                                                |
-| `list_jobs`    | Recent translation jobs (`projectId`, `sourcePath`, `status`, `limit` default 20 max 50, `offset`) |
-| `get_job`      | Job status by `jobId`. Poll after `run_workflow` until the job is terminal.                        |
+| Tool              | Description                                                                                        |
+| ----------------- | -------------------------------------------------------------------------------------------------- |
+| `run_workflow`    | Create and enqueue a string or file translation job                                                |
+| `list_jobs`       | Recent translation jobs (`projectId`, `sourcePath`, `status`, `limit` default 20 max 50, `offset`) |
+| `list_open_jobs`  | Open native jobs (queued, running, waiting for review, optionally failed) with owner, due date, and overdue flag; sorted soonest due first |
+| `get_job`         | Job status by `jobId`. Poll after `run_workflow` until the job is terminal.                        |
+| `update_job`      | Rename, re-describe, reassign, or set/clear the due date on one native job (`dueAt` ISO 8601 or `null`) |
+| `cancel_job`      | Cancel one active native job                                                                       |
 
 `run_workflow` starts durable Platform translation work and returns without waiting for translation to finish. Use `type: "string"` with `sourceText`, or `type: "file"` with exactly one of `sourceFileId` and `sourcePath` plus `fileFormat`. Both variants require `projectId`, the project's `sourceLocale`, and one or more configured `targetLocales`. String jobs also accept optional `context` and `maxLength`; both variants accept optional `metadata`.
 
@@ -199,6 +202,12 @@ Each job is compact: `id`, `projectId`, `type`, `status`, `createdAt`, `complete
 `get_job` returns the public job envelope: `id`, `projectId`, `type`, `kind`, `status`, timestamps, and `lastError`. Status values include `queued`, `running`, `succeeded`, and `failed`. Completed file jobs also include `outputFiles` with `{ fileId, locale, filename }` so you can pass those ids to `download_translations` or file reads.
 
 Missing or inaccessible jobs, including jobs from another organization, return `job_not_found`.
+
+`list_open_jobs` filters by optional `projectId`, `owner` (`me`, `unassigned`, or a member `userId` from `list_project_members`), and `includeFailed`. Use it for workload and overdue questions; use `list_jobs` to find translation jobs by source file.
+
+`update_job` requires at least one of `title`, `description`, `ownerUserId`, or `dueAt`. Pass `ownerUserId` from `list_project_members`. Jobs mirrored from an external TMS must be updated in that provider. Insufficient role returns `forbidden`; unknown owner returns `owner_not_found`.
+
+`cancel_job` stops a queued, running, or waiting-for-review native job. It does not undo output that already completed.
 
 ### Zernio ads
 

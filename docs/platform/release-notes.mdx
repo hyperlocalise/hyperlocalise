@@ -67,6 +67,9 @@ Start with [Your first translation](/platform/getting-started) if you are new to
 54. **.NET RESX catalogs.** Neutral `.resx` files and `{{locale}}` satellites review as text resources. See [.NET RESX](/platform/tutorials/dotnet-resx).
 55. **Catalog comments as translation context.** `hl run` now sends an Android XML comment, a YAML comment, a RESX or RESW note, an Apple `.strings` or `.xcstrings` comment, or an XLIFF note with the string. A key that gains that context is translated again on the next run. `hl entries` prints context, including a FormatJS description or JSONC comment, as an object with `text` and `context`. See [CLI v1.13.5](/changelog/v1-13-5).
 56. **Office placeholder cleanup.** Word and PowerPoint writeback drops placeholder names a translation copied as plain text, and trims trailing spaces on a paragraph. See [Translate Word documents](/cli/reference/formats/docx), [Translate PowerPoint decks](/cli/reference/formats/pptx), and [CLI v1.13.5](/changelog/v1-13-5).
+57. **Visual workflow webhook trigger.** Start a published workflow with an HTTP POST to its secret URL. The JSON or form body, query string, and delivery id are available to later steps. Send `Idempotency-Key` to dedupe retries. See [Visual workflows](/platform/visual-workflows).
+58. **Pick assignee routing.** The **Pick assignee** step chooses workspace or Crowdin members from locale, job type, size, and due-date rules, then spreads work first-listed, round-robin, or to the least busy person. Wire the result into **Assign task** or **Update job**. See [Visual workflows](/platform/visual-workflows).
+59. **Job due dates.** Native jobs support due dates on **Assign task**, **Update job**, and Crowdin task steps, in **My Jobs** / kanban sorting, and through MCP `update_job`. See [Track and recover jobs](/platform/translation/jobs) and [Visual workflows](/platform/visual-workflows).
 
 ## 2026 September
 
