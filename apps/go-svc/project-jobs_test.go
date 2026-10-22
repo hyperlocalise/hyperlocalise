@@ -293,7 +293,7 @@ func TestProjectJobReadsShape(t *testing.T) {
         "externalProviderKind":null,"externalJobId":null,"externalTaskId":null,"externalStatus":null,"externalTitle":null,
         "externalDueDate":null,"externalTargetLocales":null,"externalAssignedUsers":null,"externalUrl":null,
         "externalSyncState":null,"externalProviderPayload":null,"linkedJobId":null,
-        "createdAt":"2026-01-02T03:04:05.123Z","updatedAt":"2026-01-02T03:04:05.123Z","completedAt":"2026-01-02T03:04:05.123Z",
+        "createdAt":"2026-01-02T03:04:05.123Z","updatedAt":"2026-01-02T03:04:05.123Z","completedAt":"2026-01-02T03:04:05.123Z","dueAt":null,
         "sourceFilename":null,"sourcePath":null`
 
 	rec := f.get(t, f.projectPath(f.scope.ProjectID, "/"+jobID))

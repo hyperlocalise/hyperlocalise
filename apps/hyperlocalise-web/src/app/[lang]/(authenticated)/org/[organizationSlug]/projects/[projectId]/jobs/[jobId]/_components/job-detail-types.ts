@@ -44,6 +44,7 @@ export type JobDetailRecord = {
   externalStatus: string | null;
   externalTitle: string | null;
   externalDueDate: string | null;
+  dueAt?: string | null;
   externalTargetLocales: string[] | null;
   externalAssignedUsers: string[] | null;
   externalUrl: string | null;

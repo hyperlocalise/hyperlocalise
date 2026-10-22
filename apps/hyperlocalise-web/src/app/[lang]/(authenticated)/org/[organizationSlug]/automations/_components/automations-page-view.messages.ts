@@ -31,9 +31,14 @@ export const automationsPageViewMessages = defineMessages({
     description: "Automations page heading",
   },
   newAutomation: {
-    defaultMessage: "New Automation",
-    id: "1um5cM9poq",
+    defaultMessage: "New automation",
+    id: "RkEdGugJ9D",
     description: "Button to create a new workspace automation",
+  },
+  visualWorkflows: {
+    defaultMessage: "Visual workflows",
+    id: "zK2bwfb+JP",
+    description: "Link from automations list to visual workflows",
   },
   loadingAutomations: {
     defaultMessage: "Loading automations",

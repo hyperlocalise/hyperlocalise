@@ -99,9 +99,12 @@ export const jobs = pgTable(
       .$onUpdateFn(() => new Date()),
     // When the job entered a terminal state, if it has completed.
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    // When a native job is due. Provider-backed jobs keep the provider's date on externalJobDetails.
+    dueAt: timestamp("due_at", { withTimezone: true }),
   },
   (table) => [
     index("idx_jobs_org_created_at").on(table.organizationId, table.createdAt),
+    index("idx_jobs_org_due_at").on(table.organizationId, table.dueAt),
     index("idx_jobs_project_created_at").on(table.projectId, table.createdAt),
     index("idx_jobs_created_by_user_id").on(table.createdByUserId),
     index("idx_jobs_owner_user_id").on(table.ownerUserId),

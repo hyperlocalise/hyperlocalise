@@ -39,6 +39,7 @@ import { healthRoutes } from "./routes/health";
 import { createPublicMediaRoutes } from "./routes/public-media/public-media.route";
 import { createResendWebhookRoutes } from "./routes/resend-webhook/resend-webhook.route";
 import { createSlackWebhookRoutes } from "./routes/slack-webhook/slack-webhook.route";
+import { createVisualWorkflowWebhookRoutes } from "./routes/visual-workflow-webhook/visual-workflow-webhook.route";
 import { createWebChatRoutes } from "./routes/web-chat/web-chat.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
 import { createAutumnRoutes } from "./routes/autumn/autumn.route";
@@ -170,5 +171,6 @@ function createWebhookRoutes(options: CreateAppOptions) {
       }),
     )
     .route("/contentful", createContentfulWebhookRoutes())
-    .route("/slack", createSlackWebhookRoutes());
+    .route("/slack", createSlackWebhookRoutes())
+    .route("/visual-workflows", createVisualWorkflowWebhookRoutes());
 }

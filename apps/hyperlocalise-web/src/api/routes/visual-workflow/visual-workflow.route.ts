@@ -36,7 +36,9 @@ import {
   enqueueVisualWorkflowStatusActivity,
 } from "@/lib/activity-log/visual-workflow-events";
 import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
+import { env } from "@/lib/env";
 import { isErr } from "@/lib/primitives/result/results";
+import { buildVisualWorkflowWebhookUrl } from "@/lib/visual-workflows/dispatch/webhook-token";
 import {
   publishVisualWorkflow,
   createVisualWorkflow,
@@ -59,6 +61,7 @@ import {
   workflowPublishSchema,
   workflowCredentialSchema,
   workflowRetrySchema,
+  workflowWebhookUrlQuerySchema,
   createVisualWorkflowBodySchema,
   createVisualWorkflowRunBodySchema,
   listVisualWorkflowRunsQuerySchema,
@@ -246,6 +249,33 @@ export function createVisualWorkflowRoutes() {
           },
           201,
         );
+      },
+    )
+    .get(
+      "/:visualWorkflowId/webhook-url",
+      validateVisualWorkflowParams,
+      validator("query", (value, c) => {
+        const parsed = workflowWebhookUrlQuerySchema.safeParse(value);
+        return parsed.success ? parsed.data : badRequestResponse(c, "invalid_token_version");
+      }),
+      async (c) => {
+        const workflow = await getVisualWorkflowById({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          visualWorkflowId: c.req.valid("param").visualWorkflowId,
+        });
+        if (!workflow || workflow.status === "archived") {
+          return notFoundResponse(c, "visual_workflow_not_found");
+        }
+        const origin = env.HYPERLOCALISE_PUBLIC_APP_URL
+          ? new URL(env.HYPERLOCALISE_PUBLIC_APP_URL).origin
+          : new URL(c.req.url).origin;
+        return c.json({
+          url: buildVisualWorkflowWebhookUrl({
+            origin,
+            visualWorkflowId: workflow.id,
+            tokenVersion: c.req.valid("query").tokenVersion,
+          }),
+        });
       },
     )
     .post(

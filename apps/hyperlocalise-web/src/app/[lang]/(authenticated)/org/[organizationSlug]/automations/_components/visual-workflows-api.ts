@@ -186,6 +186,19 @@ export function createVisualWorkflowsApi(): VisualWorkflowsApi {
   };
 }
 
+export async function getVisualWorkflowWebhookUrl(
+  slug: string,
+  id: string,
+  tokenVersion: number,
+): Promise<string> {
+  const response = await fetch(
+    `${visualWorkflowsBasePath(slug)}/${encodeURIComponent(id)}/webhook-url?tokenVersion=${tokenVersion}`,
+    { credentials: "include" },
+  );
+  if (!response.ok) throw await readApiResponseError(response, "Failed to load webhook URL");
+  return ((await response.json()) as { url: string }).url;
+}
+
 export async function publishWorkflowVersion(
   slug: string,
   id: string,

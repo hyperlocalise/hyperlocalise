@@ -28,6 +28,7 @@ const visualNodeErrorBehaviorSchema = z.enum(["stop", "continue", "branch"]);
 const visualTargetLocalesSchema = z.string().trim().max(2000);
 const visualIdListSchema = z.string().trim().max(2000);
 const visualCrowdinIdSchema = z.string().trim().max(256);
+const visualDueAtSchema = z.string().trim().max(256).optional();
 
 const httpAuthSchema = z.object({
   type: z.enum(["none", "bearer", "api_key"]),
@@ -55,6 +56,7 @@ export const visualCatalogTypeSchema = z.enum([
   "trigger.scheduled",
   "trigger.github",
   "trigger.source_upload",
+  "trigger.webhook",
   "action.http",
   "action.content_sync",
   "action.notify_slack",
@@ -63,6 +65,9 @@ export const visualCatalogTypeSchema = z.enum([
   "action.create_task",
   "action.check_progress",
   "action.run_qa",
+  "action.list_source_files",
+  "action.update_job",
+  "action.pick_assignee",
   "action.crowdin_pre_translate",
   "action.crowdin_create_task",
   "action.crowdin_check_progress",
@@ -84,6 +89,25 @@ export const visualCatalogTypeSchema = z.enum([
   "logic.try_catch",
   "flow.call_workflow",
 ]);
+
+const visualMemberIdsSchema = z.array(z.string().trim().min(1).max(256)).max(50);
+
+const visualAssignmentRuleSchema = z
+  .object({
+    id: z.string().trim().min(1).max(128),
+    name: z.string().max(128),
+    locales: visualTargetLocalesSchema,
+    jobTypes: z.array(z.enum(["translate", "edit", "proofread"])).max(3),
+    minSize: z.number().int().min(0).optional(),
+    maxSize: z.number().int().min(0).optional(),
+    dueWithinHours: z.number().int().min(0).max(8760).optional(),
+    assigneeIds: visualMemberIdsSchema,
+  })
+  .refine(
+    (rule) =>
+      rule.minSize === undefined || rule.maxSize === undefined || rule.minSize <= rule.maxSize,
+    { message: "min_size_above_max_size", path: ["maxSize"] },
+  );
 
 const visualSubworkflowFieldSchema = z.object({
   id: z.string().trim().min(1).max(128),
@@ -229,6 +253,10 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     projectId: z.string().trim().min(1).max(128).optional(),
   }),
   z.object({
+    kind: z.literal("trigger.webhook"),
+    tokenVersion: z.number().int().min(1).max(1_000_000),
+  }),
+  z.object({
     kind: z.literal("action.http"),
     method: httpMethodSchema,
     idempotencyHeader: z
@@ -296,6 +324,7 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     step: z.enum(["translate", "edit", "proofread"]),
     assigneeWorkosUserId: z.string().trim().max(256),
     title: z.string().max(256),
+    dueAt: visualDueAtSchema,
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({
@@ -309,6 +338,34 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("action.run_qa"),
     projectId: z.string().trim().max(128),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.list_source_files"),
+    projectId: z.string().trim().max(128),
+    pathPrefix: z.string().trim().max(1024),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.update_job"),
+    jobId: z.string().trim().max(256),
+    assigneeWorkosUserId: z.string().trim().max(256),
+    title: z.string().max(256),
+    dueAt: visualDueAtSchema,
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.pick_assignee"),
+    locale: visualTargetLocalesSchema,
+    jobType: z.string().trim().max(256),
+    size: z.string().trim().max(256),
+    dueAt: z.string().trim().max(256),
+    rules: z.array(visualAssignmentRuleSchema).max(50),
+    fallbackAssigneeIds: visualMemberIdsSchema,
+    strategy: z.enum(["first", "round_robin", "least_busy"]),
+    peopleSource: z.enum(["workspace", "crowdin"]).optional(),
+    crowdinProjectId: visualCrowdinIdSchema.optional(),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({
@@ -331,6 +388,7 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     assigneeIds: visualIdListSchema,
     title: z.string().max(256),
     description: z.string().max(4000),
+    dueAt: visualDueAtSchema,
     workosUserId: z.string().trim().min(1).max(128).optional(),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),

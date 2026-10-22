@@ -29,11 +29,20 @@ import {
   UserCheckIcon,
   ChartBarIcon,
   SealCheckIcon,
+  WebhooksLogoIcon,
+  FilesIcon,
+  UserSwitchIcon,
+  UsersThreeIcon,
 } from "@phosphor-icons/react/ssr";
 
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
-import type { VisualCatalogCategory, VisualCatalogType, VisualNodeConfig } from "../schema/types";
+import type {
+  VisualAssignmentRule,
+  VisualCatalogCategory,
+  VisualCatalogType,
+  VisualNodeConfig,
+} from "../schema/types";
 import { createSwitchCaseId } from "../schema/switch-cases";
 
 export type CatalogIcon = Icon;
@@ -69,6 +78,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     category: "trigger",
     enabled: true,
     icon: UploadSimpleIcon,
+  },
+  {
+    type: "trigger.webhook",
+    category: "trigger",
+    enabled: true,
+    icon: WebhooksLogoIcon,
   },
   {
     type: "action.http",
@@ -117,6 +132,24 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     category: "localization",
     enabled: true,
     icon: SealCheckIcon,
+  },
+  {
+    type: "action.list_source_files",
+    category: "localization",
+    enabled: true,
+    icon: FilesIcon,
+  },
+  {
+    type: "action.update_job",
+    category: "localization",
+    enabled: true,
+    icon: UserSwitchIcon,
+  },
+  {
+    type: "action.pick_assignee",
+    category: "localization",
+    enabled: true,
+    icon: UsersThreeIcon,
   },
   {
     type: "action.crowdin_pre_translate",
@@ -269,6 +302,8 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       };
     case "trigger.source_upload":
       return { kind: "trigger.source_upload" };
+    case "trigger.webhook":
+      return { kind: "trigger.webhook", tokenVersion: 1 };
     case "action.http":
       return {
         kind: "action.http",
@@ -323,6 +358,7 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         step: "edit",
         assigneeWorkosUserId: "",
         title: "",
+        dueAt: "",
         onError: "stop",
       };
     case "action.check_progress":
@@ -336,6 +372,31 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       };
     case "action.run_qa":
       return { kind: "action.run_qa", projectId: "", onError: "stop" };
+    case "action.list_source_files":
+      return { kind: "action.list_source_files", projectId: "", pathPrefix: "", onError: "stop" };
+    case "action.update_job":
+      return {
+        kind: "action.update_job",
+        jobId: "",
+        assigneeWorkosUserId: "",
+        title: "",
+        dueAt: "",
+        onError: "stop",
+      };
+    case "action.pick_assignee":
+      return {
+        kind: "action.pick_assignee",
+        locale: "",
+        jobType: "",
+        size: "",
+        dueAt: "",
+        rules: [createAssignmentRule()],
+        fallbackAssigneeIds: [],
+        strategy: "least_busy",
+        peopleSource: "workspace",
+        crowdinProjectId: "",
+        onError: "stop",
+      };
     case "action.crowdin_pre_translate":
       return {
         kind: "action.crowdin_pre_translate",
@@ -357,6 +418,7 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         assigneeIds: "",
         title: "",
         description: "",
+        dueAt: "",
         onError: "stop",
       };
     case "action.crowdin_check_progress":
@@ -528,6 +590,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.branches[0] ?? "GitHub";
     case "trigger.source_upload":
       return config.projectId ? "Project upload" : "Any project";
+    case "trigger.webhook":
+      return "Incoming HTTP POST";
     case "action.http":
       return config.method;
     case "action.content_sync":
@@ -548,6 +612,18 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.jobId.trim() ? "Job and strings" : "Strings";
     case "action.run_qa":
       return config.projectId ? "Project QA" : "Select project";
+    case "action.list_source_files":
+      return config.pathPrefix.trim() || "All source files";
+    case "action.update_job":
+      return config.assigneeWorkosUserId.trim() ? "Reassign job" : "Update job";
+    case "action.pick_assignee":
+      return `${config.rules.length === 1 ? "1 rule" : `${config.rules.length} rules`} · ${
+        config.strategy === "first"
+          ? "first listed"
+          : config.strategy === "round_robin"
+            ? "round-robin"
+            : "least busy"
+      }${config.peopleSource === "crowdin" ? " · Crowdin" : ""}`;
     case "action.crowdin_pre_translate":
       return config.method === "tm" ? "Translation memory" : config.method === "mt" ? "MT" : "AI";
     case "action.crowdin_create_task":
@@ -578,7 +654,7 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.maxAttempts ? `${config.maxAttempts} attempts` : "Retry policy";
     case "flow.wait":
       if (config.mode === "duration") {
-        return `${config.durationMs ?? 0} ms`;
+        return formatWaitDuration(config.durationMs ?? 0);
       }
 
       if (config.mode === "timestamp") {
@@ -605,6 +681,22 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
   }
 }
 
+const WAIT_DURATION_UNITS: readonly (readonly [ms: number, unit: string])[] = [
+  [86_400_000, "d"],
+  [3_600_000, "h"],
+  [60_000, "min"],
+  [1000, "s"],
+];
+
+export function formatWaitDuration(durationMs: number): string {
+  for (const [unitMs, unit] of WAIT_DURATION_UNITS) {
+    if (durationMs >= unitMs && durationMs % unitMs === 0) {
+      return `Wait ${durationMs / unitMs} ${unit}`;
+    }
+  }
+  return `Wait ${durationMs} ms`;
+}
+
 export function createMergeInputId(): string {
   return crypto.randomUUID();
 }
@@ -619,4 +711,14 @@ export function createReturnOutputId(): string {
 
 export function createObjectPortId(): string {
   return crypto.randomUUID();
+}
+
+export function createAssignmentRule(): VisualAssignmentRule {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    locales: "",
+    jobTypes: [],
+    assigneeIds: [],
+  };
 }

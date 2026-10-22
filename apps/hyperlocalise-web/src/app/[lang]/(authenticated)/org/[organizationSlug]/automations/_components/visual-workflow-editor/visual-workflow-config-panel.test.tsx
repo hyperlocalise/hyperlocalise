@@ -39,7 +39,7 @@ const resourceOptionsMock = vi.hoisted(() => ({
 vi.mock("./visual-workflow-resource-options", () => ({
   useVisualWorkflowResourceOptions: () => ({
     projects: [{ id: "project-1", name: "Acme" }],
-    availableProviders: ["github"],
+    members: [{ workosUserId: "user_1", label: "Ana" }],
     workflows: [
       {
         id: "11111111-1111-4111-8111-111111111111",

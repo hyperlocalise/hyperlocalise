@@ -255,6 +255,7 @@ export const visualWorkflowRunTriggerSourceEnum = pgEnum("visual_workflow_run_tr
   "scheduled",
   "github",
   "source_upload",
+  "webhook",
 ]);
 /**
  * Tracks persisted visual workflow run execution from queueing through terminal outcomes.

@@ -12,7 +12,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { observer } from "mobx-react-lite";
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -70,19 +69,19 @@ function renderProductionActionLink({
   );
 }
 
-export const AutomationsPageContent = observer(function AutomationsPageContent({
+export function AutomationsPageContent({
   organizationSlug,
   projectId,
   templates,
   assistantEnabled = false,
-  visualWorkflowsEnabled = false,
+  canOpenVisualWorkflows = false,
   automationsApi: injectedAutomationsApi = automationsApi,
 }: {
   organizationSlug: string;
   projectId?: string;
   templates: WorkspaceAutomationTemplate[];
   assistantEnabled?: boolean;
-  visualWorkflowsEnabled?: boolean;
+  canOpenVisualWorkflows?: boolean;
   automationsApi?: typeof automationsApi;
 }) {
   const intl = useIntl();
@@ -148,7 +147,7 @@ export const AutomationsPageContent = observer(function AutomationsPageContent({
       }}
       renderAutomationLink={renderProductionAutomationLink}
       renderActionLink={renderProductionActionLink}
-      visualWorkflowsEnabled={visualWorkflowsEnabled}
+      canOpenVisualWorkflows={canOpenVisualWorkflows}
     />
   );
-});
+}

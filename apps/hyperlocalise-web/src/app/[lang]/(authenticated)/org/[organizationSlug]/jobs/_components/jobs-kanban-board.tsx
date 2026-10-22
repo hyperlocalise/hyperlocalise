@@ -56,6 +56,7 @@ import {
   getDueUrgency,
   isKanbanStatus,
   isTerminalBoardStatus,
+  jobDueDate,
   sortBoardJobs,
   type KanbanStatus,
 } from "./jobs-view-helpers";
@@ -234,10 +235,11 @@ function LocaleChips({ localeIds }: { localeIds: string[] }) {
 
 function DueChip({ job, now }: { job: JobRow; now?: number }) {
   const intl = useIntl();
-  const urgency = getDueUrgency(job.externalDueDate, now ?? Date.now());
+  const dueDate = jobDueDate(job);
+  const urgency = getDueUrgency(dueDate, now ?? Date.now());
   if (!urgency) return null;
 
-  const due = formatRelativeTime(job.externalDueDate, now);
+  const due = formatRelativeTime(dueDate, now);
   const isClosed = isTerminalBoardStatus(job.status);
   const isOverdue = urgency === "overdue" && !isClosed;
   const isSoon = urgency === "soon" && !isClosed;
@@ -330,8 +332,7 @@ function JobBoardCard({
     .join(" · ");
   const localeIds = getJobTargetLocaleIds(job);
   const hasAssignees = (job.externalAssignedUsers?.length ?? 0) > 0 || job.assigneeType === "agent";
-  const hasMeta =
-    localeIds.length > 0 || Boolean(job.externalDueDate) || hasAssignees || !projectId;
+  const hasMeta = localeIds.length > 0 || Boolean(jobDueDate(job)) || hasAssignees || !projectId;
 
   return (
     <article

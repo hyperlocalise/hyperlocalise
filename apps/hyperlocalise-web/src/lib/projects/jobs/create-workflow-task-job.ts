@@ -40,6 +40,7 @@ export type CreateWorkflowTaskJobInput = {
   step: VisualTaskStep;
   assigneeWorkosUserId?: string;
   title?: string;
+  dueAt?: Date;
   metadata?: Record<string, string>;
 };
 
@@ -176,6 +177,7 @@ export async function createWorkflowTaskJob(
         projectId: input.projectId,
         ownerUserId,
         assigneeType: ownerUserId ? "user" : null,
+        dueAt: input.dueAt ?? null,
         kind: input.step === "translate" ? "translation" : "proofread",
         status: "waiting_for_review",
         inputPayload: {

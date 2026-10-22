@@ -53,6 +53,20 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     ...trigger,
     outputs: [...trigger.outputs, output("projectId"), output("sourceFileId")],
   },
+  "trigger.webhook": {
+    ...trigger,
+    outputs: [
+      ...trigger.outputs,
+      output("body", "unknown"),
+      output("query", "object"),
+      output("deliveryId"),
+    ],
+    mock: {
+      body: { event: "job.completed", projectId: "proj_mock", jobId: "job_mock" },
+      query: {},
+      deliveryId: "delivery_mock",
+    },
+  },
   "action.http": {
     inputs: [field("url"), field("body", "unknown", false)],
     outputs: [
@@ -99,14 +113,22 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       field("targetLocales", "unknown", false),
       field("assigneeWorkosUserId", "string", false),
       field("title", "string", false),
+      field("dueAt", "string", false),
     ],
     outputs: [
       output("jobId"),
       output("step"),
       output("assigned", "boolean"),
       output("targetLocales", "array"),
+      output("dueAt"),
     ],
-    mock: { jobId: "job_mock_task", step: "edit", assigned: true, targetLocales: ["fr-FR"] },
+    mock: {
+      jobId: "job_mock_task",
+      step: "edit",
+      assigned: true,
+      targetLocales: ["fr-FR"],
+      dueAt: "2026-05-01T17:00:00.000Z",
+    },
   },
   "action.check_progress": {
     inputs: [
@@ -153,6 +175,67 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     ],
     mock: { runId: "qa_mock", passed: true, errorCount: 0, warningCount: 2, findingCount: 2 },
   },
+  "action.list_source_files": {
+    inputs: [field("projectId"), field("pathPrefix", "string", false)],
+    outputs: [
+      output("files", "array"),
+      output("sourceFileIds", "array"),
+      output("count", "number"),
+      output("truncated", "boolean"),
+    ],
+    mock: {
+      files: [
+        { sourceFileId: "file_mock_1", path: "locales/en/app.json" },
+        { sourceFileId: "file_mock_2", path: "locales/en/emails.json" },
+      ],
+      sourceFileIds: ["file_mock_1", "file_mock_2"],
+      count: 2,
+      truncated: false,
+    },
+  },
+  "action.update_job": {
+    inputs: [
+      field("jobId"),
+      field("assigneeWorkosUserId", "string", false),
+      field("title", "string", false),
+      field("dueAt", "string", false),
+    ],
+    outputs: [
+      output("jobId"),
+      output("assigned", "boolean"),
+      output("renamed", "boolean"),
+      output("dueAt"),
+    ],
+    mock: { jobId: "job_mock", assigned: true, renamed: false, dueAt: null },
+  },
+  "action.pick_assignee": {
+    inputs: [
+      field("locale", "unknown", false),
+      field("jobType", "string", false),
+      field("size", "unknown", false),
+      field("dueAt", "string", false),
+    ],
+    outputs: [
+      output("assigneeId"),
+      output("assigneeEmail"),
+      output("assigneeName"),
+      output("matchedRule"),
+      output("matchedRuleNumber", "number"),
+      output("strategy"),
+      output("openJobs", "number"),
+      output("candidates", "array"),
+    ],
+    mock: {
+      assigneeId: "user_mock",
+      assigneeEmail: "linguist@example.com",
+      assigneeName: "Mock Linguist",
+      matchedRule: "French reviewers",
+      matchedRuleNumber: 1,
+      strategy: "least_busy",
+      openJobs: 2,
+      candidates: ["user_mock", "user_mock_2"],
+    },
+  },
   "action.crowdin_pre_translate": {
     inputs: [
       field("crowdinProjectId"),
@@ -170,16 +253,19 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       field("assigneeIds", "unknown", false),
       field("title"),
       field("description", "string", false),
+      field("dueAt", "string", false),
     ],
     outputs: [
       output("taskIds", "array"),
       output("taskUrls", "array"),
       output("languageIds", "array"),
+      output("dueAt"),
     ],
     mock: {
       taskIds: ["101", "102"],
       taskUrls: ["https://crowdin.com/project/acme/tasks/101"],
       languageIds: ["fr", "de"],
+      dueAt: null,
     },
   },
   "action.crowdin_check_progress": {

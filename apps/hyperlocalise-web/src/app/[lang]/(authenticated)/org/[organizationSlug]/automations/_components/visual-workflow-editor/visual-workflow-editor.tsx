@@ -233,6 +233,7 @@ export function VisualWorkflowEditor({
   const [copied, setCopied] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const runAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => runAbortRef.current?.abort(), []);
   const viewCenterRef = useRef<VisualWorkflowViewCenterReader | null>(null);
   const fitViewRef = useRef<(() => void) | null>(null);
   // The graph as of the latest change, so changes made in one event build on each other before
@@ -975,22 +976,40 @@ export function VisualWorkflowEditor({
         ]);
         setSelectedRunId(run.id);
         let latestRun = run;
+        let failedPolls = 0;
         while (!terminalStatuses.has(latestRun.status)) {
+          await sleep(TEST_RUN_POLL_MS, controller.signal);
           if (controller.signal.aborted) {
             return;
           }
-          await sleep(750, controller.signal);
-          latestRun = await visualWorkflowsApi.getVisualWorkflowRun(
-            organizationSlug,
-            visualWorkflowId,
-            latestRun.id,
-          );
+          try {
+            latestRun = await visualWorkflowsApi.getVisualWorkflowRun(
+              organizationSlug,
+              visualWorkflowId,
+              latestRun.id,
+            );
+            failedPolls = 0;
+          } catch (error) {
+            failedPolls += 1;
+            if (failedPolls > MAX_FAILED_TEST_RUN_POLLS) {
+              throw error;
+            }
+            continue;
+          }
+          // A newer run or leaving the page may have started while the request was out.
+          if (controller.signal.aborted) {
+            return;
+          }
           applyNodeRunStatuses(latestRun.nodeRuns ?? []);
         }
 
         applyNodeRunStatuses(latestRun.nodeRuns ?? []);
         if (latestRun.status === "failed") {
           toast.error(intl.formatMessage(messages.testRunFailed));
+        } else if (latestRun.status === "needs_attention") {
+          toast.warning(intl.formatMessage(messages.testRunNeedsAttention));
+        } else if (latestRun.status === "cancelled") {
+          toast.info(intl.formatMessage(messages.testRunCancelled));
         }
       } else {
         const result = await runPlaygroundWorkflow({
@@ -1326,6 +1345,7 @@ export function VisualWorkflowEditor({
                 <VisualWorkflowConfigPanel
                   node={selectedNode}
                   organizationSlug={organizationSlug}
+                  visualWorkflowId={visualWorkflowId}
                   nodes={nodes}
                   edges={edges}
                   onChangeContract={(patch) =>
@@ -1417,6 +1437,10 @@ export function VisualWorkflowEditor({
     </AutomationAssistantVisualWorkflowProvider>
   );
 }
+
+const TEST_RUN_POLL_MS = 750;
+/** Polls in a row that may fail, such as on a brief network drop, before a test run is given up. */
+const MAX_FAILED_TEST_RUN_POLLS = 3;
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve) => {

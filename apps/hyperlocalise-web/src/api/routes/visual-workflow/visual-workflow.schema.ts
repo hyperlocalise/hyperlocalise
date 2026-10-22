@@ -88,6 +88,9 @@ export const workflowPublishSchema = z
 export const workflowRetrySchema = z
   .object({ acknowledgePossibleDuplication: z.literal(true) })
   .strict();
+export const workflowWebhookUrlQuerySchema = z.object({
+  tokenVersion: z.coerce.number().int().min(1).max(1_000_000),
+});
 export const workflowCredentialSchema = z
   .object({ name: z.string().trim().min(1).max(120), value: z.string().min(1).max(10000) })
   .strict();

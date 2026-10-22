@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import { canUseWorkspaceAutomationAssistant } from "@/lib/agents/workspace-automation-assistant-access";
+import { isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import { getMergedWorkspaceAutomationTemplates } from "@/lib/agents/workspace-automation-templates.server";
 import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
@@ -60,7 +61,9 @@ async function AutomationsPageLoader({
       organizationSlug={organizationSlug}
       templates={templates}
       assistantEnabled={assistantEnabled}
-      visualWorkflowsEnabled={visualWorkflowsEnabled}
+      canOpenVisualWorkflows={
+        visualWorkflowsEnabled && isWorkspaceOperatorRole(auth.membership.role)
+      }
     />
   );
 }

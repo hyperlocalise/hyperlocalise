@@ -22,6 +22,7 @@ const CREDENTIAL_OWNER_KINDS = new Set<VisualNodeConfig["kind"]>([
   "action.crowdin_pre_translate",
   "action.crowdin_create_task",
   "action.crowdin_check_progress",
+  "action.pick_assignee",
 ]);
 
 type CredentialOwnerNodeConfig = Extract<
@@ -31,7 +32,8 @@ type CredentialOwnerNodeConfig = Extract<
       | "action.notify_email"
       | "action.crowdin_pre_translate"
       | "action.crowdin_create_task"
-      | "action.crowdin_check_progress";
+      | "action.crowdin_check_progress"
+      | "action.pick_assignee";
   }
 >;
 

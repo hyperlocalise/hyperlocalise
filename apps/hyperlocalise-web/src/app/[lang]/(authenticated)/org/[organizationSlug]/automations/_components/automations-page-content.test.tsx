@@ -146,10 +146,11 @@ describe("AutomationsPageContent", () => {
     renderPage({ templates: automationTemplatesFixture });
 
     // The creator's name is only in the list; the automation's own name is also a template's.
-    await screen.findByText("Ada Lovelace");
-    const pageText = document.body.textContent ?? "";
-    expect(screen.getByRole("heading", { name: "New automation" })).toBeTruthy();
-    expect(pageText.indexOf("Ada Lovelace")).toBeLessThan(pageText.indexOf("New automation"));
+    const creator = await screen.findByText("Ada Lovelace");
+    const heading = screen.getByRole("heading", { name: "New automation" });
+    expect(
+      creator.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByRole("link", { name: "Start from scratch" }).getAttribute("href")).toBe(
       "/org/acme/automations/new",
     );
@@ -174,13 +175,13 @@ describe("AutomationsPageContent", () => {
     expect(screen.getByRole("heading", { name: "New automation" })).toBeTruthy();
   });
 
-  it("takes the person to the prompt box from the New Automation button", async () => {
+  it("takes the person to the prompt box from the New automation button", async () => {
     const user = userEvent.setup();
     mocks.listAutomations.mockResolvedValue([createAutomationSummary()]);
     renderPage();
     await listLoaded();
 
-    await user.click(screen.getByRole("button", { name: "New Automation" }));
+    await user.click(screen.getByRole("button", { name: "New automation" }));
 
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     expect(scrollIntoView.mock.contexts[0]).toBe(document.getElementById("new-automation"));
@@ -207,7 +208,7 @@ describe("AutomationsPageContent", () => {
 
     expect(screen.getByText("The assistant needs a plan with AI features.")).toBeTruthy();
     expect(screen.queryByRole("textbox", { name: "Describe the automation" })).toBeNull();
-    expect(screen.getByRole("link", { name: "New Automation" }).getAttribute("href")).toBe(
+    expect(screen.getByRole("link", { name: "New automation" }).getAttribute("href")).toBe(
       "/org/acme/automations/new",
     );
     expect(screen.getByRole("link", { name: "Start from scratch" })).toBeTruthy();
@@ -219,7 +220,7 @@ describe("AutomationsPageContent", () => {
 
     expect(screen.getByText(EMPTY_LIST_TEXT)).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Templates" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "New Automation" }).getAttribute("href")).toBe(
+    expect(screen.getByRole("link", { name: "New automation" }).getAttribute("href")).toBe(
       "/org/acme/automations/new",
     );
     expect(screen.queryByRole("heading", { name: "New automation" })).toBeNull();

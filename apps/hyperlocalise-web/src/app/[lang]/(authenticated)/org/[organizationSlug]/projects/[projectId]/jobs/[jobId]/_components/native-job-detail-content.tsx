@@ -69,6 +69,7 @@ import type { JobDetailRecord } from "./job-detail-types";
 import { JobFailureNotice } from "./job-failure-notice";
 import { JobProviderDetailSection } from "./job-provider-detail-section";
 import { NativeJobDescriptionField } from "./native-job-description-field";
+import { NativeJobDueDateField } from "./native-job-due-date-field";
 import {
   isNativeFileTranslationJob,
   NativeJobSourceFilesSection,
@@ -277,8 +278,27 @@ export function NativeJobDetailContent({
     },
   });
 
+  const propertyEditDisabled =
+    retryJob.isPending || markJobFailed.isPending || cancelJob.isPending || saveTitle.isPending;
   const properties = (layout?.properties ?? []).map((property) => {
-    if (property.id !== "assignees" || !isNativeEditable || !job) {
+    if (!isNativeEditable || !job) {
+      return property;
+    }
+    if (property.id === "due-date") {
+      return {
+        ...property,
+        value: (
+          <NativeJobDueDateField
+            organizationSlug={organizationSlug}
+            jobId={jobId}
+            dueAt={job.dueAt}
+            queryKey={jobQueryKey}
+            disabled={propertyEditDisabled}
+          />
+        ),
+      };
+    }
+    if (property.id !== "assignees") {
       return property;
     }
     return {
@@ -291,12 +311,7 @@ export function NativeJobDetailContent({
           ownerUserId={job.ownerUserId}
           assigneeType={job.assigneeType}
           queryKey={jobQueryKey}
-          disabled={
-            retryJob.isPending ||
-            markJobFailed.isPending ||
-            cancelJob.isPending ||
-            saveTitle.isPending
-          }
+          disabled={propertyEditDisabled}
         />
       ),
     };

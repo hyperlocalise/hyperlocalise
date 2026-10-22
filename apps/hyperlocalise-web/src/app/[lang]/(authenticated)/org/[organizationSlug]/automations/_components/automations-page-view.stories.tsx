@@ -187,7 +187,7 @@ export const ProjectScoped: Story = {
       "href",
       "/org/acme/projects/project-1/automations/11111111-1111-4111-8111-111111111111",
     );
-    await expect(canvas.getByRole("link", { name: /New Automation/i })).toHaveAttribute(
+    await expect(canvas.getByRole("link", { name: /New automation/i })).toHaveAttribute(
       "href",
       "/org/acme/projects/project-1/automations/new",
     );

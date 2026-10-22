@@ -32,7 +32,8 @@ export function executeLogicVisualWorkflowNode(input: {
     case "trigger.manual":
     case "trigger.scheduled":
     case "trigger.github":
-    case "trigger.source_upload": {
+    case "trigger.source_upload":
+    case "trigger.webhook": {
       const triggeredAt =
         typeof context.trigger.triggeredAt === "string"
           ? context.trigger.triggeredAt

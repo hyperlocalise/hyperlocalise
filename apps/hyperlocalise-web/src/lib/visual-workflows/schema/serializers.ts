@@ -10,7 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createDefaultConfig, getVisualNodeDimensions } from "../catalog/node-catalog";
+import {
+  createDefaultConfig,
+  getVisualNodeDimensions,
+  VISUAL_NODE_CATALOG,
+} from "../catalog/node-catalog";
 import type {
   VisualCatalogType,
   VisualWorkflowDefinition,
@@ -25,39 +29,9 @@ import {
   computeTryCatchBodyNodeIds,
 } from "../editor/for-each-body-membership";
 
-const ENABLED_TYPES = new Set<VisualCatalogType>([
-  "trigger.manual",
-  "trigger.scheduled",
-  "trigger.github",
-  "trigger.source_upload",
-  "action.http",
-  "action.content_sync",
-  "action.notify_slack",
-  "action.notify_email",
-  "action.machine_translate",
-  "action.create_task",
-  "action.check_progress",
-  "action.run_qa",
-  "action.crowdin_pre_translate",
-  "action.crowdin_create_task",
-  "action.crowdin_check_progress",
-  "logic.if",
-  "logic.switch",
-  "logic.set",
-  "logic.create_object",
-  "logic.merge_objects",
-  "logic.select_path",
-  "ai.agent",
-  "logic.for_each",
-  "flow.wait",
-  "flow.stop",
-  "flow.return",
-  "flow.fail",
-  "logic.merge",
-  "logic.sequence",
-  "logic.try_catch",
-  "flow.call_workflow",
-]);
+const ENABLED_TYPES = new Set<VisualCatalogType>(
+  VISUAL_NODE_CATALOG.filter((item) => item.enabled).map((item) => item.type),
+);
 
 function deriveFlowBodyMembership(
   nodes: readonly VisualWorkflowRfNode[],

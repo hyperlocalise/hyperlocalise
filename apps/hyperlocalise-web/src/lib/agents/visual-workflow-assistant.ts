@@ -278,9 +278,24 @@ const PERSON_ONLY_SETTINGS: Partial<Record<VisualCatalogType, Readonly<Record<st
     resourceKey:
       "it is picked from what the connected content system holds, which the assistant cannot see",
   },
+  "trigger.webhook": {
+    tokenVersion:
+      "changing it replaces the workflow's webhook URL, which breaks every system that calls the old one",
+  },
   "action.create_task": {
     assigneeWorkosUserId:
       "it is one of the workspace's members, which the assistant cannot see, and who does the work is the person's decision",
+  },
+  "action.update_job": {
+    assigneeWorkosUserId:
+      "it is one of the workspace's members, which the assistant cannot see, and who does the work is the person's decision",
+  },
+  "action.pick_assignee": {
+    rules:
+      "each rule lists workspace or Crowdin project members, which the assistant cannot see, and who does the work is the person's decision",
+    fallbackAssigneeIds:
+      "it is a list of workspace or Crowdin project members, which the assistant cannot see, and who does the work is the person's decision",
+    workosUserId: CROWDIN_CONNECTION_REASON,
   },
   "action.crowdin_pre_translate": { workosUserId: CROWDIN_CONNECTION_REASON },
   "action.crowdin_create_task": {

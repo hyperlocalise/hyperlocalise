@@ -260,6 +260,36 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "srA8Bg6NQQ",
     description: "Catalog description for the translation QA node",
   },
+  nodeListSourceFiles: {
+    defaultMessage: "List source files",
+    id: "GowAdbMOGm",
+    description: "Catalog title for the list source files node",
+  },
+  nodeListSourceFilesHint: {
+    defaultMessage: "Get a project's source files so later steps can loop over them.",
+    id: "LSAb8ph9tQ",
+    description: "Catalog description for the list source files node",
+  },
+  nodeUpdateJob: {
+    defaultMessage: "Update job",
+    id: "QqqMJ6Bi0e",
+    description: "Catalog title for the update job node",
+  },
+  nodeUpdateJobHint: {
+    defaultMessage: "Reassign or rename a translation job.",
+    id: "/GRdyQXYQY",
+    description: "Catalog description for the update job node",
+  },
+  nodePickAssignee: {
+    defaultMessage: "Pick assignee",
+    id: "5V5XZ84WTf",
+    description: "Catalog title for the step that chooses who does a piece of work",
+  },
+  nodePickAssigneeHint: {
+    defaultMessage: "Choose who does the work by locale, job type, size or due date.",
+    id: "XcM+L9PS+A",
+    description: "Catalog description for the pick assignee step",
+  },
   nodeCrowdinPreTranslate: {
     defaultMessage: "Crowdin pre-translate",
     id: "FjC75ZSZ0M",
@@ -540,6 +570,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Start when a source file is uploaded.",
     id: "96dcZwdhGc",
     description: "Catalog description for the source upload trigger node",
+  },
+  nodeWebhookTrigger: {
+    defaultMessage: "Webhook",
+    id: "2kMmbwiZt+",
+    description: "Catalog title for the webhook trigger node",
+  },
+  nodeWebhookTriggerHint: {
+    defaultMessage: "Start when another system sends a request to the workflow's URL.",
+    id: "me7VnT9zcz",
+    description: "Catalog description for the webhook trigger node",
   },
   nodeNotifySlack: {
     defaultMessage: "Notify Slack",
@@ -1422,6 +1462,17 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "z5dStQCLpf",
     description: "Toast when a server-backed visual workflow test run fails",
   },
+  testRunNeedsAttention: {
+    defaultMessage: "Workflow test run needs attention.",
+    id: "dP/o6eq7W6",
+    description:
+      "Toast when a server-backed visual workflow test run stops and needs a person to look at it",
+  },
+  testRunCancelled: {
+    defaultMessage: "Workflow test run was cancelled.",
+    id: "4HsKuM+mjb",
+    description: "Toast when a server-backed visual workflow test run is cancelled",
+  },
   testingWorkflow: {
     defaultMessage: "Testing…",
     id: "yDT7YBlKvk",
@@ -1528,10 +1579,32 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "vZgNJeOOdN",
     description: "Toast when saving a visual workflow fails",
   },
-  activateFailed: {
-    defaultMessage: "Could not update workflow status. Use a production trigger before activating.",
-    id: "SyXUY/R958",
-    description: "Toast when activating a visual workflow fails",
+  statusConflict: {
+    defaultMessage: "This workflow was changed somewhere else. Reload to get the latest version.",
+    id: "9Z4RmfuZsn",
+    description:
+      "Toast when publishing or pausing a visual workflow fails because another save happened first",
+  },
+  statusReload: {
+    defaultMessage: "Reload",
+    id: "94Z/BEkYHW",
+    description: "Toast action that reloads the visual workflow after a conflicting save",
+  },
+  statusInvalidGraph: {
+    defaultMessage: "Fix the issues in the workflow before publishing.",
+    id: "b8ye1senrU",
+    description: "Toast when publishing a visual workflow fails because its graph has issues",
+  },
+  statusInvalidTrigger: {
+    defaultMessage: "Use a schedule, GitHub, source upload, or webhook trigger before activating.",
+    id: "TxnR8+WWRE",
+    description:
+      "Toast when activating a visual workflow fails because its trigger only runs manually",
+  },
+  statusUpdateFailed: {
+    defaultMessage: "Could not update workflow status.",
+    id: "h9YbborQ5w",
+    description: "Toast when publishing or pausing a visual workflow fails for another reason",
   },
   activated: {
     defaultMessage: "Workflow activated",
@@ -1649,9 +1722,9 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Weekly schedule cadence option",
   },
   scheduleHour: {
-    defaultMessage: "Hour (UTC)",
-    id: "f30lOJsKLX",
-    description: "Label for schedule hour field",
+    defaultMessage: "Hour (in the schedule's time zone)",
+    id: "+j42r84I4Z",
+    description: "Label for schedule hour field; the hour is read in the time zone picked below it",
   },
   scheduleDayOfWeek: {
     defaultMessage: "Day of week",
@@ -1743,6 +1816,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "7qPJACmQFj",
     description: "Project setting on the translation, task, progress, and QA steps",
   },
+  localizationPickProject: {
+    defaultMessage: "Choose a project",
+    id: "oxzB/oMCuE",
+    description: "Placeholder of the project picker that fills a step's project setting",
+  },
+  localizationProjectName: {
+    defaultMessage: "Project: {name}",
+    id: "RosMC3V8af",
+    description: "Help text under a project setting naming the project its ID belongs to",
+  },
   localizationSourceFileId: {
     defaultMessage: "Source file ID",
     id: "bEFIj9nf+a",
@@ -1804,6 +1887,308 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Task title (optional)",
     id: "wFfOIZj5wX",
     description: "Title of the job the assign task step creates",
+  },
+  taskDueAt: {
+    defaultMessage: "Due date",
+    id: "upV29iL/j6",
+    description:
+      "Label for the due date setting of the Assign task, Update job and Crowdin task workflow steps",
+  },
+  taskDueAtHint: {
+    defaultMessage:
+      "A date such as 2026-05-01T17:00Z, or a value from an earlier step. Leave empty for no due date.",
+    id: "SQUPAVRD+K",
+    description:
+      "Help text for the due date setting of the Assign task and Crowdin task workflow steps",
+  },
+  listFilesPathPrefix: {
+    defaultMessage: "Path starts with (optional)",
+    id: "g2jirHyvIY",
+    description: "Setting on the list source files step that keeps only files under a folder",
+  },
+  listFilesPathPrefixHint: {
+    defaultMessage: "For example locales/en/. Up to 100 files are listed.",
+    id: "ijFxeRDSFN",
+    description: "Help text under the path setting of the list source files step",
+  },
+  updateJobJobId: {
+    defaultMessage: "Job ID",
+    id: "DIN/SkRphQ",
+    description: "Job setting on the update job step",
+  },
+  updateJobAssignee: {
+    defaultMessage: "New assignee",
+    id: "TWlwUYYnne",
+    description: "Member picker on the update job step",
+  },
+  updateJobKeepAssignee: {
+    defaultMessage: "Keep current assignee",
+    id: "jA5QKi/1uK",
+    description: "Update job option that leaves the job's assignee as it is",
+  },
+  updateJobTitle: {
+    defaultMessage: "New title (optional)",
+    id: "FUNWRUio8t",
+    description: "Title setting on the update job step",
+  },
+  updateJobDueAtHint: {
+    defaultMessage:
+      "A date such as 2026-05-01T17:00Z, or a value from an earlier step. Leave empty to keep the current due date.",
+    id: "Yn8fBlm1d2",
+    description: "Help text for the due date setting of the Update job workflow step",
+  },
+  updateJobHint: {
+    defaultMessage: "Set a new assignee, a new title, or both.",
+    id: "iJtjQD5vxd",
+    description: "Help text on the update job step",
+  },
+  pickAssigneeHint: {
+    defaultMessage:
+      "Rules are checked from the top. The first rule whose conditions all match picks the people. An empty condition matches anything.",
+    id: "YD/Pm5BFb6",
+    description: "Help text at the top of the pick assignee step",
+  },
+  pickAssigneeLocale: {
+    defaultMessage: "Locale",
+    id: "KZChIBQMpx",
+    description: "Pick assignee input: the locale of the work being routed",
+  },
+  pickAssigneeLocaleHint: {
+    defaultMessage: "One locale, or several for a job in many locales.",
+    id: "LAxJwBLxhc",
+    description: "Help text under the pick assignee locale input",
+  },
+  pickAssigneeJobType: {
+    defaultMessage: "Job type",
+    id: "i6KGawBB4l",
+    description: "Pick assignee input: the kind of work being routed",
+  },
+  pickAssigneeJobTypeHint: {
+    defaultMessage: "translate, post-edit or proofread.",
+    id: "fVpiXJn1r7",
+    description: "Help text under the pick assignee job type input; the values are typed as shown",
+  },
+  pickAssigneeSize: {
+    defaultMessage: "Size",
+    id: "oppq51uTAm",
+    description: "Pick assignee input: how big the work is",
+  },
+  pickAssigneeSizeHint: {
+    defaultMessage: "A number, such as the strings to do from Check progress.",
+    id: "hqP31ZL7Z3",
+    description: "Help text under the pick assignee size input",
+  },
+  pickAssigneeDueAt: {
+    defaultMessage: "Due date",
+    id: "qM5M7uefMN",
+    description: "Pick assignee input: when the work is due",
+  },
+  pickAssigneeDueAtHint: {
+    defaultMessage: "A date such as 2026-05-01T17:00Z.",
+    id: "NZzRyXT4yV",
+    description: "Help text under the pick assignee due date input",
+  },
+  pickAssigneeStrategy: {
+    defaultMessage: "Spread the work",
+    id: "irUmb1b+Lz",
+    description:
+      "Pick assignee setting: how one person is chosen from the people of the matched rule",
+  },
+  pickAssigneeStrategyFirst: {
+    defaultMessage: "First person listed",
+    id: "aG9F7kz7hO",
+    description: "Pick assignee strategy option: always the first person of the rule",
+  },
+  pickAssigneeStrategyRoundRobin: {
+    defaultMessage: "Round-robin: each person in turn",
+    id: "0M8Sl6Ht7N",
+    description: "Pick assignee strategy option: rotate through the rule's people across runs",
+  },
+  pickAssigneeStrategyLeastBusy: {
+    defaultMessage: "Least busy: fewest open jobs",
+    id: "7cvXshAN8y",
+    description: "Pick assignee strategy option: the person with the fewest unfinished jobs",
+  },
+  pickAssigneeRules: {
+    defaultMessage: "Rules",
+    id: "CrKQ6bHGwY",
+    description: "Heading of the pick assignee rule table",
+  },
+  pickAssigneeRuleTitle: {
+    defaultMessage: "Rule {number}",
+    id: "KkcOv6JUBC",
+    description:
+      "Heading of one pick assignee rule, numbered from 1 in the order rules are checked",
+  },
+  pickAssigneeRuleName: {
+    defaultMessage: "Name",
+    id: "QV3HwBd3kC",
+    description: "Pick assignee rule field: a label for the rule, shown in run results",
+  },
+  pickAssigneeRuleNamePlaceholder: {
+    defaultMessage: "French reviewers",
+    id: "1rKbsS6oj6",
+    description: "Example name for a pick assignee rule",
+  },
+  pickAssigneeRuleLocales: {
+    defaultMessage: "Locales",
+    id: "rqq/u0FFP+",
+    description: "Pick assignee rule condition: the locales the rule covers",
+  },
+  pickAssigneeRuleLocalesHint: {
+    defaultMessage: "Empty matches any locale. A language such as fr also matches fr-FR and fr-CA.",
+    id: "eKHIVZMNbd",
+    description: "Help text under a pick assignee rule's locales condition",
+  },
+  pickAssigneeRuleJobTypes: {
+    defaultMessage: "Job types",
+    id: "78ldX7a/ys",
+    description: "Pick assignee rule condition: the kinds of work the rule covers",
+  },
+  pickAssigneeRuleJobTypesHint: {
+    defaultMessage: "None ticked matches any job type.",
+    id: "6k1Uxt2vS8",
+    description: "Help text under a pick assignee rule's job type condition",
+  },
+  pickAssigneeRuleMinSize: {
+    defaultMessage: "Min size",
+    id: "4r4mzKbKI8",
+    description: "Pick assignee rule condition: the smallest work the rule covers",
+  },
+  pickAssigneeRuleMaxSize: {
+    defaultMessage: "Max size",
+    id: "ElumubpTh/",
+    description: "Pick assignee rule condition: the largest work the rule covers",
+  },
+  pickAssigneeRuleDueWithin: {
+    defaultMessage: "Due within (hours)",
+    id: "k3fkqe32vX",
+    description: "Pick assignee rule condition: how soon the work is due",
+  },
+  pickAssigneeRuleDueWithinHint: {
+    defaultMessage:
+      "Matches work due within this many hours, or overdue. Work without a due date does not match.",
+    id: "1r8n45NXR9",
+    description: "Help text under a pick assignee rule's due date condition",
+  },
+  pickAssigneeRulePeople: {
+    defaultMessage: "People",
+    id: "dH/K/1BGAq",
+    description: "Pick assignee rule field: the workspace members the rule assigns to",
+  },
+  pickAssigneeAddRule: {
+    defaultMessage: "Add rule",
+    id: "+MVU0imCkb",
+    description: "Button that adds a rule to the pick assignee rule table",
+  },
+  pickAssigneeRemoveRule: {
+    defaultMessage: "Remove rule {number}",
+    id: "w5MQavc77w",
+    description: "Button that removes a pick assignee rule",
+  },
+  pickAssigneeMoveRuleUp: {
+    defaultMessage: "Move rule {number} up",
+    id: "xDzNX/iyQu",
+    description: "Button that checks a pick assignee rule earlier",
+  },
+  pickAssigneeMoveRuleDown: {
+    defaultMessage: "Move rule {number} down",
+    id: "6kuZ6kPWkr",
+    description: "Button that checks a pick assignee rule later",
+  },
+  pickAssigneeFallback: {
+    defaultMessage: "If no rule matches",
+    id: "dsdp+o3xfS",
+    description: "Pick assignee setting: the people used when no rule matches",
+  },
+  pickAssigneeFallbackHint: {
+    defaultMessage: "Leave empty to fail the step instead, so an error branch can handle it.",
+    id: "seYyiQfs+8",
+    description: "Help text under the pick assignee fallback people",
+  },
+  pickAssigneeSearchPeople: {
+    defaultMessage: "Search members",
+    id: "ElbbeOt+Ym",
+    description: "Placeholder of the pick assignee people search",
+  },
+  pickAssigneeNoPeople: {
+    defaultMessage: "No matching members.",
+    id: "bQ/4aoAdlV",
+    description: "Shown when the pick assignee people search finds nobody",
+  },
+  pickAssigneePeopleSource: {
+    defaultMessage: "People from",
+    id: "Y9DpFK1RSa",
+    description:
+      "Label for choosing whether the Pick assignee step routes work to workspace members or Crowdin project members",
+  },
+  pickAssigneePeopleWorkspace: {
+    defaultMessage: "Workspace members",
+    id: "nK8qHkBuTE",
+    description: "Option: Pick assignee chooses among members of the Hyperlocalise workspace",
+  },
+  pickAssigneePeopleCrowdin: {
+    defaultMessage: "Crowdin project members",
+    id: "lIJ53mbvOG",
+    description: "Option: Pick assignee chooses among members of a Crowdin project",
+  },
+  pickAssigneePeopleSourceHint: {
+    defaultMessage:
+      "Crowdin people are listed by user ID, and least busy counts their open Crowdin tasks. Switching clears the people in every rule.",
+    id: "A9OqXwnNJP",
+    description: "Help text under the Pick assignee people source setting",
+  },
+  pickAssigneeCrowdinIds: {
+    defaultMessage: "Comma-separated Crowdin user IDs, such as 12, 14.",
+    id: "hLM5fvNoUn",
+    description: "Help text for a list of Crowdin user IDs in the Pick assignee step",
+  },
+  webhookUrl: {
+    defaultMessage: "Webhook URL",
+    id: "ERM4Ah2Swk",
+    description: "Label of the URL that starts a workflow with a webhook trigger",
+  },
+  webhookUrlHint: {
+    defaultMessage:
+      "Send a POST request to this URL. Its JSON body is the trigger's body field. Anyone with the URL can start the workflow, so keep it secret.",
+    id: "+EERKzwOLN",
+    description: "Help text under a workflow's webhook URL",
+  },
+  webhookUrlUnsaved: {
+    defaultMessage: "Save the workflow to get its webhook URL.",
+    id: "QeTm6cGbAa",
+    description: "Shown instead of the webhook URL before the workflow is saved",
+  },
+  webhookUrlLoadFailed: {
+    defaultMessage: "Could not load the webhook URL.",
+    id: "ZT2jyG9aex",
+    description: "Shown when the webhook URL fails to load",
+  },
+  webhookCopy: {
+    defaultMessage: "Copy webhook URL",
+    id: "egYJEaDvf/",
+    description: "Button that copies a workflow's webhook URL",
+  },
+  webhookCopied: {
+    defaultMessage: "Webhook URL copied",
+    id: "TPcontIwO2",
+    description: "Toast after the webhook URL is copied",
+  },
+  webhookRotate: {
+    defaultMessage: "Reset URL",
+    id: "JJe6JcgNwt",
+    description: "Button that replaces a workflow's webhook URL with a new one",
+  },
+  webhookRotateHint: {
+    defaultMessage: "The old URL keeps working until you publish the workflow again.",
+    id: "mCaWPrAH2w",
+    description: "Help text under the button that resets a workflow's webhook URL",
+  },
+  webhookIdempotencyHint: {
+    defaultMessage:
+      "Send an Idempotency-Key header to make sure a retried request starts only one run.",
+    id: "34vtfR8v8B",
+    description: "Help text about avoiding duplicate runs from a webhook",
   },
   checkProgressJobId: {
     defaultMessage: "Job ID (optional)",

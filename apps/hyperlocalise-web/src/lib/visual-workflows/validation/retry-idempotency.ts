@@ -20,6 +20,7 @@ const EXTERNAL_TYPES: ReadonlySet<VisualCatalogType> = new Set([
   "action.machine_translate",
   "action.create_task",
   "action.run_qa",
+  "action.update_job",
   "action.crowdin_pre_translate",
   "action.crowdin_create_task",
   "ai.agent",
@@ -27,13 +28,16 @@ const EXTERNAL_TYPES: ReadonlySet<VisualCatalogType> = new Set([
 
 /**
  * Actions that may run again with the same idempotency key without a duplicate effect: they only
- * read, or they find the job an earlier attempt created under that key.
+ * read, set the same values again, or find the job an earlier attempt created under that key.
  * `action.run_qa` is not here: each call claims a new scan and sends notifications.
  */
 const REPEATABLE_ACTION_TYPES: ReadonlySet<VisualCatalogType> = new Set([
   "action.machine_translate",
   "action.create_task",
   "action.check_progress",
+  "action.list_source_files",
+  "action.update_job",
+  "action.pick_assignee",
   "action.crowdin_check_progress",
 ]);
 

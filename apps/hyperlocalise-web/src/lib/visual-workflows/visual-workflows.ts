@@ -593,6 +593,36 @@ export function visualWorkflowEditorStateFromRecord(record: VisualWorkflowRecord
   });
 }
 
+/**
+ * An active workflow with its published definition, found by id alone. Only for callers that
+ * prove access another way, such as a webhook token.
+ */
+export async function getActivePublishedVisualWorkflowById(input: {
+  visualWorkflowId: string;
+  dbClient?: DatabaseClient;
+}): Promise<VisualWorkflowRecord | null> {
+  const dbClient = input.dbClient ?? db;
+  const [row] = await dbClient
+    .select()
+    .from(schema.visualWorkflows)
+    .where(
+      and(
+        eq(schema.visualWorkflows.id, input.visualWorkflowId),
+        eq(schema.visualWorkflows.status, "active"),
+      ),
+    )
+    .limit(1);
+  const workflow = row ? mapVisualWorkflowRow(row) : null;
+  if (!workflow?.publishedDefinition || workflow.publishedVersion === null) {
+    return null;
+  }
+  return {
+    ...workflow,
+    definition: workflow.publishedDefinition,
+    definitionVersion: workflow.publishedVersion,
+  };
+}
+
 export async function listDueScheduledVisualWorkflows(input: {
   now?: Date;
   limit?: number;

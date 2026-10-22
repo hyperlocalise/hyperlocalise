@@ -49,6 +49,19 @@ export function buildVisualWorkflowSourceUploadIdempotencyKey(input: {
   ].join(":");
 }
 
+export function buildVisualWorkflowWebhookIdempotencyKey(input: {
+  visualWorkflowId: string;
+  definitionVersion: number;
+  deliveryId: string;
+}): string {
+  return [
+    "visual-workflow:webhook",
+    input.visualWorkflowId,
+    String(input.definitionVersion),
+    input.deliveryId,
+  ].join(":");
+}
+
 export function buildVisualWorkflowManualIdempotencyKey(input: {
   visualWorkflowId: string;
   definitionVersion: number;
