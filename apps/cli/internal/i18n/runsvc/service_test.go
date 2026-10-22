@@ -411,7 +411,7 @@ func TestRunFailsWhenSourceFileMissing(t *testing.T) {
 func TestRunFailsOnUnsupportedSourceFormat(t *testing.T) {
 	svc := newTestService()
 	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
-		cfg := testConfig("/tmp/source.pdf", "/tmp/out.json")
+		cfg := testConfig("/tmp/source.xyz", "/tmp/out.json")
 		return &cfg, nil
 	}
 	svc.readFile = func(_ string) ([]byte, error) {
