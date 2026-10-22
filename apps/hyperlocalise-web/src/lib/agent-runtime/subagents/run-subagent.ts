@@ -12,14 +12,12 @@
  */
 import type { SubagentCallOptions, HyperlocaliseSubagentType } from "./types";
 import { repositorySubagent } from "./repository";
-import { translationSubagent } from "./translation";
 
 type SubagentGenerate = {
   generate(input: { prompt: string; options: SubagentCallOptions }): Promise<{ text: string }>;
 };
 
 const subagents: Record<HyperlocaliseSubagentType, SubagentGenerate> = {
-  translation: translationSubagent as SubagentGenerate,
   repository: repositorySubagent as SubagentGenerate,
 };
 

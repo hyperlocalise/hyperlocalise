@@ -7,9 +7,9 @@ Filesystem-first agent packages for product runtime AI. Cursor coding-agent skil
 ```
 src/agents/
 ├── _runtime/           # Loader, compose-instructions, shared tools/skills
-├── hyperlocalise/      # Conversational orchestrator + subagents
+├── hyperlocalise/      # Conversational agent + repository subagent
 ├── email/
-└── automations/        # workspace, contentful, github-repository, provider-tms
+└── automations/        # workspace, contentful, github-repository
 ```
 
 Each package uses Eve-inspired slots under `agent/`:

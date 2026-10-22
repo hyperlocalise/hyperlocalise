@@ -50,6 +50,5 @@ describe("agent-runtime tool registry", () => {
     expect(tools.bash).toBeDefined();
     expect(tools.captureScreenshot).toBeDefined();
     expect(tools.todoWrite).toBeDefined();
-    expect(tools.applyHyperlocaliseFixes).toBeUndefined();
   });
 });

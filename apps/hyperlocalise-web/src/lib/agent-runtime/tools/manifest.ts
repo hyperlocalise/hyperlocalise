@@ -39,7 +39,6 @@ export type ToolManifest = {
 };
 
 export const toolManifests = [
-  { name: "task", domain: "tms", sideEffect: "none" },
   { name: "createTranslationJob", domain: "translation", sideEffect: "external_write" },
   { name: "translate_string", domain: "translation", sideEffect: "none" },
   { name: "check_crowdin_progress", domain: "tms", sideEffect: "none" },
