@@ -14,6 +14,7 @@
 
 import { useIntl } from "react-intl";
 
+import type { PricedBy } from "@/lib/reporting/cost-queries";
 import type { RateBasis } from "@/lib/reporting/report-units";
 import { MATCH_BUCKETS, type MatchBucket } from "@/lib/reporting/word-analysis";
 
@@ -55,6 +56,34 @@ const BASIS_NOUN = {
   character_with_spaces: messages.basis_character_with_spaces,
   hour: messages.basis_hour,
 } satisfies Record<RateBasis, unknown>;
+
+const PRICED_BY = {
+  task: messages.pricedBy_task,
+  budget: messages.pricedBy_budget,
+  chosen: messages.pricedBy_chosen,
+} satisfies Record<PricedBy, unknown>;
+
+/** Which card priced a row, and why that one: "Agency B · budget". */
+function pricedByText(intl: Intl, row: Pick<EstimateRow, "pricing" | "pricedBy" | "rateCardName">) {
+  if (row.pricing === "fixed") return "—";
+  if (!row.rateCardName) return intl.formatMessage(messages.noRateCard);
+  return intl.formatMessage(messages.pricedByCell, {
+    card: row.rateCardName,
+    sources: intl.formatList(row.pricedBy.map((source) => intl.formatMessage(PRICED_BY[source]))),
+  });
+}
+
+/** Languages without a rate, by the card that has no line for them (null: no card at all). */
+function unratedByCard(rows: EstimateRow[]) {
+  const byCard = new Map<string | null, Set<string>>();
+  for (const row of rows) {
+    if (row.pricing !== "none") continue;
+    const languages = byCard.get(row.rateCardName) ?? new Set<string>();
+    languages.add(row.targetLocale);
+    byCard.set(row.rateCardName, languages);
+  }
+  return [...byCard].map(([card, languages]) => ({ card, languages: [...languages] }));
+}
 
 /** A row's rate, with the unit it is charged per: "$0.04 / character". */
 export function rateText(intl: Intl, row: Pick<EstimateRow, "pricing" | "rate" | "basis">) {
@@ -116,9 +145,7 @@ function EstimateBody({ data, unitName }: { data: Estimate; unitName: string }) 
   const { totals } = data;
   const bands = visibleBands(totals.bands);
   const percentages = sharedPercentages(data.rows);
-  const unrated = [
-    ...new Set(data.rows.filter((row) => row.pricing === "none").map((row) => row.targetLocale)),
-  ];
+  const unrated = unratedByCard(data.rows);
   const showStep = new Set(data.rows.map((row) => row.step)).size > 1;
   return (
     <>
@@ -160,7 +187,9 @@ function EstimateBody({ data, unitName }: { data: Estimate; unitName: string }) 
       <MatchBandTable
         label={intl.formatMessage(messages.tableLabel)}
         rows={data.rows}
-        rowKey={(row) => `${row.targetLocale}:${row.step}:${row.pricing}:${row.rateId}`}
+        rowKey={(row) =>
+          `${row.targetLocale}:${row.step}:${row.pricing}:${row.rateCardName}:${row.rateId}`
+        }
         bands={bands}
         beforeRows={
           percentages
@@ -216,6 +245,12 @@ function EstimateBody({ data, unitName }: { data: Estimate; unitName: string }) 
             muted: true,
           },
           {
+            key: "pricedBy",
+            header: intl.formatMessage(messages.pricedByColumn),
+            cell: (row) => pricedByText(intl, row),
+            muted: true,
+          },
+          {
             key: "cost",
             header: intl.formatMessage(messages.costColumn),
             cell: (row) =>
@@ -230,6 +265,7 @@ function EstimateBody({ data, unitName }: { data: Estimate; unitName: string }) 
           trailing: [
             formatCount(intl, totals.units),
             totals.weighted === null ? null : formatCount(intl, totals.weighted),
+            null,
             null,
             formatUsd(intl, totals.costUsd),
           ],
@@ -248,14 +284,20 @@ function EstimateBody({ data, unitName }: { data: Estimate; unitName: string }) 
         </div>
       ) : null}
       <div className="flex flex-col gap-1 text-[13px] text-muted-foreground">
-        {unrated.length ? (
-          <p>
-            {intl.formatMessage(messages.noRateNote, {
-              languages: intl.formatList(unrated),
-              count: unrated.length,
-            })}
+        {unrated.map(({ card, languages }) => (
+          <p key={card ?? ""}>
+            {card
+              ? intl.formatMessage(messages.noRateNote, {
+                  languages: intl.formatList(languages),
+                  count: languages.length,
+                  card,
+                })
+              : intl.formatMessage(messages.noCardNote, {
+                  languages: intl.formatList(languages),
+                  count: languages.length,
+                })}
           </p>
-        ) : null}
+        ))}
         {data.fixedFeesLeftOut > 0 ? (
           <p>{intl.formatMessage(messages.fixedFeesLeftOut, { count: data.fixedFeesLeftOut })}</p>
         ) : null}

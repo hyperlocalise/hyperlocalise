@@ -184,6 +184,41 @@ describe("Reports page", () => {
     expect(rows.find((row) => row.textContent?.includes("de-DE"))?.textContent).toContain(
       "$0.12 / word",
     );
-    expect(screen.getByText(/ko-KR has no rate on this rate card/)).toBeInTheDocument();
+    // Each row says which card priced it, and the note names the card without a rate.
+    expect(within(table).getAllByText("Standard 2026 · budget")).toHaveLength(2);
+    expect(screen.getByText(/ko-KR has no rate on Standard 2026/)).toBeInTheDocument();
+  });
+
+  it("splits AI into on tasks and outside tasks, with AI outside any project as its own row", async () => {
+    mocks.search = "tab=costs";
+    renderPage();
+    const table = await screen.findByRole("table", { name: "Costs by project" });
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((cell) => cell.textContent),
+    ).toEqual(["Project", "People", "AI on tasks", "AI outside tasks", "Expenses", "Total"]);
+    const cells = (name: string) =>
+      within(table)
+        .getAllByRole("row")
+        .find((row) => row.textContent?.startsWith(name))
+        ?.querySelectorAll("td");
+    expect(Array.from(cells("Outside any project") ?? [], (cell) => cell.textContent)).toEqual([
+      "Outside any project",
+      "—",
+      "$0.00",
+      "$18.20",
+      "—",
+      "$18.20",
+    ]);
+    expect(Array.from(cells("Total") ?? [], (cell) => cell.textContent)).toEqual([
+      "Total",
+      "$3,410.00",
+      "$540.40",
+      "$90.20",
+      "$0.00",
+      "$4,040.60",
+    ]);
+    expect(screen.getByText("Charged AI calls, on tasks and outside them")).toBeInTheDocument();
   });
 });

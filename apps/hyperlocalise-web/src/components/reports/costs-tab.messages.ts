@@ -36,9 +36,24 @@ export const costsTabMessages = defineMessages({
     description: "Costs card and column: AI charged by Hyperlocalise",
   },
   aiDetail: {
-    id: "lRxz6F69RO",
-    defaultMessage: "Charged AI calls on these projects' tasks",
+    id: "lBFv+UuzDN",
+    defaultMessage: "Charged AI calls, on tasks and outside them",
     description: "Detail under the AI card",
+  },
+  aiOnTasks: {
+    id: "FLtvo0/uV8",
+    defaultMessage: "AI on tasks",
+    description: "Costs column: AI charged on tasks",
+  },
+  aiOutsideTasks: {
+    id: "xlxoUp+bTs",
+    defaultMessage: "AI outside tasks",
+    description: "Costs column: AI charged with no task, such as content editor suggestions",
+  },
+  outsideProjects: {
+    id: "+HCaUIpawr",
+    defaultMessage: "Outside any project",
+    description: "Costs row: AI charged with no project, such as chat with no project",
   },
   expenses: {
     id: "E3a9TrP1uE",

@@ -90,7 +90,7 @@ export function CostsTab({ input, settings }: { input: SectionInput; settings: R
       <ReportSectionState query={costs}>
         {(data) => (
           <>
-            {data.rows.length === 0 ? (
+            {data.rows.length === 0 && !(Number(data.outsideProjects?.aiUsd ?? 0) > 0) ? (
               <ReportEmpty description={intl.formatMessage(messages.noCosts)} />
             ) : (
               <Table aria-label={intl.formatMessage(messages.tableLabel)}>
@@ -100,7 +100,12 @@ export function CostsTab({ input, settings }: { input: SectionInput; settings: R
                     <TableHead className="text-right">
                       {intl.formatMessage(messages.people)}
                     </TableHead>
-                    <TableHead className="text-right">{intl.formatMessage(messages.ai)}</TableHead>
+                    <TableHead className="text-right">
+                      {intl.formatMessage(messages.aiOnTasks)}
+                    </TableHead>
+                    <TableHead className="text-right">
+                      {intl.formatMessage(messages.aiOutsideTasks)}
+                    </TableHead>
                     <TableHead className="text-right">
                       {intl.formatMessage(messages.expenses)}
                     </TableHead>
@@ -114,17 +119,43 @@ export function CostsTab({ input, settings }: { input: SectionInput; settings: R
                     <TableRow key={row.projectId}>
                       <TableCell>{row.projectName}</TableCell>
                       <TableCell className={numeric}>{formatUsd(intl, row.peopleUsd)}</TableCell>
-                      <TableCell className={numeric}>{formatUsd(intl, row.aiUsd)}</TableCell>
+                      <TableCell className={numeric}>{formatUsd(intl, row.aiOnTasksUsd)}</TableCell>
+                      <TableCell className={numeric}>
+                        {formatUsd(intl, row.aiOutsideTasksUsd)}
+                      </TableCell>
                       <TableCell className={numeric}>{formatUsd(intl, row.expensesUsd)}</TableCell>
                       <TableCell className={numeric}>{formatUsd(intl, row.totalUsd)}</TableCell>
                     </TableRow>
                   ))}
+                  {data.outsideProjects ? (
+                    <TableRow>
+                      <TableCell className="text-muted-foreground">
+                        {intl.formatMessage(messages.outsideProjects)}
+                      </TableCell>
+                      <TableCell className={numeric}>{formatUsd(intl, null)}</TableCell>
+                      <TableCell className={numeric}>
+                        {formatUsd(intl, data.outsideProjects.aiOnTasksUsd)}
+                      </TableCell>
+                      <TableCell className={numeric}>
+                        {formatUsd(intl, data.outsideProjects.aiOutsideTasksUsd)}
+                      </TableCell>
+                      <TableCell className={numeric}>{formatUsd(intl, null)}</TableCell>
+                      <TableCell className={numeric}>
+                        {formatUsd(intl, data.outsideProjects.aiUsd)}
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
                   <TableRow className="bg-muted/50 font-semibold">
                     <TableCell>{intl.formatMessage(pageMessages.total)}</TableCell>
                     <TableCell className={numeric}>
                       {formatUsd(intl, data.totals.peopleUsd)}
                     </TableCell>
-                    <TableCell className={numeric}>{formatUsd(intl, data.totals.aiUsd)}</TableCell>
+                    <TableCell className={numeric}>
+                      {formatUsd(intl, data.totals.aiOnTasksUsd)}
+                    </TableCell>
+                    <TableCell className={numeric}>
+                      {formatUsd(intl, data.totals.aiOutsideTasksUsd)}
+                    </TableCell>
                     <TableCell className={numeric}>
                       {formatUsd(intl, data.totals.expensesUsd)}
                     </TableCell>

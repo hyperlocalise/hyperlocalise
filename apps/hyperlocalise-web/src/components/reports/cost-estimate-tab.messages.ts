@@ -173,10 +173,49 @@ export const costEstimateTabMessages = defineMessages({
     description: "Shown when an hourly line's task has no time estimate",
   },
   noRateNote: {
-    id: "Mf+rvwLpNb",
+    id: "gDpBbPZdyc",
     defaultMessage:
-      "{languages} {count, plural, one {has} other {have}} no rate on this rate card, so weighted units and cost are left blank rather than guessed.",
-    description: "Note under the estimate when some languages have no rate",
+      "{languages} {count, plural, one {has} other {have}} no rate on {card}, so weighted units and cost are left blank rather than guessed.",
+    description:
+      "Note under the estimate when some languages have no rate on the card that prices them; card is the rate card's name",
+  },
+  noCardNote: {
+    id: "/bw8Moam2N",
+    defaultMessage:
+      "{count, plural, one {{languages} has no rate card. Choose one above to price it.} other {{languages} have no rate card. Choose one above to price them.}}",
+    description:
+      "Note under the estimate when no task, budget or chosen rate card prices some languages",
+  },
+  pricedByColumn: {
+    id: "iBsFiq6yoU",
+    defaultMessage: "Priced by",
+    description: "Column heading: the rate card that priced the row, and why that card",
+  },
+  pricedByCell: {
+    id: "dbjn9gcPqw",
+    defaultMessage: "{card} · {sources}",
+    description:
+      "Priced by cell: a rate card's name, then why it priced the row, such as Agency B · budget",
+  },
+  pricedBy_task: {
+    id: "BTNzbV/iOk",
+    defaultMessage: "task",
+    description: "Why a card priced a row: it is the task's own rate card",
+  },
+  pricedBy_budget: {
+    id: "My84WbcWq6",
+    defaultMessage: "budget",
+    description: "Why a card priced a row: it is the rate card of the project's budget",
+  },
+  pricedBy_chosen: {
+    id: "Nad4L5QJXF",
+    defaultMessage: "chosen here",
+    description: "Why a card priced a row: it is the rate card chosen on this page",
+  },
+  noRateCard: {
+    id: "BxAqRQAKnB",
+    defaultMessage: "No rate card",
+    description: "Priced by cell when no rate card applies to the row",
   },
   fixedFees: {
     id: "uCFqHd7i8y",
@@ -195,9 +234,9 @@ export const costEstimateTabMessages = defineMessages({
     description: "Note when an hourly line has no time estimate",
   },
   pricingOrder: {
-    id: "nkemwY7Oxh",
+    id: "4yXMx8Oi07",
     defaultMessage:
-      "A task's own rate comes first, then its project budget's rate card, then the one chosen here.",
+      "A task's own rate card comes first, then its project budget's rate card, then the one chosen here. The first card found prices every language.",
     description: "Note on which rate prices each task",
   },
   uncountedNote: {

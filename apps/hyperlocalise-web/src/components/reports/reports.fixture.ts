@@ -241,15 +241,24 @@ export const reportsCosts: { period: typeof reportsPeriod } & Costs = {
       projectName: "Web app",
       peopleUsd: "3410.00000000",
       aiUsd: "612.40000000",
+      aiOnTasksUsd: "540.40000000",
+      aiOutsideTasksUsd: "72.00000000",
       expensesUsd: "0.00000000",
       totalUsd: "4022.40000000",
     },
   ],
+  outsideProjects: {
+    aiUsd: "18.20000000",
+    aiOnTasksUsd: "0.00000000",
+    aiOutsideTasksUsd: "18.20000000",
+  },
   totals: {
     peopleUsd: "3410.00000000",
-    aiUsd: "612.40000000",
+    aiUsd: "630.60000000",
+    aiOnTasksUsd: "540.40000000",
+    aiOutsideTasksUsd: "90.20000000",
     expensesUsd: "0.00000000",
-    totalUsd: "4022.40000000",
+    totalUsd: "4040.60000000",
   },
   previousTotalUsd: "3800.00000000",
   unpriced: 0,
@@ -258,12 +267,14 @@ export const reportsCosts: { period: typeof reportsPeriod } & Costs = {
 
 export const reportsCostEstimate: CostEstimate = {
   rateCardName: "Standard 2026",
-  pricingOrder: "task rate, then the project budget's rate card, then the chosen card",
+  pricingOrder: "task's rate card, then the project budget's rate card, then the chosen card",
   rows: [
     {
       targetLocale: "de-DE",
       step: "translation",
       pricing: "rate",
+      // The Web app budget's card.
+      pricedBy: ["budget"],
       rateCardName: "Standard 2026",
       rateId: "rate_de",
       basis: "word",
@@ -280,7 +291,8 @@ export const reportsCostEstimate: CostEstimate = {
       targetLocale: "ko-KR",
       step: "translation",
       pricing: "none",
-      rateCardName: null,
+      pricedBy: ["budget"],
+      rateCardName: "Standard 2026",
       rateId: null,
       basis: null,
       rate: null,
