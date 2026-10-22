@@ -158,6 +158,7 @@ type poWalkState struct {
 	msgid       poValue
 	msgidPlural poValue
 	forms       []poValue
+	formsBuf    []string
 	active      string
 	activeForm  int
 	seenMsgID   bool
@@ -174,6 +175,7 @@ func (s *poWalkState) reset() {
 		s.forms[i].Reset()
 	}
 	s.forms = s.forms[:0]
+	s.formsBuf = s.formsBuf[:0]
 	s.active = ""
 	s.activeForm = -1
 	s.seenMsgID = false
@@ -186,15 +188,19 @@ func (s *poWalkState) build() (poBuiltEntry, bool) {
 	if !s.seenMsgID || !s.seenMsgStr {
 		return poBuiltEntry{}, false
 	}
-	forms := make([]string, len(s.forms))
+	if cap(s.formsBuf) < len(s.forms) {
+		s.formsBuf = make([]string, len(s.forms))
+	} else {
+		s.formsBuf = s.formsBuf[:len(s.forms)]
+	}
 	for i := range s.forms {
-		forms[i] = s.forms[i].String()
+		s.formsBuf[i] = s.forms[i].String()
 	}
 	entry := poBuiltEntry{
 		msgctxt:     s.msgctxt.String(),
 		msgid:       s.msgid.String(),
 		msgidPlural: s.msgidPlural.String(),
-		forms:       forms,
+		forms:       s.formsBuf,
 		isPlural:    s.isPlural,
 		comments:    s.comments.clone(),
 	}
@@ -284,7 +290,7 @@ func parsePOCatalog(content []byte) (map[string]string, map[string]string, error
 		} else {
 			raw = s[:idx]
 		}
-		line := strings.TrimSuffix(strings.TrimSpace(raw), "\r")
+		line := strings.TrimSpace(raw)
 		if err := consumePOLine(lineNumber, line, &state, flush); err != nil {
 			return nil, nil, err
 		}
@@ -565,6 +571,7 @@ func MarshalPOFileForLocale(template []byte, values map[string]string, targetLoc
 
 	var meta poHeaderMeta
 	var entry []poRawLine
+	var state poWalkState
 	lineNumber := 1
 	entryStart := 1
 
@@ -572,7 +579,7 @@ func MarshalPOFileForLocale(template []byte, values map[string]string, targetLoc
 		if len(entry) == 0 {
 			return nil
 		}
-		rewritten, err := rewritePOEntry(entry, entryStart, values, &meta, targetLocale)
+		rewritten, err := rewritePOEntry(entry, entryStart, values, &meta, targetLocale, &state)
 		if err != nil {
 			return err
 		}
@@ -639,8 +646,8 @@ func writePORawLines(out *strings.Builder, lines []poRawLine) {
 	}
 }
 
-func rewritePOEntry(lines []poRawLine, startLine int, values map[string]string, meta *poHeaderMeta, targetLocale string) ([]poRawLine, error) {
-	entry, ok, err := inspectPOEntry(lines, startLine)
+func rewritePOEntry(lines []poRawLine, startLine int, values map[string]string, meta *poHeaderMeta, targetLocale string, state *poWalkState) ([]poRawLine, error) {
+	entry, ok, err := inspectPOEntry(lines, startLine, state)
 	if err != nil || !ok {
 		return lines, err
 	}
@@ -674,12 +681,17 @@ func rewritePOEntry(lines []poRawLine, startLine int, values map[string]string, 
 	return rewritePOSingular(lines, entry, values, categories)
 }
 
-func inspectPOEntry(lines []poRawLine, startLine int) (poBuiltEntry, bool, error) {
-	var state poWalkState
+func inspectPOEntry(lines []poRawLine, startLine int, state *poWalkState) (poBuiltEntry, bool, error) {
+	if state == nil {
+		var st poWalkState
+		state = &st
+	} else {
+		state.reset()
+	}
 	state.activeForm = -1
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line.raw)
-		if err := consumePOLine(startLine+i, trimmed, &state, func() {}); err != nil {
+		if err := consumePOLine(startLine+i, trimmed, state, func() {}); err != nil {
 			return poBuiltEntry{}, false, err
 		}
 	}
