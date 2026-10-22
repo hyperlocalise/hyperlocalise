@@ -73,7 +73,10 @@ export function LogTimeDialog({
     ids: jobId ? [jobId] : [],
     enabled: Boolean(jobId),
   }).data?.[0];
-  const taskProject = settings.projects.find((project) => project.id === task?.projectId);
+  // A task with no Reports strings yet is not found by the lookup, but its project is given.
+  const taskProject = settings.projects.find(
+    (project) => project.id === (task?.projectId ?? projectId),
+  );
   const languages = fixedLanguages?.length ? fixedLanguages : (taskProject?.targetLocales ?? []);
   const total = Number(hours || 0) * 60 + Number(minutes || 0);
 

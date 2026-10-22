@@ -528,7 +528,18 @@ describe("reports routes", () => {
     const locked = await price(job.id, "translation", { rateCardName: null });
     expect(locked.status).toBe(400);
     await expect(locked.json()).resolves.toMatchObject({ error: "task_rate_locked" });
-    // Time logged by mistake and deleted is not work.
+    // Time logged by mistake and deleted, or a voided cost, is not work.
+    await db.insert(schema.reportingCosts).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: job.id,
+      operationKey: `test:${randomUUID()}`,
+      kind: "human",
+      step: "review",
+      amountUsd: "10",
+      basis: "manual",
+      voided: true,
+    });
     await db.insert(schema.reportingTimeEntries).values({
       organizationId: organization.id,
       projectId: project.id,

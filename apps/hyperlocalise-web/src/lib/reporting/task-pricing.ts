@@ -14,7 +14,7 @@ import { sql } from "drizzle-orm";
 
 import { db, type DatabaseClient } from "@/lib/database/client";
 
-import { REPORT_STEPS, type ReportStep } from "./report-units";
+import { OPEN_TASK_STATUSES, REPORT_STEPS, type ReportStep } from "./report-units";
 
 /**
  * A task's own pricing for a step (its rate card, time estimate or fixed fee) can change only
@@ -24,14 +24,12 @@ import { REPORT_STEPS, type ReportStep } from "./report-units";
  * are never queued, so the task's status alone cannot say.
  */
 
-const OPEN_STATUSES = new Set(["queued", "running", "waiting_for_review"]);
-
 /** The steps of a task whose pricing can no longer change. */
 export async function lockedPricingSteps(
   input: { organizationId: string; jobId: string; status: string },
   database: DatabaseClient = db,
 ): Promise<Set<ReportStep>> {
-  if (!OPEN_STATUSES.has(input.status)) return new Set(REPORT_STEPS);
+  if (!OPEN_TASK_STATUSES.has(input.status)) return new Set(REPORT_STEPS);
   const result = await database.execute<{ step: ReportStep }>(sql`
     select s.step from (values ('translation'), ('review')) s(step)
     where exists(select 1 from reporting_analyses a where a.organization_id = ${input.organizationId}

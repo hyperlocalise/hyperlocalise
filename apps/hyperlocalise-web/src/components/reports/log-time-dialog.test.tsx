@@ -36,7 +36,10 @@ vi.mock("@/lib/api-client-instance", async () => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-function renderDialog(onClose = vi.fn()) {
+function renderDialog(
+  onClose = vi.fn(),
+  task: { projectId: string | null; languages?: string[] } = { projectId: null },
+) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <IntlProvider locale="en" messages={{}}>
@@ -44,8 +47,9 @@ function renderDialog(onClose = vi.fn()) {
         <LogTimeDialog
           organizationSlug="acme"
           settings={createReportsSettings()}
-          projectId={null}
+          projectId={task.projectId}
           jobId="job_release"
+          languages={task.languages}
           onClose={onClose}
         />
       </QueryClientProvider>
@@ -65,6 +69,18 @@ beforeEach(() => {
 });
 
 describe("Log time dialog", () => {
+  it("offers the task's project's languages when the task names none and has no Reports data", async () => {
+    // The task lookup finds only tasks with Reports strings.
+    mocks.bodies.jobs = { jobs: [] };
+    renderDialog(vi.fn(), { projectId: "project_web", languages: [] });
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Language" })).not.toBeDisabled(),
+    );
+    await userEvent.click(screen.getByRole("combobox", { name: "Language" }));
+    expect(await screen.findByRole("option", { name: "de-DE" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "ja-JP" })).toBeInTheDocument();
+  });
+
   it("asks for a language and a time within a day before saving", async () => {
     renderDialog();
     await userEvent.click(screen.getByRole("button", { name: "Log time" }));

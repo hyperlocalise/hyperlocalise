@@ -259,11 +259,15 @@ export function taskWordsCsv(
       (sum, line) => (line.costUsd === null ? sum : (sum ?? 0) + Number(line.costUsd)),
       null,
     );
-    const pricing = lines.some((line) => line.pricing === "fixed")
-      ? "fixed"
-      : lines.length && lines.every((line) => line.pricing === "none")
-        ? "none"
-        : "rate";
+    // Empty for a language the estimate has no line for.
+    const pricing =
+      lines.length === 0
+        ? null
+        : lines.some((line) => line.pricing === "fixed")
+          ? "fixed"
+          : lines.every((line) => line.pricing === "none")
+            ? "none"
+            : "rate";
     return [
       weighted === null ? null : Math.round(weighted * 100) / 100,
       cost === null ? null : cost.toFixed(2),

@@ -19,7 +19,12 @@ import { useIntl } from "react-intl";
 
 import { buildOrganizationPath, buildProjectPath } from "@/components/app-shell/navigation-config";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { REPORT_STEPS, type ReportStep, type ReportUnit } from "@/lib/reporting/report-units";
+import {
+  OPEN_TASK_STATUSES,
+  REPORT_STEPS,
+  type ReportStep,
+  type ReportUnit,
+} from "@/lib/reporting/report-units";
 
 import { EditTimeDialog } from "./edit-time-dialog";
 import { LogTimeDialog } from "./log-time-dialog";
@@ -56,9 +61,6 @@ import { UnitSwitch } from "./word-counts-tab";
 import { wordCountsTabMessages as wordMessages } from "./word-counts-tab.messages";
 
 type Intl = ReturnType<typeof useIntl>;
-
-/** A task in one of these can still be worked on. */
-const OPEN_STATUSES = new Set(["queued", "running", "waiting_for_review"]);
 type WordRow = TaskReportData["words"]["rows"][number];
 type StepPricing = NonNullable<TaskReportData["pricing"]>[number];
 type TimeEntry = TaskReportData["time"]["entries"][number];
@@ -173,7 +175,7 @@ export function TaskReport({
               jobId={jobId}
               pricing={data.pricing}
               canEdit={data.canSetPricing}
-              ended={!OPEN_STATUSES.has(data.task.status)}
+              ended={!OPEN_TASK_STATUSES.has(data.task.status)}
               rateCardNames={loaded.rateCardNames}
             />
           ) : null}
