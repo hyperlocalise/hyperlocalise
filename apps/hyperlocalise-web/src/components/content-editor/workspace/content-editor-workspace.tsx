@@ -24,6 +24,7 @@ import { cn } from "@/lib/primitives/cn";
 import { ContentEditorEditorPanel } from "@/components/content-editor/editor/content-editor-editor-panel";
 import { isContentEditorImageGenerating } from "@/components/content-editor/project-file/content-editor-image-generation-state";
 import { ContentEditorFileViewPanel } from "@/components/content-editor/file-view/content-editor-file-view-panel";
+import { ContentEditorGlossaryGuidance } from "@/components/content-editor/intelligence/content-editor-glossary-guidance";
 import { ContentEditorIntelligencePanel } from "@/components/content-editor/intelligence/content-editor-intelligence-panel";
 import { resolveCatLinkedIssueTranslationKeyId } from "@/components/content-editor/issues/content-editor-linked-issue-translation-key";
 import { ContentEditorEditorIssuesSection } from "@/components/content-editor/issues/content-editor-editor-issues-section";
@@ -186,29 +187,19 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   const [uploadingVisualContextSegmentIds, setUploadingVisualContextSegmentIds] = useState<
     ReadonlySet<string>
   >(() => new Set());
-  const isIntelligencePanelVisible = Boolean(
-    selectedSegmentIdForIntelligence &&
-    (!isCompact || activePanel === "ai") &&
-    !isSideBySideDesktop &&
-    viewMode !== "multilingual",
+  // Glossary guidance in the footer depends on concordance for the selected segment, so load it
+  // even when the intelligence panel itself is hidden behind a tab or collapsed.
+  const shouldLoadSegmentIntelligence = Boolean(
+    selectedSegmentIdForIntelligence && viewMode !== "multilingual",
   );
 
   useEffect(() => {
-    if (!selectedSegmentIdForIntelligence) {
-      return;
-    }
-
-    if (!isIntelligencePanelVisible && !isSideBySideDesktop) {
+    if (!shouldLoadSegmentIntelligence) {
       return;
     }
 
     onIntelligencePanelVisible?.(selectedSegmentIdForIntelligence);
-  }, [
-    isIntelligencePanelVisible,
-    isSideBySideDesktop,
-    onIntelligencePanelVisible,
-    selectedSegmentIdForIntelligence,
-  ]);
+  }, [onIntelligencePanelVisible, selectedSegmentIdForIntelligence, shouldLoadSegmentIntelligence]);
 
   const showTranslationViewSkeleton = store.ui.translationViewLoading;
 
@@ -478,6 +469,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
     ? intelligenceTranslationKeyId
     : editorTranslationKeyId;
   const issueStringLink = isSideBySideDesktop ? intelligenceIssueStringLink : editorIssueStringLink;
+  const glossarySegment = isSideBySideDesktop ? intelligenceSegment : editorSegment;
+  const glossaryIntelligence = isSideBySideDesktop
+    ? intelligenceSegmentIntelligence
+    : selectedSegmentIntelligence;
 
   function renderSideBySidePanel() {
     if (!selectedSegment) {
@@ -627,7 +622,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           segmentShareUrl={segmentShareUrl}
           organizationSlug={organizationSlug}
           projectId={projectId}
-          onGlossaryTermAdded={
+          onTmSegmentMutated={
             intelligenceSegment ? () => onReloadConcordance?.(intelligenceSegment.id) : undefined
           }
         />
@@ -963,20 +958,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           segmentId={editorSegment.id}
           segmentKey={editorSegment.key}
           contentKind={editorSegment.contentKind}
-          sourceText={editorSegment.sourceText}
           targetText={editorSegment.targetText}
           sourceLocale={editorSegment.sourceLocale}
-          targetLocale={editorSegment.targetLocale}
           organizationSlug={organizationSlug}
           projectId={projectId}
-          teamGlossaries={shell.fileContext.teamGlossaries ?? []}
-          contributorTeams={shell.fileContext.contributorTeams ?? []}
-          projectTeamId={shell.fileContext.projectTeamId}
-          canContributeTeamGlossary={
-            Boolean(shell.fileContext.canContributeTeamGlossary) && isNativeProject
-          }
-          teamName={shell.fileContext.teamName}
-          projectTeamSlug={shell.fileContext.projectTeamSlug}
           isLookingUpContext={isLookingUpContext}
           isConcordanceLoading={isConcordanceLoading}
           isVisualContextLoading={isVisualContextLoading}
@@ -1019,7 +1004,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
               ? (maxLength) => editing.onSetMaxLength!(editorSegment.id, maxLength)
               : undefined
           }
-          onGlossaryTermAdded={() => onReloadConcordance?.(editorSegment.id)}
+          onTmSegmentMutated={() => onReloadConcordance?.(editorSegment.id)}
           scrollToTm={isAdaptiveEnabled && store.ui.isTranslatorPersona}
         />
       </ContentEditorPanelErrorBoundary>
@@ -1120,6 +1105,30 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           }
         />
       )}
+      {glossarySegment ? (
+        <ContentEditorGlossaryGuidance
+          intelligence={glossaryIntelligence}
+          isLoading={isConcordanceLoading}
+          segmentId={glossarySegment.id}
+          sourceText={glossarySegment.sourceText}
+          targetText={glossarySegment.targetText}
+          sourceLocale={glossarySegment.sourceLocale}
+          targetLocale={glossarySegment.targetLocale}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          teamGlossaries={shell.fileContext.teamGlossaries}
+          contributorTeams={shell.fileContext.contributorTeams}
+          projectTeamId={shell.fileContext.projectTeamId}
+          canContributeTeamGlossary={
+            Boolean(shell.fileContext.canContributeTeamGlossary) && isNativeProject
+          }
+          teamName={shell.fileContext.teamName}
+          projectTeamSlug={shell.fileContext.projectTeamSlug}
+          canEditTranslations={shell.fileContext.canEditTranslations !== false}
+          isTranslationLocked={Boolean(glossarySegment.isLocked)}
+          onGlossaryTermAdded={() => onReloadConcordance?.(glossarySegment.id)}
+        />
+      ) : null}
       {showNativeIssues && organizationSlug && projectId && issueSegment ? (
         <ContentEditorEditorIssuesSection
           organizationSlug={organizationSlug}

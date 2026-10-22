@@ -677,6 +677,11 @@ export const contentEditorIntelligencePanelMessages = defineMessages({
     id: "h6wm+58u19",
     description: "Description for the glossary guidance dialog",
   },
+  glossaryGuidanceLoading: {
+    defaultMessage: "Checking the glossary for matches",
+    id: "5E00egt9p4",
+    description: "Accessible label for the loading state of the glossary guidance panel",
+  },
   glossaryGuidanceClose: {
     defaultMessage: "Close glossary guidance",
     id: "pQttDyq4Mr",

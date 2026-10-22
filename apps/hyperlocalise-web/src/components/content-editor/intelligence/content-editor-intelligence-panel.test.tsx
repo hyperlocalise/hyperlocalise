@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vite-plus/test";
 
@@ -21,19 +21,22 @@ import { renderWithContentEditorProviders } from "@/components/content-editor/sh
 
 import { ContentEditorIntelligencePanel } from "./content-editor-intelligence-panel";
 import { matchedGlossaryConceptFixture } from "./content-editor-glossary-concept-card.fixture";
+import { requestCatGlossaryGuidance } from "./content-editor-glossary-guidance-event";
 
 describe("ContentEditorIntelligencePanel", () => {
-  it("renders without team props and does not loop on glossary concept state", () => {
+  it("renders the panel without owning glossary guidance", () => {
     renderWithContentEditorProviders(
       <ContentEditorIntelligencePanel
         intelligence={{
           ...contentEditorIntelligenceFixture,
           glossaryConcepts: [matchedGlossaryConceptFixture],
         }}
-        sourceText="Reseller"
         targetText="Đại lý"
       />,
     );
+
+    act(() => requestCatGlossaryGuidance());
+    expect(screen.queryByRole("region", { name: "Glossary guidance" })).not.toBeInTheDocument();
 
     expect(screen.getByRole("heading", { name: "Translation Intelligence" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Unicode table" })).toBeInTheDocument();

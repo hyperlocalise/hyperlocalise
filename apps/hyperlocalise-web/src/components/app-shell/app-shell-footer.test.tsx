@@ -240,15 +240,37 @@ describe("AppShellFooter", () => {
     }
   });
 
-  it("shows the glossary match count when matched terms have no preferred status", () => {
-    setCatGlossaryGuidanceStatus({ matchCount: 1, preferredCount: 0, notRecommendedCount: 0 });
+  it("shows the glossary concept match count", () => {
+    setCatGlossaryGuidanceStatus({ isLoading: false, matchCount: 1, notRecommendedCount: 0 });
 
     renderFooter({ showPlan: false, showGlossaryGuidance: true });
 
-    const glossary = screen.getByRole("button", {
-      name: "Glossary guidance, concept matches available",
-    });
-    expect(glossary).toHaveTextContent("Glossary guidance1");
+    const glossary = screen.getByRole("button", { name: "Glossary guidance 1 concept match" });
+    expect(glossary.querySelector("[data-glossary-guidance-match-count]")).toHaveTextContent("1");
+    expect(glossary.querySelector("[data-glossary-guidance-not-recommended-count]")).toBeNull();
+  });
+
+  it("flags not-recommended glossary terms next to the match count", () => {
+    setCatGlossaryGuidanceStatus({ isLoading: false, matchCount: 3, notRecommendedCount: 2 });
+
+    renderFooter({ showPlan: false, showGlossaryGuidance: true });
+
+    expect(
+      screen.getByRole("button", {
+        name: "Glossary guidance 3 concept matches 2 terms not recommended",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("shows a loading indicator while glossary matches load", () => {
+    setCatGlossaryGuidanceStatus({ isLoading: true, matchCount: 0, notRecommendedCount: 0 });
+
+    renderFooter({ showPlan: false, showGlossaryGuidance: true });
+
+    const glossary = screen.getByRole("button", { name: /Glossary guidance/ });
+    expect(glossary).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("status", { name: "Checking for glossary matches" })).toBeTruthy();
+    expect(glossary.querySelector("[data-glossary-guidance-match-count]")).toBeNull();
   });
 
   it("opens the guideline sheet when the knowledge flag is enabled", async () => {

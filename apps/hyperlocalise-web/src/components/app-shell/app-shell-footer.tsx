@@ -17,7 +17,6 @@ import dynamic from "next/dynamic";
 import {
   BookOpenTextIcon,
   BookmarkIcon,
-  CheckCircleIcon,
   CopyIcon,
   HeadsetIcon,
   MinusCircleIcon,
@@ -50,6 +49,7 @@ import { Box } from "@/components/ui/layout/box";
 import { Column } from "@/components/ui/layout/column";
 import { Columns } from "@/components/ui/layout/columns";
 import { Row } from "@/components/ui/layout/row";
+import { Spinner } from "@/components/ui/spinner";
 import { SUPPORT_EMAIL } from "@/lib/support-contact";
 
 import { appShellFooterMessages } from "./app-shell-footer.messages";
@@ -184,42 +184,52 @@ export function AppShellFooter({
                     type="button"
                     variant="ghost"
                     onClick={requestCatGlossaryGuidance}
-                    aria-label={intl.formatMessage(
-                      glossaryGuidanceStatus.matchCount > 0 ||
-                        glossaryGuidanceStatus.preferredCount > 0 ||
-                        glossaryGuidanceStatus.notRecommendedCount > 0
-                        ? appShellFooterMessages.glossaryGuidanceAvailableAriaLabel
-                        : appShellFooterMessages.glossaryGuidanceAriaLabel,
-                    )}
+                    aria-busy={glossaryGuidanceStatus.isLoading}
                   >
                     <BookOpenTextIcon data-icon="inline-start" />
                     <FormattedMessage {...appShellFooterMessages.glossaryGuidanceLabel} />
-                    {glossaryGuidanceStatus.matchCount > 0 &&
-                    glossaryGuidanceStatus.preferredCount === 0 &&
-                    glossaryGuidanceStatus.notRecommendedCount === 0 ? (
-                      <span
-                        data-glossary-guidance-match-count
-                        className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-xs font-medium tabular-nums text-muted-foreground"
-                      >
-                        {glossaryGuidanceStatus.matchCount}
-                      </span>
-                    ) : null}
-                    {glossaryGuidanceStatus.preferredCount > 0 ? (
-                      <span className="inline-flex items-center gap-0.5 text-xs font-medium text-emerald-500">
-                        <CheckCircleIcon className="size-4" aria-hidden="true" />
-                        <span className="tabular-nums">
-                          {glossaryGuidanceStatus.preferredCount}
-                        </span>
-                      </span>
-                    ) : null}
-                    {glossaryGuidanceStatus.notRecommendedCount > 0 ? (
-                      <span className="inline-flex items-center gap-0.5 text-xs font-medium text-rose-500">
-                        <MinusCircleIcon className="size-4" aria-hidden="true" />
-                        <span className="tabular-nums">
-                          {glossaryGuidanceStatus.notRecommendedCount}
-                        </span>
-                      </span>
-                    ) : null}
+                    {glossaryGuidanceStatus.isLoading ? (
+                      <Spinner
+                        className="size-3.5 text-muted-foreground"
+                        aria-label={intl.formatMessage(
+                          appShellFooterMessages.glossaryGuidanceLoading,
+                        )}
+                      />
+                    ) : (
+                      <>
+                        {glossaryGuidanceStatus.matchCount > 0 ? (
+                          <span
+                            data-glossary-guidance-match-count
+                            className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-beam-100 px-1.5 text-xs font-semibold tabular-nums text-beam-900 dark:bg-beam-900/40 dark:text-beam-100"
+                          >
+                            <span aria-hidden="true">{glossaryGuidanceStatus.matchCount}</span>
+                            <span className="sr-only">
+                              <FormattedMessage
+                                {...appShellFooterMessages.glossaryGuidanceMatchCount}
+                                values={{ count: glossaryGuidanceStatus.matchCount }}
+                              />
+                            </span>
+                          </span>
+                        ) : null}
+                        {glossaryGuidanceStatus.notRecommendedCount > 0 ? (
+                          <span
+                            data-glossary-guidance-not-recommended-count
+                            className="inline-flex h-5 items-center gap-0.5 rounded-full bg-rose-500/10 pe-1.5 ps-1 text-xs font-semibold tabular-nums text-rose-600 dark:text-rose-300"
+                          >
+                            <MinusCircleIcon className="size-3.5" aria-hidden="true" />
+                            <span aria-hidden="true">
+                              {glossaryGuidanceStatus.notRecommendedCount}
+                            </span>
+                            <span className="sr-only">
+                              <FormattedMessage
+                                {...appShellFooterMessages.glossaryGuidanceNotRecommendedCount}
+                                values={{ count: glossaryGuidanceStatus.notRecommendedCount }}
+                              />
+                            </span>
+                          </span>
+                        ) : null}
+                      </>
+                    )}
                   </Button>
                 ) : null}
                 {showIssueGuidance && issueGuidanceStatus.available ? (
