@@ -35,6 +35,7 @@ jobs:
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
         with:
+          node-version: "24.22.1"
           working-directory: apps/canva-app
           cache: true
           # setup-vp defaults to `vp install` at the repo root, which has no
@@ -74,6 +75,7 @@ jobs:
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
         with:
+          node-version: "24.22.1"
           working-directory: apps/canva-app
           cache: true
           # setup-vp defaults to `vp install` at the repo root, which has no

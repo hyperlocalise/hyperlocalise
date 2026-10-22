@@ -31,8 +31,8 @@ minimumReleaseAgeExclude:
   - "@ai-sdk/workflow@2.0.59"
 overrides:
   # Pin each undici major independently (transitive deps use 6/7/8).
-  "undici@^6.0.0": "6.28.0"
-  "undici@^7.0.0": "7.29.0"
+  "undici@^6.0.0": "6.29.1"
+  "undici@^7.0.0": "7.30.1"
   "undici@^8.0.0": "8.12.3"
   devalue: "6.0.2"
   qs: "6.16.0"
