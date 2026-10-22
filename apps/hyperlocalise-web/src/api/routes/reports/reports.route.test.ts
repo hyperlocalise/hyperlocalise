@@ -521,6 +521,10 @@ describe("reports routes", () => {
     const unknown = await budget("Nope");
     expect(unknown.status).toBe(400);
     await expect(unknown.json()).resolves.toMatchObject({ error: "rate_card_not_found" });
+    // An empty name is no card; "no rate card" is sent as null.
+    const blank = await budget("");
+    expect(blank.status).toBe(400);
+    await expect(blank.json()).resolves.toMatchObject({ error: "invalid_budget" });
     expect((await budget("Standard")).status).toBe(200);
   });
 

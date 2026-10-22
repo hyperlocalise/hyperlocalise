@@ -59,7 +59,7 @@ export const rateSchema = z.object({
 export const budgetSchema = z.object({
   projectId: z.string().min(1),
   budget: usd,
-  rateCardName: z.string().max(100).nullable().default(null),
+  rateCardName: z.string().trim().min(1).max(100).nullable().default(null),
 });
 export const taskRateSchema = z.object({
   jobId: z.string().min(1),
