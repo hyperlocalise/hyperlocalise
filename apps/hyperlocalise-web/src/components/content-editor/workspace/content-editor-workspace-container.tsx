@@ -366,24 +366,7 @@ const ContentEditorWorkspaceContainerObserver = observer(
             queueSegments={controller.queueSegments}
             selectedSegment={controller.selectedSegment}
             dependencies={controller.dependencies}
-            dirtySegmentIds={controller.dirtySegmentIds}
-            isValidating={store.isValidating}
-            isApproving={store.isApproving}
-            isSavingDraft={store.isSavingDraft}
-            isPostingComment={store.isPostingComment}
-            isResolvingComment={store.isResolvingComment}
-            resolvingCommentId={store.resolvingCommentId}
-            commentPostError={store.commentPostError}
-            isLookingUpContext={store.isLookingUpContext}
-            isConcordanceLoading={store.isLoadingConcordance}
-            isVisualContextLoading={store.isLoadingVisualContext}
-            isAiSuggestionLoading={
-              store.isGeneratingAiRecommendation && controller.canUseAiRecommendation
-            }
-            isFormatChecksLoading={store.isRunningFormatChecks || store.isValidating}
             canLookupContext={controller.canLookupContext}
-            showAgentContext={store.revealedAgentContextSegmentIds.has(store.selectedSegmentId)}
-            revealedAgentContextSegmentIds={store.revealedAgentContextSegmentIds}
             showVisualContext={controller.canLoadVisualContext}
             canUseAiRecommendation={controller.canUseAiRecommendation}
             className={className}
@@ -391,9 +374,6 @@ const ContentEditorWorkspaceContainerObserver = observer(
             isQueueFetchingPage={isQueueFetchingPage}
             isQueueListLoading={resolvedQueueListLoading}
             isQueueDataPending={isQueueBulkBlocked}
-            isTranslationViewLoading={store.ui.translationViewLoading}
-            isCommentsLoading={store.isCommentsLoading}
-            isSegmentTargetLoading={store.isSegmentTargetLoading}
             isImageBusy={isImageBusy}
             isImageGenerating={isImageGenerating}
             generatingImageSegmentId={generatingImageSegmentId}
@@ -402,10 +382,6 @@ const ContentEditorWorkspaceContainerObserver = observer(
             hasMoreQueue={hasMoreQueue}
             onLoadMoreQueue={onLoadMoreQueue}
             queueFilter={controller.queueFilter}
-            checkedSegmentIds={store.checkedSegmentIds}
-            onToggleSegmentChecked={(segmentId, checked) =>
-              store.toggleSegmentChecked(segmentId, checked)
-            }
             buildSegmentShareUrl={controller.resolvedBuildSegmentShareUrl}
             onIntelligencePanelVisible={controller.handleIntelligencePanelVisible}
             organizationSlug={lazySegment?.organizationSlug}

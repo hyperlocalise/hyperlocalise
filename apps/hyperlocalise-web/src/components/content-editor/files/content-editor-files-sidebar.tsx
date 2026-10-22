@@ -25,6 +25,7 @@ import { ContentEditorRepositorySelect } from "@/app/[lang]/(authenticated)/org/
 import { contentEditorHeaderPickersMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/content-editor-header-pickers.messages";
 import { ProjectFilesTree } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files-tree";
 import { projectFilesTreeMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files-tree.messages";
+import { projectFilesTreeCollapsedFoldersStorageKey } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/use-project-files-tree-collapsed-folders";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -52,8 +53,11 @@ export function ContentEditorFilesSidebar({
   fileProgress,
   footer,
   className,
+  collapsedFoldersScope,
 }: {
   files: ProjectFileRecord[];
+  /** Remembers collapsed folders per scope (e.g. org and project) across reloads. */
+  collapsedFoldersScope?: string;
   fileProgress?: readonly ProjectFileProgressRecord[];
   selectedSourcePath: string | null;
   onSelectFile: (sourcePath: string) => void;
@@ -194,6 +198,13 @@ export function ContentEditorFilesSidebar({
             fillHeight
             fileProgress={fileProgress}
             searchQuery={searchQuery}
+            collapsedFoldersStorageKey={
+              collapsedFoldersScope
+                ? projectFilesTreeCollapsedFoldersStorageKey(
+                    `content-editor:${collapsedFoldersScope}`,
+                  )
+                : undefined
+            }
           />
         </div>
       </div>

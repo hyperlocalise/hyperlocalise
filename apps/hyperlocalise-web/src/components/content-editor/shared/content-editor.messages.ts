@@ -1647,6 +1647,16 @@ export const contentEditorSideBySidePanelMessages = defineMessages({
     id: "eHtPlX55/J",
     description: "Tab in the CAT details panel listing comments on the focused string",
   },
+  activityTab: {
+    defaultMessage: "Activity",
+    id: "yppbhxn60H",
+    description: "Tab in the CAT details panel listing activity on the focused string",
+  },
+  detailsTabsLabel: {
+    defaultMessage: "String details sections",
+    id: "IkLXA6UrR5",
+    description: "Accessible label for the vertical tab rail in the CAT details panel",
+  },
   keyField: {
     defaultMessage: "Key",
     id: "5ug+haPHOx",

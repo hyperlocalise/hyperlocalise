@@ -37,6 +37,7 @@ import { projectFilesTreeMessages as messages } from "./project-files-tree.messa
 import { PROJECT_FILES_TREE_ICONS } from "./project-files-tree-icons";
 import { dedupeProjectFilesBySourcePath, formatBytes } from "./project-files-shared";
 import { buildProjectFileActionCapabilities } from "./use-project-file-actions";
+import { useProjectFilesTreeCollapsedFolders } from "./use-project-files-tree-collapsed-folders";
 
 export const TREE_HEIGHT_PX = 480;
 
@@ -115,6 +116,7 @@ export function ProjectFilesTree({
   fillHeight = false,
   fileProgress,
   searchQuery,
+  collapsedFoldersStorageKey,
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
@@ -122,6 +124,8 @@ export function ProjectFilesTree({
   onActivateFile?: (sourcePath: string) => void;
   fileActions?: ProjectFileTreeActionsConfig;
   ariaLabel?: string;
+  /** Persists collapsed folders in localStorage under this key. */
+  collapsedFoldersStorageKey?: string;
   /** Stretch to the parent height instead of the fixed TREE_HEIGHT_PX. */
   fillHeight?: boolean;
   /** Per-file progress for the active locale, shown as "translated% · approved%". */
@@ -141,6 +145,7 @@ export function ProjectFilesTree({
         fillHeight={fillHeight}
         fileProgress={fileProgress}
         searchQuery={searchQuery}
+        collapsedFoldersStorageKey={collapsedFoldersStorageKey}
       />
     );
   }
@@ -155,6 +160,7 @@ export function ProjectFilesTree({
       fillHeight={fillHeight}
       fileProgress={fileProgress}
       searchQuery={searchQuery}
+      collapsedFoldersStorageKey={collapsedFoldersStorageKey}
     />
   );
 }
@@ -169,6 +175,7 @@ function ProjectFilesTreeView({
   fillHeight = false,
   fileProgress = NO_FILE_PROGRESS,
   searchQuery,
+  collapsedFoldersStorageKey,
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
@@ -179,6 +186,7 @@ function ProjectFilesTreeView({
   fillHeight?: boolean;
   fileProgress?: readonly ProjectFileProgressRecord[];
   searchQuery?: string;
+  collapsedFoldersStorageKey?: string;
 }) {
   const hasExternalSearch = searchQuery !== undefined;
   const intl = useIntl();
@@ -391,17 +399,27 @@ function ProjectFilesTreeView({
     },
   });
 
+  const { preserveCollapsedFolders, restoreCollapsedFolders } = useProjectFilesTreeCollapsedFolders(
+    model,
+    collapsedFoldersStorageKey,
+  );
+
+  // Keyed on the path set, not array identity: each reset rebuilds the tree fully expanded.
   useEffect(() => {
-    model.resetPaths(paths);
-  }, [model, paths]);
+    preserveCollapsedFolders(() => model.resetPaths(pathsKey ? pathsKey.split("\0") : []));
+  }, [model, pathsKey, preserveCollapsedFolders]);
 
   useEffect(() => {
     if (searchQuery === undefined) {
       return;
     }
 
-    model.setSearch(searchQuery.trim() || null);
-  }, [model, paths, searchQuery]);
+    const query = searchQuery.trim() || null;
+    model.setSearch(query);
+    if (!query) {
+      restoreCollapsedFolders();
+    }
+  }, [model, pathsKey, searchQuery, restoreCollapsedFolders]);
 
   // Pierre's "ignored" git status dims the row name and icon, like gitignored files.
   useEffect(() => {

@@ -9,6 +9,11 @@ generated files. From the repository root:
 node scripts/add-bsl-headers.mjs apps/hyperlocalise-web
 ```
 
+# Client state
+
+Follow [`MOBX.md`](./MOBX.md) when adding or changing MobX stores, controllers, or
+observer views.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

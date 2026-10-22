@@ -24,10 +24,8 @@ import type { ContentEditorSegmentConcordanceResult } from "@/components/content
 import type { ContentEditorFormatCheck } from "@/components/content-editor/shared/types";
 
 import { createCatWorkspace } from "./content-editor-workspace-orchestrator";
-import {
-  findAdjacentSegmentIdMatching,
-  useContentEditorWorkspaceRuntime,
-} from "./use-content-editor-workspace-runtime";
+import { findAdjacentSegmentIdMatching } from "./controllers/content-editor-navigation-controller";
+import { useContentEditorWorkspaceRuntime } from "./use-content-editor-workspace-runtime";
 
 function createDeferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;

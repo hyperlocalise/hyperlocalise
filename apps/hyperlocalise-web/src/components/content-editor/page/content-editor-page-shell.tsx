@@ -86,6 +86,11 @@ export const ContentEditorPageShell = observer(function ContentEditorPageShell({
                     page.allFiles ? null : page.selectedSourcePath,
                   )}
                   selectedSourcePath={page.selectedSourcePath}
+                  collapsedFoldersScope={
+                    page.organizationSlug && page.projectId
+                      ? `${page.organizationSlug}:${page.projectId}`
+                      : undefined
+                  }
                   onSelectFile={actions.onSelectFile}
                   allFilesSelected={page.allFiles}
                   onSelectAllFiles={page.canUseAllFiles ? actions.onSelectAllFiles : undefined}

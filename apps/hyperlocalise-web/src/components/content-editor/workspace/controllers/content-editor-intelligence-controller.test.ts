@@ -622,7 +622,7 @@ describe("ContentEditorIntelligenceController", () => {
           canAddComments: true,
         },
       });
-      workspace.isLoadingVisualContext = true;
+      workspace.setVisualContextLoading(true);
       const { controller } = createController(workspace, {
         intl,
         services: { lookupSegmentVisualContext },

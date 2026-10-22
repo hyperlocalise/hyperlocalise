@@ -126,4 +126,8 @@ export class MultilingualDrafts {
   clear() {
     this.cells.clear();
   }
+  /** Dirty or failed cells survive; the unsaved-changes guard decides whether to discard them. */
+  resetForFileScope() {
+    this.releaseInactive(undefined, undefined);
+  }
 }

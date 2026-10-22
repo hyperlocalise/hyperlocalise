@@ -121,4 +121,13 @@ export class ContentEditorImageGenerationStore {
     }
     this.#generations.clear();
   }
+
+  /** Aborts rather than orphans attempts, so returning to the file cannot start a second one. */
+  resetForFileScope() {
+    this.cancelAll();
+  }
+
+  dispose() {
+    this.cancelAll();
+  }
 }

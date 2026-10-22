@@ -1488,7 +1488,7 @@ describe("ContentEditorWorkspaceOrchestrator file scope", () => {
       segments: undefined,
     });
     const store = createCatWorkspace(previousFile);
-    store.serverTargetLookup = () => undefined;
+    store.attachServerTargetSource({ get: () => undefined, subscribe: () => () => undefined });
     // A second snapshot of the same file records the queue window.
     store.ingestQueue({ ...previousFile });
     expect(store.getQueuePanelSegments("all", true).map((segment) => segment.id)).toEqual([
