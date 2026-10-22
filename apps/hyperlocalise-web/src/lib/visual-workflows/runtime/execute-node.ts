@@ -14,6 +14,7 @@ import { generateText, Output } from "ai";
 
 import { validateContentSyncConfig } from "@/lib/agents/content-sync/content-sync-config";
 import { executeContentSyncConfig } from "@/lib/agents/content-sync/execute-content-sync";
+import { extractAiSdkTokenUsage, trackAiCallTokenUsage } from "@/lib/billing/agent-runtime-usage";
 import { db, schema } from "@/lib/database/client";
 import { isErr } from "@/lib/primitives/result/results";
 import {
@@ -486,13 +487,13 @@ export async function executeVisualWorkflowNode(input: {
       }
 
       try {
-        const { model } = await resolveHyperlocaliseAgentLanguageModel({
+        const languageModel = await resolveHyperlocaliseAgentLanguageModel({
           organizationId: input.organizationId,
         });
         const structured =
           node.outputFields?.some((field) => field.path.startsWith("json.")) ?? false;
         const result = await generateText({
-          model,
+          model: languageModel.model,
           prompt,
           maxRetries: 0,
           ...(structured
@@ -505,6 +506,13 @@ export async function executeVisualWorkflowNode(input: {
           abortSignal: input.signal
             ? AbortSignal.any([input.signal, AbortSignal.timeout(WORKFLOW_LIMITS.aiTimeoutMs)])
             : AbortSignal.timeout(WORKFLOW_LIMITS.aiTimeoutMs),
+        });
+        await trackAiCallTokenUsage({
+          organizationId: input.organizationId,
+          source: "visual_workflow_ai_step",
+          tokenUsage: extractAiSdkTokenUsage(result.usage),
+          modelId: languageModel.modelId,
+          credentialSource: languageModel.source === "gateway" ? "gateway" : "byok",
         });
         const json = structured ? result.output : undefined;
         return {
