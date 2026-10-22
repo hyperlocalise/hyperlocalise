@@ -213,17 +213,29 @@ describe("reports routes", () => {
   });
 
   it.each(["member", "translator"] as const)(
-    "keeps money from a %s and still shows activity",
+    "shows a %s only their own time, never the reports",
     async (role) => {
       const identity = fixture.createWorkosIdentityWithRole(role);
       const headers = await fixture.authHeadersFor(identity);
       const slug = identity.organization.slug ?? "missing-slug";
-      for (const path of ["/costs", "/cost-estimate", "/budgets", "/rate-cards"]) {
+      for (const path of [
+        "",
+        "/activity",
+        "/words",
+        "/step-times",
+        "/ai-usage",
+        "/costs",
+        "/cost-estimate",
+        "/budgets",
+        "/rate-cards",
+      ]) {
         const response = await app.request(reportsUrl(slug, path), { headers });
         expect(response.status, path).toBe(403);
       }
-      const activity = await app.request(reportsUrl(slug, "/activity"), { headers });
-      expect(activity.status).toBe(200);
+      const time = await app.request(reportsUrl(slug, "/time"), { headers });
+      expect(time.status).toBe(200);
+      // No automated time: that is workspace activity, part of the reports they cannot see.
+      await expect(time.json()).resolves.toMatchObject({ time: { automated: null } });
       const settings = await app.request(reportsUrl(slug, "/settings"), { headers });
       await expect(settings.json()).resolves.toMatchObject({
         settings: { financial: false, canLogTime: role === "translator" },
@@ -386,6 +398,8 @@ describe("reports routes", () => {
       canSetPricing: false,
     });
     await expect(viewAs("translator")).resolves.toMatchObject({
+      // Words and match bands are part of Reports, which other roles do not see.
+      words: null,
       estimate: null,
       stillToCome: null,
       pricing: null,
@@ -572,7 +586,7 @@ describe("reports routes", () => {
     expect((await budget("Standard")).status).toBe(200);
   });
 
-  it("shows a viewer only the projects their teams can open, and money and workspace-wide work only to billing roles", async () => {
+  it("shows a viewer only the projects their teams can open, and other roles only their own time", async () => {
     const workspace = await reporting.createWorkspace();
     const { identity, organization, user, project, createProject, createJob, addSummary } =
       workspace;
@@ -581,6 +595,16 @@ describe("reports routes", () => {
       .values({ organizationId: organization.id, slug: "secret", name: "Secret" })
       .returning();
     const secret = await createProject("Secret", secretTeam!.id);
+    // A localization manager sees Reports, but only for the projects their teams can open.
+    const managerIdentity = reporting.createWorkosIdentityForOrganization(
+      identity.organization,
+      "localization_manager",
+    );
+    const { user: manager } = await reporting.createLocalWorkosIdentity(managerIdentity);
+    await ensureDefaultWorkspaceTeamMembership({
+      organizationId: organization.id,
+      userId: manager.id,
+    });
     const translatorIdentity = reporting.createWorkosIdentityForOrganization(
       identity.organization,
       "translator",
@@ -644,31 +668,43 @@ describe("reports routes", () => {
       return response.json();
     };
     const admin = await reporting.authHeadersFor(identity);
-    const viewer = await reporting.authHeadersFor(translatorIdentity);
+    const viewer = await reporting.authHeadersFor(managerIdentity);
+    const other = await reporting.authHeadersFor(translatorIdentity);
 
     const adminWords = await read(admin, "/words");
     expect(adminWords.wordCounts.total).toBe(109);
+    // A localization manager is not limited to a team: every project, like an admin.
     const viewerWords = await read(viewer, "/words");
     expect(
       viewerWords.wordCounts.rows.map((row: { projectName: string }) => row.projectName),
-    ).toEqual(["Docs"]);
-    expect((await read(viewer, `/words?projectId=${secret.id}`)).wordCounts.rows).toEqual([]);
-    expect((await read(viewer, `/activity?projectId=${secret.id}`)).activity.current.arrived).toBe(
-      0,
-    );
+    ).toEqual(["Docs", "Secret"]);
+    // A translator is: the Secret project is not offered, and its time cannot be read.
+    const settings = await read(other, "/settings");
+    expect(settings.settings.projects.map((row: { name: string }) => row.name)).toEqual(["Docs"]);
+    expect((await read(other, `/time?projectId=${secret.id}`)).time.logged.rows).toEqual([]);
 
+    // AI and workflows outside any project are workspace-wide, shown to every billing role.
     expect((await read(admin, "/ai-usage")).aiUsage.totals.calls).toBe(1);
-    expect((await read(viewer, "/ai-usage")).aiUsage.totals.calls).toBe(0);
+    expect((await read(viewer, "/ai-usage")).aiUsage.totals.calls).toBe(1);
     expect((await read(admin, "/step-times")).stepTimes.automated.workflowSteps).toHaveLength(1);
-    expect((await read(viewer, "/step-times")).stepTimes.automated.workflowSteps).toEqual([]);
+    expect((await read(viewer, "/step-times")).stepTimes.automated.workflowSteps).toHaveLength(1);
 
-    const report = await read(viewer, `/tasks/${job.id}/report`);
+    // A translator sees no words and only their own time, on the task and on the Time tab.
+    const report = await read(other, `/tasks/${job.id}/report`);
     expect(report.taskReport).toMatchObject({
+      words: null,
       estimate: null,
       stillToCome: null,
       time: { minutes: 30, people: 1, entries: [] },
       canLogTime: true,
     });
+    const ownTime = await read(other, "/time");
+    expect(ownTime.time).toMatchObject({
+      logged: { rows: [], totals: { minutes: 0, people: 0, tasks: 0 } },
+      automated: null,
+    });
+    const managerTime = await read(viewer, "/time");
+    expect(managerTime.time.logged.totals.minutes).toBe(30);
   });
 
   it("narrows budgets to one project, and to none for a project the viewer has not got", async () => {

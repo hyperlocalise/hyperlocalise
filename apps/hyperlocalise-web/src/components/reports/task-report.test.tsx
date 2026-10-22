@@ -228,24 +228,23 @@ describe("Task report", () => {
     });
   });
 
-  it("shows other roles no money or pricing, only their own time, and links to the task's words", async () => {
+  it("shows other roles only their own time, and links to the task's time", async () => {
     mocks.bodies = reportsResponseBodies(
       createReportsSettings({ financial: false, canManage: false }),
     );
     renderReport();
-    const table = await screen.findByRole("table", { name: "Task match analysis" });
     expect(
-      within(table)
-        .getAllByRole("columnheader")
-        .map((cell) => cell.textContent),
-    ).not.toContain("Cost");
+      await screen.findByRole("table", { name: "Time logged on this task" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "Task match analysis" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Words to translate")).not.toBeInTheDocument();
     expect(screen.queryByText("Estimated cost")).not.toBeInTheDocument();
     expect(screen.queryByRole("table", { name: "Task pricing by step" })).not.toBeInTheDocument();
     expect(screen.getByText("Only your own entries are listed.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open in Reports" })).toHaveAttribute(
       "href",
       // Dated from the task's start, not the last 28 days.
-      "/org/acme/projects/project_web/reports?tab=words&range=custom&from=2026-10-14&to=2026-10-21&task=job_release&group=task",
+      "/org/acme/projects/project_web/reports?tab=time&range=custom&from=2026-10-14&to=2026-10-21&task=job_release",
     );
   });
 });

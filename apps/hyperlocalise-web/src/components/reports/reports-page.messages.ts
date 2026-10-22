@@ -46,6 +46,13 @@ export const reportsPageMessages = defineMessages({
     defaultMessage: "Reports has not recorded any work yet · Days and weeks use UTC",
     description: "Subtitle of the Reports page before anything has been recorded",
   },
+  ownTimeOnly: {
+    id: "ZT+8zOrCd1",
+    defaultMessage:
+      "You see the time you logged. The other reports are for admins and localization managers.",
+    description:
+      "Note on the Reports page for roles that cannot see what work costs: they only see their own time",
+  },
   summaryPending: {
     id: "c3j6tppku4",
     defaultMessage:

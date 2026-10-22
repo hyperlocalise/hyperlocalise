@@ -52,17 +52,26 @@ export type LoggedTime = {
 
 export const LOGGED_TIME_PAGE_SIZE = 50;
 
-function loggedTimeWhere(input: ReportScope, projectIds: string[], from: string, to: string): SQL {
+/** Narrows logged time to one person: a viewer who may not see what others' work costs. */
+type LoggedTimeScope = ReportScope & { contributorId?: string };
+
+function loggedTimeWhere(
+  input: LoggedTimeScope,
+  projectIds: string[],
+  from: string,
+  to: string,
+): SQL {
   return sql`e.organization_id = ${input.organizationId}
     and e.project_id in (${idList(projectIds)}) and not e.voided
     and e.work_date >= ${dayStart(from)} and e.work_date < ${dayEnd(to)}
     ${input.jobIds?.length ? sql`and e.job_id in (${idList(input.jobIds)})` : sql``}
-    ${input.targetLocale ? sql`and e.target_locale = ${input.targetLocale}` : sql``}`;
+    ${input.targetLocale ? sql`and e.target_locale = ${input.targetLocale}` : sql``}
+    ${input.contributorId ? sql`and e.contributor_id = ${input.contributorId}` : sql``}`;
 }
 
 /** Time logged in a period by task, step and language, most time first, 50 rows a page. */
 export async function queryLoggedTime(
-  input: ReportScope & {
+  input: LoggedTimeScope & {
     period: ReportPeriod;
     page: number;
     /** Every row on one page, for a download. */

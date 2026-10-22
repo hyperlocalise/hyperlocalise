@@ -102,19 +102,32 @@ describe("Reports page", () => {
     expect(screen.getAllByText(/points vs previous 28 days/).length).toBeGreaterThan(0);
   });
 
-  it("hides the money tabs from other roles, even when the URL asks for one", async () => {
+  it("shows other roles only their own time, even when the URL asks for another tab", async () => {
     mocks.bodies = reportsResponseBodies(
       createReportsSettings({ financial: false, canManage: false }),
     );
     mocks.search = "tab=costs";
     renderPage();
-    expect(await screen.findByText("Source words")).toBeInTheDocument();
-    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
-      "Activity",
-      "Word counts",
-      "Time",
-    ]);
-    for (const endpoint of ["costs", "cost-estimate", "budgets", "rate-cards"])
+    expect(await screen.findByRole("tab", { name: "Time" })).toBeInTheDocument();
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Time"]);
+    expect(await screen.findByRole("button", { name: "Log time" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "You see the time you logged. The other reports are for admins and localization managers.",
+      ),
+    ).toBeInTheDocument();
+    // No automated time card: the member's time body has none.
+    expect(screen.queryByText("Automated step run time")).not.toBeInTheDocument();
+    for (const endpoint of [
+      "activity",
+      "words",
+      "step-times",
+      "ai-usage",
+      "costs",
+      "cost-estimate",
+      "budgets",
+      "rate-cards",
+    ])
       expect(callsTo(endpoint)).toEqual([]);
   });
 

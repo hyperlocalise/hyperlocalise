@@ -421,6 +421,10 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
       if (!(await isWorkspaceFeatureFlagEnabled(workspaceReportsFlag, apiAuth))) {
         return mcpToolError("feature_unavailable", "Reports is not enabled for this workspace");
       }
+      // Reports are for the roles that see what work costs: admins and localization managers.
+      if (!hasCapability(apiAuth.membership.role, "billing:read")) {
+        return mcpToolError("report_forbidden", "Reports require billing access");
+      }
 
       const parsed = reportQuerySchema.safeParse({ ...input, format: "json" });
       if (!parsed.success) {
@@ -429,15 +433,10 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
         });
       }
 
-      const financial = hasCapability(apiAuth.membership.role, "billing:read");
-      if (parsed.data.view === "costs" && !financial) {
-        return mcpToolError("report_costs_forbidden", "Cost reports require billing access");
-      }
-
       const report = await queryReport({
         organizationId,
         projectIds: await getAccessibleProjectIds(apiAuth),
-        financial,
+        financial: true,
         query: parsed.data,
       });
 

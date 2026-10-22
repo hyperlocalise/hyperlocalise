@@ -72,27 +72,33 @@ export function TimeTab({
               count: time.data.logged.totals.tasks,
             })}
           />
-          <ReportStatCard
-            label={intl.formatMessage(messages.automatedTime)}
-            value={formatDuration(
-              intl,
-              (time.data.automated.taskRuns.milliseconds +
-                time.data.automated.workflowSteps.reduce((sum, row) => sum + row.milliseconds, 0)) /
-                60_000,
-            )}
-            detail={[
-              intl.formatMessage(messages.runs, {
-                count:
-                  time.data.automated.taskRuns.runs +
-                  time.data.automated.workflowSteps.reduce((sum, row) => sum + row.runs, 0),
-              }),
-              input.state.jobId || input.state.targetLocale
-                ? intl.formatMessage(messages.automatedFiltersNote)
-                : null,
-            ]
-              .filter(Boolean)
-              .join(". ")}
-          />
+          {/* Automated time is workspace activity, shown with the rest of Reports to billing roles. */}
+          {time.data.automated ? (
+            <ReportStatCard
+              label={intl.formatMessage(messages.automatedTime)}
+              value={formatDuration(
+                intl,
+                (time.data.automated.taskRuns.milliseconds +
+                  time.data.automated.workflowSteps.reduce(
+                    (sum, row) => sum + row.milliseconds,
+                    0,
+                  )) /
+                  60_000,
+              )}
+              detail={[
+                intl.formatMessage(messages.runs, {
+                  count:
+                    time.data.automated.taskRuns.runs +
+                    time.data.automated.workflowSteps.reduce((sum, row) => sum + row.runs, 0),
+                }),
+                input.state.jobId || input.state.targetLocale
+                  ? intl.formatMessage(messages.automatedFiltersNote)
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(". ")}
+            />
+          ) : null}
         </ReportStatCards>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">

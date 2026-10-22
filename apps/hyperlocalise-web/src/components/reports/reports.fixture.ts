@@ -526,6 +526,7 @@ export const reportsTaskReport: TaskReport = {
 function memberTaskReport(): TaskReport {
   return {
     ...reportsTaskReport,
+    words: null,
     estimate: null,
     stillToCome: null,
     pricing: null,
@@ -554,7 +555,9 @@ export function reportsResponseBodies(settings = createReportsSettings()) {
         ...createReportsWordCounts(),
       },
     },
-    time: { time: reportsLoggedTime },
+    time: {
+      time: settings.financial ? reportsLoggedTime : { ...reportsLoggedTime, automated: null },
+    },
     costs: { costs: reportsCosts },
     "cost-estimate": { costEstimate: { ...reportsCostEstimate, unit: "words" as const } },
     budgets: { budgets: reportsBudgets },

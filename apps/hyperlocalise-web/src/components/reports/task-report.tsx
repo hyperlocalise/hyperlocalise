@@ -61,7 +61,9 @@ import { UnitSwitch } from "./word-counts-tab";
 import { wordCountsTabMessages as wordMessages } from "./word-counts-tab.messages";
 
 type Intl = ReturnType<typeof useIntl>;
-type WordRow = TaskReportData["words"]["rows"][number];
+/** The task's words and match bands, shown to the roles that see Reports. */
+type TaskWords = NonNullable<TaskReportData["words"]>;
+type WordRow = TaskWords["rows"][number];
 type StepPricing = NonNullable<TaskReportData["pricing"]>[number];
 type TimeEntry = TaskReportData["time"]["entries"][number];
 
@@ -89,13 +91,13 @@ function reportsHref(
     : buildOrganizationPath(organizationSlug, "reports");
   if (settings.financial)
     return buildReportsHref(path, { ...DEFAULT_REPORTS_STATE, tab: "estimate", jobIds: [task.id] });
-  // Word counts are dated, so they cover the task's whole life, from when Reports could see it.
+  // Other roles see only their own time there; it is dated, so it covers the task's whole life,
+  // from when Reports could see it.
   const created = task.createdAt.slice(0, 10);
   const from = settings.startedDay && settings.startedDay > created ? settings.startedDay : created;
   return buildReportsHref(path, {
     ...DEFAULT_REPORTS_STATE,
-    tab: "words",
-    groupBy: "task",
+    tab: "time",
     jobId: task.id,
     range: "custom",
     from,
@@ -147,27 +149,39 @@ export function TaskReport({
               <ArrowSquareOutIcon aria-hidden />
             </Link>
           </div>
-          <TaskCards data={data} step={step} />
-          <ReportSection
-            title={intl.formatMessage(messages.matchAnalysis)}
-            description={intl.formatMessage(messages.matchAnalysisDetail)}
-            actions={
-              <>
-                <SegmentedSwitch
-                  label={intl.formatMessage(messages.stepSwitch)}
-                  value={step}
-                  options={REPORT_STEPS.map((value) => ({ value, label: stepLabel(intl, value) }))}
-                  onChange={setStep}
-                />
-                <UnitSwitch value={unit} onChange={setUnit} />
-                <DownloadCsvButton
-                  href={taskReportDownloadUrl(organizationSlug, jobId, { unit, step, rateCard })}
-                />
-              </>
-            }
-          >
-            <MatchAnalysis data={data} step={step} />
-          </ReportSection>
+          {/* Words, match bands and money are for the roles that see Reports; others see their time. */}
+          {data.words ? (
+            <>
+              <TaskCards data={data} words={data.words} step={step} />
+              <ReportSection
+                title={intl.formatMessage(messages.matchAnalysis)}
+                description={intl.formatMessage(messages.matchAnalysisDetail)}
+                actions={
+                  <>
+                    <SegmentedSwitch
+                      label={intl.formatMessage(messages.stepSwitch)}
+                      value={step}
+                      options={REPORT_STEPS.map((value) => ({
+                        value,
+                        label: stepLabel(intl, value),
+                      }))}
+                      onChange={setStep}
+                    />
+                    <UnitSwitch value={unit} onChange={setUnit} />
+                    <DownloadCsvButton
+                      href={taskReportDownloadUrl(organizationSlug, jobId, {
+                        unit,
+                        step,
+                        rateCard,
+                      })}
+                    />
+                  </>
+                }
+              >
+                <MatchAnalysis data={data} words={data.words} step={step} />
+              </ReportSection>
+            </>
+          ) : null}
           <TimeSection organizationSlug={organizationSlug} settings={loaded} data={data} />
           {data.pricing ? (
             <PricingSection
@@ -185,13 +199,21 @@ export function TaskReport({
   );
 }
 
-function TaskCards({ data, step }: { data: TaskReportData; step: ReportStep }) {
+function TaskCards({
+  data,
+  words,
+  step,
+}: {
+  data: TaskReportData;
+  words: TaskWords;
+  step: ReportStep;
+}) {
   const intl = useIntl();
-  const totals = data.words.totals[step];
+  const totals = words.totals[step];
   const languages = new Set(
-    data.words.rows.filter((row) => row.step === step).map((row) => row.targetLocale),
+    words.rows.filter((row) => row.step === step).map((row) => row.targetLocale),
   ).size;
-  const translated = data.words.totals.translation.arrivedDone;
+  const translated = words.totals.translation.arrivedDone;
   return (
     <ReportStatCards>
       <ReportStatCard
@@ -219,7 +241,7 @@ function TaskCards({ data, step }: { data: TaskReportData; step: ReportStep }) {
         label={intl.formatMessage(messages.approved)}
         value={formatShare(
           intl,
-          translated > 0 ? data.words.totals.review.arrivedDone / translated : null,
+          translated > 0 ? words.totals.review.arrivedDone / translated : null,
         )}
         detail={intl.formatMessage(messages.approvedDetail)}
       />
@@ -245,8 +267,8 @@ function TaskCards({ data, step }: { data: TaskReportData; step: ReportStep }) {
 type AnalysisRow = WordRow & { weighted: number | null; costUsd: string | null; fixed: boolean };
 
 /** The step's rows by language, with the estimate's weighted units and cost beside them. */
-function analysisRows(data: TaskReportData, step: ReportStep): AnalysisRow[] {
-  return data.words.rows
+function analysisRows(data: TaskReportData, words: TaskWords, step: ReportStep): AnalysisRow[] {
+  return words.rows
     .filter((row) => row.step === step)
     .map((row) => {
       const priced = data.estimate?.rows.filter(
@@ -270,9 +292,17 @@ function analysisRows(data: TaskReportData, step: ReportStep): AnalysisRow[] {
     });
 }
 
-function MatchAnalysis({ data, step }: { data: TaskReportData; step: ReportStep }) {
+function MatchAnalysis({
+  data,
+  words,
+  step,
+}: {
+  data: TaskReportData;
+  words: TaskWords;
+  step: ReportStep;
+}) {
   const intl = useIntl();
-  const rows = analysisRows(data, step);
+  const rows = analysisRows(data, words, step);
   if (rows.length === 0) return <ReportEmpty description={intl.formatMessage(messages.noWords)} />;
   const bandTotals: BandCounts = {};
   for (const row of rows)
@@ -282,7 +312,7 @@ function MatchAnalysis({ data, step }: { data: TaskReportData; step: ReportStep 
   const money = data.estimate !== null;
   const sum = (pick: (row: AnalysisRow) => number) =>
     rows.reduce((total, row) => total + pick(row), 0);
-  const uncounted = data.words.totals[step].uncounted;
+  const uncounted = words.totals[step].uncounted;
   const fees = data.estimate?.fixedFees.filter((fee) => fee.step === step) ?? [];
   const notes = [
     ...fees.map((fee) =>

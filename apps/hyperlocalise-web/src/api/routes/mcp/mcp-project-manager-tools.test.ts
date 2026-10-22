@@ -751,9 +751,10 @@ describe("MCP project manager tools", () => {
       isError: true,
       output: { error: "feature_unavailable" },
     });
+    // Reports are for admins and localization managers; a translator gets none of them.
     expect(costs).toMatchObject({
       isError: true,
-      output: { error: "report_costs_forbidden" },
+      output: { error: "report_forbidden" },
     });
     expect(truncated.isError).toBe(false);
     expect(truncated.output.rows).toHaveLength(MCP_REPORT_MAX_ROWS);

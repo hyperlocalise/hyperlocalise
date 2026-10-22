@@ -172,7 +172,7 @@ export function createReportsRoutes() {
         "Reports is not enabled for this workspace",
       ),
     )
-    .get("/", async (c) => {
+    .get("/", billingRead, async (c) => {
       const parsed = reportQuerySchema.safeParse(c.req.query());
       if (!parsed.success) return badRequestResponse(c, "invalid_report_query");
       const financial = hasCapability(c.var.auth.membership.role, "billing:read");
@@ -247,7 +247,7 @@ export function createReportsRoutes() {
         },
       });
     })
-    .get("/activity", reportQuery(activityQuerySchema), async (c) => {
+    .get("/activity", billingRead, reportQuery(activityQuerySchema), async (c) => {
       const query = c.req.valid("query");
       const context = await reportContext(c);
       const period = resolvePeriod({ ...query, ...context });
@@ -263,7 +263,7 @@ export function createReportsRoutes() {
         activity: { period, unit: query.unit, step, ...totals, series, byLanguage },
       });
     })
-    .get("/step-times", reportQuery(stepTimesQuerySchema), async (c) => {
+    .get("/step-times", billingRead, reportQuery(stepTimesQuerySchema), async (c) => {
       const query = c.req.valid("query");
       const context = await reportContext(c);
       const period = resolvePeriod({ ...query, ...context });
@@ -285,7 +285,7 @@ export function createReportsRoutes() {
       if (query.format === "csv") return csv(c, "step-times.csv", stepTimesCsv(logged, automated));
       return c.json({ stepTimes: { period, logged, automated } });
     })
-    .get("/ai-usage", reportQuery(aiUsageQuerySchema), async (c) => {
+    .get("/ai-usage", billingRead, reportQuery(aiUsageQuerySchema), async (c) => {
       const query = c.req.valid("query");
       const context = await reportContext(c);
       const period = resolvePeriod({ ...query, ...context });
@@ -300,7 +300,7 @@ export function createReportsRoutes() {
       if (query.format === "csv") return csv(c, "ai-usage.csv", aiUsageCsv(usage, query.groupBy));
       return c.json({ aiUsage: { period, ...usage } });
     })
-    .get("/words", reportQuery(wordsQuerySchema), async (c) => {
+    .get("/words", billingRead, reportQuery(wordsQuerySchema), async (c) => {
       const query = c.req.valid("query");
       const context = await reportContext(c);
       const period = resolvePeriod({ ...query, ...context });
@@ -329,6 +329,7 @@ export function createReportsRoutes() {
       const context = await reportContext(c);
       const period = resolvePeriod({ ...query, ...context });
       const { jobId, format, ...filters } = query;
+      // Roles that cannot see what work costs see only their own time, and no automated time.
       const [logged, automated] = await Promise.all([
         queryLoggedTime({
           ...context,
@@ -336,13 +337,16 @@ export function createReportsRoutes() {
           jobIds: jobId ? [jobId] : undefined,
           period,
           all: format === "csv",
+          contributorId: context.financial ? undefined : c.var.auth.user.localUserId,
         }),
-        queryAutomatedTime({
-          ...context,
-          projectId: filters.projectId,
-          period,
-          includeUnattributed: context.financial,
-        }),
+        context.financial
+          ? queryAutomatedTime({
+              ...context,
+              projectId: filters.projectId,
+              period,
+              includeUnattributed: true,
+            })
+          : null,
       ]);
       if (format === "csv") return csv(c, "time.csv", loggedTimeCsv(logged));
       return c.json({ time: { period, logged, automated } });
@@ -381,7 +385,7 @@ export function createReportsRoutes() {
       if (query.format === "csv") return csv(c, "budgets.csv", budgetsCsv(budgets));
       return c.json({ budgets });
     })
-    .get("/rate-cards", async (c) => {
+    .get("/rate-cards", billingRead, async (c) => {
       const role = c.var.auth.membership.role;
       if (!hasCapability(role, "billing:read"))
         return forbiddenResponse(c, "report_costs_forbidden");
@@ -427,8 +431,11 @@ export function createReportsRoutes() {
       const financial = hasCapability(role, "billing:read");
       const userId = c.var.auth.user.localUserId;
       const money = financial && job.projectId;
+      // Words, match bands and money are for the roles that see Reports; others see their own time.
+      if (query.format === "csv" && !financial)
+        return forbiddenResponse(c, "report_costs_forbidden");
       const [words, entries, estimate, stillToCome, pricing, locked] = await Promise.all([
-        queryTaskWords({ organizationId, jobId: job.id, unit: query.unit }),
+        financial ? queryTaskWords({ organizationId, jobId: job.id, unit: query.unit }) : null,
         db.execute<{
           id: string;
           contributorId: string;
@@ -480,7 +487,7 @@ export function createReportsRoutes() {
           ? lockedPricingSteps({ organizationId, jobId: job.id, status: job.status })
           : null,
       ]);
-      if (query.format === "csv")
+      if (query.format === "csv" && words)
         return csv(c, "task-report.csv", taskWordsCsv(words, estimate, query.step));
       const payload = job.inputPayload as {
         sourceLocale?: string;

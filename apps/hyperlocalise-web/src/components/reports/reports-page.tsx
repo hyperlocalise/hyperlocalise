@@ -29,7 +29,7 @@ import { ManageRatesSheet } from "./manage-rates-sheet";
 import { chosenRateCard, ReportsFilterBar } from "./reports-filter-bar";
 import { reportsPageMessages as messages } from "./reports-page.messages";
 import { useReportSettings } from "./reports-queries";
-import { MONEY_TABS, REPORTS_TABS, type ReportsTab } from "./reports-url-state";
+import { MEMBER_TABS, REPORTS_TABS, type ReportsTab } from "./reports-url-state";
 import { TimeTab } from "./time-tab";
 import { useReportsUrlState } from "./use-reports-url-state";
 import { WordCountsTab } from "./word-counts-tab";
@@ -94,8 +94,9 @@ export function ReportsPage({
     );
 
   const data = settings.data;
-  const tabs = REPORTS_TABS.filter((tab) => data.financial || !MONEY_TABS.includes(tab));
-  const tab = tabs.includes(state.tab) ? state.tab : "activity";
+  // Reports are for the roles that see what work costs; other members see only their own time.
+  const tabs = data.financial ? REPORTS_TABS : MEMBER_TABS;
+  const tab = tabs.includes(state.tab) ? state.tab : tabs[0];
   const effective = { ...state, tab, projectId: projectId ?? state.projectId };
   const input = { organizationSlug, state: effective, today: data.today };
   const rateCardName = chosenRateCard(effective, data);
@@ -118,6 +119,11 @@ export function ReportsPage({
       {data.summary.pendingDays > 0 ? (
         <p className="text-[13px] text-muted-foreground">
           {intl.formatMessage(messages.summaryPending)}
+        </p>
+      ) : null}
+      {!data.financial ? (
+        <p className="text-[13px] text-muted-foreground">
+          {intl.formatMessage(messages.ownTimeOnly)}
         </p>
       ) : null}
       <Tabs
@@ -144,17 +150,17 @@ export function ReportsPage({
           onChange={update}
           onOpenRates={() => setRatesOpen(true)}
         />
-        <TabsContent value="activity">
-          <ActivityTab input={input} onChange={update} />
-        </TabsContent>
-        <TabsContent value="words">
-          <WordCountsTab input={input} onChange={update} />
-        </TabsContent>
         <TabsContent value="time">
           <TimeTab input={input} settings={data} onChange={update} />
         </TabsContent>
         {data.financial ? (
           <>
+            <TabsContent value="activity">
+              <ActivityTab input={input} onChange={update} />
+            </TabsContent>
+            <TabsContent value="words">
+              <WordCountsTab input={input} onChange={update} />
+            </TabsContent>
             <TabsContent value="costs">
               <CostsTab input={input} settings={data} />
             </TabsContent>

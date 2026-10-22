@@ -26,8 +26,8 @@ import {
 export const REPORTS_TABS = ["activity", "words", "time", "costs", "estimate", "budgets"] as const;
 export type ReportsTab = (typeof REPORTS_TABS)[number];
 
-/** Tabs about money, shown only to roles that can see what work costs. */
-export const MONEY_TABS: readonly ReportsTab[] = ["costs", "estimate", "budgets"];
+/** The tabs for roles that cannot see what work costs: only their own time. */
+export const MEMBER_TABS: readonly ReportsTab[] = ["time"];
 
 export const REPORTS_RANGES = [...REPORT_PRESET_DAYS.map(String), "custom"] as const;
 export type ReportsRange = (typeof REPORTS_RANGES)[number];
