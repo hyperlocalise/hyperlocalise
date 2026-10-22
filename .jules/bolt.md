@@ -467,3 +467,7 @@
 ## 2027-10-21 - Avoiding len(seen) < len(values) guards in template renderers
 **Learning:** In template-based document renderers (like `iniDocument.render`), checking `len(seen) < len(values)` to determine if new keys exist in `values` is unsafe because `values` may contain fewer total entries than the original template while still introducing a new key. A size check can cause new keys to be silently dropped. Instead, accumulating missing keys in `missingBySection` and checking `len(missingBySection) > 0` before sorting and inserting safely bypasses sorting overhead while guaranteeing 100% correctness.
 **Action:** Guard section/key sorting with `len(missingBySection) > 0` or lazy collection rather than comparing `len(seen)` against `len(values)`.
+
+## 2027-10-22 - Slice buffer field on walker state eliminates PO parsing allocations
+**Learning:** In sequential PO file parsing and entry inspection (`poWalkState`), calling `make([]string, len(s.forms))` on every entry creates thousands of heap slice allocations. Adding a `formsBuf []string` slice buffer field to `poWalkState` allows `poWalkState.build()` to reuse the existing slice capacity across `reset()` calls, dropping `BenchmarkPOParser` heap allocations from 1,014 down to 14 allocs/op (~98.6% reduction) and `BenchmarkPOMarshal` from 4,014 down to 2,014 allocs/op (~50% reduction).
+**Action:** Embed reusable slice buffers inside walker state objects to reuse slice capacity across item resets in parser/inspection loops.
