@@ -12,7 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { WorkflowCredentialField } from "./workflow-credential-field";
 import { WorkflowDataPanel } from "./workflow-data-panel";
@@ -24,17 +26,30 @@ import type {
   VisualWorkflowRfEdge,
 } from "@/lib/visual-workflows/schema/types";
 import {
+  ArrowsClockwiseIcon,
   CaretDownIcon,
+  CopyIcon,
   ArrowLeftIcon,
   CaretUpIcon,
   TrashIcon,
   PlusIcon,
   CaretRightIcon,
 } from "@phosphor-icons/react";
-import { FormattedMessage, useIntl } from "react-intl";
+import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+} from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -50,6 +65,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyP } from "@/components/ui/typography";
 import {
+  createAssignmentRule,
   createMergeInputId,
   createObjectPortId,
   createReturnOutputId,
@@ -64,11 +80,15 @@ import {
 import type {
   HttpAuthType,
   HttpMethod,
+  VisualAssignmentRule,
+  VisualAssigneeSource,
+  VisualAssignmentStrategy,
   VisualCatalogType,
   VisualKeyValuePair,
   VisualNodeConfig,
   VisualNodeErrorBehavior,
   VisualSubworkflowField,
+  VisualTaskStep,
   VisualWorkflowGithubTriggerEvent,
   VisualWorkflowRfNode,
   VisualWorkflowValidationIssue,
@@ -99,17 +119,19 @@ import {
   type VisualWorkflowTestData,
   type VisualWorkflowTestFailure,
 } from "@/lib/visual-workflows/editor/visual-workflow-test-data";
-import { useVisualWorkflowResourceOptions } from "./visual-workflow-resource-options";
+import {
+  useVisualWorkflowResourceOptions,
+  type VisualWorkflowMemberOption,
+  type VisualWorkflowProjectOption,
+} from "./visual-workflow-resource-options";
+import { getVisualWorkflowWebhookUrl } from "../visual-workflows-api";
 import { deriveReusableWorkflowContract } from "@/lib/visual-workflows/validation/subworkflow-validation";
 
 const ANY_PROJECT_VALUE = "__any_project__";
 const UNASSIGNED_VALUE = "__unassigned__";
-const CONTENT_SYNC_PROVIDERS: ContentSyncProvider[] = [
-  "github",
-  "gitlab",
-  "contentful",
-  "intercom",
-];
+const KEEP_ASSIGNEE_VALUE = "__keep_assignee__";
+// Content sync runs for GitHub only; other providers fail at run time.
+const CONTENT_SYNC_PROVIDERS: ContentSyncProvider[] = ["github"];
 
 const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 const ERROR_BEHAVIORS: VisualNodeErrorBehavior[] = ["stop", "continue", "branch"];
@@ -131,6 +153,7 @@ export function VisualWorkflowConfigPanel({
   edges = [],
   onChangeContract,
   organizationSlug,
+  visualWorkflowId,
   issues,
   onSelectNode,
   onShowNode,
@@ -152,6 +175,8 @@ export function VisualWorkflowConfigPanel({
 }: {
   node: VisualWorkflowRfNode;
   organizationSlug?: string;
+  /** The saved workflow, which a webhook trigger's URL belongs to. */
+  visualWorkflowId?: string;
   nodes?: readonly VisualWorkflowRfNode[];
   edges?: readonly VisualWorkflowRfEdge[];
   onChangeContract?: (patch: WorkflowNodeContract) => void;
@@ -427,7 +452,7 @@ export function VisualWorkflowConfigPanel({
             value={node.data.catalogType}
             items={VISUAL_TRIGGER_TYPES.map((type) => ({
               value: type,
-              label: intl.formatMessage(titleForTrigger(type)),
+              label: intl.formatMessage(visualWorkflowNodeTitleMessage(type)),
             }))}
             onValueChange={(value) => {
               if (!value || !isVisualTriggerCatalogType(value)) {
@@ -2006,6 +2031,14 @@ export function VisualWorkflowConfigPanel({
             }}
           />
         ) : null}
+        {config.kind === "trigger.webhook" ? (
+          <WebhookTriggerFields
+            config={config}
+            organizationSlug={organizationSlug}
+            visualWorkflowId={visualWorkflowId}
+            onChangeConfig={onChangeConfig}
+          />
+        ) : null}
         {config.kind === "action.content_sync" ? (
           <ContentSyncConfigFields
             config={config}
@@ -2016,14 +2049,79 @@ export function VisualWorkflowConfigPanel({
         {config.kind === "action.machine_translate" ||
         config.kind === "action.create_task" ||
         config.kind === "action.check_progress" ||
-        config.kind === "action.run_qa" ? (
-          <TextField
-            id="vw-localization-project"
-            label={intl.formatMessage(messages.localizationProjectId)}
+        config.kind === "action.run_qa" ||
+        config.kind === "action.list_source_files" ? (
+          <ProjectIdField
+            projects={resources.projects}
             value={config.projectId}
             {...connectedInputProps("projectId")}
             onChange={(value) => onChangeConfig({ ...config, projectId: value })}
-            placeholder="{{ trigger.projectId }}"
+          />
+        ) : null}
+        {config.kind === "action.list_source_files" ? (
+          <TextField
+            id="vw-list-files-path-prefix"
+            label={intl.formatMessage(messages.listFilesPathPrefix)}
+            description={intl.formatMessage(messages.listFilesPathPrefixHint)}
+            value={config.pathPrefix}
+            {...connectedInputProps("pathPrefix")}
+            onChange={(value) => onChangeConfig({ ...config, pathPrefix: value })}
+            placeholder="locales/en/"
+          />
+        ) : null}
+        {config.kind === "action.update_job" ? (
+          <>
+            <TypographyP className="text-xs text-muted-foreground">
+              <FormattedMessage {...messages.updateJobHint} />
+            </TypographyP>
+            <TextField
+              id="vw-update-job-id"
+              label={intl.formatMessage(messages.updateJobJobId)}
+              value={config.jobId}
+              {...connectedInputProps("jobId")}
+              onChange={(value) => onChangeConfig({ ...config, jobId: value })}
+              placeholder="{{ nodes.create_task.jobId }}"
+            />
+            <SelectField
+              id="vw-update-job-assignee"
+              label={intl.formatMessage(messages.updateJobAssignee)}
+              value={config.assigneeWorkosUserId || KEEP_ASSIGNEE_VALUE}
+              items={[
+                {
+                  value: KEEP_ASSIGNEE_VALUE,
+                  label: intl.formatMessage(messages.updateJobKeepAssignee),
+                },
+                ...resources.members.map((member) => ({
+                  value: member.workosUserId,
+                  label: member.label,
+                })),
+              ]}
+              onValueChange={(value) => {
+                if (!value) {
+                  return;
+                }
+                onChangeConfig({
+                  ...config,
+                  assigneeWorkosUserId: value === KEEP_ASSIGNEE_VALUE ? "" : value,
+                });
+              }}
+            />
+            <TextField
+              id="vw-update-job-title"
+              label={intl.formatMessage(messages.updateJobTitle)}
+              value={config.title}
+              {...connectedInputProps("title")}
+              onChange={(value) => onChangeConfig({ ...config, title: value })}
+            />
+          </>
+        ) : null}
+        {config.kind === "action.pick_assignee" ? (
+          <PickAssigneeFields
+            key={node.id}
+            config={config}
+            members={resources.members}
+            connectedInputProps={connectedInputProps}
+            onChangeConfig={onChangeConfig}
           />
         ) : null}
         {config.kind === "action.machine_translate" ||
@@ -2237,6 +2335,23 @@ export function VisualWorkflowConfigPanel({
             />
           </>
         ) : null}
+        {config.kind === "action.create_task" ||
+        config.kind === "action.update_job" ||
+        config.kind === "action.crowdin_create_task" ? (
+          <TextField
+            id="vw-task-due-at"
+            label={intl.formatMessage(messages.taskDueAt)}
+            description={intl.formatMessage(
+              config.kind === "action.update_job"
+                ? messages.updateJobDueAtHint
+                : messages.taskDueAtHint,
+            )}
+            value={config.dueAt ?? ""}
+            {...connectedInputProps("dueAt")}
+            onChange={(value) => onChangeConfig({ ...config, dueAt: value })}
+            placeholder="{{ trigger.body.dueAt }}"
+          />
+        ) : null}
         {config.kind === "action.crowdin_check_progress" ? (
           <>
             <TextField
@@ -2445,6 +2560,489 @@ function KeyValueEditor({
   );
 }
 
+type PickAssigneeConfig = Extract<VisualNodeConfig, { kind: "action.pick_assignee" }>;
+
+const ASSIGNMENT_STRATEGIES: { value: VisualAssignmentStrategy; message: MessageDescriptor }[] = [
+  { value: "least_busy", message: messages.pickAssigneeStrategyLeastBusy },
+  { value: "round_robin", message: messages.pickAssigneeStrategyRoundRobin },
+  { value: "first", message: messages.pickAssigneeStrategyFirst },
+];
+
+const TASK_STEPS: { value: VisualTaskStep; message: MessageDescriptor }[] = [
+  { value: "translate", message: messages.createTaskStepTranslate },
+  { value: "edit", message: messages.createTaskStepEdit },
+  { value: "proofread", message: messages.createTaskStepProofread },
+];
+
+function PickAssigneeFields({
+  config,
+  members,
+  connectedInputProps,
+  onChangeConfig,
+}: {
+  config: PickAssigneeConfig;
+  members: readonly VisualWorkflowMemberOption[];
+  connectedInputProps: (portId: string) => { port?: BoundPort; invalid?: boolean };
+  onChangeConfig: (config: VisualNodeConfig) => void;
+}) {
+  const intl = useIntl();
+  const peopleSource = config.peopleSource ?? "workspace";
+  const setRules = (rules: VisualAssignmentRule[]) => onChangeConfig({ ...config, rules });
+  const setPeopleSource = (next: VisualAssigneeSource) => {
+    if (next === peopleSource) return;
+    onChangeConfig({
+      ...config,
+      peopleSource: next,
+      rules: config.rules.map((rule) => ({ ...rule, assigneeIds: [] })),
+      fallbackAssigneeIds: [],
+    });
+  };
+  const moveRule = (from: number, to: number) => {
+    const rules = [...config.rules];
+    const [rule] = rules.splice(from, 1);
+    rules.splice(to, 0, rule!);
+    setRules(rules);
+  };
+
+  return (
+    <>
+      <TypographyP className="text-xs text-muted-foreground">
+        <FormattedMessage {...messages.pickAssigneeHint} />
+      </TypographyP>
+      <SelectField
+        id="vw-pick-assignee-people-source"
+        label={intl.formatMessage(messages.pickAssigneePeopleSource)}
+        description={intl.formatMessage(messages.pickAssigneePeopleSourceHint)}
+        value={peopleSource}
+        items={[
+          { value: "workspace", label: intl.formatMessage(messages.pickAssigneePeopleWorkspace) },
+          { value: "crowdin", label: intl.formatMessage(messages.pickAssigneePeopleCrowdin) },
+        ]}
+        onValueChange={(value) => {
+          if (value === "workspace" || value === "crowdin") setPeopleSource(value);
+        }}
+      />
+      {peopleSource === "crowdin" ? (
+        <TextField
+          id="vw-pick-assignee-crowdin-project"
+          label={intl.formatMessage(messages.crowdinProjectId)}
+          description={intl.formatMessage(messages.crowdinConnectionHint)}
+          value={config.crowdinProjectId ?? ""}
+          onChange={(value) => onChangeConfig({ ...config, crowdinProjectId: value })}
+          placeholder="123456"
+        />
+      ) : null}
+      <TextField
+        id="vw-pick-assignee-locale"
+        label={intl.formatMessage(messages.pickAssigneeLocale)}
+        description={intl.formatMessage(messages.pickAssigneeLocaleHint)}
+        value={config.locale}
+        {...connectedInputProps("locale")}
+        onChange={(value) => onChangeConfig({ ...config, locale: value })}
+        placeholder="{{ nodes.for_each.item }}"
+      />
+      <TextField
+        id="vw-pick-assignee-job-type"
+        label={intl.formatMessage(messages.pickAssigneeJobType)}
+        description={intl.formatMessage(messages.pickAssigneeJobTypeHint)}
+        value={config.jobType}
+        {...connectedInputProps("jobType")}
+        onChange={(value) => onChangeConfig({ ...config, jobType: value })}
+        placeholder="proofread"
+      />
+      <TextField
+        id="vw-pick-assignee-size"
+        label={intl.formatMessage(messages.pickAssigneeSize)}
+        description={intl.formatMessage(messages.pickAssigneeSizeHint)}
+        value={config.size}
+        {...connectedInputProps("size")}
+        onChange={(value) => onChangeConfig({ ...config, size: value })}
+        placeholder="{{ nodes.check_progress.untranslated }}"
+      />
+      <TextField
+        id="vw-pick-assignee-due-at"
+        label={intl.formatMessage(messages.pickAssigneeDueAt)}
+        description={intl.formatMessage(messages.pickAssigneeDueAtHint)}
+        value={config.dueAt}
+        {...connectedInputProps("dueAt")}
+        onChange={(value) => onChangeConfig({ ...config, dueAt: value })}
+        placeholder="{{ trigger.body.dueAt }}"
+      />
+      <SelectField
+        id="vw-pick-assignee-strategy"
+        label={intl.formatMessage(messages.pickAssigneeStrategy)}
+        value={config.strategy}
+        items={ASSIGNMENT_STRATEGIES.map((strategy) => ({
+          value: strategy.value,
+          label: intl.formatMessage(strategy.message),
+        }))}
+        onValueChange={(value) => {
+          const strategy = ASSIGNMENT_STRATEGIES.find((entry) => entry.value === value);
+          if (strategy) {
+            onChangeConfig({ ...config, strategy: strategy.value });
+          }
+        }}
+      />
+      <div className="grid gap-2">
+        <Label>{intl.formatMessage(messages.pickAssigneeRules)}</Label>
+        {config.rules.map((rule, index) => (
+          <AssignmentRuleCard
+            key={rule.id}
+            rule={rule}
+            number={index + 1}
+            members={members}
+            peopleSource={peopleSource}
+            canMoveUp={index > 0}
+            canMoveDown={index < config.rules.length - 1}
+            onMoveUp={() => moveRule(index, index - 1)}
+            onMoveDown={() => moveRule(index, index + 1)}
+            onRemove={() => setRules(config.rules.filter((entry) => entry.id !== rule.id))}
+            onChange={(next) =>
+              setRules(config.rules.map((entry) => (entry.id === rule.id ? next : entry)))
+            }
+          />
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setRules([...config.rules, createAssignmentRule()])}
+        >
+          <PlusIcon className="size-4" />
+          <FormattedMessage {...messages.pickAssigneeAddRule} />
+        </Button>
+      </div>
+      <AssigneePeopleField
+        id="vw-pick-assignee-fallback"
+        label={intl.formatMessage(messages.pickAssigneeFallback)}
+        description={intl.formatMessage(messages.pickAssigneeFallbackHint)}
+        source={peopleSource}
+        members={members}
+        value={config.fallbackAssigneeIds}
+        onChange={(ids) => onChangeConfig({ ...config, fallbackAssigneeIds: ids })}
+      />
+    </>
+  );
+}
+
+function AssignmentRuleCard({
+  rule,
+  number,
+  members,
+  peopleSource,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
+  onRemove,
+  onChange,
+}: {
+  rule: VisualAssignmentRule;
+  number: number;
+  members: readonly VisualWorkflowMemberOption[];
+  peopleSource: VisualAssigneeSource;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onRemove: () => void;
+  onChange: (rule: VisualAssignmentRule) => void;
+}) {
+  const intl = useIntl();
+  const idPrefix = `vw-assignment-rule-${rule.id}`;
+  const readCount = (value: string) => {
+    const count = Number.parseInt(value, 10);
+    return Number.isFinite(count) && count >= 0 ? count : undefined;
+  };
+
+  return (
+    <div className="grid gap-3 rounded-md border border-border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium">
+          <FormattedMessage {...messages.pickAssigneeRuleTitle} values={{ number }} />
+        </span>
+        <div className="flex items-center">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            disabled={!canMoveUp}
+            aria-label={intl.formatMessage(messages.pickAssigneeMoveRuleUp, { number })}
+            onClick={onMoveUp}
+          >
+            <CaretUpIcon className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            disabled={!canMoveDown}
+            aria-label={intl.formatMessage(messages.pickAssigneeMoveRuleDown, { number })}
+            onClick={onMoveDown}
+          >
+            <CaretDownIcon className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={intl.formatMessage(messages.pickAssigneeRemoveRule, { number })}
+            onClick={onRemove}
+          >
+            <TrashIcon className="size-4" />
+          </Button>
+        </div>
+      </div>
+      <TextField
+        id={`${idPrefix}-name`}
+        label={intl.formatMessage(messages.pickAssigneeRuleName)}
+        value={rule.name}
+        placeholder={intl.formatMessage(messages.pickAssigneeRuleNamePlaceholder)}
+        onChange={(name) => onChange({ ...rule, name })}
+      />
+      <TextField
+        id={`${idPrefix}-locales`}
+        label={intl.formatMessage(messages.pickAssigneeRuleLocales)}
+        description={intl.formatMessage(messages.pickAssigneeRuleLocalesHint)}
+        value={rule.locales}
+        placeholder="fr, de-DE"
+        onChange={(locales) => onChange({ ...rule, locales })}
+      />
+      <fieldset className="grid gap-1.5">
+        <legend className="mb-1.5 text-sm font-medium">
+          {intl.formatMessage(messages.pickAssigneeRuleJobTypes)}
+        </legend>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {TASK_STEPS.map((step) => (
+            <CheckboxField
+              key={step.value}
+              id={`${idPrefix}-type-${step.value}`}
+              label={intl.formatMessage(step.message)}
+              checked={rule.jobTypes.includes(step.value)}
+              onCheckedChange={(checked) =>
+                onChange({
+                  ...rule,
+                  jobTypes: checked
+                    ? TASK_STEPS.map((entry) => entry.value).filter(
+                        (value) => value === step.value || rule.jobTypes.includes(value),
+                      )
+                    : rule.jobTypes.filter((value) => value !== step.value),
+                })
+              }
+            />
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {intl.formatMessage(messages.pickAssigneeRuleJobTypesHint)}
+        </p>
+      </fieldset>
+      <div className="grid grid-cols-2 gap-2">
+        <NumberField
+          id={`${idPrefix}-min-size`}
+          label={intl.formatMessage(messages.pickAssigneeRuleMinSize)}
+          value={rule.minSize}
+          onChange={(value) => onChange({ ...rule, minSize: readCount(value) })}
+        />
+        <NumberField
+          id={`${idPrefix}-max-size`}
+          label={intl.formatMessage(messages.pickAssigneeRuleMaxSize)}
+          value={rule.maxSize}
+          onChange={(value) => onChange({ ...rule, maxSize: readCount(value) })}
+        />
+      </div>
+      <NumberField
+        id={`${idPrefix}-due-within`}
+        label={intl.formatMessage(messages.pickAssigneeRuleDueWithin)}
+        description={intl.formatMessage(messages.pickAssigneeRuleDueWithinHint)}
+        value={rule.dueWithinHours}
+        onChange={(value) => onChange({ ...rule, dueWithinHours: readCount(value) })}
+      />
+      <AssigneePeopleField
+        id={`${idPrefix}-people`}
+        label={intl.formatMessage(messages.pickAssigneeRulePeople)}
+        source={peopleSource}
+        members={members}
+        value={rule.assigneeIds}
+        onChange={(ids) => onChange({ ...rule, assigneeIds: ids })}
+      />
+    </div>
+  );
+}
+
+function NumberField({
+  id,
+  label,
+  value,
+  onChange,
+  description,
+}: {
+  id: string;
+  label: string;
+  value: number | undefined;
+  onChange: (value: string) => void;
+  description?: string;
+}) {
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        type="number"
+        inputMode="numeric"
+        min={0}
+        value={value ?? ""}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+    </div>
+  );
+}
+
+function AssigneePeopleField({
+  source,
+  description,
+  ...props
+}: {
+  id: string;
+  label: string;
+  description?: string;
+  source: VisualAssigneeSource;
+  members: readonly VisualWorkflowMemberOption[];
+  value: readonly string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const intl = useIntl();
+  if (source === "crowdin") {
+    const crowdinHint = intl.formatMessage(messages.pickAssigneeCrowdinIds);
+    return (
+      <CrowdinUserIdsField
+        id={props.id}
+        label={props.label}
+        description={description ? `${description} ${crowdinHint}` : crowdinHint}
+        value={props.value}
+        onChange={props.onChange}
+      />
+    );
+  }
+  return <MemberPickerField {...props} description={description} />;
+}
+
+function parseCrowdinUserIds(text: string): string[] {
+  return [
+    ...new Set(
+      text
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function sameCrowdinUserIds(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+}
+
+/** Crowdin users by id; the draft keeps what is typed, such as a trailing comma, between edits. */
+function CrowdinUserIdsField({
+  id,
+  label,
+  description,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  description: string;
+  value: readonly string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [draft, setDraft] = useState(() => value.join(", "));
+  if (!sameCrowdinUserIds(parseCrowdinUserIds(draft), value)) {
+    setDraft(value.join(", "));
+  }
+  return (
+    <TextField
+      id={id}
+      label={label}
+      description={description}
+      value={draft}
+      placeholder="12, 14"
+      onChange={(next) => {
+        setDraft(next);
+        onChange(parseCrowdinUserIds(next));
+      }}
+    />
+  );
+}
+
+/** Picks workspace members, keeping people who have since left so the list is not silently cut. */
+function MemberPickerField({
+  id,
+  label,
+  description,
+  members,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  description?: string;
+  members: readonly VisualWorkflowMemberOption[];
+  value: readonly string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const intl = useIntl();
+  const selected = value.map(
+    (workosUserId) =>
+      members.find((member) => member.workosUserId === workosUserId) ?? {
+        workosUserId,
+        label: workosUserId,
+      },
+  );
+
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Combobox
+        items={members}
+        multiple
+        value={selected}
+        onValueChange={(next: VisualWorkflowMemberOption[]) =>
+          onChange(next.map((member) => member.workosUserId))
+        }
+        itemToStringValue={(member: VisualWorkflowMemberOption) => member.label}
+        isItemEqualToValue={(item, current) => item.workosUserId === current.workosUserId}
+      >
+        <ComboboxChips id={id} className="w-full">
+          <ComboboxValue>
+            {selected.map((member) => (
+              <ComboboxChip key={member.workosUserId}>{member.label}</ComboboxChip>
+            ))}
+          </ComboboxValue>
+          <ComboboxChipsInput
+            placeholder={
+              selected.length === 0
+                ? intl.formatMessage(messages.pickAssigneeSearchPeople)
+                : undefined
+            }
+          />
+        </ComboboxChips>
+        <ComboboxContent>
+          <ComboboxEmpty>{intl.formatMessage(messages.pickAssigneeNoPeople)}</ComboboxEmpty>
+          <ComboboxList>
+            {(member: VisualWorkflowMemberOption) => (
+              <ComboboxItem key={member.workosUserId} value={member}>
+                {member.label}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+      {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+    </div>
+  );
+}
+
 function ErrorBehaviorField({
   value,
   onChange,
@@ -2569,10 +3167,7 @@ function ContentSyncConfigFields({
         label={intl.formatMessage(messages.contentSyncProvider)}
         value={config.provider}
         placeholder={intl.formatMessage(messages.selectProvider)}
-        items={(resources.availableProviders.length > 0
-          ? resources.availableProviders
-          : CONTENT_SYNC_PROVIDERS
-        ).map((provider) => ({
+        items={CONTENT_SYNC_PROVIDERS.map((provider) => ({
           value: provider,
           label: intl.formatMessage(contentSyncProviderMessage(provider)),
         }))}
@@ -2626,6 +3221,180 @@ function ContentSyncConfigFields({
   );
 }
 
+function WebhookTriggerFields({
+  config,
+  organizationSlug,
+  visualWorkflowId,
+  onChangeConfig,
+}: {
+  config: Extract<VisualNodeConfig, { kind: "trigger.webhook" }>;
+  organizationSlug?: string;
+  visualWorkflowId?: string;
+  onChangeConfig: (config: VisualNodeConfig) => void;
+}) {
+  const intl = useIntl();
+  const urlQuery = useQuery({
+    queryKey: [
+      "visual-workflow-webhook-url",
+      organizationSlug,
+      visualWorkflowId,
+      config.tokenVersion,
+    ],
+    enabled: Boolean(organizationSlug && visualWorkflowId),
+    queryFn: () =>
+      getVisualWorkflowWebhookUrl(organizationSlug!, visualWorkflowId!, config.tokenVersion),
+    staleTime: Infinity,
+  });
+  const url = urlQuery.data;
+
+  async function copyUrl() {
+    if (!url) {
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+    toast.success(intl.formatMessage(messages.webhookCopied));
+  }
+
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor="vw-webhook-url">{intl.formatMessage(messages.webhookUrl)}</Label>
+      {!organizationSlug || !visualWorkflowId ? (
+        <p className="text-xs text-muted-foreground">
+          <FormattedMessage {...messages.webhookUrlUnsaved} />
+        </p>
+      ) : urlQuery.isError ? (
+        <p className="text-xs text-destructive">
+          <FormattedMessage {...messages.webhookUrlLoadFailed} />
+        </p>
+      ) : (
+        <>
+          <div className="flex items-center gap-1.5">
+            <Input
+              id="vw-webhook-url"
+              readOnly
+              value={url ?? ""}
+              className="font-mono text-xs"
+              onFocus={(event) => event.currentTarget.select()}
+            />
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    disabled={!url}
+                    aria-label={intl.formatMessage(messages.webhookCopy)}
+                    onClick={() => void copyUrl()}
+                  >
+                    <CopyIcon />
+                  </Button>
+                }
+              />
+              <TooltipContent side="bottom">
+                <FormattedMessage {...messages.webhookCopy} />
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            <FormattedMessage {...messages.webhookUrlHint} />
+          </p>
+          <p className="text-xs text-muted-foreground">
+            <FormattedMessage {...messages.webhookIdempotencyHint} />
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onChangeConfig({ ...config, tokenVersion: config.tokenVersion + 1 })}
+            >
+              <ArrowsClockwiseIcon />
+              <FormattedMessage {...messages.webhookRotate} />
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            <FormattedMessage {...messages.webhookRotateHint} />
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+const PICK_PROJECT_VALUE = "__pick_project__";
+
+/**
+ * A project setting typed or fed by an earlier step, with a picker that fills in a project's ID
+ * and the name of the project a typed ID belongs to.
+ */
+function ProjectIdField({
+  projects,
+  value,
+  onChange,
+  port,
+  invalid,
+}: {
+  projects: readonly VisualWorkflowProjectOption[];
+  value: string;
+  onChange: (value: string) => void;
+  port?: BoundPort;
+  invalid?: boolean;
+}) {
+  const intl = useIntl();
+  const project = projects.find((entry) => entry.id === value.trim());
+  return (
+    <div className="grid gap-1.5">
+      <TextField
+        id="vw-localization-project"
+        label={intl.formatMessage(messages.localizationProjectId)}
+        description={
+          project
+            ? intl.formatMessage(messages.localizationProjectName, { name: project.name })
+            : undefined
+        }
+        value={value}
+        port={port}
+        invalid={invalid}
+        onChange={onChange}
+        placeholder="{{ trigger.projectId }}"
+      />
+      {projects.length > 0 && !port?.source ? (
+        <Select
+          value={PICK_PROJECT_VALUE}
+          items={[
+            {
+              value: PICK_PROJECT_VALUE,
+              label: intl.formatMessage(messages.localizationPickProject),
+            },
+            ...projects.map((entry) => ({ value: entry.id, label: entry.name })),
+          ]}
+          onValueChange={(next) => {
+            if (next && next !== PICK_PROJECT_VALUE) {
+              onChange(next);
+            }
+          }}
+        >
+          <SelectTrigger
+            size="sm"
+            className="w-full"
+            aria-label={intl.formatMessage(messages.localizationPickProject)}
+          >
+            <SelectValue>{intl.formatMessage(messages.localizationPickProject)}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {projects.map((entry) => (
+              <SelectItem key={entry.id} value={entry.id} label={entry.name}>
+                {entry.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : null}
+    </div>
+  );
+}
+
 function SelectField({
   id,
   label,
@@ -2633,6 +3402,7 @@ function SelectField({
   items,
   onValueChange,
   placeholder,
+  description,
 }: {
   id: string;
   label: string;
@@ -2640,6 +3410,7 @@ function SelectField({
   items: { value: string; label: string }[];
   onValueChange: (value: string | null) => void;
   placeholder?: string;
+  description?: string;
 }) {
   const selected = items.find((item) => item.value === value);
   return (
@@ -2657,6 +3428,7 @@ function SelectField({
           ))}
         </SelectContent>
       </Select>
+      {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
     </div>
   );
 }
@@ -3024,20 +3796,5 @@ function errorBehaviorMessage(behavior: VisualNodeErrorBehavior) {
       return messages.onErrorContinue;
     case "branch":
       return messages.onErrorBranch;
-  }
-}
-
-function titleForTrigger(type: VisualCatalogType) {
-  switch (type) {
-    case "trigger.manual":
-      return messages.nodeManualTrigger;
-    case "trigger.scheduled":
-      return messages.nodeScheduledTrigger;
-    case "trigger.github":
-      return messages.nodeGithubTrigger;
-    case "trigger.source_upload":
-      return messages.nodeSourceUploadTrigger;
-    default:
-      return messages.triggerType;
   }
 }

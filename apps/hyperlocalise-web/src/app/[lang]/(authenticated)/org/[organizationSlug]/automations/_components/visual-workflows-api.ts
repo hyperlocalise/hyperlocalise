@@ -17,6 +17,7 @@ import type {
 import type { VisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
 import type { VisualWorkflowRunRecord } from "@/lib/visual-workflows/visual-workflow-run-types";
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
 export type VisualWorkflowsApi = {
@@ -184,6 +185,24 @@ export function createVisualWorkflowsApi(): VisualWorkflowsApi {
       return body.run;
     },
   };
+}
+
+export async function getVisualWorkflowWebhookUrl(
+  slug: string,
+  id: string,
+  tokenVersion: number,
+): Promise<string> {
+  const response = await apiClient.api.orgs[":organizationSlug"]["visual-workflows"][
+    ":visualWorkflowId"
+  ]["webhook-url"].$get({
+    param: { organizationSlug: slug, visualWorkflowId: id },
+    query: { tokenVersion: String(tokenVersion) },
+  });
+  if (response.status !== 200) {
+    throw await readApiResponseError(response, "Failed to load webhook URL");
+  }
+  const body = await response.json();
+  return body.webhookUrl.url;
 }
 
 export async function publishWorkflowVersion(

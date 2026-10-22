@@ -22,6 +22,7 @@ export type VisualCatalogType =
   | "trigger.scheduled"
   | "trigger.github"
   | "trigger.source_upload"
+  | "trigger.webhook"
   | "action.http"
   | "action.content_sync"
   | "action.notify_slack"
@@ -30,6 +31,9 @@ export type VisualCatalogType =
   | "action.create_task"
   | "action.check_progress"
   | "action.run_qa"
+  | "action.list_source_files"
+  | "action.update_job"
+  | "action.pick_assignee"
   | "action.crowdin_pre_translate"
   | "action.crowdin_create_task"
   | "action.crowdin_check_progress"
@@ -57,6 +61,29 @@ export type VisualCatalogCategory = "trigger" | "action" | "localization" | "log
 export type VisualTaskStep = "translate" | "edit" | "proofread";
 
 export type VisualCrowdinTaskType = "translate" | "proofread";
+
+/**
+ * How Pick assignee chooses among the people of the matched rule: the first one listed, each in
+ * turn across runs, or whoever has the fewest open jobs.
+ */
+export type VisualAssignmentStrategy = "first" | "round_robin" | "least_busy";
+
+export type VisualAssigneeSource = "workspace" | "crowdin";
+
+/** One row of Pick assignee's rule table. An empty condition matches any value. */
+export type VisualAssignmentRule = {
+  id: string;
+  name: string;
+  /** Comma-separated locales; a language alone ("fr") also matches its regions ("fr-CA"). */
+  locales: string;
+  jobTypes: VisualTaskStep[];
+  minSize?: number;
+  maxSize?: number;
+  /** Matches work due within this many hours from the run, or already overdue. */
+  dueWithinHours?: number;
+  /** WorkOS ids of workspace members, or Crowdin user ids when the step routes to Crowdin people. */
+  assigneeIds: string[];
+};
 
 /** Pre-translates with translation memory, a machine translation engine, or an AI prompt. */
 export type VisualCrowdinPreTranslateMethod = "tm" | "mt" | "ai";
@@ -123,6 +150,11 @@ export type VisualNodeConfig =
     }
   | { kind: "trigger.source_upload"; projectId?: string }
   | {
+      kind: "trigger.webhook";
+      /** Part of the signed webhook token; raising it invalidates every URL handed out before. */
+      tokenVersion: number;
+    }
+  | {
       kind: "action.http";
       method: HttpMethod;
       idempotencyHeader?: string;
@@ -185,6 +217,8 @@ export type VisualNodeConfig =
       step: VisualTaskStep;
       assigneeWorkosUserId: string;
       title: string;
+      /** ISO date or a template; empty means no due date. */
+      dueAt?: string;
       onError?: VisualNodeErrorBehavior;
     }
   | {
@@ -201,6 +235,43 @@ export type VisualNodeConfig =
   | {
       kind: "action.run_qa";
       projectId: string;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.list_source_files";
+      projectId: string;
+      /** Keeps only files whose path starts with this; empty lists every source file. */
+      pathPrefix: string;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.update_job";
+      jobId: string;
+      /** Empty leaves the owner unchanged. */
+      assigneeWorkosUserId: string;
+      /** Empty leaves the title unchanged. */
+      title: string;
+      /** Empty leaves the due date unchanged. */
+      dueAt?: string;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.pick_assignee";
+      /** The work being routed, usually wired from earlier steps. */
+      locale: string;
+      jobType: string;
+      size: string;
+      dueAt: string;
+      /** Checked top to bottom; the first rule whose conditions all hold supplies the people. */
+      rules: VisualAssignmentRule[];
+      /** The people when no rule matches; empty fails the step. */
+      fallbackAssigneeIds: string[];
+      strategy: VisualAssignmentStrategy;
+      /** Whose ids the rules list: workspace members (the default) or Crowdin project members. */
+      peopleSource?: VisualAssigneeSource;
+      crowdinProjectId?: string;
+      /** Whose Crowdin connection the step uses; set by the server when the workflow is saved. */
+      workosUserId?: string;
       onError?: VisualNodeErrorBehavior;
     }
   | {
@@ -231,6 +302,8 @@ export type VisualNodeConfig =
       assigneeIds: string;
       title: string;
       description: string;
+      /** ISO date or a template; empty means no due date. */
+      dueAt?: string;
       /** Whose Crowdin connection the step uses; set by the server when the workflow is saved. */
       workosUserId?: string;
       onError?: VisualNodeErrorBehavior;

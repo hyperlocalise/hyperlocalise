@@ -51,6 +51,22 @@ export const automationDetailPageContentMessages = defineMessages({
     id: "YGyu9mb0BB",
     description: "Loading state while an automation detail page is fetching",
   },
+  loadFailed: {
+    defaultMessage: "Could not load this automation.",
+    id: "Vnwufq/GzB",
+    description: "Shown on an automation detail page when the automation fails to load",
+  },
+  loadFailedNotFound: {
+    defaultMessage: "This automation does not exist or you cannot open it.",
+    id: "5PlJwiMwv6",
+    description:
+      "Shown on an automation detail page when the automation is missing or not visible to the person",
+  },
+  retryLoad: {
+    defaultMessage: "Try again",
+    id: "WphJEETLKL",
+    description: "Button that loads an automation again after it failed to load",
+  },
   runNow: {
     defaultMessage: "Run now",
     id: "P5eC/nlEOZ",

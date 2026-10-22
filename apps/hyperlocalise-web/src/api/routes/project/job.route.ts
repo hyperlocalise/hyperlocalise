@@ -157,6 +157,7 @@ const jobSelect = {
   externalStatus: schema.externalJobDetails.externalStatus,
   externalTitle: schema.externalJobDetails.title,
   externalDueDate: schema.externalJobDetails.dueDate,
+  dueAt: schema.jobs.dueAt,
   externalTargetLocales: schema.externalJobDetails.targetLocales,
   externalAssignedUsers: schema.externalJobDetails.assignedUsers,
   externalUrl: schema.externalJobDetails.externalUrl,
@@ -535,6 +536,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
               kind: jobKind,
               status: isProofreadJob ? "waiting_for_review" : "queued",
               inputPayload: enrichedInputPayload,
+              dueAt: payload.dueAt ? new Date(payload.dueAt) : null,
             })
             .returning();
 

@@ -16,10 +16,12 @@ import { db, schema } from "@/lib/database/client";
 import { CrowdinApiClient, CrowdinApiError } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import type { VisualCrowdinPreTranslateMethod, VisualCrowdinTaskType } from "../schema/types";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
-import { parseWorkflowList } from "./localization-actions";
+import { parseWorkflowDueAt, parseWorkflowList } from "./localization-actions";
 
 /** Crowdin task statuses after which no one works on the task. */
 const DONE_TASK_STATUSES = new Set(["done", "closed"]);
+/** Crowdin task statuses in which someone still has the work on their plate. */
+const OPEN_TASK_STATUSES = ["todo", "in_progress"] as const;
 const ENDED_PRE_TRANSLATION_STATUSES = new Set(["finished", "failed", "canceled"]);
 const PERCENT_COMPLETE = 100;
 
@@ -195,6 +197,7 @@ export async function runCrowdinCreateTaskAction(
     assigneeIds: unknown;
     title: string;
     description: string;
+    dueAt?: string;
   },
 ): Promise<VisualWorkflowNodeExecutionResult> {
   const fileIds = parseCrowdinIds(input.fileIds);
@@ -207,6 +210,10 @@ export async function runCrowdinCreateTaskAction(
   }
   const title = input.title.trim();
   if (!title) return failure("missing_crowdin_task_title", "Enter a title for the task.");
+  const deadline = parseWorkflowDueAt(input.dueAt);
+  if (deadline === undefined) {
+    return failure("invalid_due_date", "The due date is not a date, such as 2026-05-01T17:00Z.");
+  }
 
   const opened = await openCrowdinSession(input);
   if (!opened.ok) return opened.result;
@@ -226,12 +233,16 @@ export async function runCrowdinCreateTaskAction(
         type: input.taskType === "translate" ? 0 : 1,
         fileIds,
         ...(input.description.trim() ? { description: input.description.trim() } : {}),
+        ...(deadline ? { deadline: deadline.toISOString() } : {}),
         ...(assigneeIds.length > 0 ? { assignees: assigneeIds.map((id) => ({ id })) } : {}),
       });
       taskIds.push(String(task.id));
       taskUrls.push(task.webUrl);
     }
-    return { ok: true, output: { taskIds, taskUrls, languageIds } };
+    return {
+      ok: true,
+      output: { taskIds, taskUrls, languageIds, dueAt: deadline?.toISOString() ?? null },
+    };
   } catch (error) {
     const result = crowdinFailure(error);
     if (result.ok || taskIds.length === 0) return result;
@@ -336,5 +347,60 @@ export async function runCrowdinCheckProgressAction(
     };
   } catch (error) {
     return crowdinFailure(error);
+  }
+}
+
+export type CrowdinAssignee = { name: string; email: string; openTasks: number };
+
+/**
+ * The listed Crowdin users who are still members of the project, with how many open tasks each
+ * has there, so a workflow can route work to Crowdin people the way it does to workspace members.
+ */
+export async function loadCrowdinAssignees(
+  input: CrowdinActionInput & { crowdinProjectId: string; assigneeIds: readonly string[] },
+): Promise<
+  | { ok: true; assignees: Map<string, CrowdinAssignee> }
+  | { ok: false; result: VisualWorkflowNodeExecutionResult }
+> {
+  if (!parseCrowdinIds(input.assigneeIds)) {
+    return {
+      ok: false,
+      result: failure("invalid_crowdin_assignees", "Enter the numeric IDs of the Crowdin users."),
+    };
+  }
+  const opened = await openCrowdinSession(input);
+  if (!opened.ok) return opened;
+  const { client, crowdinProjectId } = opened.session;
+
+  try {
+    const [members, tasks] = await Promise.all([
+      client.listProjectMembers(crowdinProjectId),
+      client.listTasks(crowdinProjectId, { fetchAll: true, statuses: OPEN_TASK_STATUSES }),
+    ]);
+    const openTasks = new Map<string, number>();
+    for (const task of tasks) {
+      if (DONE_TASK_STATUSES.has(task.status)) continue;
+      for (const assignee of task.assignees ?? []) {
+        const id = String(assignee.id);
+        openTasks.set(id, (openTasks.get(id) ?? 0) + 1);
+      }
+    }
+    const listed = new Set(input.assigneeIds);
+    const assignees = new Map<string, CrowdinAssignee>();
+    for (const member of members) {
+      const id = String(member.id);
+      if (!listed.has(id)) continue;
+      const fullName =
+        member.fullName?.trim() ||
+        [member.firstName, member.lastName].filter(Boolean).join(" ").trim();
+      assignees.set(id, {
+        name: fullName || member.username,
+        email: "",
+        openTasks: openTasks.get(id) ?? 0,
+      });
+    }
+    return { ok: true, assignees };
+  } catch (error) {
+    return { ok: false, result: crowdinFailure(error) };
   }
 }

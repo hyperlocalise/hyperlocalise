@@ -72,6 +72,8 @@ export function resolveVisualWorkflowTriggerFingerprint(workflow: {
       return trigger.config.projectId
         ? `source_upload:${workflow.id}:${trigger.config.projectId}`
         : `source_upload:${workflow.id}`;
+    case "trigger.webhook":
+      return `webhook:${workflow.id}`;
     default:
       return null;
   }
@@ -166,6 +168,10 @@ export function validateVisualWorkflowTriggerConfig(
     }
     case "trigger.source_upload":
       return { ok: true };
+    case "trigger.webhook":
+      return Number.isInteger(config.tokenVersion) && config.tokenVersion >= 1
+        ? { ok: true }
+        : { ok: false, message: "Webhook token version is invalid." };
     case "trigger.manual":
       return { ok: true };
     default:
@@ -185,7 +191,7 @@ export function validateActiveVisualWorkflowTrigger(
     return {
       ok: false,
       message:
-        "Active workflows require a production trigger (schedule, GitHub, or source upload).",
+        "Active workflows require a production trigger (schedule, GitHub, source upload, or webhook).",
     };
   }
 

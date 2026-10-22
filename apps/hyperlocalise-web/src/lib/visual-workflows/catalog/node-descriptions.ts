@@ -28,6 +28,11 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     title: "Source upload",
     purpose: "Start when a source file is uploaded.",
   },
+  "trigger.webhook": {
+    title: "Webhook",
+    purpose:
+      "Start when another system, such as a TMS, CMS or CI job, sends an HTTP POST to the workflow's webhook URL. The JSON body is available to later steps.",
+  },
   "action.http": { title: "HTTP Request", purpose: "Call an HTTP endpoint." },
   "action.content_sync": {
     title: "Content sync",
@@ -46,7 +51,7 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
   "action.create_task": {
     title: "Assign task",
     purpose:
-      "Give a person a translate, post-edit, or proofread task on a source file, for MTPE and TEP steps.",
+      "Give a person a translate, post-edit, or proofread task on a source file, with an optional due date, for MTPE and TEP steps.",
   },
   "action.check_progress": {
     title: "Check progress",
@@ -57,6 +62,20 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     title: "Run QA checks",
     purpose: "Run the project's QA checks and report errors and warnings.",
   },
+  "action.list_source_files": {
+    title: "List source files",
+    purpose:
+      "List a project's source files, optionally under a path, so a For each can translate or assign every file.",
+  },
+  "action.update_job": {
+    title: "Update job",
+    purpose: "Reassign a job to a workspace member, rename it, or set its due date.",
+  },
+  "action.pick_assignee": {
+    title: "Pick assignee",
+    purpose:
+      "Choose who does a piece of work from a rule table on locale, job type, size and due date, then spread it first-listed, round-robin or to the least busy person. People are workspace members or Crowdin project members. Wire the result into Assign task, Update job or Crowdin task.",
+  },
   "action.crowdin_pre_translate": {
     title: "Crowdin pre-translate",
     purpose:
@@ -65,7 +84,7 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
   "action.crowdin_create_task": {
     title: "Crowdin task",
     purpose:
-      "Create a Crowdin translate or proofread task for each target language, assigned to Crowdin users.",
+      "Create a Crowdin translate or proofread task for each target language, assigned to Crowdin users, with an optional deadline.",
   },
   "action.crowdin_check_progress": {
     title: "Crowdin progress",

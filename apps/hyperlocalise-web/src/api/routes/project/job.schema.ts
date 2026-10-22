@@ -59,11 +59,14 @@ export const fileTranslationJobInputSchema = z.object({
   ignoreTranslationMemory: z.boolean().optional(),
 });
 
+const jobDueAtSchema = z.string().datetime({ offset: true });
+
 const createJobSharedFields = {
   ownerWorkosUserId: z.string().trim().min(1).max(256).optional(),
   title: z.string().trim().min(1).max(256).optional(),
   description: z.string().trim().max(2_048).optional(),
   kind: z.enum(["translation", "proofread"]).optional(),
+  dueAt: jobDueAtSchema.optional(),
 };
 
 export const createJobBodySchema = z.discriminatedUnion("type", [
@@ -84,13 +87,15 @@ export const updateJobBodySchema = z
     title: z.string().trim().min(1).max(256).optional(),
     description: z.string().trim().max(2_048).nullable().optional(),
     ownerWorkosUserId: z.string().trim().min(1).max(256).nullable().optional(),
+    dueAt: jobDueAtSchema.nullable().optional(),
   })
   .refine(
     (body) =>
       body.title !== undefined ||
       body.description !== undefined ||
-      body.ownerWorkosUserId !== undefined,
-    { message: "At least one of title, description, or ownerWorkosUserId is required" },
+      body.ownerWorkosUserId !== undefined ||
+      body.dueAt !== undefined,
+    { message: "At least one of title, description, ownerWorkosUserId, or dueAt is required" },
   );
 
 /** Statuses counted by project `openJobCount` and listed by `open=true`. */
@@ -168,6 +173,7 @@ export const jobRecordSchema = z
     externalStatus: z.string().nullable(),
     externalTitle: z.string().nullable(),
     externalDueDate: z.string().nullable(),
+    dueAt: z.string().nullable().optional(),
     externalTargetLocales: z.array(z.string()).nullable(),
     externalAssignedUsers: z.array(z.string()).nullable(),
     externalUrl: z.string().nullable(),

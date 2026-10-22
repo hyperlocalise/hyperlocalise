@@ -39,6 +39,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import { useVisualWorkflowCanvasActions } from "../visual-workflow-canvas-actions";
 import { visualWorkflowEditorMessages as messages } from "../visual-workflow-editor.messages";
+import { visualWorkflowNodeTitleMessage } from "../visual-workflow-node-picker";
 import { VisualWorkflowQuickAddButton } from "./visual-workflow-quick-add-button";
 import { createElement, Fragment, type ComponentProps, type CSSProperties } from "react";
 
@@ -351,7 +352,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
     edges,
   });
   const hasDataPorts = dataPorts.inputs.length > 0 || dataPorts.outputs.length > 0;
-  const title = intl.formatMessage(titleMessage(data.catalogType));
+  const title = intl.formatMessage(visualWorkflowNodeTitleMessage(data.catalogType));
   const subtitle = data.previewSubtitle ?? resolveNodeSubtitle(data.config);
 
   const mergeInputs = data.config.kind === "logic.merge" ? data.config.inputs : [];
@@ -717,73 +718,4 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : null}
     </Card>
   );
-}
-
-function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
-  switch (type) {
-    case "trigger.manual":
-      return messages.nodeManualTrigger;
-    case "trigger.scheduled":
-      return messages.nodeScheduledTrigger;
-    case "trigger.github":
-      return messages.nodeGithubTrigger;
-    case "trigger.source_upload":
-      return messages.nodeSourceUploadTrigger;
-    case "action.http":
-      return messages.nodeHttp;
-    case "action.content_sync":
-      return messages.nodeContentSync;
-    case "action.machine_translate":
-      return messages.nodeMachineTranslate;
-    case "action.create_task":
-      return messages.nodeCreateTask;
-    case "action.check_progress":
-      return messages.nodeCheckProgress;
-    case "action.run_qa":
-      return messages.nodeRunQa;
-    case "action.crowdin_pre_translate":
-      return messages.nodeCrowdinPreTranslate;
-    case "action.crowdin_create_task":
-      return messages.nodeCrowdinCreateTask;
-    case "action.crowdin_check_progress":
-      return messages.nodeCrowdinCheckProgress;
-    case "action.notify_slack":
-      return messages.nodeNotifySlack;
-    case "action.notify_email":
-      return messages.nodeNotifyEmail;
-    case "logic.if":
-      return messages.nodeIf;
-    case "logic.switch":
-      return messages.nodeSwitch;
-    case "logic.set":
-      return messages.nodeSet;
-    case "logic.create_object":
-      return messages.nodeCreateObject;
-    case "logic.merge_objects":
-      return messages.nodeMergeObjects;
-    case "logic.select_path":
-      return messages.nodeSelectPath;
-    case "ai.agent":
-      return messages.nodeAi;
-    case "logic.for_each":
-      return messages.nodeLoop;
-    case "logic.retry":
-      return messages.nodeRetry;
-    case "flow.wait":
-      return messages.nodeWait;
-    case "flow.stop":
-      return messages.nodeStop;
-    case "flow.return":
-      return messages.nodeReturn;
-    case "flow.fail":
-      return messages.nodeFail;
-    case "logic.merge":
-      return messages.nodeMerge;
-    case "logic.sequence":
-      return messages.nodeSequence;
-    case "logic.try_catch":
-      return messages.nodeTryCatch;
-    case "flow.call_workflow":
-      return messages.nodeCallWorkflow;
-  }
 }

@@ -10,7 +10,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { pgTable, uuid, text, integer, jsonb, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  primaryKey,
+  uuid,
+  text,
+  integer,
+  jsonb,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 import { visualWorkflows } from "./visual-workflows";
 import { visualWorkflowRuns } from "./visual-workflow-runs";
@@ -53,3 +62,46 @@ export const visualWorkflowOutbox = pgTable("visual_workflow_outbox", {
   dispatchedAt: timestamp("dispatched_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+/**
+ * Who a round-robin Pick assignee step chose last, per rule, so the next run picks the person
+ * after them even when the rule's people change in between.
+ */
+export const visualWorkflowAssignmentCursors = pgTable(
+  "visual_workflow_assignment_cursors",
+  {
+    workflowId: uuid("workflow_id")
+      .notNull()
+      .references(() => visualWorkflows.id, { onDelete: "cascade" }),
+    nodeId: text("node_id").notNull(),
+    // The rule's id, or "fallback" for the people used when no rule matches.
+    ruleId: text("rule_id").notNull(),
+    // A WorkOS user ID or a Crowdin user ID, by where the step's people come from.
+    lastAssigneeId: text("last_assignee_id"),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [primaryKey({ columns: [table.workflowId, table.nodeId, table.ruleId] })],
+);
+
+/**
+ * The person a round-robin step already chose for one step run. Retries look this up so a later
+ * run that moved the cursor cannot make the same step pick again.
+ */
+export const visualWorkflowAssignmentPicks = pgTable(
+  "visual_workflow_assignment_picks",
+  {
+    workflowId: uuid("workflow_id")
+      .notNull()
+      .references(() => visualWorkflows.id, { onDelete: "cascade" }),
+    nodeId: text("node_id").notNull(),
+    ruleId: text("rule_id").notNull(),
+    stepKey: text("step_key").notNull(),
+    assigneeId: text("assignee_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workflowId, table.nodeId, table.ruleId, table.stepKey] }),
+  ],
+);

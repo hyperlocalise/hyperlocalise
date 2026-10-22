@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, count, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { getRepositorySourceFileVersionForStoredFile } from "@/lib/file-storage/records";
@@ -31,6 +31,10 @@ type ProjectScope = { sourceLocale: string; targetLocales: string[] };
 
 function failure(code: string, message: string): VisualWorkflowNodeExecutionResult {
   return { ok: false, error: { code, message } };
+}
+
+function invalidDueDate(): VisualWorkflowNodeExecutionResult {
+  return failure("invalid_due_date", "The due date is not a date, such as 2026-05-01T17:00Z.");
 }
 
 /**
@@ -64,6 +68,14 @@ export function parseWorkflowList(value: unknown): string[] {
   ].filter(Boolean);
 }
 
+/** A due date setting: null when it is empty, undefined when it is not a date. */
+export function parseWorkflowDueAt(value: string | undefined): Date | null | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  const dueAt = new Date(trimmed);
+  return Number.isNaN(dueAt.getTime()) ? undefined : dueAt;
+}
+
 async function loadProjectScope(
   organizationId: string,
   projectId: string,
@@ -95,7 +107,7 @@ async function findJobForStep(input: {
 }) {
   if (!input.idempotencyKey) return null;
   const [job] = await db
-    .select({ id: schema.jobs.id, status: schema.jobs.status })
+    .select({ id: schema.jobs.id, status: schema.jobs.status, dueAt: schema.jobs.dueAt })
     .from(schema.jobs)
     .where(
       and(
@@ -177,6 +189,7 @@ export async function runCreateTaskAction(
     step: VisualTaskStep;
     assigneeWorkosUserId: string;
     title: string;
+    dueAt?: string;
   },
 ): Promise<VisualWorkflowNodeExecutionResult> {
   if (!input.projectId || !input.sourceFileId) {
@@ -185,6 +198,8 @@ export async function runCreateTaskAction(
       "Choose a project and a source file before assigning a task.",
     );
   }
+  const dueAt = parseWorkflowDueAt(input.dueAt);
+  if (dueAt === undefined) return invalidDueDate();
   const project = await loadProjectScope(input.organizationId, input.projectId);
   if (!project) return failure("project_not_found", "Choose a project in this organization.");
   const targetLocales = resolveLocales(input.targetLocales, project);
@@ -210,6 +225,7 @@ export async function runCreateTaskAction(
         step: input.step,
         assigned: Boolean(input.assigneeWorkosUserId),
         targetLocales,
+        dueAt: existing.dueAt?.toISOString() ?? null,
       },
     };
   }
@@ -224,6 +240,7 @@ export async function runCreateTaskAction(
     step: input.step,
     assigneeWorkosUserId: input.assigneeWorkosUserId || undefined,
     title: input.title,
+    dueAt: dueAt ?? undefined,
     metadata: input.idempotencyKey ? { workflowStepKey: input.idempotencyKey } : undefined,
   });
   if (isErr(result)) return failure(result.error.code, result.error.message);
@@ -235,6 +252,7 @@ export async function runCreateTaskAction(
       step: input.step,
       assigned: result.value.ownerUserId !== null,
       targetLocales,
+      dueAt: dueAt?.toISOString() ?? null,
     },
   };
 }
@@ -337,6 +355,108 @@ export async function runCheckProgressAction(
       isTranslated: total > 0 && untranslated === 0,
       isApproved: total > 0 && approved === total,
       ...(job ? { jobStatus: job.status, jobFinished: FINISHED_JOB_STATUSES.has(job.status) } : {}),
+    },
+  };
+}
+
+/** A For each runs at most this many items, so listing more would only fail the loop. */
+const MAX_LISTED_SOURCE_FILES = 100;
+
+export async function runListSourceFilesAction(
+  input: ActionInput & { projectId: string; pathPrefix: string },
+): Promise<VisualWorkflowNodeExecutionResult> {
+  if (!input.projectId) {
+    return failure("missing_list_files_config", "Choose a project to list.");
+  }
+  const project = await loadProjectScope(input.organizationId, input.projectId);
+  if (!project) return failure("project_not_found", "Choose a project in this organization.");
+
+  const versions = schema.repositorySourceFileVersions;
+  const pathPrefix = input.pathPrefix.trim().replace(/^\/+/, "");
+  const latestByFile = db
+    .selectDistinctOn([versions.repositorySourceFileId], {
+      sourceFileId: versions.storedFileId,
+      path: versions.sourcePath,
+    })
+    .from(versions)
+    .where(
+      and(
+        eq(versions.organizationId, input.organizationId),
+        eq(versions.projectId, input.projectId),
+        pathPrefix ? sql`starts_with(${versions.sourcePath}, ${pathPrefix})` : undefined,
+      ),
+    )
+    .orderBy(versions.repositorySourceFileId, desc(versions.createdAt), desc(versions.id))
+    .as("latest_source_files");
+  const rows = await db
+    .select({
+      sourceFileId: latestByFile.sourceFileId,
+      path: latestByFile.path,
+    })
+    .from(latestByFile)
+    .orderBy(latestByFile.path)
+    .limit(MAX_LISTED_SOURCE_FILES + 1);
+  const truncated = rows.length > MAX_LISTED_SOURCE_FILES;
+  const files = truncated ? rows.slice(0, MAX_LISTED_SOURCE_FILES) : rows;
+
+  return {
+    ok: true,
+    output: {
+      files,
+      sourceFileIds: files.map((file) => file.sourceFileId),
+      count: files.length,
+      truncated,
+    },
+  };
+}
+
+export async function runUpdateJobAction(
+  input: ActionInput & {
+    jobId: string;
+    assigneeWorkosUserId: string;
+    title: string;
+    dueAt?: string;
+  },
+): Promise<VisualWorkflowNodeExecutionResult> {
+  if (!input.jobId) {
+    return failure("missing_update_job_config", "Choose the job to update.");
+  }
+  const title = input.title.trim();
+  const dueAt = parseWorkflowDueAt(input.dueAt);
+  if (dueAt === undefined) return invalidDueDate();
+  if (!input.assigneeWorkosUserId && !title && !dueAt) {
+    return failure(
+      "missing_update_job_change",
+      "Choose an assignee, a new title or a due date for the job.",
+    );
+  }
+
+  const { updateNativeJob } = await import("@/lib/projects/jobs/update-native-job");
+  const result = await updateNativeJob({
+    organizationId: input.organizationId,
+    jobId: input.jobId,
+    body: {
+      ...(input.assigneeWorkosUserId ? { ownerWorkosUserId: input.assigneeWorkosUserId } : {}),
+      ...(title ? { title } : {}),
+      ...(dueAt ? { dueAt: dueAt.toISOString() } : {}),
+    },
+    accessWhere: eq(schema.jobs.organizationId, input.organizationId),
+  });
+  if (isErr(result)) {
+    const error = result.error;
+    return failure(
+      error.code,
+      error.code === "job_not_found" ? "The job to update was not found." : error.message,
+    );
+  }
+
+  return {
+    ok: true,
+    output: {
+      jobId: result.value.id,
+      assigned: Boolean(input.assigneeWorkosUserId),
+      renamed: Boolean(title),
+      dueAt: dueAt?.toISOString() ?? null,
     },
   };
 }

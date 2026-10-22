@@ -61,6 +61,7 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     step: messages.createTaskStep,
     assigneeWorkosUserId: messages.createTaskAssignee,
     title: messages.createTaskTitle,
+    dueAt: messages.taskDueAt,
     ...ON_ERROR,
   },
   "action.check_progress": {
@@ -71,6 +72,30 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     ...ON_ERROR,
   },
   "action.run_qa": { projectId: messages.localizationProjectId, ...ON_ERROR },
+  "action.list_source_files": {
+    projectId: messages.localizationProjectId,
+    pathPrefix: messages.listFilesPathPrefix,
+    ...ON_ERROR,
+  },
+  "action.update_job": {
+    jobId: messages.updateJobJobId,
+    assigneeWorkosUserId: messages.updateJobAssignee,
+    title: messages.updateJobTitle,
+    dueAt: messages.taskDueAt,
+    ...ON_ERROR,
+  },
+  "action.pick_assignee": {
+    locale: messages.pickAssigneeLocale,
+    jobType: messages.pickAssigneeJobType,
+    size: messages.pickAssigneeSize,
+    dueAt: messages.pickAssigneeDueAt,
+    rules: messages.pickAssigneeRules,
+    fallbackAssigneeIds: messages.pickAssigneeFallback,
+    strategy: messages.pickAssigneeStrategy,
+    peopleSource: messages.pickAssigneePeopleSource,
+    crowdinProjectId: messages.crowdinProjectId,
+    ...ON_ERROR,
+  },
   "action.crowdin_pre_translate": {
     crowdinProjectId: messages.crowdinProjectId,
     fileIds: messages.crowdinFileIds,
@@ -88,6 +113,7 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     assigneeIds: messages.crowdinAssigneeIds,
     title: messages.crowdinTaskTitle,
     description: messages.crowdinTaskDescription,
+    dueAt: messages.taskDueAt,
     ...ON_ERROR,
   },
   "action.crowdin_check_progress": {

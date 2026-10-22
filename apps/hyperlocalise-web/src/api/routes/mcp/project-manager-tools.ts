@@ -45,6 +45,12 @@ import { cancelNativeJob } from "@/lib/projects/jobs/cancel-native-job";
 import { updateNativeJob } from "@/lib/projects/jobs/update-native-job";
 import { queryReport } from "@/lib/reporting/query";
 
+/** A provider job's due date, or a native job's own. Needs externalJobDetails left-joined. */
+const jobDueDateSql =
+  sql<Date | null>`coalesce(${schema.externalJobDetails.dueDate}, ${schema.jobs.dueAt})`.mapWith(
+    schema.jobs.dueAt,
+  );
+
 export const MCP_REPORT_MAX_ROWS = 200;
 
 const jobIdSchema = z.string().trim().min(1).max(128).describe("ID of an accessible job.");
@@ -92,13 +98,20 @@ const mcpUpdateJobInputSchema = z
       .nullable()
       .optional()
       .describe("userId from list_project_members to assign the job to, or null to unassign it."),
+    dueAt: z
+      .string()
+      .datetime({ offset: true })
+      .nullable()
+      .optional()
+      .describe("ISO 8601 due date, such as 2026-05-01T17:00:00Z, or null to clear it."),
   })
   .refine(
     (input) =>
       input.title !== undefined ||
       input.description !== undefined ||
-      input.ownerUserId !== undefined,
-    { message: "Provide at least one of title, description, or ownerUserId" },
+      input.ownerUserId !== undefined ||
+      input.dueAt !== undefined,
+    { message: "Provide at least one of title, description, ownerUserId, or dueAt" },
   );
 
 const mcpCancelJobInputSchema = z.object({ jobId: jobIdSchema });
@@ -150,7 +163,7 @@ const jobSummarySelect = {
   externalProviderKind: schema.externalJobDetails.providerKind,
   externalUrl: schema.externalJobDetails.externalUrl,
   externalTargetLocales: schema.externalJobDetails.targetLocales,
-  dueDate: schema.externalJobDetails.dueDate,
+  dueDate: jobDueDateSql,
   lastError: schema.jobs.lastError,
   createdAt: schema.jobs.createdAt,
   updatedAt: schema.jobs.updatedAt,
@@ -282,10 +295,7 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
       const where = and(...filters);
       const [rows, [totalRow]] = await Promise.all([
         jobSummaryQuery(where)
-          .orderBy(
-            sql`${schema.externalJobDetails.dueDate} asc nulls last`,
-            desc(schema.jobs.updatedAt),
-          )
+          .orderBy(sql`${jobDueDateSql} asc nulls last`, desc(schema.jobs.updatedAt))
           .limit(limit)
           .offset(offset),
         db.select({ value: count() }).from(schema.jobs).where(where),
@@ -314,10 +324,10 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
         openWorldHint: false,
       },
       description:
-        "Rename, re-describe, or reassign one native Hyperlocalise job. Jobs mirrored from an external TMS must be updated in that TMS.",
+        "Rename, re-describe, reassign, or set the due date of one native Hyperlocalise job. Jobs mirrored from an external TMS must be updated in that TMS.",
       inputSchema: mcpUpdateJobInputSchema,
     },
-    async ({ jobId, title, description, ownerUserId }) => {
+    async ({ jobId, title, description, ownerUserId, dueAt }) => {
       if (!isJobMutationAllowed(apiAuth.membership.role)) {
         return mcpToolError("forbidden", "Insufficient permissions to update jobs");
       }
@@ -346,6 +356,7 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
           ...(title !== undefined ? { title } : {}),
           ...(description !== undefined ? { description } : {}),
           ...(ownerWorkosUserId !== undefined ? { ownerWorkosUserId } : {}),
+          ...(dueAt !== undefined ? { dueAt } : {}),
         },
         accessWhere,
       });

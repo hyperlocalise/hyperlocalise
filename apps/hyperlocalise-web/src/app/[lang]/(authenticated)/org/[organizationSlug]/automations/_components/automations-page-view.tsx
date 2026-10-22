@@ -20,6 +20,7 @@ import {
   ClockIcon,
   GithubLogoIcon,
   HandTapIcon,
+  FlowArrowIcon,
   LightningIcon,
   PlusIcon,
   UploadSimpleIcon,
@@ -225,7 +226,7 @@ export function AutomationsPageView({
   onSaveAutoReview,
   renderAutomationLink = defaultRenderAutomationLink,
   renderActionLink = defaultRenderActionLink,
-  visualWorkflowsEnabled = false,
+  canOpenVisualWorkflows = false,
 }: {
   organizationSlug: string;
   projectId?: string;
@@ -242,7 +243,7 @@ export function AutomationsPageView({
   onSaveAutoReview?: (input: GithubAutoReviewSettingsWrite) => Promise<void>;
   renderAutomationLink?: AutomationsLinkRenderer;
   renderActionLink?: AutomationsActionLinkRenderer;
-  visualWorkflowsEnabled?: boolean;
+  canOpenVisualWorkflows?: boolean;
 }) {
   const intl = useIntl();
   const [templateCategoryFilter, setTemplateCategoryFilter] =
@@ -256,10 +257,8 @@ export function AutomationsPageView({
       ),
     [automations, projectId],
   );
-  const stats = useMemo(
-    () => resolveAutomationPageStats(resolveVisibleAutomations(automations, projectId)),
-    [automations, projectId],
-  );
+  // Counted from the rows the list shows, so the totals match it.
+  const stats = useMemo(() => resolveAutomationPageStats(visibleAutomations), [visibleAutomations]);
   const hasNewAutomationSection = assistant !== undefined;
   const assistantUsable = assistant?.aiFeaturesStatus === "allowed";
   // Without a usable assistant there is no prompt box to go to, so the button opens the editor.
@@ -334,19 +333,14 @@ export function AutomationsPageView({
         title={intl.formatMessage(automationsPageViewMessages.pageTitle)}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {visualWorkflowsEnabled && !projectId ? (
+            {canOpenVisualWorkflows && !projectId ? (
               <Button
                 nativeButton={false}
-                render={
-                  <OrgNavLink href={`/org/${organizationSlug}/automations/visual-workflows`} />
-                }
+                render={<OrgNavLink href={`${automationsBasePath}/visual-workflows`} />}
                 variant="outline"
               >
-                <FormattedMessage
-                  defaultMessage="Visual workflows"
-                  id="zK2bwfb+JP"
-                  description="Link from automations list to visual workflows"
-                />
+                <FlowArrowIcon />
+                <FormattedMessage {...automationsPageViewMessages.visualWorkflows} />
               </Button>
             ) : null}
             {newAutomationJumpsToSection ? (

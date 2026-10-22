@@ -305,6 +305,8 @@ export type ListCrowdinTasksOptions = {
   offset?: number;
   orderBy?: string;
   fetchAll?: boolean;
+  /** Only tasks in these statuses, such as "todo" and "in_progress". */
+  statuses?: readonly string[];
 };
 
 export type ListCrowdinGlossariesOptions = {
@@ -1528,11 +1530,14 @@ export class CrowdinApiClient {
     const orderBy = options?.orderBy ?? (fetchAll ? undefined : CROWDIN_LIVE_TASK_LIST_ORDER_BY);
     const tasks: CrowdinTask[] = [];
     let offset = options?.offset ?? 0;
+    const statusParam = options?.statuses?.length
+      ? `&status=${encodeURIComponent(options.statuses.join(","))}`
+      : "";
 
     while (true) {
       const orderParam = orderBy ? `&orderBy=${encodeURIComponent(orderBy)}` : "";
       const response = await this.get<CrowdinListResponse<CrowdinTask>>(
-        `/projects/${projectId}/tasks?limit=${limit}&offset=${offset}${orderParam}`,
+        `/projects/${projectId}/tasks?limit=${limit}&offset=${offset}${orderParam}${statusParam}`,
       );
       const page = response.data.map((item) => item.data);
       tasks.push(...page);

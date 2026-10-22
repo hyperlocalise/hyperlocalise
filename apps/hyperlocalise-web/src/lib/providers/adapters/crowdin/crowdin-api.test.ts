@@ -1254,6 +1254,18 @@ describe("CrowdinApiClient", () => {
     await client.listTasks(1, { orderBy: "updatedAt desc" });
   });
 
+  it("filters project tasks by status", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const requestUrl = new URL(String(url));
+      expect(requestUrl.searchParams.get("status")).toBe("todo,in_progress");
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await client.listTasks(1, { statuses: ["todo", "in_progress"] });
+  });
+
   it("lists user tasks with live list defaults", async () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);

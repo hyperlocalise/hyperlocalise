@@ -25,6 +25,7 @@ import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/pub
 
 import type { CanonicalVisualWorkflowNode } from "../schema/types";
 import type { VisualWorkflowExecutionContext } from "./context";
+import { runPickAssigneeAction } from "./assignment-actions";
 import { executeLogicVisualWorkflowNode } from "./execute-logic-node";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 import { resolveVisualWorkflowTemplate } from "./expressions";
@@ -43,8 +44,10 @@ import {
 import {
   runCheckProgressAction,
   runCreateTaskAction,
+  runListSourceFilesAction,
   runMachineTranslateAction,
   runQaChecksAction,
+  runUpdateJobAction,
 } from "./localization-actions";
 
 export type { VisualWorkflowNodeExecutionResult } from "./execution-result";
@@ -203,6 +206,7 @@ export async function executeVisualWorkflowNode(input: {
         step: node.config.step,
         assigneeWorkosUserId: text(node.config.assigneeWorkosUserId).trim(),
         title: text(node.config.title),
+        dueAt: text(node.config.dueAt ?? ""),
       });
     case "action.check_progress":
       return runCheckProgressAction({
@@ -216,6 +220,38 @@ export async function executeVisualWorkflowNode(input: {
       return runQaChecksAction({
         organizationId: input.organizationId,
         projectId: text(node.config.projectId).trim(),
+      });
+    case "action.list_source_files":
+      return runListSourceFilesAction({
+        organizationId: input.organizationId,
+        projectId: text(node.config.projectId).trim(),
+        pathPrefix: text(node.config.pathPrefix),
+      });
+    case "action.update_job":
+      return runUpdateJobAction({
+        organizationId: input.organizationId,
+        jobId: text(node.config.jobId).trim(),
+        assigneeWorkosUserId: text(node.config.assigneeWorkosUserId).trim(),
+        title: text(node.config.title),
+        dueAt: text(node.config.dueAt ?? ""),
+      });
+    case "action.pick_assignee":
+      return runPickAssigneeAction({
+        organizationId: input.organizationId,
+        visualWorkflowId: input.visualWorkflowId,
+        nodeId: node.id,
+        idempotencyKey: input.idempotencyKey,
+        locale: list(node.config.locale),
+        jobType: text(node.config.jobType),
+        size: list(node.config.size),
+        dueAt: text(node.config.dueAt),
+        rules: node.config.rules,
+        fallbackAssigneeIds: node.config.fallbackAssigneeIds,
+        strategy: node.config.strategy,
+        peopleSource: node.config.peopleSource,
+        crowdinProjectId: text(node.config.crowdinProjectId ?? ""),
+        workosUserId: node.config.workosUserId?.trim(),
+        signal: input.signal,
       });
     case "action.crowdin_pre_translate":
       return runCrowdinPreTranslateAction({
@@ -241,6 +277,7 @@ export async function executeVisualWorkflowNode(input: {
         assigneeIds: list(node.config.assigneeIds),
         title: text(node.config.title),
         description: text(node.config.description),
+        dueAt: text(node.config.dueAt ?? ""),
       });
     case "action.crowdin_check_progress":
       return runCrowdinCheckProgressAction({

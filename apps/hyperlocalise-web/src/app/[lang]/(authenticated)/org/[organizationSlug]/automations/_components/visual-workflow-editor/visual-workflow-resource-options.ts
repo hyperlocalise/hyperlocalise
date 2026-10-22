@@ -146,10 +146,6 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
       (workflow) => workflow.publishedVersion !== null && workflow.publishedDefinition !== null,
     ),
     githubConnected,
-    availableProviders: [
-      ...(githubConnected ? (["github"] as const) : []),
-      ...(contentfulConnections.length > 0 ? (["contentful"] as const) : []),
-    ] satisfies ContentSyncProvider[],
     resourceOptionsFor(provider: ContentSyncProvider): VisualWorkflowResourceOption[] {
       if (provider === "github") {
         return repositories.map((repository) => ({

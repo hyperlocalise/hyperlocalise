@@ -14,12 +14,13 @@
  */
 import { useRouter } from "next/navigation";
 import { useState, useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage } from "react-intl";
 import { toast } from "sonner";
 
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
+import { ApiResponseError } from "@/lib/api-error";
 import {
   fromVisualWorkflowV3Definition,
   toVisualWorkflowV3Definition,
@@ -44,6 +45,31 @@ import { visualWorkflowsPageMessages } from "./visual-workflows-page.messages";
 
 const visualWorkflowsApi = createVisualWorkflowsApi();
 
+/** Says why publishing or pausing failed, from the error code the API answered with. */
+function showStatusChangeError(error: unknown) {
+  const code = error instanceof ApiResponseError ? error.code : null;
+  if (code === "version_conflict") {
+    toast.error(<FormattedMessage {...visualWorkflowEditorMessages.statusConflict} />, {
+      action: {
+        label: <FormattedMessage {...visualWorkflowEditorMessages.statusReload} />,
+        onClick: () => window.location.reload(),
+      },
+    });
+    return;
+  }
+  if (code === "invalid_graph") {
+    toast.error(<FormattedMessage {...visualWorkflowEditorMessages.statusInvalidGraph} />);
+    return;
+  }
+  if (code === "invalid_active_trigger") {
+    toast.error(<FormattedMessage {...visualWorkflowEditorMessages.statusInvalidTrigger} />);
+    return;
+  }
+  toast.error(<FormattedMessage {...visualWorkflowEditorMessages.statusUpdateFailed} />, {
+    description: error instanceof Error ? error.message : undefined,
+  });
+}
+
 export function VisualWorkflowEditorPageContent({
   assistantEnabled = false,
   organizationSlug,
@@ -63,6 +89,7 @@ export function VisualWorkflowEditorPageContent({
   visualWorkflowsApi?: VisualWorkflowsApi;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const revision = useRef(workflow.revision);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // The breadcrumb shows the name as last saved, so a rename appears there once it is saved.
@@ -105,6 +132,7 @@ export function VisualWorkflowEditorPageContent({
           setSavedName(record.name);
           setSavedDefinition(input.definition);
           if (input.testSetup) setSavedTestSetup(input.testSetup);
+          void queryClient.invalidateQueries({ queryKey: ["visual-workflows", organizationSlug] });
           return record;
         }),
   });
@@ -140,20 +168,28 @@ export function VisualWorkflowEditorPageContent({
     },
   });
 
+  const [statusChanging, setStatusChanging] = useState(false);
   const handleStatusChange = async (active: boolean, definition: VisualWorkflowV3Definition) => {
+    setStatusChanging(true);
     try {
-      await persistMutation.mutateAsync({
-        definition,
-        ...(active ? {} : { status: "paused" as const }),
-      });
       if (active) {
+        // Publishing goes live with the graph on screen, so it is saved first.
+        await persistMutation.mutateAsync({ definition });
         const published = await publishWorkflowVersion(
           organizationSlug,
           workflow.id,
           revision.current,
         );
         revision.current = published.revision;
+      } else {
+        // Pausing changes only the status; unsaved edits stay unsaved.
+        const paused = await injectedApi.updateVisualWorkflow(organizationSlug, workflow.id, {
+          expectedRevision: revision.current,
+          status: "paused",
+        });
+        revision.current = paused.revision;
       }
+      void queryClient.invalidateQueries({ queryKey: ["visual-workflows", organizationSlug] });
       router.refresh();
       toast.success(
         active ? (
@@ -162,8 +198,10 @@ export function VisualWorkflowEditorPageContent({
           <FormattedMessage {...visualWorkflowEditorMessages.paused} />
         ),
       );
-    } catch {
-      toast.error(<FormattedMessage {...visualWorkflowEditorMessages.activateFailed} />);
+    } catch (error) {
+      showStatusChangeError(error);
+    } finally {
+      setStatusChanging(false);
     }
   };
 
@@ -186,7 +224,7 @@ export function VisualWorkflowEditorPageContent({
         projectName={projectName}
         workflowStatus={workflow.status}
         onStatusChange={handleStatusChange}
-        statusUpdating={saveMutation.isPending}
+        statusUpdating={saveMutation.isPending || statusChanging}
         onDelete={() => {
           if (saveMutation.isPending || deleteMutation.isPending) {
             return;

@@ -79,6 +79,7 @@ export type ApiJob = {
   externalStatus: string | null;
   externalTitle: string | null;
   externalDueDate: string | null;
+  dueAt?: string | null;
   externalTargetLocales: string[] | null;
   externalAssignedUsers: string[] | null;
   externalSyncState: string | null;

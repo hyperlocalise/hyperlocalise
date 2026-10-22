@@ -39,7 +39,7 @@ const resourceOptionsMock = vi.hoisted(() => ({
 vi.mock("./visual-workflow-resource-options", () => ({
   useVisualWorkflowResourceOptions: () => ({
     projects: [{ id: "project-1", name: "Acme" }],
-    availableProviders: ["github"],
+    members: [{ workosUserId: "user_1", label: "Ana" }],
     workflows: [
       {
         id: "11111111-1111-4111-8111-111111111111",
@@ -197,6 +197,28 @@ function terminalNode(
     position: { x: 0, y: 0 },
     ...getVisualNodeDimensions(type),
     data: { catalogType: type, config, runStatus: "idle" },
+  };
+}
+
+function pickAssigneeCrowdinNode(id: string, fallbackAssigneeIds: string[]): VisualWorkflowRfNode {
+  const config = createDefaultConfig("action.pick_assignee");
+  if (config.kind !== "action.pick_assignee") {
+    throw new Error("expected pick assignee config");
+  }
+  return {
+    id,
+    type: "action.pick_assignee",
+    position: { x: 0, y: 0 },
+    ...getVisualNodeDimensions("action.pick_assignee"),
+    data: {
+      catalogType: "action.pick_assignee",
+      config: {
+        ...config,
+        peopleSource: "crowdin",
+        fallbackAssigneeIds,
+      },
+      runStatus: "idle",
+    },
   };
 }
 
@@ -1364,6 +1386,60 @@ describe("VisualWorkflowConfigPanel", () => {
     expect(onChangeConfig).toHaveBeenLastCalledWith(
       expect.objectContaining({ path: ["customer", "locale"] }),
     );
+  });
+
+  it("resets Crowdin people IDs when the saved value or selected step changes", () => {
+    const first = pickAssigneeCrowdinNode("pick-a", ["12", "14"]);
+    const { rerender } = renderPanel(
+      <VisualWorkflowConfigPanel
+        node={first}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    const fallback = () => document.getElementById("vw-pick-assignee-fallback");
+    expect(fallback()).toHaveValue("12, 14");
+
+    const firstConfig = first.data.config;
+    if (firstConfig.kind !== "action.pick_assignee") {
+      throw new Error("expected pick assignee config");
+    }
+    rerender(
+      <VisualWorkflowConfigPanel
+        node={{
+          ...first,
+          data: {
+            ...first.data,
+            config: {
+              ...firstConfig,
+              fallbackAssigneeIds: ["99", "100"],
+            },
+          },
+        }}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+    expect(fallback()).toHaveValue("99, 100");
+
+    rerender(
+      <VisualWorkflowConfigPanel
+        node={pickAssigneeCrowdinNode("pick-b", ["7"])}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+    expect(fallback()).toHaveValue("7");
   });
 });
 

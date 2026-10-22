@@ -64,7 +64,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { parseWorkspaceAutomationEditorTab } from "@/lib/navigation/workspace-automation-editor-tab";
-import { readApiResponseError } from "@/lib/api-error";
+import { ApiResponseError, readApiResponseError } from "@/lib/api-error";
 import {
   describeWorkspaceAutomationDiscard,
   describeWorkspaceAutomationReload,
@@ -155,10 +155,13 @@ export function AutomationDetailPageContent({
         query: {},
       });
       if (response.status !== 200) {
-        throw new Error("Failed to load automation");
+        throw await readApiResponseError(response, "Failed to load automation");
       }
       return response.json();
     },
+    retry: (failureCount, error) =>
+      !(error instanceof ApiResponseError && (error.status === 403 || error.status === 404)) &&
+      failureCount < 2,
   });
 
   const automation = automationQuery.data?.automation;
@@ -509,6 +512,43 @@ export function AutomationDetailPageContent({
   });
   const { undoText, redoText } = useShortcutLabels();
 
+  if (automationQuery.isError && !automation) {
+    const notFound =
+      automationQuery.error instanceof ApiResponseError &&
+      (automationQuery.error.status === 403 || automationQuery.error.status === 404);
+    return (
+      <WorkspacePageShell>
+        <div className="grid justify-items-start gap-3">
+          <p className="text-sm text-muted-foreground">
+            <FormattedMessage
+              {...(notFound
+                ? automationDetailPageContentMessages.loadFailedNotFound
+                : automationDetailPageContentMessages.loadFailed)}
+            />
+          </p>
+          <div className="flex gap-2">
+            {notFound ? null : (
+              <Button
+                variant="outline"
+                disabled={automationQuery.isFetching}
+                onClick={() => void automationQuery.refetch()}
+              >
+                <FormattedMessage {...automationDetailPageContentMessages.retryLoad} />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              nativeButton={false}
+              render={<OrgNavLink href={automationsBasePath} />}
+            >
+              <FormattedMessage {...automationDetailPageContentMessages.backToAutomations} />
+            </Button>
+          </div>
+        </div>
+      </WorkspacePageShell>
+    );
+  }
+
   if (automationQuery.isLoading || !form || !automation) {
     return (
       <WorkspacePageShell>
@@ -714,7 +754,7 @@ export function AutomationDetailPageContent({
               <Button
                 variant="outline"
                 nativeButton={false}
-                render={<OrgNavLink href={`/org/${organizationSlug}/automations`} />}
+                render={<OrgNavLink href={automationsBasePath} />}
               >
                 <FormattedMessage {...automationDetailPageContentMessages.backToAutomations} />
               </Button>

@@ -55,8 +55,14 @@ export function isTerminalBoardStatus(status: KanbanStatus) {
   return terminalBoardStatuses.has(status);
 }
 
-type BoardSortableJob = {
-  externalDueDate: string | null;
+type DatedJob = { externalDueDate: string | null; dueAt?: string | null };
+
+/** The provider's due date for a job mirrored from a TMS, or a native job's own. */
+export function jobDueDate(job: DatedJob): string | null {
+  return job.externalDueDate ?? job.dueAt ?? null;
+}
+
+type BoardSortableJob = DatedJob & {
   updatedAt: string;
   completedAt: string | null;
 };
@@ -74,8 +80,8 @@ function compareRecentFirst(a: BoardSortableJob, b: BoardSortableJob) {
 }
 
 function compareDueSoonestFirst(a: BoardSortableJob, b: BoardSortableJob) {
-  const aDue = toTimestamp(a.externalDueDate);
-  const bDue = toTimestamp(b.externalDueDate);
+  const aDue = toTimestamp(jobDueDate(a));
+  const bDue = toTimestamp(jobDueDate(b));
   if (aDue !== null && bDue !== null && aDue !== bDue) return aDue - bDue;
   if (aDue !== null && bDue === null) return -1;
   if (aDue === null && bDue !== null) return 1;

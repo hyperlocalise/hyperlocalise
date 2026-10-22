@@ -147,6 +147,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeGithubTrigger;
     case "trigger.source_upload":
       return messages.nodeSourceUploadTrigger;
+    case "trigger.webhook":
+      return messages.nodeWebhookTrigger;
     case "action.http":
       return messages.nodeHttp;
     case "action.content_sync":
@@ -159,6 +161,12 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeCheckProgress;
     case "action.run_qa":
       return messages.nodeRunQa;
+    case "action.list_source_files":
+      return messages.nodeListSourceFiles;
+    case "action.update_job":
+      return messages.nodeUpdateJob;
+    case "action.pick_assignee":
+      return messages.nodePickAssignee;
     case "action.crowdin_pre_translate":
       return messages.nodeCrowdinPreTranslate;
     case "action.crowdin_create_task":
@@ -216,6 +224,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeGithubTriggerHint;
     case "trigger.source_upload":
       return messages.nodeSourceUploadTriggerHint;
+    case "trigger.webhook":
+      return messages.nodeWebhookTriggerHint;
     case "action.http":
       return messages.nodeHttpHint;
     case "action.content_sync":
@@ -228,6 +238,12 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeCheckProgressHint;
     case "action.run_qa":
       return messages.nodeRunQaHint;
+    case "action.list_source_files":
+      return messages.nodeListSourceFilesHint;
+    case "action.update_job":
+      return messages.nodeUpdateJobHint;
+    case "action.pick_assignee":
+      return messages.nodePickAssigneeHint;
     case "action.crowdin_pre_translate":
       return messages.nodeCrowdinPreTranslateHint;
     case "action.crowdin_create_task":
