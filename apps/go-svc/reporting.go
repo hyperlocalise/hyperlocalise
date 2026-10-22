@@ -32,6 +32,9 @@ func (h *handler) registerReporting(mux *http.ServeMux, verifier SessionVerifier
 	route("GET "+base, h.getReport)
 	route("GET "+base+"/settings", h.getReportSettings)
 	route("GET "+base+"/tasks/{jobId}", h.getTaskReport)
+	route("POST "+base+"/rates", h.createReportingRate)
+	route("PUT "+base+"/budgets", h.upsertReportingBudget)
+	route("POST "+base+"/expenses", h.createReportingExpense)
 }
 
 func reportingInvalid(code string) error {
