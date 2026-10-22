@@ -119,6 +119,23 @@ describe("ContentEditorTargetEditor dual-sentinel markdown display", () => {
 });
 
 describe("ContentEditorTargetEditor markdown display", () => {
+  it("keeps plain text mode for .txt sources even when the segment looks like markdown", async () => {
+    renderWithContentEditorProviders(
+      <ContentEditorTargetEditor
+        sourcePath="docs/notes.txt"
+        sourceText="# Heading"
+        value="# Überschrift"
+        onChange={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("# Überschrift")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: "MD#0" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+  });
+
   it("hides heading ids and structural MD required tokens", async () => {
     renderWithContentEditorProviders(
       <ContentEditorTargetEditor
@@ -214,6 +231,22 @@ describe("ContentEditorTargetEditor markdown display", () => {
     expect(lastValue).toMatch(/^Nutzen Sie Articles als Grundlage!/);
     expect(lastValue).toContain(md0);
     expect(lastValue).not.toContain("#h_8b76258d80");
+  });
+
+  it("does not use markdown CAT display for .txt sources even when text looks like markdown", async () => {
+    renderWithContentEditorProviders(
+      <ContentEditorTargetEditor
+        sourcePath="docs/notes.txt"
+        sourceText="# Title"
+        value="# Überschrift"
+        onChange={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("# Überschrift")).toBeInTheDocument();
+    });
+    expect(document.querySelector(".tiptap h1")).not.toBeInTheDocument();
   });
 });
 

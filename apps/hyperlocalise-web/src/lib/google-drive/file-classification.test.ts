@@ -130,19 +130,55 @@ describe("classifyGoogleDriveItem", () => {
     ).toMatchObject({ kind: "skipped", reason: "translation_output" });
   });
 
-  it("skips plain text because the Content Editor cannot open it", () => {
+  it("supports plain text files for import", () => {
     expect(
       classifyGoogleDriveItem({
         name: "ascii-art.txt",
         mimeType: "text/plain",
       }),
-    ).toMatchObject({ kind: "skipped", reason: "unsupported_plain_text" });
+    ).toMatchObject({
+      kind: "supported",
+      ingestKind: "binary",
+      ingestFormat: "txt",
+      ingestExtension: ".txt",
+    });
     expect(
       classifyGoogleDriveItem({
         name: "notes.txt",
         mimeType: "application/octet-stream",
       }),
-    ).toMatchObject({ kind: "skipped", reason: "unsupported_plain_text" });
+    ).toMatchObject({
+      kind: "supported",
+      ingestFormat: "txt",
+    });
+    expect(
+      classifyGoogleDriveItem({
+        name: "readme",
+        mimeType: "text/plain",
+      }),
+    ).toMatchObject({
+      kind: "supported",
+      ingestFormat: "txt",
+      ingestExtension: ".txt",
+    });
+    expect(
+      classifyGoogleDriveItem({
+        name: "guide.md",
+        mimeType: "text/plain",
+      }),
+    ).toMatchObject({
+      kind: "supported",
+      ingestFormat: "markdown",
+    });
+    expect(
+      classifyGoogleDriveItem({
+        name: "captions.srt",
+        mimeType: "text/plain",
+      }),
+    ).toMatchObject({
+      kind: "supported",
+      ingestFormat: "srt",
+    });
   });
 
   it("skips files over the size cap and folders deeper than the walk limit", () => {

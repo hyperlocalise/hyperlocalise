@@ -34,6 +34,10 @@ export function isAsciidocFilename(filename: string) {
   return lower.endsWith(".adoc") || lower.endsWith(".asciidoc") || lower.endsWith(".asc");
 }
 
+export function isPlainTextFilename(filename: string) {
+  return filename.toLowerCase().endsWith(".txt");
+}
+
 /**
  * Schema and Markdown syntax for a document. Underline is left out because
  * Markdown cannot store it. Tokenizers are registered on a private `Marked`

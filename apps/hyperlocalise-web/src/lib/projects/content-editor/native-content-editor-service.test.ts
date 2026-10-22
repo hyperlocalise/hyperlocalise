@@ -561,6 +561,51 @@ describe("NativeContentEditorService.getCatFile", () => {
     expect(result?.segments[0]?.contentKind).toBe("office_file");
   });
 
+  it("returns ingested plain text keys plus a document view overlay", async () => {
+    listKeysForFile.mockResolvedValue([
+      {
+        id: "key_txt",
+        key: "txt.0001",
+        sourceText: "Intro paragraph",
+        context: null,
+        type: "string",
+        maxLength: null,
+        metadata: null,
+      },
+    ]);
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_txt",
+    });
+    getImageVariant.mockResolvedValue({
+      id: "variant_txt",
+      storedFileId: "stored_target_txt",
+      status: "needs_review",
+    });
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "docs/notes.txt",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(listKeysForFile).toHaveBeenCalled();
+    expect(result?.segments).toHaveLength(1);
+    expect(result?.segments[0]).toMatchObject({
+      externalStringId: "key_txt",
+      key: "txt.0001",
+      sourceText: "Intro paragraph",
+    });
+    expect(result?.documentView).toEqual({
+      externalStringId: "file_1",
+      sourceAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_source_txt",
+      targetAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_target_txt",
+      imageVariantId: "variant_txt",
+    });
+  });
+
   it("returns ingested markdown keys plus a document view overlay", async () => {
     listKeysForFile.mockResolvedValue([
       {

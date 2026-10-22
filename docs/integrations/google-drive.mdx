@@ -28,38 +28,40 @@ Google Drive is not a trigger type. Use **Ingest**, **Run now**, or a schedule f
 
 Google Workspace files are exported before import. Other files are downloaded with their original extension when Hyperlocalise supports that format (same rules as [native project upload](/platform/file-formats)).
 
-| Format | Imported as | Supported |
+| Format | Extension | Supported |
 | --- | --- | --- |
-| Google Docs | `.docx` | ✓ |
-| Google Sheets | `.xlsx` | ✓ |
-| Google Slides | `.pptx` | ✓ |
-| Word (`.docx`) | `.docx` | ✓ |
-| Excel (`.xlsx`, `.xls`) | same extension | ✓ |
-| PowerPoint (`.pptx`) | `.pptx` | ✓ |
-| JSON (`.json`, `.jsonc`) | same extension | ✓ |
-| YAML (`.yaml`, `.yml`) | same extension | ✓ |
-| ARB (`.arb`) | same extension | ✓ |
-| XLIFF (`.xlf`, `.xliff`) | same extension | ✓ |
-| gettext (`.po`, `.pot`) | same extension | ✓ |
-| Qt Linguist (`.ts`) | same extension | ✓ |
-| CSV / TSV | same extension | ✓ |
-| HTML (`.html`, `.htm`) | same extension | ✓ |
-| Markdown / MDX | same extension | ✓ |
-| AsciiDoc | same extension | ✓ |
-| Apple strings (`.strings`, `.xcstrings`) | same extension | ✓ |
-| Android XML (`.xml`) | same extension | ✓ |
-| Subtitles (`.srt`, `.vtt`) | same extension | ✓ |
-| Lottie (`.lottie`) | same extension | ✓ |
-| Images (`.png`, `.jpg`, `.jpeg`, `.webp`) | same extension | ✓ |
-| Video (`.mp4`) | same extension | ✓ |
-| PDF (`.pdf`) | — | ✗ |
-| Plain text (`.txt`) | — | ✗ |
+| Google Docs | `.docx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Google Sheets | `.xlsx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Google Slides | `.pptx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Word | `.docx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Excel | `.xlsx`, `.xls` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| PowerPoint | `.pptx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| JSON | `.json`, `.jsonc` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| YAML | `.yaml`, `.yml` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| ARB | `.arb` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| XLIFF | `.xlf`, `.xliff` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| gettext | `.po`, `.pot` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Qt Linguist | `.ts` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| CSV | `.csv` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| TSV | `.tsv` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| HTML | `.html`, `.htm` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Markdown | `.md`, `.markdown` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| MDX | `.mdx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| AsciiDoc | `.adoc`, `.asciidoc`, `.asc` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Apple strings | `.strings`, `.xcstrings` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Android XML | `.xml` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Subtitles | `.srt`, `.vtt`, `.sbv` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Lottie | `.lottie` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Images | `.png`, `.jpg`, `.jpeg`, `.webp` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Video | `.mp4` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Plain text | `.txt` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| PDF | `.pdf` | <span style="color: #ef4444; font-weight: 600">✗</span> |
 
-Drive skips unsupported rows (✗) and any other file that is not a Hyperlocalise source format. For the full extension list, see [Supported formats](/platform/file-formats).
+Drive skips unsupported rows (<span style="color: #ef4444; font-weight: 600">✗</span>) and any other file that is not a Hyperlocalise source format. For the full extension list, see [Supported formats](/platform/file-formats).
 
 ## Write-back
 
-For each target locale (defaults to the project’s target locales), Hyperlocalise creates or updates files using the automation **Translation output**. Google Docs, Sheets, and Slides are uploaded back as native Google file types when the source was a Google app file. Push writes Office, JSON/ARB, and Lottie in the original format. Other keyed formats (Markdown, HTML, CSV, PO, YAML, and similar) are skipped rather than written as JSON with the source extension.
+For each target locale (defaults to the project’s target locales), Hyperlocalise creates or updates files using the automation **Translation output**. Google Docs, Sheets, and Slides are uploaded back as native Google file types when the source was a Google app file. Push writes Office, JSON/ARB, Lottie, plain text (`.txt`), and subtitles (`.srt`, `.vtt`, `.sbv`) in the original format. Other keyed formats (Markdown, HTML, CSV, PO, YAML, and similar) are skipped rather than written as JSON with the source extension.
 
 ### Creating and updating Drive files
 
@@ -128,9 +130,9 @@ Source files:                         Translations:
 - If Google Drive auto-converts an upload to a Google Doc, export returns DOCX and the original format (for example `.md`) cannot be recovered.
 - Google Apps Script, Drawings, Forms, and Sites are not translated.
 - ZIP and other archive files are skipped.
-- PDF and plain text (`.txt`) are skipped.
+- PDF is skipped.
 - Media and other files that are not Hyperlocalise source formats are skipped.
-- Push skips keyed formats that do not yet have a format-aware writer (Markdown, HTML, CSV, PO, YAML, and similar). JSON, ARB, Lottie, and Office files are written in the original format.
+- Push skips keyed formats that do not yet have a format-aware writer (Markdown, HTML, CSV, PO, YAML, and similar). JSON, ARB, Lottie, Office, plain text, and subtitle files are written in the original format.
 
 ## Limits
 

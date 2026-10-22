@@ -22,6 +22,9 @@ func isEditorCatParseBackPath(sourcePath string) bool {
 	if translationfileparser.IsMarkdownDocumentExtension(sourcePath) {
 		return true
 	}
+	if translationfileparser.IsPlainTextDocumentExtension(sourcePath) {
+		return true
+	}
 	switch strings.ToLower(path.Ext(sourcePath)) {
 	case ".html", ".htm":
 		return true
