@@ -76,9 +76,35 @@ export const activityTabMessages = defineMessages({
     description: "Title of the chart of finished words for each week",
   },
   finishedChartDetail: {
-    id: "phJ0HiRrJb",
-    defaultMessage: "{step} step · by people and automatic work",
+    id: "FNPiHoJg9V",
+    defaultMessage: "{step} step · by where the text came from",
     description: "Subtitle of the finished words chart",
+  },
+  fromMemory: {
+    id: "HqGUF6r5uP",
+    defaultMessage: "Translation memory",
+    description: "Chart series: finished text taken from the translation memory",
+  },
+  fromAi: {
+    id: "AR6134JvR2",
+    defaultMessage: "AI",
+    description: "Chart series: finished text written by an AI model",
+  },
+  fromImport: {
+    id: "hDeWLLJPZV",
+    defaultMessage: "Imported",
+    description: "Chart series: finished text that was imported",
+  },
+  fromUnknown: {
+    id: "3cKXuel9Qg",
+    defaultMessage: "Not recorded",
+    description: "Chart series: finished text whose source was not recorded",
+  },
+  unchangedNote: {
+    id: "+AdPwtLE3T",
+    defaultMessage:
+      "People finished {people} words; {share} of those were approved without changing the text they were given.",
+    description: "Note under the finished words chart: how much people approved unchanged",
   },
   people: {
     id: "ZMfSUtV6Zv",
@@ -91,9 +117,9 @@ export const activityTabMessages = defineMessages({
     description: "Chart series: work done automatically",
   },
   chartSummary: {
-    id: "xBp+U4dUA6",
+    id: "1N8A6OFNKq",
     defaultMessage:
-      "{people} words finished by people and {automatic} automatically, from {from} to {to}",
+      "{finished} words finished from {from} to {to}, {people} of them by people, by where the text came from",
     description: "Accessible description of the finished words chart",
   },
   weekOf: {

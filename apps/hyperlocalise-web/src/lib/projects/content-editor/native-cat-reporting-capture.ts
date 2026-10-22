@@ -15,6 +15,7 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 import { captureAnalysis, captureCompletions } from "@/lib/reporting/capture";
+import { personSave, sourceOfProvenance, textOrigins } from "@/lib/reporting/completion-source";
 import { openPersonTaskForString } from "@/lib/reporting/task-analysis";
 
 export async function captureNativeCatTranslationReporting(input: {
@@ -60,7 +61,10 @@ export async function captureNativeCatTranslationReporting(input: {
   }
 
   const [existing] = await db
-    .select({ sourceJobId: schema.projectTranslations.sourceJobId })
+    .select({
+      id: schema.projectTranslations.id,
+      sourceJobId: schema.projectTranslations.sourceJobId,
+    })
     .from(schema.projectTranslations)
     .where(
       and(
@@ -101,6 +105,18 @@ export async function captureNativeCatTranslationReporting(input: {
   });
 
   if (input.text.trim()) {
+    // A person's save keeps the given text's source when they kept the text; other saves bring
+    // their own (a task's output, an import).
+    const origin =
+      provenance === "manual"
+        ? personSave(
+            existing
+              ? (
+                  await textOrigins(input.organizationId, [{ id: existing.id, text: input.text }])
+                ).get(existing.id)
+              : undefined,
+          )
+        : { source: sourceOfProvenance(provenance), unchanged: undefined };
     await captureCompletions({
       organizationId: input.organizationId,
       jobId: sourceJobId,
@@ -109,6 +125,8 @@ export async function captureNativeCatTranslationReporting(input: {
       provenance: provenance === "manual" ? "human" : "automated",
       step,
       actorUserId: provenance === "manual" ? input.actorUserId : null,
+      source: origin.source,
+      ...(origin.unchanged === undefined ? {} : { unchanged: { [key.id]: origin.unchanged } }),
     });
   }
 

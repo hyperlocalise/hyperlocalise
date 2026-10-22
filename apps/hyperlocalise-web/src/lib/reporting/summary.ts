@@ -20,7 +20,7 @@ import { reportingStart } from "./reporting-start";
  * The version of the daily summary's rules. A workspace whose summary was built under another
  * version is rebuilt in full, so raising this is how a change to the rules reaches old days.
  */
-export const SUMMARY_VERSION = 1;
+export const SUMMARY_VERSION = 2;
 
 export type SummaryMark = { projectId: string | null; day: string };
 
@@ -98,6 +98,11 @@ const MEASURES: { column: string; arrival: string; finished: string }[] = [
     column: `finished_by_person_${unit}`,
     arrival: "0",
     finished: `case when by_person then ${value} else 0 end`,
+  })),
+  ...UNITS.map(([unit, value]) => ({
+    column: `finished_unchanged_${unit}`,
+    arrival: "0",
+    finished: `case when unchanged then ${value} else 0 end`,
   })),
 ];
 const MEASURE_COLUMNS = MEASURES.map((measure) => measure.column).join(", ");
@@ -217,12 +222,14 @@ export async function refreshSummaryDays(
       ),
       done as (${completionsOfArrivals})
       insert into reporting_daily_by_task (organization_id, project_id, job_id, source_locale,
-        target_locale, step, bucket, payable, day, ${sql.raw(MEASURE_COLUMNS)})
+        target_locale, step, bucket, source, payable, day, ${sql.raw(MEASURE_COLUMNS)})
       select ${organizationId}, ${projectId}, job_id, source_locale, target_locale, step, bucket,
-        payable, day, ${sql.raw(MEASURE_SUMS)}
+        source, payable, day, ${sql.raw(MEASURE_SUMS)}
       from (
-        select a.job_id, a.source_locale, a.target_locale, a.step, a.bucket, a.billable as payable,
-          (a.created_at at time zone 'UTC')::date as day, ${sql.raw(ARRIVAL_MEASURES)}
+        -- An arrival has no source of its own: it keys on "" and the finished rows on theirs.
+        select a.job_id, a.source_locale, a.target_locale, a.step, a.bucket, '' as source,
+          a.billable as payable, (a.created_at at time zone 'UTC')::date as day,
+          ${sql.raw(ARRIVAL_MEASURES)}
         from (
           select a.*, d.analysis_id is not null as done, f.id is not null as representative
           from arrivals a
@@ -230,18 +237,20 @@ export async function refreshSummaryDays(
           left join (select distinct analysis_id from done) d on d.analysis_id = a.id
         ) a
         union all
-        select f.job_id, f.source_locale, f.target_locale, f.step, f.bucket, f.payable, f.day,
-          ${sql.raw(FINISHED_MEASURES)}
+        select f.job_id, f.source_locale, f.target_locale, f.step, f.bucket, f.source, f.payable,
+          f.day, ${sql.raw(FINISHED_MEASURES)}
         from (
           select s.job_id, s.source_locale, c.target_locale, c.step, s.bucket,
-            s.billable as payable, (c.created_at at time zone 'UTC')::date as day, s.words,
-            s.characters, s.characters_with_spaces, c.actor_user_id is not null as by_person
+            coalesce(c.source, 'unknown') as source, s.billable as payable,
+            (c.created_at at time zone 'UTC')::date as day, s.words, s.characters,
+            s.characters_with_spaces, c.actor_user_id is not null as by_person,
+            coalesce(c.unchanged, false) as unchanged
           from reporting_activity c join reporting_analyses s on s.id = c.analysis_id
           where c.organization_id = ${organizationId} and c.project_id = ${projectId}
             and c.kind = 'completion' and ${inDays("c.created_at")}
         ) f
       ) facts
-      group by job_id, source_locale, target_locale, step, bucket, payable, day
+      group by job_id, source_locale, target_locale, step, bucket, source, payable, day
     `);
     await tx
       .delete(schema.reportingDailyByProject)
@@ -254,12 +263,13 @@ export async function refreshSummaryDays(
       );
     await tx.execute(sql`
       insert into reporting_daily_by_project (organization_id, project_id, target_locale, step,
-        bucket, day, ${sql.raw(MEASURE_COLUMNS)})
-      select organization_id, project_id, target_locale, step, bucket, day, ${sql.raw(MEASURE_SUMS)}
+        bucket, source, day, ${sql.raw(MEASURE_COLUMNS)})
+      select organization_id, project_id, target_locale, step, bucket, source, day,
+        ${sql.raw(MEASURE_SUMS)}
       from reporting_daily_by_task
       where organization_id = ${organizationId} and project_id = ${projectId}
         and day = any(${dayList})
-      group by organization_id, project_id, target_locale, step, bucket, day
+      group by organization_id, project_id, target_locale, step, bucket, source, day
     `);
     // A write that marked a day while this ran bumped its generation: keep that mark.
     for (const mark of queued) {

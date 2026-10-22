@@ -24,6 +24,12 @@ const openPersonTaskForStringMock = vi.hoisted(() =>
   vi.fn(async (): Promise<string | undefined> => undefined),
 );
 
+vi.mock("@/lib/reporting/completion-source", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/reporting/completion-source")>();
+  // The editor's history is not in the fake database: a person's save is their own, unchanged.
+  return { ...actual, textOrigins: vi.fn(async () => new Map()) };
+});
+
 vi.mock("@/lib/reporting/task-analysis", () => ({
   openPersonTaskForString: openPersonTaskForStringMock,
 }));
@@ -165,6 +171,9 @@ describe("captureNativeCatTranslationReporting", () => {
       sourceEntries: { key_1: "Hello" },
       provenance: "human",
       step: "translation",
+      // Nothing was given to the person (no earlier version), so the text is their own.
+      source: "person",
+      unchanged: { key_1: false },
     });
   });
 

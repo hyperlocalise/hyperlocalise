@@ -24,6 +24,8 @@ import {
   recordCompletions,
   reportingStart,
 } from "./capture";
+import { personSave, textOrigins } from "./completion-source";
+import type { CompletionSource } from "./report-units";
 import { openPersonTaskForString } from "./task-analysis";
 
 const logger = createLogger("reporting-editor-save-capture");
@@ -399,6 +401,7 @@ async function recordSaves(
   const keyById = new Map(keys.map((key) => [key.id, key]));
   const translations = await db
     .select({
+      id: schema.projectTranslations.id,
       translationKeyId: schema.projectTranslations.translationKeyId,
       targetLocale: schema.projectTranslations.targetLocale,
       text: schema.projectTranslations.text,
@@ -414,6 +417,8 @@ async function recordSaves(
   const translationByKey = new Map(
     translations.map((row) => [`${row.translationKeyId}:${row.targetLocale}`, row]),
   );
+  // What each person was given and whether they kept it, from the editor's own history.
+  const origins = await textOrigins(organizationId, translations);
   const projectIds = [...new Set(segments.map((segment) => segment.projectId))];
   const projects = await db
     .select({ id: schema.projects.id, sourceLocale: schema.projects.sourceLocale })
@@ -497,6 +502,15 @@ async function recordSaves(
         keyById.get(segment.translationKeyId)!.sourceText,
       ]),
     );
+    const saved = group.map(({ segment }) => {
+      const translation = translationByKey.get(
+        `${segment.translationKeyId}:${segment.targetLocale}`,
+      );
+      const origin = segment.automated
+        ? { source: "ai" as CompletionSource, unchanged: undefined }
+        : personSave(translation ? origins.get(translation.id) : undefined);
+      return [segment.translationKeyId, origin] as const;
+    });
     const shared = {
       organizationId,
       jobId: sourceJobId,
@@ -507,6 +521,12 @@ async function recordSaves(
         group.map(({ segment }) => [segment.translationKeyId, segment.occurredAt]),
       ),
     };
+    const sources = Object.fromEntries(saved.map(([key, origin]) => [key, origin.source]));
+    const unchanged = Object.fromEntries(
+      saved.flatMap(([key, origin]) =>
+        origin.unchanged === undefined ? [] : [[key, origin.unchanged] as const],
+      ),
+    );
     await recordAnalysis(
       {
         ...shared,
@@ -520,6 +540,8 @@ async function recordSaves(
       ...shared,
       provenance: segment.automated ? "automated" : "human",
       actorUserId: segment.automated ? null : segment.actorUserId,
+      sources,
+      unchanged,
     });
     recorded += group.length;
   }

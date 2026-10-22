@@ -16,7 +16,13 @@ import { db } from "@/lib/database/client";
 
 import type { ReportPeriod } from "./report-period";
 import { idList, jobTitle, scopedProjectIds, type ReportScope } from "./report-scope";
-import { REPORT_STEPS, type ReportStep, type ReportUnit } from "./report-units";
+import {
+  REPORT_STEPS,
+  SUMMARY_SOURCES,
+  type ReportStep,
+  type ReportUnit,
+  type SummarySource,
+} from "./report-units";
 import { MATCH_BUCKETS, type MatchBucket } from "./word-analysis";
 
 /**
@@ -24,7 +30,13 @@ import { MATCH_BUCKETS, type MatchBucket } from "./word-analysis";
  * read as `float8` so a large workspace's totals cannot overflow a 32-bit integer.
  */
 
-type SummaryMeasure = "source" | "arrived" | "arrived_done" | "finished" | "finished_by_person";
+type SummaryMeasure =
+  | "source"
+  | "arrived"
+  | "arrived_done"
+  | "finished"
+  | "finished_by_person"
+  | "finished_unchanged";
 
 /** A summary column, such as `arrived_words`. Both parts are fixed lists, never user text. */
 function measure(name: SummaryMeasure, unit: ReportUnit): SQL {
@@ -61,6 +73,20 @@ export type ActivityTotals = {
   reviewed: number;
   /** Strings that arrived whose units could not be counted. */
   uncounted: number;
+  /** The part of `finished` a person did. */
+  finishedByPerson: number;
+  /** The part of `finishedByPerson` where the person kept the text they were given. */
+  finishedUnchanged: number;
+  /** `finished` by where the text came from. */
+  finishedBySource: Record<SummarySource, number>;
+};
+
+export const NO_SOURCES: Record<SummarySource, number> = {
+  memory: 0,
+  ai: 0,
+  person: 0,
+  import: 0,
+  unknown: 0,
 };
 
 const NO_ACTIVITY: ActivityTotals = {
@@ -70,6 +96,9 @@ const NO_ACTIVITY: ActivityTotals = {
   finished: 0,
   reviewed: 0,
   uncounted: 0,
+  finishedByPerson: 0,
+  finishedUnchanged: 0,
+  finishedBySource: NO_SOURCES,
 };
 
 /** The Activity tab's headline totals for a period and the period before it, in one scan. */
@@ -91,7 +120,17 @@ export async function queryActivity(
       'arrivedDone', ${column("arrived_done", translation)},
       'finished', ${column("finished", translation)},
       'reviewed', ${column("finished", sql`s.step = 'review' and ${inPeriod}`)},
-      'uncounted', coalesce(sum(s.arrived_uncounted) filter (where ${translation}), 0)::float8
+      'uncounted', coalesce(sum(s.arrived_uncounted) filter (where ${translation}), 0)::float8,
+      'finishedByPerson', ${column("finished_by_person", translation)},
+      'finishedUnchanged', ${column("finished_unchanged", translation)},
+      -- The names are a fixed list, never user text; as literals, since a parameter has no type a JSON key can take.
+      'finishedBySource', json_build_object(${sql.join(
+        SUMMARY_SOURCES.map(
+          (name) =>
+            sql`${sql.raw(`'${name}'`)}, ${column("finished", sql`${translation} and s.source = ${name}`)}`,
+        ),
+        sql`, `,
+      )})
     )`;
   };
   const result = await db.execute<{ current: ActivityTotals; previous: ActivityTotals }>(sql`
@@ -102,12 +141,12 @@ export async function queryActivity(
   return result.rows[0];
 }
 
-export type FinishedSeriesPoint = { start: string; people: number; automatic: number };
+export type FinishedSeriesPoint = { start: string } & Record<SummarySource, number>;
 
 /**
- * Units finished in each day or week of a period, split into work people did and automatic
- * work. Every day or week is present, with zeros where nothing was finished; a week starts on
- * Monday, so the first may begin before the period does.
+ * Units finished in each day or week of a period, split by where the text came from. Every day
+ * or week is present, with zeros where nothing was finished; a week starts on Monday, so the
+ * first may begin before the period does.
  */
 export async function queryFinishedSeries(
   input: ReportScope & { period: ReportPeriod; unit: ReportUnit; step: ReportStep },
@@ -118,19 +157,32 @@ export async function queryFinishedSeries(
     ? sql`date_trunc('week', ${input.period.from}::date)`
     : sql`${input.period.from}::date`;
   const source = summarySource(input);
+  const bySource = (name: SummarySource) =>
+    sql`sum(${measure("finished", input.unit)}) filter (where s.source = ${name})`;
   const totals = source
     ? sql`select ${bucket} as start,
-          sum(${measure("finished_by_person", input.unit)}) as people,
-          sum(${measure("finished", input.unit)} - ${measure("finished_by_person", input.unit)}) as automatic
+          ${sql.join(
+            SUMMARY_SOURCES.map((name) => sql`${bySource(name)} as ${sql.raw(name)}`),
+            sql`, `,
+          )}
         from ${source.table}
         where ${source.where} and s.step = ${input.step}
           and s.day between ${input.period.from} and ${input.period.to}
         group by 1`
-    : sql`select null::date as start, 0 as people, 0 as automatic where false`;
+    : sql`select null::date as start,
+        ${sql.join(
+          SUMMARY_SOURCES.map((name) => sql`0 as ${sql.raw(name)}`),
+          sql`, `,
+        )} where false`;
   const result = await db.execute<FinishedSeriesPoint>(sql`
     with totals as (${totals})
-    select b.start::date::text as start, coalesce(t.people, 0)::float8 as people,
-      coalesce(t.automatic, 0)::float8 as automatic
+    select b.start::date::text as start,
+      ${sql.join(
+        SUMMARY_SOURCES.map(
+          (name) => sql`coalesce(t.${sql.raw(name)}, 0)::float8 as ${sql.raw(name)}`,
+        ),
+        sql`, `,
+      )}
     from generate_series(${first}, ${input.period.to}::date, ${weekly ? "7 days" : "1 day"}::interval) b(start)
     left join totals t on t.start = b.start::date
     order by b.start

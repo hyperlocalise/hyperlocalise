@@ -18,7 +18,7 @@ import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
-import type { ReportStep, ReportUnit } from "./report-units";
+import type { ReportStep, ReportUnit, SummarySource } from "./report-units";
 import type { MatchBucket } from "./word-analysis";
 
 /**
@@ -42,11 +42,21 @@ export type SummaryRowInput = {
   arrivedDone?: Counts;
   finished?: Counts;
   finishedByPerson?: Counts;
+  finishedUnchanged?: Counts;
   uncounted?: number;
+  /** Where the finished text came from; "" for a row that only holds arrivals. */
+  textSource?: SummarySource | "";
 };
 
 const UNITS: ReportUnit[] = ["words", "strings", "characters", "characters_with_spaces"];
-const MEASURES = ["source", "arrived", "arrived_done", "finished", "finished_by_person"] as const;
+const MEASURES = [
+  "source",
+  "arrived",
+  "arrived_done",
+  "finished",
+  "finished_by_person",
+  "finished_unchanged",
+] as const;
 const COLUMNS = [
   ...MEASURES.flatMap((measure) => UNITS.map((unit) => `${measure}_${unit}`)),
   "arrived_uncounted",
@@ -127,6 +137,7 @@ export function createReportingTestFixture() {
           arrived_done: row.arrivedDone,
           finished: row.finished,
           finished_by_person: row.finishedByPerson,
+          finished_unchanged: row.finishedUnchanged,
         };
         for (const measure of MEASURES) {
           const units = unitsOf(given[measure]);
@@ -134,10 +145,10 @@ export function createReportingTestFixture() {
         }
         await db.execute(sql`
           insert into reporting_daily_by_task (organization_id, project_id, job_id, source_locale,
-            target_locale, step, bucket, payable, day, ${sql.raw(COLUMNS.join(", "))})
+            target_locale, step, bucket, source, payable, day, ${sql.raw(COLUMNS.join(", "))})
           values (${organization.id}, ${row.projectId ?? project.id}, ${row.jobId ?? null},
             ${row.sourceLocale ?? "en-US"}, ${row.targetLocale}, ${row.step ?? "translation"},
-            ${row.bucket ?? "new"}, ${row.payable ?? false}, ${row.day},
+            ${row.bucket ?? "new"}, ${row.textSource ?? ""}, ${row.payable ?? false}, ${row.day},
             ${sql.join(
               COLUMNS.map((column) => sql`${values[column]}`),
               sql`, `,
@@ -149,11 +160,11 @@ export function createReportingTestFixture() {
         .where(eq(schema.reportingDailyByProject.organizationId, organization.id));
       await db.execute(sql`
         insert into reporting_daily_by_project (organization_id, project_id, target_locale, step,
-          bucket, day, ${sql.raw(COLUMNS.join(", "))})
-        select organization_id, project_id, target_locale, step, bucket, day,
+          bucket, source, day, ${sql.raw(COLUMNS.join(", "))})
+        select organization_id, project_id, target_locale, step, bucket, source, day,
           ${sql.raw(COLUMNS.map((column) => `sum(${column})`).join(", "))}
         from reporting_daily_by_task where organization_id = ${organization.id}
-        group by 1, 2, 3, 4, 5, 6
+        group by 1, 2, 3, 4, 5, 6, 7
       `);
     };
 

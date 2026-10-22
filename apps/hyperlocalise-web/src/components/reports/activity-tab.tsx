@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/chart";
 import { AI_ORIGINS, type AiChannel, type AiOrigin } from "@/lib/reporting/ai-usage-origins";
 import { describeChange, shareOf } from "@/lib/reporting/report-period";
+import { SUMMARY_SOURCES } from "@/lib/reporting/report-units";
 import { VISUAL_NODE_DESCRIPTIONS } from "@/lib/visual-workflows/catalog/node-descriptions";
 
 import { activityTabMessages as messages } from "./activity-tab.messages";
@@ -160,17 +161,27 @@ function formatChartDay(intl: Intl, day: string, weekly: boolean) {
 function FinishedWordsChart({ data }: { data: ActivityData }) {
   const intl = useIntl();
   const weekly = data.period.interval === "week";
+  // Where the finished text came from, bottom to top of each bar; "unknown" only shows when it occurs.
   const config = {
-    people: { label: intl.formatMessage(messages.people), color: "var(--chart-1)" },
-    automatic: { label: intl.formatMessage(messages.automatic), color: "var(--chart-4)" },
+    memory: { label: intl.formatMessage(messages.fromMemory), color: "var(--chart-2)" },
+    ai: { label: intl.formatMessage(messages.fromAi), color: "var(--chart-4)" },
+    import: { label: intl.formatMessage(messages.fromImport), color: "var(--chart-5)" },
+    person: { label: intl.formatMessage(messages.people), color: "var(--chart-1)" },
+    unknown: { label: intl.formatMessage(messages.fromUnknown), color: "var(--chart-3)" },
   } satisfies ChartConfig;
   const rows = data.series.map((point) => ({
     ...point,
     label: formatChartDay(intl, point.start, weekly),
   }));
-  const people = data.series.reduce((sum, point) => sum + point.people, 0);
-  const automatic = data.series.reduce((sum, point) => sum + point.automatic, 0);
+  const totals = SUMMARY_SOURCES.map(
+    (key) => [key, data.series.reduce((sum, point) => sum + point[key], 0)] as const,
+  );
+  const shown = (["memory", "ai", "import", "person", "unknown"] as const).filter(
+    (key) => key !== "unknown" || totals.some(([name, units]) => name === "unknown" && units > 0),
+  );
+  const finished = totals.reduce((sum, [, units]) => sum + units, 0);
   const title = intl.formatMessage(weekly ? messages.finishedPerWeek : messages.finishedPerDay);
+  const unchangedShare = shareOf(data.current.finishedUnchanged, data.current.finishedByPerson);
   return (
     <ReportSection
       title={title}
@@ -178,8 +189,8 @@ function FinishedWordsChart({ data }: { data: ActivityData }) {
         step: stepLabel(intl, data.step),
       })}
       actions={
-        <div className="flex gap-3 text-xs text-muted-foreground">
-          {(["people", "automatic"] as const).map((key) => (
+        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+          {shown.map((key) => (
             <span key={key} className="inline-flex items-center gap-1.5">
               <span
                 aria-hidden
@@ -197,8 +208,8 @@ function FinishedWordsChart({ data }: { data: ActivityData }) {
         className="aspect-auto h-56 w-full"
         role="img"
         aria-label={intl.formatMessage(messages.chartSummary, {
-          people: formatCount(intl, people),
-          automatic: formatCount(intl, automatic),
+          finished: formatCount(intl, finished),
+          people: formatCount(intl, totals.find(([name]) => name === "person")?.[1] ?? 0),
           from: formatChartDay(intl, data.period.from, false),
           to: formatChartDay(intl, data.period.to, false),
         })}
@@ -213,21 +224,27 @@ function FinishedWordsChart({ data }: { data: ActivityData }) {
           />
           <YAxis hide allowDecimals={false} />
           <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-          <Bar
-            dataKey="automatic"
-            stackId="finished"
-            fill="var(--color-automatic)"
-            isAnimationActive={false}
-          />
-          <Bar
-            dataKey="people"
-            stackId="finished"
-            fill="var(--color-people)"
-            radius={[4, 4, 0, 0]}
-            isAnimationActive={false}
-          />
+          {shown.map((key, index) => (
+            <Bar
+              key={key}
+              dataKey={key}
+              stackId="finished"
+              fill={`var(--color-${key})`}
+              radius={index === shown.length - 1 ? [4, 4, 0, 0] : undefined}
+              isAnimationActive={false}
+            />
+          ))}
         </BarChart>
       </ChartContainer>
+      {/* How much of what people finished was the text they were given, kept as it was. */}
+      {data.current.finishedByPerson > 0 ? (
+        <p className="mt-3 text-[13px] text-muted-foreground">
+          {intl.formatMessage(messages.unchangedNote, {
+            people: formatCount(intl, data.current.finishedByPerson),
+            share: formatShare(intl, unchangedShare),
+          })}
+        </p>
+      ) : null}
     </ReportSection>
   );
 }

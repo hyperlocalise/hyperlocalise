@@ -55,6 +55,9 @@ const current: ActivityTotals = {
   finished: 389_450,
   reviewed: 159_675,
   uncounted: 0,
+  finishedByPerson: 72_400,
+  finishedUnchanged: 31_900,
+  finishedBySource: { memory: 101_200, ai: 198_350, person: 72_400, import: 0, unknown: 0 },
 };
 const previous: ActivityTotals = {
   source: 43_045,
@@ -63,6 +66,9 @@ const previous: ActivityTotals = {
   finished: 330_042,
   reviewed: 145_216,
   uncounted: 0,
+  finishedByPerson: 61_300,
+  finishedUnchanged: 24_520,
+  finishedBySource: { memory: 94_900, ai: 173_842, person: 61_300, import: 0, unknown: 0 },
 };
 
 export const reportsActivity = {
@@ -75,8 +81,11 @@ export const reportsActivity = {
     start: new Date(Date.parse(`${reportsPeriod.from}T00:00:00Z`) + index * 86_400_000)
       .toISOString()
       .slice(0, 10),
-    people: 1_400 + ((index * 271) % 1_900),
-    automatic: 9_800 + ((index * 613) % 4_200),
+    memory: 3_100 + ((index * 149) % 1_200),
+    ai: 6_700 + ((index * 613) % 3_000),
+    person: 1_400 + ((index * 271) % 1_900),
+    import: 0,
+    unknown: 0,
   })),
   byLanguage: [
     { targetLocale: "de-DE", units: 98_420 },

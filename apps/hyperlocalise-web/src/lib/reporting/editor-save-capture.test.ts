@@ -413,6 +413,71 @@ describe("captureEditorSaves", () => {
     expect(analyses.find((row) => row.step === "review")?.jobId).toBe(task!.id);
   });
 
+  it("records where a saved text came from, and whether the person kept it", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    const translations = await db
+      .select({
+        id: schema.projectTranslations.id,
+        keyId: schema.projectTranslations.translationKeyId,
+      })
+      .from(schema.projectTranslations)
+      .where(eq(schema.projectTranslations.projectId, project.id));
+    const translationOf = (keyId: string) => translations.find((row) => row.keyId === keyId)!;
+    // A task wrote both strings; the person kept the first and rewrote the second.
+    for (const [keyId, given] of [
+      [keyIds[0], "Bonjour le monde"],
+      [keyIds[1], "Salut tout le monde"],
+    ] as const) {
+      await db.insert(schema.projectTranslationRevisions).values({
+        organizationId: organization.id,
+        projectId: project.id,
+        translationId: translationOf(keyId).id,
+        translationKeyId: keyId,
+        targetLocale: "fr-FR",
+        text: given,
+        status: "draft",
+        provenance: "translation_job",
+        actorKind: "agent",
+        createdAt: minutesFromNow(-10),
+      });
+    }
+    for (const segmentId of keyIds) {
+      await insertSaveEvent({
+        organizationId: organization.id,
+        projectId: project.id,
+        actorUserId: user.id,
+        segmentId,
+        eventType: "string_segment_approved",
+        nextStatus: "approved",
+      });
+    }
+    await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+
+    const completions = await db
+      .select({
+        analysisId: schema.reportingActivity.analysisId,
+        source: schema.reportingActivity.source,
+        unchanged: schema.reportingActivity.unchanged,
+      })
+      .from(schema.reportingActivity)
+      .innerJoin(
+        schema.reportingAnalyses,
+        eq(schema.reportingAnalyses.id, schema.reportingActivity.analysisId),
+      )
+      .where(
+        and(
+          eq(schema.reportingActivity.organizationId, organization.id),
+          eq(schema.reportingActivity.kind, "completion"),
+        ),
+      )
+      .orderBy(schema.reportingAnalyses.segmentId);
+    const bySegment = new Map(
+      completions.map((row, index) => [[...keyIds].sort()[index], row] as const),
+    );
+    expect(bySegment.get(keyIds[0])).toMatchObject({ source: "ai", unchanged: true });
+    expect(bySegment.get(keyIds[1])).toMatchObject({ source: "person", unchanged: false });
+  });
+
   it("records an approval as the review step", async () => {
     const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
     await insertSaveEvent({

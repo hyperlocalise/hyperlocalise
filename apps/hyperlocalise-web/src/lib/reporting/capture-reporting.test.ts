@@ -528,11 +528,22 @@ describe("reporting capture", () => {
       sourceLocale: "en-US",
       billable: true,
     });
-    await captureCompletions({ ...scope, provenance: "automated" });
-    await captureCompletions({ ...scope, provenance: "human", actorUserId: user.id });
+    await captureCompletions({ ...scope, provenance: "automated", source: "ai" });
+    await captureCompletions({
+      ...scope,
+      provenance: "human",
+      actorUserId: user.id,
+      source: "person",
+      unchanged: { greeting: false },
+    });
 
+    // The text's source stays the job's; that the person changed it is recorded with them.
     const completions = await db
-      .select({ actorUserId: schema.reportingActivity.actorUserId })
+      .select({
+        actorUserId: schema.reportingActivity.actorUserId,
+        source: schema.reportingActivity.source,
+        unchanged: schema.reportingActivity.unchanged,
+      })
       .from(schema.reportingActivity)
       .where(
         and(
@@ -540,7 +551,7 @@ describe("reporting capture", () => {
           eq(schema.reportingActivity.kind, "completion"),
         ),
       );
-    expect(completions).toEqual([{ actorUserId: user.id }]);
+    expect(completions).toEqual([{ actorUserId: user.id, source: "ai", unchanged: false }]);
   });
 
   it("skips analysis capture when workspace reports is disabled", async () => {

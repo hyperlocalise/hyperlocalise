@@ -15,6 +15,7 @@ import { and, asc, eq, desc, gt, inArray, isNull, lte, sql, type SQL } from "dri
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { listAttachedProjectMemoryIds } from "@/lib/memory/ensure-default-native-project-memory";
 import { countSourceCharacters, countSourceWords, matchBucket } from "./word-analysis";
+import type { CompletionSource } from "./report-units";
 import { MemoryMatchIndex, MemorySourceScan, sourceSimilarity } from "./memory-match-index";
 import { unitCost } from "./money";
 import { markSummaryDays, refreshMarkedDays, summaryDay, type SummaryMark } from "./summary";
@@ -566,6 +567,11 @@ type CompletionsInput = {
   actorUserId?: string | null;
   /** When each string was finished, by segment id; recorded instead of the write time. */
   occurredAt?: Record<string, Date>;
+  /** Where each finished string's text came from, by segment id; `source` for the rest. */
+  sources?: Record<string, CompletionSource>;
+  source?: CompletionSource;
+  /** Whether a person finished the string without changing its text, by segment id. */
+  unchanged?: Record<string, boolean>;
 };
 
 export async function captureCompletions(input: CompletionsInput, database: DatabaseClient = db) {
@@ -644,6 +650,8 @@ async function writeReportingCompletions(
         step,
         targetLocale: input.targetLocale,
         analysisId: analysis.id,
+        source: input.sources?.[analysis.segmentId] ?? input.source ?? null,
+        unchanged: input.unchanged?.[analysis.segmentId] ?? null,
         createdAt: input.occurredAt?.[analysis.segmentId],
       }));
       for (let offset = 0; offset < rows.length; offset += REPORTING_BATCH_SIZE) {
@@ -671,13 +679,20 @@ async function writeReportingCompletions(
           targetLocale: input.targetLocale,
           analysisId: analysis.id,
           actorUserId: input.actorUserId ?? null,
+          source: input.sources?.[analysis.segmentId] ?? input.source ?? null,
+          unchanged: input.unchanged?.[analysis.segmentId] ?? null,
           createdAt: input.occurredAt?.[analysis.segmentId],
         })
         // One completion per analysis and step: when a person finishes a string a job already
         // completed (a post-edit), the person is added to that completion rather than dropped.
+        // The text's source stays what the job recorded; whether the person changed it is new.
         .onConflictDoUpdate({
           target: [schema.reportingActivity.organizationId, schema.reportingActivity.operationKey],
-          set: { actorUserId: sql`excluded.actor_user_id` },
+          set: {
+            actorUserId: sql`excluded.actor_user_id`,
+            source: sql`coalesce(${schema.reportingActivity.source}, excluded.source)`,
+            unchanged: sql`excluded.unchanged`,
+          },
           where: sql`${schema.reportingActivity.actorUserId} is null and excluded.actor_user_id is not null`,
         })
         .returning(returnedCompletion);

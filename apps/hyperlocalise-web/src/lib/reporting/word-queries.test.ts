@@ -55,8 +55,17 @@ describe("word count queries", () => {
         source: 100,
         arrived: 100,
         arrivedDone: 60,
-        finished: 70,
         uncounted: 2,
+      },
+      // 70 finished: 50 from the memory, 20 by a person who kept 15 as given.
+      { targetLocale: "fr-FR", day: "2026-06-10", finished: 50, textSource: "memory" },
+      {
+        targetLocale: "fr-FR",
+        day: "2026-06-10",
+        finished: 20,
+        finishedByPerson: 20,
+        finishedUnchanged: 15,
+        textSource: "person",
       },
       { targetLocale: "fr-FR", step: "review", day: "2026-06-11", arrived: 70, finished: 30 },
       // The previous period, and a day outside both.
@@ -73,6 +82,9 @@ describe("word count queries", () => {
         finished: 70,
         reviewed: 30,
         uncounted: 2,
+        finishedByPerson: 20,
+        finishedUnchanged: 15,
+        finishedBySource: { memory: 50, ai: 0, person: 20, import: 0, unknown: 0 },
       },
       previous: {
         source: 40,
@@ -81,6 +93,10 @@ describe("word count queries", () => {
         finished: 10,
         reviewed: 0,
         uncounted: 0,
+        finishedByPerson: 0,
+        finishedUnchanged: 0,
+        // Rows from before the source was recorded key on "": shown as not recorded.
+        finishedBySource: { memory: 0, ai: 0, person: 0, import: 0, unknown: 0 },
       },
     });
     // A project the viewer cannot open is never read, even when chosen.
@@ -92,9 +108,23 @@ describe("word count queries", () => {
   it("splits finished work into people and automatic, by day and by week", async () => {
     const { organization, project, addSummary } = await fixture.createWorkspace();
     await addSummary([
-      { targetLocale: "fr-FR", day: "2026-06-09", finished: 50, finishedByPerson: 20 },
-      { targetLocale: "de-DE", day: "2026-06-09", finished: 10 },
-      { targetLocale: "de-DE", day: "2026-06-13", finished: 5, finishedByPerson: 5 },
+      { targetLocale: "fr-FR", day: "2026-06-09", finished: 30, textSource: "ai" },
+      {
+        targetLocale: "fr-FR",
+        day: "2026-06-09",
+        finished: 20,
+        finishedByPerson: 20,
+        finishedUnchanged: 5,
+        textSource: "person",
+      },
+      { targetLocale: "de-DE", day: "2026-06-09", finished: 10, textSource: "memory" },
+      {
+        targetLocale: "de-DE",
+        day: "2026-06-13",
+        finished: 5,
+        finishedByPerson: 5,
+        textSource: "person",
+      },
       { targetLocale: "de-DE", step: "review", day: "2026-06-13", finished: 99 },
     ]);
     const scope = {
@@ -106,15 +136,17 @@ describe("word count queries", () => {
 
     const daily = await queryFinishedSeries({ ...scope, period });
     expect(daily).toHaveLength(7);
+    const none = { memory: 0, ai: 0, person: 0, import: 0, unknown: 0 };
     expect(daily.find((point) => point.start === "2026-06-09")).toEqual({
       start: "2026-06-09",
-      people: 20,
-      automatic: 40,
+      ...none,
+      memory: 10,
+      ai: 30,
+      person: 20,
     });
     expect(daily.find((point) => point.start === "2026-06-10")).toEqual({
       start: "2026-06-10",
-      people: 0,
-      automatic: 0,
+      ...none,
     });
 
     const weekly = await queryFinishedSeries({
@@ -123,8 +155,8 @@ describe("word count queries", () => {
     });
     // Weeks start on Monday: 1 June and 8 June.
     expect(weekly).toEqual([
-      { start: "2026-06-01", people: 0, automatic: 0 },
-      { start: "2026-06-08", people: 25, automatic: 40 },
+      { start: "2026-06-01", ...none },
+      { start: "2026-06-08", ...none, memory: 10, ai: 30, person: 25 },
     ]);
 
     await expect(queryFinishedByLanguage({ ...scope, period })).resolves.toEqual([

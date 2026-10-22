@@ -478,6 +478,7 @@ export async function executeNativeReviewJob(input: {
       targetLocale,
       step: "review",
       provenance: "automated",
+      source: "ai",
       sourceEntries: Object.fromEntries(rows.map((row) => [row.translationKeyId, row.sourceText])),
     });
   const outcome = {

@@ -52,8 +52,9 @@ const MEASURES = [
   ...UNITS.map((unit) => `arrived_done_${unit}`),
   ...UNITS.map((unit) => `finished_${unit}`),
   ...UNITS.map((unit) => `finished_by_person_${unit}`),
+  ...UNITS.map((unit) => `finished_unchanged_${unit}`),
 ];
-const KEY = "project_id, job_id, source_locale, target_locale, step, bucket, payable, day";
+const KEY = "project_id, job_id, source_locale, target_locale, step, bucket, source, payable, day";
 const SUMS = MEASURES.map((measure) => `sum(${measure})::integer as ${measure}`).join(", ");
 
 function unitValues(row: string) {
@@ -69,8 +70,8 @@ function unitValues(row: string) {
 async function summaryRows(organizationId: string) {
   const result = await db.execute(sql`
     select ${sql.raw(KEY)}, ${sql.raw(SUMS)} from (
-      select project_id, job_id, source_locale, target_locale, step, bucket, payable, day::text,
-        ${sql.raw(MEASURES.join(", "))}
+      select project_id, job_id, source_locale, target_locale, step, bucket, source, payable,
+        day::text, ${sql.raw(MEASURES.join(", "))}
       from reporting_daily_by_task where organization_id = ${organizationId}
     ) rows group by ${sql.raw(KEY)} order by ${sql.raw(KEY)}
   `);
@@ -97,6 +98,8 @@ async function recountedRows(organizationId: string) {
     const unit = UNITS.find((name) => measure.endsWith(`_${name}`)) ?? "";
     if (measure.startsWith("finished_by_person_"))
       return `case when f.by_person then ${finished[unit]} else 0 end`;
+    if (measure.startsWith("finished_unchanged_"))
+      return `case when f.unchanged then ${finished[unit]} else 0 end`;
     if (measure.startsWith("finished_")) return finished[unit];
     return "0";
   });
@@ -115,19 +118,21 @@ async function recountedRows(organizationId: string) {
       where a.organization_id = ${organizationId} and a.is_current and a.project_id is not null
     ), finishes as (
       select c.project_id, s.job_id, s.source_locale, c.target_locale, c.step, s.bucket, s.billable,
+        coalesce(c.source, 'unknown') as source,
         (c.created_at at time zone 'UTC')::date::text as day, s.words, s.characters,
-        s.characters_with_spaces, c.actor_user_id is not null as by_person
+        s.characters_with_spaces, c.actor_user_id is not null as by_person,
+        coalesce(c.unchanged, false) as unchanged
       from reporting_activity c join reporting_analyses s on s.id = c.analysis_id
       where c.organization_id = ${organizationId} and c.kind = 'completion' and c.project_id is not null
     )
     select ${sql.raw(KEY)}, ${sql.raw(SUMS)} from (
       select a.project_id, a.job_id, a.source_locale, a.target_locale, a.step, a.bucket,
-        a.billable as payable, a.day,
+        '' as source, a.billable as payable, a.day,
         ${sql.raw(arrivalMeasures.map((value, index) => `${value} as ${MEASURES[index]}`).join(", "))}
       from arrivals a
       union all
       select f.project_id, f.job_id, f.source_locale, f.target_locale, f.step, f.bucket,
-        f.billable, f.day,
+        f.source, f.billable, f.day,
         ${sql.raw(finishedMeasures.map((value, index) => `${value} as ${MEASURES[index]}`).join(", "))}
       from finishes f
     ) facts group by ${sql.raw(KEY)} order by ${sql.raw(KEY)}
