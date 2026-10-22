@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { sandboxCliParsesOffice } from "@/lib/translation/sandbox-cli-version";
+import { sandboxCliParsesOffice, sandboxCliParsesPdf } from "@/lib/translation/sandbox-cli-version";
 
 export const supportedTranslationFileFormats = [
   "json",
@@ -53,6 +53,7 @@ export const supportedTranslationFileFormats = [
   "xlsx",
   "xls",
   "pptx",
+  "pdf",
 ] as const;
 
 export type SupportedTranslationFileFormat = (typeof supportedTranslationFileFormats)[number];
@@ -98,6 +99,7 @@ export const supportedFileTranslationFileFormats = [
   "xlsx",
   "xls",
   "pptx",
+  "pdf",
 ] as const;
 
 export type SupportedFileTranslationFileFormat =
@@ -163,6 +165,7 @@ const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".xlsx": "xlsx",
   ".xls": "xls",
   ".pptx": "pptx",
+  ".pdf": "pdf",
 };
 
 export const supportedImageTranslationFileFormats = ["png", "jpeg", "webp"] as const;
@@ -179,6 +182,10 @@ export const supportedOfficeTranslationFileFormats = ["docx", "xlsx", "xls", "pp
 
 export type SupportedOfficeTranslationFileFormat =
   (typeof supportedOfficeTranslationFileFormats)[number];
+
+export const supportedPdfTranslationFileFormats = ["pdf"] as const;
+
+export type SupportedPdfTranslationFileFormat = (typeof supportedPdfTranslationFileFormats)[number];
 
 export function isImageTranslationFileFormat(
   format: SupportedTranslationFileFormat,
@@ -202,6 +209,12 @@ export function isOfficeTranslationFileFormat(
   return supportedOfficeTranslationFileFormats.includes(
     format as SupportedOfficeTranslationFileFormat,
   );
+}
+
+export function isPdfTranslationFileFormat(
+  format: SupportedTranslationFileFormat,
+): format is SupportedPdfTranslationFileFormat {
+  return supportedPdfTranslationFileFormats.includes(format as SupportedPdfTranslationFileFormat);
 }
 
 export const supportedSegmentedSpreadsheetTranslationFileFormats = ["xlsx", "xls"] as const;
@@ -241,11 +254,13 @@ export function isBinaryTranslationFileFormat(
 ): format is
   | SupportedImageTranslationFileFormat
   | SupportedVideoTranslationFileFormat
-  | SupportedOfficeTranslationFileFormat {
+  | SupportedOfficeTranslationFileFormat
+  | SupportedPdfTranslationFileFormat {
   return (
     isImageTranslationFileFormat(format) ||
     isVideoTranslationFileFormat(format) ||
-    isOfficeTranslationFileFormat(format)
+    isOfficeTranslationFileFormat(format) ||
+    isPdfTranslationFileFormat(format)
   );
 }
 
@@ -300,10 +315,17 @@ export function inferSupportedTranslationFileFormat(
 /** File translation job formats the pinned sandbox CLI can run, for user-facing lists. */
 export function availableFileTranslationFileFormats(
   cliParsesOffice: boolean = sandboxCliParsesOffice(),
+  cliParsesPdf: boolean = sandboxCliParsesPdf(),
 ): SupportedFileTranslationFileFormat[] {
-  return supportedFileTranslationFileFormats.filter(
-    (format) => cliParsesOffice || !isOfficeTranslationFileFormat(format),
-  );
+  return supportedFileTranslationFileFormats.filter((format) => {
+    if (!cliParsesOffice && isOfficeTranslationFileFormat(format)) {
+      return false;
+    }
+    if (!cliParsesPdf && isPdfTranslationFileFormat(format)) {
+      return false;
+    }
+    return true;
+  });
 }
 
 /**
@@ -313,12 +335,16 @@ export function availableFileTranslationFileFormats(
 export function inferSupportedFileTranslationFileFormat(
   filename: string,
   cliParsesOffice: boolean = sandboxCliParsesOffice(),
+  cliParsesPdf: boolean = sandboxCliParsesPdf(),
 ): SupportedFileTranslationFileFormat | null {
   const format = inferSupportedTranslationFileFormat(filename);
   if (!format || !isSupportedFileTranslationFileFormat(format)) {
     return null;
   }
   if (!cliParsesOffice && isOfficeTranslationFileFormat(format)) {
+    return null;
+  }
+  if (!cliParsesPdf && isPdfTranslationFileFormat(format)) {
     return null;
   }
 
@@ -369,12 +395,24 @@ export function inferSupportedOfficeTranslationFileFormat(
   return format;
 }
 
+export function inferSupportedPdfTranslationFileFormat(
+  filename: string,
+): SupportedPdfTranslationFileFormat | null {
+  const format = inferSupportedTranslationFileFormat(filename);
+  if (!format || !isPdfTranslationFileFormat(format)) {
+    return null;
+  }
+
+  return format;
+}
+
 export function inferSupportedBinaryTranslationFileFormat(
   filename: string,
 ):
   | SupportedImageTranslationFileFormat
   | SupportedVideoTranslationFileFormat
   | SupportedOfficeTranslationFileFormat
+  | SupportedPdfTranslationFileFormat
   | null {
   const format = inferSupportedTranslationFileFormat(filename);
   if (!format || !isBinaryTranslationFileFormat(format)) {

@@ -164,6 +164,15 @@ describe("cat-file-view-capabilities", () => {
     ).toBe("office");
   });
 
+  it("opens segmented PDF files in segment views with a PDF File view", () => {
+    expect(resolveCatFileViewCapabilities({ sourcePath: "docs/handbook.pdf" })).toEqual({
+      family: "office-segments",
+      availableViews: ["comfortable", "side-by-side", "file"],
+      defaultView: "side-by-side",
+      viewerId: "pdf",
+    });
+  });
+
   it("opens segmented Word, PowerPoint, and legacy Excel files in segment views", () => {
     for (const [sourcePath, viewerId] of [
       ["docs/brief.docx", "docx"],

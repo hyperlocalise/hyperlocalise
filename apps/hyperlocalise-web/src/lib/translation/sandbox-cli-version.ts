@@ -12,13 +12,16 @@
  */
 
 /** Pinned hyperlocalise CLI release installed into every sandbox. */
-export const sandboxHyperlocaliseReleaseVersion = "1.13.5";
+export const sandboxHyperlocaliseReleaseVersion = "1.13.6";
 
 /**
  * First CLI release whose `hl entries` and `hl run` read and write `.xlsx`, `.docx`, and
  * `.pptx`. `.xls` reaches the CLI converted to `.xlsx`.
  */
 export const hyperlocaliseCliOfficeReleaseVersion = "1.13.4";
+
+/** First CLI release whose `hl entries` and `hl run` read and write `.pdf`. */
+export const hyperlocaliseCliPdfReleaseVersion = "1.13.6";
 
 function parseReleaseVersion(version: string): number[] {
   return version
@@ -50,4 +53,9 @@ export function sandboxCliParsesOffice(
   version: string = sandboxHyperlocaliseReleaseVersion,
 ): boolean {
   return isReleaseVersionAtLeast(version, hyperlocaliseCliOfficeReleaseVersion);
+}
+
+/** Whether the sandbox CLI parses PDF files into keyed segments. */
+export function sandboxCliParsesPdf(version: string = sandboxHyperlocaliseReleaseVersion): boolean {
+  return isReleaseVersionAtLeast(version, hyperlocaliseCliPdfReleaseVersion);
 }

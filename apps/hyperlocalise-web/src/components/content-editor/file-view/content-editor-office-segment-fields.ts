@@ -26,6 +26,7 @@ export type OfficeSegmentGroupKind =
   | "endnotes"
   | "comments"
   | "sheet"
+  | "page"
   | "other";
 
 export type OfficeSegmentGroup = {
@@ -64,8 +65,16 @@ function partKey(key: string): { part: string; paragraph: number } | null {
     : null;
 }
 
-/** Groups a segment key by the slide, document part, or sheet it was extracted from. */
+const PDF_PAGE_KEY_PATTERN = /^page-(\d+)#\d+$/;
+
+/** Groups a segment key by the slide, document part, sheet, or PDF page it was extracted from. */
 export function officeSegmentGroup(key: string): OfficeSegmentGroup {
+  const pdfMatch = PDF_PAGE_KEY_PATTERN.exec(key);
+  if (pdfMatch) {
+    const page = Number.parseInt(pdfMatch[1]!, 10);
+    return { id: `page-${page}`, kind: "page", number: page };
+  }
+
   const parsed = partKey(key);
   if (parsed) {
     const { part } = parsed;
@@ -92,7 +101,16 @@ export function officeSegmentGroup(key: string): OfficeSegmentGroup {
 /** Cell address for sheet keys, otherwise the 1-based paragraph number. */
 export function officeSegmentPosition(
   key: string,
-): { cell: string } | { paragraph: number } | null {
+): { cell: string } | { paragraph: number } | { block: number } | null {
+  const pdfMatch = PDF_PAGE_KEY_PATTERN.exec(key);
+  if (pdfMatch) {
+    const hash = key.lastIndexOf("#");
+    const block = Number(key.slice(hash + 1));
+    if (Number.isInteger(block)) {
+      return { block };
+    }
+  }
+
   const parsed = partKey(key);
   if (parsed) {
     return { paragraph: parsed.paragraph + 1 };

@@ -52,7 +52,8 @@ export type McpDownloadTranslationsResult =
         | "unsupported_binary_download"
         | "lottie_export_failed"
         | "xlsx_export_failed"
-        | "office_export_failed";
+        | "office_export_failed"
+        | "pdf_export_failed";
     }
   | {
       ok: false;

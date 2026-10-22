@@ -17,9 +17,12 @@ import {
 import { getProjectSourceLocale } from "@/lib/projects/files/office-source-entries";
 import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
 import {
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedPdfTranslationFileFormat,
   type SupportedOfficeTranslationFileFormat,
+  type SupportedPdfTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import { applyDocxTranslations, DOCX_CONTENT_TYPE } from "@/lib/translation/ooxml/docx-document";
 import type { OoxmlError } from "@/lib/translation/ooxml/ooxml-tree";
@@ -28,12 +31,19 @@ import { spreadsheetXlsxContent } from "@/lib/translation/xlsx/xls-workbook";
 import { XLSX_CONTENT_TYPE, type XlsxWorkbookError } from "@/lib/translation/xlsx/xlsx-workbook";
 import { applyXlsxTranslations } from "@/lib/translation/xlsx/xlsx-writer";
 
+export const PDF_CONTENT_TYPE = "application/pdf";
+
 export type ProjectOfficeTranslationDownload = {
   content: Buffer;
-  contentType: typeof XLSX_CONTENT_TYPE | typeof DOCX_CONTENT_TYPE | typeof PPTX_CONTENT_TYPE;
+  contentType:
+    | typeof XLSX_CONTENT_TYPE
+    | typeof DOCX_CONTENT_TYPE
+    | typeof PPTX_CONTENT_TYPE
+    | typeof PDF_CONTENT_TYPE;
   /** `.xls` sources are generated as `.xlsx`; other formats keep their extension. */
-  extension: ".xlsx" | ".docx" | ".pptx";
+  extension: ".xlsx" | ".docx" | ".pptx" | ".pdf";
   translatedKeyCount: number;
+  overflowKeys?: string[];
 };
 
 export type ProjectOfficeTranslationDownloadError =
@@ -68,9 +78,15 @@ export function officeTranslationDownloadFilename(
 
 /** Error code and message for a failed Office download, kept per format for API callers. */
 export function officeTranslationDownloadFailure(sourcePath: string): {
-  code: "xlsx_export_failed" | "office_export_failed";
+  code: "xlsx_export_failed" | "office_export_failed" | "pdf_export_failed";
   message: string;
 } {
+  if (inferSupportedPdfTranslationFileFormat(sourcePath)) {
+    return {
+      code: "pdf_export_failed",
+      message: "Could not write translations into the PDF.",
+    };
+  }
   const format = inferSupportedOfficeTranslationFileFormat(sourcePath);
   return format === "xlsx" || format === "xls"
     ? {
@@ -83,8 +99,12 @@ export function officeTranslationDownloadFailure(sourcePath: string): {
       };
 }
 
+type SegmentedBinaryDownloadFormat =
+  | SupportedOfficeTranslationFileFormat
+  | SupportedPdfTranslationFileFormat;
+
 async function applyOfficeTranslations(input: {
-  format: SupportedOfficeTranslationFileFormat;
+  format: SegmentedBinaryDownloadFormat;
   template: Uint8Array;
   values: Readonly<Record<string, string>>;
   sourceLocale: string | null;
@@ -127,6 +147,25 @@ async function applyOfficeTranslations(input: {
             extension: ".pptx",
           });
     }
+    case "pdf": {
+      const client = createGoSvcServerClient();
+      const applied = await fromThrowableAsync(
+        client.pdf.applyTranslations({
+          template: input.template,
+          values: input.values,
+          targetLocale: input.targetLocale,
+        }),
+      );
+      if (isErr(applied)) {
+        return err({ code: "source_content_not_found" });
+      }
+      return ok({
+        content: applied.value.content,
+        contentType: PDF_CONTENT_TYPE,
+        extension: ".pdf",
+        overflowKeys: applied.value.overflowKeys,
+      });
+    }
   }
 }
 
@@ -148,7 +187,9 @@ export async function loadProjectOfficeTranslationDownload(input: {
 }): Promise<
   Result<ProjectOfficeTranslationDownload | null, ProjectOfficeTranslationDownloadError>
 > {
-  const format = inferSupportedOfficeTranslationFileFormat(input.sourcePath);
+  const format =
+    inferSupportedOfficeTranslationFileFormat(input.sourcePath) ??
+    inferSupportedPdfTranslationFileFormat(input.sourcePath);
   if (!format) {
     return ok(null);
   }

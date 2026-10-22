@@ -77,6 +77,7 @@ import { useOptionalCatWorkspace } from "@/components/content-editor/workspace/c
 import { ContentEditorWorkspaceUiStore } from "@/components/content-editor/workspace/store/content-editor-workspace-ui-store";
 
 import { contentEditorFileViewMessages } from "./content-editor-file-view.messages";
+import { useOfficeDownloadOverflowKeys } from "./use-office-download-overflow-keys";
 import { ContentEditorFileGenerateDialog } from "./content-editor-file-generate-dialog";
 import {
   FileViewHeader,
@@ -125,7 +126,21 @@ const ContentEditorOfficeFileViewerPane = dynamic(
   },
 );
 
-function isOfficeViewerId(
+const ContentEditorPdfPreview = dynamic(
+  () =>
+    import("./content-editor-pdf-preview").then((module) => ({
+      default: module.ContentEditorPdfPreview,
+    })),
+  { ssr: false },
+);
+
+function isSegmentedBinaryViewerId(
+  viewerId: ContentEditorFileViewerId | null,
+): viewerId is ContentEditorOfficeKind | "pdf" {
+  return viewerId === "docx" || viewerId === "xlsx" || viewerId === "pptx" || viewerId === "pdf";
+}
+
+function isOfficeEditorViewerId(
   viewerId: ContentEditorFileViewerId | null,
 ): viewerId is ContentEditorOfficeKind {
   return viewerId === "docx" || viewerId === "xlsx" || viewerId === "pptx";
@@ -258,13 +273,20 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
     : displayName.includes(".")
       ? (displayName.split(".").pop()?.toUpperCase() ?? "ASSET")
       : "ASSET";
-  const officeKind = isOfficeViewerId(viewerId) ? viewerId : null;
+  const segmentedBinaryKind = isSegmentedBinaryViewerId(viewerId) ? viewerId : null;
+  const officeKind = isOfficeEditorViewerId(viewerId) ? viewerId : null;
+  const isPdfViewer = segmentedBinaryKind === "pdf";
+  const pdfOverflowKeys = useOfficeDownloadOverflowKeys(
+    isPdfViewer && officeSegments ? segment.targetAssetUrl : null,
+  );
   const isMediaViewer = viewerId === "image" || viewerId === "video";
 
   const sourceSrc =
-    isMediaViewer || officeKind || isDocumentViewer ? (segment.sourceAssetUrl ?? null) : null;
+    isMediaViewer || segmentedBinaryKind || isDocumentViewer
+      ? (segment.sourceAssetUrl ?? null)
+      : null;
   const targetSrc =
-    isMediaViewer || officeKind || isDocumentViewer
+    isMediaViewer || segmentedBinaryKind || isDocumentViewer
       ? (segment.targetAssetUrl ??
         (/^https?:\/\//i.test(segment.targetText) ? segment.targetText : null))
       : null;
@@ -339,6 +361,13 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
         <ContentEditorImageFileViewerPane role="source" src={sourceSrc} />
       ) : viewerId === "video" ? (
         <ContentEditorVideoFileViewerPane role="source" src={sourceSrc} />
+      ) : isPdfViewer ? (
+        <ContentEditorPdfPreview
+          url={sourceSrc}
+          title={intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
+            locale: segment.sourceLocale,
+          })}
+        />
       ) : officeKind ? (
         <ContentEditorOfficeFileViewerPane
           kind={officeKind}
@@ -460,7 +489,9 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
                 <ContentEditorWorkspacePersonaSwitcherConnected size="xs" variant="outline" />
               ) : null}
               <ContentEditorWorkspaceViewSwitcherConnected size="xs" variant="outline" />
-              {isDocumentViewer || officeKind ? <div ref={setSaveActionsContainer} /> : null}
+              {isDocumentViewer || segmentedBinaryKind ? (
+                <div ref={setSaveActionsContainer} />
+              ) : null}
               {!isMediaViewer && hasTargetFileActions ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger
@@ -616,7 +647,7 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
             selectionAi={selectionAi}
             assistant={documentAssistant}
           />
-        ) : officeKind && officeSegments ? (
+        ) : segmentedBinaryKind && officeSegments ? (
           <FileViewWorkspace>
             <FileViewWorkspaceContent layout="split">
               <div className="flex min-h-0 flex-1 flex-col">
@@ -631,6 +662,7 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
                     <FileViewPaneColumn>
                       <ContentEditorOfficeSegmentFieldsPane
                         {...officeSegments}
+                        overflowKeys={isPdfViewer ? pdfOverflowKeys : undefined}
                         onSaveDrafts={async (segmentIds) => {
                           await officeSegments.onSaveDrafts(segmentIds);
                           setPreviewRevision((revision) => revision + 1);
@@ -651,16 +683,30 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
                             />
                           }
                         >
-                          <ContentEditorOfficeFileViewerPane
-                            key={previewRevision}
-                            kind={officeKind}
-                            role="target"
-                            src={withPreviewRevision(targetSrc, previewRevision)}
-                            seedSrc={sourceSrc}
-                            filename={displayName}
-                            isLoading={isSegmentTargetLoading}
-                            canEdit={false}
-                          />
+                          {isPdfViewer ? (
+                            <ContentEditorPdfPreview
+                              url={withPreviewRevision(targetSrc, previewRevision)}
+                              title={intl.formatMessage(
+                                contentEditorFileViewMessages.targetHeading,
+                                {
+                                  locale: segment.targetLocale,
+                                },
+                              )}
+                            />
+                          ) : officeKind ? (
+                            <ContentEditorOfficeFileViewerPane
+                              key={previewRevision}
+                              kind={officeKind}
+                              role="target"
+                              src={withPreviewRevision(targetSrc, previewRevision)}
+                              seedSrc={sourceSrc}
+                              filename={displayName}
+                              isLoading={isSegmentTargetLoading}
+                              canEdit={false}
+                            />
+                          ) : (
+                            <FileViewUnsupportedPreview />
+                          )}
                         </FileViewPane>
                       )}
                     </FileViewPaneColumn>
@@ -672,14 +718,14 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
         ) : (
           <FileViewWorkspace>
             <FileViewWorkspaceContent
-              layout={sourcePaneVisible ? "split" : officeKind ? "wide" : "single"}
+              layout={sourcePaneVisible ? "split" : segmentedBinaryKind ? "wide" : "single"}
             >
               <div className="flex min-h-0 flex-1 flex-col">
                 <Columns
                   spacing="3u"
                   height="full"
                   alignY="stretch"
-                  align={sourcePaneVisible || officeKind ? "start" : "center"}
+                  align={sourcePaneVisible || segmentedBinaryKind ? "start" : "center"}
                   collapseBelow="large"
                 >
                   {sourcePaneVisible ? (
@@ -688,7 +734,9 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
                     </Column>
                   ) : null}
                   <Column
-                    width={sourcePaneVisible ? "1/2" : officeKind ? "fluid" : "containedContent"}
+                    width={
+                      sourcePaneVisible ? "1/2" : segmentedBinaryKind ? "fluid" : "containedContent"
+                    }
                   >
                     <FileViewPaneColumn>
                       <FileViewPane
@@ -699,7 +747,14 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
                           />
                         }
                       >
-                        {officeKind ? (
+                        {isPdfViewer ? (
+                          <ContentEditorPdfPreview
+                            url={targetSrc}
+                            title={intl.formatMessage(contentEditorFileViewMessages.targetHeading, {
+                              locale: segment.targetLocale,
+                            })}
+                          />
+                        ) : officeKind ? (
                           <ContentEditorOfficeFileViewerPane
                             kind={officeKind}
                             role="target"

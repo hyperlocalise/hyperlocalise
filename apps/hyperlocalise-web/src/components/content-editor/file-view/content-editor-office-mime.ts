@@ -21,6 +21,8 @@ export const CAT_XLSX_UPLOAD_ACCEPT =
 export const CAT_PPTX_UPLOAD_ACCEPT =
   "application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx";
 
+export const CAT_PDF_UPLOAD_ACCEPT = "application/pdf,.pdf";
+
 export function contentEditorOfficeUploadAccept(
   viewerId: ContentEditorFileViewerId | null,
 ): string | undefined {
@@ -33,6 +35,8 @@ export function contentEditorOfficeUploadAccept(
       return CAT_XLSX_UPLOAD_ACCEPT;
     case "pptx":
       return CAT_PPTX_UPLOAD_ACCEPT;
+    case "pdf":
+      return CAT_PDF_UPLOAD_ACCEPT;
     default:
       return undefined;
   }

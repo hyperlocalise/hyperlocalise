@@ -64,7 +64,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 # keeps an older Node layer across security releases.
 ARG NODE_VERSION=24.22.1
 ARG RIPGREP_VERSION=15.2.0
-ARG HYPERLOCALISE_VERSION=1.13.5
+ARG HYPERLOCALISE_VERSION=1.13.6
 ARG PLAYWRIGHT_VERSION=1.63.0
 # Optional pin; omit / leave empty to install the latest Volta release.
 ARG VOLTA_VERSION=

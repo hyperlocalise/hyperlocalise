@@ -680,7 +680,7 @@ func TestStrategyParsesHTMLExtensions(t *testing.T) {
 func TestStrategyUnsupportedExtension(t *testing.T) {
 	s := NewDefaultStrategy()
 
-	_, err := s.Parse("fr.pdf", []byte(""))
+	_, err := s.Parse("notes.xyz", []byte(""))
 	if err == nil {
 		t.Fatalf("expected unsupported extension error")
 	}

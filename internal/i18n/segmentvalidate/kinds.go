@@ -42,7 +42,7 @@ func KindForSourcePath(path string) FormatKind {
 		return FormatWebVTT
 	case ".liquid":
 		return FormatLiquid
-	case ".docx", ".pptx":
+	case ".docx", ".pptx", ".pdf":
 		return FormatOffice
 	}
 
@@ -58,7 +58,7 @@ func KindForSourcePath(path string) FormatKind {
 		return FormatWebVTT
 	case ".liquid":
 		return FormatLiquid
-	case ".docx", ".pptx":
+	case ".docx", ".pptx", ".pdf":
 		return FormatOffice
 	default:
 		return FormatICUInvariant
@@ -72,6 +72,9 @@ func isOfficePackageKey(path string) bool {
 		return false
 	}
 	part := strings.ToLower(path[:hash])
+	if strings.HasPrefix(part, "page-") {
+		return true
+	}
 	if !strings.HasSuffix(part, ".xml") {
 		return false
 	}

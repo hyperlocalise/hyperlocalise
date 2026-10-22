@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   getLatestRepositorySourceFileVersion: vi.fn(),
   getStoredFileContent: vi.fn(),
   getProjectSourceLocale: vi.fn(),
+  pdfApplyTranslations: vi.fn(),
 }));
 
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
@@ -40,6 +41,12 @@ vi.mock("@/lib/file-storage/records", () => ({
 
 vi.mock("@/lib/projects/files/office-source-entries", () => ({
   getProjectSourceLocale: (...args: unknown[]) => mocks.getProjectSourceLocale(...args),
+}));
+
+vi.mock("@/lib/go-svc/go-svc-server-client", () => ({
+  createGoSvcServerClient: () => ({
+    pdf: { applyTranslations: (...args: unknown[]) => mocks.pdfApplyTranslations(...args) },
+  }),
 }));
 
 import {
@@ -91,6 +98,7 @@ describe("officeTranslationDownloadFailure", () => {
     expect(officeTranslationDownloadFailure("copy/legacy.xls").code).toBe("xlsx_export_failed");
     expect(officeTranslationDownloadFailure("docs/report.docx").code).toBe("office_export_failed");
     expect(officeTranslationDownloadFailure("slides/deck.pptx").code).toBe("office_export_failed");
+    expect(officeTranslationDownloadFailure("docs/handbook.pdf").code).toBe("pdf_export_failed");
   });
 });
 
@@ -290,5 +298,29 @@ describe("loadProjectOfficeTranslationDownload", () => {
     expect(pptx).toEqual(
       err({ code: "invalid_office_file", format: "pptx", message: "open package" }),
     );
+  });
+
+  it("calls go-svc to apply PDF translations and returns overflow keys", async () => {
+    mocks.getStoredFileContent.mockResolvedValue({
+      content: Buffer.from("%PDF-1.4 template"),
+    });
+    mocks.pdfApplyTranslations.mockResolvedValue({
+      content: Buffer.from("%PDF-1.4 translated"),
+      overflowKeys: ["page-1#2"],
+    });
+
+    const result = await loadProjectOfficeTranslationDownload({
+      ...INPUT,
+      sourcePath: "docs/handbook.pdf",
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result) || !result.value) {
+      throw new Error("expected a generated PDF");
+    }
+    expect(result.value.contentType).toBe("application/pdf");
+    expect(result.value.extension).toBe(".pdf");
+    expect(result.value.overflowKeys).toEqual(["page-1#2"]);
+    expect(mocks.pdfApplyTranslations).toHaveBeenCalledOnce();
   });
 });

@@ -32,6 +32,7 @@ import { loadProjectSubtitleTranslationDownload } from "@/lib/projects/files/sub
 import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 import {
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedPdfTranslationFileFormat,
   inferSupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
@@ -211,7 +212,9 @@ export async function loadTranslatedBytes(input: {
   ingestFormat: string;
 }): Promise<{ buffer: Buffer; fileName: string; mimeType: string } | null> {
   const officeFormat = inferSupportedOfficeTranslationFileFormat(input.sourcePath);
-  if (officeFormat) {
+  const pdfFormat = inferSupportedPdfTranslationFileFormat(input.sourcePath);
+  const segmentedBinaryFormat = officeFormat ?? pdfFormat;
+  if (segmentedBinaryFormat) {
     const office = await loadProjectOfficeTranslationDownload({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -222,15 +225,17 @@ export async function loadTranslatedBytes(input: {
     if (isErr(office) || !office.value) {
       return null;
     }
-    const ext = `.${officeFormat}`;
+    const ext = office.value.extension;
     const baseName = input.sourcePath.split("/").pop() ?? "file";
     const { base } = stripExtension(baseName);
     const uploadMime =
-      officeFormat === "docx"
+      segmentedBinaryFormat === "docx"
         ? GOOGLE_EXPORT_MIME.docx
-        : officeFormat === "pptx"
+        : segmentedBinaryFormat === "pptx"
           ? GOOGLE_EXPORT_MIME.pptx
-          : GOOGLE_EXPORT_MIME.xlsx;
+          : segmentedBinaryFormat === "pdf"
+            ? "application/pdf"
+            : GOOGLE_EXPORT_MIME.xlsx;
     return {
       buffer: office.value.content,
       fileName: `${base}${ext}`,

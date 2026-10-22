@@ -110,10 +110,15 @@ export function createPublicTranslationRoutes() {
         }
         if (officeDownload.value) {
           const officeFilename = officeTranslationDownloadFilename(filename, officeDownload.value);
-          return c.body(new Uint8Array(officeDownload.value.content), 200, {
+          const downloadHeaders: Record<string, string> = {
             "Content-Type": officeDownload.value.contentType,
             "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(officeFilename)}`,
-          });
+          };
+          if (officeDownload.value.overflowKeys && officeDownload.value.overflowKeys.length > 0) {
+            downloadHeaders["X-Hyperlocalise-Overflow-Keys"] =
+              officeDownload.value.overflowKeys.join(",");
+          }
+          return c.body(new Uint8Array(officeDownload.value.content), 200, downloadHeaders);
         }
 
         const result = await loadProjectTranslationsAsPrefilledEntries({

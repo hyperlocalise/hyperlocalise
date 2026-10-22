@@ -18,11 +18,12 @@ import {
   isDocumentTranslationFileFormat,
   isImageTranslationFileFormat,
   isOfficeTranslationFileFormat,
+  isPdfTranslationFileFormat,
   isSegmentedSpreadsheetTranslationFileFormat,
   isVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import { sandboxEntriesLocaleOptions } from "@/lib/translation/sandbox-cli-release";
-import { sandboxCliParsesOffice } from "@/lib/translation/sandbox-cli-version";
+import { sandboxCliParsesOffice, sandboxCliParsesPdf } from "@/lib/translation/sandbox-cli-version";
 import type { SourceFileIngestEventData } from "@/lib/workflow/types";
 import {
   claimSourceFileIngestStep,
@@ -67,6 +68,9 @@ function userFacingIngestFailureReason(error: unknown): string {
   if (message.includes("failed to extract entries")) {
     return "the file format could not be parsed into translation keys";
   }
+  if (message.includes("pdf has no readable text layer")) {
+    return "No readable text was found. Export the PDF with selectable text and upload it again.";
+  }
   return message;
 }
 
@@ -99,12 +103,14 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
     const isBinary = Boolean(inferredFormat && isBinaryTranslationFileFormat(inferredFormat));
     const isDocument = Boolean(inferredFormat && isDocumentTranslationFileFormat(inferredFormat));
     const isOffice = Boolean(inferredFormat && isOfficeTranslationFileFormat(inferredFormat));
+    const isPdf = Boolean(inferredFormat && isPdfTranslationFileFormat(inferredFormat));
     const isSpreadsheet = Boolean(
       inferredFormat && isSegmentedSpreadsheetTranslationFileFormat(inferredFormat),
     );
     // The CLI never reads .xls, so legacy workbooks are always keyed in-process.
     const officeParsedInSandbox = isOffice && inferredFormat !== "xls" && sandboxCliParsesOffice();
-    if ((isBinary || isDocument) && !officeParsedInSandbox) {
+    const pdfParsedInSandbox = isPdf && sandboxCliParsesPdf();
+    if ((isBinary || isDocument) && !officeParsedInSandbox && !pdfParsedInSandbox) {
       const targetLocales = await getProjectTargetLocalesStep({
         organizationId: event.organizationId,
         projectId: event.projectId,
@@ -226,8 +232,8 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
         projectId: event.projectId,
       });
       extractOptions = sandboxEntriesLocaleOptions(inputFilename, sourceLocale);
-    } else if (isOffice) {
-      // Document and slide keys address paragraphs, so SRX spans would not map back either.
+    } else if (isOffice || isPdf) {
+      // Document, slide, and PDF block keys address fixed layout positions, so SRX spans would not map back either.
       extractOptions = {};
     } else {
       const segmentation = await loadSourceFileSegmentationStep({
