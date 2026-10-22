@@ -28,34 +28,36 @@ Google Drive is not a trigger type. Use **Ingest**, **Run now**, or a schedule f
 
 Google Workspace files are exported before import. Other files are downloaded with their original extension when Hyperlocalise supports that format (same rules as [native project upload](/platform/file-formats)).
 
-| Format | Imported as | Supported |
+| Format | Extension | Supported |
 | --- | --- | --- |
-| Google Docs | `.docx` | ✓ |
-| Google Sheets | `.xlsx` | ✓ |
-| Google Slides | `.pptx` | ✓ |
-| Word (`.docx`) | `.docx` | ✓ |
-| Excel (`.xlsx`, `.xls`) | same extension | ✓ |
-| PowerPoint (`.pptx`) | `.pptx` | ✓ |
-| JSON (`.json`, `.jsonc`) | same extension | ✓ |
-| YAML (`.yaml`, `.yml`) | same extension | ✓ |
-| ARB (`.arb`) | same extension | ✓ |
-| XLIFF (`.xlf`, `.xliff`) | same extension | ✓ |
-| gettext (`.po`, `.pot`) | same extension | ✓ |
-| Qt Linguist (`.ts`) | same extension | ✓ |
-| CSV / TSV | same extension | ✓ |
-| HTML (`.html`, `.htm`) | same extension | ✓ |
-| Markdown / MDX | same extension | ✓ |
-| AsciiDoc | same extension | ✓ |
-| Apple strings (`.strings`, `.xcstrings`) | same extension | ✓ |
-| Android XML (`.xml`) | same extension | ✓ |
-| Subtitles (`.srt`, `.vtt`) | same extension | ✓ |
-| Lottie (`.lottie`) | same extension | ✓ |
-| Images (`.png`, `.jpg`, `.jpeg`, `.webp`) | same extension | ✓ |
-| Video (`.mp4`) | same extension | ✓ |
-| PDF (`.pdf`) | — | ✗ |
-| Plain text (`.txt`) | same extension | ✓ |
+| Google Docs | `.docx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Google Sheets | `.xlsx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Google Slides | `.pptx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Word | `.docx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Excel | `.xlsx`, `.xls` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| PowerPoint | `.pptx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| JSON | `.json`, `.jsonc` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| YAML | `.yaml`, `.yml` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| ARB | `.arb` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| XLIFF | `.xlf`, `.xliff` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| gettext | `.po`, `.pot` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Qt Linguist | `.ts` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| CSV | `.csv` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| TSV | `.tsv` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| HTML | `.html`, `.htm` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Markdown | `.md`, `.markdown` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| MDX | `.mdx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| AsciiDoc | `.adoc`, `.asciidoc`, `.asc` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Apple strings | `.strings`, `.xcstrings` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Android XML | `.xml` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Subtitles | `.srt`, `.vtt`, `.sbv` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Lottie | `.lottie` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Images | `.png`, `.jpg`, `.jpeg`, `.webp` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Video | `.mp4` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Plain text | `.txt` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| PDF | `.pdf` | <span style="color: #ef4444; font-weight: 600">✗</span> |
 
-Drive skips unsupported rows (✗) and any other file that is not a Hyperlocalise source format. For the full extension list, see [Supported formats](/platform/file-formats).
+Drive skips unsupported rows (<span style="color: #ef4444; font-weight: 600">✗</span>) and any other file that is not a Hyperlocalise source format. For the full extension list, see [Supported formats](/platform/file-formats).
 
 ## Write-back
 
