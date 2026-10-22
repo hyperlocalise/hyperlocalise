@@ -16,7 +16,7 @@ import { randomUUID } from "node:crypto";
 
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { isOk } from "@/lib/primitives/result/results";
@@ -228,12 +228,14 @@ describe("cost estimate", () => {
         })),
       ),
     );
+    // Priced at the very moment the card's last line was saved, to the microsecond.
     await db.insert(schema.reportingTaskRates).values({
       organizationId: organization.id,
       jobId: priced.id,
       step: "translation",
       rateCardName: "Standard",
-      pricedAt: sql`clock_timestamp()`,
+      pricedAt: sql`(select max(created_at) from reporting_rates
+        where organization_id = ${organization.id} and name = 'Standard')`,
     });
     // The card changes after the task was priced: the task keeps the earlier prices.
     const saved = await saveRateCard({
@@ -299,6 +301,7 @@ describe("cost estimate", () => {
         step: "translation",
       });
     expect((await rate(priced.id, "fr-FR"))?.rate).toBe("0.10000000");
+    expect((await rate(priced.id, "ja-JP"))?.rate).toBe("0.20000000");
     expect(await rate(priced.id, "de-DE")).toBeNull();
     expect((await rate(other.id, "fr-FR"))?.rate).toBe("0.05000000");
   });
@@ -810,6 +813,23 @@ describe("costs", () => {
       .returning();
     const tmsKey = `agent-run:${tmsRun!.id}:agent_runs`;
     const slackKey = `slack:${randomUUID()}`;
+    const jobKey = `translation:${randomUUID()}`;
+    const crowdinKey = `crowdin:${randomUUID()}`;
+    const [automation] = await db
+      .insert(schema.workspaceAutomations)
+      .values({
+        organizationId: organization.id,
+        name: "Nightly",
+        instructions: "",
+        projectId: project.id,
+      })
+      .returning();
+    // A task that belongs to the workspace, not to a project.
+    const workspaceTask = await createJob();
+    await db
+      .update(schema.jobs)
+      .set({ projectId: null })
+      .where(eq(schema.jobs.id, workspaceTask.id));
     await db.insert(schema.usageEvents).values([
       billed("1.25", "gateway", "2026-06-10"),
       billed(null, "gateway", "2026-06-11"),
@@ -825,6 +845,22 @@ describe("costs", () => {
       charge("0.3", "2026-06-12", { parent: slackKey }),
       // Chat with no project.
       charge("0.1", "2026-06-12"),
+      // A job's own row names the task; its token row does not.
+      { ...run(jobKey, "translation_job_create"), jobId: job.id },
+      charge("0.15", "2026-06-12", { parent: jobKey }),
+      // A run recording an id that is not one of the workspace's projects (the Crowdin tool
+      // records Crowdin's own) and its automation: the automation's project counts instead.
+      run(crowdinKey, "workspace_crowdin_agent", {
+        automation_id: automation!.id,
+        project_id: "ext:crowdin:42",
+      }),
+      charge("0.05", "2026-06-12", { parent: crowdinKey }),
+      // On a task outside any project, even though the call names a project.
+      {
+        ...billed("0.07", "gateway", "2026-06-12"),
+        jobId: workspaceTask.id,
+        dimensions: { project_id: other.id },
+      },
     ]);
     const period = resolvePeriod({
       from: "2026-06-08",
@@ -839,11 +875,11 @@ describe("costs", () => {
         projectId: project.id,
         projectName: "Docs",
         peopleUsd: "10.50000000",
-        aiUsd: "1.85000000",
-        aiOnTasksUsd: "1.45000000",
-        aiOutsideTasksUsd: "0.40000000",
+        aiUsd: "2.05000000",
+        aiOnTasksUsd: "1.60000000",
+        aiOutsideTasksUsd: "0.45000000",
         expensesUsd: "3.00000000",
-        totalUsd: "15.35000000",
+        totalUsd: "15.55000000",
       },
       {
         projectId: other.id,
@@ -856,14 +892,18 @@ describe("costs", () => {
         totalUsd: "4.30000000",
       },
     ]);
-    // AI outside any project is its own line, in the totals and in the AI outside tasks.
+    // AI outside any project is its own line, split the same way, and in the totals.
     expect(costs).toMatchObject({
-      outsideProjects: { aiUsd: "0.10000000" },
+      outsideProjects: {
+        aiUsd: "0.17000000",
+        aiOnTasksUsd: "0.07000000",
+        aiOutsideTasksUsd: "0.10000000",
+      },
       totals: {
-        aiUsd: "2.25000000",
-        aiOnTasksUsd: "1.45000000",
-        aiOutsideTasksUsd: "0.80000000",
-        totalUsd: "19.75000000",
+        aiUsd: "2.52000000",
+        aiOnTasksUsd: "1.67000000",
+        aiOutsideTasksUsd: "0.85000000",
+        totalUsd: "20.02000000",
       },
       previousTotalUsd: "8.00000000",
       unpriced: 1,
@@ -871,7 +911,7 @@ describe("costs", () => {
     });
     const projectsOnly = await queryCosts({ ...scope, includeUnattributed: false });
     expect(projectsOnly.outsideProjects).toBeNull();
-    expect(projectsOnly.totals.totalUsd).toBe("19.65000000");
+    expect(projectsOnly.totals.totalUsd).toBe("19.85000000");
     const oneProject = await queryCosts({
       ...scope,
       projectId: other.id,

@@ -592,7 +592,7 @@ type Spending = {
 type SpendingResult = {
   byProject: Map<string, Spending>;
   /** Billing's AI charges tied to no project, when asked for and not filtered by language. */
-  outsideProjects: { ai: bigint; pendingAi: number } | null;
+  outsideProjects: { aiOnTasks: bigint; aiOutsideTasks: bigint; pendingAi: number } | null;
 };
 
 /**
@@ -686,7 +686,7 @@ async function spending(input: {
     else entry.expenses += usdUnits(row.amount);
     entry.unpriced += row.unpriced;
   }
-  const outsideProjects = outside ? { ai: ZERO, pendingAi: 0 } : null;
+  const outsideProjects = outside ? { aiOnTasks: ZERO, aiOutsideTasks: ZERO, pendingAi: 0 } : null;
   for (const row of ai.rows as {
     projectId: string | null;
     onTask: boolean;
@@ -694,7 +694,9 @@ async function spending(input: {
     pending: number;
   }[]) {
     if (row.projectId === null) {
-      outsideProjects!.ai += usdUnits(row.amount);
+      // A task outside any project, or a call with none, such as chat.
+      if (row.onTask) outsideProjects!.aiOnTasks += usdUnits(row.amount);
+      else outsideProjects!.aiOutsideTasks += usdUnits(row.amount);
       outsideProjects!.pendingAi += row.pending;
       continue;
     }
@@ -728,8 +730,8 @@ export type CostRow = {
 
 export type Costs = {
   rows: CostRow[];
-  /** AI charged with no project (chat, assistants), when no project is chosen. */
-  outsideProjects: { aiUsd: string } | null;
+  /** AI charged with no project (chat, assistants, tasks outside any project), when no project is chosen. */
+  outsideProjects: { aiUsd: string; aiOnTasksUsd: string; aiOutsideTasksUsd: string } | null;
   /** Every row, and AI outside any project when it is shown. */
   totals: Omit<CostRow, "projectId" | "projectName">;
   previousTotalUsd: string;
@@ -789,20 +791,29 @@ export async function queryCosts(
     });
   }
   rows.sort((left, right) => left.projectName.localeCompare(right.projectName));
-  const outsideAi = current.outsideProjects?.ai ?? ZERO;
-  const allAi = sum.aiOnTasks + sum.aiOutsideTasks + outsideAi;
+  const outside = current.outsideProjects;
+  const onTasks = sum.aiOnTasks + (outside?.aiOnTasks ?? ZERO);
+  const outsideTasks = sum.aiOutsideTasks + (outside?.aiOutsideTasks ?? ZERO);
+  const allAi = onTasks + outsideTasks;
   const previousTotal =
     [...previous.byProject.values()].reduce((total, entry) => total + spentTotal(entry), ZERO) +
-    (previous.outsideProjects?.ai ?? ZERO);
+    (previous.outsideProjects
+      ? previous.outsideProjects.aiOnTasks + previous.outsideProjects.aiOutsideTasks
+      : ZERO);
   return {
     rows,
-    outsideProjects: current.outsideProjects ? { aiUsd: usdString(outsideAi) } : null,
+    outsideProjects: outside
+      ? {
+          aiUsd: usdString(outside.aiOnTasks + outside.aiOutsideTasks),
+          aiOnTasksUsd: usdString(outside.aiOnTasks),
+          aiOutsideTasksUsd: usdString(outside.aiOutsideTasks),
+        }
+      : null,
     totals: {
       peopleUsd: usdString(sum.people),
       aiUsd: languageFiltered ? null : usdString(allAi),
-      aiOnTasksUsd: languageFiltered ? null : usdString(sum.aiOnTasks),
-      // AI outside any project has no task either, so the two AI parts still add up.
-      aiOutsideTasksUsd: languageFiltered ? null : usdString(sum.aiOutsideTasks + outsideAi),
+      aiOnTasksUsd: languageFiltered ? null : usdString(onTasks),
+      aiOutsideTasksUsd: languageFiltered ? null : usdString(outsideTasks),
       expensesUsd: usdString(sum.expenses),
       totalUsd: usdString(sum.people + sum.expenses + allAi),
     },

@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import { createHash } from "node:crypto";
-import { and, asc, eq, desc, gt, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, eq, desc, gt, inArray, isNull, lte, sql, type SQL } from "drizzle-orm";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { listAttachedProjectMemoryIds } from "@/lib/memory/ensure-default-native-project-memory";
 import { countSourceCharacters, countSourceWords, matchBucket } from "./word-analysis";
@@ -80,8 +80,14 @@ export async function resolveReportingRate(
           ),
         )
     : [];
+  // Compared in the database: a JavaScript date drops the microseconds of the moment priced.
   if (taskRate?.rateCardName)
-    return rateLine(database, input, taskRate.rateCardName, taskRate.pricedAt);
+    return rateLine(
+      database,
+      input,
+      taskRate.rateCardName,
+      sql`(select priced_at from reporting_task_rates where id = ${taskRate.id})`,
+    );
   const [budget] = await database
     .select()
     .from(schema.reportingBudgets)
@@ -95,7 +101,7 @@ export async function resolveReportingRate(
   return rateLine(database, input, budget.rateCardName, null);
 }
 
-/** A card's line for a language pair and step, as of `asOf` (now when null). */
+/** A card's line for a language pair and step, as of the time `asOf` reads (now when null). */
 async function rateLine(
   database: DatabaseClient,
   input: {
@@ -105,7 +111,7 @@ async function rateLine(
     step: "translation" | "review";
   },
   name: string,
-  asOf: Date | null,
+  asOf: SQL | null,
 ) {
   const [rate] = await database
     .select()

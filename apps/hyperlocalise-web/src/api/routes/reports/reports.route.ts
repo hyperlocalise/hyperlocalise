@@ -408,7 +408,7 @@ export function createReportsRoutes() {
       if (!hasCapability(c.var.auth.membership.role, "billing:write"))
         return forbiddenResponse(c, "report_costs_forbidden");
       const parsed = rateCardSchema.safeParse(await c.req.json());
-      if (!parsed.success) return badRequestResponse(c, "rate_card_not_found");
+      if (!parsed.success) return badRequestResponse(c, "invalid_rate_card");
       const saved = await saveRateCard({
         ...parsed.data,
         organizationId: c.var.auth.organization.localOrganizationId,
@@ -600,10 +600,16 @@ export function createReportsRoutes() {
         return forbiddenResponse(c, "report_costs_forbidden");
       const parsed = rateSchema.safeParse(await c.req.json());
       if (!parsed.success) return badRequestResponse(c, "invalid_rate");
-      const [rate] = await db
-        .insert(schema.reportingRates)
-        .values({ ...parsed.data, organizationId: c.var.auth.organization.localOrganizationId })
-        .returning();
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      // As a card save does, so a task being priced sees the line on one side of that moment.
+      const rate = await db.transaction(async (tx) => {
+        await lockRateCard(tx, organizationId, parsed.data.name);
+        const [saved] = await tx
+          .insert(schema.reportingRates)
+          .values({ ...parsed.data, organizationId, createdAt: sql`clock_timestamp()` })
+          .returning();
+        return saved;
+      });
       return c.json({ rate }, 201);
     })
     .put("/budgets", async (c) => {

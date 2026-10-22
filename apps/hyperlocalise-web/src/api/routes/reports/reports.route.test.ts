@@ -216,7 +216,7 @@ describe("reports routes", () => {
     const costs = await app.request(reportsUrl(slug, "/costs?format=csv"), { headers });
     expect((await costs.text()).split("\r\n")).toEqual([
       '"projectName","projectId","peopleUsd","aiOnTasksUsd","aiOutsideTasksUsd","aiUsd","expensesUsd","totalUsd"',
-      '"","","","","0.00000000","0.00000000","","0.00000000"',
+      '"","","","0.00000000","0.00000000","0.00000000","","0.00000000"',
     ]);
   });
 
@@ -294,6 +294,9 @@ describe("reports routes", () => {
     await expect(again.json()).resolves.toMatchObject({ error: "rate_card_exists" });
     expect((await put(admin, { ...card, name: "Other", create: false })).status).toBe(404);
     expect((await put(admin, { ...card, lines: [card.lines[0], card.lines[0]] })).status).toBe(400);
+    const malformed = await put(admin, { ...card, name: "" });
+    expect(malformed.status).toBe(400);
+    await expect(malformed.json()).resolves.toMatchObject({ error: "invalid_rate_card" });
 
     const managerHeaders = await fixture.authHeadersFor(manager);
     const listed = await app.request(reportsUrl(slug, "/rate-cards"), { headers: managerHeaders });
