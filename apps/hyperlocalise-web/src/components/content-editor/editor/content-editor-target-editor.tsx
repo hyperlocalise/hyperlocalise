@@ -25,6 +25,8 @@ import { Button } from "@/components/ui/button";
 import type { MessageFormat } from "@/lib/i18n/message-format";
 import { cn } from "@/lib/primitives/cn";
 
+import { inferSupportedDocumentTranslationFileFormat } from "@/lib/translation/file-formats";
+
 import {
   canUseMarkdownCatEditor,
   isStructuralMarkdownMarkupToken,
@@ -674,6 +676,7 @@ export function ContentEditorIcuStructureSummary({
 
 export function ContentEditorTargetEditor({
   sourceText,
+  sourcePath,
   value,
   maxLength,
   disabled = false,
@@ -688,6 +691,7 @@ export function ContentEditorTargetEditor({
   onChange,
 }: {
   sourceText: string;
+  sourcePath?: string;
   value: string;
   maxLength?: number;
   messageFormat?: MessageFormat | null;
@@ -704,7 +708,9 @@ export function ContentEditorTargetEditor({
   const intl = useIntl();
   const valueRef = useRef(value);
   valueRef.current = value;
-  const markdownMode = canUseMarkdownCatEditor(value, sourceText);
+  const markdownMode =
+    inferSupportedDocumentTranslationFileFormat(sourcePath ?? "") !== "txt" &&
+    canUseMarkdownCatEditor(value, sourceText);
   const headingLiteral = useMemo(
     () => sourceHeadingIdLiteral(sourceText, value),
     [sourceText, value],

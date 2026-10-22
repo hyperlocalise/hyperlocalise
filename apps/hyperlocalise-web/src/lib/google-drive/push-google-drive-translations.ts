@@ -238,6 +238,36 @@ export async function loadTranslatedBytes(input: {
     };
   }
 
+  const isPlainTextSource =
+    inferSupportedTranslationFileFormat(input.sourcePath) === "txt" || input.ingestFormat === "txt";
+  if (isPlainTextSource) {
+    const variant = await getImageVariant({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      targetLocale: input.targetLocale,
+    });
+    if (variant?.status !== "approved") {
+      return null;
+    }
+    const fileVariant = await loadProjectFileVariant({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      locale: input.targetLocale,
+    });
+    if (!fileVariant) {
+      return null;
+    }
+    const fileName = input.sourcePath.split("/").pop() ?? "file";
+    const buffer = Buffer.from(await new Response(fileVariant.body).arrayBuffer());
+    return {
+      buffer,
+      fileName,
+      mimeType: "text/plain; charset=utf-8",
+    };
+  }
+
   const prefilled = await loadProjectTranslationsAsPrefilledEntries({
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -283,33 +313,6 @@ export async function loadTranslatedBytes(input: {
       buffer: subtitle.value.content,
       fileName,
       mimeType: subtitle.value.contentType,
-    };
-  }
-
-  if (inferSupportedTranslationFileFormat(input.sourcePath) === "txt") {
-    const variant = await getImageVariant({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      sourcePath: input.sourcePath,
-      targetLocale: input.targetLocale,
-    });
-    if (variant?.status !== "approved") {
-      return null;
-    }
-    const fileVariant = await loadProjectFileVariant({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      sourcePath: input.sourcePath,
-      locale: input.targetLocale,
-    });
-    if (!fileVariant) {
-      return null;
-    }
-    const buffer = Buffer.from(await new Response(fileVariant.body).arrayBuffer());
-    return {
-      buffer,
-      fileName,
-      mimeType: "text/plain; charset=utf-8",
     };
   }
 

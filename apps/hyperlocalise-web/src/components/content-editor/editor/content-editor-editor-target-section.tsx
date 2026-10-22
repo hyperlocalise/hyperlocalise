@@ -99,6 +99,7 @@ export function ContentEditorEditorTargetSection({
         <ContentEditorTargetEditor
           key={segment.id}
           sourceText={segment.sourceText}
+          sourcePath={segment.sourcePath}
           value={segment.targetText}
           maxLength={segment.maxLength}
           messageFormat={segment.messageFormat}

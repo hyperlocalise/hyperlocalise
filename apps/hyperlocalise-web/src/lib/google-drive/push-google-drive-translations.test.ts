@@ -244,15 +244,6 @@ describe("loadTranslatedBytes", () => {
   });
 
   it("returns approved plain text document variants as text/plain", async () => {
-    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
-      prefilled: { "txt.0001": "Translated notes" },
-      loadedKeyCount: 1,
-      truncated: false,
-    });
-    mocks.loadProjectLottieTranslationDownload.mockResolvedValue({
-      ok: true,
-      value: null,
-    });
     mocks.getImageVariant.mockResolvedValue({ status: "approved" });
     mocks.loadProjectFileVariant.mockResolvedValue({
       body: new ReadableStream({
@@ -274,6 +265,57 @@ describe("loadTranslatedBytes", () => {
     ).resolves.toEqual({
       buffer: Buffer.from("Translated notes"),
       fileName: "notes.txt",
+      mimeType: "text/plain; charset=utf-8",
+    });
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+  });
+
+  it("returns null for plain text when the variant is missing or not approved", async () => {
+    mocks.getImageVariant.mockResolvedValue({ status: "needs_review" });
+
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/notes.txt",
+        ingestFormat: "txt",
+      }),
+    ).resolves.toBeNull();
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+
+    mocks.getImageVariant.mockResolvedValue({ status: "approved" });
+    mocks.loadProjectFileVariant.mockResolvedValue(null);
+
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/notes.txt",
+        ingestFormat: "txt",
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it("treats ingestFormat txt as plain text when the path has no extension", async () => {
+    mocks.getImageVariant.mockResolvedValue({ status: "approved" });
+    mocks.loadProjectFileVariant.mockResolvedValue({
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("Translated readme"));
+          controller.close();
+        },
+      }),
+      contentType: "text/plain; charset=utf-8",
+      storedFilename: "readme.txt",
+    });
+
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/readme",
+        ingestFormat: "txt",
+      }),
+    ).resolves.toEqual({
+      buffer: Buffer.from("Translated readme"),
+      fileName: "readme",
       mimeType: "text/plain; charset=utf-8",
     });
   });

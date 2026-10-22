@@ -74,14 +74,22 @@ func parsePlainTextDocument(content []byte) (plainTextDocument, map[string]strin
 			appendLiteral(paraText)
 			continue
 		}
+		body, terminator := splitPlainTextParagraphSuffix(paraText)
+		if strings.TrimSpace(body) == "" {
+			appendLiteral(paraText)
+			continue
+		}
 		paragraphIndex++
 		key := plainTextParagraphKey(paragraphIndex)
 		doc.parts = append(doc.parts, plainTextPart{
 			key:    key,
-			source: paraText,
+			source: body,
 			path:   "paragraph",
 		})
-		entries[key] = paraText
+		entries[key] = body
+		if terminator != "" {
+			appendLiteral(terminator)
+		}
 	}
 
 	return doc, entries
@@ -125,6 +133,19 @@ func isPlainTextBlankLineAt(s string, i int) bool {
 		line = strings.TrimSuffix(line, "\r")
 	}
 	return strings.TrimSpace(line) == ""
+}
+
+func splitPlainTextParagraphSuffix(paraText string) (body, terminator string) {
+	if strings.HasSuffix(paraText, "\r\n") {
+		return paraText[:len(paraText)-2], "\r\n"
+	}
+	if strings.HasSuffix(paraText, "\n") {
+		return paraText[:len(paraText)-1], "\n"
+	}
+	if strings.HasSuffix(paraText, "\r") {
+		return paraText[:len(paraText)-1], "\r"
+	}
+	return paraText, ""
 }
 
 func plainTextLineEndExclusive(s string, i int) int {
@@ -207,14 +228,8 @@ func MarshalPlainText(template []byte, values map[string]string) []byte {
 func AlignPlainTextTargetToSource(sourceTemplate, targetTemplate []byte) map[string]string {
 	sourceDoc, sourceEntries := parsePlainTextDocument(stripBOM(sourceTemplate))
 	targetDoc, _ := parsePlainTextDocument(stripBOM(targetTemplate))
-	aligned := make(map[string]string, len(sourceEntries))
-	targetKeys := make([]string, 0, len(targetDoc.parts))
-	for _, part := range targetDoc.parts {
-		if part.key != "" {
-			targetKeys = append(targetKeys, part.source)
-		}
-	}
-	targetIdx := 0
+
+	sourceKeys := make([]string, 0, len(sourceEntries))
 	for _, part := range sourceDoc.parts {
 		if part.key == "" {
 			continue
@@ -222,12 +237,88 @@ func AlignPlainTextTargetToSource(sourceTemplate, targetTemplate []byte) map[str
 		if _, ok := sourceEntries[part.key]; !ok {
 			continue
 		}
-		if targetIdx < len(targetKeys) {
-			aligned[part.key] = targetKeys[targetIdx]
-			targetIdx++
+		sourceKeys = append(sourceKeys, part.key)
+	}
+
+	targetTexts := make([]string, 0, len(targetDoc.parts))
+	for _, part := range targetDoc.parts {
+		if part.key == "" {
 			continue
 		}
-		aligned[part.key] = ""
+		targetTexts = append(targetTexts, part.source)
+	}
+
+	aligned := alignPlainTextParagraphKeys(sourceKeys, targetTexts, sourceEntries)
+	for key := range sourceEntries {
+		if _, ok := aligned[key]; !ok {
+			aligned[key] = ""
+		}
+	}
+	return aligned
+}
+
+func alignPlainTextParagraphKeys(sourceKeys []string, targetTexts []string, sourceEntries map[string]string) map[string]string {
+	aligned := make(map[string]string, len(sourceKeys))
+	if len(sourceKeys) == 0 || len(targetTexts) == 0 {
+		return aligned
+	}
+
+	usedTarget := make([]bool, len(targetTexts))
+	matchedSource := make([]bool, len(sourceKeys))
+	for i, key := range sourceKeys {
+		sourceText := sourceEntries[key]
+		for j, text := range targetTexts {
+			if usedTarget[j] || text != sourceText {
+				continue
+			}
+			aligned[key] = text
+			usedTarget[j] = true
+			matchedSource[i] = true
+			break
+		}
+	}
+
+	remainingSource := make([]string, 0, len(sourceKeys))
+	for i, key := range sourceKeys {
+		if matchedSource[i] {
+			continue
+		}
+		remainingSource = append(remainingSource, key)
+	}
+	remainingTarget := make([]string, 0, len(targetTexts))
+	for j, text := range targetTexts {
+		if usedTarget[j] {
+			continue
+		}
+		remainingTarget = append(remainingTarget, text)
+	}
+
+	nS := len(remainingSource)
+	nT := len(remainingTarget)
+	if nS == 0 {
+		return aligned
+	}
+	if nT == 0 {
+		for _, key := range remainingSource {
+			if _, ok := aligned[key]; !ok {
+				aligned[key] = ""
+			}
+		}
+		return aligned
+	}
+	if nS == nT {
+		for i := range remainingSource {
+			aligned[remainingSource[i]] = remainingTarget[i]
+		}
+		return aligned
+	}
+
+	aligned[remainingSource[0]] = remainingTarget[0]
+	if nS > 1 && nT > 1 {
+		aligned[remainingSource[nS-1]] = remainingTarget[nT-1]
+	}
+	for i := 1; i < nS-1; i++ {
+		aligned[remainingSource[i]] = ""
 	}
 	return aligned
 }

@@ -136,7 +136,8 @@ export function classifyGoogleDriveItem(input: {
   }
 
   const mimeBase = mimeType.split(";")[0]?.trim().toLowerCase() ?? "";
-  if (mimeBase === "text/plain" && path.extname(name).toLowerCase() !== ".txt") {
+  const extension = path.extname(name).toLowerCase();
+  if (mimeBase === "text/plain" && extension === "") {
     return {
       kind: "supported",
       ingestKind: "binary",

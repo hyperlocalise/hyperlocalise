@@ -161,6 +161,24 @@ describe("classifyGoogleDriveItem", () => {
       ingestFormat: "txt",
       ingestExtension: ".txt",
     });
+    expect(
+      classifyGoogleDriveItem({
+        name: "guide.md",
+        mimeType: "text/plain",
+      }),
+    ).toMatchObject({
+      kind: "supported",
+      ingestFormat: "markdown",
+    });
+    expect(
+      classifyGoogleDriveItem({
+        name: "captions.srt",
+        mimeType: "text/plain",
+      }),
+    ).toMatchObject({
+      kind: "supported",
+      ingestFormat: "srt",
+    });
   });
 
   it("skips files over the size cap and folders deeper than the walk limit", () => {

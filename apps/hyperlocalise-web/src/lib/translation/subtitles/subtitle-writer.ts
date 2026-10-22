@@ -86,9 +86,6 @@ export function marshalSubtitles(
 
 function parseSubtitleDocument(text: string, kind: SubtitleKind): SubtitleDocument {
   const stripped = stripBom(text);
-  if (!isValidUtf8(stripped)) {
-    throw new Error(`${kind}: content must be valid UTF-8`);
-  }
   const doc: SubtitleDocument = {
     template: stripped,
     kind,
@@ -319,12 +316,4 @@ function isBlankSubtitleLine(value: string): boolean {
 
 function stripBom(text: string): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
-}
-
-function isValidUtf8(text: string): boolean {
-  try {
-    return new TextEncoder().encode(text).length >= 0;
-  } catch {
-    return false;
-  }
 }

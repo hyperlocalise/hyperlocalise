@@ -200,6 +200,7 @@ const TranslationCell = observer(function TranslationCell({
       >
         <ContentEditorTargetEditor
           sourceText={segment.sourceText}
+          sourcePath={segment.sourcePath}
           value={draft.text}
           maxLength={segment.maxLength}
           messageFormat={segment.messageFormat}

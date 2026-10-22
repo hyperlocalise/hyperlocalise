@@ -1175,6 +1175,21 @@ func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, 
 		targetEntries := translationfileparser.AlignAsciiDocTargetToSource(sourceContent, targetContent)
 		return targetEntries, sourceContent, targetContent, true, nil
 	}
+	if translationfileparser.IsPlainTextDocumentExtension(targetPath) {
+		sourceContent, err := os.ReadFile(sourcePath)
+		if err != nil {
+			return nil, nil, nil, false, err
+		}
+		targetContent, err := os.ReadFile(targetPath)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil, nil, nil, false, nil
+			}
+			return nil, nil, nil, false, err
+		}
+		targetEntries := translationfileparser.AlignPlainTextTargetToSource(sourceContent, targetContent)
+		return targetEntries, sourceContent, targetContent, true, nil
+	}
 
 	targetEntries, err := readTargetEntriesForStatus(parser, sourcePath, targetPath, locale)
 	if err != nil {
@@ -1707,7 +1722,9 @@ func isMarkdownPath(path string) bool {
 }
 
 func isProseDocumentPath(path string) bool {
-	return isMarkdownPath(path) || translationfileparser.IsAsciiDocDocumentExtension(path)
+	return isMarkdownPath(path) ||
+		translationfileparser.IsAsciiDocDocumentExtension(path) ||
+		translationfileparser.IsPlainTextDocumentExtension(path)
 }
 
 func validateCheckInvariant(candidate, baseline storage.Entry) []string {

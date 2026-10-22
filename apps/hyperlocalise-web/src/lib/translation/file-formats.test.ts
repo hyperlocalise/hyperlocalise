@@ -176,26 +176,30 @@ describe("translation file formats", () => {
     expect(inferSupportedSegmentedSpreadsheetTranslationFileFormat("deck.pptx")).toBeNull();
   });
 
-  it("treats html, markdown, mdx, and asciidoc as whole-file documents, not binary", () => {
+  it("treats html, markdown, mdx, asciidoc, and txt as whole-file documents, not binary", () => {
     expect(inferSupportedDocumentTranslationFileFormat("page.html")).toBe("html");
     expect(inferSupportedDocumentTranslationFileFormat("page.htm")).toBe("html");
     expect(inferSupportedDocumentTranslationFileFormat("readme.md")).toBe("markdown");
     expect(inferSupportedDocumentTranslationFileFormat("page.mdx")).toBe("mdx");
     expect(inferSupportedDocumentTranslationFileFormat("guide.adoc")).toBe("asciidoc");
+    expect(inferSupportedDocumentTranslationFileFormat("notes.txt")).toBe("txt");
     expect(isDocumentTranslationFileFormat("html")).toBe(true);
     expect(isDocumentTranslationFileFormat("markdown")).toBe(true);
     expect(isDocumentTranslationFileFormat("mdx")).toBe(true);
     expect(isDocumentTranslationFileFormat("asciidoc")).toBe(true);
+    expect(isDocumentTranslationFileFormat("txt")).toBe(true);
     expect(isDocumentTranslationFileFormat("json")).toBe(false);
     expect(isWholeFileTranslationFileFormat("html")).toBe(true);
     expect(isWholeFileTranslationFileFormat("markdown")).toBe(true);
     expect(isWholeFileTranslationFileFormat("mdx")).toBe(true);
     expect(isWholeFileTranslationFileFormat("asciidoc")).toBe(true);
+    expect(isWholeFileTranslationFileFormat("txt")).toBe(true);
     expect(isWholeFileTranslationFileFormat("json")).toBe(false);
     expect(isBinaryTranslationFileFormat("html")).toBe(false);
     expect(isBinaryTranslationFileFormat("markdown")).toBe(false);
     expect(isBinaryTranslationFileFormat("mdx")).toBe(false);
     expect(isBinaryTranslationFileFormat("asciidoc")).toBe(false);
+    expect(isBinaryTranslationFileFormat("txt")).toBe(false);
   });
 
   it("builds a source-upload accept list including office and images", () => {
@@ -228,6 +232,7 @@ describe("translation file formats", () => {
         ".js",
         ".htm",
         ".markdown",
+        ".txt",
       ]),
     );
   });
