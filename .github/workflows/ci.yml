@@ -141,7 +141,10 @@ jobs:
         run: bazel build --config=ci //:cli
 
       - name: Bazel test
-        run: bazel test --config=ci //apps/cli/cmd:cmd_test
+        run: |
+          bazel test --config=ci //apps/cli/cmd:cmd_test
+          bazel test --config=ci //internal/i18n/translationfileparser:pdf_test
+          bazel test --config=ci //internal/i18n/segmentvalidate:segmentvalidate_test --test_filter=KindForSourcePath
 
   go-test:
     name: Go Test/Build
