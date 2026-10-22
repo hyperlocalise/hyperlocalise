@@ -207,6 +207,9 @@
     "vite-plus": "catalog:",
     "vitest": "catalog:"
   },
+  "engines": {
+    "node": "^24.22.1"
+  },
   "packageManager": "pnpm@12.14.0",
   "msw": {
     "workerDirectory": [

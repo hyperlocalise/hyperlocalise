@@ -21,7 +21,7 @@ passwordless sudo), with:
 
 | Tool | Version source |
 |------|----------------|
-| Node.js + npm + pnpm 11 | latest of major `NODE_MAJOR` (default **24**) |
+| Node.js + npm + pnpm 11 | pinned (`NODE_VERSION`, currently **24.22.1**) |
 | ripgrep (`rg`) | pinned (`RIPGREP_VERSION`; apt + GitHub release fallback) |
 | Volta | `/vercel/.volta` (`VOLTA_VERSION` optional pin) |
 | hyperlocalise CLI (`hl`) | pinned (`HYPERLOCALISE_VERSION`) |

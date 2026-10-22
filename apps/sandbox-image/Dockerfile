@@ -60,7 +60,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # Keep in sync with apps/hyperlocalise-web/src/lib/vercel-sandbox-config.ts
 # (HYPERLOCALISE_VERSION: apps/hyperlocalise-web/src/lib/translation/sandbox-cli-release.ts)
-ARG NODE_MAJOR=24
+# Pin the patch. `latest-v24.x` does not change the Dockerfile text, so Docker
+# keeps an older Node layer across security releases.
+ARG NODE_VERSION=24.22.1
 ARG RIPGREP_VERSION=15.2.0
 ARG HYPERLOCALISE_VERSION=1.13.5
 ARG PLAYWRIGHT_VERSION=1.63.0
@@ -113,13 +115,16 @@ RUN set -eux; \
     hash -r; \
     rg --version | grep -Fq "${RIPGREP_VERSION}"
 
-# Node.js latest of the pinned major (same approach as vercel/sandbox/node).
+# Node.js security release for this major (linux/x64).
 RUN set -eux; \
-    tarball="$(curl -fsSL "https://nodejs.org/dist/latest-v${NODE_MAJOR}.x/SHASUMS256.txt" \
-      | grep -oE 'node-v[0-9]+\.[0-9]+\.[0-9]+-linux-x64\.tar\.xz' | head -n1)"; \
+    tarball="node-v${NODE_VERSION}-linux-x64.tar.xz"; \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt" -o /tmp/node-shasums.txt; \
+    grep -F " ${tarball}" /tmp/node-shasums.txt > /tmp/node-shasum.txt; \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${tarball}" -o "/tmp/${tarball}"; \
+    (cd /tmp && sha256sum -c /tmp/node-shasum.txt); \
     mkdir -p /opt/node; \
-    curl -fsSL "https://nodejs.org/dist/latest-v${NODE_MAJOR}.x/${tarball}" \
-      | bsdtar -xJ --strip-components=1 -C /opt/node; \
+    bsdtar -xJf "/tmp/${tarball}" --strip-components=1 -C /opt/node; \
+    rm -f "/tmp/${tarball}" /tmp/node-shasums.txt /tmp/node-shasum.txt; \
     rm -f /opt/node/CHANGELOG.md /opt/node/LICENSE /opt/node/README.md; \
     cp -a /opt/node/. /usr/local/; \
     npm install -g pnpm@11; \
