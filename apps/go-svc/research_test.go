@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -252,4 +253,36 @@ func TestLegacyDomainResearchProxyRoutesAreNotRegistered(t *testing.T) {
 		mux.ServeHTTP(rec, req)
 		require.Equal(t, http.StatusNotFound, rec.Code, path)
 	}
+}
+
+func TestRankKeywordsUsesBoundedConcurrency(t *testing.T) {
+	var inFlight, maxInFlight atomic.Int32
+	h := newHandler()
+	h.research = fakeResearch{
+		onRank: func() {
+			n := inFlight.Add(1)
+			defer inFlight.Add(-1)
+			for {
+				current := maxInFlight.Load()
+				if n <= current || maxInFlight.CompareAndSwap(current, n) {
+					break
+				}
+			}
+			time.Sleep(40 * time.Millisecond)
+		},
+		rank: dataforseo.TaskResponse[dataforseo.RankCheckResult]{
+			Data: dataforseo.RankCheckResult{Keyword: "seo"},
+		},
+	}
+	keywords := make([]researchRankCheckKeyword, 8)
+	for i := range keywords {
+		keywords[i] = researchRankCheckKeyword{KeywordID: "kw", Keyword: "seo"}
+	}
+
+	results, err := h.rankKeywords(context.Background(), "example.com", researchMarkets["france-fr"], "", keywords)
+
+	require.NoError(t, err)
+	require.Len(t, results, len(keywords))
+	require.Greater(t, maxInFlight.Load(), int32(1))
+	require.LessOrEqual(t, maxInFlight.Load(), int32(rankCheckConcurrency))
 }

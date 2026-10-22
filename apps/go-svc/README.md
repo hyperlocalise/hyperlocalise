@@ -63,7 +63,7 @@ Callers that need commands beyond `Ping` should use `Inner()` and the valkey-go 
 
 ### DataForSEO (Domains research)
 
-Used by `internal/dataforseo` for keyword research, live SERPs, and rank tracking. Required for `/v1/domains/research/*`. Not required for segment validation.
+Used by `internal/dataforseo` for keyword research, live SERPs, and rank tracking. Required for the Domains research routes under `/v1/orgs/{slug}/domains`. Not required for segment validation.
 
 | Variable | Description |
 |----------|-------------|
@@ -232,7 +232,7 @@ When configured, Valkey and PostgreSQL health objects report `status` as
 dependency is not configured, its status is `disabled` and no timing is
 reported. The endpoint remains an HTTP 200 liveness check.
 
-The web app reaches go-svc through `GO_SVC_URL`. Domains research handlers require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js server computes and sends that header. In production, ECS injects queue URLs from infrastructure outputs; the service does not resolve SSM parameters itself. A configured queue publisher reports `ok` or `unavailable` in `/health`; a missing queue URL is reported as `disabled`.
+The web app reaches go-svc through `GO_SVC_URL`. Server-call routes (`/internal/*`, object storage and guideline search) require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js server computes and sends that header. In production, ECS injects queue URLs from infrastructure outputs; the service does not resolve SSM parameters itself. A configured queue publisher reports `ok` or `unavailable` in `/health`; a missing queue URL is reported as `disabled`.
 
 Application deploys use the infra-owned task-definition ARN in
 `/hyperlocalise/prod/ecs/go-svc/task_definition_arn` as their base revision.
@@ -261,14 +261,6 @@ For tracing, the ECS task definition sets `DD_TRACE_AGENT_URL`, `DD_TRACE_ENABLE
 |--------|------|------|-------------|
 | `GET` | `/health` | No | Liveness probe with activity-log queue, Valkey, and PostgreSQL connectivity status and round-trip times |
 | `POST` | `/v1/validate/segment` | WorkOS session cookie or Bearer access token | Validate a CAT segment (format, length, spelling) |
-| `POST` | `/v1/domains/research/keywords` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Expand a seed keyword + market through DataForSEO Labs |
-| `POST` | `/v1/domains/research/market-visibility` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Check one domain market through DataForSEO Labs; one market per request |
-| `POST` | `/v1/domains/research/serp` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Fetch a live organic SERP snapshot |
-| `POST` | `/v1/domains/research/rank-check` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Live rank check for one keyword against a hostname |
-| `POST` | `/v1/domains/research/rank-check/batch` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Live rank check for up to 20 keywords |
-| `POST` | `/v1/domains/gsc/sites` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | List verified Search Console properties for a minted access token |
-| `POST` | `/v1/domains/gsc/performance` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Query Search Analytics clicks, impressions, CTR, and position |
-| `POST` | `/v1/domains/gsc/inspect` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Inspect one URL against a Search Console property |
 | `GET` | `/v1/projects/{projectId}/translations/download` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `files:read` | Download one source file's translations for a locale as JSON |
 | `GET` | `/v1/jobs/latest` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `jobs:read` | Latest succeeded file translation job for a project source path |
 | `GET` | `/v1/jobs/{jobId}` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `jobs:read` | One job with its stored output file metadata |
@@ -503,7 +495,7 @@ These return `501` with a stable error code. Browser clients keep calling Hono.
 
 Authenticated CAT requests use the same WorkOS session cookie or Bearer access token as dictionary routes. They do not need `X-Go-Svc-Research-Token`.
 
-Authenticated requests must include either the `wos-session` cookie from a signed-in Hyperlocalise user or `Authorization: Bearer` with that session's WorkOS access-token JWT. go-svc verifies Bearer tokens against the WorkOS JWKS for `WORKOS_CLIENT_ID` (`sub` is the user, `sid` is required). Agent JWTs are not accepted. If both a cookie and a Bearer token are present, the cookie wins. Research routes also require `X-Go-Svc-Research-Token`, an HMAC-SHA256 hex digest of `go-svc-research` keyed by `WORKOS_COOKIE_PASSWORD`. The browser cannot mint that header; only the web app should call these endpoints via `GO_SVC_URL`.
+Authenticated requests must include either the `wos-session` cookie from a signed-in Hyperlocalise user or `Authorization: Bearer` with that session's WorkOS access-token JWT. go-svc verifies Bearer tokens against the WorkOS JWKS for `WORKOS_CLIENT_ID` (`sub` is the user, `sid` is required). Agent JWTs are not accepted. If both a cookie and a Bearer token are present, the cookie wins. Server-call routes also require `X-Go-Svc-Research-Token`, an HMAC-SHA256 hex digest of `go-svc-research` keyed by `WORKOS_COOKIE_PASSWORD`. The browser cannot mint that header; only the web app should call these endpoints via `GO_SVC_URL`.
 
 Browser callers from `https://hyperlocalise.com` and `https://hyperlocalize.com` (and `www`) may call session-auth `/v1` routes on `https://api.hyperlocalise.com`. Those origins receive CORS headers; mutating requests from other origins are rejected. Same-host `/api/go-svc` rewrites still pass the origin guard. Extra origins can be listed in `GO_SVC_CORS_ORIGINS`. CORS does not allow credentials: the web `GoSvcClient` sends a Bearer token and omits cookies.
 
