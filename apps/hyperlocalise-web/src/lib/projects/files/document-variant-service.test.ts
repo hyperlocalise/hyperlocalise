@@ -20,6 +20,10 @@ const { generateTextMock, trackAiCallTokenUsageMock, replaceImageVariantBytesMoc
   }),
 );
 
+vi.mock("@/lib/providers/organization-language-model", () => ({
+  resolveHyperlocaliseAgentLanguageModel: async () => ({ model: "workspace-model" }),
+}));
+
 vi.mock("ai", () => ({ generateText: generateTextMock }));
 vi.mock("@/lib/database/client", () => {
   const query = {
@@ -87,5 +91,23 @@ describe("localizeAndStoreDocumentVariant metering", () => {
     expect(result.ok).toBe(false);
     expect(replaceImageVariantBytesMock).not.toHaveBeenCalled();
     expect(trackAiCallTokenUsageMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("records a document regenerated on the workspace's own key at no charge", async () => {
+    generateTextMock.mockResolvedValue({
+      text: "# Bonjour",
+      finishReason: "stop",
+      usage,
+      steps: [{ model: { provider: "anthropic.messages", modelId: "claude-sonnet-4-5" } }],
+    });
+
+    await localizeAndStoreDocumentVariant(input);
+
+    expect(trackAiCallTokenUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: "anthropic/claude-sonnet-4-5",
+        credentialSource: "byok",
+      }),
+    );
   });
 });

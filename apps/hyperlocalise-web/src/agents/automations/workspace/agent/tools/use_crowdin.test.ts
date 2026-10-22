@@ -37,7 +37,9 @@ vi.mock("ai", async (importOriginal) => {
 });
 
 const { meteringMock } = vi.hoisted(() => ({
-  meteringMock: vi.fn(async ({ run }: { run: () => Promise<unknown> }) => run()),
+  meteringMock: vi.fn(async (input: { run: () => Promise<unknown>; operationKey?: string }) =>
+    input.run(),
+  ),
 }));
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
@@ -173,9 +175,7 @@ describe("createUseCrowdinTool", () => {
       { toolCallId: "call-2", messages: [], context: {} },
     );
 
-    const keys = meteringMock.mock.calls.map(
-      ([input]) => (input as { operationKey: string }).operationKey,
-    );
+    const keys = meteringMock.mock.calls.map(([input]) => input.operationKey);
     expect(keys).toHaveLength(2);
     expect(keys[0]).toContain("call-1");
     expect(keys[1]).toContain("call-2");
