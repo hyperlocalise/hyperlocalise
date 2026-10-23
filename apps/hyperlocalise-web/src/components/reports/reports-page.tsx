@@ -43,15 +43,6 @@ const TAB_LABELS = {
   budgets: messages.tabBudgets,
 } satisfies Record<ReportsTab, unknown>;
 
-const TAB_INTROS = {
-  activity: messages.introActivity,
-  words: messages.introWords,
-  time: messages.introTime,
-  costs: messages.introCosts,
-  estimate: messages.introEstimate,
-  budgets: messages.introBudgets,
-} satisfies Record<ReportsTab, unknown>;
-
 /**
  * The Reports page, for the whole workspace or, with `projectId`, one project. Its tab, dates
  * and filters live in the URL. Tabs about money show only to roles that can see costs.
@@ -138,9 +129,6 @@ export function ReportsPage({
             </TabsTrigger>
           ))}
         </TabsList>
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          {intl.formatMessage(TAB_INTROS[tab])}
-        </p>
         <ReportsFilterBar
           organizationSlug={organizationSlug}
           tab={tab}

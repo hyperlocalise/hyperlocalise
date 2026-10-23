@@ -94,38 +94,6 @@ export const reportsPageMessages = defineMessages({
     defaultMessage: "Report",
     description: "Accessible name of the list of Reports tabs",
   },
-  introActivity: {
-    id: "Gup7t2vNII",
-    defaultMessage:
-      "What was done in these dates: words, progress, time on each step and AI usage.",
-    description: "Introduction under the Activity tab",
-  },
-  introWords: {
-    id: "YzBUfMQEYp",
-    defaultMessage: "Words that arrived or were finished in these dates, by match band.",
-    description: "Introduction under the Word counts tab",
-  },
-  introTime: {
-    id: "kaLi+PZNe+",
-    defaultMessage: "Time people logged, and how long automated steps ran.",
-    description: "Introduction under the Time tab",
-  },
-  introCosts: {
-    id: "oF34B9DFgs",
-    defaultMessage: "What was spent in these dates.",
-    description: "Introduction under the Costs tab",
-  },
-  introEstimate: {
-    id: "2pVpPfbGe3",
-    defaultMessage:
-      "What the chosen tasks will cost: every word, finished or not, weighted by a rate card.",
-    description: "Introduction under the Cost estimate tab",
-  },
-  introBudgets: {
-    id: "JRrR42NoVF",
-    defaultMessage: "Each project’s budget against what has been spent and what is still to come.",
-    description: "Introduction under the Budgets tab",
-  },
   dates: {
     id: "pSyKKizgwi",
     defaultMessage: "Dates",
