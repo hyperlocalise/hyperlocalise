@@ -106,6 +106,10 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     title: "Get field",
     purpose: "Read a typed value from an object or array using a safe path.",
   },
+  "logic.coalesce": {
+    title: "Default value",
+    purpose: "Return the first available value from an ordered list.",
+  },
   "ai.agent": { title: "AI Agent", purpose: "Placeholder agent step with tools." },
   "logic.for_each": { title: "Loop", purpose: "Iterate over a collection sequentially." },
   "logic.retry": { title: "Retry", purpose: "Re-run a body region with backoff." },
