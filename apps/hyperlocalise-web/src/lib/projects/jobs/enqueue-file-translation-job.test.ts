@@ -402,7 +402,7 @@ describe("enqueueFileTranslationJob", () => {
     });
   });
 
-  it("rejects unsupported source file formats", async () => {
+  it("accepts PDF source files for file translation jobs", async () => {
     getStoredFileForJobScopeMock.mockResolvedValue({
       id: "file_pdf",
       filename: "brief.pdf",
@@ -412,6 +412,24 @@ describe("enqueueFileTranslationJob", () => {
       organizationId: "org_1",
       projectId: "project_1",
       sourceFileId: "file_pdf",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      jobQueue: { enqueue: jobQueueEnqueueMock } as never,
+    });
+
+    expect(result).toMatchObject({ ok: true });
+  });
+
+  it("rejects unsupported source file formats", async () => {
+    getStoredFileForJobScopeMock.mockResolvedValue({
+      id: "file_rtf",
+      filename: "brief.rtf",
+    });
+
+    const result = await enqueueFileTranslationJob({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourceFileId: "file_rtf",
       sourceLocale: "en-US",
       targetLocales: ["fr-FR"],
       jobQueue: { enqueue: jobQueueEnqueueMock } as never,

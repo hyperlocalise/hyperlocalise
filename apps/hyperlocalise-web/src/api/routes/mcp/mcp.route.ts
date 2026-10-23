@@ -2647,7 +2647,7 @@ async function createMcpServerForRequest(
     {
       annotations: MCP_READ_ONLY_TOOL,
       description:
-        "Download a reconstructed target translation file from an accessible Hyperlocalise project. JSON-compatible sources return UTF-8 text; dotLottie sources return base64-encoded archive bytes in `content` with `contentEncoding` set to `base64`.",
+        "Download a reconstructed target translation file from an accessible Hyperlocalise project. JSON-compatible sources return UTF-8 text. dotLottie, Office, and PDF sources return base64-encoded bytes in `content` with `contentEncoding` set to `base64`. PDF responses may include `overflowKeys` when block text could not fit after wrapping.",
       inputSchema: mcpDownloadTranslationsInputSchema,
     },
     async ({ projectId, sourcePath, locale }) => {
@@ -2711,6 +2711,15 @@ async function createMcpServerForRequest(
             return mcpToolError(
               "office_export_failed",
               "Could not write translations into the Office file",
+            );
+
+          case "pdf_export_failed":
+            return mcpToolError("pdf_export_failed", "Could not write translations into the PDF");
+
+          case "pdf_script_unsupported":
+            return mcpToolError(
+              "pdf_script_unsupported",
+              "The target text uses a script this PDF export does not support",
             );
 
           default:

@@ -26,6 +26,7 @@ projects follow the [provider's capabilities](/platform/tms).
 | Video | `.mp4` | Video translation workflow | Video file view | Stored target video |
 | Excel workbooks | `.xlsx`, `.xls` | Segment translation | Segment views and editable File view | Generated `.xlsx` workbook |
 | Word and PowerPoint | `.docx`, `.pptx` | Segment translation | Segment views and editable File view | Generated target document |
+| PDF documents | `.pdf` | File translation jobs and segment translation | Segment views (Comfortable, Side by side) | Generated target PDF |
 
 Translation workflows require an enabled provider and the relevant workspace
 access. A listed extension still needs valid content for its parser or viewer.
@@ -77,6 +78,28 @@ or adds one.
 
 **Download translations** returns a copy of the source file with ready
 translations in place. Untranslated paragraphs keep their source text.
+
+## PDF documents
+
+Native projects split each `.pdf` upload into one segment per text block on
+each page. Keys look like `page-1#1` (page 1, block 1). Context reads
+`Page 1, block 1`. Scanned PDFs without a selectable text layer cannot be
+ingested.
+
+Translate and review segments in Comfortable or Side by side view. There is no
+in-editor PDF preview in this release.
+
+**Download translations** returns a copy of the source PDF with ready
+translations written into the text blocks. Blocks that cannot fit after
+wrapping may still be written with a best-effort layout; overflow keys are
+listed in the download response when present (`X-Hyperlocalise-Overflow-Keys`
+on project and public downloads; `overflowKeys` on MCP `download_translations`).
+
+PDF export supports Latin-script targets. Arabic, Hebrew, Devanagari, and
+other non-Latin scripts return `pdf_script_unsupported`.
+
+Google Drive import does not support PDF yet. For CLI behavior, see the
+[PDF format guide](/cli/reference/formats/pdf).
 
 ## Edit Office files in File view
 

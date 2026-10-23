@@ -58,4 +58,8 @@ describe("sourceContentType", () => {
   it("maps dotLottie archives to the zip+dotlottie MIME type", () => {
     expect(sourceContentType("animations/hero.lottie")).toBe("application/zip+dotlottie");
   });
+
+  it("maps PDF sources to application/pdf", () => {
+    expect(sourceContentType("docs/handbook.pdf")).toBe("application/pdf");
+  });
 });

@@ -21,9 +21,11 @@ import {
   inferSupportedFileTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedPdfTranslationFileFormat,
   inferSupportedSourceUploadFormat,
   inferSupportedTranslationFileFormat,
   isBinaryTranslationFileFormat,
+  isPdfTranslationFileFormat,
   inferSupportedDocumentTranslationFileFormat,
   isDocumentTranslationFileFormat,
   isImageTranslationFileFormat,
@@ -148,6 +150,19 @@ describe("translation file formats", () => {
     expect(looksLikeVideoUrl("not-a-url")).toBe(false);
   });
 
+  it("infers PDF as a keyed translation format, not binary or document", () => {
+    expect(inferSupportedTranslationFileFormat("brief.pdf")).toBe("pdf");
+    expect(inferSupportedPdfTranslationFileFormat("handbook.pdf")).toBe("pdf");
+    expect(inferSupportedSourceUploadFormat("brief.pdf")).toBe("pdf");
+    expect(isSupportedSourceUploadFormat("brief.pdf")).toBe(true);
+    expect(isPdfTranslationFileFormat("pdf")).toBe(true);
+    expect(isBinaryTranslationFileFormat("pdf")).toBe(false);
+    expect(isDocumentTranslationFileFormat("pdf")).toBe(false);
+    expect(isWholeFileTranslationFileFormat("pdf")).toBe(false);
+    expect(inferSupportedFileTranslationFileFormat("brief.pdf")).toBe("pdf");
+    expect(getLocaleScanExtensions()).not.toContain("pdf");
+  });
+
   it("infers office formats as binary translation sources", () => {
     expect(inferSupportedTranslationFileFormat("brief.docx")).toBe("docx");
     expect(inferSupportedTranslationFileFormat("spreadsheet.xlsx")).toBe("xlsx");
@@ -233,6 +248,7 @@ describe("translation file formats", () => {
         ".htm",
         ".markdown",
         ".txt",
+        ".pdf",
       ]),
     );
   });
@@ -254,11 +270,13 @@ describe("translation file formats", () => {
         ".svg",
       ]),
     );
-    expect(accept.split(",")).not.toEqual(expect.arrayContaining([".png", ".mp4", ".docx"]));
+    expect(accept.split(",")).not.toEqual(
+      expect.arrayContaining([".png", ".mp4", ".docx", ".pdf"]),
+    );
   });
 
   it("rejects unsupported file extensions", () => {
-    expect(inferSupportedTranslationFileFormat("brief.pdf")).toBeNull();
+    expect(inferSupportedTranslationFileFormat("brief.rtf")).toBeNull();
     expect(inferSupportedTranslationFileFormat("no-extension")).toBeNull();
   });
 

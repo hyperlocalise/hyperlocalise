@@ -53,6 +53,10 @@ describe("isSandboxFileTranslationFormat", () => {
   it("rejects formats outside file translation", () => {
     expect(isSandboxFileTranslationFormat("rtf", true)).toBe(false);
   });
+
+  it("allows PDF file translation through the sandbox CLI", () => {
+    expect(isSandboxFileTranslationFormat("pdf", false)).toBe(true);
+  });
 });
 
 describe("sandboxEntriesLocaleOptions", () => {

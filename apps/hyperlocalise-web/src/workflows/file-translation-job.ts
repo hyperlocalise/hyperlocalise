@@ -19,6 +19,7 @@ import {
   inferSupportedFileTranslationFileFormat,
   isImageTranslationFileFormat,
   isOfficeTranslationFileFormat,
+  isPdfTranslationFileFormat,
   isDocumentTranslationFileFormat,
   isVideoTranslationFileFormat,
   isSupportedFileTranslationFileFormat,
@@ -813,6 +814,9 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
   const sourceIsOffice = isOfficeTranslationFileFormat(
     parsedInput.fileFormat as SupportedTranslationFileFormat,
   );
+  const sourceIsPdf = isPdfTranslationFileFormat(
+    parsedInput.fileFormat as SupportedTranslationFileFormat,
+  );
   if (sourceIsOffice && !isSandboxFileTranslationFormat(parsedInput.fileFormat)) {
     await failTranslationJobStep({
       jobId: claim.job.id,
@@ -1052,8 +1056,8 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     return assembled;
   };
   try {
-    // Office bytes are zipped, so glossary terms are matched against extracted segment text.
-    const contextFromFile = sourceIsOffice ? null : await assembleContext();
+    // Office and PDF bytes are not plain text, so glossary terms are matched against segment text.
+    const contextFromFile = sourceIsOffice || sourceIsPdf ? null : await assembleContext();
 
     ({ sandboxId } = await createSandboxStep());
     await prepareSandboxStep(sandboxId);

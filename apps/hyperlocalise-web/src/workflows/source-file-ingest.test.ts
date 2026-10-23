@@ -271,6 +271,23 @@ describe("sourceFileIngestWorkflow Office files", () => {
     expect(mocks.createSourceIngestSandboxStep).not.toHaveBeenCalled();
   });
 
+  it("parses PDF blocks with hl entries and no SRX", async () => {
+    mocks.getStoredFileMetadataStep.mockResolvedValue({ filename: "handbook.pdf" });
+    const block = { key: "page-1#1", text: "Welcome", context: "Page 1, block 1" };
+    mocks.parseHlEntriesStep.mockResolvedValue([block]);
+
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "docs/handbook.pdf" }),
+    ).resolves.toEqual({ status: "ingested", importedKeyCount: 1 });
+    expect(mocks.extractSourceIngestEntriesStep).toHaveBeenCalledWith(
+      "sandbox",
+      "handbook.pdf",
+      {},
+    );
+    expect(mocks.loadSourceFileSegmentationStep).not.toHaveBeenCalled();
+    expect(mocks.extractOfficeSourceEntriesStep).not.toHaveBeenCalled();
+  });
+
   it("parses Word paragraphs with hl entries and no SRX once the CLI reads them", async () => {
     cliRelease.parsesOffice = true;
     const paragraph = { key: "word/document.xml#0", text: "Launch plan", context: null };

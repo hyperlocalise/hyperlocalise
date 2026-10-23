@@ -176,6 +176,10 @@ import {
   officeTranslationDownloadFilename,
 } from "@/lib/projects/files/office-translation-download";
 import {
+  loadProjectPdfTranslationDownload,
+  pdfTranslationDownloadFailure,
+} from "@/lib/projects/files/pdf-translation-download";
+import {
   fileVariantDownloadName,
   loadProjectFileVariant,
 } from "@/lib/projects/files/file-variant-download";
@@ -3930,6 +3934,47 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             "X-Content-Type-Options": "nosniff",
             "Cache-Control": "no-store",
           });
+        }
+
+        const pdfDownload = await loadProjectPdfTranslationDownload({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+          targetLocale: query.locale,
+        });
+        if (isErr(pdfDownload)) {
+          if (pdfDownload.error.code === "pdf_script_unsupported") {
+            return c.json(
+              {
+                error: "pdf_script_unsupported",
+                message: pdfDownload.error.message,
+              },
+              422,
+            );
+          }
+          if (pdfDownload.error.code === "pdf_export_failed") {
+            return internalErrorResponse(c, "pdf_export_failed", pdfDownload.error.message);
+          }
+          if (pdfDownload.error.code === "source_content_not_found") {
+            return notFoundResponse(c, "source_file_not_found", "Source file not found");
+          }
+          return internalErrorResponse(
+            c,
+            "pdf_export_failed",
+            pdfTranslationDownloadFailure().message,
+          );
+        }
+        if (pdfDownload.value) {
+          const headers: Record<string, string> = {
+            "Content-Type": pdfDownload.value.contentType,
+            "Content-Disposition": contentDisposition,
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+          };
+          if (pdfDownload.value.overflowKeys.length > 0) {
+            headers["X-Hyperlocalise-Overflow-Keys"] = pdfDownload.value.overflowKeys.join(",");
+          }
+          return c.body(new Uint8Array(pdfDownload.value.content), 200, headers);
         }
 
         if (inferSupportedWholeFileTranslationFileFormat(query.sourcePath)) {
