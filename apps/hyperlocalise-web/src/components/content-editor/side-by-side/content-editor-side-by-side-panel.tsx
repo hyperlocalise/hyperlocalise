@@ -214,6 +214,7 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   canUseAiRecommendation = false,
   focusedIntelligence = null,
   aiRecommendationError,
+  aiRecommendationCreditExhausted = false,
   formatChecks = [],
   segmentFormatChecks,
   formatCheckLoadingSegmentIds,
@@ -288,6 +289,8 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   canUseAiRecommendation?: boolean;
   focusedIntelligence?: ContentEditorSegmentIntelligence | null;
   aiRecommendationError?: string;
+  /** The suggestion was refused for used-up AI credit; its QA check already says so. */
+  aiRecommendationCreditExhausted?: boolean;
   formatChecks?: ContentEditorFormatCheck[];
   segmentFormatChecks?: Record<string, ContentEditorFormatCheck[]>;
   formatCheckLoadingSegmentIds?: ReadonlySet<string>;
@@ -423,6 +426,7 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
                   canUseAiRecommendation={canUseAiRecommendation}
                   focusedIntelligence={focusedIntelligence}
                   aiRecommendationError={aiRecommendationError}
+                  aiRecommendationCreditExhausted={aiRecommendationCreditExhausted}
                   formatChecks={formatChecks}
                   segmentFormatChecks={segmentFormatChecks}
                   formatCheckLoadingSegmentIds={formatCheckLoadingSegmentIds}

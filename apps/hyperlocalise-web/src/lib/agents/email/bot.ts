@@ -22,7 +22,7 @@ import {
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
-import { AI_FEATURES_REQUIRED_MESSAGE, ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
+import { ensureAiFeaturesAllowed, formatAiFeaturesRefusal } from "@/lib/billing/ai-features";
 import { db, schema } from "@/lib/database/client";
 import {
   enqueueJobCreatedActivity,
@@ -841,7 +841,11 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
           organizationId: conversationOrganizationId,
         });
         if (!pendingAiFeatures.ok) {
-          await thread.post([AI_FEATURES_REQUIRED_MESSAGE, "", "—Hyperlocalise Agent"].join("\n"));
+          await thread.post(
+            [formatAiFeaturesRefusal(pendingAiFeatures.error), "", "—Hyperlocalise Agent"].join(
+              "\n",
+            ),
+          );
           return;
         }
 
@@ -878,7 +882,9 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
 
       const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: organization.id });
       if (!aiFeatures.ok) {
-        await thread.post([AI_FEATURES_REQUIRED_MESSAGE, "", "—Hyperlocalise Agent"].join("\n"));
+        await thread.post(
+          [formatAiFeaturesRefusal(aiFeatures.error), "", "—Hyperlocalise Agent"].join("\n"),
+        );
         return;
       }
 

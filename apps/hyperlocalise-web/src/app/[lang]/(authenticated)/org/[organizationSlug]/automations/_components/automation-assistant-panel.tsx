@@ -19,6 +19,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { defaultComponents, type Components } from "streamdown";
 
 import { MessageResponse } from "@/components/ai-elements/message";
+import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
@@ -47,6 +48,7 @@ import { useAutomationAssistantShortcut } from "./use-automation-power-shortcuts
 const FAILURE_MESSAGES = {
   turn_in_progress: messages.turnInProgress,
   out_of_date: messages.sessionOutOfDate,
+  ai_credit_exhausted: aiCreditExhaustedMessages.exhausted,
   failed: messages.errorGeneric,
 } satisfies Record<AutomationAssistantFailure["reason"], unknown>;
 

@@ -28,6 +28,7 @@ import {
   createDefaultWorkspaceAutomationFormState,
   type WorkspaceAutomationFormState,
 } from "@/lib/agents/workspace-automation-view-model";
+import { ApiResponseError } from "@/lib/api-error";
 
 import {
   AssistantSessionGoneError,
@@ -547,6 +548,22 @@ describe("AutomationAssistantProvider", () => {
 
     await waitFor(() => {
       expect(api.streamAssistantTurn).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("says when the workspace's AI credit is used up", async () => {
+    const user = userEvent.setup();
+    api.createAssistantSession.mockResolvedValue(session("sess-1"));
+    api.streamAssistantTurn.mockImplementation(async function* () {
+      yield* [];
+      throw new ApiResponseError("used up", { code: "ai_credit_exhausted", status: 402 });
+    });
+    renderProvider();
+
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/failure:ai_credit_exhausted/)).toBeTruthy();
     });
   });
 

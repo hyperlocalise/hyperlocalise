@@ -245,6 +245,7 @@ See [Integrations](/platform/integrations#other-external-services).
 | `idempotency_conflict`                         | The supplied idempotency key is already associated with a different workflow payload                                                 |
 | `ai_features_required`                         | AI translation features are not available for the organization                                                                       |
 | `ai_features_check_failed`                     | Hyperlocalise could not verify AI feature availability                                                                               |
+| `ai_credit_exhausted`                          | The organization has used all of its AI credit; change the plan or wait for the credit to renew                                      |
 | `project_not_found`                            | Wrong `projectId` or missing project access on project-scoped tools, such as `query_translation_memory` and `check_guidelines`       |
 | `glossary_not_found`                           | Wrong `glossaryId`, missing glossary access, or a provider glossary on `query_glossary`                                              |
 | `glossary_read_only`                           | `create_glossary_concept` targeted a provider-synced glossary                                                                        |

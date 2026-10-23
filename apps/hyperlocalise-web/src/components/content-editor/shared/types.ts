@@ -174,6 +174,8 @@ export interface ContentEditorFormatCheck {
   message: string;
   category?: ContentEditorFormatCheckCategory;
   relatedTokens?: string[];
+  /** The AI request behind this check was refused because the workspace's AI credit is used up. */
+  aiCreditExhausted?: boolean;
 }
 
 export interface ContentEditorGlossaryTerm {

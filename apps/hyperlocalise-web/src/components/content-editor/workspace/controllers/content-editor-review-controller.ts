@@ -31,6 +31,8 @@ import type {
   ContentEditorSegmentCommentInput,
   ContentEditorSegmentStatus,
 } from "@/components/content-editor/shared/types";
+import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
+import { isAiCreditExhaustedError } from "@/lib/billing/ai-credit-refusal";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { mergeLiveAndScanFormatChecks } from "@/lib/qa/merge-format-checks";
 
@@ -431,19 +433,22 @@ export class ContentEditorReviewController {
           if (this.disposed || !this.workspace.isReviewCurrent(sequence)) {
             return;
           }
+          const aiCreditExhausted = isAiCreditExhaustedError(error);
           aiFailureCheck = {
             id: `ai-recommendation-failed-${segmentId}`,
             label: this.ports.intl.formatMessage(
               contentEditorWorkspaceContainerMessages.aiRecommendationLabel,
             ),
             status: "fail",
-            message:
-              error instanceof Error
+            message: aiCreditExhausted
+              ? this.ports.intl.formatMessage(aiCreditExhaustedMessages.exhausted)
+              : error instanceof Error
                 ? error.message
                 : this.ports.intl.formatMessage(
                     contentEditorWorkspaceContainerMessages.aiRecommendationFailed,
                   ),
             category: "qa",
+            ...(aiCreditExhausted ? { aiCreditExhausted } : {}),
           };
         }
       }

@@ -24,7 +24,12 @@ import { db, schema } from "@/lib/database/client";
 import { upsertExternalTmsJobRecords } from "@/lib/projects/external-tms/external-tms-sync-service";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import { err, ok } from "@/lib/primitives/result/results";
-import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
+import {
+  AI_CREDIT_EXHAUSTED_CODE,
+  AI_CREDIT_EXHAUSTED_MESSAGE,
+  AI_FEATURES_REQUIRED_CODE,
+  AI_FEATURES_REQUIRED_MESSAGE,
+} from "@/lib/billing/ai-features";
 
 import { createProjectTestFixture } from "./project.fixture";
 import { insertStoredSourceFile } from "../public-jobs/public-jobs.fixture";
@@ -1397,6 +1402,56 @@ describe("workspace job agent AI gates", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: AI_FEATURES_REQUIRED_CODE,
       message: AI_FEATURES_REQUIRED_MESSAGE,
+    });
+    expect(ensureAiFeaturesAllowedMock).toHaveBeenCalledWith({
+      organizationId: organization.id,
+    });
+    expect(enqueueJob).not.toHaveBeenCalled();
+
+    const [persisted] = await db
+      .select({ status: schema.jobs.status })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, job.id))
+      .limit(1);
+    expect(persisted?.status).toBe("failed");
+  });
+
+  it("rejects retry when the AI credit is used up and leaves the job failed", async () => {
+    ensureAiFeaturesAllowedMock.mockResolvedValue(
+      err({
+        code: AI_CREDIT_EXHAUSTED_CODE,
+        message: AI_CREDIT_EXHAUSTED_MESSAGE,
+      }),
+    );
+    const { identity, organization, project, user } =
+      await agentFixture.createStoredProjectFixture();
+    const headers = await agentFixture.authHeadersFor(identity);
+
+    const [job] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      status: "failed",
+    });
+    await db.insert(schema.translationJobDetails).values({
+      jobId: job.id,
+      type: "string",
+    });
+
+    const response = await agentClient.api.orgs[":organizationSlug"].jobs[":jobId"].retry.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(402);
+    await expect(response.json()).resolves.toMatchObject({
+      error: AI_CREDIT_EXHAUSTED_CODE,
+      message: AI_CREDIT_EXHAUSTED_MESSAGE,
     });
     expect(ensureAiFeaturesAllowedMock).toHaveBeenCalledWith({
       organizationId: organization.id,

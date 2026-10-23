@@ -170,7 +170,8 @@ export type ContentEditorAiRecommendationError = {
     | "translation_context_assembly_failed"
     | "ai_recommendation_failed"
     | "ai_features_required"
-    | "ai_features_check_failed";
+    | "ai_features_check_failed"
+    | "ai_credit_exhausted";
   message: string;
 };
 

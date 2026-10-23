@@ -288,6 +288,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
       responseToMessageId: snapshot.responseToMessageId,
       message: snapshot.message,
       status: snapshot.status,
+      aiCreditExhausted: snapshot.aiCreditExhausted,
     };
   })();
 
@@ -379,6 +380,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
             isLoading={messagesQuery.isLoading}
             isStreaming={isTabStreaming}
             messages={messages as ConversationMessage[]}
+            organizationSlug={organizationSlug}
             streamedAssistant={streamedAssistant}
           />
         )}

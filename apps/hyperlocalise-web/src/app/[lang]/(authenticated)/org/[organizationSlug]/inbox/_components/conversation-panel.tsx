@@ -214,6 +214,7 @@ export function ConversationPanel({
             isLoading={messagesIsLoading}
             isStreaming={isStreaming}
             messages={messages}
+            organizationSlug={organizationSlug}
             streamedAssistant={streamedAssistant}
           />
         </InboxPanelErrorBoundary>

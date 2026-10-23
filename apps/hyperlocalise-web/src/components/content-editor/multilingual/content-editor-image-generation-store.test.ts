@@ -12,6 +12,8 @@
  */
 import { describe, expect, it, vi } from "vite-plus/test";
 
+import { ApiResponseError } from "@/lib/api-error";
+
 import { ContentEditorImageGenerationStore } from "./content-editor-image-generation-store";
 
 function deferred() {
@@ -51,6 +53,17 @@ describe("ContentEditorImageGenerationStore", () => {
     await store.run("hero", "fr", () => Promise.reject(new Error("unavailable")));
     expect(store.get("hero", "fr")?.status).toBe("failed");
     expect(store.runningCount).toBe(0);
+  });
+
+  it("remembers when a generation was refused for used-up AI credit", async () => {
+    const store = new ContentEditorImageGenerationStore();
+    await store.run("hero", "fr", () =>
+      Promise.reject(new ApiResponseError("used up", { code: "ai_credit_exhausted", status: 402 })),
+    );
+    await store.run("hero", "de", () => Promise.reject(new Error("unavailable")));
+
+    expect(store.get("hero", "fr")).toMatchObject({ status: "failed", aiCreditExhausted: true });
+    expect(store.get("hero", "de")).toMatchObject({ status: "failed", aiCreditExhausted: false });
   });
 
   it("marks a request that aborts on its own as failed instead of leaving it running", async () => {

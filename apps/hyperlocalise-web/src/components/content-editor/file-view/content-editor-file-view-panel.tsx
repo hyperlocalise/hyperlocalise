@@ -70,6 +70,7 @@ import { Row } from "@/components/ui/layout/row";
 import { Spinner } from "@/components/ui/spinner";
 import { Title } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
+import { useAiCreditRefusalToast } from "@/components/billing/use-ai-credit-refusal-toast";
 
 import { ContentEditorPanelErrorBoundary } from "@/components/content-editor/workspace/content-editor-panel-error-boundary";
 import { ContentEditorSectionErrorBoundary } from "@/components/content-editor/workspace/content-editor-section-error-boundary";
@@ -198,6 +199,7 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
   officeSegments?: ContentEditorOfficeSegmentFieldsConfig;
 }) {
   const intl = useIntl();
+  const notifyAiCreditRefusal = useAiCreditRefusalToast();
   const [previewRevision, setPreviewRevision] = useState(0);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const ui = useFileViewUiStore();
@@ -278,8 +280,9 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
     try {
       await onRegenerate({ instructions: instructions || undefined });
       ui.setFileViewGenerateDialogOpen(false);
-    } catch {
+    } catch (error) {
       // Keep the dialog open so the user can retry after a failed generation.
+      notifyAiCreditRefusal(error);
     }
   }
 

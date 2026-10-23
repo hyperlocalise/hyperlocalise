@@ -133,6 +133,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   canUseAiRecommendation = false,
   intelligence = null,
   aiRecommendationError,
+  aiRecommendationCreditExhausted = false,
   formatChecks = [],
   primaryActionLabel,
   segmentShareUrl = null,
@@ -166,6 +167,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   canUseAiRecommendation?: boolean;
   intelligence?: ContentEditorSegmentIntelligence | null;
   aiRecommendationError?: string;
+  aiRecommendationCreditExhausted?: boolean;
   formatChecks?: ContentEditorFormatCheck[];
   primaryActionLabel?: string;
   segmentShareUrl?: string | null;
@@ -596,6 +598,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                           intelligence,
                           isLoading: Boolean(isAiSuggestionLoading),
                           error: aiRecommendationError,
+                          aiCreditExhausted: aiRecommendationCreditExhausted,
                           onGenerateAiRecommendation,
                         }
                       : undefined
@@ -631,6 +634,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                         intelligence={intelligence}
                         isLoading={isAiSuggestionLoading}
                         error={aiRecommendationError}
+                        aiCreditExhausted={aiRecommendationCreditExhausted}
                         onUseAiSuggestion={onUseAiSuggestion}
                         onGenerateAiRecommendation={onGenerateAiRecommendation}
                         renderToolbar={renderTargetToolbar}

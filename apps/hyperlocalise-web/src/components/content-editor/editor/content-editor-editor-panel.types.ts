@@ -56,6 +56,8 @@ export type ContentEditorEditorPanelProps = {
   onAskQuestion: () => void;
   onGenerateAiRecommendation?: () => void;
   aiRecommendationError?: string;
+  /** The suggestion was refused for used-up AI credit, so it is not offered again. */
+  aiRecommendationCreditExhausted?: boolean;
   onPrevious: () => void;
   onNext: () => void;
   onPreviousUntranslated?: () => void;

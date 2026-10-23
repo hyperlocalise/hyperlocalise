@@ -20,6 +20,7 @@ import { FormattedMessage } from "react-intl";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/primitives/cn";
+import { useAiCreditRefusalToast } from "@/components/billing/use-ai-credit-refusal-toast";
 
 import { ContentEditorEditorPanel } from "@/components/content-editor/editor/content-editor-editor-panel";
 import { isContentEditorImageGenerating } from "@/components/content-editor/project-file/content-editor-image-generation-state";
@@ -117,6 +118,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   onReloadConcordance,
 }: ContentEditorWorkspaceViewProps) {
   const store = useContentEditorWorkspace();
+  const notifyAiCreditRefusal = useAiCreditRefusalToast();
   const isApproving = store.isApproving;
   const isSavingDraft = store.isSavingDraft;
   const isPostingComment = store.isPostingComment;
@@ -405,9 +407,11 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   );
   const selectedSegmentFormatChecks =
     shell.segmentFormatChecks?.[editorSegment.id] ?? shell.formatChecks;
-  const aiRecommendationError = selectedSegmentFormatChecks.find(
+  const aiRecommendationFailure = selectedSegmentFormatChecks.find(
     (check) => check.id === `ai-recommendation-failed-${editorSegment.id}`,
-  )?.message;
+  );
+  const aiRecommendationError = aiRecommendationFailure?.message;
+  const aiRecommendationCreditExhausted = aiRecommendationFailure?.aiCreditExhausted === true;
   const isEditorBusy = isApproving || isSavingDraft;
   const canApprove = shell.fileContext.canEditTranslations !== false;
   const canAddComment = shell.fileContext.canAddComments === true;
@@ -533,6 +537,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           canUseAiRecommendation={canUseAiRecommendation}
           focusedIntelligence={selectedSegmentIntelligence}
           aiRecommendationError={aiRecommendationError}
+          aiRecommendationCreditExhausted={aiRecommendationCreditExhausted}
           formatChecks={selectedSegmentFormatChecks}
           segmentFormatChecks={shell.segmentFormatChecks}
           formatCheckLoadingSegmentIds={store.formatCheckLoadingSegmentIds}
@@ -600,7 +605,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           }
           onRegenerateImage={
             editing.onRegenerateImage
-              ? (segmentId) => void editing.onRegenerateImage?.(segmentId)
+              ? (segmentId) =>
+                  void Promise.resolve(editing.onRegenerateImage?.(segmentId)).catch((error) => {
+                    if (!notifyAiCreditRefusal(error)) throw error;
+                  })
               : undefined
           }
           onUploadImage={
@@ -910,7 +918,12 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           }
           onRegenerateImage={
             editing.onRegenerateImage
-              ? () => void editing.onRegenerateImage?.(editorSegment.id)
+              ? () =>
+                  void Promise.resolve(editing.onRegenerateImage?.(editorSegment.id)).catch(
+                    (error) => {
+                      if (!notifyAiCreditRefusal(error)) throw error;
+                    },
+                  )
               : undefined
           }
           onUploadImage={
@@ -924,6 +937,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
               : undefined
           }
           aiRecommendationError={aiRecommendationError}
+          aiRecommendationCreditExhausted={aiRecommendationCreditExhausted}
           onPrevious={navigation.onPreviousSegment}
           onNext={navigation.onNextSegment}
           onPreviousUntranslated={navigation.onPreviousUntranslatedSegment}

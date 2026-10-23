@@ -2202,6 +2202,9 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           if (result.error.code === "ai_features_required") {
             return sharedForbiddenResponse(c, result.error.code, result.error.message);
           }
+          if (result.error.code === "ai_credit_exhausted") {
+            return apiErrorResponse(c, 402, result.error.code, result.error.message);
+          }
           return badRequestResponse(c, result.error.code, result.error.message);
         }
 

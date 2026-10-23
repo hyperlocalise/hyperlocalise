@@ -95,6 +95,7 @@ export function ContentEditorEditorPanel({
   onAskQuestion,
   onGenerateAiRecommendation,
   aiRecommendationError,
+  aiRecommendationCreditExhausted = false,
   onPrevious,
   onNext,
   onPreviousUntranslated,
@@ -262,6 +263,7 @@ export function ContentEditorEditorPanel({
                         intelligence,
                         isLoading: isAiSuggestionLoading,
                         error: aiRecommendationError,
+                        aiCreditExhausted: aiRecommendationCreditExhausted,
                         onGenerateAiRecommendation,
                       }
                     : undefined
@@ -303,6 +305,7 @@ export function ContentEditorEditorPanel({
                 intelligence={intelligence}
                 isLoading={isAiSuggestionLoading}
                 error={aiRecommendationError}
+                aiCreditExhausted={aiRecommendationCreditExhausted}
                 onUseAiSuggestion={onUseAiSuggestion}
                 onGenerateAiRecommendation={onGenerateAiRecommendation}
               />
