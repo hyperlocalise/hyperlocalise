@@ -16,6 +16,7 @@ import {
   buildJobDetailHref,
   getDueUrgency,
   isKanbanStatus,
+  jobDueDate,
   readJobsViewMode,
   sortBoardJobs,
   writeJobsViewMode,
@@ -72,13 +73,37 @@ describe("jobs-view-helpers", () => {
   });
 });
 
+describe("jobDueDate", () => {
+  it("prefers the provider due date, then the native dueAt", () => {
+    expect(
+      jobDueDate({
+        externalDueDate: "2026-05-01T00:00:00.000Z",
+        dueAt: "2026-06-01T00:00:00.000Z",
+      }),
+    ).toBe("2026-05-01T00:00:00.000Z");
+    expect(
+      jobDueDate({
+        externalDueDate: null,
+        dueAt: "2026-06-01T00:00:00.000Z",
+      }),
+    ).toBe("2026-06-01T00:00:00.000Z");
+    expect(jobDueDate({ externalDueDate: null })).toBeNull();
+  });
+});
+
 describe("sortBoardJobs", () => {
   const job = (
     id: string,
-    overrides: { due?: string | null; updatedAt?: string; completedAt?: string | null },
+    overrides: {
+      due?: string | null;
+      dueAt?: string | null;
+      updatedAt?: string;
+      completedAt?: string | null;
+    },
   ) => ({
     id,
     externalDueDate: overrides.due ?? null,
+    dueAt: overrides.dueAt,
     updatedAt: overrides.updatedAt ?? "2026-06-01T00:00:00.000Z",
     completedAt: overrides.completedAt ?? null,
   });
@@ -91,6 +116,25 @@ describe("sortBoardJobs", () => {
     ];
 
     expect(sortBoardJobs("running", jobs).map((item) => item.id)).toEqual([
+      "sooner",
+      "later",
+      "undated",
+    ]);
+  });
+
+  it("orders open work by native dueAt when no provider date exists", () => {
+    const jobs = [
+      job("undated", {}),
+      job("later", { dueAt: "2026-06-10T00:00:00.000Z" }),
+      job("sooner", { dueAt: "2026-06-03T00:00:00.000Z" }),
+      job("provider", {
+        due: "2026-06-01T00:00:00.000Z",
+        dueAt: "2026-06-20T00:00:00.000Z",
+      }),
+    ];
+
+    expect(sortBoardJobs("queued", jobs).map((item) => item.id)).toEqual([
+      "provider",
       "sooner",
       "later",
       "undated",
