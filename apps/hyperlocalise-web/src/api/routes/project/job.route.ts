@@ -1219,6 +1219,14 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return conflictResponse(c, "job_action_unavailable", "Job action is not available");
       }
 
+      const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(
+        c,
+        c.var.auth.organization.localOrganizationId,
+      );
+      if (aiFeaturesDenied) {
+        return aiFeaturesDenied;
+      }
+
       const projectId = job.projectId;
       const type = job.type;
 
