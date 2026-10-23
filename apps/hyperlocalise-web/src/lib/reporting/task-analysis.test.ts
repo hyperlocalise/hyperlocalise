@@ -169,8 +169,12 @@ describe("openPersonTaskForString", () => {
     await expect(lookup("translation")).resolves.toBeUndefined();
     await expect(lookup("review", "de-DE")).resolves.toBeUndefined();
 
-    // A task that ended covers nothing more; the older open one takes over.
-    await db.update(schema.jobs).set({ status: "succeeded" }).where(eq(schema.jobs.id, newer.id));
+    // A task that ended before the save covers nothing more; the older open one takes over.
+    // (Ended a minute ago: a lookup "now" would otherwise tie with the update's own time.)
+    await db
+      .update(schema.jobs)
+      .set({ status: "succeeded", updatedAt: new Date(Date.now() - 60_000) })
+      .where(eq(schema.jobs.id, newer.id));
     await expect(lookup("review")).resolves.toBe(older.id);
 
     const translate = await createPersonTask({ kind: "translation" });
