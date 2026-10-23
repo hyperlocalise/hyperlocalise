@@ -384,6 +384,8 @@ describe("reports routes", () => {
     const { taskReport } = await response.json();
     expect(taskReport).toMatchObject({
       task: { id: job.id, title: "Release strings", status: "running" },
+      // The summary has the step's strings, so nothing is still being counted.
+      counting: false,
       words: {
         totals: {
           translation: { source: 10, arrived: 10, arrivedDone: 4 },

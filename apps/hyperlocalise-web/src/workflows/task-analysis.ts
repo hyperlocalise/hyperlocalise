@@ -12,11 +12,17 @@
  */
 import type { TaskAnalysisInput } from "@/lib/reporting/task-analysis";
 
-import { analyseTaskStringsStep } from "./steps/task-analysis";
+import { analyseTaskStringsStep, refreshTaskDaysStep } from "./steps/task-analysis";
 
 /** Records a task for people's strings for Reports, off the request that created the task. */
 export async function taskAnalysisWorkflow(input: TaskAnalysisInput) {
   "use workflow";
 
-  return analyseTaskStringsStep(input);
+  const { strings, days } = await analyseTaskStringsStep(input);
+  await refreshTaskDaysStep({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    days,
+  });
+  return { strings };
 }

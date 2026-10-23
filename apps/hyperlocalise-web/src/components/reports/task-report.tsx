@@ -306,7 +306,12 @@ function MatchAnalysis({
 }) {
   const intl = useIntl();
   const rows = analysisRows(data, words, step);
-  if (rows.length === 0) return <ReportEmpty description={intl.formatMessage(messages.noWords)} />;
+  if (rows.length === 0)
+    return (
+      <ReportEmpty
+        description={intl.formatMessage(data.counting ? messages.counting : messages.noWords)}
+      />
+    );
   const bandTotals: BandCounts = {};
   for (const row of rows)
     for (const [bucket, units] of Object.entries(row.bands))

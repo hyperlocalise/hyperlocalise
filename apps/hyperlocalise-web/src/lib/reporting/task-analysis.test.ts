@@ -23,7 +23,13 @@ import { db, schema } from "@/lib/database/client";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
 
-import { analyseTaskStrings, openPersonTaskForString } from "./task-analysis";
+import {
+  analyseTaskStrings,
+  openPersonTaskForString,
+  refreshTaskDays,
+  taskStillBeingCounted,
+} from "./task-analysis";
+import { queryTaskWords } from "./word-queries";
 
 vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
@@ -129,9 +135,10 @@ describe("analyseTaskStrings", () => {
       targetLocales: ["fr-FR", "de-DE"],
       repositorySourceFileId: sourceFile.id,
     };
-    expect(await analyseTaskStrings(input)).toBe(2);
+    const today = new Date().toISOString().slice(0, 10);
+    expect(await analyseTaskStrings(input)).toEqual({ strings: 2, days: [today] });
     // Running again, as a retried step would, adds nothing.
-    expect(await analyseTaskStrings(input)).toBe(2);
+    expect((await analyseTaskStrings(input)).strings).toBe(2);
 
     const analyses = await db
       .select()
@@ -145,6 +152,52 @@ describe("analyseTaskStrings", () => {
     expect(analyses.map((row) => row.words).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([
       2, 2, 3, 3,
     ]);
+  });
+
+  it("shows the task's strings in its report once its days are refreshed, before any scheduled run", async () => {
+    const { organization, project, sourceFile, createPersonTask } = await createFileWithStrings();
+    const task = await createPersonTask({ kind: "proofread" });
+    const { days } = await analyseTaskStrings({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: task.id,
+      step: "review",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      repositorySourceFileId: sourceFile.id,
+    });
+    const words = () =>
+      queryTaskWords({ organizationId: organization.id, jobId: task.id, unit: "words" });
+    // Recorded, but the summary the report reads does not have it yet.
+    expect((await words()).totals.review.arrived).toBe(0);
+    expect(
+      await taskStillBeingCounted({
+        organizationId: organization.id,
+        job: { ...task, createdAt: new Date(Date.now() - 60 * 60_000) },
+        step: "review",
+      }),
+    ).toBe(true);
+
+    await refreshTaskDays({ organizationId: organization.id, projectId: project.id, days });
+    expect((await words()).totals.review.arrived).toBe(5);
+  });
+});
+
+describe("taskStillBeingCounted", () => {
+  it("expects strings for a new task's own step, and for a step with strings recorded", async () => {
+    const { organization, createPersonTask } = await createFileWithStrings();
+    const task = await createPersonTask({ kind: "proofread" });
+    const counting = (step: "translation" | "review", minutesOld: number) =>
+      taskStillBeingCounted({
+        organizationId: organization.id,
+        job: { ...task, createdAt: new Date(Date.now() - minutesOld * 60_000) },
+        step,
+      });
+    // A proofread task's strings are review work; nothing will come for translation.
+    await expect(counting("review", 1)).resolves.toBe(true);
+    await expect(counting("translation", 1)).resolves.toBe(false);
+    // Long after creation with nothing recorded, the task has no strings for Reports.
+    await expect(counting("review", 60)).resolves.toBe(false);
   });
 });
 

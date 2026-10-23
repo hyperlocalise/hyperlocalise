@@ -143,6 +143,12 @@ export const taskReportMessages = defineMessages({
     defaultMessage: "Reports has nothing for this step of the task yet.",
     description: "Shown when the task has no units in the chosen step",
   },
+  counting: {
+    id: "ZAlY6S77fZ",
+    defaultMessage:
+      "Reports is still counting this task's strings. They usually show within a minute.",
+    description: "Shown on a new task's Report tab until its strings have been counted",
+  },
   timeLogged: {
     id: "G8T1FYb+cF",
     defaultMessage: "Time logged",

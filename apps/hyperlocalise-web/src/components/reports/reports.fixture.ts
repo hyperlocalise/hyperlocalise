@@ -421,6 +421,7 @@ export const reportsTaskReport: TaskReport = {
   },
   unit: "words",
   step: "translation",
+  counting: false,
   words: {
     rows: [
       {

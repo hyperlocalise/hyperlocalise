@@ -267,12 +267,15 @@ export async function captureAnalysis(input: AnalysisInput) {
   }
 }
 
-/** Writes an analysis like `captureAnalysis`, but throws on failure and skips the flag check. */
+/**
+ * Writes an analysis like `captureAnalysis`, but throws on failure and skips the flag check.
+ * Returns the summary days it marked.
+ */
 export async function recordAnalysis(
   input: AnalysisInput,
   options: { memoryCache?: MemoryScoreCache } = {},
-) {
-  await writeReportingAnalysis(input, { ...options, strict: true });
+): Promise<SummaryMark[]> {
+  return writeReportingAnalysis(input, { ...options, strict: true });
 }
 
 /** Writes the analyses and returns the summary days they marked. */

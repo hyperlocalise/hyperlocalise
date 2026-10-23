@@ -108,6 +108,33 @@ describe("Task report", () => {
     expect(screen.getByText("Words to review")).toBeInTheDocument();
   });
 
+  it("says a new task's strings are being counted, and shows them once they are", async () => {
+    const words = reportsTaskReport.words!;
+    mocks.bodies["task-report"] = {
+      taskReport: {
+        ...reportsTaskReport,
+        counting: true,
+        words: { ...words, rows: words.rows.filter((row) => row.step !== "translation") },
+      },
+    };
+    renderReport();
+    expect(
+      await screen.findByText(
+        "Reports is still counting this task's strings. They usually show within a minute.",
+      ),
+    ).toBeInTheDocument();
+
+    // The tab looks again while counting, and shows the strings once they have been counted.
+    mocks.bodies["task-report"] = { taskReport: reportsTaskReport };
+    const table = await screen.findByRole(
+      "table",
+      { name: "Task match analysis" },
+      { timeout: 8_000 },
+    );
+    expect(rowOf(table, "de-DE")?.textContent).toContain("3,605");
+    expect(callsTo("task-report").length).toBeGreaterThan(1);
+  }, 10_000);
+
   it("shows a step's fixed fee, which no language's row holds, and says the task ended", async () => {
     const estimate = reportsTaskReport.estimate!;
     mocks.bodies["task-report"] = {

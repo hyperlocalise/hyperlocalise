@@ -59,6 +59,7 @@ import {
 } from "@/lib/reporting/report-reads";
 import { scopedProjectIds } from "@/lib/reporting/report-scope";
 import { REPORT_STEPS } from "@/lib/reporting/report-units";
+import { taskStillBeingCounted } from "@/lib/reporting/task-analysis";
 import { lockedPricingSteps } from "@/lib/reporting/task-pricing";
 import { getReportingStart } from "@/lib/reporting/reporting-start";
 import { queryAutomatedTime, queryLoggedTimeBySteps } from "@/lib/reporting/time-queries";
@@ -455,6 +456,10 @@ export function createReportsRoutes() {
         ]);
         if (query.format === "csv" && words)
           return csv(c, "task-report.csv", taskWordsCsv(words, estimate, query.step));
+        const counting =
+          words && !words.rows.some((row) => row.step === query.step)
+            ? await taskStillBeingCounted({ organizationId, job, step: query.step })
+            : false;
         const payload = job.inputPayload as {
           sourceLocale?: string;
           targetLocales?: string[];
@@ -483,6 +488,7 @@ export function createReportsRoutes() {
             unit: query.unit,
             step: query.step,
             words,
+            counting,
             estimate,
             stillToCome: stillToCome
               ? (stillToCome.get(job.projectId!) ?? { amountUsd: "0.00000000", incomplete: false })

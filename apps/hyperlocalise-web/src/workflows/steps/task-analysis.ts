@@ -20,6 +20,19 @@ import type { TaskAnalysisInput } from "@/lib/reporting/task-analysis";
 export async function analyseTaskStringsStep(input: TaskAnalysisInput) {
   "use step";
   const { analyseTaskStrings } = await import("@/lib/reporting/task-analysis");
-  const strings = await analyseTaskStrings(input);
-  return { strings };
+  return analyseTaskStrings(input);
+}
+
+/**
+ * Brings the task's days in the summary up to date, so its strings show without waiting for the
+ * scheduled run. Its own step, so a retry while that run holds the project reads no memory again.
+ */
+export async function refreshTaskDaysStep(input: {
+  organizationId: string;
+  projectId: string;
+  days: string[];
+}) {
+  "use step";
+  const { refreshTaskDays } = await import("@/lib/reporting/task-analysis");
+  await refreshTaskDays(input);
 }

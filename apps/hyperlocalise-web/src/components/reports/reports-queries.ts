@@ -27,6 +27,9 @@ import type { ReportsUrlState } from "./reports-url-state";
 
 const reportsApi = () => apiClient.api.orgs[":organizationSlug"].reports;
 
+/** How often a task's Report tab looks again while its strings are being counted. */
+const COUNTING_POLL_MS = 5_000;
+
 type Query = Record<string, string | undefined>;
 
 /** A query without the parameters left unset. */
@@ -320,6 +323,10 @@ export function useTaskReport(
     queryKey: reportsQueryKey(organizationSlug, "task-report", jobId, query),
     placeholderData: keepPreviousData,
     enabled,
+    // While the task's strings are being counted, look again until they show. The argument is
+    // typed here, since inferring it would make the data's type depend on itself.
+    refetchInterval: (current: { state: { data?: { counting: boolean } } }) =>
+      current.state.data?.counting ? COUNTING_POLL_MS : false,
     queryFn: async ({ signal }) => {
       const response = await reportsApi().tasks[":jobId"].report.$get(
         { param: { organizationSlug, jobId }, query },
