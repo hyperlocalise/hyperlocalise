@@ -37,6 +37,12 @@ export const costEstimateTabMessages = defineMessages({
     defaultMessage: "{unit} to translate",
     description: "Estimate card: the units of the chosen tasks, such as Words to translate",
   },
+  wholeProjectCount: {
+    id: 'd5JCHvYpif',
+    defaultMessage: "The whole project",
+    description:
+      "In place of the task count under the units card when a whole project is estimated",
+  },
   tasksCount: {
     id: "GZKnztd4Eu",
     defaultMessage: "{count, plural, one {# task} other {# tasks}}",

@@ -166,7 +166,9 @@ function EstimateBody({ data, unitName }: { data: Estimate; unitName: string }) 
           label={intl.formatMessage(messages.unitsToTranslate, { unit: unitName })}
           value={formatCount(intl, totals.units)}
           detail={intl.formatMessage(messages.unitsDetail, {
-            tasks: intl.formatMessage(messages.tasksCount, { count: totals.tasks }),
+            tasks: wholeProject
+              ? intl.formatMessage(messages.wholeProjectCount)
+              : intl.formatMessage(messages.tasksCount, { count: totals.tasks }),
             languages: intl.formatMessage(messages.languagesCount, { count: totals.languages }),
           })}
         />

@@ -44,6 +44,14 @@ function measure(name: SummaryMeasure, unit: ReportUnit): SQL {
 }
 
 /**
+ * Rows whose finished text came from a source. A summary built before sources were recorded
+ * holds finished units on rows keyed "", which count as not recorded.
+ */
+function sourceIs(name: SummarySource): SQL {
+  return name === "unknown" ? sql`s.source in ('unknown', '')` : sql`s.source = ${name}`;
+}
+
+/**
  * The summary rows a section reads: by project unless a task is chosen, since only the by-task
  * table has tasks. Returns null when the viewer can open none of the chosen projects.
  */
@@ -127,7 +135,7 @@ export async function queryActivity(
       'finishedBySource', json_build_object(${sql.join(
         SUMMARY_SOURCES.map(
           (name) =>
-            sql`${sql.raw(`'${name}'`)}, ${column("finished", sql`${translation} and s.source = ${name}`)}`,
+            sql`${sql.raw(`'${name}'`)}, ${column("finished", sql`${translation} and ${sourceIs(name)}`)}`,
         ),
         sql`, `,
       )})
@@ -158,7 +166,7 @@ export async function queryFinishedSeries(
     : sql`${input.period.from}::date`;
   const source = summarySource(input);
   const bySource = (name: SummarySource) =>
-    sql`sum(${measure("finished", input.unit)}) filter (where s.source = ${name})`;
+    sql`sum(${measure("finished", input.unit)}) filter (where ${sourceIs(name)})`;
   const totals = source
     ? sql`select ${bucket} as start,
           ${sql.join(

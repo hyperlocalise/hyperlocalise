@@ -95,8 +95,8 @@ describe("word count queries", () => {
         uncounted: 0,
         finishedByPerson: 0,
         finishedUnchanged: 0,
-        // Rows from before the source was recorded key on "": shown as not recorded.
-        finishedBySource: { memory: 0, ai: 0, person: 0, import: 0, unknown: 0 },
+        // Rows from before the source was recorded key on "": counted as not recorded.
+        finishedBySource: { memory: 0, ai: 0, person: 0, import: 0, unknown: 10 },
       },
     });
     // A project the viewer cannot open is never read, even when chosen.
