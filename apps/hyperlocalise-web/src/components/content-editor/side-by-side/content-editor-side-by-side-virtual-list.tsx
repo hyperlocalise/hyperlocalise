@@ -50,6 +50,7 @@ export function ContentEditorSideBySideVirtualList({
   canUseAiRecommendation = false,
   focusedIntelligence = null,
   aiRecommendationError,
+  aiRecommendationCreditExhausted = false,
   formatChecks = [],
   segmentFormatChecks,
   formatCheckLoadingSegmentIds,
@@ -90,6 +91,7 @@ export function ContentEditorSideBySideVirtualList({
   canUseAiRecommendation?: boolean;
   focusedIntelligence?: ContentEditorSegmentIntelligence | null;
   aiRecommendationError?: string;
+  aiRecommendationCreditExhausted?: boolean;
   formatChecks?: ContentEditorFormatCheck[];
   segmentFormatChecks?: Record<string, ContentEditorFormatCheck[]>;
   formatCheckLoadingSegmentIds?: ReadonlySet<string>;
@@ -237,6 +239,9 @@ export function ContentEditorSideBySideVirtualList({
                   intelligence={segment.id === focusedSegmentId ? focusedIntelligence : null}
                   aiRecommendationError={
                     segment.id === focusedSegmentId ? aiRecommendationError : undefined
+                  }
+                  aiRecommendationCreditExhausted={
+                    segment.id === focusedSegmentId && aiRecommendationCreditExhausted
                   }
                   formatChecks={
                     segmentFormatChecks?.[segment.id] ??

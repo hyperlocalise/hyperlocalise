@@ -20,6 +20,8 @@ import type {
   ContentEditorSegmentStatus,
 } from "@/components/content-editor/shared/types";
 
+import { ApiResponseError } from "@/lib/api-error";
+
 import { createCatWorkspace } from "../content-editor-workspace-orchestrator";
 import { ContentEditorReviewController } from "./content-editor-review-controller";
 
@@ -407,6 +409,44 @@ describe("ContentEditorReviewController", () => {
       expect(workspace.segmentFormatChecks["seg-02"]).toEqual(
         expect.arrayContaining([expect.objectContaining({ id: "format-1" })]),
       );
+    });
+
+    it("marks a suggestion refused for used-up AI credit and words it for people", async () => {
+      const validateFormat = vi.fn().mockResolvedValue([]);
+      const generateAiRecommendation = vi
+        .fn()
+        .mockRejectedValue(
+          new ApiResponseError("server wording", { code: "ai_credit_exhausted", status: 402 }),
+        );
+      const { controller, workspace } = createController(undefined, {
+        services: { validateFormat, generateAiRecommendation },
+      });
+
+      await controller.runReview("seg-02", { includeAi: true });
+
+      expect(workspace.segmentFormatChecks["seg-02"]?.[0]).toMatchObject({
+        id: "ai-recommendation-failed-seg-02",
+        status: "fail",
+        aiCreditExhausted: true,
+        message: expect.stringContaining("Your workspace has used all of its AI credit."),
+      });
+    });
+
+    it("keeps the server's message for other suggestion failures", async () => {
+      const validateFormat = vi.fn().mockResolvedValue([]);
+      const generateAiRecommendation = vi.fn().mockRejectedValue(new Error("Model unavailable"));
+      const { controller, workspace } = createController(undefined, {
+        services: { validateFormat, generateAiRecommendation },
+      });
+
+      await controller.runReview("seg-02", { includeAi: true });
+
+      const [failure] = workspace.segmentFormatChecks["seg-02"] ?? [];
+      expect(failure).toMatchObject({
+        id: "ai-recommendation-failed-seg-02",
+        message: "Model unavailable",
+      });
+      expect(failure).not.toHaveProperty("aiCreditExhausted");
     });
   });
 

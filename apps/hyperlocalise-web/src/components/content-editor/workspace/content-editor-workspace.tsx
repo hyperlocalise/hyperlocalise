@@ -407,9 +407,11 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   );
   const selectedSegmentFormatChecks =
     shell.segmentFormatChecks?.[editorSegment.id] ?? shell.formatChecks;
-  const aiRecommendationError = selectedSegmentFormatChecks.find(
+  const aiRecommendationFailure = selectedSegmentFormatChecks.find(
     (check) => check.id === `ai-recommendation-failed-${editorSegment.id}`,
-  )?.message;
+  );
+  const aiRecommendationError = aiRecommendationFailure?.message;
+  const aiRecommendationCreditExhausted = aiRecommendationFailure?.aiCreditExhausted === true;
   const isEditorBusy = isApproving || isSavingDraft;
   const canApprove = shell.fileContext.canEditTranslations !== false;
   const canAddComment = shell.fileContext.canAddComments === true;
@@ -535,6 +537,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           canUseAiRecommendation={canUseAiRecommendation}
           focusedIntelligence={selectedSegmentIntelligence}
           aiRecommendationError={aiRecommendationError}
+          aiRecommendationCreditExhausted={aiRecommendationCreditExhausted}
           formatChecks={selectedSegmentFormatChecks}
           segmentFormatChecks={shell.segmentFormatChecks}
           formatCheckLoadingSegmentIds={store.formatCheckLoadingSegmentIds}
@@ -934,6 +937,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
               : undefined
           }
           aiRecommendationError={aiRecommendationError}
+          aiRecommendationCreditExhausted={aiRecommendationCreditExhausted}
           onPrevious={navigation.onPreviousSegment}
           onNext={navigation.onNextSegment}
           onPreviousUntranslated={navigation.onPreviousUntranslatedSegment}

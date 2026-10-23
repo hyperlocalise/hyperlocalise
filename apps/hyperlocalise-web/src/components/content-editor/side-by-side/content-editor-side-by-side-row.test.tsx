@@ -297,6 +297,41 @@ describe("ContentEditorSideBySideRow", () => {
     expect(onUseAiSuggestion).toHaveBeenCalledTimes(1);
   });
 
+  it("shows a suggestion refused for used-up AI credit once, without Regenerate", async () => {
+    const user = userEvent.setup();
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const refusal =
+      "Your workspace has used all of its AI credit. Change your plan on the Billing page, or wait for your AI credit to renew.";
+    const failure = {
+      id: "ai-recommendation-failed-seg-02",
+      label: "AI recommendation",
+      status: "fail" as const,
+      message: refusal,
+      category: "qa" as const,
+    };
+    const props = {
+      canUseAiRecommendation: true,
+      intelligence: { ...state.intelligence!, aiSuggestion: undefined },
+      onUseAiSuggestion: vi.fn(),
+      onGenerateAiRecommendation: vi.fn(),
+      aiRecommendationError: refusal,
+    };
+
+    const refused = renderRow({
+      ...props,
+      aiRecommendationCreditExhausted: true,
+      formatChecks: [{ ...failure, aiCreditExhausted: true }],
+    });
+    await user.click(screen.getByRole("button", { name: /Generate AI suggestion/i }));
+    expect(screen.getAllByText(/used all of its AI credit/)).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /Regenerate/i })).not.toBeInTheDocument();
+    refused.unmount();
+
+    renderRow({ ...props, aiRecommendationError: "Model unavailable", formatChecks: [failure] });
+    await user.click(screen.getByRole("button", { name: /Generate AI suggestion/i }));
+    expect(screen.getByRole("button", { name: /Regenerate/i })).toBeInTheDocument();
+  });
+
   it("hides the AI suggestion action when not focused", () => {
     const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
 
