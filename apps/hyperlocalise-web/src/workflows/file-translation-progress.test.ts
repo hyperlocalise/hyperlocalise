@@ -17,6 +17,9 @@ import {
   collectHtmlTranslationPageEntries,
   completedFileTranslationKeys,
   isFileTranslationCliHardFailure,
+  materializeSandboxLockfileCommand,
+  sandboxCliLockfileCopyPath,
+  sandboxCliLockfilePath,
   sourceKeysFromFileTranslationLock,
 } from "./file-translation-progress";
 
@@ -327,5 +330,15 @@ describe("sourceKeysFromFileTranslationLock", () => {
     expect(sourceKeysFromFileTranslationLock(["home.title::fr-fr"], "file.xlsx", "fr-FR")).toEqual([
       "home.title::fr-fr",
     ]);
+  });
+});
+
+describe("materializeSandboxLockfileCommand", () => {
+  it("copies the CLI lockfile or writes an empty object", () => {
+    expect(materializeSandboxLockfileCommand()).toBe(
+      `if [ -f '${sandboxCliLockfilePath}' ]; then ` +
+        `cp '${sandboxCliLockfilePath}' '${sandboxCliLockfileCopyPath}'; ` +
+        `else printf '%s\\n' '{}' > '${sandboxCliLockfileCopyPath}'; fi`,
+    );
   });
 });

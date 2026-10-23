@@ -124,6 +124,47 @@ export function sourceKeysFromFileTranslationLock(
   );
 }
 
+/** CLI lockfile in the sandbox working directory. */
+export const sandboxCliLockfilePath = ".hyperlocalise.lock.json";
+/** Non-hidden copy `runTranslationStep` writes after `hl run`, including `{}` when the CLI skipped the lockfile. */
+export const sandboxCliLockfileCopyPath = "/tmp/hyperlocalise.lock.json";
+
+export function materializeSandboxLockfileCommand(): string {
+  return (
+    `if [ -f '${sandboxCliLockfilePath}' ]; then ` +
+    `cp '${sandboxCliLockfilePath}' '${sandboxCliLockfileCopyPath}'; ` +
+    `else printf '%s\\n' '{}' > '${sandboxCliLockfileCopyPath}'; fi`
+  );
+}
+
+function isMissingTranslatedFileError(error: unknown, path: string): boolean {
+  return error instanceof Error && error.message === `failed to read translated file: ${path}`;
+}
+
+async function readSandboxLockFile(
+  sandboxId: string,
+  readTranslatedFile: (sandboxId: string, path: string) => Promise<Buffer>,
+  utf8FromStoredFileContent: (content: unknown) => string,
+): Promise<unknown> {
+  for (const path of [sandboxCliLockfilePath, sandboxCliLockfileCopyPath]) {
+    try {
+      const text = utf8FromStoredFileContent(await readTranslatedFile(sandboxId, path)).trim();
+      if (!text) {
+        continue;
+      }
+      return JSON.parse(text) as unknown;
+    } catch (error) {
+      if (isMissingTranslatedFileError(error, path)) {
+        continue;
+      }
+      throw error;
+    }
+  }
+  // Prefill-only or empty `hl run` may not write a lockfile. Collect then
+  // falls back to prefills and leaves HTML path keys unconfirmed.
+  return {};
+}
+
 export async function collectFileTranslationPageStep(input: {
   sandboxId: string;
   inputFilename: string;
@@ -148,10 +189,10 @@ export async function collectFileTranslationPageStep(input: {
     utf8FromStoredFileContent,
   } = await import("@/lib/projects/files/html-ingest-entries");
   const htmlSource = isHtmlTranslationSourcePath(input.inputFilename);
-  const lock: unknown = JSON.parse(
-    utf8FromStoredFileContent(
-      await readTranslatedFile(input.sandboxId, ".hyperlocalise.lock.json"),
-    ),
+  const lock = await readSandboxLockFile(
+    input.sandboxId,
+    readTranslatedFile,
+    utf8FromStoredFileContent,
   );
   const sourceHtml = htmlSource
     ? utf8FromStoredFileContent(await readTranslatedFile(input.sandboxId, input.inputFilename))

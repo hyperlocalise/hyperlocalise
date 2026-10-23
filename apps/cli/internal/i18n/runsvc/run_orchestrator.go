@@ -83,7 +83,7 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 	initializeLockState(state)
 
 	activeRunID := ensureActiveRunID(state)
-	report, executable, checkpointStaged, lockMigrated, err := applyLockFilterWithReader(translatePlanned, state.RunCompleted, state.RunCheckpoint, activeRunID, in.Force, s.readProjectFile, s.projectRoot)
+	report, executable, checkpointStaged, _, err := applyLockFilterWithReader(translatePlanned, state.RunCompleted, state.RunCheckpoint, activeRunID, in.Force, s.readProjectFile, s.projectRoot)
 	if err != nil {
 		endRunSpan(lockSpan, err, "lock_filter")
 		return Report{}, err
@@ -143,14 +143,9 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 
 	if in.DryRun || (len(executable) == 0 && len(copyTasks) == 0 && len(report.PruneCandidates) == 0 && len(checkpointStaged) == 0) {
 		if !in.DryRun {
-			lockChanged := lockMigrated
-			if s.reconcileLockEntries(in, planned, state) > 0 {
-				lockChanged = true
-			}
-			if lockChanged {
-				if err := s.saveLock(in.LockPath, *state); err != nil {
-					return report, fmt.Errorf("persist lock state: %w", err)
-				}
+			s.reconcileLockEntries(in, planned, state)
+			if err := s.saveLock(in.LockPath, *state); err != nil {
+				return report, fmt.Errorf("persist lock state: %w", err)
 			}
 		}
 		emitter.emit(completedEvent(report))
@@ -193,6 +188,11 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 			state.ActiveRunID = nextRunID(s.now())
 			activeRunID = state.ActiveRunID
 		}
+	} else if len(checkpointStaged) > 0 && state.ActiveRunID == "" {
+		// Prefill-only runs still flush outputs and must leave a lockfile so
+		// platform collect can tell completed keys from source fallbacks.
+		state.ActiveRunID = nextRunID(s.now())
+		activeRunID = state.ActiveRunID
 	}
 	parityRetry := &markdownParityRetryInput{
 		cfg:           cfg,
@@ -279,6 +279,11 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 		}
 		emitter.emit(completedEvent(report))
 		return report, err
+	}
+	if len(llmTasks) == 0 && len(mtTasks) == 0 {
+		// executePool already persists LLM/MT completions and rolls them back
+		// when a sibling key fails. Prefill-only runs never enter that path.
+		report.PersistedToLock += s.persistStagedLockEntries(state, translatePlanned, staged)
 	}
 	s.reconcileLockEntries(in, planned, state)
 	if err := s.clearRunCheckpoints(in.LockPath, state); err != nil {
@@ -615,6 +620,42 @@ func assignContextKeys(tasks []Task, scope string) {
 	for i := range tasks {
 		tasks[i].ContextKey = contextMemoryKey(tasks[i], scope)
 	}
+}
+
+func (s *Service) persistStagedLockEntries(lockState *lockfile.File, tasks []Task, staged map[string]stagedOutput) int {
+	if lockState == nil || len(tasks) == 0 || len(staged) == 0 {
+		return 0
+	}
+	if lockState.RunCompleted == nil {
+		lockState.RunCompleted = map[string]lockfile.RunCompletion{}
+	}
+
+	persisted := 0
+	for _, task := range tasks {
+		if isImageTask(task) {
+			continue
+		}
+		identity := taskLockIdentity(s.projectRoot, task.TargetPath, task.TargetLocale, task.EntryKey)
+		if _, exists := lockState.RunCompleted[identity]; exists {
+			continue
+		}
+		output, ok := staged[stagedOutputKey(task.TargetPath, task.TargetLocale)]
+		if !ok {
+			output, ok = staged[task.TargetPath]
+		}
+		if !ok {
+			continue
+		}
+		if _, exists := output.entries[task.EntryKey]; !exists {
+			continue
+		}
+		lockState.RunCompleted[identity] = lockfile.RunCompletion{
+			SourceHash: taskLockSourceHash(task),
+			TaskHash:   lockTaskHash(task),
+		}
+		persisted++
+	}
+	return persisted
 }
 
 func (s *Service) clearRunCheckpoints(lockPath string, state *lockfile.File) error {
