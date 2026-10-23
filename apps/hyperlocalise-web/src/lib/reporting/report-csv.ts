@@ -12,10 +12,10 @@
  */
 import type { AiUsage } from "./ai-usage";
 import type { BudgetRow, CostEstimate, Costs } from "./cost-queries";
-import type { ReportStep } from "./report-units";
+import { SUMMARY_SOURCES, type ReportStep } from "./report-units";
 import type { AutomatedTime, LoggedTime, StepTime } from "./time-queries";
 import { csvCell, MATCH_BUCKETS } from "./word-analysis";
-import type { BandCounts, TaskWordRow, WordCounts } from "./word-queries";
+import type { BandCounts, FinishedSeriesPoint, TaskWordRow, WordCounts } from "./word-queries";
 
 /** CSV downloads of the Reports page's tables. Headers are the JSON field names. */
 
@@ -28,6 +28,14 @@ function toCsv(header: string[], rows: Cell[][]): string {
 /** The match bands that have any units, in their usual order. */
 function bandsIn(totals: BandCounts) {
   return MATCH_BUCKETS.filter((bucket) => (totals[bucket] ?? 0) > 0);
+}
+
+/** The Activity report: finished units per day or week, by where the text came from. */
+export function activityCsv(activity: { series: FinishedSeriesPoint[] }): string {
+  return toCsv(
+    ["start", ...SUMMARY_SOURCES],
+    activity.series.map((point) => [point.start, ...SUMMARY_SOURCES.map((name) => point[name])]),
+  );
 }
 
 export function wordCountsCsv(counts: WordCounts, groupBy: "project" | "task"): string {

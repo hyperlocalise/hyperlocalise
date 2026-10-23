@@ -34,7 +34,7 @@ import {
   overviewTriageJobStatusValues,
   openJobStatusValues,
 } from "@/api/routes/project/job.schema";
-import { reportQuerySchema } from "@/api/routes/reports/reports.schema";
+import { REPORT_QUERY_SCHEMAS } from "@/api/routes/reports/reports.schema";
 import { db, schema } from "@/lib/database/client";
 import { workspaceReportsFlag } from "@/lib/flags/workspace-flags";
 import { formatMemberDisplayName } from "@/lib/members/member-management";
@@ -43,15 +43,23 @@ import { projectIdSchema } from "@/lib/projects/identity/project-id";
 import { listAssignableIssueMembers } from "@/lib/projects/issue-sheet/issue-sheet-assignee";
 import { cancelNativeJob } from "@/lib/projects/jobs/cancel-native-job";
 import { updateNativeJob } from "@/lib/projects/jobs/update-native-job";
-import { queryReport } from "@/lib/reporting/query";
+import {
+  REPORT_KINDS,
+  readActivity,
+  readCosts,
+  readTime,
+  readWords,
+  summaryFreshness,
+  type ReportReadContext,
+} from "@/lib/reporting/report-reads";
+import { REPORT_STEPS, REPORT_UNITS } from "@/lib/reporting/report-units";
+import { getReportingStart } from "@/lib/reporting/reporting-start";
 
 /** A provider job's due date, or a native job's own. Needs externalJobDetails left-joined. */
 const jobDueDateSql =
   sql<Date | null>`coalesce(${schema.externalJobDetails.dueDate}, ${schema.jobs.dueAt})`.mapWith(
     schema.jobs.dueAt,
   );
-
-export const MCP_REPORT_MAX_ROWS = 200;
 
 const jobIdSchema = z.string().trim().min(1).max(128).describe("ID of an accessible job.");
 
@@ -116,22 +124,38 @@ const mcpUpdateJobInputSchema = z
 
 const mcpCancelJobInputSchema = z.object({ jobId: jobIdSchema });
 
-const reportQueryShape = reportQuerySchema.shape;
-
+const mcpDay = z.iso.date();
 const mcpGetReportInputSchema = z.object({
-  view: reportQueryShape.view.describe(
-    "overview (default), words (word counts by match bucket), time (logged minutes), or costs (requires billing access).",
-  ),
-  from: reportQueryShape.from.describe("Start date (YYYY-MM-DD, UTC). Defaults to 28 days ago."),
-  to: reportQueryShape.to.describe("End date (YYYY-MM-DD, UTC). Defaults to today."),
-  interval: reportQueryShape.interval.describe("Bucket rows by day or week. Defaults to week."),
-  projectId: reportQueryShape.projectId.describe("Optional project ID filter."),
-  jobId: reportQueryShape.jobId.describe("Optional job ID filter."),
-  targetLocale: reportQueryShape.targetLocale.describe("Optional target locale filter."),
-  step: reportQueryShape.step.describe("Optional workflow step filter: translation or review."),
-  page: reportQueryShape.page.describe(
-    "Page of rows, starting at 1. When truncated is true, request nextPage.",
-  ),
+  report: z
+    .enum(REPORT_KINDS)
+    .default("activity")
+    .describe(
+      "activity (default): words arrived and finished in the dates, by where the text came from, with the previous period; words: word counts by match band, by project or by task; time: time people logged and automated run time; costs: what was spent, by project.",
+    ),
+  from: mcpDay.optional().describe("Start date (YYYY-MM-DD, UTC). Defaults to 28 days ago."),
+  to: mcpDay.optional().describe("End date (YYYY-MM-DD, UTC). Defaults to today."),
+  projectId: z.string().min(1).max(200).optional().describe("Optional project ID filter."),
+  jobId: z.string().min(1).max(200).optional().describe("Optional job ID filter."),
+  targetLocale: z.string().min(2).max(35).optional().describe("Optional target locale filter."),
+  step: z
+    .enum(REPORT_STEPS)
+    .optional()
+    .describe("Workflow step: translation (default) or review. Not for costs."),
+  unit: z
+    .enum(REPORT_UNITS)
+    .optional()
+    .describe(
+      "Unit for activity and words: words (default), strings, characters, characters_with_spaces.",
+    ),
+  mode: z
+    .enum(["arrived", "finished"])
+    .optional()
+    .describe("Words only: strings that arrived (default) or were finished in the dates."),
+  groupBy: z
+    .enum(["project", "task"])
+    .optional()
+    .describe("Words only: rows per project (default) or per task, 50 tasks a page."),
+  page: z.number().int().min(1).max(10_000).optional().describe("Page of rows, from 1."),
 });
 
 function readJobMetadataString(inputPayload: unknown, field: "title" | "description") {
@@ -414,7 +438,8 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
     "get_report",
     {
       annotations: MCP_READ_ONLY_TOOL,
-      description: `Get translation reporting for accessible projects: throughput, word counts by match bucket, logged time, or costs, bucketed by day or week. Returns one page of at most ${MCP_REPORT_MAX_ROWS} rows; when truncated is true, call again with page set to nextPage.`,
+      description:
+        "Get one of the Reports page's reports for accessible projects, with the same fields the page shows: activity (words arrived and finished, by where the text came from), words (word counts by match band), time (logged and automated time) or costs (what was spent). Days are UTC. Figures can lag the latest work by up to about 15 minutes; stillUpdating is true while recent work is still being counted. Needs billing access.",
       inputSchema: mcpGetReportInputSchema,
     },
     async (input) => {
@@ -426,30 +451,56 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
         return mcpToolError("report_forbidden", "Reports require billing access");
       }
 
-      const parsed = reportQuerySchema.safeParse({ ...input, format: "json" });
+      const { report: kind, ...query } = input;
+      const parsed = REPORT_QUERY_SCHEMAS[kind].safeParse({ ...query, format: "json" });
       if (!parsed.success) {
         return mcpToolError("invalid_report_query", "Invalid report query", {
           issues: parsed.error.issues.map((issue) => issue.message),
         });
       }
 
-      const report = await queryReport({
+      const startedAt = await getReportingStart(organizationId);
+      const context: ReportReadContext = {
         organizationId,
         projectIds: await getAccessibleProjectIds(apiAuth),
+        startedDay: startedAt ? startedAt.toISOString().slice(0, 10) : null,
+        today: new Date().toISOString().slice(0, 10),
         financial: true,
-        query: parsed.data,
-      });
-
-      // The report comes a page at a time and its total is not counted, so the tool says how many
-      // rows this page holds and which page to ask for next.
-      const rows = report.rows.slice(0, MCP_REPORT_MAX_ROWS);
-      return mcpToolJson({
-        ...report,
-        rows,
-        rowsOnPage: rows.length,
-        truncated: report.hasMore || report.rows.length > MCP_REPORT_MAX_ROWS,
-        nextPage: report.hasMore ? report.page + 1 : null,
-      });
+        userId: apiAuth.user.localUserId,
+      };
+      const summary = await summaryFreshness(organizationId);
+      const shared = { kind, summary, stillUpdating: summary.pendingDays > 0 };
+      switch (kind) {
+        case "activity":
+          return mcpToolJson({
+            ...shared,
+            activity: await readActivity(
+              context,
+              parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.activity>,
+            ),
+          });
+        case "words":
+          return mcpToolJson({
+            ...shared,
+            wordCounts: await readWords(
+              context,
+              parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.words>,
+            ),
+          });
+        case "time":
+          return mcpToolJson({
+            ...shared,
+            time: await readTime(context, parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.time>),
+          });
+        default:
+          return mcpToolJson({
+            ...shared,
+            costs: await readCosts(
+              context,
+              parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.costs>,
+            ),
+          });
+      }
     },
   );
 }

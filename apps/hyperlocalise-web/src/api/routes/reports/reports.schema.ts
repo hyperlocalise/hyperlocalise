@@ -11,26 +11,13 @@
  * Version 2.0 or later.
  */
 import { z } from "zod";
+import { REPORT_KINDS } from "@/lib/reporting/report-reads";
 import { RATE_BASES, REPORT_STEPS, REPORT_UNITS } from "@/lib/reporting/report-units";
 import { MATCH_BUCKETS } from "@/lib/reporting/word-analysis";
 const usd = z.string().regex(/^\d{1,12}(\.\d{1,8})?$/);
 const step = z.enum(REPORT_STEPS);
 // Reports has nothing from before 2000, and the day maths needs a four-digit year.
 const day = z.iso.date().refine((value) => value >= "2000-01-01", { message: "Too early" });
-export const reportQuerySchema = z
-  .object({
-    from: day.optional(),
-    to: day.optional(),
-    projectId: z.string().optional(),
-    jobId: z.string().optional(),
-    targetLocale: z.string().optional(),
-    step: step.optional(),
-    interval: z.enum(["day", "week"]).default("week"),
-    view: z.enum(["overview", "words", "time", "costs"]).default("overview"),
-    format: z.enum(["json", "csv"]).default("json"),
-    page: z.coerce.number().int().min(1).max(10_000).default(1),
-  })
-  .refine((v) => !v.from || !v.to || v.from <= v.to, { message: "Invalid date range" });
 export const budgetSchema = z.object({
   projectId: z.string().min(1),
   budget: usd,
@@ -77,7 +64,7 @@ const scope = {
 };
 
 export const activityQuerySchema = z
-  .object({ ...dates, ...scope, unit, step: step.default("translation") })
+  .object({ ...dates, ...scope, unit, step: step.default("translation"), format })
   .refine(datesInOrder, { message: "Invalid date range" });
 export const stepTimesQuerySchema = z
   .object({ ...dates, ...scope, format })
@@ -108,6 +95,14 @@ export const loggedTimeQuerySchema = z
 export const costsQuerySchema = z
   .object({ ...dates, projectId: id.optional(), targetLocale: scope.targetLocale, format })
   .refine(datesInOrder, { message: "Invalid date range" });
+/** The public `GET /reports` and the MCP tool: one of the page's reports, with its own query. */
+export const reportKindSchema = z.enum(REPORT_KINDS);
+export const REPORT_QUERY_SCHEMAS = {
+  activity: activityQuerySchema,
+  words: wordsQuerySchema,
+  time: loggedTimeQuerySchema,
+  costs: costsQuerySchema,
+} as const;
 /** Up to 50 tasks, as a comma-separated list. */
 const jobIds = z
   .string()

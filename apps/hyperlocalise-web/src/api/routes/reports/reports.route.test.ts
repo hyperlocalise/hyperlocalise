@@ -177,6 +177,32 @@ describe("reports routes", () => {
     await expect(read("/cost-estimate?jobIds=job_a,job_b")).resolves.toMatchObject({
       costEstimate: { rows: [], fixedFees: [] },
     });
+    // The public endpoint serves the same reports by kind, each with its tab's own fields.
+    await expect(read("")).resolves.toMatchObject({
+      report: {
+        kind: "activity",
+        activity: { current: { arrived: 0 } },
+        summary: { pendingDays: 0 },
+      },
+    });
+    await expect(read("?report=words&groupBy=task")).resolves.toMatchObject({
+      report: { kind: "words", wordCounts: { rows: [], groupBy: "task" } },
+    });
+    await expect(read("?report=time")).resolves.toMatchObject({
+      report: { kind: "time", time: { logged: { rows: [] } } },
+    });
+    await expect(read("?report=costs")).resolves.toMatchObject({
+      report: { kind: "costs", costs: { rows: [] } },
+    });
+    const unknownKind = await app.request(reportsUrl(slug, "?report=budgets"), { headers });
+    expect(unknownKind.status).toBe(400);
+    const activityCsv = await app.request(reportsUrl(slug, "?report=activity&format=csv"), {
+      headers,
+    });
+    expect(activityCsv.headers.get("content-disposition")).toContain("activity.csv");
+    expect((await activityCsv.text()).split("\r\n")[0]).toBe(
+      '"start","memory","ai","person","import","unknown"',
+    );
     // One project with no tasks chosen is estimated whole (none the viewer can open: nothing).
     await expect(read("/cost-estimate?projectId=project_none")).resolves.toMatchObject({
       costEstimate: { rows: [], totals: { tasks: 0 } },

@@ -19,23 +19,20 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 import { generateMcpToken, hashMcpToken } from "@/api/auth/mcp";
 import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
-import { MCP_REPORT_MAX_ROWS } from "@/api/routes/mcp/project-manager-tools";
 import { insertPublicTranslationJob } from "@/api/routes/public-jobs/public-jobs.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
 import { upsertExternalTmsJobRecords } from "@/lib/projects/external-tms/external-tms-sync-service";
 
-const { resolveApiAuthContextFromSessionMock, workspaceReportsFlagRunMock, queryReportMock } =
-  vi.hoisted(() => ({
-    resolveApiAuthContextFromSessionMock: vi.fn(
-      (options) =>
-        globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
-        globalThis.__testApiAuthContext ??
-        null,
-    ),
-    workspaceReportsFlagRunMock: vi.fn(async () => true),
-    queryReportMock: vi.fn(),
-  }));
+const { resolveApiAuthContextFromSessionMock, workspaceReportsFlagRunMock } = vi.hoisted(() => ({
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
+  workspaceReportsFlagRunMock: vi.fn(async () => true),
+}));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
@@ -50,14 +47,6 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   return {
     ...actual,
     workspaceReportsFlag: { run: workspaceReportsFlagRunMock },
-  };
-});
-
-vi.mock("@/lib/reporting/query", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/reporting/query")>();
-  return {
-    ...actual,
-    queryReport: queryReportMock,
   };
 });
 
@@ -177,7 +166,6 @@ describe("MCP project manager tools", () => {
 
   beforeEach(() => {
     workspaceReportsFlagRunMock.mockResolvedValue(true);
-    queryReportMock.mockReset();
   });
 
   afterEach(async () => {
@@ -677,7 +665,7 @@ describe("MCP project manager tools", () => {
     });
   });
 
-  it("gates get_report on the workspace flag, billing, and row cap", async () => {
+  it("gates get_report on the workspace flag and billing, and reads like the page", async () => {
     const stored = await fixture.createStoredProjectFixture();
     const translator = fixture.createWorkosIdentityForOrganization(
       stored.identity.organization,
@@ -703,63 +691,52 @@ describe("MCP project manager tools", () => {
     workspaceReportsFlagRunMock.mockResolvedValueOnce(false);
     const adminHeaders = await authenticatedMcpHeaders(stored.identity);
     const disabled = await readToolResult<{ error?: string }>(
-      await callMcpTool(adminHeaders, "get_report", { view: "overview" }),
+      await callMcpTool(adminHeaders, "get_report", { report: "activity" }),
     );
 
     const translatorHeaders = await authenticatedMcpHeaders(translator);
-    const costs = await readToolResult<{ error?: string }>(
-      await callMcpTool(translatorHeaders, "get_report", { view: "costs" }),
+    const refused = await readToolResult<{ error?: string }>(
+      await callMcpTool(translatorHeaders, "get_report", { report: "costs" }),
     );
 
-    queryReportMock.mockResolvedValue({
-      analysis: { sourceWords: 0, workloadWords: 0, completedWords: 0 },
-      rows: Array.from({ length: MCP_REPORT_MAX_ROWS }, (_, index) => ({
-        period: "2026-10-01",
-        projectId: stored.project.id,
-        jobId: null,
-        targetLocale: "fr-FR",
-        step: "translation",
-        bucket: null,
-        kind: "completion",
-        words: index,
-        minutes: 0,
-        durationMs: 0,
-        amountUsd: null,
-        inputTokens: 0,
-        outputTokens: 0,
-        unavailable: 0,
-        count: 1,
-      })),
-      startedAt: null,
-      from: "2026-09-18",
-      to: "2026-10-16",
-      timezone: "UTC",
-      currency: "USD",
-      financial: true,
-      page: 1,
-      hasMore: true,
-    });
-
-    const truncated = await readToolResult<{
-      rows?: unknown[];
-      rowsOnPage?: number;
-      truncated?: boolean;
-      nextPage?: number | null;
-    }>(await callMcpTool(adminHeaders, "get_report", { view: "overview" }));
+    // The same reads as the page: a kind, that tab's fields, and whether work is still counted.
+    const activity = await readToolResult<{
+      kind?: string;
+      stillUpdating?: boolean;
+      activity?: { current?: { arrived?: number }; series?: unknown[] };
+    }>(await callMcpTool(adminHeaders, "get_report", { report: "activity", unit: "strings" }));
+    const words = await readToolResult<{
+      kind?: string;
+      wordCounts?: { rows?: unknown[]; groupBy?: string };
+    }>(await callMcpTool(adminHeaders, "get_report", { report: "words", groupBy: "task" }));
+    const invalid = await readToolResult<{ error?: string }>(
+      await callMcpTool(adminHeaders, "get_report", {
+        report: "words",
+        from: "2026-06-10",
+        to: "2026-06-01",
+      }),
+    );
 
     expect(disabled).toMatchObject({
       isError: true,
       output: { error: "feature_unavailable" },
     });
     // Reports are for admins and localization managers; a translator gets none of them.
-    expect(costs).toMatchObject({
+    expect(refused).toMatchObject({
       isError: true,
       output: { error: "report_forbidden" },
     });
-    expect(truncated.isError).toBe(false);
-    expect(truncated.output.rows).toHaveLength(MCP_REPORT_MAX_ROWS);
-    expect(truncated.output.rowsOnPage).toBe(MCP_REPORT_MAX_ROWS);
-    expect(truncated.output.truncated).toBe(true);
-    expect(truncated.output.nextPage).toBe(2);
+    expect(activity.isError).toBe(false);
+    expect(activity.output).toMatchObject({
+      kind: "activity",
+      stillUpdating: false,
+      activity: { current: { arrived: 0 } },
+    });
+    expect(activity.output.activity?.series?.length).toBeGreaterThan(0);
+    expect(words.output).toMatchObject({
+      kind: "words",
+      wordCounts: { rows: [], groupBy: "task" },
+    });
+    expect(invalid).toMatchObject({ isError: true, output: { error: "invalid_report_query" } });
   });
 });

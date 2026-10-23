@@ -19,7 +19,11 @@ import {
   csvCell,
 } from "./word-analysis";
 import { usdUnits, usdString, hourlyCost, unitCost } from "./money";
-import { rateCardSchema, reportQuerySchema, timeSchema } from "@/api/routes/reports/reports.schema";
+import {
+  activityQuerySchema,
+  rateCardSchema,
+  timeSchema,
+} from "@/api/routes/reports/reports.schema";
 
 describe("prospective translation accounting", () => {
   it("counts literal ICU alternatives without counting arguments or tags", () => {
@@ -91,7 +95,7 @@ describe("prospective translation accounting", () => {
     expect(csvCell('=IMPORTXML("url")')).toContain("'=IMPORTXML");
   });
   it("rejects invalid date ranges, time and rate percentages", () => {
-    expect(reportQuerySchema.safeParse({ from: "2026-09-06", to: "2026-09-01" }).success).toBe(
+    expect(activityQuerySchema.safeParse({ from: "2026-09-06", to: "2026-09-01" }).success).toBe(
       false,
     );
     expect(
