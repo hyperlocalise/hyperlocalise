@@ -43,6 +43,7 @@ export type VisualCatalogType =
   | "logic.create_object"
   | "logic.merge_objects"
   | "logic.select_path"
+  | "logic.coalesce"
   | "ai.agent"
   | "logic.for_each"
   | "logic.retry"
@@ -349,6 +350,14 @@ export type VisualNodeConfig =
       missingBehavior: VisualSelectPathMissingBehavior;
       defaultValue?: unknown;
     }
+  | {
+      kind: "logic.coalesce";
+      inputs: VisualCoalesceInput[];
+      treatNullAsMissing: boolean;
+      treatEmptyStringAsMissing: boolean;
+      treatEmptyArrayAsMissing: boolean;
+      treatEmptyObjectAsMissing: boolean;
+    }
   | { kind: "ai.agent"; prompt: string; onError?: VisualNodeErrorBehavior }
   | { kind: "logic.for_each"; collection: string }
   | {
@@ -554,6 +563,13 @@ export type VisualObjectField = {
 export type VisualObjectMergeInput = {
   id: string;
   name: string;
+};
+
+export type VisualCoalesceInput = {
+  id: string;
+  name: string;
+  type: WorkflowValueType;
+  defaultValue?: unknown;
 };
 
 export type VisualObjectConflictPolicy = "reject" | "first_wins" | "last_wins";

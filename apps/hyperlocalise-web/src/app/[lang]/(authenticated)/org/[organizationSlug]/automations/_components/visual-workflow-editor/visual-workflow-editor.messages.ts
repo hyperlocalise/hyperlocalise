@@ -380,6 +380,86 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "ODA33nKLhj",
     description: "Catalog description for the select path node",
   },
+  nodeCoalesce: {
+    defaultMessage: "Default value",
+    id: "JCapINfSoY",
+    description: "Catalog title for the coalesce node",
+  },
+  nodeCoalesceHint: {
+    defaultMessage: "Return the first available value from an ordered list.",
+    id: "Y6e1UDu/Ic",
+    description: "Catalog description for the coalesce node",
+  },
+  coalesceInputs: {
+    defaultMessage: "Ordered values",
+    id: "MkbQjfMTez",
+    description: "Coalesce input list heading",
+  },
+  coalesceInputName: {
+    defaultMessage: "Value {index} name",
+    id: "D/faoWI8RU",
+    description: "Coalesce input name",
+  },
+  coalesceInputType: {
+    defaultMessage: "Value {index} type",
+    id: "MIg3Z6IKsj",
+    description: "Coalesce input type",
+  },
+  coalesceUseDefault: {
+    defaultMessage: "Use an inline default when this value is missing",
+    id: "DoLTEHWiIY",
+    description: "Coalesce inline default toggle",
+  },
+  coalesceInputDefault: {
+    defaultMessage: "Value {index} default",
+    id: "kvULP2fnaS",
+    description: "Coalesce inline default input",
+  },
+  moveCoalesceInputUp: {
+    defaultMessage: "Move value {index} up",
+    id: "rBsLPnxGVI",
+    description: "Move a Coalesce input earlier",
+  },
+  moveCoalesceInputDown: {
+    defaultMessage: "Move value {index} down",
+    id: "5Hth+Ot9Y5",
+    description: "Move a Coalesce input later",
+  },
+  removeCoalesceInput: {
+    defaultMessage: "Remove value {index}",
+    id: "+YutChOmrJ",
+    description: "Remove a Coalesce input",
+  },
+  addCoalesceInput: {
+    defaultMessage: "Add value",
+    id: "4qQ8w1wkBs",
+    description: "Add a Coalesce input",
+  },
+  coalesceMissingValues: {
+    defaultMessage: "Treat as missing",
+    id: "qz5T3p0D5s",
+    description: "Coalesce missing value policies heading",
+  },
+  coalesceTreatNullAsMissing: {
+    defaultMessage: "Null",
+    id: "UzoZZwyTmn",
+    description: "Treat null as missing",
+  },
+  coalesceTreatEmptyStringAsMissing: {
+    defaultMessage: "Empty strings",
+    id: "Epdqy+744r",
+    description: "Treat empty strings as missing",
+  },
+  coalesceTreatEmptyArrayAsMissing: {
+    defaultMessage: "Empty arrays",
+    id: "G/w7K4ugTL",
+    description: "Treat empty arrays as missing",
+  },
+  coalesceTreatEmptyObjectAsMissing: {
+    defaultMessage: "Empty objects",
+    id: "kPeBr6eZSu",
+    description: "Treat empty objects as missing",
+  },
   selectPathPath: {
     defaultMessage: "Path",
     id: "DIXy7xfZhs",

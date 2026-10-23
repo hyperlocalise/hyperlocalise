@@ -13,6 +13,7 @@
 import type { CanonicalVisualWorkflowNode } from "../schema/types";
 import type { VisualWorkflowExecutionContext } from "./context";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
+import { executeCoalesce } from "./coalesce-node";
 import {
   evaluateVisualWorkflowCondition,
   resolveVisualWorkflowCollection,
@@ -135,6 +136,15 @@ export function executeLogicVisualWorkflowNode(input: {
         defaultValue: node.config.defaultValue,
       });
     }
+    case "logic.coalesce":
+      return executeCoalesce({
+        inputs: node.config.inputs,
+        resolvedConfig: node.config as unknown as Record<string, unknown>,
+        treatNullAsMissing: node.config.treatNullAsMissing,
+        treatEmptyStringAsMissing: node.config.treatEmptyStringAsMissing,
+        treatEmptyArrayAsMissing: node.config.treatEmptyArrayAsMissing,
+        treatEmptyObjectAsMissing: node.config.treatEmptyObjectAsMissing,
+      });
     case "logic.for_each": {
       const items = resolveVisualWorkflowCollection(node.config.collection, context);
       return {

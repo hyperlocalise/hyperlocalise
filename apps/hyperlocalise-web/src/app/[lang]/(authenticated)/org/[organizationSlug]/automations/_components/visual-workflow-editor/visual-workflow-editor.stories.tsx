@@ -1339,3 +1339,130 @@ export const SelectPathNarrow: Story = {
     await expect(canvas.getByText(/en-AU/)).toBeInTheDocument();
   },
 };
+
+const coalesceNodes = [
+  {
+    id: "trigger",
+    type: "trigger.manual" as const,
+    position: { x: 120, y: 180 },
+    data: {
+      catalogType: "trigger.manual" as const,
+      config: { kind: "trigger.manual" as const },
+      runStatus: "succeeded" as const,
+      lastOutput: { triggeredAt: "2026-10-23T04:00:00.000Z" },
+    },
+  },
+  {
+    id: "coalesce",
+    type: "logic.coalesce" as const,
+    position: { x: 500, y: 180 },
+    data: {
+      catalogType: "logic.coalesce" as const,
+      config: {
+        kind: "logic.coalesce" as const,
+        inputs: [
+          { id: "requested", name: "Requested value", type: "string" as const },
+          {
+            id: "fallback",
+            name: "Fallback value",
+            type: "string" as const,
+            defaultValue: "en",
+          },
+        ],
+        treatNullAsMissing: true,
+        treatEmptyStringAsMissing: true,
+        treatEmptyArrayAsMissing: false,
+        treatEmptyObjectAsMissing: false,
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: { value: "2026-10-23T04:00:00.000Z" },
+    },
+  },
+];
+
+export const CoalesceConfigured: Story = {
+  name: "Default Value — configured",
+  args: {
+    initialName: "Choose requested or default value",
+    initialNodes: coalesceNodes,
+    initialEdges: [
+      {
+        id: "execute",
+        source: "trigger",
+        target: "coalesce",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: { kind: "execution" as const },
+      },
+      {
+        id: "requested-value",
+        source: "trigger",
+        target: "coalesce",
+        sourceHandle: "triggeredAt",
+        targetHandle: "value.requested",
+        data: { kind: "data" as const },
+      },
+    ],
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText(
+        "Data input: value.requested, string, optional",
+        {},
+        { timeout: 10_000 },
+      ),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data input: value.fallback, string, optional"),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: value, string")).toBeInTheDocument();
+    const coalesceNode = canvas
+      .getByLabelText("Data output: value, string")
+      .closest(".react-flow__node");
+    await userEvent.click(coalesceNode!);
+    await expect(canvas.getByRole("textbox", { name: "Value 1 name" })).toHaveValue(
+      "Requested value",
+    );
+    await expect(canvas.getByRole("textbox", { name: "Value 2 default" })).toHaveValue("en");
+    await expect(canvas.getByRole("checkbox", { name: "Null" })).toBeChecked();
+    await expect(canvas.getByRole("checkbox", { name: "Empty strings" })).toBeChecked();
+    await userEvent.click(canvas.getByRole("button", { name: "Add value" }));
+    await expect(canvas.getByRole("textbox", { name: "Value 3 name" })).toHaveValue("Value 3");
+  },
+};
+
+export const CoalesceInvalid: Story = {
+  name: "Default Value — invalid",
+  args: {
+    ...CoalesceConfigured.args,
+    initialNodes: coalesceNodes.map((node) =>
+      node.id === "coalesce" && node.data.config.kind === "logic.coalesce"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: {
+                ...node.data.config,
+                inputs: node.data.config.inputs.map((input) => ({
+                  ...input,
+                  name: "Duplicate value",
+                })),
+              },
+            },
+          }
+        : node,
+    ),
+  },
+};
+
+export const CoalesceNarrow: Story = {
+  name: "Default Value — narrow",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: { ...CoalesceConfigured.args },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByText("Succeeded", {}, { timeout: 10_000 })).toBeInTheDocument();
+    await expect(canvas.getAllByText(/2026-10-23/).length).toBeGreaterThan(0);
+  },
+};
