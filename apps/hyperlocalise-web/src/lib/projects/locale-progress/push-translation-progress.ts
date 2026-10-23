@@ -76,6 +76,23 @@ export function toPushLocaleProgressRow(
   };
 }
 
+export async function pushLocaleHasApprovedTranslations(
+  load: LoadPushPrefilledEntries,
+  input: {
+    organizationId: string;
+    projectId: string;
+    sourcePath: string;
+    targetLocale: string;
+  },
+): Promise<boolean> {
+  const approved = await load({
+    ...input,
+    approvedTranslationsOnly: true,
+    readyTranslationsOnly: true,
+  });
+  return approved.translatedKeyCount > 0;
+}
+
 export async function loadPushLocaleTranslationProgress(
   load: LoadPushPrefilledEntries,
   input: {

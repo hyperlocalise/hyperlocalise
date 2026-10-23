@@ -96,7 +96,9 @@ function intercomPushLastErrorMessage(lastError: Record<string, unknown> | null 
 export async function getIntercomPushEligibility(input: {
   organizationId: string;
   automation: WorkspaceAutomationRecord;
+  includeLocaleProgress?: boolean;
 }): Promise<IntercomPushEligibility | null> {
+  const includeLocaleProgress = input.includeLocaleProgress ?? false;
   const intercom = input.automation.toolConfig.intercom;
   if (!intercom?.enabled) {
     return null;
@@ -174,7 +176,7 @@ export async function getIntercomPushEligibility(input: {
     targetLocales: approvedTargetLocales,
   });
 
-  const translationService = new ProjectTranslationService();
+  const translationService = includeLocaleProgress ? new ProjectTranslationService() : null;
   let eligibleLocaleCount = 0;
   let mappedArticleCount = 0;
   const articles: IntercomPushArticle[] = [];
@@ -193,16 +195,18 @@ export async function getIntercomPushEligibility(input: {
     for (let index = 0; index < articleLocaleMapping.jobTargetLocales.length; index += 1) {
       const hlLocale = articleLocaleMapping.jobTargetLocales[index]!;
       const intercomLocale = articleLocaleMapping.intercomTargetLocales[index]!;
-      const localeProgress = await loadPushLocaleTranslationProgress(
-        (request) => translationService.loadAsPrefilledEntries(request),
-        {
-          organizationId: input.organizationId,
-          projectId,
-          sourcePath: mapping.sourcePath,
-          targetLocale: hlLocale,
-        },
-      );
-      locales.push(toPushLocaleProgressRow(hlLocale, localeProgress));
+      if (includeLocaleProgress && translationService) {
+        const localeProgress = await loadPushLocaleTranslationProgress(
+          (request) => translationService.loadAsPrefilledEntries(request),
+          {
+            organizationId: input.organizationId,
+            projectId,
+            sourcePath: mapping.sourcePath,
+            targetLocale: hlLocale,
+          },
+        );
+        locales.push(toPushLocaleProgressRow(hlLocale, localeProgress));
+      }
       if (!intercomLocale) {
         continue;
       }

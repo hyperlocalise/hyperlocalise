@@ -34,8 +34,8 @@ import { isSanityCatSourcePath } from "@/lib/sanity/segment-file";
 import { ContentEditorSanityPushDialog } from "./content-editor-sanity-push-dialog";
 import { contentEditorSanityPushButtonMessages as messages } from "./content-editor-sanity-push-button.messages";
 import {
+  contentEditorPushDialogCandidates,
   contentEditorToolbarShowsIntegration,
-  selectActionablePushCandidates,
 } from "./content-editor-integration-toolbar-visibility";
 import {
   contentEditorSanityIngestQueryKey,
@@ -123,12 +123,15 @@ export function ContentEditorSanityPushButton({
     return null;
   }
 
-  const actionableCandidates = selectActionablePushCandidates(pushCandidatesQuery.data ?? []);
+  const dialogCandidates = contentEditorPushDialogCandidates({
+    ingestCandidates: ingestCandidatesQuery.data,
+    pushCandidates: pushCandidatesQuery.data,
+    pushQueryFailed: pushCandidatesQuery.isError,
+  });
 
   const pushLabel = intl.formatMessage(messages.pushButton);
   const isPending = pushMutation.isPending;
-  const isDisabled =
-    isPending || pushCandidatesQuery.isPending || actionableCandidates.length === 0;
+  const isDisabled = isPending || pushCandidatesQuery.isLoading || dialogCandidates.length === 0;
   const pushIcon = isPending ? (
     <Spinner data-icon="inline-start" />
   ) : (
@@ -161,7 +164,7 @@ export function ContentEditorSanityPushButton({
         open={dialogOpen}
         organizationSlug={organizationSlug}
         sourcePath={openSourcePath}
-        candidates={actionableCandidates}
+        candidates={dialogCandidates}
         pending={isPending}
         onOpenChange={setDialogOpen}
         onConfirm={(input) =>

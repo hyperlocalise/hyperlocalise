@@ -16,6 +16,7 @@ import {
   addPushTranslationProgressTotals,
   emptyPushTranslationProgressTotals,
   loadPushLocaleTranslationProgress,
+  pushLocaleHasApprovedTranslations,
   pushTranslationProgressPercents,
   toPushLocaleProgressRow,
 } from "./push-translation-progress";
@@ -88,6 +89,33 @@ describe("addPushTranslationProgressTotals", () => {
       translatedKeyCount: 3,
       approvedKeyCount: 1,
       loadedKeyCount: 5,
+    });
+  });
+});
+
+describe("pushLocaleHasApprovedTranslations", () => {
+  it("uses a single approved-only load", async () => {
+    const load = vi.fn().mockResolvedValue({
+      translatedKeyCount: 2,
+      loadedKeyCount: 4,
+      prefilled: {},
+    });
+    await expect(
+      pushLocaleHasApprovedTranslations(load, {
+        organizationId: "org-1",
+        projectId: "project-1",
+        sourcePath: "google-drive/a.docx",
+        targetLocale: "vi-VN",
+      }),
+    ).resolves.toBe(true);
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(load).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      projectId: "project-1",
+      sourcePath: "google-drive/a.docx",
+      targetLocale: "vi-VN",
+      approvedTranslationsOnly: true,
+      readyTranslationsOnly: true,
     });
   });
 });

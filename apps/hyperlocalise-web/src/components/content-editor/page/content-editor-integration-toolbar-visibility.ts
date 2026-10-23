@@ -41,3 +41,40 @@ export function selectedPushRowsHaveEligibleLocales<
   const byPath = new Map(items.map((item) => [item.sourcePath, item]));
   return selectedSourcePaths.some((path) => (byPath.get(path)?.eligibleLocaleCount ?? 0) > 0);
 }
+
+export function allSelectedPushRowsHaveEligibleLocales<
+  T extends { sourcePath: string; eligibleLocaleCount: number },
+>(items: readonly T[], selectedSourcePaths: readonly string[]): boolean {
+  if (selectedSourcePaths.length === 0) {
+    return false;
+  }
+  const byPath = new Map(items.map((item) => [item.sourcePath, item]));
+  return selectedSourcePaths.every((path) => (byPath.get(path)?.eligibleLocaleCount ?? 0) > 0);
+}
+
+export function contentEditorPushDialogCandidates<
+  T extends {
+    automationId: string;
+    name: string;
+    eligibleLocaleCount: number;
+    pushRunInProgress: boolean;
+  },
+>(input: {
+  ingestCandidates: readonly { automationId: string; name: string }[] | undefined;
+  pushCandidates: readonly T[] | undefined;
+  pushQueryFailed: boolean;
+}): T[] {
+  const actionable = selectActionablePushCandidates(input.pushCandidates ?? []);
+  if (actionable.length > 0 || !input.pushQueryFailed) {
+    return actionable;
+  }
+  return (input.ingestCandidates ?? []).map(
+    (candidate) =>
+      ({
+        automationId: candidate.automationId,
+        name: candidate.name,
+        eligibleLocaleCount: 0,
+        pushRunInProgress: false,
+      }) as T,
+  );
+}

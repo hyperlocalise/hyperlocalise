@@ -12,9 +12,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,15 +38,14 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 
-import {
-  nextPushDialogSelection,
-  selectedPushRowsHaveEligibleLocales,
-} from "./content-editor-integration-toolbar-visibility";
+import { allSelectedPushRowsHaveEligibleLocales } from "./content-editor-integration-toolbar-visibility";
 import {
   ContentEditorPushApproveHint,
   ContentEditorPushLocaleProgressRows,
   ContentEditorPushRefreshButton,
 } from "./content-editor-push-progress";
+import { contentEditorPushProgressMessages as pushProgressMessages } from "./content-editor-push-progress.messages";
+import { useContentEditorPushDialogSelection } from "./use-content-editor-push-dialog-selection";
 import { contentEditorGoogleDrivePushButtonMessages as messages } from "./content-editor-google-drive-push-button.messages";
 import {
   contentEditorGoogleDrivePushFilesQueryKey,
@@ -77,7 +77,6 @@ export function ContentEditorGoogleDrivePushDialog({
   const [selectedAutomationId, setSelectedAutomationId] = useState(
     () => candidates[0]?.automationId ?? "",
   );
-  const [selectedSourcePaths, setSelectedSourcePaths] = useState<string[]>([]);
   const [search, setSearch] = useState("");
 
   const selectedAutomation =
@@ -109,37 +108,22 @@ export function ContentEditorGoogleDrivePushDialog({
   }, [files, search]);
 
   const firstAutomationId = candidates[0]?.automationId ?? "";
-  const resetSelectionRef = useRef(true);
 
   useEffect(() => {
     if (!open) {
-      setSelectedSourcePaths([]);
-      resetSelectionRef.current = true;
       return;
     }
     setSelectedAutomationId(firstAutomationId);
     setSearch("");
   }, [open, firstAutomationId]);
 
-  useEffect(() => {
-    resetSelectionRef.current = true;
-  }, [automationId, sourcePath]);
-
-  useEffect(() => {
-    if (!open || !filesQuery.data) {
-      return;
-    }
-    setSelectedSourcePaths((current) => {
-      if (resetSelectionRef.current) {
-        resetSelectionRef.current = false;
-        return defaultSelectedGoogleDrivePushSourcePaths(filesQuery.data, sourcePath);
-      }
-      return nextPushDialogSelection(
-        current,
-        filesQuery.data.map((file) => file.sourcePath),
-      );
-    });
-  }, [open, filesQuery.data, sourcePath, automationId]);
+  const { selectedSourcePaths, setSelectedSourcePaths } = useContentEditorPushDialogSelection({
+    open,
+    automationId,
+    sourcePath,
+    items: filesQuery.data,
+    defaultSelectedSourcePaths: defaultSelectedGoogleDrivePushSourcePaths,
+  });
 
   const toggleSourcePath = (nextSourcePath: string, checked: boolean) => {
     setSelectedSourcePaths((current) =>
@@ -147,7 +131,7 @@ export function ContentEditorGoogleDrivePushDialog({
     );
   };
 
-  const canConfirmPush = selectedPushRowsHaveEligibleLocales(files, selectedSourcePaths);
+  const canConfirmPush = selectedSourcePaths.length > 0;
 
   return (
     <Dialog
@@ -267,6 +251,10 @@ export function ContentEditorGoogleDrivePushDialog({
           <Button
             onClick={() => {
               if (!automationId || !canConfirmPush) {
+                return;
+              }
+              if (!allSelectedPushRowsHaveEligibleLocales(files, selectedSourcePaths)) {
+                toast.error(intl.formatMessage(pushProgressMessages.ineligibleSelectionError));
                 return;
               }
               onConfirm({

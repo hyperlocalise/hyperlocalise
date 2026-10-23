@@ -12,9 +12,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,15 +38,14 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 
-import {
-  nextPushDialogSelection,
-  selectedPushRowsHaveEligibleLocales,
-} from "./content-editor-integration-toolbar-visibility";
+import { allSelectedPushRowsHaveEligibleLocales } from "./content-editor-integration-toolbar-visibility";
 import {
   ContentEditorPushApproveHint,
   ContentEditorPushLocaleProgressRows,
   ContentEditorPushRefreshButton,
 } from "./content-editor-push-progress";
+import { contentEditorPushProgressMessages as pushProgressMessages } from "./content-editor-push-progress.messages";
+import { useContentEditorPushDialogSelection } from "./use-content-editor-push-dialog-selection";
 import { contentEditorSanityPushButtonMessages as messages } from "./content-editor-sanity-push-button.messages";
 import {
   contentEditorSanityPushDocumentsQueryKey,
@@ -77,7 +77,6 @@ export function ContentEditorSanityPushDialog({
   const [selectedAutomationId, setSelectedAutomationId] = useState(
     () => candidates[0]?.automationId ?? "",
   );
-  const [selectedSourcePaths, setSelectedSourcePaths] = useState<string[]>([]);
   const [search, setSearch] = useState("");
 
   const selectedAutomation =
@@ -109,37 +108,22 @@ export function ContentEditorSanityPushDialog({
   }, [documents, search]);
 
   const firstAutomationId = candidates[0]?.automationId ?? "";
-  const resetSelectionRef = useRef(true);
 
   useEffect(() => {
     if (!open) {
-      setSelectedSourcePaths([]);
-      resetSelectionRef.current = true;
       return;
     }
     setSelectedAutomationId(firstAutomationId);
     setSearch("");
   }, [open, firstAutomationId]);
 
-  useEffect(() => {
-    resetSelectionRef.current = true;
-  }, [automationId, sourcePath]);
-
-  useEffect(() => {
-    if (!open || !documentsQuery.data) {
-      return;
-    }
-    setSelectedSourcePaths((current) => {
-      if (resetSelectionRef.current) {
-        resetSelectionRef.current = false;
-        return defaultSelectedSanityPushSourcePaths(documentsQuery.data, sourcePath);
-      }
-      return nextPushDialogSelection(
-        current,
-        documentsQuery.data.map((document) => document.sourcePath),
-      );
-    });
-  }, [open, documentsQuery.data, sourcePath, automationId]);
+  const { selectedSourcePaths, setSelectedSourcePaths } = useContentEditorPushDialogSelection({
+    open,
+    automationId,
+    sourcePath,
+    items: documentsQuery.data,
+    defaultSelectedSourcePaths: defaultSelectedSanityPushSourcePaths,
+  });
 
   const toggleSourcePath = (nextSourcePath: string, checked: boolean) => {
     setSelectedSourcePaths((current) =>
@@ -147,7 +131,7 @@ export function ContentEditorSanityPushDialog({
     );
   };
 
-  const canConfirmPush = selectedPushRowsHaveEligibleLocales(documents, selectedSourcePaths);
+  const canConfirmPush = selectedSourcePaths.length > 0;
 
   return (
     <Dialog
@@ -280,6 +264,10 @@ export function ContentEditorSanityPushDialog({
           <Button
             onClick={() => {
               if (!automationId || !canConfirmPush) {
+                return;
+              }
+              if (!allSelectedPushRowsHaveEligibleLocales(documents, selectedSourcePaths)) {
+                toast.error(intl.formatMessage(pushProgressMessages.ineligibleSelectionError));
                 return;
               }
               onConfirm({

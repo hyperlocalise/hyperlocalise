@@ -33,8 +33,8 @@ import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor
 import { ContentEditorBrazePushDialog } from "./content-editor-braze-push-dialog";
 import { contentEditorBrazePushButtonMessages as messages } from "./content-editor-braze-push-button.messages";
 import {
+  contentEditorPushDialogCandidates,
   contentEditorToolbarShowsIntegration,
-  selectActionablePushCandidates,
 } from "./content-editor-integration-toolbar-visibility";
 import {
   contentEditorBrazeIngestQueryKey,
@@ -122,12 +122,15 @@ export function ContentEditorBrazePushButton({
     return null;
   }
 
-  const actionableCandidates = selectActionablePushCandidates(pushCandidatesQuery.data ?? []);
+  const dialogCandidates = contentEditorPushDialogCandidates({
+    ingestCandidates: ingestCandidatesQuery.data,
+    pushCandidates: pushCandidatesQuery.data,
+    pushQueryFailed: pushCandidatesQuery.isError,
+  });
 
   const pushLabel = intl.formatMessage(messages.pushButton);
   const isPending = pushMutation.isPending;
-  const isDisabled =
-    isPending || pushCandidatesQuery.isPending || actionableCandidates.length === 0;
+  const isDisabled = isPending || pushCandidatesQuery.isLoading || dialogCandidates.length === 0;
   const pushIcon = isPending ? (
     <Spinner data-icon="inline-start" />
   ) : (
@@ -154,7 +157,7 @@ export function ContentEditorBrazePushButton({
         open={dialogOpen}
         organizationSlug={organizationSlug}
         sourcePath={openSourcePath}
-        candidates={actionableCandidates}
+        candidates={dialogCandidates}
         pending={isPending}
         onOpenChange={setDialogOpen}
         onConfirm={(input) =>

@@ -46,4 +46,10 @@ export const contentEditorPushProgressMessages = defineMessages({
     id: "OiwlgVlbmX",
     description: "Reload mapped items and locale progress in a Content editor push dialog",
   },
+  ineligibleSelectionError: {
+    defaultMessage:
+      "Some selected items have no locales ready to push. Deselect them or approve translations first.",
+    id: "s5fbO82G4x",
+    description: "Toast when a Content editor push confirm includes items with nothing to push",
+  },
 });

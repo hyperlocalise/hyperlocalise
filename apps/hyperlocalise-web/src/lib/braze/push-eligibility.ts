@@ -16,6 +16,7 @@ import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automatio
 import { db, schema } from "@/lib/database/client";
 import {
   loadPushLocaleTranslationProgress,
+  pushLocaleHasApprovedTranslations,
   toPushLocaleProgressRow,
   type PushLocaleProgressRow,
 } from "@/lib/projects/locale-progress/push-translation-progress";
@@ -46,10 +47,51 @@ export type BrazePushEligibility = {
   items: BrazePushItem[];
 };
 
+async function collectBrazePushLocales(input: {
+  includeLocaleProgress: boolean;
+  translationService: ProjectTranslationService;
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  jobTargetLocales: readonly string[];
+  localeIds?: Record<string, string | undefined>;
+}) {
+  const eligibleLocales: string[] = [];
+  const locales: PushLocaleProgressRow[] = [];
+  const loadPrefilled = (
+    request: Parameters<ProjectTranslationService["loadAsPrefilledEntries"]>[0],
+  ) => input.translationService.loadAsPrefilledEntries(request);
+  for (const projectLocale of input.jobTargetLocales) {
+    if (input.localeIds && !input.localeIds[projectLocale]) {
+      continue;
+    }
+    const localeInput = {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      targetLocale: projectLocale,
+    };
+    if (input.includeLocaleProgress) {
+      const localeProgress = await loadPushLocaleTranslationProgress(loadPrefilled, localeInput);
+      locales.push(toPushLocaleProgressRow(projectLocale, localeProgress));
+      if (localeProgress.approvedKeyCount > 0) {
+        eligibleLocales.push(projectLocale);
+      }
+      continue;
+    }
+    if (await pushLocaleHasApprovedTranslations(loadPrefilled, localeInput)) {
+      eligibleLocales.push(projectLocale);
+    }
+  }
+  return { eligibleLocales, locales };
+}
+
 export async function getBrazePushEligibility(input: {
   organizationId: string;
   automation: WorkspaceAutomationRecord;
+  includeLocaleProgress?: boolean;
 }): Promise<BrazePushEligibility | null> {
+  const includeLocaleProgress = input.includeLocaleProgress ?? false;
   const braze = input.automation.toolConfig.braze;
   if (!braze?.enabled) {
     return null;
@@ -108,23 +150,14 @@ export async function getBrazePushEligibility(input: {
   const items: BrazePushItem[] = [];
 
   for (const mapping of mappings) {
-    const eligibleLocales: string[] = [];
-    const locales: PushLocaleProgressRow[] = [];
-    for (const projectLocale of localeMapping.jobTargetLocales) {
-      const localeProgress = await loadPushLocaleTranslationProgress(
-        (request) => translationService.loadAsPrefilledEntries(request),
-        {
-          organizationId: input.organizationId,
-          projectId,
-          sourcePath: mapping.sourcePath,
-          targetLocale: projectLocale,
-        },
-      );
-      locales.push(toPushLocaleProgressRow(projectLocale, localeProgress));
-      if (localeProgress.approvedKeyCount > 0) {
-        eligibleLocales.push(projectLocale);
-      }
-    }
+    const { eligibleLocales, locales } = await collectBrazePushLocales({
+      includeLocaleProgress,
+      translationService,
+      organizationId: input.organizationId,
+      projectId,
+      sourcePath: mapping.sourcePath,
+      jobTargetLocales: localeMapping.jobTargetLocales,
+    });
     eligibleLocaleCount += eligibleLocales.length;
     if (eligibleLocales.length > 0) {
       mappedItemCount += 1;
@@ -152,7 +185,9 @@ export async function getBrazePushEligibility(input: {
 export async function getBrazeCampaignPushEligibility(input: {
   organizationId: string;
   automation: WorkspaceAutomationRecord;
+  includeLocaleProgress?: boolean;
 }): Promise<BrazePushEligibility | null> {
+  const includeLocaleProgress = input.includeLocaleProgress ?? false;
   const braze = input.automation.toolConfig.brazeCampaigns;
   if (!braze?.enabled) {
     return null;
@@ -211,26 +246,15 @@ export async function getBrazeCampaignPushEligibility(input: {
   const items: BrazePushItem[] = [];
 
   for (const mapping of mappings) {
-    const eligibleLocales: string[] = [];
-    const locales: PushLocaleProgressRow[] = [];
-    for (const projectLocale of localeMapping.jobTargetLocales) {
-      if (!mapping.localeIds[projectLocale]) {
-        continue;
-      }
-      const localeProgress = await loadPushLocaleTranslationProgress(
-        (request) => translationService.loadAsPrefilledEntries(request),
-        {
-          organizationId: input.organizationId,
-          projectId,
-          sourcePath: mapping.sourcePath,
-          targetLocale: projectLocale,
-        },
-      );
-      locales.push(toPushLocaleProgressRow(projectLocale, localeProgress));
-      if (localeProgress.approvedKeyCount > 0) {
-        eligibleLocales.push(projectLocale);
-      }
-    }
+    const { eligibleLocales, locales } = await collectBrazePushLocales({
+      includeLocaleProgress,
+      translationService,
+      organizationId: input.organizationId,
+      projectId,
+      sourcePath: mapping.sourcePath,
+      jobTargetLocales: localeMapping.jobTargetLocales,
+      localeIds: mapping.localeIds,
+    });
     eligibleLocaleCount += eligibleLocales.length;
     if (eligibleLocales.length > 0) {
       mappedItemCount += 1;

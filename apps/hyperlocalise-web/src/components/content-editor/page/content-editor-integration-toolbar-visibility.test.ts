@@ -13,6 +13,8 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  allSelectedPushRowsHaveEligibleLocales,
+  contentEditorPushDialogCandidates,
   contentEditorToolbarShowsIntegration,
   nextPushDialogSelection,
   selectActionablePushCandidates,
@@ -58,6 +60,55 @@ describe("nextPushDialogSelection", () => {
         ["google-drive/a.docx", "google-drive/b.docx"],
       ),
     ).toEqual(["google-drive/b.docx"]);
+  });
+});
+
+describe("allSelectedPushRowsHaveEligibleLocales", () => {
+  const rows = [
+    { sourcePath: "google-drive/a.docx", eligibleLocaleCount: 0 },
+    { sourcePath: "google-drive/b.docx", eligibleLocaleCount: 2 },
+  ];
+
+  it("is false when any selected row is not ready", () => {
+    expect(allSelectedPushRowsHaveEligibleLocales(rows, ["google-drive/a.docx"])).toBe(false);
+    expect(
+      allSelectedPushRowsHaveEligibleLocales(rows, ["google-drive/a.docx", "google-drive/b.docx"]),
+    ).toBe(false);
+  });
+
+  it("is true when every selected row is ready", () => {
+    expect(allSelectedPushRowsHaveEligibleLocales(rows, ["google-drive/b.docx"])).toBe(true);
+  });
+});
+
+describe("contentEditorPushDialogCandidates", () => {
+  it("falls back to ingest candidates when the push query failed", () => {
+    expect(
+      contentEditorPushDialogCandidates({
+        ingestCandidates: [{ automationId: "a1", name: "Drive" }],
+        pushCandidates: undefined,
+        pushQueryFailed: true,
+      }),
+    ).toEqual([
+      {
+        automationId: "a1",
+        name: "Drive",
+        eligibleLocaleCount: 0,
+        pushRunInProgress: false,
+      },
+    ]);
+  });
+
+  it("keeps actionable push candidates when the push query succeeded", () => {
+    expect(
+      contentEditorPushDialogCandidates({
+        ingestCandidates: [{ automationId: "a1", name: "Drive" }],
+        pushCandidates: [
+          { automationId: "a1", name: "Drive", eligibleLocaleCount: 0, pushRunInProgress: true },
+        ],
+        pushQueryFailed: false,
+      }),
+    ).toEqual([]);
   });
 });
 

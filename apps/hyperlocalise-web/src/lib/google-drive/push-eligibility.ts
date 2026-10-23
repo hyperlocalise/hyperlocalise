@@ -16,6 +16,7 @@ import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automatio
 import { db, schema } from "@/lib/database/client";
 import {
   loadPushLocaleTranslationProgress,
+  pushLocaleHasApprovedTranslations,
   toPushLocaleProgressRow,
   type PushLocaleProgressRow,
 } from "@/lib/projects/locale-progress/push-translation-progress";
@@ -58,7 +59,9 @@ function googleDrivePushLastErrorMessage(lastError: Record<string, unknown> | nu
 export async function getGoogleDrivePushEligibility(input: {
   organizationId: string;
   automation: WorkspaceAutomationRecord;
+  includeLocaleProgress?: boolean;
 }): Promise<GoogleDrivePushEligibility | null> {
+  const includeLocaleProgress = input.includeLocaleProgress ?? false;
   const googleDrive = input.automation.toolConfig.googleDrive;
   if (!googleDrive?.enabled) {
     return null;
@@ -112,18 +115,25 @@ export async function getGoogleDrivePushEligibility(input: {
   for (const mapping of mappings) {
     const eligibleLocales: string[] = [];
     const locales: PushLocaleProgressRow[] = [];
+    const loadPrefilled = (
+      request: Parameters<typeof translationService.loadAsPrefilledEntries>[0],
+    ) => translationService.loadAsPrefilledEntries(request);
     for (const projectLocale of targetLocales) {
-      const localeProgress = await loadPushLocaleTranslationProgress(
-        (request) => translationService.loadAsPrefilledEntries(request),
-        {
-          organizationId: input.organizationId,
-          projectId,
-          sourcePath: mapping.sourcePath,
-          targetLocale: projectLocale,
-        },
-      );
-      locales.push(toPushLocaleProgressRow(projectLocale, localeProgress));
-      if (localeProgress.approvedKeyCount > 0) {
+      const localeInput = {
+        organizationId: input.organizationId,
+        projectId,
+        sourcePath: mapping.sourcePath,
+        targetLocale: projectLocale,
+      };
+      if (includeLocaleProgress) {
+        const localeProgress = await loadPushLocaleTranslationProgress(loadPrefilled, localeInput);
+        locales.push(toPushLocaleProgressRow(projectLocale, localeProgress));
+        if (localeProgress.approvedKeyCount > 0) {
+          eligibleLocales.push(projectLocale);
+        }
+        continue;
+      }
+      if (await pushLocaleHasApprovedTranslations(loadPrefilled, localeInput)) {
         eligibleLocales.push(projectLocale);
       }
     }
