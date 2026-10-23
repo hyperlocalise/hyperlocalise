@@ -32,8 +32,10 @@ export async function lockedPricingSteps(
   if (!OPEN_TASK_STATUSES.has(input.status)) return new Set(REPORT_STEPS);
   const result = await database.execute<{ step: ReportStep }>(sql`
     select s.step from (values ('translation'), ('review')) s(step)
-    where exists(select 1 from reporting_analyses a where a.organization_id = ${input.organizationId}
-        and a.job_id = ${input.jobId} and a.step = s.step)
+    -- Work starts with the first string finished: a task for people has its strings recorded
+    -- as arrived when it is created, which is no work yet.
+    where exists(select 1 from reporting_activity d where d.organization_id = ${input.organizationId}
+        and d.job_id = ${input.jobId} and d.step = s.step and d.kind = 'completion')
       or exists(select 1 from reporting_costs c where c.organization_id = ${input.organizationId}
         and c.job_id = ${input.jobId} and c.step = s.step and c.kind <> 'expense' and not c.voided)
       or exists(select 1 from reporting_time_entries e where e.organization_id = ${input.organizationId}

@@ -444,7 +444,13 @@ export function NativeJobDetailContent({
         }
         renderReportSection={
           reportsEnabled && job && !isProviderBackedJob(job)
-            ? () => <TaskReport organizationSlug={organizationSlug} jobId={jobId} />
+            ? () => (
+                <TaskReport
+                  organizationSlug={organizationSlug}
+                  jobId={jobId}
+                  defaultStep={job.kind === "proofread" ? "review" : "translation"}
+                />
+              )
             : undefined
         }
         renderExtraMain={

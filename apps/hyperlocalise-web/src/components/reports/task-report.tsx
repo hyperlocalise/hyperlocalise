@@ -109,14 +109,17 @@ function reportsHref(
 export function TaskReport({
   organizationSlug,
   jobId,
+  defaultStep = "translation",
 }: {
   organizationSlug: string;
   jobId: string;
+  /** The step the task is for: review on a proofread task, so the tab opens on its own work. */
+  defaultStep?: ReportStep;
 }) {
   const intl = useIntl();
   const settings = useReportSettings(organizationSlug);
   const [unit, setUnit] = useState<ReportUnit>("words");
-  const [step, setStep] = useState<ReportStep>("translation");
+  const [step, setStep] = useState<ReportStep>(defaultStep);
   // The card chosen on the Reports page by default prices what neither the task nor its budget does.
   const rateCard = settings.data?.rateCardNames[0] ?? null;
   const report = useTaskReport(
