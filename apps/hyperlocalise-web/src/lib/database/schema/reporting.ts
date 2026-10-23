@@ -29,6 +29,11 @@ import {
 import { organizations, users } from "./organizations";
 import { projects } from "./projects";
 import { jobs } from "./jobs";
+import {
+  COMPLETION_SOURCES,
+  RATE_BASES,
+  type CompletionSource,
+} from "@/lib/reporting/report-units";
 import type { MatchBucket } from "@/lib/reporting/word-analysis";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -51,9 +56,6 @@ export const reportingWorkspaces = pgTable("reporting_workspaces", {
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   summaryVersion: integer("summary_version"),
 });
-/** What a rate is charged per: a word, a character without or with spaces, or an hour. */
-export const REPORTING_RATE_BASES = ["word", "character", "character_with_spaces", "hour"] as const;
-export type ReportingRateBasis = (typeof REPORTING_RATE_BASES)[number];
 export const reportingRates = pgTable(
   "reporting_rates",
   {
@@ -63,7 +65,7 @@ export const reportingRates = pgTable(
     sourceLocale: text("source_locale").notNull(),
     targetLocale: text("target_locale").notNull(),
     step: text("step", { enum: ["translation", "review"] }).notNull(),
-    basis: text("basis", { enum: REPORTING_RATE_BASES }).notNull(),
+    basis: text("basis", { enum: RATE_BASES }).notNull(),
     rate: amount("rate").notNull(),
     percentages: jsonb("percentages")
       .$type<Partial<Record<MatchBucket, number>>>()
@@ -83,7 +85,7 @@ export const reportingRateCards = pgTable(
     organizationId: organizationId(),
     name: text("name").notNull(),
     /** The basis a new line on the card starts with; each line can still have its own. */
-    defaultBasis: text("default_basis", { enum: REPORTING_RATE_BASES }).notNull().default("word"),
+    defaultBasis: text("default_basis", { enum: RATE_BASES }).notNull().default("word"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("reporting_rate_cards_name").on(t.organizationId, t.name)],
@@ -100,6 +102,7 @@ export const reportingBudgets = pgTable(
   },
   (t) => [uniqueIndex("reporting_budgets_project").on(t.organizationId, t.projectId)],
 );
+/** A task's own pricing for one step: a rate card, a time estimate or a fixed fee. */
 export const reportingTaskRates = pgTable(
   "reporting_task_rates",
   {
@@ -107,6 +110,14 @@ export const reportingTaskRates = pgTable(
     organizationId: organizationId(),
     jobId: jobId(),
     step: text("step", { enum: ["translation", "review"] }).notNull(),
+    /** The task's rate card: each language is priced by that card's line for it. */
+    rateCardName: text("rate_card_name"),
+    /** The card's prices are taken as they were at this time, so later edits leave the task. */
+    pricedAt: timestamp("priced_at", { withTimezone: true }),
+    /**
+     * The task's one rate line for every language, before it had a card. Not read any more;
+     * kept so the rework needs one migration, to be dropped in a later clean-up.
+     */
     rateId: uuid("rate_id").references(() => reportingRates.id),
     estimatedMinutes: integer("estimated_minutes"),
     overrideUsd: amount("override_usd"),
@@ -168,6 +179,10 @@ export const reportingActivity = pgTable(
     durationMs: integer("duration_ms"),
     /** The person whose work a completion records; null for automated work. */
     actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    /** Where a completion's text came from; null when it was not known. */
+    source: text("source", { enum: COMPLETION_SOURCES }).$type<CompletionSource>(),
+    /** A person finished the string without changing the text they were given; null when unknown. */
+    unchanged: boolean("unchanged"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -206,7 +221,19 @@ const summaryMeasures = () => ({
   finishedByPersonStrings: summaryMeasure("finished_by_person_strings"),
   finishedByPersonCharacters: summaryMeasure("finished_by_person_characters"),
   finishedByPersonCharactersWithSpaces: summaryMeasure("finished_by_person_characters_with_spaces"),
+  /** The part of `finished` a person finished without changing the text they were given. */
+  finishedUnchangedWords: summaryMeasure("finished_unchanged_words"),
+  finishedUnchangedStrings: summaryMeasure("finished_unchanged_strings"),
+  finishedUnchangedCharacters: summaryMeasure("finished_unchanged_characters"),
+  finishedUnchangedCharactersWithSpaces: summaryMeasure(
+    "finished_unchanged_characters_with_spaces",
+  ),
 });
+/**
+ * Where a finished string's text came from (`SUMMARY_SOURCES`), or "" on a row that only holds
+ * arrivals: a key column, so a report can split finished work by source and the rest sum over it.
+ */
+const summarySource = () => text("source").notNull().default("");
 /**
  * Reports' daily summary, worked out from `reporting_analyses` and `reporting_activity` so the
  * Reports page never joins those two large tables while it is read. One set of rows per workspace,
@@ -226,6 +253,7 @@ export const reportingDailyByTask = pgTable(
     targetLocale: text("target_locale").notNull(),
     step: text("step", { enum: ["translation", "review"] }).notNull(),
     bucket: text("bucket").$type<MatchBucket>().notNull(),
+    source: summarySource(),
     /** The analysis was marked billable: work a person is paid for. */
     payable: boolean("payable").notNull(),
     day: date("day", { mode: "string" }).notNull(),
@@ -250,10 +278,39 @@ export const reportingDailyByProject = pgTable(
     targetLocale: text("target_locale").notNull(),
     step: text("step", { enum: ["translation", "review"] }).notNull(),
     bucket: text("bucket").$type<MatchBucket>().notNull(),
+    source: summarySource(),
     day: date("day", { mode: "string" }).notNull(),
     ...summaryMeasures(),
   },
   (t) => [index("reporting_daily_by_project_project").on(t.organizationId, t.projectId, t.day)],
+);
+/**
+ * The strings each project holds now, by language, step and match band: the daily rows'
+ * arrivals summed over every day, rewritten with them, so a whole project can be estimated
+ * without reading its days. The project's own source language stands for every row's.
+ */
+export const reportingCurrentByProject = pgTable(
+  "reporting_current_by_project",
+  {
+    organizationId: organizationId(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    sourceLocale: text("source_locale").notNull(),
+    targetLocale: text("target_locale").notNull(),
+    step: text("step", { enum: ["translation", "review"] }).notNull(),
+    bucket: text("bucket").$type<MatchBucket>().notNull(),
+    arrivedWords: summaryMeasure("arrived_words"),
+    arrivedStrings: summaryMeasure("arrived_strings"),
+    arrivedCharacters: summaryMeasure("arrived_characters"),
+    arrivedCharactersWithSpaces: summaryMeasure("arrived_characters_with_spaces"),
+    arrivedUncounted: summaryMeasure("arrived_uncounted"),
+    arrivedDoneWords: summaryMeasure("arrived_done_words"),
+    arrivedDoneStrings: summaryMeasure("arrived_done_strings"),
+    arrivedDoneCharacters: summaryMeasure("arrived_done_characters"),
+    arrivedDoneCharactersWithSpaces: summaryMeasure("arrived_done_characters_with_spaces"),
+  },
+  (t) => [index("reporting_current_by_project_project").on(t.organizationId, t.projectId)],
 );
 /**
  * Workspace, project and day whose summary rows need working out again. A write bumps

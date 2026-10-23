@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-Ships in three pull requests: the daily summary (`feat/web-reports-summary`), the read layer and API (`feat/web-reports-read-api`), and the Reports page with a task's Report tab (`feat/web-reports-task-report`). It builds on [Reports capture rework](./2026-10-20-reports-capture-rework-design.md), which records the work this reads.
+Ships in three pull requests: the daily summary (`feat/web-reports-summary`), the read layer and API (`feat/web-reports-read-api`), and the Reports page with a task's Report tab (`feat/web-reports-task-report`). It builds on [Reports capture rework](./2026-10-20-reports-capture-rework-design.md), which records the work this reads. The whole rework is one migration, `0160_reporting_rework`, carried by the first pull request with the final schema; the three deploy together.
 
 ## Context
 
@@ -17,8 +17,10 @@ Reports (behind the `workspace-reports` flag, no customer users yet) records wor
 
 ### Daily summary
 
-- `reporting_daily_by_task` keeps, per workspace, project, task, source and target language, step, match band, payable flag and UTC day: source, arrived, arrived and done, finished, and finished by a person, each in words, strings, characters and characters with spaces, plus strings whose units could not be counted. `reporting_daily_by_project` is the same without task, source language and payable. Neither has a unique key, so a task or project deleted with `set null` never collides.
-- "Arrived" counts the current version of each string; "finished" counts every finished record.
+- `reporting_daily_by_task` keeps, per workspace, project, task, source and target language, step, match band, where the finished text came from (`source`: memory, ai, person, import, unknown, or "" on a row that only holds arrivals), payable flag and UTC day: source, arrived, arrived and done, finished, finished by a person, and finished unchanged (a person kept the text they were given), each in words, strings, characters and characters with spaces, plus strings whose units could not be counted. `reporting_daily_by_project` is the same without task, source language and payable. Neither has a unique key, so a task or project deleted with `set null` never collides.
+- `reporting_current_by_project` keeps each project's current strings by language, step and match band (the daily rows' arrivals summed over every day, with the project's own source language), rewritten by each refresh of the project, so a whole project can be estimated without reading its days.
+- "Arrived" counts the current version of each string; "finished" counts every finished record. Each completion records where its text came from (`reporting_activity.source`) and, for a person's save, whether they kept the text they were given (`unchanged`, from the editor's own version history: the latest version not written by a person against the text saved). A person's save keeps the given text's source when they kept it, else it is their own.
+- A task for people (a proofread task, a visual workflow's translate, post-edit or proofread task) runs no agent, so its strings are recorded as arrived when it is created, in a workflow step started off the request (`taskAnalysisWorkflow`), payable, under the step the task is for. A save in the content editor belongs to the newest open task for people covering the string's file, language and step; otherwise to the task that produced the translation.
 - **Every write to `reporting_analyses` or `reporting_activity` marks its workspace, project and UTC day in `reporting_summary_queue` in the same transaction** (`markSummaryDays`), bumping the mark's generation. New code that records Reports work must do the same, or the summary silently goes stale.
 - `refreshSummaryDays` rebuilds a project's marked days from the raw records in one statement, under an advisory lock that is skipped when busy, and clears a mark only if its generation did not change meanwhile.
 - By default the summary refreshes at the end of each capture cron run: capture starts no new work after three minutes, and the refresh uses the time left up to four. `REPORTING_SUMMARY_REFRESH=after_write` refreshes straight after each write instead.
@@ -30,12 +32,13 @@ Reports (behind the `workspace-reports` flag, no customer users yet) records wor
 
 - Each tab has its own endpoint under `/api/orgs/:organizationSlug/reports`: `activity`, `step-times`, `ai-usage`, `words`, `time`, `costs`, `cost-estimate`, `budgets`, `rate-cards` and `tasks/:jobId/report`, with `format=csv` where a table is shown. They are on the typed API client.
 - Days are UTC. A headline number is compared with the previous period of the same length.
-- `GET /reports` and `queryReport` stay for the public API and the MCP `get_report` tool. The old page's routes (`/word-counts`, `/tasks/:jobId`, `/tasks/:jobId/match-analysis`, `POST /rates`) are removed.
+- `GET /reports?report=activity|words|time|costs` and the MCP `get_report` tool serve one of the page's reports with that tab's own fields, from the same reads (`report-reads.ts`), plus whether recent work is still being counted (`summary`, `stillUpdating`). The old raw-row report (`queryReport`) and the old page's routes (`/word-counts`, `/tasks/:jobId`, `/tasks/:jobId/match-analysis`, `POST /rates`) are removed.
+- A cost estimate is for chosen tasks (1 to 50), or for the whole of one project from its current rows, priced by the project budget's card or the one chosen (a task's own card does not apply there).
 
 ### Who sees and changes what
 
-- Money (Costs, Cost estimate, Budgets, rate cards, task pricing) needs `billing:read`: admins and localization managers. Changing rate cards, budgets, expenses and task pricing needs `billing:write`: admins.
-- AI used outside any project, and other people's logged time, are shown only to `billing:read`.
+- Reports are for `billing:read`: admins and localization managers. Every report, the public endpoint and the MCP tool refuse other roles. Changing rate cards, budgets, expenses and task pricing needs `billing:write`: admins.
+- Other members keep their own time: the Reports page shows them only the Time tab with their own entries (no automated time), and a task's Report tab only the time logged on it; they can log, edit and delete their own entries.
 
 ### AI
 
@@ -63,9 +66,10 @@ Reports (behind the `workspace-reports` flag, no customer users yet) records wor
 - On made-up data for 13 workspaces, a large workspace's reads take 0.01 to 0.27 seconds, against 2 to 7 seconds before. Budgets take 0.16 seconds; their AI spend reads all of a workspace's AI charges, so it grows with the workspace's history.
 - By default the page lags the work by up to one capture run (2 to 17 minutes after a save).
 - Refreshing rewrites the day's rows. Deleting a user leaves their work counted as a person's until the next rebuild of those days.
-- Tasks people work on from the start (proofread tasks, workflow person tasks) reach the summary one saved string at a time, so their untouched strings are missing from arrived words, still to come and the estimate.
+- A task for people is analysed a few seconds after it is created; until then its Report tab and estimate show no words. Its untouched strings count in still to come from then on.
 - A billed AI call that records no project counts only as AI outside any project.
-- Dropping `reporting_task_rates.rate_id` breaks the old code, which still reads it, between the migration and the new code going live.
+- `reporting_task_rates.rate_id`, the old single rate line, is no longer read but stays as a column so the rework needs one migration; a later clean-up drops it.
+- Local databases that applied the rework's interim migrations are brought in line with `bin/mark-migration-applied.sh` in hl-env, which rewrites Drizzle's bookkeeping only.
 
 ## Alternatives considered
 
