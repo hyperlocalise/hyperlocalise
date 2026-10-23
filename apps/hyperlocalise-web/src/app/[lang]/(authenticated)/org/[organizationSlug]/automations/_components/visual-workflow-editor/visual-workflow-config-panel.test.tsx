@@ -1388,6 +1388,71 @@ describe("VisualWorkflowConfigPanel", () => {
     );
   });
 
+  it("configures ordered Coalesce inputs without changing their stable ids", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+
+    function StatefulCoalescePanel() {
+      const [config, setConfig] = useState<Extract<VisualNodeConfig, { kind: "logic.coalesce" }>>({
+        kind: "logic.coalesce",
+        inputs: [
+          { id: "primary", name: "Primary", type: "string" },
+          { id: "fallback", name: "Fallback", type: "string", defaultValue: "en" },
+        ],
+        treatNullAsMissing: true,
+        treatEmptyStringAsMissing: false,
+        treatEmptyArrayAsMissing: false,
+        treatEmptyObjectAsMissing: false,
+      });
+      const node: VisualWorkflowRfNode = {
+        id: "coalesce",
+        type: "logic.coalesce",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("logic.coalesce"),
+        data: {
+          catalogType: "logic.coalesce",
+          config,
+          runStatus: "idle",
+        },
+      };
+
+      return (
+        <VisualWorkflowConfigPanel
+          node={node}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={(next) => {
+            onChangeConfig(next);
+            if (next.kind === "logic.coalesce") setConfig(next);
+          }}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+        />
+      );
+    }
+
+    renderPanel(<StatefulCoalescePanel />);
+
+    await user.click(screen.getByRole("button", { name: "Move value 2 up" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        inputs: [
+          expect.objectContaining({ id: "fallback" }),
+          expect.objectContaining({ id: "primary" }),
+        ],
+      }),
+    );
+    expect(screen.getByRole("textbox", { name: "Value 1 name" })).toHaveValue("Fallback");
+
+    await user.click(screen.getByRole("button", { name: "Add value" }));
+    expect(screen.getByRole("textbox", { name: "Value 3 name" })).toHaveValue("Value 3");
+
+    await user.click(screen.getByRole("checkbox", { name: "Empty arrays" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ treatEmptyArrayAsMissing: true }),
+    );
+  });
+
   it("resets Crowdin people IDs when the saved value or selected step changes", () => {
     const first = pickAssigneeCrowdinNode("pick-a", ["12", "14"]);
     const { rerender } = renderPanel(

@@ -330,6 +330,11 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     outputs: [output("value", "unknown"), output("found", "boolean")],
     mock: { value: null, found: false },
   },
+  "logic.coalesce": {
+    inputs: [],
+    outputs: [output("value", "unknown")],
+    mock: { value: null },
+  },
   "logic.for_each": {
     inputs: [field("collection", "array")],
     outputs: [
@@ -462,6 +467,19 @@ function inferLiteralSelectPathOutput(node: CanonicalVisualWorkflowNode): Workfl
   return workflowValueType(selected);
 }
 
+function isAvailableCoalesceValue(
+  value: unknown,
+  config: Extract<CanonicalVisualWorkflowNode["config"], { kind: "logic.coalesce" }>,
+): boolean {
+  if (value === undefined) return false;
+  if (value === null) return !config.treatNullAsMissing;
+  if (value === "") return !config.treatEmptyStringAsMissing;
+  if (Array.isArray(value)) return value.length > 0 || !config.treatEmptyArrayAsMissing;
+  if (typeof value === "object")
+    return Object.keys(value).length > 0 || !config.treatEmptyObjectAsMissing;
+  return true;
+}
+
 export function getWorkflowOutputFields(node: CanonicalVisualWorkflowNode): WorkflowOutputField[] {
   const fields = new Map(NODE_CONTRACTS[node.type].outputs.map((field) => [field.path, field]));
   if (node.config.kind === "logic.select_path") {
@@ -474,6 +492,19 @@ export function getWorkflowOutputFields(node: CanonicalVisualWorkflowNode): Work
       type: outputType,
       optional: node.config.missingBehavior === "optional",
     });
+  }
+  if (node.config.kind === "logic.coalesce") {
+    const config = node.config;
+    const firstType = config.inputs[0]?.type ?? "unknown";
+    const outputType = config.inputs.every((input) => input.type === firstType)
+      ? firstType
+      : "unknown";
+    const hasGuaranteedValue = config.inputs.some((input) => {
+      const binding = node.inputs?.[`value.${input.id}`];
+      if (binding?.kind === "literal") return isAvailableCoalesceValue(binding.value, config);
+      return !binding && isAvailableCoalesceValue(input.defaultValue, config);
+    });
+    fields.set("value", { path: "value", type: outputType, optional: !hasGuaranteedValue });
   }
   if (node.config.kind === "logic.set") {
     for (const assignment of node.config.assignments)
@@ -512,6 +543,14 @@ export function getWorkflowOutputFields(node: CanonicalVisualWorkflowNode): Work
 }
 
 export function getWorkflowInputFields(node: CanonicalVisualWorkflowNode): WorkflowInputField[] {
+  if (node.config.kind === "logic.coalesce") {
+    return node.config.inputs.map((input) => ({
+      name: `value.${input.id}`,
+      type: input.type,
+      required: false,
+    }));
+  }
+
   if (node.config.kind === "logic.create_object") {
     return node.config.fields.map((objectField) => ({
       name: `value.${objectField.id}`,

@@ -14,6 +14,12 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 import { db, schema } from "@/lib/database/client";
+import {
+  loadPushLocaleTranslationProgress,
+  pushLocaleHasApprovedTranslations,
+  toPushLocaleProgressRow,
+  type PushLocaleProgressRow,
+} from "@/lib/projects/locale-progress/push-translation-progress";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 import { resolveGoogleDrivePushTargetLocales } from "./push-google-drive-translations";
@@ -25,6 +31,7 @@ export type GoogleDrivePushFile = {
   eligibleLocaleCount: number;
   targetLocaleCount: number;
   eligibleLocales: string[];
+  locales: PushLocaleProgressRow[];
   lastPushedAt: string | null;
   lastError: string | null;
 };
@@ -52,7 +59,9 @@ function googleDrivePushLastErrorMessage(lastError: Record<string, unknown> | nu
 export async function getGoogleDrivePushEligibility(input: {
   organizationId: string;
   automation: WorkspaceAutomationRecord;
+  includeLocaleProgress?: boolean;
 }): Promise<GoogleDrivePushEligibility | null> {
+  const includeLocaleProgress = input.includeLocaleProgress ?? false;
   const googleDrive = input.automation.toolConfig.googleDrive;
   if (!googleDrive?.enabled) {
     return null;
@@ -105,16 +114,26 @@ export async function getGoogleDrivePushEligibility(input: {
 
   for (const mapping of mappings) {
     const eligibleLocales: string[] = [];
+    const locales: PushLocaleProgressRow[] = [];
+    const loadPrefilled = (
+      request: Parameters<typeof translationService.loadAsPrefilledEntries>[0],
+    ) => translationService.loadAsPrefilledEntries(request);
     for (const projectLocale of targetLocales) {
-      const approved = await translationService.loadAsPrefilledEntries({
+      const localeInput = {
         organizationId: input.organizationId,
         projectId,
         sourcePath: mapping.sourcePath,
         targetLocale: projectLocale,
-        approvedTranslationsOnly: true,
-        readyTranslationsOnly: true,
-      });
-      if (approved.translatedKeyCount > 0) {
+      };
+      if (includeLocaleProgress) {
+        const localeProgress = await loadPushLocaleTranslationProgress(loadPrefilled, localeInput);
+        locales.push(toPushLocaleProgressRow(projectLocale, localeProgress));
+        if (localeProgress.approvedKeyCount > 0) {
+          eligibleLocales.push(projectLocale);
+        }
+        continue;
+      }
+      if (await pushLocaleHasApprovedTranslations(loadPrefilled, localeInput)) {
         eligibleLocales.push(projectLocale);
       }
     }
@@ -129,6 +148,7 @@ export async function getGoogleDrivePushEligibility(input: {
       eligibleLocaleCount: eligibleLocales.length,
       targetLocaleCount: targetLocales.length,
       eligibleLocales,
+      locales,
       lastPushedAt: mapping.lastPushedAt?.toISOString() ?? null,
       lastError: googleDrivePushLastErrorMessage(mapping.lastError),
     });

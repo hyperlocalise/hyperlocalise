@@ -77,6 +77,7 @@ export const visualCatalogTypeSchema = z.enum([
   "logic.create_object",
   "logic.merge_objects",
   "logic.select_path",
+  "logic.coalesce",
   "ai.agent",
   "logic.for_each",
   "logic.retry",
@@ -226,6 +227,57 @@ const visualObjectMergeInputsSchema = z
           path: [index, "name"],
           message: "duplicate_object_input_name",
         });
+      }
+      ids.add(input.id);
+      names.add(input.name);
+    }
+  });
+
+const visualCoalesceInputsSchema = z
+  .array(
+    z.object({
+      id: z.string().trim().min(1).max(128),
+      name: z.string().trim().min(1).max(128),
+      type: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+      defaultValue: z.unknown().optional(),
+    }),
+  )
+  .min(2)
+  .max(32)
+  .superRefine((inputs, context) => {
+    const ids = new Set<string>();
+    const names = new Set<string>();
+    for (const [index, input] of inputs.entries()) {
+      if (ids.has(input.id)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "id"],
+          message: "duplicate_coalesce_input_id",
+        });
+      }
+      if (names.has(input.name)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "name"],
+          message: "duplicate_coalesce_input_name",
+        });
+      }
+      if (Object.hasOwn(input, "defaultValue")) {
+        const value = input.defaultValue;
+        const matches =
+          input.type === "unknown" ||
+          (input.type === "array"
+            ? Array.isArray(value)
+            : input.type === "object"
+              ? value !== null && typeof value === "object" && !Array.isArray(value)
+              : typeof value === input.type);
+        if (!matches) {
+          context.addIssue({
+            code: "custom",
+            path: [index, "defaultValue"],
+            message: "invalid_coalesce_input_default",
+          });
+        }
       }
       ids.add(input.id);
       names.add(input.name);
@@ -470,6 +522,14 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     outputType: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
     missingBehavior: z.enum(["error", "optional", "default"]),
     defaultValue: z.unknown().optional(),
+  }),
+  z.object({
+    kind: z.literal("logic.coalesce"),
+    inputs: visualCoalesceInputsSchema,
+    treatNullAsMissing: z.boolean(),
+    treatEmptyStringAsMissing: z.boolean(),
+    treatEmptyArrayAsMissing: z.boolean(),
+    treatEmptyObjectAsMissing: z.boolean(),
   }),
   z.object({
     kind: z.literal("ai.agent"),

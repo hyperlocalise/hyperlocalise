@@ -383,7 +383,9 @@ export function compileVisualWorkflowV3Definition(
       kind: "reference",
       nodeId: source.id,
       path: edge.sourcePortId.split("."),
-      ...(target.config.kind === "logic.merge" ? { optional: true } : {}),
+      ...(target.config.kind === "logic.merge" || target.config.kind === "logic.coalesce"
+        ? { optional: true }
+        : {}),
     };
 
     target.inputs = inputs;
@@ -395,7 +397,8 @@ export function compileVisualWorkflowV3Definition(
       node.config.kind !== "flow.call_workflow" &&
       node.config.kind !== "logic.create_object" &&
       node.config.kind !== "logic.merge_objects" &&
-      node.config.kind !== "logic.select_path"
+      node.config.kind !== "logic.select_path" &&
+      node.config.kind !== "logic.coalesce"
     )
       continue;
 

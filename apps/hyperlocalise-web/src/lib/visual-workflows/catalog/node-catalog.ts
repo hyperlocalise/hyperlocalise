@@ -206,6 +206,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: PathIcon,
   },
   {
+    type: "logic.coalesce",
+    category: "logic",
+    enabled: true,
+    icon: GitMergeIcon,
+  },
+  {
     type: "ai.agent",
     category: "ai",
     enabled: true,
@@ -462,6 +468,18 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         outputType: "unknown",
         missingBehavior: "error",
       };
+    case "logic.coalesce":
+      return {
+        kind: "logic.coalesce",
+        inputs: [
+          { id: createCoalesceInputId(), name: "Value 1", type: "unknown" },
+          { id: createCoalesceInputId(), name: "Value 2", type: "unknown" },
+        ],
+        treatNullAsMissing: true,
+        treatEmptyStringAsMissing: false,
+        treatEmptyArrayAsMissing: false,
+        treatEmptyObjectAsMissing: false,
+      };
     case "ai.agent":
       return { kind: "ai.agent", prompt: "", onError: "stop" };
     case "logic.for_each":
@@ -646,6 +664,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.path.length > 0
         ? config.path.map((segment) => String(segment)).join(" › ")
         : "No path selected";
+    case "logic.coalesce":
+      return `${config.inputs.length} ordered values`;
     case "ai.agent":
       return "Tools agent";
     case "logic.for_each":
@@ -710,6 +730,10 @@ export function createReturnOutputId(): string {
 }
 
 export function createObjectPortId(): string {
+  return crypto.randomUUID();
+}
+
+export function createCoalesceInputId(): string {
   return crypto.randomUUID();
 }
 

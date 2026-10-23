@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,6 +38,14 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 
+import { allSelectedPushRowsHaveEligibleLocales } from "./content-editor-integration-toolbar-visibility";
+import {
+  ContentEditorPushApproveHint,
+  ContentEditorPushLocaleProgressRows,
+  ContentEditorPushRefreshButton,
+} from "./content-editor-push-progress";
+import { contentEditorPushProgressMessages as pushProgressMessages } from "./content-editor-push-progress.messages";
+import { useContentEditorPushDialogSelection } from "./use-content-editor-push-dialog-selection";
 import { contentEditorGoogleDrivePushButtonMessages as messages } from "./content-editor-google-drive-push-button.messages";
 import {
   contentEditorGoogleDrivePushFilesQueryKey,
@@ -68,7 +77,6 @@ export function ContentEditorGoogleDrivePushDialog({
   const [selectedAutomationId, setSelectedAutomationId] = useState(
     () => candidates[0]?.automationId ?? "",
   );
-  const [selectedSourcePaths, setSelectedSourcePaths] = useState<string[]>([]);
   const [search, setSearch] = useState("");
 
   const selectedAutomation =
@@ -107,21 +115,23 @@ export function ContentEditorGoogleDrivePushDialog({
     }
     setSelectedAutomationId(firstAutomationId);
     setSearch("");
-    setSelectedSourcePaths([]);
   }, [open, firstAutomationId]);
 
-  useEffect(() => {
-    if (!open || !filesQuery.data) {
-      return;
-    }
-    setSelectedSourcePaths(defaultSelectedGoogleDrivePushSourcePaths(filesQuery.data, sourcePath));
-  }, [open, filesQuery.data, sourcePath, automationId]);
+  const { selectedSourcePaths, setSelectedSourcePaths } = useContentEditorPushDialogSelection({
+    open,
+    automationId,
+    sourcePath,
+    items: filesQuery.data,
+    defaultSelectedSourcePaths: defaultSelectedGoogleDrivePushSourcePaths,
+  });
 
   const toggleSourcePath = (nextSourcePath: string, checked: boolean) => {
     setSelectedSourcePaths((current) =>
       checked ? [...current, nextSourcePath] : current.filter((value) => value !== nextSourcePath),
     );
   };
+
+  const canConfirmPush = selectedSourcePaths.length > 0;
 
   return (
     <Dialog
@@ -141,6 +151,7 @@ export function ContentEditorGoogleDrivePushDialog({
           <DialogDescription>
             <FormattedMessage {...messages.selectFilesDescription} />
           </DialogDescription>
+          <ContentEditorPushApproveHint />
         </DialogHeader>
         {candidates.length > 1 ? (
           <div className="flex flex-col gap-2">
@@ -168,31 +179,40 @@ export function ContentEditorGoogleDrivePushDialog({
             </Select>
           </div>
         ) : null}
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder={intl.formatMessage(messages.searchFilesPlaceholder)}
-          aria-label={intl.formatMessage(messages.searchFilesLabel)}
-        />
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={files.length === 0 || pending}
-            onClick={() => setSelectedSourcePaths(files.map((file) => file.sourcePath))}
-          >
-            <FormattedMessage {...messages.selectAllFiles} />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={selectedSourcePaths.length === 0 || pending}
-            onClick={() => setSelectedSourcePaths([])}
-          >
-            <FormattedMessage {...messages.clearFileSelection} />
-          </Button>
+        <div className="flex flex-col gap-1.5">
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={intl.formatMessage(messages.searchFilesPlaceholder)}
+            aria-label={intl.formatMessage(messages.searchFilesLabel)}
+          />
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto px-0 text-xs underline"
+              disabled={files.length === 0 || pending}
+              onClick={() => setSelectedSourcePaths(files.map((file) => file.sourcePath))}
+            >
+              <FormattedMessage {...messages.selectAllFiles} />
+            </Button>
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto px-0 text-xs underline"
+              disabled={selectedSourcePaths.length === 0 || pending}
+              onClick={() => setSelectedSourcePaths([])}
+            >
+              <FormattedMessage {...messages.clearFileSelection} />
+            </Button>
+            <ContentEditorPushRefreshButton
+              fetching={filesQuery.isRefetching}
+              disabled={pending || automationId.length === 0}
+              onRefresh={() => {
+                void filesQuery.refetch();
+              }}
+            />
+          </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
           {filesQuery.isLoading ? (
@@ -230,7 +250,11 @@ export function ContentEditorGoogleDrivePushDialog({
           </Button>
           <Button
             onClick={() => {
-              if (!automationId || selectedSourcePaths.length === 0) {
+              if (!automationId || !canConfirmPush) {
+                return;
+              }
+              if (!allSelectedPushRowsHaveEligibleLocales(files, selectedSourcePaths)) {
+                toast.error(intl.formatMessage(pushProgressMessages.ineligibleSelectionError));
                 return;
               }
               onConfirm({
@@ -238,7 +262,7 @@ export function ContentEditorGoogleDrivePushDialog({
                 sourcePaths: selectedSourcePaths,
               });
             }}
-            disabled={selectedSourcePaths.length === 0 || pending || filesQuery.isLoading}
+            disabled={!canConfirmPush || pending || filesQuery.isLoading}
           >
             {pending ? <Spinner data-icon="inline-start" /> : null}
             <FormattedMessage
@@ -277,16 +301,7 @@ function GoogleDrivePushFileRow({
         <span className="mt-0.5 block truncate font-mono text-xs text-muted-foreground">
           {file.sourcePath}
         </span>
-        <span className="mt-1 block text-xs text-muted-foreground">
-          <FormattedMessage
-            {...messages.readyLocales}
-            values={{
-              ready: file.eligibleLocaleCount,
-              total: file.targetLocaleCount,
-            }}
-          />
-          {file.eligibleLocales.length > 0 ? ` · ${file.eligibleLocales.join(", ")}` : null}
-        </span>
+        <ContentEditorPushLocaleProgressRows locales={file.locales ?? []} />
         {file.status === "push_failed" ? (
           <span className="mt-1 block text-xs text-destructive">
             <FormattedMessage {...messages.lastPushFailed} />

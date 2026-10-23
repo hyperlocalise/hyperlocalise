@@ -33,6 +33,11 @@ export type ContentEditorIntercomPushArticle = {
   eligibleLocaleCount: number;
   targetLocaleCount: number;
   eligibleLocales: string[];
+  locales: Array<{
+    locale: string;
+    translationProgress: number;
+    approvalProgress: number;
+  }>;
   lastPushedAt: string | null;
   lastError: string | null;
 };
@@ -111,14 +116,11 @@ export async function fetchContentEditorIntercomPushCandidates(input: {
       }
       const body = await response.json();
       const intercomPush = body.intercomPush;
-      if (!intercomPush || intercomPush.eligibleLocaleCount <= 0) {
-        return null;
-      }
       return {
         automationId: automation.id,
         name: automation.name,
-        eligibleLocaleCount: intercomPush.eligibleLocaleCount,
-        pushRunInProgress: intercomPush.pushRunInProgress,
+        eligibleLocaleCount: intercomPush?.eligibleLocaleCount ?? 0,
+        pushRunInProgress: intercomPush?.pushRunInProgress ?? false,
         overwriteIntercomDrafts: Boolean(automation.toolConfig.intercom?.overwriteIntercomDrafts),
       } satisfies ContentEditorIntercomPushCandidate;
     },

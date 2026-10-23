@@ -86,11 +86,6 @@ export const googleDrivePushUiMessages = defineMessages({
     id: "PWg4LJvEJP",
     description: "Empty state when file search matches nothing",
   },
-  readyLocales: {
-    defaultMessage: "{ready} of {total} locales ready",
-    id: "kYL2riWJTH",
-    description: "How many mapped locales are ready to push for one file",
-  },
   lastPushFailed: {
     defaultMessage: "Last push failed",
     id: "ngGsi4lPve",
