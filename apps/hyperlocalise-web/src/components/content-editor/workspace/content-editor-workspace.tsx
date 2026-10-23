@@ -20,6 +20,7 @@ import { FormattedMessage } from "react-intl";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/primitives/cn";
+import { useAiCreditRefusalToast } from "@/components/billing/use-ai-credit-refusal-toast";
 
 import { ContentEditorEditorPanel } from "@/components/content-editor/editor/content-editor-editor-panel";
 import { isContentEditorImageGenerating } from "@/components/content-editor/project-file/content-editor-image-generation-state";
@@ -117,6 +118,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   onReloadConcordance,
 }: ContentEditorWorkspaceViewProps) {
   const store = useContentEditorWorkspace();
+  const notifyAiCreditRefusal = useAiCreditRefusalToast();
   const isApproving = store.isApproving;
   const isSavingDraft = store.isSavingDraft;
   const isPostingComment = store.isPostingComment;
@@ -600,7 +602,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           }
           onRegenerateImage={
             editing.onRegenerateImage
-              ? (segmentId) => void editing.onRegenerateImage?.(segmentId)
+              ? (segmentId) =>
+                  void Promise.resolve(editing.onRegenerateImage?.(segmentId)).catch((error) => {
+                    if (!notifyAiCreditRefusal(error)) throw error;
+                  })
               : undefined
           }
           onUploadImage={
@@ -910,7 +915,12 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           }
           onRegenerateImage={
             editing.onRegenerateImage
-              ? () => void editing.onRegenerateImage?.(editorSegment.id)
+              ? () =>
+                  void Promise.resolve(editing.onRegenerateImage?.(editorSegment.id)).catch(
+                    (error) => {
+                      if (!notifyAiCreditRefusal(error)) throw error;
+                    },
+                  )
               : undefined
           }
           onUploadImage={

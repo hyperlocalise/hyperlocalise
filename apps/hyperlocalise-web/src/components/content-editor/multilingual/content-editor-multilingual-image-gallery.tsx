@@ -23,6 +23,7 @@ import {
 } from "@phosphor-icons/react";
 import { useIntl } from "react-intl";
 
+import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -272,7 +273,11 @@ const LocaleImageCard = observer(function LocaleImageCard({
         {body}
         {generation?.status === "failed" ? (
           <p role="alert" className="text-xs text-destructive">
-            {intl.formatMessage(messages.generationError)}
+            {intl.formatMessage(
+              generation.aiCreditExhausted
+                ? aiCreditExhaustedMessages.exhausted
+                : messages.generationError,
+            )}
           </p>
         ) : null}
       </GalleryCard>

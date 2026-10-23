@@ -21,7 +21,7 @@ import {
   maxNativeContentEditorHiddenStringBatch,
   type ProjectFileContentEditorQueueFile,
 } from "@/api/routes/project/project.schema";
-import { readApiError } from "@/lib/api-error";
+import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
@@ -678,11 +678,9 @@ export function useContentEditorMutations(input: {
       );
 
       if (response.status !== 200) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(useContentEditorMutationsMessages.failedToRegenerateImage),
-          ),
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(useContentEditorMutationsMessages.failedToRegenerateImage),
         );
       }
 
