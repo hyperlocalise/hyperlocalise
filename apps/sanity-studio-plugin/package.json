@@ -54,7 +54,7 @@
     "@sanity/icons": "^5.2.3",
     "@sanity/incompatible-plugin": "^1.0.5",
     "@sanity/ui": "^4.4.9",
-    "zod": "^3.25.76"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@sanity/document-internationalization": "^4.1.1",
