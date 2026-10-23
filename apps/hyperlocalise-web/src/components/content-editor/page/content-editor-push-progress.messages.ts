@@ -32,7 +32,7 @@ export const contentEditorPushProgressMessages = defineMessages({
   },
   progressBarLabel: {
     defaultMessage: "{locale}: Translated {translated}% · Approved {approved}%",
-    id: "cEPushBar1",
+    id: "U4sr4IyxSs",
     description: "Accessible label for a locale progress bar in a Content editor push dialog",
   },
   approveHint: {
