@@ -205,6 +205,46 @@ describe("cost estimate", () => {
     expect(usd(mixed.totals.costUsd)).toBe(1.5);
   });
 
+  it("estimates a whole project from its current strings, in a task or not, as one", async () => {
+    const workspace = await fixture.createWorkspace();
+    const { organization, project, createJob, addSummary } = workspace;
+    await createCard(workspace, "Per word", [line("fr-FR", "0.10")]);
+    const first = await createJob();
+    const second = await createJob({ status: "succeeded" });
+    await addSummary([
+      { jobId: first.id, targetLocale: "fr-FR", day: "2026-06-01", arrived: 10 },
+      { jobId: second.id, targetLocale: "fr-FR", day: "2026-06-02", arrived: 20 },
+      // Saved in the content editor outside any task.
+      { jobId: null, targetLocale: "fr-FR", day: "2026-06-03", arrived: 5, payable: true },
+    ]);
+    const estimate = (jobIds: string[]) =>
+      queryCostEstimate({
+        organizationId: organization.id,
+        projectIds: [project.id],
+        projectId: project.id,
+        jobIds,
+        unit: "words",
+        rateCardName: "Per word",
+      });
+    const tasks = await estimate([first.id, second.id]);
+    expect(tasks.totals).toMatchObject({ units: 30, tasks: 2 });
+    const whole = await estimate([]);
+    expect(whole.totals).toMatchObject({ units: 35, costUsd: "3.50000000" });
+    expect(whole.rows).toEqual([
+      expect.objectContaining({ targetLocale: "fr-FR", pricing: "rate", pricedBy: ["chosen"] }),
+    ]);
+    // Without one project chosen, nothing is estimated: a whole workspace is never read.
+    await expect(
+      queryCostEstimate({
+        organizationId: organization.id,
+        projectIds: [project.id],
+        jobIds: [],
+        unit: "words",
+        rateCardName: "Per word",
+      }),
+    ).resolves.toMatchObject({ rows: [], totals: { units: 0 } });
+  });
+
   it("prices a task by its own card's line for each language, as the card was when the task was priced", async () => {
     const workspace = await fixture.createWorkspace();
     const { organization, project, createJob, addSummary } = workspace;

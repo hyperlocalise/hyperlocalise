@@ -159,6 +159,25 @@ async function expectSummaryMatchesRecount(organizationId: string, scanCompletio
     from reporting_daily_by_task where organization_id = ${organizationId}
     group by 1, 2, 3, 4, 5 order by 1, 2, 3, 4, 5`);
   expect(byProject.rows).toEqual(fromTasks.rows);
+  // The current rows are the by-project arrivals summed over every day, with the project's
+  // source language.
+  const current = await db.execute(sql`
+    select project_id, source_locale, target_locale, step, bucket,
+      arrived_words, arrived_strings, arrived_done_words, arrived_done_strings, arrived_uncounted
+    from reporting_current_by_project where organization_id = ${organizationId}
+    order by 1, 2, 3, 4, 5`);
+  const fromDays = await db.execute(sql`
+    select s.project_id, coalesce(p.source_locale, 'en') as source_locale, s.target_locale,
+      s.step, s.bucket, sum(s.arrived_words)::integer as arrived_words,
+      sum(s.arrived_strings)::integer as arrived_strings,
+      sum(s.arrived_done_words)::integer as arrived_done_words,
+      sum(s.arrived_done_strings)::integer as arrived_done_strings,
+      sum(s.arrived_uncounted)::integer as arrived_uncounted
+    from reporting_daily_by_project s join projects p on p.id = s.project_id
+    where s.organization_id = ${organizationId}
+    group by 1, 2, 3, 4, 5 having sum(s.arrived_strings) > 0 or sum(s.arrived_uncounted) > 0
+    order by 1, 2, 3, 4, 5`);
+  expect(current.rows).toEqual(fromDays.rows);
 }
 
 const day = (date: string) => new Date(`${date}T10:00:00Z`);

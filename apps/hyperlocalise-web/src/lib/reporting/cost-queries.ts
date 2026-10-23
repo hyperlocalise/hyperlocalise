@@ -91,6 +91,8 @@ const LIVE_TASK = sql`j.status not in ('failed', 'cancelled')`;
 
 /**
  * Units of work, priced. `chosen` is every current string of the given tasks, finished or not;
+ * `project` every current string of the given projects, in a task or not, from the projects'
+ * current rows (a task's own card does not apply there: the project is priced as one);
  * `toCome` is the unfinished part of open tasks assigned to a person or marked payable, plus
  * unfinished payable work saved outside any task. A task that ended will do no more work.
  */
@@ -102,27 +104,30 @@ async function pricedUnits(input: {
   step?: ReportStep;
   unit: ReportUnit;
   rateCardName: string | null;
-  measure: "chosen" | "toCome";
+  measure: "chosen" | "project" | "toCome";
 }) {
   const value = (unit: string): SQL =>
-    input.measure === "chosen"
-      ? sql.raw(`s.arrived_${unit}`)
-      : sql.raw(`s.arrived_${unit} - s.arrived_done_${unit}`);
+    input.measure === "toCome"
+      ? sql.raw(`s.arrived_${unit} - s.arrived_done_${unit}`)
+      : sql.raw(`s.arrived_${unit}`);
   const projects = sql`s.project_id in (${idList(input.projectIds)})`;
   // Still to come counts only the uncounted strings that cannot all be among the done ones.
   const uncounted =
-    input.measure === "chosen"
-      ? sql`s.arrived_uncounted`
-      : sql`greatest(s.arrived_uncounted - s.arrived_done_strings, 0)`;
+    input.measure === "toCome"
+      ? sql`greatest(s.arrived_uncounted - s.arrived_done_strings, 0)`
+      : sql`s.arrived_uncounted`;
   const tasks = input.jobIds?.length ? sql`and s.job_id in (${idList(input.jobIds)})` : sql``;
   const rows =
     input.measure === "chosen"
       ? sql`select s.* from reporting_daily_by_task s
           where s.organization_id = ${input.organizationId} and ${projects} ${tasks}`
-      : // Read task by task from the open tasks, through the summary's task index: tasks that
-        // ended hold most of a workspace's rows, and a planner scanning them all is far slower.
-        // Rows with as many strings done as arrived have nothing left to do.
-        sql`select s.* from jobs j
+      : input.measure === "project"
+        ? sql`select s.*, null::text as job_id from reporting_current_by_project s
+            where s.organization_id = ${input.organizationId} and ${projects}`
+        : // Read task by task from the open tasks, through the summary's task index: tasks that
+          // ended hold most of a workspace's rows, and a planner scanning them all is far slower.
+          // Rows with as many strings done as arrived have nothing left to do.
+          sql`select s.* from jobs j
           cross join lateral (
             select s.* from reporting_daily_by_task s
             where s.organization_id = ${input.organizationId} and s.job_id = j.id
@@ -144,9 +149,9 @@ async function pricedUnits(input: {
   // Only a task with its own rate, fee or time estimate is priced apart from the others, so
   // still to come adds up the rest of a project's open tasks together.
   const task =
-    input.measure === "chosen"
-      ? sql`s.job_id`
-      : sql`case when own.id is not null then s.job_id end`;
+    input.measure === "toCome"
+      ? sql`case when own.id is not null then s.job_id end`
+      : sql`s.job_id`;
   const chosenLanguage = input.targetLocale
     ? sql`target_locale = ${input.targetLocale}`
     : sql`true`;
@@ -177,10 +182,10 @@ async function pricedUnits(input: {
         sum(${value(input.unit)}) as shown, sum(${uncounted}) as uncounted
       from (${rows}) s
       ${
-        input.measure === "chosen"
-          ? sql``
-          : sql`left join reporting_task_rates own on own.organization_id = ${input.organizationId}
+        input.measure === "toCome"
+          ? sql`left join reporting_task_rates own on own.organization_id = ${input.organizationId}
               and own.job_id = s.job_id and own.step = s.step`
+          : sql``
       }
       where true ${input.step ? sql`and s.step = ${input.step}` : sql``}
       group by 1, 2, 3, 4, 5, 6
@@ -380,7 +385,9 @@ export type CostEstimate = {
 
 /**
  * What the chosen tasks will cost: every current string, finished or not, at the live rates.
- * Tasks must be chosen (up to 50): a whole workspace's tasks hold millions of summary rows.
+ * With no tasks chosen and one project, the whole project: every current string it holds, in a
+ * task or not, from its current rows. A whole workspace is never estimated: its tasks hold
+ * millions of summary rows.
  */
 export async function queryCostEstimate(
   input: Omit<ReportScope, "jobIds"> & {
@@ -391,6 +398,7 @@ export async function queryCostEstimate(
   },
 ): Promise<CostEstimate> {
   const projectIds = scopedProjectIds(input);
+  const wholeProject = input.jobIds.length === 0 && Boolean(input.projectId);
   const empty: CostEstimate = {
     rateCardName: input.rateCardName,
     pricingOrder: PRICING_ORDER,
@@ -411,10 +419,11 @@ export async function queryCostEstimate(
       incomplete: false,
     },
   };
-  if (projectIds.length === 0 || input.jobIds.length === 0) return empty;
+  if (projectIds.length === 0 || (input.jobIds.length === 0 && !wholeProject)) return empty;
   const [priced, allFees] = await Promise.all([
-    pricedUnits({ ...input, projectIds, measure: "chosen" }),
-    fixedFees({ ...input, projectIds, uncharged: false }),
+    pricedUnits({ ...input, projectIds, measure: wholeProject ? "project" : "chosen" }),
+    // A whole project is priced as one: no task's fixed fee stands in for its strings.
+    wholeProject ? [] : fixedFees({ ...input, projectIds, uncharged: false }),
   ]);
   const fees = input.targetLocale ? [] : allFees;
   const lineKey = (line: { targetLocale: string; step: ReportStep; rateId: string | null }) =>

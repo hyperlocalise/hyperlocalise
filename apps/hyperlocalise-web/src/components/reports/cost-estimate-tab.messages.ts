@@ -21,10 +21,16 @@ export const costEstimateTabMessages = defineMessages({
     description: "Shown on the cost estimate tab before any task is chosen",
   },
   chooseTasksDescription: {
-    id: "p4tD7fPCpq",
+    id: 'zdt5t48/02',
     defaultMessage:
-      "Pick up to 50 tasks above. The estimate covers every word of them, finished or not.",
+      "Pick up to 50 tasks above, or choose one project to estimate all of it. The estimate covers every word, finished or not.",
     description: "Explains how to start a cost estimate",
+  },
+  wholeProjectNote: {
+    id: '5CA5krT8sM',
+    defaultMessage:
+      "The whole project: every string it holds now, in a task or not, priced by the project budget's rate card or the one chosen here. Pick tasks to price them by their own cards.",
+    description: "Line above a cost estimate of a whole project rather than chosen tasks",
   },
   unitsToTranslate: {
     id: "IBAwfyPf94",

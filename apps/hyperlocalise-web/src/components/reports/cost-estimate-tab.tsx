@@ -114,7 +114,8 @@ export function CostEstimateTab({
   const intl = useIntl();
   const estimateInput = { ...input, state: { ...input.state, rateCard: rateCardName } };
   const estimate = useCostEstimate(estimateInput);
-  if (input.state.jobIds.length === 0)
+  const wholeProject = input.state.jobIds.length === 0 && Boolean(input.state.projectId);
+  if (input.state.jobIds.length === 0 && !wholeProject)
     return (
       <ReportEmpty
         title={intl.formatMessage(messages.chooseTasksTitle)}
@@ -123,6 +124,11 @@ export function CostEstimateTab({
     );
   return (
     <div className="flex flex-col gap-4">
+      {wholeProject ? (
+        <p className="text-sm text-muted-foreground">
+          {intl.formatMessage(messages.wholeProjectNote)}
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <UnitSwitch value={input.state.unit} onChange={(unit) => onChange({ unit })} />
         <DownloadCsvButton

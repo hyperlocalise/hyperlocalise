@@ -191,6 +191,15 @@ async function reads(organizationId: string) {
       rateCardName,
     }),
   );
+  await measure("cost estimate, whole busiest project", () =>
+    queryCostEstimate({
+      ...scope,
+      ...words,
+      projectId: busiest.projectId,
+      jobIds: [],
+      rateCardName,
+    }),
+  );
   await measure("still to come, whole workspace", () =>
     queryStillToCome({ organizationId, projectIds, rateCardName }),
   );

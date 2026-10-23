@@ -61,6 +61,10 @@ const COLUMNS = [
   ...MEASURES.flatMap((measure) => UNITS.map((unit) => `${measure}_${unit}`)),
   "arrived_uncounted",
 ];
+const CURRENT_COLUMNS = [
+  ...UNITS.flatMap((unit) => [`arrived_${unit}`, `arrived_done_${unit}`]),
+  "arrived_uncounted",
+];
 
 /** A count given as a number is words, with one string. */
 function unitsOf(counts: Counts | undefined): Record<ReportUnit, number> {
@@ -165,6 +169,18 @@ export function createReportingTestFixture() {
           ${sql.raw(COLUMNS.map((column) => `sum(${column})`).join(", "))}
         from reporting_daily_by_task where organization_id = ${organization.id}
         group by 1, 2, 3, 4, 5, 6, 7
+      `);
+      await db
+        .delete(schema.reportingCurrentByProject)
+        .where(eq(schema.reportingCurrentByProject.organizationId, organization.id));
+      await db.execute(sql`
+        insert into reporting_current_by_project (organization_id, project_id, source_locale,
+          target_locale, step, bucket, ${sql.raw(CURRENT_COLUMNS.join(", "))})
+        select s.organization_id, s.project_id, coalesce(p.source_locale, 'en'), s.target_locale,
+          s.step, s.bucket, ${sql.raw(CURRENT_COLUMNS.map((column) => `sum(s.${column})`).join(", "))}
+        from reporting_daily_by_project s join projects p on p.id = s.project_id
+        where s.organization_id = ${organization.id}
+        group by 1, 2, 3, 4, 5, 6
       `);
     };
 

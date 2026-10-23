@@ -271,6 +271,7 @@ export async function refreshSummaryDays(
         and day = any(${dayList})
       group by organization_id, project_id, target_locale, step, bucket, source, day
     `);
+    await refreshCurrentByProject(tx, organizationId, projectId);
     // A write that marked a day while this ran bumped its generation: keep that mark.
     for (const mark of queued) {
       await tx
@@ -286,6 +287,43 @@ export async function refreshSummaryDays(
     }
     return "refreshed";
   });
+}
+
+const CURRENT_COLUMNS = [
+  ...["words", "strings", "characters", "characters_with_spaces"].flatMap((unit) => [
+    `arrived_${unit}`,
+    `arrived_done_${unit}`,
+  ]),
+  "arrived_uncounted",
+];
+
+/**
+ * Rewrites a project's current strings from its daily rows: every day's arrivals, summed. An
+ * arrival stops counting when its string is re-analysed, since its day is then refreshed too.
+ */
+async function refreshCurrentByProject(
+  tx: DatabaseClient,
+  organizationId: string,
+  projectId: string,
+) {
+  await tx
+    .delete(schema.reportingCurrentByProject)
+    .where(
+      and(
+        eq(schema.reportingCurrentByProject.organizationId, organizationId),
+        eq(schema.reportingCurrentByProject.projectId, projectId),
+      ),
+    );
+  await tx.execute(sql`
+    insert into reporting_current_by_project (organization_id, project_id, source_locale,
+      target_locale, step, bucket, ${sql.raw(CURRENT_COLUMNS.join(", "))})
+    select s.organization_id, s.project_id, coalesce(p.source_locale, 'en'), s.target_locale,
+      s.step, s.bucket, ${sql.raw(CURRENT_COLUMNS.map((column) => `sum(s.${column})::integer`).join(", "))}
+    from reporting_daily_by_project s join projects p on p.id = s.project_id
+    where s.organization_id = ${organizationId} and s.project_id = ${projectId}
+    group by 1, 2, 3, 4, 5, 6
+    having sum(s.arrived_strings) > 0 or sum(s.arrived_uncounted) > 0
+  `);
 }
 
 /** `refreshSummaryDays` for a single day. */

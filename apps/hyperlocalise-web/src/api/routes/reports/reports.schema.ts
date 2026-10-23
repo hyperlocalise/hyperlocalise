@@ -112,18 +112,23 @@ export const costsQuerySchema = z
 const jobIds = z
   .string()
   .max(50 * 201)
+  .default("")
   .transform((value) => [...new Set(value.split(",").filter(Boolean))])
   .pipe(z.array(id).max(50));
-export const costEstimateQuerySchema = z.object({
-  projectId: id.optional(),
-  targetLocale: scope.targetLocale,
-  /** An estimate is for chosen tasks: at least one. */
-  jobIds: jobIds.pipe(z.array(id).min(1)),
-  step: step.optional(),
-  unit,
-  rateCard: z.string().trim().min(1).max(100).optional(),
-  format,
-});
+export const costEstimateQuerySchema = z
+  .object({
+    projectId: id.optional(),
+    targetLocale: scope.targetLocale,
+    /** An estimate is for chosen tasks, or for the whole of one project. */
+    jobIds,
+    step: step.optional(),
+    unit,
+    rateCard: z.string().trim().min(1).max(100).optional(),
+    format,
+  })
+  .refine((v) => v.jobIds.length > 0 || v.projectId, {
+    message: "Choose tasks, or one project",
+  });
 export const taskReportQuerySchema = z.object({
   unit,
   step: step.default("translation"),

@@ -177,6 +177,10 @@ describe("reports routes", () => {
     await expect(read("/cost-estimate?jobIds=job_a,job_b")).resolves.toMatchObject({
       costEstimate: { rows: [], fixedFees: [] },
     });
+    // One project with no tasks chosen is estimated whole (none the viewer can open: nothing).
+    await expect(read("/cost-estimate?projectId=project_none")).resolves.toMatchObject({
+      costEstimate: { rows: [], totals: { tasks: 0 } },
+    });
     await expect(read("/budgets")).resolves.toEqual({ budgets: [] });
     await expect(read("/rate-cards")).resolves.toEqual({ rateCards: [], canManage: true });
 

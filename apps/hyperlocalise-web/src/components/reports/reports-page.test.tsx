@@ -175,6 +175,18 @@ describe("Reports page", () => {
     );
   });
 
+  it("estimates a project's own page whole when no task is chosen", async () => {
+    mocks.search = "tab=estimate";
+    renderPage("project_web");
+    expect(
+      await screen.findByText(/The whole project: every string it holds now/),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(callsTo("cost-estimate")[0]?.args.query).toMatchObject({ projectId: "project_web" }),
+    );
+    expect(callsTo("cost-estimate")[0]?.args.query?.jobIds ?? "").toBe("");
+  });
+
   it("fixes the project on a project's own Reports page", async () => {
     renderPage("project_web");
     expect(await screen.findByText("Source words")).toBeInTheDocument();

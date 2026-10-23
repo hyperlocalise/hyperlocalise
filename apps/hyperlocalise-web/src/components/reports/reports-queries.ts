@@ -247,8 +247,8 @@ export function useCostEstimate(input: SectionInput) {
   return useQuery({
     queryKey: reportsQueryKey(input.organizationSlug, "cost-estimate", query),
     placeholderData: keepPreviousData,
-    // An estimate is for chosen tasks.
-    enabled: input.state.jobIds.length > 0,
+    // An estimate is for chosen tasks, or for the whole of one project.
+    enabled: input.state.jobIds.length > 0 || Boolean(input.state.projectId),
     queryFn: async ({ signal }) => {
       const response = await reportsApi()["cost-estimate"].$get(
         { param: { organizationSlug: input.organizationSlug }, query },
