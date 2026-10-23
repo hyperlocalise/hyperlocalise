@@ -140,13 +140,28 @@ export function CostEstimateTab({
         />
       </div>
       <ReportSectionState query={estimate} skeletonHeight={360}>
-        {(data) => <EstimateBody data={data} unitName={unitLabel(intl, data.unit)} />}
+        {(data) => (
+          <EstimateBody
+            data={data}
+            unitName={unitLabel(intl, data.unit)}
+            wholeProject={wholeProject}
+          />
+        )}
       </ReportSectionState>
     </div>
   );
 }
 
-function EstimateBody({ data, unitName }: { data: Estimate; unitName: string }) {
+function EstimateBody({
+  data,
+  unitName,
+  wholeProject,
+}: {
+  data: Estimate;
+  unitName: string;
+  /** The estimate covers one whole project, not chosen tasks. */
+  wholeProject: boolean;
+}) {
   const intl = useIntl();
   const { totals } = data;
   const bands = visibleBands(totals.bands);
