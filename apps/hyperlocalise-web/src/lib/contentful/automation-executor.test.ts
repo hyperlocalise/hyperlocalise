@@ -38,8 +38,13 @@ const mocks = vi.hoisted(() => {
       }),
     })),
     assembleStringTranslationContextSnapshot: vi.fn(),
+    trackStringTranslationTokenUsage: vi.fn(),
   };
 });
+
+vi.mock("@/lib/billing/agent-runtime-usage", () => ({
+  trackStringTranslationTokenUsage: mocks.trackStringTranslationTokenUsage,
+}));
 
 vi.mock("@/lib/log", () => ({
   createLogger: vi.fn(() => ({
@@ -72,7 +77,57 @@ describe("contentful automation executor", () => {
     mocks.loggerWarn.mockClear();
     mocks.insert.mockClear();
     mocks.assembleStringTranslationContextSnapshot.mockReset();
+    mocks.trackStringTranslationTokenUsage.mockReset();
     vi.mocked(localizeContentfulAssetForLocale).mockReset();
+  });
+
+  it("records the tokens of a text field translation", async () => {
+    mocks.assembleStringTranslationContextSnapshot.mockResolvedValue({
+      ok: true,
+      snapshot: { glossaryTerms: [], translationMemoryMatches: [] },
+    });
+    const tokenUsage = {
+      inputTokens: 400,
+      outputTokens: 30,
+      totalTokens: 430,
+      modelId: "openai/gpt-6-luna",
+      credentialSource: "gateway" as const,
+    };
+
+    await translateTextUnit({
+      organizationId: "org-1",
+      projectId: "project-1",
+      projectName: "Website",
+      projectTranslationContext: "",
+      runId: "run-1",
+      unit: {
+        kind: "text",
+        externalStringId: "entry-1:title",
+        key: "entry-1.title",
+        fieldId: "title",
+        fieldName: "Title",
+        sourceLocale: "en-US",
+        sourceValue: "Hello",
+        sourceText: "Hello",
+        existingTranslations: [],
+        contentfulValueKind: "string",
+      },
+      targetLocales: ["fr-FR"],
+      translateStringJob: async () => ({
+        translations: [{ locale: "fr-FR", text: "Bonjour" }],
+        tokenUsage,
+      }),
+      runQa: false,
+      client: {} as ContentfulManagementClient,
+      localizedAssetCache: createLocalizedAssetCache(),
+    });
+
+    expect(mocks.trackStringTranslationTokenUsage).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      source: "contentful_field_translation",
+      projectId: "project-1",
+      tokenUsage,
+    });
   });
 
   it("aggregates webhook event status only after all sibling runs finish", () => {

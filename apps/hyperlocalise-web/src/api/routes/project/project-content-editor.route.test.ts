@@ -483,6 +483,7 @@ describe("project file CAT routes", () => {
         sourceText: "Hello",
         displayLocale: "de-DE",
       }),
+      { deferBilling: undefined },
     );
   });
 

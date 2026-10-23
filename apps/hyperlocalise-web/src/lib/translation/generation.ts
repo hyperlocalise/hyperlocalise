@@ -453,6 +453,8 @@ export class OrganizationModelResolver {
       ok: true as const,
       project: setup.project,
       model: setup.model,
+      modelId: setup.modelId,
+      credentialSource: setup.credentialSource,
     };
   }
 }
@@ -540,9 +542,9 @@ export class ContentEditorRecommendationEngine {
       glossaryTerms: PromptGlossaryTerm[];
       translationMemoryMatches: PromptTranslationMemoryMatch[];
     },
-    options?: { signal?: AbortSignal },
+    options?: { signal?: AbortSignal; onUsage?: (usage: unknown) => void },
   ): Promise<ContentEditorAiRecommendationResult> {
-    const { output } = await generateText({
+    const { output, usage } = await generateText({
       model: this.model,
       abortSignal: options?.signal,
       output: Output.object({ schema: contentEditorAiRecommendationOutputSchema }),
@@ -575,6 +577,7 @@ export class ContentEditorRecommendationEngine {
       temperature: 0,
       maxOutputTokens: estimateCatRecommendationMaxOutputTokens(input),
     });
+    options?.onUsage?.(usage);
 
     if (input.maxLength && output.suggestion.length > input.maxLength) {
       throw new Error(`recommendation exceeds maxLength of ${input.maxLength}`);

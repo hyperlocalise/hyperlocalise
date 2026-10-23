@@ -17,9 +17,26 @@ import { extractImageText } from "./image-text-extraction";
 vi.mock("ai", () => ({ generateText: vi.fn(), Output: { object: vi.fn((input) => input) } }));
 vi.mock("@/lib/providers/language-model", () => ({
   getManagedLanguageModel: () => "managed-vision-model",
+  hyperlocaliseManagedGatewayModelId: "openai/gpt-6-luna",
 }));
-vi.mock("@/lib/billing/agent-runtime-usage", () => ({
-  withAgentRuntimeUsageMetering: async ({ run }: { run: () => Promise<unknown> }) => run(),
+const { meteringInputs } = vi.hoisted(() => ({ meteringInputs: [] as unknown[] }));
+vi.mock("@/lib/billing/agent-runtime-usage", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/billing/agent-runtime-usage")>()),
+  withAgentRuntimeUsageMetering: async <T>(meteringInput: {
+    run: () => Promise<T>;
+    extractTokenUsage?: (result: T) => unknown;
+    aiCreditModelId?: string;
+    aiCreditCredentialSource?: string;
+  }) => {
+    const result = await meteringInput.run();
+    meteringInputs.push({
+      ...meteringInput,
+      tokenUsage: meteringInput.extractTokenUsage?.(result),
+      modelId: meteringInput.aiCreditModelId,
+      credentialSource: meteringInput.aiCreditCredentialSource,
+    });
+    return result;
+  },
 }));
 const input = {
   content: new Uint8Array([1, 2, 3]),
@@ -27,7 +44,10 @@ const input = {
   organizationId: "org",
   fileId: "file",
 };
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  meteringInputs.length = 0;
+});
 describe("image text extraction", () => {
   it("assigns stable stored region IDs and passes image bytes and cancellation", async () => {
     vi.mocked(generateText).mockResolvedValue({
@@ -50,6 +70,24 @@ describe("image text extraction", () => {
         ],
       }),
     );
+  });
+  it("meters the extraction call's tokens under its own source", async () => {
+    const usage = { inputTokens: 900, outputTokens: 40, totalTokens: 940 };
+    vi.mocked(generateText).mockResolvedValue({
+      output: { regions: [] },
+      usage,
+    } as never);
+    await extractImageText(input);
+    expect(meteringInputs).toEqual([
+      expect.objectContaining({
+        organizationId: "org",
+        source: "image_text_extraction",
+        aiCreditSource: "image_text_extraction",
+        tokenUsage: usage,
+        modelId: "openai/gpt-6-luna",
+        credentialSource: "gateway",
+      }),
+    ]);
   });
   it("accepts a successful image with no text", async () => {
     vi.mocked(generateText).mockResolvedValue({ output: { regions: [] } } as never);

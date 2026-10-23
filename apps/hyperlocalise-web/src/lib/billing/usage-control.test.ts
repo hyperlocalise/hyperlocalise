@@ -276,6 +276,29 @@ describe("usage-control", () => {
     });
   });
 
+  it("stores extra details such as the project on the AI token row", async () => {
+    const { operationKey, organization } = await reservedUsageEvent();
+
+    await trackAiCreditUsageInAutumn({
+      organizationId: organization.id,
+      parentOperationKey: operationKey,
+      tokenUsage: { inputTokens: 40, outputTokens: 60, totalTokens: 100 },
+      source: "content_editor_ai_suggestion",
+      modelId: "openai/gpt-6-luna",
+      credentialSource: "gateway",
+      dimensions: { project_id: "project-1", unit: "overridden" },
+      autumnApiKey: "am_sk_test",
+      trackTokens: vi.fn(async () => ({ value: 0.012 })),
+    });
+
+    const row = await getUsageEvent(`${operationKey}:ai_tokens`);
+    expect(row?.dimensions).toMatchObject({
+      project_id: "project-1",
+      unit: "model_tokens",
+      autumn_event_name: "ai_tokens.consumed",
+    });
+  });
+
   it("refuses to track AI tokens without a model id", async () => {
     const { operationKey, organization } = await reservedUsageEvent();
     const trackTokens = vi.fn(async () => ({ value: 0.01 }));

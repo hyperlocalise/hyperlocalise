@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 const generateTextMock = vi.fn();
 const loadOrganizationTranslationModelMock = vi.fn();
 const assembleStringTranslationContextSnapshotMock = vi.fn();
+const trackAiCallTokenUsageMock = vi.fn();
 
 vi.mock("ai", async (importOriginal) => {
   const actual = await importOriginal<typeof import("ai")>();
@@ -38,7 +39,125 @@ vi.mock("./generation", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/billing/agent-runtime-usage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/agent-runtime-usage")>();
+  return {
+    ...actual,
+    trackAiCallTokenUsage: (...args: unknown[]) => trackAiCallTokenUsageMock(...args),
+  };
+});
+
 import { generateContentEditorAiRecommendation } from "./content-editor-core";
+
+const meteringInput = {
+  projectId: "proj_1",
+  organizationId: "org_1",
+  sourcePath: "en-US.json",
+  filename: "en-US.json",
+  sourceLocale: "en-US",
+  targetLocale: "de",
+  key: "settings.save",
+  sourceText: "Save",
+  targetText: "",
+};
+
+function mockMeteringModelAndContext() {
+  loadOrganizationTranslationModelMock.mockResolvedValue({
+    ok: true,
+    project: { name: "Hyperlocalise", translationContext: "" },
+    model: {},
+    modelId: "anthropic/claude-sonnet-5.5",
+    credentialSource: "byok",
+  });
+  assembleStringTranslationContextSnapshotMock.mockResolvedValue({
+    ok: true,
+    snapshot: {
+      project: { id: "proj_1", name: "Hyperlocalise", translationContext: "" },
+      glossaryTerms: [],
+      translationMemoryMatches: [],
+    },
+  });
+}
+
+describe("generateContentEditorAiRecommendation metering", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockMeteringModelAndContext();
+  });
+
+  it("records the suggestion's tokens against the workspace's model", async () => {
+    generateTextMock.mockResolvedValue({
+      output: { suggestion: "Speichern", reasoning: "Standard UI verb." },
+      usage: { inputTokens: 1200, outputTokens: 30, totalTokens: 1230 },
+    });
+
+    const result = await generateContentEditorAiRecommendation(meteringInput);
+
+    expect(result.ok).toBe(true);
+    expect(trackAiCallTokenUsageMock).toHaveBeenCalledWith(
+      {
+        organizationId: "org_1",
+        source: "content_editor_ai_suggestion",
+        tokenUsage: { inputTokens: 1200, outputTokens: 30, totalTokens: 1230 },
+        modelId: "anthropic/claude-sonnet-5.5",
+        credentialSource: "byok",
+        projectId: "proj_1",
+      },
+      { defer: undefined },
+    );
+  });
+
+  it("still records tokens when the suggestion is rejected after the call", async () => {
+    generateTextMock.mockResolvedValue({
+      output: { suggestion: "Einstellungen speichern", reasoning: "Too long." },
+      usage: { inputTokens: 800, outputTokens: 20, totalTokens: 820 },
+    });
+
+    const result = await generateContentEditorAiRecommendation({ ...meteringInput, maxLength: 5 });
+
+    expect(result.ok).toBe(false);
+    expect(trackAiCallTokenUsageMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("names the caller's source when one is given", async () => {
+    generateTextMock.mockResolvedValue({
+      output: { suggestion: "Speichern", reasoning: "Standard UI verb." },
+      usage: { inputTokens: 10, outputTokens: 2, totalTokens: 12 },
+    });
+
+    await generateContentEditorAiRecommendation(meteringInput, {
+      usageSource: "workspace_crowdin_review_suggestion",
+    });
+
+    expect(trackAiCallTokenUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "workspace_crowdin_review_suggestion" }),
+      { defer: undefined },
+    );
+  });
+
+  it("hands the charge to the route to run after the response", async () => {
+    generateTextMock.mockResolvedValue({
+      output: { suggestion: "Speichern", reasoning: "Standard UI verb." },
+      usage: { inputTokens: 10, outputTokens: 2, totalTokens: 12 },
+    });
+    const deferBilling = vi.fn();
+
+    await generateContentEditorAiRecommendation(meteringInput, { deferBilling });
+
+    expect(trackAiCallTokenUsageMock).toHaveBeenCalledWith(expect.anything(), {
+      defer: deferBilling,
+    });
+  });
+
+  it("records nothing when the model call fails", async () => {
+    generateTextMock.mockRejectedValue(new Error("provider unavailable"));
+
+    const result = await generateContentEditorAiRecommendation(meteringInput);
+
+    expect(result.ok).toBe(false);
+    expect(trackAiCallTokenUsageMock).not.toHaveBeenCalled();
+  });
+});
 
 describe("generateContentEditorAiRecommendation", () => {
   beforeEach(() => {

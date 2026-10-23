@@ -123,6 +123,7 @@ export function createProjectImageTextLayerRoutes(
         content,
         contentType: file.contentType,
         organizationId: file.organizationId,
+        projectId: file.projectId ?? undefined,
         fileId: file.id,
         signal: c.req.raw.signal,
       });

@@ -48,7 +48,7 @@ export function createUseZernioTool(session: WorkspaceOrchestratorSession) {
     description:
       "Create and manage paid ads through the connected Zernio API. List accounts, inspect the ads tree, and create ads or campaigns on Meta, Google, TikTok, LinkedIn, Pinterest, X, or OpenAI Ads.",
     inputSchema: useZernioInputSchema,
-    execute: async ({ objective }) => {
+    execute: async ({ objective }, { toolCallId } = {}) => {
       const zernio = session.automation.toolConfig.zernio;
       if (!zernio?.enabled || !zernio.connectionId) {
         throw new Error("zernio_not_configured");
@@ -91,7 +91,7 @@ export function createUseZernioTool(session: WorkspaceOrchestratorSession) {
 
       const result = await withAgentRuntimeUsageMetering({
         organizationId: session.organizationId,
-        operationKey: `workspace-zernio:${session.run.id}:agent_runs`,
+        operationKey: `workspace-zernio:${session.run.id}:${toolCallId ?? crypto.randomUUID()}:agent_runs`,
         source: "workspace_zernio_agent",
         dimensions: {
           surface: "automation",
@@ -99,6 +99,7 @@ export function createUseZernioTool(session: WorkspaceOrchestratorSession) {
           connection_id: connectionResult.value.connection.id,
         },
         extractTokenUsage: extractGenerateResultTokenUsage,
+        aiCreditModelId: resolveWorkspaceAutomationModel(session.automation.model),
         run: () =>
           agent.generate({
             messages: [

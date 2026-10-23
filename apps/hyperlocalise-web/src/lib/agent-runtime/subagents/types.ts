@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import type { ResolvedAgentLanguageModel } from "@/lib/providers/language-model";
 
 export const SUBAGENT_TYPES = ["repository"] as const;
 
@@ -20,4 +21,6 @@ export type SubagentCallOptions = {
   toolContext: ToolContext;
   task: string;
   instructions: string;
+  /** The workspace model, when the caller has already looked it up (and bills by it). */
+  languageModel?: ResolvedAgentLanguageModel;
 };

@@ -77,6 +77,7 @@ export type OrgScopedRouteOptions = {
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
   translationQaScanQueue?: TranslationQaScanQueue;
+  deferAfterResponse?: (task: () => Promise<unknown>) => void;
 };
 
 export type PublicApiRouteOptions = {

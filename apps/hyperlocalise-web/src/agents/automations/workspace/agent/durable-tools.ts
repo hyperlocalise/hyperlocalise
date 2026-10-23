@@ -227,6 +227,7 @@ export async function finishDurableRepositoryAgent(
     operationKey: input.start.usage.operationKey,
     dimensions: input.start.usage.dimensions,
     tokenUsage: extractAiSdkTokenUsage(input.usage),
+    aiCreditModelId: input.start.model,
   });
 
   const loaded = await loadWorkspaceOrchestratorToolSession(input);

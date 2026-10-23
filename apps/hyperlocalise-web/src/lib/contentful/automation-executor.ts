@@ -15,6 +15,7 @@ import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
+import { trackStringTranslationTokenUsage } from "@/lib/billing/agent-runtime-usage";
 import { db, schema } from "@/lib/database/client";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -360,6 +361,12 @@ export async function translateTextUnit(input: {
       glossaryTerms: contextSnapshot.snapshot.glossaryTerms,
       translationMemoryMatches: contextSnapshot.snapshot.translationMemoryMatches,
     },
+  });
+  await trackStringTranslationTokenUsage({
+    organizationId: input.organizationId,
+    source: "contentful_field_translation",
+    projectId: input.projectId,
+    tokenUsage: result.tokenUsage,
   });
 
   const qaFindings: Array<Record<string, unknown>> = [];

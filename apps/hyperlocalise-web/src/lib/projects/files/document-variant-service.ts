@@ -13,6 +13,11 @@
 import { generateText } from "ai";
 import { and, eq } from "drizzle-orm";
 
+import {
+  credentialSourceForLanguageModel,
+  extractAiSdkTokenUsage,
+  trackAiCallTokenUsage,
+} from "@/lib/billing/agent-runtime-usage";
 import { db, schema } from "@/lib/database/client";
 import { getStoredFileContent } from "@/lib/file-storage/records";
 import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
@@ -101,6 +106,7 @@ export async function localizeAndStoreDocumentVariant(input: {
   provenance: ProjectImageVariantProvenance;
   createdByUserId?: string | null;
   force?: boolean;
+  deferBilling?: (task: () => Promise<unknown>) => void;
 }): Promise<Result<typeof schema.projectImageVariants.$inferSelect, ImageVariantError>> {
   const existing = await getImageVariant({
     organizationId: input.organizationId,
@@ -128,11 +134,11 @@ export async function localizeAndStoreDocumentVariant(input: {
 
   let translatedText: string;
   try {
-    const { model } = await resolveHyperlocaliseAgentLanguageModel({
+    const languageModel = await resolveHyperlocaliseAgentLanguageModel({
       organizationId: input.organizationId,
     });
     const result = await generateText({
-      model,
+      model: languageModel.model,
       prompt: buildDocumentLocalizationPrompt({
         sourceLocale: input.sourceLocale,
         targetLocale: input.targetLocale,
@@ -140,6 +146,17 @@ export async function localizeAndStoreDocumentVariant(input: {
         sourceText,
       }),
     });
+    await trackAiCallTokenUsage(
+      {
+        organizationId: input.organizationId,
+        source: "content_editor_document_regenerate",
+        tokenUsage: extractAiSdkTokenUsage(result.usage),
+        modelId: languageModel.modelId,
+        credentialSource: credentialSourceForLanguageModel(languageModel),
+        projectId: input.projectId,
+      },
+      { defer: input.deferBilling },
+    );
 
     if (result.finishReason !== "stop") {
       return err({

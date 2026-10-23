@@ -267,6 +267,8 @@ export async function trackAiCreditUsageInAutumn(input: {
   credentialSource?: AiCreditCredentialSource;
   jobId?: string;
   interactionId?: string;
+  /** Extra details stored on the token row, such as `project_id`. */
+  dimensions?: UsageEventDimensions;
   autumnApiKey?: string;
   fetchFn?: typeof fetch;
   trackTokens?: TrackAiTokensFn;
@@ -296,6 +298,7 @@ export async function trackAiCreditUsageInAutumn(input: {
     jobId: input.jobId,
     interactionId: input.interactionId,
     dimensions: {
+      ...input.dimensions,
       autumn_event_name: "ai_tokens.consumed",
       unit: "model_tokens",
       input_tokens: input.tokenUsage.inputTokens,
@@ -313,6 +316,7 @@ export async function trackAiCreditUsageInAutumn(input: {
     operationKey,
     quantity: input.tokenUsage.totalTokens,
     dimensions: {
+      ...input.dimensions,
       autumn_event_name: "ai_tokens.consumed",
       unit: "model_tokens",
       input_tokens: input.tokenUsage.inputTokens,

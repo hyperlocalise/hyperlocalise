@@ -1050,6 +1050,7 @@ type CreateProjectRoutesOptions = {
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
   translationQaScanQueue?: TranslationQaScanQueue;
+  deferAfterResponse?: (task: () => Promise<unknown>) => void;
 };
 
 async function withCatTeamGlossaryContext(
@@ -2173,23 +2174,26 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         const filename = body.sourcePath.split("/").pop() ?? body.sourcePath;
-        const result = await generateContentEditorAiRecommendation({
-          projectId: recommendationProjectId,
-          organizationId: c.var.auth.organization.localOrganizationId,
-          sourcePath: body.sourcePath,
-          filename,
-          sourceLocale: body.sourceLocale,
-          targetLocale: body.targetLocale,
-          displayLocale: body.displayLocale,
-          key: body.key,
-          sourceText: body.sourceText,
-          targetText: body.targetText,
-          context: body.context ?? null,
-          agentContext: body.agentContext ?? null,
-          maxLength: body.maxLength,
-          glossaryTerms: body.glossaryTerms,
-          translationMemoryMatches: body.translationMemoryMatches,
-        });
+        const result = await generateContentEditorAiRecommendation(
+          {
+            projectId: recommendationProjectId,
+            organizationId: c.var.auth.organization.localOrganizationId,
+            sourcePath: body.sourcePath,
+            filename,
+            sourceLocale: body.sourceLocale,
+            targetLocale: body.targetLocale,
+            displayLocale: body.displayLocale,
+            key: body.key,
+            sourceText: body.sourceText,
+            targetText: body.targetText,
+            context: body.context ?? null,
+            agentContext: body.agentContext ?? null,
+            maxLength: body.maxLength,
+            glossaryTerms: body.glossaryTerms,
+            translationMemoryMatches: body.translationMemoryMatches,
+          },
+          { deferBilling: options.deferAfterResponse },
+        );
 
         if (isErr(result)) {
           if (result.error.code === "ai_features_check_failed") {
@@ -2680,6 +2684,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             provenance: "agent",
             createdByUserId: c.var.auth.user.localUserId,
             force: body.force,
+            deferBilling: options.deferAfterResponse,
           });
 
           if (!result.ok) {
