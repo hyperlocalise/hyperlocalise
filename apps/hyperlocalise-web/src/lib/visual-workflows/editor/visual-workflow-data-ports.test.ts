@@ -151,6 +151,51 @@ describe("getVisualWorkflowDataPorts", () => {
     ]);
   });
 
+  it("exposes dynamic Coalesce inputs with configured labels and stable IDs", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("coalesce", "logic.coalesce", {
+        config: {
+          kind: "logic.coalesce",
+          inputs: [
+            { id: "primary", name: "Requested locale", type: "string" },
+            { id: "fallback", name: "Default locale", type: "string", defaultValue: "en" },
+          ],
+          treatNullAsMissing: true,
+          treatEmptyStringAsMissing: true,
+          treatEmptyArrayAsMissing: false,
+          treatEmptyObjectAsMissing: false,
+        },
+      }),
+      edges: [
+        {
+          id: "primary-data",
+          source: "trigger",
+          target: "coalesce",
+          sourceHandle: "triggeredAt",
+          targetHandle: "value.primary",
+          data: { kind: "data" },
+        },
+      ],
+    });
+
+    expect(ports.inputs).toEqual([
+      {
+        id: "value.primary",
+        label: "Requested locale",
+        type: "string",
+        optional: true,
+        connectionCount: 1,
+      },
+      {
+        id: "value.fallback",
+        label: "Default locale",
+        type: "string",
+        optional: true,
+        connectionCount: 0,
+      },
+    ]);
+  });
+
   it("returns dynamic Set ports without duplicates", () => {
     const ports = getVisualWorkflowDataPorts({
       node: node("set", "logic.set", {

@@ -1409,13 +1409,13 @@ export const CoalesceConfigured: Story = {
   play: async ({ canvas }) => {
     await expect(
       await canvas.findByLabelText(
-        "Data input: value.requested, string, optional",
+        "Data input: Requested value, string, optional",
         {},
         { timeout: 10_000 },
       ),
     ).toBeInTheDocument();
     await expect(
-      canvas.getByLabelText("Data input: value.fallback, string, optional"),
+      canvas.getByLabelText("Data input: Fallback value, string, optional"),
     ).toBeInTheDocument();
     await expect(canvas.getByLabelText("Data output: value, string")).toBeInTheDocument();
     const coalesceNode = canvas
