@@ -347,6 +347,10 @@
     "defaultMessage": "Open chat",
     "description": "Button to open the public web chat for this automation"
   },
+  "+YutChOmrJ": {
+    "defaultMessage": "Remove value {index}",
+    "description": "Remove a Coalesce input"
+  },
   "+Yz1meRR5E": {
     "defaultMessage": "AI agents",
     "description": "Activity filter option that shows changes made by AI agents"
@@ -1111,6 +1115,10 @@
     "defaultMessage": "Push translations to Crowdin, Lokalise, Phrase, or Smartling without leaving the release flow.",
     "description": "Capability 5 description for the github-release-localisation use case"
   },
+  "/q7tj4NaYr": {
+    "defaultMessage": "Show AI-assessed checks",
+    "description": "Control to expand AI-assessed localisation audit criteria"
+  },
   "/qEcrILvnF": {
     "defaultMessage": "Create more",
     "description": "Checkbox label to keep the create query dialog open after submit"
@@ -1814,10 +1822,6 @@
   "1/qid1Sj8f": {
     "defaultMessage": "Connect a Slack workspace to let Hyperlocalise respond when tagged in channels or messaged in DMs.",
     "description": "Slack integration description before OAuth connection"
-  },
-  "107KQh5TEf": {
-    "defaultMessage": "{ready} of {total} locales ready",
-    "description": "How many mapped locales are ready to push for one article"
   },
   "118lC+/u/6": {
     "defaultMessage": "Member added to team",
@@ -4019,6 +4023,10 @@
     "defaultMessage": "String Unlocked",
     "description": "Activity log event type label for unlocking strings"
   },
+  "4qQ8w1wkBs": {
+    "defaultMessage": "Add value",
+    "description": "Add a Coalesce input"
+  },
   "4r4mzKbKI8": {
     "defaultMessage": "Min size",
     "description": "Pick assignee rule condition: the smallest work the rule covers"
@@ -4195,6 +4203,10 @@
     "defaultMessage": "Accept selected",
     "description": "Bulk action to accept selected proposals"
   },
+  "58rI5iuou2": {
+    "defaultMessage": "AI-assessed, not scored ({count})",
+    "description": "Heading for localisation audit criteria reviewed by a language model that do not affect the score"
+  },
   "59CKJeZUxb": {
     "defaultMessage": "Failure code",
     "description": "QA failure code label"
@@ -4290,6 +4302,10 @@
   "5HqlbunlrW": {
     "defaultMessage": "Disconnect",
     "description": "Disconnect Sanity button"
+  },
+  "5Hth+Ot9Y5": {
+    "defaultMessage": "Move value {index} down",
+    "description": "Move a Coalesce input later"
   },
   "5JQnoYqOu1": {
     "defaultMessage": "Remove Zernio tool",
@@ -7207,6 +7223,10 @@
     "defaultMessage": "Progress",
     "description": "Heading for the live agent workflow checklist"
   },
+  "AGfyX1m5DY": {
+    "defaultMessage": "Weight {weight}",
+    "description": "Relative weight of a scored localisation audit criterion in the overall score"
+  },
   "AH67JNskUM": {
     "defaultMessage": "Plural",
     "description": "Filter option for plural source strings"
@@ -8615,6 +8635,10 @@
     "defaultMessage": "Keyboard shortcut",
     "description": "Accessible name for a hold-to-reveal shortcut hint on an action"
   },
+  "CjUoMPR8JB": {
+    "defaultMessage": "The overall score is reduced by {percent}% because we found few locales on the site.",
+    "description": "Note under the localisation audit score explaining the locale coverage adjustment"
+  },
   "CjlAET4B6p": {
     "defaultMessage": "Triggers",
     "description": "Triggers section label"
@@ -8642,6 +8666,10 @@
   "CkyeuxhCTF": {
     "defaultMessage": "{provider} translation memories appear here after sync. Connect or resync from Integrations if you expected to see one.",
     "description": "Empty state description when a TMS provider is connected but no memories exist"
+  },
+  "Clx4aOGiiD": {
+    "defaultMessage": "A language model reviewed these checks. They can point you to issues worth a look, but they do not affect the score because model judgements can vary between runs.",
+    "description": "Explanation of why AI-assessed localisation audit criteria are excluded from the score"
   },
   "CmE4SxYlZe": {
     "defaultMessage": "Human review",
@@ -8810,6 +8838,10 @@
   "D/bMrb96o1": {
     "defaultMessage": "Variants",
     "description": "Import variants count"
+  },
+  "D/faoWI8RU": {
+    "defaultMessage": "Value {index} name",
+    "description": "Coalesce input name"
   },
   "D18krkXJyI": {
     "defaultMessage": "Save who sees it",
@@ -9002,6 +9034,10 @@
   "DN35BCM/UE": {
     "defaultMessage": "CMS draft",
     "description": "Flow node label"
+  },
+  "DND9HC6iiD": {
+    "defaultMessage": "Only approved translations are pushed. Approve translated strings in the Content editor first.",
+    "description": "Hint in a Content editor push dialog that translations must be approved first"
   },
   "DOGd1ZI3w4": {
     "defaultMessage": "Localization PM",
@@ -9222,6 +9258,10 @@
   "DoGk1GPTBy": {
     "defaultMessage": "Download video",
     "description": "Video refinement workspace: download"
+  },
+  "DoLTEHWiIY": {
+    "defaultMessage": "Use an inline default when this value is missing",
+    "description": "Coalesce inline default toggle"
   },
   "DoXSBl+jxH": {
     "defaultMessage": "Linguistic",
@@ -9703,6 +9743,10 @@
     "defaultMessage": "Connect Crowdin, Lokalise, Phrase, or Smartling.",
     "description": "Dashboard integration description when no TMS provider is connected"
   },
+  "EaqWpTaaGg": {
+    "defaultMessage": "This score uses an earlier scoring method. Run the audit again to compare it with current reports.",
+    "description": "Note on a localisation audit report that was scored before the current methodology"
+  },
   "EavgCh3/dm": {
     "defaultMessage": "Creating...",
     "description": "Create button label while the automation create request is pending"
@@ -9842,6 +9886,10 @@
   "EpcpRJ0HL9": {
     "defaultMessage": "+{count}",
     "description": "Avatar showing how many more assignees a kanban job card has"
+  },
+  "Epdqy+744r": {
+    "defaultMessage": "Empty strings",
+    "description": "Treat empty strings as missing"
   },
   "EqlihiOWKx": {
     "defaultMessage": "Assign works when selected issues belong to one project",
@@ -10182,6 +10230,10 @@
   "FKZ67TsL+4": {
     "defaultMessage": "Discard changes",
     "description": "Confirm button that throws away the unsaved changes to an automation"
+  },
+  "FKhi2+Kwrj": {
+    "defaultMessage": "Hide AI-assessed checks",
+    "description": "Control to collapse AI-assessed localisation audit criteria"
   },
   "FKwIhQa4ff": {
     "defaultMessage": "Quality issues surface after launch, not before",
@@ -10546,6 +10598,10 @@
   "G/cuKsdPte": {
     "defaultMessage": "Write, or press / for commands",
     "description": "Document editor: placeholder for an empty block"
+  },
+  "G/w7K4ugTL": {
+    "defaultMessage": "Empty arrays",
+    "description": "Treat empty arrays as missing"
   },
   "G03HnOcSA7": {
     "defaultMessage": "created an API key",
@@ -12343,6 +12399,10 @@
     "defaultMessage": "Description (optional)",
     "description": "Description of the Crowdin task"
   },
+  "JCapINfSoY": {
+    "defaultMessage": "Default value",
+    "description": "Catalog title for the coalesce node"
+  },
   "JCbR6p89qW": {
     "defaultMessage": "Leave brand PDFs, market notes, and policy libraries where they live, or type guidelines in. Agents flag what does not match.",
     "description": "Marketing homepage guidelinesBody"
@@ -13999,6 +14059,10 @@
     "defaultMessage": "Flag unresolved locales before ship",
     "description": "Workflow step 6 description for the product-localisation use case"
   },
+  "MIg3Z6IKsj": {
+    "defaultMessage": "Value {index} type",
+    "description": "Coalesce input type"
+  },
   "MJH9GKk4sA": {
     "defaultMessage": "Nothing was imported. Resolve these issues and try again:",
     "description": "Title above the list of glossary import validation errors"
@@ -14242,6 +14306,10 @@
   "Mk8D3Ht2wh": {
     "defaultMessage": "Payment button label too long · checkout.json",
     "description": "Issue row detail in content ops mock"
+  },
+  "MkbQjfMTez": {
+    "defaultMessage": "Ordered values",
+    "description": "Coalesce input list heading"
   },
   "MkqKhlkKrU": {
     "defaultMessage": "Match any rule",
@@ -15410,6 +15478,10 @@
   "Oipi2K2qqU": {
     "defaultMessage": "Remove {locale}",
     "description": "Accessible label for removing a selected target locale chip"
+  },
+  "OiwlgVlbmX": {
+    "defaultMessage": "Refresh",
+    "description": "Reload mapped items and locale progress in a Content editor push dialog"
   },
   "OjbR5imOsw": {
     "defaultMessage": "Clear. Human. Confident.",
@@ -18091,6 +18163,10 @@
     "defaultMessage": "Could not update the schedule. Retry the change.",
     "description": "QA review: scheduleError"
   },
+  "TavFARAoYK": {
+    "defaultMessage": "{percent}%",
+    "description": "Translated percent shown on a Content editor push dialog row"
+  },
   "Tb7h0w/7fY": {
     "defaultMessage": "No options available",
     "description": "Empty state when a breadcrumb selector has no items"
@@ -18362,6 +18438,10 @@
   "U4l3MJE1g3": {
     "defaultMessage": "Yes. Japan can see a new checkout while France stays on the original. You choose which markets get the change.",
     "description": "Hyperlab FAQ answer about flags"
+  },
+  "U4sr4IyxSs": {
+    "defaultMessage": "{locale}: Translated {translated}% · Approved {approved}%",
+    "description": "Accessible label for a locale progress bar in a Content editor push dialog"
   },
   "U4v7cQLBDc": {
     "defaultMessage": "{count, plural, one {# locale} other {# locales}}",
@@ -18890,6 +18970,10 @@
   "UznHMJ+o+o": {
     "defaultMessage": "Queries",
     "description": "Sidebar nav label in marketing app shell mock"
+  },
+  "UzoZZwyTmn": {
+    "defaultMessage": "Null",
+    "description": "Treat null as missing"
   },
   "V+EGj1aT6i": {
     "defaultMessage": "Link label",
@@ -20598,6 +20682,10 @@
   "Y6NpL+kok1": {
     "defaultMessage": "Cancel",
     "description": "Cancel button in the undo dialog"
+  },
+  "Y6e1UDu/Ic": {
+    "defaultMessage": "Return the first available value from an ordered list.",
+    "description": "Catalog description for the coalesce node"
   },
   "Y6emDnJZjf": {
     "defaultMessage": "Connect GitHub, Slack, Crowdin, Contentful, and more to Hyperlocalise for agent-native localisation workflows.",
@@ -25047,6 +25135,10 @@
     "defaultMessage": "Unknown",
     "description": "Fallback citation trigger label when no source URL is available"
   },
+  "fcLi/NB58Y": {
+    "defaultMessage": "Translated {translated}% · Approved {approved}%",
+    "description": "Accessible label for translated and approved percentages on a push dialog row"
+  },
   "fdAK5CKbNL": {
     "defaultMessage": "No glossary matches",
     "description": "Empty state title for the glossary guidance panel"
@@ -27907,10 +27999,6 @@
     "defaultMessage": "Scope, context, route",
     "description": "Automation product visual agent panel subtitle"
   },
-  "kGCOhOWZ0P": {
-    "defaultMessage": "{ready} of {total} locales ready",
-    "description": "How many mapped locales are ready to push for one document"
-  },
   "kGM2czQvBa": {
     "defaultMessage": "Approved",
     "description": "CAT segment status label for approved segments"
@@ -28007,6 +28095,10 @@
     "defaultMessage": "Due {due}",
     "description": "Relative due date on a kanban job card"
   },
+  "kPeBr6eZSu": {
+    "defaultMessage": "Empty objects",
+    "description": "Treat empty objects as missing"
+  },
   "kQCAngZDoM": {
     "defaultMessage": "Create projects",
     "description": "Permission row for creating projects"
@@ -28090,10 +28182,6 @@
   "kY6WTj458b": {
     "defaultMessage": "Saving layers…",
     "description": "Image viewer: saving"
-  },
-  "kYL2riWJTH": {
-    "defaultMessage": "{ready} of {total} locales ready",
-    "description": "How many mapped locales are ready to push for one file"
   },
   "kYXziNyy/1": {
     "defaultMessage": "{metric}: {trend}. Last 7 days.",
@@ -28290,6 +28378,10 @@
   "kvA8//3BBl": {
     "defaultMessage": "Files",
     "description": "Section title for the project files page"
+  },
+  "kvULP2fnaS": {
+    "defaultMessage": "Value {index} default",
+    "description": "Coalesce inline default input"
   },
   "kvUTmvykXa": {
     "defaultMessage": "Unapproved health claim",
@@ -28850,10 +28942,6 @@
   "lzHNFV9Hx6": {
     "defaultMessage": "Guessing is expensive. A small market test is not.",
     "description": "Details section headline for the Hyperlab product page"
-  },
-  "m0fNpDzYxG": {
-    "defaultMessage": "{ready} of {total} locales ready",
-    "description": "How many mapped locales are ready to push for one template"
   },
   "m0gQ9lgLTM": {
     "defaultMessage": "Chat model",
@@ -31607,6 +31695,10 @@
     "defaultMessage": "Gemini",
     "description": "Gemini engine label"
   },
+  "qMcssRo5Ql": {
+    "defaultMessage": "{percent}%",
+    "description": "Approved percent shown on a Content editor push dialog row"
+  },
   "qMoIwNM0g+": {
     "defaultMessage": "Copied!",
     "description": "Tooltip after copying the OAuth callback URL"
@@ -31939,6 +32031,10 @@
     "defaultMessage": "Deny",
     "description": "Deny Canva OAuth access"
   },
+  "qz5T3p0D5s": {
+    "defaultMessage": "Treat as missing",
+    "description": "Coalesce missing value policies heading"
+  },
   "qzdjoywlSe": {
     "defaultMessage": "Retry",
     "description": "Button to retry loading uploaded guideline documents"
@@ -32066,6 +32162,10 @@
   "rBC3hmwUDA": {
     "defaultMessage": "Import failed",
     "description": "Fallback toast when Issue Sheet CSV import fails"
+  },
+  "rBsLPnxGVI": {
+    "defaultMessage": "Move value {index} up",
+    "description": "Move a Coalesce input earlier"
   },
   "rC0aFF7mAf": {
     "defaultMessage": "Checks included",
@@ -32622,6 +32722,10 @@
   "s5bizftpco": {
     "defaultMessage": "Clear filters",
     "description": "Button that resets inbox read and type filters"
+  },
+  "s5fbO82G4x": {
+    "defaultMessage": "Some selected items have no locales ready to push. Deselect them or approve translations first.",
+    "description": "Toast when a Content editor push confirm includes items with nothing to push"
   },
   "s6NLAIiQ6o": {
     "defaultMessage": "Dictionary Deleted",

@@ -1,8 +1,8 @@
 ---
-title: "React Intl at ICU Localisation: I-extract, I-sync, at Suriin gamit ang Hyperlocalise"
+title: "React Intl at ICU Localisation: Mag-extract, Mag-sync, at Mag-review gamit ang Hyperlocalise"
 date: 2026-09-24T00:00:00.000Z
-excerpt: I-integrate ang react-intl at ICU message syntax sa workflow na native sa repo—mag-extract ng mga catalog gamit ang Hyperlocalise CLI, mag-validate ng mga plural sa mga pull request, magsagawa ng review sa Hyperlocalise, at mag-deploy ng isinaling JSON sa production.
-category: Engineering
+excerpt: I-integrate ang react-intl at ICU message syntax sa workflow na likas sa repo—mag-extract ng mga catalog gamit ang Hyperlocalise CLI, mag-validate ng mga plural sa mga pull request, magsuri sa Hyperlocalise, at mag-deploy ng isinaling JSON sa production.
+category: Inhinyeriya
 tags:
   - react-intl
   - ICU message format
@@ -16,21 +16,21 @@ tags:
   - i18n.yml
 ---
 
-Pinananatili ng React Intl ang tekstong nakikita ng user sa TypeScript, pero kailangan ng mga tagasalin at CI ng matatag na catalog sa disk. Dapat mapanatili ang sintaks ng ICU—mga plural, select, numero, at petsa—sa paglilipat na ito nang hindi nagkakaroon ng error habang tumatakbo ang application.
+Pinananatili ng React Intl ang tekstong nakikita ng mga user sa TypeScript, pero kailangan ng mga tagasalin at CI ng matatag na catalog sa disk. Kailangang mapanatili ang syntax ng ICU—mga plural, select, numero, at petsa—sa paglilipat na iyon nang hindi nagkakaroon ng error sa runtime.
 
-Ipinapakita ng gabay na ito kung paano ikonekta ang **react-intl**, **ICU**, at ang **`hyperlocalise` CLI** sa iisang workflow:
+Ipinapakita ng gabay na ito kung paano pagsamahin ang **react-intl**, **ICU**, at ang **`hyperlocalise` CLI** sa iisang daloy ng trabaho:
 
 1. Nagsusulat ng mga mensahe ang mga inhinyero sa `defineMessages` at `<FormattedMessage />`.
 2. `hl extract` ina-update ang English FormatJS catalog mula sa source.
-3. Sinusuri ng GitHub ang pull request kung may mga paglihis, nawawalang key, at problema sa istruktura ng ICU.
-4. `hl sync push` ay nagpapadala ng katalogo sa Hyperlocalise para sa pagsusuri.
-5. `hl sync pull` at `hl pack` ay ibinabalik ang mga nasuring salin sa `lang/*.json` para sa iyong app.
+3. Sinusuri ng GitHub ang pull request para sa drift, mga nawawalang key, at mga problema sa hugis ng ICU.
+4. `hl sync push` ang nagpapadala ng catalog sa Hyperlocalise para sa pagsusuri.
+5. `hl sync pull` at `hl pack` ay nagbabalik ng mga nirepasong salin sa `lang/*.json` para sa iyong app.
 
-Tumutugma ang pattern sa paraan ng paggamit ng Hyperlocalise sa sarili nitong web app. Para sa mga tala ng release at non-React na JSON sa parehong repository, pagsamahin ang tutorial na ito at ang [workflow ng localization sa GitHub mula pull request hanggang sa multilingual na release](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release).
+Tumutugma ang pattern sa paraan ng pagsubok ng Hyperlocalise sa sarili nitong web app. Para sa mga release note at JSON na hindi React sa parehong repository, pagsamahin ang tutorial na ito sa [workflow ng localization sa GitHub mula pull request hanggang sa pag-release sa maraming wika](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release).
 
-## Ang bubuuin natin
+## Ano ang bubuuin natin
 
-Ipagpalagay na may ganitong istruktura ang isang Next.js o Vite React app:
+Ipagpalagay na ang app ay Next.js o Vite React na may ganitong layout:
 
 ```text
 .
@@ -48,17 +48,17 @@ Ipagpalagay na may ganitong istruktura ang isang Next.js o Vite React app:
 └── i18n.yml
 ```
 
-Ang English (`en-US`) ang source locale. French at German ang mga target. Nasa mga `defaultMessage` file (mga client module) at paminsan-minsang inline descriptor ang mga message ID at value ng `*.messages.ts`. Ang extracted JSON ang sini-sync ng Hyperlocalise; ang packed JSON naman ang ini-import ng maraming app habang tumatakbo.
+Ang English (`en-US`) ang source locale. French at German ang mga target. Nasa mga `*.messages.ts` file (mga client module) at paminsan-minsang inline descriptor ang mga message id at `defaultMessage` value. Ang extracted JSON ang sini-sync ng Hyperlocalise; ang packed JSON naman ang ini-import ng maraming app sa runtime.
 
 Kakailanganin mo:
 
-- isang proyekto ng Hyperlocalise na may `en-US` bilang source at mga target locale mo;
-- `HYPERLOCALISE_API_KEY` at `HYPERLOCALISE_PROJECT_ID` bilang mga secret ng GitHub Actions; at
+- isang proyekto sa Hyperlocalise na may `en-US` bilang source at mga target locale mo;
+- at `HYPERLOCALISE_API_KEY` at `HYPERLOCALISE_PROJECT_ID` bilang mga secret sa GitHub Actions; at
 - `react-intl` (o `@formatjs/intl`) ay naka-install na sa app.
 
-## Hakbang 1: gumawa ng mga mensahe sa react-intl na tugma sa ICU
+## Hakbang 1: sumulat ng mga mensaheng react-intl na tugma sa ICU
 
-Panatilihin ang kopya ng produkto sa mga descriptor ng mensahe, hindi sa magkakahiwalay na string literal. Gumamit ng mga tahasang ID para manatiling stable ang pag-extract at pag-review kapag nagbago ang pagkakasulat.
+Panatilihin ang kopya ng produkto sa mga descriptor ng mensahe, hindi nakakalat sa mga string literal. Gumamit ng mga tahasang ID para manatiling stable ang extraction at review kapag nagbago ang pananalita.
 
 `src/components/saved-filters-banner.messages.ts`:
 
@@ -88,9 +88,9 @@ export const savedFiltersBannerMessages = defineMessages({
 });
 ```
 
-Gumamit ng ICU sa loob ng `defaultMessage` kapag nakadepende ang teksto sa mga numero o enum. Ine-evaluate ng React Intl ang buong mensahe sa runtime; dapat panatilihin ng mga tagasalin ang mga skeleton na `{count, plural, ...}` at `{scope, select, ...}` habang binabago ang mga sangay na nababasa ng tao.
+Gumamit ng ICU sa loob ng `defaultMessage` kapag nakadepende sa mga numero o enum ang teksto. Sinusuri ng React Intl ang buong mensahe habang tumatakbo; dapat panatilihin ng mga tagasalin ang mga skeleton na `{count, plural, ...}` at `{scope, select, ...}` habang binabago ang mga sangay na nababasa ng tao.
 
-Sa isang component ng pahina, ipasa ang mga value ng ICU sa pamamagitan ng `formatMessage` o `<FormattedMessage />`:
+Sa isang component ng page, ipasa ang mga value ng ICU sa pamamagitan ng `formatMessage` o `<FormattedMessage />`:
 
 ```tsx
 "use client";
@@ -113,16 +113,16 @@ export function FiltersPage({ savedCount, scope }: { savedCount: number; scope: 
 }
 ```
 
-**Mga Server Component:** huwag i-import ang `*.messages.ts` mula sa mga module na server-only—client-only ang `defineMessages`. Markahan ang UI bilang `"use client"` o gumamit ng mga inline na `{ id, defaultMessage, description }` object kasama ang `getIntlShape(locale).formatMessage()` sa server. Tingnan ang mga boundary ng react-intl ng framework mo; hinahanap pa rin ng extract step ang mga descriptor sa mga file na ini-scan nito: `.ts` at `.tsx`.
+**Mga Server Component:** huwag mag-import ng `*.messages.ts` mula sa mga module na para lang sa server—client lang ang `defineMessages`. Markahan ang UI bilang `"use client"` o gumamit ng mga inline na object na `{ id, defaultMessage, description }` kasama ang `getIntlShape(locale).formatMessage()` sa server. Tingnan ang mga hangganan ng react-intl ng framework mo; mahahanap pa rin ng hakbang sa pag-extract ang mga descriptor sa mga file na `.ts` at `.tsx` na ini-scan nito.
 
-Iwasang gamitin ang `--flatten` sa mga mensaheng ICU na ilalabas bilang iisang react-intl unit. Iniaangat ng flattening ang mga plural at select branch para sa mga espesyalisadong workflow ng pagsasalin; hindi ito ang default para sa mga runtime catalog.
+Iwasan ang `--flatten` sa mga ICU message na balak mong ilabas bilang iisang react-intl unit. Inililipat ng flattening ang mga plural at select branch para sa mga espesyalisadong workflow ng pagsasalin; hindi ito ang default para sa mga runtime catalog.
 
-## Hakbang 2: imapa ang mga catalog sa `i18n.yml`
+## Hakbang 2: imapa ang mga katalogo sa `i18n.yml`
 
-Gumawa ng `i18n.yml` sa root ng repository (o sa ilalim ng directory ng iyong app kung inilalagay ng monorepo ang config katabi ng UI):
+Gumawa ng `i18n.yml` sa root ng repository (o sa loob ng direktoryo ng app mo kung inilalagay ng monorepo ang config katabi ng UI):
 
 ```yaml
-version: hyperlocalise@1.13.3
+version: hyperlocalise@1.13.5
 
 locales:
   source: en-US
@@ -148,13 +148,13 @@ hyperlocalise:
   api_key_env: HYPERLOCALISE_API_KEY
 ```
 
-Itinuturing ng Hyperlocalise ang FormatJS JSON bilang pangunahing nilalaman: bawat key ay isang message id, bawat value ay naglalaman ng `defaultMessage` at opsyonal na `description`. Nananatiling iisang value bawat id ang mga ICU string—`run`, `check`, at hindi hinahati ng sync ang mga ito sa magkakahiwalay na pangungusap.
+Itinuturing ng Hyperlocalise ang FormatJS JSON bilang pangunahing content: bawat key ay isang message id, bawat value ay may kasamang `defaultMessage` at opsyonal na `description`. Nananatiling iisang value bawat id ang mga ICU string—hindi hinahati ng `run`, `check`, at sync ang mga ito sa magkakahiwalay na pangungusap.
 
-I-pin ang bersyon ng CLI sa `i18n.yml` (o i-pin ang install action) para iisang extractor at mga validator ang patakbuhin ng mga lokal na machine at GitHub Actions.
+I-pin ang bersyon ng CLI sa `i18n.yml` (o i-pin ang install action) para magpatakbo ang mga lokal na makina at GitHub Actions ng parehong extractor at mga validator.
 
 ## Hakbang 3: kunin ang source catalog gamit ang CLI
 
-Mula sa direktoryong naglalaman ng `i18n.yml`, i-refresh ang katalogong Ingles:
+Mula sa direktoryong naglalaman ng `i18n.yml`, i-refresh ang katalogo sa Ingles:
 
 ```bash
 export HYPERLOCALISE_API_KEY="your-api-key"
@@ -168,13 +168,13 @@ hl extract src \
   --ignore "**/__tests__/**"
 ```
 
-`extract` ini-scan ang `.ts` at `.tsx` para sa mga descriptor sa:
+`extract` naghahanap ng mga descriptor sa `.ts` at `.tsx`:
 
 - `defineMessage` / `defineMessages`
 - `intl.formatMessage(...)`
 - `<FormattedMessage ... />`
 
-Gumagawa ito ng mahigpit na FormatJS JSON:
+Nagsusulat ito ng JSON na mahigpit na sumusunod sa FormatJS:
 
 ```json
 {
@@ -185,11 +185,11 @@ Gumagawa ito ng mahigpit na FormatJS JSON:
 }
 ```
 
-Kung hindi isinasama ng isang descriptor ang `id`, bumubuo ang CLI ng hash na tugma sa FormatJS mula sa `defaultMessage` at `description`. Mas madaling suriin sa mga diff at sa Hyperlocalise ang mga tahasang id.
+Kung hindi kasama sa isang descriptor ang `id`, bumubuo ang CLI ng hash na compatible sa FormatJS mula sa `defaultMessage` at `description`. Mas madaling suriin ang mga tahasang ID sa mga diff at sa Hyperlocalise.
 
-I-commit ang `lang/en-US.json` kasama ng pagbabago sa code. Ituring ang nawawalang extract commit gaya ng pagtrato mo sa nawawalang migration: hindi makikita ng platform ang mga bagong string hangga't hindi naa-update ang catalog.
+I-commit ang `lang/en-US.json` kasabay ng pagbabago sa code. Ituring ang kawalan ng extract commit na parang kawalan ng migration: hindi makikita ng platform ang mga bagong string hangga't hindi naa-update ang catalog.
 
-Opsyonal: nilalagyan ng `--prefix-id` ng prefix ang mga ID gamit ang naka-normalize na path ng file (`src.components.saved-filters-banner.title`). Ipares ito sa `hl pack --prefix-id` kapag maiikling ID ang inaasahan ng mga runtime bundle. Gumagamit dito ang mga halimbawa ng mga stable na lohikal na ID.
+Opsyonal: Nilalagyan ng `--prefix-id` ng prefix ang mga ID gamit ang normalisadong path ng file (`src.components.saved-filters-banner.title`). Ipares ito sa `hl pack --prefix-id` kapag maiikling ID ang inaasahan ng mga runtime bundle. Gumagamit dito ang mga halimbawa ng mga stable na lohikal na ID sa halip.
 
 ## Hakbang 4: protektahan ang mga pull request gamit ang extract at `check`
 
@@ -262,12 +262,12 @@ jobs:
           upload-artifact: true
 ```
 
-Dalawang gate ang nagtutulungan:
+Nagtutulungan ang dalawang gate:
 
-1. **Pagkakaiba sa extract** — kung may mag-edit ng `defaultMessage` sa code pero makalimutang i-edit ang `hl extract`, mabibigo ang job sa `git diff`.
-2. **`hyperlocalise check`** — kasama ang `github-diff: true`, sinusuri ang mga binagong key sa `lang/en-US.json` at ang mga target para sa mga problema gaya ng `not_localized`, `placeholder_mismatch`, at **`icu_shape_mismatch`**.
+1. **Paglihis ng extract** — kung may mag-edit ng `defaultMessage` sa code pero makalimutan ang `hl extract`, mabibigo ang job sa `git diff`.
+2. **`hyperlocalise check`** — kasama ang `github-diff: true`, sinusuri ang mga binagong key sa `lang/en-US.json` at mga target para sa mga problema gaya ng `not_localized`, `placeholder_mismatch`, at **`icu_shape_mismatch`**.
 
-Mahalaga ang huling pagsusuring iyon para sa ICU: maaaring mukhang ayos lang sa taong mabilisang sumisilip sa JSON ang string sa French na nag-aalis ng `{count, plural, ...}` o nagpapalit-palit ng mga branch, pero mabibigo ito sa runtime. Mas mura ang pagtukoy sa pagbabago ng istruktura sa CI kaysa matuklasan ito sa production.
+Mahalaga ang huling pagsusuring iyon para sa ICU: maaaring magmukhang maayos sa isang taong mabilisang tumitingin sa JSON ang isang French na string na nag-aalis ng `{count, plural, ...}` o nagbabago ng pagkakasunod-sunod ng mga branch, pero magkakaroon ito ng error habang tumatakbo. Mas mura ang pagtukoy sa paglihis ng istruktura sa CI kaysa matuklasan ito sa production.
 
 Patakbuhin ang parehong mga pagsusuri nang lokal bago mag-push:
 
@@ -312,23 +312,23 @@ push-sources:
         HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
 ```
 
-Pagkatapos ng merge, ina-upload ng `hl sync push` ang `lang/en-US.json` sa naka-link na Hyperlocalise project. Iniiwasan ng muling pagpapatakbo ng extract sa `main` ang race condition kung saan nama-merge ang code nang walang katugmang catalog sa Git.
+Pagkatapos ng pag-merge, `hl sync push` ay nag-a-upload ng `lang/en-US.json` sa naka-link na proyekto ng Hyperlocalise. Iniiwasan ng muling pagpapatakbo ng extract sa `main` ang race condition kung saan na-merge ang code nang walang katugmang catalog sa Git.
 
-Gamitin ang `hl sync push --dry-run` kapag binabago mo ang mga path ng bucket o listahan ng locale.
+Gamitin ang `hl sync push --dry-run` kapag binabago mo ang mga path ng bucket o mga listahan ng locale.
 
 ## Hakbang 6: suriin ang mga mensaheng ICU sa Hyperlocalise
 
-Dapat makita ng mga tagasalin ang buong mensahe ng ICU, hindi ang mga hiwa-hiwalay na bahaging Ingles. Sa pagrerepaso, itanong ang mga tanong na partikular sa locale na itinatago ng ICU sa iisang string:
+Dapat makita ng mga tagasalin ang buong mensaheng ICU, hindi magkakahiwalay na mga fragmentong Ingles. Sa pagrerepaso, magtanong ng mga tanong na partikular sa locale na itinatago ng ICU sa iisang string:
 
-| Mensahe                     | Tanong sa pagrepaso                                                                                                |
+| Mensahe                     | Tanong sa pagsusuri                                                                                           |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `filters.banner.savedCount` | Natural bang basahin ang mga sangay na `=0`, `one`, at `other`? Tama bang lumalawak ang `#` ayon sa mga tuntunin sa pangmaramihan ng bawat locale? |
-| `filters.banner.scope`      | Sinasaklaw ba ng `select` ang bawat halagang `scope` na ipinapadala ng app? Ligtas bang fallback ang `other`?                             |
-| Maiikling label                | Kasya pa rin ba sa mga button ang mga isinaling string pagkatapos ng pagpapalawak ng mga anyong pangmaramihan?                                                |
+| `filters.banner.savedCount` | Natural ba pakinggan ang mga sangay na `=0`, `one`, at `other`? Tama bang nag-e-expand ang `#` ayon sa mga tuntunin sa pangmaramihan ng bawat locale? |
+| `filters.banner.scope`      | Saklaw ba ng `select` ang bawat value ng `scope` na ipinapadala ng app? Ligtas bang fallback ang `other`?                             |
+| Maiikling label                | Kasya pa rin ba sa mga button ang mga isinaling string pagkatapos palawakin ang mga anyong pangmaramihan?                                                |
 
-Mag-attach ng mga screenshot kapag may sangay na pangmaramihan sa isang layout na may mga limitasyon. Pinananatili ng Hyperlocalise ang glossary at mga tagubilin ng proyekto kasama ng segment—mga file lang ang inililipat ng CLI.
+Maglakip ng mga screenshot kapag may plural branch sa isang layout na may limitadong espasyo. Itinatabi ng Hyperlocalise ang glossary at mga tagubilin ng proyekto kasama ng segment—mga file lang ang inililipat ng CLI.
 
-Aprubahan ang mga pagsasalin sa platform bago kunin muli ang mga ito. Ang pag-apruba ang pamantayan sa wika; itinatala ng Git kung ano talaga ang inilalabas.
+Aprubahan ang mga salin sa platform bago i-pull pabalik ang mga ito. Ang pag-apruba ang nagsisilbing pamantayan sa wika; itinatala ng Git kung ano talaga ang inilalabas.
 
 ## Hakbang 7: kunin ang mga salin at i-package para sa runtime
 
@@ -382,9 +382,9 @@ pull-translations:
         labels: localization
 ```
 
-`sync pull` nagsusulat ng `lang/fr-FR.json` at `lang/de-DE.json` sa anyong FormatJS (mga ID, `defaultMessage`, at kung minsan ay `description`). Inaalis ng `hl pack` ang `description` at iba pang metadata habang pinananatili ang ICU sa bawat `defaultMessage`—handa na para sa mga bundler na nag-i-import ng JSON para sa bawat locale.
+Isinusulat ng `sync pull` ang `lang/fr-FR.json` at `lang/de-DE.json` sa anyong FormatJS (mga ID, `defaultMessage`, kung minsan ay `description`). Inaalis ng `hl pack` ang `description` at iba pang metadata habang pinananatili ang ICU sa bawat `defaultMessage`—handa na para sa mga bundler na nag-i-import ng JSON para sa bawat locale.
 
-Halimbawa ng naka-pack na French na entry:
+Halimbawa ng naka-pack na entry sa French:
 
 ```json
 {
@@ -394,11 +394,11 @@ Halimbawa ng naka-pack na French na entry:
 }
 ```
 
-Buksan ang pull request para sa pagsasalin sa app, magpalit ng locale, at subukan ang `count = 0`, `count = 1`, at `count = 5`. Madalas na lumilitaw ang mga regression sa ICU kapag hindi Ingles ang mga panuntunan sa pangmaramihan.
+Buksan ang pull request para sa pagsasalin sa app, magpalit ng locale, at subukan ang `count = 0`, `count = 1`, at `count = 5`. Kadalasang lumilitaw lang ang mga regression sa ICU sa mga tuntunin ng plural na hindi Ingles.
 
 ## Hakbang 8: i-load ang mga katalogo sa app
 
-I-import ang mga naka-pack na locale file at imapa ang mga ito sa `IntlProvider` o `createIntl`:
+Mag-import ng mga naka-pack na locale file at i-map ang mga ito sa `IntlProvider` o `createIntl`:
 
 ```tsx
 import frFR from "../lang/fr-FR.json";
@@ -421,9 +421,9 @@ function flattenFormatJSCatalog(
 }
 ```
 
-May ilang team na sa source code lang pinananatili ang mga default na English at JSON lang ang nilo-load para sa mga target—parehong gumagana ang mga pattern na ito kung nananatiling magkatugma ang `defaultMessage` sa code at `lang/en-US.json` sa pamamagitan ng extract.
+May ilang team na sa source code lang pinananatili ang mga default na English at JSON lang ang nilo-load para sa mga target—parehong pattern ay gumagana basta mananatiling nakaayon sa pamamagitan ng extract ang `defaultMessage` sa code at `lang/en-US.json`.
 
-## Paano gumagana ang buong daloy
+## Paano gumagana ang kumpletong daloy
 
 ```text
 feature branch
@@ -453,46 +453,46 @@ feature branch
                                                        └─ merge → deploy
 ```
 
-Ikinokonekta ng Extract ang code sa mga catalog. Ikinokonekta ng Sync ang mga catalog sa mga reviewer. Ikinokonekta ng Pack ang nirepasong JSON sa iyong bundle.
+Iniuugnay ng Extract ang code sa mga catalog. Iniuugnay ng Sync ang mga catalog sa mga reviewer. Iniuugnay ng Pack ang nirepasong JSON sa iyong bundle.
 
-## Mga karaniwang dahilan ng pagkabigo
+## Mga karaniwang uri ng pagkabigo
 
-### Hindi pumapasa ang pull request dahil sa paglihis ng extract
+### Nabibigo ang pull request dahil sa paglihis ng extract.
 
-Patakbuhin ang `hl extract` nang lokal gamit ang kaparehong mga pattern ng `--ignore` gaya ng sa CI, i-commit ang `lang/en-US.json`, at i-push. Kung hindi inaasahang lumaktaw ang mga ID, tiyaking may mga stable na field ang mga descriptor na `id`.
+Patakbuhin ang `hl extract` nang lokal gamit ang kaparehong mga pattern ng `--ignore` gaya ng sa CI, i-commit ang `lang/en-US.json`, at i-push. Kung hindi inaasahang lumundag ang mga ID, tiyaking may mga stable na field ang mga descriptor na `id`.
 
-### `icu_shape_mismatch` sa isang saling kung hindi man ay “mahusay”
+### `icu_shape_mismatch` sa isang saling “mahusay” naman sa kabuuan
 
-Ihambing ang pagkakasunod-sunod ng mga branch at mga pangalan ng placeholder sa `en-US`. Patakbuhin ang `hl check --check icu_shape_mismatch --locale fr-FR` nang lokal. Ayusin ang target JSON o ibalik ang segment para sa pagsusuri—huwag i-suppress ang check para sa mga totoong ICU message.
+Ihambing ang pagkakasunod-sunod ng branch at mga pangalan ng placeholder sa `en-US`. Patakbuhin ang `hl check --check icu_shape_mismatch --locale fr-FR` nang lokal. Ayusin ang target JSON o ibalik ang segment para sa pagsusuri—huwag patahimikin ang pagsusuri para sa mga tunay na ICU message.
 
-### Ipinapakita ng runtime ang `MISSING_TRANSLATION` o Ingles sa target na locale
+### Ipinapakita ng runtime ang `MISSING_TRANSLATION` o Ingles sa isang target na locale
 
-Kumpirmahing na-merge ang pull request para sa pagsasalin, tumakbo ang `hl pack`, at tumuturo ang mga import sa mga naka-pack na file. Tiyaking tumutugma ang mga message ID sa code sa mga key sa JSON (kasama ang anumang kumbensyong `--prefix-id`).
+Kumpirmahing na-merge ang translation pull request, na-run ang `hl pack`, at tumuturo ang mga import sa mga naka-pack na file. Tiyaking tumutugma ang mga message ID sa code sa mga key sa JSON (kasama ang anumang convention na `--prefix-id`).
 
-### `hl sync pull` ay walang binabago.
+### `hl sync pull` ay walang binabago
 
-Kumpirmahin ang mga pag-apruba sa proyektong tinutukoy ng `HYPERLOCALISE_PROJECT_ID`. Patakbuhin ang `hl sync pull --dry-run`. Tiyaking tumutugma ang mga path na `i18n.yml` `to:` sa mga lokasyon kung saan ini-import ng app ang mga catalog.
+Kumpirmahin ang mga pag-apruba sa proyektong tinukoy ng `HYPERLOCALISE_PROJECT_ID`. Patakbuhin ang `hl sync pull --dry-run`. Tiyaking tumutugma ang mga path na `i18n.yml` `to:` sa lokasyon kung saan nag-i-import ng mga catalog ang app.
 
-### Hindi sinasadyang naalis ang ICU sa mga naka-pack na file
+### Inalis ang ICU nang hindi sinasadya sa mga naka-pack na file.
 
-Gamitin ang default `hl pack` sa FormatJS JSON—pinananatili nitong `defaultMessage` nang buo. Huwag patakbuhin ang pack gamit ang mga workflow para sa plain nested JSON maliban kung ganoon ang format ng catalog mo.
+Gamitin ang default na `hl pack` sa FormatJS JSON—pinananatili nitong buo ang `defaultMessage`. Huwag patakbuhin ang pack gamit ang mga workflow na para sa plain nested JSON, maliban kung ganoon ang format ng iyong catalog.
 
-## Checklist ng release
+## Checklist sa pag-release
 
-Bago ilunsad ang isang feature na nangangailangan ng bagong teksto:
+Bago ilunsad ang isang feature na nakadepende sa bagong teksto:
 
-- [ ] Mga deskriptor ng mensaheng pinagsama sa na-extract na `lang/en-US.json`
-- [ ] Naipasa ang pagkuha ng pull request at ang `hyperlocalise check`
+- [ ] Mga descriptor ng mensahe na pinagsama sa na-extract na `lang/en-US.json`
+- [ ] Pumasa ang pull request extract at `hyperlocalise check`
 - [ ] `hl sync push` tumakbo noong `main`
 - [ ] Nasuri at naaprubahan ang mga target na locale sa Hyperlocalise
-- [ ] Na-merge ang pull request para sa pagsasalin (`sync pull` + `pack`)
-- [ ] Manu-manong QA sa plural at `select` na mga branch kada locale
-- [ ] Gumagamit ang production deploy ng pinagsamang `lang/*.json` artifact
+- [ ] Na-merge na ang pull request para sa pagsasalin (`sync pull` + `pack`)
+- [ ] Manu-manong QA sa plural at `select` na mga branch sa bawat locale
+- [ ] Gumagamit ang production deployment ng pinagsamang `lang/*.json` artifacts
 
-## Panatilihing updated ang extract.
+## Panatilihing nasa loop ang extract.
 
-Hinihikayat ng React Intl ang paglalagay ng mga text kasama ng code; hinihikayat naman ng Hyperlocalise ang mga saling nasuri at nakaimbak sa mga file. Pinagdurugtong ng **`hl extract`** command ang dalawang mundong ito nang hindi gumagamit ng hiwalay na FormatJS CLI para sa mga pangunahing catalog.
+Hinihikayat ng React Intl na ilagay ang mga teksto kasama ng code; hinihikayat naman ng Hyperlocalise ang mga pagsasaling sinusuri at nakaimbak sa mga file. Pinag-uugnay ng command na **`hl extract`** ang dalawang paraang ito nang hindi gumagamit ng hiwalay na FormatJS CLI para sa mga pangunahing katalogo.
 
-Gamitin ang **`check`** para protektahan ang hugis ng ICU sa mga pull request. Gamitin ang **sync** para sa workflow ng reviewer. Gamitin ang **`pack`** para manatiling magaan ang mga production bundle habang napapanatili ng mga tagasalin ang mayamang metadata sa Git sa pagitan ng mga pull.
+Gamitin ang **`check`** para maprotektahan ang istruktura ng ICU sa mga pull request. Gamitin ang **sync** para sa workflow ng reviewer. Gamitin ang **`pack`** para manatiling magaan ang mga production bundle habang napapanatili ng mga tagasalin ang rich metadata sa Git sa pagitan ng mga pull.
 
-Para sa mas malawak na kuwento tungkol sa release ng GitHub—kabilang ang mga tala sa release na Markdown kasama ng mga string ng UI—magpatuloy sa [Workflow sa localization ng GitHub: mula pull request hanggang multilingual na release](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release), o [tuklasin ang localization ng produkto sa Hyperlocalise](/use-cases/product-localisation).
+Para sa mas malawak na kuwento ng release sa GitHub—kabilang ang mga tala ng release sa Markdown kasabay ng mga string ng UI—magpatuloy sa [Daloy ng trabaho sa lokalisasyon ng GitHub: mula pull request hanggang multilingguwal na release](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release), o [galugarin ang lokalisasyon ng produkto sa Hyperlocalise](/use-cases/product-localisation).
