@@ -14,6 +14,11 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 import { db, schema } from "@/lib/database/client";
+import {
+  loadPushLocaleTranslationProgress,
+  toPushLocaleProgressRow,
+  type PushLocaleProgressRow,
+} from "@/lib/projects/locale-progress/push-translation-progress";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 import { resolveGoogleDrivePushTargetLocales } from "./push-google-drive-translations";
@@ -25,6 +30,7 @@ export type GoogleDrivePushFile = {
   eligibleLocaleCount: number;
   targetLocaleCount: number;
   eligibleLocales: string[];
+  locales: PushLocaleProgressRow[];
   lastPushedAt: string | null;
   lastError: string | null;
 };
@@ -105,16 +111,19 @@ export async function getGoogleDrivePushEligibility(input: {
 
   for (const mapping of mappings) {
     const eligibleLocales: string[] = [];
+    const locales: PushLocaleProgressRow[] = [];
     for (const projectLocale of targetLocales) {
-      const approved = await translationService.loadAsPrefilledEntries({
-        organizationId: input.organizationId,
-        projectId,
-        sourcePath: mapping.sourcePath,
-        targetLocale: projectLocale,
-        approvedTranslationsOnly: true,
-        readyTranslationsOnly: true,
-      });
-      if (approved.translatedKeyCount > 0) {
+      const localeProgress = await loadPushLocaleTranslationProgress(
+        (request) => translationService.loadAsPrefilledEntries(request),
+        {
+          organizationId: input.organizationId,
+          projectId,
+          sourcePath: mapping.sourcePath,
+          targetLocale: projectLocale,
+        },
+      );
+      locales.push(toPushLocaleProgressRow(projectLocale, localeProgress));
+      if (localeProgress.approvedKeyCount > 0) {
         eligibleLocales.push(projectLocale);
       }
     }
@@ -129,6 +138,7 @@ export async function getGoogleDrivePushEligibility(input: {
       eligibleLocaleCount: eligibleLocales.length,
       targetLocaleCount: targetLocales.length,
       eligibleLocales,
+      locales,
       lastPushedAt: mapping.lastPushedAt?.toISOString() ?? null,
       lastError: googleDrivePushLastErrorMessage(mapping.lastError),
     });

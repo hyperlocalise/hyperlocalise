@@ -34,7 +34,13 @@ import { isSanityCatSourcePath } from "@/lib/sanity/segment-file";
 import { ContentEditorSanityPushDialog } from "./content-editor-sanity-push-dialog";
 import { contentEditorSanityPushButtonMessages as messages } from "./content-editor-sanity-push-button.messages";
 import {
+  contentEditorToolbarShowsIntegration,
+  selectActionablePushCandidates,
+} from "./content-editor-integration-toolbar-visibility";
+import {
+  contentEditorSanityIngestQueryKey,
   contentEditorSanityPushQueryKey,
+  fetchContentEditorSanityIngestCandidates,
   fetchContentEditorSanityPushCandidates,
   invalidateContentEditorSanityPushQueries,
 } from "./content-editor-sanity-push-queries";
@@ -57,8 +63,21 @@ export function ContentEditorSanityPushButton({
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const openSourcePath = isContentEditorAllFilesSourcePath(sourcePath) ? null : sourcePath;
+  const pathQueryEnabled =
+    canManageAutomations && Boolean(openSourcePath && isSanityCatSourcePath(openSourcePath));
 
-  const candidatesQuery = useQuery({
+  const ingestCandidatesQuery = useQuery({
+    queryKey: contentEditorSanityIngestQueryKey(organizationSlug, projectId, openSourcePath),
+    queryFn: () =>
+      fetchContentEditorSanityIngestCandidates({
+        organizationSlug,
+        projectId,
+        sourcePath: openSourcePath,
+      }),
+    enabled: pathQueryEnabled,
+  });
+
+  const pushCandidatesQuery = useQuery({
     queryKey: contentEditorSanityPushQueryKey(organizationSlug, projectId, openSourcePath),
     queryFn: () =>
       fetchContentEditorSanityPushCandidates({
@@ -66,8 +85,7 @@ export function ContentEditorSanityPushButton({
         projectId,
         sourcePath: openSourcePath,
       }),
-    enabled:
-      canManageAutomations && Boolean(openSourcePath && isSanityCatSourcePath(openSourcePath)),
+    enabled: pathQueryEnabled,
   });
 
   const navigateToPushRunHistory = (automationId: string) => {
@@ -101,16 +119,16 @@ export function ContentEditorSanityPushButton({
     return null;
   }
 
-  const candidates = (candidatesQuery.data ?? []).filter(
-    (candidate) => !candidate.pushRunInProgress,
-  );
-
-  if (candidates.length === 0) {
+  if (!contentEditorToolbarShowsIntegration(ingestCandidatesQuery.data)) {
     return null;
   }
 
+  const actionableCandidates = selectActionablePushCandidates(pushCandidatesQuery.data ?? []);
+
   const pushLabel = intl.formatMessage(messages.pushButton);
   const isPending = pushMutation.isPending;
+  const isDisabled =
+    isPending || pushCandidatesQuery.isPending || actionableCandidates.length === 0;
   const pushIcon = isPending ? (
     <Spinner data-icon="inline-start" />
   ) : (
@@ -129,8 +147,12 @@ export function ContentEditorSanityPushButton({
         type="button"
         size="sm"
         className="h-8 shrink-0"
-        disabled={isPending}
-        onClick={() => setDialogOpen(true)}
+        disabled={isDisabled}
+        onClick={() => {
+          if (!isDisabled) {
+            setDialogOpen(true);
+          }
+        }}
       >
         {pushIcon}
         {pushLabel}
@@ -139,7 +161,7 @@ export function ContentEditorSanityPushButton({
         open={dialogOpen}
         organizationSlug={organizationSlug}
         sourcePath={openSourcePath}
-        candidates={candidates}
+        candidates={actionableCandidates}
         pending={isPending}
         onOpenChange={setDialogOpen}
         onConfirm={(input) =>

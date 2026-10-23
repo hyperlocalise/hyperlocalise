@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -37,6 +37,15 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 
+import {
+  nextPushDialogSelection,
+  selectedPushRowsHaveEligibleLocales,
+} from "./content-editor-integration-toolbar-visibility";
+import {
+  ContentEditorPushApproveHint,
+  ContentEditorPushLocaleProgressRows,
+  ContentEditorPushRefreshButton,
+} from "./content-editor-push-progress";
 import { contentEditorBrazePushButtonMessages as messages } from "./content-editor-braze-push-button.messages";
 import {
   brazeItemTitleFromSourcePath,
@@ -100,21 +109,36 @@ export function ContentEditorBrazePushDialog({
   }, [items, search]);
 
   const firstAutomationId = candidates[0]?.automationId ?? "";
+  const resetSelectionRef = useRef(true);
 
   useEffect(() => {
     if (!open) {
+      setSelectedSourcePaths([]);
+      resetSelectionRef.current = true;
       return;
     }
     setSelectedAutomationId(firstAutomationId);
     setSearch("");
-    setSelectedSourcePaths([]);
   }, [open, firstAutomationId]);
+
+  useEffect(() => {
+    resetSelectionRef.current = true;
+  }, [automationId, sourcePath]);
 
   useEffect(() => {
     if (!open || !itemsQuery.data) {
       return;
     }
-    setSelectedSourcePaths(defaultSelectedBrazePushSourcePaths(itemsQuery.data, sourcePath));
+    setSelectedSourcePaths((current) => {
+      if (resetSelectionRef.current) {
+        resetSelectionRef.current = false;
+        return defaultSelectedBrazePushSourcePaths(itemsQuery.data, sourcePath);
+      }
+      return nextPushDialogSelection(
+        current,
+        itemsQuery.data.map((item) => item.sourcePath),
+      );
+    });
   }, [open, itemsQuery.data, sourcePath, automationId]);
 
   const toggleSourcePath = (nextSourcePath: string, checked: boolean) => {
@@ -122,6 +146,8 @@ export function ContentEditorBrazePushDialog({
       checked ? [...current, nextSourcePath] : current.filter((value) => value !== nextSourcePath),
     );
   };
+
+  const canConfirmPush = selectedPushRowsHaveEligibleLocales(items, selectedSourcePaths);
 
   return (
     <Dialog
@@ -152,6 +178,7 @@ export function ContentEditorBrazePushDialog({
                 : messages.pushPolicyKeepRemote)}
             />
           </p>
+          <ContentEditorPushApproveHint />
         </DialogHeader>
         {candidates.length > 1 ? (
           <div className="flex flex-col gap-2">
@@ -179,31 +206,40 @@ export function ContentEditorBrazePushDialog({
             </Select>
           </div>
         ) : null}
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder={intl.formatMessage(messages.searchItemsPlaceholder)}
-          aria-label={intl.formatMessage(messages.searchItemsLabel)}
-        />
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={items.length === 0 || pending}
-            onClick={() => setSelectedSourcePaths(items.map((item) => item.sourcePath))}
-          >
-            <FormattedMessage {...messages.selectAllItems} />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={selectedSourcePaths.length === 0 || pending}
-            onClick={() => setSelectedSourcePaths([])}
-          >
-            <FormattedMessage {...messages.clearItemSelection} />
-          </Button>
+        <div className="flex flex-col gap-1.5">
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={intl.formatMessage(messages.searchItemsPlaceholder)}
+            aria-label={intl.formatMessage(messages.searchItemsLabel)}
+          />
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto px-0 text-xs underline"
+              disabled={items.length === 0 || pending}
+              onClick={() => setSelectedSourcePaths(items.map((item) => item.sourcePath))}
+            >
+              <FormattedMessage {...messages.selectAllItems} />
+            </Button>
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto px-0 text-xs underline"
+              disabled={selectedSourcePaths.length === 0 || pending}
+              onClick={() => setSelectedSourcePaths([])}
+            >
+              <FormattedMessage {...messages.clearItemSelection} />
+            </Button>
+            <ContentEditorPushRefreshButton
+              fetching={itemsQuery.isRefetching}
+              disabled={pending || automationId.length === 0}
+              onRefresh={() => {
+                void itemsQuery.refetch();
+              }}
+            />
+          </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
           {itemsQuery.isLoading ? (
@@ -241,7 +277,7 @@ export function ContentEditorBrazePushDialog({
           </Button>
           <Button
             onClick={() => {
-              if (!automationId || selectedSourcePaths.length === 0) {
+              if (!automationId || !canConfirmPush) {
                 return;
               }
               onConfirm({
@@ -249,7 +285,7 @@ export function ContentEditorBrazePushDialog({
                 sourcePaths: selectedSourcePaths,
               });
             }}
-            disabled={selectedSourcePaths.length === 0 || pending || itemsQuery.isLoading}
+            disabled={!canConfirmPush || pending || itemsQuery.isLoading}
           >
             {pending ? <Spinner data-icon="inline-start" /> : null}
             <FormattedMessage
@@ -288,16 +324,7 @@ function BrazePushItemRow({
         <span className="mt-0.5 block truncate font-mono text-xs text-muted-foreground">
           {item.sourcePath}
         </span>
-        <span className="mt-1 block text-xs text-muted-foreground">
-          <FormattedMessage
-            {...messages.readyLocales}
-            values={{
-              ready: item.eligibleLocaleCount,
-              total: item.targetLocaleCount,
-            }}
-          />
-          {item.eligibleLocales.length > 0 ? ` · ${item.eligibleLocales.join(", ")}` : null}
-        </span>
+        <ContentEditorPushLocaleProgressRows locales={item.locales ?? []} />
         {item.status === "push_failed" ? (
           <span className="mt-1 block text-xs text-destructive">
             <FormattedMessage {...messages.lastPushFailed} />

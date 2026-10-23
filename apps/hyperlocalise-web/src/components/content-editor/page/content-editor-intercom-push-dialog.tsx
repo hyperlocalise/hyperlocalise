@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -37,6 +37,15 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 
+import {
+  nextPushDialogSelection,
+  selectedPushRowsHaveEligibleLocales,
+} from "./content-editor-integration-toolbar-visibility";
+import {
+  ContentEditorPushApproveHint,
+  ContentEditorPushLocaleProgressRows,
+  ContentEditorPushRefreshButton,
+} from "./content-editor-push-progress";
 import { contentEditorIntercomPushButtonMessages as messages } from "./content-editor-intercom-push-button.messages";
 import {
   contentEditorIntercomPushArticlesQueryKey,
@@ -100,21 +109,36 @@ export function ContentEditorIntercomPushDialog({
   }, [articles, search]);
 
   const firstAutomationId = candidates[0]?.automationId ?? "";
+  const resetSelectionRef = useRef(true);
 
   useEffect(() => {
     if (!open) {
+      setSelectedSourcePaths([]);
+      resetSelectionRef.current = true;
       return;
     }
     setSelectedAutomationId(firstAutomationId);
     setSearch("");
-    setSelectedSourcePaths([]);
   }, [open, firstAutomationId]);
+
+  useEffect(() => {
+    resetSelectionRef.current = true;
+  }, [automationId, sourcePath]);
 
   useEffect(() => {
     if (!open || !articlesQuery.data) {
       return;
     }
-    setSelectedSourcePaths(defaultSelectedIntercomPushSourcePaths(articlesQuery.data, sourcePath));
+    setSelectedSourcePaths((current) => {
+      if (resetSelectionRef.current) {
+        resetSelectionRef.current = false;
+        return defaultSelectedIntercomPushSourcePaths(articlesQuery.data, sourcePath);
+      }
+      return nextPushDialogSelection(
+        current,
+        articlesQuery.data.map((article) => article.sourcePath),
+      );
+    });
   }, [open, articlesQuery.data, sourcePath, automationId]);
 
   const toggleSourcePath = (nextSourcePath: string, checked: boolean) => {
@@ -122,6 +146,8 @@ export function ContentEditorIntercomPushDialog({
       checked ? [...current, nextSourcePath] : current.filter((value) => value !== nextSourcePath),
     );
   };
+
+  const canConfirmPush = selectedPushRowsHaveEligibleLocales(articles, selectedSourcePaths);
 
   return (
     <Dialog
@@ -152,6 +178,7 @@ export function ContentEditorIntercomPushDialog({
                 : messages.pushPolicyKeepRemote)}
             />
           </p>
+          <ContentEditorPushApproveHint />
         </DialogHeader>
         {candidates.length > 1 ? (
           <div className="flex flex-col gap-2">
@@ -179,31 +206,40 @@ export function ContentEditorIntercomPushDialog({
             </Select>
           </div>
         ) : null}
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder={intl.formatMessage(messages.searchArticlesPlaceholder)}
-          aria-label={intl.formatMessage(messages.searchArticlesLabel)}
-        />
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={articles.length === 0 || pending}
-            onClick={() => setSelectedSourcePaths(articles.map((article) => article.sourcePath))}
-          >
-            <FormattedMessage {...messages.selectAllArticles} />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={selectedSourcePaths.length === 0 || pending}
-            onClick={() => setSelectedSourcePaths([])}
-          >
-            <FormattedMessage {...messages.clearArticleSelection} />
-          </Button>
+        <div className="flex flex-col gap-1.5">
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={intl.formatMessage(messages.searchArticlesPlaceholder)}
+            aria-label={intl.formatMessage(messages.searchArticlesLabel)}
+          />
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto px-0 text-xs underline"
+              disabled={articles.length === 0 || pending}
+              onClick={() => setSelectedSourcePaths(articles.map((article) => article.sourcePath))}
+            >
+              <FormattedMessage {...messages.selectAllArticles} />
+            </Button>
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto px-0 text-xs underline"
+              disabled={selectedSourcePaths.length === 0 || pending}
+              onClick={() => setSelectedSourcePaths([])}
+            >
+              <FormattedMessage {...messages.clearArticleSelection} />
+            </Button>
+            <ContentEditorPushRefreshButton
+              fetching={articlesQuery.isRefetching}
+              disabled={pending || automationId.length === 0}
+              onRefresh={() => {
+                void articlesQuery.refetch();
+              }}
+            />
+          </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
           {articlesQuery.isLoading ? (
@@ -241,7 +277,7 @@ export function ContentEditorIntercomPushDialog({
           </Button>
           <Button
             onClick={() => {
-              if (!automationId || selectedSourcePaths.length === 0) {
+              if (!automationId || !canConfirmPush) {
                 return;
               }
               onConfirm({
@@ -249,7 +285,7 @@ export function ContentEditorIntercomPushDialog({
                 sourcePaths: selectedSourcePaths,
               });
             }}
-            disabled={selectedSourcePaths.length === 0 || pending || articlesQuery.isLoading}
+            disabled={!canConfirmPush || pending || articlesQuery.isLoading}
           >
             {pending ? <Spinner data-icon="inline-start" /> : null}
             <FormattedMessage
@@ -288,16 +324,7 @@ function IntercomPushArticleRow({
         <span className="mt-0.5 block truncate font-mono text-xs text-muted-foreground">
           {article.sourcePath}
         </span>
-        <span className="mt-1 block text-xs text-muted-foreground">
-          <FormattedMessage
-            {...messages.readyLocales}
-            values={{
-              ready: article.eligibleLocaleCount,
-              total: article.targetLocaleCount,
-            }}
-          />
-          {article.eligibleLocales.length > 0 ? ` · ${article.eligibleLocales.join(", ")}` : null}
-        </span>
+        <ContentEditorPushLocaleProgressRows locales={article.locales ?? []} />
         {article.status === "push_failed" ? (
           <span className="mt-1 block text-xs text-destructive">
             <FormattedMessage {...messages.lastPushFailed} />

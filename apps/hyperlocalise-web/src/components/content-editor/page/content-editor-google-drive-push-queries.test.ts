@@ -30,6 +30,10 @@ const files: ContentEditorGoogleDrivePushFile[] = [
     eligibleLocaleCount: 1,
     targetLocaleCount: 2,
     eligibleLocales: ["vi-VN"],
+    locales: [
+      { locale: "vi-VN", translationProgress: 100, approvalProgress: 100 },
+      { locale: "de-DE", translationProgress: 100, approvalProgress: 0 },
+    ],
     lastPushedAt: null,
     lastError: null,
   },
@@ -40,6 +44,10 @@ const files: ContentEditorGoogleDrivePushFile[] = [
     eligibleLocaleCount: 0,
     targetLocaleCount: 2,
     eligibleLocales: [],
+    locales: [
+      { locale: "vi-VN", translationProgress: 50, approvalProgress: 0 },
+      { locale: "de-DE", translationProgress: 50, approvalProgress: 0 },
+    ],
     lastPushedAt: null,
     lastError: null,
   },

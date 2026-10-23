@@ -33,6 +33,11 @@ export type ContentEditorSanityPushDocument = {
   eligibleLocaleCount: number;
   targetLocaleCount: number;
   eligibleLocales: string[];
+  locales: Array<{
+    locale: string;
+    translationProgress: number;
+    approvalProgress: number;
+  }>;
   lastPushedAt: string | null;
   lastError: string | null;
 };
@@ -111,14 +116,11 @@ export async function fetchContentEditorSanityPushCandidates(input: {
       }
       const body = await response.json();
       const sanityPush = body.sanityPush;
-      if (!sanityPush || sanityPush.eligibleLocaleCount <= 0) {
-        return null;
-      }
       return {
         automationId: automation.id,
         name: automation.name,
-        eligibleLocaleCount: sanityPush.eligibleLocaleCount,
-        pushRunInProgress: sanityPush.pushRunInProgress,
+        eligibleLocaleCount: sanityPush?.eligibleLocaleCount ?? 0,
+        pushRunInProgress: sanityPush?.pushRunInProgress ?? false,
         overwriteSanityDrafts: Boolean(automation.toolConfig.sanity?.overwriteSanityDrafts),
       } satisfies ContentEditorSanityPushCandidate;
     },

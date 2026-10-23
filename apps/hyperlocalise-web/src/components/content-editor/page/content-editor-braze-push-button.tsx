@@ -33,7 +33,13 @@ import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor
 import { ContentEditorBrazePushDialog } from "./content-editor-braze-push-dialog";
 import { contentEditorBrazePushButtonMessages as messages } from "./content-editor-braze-push-button.messages";
 import {
+  contentEditorToolbarShowsIntegration,
+  selectActionablePushCandidates,
+} from "./content-editor-integration-toolbar-visibility";
+import {
+  contentEditorBrazeIngestQueryKey,
   contentEditorBrazePushQueryKey,
+  fetchContentEditorBrazeIngestCandidates,
   fetchContentEditorBrazePushCandidates,
   invalidateContentEditorBrazePushQueries,
 } from "./content-editor-braze-push-queries";
@@ -56,8 +62,21 @@ export function ContentEditorBrazePushButton({
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const openSourcePath = isContentEditorAllFilesSourcePath(sourcePath) ? null : sourcePath;
+  const pathQueryEnabled =
+    canManageAutomations && Boolean(openSourcePath && isBrazeSourcePath(openSourcePath));
 
-  const candidatesQuery = useQuery({
+  const ingestCandidatesQuery = useQuery({
+    queryKey: contentEditorBrazeIngestQueryKey(organizationSlug, projectId, openSourcePath),
+    queryFn: () =>
+      fetchContentEditorBrazeIngestCandidates({
+        organizationSlug,
+        projectId,
+        sourcePath: openSourcePath,
+      }),
+    enabled: pathQueryEnabled,
+  });
+
+  const pushCandidatesQuery = useQuery({
     queryKey: contentEditorBrazePushQueryKey(organizationSlug, projectId, openSourcePath),
     queryFn: () =>
       fetchContentEditorBrazePushCandidates({
@@ -65,7 +84,7 @@ export function ContentEditorBrazePushButton({
         projectId,
         sourcePath: openSourcePath,
       }),
-    enabled: canManageAutomations && Boolean(openSourcePath && isBrazeSourcePath(openSourcePath)),
+    enabled: pathQueryEnabled,
   });
 
   const navigateToPushRunHistory = (automationId: string) => {
@@ -99,16 +118,16 @@ export function ContentEditorBrazePushButton({
     return null;
   }
 
-  const candidates = (candidatesQuery.data ?? []).filter(
-    (candidate) => !candidate.pushRunInProgress,
-  );
-
-  if (candidates.length === 0) {
+  if (!contentEditorToolbarShowsIntegration(ingestCandidatesQuery.data)) {
     return null;
   }
 
+  const actionableCandidates = selectActionablePushCandidates(pushCandidatesQuery.data ?? []);
+
   const pushLabel = intl.formatMessage(messages.pushButton);
   const isPending = pushMutation.isPending;
+  const isDisabled =
+    isPending || pushCandidatesQuery.isPending || actionableCandidates.length === 0;
   const pushIcon = isPending ? (
     <Spinner data-icon="inline-start" />
   ) : (
@@ -121,8 +140,12 @@ export function ContentEditorBrazePushButton({
         type="button"
         size="sm"
         className="h-8 shrink-0"
-        disabled={isPending}
-        onClick={() => setDialogOpen(true)}
+        disabled={isDisabled}
+        onClick={() => {
+          if (!isDisabled) {
+            setDialogOpen(true);
+          }
+        }}
       >
         {pushIcon}
         {pushLabel}
@@ -131,7 +154,7 @@ export function ContentEditorBrazePushButton({
         open={dialogOpen}
         organizationSlug={organizationSlug}
         sourcePath={openSourcePath}
-        candidates={candidates}
+        candidates={actionableCandidates}
         pending={isPending}
         onOpenChange={setDialogOpen}
         onConfirm={(input) =>

@@ -20,6 +20,11 @@ import {
 } from "@/lib/file-storage/records";
 import { isMarkdownCalloutFenceEntry } from "@/lib/markdown/markdown-callout-fence";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+import {
+  loadPushLocaleTranslationProgress,
+  toPushLocaleProgressRow,
+  type PushLocaleProgressRow,
+} from "@/lib/projects/locale-progress/push-translation-progress";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 import {
@@ -63,6 +68,7 @@ export type IntercomPushArticle = {
   eligibleLocaleCount: number;
   targetLocaleCount: number;
   eligibleLocales: string[];
+  locales: PushLocaleProgressRow[];
   lastPushedAt: string | null;
   lastError: string | null;
 };
@@ -168,12 +174,14 @@ export async function getIntercomPushEligibility(input: {
     targetLocales: approvedTargetLocales,
   });
 
+  const translationService = new ProjectTranslationService();
   let eligibleLocaleCount = 0;
   let mappedArticleCount = 0;
   const articles: IntercomPushArticle[] = [];
 
   for (const mapping of mappings) {
     const eligibleLocales: string[] = [];
+    const locales: PushLocaleProgressRow[] = [];
     const approvedByLocale = approvedByPathAndLocale.get(mapping.sourcePath);
     const articleLocaleMapping = buildIntercomArticleLocaleMapping(
       localeMappingInput,
@@ -185,6 +193,16 @@ export async function getIntercomPushEligibility(input: {
     for (let index = 0; index < articleLocaleMapping.jobTargetLocales.length; index += 1) {
       const hlLocale = articleLocaleMapping.jobTargetLocales[index]!;
       const intercomLocale = articleLocaleMapping.intercomTargetLocales[index]!;
+      const localeProgress = await loadPushLocaleTranslationProgress(
+        (request) => translationService.loadAsPrefilledEntries(request),
+        {
+          organizationId: input.organizationId,
+          projectId,
+          sourcePath: mapping.sourcePath,
+          targetLocale: hlLocale,
+        },
+      );
+      locales.push(toPushLocaleProgressRow(hlLocale, localeProgress));
       if (!intercomLocale) {
         continue;
       }
@@ -233,6 +251,7 @@ export async function getIntercomPushEligibility(input: {
       eligibleLocaleCount: eligibleLocales.length,
       targetLocaleCount,
       eligibleLocales,
+      locales,
       lastPushedAt: mapping.lastPushedAt?.toISOString() ?? null,
       lastError: intercomPushLastErrorMessage(mapping.lastError),
     });

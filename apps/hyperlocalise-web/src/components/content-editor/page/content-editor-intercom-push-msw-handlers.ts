@@ -25,6 +25,10 @@ export const contentEditorIntercomPushStoryArticles: ContentEditorIntercomPushAr
     eligibleLocaleCount: 2,
     targetLocaleCount: 2,
     eligibleLocales: ["de", "fr"],
+    locales: [
+      { locale: "de", translationProgress: 100, approvalProgress: 100 },
+      { locale: "fr", translationProgress: 100, approvalProgress: 100 },
+    ],
     lastPushedAt: null,
     lastError: null,
   },
@@ -35,6 +39,10 @@ export const contentEditorIntercomPushStoryArticles: ContentEditorIntercomPushAr
     eligibleLocaleCount: 0,
     targetLocaleCount: 2,
     eligibleLocales: [],
+    locales: [
+      { locale: "de", translationProgress: 100, approvalProgress: 0 },
+      { locale: "fr", translationProgress: 100, approvalProgress: 0 },
+    ],
     lastPushedAt: null,
     lastError: null,
   },
@@ -45,6 +53,10 @@ export const contentEditorIntercomPushStoryArticles: ContentEditorIntercomPushAr
     eligibleLocaleCount: 1,
     targetLocaleCount: 2,
     eligibleLocales: ["de"],
+    locales: [
+      { locale: "de", translationProgress: 100, approvalProgress: 100 },
+      { locale: "fr", translationProgress: 100, approvalProgress: 0 },
+    ],
     lastPushedAt: "2026-10-01T12:00:00.000Z",
     lastError: "Intercom timed out",
   },

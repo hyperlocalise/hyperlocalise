@@ -103,11 +103,6 @@ export const sanityPushUiMessages = defineMessages({
     defaultMessage: "No matching documents",
     description: "Empty state when document search matches nothing",
   },
-  readyLocales: {
-    id: "kGCOhOWZ0P",
-    defaultMessage: "{ready} of {total} locales ready",
-    description: "How many mapped locales are ready to push for one document",
-  },
   lastPushFailed: {
     id: "+Xor30vD6J",
     defaultMessage: "Last push failed",

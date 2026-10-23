@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -37,6 +37,15 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 
+import {
+  nextPushDialogSelection,
+  selectedPushRowsHaveEligibleLocales,
+} from "./content-editor-integration-toolbar-visibility";
+import {
+  ContentEditorPushApproveHint,
+  ContentEditorPushLocaleProgressRows,
+  ContentEditorPushRefreshButton,
+} from "./content-editor-push-progress";
 import { contentEditorSanityPushButtonMessages as messages } from "./content-editor-sanity-push-button.messages";
 import {
   contentEditorSanityPushDocumentsQueryKey,
@@ -100,21 +109,36 @@ export function ContentEditorSanityPushDialog({
   }, [documents, search]);
 
   const firstAutomationId = candidates[0]?.automationId ?? "";
+  const resetSelectionRef = useRef(true);
 
   useEffect(() => {
     if (!open) {
+      setSelectedSourcePaths([]);
+      resetSelectionRef.current = true;
       return;
     }
     setSelectedAutomationId(firstAutomationId);
     setSearch("");
-    setSelectedSourcePaths([]);
   }, [open, firstAutomationId]);
+
+  useEffect(() => {
+    resetSelectionRef.current = true;
+  }, [automationId, sourcePath]);
 
   useEffect(() => {
     if (!open || !documentsQuery.data) {
       return;
     }
-    setSelectedSourcePaths(defaultSelectedSanityPushSourcePaths(documentsQuery.data, sourcePath));
+    setSelectedSourcePaths((current) => {
+      if (resetSelectionRef.current) {
+        resetSelectionRef.current = false;
+        return defaultSelectedSanityPushSourcePaths(documentsQuery.data, sourcePath);
+      }
+      return nextPushDialogSelection(
+        current,
+        documentsQuery.data.map((document) => document.sourcePath),
+      );
+    });
   }, [open, documentsQuery.data, sourcePath, automationId]);
 
   const toggleSourcePath = (nextSourcePath: string, checked: boolean) => {
@@ -122,6 +146,8 @@ export function ContentEditorSanityPushDialog({
       checked ? [...current, nextSourcePath] : current.filter((value) => value !== nextSourcePath),
     );
   };
+
+  const canConfirmPush = selectedPushRowsHaveEligibleLocales(documents, selectedSourcePaths);
 
   return (
     <Dialog
@@ -152,6 +178,7 @@ export function ContentEditorSanityPushDialog({
                 : messages.pushPolicyKeepRemote)}
             />
           </p>
+          <ContentEditorPushApproveHint />
         </DialogHeader>
         {candidates.length > 1 ? (
           <div className="flex flex-col gap-2">
@@ -179,31 +206,42 @@ export function ContentEditorSanityPushDialog({
             </Select>
           </div>
         ) : null}
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder={intl.formatMessage(messages.searchDocumentsPlaceholder)}
-          aria-label={intl.formatMessage(messages.searchDocumentsLabel)}
-        />
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={documents.length === 0 || pending}
-            onClick={() => setSelectedSourcePaths(documents.map((document) => document.sourcePath))}
-          >
-            <FormattedMessage {...messages.selectAllDocuments} />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={selectedSourcePaths.length === 0 || pending}
-            onClick={() => setSelectedSourcePaths([])}
-          >
-            <FormattedMessage {...messages.clearDocumentSelection} />
-          </Button>
+        <div className="flex flex-col gap-1.5">
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={intl.formatMessage(messages.searchDocumentsPlaceholder)}
+            aria-label={intl.formatMessage(messages.searchDocumentsLabel)}
+          />
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto px-0 text-xs underline"
+              disabled={documents.length === 0 || pending}
+              onClick={() =>
+                setSelectedSourcePaths(documents.map((document) => document.sourcePath))
+              }
+            >
+              <FormattedMessage {...messages.selectAllDocuments} />
+            </Button>
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto px-0 text-xs underline"
+              disabled={selectedSourcePaths.length === 0 || pending}
+              onClick={() => setSelectedSourcePaths([])}
+            >
+              <FormattedMessage {...messages.clearDocumentSelection} />
+            </Button>
+            <ContentEditorPushRefreshButton
+              fetching={documentsQuery.isRefetching}
+              disabled={pending || automationId.length === 0}
+              onRefresh={() => {
+                void documentsQuery.refetch();
+              }}
+            />
+          </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
           {documentsQuery.isLoading ? (
@@ -241,7 +279,7 @@ export function ContentEditorSanityPushDialog({
           </Button>
           <Button
             onClick={() => {
-              if (!automationId || selectedSourcePaths.length === 0) {
+              if (!automationId || !canConfirmPush) {
                 return;
               }
               onConfirm({
@@ -249,7 +287,7 @@ export function ContentEditorSanityPushDialog({
                 sourcePaths: selectedSourcePaths,
               });
             }}
-            disabled={selectedSourcePaths.length === 0 || pending || documentsQuery.isLoading}
+            disabled={!canConfirmPush || pending || documentsQuery.isLoading}
           >
             {pending ? <Spinner data-icon="inline-start" /> : null}
             <FormattedMessage
@@ -288,16 +326,7 @@ function SanityPushDocumentRow({
         <span className="mt-0.5 block truncate font-mono text-xs text-muted-foreground">
           {document.sourcePath}
         </span>
-        <span className="mt-1 block text-xs text-muted-foreground">
-          <FormattedMessage
-            {...messages.readyLocales}
-            values={{
-              ready: document.eligibleLocaleCount,
-              total: document.targetLocaleCount,
-            }}
-          />
-          {document.eligibleLocales.length > 0 ? ` · ${document.eligibleLocales.join(", ")}` : null}
-        </span>
+        <ContentEditorPushLocaleProgressRows locales={document.locales ?? []} />
         {document.status === "push_failed" ? (
           <span className="mt-1 block text-xs text-destructive">
             <FormattedMessage {...messages.lastPushFailed} />

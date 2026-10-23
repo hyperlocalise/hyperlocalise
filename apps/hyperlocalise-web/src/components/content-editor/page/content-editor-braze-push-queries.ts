@@ -41,6 +41,11 @@ export type ContentEditorBrazePushItem = {
   eligibleLocaleCount: number;
   targetLocaleCount: number;
   eligibleLocales: string[];
+  locales: Array<{
+    locale: string;
+    translationProgress: number;
+    approvalProgress: number;
+  }>;
   lastPushedAt: string | null;
   lastError: string | null;
 };
@@ -149,14 +154,11 @@ export async function fetchContentEditorBrazePushCandidates(input: {
       }
       const body = await response.json();
       const brazePush = "brazePush" in body ? body.brazePush : null;
-      if (!brazePush || brazePush.eligibleLocaleCount <= 0) {
-        return null;
-      }
       return {
         automationId: automation.id,
         name: automation.name,
-        eligibleLocaleCount: brazePush.eligibleLocaleCount,
-        pushRunInProgress: brazePush.pushRunInProgress,
+        eligibleLocaleCount: brazePush?.eligibleLocaleCount ?? 0,
+        pushRunInProgress: brazePush?.pushRunInProgress ?? false,
         overwriteWhenRemoteNewer:
           (automation.toolConfig.brazeCampaigns?.overwriteWhenRemoteNewer ??
             automation.toolConfig.braze?.overwriteWhenRemoteNewer) !== false,
