@@ -33,7 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TypographyP } from "@/components/ui/typography";
-import { readApiError } from "@/lib/api-error";
+import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import {
   formatLocaleDisplayName,
@@ -1144,11 +1144,9 @@ export function ProjectFileContentEditorWorkspace({
       });
 
       if (response.status !== 200) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(projectFileCatWorkspaceMessages.failedToGenerateRecommendation),
-          ),
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(projectFileCatWorkspaceMessages.failedToGenerateRecommendation),
         );
       }
 

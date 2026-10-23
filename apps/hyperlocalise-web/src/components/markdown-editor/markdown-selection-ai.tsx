@@ -17,6 +17,8 @@ import type { Editor } from "@tiptap/core";
 import { SparkleIcon, TranslateIcon } from "@phosphor-icons/react";
 import { useIntl } from "react-intl";
 
+import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
+import { isAiCreditExhaustedError } from "@/lib/billing/ai-credit-refusal";
 import { cn } from "@/lib/primitives/cn";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
@@ -85,6 +87,7 @@ export function MarkdownSelectionAi({
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<MarkdownSelectionAiResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refused, setRefused] = useState(false);
   const selection = useRef<SelectionSnapshot | null>(null);
   const requestVersion = useRef(0);
 
@@ -101,6 +104,7 @@ export function MarkdownSelectionAi({
     setPending(false);
     setResult(null);
     setError(null);
+    setRefused(false);
     if (next) {
       const { from, to } = editor.state.selection;
       selection.current = {
@@ -128,6 +132,7 @@ export function MarkdownSelectionAi({
     setPending(true);
     setResult(null);
     setError(null);
+    setRefused(false);
     try {
       const response = await config.request({
         selectedText: snapshot.text,
@@ -143,8 +148,15 @@ export function MarkdownSelectionAi({
       if (requestVersion.current !== version) return;
       if (!response.suggestion.trim()) throw new Error("empty_suggestion");
       setResult(response);
-    } catch {
-      if (requestVersion.current === version) setError(intl.formatMessage(messages.failed));
+    } catch (cause) {
+      if (requestVersion.current === version) {
+        setRefused(isAiCreditExhaustedError(cause));
+        setError(
+          intl.formatMessage(
+            isAiCreditExhaustedError(cause) ? aiCreditExhaustedMessages.exhausted : messages.failed,
+          ),
+        );
+      }
     } finally {
       if (requestVersion.current === version) setPending(false);
     }
@@ -236,7 +248,7 @@ export function MarkdownSelectionAi({
               <Button variant="ghost" size="sm" onClick={() => changeOpen(false)}>
                 {intl.formatMessage(messages.dismiss)}
               </Button>
-              {error && !result ? (
+              {error && !result && !refused ? (
                 <Button variant="outline" size="sm" onClick={() => void ask(action)}>
                   {intl.formatMessage(messages.retry)}
                 </Button>
