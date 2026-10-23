@@ -102,11 +102,6 @@ export const brazePushUiMessages = defineMessages({
     defaultMessage: "No matching templates",
     description: "Empty state when template search matches nothing",
   },
-  readyLocales: {
-    id: "m0fNpDzYxG",
-    defaultMessage: "{ready} of {total} locales ready",
-    description: "How many mapped locales are ready to push for one template",
-  },
   lastPushFailed: {
     id: "8KWdpo1+b6",
     defaultMessage: "Last push failed",

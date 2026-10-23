@@ -222,6 +222,11 @@ export function createAutomationDetailMswHandlers(
         eligibleLocaleCount: number;
         targetLocaleCount: number;
         eligibleLocales: string[];
+        locales: Array<{
+          locale: string;
+          translationProgress: number;
+          approvalProgress: number;
+        }>;
         lastPushedAt: string | null;
         lastError: string | null;
       }>;

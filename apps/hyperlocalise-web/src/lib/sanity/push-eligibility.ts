@@ -18,6 +18,11 @@ import {
   getLatestRepositorySourceFileVersion,
   getStoredFileContent,
 } from "@/lib/file-storage/records";
+import {
+  loadPushLocaleTranslationProgress,
+  toPushLocaleProgressRow,
+  type PushLocaleProgressRow,
+} from "@/lib/projects/locale-progress/push-translation-progress";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 import { parseSanityTranslationMapJson, readSanityTranslationMap } from "./document-json";
@@ -35,6 +40,7 @@ export type SanityPushDocument = {
   eligibleLocaleCount: number;
   targetLocaleCount: number;
   eligibleLocales: string[];
+  locales: PushLocaleProgressRow[];
   lastPushedAt: string | null;
   lastError: string | null;
 };
@@ -62,7 +68,9 @@ function sanityPushLastErrorMessage(lastError: object | null | undefined) {
 export async function getSanityPushEligibility(input: {
   organizationId: string;
   automation: WorkspaceAutomationRecord;
+  includeLocaleProgress?: boolean;
 }): Promise<SanityPushEligibility | null> {
+  const includeLocaleProgress = input.includeLocaleProgress ?? false;
   const sanity = input.automation.toolConfig.sanity;
   if (!sanity?.enabled) {
     return null;
@@ -154,6 +162,7 @@ export async function getSanityPushEligibility(input: {
     }
 
     const eligibleLocales: string[] = [];
+    const locales: PushLocaleProgressRow[] = [];
     for (let index = 0; index < localeMapping.jobTargetLocales.length; index += 1) {
       const projectLocale = localeMapping.jobTargetLocales[index]!;
       const sanityLocale = localeMapping.intercomTargetLocales[index];
@@ -171,11 +180,26 @@ export async function getSanityPushEligibility(input: {
       ) {
         continue;
       }
-      const approved = await translationService.loadAsPrefilledEntries({
+      const localeInput = {
         organizationId: input.organizationId,
         projectId,
         sourcePath: mapping.sourcePath,
         targetLocale: projectLocale,
+      };
+      const loadPrefilled = (
+        request: Parameters<typeof translationService.loadAsPrefilledEntries>[0],
+      ) => translationService.loadAsPrefilledEntries(request);
+      if (includeLocaleProgress) {
+        const localeProgress = await loadPushLocaleTranslationProgress(loadPrefilled, localeInput);
+        locales.push(toPushLocaleProgressRow(projectLocale, localeProgress));
+        const approvedMap = readSanityTranslationMap(localeProgress.approvedPrefilled);
+        if (sourceKeysMissingApprovedTranslations(sourceKeys, approvedMap) === 0) {
+          eligibleLocales.push(projectLocale);
+        }
+        continue;
+      }
+      const approved = await translationService.loadAsPrefilledEntries({
+        ...localeInput,
         approvedTranslationsOnly: true,
         readyTranslationsOnly: true,
       });
@@ -197,6 +221,7 @@ export async function getSanityPushEligibility(input: {
       eligibleLocaleCount: eligibleLocales.length,
       targetLocaleCount: localeMapping.jobTargetLocales.length,
       eligibleLocales,
+      locales,
       lastPushedAt: mapping.lastPushedAt?.toISOString() ?? null,
       lastError: sanityPushLastErrorMessage(mapping.lastError),
     });

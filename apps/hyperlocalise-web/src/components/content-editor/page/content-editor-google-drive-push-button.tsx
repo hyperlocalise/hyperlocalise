@@ -34,7 +34,13 @@ import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor
 import { ContentEditorGoogleDrivePushDialog } from "./content-editor-google-drive-push-dialog";
 import { contentEditorGoogleDrivePushButtonMessages as messages } from "./content-editor-google-drive-push-button.messages";
 import {
+  contentEditorPushDialogCandidates,
+  contentEditorToolbarShowsIntegration,
+} from "./content-editor-integration-toolbar-visibility";
+import {
+  contentEditorGoogleDriveIngestQueryKey,
   contentEditorGoogleDrivePushQueryKey,
+  fetchContentEditorGoogleDriveIngestCandidates,
   fetchContentEditorGoogleDrivePushCandidates,
   invalidateContentEditorGoogleDrivePushQueries,
 } from "./content-editor-google-drive-push-queries";
@@ -57,8 +63,21 @@ export function ContentEditorGoogleDrivePushButton({
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const openSourcePath = isContentEditorAllFilesSourcePath(sourcePath) ? null : sourcePath;
+  const pathQueryEnabled =
+    canManageAutomations && Boolean(openSourcePath && isGoogleDriveSourcePath(openSourcePath));
 
-  const candidatesQuery = useQuery({
+  const ingestCandidatesQuery = useQuery({
+    queryKey: contentEditorGoogleDriveIngestQueryKey(organizationSlug, projectId, openSourcePath),
+    queryFn: () =>
+      fetchContentEditorGoogleDriveIngestCandidates({
+        organizationSlug,
+        projectId,
+        sourcePath: openSourcePath,
+      }),
+    enabled: pathQueryEnabled,
+  });
+
+  const pushCandidatesQuery = useQuery({
     queryKey: contentEditorGoogleDrivePushQueryKey(organizationSlug, projectId, openSourcePath),
     queryFn: () =>
       fetchContentEditorGoogleDrivePushCandidates({
@@ -66,8 +85,7 @@ export function ContentEditorGoogleDrivePushButton({
         projectId,
         sourcePath: openSourcePath,
       }),
-    enabled:
-      canManageAutomations && Boolean(openSourcePath && isGoogleDriveSourcePath(openSourcePath)),
+    enabled: pathQueryEnabled,
   });
 
   const navigateToPushRunHistory = (automationId: string) => {
@@ -101,16 +119,19 @@ export function ContentEditorGoogleDrivePushButton({
     return null;
   }
 
-  const candidates = (candidatesQuery.data ?? []).filter(
-    (candidate) => !candidate.pushRunInProgress,
-  );
-
-  if (candidates.length === 0) {
+  if (!contentEditorToolbarShowsIntegration(ingestCandidatesQuery.data)) {
     return null;
   }
 
+  const dialogCandidates = contentEditorPushDialogCandidates({
+    ingestCandidates: ingestCandidatesQuery.data,
+    pushCandidates: pushCandidatesQuery.data,
+    pushQueryFailed: pushCandidatesQuery.isError,
+  });
+
   const pushLabel = intl.formatMessage(messages.pushButton);
   const isPending = pushMutation.isPending;
+  const isDisabled = isPending || pushCandidatesQuery.isLoading || dialogCandidates.length === 0;
   const pushIcon = isPending ? (
     <Spinner data-icon="inline-start" />
   ) : (
@@ -129,8 +150,12 @@ export function ContentEditorGoogleDrivePushButton({
         type="button"
         size="sm"
         className="h-8 shrink-0"
-        disabled={isPending}
-        onClick={() => setDialogOpen(true)}
+        disabled={isDisabled}
+        onClick={() => {
+          if (!isDisabled) {
+            setDialogOpen(true);
+          }
+        }}
       >
         {pushIcon}
         {pushLabel}
@@ -139,7 +164,7 @@ export function ContentEditorGoogleDrivePushButton({
         open={dialogOpen}
         organizationSlug={organizationSlug}
         sourcePath={openSourcePath}
-        candidates={candidates}
+        candidates={dialogCandidates}
         pending={isPending}
         onOpenChange={setDialogOpen}
         onConfirm={(input) =>

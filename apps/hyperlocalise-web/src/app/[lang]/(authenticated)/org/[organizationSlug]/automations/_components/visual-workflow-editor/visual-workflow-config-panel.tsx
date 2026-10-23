@@ -66,6 +66,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { TypographyP } from "@/components/ui/typography";
 import {
   createAssignmentRule,
+  createCoalesceInputId,
   createMergeInputId,
   createObjectPortId,
   createReturnOutputId,
@@ -1575,6 +1576,236 @@ export function VisualWorkflowConfigPanel({
                 />
               </div>
             ) : null}
+          </div>
+        ) : null}
+        {config.kind === "logic.coalesce" ? (
+          <div className="grid gap-3">
+            <Label>
+              <FormattedMessage {...messages.coalesceInputs} />
+            </Label>
+            {config.inputs.map((input, index) => {
+              const portId = `value.${input.id}`;
+              const connected = connectedInputProps(portId);
+              const wired = connected.port.source !== undefined;
+              const hasDefault = Object.hasOwn(input, "defaultValue");
+              return (
+                <div key={input.id} className="grid gap-2 rounded-md border border-border p-2">
+                  <div className="grid grid-cols-[1fr_7rem] gap-2">
+                    <Input
+                      aria-label={intl.formatMessage(messages.coalesceInputName, {
+                        index: index + 1,
+                      })}
+                      value={input.name}
+                      aria-invalid={invalidFields.has(portId) || undefined}
+                      onChange={(event) =>
+                        onChangeConfig({
+                          ...config,
+                          inputs: config.inputs.map((entry, inputIndex) =>
+                            inputIndex === index ? { ...entry, name: event.target.value } : entry,
+                          ),
+                        })
+                      }
+                    />
+                    <Select
+                      value={input.type}
+                      onValueChange={(type) => {
+                        if (!isWorkflowValueType(type)) return;
+                        onChangeConfig({
+                          ...config,
+                          inputs: config.inputs.map((entry, inputIndex) =>
+                            inputIndex === index
+                              ? {
+                                  ...entry,
+                                  type,
+                                  ...(Object.hasOwn(entry, "defaultValue")
+                                    ? { defaultValue: defaultValueForType(type) }
+                                    : {}),
+                                }
+                              : entry,
+                          ),
+                        });
+                      }}
+                    >
+                      <SelectTrigger
+                        aria-label={intl.formatMessage(messages.coalesceInputType, {
+                          index: index + 1,
+                        })}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WORKFLOW_VALUE_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id={`vw-coalesce-default-${input.id}`}
+                      checked={hasDefault}
+                      disabled={wired}
+                      onCheckedChange={(checked) =>
+                        onChangeConfig({
+                          ...config,
+                          inputs: config.inputs.map((entry, inputIndex) => {
+                            if (inputIndex !== index) return entry;
+                            if (checked === true)
+                              return { ...entry, defaultValue: defaultValueForType(entry.type) };
+                            const { defaultValue: _removed, ...withoutDefault } = entry;
+                            return withoutDefault;
+                          }),
+                        })
+                      }
+                    />
+                    <Label htmlFor={`vw-coalesce-default-${input.id}`}>
+                      <FormattedMessage {...messages.coalesceUseDefault} />
+                    </Label>
+                  </div>
+                  {wired || !hasDefault ? (
+                    <WorkflowBoundField
+                      id={`vw-coalesce-value-${input.id}`}
+                      label={input.name}
+                      value=""
+                      onChange={() => {}}
+                      editable={false}
+                      invalid={connected.invalid}
+                      port={connected.port}
+                    />
+                  ) : (
+                    <ObjectDefaultInput
+                      key={`${input.id}:${input.type}`}
+                      ariaLabel={intl.formatMessage(messages.coalesceInputDefault, {
+                        index: index + 1,
+                      })}
+                      value={input.defaultValue}
+                      type={input.type}
+                      invalid={connected.invalid}
+                      onChange={(defaultValue) =>
+                        onChangeConfig({
+                          ...config,
+                          inputs: config.inputs.map((entry, inputIndex) =>
+                            inputIndex === index ? { ...entry, defaultValue } : entry,
+                          ),
+                        })
+                      }
+                    />
+                  )}
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={index === 0}
+                      aria-label={intl.formatMessage(messages.moveCoalesceInputUp, {
+                        index: index + 1,
+                      })}
+                      onClick={() => {
+                        const inputs = [...config.inputs];
+                        [inputs[index - 1], inputs[index]] = [inputs[index]!, inputs[index - 1]!];
+                        onChangeConfig({ ...config, inputs });
+                      }}
+                    >
+                      <CaretUpIcon className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={index === config.inputs.length - 1}
+                      aria-label={intl.formatMessage(messages.moveCoalesceInputDown, {
+                        index: index + 1,
+                      })}
+                      onClick={() => {
+                        const inputs = [...config.inputs];
+                        [inputs[index], inputs[index + 1]] = [inputs[index + 1]!, inputs[index]!];
+                        onChangeConfig({ ...config, inputs });
+                      }}
+                    >
+                      <CaretDownIcon className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={config.inputs.length <= 2}
+                      aria-label={intl.formatMessage(messages.removeCoalesceInput, {
+                        index: index + 1,
+                      })}
+                      onClick={() =>
+                        onChangeConfig({
+                          ...config,
+                          inputs: config.inputs.filter((_, inputIndex) => inputIndex !== index),
+                        })
+                      }
+                    >
+                      <TrashIcon className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={config.inputs.length >= 32}
+              onClick={() =>
+                onChangeConfig({
+                  ...config,
+                  inputs: [
+                    ...config.inputs,
+                    {
+                      id: createCoalesceInputId(),
+                      name: `Value ${config.inputs.length + 1}`,
+                      type: "unknown",
+                    },
+                  ],
+                })
+              }
+            >
+              <PlusIcon className="size-4" />
+              <FormattedMessage {...messages.addCoalesceInput} />
+            </Button>
+            <div className="grid gap-2 border-t border-border pt-3">
+              <Label>
+                <FormattedMessage {...messages.coalesceMissingValues} />
+              </Label>
+              <CheckboxField
+                id="vw-coalesce-null"
+                label={intl.formatMessage(messages.coalesceTreatNullAsMissing)}
+                checked={config.treatNullAsMissing}
+                onCheckedChange={(treatNullAsMissing) =>
+                  onChangeConfig({ ...config, treatNullAsMissing })
+                }
+              />
+              <CheckboxField
+                id="vw-coalesce-empty-string"
+                label={intl.formatMessage(messages.coalesceTreatEmptyStringAsMissing)}
+                checked={config.treatEmptyStringAsMissing}
+                onCheckedChange={(treatEmptyStringAsMissing) =>
+                  onChangeConfig({ ...config, treatEmptyStringAsMissing })
+                }
+              />
+              <CheckboxField
+                id="vw-coalesce-empty-array"
+                label={intl.formatMessage(messages.coalesceTreatEmptyArrayAsMissing)}
+                checked={config.treatEmptyArrayAsMissing}
+                onCheckedChange={(treatEmptyArrayAsMissing) =>
+                  onChangeConfig({ ...config, treatEmptyArrayAsMissing })
+                }
+              />
+              <CheckboxField
+                id="vw-coalesce-empty-object"
+                label={intl.formatMessage(messages.coalesceTreatEmptyObjectAsMissing)}
+                checked={config.treatEmptyObjectAsMissing}
+                onCheckedChange={(treatEmptyObjectAsMissing) =>
+                  onChangeConfig({ ...config, treatEmptyObjectAsMissing })
+                }
+              />
+            </div>
           </div>
         ) : null}
         {config.kind === "logic.for_each" ? (
