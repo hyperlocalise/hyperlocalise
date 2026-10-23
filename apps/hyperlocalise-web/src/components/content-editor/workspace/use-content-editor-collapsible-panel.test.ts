@@ -70,6 +70,18 @@ describe("useContentEditorCollapsiblePanel", () => {
     expect(onCollapsedChange).not.toHaveBeenCalled();
   });
 
+  it("skips the target until the group has registered the panel", () => {
+    const isCollapsed = vi.spyOn(panel.ref.current, "isCollapsed").mockImplementation(() => {
+      throw new Error("Panel constraints not found for Panel files");
+    });
+
+    expect(() =>
+      renderHook(() => useContentEditorCollapsiblePanel({ collapsed: true })),
+    ).not.toThrow();
+    expect(panel.ref.current.collapse).not.toHaveBeenCalled();
+    isCollapsed.mockRestore();
+  });
+
   it("reports a user drag after the panel has settled", () => {
     const onCollapsedChange = vi.fn();
     const { result } = renderHook(() =>

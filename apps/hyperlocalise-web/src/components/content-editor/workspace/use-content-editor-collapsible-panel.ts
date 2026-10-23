@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useCallback, useEffect, useRef } from "react";
-import { usePanelRef, type PanelSize } from "react-resizable-panels";
+import { usePanelRef, type PanelImperativeHandle, type PanelSize } from "react-resizable-panels";
 
 /** Width a collapsed content editor pane shrinks to. */
 export const CAT_PANEL_COLLAPSED_SIZE = "0px";
@@ -47,13 +47,18 @@ export function useContentEditorCollapsiblePanel({
         return;
       }
 
-      if (shouldCollapse && !panel.isCollapsed()) {
+      const isCollapsed = readPanelCollapsed(panel);
+      if (isCollapsed === undefined) {
+        return;
+      }
+
+      if (shouldCollapse && !isCollapsed) {
         applyingRef.current = true;
         panel.collapse();
         return;
       }
 
-      if (!shouldCollapse && panel.isCollapsed()) {
+      if (!shouldCollapse && isCollapsed) {
         applyingRef.current = true;
         panel.expand();
       }
@@ -82,9 +87,8 @@ export function useContentEditorCollapsiblePanel({
         return;
       }
 
-      // The panel's imperative handle is a no-op until the group has computed
-      // its first layout, so an initially collapsed pane has to be applied on
-      // this first measurement rather than from the mount effect.
+      // The mount effect runs before the group has a layout, so the initial
+      // target is applied on this first measurement instead.
       if (prevSize === undefined || applyingRef.current) {
         applyCollapsed(target);
         return;
@@ -96,4 +100,17 @@ export function useContentEditorCollapsiblePanel({
   );
 
   return { panelRef, onResize };
+}
+
+/**
+ * The imperative handle throws until the group has derived constraints for a
+ * newly mounted panel, e.g. when the file tree mounts into an existing layout.
+ * The panel's first `onResize` reapplies the target once it is registered.
+ */
+function readPanelCollapsed(panel: PanelImperativeHandle): boolean | undefined {
+  try {
+    return panel.isCollapsed();
+  } catch {
+    return undefined;
+  }
 }
