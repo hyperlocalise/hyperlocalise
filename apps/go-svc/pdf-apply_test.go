@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
@@ -53,6 +54,35 @@ func TestApplyPdfRoundTrip(t *testing.T) {
 	reRead, err := translationfileparser.ReadPDFEntries(rec.Body.Bytes())
 	require.NoError(t, err)
 	require.NotEmpty(t, reRead)
+}
+
+func TestApplyPdfOverflowHeader(t *testing.T) {
+	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
+	template, err := translationfileparser.FixtureSingleBlockPDF()
+	require.NoError(t, err)
+
+	entries, err := translationfileparser.ReadPDFEntries(template)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+
+	long := strings.Repeat("overflowword ", 40)
+	values := map[string]string{entries[0].Key: long}
+	body := newPdfApplyMultipartBody(t, template, values, "en")
+
+	h := newHandler()
+	mux := http.NewServeMux()
+	registerRoutes(mux, h, mockSessionVerifier{})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/internal/pdf/apply", body)
+	req.Header.Set("Content-Type", body.contentType)
+	req.Header.Set(serverCallTokenHeader, serverCallToken())
+	mux.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	overflow := rec.Header().Get("X-Hyperlocalise-Overflow-Keys")
+	require.NotEmpty(t, overflow)
+	require.Contains(t, overflow, entries[0].Key)
 }
 
 type pdfApplyMultipartBody struct {

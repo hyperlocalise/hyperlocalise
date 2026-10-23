@@ -14,6 +14,7 @@ import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedPdfTranslationFileFormat,
   inferSupportedVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
@@ -128,6 +129,15 @@ export function resolveCatFileViewCapabilities(input: {
       availableViews: FILE_ONLY_VIEWS,
       defaultView: "file",
       viewerId: "video",
+    };
+  }
+
+  if (inferSupportedPdfTranslationFileFormat(sourcePath)) {
+    return {
+      family: "text",
+      availableViews: segmentViews(input.multilingualViewAvailable),
+      defaultView: "side-by-side",
+      viewerId: null,
     };
   }
 

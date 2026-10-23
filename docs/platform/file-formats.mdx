@@ -92,7 +92,11 @@ in-editor PDF preview in this release.
 **Download translations** returns a copy of the source PDF with ready
 translations written into the text blocks. Blocks that cannot fit after
 wrapping may still be written with a best-effort layout; overflow keys are
-listed in the download response when present.
+listed in the download response when present (`X-Hyperlocalise-Overflow-Keys`
+on project and public downloads; `overflowKeys` on MCP `download_translations`).
+
+PDF export supports Latin-script targets. Arabic, Hebrew, Devanagari, and
+other non-Latin scripts return `pdf_script_unsupported`.
 
 Google Drive import does not support PDF yet. For CLI behavior, see the
 [PDF format guide](/cli/reference/formats/pdf).

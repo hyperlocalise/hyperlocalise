@@ -20,7 +20,7 @@ import {
 } from "@/lib/projects/files/office-translation-download";
 import {
   loadProjectPdfTranslationDownload,
-  pdfTranslationDownloadFailure,
+  mcpPdfTranslationDownloadErrorCode,
 } from "@/lib/projects/files/pdf-translation-download";
 import { isErr } from "@/lib/primitives/result/results";
 import {
@@ -39,8 +39,10 @@ export type McpDownloadTranslationsDetail = {
   locale: string;
   sourcePath: string;
   content: string;
-  /** Present when `content` holds base64-encoded binary (dotLottie archives, Office files). */
+  /** Present when `content` holds base64-encoded binary (dotLottie archives, Office files, PDF). */
   contentEncoding?: "utf8" | "base64";
+  /** PDF block keys that could not fit after wrapping (PDF downloads only). */
+  overflowKeys?: string[];
 };
 
 export type McpDownloadTranslationsResult =
@@ -57,7 +59,8 @@ export type McpDownloadTranslationsResult =
         | "lottie_export_failed"
         | "xlsx_export_failed"
         | "office_export_failed"
-        | "pdf_export_failed";
+        | "pdf_export_failed"
+        | "pdf_script_unsupported";
     }
   | {
       ok: false;
@@ -139,20 +142,21 @@ export async function downloadMcpTranslations(input: {
     targetLocale: input.locale,
   });
   if (isErr(pdfDownload)) {
-    return { ok: false, error: pdfTranslationDownloadFailure().code };
+    return { ok: false, error: mcpPdfTranslationDownloadErrorCode(pdfDownload.error) };
   }
   if (pdfDownload.value) {
-    return {
-      ok: true,
-      value: {
-        filename: downloadFilename(input.sourcePath, input.locale),
-        contentType: pdfDownload.value.contentType,
-        locale: input.locale,
-        sourcePath: input.sourcePath,
-        contentEncoding: "base64",
-        content: pdfDownload.value.content.toString("base64"),
-      },
+    const value: McpDownloadTranslationsDetail = {
+      filename: downloadFilename(input.sourcePath, input.locale),
+      contentType: pdfDownload.value.contentType,
+      locale: input.locale,
+      sourcePath: input.sourcePath,
+      contentEncoding: "base64",
+      content: pdfDownload.value.content.toString("base64"),
     };
+    if (pdfDownload.value.overflowKeys.length > 0) {
+      value.overflowKeys = [...pdfDownload.value.overflowKeys];
+    }
+    return { ok: true, value };
   }
 
   const sourceFormat = inferSupportedTranslationFileFormat(input.sourcePath);

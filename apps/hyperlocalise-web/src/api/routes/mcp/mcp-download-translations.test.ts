@@ -275,6 +275,7 @@ describe("downloadMcpTranslations", () => {
         sourcePath: "docs/handbook.pdf",
         contentEncoding: "base64",
         content: Buffer.from("%PDF-1.4").toString("base64"),
+        overflowKeys: ["page-1#3"],
       },
     });
     expect(mocks.loadProjectPdfTranslationDownload).toHaveBeenCalledWith({
@@ -300,6 +301,41 @@ describe("downloadMcpTranslations", () => {
         locale: "fr-FR",
       }),
     ).resolves.toEqual({ ok: false, error: "pdf_export_failed" });
+  });
+
+  it("maps PDF script failures to pdf_script_unsupported", async () => {
+    mocks.loadProjectPdfTranslationDownload.mockResolvedValue({
+      ok: false,
+      error: {
+        code: "pdf_script_unsupported",
+        message: "The target text uses a script this PDF export does not support.",
+      },
+    });
+
+    await expect(
+      downloadMcpTranslations({
+        organizationId: "org_1",
+        projectId: "project_1",
+        sourcePath: "docs/handbook.pdf",
+        locale: "fr-FR",
+      }),
+    ).resolves.toEqual({ ok: false, error: "pdf_script_unsupported" });
+  });
+
+  it("maps missing PDF source content to source_file_not_found", async () => {
+    mocks.loadProjectPdfTranslationDownload.mockResolvedValue({
+      ok: false,
+      error: { code: "source_content_not_found" },
+    });
+
+    await expect(
+      downloadMcpTranslations({
+        organizationId: "org_1",
+        projectId: "project_1",
+        sourcePath: "docs/handbook.pdf",
+        locale: "fr-FR",
+      }),
+    ).resolves.toEqual({ ok: false, error: "source_file_not_found" });
   });
 
   it("maps Office export failures to format-specific MCP errors", async () => {

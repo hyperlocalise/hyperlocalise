@@ -3935,14 +3935,26 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           targetLocale: query.locale,
         });
         if (isErr(pdfDownload)) {
+          if (pdfDownload.error.code === "pdf_script_unsupported") {
+            return c.json(
+              {
+                error: "pdf_script_unsupported",
+                message: pdfDownload.error.message,
+              },
+              422,
+            );
+          }
           if (pdfDownload.error.code === "pdf_export_failed") {
             return internalErrorResponse(c, "pdf_export_failed", pdfDownload.error.message);
           }
           if (pdfDownload.error.code === "source_content_not_found") {
             return notFoundResponse(c, "source_file_not_found", "Source file not found");
           }
-          const failure = pdfTranslationDownloadFailure();
-          return internalErrorResponse(c, failure.code, failure.message);
+          return internalErrorResponse(
+            c,
+            "pdf_export_failed",
+            pdfTranslationDownloadFailure().message,
+          );
         }
         if (pdfDownload.value) {
           const headers: Record<string, string> = {

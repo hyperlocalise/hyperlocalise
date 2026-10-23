@@ -31,9 +31,23 @@ export type ProjectPdfTranslationDownload = {
 };
 
 export type ProjectPdfTranslationDownloadError =
-  | { code: "project_not_found" }
   | { code: "source_content_not_found" }
-  | { code: "pdf_export_failed"; message: string };
+  | { code: "pdf_export_failed"; message: string }
+  | { code: "pdf_script_unsupported"; message: string };
+
+/** Maps PDF download failures to MCP `download_translations` error codes. */
+export function mcpPdfTranslationDownloadErrorCode(
+  error: ProjectPdfTranslationDownloadError,
+): "pdf_export_failed" | "pdf_script_unsupported" | "source_file_not_found" {
+  switch (error.code) {
+    case "pdf_script_unsupported":
+      return "pdf_script_unsupported";
+    case "source_content_not_found":
+      return "source_file_not_found";
+    default:
+      return "pdf_export_failed";
+  }
+}
 
 /** Error code and message for a failed PDF download. */
 export function pdfTranslationDownloadFailure(): {
@@ -108,6 +122,12 @@ export async function loadProjectPdfTranslationDownload(input: {
       overflowKeys: applied.overflowKeys,
     });
   } catch (error) {
+    if (error instanceof GoSvcClientError && error.code === "pdf_script_unsupported") {
+      return err({
+        code: "pdf_script_unsupported",
+        message: error.message || "The target text uses a script this PDF export does not support.",
+      });
+    }
     const message =
       error instanceof GoSvcClientError && error.message
         ? error.message

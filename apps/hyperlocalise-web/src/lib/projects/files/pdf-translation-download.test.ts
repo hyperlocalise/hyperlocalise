@@ -41,6 +41,7 @@ vi.mock("@/lib/go-svc/go-svc-server-client", () => ({
 
 import {
   loadProjectPdfTranslationDownload,
+  mcpPdfTranslationDownloadErrorCode,
   pdfTranslationDownloadFailure,
 } from "./pdf-translation-download";
 
@@ -107,6 +108,31 @@ describe("loadProjectPdfTranslationDownload", () => {
     });
   });
 
+  it("maps go-svc script failures to pdf_script_unsupported", async () => {
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      prefilled: { "page-1#1": "مرحبا" },
+      loadedKeyCount: 1,
+      translatedKeyCount: 1,
+    });
+    mocks.getLatestRepositorySourceFileVersion.mockResolvedValue({ storedFileId: "stored_1" });
+    mocks.getStoredFileContent.mockResolvedValue({ content: new Uint8Array([1]) });
+    mocks.pdfApply.mockRejectedValue(
+      new GoSvcClientError({
+        code: "pdf_script_unsupported",
+        message: "The target text uses a script this PDF export does not support.",
+        status: 422,
+      }),
+    );
+
+    const result = await loadProjectPdfTranslationDownload(INPUT);
+    expect(result).toEqual(
+      err({
+        code: "pdf_script_unsupported",
+        message: "The target text uses a script this PDF export does not support.",
+      }),
+    );
+  });
+
   it("maps go-svc failures to pdf_export_failed", async () => {
     mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
       prefilled: { "page-1#1": "Bonjour" },
@@ -139,5 +165,25 @@ describe("pdfTranslationDownloadFailure", () => {
       code: "pdf_export_failed",
       message: "Could not write translations into the PDF.",
     });
+  });
+});
+
+describe("mcpPdfTranslationDownloadErrorCode", () => {
+  it("maps PDF download errors to MCP codes", () => {
+    expect(
+      mcpPdfTranslationDownloadErrorCode({
+        code: "pdf_script_unsupported",
+        message: "script",
+      }),
+    ).toBe("pdf_script_unsupported");
+    expect(mcpPdfTranslationDownloadErrorCode({ code: "source_content_not_found" })).toBe(
+      "source_file_not_found",
+    );
+    expect(
+      mcpPdfTranslationDownloadErrorCode({
+        code: "pdf_export_failed",
+        message: "export",
+      }),
+    ).toBe("pdf_export_failed");
   });
 });
