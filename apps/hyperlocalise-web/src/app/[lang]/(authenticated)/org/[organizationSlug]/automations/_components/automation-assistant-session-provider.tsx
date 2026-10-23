@@ -37,6 +37,7 @@ import {
   type AutomationAssistantPageContext,
 } from "@/lib/agents/automation-assistant-editors";
 import type { WorkspaceAutomationSetupStep } from "@/lib/agents/workspace-automation-setup-steps";
+import { isAiCreditExhaustedError } from "@/lib/billing/ai-credit-refusal";
 
 import {
   AssistantSessionGoneError,
@@ -69,11 +70,12 @@ export type AutomationAssistantMode = "create" | "detail" | "visual_workflow";
 
 /**
  * A message of the person's that got no reply. Refused ones were never saved: the session had a
- * turn running, or has had one this page has not seen, which only loading the page again mends.
+ * turn running, or has had one this page has not seen, which only loading the page again mends,
+ * or the workspace has used all of its AI credit.
  */
 export type AutomationAssistantFailure = {
   messageId: string;
-  reason: "turn_in_progress" | "out_of_date" | "failed";
+  reason: "turn_in_progress" | "out_of_date" | "ai_credit_exhausted" | "failed";
 };
 
 export type AutomationAssistantValue = {
@@ -464,7 +466,9 @@ export function AutomationAssistantSessionProvider<
               ? "turn_in_progress"
               : caught instanceof AssistantSessionOutOfDateError
                 ? "out_of_date"
-                : "failed",
+                : isAiCreditExhaustedError(caught)
+                  ? "ai_credit_exhausted"
+                  : "failed",
         });
       } finally {
         turnRunning.current = false;

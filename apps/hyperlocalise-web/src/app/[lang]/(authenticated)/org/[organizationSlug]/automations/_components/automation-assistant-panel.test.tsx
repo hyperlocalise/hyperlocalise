@@ -316,6 +316,20 @@ describe("what the panel says a turn did", () => {
     expect(alert.parentElement?.textContent).not.toContain("Make it weekly");
   });
 
+  it("says when the workspace's AI credit is used up", () => {
+    const sent = { ...reply(null), senderType: "user" as const };
+    show(
+      assistant({
+        messages: [{ ...sent, id: "m1", text: "Make it weekly" }],
+        failure: { messageId: "m1", reason: "ai_credit_exhausted" },
+      }),
+    );
+
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Your workspace has used all of its AI credit.",
+    );
+  });
+
   it("says the changes are on the page and unsaved only while the page counts some", () => {
     const { unmount } = show(assistant({ mode: "detail", appliedCallCount: 1 }));
     expect(
