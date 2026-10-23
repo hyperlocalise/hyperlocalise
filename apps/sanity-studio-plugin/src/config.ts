@@ -1,17 +1,22 @@
 import { z } from "zod";
 
+// Caps are checked before each item is parsed, so a huge list cannot exhaust memory.
+const MAX_CONFIG_ITEMS = 2000;
+
 const languageSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
   enabled: z.boolean().optional(),
 });
 
+const boundedStrings = (minimum: number) => z.array(z.string()).min(minimum).max(MAX_CONFIG_ITEMS);
+
 const pluginConfigSchema = z
   .object({
-    supportedLanguages: z.array(languageSchema).min(1),
-    documentLocalizationSchemaTypes: z.array(z.string()).default([]),
-    fieldLocalizationSchemaTypes: z.array(z.string()).default([]),
-    customBlockTypes: z.array(z.string()).optional(),
+    supportedLanguages: z.array(languageSchema).min(1).max(MAX_CONFIG_ITEMS),
+    documentLocalizationSchemaTypes: boundedStrings(0).default([]),
+    fieldLocalizationSchemaTypes: boundedStrings(0).default([]),
+    customBlockTypes: boundedStrings(0).optional(),
   })
   .superRefine((value, context) => {
     const documentTypes = new Set(value.documentLocalizationSchemaTypes);
@@ -20,16 +25,16 @@ const pluginConfigSchema = z
     );
     if (overlap.length > 0) {
       context.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: `A schema type cannot be in both documentLocalizationSchemaTypes and fieldLocalizationSchemaTypes: ${overlap.join(", ")}`,
       });
     }
   });
 
 const bulkConfigSchema = z.object({
-  supportedLanguages: z.array(languageSchema).min(1),
-  schemaTypes: z.array(z.string()).min(1),
-  customBlockTypes: z.array(z.string()).optional(),
+  supportedLanguages: z.array(languageSchema).min(1).max(MAX_CONFIG_ITEMS),
+  schemaTypes: boundedStrings(1),
+  customBlockTypes: boundedStrings(0).optional(),
 });
 
 export type HyperlocaliseLanguage = z.infer<typeof languageSchema>;
