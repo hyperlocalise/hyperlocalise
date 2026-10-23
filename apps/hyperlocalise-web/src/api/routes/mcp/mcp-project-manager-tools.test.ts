@@ -141,6 +141,7 @@ async function insertNativeJob(input: {
   ownerUserId?: string | null;
   status?: (typeof schema.jobs.$inferInsert)["status"];
   inputPayload?: (typeof schema.jobs.$inferInsert)["inputPayload"];
+  dueAt?: Date | null;
 }) {
   const [job] = await db
     .insert(schema.jobs)
@@ -152,6 +153,7 @@ async function insertNativeJob(input: {
       ownerUserId: input.ownerUserId ?? null,
       kind: "translation",
       status: input.status ?? "queued",
+      dueAt: input.dueAt ?? null,
       inputPayload: input.inputPayload ?? {
         sourceText: "Hello",
         sourceLocale: "en-US",
@@ -310,6 +312,52 @@ describe("MCP project manager tools", () => {
       }),
     ]);
     expect(unassignedOnly.output.jobs?.map((job) => job.id)).toEqual([unassigned.id]);
+  });
+
+  it("lists native job dueAt and prefers an external provider due date", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const nativeDue = await insertNativeJob({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      dueAt: new Date("2020-02-01T00:00:00.000Z"),
+    });
+    const coalesced = await insertNativeJob({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      dueAt: new Date("2028-05-01T17:00:00.000Z"),
+    });
+
+    await db.insert(schema.externalJobDetails).values({
+      jobId: coalesced.id,
+      organizationId: stored.organization.id,
+      providerKind: "crowdin",
+      externalJobId: `native_due_${randomUUID()}`,
+      externalStatus: "in_progress",
+      title: "Provider due wins",
+      dueDate: new Date("2020-01-15T00:00:00.000Z"),
+    });
+
+    const listed = await readToolResult<{
+      jobs?: Array<{ id: string; overdue: boolean; dueDate: string | null }>;
+    }>(await callMcpTool(headers, "list_open_jobs", { projectId: stored.project.id }));
+
+    expect(listed.isError).toBe(false);
+    expect(listed.output.jobs?.find((job) => job.id === nativeDue.id)).toEqual(
+      expect.objectContaining({
+        id: nativeDue.id,
+        overdue: true,
+        dueDate: "2020-02-01T00:00:00.000Z",
+      }),
+    );
+    expect(listed.output.jobs?.find((job) => job.id === coalesced.id)).toEqual(
+      expect.objectContaining({
+        id: coalesced.id,
+        overdue: true,
+        dueDate: "2020-01-15T00:00:00.000Z",
+      }),
+    );
   });
 
   it("returns project_not_found for inaccessible list_open_jobs projects", async () => {
@@ -492,6 +540,83 @@ describe("MCP project manager tools", () => {
       title: "Updated launch copy",
       owner: { userId: stored.user.id },
     });
+  });
+
+  it("sets and clears a native job dueAt through update_job", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const job = await insertNativeJob({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      createdByUserId: stored.user.id,
+    });
+    const dueAt = "2028-05-01T17:00:00.000Z";
+
+    const setDue = await readToolResult<{
+      job?: { id: string; dueDate: string | null; overdue: boolean };
+    }>(await callMcpTool(headers, "update_job", { jobId: job.id, dueAt }));
+
+    expect(setDue.isError).toBe(false);
+    expect(setDue.output.job).toMatchObject({
+      id: job.id,
+      dueDate: dueAt,
+      overdue: false,
+    });
+
+    const [storedDue] = await db
+      .select({ dueAt: schema.jobs.dueAt })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, job.id))
+      .limit(1);
+    expect(storedDue?.dueAt?.toISOString()).toBe(dueAt);
+
+    const cleared = await readToolResult<{
+      job?: { id: string; dueDate: string | null; overdue: boolean };
+    }>(await callMcpTool(headers, "update_job", { jobId: job.id, dueAt: null }));
+
+    expect(cleared.isError).toBe(false);
+    expect(cleared.output.job).toMatchObject({
+      id: job.id,
+      dueDate: null,
+      overdue: false,
+    });
+
+    const [clearedDue] = await db
+      .select({ dueAt: schema.jobs.dueAt })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, job.id))
+      .limit(1);
+    expect(clearedDue?.dueAt).toBeNull();
+  });
+
+  it("rejects a date-only dueAt on update_job", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const job = await insertNativeJob({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+    });
+
+    const response = await callMcpTool(headers, "update_job", {
+      jobId: job.id,
+      dueAt: "2026-05-01",
+    });
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: { isError?: boolean; content?: Array<{ type: string; text?: string }> };
+    };
+    const text = body.result?.content?.[0]?.text ?? "";
+
+    expect(body.result?.isError).toBe(true);
+    expect(text).toMatch(/dueAt|datetime|ISO/i);
+
+    const [unchanged] = await db
+      .select({ dueAt: schema.jobs.dueAt })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, job.id))
+      .limit(1);
+    expect(unchanged?.dueAt).toBeNull();
   });
 
   it("returns owner_not_found for an unknown local user and refuses provider jobs", async () => {
