@@ -622,6 +622,7 @@ export function createWorkspaceAutomationRoutes(
         const eligibility = await getIntercomPushEligibility({
           organizationId,
           automation,
+          includeLocaleProgress: includePushArticles,
         });
         intercomPush = {
           eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
@@ -641,6 +642,7 @@ export function createWorkspaceAutomationRoutes(
         const eligibility = await getSanityPushEligibility({
           organizationId,
           automation,
+          includeLocaleProgress: includePushArticles,
         });
         sanityPush = {
           eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
@@ -664,10 +666,12 @@ export function createWorkspaceAutomationRoutes(
           ? await getBrazeCampaignPushEligibility({
               organizationId,
               automation,
+              includeLocaleProgress: includePushArticles,
             })
           : await getBrazePushEligibility({
               organizationId,
               automation,
+              includeLocaleProgress: includePushArticles,
             });
         brazePush = {
           eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
@@ -687,6 +691,7 @@ export function createWorkspaceAutomationRoutes(
         const eligibility = await getGoogleDrivePushEligibility({
           organizationId,
           automation,
+          includeLocaleProgress: includePushArticles,
         });
         googleDrivePush = {
           eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,

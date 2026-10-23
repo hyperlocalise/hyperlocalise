@@ -104,11 +104,6 @@ export const intercomPushUiMessages = defineMessages({
     defaultMessage: "No matching articles",
     description: "Empty state when article search matches nothing",
   },
-  readyLocales: {
-    id: "107KQh5TEf",
-    defaultMessage: "{ready} of {total} locales ready",
-    description: "How many mapped locales are ready to push for one article",
-  },
   lastPushFailed: {
     id: "j6Y+3NEXmn",
     defaultMessage: "Last push failed",

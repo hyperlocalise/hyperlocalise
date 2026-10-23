@@ -33,6 +33,10 @@ const items: ContentEditorBrazePushItem[] = [
     eligibleLocaleCount: 1,
     targetLocaleCount: 2,
     eligibleLocales: ["fr"],
+    locales: [
+      { locale: "fr", translationProgress: 100, approvalProgress: 100 },
+      { locale: "de", translationProgress: 100, approvalProgress: 0 },
+    ],
     lastPushedAt: null,
     lastError: null,
   },
@@ -44,6 +48,10 @@ const items: ContentEditorBrazePushItem[] = [
     eligibleLocaleCount: 0,
     targetLocaleCount: 2,
     eligibleLocales: [],
+    locales: [
+      { locale: "fr", translationProgress: 50, approvalProgress: 0 },
+      { locale: "de", translationProgress: 50, approvalProgress: 0 },
+    ],
     lastPushedAt: null,
     lastError: null,
   },

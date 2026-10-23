@@ -26,6 +26,10 @@ const articles: ContentEditorIntercomPushArticle[] = [
     eligibleLocaleCount: 1,
     targetLocaleCount: 2,
     eligibleLocales: ["de"],
+    locales: [
+      { locale: "de", translationProgress: 100, approvalProgress: 100 },
+      { locale: "fr", translationProgress: 100, approvalProgress: 0 },
+    ],
     lastPushedAt: null,
     lastError: null,
   },
@@ -36,6 +40,10 @@ const articles: ContentEditorIntercomPushArticle[] = [
     eligibleLocaleCount: 0,
     targetLocaleCount: 2,
     eligibleLocales: [],
+    locales: [
+      { locale: "de", translationProgress: 50, approvalProgress: 0 },
+      { locale: "fr", translationProgress: 50, approvalProgress: 0 },
+    ],
     lastPushedAt: null,
     lastError: null,
   },

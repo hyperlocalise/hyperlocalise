@@ -32,6 +32,11 @@ export type ContentEditorGoogleDrivePushFile = {
   eligibleLocaleCount: number;
   targetLocaleCount: number;
   eligibleLocales: string[];
+  locales: Array<{
+    locale: string;
+    translationProgress: number;
+    approvalProgress: number;
+  }>;
   lastPushedAt: string | null;
   lastError: string | null;
 };
@@ -127,14 +132,11 @@ export async function fetchContentEditorGoogleDrivePushCandidates(input: {
       }
       const body = await response.json();
       const googleDrivePush = body.googleDrivePush;
-      if (!googleDrivePush || googleDrivePush.eligibleLocaleCount <= 0) {
-        return null;
-      }
       return {
         automationId: automation.id,
         name: automation.name,
-        eligibleLocaleCount: googleDrivePush.eligibleLocaleCount,
-        pushRunInProgress: googleDrivePush.pushRunInProgress,
+        eligibleLocaleCount: googleDrivePush?.eligibleLocaleCount ?? 0,
+        pushRunInProgress: googleDrivePush?.pushRunInProgress ?? false,
       } satisfies ContentEditorGoogleDrivePushCandidate;
     },
   );
