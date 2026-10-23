@@ -12,13 +12,14 @@
  */
 import { Autumn } from "autumn-js";
 
+import { AI_CREDIT_EXHAUSTED_CODE } from "@/lib/billing/ai-credit-refusal";
 import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 export const AI_FEATURES_REQUIRED_CODE = "ai_features_required";
 export const AI_FEATURES_CHECK_FAILED_CODE = "ai_features_check_failed";
 export const AI_FEATURES_REQUIRED_MESSAGE = "AI features are not included in your current plan.";
-export const AI_CREDIT_EXHAUSTED_CODE = "ai_credit_exhausted";
+export { AI_CREDIT_EXHAUSTED_CODE };
 export const AI_CREDIT_EXHAUSTED_MESSAGE =
   "Your workspace has used all of its AI credit. Change your plan on the Billing page, or wait for your AI credit to renew.";
 

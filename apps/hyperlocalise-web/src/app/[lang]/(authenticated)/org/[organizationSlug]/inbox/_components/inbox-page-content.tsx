@@ -252,6 +252,7 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
         responseToMessageId: streamSnapshot.responseToMessageId,
         message: streamSnapshot.message,
         status: streamSnapshot.status,
+        aiCreditExhausted: streamSnapshot.aiCreditExhausted,
       }
     : null;
 

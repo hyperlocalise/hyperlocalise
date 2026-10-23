@@ -107,4 +107,34 @@ describe("ConversationMessageList", () => {
     );
     expect(container.querySelector(`[data-message-id="${agentMessage.id}"]`)).toBe(streamedItem);
   });
+
+  it("shows a reply refused for used-up AI credit, with a way to change plan", () => {
+    const [userMessage] = messagesFixture;
+    const streamedAssistant: StreamedAssistantMessage = {
+      conversationId: userMessage.conversationId,
+      responseToMessageId: userMessage.id,
+      message: { id: `stream-${userMessage.id}`, role: "assistant", parts: [] },
+      status: "error",
+      aiCreditExhausted: true,
+    };
+
+    const { getByRole } = render(
+      withIntl(
+        <ConversationMessageList
+          conversationId={userMessage.conversationId}
+          currentUser={currentUserFixture}
+          isLoading={false}
+          isStreaming={false}
+          messages={[userMessage]}
+          organizationSlug="acme"
+          streamedAssistant={streamedAssistant}
+        />,
+      ),
+    );
+
+    expect(getByRole("alert").textContent).toContain(
+      "Your workspace has used all of its AI credit.",
+    );
+    expect(getByRole("link", { name: "Upgrade plan" }).getAttribute("href")).toContain("acme");
+  });
 });

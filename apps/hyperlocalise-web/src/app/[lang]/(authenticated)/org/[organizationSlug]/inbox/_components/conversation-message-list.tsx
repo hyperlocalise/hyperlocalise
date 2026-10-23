@@ -25,6 +25,8 @@ import { memo, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import { ConversationEmptyState } from "@/components/ai-elements/conversation";
+import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
+import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
 import { AgentTodoProgress, getAgentTodoItems } from "@/components/ai-elements/agent-todo-progress";
 import { AiElementErrorBoundary } from "@/components/ai-elements/ai-element-error-boundary";
 import { MessageResponse } from "@/components/ai-elements/message";
@@ -94,6 +96,7 @@ export function ConversationMessageList({
   isLoading,
   isStreaming,
   messages,
+  organizationSlug,
   streamedAssistant,
 }: {
   conversationId: string;
@@ -101,6 +104,8 @@ export function ConversationMessageList({
   isLoading: boolean;
   isStreaming: boolean;
   messages: ConversationMessage[];
+  /** Offers a plan change next to a reply refused for used-up AI credit. */
+  organizationSlug?: string;
   streamedAssistant: StreamedAssistantMessage | null;
 }) {
   const intl = useIntl();
@@ -129,7 +134,13 @@ export function ConversationMessageList({
                 />
               </MessageScrollerItem>
             ) : (
-              renderMessageItems({ activeStream, currentUser, isStreaming, messages })
+              renderMessageItems({
+                activeStream,
+                currentUser,
+                isStreaming,
+                messages,
+                organizationSlug,
+              })
             )}
           </MessageScrollerContent>
         </MessageScrollerViewport>
@@ -147,11 +158,13 @@ function renderMessageItems({
   currentUser,
   isStreaming,
   messages,
+  organizationSlug,
 }: {
   activeStream: StreamedAssistantMessage | null;
   currentUser: InboxCurrentUser;
   isStreaming: boolean;
   messages: ConversationMessage[];
+  organizationSlug?: string;
 }) {
   let renderedStream = false;
   const isActiveStreamStreaming = isStreaming && activeStream?.status === "streaming";
@@ -172,6 +185,8 @@ function renderMessageItems({
             message={activeStream.message}
             isStreaming={isActiveStreamStreaming}
             createdAt={message.createdAt}
+            aiCreditExhausted={activeStream.aiCreditExhausted}
+            organizationSlug={organizationSlug}
           />
         </MessageScrollerItem>
       );
@@ -198,6 +213,8 @@ function renderMessageItems({
           message={activeStream.message}
           isStreaming={isActiveStreamStreaming}
           createdAt={null}
+          aiCreditExhausted={activeStream.aiCreditExhausted}
+          organizationSlug={organizationSlug}
         />
       </MessageScrollerItem>,
     );
@@ -352,17 +369,32 @@ function isImageAttachment(attachment: ConversationMessageAttachment) {
 }
 
 function AssistantStreamMessage({
+  aiCreditExhausted,
   createdAt,
   isStreaming,
   message,
+  organizationSlug,
 }: {
+  aiCreditExhausted?: boolean;
   createdAt: string | null;
   isStreaming: boolean;
   message: UIMessage;
+  organizationSlug?: string;
 }) {
   return (
     <MessageFrame role="assistant" createdAt={createdAt}>
-      <AssistantMessageParts message={message} isStreaming={isStreaming} />
+      {aiCreditExhausted ? (
+        <div className="flex flex-col items-start gap-2">
+          <p role="alert" className="text-sm text-destructive">
+            <FormattedMessage {...aiCreditExhaustedMessages.exhausted} />
+          </p>
+          {organizationSlug ? (
+            <UpgradePlanButton organizationSlug={organizationSlug} variant="outline" size="xs" />
+          ) : null}
+        </div>
+      ) : (
+        <AssistantMessageParts message={message} isStreaming={isStreaming} />
+      )}
     </MessageFrame>
   );
 }
