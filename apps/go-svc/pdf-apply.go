@@ -13,7 +13,16 @@ import (
 )
 
 const (
-	maxPdfApplyBodyBytes     = 25 << 20 // 25 MiB
+	// Template size matches the project upload limit. Values and multipart
+	// framing sit outside that budget so a 25 MiB PDF can still be exported.
+	maxPdfApplyTemplateBytes          = 25 << 20
+	maxPdfApplyValuesBytes            = 4 << 20
+	maxPdfApplyLocaleBytes            = 128
+	maxPdfApplyMultipartOverheadBytes = 1 << 20
+	maxPdfApplyBodyBytes              = maxPdfApplyTemplateBytes +
+		maxPdfApplyValuesBytes +
+		maxPdfApplyLocaleBytes +
+		maxPdfApplyMultipartOverheadBytes
 	pdfOverflowKeysHeader    = "X-Hyperlocalise-Overflow-Keys"
 	pdfApplyTemplateFormName = "template"
 	pdfApplyValuesFormName   = "values"
@@ -105,26 +114,26 @@ func readPdfApplyPart(part *multipart.Part, req *pdfApplyRequest, seenTemplate *
 			return pdfApplyClientError{code: "invalid_multipart", message: "Only one template file is allowed"}
 		}
 		*seenTemplate = true
-		data, err := io.ReadAll(io.LimitReader(part, maxPdfApplyBodyBytes+1))
+		data, err := io.ReadAll(io.LimitReader(part, maxPdfApplyTemplateBytes+1))
 		if err != nil {
 			return err
 		}
 		if len(data) == 0 {
 			return pdfApplyClientError{code: "missing_template", message: "A template PDF file is required"}
 		}
-		if len(data) > maxPdfApplyBodyBytes {
+		if len(data) > maxPdfApplyTemplateBytes {
 			return errPdfApplyTooLarge
 		}
 		req.template = data
 	case pdfApplyValuesFormName:
-		raw, err := io.ReadAll(io.LimitReader(part, 4<<20+1))
+		raw, err := io.ReadAll(io.LimitReader(part, maxPdfApplyValuesBytes+1))
 		if err != nil {
 			return err
 		}
 		if len(raw) == 0 {
 			return pdfApplyClientError{code: "missing_values", message: "Translation values are required"}
 		}
-		if len(raw) > 4<<20 {
+		if len(raw) > maxPdfApplyValuesBytes {
 			return pdfApplyClientError{code: "values_too_large", message: "Translation values are too large"}
 		}
 		var values map[string]string
@@ -133,7 +142,7 @@ func readPdfApplyPart(part *multipart.Part, req *pdfApplyRequest, seenTemplate *
 		}
 		req.values = values
 	case pdfApplyLocaleFormName:
-		raw, err := io.ReadAll(io.LimitReader(part, 128))
+		raw, err := io.ReadAll(io.LimitReader(part, maxPdfApplyLocaleBytes))
 		if err != nil {
 			return err
 		}

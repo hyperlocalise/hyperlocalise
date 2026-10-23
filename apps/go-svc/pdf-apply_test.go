@@ -56,6 +56,88 @@ func TestApplyPdfRoundTrip(t *testing.T) {
 	require.NotEmpty(t, reRead)
 }
 
+func TestPdfApplyBodyBudgetIncludesValuesAndFraming(t *testing.T) {
+	require.GreaterOrEqual(
+		t,
+		maxPdfApplyBodyBytes,
+		maxPdfApplyTemplateBytes+maxPdfApplyValuesBytes+maxPdfApplyLocaleBytes,
+	)
+	require.Greater(t, maxPdfApplyBodyBytes, maxPdfApplyTemplateBytes)
+}
+
+func TestReadPdfApplyRequestAcceptsUploadLimitTemplateWithValues(t *testing.T) {
+	body := newPdfApplyMultipartBody(
+		t,
+		bytes.Repeat([]byte("P"), maxPdfApplyTemplateBytes),
+		map[string]string{"page-1#1": "translated"},
+		"fr-FR",
+	)
+
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	req.Header.Set("Content-Type", body.contentType)
+	req.Body = http.MaxBytesReader(httptest.NewRecorder(), req.Body, maxPdfApplyBodyBytes)
+
+	got, err := readPdfApplyRequest(req)
+	require.NoError(t, err)
+	require.Len(t, got.template, maxPdfApplyTemplateBytes)
+	require.Equal(t, "translated", got.values["page-1#1"])
+	require.Equal(t, "fr-FR", got.targetLocale)
+}
+
+func TestReadPdfApplyRequestRejectsOversizedTemplate(t *testing.T) {
+	body := newPdfApplyMultipartBody(
+		t,
+		bytes.Repeat([]byte("P"), maxPdfApplyTemplateBytes+1),
+		map[string]string{"page-1#1": "x"},
+		"en",
+	)
+
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	req.Header.Set("Content-Type", body.contentType)
+
+	_, err := readPdfApplyRequest(req)
+	require.ErrorIs(t, err, errPdfApplyTooLarge)
+}
+
+func TestReadPdfApplyRequestRejectsOversizedValues(t *testing.T) {
+	body := newPdfApplyMultipartBody(
+		t,
+		[]byte("%PDF-1.4"),
+		map[string]string{"k": strings.Repeat("x", maxPdfApplyValuesBytes)},
+		"en",
+	)
+
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	req.Header.Set("Content-Type", body.contentType)
+
+	_, err := readPdfApplyRequest(req)
+	var client pdfApplyClientError
+	require.ErrorAs(t, err, &client)
+	require.Equal(t, "values_too_large", client.code)
+}
+
+func TestApplyPdfDoesNotRejectUploadLimitTemplateAsTooLarge(t *testing.T) {
+	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
+	body := newPdfApplyMultipartBody(
+		t,
+		bytes.Repeat([]byte("P"), maxPdfApplyTemplateBytes),
+		map[string]string{"page-1#1": "x"},
+		"fr",
+	)
+
+	h := newHandler()
+	mux := http.NewServeMux()
+	registerRoutes(mux, h, mockSessionVerifier{})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/internal/pdf/apply", body)
+	req.Header.Set("Content-Type", body.contentType)
+	req.Header.Set(serverCallTokenHeader, serverCallToken())
+	mux.ServeHTTP(rec, req)
+
+	require.NotEqual(t, http.StatusRequestEntityTooLarge, rec.Code, rec.Body.String())
+}
+
 func TestApplyPdfOverflowHeader(t *testing.T) {
 	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
 	template, err := translationfileparser.FixtureSingleBlockPDF()
