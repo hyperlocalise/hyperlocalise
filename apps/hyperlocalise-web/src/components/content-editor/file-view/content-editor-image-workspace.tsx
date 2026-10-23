@@ -118,6 +118,7 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
     }
     setStatus("loading");
     setError(null);
+    setErrorRefused(false);
     void fetch(path, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("load");

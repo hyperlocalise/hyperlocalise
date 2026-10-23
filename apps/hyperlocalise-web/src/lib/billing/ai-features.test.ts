@@ -195,7 +195,7 @@ describe("ensureAiFeaturesAllowed", () => {
     });
   });
 
-  it("fails closed when the own-key lookup throws", async () => {
+  it("fails closed when the own-key lookup throws, without the database's message", async () => {
     organizationHasOwnModelKeyMock.mockRejectedValue(new Error("database unavailable"));
     mockAutumnChecks({ aiFeatures: true, aiCredit: true });
 
@@ -206,8 +206,24 @@ describe("ensureAiFeaturesAllowed", () => {
 
     expect(result).toMatchObject({
       ok: false,
-      error: { code: AI_FEATURES_CHECK_FAILED_CODE, message: "database unavailable" },
+      error: { code: AI_FEATURES_CHECK_FAILED_CODE, message: "Unable to verify AI credit." },
     });
+  });
+
+  it("reports a plan without AI even when the credit check fails", async () => {
+    autumnCheckMock.mockImplementation(async (params: { featureId: string }) => {
+      if (params.featureId === "ai_tokens") {
+        throw new Error("Request timed out");
+      }
+      return { allowed: false };
+    });
+
+    const result = await ensureAiFeaturesAllowed({
+      organizationId: "org_123",
+      autumnApiKey: "am_sk_test",
+    });
+
+    expect(result).toMatchObject({ ok: false, error: { code: AI_FEATURES_REQUIRED_CODE } });
   });
 });
 

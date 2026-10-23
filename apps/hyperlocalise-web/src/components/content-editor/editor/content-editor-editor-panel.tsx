@@ -263,6 +263,7 @@ export function ContentEditorEditorPanel({
                         intelligence,
                         isLoading: isAiSuggestionLoading,
                         error: aiRecommendationError,
+                        aiCreditExhausted: aiRecommendationCreditExhausted,
                         onGenerateAiRecommendation,
                       }
                     : undefined

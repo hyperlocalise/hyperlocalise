@@ -23,7 +23,10 @@ import type {
 import { contentEditorIntelligenceFixture } from "../shared/content-editor.fixture";
 import { renderWithContentEditorProviders } from "../shared/content-editor-test-utils";
 import { ContentEditorGroupingProvider } from "./content-editor-grouping-context";
-import { ContentEditorGroupVariantsGate } from "./content-editor-group-variants";
+import {
+  ContentEditorGroupVariantsGate,
+  type ContentEditorGroupVariantsAi,
+} from "./content-editor-group-variants";
 
 afterEach(cleanup);
 
@@ -40,6 +43,7 @@ function setup(
   variants: CatGroupVariant[],
   overrides: Partial<ContentEditorSegment> = {},
   intelligence?: Partial<ContentEditorSegmentIntelligence>,
+  aiOverrides: Partial<ContentEditorGroupVariantsAi> = {},
 ) {
   const groupVariants = vi.fn().mockResolvedValue({ variants });
   const saveVariant = vi.fn().mockResolvedValue(undefined);
@@ -66,6 +70,7 @@ function setup(
             ? {
                 intelligence: { ...contentEditorIntelligenceFixture, ...intelligence },
                 isLoading: false,
+                ...aiOverrides,
               }
             : undefined
         }
@@ -167,6 +172,34 @@ describe("ContentEditorGroupVariantsGate", () => {
     await screen.findByText("2 different translations");
 
     expect(screen.queryByRole("complementary", { name: "AI recommendation" })).toBeNull();
+  });
+
+  it("does not offer Regenerate after a refusal for used-up AI credit", async () => {
+    const refusal = "Your workspace has used all of its AI credit.";
+    setup(
+      divergentVariants,
+      {},
+      { aiSuggestion: "" },
+      { error: refusal, aiCreditExhausted: true, onGenerateAiRecommendation: vi.fn() },
+    );
+    await screen.findByText("2 different translations");
+
+    const recommendation = screen.getByRole("complementary", { name: "AI recommendation" });
+    expect(recommendation.textContent).toContain(refusal);
+    expect(within(recommendation).queryByRole("button", { name: "Regenerate" })).toBeNull();
+  });
+
+  it("offers Regenerate after other suggestion failures", async () => {
+    setup(
+      divergentVariants,
+      {},
+      { aiSuggestion: "" },
+      { error: "Model unavailable", onGenerateAiRecommendation: vi.fn() },
+    );
+    await screen.findByText("2 different translations");
+
+    const recommendation = screen.getByRole("complementary", { name: "AI recommendation" });
+    expect(within(recommendation).getByRole("button", { name: "Regenerate" })).toBeTruthy();
   });
 
   it("offers the AI recommendation once for all translations", async () => {

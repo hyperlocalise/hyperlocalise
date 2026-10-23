@@ -74,11 +74,20 @@ export function formatAiFeaturesRefusal(error: AiFeaturesError) {
     : AI_FEATURES_REQUIRED_MESSAGE;
 }
 
-/** Workspaces with their own model key pay their provider, so their AI credit is not checked. */
-async function hasAiCreditLeft(autumn: Autumn, organizationId: string) {
+async function readHasOwnModelKey(organizationId: string) {
   const { organizationHasOwnModelKey } =
     await import("@/lib/providers/organization-language-model");
-  if (await organizationHasOwnModelKey(organizationId)) {
+  try {
+    return await organizationHasOwnModelKey(organizationId);
+  } catch (error) {
+    // The database error names the query and the workspace; callers only see that the check failed.
+    throw new Error("Unable to verify AI credit.", { cause: error });
+  }
+}
+
+/** Workspaces with their own model key pay their provider, so their AI credit is not checked. */
+async function hasAiCreditLeft(autumn: Autumn, organizationId: string) {
+  if (await readHasOwnModelKey(organizationId)) {
     return true;
   }
 
@@ -120,7 +129,7 @@ export async function ensureAiFeaturesAllowed(input: {
       xApiVersion: AUTUMN_API_VERSION,
       failOpen: false,
     });
-    const [aiFeatures, aiCreditLeft] = await Promise.all([
+    const [aiFeatures, aiCreditLeft] = await Promise.allSettled([
       autumn.check({
         customerId: input.organizationId,
         featureId: autumnFeatureIds.aiFeatures,
@@ -128,14 +137,21 @@ export async function ensureAiFeaturesAllowed(input: {
       hasAiCreditLeft(autumn, input.organizationId),
     ]);
 
-    if (!aiFeatures.allowed) {
+    // A plan without AI is reported as such even when the credit check failed.
+    if (aiFeatures.status === "rejected") {
+      throw aiFeatures.reason;
+    }
+    if (!aiFeatures.value.allowed) {
       return err({
         code: AI_FEATURES_REQUIRED_CODE,
         message: AI_FEATURES_REQUIRED_MESSAGE,
       });
     }
 
-    if (!aiCreditLeft) {
+    if (aiCreditLeft.status === "rejected") {
+      throw aiCreditLeft.reason;
+    }
+    if (!aiCreditLeft.value) {
       return err({
         code: AI_CREDIT_EXHAUSTED_CODE,
         message: AI_CREDIT_EXHAUSTED_MESSAGE,

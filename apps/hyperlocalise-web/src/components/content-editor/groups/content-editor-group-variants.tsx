@@ -80,6 +80,8 @@ export type ContentEditorGroupVariantsAi = {
   intelligence: ContentEditorSegmentIntelligence;
   isLoading: boolean;
   error?: string;
+  /** The suggestion was refused for used-up AI credit, so it is not offered again. */
+  aiCreditExhausted?: boolean;
   onGenerateAiRecommendation?: () => void;
 };
 
@@ -466,7 +468,7 @@ const GroupVariantsAiSuggestion = observer(function GroupVariantsAiSuggestion({
             </DropdownMenu>
           </>
         ) : null}
-        {onRegenerate && (suggestion || ai.error) ? (
+        {onRegenerate && (suggestion || ai.error) && !(ai.error && ai.aiCreditExhausted) ? (
           <Tooltip>
             <TooltipTrigger
               render={

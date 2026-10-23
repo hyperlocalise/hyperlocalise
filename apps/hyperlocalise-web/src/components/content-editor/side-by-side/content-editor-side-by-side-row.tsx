@@ -598,6 +598,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                           intelligence,
                           isLoading: Boolean(isAiSuggestionLoading),
                           error: aiRecommendationError,
+                          aiCreditExhausted: aiRecommendationCreditExhausted,
                           onGenerateAiRecommendation,
                         }
                       : undefined

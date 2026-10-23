@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ApiResponseError } from "@/lib/api-error";
+import { ApiResponseError, isApiResponseErrorCode } from "@/lib/api-error";
 
 /** API error code for an AI action refused because the workspace has used all of its AI credit. */
 export const AI_CREDIT_EXHAUSTED_CODE = "ai_credit_exhausted";
@@ -30,7 +30,7 @@ function readResponseBodyCode(responseBody: string) {
  */
 export function isAiCreditExhaustedError(error: unknown): boolean {
   if (error instanceof ApiResponseError) {
-    return error.code === AI_CREDIT_EXHAUSTED_CODE;
+    return isApiResponseErrorCode(error, AI_CREDIT_EXHAUSTED_CODE);
   }
 
   if (
