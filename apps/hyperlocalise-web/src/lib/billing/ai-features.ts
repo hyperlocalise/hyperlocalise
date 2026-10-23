@@ -18,6 +18,9 @@ import { err, ok, type Result } from "@/lib/primitives/result/results";
 export const AI_FEATURES_REQUIRED_CODE = "ai_features_required";
 export const AI_FEATURES_CHECK_FAILED_CODE = "ai_features_check_failed";
 export const AI_FEATURES_REQUIRED_MESSAGE = "AI features are not included in your current plan.";
+export const AI_CREDIT_EXHAUSTED_CODE = "ai_credit_exhausted";
+export const AI_CREDIT_EXHAUSTED_MESSAGE =
+  "Your workspace has used all of its AI credit. Change your plan on the Billing page, or wait for your AI credit to renew.";
 
 export type AiFeaturesError =
   | {
@@ -27,9 +30,19 @@ export type AiFeaturesError =
   | {
       code: typeof AI_FEATURES_CHECK_FAILED_CODE;
       message: string;
+    }
+  | {
+      code: typeof AI_CREDIT_EXHAUSTED_CODE;
+      message: string;
     };
 
 const AUTUMN_API_VERSION = "2.2.0";
+
+/**
+ * Smallest AI credit balance (USD) that still allows a call. Without it Autumn
+ * asks for a whole unit ($1) and refuses any smaller balance.
+ */
+const MIN_AI_CREDIT_BALANCE_USD = 0.01;
 
 export class AiFeaturesRequiredError extends Error {
   readonly code: AiFeaturesError["code"];
@@ -53,8 +66,32 @@ function formatAiFeaturesCheckError(error: unknown) {
   return "Unable to verify AI feature access.";
 }
 
+/** Wording for people when the gate refuses; check failures keep the plan wording. */
+export function formatAiFeaturesRefusal(error: AiFeaturesError) {
+  return error.code === AI_CREDIT_EXHAUSTED_CODE
+    ? AI_CREDIT_EXHAUSTED_MESSAGE
+    : AI_FEATURES_REQUIRED_MESSAGE;
+}
+
+/** Workspaces with their own model key pay their provider, so their AI credit is not checked. */
+async function hasAiCreditLeft(autumn: Autumn, organizationId: string) {
+  const { organizationHasOwnModelKey } =
+    await import("@/lib/providers/organization-language-model");
+  if (await organizationHasOwnModelKey(organizationId)) {
+    return true;
+  }
+
+  const response = await autumn.check({
+    customerId: organizationId,
+    featureId: autumnFeatureIds.aiTokens,
+    requiredBalance: MIN_AI_CREDIT_BALANCE_USD,
+  });
+  return response.allowed;
+}
+
 /**
- * Fail-closed boolean gate for Autumn `ai_features` before any model call.
+ * Fail-closed gate before any model call: Autumn `ai_features` must be on the
+ * plan, and the workspace must have AI credit left unless it uses its own key.
  *
  * Tests skip the remote check when `autumnApiKey` is omitted so existing fixtures
  * keep working. Pass `autumnApiKey: ""` to exercise the denied path without mocking.
@@ -82,15 +119,25 @@ export async function ensureAiFeaturesAllowed(input: {
       xApiVersion: AUTUMN_API_VERSION,
       failOpen: false,
     });
-    const response = await autumn.check({
-      customerId: input.organizationId,
-      featureId: autumnFeatureIds.aiFeatures,
-    });
+    const [aiFeatures, aiCreditLeft] = await Promise.all([
+      autumn.check({
+        customerId: input.organizationId,
+        featureId: autumnFeatureIds.aiFeatures,
+      }),
+      hasAiCreditLeft(autumn, input.organizationId),
+    ]);
 
-    if (!response.allowed) {
+    if (!aiFeatures.allowed) {
       return err({
         code: AI_FEATURES_REQUIRED_CODE,
         message: AI_FEATURES_REQUIRED_MESSAGE,
+      });
+    }
+
+    if (!aiCreditLeft) {
+      return err({
+        code: AI_CREDIT_EXHAUSTED_CODE,
+        message: AI_CREDIT_EXHAUSTED_MESSAGE,
       });
     }
 

@@ -35,7 +35,7 @@ import {
   postThreadMessageWithoutTracking,
   wrapThreadPostForInteraction,
 } from "@/lib/agent-runtime/runs/agent-run-events";
-import { AI_FEATURES_REQUIRED_MESSAGE, ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
+import { ensureAiFeaturesAllowed, formatAiFeaturesRefusal } from "@/lib/billing/ai-features";
 import {
   reserveAgentRuntimeUsage,
   trackSucceededAgentRuntimeUsage,
@@ -603,7 +603,7 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
   const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: connector.organizationId });
   if (!aiFeatures.ok) {
     await thread.post({
-      markdown: AI_FEATURES_REQUIRED_MESSAGE,
+      markdown: formatAiFeaturesRefusal(aiFeatures.error),
     });
     return;
   }

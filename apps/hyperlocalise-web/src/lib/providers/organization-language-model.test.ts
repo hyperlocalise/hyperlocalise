@@ -45,12 +45,14 @@ vi.mock("@/lib/database/client", () => ({
           orderBy: () => ({
             limit: selectMock,
           }),
+          limit: selectMock,
         }),
       }),
     }),
   },
   schema: {
     organizationLlmProviderCredentials: {
+      id: "id",
       provider: "provider",
       defaultModel: "defaultModel",
       encryptionAlgorithm: "encryptionAlgorithm",
@@ -75,7 +77,29 @@ vi.mock("@/lib/providers/language-model", () => ({
   resolveProviderLanguageModel: resolveProviderLanguageModelMock,
 }));
 
-import { resolveHyperlocaliseAgentLanguageModel } from "./organization-language-model";
+import {
+  organizationHasOwnModelKey,
+  resolveHyperlocaliseAgentLanguageModel,
+} from "./organization-language-model";
+
+describe("organizationHasOwnModelKey", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("is true when the organization has saved a key, without decrypting it", async () => {
+    selectMock.mockResolvedValue([{ id: "credential_1" }]);
+
+    await expect(organizationHasOwnModelKey("org_1")).resolves.toBe(true);
+    expect(decryptProviderCredentialMock).not.toHaveBeenCalled();
+  });
+
+  it("is false when the organization has no key", async () => {
+    selectMock.mockResolvedValue([]);
+
+    await expect(organizationHasOwnModelKey("org_1")).resolves.toBe(false);
+  });
+});
 
 describe("resolveHyperlocaliseAgentLanguageModel", () => {
   beforeEach(() => {
