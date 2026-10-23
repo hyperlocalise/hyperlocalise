@@ -430,6 +430,11 @@ async function recordSaves(
   // A save made while a task for people covers the string is that task's work; otherwise it
   // belongs to the task that produced the translation. One lookup per file, language and step.
   const openTasks = new Map<string, Promise<string | undefined>>();
+  // The batch's oldest save: a task closed since then was open for every save in the batch.
+  const oldestSave = segments.reduce(
+    (oldest, segment) => (segment.occurredAt < oldest ? segment.occurredAt : oldest),
+    segments[0]!.occurredAt,
+  );
   const openTaskFor = (segment: SavedSegment, repositorySourceFileId: string | null) => {
     if (!repositorySourceFileId) return Promise.resolve(undefined);
     const lookupKey = `${segment.projectId}:${repositorySourceFileId}:${segment.targetLocale}:${segment.step}`;
@@ -441,6 +446,7 @@ async function recordSaves(
         repositorySourceFileId,
         targetLocale: segment.targetLocale,
         step: segment.step,
+        savedAt: oldestSave,
       });
       openTasks.set(lookupKey, found);
     }

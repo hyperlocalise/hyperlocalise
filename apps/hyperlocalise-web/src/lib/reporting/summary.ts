@@ -298,8 +298,10 @@ const CURRENT_COLUMNS = [
 ];
 
 /**
- * Rewrites a project's current strings from its daily rows: every day's arrivals, summed. An
- * arrival stops counting when its string is re-analysed, since its day is then refreshed too.
+ * Rewrites a project's current strings from the raw analyses: each string once per language
+ * and step, by its newest current analysis, however many tasks hold it (a task for people on a
+ * file a job already translated holds every string of it again). Reads the project's current
+ * analyses whole, so a large project's refresh pays for this once per run.
  */
 async function refreshCurrentByProject(
   tx: DatabaseClient,
@@ -317,12 +319,30 @@ async function refreshCurrentByProject(
   await tx.execute(sql`
     insert into reporting_current_by_project (organization_id, project_id, source_locale,
       target_locale, step, bucket, ${sql.raw(CURRENT_COLUMNS.join(", "))})
-    select s.organization_id, s.project_id, coalesce(p.source_locale, 'en'), s.target_locale,
-      s.step, s.bucket, ${sql.raw(CURRENT_COLUMNS.map((column) => `sum(s.${column})::integer`).join(", "))}
-    from reporting_daily_by_project s join projects p on p.id = s.project_id
-    where s.organization_id = ${organizationId} and s.project_id = ${projectId}
-    group by 1, 2, 3, 4, 5, 6
-    having sum(s.arrived_strings) > 0 or sum(s.arrived_uncounted) > 0
+    select ${organizationId}, ${projectId}, coalesce(p.source_locale, 'en'), a.target_locale,
+      a.step, a.bucket,
+      ${sql.join(
+        UNITS.flatMap(([, value]) => [
+          sql`sum(${sql.raw(value)})::integer`,
+          sql`sum(case when d.done then ${sql.raw(value)} else 0 end)::integer`,
+        ]),
+        sql`, `,
+      )},
+      sum(case when a.words is null then 1 else 0 end)::integer
+    from (
+      select distinct on (a.segment_id, a.target_locale, a.step) a.*
+      from reporting_analyses a
+      where a.organization_id = ${organizationId} and a.project_id = ${projectId} and a.is_current
+      order by a.segment_id, a.target_locale, a.step, a.created_at desc, a.id desc
+    ) a
+    join projects p on p.id = a.project_id
+    left join lateral (
+      select true as done from reporting_activity d
+      where d.organization_id = ${organizationId}
+        and d.operation_key = 'completion:' || a.id || ':' || a.step
+      limit 1
+    ) d on true
+    group by 3, 4, 5, 6
   `);
 }
 

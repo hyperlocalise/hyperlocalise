@@ -56,7 +56,8 @@ describe("createWorkflowTaskJob", () => {
       metadata: { sourcePath: "locales/messages.json" },
     });
     for (const [step, reportStep] of [
-      ["edit", "translation"],
+      ["translate", "translation"],
+      ["edit", "review"],
       ["proofread", "review"],
     ] as const) {
       const result = await createWorkflowTaskJob({
@@ -79,6 +80,6 @@ describe("createWorkflowTaskJob", () => {
         repositorySourceFileId: expect.any(String),
       });
     }
-    expect(mocks.startTaskAnalysis).toHaveBeenCalledTimes(2);
+    expect(mocks.startTaskAnalysis).toHaveBeenCalledTimes(3);
   });
 });

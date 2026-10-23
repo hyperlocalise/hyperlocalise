@@ -685,12 +685,13 @@ async function writeReportingCompletions(
         })
         // One completion per analysis and step: when a person finishes a string a job already
         // completed (a post-edit), the person is added to that completion rather than dropped.
-        // The text's source stays what the job recorded; whether the person changed it is new.
+        // The source becomes what the person's save says: the job's when they kept its text,
+        // their own when they rewrote it; the job's stays only when the save does not know.
         .onConflictDoUpdate({
           target: [schema.reportingActivity.organizationId, schema.reportingActivity.operationKey],
           set: {
             actorUserId: sql`excluded.actor_user_id`,
-            source: sql`coalesce(${schema.reportingActivity.source}, excluded.source)`,
+            source: sql`coalesce(excluded.source, ${schema.reportingActivity.source})`,
             unchanged: sql`excluded.unchanged`,
           },
           where: sql`${schema.reportingActivity.actorUserId} is null and excluded.actor_user_id is not null`,

@@ -725,7 +725,8 @@ describe("reports routes", () => {
       words: null,
       estimate: null,
       stillToCome: null,
-      time: { minutes: 30, people: 1, entries: [] },
+      // Someone else's 30 minutes: not listed, and not counted either.
+      time: { minutes: 0, people: 0, entries: [] },
       canLogTime: true,
     });
     const ownTime = await read(other, "/time");

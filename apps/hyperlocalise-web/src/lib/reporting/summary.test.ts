@@ -159,25 +159,30 @@ async function expectSummaryMatchesRecount(organizationId: string, scanCompletio
     from reporting_daily_by_task where organization_id = ${organizationId}
     group by 1, 2, 3, 4, 5 order by 1, 2, 3, 4, 5`);
   expect(byProject.rows).toEqual(fromTasks.rows);
-  // The current rows are the by-project arrivals summed over every day, with the project's
-  // source language.
+  // The current rows hold each string once per language and step, by its newest current
+  // analysis whatever task holds it, with the project's source language.
   const current = await db.execute(sql`
     select project_id, source_locale, target_locale, step, bucket,
       arrived_words, arrived_strings, arrived_done_words, arrived_done_strings, arrived_uncounted
     from reporting_current_by_project where organization_id = ${organizationId}
     order by 1, 2, 3, 4, 5`);
-  const fromDays = await db.execute(sql`
-    select s.project_id, coalesce(p.source_locale, 'en') as source_locale, s.target_locale,
-      s.step, s.bucket, sum(s.arrived_words)::integer as arrived_words,
-      sum(s.arrived_strings)::integer as arrived_strings,
-      sum(s.arrived_done_words)::integer as arrived_done_words,
-      sum(s.arrived_done_strings)::integer as arrived_done_strings,
-      sum(s.arrived_uncounted)::integer as arrived_uncounted
-    from reporting_daily_by_project s join projects p on p.id = s.project_id
-    where s.organization_id = ${organizationId}
-    group by 1, 2, 3, 4, 5 having sum(s.arrived_strings) > 0 or sum(s.arrived_uncounted) > 0
-    order by 1, 2, 3, 4, 5`);
-  expect(current.rows).toEqual(fromDays.rows);
+  const fromAnalyses = await db.execute(sql`
+    select a.project_id, coalesce(p.source_locale, 'en') as source_locale, a.target_locale,
+      a.step, a.bucket, sum(coalesce(a.words, 0))::integer as arrived_words,
+      count(*)::integer as arrived_strings,
+      sum(case when a.done then coalesce(a.words, 0) else 0 end)::integer as arrived_done_words,
+      sum(case when a.done then 1 else 0 end)::integer as arrived_done_strings,
+      sum(case when a.words is null then 1 else 0 end)::integer as arrived_uncounted
+    from (
+      select distinct on (a.segment_id, a.target_locale, a.step) a.*,
+        exists (select 1 from reporting_activity d where d.kind = 'completion'
+          and d.analysis_id = a.id and d.step = a.step) as done
+      from reporting_analyses a
+      where a.organization_id = ${organizationId} and a.is_current and a.project_id is not null
+      order by a.segment_id, a.target_locale, a.step, a.created_at desc, a.id desc
+    ) a join projects p on p.id = a.project_id
+    group by 1, 2, 3, 4, 5 order by 1, 2, 3, 4, 5`);
+  expect(current.rows).toEqual(fromAnalyses.rows);
 }
 
 const day = (date: string) => new Date(`${date}T10:00:00Z`);
@@ -462,6 +467,25 @@ describe("reporting daily summary", () => {
       .where(eq(schema.reportingWorkspaces.organizationId, organization.id));
     expect(workspace?.summaryVersion).toBe(SUMMARY_VERSION);
     expect(await ensureSummaryBuilt({ organizationIds: [organization.id] })).toBe(0);
+  });
+
+  it("counts a string once in the project's current rows, however many tasks hold it", async () => {
+    const { organization, project, save, finish, createJob } = await createWorkspace();
+    const first = await createJob();
+    const second = await createJob();
+    await save({ segment: "greeting", text: "Hello world", locale: "fr-FR", jobId: first.id });
+    await finish({ segment: "greeting", text: "Hello world", locale: "fr-FR", jobId: first.id });
+    await save({ segment: "greeting", text: "Hello world", locale: "fr-FR", jobId: second.id });
+    await expectSummaryMatchesRecount(organization.id);
+    const current = await db
+      .select({
+        strings: schema.reportingCurrentByProject.arrivedStrings,
+        done: schema.reportingCurrentByProject.arrivedDoneStrings,
+      })
+      .from(schema.reportingCurrentByProject)
+      .where(eq(schema.reportingCurrentByProject.projectId, project.id));
+    // The newest arrival is the second task's, which nobody has finished yet.
+    expect(current).toEqual([{ strings: 1, done: 0 }]);
   });
 
   it("deletes a task whose string also has a content editor analysis of the same text", async () => {

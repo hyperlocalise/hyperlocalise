@@ -173,7 +173,33 @@ describe("openPersonTaskForString", () => {
     await db.update(schema.jobs).set({ status: "succeeded" }).where(eq(schema.jobs.id, newer.id));
     await expect(lookup("review")).resolves.toBe(older.id);
 
-    const edit = await createPersonTask({ kind: "translation" });
-    await expect(lookup("translation")).resolves.toBe(edit.id);
+    const translate = await createPersonTask({ kind: "translation" });
+    await expect(lookup("translation")).resolves.toBe(translate.id);
+
+    // A save made while the task was open still belongs to it once the task has ended.
+    const ended = new Date();
+    await db
+      .update(schema.jobs)
+      .set({ status: "succeeded", updatedAt: ended })
+      .where(eq(schema.jobs.id, older.id));
+    const before = new Date(ended.getTime() - 60_000);
+    await expect(
+      openPersonTaskForString({
+        organizationId: organization.id,
+        projectId: project.id,
+        repositorySourceFileId: sourceFile.id,
+        targetLocale: "fr-FR",
+        step: "review",
+        savedAt: before,
+      }),
+    ).resolves.toBe(older.id);
+    await expect(lookup("review")).resolves.toBeUndefined();
+
+    // A job an agent ran is not a task for people, whoever owns it.
+    await db
+      .update(schema.jobs)
+      .set({ workflowRunId: "wrun_agent" })
+      .where(eq(schema.jobs.id, translate.id));
+    await expect(lookup("translation")).resolves.toBeUndefined();
   });
 });

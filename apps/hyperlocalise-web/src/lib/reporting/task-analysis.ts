@@ -72,9 +72,11 @@ export async function analyseTaskStrings(input: TaskAnalysisInput): Promise<numb
 }
 
 /**
- * The task a save in the content editor belongs to: the newest open task for people that covers
- * the string's file, language and step (a proofread task for an approval, a translate or
- * post-edit task for a translation). Undefined when no such task is open.
+ * The task a save in the content editor belongs to: the newest task for people that covers the
+ * string's file, language and step (a proofread or post-edit task for an approval, a translate
+ * task for a translation) and was open when the save was made: still open, or ended since
+ * `savedAt` (saves reach Reports some minutes later, and a task may be marked done meanwhile).
+ * Jobs an agent ran are not tasks for people. Undefined when there is none.
  */
 export async function openPersonTaskForString(input: {
   organizationId: string;
@@ -82,15 +84,20 @@ export async function openPersonTaskForString(input: {
   repositorySourceFileId: string;
   targetLocale: string;
   step: ReportStep;
+  /** When the save was made; now when left out. */
+  savedAt?: Date;
 }): Promise<string | undefined> {
   const kind = input.step === "review" ? "proofread" : "translation";
+  const savedAt = input.savedAt ?? new Date();
   const result = await db.execute<{ id: string }>(sql`
     select j.id from jobs j
     join translation_job_details d on d.job_id = j.id
     join repository_source_file_versions v on v.id = d.source_file_version_id
     where j.organization_id = ${input.organizationId} and j.project_id = ${input.projectId}
-      and j.status = 'waiting_for_review' and j.kind = ${kind}
+      and j.kind = ${kind} and j.workflow_run_id is null
       and (j.assignee_type is null or j.assignee_type = 'user')
+      and j.created_at <= ${savedAt}
+      and (j.status = 'waiting_for_review' or j.updated_at >= ${savedAt})
       and v.repository_source_file_id = ${input.repositorySourceFileId}
       and j.input_payload -> 'targetLocales' ? ${input.targetLocale}
     order by j.created_at desc

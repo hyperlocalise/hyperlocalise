@@ -12,15 +12,14 @@
  */
 import type { TaskAnalysisInput } from "@/lib/reporting/task-analysis";
 
-/** Reads the task's strings and scores them against the project's memory, once per language. */
+/**
+ * Reads the task's strings and scores them against the project's memory, once per language. A
+ * failure fails the step, so the workflow runtime retries it; running again records nothing
+ * twice.
+ */
 export async function analyseTaskStringsStep(input: TaskAnalysisInput) {
   "use step";
   const { analyseTaskStrings } = await import("@/lib/reporting/task-analysis");
-  try {
-    const strings = await analyseTaskStrings(input);
-    return { strings };
-  } catch (error) {
-    console.warn("[task-analysis-workflow] analysis failed", { jobId: input.jobId, error });
-    return { strings: 0 };
-  }
+  const strings = await analyseTaskStrings(input);
+  return { strings };
 }

@@ -221,7 +221,9 @@ export async function createWorkflowTaskJob(
       organizationId: input.organizationId,
       projectId: input.projectId,
       jobId,
-      step: input.step === "proofread" ? "review" : "translation",
+      // Translate tasks are translation work; post-edit and proofread tasks are review work, as
+      // the task's kind says, so a save in them is found by the open-task lookup for that step.
+      step: input.step === "translate" ? "translation" : "review",
       sourceLocale: input.sourceLocale,
       targetLocales: input.targetLocales,
       repositorySourceFileId,

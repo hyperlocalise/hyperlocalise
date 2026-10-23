@@ -537,7 +537,7 @@ describe("reporting capture", () => {
       unchanged: { greeting: false },
     });
 
-    // The text's source stays the job's; that the person changed it is recorded with them.
+    // The person rewrote the job's text, so the finished text is theirs, and changed.
     const completions = await db
       .select({
         actorUserId: schema.reportingActivity.actorUserId,
@@ -551,7 +551,7 @@ describe("reporting capture", () => {
           eq(schema.reportingActivity.kind, "completion"),
         ),
       );
-    expect(completions).toEqual([{ actorUserId: user.id, source: "ai", unchanged: false }]);
+    expect(completions).toEqual([{ actorUserId: user.id, source: "person", unchanged: false }]);
   });
 
   it("skips analysis capture when workspace reports is disabled", async () => {

@@ -463,6 +463,10 @@ export function createReportsRoutes() {
         };
         const canEditAll = hasCapability(role, "billing:write");
         const canLog = hasCapability(role, "jobs:write");
+        // Other people's entries, and their totals, are for the roles that see what work costs.
+        const visibleEntries = entries.rows.filter(
+          (entry) => financial || entry.contributorId === userId,
+        );
         return c.json({
           taskReport: {
             task: {
@@ -484,16 +488,13 @@ export function createReportsRoutes() {
               ? (stillToCome.get(job.projectId!) ?? { amountUsd: "0.00000000", incomplete: false })
               : null,
             time: {
-              minutes: entries.rows.reduce((sum, entry) => sum + entry.minutes, 0),
-              people: new Set(entries.rows.map((entry) => entry.contributorId)).size,
-              // Other people's entries are shown to the roles that see what work costs.
-              entries: entries.rows
-                .filter((entry) => financial || entry.contributorId === userId)
-                .map(({ contributorId, ...entry }) => ({
-                  ...entry,
-                  own: contributorId === userId,
-                  canEdit: canLog && (contributorId === userId || canEditAll),
-                })),
+              minutes: visibleEntries.reduce((sum, entry) => sum + entry.minutes, 0),
+              people: new Set(visibleEntries.map((entry) => entry.contributorId)).size,
+              entries: visibleEntries.map(({ contributorId, ...entry }) => ({
+                ...entry,
+                own: contributorId === userId,
+                canEdit: canLog && (contributorId === userId || canEditAll),
+              })),
             },
             canLogTime: canLog,
             // A task's own pricing, for each step: shown to the roles that see money.
