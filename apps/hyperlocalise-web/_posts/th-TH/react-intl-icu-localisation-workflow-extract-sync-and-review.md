@@ -20,7 +20,7 @@ React Intl จัดเก็บข้อความที่ผู้ใช้
 
 คู่มือนี้แสดงวิธีเชื่อมต่อ **react-intl**, **ICU** และ **`hyperlocalise` CLI** ให้เป็นเวิร์กโฟลว์เดียวกัน:
 
-1. วิศวกรเขียนข้อความใน `defineMessages` และ `<FormattedMessage />`.
+1. Engineers write messages in `defineMessages` and `<FormattedMessage />`.
 2. `hl extract` รีเฟรชแค็ตตาล็อก FormatJS ภาษาอังกฤษจากแหล่งที่มา
 3. GitHub ตรวจสอบ pull request เพื่อหาความคลาดเคลื่อน คีย์ที่ขาดหาย และปัญหาเกี่ยวกับรูปแบบ ICU
 4. `hl sync push` ส่งแค็ตตาล็อกไปยัง Hyperlocalise เพื่อตรวจสอบ
@@ -90,7 +90,7 @@ export const savedFiltersBannerMessages = defineMessages({
 
 ใช้ ICU ภายใน `defaultMessage` เมื่อข้อความขึ้นอยู่กับตัวเลขหรือ enum React Intl จะประเมินข้อความทั้งหมดขณะรันไทม์ นักแปลต้องคงโครงสร้าง `{count, plural, ...}` และ `{scope, select, ...}` ไว้ พร้อมเปลี่ยนเฉพาะข้อความที่อ่านได้ในแต่ละ branch
 
-ในคอมโพเนนต์ของหน้า ให้ส่งค่า ICU ผ่าน `formatMessage` หรือ `<FormattedMessage />`:
+In a page component, pass ICU values through `formatMessage` or `<FormattedMessage />`:
 
 ```tsx
 "use client";

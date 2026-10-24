@@ -20,7 +20,7 @@ React Intl bewaart gebruikersgerichte teksten in TypeScript, maar vertalers en C
 
 Deze handleiding laat zien hoe je **react-intl**, **ICU** en de **`hyperlocalise` CLI** in één workflow kunt combineren:
 
-1. Ingenieurs schrijven berichten in `defineMessages` en `<FormattedMessage />`.
+1. Engineers write messages in `defineMessages` and `<FormattedMessage />`.
 2. `hl extract` ververst de Engelse FormatJS-catalogus vanuit de bron.
 3. GitHub controleert de pull request op afwijkingen, ontbrekende sleutels en problemen met de ICU-structuur.
 4. `hl sync push` stuurt de catalogus naar Hyperlocalise ter beoordeling.
@@ -90,7 +90,7 @@ export const savedFiltersBannerMessages = defineMessages({
 
 Gebruik ICU binnen `defaultMessage` wanneer de tekst afhankelijk is van getallen of enumwaarden. React Intl evalueert het volledige bericht tijdens runtime; vertalers moeten de skeletten `{count, plural, ...}` en `{scope, select, ...}` behouden en de voor mensen leesbare vertakkingen aanpassen.
 
-Geef in een paginacomponent ICU-waarden door via `formatMessage` of `<FormattedMessage />`:
+In a page component, pass ICU values through `formatMessage` or `<FormattedMessage />`:
 
 ```tsx
 "use client";
@@ -122,7 +122,7 @@ Vermijd `--flatten` bij ICU-berichten die je als afzonderlijke react-intl-eenhed
 Maak `i18n.yml` aan in de hoofdmap van de repository (of onder je appmap als de monorepo de configuratie naast de UI bewaart):
 
 ```yaml
-version: hyperlocalise@1.13.4
+version: hyperlocalise@1.13.6
 
 locales:
   source: en-US

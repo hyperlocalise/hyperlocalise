@@ -20,7 +20,7 @@ React Intlではユーザー向けの文言をTypeScript内に保持しますが
 
 このガイドでは、**react-intl**、**ICU**、および **`hyperlocalise` CLI** を1つのワークフローに統合する方法を紹介します：
 
-1. エンジニアは`defineMessages`と`<FormattedMessage />`でメッセージを書きます。
+1. Engineers write messages in `defineMessages` and `<FormattedMessage />`.
 2. `hl extract`は、ソースから英語のFormatJSカタログを更新します。
 3. GitHub はプルリクエストにずれやキーの不足、ICU の構造上の問題がないか確認します。
 4. `hl sync push`は、レビューのためにカタログをHyperlocaliseに送信します。
@@ -90,7 +90,7 @@ export const savedFiltersBannerMessages = defineMessages({
 
 数値や列挙値に応じて文言が変わる場合は、`defaultMessage` 内で ICU を使用してください。React Intl は実行時にメッセージ全体を評価します。翻訳者は `{count, plural, ...}` と `{scope, select, ...}` のスケルトンを保持しつつ、人が読む分岐部分を変更してください。
 
-ページコンポーネントでは、ICU の値を`formatMessage`または`<FormattedMessage />`経由で渡します：
+In a page component, pass ICU values through `formatMessage` or `<FormattedMessage />`:
 
 ```tsx
 "use client";
@@ -113,7 +113,7 @@ export function FiltersPage({ savedCount, scope }: { savedCount: number; scope: 
 }
 ```
 
-**サーバーコンポーネント:** サーバー専用モジュールから`*.messages.ts`をインポートしないでください。`defineMessages`はクライアント専用です。UIに`"use client"`を付けるか、サーバー上で`getIntlShape(locale).formatMessage()`を使用したインライン`{ id, defaultMessage, description }`オブジェクトを使ってください。フレームワークのreact-intlの境界を確認してください。抽出ステップでは、スキャン対象の`.ts`ファイルと`.tsx`ファイルからも記述子が引き続き見つかります。
+**Server Components:** do not import `*.messages.ts` from server-only modules—`defineMessages` is client-only. Either mark the UI as `"use client"` or use inline `{ id, defaultMessage, description }` objects with `getIntlShape(locale).formatMessage()` on the server. See your framework’s react-intl boundaries; the extract step still finds descriptors in `.ts` and `.tsx` files it scans.
 
 単一の react-intl ユニットとして出荷する予定の ICU メッセージでは、`--flatten`を避けてください。フラット化すると、複数形および select の分岐が、特殊な翻訳ワークフロー向けに引き上げられます。これはランタイムカタログのデフォルトではありません。
 
@@ -122,7 +122,7 @@ export function FiltersPage({ savedCount, scope }: { savedCount: number; scope: 
 リポジトリのルート（または、モノレポで UI の近くに設定ファイルを置いている場合はアプリディレクトリの下）に `i18n.yml` を作成します。
 
 ```yaml
-version: hyperlocalise@1.13.4
+version: hyperlocalise@1.13.6
 
 locales:
   source: en-US
@@ -382,7 +382,7 @@ pull-translations:
         labels: localization
 ```
 
-`sync pull` は、FormatJS 形式（ID、`defaultMessage`、場合によっては`description`）で`lang/fr-FR.json`と`lang/de-DE.json`を書き出します。`hl pack`は、各`defaultMessage`の ICU を保持したまま`description`やその他のメタデータを削除し、ロケールごとの JSON をインポートするバンドラーですぐに使用できる状態にします。
+`sync pull` writes `lang/fr-FR.json` and `lang/de-DE.json` in FormatJS shape (ids, `defaultMessage`, sometimes `description`). `hl pack` removes `description` and other metadata while preserving ICU in each `defaultMessage`—ready for bundlers that import JSON per locale.
 
 パックされたフランス語エントリの例：
 
@@ -459,7 +459,7 @@ Extract はコードをカタログに接続します。Sync はカタログを�
 
 ### 抽出内容のずれでプルリクエストが失敗する
 
-CIと同じ`--ignore`パターンで`hl extract`をローカルで実行し、`lang/en-US.json`をコミットしてプッシュしてください。IDが予期せず飛ぶ場合は、descriptorに安定した`id`フィールドが含まれていることを確認してください。
+Run `hl extract` locally with the same `--ignore` patterns as CI, commit `lang/en-US.json`, and push. If ids jump unexpectedly, confirm descriptors include stable `id` fields.
 
 ### `icu_shape_mismatch` それ以外は「良好な」翻訳における
 

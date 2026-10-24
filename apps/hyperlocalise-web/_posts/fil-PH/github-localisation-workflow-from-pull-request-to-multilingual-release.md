@@ -16,7 +16,7 @@ tags:
   - translation review
 ---
 
-This guide walks you through setting up a GitHub localization workflow with GitHub Actions, the `hyperlocalise` CLI, and the Hyperlocalise platform. You will start with a small example and follow one product change from its first pull request to a multilingual release.
+Gagabayan ka ng gabay na ito sa pagse-set up ng workflow para sa lokalisasyon sa GitHub gamit ang GitHub Actions, ang `hyperlocalise` CLI, at ang platform ng Hyperlocalise. Magsisimula ka sa isang maliit na halimbawa at susubaybayan ang isang pagbabago sa produkto mula sa unang pull request nito hanggang sa isang multilingual na release.
 
 Sa pagtatapos, sasaklawin ng iyong daloy ng trabaho ang apat na yugto:
 
@@ -27,7 +27,7 @@ Sa pagtatapos, sasaklawin ng iyong daloy ng trabaho ang apat na yugto:
 
 Ang resulta ay prosesong likas sa repositoryo. Nanatili ang mga engineer sa mga pull request, nagtatrabaho ang mga tagasuri ng wika nang may konteksto sa Hyperlocalise, at ginagamit lang sa release ang mga pagsasaling nakabalik na sa Git.
 
-If you want the broader product pattern before the implementation details, see the [GitHub product localisation use case](/use-cases/product-localisation).
+Kung gusto mo munang makita ang mas malawak na pattern ng produkto bago ang mga detalye ng implementasyon, tingnan ang [halimbawa ng paggamit ng lokalisasyon ng produkto ng GitHub](/use-cases/product-localisation).
 
 ## Ano ang bubuuin natin
 
@@ -53,19 +53,19 @@ Ingles ang source locale. Pranses at Aleman ang mga target locale. Nilalaman par
 
 Kakailanganin mo:
 
-- a Hyperlocalise project with `en-US` as its source locale and `fr-FR` and `de-DE` as targets;
-- a `HYPERLOCALISE_API_KEY` GitHub Actions secret;
-- a `HYPERLOCALISE_PROJECT_ID` GitHub Actions secret; and
+- isang proyekto ng Hyperlocalise na may `en-US` bilang lokal na pinagmulan nito at `fr-FR` at `de-DE` bilang mga target nito;
+- isang `HYPERLOCALISE_API_KEY` secret ng GitHub Actions;
+- isang `HYPERLOCALISE_PROJECT_ID` secret ng GitHub Actions; at
 - pahintulot na magdagdag ng mga workflow at lihim ng repositoryo.
 
-Use a GitHub environment such as `localisation` for production credentials if your organisation requires deployment approvals.
+Gumamit ng GitHub environment gaya ng `localisation` para sa mga kredensyal sa produksyon kung nangangailangan ang iyong organisasyon ng mga pag-apruba sa pag-deploy.
 
 ## Hakbang 1: i-map ang mga source at target na file
 
-Create `i18n.yml` at the repository root:
+Gumawa ng `i18n.yml` sa root ng repository:
 
 ```yaml
-version: hyperlocalise@1.13.3
+version: hyperlocalise@1.13.6
 
 locales:
   source: en-US
@@ -95,15 +95,15 @@ hyperlocalise:
   api_key_env: HYPERLOCALISE_API_KEY
 ```
 
-The two buckets make ownership explicit. `product` maps one source catalogue to one catalogue per target locale. `release-notes` maps every English Markdown file to the equivalent locale directory while preserving its filename.
+Ginagawang malinaw ng dalawang bucket kung sino ang may-ari. Iniuugnay ng `product` ang isang source catalog sa isang catalog para sa bawat target locale. Iniuugnay naman ng `release-notes` ang bawat English Markdown file sa katumbas na direktoryo ng locale habang pinananatili ang pangalan ng file nito.
 
-Pinning the CLI in the configuration also makes local and CI runs agree. Update the example version to the release your team has tested. If you omit `version`, pin the `version` input in the install action instead.
+Tinitiyak din ng pag-pin sa CLI sa configuration na magkatugma ang mga local at CI run. I-update ang halimbawang bersyon sa release na nasubukan na ng team ninyo. Kung aalisin mo ang `version`, i-pin na lang ang `version` input sa install action.
 
 Ginagamit ang LLM profile kapag bumubuo ng mga pagsasalin ang iyong proyekto gamit ang provider na iyon. Itago ang mga credential ng provider sa Hyperlocalise sa halip na idagdag ang mga ito sa workflow. Mga credential lang para sa proyektong Hyperlocalise ang kailangan ng GitHub runner.
 
 ## Hakbang 2: gumawa ng isang pagbabago sa produkto
 
-Suppose version 1.8.0 adds saved filters. The pull request changes `locales/en-US.json`:
+Ipagpalagay na nagdagdag ang bersyon 1.8.0 ng mga naka-save na filter. Binabago ng pull request ang `locales/en-US.json`:
 
 ```json
 {
@@ -113,7 +113,7 @@ Suppose version 1.8.0 adds saved filters. The pull request changes `locales/en-U
 }
 ```
 
-It also adds `release-notes/en-US/v1.8.0.md`:
+Nagdaragdag din ito ng `release-notes/en-US/v1.8.0.md`:
 
 ```markdown
 # Saved filters
@@ -129,11 +129,11 @@ You can now save a filter and reuse it across your workspace.
 
 I-commit ang source content kasama ng feature. Sa ganitong paraan, makikita ng mga reviewer sa iisang pull request ang pagbabago sa code, UI copy, at paliwanag para sa mga customer. Nangangahulugan din ito na masasagot ng history ng Git kung aling pananalita ang inilabas kasama ng isang release.
 
-Do not hand-copy English strings into `fr-FR.json` or `de-DE.json` as placeholders. A copied source value can look complete to a simple key-count check even though no localisation happened.
+Huwag manu-manong kopyahin ang mga string sa Ingles papunta sa `fr-FR.json` o `de-DE.json` bilang mga placeholder. Maaaring magmukhang kumpleto ang kinopyang value ng source sa isang simpleng pagsusuri ng bilang ng mga key kahit walang naganap na lokalisasyon.
 
 ## Hakbang 3: suriin ang mga binagong string sa pull request
 
-Add `.github/workflows/localise.yml`. The first job runs on pull requests and scopes Hyperlocalise findings to the GitHub diff:
+Idagdag ang `.github/workflows/localise.yml`. Tumatakbo ang unang trabaho kapag may pull request at nililimitahan nito sa mga pagbabago sa GitHub diff ang mga natuklasan ng Hyperlocalise:
 
 ```yaml
 name: Localise
@@ -184,7 +184,7 @@ jobs:
           upload-artifact: true
 ```
 
-With `github-diff: true`, the action fetches the pull request patch and passes it to `hyperlocalise check --diff-stdin`. For supported structured catalogues, annotations focus on keys changed by this pull request rather than making the author resolve unrelated backlog.
+Gamit ang `github-diff: true`, kinukuha ng action ang patch ng pull request at ipinapasa ito sa `hyperlocalise check --diff-stdin`. Para sa mga sinusuportahang structured catalogue, nakatuon ang mga annotation sa mga key na binago ng pull request na ito, sa halip na pagpasiyahin ang may-akda sa mga hindi kaugnay na naipong gawain.
 
 Ina-upload din ng aksyon ang JSON report at buod na text nito. Panatilihin ang mga artifact na iyon kapag pumalya ang isang pagsusuri: inihihiwalay ng mga ito ang mga error sa istruktura, nawawalang salin, at mga natuklasan sa nilalaman mula sa pagkabigo sa pag-install o configuration.
 
@@ -192,7 +192,7 @@ Ang pagsusuring ito ang unang checkpoint, hindi ang pagsusuri sa wika. Maaga nit
 
 ## Hakbang 4: itulak ang pinagsamang nilalaman ng source papunta sa Hyperlocalise
 
-Add a second job to the same `localise.yml` workflow:
+Magdagdag ng pangalawang job sa parehong `localise.yml` workflow:
 
 ```yaml
 push-sources:
@@ -216,9 +216,9 @@ push-sources:
         HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
 ```
 
-This is the push boundary. After the feature pull request merges to `main`, `hl sync push` reads the buckets in `i18n.yml` and sends the English JSON and Markdown sources to the linked Hyperlocalise project.
+Ito ang hangganan ng push. Pagkatapos ma-merge ang feature pull request sa `main`, binabasa ng `hl sync push` ang mga bucket sa `i18n.yml` at ipinapadala ang mga source na JSON at Markdown sa English sa naka-link na proyekto ng Hyperlocalise.
 
-The job has read-only repository permission because it sends content out but does not modify Git. Its credentials live only in the step that needs them. The `paths` filter prevents unrelated merges from creating unnecessary sync runs.
+May read-only na pahintulot ang job sa repository dahil nagpapadala ito ng content palabas pero hindi nito binabago ang Git. Nasa step lang na nangangailangan ng mga ito ang mga credential nito. Pinipigilan ng `paths` filter ang mga hindi kaugnay na merge na lumikha ng mga hindi kailangang sync run.
 
 Maaari mong patakbuhin ang parehong operasyon bago mag-commit:
 
@@ -229,7 +229,7 @@ hl sync push --dry-run
 hl sync push
 ```
 
-Use `--dry-run` when changing bucket mappings. It lets you inspect the plan before updating the remote project.
+Gamitin ang `--dry-run` kapag binabago ang mga mapping ng bucket. Nagbibigay-daan ito sa iyong suriin ang plano bago i-update ang remote na proyekto.
 
 ## Hakbang 5: suriin nang magkasama ang mga string ng produkto at tala para sa release
 
@@ -239,8 +239,8 @@ Sa halimbawang ito, hindi lang literal na katumpakan ang dapat suriin ng tagasur
 
 | Nilalaman        | Tanong sa pagsusuri                                      |
 | --------------- | -------------------------------------------------------- |
-| `filters.save`  | Is this clearly an action, rather than a saved state?    |
-| `filters.saved` | Does the term match navigation and settings copy?        |
+| `filters.save`  | Malinaw ba itong isang aksyon, sa halip na isang naka-save na estado?    |
+| `filters.saved` | Tumutugma ba ang termino sa mga teksto para sa nabigasyon at mga setting?        |
 | Paglalarawan     | Angkop ba ito sa UI at napapanatili ang terminong “workspace”? |
 | Pamagat ng release   | Pareho ba ang ginagamit nitong pangalan sa pangalan ng feature ng produkto?        |
 | Mga bullet sa release | Pare-pareho ba ang mga command, pangalan ng menu, at resulta para sa user?  |
@@ -251,7 +251,7 @@ Lutasin ang mga komento sa review at aprubahan ang mga salin ayon sa workflow ng
 
 ## Hakbang 6: i-pull sa GitHub ang mga nasuring salin
 
-Add a third job to `localise.yml`:
+Magdagdag ng ikatlong job sa `localise.yml`:
 
 ```yaml
 pull-translations:
@@ -289,7 +289,7 @@ pull-translations:
         labels: localization
 ```
 
-Run this job from the **Actions** tab after review. `hl sync pull` writes target content to the paths in `i18n.yml`, producing files such as:
+Patakbuhin ang job na ito mula sa tab na **Actions** pagkatapos ng pagsusuri. `hl sync pull` isinusulat ang target na nilalaman sa mga path sa `i18n.yml`, na lumilikha ng mga file gaya ng:
 
 ```text
 locales/fr-FR.json
@@ -298,13 +298,13 @@ release-notes/fr-FR/v1.8.0.md
 release-notes/de-DE/v1.8.0.md
 ```
 
-The workflow opens a pull request instead of committing directly to `main`. That preserves branch protection, gives engineers a chance to run the application with each locale, and records the exact translations included in the release.
+Nagbubukas ang workflow ng pull request sa halip na direktang mag-commit sa `main`. Pinananatili nito ang proteksyon ng branch, binibigyan ang mga engineer ng pagkakataong patakbuhin ang application gamit ang bawat locale, at itinatala ang eksaktong mga pagsasaling kasama sa release.
 
 Para sa production, i-pin ang mga third-party action sa buong commit SHA ayon sa patakaran ninyo sa mga dependency. Nananatiling madaling basahin ang tutorial na ito dahil sa mga tag ng major version na nagbabago, pero nababawasan ng mga hindi nababagong reference ang panganib sa supply chain.
 
 ## Hakbang 7: subukan ang isinaling pull request
 
-The automated check will run again because the translation pull request changes `locales/**` and `release-notes/**`. Add your application's own tests to the required checks as well.
+Muling tatakbo ang awtomatikong pagsusuri dahil binabago ng pull request para sa pagsasalin ang `locales/**` at `release-notes/**`. Idagdag din ang sarili mong mga test ng application sa mga kinakailangang pagsusuri.
 
 Tiyakin man lang:
 
@@ -321,7 +321,7 @@ I-merge ang pull request ng pagsasalin lamang kapag pumasa ang mga pagsusuring i
 
 ## Hakbang 8: mag-publish ng mga tala sa release na nasa maraming wika
 
-GitHub Releases has one release body, so assemble each locale into one Markdown document. Add `.github/workflows/release.yml`:
+Iisa lang ang release body ng GitHub Releases, kaya pagsama-samahin ang bawat locale sa iisang Markdown na dokumento. Idagdag ang `.github/workflows/release.yml`:
 
 ```yaml
 name: Release
@@ -424,15 +424,15 @@ May iisang responsibilidad ang bawat transition. Sinusuri ng mga pull request an
 
 ### Iniuulat ng PR check ang mga pagsasaling walang kaugnayan
 
-Confirm the action runs on a `pull_request` event and sets `github-diff: true`. The action needs `pull-requests: read` so it can fetch the patch. Diff-scoped checking applies to supported structured translation files; keep full-project checks in a separate scheduled job if you also want backlog visibility.
+Kumpirmahing tumatakbo ang aksyon sa isang `pull_request` event at itinatakda ang `github-diff: true`. Kailangan ng aksyon ang `pull-requests: read` para makuha nito ang patch. Nalalapat ang diff-scoped na pagsusuri sa mga sinusuportahang structured na file ng pagsasalin; panatilihing hiwalay ang mga pagsusuri sa buong proyekto sa isang nakaiskedyul na trabaho kung gusto mo ring makita ang backlog.
 
 ### Hindi makapagpatotoo ang source push
 
-Check that both `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` exist in the selected GitHub environment. Environment secrets are not available unless the job declares that environment, and protected environments may wait for approval.
+Tiyaking umiiral ang `HYPERLOCALISE_API_KEY` at `HYPERLOCALISE_PROJECT_ID` sa napiling GitHub environment. Hindi available ang mga secret ng environment maliban kung idinedeklara ng job ang environment na iyon, at maaaring maghintay ng pag-apruba ang mga protektadong environment.
 
 ### Ang pagkuha ng mga pagsasalin ay walang nagagawang Git diff
 
-First confirm that translation work has finished in the same project named by `HYPERLOCALISE_PROJECT_ID`. Then check the target paths in `i18n.yml`. Run `hl sync pull --dry-run` locally to inspect the planned download without overwriting files.
+Una, kumpirmahing tapos na ang pagsasalin sa parehong proyektong pinangalanang `HYPERLOCALISE_PROJECT_ID`. Pagkatapos, tingnan ang mga target na path sa `i18n.yml`. Patakbuhin nang lokal ang `hl sync pull --dry-run` upang suriin ang nakaplanong pag-download nang hindi pinapatungan ang mga file.
 
 ### Hindi mahanap ang mga tala para sa release.
 
@@ -448,9 +448,9 @@ Bago lagyan ng tag ang multilingual na bersyon, tiyaking:
 
 - [ ] Pinagsama-sama ang mga source string at tala ng release sa Ingles;
 - [ ] pumasa ang pagsusuri sa lokalisasyon ng pull request;
-- [ ] `hl sync push` completed after merge;
+- [ ] `hl sync push` nakumpleto pagkatapos ng merge;
 - [ ] Nasuri at naaprubahan sa Hyperlocalise ang mga target na wika;
-- [ ] `hl sync pull` opened a translation pull request;
+- [ ] `hl sync pull` ay nagbukas ng pull request para sa pagsasalin;
 - [ ] pumasa ang mga awtomatiko, pangwika, at biswal na pagsusuri;
 - [ ] na-merge na ang pull request para sa pagsasalin; at
 - [ ] bawat locale ng mga release note ay may file na may laman at tumutugma sa tag.
@@ -459,8 +459,8 @@ Bago lagyan ng tag ang multilingual na bersyon, tiyaking:
 
 Ang mahalagang bahagi ng lokalisasyon ng GitHub ay hindi ang YAML. Ito ay ang sunod-sunod na pagpasa na may malinaw na pananagutan.
 
-The `hyperlocalise` CLI connects repository files to the platform. The GitHub Action gives engineers fast feedback on changed strings. Hyperlocalise gives language reviewers the context and approval workflow that Git alone cannot provide. The final tag publishes exactly what the team reviewed.
+Ikinokonekta ng `hyperlocalise` CLI ang mga file ng repository sa platform. Nagbibigay ang GitHub Action ng mabilis na feedback sa mga engineer tungkol sa mga binagong string. Ibinibigay ng Hyperlocalise sa mga tagasuri ng wika ang konteksto at daloy ng pag-apruba na hindi kayang ibigay ng Git lamang. Eksaktong inilalathala ng huling tag ang mga sinuri ng team.
 
 Dahil dito, nagiging bahagi ng mismong release ang localization sa halip na isang gawaing ginagawa pagkatapos ng development.
 
-[Explore Hyperlocalise for product localisation](/use-cases/product-localisation) to connect your repositories, review workflows, and multilingual releases.
+[Tuklasin ang Hyperlocalise para sa lokalisasyon ng produkto](/use-cases/product-localisation) upang ikonekta ang iyong mga repository, workflow sa pagsusuri, at mga release sa maraming wika.

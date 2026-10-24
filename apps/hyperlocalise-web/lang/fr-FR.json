@@ -2174,6 +2174,9 @@
   "27qrEmB3yO": {
     "defaultMessage": "Réessayer"
   },
+  "27t7ZaoeVg": {
+    "defaultMessage": "Retour à l’audit de localisation"
+  },
   "28A/J2yeKB": {
     "defaultMessage": "Tableau des requêtes"
   },
@@ -7553,6 +7556,9 @@
   "CfAFoekPz1": {
     "defaultMessage": "Projets de {providerName}"
   },
+  "CfDiZIokkH": {
+    "defaultMessage": "Cette section n’a pas pu être affichée."
+  },
   "Cfwqtf2yZL": {
     "defaultMessage": "Informatif"
   },
@@ -7942,6 +7948,9 @@
   },
   "DN35BCM/UE": {
     "defaultMessage": "Brouillon du CMS"
+  },
+  "DND9HC6iiD": {
+    "defaultMessage": "Seules les traductions approuvées sont envoyées. Approuvez d’abord les chaînes traduites dans l’éditeur de contenu."
   },
   "DNjUZTzqsq": {
     "defaultMessage": "Qu’est-ce que la Translation Intelligence ?"
@@ -9499,6 +9508,9 @@
   },
   "GRWKZQ9lbF": {
     "defaultMessage": "Actions"
+  },
+  "GRguzdxXWG": {
+    "defaultMessage": "Votre espace de travail a épuisé tout son crédit IA. Changez votre forfait sur la page Facturation ou attendez le renouvellement de votre crédit IA."
   },
   "GS9z23Wjvp": {
     "defaultMessage": "Cette automatisation validera les modifications de localisation à chaque envoi vers main et informera votre équipe lorsque des blocages seront détectés."
@@ -11432,6 +11444,9 @@
   "KLQrtgraoy": {
     "defaultMessage": "Choisissez les fichiers mappés à réécrire dans Google Drive selon le format de sortie de traduction de cette automatisation."
   },
+  "KLnCqNe1S/": {
+    "defaultMessage": "Impossible d’afficher ce rapport."
+  },
   "KMCkdidgwq": {
     "defaultMessage": "Ponctuation finale"
   },
@@ -12007,6 +12022,9 @@
   },
   "LYdhfNsW7N": {
     "defaultMessage": "Ce dictionnaire n’est associé à aucun projet."
+  },
+  "LYrw2fhqau": {
+    "defaultMessage": "Nous n’avons pas pu charger cet audit."
   },
   "LZCFkSSHP6": {
     "defaultMessage": "Source ({locale})"
@@ -13613,6 +13631,9 @@
   "Oipi2K2qqU": {
     "defaultMessage": "Supprimer {locale}"
   },
+  "OiwlgVlbmX": {
+    "defaultMessage": "Refresh"
+  },
   "OjbR5imOsw": {
     "defaultMessage": "Clair. Humain. Sûr de lui."
   },
@@ -13723,6 +13744,9 @@
   },
   "P/9I6WaWRN": {
     "defaultMessage": "Mise à jour des problèmes..."
+  },
+  "P/F9NX4KdB": {
+    "defaultMessage": "Réessayer"
   },
   "P/T+1+1UdK": {
     "defaultMessage": "Impossible de charger cette section."
@@ -15998,6 +16022,9 @@
   "TafKpm43IW": {
     "defaultMessage": "Impossible de mettre à jour le planning. Réessayez de modifier le planning."
   },
+  "TavFARAoYK": {
+    "defaultMessage": "{percent} %"
+  },
   "Tb7h0w/7fY": {
     "defaultMessage": "Aucune option disponible"
   },
@@ -16237,6 +16264,9 @@
   },
   "U4l3MJE1g3": {
     "defaultMessage": "Oui. Le Japon peut voir une nouvelle expérience de paiement tandis que la France conserve l’ancienne. Vous choisissez les marchés qui bénéficient du changement."
+  },
+  "U4sr4IyxSs": {
+    "defaultMessage": "{locale} : Traduit à {translated} % · Approuvé à {approved} %"
   },
   "U4v7cQLBDc": {
     "defaultMessage": "{count, plural, one {# langue locale} other {# langues locales}}"
@@ -17146,6 +17176,9 @@
   },
   "Vs00Rn62Ft": {
     "defaultMessage": "Next"
+  },
+  "VtE6l/Wmub": {
+    "defaultMessage": "Le reste de la page est toujours disponible. Réessayez de charger le rapport."
   },
   "VtO24sqmBM": {
     "defaultMessage": "Nouvelle demande"
@@ -19417,6 +19450,9 @@
   },
   "aIA/MP2nWe": {
     "defaultMessage": "Écrivez un message…"
+  },
+  "aIR3vTD8Ln": {
+    "defaultMessage": "Le reste du rapport est toujours disponible. Essayez de charger cette section à nouveau."
   },
   "aJJlFa1d+w": {
     "defaultMessage": "Rechercher des nœuds..."
@@ -22198,6 +22234,9 @@
   },
   "fbw3y8puRl": {
     "defaultMessage": "Inconnu"
+  },
+  "fcLi/NB58Y": {
+    "defaultMessage": "Traduit à {translated} % · Approuvé à {approved} %"
   },
   "fd5kFNowDQ": {
     "defaultMessage": "Aucun détail pour l’instant"
@@ -27974,6 +28013,9 @@
   "qMZ6NrKEO8": {
     "defaultMessage": "Gemini"
   },
+  "qMcssRo5Ql": {
+    "defaultMessage": "{percent} %"
+  },
   "qMoIwNM0g+": {
     "defaultMessage": "Copié !"
   },
@@ -28867,6 +28909,9 @@
   },
   "s5bizftpco": {
     "defaultMessage": "Effacer les filtres"
+  },
+  "s5fbO82G4x": {
+    "defaultMessage": "Certaines locales des éléments sélectionnés ne sont pas prêtes à être poussées. Désélectionnez-les ou approuvez d’abord les traductions."
   },
   "s5vcFBwpaD": {
     "defaultMessage": "Release window active"
@@ -32197,6 +32242,9 @@
   },
   "ybeD8Dwr0/": {
     "defaultMessage": "Vous avez modifié la configuration · {count, plural, one {# modification} other {# modifications}}"
+  },
+  "ybysXlWsw7": {
+    "defaultMessage": "Réessayez de charger le rapport ou lancez un nouvel audit de localisation."
   },
   "yc2ziR1Owc": {
     "defaultMessage": "Les exécutions démarrent uniquement lorsqu’un membre de l’équipe en met une en file d’attente depuis cette automatisation."
