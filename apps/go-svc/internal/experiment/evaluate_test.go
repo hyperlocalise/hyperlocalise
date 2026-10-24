@@ -94,6 +94,16 @@ func TestResolveExperiment(t *testing.T) {
 	boolean.Payload = nil
 	got = resolveExperiment(flag, []EvalRow{boolean}, "user-1", nil)
 	require.Equal(t, true, got.Value)
+
+	invalidPayload := fullRange
+	invalidPayload.Payload = []byte(`{`)
+	got = resolveExperiment(flag, []EvalRow{invalidPayload}, "user-1", nil)
+	require.Equal(t, true, got.Value)
+
+	nullCriterion := fullRange
+	nullCriterion.Criterion = json.RawMessage("null")
+	got = resolveExperiment(flag, []EvalRow{nullCriterion}, "user-1", nil)
+	require.Equal(t, "SPLIT", got.Reason)
 }
 
 func TestEvaluateFlags(t *testing.T) {

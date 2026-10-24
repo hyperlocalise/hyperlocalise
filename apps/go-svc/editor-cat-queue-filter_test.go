@@ -151,3 +151,44 @@ func TestParseEditorCatAdvancedFilterErrorIsEditorCatFailure(t *testing.T) {
 	_, err := parseEditorCatAdvancedFilter("{")
 	require.True(t, errors.As(err, new(*editorCatError)))
 }
+
+func TestEditorCatAdvancedFilterSQLBranches(t *testing.T) {
+	require.Empty(t, editorCatAdvancedFilterSQL(nil, 1, 2, 3, &[]any{}))
+
+	args := []any{"org", "proj", "fr"}
+	sql := editorCatAdvancedFilterSQL(&editorCatAdvancedFilter{
+		UpdatedFrom:       "2026-02-01",
+		UpdatedTo:         "2026-02-28",
+		StringType:        "asset",
+		TranslationStatus: "partially_translated",
+		ApprovalStatus:    "approved",
+		QaIssues:          "with",
+		QaIssueType:       "spelling",
+		Comments:          "with",
+		Visibility:        "hidden",
+	}, 1, 2, 3, &args)
+	require.Equal(t, []any{"org", "proj", "fr", "2026-02-01", "2026-02-28", "spelling"}, args)
+	require.Contains(t, sql, "k.updated_at >= CAST($4 AS date)")
+	require.Contains(t, sql, "k.type in ('asset', 'image', 'video')")
+	require.Contains(t, sql, "exists (select 1 from project_translations t where")
+	require.Contains(t, sql, "t.status='approved'")
+	require.Contains(t, sql, "q.check_type=$6")
+	require.Contains(t, sql, "from project_translation_comments c")
+	require.Contains(t, sql, "k.is_hidden = true")
+
+	partial := editorCatAdvancedFilterSQL(&editorCatAdvancedFilter{
+		ApprovalStatus: "partially_approved",
+	}, 1, 2, 3, &[]any{"org", "proj", "fr"})
+	require.Contains(t, partial, "t.status != 'approved'")
+}
+
+func TestEditorCatQueueKindAndDownloadPath(t *testing.T) {
+	require.Equal(t, "all_files", editorCatQueueKind("*"))
+	require.Equal(t, "office", editorCatQueueKind("brief.docx"))
+	require.Equal(t, "whole_file", editorCatQueueKind("hero.png"))
+	require.Equal(t, "document", editorCatQueueKind("guide.md"))
+	require.Equal(t, "text", editorCatQueueKind("locales/en.json"))
+
+	path := editorCatGeneratedDownloadPath("acme/prod", "proj 1", "a b.json", "pt-BR")
+	require.Equal(t, "/api/orgs/acme%2Fprod/projects/proj%201/files/translations/download?sourcePath=a+b.json&locale=pt-BR", path)
+}

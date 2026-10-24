@@ -309,6 +309,15 @@ func TestBillingSnapshotFromCustomer(t *testing.T) {
 	require.False(t, empty.HasBillingAccount)
 	require.Nil(t, empty.PaymentMethod)
 	require.Nil(t, empty.Address)
+
+	incompleteCard := billingSnapshotFromCustomer(autumn.Customer{
+		ID:            "cus_2",
+		PaymentMethod: &autumn.CustomerPaymentMethod{Brand: "visa", Last4: "  "},
+		Subscriptions: []autumn.CustomerSubscription{{PlanID: "team_plus", Status: "active"}},
+	})
+	require.Nil(t, incompleteCard.PaymentMethod)
+	require.Equal(t, "team_plus", incompleteCard.PlanID)
+	require.Equal(t, "Team Plus", incompleteCard.PlanName)
 }
 
 func TestBillingPlanDisplayNameAndAddress(t *testing.T) {
@@ -323,6 +332,7 @@ func TestBillingPlanDisplayNameAndAddress(t *testing.T) {
 	require.Equal(t, "Free", planDisplayName(autumn.CustomerSubscription{PlanID: autumn.PlanFree}))
 	require.Equal(t, "Team Plus", formatPlanIDLabel("team_plus"))
 	require.Equal(t, "Pro Trial", formatPlanIDLabel("pro-trial"))
+	require.Equal(t, "Team Plus", formatPlanIDLabel("team__plus"))
 
 	sub, ok := activeCustomerSubscription(nil)
 	require.False(t, ok)

@@ -138,6 +138,37 @@ func TestValidateIrisGenerateRequest(t *testing.T) {
 			wantErr: "remote asset URLs are not supported; upload the file first",
 		},
 		{
+			name:    "remote startFrame rejected",
+			req:     irisGenerateRequest{"model": "kling-3-pro", "prompt": "hello", "startFrame": urlAsset},
+			wantErr: "remote asset URLs are not supported; upload the file first",
+		},
+		{
+			name:    "remote endFrame rejected",
+			req:     irisGenerateRequest{"model": "kling-3-pro", "prompt": "hello", "endFrame": urlAsset},
+			wantErr: "remote asset URLs are not supported; upload the file first",
+		},
+		{
+			name:    "remote video rejected",
+			req:     irisGenerateRequest{"model": "kling-o3-pro", "prompt": "hello", "video": urlAsset},
+			wantErr: "remote asset URLs are not supported; upload the file first",
+		},
+		{
+			name:    "seedvr requires image",
+			req:     irisGenerateRequest{"model": "seedvr-2"},
+			wantErr: "image is required",
+			wantID:  "seedvr-2",
+		},
+		{
+			name:   "prompt at max runes is accepted",
+			req:    irisGenerateRequest{"model": "veo-3.1", "prompt": strings.Repeat("x", 4000)},
+			wantID: "veo-3.1",
+		},
+		{
+			name:   "valid seedvr with uploaded image",
+			req:    irisGenerateRequest{"model": "seedvr-2", "image": asset},
+			wantID: "seedvr-2",
+		},
+		{
 			name:    "background removal requires image",
 			req:     irisGenerateRequest{"model": "bria-rmbg-2.0"},
 			wantErr: "image is required",

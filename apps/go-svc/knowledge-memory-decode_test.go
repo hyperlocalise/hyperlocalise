@@ -39,6 +39,18 @@ func TestDecodeKnowledgeMemoryPreview(t *testing.T) {
 	require.Nil(t, empty.TargetLocale)
 	require.Nil(t, empty.TargetLocales)
 
+	minChars, err := decodeKnowledgeMemoryPreview(knowledgeMemoryJSONRequest(`{"maxChars":256}`))
+	require.NoError(t, err)
+	require.Equal(t, 256, *minChars.MaxChars)
+	maxChars, err := decodeKnowledgeMemoryPreview(knowledgeMemoryJSONRequest(`{"maxChars":4000}`))
+	require.NoError(t, err)
+	require.Equal(t, 4000, *maxChars.MaxChars)
+
+	tooManyLocales := `{"targetLocales":["` + strings.Join(repeatJSONStrings("fr", 21), `","`) + `"]}`
+	tooManyMetadata := knowledgeMemoryMetadataJSON(51, "k", "v")
+	longMetadataKey := knowledgeMemoryMetadataJSON(1, strings.Repeat("k", 101), "v")
+	longMetadataValue := knowledgeMemoryMetadataJSON(1, "brand", strings.Repeat("v", 1001))
+
 	for _, body := range []string{
 		``,
 		`null`,
@@ -50,6 +62,11 @@ func TestDecodeKnowledgeMemoryPreview(t *testing.T) {
 		`{"metadata":{"brand":null}}`,
 		`{"maxChars":255}`,
 		`{"maxChars":4001}`,
+		tooManyLocales,
+		tooManyMetadata,
+		longMetadataKey,
+		longMetadataValue,
+		`{"sourceText":"` + strings.Repeat("x", 100001) + `"}`,
 	} {
 		_, err := decodeKnowledgeMemoryPreview(knowledgeMemoryJSONRequest(body))
 		var kmErr *knowledgeMemoryError
@@ -76,6 +93,8 @@ func TestDecodeKnowledgeMemoryUpdate(t *testing.T) {
 		`{"content":123}`,
 		`{"content":"ok","summary":null}`,
 		`{"content":"ok","summary":"   "}`,
+		`{"content":"` + strings.Repeat("x", knowledgeMemoryMaxContent+1) + `"}`,
+		`{"content":"ok","summary":"` + strings.Repeat("s", knowledgeMemoryMaxSummary+1) + `"}`,
 	} {
 		_, err := decodeKnowledgeMemoryUpdate(knowledgeMemoryJSONRequest(body))
 		var kmErr *knowledgeMemoryError
@@ -83,6 +102,25 @@ func TestDecodeKnowledgeMemoryUpdate(t *testing.T) {
 		require.Equal(t, 400, kmErr.status, body)
 		require.Equal(t, "invalid_knowledge_memory_payload", kmErr.code, body)
 	}
+}
+
+func repeatJSONStrings(value string, n int) []string {
+	out := make([]string, n)
+	for i := range out {
+		out[i] = value
+	}
+	return out
+}
+
+func knowledgeMemoryMetadataJSON(count int, key, value string) string {
+	fields := make([]string, 0, count)
+	for i := 0; i < count; i++ {
+		fields = append(fields, `"`+key+string(rune('A'+i%26))+strings.Repeat("x", i/26)+`":"`+value+`"`)
+	}
+	if count == 1 {
+		return `{"metadata":{"` + key + `":"` + value + `"}}`
+	}
+	return `{"metadata":{` + strings.Join(fields, ",") + `}}`
 }
 
 func TestNormalizeKnowledgeMemoryContent(t *testing.T) {
