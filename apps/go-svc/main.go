@@ -113,6 +113,7 @@ func main() {
 	h.workspaceSettings = &workspaceSettingsAPI{activityLog: activityLogPublisher}
 	h.sessionOrganizations = &sessionOrganizationsAPI{}
 	h.sessionAccount = &sessionAccountAPI{}
+	h.irisGeneration = &irisGenerationAPI{provider: newIrisGatewayProvider()}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}
@@ -152,6 +153,9 @@ func main() {
 		}
 	}
 	h.workspace = &workspaceAPI{membership: membershipLookup, activityLog: activityLogPublisher}
+	if h.irisGeneration != nil {
+		h.irisGeneration.membership = membershipLookup
+	}
 	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
 	if workosClient != nil {
 		h.workspace.flags = workosWorkspaceFlags{client: workosClient}
@@ -188,6 +192,9 @@ func main() {
 		h.workspaceSettings.pool = traced
 		h.sessionOrganizations.pool = traced
 		h.sessionAccount.pool = traced
+		if h.irisGeneration != nil {
+			h.irisGeneration.pool = traced
+		}
 		h.apiKeys.pool = traced
 		h.activityLogs.pool = traced
 		h.billing.pool = traced
@@ -214,6 +221,12 @@ func main() {
 	h.glossaries.objects = h.objects
 	h.memories.objects = h.objects
 	h.contentEditor.objects = h.objects
+	if h.irisGeneration != nil {
+		h.irisGeneration.objects = h.objects
+		if h.objects != nil {
+			h.irisGeneration.StartRecovery(context.Background())
+		}
+	}
 	guidelineIngestPublisher, guidelineIngestErr := newGuidelineIngestPublisher(context.Background())
 	if guidelineIngestErr != nil {
 		log.Printf("configure guideline ingest publisher: %v", guidelineIngestErr)
@@ -234,6 +247,9 @@ func main() {
 	h.guidelineCheck = &guidelineCheckAPI{knowledge: h.knowledgeMemories}
 	if h.autumn != nil {
 		h.guidelineCheck.meter = h.autumn
+		if h.irisGeneration != nil {
+			h.irisGeneration.meter = h.autumn
+		}
 	}
 	checkModel, err := newGuidelineCheckModel()
 	if err != nil {

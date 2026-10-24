@@ -70,6 +70,7 @@ type handler struct {
 	workspaceSettings    *workspaceSettingsAPI
 	sessionOrganizations *sessionOrganizationsAPI
 	sessionAccount       *sessionAccountAPI
+	irisGeneration       *irisGenerationAPI
 	apiKeys              *apiKeyAPI
 	issueSheets          *issueSheetAPI
 	notifications        *notificationsAPI
@@ -136,6 +137,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.sessionAccount != nil {
 		h.sessionAccount.register(mux, verifier)
+	}
+	if h.irisGeneration != nil {
+		h.irisGeneration.register(mux, verifier)
 	}
 	if h.apiKeys != nil {
 		h.apiKeys.register(mux, verifier)
