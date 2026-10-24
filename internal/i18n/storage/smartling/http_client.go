@@ -24,15 +24,19 @@ import (
 )
 
 const (
-	authAPIBaseURL             = "https://api.smartling.com/auth-api/v2"
-	stringsAPIBaseURL          = "https://api.smartling.com/strings-api/v2"
-	filesAPIBaseURL            = "https://api.smartling.com/files-api/v2"
-	glossaryAPIBaseURL         = "https://api.smartling.com/glossary-api/v2"
-	glossaryAPIV3BaseURL       = "https://api.smartling.com/glossary-api/v3"
-	tmAPIBaseURL               = "https://api.smartling.com/translation-memory-api/v2"
-	translationsLimit          = 500
-	glossaryLimit              = 500
-	maxDownloadBytes     int64 = 50 * 1024 * 1024 // 50 MB
+	authAPIBaseURL                 = "https://api.smartling.com/auth-api/v2"
+	stringsAPIBaseURL              = "https://api.smartling.com/strings-api/v2"
+	filesAPIBaseURL                = "https://api.smartling.com/files-api/v2"
+	glossaryAPIBaseURL             = "https://api.smartling.com/glossary-api/v2"
+	glossaryAPIV3BaseURL           = "https://api.smartling.com/glossary-api/v3"
+	tmAPIBaseURL                   = "https://api.smartling.com/translation-memory-api/v2"
+	tmGraphQLAPIBaseURL            = "https://api.smartling.com/tm-graphql-api/v2"
+	tmxAPIBaseURL                  = "https://api.smartling.com/tm-tmx-api/v2"
+	translationsLimit              = 500
+	glossaryLimit                  = 500
+	maxDownloadBytes         int64 = 50 * 1024 * 1024 // 50 MB
+	defaultHTTPTimeout             = 30 * time.Second
+	defaultFileUploadTimeout       = 30 * time.Minute
 )
 
 type HTTPClient struct {
@@ -44,7 +48,10 @@ type HTTPClient struct {
 	glossaryBaseURL   string
 	glossaryV3BaseURL string
 	tmBaseURL         string
+	tmGraphQLBaseURL  string
+	tmxBaseURL        string
 	http              *http.Client
+	timeout           time.Duration
 	userIdentifier    string
 	userSecret        string
 
@@ -56,7 +63,7 @@ type HTTPClient struct {
 func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 	timeout := time.Duration(cfg.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
-		timeout = 30 * time.Second
+		timeout = defaultHTTPTimeout
 	}
 
 	return &HTTPClient{
@@ -68,7 +75,10 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 		glossaryBaseURL:   glossaryAPIBaseURL,
 		glossaryV3BaseURL: glossaryAPIV3BaseURL,
 		tmBaseURL:         tmAPIBaseURL,
+		tmGraphQLBaseURL:  tmGraphQLAPIBaseURL,
+		tmxBaseURL:        tmxAPIBaseURL,
 		http:              &http.Client{Timeout: timeout},
+		timeout:           timeout,
 		userIdentifier:    cfg.UserIdentifier,
 		userSecret:        cfg.UserSecret,
 	}, nil
@@ -241,7 +251,11 @@ func (c *HTTPClient) postMultipart(ctx context.Context, endpoint string, token s
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 
-	httpErr := c.do(req, out)
+	client := c.http
+	if filePath != "" {
+		client = c.fileUploadHTTPClient()
+	}
+	httpErr := c.doWithHTTP(client, req, out)
 	if httpErr != nil {
 		_ = pr.CloseWithError(httpErr)
 	}
@@ -506,6 +520,42 @@ func (c *HTTPClient) postJSON(ctx context.Context, endpoint string, token string
 	return c.sendJSON(ctx, http.MethodPost, endpoint, token, payload, out)
 }
 
+func (c *HTTPClient) postJSONDownload(ctx context.Context, endpoint string, token string, payload any) ([]byte, string, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, "", fmt.Errorf("marshal request body: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, "", fmt.Errorf("build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("do request: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		errorBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, "", fmt.Errorf("status %d: %s", resp.StatusCode, strings.TrimSpace(string(errorBody)))
+	}
+	contentType := resp.Header.Get("Content-Type")
+	if strings.HasPrefix(strings.ToLower(contentType), "application/json") {
+		errorBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, "", fmt.Errorf("server returned JSON instead of a file: %s", strings.TrimSpace(string(errorBody)))
+	}
+	content, err := readLimitedResponseBody(resp.Body, maxDownloadBytes)
+	if err != nil {
+		return nil, "", err
+	}
+	return content, contentType, nil
+}
+
 func (c *HTTPClient) putJSON(ctx context.Context, endpoint string, token string, payload any, out any) error {
 	return c.sendJSON(ctx, http.MethodPut, endpoint, token, payload, out)
 }
@@ -526,8 +576,35 @@ func (c *HTTPClient) sendJSON(ctx context.Context, method string, endpoint strin
 	return c.do(req, out)
 }
 
+func (c *HTTPClient) fileUploadTimeout() time.Duration {
+	timeout := defaultFileUploadTimeout
+	if c.timeout > timeout {
+		timeout = c.timeout
+	}
+	return timeout
+}
+
+func (c *HTTPClient) fileUploadHTTPClient() *http.Client {
+	timeout := c.fileUploadTimeout()
+	if c.http != nil && c.http.Timeout == timeout {
+		return c.http
+	}
+	var transport http.RoundTripper
+	if c.http != nil {
+		transport = c.http.Transport
+	}
+	return &http.Client{Timeout: timeout, Transport: transport}
+}
+
 func (c *HTTPClient) do(req *http.Request, out any) error {
-	resp, err := c.http.Do(req)
+	return c.doWithHTTP(c.http, req, out)
+}
+
+func (c *HTTPClient) doWithHTTP(client *http.Client, req *http.Request, out any) error {
+	if client == nil {
+		client = c.http
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("do request: %w", err)
 	}

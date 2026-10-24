@@ -35,8 +35,25 @@ func TestSmartlingGlossaryDownloadFlags(t *testing.T) {
 		t.Fatalf("help failed: %v", err)
 	}
 	if !strings.Contains(out.String(), "--account-uid") ||
-		!strings.Contains(out.String(), "--glossary-uid") {
+		!strings.Contains(out.String(), "--glossary-uid") ||
+		!strings.Contains(out.String(), "--format") ||
+		!strings.Contains(out.String(), "--official") {
 		t.Error("help output missing required flags")
+	}
+}
+
+func TestNormalizeSmartlingGlossaryDownloadFormat(t *testing.T) {
+	format, official, err := normalizeSmartlingGlossaryDownloadFormat("csv", false)
+	if err != nil || format != "csv" || official {
+		t.Fatalf("csv default = %s official=%t err=%v", format, official, err)
+	}
+	format, official, err = normalizeSmartlingGlossaryDownloadFormat("xlsx", false)
+	if err != nil || format != "xlsx" || !official {
+		t.Fatalf("xlsx = %s official=%t err=%v", format, official, err)
+	}
+	_, _, err = normalizeSmartlingGlossaryDownloadFormat("pdf", false)
+	if err == nil || !strings.Contains(err.Error(), "unsupported --format") {
+		t.Fatalf("expected unsupported format error, got %v", err)
 	}
 }
 
@@ -66,6 +83,33 @@ func TestSmartlingTMDownloadFlags(t *testing.T) {
 		!strings.Contains(out.String(), "--tm-uid") ||
 		!strings.Contains(out.String(), "--source-language") {
 		t.Error("help output missing required flags")
+	}
+
+	out.Reset()
+	root.SetArgs([]string{"smartling", "tm", "list", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("tm list help failed: %v", err)
+	}
+	if !strings.Contains(out.String(), "--account-uid") {
+		t.Error("tm list help missing --account-uid")
+	}
+
+	out.Reset()
+	root.SetArgs([]string{"smartling", "tm", "create", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("tm create help failed: %v", err)
+	}
+	if !strings.Contains(out.String(), "--source-locale") {
+		t.Error("tm create help missing --source-locale")
+	}
+
+	out.Reset()
+	root.SetArgs([]string{"smartling", "tm", "import", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("tm import help failed: %v", err)
+	}
+	if !strings.Contains(out.String(), "--file") {
+		t.Error("tm import help missing --file")
 	}
 }
 
@@ -1519,6 +1563,56 @@ func TestSmartlingGlossaryCreateRejectsInvalidOutputBeforeAPI(t *testing.T) {
 		"--account-uid", "acc-1",
 		"--name", "Brand terms",
 		"--locale", "en-US",
+		"--output", "yaml",
+	})
+	err := root.Execute()
+	if err == nil || !strings.Contains(err.Error(), `unsupported output format "yaml"`) {
+		t.Fatalf("expected invalid output error before API, got %v", err)
+	}
+}
+
+func TestSmartlingTMListCreateImportFlags(t *testing.T) {
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+
+	root.SetArgs([]string{"smartling", "tm", "list"})
+	if err := root.Execute(); err == nil || !strings.Contains(err.Error(), "required flag(s)") {
+		t.Fatalf("expected list required flags error, got %v", err)
+	}
+
+	root.SetArgs([]string{"smartling", "tm", "create"})
+	if err := root.Execute(); err == nil || !strings.Contains(err.Error(), "required flag(s)") {
+		t.Fatalf("expected create required flags error, got %v", err)
+	}
+
+	root.SetArgs([]string{"smartling", "tm", "import"})
+	if err := root.Execute(); err == nil || !strings.Contains(err.Error(), "required flag(s)") {
+		t.Fatalf("expected import required flags error, got %v", err)
+	}
+
+	out.Reset()
+	root.SetArgs([]string{"smartling", "tm", "import", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("import help failed: %v", err)
+	}
+	if !strings.Contains(out.String(), "--timeout-seconds") {
+		t.Fatal("import help missing --timeout-seconds")
+	}
+}
+
+func TestSmartlingTMCreateRejectsInvalidOutputBeforeAPI(t *testing.T) {
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+
+	root.SetArgs([]string{
+		"smartling", "tm", "create",
+		"--account-uid", "acc-1",
+		"--name", "Product TM",
+		"--source-locale", "en-US",
 		"--output", "yaml",
 	})
 	err := root.Execute()
