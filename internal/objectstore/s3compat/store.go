@@ -103,6 +103,9 @@ func (s *Store) Put(ctx context.Context, input objectstore.PutInput) (objectstor
 	if input.IfAbsent {
 		req.IfNoneMatch = aws.String("*")
 	}
+	if etag := strings.TrimSpace(input.IfMatch); etag != "" {
+		req.IfMatch = aws.String(etag)
+	}
 	out, err := s.client.PutObject(ctx, req, s3.WithAPIOptions(v4.SwapComputePayloadSHA256ForUnsignedPayloadMiddleware))
 	if err != nil {
 		return objectstore.Info{}, translateError(err)
@@ -132,6 +135,40 @@ func (s *Store) Stat(ctx context.Context, key string) (objectstore.Info, error) 
 		return objectstore.Info{}, translateError(err)
 	}
 	return objectstore.Info{Size: aws.ToInt64(out.ContentLength), ContentType: aws.ToString(out.ContentType), ETag: aws.ToString(out.ETag), CacheControl: aws.ToString(out.CacheControl), Metadata: out.Metadata}, nil
+}
+
+// List returns object keys under prefix. An empty prefix is rejected so a
+// caller cannot scan the whole bucket by accident.
+func (s *Store) List(ctx context.Context, prefix string) ([]string, error) {
+	if err := objectstore.ValidateKey(prefix); err != nil {
+		return nil, err
+	}
+	var keys []string
+	var token *string
+	for {
+		out, err := s.client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+			Bucket:            &s.bucket,
+			Prefix:            &prefix,
+			ContinuationToken: token,
+		})
+		if err != nil {
+			return nil, translateError(err)
+		}
+		for _, object := range out.Contents {
+			key := aws.ToString(object.Key)
+			if key != "" {
+				keys = append(keys, key)
+			}
+		}
+		if !aws.ToBool(out.IsTruncated) {
+			break
+		}
+		token = out.NextContinuationToken
+		if aws.ToString(token) == "" {
+			break
+		}
+	}
+	return keys, nil
 }
 
 // Delete succeeds when the object is already absent.

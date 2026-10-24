@@ -8,6 +8,8 @@ import (
 	"encoding/hex"
 	"io"
 	"maps"
+	"slices"
+	"strings"
 	"sync"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
@@ -57,7 +59,11 @@ func (s *Store) Put(ctx context.Context, input objectstore.PutInput) (objectstor
 	info := objectstore.Info{Size: input.Size, ContentType: input.ContentType, CacheControl: input.CacheControl, ETag: hex.EncodeToString(sum[:]), Metadata: maps.Clone(input.Metadata)}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, exists := s.objects[input.Key]; exists && input.IfAbsent {
+	existing, exists := s.objects[input.Key]
+	if exists && input.IfAbsent {
+		return objectstore.Info{}, objectstore.ErrAlreadyExists
+	}
+	if etag := strings.TrimSpace(input.IfMatch); etag != "" && (!exists || existing.info.ETag != etag) {
 		return objectstore.Info{}, objectstore.ErrAlreadyExists
 	}
 	s.objects[input.Key] = object{body: body, info: info}
@@ -88,6 +94,26 @@ func (s *Store) Stat(ctx context.Context, key string) (objectstore.Info, error) 
 		return objectstore.Info{}, err
 	}
 	return info, body.Close()
+}
+
+// List returns keys with the given prefix, sorted for stable recovery.
+func (s *Store) List(ctx context.Context, prefix string) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := objectstore.ValidateKey(prefix); err != nil {
+		return nil, err
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	keys := make([]string, 0)
+	for key := range s.objects {
+		if strings.HasPrefix(key, prefix) {
+			keys = append(keys, key)
+		}
+	}
+	slices.Sort(keys)
+	return keys, nil
 }
 
 // Delete is idempotent.

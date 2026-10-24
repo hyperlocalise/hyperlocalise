@@ -19,6 +19,12 @@ const (
 
 	// QueriesBoard is the Autumn feature ID for issue-sheet / Queries.
 	QueriesBoard = "queries-board"
+	// AIFeatures is the boolean plan gate for model-backed actions.
+	AIFeatures = "ai_features"
+	// AITokens is the USD AI-credit balance (customer = local organization id).
+	AITokens = "ai_tokens"
+	// AgentRuns counts one successful agent/generation job.
+	AgentRuns = "agent_runs"
 )
 
 // HTTPDoer is the subset of http.Client used by Client.
