@@ -509,7 +509,293 @@ describe("SmartlingApiClient", () => {
       }),
     );
   });
+
+  it("searches glossaries through the v3 API", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      if (String(url).endsWith("/authenticate")) {
+        return smartlingJson({ accessToken: "access-token", expiresIn: 3600 });
+      }
+      if (
+        String(url).endsWith("/glossary-api/v3/accounts/acct-1/glossaries/search") &&
+        init?.method === "POST"
+      ) {
+        expect(JSON.parse(String(init.body))).toMatchObject({
+          query: "Brand",
+          paging: { offset: 0, limit: 500 },
+        });
+        return smartlingJson({
+          totalCount: 1,
+          items: [{ glossaryUid: "gloss-1", name: "Brand terms", localeIds: ["en-US"] }],
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const glossaries = await client.searchAccountGlossaries("acct-1", "Brand");
+    expect(glossaries).toEqual([
+      {
+        glossaryUid: "gloss-1",
+        name: "Brand terms",
+        description: null,
+        localeIds: ["en-US"],
+      },
+    ]);
+  });
+
+  it("creates a glossary through the v3 API", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      if (String(url).endsWith("/authenticate")) {
+        return smartlingJson({ accessToken: "access-token", expiresIn: 3600 });
+      }
+      if (
+        String(url).endsWith("/glossary-api/v3/accounts/acct-1/glossaries") &&
+        init?.method === "POST"
+      ) {
+        return smartlingJson({
+          glossaryUid: "gloss-new",
+          name: "Brand terms",
+          accountUid: "acct-1",
+          localeIds: ["en-US", "fr-FR"],
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const created = await client.createGlossary({
+      accountUid: "acct-1",
+      name: "Brand terms",
+      localeIds: ["en-US", "fr-FR"],
+    });
+
+    expect(created).toMatchObject({
+      glossaryUid: "gloss-new",
+      name: "Brand terms",
+      localeIds: ["en-US", "fr-FR"],
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.smartling.test/glossary-api/v3/accounts/acct-1/glossaries",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          name: "Brand terms",
+          localeIds: ["en-US", "fr-FR"],
+        }),
+      }),
+    );
+  });
+
+  it("exports official glossary XLSX and defaults locales from get", async () => {
+    let exportBody: unknown;
+    const fetchMock = vi.fn(async (url, init) => {
+      if (String(url).endsWith("/authenticate")) {
+        return smartlingJson({ accessToken: "access-token", expiresIn: 3600 });
+      }
+      if (String(url).endsWith("/glossary-api/v3/accounts/acct-1/glossaries/gloss-1")) {
+        return smartlingJson({
+          glossaryUid: "gloss-1",
+          glossaryName: "Brand terms",
+          localeIds: ["en-US", "de-DE"],
+        });
+      }
+      if (String(url).endsWith("/entries/download") && init?.method === "POST") {
+        exportBody = JSON.parse(String(init.body));
+        return new Response("xlsx-bytes", {
+          status: 200,
+          headers: {
+            "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          },
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const exported = await client.exportGlossary({
+      accountUid: "acct-1",
+      glossaryUid: "gloss-1",
+      format: "xlsx",
+    });
+
+    expect(new TextDecoder().decode(exported.content)).toBe("xlsx-bytes");
+    expect(exported.bytes).toBe("xlsx-bytes".length);
+    expect(exportBody).toMatchObject({
+      format: "XLSX",
+      localeIds: ["en-US", "de-DE"],
+    });
+  });
+
+  it("imports official glossary TBX and polls until successful", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      if (String(url).endsWith("/authenticate")) {
+        return smartlingJson({ accessToken: "access-token", expiresIn: 3600 });
+      }
+      if (String(url).endsWith("/import") && init?.method === "POST") {
+        const form = init?.body as FormData;
+        expect(form.get("importFileMediaType")).toBe("text/xml");
+        expect(form.get("archiveMode")).toBe("true");
+        return smartlingJson({
+          glossaryImport: {
+            glossaryUid: "gloss-1",
+            importUid: "import-1",
+            importStatus: "PENDING",
+          },
+        });
+      }
+      if (String(url).endsWith("/import/import-1/confirm")) {
+        return smartlingJson({});
+      }
+      if (String(url).endsWith("/import/import-1")) {
+        return smartlingJson({
+          glossaryUid: "gloss-1",
+          importUid: "import-1",
+          importStatus: "SUCCESSFUL",
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const imported = await client.importGlossary({
+      accountUid: "acct-1",
+      glossaryUid: "gloss-1",
+      filename: "terms.tbx",
+      content: new TextEncoder().encode("<tbx/>"),
+      archiveMode: true,
+    });
+
+    expect(imported).toEqual({ importUid: "import-1", importStatus: "SUCCESSFUL" });
+  });
+
+  it("creates a translation memory through GraphQL", async () => {
+    let graphqlBody: unknown;
+    const fetchMock = vi.fn(async (url, init) => {
+      if (String(url).endsWith("/authenticate")) {
+        return smartlingJson({ accessToken: "access-token", expiresIn: 3600 });
+      }
+      if (String(url).endsWith("/tm-graphql-api/v2/accounts/acct-1/graphql")) {
+        graphqlBody = JSON.parse(String(init?.body));
+        return new Response(
+          JSON.stringify({
+            data: {
+              createTm: {
+                tmUid: "tm-new",
+                name: "Product TM",
+                description: "Fresh memory",
+                sourceLocaleId: "en-US",
+              },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response("Not Found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const created = await client.createTranslationMemory({
+      accountUid: "acct-1",
+      name: "Product TM",
+      description: "Fresh memory",
+      sourceLocaleId: "en-US",
+    });
+
+    expect(created).toEqual({
+      translationMemoryUid: "tm-new",
+      name: "Product TM",
+      description: "Fresh memory",
+      sourceLocaleId: "en-US",
+    });
+    expect(graphqlBody).toMatchObject({
+      variables: {
+        createTm: {
+          name: "Product TM",
+          description: "Fresh memory",
+          sourceLocaleId: "en-US",
+        },
+      },
+    });
+  });
+
+  it("surfaces GraphQL errors from translation memory create", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      if (String(url).endsWith("/authenticate")) {
+        return smartlingJson({ accessToken: "access-token", expiresIn: 3600 });
+      }
+      if (String(url).endsWith("/graphql")) {
+        return new Response(JSON.stringify({ errors: [{ message: "name must not be blank" }] }), {
+          status: 200,
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await expect(
+      client.createTranslationMemory({
+        accountUid: "acct-1",
+        name: "Product TM",
+        sourceLocaleId: "en-US",
+      }),
+    ).rejects.toMatchObject({
+      message: "name must not be blank",
+    });
+  });
+
+  it("imports a TMX file into a translation memory", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      if (String(url).endsWith("/authenticate")) {
+        return smartlingJson({ accessToken: "access-token", expiresIn: 3600 });
+      }
+      if (String(url).endsWith("/tm-tmx-api/v2/accounts/acct-1/tmx/file")) {
+        const form = init?.body as FormData;
+        expect(form.get("tmUid")).toBe("tm-1");
+        expect(form.get("fileUri")).toBe("memory.tmx");
+        return smartlingJson({
+          jobUid: "job-1",
+          tmxUid: "tmx-1",
+          stringCount: 12,
+          wordCount: 34,
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const imported = await client.importTranslationMemory({
+      accountUid: "acct-1",
+      translationMemoryUid: "tm-1",
+      filename: "memory.tmx",
+      content: new TextEncoder().encode("<tmx/>"),
+    });
+
+    expect(imported).toEqual({
+      jobUid: "job-1",
+      tmxUid: "tmx-1",
+      stringCount: 12,
+      wordCount: 34,
+    });
+  });
+
+  it("rejects non-TMX translation memory imports before calling Smartling", async () => {
+    const fetchMock = vi.fn() as unknown as typeof fetch;
+    const client = createClient(fetchMock);
+    await expect(
+      client.importTranslationMemory({
+        accountUid: "acct-1",
+        translationMemoryUid: "tm-1",
+        filename: "memory.csv",
+        content: new Uint8Array(),
+      }),
+    ).rejects.toThrow("smartling_translation_memory_file_must_be_tmx");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });
+
+function smartlingJson(data: unknown) {
+  return new Response(JSON.stringify({ response: { code: "SUCCESS", data } }), { status: 200 });
+}
 
 describe("deriveServiceBaseUrl", () => {
   it("derives accounts and projects base URLs from the auth base URL", () => {
@@ -530,6 +816,15 @@ describe("deriveServiceBaseUrl", () => {
     );
     expect(deriveServiceBaseUrl("https://api.smartling.test/auth-api/v2", "jobs")).toBe(
       "https://api.smartling.test/jobs-api/v3",
+    );
+    expect(deriveServiceBaseUrl("https://api.smartling.test/auth-api/v2", "glossary-v3")).toBe(
+      "https://api.smartling.test/glossary-api/v3",
+    );
+    expect(deriveServiceBaseUrl("https://api.smartling.test/auth-api/v2", "tm-graphql")).toBe(
+      "https://api.smartling.test/tm-graphql-api/v2",
+    );
+    expect(deriveServiceBaseUrl("https://api.smartling.test/auth-api/v2", "tm-tmx")).toBe(
+      "https://api.smartling.test/tm-tmx-api/v2",
     );
   });
 });
