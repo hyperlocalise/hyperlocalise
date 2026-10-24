@@ -169,7 +169,7 @@ export type LocalisationAuditLeaderboardEntry = {
   completedAt: Date | null;
   companyName: string | null;
   logoUrl: string | null;
-  /** Scoring rules the score was produced under; older versions rank after current ones. */
+  /** Scoring rules the score was produced under. Rank is by score only. */
   methodologyVersion: number;
 };
 
@@ -178,6 +178,7 @@ const teaserMethodologyVersion = sql<number>`coalesce((${schema.localisationAudi
 
 /**
  * Public leaderboard of succeeded teaser scores (highest first).
+ * Methodology version is stored but does not affect rank.
  * Only exposes domain identity, logo, and score — never emails or full reports.
  */
 export async function listLocalisationAuditLeaderboard(limit = 25) {
@@ -205,7 +206,6 @@ export async function listLocalisationAuditLeaderboard(limit = 25) {
       ),
     )
     .orderBy(
-      desc(teaserMethodologyVersion),
       desc(schema.localisationAudits.score),
       desc(schema.localisationAudits.completedAt),
       asc(schema.localisationAudits.domainKey),

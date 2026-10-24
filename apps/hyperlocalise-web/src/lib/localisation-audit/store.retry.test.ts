@@ -899,4 +899,99 @@ describe("localisation audit leaderboard", () => {
     expect(standing!.ahead).toBeLessThanOrEqual(standing!.total - standing!.rank);
     expect(standing!.averageScore).toBeGreaterThan(0);
   });
+
+  it("ranks public scores highest first regardless of methodology version", async () => {
+    const currentLowKey = `lb-current-${Date.now()}.example`;
+    const legacyHighKey = `lb-legacy-${Date.now()}.example`;
+    const extraKeys = [currentLowKey, legacyHighKey];
+
+    try {
+      const currentLow = await claimOrReuseLocalisationAudit({
+        domainKey: currentLowKey,
+        domainSlug: hostnameToDomainSlug(currentLowKey),
+        sourceUrl: `https://${currentLowKey}/`,
+        focusLocales: [],
+      });
+      const legacyHigh = await claimOrReuseLocalisationAudit({
+        domainKey: legacyHighKey,
+        domainSlug: hostnameToDomainSlug(legacyHighKey),
+        sourceUrl: `https://${legacyHighKey}/`,
+        focusLocales: [],
+      });
+
+      await completeLocalisationAudit({
+        auditId: currentLow.audit.id,
+        attemptNumber: 1,
+        score: 64,
+        teaser: {
+          score: 64,
+          domainKey: currentLowKey,
+          domainSlug: currentLow.audit.domainSlug,
+          methodologyVersion: LOCALISATION_AUDIT_METHODOLOGY_VERSION,
+          detectedLocales: [],
+          headlineFindings: [],
+          findingsCount: 3,
+          pagesCrawled: 6,
+          completedAt: new Date().toISOString(),
+        },
+        report: {
+          score: 64,
+          domainKey: currentLowKey,
+          domainSlug: currentLow.audit.domainSlug,
+          sourceUrl: currentLow.audit.sourceUrl,
+          focusLocales: [],
+          detectedLocales: [],
+          findings: [],
+          pages: [
+            { url: currentLow.audit.sourceUrl, status: 200, htmlLang: "en", title: "Current" },
+          ],
+          linguisticNotes: [],
+          pagesCrawled: 6,
+          completedAt: new Date().toISOString(),
+        },
+      });
+      await completeLocalisationAudit({
+        auditId: legacyHigh.audit.id,
+        attemptNumber: 1,
+        score: 91,
+        teaser: {
+          score: 91,
+          domainKey: legacyHighKey,
+          domainSlug: legacyHigh.audit.domainSlug,
+          methodologyVersion: 1,
+          detectedLocales: [],
+          headlineFindings: [],
+          findingsCount: 1,
+          pagesCrawled: 6,
+          completedAt: new Date().toISOString(),
+        },
+        report: {
+          score: 91,
+          domainKey: legacyHighKey,
+          domainSlug: legacyHigh.audit.domainSlug,
+          sourceUrl: legacyHigh.audit.sourceUrl,
+          focusLocales: [],
+          detectedLocales: [],
+          findings: [],
+          pages: [
+            { url: legacyHigh.audit.sourceUrl, status: 200, htmlLang: "en", title: "Legacy" },
+          ],
+          linguisticNotes: [],
+          pagesCrawled: 6,
+          completedAt: new Date().toISOString(),
+        },
+      });
+
+      const leaderboard = await listLocalisationAuditLeaderboard(50);
+      const visible = leaderboard.filter((entry) => extraKeys.includes(entry.domainKey));
+
+      expect(visible.map((entry) => entry.domainKey)).toEqual([legacyHighKey, currentLowKey]);
+      expect(visible.map((entry) => entry.score)).toEqual([91, 64]);
+      expect(leaderboard[0]?.score).toBeGreaterThanOrEqual(leaderboard[1]?.score ?? 0);
+    } finally {
+      for (const domainKey of extraKeys) {
+        await cleanup(domainKey);
+      }
+    }
+  });
 });
