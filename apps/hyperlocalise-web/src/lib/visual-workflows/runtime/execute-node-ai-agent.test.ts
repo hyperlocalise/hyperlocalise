@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   generateText: vi.fn(),
   resolveModel: vi.fn(),
   trackAiCallTokenUsage: vi.fn(),
+  ensureAiFeaturesAllowed: vi.fn(),
 }));
 
 vi.mock("ai", async (importOriginal) => ({
@@ -29,6 +30,18 @@ vi.mock("@/lib/billing/agent-runtime-usage", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/billing/agent-runtime-usage")>()),
   trackAiCallTokenUsage: mocks.trackAiCallTokenUsage,
 }));
+vi.mock("@/lib/billing/ai-features", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/billing/ai-features")>()),
+  ensureAiFeaturesAllowed: mocks.ensureAiFeaturesAllowed,
+}));
+
+import {
+  AI_CREDIT_EXHAUSTED_CODE,
+  AI_CREDIT_EXHAUSTED_MESSAGE,
+  AI_FEATURES_REQUIRED_CODE,
+  AI_FEATURES_REQUIRED_MESSAGE,
+} from "@/lib/billing/ai-features";
+import { err, ok } from "@/lib/primitives/result/results";
 
 import { createVisualWorkflowExecutionContext } from "./context";
 import { executeVisualWorkflowNode } from "./execute-node";
@@ -44,6 +57,7 @@ const usage = { inputTokens: 600, outputTokens: 80, totalTokens: 680 };
 describe("executeVisualWorkflowNode AI step metering", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.ensureAiFeaturesAllowed.mockResolvedValue(ok(undefined));
   });
 
   it("records the AI step's tokens against the workspace's model", async () => {
@@ -104,5 +118,56 @@ describe("executeVisualWorkflowNode AI step metering", () => {
 
     expect(result.ok).toBe(false);
     expect(mocks.trackAiCallTokenUsage).not.toHaveBeenCalled();
+  });
+
+  it("refuses the model call when the workspace has used up its AI credit", async () => {
+    mocks.ensureAiFeaturesAllowed.mockResolvedValue(
+      err({
+        code: AI_CREDIT_EXHAUSTED_CODE,
+        message: AI_CREDIT_EXHAUSTED_MESSAGE,
+      }),
+    );
+
+    const result = await executeVisualWorkflowNode({
+      organizationId,
+      context: createVisualWorkflowExecutionContext({ triggerInput: {} }),
+      node: aiNode as never,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: AI_CREDIT_EXHAUSTED_CODE,
+        message: AI_CREDIT_EXHAUSTED_MESSAGE,
+      },
+    });
+    expect(mocks.ensureAiFeaturesAllowed).toHaveBeenCalledWith({ organizationId });
+    expect(mocks.resolveModel).not.toHaveBeenCalled();
+    expect(mocks.generateText).not.toHaveBeenCalled();
+    expect(mocks.trackAiCallTokenUsage).not.toHaveBeenCalled();
+  });
+
+  it("refuses the model call when the plan does not include AI features", async () => {
+    mocks.ensureAiFeaturesAllowed.mockResolvedValue(
+      err({
+        code: AI_FEATURES_REQUIRED_CODE,
+        message: AI_FEATURES_REQUIRED_MESSAGE,
+      }),
+    );
+
+    const result = await executeVisualWorkflowNode({
+      organizationId,
+      context: createVisualWorkflowExecutionContext({ triggerInput: {} }),
+      node: aiNode as never,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: AI_FEATURES_REQUIRED_CODE,
+        message: AI_FEATURES_REQUIRED_MESSAGE,
+      },
+    });
+    expect(mocks.generateText).not.toHaveBeenCalled();
   });
 });

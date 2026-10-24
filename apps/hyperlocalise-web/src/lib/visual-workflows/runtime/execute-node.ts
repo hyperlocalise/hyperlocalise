@@ -19,6 +19,7 @@ import {
   extractAiSdkTokenUsage,
   trackAiCallTokenUsage,
 } from "@/lib/billing/agent-runtime-usage";
+import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import { db, schema } from "@/lib/database/client";
 import { isErr } from "@/lib/primitives/result/results";
 import {
@@ -488,6 +489,19 @@ export async function executeVisualWorkflowNode(input: {
       const prompt = text(node.config.prompt).trim();
       if (!prompt) {
         return { ok: false, error: { code: "missing_prompt", message: "AI prompt is required." } };
+      }
+
+      const aiFeatures = await ensureAiFeaturesAllowed({
+        organizationId: input.organizationId,
+      });
+      if (isErr(aiFeatures)) {
+        return {
+          ok: false,
+          error: {
+            code: aiFeatures.error.code,
+            message: aiFeatures.error.message,
+          },
+        };
       }
 
       try {
