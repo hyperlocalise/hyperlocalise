@@ -27,7 +27,11 @@ vi.mock("@/lib/translation/sandbox", () => ({
   extractSandboxEntries: extractSandboxEntriesMock,
 }));
 
-import { collectFileTranslationPageStep } from "./file-translation-progress";
+import {
+  collectFileTranslationPageStep,
+  sandboxCliLockfileCopyPath,
+  sandboxCliLockfilePath,
+} from "./file-translation-progress";
 
 const sourceHtml = "<p>Hello <strong>world</strong>!</p>";
 const targetHtml = "<p>Bonjour <strong>monde</strong>!</p>";
@@ -83,7 +87,7 @@ describe("collectFileTranslationPageStep HTML lock wiring", () => {
     });
 
     expect(extractSandboxEntriesMock).not.toHaveBeenCalled();
-    expect(readTranslatedFileMock).toHaveBeenCalledWith("sbx_html", ".hyperlocalise.lock.json");
+    expect(readTranslatedFileMock).toHaveBeenCalledWith("sbx_html", sandboxCliLockfilePath);
     expect(readTranslatedFileMock).toHaveBeenCalledWith("sbx_html", "page.html");
     expect(readTranslatedFileMock).toHaveBeenCalledWith("sbx_html", "page.fr.html");
   });
@@ -304,5 +308,154 @@ describe("collectFileTranslationPageStep HTML lock wiring", () => {
         },
       }),
     ).resolves.toEqual({});
+  });
+
+  it("treats a missing lockfile as empty instead of failing the step", async () => {
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      throw new Error(`failed to read translated file: ${path}`);
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_missing_lock",
+        inputFilename: "strings.json",
+        outputFilenames: { "fr-FR": "strings.fr-FR.json" },
+        sourceEntries: { greeting: "Hello" },
+        prefills: {},
+        confirmed: {},
+      }),
+    ).resolves.toEqual({});
+    expect(readTranslatedFileMock).toHaveBeenCalledWith("sbx_missing_lock", sandboxCliLockfilePath);
+    expect(readTranslatedFileMock).toHaveBeenCalledWith(
+      "sbx_missing_lock",
+      sandboxCliLockfileCopyPath,
+    );
+    expect(extractSandboxEntriesMock).not.toHaveBeenCalled();
+  });
+
+  it("maps HTML path-key prefills when CLI 1.13.5 left an empty lock", async () => {
+    const sourceEntries = extractHtmlIngestEntries(sourceHtml);
+
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path === sandboxCliLockfilePath) {
+        throw new Error(`failed to read translated file: ${path}`);
+      }
+      if (path === sandboxCliLockfileCopyPath) {
+        return "{}\n";
+      }
+      if (path === "page.html") {
+        return sourceHtml;
+      }
+      if (path === "page.fr.html") {
+        return targetHtml;
+      }
+      throw new Error(`unexpected sandbox read: ${path}`);
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_html_prefill",
+        inputFilename: "page.html",
+        outputFilenames: { "fr-FR": "page.fr.html" },
+        sourceEntries,
+        prefills: {
+          "fr-FR": {
+            "html.p": "Bonjour ",
+            "html.p.strong": "monde",
+          },
+        },
+        confirmed: {},
+      }),
+    ).resolves.toEqual({
+      "fr-FR": {
+        "html.p": "Bonjour ",
+        "html.p.strong": "monde",
+      },
+    });
+  });
+
+  it("maps hashed HTML prefills onto source path keys when the lockfile is missing", async () => {
+    const folded = extractHtmlIngestEntries(sourceHtml, { foldInline: true });
+    const hash = legacyHtmlSegmentKey(folded["html.p"] ?? "", new Map());
+    const sourceEntries = extractHtmlIngestEntries(sourceHtml);
+
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path === sandboxCliLockfilePath || path === sandboxCliLockfileCopyPath) {
+        throw new Error(`failed to read translated file: ${path}`);
+      }
+      if (path === "page.html") {
+        return sourceHtml;
+      }
+      if (path === "page.fr.html") {
+        return targetHtml;
+      }
+      throw new Error(`unexpected sandbox read: ${path}`);
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_html_hashed_prefill",
+        inputFilename: "page.html",
+        outputFilenames: { "fr-FR": "page.fr.html" },
+        sourceEntries,
+        prefills: { "fr-FR": { [hash]: "Bonjour <strong>monde</strong>!" } },
+        confirmed: {},
+      }),
+    ).resolves.toEqual({
+      "fr-FR": {
+        "html.p": "Bonjour ",
+        "html.p.strong": "monde",
+      },
+    });
+  });
+
+  it("collects prefill keys when the lockfile is missing", async () => {
+    const outputFilename = "strings-fr-FR.json";
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      throw new Error(`failed to read translated file: ${path}`);
+    });
+    extractSandboxEntriesMock.mockResolvedValue({
+      ok: true,
+      entries: { greeting: "Bonjour" },
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_prefill_lock",
+        inputFilename: "strings.json",
+        outputFilenames: { "fr-FR": outputFilename },
+        sourceEntries: { greeting: "Hello" },
+        prefills: { "fr-FR": { greeting: "Bonjour" } },
+        confirmed: {},
+      }),
+    ).resolves.toEqual({ "fr-FR": { greeting: "Bonjour" } });
+  });
+
+  it("reads the materialized lock copy when the hidden lockfile is unreadable", async () => {
+    const outputFilename = "strings-fr-FR.json";
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path === sandboxCliLockfilePath) {
+        throw new Error(`failed to read translated file: ${path}`);
+      }
+      if (path === sandboxCliLockfileCopyPath) {
+        return JSON.stringify(lockFor(outputFilename, ["greeting"]));
+      }
+      throw new Error(`unexpected sandbox read: ${path}`);
+    });
+    extractSandboxEntriesMock.mockResolvedValue({
+      ok: true,
+      entries: { greeting: "Bonjour" },
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_lock_copy",
+        inputFilename: "strings.json",
+        outputFilenames: { "fr-FR": outputFilename },
+        sourceEntries: { greeting: "Hello" },
+        prefills: {},
+        confirmed: {},
+      }),
+    ).resolves.toEqual({ "fr-FR": { greeting: "Bonjour" } });
   });
 });

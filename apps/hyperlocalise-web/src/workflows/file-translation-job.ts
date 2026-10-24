@@ -76,6 +76,7 @@ import {
   collectFileTranslationPageStep,
   fileTranslationReportSchema,
   isFileTranslationCliHardFailure,
+  materializeSandboxLockfileCommand,
 } from "./file-translation-progress";
 
 function shellSingleQuote(value: string) {
@@ -509,6 +510,15 @@ async function runTranslationStep(
         timeoutMs: sandboxTranslationCommandTimeoutMs,
       },
     );
+    try {
+      await runSandboxCommand(sandboxId, "bash", ["-lc", materializeSandboxLockfileCommand()]);
+    } catch (error) {
+      console.warn("[file-translation-workflow] lockfile materialize failed", {
+        jobId: options?.jobId,
+        sandboxId,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }
     const { readTranslatedFile } = await import("@/lib/translation/sandbox");
     const report = (await readTranslatedFile(sandboxId, reportPath)).toString("utf8");
     const reportPayload = JSON.parse(report) as unknown;

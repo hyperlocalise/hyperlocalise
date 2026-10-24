@@ -1834,6 +1834,78 @@ func TestRunMigratesLegacyCompletedLockEntriesOnSkip(t *testing.T) {
 	}
 }
 
+func TestRunPrefillOnlyPersistsLockfile(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	entryID := taskIdentity(targetPath, "hello")
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"hello":"Hello"}`), nil
+		case targetPath:
+			return []byte(`{}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		t.Fatal("translate should not be called for prefill-only run")
+		return "", nil
+	}
+
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	saveCalls := 0
+	var saved lockfile.File
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		saveCalls++
+		saved = f
+		return nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{
+		Force:             true,
+		PrefilledByLocale: map[string]map[string]string{"fr": {"hello": "Bonjour"}},
+	})
+	if err != nil {
+		t.Fatalf("prefill-only run: %v", err)
+	}
+	if report.SkippedByLock != 1 || report.ExecutableTotal != 0 {
+		t.Fatalf("unexpected report: %+v", report)
+	}
+	if saveCalls == 0 {
+		t.Fatal("expected lockfile write for prefill-only run")
+	}
+	completion, ok := saved.RunCompleted[entryID]
+	if !ok {
+		t.Fatalf("expected prefilled completion %q, got %+v", entryID, saved.RunCompleted)
+	}
+	if completion.SourceHash == "" || completion.TaskHash == "" {
+		t.Fatalf("expected source and task hashes, got %+v", completion)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(written, &payload); err != nil {
+		t.Fatalf("decode prefilled output: %v", err)
+	}
+	if payload["hello"] != "Bonjour" {
+		t.Fatalf("expected prefilled output, got %+v", payload)
+	}
+}
+
 func TestRunDryRunDoesNotMigrateLegacyCompletedLockEntries(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.json"
