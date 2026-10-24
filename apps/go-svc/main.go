@@ -113,7 +113,7 @@ func main() {
 	h.workspaceSettings = &workspaceSettingsAPI{activityLog: activityLogPublisher}
 	h.sessionOrganizations = &sessionOrganizationsAPI{}
 	h.sessionAccount = &sessionAccountAPI{}
-	h.irisGeneration = &irisGenerationAPI{provider: newIrisGatewayProvider()}
+	h.irisGeneration = &irisGenerationAPI{provider: newIrisGenerationProvider()}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}

@@ -1,0 +1,21 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "fal",
+    srcs = [
+        "client.go",
+        "config.go",
+        "doc.go",
+        "errors.go",
+        "media.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/fal",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "fal_test",
+    srcs = ["client_test.go"],
+    embed = [":fal"],
+    deps = ["@com_github_stretchr_testify//require"],
+)

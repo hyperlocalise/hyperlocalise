@@ -102,6 +102,37 @@ go-svc, including the `Engine` interface, request and response types,
 configuration, and typed errors. Vendor MT integrations use this package as
 library clients; it does not expose an HTTP route.
 
+### ElevenLabs and fal.ai clients
+
+Iris generation uses native vendor clients when those models are selected.
+Google, OpenAI, xAI, and Gemini models still go through AI Gateway.
+
+`internal/elevenlabs` calls ElevenLabs speech, music, and sound-effect APIs.
+`internal/fal` submits work to the fal.ai queue, polls until the job finishes,
+and reads the result. Neither package exposes an HTTP route.
+
+| Variable | Description |
+|----------|-------------|
+| `ELEVENLABS_API_KEY` | ElevenLabs API key sent as `xi-api-key`. Required for native `elevenlabs-*` Iris models. |
+| `ELEVENLABS_BASE_URL` | Optional. Defaults to `https://api.elevenlabs.io`. |
+| `FAL_KEY` | fal.ai API key sent as `Authorization: Key ...`. Required for native Flux, Kling, Seedance, Wan, MiniMax, Krea, Seedream, Bria, SeedVR, and ByteDance upscaler Iris models. |
+| `FAL_QUEUE_URL` | Optional. Defaults to `https://queue.fal.run`. |
+
+Example Go usage:
+
+```go
+speech, err := elevenlabs.NewClient(elevenlabs.Config{
+    APIKey: os.Getenv("ELEVENLABS_API_KEY"),
+})
+
+queue, err := fal.NewClient(fal.Config{
+    APIKey: os.Getenv("FAL_KEY"),
+})
+```
+
+When a native client is unset, Iris falls back to `AI_GATEWAY_API_KEY` for that
+model. If no generation backend is configured, jobs fail with `PROVIDER_ERROR`.
+
 ### Datadog tracing
 
 go-svc is instrumented at compile time with Datadog Orchestrion. The build rewrites supported Go libraries to create Datadog spans, while the service's route-safe HTTP middleware remains in place for inbound request spans. The Datadog tracer runtime sends spans directly to the Datadog Agent over port `8126`; this is separate from the optional OpenTelemetry/OTLP receiver exposed by the ECS sidecar.

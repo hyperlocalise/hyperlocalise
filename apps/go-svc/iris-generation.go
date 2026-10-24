@@ -613,7 +613,7 @@ func (api *irisGenerationAPI) runJob(job irisJobRecord) {
 		return
 	}
 	if api.provider == nil {
-		api.failJob(ctx, job, "PROVIDER_ERROR", "Generation provider is not configured (set AI_GATEWAY_API_KEY)")
+		api.failJob(ctx, job, "PROVIDER_ERROR", "Generation provider is not configured (set AI_GATEWAY_API_KEY, ELEVENLABS_API_KEY, or FAL_KEY)")
 		return
 	}
 	model, ok := irisModelByID(job.Model)
