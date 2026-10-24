@@ -81,18 +81,23 @@ Workflow: [`.github/workflows/sandbox-image.yml`](../../.github/workflows/sandbo
 | Event | Behavior |
 |-------|----------|
 | PR touching `apps/sandbox-image/**` | Build `linux/amd64` only, tag `hyperlocalise-sandbox:ci` (no registry auth) |
-| Push to `main` / `workflow_dispatch` | Authenticate to VCR, build and push `:sha` + `:latest` |
+| Push to `prod` / `workflow_dispatch` | Authenticate to VCR, build and push `:sha` + `:latest` |
 
 PR / fork builds do **not** require repository secrets (forks cannot read them).
-Registry login and credential checks run only when pushing. The base OS image
+Registry credentials and checks run only when pushing. The base OS image
 is public, so the Dockerfile build itself does not need VCR.
+
+CI writes `~/.docker/config.json` instead of running `docker login`. VCR's
+`HEAD /v2/` ping returns **404** (while `GET /v2/` correctly returns 401), and
+current Docker Engine treats that as a failed login. The written config still
+sends Basic auth on push (`team_…` + account token).
 
 ### Required GitHub configuration (push / `workflow_dispatch` only)
 
 | Name | Kind | Purpose |
 |------|------|---------|
-| `VERCEL_TOKEN` | repository secret | Vercel access token with access to the web project |
-| `VERCEL_TEAM_ID` | repository secret | Docker login username (`team_…`) |
+| `VERCEL_TOKEN` | repository secret | Vercel [account token](https://vercel.com/account/tokens) with access to the web project |
+| `VERCEL_TEAM_ID` | repository secret | Docker username (`team_…`), not the team slug |
 | `VERCEL_TEAM_SLUG` | repository secret | Image path team slug |
 | `VERCEL_PROJECT_SLUG` | repository secret | Image path project slug (hyperlocalise-web) |
 
@@ -114,6 +119,10 @@ vercel vcr login docker
 # Build + push (recommended). Flags after -- go to Docker.
 vercel vcr build docker apps/sandbox-image hyperlocalise-sandbox:latest --push
 ```
+
+`vercel vcr login docker` calls `docker login`. If that fails with 404 on
+`/v2/`, write `~/.docker/config.json` the same way CI does (`team_…` as the
+username and a Vercel account token as the password) and retry the build.
 
 Or with Docker Buildx:
 

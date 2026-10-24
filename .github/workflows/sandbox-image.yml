@@ -94,13 +94,22 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
-      - name: Log in to Vercel Container Registry
+      # VCR answers GET /v2/ with 401 (correct) but HEAD /v2/ with 404.
+      # `docker login` (docker/login-action and `vercel vcr login`) pings with
+      # HEAD on current Docker Engine and fails before it sends credentials.
+      # Writing the Docker config skips that ping; Buildx still sends Basic auth
+      # on push. Username is the team ID; password is a Vercel account token.
+      - name: Configure VCR credentials
         if: steps.meta.outputs.push == 'true'
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.VERCEL_TEAM_ID }}
-          password: ${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${HOME}/.docker"
+          auth="$(printf '%s:%s' "${VERCEL_TEAM_ID}" "${VERCEL_TOKEN}" | base64 | tr -d '\n')"
+          umask 077
+          printf '{"auths":{"%s":{"auth":"%s"}}}\n' "${REGISTRY}" "${auth}" > "${HOME}/.docker/config.json"
 
       - name: Build and push
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
@@ -113,6 +122,9 @@ jobs:
           # prod / workflow_dispatch: push sha + latest to VCR.
           push: ${{ steps.meta.outputs.push == 'true' }}
           load: ${{ steps.meta.outputs.push != 'true' }}
+          # Buildx provenance attestations are not useful on VCR and some
+          # registry pings treat extra endpoints poorly.
+          provenance: false
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
