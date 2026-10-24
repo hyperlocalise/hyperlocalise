@@ -157,6 +157,100 @@ describe("loadProjectPdfTranslationDownload", () => {
       }),
     );
   });
+
+  it("fails with source_content_not_found when the repository has no version", async () => {
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      prefilled: { "page-1#1": "Bonjour" },
+      loadedKeyCount: 1,
+      translatedKeyCount: 1,
+    });
+    mocks.getLatestRepositorySourceFileVersion.mockResolvedValue(null);
+
+    await expect(loadProjectPdfTranslationDownload(INPUT)).resolves.toEqual(
+      err({ code: "source_content_not_found" }),
+    );
+    expect(mocks.getStoredFileContent).not.toHaveBeenCalled();
+    expect(mocks.pdfApply).not.toHaveBeenCalled();
+  });
+
+  it("fails with source_content_not_found when stored file bytes cannot be read", async () => {
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      prefilled: { "page-1#1": "Bonjour" },
+      loadedKeyCount: 1,
+      translatedKeyCount: 1,
+    });
+    mocks.getLatestRepositorySourceFileVersion.mockResolvedValue({ storedFileId: "stored_1" });
+    mocks.getStoredFileContent.mockRejectedValue(new Error("object missing"));
+
+    await expect(loadProjectPdfTranslationDownload(INPUT)).resolves.toEqual(
+      err({ code: "source_content_not_found" }),
+    );
+    expect(mocks.pdfApply).not.toHaveBeenCalled();
+  });
+
+  it("uses the default export message for unexpected apply failures", async () => {
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      prefilled: { "page-1#1": "Bonjour" },
+      loadedKeyCount: 1,
+      translatedKeyCount: 1,
+    });
+    mocks.getLatestRepositorySourceFileVersion.mockResolvedValue({ storedFileId: "stored_1" });
+    mocks.getStoredFileContent.mockResolvedValue({ content: new Uint8Array([1]) });
+    mocks.pdfApply.mockRejectedValue(new Error("socket hang up"));
+
+    await expect(loadProjectPdfTranslationDownload(INPUT)).resolves.toEqual(
+      err({
+        code: "pdf_export_failed",
+        message: "Could not write translations into the PDF.",
+      }),
+    );
+  });
+
+  it("uses the default script message when go-svc omits one", async () => {
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      prefilled: { "page-1#1": "مرحبا" },
+      loadedKeyCount: 1,
+      translatedKeyCount: 1,
+    });
+    mocks.getLatestRepositorySourceFileVersion.mockResolvedValue({ storedFileId: "stored_1" });
+    mocks.getStoredFileContent.mockResolvedValue({ content: new Uint8Array([1]) });
+    mocks.pdfApply.mockRejectedValue(
+      new GoSvcClientError({
+        code: "pdf_script_unsupported",
+        message: "",
+        status: 422,
+      }),
+    );
+
+    await expect(loadProjectPdfTranslationDownload(INPUT)).resolves.toEqual(
+      err({
+        code: "pdf_script_unsupported",
+        message: "The target text uses a script this PDF export does not support.",
+      }),
+    );
+  });
+
+  it("forwards approvedTranslationsOnly into the translation loader", async () => {
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      prefilled: {},
+      loadedKeyCount: 0,
+      translatedKeyCount: 0,
+    });
+
+    await loadProjectPdfTranslationDownload({
+      ...INPUT,
+      approvedTranslationsOnly: true,
+    });
+
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).toHaveBeenCalledWith({
+      organizationId: INPUT.organizationId,
+      projectId: INPUT.projectId,
+      sourcePath: INPUT.sourcePath,
+      targetLocale: INPUT.targetLocale,
+      readyTranslationsOnly: true,
+      approvedTranslationsOnly: true,
+    });
+  });
 });
 
 describe("pdfTranslationDownloadFailure", () => {

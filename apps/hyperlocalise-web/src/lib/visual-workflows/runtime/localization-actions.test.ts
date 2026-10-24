@@ -385,6 +385,43 @@ describe("runUpdateJobAction", () => {
     expect(mocks.updateNativeJob).not.toHaveBeenCalled();
   });
 
+  it("does not send dueAt when the node only clears the due date", async () => {
+    await expect(
+      runUpdateJobAction({
+        organizationId,
+        jobId: "job_1",
+        assigneeWorkosUserId: "",
+        title: "",
+        dueAt: "",
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { code: "missing_update_job_change" } });
+
+    mocks.updateNativeJob.mockResolvedValueOnce(ok({ id: "job_1" }));
+    await expect(
+      runUpdateJobAction({
+        organizationId,
+        jobId: "job_1",
+        assigneeWorkosUserId: "",
+        title: "Retitle",
+        dueAt: "   ",
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      output: {
+        jobId: "job_1",
+        assigned: false,
+        renamed: true,
+        dueAt: null,
+      },
+    });
+    expect(mocks.updateNativeJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: { title: "Retitle" },
+      }),
+    );
+    expect(mocks.updateNativeJob.mock.calls[0]?.[0].body).not.toHaveProperty("dueAt");
+  });
+
   it("sends a due date to updateNativeJob and maps a missing job", async () => {
     mocks.updateNativeJob.mockResolvedValueOnce(ok({ id: "job_1" }));
 

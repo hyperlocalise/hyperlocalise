@@ -63,13 +63,23 @@ func TestSessionOrganizationsList(t *testing.T) {
 		t.Cleanup(func() {
 			_, _ = scope.Pool.Exec(t.Context(), `delete from organizations where id in ($1, $2, $3)`, archivedID, replacingID, secondID)
 		})
+		prefixReplacingID := uuid.NewString()
+		_, err = scope.Pool.Exec(t.Context(), `
+            insert into organizations (id, workos_organization_id, name, slug, lifecycle_status)
+            values ($1, $2, 'Prefix Replacing Co', $3, 'active')`,
+			prefixReplacingID, "org_replacing_prefix_"+suffix, "replacing-prefix-"+suffix)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			_, _ = scope.Pool.Exec(t.Context(), `delete from organizations where id=$1`, prefixReplacingID)
+		})
 		_, err = scope.Pool.Exec(t.Context(), `
             insert into organization_memberships (organization_id, user_id, workos_membership_id, role)
             values
                 ($1, $2, 'om_archived', 'admin'),
                 ($3, $2, 'replacing', 'admin'),
-                ($4, $2, 'om_bravo', 'member')`,
-			archivedID, scope.UserID, replacingID, secondID)
+                ($4, $2, 'om_bravo', 'member'),
+                ($5, $2, 'replacing:' || $6::text, 'admin')`,
+			archivedID, scope.UserID, replacingID, secondID, prefixReplacingID, prefixReplacingID)
 		require.NoError(t, err)
 
 		rec := sessionOrganizationsRequest(&sessionOrganizationsAPI{pool: scope.Pool}, AuthClaims{UserID: scope.WorkOSUserID}, true)

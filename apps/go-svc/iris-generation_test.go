@@ -28,11 +28,15 @@ const irisTestPath = "/v1/orgs/acme/iris"
 type stubIrisMeter struct {
 	features    bool
 	tokens      bool
+	checkErr    error
 	tracks      []autumn.TrackRequest
 	tokenTracks []autumn.TrackTokensRequest
 }
 
 func (s *stubIrisMeter) Check(_ context.Context, req autumn.CheckRequest) (autumn.CheckResponse, error) {
+	if s.checkErr != nil {
+		return autumn.CheckResponse{}, s.checkErr
+	}
 	switch req.FeatureID {
 	case autumn.AIFeatures:
 		return autumn.CheckResponse{Allowed: s.features}, nil
@@ -500,6 +504,27 @@ func TestIrisGenerationAutumnGate(t *testing.T) {
 		require.Equal(t, "custom/audio", meter.tokenTracks[0].ModelID)
 		require.Equal(t, 12, meter.tokenTracks[0].OutputTokens)
 	})
+
+	t.Run("fails closed when Autumn cannot be checked", func(t *testing.T) {
+		callsBefore := provider.calls
+		api.meter = &stubIrisMeter{features: true, tokens: true, checkErr: errors.New("autumn down")}
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
+			"idempotencyKey": "77777777-7777-7777-7777-777777777777",
+			"request":        map[string]any{"model": "flux-2-klein", "prompt": "a cat"},
+		})
+		require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+		require.Contains(t, rec.Body.String(), "ai_features_check_failed")
+		require.Equal(t, callsBefore, provider.calls)
+
+		estimate := irisRequest(api, http.MethodPost, irisTestPath+"/estimate", map[string]any{
+			"model": "flux-2-klein", "prompt": "a cat",
+		})
+		require.Equal(t, http.StatusOK, estimate.Code)
+		var body irisEstimate
+		require.NoError(t, json.Unmarshal(estimate.Body.Bytes(), &body))
+		require.False(t, body.Allowed)
+		require.Nil(t, body.Remaining)
+	})
 }
 
 func TestIrisSyntheticCredit(t *testing.T) {
@@ -541,6 +566,24 @@ func TestIrisSyntheticCredit(t *testing.T) {
 		{
 			name:   "voice minutes",
 			job:    irisJobRecord{ID: "job_voice", OrgID: "org_local", Model: "elevenlabs-v4"},
+			model:  "custom/audio",
+			output: 1,
+		},
+		{
+			name:   "upscaler video seconds",
+			job:    irisJobRecord{ID: "job_upscaler", OrgID: "org_local", Model: "bytedance-upscaler", Request: irisGenerateRequest{"duration": float64(10)}},
+			model:  "custom/video",
+			output: 10,
+		},
+		{
+			name:   "transcribe input minutes",
+			job:    irisJobRecord{ID: "job_transcribe", OrgID: "org_local", Model: "universal-3.5-pro", Request: irisGenerateRequest{"duration": float64(90)}},
+			model:  "custom/audio",
+			output: 2,
+		},
+		{
+			name:   "omni flash default input minute",
+			job:    irisJobRecord{ID: "job_omni", OrgID: "org_local", Model: "qwen3.8-omni-flash"},
 			model:  "custom/audio",
 			output: 1,
 		},
