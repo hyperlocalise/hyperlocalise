@@ -62,12 +62,14 @@ import { cn } from "@/lib/primitives/cn";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 
+import { formatReportDate, formatRerunAvailableAt } from "./localisation-audit-format-date";
 import {
   getLocalisationAuditGuideHref,
   getLocalisationAuditResultCopy,
   interpretScore,
   interpretScoreCtaBand,
 } from "./localisation-audit-page-content";
+import { LocalisationAuditResultErrorBoundary } from "./localisation-audit-result-error-boundary";
 
 type AuditPayload = {
   id: string;
@@ -817,11 +819,46 @@ function pagePathLabel(url: string) {
   }
 }
 
-function formatReportDate(value: string, locale: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  // Fixed zone keeps server and client output identical during hydration.
-  return date.toLocaleDateString(locale, { dateStyle: "medium", timeZone: "UTC" });
+function IsolatedReportSection({
+  section,
+  children,
+  className,
+  resetKeys,
+}: {
+  section: string;
+  children: ReactNode;
+  className?: string;
+  resetKeys?: unknown[];
+}) {
+  return (
+    <LocalisationAuditResultErrorBoundary
+      scope="section"
+      section={section}
+      className={className}
+      resetKeys={resetKeys}
+    >
+      {children}
+    </LocalisationAuditResultErrorBoundary>
+  );
+}
+
+function RerunCooldownNote({
+  when,
+  locale,
+  copy,
+}: {
+  when: string;
+  locale: string;
+  copy: ReturnType<typeof getLocalisationAuditResultCopy>;
+}) {
+  const formatted = formatRerunAvailableAt(when, locale);
+  if (!formatted) {
+    return null;
+  }
+
+  return (
+    <p className="mt-4 text-sm text-muted-foreground">{copy.rerunCooldown({ when: formatted })}</p>
+  );
 }
 
 function companyMonogram(name: string | null | undefined, domainKey: string) {
@@ -1210,381 +1247,404 @@ export function LocalisationAuditResult({
 
   return (
     <>
-      <MeshWash className={isWorkspace ? "px-0 pt-0 pb-8 sm:px-0 sm:pt-0 lg:px-0" : undefined}>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <p className="text-xs font-medium tracking-[0.18em] text-white/80 uppercase">
-            {copy.companyReportEyebrow}
-          </p>
-          {isWorkspace ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white"
-              onClick={copyShareLink}
-            >
-              <ShareNetworkIcon className="size-3.5" aria-hidden />
-              {copy.shareCopyLink}
-            </Button>
-          )}
-        </div>
+      <IsolatedReportSection section="hero" resetKeys={[audit.id, displayName, score]}>
+        <MeshWash className={isWorkspace ? "px-0 pt-0 pb-8 sm:px-0 sm:pt-0 lg:px-0" : undefined}>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <p className="text-xs font-medium tracking-[0.18em] text-white/80 uppercase">
+              {copy.companyReportEyebrow}
+            </p>
+            {isWorkspace ? null : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white"
+                onClick={copyShareLink}
+              >
+                <ShareNetworkIcon className="size-3.5" aria-hidden />
+                {copy.shareCopyLink}
+              </Button>
+            )}
+          </div>
 
-        <div className="mt-8 flex flex-col gap-6 sm:flex-row sm:items-start">
-          <CompanyMark profile={companyProfile} domainKey={audit.domainKey} />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="font-serif text-3xl tracking-tight text-balance text-white sm:text-4xl lg:text-5xl">
-                {displayName}
-              </h1>
-              {companyProfile?.industry ? (
-                <Badge
-                  variant="outline"
-                  className="border-white/25 bg-white/10 text-white capitalize"
-                >
-                  {companyProfile.industry}
-                </Badge>
+          <div className="mt-8 flex flex-col gap-6 sm:flex-row sm:items-start">
+            <CompanyMark profile={companyProfile} domainKey={audit.domainKey} />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="font-serif text-3xl tracking-tight text-balance text-white sm:text-4xl lg:text-5xl">
+                  {displayName}
+                </h1>
+                {companyProfile?.industry ? (
+                  <Badge
+                    variant="outline"
+                    className="border-white/25 bg-white/10 text-white capitalize"
+                  >
+                    {companyProfile.industry}
+                  </Badge>
+                ) : null}
+              </div>
+              <p className="mt-2 text-sm text-white/80">{audit.domainKey}</p>
+              {companyProfile?.productSummary ? (
+                <p className="mt-4 max-w-2xl text-pretty text-base text-white/90 sm:text-lg">
+                  <span className="text-white/75">{copy.companyProductLabel}: </span>
+                  {companyProfile.productSummary}
+                </p>
+              ) : null}
+              {companyProfile?.brandVoice ? (
+                <p className="mt-2 max-w-2xl text-pretty text-sm text-white/85">
+                  <span className="text-white/75">{copy.companyBrandVoiceLabel}: </span>
+                  {companyProfile.brandVoice}
+                </p>
               ) : null}
             </div>
-            <p className="mt-2 text-sm text-white/80">{audit.domainKey}</p>
-            {companyProfile?.productSummary ? (
-              <p className="mt-4 max-w-2xl text-pretty text-base text-white/90 sm:text-lg">
-                <span className="text-white/75">{copy.companyProductLabel}: </span>
-                {companyProfile.productSummary}
-              </p>
-            ) : null}
-            {companyProfile?.brandVoice ? (
-              <p className="mt-2 max-w-2xl text-pretty text-sm text-white/85">
-                <span className="text-white/75">{copy.companyBrandVoiceLabel}: </span>
-                {companyProfile.brandVoice}
-              </p>
-            ) : null}
           </div>
-        </div>
 
-        <div className="mt-10 border-t border-white/15 pt-8">
-          <p className="text-sm text-white/80">{copy.scoreLabel}</p>
-          <p className="mt-2 font-serif text-5xl tracking-tight text-white sm:text-6xl">
-            <span className="tabular-nums">{score ?? "—"}</span>
-            <span className="text-3xl text-white/75 sm:text-4xl">{copy.scoreOutOf}</span>
-          </p>
-          {ratingLabel ? (
-            <Badge
-              variant="outline"
-              className="mt-4 border-white/25 bg-white/10 text-white capitalize"
-            >
-              {ratingLabel}
-            </Badge>
-          ) : null}
-          <TypographyP className="mt-4 max-w-2xl text-white/80" wrapStyle="pretty" size="large">
-            {interpretation}
-          </TypographyP>
-          {coverageReductionPercent > 0 ? (
-            <p className="mt-2 max-w-2xl text-pretty text-sm text-white/75">
-              {copy.scoreCoverageAdjustment({ percent: coverageReductionPercent })}
+          <div className="mt-10 border-t border-white/15 pt-8">
+            <p className="text-sm text-white/80">{copy.scoreLabel}</p>
+            <p className="mt-2 font-serif text-5xl tracking-tight text-white sm:text-6xl">
+              <span className="tabular-nums">{score ?? "—"}</span>
+              <span className="text-3xl text-white/75 sm:text-4xl">{copy.scoreOutOf}</span>
             </p>
-          ) : null}
-          {score != null && methodologyVersion < LOCALISATION_AUDIT_METHODOLOGY_VERSION ? (
-            <p className="mt-2 max-w-2xl text-pretty text-sm text-white/75">
-              {copy.scoreLegacyMethodology}
-            </p>
-          ) : null}
-          {dimensionScores ? (
-            <ul className="mt-8 grid max-w-2xl grid-cols-2 gap-6 sm:grid-cols-4">
-              <li>
-                <DimensionScoreCircle
-                  label={copy.dimensionTechnical}
-                  score={dimensionScores.technical}
-                  onMesh
-                />
-              </li>
-              <li>
-                <DimensionScoreCircle
-                  label={copy.dimensionLinguistic}
-                  score={dimensionScores.linguistic}
-                  onMesh
-                />
-              </li>
-              <li>
-                <DimensionScoreCircle
-                  label={copy.dimensionContextual}
-                  score={dimensionScores.contextual}
-                  onMesh
-                />
-              </li>
-              <li>
-                <DimensionScoreCircle
-                  label={copy.dimensionVisual}
-                  score={dimensionScores.visual}
-                  onMesh
-                />
-              </li>
-            </ul>
-          ) : null}
-          <div className="mt-6 flex flex-wrap gap-x-8 gap-y-2 text-sm text-white/80">
-            {freshnessLabel ? (
-              <span>
-                {copy.freshnessLabel}: {freshnessLabel}
-              </span>
+            {ratingLabel ? (
+              <Badge
+                variant="outline"
+                className="mt-4 border-white/25 bg-white/10 text-white capitalize"
+              >
+                {ratingLabel}
+              </Badge>
             ) : null}
-            <span>
-              {copy.scopeLabel}: {copy.scopeBody}
-            </span>
-            <span>
-              {copy.confidenceLabel}: {copy.confidenceBody}
-            </span>
+            <TypographyP className="mt-4 max-w-2xl text-white/80" wrapStyle="pretty" size="large">
+              {interpretation}
+            </TypographyP>
+            {coverageReductionPercent > 0 ? (
+              <p className="mt-2 max-w-2xl text-pretty text-sm text-white/75">
+                {copy.scoreCoverageAdjustment({ percent: coverageReductionPercent })}
+              </p>
+            ) : null}
+            {score != null && methodologyVersion < LOCALISATION_AUDIT_METHODOLOGY_VERSION ? (
+              <p className="mt-2 max-w-2xl text-pretty text-sm text-white/75">
+                {copy.scoreLegacyMethodology}
+              </p>
+            ) : null}
+            {dimensionScores ? (
+              <ul className="mt-8 grid max-w-2xl grid-cols-2 gap-6 sm:grid-cols-4">
+                <li>
+                  <DimensionScoreCircle
+                    label={copy.dimensionTechnical}
+                    score={dimensionScores.technical}
+                    onMesh
+                  />
+                </li>
+                <li>
+                  <DimensionScoreCircle
+                    label={copy.dimensionLinguistic}
+                    score={dimensionScores.linguistic}
+                    onMesh
+                  />
+                </li>
+                <li>
+                  <DimensionScoreCircle
+                    label={copy.dimensionContextual}
+                    score={dimensionScores.contextual}
+                    onMesh
+                  />
+                </li>
+                <li>
+                  <DimensionScoreCircle
+                    label={copy.dimensionVisual}
+                    score={dimensionScores.visual}
+                    onMesh
+                  />
+                </li>
+              </ul>
+            ) : null}
+            <div className="mt-6 flex flex-wrap gap-x-8 gap-y-2 text-sm text-white/80">
+              {freshnessLabel ? (
+                <span>
+                  {copy.freshnessLabel}: {freshnessLabel}
+                </span>
+              ) : null}
+              <span>
+                {copy.scopeLabel}: {copy.scopeBody}
+              </span>
+              <span>
+                {copy.confidenceLabel}: {copy.confidenceBody}
+              </span>
+            </div>
+            {shareMessage ? (
+              <p className="mt-4 text-sm text-white/85" aria-live="polite">
+                {shareMessage}
+              </p>
+            ) : null}
+            <TypographyP className="mt-4 max-w-2xl text-white/80">
+              {copy.sampledPages({
+                count: teaser?.pagesCrawled ?? report?.pagesCrawled ?? 0,
+              })}{" "}
+              <Link
+                href={getLocalisationAuditGuideHref(locale)}
+                className="font-medium text-white underline-offset-4 hover:underline"
+              >
+                {copy.methodologyLink}
+              </Link>
+            </TypographyP>
           </div>
-          {shareMessage ? (
-            <p className="mt-4 text-sm text-white/85" aria-live="polite">
-              {shareMessage}
-            </p>
-          ) : null}
-          <TypographyP className="mt-4 max-w-2xl text-white/80">
-            {copy.sampledPages({
-              count: teaser?.pagesCrawled ?? report?.pagesCrawled ?? 0,
-            })}{" "}
-            <Link
-              href={getLocalisationAuditGuideHref(locale)}
-              className="font-medium text-white underline-offset-4 hover:underline"
-            >
-              {copy.methodologyLink}
-            </Link>
-          </TypographyP>
-        </div>
-      </MeshWash>
+        </MeshWash>
+      </IsolatedReportSection>
 
       {sectionLinks.length > 2 ? (
-        <nav
-          aria-label={copy.reportNavLabel}
-          className={cn(
-            "flex flex-wrap gap-x-6 gap-y-2 text-sm",
-            isWorkspace ? "pb-6" : "px-5 pb-8 sm:px-8 lg:px-10",
-          )}
+        <IsolatedReportSection
+          section="nav"
+          resetKeys={[audit.id, sectionLinks.map((link) => link.id).join("|")]}
         >
-          {sectionLinks.map((link) => (
-            <a
-              key={link.id}
-              href={`#${link.id}`}
-              className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              {link.label}
-            </a>
-          ))}
-        </nav>
+          <nav
+            aria-label={copy.reportNavLabel}
+            className={cn(
+              "flex flex-wrap gap-x-6 gap-y-2 text-sm",
+              isWorkspace ? "pb-6" : "px-5 pb-8 sm:px-8 lg:px-10",
+            )}
+          >
+            {sectionLinks.map((link) => (
+              <a
+                key={link.id}
+                href={`#${link.id}`}
+                className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
+        </IsolatedReportSection>
       ) : null}
 
       {standing && !isWorkspace ? (
-        <section className={sectionClassName}>
-          <TypographyH2 className="pb-0">{copy.standingHeading}</TypographyH2>
-          <TypographyP className="mt-4 max-w-2xl" size="large" tone="subtle">
-            {copy.standingRank({ rank: standing.rank, total: standing.total })}
-          </TypographyP>
-          <div className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
-            {standing.ahead > 0 ? (
-              <span>{copy.standingAhead({ ahead: standing.ahead })}</span>
-            ) : null}
-            {standing.averageScore != null ? (
-              <span>{copy.standingAverage({ average: standing.averageScore })}</span>
-            ) : null}
-          </div>
-          <div className="mt-6">
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link href={`/${locale}/localisation-audit`} />}
-            >
-              {copy.standingCta}
-            </Button>
-          </div>
-        </section>
+        <IsolatedReportSection section="standing" resetKeys={[standing.rank, standing.total]}>
+          <section className={sectionClassName}>
+            <TypographyH2 className="pb-0">{copy.standingHeading}</TypographyH2>
+            <TypographyP className="mt-4 max-w-2xl" size="large" tone="subtle">
+              {copy.standingRank({ rank: standing.rank, total: standing.total })}
+            </TypographyP>
+            <div className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
+              {standing.ahead > 0 ? (
+                <span>{copy.standingAhead({ ahead: standing.ahead })}</span>
+              ) : null}
+              {standing.averageScore != null ? (
+                <span>{copy.standingAverage({ average: standing.averageScore })}</span>
+              ) : null}
+            </div>
+            <div className="mt-6">
+              <Button
+                variant="outline"
+                nativeButton={false}
+                render={<Link href={`/${locale}/localisation-audit`} />}
+              >
+                {copy.standingCta}
+              </Button>
+            </div>
+          </section>
+        </IsolatedReportSection>
       ) : null}
 
-      <section id="fix-first" className={cn(sectionClassName, "scroll-mt-24")}>
-        <TypographyH2 className="pb-0">{copy.fixFirstHeading}</TypographyH2>
-        <div className="mt-8">
-          <FixFirstList findings={fixFirst} linkableIds={linkableFindingIds} copy={copy} />
-        </div>
-      </section>
+      <IsolatedReportSection section="fix-first" resetKeys={[audit.id, fixFirst.length]}>
+        <section id="fix-first" className={cn(sectionClassName, "scroll-mt-24")}>
+          <TypographyH2 className="pb-0">{copy.fixFirstHeading}</TypographyH2>
+          <div className="mt-8">
+            <FixFirstList findings={fixFirst} linkableIds={linkableFindingIds} copy={copy} />
+          </div>
+        </section>
+      </IsolatedReportSection>
 
       {hasCriteria ? (
-        <section id="criteria" className={cn(sectionClassName, "scroll-mt-24")}>
-          <TypographyH2 className="pb-0">{copy.creditsHeading}</TypographyH2>
-          <AuditCriteriaList grouped={groupedCriteria} copy={copy} domainKey={audit.domainKey} />
-        </section>
+        <IsolatedReportSection section="criteria" resetKeys={[audit.id, credits.length]}>
+          <section id="criteria" className={cn(sectionClassName, "scroll-mt-24")}>
+            <TypographyH2 className="pb-0">{copy.creditsHeading}</TypographyH2>
+            <AuditCriteriaList grouped={groupedCriteria} copy={copy} domainKey={audit.domainKey} />
+          </section>
+        </IsolatedReportSection>
       ) : null}
 
       {otherFindings.length > 0 ? (
-        <section id="findings" className={cn(sectionClassName, "scroll-mt-24")}>
-          <TypographyH2 className="pb-0">
-            {hasCriteria ? copy.otherFindingsHeading : copy.fullFindingsHeading}
-          </TypographyH2>
-          {hasCriteria ? (
-            <TypographyP className="mt-4 max-w-2xl" tone="subtle">
-              {copy.otherFindingsBody}
-            </TypographyP>
-          ) : null}
-          <div className="mt-8">
-            <FindingList findings={otherFindings} copy={copy} domainKey={audit.domainKey} />
-          </div>
-        </section>
+        <IsolatedReportSection section="findings" resetKeys={[audit.id, otherFindings.length]}>
+          <section id="findings" className={cn(sectionClassName, "scroll-mt-24")}>
+            <TypographyH2 className="pb-0">
+              {hasCriteria ? copy.otherFindingsHeading : copy.fullFindingsHeading}
+            </TypographyH2>
+            {hasCriteria ? (
+              <TypographyP className="mt-4 max-w-2xl" tone="subtle">
+                {copy.otherFindingsBody}
+              </TypographyP>
+            ) : null}
+            <div className="mt-8">
+              <FindingList findings={otherFindings} copy={copy} domainKey={audit.domainKey} />
+            </div>
+          </section>
+        </IsolatedReportSection>
       ) : null}
 
-      <section id="locales" className={cn(sectionClassName, "scroll-mt-24")}>
-        <TypographyH2 className="pb-0">{copy.localesHeading}</TypographyH2>
-        {detectedLocales.length === 0 ? (
-          <TypographyP className="mt-4" tone="subtle">
-            {copy.localesEmpty}
-          </TypographyP>
-        ) : (
-          <ul className="mt-6 flex flex-wrap gap-3">
-            {detectedLocales.map(({ locale: detected, sources }) => {
-              const name = localeDisplayName(detected, appLocale);
-              return (
-                <li key={detected} className="rounded-lg border border-border px-3 py-2">
-                  <p className="text-sm font-medium">{name ?? detected}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {[
-                      name ? detected : null,
-                      ...sources.map((source) => localeSourceLabels[source]),
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+      <IsolatedReportSection section="locales" resetKeys={[audit.id, detectedLocales.length]}>
+        <section id="locales" className={cn(sectionClassName, "scroll-mt-24")}>
+          <TypographyH2 className="pb-0">{copy.localesHeading}</TypographyH2>
+          {detectedLocales.length === 0 ? (
+            <TypographyP className="mt-4" tone="subtle">
+              {copy.localesEmpty}
+            </TypographyP>
+          ) : (
+            <ul className="mt-6 flex flex-wrap gap-3">
+              {detectedLocales.map(({ locale: detected, sources }) => {
+                const name = localeDisplayName(detected, appLocale);
+                return (
+                  <li key={detected} className="rounded-lg border border-border px-3 py-2">
+                    <p className="text-sm font-medium">{name ?? detected}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {[
+                        name ? detected : null,
+                        ...sources.map((source) => localeSourceLabels[source]),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </IsolatedReportSection>
 
       {report?.linguisticNotes && report.linguisticNotes.length > 0 ? (
-        <section className={sectionClassName}>
-          <TypographyH2 className="pb-0">{copy.linguisticHeading}</TypographyH2>
-          <ul className="mt-8 space-y-8">
-            {report.linguisticNotes.map((note) => (
-              <li key={note.locale}>
-                <p className="text-lg font-medium">{note.locale}</p>
-                <p className="mt-2 text-muted-foreground">{note.summary}</p>
-                <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
-                  {note.samples.map((sample) => (
-                    <li key={`${note.locale}-${sample.text}`}>
-                      <p className="italic">“{sample.text}”</p>
-                      <p className="mt-1">{sample.note}</p>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <IsolatedReportSection
+          section="linguistic"
+          resetKeys={[audit.id, report.linguisticNotes.length]}
+        >
+          <section className={sectionClassName}>
+            <TypographyH2 className="pb-0">{copy.linguisticHeading}</TypographyH2>
+            <ul className="mt-8 space-y-8">
+              {report.linguisticNotes.map((note) => (
+                <li key={note.locale}>
+                  <p className="text-lg font-medium">{note.locale}</p>
+                  <p className="mt-2 text-muted-foreground">{note.summary}</p>
+                  <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
+                    {note.samples.map((sample) => (
+                      <li key={`${note.locale}-${sample.text}`}>
+                        <p className="italic">“{sample.text}”</p>
+                        <p className="mt-1">{sample.note}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </IsolatedReportSection>
       ) : null}
 
       {sampledPages.length > 0 ? (
-        <section id="pages" className={cn(sectionClassName, "scroll-mt-24")}>
-          <SampledPagesList pages={sampledPages} copy={copy} domainKey={audit.domainKey} />
-        </section>
+        <IsolatedReportSection section="pages" resetKeys={[audit.id, sampledPages.length]}>
+          <section id="pages" className={cn(sectionClassName, "scroll-mt-24")}>
+            <SampledPagesList pages={sampledPages} copy={copy} domainKey={audit.domainKey} />
+          </section>
+        </IsolatedReportSection>
       ) : null}
 
       {isWorkspace ? null : (
-        <section className={sectionClassName}>
-          <TypographyH2 className="pb-0">{copy.reauditHeading}</TypographyH2>
-          <TypographyP className="mt-4 max-w-2xl" tone="subtle">
-            {ctaBody}
-          </TypographyP>
-          <div className="mt-6 flex flex-wrap gap-3">
-            {showSignInCtas ? (
-              audit.claimed ? (
-                <Button
-                  nativeButton={false}
-                  render={
-                    <Link href={claimDomainHref} onClick={() => trackCta("open_claimed_domain")} />
-                  }
-                >
-                  {copy.openInWorkspace}
-                </Button>
-              ) : (
-                <Button
-                  nativeButton={false}
-                  render={
-                    <Link
-                      href={`/auth/sign-in?returnTo=${encodeURIComponent(claimDomainHref)}`}
-                      onClick={() => trackCta("claim_domain")}
-                    />
-                  }
-                >
-                  {copy.claimDomain}
-                </Button>
-              )
-            ) : null}
-            <Button
-              variant={showSignInCtas ? "outline" : "default"}
-              nativeButton={false}
-              render={
-                <a
-                  href={REQUEST_DEMO_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => trackCta("book_review")}
-                />
-              }
-            >
-              {copy.bookReview}
-            </Button>
-            {audit.rerunnable ? (
-              <Button
-                variant="ghost"
-                onClick={() => restartAudit(copy.rerunError)}
-                disabled={rerunPending}
-              >
-                {rerunPending ? copy.rerunning : copy.rerun}
-              </Button>
-            ) : null}
-          </div>
-          {!audit.rerunnable && audit.rerunAvailableAt ? (
-            <p className="mt-4 text-sm text-muted-foreground">
-              {copy.rerunCooldown({
-                when: new Date(audit.rerunAvailableAt).toLocaleString(appLocale, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                  timeZone: "UTC",
-                  timeZoneName: "short",
-                }),
-              })}
-            </p>
-          ) : null}
-
-          <div className="mt-12 max-w-xl border-t border-border pt-8">
-            <h3 className="text-lg font-medium">{copy.unlockHeading}</h3>
-            <TypographyP className="mt-2" tone="subtle">
-              {copy.unlockBody}
+        <IsolatedReportSection
+          section="cta"
+          resetKeys={[audit.rerunnable, audit.rerunAvailableAt, showSignInCtas]}
+        >
+          <section className={sectionClassName}>
+            <TypographyH2 className="pb-0">{copy.reauditHeading}</TypographyH2>
+            <TypographyP className="mt-4 max-w-2xl" tone="subtle">
+              {ctaBody}
             </TypographyP>
-            <form
-              onSubmit={requestReportEmail}
-              className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"
-            >
-              <div className="min-w-0 flex-1 space-y-2">
-                <Label htmlFor="localisation-audit-email">{copy.emailLabel}</Label>
-                <Input
-                  id="localisation-audit-email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  placeholder={copy.emailPlaceholder}
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
-              </div>
-              <Button type="submit" variant="outline" disabled={pending}>
-                {pending ? copy.unlocking : copy.unlockSubmit}
+            <div className="mt-6 flex flex-wrap gap-3">
+              {showSignInCtas ? (
+                audit.claimed ? (
+                  <Button
+                    nativeButton={false}
+                    render={
+                      <Link
+                        href={claimDomainHref}
+                        onClick={() => trackCta("open_claimed_domain")}
+                      />
+                    }
+                  >
+                    {copy.openInWorkspace}
+                  </Button>
+                ) : (
+                  <Button
+                    nativeButton={false}
+                    render={
+                      <Link
+                        href={`/auth/sign-in?returnTo=${encodeURIComponent(claimDomainHref)}`}
+                        onClick={() => trackCta("claim_domain")}
+                      />
+                    }
+                  >
+                    {copy.claimDomain}
+                  </Button>
+                )
+              ) : null}
+              <Button
+                variant={showSignInCtas ? "outline" : "default"}
+                nativeButton={false}
+                render={
+                  <a
+                    href={REQUEST_DEMO_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackCta("book_review")}
+                  />
+                }
+              >
+                {copy.bookReview}
               </Button>
-            </form>
-            {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
-            {deliveryMessage ? (
-              <p className="mt-3 text-sm text-muted-foreground" aria-live="polite">
-                {deliveryMessage}
-              </p>
+              {audit.rerunnable ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => restartAudit(copy.rerunError)}
+                  disabled={rerunPending}
+                >
+                  {rerunPending ? copy.rerunning : copy.rerun}
+                </Button>
+              ) : null}
+            </div>
+            {!audit.rerunnable && audit.rerunAvailableAt ? (
+              <RerunCooldownNote when={audit.rerunAvailableAt} locale={appLocale} copy={copy} />
             ) : null}
-          </div>
-        </section>
+
+            <div className="mt-12 max-w-xl border-t border-border pt-8">
+              <h3 className="text-lg font-medium">{copy.unlockHeading}</h3>
+              <TypographyP className="mt-2" tone="subtle">
+                {copy.unlockBody}
+              </TypographyP>
+              <form
+                onSubmit={requestReportEmail}
+                className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"
+              >
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Label htmlFor="localisation-audit-email">{copy.emailLabel}</Label>
+                  <Input
+                    id="localisation-audit-email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    placeholder={copy.emailPlaceholder}
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                  />
+                </div>
+                <Button type="submit" variant="outline" disabled={pending}>
+                  {pending ? copy.unlocking : copy.unlockSubmit}
+                </Button>
+              </form>
+              {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+              {deliveryMessage ? (
+                <p className="mt-3 text-sm text-muted-foreground" aria-live="polite">
+                  {deliveryMessage}
+                </p>
+              ) : null}
+            </div>
+          </section>
+        </IsolatedReportSection>
       )}
     </>
   );
