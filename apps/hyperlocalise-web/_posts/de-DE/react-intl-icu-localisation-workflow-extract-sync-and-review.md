@@ -1,7 +1,7 @@
 ---
 title: "React Intl und ICU-Lokalisierung: Mit Hyperlocalise extrahieren, synchronisieren und überprüfen"
 date: 2026-09-24T00:00:00.000Z
-excerpt: "Integrieren Sie react-intl und die ICU-Nachrichtensyntax in einen repository-nativen Workflow: Extrahieren Sie Kataloge mit der Hyperlocalise-CLI, validieren Sie Pluralformen in Pull Requests, prüfen Sie die Übersetzungen in Hyperlocalise und liefern Sie übersetzte JSON-Dateien in die Produktion aus."
+excerpt: "\"Integrieren Sie react-intl und die ICU-Nachrichtensyntax in einen repository-nativen Workflow: Extrahieren Sie Kataloge mit der Hyperlocalise-CLI, validieren Sie Pluralformen in Pull Requests, prüfen Sie die Übersetzungen in Hyperlocalise und liefern Sie übersetzte JSON-Dateien in die Produktion aus.\""
 category: Technik
 tags:
   - react-intl
@@ -20,7 +20,7 @@ React Intl speichert nutzerseitige Texte in TypeScript, aber Übersetzer und CI 
 
 Dieser Leitfaden zeigt, wie du **react-intl**, **ICU** und die **`hyperlocalise`-CLI** in einem Workflow miteinander verbindest:
 
-1. Ingenieure schreiben Nachrichten in `defineMessages` und `<FormattedMessage />`.
+1. Engineers write messages in `defineMessages` and `<FormattedMessage />`.
 2. `hl extract` aktualisiert den englischen FormatJS-Katalog aus der Quelle.
 3. GitHub prüft den Pull Request auf Abweichungen, fehlende Schlüssel und Probleme mit der ICU-Struktur.
 4. `hl sync push` übermittelt den Katalog zur Überprüfung an Hyperlocalise.
@@ -90,7 +90,7 @@ export const savedFiltersBannerMessages = defineMessages({
 
 Verwende ICU innerhalb von `defaultMessage`, wenn der Text von Zahlen oder Enum-Werten abhängt. React Intl wertet die vollständige Nachricht zur Laufzeit aus; Übersetzer müssen die Skelette `{count, plural, ...}` und `{scope, select, ...}` beibehalten und die menschenlesbaren Zweige anpassen.
 
-In einer Seitenkomponente ICU-Werte über `formatMessage` oder `<FormattedMessage />` weitergeben:
+In a page component, pass ICU values through `formatMessage` or `<FormattedMessage />`:
 
 ```tsx
 "use client";
@@ -122,7 +122,7 @@ Vermeide `--flatten` bei ICU-Nachrichten, die als einzelne react-intl-Einheiten 
 Erstelle `i18n.yml` im Stammverzeichnis des Repositorys (oder in deinem App-Verzeichnis, falls das Monorepo die Konfiguration neben der UI ablegt):
 
 ```yaml
-version: hyperlocalise@1.13.4
+version: hyperlocalise@1.13.6
 
 locales:
   source: en-US

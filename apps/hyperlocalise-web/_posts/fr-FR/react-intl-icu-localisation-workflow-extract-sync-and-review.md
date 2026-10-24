@@ -1,7 +1,7 @@
 ---
 title: "Localisation React Intl et ICU : extraire, synchroniser et réviser avec Hyperlocalise"
 date: 2026-09-24T00:00:00.000Z
-excerpt: "Intégrez react-intl et la syntaxe des messages ICU à un flux de travail propre au dépôt : extrayez les catalogues avec la CLI Hyperlocalise, validez les pluriels dans les pull requests, révisez-les dans Hyperlocalise et déployez le JSON traduit en production."
+excerpt: "\"Intégrez react-intl et la syntaxe des messages ICU à un flux de travail propre au dépôt : extrayez les catalogues avec la CLI Hyperlocalise, validez les pluriels dans les pull requests, révisez-les dans Hyperlocalise et déployez le JSON traduit en production.\""
 category: Ingénierie
 tags:
   - react-intl
@@ -20,7 +20,7 @@ React Intl conserve les textes destinés aux utilisateurs dans TypeScript, mais 
 
 Ce guide montre comment intégrer **react-intl**, **ICU** et la **`hyperlocalise` CLI** dans un même flux de travail :
 
-1. Les ingénieurs écrivent des messages en `defineMessages` et `<FormattedMessage />`.
+1. Engineers write messages in `defineMessages` and `<FormattedMessage />`.
 2. `hl extract` met à jour le catalogue FormatJS anglais à partir de la source.
 3. GitHub vérifie la demande de tirage afin de détecter les dérives, les clés manquantes et les problèmes de structure ICU.
 4. `hl sync push` envoie le catalogue à Hyperlocalise pour examen.
@@ -90,7 +90,7 @@ export const savedFiltersBannerMessages = defineMessages({
 
 Utilisez ICU à l’intérieur de `defaultMessage` lorsque le texte dépend de nombres ou d’énumérations. React Intl évalue le message complet à l’exécution ; les traducteurs doivent préserver les structures `{count, plural, ...}` et `{scope, select, ...}` tout en modifiant les branches lisibles par les utilisateurs.
 
-Dans un composant de page, transmettez les valeurs ICU via `formatMessage` ou `<FormattedMessage />` :
+In a page component, pass ICU values through `formatMessage` or `<FormattedMessage />`:
 
 ```tsx
 "use client";
@@ -122,7 +122,7 @@ export function FiltersPage({ savedCount, scope }: { savedCount: number; scope: 
 Créez `i18n.yml` à la racine du dépôt (ou dans votre répertoire d’application si le monorepo conserve la configuration à côté de l’interface utilisateur) :
 
 ```yaml
-version: hyperlocalise@1.13.4
+version: hyperlocalise@1.13.6
 
 locales:
   source: en-US

@@ -2174,6 +2174,9 @@
   "27qrEmB3yO": {
     "defaultMessage": "Thử lại"
   },
+  "27t7ZaoeVg": {
+    "defaultMessage": "Quay lại kiểm tra bản địa hóa"
+  },
   "28A/J2yeKB": {
     "defaultMessage": "Bảng truy vấn"
   },
@@ -7553,6 +7556,9 @@
   "CfAFoekPz1": {
     "defaultMessage": "Dự án của {providerName}"
   },
+  "CfDiZIokkH": {
+    "defaultMessage": "Không thể hiển thị phần này."
+  },
   "Cfwqtf2yZL": {
     "defaultMessage": "Thông tin"
   },
@@ -7942,6 +7948,9 @@
   },
   "DN35BCM/UE": {
     "defaultMessage": "Bản nháp CMS"
+  },
+  "DND9HC6iiD": {
+    "defaultMessage": "Chỉ đẩy lên các bản dịch đã được phê duyệt. Trước tiên, hãy phê duyệt các chuỗi đã dịch trong trình chỉnh sửa nội dung."
   },
   "DNjUZTzqsq": {
     "defaultMessage": "Translation Intelligence là gì?"
@@ -9499,6 +9508,9 @@
   },
   "GRWKZQ9lbF": {
     "defaultMessage": "Actions"
+  },
+  "GRguzdxXWG": {
+    "defaultMessage": "Không gian làm việc của bạn đã sử dụng hết tín dụng AI. Hãy thay đổi gói trên trang Thanh toán hoặc chờ tín dụng AI được cấp lại."
   },
   "GS9z23Wjvp": {
     "defaultMessage": "Automation này sẽ xác thực các thay đổi bản địa hóa mỗi khi có nội dung được đẩy lên nhánh main và thông báo cho nhóm của bạn khi phát hiện các vấn đề chặn."
@@ -11432,6 +11444,9 @@
   "KLQrtgraoy": {
     "defaultMessage": "Chọn các tệp đã được ánh xạ để ghi trở lại Google Drive bằng định dạng đầu ra bản dịch của quy trình tự động hóa này."
   },
+  "KLnCqNe1S/": {
+    "defaultMessage": "Không thể hiển thị báo cáo này."
+  },
   "KMCkdidgwq": {
     "defaultMessage": "Dấu câu kết thúc"
   },
@@ -12007,6 +12022,9 @@
   },
   "LYdhfNsW7N": {
     "defaultMessage": "Từ điển này chưa được gắn với dự án nào."
+  },
+  "LYrw2fhqau": {
+    "defaultMessage": "Không thể tải bản kiểm tra này."
   },
   "LZCFkSSHP6": {
     "defaultMessage": "Nguồn ({locale})"
@@ -13613,6 +13631,9 @@
   "Oipi2K2qqU": {
     "defaultMessage": "Xóa {locale}"
   },
+  "OiwlgVlbmX": {
+    "defaultMessage": "Refresh"
+  },
   "OjbR5imOsw": {
     "defaultMessage": "Rõ ràng. Gần gũi. Tự tin."
   },
@@ -13723,6 +13744,9 @@
   },
   "P/9I6WaWRN": {
     "defaultMessage": "Đang cập nhật các vấn đề..."
+  },
+  "P/F9NX4KdB": {
+    "defaultMessage": "Thử lại"
   },
   "P/T+1+1UdK": {
     "defaultMessage": "Không thể tải phần này."
@@ -15998,6 +16022,9 @@
   "TafKpm43IW": {
     "defaultMessage": "Không thể cập nhật lịch trình. Hãy thử lại thay đổi này."
   },
+  "TavFARAoYK": {
+    "defaultMessage": "{percent}%"
+  },
   "Tb7h0w/7fY": {
     "defaultMessage": "Không có tùy chọn nào khả dụng"
   },
@@ -16237,6 +16264,9 @@
   },
   "U4l3MJE1g3": {
     "defaultMessage": "Có. Nhật Bản có thể thấy quy trình thanh toán mới trong khi Pháp vẫn sử dụng quy trình ban đầu. Bạn chọn những thị trường được áp dụng thay đổi này."
+  },
+  "U4sr4IyxSs": {
+    "defaultMessage": "{locale}: Đã dịch {translated}% · Đã duyệt {approved}%"
   },
   "U4v7cQLBDc": {
     "defaultMessage": "{count, plural, one {# ngôn ngữ} other {# ngôn ngữ}}"
@@ -17146,6 +17176,9 @@
   },
   "Vs00Rn62Ft": {
     "defaultMessage": "Next"
+  },
+  "VtE6l/Wmub": {
+    "defaultMessage": "Các nội dung khác trên trang vẫn khả dụng. Hãy thử tải lại báo cáo."
   },
   "VtO24sqmBM": {
     "defaultMessage": "Yêu cầu mới"
@@ -19417,6 +19450,9 @@
   },
   "aIA/MP2nWe": {
     "defaultMessage": "Viết tin nhắn…"
+  },
+  "aIR3vTD8Ln": {
+    "defaultMessage": "Các phần còn lại của báo cáo vẫn khả dụng. Hãy thử tải lại phần này."
   },
   "aJJlFa1d+w": {
     "defaultMessage": "Tìm kiếm các nút..."
@@ -22198,6 +22234,9 @@
   },
   "fbw3y8puRl": {
     "defaultMessage": "Unknown"
+  },
+  "fcLi/NB58Y": {
+    "defaultMessage": "Đã dịch {translated}% · Đã phê duyệt {approved}%"
   },
   "fd5kFNowDQ": {
     "defaultMessage": "No details yet"
@@ -27974,6 +28013,9 @@
   "qMZ6NrKEO8": {
     "defaultMessage": "Gemini"
   },
+  "qMcssRo5Ql": {
+    "defaultMessage": "{percent}%"
+  },
   "qMoIwNM0g+": {
     "defaultMessage": "Đã sao chép!"
   },
@@ -28867,6 +28909,9 @@
   },
   "s5bizftpco": {
     "defaultMessage": "Xóa bộ lọc"
+  },
+  "s5fbO82G4x": {
+    "defaultMessage": "Một số mục đã chọn chưa có bản địa hóa nào sẵn sàng để đẩy. Hãy bỏ chọn chúng hoặc phê duyệt bản dịch trước."
   },
   "s5vcFBwpaD": {
     "defaultMessage": "Release window active"
@@ -32197,6 +32242,9 @@
   },
   "ybeD8Dwr0/": {
     "defaultMessage": "Bạn đã chỉnh sửa phần thiết lập · {count, plural, one {# thay đổi} other {# thay đổi}}"
+  },
+  "ybysXlWsw7": {
+    "defaultMessage": "Thử tải lại báo cáo hoặc bắt đầu một cuộc kiểm tra bản địa hóa mới."
   },
   "yc2ziR1Owc": {
     "defaultMessage": "Chỉ bắt đầu chạy khi một thành viên trong nhóm xếp lịch chạy từ quy trình tự động hóa này."

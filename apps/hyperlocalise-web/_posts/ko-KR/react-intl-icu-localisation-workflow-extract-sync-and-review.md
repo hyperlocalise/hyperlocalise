@@ -20,7 +20,7 @@ React Intl은 사용자에게 표시되는 문구를 TypeScript에 저장하지�
 
 이 가이드에서는 **react-intl**, **ICU**, 그리고 **`hyperlocalise` CLI**를 하나의 워크플로에 연결하는 방법을 설명합니다:
 
-1. 엔지니어는 `defineMessages` 및 `<FormattedMessage />`로 메시지를 작성합니다.
+1. Engineers write messages in `defineMessages` and `<FormattedMessage />`.
 2. `hl extract`는 소스에서 영어 FormatJS 카탈로그를 새로 고칩니다.
 3. GitHub는 풀 리퀘스트에서 드리프트, 누락된 키 및 ICU 형식 문제를 확인합니다.
 4. `hl sync push`가 검토를 위해 카탈로그를 Hyperlocalise에 전송합니다.
@@ -50,7 +50,7 @@ React Intl은 사용자에게 표시되는 문구를 TypeScript에 저장하지�
 
 영어(`en-US`)가 소스 로케일입니다. 프랑스어와 독일어는 대상 로케일입니다. 메시지 ID와 `defaultMessage` 값은 `*.messages.ts` 파일(클라이언트 모듈)과 가끔 인라인 디스크립터에 있습니다. 추출된 JSON은 Hyperlocalise가 동기화하는 파일이고, 패킹된 JSON은 많은 앱이 런타임에 가져오는 파일입니다.
 
-필요한 항목:
+필요한 것:
 
 - `en-US`를 소스 로캘로, 대상 로캘을 설정하는 Hyperlocalise 프로젝트;
 - 그리고 `HYPERLOCALISE_API_KEY` 및 `HYPERLOCALISE_PROJECT_ID`을 GitHub Actions 시크릿으로 설정하고;
@@ -90,7 +90,7 @@ export const savedFiltersBannerMessages = defineMessages({
 
 숫자나 열거형에 따라 문구가 달라지는 경우 `defaultMessage` 내부에서 ICU를 사용하세요. React Intl은 런타임에 전체 메시지를 평가합니다. 번역자는 사람이 읽을 수 있는 분기는 변경하되 `{count, plural, ...}` 및 `{scope, select, ...}` 스켈레톤을 보존해야 합니다.
 
-페이지 컴포넌트에서 ICU 값을 `formatMessage` 또는 `<FormattedMessage />`을 통해 전달하세요:
+In a page component, pass ICU values through `formatMessage` or `<FormattedMessage />`:
 
 ```tsx
 "use client";
@@ -113,7 +113,7 @@ export function FiltersPage({ savedCount, scope }: { savedCount: number; scope: 
 }
 ```
 
-**서버 컴포넌트:** 서버 전용 모듈에서 `*.messages.ts`을(를) 가져오지 마세요. `defineMessages`은(는) 클라이언트 전용입니다. UI에 `"use client"`을(를) 표시하거나 서버에서 `getIntlShape(locale).formatMessage()`을(를) 사용하는 인라인 `{ id, defaultMessage, description }` 객체를 사용하세요. 프레임워크의 react-intl 경계에 관한 문서를 참고하세요. 추출 단계는 스캔하는 `.ts` 및 `.tsx` 파일에서도 설명자를 계속 찾습니다.
+**Server Components:** do not import `*.messages.ts` from server-only modules—`defineMessages` is client-only. Either mark the UI as `"use client"` or use inline `{ id, defaultMessage, description }` objects with `getIntlShape(locale).formatMessage()` on the server. See your framework’s react-intl boundaries; the extract step still finds descriptors in `.ts` and `.tsx` files it scans.
 
 단일 react-intl 단위로 배포하려는 ICU 메시지에서는 `--flatten`을 피하세요. Flattening은 특수 번역 워크플로를 위해 복수형 및 선택 분기를 상위로 끌어올립니다. 런타임 카탈로그에서는 기본 동작이 아닙니다.
 
@@ -122,7 +122,7 @@ export function FiltersPage({ savedCount, scope }: { savedCount: number; scope: 
 저장소 루트에 `i18n.yml`를 생성하세요(또는 모노레포에서 UI 옆에 설정 파일을 두는 경우 앱 디렉터리 아래에):
 
 ```yaml
-version: hyperlocalise@1.13.3
+version: hyperlocalise@1.13.6
 
 locales:
   source: en-US
@@ -323,7 +323,7 @@ push-sources:
 | 메시지                      | 검토 질문                                                                                                      |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `filters.banner.savedCount` | `=0`, `one`, `other` 분기는 자연스럽게 읽히나요? `#`는 각 로캘의 복수형 규칙에 맞게 올바르게 확장되나요? |
-| `filters.banner.scope`      | 앱에서 전송하는 모든 `scope` 값이 `select`에 포함되나요? `other`은 안전한 대체값인가요?                             |
+| `filters.banner.scope`      | Does `select` cover every `scope` value the app sends? Is `other` a safe fallback?                             |
 | 짧은 레이블                | 복수형 확장 후에도 번역된 문자열이 버튼에 들어가나요?                                                |
 
 제한된 레이아웃에서 복수형 분기가 나타나면 스크린샷을 첨부하세요. Hyperlocalise는 용어집과 프로젝트 지침을 세그먼트와 함께 유지하고, CLI는 파일만 이동합니다.
@@ -382,7 +382,7 @@ pull-translations:
         labels: localization
 ```
 
-`sync pull`은 FormatJS 형식(id, `defaultMessage`, 때로는 `description`)으로 `lang/fr-FR.json`와 `lang/de-DE.json`를 작성합니다. `hl pack`은 각 `defaultMessage`의 ICU를 보존하면서 `description` 및 기타 메타데이터를 제거합니다. 로케일별 JSON을 가져오는 번들러에서 바로 사용할 수 있습니다.
+`sync pull` writes `lang/fr-FR.json` and `lang/de-DE.json` in FormatJS shape (ids, `defaultMessage`, sometimes `description`). `hl pack` removes `description` and other metadata while preserving ICU in each `defaultMessage`—ready for bundlers that import JSON per locale.
 
 프랑스어 항목 압축 예시:
 
@@ -423,7 +423,7 @@ function flattenFormatJSCatalog(
 
 일부 팀은 소스 코드에만 영어 기본값을 두고 대상 언어에 대해서만 JSON을 로드합니다. 두 방식 모두 코드의 `defaultMessage`와 `lang/en-US.json`가 extract를 통해 서로 일치하면 사용할 수 있습니다.
 
-## 전체 흐름의 동작 방식
+## 전체 흐름이 작동하는 방식
 
 ```text
 feature branch
@@ -459,7 +459,7 @@ Extract는 코드를 카탈로그에 연결합니다. Sync는 카탈로그를 �
 
 ### 추출 데이터 불일치로 풀 리퀘스트 실패
 
-CI와 동일한 `--ignore` 패턴으로 `hl extract`을 로컬에서 실행하고, `lang/en-US.json`한 다음 푸시하세요. ID가 예상치 않게 건너뛰면 설명자에 안정적인 `id` 필드가 포함되어 있는지 확인하세요.
+Run `hl extract` locally with the same `--ignore` patterns as CI, commit `lang/en-US.json`, and push. If ids jump unexpectedly, confirm descriptors include stable `id` fields.
 
 ### `icu_shape_mismatch` 그 외에는 “좋은” 번역에서
 
@@ -477,7 +477,7 @@ CI와 동일한 `--ignore` 패턴으로 `hl extract`을 로컬에서 실행하�
 
 FormatJS JSON에서는 기본값 `hl pack`을 사용하세요. 그러면 `defaultMessage`이 그대로 유지됩니다. 카탈로그 형식이 일반 중첩 JSON인 경우가 아니라면 일반 중첩 JSON용 워크플로로 pack을 실행하지 마세요.
 
-## 릴리스 체크리스트
+## 출시 체크리스트
 
 새 문구에 의존하는 기능을 출시하기 전에:
 

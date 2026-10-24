@@ -20,7 +20,7 @@ Pinananatili ng React Intl ang tekstong nakikita ng mga user sa TypeScript, pero
 
 Ipinapakita ng gabay na ito kung paano pagsamahin ang **react-intl**, **ICU**, at ang **`hyperlocalise` CLI** sa iisang daloy ng trabaho:
 
-1. Nagsusulat ng mga mensahe ang mga inhinyero sa `defineMessages` at `<FormattedMessage />`.
+1. Engineers write messages in `defineMessages` and `<FormattedMessage />`.
 2. `hl extract` ina-update ang English FormatJS catalog mula sa source.
 3. Sinusuri ng GitHub ang pull request para sa drift, mga nawawalang key, at mga problema sa hugis ng ICU.
 4. `hl sync push` ang nagpapadala ng catalog sa Hyperlocalise para sa pagsusuri.
@@ -48,7 +48,7 @@ Ipagpalagay na ang app ay Next.js o Vite React na may ganitong layout:
 └── i18n.yml
 ```
 
-Ang English (`en-US`) ang source locale. French at German ang mga target. Nasa mga `*.messages.ts` file (mga client module) at paminsan-minsang inline descriptor ang mga message id at `defaultMessage` value. Ang extracted JSON ang sini-sync ng Hyperlocalise; ang packed JSON naman ang ini-import ng maraming app sa runtime.
+English (`en-US`) is the source locale. French and German are targets. Message ids and `defaultMessage` values live in `*.messages.ts` files (client modules) and in occasional inline descriptors. Extracted JSON is what Hyperlocalise syncs; packed JSON is what many apps import at runtime.
 
 Kakailanganin mo:
 
@@ -90,7 +90,7 @@ export const savedFiltersBannerMessages = defineMessages({
 
 Gumamit ng ICU sa loob ng `defaultMessage` kapag nakadepende sa mga numero o enum ang teksto. Sinusuri ng React Intl ang buong mensahe habang tumatakbo; dapat panatilihin ng mga tagasalin ang mga skeleton na `{count, plural, ...}` at `{scope, select, ...}` habang binabago ang mga sangay na nababasa ng tao.
 
-Sa isang component ng page, ipasa ang mga value ng ICU sa pamamagitan ng `formatMessage` o `<FormattedMessage />`:
+In a page component, pass ICU values through `formatMessage` or `<FormattedMessage />`:
 
 ```tsx
 "use client";
