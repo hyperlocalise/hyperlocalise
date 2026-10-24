@@ -54,42 +54,43 @@ type validateSegmentResponse struct {
 }
 
 type handler struct {
-	validate           func(segmentvalidate.Request) []segmentvalidate.Check
-	spellChecker       SpellChecker
-	ofrep              *experiment.OFREPHandler
-	research           researchService
-	gsc                gscService
-	objects            *objectstore.Registry
-	guidelines         *guidelines.Service
-	dictionaries       *dictionaryAPI
-	glossaries         *glossaryAPI
-	memories           *memoryAPI
-	qaReports          *qaReportAPI
-	teams              *teamAPI
-	members            *memberAPI
-	workspaceSettings  *workspaceSettingsAPI
-	apiKeys            *apiKeyAPI
-	issueSheets        *issueSheetAPI
-	notifications      *notificationsAPI
-	activityLogs       *activityLogAPI
-	billing            *billingAPI
-	activityLog        activityLogPublisher
-	contentEditor      *editorCatAPI
-	projects           *projectAPI
-	conversations      *conversationAPI
-	overview           *overviewAPI
-	publicTranslations *publicTranslationsAPI
-	publicJobs         *publicJobsAPI
-	workspace          *workspaceAPI
-	autumn             *autumn.Client
-	knowledgeMemories  *knowledgeMemoryAPI
-	guidelineDocuments *guidelineDocumentAPI
-	guidelineCheck     *guidelineCheckAPI
-	guidelineRetrieve  *guidelineRetrieveAPI
-	valkey             valkeyHealthClient
-	overviewCache      dictionaryWordsCache
-	researchCache      domainResearchCache
-	postgres           healthPinger
+	validate             func(segmentvalidate.Request) []segmentvalidate.Check
+	spellChecker         SpellChecker
+	ofrep                *experiment.OFREPHandler
+	research             researchService
+	gsc                  gscService
+	objects              *objectstore.Registry
+	guidelines           *guidelines.Service
+	dictionaries         *dictionaryAPI
+	glossaries           *glossaryAPI
+	memories             *memoryAPI
+	qaReports            *qaReportAPI
+	teams                *teamAPI
+	members              *memberAPI
+	workspaceSettings    *workspaceSettingsAPI
+	sessionOrganizations *sessionOrganizationsAPI
+	apiKeys              *apiKeyAPI
+	issueSheets          *issueSheetAPI
+	notifications        *notificationsAPI
+	activityLogs         *activityLogAPI
+	billing              *billingAPI
+	activityLog          activityLogPublisher
+	contentEditor        *editorCatAPI
+	projects             *projectAPI
+	conversations        *conversationAPI
+	overview             *overviewAPI
+	publicTranslations   *publicTranslationsAPI
+	publicJobs           *publicJobsAPI
+	workspace            *workspaceAPI
+	autumn               *autumn.Client
+	knowledgeMemories    *knowledgeMemoryAPI
+	guidelineDocuments   *guidelineDocumentAPI
+	guidelineCheck       *guidelineCheckAPI
+	guidelineRetrieve    *guidelineRetrieveAPI
+	valkey               valkeyHealthClient
+	overviewCache        dictionaryWordsCache
+	researchCache        domainResearchCache
+	postgres             healthPinger
 }
 
 func newHandler() *handler {
@@ -128,6 +129,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.workspaceSettings != nil {
 		h.workspaceSettings.register(mux, verifier)
+	}
+	if h.sessionOrganizations != nil {
+		h.sessionOrganizations.register(mux, verifier)
 	}
 	if h.apiKeys != nil {
 		h.apiKeys.register(mux, verifier)

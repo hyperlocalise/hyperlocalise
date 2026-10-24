@@ -111,6 +111,7 @@ func main() {
 		analytics: newGAProductUsageTrackerFromEnv(),
 	}
 	h.workspaceSettings = &workspaceSettingsAPI{activityLog: activityLogPublisher}
+	h.sessionOrganizations = &sessionOrganizationsAPI{}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}
@@ -184,6 +185,7 @@ func main() {
 		h.teams.pool = traced
 		h.members.pool = traced
 		h.workspaceSettings.pool = traced
+		h.sessionOrganizations.pool = traced
 		h.apiKeys.pool = traced
 		h.activityLogs.pool = traced
 		h.billing.pool = traced
