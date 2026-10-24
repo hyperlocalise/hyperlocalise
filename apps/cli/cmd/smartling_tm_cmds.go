@@ -33,6 +33,7 @@ type smartlingTranslationMemoryImportOptions struct {
 	translationMemoryUID string
 	filePath             string
 	fileURI              string
+	timeoutSeconds       int
 	userIdentifier       string
 	userSecret           string
 	userSecretEnv        string
@@ -92,6 +93,7 @@ func newSmartlingTranslationMemoryImportCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.translationMemoryUID, "tm-uid", "", "Smartling translation memory UID")
 	cmd.Flags().StringVar(&o.filePath, "file", "", "TMX file path")
 	cmd.Flags().StringVar(&o.fileURI, "file-uri", "", "Smartling TMX file URI (defaults to the file name)")
+	cmd.Flags().IntVar(&o.timeoutSeconds, "timeout-seconds", 0, "HTTP timeout in seconds for the TMX upload (default 1800)")
 	addSmartlingCredentialFlags(cmd, &o.userIdentifier, &o.userSecret, &o.userSecretEnv)
 	_ = cmd.MarkFlagRequired("account-uid")
 	_ = cmd.MarkFlagRequired("tm-uid")
@@ -165,6 +167,9 @@ func executeSmartlingTranslationMemoryImport(cmd *cobra.Command, o smartlingTran
 	cfg, err := resolveSmartlingCLICredentials(o.userIdentifier, o.userSecret, o.userSecretEnv, action)
 	if err != nil {
 		return err
+	}
+	if o.timeoutSeconds > 0 {
+		cfg.TimeoutSeconds = o.timeoutSeconds
 	}
 	client, err := smartling.NewHTTPClient(cfg)
 	if err != nil {

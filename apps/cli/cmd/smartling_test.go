@@ -1591,6 +1591,15 @@ func TestSmartlingTMListCreateImportFlags(t *testing.T) {
 	if err := root.Execute(); err == nil || !strings.Contains(err.Error(), "required flag(s)") {
 		t.Fatalf("expected import required flags error, got %v", err)
 	}
+
+	out.Reset()
+	root.SetArgs([]string{"smartling", "tm", "import", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("import help failed: %v", err)
+	}
+	if !strings.Contains(out.String(), "--timeout-seconds") {
+		t.Fatal("import help missing --timeout-seconds")
+	}
 }
 
 func TestSmartlingTMCreateRejectsInvalidOutputBeforeAPI(t *testing.T) {

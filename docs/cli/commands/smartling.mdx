@@ -77,7 +77,7 @@ hyperlocalise smartling glossary import --account-uid <id> --glossary-uid <id> -
 hyperlocalise smartling tm list --account-uid <id> [--name <query>] [--output text|json] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
 hyperlocalise smartling tm create --account-uid <id> --name <name> --source-locale <locale> [--description <text>] [--output text|json] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
 hyperlocalise smartling tm download --account-uid <id> --tm-uid <id> --source-language <code> [--target-language <code>] [--format csv|tmx] [--output <path>] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
-hyperlocalise smartling tm import --account-uid <id> --tm-uid <id> --file <path.tmx> [--file-uri <uri>] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
+hyperlocalise smartling tm import --account-uid <id> --tm-uid <id> --file <path.tmx> [--file-uri <uri>] [--timeout-seconds <n>] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
 ```
 
 `tm` also accepts the alias `translation-memory`.
@@ -163,7 +163,7 @@ Pass exactly one of `--file-uri` or `--all`. `--all` lists files (same paging as
 
 `glossary download` defaults to Hyperlocalise-shaped CSV. Pass `--official` for Smartling's official CSV, or `--format xlsx` / `--format tbx` for official spreadsheet and TBX exports. Official TBX defaults to v3; use `--tbx-version v2` for TBX-Core v2. When `--language` is omitted on an official export, Hyperlocalise uses the glossary's locale list.
 
-`tm list` lists translation memories on an account (`--name` is an optional name filter). `tm create` needs `--name` and `--source-locale`. `tm import` uploads a `.tmx` file and reports the accepted job UID; Smartling processes the import asynchronously. `--file-uri` defaults to the file name.
+`tm list` lists translation memories on an account (`--name` is an optional name filter). `tm create` needs `--name` and `--source-locale`. `tm import` uploads a `.tmx` file and reports the accepted job UID; Smartling processes the import asynchronously. `--file-uri` defaults to the file name. File uploads use a 30-minute timeout by default so large TMX files can finish; pass `--timeout-seconds` to raise that limit.
 
 `glossary download` and `tm download` have no `--force` or `--dry-run`. They write to stdout unless you pass `--output`.
 

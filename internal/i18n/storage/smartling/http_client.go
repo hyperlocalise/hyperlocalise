@@ -24,17 +24,19 @@ import (
 )
 
 const (
-	authAPIBaseURL             = "https://api.smartling.com/auth-api/v2"
-	stringsAPIBaseURL          = "https://api.smartling.com/strings-api/v2"
-	filesAPIBaseURL            = "https://api.smartling.com/files-api/v2"
-	glossaryAPIBaseURL         = "https://api.smartling.com/glossary-api/v2"
-	glossaryAPIV3BaseURL       = "https://api.smartling.com/glossary-api/v3"
-	tmAPIBaseURL               = "https://api.smartling.com/translation-memory-api/v2"
-	tmGraphQLAPIBaseURL        = "https://api.smartling.com/tm-graphql-api/v2"
-	tmxAPIBaseURL              = "https://api.smartling.com/tm-tmx-api/v2"
-	translationsLimit          = 500
-	glossaryLimit              = 500
-	maxDownloadBytes     int64 = 50 * 1024 * 1024 // 50 MB
+	authAPIBaseURL                 = "https://api.smartling.com/auth-api/v2"
+	stringsAPIBaseURL              = "https://api.smartling.com/strings-api/v2"
+	filesAPIBaseURL                = "https://api.smartling.com/files-api/v2"
+	glossaryAPIBaseURL             = "https://api.smartling.com/glossary-api/v2"
+	glossaryAPIV3BaseURL           = "https://api.smartling.com/glossary-api/v3"
+	tmAPIBaseURL                   = "https://api.smartling.com/translation-memory-api/v2"
+	tmGraphQLAPIBaseURL            = "https://api.smartling.com/tm-graphql-api/v2"
+	tmxAPIBaseURL                  = "https://api.smartling.com/tm-tmx-api/v2"
+	translationsLimit              = 500
+	glossaryLimit                  = 500
+	maxDownloadBytes         int64 = 50 * 1024 * 1024 // 50 MB
+	defaultHTTPTimeout             = 30 * time.Second
+	defaultFileUploadTimeout       = 30 * time.Minute
 )
 
 type HTTPClient struct {
@@ -49,6 +51,7 @@ type HTTPClient struct {
 	tmGraphQLBaseURL  string
 	tmxBaseURL        string
 	http              *http.Client
+	timeout           time.Duration
 	userIdentifier    string
 	userSecret        string
 
@@ -60,7 +63,7 @@ type HTTPClient struct {
 func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 	timeout := time.Duration(cfg.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
-		timeout = 30 * time.Second
+		timeout = defaultHTTPTimeout
 	}
 
 	return &HTTPClient{
@@ -75,6 +78,7 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 		tmGraphQLBaseURL:  tmGraphQLAPIBaseURL,
 		tmxBaseURL:        tmxAPIBaseURL,
 		http:              &http.Client{Timeout: timeout},
+		timeout:           timeout,
 		userIdentifier:    cfg.UserIdentifier,
 		userSecret:        cfg.UserSecret,
 	}, nil
@@ -247,7 +251,11 @@ func (c *HTTPClient) postMultipart(ctx context.Context, endpoint string, token s
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 
-	httpErr := c.do(req, out)
+	client := c.http
+	if filePath != "" {
+		client = c.fileUploadHTTPClient()
+	}
+	httpErr := c.doWithHTTP(client, req, out)
 	if httpErr != nil {
 		_ = pr.CloseWithError(httpErr)
 	}
@@ -568,8 +576,35 @@ func (c *HTTPClient) sendJSON(ctx context.Context, method string, endpoint strin
 	return c.do(req, out)
 }
 
+func (c *HTTPClient) fileUploadTimeout() time.Duration {
+	timeout := defaultFileUploadTimeout
+	if c.timeout > timeout {
+		timeout = c.timeout
+	}
+	return timeout
+}
+
+func (c *HTTPClient) fileUploadHTTPClient() *http.Client {
+	timeout := c.fileUploadTimeout()
+	if c.http != nil && c.http.Timeout == timeout {
+		return c.http
+	}
+	var transport http.RoundTripper
+	if c.http != nil {
+		transport = c.http.Transport
+	}
+	return &http.Client{Timeout: timeout, Transport: transport}
+}
+
 func (c *HTTPClient) do(req *http.Request, out any) error {
-	resp, err := c.http.Do(req)
+	return c.doWithHTTP(c.http, req, out)
+}
+
+func (c *HTTPClient) doWithHTTP(client *http.Client, req *http.Request, out any) error {
+	if client == nil {
+		client = c.http
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("do request: %w", err)
 	}
