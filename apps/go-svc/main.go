@@ -215,6 +215,9 @@ func main() {
 	h.contentEditor.objects = h.objects
 	if h.irisGeneration != nil {
 		h.irisGeneration.objects = h.objects
+		if h.objects != nil {
+			h.irisGeneration.StartRecovery(context.Background())
+		}
 	}
 	guidelineIngestPublisher, guidelineIngestErr := newGuidelineIngestPublisher(context.Background())
 	if guidelineIngestErr != nil {

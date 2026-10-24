@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,9 +15,19 @@ import (
 )
 
 const (
-	irisUploadTTL   = 15 * time.Minute
-	irisDownloadTTL = 60 * time.Minute
+	irisUploadTTL      = 15 * time.Minute
+	irisDownloadTTL    = 60 * time.Minute
+	irisMaxUploadBytes = 64 << 20
 )
+
+type irisPendingJob struct {
+	UserID string `json:"userId"`
+	JobID  string `json:"jobId"`
+}
+
+type irisPendingIndex struct {
+	Jobs []irisPendingJob `json:"jobs"`
+}
 
 type irisJobRecord struct {
 	ID                  string              `json:"id"`
@@ -78,6 +89,22 @@ func irisOutputKey(userID, jobID, filename string) string {
 	return irisUserPrefix(userID) + "/jobs/" + jobID + "/assets/" + filename
 }
 
+func irisPendingIndexKey() string {
+	return "iris/generation/pending-index.json"
+}
+
+func irisPendingKey(jobID string) string {
+	return "iris/generation/pending/" + strings.TrimSpace(jobID) + ".json"
+}
+
+func irisCancelKey(userID, jobID string) string {
+	return irisUserPrefix(userID) + "/cancels/" + strings.TrimSpace(jobID)
+}
+
+func irisRunLockKey(jobID string) string {
+	return "iris/generation/locks/" + strings.TrimSpace(jobID)
+}
+
 func (api *irisGenerationAPI) registry() (*objectstore.Registry, error) {
 	if api == nil || api.objects == nil {
 		return nil, fmt.Errorf("object_storage_not_configured")
@@ -99,6 +126,14 @@ func (api *irisGenerationAPI) presigner(ctx context.Context) (objectstore.Presig
 }
 
 func (api *irisGenerationAPI) putJSON(ctx context.Context, key string, value any) error {
+	return api.writeJSON(ctx, key, value, false)
+}
+
+func (api *irisGenerationAPI) putJSONIfAbsent(ctx context.Context, key string, value any) error {
+	return api.writeJSON(ctx, key, value, true)
+}
+
+func (api *irisGenerationAPI) writeJSON(ctx context.Context, key string, value any, ifAbsent bool) error {
 	reg, err := api.registry()
 	if err != nil {
 		return err
@@ -112,8 +147,21 @@ func (api *irisGenerationAPI) putJSON(ctx context.Context, key string, value any
 		Body:        bytes.NewReader(body),
 		Size:        int64(len(body)),
 		ContentType: "application/json",
+		IfAbsent:    ifAbsent,
 	})
 	return err
+}
+
+func (api *irisGenerationAPI) deleteObject(ctx context.Context, key string) error {
+	reg, err := api.registry()
+	if err != nil {
+		return err
+	}
+	store, err := reg.Resolve(reg.DefaultLocationID())
+	if err != nil {
+		return err
+	}
+	return store.Delete(ctx, key)
 }
 
 func (api *irisGenerationAPI) getJSON(ctx context.Context, key string, dest any) error {
@@ -171,13 +219,26 @@ func (api *irisGenerationAPI) getBytes(ctx context.Context, key string) ([]byte,
 	if err != nil {
 		return nil, "", err
 	}
+	info, err := store.Stat(ctx, key)
+	if err != nil {
+		return nil, "", err
+	}
+	if info.Size > irisMaxUploadBytes {
+		return nil, "", fmt.Errorf("asset is too large")
+	}
 	body, info, err := store.Get(ctx, key)
 	if err != nil {
 		return nil, "", err
 	}
 	defer func() { _ = body.Close() }()
-	data, err := io.ReadAll(body)
-	return data, info.ContentType, err
+	data, err := io.ReadAll(io.LimitReader(body, irisMaxUploadBytes+1))
+	if err != nil {
+		return nil, "", err
+	}
+	if int64(len(data)) > irisMaxUploadBytes {
+		return nil, "", fmt.Errorf("asset is too large")
+	}
+	return data, info.ContentType, nil
 }
 
 func (api *irisGenerationAPI) saveJob(ctx context.Context, job irisJobRecord) error {
@@ -235,4 +296,96 @@ func headerMap(headers http.Header) map[string]string {
 		}
 	}
 	return out
+}
+
+func (api *irisGenerationAPI) requestCancel(ctx context.Context, userID, jobID string) error {
+	return api.putJSON(ctx, irisCancelKey(userID, jobID), map[string]string{"status": "canceled"})
+}
+
+func (api *irisGenerationAPI) cancelRequested(ctx context.Context, userID, jobID string) bool {
+	var stored map[string]string
+	return api.getJSON(ctx, irisCancelKey(userID, jobID), &stored) == nil
+}
+
+func (api *irisGenerationAPI) acquireRunLock(ctx context.Context, jobID string) bool {
+	until := api.clock().Add(irisProviderTimeout + time.Minute).Format(time.RFC3339)
+	err := api.putJSONIfAbsent(ctx, irisRunLockKey(jobID), map[string]string{"until": until})
+	if err == nil {
+		return true
+	}
+	if !errors.Is(err, objectstore.ErrAlreadyExists) {
+		return false
+	}
+	var lock struct {
+		Until string `json:"until"`
+	}
+	if err := api.getJSON(ctx, irisRunLockKey(jobID), &lock); err != nil {
+		return false
+	}
+	expires, err := time.Parse(time.RFC3339, lock.Until)
+	if err != nil || !expires.After(api.clock()) {
+		_ = api.deleteObject(ctx, irisRunLockKey(jobID))
+		return api.putJSONIfAbsent(ctx, irisRunLockKey(jobID), map[string]string{"until": until}) == nil
+	}
+	return false
+}
+
+func (api *irisGenerationAPI) enqueuePending(ctx context.Context, job irisJobRecord) error {
+	item := irisPendingJob{UserID: job.UserID, JobID: job.ID}
+	if err := api.putJSON(ctx, irisPendingKey(job.ID), item); err != nil {
+		return err
+	}
+	api.queueMu.Lock()
+	defer api.queueMu.Unlock()
+	index, err := api.loadPendingIndex(ctx)
+	if err != nil {
+		return err
+	}
+	for _, existing := range index.Jobs {
+		if existing.JobID == job.ID {
+			return nil
+		}
+	}
+	index.Jobs = append(index.Jobs, item)
+	return api.putJSON(ctx, irisPendingIndexKey(), index)
+}
+
+func (api *irisGenerationAPI) dequeuePending(ctx context.Context, jobID string) error {
+	api.queueMu.Lock()
+	defer api.queueMu.Unlock()
+	index, err := api.loadPendingIndex(ctx)
+	if err != nil {
+		return err
+	}
+	kept := index.Jobs[:0]
+	for _, existing := range index.Jobs {
+		if existing.JobID != jobID {
+			kept = append(kept, existing)
+		}
+	}
+	index.Jobs = kept
+	if err := api.putJSON(ctx, irisPendingIndexKey(), index); err != nil {
+		return err
+	}
+	return api.deleteObject(ctx, irisPendingKey(jobID))
+}
+
+func (api *irisGenerationAPI) listPending(ctx context.Context) ([]irisPendingJob, error) {
+	index, err := api.loadPendingIndex(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return index.Jobs, nil
+}
+
+func (api *irisGenerationAPI) loadPendingIndex(ctx context.Context) (irisPendingIndex, error) {
+	var index irisPendingIndex
+	err := api.getJSON(ctx, irisPendingIndexKey(), &index)
+	if err == nil {
+		return index, nil
+	}
+	if errors.Is(err, objectstore.ErrNotFound) {
+		return irisPendingIndex{}, nil
+	}
+	return irisPendingIndex{}, err
 }

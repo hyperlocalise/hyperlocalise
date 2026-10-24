@@ -160,16 +160,11 @@ func decodeAssetRef(value any) (irisAssetRef, bool) {
 		return irisAssetRef{}, false
 	}
 	ref := irisAssetRef{Kind: strings.TrimSpace(stringFrom(raw["kind"]))}
-	switch ref.Kind {
-	case "asset":
-		ref.ID = strings.ToLower(strings.TrimSpace(stringFrom(raw["id"])))
-		return ref, isSHA256(ref.ID)
-	case "url":
-		ref.URL = strings.TrimSpace(stringFrom(raw["url"]))
-		return ref, strings.HasPrefix(ref.URL, "https://")
-	default:
+	if ref.Kind != "asset" {
 		return irisAssetRef{}, false
 	}
+	ref.ID = strings.ToLower(strings.TrimSpace(stringFrom(raw["id"])))
+	return ref, isSHA256(ref.ID)
 }
 
 func (req irisGenerateRequest) asset(name string) (irisAssetRef, bool) {
@@ -192,6 +187,9 @@ func (req irisGenerateRequest) assets(name string) []irisAssetRef {
 }
 
 func validateIrisGenerateRequest(req irisGenerateRequest) (irisModelInfo, error) {
+	if err := rejectRemoteAssetURLs(req); err != nil {
+		return irisModelInfo{}, err
+	}
 	model, ok := irisModelByID(req.modelID())
 	if !ok {
 		return irisModelInfo{}, fmt.Errorf("unknown model")
@@ -289,6 +287,33 @@ func inputSeconds(req irisGenerateRequest, model irisModelInfo) float64 {
 		return duration
 	}
 	return 30
+}
+
+func rejectRemoteAssetURLs(req irisGenerateRequest) error {
+	fields := []string{"image", "video", "audio", "media", "startFrame", "endFrame"}
+	for _, field := range fields {
+		if assetKind(req[field]) == "url" {
+			return fmt.Errorf("remote asset URLs are not supported; upload the file first")
+		}
+	}
+	raw, ok := req["images"].([]any)
+	if !ok {
+		return nil
+	}
+	for _, item := range raw {
+		if assetKind(item) == "url" {
+			return fmt.Errorf("remote asset URLs are not supported; upload the file first")
+		}
+	}
+	return nil
+}
+
+func assetKind(value any) string {
+	raw, ok := value.(map[string]any)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(stringFrom(raw["kind"]))
 }
 
 func stringFrom(value any) string {

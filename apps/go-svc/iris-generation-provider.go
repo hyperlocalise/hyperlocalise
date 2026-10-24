@@ -100,7 +100,7 @@ func (p *irisGatewayProvider) image(ctx context.Context, req irisProviderRequest
 	if err != nil {
 		return nil, err
 	}
-	return decodeImageOutputs(body, "image", "png")
+	return decodeImageOutputs(ctx, body, "image", "png")
 }
 
 func (p *irisGatewayProvider) imageEdit(ctx context.Context, req irisProviderRequest, image irisProviderInput, count int) ([]irisProviderOutput, error) {
@@ -129,7 +129,7 @@ func (p *irisGatewayProvider) imageEdit(ctx context.Context, req irisProviderReq
 	if err != nil {
 		return nil, err
 	}
-	return decodeImageOutputs(body, "image", "png")
+	return decodeImageOutputs(ctx, body, "image", "png")
 }
 
 func (p *irisGatewayProvider) speech(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
@@ -181,8 +181,12 @@ func (p *irisGatewayProvider) video(ctx context.Context, req irisProviderRequest
 		"duration":     duration,
 		"aspect_ratio": req.AspectRatio,
 	}
-	if start, ok := firstInput(req.Inputs, "start"); ok {
-		payload["input_reference"] = "data:" + defaultType(start.ContentType, "image/png") + ";base64," + base64.StdEncoding.EncodeToString(start.Bytes)
+	if start, ok := firstInput(req.Inputs, "start", "video"); ok {
+		fallback := "image/png"
+		if start.Role == "video" {
+			fallback = "video/mp4"
+		}
+		payload["input_reference"] = "data:" + defaultType(start.ContentType, fallback) + ";base64," + base64.StdEncoding.EncodeToString(start.Bytes)
 	}
 	body, err := p.json(ctx, http.MethodPost, "/videos", payload)
 	if err != nil {
@@ -202,7 +206,7 @@ func (p *irisGatewayProvider) video(ctx context.Context, req irisProviderRequest
 		return nil, err
 	}
 	if len(parsed.Data) > 0 {
-		return decodeImageOutputs(body, "video", "mp4")
+		return decodeImageOutputs(ctx, body, "video", "mp4")
 	}
 	if parsed.Video.B64JSON != "" {
 		raw, err := base64.StdEncoding.DecodeString(parsed.Video.B64JSON)
@@ -306,7 +310,7 @@ func (p *irisGatewayProvider) do(req *http.Request) ([]byte, error) {
 	return body, nil
 }
 
-func decodeImageOutputs(body []byte, stem, ext string) ([]irisProviderOutput, error) {
+func decodeImageOutputs(ctx context.Context, body []byte, stem, ext string) ([]irisProviderOutput, error) {
 	var parsed struct {
 		Data []struct {
 			B64JSON string `json:"b64_json"`
@@ -330,7 +334,7 @@ func decodeImageOutputs(body []byte, stem, ext string) ([]irisProviderOutput, er
 		if item.B64JSON != "" {
 			raw, err = base64.StdEncoding.DecodeString(item.B64JSON)
 		} else if item.URL != "" {
-			raw, _, err = fetchHTTPS(context.Background(), item.URL)
+			raw, _, err = fetchHTTPS(ctx, item.URL)
 		} else {
 			err = fmt.Errorf("empty image payload")
 		}
@@ -452,21 +456,4 @@ func truncate(value string, max int) string {
 		return value
 	}
 	return value[:max]
-}
-
-func fetchHTTPS(ctx context.Context, rawURL string) ([]byte, string, error) {
-	if !strings.HasPrefix(rawURL, "https://") {
-		return nil, "", fmt.Errorf("refusing non-https url")
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
-	if err != nil {
-		return nil, "", err
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, "", err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 64<<20))
-	return body, resp.Header.Get("Content-Type"), err
 }

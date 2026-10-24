@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,6 +19,8 @@ type irisGenerationAPI struct {
 	provider irisGenerationProvider
 	now      func() time.Time
 	run      func(func())
+	queueMu  sync.Mutex
+	inflight sync.Map
 }
 
 type irisUploadResponse struct {
@@ -78,8 +81,8 @@ func (api *irisGenerationAPI) createUpload(w http.ResponseWriter, r *http.Reques
 	}
 	sha := strings.ToLower(strings.TrimSpace(body.SHA256))
 	contentType := strings.TrimSpace(body.ContentType)
-	if !isSHA256(sha) || contentType == "" || body.Size < 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_input", "message": "sha256, contentType, and size are required"})
+	if !isSHA256(sha) || contentType == "" || body.Size < 1 || body.Size > irisMaxUploadBytes {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_input", "message": "sha256, contentType, and a size between 1 and 64MiB are required"})
 		return
 	}
 	asset := irisAssetRef{Kind: "asset", ID: sha}
@@ -98,9 +101,10 @@ func (api *irisGenerationAPI) createUpload(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	signed, err := signer.PresignUpload(r.Context(), objectstore.Upload{
-		Key:         irisUploadKey(claims.UserID, sha),
-		ContentType: contentType,
-		IfAbsent:    true,
+		Key:           irisUploadKey(claims.UserID, sha),
+		ContentType:   contentType,
+		ContentLength: body.Size,
+		IfAbsent:      true,
 	}, irisUploadTTL)
 	if err != nil {
 		logRequestFailure(r, "iris_generation_presign_failed", "upload", err)
@@ -165,16 +169,20 @@ func (api *irisGenerationAPI) generate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "max_credits_exceeded", "message": "This generation exceeds maxCredits"})
 		return
 	}
-	if jobID, err := api.lookupIdempotency(r.Context(), claims.UserID, body.IdempotencyKey); err == nil && jobID != "" {
-		job, loadErr := api.loadJob(r.Context(), claims.UserID, jobID)
-		if loadErr == nil {
-			writeJSON(w, http.StatusOK, job)
-			return
-		}
+	jobID, existing, err := api.reserveJobID(r.Context(), claims.UserID, body.IdempotencyKey)
+	if err != nil {
+		logRequestFailure(r, "iris_generation_idempotency_failed", "generate", err)
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "object_storage_not_configured", "message": "S3 object storage is not configured"})
+		return
+	}
+	if existing != nil {
+		api.resumeIfNeeded(*existing)
+		writeJSON(w, http.StatusOK, *existing)
+		return
 	}
 	now := api.clock()
 	job := irisJobRecord{
-		ID:         "job_" + uuid.NewString(),
+		ID:         jobID,
 		Model:      model.ID,
 		Request:    body.Request,
 		Status:     "queued",
@@ -191,7 +199,11 @@ func (api *irisGenerationAPI) generate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "object_storage_not_configured", "message": "S3 object storage is not configured"})
 		return
 	}
-	_ = api.putJSON(r.Context(), irisIdempotencyKey(claims.UserID, body.IdempotencyKey), map[string]string{"jobId": job.ID})
+	if err := api.enqueuePending(r.Context(), job); err != nil {
+		logRequestFailure(r, "iris_generation_enqueue_failed", "generate", err)
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "object_storage_not_configured", "message": "S3 object storage is not configured"})
+		return
+	}
 	api.start(func() { api.runJob(job) })
 	writeJSON(w, http.StatusOK, job)
 }
@@ -208,6 +220,7 @@ func (api *irisGenerationAPI) getJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "job_not_found", "message": "Job not found"})
 		return
 	}
+	api.resumeIfNeeded(job)
 	writeJSON(w, http.StatusOK, job)
 }
 
@@ -224,6 +237,10 @@ func (api *irisGenerationAPI) cancelJob(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if job.Status == "queued" || job.Status == "running" {
+		if err := api.requestCancel(r.Context(), job.UserID, job.ID); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal_error", "message": "Could not cancel the job"})
+			return
+		}
 		now := api.clock().Format(time.RFC3339)
 		job.Status = "canceled"
 		job.CompletedAt = &now
@@ -233,6 +250,7 @@ func (api *irisGenerationAPI) cancelJob(w http.ResponseWriter, r *http.Request) 
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal_error", "message": "Could not cancel the job"})
 			return
 		}
+		_ = api.dequeuePending(r.Context(), job.ID)
 	}
 	writeJSON(w, http.StatusOK, job)
 }
@@ -247,14 +265,101 @@ func (api *irisGenerationAPI) lookupIdempotency(ctx context.Context, userID, key
 	return stored.JobID, nil
 }
 
+func (api *irisGenerationAPI) reserveJobID(ctx context.Context, userID, idempotencyKey string) (string, *irisJobRecord, error) {
+	if jobID, err := api.lookupIdempotency(ctx, userID, idempotencyKey); err == nil && jobID != "" {
+		job, loadErr := api.loadJob(ctx, userID, jobID)
+		if loadErr == nil {
+			return jobID, &job, nil
+		}
+		return jobID, nil, nil
+	}
+	jobID := "job_" + uuid.NewString()
+	err := api.putJSONIfAbsent(ctx, irisIdempotencyKey(userID, idempotencyKey), map[string]string{"jobId": jobID})
+	if err == nil {
+		return jobID, nil, nil
+	}
+	if !errors.Is(err, objectstore.ErrAlreadyExists) {
+		return "", nil, err
+	}
+	jobID, err = api.lookupIdempotency(ctx, userID, idempotencyKey)
+	if err != nil || jobID == "" {
+		return "", nil, err
+	}
+	job, loadErr := api.loadJob(ctx, userID, jobID)
+	if loadErr == nil {
+		return jobID, &job, nil
+	}
+	return jobID, nil, nil
+}
+
+func (api *irisGenerationAPI) StartRecovery(ctx context.Context) {
+	api.start(func() { api.recoverPending(ctx) })
+}
+
+func (api *irisGenerationAPI) resumeIfNeeded(job irisJobRecord) {
+	if job.Status != "queued" && !api.isStaleRunning(job) {
+		return
+	}
+	api.start(func() { api.runJob(job) })
+}
+
+func (api *irisGenerationAPI) recoverPending(ctx context.Context) {
+	pending, err := api.listPending(ctx)
+	if err != nil {
+		slog.Error("iris_generation_recover_failed", "error", err)
+		return
+	}
+	for _, item := range pending {
+		job, err := api.loadJob(ctx, item.UserID, item.JobID)
+		if err != nil {
+			continue
+		}
+		if job.Status == "queued" || job.Status == "running" {
+			pendingJob := job
+			api.start(func() { api.runJob(pendingJob) })
+			continue
+		}
+		_ = api.dequeuePending(ctx, job.ID)
+	}
+}
+
+func (api *irisGenerationAPI) isStaleRunning(job irisJobRecord) bool {
+	if job.Status != "running" || job.StartedAt == nil {
+		return false
+	}
+	started, err := time.Parse(time.RFC3339, *job.StartedAt)
+	if err != nil {
+		return true
+	}
+	return api.clock().Sub(started) > irisProviderTimeout
+}
+
+func (api *irisGenerationAPI) claimJob(jobID string) bool {
+	_, loaded := api.inflight.LoadOrStore(jobID, struct{}{})
+	return !loaded
+}
+
+func (api *irisGenerationAPI) releaseJob(jobID string) {
+	api.inflight.Delete(jobID)
+}
+
 func (api *irisGenerationAPI) runJob(job irisJobRecord) {
+	if !api.claimJob(job.ID) {
+		return
+	}
+	defer api.releaseJob(job.ID)
 	ctx, cancel := context.WithTimeout(context.Background(), irisProviderTimeout)
 	defer cancel()
+	if !api.acquireRunLock(ctx, job.ID) {
+		return
+	}
+	defer func() { _ = api.deleteObject(ctx, irisRunLockKey(job.ID)) }()
 	current, err := api.loadJob(ctx, job.UserID, job.ID)
 	if err == nil {
 		job = current
 	}
-	if job.Status == "canceled" {
+	if job.Status == "canceled" || job.Status == "succeeded" || job.Status == "failed" || api.cancelRequested(ctx, job.UserID, job.ID) {
+		_ = api.dequeuePending(ctx, job.ID)
 		return
 	}
 	started := api.clock().Format(time.RFC3339)
@@ -297,8 +402,8 @@ func (api *irisGenerationAPI) runJob(job irisJobRecord) {
 		api.failJob(ctx, job, "PROVIDER_ERROR", err.Error())
 		return
 	}
-	latest, loadErr := api.loadJob(ctx, job.UserID, job.ID)
-	if loadErr == nil && latest.Status == "canceled" {
+	if api.cancelRequested(ctx, job.UserID, job.ID) {
+		_ = api.dequeuePending(ctx, job.ID)
 		return
 	}
 	assets := make([]irisJobAsset, 0, len(outputs))
@@ -327,20 +432,51 @@ func (api *irisGenerationAPI) runJob(job irisJobRecord) {
 	done := 1.0
 	job.Progress = &done
 	job.ETARemainingSeconds = nil
-	if err := api.saveJob(ctx, job); err != nil {
+	if err := api.commitJob(ctx, job); err != nil {
 		slog.Error("iris_generation_complete_failed", "job_id", job.ID, "error", err)
 	}
 }
 
 func (api *irisGenerationAPI) failJob(ctx context.Context, job irisJobRecord, code, message string) {
+	if api.cancelRequested(ctx, job.UserID, job.ID) {
+		_ = api.dequeuePending(ctx, job.ID)
+		return
+	}
 	completed := api.clock().Format(time.RFC3339)
 	job.Status = "failed"
 	job.CompletedAt = &completed
 	job.Error = &irisJobError{Code: code, Message: message}
 	job.ETARemainingSeconds = nil
-	if err := api.saveJob(ctx, job); err != nil {
+	if err := api.commitJob(ctx, job); err != nil {
 		slog.Error("iris_generation_fail_failed", "job_id", job.ID, "error", err)
 	}
+}
+
+func (api *irisGenerationAPI) commitJob(ctx context.Context, job irisJobRecord) error {
+	if api.cancelRequested(ctx, job.UserID, job.ID) {
+		_ = api.dequeuePending(ctx, job.ID)
+		return nil
+	}
+	if err := api.saveJob(ctx, job); err != nil {
+		return err
+	}
+	if api.cancelRequested(ctx, job.UserID, job.ID) {
+		return api.restoreCanceled(ctx, job)
+	}
+	return api.dequeuePending(ctx, job.ID)
+}
+
+func (api *irisGenerationAPI) restoreCanceled(ctx context.Context, job irisJobRecord) error {
+	now := api.clock().Format(time.RFC3339)
+	job.Status = "canceled"
+	job.CompletedAt = &now
+	job.Error = &irisJobError{Code: "CANCELED", Message: "The generation was canceled."}
+	job.ETARemainingSeconds = nil
+	job.Phase = nil
+	if err := api.saveJob(ctx, job); err != nil {
+		return err
+	}
+	return api.dequeuePending(ctx, job.ID)
 }
 
 func (api *irisGenerationAPI) loadInputs(ctx context.Context, job irisJobRecord) ([]irisProviderInput, error) {
@@ -387,14 +523,10 @@ func (api *irisGenerationAPI) loadInputs(ctx context.Context, job irisJobRecord)
 }
 
 func (api *irisGenerationAPI) readRef(ctx context.Context, userID string, ref irisAssetRef) ([]byte, string, error) {
-	switch ref.Kind {
-	case "asset":
-		return api.getBytes(ctx, irisUploadKey(userID, ref.ID))
-	case "url":
-		return fetchHTTPS(ctx, ref.URL)
-	default:
+	if ref.Kind != "asset" || !isSHA256(ref.ID) {
 		return nil, "", fmtError("unsupported asset ref")
 	}
+	return api.getBytes(ctx, irisUploadKey(userID, ref.ID))
 }
 
 func decodeIrisRequest(r *http.Request) (irisGenerateRequest, error) {
