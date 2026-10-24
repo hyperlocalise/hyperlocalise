@@ -15,10 +15,36 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore/memory"
 	"github.com/stretchr/testify/require"
 )
+
+const irisTestPath = "/v1/orgs/acme/iris"
+
+type stubIrisMeter struct {
+	features bool
+	tokens   bool
+	tracks   int
+}
+
+func (s *stubIrisMeter) Check(_ context.Context, req autumn.CheckRequest) (autumn.CheckResponse, error) {
+	switch req.FeatureID {
+	case autumn.AIFeatures:
+		return autumn.CheckResponse{Allowed: s.features}, nil
+	case autumn.AITokens:
+		remaining := 4.2
+		return autumn.CheckResponse{Allowed: s.tokens, Balance: &autumn.Balance{Remaining: &remaining}}, nil
+	default:
+		return autumn.CheckResponse{Allowed: true}, nil
+	}
+}
+
+func (s *stubIrisMeter) Track(_ context.Context, _ autumn.TrackRequest) error {
+	s.tracks++
+	return nil
+}
 
 type presigningMemory struct {
 	*memory.Store
@@ -84,6 +110,12 @@ func newIrisGenerationFixture(t *testing.T, provider irisGenerationProvider) *ir
 		provider: provider,
 		now:      func() time.Time { return time.Date(2026, 10, 24, 1, 0, 0, 0, time.UTC) },
 		run:      func(fn func()) { fn() },
+		resolve: func(_ context.Context, _ AuthClaims, slug string) (irisOrgScope, error) {
+			if slug != "acme" {
+				return irisOrgScope{}, organizationAccessDenied()
+			}
+			return irisOrgScope{OrganizationID: "org_local", UserID: "user_iris"}, nil
+		},
 	}
 }
 
@@ -109,7 +141,7 @@ func TestIrisGenerationModelsAndEstimate(t *testing.T) {
 	api := newIrisGenerationFixture(t, &stubIrisProvider{})
 
 	t.Run("lists iris models", func(t *testing.T) {
-		rec := irisRequest(api, http.MethodGet, "/v1/iris/models", nil)
+		rec := irisRequest(api, http.MethodGet, irisTestPath+"/models", nil)
 		require.Equal(t, http.StatusOK, rec.Code)
 		var models []irisModelInfo
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &models))
@@ -123,15 +155,16 @@ func TestIrisGenerationModelsAndEstimate(t *testing.T) {
 	})
 
 	t.Run("estimates image and voice", func(t *testing.T) {
-		rec := irisRequest(api, http.MethodPost, "/v1/iris/estimate", map[string]any{
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/estimate", map[string]any{
 			"model": "flux-2-klein", "prompt": "a cat", "count": 2,
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
 		var estimate irisEstimate
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &estimate))
-		require.Equal(t, 2.0, estimate.Credits)
+		require.True(t, estimate.Allowed)
+		require.Equal(t, "ai_tokens", estimate.FeatureID)
 
-		rec = irisRequest(api, http.MethodPost, "/v1/iris/estimate", map[string]any{
+		rec = irisRequest(api, http.MethodPost, irisTestPath+"/estimate", map[string]any{
 			"model": "gemini-3.8-flash-tts", "prompt": strings.Repeat("hi ", 40), "voice": "Zephyr",
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
@@ -147,7 +180,7 @@ func TestIrisGenerationUploadAndJob(t *testing.T) {
 	t.Run("signs a missing S3 upload and reuses an existing one", func(t *testing.T) {
 		sum := sha256.Sum256([]byte("hello"))
 		sha := hex.EncodeToString(sum[:])
-		rec := irisRequest(api, http.MethodPost, "/v1/iris/uploads", map[string]any{
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/uploads", map[string]any{
 			"sha256": sha, "contentType": "image/png", "size": 5,
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
@@ -159,8 +192,8 @@ func TestIrisGenerationUploadAndJob(t *testing.T) {
 		require.Equal(t, "image/png", created.UploadHeaders["Content-Type"])
 		require.Equal(t, "5", created.UploadHeaders["Content-Length"])
 
-		require.NoError(t, api.putBytes(t.Context(), irisUploadKey("user_iris", sha), "image/png", []byte("hello")))
-		rec = irisRequest(api, http.MethodPost, "/v1/iris/uploads", map[string]any{
+		require.NoError(t, api.putBytes(t.Context(), irisUploadKey("org_local", sha), "image/png", []byte("hello")))
+		rec = irisRequest(api, http.MethodPost, irisTestPath+"/uploads", map[string]any{
 			"sha256": sha, "contentType": "image/png", "size": 5,
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
@@ -170,7 +203,7 @@ func TestIrisGenerationUploadAndJob(t *testing.T) {
 	})
 
 	t.Run("runs a generation job through S3", func(t *testing.T) {
-		rec := irisRequest(api, http.MethodPost, "/v1/iris/generate", map[string]any{
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
 			"idempotencyKey": "11111111-1111-1111-1111-111111111111",
 			"request":        map[string]any{"model": "flux-2-klein", "prompt": "a cat"},
 		})
@@ -180,7 +213,7 @@ func TestIrisGenerationUploadAndJob(t *testing.T) {
 		require.NotEmpty(t, queued.ID)
 		require.Equal(t, 1, provider.calls)
 
-		got := irisRequest(api, http.MethodGet, "/v1/iris/jobs/"+queued.ID, nil)
+		got := irisRequest(api, http.MethodGet, irisTestPath+"/jobs/"+queued.ID, nil)
 		require.Equal(t, http.StatusOK, got.Code)
 		var job irisJobRecord
 		require.NoError(t, json.Unmarshal(got.Body.Bytes(), &job))
@@ -189,7 +222,7 @@ func TestIrisGenerationUploadAndJob(t *testing.T) {
 		require.Contains(t, job.Assets[0].URL, "https://s3.test/download/")
 		require.Equal(t, "image.png", job.Assets[0].Filename)
 
-		again := irisRequest(api, http.MethodPost, "/v1/iris/generate", map[string]any{
+		again := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
 			"idempotencyKey": "11111111-1111-1111-1111-111111111111",
 			"request":        map[string]any{"model": "flux-2-klein", "prompt": "a cat"},
 		})
@@ -202,7 +235,7 @@ func TestIrisGenerationUploadAndJob(t *testing.T) {
 
 	t.Run("cancels a job that has not finished", func(t *testing.T) {
 		api.run = func(func()) {}
-		rec := irisRequest(api, http.MethodPost, "/v1/iris/generate", map[string]any{
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
 			"idempotencyKey": "44444444-4444-4444-4444-444444444444",
 			"request":        map[string]any{"model": "flux-2-klein", "prompt": "a dog"},
 		})
@@ -211,7 +244,7 @@ func TestIrisGenerationUploadAndJob(t *testing.T) {
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &queued))
 		require.Equal(t, "queued", queued.Status)
 
-		canceled := irisRequest(api, http.MethodPost, "/v1/iris/jobs/"+queued.ID+"/cancel", nil)
+		canceled := irisRequest(api, http.MethodPost, irisTestPath+"/jobs/"+queued.ID+"/cancel", nil)
 		require.Equal(t, http.StatusOK, canceled.Code)
 		var job irisJobRecord
 		require.NoError(t, json.Unmarshal(canceled.Body.Bytes(), &job))
@@ -220,13 +253,13 @@ func TestIrisGenerationUploadAndJob(t *testing.T) {
 	})
 
 	t.Run("rejects unknown models and missing voice", func(t *testing.T) {
-		rec := irisRequest(api, http.MethodPost, "/v1/iris/generate", map[string]any{
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
 			"idempotencyKey": "22222222-2222-2222-2222-222222222222",
 			"request":        map[string]any{"model": "not-a-model", "prompt": "x"},
 		})
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 
-		rec = irisRequest(api, http.MethodPost, "/v1/iris/generate", map[string]any{
+		rec = irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
 			"idempotencyKey": "33333333-3333-3333-3333-333333333333",
 			"request":        map[string]any{"model": "elevenlabs-v4", "prompt": "hello"},
 		})
@@ -238,7 +271,7 @@ func TestIrisGenerationUnauthenticated(t *testing.T) {
 	api := newIrisGenerationFixture(t, &stubIrisProvider{})
 	mux := http.NewServeMux()
 	api.register(mux, stubSessionVerifier{})
-	req := httptest.NewRequest(http.MethodGet, "/v1/iris/models", nil)
+	req := httptest.NewRequest(http.MethodGet, irisTestPath+"/models", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
@@ -248,7 +281,7 @@ func TestIrisGenerationReviewFixes(t *testing.T) {
 	t.Run("rejects oversized uploads", func(t *testing.T) {
 		api := newIrisGenerationFixture(t, &stubIrisProvider{})
 		sum := sha256.Sum256([]byte("hello"))
-		rec := irisRequest(api, http.MethodPost, "/v1/iris/uploads", map[string]any{
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/uploads", map[string]any{
 			"sha256": hex.EncodeToString(sum[:]), "contentType": "image/png", "size": irisMaxUploadBytes + 1,
 		})
 		require.Equal(t, http.StatusBadRequest, rec.Code)
@@ -256,7 +289,7 @@ func TestIrisGenerationReviewFixes(t *testing.T) {
 
 	t.Run("rejects remote asset URLs", func(t *testing.T) {
 		api := newIrisGenerationFixture(t, &stubIrisProvider{})
-		rec := irisRequest(api, http.MethodPost, "/v1/iris/generate", map[string]any{
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
 			"idempotencyKey": "55555555-5555-5555-5555-555555555555",
 			"request": map[string]any{
 				"model": "bria-rmbg-2.0",
@@ -279,8 +312,14 @@ func TestIrisGenerationReviewFixes(t *testing.T) {
 			provider: provider,
 			now:      func() time.Time { return time.Date(2026, 10, 24, 1, 0, 0, 0, time.UTC) },
 			run:      func(fn func()) { fn() },
+			resolve: func(_ context.Context, _ AuthClaims, slug string) (irisOrgScope, error) {
+				if slug != "acme" {
+					return irisOrgScope{}, organizationAccessDenied()
+				}
+				return irisOrgScope{OrganizationID: "org_local", UserID: "user_iris"}, nil
+			},
 		}
-		rec := irisRequest(api, http.MethodPost, "/v1/iris/generate", map[string]any{
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
 			"idempotencyKey": "66666666-6666-6666-6666-666666666666",
 			"request":        map[string]any{"model": "flux-2-klein", "prompt": "a cat"},
 		})
@@ -294,7 +333,7 @@ func TestIrisGenerationReviewFixes(t *testing.T) {
 		}}}
 		api := newIrisGenerationFixture(t, provider)
 		api.run = func(func()) {}
-		rec := irisRequest(api, http.MethodPost, "/v1/iris/generate", map[string]any{
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
 			"idempotencyKey": "77777777-7777-7777-7777-777777777777",
 			"request":        map[string]any{"model": "flux-2-klein", "prompt": "a cat"},
 		})
@@ -306,7 +345,7 @@ func TestIrisGenerationReviewFixes(t *testing.T) {
 		require.Equal(t, 1, provider.calls)
 		var queued irisJobRecord
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &queued))
-		got := irisRequest(api, http.MethodGet, "/v1/iris/jobs/"+queued.ID, nil)
+		got := irisRequest(api, http.MethodGet, irisTestPath+"/jobs/"+queued.ID, nil)
 		var job irisJobRecord
 		require.NoError(t, json.Unmarshal(got.Body.Bytes(), &job))
 		require.Equal(t, "succeeded", job.Status)
@@ -319,7 +358,7 @@ func TestIrisGenerationReviewFixes(t *testing.T) {
 		api := newIrisGenerationFixture(t, provider)
 		var run func()
 		api.run = func(fn func()) { run = fn }
-		rec := irisRequest(api, http.MethodPost, "/v1/iris/generate", map[string]any{
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
 			"idempotencyKey": "88888888-8888-8888-8888-888888888888",
 			"request":        map[string]any{"model": "flux-2-klein", "prompt": "a cat"},
 		})
@@ -327,16 +366,74 @@ func TestIrisGenerationReviewFixes(t *testing.T) {
 		var queued irisJobRecord
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &queued))
 		provider.during = func() {
-			canceled := irisRequest(api, http.MethodPost, "/v1/iris/jobs/"+queued.ID+"/cancel", nil)
+			canceled := irisRequest(api, http.MethodPost, irisTestPath+"/jobs/"+queued.ID+"/cancel", nil)
 			require.Equal(t, http.StatusOK, canceled.Code)
 		}
 		run()
-		got := irisRequest(api, http.MethodGet, "/v1/iris/jobs/"+queued.ID, nil)
+		got := irisRequest(api, http.MethodGet, irisTestPath+"/jobs/"+queued.ID, nil)
 		var job irisJobRecord
 		require.NoError(t, json.Unmarshal(got.Body.Bytes(), &job))
 		require.Equal(t, "canceled", job.Status)
 		require.Equal(t, 1, provider.calls)
 	})
+}
+
+func TestIrisGenerationAutumnGate(t *testing.T) {
+	provider := &stubIrisProvider{outputs: []irisProviderOutput{{
+		Bytes: []byte("png"), Filename: "image.png", ContentType: "image/png",
+	}}}
+	api := newIrisGenerationFixture(t, provider)
+
+	t.Run("refuses when the plan has no AI features", func(t *testing.T) {
+		api.meter = &stubIrisMeter{features: false, tokens: true}
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
+			"idempotencyKey": "55555555-5555-5555-5555-555555555555",
+			"request":        map[string]any{"model": "flux-2-klein", "prompt": "a cat"},
+		})
+		require.Equal(t, http.StatusForbidden, rec.Code)
+		require.Contains(t, rec.Body.String(), "ai_features_required")
+		require.Equal(t, 0, provider.calls)
+	})
+
+	t.Run("refuses when AI credit is exhausted", func(t *testing.T) {
+		api.meter = &stubIrisMeter{features: true, tokens: false}
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
+			"idempotencyKey": "66666666-6666-6666-6666-666666666666",
+			"request":        map[string]any{"model": "flux-2-klein", "prompt": "a cat"},
+		})
+		require.Equal(t, http.StatusPaymentRequired, rec.Code)
+		require.Contains(t, rec.Body.String(), "ai_credit_exhausted")
+	})
+
+	t.Run("tracks agent_runs after a successful job", func(t *testing.T) {
+		meter := &stubIrisMeter{features: true, tokens: true}
+		api.meter = meter
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
+			"idempotencyKey": "99999999-9999-9999-9999-999999999999",
+			"request":        map[string]any{"model": "flux-2-klein", "prompt": "a cat"},
+		})
+		require.Equal(t, http.StatusOK, rec.Code)
+		got := irisRequest(api, http.MethodGet, irisTestPath+"/jobs/"+jsonJobID(t, rec), nil)
+		require.Equal(t, http.StatusOK, got.Code)
+		require.Equal(t, 1, meter.tracks)
+
+		estimate := irisRequest(api, http.MethodPost, irisTestPath+"/estimate", map[string]any{
+			"model": "flux-2-klein", "prompt": "a cat",
+		})
+		require.Equal(t, http.StatusOK, estimate.Code)
+		var body irisEstimate
+		require.NoError(t, json.Unmarshal(estimate.Body.Bytes(), &body))
+		require.True(t, body.Allowed)
+		require.NotNil(t, body.Remaining)
+		require.Equal(t, 4.2, *body.Remaining)
+	})
+}
+
+func jsonJobID(t *testing.T, rec *httptest.ResponseRecorder) string {
+	t.Helper()
+	var job irisJobRecord
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &job))
+	return job.ID
 }
 
 func TestIrisPublicHTTPSURL(t *testing.T) {

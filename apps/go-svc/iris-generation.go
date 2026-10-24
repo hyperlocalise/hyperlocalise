@@ -11,16 +11,36 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 )
 
+const (
+	irisMinAICreditUSD = 0.01
+	irisGenerationPath = orgRoutePrefix + "/iris"
+)
+
+type irisUsageMeter interface {
+	Check(context.Context, autumn.CheckRequest) (autumn.CheckResponse, error)
+	Track(context.Context, autumn.TrackRequest) error
+}
+
+type irisOrgScope struct {
+	OrganizationID string
+	UserID         string
+}
+
 type irisGenerationAPI struct {
-	objects  *objectstore.Registry
-	provider irisGenerationProvider
-	now      func() time.Time
-	run      func(func())
-	queueMu  sync.Mutex
-	inflight sync.Map
+	objects    *objectstore.Registry
+	provider   irisGenerationProvider
+	meter      irisUsageMeter
+	pool       dictionaryDB
+	membership organizationMembershipLookup
+	resolve    func(context.Context, AuthClaims, string) (irisOrgScope, error)
+	now        func() time.Time
+	run        func(func())
+	queueMu    sync.Mutex
+	inflight   sync.Map
 }
 
 type irisUploadResponse struct {
@@ -32,21 +52,122 @@ type irisUploadResponse struct {
 type irisGenerateBody struct {
 	Request        irisGenerateRequest `json:"request"`
 	IdempotencyKey string              `json:"idempotencyKey"`
-	MaxCredits     *float64            `json:"maxCredits"`
 }
 
 func (api *irisGenerationAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
-	registerAuthenticated(mux, verifier, "POST /v1/iris/uploads", http.HandlerFunc(api.createUpload))
-	registerAuthenticated(mux, verifier, "POST /v1/iris/generate", http.HandlerFunc(api.generate))
-	registerAuthenticated(mux, verifier, "POST /v1/iris/estimate", http.HandlerFunc(api.estimate))
-	registerAuthenticated(mux, verifier, "GET /v1/iris/models", http.HandlerFunc(api.listModels))
-	registerAuthenticated(mux, verifier, "GET /v1/iris/jobs/{jobId}", http.HandlerFunc(api.getJob))
-	registerAuthenticated(mux, verifier, "POST /v1/iris/jobs/{jobId}/cancel", http.HandlerFunc(api.cancelJob))
+	registerAuthenticated(mux, verifier, "POST "+irisGenerationPath+"/uploads", http.HandlerFunc(api.createUpload))
+	registerAuthenticated(mux, verifier, "POST "+irisGenerationPath+"/generate", http.HandlerFunc(api.generate))
+	registerAuthenticated(mux, verifier, "POST "+irisGenerationPath+"/estimate", http.HandlerFunc(api.estimate))
+	registerAuthenticated(mux, verifier, "GET "+irisGenerationPath+"/models", http.HandlerFunc(api.listModels))
+	registerAuthenticated(mux, verifier, "GET "+irisGenerationPath+"/jobs/{jobId}", http.HandlerFunc(api.getJob))
+	registerAuthenticated(mux, verifier, "POST "+irisGenerationPath+"/jobs/{jobId}/cancel", http.HandlerFunc(api.cancelJob))
 }
 
 func (api *irisGenerationAPI) claims(r *http.Request) (AuthClaims, bool) {
 	claims, ok := r.Context().Value(authContextKey{}).(AuthClaims)
 	return claims, ok && strings.TrimSpace(claims.UserID) != ""
+}
+
+func (api *irisGenerationAPI) scope(w http.ResponseWriter, r *http.Request) (irisOrgScope, bool) {
+	claims, ok := api.claims(r)
+	if !ok {
+		writeUnauthorized(w, "Authentication required")
+		return irisOrgScope{}, false
+	}
+	slug := strings.TrimSpace(r.PathValue("organizationSlug"))
+	if slug == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_input", "message": "organization slug is required"})
+		return irisOrgScope{}, false
+	}
+	if api.resolve != nil {
+		scope, err := api.resolve(r.Context(), claims, slug)
+		if err != nil {
+			writeJSON(w, http.StatusForbidden, map[string]string{"error": "organization_access_denied", "message": "Organization access denied"})
+			return irisOrgScope{}, false
+		}
+		return scope, true
+	}
+	if api.pool == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "service_unavailable", "message": "Organization directory is not configured"})
+		return irisOrgScope{}, false
+	}
+	actor, err := resolveOrganizationActor(r.Context(), api.pool, api.membership, claims, slug)
+	if err != nil {
+		var access *organizationAccessError
+		if errors.As(err, &access) {
+			writeJSON(w, access.status, map[string]string{"error": access.code, "message": access.message})
+			return irisOrgScope{}, false
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal_error", "message": "Could not resolve the workspace"})
+		return irisOrgScope{}, false
+	}
+	return irisOrgScope{OrganizationID: actor.organizationID, UserID: actor.userID}, true
+}
+
+func (api *irisGenerationAPI) autumnEstimate(ctx context.Context, orgID string, estimate irisEstimate) irisEstimate {
+	estimate.FeatureID = autumn.AITokens
+	if api.meter == nil {
+		return estimate
+	}
+	features, err := api.meter.Check(ctx, autumn.CheckRequest{CustomerID: orgID, FeatureID: autumn.AIFeatures})
+	if err != nil {
+		estimate.Allowed = false
+		return estimate
+	}
+	if !features.Allowed {
+		estimate.Allowed = false
+		return estimate
+	}
+	required := irisMinAICreditUSD
+	credit, err := api.meter.Check(ctx, autumn.CheckRequest{CustomerID: orgID, FeatureID: autumn.AITokens, RequiredBalance: &required})
+	if err != nil || !credit.Allowed {
+		estimate.Allowed = false
+		return estimate
+	}
+	if credit.Balance != nil {
+		estimate.Remaining = credit.Balance.Remaining
+		estimate.Unlimited = credit.Balance.Unlimited
+	}
+	return estimate
+}
+
+func (api *irisGenerationAPI) ensureAIAllowed(ctx context.Context, orgID string) (int, string, string, bool) {
+	if api.meter == nil {
+		return 0, "", "", true
+	}
+	features, err := api.meter.Check(ctx, autumn.CheckRequest{CustomerID: orgID, FeatureID: autumn.AIFeatures})
+	if err != nil {
+		return http.StatusServiceUnavailable, "ai_features_check_failed", "Unable to verify AI feature access", false
+	}
+	if !features.Allowed {
+		return http.StatusForbidden, "ai_features_required", "AI features are not included in your current plan.", false
+	}
+	required := irisMinAICreditUSD
+	credit, err := api.meter.Check(ctx, autumn.CheckRequest{CustomerID: orgID, FeatureID: autumn.AITokens, RequiredBalance: &required})
+	if err != nil {
+		return http.StatusServiceUnavailable, "ai_features_check_failed", "Unable to verify AI credit", false
+	}
+	if !credit.Allowed {
+		return http.StatusPaymentRequired, "ai_credit_exhausted", "Your workspace has used all of its AI credit. Change your plan on the Billing page, or wait for your AI credit to renew.", false
+	}
+	return 0, "", "", true
+}
+
+func (api *irisGenerationAPI) trackUsage(ctx context.Context, job irisJobRecord) {
+	if api.meter == nil {
+		return
+	}
+	trackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if err := api.meter.Track(trackCtx, autumn.TrackRequest{
+		CustomerID:     job.OrgID,
+		FeatureID:      autumn.AgentRuns,
+		Value:          1,
+		IdempotencyKey: "iris-generation:" + job.ID + ":agent_runs",
+		Properties:     map[string]any{"job_id": job.ID, "model": job.Model},
+	}); err != nil {
+		slog.WarnContext(trackCtx, "iris_generation_usage_track_failed", "organization_id", job.OrgID, "job_id", job.ID, "error", err)
+	}
 }
 
 func (api *irisGenerationAPI) clock() time.Time {
@@ -65,9 +186,8 @@ func (api *irisGenerationAPI) start(fn func()) {
 }
 
 func (api *irisGenerationAPI) createUpload(w http.ResponseWriter, r *http.Request) {
-	claims, ok := api.claims(r)
+	scope, ok := api.scope(w, r)
 	if !ok {
-		writeUnauthorized(w, "Authentication required")
 		return
 	}
 	var body struct {
@@ -86,7 +206,7 @@ func (api *irisGenerationAPI) createUpload(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	asset := irisAssetRef{Kind: "asset", ID: sha}
-	if _, err := api.statUpload(r.Context(), claims.UserID, sha); err == nil {
+	if _, err := api.statUpload(r.Context(), scope.OrganizationID, sha); err == nil {
 		writeJSON(w, http.StatusOK, irisUploadResponse{Asset: asset})
 		return
 	} else if !errors.Is(err, objectstore.ErrNotFound) && !errors.Is(err, objectstore.ErrUnknownLocation) {
@@ -101,7 +221,7 @@ func (api *irisGenerationAPI) createUpload(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	signed, err := signer.PresignUpload(r.Context(), objectstore.Upload{
-		Key:           irisUploadKey(claims.UserID, sha),
+		Key:           irisUploadKey(scope.OrganizationID, sha),
 		ContentType:   contentType,
 		ContentLength: body.Size,
 		IfAbsent:      true,
@@ -120,16 +240,15 @@ func (api *irisGenerationAPI) createUpload(w http.ResponseWriter, r *http.Reques
 }
 
 func (api *irisGenerationAPI) listModels(w http.ResponseWriter, r *http.Request) {
-	if _, ok := api.claims(r); !ok {
-		writeUnauthorized(w, "Authentication required")
+	if _, ok := api.scope(w, r); !ok {
 		return
 	}
 	writeJSON(w, http.StatusOK, irisPublicModels())
 }
 
 func (api *irisGenerationAPI) estimate(w http.ResponseWriter, r *http.Request) {
-	if _, ok := api.claims(r); !ok {
-		writeUnauthorized(w, "Authentication required")
+	scope, ok := api.scope(w, r)
+	if !ok {
 		return
 	}
 	req, err := decodeIrisRequest(r)
@@ -142,13 +261,12 @@ func (api *irisGenerationAPI) estimate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_input", "message": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, estimate)
+	writeJSON(w, http.StatusOK, api.autumnEstimate(r.Context(), scope.OrganizationID, estimate))
 }
 
 func (api *irisGenerationAPI) generate(w http.ResponseWriter, r *http.Request) {
-	claims, ok := api.claims(r)
+	scope, ok := api.scope(w, r)
 	if !ok {
-		writeUnauthorized(w, "Authentication required")
 		return
 	}
 	var body irisGenerateBody
@@ -165,11 +283,11 @@ func (api *irisGenerationAPI) generate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_input", "message": err.Error()})
 		return
 	}
-	if body.MaxCredits != nil && estimate.Credits > *body.MaxCredits {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "max_credits_exceeded", "message": "This generation exceeds maxCredits"})
+	if status, code, message, ok := api.ensureAIAllowed(r.Context(), scope.OrganizationID); !ok {
+		writeJSON(w, status, map[string]string{"error": code, "message": message})
 		return
 	}
-	jobID, existing, err := api.reserveJobID(r.Context(), claims.UserID, body.IdempotencyKey)
+	jobID, existing, err := api.reserveJobID(r.Context(), scope.OrganizationID, body.IdempotencyKey)
 	if err != nil {
 		logRequestFailure(r, "iris_generation_idempotency_failed", "generate", err)
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "object_storage_not_configured", "message": "S3 object storage is not configured"})
@@ -186,11 +304,12 @@ func (api *irisGenerationAPI) generate(w http.ResponseWriter, r *http.Request) {
 		Model:      model.ID,
 		Request:    body.Request,
 		Status:     "queued",
-		Credits:    estimate.Credits,
+		Credits:    0,
 		ETASeconds: estimate.ETASeconds,
 		Assets:     []irisJobAsset{},
 		CreatedAt:  now.Format(time.RFC3339),
-		UserID:     claims.UserID,
+		UserID:     scope.UserID,
+		OrgID:      scope.OrganizationID,
 	}
 	remaining := estimate.ETASeconds
 	job.ETARemainingSeconds = &remaining
@@ -209,13 +328,12 @@ func (api *irisGenerationAPI) generate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *irisGenerationAPI) getJob(w http.ResponseWriter, r *http.Request) {
-	claims, ok := api.claims(r)
+	scope, ok := api.scope(w, r)
 	if !ok {
-		writeUnauthorized(w, "Authentication required")
 		return
 	}
 	jobID := strings.TrimSpace(r.PathValue("jobId"))
-	job, err := api.loadJob(r.Context(), claims.UserID, jobID)
+	job, err := api.loadJob(r.Context(), scope.OrganizationID, jobID)
 	if err != nil {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "job_not_found", "message": "Job not found"})
 		return
@@ -225,19 +343,18 @@ func (api *irisGenerationAPI) getJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *irisGenerationAPI) cancelJob(w http.ResponseWriter, r *http.Request) {
-	claims, ok := api.claims(r)
+	scope, ok := api.scope(w, r)
 	if !ok {
-		writeUnauthorized(w, "Authentication required")
 		return
 	}
 	jobID := strings.TrimSpace(r.PathValue("jobId"))
-	job, err := api.loadJob(r.Context(), claims.UserID, jobID)
+	job, err := api.loadJob(r.Context(), scope.OrganizationID, jobID)
 	if err != nil {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "job_not_found", "message": "Job not found"})
 		return
 	}
 	if job.Status == "queued" || job.Status == "running" {
-		if err := api.requestCancel(r.Context(), job.UserID, job.ID); err != nil {
+		if err := api.requestCancel(r.Context(), job.OrgID, job.ID); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal_error", "message": "Could not cancel the job"})
 			return
 		}
@@ -255,37 +372,37 @@ func (api *irisGenerationAPI) cancelJob(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, job)
 }
 
-func (api *irisGenerationAPI) lookupIdempotency(ctx context.Context, userID, key string) (string, error) {
+func (api *irisGenerationAPI) lookupIdempotency(ctx context.Context, orgID, key string) (string, error) {
 	var stored struct {
 		JobID string `json:"jobId"`
 	}
-	if err := api.getJSON(ctx, irisIdempotencyKey(userID, key), &stored); err != nil {
+	if err := api.getJSON(ctx, irisIdempotencyKey(orgID, key), &stored); err != nil {
 		return "", err
 	}
 	return stored.JobID, nil
 }
 
-func (api *irisGenerationAPI) reserveJobID(ctx context.Context, userID, idempotencyKey string) (string, *irisJobRecord, error) {
-	if jobID, err := api.lookupIdempotency(ctx, userID, idempotencyKey); err == nil && jobID != "" {
-		job, loadErr := api.loadJob(ctx, userID, jobID)
+func (api *irisGenerationAPI) reserveJobID(ctx context.Context, orgID, idempotencyKey string) (string, *irisJobRecord, error) {
+	if jobID, err := api.lookupIdempotency(ctx, orgID, idempotencyKey); err == nil && jobID != "" {
+		job, loadErr := api.loadJob(ctx, orgID, jobID)
 		if loadErr == nil {
 			return jobID, &job, nil
 		}
 		return jobID, nil, nil
 	}
 	jobID := "job_" + uuid.NewString()
-	err := api.putJSONIfAbsent(ctx, irisIdempotencyKey(userID, idempotencyKey), map[string]string{"jobId": jobID})
+	err := api.putJSONIfAbsent(ctx, irisIdempotencyKey(orgID, idempotencyKey), map[string]string{"jobId": jobID})
 	if err == nil {
 		return jobID, nil, nil
 	}
 	if !errors.Is(err, objectstore.ErrAlreadyExists) {
 		return "", nil, err
 	}
-	jobID, err = api.lookupIdempotency(ctx, userID, idempotencyKey)
+	jobID, err = api.lookupIdempotency(ctx, orgID, idempotencyKey)
 	if err != nil || jobID == "" {
 		return "", nil, err
 	}
-	job, loadErr := api.loadJob(ctx, userID, jobID)
+	job, loadErr := api.loadJob(ctx, orgID, jobID)
 	if loadErr == nil {
 		return jobID, &job, nil
 	}
@@ -310,7 +427,11 @@ func (api *irisGenerationAPI) recoverPending(ctx context.Context) {
 		return
 	}
 	for _, item := range pending {
-		job, err := api.loadJob(ctx, item.UserID, item.JobID)
+		orgID := item.OrgID
+		if orgID == "" {
+			orgID = item.UserID
+		}
+		job, err := api.loadJob(ctx, orgID, item.JobID)
 		if err != nil {
 			continue
 		}
@@ -354,11 +475,11 @@ func (api *irisGenerationAPI) runJob(job irisJobRecord) {
 		return
 	}
 	defer func() { _ = api.deleteObject(ctx, irisRunLockKey(job.ID)) }()
-	current, err := api.loadJob(ctx, job.UserID, job.ID)
+	current, err := api.loadJob(ctx, job.OrgID, job.ID)
 	if err == nil {
 		job = current
 	}
-	if job.Status == "canceled" || job.Status == "succeeded" || job.Status == "failed" || api.cancelRequested(ctx, job.UserID, job.ID) {
+	if job.Status == "canceled" || job.Status == "succeeded" || job.Status == "failed" || api.cancelRequested(ctx, job.OrgID, job.ID) {
 		_ = api.dequeuePending(ctx, job.ID)
 		return
 	}
@@ -402,14 +523,14 @@ func (api *irisGenerationAPI) runJob(job irisJobRecord) {
 		api.failJob(ctx, job, "PROVIDER_ERROR", err.Error())
 		return
 	}
-	if api.cancelRequested(ctx, job.UserID, job.ID) {
+	if api.cancelRequested(ctx, job.OrgID, job.ID) {
 		_ = api.dequeuePending(ctx, job.ID)
 		return
 	}
 	assets := make([]irisJobAsset, 0, len(outputs))
 	keys := make([]string, 0, len(outputs))
 	for _, output := range outputs {
-		key := irisOutputKey(job.UserID, job.ID, output.Filename)
+		key := irisOutputKey(job.OrgID, job.ID, output.Filename)
 		if err := api.putBytes(ctx, key, output.ContentType, output.Bytes); err != nil {
 			api.failJob(ctx, job, "INTERNAL", "Could not store the generated file")
 			return
@@ -434,11 +555,13 @@ func (api *irisGenerationAPI) runJob(job irisJobRecord) {
 	job.ETARemainingSeconds = nil
 	if err := api.commitJob(ctx, job); err != nil {
 		slog.Error("iris_generation_complete_failed", "job_id", job.ID, "error", err)
+		return
 	}
+	api.trackUsage(ctx, job)
 }
 
 func (api *irisGenerationAPI) failJob(ctx context.Context, job irisJobRecord, code, message string) {
-	if api.cancelRequested(ctx, job.UserID, job.ID) {
+	if api.cancelRequested(ctx, job.OrgID, job.ID) {
 		_ = api.dequeuePending(ctx, job.ID)
 		return
 	}
@@ -453,14 +576,14 @@ func (api *irisGenerationAPI) failJob(ctx context.Context, job irisJobRecord, co
 }
 
 func (api *irisGenerationAPI) commitJob(ctx context.Context, job irisJobRecord) error {
-	if api.cancelRequested(ctx, job.UserID, job.ID) {
+	if api.cancelRequested(ctx, job.OrgID, job.ID) {
 		_ = api.dequeuePending(ctx, job.ID)
 		return nil
 	}
 	if err := api.saveJob(ctx, job); err != nil {
 		return err
 	}
-	if api.cancelRequested(ctx, job.UserID, job.ID) {
+	if api.cancelRequested(ctx, job.OrgID, job.ID) {
 		return api.restoreCanceled(ctx, job)
 	}
 	return api.dequeuePending(ctx, job.ID)
@@ -485,7 +608,7 @@ func (api *irisGenerationAPI) loadInputs(ctx context.Context, job irisJobRecord)
 		if !ok {
 			return nil
 		}
-		data, contentType, err := api.readRef(ctx, job.UserID, ref)
+		data, contentType, err := api.readRef(ctx, job.OrgID, ref)
 		if err != nil {
 			return err
 		}
@@ -522,11 +645,11 @@ func (api *irisGenerationAPI) loadInputs(ctx context.Context, job irisJobRecord)
 	return inputs, nil
 }
 
-func (api *irisGenerationAPI) readRef(ctx context.Context, userID string, ref irisAssetRef) ([]byte, string, error) {
+func (api *irisGenerationAPI) readRef(ctx context.Context, orgID string, ref irisAssetRef) ([]byte, string, error) {
 	if ref.Kind != "asset" || !isSHA256(ref.ID) {
 		return nil, "", fmtError("unsupported asset ref")
 	}
-	return api.getBytes(ctx, irisUploadKey(userID, ref.ID))
+	return api.getBytes(ctx, irisUploadKey(orgID, ref.ID))
 }
 
 func decodeIrisRequest(r *http.Request) (irisGenerateRequest, error) {

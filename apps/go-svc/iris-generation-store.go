@@ -21,6 +21,7 @@ const (
 )
 
 type irisPendingJob struct {
+	OrgID  string `json:"organizationId"`
 	UserID string `json:"userId"`
 	JobID  string `json:"jobId"`
 }
@@ -48,12 +49,14 @@ type irisJobRecord struct {
 	ExpiresAt           *string             `json:"expiresAt"`
 	OutputKeys          []string            `json:"-"`
 	UserID              string              `json:"-"`
+	OrgID               string              `json:"-"`
 }
 
 type irisStoredJob struct {
 	irisJobRecord
 	OutputKeys []string `json:"outputKeys"`
 	UserID     string   `json:"userId"`
+	OrgID      string   `json:"organizationId"`
 }
 
 type irisJobAsset struct {
@@ -69,24 +72,24 @@ type irisJobError struct {
 	Message string `json:"message"`
 }
 
-func irisUserPrefix(userID string) string {
-	return "iris/generation/users/" + strings.TrimSpace(userID)
+func irisOrgPrefix(orgID string) string {
+	return "iris/generation/orgs/" + strings.TrimSpace(orgID)
 }
 
-func irisUploadKey(userID, sha string) string {
-	return irisUserPrefix(userID) + "/uploads/" + strings.ToLower(sha)
+func irisUploadKey(orgID, sha string) string {
+	return irisOrgPrefix(orgID) + "/uploads/" + strings.ToLower(sha)
 }
 
-func irisJobKey(userID, jobID string) string {
-	return irisUserPrefix(userID) + "/jobs/" + jobID + ".json"
+func irisJobKey(orgID, jobID string) string {
+	return irisOrgPrefix(orgID) + "/jobs/" + jobID + ".json"
 }
 
-func irisIdempotencyKey(userID, key string) string {
-	return irisUserPrefix(userID) + "/idempotency/" + strings.TrimSpace(key)
+func irisIdempotencyKey(orgID, key string) string {
+	return irisOrgPrefix(orgID) + "/idempotency/" + strings.TrimSpace(key)
 }
 
-func irisOutputKey(userID, jobID, filename string) string {
-	return irisUserPrefix(userID) + "/jobs/" + jobID + "/assets/" + filename
+func irisOutputKey(orgID, jobID, filename string) string {
+	return irisOrgPrefix(orgID) + "/jobs/" + jobID + "/assets/" + filename
 }
 
 func irisPendingIndexKey() string {
@@ -97,8 +100,8 @@ func irisPendingKey(jobID string) string {
 	return "iris/generation/pending/" + strings.TrimSpace(jobID) + ".json"
 }
 
-func irisCancelKey(userID, jobID string) string {
-	return irisUserPrefix(userID) + "/cancels/" + strings.TrimSpace(jobID)
+func irisCancelKey(orgID, jobID string) string {
+	return irisOrgPrefix(orgID) + "/cancels/" + strings.TrimSpace(jobID)
 }
 
 func irisRunLockKey(jobID string) string {
@@ -181,7 +184,7 @@ func (api *irisGenerationAPI) getJSON(ctx context.Context, key string, dest any)
 	return json.NewDecoder(body).Decode(dest)
 }
 
-func (api *irisGenerationAPI) statUpload(ctx context.Context, userID, sha string) (objectstore.Info, error) {
+func (api *irisGenerationAPI) statUpload(ctx context.Context, orgID, sha string) (objectstore.Info, error) {
 	reg, err := api.registry()
 	if err != nil {
 		return objectstore.Info{}, err
@@ -190,7 +193,7 @@ func (api *irisGenerationAPI) statUpload(ctx context.Context, userID, sha string
 	if err != nil {
 		return objectstore.Info{}, err
 	}
-	return store.Stat(ctx, irisUploadKey(userID, sha))
+	return store.Stat(ctx, irisUploadKey(orgID, sha))
 }
 
 func (api *irisGenerationAPI) putBytes(ctx context.Context, key, contentType string, body []byte) error {
@@ -242,20 +245,21 @@ func (api *irisGenerationAPI) getBytes(ctx context.Context, key string) ([]byte,
 }
 
 func (api *irisGenerationAPI) saveJob(ctx context.Context, job irisJobRecord) error {
-	stored := irisStoredJob{irisJobRecord: job, OutputKeys: job.OutputKeys, UserID: job.UserID}
-	return api.putJSON(ctx, irisJobKey(job.UserID, job.ID), stored)
+	stored := irisStoredJob{irisJobRecord: job, OutputKeys: job.OutputKeys, UserID: job.UserID, OrgID: job.OrgID}
+	return api.putJSON(ctx, irisJobKey(job.OrgID, job.ID), stored)
 }
 
-func (api *irisGenerationAPI) loadJob(ctx context.Context, userID, jobID string) (irisJobRecord, error) {
+func (api *irisGenerationAPI) loadJob(ctx context.Context, orgID, jobID string) (irisJobRecord, error) {
 	var stored irisStoredJob
-	if err := api.getJSON(ctx, irisJobKey(userID, jobID), &stored); err != nil {
+	if err := api.getJSON(ctx, irisJobKey(orgID, jobID), &stored); err != nil {
 		return irisJobRecord{}, err
 	}
 	job := stored.irisJobRecord
 	job.OutputKeys = stored.OutputKeys
 	job.UserID = stored.UserID
-	if job.UserID == "" {
-		job.UserID = userID
+	job.OrgID = stored.OrgID
+	if job.OrgID == "" {
+		job.OrgID = orgID
 	}
 	return api.signJobAssets(ctx, job)
 }
@@ -331,7 +335,7 @@ func (api *irisGenerationAPI) acquireRunLock(ctx context.Context, jobID string) 
 }
 
 func (api *irisGenerationAPI) enqueuePending(ctx context.Context, job irisJobRecord) error {
-	item := irisPendingJob{UserID: job.UserID, JobID: job.ID}
+	item := irisPendingJob{OrgID: job.OrgID, UserID: job.UserID, JobID: job.ID}
 	if err := api.putJSON(ctx, irisPendingKey(job.ID), item); err != nil {
 		return err
 	}

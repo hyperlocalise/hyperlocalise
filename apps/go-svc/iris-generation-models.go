@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"strings"
 )
 
@@ -35,8 +34,11 @@ type irisPricing struct {
 }
 
 type irisEstimate struct {
-	Credits    float64 `json:"credits"`
-	ETASeconds int     `json:"etaSeconds"`
+	Allowed    bool     `json:"allowed"`
+	Remaining  *float64 `json:"remaining,omitempty"`
+	Unlimited  bool     `json:"unlimited"`
+	FeatureID  string   `json:"featureId"`
+	ETASeconds int      `json:"etaSeconds"`
 }
 
 type irisAssetRef struct {
@@ -235,58 +237,7 @@ func estimateIrisRequest(req irisGenerateRequest) (irisEstimate, irisModelInfo, 
 	if err != nil {
 		return irisEstimate{}, model, err
 	}
-	quantity := 1.0
-	switch model.Pricing.Unit {
-	case "image":
-		count := req.count()
-		if count < 1 {
-			count = 1
-		}
-		quantity = float64(count)
-	case "second":
-		duration := req.duration()
-		if duration <= 0 {
-			if model.Kind == irisKindAudio && model.ID == "elevenlabs-music" {
-				duration = 30
-			} else if model.Kind == irisKindVideo {
-				duration = 6
-			} else {
-				duration = 8
-			}
-		}
-		quantity = duration
-	case "input-second":
-		quantity = inputSeconds(req, model)
-	case "minute":
-		duration := req.duration()
-		if duration <= 0 {
-			duration = 30
-		}
-		quantity = duration / 60
-	case "input-minute":
-		quantity = inputSeconds(req, model) / 60
-	}
-	credits := quantity * model.Pricing.Credits
-	if model.Pricing.Minimum != nil {
-		credits = math.Max(*model.Pricing.Minimum, math.Ceil(credits))
-	} else {
-		credits = math.Ceil(credits)
-	}
-	return irisEstimate{Credits: credits, ETASeconds: model.ETASeconds}, model, nil
-}
-
-func inputSeconds(req irisGenerateRequest, model irisModelInfo) float64 {
-	if model.Kind == irisKindVoice {
-		runes := len([]rune(req.prompt()))
-		if runes == 0 {
-			return 1
-		}
-		return math.Max(1, float64(runes)/12)
-	}
-	if duration := req.duration(); duration > 0 {
-		return duration
-	}
-	return 30
+	return irisEstimate{Allowed: true, FeatureID: "ai_tokens", ETASeconds: model.ETASeconds}, model, nil
 }
 
 func rejectRemoteAssetURLs(req irisGenerateRequest) error {

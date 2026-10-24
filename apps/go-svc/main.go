@@ -152,6 +152,9 @@ func main() {
 		}
 	}
 	h.workspace = &workspaceAPI{membership: membershipLookup, activityLog: activityLogPublisher}
+	if h.irisGeneration != nil {
+		h.irisGeneration.membership = membershipLookup
+	}
 	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
 	if workosClient != nil {
 		h.workspace.flags = workosWorkspaceFlags{client: workosClient}
@@ -187,6 +190,9 @@ func main() {
 		h.members.pool = traced
 		h.workspaceSettings.pool = traced
 		h.sessionOrganizations.pool = traced
+		if h.irisGeneration != nil {
+			h.irisGeneration.pool = traced
+		}
 		h.apiKeys.pool = traced
 		h.activityLogs.pool = traced
 		h.billing.pool = traced
@@ -239,6 +245,9 @@ func main() {
 	h.guidelineCheck = &guidelineCheckAPI{knowledge: h.knowledgeMemories}
 	if h.autumn != nil {
 		h.guidelineCheck.meter = h.autumn
+		if h.irisGeneration != nil {
+			h.irisGeneration.meter = h.autumn
+		}
 	}
 	checkModel, err := newGuidelineCheckModel()
 	if err != nil {
