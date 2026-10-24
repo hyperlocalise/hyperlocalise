@@ -28,7 +28,7 @@ Word, PowerPoint, and legacy Excel uploads were whole files. Translators edited 
 
 ## Follow-ups
 
-- `sandboxHyperlocaliseReleaseVersion` and the sandbox image `HYPERLOCALISE_VERSION` are pinned to 1.13.5. Remove the in-process readers from ingest and import for `.docx`, `.xlsx`, and `.pptx`.
+- `sandboxHyperlocaliseReleaseVersion` and the sandbox image `HYPERLOCALISE_VERSION` are pinned to 1.13.6. Remove the in-process readers from ingest and import for `.docx`, `.xlsx`, and `.pptx`.
 - Native Go public downloads for Office files.
 - PowerPoint speaker notes, chart text, and SmartArt are not extracted.
 - Parse-back for AsciiDoc documents.
