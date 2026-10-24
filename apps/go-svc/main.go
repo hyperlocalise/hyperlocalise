@@ -112,6 +112,7 @@ func main() {
 	}
 	h.workspaceSettings = &workspaceSettingsAPI{activityLog: activityLogPublisher}
 	h.sessionOrganizations = &sessionOrganizationsAPI{}
+	h.sessionAccount = &sessionAccountAPI{}
 	h.irisGeneration = &irisGenerationAPI{provider: newIrisGatewayProvider()}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
@@ -190,6 +191,7 @@ func main() {
 		h.members.pool = traced
 		h.workspaceSettings.pool = traced
 		h.sessionOrganizations.pool = traced
+		h.sessionAccount.pool = traced
 		if h.irisGeneration != nil {
 			h.irisGeneration.pool = traced
 		}
