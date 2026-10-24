@@ -649,15 +649,17 @@ Signed-in WorkOS user profile at `/v1/me`. Notification preferences reuse
 | PATCH | `/v1/me/notification-preferences` | Replace the caller's email preferences |
 | DELETE | `/v1/me` | Refuse destructive delete (`409`) |
 
-## Billing resource usage
+## Billing
 
-Organization-wide workspace resource usage at
-`/v1/orgs/{organizationSlug}/billing/resource-usage`, with Autumn usage sync.
+Workspace Autumn customer snapshot, checkout, portal, invoices, and
+organization-wide resource usage at `/v1/orgs/{organizationSlug}/billing`.
+Customer ID is the local `organizations.id`. Checkout only attaches `growth` or
+`enterprise`. Topup opens the Stripe portal; it does not sell fake credit packs.
 
 Requires WorkOS session authentication and `DATABASE_URL`. Reads require
 `billing:read` (`admin` or `localization_manager`); other roles receive
-`403 billing_read_forbidden`. Sync requires `billing:write` (`admin` only); other
-roles receive `403 billing_write_forbidden`.
+`403 billing_read_forbidden`. Checkout, portal, topup, and usage sync require
+`billing:write` (`admin` only); other roles receive `403 billing_write_forbidden`.
 
 | Method | Path | Operation |
 |--------|------|-----------|
