@@ -153,3 +153,30 @@ func TestConditionalErrorAndCancellation(t *testing.T) {
 	_, err = store.Stat(ctx, "key")
 	require.ErrorIs(t, err, context.Canceled)
 }
+
+func TestIfMatchAndList(t *testing.T) {
+	var putIfMatch string
+	store := testStore(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			putIfMatch = r.Header.Get("If-Match")
+			w.Header().Set("ETag", `"next"`)
+			return
+		}
+		if r.URL.Query().Get("list-type") == "2" {
+			require.Equal(t, "iris/generation/pending/", r.URL.Query().Get("prefix"))
+			w.Header().Set("Content-Type", "application/xml")
+			_, err := io.WriteString(w, `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>iris/generation/pending/job-a.json</Key></Contents></ListBucketResult>`)
+			require.NoError(t, err)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
+	_, err := store.Put(t.Context(), objectstore.PutInput{
+		Key: "iris/generation/pending-index.json", Body: strings.NewReader("{}"), Size: 2, ContentType: "application/json", IfMatch: `"opaque"`,
+	})
+	require.NoError(t, err)
+	require.Equal(t, `"opaque"`, putIfMatch)
+	keys, err := store.List(t.Context(), "iris/generation/pending/")
+	require.NoError(t, err)
+	require.Equal(t, []string{"iris/generation/pending/job-a.json"}, keys)
+}

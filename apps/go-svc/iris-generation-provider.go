@@ -88,7 +88,7 @@ func (p *irisGatewayProvider) image(ctx context.Context, req irisProviderRequest
 		count = 1
 	}
 	if refs := inputsByRole(req.Inputs, "image", "start", "end"); len(refs) > 0 {
-		return p.imageEdit(ctx, req, refs[0], count)
+		return p.imageEdit(ctx, req, refs, count)
 	}
 	payload := map[string]any{
 		"model":  req.Model.GatewayID,
@@ -103,18 +103,27 @@ func (p *irisGatewayProvider) image(ctx context.Context, req irisProviderRequest
 	return decodeImageOutputs(ctx, body, "image", "png")
 }
 
-func (p *irisGatewayProvider) imageEdit(ctx context.Context, req irisProviderRequest, image irisProviderInput, count int) ([]irisProviderOutput, error) {
+func (p *irisGatewayProvider) imageEdit(ctx context.Context, req irisProviderRequest, images []irisProviderInput, count int) ([]irisProviderOutput, error) {
+	if len(images) == 0 {
+		return nil, fmt.Errorf("image input is required")
+	}
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 	_ = writer.WriteField("model", req.Model.GatewayID)
 	_ = writer.WriteField("prompt", req.Prompt)
 	_ = writer.WriteField("n", fmt.Sprintf("%d", count))
-	part, err := writer.CreateFormFile("image", "input.png")
-	if err != nil {
-		return nil, err
-	}
-	if _, err := part.Write(image.Bytes); err != nil {
-		return nil, err
+	for i, image := range images {
+		name := "input.png"
+		if len(images) > 1 {
+			name = fmt.Sprintf("input-%d.png", i+1)
+		}
+		part, err := writer.CreateFormFile("image", name)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := part.Write(image.Bytes); err != nil {
+			return nil, err
+		}
 	}
 	if err := writer.Close(); err != nil {
 		return nil, err
@@ -242,7 +251,7 @@ func (p *irisGatewayProvider) tool(ctx context.Context, req irisProviderRequest)
 		} else {
 			req.Prompt = irisFirstNonEmpty(req.Prompt, "Upscale this image. Preserve detail.")
 		}
-		return p.imageEdit(ctx, req, image, 1)
+		return p.imageEdit(ctx, req, []irisProviderInput{image}, 1)
 	}
 }
 

@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"math"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -17,12 +19,24 @@ import (
 
 const (
 	irisMinAICreditUSD = 0.01
+	irisCleanupTimeout = 5 * time.Second
 	irisGenerationPath = orgRoutePrefix + "/iris"
+
+	defaultIrisImageCreditModel = "custom/hyperlocalise-gpt-image-2"
+	defaultIrisVideoCreditModel = "custom/hyperlocalise-seedance-2-5"
+	defaultIrisAudioCreditModel = "custom/hyperlocalise-elevenlabs-audio"
 )
 
 type irisUsageMeter interface {
 	Check(context.Context, autumn.CheckRequest) (autumn.CheckResponse, error)
 	Track(context.Context, autumn.TrackRequest) error
+	TrackTokens(context.Context, autumn.TrackTokensRequest) error
+}
+
+type irisCreditConfig struct {
+	ImageModelID string
+	VideoModelID string
+	AudioModelID string
 }
 
 type irisOrgScope struct {
@@ -34,11 +48,13 @@ type irisGenerationAPI struct {
 	objects    *objectstore.Registry
 	provider   irisGenerationProvider
 	meter      irisUsageMeter
+	credits    irisCreditConfig
 	pool       dictionaryDB
 	membership organizationMembershipLookup
 	resolve    func(context.Context, AuthClaims, string) (irisOrgScope, error)
 	now        func() time.Time
 	run        func(func())
+	timeout    time.Duration
 	queueMu    sync.Mutex
 	inflight   sync.Map
 }
@@ -153,6 +169,17 @@ func (api *irisGenerationAPI) ensureAIAllowed(ctx context.Context, orgID string)
 	return 0, "", "", true
 }
 
+func (api *irisGenerationAPI) creditModels() irisCreditConfig {
+	cfg := irisCreditConfig{}
+	if api != nil {
+		cfg = api.credits
+	}
+	cfg.ImageModelID = irisFirstNonEmpty(cfg.ImageModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_IMAGE_MODEL_ID")), defaultIrisImageCreditModel)
+	cfg.VideoModelID = irisFirstNonEmpty(cfg.VideoModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_VIDEO_MODEL_ID")), defaultIrisVideoCreditModel)
+	cfg.AudioModelID = irisFirstNonEmpty(cfg.AudioModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_AUDIO_MODEL_ID")), defaultIrisAudioCreditModel)
+	return cfg
+}
+
 func (api *irisGenerationAPI) trackUsage(ctx context.Context, job irisJobRecord) {
 	if api.meter == nil {
 		return
@@ -168,6 +195,86 @@ func (api *irisGenerationAPI) trackUsage(ctx context.Context, job irisJobRecord)
 	}); err != nil {
 		slog.WarnContext(trackCtx, "iris_generation_usage_track_failed", "organization_id", job.OrgID, "job_id", job.ID, "error", err)
 	}
+	tokens, ok := irisSyntheticCredit(job, api.creditModels())
+	if !ok {
+		return
+	}
+	if err := api.meter.TrackTokens(trackCtx, tokens); err != nil {
+		slog.WarnContext(trackCtx, "iris_generation_ai_credit_track_failed", "organization_id", job.OrgID, "job_id", job.ID, "error", err)
+	}
+}
+
+func irisSyntheticCredit(job irisJobRecord, credits irisCreditConfig) (autumn.TrackTokensRequest, bool) {
+	model, ok := irisModelByID(job.Model)
+	if !ok {
+		return autumn.TrackTokensRequest{}, false
+	}
+	req := autumn.TrackTokensRequest{
+		CustomerID: job.OrgID,
+		FeatureID:  autumn.AITokens,
+		Properties: map[string]any{
+			"job_id": job.ID,
+			"model":  job.Model,
+			"kind":   string(model.Kind),
+		},
+	}
+	switch {
+	case model.Kind == irisKindVideo || model.ID == "bytedance-upscaler":
+		req.ModelID = credits.VideoModelID
+		req.OutputTokens = irisDurationSeconds(job)
+	case model.Kind == irisKindAudio:
+		req.ModelID = credits.AudioModelID
+		req.OutputTokens = irisDurationSeconds(job)
+	case model.Kind == irisKindVoice || model.ID == "universal-3.5-pro" || model.ID == "qwen3.8-omni-flash":
+		req.ModelID = credits.AudioModelID
+		req.OutputTokens = irisInputMinutes(job)
+	default:
+		req.ModelID = credits.ImageModelID
+		req.OutputTokens = irisImageCount(job)
+	}
+	if req.ModelID == "" || req.OutputTokens < 1 {
+		return autumn.TrackTokensRequest{}, false
+	}
+	return req, true
+}
+
+func irisImageCount(job irisJobRecord) int {
+	n := len(job.Assets)
+	if n < 1 {
+		n = job.Request.count()
+	}
+	if n < 1 {
+		return 1
+	}
+	return n
+}
+
+func irisDurationSeconds(job irisJobRecord) int {
+	duration := job.Request.duration()
+	if duration <= 0 {
+		duration = 6
+	}
+	n := int(math.Round(duration))
+	if n < 1 {
+		return 1
+	}
+	return n
+}
+
+func irisInputMinutes(job irisJobRecord) int {
+	duration := job.Request.duration()
+	if duration <= 0 {
+		return 1
+	}
+	minutes := int(math.Ceil(duration / 60))
+	if minutes < 1 {
+		return 1
+	}
+	return minutes
+}
+
+func irisCleanupContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), irisCleanupTimeout)
 }
 
 func (api *irisGenerationAPI) clock() time.Time {
@@ -175,6 +282,13 @@ func (api *irisGenerationAPI) clock() time.Time {
 		return api.now()
 	}
 	return time.Now().UTC()
+}
+
+func (api *irisGenerationAPI) jobTimeout() time.Duration {
+	if api != nil && api.timeout > 0 {
+		return api.timeout
+	}
+	return irisProviderTimeout
 }
 
 func (api *irisGenerationAPI) start(fn func()) {
@@ -469,12 +583,16 @@ func (api *irisGenerationAPI) runJob(job irisJobRecord) {
 		return
 	}
 	defer api.releaseJob(job.ID)
-	ctx, cancel := context.WithTimeout(context.Background(), irisProviderTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), api.jobTimeout())
 	defer cancel()
 	if !api.acquireRunLock(ctx, job.ID) {
 		return
 	}
-	defer func() { _ = api.deleteObject(ctx, irisRunLockKey(job.ID)) }()
+	defer func() {
+		cleanupCtx, cleanupCancel := irisCleanupContext(ctx)
+		defer cleanupCancel()
+		_ = api.deleteObject(cleanupCtx, irisRunLockKey(job.ID))
+	}()
 	current, err := api.loadJob(ctx, job.OrgID, job.ID)
 	if err == nil {
 		job = current
@@ -561,8 +679,10 @@ func (api *irisGenerationAPI) runJob(job irisJobRecord) {
 }
 
 func (api *irisGenerationAPI) failJob(ctx context.Context, job irisJobRecord, code, message string) {
-	if api.cancelRequested(ctx, job.OrgID, job.ID) {
-		_ = api.dequeuePending(ctx, job.ID)
+	cleanupCtx, cancel := irisCleanupContext(ctx)
+	defer cancel()
+	if api.cancelRequested(cleanupCtx, job.OrgID, job.ID) {
+		_ = api.dequeuePending(cleanupCtx, job.ID)
 		return
 	}
 	completed := api.clock().Format(time.RFC3339)
@@ -570,7 +690,7 @@ func (api *irisGenerationAPI) failJob(ctx context.Context, job irisJobRecord, co
 	job.CompletedAt = &completed
 	job.Error = &irisJobError{Code: code, Message: message}
 	job.ETARemainingSeconds = nil
-	if err := api.commitJob(ctx, job); err != nil {
+	if err := api.commitJob(cleanupCtx, job); err != nil {
 		slog.Error("iris_generation_fail_failed", "job_id", job.ID, "error", err)
 	}
 }

@@ -7,11 +7,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -24,9 +26,10 @@ import (
 const irisTestPath = "/v1/orgs/acme/iris"
 
 type stubIrisMeter struct {
-	features bool
-	tokens   bool
-	tracks   int
+	features    bool
+	tokens      bool
+	tracks      []autumn.TrackRequest
+	tokenTracks []autumn.TrackTokensRequest
 }
 
 func (s *stubIrisMeter) Check(_ context.Context, req autumn.CheckRequest) (autumn.CheckResponse, error) {
@@ -41,8 +44,13 @@ func (s *stubIrisMeter) Check(_ context.Context, req autumn.CheckRequest) (autum
 	}
 }
 
-func (s *stubIrisMeter) Track(_ context.Context, _ autumn.TrackRequest) error {
-	s.tracks++
+func (s *stubIrisMeter) Track(_ context.Context, req autumn.TrackRequest) error {
+	s.tracks = append(s.tracks, req)
+	return nil
+}
+
+func (s *stubIrisMeter) TrackTokens(_ context.Context, req autumn.TrackTokensRequest) error {
+	s.tokenTracks = append(s.tokenTracks, req)
 	return nil
 }
 
@@ -72,18 +80,23 @@ func (s presigningMemory) PresignDownload(_ context.Context, key string, ttl tim
 }
 
 type stubIrisProvider struct {
-	outputs []irisProviderOutput
-	err     error
-	calls   int
-	last    irisProviderRequest
-	during  func()
+	outputs        []irisProviderOutput
+	err            error
+	calls          int
+	last           irisProviderRequest
+	during         func()
+	blockUntilDone bool
 }
 
-func (s *stubIrisProvider) Generate(_ context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
+func (s *stubIrisProvider) Generate(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
 	s.calls++
 	s.last = req
 	if s.during != nil {
 		s.during()
+	}
+	if s.blockUntilDone {
+		<-ctx.Done()
+		return nil, ctx.Err()
 	}
 	return s.outputs, s.err
 }
@@ -300,6 +313,26 @@ func TestIrisGenerationReviewFixes(t *testing.T) {
 		require.Contains(t, rec.Body.String(), "remote asset URLs are not supported")
 	})
 
+	t.Run("rejects scene audio references before queueing", func(t *testing.T) {
+		provider := &stubIrisProvider{}
+		api := newIrisGenerationFixture(t, provider)
+		body := map[string]any{
+			"model": "universal-3.5-pro",
+			"audio": map[string]any{"scene": "timeline-1"},
+		}
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/estimate", body)
+		require.Equal(t, http.StatusBadRequest, rec.Code)
+		require.Contains(t, rec.Body.String(), "scene audio references are not supported")
+
+		rec = irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
+			"idempotencyKey": "ddddddd1-dddd-dddd-dddd-ddddddddddd1",
+			"request":        body,
+		})
+		require.Equal(t, http.StatusBadRequest, rec.Code)
+		require.Contains(t, rec.Body.String(), "scene audio references are not supported")
+		require.Equal(t, 0, provider.calls)
+	})
+
 	t.Run("does not start a job when idempotency persistence fails", func(t *testing.T) {
 		provider := &stubIrisProvider{outputs: []irisProviderOutput{{
 			Bytes: []byte("png-bytes"), Filename: "image.png", ContentType: "image/png",
@@ -405,17 +438,29 @@ func TestIrisGenerationAutumnGate(t *testing.T) {
 		require.Contains(t, rec.Body.String(), "ai_credit_exhausted")
 	})
 
-	t.Run("tracks agent_runs after a successful job", func(t *testing.T) {
+	t.Run("tracks agent_runs and synthetic image credit after a successful job", func(t *testing.T) {
 		meter := &stubIrisMeter{features: true, tokens: true}
 		api.meter = meter
+		api.credits = irisCreditConfig{
+			ImageModelID: "custom/image",
+			VideoModelID: "custom/video",
+			AudioModelID: "custom/audio",
+		}
 		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
 			"idempotencyKey": "99999999-9999-9999-9999-999999999999",
-			"request":        map[string]any{"model": "flux-2-klein", "prompt": "a cat"},
+			"request":        map[string]any{"model": "flux-2-klein", "prompt": "a cat", "count": 2},
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
 		got := irisRequest(api, http.MethodGet, irisTestPath+"/jobs/"+jsonJobID(t, rec), nil)
 		require.Equal(t, http.StatusOK, got.Code)
-		require.Equal(t, 1, meter.tracks)
+		require.Len(t, meter.tracks, 1)
+		require.Equal(t, autumn.AgentRuns, meter.tracks[0].FeatureID)
+		require.Equal(t, 1.0, meter.tracks[0].Value)
+		require.Len(t, meter.tokenTracks, 1)
+		require.Equal(t, autumn.AITokens, meter.tokenTracks[0].FeatureID)
+		require.Equal(t, "custom/image", meter.tokenTracks[0].ModelID)
+		require.Equal(t, 0, meter.tokenTracks[0].InputTokens)
+		require.Equal(t, 1, meter.tokenTracks[0].OutputTokens)
 
 		estimate := irisRequest(api, http.MethodPost, irisTestPath+"/estimate", map[string]any{
 			"model": "flux-2-klein", "prompt": "a cat",
@@ -427,6 +472,198 @@ func TestIrisGenerationAutumnGate(t *testing.T) {
 		require.NotNil(t, body.Remaining)
 		require.Equal(t, 4.2, *body.Remaining)
 	})
+
+	t.Run("tracks synthetic video seconds after a successful job", func(t *testing.T) {
+		meter := &stubIrisMeter{features: true, tokens: true}
+		api.meter = meter
+		api.credits = irisCreditConfig{ImageModelID: "custom/image", VideoModelID: "custom/video", AudioModelID: "custom/audio"}
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
+			"idempotencyKey": "99999999-9999-9999-9999-999999999998",
+			"request":        map[string]any{"model": "seedance-2.5", "prompt": "a clip", "duration": 8},
+		})
+		require.Equal(t, http.StatusOK, rec.Code)
+		require.Len(t, meter.tokenTracks, 1)
+		require.Equal(t, "custom/video", meter.tokenTracks[0].ModelID)
+		require.Equal(t, 8, meter.tokenTracks[0].OutputTokens)
+	})
+
+	t.Run("tracks synthetic audio units after a successful job", func(t *testing.T) {
+		meter := &stubIrisMeter{features: true, tokens: true}
+		api.meter = meter
+		api.credits = irisCreditConfig{ImageModelID: "custom/image", VideoModelID: "custom/video", AudioModelID: "custom/audio"}
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
+			"idempotencyKey": "99999999-9999-9999-9999-999999999997",
+			"request":        map[string]any{"model": "elevenlabs-music", "prompt": "a score", "duration": 12},
+		})
+		require.Equal(t, http.StatusOK, rec.Code)
+		require.Len(t, meter.tokenTracks, 1)
+		require.Equal(t, "custom/audio", meter.tokenTracks[0].ModelID)
+		require.Equal(t, 12, meter.tokenTracks[0].OutputTokens)
+	})
+}
+
+func TestIrisSyntheticCredit(t *testing.T) {
+	credits := irisCreditConfig{
+		ImageModelID: "custom/image",
+		VideoModelID: "custom/video",
+		AudioModelID: "custom/audio",
+	}
+	tests := []struct {
+		name   string
+		job    irisJobRecord
+		model  string
+		output int
+	}{
+		{
+			name:   "images from generated assets",
+			job:    irisJobRecord{ID: "job_img", OrgID: "org_local", Model: "flux-2-klein", Assets: []irisJobAsset{{Filename: "a"}, {Filename: "b"}}},
+			model:  "custom/image",
+			output: 2,
+		},
+		{
+			name:   "video seconds",
+			job:    irisJobRecord{ID: "job_vid", OrgID: "org_local", Model: "seedance-2.5", Request: irisGenerateRequest{"duration": float64(8)}},
+			model:  "custom/video",
+			output: 8,
+		},
+		{
+			name:   "video default seconds",
+			job:    irisJobRecord{ID: "job_vid_default", OrgID: "org_local", Model: "seedance-2.5"},
+			model:  "custom/video",
+			output: 6,
+		},
+		{
+			name:   "audio seconds",
+			job:    irisJobRecord{ID: "job_audio", OrgID: "org_local", Model: "elevenlabs-music", Request: irisGenerateRequest{"duration": float64(12)}},
+			model:  "custom/audio",
+			output: 12,
+		},
+		{
+			name:   "voice minutes",
+			job:    irisJobRecord{ID: "job_voice", OrgID: "org_local", Model: "elevenlabs-v4"},
+			model:  "custom/audio",
+			output: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, ok := irisSyntheticCredit(tt.job, credits)
+			require.True(t, ok)
+			require.Equal(t, autumn.AITokens, req.FeatureID)
+			require.Equal(t, tt.model, req.ModelID)
+			require.Equal(t, 0, req.InputTokens)
+			require.Equal(t, tt.output, req.OutputTokens)
+			require.Equal(t, tt.job.OrgID, req.CustomerID)
+		})
+	}
+}
+
+func TestIrisGenerationDoesNotTrackFailedJobs(t *testing.T) {
+	provider := &stubIrisProvider{err: errors.New("gateway unavailable")}
+	api := newIrisGenerationFixture(t, provider)
+	meter := &stubIrisMeter{features: true, tokens: true}
+	api.meter = meter
+	rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
+		"idempotencyKey": "aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+		"request":        map[string]any{"model": "flux-2-klein", "prompt": "a cat"},
+	})
+	require.Equal(t, http.StatusOK, rec.Code)
+	got := irisRequest(api, http.MethodGet, irisTestPath+"/jobs/"+jsonJobID(t, rec), nil)
+	var job irisJobRecord
+	require.NoError(t, json.Unmarshal(got.Body.Bytes(), &job))
+	require.Equal(t, "failed", job.Status)
+	require.Empty(t, meter.tracks)
+	require.Empty(t, meter.tokenTracks)
+}
+
+func TestIrisPendingIndexAtomicAcrossInstances(t *testing.T) {
+	store := presigningMemory{Store: memory.New()}
+	reg, err := objectstore.NewRegistry("s3-files", map[string]objectstore.Store{"s3-files": store})
+	require.NoError(t, err)
+	newAPI := func() *irisGenerationAPI {
+		return &irisGenerationAPI{
+			objects: reg,
+			now:     func() time.Time { return time.Date(2026, 10, 24, 1, 0, 0, 0, time.UTC) },
+			run:     func(func()) {},
+		}
+	}
+	const n = 20
+	var wg sync.WaitGroup
+	for i := range n {
+		api := newAPI()
+		job := irisJobRecord{ID: fmt.Sprintf("job_%d", i), OrgID: "org_local", UserID: "user_iris"}
+		wg.Go(func() { require.NoError(t, api.enqueuePending(t.Context(), job)) })
+	}
+	wg.Wait()
+	pending, err := newAPI().listPending(t.Context())
+	require.NoError(t, err)
+	require.Len(t, pending, n)
+
+	api1, api2 := newAPI(), newAPI()
+	jobExtra := irisJobRecord{ID: "job_extra", OrgID: "org_local", UserID: "user_iris"}
+	wg.Go(func() { require.NoError(t, api1.dequeuePending(t.Context(), "job_0")) })
+	wg.Go(func() { require.NoError(t, api2.enqueuePending(t.Context(), jobExtra)) })
+	wg.Wait()
+	pending, err = api1.listPending(t.Context())
+	require.NoError(t, err)
+	ids := map[string]struct{}{}
+	for _, job := range pending {
+		ids[job.JobID] = struct{}{}
+	}
+	require.NotContains(t, ids, "job_0")
+	require.Contains(t, ids, "job_extra")
+	require.Len(t, ids, n)
+}
+
+func TestIrisPendingRecoveryReadsPerJobObjects(t *testing.T) {
+	provider := &stubIrisProvider{outputs: []irisProviderOutput{{
+		Bytes: []byte("png-bytes"), Filename: "image.png", ContentType: "image/png",
+	}}}
+	api := newIrisGenerationFixture(t, provider)
+	api.run = func(func()) {}
+	rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
+		"idempotencyKey": "bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+		"request":        map[string]any{"model": "flux-2-klein", "prompt": "a cat"},
+	})
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, 0, provider.calls)
+	require.NoError(t, api.putJSON(t.Context(), irisPendingIndexKey(), irisPendingIndex{}))
+
+	api.run = func(fn func()) { fn() }
+	api.recoverPending(t.Context())
+	require.Equal(t, 1, provider.calls)
+	got := irisRequest(api, http.MethodGet, irisTestPath+"/jobs/"+jsonJobID(t, rec), nil)
+	var job irisJobRecord
+	require.NoError(t, json.Unmarshal(got.Body.Bytes(), &job))
+	require.Equal(t, "succeeded", job.Status)
+}
+
+func TestIrisGenerationPersistsProviderTimeout(t *testing.T) {
+	provider := &stubIrisProvider{blockUntilDone: true}
+	api := newIrisGenerationFixture(t, provider)
+	api.timeout = 20 * time.Millisecond
+	rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
+		"idempotencyKey": "ccccccc1-cccc-cccc-cccc-ccccccccccc1",
+		"request":        map[string]any{"model": "flux-2-klein", "prompt": "a cat"},
+	})
+	require.Equal(t, http.StatusOK, rec.Code)
+	got := irisRequest(api, http.MethodGet, irisTestPath+"/jobs/"+jsonJobID(t, rec), nil)
+	var job irisJobRecord
+	require.NoError(t, json.Unmarshal(got.Body.Bytes(), &job))
+	require.Equal(t, "failed", job.Status)
+	require.NotNil(t, job.Error)
+	require.Equal(t, "PROVIDER_ERROR", job.Error.Code)
+	require.Contains(t, job.Error.Message, "context deadline exceeded")
+
+	pending, err := api.listPending(t.Context())
+	require.NoError(t, err)
+	require.Empty(t, pending)
+	var lock map[string]string
+	require.ErrorIs(t, api.getJSON(t.Context(), irisRunLockKey(job.ID), &lock), objectstore.ErrNotFound)
+
+	calls := provider.calls
+	api.recoverPending(t.Context())
+	require.Equal(t, calls, provider.calls)
 }
 
 func jsonJobID(t *testing.T, rec *httptest.ResponseRecorder) string {
@@ -496,6 +733,47 @@ func TestIrisGatewayProviderUpscalerIncludesVideo(t *testing.T) {
 	ref, _ := payload["input_reference"].(string)
 	require.Contains(t, ref, "video/mp4")
 	require.Contains(t, ref, "Y2xpcA==")
+}
+
+func TestIrisGatewayProviderImageEditForwardsAllReferences(t *testing.T) {
+	var names []string
+	var payloads [][]byte
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/images/edits", r.URL.Path)
+		require.NoError(t, r.ParseMultipartForm(1<<20))
+		for _, header := range r.MultipartForm.File["image"] {
+			names = append(names, header.Filename)
+			file, err := header.Open()
+			require.NoError(t, err)
+			body, err := io.ReadAll(file)
+			require.NoError(t, err)
+			require.NoError(t, file.Close())
+			payloads = append(payloads, body)
+		}
+		_, _ = w.Write([]byte(`{"data":[{"b64_json":"aW1n"}]}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL:    server.URL,
+		apiKey:     "test-key",
+		httpClient: server.Client(),
+	}
+	model, ok := irisModelByID("flux-2-klein")
+	require.True(t, ok)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model:  model,
+		Prompt: "edit these frames",
+		Inputs: []irisProviderInput{
+			{Role: "start", Bytes: []byte("start"), ContentType: "image/png"},
+			{Role: "end", Bytes: []byte("end"), ContentType: "image/png"},
+			{Role: "image", Bytes: []byte("one"), ContentType: "image/png"},
+			{Role: "image", Bytes: []byte("two"), ContentType: "image/png"},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []byte("img"), outputs[0].Bytes)
+	require.Equal(t, []string{"input-1.png", "input-2.png", "input-3.png", "input-4.png"}, names)
+	require.Equal(t, [][]byte{[]byte("start"), []byte("end"), []byte("one"), []byte("two")}, payloads)
 }
 
 func TestDecodeImageOutputsHonorsContext(t *testing.T) {

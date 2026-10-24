@@ -129,14 +129,14 @@ func (api *irisGenerationAPI) presigner(ctx context.Context) (objectstore.Presig
 }
 
 func (api *irisGenerationAPI) putJSON(ctx context.Context, key string, value any) error {
-	return api.writeJSON(ctx, key, value, false)
+	return api.writeJSON(ctx, objectstore.PutInput{Key: key}, value)
 }
 
 func (api *irisGenerationAPI) putJSONIfAbsent(ctx context.Context, key string, value any) error {
-	return api.writeJSON(ctx, key, value, true)
+	return api.writeJSON(ctx, objectstore.PutInput{Key: key, IfAbsent: true}, value)
 }
 
-func (api *irisGenerationAPI) writeJSON(ctx context.Context, key string, value any, ifAbsent bool) error {
+func (api *irisGenerationAPI) writeJSON(ctx context.Context, input objectstore.PutInput, value any) error {
 	reg, err := api.registry()
 	if err != nil {
 		return err
@@ -145,13 +145,12 @@ func (api *irisGenerationAPI) writeJSON(ctx context.Context, key string, value a
 	if err != nil {
 		return err
 	}
-	_, _, err = reg.Put(ctx, objectstore.PutInput{
-		Key:         key,
-		Body:        bytes.NewReader(body),
-		Size:        int64(len(body)),
-		ContentType: "application/json",
-		IfAbsent:    ifAbsent,
-	})
+	input.Body = bytes.NewReader(body)
+	input.Size = int64(len(body))
+	if input.ContentType == "" {
+		input.ContentType = "application/json"
+	}
+	_, _, err = reg.Put(ctx, input)
 	return err
 }
 
@@ -168,20 +167,28 @@ func (api *irisGenerationAPI) deleteObject(ctx context.Context, key string) erro
 }
 
 func (api *irisGenerationAPI) getJSON(ctx context.Context, key string, dest any) error {
+	_, err := api.getJSONInfo(ctx, key, dest)
+	return err
+}
+
+func (api *irisGenerationAPI) getJSONInfo(ctx context.Context, key string, dest any) (objectstore.Info, error) {
 	reg, err := api.registry()
 	if err != nil {
-		return err
+		return objectstore.Info{}, err
 	}
 	store, err := reg.Resolve(reg.DefaultLocationID())
 	if err != nil {
-		return err
+		return objectstore.Info{}, err
 	}
-	body, _, err := store.Get(ctx, key)
+	body, info, err := store.Get(ctx, key)
 	if err != nil {
-		return err
+		return objectstore.Info{}, err
 	}
 	defer func() { _ = body.Close() }()
-	return json.NewDecoder(body).Decode(dest)
+	if err := json.NewDecoder(body).Decode(dest); err != nil {
+		return objectstore.Info{}, err
+	}
+	return info, nil
 }
 
 func (api *irisGenerationAPI) statUpload(ctx context.Context, orgID, sha string) (objectstore.Info, error) {
@@ -334,62 +341,143 @@ func (api *irisGenerationAPI) acquireRunLock(ctx context.Context, jobID string) 
 	return false
 }
 
+const irisPendingIndexAttempts = 32
+
 func (api *irisGenerationAPI) enqueuePending(ctx context.Context, job irisJobRecord) error {
 	item := irisPendingJob{OrgID: job.OrgID, UserID: job.UserID, JobID: job.ID}
 	if err := api.putJSON(ctx, irisPendingKey(job.ID), item); err != nil {
 		return err
 	}
-	api.queueMu.Lock()
-	defer api.queueMu.Unlock()
-	index, err := api.loadPendingIndex(ctx)
-	if err != nil {
-		return err
-	}
-	for _, existing := range index.Jobs {
-		if existing.JobID == job.ID {
-			return nil
+	return api.mutatePendingIndex(ctx, func(index *irisPendingIndex) bool {
+		for _, existing := range index.Jobs {
+			if existing.JobID == job.ID {
+				return false
+			}
 		}
-	}
-	index.Jobs = append(index.Jobs, item)
-	return api.putJSON(ctx, irisPendingIndexKey(), index)
+		index.Jobs = append(index.Jobs, item)
+		return true
+	})
 }
 
 func (api *irisGenerationAPI) dequeuePending(ctx context.Context, jobID string) error {
-	api.queueMu.Lock()
-	defer api.queueMu.Unlock()
-	index, err := api.loadPendingIndex(ctx)
-	if err != nil {
-		return err
-	}
-	kept := index.Jobs[:0]
-	for _, existing := range index.Jobs {
-		if existing.JobID != jobID {
+	indexErr := api.mutatePendingIndex(ctx, func(index *irisPendingIndex) bool {
+		kept := make([]irisPendingJob, 0, len(index.Jobs))
+		changed := false
+		for _, existing := range index.Jobs {
+			if existing.JobID == jobID {
+				changed = true
+				continue
+			}
 			kept = append(kept, existing)
 		}
+		index.Jobs = kept
+		return changed
+	})
+	delErr := api.deleteObject(ctx, irisPendingKey(jobID))
+	if indexErr != nil {
+		return indexErr
 	}
-	index.Jobs = kept
-	if err := api.putJSON(ctx, irisPendingIndexKey(), index); err != nil {
-		return err
+	return delErr
+}
+
+func (api *irisGenerationAPI) mutatePendingIndex(ctx context.Context, mutate func(*irisPendingIndex) bool) error {
+	api.queueMu.Lock()
+	defer api.queueMu.Unlock()
+	for range irisPendingIndexAttempts {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		index, info, err := api.loadPendingIndex(ctx)
+		if err != nil {
+			return err
+		}
+		if !mutate(&index) {
+			return nil
+		}
+		put := objectstore.PutInput{Key: irisPendingIndexKey()}
+		if info.ETag == "" {
+			put.IfAbsent = true
+		} else {
+			put.IfMatch = info.ETag
+		}
+		err = api.writeJSON(ctx, put, index)
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, objectstore.ErrAlreadyExists) {
+			return err
+		}
 	}
-	return api.deleteObject(ctx, irisPendingKey(jobID))
+	return fmt.Errorf("pending-index update conflicted")
 }
 
 func (api *irisGenerationAPI) listPending(ctx context.Context) ([]irisPendingJob, error) {
-	index, err := api.loadPendingIndex(ctx)
+	byID := map[string]irisPendingJob{}
+	index, _, err := api.loadPendingIndex(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return index.Jobs, nil
+	for _, job := range index.Jobs {
+		if job.JobID != "" {
+			byID[job.JobID] = job
+		}
+	}
+	objects, err := api.listPendingObjects(ctx)
+	if err != nil {
+		if len(byID) == 0 {
+			return nil, err
+		}
+	} else {
+		for _, job := range objects {
+			if job.JobID != "" {
+				byID[job.JobID] = job
+			}
+		}
+	}
+	out := make([]irisPendingJob, 0, len(byID))
+	for _, job := range byID {
+		out = append(out, job)
+	}
+	return out, nil
 }
 
-func (api *irisGenerationAPI) loadPendingIndex(ctx context.Context) (irisPendingIndex, error) {
+func (api *irisGenerationAPI) listPendingObjects(ctx context.Context) ([]irisPendingJob, error) {
+	reg, err := api.registry()
+	if err != nil {
+		return nil, err
+	}
+	store, err := reg.Resolve(reg.DefaultLocationID())
+	if err != nil {
+		return nil, err
+	}
+	keys, err := store.List(ctx, "iris/generation/pending/")
+	if err != nil {
+		return nil, err
+	}
+	jobs := make([]irisPendingJob, 0, len(keys))
+	for _, key := range keys {
+		if !strings.HasSuffix(key, ".json") {
+			continue
+		}
+		var item irisPendingJob
+		if err := api.getJSON(ctx, key, &item); err != nil {
+			continue
+		}
+		if item.JobID != "" {
+			jobs = append(jobs, item)
+		}
+	}
+	return jobs, nil
+}
+
+func (api *irisGenerationAPI) loadPendingIndex(ctx context.Context) (irisPendingIndex, objectstore.Info, error) {
 	var index irisPendingIndex
-	err := api.getJSON(ctx, irisPendingIndexKey(), &index)
+	info, err := api.getJSONInfo(ctx, irisPendingIndexKey(), &index)
 	if err == nil {
-		return index, nil
+		return index, info, nil
 	}
 	if errors.Is(err, objectstore.ErrNotFound) {
-		return irisPendingIndex{}, nil
+		return irisPendingIndex{}, objectstore.Info{}, nil
 	}
-	return irisPendingIndex{}, err
+	return irisPendingIndex{}, objectstore.Info{}, err
 }

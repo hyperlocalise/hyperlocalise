@@ -220,9 +220,10 @@ func validateIrisGenerateRequest(req irisGenerateRequest) (irisModelInfo, error)
 		}
 	case "universal-3.5-pro":
 		if _, ok := req.asset("audio"); !ok {
-			if scene, _ := req["audio"].(map[string]any); stringFrom(scene["scene"]) == "" {
-				return model, fmt.Errorf("audio is required")
+			if scene, _ := req["audio"].(map[string]any); stringFrom(scene["scene"]) != "" {
+				return model, fmt.Errorf("scene audio references are not supported; upload the file first")
 			}
+			return model, fmt.Errorf("audio is required")
 		}
 	case "qwen3.8-omni-flash":
 		if _, ok := req.asset("media"); !ok {
