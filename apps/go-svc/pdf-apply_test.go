@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -138,6 +139,110 @@ func TestApplyPdfDoesNotRejectUploadLimitTemplateAsTooLarge(t *testing.T) {
 	require.NotEqual(t, http.StatusRequestEntityTooLarge, rec.Code, rec.Body.String())
 }
 
+func TestApplyPdfRejectsNonPost(t *testing.T) {
+	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
+	h := newHandler()
+	mux := http.NewServeMux()
+	registerRoutes(mux, h, mockSessionVerifier{})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/internal/pdf/apply", nil)
+	req.Header.Set(serverCallTokenHeader, serverCallToken())
+	mux.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+}
+
+func TestReadPdfApplyRequestValidation(t *testing.T) {
+	t.Run("rejects non-multipart bodies", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"values":{}}`))
+		req.Header.Set("Content-Type", "application/json")
+		_, err := readPdfApplyRequest(req)
+		var client pdfApplyClientError
+		require.ErrorAs(t, err, &client)
+		require.Equal(t, "invalid_multipart", client.code)
+	})
+
+	t.Run("rejects a missing template", func(t *testing.T) {
+		body := newPdfApplyMultipartBodyParts(t, nil, map[string]string{"page-1#1": "x"}, "fr")
+		req := httptest.NewRequest(http.MethodPost, "/", body)
+		req.Header.Set("Content-Type", body.contentType)
+		_, err := readPdfApplyRequest(req)
+		var client pdfApplyClientError
+		require.ErrorAs(t, err, &client)
+		require.Equal(t, "missing_template", client.code)
+	})
+
+	t.Run("rejects a missing values object", func(t *testing.T) {
+		body := newPdfApplyMultipartBodyParts(t, []byte("%PDF-1.4"), nil, "fr")
+		req := httptest.NewRequest(http.MethodPost, "/", body)
+		req.Header.Set("Content-Type", body.contentType)
+		_, err := readPdfApplyRequest(req)
+		var client pdfApplyClientError
+		require.ErrorAs(t, err, &client)
+		require.Equal(t, "missing_values", client.code)
+	})
+
+	t.Run("rejects invalid values JSON", func(t *testing.T) {
+		var buffer bytes.Buffer
+		writer := multipart.NewWriter(&buffer)
+		valuesPart, err := writer.CreateFormField(pdfApplyValuesFormName)
+		require.NoError(t, err)
+		_, err = valuesPart.Write([]byte(`["not-an-object"]`))
+		require.NoError(t, err)
+		filePart, err := writer.CreateFormFile(pdfApplyTemplateFormName, "template.pdf")
+		require.NoError(t, err)
+		_, err = filePart.Write([]byte("%PDF-1.4"))
+		require.NoError(t, err)
+		require.NoError(t, writer.Close())
+
+		req := httptest.NewRequest(http.MethodPost, "/", &buffer)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		_, err = readPdfApplyRequest(req)
+		var client pdfApplyClientError
+		require.ErrorAs(t, err, &client)
+		require.Equal(t, "invalid_values", client.code)
+	})
+}
+
+func TestWritePdfApplyErrorMapping(t *testing.T) {
+	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
+	tests := []struct {
+		name   string
+		err    error
+		status int
+		code   string
+	}{
+		{
+			name:   "malformed template",
+			err:    translationfileparser.ErrPDFMalformed,
+			status: http.StatusUnprocessableEntity,
+			code:   "pdf_invalid",
+		},
+		{
+			name:   "unsupported script",
+			err:    translationfileparser.ErrPDFScriptUnsupported,
+			status: http.StatusUnprocessableEntity,
+			code:   "pdf_script_unsupported",
+		},
+		{
+			name:   "unknown apply failure",
+			err:    errors.New("write failed"),
+			status: http.StatusInternalServerError,
+			code:   "pdf_export_failed",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, "/internal/pdf/apply", nil)
+			writePdfApplyError(rec, req, tt.err)
+			require.Equal(t, tt.status, rec.Code)
+			require.Contains(t, rec.Body.String(), `"error":"`+tt.code+`"`)
+		})
+	}
+}
+
 func TestApplyPdfOverflowHeader(t *testing.T) {
 	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
 	template, err := translationfileparser.FixtureSingleBlockPDF()
@@ -179,25 +284,39 @@ func newPdfApplyMultipartBody(
 	targetLocale string,
 ) pdfApplyMultipartBody {
 	t.Helper()
+	return newPdfApplyMultipartBodyParts(t, template, values, targetLocale)
+}
+
+func newPdfApplyMultipartBodyParts(
+	t *testing.T,
+	template []byte,
+	values map[string]string,
+	targetLocale string,
+) pdfApplyMultipartBody {
+	t.Helper()
 	var buffer bytes.Buffer
 	writer := multipart.NewWriter(&buffer)
 
-	valuesPart, err := writer.CreateFormField(pdfApplyValuesFormName)
-	require.NoError(t, err)
-	encoded, err := json.Marshal(values)
-	require.NoError(t, err)
-	_, err = valuesPart.Write(encoded)
-	require.NoError(t, err)
+	if values != nil {
+		valuesPart, err := writer.CreateFormField(pdfApplyValuesFormName)
+		require.NoError(t, err)
+		encoded, err := json.Marshal(values)
+		require.NoError(t, err)
+		_, err = valuesPart.Write(encoded)
+		require.NoError(t, err)
+	}
 
 	localePart, err := writer.CreateFormField(pdfApplyLocaleFormName)
 	require.NoError(t, err)
 	_, err = localePart.Write([]byte(targetLocale))
 	require.NoError(t, err)
 
-	filePart, err := writer.CreateFormFile(pdfApplyTemplateFormName, "template.pdf")
-	require.NoError(t, err)
-	_, err = filePart.Write(template)
-	require.NoError(t, err)
+	if template != nil {
+		filePart, err := writer.CreateFormFile(pdfApplyTemplateFormName, "template.pdf")
+		require.NoError(t, err)
+		_, err = filePart.Write(template)
+		require.NoError(t, err)
+	}
 
 	require.NoError(t, writer.Close())
 	return pdfApplyMultipartBody{contentType: writer.FormDataContentType(), Reader: &buffer}

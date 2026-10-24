@@ -368,6 +368,20 @@ describe("downloadMcpTranslations", () => {
     ).resolves.toEqual({ ok: false, error: "office_export_failed" });
   });
 
+  it("rejects PDF paths that have no generated download as unsupported binary", async () => {
+    mocks.inferSupportedTranslationFileFormat.mockReturnValue("pdf");
+
+    await expect(
+      downloadMcpTranslations({
+        organizationId: "org_1",
+        projectId: "project_1",
+        sourcePath: "docs/handbook.pdf",
+        locale: "fr-FR",
+      }),
+    ).resolves.toEqual({ ok: false, error: "unsupported_binary_download" });
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+  });
+
   it("keeps rejecting Excel workbooks without segments", async () => {
     mocks.inferSupportedTranslationFileFormat.mockReturnValue("xlsx");
 
