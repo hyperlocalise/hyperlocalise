@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "elevenlabs",
+    srcs = [
+        "audio.go",
+        "client.go",
+        "config.go",
+        "doc.go",
+        "errors.go",
+        "voices.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/elevenlabs",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "elevenlabs_test",
+    srcs = ["client_test.go"],
+    embed = [":elevenlabs"],
+    deps = ["@com_github_stretchr_testify//require"],
+)
