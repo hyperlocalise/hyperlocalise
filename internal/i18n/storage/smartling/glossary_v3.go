@@ -100,9 +100,10 @@ type glossarySearchPayload struct {
 }
 
 type glossaryCreatePayload struct {
-	GlossaryUID string `json:"glossaryUid"`
-	AccountUID  string `json:"accountUid"`
-	Name        string `json:"name"`
+	GlossaryUID  string `json:"glossaryUid"`
+	AccountUID   string `json:"accountUid"`
+	Name         string `json:"name"`
+	GlossaryName string `json:"glossaryName"`
 }
 
 type glossaryGetPayload struct {
@@ -212,8 +213,8 @@ func (c *HTTPClient) CreateGlossary(ctx context.Context, in GlossaryCreateInput)
 	}
 
 	body := map[string]any{
-		"name":      name,
-		"localeIds": localeIDs,
+		"glossaryName": name,
+		"localeIds":    localeIDs,
 	}
 	if description := strings.TrimSpace(in.Description); description != "" {
 		body["description"] = description
@@ -232,9 +233,13 @@ func (c *HTTPClient) CreateGlossary(ctx context.Context, in GlossaryCreateInput)
 	if glossaryUID == "" {
 		return GlossaryCreateResult{}, fmt.Errorf("smartling glossary create: missing glossary uid in response")
 	}
+	resultName := strings.TrimSpace(payload.Name)
+	if resultName == "" {
+		resultName = strings.TrimSpace(payload.GlossaryName)
+	}
 	return GlossaryCreateResult{
 		GlossaryUID: glossaryUID,
-		Name:        strings.TrimSpace(payload.Name),
+		Name:        resultName,
 		AccountUID:  strings.TrimSpace(payload.AccountUID),
 	}, nil
 }

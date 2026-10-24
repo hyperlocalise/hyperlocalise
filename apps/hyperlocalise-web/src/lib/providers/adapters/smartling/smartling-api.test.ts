@@ -579,7 +579,7 @@ describe("SmartlingApiClient", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          name: "Brand terms",
+          glossaryName: "Brand terms",
           localeIds: ["en-US", "fr-FR"],
         }),
       }),

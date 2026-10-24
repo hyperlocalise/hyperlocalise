@@ -1487,7 +1487,7 @@ export class SmartlingApiClient {
     }
 
     const token = await this.getAccessToken();
-    const payload: Record<string, unknown> = { name, localeIds };
+    const payload: Record<string, unknown> = { glossaryName: name, localeIds };
     const description = input.description?.trim();
     if (description) {
       payload.description = description;

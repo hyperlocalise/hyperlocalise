@@ -281,8 +281,8 @@ func TestHTTPClientCreateGlossary(t *testing.T) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			if body["name"] != "New glossary" {
-				http.Error(w, "expected name in request body", http.StatusBadRequest)
+			if body["glossaryName"] != "New glossary" {
+				http.Error(w, "expected glossaryName in request body", http.StatusBadRequest)
 				return
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
