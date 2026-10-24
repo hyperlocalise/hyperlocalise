@@ -20,7 +20,7 @@ React Intl lưu trữ nội dung hiển thị cho người dùng trong TypeScrip
 
 Hướng dẫn này trình bày cách kết nối **react-intl**, **ICU** và **`hyperlocalise` CLI** thành một quy trình làm việc:
 
-1. Các kỹ sư viết thông điệp bằng `defineMessages` và `<FormattedMessage />`.
+1. Engineers write messages in `defineMessages` and `<FormattedMessage />`.
 2. `hl extract` cập nhật lại danh mục FormatJS tiếng Anh từ nguồn.
 3. GitHub kiểm tra pull request để phát hiện sai lệch, khóa bị thiếu và lỗi cấu trúc ICU.
 4. `hl sync push` gửi danh mục đến Hyperlocalise để xem xét.
@@ -90,7 +90,7 @@ export const savedFiltersBannerMessages = defineMessages({
 
 Sử dụng ICU bên trong `defaultMessage` khi nội dung phụ thuộc vào số hoặc enum. React Intl đánh giá toàn bộ thông điệp khi chạy; người dịch phải giữ nguyên các cấu trúc `{count, plural, ...}` và `{scope, select, ...}`, đồng thời thay đổi các nhánh hiển thị bằng ngôn ngữ tự nhiên.
 
-Trong một thành phần trang, truyền các giá trị ICU thông qua `formatMessage` hoặc `<FormattedMessage />`:
+In a page component, pass ICU values through `formatMessage` or `<FormattedMessage />`:
 
 ```tsx
 "use client";
