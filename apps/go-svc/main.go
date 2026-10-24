@@ -112,6 +112,7 @@ func main() {
 	}
 	h.workspaceSettings = &workspaceSettingsAPI{activityLog: activityLogPublisher}
 	h.sessionOrganizations = &sessionOrganizationsAPI{}
+	h.irisGeneration = &irisGenerationAPI{provider: newIrisGatewayProvider()}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}
@@ -212,6 +213,9 @@ func main() {
 	h.glossaries.objects = h.objects
 	h.memories.objects = h.objects
 	h.contentEditor.objects = h.objects
+	if h.irisGeneration != nil {
+		h.irisGeneration.objects = h.objects
+	}
 	guidelineIngestPublisher, guidelineIngestErr := newGuidelineIngestPublisher(context.Background())
 	if guidelineIngestErr != nil {
 		log.Printf("configure guideline ingest publisher: %v", guidelineIngestErr)
