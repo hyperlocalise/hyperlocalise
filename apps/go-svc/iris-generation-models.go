@@ -33,6 +33,7 @@ type irisModelInfo struct {
 	GatewayID   string            `json:"-"`
 	NativeID    string            `json:"-"`
 	FalRefID    string            `json:"-"`
+	FalVideoID  string            `json:"-"`
 	ETASeconds  int               `json:"-"`
 	PromptMax   int               `json:"-"`
 	RequiresRef bool              `json:"-"`
@@ -76,14 +77,14 @@ func irisModels() []irisModelInfo {
 		{ID: "veo-3.1", Name: "Veo 3.1", Kind: irisKindVideo, GatewayID: "google/veo-3.1", Pricing: irisPricing{Unit: "second", Credits: 8, Minimum: &min1}, ETASeconds: 90, PromptMax: 4000},
 		{ID: "veo-3.1-fast", Name: "Veo 3.1 Fast", Kind: irisKindVideo, GatewayID: "google/veo-3.1-fast", Pricing: irisPricing{Unit: "second", Credits: 4, Minimum: &min1}, ETASeconds: 60, PromptMax: 4000},
 		{ID: "kling-3-pro", Name: "Kling 3.0", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "kuaishou/kling-v3", NativeID: "fal-ai/kling-video/v3/pro/text-to-video", FalRefID: "fal-ai/kling-video/v3/pro/image-to-video", Pricing: irisPricing{Unit: "second", Credits: 5, Minimum: &min1}, ETASeconds: 80, PromptMax: 4000},
-		{ID: "kling-o3-pro", Name: "Kling 3.0 Omni", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "kuaishou/kling-v3", NativeID: "fal-ai/kling-video/o3/pro/image-to-video", FalRefID: "fal-ai/kling-video/o3/pro/video-to-video/edit", Pricing: irisPricing{Unit: "second", Credits: 6, Minimum: &min1}, ETASeconds: 90, PromptMax: 4000},
+		{ID: "kling-o3-pro", Name: "Kling 3.0 Omni", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "kuaishou/kling-v3", NativeID: "fal-ai/kling-video/o3/pro/text-to-video", FalRefID: "fal-ai/kling-video/o3/pro/image-to-video", FalVideoID: "fal-ai/kling-video/o3/pro/video-to-video/edit", Pricing: irisPricing{Unit: "second", Credits: 6, Minimum: &min1}, ETASeconds: 90, PromptMax: 4000},
 		{ID: "seedance-2.5", Name: "Seedance 2.5", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "bytedance/seedance-2.5", NativeID: "bytedance/seedance-2.5/text-to-video", FalRefID: "bytedance/seedance-2.5/image-to-video", Pricing: irisPricing{Unit: "second", Credits: 3, Minimum: &min1}, ETASeconds: 70, PromptMax: 4000},
 		{ID: "wan-3.0", Name: "Wan 3.0", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "alibaba/wan-2.6", NativeID: "alibaba/wan-3.0-prime/text-to-video", FalRefID: "alibaba/wan-3.0-prime/reference-to-video", Pricing: irisPricing{Unit: "second", Credits: 3, Minimum: &min1}, ETASeconds: 75, PromptMax: 4000},
 		{ID: "minimax-h3", Name: "MiniMax H3", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "minimax/hailuo-2.3", NativeID: "minimax/h3/text-to-video", FalRefID: "minimax/h3/image-to-video", Pricing: irisPricing{Unit: "second", Credits: 5, Minimum: &min1}, ETASeconds: 80, PromptMax: 4000},
 		{ID: "minimax-h3-max", Name: "MiniMax H3 Max", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "minimax/hailuo-2.3", NativeID: "minimax/h3-max/text-to-video", FalRefID: "minimax/h3-max/image-to-video", Pricing: irisPricing{Unit: "second", Credits: 3, Minimum: &min1}, ETASeconds: 55, PromptMax: 4000},
 		{ID: "flux-3-video", Name: "FLUX.3 Video", Kind: irisKindVideo, GatewayID: "black-forest-labs/flux-2-pro", Pricing: irisPricing{Unit: "second", Credits: 4, Minimum: &min1}, ETASeconds: 70, PromptMax: 4000},
 		{ID: "grok-imagine-video-1.5", Name: "Grok Imagine Video 1.5", Kind: irisKindVideo, GatewayID: "xai/grok-imagine-video", Pricing: irisPricing{Unit: "second", Credits: 2, Minimum: &min1}, ETASeconds: 50, PromptMax: 4000},
-		{ID: "elevenlabs-v4", Name: "ElevenLabs v4", Kind: irisKindVoice, Provider: irisProviderElevenLabs, GatewayID: "elevenlabs/eleven-v3", NativeID: "eleven_v3", Pricing: irisPricing{Unit: "input-minute", Credits: 6, Minimum: &min1}, ETASeconds: 15, PromptMax: 10000},
+		{ID: "elevenlabs-v4", Name: "ElevenLabs v4", Kind: irisKindVoice, Provider: irisProviderElevenLabs, GatewayID: "elevenlabs/eleven-v3", NativeID: "eleven_v4", Pricing: irisPricing{Unit: "input-minute", Credits: 6, Minimum: &min1}, ETASeconds: 15, PromptMax: 10000},
 		{ID: "elevenlabs-v3", Name: "ElevenLabs v3", Kind: irisKindVoice, Provider: irisProviderElevenLabs, GatewayID: "elevenlabs/eleven-multilingual-v2", NativeID: "eleven_multilingual_v2", Pricing: irisPricing{Unit: "input-minute", Credits: 4, Minimum: &min1}, ETASeconds: 12, PromptMax: 5000},
 		{ID: "gemini-3.8-flash-tts", Name: "Gemini 3.8 Flash TTS", Kind: irisKindVoice, GatewayID: "google/gemini-2.5-flash-preview-tts", Pricing: irisPricing{Unit: "input-minute", Credits: 2, Minimum: &min1}, ETASeconds: 10, PromptMax: 10000},
 		{ID: "elevenlabs-music", Name: "ElevenLabs Music", Kind: irisKindAudio, Provider: irisProviderElevenLabs, GatewayID: "elevenlabs/music-v1", NativeID: "music_v1", Pricing: irisPricing{Unit: "second", Credits: 1, Minimum: &min1}, ETASeconds: 40, PromptMax: 4100},

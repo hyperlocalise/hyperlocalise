@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"math"
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -113,10 +115,7 @@ func generateElevenLabs(ctx context.Context, client *elevenlabs.Client, req iris
 }
 
 func generateFal(ctx context.Context, client *fal.Client, fetch irisMediaFetcher, req irisProviderRequest) ([]irisProviderOutput, error) {
-	endpoint := req.Model.NativeID
-	if req.Model.FalRefID != "" && irisHasReferenceInput(req) {
-		endpoint = req.Model.FalRefID
-	}
+	endpoint := falEndpoint(req)
 	if strings.TrimSpace(endpoint) == "" {
 		return nil, fmt.Errorf("fal endpoint is not configured for %s", req.Model.ID)
 	}
@@ -150,8 +149,8 @@ func falInput(req irisProviderRequest) map[string]any {
 	if prompt := strings.TrimSpace(req.Prompt); prompt != "" {
 		input["prompt"] = prompt
 	}
-	if req.Duration > 0 {
-		input["duration"] = req.Duration
+	if duration, ok := falDuration(falEndpoint(req), req.Duration); ok {
+		input["duration"] = duration
 	}
 	if aspect := strings.TrimSpace(req.AspectRatio); aspect != "" {
 		input["aspect_ratio"] = aspect
@@ -162,15 +161,25 @@ func falInput(req irisProviderRequest) map[string]any {
 	if req.Count > 1 {
 		input["num_images"] = req.Count
 	}
-	images := inputsByRole(req.Inputs, "image", "start", "end")
+	if start, ok := firstInput(req.Inputs, "start"); ok {
+		input["image_url"] = irisDataURI(start, "image/png")
+	}
+	if end, ok := firstInput(req.Inputs, "end"); ok {
+		input["end_image_url"] = irisDataURI(end, "image/png")
+	}
+	images := inputsByRole(req.Inputs, "image")
 	if len(images) == 1 {
-		input["image_url"] = irisDataURI(images[0], "image/png")
+		if _, hasStart := input["image_url"]; !hasStart {
+			input["image_url"] = irisDataURI(images[0], "image/png")
+		}
 	} else if len(images) > 1 {
 		urls := make([]string, 0, len(images))
 		for _, image := range images {
 			urls = append(urls, irisDataURI(image, "image/png"))
 		}
-		input["image_url"] = urls[0]
+		if _, hasStart := input["image_url"]; !hasStart {
+			input["image_url"] = urls[0]
+		}
 		input["image_urls"] = urls
 	}
 	if video, ok := firstInput(req.Inputs, "video"); ok {
@@ -182,10 +191,34 @@ func falInput(req irisProviderRequest) map[string]any {
 	return input
 }
 
-func irisHasReferenceInput(req irisProviderRequest) bool {
-	_, hasImage := firstInput(req.Inputs, "image", "start", "end")
-	_, hasVideo := firstInput(req.Inputs, "video")
-	return hasImage || hasVideo
+func falEndpoint(req irisProviderRequest) string {
+	if req.Model.FalVideoID != "" {
+		if _, ok := firstInput(req.Inputs, "video"); ok {
+			return req.Model.FalVideoID
+		}
+	}
+	if req.Model.FalRefID != "" {
+		if _, ok := firstInput(req.Inputs, "image", "start", "end"); ok {
+			return req.Model.FalRefID
+		}
+	}
+	return req.Model.NativeID
+}
+
+func falDuration(endpoint string, duration float64) (any, bool) {
+	if duration <= 0 {
+		return nil, false
+	}
+	seconds := int(math.Round(duration))
+	if seconds < 1 {
+		seconds = 1
+	}
+	switch {
+	case strings.Contains(endpoint, "kling-video"), strings.Contains(endpoint, "seedance"):
+		return strconv.Itoa(seconds), true
+	default:
+		return seconds, true
+	}
 }
 
 func irisDataURI(input irisProviderInput, fallback string) string {
