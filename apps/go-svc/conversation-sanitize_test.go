@@ -126,6 +126,18 @@ func TestSanitizeConversationMessagePreservesKeptPartKeyOrder(t *testing.T) {
 	require.Equal(t, `[{"text":"b","type":"text","z":1,"a":2}]`, string(got.Parts))
 }
 
+func TestSanitizeConversationMessages(t *testing.T) {
+	messages := []conversationMessage{
+		agentMessage("raw", `[{"type":"reasoning","text":"hidden"},{"type":"text","text":"shown"}]`),
+		{SenderType: "user", Text: "hello", Parts: json.RawMessage(`[{"type":"tool-x"}]`)},
+	}
+	got := sanitizeConversationMessages(messages, false)
+	require.Equal(t, "shown", got[0].Text)
+	require.JSONEq(t, `[{"type":"text","text":"shown"}]`, string(got[0].Parts))
+	require.Equal(t, "hello", got[1].Text)
+	require.JSONEq(t, `[{"type":"tool-x"}]`, string(got[1].Parts))
+}
+
 func TestSanitizeConversationLastMessage(t *testing.T) {
 	require.Nil(t, sanitizeConversationLastMessage(nil, false))
 

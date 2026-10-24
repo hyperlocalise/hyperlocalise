@@ -55,6 +55,35 @@ func TestReportingMoneyMatchesHono(t *testing.T) {
 	}
 }
 
+func TestReportingPayablePercent(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		raw     []byte
+		bucket  string
+		want    int
+		wantErr bool
+	}{
+		{name: "empty defaults to 100", bucket: "new", want: 100},
+		{name: "json null defaults to 100", raw: []byte("null"), bucket: "new", want: 100},
+		{name: "missing bucket defaults to 100", raw: []byte(`{"new":80}`), bucket: "fuzzy", want: 100},
+		{name: "null bucket defaults to 100", raw: []byte(`{"new":null}`), bucket: "new", want: 100},
+		{name: "integer percent", raw: []byte(`{"new":25,"fuzzy":80}`), bucket: "new", want: 25},
+		{name: "whole float is accepted", raw: []byte(`{"new":50.0}`), bucket: "new", want: 50},
+		{name: "fractional percent is rejected", raw: []byte(`{"new":12.5}`), bucket: "new", wantErr: true},
+		{name: "invalid json is rejected", raw: []byte(`{`), bucket: "new", wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := reportingPayablePercent(tc.raw, tc.bucket)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
 func TestReportingBudgetWarning(t *testing.T) {
 	for _, tc := range []struct{ budget, cost, want string }{
 		{"100", "79.99", "none"},

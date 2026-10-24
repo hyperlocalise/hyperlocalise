@@ -217,6 +217,141 @@ func TestMapAutumnBillingError(t *testing.T) {
 	require.ErrorAs(t, err, &failure)
 	require.Equal(t, http.StatusBadGateway, failure.status)
 	require.Equal(t, "billing_upstream_error", failure.code)
+
+	for _, tc := range []struct {
+		status int
+		want   int
+	}{
+		{http.StatusUnauthorized, http.StatusBadGateway},
+		{http.StatusForbidden, http.StatusBadGateway},
+		{http.StatusConflict, http.StatusConflict},
+		{http.StatusInternalServerError, http.StatusBadGateway},
+	} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(tc.status)
+		}))
+		t.Cleanup(srv.Close)
+		client, clientErr := autumn.NewClient(autumn.Config{SecretKey: "k", BaseURL: srv.URL, HTTPClient: srv.Client()})
+		require.NoError(t, clientErr)
+		_, getErr := client.GetCustomer(t.Context(), "org_1")
+		require.Error(t, getErr)
+		mapped := mapAutumnBillingError(getErr, "Unable to load billing")
+		require.ErrorAs(t, mapped, &failure)
+		require.Equal(t, tc.want, failure.status, tc.status)
+		require.Equal(t, "billing_upstream_error", failure.code)
+	}
+}
+
+func TestBillingSnapshotFromCustomer(t *testing.T) {
+	email := "owner@example.com"
+	billingEmail := "billing@example.com"
+	name := "Growth"
+	taxID := "ABN-1"
+	line1 := "1 Market St"
+	city := "Sydney"
+	country := "AU"
+	remaining := 4.2
+	granted := 20.0
+	usage := 15.8
+	reset := int64(1759247877000)
+	canceled := int64(1759000000000)
+
+	snapshot := billingSnapshotFromCustomer(autumn.Customer{
+		ID:    "cus_1",
+		Email: &email,
+		Subscriptions: []autumn.CustomerSubscription{{
+			PlanID:           autumn.PlanEnterprise,
+			Status:           "canceled",
+			CanceledAt:       &canceled,
+			CurrentPeriodEnd: &reset,
+		}, {
+			PlanID:           autumn.PlanGrowth,
+			Status:           "active",
+			CurrentPeriodEnd: &reset,
+			Plan: &struct {
+				Name *string `json:"name"`
+			}{Name: &name},
+		}},
+		Balances: map[string]autumn.Balance{
+			autumn.FeatureAITokens: {
+				Remaining:   &remaining,
+				Granted:     &granted,
+				Usage:       &usage,
+				NextResetAt: &reset,
+			},
+		},
+		PaymentMethod: &autumn.CustomerPaymentMethod{Brand: "visa", Last4: "4242", ExpMonth: 12, ExpYear: 2028},
+		BillingDetails: &autumn.CustomerBillingDetails{
+			Name:  &name,
+			Email: &billingEmail,
+			TaxID: &taxID,
+			Address: &autumn.CustomerBillingAddress{
+				Line1:   &line1,
+				City:    &city,
+				Country: &country,
+			},
+		},
+	})
+	require.True(t, snapshot.HasBillingAccount)
+	require.Equal(t, autumn.PlanGrowth, snapshot.PlanID)
+	require.Equal(t, "Growth", snapshot.PlanName)
+	require.Equal(t, "active", *snapshot.Status)
+	require.Equal(t, billingEmail, *snapshot.Email)
+	require.Equal(t, taxID, *snapshot.TaxID)
+	require.Equal(t, "1 Market St", snapshot.Address.Line1)
+	require.Equal(t, "visa", snapshot.PaymentMethod.Brand)
+	require.Equal(t, 4.2, snapshot.AITokens.Remaining)
+	require.Equal(t, reset, *snapshot.AITokens.NextResetAt)
+
+	empty := billingSnapshotFromCustomer(autumn.Customer{})
+	require.Equal(t, autumn.PlanFree, empty.PlanID)
+	require.Equal(t, "Free", empty.PlanName)
+	require.False(t, empty.HasBillingAccount)
+	require.Nil(t, empty.PaymentMethod)
+	require.Nil(t, empty.Address)
+}
+
+func TestBillingPlanDisplayNameAndAddress(t *testing.T) {
+	named := " Custom Plan "
+	require.Equal(t, "Custom Plan", planDisplayName(autumn.CustomerSubscription{
+		PlanID: "other",
+		Plan: &struct {
+			Name *string `json:"name"`
+		}{Name: &named},
+	}))
+	require.Equal(t, "Growth", planDisplayName(autumn.CustomerSubscription{PlanID: autumn.PlanGrowth}))
+	require.Equal(t, "Free", planDisplayName(autumn.CustomerSubscription{PlanID: autumn.PlanFree}))
+	require.Equal(t, "Team Plus", formatPlanIDLabel("team_plus"))
+	require.Equal(t, "Pro Trial", formatPlanIDLabel("pro-trial"))
+
+	sub, ok := activeCustomerSubscription(nil)
+	require.False(t, ok)
+	require.Empty(t, sub.PlanID)
+	first, ok := activeCustomerSubscription([]autumn.CustomerSubscription{{PlanID: "stale", Status: "canceled"}})
+	require.True(t, ok)
+	require.Equal(t, "stale", first.PlanID)
+
+	require.Nil(t, mapBillingAddress(nil))
+	require.Nil(t, mapBillingAddress(&autumn.CustomerBillingDetails{Address: &autumn.CustomerBillingAddress{}}))
+	page := emptyInvoicePage()
+	require.Equal(t, []workspaceInvoice{}, page["invoices"])
+	require.Nil(t, page["nextCursor"])
+	require.Equal(t, "", derefBillingString(nil))
+	require.Equal(t, 0.0, derefFloat(nil))
+	require.Nil(t, optionalBillingString("  "))
+	require.Equal(t, "active", *optionalBillingString(" active "))
+}
+
+func TestDecodeBillingJSON(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"planId":"growth"}`))
+	var body billingCheckoutBody
+	require.NoError(t, decodeBillingJSON(req, &body))
+	require.Equal(t, "growth", body.PlanID)
+
+	req = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"planId":"growth"}{"extra":true}`))
+	require.Error(t, decodeBillingJSON(req, &body))
+	req = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{`))
+	require.Error(t, decodeBillingJSON(req, &body))
 }
 
 func TestBillingCheckoutForbiddenForMembers(t *testing.T) {
