@@ -108,16 +108,17 @@ func (api *billingAPI) serveInvoices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if api.autumn == nil || !api.autumn.HasSecretKey() {
-		writeJSON(w, http.StatusOK, map[string]any{"invoices": []workspaceInvoice{}})
+		writeJSON(w, http.StatusOK, emptyInvoicePage())
 		return
 	}
 	listed, err := api.autumn.ListInvoices(ctx, autumn.ListInvoicesRequest{
-		CustomerID: actor.organizationID,
-		Limit:      billingInvoiceLimit,
+		CustomerID:  actor.organizationID,
+		Limit:       billingInvoiceLimit,
+		StartCursor: strings.TrimSpace(r.URL.Query().Get("cursor")),
 	})
 	if err != nil {
 		if autumn.IsNotFound(err) {
-			writeJSON(w, http.StatusOK, map[string]any{"invoices": []workspaceInvoice{}})
+			writeJSON(w, http.StatusOK, emptyInvoicePage())
 			return
 		}
 		writeBillingError(w, r, "invoices", mapAutumnBillingError(err, "Unable to load invoices"))
@@ -134,7 +135,7 @@ func (api *billingAPI) serveInvoices(w http.ResponseWriter, r *http.Request) {
 			HostedURL: invoice.HostedInvoiceURL,
 		})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"invoices": invoices})
+	writeJSON(w, http.StatusOK, map[string]any{"invoices": invoices, "nextCursor": listed.NextCursor})
 }
 
 func (api *billingAPI) serveCheckout(w http.ResponseWriter, r *http.Request) {
@@ -353,15 +354,24 @@ func mapBillingAddress(details *autumn.CustomerBillingDetails) *workspaceBilling
 	return mapped
 }
 
+func emptyInvoicePage() map[string]any {
+	return map[string]any{"invoices": []workspaceInvoice{}, "nextCursor": nil}
+}
+
 func mapAutumnBillingError(err error, fallback string) error {
 	status, ok := autumn.HTTPStatus(err)
 	if !ok {
-		return billingFailure(502, "billing_upstream_error", fallback)
+		return billingFailure(http.StatusBadGateway, "billing_upstream_error", fallback)
+	}
+	switch status {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		// Autumn rejected the server API key. Do not leak 401/403 to the caller.
+		return billingFailure(http.StatusBadGateway, "billing_upstream_error", fallback)
 	}
 	if status >= 400 && status < 500 {
 		return billingFailure(status, "billing_upstream_error", fallback)
 	}
-	return billingFailure(502, "billing_upstream_error", fallback)
+	return billingFailure(http.StatusBadGateway, "billing_upstream_error", fallback)
 }
 
 func decodeBillingJSON(r *http.Request, dest any) error {

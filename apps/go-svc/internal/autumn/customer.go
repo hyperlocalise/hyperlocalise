@@ -10,7 +10,8 @@ const (
 	PlanGrowth     = "growth"
 	PlanEnterprise = "enterprise"
 
-	FeatureAITokens = "ai_tokens"
+	// FeatureAITokens is the workspace AI-credit balance (alias of AITokens).
+	FeatureAITokens = AITokens
 )
 
 // Customer is the subset of customers.get used by workspace billing.
@@ -138,8 +139,9 @@ type Invoice struct {
 }
 
 type ListInvoicesRequest struct {
-	CustomerID string
-	Limit      int
+	CustomerID  string
+	Limit       int
+	StartCursor string
 }
 
 type ListInvoicesResponse struct {
@@ -148,16 +150,18 @@ type ListInvoicesResponse struct {
 }
 
 type listInvoicesBody struct {
-	CustomerID string `json:"customer_id"`
-	Limit      int    `json:"limit,omitempty"`
+	CustomerID  string `json:"customer_id"`
+	Limit       int    `json:"limit,omitempty"`
+	StartCursor string `json:"start_cursor,omitempty"`
 }
 
 // ListInvoices calls POST /v1/invoices.list.
 func (c *Client) ListInvoices(ctx context.Context, req ListInvoicesRequest) (ListInvoicesResponse, error) {
 	var out ListInvoicesResponse
 	err := c.post(ctx, "/v1/invoices.list", c.apiVersion, listInvoicesBody{
-		CustomerID: strings.TrimSpace(req.CustomerID),
-		Limit:      req.Limit,
+		CustomerID:  strings.TrimSpace(req.CustomerID),
+		Limit:       req.Limit,
+		StartCursor: strings.TrimSpace(req.StartCursor),
 	}, &out)
 	if out.List == nil {
 		out.List = []Invoice{}

@@ -134,24 +134,89 @@ func TestBillingCheckoutAndPortal(t *testing.T) {
 
 func TestBillingInvoices(t *testing.T) {
 	api, scope := billingTestAPI(t, "admin")
+	var listed []map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, "/v1/invoices.list", r.URL.Path)
-		_, _ = w.Write([]byte(`{"list":[{"id":"inv_1","status":"paid","total":29.99,"currency":"usd","created_at":1759247877000,"hosted_invoice_url":"https://invoice.example/1"}]}`))
+		raw, _ := io.ReadAll(r.Body)
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(raw, &body))
+		listed = append(listed, body)
+		if body["start_cursor"] == "cur_1" {
+			_, _ = w.Write([]byte(`{"list":[{"id":"inv_2","status":"paid","total":9.99,"currency":"usd","created_at":1759247878000}],"next_cursor":null}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"list":[{"id":"inv_1","status":"paid","total":29.99,"currency":"usd","created_at":1759247877000,"hosted_invoice_url":"https://invoice.example/1"}],"next_cursor":"cur_1"}`))
 	}))
 	t.Cleanup(srv.Close)
 	client, err := autumn.NewClient(autumn.Config{SecretKey: "k", BaseURL: srv.URL, HTTPClient: srv.Client()})
 	require.NoError(t, err)
 	api.autumn = client
 
-	rec := billingJSONRequest(api, scope.WorkOSUserID, http.MethodGet, scope.OrgPath("/billing/invoices"), "")
-	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	var body struct {
-		Invoices []workspaceInvoice `json:"invoices"`
+	first := billingJSONRequest(api, scope.WorkOSUserID, http.MethodGet, scope.OrgPath("/billing/invoices"), "")
+	require.Equal(t, http.StatusOK, first.Code, first.Body.String())
+	var firstBody struct {
+		Invoices   []workspaceInvoice `json:"invoices"`
+		NextCursor *string            `json:"nextCursor"`
 	}
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
-	require.Len(t, body.Invoices, 1)
-	require.Equal(t, 29.99, body.Invoices[0].Total)
-	require.Equal(t, int64(1759247877000), body.Invoices[0].CreatedAt)
+	require.NoError(t, json.Unmarshal(first.Body.Bytes(), &firstBody))
+	require.Len(t, firstBody.Invoices, 1)
+	require.Equal(t, 29.99, firstBody.Invoices[0].Total)
+	require.Equal(t, int64(1759247877000), firstBody.Invoices[0].CreatedAt)
+	require.NotNil(t, firstBody.NextCursor)
+	require.Equal(t, "cur_1", *firstBody.NextCursor)
+
+	second := billingJSONRequest(api, scope.WorkOSUserID, http.MethodGet, scope.OrgPath("/billing/invoices")+"?cursor=cur_1", "")
+	require.Equal(t, http.StatusOK, second.Code, second.Body.String())
+	var secondBody struct {
+		Invoices   []workspaceInvoice `json:"invoices"`
+		NextCursor *string            `json:"nextCursor"`
+	}
+	require.NoError(t, json.Unmarshal(second.Body.Bytes(), &secondBody))
+	require.Len(t, secondBody.Invoices, 1)
+	require.Equal(t, "inv_2", secondBody.Invoices[0].ID)
+	require.Nil(t, secondBody.NextCursor)
+	require.Len(t, listed, 2)
+	require.Equal(t, "cur_1", listed[1]["start_cursor"])
+}
+
+func TestBillingAutumnAuthMappedToGateway(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		status     int
+		path       string
+		wantStatus int
+	}{
+		{name: "invoices unauthorized", status: http.StatusUnauthorized, path: "/billing/invoices", wantStatus: http.StatusBadGateway},
+		{name: "invoices forbidden", status: http.StatusForbidden, path: "/billing/invoices", wantStatus: http.StatusBadGateway},
+		{name: "snapshot unauthorized", status: http.StatusUnauthorized, path: "/billing", wantStatus: http.StatusBadGateway},
+		{name: "snapshot forbidden", status: http.StatusForbidden, path: "/billing", wantStatus: http.StatusBadGateway},
+		{name: "invoices bad request", status: http.StatusBadRequest, path: "/billing/invoices", wantStatus: http.StatusBadRequest},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			api, scope := billingTestAPI(t, "admin")
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				http.Error(w, "upstream", tc.status)
+			}))
+			t.Cleanup(srv.Close)
+			client, err := autumn.NewClient(autumn.Config{SecretKey: "k", BaseURL: srv.URL, HTTPClient: srv.Client()})
+			require.NoError(t, err)
+			api.autumn = client
+
+			rec := billingJSONRequest(api, scope.WorkOSUserID, http.MethodGet, scope.OrgPath(tc.path), "")
+			require.Equal(t, tc.wantStatus, rec.Code, rec.Body.String())
+			require.Contains(t, rec.Body.String(), "billing_upstream_error")
+		})
+	}
+}
+
+func TestMapAutumnBillingError(t *testing.T) {
+	t.Parallel()
+
+	err := mapAutumnBillingError(io.EOF, "Unable to load billing")
+	var failure *billingError
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, http.StatusBadGateway, failure.status)
+	require.Equal(t, "billing_upstream_error", failure.code)
 }
 
 func TestBillingCheckoutForbiddenForMembers(t *testing.T) {

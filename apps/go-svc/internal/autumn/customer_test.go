@@ -116,11 +116,15 @@ func TestOpenPortal(t *testing.T) {
 func TestListInvoices(t *testing.T) {
 	t.Parallel()
 
+	var body map[string]any
+	next := "cur_2"
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/invoices.list" {
 			t.Errorf("path = %s", r.URL.Path)
 		}
-		_, _ = w.Write([]byte(`{"list":[{"id":"inv_1","status":"paid","total":29.99,"currency":"usd","created_at":1759247877000,"hosted_invoice_url":"https://invoice.example/1"}],"next_cursor":null}`))
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &body)
+		_, _ = w.Write([]byte(`{"list":[{"id":"inv_1","status":"paid","total":29.99,"currency":"usd","created_at":1759247877000,"hosted_invoice_url":"https://invoice.example/1"}],"next_cursor":"` + next + `"}`))
 	}))
 	t.Cleanup(srv.Close)
 
@@ -128,12 +132,22 @@ func TestListInvoices(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := client.ListInvoices(context.Background(), ListInvoicesRequest{CustomerID: "org_1", Limit: 50})
+	res, err := client.ListInvoices(context.Background(), ListInvoicesRequest{
+		CustomerID:  "org_1",
+		Limit:       50,
+		StartCursor: "cur_1",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(res.List) != 1 || res.List[0].Total != 29.99 || res.List[0].CreatedAt != 1759247877000 {
 		t.Fatalf("invoices = %#v", res)
+	}
+	if res.NextCursor == nil || *res.NextCursor != next {
+		t.Fatalf("next_cursor = %#v", res.NextCursor)
+	}
+	if body["customer_id"] != "org_1" || body["start_cursor"] != "cur_1" {
+		t.Fatalf("body = %#v", body)
 	}
 }
 

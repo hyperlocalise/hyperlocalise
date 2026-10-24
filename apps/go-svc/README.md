@@ -664,7 +664,7 @@ Requires WorkOS session authentication and `DATABASE_URL`. Reads require
 | Method | Path | Operation |
 |--------|------|-----------|
 | GET | `/billing` | Autumn workspace snapshot (plan, AI credit, payment method) |
-| GET | `/billing/invoices` | Autumn invoices (major currency units, `createdAt` unix ms) |
+| GET | `/billing/invoices` | Autumn invoices (major currency units, `createdAt` unix ms). Pass `cursor` for the next page; response includes `nextCursor` |
 | POST | `/billing/checkout` | Attach `growth` or `enterprise` and return a checkout URL |
 | POST | `/billing/portal` | Open the Stripe customer portal |
 | POST | `/billing/topup` | Same as portal — add AI credit in Stripe, not fake credit packs |
