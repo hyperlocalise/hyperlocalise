@@ -122,7 +122,7 @@ export function FiltersPage({ savedCount, scope }: { savedCount: number; scope: 
 สร้าง `i18n.yml` ที่รูทของ repository (หรือภายในไดเรกทอรีแอปของคุณ หาก monorepo เก็บไฟล์ config ไว้ข้าง UI):
 
 ```yaml
-version: hyperlocalise@1.13.5
+version: hyperlocalise@1.13.6
 
 locales:
   source: en-US
