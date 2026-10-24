@@ -1064,6 +1064,14 @@ go test ./apps/go-svc -run '^$' -bench 'BenchmarkGlossary|BenchmarkMemory|Benchm
 They cover CSV/TBX/XLSX serialize and parse, TMX/CSV memory interchange,
 source-text normalization, and page-cursor decode at 100–5,000 units.
 
+Hot-path benches for Iris validation, CAT queue filters, reporting money,
+public translation marshal, native word count, knowledge-memory selection,
+and conversation sanitization:
+
+```bash
+go test ./apps/go-svc -run '^$' -bench 'Benchmark(ValidateIris|AppendEditorCatQueue|ParseEditorCatAdvanced|WordCost|PublicTranslationMarshal|CountNative|SelectKnowledgeMemory|SanitizeConversation)' -benchmem
+```
+
 All paths below are relative to `/v1/orgs/{organizationSlug}`:
 
 | Method | Path | Operation |
