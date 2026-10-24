@@ -2451,6 +2451,10 @@
     "defaultMessage": "Try again",
     "description": "Button label to retry rendering a crashed CAT panel"
   },
+  "27t7ZaoeVg": {
+    "defaultMessage": "Back to localisation audit",
+    "description": "Link from a failed localisation audit detail route to the audit landing page"
+  },
   "28A/J2yeKB": {
     "defaultMessage": "Queries Board",
     "description": "Pricing matrix row label for Queries Board"
@@ -8595,6 +8599,10 @@
     "defaultMessage": "Brand Usage Check",
     "description": "Content ops mock tab label for brand governance"
   },
+  "CfDiZIokkH": {
+    "defaultMessage": "This section could not be shown",
+    "description": "Title when one localisation audit report section fails to render"
+  },
   "Cfwqtf2yZL": {
     "defaultMessage": "Informational",
     "description": "Informational keyword intent"
@@ -10827,6 +10835,10 @@
     "defaultMessage": "Actions",
     "description": "Screen-reader label for the members table actions column"
   },
+  "GRguzdxXWG": {
+    "defaultMessage": "Your workspace has used all of its AI credit. Change your plan on the Billing page, or wait for your AI credit to renew.",
+    "description": "Shown when an AI action is refused because the workspace has used all of its monthly AI credit"
+  },
   "GS9z23Wjvp": {
     "defaultMessage": "This automation will validate localisation changes on every push to main and notify your team when blockers are found.",
     "description": "Step 5 description"
@@ -12951,6 +12963,10 @@
     "defaultMessage": "Choose which mapped files to write back to Google Drive using this automation’s translation output format.",
     "description": "Description of the Google Drive file picker dialog"
   },
+  "KLnCqNe1S/": {
+    "defaultMessage": "This report could not be shown",
+    "description": "Title when the localisation audit report fails to render"
+  },
   "KMCkdidgwq": {
     "defaultMessage": "Ending punctuation",
     "description": "QA review: punctuation mismatch"
@@ -13606,6 +13622,10 @@
   "LYdhfNsW7N": {
     "defaultMessage": "This dictionary is not attached to any projects.",
     "description": "Empty state when a dictionary has no attached projects"
+  },
+  "LYrw2fhqau": {
+    "defaultMessage": "We couldn't load this audit",
+    "description": "Heading shown when a localisation audit detail route fails"
   },
   "LZCFkSSHP6": {
     "defaultMessage": "Source ({locale})",
@@ -15598,6 +15618,10 @@
   "P/9I6WaWRN": {
     "defaultMessage": "Updating issues...",
     "description": "Accessible label while a bulk issue action is running"
+  },
+  "P/F9NX4KdB": {
+    "defaultMessage": "Try again",
+    "description": "Button that retries a failed localisation audit report section"
   },
   "P/T+1+1UdK": {
     "defaultMessage": "Couldn't load this section.",
@@ -19487,6 +19511,10 @@
     "defaultMessage": "Next",
     "description": "Button to go to the next page of translation memories"
   },
+  "VtE6l/Wmub": {
+    "defaultMessage": "The rest of the page is still available. Try loading the report again.",
+    "description": "Guidance when the localisation audit report fails to render"
+  },
   "VtO24sqmBM": {
     "defaultMessage": "New Request",
     "description": "Sidebar navigation item to start a new localisation request"
@@ -21966,6 +21994,10 @@
   "aIA/MP2nWe": {
     "defaultMessage": "Write a message…",
     "description": "Placeholder for the public web chat composer"
+  },
+  "aIR3vTD8Ln": {
+    "defaultMessage": "The rest of the report is still available. Try loading this section again.",
+    "description": "Guidance when one localisation audit report section fails to render"
   },
   "aJJlFa1d+w": {
     "defaultMessage": "Search nodes...",
@@ -36482,6 +36514,10 @@
   "ybeD8Dwr0/": {
     "defaultMessage": "You edited the setup · {count, plural, one {# change} other {# changes}}",
     "description": "Line above a message of the person's in the assistant panel, which opens to list what they changed on the page themselves before sending it"
+  },
+  "ybysXlWsw7": {
+    "defaultMessage": "Try loading the report again, or start a new localisation audit.",
+    "description": "Guidance shown when a localisation audit detail route fails"
   },
   "ycIxrY94pB": {
     "defaultMessage": "SendGrid",

@@ -107,6 +107,22 @@ export const PublicFullReport: Story = {
   },
 };
 
+export const RerunCooldown: Story = {
+  args: {
+    audit: {
+      ...publicAudit,
+      rerunnable: false,
+      rerunAvailableAt: "2026-08-02T12:00:00.000Z",
+    },
+    standing: localisationAuditStanding(publicAudit.score ?? 0),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("heading", { name: "Acme" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Re-run audit" })).not.toBeInTheDocument();
+    await expect(canvas.getByText(/You can re-run this audit once a day/)).toBeInTheDocument();
+  },
+};
+
 export const EmailSummary: Story = {
   args: {
     audit: publicAudit,
