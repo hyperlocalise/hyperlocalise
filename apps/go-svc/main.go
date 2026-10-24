@@ -112,6 +112,7 @@ func main() {
 	}
 	h.workspaceSettings = &workspaceSettingsAPI{activityLog: activityLogPublisher}
 	h.sessionOrganizations = &sessionOrganizationsAPI{}
+	h.sessionAccount = &sessionAccountAPI{}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}
@@ -186,6 +187,7 @@ func main() {
 		h.members.pool = traced
 		h.workspaceSettings.pool = traced
 		h.sessionOrganizations.pool = traced
+		h.sessionAccount.pool = traced
 		h.apiKeys.pool = traced
 		h.activityLogs.pool = traced
 		h.billing.pool = traced

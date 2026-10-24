@@ -1,6 +1,6 @@
 # go-svc
 
-Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, workspace billing resource-usage reads and Autumn sync, native job list/detail/status reads, native CAT editor APIs, personal API key management, database-backed public translation download and job reads, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
+Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, workspace billing (Autumn snapshot, checkout, portal, invoices, resource-usage) and session account (`/v1/me`), native job list/detail/status reads, native CAT editor APIs, personal API key management, database-backed public translation download and job reads, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
 
 Public browser routes are served at `https://api.hyperlocalise.com/v1/...` from `GoSvcClient` callers (Bearer token, CORS). The Next.js server calls `/v1/...` or `/ofrep/...` at the same origin via `GO_SVC_URL` (typically `https://api.hyperlocalise.com` in production).
 
@@ -636,6 +636,19 @@ Query parameters match Hono: `actor`, `cursor`, `eventTypes`, `limit` (1–100,
 default 50), `range` (`24h` \| `7d` \| `30d` \| `all`). Response:
 `{ activityLogs, actors, nextCursor }`.
 
+## Session account
+
+Signed-in WorkOS user profile at `/v1/me`. Notification preferences reuse
+`user_notification_preferences` (`emailEnabled`, `emailFormat` digest|immediate).
+`DELETE /v1/me` does not remove WorkOS users or workspaces; it returns
+`409 account_deletion_not_supported`.
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/v1/me` | Local user row plus notification preferences |
+| PATCH | `/v1/me/notification-preferences` | Replace the caller's email preferences |
+| DELETE | `/v1/me` | Refuse destructive delete (`409`) |
+
 ## Billing resource usage
 
 Organization-wide workspace resource usage at
@@ -648,6 +661,11 @@ roles receive `403 billing_write_forbidden`.
 
 | Method | Path | Operation |
 |--------|------|-----------|
+| GET | `/billing` | Autumn workspace snapshot (plan, AI credit, payment method) |
+| GET | `/billing/invoices` | Autumn invoices (major currency units, `createdAt` unix ms) |
+| POST | `/billing/checkout` | Attach `growth` or `enterprise` and return a checkout URL |
+| POST | `/billing/portal` | Open the Stripe customer portal |
+| POST | `/billing/topup` | Same as portal — add AI credit in Stripe, not fake credit packs |
 | GET | `/billing/resource-usage` | Count organization-wide workspace resources |
 | POST | `/billing/resource-usage/sync` | Push local resource usage deltas to Autumn |
 

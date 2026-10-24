@@ -41,6 +41,11 @@ type workspaceResourceUsageResponse struct {
 }
 
 func (api *billingAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
+	registerAuthenticated(mux, verifier, "GET "+orgRoutePrefix+"/billing", http.HandlerFunc(api.serveBilling))
+	registerAuthenticated(mux, verifier, "GET "+orgRoutePrefix+"/billing/invoices", http.HandlerFunc(api.serveInvoices))
+	registerAuthenticated(mux, verifier, "POST "+orgRoutePrefix+"/billing/checkout", http.HandlerFunc(api.serveCheckout))
+	registerAuthenticated(mux, verifier, "POST "+orgRoutePrefix+"/billing/portal", http.HandlerFunc(api.servePortal))
+	registerAuthenticated(mux, verifier, "POST "+orgRoutePrefix+"/billing/topup", http.HandlerFunc(api.serveTopup))
 	registerAuthenticated(mux, verifier, "GET "+orgRoutePrefix+"/billing/resource-usage", http.HandlerFunc(api.serveResourceUsage))
 	registerAuthenticated(mux, verifier, "POST "+orgRoutePrefix+"/billing/resource-usage/sync", http.HandlerFunc(api.serveResourceUsageSync))
 }

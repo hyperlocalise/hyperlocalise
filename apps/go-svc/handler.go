@@ -69,6 +69,7 @@ type handler struct {
 	members              *memberAPI
 	workspaceSettings    *workspaceSettingsAPI
 	sessionOrganizations *sessionOrganizationsAPI
+	sessionAccount       *sessionAccountAPI
 	apiKeys              *apiKeyAPI
 	issueSheets          *issueSheetAPI
 	notifications        *notificationsAPI
@@ -132,6 +133,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.sessionOrganizations != nil {
 		h.sessionOrganizations.register(mux, verifier)
+	}
+	if h.sessionAccount != nil {
+		h.sessionAccount.register(mux, verifier)
 	}
 	if h.apiKeys != nil {
 		h.apiKeys.register(mux, verifier)
