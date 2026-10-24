@@ -70,11 +70,14 @@ hyperlocalise smartling upload sources --project-id <id> --file <path> [--file-u
 hyperlocalise smartling upload translations --project-id <id> --file-uri <uri> --target-locale <locale> --file <path> (--published | --post-translation) [--file-type <type>] [--overwrite] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>] [--dry-run]
 hyperlocalise smartling download sources --project-id <id> (--file-uri <uri> | --all) [--uri-mask <substring>] [--output <path>] [--force] [--dry-run] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
 hyperlocalise smartling download translations --project-id <id> (--file-uri <uri> | --all) [--target-locale <locale>] [--uri-mask <substring>] [--retrieval-type pending|published|pseudo] [--output <path>] [--force] [--dry-run] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
-hyperlocalise smartling glossary download --account-uid <id> --glossary-uid <id> [--language <locale>] [--output <path>] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
+hyperlocalise smartling glossary download --account-uid <id> --glossary-uid <id> [--language <locale>] [--format csv|xlsx|tbx] [--official] [--tbx-version v2|v3] [--output <path>] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
 hyperlocalise smartling glossary list --account-uid <id> [--name <query>] [--output text|json] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
 hyperlocalise smartling glossary create --account-uid <id> --name <name> --locale <locale> [--description <text>] [--output text|json] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
-hyperlocalise smartling glossary import --account-uid <id> --glossary-uid <id> --file <path> [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
+hyperlocalise smartling glossary import --account-uid <id> --glossary-uid <id> --file <path> [--archive-mode] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
+hyperlocalise smartling tm list --account-uid <id> [--name <query>] [--output text|json] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
+hyperlocalise smartling tm create --account-uid <id> --name <name> --source-locale <locale> [--description <text>] [--output text|json] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
 hyperlocalise smartling tm download --account-uid <id> --tm-uid <id> --source-language <code> [--target-language <code>] [--format csv|tmx] [--output <path>] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
+hyperlocalise smartling tm import --account-uid <id> --tm-uid <id> --file <path.tmx> [--file-uri <uri>] [--user-id <id>] [--user-secret <secret>] [--user-secret-env <name>]
 ```
 
 `tm` also accepts the alias `translation-memory`.
@@ -96,7 +99,8 @@ Use them for:
 - import of a pre-translated locale file (`upload translations`, equivalent to official `smartling-cli files import`)
 - source download (`download sources`)
 - translation download (`download translations`)
-- glossary and translation-memory **download** (Hyperlocalise-shaped CSV/TMX)
+- glossary list, create, official import (CSV/XLSX/TBX), Hyperlocalise CSV download, and official CSV/XLSX/TBX export
+- translation-memory list, create, TMX import, and Hyperlocalise-shaped CSV/TMX download
 
 Official [smartling-cli](https://github.com/Smartling/smartling-cli) uses `files push` / `files pull` (aliases `upload` / `download`) and `files import`. Hyperlocalise keeps the same command family shape as Crowdin and Phrase (`upload sources`, `download translations`) instead of renaming to `files push`.
 
@@ -155,9 +159,13 @@ Pass exactly one of `--file-uri` or `--all`. `--all` lists files (same paging as
 
 `download translations` omits `--target-locale` to download every locale listed in file status for each URI. When you pass `--target-locale`, Hyperlocalise intersects your values with file status (case-insensitive) and uses Smartling's locale IDs from status. `--all` resolves locales per file URI, not once for the whole project. `--dry-run` still calls file status (credentials required). Use `%locale%` in `--output` when you download more than one locale for a single `--file-uri`. `--retrieval-type` is `pending`, `published`, or `pseudo`. If you omit it, Hyperlocalise does not send `retrievalType` and Smartling uses its default. Prefer `--retrieval-type published` when you only want published text.
 
-`glossary list` searches glossaries on an account (`--name` is an optional search query). `glossary create` needs `--name` and at least one `--locale`. `glossary import` uploads Smartling's official glossary import CSV (not the Hyperlocalise-shaped CSV from `glossary download`), confirms the import, and polls until Smartling finishes.
+`glossary list` searches glossaries on an account (`--name` is an optional search query). `glossary create` needs `--name` and at least one `--locale`. `glossary import` uploads Smartling's official glossary file (`.csv`, `.xlsx`, or `.tbx`), confirms the import, and polls until Smartling finishes. `--archive-mode` archives entries that are missing from the file.
 
-`glossary download` and `tm download` have no `--force` or `--dry-run`. They write CSV (or TMX for `tm --format tmx`) to stdout unless you pass `--output`.
+`glossary download` defaults to Hyperlocalise-shaped CSV. Pass `--official` for Smartling's official CSV, or `--format xlsx` / `--format tbx` for official spreadsheet and TBX exports. Official TBX defaults to v3; use `--tbx-version v2` for TBX-Core v2. When `--language` is omitted on an official export, Hyperlocalise uses the glossary's locale list.
+
+`tm list` lists translation memories on an account (`--name` is an optional name filter). `tm create` needs `--name` and `--source-locale`. `tm import` uploads a `.tmx` file and reports the accepted job UID; Smartling processes the import asynchronously. `--file-uri` defaults to the file name.
+
+`glossary download` and `tm download` have no `--force` or `--dry-run`. They write to stdout unless you pass `--output`.
 
 ## smartling-cli gap inventory
 
@@ -172,11 +180,12 @@ Pass exactly one of `--file-uri` or `--all`. `--all` lists files (same paging as
 | `files delete` / `files rename` | `files delete` / `files rename` (exact `--file-uri`; delete is async) |
 | `projects list` / `info` / `locales` | `projects list` / `projects info` / `locales list` |
 | Jobs, `mt detect` / `mt translate` | Out of scope |
-| `glossaries export` | `glossary download` (Hyperlocalise CSV; not official CSV/XLSX/TBX parity) |
+| `glossaries export` | `glossary download` (Hyperlocalise CSV by default; `--official`, `--format xlsx`, or `--format tbx` for official export) |
 | `glossaries list` / `glossaries create` | `glossary list` / `glossary create` |
-| `glossaries import` | `glossary import` (official Smartling CSV; confirm + poll) |
-| TM export | `tm download` (CSV/TMX) |
-| TM / glossary upload | Out of scope |
+| `glossaries import` | `glossary import` (official CSV/XLSX/TBX; confirm + poll; `--archive-mode`) |
+| TM list / create | `tm list` / `tm create` |
+| TM export | `tm download` (Hyperlocalise CSV/TMX from the entries API) |
+| TM TMX import | `tm import` (official `tm-tmx-api`; async accept) |
 
 ## Examples
 
@@ -272,6 +281,46 @@ List projects when you have an account id from glossary or TM download:
 
 ```bash
 hyperlocalise smartling projects list --account-uid your-account-uid
+```
+
+List, create, and import a glossary. Official export uses `--official` or `--format xlsx` / `--format tbx`:
+
+```bash
+hyperlocalise smartling glossary list --account-uid your-account-uid --name brand
+hyperlocalise smartling glossary create \
+  --account-uid your-account-uid \
+  --name "Brand terms" \
+  --locale en-US \
+  --locale fr-FR
+hyperlocalise smartling glossary import \
+  --account-uid your-account-uid \
+  --glossary-uid your-glossary-uid \
+  --file ./brand-terms.tbx
+hyperlocalise smartling glossary download \
+  --account-uid your-account-uid \
+  --glossary-uid your-glossary-uid \
+  --format tbx \
+  --output ./brand-terms.tbx
+```
+
+List, create, and import a translation memory. `tm download` still writes Hyperlocalise CSV or TMX from the entries API:
+
+```bash
+hyperlocalise smartling tm list --account-uid your-account-uid --name product
+hyperlocalise smartling tm create \
+  --account-uid your-account-uid \
+  --name "Product TM" \
+  --source-locale en-US
+hyperlocalise smartling tm import \
+  --account-uid your-account-uid \
+  --tm-uid your-tm-uid \
+  --file ./product.tmx
+hyperlocalise smartling tm download \
+  --account-uid your-account-uid \
+  --tm-uid your-tm-uid \
+  --source-language en-US \
+  --format tmx \
+  --output ./product.tmx
 ```
 
 ## Related workflows

@@ -21,6 +21,9 @@ type smartlingGlossaryDownloadOptions struct {
 	userSecretEnv  string
 	languages      []string
 	outputPath     string
+	format         string
+	official       bool
+	tbxVersion     string
 }
 
 func newSmartlingCmd() *cobra.Command {
@@ -876,65 +879,13 @@ func newSmartlingGlossaryCmd() *cobra.Command {
 }
 
 func newSmartlingGlossaryDownloadCmd() *cobra.Command {
-	o := smartlingGlossaryDownloadOptions{}
+	o := smartlingGlossaryDownloadOptions{format: "csv"}
 	cmd := &cobra.Command{
 		Use:          "download",
-		Short:        "download Smartling glossary terms as CSV",
+		Short:        "download Smartling glossary terms",
 		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
-			cfg, err := resolveSmartlingCLICredentials(o.userIdentifier, o.userSecret, o.userSecretEnv, "smartling glossary download")
-			if err != nil {
-				return err
-			}
-
-			client, err := smartling.NewHTTPClient(cfg)
-			if err != nil {
-				return err
-			}
-
-			outputPath := strings.TrimSpace(o.outputPath)
-			out := cmd.OutOrStdout()
-			var closeOut func() error
-			var tempPath string
-			if outputPath != "" {
-				file, err := os.CreateTemp(filepath.Dir(outputPath), "."+filepath.Base(outputPath)+".*.tmp")
-				if err != nil {
-					return fmt.Errorf("create temporary glossary csv: %w", err)
-				}
-				out = file
-				tempPath = file.Name()
-				closeOut = file.Close
-			}
-
-			result, err := client.WriteGlossaryCSV(ctx, smartling.GlossaryDownloadRequest{
-				AccountUID:  o.accountUID,
-				GlossaryUID: o.glossaryUID,
-				Languages:   o.languages,
-			}, out)
-
-			if closeOut != nil {
-				if closeErr := closeOut(); closeErr != nil && err == nil {
-					err = fmt.Errorf("close glossary csv: %w", closeErr)
-				}
-			}
-
-			if err != nil {
-				if tempPath != "" {
-					_ = os.Remove(tempPath)
-				}
-				return err
-			}
-
-			if outputPath != "" {
-				if err := os.Rename(tempPath, outputPath); err != nil {
-					_ = os.Remove(tempPath)
-					return fmt.Errorf("replace glossary csv: %w", err)
-				}
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "wrote %s entries=%d\n", outputPath, result.Entries)
-			}
-
-			return nil
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return executeSmartlingGlossaryDownload(cmd, o)
 		},
 	}
 
@@ -944,7 +895,10 @@ func newSmartlingGlossaryDownloadCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.userSecret, "user-secret", "", "Smartling user secret")
 	cmd.Flags().StringVar(&o.userSecretEnv, "user-secret-env", "", "Environment variable for Smartling user secret")
 	cmd.Flags().StringSliceVarP(&o.languages, "language", "l", nil, "term language(s) to include")
-	cmd.Flags().StringVarP(&o.outputPath, "output", "o", "", "write CSV to file instead of stdout")
+	cmd.Flags().StringVar(&o.format, "format", "csv", "download format: csv, xlsx, or tbx")
+	cmd.Flags().BoolVar(&o.official, "official", false, "use Smartling's official glossary export (required for xlsx and tbx)")
+	cmd.Flags().StringVar(&o.tbxVersion, "tbx-version", "", "TBX version for official TBX export: v2 or v3 (default v3)")
+	cmd.Flags().StringVarP(&o.outputPath, "output", "o", "", "write output to file instead of stdout")
 
 	_ = cmd.MarkFlagRequired("account-uid")
 	_ = cmd.MarkFlagRequired("glossary-uid")
@@ -970,7 +924,10 @@ func newSmartlingTranslationMemoryCmd() *cobra.Command {
 		Aliases: []string{"translation-memory"},
 		Short:   "Smartling translation memory commands",
 	}
+	cmd.AddCommand(newSmartlingTranslationMemoryListCmd())
+	cmd.AddCommand(newSmartlingTranslationMemoryCreateCmd())
 	cmd.AddCommand(newSmartlingTranslationMemoryDownloadCmd())
+	cmd.AddCommand(newSmartlingTranslationMemoryImportCmd())
 	return cmd
 }
 
