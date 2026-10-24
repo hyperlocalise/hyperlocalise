@@ -333,6 +333,82 @@ describe("collectFileTranslationPageStep HTML lock wiring", () => {
     expect(extractSandboxEntriesMock).not.toHaveBeenCalled();
   });
 
+  it("maps HTML path-key prefills when CLI 1.13.5 left an empty lock", async () => {
+    const sourceEntries = extractHtmlIngestEntries(sourceHtml);
+
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path === sandboxCliLockfilePath) {
+        throw new Error(`failed to read translated file: ${path}`);
+      }
+      if (path === sandboxCliLockfileCopyPath) {
+        return "{}\n";
+      }
+      if (path === "page.html") {
+        return sourceHtml;
+      }
+      if (path === "page.fr.html") {
+        return targetHtml;
+      }
+      throw new Error(`unexpected sandbox read: ${path}`);
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_html_prefill",
+        inputFilename: "page.html",
+        outputFilenames: { "fr-FR": "page.fr.html" },
+        sourceEntries,
+        prefills: {
+          "fr-FR": {
+            "html.p": "Bonjour ",
+            "html.p.strong": "monde",
+          },
+        },
+        confirmed: {},
+      }),
+    ).resolves.toEqual({
+      "fr-FR": {
+        "html.p": "Bonjour ",
+        "html.p.strong": "monde",
+      },
+    });
+  });
+
+  it("maps hashed HTML prefills onto source path keys when the lockfile is missing", async () => {
+    const folded = extractHtmlIngestEntries(sourceHtml, { foldInline: true });
+    const hash = legacyHtmlSegmentKey(folded["html.p"] ?? "", new Map());
+    const sourceEntries = extractHtmlIngestEntries(sourceHtml);
+
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path === sandboxCliLockfilePath || path === sandboxCliLockfileCopyPath) {
+        throw new Error(`failed to read translated file: ${path}`);
+      }
+      if (path === "page.html") {
+        return sourceHtml;
+      }
+      if (path === "page.fr.html") {
+        return targetHtml;
+      }
+      throw new Error(`unexpected sandbox read: ${path}`);
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_html_hashed_prefill",
+        inputFilename: "page.html",
+        outputFilenames: { "fr-FR": "page.fr.html" },
+        sourceEntries,
+        prefills: { "fr-FR": { [hash]: "Bonjour <strong>monde</strong>!" } },
+        confirmed: {},
+      }),
+    ).resolves.toEqual({
+      "fr-FR": {
+        "html.p": "Bonjour ",
+        "html.p.strong": "monde",
+      },
+    });
+  });
+
   it("collects prefill keys when the lockfile is missing", async () => {
     const outputFilename = "strings-fr-FR.json";
     readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {

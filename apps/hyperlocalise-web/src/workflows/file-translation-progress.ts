@@ -160,8 +160,8 @@ async function readSandboxLockFile(
       throw error;
     }
   }
-  // Prefill-only or empty `hl run` may not write a lockfile. Collect then
-  // falls back to prefills and leaves HTML path keys unconfirmed.
+  // Prefill-only `hl run` on CLI 1.13.5 may skip the lockfile. Collect then
+  // maps HTML prefills onto source path keys and unions non-HTML prefills.
   return {};
 }
 
@@ -208,10 +208,10 @@ export async function collectFileTranslationPageStep(input: {
         sourceEntries: input.sourceEntries,
         extracted,
         confirmed: input.confirmed[locale] ?? {},
-        completedPathKeys: htmlCompletedPathKeysFromLock(
-          sourceHtml,
-          completedFileTranslationKeys(lock, filename),
-        ).filter((key) => !sourceFallbacks.has(key)),
+        completedPathKeys: htmlCompletedPathKeysFromLock(sourceHtml, [
+          ...completedFileTranslationKeys(lock, filename),
+          ...Object.keys(input.prefills[locale] ?? {}),
+        ]).filter((key) => !sourceFallbacks.has(key)),
       });
       if (Object.keys(collected).length > 0) {
         delta[locale] = collected;
