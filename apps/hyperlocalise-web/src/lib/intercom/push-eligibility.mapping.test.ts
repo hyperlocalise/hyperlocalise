@@ -49,6 +49,65 @@ const APPROVED_ARTICLE = {
   body: "Corps traduit",
 };
 
+const SOURCE_ARTICLE = {
+  title: "Hello",
+  description: "Help",
+  body: "Body text",
+};
+
+const KEYED_ARTICLE = {
+  title: "Bonjour keyed",
+  description: "Aide keyed",
+  body: "Corps keyed",
+};
+
+const KEYED_UNITS = [
+  {
+    id: "key-title",
+    key: "md.frontmatter/title",
+    sourceText: SOURCE_ARTICLE.title,
+    isHidden: false,
+    sourcePath: "intercom/hc-1/welcome.md",
+  },
+  {
+    id: "key-description",
+    key: "md.frontmatter/description",
+    sourceText: SOURCE_ARTICLE.description,
+    isHidden: false,
+    sourcePath: "intercom/hc-1/welcome.md",
+  },
+  {
+    id: "key-body",
+    key: "md.Paragraph[0]/line[0]",
+    sourceText: SOURCE_ARTICLE.body,
+    isHidden: false,
+    sourcePath: "intercom/hc-1/welcome.md",
+  },
+];
+
+function keyedTranslations(approvedAt: Date) {
+  return [
+    {
+      translationKeyId: "key-title",
+      status: "approved",
+      text: KEYED_ARTICLE.title,
+      updatedAt: approvedAt,
+    },
+    {
+      translationKeyId: "key-description",
+      status: "approved",
+      text: KEYED_ARTICLE.description,
+      updatedAt: approvedAt,
+    },
+    {
+      translationKeyId: "key-body",
+      status: "approved",
+      text: KEYED_ARTICLE.body,
+      updatedAt: approvedAt,
+    },
+  ];
+}
+
 function baseAutomation(): Omit<WorkspaceAutomationRecord, "toolConfig"> {
   return {
     id: "automation-1",
@@ -338,6 +397,111 @@ describe("getIntercomPushEligibility mapping", () => {
           locales: [{ locale: "fr-FR", translationProgress: 100, approvalProgress: 50 }],
         }),
       ],
+    });
+  });
+
+  it("uses a fully approved keyed article when no variant exists", async () => {
+    mockSelectQueue([[{ sourceLocale: "en", targetLocales: ["fr-FR"] }], [articleMapping()], []]);
+    mocks.listKeysForProject.mockResolvedValue(KEYED_UNITS);
+    mocks.getTranslationsByKeyIds.mockResolvedValue(
+      keyedTranslations(new Date("2026-04-02T00:00:00.000Z")),
+    );
+    mocks.getLatestRepositorySourceFileVersion.mockResolvedValue({ storedFileId: "stored-source" });
+    mocks.getStoredFileContent.mockResolvedValue({
+      content: Buffer.from(serializeIntercomArticleMarkdown(SOURCE_ARTICLE), "utf8"),
+    });
+
+    await expect(
+      getIntercomPushEligibility({
+        organizationId: "org-1",
+        automation: intercomAutomation(),
+      }),
+    ).resolves.toEqual({
+      eligibleLocaleCount: 1,
+      mappedArticleCount: 1,
+      articles: [expect.objectContaining({ eligibleLocales: ["fr-FR"] })],
+    });
+  });
+
+  it("prefers a later keyed compose over an older approved variant", async () => {
+    const variantHash = hashIntercomTranslationValues(APPROVED_ARTICLE);
+    mockSelectQueue([
+      [{ sourceLocale: "en", targetLocales: ["fr-FR"] }],
+      [{ ...articleMapping(), lastPushContentHash: { fr: variantHash } }],
+      [
+        {
+          sourcePath: "intercom/hc-1/welcome.md",
+          targetLocale: "fr-FR",
+          storedFileId: "stored-fr",
+          provenance: "upload",
+          reviewedAt: new Date("2026-04-01T00:00:00.000Z"),
+        },
+      ],
+    ]);
+    mocks.listKeysForProject.mockResolvedValue(KEYED_UNITS);
+    mocks.getTranslationsByKeyIds.mockResolvedValue(
+      keyedTranslations(new Date("2026-04-03T00:00:00.000Z")),
+    );
+    mocks.getLatestRepositorySourceFileVersion.mockResolvedValue({ storedFileId: "stored-source" });
+    mocks.getStoredFileContent.mockImplementation(async (input: { fileId: string }) => ({
+      content: Buffer.from(
+        serializeIntercomArticleMarkdown(
+          input.fileId === "stored-fr" ? APPROVED_ARTICLE : SOURCE_ARTICLE,
+        ),
+        "utf8",
+      ),
+    }));
+
+    await expect(
+      getIntercomPushEligibility({
+        organizationId: "org-1",
+        automation: intercomAutomation(),
+      }),
+    ).resolves.toEqual({
+      eligibleLocaleCount: 1,
+      mappedArticleCount: 1,
+      articles: [expect.objectContaining({ eligibleLocales: ["fr-FR"] })],
+    });
+  });
+
+  it("keeps a later approved variant when keyed text is older", async () => {
+    const variantHash = hashIntercomTranslationValues(APPROVED_ARTICLE);
+    mockSelectQueue([
+      [{ sourceLocale: "en", targetLocales: ["fr-FR"] }],
+      [{ ...articleMapping(), lastPushContentHash: { fr: variantHash } }],
+      [
+        {
+          sourcePath: "intercom/hc-1/welcome.md",
+          targetLocale: "fr-FR",
+          storedFileId: "stored-fr",
+          provenance: "upload",
+          reviewedAt: new Date("2026-04-04T00:00:00.000Z"),
+        },
+      ],
+    ]);
+    mocks.listKeysForProject.mockResolvedValue(KEYED_UNITS);
+    mocks.getTranslationsByKeyIds.mockResolvedValue(
+      keyedTranslations(new Date("2026-04-01T00:00:00.000Z")),
+    );
+    mocks.getLatestRepositorySourceFileVersion.mockResolvedValue({ storedFileId: "stored-source" });
+    mocks.getStoredFileContent.mockImplementation(async (input: { fileId: string }) => ({
+      content: Buffer.from(
+        serializeIntercomArticleMarkdown(
+          input.fileId === "stored-fr" ? APPROVED_ARTICLE : SOURCE_ARTICLE,
+        ),
+        "utf8",
+      ),
+    }));
+
+    await expect(
+      getIntercomPushEligibility({
+        organizationId: "org-1",
+        automation: intercomAutomation(),
+      }),
+    ).resolves.toEqual({
+      eligibleLocaleCount: 0,
+      mappedArticleCount: 0,
+      articles: [expect.objectContaining({ eligibleLocales: [] })],
     });
   });
 });
