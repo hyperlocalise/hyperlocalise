@@ -1466,3 +1466,115 @@ export const CoalesceNarrow: Story = {
     await expect(canvas.getAllByText(/2026-10-23/).length).toBeGreaterThan(0);
   },
 };
+
+const compareNodes = [
+  {
+    id: "trigger",
+    type: "trigger.manual" as const,
+    position: { x: 120, y: 180 },
+    data: {
+      catalogType: "trigger.manual" as const,
+      config: { kind: "trigger.manual" as const },
+      runStatus: "succeeded" as const,
+      lastOutput: { triggeredAt: "2026-10-25T04:00:00.000Z" },
+    },
+  },
+  {
+    id: "compare",
+    type: "logic.compare" as const,
+    position: { x: 500, y: 180 },
+    data: {
+      catalogType: "logic.compare" as const,
+      config: {
+        kind: "logic.compare" as const,
+        operator: "equal" as const,
+        operands: [
+          { id: "left", name: "Actual locale", type: "string" as const },
+          { id: "right", name: "Expected locale", type: "string" as const },
+        ],
+        locale: "en-AU",
+        sensitivity: "base" as const,
+      },
+      inputs: {
+        "value.right": { kind: "literal" as const, value: "en-AU" },
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: { result: true },
+    },
+  },
+];
+
+export const CompareConfigured: Story = {
+  name: "Compare — configured",
+  args: {
+    initialName: "Compare requested locale",
+    initialNodes: compareNodes,
+    initialEdges: [
+      {
+        id: "execute",
+        source: "trigger",
+        target: "compare",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: { kind: "execution" as const },
+      },
+      {
+        id: "actual-locale",
+        source: "trigger",
+        target: "compare",
+        sourceHandle: "triggeredAt",
+        targetHandle: "value.left",
+        data: { kind: "data" as const },
+      },
+    ],
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText("Data input: Actual locale, string", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data input: Expected locale, string")).toBeInTheDocument();
+    const output = canvas.getByLabelText("Data output: result, boolean");
+    await expect(output).toBeInTheDocument();
+    await userEvent.click(output.closest(".react-flow__node")!);
+    await expect(canvas.getByRole("combobox", { name: "Operator" })).toHaveTextContent("Equals");
+    await expect(
+      canvas.getByRole("checkbox", { name: "Use locale-aware string comparison" }),
+    ).toBeChecked();
+  },
+};
+
+export const CompareInvalid: Story = {
+  name: "Compare — validation error",
+  args: {
+    ...CompareConfigured.args,
+    initialNodes: compareNodes.map((node) =>
+      node.id === "compare" && node.data.config.kind === "logic.compare"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: {
+                ...node.data.config,
+                operands: node.data.config.operands.map((operand, index) => ({
+                  ...operand,
+                  name: index === 0 ? "" : operand.name,
+                })),
+              },
+            },
+          }
+        : node,
+    ),
+  },
+};
+
+export const CompareNarrow: Story = {
+  name: "Compare — narrow",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: { ...CompareConfigured.args },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByText("Succeeded", {}, { timeout: 10_000 })).toBeInTheDocument();
+    await expect(canvas.getByText(/true/)).toBeInTheDocument();
+  },
+};

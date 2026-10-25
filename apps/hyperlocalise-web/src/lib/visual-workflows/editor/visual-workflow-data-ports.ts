@@ -50,7 +50,8 @@ function getInputFields(node: VisualWorkflowRfNode) {
     node.data.config.kind === "flow.call_workflow" ||
     node.data.config.kind === "logic.create_object" ||
     node.data.config.kind === "logic.merge_objects" ||
-    node.data.config.kind === "logic.coalesce"
+    node.data.config.kind === "logic.coalesce" ||
+    node.data.config.kind === "logic.compare"
   ) {
     return getWorkflowInputFields({
       id: node.id,
@@ -91,6 +92,10 @@ function getInputLabel(node: VisualWorkflowRfNode, portId: string): string {
   if (node.data.config.kind === "logic.coalesce" && portId.startsWith("value.")) {
     const id = portId.slice("value.".length);
     return node.data.config.inputs.find((input) => input.id === id)?.name ?? portId;
+  }
+  if (node.data.config.kind === "logic.compare" && portId.startsWith("value.")) {
+    const id = portId.slice("value.".length);
+    return node.data.config.operands.find((operand) => operand.id === id)?.name ?? portId;
   }
   return portId;
 }

@@ -30,6 +30,15 @@ const visualIdListSchema = z.string().trim().max(2000);
 const visualCrowdinIdSchema = z.string().trim().max(256);
 const visualDueAtSchema = z.string().trim().max(256).optional();
 
+function isValidIntlLocale(locale: string): boolean {
+  try {
+    Intl.getCanonicalLocales(locale);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const httpAuthSchema = z.object({
   type: z.enum(["none", "bearer", "api_key"]),
   token: z.string().max(4000).optional(),
@@ -78,6 +87,7 @@ export const visualCatalogTypeSchema = z.enum([
   "logic.merge_objects",
   "logic.select_path",
   "logic.coalesce",
+  "logic.compare",
   "ai.agent",
   "logic.for_each",
   "logic.retry",
@@ -531,6 +541,75 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     treatEmptyArrayAsMissing: z.boolean(),
     treatEmptyObjectAsMissing: z.boolean(),
   }),
+  z
+    .object({
+      kind: z.literal("logic.compare"),
+      operator: z.enum([
+        "equal",
+        "not_equal",
+        "greater_than",
+        "greater_than_or_equal",
+        "less_than",
+        "less_than_or_equal",
+        "contains",
+        "starts_with",
+        "ends_with",
+        "and",
+        "or",
+        "not",
+      ]),
+      operands: z
+        .array(
+          z.object({
+            id: z.string().uuid(),
+            name: z.string().trim().min(1).max(128),
+            type: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+          }),
+        )
+        .min(1)
+        .max(12),
+      locale: z.string().trim().min(1).max(64).refine(isValidIntlLocale).optional(),
+      sensitivity: z.enum(["base", "accent", "case", "variant"]).optional(),
+    })
+    .superRefine((config, context) => {
+      const expectedCount = config.operator === "not" ? 1 : 2;
+      if (!["and", "or"].includes(config.operator) && config.operands.length !== expectedCount) {
+        context.addIssue({
+          code: "custom",
+          path: ["operands"],
+          message: "invalid_comparison_operand_count",
+        });
+      }
+      if (["and", "or", "not"].includes(config.operator)) {
+        config.operands.forEach((operand, index) => {
+          if (operand.type !== "boolean") {
+            context.addIssue({
+              code: "custom",
+              path: ["operands", index, "type"],
+              message: "boolean_operator_requires_boolean_operands",
+            });
+          }
+        });
+      }
+      const ids = new Set<string>();
+      config.operands.forEach((operand, index) => {
+        if (ids.has(operand.id)) {
+          context.addIssue({
+            code: "custom",
+            path: ["operands", index, "id"],
+            message: "duplicate_comparison_operand_id",
+          });
+        }
+        ids.add(operand.id);
+      });
+      if (config.sensitivity && !config.locale) {
+        context.addIssue({
+          code: "custom",
+          path: ["sensitivity"],
+          message: "comparison_sensitivity_requires_locale",
+        });
+      }
+    }),
   z.object({
     kind: z.literal("ai.agent"),
     prompt: z.string().max(20_000),

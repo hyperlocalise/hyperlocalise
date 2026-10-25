@@ -196,6 +196,42 @@ describe("getVisualWorkflowDataPorts", () => {
     ]);
   });
 
+  it("exposes typed Compare operands and boolean output", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("compare", "logic.compare", {
+        config: {
+          kind: "logic.compare",
+          operator: "equal",
+          operands: [
+            { id: "left", name: "Current locale", type: "string" },
+            { id: "right", name: "Requested locale", type: "string" },
+          ],
+        },
+      }),
+      edges: [],
+    });
+
+    expect(ports.inputs).toEqual([
+      {
+        id: "value.left",
+        label: "Current locale",
+        type: "string",
+        optional: false,
+        connectionCount: 0,
+      },
+      {
+        id: "value.right",
+        label: "Requested locale",
+        type: "string",
+        optional: false,
+        connectionCount: 0,
+      },
+    ]);
+    expect(ports.outputs).toEqual([
+      { id: "result", label: "result", type: "boolean", optional: false, connectionCount: 0 },
+    ]);
+  });
+
   it("returns dynamic Set ports without duplicates", () => {
     const ports = getVisualWorkflowDataPorts({
       node: node("set", "logic.set", {

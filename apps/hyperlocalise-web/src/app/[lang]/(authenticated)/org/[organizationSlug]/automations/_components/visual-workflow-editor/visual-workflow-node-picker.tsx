@@ -191,6 +191,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeSelectPath;
     case "logic.coalesce":
       return messages.nodeCoalesce;
+    case "logic.compare":
+      return messages.nodeCompare;
     case "ai.agent":
       return messages.nodeAi;
     case "logic.for_each":
@@ -270,6 +272,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeSelectPathHint;
     case "logic.coalesce":
       return messages.nodeCoalesceHint;
+    case "logic.compare":
+      return messages.nodeCompareHint;
     case "ai.agent":
       return messages.nodeAiHint;
     case "logic.for_each":

@@ -390,6 +390,105 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "Y6e1UDu/Ic",
     description: "Catalog description for the coalesce node",
   },
+  nodeCompare: {
+    defaultMessage: "Compare",
+    id: "2chGT4Q88W",
+    description: "Catalog title for the compare and boolean operators node",
+  },
+  nodeCompareHint: {
+    defaultMessage: "Compare typed values or combine boolean predicates.",
+    id: "BWn4lTVOW+",
+    description: "Catalog description for the compare and boolean operators node",
+  },
+  compareOperator: {
+    defaultMessage: "Operator",
+    id: "dCCEY6kz9i",
+    description: "Compare node operator label",
+  },
+  compareOperands: {
+    defaultMessage: "Values",
+    id: "njxiURMl+2",
+    description: "Compare node operand list heading",
+  },
+  compareOperandName: {
+    defaultMessage: "Value {index} name",
+    id: "XJR0C7/H1v",
+    description: "Compare operand name",
+  },
+  compareOperandType: {
+    defaultMessage: "Value {index} type",
+    id: "eXV1+dyKel",
+    description: "Compare operand type",
+  },
+  addCompareOperand: {
+    defaultMessage: "Add condition",
+    id: "AkRNBWljz9",
+    description: "Add a boolean condition to Compare",
+  },
+  removeCompareOperand: {
+    defaultMessage: "Remove condition {index}",
+    id: "AS1Jb1Fn/X",
+    description: "Remove a boolean condition from Compare",
+  },
+  compareLocaleEnabled: {
+    defaultMessage: "Use locale-aware string comparison",
+    id: "dAqONPnRrf",
+    description: "Enable locale-aware comparison",
+  },
+  compareLocale: {
+    defaultMessage: "Locale",
+    id: "O+MFwwsPPs",
+    description: "Compare locale input label",
+  },
+  compareSensitivity: {
+    defaultMessage: "Sensitivity",
+    id: "dhCHuarVuj",
+    description: "Compare collation sensitivity label",
+  },
+  compareEqual: { defaultMessage: "Equals", id: "xlj1vkYPSY", description: "Equals operator" },
+  compareNotEqual: {
+    defaultMessage: "Does not equal",
+    id: "EuDRqs/vI3",
+    description: "Not equal operator",
+  },
+  compareGreaterThan: {
+    defaultMessage: "Greater than",
+    id: "fntWWIAzLn",
+    description: "Greater than operator",
+  },
+  compareGreaterThanOrEqual: {
+    defaultMessage: "Greater than or equal",
+    id: "0C/YKQiT4r",
+    description: "Greater than or equal operator",
+  },
+  compareLessThan: {
+    defaultMessage: "Less than",
+    id: "va2mte2j4z",
+    description: "Less than operator",
+  },
+  compareLessThanOrEqual: {
+    defaultMessage: "Less than or equal",
+    id: "pvRSTX9opI",
+    description: "Less than or equal operator",
+  },
+  compareContains: {
+    defaultMessage: "Contains",
+    id: "f8G+byGKq6",
+    description: "Contains operator",
+  },
+  compareStartsWith: {
+    defaultMessage: "Starts with",
+    id: "CkGJqwlYH7",
+    description: "Starts with operator",
+  },
+  compareEndsWith: {
+    defaultMessage: "Ends with",
+    id: "qb04+Om/Pt",
+    description: "Ends with operator",
+  },
+  compareAnd: { defaultMessage: "AND", id: "IjB6PL5Pbn", description: "Boolean AND operator" },
+  compareOr: { defaultMessage: "OR", id: "fymXCpx8Nq", description: "Boolean OR operator" },
+  compareNot: { defaultMessage: "NOT", id: "WNvJxgRGRU", description: "Boolean NOT operator" },
   coalesceInputs: {
     defaultMessage: "Ordered values",
     id: "MkbQjfMTez",
