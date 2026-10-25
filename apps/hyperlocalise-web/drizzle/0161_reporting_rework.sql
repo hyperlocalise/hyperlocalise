@@ -112,8 +112,6 @@ CREATE TABLE "reporting_workspaces" (
 	"summary_version" integer
 );
 --> statement-breakpoint
-ALTER TABLE "reporting_rollout" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-DROP TABLE "reporting_rollout" CASCADE;--> statement-breakpoint
 ALTER TABLE "reporting_analyses" DROP CONSTRAINT "reporting_analyses_job_id_jobs_id_fk";
 --> statement-breakpoint
 ALTER TABLE "reporting_activity" ADD COLUMN "source" text;--> statement-breakpoint

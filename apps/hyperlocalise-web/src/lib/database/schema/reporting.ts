@@ -56,6 +56,15 @@ export const reportingWorkspaces = pgTable("reporting_workspaces", {
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   summaryVersion: integer("summary_version"),
 });
+/**
+ * One Reports start for every workspace, from before each workspace had its own. The web app no
+ * longer reads it; go-svc's reporting routes still do, so the table stays until they move to
+ * `reporting_workspaces`.
+ */
+export const reportingRollout = pgTable("reporting_rollout", {
+  id: integer("id").primaryKey().default(1),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+});
 export const reportingRates = pgTable(
   "reporting_rates",
   {

@@ -1,5 +1,5 @@
 {
-  "id": "d260bad8-b182-4240-ab42-097c911eb941",
+  "id": "239fe37d-fab7-4fc5-8ce7-f7d2f13c165a",
   "prevId": "5a46a717-a1f8-417f-8c2c-33fdcef0fe5f",
   "version": "7",
   "dialect": "postgresql",
@@ -34199,6 +34199,33 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.reporting_rollout": {
+      "name": "reporting_rollout",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "default": 1
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
