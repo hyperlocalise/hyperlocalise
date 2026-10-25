@@ -25,7 +25,7 @@ Reports (behind the `workspace-reports` flag, no customer users yet) records wor
 - `refreshSummaryDays` rebuilds a project's marked days from the raw records in one statement, under an advisory lock that is skipped when busy, and clears a mark only if its generation did not change meanwhile.
 - By default the summary refreshes at the end of each capture cron run: capture starts no new work after three minutes, and the refresh uses the time left up to four. `REPORTING_SUMMARY_REFRESH=after_write` refreshes straight after each write instead.
 - `ensureSummaryBuilt` queues every day of a workspace whose `reporting_workspaces.summary_version` is not `SUMMARY_VERSION`, for the first build and any later rebuild. `vp run reporting:summary rebuild` and `time` do the same locally.
-- `reporting_workspaces.started_at` is each workspace's own Reports start, replacing `reporting_rollout`. Dates on the page start there.
+- `reporting_workspaces.started_at` is each workspace's own Reports start, replacing `reporting_rollout` in the web app. Dates on the page start there. The `reporting_rollout` table itself stays, because go-svc's reporting routes still read it.
 - Each analysis stores characters with and without spaces (grapheme clusters, from `countSourceCharacters`). Rows from before have none and show as "not counted".
 
 ### Reading
@@ -69,6 +69,7 @@ Reports (behind the `workspace-reports` flag, no customer users yet) records wor
 - A task for people is analysed a few seconds after it is created; until then its Report tab and estimate show no words. Its untouched strings count in still to come from then on.
 - A billed AI call that records no project counts only as AI outside any project.
 - `reporting_task_rates.rate_id`, the old single rate line, is no longer read but stays as a column so the rework needs one migration; a later clean-up drops it.
+- go-svc's reporting routes (`apps/go-svc/reporting*.go`) follow the Reports API from before this rework: its old routes, one start for every workspace in `reporting_rollout`, and a task's pricing as one rate line (`rate_id`). They need moving to this design, or removing, before anything calls them.
 - Local databases that applied the rework's interim migrations are brought in line with `bin/mark-migration-applied.sh` in hl-env, which rewrites Drizzle's bookkeeping only.
 
 ## Alternatives considered
