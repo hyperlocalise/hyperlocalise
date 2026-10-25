@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-Ships in three pull requests: the daily summary (`feat/web-reports-summary`), the read layer and API (`feat/web-reports-read-api`), and the Reports page with a task's Report tab (`feat/web-reports-task-report`). It builds on [Reports capture rework](./2026-10-20-reports-capture-rework-design.md), which records the work this reads. The whole rework is one migration, `0160_reporting_rework`, carried by the first pull request with the final schema; the three deploy together.
+Ships as one pull request (`feat/web-reports-task-report`), built in three parts: the daily summary, the read layer and API, and the Reports page with a task's Report tab. It builds on [Reports capture rework](./2026-10-20-reports-capture-rework-design.md), which records the work this reads. The whole rework is one migration, `0161_reporting_rework`.
 
 ## Context
 
