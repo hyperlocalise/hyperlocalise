@@ -124,6 +124,41 @@ describe("collectFileTranslationPageStep HTML lock wiring", () => {
     expect(readTranslatedFileMock).not.toHaveBeenCalledWith("sbx_canva", outputFilename);
   });
 
+  it("collects PDF block keys from the JSON hl output", async () => {
+    const sourceEntries = { "page-1#1": "Annual report", "page-1#2": "Revenue grew." };
+    const outputFilename = "brochure-fr-FR.json";
+
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path === ".hyperlocalise.lock.json") {
+        return JSON.stringify(lockFor(outputFilename, ["page-1#1", "page-1#2"]));
+      }
+      throw new Error(`unexpected sandbox read: ${path}`);
+    });
+    extractSandboxEntriesMock.mockResolvedValue({
+      ok: true,
+      entries: { "page-1#1": "Rapport annuel", "page-1#2": "Le chiffre d'affaires a augmenté." },
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_pdf",
+        inputFilename: "brochure.json",
+        outputFilenames: { "fr-FR": outputFilename },
+        sourceEntries,
+        prefills: {},
+        confirmed: {},
+      }),
+    ).resolves.toEqual({
+      "fr-FR": {
+        "page-1#1": "Rapport annuel",
+        "page-1#2": "Le chiffre d'affaires a augmenté.",
+      },
+    });
+    expect(extractSandboxEntriesMock).toHaveBeenCalledWith("sbx_pdf", outputFilename, {
+      sourcePath: "brochure.json",
+    });
+  });
+
   it("reads workbook outputs from the target column", async () => {
     const outputFilename = "strings-fr-FR.xlsx";
     readTranslatedFileMock.mockResolvedValue(
