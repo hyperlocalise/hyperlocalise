@@ -30,9 +30,10 @@ export async function taskAnalysisWorkflow(input: TaskAnalysisInput) {
   "use workflow";
 
   const state = { organizationId: input.organizationId, jobId: input.jobId, step: input.step };
+  // The task's strings, once a language has been recorded: kept on the state however it ends.
+  let strings: number | null = null;
   try {
     const days = new Set<string>();
-    let strings = 0;
     let incomplete = false;
     let error: string | null = null;
     for (const targetLocale of new Set(input.targetLocales)) {
@@ -50,7 +51,7 @@ export async function taskAnalysisWorkflow(input: TaskAnalysisInput) {
         recorded = await analyseTaskLanguageStep({ ...language, withoutMemory: true });
         incomplete = true;
       }
-      strings = Math.max(strings, recorded.strings);
+      strings = Math.max(strings ?? 0, recorded.strings);
       for (const day of recorded.days) days.add(day);
     }
     if (days.size > 0) {
@@ -66,9 +67,14 @@ export async function taskAnalysisWorkflow(input: TaskAnalysisInput) {
       }
     }
     await setTaskAnalysisStatusStep({ ...state, status: "done", incomplete, strings, error });
-    return { strings };
+    return { strings: strings ?? 0 };
   } catch (failure) {
-    await setTaskAnalysisStatusStep({ ...state, status: "failed", error: messageOf(failure) });
+    await setTaskAnalysisStatusStep({
+      ...state,
+      status: "failed",
+      strings,
+      error: messageOf(failure),
+    });
     throw failure;
   }
 }

@@ -432,9 +432,16 @@ async function recordSaves(
   // time of their save: the translation now may have been overwritten since.
   const segmentKey = (segment: SavedSegment) =>
     `${segment.projectId}:${segment.translationKeyId}:${segment.targetLocale}:${segment.step}`;
+  // The saves that will be recorded: a person's, of a string in its project with text saved.
   const personSaves = segments.flatMap((segment) => {
+    const key = keyById.get(segment.translationKeyId);
     const translation = translationByKey.get(`${segment.translationKeyId}:${segment.targetLocale}`);
-    return segment.automated || !translation ? [] : [{ segment, translation }];
+    return segment.automated ||
+      !key ||
+      key.projectId !== segment.projectId ||
+      !translation?.text.trim()
+      ? []
+      : [{ segment, translation }];
   });
   const origins = await textOrigins(
     organizationId,

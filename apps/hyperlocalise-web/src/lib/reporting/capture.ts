@@ -303,10 +303,13 @@ export function isMemoryUnavailableError(error: unknown): boolean {
   return error instanceof Error && error.message.startsWith(MEMORY_UNAVAILABLE);
 }
 
+/**
+ * A plain error with the cause's message only: a step's failure crosses the workflow runtime's
+ * serialisation, which a database error kept as `cause` might not survive.
+ */
 function memoryUnavailable(error: unknown): Error {
   return new Error(
     `${MEMORY_UNAVAILABLE}: ${error instanceof Error ? error.message : String(error)}`,
-    { cause: error },
   );
 }
 
@@ -919,7 +922,8 @@ async function writeJobStatus(input: {
   // A task that is no longer open holds its unfinished strings no more: the days they arrived
   // on are worked out again, so Progress leaves them out. Status changes are not Reports writes,
   // so nothing else would mark those days.
-  if (!OPEN_TASK_STATUSES.has(input.status)) await markTaskDays(input.jobId);
+  if (!OPEN_TASK_STATUSES.has(input.status))
+    await markTaskDays(ownedJob.organizationId, input.jobId);
   const [job] = await db
     .select({
       organizationId: schema.jobs.organizationId,
@@ -945,21 +949,16 @@ async function writeJobStatus(input: {
 }
 
 /** Marks the days of a task's current strings for its project's summary to be worked out again. */
-async function markTaskDays(jobId: string) {
+async function markTaskDays(organizationId: string, jobId: string) {
   await db.transaction(async (tx) => {
-    const rows = await tx.execute<{ organizationId: string; projectId: string; day: string }>(sql`
-      select distinct organization_id as "organizationId", project_id as "projectId",
-        (created_at at time zone 'UTC')::date::text as day
-      from reporting_analyses where job_id = ${jobId} and is_current and project_id is not null
+    // By workspace and task, the identity index's first two columns.
+    const rows = await tx.execute<{ projectId: string; day: string }>(sql`
+      select distinct project_id as "projectId", (created_at at time zone 'UTC')::date::text as day
+      from reporting_analyses
+      where organization_id = ${organizationId} and job_id = ${jobId} and is_current
+        and project_id is not null
     `);
-    const byOrganization = new Map<string, SummaryMark[]>();
-    for (const row of rows.rows) {
-      const marks = byOrganization.get(row.organizationId) ?? [];
-      marks.push({ projectId: row.projectId, day: row.day });
-      byOrganization.set(row.organizationId, marks);
-    }
-    for (const [organizationId, marks] of byOrganization)
-      await markSummaryDays(tx, organizationId, marks);
+    await markSummaryDays(tx, organizationId, rows.rows);
   });
 }
 

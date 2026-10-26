@@ -310,10 +310,10 @@ export function taskReportQuery(view: TaskReportView) {
   return compact({ unit: view.unit, step: view.step, rateCard: optional(view.rateCard) });
 }
 
-/** One task's words, money, time and pricing, for its Report tab. */
 /** How often a task's Report tab reads again while recorded strings are not yet in the summary. */
 const RECORDED_POLL_MS = 30_000;
 
+/** One task's words, money, time and pricing, for its Report tab. */
 export function useTaskReport(
   organizationSlug: string,
   jobId: string,
