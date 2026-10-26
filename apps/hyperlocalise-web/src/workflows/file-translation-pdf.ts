@@ -27,8 +27,9 @@ export function pdfHlSourceFilename(pdfFilename: string): string {
     : `${pdfFilename}.json`;
 }
 
-export function pdfHlSourceContent(sourceEntries: Record<string, string>): Buffer {
-  return Buffer.from(JSON.stringify(sourceEntries), "utf8");
+/** Returns a string because the workflow body has no `Buffer` global; steps encode it. */
+export function pdfHlSourceContent(sourceEntries: Record<string, string>): string {
+  return JSON.stringify(sourceEntries);
 }
 
 export function parsePdfHlOutputValues(content: Buffer): Record<string, string> {

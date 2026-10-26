@@ -391,16 +391,20 @@ async function prepareSandboxStep(sandboxId: string) {
   return prepareSandbox(sandboxId);
 }
 
-async function writeSourceFileStep(sandboxId: string, filename: string, content: Buffer) {
+async function writeSourceFileStep(sandboxId: string, filename: string, content: Buffer | string) {
   "use step";
   const { writeFileToSandbox } = await import("@/lib/translation/sandbox");
-  return writeFileToSandbox(sandboxId, filename, content);
+  return writeFileToSandbox(
+    sandboxId,
+    filename,
+    typeof content === "string" ? Buffer.from(content, "utf8") : content,
+  );
 }
 
 async function recreateSandboxWithSourceStep(input: {
   previousSandboxId: string | null;
   filename: string;
-  content: Buffer;
+  content: Buffer | string;
   timeoutMs: number;
 }) {
   "use step";
@@ -417,7 +421,11 @@ async function recreateSandboxWithSourceStep(input: {
 
   const { sandboxId } = await createTranslationSandbox(input.timeoutMs);
   await prepareSandbox(sandboxId);
-  await writeFileToSandbox(sandboxId, input.filename, input.content);
+  await writeFileToSandbox(
+    sandboxId,
+    input.filename,
+    typeof input.content === "string" ? Buffer.from(input.content, "utf8") : input.content,
+  );
   return { sandboxId };
 }
 

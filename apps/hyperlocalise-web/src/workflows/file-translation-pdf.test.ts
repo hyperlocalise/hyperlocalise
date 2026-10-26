@@ -50,13 +50,27 @@ describe("pdfHlSourceFilename", () => {
 });
 
 describe("pdfHlSourceContent", () => {
+  it("does not need the Buffer global, which the workflow sandbox lacks", () => {
+    vi.stubGlobal("Buffer", undefined);
+    try {
+      expect(pdfHlSourceContent({ "page-1#1": "Annual report" })).toBe(
+        '{"page-1#1":"Annual report"}',
+      );
+      expect(pdfHlSourceFilename("brochure.pdf")).toBe("brochure.json");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("round-trips positional block keys unchanged", () => {
     const sourceEntries = {
       "page-1#1": "Annual report",
       "page-1#2": "Revenue grew 12%.",
       "page-12#30": 'Quotes "and" unicode — ✓',
     };
-    expect(parsePdfHlOutputValues(pdfHlSourceContent(sourceEntries))).toEqual(sourceEntries);
+    expect(parsePdfHlOutputValues(Buffer.from(pdfHlSourceContent(sourceEntries)))).toEqual(
+      sourceEntries,
+    );
   });
 });
 
