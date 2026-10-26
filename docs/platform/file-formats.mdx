@@ -95,8 +95,12 @@ wrapping may still be written with a best-effort layout; overflow keys are
 listed in the download response when present (`X-Hyperlocalise-Overflow-Keys`
 on project and public downloads; `overflowKeys` on MCP `download_translations`).
 
-PDF export supports Latin-script targets. Arabic, Hebrew, Devanagari, and
-other non-Latin scripts return `pdf_script_unsupported`.
+PDF export supports Latin, Chinese, Japanese, Korean, and Vietnamese targets.
+For Chinese, Japanese, Korean, and Vietnamese, a translated block keeps the
+source font when that font contains the needed glyphs. Other blocks are
+redrawn with an embedded font, so expect a larger file. Arabic, Hebrew,
+Devanagari, and other scripts that need complex shaping return
+`pdf_script_unsupported`.
 
 Google Drive import does not support PDF yet. For CLI behavior, see the
 [PDF format guide](/cli/reference/formats/pdf).
