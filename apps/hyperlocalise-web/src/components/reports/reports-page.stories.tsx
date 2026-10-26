@@ -41,8 +41,21 @@ type Story = StoryObj<typeof meta>;
 export const Activity: Story = {
   play: async ({ canvas }) => {
     await expect(await canvas.findByText("48,210")).toBeInTheDocument();
-    await expect(canvas.getAllByRole("tab")).toHaveLength(6);
-    await expect(await canvas.findByRole("table", { name: "AI usage" })).toBeInTheDocument();
+    await expect(canvas.getAllByRole("tab")).toHaveLength(7);
+  },
+};
+
+export const AiUsage: Story = {
+  parameters: {
+    nextjs: {
+      appDirectory: true,
+      navigation: { pathname, query: { tab: "ai", ai2: "model" } },
+    },
+  },
+  play: async ({ canvas }) => {
+    const table = await canvas.findByRole("table", { name: "Breakdown" });
+    await expect(within(table).getByText("openai/gpt-6-luna")).toBeInTheDocument();
+    await expect(within(table).getAllByText("Own key")).toHaveLength(2);
   },
 };
 

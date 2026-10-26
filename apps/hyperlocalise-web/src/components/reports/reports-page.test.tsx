@@ -22,6 +22,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { ReportsPage } from "./reports-page";
 import {
   createReportsSettings,
+  reportsAiUsage,
   reportsCostEstimate,
   reportsCosts,
   reportsResponseBodies,
@@ -90,10 +91,13 @@ describe("Reports page", () => {
       "Activity",
       "Word counts",
       "Time",
+      "AI usage",
       "Costs",
       "Cost estimate",
       "Budgets",
     ]);
+    // AI usage has its own tab now: the Activity tab reads none.
+    expect(callsTo("ai-usage")).toEqual([]);
     expect(
       screen.getByText("Reporting started Mar 3, 2026 · Days and weeks use UTC"),
     ).toBeInTheDocument();
@@ -170,6 +174,84 @@ describe("Reports page", () => {
     await waitFor(() =>
       expect(mocks.replace).toHaveBeenLastCalledWith(
         "/en/org/acme/reports?tab=time&range=7&unit=strings&group=task",
+        { scroll: false },
+      ),
+    );
+  });
+
+  it("shows AI usage by area then model, with billing's charge, and narrows to a row", async () => {
+    mocks.search = "tab=ai&ai2=model";
+    renderPage();
+    // The card and the table's total.
+    expect(await screen.findAllByText("$41.25")).toHaveLength(2);
+    // The filter bar's fields, then the table's two groupings.
+    expect(filterLabels()).toEqual([
+      "Dates",
+      "Project",
+      "Task",
+      "Area",
+      "Channel",
+      "Key",
+      "Group by",
+      "Then by",
+    ]);
+    expect(callsTo("ai-usage")[0]?.args.query).toMatchObject({
+      groupBy: "area",
+      thenBy: "model",
+      page: "1",
+    });
+    expect(
+      screen.getByText(
+        "3 calls have no charge recorded by billing yet, so Charge leaves them out.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("260 calls used your own provider key, which uses no plan credit."),
+    ).toBeInTheDocument();
+    const table = screen.getByRole("table", { name: "Breakdown" });
+    // Calls on the workspace's own key cost no plan credit; a gap in billing is never $0.
+    expect(within(table).getAllByText("Own key")).toHaveLength(2);
+    expect(within(table).getAllByText("3 calls not recorded").length).toBeGreaterThan(0);
+
+    // A group narrows the tab to it and shows its second-level groups next.
+    await userEvent.click(within(table).getByRole("button", { name: "Show only Translation" }));
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenLastCalledWith(
+        "/en/org/acme/reports?tab=ai&ai=model&area=translation",
+        { scroll: false },
+      ),
+    );
+    await userEvent.click(
+      within(table).getByRole("button", { name: "Show only openai/gpt-6-luna" }),
+    );
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenLastCalledWith(
+        "/en/org/acme/reports?tab=ai&ai=model&area=translation&model=openai%2Fgpt-6-luna",
+        { scroll: false },
+      ),
+    );
+    // Calls without a model are not a filter.
+    expect(within(table).queryByRole("button", { name: "Show only None" })).toBeNull();
+  });
+
+  it("lists the details chosen from a row, each removable", async () => {
+    mocks.search = "tab=ai&model=openai/gpt-6-luna&automation=auto_1";
+    mocks.bodies = {
+      ...reportsResponseBodies(),
+      "ai-usage": { aiUsage: { ...reportsAiUsage, automationName: "Nightly" } },
+    };
+    renderPage();
+    expect(await screen.findByText("Model: openai/gpt-6-luna")).toBeInTheDocument();
+    // The automation's name comes with the usage.
+    expect(await screen.findByText("Automation: Nightly")).toBeInTheDocument();
+    expect(callsTo("ai-usage")[0]?.args.query).toMatchObject({
+      model: "openai/gpt-6-luna",
+      automationId: "auto_1",
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Show every model" }));
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenLastCalledWith(
+        "/en/org/acme/reports?tab=ai&automation=auto_1",
         { scroll: false },
       ),
     );

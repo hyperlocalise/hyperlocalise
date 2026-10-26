@@ -21,35 +21,20 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { AI_ORIGINS, type AiChannel, type AiOrigin } from "@/lib/reporting/ai-usage-origins";
 import { describeChange, shareOf } from "@/lib/reporting/report-period";
 import { REPORT_STEPS, SUMMARY_SOURCES } from "@/lib/reporting/report-units";
 import { VISUAL_NODE_DESCRIPTIONS } from "@/lib/visual-workflows/catalog/node-descriptions";
 
 import { activityTabMessages as messages } from "./activity-tab.messages";
-import {
-  formatChange,
-  formatCompact,
-  formatCount,
-  formatDuration,
-  formatShare,
-  stepLabel,
-} from "./report-format";
-import {
-  ReportSection,
-  ReportSectionState,
-  DownloadCsvButton,
-  ReportEmpty,
-} from "./report-section";
+import { formatChange, formatCount, formatDuration, formatShare, stepLabel } from "./report-format";
+import { ReportSection, ReportSectionState, DownloadCsvButton } from "./report-section";
 import { ReportStatCard, ReportStatCards, ReportStatCardsSkeleton } from "./report-stat-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
 import { reportsPageMessages as pageMessages } from "./reports-page.messages";
 import {
-  aiUsageQuery,
   reportDownloadUrl,
   stepTimesQuery,
   useActivityReport,
-  useAiUsage,
   useStepTimes,
   type SectionInput,
 } from "./reports-queries";
@@ -85,7 +70,6 @@ export function ActivityTab({
         </ReportSectionState>
       </div>
       <StepTimesSection input={input} />
-      <AiUsageSection input={input} onChange={onChange} />
     </div>
   );
 }
@@ -400,150 +384,6 @@ function StepTimesSection({ input }: { input: SectionInput }) {
             </TableBody>
           </Table>
         )}
-      </ReportSectionState>
-    </ReportSection>
-  );
-}
-
-const ORIGIN_MESSAGES = Object.fromEntries(
-  AI_ORIGINS.map((origin) => [origin, messages[`origin_${origin}`]]),
-) as Record<AiOrigin, (typeof messages)["origin_other"]>;
-
-function originLabel(intl: Intl, origin: AiOrigin) {
-  return intl.formatMessage(ORIGIN_MESSAGES[origin]);
-}
-
-function channelLabel(intl: Intl, channel: AiChannel) {
-  return intl.formatMessage(messages[`channel_${channel}`]);
-}
-
-function AiUsageSection({
-  input,
-  onChange,
-}: {
-  input: SectionInput;
-  onChange: (change: Partial<ReportsUrlState>) => void;
-}) {
-  const intl = useIntl();
-  const usage = useAiUsage(input);
-  const byModel = input.state.aiGroup === "model";
-  const numeric = "text-right tabular-nums";
-  return (
-    <ReportSection
-      title={intl.formatMessage(messages.aiUsage)}
-      description={
-        narrowedBeyondProject(input)
-          ? `${intl.formatMessage(messages.aiUsageDetail)} ${intl.formatMessage(messages.aiUsageFiltersNote)}`
-          : intl.formatMessage(messages.aiUsageDetail)
-      }
-      actions={
-        <>
-          <SegmentedSwitch
-            label={intl.formatMessage(messages.groupAiUsage)}
-            value={input.state.aiGroup}
-            options={[
-              { value: "origin", label: intl.formatMessage(messages.byOrigin) },
-              { value: "model", label: intl.formatMessage(messages.byModel) },
-            ]}
-            onChange={(aiGroup) => onChange({ aiGroup, page: input.state.page })}
-          />
-          <DownloadCsvButton
-            href={reportDownloadUrl(input.organizationSlug, "ai-usage", aiUsageQuery(input))}
-          />
-        </>
-      }
-    >
-      <ReportSectionState query={usage}>
-        {(data) =>
-          data.byOrigin.length === 0 ? (
-            <ReportEmpty description={intl.formatMessage(messages.noAiUsage)} />
-          ) : (
-            <Table aria-label={intl.formatMessage(messages.aiUsage)}>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    {intl.formatMessage(byModel ? messages.modelColumn : messages.originColumn)}
-                  </TableHead>
-                  <TableHead className="text-right">
-                    {intl.formatMessage(messages.callsColumn)}
-                  </TableHead>
-                  <TableHead className="text-right">
-                    {intl.formatMessage(messages.inputColumn)}
-                  </TableHead>
-                  <TableHead className="text-right">
-                    {intl.formatMessage(messages.outputColumn)}
-                  </TableHead>
-                  {byModel ? (
-                    <TableHead>{intl.formatMessage(messages.originsColumn)}</TableHead>
-                  ) : (
-                    <>
-                      <TableHead>{intl.formatMessage(messages.modelsColumn)}</TableHead>
-                      <TableHead>{intl.formatMessage(messages.channelsColumn)}</TableHead>
-                    </>
-                  )}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {byModel
-                  ? data.byModel.map((row) => (
-                      <TableRow key={row.model}>
-                        <TableCell>{row.model}</TableCell>
-                        <TableCell className={numeric}>{formatCount(intl, row.calls)}</TableCell>
-                        <TableCell className={numeric}>
-                          {formatCompact(intl, row.inputTokens)}
-                        </TableCell>
-                        <TableCell className={numeric}>
-                          {formatCompact(intl, row.outputTokens)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {row.origins.map((origin) => originLabel(intl, origin)).join(", ")}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  : data.byOrigin.map((row) => (
-                      <TableRow key={row.origin}>
-                        <TableCell>{originLabel(intl, row.origin)}</TableCell>
-                        <TableCell className={numeric}>
-                          {row.images + row.videos > 0 && row.calls === 0
-                            ? intl.formatMessage(messages.mediaCalls, {
-                                images: intl.formatMessage(messages.imagesCount, {
-                                  count: row.images,
-                                }),
-                                videos: intl.formatMessage(messages.videosCount, {
-                                  count: row.videos,
-                                }),
-                              })
-                            : formatCount(intl, row.calls)}
-                        </TableCell>
-                        <TableCell className={numeric}>
-                          {row.inputTokens ? formatCompact(intl, row.inputTokens) : "—"}
-                        </TableCell>
-                        <TableCell className={numeric}>
-                          {row.outputTokens ? formatCompact(intl, row.outputTokens) : "—"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {row.models.join(", ")}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {row.channels.map((channel) => channelLabel(intl, channel)).join(", ")}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                <TableRow className="bg-muted/50 font-semibold">
-                  <TableCell>{intl.formatMessage(pageMessages.total)}</TableCell>
-                  <TableCell className={numeric}>{formatCount(intl, data.totals.calls)}</TableCell>
-                  <TableCell className={numeric}>
-                    {formatCompact(intl, data.totals.inputTokens)}
-                  </TableCell>
-                  <TableCell className={numeric}>
-                    {formatCompact(intl, data.totals.outputTokens)}
-                  </TableCell>
-                  <TableCell colSpan={byModel ? 1 : 2} />
-                </TableRow>
-              </TableBody>
-            </Table>
-          )
-        }
       </ReportSectionState>
     </ReportSection>
   );

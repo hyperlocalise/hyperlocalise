@@ -135,14 +135,25 @@ export function useStepTimes(input: SectionInput) {
 }
 
 export function aiUsageQuery(input: SectionInput) {
-  const { from, to, projectId } = scope(input);
-  return compact({ from, to, projectId, groupBy: input.state.aiGroup });
+  const { state } = input;
+  const { from, to, projectId, jobId } = scope(input);
+  const { automation, ...filters } = state.aiFilters;
+  return compact({
+    from,
+    to,
+    projectId,
+    jobId,
+    automationId: automation,
+    ...filters,
+    groupBy: state.aiGroup,
+    thenBy: optional(state.aiThen),
+    page: String(state.page),
+  });
 }
 
 export function useAiUsage(input: SectionInput) {
   const intl = useIntl();
-  // Both groupings come in one response, so switching between them reads nothing again.
-  const { groupBy: _groupBy, ...query } = aiUsageQuery(input);
+  const query = aiUsageQuery(input);
   return useQuery({
     queryKey: reportsQueryKey(input.organizationSlug, "ai-usage", query),
     placeholderData: keepPreviousData,

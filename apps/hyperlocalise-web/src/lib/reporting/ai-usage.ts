@@ -92,6 +92,8 @@ export type AiUsage = {
   page: number;
   pageSize: number;
   series: AiUsageSeries;
+  /** The name of the automation the usage is narrowed to, if any. */
+  automationName: string | null;
 };
 
 export type AiUsageQuery = Omit<ReportScope, "jobIds" | "targetLocale"> & {
@@ -428,10 +430,20 @@ async function querySeries(input: AiUsageQuery): Promise<AiUsageSeries> {
  * counted only when `includeUnattributed` is set and no project is chosen.
  */
 export async function queryAiUsage(input: AiUsageQuery): Promise<AiUsage> {
-  const [{ totals, previous }, table, series] = await Promise.all([
+  const automation = input.filters?.automation;
+  // Three statements rather than one, so the database reads them side by side.
+  const [{ totals, previous }, table, series, automationName] = await Promise.all([
     queryTotals(input),
     queryTable(input),
     querySeries(input),
+    automation
+      ? db
+          .execute<{ name: string }>(
+            sql`select name from workspace_automations
+              where organization_id = ${input.organizationId} and id::text = ${automation}`,
+          )
+          .then((result) => result.rows[0]?.name ?? null)
+      : null,
   ]);
   return {
     period: input.period,
@@ -440,5 +452,6 @@ export async function queryAiUsage(input: AiUsageQuery): Promise<AiUsage> {
     totals,
     previous,
     series,
+    automationName,
   };
 }

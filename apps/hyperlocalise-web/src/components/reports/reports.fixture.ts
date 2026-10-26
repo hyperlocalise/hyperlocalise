@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { AiUsage } from "@/lib/reporting/ai-usage";
+import type { AiUsage, AiUsageTotals } from "@/lib/reporting/ai-usage";
 import type { BudgetRow, CostEstimate, Costs } from "@/lib/reporting/cost-queries";
 import type { RateCard } from "@/lib/reporting/rate-cards";
 import { resolvePeriod } from "@/lib/reporting/report-period";
@@ -112,42 +112,91 @@ export const reportsStepTimes: {
   },
 };
 
-export const reportsAiUsage: { period: typeof reportsPeriod } & AiUsage = {
+const aiTotals = (
+  calls: number,
+  inputTokens: number,
+  outputTokens: number,
+  more: Partial<AiUsageTotals> = {},
+): AiUsageTotals => ({
+  calls,
+  inputTokens,
+  outputTokens,
+  images: 0,
+  videos: 0,
+  chargeUsd: "0.00000000",
+  unrecordedCharges: 0,
+  ownKeyCalls: 0,
+  ...more,
+});
+
+export const reportsAiUsage: AiUsage = {
   period: reportsPeriod,
-  byOrigin: [
+  groupBy: "area",
+  thenBy: "model",
+  totals: aiTotals(2_400, 19_800_000, 4_200_000, {
+    images: 84,
+    videos: 6,
+    chargeUsd: "41.25000000",
+    unrecordedCharges: 3,
+    ownKeyCalls: 260,
+  }),
+  previous: aiTotals(2_050, 17_100_000, 3_600_000, { images: 70, chargeUsd: "36.10000000" }),
+  rows: [
     {
-      origin: "translation",
-      calls: 2_140,
-      inputTokens: 18_400_000,
-      outputTokens: 3_900_000,
-      images: 0,
-      videos: 0,
-      models: ["gpt-6-luna"],
-      channels: ["api", "app"],
+      key: "translation",
+      label: null,
+      ...aiTotals(2_140, 18_400_000, 3_900_000, {
+        chargeUsd: "38.40000000",
+        unrecordedCharges: 3,
+      }),
+      children: [
+        {
+          key: "openai/gpt-6-luna",
+          label: null,
+          ...aiTotals(2_140, 18_400_000, 3_900_000, {
+            chargeUsd: "38.40000000",
+            unrecordedCharges: 3,
+          }),
+        },
+      ],
     },
     {
-      origin: "images_and_video",
-      calls: 0,
-      inputTokens: 0,
-      outputTokens: 0,
-      images: 84,
-      videos: 6,
-      models: [],
-      channels: ["app"],
+      key: "assistants_and_chat",
+      label: null,
+      ...aiTotals(260, 1_400_000, 300_000, { ownKeyCalls: 260 }),
+      children: [
+        {
+          key: "anthropic/claude-haiku-4.5",
+          label: null,
+          ...aiTotals(260, 1_400_000, 300_000, { ownKeyCalls: 260 }),
+        },
+      ],
+    },
+    {
+      key: "images_and_video",
+      label: null,
+      ...aiTotals(0, 0, 0, { images: 84, videos: 6, chargeUsd: "2.85000000" }),
+      children: [{ key: null, label: null, ...aiTotals(0, 0, 0, { images: 84, videos: 6 }) }],
     },
   ],
-  byModel: [
-    {
-      model: "gpt-6-luna",
-      calls: 2_140,
-      inputTokens: 18_400_000,
-      outputTokens: 3_900_000,
-      images: 0,
-      videos: 0,
-      origins: ["translation"],
-    },
-  ],
-  totals: { calls: 2_140, inputTokens: 18_400_000, outputTokens: 3_900_000, images: 84, videos: 6 },
+  totalGroups: 3,
+  page: 1,
+  pageSize: 50,
+  series: {
+    groups: [
+      { key: "translation", label: null, other: false },
+      { key: "assistants_and_chat", label: null, other: false },
+    ],
+    points: Array.from({ length: 28 }, (_, index) => ({
+      start: new Date(Date.parse(`${reportsPeriod.from}T00:00:00Z`) + index * 86_400_000)
+        .toISOString()
+        .slice(0, 10),
+      calls: [70 + ((index * 13) % 20), 8 + (index % 5)],
+      tokens: [650_000 + ((index * 61_300) % 200_000), 45_000 + ((index * 7_100) % 20_000)],
+      chargeUsd: [1.2 + ((index * 17) % 30) / 100, 0],
+    })),
+  },
+  automationName: null,
 };
 
 export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): WordCounts & {

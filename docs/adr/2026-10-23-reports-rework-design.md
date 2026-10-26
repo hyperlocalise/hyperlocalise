@@ -35,7 +35,7 @@ Reports (behind the `workspace-reports` flag, no customer users yet) records wor
 
 - Each tab has its own endpoint under `/api/orgs/:organizationSlug/reports`: `activity`, `step-times`, `ai-usage`, `words`, `time`, `costs`, `cost-estimate`, `budgets`, `rate-cards`, `tasks/:jobId/report` and `tasks/:jobId/analysis`, with `format=csv` where a table is shown. They are on the typed API client.
 - Days are UTC. A headline number is compared with the previous period of the same length. Each figure has one name: Activity's cards are about the translation step (source words, which under a language filter are that language's arrivals; words to translate; finished; Progress, the share of the words that arrived finished so far, leaving abandoned strings out of what it divides by; and words reviewed, a count), and its chart has its own step switch; a task's Report tab shows its approved share as a snapshot of its own strings sent for review, its estimated cost for the whole task with each step's share, and the rate that priced each language; the Cost estimate tab counts "words in this estimate" by step. "Not priced" is shown where no rate applies at all, never $0.00. Word counts can be grouped by week and project, the volume each week.
-- `GET /reports?report=activity|words|time|costs` and the MCP `get_report` tool serve one of the page's reports with that tab's own fields, from the same reads (`report-reads.ts`), plus whether recent work is still being counted (`summary`, `stillUpdating`). The old raw-row report (`queryReport`) and the old page's routes (`/word-counts`, `/tasks/:jobId`, `/tasks/:jobId/match-analysis`, `POST /rates`) are removed.
+- `GET /reports?report=activity|words|time|costs` (and `ai` since [the AI usage tab](./2026-10-27-reports-ai-usage-tab-design.md)) and the MCP `get_report` tool serve one of the page's reports with that tab's own fields, from the same reads (`report-reads.ts`), plus whether recent work is still being counted (`summary`, `stillUpdating`). The old raw-row report (`queryReport`) and the old page's routes (`/word-counts`, `/tasks/:jobId`, `/tasks/:jobId/match-analysis`, `POST /rates`) are removed.
 - A cost estimate is for chosen tasks (1 to 50), or for the whole of one project from its current rows, priced by the project budget's card or the one chosen (a task's own card does not apply there).
 
 ### Who sees and changes what
@@ -45,7 +45,7 @@ Reports (behind the `workspace-reports` flag, no customer users yet) records wor
 
 ### AI
 
-- AI usage is tokens, calls, images and videos only, never money, by where the AI was called and by model. A billing row's origin is its parent row's `source` (`dimensions.parent_operation_key`), or its own for a one-off call with no parent.
+- AI usage is tokens, calls, images and videos only, never money, by where the AI was called and by model. Revised by [the AI usage tab](./2026-10-27-reports-ai-usage-tab-design.md): its own tab, with finer groupings and billing's charge. A billing row's origin is its parent row's `source` (`dimensions.parent_operation_key`), or its own for a one-off call with no parent.
 - A charge belongs to a task through its own `job_id`, its parent row's, or the connected TMS run its parent stands for, and then to that task's project only. With no task, it belongs to a project of the workspace recorded in its own or its parent's `dimensions.project_id`, else to its automation's project. An id that is not one of the workspace's projects is ignored: some tools record another system's project id under the same key. `ai-attribution.ts` is the one rule for AI usage and costs.
 - AI money comes only from billing: `usage_events` rows with `feature_id = 'ai_tokens'` and `credential_source = 'gateway'`, summing `amount_usd`. Calls on a workspace's own key cost it nothing through us and are left out; rows without an amount yet are counted as pending. Reports' own AI cost rows are no longer priced or summed.
 
@@ -62,7 +62,7 @@ Reports (behind the `workspace-reports` flag, no customer users yet) records wor
 
 ### Pages
 
-- The Reports page, for the workspace and for each project, has six tabs: Activity, Word counts, Time, Costs, Cost estimate and Budgets. The tab, dates and filters are kept in the address.
+- The Reports page, for the workspace and for each project, has six tabs: Activity, Word counts, Time, Costs, Cost estimate and Budgets (seven since [the AI usage tab](./2026-10-27-reports-ai-usage-tab-design.md)). The tab, dates and filters are kept in the address.
 - Native tasks get a Report tab: their words, match analysis, time logged and, for `billing:read`, their cost and pricing. Native projects get a Reports link in their sidebar.
 
 ## Consequences

@@ -84,6 +84,11 @@ export const reportsPageMessages = defineMessages({
     defaultMessage: "Time",
     description: "Reports tab: time logged and automated run time",
   },
+  tabAi: {
+    id: "Lfo/HfkA0U",
+    defaultMessage: "AI usage",
+    description: "Reports tab: AI calls, tokens and billing's charge",
+  },
   tabCosts: {
     id: "7Lk6kDvXtT",
     defaultMessage: "Costs",

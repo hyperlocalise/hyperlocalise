@@ -271,6 +271,13 @@ describe("AI usage", () => {
       includeUnattributed: false,
       groupBy: "automation",
     });
+    const nightlyOnly = await queryAiUsage({
+      ...scope,
+      includeUnattributed: false,
+      groupBy: "area",
+      filters: { automation: automation!.id },
+    });
+    expect(nightlyOnly).toMatchObject({ automationName: "Nightly", totals: { calls: 1 } });
     expect(byAutomation.rows).toEqual([
       expect.objectContaining({ key: null, calls: 2 }),
       expect.objectContaining({ key: automation!.id, label: "Nightly", calls: 1 }),

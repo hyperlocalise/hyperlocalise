@@ -115,6 +115,7 @@ describe("AI usage CSV", () => {
     page: 1,
     pageSize: 50,
     series: { groups: [], points: [] },
+    automationName: null,
   });
 
   it("writes a line per group, or per group of the second detail", () => {

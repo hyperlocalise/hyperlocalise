@@ -38,8 +38,10 @@ export function attributedUsage(input: { organizationId: string; where: SQL }): 
       case when t.id is not null then t.project_id
         else coalesce(own_project.id, parent_project.id, a.project_id) end as project_id
     from usage_events u
-    -- Within the workspace, so the lookup never reaches other workspaces' rows.
+    -- Within the workspace, so the lookup never reaches other workspaces' rows; token rows are
+    -- only ever children (\`<parent>:ai_tokens\`), so the lookup leaves them out.
     left join usage_events p on p.organization_id = u.organization_id
+      and p.feature_id <> 'ai_tokens'
       and p.operation_key = u.dimensions ->> 'parent_operation_key'
     left join workspace_automations a on a.organization_id = u.organization_id and a.id = case
       when p.dimensions ->> 'automation_id' ~ ${UUID_PATTERN}

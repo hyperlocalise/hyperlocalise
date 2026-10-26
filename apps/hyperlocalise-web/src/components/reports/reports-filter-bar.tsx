@@ -38,9 +38,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AI_CHANNELS, AI_KEY_TYPES, AI_ORIGINS } from "@/lib/reporting/ai-usage-origins";
 import { REPORT_PRESET_DAYS } from "@/lib/reporting/report-period";
 import { REPORT_STEPS } from "@/lib/reporting/report-units";
 
+import { channelLabel, dimensionLabel, keyTypeLabel, originLabel } from "./ai-usage-labels";
+import { aiUsageTabMessages as aiMessages } from "./ai-usage-tab.messages";
 import { stepLabel } from "./report-format";
 import { reportsPageMessages as messages } from "./reports-page.messages";
 import {
@@ -61,11 +64,19 @@ import { SegmentedSwitch } from "./segmented-switch";
 /** Which filters each tab uses; the bar shows only those. */
 const TAB_FILTERS: Record<
   ReportsTab,
-  { dates?: true; task?: "one" | "many"; language?: true; step?: true; rateCard?: true }
+  {
+    dates?: true;
+    task?: "one" | "many";
+    language?: true;
+    step?: true;
+    rateCard?: true;
+    ai?: true;
+  }
 > = {
   activity: { dates: true, task: "one", language: true },
   words: { dates: true, task: "one", language: true, step: true },
   time: { dates: true, task: "one", language: true },
+  ai: { dates: true, task: "one", ai: true },
   costs: { dates: true, language: true },
   estimate: { task: "many", language: true, rateCard: true },
   budgets: {},
@@ -186,6 +197,31 @@ export function ReportsFilterBar({
           onChange={(value) => onChange({ targetLocale: value === ALL ? null : value })}
         />
       ) : null}
+      {filters.ai ? (
+        <>
+          <AiFilterSelect
+            dimension="area"
+            values={AI_ORIGINS}
+            label={(value) => originLabel(intl, value)}
+            state={state}
+            onChange={onChange}
+          />
+          <AiFilterSelect
+            dimension="channel"
+            values={AI_CHANNELS}
+            label={(value) => channelLabel(intl, value)}
+            state={state}
+            onChange={onChange}
+          />
+          <AiFilterSelect
+            dimension="key"
+            values={AI_KEY_TYPES}
+            label={(value) => keyTypeLabel(intl, value)}
+            state={state}
+            onChange={onChange}
+          />
+        </>
+      ) : null}
       {filters.step ? (
         <ReportSelect
           label={intl.formatMessage(messages.step)}
@@ -213,6 +249,38 @@ export function ReportsFilterBar({
         </>
       ) : null}
     </div>
+  );
+}
+
+/** One of AI usage's details with fixed values, as a filter. */
+function AiFilterSelect<T extends string>({
+  dimension,
+  values,
+  label,
+  state,
+  onChange,
+}: {
+  dimension: "area" | "channel" | "key";
+  values: readonly T[];
+  label: (value: T) => string;
+  state: ReportsUrlState;
+  onChange: (change: Partial<ReportsUrlState>) => void;
+}) {
+  const intl = useIntl();
+  return (
+    <ReportSelect
+      label={dimensionLabel(intl, dimension)}
+      className="w-full sm:w-44"
+      value={state.aiFilters[dimension] ?? ALL}
+      options={[
+        { value: ALL, label: intl.formatMessage(aiMessages.allValues) },
+        ...values.map((value) => ({ value, label: label(value) })),
+      ]}
+      onChange={(value) => {
+        const { [dimension]: _dropped, ...rest } = state.aiFilters;
+        onChange({ aiFilters: value === ALL ? rest : { ...rest, [dimension]: value } });
+      }}
+    />
   );
 }
 

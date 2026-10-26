@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { ActivityTab } from "./activity-tab";
+import { AiUsageTab } from "./ai-usage-tab";
 import { BudgetsTab } from "./budgets-tab";
 import { CostEstimateTab } from "./cost-estimate-tab";
 import { CostsTab } from "./costs-tab";
@@ -41,6 +42,7 @@ const TAB_LABELS = {
   activity: messages.tabActivity,
   words: messages.tabWords,
   time: messages.tabTime,
+  ai: messages.tabAi,
   costs: messages.tabCosts,
   estimate: messages.tabEstimate,
   budgets: messages.tabBudgets,
@@ -166,6 +168,9 @@ export function ReportsPage({
             </TabsContent>
             <TabsContent value="words">
               <WordCountsTab input={input} onChange={update} />
+            </TabsContent>
+            <TabsContent value="ai">
+              <AiUsageTab input={input} onChange={update} />
             </TabsContent>
             <TabsContent value="costs">
               <CostsTab input={input} settings={data} />
