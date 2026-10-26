@@ -49,12 +49,21 @@ const MEMORY_INDEX_MIN_QUERIES = 4;
  */
 export const MATCH_ALGORITHM_VERSION = 3;
 
+/**
+ * Whether Reports records work for the workspace. A failed lookup is tried once more, then read
+ * as off and logged as an error: the write that asked is then dropped, which must be visible,
+ * while recording anyway would record work for workspaces with Reports off.
+ */
 export async function isWorkspaceReportsCaptureEnabled(organizationId: string): Promise<boolean> {
-  try {
-    const { resolveWorkspaceReportsFlag } = await import("@/lib/flags/workspace-flags");
-    return await resolveWorkspaceReportsFlag({ organizationId });
-  } catch {
-    return false;
+  const { resolveWorkspaceReportsFlag } = await import("@/lib/flags/workspace-flags");
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await resolveWorkspaceReportsFlag({ organizationId });
+    } catch (error) {
+      if (attempt === 0) continue;
+      console.error("reporting_flag_lookup_failed", { organizationId, error });
+      return false;
+    }
   }
 }
 
@@ -364,12 +373,13 @@ async function writeReportingAnalysis(
       },
       tx,
     );
+    // A copy is a repetition by the same key within this call as across runs: the hash of the
+    // raw text, which is also the row's identity. A string that differs only in spacing is not one.
     const seen = new Set<string>();
     const rows = Object.entries(input.sourceEntries).map(([segmentId, sourceText]) => {
-      const normalized = sourceText.normalize("NFC").trim();
       const sourceRevision = revisionOf(sourceText);
-      const repetition = seen.has(normalized) || recordedEarlier.has(sourceRevision);
-      seen.add(normalized);
+      const repetition = seen.has(sourceRevision) || recordedEarlier.has(sourceRevision);
+      seen.add(sourceRevision);
       const score = memoryIds ? (scores.get(sourceText) ?? null) : null;
       const characters = countSourceCharacters(sourceText, input.sourceLocale);
       return {

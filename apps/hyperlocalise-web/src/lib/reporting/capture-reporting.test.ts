@@ -603,6 +603,76 @@ describe("reporting capture", () => {
     expect(marked.map((mark) => mark.day).sort()).toEqual(["2026-10-01", "2026-10-20"]);
   });
 
+  it("tries the Reports flag once more when its lookup fails, and records when that answers", async () => {
+    resolveWorkspaceReportsFlagMock
+      .mockRejectedValueOnce(new Error("flags unavailable"))
+      .mockResolvedValueOnce(true);
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    await captureAnalysis({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceEntries: { greeting: "Hello world" },
+    });
+
+    const analyses = await db
+      .select({ id: schema.reportingAnalyses.id })
+      .from(schema.reportingAnalyses)
+      .where(eq(schema.reportingAnalyses.organizationId, organization.id));
+    expect(analyses).toHaveLength(1);
+  });
+
+  it("records nothing, and says so, when the Reports flag cannot be read twice", async () => {
+    resolveWorkspaceReportsFlagMock.mockRejectedValue(new Error("flags unavailable"));
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    await captureAnalysis({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceEntries: { greeting: "Hello world" },
+    });
+
+    const analyses = await db
+      .select({ id: schema.reportingAnalyses.id })
+      .from(schema.reportingAnalyses)
+      .where(eq(schema.reportingAnalyses.organizationId, organization.id));
+    expect(analyses).toHaveLength(0);
+    expect(error).toHaveBeenCalledWith(
+      "reporting_flag_lookup_failed",
+      expect.objectContaining({ organizationId: organization.id }),
+    );
+    error.mockRestore();
+  });
+
+  it("counts copies as repetitions by the same key within a call as across runs", async () => {
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    await captureAnalysis({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      // An exact copy is a repetition; a copy that differs in spacing is its own text, as it is
+      // when the two are recorded in different runs.
+      sourceEntries: { first: "Hello world", copy: "Hello world", spaced: "Hello  world" },
+    });
+
+    const analyses = await db
+      .select({
+        segmentId: schema.reportingAnalyses.segmentId,
+        bucket: schema.reportingAnalyses.bucket,
+      })
+      .from(schema.reportingAnalyses)
+      .where(eq(schema.reportingAnalyses.organizationId, organization.id));
+    const bucketOf = (segmentId: string) =>
+      analyses.find((row) => row.segmentId === segmentId)?.bucket;
+    expect(bucketOf("first")).not.toBe("repetition");
+    expect(bucketOf("copy")).toBe("repetition");
+    expect(bucketOf("spaced")).not.toBe("repetition");
+  });
+
   it("skips analysis capture when workspace reports is disabled", async () => {
     resolveWorkspaceReportsFlagMock.mockResolvedValue(false);
     const { organization, project } = await projectFixture.createStoredProjectFixture();

@@ -498,6 +498,7 @@ function TimeSection({
           projectId={data.task.projectId}
           jobId={data.task.id}
           languages={data.task.targetLocales}
+          step={data.task.kind === "proofread" ? "review" : "translation"}
           onClose={() => setLogging(false)}
         />
       ) : null}

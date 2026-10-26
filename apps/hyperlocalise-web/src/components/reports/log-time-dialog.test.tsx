@@ -38,7 +38,9 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 function renderDialog(
   onClose = vi.fn(),
-  task: { projectId: string | null; languages?: string[] } = { projectId: null },
+  task: { projectId: string | null; languages?: string[]; step?: "translation" | "review" } = {
+    projectId: null,
+  },
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -50,6 +52,7 @@ function renderDialog(
           projectId={task.projectId}
           jobId="job_release"
           languages={task.languages}
+          step={task.step}
           onClose={onClose}
         />
       </QueryClientProvider>
@@ -94,6 +97,20 @@ describe("Log time dialog", () => {
     await userEvent.click(screen.getByRole("button", { name: "Log time" }));
     expect(await screen.findByText("Enter between 1 minute and 24 hours.")).toBeInTheDocument();
     expect(mocks.calls.filter((call) => call.endpoint === "time-entries")).toEqual([]);
+  });
+
+  it("opens on the task's own step, so time on a proofread task lands on Review", async () => {
+    const onClose = renderDialog(vi.fn(), { projectId: null, step: "review" });
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Language" })).not.toBeDisabled(),
+    );
+    expect(screen.getByRole("combobox", { name: "Step" })).toHaveTextContent("Review");
+    await choose("Language", "ja-JP");
+    await userEvent.click(screen.getByRole("button", { name: "Log time" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(mocks.calls.find((call) => call.endpoint === "time-entries")?.args.json).toMatchObject({
+      step: "review",
+    });
   });
 
   it("logs the time in minutes on the chosen day and closes", async () => {
