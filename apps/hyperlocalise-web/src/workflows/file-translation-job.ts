@@ -78,6 +78,14 @@ import {
   isFileTranslationCliHardFailure,
   materializeSandboxLockfileCommand,
 } from "./file-translation-progress";
+import {
+  pdfHlSourceContent,
+  pdfHlSourceFilename,
+  renderPdfTranslationStep,
+} from "./file-translation-pdf";
+
+const PDF_SCRIPT_UNSUPPORTED_MESSAGE = "pdf script unsupported";
+const PDF_RENDER_FAILED_MESSAGE = "pdf render failed";
 
 function shellSingleQuote(value: string) {
   return value.replaceAll("'", "'\\''");
@@ -326,6 +334,14 @@ function userFacingFailureReason(
 
   if (message.includes("translation failed") || message.includes("failed to extract entries")) {
     return userFacingTranslationFailureReason(message, detection);
+  }
+
+  if (message.startsWith(PDF_SCRIPT_UNSUPPORTED_MESSAGE)) {
+    return "the translated text uses a script the PDF writer can't render yet, such as Arabic, Hebrew, or Indic scripts.";
+  }
+
+  if (message.startsWith(PDF_RENDER_FAILED_MESSAGE)) {
+    return "the translations finished, but they couldn't be written back into the PDF.";
   }
 
   if (message.includes("failed to read translated file")) {
@@ -1091,6 +1107,14 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       inputFilename,
       sandboxEntriesLocaleOptions(inputFilename, parsedInput.sourceLocale),
     );
+    // PDF block keys are layout positions that a rewritten PDF renumbers, so hl
+    // translates a JSON copy and the PDF is rendered from its output.
+    const hlSourceFilename = sourceIsPdf ? pdfHlSourceFilename(inputFilename) : inputFilename;
+    const hlSourceContent = sourceIsPdf ? pdfHlSourceContent(sourceEntries) : sourceContent;
+    if (sourceIsPdf) {
+      await writeSourceFileStep(sandboxId, hlSourceFilename, hlSourceContent);
+    }
+    const hlOutputBaseFilename = sourceIsPdf ? hlSourceFilename : sandboxSourceFilename;
     const context =
       contextFromFile ?? (await assembleContext(Object.values(sourceEntries).join("\n")));
     const translatableKeys = Object.keys(sourceEntries).filter((key) => sourceEntries[key]?.trim());
@@ -1121,7 +1145,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     let translationMaxPages = calculateFileTranslationMaxPages(
       Object.keys(sourceEntries).length * parsedInput.targetLocales.length,
     );
-    const outputPattern = getSandboxOutputFilenamePattern(sandboxSourceFilename);
+    const outputPattern = getSandboxOutputFilenamePattern(hlOutputBaseFilename);
     const reportsEnabled = sourceEntries
       ? await resolveWorkspaceReportsFlagStep(organizationId)
       : false;
@@ -1308,7 +1332,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       const runOnce = async (runForce: boolean) =>
         runTranslationStep(
           sandboxId,
-          inputFilename,
+          hlSourceFilename,
           outputPattern,
           parsedInput.sourceLocale,
           locales,
@@ -1366,8 +1390,8 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           });
           const recreated = await recreateSandboxWithSourceStep({
             previousSandboxId: sandboxId,
-            filename: inputFilename,
-            content: sourceContent,
+            filename: hlSourceFilename,
+            content: hlSourceContent,
             timeoutMs: translationSandboxTimeoutMs,
           });
           sandboxId = recreated.sandboxId;
@@ -1459,11 +1483,11 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         cliTokenUsage = addCliTokenUsage(cliTokenUsage, result.tokenUsage);
         const delta = await collectFileTranslationPageStep({
           sandboxId,
-          inputFilename,
+          inputFilename: hlSourceFilename,
           outputFilenames: Object.fromEntries(
             locales.map((locale) => [
               locale,
-              getSandboxOutputFilename(sandboxSourceFilename, locale),
+              getSandboxOutputFilename(hlOutputBaseFilename, locale),
             ]),
           ),
           sourceEntries,
@@ -1679,7 +1703,34 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       if (failedLocales.includes(targetLocale)) continue;
       try {
         const outputFilename = getSandboxOutputFilename(sandboxSourceFilename, targetLocale);
-        const translatedContent = await readOutputStep(sandboxId, outputFilename, 2);
+        let translatedContent: Buffer;
+        if (sourceIsPdf) {
+          const rendered = await renderPdfTranslationStep({
+            sandboxId,
+            valuesFilename: getSandboxOutputFilename(hlOutputBaseFilename, targetLocale),
+            template: sourceContent,
+            targetLocale,
+          });
+          if (!rendered.ok) {
+            throw new FileTranslationWorkflowError(
+              rendered.code,
+              rendered.code === "pdf_script_unsupported"
+                ? PDF_SCRIPT_UNSUPPORTED_MESSAGE
+                : PDF_RENDER_FAILED_MESSAGE,
+            );
+          }
+          if (rendered.overflowKeyCount > 0) {
+            console.warn("[file-translation-workflow] pdf text overflow", {
+              jobId: claim.job.id,
+              projectId: claim.job.projectId,
+              targetLocale,
+              overflowKeyCount: rendered.overflowKeyCount,
+            });
+          }
+          translatedContent = rendered.content;
+        } else {
+          translatedContent = await readOutputStep(sandboxId, outputFilename, 2);
+        }
         await logDiagnosticsStep(
           claim.job.id,
           sourceFile.filename,
