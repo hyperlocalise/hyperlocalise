@@ -1,5 +1,5 @@
 {
-  "id": "f0811f9f-0000-4a46-bb9a-15e05e434f7a",
+  "id": "47197c84-41a1-444d-b1ca-b2e5514c9bef",
   "prevId": "239fe37d-fab7-4fc5-8ce7-f7d2f13c165a",
   "version": "7",
   "dialect": "postgresql",
@@ -32469,7 +32469,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "reporting_activity_job_id_given": {
+          "name": "reporting_activity_job_id_given",
+          "value": "\"reporting_activity\".\"job_id\" is null or \"reporting_activity\".\"job_id\" <> ''"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.reporting_analyses": {
@@ -33230,7 +33235,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "reporting_cost_job_id_given": {
+          "name": "reporting_cost_job_id_given",
+          "value": "\"reporting_costs\".\"job_id\" is null or \"reporting_costs\".\"job_id\" <> ''"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.reporting_current_by_project": {
@@ -34809,7 +34819,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "reporting_time_job_id_given": {
+          "name": "reporting_time_job_id_given",
+          "value": "\"reporting_time_entries\".\"job_id\" is null or \"reporting_time_entries\".\"job_id\" <> ''"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.reporting_workspaces": {

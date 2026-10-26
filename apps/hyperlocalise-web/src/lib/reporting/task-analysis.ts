@@ -131,7 +131,7 @@ export async function refreshTaskDays(input: {
   if (outcome === "busy") throw new Error("reporting_summary_busy");
 }
 
-type PersonTaskLookup = {
+export type PersonTaskLookup = {
   organizationId: string;
   projectId: string;
   repositorySourceFileId: string;

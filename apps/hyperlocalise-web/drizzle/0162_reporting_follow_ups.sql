@@ -30,4 +30,7 @@ ALTER TABLE "reporting_task_analyses" ADD CONSTRAINT "reporting_task_analyses_or
 ALTER TABLE "reporting_task_analyses" ADD CONSTRAINT "reporting_task_analyses_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reporting_task_rates" ADD CONSTRAINT "reporting_task_rates_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "reporting_activity_job_step" ON "reporting_activity" USING btree ("organization_id","job_id","step") WHERE "reporting_activity"."kind" = 'completion';--> statement-breakpoint
-CREATE INDEX "reporting_cost_job" ON "reporting_costs" USING btree ("organization_id","job_id");
+CREATE INDEX "reporting_cost_job" ON "reporting_costs" USING btree ("organization_id","job_id");--> statement-breakpoint
+ALTER TABLE "reporting_activity" ADD CONSTRAINT "reporting_activity_job_id_given" CHECK ("reporting_activity"."job_id" is null or "reporting_activity"."job_id" <> '');--> statement-breakpoint
+ALTER TABLE "reporting_costs" ADD CONSTRAINT "reporting_cost_job_id_given" CHECK ("reporting_costs"."job_id" is null or "reporting_costs"."job_id" <> '');--> statement-breakpoint
+ALTER TABLE "reporting_time_entries" ADD CONSTRAINT "reporting_time_job_id_given" CHECK ("reporting_time_entries"."job_id" is null or "reporting_time_entries"."job_id" <> '');

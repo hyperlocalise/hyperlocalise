@@ -12,6 +12,8 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
+  check,
   pgTable,
   uuid,
   text,
@@ -47,9 +49,13 @@ const projectId = () => text("project_id").references(() => projects.id, { onDel
 /**
  * The task a record belongs to, kept when the task is deleted (no link to `jobs`), as analyses
  * keep theirs: a deleted task's finished work, costs and time stay its own, shown as "Deleted
- * task", rather than becoming work outside any task.
+ * task", rather than becoming work outside any task. Without the link, the database no longer
+ * refuses an empty id; `taskIdGiven` keeps that much of the check.
  */
 const jobId = () => text("job_id");
+/** A task id is null or a real id, never "": a writer that passes one fails as it did with the link. */
+const taskIdGiven = (name: string, column: AnyPgColumn) =>
+  check(name, sql`${column} is null or ${column} <> ''`);
 const amount = (name: string) => numeric(name, { precision: 24, scale: 8 });
 
 /**
@@ -209,6 +215,7 @@ export const reportingActivity = pgTable(
     index("reporting_activity_job_step")
       .on(t.organizationId, t.jobId, t.step)
       .where(sql`${t.kind} = 'completion'`),
+    taskIdGiven("reporting_activity_job_id_given", t.jobId),
   ],
 );
 const summaryMeasure = (name: string) => integer(name).notNull().default(0);
@@ -416,7 +423,10 @@ export const reportingTimeEntries = pgTable(
     voided: boolean("voided").notNull().default(false),
     createdAt: createdAt(),
   },
-  (t) => [index("reporting_time_filter").on(t.organizationId, t.projectId, t.workDate)],
+  (t) => [
+    index("reporting_time_filter").on(t.organizationId, t.projectId, t.workDate),
+    taskIdGiven("reporting_time_job_id_given", t.jobId),
+  ],
 );
 export const reportingCosts = pgTable(
   "reporting_costs",
@@ -450,6 +460,7 @@ export const reportingCosts = pgTable(
     index("reporting_cost_filter").on(t.organizationId, t.projectId, t.createdAt),
     /** A task's costs, for whether its pricing can still change. */
     index("reporting_cost_job").on(t.organizationId, t.jobId),
+    taskIdGiven("reporting_cost_job_id_given", t.jobId),
   ],
 );
 export const reportingAudit = pgTable("reporting_audit", {
