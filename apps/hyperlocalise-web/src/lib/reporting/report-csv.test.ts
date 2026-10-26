@@ -12,8 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import type { AiUsage, AiUsageGroup } from "./ai-usage";
 import type { CostEstimate, CostEstimateRow } from "./cost-queries";
-import { taskWordsCsv } from "./report-csv";
+import { resolvePeriod } from "./report-period";
+import { aiUsageCsv, taskWordsCsv } from "./report-csv";
 
 const row = (targetLocale: string, overrides: Partial<CostEstimateRow>): CostEstimateRow => ({
   targetLocale,
@@ -80,6 +82,49 @@ describe("task words CSV", () => {
     expect(taskWordsCsv(words, null, "translation").split("\r\n")).toEqual([
       '"targetLocale","new","total","finished"',
       '"de-DE","99","99","0"',
+    ]);
+  });
+});
+
+describe("AI usage CSV", () => {
+  const group = (key: string | null, label: string | null, calls: number): AiUsageGroup => ({
+    key,
+    label,
+    calls,
+    inputTokens: calls * 10,
+    outputTokens: calls,
+    images: 0,
+    videos: 0,
+    chargeUsd: "0.50000000",
+    unrecordedCharges: 0,
+    ownKeyCalls: 0,
+  });
+  const usage = (thenBy: AiUsage["thenBy"]): AiUsage => ({
+    period: resolvePeriod({ today: "2026-10-27", startedDay: null }),
+    groupBy: "task",
+    thenBy,
+    totals: group(null, null, 3),
+    previous: group(null, null, 0),
+    rows: [
+      {
+        ...group("job_1", "Homepage", 3),
+        children: thenBy ? [group("openai/gpt-6", null, 2), group(null, null, 1)] : [],
+      },
+    ],
+    totalGroups: 1,
+    page: 1,
+    pageSize: 50,
+    series: { groups: [], points: [] },
+  });
+
+  it("writes a line per group, or per group of the second detail", () => {
+    expect(aiUsageCsv(usage(null)).split("\r\n")).toEqual([
+      '"jobId","jobTitle","calls","inputTokens","outputTokens","images","videos","chargeUsd","unrecordedCharges","ownKeyCalls"',
+      '"job_1","Homepage","3","30","3","0","0","0.50000000","0","0"',
+    ]);
+    expect(aiUsageCsv(usage("model")).split("\r\n").slice(1)).toEqual([
+      '"job_1","Homepage","openai/gpt-6","2","20","2","0","0","0.50000000","0","0"',
+      '"job_1","Homepage","","1","10","1","0","0","0.50000000","0","0"',
     ]);
   });
 });

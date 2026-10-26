@@ -25,14 +25,15 @@ const UUID_PATTERN = sql.raw(`'${UUID}'`);
  * no task, it belongs to the project recorded on it or on its parent, or to its automation's
  * project. A recorded id that is not one of the workspace's projects, such as a connected TMS's
  * own project id or a deleted project, counts as none. Columns: `id`, `feature_id`, `model_id`,
- * `credential_source`, `amount_usd`, `dimensions`, `source` (the parent's when there is one),
- * `agent_run_kind`, `job_id` (null with no task), `project_id` (null with no project) and
- * `via_api_key`.
+ * `credential_source`, `amount_usd`, `dimensions`, `created_at`, `source` (the parent's when there
+ * is one), `agent_run_kind`, `automation_id` (the automation its parent ran for, as text),
+ * `job_id` (null with no task), `project_id` (null with no project) and `via_api_key`.
  */
 export function attributedUsage(input: { organizationId: string; where: SQL }): SQL {
   return sql`
     select u.id, u.feature_id, u.model_id, u.credential_source, u.amount_usd, u.dimensions,
-      coalesce(p.source, u.source) as source, ar.kind as agent_run_kind,
+      u.created_at, coalesce(p.source, u.source) as source, ar.kind as agent_run_kind,
+      a.id::text as automation_id,
       t.id as job_id, t.api_key_id is not null as via_api_key,
       case when t.id is not null then t.project_id
         else coalesce(own_project.id, parent_project.id, a.project_id) end as project_id

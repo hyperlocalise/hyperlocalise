@@ -10,7 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { AiUsage } from "./ai-usage";
+import type { AiUsage, AiUsageGroup } from "./ai-usage";
+import type { AiUsageDimension } from "./ai-usage-origins";
 import type { BudgetRow, CostEstimate, Costs } from "./cost-queries";
 import { SUMMARY_SOURCES, type ReportStep } from "./report-units";
 import type { AutomatedTime, LoggedTime, StepTime } from "./time-queries";
@@ -97,26 +98,50 @@ export function stepTimesCsv(logged: StepTime[], automated: AutomatedTime): stri
   );
 }
 
-export function aiUsageCsv(usage: AiUsage, groupBy: "origin" | "model"): string {
-  const counts = ["calls", "inputTokens", "outputTokens", "images", "videos"] as const;
-  return groupBy === "origin"
-    ? toCsv(
-        ["origin", ...counts, "models", "channels"],
-        usage.byOrigin.map((row) => [
-          row.origin,
-          ...counts.map((key) => row[key]),
-          row.models.join("; "),
-          row.channels.join("; "),
-        ]),
-      )
-    : toCsv(
-        ["model", ...counts, "origins"],
-        usage.byModel.map((row) => [
-          row.model,
-          ...counts.map((key) => row[key]),
-          row.origins.join("; "),
-        ]),
-      );
+/** The CSV columns of a detail: its value, and the name of a project, task or automation. */
+const AI_DIMENSION_COLUMNS: Record<AiUsageDimension, string[]> = {
+  area: ["area"],
+  feature: ["feature"],
+  model: ["model"],
+  provider: ["provider"],
+  channel: ["channel"],
+  key: ["keyType"],
+  project: ["projectId", "projectName"],
+  task: ["jobId", "jobTitle"],
+  automation: ["automationId", "automationName"],
+};
+
+/** The AI usage table: a line per group, or per group of the second detail when there is one. */
+export function aiUsageCsv(usage: AiUsage): string {
+  const measures = [
+    "calls",
+    "inputTokens",
+    "outputTokens",
+    "images",
+    "videos",
+    "chargeUsd",
+    "unrecordedCharges",
+    "ownKeyCalls",
+  ] as const;
+  const detail = (dimension: AiUsageDimension, group: AiUsageGroup) =>
+    AI_DIMENSION_COLUMNS[dimension].length === 2 ? [group.key, group.label] : [group.key];
+  const thenBy = usage.thenBy;
+  return toCsv(
+    [
+      ...AI_DIMENSION_COLUMNS[usage.groupBy],
+      ...(thenBy ? AI_DIMENSION_COLUMNS[thenBy] : []),
+      ...measures,
+    ],
+    usage.rows.flatMap((row) =>
+      thenBy
+        ? row.children.map((child) => [
+            ...detail(usage.groupBy, row),
+            ...detail(thenBy, child),
+            ...measures.map((key) => child[key]),
+          ])
+        : [[...detail(usage.groupBy, row), ...measures.map((key) => row[key])]],
+    ),
+  );
 }
 
 export function costsCsv(costs: Costs): string {

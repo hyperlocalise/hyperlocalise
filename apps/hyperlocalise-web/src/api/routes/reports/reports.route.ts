@@ -30,7 +30,6 @@ import { db, schema } from "@/lib/database/client";
 import { workspaceReportsFlag } from "@/lib/flags/workspace-flags";
 import { hourlyCost } from "@/lib/reporting/money";
 import { resolveReportingRate, reportingStart } from "@/lib/reporting/capture";
-import { queryAiUsage } from "@/lib/reporting/ai-usage";
 import { queryBudgets, queryCostEstimate, queryStillToCome } from "@/lib/reporting/cost-queries";
 import {
   lockRateCard,
@@ -52,6 +51,7 @@ import {
 import { resolvePeriod } from "@/lib/reporting/report-period";
 import {
   readActivity,
+  readAi,
   readCosts,
   readTime,
   readWords,
@@ -199,6 +199,14 @@ export function createReportsRoutes() {
             if (format === "csv") return csv(c, "time.csv", loggedTimeCsv(time.logged));
             return c.json({ report: { kind: "time" as const, time, summary } });
           }
+          case "ai": {
+            const query = aiUsageQuerySchema.safeParse(c.req.query());
+            if (!query.success) return badRequestResponse(c, "invalid_report_query");
+            const { format, ...rest } = query.data;
+            const aiUsage = await readAi(context, { ...rest, all: format === "csv" });
+            if (format === "csv") return csv(c, "ai-usage.csv", aiUsageCsv(aiUsage));
+            return c.json({ report: { kind: "ai" as const, aiUsage, summary } });
+          }
           default: {
             const query = costsQuerySchema.safeParse(c.req.query());
             if (!query.success) return badRequestResponse(c, "invalid_report_query");
@@ -288,19 +296,10 @@ export function createReportsRoutes() {
         return c.json({ stepTimes: { period, logged, automated } });
       })
       .get("/ai-usage", billingRead, reportQuery(aiUsageQuerySchema), async (c) => {
-        const query = c.req.valid("query");
-        const context = await reportContext(c);
-        const period = resolvePeriod({ ...query, ...context });
-        const usage = await queryAiUsage({
-          ...context,
-          projectId: query.projectId,
-          period,
-          // AI used outside any project (chat, assistants, workspace automations) is workspace
-          // spending, shown to the roles that see billing.
-          includeUnattributed: context.financial,
-        });
-        if (query.format === "csv") return csv(c, "ai-usage.csv", aiUsageCsv(usage, query.groupBy));
-        return c.json({ aiUsage: { period, ...usage } });
+        const { format, ...query } = c.req.valid("query");
+        const aiUsage = await readAi(await reportContext(c), { ...query, all: format === "csv" });
+        if (format === "csv") return csv(c, "ai-usage.csv", aiUsageCsv(aiUsage));
+        return c.json({ aiUsage });
       })
       .get("/words", billingRead, reportQuery(wordsQuerySchema), async (c) => {
         const { format, ...query } = c.req.valid("query");

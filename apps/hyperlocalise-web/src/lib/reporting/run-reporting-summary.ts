@@ -210,7 +210,20 @@ async function reads(organizationId: string) {
   await measure("automated time", () =>
     queryAutomatedTime({ ...scope, includeUnattributed: true }),
   );
-  await measure("AI usage, 28 days", () => queryAiUsage({ ...scope, includeUnattributed: true }));
+  const ai = { ...scope, includeUnattributed: true };
+  await measure("AI usage by area, 28 days", () => queryAiUsage({ ...ai, groupBy: "area" }));
+  await measure("AI usage by area then model, 28 days", () =>
+    queryAiUsage({ ...ai, groupBy: "area", thenBy: "model" }),
+  );
+  await measure("AI usage by task, a year, one page", () =>
+    queryAiUsage({ ...ai, period: period(365), groupBy: "task" }),
+  );
+  await measure("AI usage by task then model, a year, one page", () =>
+    queryAiUsage({ ...ai, period: period(365), groupBy: "task", thenBy: "model" }),
+  );
+  await measure("AI usage by automation, 90 days", () =>
+    queryAiUsage({ ...ai, period: period(90), groupBy: "automation" }),
+  );
   console.log(JSON.stringify({ projects: projectIds.length, busiest, timings }, null, 2));
 }
 

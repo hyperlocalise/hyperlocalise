@@ -163,7 +163,14 @@ describe("reports routes", () => {
     await expect(read("/step-times")).resolves.toMatchObject({
       stepTimes: { logged: [], automated: { workflowSteps: [] } },
     });
-    await expect(read("/ai-usage")).resolves.toMatchObject({ aiUsage: { byOrigin: [] } });
+    await expect(read("/ai-usage?groupBy=model&thenBy=area")).resolves.toMatchObject({
+      aiUsage: { rows: [], groupBy: "model", thenBy: "area", totals: { calls: 0 } },
+    });
+    // A grouping and its second detail must differ; an unknown area is refused.
+    for (const query of ["groupBy=model&thenBy=model", "area=everything"]) {
+      const response = await app.request(reportsUrl(slug, `/ai-usage?${query}`), { headers });
+      expect(response.status, query).toBe(400);
+    }
     await expect(read("/words?groupBy=task&unit=characters")).resolves.toMatchObject({
       wordCounts: { rows: [], groupBy: "task", unit: "characters", mode: "arrived" },
     });
@@ -195,6 +202,15 @@ describe("reports routes", () => {
     await expect(read("?report=costs")).resolves.toMatchObject({
       report: { kind: "costs", costs: { rows: [] } },
     });
+    await expect(read("?report=ai&groupBy=task&key=own_key")).resolves.toMatchObject({
+      report: { kind: "ai", aiUsage: { rows: [], groupBy: "task" } },
+    });
+    const aiCsv = await app.request(reportsUrl(slug, "?report=ai&groupBy=task&format=csv"), {
+      headers,
+    });
+    expect((await aiCsv.text()).split("\r\n")[0]).toBe(
+      '"jobId","jobTitle","calls","inputTokens","outputTokens","images","videos","chargeUsd","unrecordedCharges","ownKeyCalls"',
+    );
     const unknownKind = await app.request(reportsUrl(slug, "?report=budgets"), { headers });
     expect(unknownKind.status).toBe(400);
     const activityCsv = await app.request(reportsUrl(slug, "?report=activity&format=csv"), {
