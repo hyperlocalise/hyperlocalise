@@ -552,7 +552,7 @@ export function ContentEditorDocumentEditorPane({
             >
               <p
                 className={cn(
-                  "text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                  "text-xs font-medium tracking-wide text-muted-foreground",
                   codeMode ? "mb-2 ps-6" : "mb-4 ps-14",
                 )}
               >
@@ -643,7 +643,7 @@ export function ContentEditorDocumentEditorPane({
             {codeMode ? (
               splitView ? (
                 <div className="rounded-xl bg-muted/30 px-6 py-4">
-                  <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground">
                     {intl.formatMessage(contentEditorFileViewMessages.targetHeading, {
                       locale: targetLocale,
                     })}
