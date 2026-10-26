@@ -188,6 +188,13 @@ export const contentEditorFileViewMessages = defineMessages({
     id: "3wxYCVb3wu",
     description: "Empty state when the CAT File view target preview has no file",
   },
+  targetUntranslatedHint: {
+    defaultMessage:
+      "No translated file yet — showing the source text as a starting point. Edit and save before approving.",
+    id: "TBfAG1U1q6",
+    description:
+      "Banner when a plain-text file has no translated target and the source text is prefilled",
+  },
   documentLoadFailed: {
     defaultMessage: "Could not load the translated file",
     id: "GYiDdOqYU0",

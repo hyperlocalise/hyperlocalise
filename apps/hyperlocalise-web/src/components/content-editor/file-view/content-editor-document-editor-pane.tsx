@@ -112,7 +112,7 @@ type LoadedTarget = {
 type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; sourceBody: string; target: LoadedTarget };
+  | { status: "ready"; sourceBody: string; target: LoadedTarget; isTargetMissing: boolean };
 
 const EMPTY_TRANSLATE_COUNTS: Record<DocumentTranslateScope, number> = { untranslated: 0, all: 0 };
 
@@ -159,6 +159,7 @@ export function ContentEditorDocumentEditorPane({
   const [fields, setFields] = useState<ContentEditorDocumentFrontmatterField[]>([]);
   const [body, setBody] = useState("");
   const [baseline, setBaseline] = useState<string | null>(null);
+  const [hasSavedTarget, setHasSavedTarget] = useState(false);
   const [parseLossy, setParseLossy] = useState(false);
   const [codeMode, setCodeMode] = useState(false);
   const [restoreSaveError, setRestoreSaveError] = useState(false);
@@ -193,6 +194,7 @@ export function ContentEditorDocumentEditorPane({
       openedKeyRef.current = documentKey;
       setLoad({ status: "loading" });
       setBaseline(null);
+      setHasSavedTarget(false);
       setRestoreSaveError(false);
       const rawDocument = isAsciidocFilename(filename) || isPlainTextFilename(filename);
       setCodeMode(rawDocument);
@@ -241,8 +243,16 @@ export function ContentEditorDocumentEditorPane({
       } else {
         setFields(targetSplit.fields);
         setBody(targetSplit.body);
+        if (rawDocument) {
+          setBaseline(serverText);
+        }
       }
-      setLoad({ status: "ready", sourceBody: sourceSplit.body, target: targetSplit });
+      setLoad({
+        status: "ready",
+        sourceBody: sourceSplit.body,
+        target: targetSplit,
+        isTargetMissing: target.status !== "ok",
+      });
     })();
     return () => {
       cancelled = true;
@@ -448,9 +458,15 @@ export function ContentEditorDocumentEditorPane({
     return () => root.removeEventListener("keydown", onKeyDown);
   });
 
+  const showUntranslatedBanner =
+    isRawDocument && load.status === "ready" && load.isTargetMissing && !hasSavedTarget;
+  const untranslatedBlocked =
+    showUntranslatedBanner && load.status === "ready" && body === load.sourceBody;
+
   const reviewBlocked =
     load.status !== "ready" ||
     baseline === null ||
+    untranslatedBlocked ||
     autosave.hasUnsavedChanges ||
     autosave.status.kind === "saving" ||
     autosave.status.kind === "error" ||
@@ -459,6 +475,12 @@ export function ContentEditorDocumentEditorPane({
   useEffect(() => {
     onReviewBlockedChange?.(reviewBlocked);
   }, [onReviewBlockedChange, reviewBlocked]);
+
+  useEffect(() => {
+    if (autosave.status.kind === "saved") {
+      setHasSavedTarget(true);
+    }
+  }, [autosave.status]);
 
   const saveStatus =
     editable && load.status === "ready" && baseline !== null ? (
@@ -604,6 +626,14 @@ export function ContentEditorDocumentEditorPane({
               locale: targetLocale,
             })}
           >
+            {showUntranslatedBanner ? (
+              <div className="mx-auto mb-4 flex max-w-[46rem] items-start gap-2 rounded-lg border border-sky-500/30 bg-sky-500/5 px-3 py-2 text-sm">
+                <WarningIcon className="mt-0.5 size-4 shrink-0 text-sky-600" />
+                <p className="flex-1">
+                  {intl.formatMessage(contentEditorFileViewMessages.targetUntranslatedHint)}
+                </p>
+              </div>
+            ) : null}
             {target?.hasFrontmatter && fields.length > 0 ? (
               <Collapsible
                 open={propertiesOpen}
