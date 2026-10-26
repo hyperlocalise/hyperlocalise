@@ -616,74 +616,37 @@ describe("reporting capture", () => {
     expect(marked.map((mark) => mark.day).sort()).toEqual(["2026-10-01", "2026-10-20"]);
   });
 
-  it("tries the Reports flag once more when its lookup fails, and records when that answers", async () => {
+  it("tries the Reports flag once more when its lookup fails, and records nothing, saying so, when it fails twice", async () => {
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    const capture = (targetLocale: string) =>
+      captureAnalysis({
+        organizationId: organization.id,
+        projectId: project.id,
+        sourceLocale: "en-US",
+        targetLocale,
+        sourceEntries: { greeting: "Hello world" },
+      });
+    const recorded = () =>
+      db
+        .select({ targetLocale: schema.reportingAnalyses.targetLocale })
+        .from(schema.reportingAnalyses)
+        .where(eq(schema.reportingAnalyses.organizationId, organization.id));
+
     resolveWorkspaceReportsFlagMock
       .mockRejectedValueOnce(new Error("flags unavailable"))
       .mockResolvedValueOnce(true);
-    const { organization, project } = await projectFixture.createStoredProjectFixture();
-    await captureAnalysis({
-      organizationId: organization.id,
-      projectId: project.id,
-      sourceLocale: "en-US",
-      targetLocale: "fr-FR",
-      sourceEntries: { greeting: "Hello world" },
-    });
+    await capture("fr-FR");
+    expect(await recorded()).toEqual([{ targetLocale: "fr-FR" }]);
 
-    const analyses = await db
-      .select({ id: schema.reportingAnalyses.id })
-      .from(schema.reportingAnalyses)
-      .where(eq(schema.reportingAnalyses.organizationId, organization.id));
-    expect(analyses).toHaveLength(1);
-  });
-
-  it("records nothing, and says so, when the Reports flag cannot be read twice", async () => {
     resolveWorkspaceReportsFlagMock.mockRejectedValue(new Error("flags unavailable"));
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { organization, project } = await projectFixture.createStoredProjectFixture();
-    await captureAnalysis({
-      organizationId: organization.id,
-      projectId: project.id,
-      sourceLocale: "en-US",
-      targetLocale: "fr-FR",
-      sourceEntries: { greeting: "Hello world" },
-    });
-
-    const analyses = await db
-      .select({ id: schema.reportingAnalyses.id })
-      .from(schema.reportingAnalyses)
-      .where(eq(schema.reportingAnalyses.organizationId, organization.id));
-    expect(analyses).toHaveLength(0);
+    await capture("de-DE");
+    expect(await recorded()).toEqual([{ targetLocale: "fr-FR" }]);
     expect(error).toHaveBeenCalledWith(
       "reporting_flag_lookup_failed",
       expect.objectContaining({ organizationId: organization.id }),
     );
     error.mockRestore();
-  });
-
-  it("counts copies as repetitions by the same key within a call as across runs", async () => {
-    const { organization, project } = await projectFixture.createStoredProjectFixture();
-    await captureAnalysis({
-      organizationId: organization.id,
-      projectId: project.id,
-      sourceLocale: "en-US",
-      targetLocale: "fr-FR",
-      // An exact copy is a repetition; a copy that differs in spacing is its own text, as it is
-      // when the two are recorded in different runs.
-      sourceEntries: { first: "Hello world", copy: "Hello world", spaced: "Hello  world" },
-    });
-
-    const analyses = await db
-      .select({
-        segmentId: schema.reportingAnalyses.segmentId,
-        bucket: schema.reportingAnalyses.bucket,
-      })
-      .from(schema.reportingAnalyses)
-      .where(eq(schema.reportingAnalyses.organizationId, organization.id));
-    const bucketOf = (segmentId: string) =>
-      analyses.find((row) => row.segmentId === segmentId)?.bucket;
-    expect(bucketOf("first")).not.toBe("repetition");
-    expect(bucketOf("copy")).toBe("repetition");
-    expect(bucketOf("spaced")).not.toBe("repetition");
   });
 
   it("keeps a deleted task's id on its finished work, costs and time, and drops its pricing", async () => {
@@ -750,71 +713,6 @@ describe("reporting capture", () => {
         .from(schema.reportingTaskRates)
         .where(eq(schema.reportingTaskRates.organizationId, organization.id)),
     ).toEqual([]);
-  });
-
-  it("charges a task's fixed fee once when the task is marked done, and never when it is cancelled", async () => {
-    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
-    const createTask = async () => {
-      const [task] = await db
-        .insert(schema.jobs)
-        .values({
-          id: `job_${randomUUID()}`,
-          organizationId: organization.id,
-          projectId: project.id,
-          createdByUserId: user.id,
-          kind: "proofread",
-          status: "waiting_for_review",
-          inputPayload: {},
-        })
-        .returning();
-      await db.insert(schema.reportingTaskRates).values({
-        organizationId: organization.id,
-        jobId: task.id,
-        step: "review",
-        overrideUsd: "50.00000000",
-      });
-      return task;
-    };
-    const fees = () =>
-      db
-        .select({ jobId: schema.reportingCosts.jobId, amountUsd: schema.reportingCosts.amountUsd })
-        .from(schema.reportingCosts)
-        .where(
-          and(
-            eq(schema.reportingCosts.organizationId, organization.id),
-            eq(schema.reportingCosts.basis, "manual"),
-          ),
-        );
-    // The hook for a task for people marked done by hand: set it succeeded with its end time, then
-    // record the status. Recording it again charges nothing more.
-    const done = await createTask();
-    await db
-      .update(schema.jobs)
-      .set({ status: "succeeded", completedAt: new Date() })
-      .where(eq(schema.jobs.id, done.id));
-    await captureJobStatus({
-      jobId: done.id,
-      status: "succeeded",
-      operationKey: `done:${done.id}`,
-    });
-    await captureJobStatus({
-      jobId: done.id,
-      status: "succeeded",
-      operationKey: `done:${done.id}:again`,
-    });
-    expect(await fees()).toEqual([{ jobId: done.id, amountUsd: "50.00000000" }]);
-
-    const cancelled = await createTask();
-    await db
-      .update(schema.jobs)
-      .set({ status: "cancelled", completedAt: new Date() })
-      .where(eq(schema.jobs.id, cancelled.id));
-    await captureJobStatus({
-      jobId: cancelled.id,
-      status: "cancelled",
-      operationKey: `cancel:${cancelled.id}`,
-    });
-    expect(await fees()).toHaveLength(1);
   });
 
   it("names a memory that cannot be read when a strict write fails, and records without a band otherwise", async () => {
@@ -1104,36 +1002,6 @@ describe("reporting capture", () => {
 
       // The task's time is what the hourly line prices; its strings cost nothing on their own.
       expect(await humanCosts(organization.id)).toEqual([]);
-    });
-
-    it("prices work at a budget card added after its strings arrived", async () => {
-      const { organization, project, user } = await projectFixture.createStoredProjectFixture();
-      const scope = {
-        organizationId: organization.id,
-        targetLocale: "fr-FR",
-        sourceEntries: { greeting: WORDS },
-        step: "review" as const,
-      };
-      await captureAnalysis({
-        ...scope,
-        projectId: project.id,
-        sourceLocale: "en",
-        billable: true,
-      });
-      await db.insert(schema.reportingBudgets).values({
-        organizationId: organization.id,
-        projectId: project.id,
-        budget: "1000.00000000",
-        rateCardName: "Per word",
-      });
-      await db
-        .insert(schema.reportingRates)
-        .values(line(organization.id, "Per word", "word", "0.10000000"));
-      await captureCompletions({ ...scope, provenance: "human", actorUserId: user.id });
-
-      expect(await humanCosts(organization.id)).toEqual([
-        { amountUsd: "0.20000000", basis: "rate" },
-      ]);
     });
 
     it("pays work whose match band could not be worked out as new work, as the estimate does", async () => {

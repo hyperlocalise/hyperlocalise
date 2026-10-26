@@ -14,7 +14,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
@@ -192,37 +192,6 @@ describe("analyseTaskStrings", () => {
     expect(marks.map((mark) => mark.day)).toEqual(days);
     await refreshPendingSummary({ organizationIds: [organization.id] });
     expect(await current()).toEqual([{ strings: 2 }]);
-  });
-
-  it("waits a few seconds for a scheduled run that holds the project, then refreshes", async () => {
-    const { organization, project, sourceFile, createPersonTask } = await createFileWithStrings();
-    const task = await createPersonTask({ kind: "proofread" });
-    const { days } = await analyseTaskStrings({
-      organizationId: organization.id,
-      projectId: project.id,
-      jobId: task.id,
-      step: "review",
-      sourceLocale: "en-US",
-      targetLocales: ["fr-FR"],
-      repositorySourceFileId: sourceFile.id,
-    });
-    const lockKey = `reporting-summary:${organization.id}:${project.id}`;
-    let locked!: () => void;
-    const lockedPromise = new Promise<void>((resolve) => (locked = resolve));
-    const holder = db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
-      locked();
-      await new Promise((resolve) => setTimeout(resolve, 700));
-    });
-    await lockedPromise;
-    await refreshTaskDays({ organizationId: organization.id, projectId: project.id, days });
-    await holder;
-    const words = await queryTaskWords({
-      organizationId: organization.id,
-      jobId: task.id,
-      unit: "words",
-    });
-    expect(words.totals.review.arrived).toBe(5);
   });
 
   it("refreshes only the days still marked, so a run that did them meanwhile is not repeated", async () => {

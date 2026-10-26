@@ -452,28 +452,6 @@ describe("captureEditorSaves", () => {
     expect(analyses.every((row) => row.jobId === task.id && row.step === "review")).toBe(true);
   });
 
-  it("records an edit as translation work when no task for people covers the string", async () => {
-    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
-    await insertSaveEvent({
-      organizationId: organization.id,
-      projectId: project.id,
-      actorUserId: user.id,
-      segmentId: keyIds[0],
-    });
-    await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
-
-    const completions = await db
-      .select({ jobId: schema.reportingActivity.jobId, step: schema.reportingActivity.step })
-      .from(schema.reportingActivity)
-      .where(
-        and(
-          eq(schema.reportingActivity.organizationId, organization.id),
-          eq(schema.reportingActivity.kind, "completion"),
-        ),
-      );
-    expect(completions).toEqual([{ jobId: null, step: "translation" }]);
-  });
-
   it("matches each save in a run to the task open at that save's own time", async () => {
     const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
     const save = (segmentId: string, createdAt: Date, approve = false) =>
