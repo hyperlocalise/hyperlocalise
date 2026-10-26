@@ -10,12 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { getUsage } from "tokenlens";
 import { eq, and } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
 import { isWorkspaceReportsCaptureEnabled, reportingStart } from "./capture";
 
-export const AI_PRICING_VERSION = "tokenlens-1.3.1-v1";
 export type AiReportingUsage = {
   invocationId: string;
   provider: string;
@@ -39,7 +37,7 @@ export async function captureAiUsage(
     if (!(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
       return;
     }
-    await reportingStart();
+    await reportingStart(input.organizationId);
     if (input.jobId) {
       const [external] = await db
         .select({ id: schema.externalJobDetails.jobId })
@@ -52,15 +50,9 @@ export async function captureAiUsage(
         );
       if (external) return;
     }
-    const estimate = getUsage({
-      modelId: input.model,
-      usage: { input: input.inputTokens, output: input.outputTokens },
-    }).costUSD?.totalUSD;
-    const amountUsd =
-      input.reportedUsd ??
-      (!input.usageUnavailable && estimate !== undefined && Number.isFinite(estimate)
-        ? estimate.toFixed(8)
-        : null);
+    // Reports keeps tokens and where they were used; the money is billing's actual charge, so no
+    // price is estimated here.
+    const amountUsd = input.reportedUsd ?? null;
     await db
       .insert(schema.reportingCosts)
       .values({
@@ -72,19 +64,12 @@ export async function captureAiUsage(
         step: input.step ?? "translation",
         targetLocale: input.targetLocale,
         amountUsd,
-        basis:
-          input.reportedUsd !== undefined
-            ? "reported"
-            : amountUsd !== null
-              ? "estimated"
-              : "unpriced",
+        basis: amountUsd !== null ? "reported" : "unpriced",
         provider: input.provider,
         model: input.model,
         inputTokens: input.inputTokens,
         outputTokens: input.outputTokens,
         tokenCategories: input.tokenCategories,
-        pricingVersion:
-          amountUsd !== null && input.reportedUsd === undefined ? AI_PRICING_VERSION : null,
       })
       .onConflictDoNothing();
   } catch (error) {

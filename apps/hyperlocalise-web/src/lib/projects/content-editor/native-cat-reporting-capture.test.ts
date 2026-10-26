@@ -20,6 +20,20 @@ const { getRepositorySourceFileByPath, captureAnalysis, captureCompletions, sele
     selectResults: [] as unknown[][],
   }));
 
+const openPersonTaskForStringMock = vi.hoisted(() =>
+  vi.fn(async (): Promise<string | undefined> => undefined),
+);
+
+vi.mock("@/lib/reporting/completion-source", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/reporting/completion-source")>();
+  // The editor's history is not in the fake database: a person's save is their own, unchanged.
+  return { ...actual, textOrigins: vi.fn(async () => new Map()) };
+});
+
+vi.mock("@/lib/reporting/task-analysis", () => ({
+  openPersonTaskForString: openPersonTaskForStringMock,
+}));
+
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
   ProjectTranslationService: class {
     getRepositorySourceFileByPath = getRepositorySourceFileByPath;
@@ -101,6 +115,35 @@ describe("captureNativeCatTranslationReporting", () => {
     expect(captureAnalysis).not.toHaveBeenCalled();
   });
 
+  it("attributes an approval to the open task for people that covers the string", async () => {
+    getRepositorySourceFileByPath.mockResolvedValue({ id: "file_1" });
+    openPersonTaskForStringMock.mockResolvedValueOnce("job_proofread");
+    selectResults.push(
+      [{ id: "key_1", sourceText: "Hello" }],
+      [{ sourceJobId: "job_existing" }],
+      [{ sourceLocale: "en-AU" }],
+    );
+
+    await expect(
+      captureNativeCatTranslationReporting({ ...baseInput, approve: true }),
+    ).resolves.toBe(true);
+
+    expect(openPersonTaskForStringMock).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "project_1",
+      repositorySourceFileId: "file_1",
+      targetLocale: "fr-FR",
+      step: "review",
+    });
+    // The open task wins over the task that produced the translation.
+    expect(captureAnalysis).toHaveBeenCalledWith(
+      expect.objectContaining({ jobId: "job_proofread", step: "review" }),
+    );
+    expect(captureCompletions).toHaveBeenCalledWith(
+      expect.objectContaining({ jobId: "job_proofread", step: "review" }),
+    );
+  });
+
   it("records billable draft analysis and human completions for manual saves", async () => {
     getRepositorySourceFileByPath.mockResolvedValue({ id: "file_1" });
     selectResults.push(
@@ -128,6 +171,9 @@ describe("captureNativeCatTranslationReporting", () => {
       sourceEntries: { key_1: "Hello" },
       provenance: "human",
       step: "translation",
+      // Nothing was given to the person (no earlier version), so the text is their own.
+      source: "person",
+      unchanged: { key_1: false },
     });
   });
 

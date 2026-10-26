@@ -849,12 +849,23 @@ export async function captureFileCompletionsStep(input: {
   targetLocale: string;
   sourceEntries: Record<string, string>;
   targetEntries: Record<string, string>;
+  /** Strings whose text was taken from the translation memory; the rest came from the model. */
+  memoryKeys?: string[];
 }) {
   "use step";
   const { captureCompletions } = await import("@/lib/reporting/capture");
+  const memoryKeys = new Set(input.memoryKeys ?? []);
   await captureCompletions({
-    ...input,
+    organizationId: input.organizationId,
+    jobId: input.jobId,
+    targetLocale: input.targetLocale,
     provenance: "automated",
+    source: "ai",
+    sources: Object.fromEntries(
+      Object.keys(input.targetEntries)
+        .filter((key) => memoryKeys.has(key))
+        .map((key) => [key, "memory" as const]),
+    ),
     sourceEntries: Object.fromEntries(
       Object.entries(input.sourceEntries).filter(([key]) => input.targetEntries[key]?.trim()),
     ),

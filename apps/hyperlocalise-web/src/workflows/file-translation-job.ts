@@ -1096,6 +1096,8 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     const translatableKeys = Object.keys(sourceEntries).filter((key) => sourceEntries[key]?.trim());
     const sourceEntryCount = translatableKeys.length;
     const prefilledByLocale: Record<string, Record<string, string>> = {};
+    // Strings filled from the translation memory, so Reports can tell them from the model's.
+    const memoryKeysByLocale: Record<string, string[]> = {};
     const confirmedByLocale: Record<string, Record<string, string>> = {};
     const lastReportedProgressByLocale: Record<string, number> = {};
     const countTranslated = (locale: string) =>
@@ -1154,6 +1156,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
                   sourceEntries,
                 });
                 tmPrefilled = tmReuse.prefilled;
+                memoryKeysByLocale[targetLocale] = Object.keys(tmPrefilled);
                 if (Object.keys(tmPrefilled).length > 0) {
                   console.info(
                     "[file-translation-workflow] matched reusable translation memory entries",
@@ -1532,6 +1535,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
               targetLocale,
               sourceEntries: deltaSource,
               targetEntries: accepted,
+              memoryKeys: memoryKeysByLocale[targetLocale],
             });
           confirmedByLocale[targetLocale] = { ...confirmedByLocale[targetLocale], ...accepted };
           prefilledByLocale[targetLocale] = { ...prefilledByLocale[targetLocale], ...accepted };

@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+The Reports page now reads a daily summary built from these records: see [Reports rework](./2026-10-23-reports-rework-design.md).
+
 ## Context
 
 Reports (behind the `workspace-reports` flag) records words, translation memory match bands, completions and costs on hot paths.
@@ -20,7 +22,7 @@ The Go service already writes a `string_segment_translation_updated` or `string_
 - Progress is a cursor per organization in `reporting_capture_cursors`. Events are read in `(created_at, id)` order once they are two minutes old, because `created_at` is insert time, not commit time.
 - Each run checks every workspace's Reports flag from the downloaded flags. A workspace with Reports off keeps no position; one with Reports on starts at the cut-off the first time, since Reports records work from when it is turned on, and moves up to the cut-off after each run. Approvals made in an external translation tool name that tool's string id and are passed over.
 - Approvals from the web app and MCP reach the log through a queue, dated when queued. Each run also records approvals from the last 24 hours that it passed without a recorded review. Each run first waits for the feature flags to download and stops if they cannot, so a failed check never reads as off.
-- A run records saves in batches of 200, moving the position after each. Each batch scores a project's texts against its memory in one pass, the time is checked between groups of saves, and nothing new starts after four minutes, inside the 300 s function limit. Workspaces are taken in a different order each run, so one that keeps running out of time cannot hold back the others.
+- A run records saves in batches of 200, moving the position after each. Each batch scores a project's texts against its memory in one pass, the time is checked between groups of saves, and nothing new starts after three minutes; the daily summary is refreshed in the time left, up to four minutes, inside the 300 s function limit. Workspaces are taken in a different order each run, so one that keeps running out of time cannot hold back the others.
 - The event only says what was saved. Text and source job are read from the state tables. Existing unique keys keep every write idempotent.
 - `reporting_activity` gains a nullable `actor_user_id`. Events with `actorKind: agent` are recorded as automated, not billable, with no person. MCP tools now log their events that way, as the in-app agent tools already do, since an MCP call is an AI assistant acting for the person.
 - The browser no longer awaits the reporting request. The route only records product analytics. The web app's own save path writes no event, so it captures directly after the write.

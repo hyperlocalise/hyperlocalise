@@ -287,6 +287,11 @@ export async function failReviewJob(input: {
     projectId: updatedJob.projectId,
     status: "failed",
   });
+  await captureJobStatus({
+    jobId: input.jobId,
+    status: "failed",
+    operationKey: `review:${input.jobId}:failed`,
+  });
 
   return getStoredReviewJob(input.jobId, input.projectId);
 }
@@ -473,6 +478,7 @@ export async function executeNativeReviewJob(input: {
       targetLocale,
       step: "review",
       provenance: "automated",
+      source: "ai",
       sourceEntries: Object.fromEntries(rows.map((row) => [row.translationKeyId, row.sourceText])),
     });
   const outcome = {

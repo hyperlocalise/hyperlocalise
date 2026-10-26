@@ -126,6 +126,8 @@ export const visualWorkflowNodeRuns = pgTable(
   },
   (table) => [
     index("idx_visual_workflow_node_runs_run").on(table.runId, table.createdAt),
+    /** Reports reads a workspace's step run times by when they finished. */
+    index("idx_visual_workflow_node_runs_org_finished").on(table.organizationId, table.finishedAt),
     uniqueIndex("idx_visual_workflow_node_runs_run_node").on(
       table.runId,
       table.nodeId,
