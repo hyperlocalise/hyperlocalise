@@ -23,6 +23,7 @@ import {
 import { OPEN_TASK_STATUSES, type CompletionSource } from "./report-units";
 import { MemoryMatchIndex, MemorySourceScan, sourceSimilarity } from "./memory-match-index";
 import { unitCost } from "./money";
+import { memoryUnavailable } from "./memory-unavailable";
 import { markSummaryDays, summaryDay, type SummaryMark } from "./summary";
 import { reportingStart } from "./reporting-start";
 
@@ -292,26 +293,7 @@ export async function captureAnalysis(input: AnalysisInput) {
   }
 }
 
-/**
- * Starts the message of the error a strict write throws when the project's memory cannot be read
- * or scored, so a caller can tell that from a failed write: only then may the strings be recorded
- * without match bands instead.
- */
-export const MEMORY_UNAVAILABLE = "reporting_memory_unavailable";
-
-export function isMemoryUnavailableError(error: unknown): boolean {
-  return error instanceof Error && error.message.startsWith(MEMORY_UNAVAILABLE);
-}
-
-/**
- * A plain error with the cause's message only: a step's failure crosses the workflow runtime's
- * serialisation, which a database error kept as `cause` might not survive.
- */
-function memoryUnavailable(error: unknown): Error {
-  return new Error(
-    `${MEMORY_UNAVAILABLE}: ${error instanceof Error ? error.message : String(error)}`,
-  );
-}
+export { isMemoryUnavailableError, MEMORY_UNAVAILABLE } from "./memory-unavailable";
 
 type MemoryOptions = {
   memoryCache?: MemoryScoreCache;

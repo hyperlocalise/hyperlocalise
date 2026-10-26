@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { isMemoryUnavailableError } from "@/lib/reporting/capture";
+import { isMemoryUnavailableError } from "@/lib/reporting/memory-unavailable";
 import type { TaskAnalysisInput } from "@/lib/reporting/task-analysis";
 
 import {
