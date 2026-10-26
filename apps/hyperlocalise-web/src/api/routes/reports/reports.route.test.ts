@@ -764,6 +764,210 @@ describe("reports routes", () => {
     await expect(names("/budgets?projectId=project_elsewhere")).resolves.toEqual([]);
   });
 
+  it("lets a contributor edit or void their own time, and only billing write others'", async () => {
+    const workspace = await reporting.createWorkspace();
+    const { identity, organization, user, project, createJob } = workspace;
+    const slug = identity.organization.slug ?? "missing-slug";
+    const job = await createJob();
+    const translatorIdentity = reporting.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    const { user: translator } = await reporting.createLocalWorkosIdentity(translatorIdentity);
+    await ensureDefaultWorkspaceTeamMembership({
+      organizationId: organization.id,
+      userId: translator.id,
+    });
+    await db.insert(schema.reportingBudgets).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      budget: "1000",
+      rateCardName: "Hourly",
+    });
+    const card = await saveRateCard({
+      organizationId: organization.id,
+      actorId: user.id,
+      name: "Hourly",
+      defaultBasis: "hour",
+      lines: [
+        {
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          step: "translation",
+          basis: "hour",
+          rate: "60",
+          percentages: {},
+        },
+      ],
+      create: true,
+    });
+    if (!isOk(card)) throw new Error("expected the card to save");
+
+    const adminHeaders = {
+      ...(await reporting.authHeadersFor(identity)),
+      "Content-Type": "application/json",
+    };
+    const translatorHeaders = {
+      ...(await reporting.authHeadersFor(translatorIdentity)),
+      "Content-Type": "application/json",
+    };
+    const created = await app.request(reportsUrl(slug, "/time-entries"), {
+      method: "POST",
+      headers: translatorHeaders,
+      body: JSON.stringify({
+        jobId: job.id,
+        step: "translation",
+        targetLocale: "fr-FR",
+        workDate: "2026-06-01",
+        minutes: 30,
+      }),
+    });
+    expect(created.status).toBe(201);
+    const { timeEntry } = (await created.json()) as { timeEntry: { id: string } };
+
+    const ownPatch = await app.request(reportsUrl(slug, `/time-entries/${timeEntry.id}`), {
+      method: "PATCH",
+      headers: translatorHeaders,
+      body: JSON.stringify({ minutes: 45, workDate: "2026-06-02" }),
+    });
+    expect(ownPatch.status).toBe(200);
+
+    const [cost] = await db
+      .select({
+        amountUsd: schema.reportingCosts.amountUsd,
+        voided: schema.reportingCosts.voided,
+      })
+      .from(schema.reportingCosts)
+      .where(eq(schema.reportingCosts.timeEntryId, timeEntry.id));
+    expect(cost).toMatchObject({ amountUsd: "45.00000000", voided: false });
+
+    const [adminEntry] = await db
+      .insert(schema.reportingTimeEntries)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        jobId: job.id,
+        contributorId: user.id,
+        step: "translation",
+        targetLocale: "fr-FR",
+        workDate: new Date("2026-06-03T00:00:00Z"),
+        minutes: 15,
+      })
+      .returning();
+    const foreignPatch = await app.request(reportsUrl(slug, `/time-entries/${adminEntry!.id}`), {
+      method: "PATCH",
+      headers: translatorHeaders,
+      body: JSON.stringify({ minutes: 20, workDate: "2026-06-03" }),
+    });
+    expect(foreignPatch.status).toBe(403);
+    await expect(foreignPatch.json()).resolves.toMatchObject({ error: "time_entry_forbidden" });
+
+    const foreignDelete = await app.request(reportsUrl(slug, `/time-entries/${adminEntry!.id}`), {
+      method: "DELETE",
+      headers: translatorHeaders,
+    });
+    expect(foreignDelete.status).toBe(403);
+
+    const adminPatch = await app.request(reportsUrl(slug, `/time-entries/${timeEntry.id}`), {
+      method: "PATCH",
+      headers: adminHeaders,
+      body: JSON.stringify({ minutes: 15, workDate: "2026-06-02" }),
+    });
+    expect(adminPatch.status).toBe(200);
+
+    const voided = await app.request(reportsUrl(slug, `/time-entries/${timeEntry.id}`), {
+      method: "DELETE",
+      headers: translatorHeaders,
+    });
+    expect(voided.status).toBe(204);
+    const [voidedCost] = await db
+      .select({ voided: schema.reportingCosts.voided })
+      .from(schema.reportingCosts)
+      .where(eq(schema.reportingCosts.timeEntryId, timeEntry.id));
+    expect(voidedCost?.voided).toBe(true);
+    const missing = await app.request(reportsUrl(slug, `/time-entries/${randomUUID()}`), {
+      method: "DELETE",
+      headers: adminHeaders,
+    });
+    expect(missing.status).toBe(404);
+  });
+
+  it("lets only billing write add an expense, and only on an accessible project", async () => {
+    const workspace = await reporting.createWorkspace();
+    const { identity, organization, project, createJob, createProject } = workspace;
+    const slug = identity.organization.slug ?? "missing-slug";
+    const job = await createJob();
+    const other = await createProject("Help centre");
+    const otherJob = await createJob({ projectId: other.id });
+    const managerIdentity = reporting.createWorkosIdentityForOrganization(
+      identity.organization,
+      "localization_manager",
+    );
+    const { user: manager } = await reporting.createLocalWorkosIdentity(managerIdentity);
+    await ensureDefaultWorkspaceTeamMembership({
+      organizationId: organization.id,
+      userId: manager.id,
+    });
+    const adminHeaders = {
+      ...(await reporting.authHeadersFor(identity)),
+      "Content-Type": "application/json",
+    };
+    const managerHeaders = {
+      ...(await reporting.authHeadersFor(managerIdentity)),
+      "Content-Type": "application/json",
+    };
+    const expense = {
+      projectId: project.id,
+      jobId: job.id,
+      step: "translation",
+      amountUsd: "12.5",
+      note: "Vendor invoice",
+      operationKey: randomUUID(),
+    };
+
+    const forbidden = await app.request(reportsUrl(slug, "/expenses"), {
+      method: "POST",
+      headers: managerHeaders,
+      body: JSON.stringify(expense),
+    });
+    expect(forbidden.status).toBe(403);
+    await expect(forbidden.json()).resolves.toMatchObject({ error: "report_costs_forbidden" });
+
+    const created = await app.request(reportsUrl(slug, "/expenses"), {
+      method: "POST",
+      headers: adminHeaders,
+      body: JSON.stringify(expense),
+    });
+    expect(created.status).toBe(201);
+    await expect(created.json()).resolves.toMatchObject({
+      expense: { amountUsd: "12.50000000", kind: "expense", jobId: job.id },
+    });
+
+    const unknownProject = await app.request(reportsUrl(slug, "/expenses"), {
+      method: "POST",
+      headers: adminHeaders,
+      body: JSON.stringify({
+        ...expense,
+        projectId: `project_${randomUUID()}`,
+        operationKey: randomUUID(),
+      }),
+    });
+    expect(unknownProject.status).toBe(404);
+    await expect(unknownProject.json()).resolves.toMatchObject({ error: "project_not_found" });
+
+    const mismatchedJob = await app.request(reportsUrl(slug, "/expenses"), {
+      method: "POST",
+      headers: adminHeaders,
+      body: JSON.stringify({
+        ...expense,
+        jobId: otherJob.id,
+        operationKey: randomUUID(),
+      }),
+    });
+    expect(mismatchedJob.status).toBe(404);
+    await expect(mismatchedJob.json()).resolves.toMatchObject({ error: "job_not_found" });
+  });
+
   it("denies report access when the feature flag is disabled", async () => {
     mocks.workspaceReportsFlagRunMock.mockResolvedValue(false);
     const identity = fixture.createWorkosIdentityWithRole("admin");

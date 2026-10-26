@@ -146,11 +146,53 @@ describe("Compare compiler", () => {
     });
   });
 
+  it("accepts boolean group operators and rejects a non-boolean operand", () => {
+    const andWorkflow = definition({
+      operator: "and",
+      operands: [
+        { id: "one", name: "One", type: "boolean" },
+        { id: "two", name: "Two", type: "boolean" },
+        { id: "three", name: "Three", type: "boolean" },
+      ],
+    });
+    andWorkflow.nodes[1]!.inputs = {
+      "value.one": { kind: "literal", value: true },
+      "value.two": { kind: "literal", value: false },
+      "value.three": { kind: "literal", value: true },
+    };
+    expect(compileVisualWorkflowV3Definition(andWorkflow).issues).toEqual([]);
+
+    const notWorkflow = definition({
+      operator: "not",
+      operands: [{ id: "left", name: "Left", type: "boolean" }],
+    });
+    notWorkflow.nodes[1]!.inputs = { "value.left": { kind: "literal", value: false } };
+    expect(compileVisualWorkflowV3Definition(notWorkflow).issues).toEqual([]);
+
+    const orWorkflow = definition({
+      operator: "or",
+      operands: [
+        { id: "left", name: "Left", type: "boolean" },
+        { id: "right", name: "Right", type: "number" },
+      ],
+    });
+    orWorkflow.nodes[1]!.inputs = {
+      "value.left": { kind: "literal", value: true },
+      "value.right": { kind: "literal", value: 1 },
+    };
+    expect(compileVisualWorkflowV3Definition(orWorkflow).issues).toContainEqual({
+      code: "incompatible_data_types",
+      nodeId: "compare",
+    });
+  });
+
   it.each([
     ["equal", "object", "object"],
+    ["not_equal", "string", "string"],
     ["contains", "array", "number"],
     ["starts_with", "string", "string"],
     ["less_than", "number", "number"],
+    ["greater_than_or_equal", "string", "string"],
   ] as const)("accepts %s with %s and %s operands", (operator, leftType, rightType) => {
     const workflow = definition({
       operator,
