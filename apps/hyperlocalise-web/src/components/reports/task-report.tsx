@@ -249,10 +249,14 @@ function TaskCards({
   // The task's approved share is a snapshot of its own strings sent for review.
   const review = words.totals.review;
   const estimate = data.estimate;
+  // Nothing could be priced: every unit has no rate, or the only priced lines are hourly with no
+  // time estimate, so the cost is not $0 but unknown.
   const nothingPriced =
     estimate !== null &&
     estimate.totals.units > 0 &&
-    estimate.totals.unpricedUnits === estimate.totals.units;
+    Number(estimate.totals.costUsd) === 0 &&
+    (estimate.totals.unpricedUnits === estimate.totals.units ||
+      estimate.rows.every((row) => row.pricing === "none" || row.unestimated));
   // The task's cost by step, when it has work at both: "$12.86 translation · No rate review".
   const stepCosts = estimate
     ? REPORT_STEPS.flatMap((costStep) => {

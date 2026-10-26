@@ -184,7 +184,12 @@ function EstimateBody({
       : intl.formatMessage(messages.tasksCount, { count: totals.tasks }),
     languages: intl.formatMessage(messages.languagesCount, { count: totals.languages }),
   });
-  const nothingPriced = totals.units > 0 && totals.unpricedUnits === totals.units;
+  // Nothing could be priced: no rate anywhere, or only hourly lines with no time estimate.
+  const nothingPriced =
+    totals.units > 0 &&
+    Number(totals.costUsd) === 0 &&
+    (totals.unpricedUnits === totals.units ||
+      data.rows.every((row) => row.pricing === "none" || row.unestimated));
   return (
     <>
       <ReportStatCards>
