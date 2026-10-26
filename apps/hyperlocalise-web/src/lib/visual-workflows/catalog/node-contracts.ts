@@ -335,6 +335,11 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     outputs: [output("value", "unknown")],
     mock: { value: null },
   },
+  "logic.compare": {
+    inputs: [],
+    outputs: [output("result", "boolean")],
+    mock: { result: true },
+  },
   "logic.for_each": {
     inputs: [field("collection", "array")],
     outputs: [
@@ -543,6 +548,14 @@ export function getWorkflowOutputFields(node: CanonicalVisualWorkflowNode): Work
 }
 
 export function getWorkflowInputFields(node: CanonicalVisualWorkflowNode): WorkflowInputField[] {
+  if (node.config.kind === "logic.compare") {
+    return node.config.operands.map((operand) => ({
+      name: `value.${operand.id}`,
+      type: operand.type,
+      required: true,
+    }));
+  }
+
   if (node.config.kind === "logic.coalesce") {
     return node.config.inputs.map((input) => ({
       name: `value.${input.id}`,

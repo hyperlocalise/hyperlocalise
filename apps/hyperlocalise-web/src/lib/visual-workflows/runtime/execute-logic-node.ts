@@ -14,6 +14,7 @@ import type { CanonicalVisualWorkflowNode } from "../schema/types";
 import type { VisualWorkflowExecutionContext } from "./context";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 import { executeCoalesce } from "./coalesce-node";
+import { executeCompare } from "./compare-node";
 import {
   evaluateVisualWorkflowCondition,
   resolveVisualWorkflowCollection,
@@ -144,6 +145,14 @@ export function executeLogicVisualWorkflowNode(input: {
         treatEmptyStringAsMissing: node.config.treatEmptyStringAsMissing,
         treatEmptyArrayAsMissing: node.config.treatEmptyArrayAsMissing,
         treatEmptyObjectAsMissing: node.config.treatEmptyObjectAsMissing,
+      });
+    case "logic.compare":
+      return executeCompare({
+        operator: node.config.operator,
+        operands: node.config.operands,
+        resolvedConfig: node.config as unknown as Record<string, unknown>,
+        locale: node.config.locale,
+        sensitivity: node.config.sensitivity,
       });
     case "logic.for_each": {
       const items = resolveVisualWorkflowCollection(node.config.collection, context);

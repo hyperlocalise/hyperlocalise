@@ -212,6 +212,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: GitMergeIcon,
   },
   {
+    type: "logic.compare",
+    category: "logic",
+    enabled: true,
+    icon: CheckSquareIcon,
+  },
+  {
     type: "ai.agent",
     category: "ai",
     enabled: true,
@@ -480,6 +486,15 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         treatEmptyArrayAsMissing: false,
         treatEmptyObjectAsMissing: false,
       };
+    case "logic.compare":
+      return {
+        kind: "logic.compare",
+        operator: "equal",
+        operands: [
+          { id: createComparisonOperandId(), name: "Left", type: "unknown" },
+          { id: createComparisonOperandId(), name: "Right", type: "unknown" },
+        ],
+      };
     case "ai.agent":
       return { kind: "ai.agent", prompt: "", onError: "stop" };
     case "logic.for_each":
@@ -666,6 +681,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
         : "No path selected";
     case "logic.coalesce":
       return `${config.inputs.length} ordered values`;
+    case "logic.compare":
+      return config.operator.replaceAll("_", " ");
     case "ai.agent":
       return "Tools agent";
     case "logic.for_each":
@@ -734,6 +751,10 @@ export function createObjectPortId(): string {
 }
 
 export function createCoalesceInputId(): string {
+  return crypto.randomUUID();
+}
+
+export function createComparisonOperandId(): string {
   return crypto.randomUUID();
 }
 
