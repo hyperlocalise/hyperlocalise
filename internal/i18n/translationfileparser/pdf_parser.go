@@ -338,6 +338,16 @@ func MarshalPDF(template []byte, values map[string]string, targetLocale string) 
 		}
 		defer closePDFDocument(instance, doc)
 
+		// Load the replacement font once per document: embedding the 4.6 MiB
+		// CJK font per block exhausts the wasm memory budget and duplicates
+		// the font stream in the output.
+		useEmbeddedFont := pdfLocaleNeedsEmbeddedFont(targetLocale)
+		font, closeFont, err := loadPDFTranslationFont(instance, doc, targetLocale)
+		if err != nil {
+			return ErrPDFMalformed
+		}
+		defer closeFont()
+
 		pageCount, err := instance.FPDF_GetPageCount(&requests.FPDF_GetPageCount{Document: doc})
 		if err != nil {
 			return ErrPDFMalformed
@@ -361,7 +371,7 @@ func MarshalPDF(template []byte, values map[string]string, targetLocale string) 
 				if err := validatePDFTargetScript(targetText); err != nil {
 					return err
 				}
-				if err := applyPDFBlockTranslation(instance, doc, pageReq, block, targetText, targetLocale); err != nil {
+				if err := applyPDFBlockTranslation(instance, doc, pageReq, block, targetText, font, useEmbeddedFont); err != nil {
 					if errorsIsOverflow(err) {
 						overflow = append(overflow, key)
 						continue
@@ -402,7 +412,7 @@ func errorsIsOverflow(err error) bool {
 	return ok
 }
 
-func applyPDFBlockTranslation(instance pdfium.Pdfium, doc references.FPDF_DOCUMENT, page requests.Page, block pdfTextBlock, text string, targetLocale string) error {
+func applyPDFBlockTranslation(instance pdfium.Pdfium, doc references.FPDF_DOCUMENT, page requests.Page, block pdfTextBlock, text string, font references.FPDF_FONT, useEmbeddedFont bool) error {
 	width := block.right - block.left
 	if width <= 0 {
 		width = 200
@@ -417,9 +427,14 @@ func applyPDFBlockTranslation(instance pdfium.Pdfium, doc references.FPDF_DOCUME
 		blockHeight = float64(fontSize) * 1.2
 	}
 	fittedSize, lines, overflow := wrapPDFText(text, width, blockHeight, fontSize, minSize)
-	_ = targetLocale
 
-	if len(block.spans) == 1 && len(lines) == 1 {
+	// The single-span fast path reuses the template's original font. For locales
+	// that need the embedded font it is only used when the template font
+	// itself covers the translated text, so the template's look is preserved
+	// whenever possible; otherwise the block is recreated below.
+	fastPath := len(block.spans) == 1 && len(lines) == 1 &&
+		(!useEmbeddedFont || pdfOriginalFontCoversText(instance, block.spans[0].pageObject, lines[0]))
+	if fastPath {
 		if _, err := instance.FPDFText_SetText(&requests.FPDFText_SetText{
 			PageObject: block.spans[0].pageObject,
 			Text:       lines[0],
@@ -449,23 +464,12 @@ func applyPDFBlockTranslation(instance pdfium.Pdfium, doc references.FPDF_DOCUME
 		_, _ = instance.FPDFPageObj_Destroy(&requests.FPDFPageObj_Destroy{PageObject: span.pageObject})
 	}
 
-	fontResp, err := instance.FPDFText_LoadStandardFont(&requests.FPDFText_LoadStandardFont{
-		Document: doc,
-		Font:     "Helvetica",
-	})
-	if err != nil {
-		return ErrPDFMalformed
-	}
-	defer func() {
-		_, _ = instance.FPDFFont_Close(&requests.FPDFFont_Close{Font: fontResp.Font})
-	}()
-
 	lineHeight := float64(fittedSize) * 1.2
 	y := block.top - float64(fittedSize)
 	for _, line := range lines {
 		objResp, err := instance.FPDFPageObj_CreateTextObj(&requests.FPDFPageObj_CreateTextObj{
 			Document: doc,
-			Font:     fontResp.Font,
+			Font:     font,
 			FontSize: fittedSize,
 		})
 		if err != nil {
@@ -530,17 +534,93 @@ func wrapPDFText(text string, width, blockHeight float64, fontSize float32, minS
 }
 
 func pdfLinesExceedWidth(lines []string, width float64, fontSize float32) bool {
-	charWidth := float64(fontSize) * 0.5
-	if charWidth <= 0 {
+	maxUnits := pdfMaxLineUnits(width, fontSize)
+	if maxUnits <= 0 {
 		return false
 	}
-	maxChars := int(math.Max(1, width/charWidth))
 	for _, line := range lines {
-		if len([]rune(line)) > maxChars {
+		if pdfLineWidthUnits(line) > maxUnits {
 			return true
 		}
 	}
 	return false
+}
+
+// pdfMaxLineUnits is the line capacity measured in half-width units: Latin
+// glyphs advance ~0.5em, full-width CJK glyphs advance ~1em.
+func pdfMaxLineUnits(width float64, fontSize float32) int {
+	charWidth := float64(fontSize) * 0.5
+	if charWidth <= 0 {
+		return 0
+	}
+	return int(math.Max(1, width/charWidth))
+}
+
+// pdfRuneWidthUnits returns the horizontal advance of r in half-width units.
+func pdfRuneWidthUnits(r rune) int {
+	if pdfRuneIsFullWidth(r) {
+		return 2
+	}
+	return 1
+}
+
+func pdfLineWidthUnits(line string) int {
+	units := 0
+	for _, r := range line {
+		units += pdfRuneWidthUnits(r)
+	}
+	return units
+}
+
+// pdfRuneIsFullWidth reports whether r advances a full em square: CJK
+// ideographs and symbols, hiragana, katakana, hangul syllables, fullwidth
+// forms and emoji.
+func pdfRuneIsFullWidth(r rune) bool {
+	switch {
+	case r >= 0x1100 && r <= 0x115F:
+		return true
+	case r >= 0x2E80 && r <= 0xA4CF:
+		return true
+	case r >= 0xAC00 && r <= 0xD7A3:
+		return true
+	case r >= 0xF900 && r <= 0xFAFF:
+		return true
+	case r >= 0xFE30 && r <= 0xFE4F:
+		return true
+	case r >= 0xFF00 && r <= 0xFF60:
+		return true
+	case r >= 0xFFE0 && r <= 0xFFE6:
+		return true
+	case r >= 0x3000 && r <= 0x30FF:
+		return true
+	case r >= 0x31F0 && r <= 0x32FF:
+		return true
+	case r >= 0x3400 && r <= 0x4DBF:
+		return true
+	case r >= 0x4E00 && r <= 0x9FFF:
+		return true
+	case r >= 0x20000 && r <= 0x3FFFF:
+		return true
+	case r >= 0x1F300 && r <= 0x1FAFF:
+		return true
+	case r >= 0x2600 && r <= 0x27BF:
+		return true
+	default:
+		return false
+	}
+}
+
+// pdfRuneIsClosingPunct reports runes that must not start a wrapped line
+// (kinsoku shori): CJK and Latin closing punctuation.
+func pdfRuneIsClosingPunct(r rune) bool {
+	switch r {
+	case '，', '。', '、', '；', '：', '？', '！', '）', '］', '｝',
+		'」', '』', '’', '”', '％', '…', '・',
+		',', '.', ';', ':', '?', '!', '%', ')', ']', '}', '\'', '"':
+		return true
+	default:
+		return false
+	}
 }
 
 func wrapPDFLines(text string, width float64, fontSize float32) []string {
@@ -548,52 +628,84 @@ func wrapPDFLines(text string, width float64, fontSize float32) []string {
 	if len(words) == 0 {
 		return []string{""}
 	}
-	charWidth := float64(fontSize) * 0.5
-	maxChars := int(math.Max(1, width/charWidth))
+	maxUnits := pdfMaxLineUnits(width, fontSize)
 	var lines []string
 	var current []rune
+	currentUnits := 0
 	flush := func() {
 		if len(current) == 0 {
 			return
 		}
 		lines = append(lines, string(current))
 		current = current[:0]
+		currentUnits = 0
 	}
 	for _, word := range words {
-		for _, chunk := range splitPDFWord(word, maxChars) {
+		for _, chunk := range splitPDFWord(word, maxUnits) {
 			chunkRunes := []rune(chunk)
-			nextLen := len(current)
-			if nextLen > 0 {
-				nextLen++
+			chunkUnits := pdfLineWidthUnits(chunk)
+			nextUnits := currentUnits
+			if len(current) > 0 {
+				nextUnits++
 			}
-			nextLen += len(chunkRunes)
-			if nextLen > maxChars && len(current) > 0 {
+			nextUnits += chunkUnits
+			if nextUnits > maxUnits && len(current) > 0 {
+				// Keep closing punctuation with the previous line instead of
+				// starting a new line with it when it still fits there.
+				if len(chunkRunes) == 1 && pdfRuneIsClosingPunct(chunkRunes[0]) &&
+					currentUnits+pdfRuneWidthUnits(chunkRunes[0]) <= maxUnits {
+					current = append(current, chunkRunes...)
+					currentUnits += pdfRuneWidthUnits(chunkRunes[0])
+					continue
+				}
 				flush()
 			}
 			if len(current) > 0 {
 				current = append(current, ' ')
+				currentUnits++
 			}
 			current = append(current, chunkRunes...)
+			currentUnits += chunkUnits
 		}
 	}
 	flush()
 	return lines
 }
 
-func splitPDFWord(word string, maxChars int) []string {
-	runes := []rune(word)
-	if maxChars <= 0 || len(runes) <= maxChars {
+// splitPDFWord chunks word so every chunk costs at most maxUnits
+// half-width units. CJK text has no spaces, so chunks break mid-run; a
+// closing punctuation mark is kept with the preceding chunk. ASCII words
+// keep the previous rune-count behavior because every ASCII rune is 1 unit.
+func splitPDFWord(word string, maxUnits int) []string {
+	if maxUnits <= 0 || pdfLineWidthUnits(word) <= maxUnits {
 		return []string{word}
 	}
-	chunks := make([]string, 0, (len(runes)+maxChars-1)/maxChars)
-	for len(runes) > 0 {
-		n := maxChars
-		if n > len(runes) {
-			n = len(runes)
+	var chunks []string
+	var current []rune
+	currentUnits := 0
+	flush := func() {
+		if len(current) == 0 {
+			return
 		}
-		chunks = append(chunks, string(runes[:n]))
-		runes = runes[n:]
+		chunks = append(chunks, string(current))
+		current = current[:0]
+		currentUnits = 0
 	}
+	for _, r := range word {
+		w := pdfRuneWidthUnits(r)
+		if currentUnits+w > maxUnits && len(current) > 0 {
+			if pdfRuneIsClosingPunct(r) {
+				// Slight overflow beats a line starting with ） or 。
+				current = append(current, r)
+				currentUnits += w
+				continue
+			}
+			flush()
+		}
+		current = append(current, r)
+		currentUnits += w
+	}
+	flush()
 	return chunks
 }
 
