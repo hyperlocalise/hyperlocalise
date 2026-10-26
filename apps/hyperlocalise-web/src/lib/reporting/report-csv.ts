@@ -38,10 +38,11 @@ export function activityCsv(activity: { series: FinishedSeriesPoint[] }): string
   );
 }
 
-export function wordCountsCsv(counts: WordCounts, groupBy: "project" | "task"): string {
+export function wordCountsCsv(counts: WordCounts, groupBy: "project" | "task" | "week"): string {
   const bands = bandsIn(counts.bandTotals);
   return toCsv(
     [
+      ...(groupBy === "week" ? ["week"] : []),
       "projectName",
       ...(groupBy === "task" ? ["jobTitle", "jobId"] : []),
       "targetLocale",
@@ -49,6 +50,7 @@ export function wordCountsCsv(counts: WordCounts, groupBy: "project" | "task"): 
       "total",
     ],
     counts.rows.map((row) => [
+      ...(groupBy === "week" ? [row.week] : []),
       row.projectName,
       ...(groupBy === "task" ? [row.jobTitle, row.jobId] : []),
       row.targetLocale,

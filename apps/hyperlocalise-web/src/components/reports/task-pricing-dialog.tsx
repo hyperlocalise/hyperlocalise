@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { isApiResponseErrorCode } from "@/lib/api-error";
 
@@ -105,16 +105,21 @@ export function TaskPricingDialog({
           <DialogDescription>{intl.formatMessage(messages.pricingDescription)}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
-          <ReportSelect
-            className="w-full"
-            label={intl.formatMessage(messages.rateCardField)}
-            value={rateCard}
-            options={[
-              { value: NONE, label: intl.formatMessage(messages.noCard) },
-              ...rateCardNames.map((name) => ({ value: name, label: name })),
-            ]}
-            onChange={setRateCard}
-          />
+          <div className="grid gap-1.5">
+            <ReportSelect
+              className="w-full"
+              label={intl.formatMessage(messages.rateCardField)}
+              value={rateCard}
+              options={[
+                { value: NONE, label: intl.formatMessage(messages.noCard) },
+                ...rateCardNames.map((name) => ({ value: name, label: name })),
+              ]}
+              onChange={setRateCard}
+            />
+            <FieldDescription>
+              {intl.formatMessage(messages.rateCardHelp, { step })}
+            </FieldDescription>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field>
               <FieldLabel htmlFor={ids.minutes}>
@@ -128,6 +133,7 @@ export function TaskPricingDialog({
                 value={minutes}
                 onChange={(event) => setMinutes(event.target.value)}
               />
+              <FieldDescription>{intl.formatMessage(messages.estimateHelp)}</FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor={ids.fee}>{intl.formatMessage(messages.feeField)}</FieldLabel>
@@ -137,6 +143,7 @@ export function TaskPricingDialog({
                 value={fee}
                 onChange={(event) => setFee(event.target.value)}
               />
+              <FieldDescription>{intl.formatMessage(messages.feeHelp, { step })}</FieldDescription>
             </Field>
           </div>
           {error ? <FieldError data-slot="field-error">{error}</FieldError> : null}

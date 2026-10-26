@@ -32,10 +32,22 @@ export const costEstimateTabMessages = defineMessages({
       "The whole project: every string it holds now, in a task or not, priced by the project budget's rate card or the one chosen here. Pick tasks to price them by their own cards.",
     description: "Line above a cost estimate of a whole project rather than chosen tasks",
   },
-  unitsToTranslate: {
-    id: "IBAwfyPf94",
-    defaultMessage: "{unit} to translate",
-    description: "Estimate card: the units of the chosen tasks, such as Words to translate",
+  unitsInEstimate: {
+    id: "IJXB3q7bIj",
+    defaultMessage: "{unit} in this estimate",
+    description:
+      "Cost estimate card: every unit of the chosen tasks or project, finished or not, at every step",
+  },
+  unitsForStep: {
+    id: "LHcvKTa2yT",
+    defaultMessage: "{units} {step}",
+    description:
+      "Part of the detail under the units card: units at one step, e.g. '204 translation'",
+  },
+  notPriced: {
+    id: "mw+3bBcOfH",
+    defaultMessage: "Not priced",
+    description: "Shown instead of a cost when no rate applies to any of the work",
   },
   wholeProjectCount: {
     id: "d5JCHvYpif",

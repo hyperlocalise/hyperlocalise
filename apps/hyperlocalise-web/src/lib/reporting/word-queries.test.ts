@@ -45,6 +45,54 @@ const period = resolvePeriod({
 });
 
 describe("word count queries", () => {
+  it("reads a language's arrivals as its source words under a language filter", async () => {
+    const { organization, project, addSummary } = await fixture.createWorkspace();
+    // Six source words into two languages: source sits on the first language analysed only.
+    await addSummary([
+      { targetLocale: "fr-FR", day: "2026-06-10", source: 6, arrived: 6 },
+      { targetLocale: "de-DE", day: "2026-06-10", arrived: 6 },
+    ]);
+    const scope = { organizationId: organization.id, projectIds: [project.id], period };
+    expect((await queryActivity({ ...scope, unit: "words" })).current.source).toBe(6);
+    expect(
+      (await queryActivity({ ...scope, unit: "words", targetLocale: "de-DE" })).current.source,
+    ).toBe(6);
+  });
+
+  it("groups word counts by week and project, with the weeks in order", async () => {
+    const { organization, project, createProject, addSummary } = await fixture.createWorkspace();
+    const other = await createProject("Other");
+    await addSummary([
+      { targetLocale: "fr-FR", day: "2026-06-09", arrived: 10 },
+      { targetLocale: "fr-FR", day: "2026-06-11", arrived: 5 },
+      { projectId: other.id, targetLocale: "fr-FR", day: "2026-06-13", arrived: 7 },
+      { targetLocale: "fr-FR", day: "2026-06-03", arrived: 40 },
+    ]);
+    const counts = await queryWordCounts({
+      organizationId: organization.id,
+      projectIds: [project.id, other.id],
+      period: resolvePeriod({
+        from: "2026-06-01",
+        to: "2026-06-14",
+        today: "2026-10-21",
+        startedDay: "2026-01-01",
+      }),
+      unit: "words",
+      step: "translation",
+      mode: "arrived",
+      groupBy: "week",
+      page: 1,
+    });
+    // Weeks start on Monday: 1 June and 8 June 2026; projects by name within a week.
+    expect(counts.rows.map((row) => [row.week, row.projectName, row.total])).toEqual([
+      ["2026-06-01", project.name, 40],
+      ["2026-06-08", project.name, 15],
+      ["2026-06-08", other.name, 7],
+    ]);
+    expect(counts.groupCount).toBe(2);
+    expect(counts.total).toBe(62);
+  });
+
   it("totals a period and the one before it in one read", async () => {
     const { organization, project, addSummary } = await fixture.createWorkspace();
     await addSummary([
@@ -71,7 +119,14 @@ describe("word count queries", () => {
       },
       { targetLocale: "fr-FR", step: "review", day: "2026-06-11", arrived: 70, finished: 30 },
       // The previous period, and a day outside both.
-      { targetLocale: "fr-FR", day: "2026-06-03", source: 40, arrived: 40, finished: 10 },
+      {
+        targetLocale: "fr-FR",
+        day: "2026-06-03",
+        source: 40,
+        arrived: 40,
+        finished: 10,
+        textSource: "unknown",
+      },
       { targetLocale: "fr-FR", day: "2026-05-01", source: 999, arrived: 999 },
     ]);
     const scope = { organizationId: organization.id, projectIds: [project.id], period };
@@ -99,7 +154,6 @@ describe("word count queries", () => {
         uncounted: 0,
         finishedByPerson: 0,
         finishedUnchanged: 0,
-        // Rows from before the source was recorded key on "": counted as not recorded.
         finishedBySource: { memory: 0, ai: 0, person: 0, import: 0, unknown: 10 },
       },
     });
@@ -200,6 +254,7 @@ describe("word count queries", () => {
     const characters = await queryWordCounts({ ...input, unit: "characters" });
     expect(characters.rows).toEqual([
       {
+        week: null,
         projectId: project.id,
         projectName: "Docs",
         jobId: null,

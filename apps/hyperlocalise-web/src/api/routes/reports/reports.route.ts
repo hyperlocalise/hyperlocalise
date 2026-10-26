@@ -420,12 +420,12 @@ export function createReportsRoutes() {
           where e.organization_id = ${organizationId} and e.job_id = ${job.id} and not e.voided
           order by e.work_date desc, e.created_at desc
         `),
+          // The whole task, both steps: the card shows the task's cost, the table one step of it.
           money
             ? queryCostEstimate({
                 organizationId,
                 projectIds: [job.projectId!],
                 jobIds: [job.id],
-                step: query.step,
                 unit: query.unit,
                 rateCardName: query.rateCard ?? null,
               })
@@ -435,7 +435,6 @@ export function createReportsRoutes() {
                 organizationId,
                 projectIds: [job.projectId!],
                 jobIds: [job.id],
-                step: query.step,
                 rateCardName: query.rateCard ?? null,
               })
             : null,

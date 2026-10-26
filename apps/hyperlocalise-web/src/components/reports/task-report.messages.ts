@@ -16,8 +16,9 @@ import { defineMessages } from "react-intl";
 
 export const taskReportMessages = defineMessages({
   intro: {
-    id: "/ZTRO0/2FX",
-    defaultMessage: "This whole task, whatever its dates. Days use UTC.",
+    id: "dnUl0UTxhs",
+    defaultMessage:
+      "This whole task, whatever its dates. Days use UTC. Counts update about every 15 minutes.",
     description: "Line at the top of a task's Report tab",
   },
   openInReports: {
@@ -74,8 +75,8 @@ export const taskReportMessages = defineMessages({
     description: "Task report card: the share of the task's translated units that were reviewed",
   },
   approvedDetail: {
-    id: "1AD7GTm5qZ",
-    defaultMessage: "Of what was translated",
+    id: "JTOY/bF8Zd",
+    defaultMessage: "Of this task's strings sent for review",
     description: "Detail under the approved card",
   },
   estimatedCost: {
@@ -93,6 +94,33 @@ export const taskReportMessages = defineMessages({
     defaultMessage:
       "Some work has no rate, no time estimate or no match band, so the cost is not exact.",
     description: "Detail under the estimated cost card when some prices are missing",
+  },
+  stepCost: {
+    id: "+Rnh2zxLNj",
+    defaultMessage: "{amount} {step}",
+    description:
+      "Part of the estimated cost card's detail: one step's cost, e.g. '$12.86 translation'",
+  },
+  notPriced: {
+    id: "sH5sdN1MjD",
+    defaultMessage: "Not priced",
+    description: "Shown instead of a cost when no rate applies to any of the task's work",
+  },
+  noRate: {
+    id: "vlAdHtlrgV",
+    defaultMessage: "No rate",
+    description: "Rate cell of a language the task's card and its budget's card have no line for",
+  },
+  rateColumn: {
+    id: "jwMRWjUt93",
+    defaultMessage: "Rate",
+    description: "Column heading: the rate that prices a language's work on the task",
+  },
+  noEstimateNote: {
+    id: "r99fAqUjlQ",
+    defaultMessage:
+      "A language is priced by the hour and the task has no time estimate, so its cost is missing.",
+    description: "Note under a task's match analysis when an hourly line has no time estimate",
   },
   matchAnalysis: {
     id: "bFTGBp2Z2N",
@@ -151,13 +179,13 @@ export const taskReportMessages = defineMessages({
     description: "Shown on a new task's Report tab until its strings have been counted",
   },
   countingFailed: {
-    id: 'cj1bitbXno',
+    id: "cj1bitbXno",
     defaultMessage:
       "Reports could not count this task's strings. Its words and estimate are missing until a later count succeeds.",
     description: "Shown on a task's Report tab when counting its strings failed",
   },
   bandsMissing: {
-    id: 'Y7IbUoDXiT',
+    id: "Y7IbUoDXiT",
     defaultMessage:
       "Some strings have no match band: the translation memory could not be read when they were counted. They are priced as new work.",
     description:
@@ -342,6 +370,24 @@ export const taskReportMessages = defineMessages({
     id: "/vkBLbtzp+",
     defaultMessage: "Fixed fee (USD)",
     description: "Label of the task's fixed fee field",
+  },
+  rateCardHelp: {
+    id: "wpuQiD83P6",
+    defaultMessage:
+      "Prices each language of the {step} step by this card's line for it, as the card is now. None: the project budget's card.",
+    description: "Help under the rate card field of the task pricing dialog",
+  },
+  estimateHelp: {
+    id: "fjFA+QFK7I",
+    defaultMessage:
+      "Counts only for languages priced by the hour: their cost is this time at the hourly rate, shared between them.",
+    description: "Help under the time estimate field of the task pricing dialog",
+  },
+  feeHelp: {
+    id: "0qxrXQK9Co",
+    defaultMessage:
+      "Replaces the card's prices for the whole {step} step; charged when the task is done.",
+    description: "Help under the fixed fee field of the task pricing dialog",
   },
   minutesInvalid: {
     id: "0kVq+Iz5xk",

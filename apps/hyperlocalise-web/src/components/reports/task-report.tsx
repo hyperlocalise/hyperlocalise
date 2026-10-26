@@ -27,6 +27,7 @@ import {
   type ReportUnit,
 } from "@/lib/reporting/report-units";
 
+import { rateText } from "./cost-estimate-tab";
 import { EditTimeDialog } from "./edit-time-dialog";
 import { LogTimeDialog } from "./log-time-dialog";
 import { MatchBandTable, visibleBands, type BandCounts } from "./match-band-table";
@@ -124,8 +125,9 @@ export function TaskReport({
   const settings = useReportSettings(organizationSlug);
   const [unit, setUnit] = useState<ReportUnit>("words");
   const [step, setStep] = useState<ReportStep>(defaultStep);
-  // The card chosen on the Reports page by default prices what neither the task nor its budget does.
-  const rateCard = settings.data?.rateCardNames[0] ?? null;
+  // Only the task's own card or its project budget's prices the task: a language neither has a
+  // line for shows "No rate", never a guess from another card.
+  const rateCard = null;
   const report = useTaskReport(
     organizationSlug,
     jobId,
@@ -237,7 +239,31 @@ function TaskCards({
   const languages = new Set(
     words.rows.filter((row) => row.step === step).map((row) => row.targetLocale),
   ).size;
-  const translated = words.totals.translation.arrivedDone;
+  // The task's approved share is a snapshot of its own strings sent for review.
+  const review = words.totals.review;
+  const estimate = data.estimate;
+  const nothingPriced =
+    estimate !== null &&
+    estimate.totals.units > 0 &&
+    estimate.totals.unpricedUnits === estimate.totals.units;
+  // The task's cost by step, when it has work at both: "$12.86 translation · No rate review".
+  const stepCosts = estimate
+    ? REPORT_STEPS.flatMap((costStep) => {
+        const lines = estimate.rows.filter((row) => row.step === costStep);
+        const fees = estimate.fixedFees.filter((fee) => fee.step === costStep);
+        if (lines.length === 0 && fees.length === 0) return [];
+        const priced = lines.some((row) => row.pricing !== "none") || fees.length > 0;
+        const cost =
+          lines.reduce((sum, row) => sum + Number(row.costUsd ?? 0), 0) +
+          fees.reduce((sum, fee) => sum + Number(fee.amountUsd), 0);
+        return [
+          intl.formatMessage(messages.stepCost, {
+            step: stepLabel(intl, costStep),
+            amount: priced ? formatUsd(intl, cost.toFixed(8)) : intl.formatMessage(messages.noRate),
+          }),
+        ];
+      })
+    : [];
   return (
     <ReportStatCards>
       <ReportStatCard
@@ -263,32 +289,44 @@ function TaskCards({
       />
       <ReportStatCard
         label={intl.formatMessage(messages.approved)}
-        value={formatShare(
-          intl,
-          translated > 0 ? words.totals.review.arrivedDone / translated : null,
-        )}
+        value={formatShare(intl, review.arrived > 0 ? review.arrivedDone / review.arrived : null)}
         detail={intl.formatMessage(messages.approvedDetail)}
       />
-      {data.estimate ? (
+      {estimate ? (
         <ReportStatCard
           label={intl.formatMessage(messages.estimatedCost)}
-          value={formatUsd(intl, data.estimate.totals.costUsd)}
-          detail={
-            data.estimate.totals.incomplete || data.stillToCome?.incomplete
+          value={
+            nothingPriced
+              ? intl.formatMessage(messages.notPriced)
+              : formatUsd(intl, estimate.totals.costUsd)
+          }
+          detail={[
+            ...(stepCosts.length > 1 ? [intl.formatList(stepCosts, { type: "unit" })] : []),
+            estimate.totals.incomplete || data.stillToCome?.incomplete
               ? intl.formatMessage(messages.incomplete)
-              : data.stillToCome
+              : data.stillToCome && !nothingPriced
                 ? intl.formatMessage(messages.stillToCome, {
                     amount: formatUsd(intl, data.stillToCome.amountUsd),
                   })
-                : undefined
-          }
+                : null,
+          ]
+            .filter((part): part is string => part !== null)
+            .join(" · ")}
         />
       ) : null}
     </ReportStatCards>
   );
 }
 
-type AnalysisRow = WordRow & { weighted: number | null; costUsd: string | null; fixed: boolean };
+type AnalysisRow = WordRow & {
+  weighted: number | null;
+  costUsd: string | null;
+  fixed: boolean;
+  /** The rate that priced the row, as the estimate shows it: "$0.04 / word", "No rate", "Fixed fee". */
+  rate: string | null;
+  /** An hourly line with no time estimate on the task, so the row's cost is missing. */
+  unestimated: boolean;
+};
 
 /**
  * What a step with no rows in the report means: its strings are being counted (the analysis is
@@ -307,8 +345,13 @@ function analysisOutcome(
   return (state.strings ?? 0) > 0 ? "counting" : "nothing";
 }
 
-/** The step's rows by language, with the estimate's weighted units and cost beside them. */
-function analysisRows(data: TaskReportData, words: TaskWords, step: ReportStep): AnalysisRow[] {
+/** The step's rows by language, with the estimate's rate, weighted units and cost beside them. */
+function analysisRows(
+  intl: Intl,
+  data: TaskReportData,
+  words: TaskWords,
+  step: ReportStep,
+): AnalysisRow[] {
   return words.rows
     .filter((row) => row.step === step)
     .map((row) => {
@@ -329,6 +372,8 @@ function analysisRows(data: TaskReportData, words: TaskWords, step: ReportStep):
         costUsd: cost === null || cost === undefined ? null : cost.toFixed(8),
         // Its step has a fixed fee for the whole task, listed below the table.
         fixed: Boolean(priced?.some((line) => line.pricing === "fixed")),
+        rate: priced?.[0] ? rateText(intl, priced[0]) : null,
+        unestimated: Boolean(priced?.some((line) => line.unestimated)),
       };
     });
 }
@@ -345,7 +390,7 @@ function MatchAnalysis({
   state: TaskAnalysisState | undefined;
 }) {
   const intl = useIntl();
-  const rows = analysisRows(data, words, step);
+  const rows = analysisRows(intl, data, words, step);
   if (rows.length === 0) {
     const outcome = analysisOutcome(words, step, state);
     return (
@@ -370,10 +415,20 @@ function MatchAnalysis({
     rows.reduce((total, row) => total + pick(row), 0);
   const uncounted = words.totals[step].uncounted;
   const fees = data.estimate?.fixedFees.filter((fee) => fee.step === step) ?? [];
+  // The step's own totals: the estimate's cover the whole task.
+  const weightedTotal = rows.some((row) => row.weighted !== null)
+    ? sum((row) => row.weighted ?? 0)
+    : null;
+  const costTotal =
+    rows.some((row) => row.costUsd !== null) || fees.length > 0
+      ? sum((row) => Number(row.costUsd ?? 0)) +
+        fees.reduce((total, fee) => total + Number(fee.amountUsd), 0)
+      : null;
   const notes = [
     ...fees.map((fee) =>
       intl.formatMessage(messages.fixedFeeNote, { amount: formatUsd(intl, fee.amountUsd) }),
     ),
+    ...(rows.some((row) => row.unestimated) ? [intl.formatMessage(messages.noEstimateNote)] : []),
     ...(data.unit === "characters" || data.unit === "characters_with_spaces"
       ? [intl.formatMessage(wordMessages.charactersNote)]
       : []),
@@ -412,6 +467,13 @@ function MatchAnalysis({
           ...(money
             ? [
                 {
+                  key: "rate",
+                  header: intl.formatMessage(messages.rateColumn),
+                  cell: (row: AnalysisRow) => row.rate ?? intl.formatMessage(messages.noRate),
+                  numeric: true,
+                  muted: true,
+                },
+                {
                   key: "weighted",
                   header: intl.formatMessage(messages.weightedColumn),
                   cell: (row: AnalysisRow) =>
@@ -441,12 +503,13 @@ function MatchAnalysis({
               intl,
               sum((row) => row.finished),
             ),
-            ...(money && data.estimate
+            ...(money
               ? [
-                  data.estimate.totals.weighted === null
-                    ? "—"
-                    : formatCount(intl, data.estimate.totals.weighted),
-                  formatUsd(intl, data.estimate.totals.costUsd),
+                  null,
+                  weightedTotal === null ? "—" : formatCount(intl, weightedTotal),
+                  costTotal === null
+                    ? intl.formatMessage(messages.notPriced)
+                    : formatUsd(intl, costTotal.toFixed(8)),
                 ]
               : []),
           ],

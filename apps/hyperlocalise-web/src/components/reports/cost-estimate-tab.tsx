@@ -15,7 +15,7 @@
 import { useIntl } from "react-intl";
 
 import type { PricedBy } from "@/lib/reporting/cost-queries";
-import type { RateBasis } from "@/lib/reporting/report-units";
+import { REPORT_STEPS, type RateBasis } from "@/lib/reporting/report-units";
 import { MATCH_BUCKETS, type MatchBucket } from "@/lib/reporting/word-analysis";
 
 import { costEstimateTabMessages as messages } from "./cost-estimate-tab.messages";
@@ -173,19 +173,37 @@ function EstimateBody({
       row.pricing === "rate" && row.rateCardName ? [row.rateCardName] : [],
     ),
   );
-  const showStep = new Set(data.rows.map((row) => row.step)).size > 1;
+  // What the estimate covers, by step, so "words in this estimate" is not read as words to translate.
+  const unitsByStep = REPORT_STEPS.map((step) => ({
+    step,
+    units: data.rows.filter((row) => row.step === step).reduce((sum, row) => sum + row.units, 0),
+  })).filter((entry) => entry.units > 0);
+  const scopeDetail = intl.formatMessage(messages.unitsDetail, {
+    tasks: wholeProject
+      ? intl.formatMessage(messages.wholeProjectCount)
+      : intl.formatMessage(messages.tasksCount, { count: totals.tasks }),
+    languages: intl.formatMessage(messages.languagesCount, { count: totals.languages }),
+  });
+  const nothingPriced = totals.units > 0 && totals.unpricedUnits === totals.units;
   return (
     <>
       <ReportStatCards>
         <ReportStatCard
-          label={intl.formatMessage(messages.unitsToTranslate, { unit: unitName })}
+          label={intl.formatMessage(messages.unitsInEstimate, { unit: unitName })}
           value={formatCount(intl, totals.units)}
-          detail={intl.formatMessage(messages.unitsDetail, {
-            tasks: wholeProject
-              ? intl.formatMessage(messages.wholeProjectCount)
-              : intl.formatMessage(messages.tasksCount, { count: totals.tasks }),
-            languages: intl.formatMessage(messages.languagesCount, { count: totals.languages }),
-          })}
+          detail={
+            unitsByStep.length > 1
+              ? `${intl.formatList(
+                  unitsByStep.map((entry) =>
+                    intl.formatMessage(messages.unitsForStep, {
+                      step: stepLabel(intl, entry.step),
+                      units: formatCount(intl, entry.units),
+                    }),
+                  ),
+                  { type: "unit" },
+                )} · ${scopeDetail}`
+              : scopeDetail
+          }
         />
         {totals.weighted !== null && totals.weightedBasis ? (
           <ReportStatCard
@@ -198,7 +216,9 @@ function EstimateBody({
         ) : null}
         <ReportStatCard
           label={intl.formatMessage(messages.estimatedCost)}
-          value={formatUsd(intl, totals.costUsd)}
+          value={
+            nothingPriced ? intl.formatMessage(messages.notPriced) : formatUsd(intl, totals.costUsd)
+          }
           detail={
             totals.incomplete
               ? intl.formatMessage(messages.incomplete)
@@ -244,16 +264,12 @@ function EstimateBody({
             header: intl.formatMessage(messages.languageColumn),
             cell: (row) => row.targetLocale,
           },
-          ...(showStep
-            ? [
-                {
-                  key: "step",
-                  header: intl.formatMessage(messages.stepColumn),
-                  cell: (row: EstimateRow) => stepLabel(intl, row.step),
-                  muted: true,
-                },
-              ]
-            : []),
+          {
+            key: "step",
+            header: intl.formatMessage(messages.stepColumn),
+            cell: (row: EstimateRow) => stepLabel(intl, row.step),
+            muted: true,
+          },
         ]}
         trailing={[
           {

@@ -157,6 +157,7 @@ export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): Wo
     period: reportsPeriod,
     rows: [
       {
+        week: null,
         projectId: "project_web",
         projectName: "Web app",
         jobId: null,
@@ -166,6 +167,7 @@ export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): Wo
         total: 18_420,
       },
       {
+        week: null,
         projectId: "project_help",
         projectName: "Help centre",
         jobId: null,
@@ -190,6 +192,7 @@ export function createReportsTaskWordCounts() {
   return createReportsWordCounts({
     rows: [
       {
+        week: null,
         projectId: "project_help",
         projectName: "Help centre",
         jobId: "job_billing",
@@ -199,6 +202,7 @@ export function createReportsTaskWordCounts() {
         total: 20_980,
       },
       {
+        week: null,
         projectId: "project_web",
         projectName: "Web app",
         jobId: null,
@@ -246,6 +250,7 @@ export const reportsCosts: { period: typeof reportsPeriod } & Costs = {
   period: reportsPeriod,
   rows: [
     {
+      week: null,
       projectId: "project_web",
       projectName: "Web app",
       peopleUsd: "3410.00000000",
@@ -335,6 +340,7 @@ export const reportsCostEstimate: CostEstimate = {
 
 export const reportsBudgets: BudgetRow[] = [
   {
+    week: null,
     projectId: "project_web",
     projectName: "Web app",
     budgetUsd: "20000.00000000",
@@ -349,6 +355,7 @@ export const reportsBudgets: BudgetRow[] = [
     pendingAi: 0,
   },
   {
+    week: null,
     projectId: "project_help",
     projectName: "Help centre",
     budgetUsd: "5000.00000000",

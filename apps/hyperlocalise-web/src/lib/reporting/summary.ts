@@ -556,28 +556,3 @@ export async function refreshReportingSummary(
   const refreshed = await refreshPendingSummary({ signal: input.signal });
   return { ...refreshed, workspacesQueuedForBuild };
 }
-
-/**
- * Whether days are refreshed straight after the write that marks them, rather than only by the
- * scheduled capture run. Undecided as a product setting, so it is read from the environment.
- */
-export function refreshesAfterWrite() {
-  return process.env.REPORTING_SUMMARY_REFRESH === "after_write";
-}
-
-/** Refreshes the days a write just marked, when `refreshesAfterWrite` is on; never throws. */
-export async function refreshMarkedDays(organizationId: string, marks: SummaryMark[]) {
-  if (!refreshesAfterWrite()) return;
-  const daysByProject = new Map<string, string[]>();
-  for (const mark of marks) {
-    if (mark.projectId)
-      daysByProject.set(mark.projectId, [...(daysByProject.get(mark.projectId) ?? []), mark.day]);
-  }
-  for (const [projectId, days] of daysByProject) {
-    try {
-      await refreshSummaryDays({ organizationId, projectId, days });
-    } catch (error) {
-      console.warn("reporting_summary_refresh_failed", { organizationId, error });
-    }
-  }
-}

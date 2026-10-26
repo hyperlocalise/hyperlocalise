@@ -55,15 +55,20 @@ export const activityTabMessages = defineMessages({
     defaultMessage: "Of the words that arrived in these dates",
     description: "Detail under the progress card",
   },
-  approved: {
-    id: "H1SZ9MK9eU",
-    defaultMessage: "Approved",
-    description: "Activity card: share of translated words that were reviewed",
+  wordsReviewed: {
+    id: "FP74d1HjBN",
+    defaultMessage: "Words reviewed",
+    description: "Activity card: words approved in the period, at the review step",
   },
-  approvedDetail: {
-    id: "YdTHQQdCSW",
-    defaultMessage: "Of the words translated in these dates",
-    description: "Detail under the approved card",
+  wordsReviewedDetail: {
+    id: "DN1I9bj4t4",
+    defaultMessage: "Approved in these dates · review step",
+    description: "Detail under the words reviewed card",
+  },
+  chartStep: {
+    id: "a6JR5uFWOp",
+    defaultMessage: "Step",
+    description: "Label of the switch choosing which step the finished words chart shows",
   },
   finishedPerDay: {
     id: "XDo7GTXYVG",
@@ -101,15 +106,16 @@ export const activityTabMessages = defineMessages({
     description: "Chart series: finished text whose source was not recorded",
   },
   unchangedNote: {
-    id: "+AdPwtLE3T",
+    id: "s97IP+3F+5",
     defaultMessage:
-      "People finished {people} words; {share} of those were approved without changing the text they were given.",
-    description: "Note under the finished words chart: how much people approved unchanged",
+      "People finished {people} words at the {step} step; {share} of those kept the text they were given as it was.",
+    description:
+      "Note under the finished words chart: how much of what people finished was kept as given",
   },
   people: {
-    id: "ZMfSUtV6Zv",
-    defaultMessage: "People",
-    description: "Chart series: work done by people",
+    id: "WvlADP+aHH",
+    defaultMessage: "Written by people",
+    description: "Chart series: finished text that people wrote themselves",
   },
   automatic: {
     id: "jVog1L+ji6",

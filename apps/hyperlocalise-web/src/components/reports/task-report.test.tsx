@@ -77,17 +77,20 @@ beforeEach(() => {
 });
 
 describe("Task report", () => {
-  it("shows the task's words, cost and match analysis, priced last by the workspace's first card", async () => {
+  it("shows the task's words, cost and match analysis, priced by its own card or its budget's only", async () => {
     renderReport();
     const table = await screen.findByRole("table", { name: "Task match analysis" });
+    // No card chosen on the page stands in: a language neither card prices shows "No rate".
     expect(callsTo("task-report")[0].args).toMatchObject({
       param: { organizationSlug: "acme", jobId: "job_release" },
-      query: { unit: "words", step: "translation", rateCard: "Standard 2026" },
+      query: { unit: "words", step: "translation" },
     });
+    expect(callsTo("task-report")[0].args.query).not.toHaveProperty("rateCard");
     expect(card("Words to translate")?.textContent).toContain("8,890");
     expect(card("Words to translate")?.textContent).toContain("4,445 unique · 2 languages");
     expect(card("Progress")?.textContent).toContain("85%");
-    expect(card("Approved")?.textContent).toContain("26%");
+    // A snapshot of the task's own strings sent for review: 2,000 of 4,100.
+    expect(card("Approved")?.textContent).toContain("49%");
     expect(card("Estimated cost")?.textContent).toContain("$432.60");
     expect(rowOf(table, "de-DE")?.textContent).toContain("3,605");
     expect(rowOf(table, "de-DE")?.textContent).toContain("$432.60");

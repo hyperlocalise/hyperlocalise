@@ -23,7 +23,7 @@ import {
 import { OPEN_TASK_STATUSES, type CompletionSource } from "./report-units";
 import { MemoryMatchIndex, MemorySourceScan, sourceSimilarity } from "./memory-match-index";
 import { unitCost } from "./money";
-import { markSummaryDays, refreshMarkedDays, summaryDay, type SummaryMark } from "./summary";
+import { markSummaryDays, summaryDay, type SummaryMark } from "./summary";
 import { reportingStart } from "./reporting-start";
 
 export { getReportingStart, reportingStart } from "./reporting-start";
@@ -286,7 +286,7 @@ type StrictWriteOptions = { strict?: boolean };
 
 export async function captureAnalysis(input: AnalysisInput) {
   try {
-    await refreshMarkedDays(input.organizationId, await writeReportingAnalysis(input));
+    await writeReportingAnalysis(input);
   } catch (error) {
     console.warn("reporting_analysis_failed", { jobId: input.jobId, error });
   }
@@ -618,7 +618,7 @@ type CompletionsInput = {
 
 export async function captureCompletions(input: CompletionsInput, database: DatabaseClient = db) {
   try {
-    await refreshMarkedDays(input.organizationId, await writeReportingCompletions(input, database));
+    await writeReportingCompletions(input, database);
   } catch (error) {
     console.warn("reporting_completions_failed", { jobId: input.jobId, error });
   }
