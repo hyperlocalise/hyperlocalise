@@ -29,8 +29,11 @@ import { ContentEditorPdfFileViewerPane } from "./content-editor-pdf-file-viewer
 
 const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
 
+const destroyLoadingTaskMock = vi.fn(async () => {});
+
 function mockPdfDocument() {
   return {
+    loadingTask: { destroy: destroyLoadingTaskMock },
     numPages: 1,
     getPage: vi.fn(async () => ({
       getViewport: ({ scale }: { scale: number }) => ({
@@ -39,7 +42,6 @@ function mockPdfDocument() {
       }),
       render: vi.fn(() => ({ promise: Promise.resolve() })),
     })),
-    destroy: vi.fn(),
   };
 }
 
@@ -74,9 +76,10 @@ describe("ContentEditorPdfFileViewerPane", () => {
     );
 
     await waitFor(() => {
-      expect(getDocumentProxyMock).toHaveBeenCalled();
+      expect(destroyLoadingTaskMock).toHaveBeenCalled();
     });
     expect(screen.getByText(/2 blocks were shrunk/i)).toBeTruthy();
+    expect(screen.queryByText(/destroy is not a function/i)).toBeNull();
   });
 
   it("falls back to the source PDF when the target is missing", async () => {

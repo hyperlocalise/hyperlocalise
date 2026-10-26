@@ -98,48 +98,48 @@ function PdfCanvasPages({ bytes, className }: { bytes: Uint8Array; className?: s
                 canvas: HTMLCanvasElement;
               }) => { promise: Promise<void> };
             }>;
-            destroy: () => Promise<void>;
+            loadingTask: { destroy: () => Promise<void> };
           }>;
         };
         const pdf = await unpdf.getDocumentProxy(bytes.slice());
-        if (signal.aborted) {
-          void pdf.destroy();
-          return;
-        }
-        setPageCount(pdf.numPages);
-        mount.replaceChildren();
+        try {
+          if (signal.aborted) {
+            return;
+          }
+          setPageCount(pdf.numPages);
+          mount.replaceChildren();
 
-        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-          if (signal.aborted) {
-            break;
+          for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+            if (signal.aborted) {
+              break;
+            }
+            const page = await pdf.getPage(pageNumber);
+            const containerWidth = Math.max(mount.clientWidth, 320);
+            const baseViewport = page.getViewport({ scale: 1 });
+            const scale = containerWidth / baseViewport.width;
+            const viewport = page.getViewport({ scale });
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.floor(viewport.width * devicePixelRatio);
+            canvas.height = Math.floor(viewport.height * devicePixelRatio);
+            canvas.style.width = `${viewport.width}px`;
+            canvas.style.height = `${viewport.height}px`;
+            canvas.className = "mx-auto block max-w-full bg-white shadow-sm";
+            const context = canvas.getContext("2d");
+            if (!context) {
+              continue;
+            }
+            context.scale(devicePixelRatio, devicePixelRatio);
+            await page.render({ canvasContext: context, viewport, canvas }).promise;
+            if (signal.aborted) {
+              break;
+            }
+            const wrapper = document.createElement("div");
+            wrapper.className = "mb-4 flex justify-center";
+            wrapper.appendChild(canvas);
+            mount.appendChild(wrapper);
           }
-          const page = await pdf.getPage(pageNumber);
-          const containerWidth = Math.max(mount.clientWidth, 320);
-          const baseViewport = page.getViewport({ scale: 1 });
-          const scale = containerWidth / baseViewport.width;
-          const viewport = page.getViewport({ scale });
-          const canvas = document.createElement("canvas");
-          canvas.width = Math.floor(viewport.width * devicePixelRatio);
-          canvas.height = Math.floor(viewport.height * devicePixelRatio);
-          canvas.style.width = `${viewport.width}px`;
-          canvas.style.height = `${viewport.height}px`;
-          canvas.className = "mx-auto block max-w-full bg-white shadow-sm";
-          const context = canvas.getContext("2d");
-          if (!context) {
-            continue;
-          }
-          context.scale(devicePixelRatio, devicePixelRatio);
-          await page.render({ canvasContext: context, viewport, canvas }).promise;
-          if (signal.aborted) {
-            break;
-          }
-          const wrapper = document.createElement("div");
-          wrapper.className = "mb-4 flex justify-center";
-          wrapper.appendChild(canvas);
-          mount.appendChild(wrapper);
-        }
-        if (!signal.aborted) {
-          void pdf.destroy();
+        } finally {
+          void pdf.loadingTask.destroy();
         }
       } catch (renderError) {
         if (!signal.aborted) {
