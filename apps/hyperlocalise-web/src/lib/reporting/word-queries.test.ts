@@ -49,12 +49,14 @@ describe("word count queries", () => {
     const { organization, project, addSummary } = await fixture.createWorkspace();
     await addSummary([
       // This period: 100 words arrive in French, 60 of them finished; 30 reviewed.
+      // Of the 40 unfinished, 10 were in a task that was cancelled.
       {
         targetLocale: "fr-FR",
         day: "2026-06-10",
         source: 100,
         arrived: 100,
         arrivedDone: 60,
+        abandoned: 10,
         uncounted: 2,
       },
       // 70 finished: 50 from the memory, 20 by a person who kept 15 as given.
@@ -79,6 +81,7 @@ describe("word count queries", () => {
         source: 100,
         arrived: 100,
         arrivedDone: 60,
+        abandoned: 10,
         finished: 70,
         reviewed: 30,
         uncounted: 2,
@@ -90,6 +93,7 @@ describe("word count queries", () => {
         source: 40,
         arrived: 40,
         arrivedDone: 0,
+        abandoned: 0,
         finished: 10,
         reviewed: 0,
         uncounted: 0,

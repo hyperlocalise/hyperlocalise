@@ -216,8 +216,9 @@ const summaryMeasure = (name: string) => integer(name).notNull().default(0);
  * Counts in one of four units: words, strings, characters without spaces, characters with spaces.
  * `source` counts each source text once however many languages it goes into; `arrived` is the
  * current version of each string analysed that day; `arrivedDone` the part of `arrived` that has
- * been finished since; `finished` every string finished that day; `finishedByPerson` the part of
- * `finished` a person did.
+ * been finished since; `abandoned` the part of `arrived` not finished and held by no open task
+ * (its task failed, was cancelled or deleted), which Progress leaves out; `finished` every string
+ * finished that day; `finishedByPerson` the part of `finished` a person did.
  */
 const summaryMeasures = () => ({
   sourceWords: summaryMeasure("source_words"),
@@ -234,6 +235,10 @@ const summaryMeasures = () => ({
   arrivedDoneStrings: summaryMeasure("arrived_done_strings"),
   arrivedDoneCharacters: summaryMeasure("arrived_done_characters"),
   arrivedDoneCharactersWithSpaces: summaryMeasure("arrived_done_characters_with_spaces"),
+  abandonedWords: summaryMeasure("abandoned_words"),
+  abandonedStrings: summaryMeasure("abandoned_strings"),
+  abandonedCharacters: summaryMeasure("abandoned_characters"),
+  abandonedCharactersWithSpaces: summaryMeasure("abandoned_characters_with_spaces"),
   finishedWords: summaryMeasure("finished_words"),
   finishedStrings: summaryMeasure("finished_strings"),
   finishedCharacters: summaryMeasure("finished_characters"),
@@ -288,7 +293,12 @@ export const reportingDailyByTask = pgTable(
       .where(sql`${t.arrivedStrings} > ${t.arrivedDoneStrings}`),
   ],
 );
-/** `reporting_daily_by_task` without the task, source language and payable split. */
+/**
+ * `reporting_daily_by_task` without the task, source language and payable split, and with each
+ * string counted once per text, language and step however many tasks hold it: its earliest
+ * current analysis, done if any task finished it. So a project's rows are not the sum of its
+ * tasks' rows where tasks overlap, and a project's source counts each text once across tasks.
+ */
 export const reportingDailyByProject = pgTable(
   "reporting_daily_by_project",
   {

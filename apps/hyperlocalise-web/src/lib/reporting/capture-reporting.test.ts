@@ -673,6 +673,137 @@ describe("reporting capture", () => {
     expect(bucketOf("spaced")).not.toBe("repetition");
   });
 
+  it("keeps a deleted task's id on its finished work, costs and time, and drops its pricing", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    const [task] = await db
+      .insert(schema.jobs)
+      .values({
+        id: `job_${randomUUID()}`,
+        organizationId: organization.id,
+        projectId: project.id,
+        createdByUserId: user.id,
+        kind: "proofread",
+        status: "waiting_for_review",
+        inputPayload: {},
+      })
+      .returning();
+    const scope = {
+      organizationId: organization.id,
+      jobId: task.id,
+      targetLocale: "fr-FR",
+      sourceEntries: { greeting: "Hello world" },
+      step: "review" as const,
+    };
+    await captureAnalysis({ ...scope, projectId: project.id, sourceLocale: "en", billable: true });
+    await captureCompletions({ ...scope, provenance: "human", actorUserId: user.id });
+    await db.insert(schema.reportingTimeEntries).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: task.id,
+      contributorId: user.id,
+      step: "review",
+      targetLocale: "fr-FR",
+      workDate: new Date(),
+      minutes: 30,
+    });
+    await db.insert(schema.reportingTaskRates).values({
+      organizationId: organization.id,
+      jobId: task.id,
+      step: "review",
+      overrideUsd: "50.00000000",
+    });
+
+    await db.delete(schema.jobs).where(eq(schema.jobs.id, task.id));
+
+    // History stays the task's, shown as "Deleted task"; its pricing goes with the task.
+    const jobIds = async (
+      table:
+        | typeof schema.reportingActivity
+        | typeof schema.reportingCosts
+        | typeof schema.reportingTimeEntries,
+    ) =>
+      (
+        await db
+          .select({ jobId: table.jobId })
+          .from(table)
+          .where(eq(table.organizationId, organization.id))
+      ).map((row) => row.jobId);
+    expect(await jobIds(schema.reportingActivity)).toEqual([task.id]);
+    expect(await jobIds(schema.reportingCosts)).toEqual([task.id]);
+    expect(await jobIds(schema.reportingTimeEntries)).toEqual([task.id]);
+    expect(
+      await db
+        .select()
+        .from(schema.reportingTaskRates)
+        .where(eq(schema.reportingTaskRates.organizationId, organization.id)),
+    ).toEqual([]);
+  });
+
+  it("charges a task's fixed fee once when the task is marked done, and never when it is cancelled", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    const createTask = async () => {
+      const [task] = await db
+        .insert(schema.jobs)
+        .values({
+          id: `job_${randomUUID()}`,
+          organizationId: organization.id,
+          projectId: project.id,
+          createdByUserId: user.id,
+          kind: "proofread",
+          status: "waiting_for_review",
+          inputPayload: {},
+        })
+        .returning();
+      await db.insert(schema.reportingTaskRates).values({
+        organizationId: organization.id,
+        jobId: task.id,
+        step: "review",
+        overrideUsd: "50.00000000",
+      });
+      return task;
+    };
+    const fees = () =>
+      db
+        .select({ jobId: schema.reportingCosts.jobId, amountUsd: schema.reportingCosts.amountUsd })
+        .from(schema.reportingCosts)
+        .where(
+          and(
+            eq(schema.reportingCosts.organizationId, organization.id),
+            eq(schema.reportingCosts.basis, "manual"),
+          ),
+        );
+    // The hook for a task for people marked done by hand: set it succeeded with its end time, then
+    // record the status. Recording it again charges nothing more.
+    const done = await createTask();
+    await db
+      .update(schema.jobs)
+      .set({ status: "succeeded", completedAt: new Date() })
+      .where(eq(schema.jobs.id, done.id));
+    await captureJobStatus({
+      jobId: done.id,
+      status: "succeeded",
+      operationKey: `done:${done.id}`,
+    });
+    await captureJobStatus({
+      jobId: done.id,
+      status: "succeeded",
+      operationKey: `done:${done.id}:again`,
+    });
+    expect(await fees()).toEqual([{ jobId: done.id, amountUsd: "50.00000000" }]);
+
+    const cancelled = await createTask();
+    await db
+      .update(schema.jobs)
+      .set({ status: "cancelled", completedAt: new Date() })
+      .where(eq(schema.jobs.id, cancelled.id));
+    await captureJobStatus({
+      jobId: cancelled.id,
+      status: "cancelled",
+      operationKey: `cancel:${cancelled.id}`,
+    });
+    expect(await fees()).toHaveLength(1);
+  });
+
   it("skips analysis capture when workspace reports is disabled", async () => {
     resolveWorkspaceReportsFlagMock.mockResolvedValue(false);
     const { organization, project } = await projectFixture.createStoredProjectFixture();

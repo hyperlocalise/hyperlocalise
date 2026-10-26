@@ -20,7 +20,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
 
-import { recordAnalysis, recordCompletions } from "./capture";
+import { captureJobStatus, recordAnalysis, recordCompletions } from "./capture";
 import {
   ensureSummaryBuilt,
   markSummaryDays,
@@ -51,6 +51,7 @@ const MEASURES = [
   ...UNITS.map((unit) => `arrived_${unit}`),
   "arrived_uncounted",
   ...UNITS.map((unit) => `arrived_done_${unit}`),
+  ...UNITS.map((unit) => `abandoned_${unit}`),
   ...UNITS.map((unit) => `finished_${unit}`),
   ...UNITS.map((unit) => `finished_by_person_${unit}`),
   ...UNITS.map((unit) => `finished_unchanged_${unit}`),
@@ -92,6 +93,8 @@ async function recountedRows(organizationId: string) {
     if (measure.startsWith("source_")) return `case when a.first then ${arrival[unit]} else 0 end`;
     if (measure.startsWith("arrived_done_"))
       return `case when a.done then ${arrival[unit]} else 0 end`;
+    if (measure.startsWith("abandoned_"))
+      return `case when a.abandoned then ${arrival[unit]} else 0 end`;
     if (measure.startsWith("arrived_")) return arrival[unit];
     return "0";
   });
@@ -114,8 +117,13 @@ async function recountedRows(organizationId: string) {
         exists (
           select 1 from reporting_activity d
           where d.kind = 'completion' and d.analysis_id = a.id and d.step = a.step
-        ) as done
-      from reporting_analyses a
+        ) as done,
+        not exists (
+          select 1 from reporting_activity d
+          where d.kind = 'completion' and d.analysis_id = a.id and d.step = a.step
+        ) and not (a.job_id is null or j.status in ('queued', 'running', 'waiting_for_review'))
+          as abandoned
+      from reporting_analyses a left join jobs j on j.id = a.job_id
       where a.organization_id = ${organizationId} and a.is_current and a.project_id is not null
     ), finishes as (
       select c.project_id, s.job_id, s.source_locale, c.target_locale, c.step, s.bucket, s.billable,
@@ -141,6 +149,80 @@ async function recountedRows(organizationId: string) {
   return result.rows;
 }
 
+/** What the project rows should hold, recounted from every raw row with window functions. */
+async function recountedProjectRows(organizationId: string) {
+  const arrival = unitValues("a");
+  const finished = unitValues("f");
+  const arrivalMeasures = MEASURES.map((measure) => {
+    const unit = UNITS.find((name) => measure.endsWith(`_${name}`)) ?? "";
+    if (measure === "arrived_uncounted") return "case when a.words is null then 1 else 0 end";
+    if (measure.startsWith("source_")) return `case when a.first then ${arrival[unit]} else 0 end`;
+    if (measure.startsWith("arrived_done_"))
+      return `case when a.done then ${arrival[unit]} else 0 end`;
+    if (measure.startsWith("abandoned_"))
+      return `case when a.abandoned then ${arrival[unit]} else 0 end`;
+    if (measure.startsWith("arrived_")) return arrival[unit];
+    return "0";
+  });
+  const finishedMeasures = MEASURES.map((measure) => {
+    const unit = UNITS.find((name) => measure.endsWith(`_${name}`)) ?? "";
+    if (measure.startsWith("finished_by_person_"))
+      return `case when f.by_person then ${finished[unit]} else 0 end`;
+    if (measure.startsWith("finished_unchanged_"))
+      return `case when f.unchanged then ${finished[unit]} else 0 end`;
+    if (measure.startsWith("finished_")) return finished[unit];
+    return "0";
+  });
+  const result = await db.execute(sql`
+    with current as (
+      select a.*, (a.created_at at time zone 'UTC')::date::text as day,
+        exists (
+          select 1 from reporting_activity d
+          where d.kind = 'completion' and d.analysis_id = a.id and d.step = a.step
+        ) as own_done,
+        (a.job_id is null or j.status in ('queued', 'running', 'waiting_for_review')) as own_open
+      from reporting_analyses a left join jobs j on j.id = a.job_id
+      where a.organization_id = ${organizationId} and a.is_current and a.project_id is not null
+    ), arrivals as (
+      select c.*,
+        row_number() over (
+          partition by c.project_id, c.segment_id, c.source_revision, c.target_locale, c.step
+          order by c.created_at, c.id
+        ) = 1 as counted,
+        row_number() over (
+          partition by c.project_id, c.segment_id, c.source_revision, c.step
+          order by c.created_at, c.target_locale, c.id
+        ) = 1 as first,
+        bool_or(c.own_done) over (
+          partition by c.project_id, c.segment_id, c.source_revision, c.target_locale, c.step
+        ) as done,
+        not bool_or(c.own_done) over (
+          partition by c.project_id, c.segment_id, c.source_revision, c.target_locale, c.step
+        ) and not bool_or(c.own_open) over (
+          partition by c.project_id, c.segment_id, c.source_revision, c.target_locale, c.step
+        ) as abandoned
+      from current c
+    ), finishes as (
+      select c.project_id, c.target_locale, c.step, s.bucket, coalesce(c.source, 'unknown') as source,
+        (c.created_at at time zone 'UTC')::date::text as day, s.words, s.characters,
+        s.characters_with_spaces, c.actor_user_id is not null as by_person,
+        coalesce(c.unchanged, false) as unchanged
+      from reporting_activity c join reporting_analyses s on s.id = c.analysis_id
+      where c.organization_id = ${organizationId} and c.kind = 'completion' and c.project_id is not null
+    )
+    select project_id, target_locale, step, bucket, source, day, ${sql.raw(SUMS)} from (
+      select a.project_id, a.target_locale, a.step, a.bucket, '' as source, a.day,
+        ${sql.raw(arrivalMeasures.map((value, index) => `${value} as ${MEASURES[index]}`).join(", "))}
+      from arrivals a where a.counted
+      union all
+      select f.project_id, f.target_locale, f.step, f.bucket, f.source, f.day,
+        ${sql.raw(finishedMeasures.map((value, index) => `${value} as ${MEASURES[index]}`).join(", "))}
+      from finishes f
+    ) facts group by 1, 2, 3, 4, 5, 6 order by 1, 2, 3, 4, 5, 6
+  `);
+  return result.rows;
+}
+
 /** Refreshes what writes marked, then checks the summary against a full recount. */
 async function expectSummaryMatchesRecount(organizationId: string, scanCompletionsAbove?: number) {
   await refreshPendingSummary({ organizationIds: [organizationId], scanCompletionsAbove });
@@ -150,16 +232,14 @@ async function expectSummaryMatchesRecount(organizationId: string, scanCompletio
     .where(eq(schema.reportingSummaryQueue.organizationId, organizationId));
   expect(queued).toEqual([]);
   expect(await summaryRows(organizationId)).toEqual(await recountedRows(organizationId));
-  // The by-project table is the by-task one without the task, source language and payable split.
+  // The by-project table counts each string once per text, language and step, on its earliest
+  // current analysis, done if any task finished it and abandoned if no open task holds it; its
+  // source counts each text once across tasks and languages. Finished rows are the task rows'.
   const byProject = await db.execute(sql`
-    select project_id, target_locale, step, bucket, day::text, ${sql.raw(SUMS)}
+    select project_id, target_locale, step, bucket, source, day::text, ${sql.raw(SUMS)}
     from reporting_daily_by_project where organization_id = ${organizationId}
-    group by 1, 2, 3, 4, 5 order by 1, 2, 3, 4, 5`);
-  const fromTasks = await db.execute(sql`
-    select project_id, target_locale, step, bucket, day::text, ${sql.raw(SUMS)}
-    from reporting_daily_by_task where organization_id = ${organizationId}
-    group by 1, 2, 3, 4, 5 order by 1, 2, 3, 4, 5`);
-  expect(byProject.rows).toEqual(fromTasks.rows);
+    group by 1, 2, 3, 4, 5, 6 order by 1, 2, 3, 4, 5, 6`);
+  expect(byProject.rows).toEqual(await recountedProjectRows(organizationId));
   // The current rows hold each string once per language and step, by its newest current
   // analysis whatever task holds it, with that analysis's own source language.
   const current = await db.execute(sql`
@@ -491,6 +571,110 @@ describe("reporting daily summary", () => {
       .where(eq(schema.reportingCurrentByProject.projectId, project.id));
     // The newest arrival is the second task's, which nobody has finished yet.
     expect(current).toEqual([{ strings: 1, done: 0 }]);
+  });
+
+  it("counts a string once in the project's rows however many tasks hold it, each task its own", async () => {
+    const { organization, project, save, finish, createJob } = await createWorkspace();
+    const first = await createJob();
+    const second = await createJob();
+    // Two tasks hold the same string in two languages; the first finished it in one.
+    for (const locale of ["fr-FR", "de-DE"]) {
+      await save({
+        segment: "greeting",
+        text: "Hello world",
+        locale,
+        jobId: first.id,
+        on: "2026-06-01",
+      });
+      await save({
+        segment: "greeting",
+        text: "Hello world",
+        locale,
+        jobId: second.id,
+        on: "2026-06-02",
+      });
+    }
+    await finish({
+      segment: "greeting",
+      text: "Hello world",
+      locale: "fr-FR",
+      jobId: first.id,
+      on: "2026-06-03",
+    });
+    await expectSummaryMatchesRecount(organization.id);
+
+    const byTask = await db.execute<{ day: string; arrived: number; done: number }>(sql`
+      select day::text, sum(arrived_words)::integer as arrived, sum(arrived_done_words)::integer as done
+      from reporting_daily_by_task where project_id = ${project.id} and source = ''
+      group by 1 order by 1`);
+    expect(byTask.rows).toEqual([
+      { day: "2026-06-01", arrived: 4, done: 2 },
+      { day: "2026-06-02", arrived: 4, done: 0 },
+    ]);
+    // The project counts the string once per language, on the day it first arrived, done in the
+    // language a task finished; its two words of source count once, not once per task.
+    const byProject = await db.execute<{
+      day: string;
+      source: number;
+      arrived: number;
+      done: number;
+    }>(sql`
+      select day::text, sum(source_words)::integer as source, sum(arrived_words)::integer as arrived,
+        sum(arrived_done_words)::integer as done
+      from reporting_daily_by_project where project_id = ${project.id} and source = ''
+      group by 1 order by 1`);
+    expect(byProject.rows).toEqual([{ day: "2026-06-01", source: 2, arrived: 4, done: 2 }]);
+  });
+
+  it("leaves a cancelled task's unfinished strings out of Progress until another task finishes them", async () => {
+    const { organization, project, save, finish, createJob } = await createWorkspace();
+    const cancelled = await createJob();
+    await save({
+      segment: "greeting",
+      text: "Hello world",
+      locale: "fr-FR",
+      jobId: cancelled.id,
+      on: "2026-06-01",
+    });
+    await expectSummaryMatchesRecount(organization.id);
+    const project_rows = () =>
+      db.execute<{ arrived: number; done: number; abandoned: number }>(sql`
+        select sum(arrived_words)::integer as arrived, sum(arrived_done_words)::integer as done,
+          sum(abandoned_words)::integer as abandoned
+        from reporting_daily_by_project where project_id = ${project.id} and source = ''`);
+    expect((await project_rows()).rows[0]).toEqual({ arrived: 2, done: 0, abandoned: 0 });
+
+    // Cancelled: nobody will finish the string in this task, so it leaves what Progress divides by.
+    await db
+      .update(schema.jobs)
+      .set({ status: "cancelled", completedAt: new Date() })
+      .where(eq(schema.jobs.id, cancelled.id));
+    await captureJobStatus({
+      jobId: cancelled.id,
+      status: "cancelled",
+      operationKey: `cancel:${cancelled.id}`,
+    });
+    await expectSummaryMatchesRecount(organization.id);
+    expect((await project_rows()).rows[0]).toEqual({ arrived: 2, done: 0, abandoned: 2 });
+
+    // Another task takes the string on and finishes it: done for the project, abandoned no more.
+    const next = await createJob();
+    await save({
+      segment: "greeting",
+      text: "Hello world",
+      locale: "fr-FR",
+      jobId: next.id,
+      on: "2026-06-05",
+    });
+    await finish({
+      segment: "greeting",
+      text: "Hello world",
+      locale: "fr-FR",
+      jobId: next.id,
+      on: "2026-06-06",
+    });
+    await expectSummaryMatchesRecount(organization.id);
+    expect((await project_rows()).rows[0]).toEqual({ arrived: 2, done: 2, abandoned: 0 });
   });
 
   it("deletes a task whose string also has a content editor analysis of the same text", async () => {

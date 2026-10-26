@@ -104,7 +104,11 @@ function ActivityCards({ data }: { data: ActivityData }) {
       }),
       period.days,
     );
-  const progress = shareOf(current.arrivedDone, current.arrived);
+  // Strings no open task holds any more (their task failed, was cancelled or deleted) will not be
+  // finished, so Progress leaves them out of what it divides by.
+  const progressOf = (totals: typeof current) =>
+    shareOf(totals.arrivedDone, totals.arrived - totals.abandoned);
+  const progress = progressOf(current);
   const approved = shareOf(current.reviewed, current.finished);
   return (
     <div className="flex flex-col gap-2">
@@ -130,7 +134,7 @@ function ActivityCards({ data }: { data: ActivityData }) {
         <ReportStatCard
           label={intl.formatMessage(messages.progress)}
           value={formatShare(intl, progress)}
-          change={change(progress, shareOf(previous.arrivedDone, previous.arrived), true)}
+          change={change(progress, progressOf(previous), true)}
           detail={intl.formatMessage(messages.progressDetail)}
         />
         <ReportStatCard

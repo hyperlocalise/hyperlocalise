@@ -34,6 +34,7 @@ type SummaryMeasure =
   | "source"
   | "arrived"
   | "arrived_done"
+  | "abandoned"
   | "finished"
   | "finished_by_person"
   | "finished_unchanged";
@@ -75,6 +76,11 @@ export type ActivityTotals = {
   arrived: number;
   /** The part of `arrived` finished since. */
   arrivedDone: number;
+  /**
+   * The part of `arrived` not finished and held by no open task (its task failed, was cancelled
+   * or deleted): work that will not happen, which Progress leaves out of what it divides by.
+   */
+  abandoned: number;
   /** Units translated (every finished record). */
   finished: number;
   /** Units reviewed (every finished review record). */
@@ -101,6 +107,7 @@ const NO_ACTIVITY: ActivityTotals = {
   source: 0,
   arrived: 0,
   arrivedDone: 0,
+  abandoned: 0,
   finished: 0,
   reviewed: 0,
   uncounted: 0,
@@ -126,6 +133,7 @@ export async function queryActivity(
       'source', ${column("source", translation)},
       'arrived', ${column("arrived", translation)},
       'arrivedDone', ${column("arrived_done", translation)},
+      'abandoned', ${column("abandoned", translation)},
       'finished', ${column("finished", translation)},
       'reviewed', ${column("finished", sql`s.step = 'review' and ${inPeriod}`)},
       'uncounted', coalesce(sum(s.arrived_uncounted) filter (where ${translation}), 0)::float8,

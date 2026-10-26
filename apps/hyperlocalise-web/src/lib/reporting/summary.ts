@@ -20,7 +20,7 @@ import { reportingStart } from "./reporting-start";
  * The version of the daily summary's rules. A workspace whose summary was built under another
  * version is rebuilt in full, so raising this is how a change to the rules reaches old days.
  */
-export const SUMMARY_VERSION = 2;
+export const SUMMARY_VERSION = 3;
 
 export type SummaryMark = { projectId: string | null; day: string };
 
@@ -73,8 +73,8 @@ const UNITS = [
 
 /**
  * Every summary measure, with how an arrival (a current analysis) and a finished string (a
- * completion) count towards it. Arrivals see `representative`, `done` and the analysis's counts;
- * finished strings see `by_person` and the counts of the analysis they finished.
+ * completion) count towards it. Arrivals see `representative`, `done`, `abandoned` and the
+ * analysis's counts; finished strings see `by_person` and the counts of the analysis they finished.
  */
 const MEASURES: { column: string; arrival: string; finished: string }[] = [
   ...UNITS.map(([unit, value]) => ({
@@ -91,6 +91,11 @@ const MEASURES: { column: string; arrival: string; finished: string }[] = [
   ...UNITS.map(([unit, value]) => ({
     column: `arrived_done_${unit}`,
     arrival: `case when done then ${value} else 0 end`,
+    finished: "0",
+  })),
+  ...UNITS.map(([unit, value]) => ({
+    column: `abandoned_${unit}`,
+    arrival: `case when abandoned then ${value} else 0 end`,
     finished: "0",
   })),
   ...UNITS.map(([unit, value]) => ({ column: `finished_${unit}`, arrival: "0", finished: value })),
@@ -221,26 +226,54 @@ export async function refreshSummaryDays(
     ).rows;
     // Looking each completion up by its key is fastest for an ordinary day; for a burst,
     // scanning the project's completions once is.
-    const completionsOfArrivals =
+    const completionsOf = (rows: string) =>
       (arrivalCount?.rows ?? 0) > (input.scanCompletionsAbove ?? SCAN_COMPLETIONS_ABOVE)
         ? sql`select d.analysis_id from reporting_activity d
             where d.organization_id = ${organizationId} and d.project_id = ${projectId}
-              and d.kind = 'completion' and d.analysis_id in (select id from arrivals)`
+              and d.kind = 'completion' and d.analysis_id in (select id from ${sql.raw(rows)})`
         : sql`select d.analysis_id from reporting_activity d
             where d.organization_id = ${organizationId}
-              and d.operation_key in (select 'completion:' || id || ':' || step from arrivals)`;
+              and d.operation_key in (select 'completion:' || id || ':' || step from ${sql.raw(rows)})`;
+    // Every current analysis of the strings arriving in these days, in any task of the project:
+    // which is each text's earliest (its source and, for the project, its arrival count once),
+    // which have been finished, and which are held by an open task.
+    await tx.execute(sql`drop table if exists pg_temp.reporting_summary_siblings`);
+    await tx.execute(sql`
+      create temp table reporting_summary_siblings on commit drop as
+      with base as (
+        select o.id, o.job_id, o.segment_id, o.source_revision, o.target_locale, o.step,
+          o.created_at,
+          (o.job_id is null or j.status in ('queued', 'running', 'waiting_for_review')) as open
+        from reporting_analyses o
+        left join jobs j on j.id = o.job_id
+        where o.organization_id = ${organizationId} and o.project_id = ${projectId}
+          and o.is_current and o.segment_id in (select segment_id from reporting_summary_arrivals)
+      )
+      select b.*, b.id in (${completionsOf("base")}) as done from base b
+    `);
+    await tx.execute(sql`analyze reporting_summary_siblings`);
+    const finishedRows = sql`
+      select s.job_id, s.source_locale, c.target_locale, c.step, s.bucket,
+        coalesce(c.source, 'unknown') as source, s.billable as payable,
+        (c.created_at at time zone 'UTC')::date as day, s.words, s.characters,
+        s.characters_with_spaces, c.actor_user_id is not null as by_person,
+        coalesce(c.unchanged, false) as unchanged
+      from reporting_activity c join reporting_analyses s on s.id = c.analysis_id
+      where c.organization_id = ${organizationId} and c.project_id = ${projectId}
+        and c.kind = 'completion' and ${inDays("c.created_at")}`;
+    await tx.execute(sql`drop table if exists pg_temp.reporting_summary_finished`);
+    await tx.execute(
+      sql`create temp table reporting_summary_finished on commit drop as ${finishedRows}`,
+    );
     await tx.execute(sql`
       with arrivals as (select * from reporting_summary_arrivals),
+      siblings as (select * from reporting_summary_siblings),
       -- Source counts each text once however many languages it goes into: only on the earliest
       -- current analysis of the same task, string, text and step.
       firsts as (
-        select distinct on (o.job_id, o.segment_id, o.source_revision, o.step) o.id
-        from reporting_analyses o
-        where o.organization_id = ${organizationId} and o.project_id = ${projectId} and o.is_current
-          and o.segment_id in (select segment_id from arrivals)
-        order by o.job_id, o.segment_id, o.source_revision, o.step, o.created_at, o.target_locale, o.id
-      ),
-      done as (${completionsOfArrivals})
+        select distinct on (job_id, segment_id, source_revision, step) id from siblings
+        order by job_id, segment_id, source_revision, step, created_at, target_locale, id
+      )
       insert into reporting_daily_by_task (organization_id, project_id, job_id, source_locale,
         target_locale, step, bucket, source, payable, day, ${sql.raw(MEASURE_COLUMNS)})
       select ${organizationId}, ${projectId}, job_id, source_locale, target_locale, step, bucket,
@@ -251,24 +284,16 @@ export async function refreshSummaryDays(
           a.billable as payable, (a.created_at at time zone 'UTC')::date as day,
           ${sql.raw(ARRIVAL_MEASURES)}
         from (
-          select a.*, d.analysis_id is not null as done, f.id is not null as representative
+          -- A task's unfinished string is abandoned once the task is no longer open.
+          select a.*, s.done, f.id is not null as representative, not s.done and not s.open as abandoned
           from arrivals a
+          join siblings s on s.id = a.id
           left join firsts f on f.id = a.id
-          left join (select distinct analysis_id from done) d on d.analysis_id = a.id
         ) a
         union all
         select f.job_id, f.source_locale, f.target_locale, f.step, f.bucket, f.source, f.payable,
           f.day, ${sql.raw(FINISHED_MEASURES)}
-        from (
-          select s.job_id, s.source_locale, c.target_locale, c.step, s.bucket,
-            coalesce(c.source, 'unknown') as source, s.billable as payable,
-            (c.created_at at time zone 'UTC')::date as day, s.words, s.characters,
-            s.characters_with_spaces, c.actor_user_id is not null as by_person,
-            coalesce(c.unchanged, false) as unchanged
-          from reporting_activity c join reporting_analyses s on s.id = c.analysis_id
-          where c.organization_id = ${organizationId} and c.project_id = ${projectId}
-            and c.kind = 'completion' and ${inDays("c.created_at")}
-        ) f
+        from reporting_summary_finished f
       ) facts
       group by job_id, source_locale, target_locale, step, bucket, source, payable, day
     `);
@@ -281,15 +306,40 @@ export async function refreshSummaryDays(
           inArray(schema.reportingDailyByProject.day, days),
         ),
       );
+    // The project's rows count each string once per text, language and step however many tasks
+    // hold it: on its earliest current analysis, done if any task finished it, abandoned if no
+    // open task holds it. Its source counts each text once across tasks and languages too.
     await tx.execute(sql`
+      with arrivals as (select * from reporting_summary_arrivals),
+      siblings as (select * from reporting_summary_siblings),
+      strings as (
+        select segment_id, source_revision, target_locale, step,
+          (array_agg(id order by created_at, id))[1] as first_id,
+          bool_or(done) as done, bool_or(open) as open
+        from siblings group by 1, 2, 3, 4
+      ),
+      texts as (
+        select distinct on (segment_id, source_revision, step) id from siblings
+        order by segment_id, source_revision, step, created_at, target_locale, id
+      )
       insert into reporting_daily_by_project (organization_id, project_id, target_locale, step,
         bucket, source, day, ${sql.raw(MEASURE_COLUMNS)})
-      select organization_id, project_id, target_locale, step, bucket, source, day,
+      select ${organizationId}, ${projectId}, target_locale, step, bucket, source, day,
         ${sql.raw(MEASURE_SUMS)}
-      from reporting_daily_by_task
-      where organization_id = ${organizationId} and project_id = ${projectId}
-        and day = any(${dayList})
-      group by organization_id, project_id, target_locale, step, bucket, source, day
+      from (
+        select a.target_locale, a.step, a.bucket, '' as source,
+          (a.created_at at time zone 'UTC')::date as day, ${sql.raw(ARRIVAL_MEASURES)}
+        from (
+          select a.*, g.done, t.id is not null as representative, not g.done and not g.open as abandoned
+          from arrivals a
+          join strings g on g.first_id = a.id
+          left join texts t on t.id = a.id
+        ) a
+        union all
+        select f.target_locale, f.step, f.bucket, f.source, f.day, ${sql.raw(FINISHED_MEASURES)}
+        from reporting_summary_finished f
+      ) facts
+      group by target_locale, step, bucket, source, day
     `);
     if (!input.skipCurrentRows) await refreshCurrentByProject(tx, organizationId, projectId);
     // A write that marked a day while this ran bumped its generation: keep that mark.

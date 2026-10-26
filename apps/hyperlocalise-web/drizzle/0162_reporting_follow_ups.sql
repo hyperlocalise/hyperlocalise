@@ -18,6 +18,14 @@ ALTER TABLE "reporting_task_rates" DROP CONSTRAINT "reporting_task_rates_job_id_
 --> statement-breakpoint
 ALTER TABLE "reporting_time_entries" DROP CONSTRAINT "reporting_time_entries_job_id_jobs_id_fk";
 --> statement-breakpoint
+ALTER TABLE "reporting_daily_by_project" ADD COLUMN "abandoned_words" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "reporting_daily_by_project" ADD COLUMN "abandoned_strings" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "reporting_daily_by_project" ADD COLUMN "abandoned_characters" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "reporting_daily_by_project" ADD COLUMN "abandoned_characters_with_spaces" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "reporting_daily_by_task" ADD COLUMN "abandoned_words" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "reporting_daily_by_task" ADD COLUMN "abandoned_strings" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "reporting_daily_by_task" ADD COLUMN "abandoned_characters" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "reporting_daily_by_task" ADD COLUMN "abandoned_characters_with_spaces" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE "reporting_task_analyses" ADD CONSTRAINT "reporting_task_analyses_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reporting_task_analyses" ADD CONSTRAINT "reporting_task_analyses_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reporting_task_rates" ADD CONSTRAINT "reporting_task_rates_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

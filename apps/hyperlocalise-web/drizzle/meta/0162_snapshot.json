@@ -1,5 +1,5 @@
 {
-  "id": "df5efedc-c2ad-49cf-8285-2f3d8588b66c",
+  "id": "f0811f9f-0000-4a46-bb9a-15e05e434f7a",
   "prevId": "239fe37d-fab7-4fc5-8ce7-f7d2f13c165a",
   "version": "7",
   "dialect": "postgresql",
@@ -33532,6 +33532,34 @@
           "notNull": true,
           "default": 0
         },
+        "abandoned_words": {
+          "name": "abandoned_words",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "abandoned_strings": {
+          "name": "abandoned_strings",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "abandoned_characters": {
+          "name": "abandoned_characters",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "abandoned_characters_with_spaces": {
+          "name": "abandoned_characters_with_spaces",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "finished_words": {
           "name": "finished_words",
           "type": "integer",
@@ -33831,6 +33859,34 @@
         },
         "arrived_done_characters_with_spaces": {
           "name": "arrived_done_characters_with_spaces",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "abandoned_words": {
+          "name": "abandoned_words",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "abandoned_strings": {
+          "name": "abandoned_strings",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "abandoned_characters": {
+          "name": "abandoned_characters",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "abandoned_characters_with_spaces": {
+          "name": "abandoned_characters_with_spaces",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

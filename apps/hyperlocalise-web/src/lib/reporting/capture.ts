@@ -20,7 +20,7 @@ import {
   matchBucket,
   type MatchBucket,
 } from "./word-analysis";
-import type { CompletionSource } from "./report-units";
+import { OPEN_TASK_STATUSES, type CompletionSource } from "./report-units";
 import { MemoryMatchIndex, MemorySourceScan, sourceSimilarity } from "./memory-match-index";
 import { unitCost } from "./money";
 import { markSummaryDays, refreshMarkedDays, summaryDay, type SummaryMark } from "./summary";
@@ -507,6 +507,8 @@ async function writeReportingAnalysis(
       moved.push(...superseded);
       moved.push(...written.filter((row) => row.existed || input.occurredAt));
     }
+    // In any task of the project: the project's rows count a string once, on its earliest
+    // current analysis across tasks, so a change here can move another task's day too.
     for (let offset = 0; offset < moved.length; offset += REPORTING_BATCH_SIZE) {
       const others = await tx
         .select({
@@ -517,7 +519,7 @@ async function writeReportingAnalysis(
         .where(
           and(
             eq(schema.reportingAnalyses.organizationId, input.organizationId),
-            jobScope,
+            eq(schema.reportingAnalyses.projectId, input.projectId),
             eq(schema.reportingAnalyses.step, step),
             eq(schema.reportingAnalyses.isCurrent, true),
             sql`(${schema.reportingAnalyses.segmentId}, ${schema.reportingAnalyses.sourceRevision}) in (${versions(moved.slice(offset, offset + REPORTING_BATCH_SIZE))})`,
@@ -705,6 +707,33 @@ async function writeReportingCompletions(
       if (analysis)
         marks.push({ projectId: analysis.projectId, day: summaryDay(analysis.createdAt) });
     };
+    // The project's rows count a string once, on its earliest current analysis across tasks, so
+    // finishing it here changes the day that analysis arrived on, whichever task holds it.
+    const markSiblingDays = async () => {
+      for (let offset = 0; offset < finishedAnalyses.length; offset += REPORTING_BATCH_SIZE) {
+        const batch = finishedAnalyses.slice(offset, offset + REPORTING_BATCH_SIZE);
+        const siblings = await tx
+          .select({
+            projectId: schema.reportingAnalyses.projectId,
+            createdAt: schema.reportingAnalyses.createdAt,
+          })
+          .from(schema.reportingAnalyses)
+          .where(
+            and(
+              eq(schema.reportingAnalyses.organizationId, input.organizationId),
+              eq(schema.reportingAnalyses.targetLocale, input.targetLocale),
+              eq(schema.reportingAnalyses.step, step),
+              eq(schema.reportingAnalyses.isCurrent, true),
+              sql`(${schema.reportingAnalyses.segmentId}, ${schema.reportingAnalyses.sourceRevision}) in (${sql.join(
+                batch.map((analysis) => sql`(${analysis.segmentId}, ${analysis.sourceRevision})`),
+                sql`, `,
+              )})`,
+            ),
+          );
+        for (const row of siblings)
+          marks.push({ projectId: row.projectId, day: summaryDay(row.createdAt) });
+      }
+    };
     if (input.provenance === "automated") {
       const rows = finishedAnalyses.map((analysis) => ({
         organizationId: input.organizationId,
@@ -727,6 +756,7 @@ async function writeReportingCompletions(
           .returning(returnedCompletion);
         inserted.forEach(markCompletion);
       }
+      if (marks.length > 0) await markSiblingDays();
       await markSummaryDays(tx, input.organizationId, marks);
       return marks;
     }
@@ -833,11 +863,11 @@ async function writeReportingCompletions(
         })
         .onConflictDoNothing();
     }
+    if (marks.length > 0) await markSiblingDays();
     await markSummaryDays(tx, input.organizationId, marks);
     return marks;
   });
 }
-
 export async function captureJobStatus(input: {
   jobId: string;
   status: string;
@@ -868,6 +898,10 @@ async function writeJobStatus(input: {
 
   await reportingStart(ownedJob.organizationId);
   if (input.status === "succeeded") await captureTaskOverrides(input.jobId);
+  // A task that is no longer open holds its unfinished strings no more: the days they arrived
+  // on are worked out again, so Progress leaves them out. Status changes are not Reports writes,
+  // so nothing else would mark those days.
+  if (!OPEN_TASK_STATUSES.has(input.status)) await markTaskDays(input.jobId);
   const [job] = await db
     .select({
       organizationId: schema.jobs.organizationId,
@@ -890,6 +924,25 @@ async function writeJobStatus(input: {
       durationMs: input.durationMs,
     })
     .onConflictDoNothing();
+}
+
+/** Marks the days of a task's current strings for its project's summary to be worked out again. */
+async function markTaskDays(jobId: string) {
+  await db.transaction(async (tx) => {
+    const rows = await tx.execute<{ organizationId: string; projectId: string; day: string }>(sql`
+      select distinct organization_id as "organizationId", project_id as "projectId",
+        (created_at at time zone 'UTC')::date::text as day
+      from reporting_analyses where job_id = ${jobId} and is_current and project_id is not null
+    `);
+    const byOrganization = new Map<string, SummaryMark[]>();
+    for (const row of rows.rows) {
+      const marks = byOrganization.get(row.organizationId) ?? [];
+      marks.push({ projectId: row.projectId, day: row.day });
+      byOrganization.set(row.organizationId, marks);
+    }
+    for (const [organizationId, marks] of byOrganization)
+      await markSummaryDays(tx, organizationId, marks);
+  });
 }
 
 /** Fixed task fees are recognized once, at job success, never at quote creation. */
