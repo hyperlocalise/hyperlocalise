@@ -1022,3 +1022,64 @@ describe("costs", () => {
     expect(french.outsideProjects).toBeNull();
   });
 });
+
+describe("costs of automations", () => {
+  it("counts an automation tool step's AI in the automation's project", async () => {
+    const { organization, project } = await fixture.createWorkspace();
+    const [automation] = await db
+      .insert(schema.workspaceAutomations)
+      .values({
+        organizationId: organization.id,
+        name: "Repo sync",
+        instructions: "",
+        projectId: project.id,
+      })
+      .returning();
+    const [run] = await db
+      .insert(schema.workspaceAutomationRuns)
+      .values({
+        organizationId: organization.id,
+        automationId: automation!.id,
+        triggerSource: "manual",
+      })
+      .returning();
+    // The GitHub step records its run only in its key, not the automation or the project.
+    const step = `workspace-github-repo:${run!.id}:agent_runs`;
+    await db.insert(schema.usageEvents).values([
+      {
+        organizationId: organization.id,
+        featureId: "agent_runs",
+        status: "succeeded",
+        operationKey: step,
+        source: "workspace_github_repository_agent",
+        createdAt: new Date("2026-06-10T12:00:00Z"),
+      },
+      {
+        organizationId: organization.id,
+        featureId: "ai_tokens",
+        status: "tracking_succeeded",
+        operationKey: `${step}:ai_tokens`,
+        source: "agent_runtime_complete",
+        credentialSource: "gateway",
+        amountUsd: "0.20000000",
+        dimensions: { parent_operation_key: step, input_tokens: 100, output_tokens: 10 },
+        createdAt: new Date("2026-06-10T12:00:00Z"),
+      },
+    ]);
+    const costs = await queryCosts({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      period: resolvePeriod({
+        from: "2026-06-08",
+        to: "2026-06-14",
+        today: "2026-10-21",
+        startedDay: "2026-01-01",
+      }),
+      includeUnattributed: true,
+    });
+    expect(costs.rows).toEqual([
+      expect.objectContaining({ projectId: project.id, aiOutsideTasksUsd: "0.20000000" }),
+    ]);
+    expect(costs.outsideProjects).toMatchObject({ aiUsd: "0.00000000" });
+  });
+});

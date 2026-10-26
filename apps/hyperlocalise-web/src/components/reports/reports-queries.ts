@@ -147,6 +147,8 @@ export function aiUsageQuery(input: SectionInput) {
     ...filters,
     groupBy: state.aiGroup,
     thenBy: optional(state.aiThen),
+    // The chart's measure is also what the largest groups are by.
+    rankBy: state.aiMeasure,
     page: String(state.page),
   });
 }

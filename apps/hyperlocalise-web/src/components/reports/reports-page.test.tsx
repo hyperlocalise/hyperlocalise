@@ -201,15 +201,17 @@ describe("Reports page", () => {
       page: "1",
     });
     expect(
-      screen.getByText("3 calls have no charge recorded by billing, so Charge leaves them out."),
+      screen.getByText(
+        "3 runs have no AI credit recorded by billing, so AI credit used leaves them out.",
+      ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("260 calls used your own provider key, which uses no plan credit."),
+      screen.getByText("260 runs used your own provider key, which uses no plan credit."),
     ).toBeInTheDocument();
     const table = screen.getByRole("table", { name: "Breakdown" });
     // Calls on the workspace's own key cost no plan credit; a gap in billing is never $0.
     expect(within(table).getAllByText("Own key")).toHaveLength(2);
-    expect(within(table).getAllByText("3 calls not recorded").length).toBeGreaterThan(0);
+    expect(within(table).getAllByText("3 runs not recorded").length).toBeGreaterThan(0);
 
     // A group narrows the tab to it and shows its second-level groups next.
     await userEvent.click(within(table).getByRole("button", { name: "Show only Translation" }));
@@ -220,7 +222,9 @@ describe("Reports page", () => {
       ),
     );
     await userEvent.click(
-      within(table).getByRole("button", { name: "Show only openai/gpt-6-luna" }),
+      within(table).getByRole("button", {
+        name: "Show only openai/gpt-6-luna under Translation",
+      }),
     );
     await waitFor(() =>
       expect(mocks.replace).toHaveBeenLastCalledWith(
@@ -282,7 +286,7 @@ describe("Reports page", () => {
         .map((button) => button.textContent),
     ).toEqual(["Web app", "openai/gpt-6-luna"]);
     await userEvent.click(
-      within(table).getByRole("button", { name: "Show only openai/gpt-6-luna" }),
+      within(table).getByRole("button", { name: "Show only openai/gpt-6-luna under Web app" }),
     );
     await waitFor(() =>
       expect(mocks.replace).toHaveBeenLastCalledWith(
@@ -302,6 +306,71 @@ describe("Reports page", () => {
     );
     // With a project chosen, project rows narrow no further.
     expect(screen.queryByRole("button", { name: "Show only Web app" })).toBeNull();
+  });
+
+  it("compares AI credit only where billing recorded it, and narrows with the filter bar", async () => {
+    mocks.search = "tab=ai";
+    mocks.bodies = {
+      ...reportsResponseBodies(),
+      "ai-usage": {
+        aiUsage: {
+          ...reportsAiUsage,
+          // The period before: every run on our AI with no credit recorded.
+          previous: {
+            ...reportsAiUsage.previous,
+            chargeUsd: "0.00000000",
+            unrecordedCharges: 2_120,
+          },
+        },
+      },
+    };
+    renderPage();
+    const card = (await screen.findByText("AI credit used")).parentElement!;
+    expect(within(card).getByText("No change to show")).toBeInTheDocument();
+    expect(within(card).queryByText(/vs previous/)).toBeNull();
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Key" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Your own key" }));
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenLastCalledWith("/en/org/acme/reports?tab=ai&key=own_key", {
+        scroll: false,
+      }),
+    );
+  });
+
+  it("narrows within a project's own Reports page", async () => {
+    mocks.search = "tab=ai&ai=project&ai2=model";
+    mocks.bodies = {
+      ...reportsResponseBodies(),
+      "ai-usage": {
+        aiUsage: {
+          ...reportsAiUsage,
+          groupBy: "project",
+          thenBy: "model",
+          rows: [
+            {
+              ...reportsAiUsage.rows[0]!,
+              key: "project_web",
+              label: "Web app",
+            },
+          ],
+        },
+      },
+    };
+    renderPage("project_web");
+    const table = await screen.findByRole("table", { name: "Breakdown" });
+    expect(callsTo("ai-usage")[0]?.args.query).toMatchObject({ projectId: "project_web" });
+    // The project is fixed, so its row is not a filter, but the rows under it are.
+    expect(within(table).queryByRole("button", { name: "Show only Web app" })).toBeNull();
+    await userEvent.click(
+      within(table).getByRole("button", { name: "Show only openai/gpt-6-luna under Web app" }),
+    );
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenLastCalledWith(
+        "/en/org/acme/reports?tab=ai&ai=model&model=openai%2Fgpt-6-luna",
+        { scroll: false },
+      ),
+    );
   });
 
   it("lists the details chosen from a row, each removable", async () => {

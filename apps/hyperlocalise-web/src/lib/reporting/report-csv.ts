@@ -117,6 +117,7 @@ export function aiUsageCsv(usage: AiUsage): string {
     "calls",
     "inputTokens",
     "outputTokens",
+    "cacheAndReasoningTokens",
     "images",
     "videos",
     "chargeUsd",

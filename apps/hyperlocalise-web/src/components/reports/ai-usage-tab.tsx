@@ -65,28 +65,54 @@ function narrowTo(
 ): Partial<ReportsUrlState> | null {
   const { key } = group;
   if (key === null || group.other) return null;
-  if (dimension === "project") return state.projectId ? null : { projectId: key };
+  // A task chosen in the filter bar is in the project clicked, so it stays; an estimate's tasks
+  // may not be.
+  if (dimension === "project") return state.projectId ? null : { projectId: key, jobIds: [] };
   if (dimension === "task") return { jobId: key };
   return { aiFilters: { ...state.aiFilters, [dimension]: key } };
 }
 
-/** Billing's charge as the page shows it: never $0 for a gap, nor for a fraction of a cent. */
-function chargeLabel(intl: ReturnType<typeof useIntl>, totals: Totals) {
+/** AI credit as money, with an amount above zero but below a cent never shown as $0.00. */
+function formatCredit(intl: ReturnType<typeof useIntl>, usd: string) {
+  const amount = Math.abs(Number(usd));
+  return amount > 0 && amount < 0.01
+    ? intl.formatMessage(messages.belowOneCent, { amount: formatUsd(intl, "0.01") })
+    : formatUsd(intl, usd);
+}
+
+/** Whether billing recorded no credit for any of a group's runs on our AI. */
+function creditState(totals: Totals) {
   const items = totals.calls + totals.images + totals.videos;
   const charged = items - totals.ownKeyCalls;
-  if (items === 0) return { text: "—", muted: false };
-  if (charged === 0) return { text: intl.formatMessage(messages.ownKeyCharge), muted: true };
-  if (totals.unrecordedCharges >= charged)
-    return { text: intl.formatMessage(messages.notRecorded), muted: true };
-  const amount = Number(totals.chargeUsd);
-  return {
-    text:
-      amount > 0 && amount < 0.01
-        ? intl.formatMessage(messages.belowOneCent, { amount: formatUsd(intl, "0.01") })
-        : formatUsd(intl, totals.chargeUsd),
-    muted: false,
-  };
+  if (items === 0) return "none" as const;
+  if (charged === 0) return "own_key" as const;
+  if (totals.unrecordedCharges >= charged) return "not_recorded" as const;
+  return "recorded" as const;
 }
+
+/** AI credit used as the page shows it: never $0 for a gap, nor for a fraction of a cent. */
+function chargeLabel(intl: ReturnType<typeof useIntl>, totals: Totals) {
+  switch (creditState(totals)) {
+    case "none":
+      return { text: "—", muted: false };
+    case "own_key":
+      return { text: intl.formatMessage(messages.ownKeyCharge), muted: true };
+    case "not_recorded":
+      return { text: intl.formatMessage(messages.notRecorded), muted: true };
+    default:
+      return { text: formatCredit(intl, totals.chargeUsd), muted: false };
+  }
+}
+
+/** A period's credit for a comparison, or null when billing recorded none of it. */
+function comparableCredit(totals: Totals) {
+  const state = creditState(totals);
+  if (state === "own_key" || state === "not_recorded") return null;
+  return Number(totals.chargeUsd);
+}
+
+const tokenTotal = (totals: Totals) =>
+  totals.inputTokens + totals.outputTokens + totals.cacheAndReasoningTokens;
 
 export function AiUsageTab({
   input,
@@ -105,7 +131,7 @@ export function AiUsageTab({
         onChange={onChange}
       />
       {usage.isPending && !usage.data ? (
-        <ReportStatCardsSkeleton count={6} />
+        <ReportStatCardsSkeleton count={5} />
       ) : (
         <ReportSectionState query={usage}>
           {(data) => <AiUsageCards data={data} organizationSlug={input.organizationSlug} />}
@@ -176,7 +202,11 @@ function AiFilterChips({
 function AiUsageCards({ data, organizationSlug }: { data: AiUsageData; organizationSlug: string }) {
   const intl = useIntl();
   const { totals, previous, period } = data;
-  const change = (now: number, before: number, formatValue?: (value: number) => string) =>
+  const change = (
+    now: number | null,
+    before: number | null,
+    formatValue?: (value: number) => string,
+  ) =>
     formatChange(
       intl,
       describeChange({ current: now, previous: before, hasEarlierData: period.hasEarlierData }),
@@ -190,20 +220,19 @@ function AiUsageCards({ data, organizationSlug }: { data: AiUsageData; organizat
           label={intl.formatMessage(messages.calls)}
           value={formatCount(intl, totals.calls)}
           change={change(totals.calls, previous.calls)}
+          detail={intl.formatMessage(messages.callsDetail)}
         />
         <ReportStatCard
-          label={intl.formatMessage(messages.inputTokens)}
-          value={formatCompact(intl, totals.inputTokens)}
-          change={change(totals.inputTokens, previous.inputTokens, (value) =>
+          label={intl.formatMessage(messages.tokens)}
+          value={formatCompact(intl, tokenTotal(totals))}
+          change={change(tokenTotal(totals), tokenTotal(previous), (value) =>
             formatCompact(intl, value),
           )}
-        />
-        <ReportStatCard
-          label={intl.formatMessage(messages.outputTokens)}
-          value={formatCompact(intl, totals.outputTokens)}
-          change={change(totals.outputTokens, previous.outputTokens, (value) =>
-            formatCompact(intl, value),
-          )}
+          detail={intl.formatMessage(messages.tokensDetail, {
+            input: formatCompact(intl, totals.inputTokens),
+            output: formatCompact(intl, totals.outputTokens),
+            other: formatCompact(intl, totals.cacheAndReasoningTokens),
+          })}
         />
         <ReportStatCard
           label={intl.formatMessage(messages.images)}
@@ -218,8 +247,8 @@ function AiUsageCards({ data, organizationSlug }: { data: AiUsageData; organizat
         <ReportStatCard
           label={intl.formatMessage(messages.charge)}
           value={chargeLabel(intl, totals).text}
-          change={change(Number(totals.chargeUsd), Number(previous.chargeUsd), (amount) =>
-            formatUsd(intl, amount.toFixed(8)),
+          change={change(comparableCredit(totals), comparableCredit(previous), (amount) =>
+            formatCredit(intl, amount.toFixed(8)),
           )}
           detail={intl.formatMessage(messages.chargeDetail)}
         />
@@ -264,7 +293,7 @@ const SERIES_COLORS = [
 const MEASURE_FIELDS = { tokens: "tokens", calls: "calls", charge: "chargeUsd" } as const;
 
 function formatMeasure(intl: Intl, measure: Measure, value: number) {
-  if (measure === "charge") return formatUsd(intl, value.toFixed(8));
+  if (measure === "charge") return formatCredit(intl, value.toFixed(8));
   return measure === "tokens" ? formatCompact(intl, value) : formatCount(intl, value);
 }
 
@@ -280,10 +309,14 @@ function AiUsageChart({
   const intl = useIntl();
   const measure = input.state.aiMeasure;
   const weekly = data.period.interval === "week";
-  const { groups, points } = data.series;
+  const { points } = data.series;
   const field = MEASURE_FIELDS[measure];
+  // A group with nothing on this measure, such as images on Tokens, has no bar to show.
+  const shown = data.series.groups.flatMap((group, index) =>
+    points.some((point) => point[field][index]! > 0) ? [{ group, index }] : [],
+  );
   const config = Object.fromEntries(
-    groups.map((group, index) => [
+    shown.map(({ group, index }) => [
       `s${index}`,
       {
         label: group.other
@@ -303,7 +336,7 @@ function AiUsageChart({
     (sum, point) => sum + point[field].reduce((part, value) => part + value, 0),
     0,
   );
-  const keys = groups.map((_, index) => `s${index}`);
+  const keys = shown.map(({ index }) => `s${index}`);
   return (
     <ReportSection
       title={intl.formatMessage(weekly ? messages.chartPerWeek : messages.chartPerDay)}
@@ -331,7 +364,8 @@ function AiUsageChart({
               value,
               label: intl.formatMessage(messages[`measure_${value}`]),
             }))}
-            onChange={(aiMeasure) => onChange({ aiMeasure, page: input.state.page })}
+            // The measure is also what the largest groups are by, so the table starts again.
+            onChange={(aiMeasure) => onChange({ aiMeasure })}
           />
         </>
       }
@@ -356,7 +390,29 @@ function AiUsageChart({
             minTickGap={24}
           />
           <YAxis hide allowDecimals={measure === "charge"} />
-          <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+          <ChartTooltip
+            cursor={false}
+            content={
+              <ChartTooltipContent
+                indicator="dot"
+                formatter={(value, name) => (
+                  <span className="flex w-full items-center gap-2">
+                    <span
+                      aria-hidden
+                      className="size-2.5 shrink-0 rounded-[2px]"
+                      style={{ background: config[String(name)]?.color }}
+                    />
+                    <span className="flex-1 text-muted-foreground">
+                      {config[String(name)]?.label}
+                    </span>
+                    <span className="font-mono font-medium text-foreground tabular-nums">
+                      {formatMeasure(intl, measure, Number(value))}
+                    </span>
+                  </span>
+                )}
+              />
+            }
+          />
           {keys.map((key, index) => (
             <Bar
               key={key}
@@ -451,6 +507,9 @@ function AiUsageTable({
               <TableCell className={numeric}>{formatCount(intl, totals.calls)}</TableCell>
               <TableCell className={numeric}>{formatCompact(intl, totals.inputTokens)}</TableCell>
               <TableCell className={numeric}>{formatCompact(intl, totals.outputTokens)}</TableCell>
+              <TableCell className={numeric}>
+                {formatCompact(intl, totals.cacheAndReasoningTokens)}
+              </TableCell>
               {media ? (
                 <>
                   <TableCell className={numeric}>{formatCount(intl, totals.images)}</TableCell>
@@ -462,14 +521,23 @@ function AiUsageTable({
               </TableCell>
             </>
           );
-          const name = (text: string, change: Partial<ReportsUrlState> | null, muted = false) => {
+          const name = (
+            text: string,
+            change: Partial<ReportsUrlState> | null,
+            muted: boolean,
+            group?: string,
+          ) => {
             if (!change)
               return <span className={muted ? "text-muted-foreground" : undefined}>{text}</span>;
             return (
               <button
                 type="button"
                 className="text-left underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
-                aria-label={intl.formatMessage(messages.narrowTo, { name: text })}
+                aria-label={
+                  group
+                    ? intl.formatMessage(messages.narrowToUnder, { name: text, group })
+                    : intl.formatMessage(messages.narrowTo, { name: text })
+                }
                 onClick={() => onChange(change)}
               >
                 {text}
@@ -491,6 +559,9 @@ function AiUsageTable({
                     <TableHead className="text-right">
                       {intl.formatMessage(messages.outputColumn)}
                     </TableHead>
+                    <TableHead className="text-right">
+                      {intl.formatMessage(messages.cacheAndReasoningColumn)}
+                    </TableHead>
                     {media ? (
                       <>
                         <TableHead className="text-right">
@@ -510,6 +581,11 @@ function AiUsageTable({
                   {data.rows.map((row) => {
                     const rowName = aiGroupLabel(intl, data.groupBy, row);
                     const parent = narrowTo(state, data.groupBy, row);
+                    // The rows under the chosen project narrow within it.
+                    const within =
+                      data.groupBy === "project" && row.key !== null && row.key === state.projectId
+                        ? {}
+                        : parent;
                     return (
                       <Fragment key={row.key ?? NONE}>
                         <TableRow className={thenBy ? "bg-muted/30 font-medium" : undefined}>
@@ -529,9 +605,9 @@ function AiUsageTable({
                         {thenBy
                           ? row.children.map((child) => {
                               // Under a group no filter can stand for, a row cannot narrow either.
-                              const own = parent
+                              const own = within
                                 ? narrowTo(
-                                    { ...state, ...parent } as ReportsUrlState,
+                                    { ...state, ...within } as ReportsUrlState,
                                     thenBy,
                                     child,
                                   )
@@ -539,13 +615,16 @@ function AiUsageTable({
                               return (
                                 <TableRow key={child.other ? "__other__" : (child.key ?? NONE)}>
                                   <TableCell className="pl-8">
-                                    <span className="sr-only">{`${rowName}: `}</span>
+                                    <span className="sr-only">
+                                      {intl.formatMessage(messages.underGroup, { group: rowName })}
+                                    </span>
                                     {name(
                                       child.other
                                         ? intl.formatMessage(messages.otherGroup)
                                         : aiGroupLabel(intl, thenBy, child),
-                                      own && { ...parent, ...own, aiGroup: thenBy, aiThen: null },
+                                      own && { ...within, ...own, aiGroup: thenBy, aiThen: null },
                                       child.key === null,
+                                      rowName,
                                     )}
                                   </TableCell>
                                   {cells(child)}

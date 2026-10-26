@@ -388,6 +388,58 @@ describe("AI usage", () => {
     ]);
   });
 
+  it("counts the tokens billing adds for cache and reasoning, and ranks by the measure chosen", async () => {
+    const { organization, project } = await fixture.createWorkspace();
+    const { usage } = usageRows(organization.id);
+    await db.insert(schema.usageEvents).values([
+      // Billing's quantity is every token; input and output leave out cache and reasoning.
+      usage({
+        source: "chat_agent_turn",
+        modelId: "anthropic/claude-haiku-4.5",
+        credentialSource: "gateway",
+        amountUsd: "0.01",
+        quantity: 1_600,
+        dimensions: { project_id: project.id, input_tokens: 400, output_tokens: 200 },
+      }),
+      // Fewer tokens, more credit.
+      usage({
+        source: "chat_agent_turn",
+        modelId: "openai/gpt-6-luna",
+        credentialSource: "gateway",
+        amountUsd: "0.5",
+        quantity: 300,
+        dimensions: { project_id: project.id, input_tokens: 200, output_tokens: 100 },
+      }),
+    ]);
+    const scope = {
+      organizationId: organization.id,
+      projectIds: [project.id],
+      period: PERIOD,
+      includeUnattributed: false,
+      groupBy: "model" as const,
+    };
+    const byTokens = await queryAiUsage(scope);
+    expect(byTokens.totals).toMatchObject({
+      inputTokens: 600,
+      outputTokens: 300,
+      cacheAndReasoningTokens: 1_000,
+    });
+    expect(byTokens.rows.map((row) => row.key)).toEqual([
+      "anthropic/claude-haiku-4.5",
+      "openai/gpt-6-luna",
+    ]);
+    expect(byTokens.series.points[2]!.tokens).toEqual([1_600, 300]);
+    const byCredit = await queryAiUsage({ ...scope, rankBy: "charge" });
+    expect(byCredit.rows.map((row) => row.key)).toEqual([
+      "openai/gpt-6-luna",
+      "anthropic/claude-haiku-4.5",
+    ]);
+    expect(byCredit.series.groups.map((group) => group.key)).toEqual([
+      "openai/gpt-6-luna",
+      "anthropic/claude-haiku-4.5",
+    ]);
+  });
+
   it("charts the largest groups per day and folds the rest into Other", async () => {
     const { organization, project } = await fixture.createWorkspace();
     const { usage } = usageRows(organization.id);
@@ -467,6 +519,8 @@ describe("AI usage", () => {
             source: "chat_agent_turn",
             modelId,
             jobId: job.id,
+            credentialSource: "gateway",
+            amountUsd: "0.000000005",
             dimensions: { input_tokens: 1000 - index },
           }),
         ),
@@ -507,7 +561,9 @@ describe("AI usage", () => {
       key: null,
       other: true,
       calls: jobs.length - AI_USAGE_CHILD_ROWS,
-      chargeUsd: "0.00000000",
+      // The group's credit less the rows shown, each rounded to eight places: 0.00000026 − 10 ×
+      // 0.00000001.
+      chargeUsd: "0.00000016",
     });
     const everyRow = await queryAiUsage({
       ...query,

@@ -16,6 +16,7 @@ import {
   AI_KEY_TYPES,
   AI_ORIGINS,
   AI_USAGE_DIMENSIONS,
+  AI_USAGE_MEASURES,
 } from "@/lib/reporting/ai-usage-origins";
 import { REPORT_KINDS } from "@/lib/reporting/report-reads";
 import { RATE_BASES, REPORT_STEPS, REPORT_UNITS } from "@/lib/reporting/report-units";
@@ -82,6 +83,7 @@ export const aiUsageQuerySchema = z
     projectId: id.optional(),
     groupBy: aiDimension.default("area"),
     thenBy: aiDimension.optional(),
+    rankBy: z.enum(AI_USAGE_MEASURES).default("tokens"),
     area: z.enum(AI_ORIGINS).optional(),
     feature: id.optional(),
     model: id.optional(),

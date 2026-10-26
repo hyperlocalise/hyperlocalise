@@ -165,9 +165,16 @@ export function ReportsFilterBar({
             { value: ALL, label: intl.formatMessage(messages.allProjects) },
             ...projects.map((project) => ({ value: project.id, label: project.name })),
           ]}
-          onChange={(value) =>
-            onChange({ projectId: value === ALL ? null : value, jobId: null, jobIds: [] })
-          }
+          onChange={(value) => {
+            // An automation belongs to one project, so it does not carry over to another.
+            const { automation: _automation, ...aiFilters } = state.aiFilters;
+            onChange({
+              projectId: value === ALL ? null : value,
+              jobId: null,
+              jobIds: [],
+              aiFilters,
+            });
+          }}
         />
       )}
       {filters.task === "one" ? (

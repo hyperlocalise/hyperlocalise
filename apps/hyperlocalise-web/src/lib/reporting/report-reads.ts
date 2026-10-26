@@ -15,7 +15,13 @@ import { sql } from "drizzle-orm";
 import { db } from "@/lib/database/client";
 
 import { queryAiUsage } from "./ai-usage";
-import type { AiChannel, AiKeyType, AiOrigin, AiUsageDimension } from "./ai-usage-origins";
+import type {
+  AiChannel,
+  AiKeyType,
+  AiOrigin,
+  AiUsageDimension,
+  AiUsageMeasure,
+} from "./ai-usage-origins";
 import { queryCosts } from "./cost-queries";
 import { resolvePeriod } from "./report-period";
 import type { ReportStep, ReportUnit } from "./report-units";
@@ -69,6 +75,7 @@ export type AiReadQuery = Dates & {
   projectId?: string;
   groupBy: AiUsageDimension;
   thenBy?: AiUsageDimension;
+  rankBy?: AiUsageMeasure;
   area?: AiOrigin;
   feature?: string;
   model?: string;
@@ -161,6 +168,7 @@ export async function readAi(context: ReportReadContext, query: AiReadQuery) {
     includeUnattributed: context.financial,
     groupBy: query.groupBy,
     thenBy: query.thenBy,
+    rankBy: query.rankBy,
     page: query.page,
     all: query.all,
     filters: {

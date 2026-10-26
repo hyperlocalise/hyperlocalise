@@ -93,6 +93,7 @@ describe("AI usage CSV", () => {
     calls,
     inputTokens: calls * 10,
     outputTokens: calls,
+    cacheAndReasoningTokens: 0,
     images: 0,
     videos: 0,
     chargeUsd: "0.50000000",
@@ -120,12 +121,12 @@ describe("AI usage CSV", () => {
 
   it("writes a line per group, or per group of the second detail", () => {
     expect(aiUsageCsv(usage(null)).split("\r\n")).toEqual([
-      '"jobId","jobTitle","calls","inputTokens","outputTokens","images","videos","chargeUsd","unrecordedCharges","ownKeyCalls"',
-      '"job_1","Homepage","3","30","3","0","0","0.50000000","0","0"',
+      '"jobId","jobTitle","calls","inputTokens","outputTokens","cacheAndReasoningTokens","images","videos","chargeUsd","unrecordedCharges","ownKeyCalls"',
+      '"job_1","Homepage","3","30","3","0","0","0","0.50000000","0","0"',
     ]);
     expect(aiUsageCsv(usage("model")).split("\r\n").slice(1)).toEqual([
-      '"job_1","Homepage","openai/gpt-6","2","20","2","0","0","0.50000000","0","0"',
-      '"job_1","Homepage","","1","10","1","0","0","0.50000000","0","0"',
+      '"job_1","Homepage","openai/gpt-6","2","20","2","0","0","0","0.50000000","0","0"',
+      '"job_1","Homepage","","1","10","1","0","0","0","0.50000000","0","0"',
     ]);
   });
 });

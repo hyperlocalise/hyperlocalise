@@ -45,7 +45,7 @@ export type AiChannel = (typeof AI_CHANNELS)[number];
 
 /**
  * Whose provider key a call used, from billing's `credential_source`: our AI gateway, which uses
- * plan credit, or the workspace's own key. Billing records none for images and videos.
+ * plan credit, or the workspace's own key. Rows from before billing recorded it have none.
  */
 export const AI_KEY_TYPES = ["our_ai", "own_key", "not_recorded"] as const;
 export type AiKeyType = (typeof AI_KEY_TYPES)[number];
@@ -63,6 +63,10 @@ export const AI_USAGE_DIMENSIONS = [
   "automation",
 ] as const;
 export type AiUsageDimension = (typeof AI_USAGE_DIMENSIONS)[number];
+
+/** What AI usage's chart shows and its groups are ranked by: tokens, runs or AI credit used. */
+export const AI_USAGE_MEASURES = ["tokens", "calls", "charge"] as const;
+export type AiUsageMeasure = (typeof AI_USAGE_MEASURES)[number];
 
 /** Sources of billing rows that each stand for one image or one video made. */
 export const AI_IMAGE_SOURCES = [

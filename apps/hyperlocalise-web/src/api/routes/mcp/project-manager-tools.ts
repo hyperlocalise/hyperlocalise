@@ -48,6 +48,7 @@ import {
   AI_KEY_TYPES,
   AI_ORIGINS,
   AI_USAGE_DIMENSIONS,
+  AI_USAGE_MEASURES,
 } from "@/lib/reporting/ai-usage-origins";
 import {
   REPORT_KINDS,
@@ -178,6 +179,12 @@ const mcpGetReportInputSchema = z.object({
     .enum(AI_USAGE_DIMENSIONS)
     .optional()
     .describe("AI only: a second detail to split each group by, other than groupBy."),
+  rankBy: z
+    .enum(AI_USAGE_MEASURES)
+    .optional()
+    .describe(
+      "AI only: what the largest groups are by: tokens (default, including cache and reasoning), calls or charge (AI credit used).",
+    ),
   area: z.enum(AI_ORIGINS).optional().describe("AI only: where the AI was called."),
   feature: z
     .string()
@@ -535,6 +542,7 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
         case "ai":
           return mcpToolJson({
             ...shared,
+            stillUpdating: false,
             aiUsage: await readAi(context, {
               ...(parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.ai>),
               all: false,

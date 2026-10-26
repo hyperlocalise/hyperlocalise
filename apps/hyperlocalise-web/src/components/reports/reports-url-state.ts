@@ -15,6 +15,7 @@ import {
   AI_KEY_TYPES,
   AI_ORIGINS,
   AI_USAGE_DIMENSIONS,
+  AI_USAGE_MEASURES,
   type AiUsageDimension,
 } from "@/lib/reporting/ai-usage-origins";
 import { REPORT_PRESET_DAYS } from "@/lib/reporting/report-period";
@@ -49,8 +50,7 @@ export type ReportsRange = (typeof REPORTS_RANGES)[number];
 
 export const WORD_COUNT_MODES = ["arrived", "finished"] as const;
 export const WORD_COUNT_GROUPINGS = ["project", "task", "week"] as const;
-/** What the AI usage chart measures. */
-export const AI_USAGE_MEASURES = ["tokens", "calls", "charge"] as const;
+export { AI_USAGE_MEASURES };
 
 /**
  * The details AI usage can be narrowed to besides the page's project and task, each kept in the

@@ -16,9 +16,9 @@ import { defineMessages } from "react-intl";
 
 export const aiUsageTabMessages = defineMessages({
   callsColumn: {
-    id: "QpdOZpNasy",
-    defaultMessage: "Calls",
-    description: "Column heading: number of AI calls",
+    id: "uCDllPtZvA",
+    defaultMessage: "Runs",
+    description: "Column heading: billed uses of AI",
   },
   inputColumn: {
     id: "2PDVG4rXQ7",
@@ -116,8 +116,8 @@ export const aiUsageTabMessages = defineMessages({
     description: "AI channel: automations",
   },
   noAiUsage: {
-    id: "fMv+rsdxOk",
-    defaultMessage: "No AI was used in these dates.",
+    id: "LgOdyUATt4",
+    defaultMessage: "No AI was used in these dates with these filters.",
     description: "Shown when there is no AI usage",
   },
   ai_dimension_area: {
@@ -207,14 +207,14 @@ export const aiUsageTabMessages = defineMessages({
     description: "AI usage chart option: input and output tokens",
   },
   measure_calls: {
-    id: "Vol89Hc4kA",
-    defaultMessage: "Calls",
-    description: "AI usage chart option: number of AI calls",
+    id: "DH4SBHdjfp",
+    defaultMessage: "Runs",
+    description: "AI usage chart option: billed uses of AI",
   },
   measure_charge: {
-    id: "sTstslsQ8V",
-    defaultMessage: "Charge",
-    description: "AI usage chart option: billing's charge",
+    id: "aVfxD0nSAA",
+    defaultMessage: "AI credit",
+    description: "AI usage chart option: plan AI credit used",
   },
   chartPerDay: {
     id: "xDMUZiSwLO",
@@ -227,9 +227,8 @@ export const aiUsageTabMessages = defineMessages({
     description: "Title of the AI usage chart, week by week",
   },
   chartDetail: {
-    id: "9wXFqdbOkp",
-    defaultMessage:
-      "Grouped by {dimension}: the largest five, and the rest as Other. Days are UTC.",
+    id: "S/om+96e8o",
+    defaultMessage: "Grouped by {dimension}, largest first, past the fifth as Other. Days are UTC.",
     description:
       "Subtitle of the AI usage chart; dimension is the name of a detail, such as Area or Model",
   },
@@ -289,24 +288,15 @@ export const aiUsageTabMessages = defineMessages({
     description: "Column heading: videos made with AI",
   },
   chargeColumn: {
-    id: "Tiw0UfGs5b",
-    defaultMessage: "Charge",
-    description: "Column heading: billing's actual charge for the AI calls",
+    id: "lIOUrpz16b",
+    defaultMessage: "AI credit",
+    description: "Column heading: plan AI credit billing recorded",
   },
   calls: {
-    id: "bKApzfVdeF",
-    defaultMessage: "AI calls",
-    description: "AI usage card: number of calls to an AI model",
-  },
-  inputTokens: {
-    id: "Kju6Jwa7gQ",
-    defaultMessage: "Input tokens",
-    description: "AI usage card: tokens sent to AI models",
-  },
-  outputTokens: {
-    id: "WNXadHaRtE",
-    defaultMessage: "Output tokens",
-    description: "AI usage card: tokens AI models returned",
+    id: "yQ7tyKyCdt",
+    defaultMessage: "AI runs",
+    description:
+      "AI usage card: billed uses of AI, each a task, automation run, chat turn or single request",
   },
   images: {
     id: "0j4Nbqpy8B",
@@ -319,14 +309,14 @@ export const aiUsageTabMessages = defineMessages({
     description: "AI usage card: videos made with AI",
   },
   charge: {
-    id: "/i1DTMoKeY",
-    defaultMessage: "Charge",
-    description: "AI usage card: billing's actual charge for AI calls",
+    id: "JOb5Bubrx0",
+    defaultMessage: "AI credit used",
+    description: "AI usage card: plan AI credit billing recorded for the AI used",
   },
   chargeDetail: {
-    id: "5REnQpTHmV",
-    defaultMessage: "What billing charged for calls through Hyperlocalise AI",
-    description: "Detail under the AI charge card",
+    id: "+zda51bOsT",
+    defaultMessage: "As billing recorded it, for AI through Hyperlocalise",
+    description: "Detail under the AI credit used card",
   },
   ownKeyCharge: {
     id: "SOILzo2Mm+",
@@ -346,20 +336,20 @@ export const aiUsageTabMessages = defineMessages({
     description: "Charge cell when billing has recorded no charge for the calls",
   },
   someNotRecorded: {
-    id: "6z1RHfMg9C",
-    defaultMessage: "{count, plural, one {# call not recorded} other {# calls not recorded}}",
-    description: "Under a charge: calls whose charge billing has not recorded",
+    id: "PHunEhHQBd",
+    defaultMessage: "{count, plural, one {# run not recorded} other {# runs not recorded}}",
+    description: "Under an AI credit amount: runs whose credit billing has not recorded",
   },
   unrecordedNote: {
-    id: "gmMkorqLfM",
+    id: "WSISrhveJa",
     defaultMessage:
-      "{count, plural, one {# call has no charge recorded by billing, so Charge leaves it out.} other {# calls have no charge recorded by billing, so Charge leaves them out.}}",
+      "{count, plural, one {# run has no AI credit recorded by billing, so AI credit used leaves it out.} other {# runs have no AI credit recorded by billing, so AI credit used leaves them out.}}",
     description: "Note under the AI usage cards",
   },
   ownKeyNote: {
-    id: "ZhAVIMs9FZ",
+    id: "uS1jCe+VAN",
     defaultMessage:
-      "{count, plural, one {# call} other {# calls}} used your own provider key, which uses no plan credit.",
+      "{count, plural, one {# run used your own provider key, which uses no plan credit.} other {# runs used your own provider key, which uses no plan credit.}}",
     description: "Note under the AI usage cards",
   },
   planCreditLink: {
@@ -558,5 +548,35 @@ export const aiUsageTabMessages = defineMessages({
     id: "uq9xFpQ4IJ",
     defaultMessage: "{area} ({name})",
     description: "AI feature without a plain name: its area, then the name billing records",
+  },
+  callsDetail: {
+    id: "yAZ3Vc7BoF",
+    defaultMessage: "Each a task, automation run, chat turn or single request that used AI",
+    description: "Detail under the AI runs card",
+  },
+  tokens: {
+    id: "78hTefWIZ0",
+    defaultMessage: "Tokens",
+    description: "AI usage card: every token billing counted, input, output, cached and reasoning",
+  },
+  tokensDetail: {
+    id: "+92OE+qwxB",
+    defaultMessage: "{input} input · {output} output · {other} cache and reasoning",
+    description: "Detail under the tokens card: the token counts, already formatted",
+  },
+  cacheAndReasoningColumn: {
+    id: "C9xyZ9SY4i",
+    defaultMessage: "Cache and reasoning",
+    description: "Column heading: cached input tokens and reasoning tokens billing counted",
+  },
+  narrowToUnder: {
+    id: "UFniVaKlF7",
+    defaultMessage: "Show only {name} under {group}",
+    description: "Accessible name of a button that narrows AI usage to a row within a group",
+  },
+  underGroup: {
+    id: "FRI1iIuOU/",
+    defaultMessage: "{group}:",
+    description: "Read before a row within a group, for screen readers; group is the group's name",
   },
 });

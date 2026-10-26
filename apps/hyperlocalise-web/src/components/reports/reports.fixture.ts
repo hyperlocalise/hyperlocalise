@@ -121,6 +121,7 @@ const aiTotals = (
   calls,
   inputTokens,
   outputTokens,
+  cacheAndReasoningTokens: 0,
   images: 0,
   videos: 0,
   chargeUsd: "0.00000000",

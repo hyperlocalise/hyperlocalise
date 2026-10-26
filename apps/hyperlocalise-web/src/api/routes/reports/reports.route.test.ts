@@ -209,7 +209,7 @@ describe("reports routes", () => {
       headers,
     });
     expect((await aiCsv.text()).split("\r\n")[0]).toBe(
-      '"jobId","jobTitle","calls","inputTokens","outputTokens","images","videos","chargeUsd","unrecordedCharges","ownKeyCalls"',
+      '"jobId","jobTitle","calls","inputTokens","outputTokens","cacheAndReasoningTokens","images","videos","chargeUsd","unrecordedCharges","ownKeyCalls"',
     );
     const unknownKind = await app.request(reportsUrl(slug, "?report=budgets"), { headers });
     expect(unknownKind.status).toBe(400);
