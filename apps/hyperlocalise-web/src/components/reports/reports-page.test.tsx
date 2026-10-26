@@ -326,12 +326,34 @@ describe("Reports page", () => {
         },
       },
     };
-    renderPage();
+    const { unmount } = renderPage();
     const card = (await screen.findByText("AI credit used")).parentElement!;
     expect(within(card).getByText("No change to show")).toBeInTheDocument();
     expect(within(card).queryByText(/vs previous/)).toBeNull();
+    unmount();
 
-    await userEvent.click(screen.getByRole("combobox", { name: "Key" }));
+    // Some credit recorded, but more than 5% of the runs on our AI without: still no base.
+    const before = (unrecordedCharges: number) => ({
+      ...reportsAiUsage.previous,
+      chargeUsd: "30.00000000",
+      unrecordedCharges,
+    });
+    for (const [unrecorded, compared] of [
+      [212, false],
+      [100, true],
+    ] as const) {
+      mocks.bodies = {
+        ...reportsResponseBodies(),
+        "ai-usage": { aiUsage: { ...reportsAiUsage, previous: before(unrecorded) } },
+      };
+      const view = renderPage();
+      const shown = (await screen.findByText("AI credit used")).parentElement!;
+      expect(Boolean(within(shown).queryByText(/vs previous/)), String(unrecorded)).toBe(compared);
+      view.unmount();
+    }
+    renderPage();
+
+    await userEvent.click(await screen.findByRole("combobox", { name: "Key" }));
     await userEvent.click(await screen.findByRole("option", { name: "Your own key" }));
     await waitFor(() =>
       expect(mocks.replace).toHaveBeenLastCalledWith("/en/org/acme/reports?tab=ai&key=own_key", {
