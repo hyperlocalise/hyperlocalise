@@ -286,7 +286,7 @@ export function ContentEditorDocumentEditorPane({
 
   const handleInitialValue = useCallback(
     (normalized: string) => {
-      if (!target) return;
+      if (!target || isRawDocument) return;
       const original = target.body;
       const lossy = isLossyDocumentRoundTrip(syntax, original, normalized);
       setParseLossy(lossy);
@@ -316,7 +316,7 @@ export function ContentEditorDocumentEditorPane({
           }),
       );
     },
-    [syntax, target],
+    [syntax, target, isRawDocument],
   );
 
   const sourceManager = useMemo(() => createDocumentMarkdownManager(syntax), [syntax]);
