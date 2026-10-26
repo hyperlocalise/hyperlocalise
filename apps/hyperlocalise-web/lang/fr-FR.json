@@ -32,6 +32,9 @@
   "+1MdqtQjmp": {
     "defaultMessage": "Choisissez un cluster REST"
   },
+  "+1Os87roDD": {
+    "defaultMessage": "Tarif enregistré."
+  },
   "+1W0ppiYtZ": {
     "defaultMessage": "Projet : {value}"
   },
@@ -119,6 +122,12 @@
   "+91wkWHR07": {
     "defaultMessage": "Supprimer {name}"
   },
+  "+A4wJ1M5iF": {
+    "defaultMessage": "Quels mots"
+  },
+  "+AdPwtLE3T": {
+    "defaultMessage": "Les participants ont finalisé {people} mots ; {share} d’entre eux ont été approuvés sans modification du texte qui leur était fourni."
+  },
   "+BP6ejutVt": {
     "defaultMessage": "Aucun instantané de la vue d’ensemble pour le moment. Actualisez pour créer un instantané de ce marché."
   },
@@ -173,6 +182,9 @@
   "+H/71gbTfh": {
     "defaultMessage": "Effacer les filtres"
   },
+  "+HCaUIpawr": {
+    "defaultMessage": "En dehors de tout projet"
+  },
   "+HGkRuvHRM": {
     "defaultMessage": "Progression de l’audit"
   },
@@ -208,6 +220,9 @@
   },
   "+KX/fjdtO4": {
     "defaultMessage": "Cadence"
+  },
+  "+LTWFvOwuo": {
+    "defaultMessage": "translation"
   },
   "+LauXjmWs2": {
     "defaultMessage": "Connect integrations from your workspace settings once you are onboarded to Hyperlocalise."
@@ -314,6 +329,9 @@
   "+Xor30vD6J": {
     "defaultMessage": "Le dernier envoi a échoué."
   },
+  "+YIs+b4kQq": {
+    "defaultMessage": "Seules vos propres entrées sont affichées."
+  },
   "+YUbta511H": {
     "defaultMessage": "Ouvrir le chat"
   },
@@ -349,6 +367,9 @@
   },
   "+cStTc5glb": {
     "defaultMessage": "Charger plus"
+  },
+  "+cUj6cLfrm": {
+    "defaultMessage": "À partir des grilles tarifaires et du temps enregistré"
   },
   "+cernCtrbo": {
     "defaultMessage": "Vous n’avez rien d’autre à faire. Cliquez sur Créer l’automatisation pour l’enregistrer."
@@ -421,6 +442,9 @@
   },
   "+krrXyjc74": {
     "defaultMessage": "Unités de traduction"
+  },
+  "+kvZ9NRM24": {
+    "defaultMessage": "Entrée de temps supprimée."
   },
   "+l38vFeeBu": {
     "defaultMessage": "Campagne estivale"
@@ -524,6 +548,9 @@
   "/+3b0vXhJh": {
     "defaultMessage": "Créez et adaptez des images, des vidéos, des animations et du contenu audio pour chaque langue."
   },
+  "/+Kr0bkslO": {
+    "defaultMessage": "Temps enregistré."
+  },
   "/+gVj3qXhZ": {
     "defaultMessage": "Comment les autres sites sont notés"
   },
@@ -605,6 +632,9 @@
   "/6fsn0aQ6k": {
     "defaultMessage": "Voir qui a approuvé quoi, quand et avec quel contexte — pour les agents comme pour les réviseurs humains."
   },
+  "/6jKEFW2XW": {
+    "defaultMessage": "Le temps d’exécution automatisé dépend uniquement des dates et du projet, et non de la tâche ou de la langue sélectionnée."
+  },
   "/6wXYQGzwZ": {
     "defaultMessage": "Pull request GitHub ouvert"
   },
@@ -628,6 +658,9 @@
   },
   "/8khRIMh0p": {
     "defaultMessage": "Autoriser l’accès"
+  },
+  "/95cmg/mS6": {
+    "defaultMessage": "Il n’y a pas encore de grilles tarifaires."
   },
   "/9ZwuXxQ/T": {
     "defaultMessage": "Copier le JSON"
@@ -707,6 +740,9 @@
   "/I4cav3gE2": {
     "defaultMessage": "Localisez les e-mails produits et les messages destinés aux clients dans Loops."
   },
+  "/IWIHpUnhW": {
+    "defaultMessage": "Rapports"
+  },
   "/IhENYYsH/": {
     "defaultMessage": "Copier le lien du rapport"
   },
@@ -767,11 +803,17 @@
   "/QBr3H7p9k": {
     "defaultMessage": "Impossible de connecter deux étapes"
   },
+  "/QQ5IDxhHM": {
+    "defaultMessage": "Du travail de cette tâche à l’étape"
+  },
   "/QZxo6jgZM": {
     "defaultMessage": "AcmePay doit-il rester non traduit dans le parcours d’intégration en espagnol ?"
   },
   "/QkL5ZPMkl": {
     "defaultMessage": "Original"
+  },
+  "/QuCM2WH7H": {
+    "defaultMessage": "Mots sources × leurs langues"
   },
   "/R/xwR7ZOR": {
     "defaultMessage": "Projet"
@@ -859,6 +901,9 @@
   },
   "/Z40OYzdZ/": {
     "defaultMessage": "Projet approuvé"
+  },
+  "/ZTRO0/2FX": {
+    "defaultMessage": "Toute cette tâche, quelles que soient ses dates. Les jours sont en UTC."
   },
   "/ZyYtiK1Js": {
     "defaultMessage": "Filtres"
@@ -1013,6 +1058,9 @@
   "/v3eeOYlRS": {
     "defaultMessage": "Une publication. Un foyer sur chaque marché."
   },
+  "/vkBLbtzp+": {
+    "defaultMessage": "Frais fixes (USD)"
+  },
   "/vxavoK/xz": {
     "defaultMessage": "LinkedIn"
   },
@@ -1072,6 +1120,9 @@
   },
   "01P9p4MvIA": {
     "defaultMessage": "Croissance"
+  },
+  "01Xqzlo6od": {
+    "defaultMessage": "Grille tarifaire"
   },
   "01h5d0m29X": {
     "defaultMessage": "Contexte de {source}"
@@ -1220,6 +1271,9 @@
   "0Jtniw8gvd": {
     "defaultMessage": "Essayez d’actualiser la page."
   },
+  "0JturqYkyf": {
+    "defaultMessage": "Par caractère, espaces compris"
+  },
   "0JvtLHpNGT": {
     "defaultMessage": "Aucun job Hyperlocalise créé par vous trouvé."
   },
@@ -1247,6 +1301,9 @@
   "0LbxmzSNhE": {
     "defaultMessage": "Lieu"
   },
+  "0LdJqJSAJW": {
+    "defaultMessage": "Ajouter une dépense"
+  },
   "0LvMzIgqHs": {
     "defaultMessage": "75 %"
   },
@@ -1267,6 +1324,9 @@
   },
   "0Ne4Lpi9ew": {
     "defaultMessage": "Un système d’exploitation de localisation pour l’ère de l’IA. <muted>Conçu pour les équipes modernes, avec la traduction, la révision, la synchronisation et le contrôle qualité réunis dans un seul flux de travail.</muted>"
+  },
+  "0OJc7+rkfv": {
+    "defaultMessage": "Rapports"
   },
   "0OYYyD2LOl": {
     "defaultMessage": "Envoyer"
@@ -1391,6 +1451,9 @@
   "0aZjyrf1Pz": {
     "defaultMessage": "Cas pluriel inatteignable"
   },
+  "0awmTuRZAE": {
+    "defaultMessage": "Par heure"
+  },
   "0bJOTNMqb9": {
     "defaultMessage": "Évitez toute formulation laissant entendre l’existence d’avis clients publics."
   },
@@ -1472,6 +1535,9 @@
   "0kMg1hHgVB": {
     "defaultMessage": "Apportez l’intelligence de traduction à votre flux de travail de localisation"
   },
+  "0kVq+Iz5xk": {
+    "defaultMessage": "Saisissez un nombre entier de minutes, par exemple 90."
+  },
   "0kqhhOMa9k": {
     "defaultMessage": "Open AI"
   },
@@ -1513,6 +1579,12 @@
   },
   "0qIbYrqvNR": {
     "defaultMessage": "Titre 1"
+  },
+  "0qOhoeNpmX": {
+    "defaultMessage": "Temps d’exécution de l’étape automatisée"
+  },
+  "0qhb2tQ4rM": {
+    "defaultMessage": "New"
   },
   "0r2uyKvHbT": {
     "defaultMessage": "Chargement des branches…"
@@ -1640,6 +1712,9 @@
   "11wuxnX/XF": {
     "defaultMessage": "Déclencheurs"
   },
+  "12tUFj7BbU": {
+    "defaultMessage": "{rate} / caractère"
+  },
   "155ppkZ0rK": {
     "defaultMessage": "Clé"
   },
@@ -1669,6 +1744,9 @@
   },
   "1A3oOwAeXf": {
     "defaultMessage": "{language} (langue source)"
+  },
+  "1AD7GTm5qZ": {
+    "defaultMessage": "De ce qui a été traduit"
   },
   "1AN+Q/JkbE": {
     "defaultMessage": "Queue translation jobs for uploaded source files in the project selected above."
@@ -1727,6 +1805,9 @@
   "1Hzp15bVmL": {
     "defaultMessage": "Des directives qui accompagnent le travail."
   },
+  "1I5rpsAmJB": {
+    "defaultMessage": "Mots terminés par langue"
+  },
   "1INOkRkMDD": {
     "defaultMessage": "Directive"
   },
@@ -1760,6 +1841,12 @@
   "1N4AtoHPR5": {
     "defaultMessage": "Lancement GTM du T2"
   },
+  "1N8A6OFNKq": {
+    "defaultMessage": "{finished} mots terminés de {from} à {to}, dont {people} par des personnes, selon la provenance du texte"
+  },
+  "1NKpna4SEO": {
+    "defaultMessage": "Étape"
+  },
   "1NNWYQidJ2": {
     "defaultMessage": "Hôte"
   },
@@ -1769,11 +1856,17 @@
   "1OhnBb85Zc": {
     "defaultMessage": "Les tarifs des tâches ne peuvent être modifiés qu’avant le début du travail. Les coûts enregistrés conservent leurs tarifs d’origine."
   },
+  "1OvUY7tBML": {
+    "defaultMessage": "Jetons de sortie"
+  },
   "1PNRDT2hG7": {
     "defaultMessage": "Configurez des tests planifiés avec des dates, les personnes qui les voient et les versions à comparer"
   },
   "1PcszZ/Z93": {
     "defaultMessage": "Cible ({locale})"
+  },
+  "1PoSOMSmLa": {
+    "defaultMessage": "Modèle"
   },
   "1QEv3c/AxW": {
     "defaultMessage": "S’exécute lorsqu’un fichier source est importé dans le projet sélectionné ci-dessus."
@@ -1855,6 +1948,9 @@
   },
   "1XoRKevTzz": {
     "defaultMessage": "Rôle"
+  },
+  "1YE4km/3/U": {
+    "defaultMessage": "Grouper par"
   },
   "1Z393O2F5g": {
     "defaultMessage": "Contactez-nous"
@@ -1967,6 +2063,9 @@
   "1krX2eFo9o": {
     "defaultMessage": "Webhook Contentful"
   },
+  "1lT931wc3f": {
+    "defaultMessage": "Mots"
+  },
   "1lU83WzoEM": {
     "defaultMessage": "Le fichier a été enregistré, mais ses modifications n’ont pas pu être répercutées dans les segments."
   },
@@ -1985,6 +2084,9 @@
   "1piQlMbA0v": {
     "defaultMessage": "Hyperlocalise lit ces fichiers et les utilise pour vérifier les consignes."
   },
+  "1qUA3TQ2aW": {
+    "defaultMessage": "Aucune dépense n’a été effectuée pendant ces dates."
+  },
   "1qmea9tlQm": {
     "defaultMessage": "Supprimer l’expérience"
   },
@@ -1993,6 +2095,9 @@
   },
   "1rDYh6A91a": {
     "defaultMessage": "Chemin"
+  },
+  "1rHVQY/CHQ": {
+    "defaultMessage": "Temps enregistré par tâche"
   },
   "1rKbsS6oj6": {
     "defaultMessage": "Réviseurs français"
@@ -2113,6 +2218,9 @@
   },
   "20xz2v3+tc": {
     "defaultMessage": "{change} par rapport à l’analyse précédente"
+  },
+  "21BTHuKjSm": {
+    "defaultMessage": "85–94 %"
   },
   "21DxEHM2/g": {
     "defaultMessage": "Ouvrir les requêtes, {count} ouvertes"
@@ -2294,6 +2402,9 @@
   "2JWP4PXKxL": {
     "defaultMessage": "Slack"
   },
+  "2Juz+958AL": {
+    "defaultMessage": "Supprimer le taux {step} de {source} vers {target}"
+  },
   "2K/SIM6E9w": {
     "defaultMessage": "Position"
   },
@@ -2341,6 +2452,9 @@
   },
   "2P3llDCJQ9": {
     "defaultMessage": "Reprenez là où vous vous êtes arrêté en dernier"
+  },
+  "2PDVG4rXQ7": {
+    "defaultMessage": "Jetons d’entrée"
   },
   "2Q9B8y1llx": {
     "defaultMessage": "Tableau"
@@ -2543,6 +2657,9 @@
   "2oVtczeNOQ": {
     "defaultMessage": "Une demande de pull est créée"
   },
+  "2oznX2lci4": {
+    "defaultMessage": "Time"
+  },
   "2p0kb15yT7": {
     "defaultMessage": "Échec de la suppression de la tâche ({status})"
   },
@@ -2608,6 +2725,9 @@
   },
   "2zhZzc+gaw": {
     "defaultMessage": "Autorisations OAuth requises"
+  },
+  "2zoLhgI6WQ": {
+    "defaultMessage": "Automatisations en cours"
   },
   "3+7H4nfe8E": {
     "defaultMessage": "Facultatif. À utiliser lorsque chaque version doit atteindre un groupe différent."
@@ -2879,6 +2999,9 @@
   "3UJV/6yCWv": {
     "defaultMessage": "Développer {status}"
   },
+  "3UK3mwksnd": {
+    "defaultMessage": "Progression"
+  },
   "3URR9qLWsH": {
     "defaultMessage": "Oui. Les agents Hyperlocalise sont intégrés à des outils tels que Slack, Teams et GitHub, afin que les équipes puissent demander du travail là où elles collaborent déjà. Les actions disponibles dépendent de l’intégration et de la configuration de l’espace de travail."
   },
@@ -2944,6 +3067,9 @@
   },
   "3cDDnXngWu": {
     "defaultMessage": "Paramètres"
+  },
+  "3cKXuel9Qg": {
+    "defaultMessage": "Non enregistré"
   },
   "3cr478PtNy": {
     "defaultMessage": "Supprimer {label}"
@@ -3044,6 +3170,9 @@
   "3nJQ/U/1eb": {
     "defaultMessage": "Dépôt"
   },
+  "3pASh86JKq": {
+    "defaultMessage": "Seuls les administrateurs peuvent modifier les tarifs."
+  },
   "3pH+V4sVcw": {
     "defaultMessage": "Conserver les copies Braze modifiées par les membres de l’équipe après le dernier push."
   },
@@ -3103,6 +3232,9 @@
   },
   "3v87yVdwpX": {
     "defaultMessage": "Téléchargement de la source"
+  },
+  "3vjWR/XxKD": {
+    "defaultMessage": "Enregistrer les tarifs"
   },
   "3vl9Ga2VYG": {
     "defaultMessage": "Hyperlab propose des tests A/B pour votre CMS et votre distribution, afin que votre équipe puisse comparer les variantes de contenu et découvrir lesquelles sont les plus performantes."
@@ -3425,6 +3557,9 @@
   "4RE0bnosRR": {
     "defaultMessage": "Title"
   },
+  "4S+r62936U": {
+    "defaultMessage": "Aucune donnée antérieure"
+  },
   "4T/AtweOC2": {
     "defaultMessage": "Filtres"
   },
@@ -3475,6 +3610,9 @@
   },
   "4YpYvVky/W": {
     "defaultMessage": "Vos modifications ont été réappliquées à l’automatisation rechargée."
+  },
+  "4Z4Ev0xSwu": {
+    "defaultMessage": "Temps estimé (minutes)"
   },
   "4aTkFyER33": {
     "defaultMessage": "Rechercher dans le texte source ou cible"
@@ -3626,6 +3764,9 @@
   "4u1PmCjhti": {
     "defaultMessage": "Vérifier"
   },
+  "4vVKnDID+V": {
+    "defaultMessage": "Création d’automatisations"
+  },
   "4vXdOuz0pQ": {
     "defaultMessage": "Copié !"
   },
@@ -3658,6 +3799,9 @@
   },
   "4yF6F+4xzc": {
     "defaultMessage": "Voir le dernier scan"
+  },
+  "4yXMx8Oi07": {
+    "defaultMessage": "La grille tarifaire de la tâche est utilisée en premier, puis celle du budget de son projet, puis celle sélectionnée ici. La première grille trouvée définit le prix de chaque langue."
   },
   "4yshvtwLy5": {
     "defaultMessage": "CTA : verbe court"
@@ -3715,6 +3859,9 @@
   },
   "520zX1ohk1": {
     "defaultMessage": "Annuler"
+  },
+  "524y5wtSzd": {
+    "defaultMessage": "Tarif"
   },
   "52PUHNXgoK": {
     "defaultMessage": "Filtrer les langues..."
@@ -3782,6 +3929,9 @@
   "5AkeE7XWLR": {
     "defaultMessage": "Branche"
   },
+  "5AnbFvcAwF": {
+    "defaultMessage": "Terminées"
+  },
   "5BOsFF/PTB": {
     "defaultMessage": "En minuscules, comme japan-checkout-cta. Votre développeur utilise ce nom."
   },
@@ -3793,6 +3943,9 @@
   },
   "5C3EksSWTF": {
     "defaultMessage": "Choisissez une connexion pour autoriser l’installation de cette application Figma."
+  },
+  "5CA5krT8sM": {
+    "defaultMessage": "Le projet entier : toutes les chaînes qu’il contient actuellement, dans une tâche ou non, sont tarifées selon la grille tarifaire du budget du projet ou celle choisie ici. Sélectionnez des tâches pour les tarifer selon leurs propres grilles."
   },
   "5CjwrQGWSz": {
     "defaultMessage": "Système"
@@ -3847,6 +4000,9 @@
   },
   "5Kkn3le6n+": {
     "defaultMessage": "Fichiers source"
+  },
+  "5L/KNEfl5D": {
+    "defaultMessage": "Choisissez une langue."
   },
   "5LQhHEkaW9": {
     "defaultMessage": "Annuler"
@@ -3938,6 +4094,9 @@
   "5UK41gXo2F": {
     "defaultMessage": "Les éditeurs de logiciels et les équipes de localisation qui souhaitent se lancer plus rapidement à l’échelle mondiale sans remplacer leurs outils existants ni sacrifier la qualité des traductions."
   },
+  "5ULYE1CQiU": {
+    "defaultMessage": "Budgets"
+  },
   "5UWcZIwCwa": {
     "defaultMessage": "Impossible d’actualiser les positions du classement."
   },
@@ -3986,6 +4145,9 @@
   "5ZZS0Al3rv": {
     "defaultMessage": "Attendez une durée, une heure ou une condition."
   },
+  "5ZayxXnoLj": {
+    "defaultMessage": "{count, plural, one {# vidéo} other {# vidéos}}"
+  },
   "5a+z7ec3fj": {
     "defaultMessage": "Voir le rapport"
   },
@@ -4021,6 +4183,9 @@
   },
   "5e/b9i22H4": {
     "defaultMessage": "Échecs : {count, number}"
+  },
+  "5e2kwLA1/H": {
+    "defaultMessage": "Enregistrer les modifications"
   },
   "5e9bzaPtZE": {
     "defaultMessage": "Afficher ou masquer le panneau des fichiers"
@@ -4082,6 +4247,9 @@
   "5jzwdCgA6N": {
     "defaultMessage": "Impossible de mettre en file d’attente la notification push Braze"
   },
+  "5lYRzKwAYq": {
+    "defaultMessage": "Nouvelle grille tarifaire"
+  },
   "5lnOyXIzKl": {
     "defaultMessage": "Demander une démo"
   },
@@ -4126,6 +4294,9 @@
   },
   "5pj50ZtP7a": {
     "defaultMessage": "Aucune analyse pour le moment. Lancez une vérification d’assurance qualité pour répertorier les problèmes de traduction."
+  },
+  "5q+QsCb5GP": {
+    "defaultMessage": "Annuler"
   },
   "5qbTrwpH1i": {
     "defaultMessage": "Mots source"
@@ -4484,6 +4655,9 @@
   "6d57osIkxk": {
     "defaultMessage": "S/O"
   },
+  "6dh6dF3EHq": {
+    "defaultMessage": "Chaînes"
+  },
   "6dq9jGfioL": {
     "defaultMessage": "Directive"
   },
@@ -4556,6 +4730,9 @@
   "6lH73749rG": {
     "defaultMessage": "File d’attente d’aujourd’hui pour ce projet."
   },
+  "6lltmCDZue": {
+    "defaultMessage": "choisie ici"
+  },
   "6mSsZi1QjK": {
     "defaultMessage": "One markdown document for localization rules, glossary notes, brand guidance, and things to avoid."
   },
@@ -4583,6 +4760,9 @@
   "6pa9eyshGx": {
     "defaultMessage": "Des questions sur la localisation, les tarifs ou votre compte ? Envoyez-nous un e-mail et nous vous répondrons dans un délai d’un jour ouvré."
   },
+  "6pyhkYjHro": {
+    "defaultMessage": "{unit} à traduire"
+  },
   "6q29k14I2n": {
     "defaultMessage": "URL"
   },
@@ -4594,6 +4774,9 @@
   },
   "6r2HnqYZDl": {
     "defaultMessage": "Regrouper les chaînes identiques."
+  },
+  "6r8cuX3FOc": {
+    "defaultMessage": "Caractères"
   },
   "6rnWouvhAd": {
     "defaultMessage": "Terminer la configuration"
@@ -4859,6 +5042,9 @@
   "7L1IE082cR": {
     "defaultMessage": "Approuver en toute confiance"
   },
+  "7Lk6kDvXtT": {
+    "defaultMessage": "Costs"
+  },
   "7M/8dl8Baw": {
     "defaultMessage": "Ce problème n’est pas disponible."
   },
@@ -4973,6 +5159,9 @@
   "7aOYNlbDse": {
     "defaultMessage": "Modifié à partir de"
   },
+  "7b3bUzw34w": {
+    "defaultMessage": "{count, plural, one {# langue} other {# langues}}"
+  },
   "7bL5m3nsOA": {
     "defaultMessage": "L’un d’entre nous a eu le privilège de voir la localisation à son meilleur."
   },
@@ -5008,6 +5197,9 @@
   },
   "7hdb/IRr/l": {
     "defaultMessage": "Sélectionner toutes les entrées visibles"
+  },
+  "7hvZqJJjAI": {
+    "defaultMessage": "Date de réalisation"
   },
   "7itDAFKmls": {
     "defaultMessage": "La création d’un espace de travail nécessite que la gestion des organisations WorkOS soit configurée."
@@ -5047,6 +5239,9 @@
   },
   "7mkm3YXe+D": {
     "defaultMessage": "Vérifier les paramètres"
+  },
+  "7nK/m58QnJ": {
+    "defaultMessage": "Semaine du {date}"
   },
   "7nMUUnudcv": {
     "defaultMessage": "Smartling"
@@ -5171,6 +5366,9 @@
   "8+43PQyB4j": {
     "defaultMessage": "Conscient du contexte à travers toutes les sources de contenu"
   },
+  "8+9j1NEhxA": {
+    "defaultMessage": "{count, plural, one {# image} other {# images}}"
+  },
   "8+q5tY0yg1": {
     "defaultMessage": "Aucune proposition ne correspond aux filtres actuels."
   },
@@ -5218,6 +5416,9 @@
   },
   "87YejAyMlf": {
     "defaultMessage": "Chargement du problème…"
+  },
+  "87egh8eq2K": {
+    "defaultMessage": "Par mot"
   },
   "87mk4HgY5S": {
     "defaultMessage": "Automatisations"
@@ -5363,8 +5564,14 @@
   "8L0EFFuXJa": {
     "defaultMessage": "{count} tâches créées"
   },
+  "8LTNP8LHac": {
+    "defaultMessage": "People"
+  },
   "8Le6L54Cs/": {
     "defaultMessage": "Plateforme d’opérations de localisation | Hyperlocalise"
+  },
+  "8M2cZz0BGF": {
+    "defaultMessage": "Approuvé"
   },
   "8MEkOXiww5": {
     "defaultMessage": "Automatisation"
@@ -5530,6 +5737,9 @@
   },
   "8cIXg7FjMX": {
     "defaultMessage": "Statut"
+  },
+  "8cjn2GRSSJ": {
+    "defaultMessage": "Ajouter une dépense"
   },
   "8csWRJDI6p": {
     "defaultMessage": "Toutes les langues locales"
@@ -5909,6 +6119,9 @@
   "9KBgHSjmwg": {
     "defaultMessage": "Dernière décision"
   },
+  "9KWpst0O1R": {
+    "defaultMessage": "Time"
+  },
   "9KmYVi7cCO": {
     "defaultMessage": "Pousser la source vers Hyperlocalise"
   },
@@ -5920,6 +6133,9 @@
   },
   "9LcPjakBL/": {
     "defaultMessage": "2 intégrations"
+  },
+  "9LhH/qmimS": {
+    "defaultMessage": "{card} · prix du {date}"
   },
   "9M6xjAhsYc": {
     "defaultMessage": "Consultez chaque modèle ou effacez la recherche."
@@ -5935,6 +6151,9 @@
   },
   "9OS3Rz0crI": {
     "defaultMessage": "Acheminer la revue"
+  },
+  "9OTiPECmGp": {
+    "defaultMessage": "Le travail facturé à l’heure pour une tâche sans estimation de durée n’est pas inclus dans le coût."
   },
   "9PKFI8itjo": {
     "defaultMessage": "Impossible de localiser l’image. Vos instructions sont conservées ; veuillez réessayer."
@@ -6004,6 +6223,9 @@
   },
   "9Z4RmfuZsn": {
     "defaultMessage": "Ce workflow a été modifié ailleurs. Rechargez la page pour obtenir la dernière version."
+  },
+  "9ZWYVTYF71": {
+    "defaultMessage": "Ouvrir dans Rapports"
   },
   "9ZuihAiXHq": {
     "defaultMessage": "Description"
@@ -6098,6 +6320,9 @@
   "9ia5fOVQ3G": {
     "defaultMessage": "Vous avez de nombreux textes courts et souhaitez obtenir rapidement des brouillons."
   },
+  "9jFpUvfD8P": {
+    "defaultMessage": "Tarification de l’étape {step}"
+  },
   "9jLtl6PUKI": {
     "defaultMessage": "Aucune langue définie"
   },
@@ -6136,6 +6361,9 @@
   },
   "9na05hKYYk": {
     "defaultMessage": "Nommez votre automatisation"
+  },
+  "9omEGD7x49": {
+    "defaultMessage": "Personnes ou exécutions"
   },
   "9opg+oEQbk": {
     "defaultMessage": "Approbations et statut"
@@ -6253,6 +6481,9 @@
   },
   "A0qlCRVH2r": {
     "defaultMessage": "Projects"
+  },
+  "A122otHF9H": {
+    "defaultMessage": "{card} · {sources}"
   },
   "A1fjnptbCX": {
     "defaultMessage": "Demandes Slack"
@@ -6416,6 +6647,9 @@
   "AJII/bEV+O": {
     "defaultMessage": "Échec de l’ajout aux requêtes"
   },
+  "AJN5fd5AW+": {
+    "defaultMessage": "Temps enregistré"
+  },
   "AJbIBJ8rQ5": {
     "defaultMessage": "À examiner ({count})"
   },
@@ -6442,6 +6676,9 @@
   },
   "ALRaijWLiy": {
     "defaultMessage": "Réinitialisation..."
+  },
+  "ALSsJ0tpm6": {
+    "defaultMessage": "Total"
   },
   "AM12LbMoJG": {
     "defaultMessage": "Impossible d’exécuter l’automatisation pour les fichiers sélectionnés"
@@ -6475,6 +6712,9 @@
   },
   "AR/dTo8a7G": {
     "defaultMessage": "Modifier le code"
+  },
+  "AR6134JvR2": {
+    "defaultMessage": "AI"
   },
   "AR7fkvL1P9": {
     "defaultMessage": "Espace de travail par défaut"
@@ -6533,6 +6773,9 @@
   "AXYd5YvGYL": {
     "defaultMessage": "Tourfinder"
   },
+  "AYIgoL7Tqr": {
+    "defaultMessage": "Regrouper l’utilisation de l’IA par"
+  },
   "AYfVNcVbT6": {
     "defaultMessage": "Quand"
   },
@@ -6565,6 +6808,9 @@
   },
   "AdBFuupWOp": {
     "defaultMessage": "Progress"
+  },
+  "AdNDYojW5A": {
+    "defaultMessage": "Heures"
   },
   "AdQUjv5py7": {
     "defaultMessage": "Plan actuel"
@@ -6670,6 +6916,9 @@
   },
   "AyLloycARU": {
     "defaultMessage": "Save"
+  },
+  "AyOOZuZfFU": {
+    "defaultMessage": "Une carte tarifaire portant ce nom existe déjà."
   },
   "AyY17qkMp3": {
     "defaultMessage": "Clés API"
@@ -6793,6 +7042,9 @@
   },
   "BAB3xRzd3f": {
     "defaultMessage": "a créé une requête"
+  },
+  "BB3vZ37Hlg": {
+    "defaultMessage": "Remarque"
   },
   "BBEyVbRR3L": {
     "defaultMessage": "Impossible de demander l’e-mail du rapport."
@@ -7030,6 +7282,9 @@
   },
   "BeBJ6Gf6JS": {
     "defaultMessage": "Alerte sur la dérive après publication"
+  },
+  "BeHj7U26Ab": {
+    "defaultMessage": "Aucune donnée"
   },
   "BeXUx2ytXa": {
     "defaultMessage": "Problèmes"
@@ -7397,6 +7652,9 @@
   "CKG9S/rkQM": {
     "defaultMessage": "Jour de la semaine du planning"
   },
+  "CKJR347rd7": {
+    "defaultMessage": "Aucune grille tarifaire pour le moment"
+  },
   "CKYDTAvT+Q": {
     "defaultMessage": "Suivez l’état de santé des paramètres régionaux, passez en revue la couverture et l’historique des évaluations en un seul endroit afin que les chefs de projet de localisation et les équipes d’ingénierie puissent voir ce qui est prêt à être livré."
   },
@@ -7405,6 +7663,9 @@
   },
   "CLV3Q206dT": {
     "defaultMessage": "Choisissez les marchés utilisés pour la recherche de ce domaine."
+  },
+  "CLpCQ8Q6NT": {
+    "defaultMessage": "{change} {count, plural, one {point} other {points}} par rapport à {previous}"
   },
   "CNDMCn/RSf": {
     "defaultMessage": "Anglais"
@@ -7454,6 +7715,9 @@
   "CR4EdyZSZI": {
     "defaultMessage": "Qui est éligible ?"
   },
+  "CRO3i+O935": {
+    "defaultMessage": "100 %"
+  },
   "CRRbrB6ehg": {
     "defaultMessage": "Portes d’évaluation"
   },
@@ -7465,6 +7729,9 @@
   },
   "CSG8FIAxsD": {
     "defaultMessage": "Delete"
+  },
+  "CSGDCZep86": {
+    "defaultMessage": "Automatisations"
   },
   "CSpuSDILYV": {
     "defaultMessage": "Comment les directives fonctionnent-elles avec Content Studio ?"
@@ -7480,6 +7747,9 @@
   },
   "CTRL6DN6OP": {
     "defaultMessage": "Chaînes analysées"
+  },
+  "CTYBUBZ8WJ": {
+    "defaultMessage": "Certains travaux n’ont pas de tarif ou d’estimation de durée, le coût est donc trop bas."
   },
   "CUMVPg+yCv": {
     "defaultMessage": "Comment ça marche"
@@ -7568,6 +7838,9 @@
   "CgTkZ3AhIW": {
     "defaultMessage": "Indépendant du TMS"
   },
+  "CgZg6J6M/Y": {
+    "defaultMessage": "Modifiez le jour, l’heure ou la note, ou supprimez l’entrée."
+  },
   "Cgi0SFaOp5": {
     "defaultMessage": "Impossible de charger les problèmes."
   },
@@ -7582,6 +7855,9 @@
   },
   "Cidmm9AU9i": {
     "defaultMessage": "Joindre des glossaires, des briefs et l’historique"
+  },
+  "CikP+wjwXP": {
+    "defaultMessage": "Saisie de temps enregistrée."
   },
   "Cil9vaybzd": {
     "defaultMessage": "Canva demande l’accès pour localiser des designs via une connexion à un espace de travail Hyperlocalise."
@@ -7841,6 +8117,9 @@
   "D6zHBNwwDM": {
     "defaultMessage": "Langue régionale"
   },
+  "D7GsIrrRnU": {
+    "defaultMessage": "{unit} terminés à ces dates, par tranche de correspondance, chaque fois qu’une chaîne a été terminée."
+  },
   "D7NvZBBM/6": {
     "defaultMessage": "En cours"
   },
@@ -7901,6 +8180,9 @@
   "DGx/LlMkDv": {
     "defaultMessage": "Ajouter des consignes de traduction"
   },
+  "DH/XelozZt": {
+    "defaultMessage": "Facturé"
+  },
   "DHd5WNIV7o": {
     "defaultMessage": "Note de version (facultatif)"
   },
@@ -7933,6 +8215,9 @@
   },
   "DJGr6J4yAS": {
     "defaultMessage": "Français (France)"
+  },
+  "DJlDyykpu4": {
+    "defaultMessage": "Par modèle"
   },
   "DLAlfojpxi": {
     "defaultMessage": "Activer"
@@ -8222,6 +8507,9 @@
   "DuOVHqu/z3": {
     "defaultMessage": "Détails"
   },
+  "DuSuCv67tO": {
+    "defaultMessage": "{count, plural, one {# exécution} other {# exécutions}}"
+  },
   "DukW+nZE9G": {
     "defaultMessage": "{count, plural, one {# sélectionnée} other {# sélectionnées}}"
   },
@@ -8254,6 +8542,9 @@
   },
   "DxmswO0BaI": {
     "defaultMessage": "Enregistrer la connexion"
+  },
+  "DyWBONsPlm": {
+    "defaultMessage": "Pondéré"
   },
   "Dz+BYN4QJV": {
     "defaultMessage": "Supprimer l’outil de dépôt GitHub"
@@ -8324,6 +8615,9 @@
   "E316KXeVHB": {
     "defaultMessage": "Règles de ton, de terminologie et de mise en forme pour les traducteurs et les agents. Rédigez ceci au format Markdown."
   },
+  "E3a9TrP1uE": {
+    "defaultMessage": "Dépenses"
+  },
   "E451cDD6K/": {
     "defaultMessage": "Intelligence"
   },
@@ -8374,6 +8668,9 @@
   },
   "EBgNz2ZSu6": {
     "defaultMessage": "Voir les chaînes"
+  },
+  "EBmQpNhtBF": {
+    "defaultMessage": "{count, plural, one {# forfait concerne une tâche entière, pas une langue, et est donc exclu lorsqu’une langue est sélectionnée.} other {# forfaits concernent des tâches entières, pas des langues, et sont donc exclus lorsqu’une langue est sélectionnée.}}"
   },
   "EC/XnP73At": {
     "defaultMessage": "Hyperlocalise s’intègre au workflow de développement que votre équipe utilise déjà — avec GitHub Actions et la synchronisation TMS intégrées."
@@ -8531,6 +8828,12 @@
   "ERuqzW99ts": {
     "defaultMessage": "Actuel"
   },
+  "ERxDR4qEWS": {
+    "defaultMessage": "budget"
+  },
+  "ES1w+nf4mo": {
+    "defaultMessage": "Supprimer {task}"
+  },
   "ESCNKuncv0": {
     "defaultMessage": "Détail du visiteur"
   },
@@ -8573,6 +8876,9 @@
   "EXWlp7uxHf": {
     "defaultMessage": "Noms de marque"
   },
+  "EXZ7+kRFEu": {
+    "defaultMessage": "Cette étape est facturée au tarif fixe de {amount} pour l’ensemble de la tâche, montant inclus dans le total."
+  },
   "EY7508Falv": {
     "defaultMessage": "Enregistrement…"
   },
@@ -8612,6 +8918,9 @@
   "EbEk2WHyNY": {
     "defaultMessage": "Arrêter l’écoute"
   },
+  "EbGnMEBPzr": {
+    "defaultMessage": "Par tâche"
+  },
   "EbI5T06YK7": {
     "defaultMessage": "Merci de fournir le texte à traduire."
   },
@@ -8644,6 +8953,9 @@
   },
   "EengjCh/Fw": {
     "defaultMessage": "Ce type de fichier n’est pas accepté."
+  },
+  "EerPW4bY0Q": {
+    "defaultMessage": "{count, plural, one {Sur # tâche} other {Sur # tâches}}"
   },
   "EfNE1Pwz+v": {
     "defaultMessage": "Langues non terminées : {locales}"
@@ -8734,6 +9046,9 @@
   },
   "Esr6tXDJJe": {
     "defaultMessage": "Aucun problème pour cette chaîne"
+  },
+  "Et/MF505z2": {
+    "defaultMessage": "Budget dépassé"
   },
   "EtJmzwZSzn": {
     "defaultMessage": "Fonctionnalité d’IA"
@@ -8987,6 +9302,9 @@
   "FJ2ymqjEF1": {
     "defaultMessage": "Autre chose"
   },
+  "FJBWKJtCOV": {
+    "defaultMessage": "Origine"
+  },
   "FJYljr7sSS": {
     "defaultMessage": "visuel"
   },
@@ -9014,6 +9332,9 @@
   "FLl4UNTozx": {
     "defaultMessage": "Quel est le contexte de"
   },
+  "FLtvo0/uV8": {
+    "defaultMessage": "IA pour les tâches"
+  },
   "FLx49NPlCh": {
     "defaultMessage": "Occurrence réaffichée"
   },
@@ -9031,6 +9352,9 @@
   },
   "FNMpDCUVel": {
     "defaultMessage": "p. ex. CLI local"
+  },
+  "FNPiHoJg9V": {
+    "defaultMessage": "{step} étape · selon la provenance du texte"
   },
   "FNTVTGlcTd": {
     "defaultMessage": "{triggerSource} · en cours"
@@ -9145,6 +9469,9 @@
   },
   "FdB4nFTP4P": {
     "defaultMessage": "File d’attente de révision"
+  },
+  "FdGIEFoVOm": {
+    "defaultMessage": "Le temps ne peut être saisi que pour les tâches créées dans Hyperlocalise."
   },
   "FdmB8M+qZc": {
     "defaultMessage": "Supprimer l’entrée {index}"
@@ -9347,8 +9674,14 @@
   "G3IbmWT2r1": {
     "defaultMessage": "Cliquez pour traduire"
   },
+  "G3ZipyCtAH": {
+    "defaultMessage": "Choisissez un projet"
+  },
   "G3hsgHI8K5": {
     "defaultMessage": "Publiez une fois. Soyez trouvé partout."
+  },
+  "G483RkGMWe": {
+    "defaultMessage": "Étape"
   },
   "G4VyeiT+RV": {
     "defaultMessage": "Examiné"
@@ -9382,6 +9715,9 @@
   },
   "G8NgjmMOFE": {
     "defaultMessage": "Ensuite, exécutez {command} pour vous authentifier."
+  },
+  "G8T1FYb+cF": {
+    "defaultMessage": "Temps enregistré"
   },
   "G8YOSjr1Lc": {
     "defaultMessage": "Oui. MCP permet aux assistants IA compatibles d’accéder aux fonctionnalités de Hyperlocalise, intégrant ainsi les opérations de contenu à votre espace de travail IA existant."
@@ -9560,6 +9896,9 @@
   "GYwOqW2z7j": {
     "defaultMessage": "Exporter"
   },
+  "GZKnztd4Eu": {
+    "defaultMessage": "{count, plural, one {# tâche} other {# tâches}}"
+  },
   "GZPe87SKjx": {
     "defaultMessage": "Iris, le moteur de localisation par IA"
   },
@@ -9634,6 +9973,9 @@
   },
   "GgcJD1DYC4": {
     "defaultMessage": "Encadré"
+  },
+  "GgeiMXRkUs": {
+    "defaultMessage": "GitLab"
   },
   "GgnHOabvof": {
     "defaultMessage": "Envoyer une réponse"
@@ -9857,6 +10199,9 @@
   "H1Mne7VTqn": {
     "defaultMessage": "Donnez aux workflows de ce projet le contexte linguistique, commercial et produit dont ils ont besoin."
   },
+  "H1SZ9MK9eU": {
+    "defaultMessage": "Approuvé"
+  },
   "H1kAb9fqeL": {
     "defaultMessage": "Ignorer"
   },
@@ -9866,11 +10211,17 @@
   "H2MT8I4Gbc": {
     "defaultMessage": "Brouillon de traduction"
   },
+  "H2mYTcpmxu": {
+    "defaultMessage": "Saisissez une durée comprise entre 1 minute et 24 heures."
+  },
   "H2zytAspiB": {
     "defaultMessage": "A ajouté un commentaire"
   },
   "H3PhSgBYwu": {
     "defaultMessage": "Aucun contexte n’est associé à cette chaîne dans le fichier source."
+  },
+  "H3ZP4+H6tz": {
+    "defaultMessage": "Heure de journalisation"
   },
   "H4VFBPQjwj": {
     "defaultMessage": "Vue d’ensemble"
@@ -9965,6 +10316,12 @@
   "HGHGAGahop": {
     "defaultMessage": "Rôle de l’équipe mis à jour"
   },
+  "HGhsIR52do": {
+    "defaultMessage": "Coûts par projet"
+  },
+  "HHF7adln4z": {
+    "defaultMessage": "Grille tarifaire"
+  },
   "HHg8t7sqUf": {
     "defaultMessage": "Une erreur s’est produite lors de la finalisation de la connexion."
   },
@@ -10007,6 +10364,9 @@
   "HMCvwDzSUl": {
     "defaultMessage": "Suivre les décisions entre les parties prenantes"
   },
+  "HN+oNJx2Mo": {
+    "defaultMessage": "Aucun projet n’a encore de budget."
+  },
   "HNW71S2eWf": {
     "defaultMessage": "Locale readiness heatmap"
   },
@@ -10034,6 +10394,9 @@
   "HQcx54morj": {
     "defaultMessage": "Projet supprimé"
   },
+  "HR8aWYGkGj": {
+    "defaultMessage": "Définir un budget"
+  },
   "HS6xLp94fT": {
     "defaultMessage": "Téléversement de la source"
   },
@@ -10045,6 +10408,9 @@
   },
   "HTsdqd2HP4": {
     "defaultMessage": "Commencez avec un workflow sélectionné. Les modèles préremplissent le formulaire de création avec des instructions, des déclencheurs et des outils."
+  },
+  "HU7m4FhTH/": {
+    "defaultMessage": "Estimation des coûts"
   },
   "HV+orx8sr6": {
     "defaultMessage": "Détecter les modifications des chaînes et traduire automatiquement"
@@ -10072,6 +10438,9 @@
   },
   "HYHV9OorEn": {
     "defaultMessage": "Envoyez des e-mails transactionnels localisés avec Resend."
+  },
+  "HYnuNjkGYZ": {
+    "defaultMessage": "Les bandes indiquent dans quelle mesure la mémoire de traduction couvrait le texte à l’arrivée du travail."
   },
   "HZT9XXFcQC": {
     "defaultMessage": "Utiliser l'ensemble de règles"
@@ -10142,6 +10511,12 @@
   "Hf4qHC8Sxe": {
     "defaultMessage": "{count, plural, one {# avertissement} other {# avertissements}}"
   },
+  "HfKaBbYViW": {
+    "defaultMessage": "Restant"
+  },
+  "HhB3zV2KR/": {
+    "defaultMessage": "Chat web"
+  },
   "HiDbEs7qe/": {
     "defaultMessage": "Annuler"
   },
@@ -10175,6 +10550,9 @@
   "HmIchM6Zb8": {
     "defaultMessage": "Contexte, emplacement et signification du produit pour cet élément visuel, déduits par l’IA."
   },
+  "HmM5vdsqD+": {
+    "defaultMessage": "Close"
+  },
   "HmXZYnVvj0": {
     "defaultMessage": "Ces étapes effectuent de véritables appels lors de cette exécution de test. Les actions qu’elles effectuent ont réellement lieu et ne peuvent pas être annulées."
   },
@@ -10186,6 +10564,9 @@
   },
   "Hmzt+zT6qT": {
     "defaultMessage": "persan (Iran)"
+  },
+  "Hn0nYW2Eoc": {
+    "defaultMessage": "Tarifs des tâches et du budget · traduction et révision"
   },
   "HnLFJWChXa": {
     "defaultMessage": "Lire l’aperçu du workflow"
@@ -10216,6 +10597,9 @@
   },
   "Hq4FCIyo0o": {
     "defaultMessage": "Annuler"
+  },
+  "HqGUF6r5uP": {
+    "defaultMessage": "Mémoire de traduction"
   },
   "HqRsGE2RWy": {
     "defaultMessage": "Audiences"
@@ -10415,6 +10799,9 @@
   "IATCAL7GZ3": {
     "defaultMessage": "WorkOS n’est pas configuré, la Search Console ne peut donc pas se connecter via Pipes."
   },
+  "IBAwfyPf94": {
+    "defaultMessage": "{unit} à traduire"
+  },
   "IBYpVWNrJA": {
     "defaultMessage": "Propriétés du document"
   },
@@ -10459,6 +10846,9 @@
   },
   "IHSPoPMGG7": {
     "defaultMessage": "Changement d’attributaire"
+  },
+  "IHSbq/4pez": {
+    "defaultMessage": "Time"
   },
   "IHytImbzyr": {
     "defaultMessage": "les paramètres"
@@ -10508,6 +10898,9 @@
   "IQiUadYsfM": {
     "defaultMessage": "Projets que vous avez ouverts récemment, suivis des projets actifs de l’espace de travail."
   },
+  "IR5pE8HjYQ": {
+    "defaultMessage": "Application"
+  },
   "IROF4KmxXQ": {
     "defaultMessage": "Estimation incomplète"
   },
@@ -10552,6 +10945,12 @@
   },
   "IY3g7G42ej": {
     "defaultMessage": "Essayez un autre titre, processus de paiement ou offre sur un marché. Conservez la version que les gens préfèrent."
+  },
+  "IZNNOIJHQD": {
+    "defaultMessage": "Rechercher des tâches"
+  },
+  "IZpDsIW2Wt": {
+    "defaultMessage": "Tarif (USD)"
   },
   "IaGMAEBgFR": {
     "defaultMessage": "Les PDF relatifs à la voix de marque et aux allégations restent dans Google Drive. Les agents citent la clause lorsqu’ils signalent un brouillon."
@@ -10702,6 +11101,9 @@
   },
   "IpQ4vzh2L9": {
     "defaultMessage": "Drapeaux"
+  },
+  "IpZ9FS/utY": {
+    "defaultMessage": "Économisé grâce à la mémoire"
   },
   "IqLI+2o8dz": {
     "defaultMessage": "Soutenu par"
@@ -10970,6 +11372,9 @@
   "JKZvTllRbs": {
     "defaultMessage": "Problème"
   },
+  "JKl1MjPESe": {
+    "defaultMessage": "Certains travaux n’ont pas de tarif ni d’estimation de durée, leur coût est donc trop bas."
+  },
   "JKmR2EOv2K": {
     "defaultMessage": "Modèles"
   },
@@ -11119,6 +11524,9 @@
   },
   "JcGQchl/ia": {
     "defaultMessage": "Espace de travail Slack"
+  },
+  "JdvRsJUXl6": {
+    "defaultMessage": "Activité"
   },
   "Jea+rLOA7K": {
     "defaultMessage": "Aucun fichier source n’est associé à cette tâche."
@@ -11288,6 +11696,9 @@
   "JxY8wqGfw1": {
     "defaultMessage": "Clé API"
   },
+  "JyAN3jZyUj": {
+    "defaultMessage": "Tarification des tâches par étape"
+  },
   "JzWvMRP2Wi": {
     "defaultMessage": "Effacer"
   },
@@ -11302,6 +11713,9 @@
   },
   "K/Rmat/d9W": {
     "defaultMessage": "Impossible de charger ou d’enregistrer les identifiants. Réessayez."
+  },
+  "K/S7PHOorw": {
+    "defaultMessage": "caractères, espaces compris"
   },
   "K/SUM2c9Dk": {
     "defaultMessage": "Solutions de domaines"
@@ -11375,8 +11789,14 @@
   "KAOz7du98U": {
     "defaultMessage": "Donnez à votre automatisation un nom clair afin que votre équipe sache d’un coup d’œil ce qu’elle fait."
   },
+  "KAZ6Dk0/c8": {
+    "defaultMessage": "Payé à"
+  },
   "KAvyqkZVul": {
     "defaultMessage": "Ajouter une colonne de workflow spécifique au projet dans Requêtes."
+  },
+  "KBxDq+vu/v": {
+    "defaultMessage": "Par caractère"
   },
   "KC1mEy5GJx": {
     "defaultMessage": "Uploaded"
@@ -11509,6 +11929,9 @@
   },
   "KS/H7AoEPP": {
     "defaultMessage": "Indicateurs"
+  },
+  "KSOza/lu/U": {
+    "defaultMessage": "Définir un budget"
   },
   "KSyo1/QjAo": {
     "defaultMessage": "Essayez de vous reconnecter ou contactez le support si cela continue."
@@ -11807,6 +12230,9 @@
   "L7iavACo3u": {
     "defaultMessage": "Prochaine exécution planifiée : <time>{nextRunAt}</time>"
   },
+  "L7mkKGAfM9": {
+    "defaultMessage": "Modifier le temps enregistré le {day}"
+  },
   "L80pAvj6yJ": {
     "defaultMessage": "Impossible de charger les fichiers de tâche"
   },
@@ -11888,6 +12314,9 @@
   "LGF0oZcJpk": {
     "defaultMessage": "Loading board..."
   },
+  "LGF7eaOQOM": {
+    "defaultMessage": "Plus de 80 %"
+  },
   "LGsstatwcF": {
     "defaultMessage": "Pro · 12 k chaînes restantes"
   },
@@ -11935,6 +12364,12 @@
   },
   "LMW/LqnbFb": {
     "defaultMessage": "Erreur dans la source"
+  },
+  "LMZ8bk3MgG": {
+    "defaultMessage": "Flux de travail : {step}"
+  },
+  "LN9F71LX3/": {
+    "defaultMessage": "Forfait fixe"
   },
   "LNUnZ4sgEn": {
     "defaultMessage": "Historique des importations et exportations"
@@ -11989,6 +12424,9 @@
   },
   "LSs2GWeMba": {
     "defaultMessage": "Résultats Google en direct dans {market}. Votre domaine est mis en évidence lorsqu’il apparaît."
+  },
+  "LStr0RUzNf": {
+    "defaultMessage": "Répétition"
   },
   "LThxvPehnJ": {
     "defaultMessage": "Ouvrir les requêtes"
@@ -12131,6 +12569,12 @@
   "Lmup4mp1Uh": {
     "defaultMessage": "Fonctionnalités d’IA"
   },
+  "Lmv9PfPFW0": {
+    "defaultMessage": "De"
+  },
+  "Ln7uhbB78F": {
+    "defaultMessage": "Tâche terminée"
+  },
   "Lnk8DKi9bA": {
     "defaultMessage": "Indicateurs d’expérimentation et de configuration associés à votre espace de travail"
   },
@@ -12172,6 +12616,9 @@
   },
   "LskMKNMd3j": {
     "defaultMessage": "Aucun projet TMS trouvé"
+  },
+  "Lt16Kw/AJE": {
+    "defaultMessage": "Étape {step}"
   },
   "Lti2GaN1c6": {
     "defaultMessage": "SOURCE"
@@ -12293,6 +12740,12 @@
   "M3bbV5wmi2": {
     "defaultMessage": "Gérer l’accès sur GitHub"
   },
+  "M3xdpXieqW": {
+    "defaultMessage": "Total"
+  },
+  "M40zw/nsoU": {
+    "defaultMessage": "Ce rapport n’a pas pu être chargé."
+  },
   "M4B6W56NTK": {
     "defaultMessage": "Libellé"
   },
@@ -12389,6 +12842,9 @@
   "MDRyeVzjZ2": {
     "defaultMessage": "Rapports"
   },
+  "MDlLc8yxwW": {
+    "defaultMessage": "Temps enregistré sur cette tâche"
+  },
   "MF241rY4nN": {
     "defaultMessage": "Méta-description manquante sur /features (FR)"
   },
@@ -12470,6 +12926,9 @@
   "MNV3NDchKr": {
     "defaultMessage": "Ajouter des photos ou des fichiers"
   },
+  "MNoHFshFuW": {
+    "defaultMessage": "Dans les limites du budget"
+  },
   "MOBnxmS8ik": {
     "defaultMessage": "Voir tous les forfaits"
   },
@@ -12536,6 +12995,9 @@
   "MUcqH6QBF5": {
     "defaultMessage": "Modèles inclus"
   },
+  "MV67KSe34a": {
+    "defaultMessage": "Saisissez un montant en dollars américains, par exemple 250."
+  },
   "MVijhDEjv/": {
     "defaultMessage": "Remplacement du coût humain (USD)"
   },
@@ -12556,6 +13018,9 @@
   },
   "MYDqLAmTSX": {
     "defaultMessage": "Retour aux résultats"
+  },
+  "MYndkwv0uy": {
+    "defaultMessage": "None"
   },
   "MZ5aQR65ew": {
     "defaultMessage": "Parler aux ventes"
@@ -12625,6 +13090,9 @@
   },
   "MjeUyFbT8y": {
     "defaultMessage": "Bibliothèque · Conformité · 18 fichiers"
+  },
+  "MjtckoPZCo": {
+    "defaultMessage": "Tarification de la tâche"
   },
   "Mk8D3Ht2wh": {
     "defaultMessage": "Libellé du bouton de paiement trop long · checkout.json"
@@ -12739,6 +13207,9 @@
   },
   "MvleTlgom0": {
     "defaultMessage": "Intégrations associées"
+  },
+  "MvmRtuuYu/": {
+    "defaultMessage": "Aucun rapport n’est encore disponible pour cette étape de la tâche."
   },
   "MwOEdmQegm": {
     "defaultMessage": "La localisation commence dans les outils que les équipes utilisent déjà"
@@ -12877,6 +13348,9 @@
   },
   "NAidKbB0vi": {
     "defaultMessage": "Notifications"
+  },
+  "NArjGoa2gi": {
+    "defaultMessage": "Aucune : la carte du budget du projet"
   },
   "NB0UTxsGrq": {
     "defaultMessage": "Statut"
@@ -13024,6 +13498,9 @@
   },
   "NUXNiXqQOj": {
     "defaultMessage": "Jetons d’entrée"
+  },
+  "NUblgEq2S7": {
+    "defaultMessage": "API"
   },
   "NVCqz7i9kK": {
     "defaultMessage": "Ajouter une sortie"
@@ -13337,6 +13814,9 @@
   "O3w0wyu0VQ": {
     "defaultMessage": "Impossible de charger les conversations."
   },
+  "O485JMLkNO": {
+    "defaultMessage": "{count, plural, one {# chaîne n’a pas pu être comptabilisée ; elle n’est donc pas facturée.} other {# chaînes n’ont pas pu être comptabilisées ; elles ne sont donc pas facturées.}}"
+  },
   "O49fIaNAUN": {
     "defaultMessage": "Plateforme de localisation de produit | Hyperlocalise"
   },
@@ -13390,6 +13870,12 @@
   },
   "ODA33nKLhj": {
     "defaultMessage": "Lire une valeur typée dans un objet ou un tableau à l’aide d’un chemin sécurisé."
+  },
+  "ODK5t+x2fY": {
+    "defaultMessage": "Nom"
+  },
+  "ODLGR9d3/S": {
+    "defaultMessage": "Budget"
   },
   "ODRuwyxRYT": {
     "defaultMessage": "Ouvrir l’aperçu de la capture d’écran"
@@ -13688,6 +14174,9 @@
   "OrpMTG5mZS": {
     "defaultMessage": "Aucun texte détecté dans cette image."
   },
+  "OrrrzJPB4V": {
+    "defaultMessage": "Temps passé à chaque étape"
+  },
   "OsEkNLI6gz": {
     "defaultMessage": "Enregistrement trouvé. La recherche sera accessible une fois la vérification terminée."
   },
@@ -13904,6 +14393,9 @@
   "PF5J5zLlad": {
     "defaultMessage": "Impossible de charger les requêtes."
   },
+  "PFGlpcv7Q5": {
+    "defaultMessage": "Ajouter un tarif"
+  },
   "PFZxqLi3PC": {
     "defaultMessage": "Supprimer"
   },
@@ -13912,6 +14404,9 @@
   },
   "PG2jivJB3X": {
     "defaultMessage": "Déployez-vous sur davantage de marchés sans agrandir votre équipe"
+  },
+  "PGHBaJsXHq": {
+    "defaultMessage": "Minutes"
   },
   "PHMdvgtkrp": {
     "defaultMessage": "Enabled"
@@ -14059,6 +14554,9 @@
   },
   "PapSWiA4OI": {
     "defaultMessage": "Progression du chargement..."
+  },
+  "PatbUgdWQn": {
+    "defaultMessage": "{count, plural, one {# personne} other {# personnes}}"
   },
   "Pb5w1LHor2": {
     "defaultMessage": "Une vérification plus attentive"
@@ -14468,6 +14966,9 @@
   "QONRkj5o8h": {
     "defaultMessage": "Titre 3"
   },
+  "QPwbASMJqd": {
+    "defaultMessage": "Heure de journalisation"
+  },
   "QR/HxiItgI": {
     "defaultMessage": "Base terminologique"
   },
@@ -14525,11 +15026,17 @@
   "QWitM4s7rG": {
     "defaultMessage": "Devant {ahead, plural, one {# autre audit public} other {# autres audits publics}}"
   },
+  "QXD+22ZDb1": {
+    "defaultMessage": "Tarification enregistrée."
+  },
   "QYO84wfpXR": {
     "defaultMessage": "Utilisez un seul déclencheur dans chaque workflow."
   },
   "QYOU/SSUe4": {
     "defaultMessage": "28 derniers jours"
+  },
+  "QZCevy1gP1": {
+    "defaultMessage": "Total"
   },
   "QZITZRdJzR": {
     "defaultMessage": "Qualité"
@@ -14681,6 +15188,9 @@
   "Qn/UGdy2iq": {
     "defaultMessage": "Sélectionner"
   },
+  "Qn3K4+z1cy": {
+    "defaultMessage": "95–99 %"
+  },
   "Qn80+iLAtK": {
     "defaultMessage": "{value}% de l’image originale"
   },
@@ -14692,6 +15202,9 @@
   },
   "Qnl5usEJ9F": {
     "defaultMessage": "Insérer"
+  },
+  "Qo+4S7AuZj": {
+    "defaultMessage": "Annuler"
   },
   "QoBU315wiz": {
     "defaultMessage": "Violation du glossaire"
@@ -14707,6 +15220,9 @@
   },
   "QpVjJkSa/W": {
     "defaultMessage": "a révoqué une invitation de membre"
+  },
+  "QpdOZpNasy": {
+    "defaultMessage": "Appels"
   },
   "QpmZurrWHD": {
     "defaultMessage": "GitHub"
@@ -14731,6 +15247,9 @@
   },
   "QrUlBs3ARV": {
     "defaultMessage": "Aucune valeur"
+  },
+  "QrtyL5iy/N": {
+    "defaultMessage": "Jetons selon l’endroit où l’IA a été appelée. Inclut les appels effectués avec votre propre clé fournisseur."
   },
   "Qrwlw6Dfd/": {
     "defaultMessage": "Révision et approbation"
@@ -14828,6 +15347,9 @@
   "R4pAZFit9e": {
     "defaultMessage": "Sections du rapport"
   },
+  "R5AurDxCCm": {
+    "defaultMessage": "Gérer les tarifs"
+  },
   "R66KfvDVs+": {
     "defaultMessage": "Chargement de l’historique"
   },
@@ -14837,14 +15359,26 @@
   "R6n/KCAp4a": {
     "defaultMessage": "Impossible de mettre à jour les personnes assignées"
   },
+  "R6n2logETh": {
+    "defaultMessage": "Grille tarifaire"
+  },
   "R7vhxRuwOx": {
     "defaultMessage": "Planifié"
   },
   "R8S6VU1Upj": {
     "defaultMessage": "{count, plural, one {# chaîne} other {# chaînes}}"
   },
+  "R93/hG2PQc": {
+    "defaultMessage": "Saisissez chaque taux en dollars américains, par exemple 0,12."
+  },
+  "R9KGmh3yua": {
+    "defaultMessage": "Coût estimé"
+  },
   "R9ah9+0AUl": {
     "defaultMessage": "Smartling"
+  },
+  "RASl2I0Pxg": {
+    "defaultMessage": "Travail commencé"
   },
   "RAjERxjtJr": {
     "defaultMessage": "Les modifications restent dans cet espace de travail jusqu’à ce que vous les génériez. Générez-les avant de quitter pour les appliquer."
@@ -14920,6 +15454,9 @@
   },
   "RLoOYF9XsY": {
     "defaultMessage": "Affinez la voix. Faites en sorte que chaque mot soit parfaitement adapté."
+  },
+  "RMcRBqmFdi": {
+    "defaultMessage": "Gérer les tarifs"
   },
   "RMhxTkKsf0": {
     "defaultMessage": "Gérer la facturation"
@@ -15046,6 +15583,9 @@
   },
   "Ra7PJXU8aK": {
     "defaultMessage": "Accès refusé"
+  },
+  "Rb4oe0xPau": {
+    "defaultMessage": "Rapport"
   },
   "RbEKTU1lMo": {
     "defaultMessage": "Actions sur la chaîne de texte"
@@ -15176,6 +15716,9 @@
   "RqJFnFdbhG": {
     "defaultMessage": "Remove this Ahrefs connection from automations before deleting it."
   },
+  "RqR/dOB4Ym": {
+    "defaultMessage": "À venir"
+  },
   "RrEtMWT3+n": {
     "defaultMessage": "Appel à l’action"
   },
@@ -15257,6 +15800,9 @@
   "RyWMmOUI3f": {
     "defaultMessage": "example.com"
   },
+  "RyeyBYrwhA": {
+    "defaultMessage": "Révision"
+  },
   "S+TiK8YOJV": {
     "defaultMessage": "Contrôles QA terminés avec {count, plural, one {# anomalie} other {# anomalies}}"
   },
@@ -15289,6 +15835,9 @@
   },
   "S2yOKsAuHb": {
     "defaultMessage": "Days, not months"
+  },
+  "S3hIFEOuBV": {
+    "defaultMessage": "À"
   },
   "S3lxqQnnh1": {
     "defaultMessage": "{count, plural, one {Localisation de # image en cours…} other {Localisation de # images en cours…}}"
@@ -15326,8 +15875,14 @@
   "S8IeRUW8pF": {
     "defaultMessage": "Pas encore d’expériences"
   },
+  "S8iM/+Di8W": {
+    "defaultMessage": "Coût"
+  },
   "S8o/G+WkMb": {
     "defaultMessage": "Transcription audio en texte pour les fichiers audio importés, les réunions et les notes vocales."
+  },
+  "S9c343DyDX": {
+    "defaultMessage": "Nombre de mots"
   },
   "S9c8QG8bF2": {
     "defaultMessage": "Voir les offres d’emploi"
@@ -15437,6 +15992,9 @@
   "SRAb4hnti/": {
     "defaultMessage": "Page produit JP"
   },
+  "SRJvcrQLW0": {
+    "defaultMessage": "Mots sources"
+  },
   "SRM30InJ7k": {
     "defaultMessage": "Reject"
   },
@@ -15481,6 +16039,9 @@
   },
   "SWpAwiQbIG": {
     "defaultMessage": "Les actions terminées seront conservées. Une action dont le résultat est inconnu peut être exécutée à nouveau et créer une demande ou une notification en double. Vérifiez auprès du fournisseur avant de réessayer."
+  },
+  "SX3nxPtYJ2": {
+    "defaultMessage": "TMS connecté"
   },
   "SXLP18M0vY": {
     "defaultMessage": "Slack"
@@ -15635,6 +16196,9 @@
   "Sqn6+LQmY6": {
     "defaultMessage": "ID de la cible"
   },
+  "Sr9zfmzFie": {
+    "defaultMessage": "Payé à {band}"
+  },
   "SrLx97k5Qr": {
     "defaultMessage": "Enregistrement…"
   },
@@ -15662,6 +16226,9 @@
   "SusA/f3CfU": {
     "defaultMessage": "Aucun travail Hyperlocalise n’a encore été trouvé pour ce projet."
   },
+  "SwaFbJXUb9": {
+    "defaultMessage": "Tâche supprimée"
+  },
   "Sx94aDUTBX": {
     "defaultMessage": "URL"
   },
@@ -15670,6 +16237,9 @@
   },
   "SxB5bmPaaR": {
     "defaultMessage": "Aucune requête correspondante."
+  },
+  "SxEDSz5VQ5": {
+    "defaultMessage": "Sans grille tarifaire"
   },
   "SxwdCDaQLJ": {
     "defaultMessage": "Dossier du fournisseur"
@@ -15734,11 +16304,17 @@
   "T/GS9h3ryY": {
     "defaultMessage": "Les opérations de localisation s’étendent sur trop de systèmes déconnectés"
   },
+  "T/m7uQWvYV": {
+    "defaultMessage": "Grille tarifaire"
+  },
   "T03AFW0QvU": {
     "defaultMessage": "Admis"
   },
   "T0J/dVp/Dp": {
     "defaultMessage": "Actions"
+  },
+  "T0nIeTVdtm": {
+    "defaultMessage": "Les budgets n’ont pas pu être chargés. Cette opération ne peut donc pas être enregistrée. Fermez la fenêtre et réessayez."
   },
   "T0qDIxKkjq": {
     "defaultMessage": "Supprimer cette locale de la mémoire de traduction ?"
@@ -15769,6 +16345,9 @@
   },
   "T4a97PcYOc": {
     "defaultMessage": "None"
+  },
+  "T538d2j6a5": {
+    "defaultMessage": "Previous"
   },
   "T67SNUNeWw": {
     "defaultMessage": "Connectez Ahrefs avec une clé API MCP dans les intégrations avant d’utiliser cet outil."
@@ -15884,8 +16463,14 @@
   "TKzoXsQ+7N": {
     "defaultMessage": "{count, plural, one {# tâche} other {# tâches}}"
   },
+  "TL04QkH28w": {
+    "defaultMessage": "Terminé"
+  },
   "TMD1+Kb+4i": {
     "defaultMessage": "L’expérience localisée est en très bonne forme."
+  },
+  "TMFHZf5Az+": {
+    "defaultMessage": "Choisissez une langue"
   },
   "TMJ+v5h6o1": {
     "defaultMessage": "Commentaire mis à jour"
@@ -15913,6 +16498,9 @@
   },
   "TP90PKsFP9": {
     "defaultMessage": "Importation démarrée — les traductions apparaîtront une fois le traitement terminé."
+  },
+  "TPSJDoFsCd": {
+    "defaultMessage": "Temps enregistré"
   },
   "TPcontIwO2": {
     "defaultMessage": "URL du webhook copiée"
@@ -16055,6 +16643,9 @@
   "TetVaq6KyH": {
     "defaultMessage": "Jusqu’à {limit} Mo"
   },
+  "TfL+XNaoNd": {
+    "defaultMessage": "De"
+  },
   "TfUCgJttWd": {
     "defaultMessage": "Construire un objet à partir de valeurs typées nommées."
   },
@@ -16091,6 +16682,9 @@
   "TjhkeaKNqh": {
     "defaultMessage": "a rejoint l’espace de travail"
   },
+  "Tji75UVkKX": {
+    "defaultMessage": "Tarifs"
+  },
   "Tl0CYs/kQf": {
     "defaultMessage": "Exécution planifiée · 1er du mois"
   },
@@ -16111,6 +16705,9 @@
   },
   "Tmjrhfm5Cv": {
     "defaultMessage": "Tous"
+  },
+  "TmuH5whY3N": {
+    "defaultMessage": "Nombre de mots"
   },
   "TmvQ63+NJ8": {
     "defaultMessage": "localisation Acme"
@@ -16232,6 +16829,9 @@
   "U0PoyhfZi2": {
     "defaultMessage": "Les pages en français et en anglais ne renvoient pas l’une vers l’autre, si bien que les visiteurs peuvent passer complètement à côté de l’autre langue."
   },
+  "U0tjqKI8s2": {
+    "defaultMessage": "Étape de traduction uniquement."
+  },
   "U13G20SmK+": {
     "defaultMessage": "Appareil"
   },
@@ -16271,6 +16871,9 @@
   "U4v7cQLBDc": {
     "defaultMessage": "{count, plural, one {# langue locale} other {# langues locales}}"
   },
+  "U6kaIagNF5": {
+    "defaultMessage": "Heure de journalisation"
+  },
   "U6xvadCYhH": {
     "defaultMessage": "Sélectionnez un dépôt"
   },
@@ -16279,6 +16882,9 @@
   },
   "U76tWGMJVU": {
     "defaultMessage": "a lancé une automatisation"
+  },
+  "U7L1HEq5cv": {
+    "defaultMessage": "caractères"
   },
   "U7Oa7ZDE9f": {
     "defaultMessage": "P2"
@@ -16343,6 +16949,9 @@
   "UCzEXfoNQa": {
     "defaultMessage": "Fermer"
   },
+  "UDN6VYj6Ax": {
+    "defaultMessage": "{days} jours"
+  },
   "UDTP3K5J0j": {
     "defaultMessage": "Créez une clé dans Zernio, sous « Clés API ». Les automatisations s’authentifient avec Authorization: Bearer."
   },
@@ -16351,6 +16960,9 @@
   },
   "UEAwre36YT": {
     "defaultMessage": "Évaluation OFREP"
+  },
+  "UEepWsWbHg": {
+    "defaultMessage": "Aucun travail n’a encore été enregistré dans Rapports · Les jours et les semaines utilisent UTC"
   },
   "UEha+JRVmS": {
     "defaultMessage": "Guides de style"
@@ -16499,6 +17111,9 @@
   "UU5/+HYaD2": {
     "defaultMessage": "Description de la tâche"
   },
+  "UWEiDJaeSZ": {
+    "defaultMessage": "Aucune tâche ne correspond aux données des rapports."
+  },
   "UWZ1G1FSvB": {
     "defaultMessage": "Non traduits en premier"
   },
@@ -16594,6 +17209,9 @@
   },
   "UhcD2CtYRf": {
     "defaultMessage": "Comment se déroule généralement un test"
+  },
+  "UiXOndyUc4": {
+    "defaultMessage": "Slack"
   },
   "UiifS496oN": {
     "defaultMessage": "{count} caractères en trop"
@@ -16729,6 +17347,9 @@
   },
   "UxoXtyoyQB": {
     "defaultMessage": "Que peut faire mon équipe dans Content Studio ?"
+  },
+  "UyCh2vthT/": {
+    "defaultMessage": "L’utilisation de l’IA dépend uniquement des dates et du projet, et non de la tâche, de la langue ou de l’étape sélectionnée."
   },
   "UyR75G1t9n": {
     "defaultMessage": "Les modifications de l’assistant ont été annulées."
@@ -17090,6 +17711,9 @@
   "VgCemC5cLg": {
     "defaultMessage": "Fermer le panneau"
   },
+  "VgqRrRxHZ3": {
+    "defaultMessage": "plus de 99 %"
+  },
   "VhXGN4Fsgz": {
     "defaultMessage": "Impossible de charger les recommandations du marché."
   },
@@ -17113,6 +17737,9 @@
   },
   "Vl/WJ79qHw": {
     "defaultMessage": "Connectez Resend ou SendGrid dans <link>Intégrations</link> pour utiliser les notifications par e-mail."
+  },
+  "VlAhu8wiQm": {
+    "defaultMessage": "Canaux"
   },
   "VluH2EAHsX": {
     "defaultMessage": "A effacé le nom du workflow."
@@ -17210,6 +17837,9 @@
   "Vwd7ezOYM5": {
     "defaultMessage": "Importer des traductions"
   },
+  "VwnA8TKnsb": {
+    "defaultMessage": "Suppression…"
+  },
   "Vx1sNgGF7n": {
     "defaultMessage": "Détecter les chaînes modifiées et recueillir le contexte de la PR"
   },
@@ -17300,6 +17930,9 @@
   "W78/qWhJir": {
     "defaultMessage": "Échec de l’autorisation de l’application Canva."
   },
+  "W7VsUBEm6f": {
+    "defaultMessage": "L’heure d’exécution automatisée dépend uniquement des dates et du projet, et non de la tâche, de la langue ou de l’étape sélectionnées."
+  },
   "W87BMcVF5T": {
     "defaultMessage": "Notes facultatives pour les traducteurs"
   },
@@ -17348,6 +17981,9 @@
   "WBydLHnyW0": {
     "defaultMessage": "Termes du glossaire utilisés"
   },
+  "WCaurzJ1Y5": {
+    "defaultMessage": "Projet"
+  },
   "WCvOhYUxHY": {
     "defaultMessage": "Cliquez sur une étape ou utilisez la lecture pour prévisualiser l’exécution de l’automatisation."
   },
@@ -17368,6 +18004,9 @@
   },
   "WG+4Tv5Q93": {
     "defaultMessage": "Pending"
+  },
+  "WGbCyzb3ld": {
+    "defaultMessage": "Affichage de {from} à {to} sur {total}"
   },
   "WGdyHUxjsB": {
     "defaultMessage": "Enregistrer"
@@ -17416,6 +18055,9 @@
   },
   "WMQy9MxPzs": {
     "defaultMessage": "Projet de mémoire de traduction détaché"
+  },
+  "WMV4olqj+c": {
+    "defaultMessage": "Voir les tarifs"
   },
   "WMgcyXfv95": {
     "defaultMessage": "Annuler"
@@ -17507,6 +18149,9 @@
   "WaEocpHxEP": {
     "defaultMessage": "Consignes de l’espace de travail, guide de style du projet et directives du projet pour cette traduction."
   },
+  "WaNJ4aXPOt": {
+    "defaultMessage": "Mots uniques reçus à l’étape de traduction"
+  },
   "WabecnK7ou": {
     "defaultMessage": "Arrêtez d’expliquer deux fois les mêmes règles. Hyperlocalise transforme chaque avis en contexte réutilisable"
   },
@@ -17531,6 +18176,9 @@
   "We3SJU9IT4": {
     "defaultMessage": "Erreur suivante"
   },
+  "WeOIzTovo9": {
+    "defaultMessage": "Remarque"
+  },
   "WeOiVualPW": {
     "defaultMessage": "Annuler"
   },
@@ -17554,6 +18202,9 @@
   },
   "WhMZXjHjRn": {
     "defaultMessage": "Pending"
+  },
+  "Whb95x0t2T": {
+    "defaultMessage": "{count, plural, one {# élément de travail de certaines personnes n'a pas de tarif, il est donc exclu.} other {# éléments de travail de certaines personnes n'ont pas de tarif, ils sont donc exclus.}}"
   },
   "WhmV5YamvS": {
     "defaultMessage": "Ce terme sera supprimé du concept lorsque vous l'enregistrerez."
@@ -17750,6 +18401,9 @@
   "X0ufvWkg5R": {
     "defaultMessage": "Intercom"
   },
+  "X1J9bDJSAW": {
+    "defaultMessage": "Le budget d’un projet est un montant forfaitaire valable pour toute sa durée. Sa grille tarifaire fixe le prix du travail restant à effectuer sur le projet."
+  },
   "X1JobycgOR": {
     "defaultMessage": "Tous"
   },
@@ -17839,6 +18493,9 @@
   },
   "XCYkEzJaA9": {
     "defaultMessage": "Modèle"
+  },
+  "XDo7GTXYVG": {
+    "defaultMessage": "Mots terminés par jour"
   },
   "XDw6P/hnSY": {
     "defaultMessage": "Aucune exécution de nœud n’a encore été enregistrée pour cette exécution."
@@ -18065,11 +18722,17 @@
   "XeXZ1sE3tK": {
     "defaultMessage": "par ex. Conservez les noms de produits en anglais et préservez les composants MDX."
   },
+  "XfEzga7XIQ": {
+    "defaultMessage": "{source} uniques · {languages}"
+  },
   "Xg01khiunA": {
     "defaultMessage": "Score {score}"
   },
   "Xg6lYU4jUv": {
     "defaultMessage": "Requête créée."
+  },
+  "XgEDOt4cQC": {
+    "defaultMessage": "Heure de journalisation"
   },
   "XhZzwexSlh": {
     "defaultMessage": "Hyperlocalise est en cours…"
@@ -18161,6 +18824,9 @@
   "XtzSAMs4em": {
     "defaultMessage": "Questions générales sur le chat, Slack et l’espace de travail avec le contexte du projet et du glossaire."
   },
+  "Xu+vOrX3nX": {
+    "defaultMessage": "Aucune correspondance"
+  },
   "XuLNOM8/60": {
     "defaultMessage": "Date de mise à jour indisponible"
   },
@@ -18169,6 +18835,9 @@
   },
   "XuiVUmGIu9": {
     "defaultMessage": "Queued"
+  },
+  "XvBjQyJqqk": {
+    "defaultMessage": "Définir les tarifs"
   },
   "XvDMBQHSkA": {
     "defaultMessage": "Les équipes perdent du temps à expliquer les mêmes termes produit, règles de ton et préférences de marché à chaque lancement. Hyperlocalise transforme ces décisions en contexte réutilisable."
@@ -18362,6 +19031,9 @@
   "YEpKGG3Nzw": {
     "defaultMessage": "Logo Hyperlocalise"
   },
+  "YFD3L1P1B+": {
+    "defaultMessage": "Forfait fixe"
+  },
   "YGFB2mB2iu": {
     "defaultMessage": "Choisissez le nombre de modèles à afficher"
   },
@@ -18385,6 +19057,9 @@
   },
   "YIX0kOlYt0": {
     "defaultMessage": "Non. Hyperlocalise fonctionne avec votre TMS existant. Continuez à utiliser Phrase, Lokalise, Crowdin ou Smartling, tandis que Hyperlocalise orchestre les agents d’IA, les workflows de révision, la découverte du contexte et les contrôles qualité."
+  },
+  "YIv/dr38bc": {
+    "defaultMessage": "Enregistrement…"
   },
   "YIzAW7VJBY": {
     "defaultMessage": "Aucun constat à afficher dans le graphique."
@@ -18536,6 +19211,9 @@
   "YbMmg9p0CC": {
     "defaultMessage": "Saisissez un nom."
   },
+  "YbphJVYBTz": {
+    "defaultMessage": "Estimation des coûts"
+  },
   "Ybuu2P0L4t": {
     "defaultMessage": "Occurrence masquée"
   },
@@ -18547,6 +19225,9 @@
   },
   "YdKOj/qPXN": {
     "defaultMessage": "Affichage de {filteredCount} sur {totalCount}"
+  },
+  "YdTHQQdCSW": {
+    "defaultMessage": "Parmi les mots traduits à ces dates"
   },
   "YdeVnuUNms": {
     "defaultMessage": "Enregistrer comme brouillon"
@@ -18614,6 +19295,9 @@
   "YkWm74hjVM": {
     "defaultMessage": "Chargement de plus de contenu…"
   },
+  "YkwSAxcqlH": {
+    "defaultMessage": "Par projet"
+  },
   "YkxvISUXc3": {
     "defaultMessage": "traduction · {type}"
   },
@@ -18629,6 +19313,9 @@
   "YlRGuiYchN": {
     "defaultMessage": "Les derniers travaux qui vous ont été attribués, classés par ordre de priorité selon les actions à effectuer."
   },
+  "YlTd/jJl/v": {
+    "defaultMessage": "Certaines tâches inachevées n’ont ni tarif ni estimation du temps nécessaire ; le montant à venir peut donc être faible."
+  },
   "YlkCv2/Rn6": {
     "defaultMessage": "Supprimer cette requête ?"
   },
@@ -18640,6 +19327,9 @@
   },
   "Yo96f8fXbJ": {
     "defaultMessage": "Lumière du jour"
+  },
+  "YoNT/y/382": {
+    "defaultMessage": "Choisissez un projet"
   },
   "YoR3hQqYL1": {
     "defaultMessage": "Envoyez des e-mails transactionnels localisés via SendGrid."
@@ -18685,6 +19375,9 @@
   },
   "YvOtHkprF2": {
     "defaultMessage": "{providerName} est connecté via OAuth"
+  },
+  "Yvpi2I1ADA": {
+    "defaultMessage": "Contentful"
   },
   "YvzCKqEm+j": {
     "defaultMessage": "ID de l’emploi externe"
@@ -18745,6 +19438,9 @@
   },
   "Z/xptRbaiC": {
     "defaultMessage": "Éditeur de contenu"
+  },
+  "Z05+60ddaD": {
+    "defaultMessage": "Next"
   },
   "Z0zZRENUvf": {
     "defaultMessage": "Échec du chargement des colonnes des problèmes."
@@ -18833,6 +19529,9 @@
   "ZAdSzM16Za": {
     "defaultMessage": "Nom affiché"
   },
+  "ZAlY6S77fZ": {
+    "defaultMessage": "Le décompte des chaînes de cette tâche est toujours en cours. Elles s’affichent généralement en moins d’une minute."
+  },
   "ZBPKpZ5WZT": {
     "defaultMessage": "({locale})"
   },
@@ -18917,6 +19616,9 @@
   "ZM4eC/SiqK": {
     "defaultMessage": "Impossible de vérifier ce canal pour le moment. Veuillez réessayer."
   },
+  "ZMfSUtV6Zv": {
+    "defaultMessage": "People"
+  },
   "ZMuADiRtdx": {
     "defaultMessage": "Rédaction"
   },
@@ -18950,6 +19652,9 @@
   "ZRMR9TQ8PW": {
     "defaultMessage": "Providers"
   },
+  "ZRW72rNvup": {
+    "defaultMessage": "Les tâches de traduction s’exécutent"
+  },
   "ZST2QZVgmk": {
     "defaultMessage": "Context"
   },
@@ -18958,6 +19663,9 @@
   },
   "ZSs7hAN64v": {
     "defaultMessage": "Supprimer le commentaire"
+  },
+  "ZT+8zOrCd1": {
+    "defaultMessage": "Vous voyez le temps que vous avez enregistré. Les autres rapports sont réservés aux administrateurs et aux responsables de la localisation."
   },
   "ZT0ZLYbp16": {
     "defaultMessage": "Impossible de relancer l’audit."
@@ -19118,6 +19826,9 @@
   "Zm6E60imOZ": {
     "defaultMessage": "Paused"
   },
+  "ZmAOYHuvP1": {
+    "defaultMessage": "50–74 %"
+  },
   "ZmIJvp0JMb": {
     "defaultMessage": "Ressource"
   },
@@ -19202,6 +19913,9 @@
   "ZuaK6pQTdl": {
     "defaultMessage": "Nom de la clé"
   },
+  "Zuqyt5ss4U": {
+    "defaultMessage": "Saisissez un montant en dollars américains, par exemple 5000."
+  },
   "ZurV/2CmHO": {
     "defaultMessage": "Surveillance en cours"
   },
@@ -19225,6 +19939,9 @@
   },
   "Zy8ZOSNNhB": {
     "defaultMessage": "UTC"
+  },
+  "ZyLqw2lEMQ": {
+    "defaultMessage": "Personnes ayant enregistré du temps"
   },
   "ZyQCAdf77o": {
     "defaultMessage": "Les forfaits sont configurés dans Autumn. Les modifications de prix qui y sont effectuées ne nécessitent pas de migration de l’application."
@@ -19286,6 +20003,9 @@
   "a1RzpD5r0+": {
     "defaultMessage": "Réessayer"
   },
+  "a1lOL9DMxB": {
+    "defaultMessage": "{count, plural, one {{languages} n’a pas de grille tarifaire, car l’espace de travail n’en a pas encore. Ajoutez-en une dans « Gérer les tarifs » pour définir son prix.} other {{languages} n’ont pas de grille tarifaire, car l’espace de travail n’en a pas encore. Ajoutez-en une dans « Gérer les tarifs » pour définir leur prix.}}"
+  },
   "a1tmRYQQWa": {
     "defaultMessage": "Connectez Ahrefs dans les intégrations avant d’utiliser cet outil."
   },
@@ -19342,6 +20062,9 @@
   },
   "a74JhYiAwS": {
     "defaultMessage": "Name"
+  },
+  "a7g4EIMlNZ": {
+    "defaultMessage": "{tasks}, {languages}, terminés ou non"
   },
   "a8MPnEetIK": {
     "defaultMessage": "Contentful"
@@ -19454,6 +20177,9 @@
   "aIR3vTD8Ln": {
     "defaultMessage": "Le reste du rapport est toujours disponible. Essayez de charger cette section à nouveau."
   },
+  "aIt1FmuvOJ": {
+    "defaultMessage": "Prévision"
+  },
   "aJJlFa1d+w": {
     "defaultMessage": "Rechercher des nœuds..."
   },
@@ -19492,6 +20218,9 @@
   },
   "aMnfNfkmk0": {
     "defaultMessage": "Annuler"
+  },
+  "aNOwfGGShe": {
+    "defaultMessage": "{count, plural, one {# dépense liée à l’IA est} other {# dépenses liées à l’IA sont}} toujours en attente de facturation, les dépenses liées à l’IA peuvent donc augmenter."
   },
   "aONT/Ovdyv": {
     "defaultMessage": "Charger plus"
@@ -19607,6 +20336,9 @@
   "afqH1Griyu": {
     "defaultMessage": "Impossible de charger les résultats de l’assurance qualité. Réessayez pour voir l’état actuel."
   },
+  "afxCn+1ZKq": {
+    "defaultMessage": "Mots à traduire"
+  },
   "agJVrVF8yQ": {
     "defaultMessage": "Traduisez les mises à jour des articles du centre d’aide dans les paramètres régionaux cibles configurés. Consultez l’entrée mise à jour, localisez le titre, le corps du texte, le référencement naturel et les appels à l’action, effectuez le contrôle qualité, puis enregistrez les brouillons pour révision. Ne publiez pas."
   },
@@ -19621,6 +20353,9 @@
   },
   "ahBTXzQA9r": {
     "defaultMessage": "Hyperlocalise surveille où le travail commence, définit ce qui doit être traduit, rassemble le contexte dont les relecteurs ont besoin et achemine la tâche via les personnes et les systèmes déjà dans votre pile."
+  },
+  "ahKQ/Hvzg2": {
+    "defaultMessage": "Saisissez un montant en dollars américains, par exemple 120,50."
   },
   "ajjoHt03BE": {
     "defaultMessage": "Enregistrer {providerName}"
@@ -19709,6 +20444,9 @@
   "awOa5dMYx4": {
     "defaultMessage": "Loading…"
   },
+  "awb3jIA7pt": {
+    "defaultMessage": "Projet"
+  },
   "awnc3dv3Xw": {
     "defaultMessage": "Key"
   },
@@ -19787,6 +20525,9 @@
   "b21BDbV3Fd": {
     "defaultMessage": "Approuver"
   },
+  "b27U5B72Hl": {
+    "defaultMessage": "Donnez un nom à la grille tarifaire."
+  },
   "b2N5Ti6nmm": {
     "defaultMessage": "Designer"
   },
@@ -19795,6 +20536,9 @@
   },
   "b2dI5BHWEO": {
     "defaultMessage": "Comment Content Studio s’intègre-t-il au reste de Hyperlocalise ?"
+  },
+  "b3IZauSeGB": {
+    "defaultMessage": "Choisissez une tâche."
   },
   "b4k8FO+SjC": {
     "defaultMessage": "Timing and locale targets stay attached from the start."
@@ -19834,6 +20578,9 @@
   },
   "b7yQjQkzcS": {
     "defaultMessage": "Traductions"
+  },
+  "b8a5Sr5a3d": {
+    "defaultMessage": "Choisissez une tâche"
   },
   "b8s+83F3Ce": {
     "defaultMessage": "Le 1er de chaque mois, recherchez les opportunités de mots-clés à forte intention par région linguistique, rédigez des articles SEO localisés avec des métadonnées et un H1 adaptés, effectuez le contrôle qualité, publiez-les dans le CMS et informez #content."
@@ -19897,6 +20644,12 @@
   },
   "bFPuquyHxu": {
     "defaultMessage": "Diagnostics tronqués"
+  },
+  "bFTGBp2Z2N": {
+    "defaultMessage": "Analyse des correspondances"
+  },
+  "bFTfiu1OIR": {
+    "defaultMessage": "{count, plural, one {# chaîne} other {# chaînes}} n’ont pas pu être comptées et sont donc exclues."
   },
   "bFbk34uFYE": {
     "defaultMessage": "Chargement…"
@@ -20210,6 +20963,9 @@
   "bqq6gG/5A4": {
     "defaultMessage": "Création de {created, plural, one {# problème} other {# problèmes}} · {linked} liés"
   },
+  "bqwyHljaun": {
+    "defaultMessage": "{rate} / caractère, espaces compris"
+  },
   "brJ+Z+0eR1": {
     "defaultMessage": "Échec du chargement des connexions Ahrefs."
   },
@@ -20308,6 +21064,9 @@
   },
   "c3ROZAXotz": {
     "defaultMessage": "Projets {providerName}"
+  },
+  "c3j6tppku4": {
+    "defaultMessage": "Les travaux récents sont encore en cours de comptabilisation, les derniers chiffres peuvent donc avoir un léger retard."
   },
   "c3udbicBEE": {
     "defaultMessage": "drift ready"
@@ -20546,6 +21305,9 @@
   "cUhuuxlusZ": {
     "defaultMessage": "Toute personne disposant du lien peut discuter avec cet agent. Le trafic est protégé par BotID. Les visiteurs peuvent joindre des images."
   },
+  "cUjIt05HlY": {
+    "defaultMessage": "Aucune estimation de durée"
+  },
   "cUk7if0noS": {
     "defaultMessage": "Suivant"
   },
@@ -20560,6 +21322,9 @@
   },
   "cXcTyAvqBj": {
     "defaultMessage": "Lot d’importation"
+  },
+  "cY7ieh5gRY": {
+    "defaultMessage": "Assistants et chat"
   },
   "cYAVUJiv07": {
     "defaultMessage": "Chargement des membres..."
@@ -20581,6 +21346,9 @@
   },
   "cbNqGo9VKV": {
     "defaultMessage": "Réessayer"
+  },
+  "ccTvsJEnIB": {
+    "defaultMessage": "Unité"
   },
   "ccqv17M0Ia": {
     "defaultMessage": "Keep brand consistent"
@@ -20656,6 +21424,9 @@
   },
   "clr4hixI6B": {
     "defaultMessage": "/mo."
+  },
+  "clvzZNjf5F": {
+    "defaultMessage": "tâche"
   },
   "cm/W8QZ3Xu": {
     "defaultMessage": "Comparaison en superposition"
@@ -20737,6 +21508,9 @@
   },
   "ctE3s3xZAZ": {
     "defaultMessage": "Téléverser le guide de style"
+  },
+  "ctUsBvUQhx": {
+    "defaultMessage": "Caractères, espaces compris"
   },
   "cthbIcABnk": {
     "defaultMessage": "Actualisez la page pour réessayer."
@@ -20840,6 +21614,9 @@
   "d4k3u/RjlU": {
     "defaultMessage": "Open"
   },
+  "d5JCHvYpif": {
+    "defaultMessage": "L'ensemble du projet"
+  },
   "d5Z1STDBKG": {
     "defaultMessage": "Lokalise"
   },
@@ -20878,6 +21655,9 @@
   },
   "d9+py8mf04": {
     "defaultMessage": "Exporter le filtre actuel au format XLSX"
+  },
+  "d9GlPy5r0y": {
+    "defaultMessage": "Afficher toutes les tâches"
   },
   "d9nNGb3zA6": {
     "defaultMessage": "Tout sélectionner"
@@ -21137,6 +21917,9 @@
   "dakChM2xsG": {
     "defaultMessage": "Statut du fournisseur"
   },
+  "dalTb90IqB": {
+    "defaultMessage": "{unit} à réviser"
+  },
   "dbIHLj/rDN": {
     "defaultMessage": "Fusionner les chaînes identiques ?"
   },
@@ -21175,6 +21958,9 @@
   },
   "deFqHCU5Q7": {
     "defaultMessage": "Image en cours de génération"
+  },
+  "deyV6eZ1HA": {
+    "defaultMessage": "Après les remises de correspondance de la fiche tarifaire"
   },
   "df83PL1R8p": {
     "defaultMessage": "{provider} connecté"
@@ -21221,6 +22007,9 @@
   "djWAPr32N4": {
     "defaultMessage": "Cancel"
   },
+  "dkIu1uII2Q": {
+    "defaultMessage": "{rate} / mot"
+  },
   "dks4P6TTYa": {
     "defaultMessage": "Impossible d’obtenir une suggestion. Réessayez."
   },
@@ -21256,6 +22045,9 @@
   },
   "dqfMwoKwX/": {
     "defaultMessage": "Échec"
+  },
+  "drH1gS+t4P": {
+    "defaultMessage": "Les coûts de l’IA ne sont pas ventilés par langue ; ils sont donc exclus lorsqu’une langue est sélectionnée."
   },
   "drd4ZLYQ5x": {
     "defaultMessage": "Occurrence débloquée"
@@ -21470,6 +22262,9 @@
   "e8ygO/tdr3": {
     "defaultMessage": "Chargement des fichiers…"
   },
+  "e9TWkneAZC": {
+    "defaultMessage": "Aucun temps n’a été saisi pour ces dates."
+  },
   "e9TsGisohb": {
     "defaultMessage": "Connectez-vous d’abord"
   },
@@ -21493,6 +22288,9 @@
   },
   "eBDA87G8la": {
     "defaultMessage": "Ouvrir dans le fournisseur"
+  },
+  "eBImhza46a": {
+    "defaultMessage": "Cette carte ne comporte encore aucun tarif."
   },
   "eBTNMHRzsx": {
     "defaultMessage": "Cancel"
@@ -21641,6 +22439,9 @@
   "eTfP1zMvKR": {
     "defaultMessage": "Aucun paramètre régional de projet n’est configuré"
   },
+  "eUDoVLjbvv": {
+    "defaultMessage": "Aucune donnée n’a été enregistrée pour ces filtres."
+  },
   "eUJApGyjuF": {
     "defaultMessage": "Masquer le panneau des fichiers"
   },
@@ -21679,6 +22480,9 @@
   },
   "eXkQXUV5Ys": {
     "defaultMessage": "Code d’erreur"
+  },
+  "eYGVX6Qlp+": {
+    "defaultMessage": "{count, plural, one {# langue} other {# langues}}"
   },
   "eYMRp4gEgK": {
     "defaultMessage": "Invitation envoyée ; l’accès commence après son acceptation."
@@ -21739,6 +22543,9 @@
   },
   "eeAFg4MRde": {
     "defaultMessage": "Fichiers source"
+  },
+  "eeEgKfExfG": {
+    "defaultMessage": "Enregistrer comme nouvelle grille tarifaire"
   },
   "efAi5lrO4s": {
     "defaultMessage": "Enregistrer et exécuter"
@@ -21862,6 +22669,9 @@
   },
   "evmQYH9X0j": {
     "defaultMessage": "Description"
+  },
+  "ewsP3JcRhN": {
+    "defaultMessage": "Tous les projets"
   },
   "ewsaDXY90W": {
     "defaultMessage": "Effacer"
@@ -22109,6 +22919,9 @@
   "fMYUxCt5P0": {
     "defaultMessage": "Comment reproduire"
   },
+  "fMv+rsdxOk": {
+    "defaultMessage": "Aucune IA n’a été utilisée à ces dates."
+  },
   "fMyeM5BW3s": {
     "defaultMessage": "Personnalisé"
   },
@@ -22172,6 +22985,9 @@
   "fU9GF3etrw": {
     "defaultMessage": "Audit bloqué"
   },
+  "fUITrRb116": {
+    "defaultMessage": "Tarifs"
+  },
   "fUTALFqIcb": {
     "defaultMessage": "Chargement des glossaires..."
   },
@@ -22220,6 +23036,9 @@
   "fZ/p4nukUo": {
     "defaultMessage": "Voir mon score"
   },
+  "fZ3nfBt9mP": {
+    "defaultMessage": "translation"
+  },
   "fZ6vM82PvA": {
     "defaultMessage": "Supprimer « {label} » ? Les valeurs stockées pour cette colonne dans les problèmes existants seront supprimées."
   },
@@ -22261,6 +23080,9 @@
   },
   "fehpmLPnhK": {
     "defaultMessage": "Texte source"
+  },
+  "ff3jae0jNL": {
+    "defaultMessage": "Chaque langue est facturée au tarif qui lui est associé sur la carte, tel qu’il est actuellement. Les modifications ultérieures apportées à la carte ne changeront pas les prix de cette tâche."
   },
   "ffIGEm5KON": {
     "defaultMessage": "Afficher les espaces et les sauts de ligne"
@@ -22313,6 +23135,9 @@
   "flcDp2zUQk": {
     "defaultMessage": "Testez d’abord au Japon, puis conservez la version qui fonctionne. Votre développeur connecte le site une seule fois."
   },
+  "flylKYuIkP": {
+    "defaultMessage": "{images} · {videos}"
+  },
   "fmDOQaEtb/": {
     "defaultMessage": "Document"
   },
@@ -22352,11 +23177,17 @@
   "fqWM4WHCZ9": {
     "defaultMessage": "{count, plural, one {# chaîne restaurée.} other {# chaînes restaurées.}}"
   },
+  "fr8STrS4dG": {
+    "defaultMessage": "75–84%"
+  },
   "frCipQZwRu": {
     "defaultMessage": "Pending"
   },
   "frNSjho/8d": {
     "defaultMessage": "{updated} ticket(s) mis à jour sur {requested}. {failed} échec(s)."
+  },
+  "frS78SpwNG": {
+    "defaultMessage": "heures"
   },
   "fsHdGSEIEq": {
     "defaultMessage": "E-mail · hier"
@@ -22580,6 +23411,9 @@
   "gDkh3u6Ds/": {
     "defaultMessage": "Utiliser les paramètres régionaux cibles du projet"
   },
+  "gDpBbPZdyc": {
+    "defaultMessage": "{languages} {count, plural, one {n’a pas de tarif pour {card}} other {n’ont pas de tarif pour {card}}}, donc les unités pondérées et le coût restent vides plutôt que d’être devinés."
+  },
   "gEtNXv9OoK": {
     "defaultMessage": "Terme interdit utilisé dans la traduction"
   },
@@ -22772,6 +23606,9 @@
   "gXu61zDcr/": {
     "defaultMessage": "Comment pouvons-nous commencer ?"
   },
+  "gYDO1KiuKU": {
+    "defaultMessage": "Projet"
+  },
   "gYPVPf6Rwy": {
     "defaultMessage": "Connectez-vous à Zendesk, Intercom, Contentful et plus encore"
   },
@@ -22877,6 +23714,9 @@
   "glq4HgwVfm": {
     "defaultMessage": "Développer la colonne {status}"
   },
+  "gmbZIhCfIu": {
+    "defaultMessage": "Supprimer l’entrée"
+  },
   "gmm85srlvL": {
     "defaultMessage": "Demander une démo"
   },
@@ -22952,6 +23792,9 @@
   "gwTzpfT+Nl": {
     "defaultMessage": "Traduire avec l’agent"
   },
+  "gwUFWWEPWF": {
+    "defaultMessage": "Choisissez un projet."
+  },
   "gwnHlCz/3j": {
     "defaultMessage": "Nouvelle audience"
   },
@@ -22996,6 +23839,9 @@
   },
   "h+UBaWw3mM": {
     "defaultMessage": "Téléversement en attente"
+  },
+  "h+xR1ab29F": {
+    "defaultMessage": "moins de 1 %"
   },
   "h/TaCp7kf5": {
     "defaultMessage": "Le fichier connecté fait foi. Lorsque Drive ou SharePoint est modifié, la prochaine vérification utilise le texte mis à jour."
@@ -23128,6 +23974,9 @@
   },
   "hDNxzYjQkl": {
     "defaultMessage": "Conservez les indications de ton et de terminologie pour la prochaine tâche."
+  },
+  "hDeWLLJPZV": {
+    "defaultMessage": "Importé"
   },
   "hE2eacuTWG": {
     "defaultMessage": "Actions sur la requête"
@@ -23291,6 +24140,9 @@
   "hWOWX4SSYH": {
     "defaultMessage": "Votre espace de travail contient des projets, des accès d’équipe et des paramètres. Choisissez un nom pour commencer."
   },
+  "hWXCxydPO+": {
+    "defaultMessage": "Budget enregistré."
+  },
   "hX5nMex6ry": {
     "defaultMessage": "Régénérer l’image"
   },
@@ -23335,6 +24187,9 @@
   },
   "hbYZCJv/dT": {
     "defaultMessage": "Espace de travail par défaut"
+  },
+  "hbZPBR2/zu": {
+    "defaultMessage": "Parmi les mots arrivés à ces dates"
   },
   "hcZfaMjHXW": {
     "defaultMessage": "Traduction actuelle pour cette occurrence"
@@ -23417,6 +24272,9 @@
   "hnEkxD1cWI": {
     "defaultMessage": "Supprimer ce terme ?"
   },
+  "hniRYSMwhV": {
+    "defaultMessage": "Enregistrez le temps passé sur une tâche. Vous pouvez modifier ou supprimer vos saisies dans le rapport de la tâche."
+  },
   "ho4WUcnmEe": {
     "defaultMessage": "{count} ouverts"
   },
@@ -23443,6 +24301,9 @@
   },
   "hqP31ZL7Z3": {
     "defaultMessage": "Un nombre, par exemple le nombre de chaînes à traiter indiqué dans « Vérifier la progression »."
+  },
+  "hqWPlzvpZd": {
+    "defaultMessage": "{from} – {to}"
   },
   "hqrN/Zh7Ck": {
     "defaultMessage": "Comment les directives soutiennent-elles le travail ?"
@@ -23546,8 +24407,14 @@
   "i2gq9AbUIT": {
     "defaultMessage": "Ouvrir les automatisations"
   },
+  "i4A8tgsl1c": {
+    "defaultMessage": "Durée estimée"
+  },
   "i4MOxqTP9L": {
     "defaultMessage": "Review SLA"
+  },
+  "i4rxR8ZBA6": {
+    "defaultMessage": "Save"
   },
   "i5+63y5ddc": {
     "defaultMessage": "Diagnostics"
@@ -23575,6 +24442,9 @@
   },
   "i7dxDvInjb": {
     "defaultMessage": "Select"
+  },
+  "i7u8SkwkJO": {
+    "defaultMessage": "Les caractères sont adaptés aux langues qui s’écrivent sans espaces, comme le chinois et le japonais."
   },
   "i8AxYRXb9E": {
     "defaultMessage": "Des réponses plus rapides de Luna"
@@ -23645,6 +24515,9 @@
   "iES04md+8d": {
     "defaultMessage": "Mise à jour de la configuration…"
   },
+  "iEUqa4wC3Y": {
+    "defaultMessage": "Indiquez à quoi correspondait cette dépense."
+  },
   "iEVziBnq7E": {
     "defaultMessage": "Enregistrer la répartition des versions"
   },
@@ -23704,6 +24577,9 @@
   },
   "iLRYt1dvNP": {
     "defaultMessage": "Toutes les intentions"
+  },
+  "iM52fc7v5d": {
+    "defaultMessage": "Aucune durée n’a encore été enregistrée pour cette tâche."
   },
   "iM7becse+M": {
     "defaultMessage": "Dictionnaires"
@@ -23923,6 +24799,9 @@
   },
   "ihy++kxglc": {
     "defaultMessage": "Choisissez une langue"
+  },
+  "ij6kzC+n43": {
+    "defaultMessage": "Tâche supprimée"
   },
   "ijFxeRDSFN": {
     "defaultMessage": "Par exemple, locales/en/. Jusqu’à 100 fichiers sont répertoriés."
@@ -24341,6 +25220,9 @@
   "jVhCe4mzPA": {
     "defaultMessage": "Table des matières"
   },
+  "jVog1L+ji6": {
+    "defaultMessage": "Automatique"
+  },
   "jW4nG0Rt7y": {
     "defaultMessage": "Échec du téléversement de {sourcePath}"
   },
@@ -24410,6 +25292,9 @@
   "jdB1QCPixr": {
     "defaultMessage": "{count, plural, one {# entrée approuvée} other {# entrées approuvées}}"
   },
+  "jdQpL3Ol9L": {
+    "defaultMessage": "{unit} reçus à ces dates, par tranche de correspondance. Chaque chaîne est comptée une fois par langue, dans sa version actuelle."
+  },
   "jdk6igRynG": {
     "defaultMessage": "Unavailable"
   },
@@ -24427,6 +25312,9 @@
   },
   "jfrmvbYbYG": {
     "defaultMessage": "Demandez une démo. Nous vous présenterons une expérience de marché et une fonctionnalité que seuls certains pays voient."
+  },
+  "jfxaOQ3kwn": {
+    "defaultMessage": "Révision et contrôle qualité"
   },
   "jgR+WtYIxe": {
     "defaultMessage": "Supprimer les notifications de commentaires GitHub"
@@ -24647,6 +25535,9 @@
   "k4KpJNxaEK": {
     "defaultMessage": "Chat Web"
   },
+  "k5QjkRGl89": {
+    "defaultMessage": "Tâche"
+  },
   "k5atS7Ij0F": {
     "defaultMessage": "Se termine généralement en 1 à 3 minutes."
   },
@@ -24697,6 +25588,9 @@
   },
   "kAj/pNbn2C": {
     "defaultMessage": "Description"
+  },
+  "kAxUWHx06W": {
+    "defaultMessage": "Modèles"
   },
   "kB+yrXhyLX": {
     "defaultMessage": "Localisation du centre d’aide | Hyperlocalise"
@@ -24844,6 +25738,9 @@
   },
   "kQdK+U9dBZ": {
     "defaultMessage": "À {value}"
+  },
+  "kRTpEdy6V8": {
+    "defaultMessage": "Personne"
   },
   "kRgGKX2G/s": {
     "defaultMessage": "Connecter"
@@ -25070,6 +25967,9 @@
   "krFfWnDVQ0": {
     "defaultMessage": "Créez une bibliothèque de mots acceptés, puis associez-la à des projets afin que les outils CAT et hl check ignorent ces jetons."
   },
+  "krjDqQcSBp": {
+    "defaultMessage": "Terminé"
+  },
   "krsyirH/ME": {
     "defaultMessage": "Coverage Mix"
   },
@@ -25205,6 +26105,9 @@
   "l50K3EMdhi": {
     "defaultMessage": "Correspond à"
   },
+  "l5Ho8senmU": {
+    "defaultMessage": "Coût"
+  },
   "l5Sl5JTMnt": {
     "defaultMessage": "Aucun problème d’assurance qualité"
   },
@@ -25240,6 +26143,9 @@
   },
   "lB0h34jODa": {
     "defaultMessage": "Refuser"
+  },
+  "lBFv+UuzDN": {
+    "defaultMessage": "Appels IA facturés, dans les tâches comme en dehors d’elles"
   },
   "lBt4D36OVV": {
     "defaultMessage": "Fermer l’annonce de mise à jour"
@@ -25310,6 +26216,9 @@
   "lJreXyrXC1": {
     "defaultMessage": "Ce titre en français correspond-il à notre ton de voix ?"
   },
+  "lJypQuzM0X": {
+    "defaultMessage": "Rapport"
+  },
   "lKE9esALm9": {
     "defaultMessage": "Chaîne dissociée"
   },
@@ -25367,6 +26276,9 @@
   "lR7pNsCeCh": {
     "defaultMessage": "Tous les projets"
   },
+  "lRRxrjNRIO": {
+    "defaultMessage": "Les rapports ont commencé le {date} · Les jours et les semaines sont basés sur UTC"
+  },
   "lRSf7hxCZ6": {
     "defaultMessage": "Découvrez comment les cinq produits et vos agents IA peuvent travailler pour votre équipe."
   },
@@ -25412,6 +26324,9 @@
   "lXuIhCcGl8": {
     "defaultMessage": "Marqué comme doublon de {title}"
   },
+  "lYGZ/1ylRT": {
+    "defaultMessage": "Other"
+  },
   "lYqWI3Hv5b": {
     "defaultMessage": "Cette chaîne est verrouillée. Déverrouillez-la pour ajouter un concept."
   },
@@ -25427,8 +26342,14 @@
   "lZrVrk7oZs": {
     "defaultMessage": "Domaines vérifiés pour cet espace de travail, avec les projets associés et les rapports d’audit de localisation."
   },
+  "laNmUs0rc+": {
+    "defaultMessage": "Montant (USD)"
+  },
   "laNyhZRg9B": {
     "defaultMessage": "Afficher dans les fichiers du projet"
+  },
+  "labVcE5WnM": {
+    "defaultMessage": "Enregistrement…"
   },
   "lalUtB4BvL": {
     "defaultMessage": "modifications demandées"
@@ -25552,6 +26473,9 @@
   },
   "lqlgwfZWDU": {
     "defaultMessage": "Partagé avec {teamName}."
+  },
+  "lr+kB76/+I": {
+    "defaultMessage": "Tâche"
   },
   "lrK4pC9l8o": {
     "defaultMessage": "{count, plural, one {# problème importé.} other {# problèmes importés.}}"
@@ -25955,11 +26879,17 @@
   "mX/u4fe+7s": {
     "defaultMessage": "Affichage de {pageStart}–{pageEnd} sur {glossaryTotal} glossaires"
   },
+  "mX5rAoAEt+": {
+    "defaultMessage": "GitHub"
+  },
   "mXH9Amn98O": {
     "defaultMessage": "Une seule couche opérationnelle pour l’ensemble de votre stack de localisation | Hyperlocalise"
   },
   "mYcDqMLO3I": {
     "defaultMessage": "Workspace"
+  },
+  "mYcgnANb5b": {
+    "defaultMessage": "Les lignes de cette grille tarifaire appliquent des parts différentes selon la tranche de correspondance. En enregistrant, les parts affichées ici seront appliquées à chaque ligne."
   },
   "mYvtIxq6nm": {
     "defaultMessage": "a exporté un glossaire"
@@ -26002,6 +26932,9 @@
   },
   "mf6hFW145B": {
     "defaultMessage": "Conserver la tâche"
+  },
+  "mfAngcgq0w": {
+    "defaultMessage": "Grille tarifaire"
   },
   "mfdI/BnSCm": {
     "defaultMessage": "Aucun problème détecté lors de cette analyse."
@@ -26435,6 +27368,9 @@
   "nSV3pblCAm": {
     "defaultMessage": "{count, plural, one {# sélectionnée} other {# sélectionnées}}"
   },
+  "nSql9wAeyC": {
+    "defaultMessage": "Forfait fixe"
+  },
   "nSqpG2XwMB": {
     "defaultMessage": "Rechercher par nom..."
   },
@@ -26482,6 +27418,9 @@
   },
   "nVpf5SOxZJ": {
     "defaultMessage": "via {name}"
+  },
+  "nWSKQmdY9E": {
+    "defaultMessage": "Télécharger le CSV"
   },
   "nWyqpLBFh/": {
     "defaultMessage": "Le dernier objet l’emporte."
@@ -26759,6 +27698,9 @@
   "o2Y08elyIM": {
     "defaultMessage": "Commentaire ajouté"
   },
+  "o41qBuxIPN": {
+    "defaultMessage": "Les nouvelles lignes sont facturées"
+  },
   "o4QwHRAiJ4": {
     "defaultMessage": "Règles partagées par tous les projets de cet espace de travail."
   },
@@ -26903,6 +27845,9 @@
   "oMMt65+GLA": {
     "defaultMessage": "Utilisé dans"
   },
+  "oMl/P0Q7Cn": {
+    "defaultMessage": "Analyse de correspondance de la tâche"
+  },
   "oMuRHnqRWn": {
     "defaultMessage": "Créé"
   },
@@ -26929,6 +27874,9 @@
   },
   "oQ4ei78nry": {
     "defaultMessage": "Flux d’automatisation"
+  },
+  "oQKRdWs09R": {
+    "defaultMessage": "Aucune grille tarifaire"
   },
   "oQckCPSvLu": {
     "defaultMessage": "Dimanche"
@@ -27038,6 +27986,9 @@
   "odbevaPvBa": {
     "defaultMessage": "{count, plural, =0 {Créer des problèmes} one {Créer 1 problème} other {Créer # problèmes}}"
   },
+  "odj8/u+uCN": {
+    "defaultMessage": "Prévision supérieure"
+  },
   "odqLHGre3m": {
     "defaultMessage": "Impossible de charger la connexion Intercom pour le moment."
   },
@@ -27113,6 +28064,9 @@
   "okYWXGLSBl": {
     "defaultMessage": "Mémoire de traduction"
   },
+  "okaDHZhLas": {
+    "defaultMessage": "{duration} par {people}"
+  },
   "olXGYHoMbg": {
     "defaultMessage": "Texte source"
   },
@@ -27125,6 +28079,9 @@
   "omP7hSnBIw": {
     "defaultMessage": "Format {format}"
   },
+  "omiOFhhyA0": {
+    "defaultMessage": "Contre le paiement intégral de chaque tranche de contrepartie"
+  },
   "omrTD1tbM0": {
     "defaultMessage": "Cohérence du texte de l’interface utilisateur et dérive terminologique entre les locales après chaque sprint."
   },
@@ -27136,6 +28093,9 @@
   },
   "onLY1zBVa5": {
     "defaultMessage": "Ouvrir dans {providerKind}"
+  },
+  "onN6IuR7qo": {
+    "defaultMessage": "Impossible d’enregistrer cet élément."
   },
   "oo/YC7RzA/": {
     "defaultMessage": "Retour"
@@ -27271,6 +28231,9 @@
   },
   "p4xkAKJ/3y": {
     "defaultMessage": "Projet"
+  },
+  "p5EM7xOnW0": {
+    "defaultMessage": "{count, plural, one {# exécution} other {# exécutions}}"
   },
   "p5GCpw9x8C": {
     "defaultMessage": "Branche suivante"
@@ -27452,6 +28415,9 @@
   "pQQEeDnNjz": {
     "defaultMessage": "Sélectionner le fichier source"
   },
+  "pQRCBKEJtT": {
+    "defaultMessage": "{days, plural, one {jour précédent} other {# jours précédents}}"
+  },
   "pQttDyq4Mr": {
     "defaultMessage": "Fermer les conseils du glossaire"
   },
@@ -27469,6 +28435,9 @@
   },
   "pSbrixngtF": {
     "defaultMessage": "Utilisez votre domaine racine sans chemin."
+  },
+  "pSyKKizgwi": {
+    "defaultMessage": "Dates"
   },
   "pT3N2TGbMH": {
     "defaultMessage": "Supprimer la version"
@@ -27548,6 +28517,9 @@
   "pbPMcXnHkC": {
     "defaultMessage": "Ajouter les marchés sélectionnés"
   },
+  "pbf/8ZXD0X": {
+    "defaultMessage": "À quoi cela a servi ?"
+  },
   "pbk0Y3fdPe": {
     "defaultMessage": "{count, plural, one {# fichier sera mis en file d’attente} other {# fichiers seront mis en file d’attente}}"
   },
@@ -27560,6 +28532,9 @@
   "pckObbKjS/": {
     "defaultMessage": "{count, plural, one {# fichier sélectionné} other {# fichiers sélectionnés}}"
   },
+  "pcsA03IbFY": {
+    "defaultMessage": "Coût estimé"
+  },
   "pdCULvOJkP": {
     "defaultMessage": "Montrez une modification à certains visiteurs. Tous les autres restent sur le site actuel."
   },
@@ -27568,6 +28543,9 @@
   },
   "pdJV+o9lWH": {
     "defaultMessage": "Orthographe"
+  },
+  "pdTOfp/hWL": {
+    "defaultMessage": "Toutes les tâches"
   },
   "pe+Qja+3CC": {
     "defaultMessage": "Évaluations de régression"
@@ -27610,6 +28588,9 @@
   },
   "pgDkQXMb01": {
     "defaultMessage": "Explorer"
+  },
+  "pgKfGrCl0q": {
+    "defaultMessage": "étape {step}"
   },
   "pgT61uv1SZ": {
     "defaultMessage": "Synchronisation du contenu enregistrée"
@@ -27761,6 +28742,9 @@
   "pydxPv6nE3": {
     "defaultMessage": "Statut modifié"
   },
+  "pyjtKMfIIw": {
+    "defaultMessage": "Enregistrez une dépense que les rapports ne peuvent pas voir, comme une facture d’agence."
+  },
   "pym2jLFt91": {
     "defaultMessage": "Drive. Notion. SharePoint."
   },
@@ -27772,6 +28756,9 @@
   },
   "q+3+ldE+Vn": {
     "defaultMessage": "Accord de niveau de service"
+  },
+  "q+IrtJFU3l": {
+    "defaultMessage": "Dépense ajoutée."
   },
   "q+KBl5AglO": {
     "defaultMessage": "Échec du chargement des équipes"
@@ -28019,6 +29006,9 @@
   "qMoIwNM0g+": {
     "defaultMessage": "Copié !"
   },
+  "qN/95c8DJx": {
+    "defaultMessage": "Prévisions par rapport au budget"
+  },
   "qN0wGv1fCg": {
     "defaultMessage": "Aucun contrôle qualité pour cette chaîne."
   },
@@ -28216,6 +29206,9 @@
   },
   "qlu/Ts2pCg": {
     "defaultMessage": "Demandez, recherchez ou créez n'importe quoi…"
+  },
+  "qm69Nmggik": {
+    "defaultMessage": "{step} (enregistrée)"
   },
   "qmb/TOVO4K": {
     "defaultMessage": "Les images ont des proportions différentes. Utilisez le volet d’origine pour les comparer."
@@ -28580,11 +29573,17 @@
   "rQXpyeuWHx": {
     "defaultMessage": "{count} échoués"
   },
+  "rRNJYrXxd5": {
+    "defaultMessage": "{count, plural, one {# grille tarifaire} other {# grilles tarifaires}} · traduction et révision"
+  },
   "rRY5jwW8rj": {
     "defaultMessage": "Créez une clé lorsque vous êtes prêt à ce que votre site commence à lire des tests."
   },
   "rRmPYSuRjD": {
     "defaultMessage": "Négatif"
+  },
+  "rS5rFYTVd7": {
+    "defaultMessage": "Utilisation de l’IA"
   },
   "rTskJLTUfG": {
     "defaultMessage": "Agent cloud démarré"
@@ -28688,6 +29687,9 @@
   "rg7WUSTOmR": {
     "defaultMessage": "Signalez un problème de localisation et associez-le éventuellement à l’Éditeur de contenu ou à un outil de suivi externe."
   },
+  "rgJhnMN/fW": {
+    "defaultMessage": "Pondéré"
+  },
   "rgJk0uxb7q": {
     "defaultMessage": "Drapeaux"
   },
@@ -28708,6 +29710,9 @@
   },
   "rhgvK4B/v1": {
     "defaultMessage": "Connexion à l’espace de travail"
+  },
+  "rhk1ttNY83": {
+    "defaultMessage": "Dépensé"
   },
   "riG8529T+y": {
     "defaultMessage": "General"
@@ -28801,6 +29806,9 @@
   },
   "ru7Wge58fC": {
     "defaultMessage": "Afficher les chaînes"
+  },
+  "ruUpIx8wkL": {
+    "defaultMessage": "Toutes les langues"
   },
   "ruYDTOKKtU": {
     "defaultMessage": "Opportunité de marché → croissance mesurable"
@@ -29036,6 +30044,9 @@
   "sMO5kn7k5p": {
     "defaultMessage": "Conservez les documents dont vous disposez.\nMettez-les à profit."
   },
+  "sMZ1bcqcwH": {
+    "defaultMessage": "À"
+  },
   "sMpopGaY+v": {
     "defaultMessage": "Impossible d’enregistrer l’entrée"
   },
@@ -29101,6 +30112,9 @@
   },
   "sYXOvYrlbj": {
     "defaultMessage": "Outils SEO"
+  },
+  "sYe95jJkmx": {
+    "defaultMessage": "Grille tarifaire"
   },
   "sYhsdplS7o": {
     "defaultMessage": "Chargement de la traduction…"
@@ -29234,11 +30248,17 @@
   "smqbhPW1UB": {
     "defaultMessage": "Directives téléversées"
   },
+  "smwYSK2Q3d": {
+    "defaultMessage": "E-mail"
+  },
   "snHz5G+RBI": {
     "defaultMessage": "Contenu et publication"
   },
   "so9cmZxAcw": {
     "defaultMessage": "Connectez Slack dans <link>Intégrations</link> pour utiliser cet outil."
+  },
+  "soYVsa2P7b": {
+    "defaultMessage": "{rate} / heure"
   },
   "sp82GiYbAh": {
     "defaultMessage": "Désactivé"
@@ -29384,6 +30404,9 @@
   "t3xDK2/UrI": {
     "defaultMessage": "Créer un problème"
   },
+  "t4eO7Nji1M": {
+    "defaultMessage": "Modifier le temps"
+  },
   "t4mVRTnKLW": {
     "defaultMessage": "Configurer l’étape"
   },
@@ -29440,6 +30463,9 @@
   },
   "tAIkYXyE7a": {
     "defaultMessage": "Un laboratoire connecté à une vision plus large."
+  },
+  "tAT7VJda/C": {
+    "defaultMessage": "Ajouté manuellement"
   },
   "tAcLh3kaGY": {
     "defaultMessage": "Placez le curseur dans un bloc pour voir sa source, ses correspondances et ses termes."
@@ -29522,6 +30548,9 @@
   "tK7acLhoUb": {
     "defaultMessage": "Status"
   },
+  "tKdwJD/VUy": {
+    "defaultMessage": "mots"
+  },
   "tLAjYLsjYV": {
     "defaultMessage": "Original"
   },
@@ -29539,6 +30568,9 @@
   },
   "tMPM8tkhJg": {
     "defaultMessage": "Compte"
+  },
+  "tMUuz8k4Pc": {
+    "defaultMessage": "Progression"
   },
   "tNhXqAYLEr": {
     "defaultMessage": "Définir le prix de la tâche"
@@ -29578,6 +30610,9 @@
   },
   "tR49yNVFBv": {
     "defaultMessage": "Glossaires natifs"
+  },
+  "tRCaFPjZFW": {
+    "defaultMessage": "Le travail sur cette étape a commencé, son tarif ne peut donc plus être modifié."
   },
   "tRWPFtS/bI": {
     "defaultMessage": "Studio de contenu multilingue"
@@ -29762,6 +30797,9 @@
   "trM5T+lG0s": {
     "defaultMessage": "Impossible d’afficher le chat"
   },
+  "trS29lmrge": {
+    "defaultMessage": "Choisissez des tâches à estimer"
+  },
   "truVoWHnsU": {
     "defaultMessage": "Préparation…"
   },
@@ -29798,6 +30836,9 @@
   "twYkbdGYuC": {
     "defaultMessage": "Enregistrement…"
   },
+  "twzYauR4y5": {
+    "defaultMessage": "Pondérés {basis}"
+  },
   "tx+ZfdCJg6": {
     "defaultMessage": "Impossible de lire le fichier XML SRX enregistré. Affichage d’un jeu de règles de départ — vérifiez-le avant de l’enregistrer."
   },
@@ -29825,6 +30866,9 @@
   "u/GyZps3MY": {
     "defaultMessage": "{count, plural, one {# bloc n’a pas pu être traduit.} other {# blocs n’ont pas pu être traduits.}}"
   },
+  "u/eOWVmwsn": {
+    "defaultMessage": "Personnalisé"
+  },
   "u/fBB4HZhM": {
     "defaultMessage": "Connexion Figma enregistrée."
   },
@@ -29839,6 +30883,9 @@
   },
   "u1HpnCoRxX": {
     "defaultMessage": "Exécutions d’agent / mois"
+  },
+  "u1jIBm+6lH": {
+    "defaultMessage": "Mots finalisés par semaine"
   },
   "u1raYxKQQZ": {
     "defaultMessage": "{count, plural, one {# projet nécessite une attention particulière} other {# projets nécessitent une attention particulière}}"
@@ -29891,6 +30938,9 @@
   "u8VX6gbiee": {
     "defaultMessage": "Impossible de téléverser ce fichier pour le moment."
   },
+  "u8ZgyX1le6": {
+    "defaultMessage": "Les lignes de cette carte offrent des parts différentes selon la tranche de correspondance ; les parts de la première ligne sont affichées."
+  },
   "u9Qg5J09WM": {
     "defaultMessage": "Aucun champ des étapes précédentes."
   },
@@ -29911,6 +30961,9 @@
   },
   "uC9uH1Yi+P": {
     "defaultMessage": "Impossible d’enregistrer la traduction."
+  },
+  "uCFqHd7i8y": {
+    "defaultMessage": "Forfaits fixes"
   },
   "uCdYlw2611": {
     "defaultMessage": "Synchronisé depuis le fournisseur"
@@ -30019,6 +31072,9 @@
   },
   "uPLvPG1gYg": {
     "defaultMessage": "Copié !"
+  },
+  "uPw9H782Mo": {
+    "defaultMessage": "Edit"
   },
   "uQThnP+5M7": {
     "defaultMessage": "Examinez le texte source et la traduction côte à côte, avec les correspondances de mémoire de traduction, les suggestions de l’IA, les vérifications du glossaire et le contexte visuel de chaque chaîne dans la même vue."
@@ -30332,8 +31388,14 @@
   "v/bExbFK7z": {
     "defaultMessage": "Les équipes produit livrent en continu. Les équipes de localisation se retrouvent ensuite à devoir recouper le contexte entre les outils, après coup."
   },
+  "v/iqKXawFI": {
+    "defaultMessage": "Ajouter une dépense"
+  },
   "v/lSaCxqUY": {
     "defaultMessage": "Échec de la création de l’automatisation"
+  },
+  "v/o0+J+WoG": {
+    "defaultMessage": "Pourcentage payé, par tranche de correspondance"
   },
   "v0Xmk6UQW5": {
     "defaultMessage": "Examiner"
@@ -30458,6 +31520,9 @@
   "vDWu8NEPDA": {
     "defaultMessage": "Supprimer ce glossaire ?"
   },
+  "vDhrUq0hWX": {
+    "defaultMessage": "{card} · traduction et révision"
+  },
   "vE3/OjUVJq": {
     "defaultMessage": "Settings"
   },
@@ -30518,6 +31583,9 @@
   "vKq2ly7dxU": {
     "defaultMessage": "Nouvelle demande"
   },
+  "vLHxLYllnD": {
+    "defaultMessage": "{change} par rapport à {previous}"
+  },
   "vLOvG+Aj8h": {
     "defaultMessage": "Les scores et les rapports complets sont publics. Vous pouvez éventuellement vous envoyer un résumé par e-mail."
   },
@@ -30577,6 +31645,9 @@
   },
   "vT66VB97HW": {
     "defaultMessage": "Demander un canal Slack"
+  },
+  "vTHCl13pkg": {
+    "defaultMessage": "Définir le tarif de l’étape {step}"
   },
   "vTmDsNkKes": {
     "defaultMessage": "Les tickets d’assistance augmentent dans les paramètres régionaux non anglophones lorsque les instructions sont obsolètes ou manquantes."
@@ -30658,6 +31729,9 @@
   },
   "vaf540aoc8": {
     "defaultMessage": "Conçu spécifiquement pour les équipes de localisation"
+  },
+  "vb1o8usNaW": {
+    "defaultMessage": "Actions"
   },
   "vb7EOrZY7c": {
     "defaultMessage": "Erreurs de contrôle qualité"
@@ -30784,6 +31858,9 @@
   },
   "vrYsk4CDa0": {
     "defaultMessage": "Supprimer la tâche"
+  },
+  "vrk+FdEagx": {
+    "defaultMessage": "Budgets"
   },
   "vrxnOkVw+Z": {
     "defaultMessage": "Gérez les membres et les rôles de l’équipe {slug}."
@@ -31091,6 +32168,9 @@
   "wN/evt/nnl": {
     "defaultMessage": "Tarifs | Hyperlocalise"
   },
+  "wNTnMH8vtk": {
+    "defaultMessage": "Langue"
+  },
   "wNYRvbmf7+": {
     "defaultMessage": "SHA-256"
   },
@@ -31169,6 +32249,9 @@
   "wW270rE3pJ": {
     "defaultMessage": "Impossible de déverrouiller cette chaîne. Réessayez."
   },
+  "wWqBHmfrNT": {
+    "defaultMessage": "Enregistrer le budget"
+  },
   "wXVgCxM5O7": {
     "defaultMessage": "Terme cible"
   },
@@ -31201,6 +32284,9 @@
   },
   "wbZzuI7+7/": {
     "defaultMessage": "Utilisé dans un test"
+  },
+  "wbsC74Hb0J": {
+    "defaultMessage": "jour"
   },
   "wc8eM+CF/N": {
     "defaultMessage": "Secret client OAuth"
@@ -31391,6 +32477,9 @@
   "wxyeiQHV02": {
     "defaultMessage": "Dossiers et fichiers connectés"
   },
+  "wy28ovfnvf": {
+    "defaultMessage": "Budget (USD)"
+  },
   "wy44X4k96P": {
     "defaultMessage": "—"
   },
@@ -31531,6 +32620,9 @@
   },
   "xBKYTJYExq": {
     "defaultMessage": "Intercom"
+  },
+  "xC5/Uw5o1W": {
+    "defaultMessage": "Aucun tarif"
   },
   "xC6Oep4Mv6": {
     "defaultMessage": "Abandonner"
@@ -31721,6 +32813,9 @@
   "xYhoLiHtTw": {
     "defaultMessage": "Choisissez ce que cette automatisation doit faire. Chaque compétence ajoute les outils dont elle a besoin."
   },
+  "xYrBUP55ZV": {
+    "defaultMessage": "IA (facturée)"
+  },
   "xZFAbDOIux": {
     "defaultMessage": "Choisissez un nouveau rôle dans l’équipe pour {email}."
   },
@@ -31756,6 +32851,9 @@
   },
   "xbAzhdR+Tu": {
     "defaultMessage": "{percent}%"
+  },
+  "xbjKfHbYFk": {
+    "defaultMessage": "People"
   },
   "xbozAAPBGJ": {
     "defaultMessage": "Braze"
@@ -31838,6 +32936,12 @@
   "xkvlRbfU7k": {
     "defaultMessage": "Tourfinder a lancé son marketing en vietnamien et en japonais en quelques jours, et non en quelques mois."
   },
+  "xkvxbuC9Tn": {
+    "defaultMessage": "Total"
+  },
+  "xlxoUp+bTs": {
+    "defaultMessage": "IA hors tâches"
+  },
   "xm2niAeH2y": {
     "defaultMessage": "Nouveau chat IA"
   },
@@ -31916,6 +33020,9 @@
   "xx4TyhA9Af": {
     "defaultMessage": "Branches"
   },
+  "xxQx2WVSK6": {
+    "defaultMessage": "Encore {amount} à prévoir"
+  },
   "xy0kgWsXSb": {
     "defaultMessage": "Actualisez la page pour réessayer."
   },
@@ -31936,6 +33043,9 @@
   },
   "xzKs+0e2wQ": {
     "defaultMessage": "Envoyer {count, plural, one {# fichier} other {# fichiers}}"
+  },
+  "xzZ3ZLUqLC": {
+    "defaultMessage": "Les grilles tarifaires sont partagées par tous les rapports. Les modifications s’appliquent au travail enregistré à partir de maintenant."
   },
   "y+0ftMWpAa": {
     "defaultMessage": "URL : {url}"
@@ -31969,6 +33079,9 @@
   },
   "y16oB+Jj83": {
     "defaultMessage": "La décision, la correction ou la préférence est extraite"
+  },
+  "y1omtoku7R": {
+    "defaultMessage": "Chaque paire de langues et chaque étape peut avoir un tarif sur une carte."
   },
   "y301nYXIIx": {
     "defaultMessage": "Activé"
@@ -32150,6 +33263,9 @@
   "yMNDubivS/": {
     "defaultMessage": "Impossible d’ajouter ce mot."
   },
+  "yMrFC+/mC2": {
+    "defaultMessage": "Origines"
+  },
   "yN3IaRAmIM": {
     "defaultMessage": "Samedi"
   },
@@ -32164,6 +33280,9 @@
   },
   "yQ7T8Cq+ij": {
     "defaultMessage": "Crowdin"
+  },
+  "yR1mPYr/0l": {
+    "defaultMessage": "Aucune tâche (éditeur de contenu)"
   },
   "yRRevnNvnn": {
     "defaultMessage": "Syntaxe du message स्रोत"
@@ -32264,6 +33383,9 @@
   "yeGOLY++rb": {
     "defaultMessage": "Adaptez cette image pour {locale}, notamment son texte, son ton, son contexte culturel et sa mise en page."
   },
+  "yeQSCFltFQ": {
+    "defaultMessage": "Réessayer"
+  },
   "yfGa8F3kFv": {
     "defaultMessage": "Le perfectionnement par IA n’est pas disponible pour cet espace de travail."
   },
@@ -32324,6 +33446,9 @@
   "yn7Eufu4t+": {
     "defaultMessage": "Commentaire"
   },
+  "ynP3RQlErz": {
+    "defaultMessage": "Temps enregistré par les personnes et durée d’exécution des étapes automatisées"
+  },
   "ynWaUdVn9j": {
     "defaultMessage": "Charger plus de commentaires"
   },
@@ -32335,6 +33460,9 @@
   },
   "yoc2jz/v8a": {
     "defaultMessage": "Quotidien"
+  },
+  "yoyVExO9DC": {
+    "defaultMessage": "Langue"
   },
   "yppbhxn60H": {
     "defaultMessage": "Activité"
@@ -32402,6 +33530,9 @@
   "z+yNDK6TMM": {
     "defaultMessage": "Confortable"
   },
+  "z/EZ/oiPp3": {
+    "defaultMessage": "Par origine"
+  },
   "z/ZDPJKYLB": {
     "defaultMessage": "La traduction est proche des limites de mise en page du bouton et du bandeau principal."
   },
@@ -32419,6 +33550,9 @@
   },
   "z2BXL0WPeh": {
     "defaultMessage": "Termes du produit"
+  },
+  "z2YAHDPnDu": {
+    "defaultMessage": "{hours} h {minutes} min"
   },
   "z2bAu9ByVm": {
     "defaultMessage": "Méthode de vérification"
@@ -32446,6 +33580,9 @@
   },
   "z5++P6iegy": {
     "defaultMessage": "Échec du chargement des clés API."
+  },
+  "z5AXV2MPvj": {
+    "defaultMessage": "Étape"
   },
   "z5B/SjTaZR": {
     "defaultMessage": "La directive doit comporter {limit} caractères ou moins."
@@ -32534,11 +33671,17 @@
   "zEqfVrKbs/": {
     "defaultMessage": "Capacité mensuelle en agents, tokens et traductions."
   },
+  "zGaGxn7T4v": {
+    "defaultMessage": "Images et vidéos"
+  },
   "zGlv2WTv64": {
     "defaultMessage": "Connexion à Semrush enregistrée."
   },
   "zGwBrW7HVT": {
     "defaultMessage": "Suppression…"
+  },
+  "zH6qY7OC7c": {
+    "defaultMessage": "Total dépensé"
   },
   "zHHbPSaMjm": {
     "defaultMessage": "journal.example.com"
@@ -32654,6 +33797,9 @@
   "zRMNg+Lp1z": {
     "defaultMessage": "Nouvelle opportunité"
   },
+  "zRtUSUXrCq": {
+    "defaultMessage": "La grille tarifaire, l’estimation du temps ou le forfait propres à cette tâche. Une étape sans grille tarifaire propre est tarifée selon celle du budget de son projet. Le tarif de chaque étape peut changer jusqu’au début des travaux sur cette étape."
+  },
   "zSP+9VJuxd": {
     "defaultMessage": "Vous pouvez téléverser un fichier à la fois."
   },
@@ -32699,6 +33845,9 @@
   "zWF8Xri9PZ": {
     "defaultMessage": "Avant le saut de ligne (regex)"
   },
+  "zWgBXG1Wl8": {
+    "defaultMessage": "Le montant déjà dépensé inclut le travail humain, l’IA facturée et les frais. Le montant restant à venir correspond au coût du travail rémunéré non terminé dans les tâches ouvertes."
+  },
   "zX3UWO/7lH": {
     "defaultMessage": "Cette analyse QA a échoué. Les résultats QA peuvent donc ne pas être à jour tant qu’une analyse n’a pas abouti."
   },
@@ -32737,6 +33886,9 @@
   },
   "zdNwM1KXY3": {
     "defaultMessage": "Bibliothèque des informations réglementaires de l’UE"
+  },
+  "zdt5t48/02": {
+    "defaultMessage": "Sélectionnez jusqu’à 50 tâches ci-dessus, ou choisissez un projet pour en estimer l’ensemble. L’estimation couvre tous les mots, qu’ils soient terminés ou non."
   },
   "ze9bxcwl8T": {
     "defaultMessage": "Annuler"
@@ -32822,6 +33974,9 @@
   "zm2ME98OKj": {
     "defaultMessage": "Parcourir les dossiers"
   },
+  "zm9BDqNIqk": {
+    "defaultMessage": "Arrivé"
+  },
   "zmDlBGpSk8": {
     "defaultMessage": "Infrastructure native à l’IA pour les opérations de contenu multilingue"
   },
@@ -32848,6 +34003,9 @@
   },
   "zqUNf7FmTO": {
     "defaultMessage": "Créez et adaptez des textes, documents, présentations, images et vidéos pour chaque marché depuis un seul studio. Les réviseurs voient ce dont ils ont besoin ; la production ne s’arrête jamais."
+  },
+  "zqxYomx0Lt": {
+    "defaultMessage": "Mots terminés"
   },
   "zrJMUqAnbE": {
     "defaultMessage": "Terminé"
@@ -32879,6 +34037,9 @@
   "zvokgWLGk/": {
     "defaultMessage": "Accepter toutes les propositions en attente"
   },
+  "zvs+2APiJD": {
+    "defaultMessage": "Tâches"
+  },
   "zvyVcnRDh9": {
     "defaultMessage": "SendGrid"
   },
@@ -32899,6 +34060,9 @@
   },
   "zyDpy3oZz4": {
     "defaultMessage": "Inspectez la provenance, les variantes et l’historique des modifications avant de procéder à la modification."
+  },
+  "zyXPWyhbra": {
+    "defaultMessage": "Aucun changement à afficher"
   },
   "zyYnZ9Lo4u": {
     "defaultMessage": "Rechercher des fichiers"
