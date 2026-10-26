@@ -264,10 +264,14 @@ describe("path builders", () => {
       ["Jobs", "/org/acme/projects/proj_1/jobs"],
       ["Queries", "/org/acme/projects/proj_1/issue-sheet"],
       ["Automations", "/org/acme/projects/proj_1/automations"],
+      ["Reports", "/org/acme/projects/proj_1/reports"],
       ["Settings", "/org/acme/projects/proj_1/settings"],
     ]);
     expect(items.find((item) => item.label === "Queries")?.featureFlagKey).toBe(
       WORKSPACE_QUERIES_BOARD_FLAG,
+    );
+    expect(items.find((item) => item.label === "Reports")?.featureFlagKey).toBe(
+      WORKSPACE_REPORTS_FLAG,
     );
     expect(items.find((item) => item.label === "Automations")?.featureFlagKey).toBe(
       WORKSPACE_AUTOMATIONS_FLAG,
@@ -296,6 +300,7 @@ describe("path builders", () => {
       "Jobs",
       "Queries",
       "Automations",
+      "Reports",
     ]);
     expect(groups[3]?.items.map((item) => item.label)).toEqual(["Settings"]);
   });
@@ -510,6 +515,15 @@ describe("buildProjectNavigationItems", () => {
     });
     const items = buildProjectNavigationItems("acme", projectId, intl);
     expect(items.find((item) => item.label === "QA")).toBeUndefined();
+  });
+
+  it("hides Reports for provider projects, which Reports does not record", () => {
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+    const items = buildProjectNavigationItems("acme", projectId, intl);
+    expect(items.find((item) => item.label === "Reports")).toBeUndefined();
   });
 
   it("includes a workspace Automations item gated by the workspace automations flag", () => {

@@ -20,6 +20,12 @@ const captureEditorSavesMock = vi.fn(async () => ({
   eventsProcessed: 3,
   segmentsRecorded: 2,
 }));
+const refreshReportingSummaryMock = vi.fn(async (_input: { signal?: AbortSignal }) => ({
+  daysRefreshed: 4,
+  projectsSkipped: 0,
+  daysPending: 0,
+  workspacesQueuedForBuild: 1,
+}));
 
 async function createClient(input?: { cronSecret?: string | null }) {
   const cronSecret = input?.cronSecret === null ? undefined : (input?.cronSecret ?? "cron-secret");
@@ -27,6 +33,9 @@ async function createClient(input?: { cronSecret?: string | null }) {
   vi.resetModules();
   vi.doMock("@/lib/reporting/editor-save-capture", () => ({
     captureEditorSaves: captureEditorSavesMock,
+  }));
+  vi.doMock("@/lib/reporting/summary", () => ({
+    refreshReportingSummary: refreshReportingSummaryMock,
   }));
   vi.doMock("@/lib/env", () => ({
     env: {
@@ -43,8 +52,10 @@ describe("reporting capture cron route", () => {
   afterEach(() => {
     vi.resetModules();
     vi.doUnmock("@/lib/reporting/editor-save-capture");
+    vi.doUnmock("@/lib/reporting/summary");
     vi.doUnmock("@/lib/env");
     captureEditorSavesMock.mockClear();
+    refreshReportingSummaryMock.mockClear();
   });
 
   it("rejects requests without the cron secret", async () => {
@@ -53,6 +64,7 @@ describe("reporting capture cron route", () => {
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({ error: "unauthorized" });
     expect(captureEditorSavesMock).not.toHaveBeenCalled();
+    expect(refreshReportingSummaryMock).not.toHaveBeenCalled();
   });
 
   it("answers 503 when no cron secret is configured", async () => {
@@ -61,7 +73,20 @@ describe("reporting capture cron route", () => {
     expect(response.status).toBe(503);
   });
 
-  it("records editor saves when authorized", async () => {
+  it("keeps the capture results when the summary refresh fails", async () => {
+    refreshReportingSummaryMock.mockRejectedValueOnce(new Error("refresh failed"));
+    const client = await createClient();
+    const response = await client.index.$get(
+      {},
+      { headers: { authorization: "Bearer cron-secret" } },
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      results: { eventsProcessed: 3, summary: { error: "reporting_summary_refresh_failed" } },
+    });
+  });
+
+  it("records editor saves, then refreshes the summary, when authorized", async () => {
     const client = await createClient();
     const response = await client.index.$get(
       {},
@@ -76,8 +101,16 @@ describe("reporting capture cron route", () => {
         organizationsStarted: 0,
         eventsProcessed: 3,
         segmentsRecorded: 2,
+        summary: {
+          daysRefreshed: 4,
+          projectsSkipped: 0,
+          daysPending: 0,
+          workspacesQueuedForBuild: 1,
+        },
       },
     });
     expect(captureEditorSavesMock).toHaveBeenCalledTimes(1);
+    expect(refreshReportingSummaryMock).toHaveBeenCalledTimes(1);
+    expect(refreshReportingSummaryMock.mock.calls[0]![0].signal).toBeInstanceOf(AbortSignal);
   });
 });

@@ -16,7 +16,7 @@ observer views.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
@@ -366,4 +366,5 @@ For GitHub Actions, consider using [`voidzero-dev/setup-vp`](https://github.com/
 - Base UI `DropdownMenuItem` handlers use `onClick`, not Radix-style `onSelect`; menu actions silently no-op if `onSelect` is used.
 - Browser E2E loads `.env` then overrides with `.env.e2e` (WorkOS emulator). Placeholder `AUTUMN_API_KEY` from `.env.e2e.example` causes project creation to fail with 503; seed test data via DB in E2E fixtures instead of UI project create when billing is not configured.
 - When `vp` is unavailable in agent shells, run E2E with `vp run test:e2e` after fixing PATH, or invoke vitest through the project's `vite-plus` dependency with `--config vite.e2e.config.ts`.
+- Reports: any write to `reporting_analyses` or `reporting_activity` must mark its days for the daily summary in the same transaction (`markSummaryDays`), or the Reports page silently goes stale. See [`docs/adr/2026-10-23-reports-rework-design.md`](../../docs/adr/2026-10-23-reports-rework-design.md).
 - `next build` / Vercel type-check omit `*.test.*`, `*.fixture.ts`, `*.stories.*`, `*-msw-handlers.ts`, and `*.story-view.*` (see `.vercelignore` and `tsconfig.build.json`). Never import a fixture from a file that is not one of those suffixes.

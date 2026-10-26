@@ -15,13 +15,16 @@ import { Hono } from "hono";
 import { verifyCronRequest } from "@/api/routes/cron/cron-auth";
 import { createLogger } from "@/lib/log";
 import { captureEditorSaves } from "@/lib/reporting/editor-save-capture";
+import { refreshReportingSummary } from "@/lib/reporting/summary";
 
 const logger = createLogger("cron-reporting-capture");
 /**
- * A run starts no new batch after this long, a minute inside the 300 s function limit
+ * A run starts no new work after this long, a minute inside the 300 s function limit
  * (`maxDuration` in the API catch-all route), so it ends cleanly and keeps its finished work.
  */
-const CAPTURE_TIME_BUDGET_MS = 240_000;
+const RUN_TIME_BUDGET_MS = 240_000;
+/** Recording saves stops here, leaving the rest of the run to refreshing the daily summary. */
+const CAPTURE_TIME_BUDGET_MS = 180_000;
 
 export function createReportingCaptureRoutes() {
   return new Hono().get("/", async (c) => {
@@ -45,9 +48,19 @@ export function createReportingCaptureRoutes() {
       return c.json({ error: "unauthorized" }, 401);
     }
 
-    const results = await captureEditorSaves({
+    const startedAt = Date.now();
+    const capture = await captureEditorSaves({
       signal: AbortSignal.timeout(CAPTURE_TIME_BUDGET_MS),
     });
+    // Saves recorded above, and work recorded by jobs since the last run, reach the summary now.
+    // Capture's work is already saved, so a failed refresh is logged and retried next run.
+    const summary = await refreshReportingSummary({
+      signal: AbortSignal.timeout(Math.max(0, RUN_TIME_BUDGET_MS - (Date.now() - startedAt))),
+    }).catch((error: unknown) => {
+      logger.error({ error }, "reporting summary refresh failed");
+      return { error: "reporting_summary_refresh_failed" as const };
+    });
+    const results = { ...capture, summary };
     logger.info(results, "cron tick completed");
     return c.json({ results }, 200);
   });
