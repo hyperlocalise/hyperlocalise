@@ -99,6 +99,16 @@ describe("Compare node executor", () => {
     expect(
       compare("contains", "Résumé final", "resume", { locale: "en", sensitivity: "base" }),
     ).toEqual({ ok: true, output: { result: true } });
+    const expandedGrapheme = `a${"\u0301".repeat(5)}`;
+    expect(
+      compare("ends_with", expandedGrapheme, "a", { locale: "en", sensitivity: "base" }),
+    ).toEqual({ ok: true, output: { result: true } });
+    expect(
+      compare("contains", `before ${expandedGrapheme} after`, "a", {
+        locale: "en",
+        sensitivity: "base",
+      }),
+    ).toEqual({ ok: true, output: { result: true } });
   });
 
   it("combines boolean predicates", () => {

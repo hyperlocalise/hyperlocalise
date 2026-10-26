@@ -331,7 +331,8 @@ export function VisualWorkflowConfigPanel({
     (field) =>
       field.name.startsWith("value.") &&
       config.kind !== "logic.create_object" &&
-      config.kind !== "logic.merge_objects",
+      config.kind !== "logic.merge_objects" &&
+      config.kind !== "logic.compare",
   );
 
   // The tab stays as chosen from step to step, and starts over when the panel is opened again.

@@ -92,20 +92,23 @@ function stringContains(
   collator: Intl.Collator | undefined,
 ): boolean {
   if (!collator) return haystack.includes(needle);
-  const normalizedHaystack = Array.from(haystack.normalize("NFC"));
-  const normalizedNeedle = Array.from(needle.normalize("NFC"));
-  if (normalizedNeedle.length === 0) return true;
-  for (let start = 0; start < normalizedHaystack.length; start += 1) {
-    for (
-      let length = Math.max(1, normalizedNeedle.length - 2);
-      length <= normalizedNeedle.length + 2 && start + length <= normalizedHaystack.length;
-      length += 1
-    ) {
-      if (collator.compare(normalizedHaystack.slice(start, start + length).join(""), needle) === 0)
-        return true;
+  const segments = localeGraphemes(haystack, collator);
+  if (needle.length === 0) return true;
+  for (let start = 0; start < segments.length; start += 1) {
+    let candidate = "";
+    for (let end = start; end < segments.length; end += 1) {
+      candidate += segments[end];
+      if (collator.compare(candidate, needle) === 0) return true;
     }
   }
   return false;
+}
+
+function localeGraphemes(value: string, collator: Intl.Collator): string[] {
+  const segmenter = new Intl.Segmenter(collator.resolvedOptions().locale, {
+    granularity: "grapheme",
+  });
+  return [...segmenter.segment(value.normalize("NFC"))].map((entry) => entry.segment);
 }
 
 function stringStartsOrEndsWith(
@@ -115,11 +118,8 @@ function stringStartsOrEndsWith(
   collator: Intl.Collator | undefined,
 ): boolean {
   if (!collator) return position === "start" ? value.startsWith(search) : value.endsWith(search);
-  const valueParts = Array.from(value.normalize("NFC"));
-  const searchLength = Array.from(search.normalize("NFC")).length;
-  for (let delta = -2; delta <= 2; delta += 1) {
-    const length = searchLength + delta;
-    if (length < 0 || length > valueParts.length) continue;
+  const valueParts = localeGraphemes(value, collator);
+  for (let length = 0; length <= valueParts.length; length += 1) {
     const candidate =
       position === "start"
         ? valueParts.slice(0, length).join("")

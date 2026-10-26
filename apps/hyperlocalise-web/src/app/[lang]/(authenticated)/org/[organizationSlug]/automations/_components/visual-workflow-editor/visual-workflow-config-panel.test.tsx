@@ -1490,6 +1490,7 @@ describe("VisualWorkflowConfigPanel", () => {
 
     renderPanel(<StatefulComparePanel />);
     expect(screen.getByRole("textbox", { name: "Value 1 name" })).toHaveValue("Left");
+    expect(screen.getAllByText("Connect this on the canvas.")).toHaveLength(2);
     await user.click(screen.getByRole("combobox", { name: "Operator" }));
     await user.click(await screen.findByRole("option", { name: "AND" }));
     expect(onChangeConfig).toHaveBeenLastCalledWith(

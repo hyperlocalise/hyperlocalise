@@ -323,6 +323,16 @@ export function applyNodeConfigUpdate(
       ),
     };
   }
+  if (current?.data.config.kind === "logic.compare" && nextConfig.kind === "logic.compare") {
+    return {
+      nodes: nextNodes,
+      edges: pruneObjectValuePortEdges(
+        edges,
+        nodeId,
+        collectRemovedObjectPortIds(current.data.config.operands, nextConfig.operands),
+      ),
+    };
+  }
   return { nodes: nextNodes, edges: [...edges] };
 }
 
