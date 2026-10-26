@@ -538,18 +538,24 @@ export function ContentEditorDocumentEditorPane({
 
         <div
           className={cn(
-            "mx-auto grid w-full items-start gap-8 px-2 pt-10 sm:px-6",
+            "mx-auto grid w-full items-start gap-8 px-2 sm:px-6",
+            splitView && codeMode ? "pt-6" : "pt-10",
             splitView ? "max-w-[100rem] xl:grid-cols-2" : "max-w-[60rem]",
           )}
         >
           {splitView ? (
             <section
-              className="min-w-0 rounded-xl bg-muted/30 py-6"
+              className={cn("min-w-0 rounded-xl bg-muted/30", codeMode ? "py-4" : "py-6")}
               aria-label={intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
                 locale: sourceLocale,
               })}
             >
-              <p className="mb-4 ps-14 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              <p
+                className={cn(
+                  "text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                  codeMode ? "mb-2 ps-6" : "mb-4 ps-14",
+                )}
+              >
                 {intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
                   locale: sourceLocale,
                 })}
@@ -635,7 +641,14 @@ export function ContentEditorDocumentEditorPane({
               </Collapsible>
             ) : null}
             {codeMode ? (
-              <div className="mx-auto max-w-[46rem] px-6 pb-16">
+              <div className="mx-auto w-full max-w-[46rem] px-6 pb-16">
+                {splitView ? (
+                  <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                    {intl.formatMessage(contentEditorFileViewMessages.targetHeading, {
+                      locale: targetLocale,
+                    })}
+                  </p>
+                ) : null}
                 <Textarea
                   value={body}
                   onChange={(event) => setBody(event.currentTarget.value)}
