@@ -539,10 +539,10 @@ export function ContentEditorDocumentEditorPane({
         <div
           className={cn(
             "mx-auto grid w-full items-start gap-8 px-2 pt-10 sm:px-6",
-            splitView && !codeMode ? "max-w-[100rem] xl:grid-cols-2" : "max-w-[60rem]",
+            splitView ? "max-w-[100rem] xl:grid-cols-2" : "max-w-[60rem]",
           )}
         >
-          {splitView && !codeMode ? (
+          {splitView ? (
             <section
               className="min-w-0 rounded-xl bg-muted/30 py-6"
               aria-label={intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
@@ -554,17 +554,32 @@ export function ContentEditorDocumentEditorPane({
                   locale: sourceLocale,
                 })}
               </p>
-              <DocumentEditor
-                key={`source-${documentKey}`}
-                value={load.sourceBody}
-                syntax={syntax}
-                editable={false}
-                showOutline={false}
-                ariaLabel={intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
-                  locale: sourceLocale,
-                })}
-                onChange={() => undefined}
-              />
+              {codeMode ? (
+                <div className="px-6 pb-2">
+                  <Textarea
+                    value={load.status === "ready" ? load.sourceBody : ""}
+                    readOnly
+                    tabIndex={-1}
+                    aria-label={intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
+                      locale: sourceLocale,
+                    })}
+                    spellCheck={false}
+                    className="min-h-[40rem] resize-y bg-muted/20 font-mono text-[13px] leading-relaxed"
+                  />
+                </div>
+              ) : (
+                <DocumentEditor
+                  key={`source-${documentKey}`}
+                  value={load.status === "ready" ? load.sourceBody : ""}
+                  syntax={syntax}
+                  editable={false}
+                  showOutline={false}
+                  ariaLabel={intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
+                    locale: sourceLocale,
+                  })}
+                  onChange={() => undefined}
+                />
+              )}
             </section>
           ) : null}
           <section

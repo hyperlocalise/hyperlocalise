@@ -94,6 +94,34 @@ describe("ContentEditorFileViewPanel", () => {
     expect(onUpload).toHaveBeenCalledTimes(1);
   });
 
+  it("toggles comparison for plain-text files in code mode", async () => {
+    const user = userEvent.setup();
+    window.localStorage.removeItem("content-editor-file-view:source-pane:v1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("Hello\n\nWorld\n")),
+    );
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorFileViewPanel
+          segment={imageSegment({ contentKind: "document", sourcePath: "notes.txt" })}
+          viewerId="markdown"
+          onUpload={vi.fn(async () => undefined)}
+          onApprove={vi.fn()}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    expect(await screen.findByLabelText("Document source")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Source (en)" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Compare original" }));
+    expect(screen.getByRole("region", { name: "Source (en)" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Close comparison" }));
+    expect(screen.queryByRole("region", { name: "Source (en)" })).not.toBeInTheDocument();
+  });
+
   it("renders source pane before translated pane", () => {
     render(
       <ContentEditorTestProviders>
