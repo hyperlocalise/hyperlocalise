@@ -89,8 +89,9 @@ export const taskReportMessages = defineMessages({
     description: "Detail under the estimated cost card: what the unfinished work will still cost",
   },
   incomplete: {
-    id: "CTYBUBZ8WJ",
-    defaultMessage: "Some work has no rate or no time estimate, so the cost is too low.",
+    id: "+ZMg3bOljT",
+    defaultMessage:
+      "Some work has no rate, no time estimate or no match band, so the cost is not exact.",
     description: "Detail under the estimated cost card when some prices are missing",
   },
   matchAnalysis: {

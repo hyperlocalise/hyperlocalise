@@ -76,9 +76,9 @@ export const budgetsTabMessages = defineMessages({
     description: "Budget status: more than the budget is spent",
   },
   incomplete: {
-    id: "YlTd/jJl/v",
+    id: "9FyMwA//m0",
     defaultMessage:
-      "Some unfinished work has no rate or no time estimate, so still to come may be low.",
+      "Some unfinished work has no rate, no time estimate or no match band, so still to come is not exact.",
     description: "Note on a budget whose still to come is incomplete",
   },
   note: {

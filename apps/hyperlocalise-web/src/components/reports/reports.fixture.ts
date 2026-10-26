@@ -323,6 +323,7 @@ export const reportsCostEstimate: CostEstimate = {
     costUsd: "1358.40000000",
     unpricedUnits: 8_270,
     uncounted: 0,
+    unavailableUnits: 0,
     memorySavings: 0.2,
     tasks: 3,
     languages: 2,

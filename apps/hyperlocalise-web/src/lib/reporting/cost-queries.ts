@@ -374,11 +374,16 @@ export type CostEstimate = {
     unpricedUnits: number;
     /** Strings whose units could not be counted. */
     uncounted: number;
+    /**
+     * Units whose match band could not be worked out (the memory could not be read when they
+     * arrived), priced as new work, so the cost may be too high.
+     */
+    unavailableUnits: number;
     /** The share of the per-unit cost saved by match discounts, against paying every band in full. */
     memorySavings: number | null;
     tasks: number;
     languages: number;
-    /** Some work has no rate or no time estimate, so the cost is too low. */
+    /** Some work has no rate, no time estimate or no match band, so the cost is not exact. */
     incomplete: boolean;
   };
 };
@@ -413,6 +418,7 @@ export async function queryCostEstimate(
       costUsd: usdString(ZERO),
       unpricedUnits: 0,
       uncounted: 0,
+      unavailableUnits: 0,
       memorySavings: null,
       tasks: 0,
       languages: 0,
@@ -477,6 +483,7 @@ export async function queryCostEstimate(
       totals.bands[group.bucket] = (totals.bands[group.bucket] ?? 0) + group.units;
     totals.units += group.units;
     if (group.pricing === "none") totals.unpricedUnits += group.units;
+    if (group.bucket === "unavailable" && group.units > 0) totals.unavailableUnits += group.units;
     if (group.pricing !== "rate" || group.basis === "hour" || !group.rate) continue;
     const percent = paidPercent(group.percentages, group.bucket);
     const units = Math.round(group.basisUnits);
@@ -495,6 +502,9 @@ export async function queryCostEstimate(
     }
     if (row.cost !== null) cost += row.cost;
     if (row.pricing === "none" || row.unestimated || row.uncounted > 0) totals.incomplete = true;
+  }
+  if (totals.unavailableUnits > 0) totals.incomplete = true;
+  for (const row of rows.values()) {
     row.costUsd = row.cost === null ? null : usdString(row.cost);
   }
   for (const fee of fees) cost += usdUnits(fee.amountUsd);
@@ -561,6 +571,7 @@ export async function queryStillToCome(input: {
   for (const group of priced.groups) {
     const entry = project(group.projectId);
     if (group.pricing === "none") entry.incomplete = true;
+    if (group.bucket === "unavailable" && group.units > 0) entry.incomplete = true;
     if (group.pricing !== "rate" || group.basis === "hour" || !group.rate) continue;
     if (group.uncounted > 0) entry.incomplete = true;
     entry.amount += usdUnits(

@@ -14,7 +14,12 @@ import { createHash } from "node:crypto";
 import { and, asc, eq, desc, gt, inArray, isNull, lte, sql, type SQL } from "drizzle-orm";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { listAttachedProjectMemoryIds } from "@/lib/memory/ensure-default-native-project-memory";
-import { countSourceCharacters, countSourceWords, matchBucket } from "./word-analysis";
+import {
+  countSourceCharacters,
+  countSourceWords,
+  matchBucket,
+  type MatchBucket,
+} from "./word-analysis";
 import type { CompletionSource } from "./report-units";
 import { MemoryMatchIndex, MemorySourceScan, sourceSimilarity } from "./memory-match-index";
 import { unitCost } from "./money";
@@ -100,6 +105,17 @@ export async function resolveReportingRate(
     );
   if (!budget?.rateCardName) return null;
   return rateLine(database, input, budget.rateCardName, null);
+}
+
+/**
+ * The share of a band a rate line pays. The unavailable band (the memory could not be read when
+ * the string arrived) is paid as new work, as the estimate prices it.
+ */
+export function paidPercent(
+  rate: { percentages: Partial<Record<MatchBucket, number>> },
+  bucket: MatchBucket,
+): number {
+  return rate.percentages[bucket === "unavailable" ? "new" : bucket] ?? 100;
 }
 
 /** A card's line for a language pair and step, as of the time `asOf` reads (now when null). */
@@ -632,6 +648,31 @@ async function writeReportingCompletions(
   };
   return database.transaction(async (tx) => {
     const marks: SummaryMark[] = [];
+    // A person's work is priced when it is finished, at the rate in force then, as the estimate
+    // prices it: the task's own card as it was when the task was priced, else its project
+    // budget's card now. A task for people has its strings recorded before it is priced, so the
+    // rate stored with each string when it arrived is not the one that applies.
+    const rates = new Map<string, Awaited<ReturnType<typeof resolveReportingRate>>>();
+    const rateFor = async (analysis: { projectId: string | null; sourceLocale: string }) => {
+      if (!analysis.projectId) return null;
+      const key = `${analysis.projectId}\u0000${analysis.sourceLocale}`;
+      let rate = rates.get(key);
+      if (rate === undefined) {
+        rate = await resolveReportingRate(
+          {
+            organizationId: input.organizationId,
+            projectId: analysis.projectId,
+            jobId: input.jobId,
+            sourceLocale: analysis.sourceLocale,
+            targetLocale: input.targetLocale,
+            step,
+          },
+          tx,
+        );
+        rates.set(key, rate);
+      }
+      return rate;
+    };
     const markCompletion = (completion: {
       analysisId: string | null;
       projectId: string | null;
@@ -714,12 +755,8 @@ async function writeReportingCompletions(
           );
         if (taskRate?.overrideUsd !== null && taskRate?.overrideUsd !== undefined) continue;
       }
-      const [rate] = analysis.rateId
-        ? await tx
-            .select()
-            .from(schema.reportingRates)
-            .where(eq(schema.reportingRates.id, analysis.rateId))
-        : [];
+      const rate = await rateFor(analysis);
+      // An hourly line prices the time logged on the task, not its strings.
       if (rate?.basis === "hour") continue;
       // Priced in the rate's own unit, whatever unit a report later shows.
       const units =
@@ -728,7 +765,7 @@ async function writeReportingCompletions(
           : rate?.basis === "character_with_spaces"
             ? analysis.charactersWithSpaces
             : analysis.words;
-      const priced = rate && units !== null && analysis.bucket !== "unavailable";
+      const priced = rate && units !== null;
       await tx
         .insert(schema.reportingCosts)
         .values({
@@ -740,9 +777,7 @@ async function writeReportingCompletions(
           step,
           targetLocale: input.targetLocale,
           rateId: rate?.id,
-          amountUsd: priced
-            ? unitCost(rate.rate, units, rate.percentages[analysis.bucket] ?? 100)
-            : null,
+          amountUsd: priced ? unitCost(rate.rate, units, paidPercent(rate, analysis.bucket)) : null,
           basis: priced ? "rate" : "unpriced",
           createdAt: input.occurredAt?.[analysis.segmentId],
         })

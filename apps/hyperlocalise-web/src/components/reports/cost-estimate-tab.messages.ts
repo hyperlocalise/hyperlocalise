@@ -92,8 +92,9 @@ export const costEstimateTabMessages = defineMessages({
     description: "Detail under the estimated cost card when no rate card is chosen",
   },
   incomplete: {
-    id: "JKl1MjPESe",
-    defaultMessage: "Some work has no rate or no time estimate, so the cost is too low.",
+    id: "/XGJylRSFv",
+    defaultMessage:
+      "Some work has no rate, no time estimate or no match band, so the cost is not exact.",
     description: "Warning when an estimate is missing some prices",
   },
   memorySavings: {

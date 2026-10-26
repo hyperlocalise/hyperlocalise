@@ -12,9 +12,9 @@
  */
 import "dotenv/config";
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
@@ -685,6 +685,206 @@ describe("reporting capture", () => {
       );
     // "Hello world": 10 characters without spaces at $0.05.
     expect(cost).toEqual({ amountUsd: "0.50000000", basis: "rate" });
+  });
+
+  describe("pricing finished work", () => {
+    const WORDS = "Hello world";
+    const humanCosts = (organizationId: string) =>
+      db
+        .select({ amountUsd: schema.reportingCosts.amountUsd, basis: schema.reportingCosts.basis })
+        .from(schema.reportingCosts)
+        .where(
+          and(
+            eq(schema.reportingCosts.organizationId, organizationId),
+            eq(schema.reportingCosts.kind, "human"),
+          ),
+        );
+    const line = (
+      organizationId: string,
+      name: string,
+      basis: "word" | "hour",
+      rate: string,
+      percentages: Record<string, number> = { new: 100 },
+    ) => ({
+      organizationId,
+      name,
+      sourceLocale: "en",
+      targetLocale: "fr-FR",
+      step: "review" as const,
+      basis,
+      rate,
+      percentages,
+    });
+    const createTask = async (organizationId: string, projectId: string, userId: string) => {
+      const [task] = await db
+        .insert(schema.jobs)
+        .values({
+          id: `job_${randomUUID()}`,
+          organizationId,
+          projectId,
+          createdByUserId: userId,
+          kind: "proofread",
+          status: "waiting_for_review",
+          inputPayload: {},
+        })
+        .returning();
+      return task!;
+    };
+
+    it("prices work at the task's own card, set after its strings arrived, not the budget's", async () => {
+      const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+      const task = await createTask(organization.id, project.id, user.id);
+      // The budget's card pays review by the hour; the task's card, set once the quote was read,
+      // pays per word. Before, the strings kept the hourly line they arrived under and the work
+      // was recorded at $0.
+      await db.insert(schema.reportingBudgets).values({
+        organizationId: organization.id,
+        projectId: project.id,
+        budget: "1000.00000000",
+        rateCardName: "Hourly",
+      });
+      await db
+        .insert(schema.reportingRates)
+        .values([
+          line(organization.id, "Hourly", "hour", "60.00000000"),
+          line(organization.id, "Task card", "word", "0.50000000"),
+        ]);
+      const scope = {
+        organizationId: organization.id,
+        jobId: task.id,
+        targetLocale: "fr-FR",
+        sourceEntries: { greeting: WORDS },
+        step: "review" as const,
+      };
+      await captureAnalysis({
+        ...scope,
+        projectId: project.id,
+        sourceLocale: "en",
+        billable: true,
+      });
+      await db.insert(schema.reportingTaskRates).values({
+        organizationId: organization.id,
+        jobId: task.id,
+        step: "review",
+        rateCardName: "Task card",
+        pricedAt: sql`clock_timestamp()`,
+      });
+      await captureCompletions({ ...scope, provenance: "human", actorUserId: user.id });
+
+      expect(await humanCosts(organization.id)).toEqual([
+        { amountUsd: "1.00000000", basis: "rate" },
+      ]);
+    });
+
+    it("prices nothing per string under an hourly task card, whatever the budget's card pays", async () => {
+      const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+      const task = await createTask(organization.id, project.id, user.id);
+      await db.insert(schema.reportingBudgets).values({
+        organizationId: organization.id,
+        projectId: project.id,
+        budget: "1000.00000000",
+        rateCardName: "Per word",
+      });
+      await db
+        .insert(schema.reportingRates)
+        .values([
+          line(organization.id, "Per word", "word", "0.10000000"),
+          line(organization.id, "Hourly", "hour", "60.00000000"),
+        ]);
+      const scope = {
+        organizationId: organization.id,
+        jobId: task.id,
+        targetLocale: "fr-FR",
+        sourceEntries: { greeting: WORDS },
+        step: "review" as const,
+      };
+      await captureAnalysis({
+        ...scope,
+        projectId: project.id,
+        sourceLocale: "en",
+        billable: true,
+      });
+      await db.insert(schema.reportingTaskRates).values({
+        organizationId: organization.id,
+        jobId: task.id,
+        step: "review",
+        rateCardName: "Hourly",
+        pricedAt: sql`clock_timestamp()`,
+      });
+      await captureCompletions({ ...scope, provenance: "human", actorUserId: user.id });
+
+      // The task's time is what the hourly line prices; its strings cost nothing on their own.
+      expect(await humanCosts(organization.id)).toEqual([]);
+    });
+
+    it("prices work at a budget card added after its strings arrived", async () => {
+      const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+      const scope = {
+        organizationId: organization.id,
+        targetLocale: "fr-FR",
+        sourceEntries: { greeting: WORDS },
+        step: "review" as const,
+      };
+      await captureAnalysis({
+        ...scope,
+        projectId: project.id,
+        sourceLocale: "en",
+        billable: true,
+      });
+      await db.insert(schema.reportingBudgets).values({
+        organizationId: organization.id,
+        projectId: project.id,
+        budget: "1000.00000000",
+        rateCardName: "Per word",
+      });
+      await db
+        .insert(schema.reportingRates)
+        .values(line(organization.id, "Per word", "word", "0.10000000"));
+      await captureCompletions({ ...scope, provenance: "human", actorUserId: user.id });
+
+      expect(await humanCosts(organization.id)).toEqual([
+        { amountUsd: "0.20000000", basis: "rate" },
+      ]);
+    });
+
+    it("pays work whose match band could not be worked out as new work, as the estimate does", async () => {
+      const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+      await db.insert(schema.reportingBudgets).values({
+        organizationId: organization.id,
+        projectId: project.id,
+        budget: "1000.00000000",
+        rateCardName: "Per word",
+      });
+      await db
+        .insert(schema.reportingRates)
+        .values(line(organization.id, "Per word", "word", "0.10000000", { new: 50, "100": 0 }));
+      // Recorded while the memory could not be read: no score, so no band.
+      await db.insert(schema.reportingAnalyses).values({
+        organizationId: organization.id,
+        projectId: project.id,
+        step: "review",
+        segmentId: "greeting",
+        sourceRevision: createHash("sha256").update(WORDS).digest("hex"),
+        sourceLocale: "en",
+        targetLocale: "fr-FR",
+        words: 2,
+        billable: true,
+        bucket: "unavailable",
+      });
+      await captureCompletions({
+        organizationId: organization.id,
+        targetLocale: "fr-FR",
+        sourceEntries: { greeting: WORDS },
+        step: "review",
+        provenance: "human",
+        actorUserId: user.id,
+      });
+
+      // 2 words at $0.10, paid at the new band's 50%.
+      expect(await humanCosts(organization.id)).toEqual([
+        { amountUsd: "0.10000000", basis: "rate" },
+      ]);
+    });
   });
 
   it("records AI tokens without estimating a price", async () => {
