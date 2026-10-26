@@ -143,11 +143,16 @@ const mcpGetReportInputSchema = z.object({
   to: mcpDay.optional().describe("End date (YYYY-MM-DD, UTC). Defaults to today."),
   projectId: z.string().min(1).max(200).optional().describe("Optional project ID filter."),
   jobId: z.string().min(1).max(200).optional().describe("Optional job ID filter."),
-  targetLocale: z.string().min(2).max(35).optional().describe("Optional target locale filter."),
+  targetLocale: z
+    .string()
+    .min(2)
+    .max(35)
+    .optional()
+    .describe("Optional target locale filter. Not for ai."),
   step: z
     .enum(REPORT_STEPS)
     .optional()
-    .describe("Workflow step: translation (default) or review. Not for costs."),
+    .describe("Workflow step: translation (default) or review. Not for costs or ai."),
   unit: z
     .enum(REPORT_UNITS)
     .optional()
@@ -159,7 +164,12 @@ const mcpGetReportInputSchema = z.object({
     .optional()
     .describe("Words only: strings that arrived (default) or were finished in the dates."),
   groupBy: z
-    .union([z.enum(["project", "task", "week"]), z.enum(AI_USAGE_DIMENSIONS)])
+    .enum([
+      "project",
+      "task",
+      "week",
+      ...AI_USAGE_DIMENSIONS.filter((dimension) => dimension !== "project" && dimension !== "task"),
+    ])
     .optional()
     .describe(
       "Words: rows per project (default), per task (50 tasks a page), or per week and project. AI: area (default), feature, model, provider, channel, key, project, task or automation (50 groups a page).",
@@ -469,7 +479,7 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
     {
       annotations: MCP_READ_ONLY_TOOL,
       description:
-        "Get one of the Reports page's reports for accessible projects, with the same fields the page shows: activity (words arrived and finished, by where the text came from), words (word counts by match band), time (logged and automated time), ai (AI calls, tokens and billing's charge) or costs (what was spent). Days are UTC. Figures can lag the latest work by up to about 15 minutes; stillUpdating is true while recent work is still being counted. Needs billing access.",
+        "Get one of the Reports page's reports for accessible projects, with the same fields the page shows: activity (words arrived and finished, by where the text came from), words (word counts by match band), time (logged and automated time), ai (AI calls, tokens and billing's charge) or costs (what was spent). Days are UTC. Figures can lag the latest work by up to about 15 minutes; stillUpdating is true while recent work is still being counted. ai reads billing's records directly, so stillUpdating does not apply to it; calls whose charge billing has not recorded are counted in unrecordedCharges. Needs billing access.",
       inputSchema: mcpGetReportInputSchema,
     },
     async (input) => {

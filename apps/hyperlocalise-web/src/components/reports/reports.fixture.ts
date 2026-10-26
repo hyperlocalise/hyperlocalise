@@ -176,7 +176,13 @@ export const reportsAiUsage: AiUsage = {
       key: "images_and_video",
       label: null,
       ...aiTotals(0, 0, 0, { images: 84, videos: 6, chargeUsd: "2.85000000" }),
-      children: [{ key: null, label: null, ...aiTotals(0, 0, 0, { images: 84, videos: 6 }) }],
+      children: [
+        {
+          key: "google/imagen-5",
+          label: null,
+          ...aiTotals(0, 0, 0, { images: 84, videos: 6, chargeUsd: "2.85000000" }),
+        },
+      ],
     },
   ],
   totalGroups: 3,

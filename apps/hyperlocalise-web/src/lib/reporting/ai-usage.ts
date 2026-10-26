@@ -24,6 +24,7 @@ import {
   type AiUsageDimension,
   type SourceRule,
 } from "./ai-usage-origins";
+import { usdString, usdUnits } from "./money";
 import { addDays, type ReportPeriod } from "./report-period";
 import {
   dayEnd,
@@ -46,6 +47,8 @@ import {
 export const AI_USAGE_PAGE_SIZE = 50;
 /** The chart stacks this many of the largest groups, and the rest as one "Other". */
 export const AI_USAGE_CHART_GROUPS = 5;
+/** Rows under each group of the table, the rest shown as one "Other" row. */
+export const AI_USAGE_CHILD_ROWS = 10;
 
 export type AiUsageTotals = {
   calls: number;
@@ -55,9 +58,12 @@ export type AiUsageTotals = {
   videos: number;
   /** Billing's charge for calls through our AI gateway, as fixed-point USD. */
   chargeUsd: string;
-  /** Calls whose charge billing has no record of: not received yet, failed, or no key recorded. */
+  /**
+   * Calls, images and videos whose charge billing has no record of: not received, failed, or
+   * from before billing recorded the key.
+   */
   unrecordedCharges: number;
-  /** Calls on the workspace's own provider key, which use no plan credit. */
+  /** Calls, images and videos on the workspace's own provider key, which use no plan credit. */
   ownKeyCalls: number;
 };
 
@@ -69,6 +75,8 @@ export type AiUsageGroup = AiUsageTotals & {
   key: string | null;
   /** The name of a project, task or automation; null for the other details. */
   label: string | null;
+  /** Every row under a group beyond the largest few, together; never a filter. */
+  other?: boolean;
 };
 
 export type AiUsageRow = AiUsageGroup & { children: AiUsageGroup[] };
@@ -170,7 +178,7 @@ function usageRows(input: AiUsageQuery, from: string): SQL {
     input.includeUnattributed && !input.projectId
       ? sql`(${attributed} or project_id is null)`
       : attributed;
-  const media = [...AI_IMAGE_SOURCES, ...AI_VIDEO_SOURCES];
+  const media = idList([...AI_IMAGE_SOURCES, ...AI_VIDEO_SOURCES]);
   const filters = Object.entries(input.filters ?? {}).flatMap(([dimension, value]) =>
     value === undefined ? [] : [sql`${COLUMNS[dimension as AiUsageDimension]} = ${value}`],
   );
@@ -185,7 +193,7 @@ function usageRows(input: AiUsageQuery, from: string): SQL {
         case u.credential_source when 'gateway' then 'our_ai' when 'byok' then 'own_key'
           else 'not_recorded' end as key_type,
         u.project_id as project, u.job_id as task, u.automation_id as automation,
-        u.source, u.feature_id = 'agent_runs' as media, u.credential_source, u.amount_usd,
+        u.source, u.source in (${media}) as media, u.credential_source, u.amount_usd,
         u.created_at,
         ${tokens("input_tokens")} as input_tokens,
         ${tokens("output_tokens")} as output_tokens
@@ -193,9 +201,7 @@ function usageRows(input: AiUsageQuery, from: string): SQL {
         organizationId: input.organizationId,
         where: sql`u.created_at >= ${dayStart(from)}
           and u.created_at < ${dayEnd(input.period.to)}
-          and u.status <> 'rejected'
-          and (u.feature_id = 'ai_tokens'
-            or (u.feature_id = 'agent_runs' and u.source in (${idList(media)})))`,
+          and u.status <> 'rejected' and u.feature_id = 'ai_tokens'`,
       })}) u
       where ${projects}
     ),
@@ -206,8 +212,10 @@ function usageRows(input: AiUsageQuery, from: string): SQL {
 }
 
 /**
- * The measures of a group of `filtered` rows. Images and videos count as images or videos, never
- * as calls or tokens; the charge counts calls through our gateway, as Costs does.
+ * The measures of a group of `filtered` rows. Billing writes one token row for each finished
+ * call, image or video (a failed one leaves only its reservation, which is not read), so a token
+ * row under an image or video counts as that image or video, never as a call: its tokens are
+ * the image count or the video's seconds. The charge counts our gateway, as Costs does.
  */
 function measures(): SQL {
   const images = idList([...AI_IMAGE_SOURCES]);
@@ -217,12 +225,12 @@ function measures(): SQL {
     coalesce(sum(output_tokens) filter (where not media), 0)::float8 as "outputTokens",
     count(*) filter (where media and source in (${images}))::integer as images,
     count(*) filter (where media and source not in (${images}))::integer as videos,
-    round(coalesce(sum(amount_usd) filter (
-      where not media and credential_source = 'gateway'), 0), 8)::text as "chargeUsd",
-    count(*) filter (where not media and credential_source is distinct from 'byok'
+    round(coalesce(sum(amount_usd) filter (where credential_source = 'gateway'), 0), 8)::text
+      as "chargeUsd",
+    count(*) filter (where credential_source is distinct from 'byok'
       and (credential_source is distinct from 'gateway' or amount_usd is null))::integer
       as "unrecordedCharges",
-    count(*) filter (where not media and credential_source = 'byok')::integer as "ownKeyCalls"`;
+    count(*) filter (where credential_source = 'byok')::integer as "ownKeyCalls"`;
 }
 
 /** Largest first: by tokens, then images and videos, then calls. */
@@ -292,17 +300,46 @@ type TableRow = AiUsageTotals & {
   key2: string | null;
   label1: string | null;
   label2: string | null;
-  child: boolean;
+  /** Null on the one row of a page past the end, which carries only the total. */
+  child: boolean | null;
   total: number;
+  /** On a group's row: how many groups by the second detail it has. */
+  children: number;
 };
 
-/** A page of groups by the first detail, each with its groups by the second. */
+/** A group's totals less those of the groups shown under it: what "Other" stands for. */
+function remainder(group: AiUsageTotals, shown: AiUsageTotals[]): AiUsageTotals {
+  const less = (key: Exclude<keyof AiUsageTotals, "chargeUsd">) =>
+    group[key] - shown.reduce((sum, row) => sum + row[key], 0);
+  return {
+    calls: less("calls"),
+    inputTokens: less("inputTokens"),
+    outputTokens: less("outputTokens"),
+    images: less("images"),
+    videos: less("videos"),
+    chargeUsd: usdString(
+      shown.reduce((sum, row) => sum - usdUnits(row.chargeUsd), usdUnits(group.chargeUsd)),
+    ),
+    unrecordedCharges: less("unrecordedCharges"),
+    ownKeyCalls: less("ownKeyCalls"),
+  };
+}
+
+/**
+ * A page of groups by the first detail, each with its largest groups by the second and the rest
+ * as one "Other" row; a download has every group and every row under it.
+ */
 async function queryTable(input: AiUsageQuery) {
   const first = COLUMNS[input.groupBy];
   const thenBy = input.thenBy && input.thenBy !== input.groupBy ? input.thenBy : null;
   const second = thenBy ? COLUMNS[thenBy] : null;
   const page = input.page ?? 1;
   const offset = (page - 1) * AI_USAGE_PAGE_SIZE;
+  const largestFirst = sql`sort_tokens desc, sort_media desc, sort_calls desc`;
+  const shown = input.all
+    ? sql`true`
+    : sql`p.place > ${offset} and p.place <= ${offset + AI_USAGE_PAGE_SIZE}
+        and (not p.child or p.child_place <= ${AI_USAGE_CHILD_ROWS})`;
   const result = await db.execute<TableRow>(sql`
     with ${usageRows(input, input.period.from)},
     grouped as (
@@ -312,30 +349,46 @@ async function queryTable(input: AiUsageQuery) {
       from filtered
       group by ${second ? sql`grouping sets ((${first}), (${first}, ${second}))` : first}
     ),
-    parents as (
-      select g1, (count(*) over ())::integer as total,
-        row_number() over (
-          order by sort_tokens desc, sort_media desc, sort_calls desc, g1 nulls last) as place
-      from grouped where not child
-    )
-    select gr.g1 as key1, gr.g2 as key2, gr.child, p.total,
-      ${labelSql(input.groupBy, sql.raw("gr.g1"), input.organizationId)} as label1,
-      ${thenBy ? labelSql(thenBy, sql.raw("gr.g2"), input.organizationId) : sql`null::text`} as label2,
-      gr.calls, gr."inputTokens", gr."outputTokens", gr.images, gr.videos, gr."chargeUsd",
-      gr."unrecordedCharges", gr."ownKeyCalls"
-    from grouped gr join parents p on p.g1 is not distinct from gr.g1
-    ${input.all ? sql`` : sql`where p.place > ${offset} and p.place <= ${offset + AI_USAGE_PAGE_SIZE}`}
-    order by p.place, gr.child, gr.sort_tokens desc, gr.sort_media desc, gr.sort_calls desc,
-      gr.g2 nulls last
+    -- Window functions place each group and its rows; partitions treat no value as one group.
+    ranked as (
+      select *,
+        case when not child then row_number() over (
+          partition by child order by ${largestFirst}, g1 nulls last) end as own_place,
+        row_number() over (partition by g1, child order by ${largestFirst}, g2 nulls last)
+          as child_place,
+        count(*) filter (where child) over (partition by g1) as children
+      from grouped
+    ),
+    placed as (select *, max(own_place) over (partition by g1) as place from ranked),
+    counted as (select count(*)::integer as total from grouped where not child)
+    select c.total, p.g1 as key1, p.g2 as key2, p.child, p.children::integer as children,
+      ${labelSql(input.groupBy, sql.raw("p.g1"), input.organizationId)} as label1,
+      ${thenBy ? labelSql(thenBy, sql.raw("p.g2"), input.organizationId) : sql`null::text`} as label2,
+      p.calls, p."inputTokens", p."outputTokens", p.images, p.videos, p."chargeUsd",
+      p."unrecordedCharges", p."ownKeyCalls"
+    from counted c left join placed p on ${shown}
+    order by p.place, p.child, p.child_place
   `);
   const rows: AiUsageRow[] = [];
+  const childCounts: number[] = [];
   for (const row of result.rows) {
+    if (row.child === null) continue;
     if (!row.child) {
       rows.push({ key: row.key1, label: row.label1, ...totalsOf(row), children: [] });
+      childCounts.push(row.children);
       continue;
     }
     rows.at(-1)?.children.push({ key: row.key2, label: row.label2, ...totalsOf(row) });
   }
+  rows.forEach((row, index) => {
+    if (row.children.length < childCounts[index]!)
+      row.children.push({
+        key: null,
+        label: null,
+        other: true,
+        ...remainder(row, row.children),
+      });
+  });
   return {
     thenBy,
     rows,
@@ -386,8 +439,8 @@ async function querySeries(input: AiUsageQuery): Promise<AiUsageSeries> {
       count(*) filter (where not f.media)::integer as calls,
       coalesce(sum(f.input_tokens + f.output_tokens) filter (where not f.media), 0)::float8
         as tokens,
-      coalesce(sum(f.amount_usd) filter (
-        where not f.media and f.credential_source = 'gateway'), 0)::float8 as "chargeUsd"
+      coalesce(sum(f.amount_usd) filter (where f.credential_source = 'gateway'), 0)::float8
+        as "chargeUsd"
     from filtered f left join top t on t.g1 is not distinct from f.${column}
     group by 1, 2, 3
   `);

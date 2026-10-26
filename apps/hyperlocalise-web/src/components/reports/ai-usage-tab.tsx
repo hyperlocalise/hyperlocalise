@@ -54,15 +54,38 @@ type Measure = (typeof AI_USAGE_MEASURES)[number];
 
 const NONE = "__none__";
 
-/** The change that narrows the tab to one group of a detail. */
+/**
+ * The change that narrows the tab to one group of a detail, or null when no filter can: a
+ * group of calls without the detail, "Other", or a project when one is already chosen.
+ */
 function narrowTo(
   state: ReportsUrlState,
   dimension: AiUsageDimension,
-  key: string,
-): Partial<ReportsUrlState> {
-  if (dimension === "project") return { projectId: key, jobId: null, jobIds: [] };
+  group: { key: string | null; other?: boolean },
+): Partial<ReportsUrlState> | null {
+  const { key } = group;
+  if (key === null || group.other) return null;
+  if (dimension === "project") return state.projectId ? null : { projectId: key };
   if (dimension === "task") return { jobId: key };
   return { aiFilters: { ...state.aiFilters, [dimension]: key } };
+}
+
+/** Billing's charge as the page shows it: never $0 for a gap, nor for a fraction of a cent. */
+function chargeLabel(intl: ReturnType<typeof useIntl>, totals: Totals) {
+  const items = totals.calls + totals.images + totals.videos;
+  const charged = items - totals.ownKeyCalls;
+  if (items === 0) return { text: "—", muted: false };
+  if (charged === 0) return { text: intl.formatMessage(messages.ownKeyCharge), muted: true };
+  if (totals.unrecordedCharges >= charged)
+    return { text: intl.formatMessage(messages.notRecorded), muted: true };
+  const amount = Number(totals.chargeUsd);
+  return {
+    text:
+      amount > 0 && amount < 0.01
+        ? intl.formatMessage(messages.belowOneCent, { amount: formatUsd(intl, "0.01") })
+        : formatUsd(intl, totals.chargeUsd),
+    muted: false,
+  };
 }
 
 export function AiUsageTab({
@@ -78,6 +101,7 @@ export function AiUsageTab({
       <AiFilterChips
         state={input.state}
         automationName={usage.data?.automationName ?? null}
+        loading={usage.isFetching}
         onChange={onChange}
       />
       {usage.isPending && !usage.data ? (
@@ -99,10 +123,13 @@ export function AiUsageTab({
 function AiFilterChips({
   state,
   automationName,
+  loading,
   onChange,
 }: {
   state: ReportsUrlState;
   automationName: string | null;
+  /** The automation's name comes with the usage, so a new choice has none until it loads. */
+  loading: boolean;
   onChange: (change: Partial<ReportsUrlState>) => void;
 }) {
   const intl = useIntl();
@@ -123,17 +150,18 @@ function AiFilterChips({
           >
             {intl.formatMessage(messages.narrowedTo, {
               dimension: label,
-              value: aiGroupLabel(intl, dimension, {
-                key,
-                label: dimension === "automation" ? automationName : null,
-              }),
+              value:
+                dimension === "automation" && !automationName && loading
+                  ? "…"
+                  : aiGroupLabel(intl, dimension, {
+                      key,
+                      label: dimension === "automation" ? automationName : null,
+                    }),
             })}
             <button
               type="button"
               className="rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-              aria-label={intl.formatMessage(messages.removeFilter, {
-                dimension: label.toLowerCase(),
-              })}
+              aria-label={intl.formatMessage(messages.removeFilter, { dimension: label })}
               onClick={() => onChange({ aiFilters: rest })}
             >
               <XIcon aria-hidden className="size-3.5" />
@@ -189,7 +217,7 @@ function AiUsageCards({ data, organizationSlug }: { data: AiUsageData; organizat
         />
         <ReportStatCard
           label={intl.formatMessage(messages.charge)}
-          value={formatUsd(intl, totals.chargeUsd)}
+          value={chargeLabel(intl, totals).text}
           change={change(Number(totals.chargeUsd), Number(previous.chargeUsd), (amount) =>
             formatUsd(intl, amount.toFixed(8)),
           )}
@@ -280,7 +308,7 @@ function AiUsageChart({
     <ReportSection
       title={intl.formatMessage(weekly ? messages.chartPerWeek : messages.chartPerDay)}
       description={intl.formatMessage(messages.chartDetail, {
-        dimension: dimensionLabel(intl, data.groupBy).toLowerCase(),
+        dimension: dimensionLabel(intl, data.groupBy),
       })}
       actions={
         <>
@@ -345,22 +373,14 @@ function AiUsageChart({
   );
 }
 
-/** Billing's charge for a group: none for images and videos alone, and never $0 for a gap. */
+/** Billing's charge for a group, with how many of its calls have none recorded. */
 function ChargeCell({ totals }: { totals: Totals }) {
   const intl = useIntl();
-  const charged = totals.calls - totals.ownKeyCalls;
-  if (totals.calls === 0) return <>—</>;
-  if (charged === 0)
-    return (
-      <span className="text-muted-foreground">{intl.formatMessage(messages.ownKeyCharge)}</span>
-    );
-  if (totals.unrecordedCharges >= charged)
-    return (
-      <span className="text-muted-foreground">{intl.formatMessage(messages.notRecorded)}</span>
-    );
+  const { text, muted } = chargeLabel(intl, totals);
+  if (muted) return <span className="text-muted-foreground">{text}</span>;
   return (
     <span className="inline-flex flex-col items-end">
-      {formatUsd(intl, totals.chargeUsd)}
+      {text}
       {totals.unrecordedCharges > 0 ? (
         <span className="text-xs text-muted-foreground">
           {intl.formatMessage(messages.someNotRecorded, { count: totals.unrecordedCharges })}
@@ -442,19 +462,15 @@ function AiUsageTable({
               </TableCell>
             </>
           );
-          const name = (
-            dimension: AiUsageDimension,
-            group: { key: string | null; label: string | null },
-            change: () => Partial<ReportsUrlState>,
-          ) => {
-            const text = aiGroupLabel(intl, dimension, group);
-            if (group.key === null) return <span className="text-muted-foreground">{text}</span>;
+          const name = (text: string, change: Partial<ReportsUrlState> | null, muted = false) => {
+            if (!change)
+              return <span className={muted ? "text-muted-foreground" : undefined}>{text}</span>;
             return (
               <button
                 type="button"
                 className="text-left underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
                 aria-label={intl.formatMessage(messages.narrowTo, { name: text })}
-                onClick={() => onChange(change())}
+                onClick={() => onChange(change)}
               >
                 {text}
               </button>
@@ -491,40 +507,55 @@ function AiUsageTable({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.rows.map((row) => (
-                    <Fragment key={row.key ?? NONE}>
-                      <TableRow className={thenBy ? "bg-muted/30 font-medium" : undefined}>
-                        <TableCell>
-                          {/* Narrowing to a group shows its second-level groups next. */}
-                          {name(data.groupBy, row, () => ({
-                            ...narrowTo(state, data.groupBy, row.key!),
-                            ...(thenBy ? { aiGroup: thenBy, aiThen: null } : {}),
-                          }))}
-                        </TableCell>
-                        {cells(row)}
-                      </TableRow>
-                      {thenBy
-                        ? row.children.map((child) => (
-                            <TableRow key={child.key ?? NONE}>
-                              <TableCell className="pl-8">
-                                {name(thenBy, child, () => {
-                                  const parent =
-                                    row.key === null ? {} : narrowTo(state, data.groupBy, row.key);
-                                  const narrowed = { ...state, ...parent } as ReportsUrlState;
-                                  return {
-                                    ...parent,
-                                    ...narrowTo(narrowed, thenBy, child.key!),
-                                    aiGroup: thenBy,
-                                    aiThen: null,
-                                  };
-                                })}
-                              </TableCell>
-                              {cells(child)}
-                            </TableRow>
-                          ))
-                        : null}
-                    </Fragment>
-                  ))}
+                  {data.rows.map((row) => {
+                    const rowName = aiGroupLabel(intl, data.groupBy, row);
+                    const parent = narrowTo(state, data.groupBy, row);
+                    return (
+                      <Fragment key={row.key ?? NONE}>
+                        <TableRow className={thenBy ? "bg-muted/30 font-medium" : undefined}>
+                          <TableCell>
+                            {/* Narrowing to a group shows it by the second detail chosen now. */}
+                            {name(
+                              rowName,
+                              parent && {
+                                ...parent,
+                                ...(state.aiThen ? { aiGroup: state.aiThen, aiThen: null } : {}),
+                              },
+                              row.key === null,
+                            )}
+                          </TableCell>
+                          {cells(row)}
+                        </TableRow>
+                        {thenBy
+                          ? row.children.map((child) => {
+                              // Under a group no filter can stand for, a row cannot narrow either.
+                              const own = parent
+                                ? narrowTo(
+                                    { ...state, ...parent } as ReportsUrlState,
+                                    thenBy,
+                                    child,
+                                  )
+                                : null;
+                              return (
+                                <TableRow key={child.other ? "__other__" : (child.key ?? NONE)}>
+                                  <TableCell className="pl-8">
+                                    <span className="sr-only">{`${rowName}: `}</span>
+                                    {name(
+                                      child.other
+                                        ? intl.formatMessage(messages.otherGroup)
+                                        : aiGroupLabel(intl, thenBy, child),
+                                      own && { ...parent, ...own, aiGroup: thenBy, aiThen: null },
+                                      child.key === null,
+                                    )}
+                                  </TableCell>
+                                  {cells(child)}
+                                </TableRow>
+                              );
+                            })
+                          : null}
+                      </Fragment>
+                    );
+                  })}
                   <TableRow className="bg-muted/50 font-semibold">
                     <TableCell>{intl.formatMessage(pageMessages.total)}</TableCell>
                     {cells(data.totals)}

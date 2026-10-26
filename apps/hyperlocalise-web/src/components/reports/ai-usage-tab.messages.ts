@@ -15,11 +15,6 @@
 import { defineMessages } from "react-intl";
 
 export const aiUsageTabMessages = defineMessages({
-  aiUsage: {
-    id: "rS5rFYTVd7",
-    defaultMessage: "AI usage",
-    description: "Title of the AI usage section",
-  },
   callsColumn: {
     id: "QpdOZpNasy",
     defaultMessage: "Calls",
@@ -34,21 +29,6 @@ export const aiUsageTabMessages = defineMessages({
     id: "1OvUY7tBML",
     defaultMessage: "Output tokens",
     description: "Column heading: tokens the model returned",
-  },
-  modelColumn: {
-    id: "1PoSOMSmLa",
-    defaultMessage: "Model",
-    description: "Column heading: the AI model",
-  },
-  imagesCount: {
-    id: "8+9j1NEhxA",
-    defaultMessage: "{count, plural, one {# image} other {# images}}",
-    description: "How many images were made with AI",
-  },
-  videosCount: {
-    id: "5ZayxXnoLj",
-    defaultMessage: "{count, plural, one {# video} other {# videos}}",
-    description: "How many videos were made with AI",
   },
   origin_translation: {
     id: "+LTWFvOwuo",
@@ -247,10 +227,11 @@ export const aiUsageTabMessages = defineMessages({
     description: "Title of the AI usage chart, week by week",
   },
   chartDetail: {
-    id: "E75dsu+hDW",
-    defaultMessage: "By {dimension}, the largest five and the rest as Other. Days are UTC.",
+    id: "9wXFqdbOkp",
+    defaultMessage:
+      "Grouped by {dimension}: the largest five, and the rest as Other. Days are UTC.",
     description:
-      "Subtitle of the AI usage chart; dimension is a lower-case detail such as area or model",
+      "Subtitle of the AI usage chart; dimension is the name of a detail, such as Area or Model",
   },
   chartSummary: {
     id: "slXSkb5/Gg",
@@ -353,6 +334,12 @@ export const aiUsageTabMessages = defineMessages({
     description:
       "Charge cell for calls that all used the workspace's own provider key, which costs no plan credit",
   },
+  belowOneCent: {
+    id: "VRF9pR5hpD",
+    defaultMessage: "Under {amount}",
+    description:
+      "Charge shown for an amount above zero but below one cent; amount is one cent, as money",
+  },
   notRecorded: {
     id: "dRAnpDEjDR",
     defaultMessage: "Not recorded",
@@ -364,9 +351,9 @@ export const aiUsageTabMessages = defineMessages({
     description: "Under a charge: calls whose charge billing has not recorded",
   },
   unrecordedNote: {
-    id: "yOzP1PFU9M",
+    id: "gmMkorqLfM",
     defaultMessage:
-      "{count, plural, one {# call has no charge recorded by billing yet, so Charge leaves it out.} other {# calls have no charge recorded by billing yet, so Charge leaves them out.}}",
+      "{count, plural, one {# call has no charge recorded by billing, so Charge leaves it out.} other {# calls have no charge recorded by billing, so Charge leaves them out.}}",
     description: "Note under the AI usage cards",
   },
   ownKeyNote: {
@@ -386,9 +373,10 @@ export const aiUsageTabMessages = defineMessages({
     description: "A filter chip on AI usage: the detail and its chosen value",
   },
   removeFilter: {
-    id: "Vcd86Fhc8D",
-    defaultMessage: "Show every {dimension}",
-    description: "Accessible name of the button that removes an AI usage filter",
+    id: "QvlJLJrsTw",
+    defaultMessage: "Remove filter: {dimension}",
+    description:
+      "Accessible name of the button that removes an AI usage filter; dimension is the name of a detail, such as Model",
   },
   allValues: {
     id: "v6mNRf846Z",

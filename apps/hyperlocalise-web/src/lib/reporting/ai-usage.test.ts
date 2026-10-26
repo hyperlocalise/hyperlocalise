@@ -18,7 +18,12 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database/client";
 
-import { AI_USAGE_PAGE_SIZE, queryAiUsage, type AiUsageQuery } from "./ai-usage";
+import {
+  AI_USAGE_CHILD_ROWS,
+  AI_USAGE_PAGE_SIZE,
+  queryAiUsage,
+  type AiUsageQuery,
+} from "./ai-usage";
 import {
   AI_IMAGE_SOURCES,
   AI_VIDEO_SOURCES,
@@ -26,6 +31,7 @@ import {
   aiChannel,
   aiOrigin,
 } from "./ai-usage-origins";
+import { readAi } from "./report-reads";
 import { createReportingTestFixture } from "./reporting.fixture";
 import { resolvePeriod } from "./report-period";
 
@@ -138,16 +144,13 @@ describe("AI usage origins", () => {
       "slack_something_new",
       "something_new",
     ];
-    const media = new Set<string>([...AI_IMAGE_SOURCES, ...AI_VIDEO_SOURCES]);
-    await db.insert(schema.usageEvents).values(
-      sources.map((source) =>
-        usage({
-          source,
-          featureId: media.has(source) ? "agent_runs" : "ai_tokens",
-          dimensions: { project_id: project.id, input_tokens: 1 },
-        }),
-      ),
-    );
+    await db
+      .insert(schema.usageEvents)
+      .values(
+        sources.map((source) =>
+          usage({ source, dimensions: { project_id: project.id, input_tokens: 1 } }),
+        ),
+      );
     const scope = { organizationId: organization.id, projectIds: [project.id], period: PERIOD };
     for (const dimension of ["area", "channel"] as const) {
       const placed = await queryAiUsage({
@@ -220,9 +223,31 @@ describe("AI usage", () => {
       tokens(translation, 7, 7, { jobId: job.id, createdAt: new Date("2026-05-01T00:00:00Z") }),
       // The week before: the previous period.
       tokens(translation, 11, 1, { jobId: job.id, createdAt: new Date("2026-06-03T00:00:00Z") }),
-      ...["project_image_variant", "project_image_variant", "project_video_variant"].map((source) =>
-        usage({ featureId: "agent_runs", source, dimensions: { project_id: project.id } }),
+      // Images and videos: billing reserves a row for each, and writes its token row, with the
+      // charge, once it is made. A failed one leaves only its reservation.
+      ...["project_image_variant", "project_image_variant", "project_video_variant"].flatMap(
+        (source) => {
+          const made = usage({
+            featureId: "agent_runs",
+            source,
+            dimensions: { project_id: project.id },
+          });
+          return [
+            made,
+            tokens(made, 0, 1, {
+              modelId: "google/imagen-5",
+              credentialSource: "gateway",
+              amountUsd: "0.04",
+            }),
+          ];
+        },
       ),
+      usage({
+        featureId: "agent_runs",
+        source: "project_image_variant",
+        status: "reserved",
+        dimensions: { project_id: project.id },
+      }),
     ]);
     const scope = { organizationId: organization.id, projectIds: [project.id], period: PERIOD };
 
@@ -238,6 +263,7 @@ describe("AI usage", () => {
       outputTokens: 304,
       images: 2,
       videos: 1,
+      chargeUsd: "0.12000000",
       ownKeyCalls: 3,
     });
     expect(byArea.previous).toMatchObject({ calls: 1, inputTokens: 11 });
@@ -255,14 +281,15 @@ describe("AI usage", () => {
     ).toEqual([
       ["openai/gpt-6-luna", 2, ["translation", "running_automations"]],
       ["anthropic/claude-haiku-4.5", 1, ["translation"]],
-      [null, 0, ["images_and_video"]],
+      // An image's model and key are those of the call that made it.
+      ["google/imagen-5", 0, ["images_and_video"]],
     ]);
     const byProvider = await queryAiUsage({
       ...scope,
       includeUnattributed: false,
       groupBy: "provider",
     });
-    expect(byProvider.rows.map((row) => row.key)).toEqual(["openai", "anthropic", null]);
+    expect(byProvider.rows.map((row) => row.key)).toEqual(["openai", "anthropic", "google"]);
     const byTask = await queryAiUsage({ ...scope, includeUnattributed: false, groupBy: "task" });
     expect(byTask.rows[0]).toMatchObject({ key: job.id, calls: 2 });
     expect(byTask.rows[0]!.label).toBeTruthy();
@@ -463,6 +490,107 @@ describe("AI usage", () => {
     expect(second.rows.every((row) => row.children.length === 2)).toBe(true);
     const all = await queryAiUsage({ ...query, all: true });
     expect(all.rows).toHaveLength(AI_USAGE_PAGE_SIZE + 2);
+    // A page past the end still says how many groups there are.
+    await expect(queryAiUsage({ ...query, page: 9 })).resolves.toMatchObject({
+      rows: [],
+      totalGroups: AI_USAGE_PAGE_SIZE + 2,
+    });
+
+    // The largest rows under a group, and the rest as one "Other"; a download has every row.
+    const byModelThenTask = await queryAiUsage({ ...query, groupBy: "model", thenBy: "task" });
+    const luna = byModelThenTask.rows[0]!;
+    expect(luna.children).toHaveLength(AI_USAGE_CHILD_ROWS + 1);
+    expect(luna.children.slice(0, AI_USAGE_CHILD_ROWS).map((child) => child.key)).toEqual(
+      jobs.slice(0, AI_USAGE_CHILD_ROWS).map((job) => job.id),
+    );
+    expect(luna.children.at(-1)).toMatchObject({
+      key: null,
+      other: true,
+      calls: jobs.length - AI_USAGE_CHILD_ROWS,
+      chargeUsd: "0.00000000",
+    });
+    const everyRow = await queryAiUsage({
+      ...query,
+      groupBy: "model",
+      thenBy: "task",
+      all: true,
+    });
+    expect(everyRow.rows[0]!.children).toHaveLength(jobs.length);
+  });
+
+  it("places an automation's tool steps in the automation, by the run in their key", async () => {
+    const { organization, project } = await fixture.createWorkspace();
+    const [automation] = await db
+      .insert(schema.workspaceAutomations)
+      .values({
+        organizationId: organization.id,
+        name: "Repo sync",
+        instructions: "",
+        projectId: project.id,
+      })
+      .returning();
+    const [run] = await db
+      .insert(schema.workspaceAutomationRuns)
+      .values({
+        organizationId: organization.id,
+        automationId: automation!.id,
+        triggerSource: "manual",
+      })
+      .returning();
+    const { usage, tokens } = usageRows(organization.id);
+    // The main run records its automation; the GitHub step records only the run, in its key.
+    const main = usage({
+      featureId: "agent_runs",
+      source: "workspace_orchestrator",
+      operationKey: `workspace-automation:${run!.id}:agent_runs`,
+      dimensions: { automation_id: automation!.id },
+    });
+    const github = usage({
+      featureId: "agent_runs",
+      source: "workspace_github_repository_agent",
+      operationKey: `workspace-github-repo:${run!.id}:agent_runs`,
+    });
+    await db
+      .insert(schema.usageEvents)
+      .values([main, github, tokens(main, 10, 1), tokens(github, 500, 50)]);
+
+    const byAutomation = await queryAiUsage({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      period: PERIOD,
+      includeUnattributed: false,
+      groupBy: "automation",
+      thenBy: "feature",
+    });
+    // Both count in the automation, and in its project.
+    expect(byAutomation.rows).toEqual([
+      expect.objectContaining({
+        key: automation!.id,
+        calls: 2,
+        inputTokens: 510,
+        children: [
+          expect.objectContaining({ key: "workspace_github_repository_agent", calls: 1 }),
+          expect.objectContaining({ key: "workspace_orchestrator", calls: 1 }),
+        ],
+      }),
+    ]);
+
+    // The page's and API's reader passes the automation and task filters to the query.
+    const context = {
+      organizationId: organization.id,
+      projectIds: [project.id],
+      startedDay: "2026-01-01",
+      today: "2026-10-21",
+      financial: true,
+      userId: randomUUID(),
+    };
+    const dates = { from: PERIOD.from, to: PERIOD.to, page: 1, groupBy: "area" as const };
+    await expect(
+      readAi(context, { ...dates, automationId: automation!.id }),
+    ).resolves.toMatchObject({ totals: { calls: 2 }, automationName: "Repo sync" });
+    await expect(readAi(context, { ...dates, jobId: "job_elsewhere" })).resolves.toMatchObject({
+      totals: { calls: 0 },
+    });
   });
 
   it("reads a fractional or unreadable token count without failing", async () => {

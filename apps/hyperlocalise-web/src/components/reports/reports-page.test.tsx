@@ -201,9 +201,7 @@ describe("Reports page", () => {
       page: "1",
     });
     expect(
-      screen.getByText(
-        "3 calls have no charge recorded by billing yet, so Charge leaves them out.",
-      ),
+      screen.getByText("3 calls have no charge recorded by billing, so Charge leaves them out."),
     ).toBeInTheDocument();
     expect(
       screen.getByText("260 calls used your own provider key, which uses no plan credit."),
@@ -234,6 +232,78 @@ describe("Reports page", () => {
     expect(within(table).queryByRole("button", { name: "Show only None" })).toBeNull();
   });
 
+  it("narrows only where a filter can stand for the row, and keeps the chosen task", async () => {
+    mocks.search = "tab=ai&task=job_release&ai=project&ai2=model";
+    const totals = {
+      calls: 4,
+      inputTokens: 400,
+      outputTokens: 40,
+      images: 0,
+      videos: 0,
+      chargeUsd: "0.00400000",
+      unrecordedCharges: 0,
+      ownKeyCalls: 0,
+    };
+    mocks.bodies = {
+      ...reportsResponseBodies(),
+      "ai-usage": {
+        aiUsage: {
+          ...reportsAiUsage,
+          groupBy: "project",
+          thenBy: "model",
+          rows: [
+            {
+              key: "project_web",
+              label: "Web app",
+              ...totals,
+              children: [
+                { key: "openai/gpt-6-luna", label: null, ...totals },
+                { key: null, label: null, other: true, ...totals },
+              ],
+            },
+            {
+              key: null,
+              label: null,
+              ...totals,
+              children: [{ key: "openai/gpt-6-luna", label: null, ...totals }],
+            },
+          ],
+        },
+      },
+    };
+    const { unmount } = renderPage();
+    const table = await screen.findByRole("table", { name: "Breakdown" });
+    // A fraction of a cent is not shown as $0.00.
+    expect(within(table).getAllByText("Under $0.01").length).toBeGreaterThan(0);
+    // No filter stands for calls outside any project, nor for "Other", nor for rows under them.
+    expect(
+      within(table)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Web app", "openai/gpt-6-luna"]);
+    await userEvent.click(
+      within(table).getByRole("button", { name: "Show only openai/gpt-6-luna" }),
+    );
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenLastCalledWith(
+        "/en/org/acme/reports?tab=ai&project=project_web&task=job_release&ai=model&model=openai%2Fgpt-6-luna",
+        { scroll: false },
+      ),
+    );
+    unmount();
+
+    renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: "Show only Web app" }));
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenLastCalledWith(
+        "/en/org/acme/reports?tab=ai&project=project_web&task=job_release&ai=model",
+        { scroll: false },
+      ),
+    );
+    // With a project chosen, project rows narrow no further.
+    expect(screen.queryByRole("button", { name: "Show only Web app" })).toBeNull();
+  });
+
   it("lists the details chosen from a row, each removable", async () => {
     mocks.search = "tab=ai&model=openai/gpt-6-luna&automation=auto_1";
     mocks.bodies = {
@@ -248,7 +318,7 @@ describe("Reports page", () => {
       model: "openai/gpt-6-luna",
       automationId: "auto_1",
     });
-    await userEvent.click(screen.getByRole("button", { name: "Show every model" }));
+    await userEvent.click(screen.getByRole("button", { name: "Remove filter: Model" }));
     await waitFor(() =>
       expect(mocks.replace).toHaveBeenLastCalledWith(
         "/en/org/acme/reports?tab=ai&automation=auto_1",

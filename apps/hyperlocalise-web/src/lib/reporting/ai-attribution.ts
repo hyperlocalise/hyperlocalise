@@ -43,9 +43,15 @@ export function attributedUsage(input: { organizationId: string; where: SQL }): 
     left join usage_events p on p.organization_id = u.organization_id
       and p.feature_id <> 'ai_tokens'
       and p.operation_key = u.dimensions ->> 'parent_operation_key'
-    left join workspace_automations a on a.organization_id = u.organization_id and a.id = case
-      when p.dimensions ->> 'automation_id' ~ ${UUID_PATTERN}
-      then (p.dimensions ->> 'automation_id')::uuid end
+    -- An automation's tool steps record its run in their key (\`workspace-<tool>:<run id>:…\`),
+    -- not the automation itself, which only its main run records.
+    left join workspace_automation_runs wr on wr.organization_id = u.organization_id
+      and wr.id = case when starts_with(p.operation_key, 'workspace-')
+        and split_part(p.operation_key, ':', 2) ~ ${UUID_PATTERN}
+        then split_part(p.operation_key, ':', 2)::uuid end
+    left join workspace_automations a on a.organization_id = u.organization_id
+      and a.id = coalesce(case when p.dimensions ->> 'automation_id' ~ ${UUID_PATTERN}
+        then (p.dimensions ->> 'automation_id')::uuid end, wr.automation_id)
     left join agent_runs ar on ar.organization_id = u.organization_id and ar.id = case
       when p.source = 'agent_run_create' and split_part(p.operation_key, ':', 2) ~ ${UUID_PATTERN}
       then split_part(p.operation_key, ':', 2)::uuid end
