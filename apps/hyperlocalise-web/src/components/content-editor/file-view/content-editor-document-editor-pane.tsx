@@ -194,7 +194,8 @@ export function ContentEditorDocumentEditorPane({
       setLoad({ status: "loading" });
       setBaseline(null);
       setRestoreSaveError(false);
-      setCodeMode(isAsciidocFilename(filename) || isPlainTextFilename(filename));
+      const rawDocument = isAsciidocFilename(filename) || isPlainTextFilename(filename);
+      setCodeMode(rawDocument);
       setParseLossy(false);
       setPendingSuggestionCount(0);
       const [source, target] = await Promise.all([
@@ -216,14 +217,23 @@ export function ContentEditorDocumentEditorPane({
         });
         return;
       }
-      const sourceSplit = splitContentEditorDocument(source.text);
-      const targetSplit = splitContentEditorDocument(
-        target.status === "ok" ? target.text : source.text,
-      );
+      const sourceSplit = rawDocument
+        ? { fields: [], body: source.text, hasFrontmatter: false, rawFrontmatter: "" }
+        : splitContentEditorDocument(source.text);
+      const targetSplit = rawDocument
+        ? {
+            fields: [],
+            body: target.status === "ok" ? target.text : source.text,
+            hasFrontmatter: false,
+            rawFrontmatter: "",
+          }
+        : splitContentEditorDocument(target.status === "ok" ? target.text : source.text);
       const serverText = joinContentEditorDocument(targetSplit);
       const draft = peekDocumentAutosaveDraft(documentKey);
       if (draft) {
-        const split = splitContentEditorDocument(draft.value);
+        const split = rawDocument
+          ? { fields: [], body: draft.value, hasFrontmatter: false, rawFrontmatter: "" }
+          : splitContentEditorDocument(draft.value);
         setFields(split.fields);
         setBody(split.body);
         setBaseline(serverText);

@@ -99,7 +99,7 @@ describe("ContentEditorFileViewPanel", () => {
     window.localStorage.removeItem("content-editor-file-view:source-pane:v1");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => new Response("Hello\n\nWorld\n")),
+      vi.fn(async () => new Response("Hello\n\n---\n\n```\ncode\n```\n\nWorld\n")),
     );
     render(
       <ContentEditorTestProviders>
@@ -112,11 +112,16 @@ describe("ContentEditorFileViewPanel", () => {
       </ContentEditorTestProviders>,
     );
 
-    expect(await screen.findByLabelText("Document source")).toBeInTheDocument();
+    const targetArea = (await screen.findByLabelText("Document source")) as HTMLTextAreaElement;
+    expect(targetArea.value).toContain("---");
+    expect(targetArea.value).toContain("```");
     expect(screen.queryByRole("region", { name: "Source (en)" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Compare original" }));
     expect(screen.getByRole("region", { name: "Source (en)" })).toBeInTheDocument();
+    const sourceArea = screen.getByRole("textbox", { name: "Source (en)" }) as HTMLTextAreaElement;
+    expect(sourceArea.value).toContain("---");
+    expect(sourceArea.value).toContain("```");
 
     await user.click(screen.getByRole("button", { name: "Close comparison" }));
     expect(screen.queryByRole("region", { name: "Source (en)" })).not.toBeInTheDocument();
