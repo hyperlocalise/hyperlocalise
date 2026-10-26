@@ -105,6 +105,33 @@ describe("ContentEditorPdfFileViewerPane", () => {
     expect(fetchMock).toHaveBeenCalledWith("/source.pdf", { credentials: "include" });
   });
 
+  it("shows the export error instead of the source fallback", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === "/target.pdf") {
+        return Response.json(
+          { error: "pdf_export_failed", message: "missing server call token" },
+          { status: 500 },
+        );
+      }
+      return new Response(pdfBytes, {
+        status: 200,
+        headers: { "content-type": "application/pdf" },
+      });
+    });
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorPdfFileViewerPane role="target" src="/target.pdf" seedSrc="/source.pdf" />
+      </ContentEditorTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("missing server call token")).toBeTruthy();
+    });
+    expect(screen.queryByText(/No translated PDF yet/i)).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalledWith("/source.pdf", { credentials: "include" });
+  });
+
   it("shows the error when the PDF request fails", async () => {
     fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
 

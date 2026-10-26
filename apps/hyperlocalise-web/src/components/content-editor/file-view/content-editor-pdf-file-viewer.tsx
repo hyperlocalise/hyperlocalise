@@ -50,6 +50,9 @@ async function fetchPdf(src: string): Promise<PdfLoadResult> {
           message: body.message ?? "",
         };
       }
+      if (body.message?.trim()) {
+        return { kind: "error", message: body.message };
+      }
     }
     return { kind: "error", message: `HTTP ${response.status}` };
   }
@@ -243,7 +246,7 @@ export function ContentEditorPdfFileViewerPane({
         return;
       }
 
-      if (role === "target" && seedSrc?.trim()) {
+      if (primaryResult.kind === "missing" && role === "target" && seedSrc?.trim()) {
         const fallback = await loadPdfFromUrl(seedSrc);
         if (signal.aborted) {
           return;
