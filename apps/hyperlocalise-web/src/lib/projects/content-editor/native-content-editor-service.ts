@@ -71,6 +71,7 @@ import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedPdfTranslationFileFormat,
   inferSupportedVideoTranslationFileFormat,
   inferSupportedWholeFileTranslationFileFormat,
   looksLikeImageUrl,
@@ -321,11 +322,15 @@ export class NativeContentEditorService extends ProjectServiceBase {
     }
 
     const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
+    const isPdf = Boolean(inferSupportedPdfTranslationFileFormat(input.sourcePath));
     const loadKeyedFileDocumentView = async () =>
       isDocument
         ? publicDocumentView(await this.loadDocumentView({ input, sourceFileId: sourceFile.id }))
-        : isOffice
-          ? await this.loadOfficeDocumentView({ input, sourceFileId: sourceFile.id })
+        : isOffice || isPdf
+          ? await this.loadGeneratedTranslationFileDocumentView({
+              input,
+              sourceFileId: sourceFile.id,
+            })
           : undefined;
     const paginationInput = input.pagination ?? {
       offset: 0,
@@ -767,7 +772,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
   }
 
   /** Segmented Office files have no stored target; File view previews the generated download. */
-  private async loadOfficeDocumentView(input: {
+  private async loadGeneratedTranslationFileDocumentView(input: {
     input: {
       organizationId: string;
       projectId: string;

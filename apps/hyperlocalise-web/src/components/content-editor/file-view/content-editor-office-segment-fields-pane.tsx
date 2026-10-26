@@ -63,6 +63,8 @@ function groupHeading(intl: IntlShape, group: OfficeSegmentGroup) {
       return intl.formatMessage(m.officeGroupComments);
     case "sheet":
       return group.name ?? intl.formatMessage(m.officeGroupOther);
+    case "page":
+      return intl.formatMessage(m.officeGroupPage, values);
     case "other":
       return group.name ?? intl.formatMessage(m.officeGroupOther);
   }
@@ -73,9 +75,13 @@ function fieldLabel(intl: IntlShape, key: string) {
   if (!position) {
     return key;
   }
-  return "cell" in position
-    ? position.cell
-    : intl.formatMessage(m.officeParagraph, { number: position.paragraph });
+  if ("cell" in position) {
+    return position.cell;
+  }
+  if ("block" in position) {
+    return intl.formatMessage(m.pdfBlock, { number: position.block });
+  }
+  return intl.formatMessage(m.officeParagraph, { number: position.paragraph });
 }
 
 /**

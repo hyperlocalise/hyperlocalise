@@ -26,6 +26,7 @@ export type OfficeSegmentGroupKind =
   | "endnotes"
   | "comments"
   | "sheet"
+  | "page"
   | "other";
 
 export type OfficeSegmentGroup = {
@@ -53,6 +54,7 @@ const NAMED_PARTS: Readonly<Record<string, OfficeSegmentGroupKind>> = {
 };
 
 const XLSX_SHEET_SEPARATOR = "!";
+const PDF_PAGE_BLOCK_KEY = /^page-(\d+)#(\d+)$/;
 
 /** Word and PowerPoint keys are `<part>.xml#<paragraph>`; workbook keys never name a part. */
 function partKey(key: string): { part: string; paragraph: number } | null {
@@ -66,6 +68,11 @@ function partKey(key: string): { part: string; paragraph: number } | null {
 
 /** Groups a segment key by the slide, document part, or sheet it was extracted from. */
 export function officeSegmentGroup(key: string): OfficeSegmentGroup {
+  const pdfMatch = PDF_PAGE_BLOCK_KEY.exec(key);
+  if (pdfMatch) {
+    const pageNumber = Number.parseInt(pdfMatch[1]!, 10);
+    return { id: `page:${pageNumber}`, kind: "page", number: pageNumber };
+  }
   const parsed = partKey(key);
   if (parsed) {
     const { part } = parsed;
@@ -92,7 +99,11 @@ export function officeSegmentGroup(key: string): OfficeSegmentGroup {
 /** Cell address for sheet keys, otherwise the 1-based paragraph number. */
 export function officeSegmentPosition(
   key: string,
-): { cell: string } | { paragraph: number } | null {
+): { cell: string } | { paragraph: number } | { block: number } | null {
+  const pdfMatch = PDF_PAGE_BLOCK_KEY.exec(key);
+  if (pdfMatch) {
+    return { block: Number.parseInt(pdfMatch[2]!, 10) };
+  }
   const parsed = partKey(key);
   if (parsed) {
     return { paragraph: parsed.paragraph + 1 };

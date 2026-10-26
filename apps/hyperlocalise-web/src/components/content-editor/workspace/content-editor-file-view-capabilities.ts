@@ -27,7 +27,8 @@ export type ContentEditorFileViewFamily =
   | "text"
   | "office"
   | "document"
-  | "office-segments";
+  | "office-segments"
+  | "pdf-segments";
 
 export type ContentEditorFileViewerId =
   | "image"
@@ -36,7 +37,8 @@ export type ContentEditorFileViewerId =
   | "xlsx"
   | "pptx"
   | "markdown"
-  | "html";
+  | "html"
+  | "pdf";
 
 export type ContentEditorFileViewCapabilities = {
   family: ContentEditorFileViewFamily;
@@ -133,11 +135,19 @@ export function resolveCatFileViewCapabilities(input: {
   }
 
   if (inferSupportedPdfTranslationFileFormat(sourcePath)) {
+    if (!nativeProject) {
+      return {
+        family: "text",
+        availableViews: segmentViews(input.multilingualViewAvailable),
+        defaultView: "side-by-side",
+        viewerId: null,
+      };
+    }
     return {
-      family: "text",
-      availableViews: segmentViews(input.multilingualViewAvailable),
+      family: "pdf-segments",
+      availableViews: documentAndSegmentViews(input.multilingualViewAvailable),
       defaultView: "side-by-side",
-      viewerId: null,
+      viewerId: "pdf",
     };
   }
 
