@@ -47,16 +47,50 @@ function mockPdfDocument() {
 
 describe("ContentEditorPdfFileViewerPane", () => {
   const fetchMock = vi.fn();
+  const observed: {
+    callback: IntersectionObserverCallback;
+    elements: Element[];
+  }[] = [];
+
+  class FakeIntersectionObserver {
+    private record: { callback: IntersectionObserverCallback; elements: Element[] };
+
+    constructor(callback: IntersectionObserverCallback) {
+      this.record = { callback, elements: [] };
+      observed.push(this.record);
+    }
+
+    observe(element: Element) {
+      this.record.elements.push(element);
+    }
+
+    unobserve() {}
+
+    disconnect() {}
+  }
 
   beforeEach(() => {
     vi.clearAllMocks();
+    observed.length = 0;
     vi.stubGlobal("fetch", fetchMock);
     getDocumentProxyMock.mockResolvedValue(mockPdfDocument());
+    vi.stubGlobal("IntersectionObserver", FakeIntersectionObserver);
+    HTMLCanvasElement.prototype.getContext = vi.fn(() => ({ scale: vi.fn() })) as never;
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
+
+  function intersectAll() {
+    for (const { callback, elements } of observed) {
+      callback(
+        elements.map((target) => ({ isIntersecting: true, target }) as IntersectionObserverEntry),
+        {} as IntersectionObserver,
+      );
+    }
+  }
 
   it("renders the target PDF and shows overflow count", async () => {
     fetchMock.mockResolvedValue(
@@ -69,17 +103,55 @@ describe("ContentEditorPdfFileViewerPane", () => {
       }),
     );
 
-    render(
+    const { container, unmount } = render(
       <ContentEditorTestProviders>
         <ContentEditorPdfFileViewerPane role="target" src="/target.pdf" />
       </ContentEditorTestProviders>,
     );
 
     await waitFor(() => {
-      expect(destroyLoadingTaskMock).toHaveBeenCalled();
+      expect(observed.length).toBe(1);
+    });
+    intersectAll();
+    await waitFor(() => {
+      expect(container.querySelector("canvas")).toBeTruthy();
     });
     expect(screen.getByText(/2 blocks were shrunk/i)).toBeTruthy();
     expect(screen.queryByText(/destroy is not a function/i)).toBeNull();
+    expect(destroyLoadingTaskMock).not.toHaveBeenCalled();
+    unmount();
+    await waitFor(() => {
+      expect(destroyLoadingTaskMock).toHaveBeenCalled();
+    });
+  });
+
+  it("renders pages lazily instead of mounting every canvas", async () => {
+    const doc = mockPdfDocument();
+    doc.numPages = 3;
+    getDocumentProxyMock.mockResolvedValue(doc);
+    fetchMock.mockResolvedValue(
+      new Response(pdfBytes, {
+        status: 200,
+        headers: { "content-type": "application/pdf" },
+      }),
+    );
+
+    const { container } = render(
+      <ContentEditorTestProviders>
+        <ContentEditorPdfFileViewerPane role="target" src="/target.pdf" />
+      </ContentEditorTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(observed.length).toBe(3);
+    });
+    // Placeholders mount for every page, but no page renders yet.
+    expect(container.querySelector("canvas")).toBeNull();
+
+    intersectAll();
+    await waitFor(() => {
+      expect(container.querySelectorAll("canvas").length).toBe(3);
+    });
   });
 
   it("falls back to the source PDF when the target is missing", async () => {

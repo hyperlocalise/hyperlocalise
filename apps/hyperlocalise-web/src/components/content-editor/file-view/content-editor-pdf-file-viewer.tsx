@@ -70,10 +70,124 @@ async function fetchPdf(src: string): Promise<PdfLoadResult> {
   };
 }
 
+// Backing-store pixels per CSS pixel for preview canvases. Capped so a 3x
+// phone display doesn't quadruple canvas memory per page.
+const PDF_PREVIEW_MAX_DPR = 2;
+
+type PdfDocumentProxy = {
+  numPages: number;
+  getPage: (pageNumber: number) => Promise<{
+    getViewport: (options: { scale: number }) => { width: number; height: number };
+    render: (options: {
+      canvasContext: CanvasRenderingContext2D;
+      viewport: { width: number; height: number };
+      canvas: HTMLCanvasElement;
+    }) => { promise: Promise<void> };
+  }>;
+  loadingTask: { destroy: () => Promise<void> };
+};
+
+async function loadPdfDocument(bytes: Uint8Array): Promise<PdfDocumentProxy> {
+  const unpdf = (await import("unpdf")) as unknown as {
+    getDocumentProxy: (data: Uint8Array) => Promise<PdfDocumentProxy>;
+  };
+  return unpdf.getDocumentProxy(bytes.slice());
+}
+
+function PdfLazyPage({
+  pdf,
+  pageNumber,
+  cssWidth,
+  aspectRatio,
+}: {
+  pdf: PdfDocumentProxy;
+  pageNumber: number;
+  cssWidth: number;
+  aspectRatio: string;
+}) {
+  const slotRef = useRef<HTMLDivElement>(null);
+  const [isNearViewport, setIsNearViewport] = useState(false);
+
+  useEffect(() => {
+    const slot = slotRef.current;
+    if (!slot) {
+      return;
+    }
+    if (typeof IntersectionObserver === "undefined") {
+      setIsNearViewport(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setIsNearViewport(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "600px" },
+    );
+    observer.observe(slot);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isNearViewport) {
+      return;
+    }
+    const slot = slotRef.current;
+    if (!slot || slot.querySelector("canvas")) {
+      return;
+    }
+    let cancelled = false;
+    async function render() {
+      const page = await pdf.getPage(pageNumber);
+      if (cancelled) {
+        return;
+      }
+      const baseViewport = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: cssWidth / baseViewport.width });
+      const dpr = Math.min(window.devicePixelRatio || 1, PDF_PREVIEW_MAX_DPR);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.floor(viewport.width * dpr);
+      canvas.height = Math.floor(viewport.height * dpr);
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
+      canvas.className = "mx-auto block max-w-full bg-white shadow-sm";
+      const context = canvas.getContext("2d");
+      if (!context) {
+        return;
+      }
+      context.scale(dpr, dpr);
+      await page.render({ canvasContext: context, viewport, canvas }).promise;
+      if (!cancelled) {
+        slot?.appendChild(canvas);
+      }
+    }
+    void render();
+    return () => {
+      cancelled = true;
+    };
+  }, [cssWidth, isNearViewport, pageNumber, pdf]);
+
+  return (
+    <div ref={slotRef} className="mb-4 flex min-h-24 justify-center" style={{ aspectRatio }}>
+      {!isNearViewport ? (
+        <CircleNotchIcon
+          className="size-5 animate-spin self-center text-muted-foreground"
+          aria-hidden
+        />
+      ) : null}
+    </div>
+  );
+}
+
 function PdfCanvasPages({ bytes, className }: { bytes: Uint8Array; className?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pageCount, setPageCount] = useState(0);
+  const [ready, setReady] = useState<{
+    pdf: PdfDocumentProxy;
+    dims: { width: number; aspectRatio: string }[];
+  } | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -82,67 +196,32 @@ function PdfCanvasPages({ bytes, className }: { bytes: Uint8Array; className?: s
     }
     const abortController = new AbortController();
     const { signal } = abortController;
+    // Read layout synchronously while `container` is still narrowed non-null.
+    const cssWidth = Math.max(container.clientWidth, 320);
+    let pdf: PdfDocumentProxy | null = null;
 
-    async function render() {
+    async function init() {
       setError(null);
-      const mount = containerRef.current;
-      if (!mount) {
-        return;
-      }
+      setReady(null);
       try {
-        const unpdf = (await import("unpdf")) as unknown as {
-          getDocumentProxy: (data: Uint8Array) => Promise<{
-            numPages: number;
-            getPage: (pageNumber: number) => Promise<{
-              getViewport: (options: { scale: number }) => { width: number; height: number };
-              render: (options: {
-                canvasContext: CanvasRenderingContext2D;
-                viewport: { width: number; height: number };
-                canvas: HTMLCanvasElement;
-              }) => { promise: Promise<void> };
-            }>;
-            loadingTask: { destroy: () => Promise<void> };
-          }>;
-        };
-        const pdf = await unpdf.getDocumentProxy(bytes.slice());
-        try {
+        pdf = await loadPdfDocument(bytes);
+        if (signal.aborted) {
+          return;
+        }
+        // Measure every page up front (cheap) but render lazily: each page
+        // draws its canvas only when scrolled near the viewport, so a
+        // 100-page PDF no longer mounts 100 full-resolution canvases.
+        const dims: { width: number; aspectRatio: string }[] = [];
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
           if (signal.aborted) {
             return;
           }
-          setPageCount(pdf.numPages);
-          mount.replaceChildren();
-
-          for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-            if (signal.aborted) {
-              break;
-            }
-            const page = await pdf.getPage(pageNumber);
-            const containerWidth = Math.max(mount.clientWidth, 320);
-            const baseViewport = page.getViewport({ scale: 1 });
-            const scale = containerWidth / baseViewport.width;
-            const viewport = page.getViewport({ scale });
-            const canvas = document.createElement("canvas");
-            canvas.width = Math.floor(viewport.width * devicePixelRatio);
-            canvas.height = Math.floor(viewport.height * devicePixelRatio);
-            canvas.style.width = `${viewport.width}px`;
-            canvas.style.height = `${viewport.height}px`;
-            canvas.className = "mx-auto block max-w-full bg-white shadow-sm";
-            const context = canvas.getContext("2d");
-            if (!context) {
-              continue;
-            }
-            context.scale(devicePixelRatio, devicePixelRatio);
-            await page.render({ canvasContext: context, viewport, canvas }).promise;
-            if (signal.aborted) {
-              break;
-            }
-            const wrapper = document.createElement("div");
-            wrapper.className = "mb-4 flex justify-center";
-            wrapper.appendChild(canvas);
-            mount.appendChild(wrapper);
-          }
-        } finally {
-          void pdf.loadingTask.destroy();
+          const page = await pdf.getPage(pageNumber);
+          const base = page.getViewport({ scale: 1 });
+          dims.push({ width: cssWidth, aspectRatio: `${base.width} / ${base.height}` });
+        }
+        if (!signal.aborted && pdf) {
+          setReady({ pdf, dims });
         }
       } catch (renderError) {
         if (!signal.aborted) {
@@ -151,10 +230,12 @@ function PdfCanvasPages({ bytes, className }: { bytes: Uint8Array; className?: s
       }
     }
 
-    void render();
+    void init();
     return () => {
       abortController.abort();
-      containerRef.current?.replaceChildren();
+      if (pdf) {
+        void pdf.loadingTask.destroy();
+      }
     };
   }, [bytes]);
 
@@ -173,12 +254,22 @@ function PdfCanvasPages({ bytes, className }: { bytes: Uint8Array; className?: s
 
   return (
     <div className={cn("min-h-56 w-full", className)}>
-      {pageCount === 0 ? (
+      {ready === null ? (
         <div className="flex min-h-56 items-center justify-center">
           <CircleNotchIcon className="size-5 animate-spin text-muted-foreground" aria-hidden />
         </div>
       ) : null}
-      <div ref={containerRef} className="w-full py-2" />
+      <div ref={containerRef} className="w-full py-2">
+        {ready?.dims.map((page, index) => (
+          <PdfLazyPage
+            key={index}
+            pdf={ready.pdf}
+            pageNumber={index + 1}
+            cssWidth={page.width}
+            aspectRatio={page.aspectRatio}
+          />
+        ))}
+      </div>
     </div>
   );
 }
