@@ -27,7 +27,7 @@ const openPersonTaskForStringMock = vi.hoisted(() =>
 vi.mock("@/lib/reporting/completion-source", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/reporting/completion-source")>();
   // The editor's history is not in the fake database: a person's save is their own, unchanged.
-  return { ...actual, textOrigins: vi.fn(async () => new Map()) };
+  return { ...actual, textOrigins: vi.fn(async () => []) };
 });
 
 vi.mock("@/lib/reporting/task-analysis", () => ({

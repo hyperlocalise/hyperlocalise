@@ -112,8 +112,10 @@ export async function captureNativeCatTranslationReporting(input: {
         ? personSave(
             existing
               ? (
-                  await textOrigins(input.organizationId, [{ id: existing.id, text: input.text }])
-                ).get(existing.id)
+                  await textOrigins(input.organizationId, [
+                    { translationId: existing.id, text: input.text },
+                  ])
+                )[0]
               : undefined,
           )
         : { source: sourceOfProvenance(provenance), unchanged: undefined };

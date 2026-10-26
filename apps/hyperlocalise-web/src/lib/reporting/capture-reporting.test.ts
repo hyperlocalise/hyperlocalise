@@ -554,6 +554,55 @@ describe("reporting capture", () => {
     expect(completions).toEqual([{ actorUserId: user.id, source: "person", unchanged: false }]);
   });
 
+  it("dates a string a person finished after a job by the person's save, and marks both days", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    const scope = {
+      organizationId: organization.id,
+      targetLocale: "fr-FR",
+      sourceEntries: { greeting: "Hello world" },
+    };
+    const jobDay = new Date("2026-10-01T10:00:00Z");
+    const personDay = new Date("2026-10-20T10:00:00Z");
+    await captureAnalysis({
+      ...scope,
+      projectId: project.id,
+      sourceLocale: "en-US",
+      occurredAt: { greeting: jobDay },
+    });
+    await captureCompletions({
+      ...scope,
+      provenance: "automated",
+      source: "ai",
+      occurredAt: { greeting: jobDay },
+    });
+    await db.delete(schema.reportingSummaryQueue);
+    await captureCompletions({
+      ...scope,
+      provenance: "human",
+      actorUserId: user.id,
+      source: "person",
+      unchanged: { greeting: false },
+      occurredAt: { greeting: personDay },
+    });
+
+    // The rewrite is the person's work on their day, so a week's "AI" and "people" bars both move.
+    const [completion] = await db
+      .select({ createdAt: schema.reportingActivity.createdAt })
+      .from(schema.reportingActivity)
+      .where(
+        and(
+          eq(schema.reportingActivity.organizationId, organization.id),
+          eq(schema.reportingActivity.kind, "completion"),
+        ),
+      );
+    expect(completion.createdAt).toEqual(personDay);
+    const marked = await db
+      .select({ day: schema.reportingSummaryQueue.day })
+      .from(schema.reportingSummaryQueue)
+      .where(eq(schema.reportingSummaryQueue.organizationId, organization.id));
+    expect(marked.map((mark) => mark.day).sort()).toEqual(["2026-10-01", "2026-10-20"]);
+  });
+
   it("skips analysis capture when workspace reports is disabled", async () => {
     resolveWorkspaceReportsFlagMock.mockResolvedValue(false);
     const { organization, project } = await projectFixture.createStoredProjectFixture();

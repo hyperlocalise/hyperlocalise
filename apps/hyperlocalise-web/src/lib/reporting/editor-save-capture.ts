@@ -339,6 +339,8 @@ type SavedSegment = {
   automated: boolean;
   /** When the save was made: Reports dates the work by it, not by when this task ran. */
   occurredAt: Date;
+  /** The version saved, in the editor's history, when the save names it. */
+  revisionId?: string;
 };
 
 /** One record per saved occurrence, language and step; the latest event wins. */
@@ -369,6 +371,9 @@ function savedSegments(events: SaveEvent[]): SavedSegment[] {
       actorUserId: event.actorUserId,
       automated: event.actorKind === "agent",
       occurredAt: new Date(event.createdAt),
+      ...(typeof event.payload.revisionId === "string"
+        ? { revisionId: event.payload.revisionId }
+        : {}),
     } as const;
     latest.set(`${projectId}:${event.targetId}:${targetLocale}:${step}`, segment);
   }
@@ -417,8 +422,26 @@ async function recordSaves(
   const translationByKey = new Map(
     translations.map((row) => [`${row.translationKeyId}:${row.targetLocale}`, row]),
   );
-  // What each person was given and whether they kept it, from the editor's own history.
-  const origins = await textOrigins(organizationId, translations);
+  // What each person was given and whether they kept it, from the editor's own history at the
+  // time of their save: the translation now may have been overwritten since.
+  const segmentKey = (segment: SavedSegment) =>
+    `${segment.projectId}:${segment.translationKeyId}:${segment.targetLocale}:${segment.step}`;
+  const personSaves = segments.flatMap((segment) => {
+    const translation = translationByKey.get(`${segment.translationKeyId}:${segment.targetLocale}`);
+    return segment.automated || !translation ? [] : [{ segment, translation }];
+  });
+  const origins = await textOrigins(
+    organizationId,
+    personSaves.map(({ segment, translation }) => ({
+      translationId: translation.id,
+      revisionId: segment.revisionId,
+      at: segment.occurredAt,
+      text: translation.text,
+    })),
+  );
+  const originOf = new Map(
+    personSaves.map(({ segment }, index) => [segmentKey(segment), origins[index]]),
+  );
   const projectIds = [...new Set(segments.map((segment) => segment.projectId))];
   const projects = await db
     .select({ id: schema.projects.id, sourceLocale: schema.projects.sourceLocale })
@@ -504,12 +527,9 @@ async function recordSaves(
       ]),
     );
     const saved = group.map(({ segment }) => {
-      const translation = translationByKey.get(
-        `${segment.translationKeyId}:${segment.targetLocale}`,
-      );
       const origin = segment.automated
         ? { source: "ai" as CompletionSource, unchanged: undefined }
-        : personSave(translation ? origins.get(translation.id) : undefined);
+        : personSave(originOf.get(segmentKey(segment)));
       return [segment.translationKeyId, origin] as const;
     });
     const shared = {

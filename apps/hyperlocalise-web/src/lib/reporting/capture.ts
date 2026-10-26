@@ -709,6 +709,30 @@ async function writeReportingCompletions(
       await markSummaryDays(tx, input.organizationId, marks);
       return marks;
     }
+    // A person's save moves a completion a job made to the person's day (below), so the day it
+    // leaves must be worked out again too.
+    const earlier = new Map<string, { projectId: string | null; createdAt: Date }>();
+    for (let offset = 0; offset < finishedAnalyses.length; offset += REPORTING_BATCH_SIZE) {
+      const rows = await tx
+        .select({
+          operationKey: schema.reportingActivity.operationKey,
+          projectId: schema.reportingActivity.projectId,
+          createdAt: schema.reportingActivity.createdAt,
+        })
+        .from(schema.reportingActivity)
+        .where(
+          and(
+            eq(schema.reportingActivity.organizationId, input.organizationId),
+            inArray(
+              schema.reportingActivity.operationKey,
+              finishedAnalyses
+                .slice(offset, offset + REPORTING_BATCH_SIZE)
+                .map((analysis) => `completion:${analysis.id}:${step}`),
+            ),
+          ),
+        );
+      for (const row of rows) earlier.set(row.operationKey, row);
+    }
     for (const analysis of finishedAnalyses) {
       const operationKey = `completion:${analysis.id}:${step}`;
       const written = await tx
@@ -728,20 +752,25 @@ async function writeReportingCompletions(
           createdAt: input.occurredAt?.[analysis.segmentId],
         })
         // One completion per analysis and step: when a person finishes a string a job already
-        // completed (a post-edit), the person is added to that completion rather than dropped.
-        // The source becomes what the person's save says: the job's when they kept its text,
-        // their own when they rewrote it; the job's stays only when the save does not know.
+        // completed (a post-edit), the person is added to that completion rather than dropped,
+        // and it is dated by the person's save: the work is theirs, done then, not on the job's
+        // day. The source becomes what the person's save says: the job's when they kept its
+        // text, their own when they rewrote it; the job's stays only when the save does not know.
         .onConflictDoUpdate({
           target: [schema.reportingActivity.organizationId, schema.reportingActivity.operationKey],
           set: {
             actorUserId: sql`excluded.actor_user_id`,
             source: sql`coalesce(excluded.source, ${schema.reportingActivity.source})`,
             unchanged: sql`excluded.unchanged`,
+            createdAt: sql`excluded.created_at`,
           },
           where: sql`${schema.reportingActivity.actorUserId} is null and excluded.actor_user_id is not null`,
         })
         .returning(returnedCompletion);
       written.forEach(markCompletion);
+      const before = earlier.get(operationKey);
+      if (written.length > 0 && before)
+        marks.push({ projectId: before.projectId, day: summaryDay(before.createdAt) });
       if (input.provenance !== "human") continue;
       if (input.jobId) {
         const [taskRate] = await tx
