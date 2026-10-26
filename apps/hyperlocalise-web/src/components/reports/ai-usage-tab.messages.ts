@@ -177,9 +177,10 @@ export const aiUsageTabMessages = defineMessages({
     description: "AI key type: calls on the workspace's own provider key, which use no plan credit",
   },
   key_not_recorded: {
-    id: "dIdk1P1TvJ",
+    id: "JY6P7XiHyQ",
     defaultMessage: "Not recorded",
-    description: "AI key type: billing did not record which key was used, as for images and videos",
+    description:
+      "AI key type: billing did not record which key was used, as on rows from before it did",
   },
   groupBy: {
     id: "Zty8d4Y6Q8",
@@ -202,9 +203,10 @@ export const aiUsageTabMessages = defineMessages({
     description: "Accessible name of the switch for what the AI usage chart measures",
   },
   measure_tokens: {
-    id: "89epdamgDc",
+    id: "/wIWjD2LD2",
     defaultMessage: "Tokens",
-    description: "AI usage chart option: input and output tokens",
+    description:
+      "AI usage chart option: every token billing counted, input, output, cached and reasoning",
   },
   measure_calls: {
     id: "DH4SBHdjfp",
@@ -336,20 +338,21 @@ export const aiUsageTabMessages = defineMessages({
     description: "Charge cell when billing has recorded no charge for the calls",
   },
   someNotRecorded: {
-    id: "PHunEhHQBd",
-    defaultMessage: "{count, plural, one {# run not recorded} other {# runs not recorded}}",
-    description: "Under an AI credit amount: runs whose credit billing has not recorded",
+    id: "Jq8P8koF7y",
+    defaultMessage: "{count, plural, one {# not recorded} other {# not recorded}}",
+    description:
+      "Under an AI credit amount: how many runs, images or videos have no credit recorded by billing",
   },
   unrecordedNote: {
-    id: "WSISrhveJa",
+    id: "5zGLoyn2ds",
     defaultMessage:
-      "{count, plural, one {# run has no AI credit recorded by billing, so AI credit used leaves it out.} other {# runs have no AI credit recorded by billing, so AI credit used leaves them out.}}",
+      "{count, plural, one {# run, image or video has no AI credit recorded by billing, so AI credit used leaves it out.} other {# runs, images or videos have no AI credit recorded by billing, so AI credit used leaves them out.}}",
     description: "Note under the AI usage cards",
   },
   ownKeyNote: {
-    id: "uS1jCe+VAN",
+    id: "SI78vK8CbA",
     defaultMessage:
-      "{count, plural, one {# run used your own provider key, which uses no plan credit.} other {# runs used your own provider key, which uses no plan credit.}}",
+      "{count, plural, one {# run, image or video used your own provider key, which uses no plan credit.} other {# runs, images or videos used your own provider key, which uses no plan credit.}}",
     description: "Note under the AI usage cards",
   },
   planCreditLink: {

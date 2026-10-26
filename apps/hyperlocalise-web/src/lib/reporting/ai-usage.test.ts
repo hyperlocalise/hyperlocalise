@@ -13,6 +13,8 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
@@ -129,6 +131,21 @@ describe("AI usage origins", () => {
     expect(aiChannel("visual_workflow_ai_step", false)).toBe("automation");
     expect(aiChannel("contentful_field_translation", false)).toBe("contentful");
     expect(aiChannel("content_editor_ai_suggestion", false)).toBe("app");
+  });
+
+  it("finds the run in every automation tool step's billing key", async () => {
+    // `attributedUsage` reads the run id from the second part of these keys; a tool that puts
+    // anything else there would lose its AI from the automation, here and on Costs.
+    const tools = join(process.cwd(), "src/agents/automations/workspace/agent/tools");
+    const keys = (await readdir(tools))
+      .filter((name) => name.startsWith("use_") && !name.includes(".test."))
+      .map(async (name) => {
+        const text = await readFile(join(tools, name), "utf8");
+        return [...text.matchAll(/operationKey: `(workspace-[^`]*)`/g)].map((match) => match[1]!);
+      });
+    const found = (await Promise.all(keys)).flat();
+    expect(found.length).toBeGreaterThanOrEqual(7);
+    for (const key of found) expect(key).toMatch(/^workspace-[a-z-]+:\$\{session\.run\.id\}:/);
   });
 
   it("places every source the same way in the database as on the page", async () => {
@@ -260,7 +277,8 @@ describe("AI usage", () => {
     expect(byArea.totals).toMatchObject({
       calls: 3,
       inputTokens: 1540,
-      outputTokens: 304,
+      // The images' and video's own tokens count too: one each when the model reports none.
+      outputTokens: 307,
       images: 2,
       videos: 1,
       chargeUsd: "0.12000000",
@@ -438,6 +456,30 @@ describe("AI usage", () => {
       "openai/gpt-6-luna",
       "anthropic/claude-haiku-4.5",
     ]);
+    // The rows under a group follow the same measure.
+    const underArea = await queryAiUsage({
+      ...scope,
+      groupBy: "area",
+      thenBy: "model",
+      rankBy: "charge",
+    });
+    expect(underArea.rows[0]!.children.map((child) => child.key)).toEqual([
+      "openai/gpt-6-luna",
+      "anthropic/claude-haiku-4.5",
+    ]);
+
+    // Two small runs make a third model the largest by runs.
+    await db.insert(schema.usageEvents).values(
+      [1, 2].map(() =>
+        usage({
+          source: "chat_agent_turn",
+          modelId: "google/gemini-3.5-flash",
+          dimensions: { project_id: project.id, input_tokens: 1 },
+        }),
+      ),
+    );
+    const byRuns = await queryAiUsage({ ...scope, rankBy: "calls" });
+    expect(byRuns.rows[0]).toMatchObject({ key: "google/gemini-3.5-flash", calls: 2 });
   });
 
   it("charts the largest groups per day and folds the rest into Other", async () => {
@@ -561,9 +603,8 @@ describe("AI usage", () => {
       key: null,
       other: true,
       calls: jobs.length - AI_USAGE_CHILD_ROWS,
-      // The group's credit less the rows shown, each rounded to eight places: 0.00000026 − 10 ×
-      // 0.00000001.
-      chargeUsd: "0.00000016",
+      // The 42 rows' own credit, 42 × 0.000000005, rounded once.
+      chargeUsd: "0.00000021",
     });
     const everyRow = await queryAiUsage({
       ...query,

@@ -25,7 +25,6 @@ import {
   type AiUsageMeasure,
   type SourceRule,
 } from "./ai-usage-origins";
-import { usdString, usdUnits } from "./money";
 import { addDays, type ReportPeriod } from "./report-period";
 import {
   dayEnd,
@@ -223,17 +222,18 @@ function usageRows(input: AiUsageQuery, from: string): SQL {
 
 /**
  * The measures of a group of `filtered` rows. Billing writes one token row for each finished
- * call, image or video (a failed one leaves only its reservation, which is not read), so a token
- * row under an image or video counts as that image or video, never as a call: its tokens are
- * the image count or the video's seconds. The charge counts our gateway, as Costs does.
+ * run, image or video (a failed one leaves only its reservation, which is not read), so a token
+ * row under an image or video counts as that image or video, never as a run. Its tokens count
+ * as they are: the image model's own, or, when it reports none, one per image (and a video's
+ * seconds), which is little next to real tokens. The charge counts our gateway, as Costs does.
  */
 function measures(): SQL {
   const images = idList([...AI_IMAGE_SOURCES]);
   return sql`
     count(*) filter (where not media)::integer as calls,
-    coalesce(sum(input_tokens) filter (where not media), 0)::float8 as "inputTokens",
-    coalesce(sum(output_tokens) filter (where not media), 0)::float8 as "outputTokens",
-    coalesce(sum(extra_tokens) filter (where not media), 0)::float8 as "cacheAndReasoningTokens",
+    coalesce(sum(input_tokens), 0)::float8 as "inputTokens",
+    coalesce(sum(output_tokens), 0)::float8 as "outputTokens",
+    coalesce(sum(extra_tokens), 0)::float8 as "cacheAndReasoningTokens",
     count(*) filter (where media and source in (${images}))::integer as images,
     count(*) filter (where media and source not in (${images}))::integer as videos,
     round(coalesce(sum(amount_usd) filter (where credential_source = 'gateway'), 0), 8)::text
@@ -246,8 +246,7 @@ function measures(): SQL {
 
 /** Largest first: by tokens, then images and videos, then calls. */
 const SORT_COLUMNS = sql`
-  coalesce(sum(input_tokens + output_tokens + extra_tokens) filter (where not media), 0)
-    as sort_tokens,
+  coalesce(sum(input_tokens + output_tokens + extra_tokens), 0) as sort_tokens,
   count(*) filter (where media) as sort_media,
   count(*) filter (where not media) as sort_calls,
   coalesce(sum(amount_usd) filter (where credential_source = 'gateway'), 0) as sort_charge`;
@@ -331,17 +330,17 @@ type TableRow = AiUsageTotals & {
   total: number;
   /** On a group's row: how many groups by the second detail it has. */
   children: number;
+  /** On a group's row: the credit of its rows past the largest few, rounded once. */
+  restChargeUsd: string;
 };
 
-/** A group's totals less those of the groups shown under it: what "Other" stands for. */
-function remainder(group: AiUsageTotals, shown: AiUsageTotals[]): AiUsageTotals {
+/**
+ * A group's totals less those of the groups shown under it: what "Other" stands for. Credit is
+ * summed in the database instead, since each row's is rounded.
+ */
+function remainder(group: AiUsageTotals, shown: AiUsageTotals[], chargeUsd: string): AiUsageTotals {
   const less = (key: Exclude<keyof AiUsageTotals, "chargeUsd">) =>
     group[key] - shown.reduce((sum, row) => sum + row[key], 0);
-  // Each group is rounded to eight places, so the difference can dip a hair below zero.
-  const charge = shown.reduce(
-    (sum, row) => sum - usdUnits(row.chargeUsd),
-    usdUnits(group.chargeUsd),
-  );
   return {
     calls: less("calls"),
     inputTokens: less("inputTokens"),
@@ -349,7 +348,7 @@ function remainder(group: AiUsageTotals, shown: AiUsageTotals[]): AiUsageTotals 
     cacheAndReasoningTokens: less("cacheAndReasoningTokens"),
     images: less("images"),
     videos: less("videos"),
-    chargeUsd: usdString(charge > BigInt(0) ? charge : BigInt(0)),
+    chargeUsd,
     unrecordedCharges: less("unrecordedCharges"),
     ownKeyCalls: less("ownKeyCalls"),
   };
@@ -389,34 +388,41 @@ async function queryTable(input: AiUsageQuery) {
         count(*) filter (where child) over (partition by g1) as children
       from grouped
     ),
-    placed as (select *, max(own_place) over (partition by g1) as place from ranked),
+    placed as (
+      select *, max(own_place) over (partition by g1) as place,
+        round(coalesce(sum(sort_charge) filter (
+          where child and child_place > ${AI_USAGE_CHILD_ROWS}) over (partition by g1), 0), 8)::text
+          as "restChargeUsd"
+      from ranked
+    ),
     counted as (select count(*)::integer as total from grouped where not child)
     select c.total, p.g1 as key1, p.g2 as key2, p.child, p.children::integer as children,
       ${labelSql(input.groupBy, sql.raw("p.g1"), input.organizationId)} as label1,
       ${thenBy ? labelSql(thenBy, sql.raw("p.g2"), input.organizationId) : sql`null::text`} as label2,
       p.calls, p."inputTokens", p."outputTokens", p."cacheAndReasoningTokens", p.images, p.videos, p."chargeUsd",
-      p."unrecordedCharges", p."ownKeyCalls"
+      p."unrecordedCharges", p."ownKeyCalls", p."restChargeUsd"
     from counted c left join placed p on ${shown}
     order by p.place, p.child, p.child_place
   `);
   const rows: AiUsageRow[] = [];
-  const childCounts: number[] = [];
+  const parents: TableRow[] = [];
   for (const row of result.rows) {
     if (row.child === null) continue;
     if (!row.child) {
       rows.push({ key: row.key1, label: row.label1, ...totalsOf(row), children: [] });
-      childCounts.push(row.children);
+      parents.push(row);
       continue;
     }
     rows.at(-1)?.children.push({ key: row.key2, label: row.label2, ...totalsOf(row) });
   }
   rows.forEach((row, index) => {
-    if (row.children.length < childCounts[index]!)
+    const parent = parents[index]!;
+    if (row.children.length < parent.children)
       row.children.push({
         key: null,
         label: null,
         other: true,
-        ...remainder(row, row.children),
+        ...remainder(row, row.children, parent.restChargeUsd),
       });
   });
   return {
@@ -467,7 +473,7 @@ async function querySeries(input: AiUsageQuery): Promise<AiUsageSeries> {
     select ${bucket}::text as start, coalesce(t.slot, 0) as slot, t.g1 as key,
       ${labelSql(input.groupBy, sql.raw("t.g1"), input.organizationId)} as label,
       count(*) filter (where not f.media)::integer as calls,
-      coalesce(sum(f.input_tokens + f.output_tokens + f.extra_tokens) filter (where not f.media), 0)::float8
+      coalesce(sum(f.input_tokens + f.output_tokens + f.extra_tokens), 0)::float8
         as tokens,
       coalesce(sum(f.amount_usd) filter (where f.credential_source = 'gateway'), 0)::float8
         as "chargeUsd"

@@ -31,7 +31,13 @@ import { describeChange } from "@/lib/reporting/report-period";
 import { activityTabMessages } from "./activity-tab.messages";
 import { aiGroupLabel, dimensionLabel } from "./ai-usage-labels";
 import { aiUsageTabMessages as messages } from "./ai-usage-tab.messages";
-import { formatChange, formatCompact, formatCount, formatUsd } from "./report-format";
+import {
+  formatChange,
+  formatCompact,
+  formatCount,
+  formatRateAmount,
+  formatUsd,
+} from "./report-format";
 import {
   DownloadCsvButton,
   ReportEmpty,
@@ -55,22 +61,37 @@ type Measure = (typeof AI_USAGE_MEASURES)[number];
 const NONE = "__none__";
 
 /**
- * The change that narrows the tab to one group of a detail, or null when no filter can: a
- * group of calls without the detail, "Other", or a project when one is already chosen.
+ * How a group relates to the tab's filters: no filter can stand for it ("No task", "Other"),
+ * it is already the filter (the chosen project, task or model), or the change that narrows to
+ * it. Only a change makes a row a button; rows under a group narrow within it, so they narrow
+ * only when the group can stand as a filter.
  */
-function narrowTo(
+function narrowing(
   state: ReportsUrlState,
   dimension: AiUsageDimension,
   group: { key: string | null; other?: boolean },
-): Partial<ReportsUrlState> | null {
+): { kind: "none" } | { kind: "applied" } | { kind: "narrow"; change: Partial<ReportsUrlState> } {
   const { key } = group;
-  if (key === null || group.other) return null;
+  if (key === null || group.other) return { kind: "none" };
+  const current =
+    dimension === "project"
+      ? state.projectId
+      : dimension === "task"
+        ? state.jobId
+        : state.aiFilters[dimension];
+  if (current === key) return { kind: "applied" };
   // A task chosen in the filter bar is in the project clicked, so it stays; an estimate's tasks
   // may not be.
-  if (dimension === "project") return state.projectId ? null : { projectId: key, jobIds: [] };
-  if (dimension === "task") return { jobId: key };
-  return { aiFilters: { ...state.aiFilters, [dimension]: key } };
+  if (dimension === "project") return { kind: "narrow", change: { projectId: key, jobIds: [] } };
+  if (dimension === "task") return { kind: "narrow", change: { jobId: key } };
+  return { kind: "narrow", change: { aiFilters: { ...state.aiFilters, [dimension]: key } } };
 }
+
+/**
+ * A period's credit can be compared only when billing recorded nearly all of it; a few charges
+ * are always on their way, but a period mostly from before billing recorded them is not a base.
+ */
+const UNRECORDED_SHARE_FOR_COMPARISON = 0.05;
 
 /** AI credit as money, with an amount above zero but below a cent never shown as $0.00. */
 function formatCredit(intl: ReturnType<typeof useIntl>, usd: string) {
@@ -104,10 +125,13 @@ function chargeLabel(intl: ReturnType<typeof useIntl>, totals: Totals) {
   }
 }
 
-/** A period's credit for a comparison, or null when billing recorded none of it. */
+/** A period's credit for a comparison, or null when billing did not record nearly all of it. */
 function comparableCredit(totals: Totals) {
   const state = creditState(totals);
   if (state === "own_key" || state === "not_recorded") return null;
+  const charged = totals.calls + totals.images + totals.videos - totals.ownKeyCalls;
+  if (charged > 0 && totals.unrecordedCharges / charged > UNRECORDED_SHARE_FOR_COMPARISON)
+    return null;
   return Number(totals.chargeUsd);
 }
 
@@ -248,7 +272,7 @@ function AiUsageCards({ data, organizationSlug }: { data: AiUsageData; organizat
           label={intl.formatMessage(messages.charge)}
           value={chargeLabel(intl, totals).text}
           change={change(comparableCredit(totals), comparableCredit(previous), (amount) =>
-            formatCredit(intl, amount.toFixed(8)),
+            formatRateAmount(intl, amount.toFixed(8)),
           )}
           detail={intl.formatMessage(messages.chargeDetail)}
         />
@@ -521,6 +545,7 @@ function AiUsageTable({
               </TableCell>
             </>
           );
+          /** A row's name: a button when it narrows, naming its group for screen readers. */
           const name = (
             text: string,
             change: Partial<ReportsUrlState> | null,
@@ -528,11 +553,20 @@ function AiUsageTable({
             group?: string,
           ) => {
             if (!change)
-              return <span className={muted ? "text-muted-foreground" : undefined}>{text}</span>;
+              return (
+                <>
+                  {group ? (
+                    <span className="sr-only">
+                      {intl.formatMessage(messages.underGroup, { group })}
+                    </span>
+                  ) : null}
+                  <span className={muted ? "text-muted-foreground" : undefined}>{text}</span>
+                </>
+              );
             return (
               <button
                 type="button"
-                className="text-left underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
+                className="rounded-sm text-left underline-offset-4 hover:underline focus-visible:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
                 aria-label={
                   group
                     ? intl.formatMessage(messages.narrowToUnder, { name: text, group })
@@ -580,12 +614,14 @@ function AiUsageTable({
                 <TableBody>
                   {data.rows.map((row) => {
                     const rowName = aiGroupLabel(intl, data.groupBy, row);
-                    const parent = narrowTo(state, data.groupBy, row);
-                    // The rows under the chosen project narrow within it.
-                    const within =
-                      data.groupBy === "project" && row.key !== null && row.key === state.projectId
-                        ? {}
-                        : parent;
+                    const parent = narrowing(state, data.groupBy, row);
+                    // The scope its rows narrow within: the group's filter, or none needed.
+                    const scope =
+                      parent.kind === "narrow"
+                        ? parent.change
+                        : parent.kind === "applied"
+                          ? {}
+                          : null;
                     return (
                       <Fragment key={row.key ?? NONE}>
                         <TableRow className={thenBy ? "bg-muted/30 font-medium" : undefined}>
@@ -593,10 +629,14 @@ function AiUsageTable({
                             {/* Narrowing to a group shows it by the second detail chosen now. */}
                             {name(
                               rowName,
-                              parent && {
-                                ...parent,
-                                ...(state.aiThen ? { aiGroup: state.aiThen, aiThen: null } : {}),
-                              },
+                              parent.kind === "narrow"
+                                ? {
+                                    ...parent.change,
+                                    ...(state.aiThen
+                                      ? { aiGroup: state.aiThen, aiThen: null }
+                                      : {}),
+                                  }
+                                : null,
                               row.key === null,
                             )}
                           </TableCell>
@@ -604,10 +644,9 @@ function AiUsageTable({
                         </TableRow>
                         {thenBy
                           ? row.children.map((child) => {
-                              // Under a group no filter can stand for, a row cannot narrow either.
-                              const own = within
-                                ? narrowTo(
-                                    { ...state, ...within } as ReportsUrlState,
+                              const own = scope
+                                ? narrowing(
+                                    { ...state, ...scope } as ReportsUrlState,
                                     thenBy,
                                     child,
                                   )
@@ -615,14 +654,13 @@ function AiUsageTable({
                               return (
                                 <TableRow key={child.other ? "__other__" : (child.key ?? NONE)}>
                                   <TableCell className="pl-8">
-                                    <span className="sr-only">
-                                      {intl.formatMessage(messages.underGroup, { group: rowName })}
-                                    </span>
                                     {name(
                                       child.other
                                         ? intl.formatMessage(messages.otherGroup)
                                         : aiGroupLabel(intl, thenBy, child),
-                                      own && { ...within, ...own, aiGroup: thenBy, aiThen: null },
+                                      own?.kind === "narrow"
+                                        ? { ...scope, ...own.change, aiGroup: thenBy, aiThen: null }
+                                        : null,
                                       child.key === null,
                                       rowName,
                                     )}

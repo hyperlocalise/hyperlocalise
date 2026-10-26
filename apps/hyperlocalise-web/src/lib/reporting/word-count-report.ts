@@ -59,10 +59,16 @@ export async function listReportJobs(input: {
             )})`
           : sql``
       }
-      and exists (
-        select 1 from reporting_analyses a
-        where a.organization_id = j.organization_id and a.job_id = j.id
-      )
+      ${
+        // Tasks chosen elsewhere (AI usage lists tasks from billing's records) are named even
+        // with nothing counted; a search offers only tasks Reports has counted.
+        input.ids?.length
+          ? sql``
+          : sql`and exists (
+              select 1 from reporting_analyses a
+              where a.organization_id = j.organization_id and a.job_id = j.id
+            )`
+      }
     order by j.created_at desc
     limit ${input.limit ?? 200}
   `);

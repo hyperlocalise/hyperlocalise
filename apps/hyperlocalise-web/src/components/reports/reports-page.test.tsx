@@ -198,20 +198,23 @@ describe("Reports page", () => {
     expect(callsTo("ai-usage")[0]?.args.query).toMatchObject({
       groupBy: "area",
       thenBy: "model",
+      rankBy: "tokens",
       page: "1",
     });
     expect(
       screen.getByText(
-        "3 runs have no AI credit recorded by billing, so AI credit used leaves them out.",
+        "3 runs, images or videos have no AI credit recorded by billing, so AI credit used leaves them out.",
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("260 runs used your own provider key, which uses no plan credit."),
+      screen.getByText(
+        "260 runs, images or videos used your own provider key, which uses no plan credit.",
+      ),
     ).toBeInTheDocument();
     const table = screen.getByRole("table", { name: "Breakdown" });
     // Calls on the workspace's own key cost no plan credit; a gap in billing is never $0.
     expect(within(table).getAllByText("Own key")).toHaveLength(2);
-    expect(within(table).getAllByText("3 runs not recorded").length).toBeGreaterThan(0);
+    expect(within(table).getAllByText("3 not recorded").length).toBeGreaterThan(0);
 
     // A group narrows the tab to it and shows its second-level groups next.
     await userEvent.click(within(table).getByRole("button", { name: "Show only Translation" }));
@@ -232,8 +235,6 @@ describe("Reports page", () => {
         { scroll: false },
       ),
     );
-    // Calls without a model are not a filter.
-    expect(within(table).queryByRole("button", { name: "Show only None" })).toBeNull();
   });
 
   it("narrows only where a filter can stand for the row, and keeps the chosen task", async () => {
@@ -242,6 +243,7 @@ describe("Reports page", () => {
       calls: 4,
       inputTokens: 400,
       outputTokens: 40,
+      cacheAndReasoningTokens: 0,
       images: 0,
       videos: 0,
       chargeUsd: "0.00400000",
@@ -335,6 +337,24 @@ describe("Reports page", () => {
       expect(mocks.replace).toHaveBeenLastCalledWith("/en/org/acme/reports?tab=ai&key=own_key", {
         scroll: false,
       }),
+    );
+  });
+
+  it("keeps a row whose filter is already set as text, and narrows the rows under it", async () => {
+    mocks.search = "tab=ai&ai2=model&area=translation";
+    renderPage();
+    const table = await screen.findByRole("table", { name: "Breakdown" });
+    expect(within(table).queryByRole("button", { name: "Show only Translation" })).toBeNull();
+    await userEvent.click(
+      within(table).getByRole("button", {
+        name: "Show only openai/gpt-6-luna under Translation",
+      }),
+    );
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenLastCalledWith(
+        "/en/org/acme/reports?tab=ai&ai=model&area=translation&model=openai%2Fgpt-6-luna",
+        { scroll: false },
+      ),
     );
   });
 
