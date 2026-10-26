@@ -113,8 +113,9 @@ export async function analyseTaskStrings(
  * Works out the task's days in the summary straight away, rather than at the next scheduled run,
  * so its Report tab and the estimate show its strings moments after the task is created. Waits a
  * few seconds for a scheduled run that holds the project, skips days that run did meanwhile, and
- * leaves the project's current rows to the scheduled run (rewriting them costs seconds for a
- * large project, which a burst of new tasks would each pay). Throws when the project stays held,
+ * leaves the project's current rows, and the days' marks, to the scheduled run (rewriting the
+ * current rows costs seconds for a large project, which a burst of new tasks would each pay; the
+ * whole-project estimate lags a new task by up to one run). Throws when the project stays held,
  * so the caller retries later.
  */
 export async function refreshTaskDays(input: {

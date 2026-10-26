@@ -128,16 +128,23 @@ export function TaskReport({
   // Only the task's own card or its project budget's prices the task: a language neither has a
   // line for shows "No rate", never a guess from another card.
   const rateCard = null;
+  // Whether the task's strings for the step are still being counted, or could not be. Looked at
+  // again every few seconds while pending; when the count ends, the report is read again. Only
+  // the roles that see the task's words see this.
+  const analysis = useTaskAnalysis(organizationSlug, jobId, Boolean(settings.data?.financial));
+  const state = analysis.data?.find((row) => row.step === step);
   const report = useTaskReport(
     organizationSlug,
     jobId,
     { unit, step, rateCard },
     Boolean(settings.data),
+    // Counted, but not yet in the summary (a scheduled run held the project): read again in a
+    // while, since the state will not change again to say when the strings have arrived.
+    (last) =>
+      state?.status === "done" &&
+      last.words !== null &&
+      analysisOutcome(last.words, step, state) === "counting",
   );
-  // Whether the task's strings for the step are still being counted, or could not be. Looked at
-  // again every few seconds while pending; when the count ends, the report is read again.
-  const analysis = useTaskAnalysis(organizationSlug, jobId, Boolean(settings.data));
-  const state = analysis.data?.find((row) => row.step === step);
   const queryClient = useQueryClient();
   const status = state?.status;
   const previousStatus = useRef(status);
@@ -334,7 +341,7 @@ type AnalysisRow = WordRow & {
  * nothing. "shown" when the step has rows.
  */
 function analysisOutcome(
-  words: TaskWords,
+  words: { rows: { step: string }[] },
   step: ReportStep,
   state: TaskAnalysisState | undefined,
 ): "shown" | "counting" | "failed" | "nothing" {

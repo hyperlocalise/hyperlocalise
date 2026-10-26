@@ -23,7 +23,7 @@ import { db, schema } from "@/lib/database/client";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
 
-import { markSummaryDays } from "./summary";
+import { markSummaryDays, refreshPendingSummary } from "./summary";
 import {
   analyseTaskLanguage,
   analyseTaskStrings,
@@ -177,12 +177,21 @@ describe("analyseTaskStrings", () => {
 
     await refreshTaskDays({ organizationId: organization.id, projectId: project.id, days });
     expect((await words()).totals.review.arrived).toBe(5);
-    // The task's refresh leaves the project's current rows to the scheduled run.
-    const current = await db
-      .select({ strings: schema.reportingCurrentByProject.arrivedStrings })
-      .from(schema.reportingCurrentByProject)
-      .where(eq(schema.reportingCurrentByProject.projectId, project.id));
-    expect(current).toEqual([]);
+    // The task's refresh leaves the project's current rows, and the days' marks, to the
+    // scheduled run, which then rewrites both.
+    const current = () =>
+      db
+        .select({ strings: schema.reportingCurrentByProject.arrivedStrings })
+        .from(schema.reportingCurrentByProject)
+        .where(eq(schema.reportingCurrentByProject.projectId, project.id));
+    expect(await current()).toEqual([]);
+    const marks = await db
+      .select({ day: schema.reportingSummaryQueue.day })
+      .from(schema.reportingSummaryQueue)
+      .where(eq(schema.reportingSummaryQueue.projectId, project.id));
+    expect(marks.map((mark) => mark.day)).toEqual(days);
+    await refreshPendingSummary({ organizationIds: [organization.id] });
+    expect(await current()).toEqual([{ strings: 2 }]);
   });
 
   it("waits a few seconds for a scheduled run that holds the project, then refreshes", async () => {

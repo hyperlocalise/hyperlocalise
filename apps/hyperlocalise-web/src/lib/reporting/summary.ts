@@ -146,7 +146,11 @@ export async function refreshSummaryDays(
     waitForLock?: boolean;
     /** Refresh only the days still marked: a task's refresh skips days a scheduled run did meanwhile. */
     onlyMarked?: boolean;
-    /** Leave the project's current rows to the scheduled run, which rewrites them once per project. */
+    /**
+     * Leave the project's current rows to the scheduled run, which rewrites them once per project.
+     * The days' marks are kept too, so that run still comes: a refresh that clears them would
+     * leave the current rows behind until some other write to the project.
+     */
     skipCurrentRows?: boolean;
   },
   database: DatabaseClient = db,
@@ -243,7 +247,9 @@ export async function refreshSummaryDays(
       with base as (
         select o.id, o.job_id, o.segment_id, o.source_revision, o.target_locale, o.step,
           o.created_at,
-          (o.job_id is null or j.status in ('queued', 'running', 'waiting_for_review')) as open
+          -- A deleted task has no status: it is closed, not open.
+          (o.job_id is null or coalesce(j.status in ('queued', 'running', 'waiting_for_review'), false))
+            as open
         from reporting_analyses o
         left join jobs j on j.id = o.job_id
         where o.organization_id = ${organizationId} and o.project_id = ${projectId}
@@ -284,7 +290,9 @@ export async function refreshSummaryDays(
           a.billable as payable, (a.created_at at time zone 'UTC')::date as day,
           ${sql.raw(ARRIVAL_MEASURES)}
         from (
-          -- A task's unfinished string is abandoned once the task is no longer open.
+          -- A task's unfinished string is abandoned once the task is no longer open: failed,
+          -- cancelled, deleted, or marked done with the string left over, since no more work
+          -- will come from a task that has ended.
           select a.*, s.done, f.id is not null as representative, not s.done and not s.open as abandoned
           from arrivals a
           join siblings s on s.id = a.id
@@ -341,7 +349,8 @@ export async function refreshSummaryDays(
       ) facts
       group by target_locale, step, bucket, source, day
     `);
-    if (!input.skipCurrentRows) await refreshCurrentByProject(tx, organizationId, projectId);
+    if (input.skipCurrentRows) return "refreshed";
+    await refreshCurrentByProject(tx, organizationId, projectId);
     // A write that marked a day while this ran bumped its generation: keep that mark.
     for (const mark of queued) {
       await tx

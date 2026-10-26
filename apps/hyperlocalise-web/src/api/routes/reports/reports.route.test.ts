@@ -339,10 +339,53 @@ describe("reports routes", () => {
       step: "review",
       status: "pending",
     });
+    await setTaskAnalysisStatus({
+      organizationId: organization.id,
+      jobId: job.id,
+      step: "translation",
+      status: "failed",
+      strings: 12,
+      error: "memory down",
+    });
     const pending = await app.request(reportsUrl(slug, `/tasks/${job.id}/analysis`), { headers });
     expect(pending.status).toBe(200);
     await expect(pending.json()).resolves.toMatchObject({
-      analysis: [{ step: "review", status: "pending", incomplete: false, strings: null }],
+      analysis: expect.arrayContaining([
+        expect.objectContaining({
+          step: "review",
+          status: "pending",
+          incomplete: false,
+          strings: null,
+          error: null,
+        }),
+        expect.objectContaining({
+          step: "translation",
+          status: "failed",
+          strings: 12,
+          error: "memory down",
+        }),
+      ]),
+    });
+    // The counts and failure details go with the task's words: roles without billing access see
+    // only the state.
+    const translator = reporting.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    const { user: person } = await reporting.createLocalWorkosIdentity(translator);
+    await ensureDefaultWorkspaceTeamMembership({
+      organizationId: organization.id,
+      userId: person.id,
+    });
+    const seen = await app.request(reportsUrl(slug, `/tasks/${job.id}/analysis`), {
+      headers: await reporting.authHeadersFor(translator),
+    });
+    expect(seen.status).toBe(200);
+    const { analysis } = await seen.json();
+    expect(analysis.find((row: { step: string }) => row.step === "translation")).toMatchObject({
+      status: "failed",
+      strings: null,
+      error: null,
     });
     const missing = await app.request(reportsUrl(slug, "/tasks/job_missing/analysis"), { headers });
     expect(missing.status).toBe(404);

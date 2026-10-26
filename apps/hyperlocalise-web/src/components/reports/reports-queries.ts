@@ -311,11 +311,16 @@ export function taskReportQuery(view: TaskReportView) {
 }
 
 /** One task's words, money, time and pricing, for its Report tab. */
+/** How often a task's Report tab reads again while recorded strings are not yet in the summary. */
+const RECORDED_POLL_MS = 30_000;
+
 export function useTaskReport(
   organizationSlug: string,
   jobId: string,
   view: TaskReportView,
   enabled = true,
+  /** Whether to read the report again in a while, given what it last answered. */
+  recheck?: (report: { words: { rows: { step: string }[] } | null }) => boolean,
 ) {
   const intl = useIntl();
   const query = taskReportQuery(view);
@@ -323,6 +328,10 @@ export function useTaskReport(
     queryKey: reportsQueryKey(organizationSlug, "task-report", jobId, query),
     placeholderData: keepPreviousData,
     enabled,
+    // The argument is typed here, since inferring it would make the data's type depend on itself.
+    refetchInterval: (current: {
+      state: { data?: { words: { rows: { step: string }[] } | null } };
+    }) => (current.state.data && recheck?.(current.state.data) ? RECORDED_POLL_MS : false),
     queryFn: async ({ signal }) => {
       const response = await reportsApi().tasks[":jobId"].report.$get(
         { param: { organizationSlug, jobId }, query },

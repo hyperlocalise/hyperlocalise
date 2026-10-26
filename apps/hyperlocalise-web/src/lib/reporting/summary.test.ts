@@ -121,7 +121,7 @@ async function recountedRows(organizationId: string) {
         not exists (
           select 1 from reporting_activity d
           where d.kind = 'completion' and d.analysis_id = a.id and d.step = a.step
-        ) and not (a.job_id is null or j.status in ('queued', 'running', 'waiting_for_review'))
+        ) and not (a.job_id is null or coalesce(j.status in ('queued', 'running', 'waiting_for_review'), false))
           as abandoned
       from reporting_analyses a left join jobs j on j.id = a.job_id
       where a.organization_id = ${organizationId} and a.is_current and a.project_id is not null
@@ -180,7 +180,8 @@ async function recountedProjectRows(organizationId: string) {
           select 1 from reporting_activity d
           where d.kind = 'completion' and d.analysis_id = a.id and d.step = a.step
         ) as own_done,
-        (a.job_id is null or j.status in ('queued', 'running', 'waiting_for_review')) as own_open
+        (a.job_id is null or coalesce(j.status in ('queued', 'running', 'waiting_for_review'), false))
+          as own_open
       from reporting_analyses a left join jobs j on j.id = a.job_id
       where a.organization_id = ${organizationId} and a.is_current and a.project_id is not null
     ), arrivals as (
@@ -675,6 +676,29 @@ describe("reporting daily summary", () => {
     });
     await expectSummaryMatchesRecount(organization.id);
     expect((await project_rows()).rows[0]).toEqual({ arrived: 2, done: 2, abandoned: 0 });
+  });
+
+  it("counts a deleted task's unfinished strings as abandoned once their days are worked out again", async () => {
+    const { organization, project, save, createJob } = await createWorkspace();
+    const task = await createJob();
+    await save({
+      segment: "greeting",
+      text: "Hello world",
+      locale: "fr-FR",
+      jobId: task.id,
+      on: "2026-06-01",
+    });
+    await expectSummaryMatchesRecount(organization.id);
+    await db.delete(schema.jobs).where(eq(schema.jobs.id, task.id));
+    // Deleting marks no day; the next write or rebuild of the day does.
+    await db.transaction((tx) =>
+      markSummaryDays(tx, organization.id, [{ projectId: project.id, day: "2026-06-01" }]),
+    );
+    await expectSummaryMatchesRecount(organization.id);
+    const rows = await db.execute<{ arrived: number; abandoned: number }>(sql`
+      select sum(arrived_words)::integer as arrived, sum(abandoned_words)::integer as abandoned
+      from reporting_daily_by_project where project_id = ${project.id} and source = ''`);
+    expect(rows.rows[0]).toEqual({ arrived: 2, abandoned: 2 });
   });
 
   it("deletes a task whose string also has a content editor analysis of the same text", async () => {

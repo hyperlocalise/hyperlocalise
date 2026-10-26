@@ -31,7 +31,9 @@ import {
   captureAnalysis,
   captureCompletions,
   captureJobStatus,
+  isMemoryUnavailableError,
   MemoryScoreCache,
+  recordAnalysis,
   resolveReportingRate,
   scoreAgainstMemory,
   sourceSimilarity,
@@ -39,6 +41,17 @@ import {
 import { refreshPendingSummary } from "./summary";
 
 const resolveWorkspaceReportsFlagMock = vi.hoisted(() => vi.fn(async () => true));
+/** The project's memories, as the app reads them; one test makes the read fail. */
+const memoryMocks = vi.hoisted(() => ({
+  listAttachedProjectMemoryIds: vi.fn<(projectId: string) => Promise<string[]>>(),
+}));
+
+vi.mock("@/lib/memory/ensure-default-native-project-memory", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/memory/ensure-default-native-project-memory")>();
+  memoryMocks.listAttachedProjectMemoryIds.mockImplementation(actual.listAttachedProjectMemoryIds);
+  return { ...actual, listAttachedProjectMemoryIds: memoryMocks.listAttachedProjectMemoryIds };
+});
 
 vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
@@ -802,6 +815,32 @@ describe("reporting capture", () => {
       operationKey: `cancel:${cancelled.id}`,
     });
     expect(await fees()).toHaveLength(1);
+  });
+
+  it("names a memory that cannot be read when a strict write fails, and records without a band otherwise", async () => {
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    const input = {
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceEntries: { greeting: "Hello world" },
+    };
+    memoryMocks.listAttachedProjectMemoryIds.mockRejectedValueOnce(new Error("memory down"));
+    const failure = await recordAnalysis(input).catch((error: unknown) => error);
+    expect(isMemoryUnavailableError(failure)).toBe(true);
+    expect((failure as Error).message).toContain("memory down");
+    // Any other failure is not one: the caller must not record strings without bands for it.
+    expect(isMemoryUnavailableError(new Error("connection reset"))).toBe(false);
+
+    // The forgiving write records the strings with no band instead.
+    memoryMocks.listAttachedProjectMemoryIds.mockRejectedValueOnce(new Error("memory down"));
+    await captureAnalysis(input);
+    const analyses = await db
+      .select({ bucket: schema.reportingAnalyses.bucket })
+      .from(schema.reportingAnalyses)
+      .where(eq(schema.reportingAnalyses.organizationId, organization.id));
+    expect(analyses).toEqual([{ bucket: "unavailable" }]);
   });
 
   it("skips analysis capture when workspace reports is disabled", async () => {

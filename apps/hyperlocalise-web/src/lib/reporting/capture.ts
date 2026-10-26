@@ -292,6 +292,24 @@ export async function captureAnalysis(input: AnalysisInput) {
   }
 }
 
+/**
+ * Starts the message of the error a strict write throws when the project's memory cannot be read
+ * or scored, so a caller can tell that from a failed write: only then may the strings be recorded
+ * without match bands instead.
+ */
+export const MEMORY_UNAVAILABLE = "reporting_memory_unavailable";
+
+export function isMemoryUnavailableError(error: unknown): boolean {
+  return error instanceof Error && error.message.startsWith(MEMORY_UNAVAILABLE);
+}
+
+function memoryUnavailable(error: unknown): Error {
+  return new Error(
+    `${MEMORY_UNAVAILABLE}: ${error instanceof Error ? error.message : String(error)}`,
+    { cause: error },
+  );
+}
+
 type MemoryOptions = {
   memoryCache?: MemoryScoreCache;
   /**
@@ -343,7 +361,7 @@ async function writeReportingAnalysis(
     try {
       memoryIds = await listAttachedProjectMemoryIds(input.projectId);
     } catch (error) {
-      if (options.strict) throw error;
+      if (options.strict) throw memoryUnavailable(error);
       console.warn("reporting_match_analysis_unavailable", { jobId: input.jobId });
     }
   }
@@ -362,7 +380,7 @@ async function writeReportingAnalysis(
       );
       for (const [sourceText, score] of memoryScores) scores.set(sourceText, score);
     } catch (error) {
-      if (options.strict) throw error;
+      if (options.strict) throw memoryUnavailable(error);
       console.warn("reporting_match_analysis_unavailable", { jobId: input.jobId });
     }
   }

@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { isMemoryUnavailableError } from "@/lib/reporting/capture";
 import type { TaskAnalysisInput } from "@/lib/reporting/task-analysis";
 
 import {
@@ -40,8 +41,11 @@ export async function taskAnalysisWorkflow(input: TaskAnalysisInput) {
       try {
         recorded = await analyseTaskLanguageStep(language);
       } catch (failure) {
-        // The memory could not be read or scored after every retry. The strings are recorded
-        // without match bands, so the task has its quote, which its state then says is not exact.
+        // Only when the memory could not be read or scored after every retry are the strings
+        // recorded without match bands, so the task has its quote, which its state then says is
+        // not exact. Any other failure (a database error, a step that ran out of time) fails the
+        // analysis instead: strings without bands are priced as new work, and that stays.
+        if (!isMemoryUnavailableError(failure)) throw failure;
         error = messageOf(failure);
         recorded = await analyseTaskLanguageStep({ ...language, withoutMemory: true });
         incomplete = true;

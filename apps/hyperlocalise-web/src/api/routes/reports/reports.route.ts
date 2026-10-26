@@ -530,7 +530,14 @@ export function createReportsRoutes() {
             ),
           );
         if (!job) return notFoundResponse(c, "job_not_found");
-        return c.json({ analysis: await readTaskAnalysis({ organizationId, jobId: job.id }) });
+        const states = await readTaskAnalysis({ organizationId, jobId: job.id });
+        // The task's string counts and failure details are for the roles that see its words.
+        const financial = hasCapability(c.var.auth.membership.role, "billing:read");
+        return c.json({
+          analysis: financial
+            ? states
+            : states.map((state) => ({ ...state, strings: null, error: null })),
+        });
       })
       .put("/budgets", billingWrite, reportBody(budgetSchema, "invalid_budget"), async (c) => {
         const body = c.req.valid("json");
