@@ -337,6 +337,32 @@ export const contentEditorFileViewMessages = defineMessages({
     id: "MM2Ni9bZuS",
     description: "Label for one editable paragraph of a Word or PowerPoint file",
   },
+  officeGroupPage: {
+    defaultMessage: "Page {number}",
+    id: "eoEHqDK2SZ",
+    description: "Group heading for PDF text blocks on one page",
+  },
+  pdfBlock: {
+    defaultMessage: "Block {number}",
+    id: "B/d0rdoVJ/",
+    description: "Label for one editable text block in a PDF file view",
+  },
+  pdfTargetNotReady: {
+    defaultMessage: "No translated PDF yet. Showing the source file.",
+    id: "Bmh0Lmd2wi",
+    description: "Hint when the PDF preview falls back to the source file",
+  },
+  pdfOverflowWarning: {
+    defaultMessage:
+      "{count, plural, one {# block was shrunk or clipped to fit the layout.} other {# blocks were shrunk or clipped to fit the layout.}}",
+    id: "JlI/Chw0Gc",
+    description: "Warning when MarshalPDF could not fit some translated blocks",
+  },
+  pdfScriptUnsupported: {
+    defaultMessage: "This PDF preview cannot render the target script yet.",
+    id: "dwmJPhGlWT",
+    description: "Error when the translated PDF uses an unsupported script",
+  },
 });
 
 export function contentEditorFileGeneratePromptPlaceholderMessage(

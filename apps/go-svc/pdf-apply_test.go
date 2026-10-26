@@ -38,7 +38,7 @@ func TestApplyPdfRoundTrip(t *testing.T) {
 	require.Len(t, entries, 1)
 
 	values := map[string]string{entries[0].Key: "Translated PDF block"}
-	body := newPdfApplyMultipartBody(t, template, values, "fr-FR")
+	body := newPdfApplyMultipartBody(t, template, values)
 
 	h := newHandler()
 	mux := http.NewServeMux()
@@ -61,7 +61,7 @@ func TestPdfApplyBodyBudgetIncludesValuesAndFraming(t *testing.T) {
 	require.GreaterOrEqual(
 		t,
 		maxPdfApplyBodyBytes,
-		maxPdfApplyTemplateBytes+maxPdfApplyValuesBytes+maxPdfApplyLocaleBytes,
+		maxPdfApplyTemplateBytes+maxPdfApplyValuesBytes,
 	)
 	require.Greater(t, maxPdfApplyBodyBytes, maxPdfApplyTemplateBytes)
 }
@@ -71,7 +71,6 @@ func TestReadPdfApplyRequestAcceptsUploadLimitTemplateWithValues(t *testing.T) {
 		t,
 		bytes.Repeat([]byte("P"), maxPdfApplyTemplateBytes),
 		map[string]string{"page-1#1": "translated"},
-		"fr-FR",
 	)
 
 	req := httptest.NewRequest(http.MethodPost, "/", body)
@@ -82,7 +81,6 @@ func TestReadPdfApplyRequestAcceptsUploadLimitTemplateWithValues(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got.template, maxPdfApplyTemplateBytes)
 	require.Equal(t, "translated", got.values["page-1#1"])
-	require.Equal(t, "fr-FR", got.targetLocale)
 }
 
 func TestReadPdfApplyRequestRejectsOversizedTemplate(t *testing.T) {
@@ -90,7 +88,6 @@ func TestReadPdfApplyRequestRejectsOversizedTemplate(t *testing.T) {
 		t,
 		bytes.Repeat([]byte("P"), maxPdfApplyTemplateBytes+1),
 		map[string]string{"page-1#1": "x"},
-		"en",
 	)
 
 	req := httptest.NewRequest(http.MethodPost, "/", body)
@@ -105,7 +102,6 @@ func TestReadPdfApplyRequestRejectsOversizedValues(t *testing.T) {
 		t,
 		[]byte("%PDF-1.4"),
 		map[string]string{"k": strings.Repeat("x", maxPdfApplyValuesBytes)},
-		"en",
 	)
 
 	req := httptest.NewRequest(http.MethodPost, "/", body)
@@ -123,7 +119,6 @@ func TestApplyPdfDoesNotRejectUploadLimitTemplateAsTooLarge(t *testing.T) {
 		t,
 		bytes.Repeat([]byte("P"), maxPdfApplyTemplateBytes),
 		map[string]string{"page-1#1": "x"},
-		"fr",
 	)
 
 	h := newHandler()
@@ -164,7 +159,7 @@ func TestReadPdfApplyRequestValidation(t *testing.T) {
 	})
 
 	t.Run("rejects a missing template", func(t *testing.T) {
-		body := newPdfApplyMultipartBodyParts(t, nil, map[string]string{"page-1#1": "x"}, "fr")
+		body := newPdfApplyMultipartBodyParts(t, nil, map[string]string{"page-1#1": "x"})
 		req := httptest.NewRequest(http.MethodPost, "/", body)
 		req.Header.Set("Content-Type", body.contentType)
 		_, err := readPdfApplyRequest(req)
@@ -174,7 +169,7 @@ func TestReadPdfApplyRequestValidation(t *testing.T) {
 	})
 
 	t.Run("rejects a missing values object", func(t *testing.T) {
-		body := newPdfApplyMultipartBodyParts(t, []byte("%PDF-1.4"), nil, "fr")
+		body := newPdfApplyMultipartBodyParts(t, []byte("%PDF-1.4"), nil)
 		req := httptest.NewRequest(http.MethodPost, "/", body)
 		req.Header.Set("Content-Type", body.contentType)
 		_, err := readPdfApplyRequest(req)
@@ -254,7 +249,7 @@ func TestApplyPdfOverflowHeader(t *testing.T) {
 
 	long := strings.Repeat("overflowword ", 40)
 	values := map[string]string{entries[0].Key: long}
-	body := newPdfApplyMultipartBody(t, template, values, "en")
+	body := newPdfApplyMultipartBody(t, template, values)
 
 	h := newHandler()
 	mux := http.NewServeMux()
@@ -281,17 +276,15 @@ func newPdfApplyMultipartBody(
 	t *testing.T,
 	template []byte,
 	values map[string]string,
-	targetLocale string,
 ) pdfApplyMultipartBody {
 	t.Helper()
-	return newPdfApplyMultipartBodyParts(t, template, values, targetLocale)
+	return newPdfApplyMultipartBodyParts(t, template, values)
 }
 
 func newPdfApplyMultipartBodyParts(
 	t *testing.T,
 	template []byte,
 	values map[string]string,
-	targetLocale string,
 ) pdfApplyMultipartBody {
 	t.Helper()
 	var buffer bytes.Buffer
@@ -305,11 +298,6 @@ func newPdfApplyMultipartBodyParts(
 		_, err = valuesPart.Write(encoded)
 		require.NoError(t, err)
 	}
-
-	localePart, err := writer.CreateFormField(pdfApplyLocaleFormName)
-	require.NoError(t, err)
-	_, err = localePart.Write([]byte(targetLocale))
-	require.NoError(t, err)
 
 	if template != nil {
 		filePart, err := writer.CreateFormFile(pdfApplyTemplateFormName, "template.pdf")

@@ -342,7 +342,7 @@ func (s *Service) marshalPDFTarget(path, sourcePath string, values map[string]st
 	if err != nil {
 		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
 	}
-	content, overflow, err := translationfileparser.MarshalPDF(sourceTemplate, values, "")
+	content, overflow, err := translationfileparser.MarshalPDF(sourceTemplate, values)
 	if err != nil {
 		return nil, nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 	}

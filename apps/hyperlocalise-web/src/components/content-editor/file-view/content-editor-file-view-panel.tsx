@@ -126,6 +126,21 @@ const ContentEditorOfficeFileViewerPane = dynamic(
   },
 );
 
+const ContentEditorPdfFileViewerPane = dynamic(
+  () =>
+    import("./content-editor-pdf-file-viewer").then((module) => ({
+      default: module.ContentEditorPdfFileViewerPane,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-56 items-center justify-center border border-dashed border-border">
+        <Spinner className="size-5 text-muted-foreground" />
+      </div>
+    ),
+  },
+);
+
 function isOfficeViewerId(
   viewerId: ContentEditorFileViewerId | null,
 ): viewerId is ContentEditorOfficeKind {
@@ -220,6 +235,7 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
   const generateDialogOpen = ui.fileViewGenerateDialogOpen;
   const aiDrawerOpen = ui.fileViewAiDrawerOpen;
   const isDocumentViewer = viewerId === "markdown" || viewerId === "html";
+  const isPdfViewer = viewerId === "pdf";
   const sourcePaneVisible = ui.fileViewSourcePaneVisible;
   const agentBadges = [
     intelligence?.locationBreadcrumb,
@@ -264,9 +280,11 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
   const isMediaViewer = viewerId === "image" || viewerId === "video";
 
   const sourceSrc =
-    isMediaViewer || officeKind || isDocumentViewer ? (segment.sourceAssetUrl ?? null) : null;
+    isMediaViewer || officeKind || isDocumentViewer || isPdfViewer
+      ? (segment.sourceAssetUrl ?? null)
+      : null;
   const targetSrc =
-    isMediaViewer || officeKind || isDocumentViewer
+    isMediaViewer || officeKind || isDocumentViewer || isPdfViewer
       ? (segment.targetAssetUrl ??
         (/^https?:\/\//i.test(segment.targetText) ? segment.targetText : null))
       : null;
@@ -349,6 +367,12 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
           src={sourceSrc}
           filename={displayName}
           canEdit={false}
+        />
+      ) : isPdfViewer ? (
+        <ContentEditorPdfFileViewerPane
+          role="source"
+          src={sourceSrc}
+          isLoading={isSegmentTargetLoading}
         />
       ) : (
         <FileViewUnsupportedPreview />
@@ -619,6 +643,56 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
             selectionAi={selectionAi}
             assistant={documentAssistant}
           />
+        ) : isPdfViewer && officeSegments ? (
+          <FileViewWorkspace>
+            <FileViewWorkspaceContent layout="split">
+              <div className="flex min-h-0 flex-1 flex-col">
+                <Columns
+                  spacing="3u"
+                  height="full"
+                  alignY="stretch"
+                  align="start"
+                  collapseBelow="large"
+                >
+                  <Column width="1/2">
+                    <FileViewPaneColumn>
+                      <ContentEditorOfficeSegmentFieldsPane
+                        {...officeSegments}
+                        onSaveDrafts={async (segmentIds) => {
+                          await officeSegments.onSaveDrafts(segmentIds);
+                          setPreviewRevision((revision) => revision + 1);
+                        }}
+                      />
+                    </FileViewPaneColumn>
+                  </Column>
+                  <Column width="1/2">
+                    <FileViewPaneColumn>
+                      {sourcePaneVisible ? (
+                        sourcePane
+                      ) : (
+                        <FileViewPane
+                          title={
+                            <FormattedMessage
+                              {...contentEditorFileViewMessages.targetHeading}
+                              values={{ locale: segment.targetLocale }}
+                            />
+                          }
+                        >
+                          <ContentEditorPdfFileViewerPane
+                            key={previewRevision}
+                            role="target"
+                            src={withPreviewRevision(targetSrc, previewRevision)}
+                            seedSrc={sourceSrc}
+                            isLoading={isSegmentTargetLoading}
+                          />
+                        </FileViewPane>
+                      )}
+                    </FileViewPaneColumn>
+                  </Column>
+                </Columns>
+              </div>
+            </FileViewWorkspaceContent>
+          </FileViewWorkspace>
         ) : officeKind && officeSegments ? (
           <FileViewWorkspace>
             <FileViewWorkspaceContent layout="split">

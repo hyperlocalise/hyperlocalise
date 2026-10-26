@@ -511,6 +511,47 @@ describe("NativeContentEditorService.getCatFile", () => {
     expect(getImageVariant).not.toHaveBeenCalled();
   });
 
+  it("returns PDF block keys plus a document view for generated downloads", async () => {
+    listKeysForFile.mockResolvedValue([
+      {
+        id: "key_pdf",
+        key: "page-1#1",
+        sourceText: "Annual report",
+        context: "Page 1, block 1",
+        type: "string",
+        maxLength: null,
+        metadata: null,
+      },
+    ]);
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_pdf",
+    });
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "docs/handbook.pdf",
+      targetLocale: "fr-FR",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(result?.segments).toHaveLength(1);
+    expect(result?.segments[0]).toMatchObject({
+      externalStringId: "key_pdf",
+      key: "page-1#1",
+      sourceText: "Annual report",
+    });
+    expect(result?.documentView).toEqual({
+      externalStringId: "file_1",
+      sourceAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_source_pdf",
+      targetAssetUrl:
+        "/api/orgs/acme/projects/project_1/files/translations/download?sourcePath=docs%2Fhandbook.pdf&locale=fr-FR",
+      imageVariantId: null,
+    });
+    expect(getImageVariant).not.toHaveBeenCalled();
+  });
+
   it("keeps the Office File view for Excel uploads with no keys", async () => {
     listKeysForFile.mockResolvedValue([]);
     getLatestRepositorySourceFileVersion.mockResolvedValue({
