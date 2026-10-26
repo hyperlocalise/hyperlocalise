@@ -326,9 +326,9 @@ func pdfIngestEntries(entries []PDFEntry) map[string]IngestEntry {
 }
 
 // MarshalPDF writes translations into a copy of template. It returns overflow keys
-// whose translated text could not fit the original block bounds.
-func MarshalPDF(template []byte, values map[string]string, targetLocale string) ([]byte, []string, error) {
-	targetLocale = strings.TrimSpace(targetLocale)
+// whose translated text could not fit the original block bounds. Fonts are
+// chosen per block from the text itself (see pdf_font.go), so no locale is needed.
+func MarshalPDF(template []byte, values map[string]string) ([]byte, []string, error) {
 	var out []byte
 	var overflow []string
 	err := withPDFiumInstance(context.Background(), func(instance pdfium.Pdfium) error {
@@ -338,15 +338,10 @@ func MarshalPDF(template []byte, values map[string]string, targetLocale string) 
 		}
 		defer closePDFDocument(instance, doc)
 
-		// Load the replacement font once per document: embedding the 4.6 MiB
-		// CJK font per block exhausts the wasm memory budget and duplicates
-		// the font stream in the output.
-		useEmbeddedFont := pdfLocaleNeedsEmbeddedFont(targetLocale)
-		font, closeFont, err := loadPDFTranslationFont(instance, doc, targetLocale)
-		if err != nil {
-			return ErrPDFMalformed
-		}
-		defer closeFont()
+		// Translation fonts load on demand: Latin-only exports never pay for
+		// the bundled CJK/Thai/Lao data.
+		fonts := newPdfDocFonts(instance)
+		defer fonts.close()
 
 		pageCount, err := instance.FPDF_GetPageCount(&requests.FPDF_GetPageCount{Document: doc})
 		if err != nil {
@@ -371,7 +366,7 @@ func MarshalPDF(template []byte, values map[string]string, targetLocale string) 
 				if err := validatePDFTargetScript(targetText); err != nil {
 					return err
 				}
-				if err := applyPDFBlockTranslation(instance, doc, pageReq, block, targetText, font, useEmbeddedFont); err != nil {
+				if err := applyPDFBlockTranslation(instance, doc, pageReq, block, targetText, fonts); err != nil {
 					if errorsIsOverflow(err) {
 						overflow = append(overflow, key)
 						continue
@@ -412,7 +407,7 @@ func errorsIsOverflow(err error) bool {
 	return ok
 }
 
-func applyPDFBlockTranslation(instance pdfium.Pdfium, doc references.FPDF_DOCUMENT, page requests.Page, block pdfTextBlock, text string, font references.FPDF_FONT, useEmbeddedFont bool) error {
+func applyPDFBlockTranslation(instance pdfium.Pdfium, doc references.FPDF_DOCUMENT, page requests.Page, block pdfTextBlock, text string, fonts *pdfDocFonts) error {
 	width := block.right - block.left
 	if width <= 0 {
 		width = 200
@@ -428,12 +423,12 @@ func applyPDFBlockTranslation(instance pdfium.Pdfium, doc references.FPDF_DOCUME
 	}
 	fittedSize, lines, overflow := wrapPDFText(text, width, blockHeight, fontSize, minSize)
 
-	// The single-span fast path reuses the template's original font. For locales
-	// that need the embedded font it is only used when the template font
-	// itself covers the translated text, so the template's look is preserved
-	// whenever possible; otherwise the block is recreated below.
+	// The single-span fast path reuses the template's original font. WinAnsi
+	// text is encodable in any standard font, so it always takes this path;
+	// other text only does when the template font itself covers it, preserving
+	// the template's look whenever possible.
 	fastPath := len(block.spans) == 1 && len(lines) == 1 &&
-		(!useEmbeddedFont || pdfOriginalFontCoversText(instance, block.spans[0].pageObject, lines[0]))
+		(pdfTextIsWinAnsi(lines[0]) || pdfOriginalFontCoversText(instance, block.spans[0].pageObject, lines[0]))
 	if fastPath {
 		if _, err := instance.FPDFText_SetText(&requests.FPDFText_SetText{
 			PageObject: block.spans[0].pageObject,
@@ -462,6 +457,12 @@ func applyPDFBlockTranslation(instance pdfium.Pdfium, doc references.FPDF_DOCUME
 			return ErrPDFMalformed
 		}
 		_, _ = instance.FPDFPageObj_Destroy(&requests.FPDFPageObj_Destroy{PageObject: span.pageObject})
+	}
+
+	// Validation guarantees one of these fonts covers the text.
+	font, err := pdfBlockWriteFont(fonts, doc, text)
+	if err != nil {
+		return err
 	}
 
 	lineHeight := float64(fittedSize) * 1.2
@@ -615,7 +616,7 @@ func pdfRuneIsFullWidth(r rune) bool {
 func pdfRuneIsClosingPunct(r rune) bool {
 	switch r {
 	case '，', '。', '、', '；', '：', '？', '！', '）', '］', '｝',
-		'」', '』', '’', '”', '％', '…', '・',
+		'」', '』', '’', '”', '％', '…', '・', 'ฯ', 'ๆ',
 		',', '.', ';', ':', '?', '!', '%', ')', ']', '}', '\'', '"':
 		return true
 	default:
@@ -715,7 +716,15 @@ func validatePDFTargetScript(text string) error {
 			return ErrPDFScriptUnsupported
 		}
 	}
-	return nil
+	// Anything left must be renderable: WinAnsi in the standard fonts, else
+	// one of the bundled fonts. Reject the rest instead of writing tofu.
+	if pdfTextIsWinAnsi(text) {
+		return nil
+	}
+	if _, data := pdfEmbeddedFontForText(text); data != nil {
+		return nil
+	}
+	return ErrPDFScriptUnsupported
 }
 
 func requiresPDFShaping(r rune) bool {
@@ -741,6 +750,20 @@ func requiresPDFShaping(r rune) bool {
 	case r >= 0x0C80 && r <= 0x0CFF:
 		return true
 	case r >= 0x0D00 && r <= 0x0D7F:
+		return true
+	case r >= 0x0700 && r <= 0x074F:
+		return true
+	case r >= 0x0780 && r <= 0x07BF:
+		return true
+	case r >= 0x0D80 && r <= 0x0DFF:
+		return true
+	case r >= 0x1000 && r <= 0x109F:
+		return true
+	case r >= 0xAA60 && r <= 0xAA7F:
+		return true
+	case r >= 0x1780 && r <= 0x17FF:
+		return true
+	case r >= 0x19E0 && r <= 0x19FF:
 		return true
 	default:
 		return false
