@@ -433,6 +433,11 @@ func isEditorCatSegmentedFile(sourcePath string) bool {
 	return kind == editorCatKindDocument || kind == editorCatKindOffice
 }
 
+// PDF block keys queue as text; File view previews the generated download.
+func isEditorCatPdf(sourcePath string) bool {
+	return strings.ToLower(path.Ext(sourcePath)) == ".pdf"
+}
+
 func isEditorCatDocument(sourcePath string) bool {
 	return editorCatSourceKind(sourcePath) == editorCatKindDocument
 }

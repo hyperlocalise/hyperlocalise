@@ -28,6 +28,14 @@ type PdfLoadResult =
   | { kind: "error"; message: string };
 
 async function loadPdfFromUrl(src: string): Promise<PdfLoadResult> {
+  try {
+    return await fetchPdf(src);
+  } catch (error) {
+    return { kind: "error", message: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function fetchPdf(src: string): Promise<PdfLoadResult> {
   const response = await fetch(src, { credentials: "include" });
   if (response.status === 404) {
     return { kind: "missing" };

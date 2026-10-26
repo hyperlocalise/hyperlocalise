@@ -102,6 +102,20 @@ describe("ContentEditorPdfFileViewerPane", () => {
     expect(fetchMock).toHaveBeenCalledWith("/source.pdf", { credentials: "include" });
   });
 
+  it("shows the error when the PDF request fails", async () => {
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorPdfFileViewerPane role="target" src="/target.pdf" />
+      </ContentEditorTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed to fetch")).toBeTruthy();
+    });
+  });
+
   it("shows script unsupported errors from the download route", async () => {
     fetchMock.mockResolvedValue(
       Response.json(
