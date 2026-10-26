@@ -26,7 +26,7 @@ projects follow the [provider's capabilities](/platform/tms).
 | Video | `.mp4` | Video translation workflow | Video file view | Stored target video |
 | Excel workbooks | `.xlsx`, `.xls` | Segment translation | Segment views and editable File view | Generated `.xlsx` workbook |
 | Word and PowerPoint | `.docx`, `.pptx` | Segment translation | Segment views and editable File view | Generated target document |
-| PDF documents | `.pdf` | File translation jobs and segment translation | Segment views (Comfortable, Side by side) | Generated target PDF |
+| PDF documents | `.pdf` | File translation jobs and segment translation | Segment views (Comfortable, Side by side) and File view with source page preview | Generated target PDF |
 
 Translation workflows require an enabled provider and the relevant workspace
 access. A listed extension still needs valid content for its parser or viewer.
@@ -86,8 +86,9 @@ each page. Keys look like `page-1#1` (page 1, block 1). Context reads
 `Page 1, block 1`. Scanned PDFs without a selectable text layer cannot be
 ingested.
 
-Translate and review segments in Comfortable or Side by side view. There is no
-in-editor PDF preview in this release.
+Translate and review segments in Comfortable or Side by side view. File view
+shows a canvas preview of the source PDF pages next to the block segments, so
+reviewers can see each block in its page context.
 
 **Download translations** returns a copy of the source PDF with ready
 translations written into the text blocks. Blocks that cannot fit after
