@@ -16,7 +16,7 @@ import { db, schema } from "@/lib/database/client";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 import { captureAnalysis, captureCompletions } from "@/lib/reporting/capture";
 import { personSave, sourceOfProvenance, textOrigins } from "@/lib/reporting/completion-source";
-import { openPersonTaskForString } from "@/lib/reporting/task-analysis";
+import { personTaskForSave } from "@/lib/reporting/task-analysis";
 
 export async function captureNativeCatTranslationReporting(input: {
   organizationId: string;
@@ -73,21 +73,22 @@ export async function captureNativeCatTranslationReporting(input: {
       ),
     )
     .limit(1);
-  const step = input.approve ? "review" : "translation";
+  const savedStep = input.approve ? "review" : "translation";
   const provenance = input.provenance ?? "manual";
-  // A save made while a task for people covers the string is that task's work; otherwise it
+  // A save made while a task for people covers the string is that task's work, at the step
+  // `personTaskForSave` says (an edit inside a proofread task is its review work); otherwise it
   // belongs to the task that produced the translation.
-  const sourceJobId =
-    input.sourceJobId ??
-    (await openPersonTaskForString({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      repositorySourceFileId: sourceFile.id,
-      targetLocale: input.targetLocale,
-      step,
-    })) ??
-    existing?.sourceJobId ??
-    undefined;
+  const task = input.sourceJobId
+    ? undefined
+    : await personTaskForSave({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        repositorySourceFileId: sourceFile.id,
+        targetLocale: input.targetLocale,
+        step: savedStep,
+      });
+  const sourceJobId = input.sourceJobId ?? task?.jobId ?? existing?.sourceJobId ?? undefined;
+  const step = task?.step ?? savedStep;
   const [project] = await db
     .select({ sourceLocale: schema.projects.sourceLocale })
     .from(schema.projects)

@@ -20,8 +20,10 @@ const { getRepositorySourceFileByPath, captureAnalysis, captureCompletions, sele
     selectResults: [] as unknown[][],
   }));
 
-const openPersonTaskForStringMock = vi.hoisted(() =>
-  vi.fn(async (): Promise<string | undefined> => undefined),
+const personTaskForSaveMock = vi.hoisted(() =>
+  vi.fn(
+    async (): Promise<{ jobId: string; step: "translation" | "review" } | undefined> => undefined,
+  ),
 );
 
 vi.mock("@/lib/reporting/completion-source", async (importOriginal) => {
@@ -31,7 +33,7 @@ vi.mock("@/lib/reporting/completion-source", async (importOriginal) => {
 });
 
 vi.mock("@/lib/reporting/task-analysis", () => ({
-  openPersonTaskForString: openPersonTaskForStringMock,
+  personTaskForSave: personTaskForSaveMock,
 }));
 
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
@@ -117,7 +119,7 @@ describe("captureNativeCatTranslationReporting", () => {
 
   it("attributes an approval to the open task for people that covers the string", async () => {
     getRepositorySourceFileByPath.mockResolvedValue({ id: "file_1" });
-    openPersonTaskForStringMock.mockResolvedValueOnce("job_proofread");
+    personTaskForSaveMock.mockResolvedValueOnce({ jobId: "job_proofread", step: "review" });
     selectResults.push(
       [{ id: "key_1", sourceText: "Hello" }],
       [{ sourceJobId: "job_existing" }],
@@ -128,7 +130,7 @@ describe("captureNativeCatTranslationReporting", () => {
       captureNativeCatTranslationReporting({ ...baseInput, approve: true }),
     ).resolves.toBe(true);
 
-    expect(openPersonTaskForStringMock).toHaveBeenCalledWith({
+    expect(personTaskForSaveMock).toHaveBeenCalledWith({
       organizationId: "org_1",
       projectId: "project_1",
       repositorySourceFileId: "file_1",
@@ -141,6 +143,29 @@ describe("captureNativeCatTranslationReporting", () => {
     );
     expect(captureCompletions).toHaveBeenCalledWith(
       expect.objectContaining({ jobId: "job_proofread", step: "review" }),
+    );
+  });
+
+  it("records an edit made inside a proofread task as that task's review work", async () => {
+    getRepositorySourceFileByPath.mockResolvedValue({ id: "file_1" });
+    personTaskForSaveMock.mockResolvedValueOnce({ jobId: "job_proofread", step: "review" });
+    selectResults.push(
+      [{ id: "key_1", sourceText: "Hello" }],
+      [{ sourceJobId: "job_existing" }],
+      [{ sourceLocale: "en-AU" }],
+    );
+
+    await expect(captureNativeCatTranslationReporting(baseInput)).resolves.toBe(true);
+
+    // Looked up as the translation-step save it is; recorded at the step the task gives it.
+    expect(personTaskForSaveMock).toHaveBeenCalledWith(
+      expect.objectContaining({ step: "translation" }),
+    );
+    expect(captureAnalysis).toHaveBeenCalledWith(
+      expect.objectContaining({ jobId: "job_proofread", step: "review" }),
+    );
+    expect(captureCompletions).toHaveBeenCalledWith(
+      expect.objectContaining({ jobId: "job_proofread", step: "review", provenance: "human" }),
     );
   });
 

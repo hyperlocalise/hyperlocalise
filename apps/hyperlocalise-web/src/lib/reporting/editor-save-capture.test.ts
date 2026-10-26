@@ -389,7 +389,9 @@ describe("captureEditorSaves", () => {
       userId: user.id,
     });
 
-    // An approval is the proofread task's work; a translation has no open task of its own.
+    // An approval is the proofread task's work, and so is an edit made while it covers the file:
+    // the reviewer's edit counts as the task's review work, not as translation work on the job
+    // that produced the text. A later approval of the edited string adds no second completion.
     await insertSaveEvent({
       organizationId: organization.id,
       projectId: project.id,
@@ -405,14 +407,29 @@ describe("captureEditorSaves", () => {
       segmentId: keyIds[1],
     });
     await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[1],
+      eventType: "string_segment_approved",
+      nextStatus: "approved",
+      createdAt: minutesFromNow(1),
+    });
+    await captureEditorSaves({ now: minutesFromNow(10), organizationIds: [organization.id] });
 
     const completions = await db
       .select({
         jobId: schema.reportingActivity.jobId,
         step: schema.reportingActivity.step,
-        analysisId: schema.reportingActivity.analysisId,
+        segmentId: schema.reportingAnalyses.segmentId,
+        unchanged: schema.reportingActivity.unchanged,
       })
       .from(schema.reportingActivity)
+      .innerJoin(
+        schema.reportingAnalyses,
+        eq(schema.reportingAnalyses.id, schema.reportingActivity.analysisId),
+      )
       .where(
         and(
           eq(schema.reportingActivity.organizationId, organization.id),
@@ -420,13 +437,41 @@ describe("captureEditorSaves", () => {
         ),
       );
     expect(completions).toHaveLength(2);
-    expect(completions.find((row) => row.step === "review")?.jobId).toBe(task.id);
-    expect(completions.find((row) => row.step === "translation")?.jobId).toBeNull();
+    for (const segmentId of keyIds)
+      expect(completions.find((row) => row.segmentId === segmentId)).toMatchObject({
+        jobId: task.id,
+        step: "review",
+      });
+    // The edit, not the approval after it, is what the task's work records for the second string.
+    expect(completions.find((row) => row.segmentId === keyIds[1])?.unchanged).toBe(false);
     const analyses = await db
       .select({ jobId: schema.reportingAnalyses.jobId, step: schema.reportingAnalyses.step })
       .from(schema.reportingAnalyses)
       .where(eq(schema.reportingAnalyses.organizationId, organization.id));
-    expect(analyses.find((row) => row.step === "review")?.jobId).toBe(task.id);
+    expect(analyses).toHaveLength(2);
+    expect(analyses.every((row) => row.jobId === task.id && row.step === "review")).toBe(true);
+  });
+
+  it("records an edit as translation work when no task for people covers the string", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+    });
+    await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+
+    const completions = await db
+      .select({ jobId: schema.reportingActivity.jobId, step: schema.reportingActivity.step })
+      .from(schema.reportingActivity)
+      .where(
+        and(
+          eq(schema.reportingActivity.organizationId, organization.id),
+          eq(schema.reportingActivity.kind, "completion"),
+        ),
+      );
+    expect(completions).toEqual([{ jobId: null, step: "translation" }]);
   });
 
   it("matches each save in a run to the task open at that save's own time", async () => {

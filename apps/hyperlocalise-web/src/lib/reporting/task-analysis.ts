@@ -131,7 +131,7 @@ export async function taskStillBeingCounted(input: {
   return Boolean(recorded);
 }
 
-type PersonTaskLookup = {
+export type PersonTaskLookup = {
   organizationId: string;
   projectId: string;
   repositorySourceFileId: string;
@@ -193,6 +193,33 @@ export function personTaskAt(tasks: PersonTaskSpan[], savedAt?: Date): string | 
       )
     : tasks.find((candidate) => candidate.endedAt === null);
   return task?.id;
+}
+
+/** The task a save belongs to, and the step it counts as on that task. */
+export type PersonTaskSave = { jobId: string; step: ReportStep };
+
+/**
+ * The task for people a save in the content editor belongs to, and the step it counts as. A save
+ * at a task's own step is that task's work. An edit (a translation-step save) made while a
+ * proofread task covers the string, with no translate task for people open, is that task's
+ * review work: reviewers edit inside proofread and post-edit tasks, and the task's work and cost
+ * should show where the work was done rather than as translation work on the job that produced
+ * the text. Undefined when no task for people covers the save. `tasks` reads the candidate tasks,
+ * so a caller matching many saves can cache them.
+ */
+export async function personTaskForSave(
+  input: PersonTaskLookup & {
+    /** When the save was made; now when left out. */
+    savedAt?: Date;
+  },
+  tasks: (lookup: PersonTaskLookup) => Promise<PersonTaskSpan[]> = personTasksForString,
+): Promise<PersonTaskSave | undefined> {
+  const { savedAt, ...lookup } = input;
+  const own = personTaskAt(await tasks(lookup), savedAt);
+  if (own) return { jobId: own, step: lookup.step };
+  if (lookup.step !== "translation") return undefined;
+  const review = personTaskAt(await tasks({ ...lookup, step: "review" }), savedAt);
+  return review ? { jobId: review, step: "review" } : undefined;
 }
 
 /**
