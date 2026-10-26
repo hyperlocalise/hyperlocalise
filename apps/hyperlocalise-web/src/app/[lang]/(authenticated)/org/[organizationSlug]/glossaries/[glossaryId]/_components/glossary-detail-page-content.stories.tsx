@@ -14,6 +14,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import type { GlossaryConceptRecord, GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
+import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
 
 import { createGlossaryDetailMswHandlers } from "./glossary-detail-page-content-msw-handlers";
 import { GlossaryConceptDetail } from "./glossary-concept-detail";
@@ -125,6 +126,13 @@ const meta = {
     glossaryId,
     canManageGlossaries: true,
   },
+  decorators: [
+    (Story) => (
+      <AppShellStoreProvider defaultNavigationGroups={[]}>
+        <Story />
+      </AppShellStoreProvider>
+    ),
+  ],
 } satisfies Meta<typeof NativeGlossaryDetail>;
 
 export default meta;

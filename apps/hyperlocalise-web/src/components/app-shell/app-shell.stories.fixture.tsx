@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { getIntlShape } from "@/lib/app-i18n/intl";
+import { AutumnBillingProvider } from "@/lib/billing/autumn-billing-provider";
 import { annotateNavigationByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
 import type { WorkspaceFeatureFlagState } from "@/lib/flags/workos-flag-entities";
 import type { TmsUserConnectCta } from "@/lib/providers/credentials/tms-user-connection-shared";
@@ -152,7 +153,7 @@ export function AppShellStoryFrame({
   autumnConfigured = false,
   tmsUserConnectCta = { showConnectCta: false },
 }: AppShellStoryFrameProps) {
-  return (
+  const appShell = (
     <AppShellClient
       activeOrganization={{
         name: "Acme Localization",
@@ -170,6 +171,16 @@ export function AppShellStoryFrame({
     >
       {children ?? <AppShellStoryPlaceholder />}
     </AppShellClient>
+  );
+
+  if (!autumnConfigured) {
+    return appShell;
+  }
+
+  return (
+    <AutumnBillingProvider organizationSlug={APP_SHELL_STORY_ORGANIZATION_SLUG}>
+      {appShell}
+    </AutumnBillingProvider>
   );
 }
 
