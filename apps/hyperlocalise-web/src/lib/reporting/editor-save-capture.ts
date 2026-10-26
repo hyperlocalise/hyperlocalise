@@ -26,7 +26,7 @@ import {
 } from "./capture";
 import { personSave, textOrigins } from "./completion-source";
 import type { CompletionSource } from "./report-units";
-import { openPersonTaskForString } from "./task-analysis";
+import { personTaskAt, personTasksForString, type PersonTaskSpan } from "./task-analysis";
 
 const logger = createLogger("reporting-editor-save-capture");
 
@@ -428,29 +428,24 @@ async function recordSaves(
 
   let recorded = 0;
   // A save made while a task for people covers the string is that task's work; otherwise it
-  // belongs to the task that produced the translation. One lookup per file, language and step.
-  const openTasks = new Map<string, Promise<string | undefined>>();
-  // The batch's oldest save: a task closed since then was open for every save in the batch.
-  const oldestSave = segments.reduce(
-    (oldest, segment) => (segment.occurredAt < oldest ? segment.occurredAt : oldest),
-    segments[0]!.occurredAt,
-  );
-  const openTaskFor = (segment: SavedSegment, repositorySourceFileId: string | null) => {
-    if (!repositorySourceFileId) return Promise.resolve(undefined);
+  // belongs to the task that produced the translation. The tasks are read once per file,
+  // language and step, and each save is matched by its own time.
+  const personTasks = new Map<string, Promise<PersonTaskSpan[]>>();
+  const openTaskFor = async (segment: SavedSegment, repositorySourceFileId: string | null) => {
+    if (!repositorySourceFileId) return undefined;
     const lookupKey = `${segment.projectId}:${repositorySourceFileId}:${segment.targetLocale}:${segment.step}`;
-    let found = openTasks.get(lookupKey);
-    if (!found) {
-      found = openPersonTaskForString({
+    let tasks = personTasks.get(lookupKey);
+    if (!tasks) {
+      tasks = personTasksForString({
         organizationId,
         projectId: segment.projectId,
         repositorySourceFileId,
         targetLocale: segment.targetLocale,
         step: segment.step,
-        savedAt: oldestSave,
       });
-      openTasks.set(lookupKey, found);
+      personTasks.set(lookupKey, tasks);
     }
-    return found;
+    return personTaskAt(await tasks, segment.occurredAt);
   };
   // Group by job, language and step so one analysis call covers every occurrence saved together.
   const groups = new Map<string, { segment: SavedSegment; sourceJobId: string | undefined }[]>();

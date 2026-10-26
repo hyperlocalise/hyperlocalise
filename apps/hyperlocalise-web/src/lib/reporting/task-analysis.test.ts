@@ -26,6 +26,7 @@ import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translat
 import {
   analyseTaskStrings,
   openPersonTaskForString,
+  personTaskAt,
   refreshTaskDays,
   taskStillBeingCounted,
 } from "./task-analysis";
@@ -258,5 +259,42 @@ describe("openPersonTaskForString", () => {
       .set({ workflowRunId: "wrun_agent" })
       .where(eq(schema.jobs.id, translate.id));
     await expect(lookup("translation")).resolves.toBeUndefined();
+  });
+
+  it("judges a task's end by when it ended, not by a later change", async () => {
+    const { organization, project, sourceFile, createPersonTask } = await createFileWithStrings();
+    const task = await createPersonTask({
+      kind: "proofread",
+      createdAt: new Date(Date.now() - 10 * 60_000),
+    });
+    const endedAt = new Date(Date.now() - 5 * 60_000);
+    await db
+      .update(schema.jobs)
+      .set({ status: "cancelled", completedAt: endedAt, updatedAt: new Date() })
+      .where(eq(schema.jobs.id, task.id));
+    const savedAt = (offsetMs: number) =>
+      openPersonTaskForString({
+        organizationId: organization.id,
+        projectId: project.id,
+        repositorySourceFileId: sourceFile.id,
+        targetLocale: "fr-FR",
+        step: "review",
+        savedAt: new Date(endedAt.getTime() + offsetMs),
+      });
+    await expect(savedAt(-60_000)).resolves.toBe(task.id);
+    await expect(savedAt(60_000)).resolves.toBeUndefined();
+  });
+});
+
+describe("personTaskAt", () => {
+  it("counts a task created in the same millisecond as a save as covering it", () => {
+    const at = new Date("2026-10-26T10:00:00.123Z");
+    const tasks = [
+      { id: "newer", createdAt: new Date(at.getTime() + 1), endedAt: null },
+      { id: "same", createdAt: at, endedAt: null },
+    ];
+    expect(personTaskAt(tasks, at)).toBe("same");
+    // A save made now belongs to the newest open task.
+    expect(personTaskAt(tasks)).toBe("newer");
   });
 });

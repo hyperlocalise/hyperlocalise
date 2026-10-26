@@ -153,6 +153,59 @@ async function insertSaveEvent(input: {
   return event;
 }
 
+/** A proofread task for people on the fixture's file, into fr-FR. */
+async function createProofreadTask(input: {
+  organizationId: string;
+  projectId: string;
+  userId: string;
+  createdAt?: Date;
+}) {
+  const [sourceFile] = await db
+    .select({ id: schema.repositorySourceFiles.id })
+    .from(schema.repositorySourceFiles)
+    .where(
+      and(
+        eq(schema.repositorySourceFiles.projectId, input.projectId),
+        eq(schema.repositorySourceFiles.sourcePath, SOURCE_PATH),
+      ),
+    );
+  const storedFile = await insertStoredSourceFile({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    filename: "en.json",
+    contentType: "application/json",
+    sourceKind: "repository_file",
+    metadata: { sourcePath: SOURCE_PATH },
+  });
+  const [version] = await db
+    .insert(schema.repositorySourceFileVersions)
+    .values({
+      repositorySourceFileId: sourceFile!.id,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: SOURCE_PATH,
+      storedFileId: storedFile.id,
+    })
+    .returning();
+  const [task] = await db
+    .insert(schema.jobs)
+    .values({
+      id: `job_${randomUUID()}`,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      createdByUserId: input.userId,
+      kind: "proofread",
+      status: "waiting_for_review",
+      inputPayload: { sourceLocale: "en-US", targetLocales: ["fr-FR"] },
+      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
+    })
+    .returning();
+  await db
+    .insert(schema.translationJobDetails)
+    .values({ jobId: task!.id, type: "file", sourceFileVersionId: version!.id });
+  return task!;
+}
+
 // The task reads every workspace's events; other test files share the database and write save
 // events of their own, so each run here is limited to the test's workspace.
 describe("captureEditorSaves", () => {
@@ -330,48 +383,11 @@ describe("captureEditorSaves", () => {
 
   it("attributes a save to the open task for people that covers its file, language and step", async () => {
     const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
-    const [sourceFile] = await db
-      .select({ id: schema.repositorySourceFiles.id })
-      .from(schema.repositorySourceFiles)
-      .where(
-        and(
-          eq(schema.repositorySourceFiles.projectId, project.id),
-          eq(schema.repositorySourceFiles.sourcePath, SOURCE_PATH),
-        ),
-      );
-    const storedFile = await insertStoredSourceFile({
+    const task = await createProofreadTask({
       organizationId: organization.id,
       projectId: project.id,
-      filename: "en.json",
-      contentType: "application/json",
-      sourceKind: "repository_file",
-      metadata: { sourcePath: SOURCE_PATH },
+      userId: user.id,
     });
-    const [version] = await db
-      .insert(schema.repositorySourceFileVersions)
-      .values({
-        repositorySourceFileId: sourceFile!.id,
-        organizationId: organization.id,
-        projectId: project.id,
-        sourcePath: SOURCE_PATH,
-        storedFileId: storedFile.id,
-      })
-      .returning();
-    const [task] = await db
-      .insert(schema.jobs)
-      .values({
-        id: `job_${randomUUID()}`,
-        organizationId: organization.id,
-        projectId: project.id,
-        createdByUserId: user.id,
-        kind: "proofread",
-        status: "waiting_for_review",
-        inputPayload: { sourceLocale: "en-US", targetLocales: ["fr-FR"] },
-      })
-      .returning();
-    await db
-      .insert(schema.translationJobDetails)
-      .values({ jobId: task!.id, type: "file", sourceFileVersionId: version!.id });
 
     // An approval is the proofread task's work; a translation has no open task of its own.
     await insertSaveEvent({
@@ -404,13 +420,61 @@ describe("captureEditorSaves", () => {
         ),
       );
     expect(completions).toHaveLength(2);
-    expect(completions.find((row) => row.step === "review")?.jobId).toBe(task!.id);
+    expect(completions.find((row) => row.step === "review")?.jobId).toBe(task.id);
     expect(completions.find((row) => row.step === "translation")?.jobId).toBeNull();
     const analyses = await db
       .select({ jobId: schema.reportingAnalyses.jobId, step: schema.reportingAnalyses.step })
       .from(schema.reportingAnalyses)
       .where(eq(schema.reportingAnalyses.organizationId, organization.id));
-    expect(analyses.find((row) => row.step === "review")?.jobId).toBe(task!.id);
+    expect(analyses.find((row) => row.step === "review")?.jobId).toBe(task.id);
+  });
+
+  it("matches each save in a run to the task open at that save's own time", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    const save = (segmentId: string, createdAt: Date, approve = false) =>
+      insertSaveEvent({
+        organizationId: organization.id,
+        projectId: project.id,
+        actorUserId: user.id,
+        segmentId,
+        createdAt,
+        ...(approve
+          ? { eventType: "string_segment_approved" as const, nextStatus: "approved" }
+          : {}),
+      });
+    // The run's oldest save comes before the task exists; it must not hide the task from saves
+    // made in it later in the same run.
+    await save(keyIds[1], minutesFromNow(1));
+    const task = await createProofreadTask({
+      organizationId: organization.id,
+      projectId: project.id,
+      userId: user.id,
+      createdAt: minutesFromNow(2),
+    });
+    await save(keyIds[0], minutesFromNow(3), true);
+    // Cancelled after that approval, and changed again later: a later approval in the same run
+    // is no longer the task's work, judged by when the task ended rather than its last change.
+    await db
+      .update(schema.jobs)
+      .set({ status: "cancelled", completedAt: minutesFromNow(4), updatedAt: minutesFromNow(6) })
+      .where(eq(schema.jobs.id, task.id));
+    await save(keyIds[1], minutesFromNow(5), true);
+    await captureEditorSaves({ now: minutesFromNow(10), organizationIds: [organization.id] });
+
+    const approvals = await db
+      .select({
+        segmentId: schema.reportingAnalyses.segmentId,
+        jobId: schema.reportingAnalyses.jobId,
+      })
+      .from(schema.reportingAnalyses)
+      .where(
+        and(
+          eq(schema.reportingAnalyses.organizationId, organization.id),
+          eq(schema.reportingAnalyses.step, "review"),
+        ),
+      );
+    expect(approvals.find((row) => row.segmentId === keyIds[0])?.jobId).toBe(task.id);
+    expect(approvals.find((row) => row.segmentId === keyIds[1])?.jobId).toBeNull();
   });
 
   it("records where a saved text came from, and whether the person kept it", async () => {

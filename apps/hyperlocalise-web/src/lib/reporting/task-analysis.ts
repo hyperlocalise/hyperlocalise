@@ -15,7 +15,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
 
 import { recordAnalysis } from "./capture";
-import type { ReportStep } from "./report-units";
+import { OPEN_TASK_STATUSES, type ReportStep } from "./report-units";
 import { refreshSummaryDays } from "./summary";
 
 /**
@@ -131,40 +131,79 @@ export async function taskStillBeingCounted(input: {
   return Boolean(recorded);
 }
 
-/**
- * The task a save in the content editor belongs to: the newest task for people that covers the
- * string's file, language and step (a proofread or post-edit task for an approval, a translate
- * task for a translation) and was open when the save was made: still open, or ended since
- * `savedAt` (saves reach Reports some minutes later, and a task may be marked done meanwhile).
- * Jobs an agent ran are not tasks for people. Undefined when there is none.
- */
-export async function openPersonTaskForString(input: {
+type PersonTaskLookup = {
   organizationId: string;
   projectId: string;
   repositorySourceFileId: string;
   targetLocale: string;
   step: ReportStep;
-  /** When the save was made; now when left out. */
-  savedAt?: Date;
-}): Promise<string | undefined> {
+};
+
+/** A task for people with when it was created and, once it is no longer open, when it ended. */
+export type PersonTaskSpan = { id: string; createdAt: Date; endedAt: Date | null };
+
+/**
+ * The tasks for people that cover a string's file, language and step, newest first: proofread
+ * or post-edit tasks for an approval, translate tasks for a translation. Jobs an agent ran are
+ * not tasks for people.
+ */
+export async function personTasksForString(input: PersonTaskLookup): Promise<PersonTaskSpan[]> {
   const kind = input.step === "review" ? "proofread" : "translation";
-  // A save time from JavaScript has no microseconds, so the task's creation is compared to the
-  // millisecond: otherwise a task created in the same millisecond as the save would come after
-  // it. "Now" is the database's own, the clock that dated the task.
-  const savedAt = input.savedAt ? sql`${input.savedAt}` : sql`now()`;
-  const result = await db.execute<{ id: string }>(sql`
-    select j.id from jobs j
+  const openStatuses = sql.join(
+    [...OPEN_TASK_STATUSES].map((status) => sql`${status}`),
+    sql`, `,
+  );
+  const result = await db.execute<{
+    id: string;
+    createdAt: Date | string;
+    endedAt: Date | string | null;
+  }>(sql`
+    select j.id, j.created_at as "createdAt",
+      case when j.status in (${openStatuses}) then null
+        else coalesce(j.completed_at, j.updated_at) end as "endedAt"
+    from jobs j
     join translation_job_details d on d.job_id = j.id
     join repository_source_file_versions v on v.id = d.source_file_version_id
     where j.organization_id = ${input.organizationId} and j.project_id = ${input.projectId}
       and j.kind = ${kind} and j.workflow_run_id is null
       and (j.assignee_type is null or j.assignee_type = 'user')
-      and date_trunc('milliseconds', j.created_at) <= ${savedAt}
-      and (j.status = 'waiting_for_review' or j.updated_at >= ${savedAt})
       and v.repository_source_file_id = ${input.repositorySourceFileId}
       and j.input_payload -> 'targetLocales' ? ${input.targetLocale}
-    order by j.created_at desc
-    limit 1
+    order by j.created_at desc, j.id desc
   `);
-  return result.rows[0]?.id;
+  return result.rows.map((row) => ({
+    id: row.id,
+    createdAt: new Date(row.createdAt),
+    endedAt: row.endedAt === null ? null : new Date(row.endedAt),
+  }));
+}
+
+/**
+ * The task a save made at `savedAt` belongs to: the newest of `tasks` created by then and not
+ * ended before it (saves reach Reports some minutes later, and a task may have ended meanwhile).
+ * Both times are to the millisecond, so a task created in the same millisecond as a save covers
+ * it. With no time the save is being made now, so it belongs to the newest open task.
+ */
+export function personTaskAt(tasks: PersonTaskSpan[], savedAt?: Date): string | undefined {
+  const task = savedAt
+    ? tasks.find(
+        (candidate) =>
+          candidate.createdAt <= savedAt &&
+          (candidate.endedAt === null || candidate.endedAt >= savedAt),
+      )
+    : tasks.find((candidate) => candidate.endedAt === null);
+  return task?.id;
+}
+
+/**
+ * The task a save in the content editor belongs to (`personTaskAt` over `personTasksForString`).
+ * Undefined when there is none.
+ */
+export async function openPersonTaskForString(
+  input: PersonTaskLookup & {
+    /** When the save was made; now when left out. */
+    savedAt?: Date;
+  },
+): Promise<string | undefined> {
+  return personTaskAt(await personTasksForString(input), input.savedAt);
 }
