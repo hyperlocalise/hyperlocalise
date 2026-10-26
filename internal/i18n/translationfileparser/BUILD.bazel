@@ -8,6 +8,11 @@ go_library(
     ),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser",
     visibility = ["//visibility:public"],
+    embedsrcs = [
+        "fonts/NotoSansLao.ttf",
+        "fonts/NotoSansThai.ttf",
+        "fonts/wqy-microhei.ttf",
+    ],
     deps = [
         "@com_github_klippa_app_go_pdfium//:go-pdfium",
         "@com_github_klippa_app_go_pdfium//enums",
