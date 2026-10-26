@@ -37,6 +37,7 @@ import {
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
+import { startTaskAnalysis } from "@/lib/reporting/task-analysis-start";
 import {
   ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
@@ -564,7 +565,13 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             }
           }
 
-          return [{ ...createdJob, type: details.type }];
+          return [
+            {
+              ...createdJob,
+              type: details.type,
+              repositorySourceFileId: sourceFileVersion?.repositorySourceFileId ?? null,
+            },
+          ];
         });
       } catch (error) {
         if (error instanceof OrganizationJobBudgetExceededError) {
@@ -583,6 +590,19 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         projectId: job.projectId,
         status: job.status,
       });
+
+      // A proofread task runs no agent, so Reports records its strings now, in the background.
+      if (isProofreadJob && job.repositorySourceFileId) {
+        await startTaskAnalysis({
+          organizationId: job.organizationId,
+          projectId: params.projectId,
+          jobId: job.id,
+          step: "review",
+          sourceLocale: enrichedInputPayload.sourceLocale,
+          targetLocales: enrichedInputPayload.targetLocales,
+          repositorySourceFileId: job.repositorySourceFileId,
+        });
+      }
 
       if (!isProofreadJob) {
         try {

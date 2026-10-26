@@ -112,6 +112,7 @@ async function recordStringJobReporting(input: {
       targetLocale,
       sourceEntries,
       provenance: "automated",
+      source: "ai",
     });
   }
 }

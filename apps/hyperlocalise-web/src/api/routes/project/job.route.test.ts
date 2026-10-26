@@ -40,11 +40,13 @@ const {
   enqueueJobFailedActivityMock,
   ensureAiFeaturesAllowedMock,
   resolveApiAuthContextFromSessionMock,
+  startTaskAnalysisMock,
 } = vi.hoisted(() => ({
   enqueueJobCancelledActivityMock: vi.fn(),
   enqueueJobCreatedActivityMock: vi.fn(),
   enqueueJobFailedActivityMock: vi.fn(),
   ensureAiFeaturesAllowedMock: vi.fn(),
+  startTaskAnalysisMock: vi.fn(async () => undefined),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -68,6 +70,10 @@ vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
     ensureAiFeaturesAllowed: ensureAiFeaturesAllowedMock,
   };
 });
+
+vi.mock("@/lib/reporting/task-analysis-start", () => ({
+  startTaskAnalysis: startTaskAnalysisMock,
+}));
 
 vi.mock("@/lib/activity-log/job-automation-events", () => ({
   enqueueJobCancelledActivity: enqueueJobCancelledActivityMock,
@@ -409,6 +415,55 @@ describe("project job create", () => {
 
     expect(job?.inputPayload).toMatchObject({
       ignoreTranslationMemory: true,
+    });
+  });
+
+  it("records a proofread task's strings for Reports in the background", async () => {
+    startTaskAnalysisMock.mockClear();
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+      sourceKind: "repository_file",
+      metadata: { sourcePath: "locales/messages.json" },
+    });
+
+    const response = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          kind: "proofread",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { job: { id: string } };
+    // The analysis runs off the request: the route only starts it, with the task's file.
+    expect(startTaskAnalysisMock).toHaveBeenCalledWith({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: body.job.id,
+      step: "review",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      repositorySourceFileId: expect.any(String),
     });
   });
 

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -248,6 +250,107 @@ func TestSerializeGlossaryCSVEscapesFormulas(t *testing.T) {
 	require.Len(t, parsed, 1)
 	require.Equal(t, "=1+1", parsed[0].PrimaryTerm)
 	require.Equal(t, "=HYPERLINK(\"x\")", parsed[0].Terms[0].Term)
+}
+
+func TestSerializeGlossaryCSVReusesRowWithoutLeakingTermFields(t *testing.T) {
+	created := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+	updated := time.Date(2026, 3, 2, 15, 30, 0, 0, time.UTC)
+	gender := "masculine"
+	termType := "fullForm"
+	termURL := "https://example.com/checkout"
+	lemma := "checkout"
+	later := created.Add(time.Hour)
+
+	concepts := []glossaryExportConcept{
+		{
+			ID:           "c-empty",
+			PrimaryTerm:  "Unused",
+			Translatable: true,
+			Terms:        nil,
+		},
+		{
+			ID:           "c1",
+			PrimaryTerm:  "Checkout",
+			Subject:      "Commerce",
+			Definition:   "Payment step",
+			Translatable: false,
+			Note:         "concept note",
+			URL:          stringPtr("https://example.com/concept"),
+			Figure:       stringPtr("fig-1"),
+			Terms: []glossaryExportTerm{
+				{
+					ID:            "t-full",
+					ConceptID:     "c1",
+					Locale:        "en-US",
+					Term:          "Checkout",
+					Description:   "=SUM(A1)",
+					Note:          "term note",
+					PartOfSpeech:  "noun",
+					Gender:        &gender,
+					TermType:      &termType,
+					URL:           &termURL,
+					Lemma:         &lemma,
+					Status:        "preferred",
+					CaseSensitive: true,
+					Forbidden:     false,
+					Provenance:    "import",
+					ReviewStatus:  "approved",
+					CreatedAt:     created,
+					UpdatedAt:     updated,
+				},
+				{
+					ID:            "t-sparse",
+					ConceptID:     "c1",
+					Locale:        "fr-FR",
+					Term:          "Paiement",
+					Status:        "draft",
+					CaseSensitive: false,
+					Forbidden:     true,
+					Provenance:    "manual",
+					ReviewStatus:  "proposed",
+					CreatedAt:     later,
+					UpdatedAt:     later,
+				},
+			},
+		},
+	}
+
+	body, err := serializeGlossaryCSV(concepts)
+	require.NoError(t, err)
+	require.True(t, bytes.HasPrefix(body, []byte("\ufeff")))
+	require.Contains(t, string(body), "\r\n")
+
+	reader := csv.NewReader(bytes.NewReader(bytes.TrimPrefix(body, []byte("\ufeff"))))
+	rows, err := reader.ReadAll()
+	require.NoError(t, err)
+	require.Equal(t, [][]string{
+		glossaryCSVHeaders,
+		{
+			"c1", "t-full", "en-US", "Checkout", "Checkout", "Commerce", "Payment step", "false",
+			"concept note", "https://example.com/concept", "fig-1",
+			glossaryCSVFormulaEscapePrefix + "=SUM(A1)", "term note", "noun", "masculine",
+			"fullForm", "https://example.com/checkout", "checkout", "preferred", "true", "false",
+			"import", "approved", formatGlossaryTime(created), formatGlossaryTime(updated),
+		},
+		{
+			"c1", "t-sparse", "fr-FR", "Paiement", "Checkout", "Commerce", "Payment step", "false",
+			"concept note", "https://example.com/concept", "fig-1",
+			"", "", "", "",
+			"", "", "", "draft", "false", "true",
+			"manual", "proposed", formatGlossaryTime(later), formatGlossaryTime(later),
+		},
+	}, rows)
+}
+
+func TestSerializeGlossaryCSVEmptyDocumentIsBOMHeaderOnly(t *testing.T) {
+	body, err := serializeGlossaryCSV(nil)
+	require.NoError(t, err)
+	require.True(t, bytes.HasPrefix(body, []byte("\ufeff")))
+
+	reader := csv.NewReader(bytes.NewReader(bytes.TrimPrefix(body, []byte("\ufeff"))))
+	rows, err := reader.ReadAll()
+	require.NoError(t, err)
+	require.Equal(t, [][]string{glossaryCSVHeaders}, rows)
 }
 
 func TestApplyGlossaryImportLocaleOptions(t *testing.T) {

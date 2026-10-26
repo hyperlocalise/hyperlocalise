@@ -412,6 +412,20 @@ export function buildProjectNavigationGroups(
     },
   );
 
+  // Reports records work in native projects only.
+  if (!providerKind) {
+    workspaceItems.push({
+      label: intl.formatMessage({
+        defaultMessage: "Reports",
+        id: "/IWIHpUnhW",
+        description: "Project sidebar navigation item for the project's Reports page",
+      }),
+      href: project("reports"),
+      icon: ChartBarIcon,
+      featureFlagKey: WORKSPACE_REPORTS_FLAG,
+    });
+  }
+
   return [
     {
       items: [

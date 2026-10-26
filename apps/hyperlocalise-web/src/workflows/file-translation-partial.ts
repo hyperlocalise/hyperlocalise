@@ -72,6 +72,8 @@ export const FILE_TRANSLATION_WORKFLOW_ERROR_CODES = [
   "translation_pagination_failed",
   "locale_translation_failed",
   "output_assembly_failed",
+  "pdf_render_failed",
+  "pdf_script_unsupported",
   "leftover_locales",
 ] as const;
 

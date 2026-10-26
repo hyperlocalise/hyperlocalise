@@ -22,7 +22,11 @@ import {
   prepareMemoryScores,
   recordAnalysis,
   recordCompletions,
+  reportingStart,
 } from "./capture";
+import { personSave, textOrigins } from "./completion-source";
+import type { CompletionSource } from "./report-units";
+import { personTaskAt, personTasksForString, type PersonTaskSpan } from "./task-analysis";
 
 const logger = createLogger("reporting-editor-save-capture");
 
@@ -132,6 +136,7 @@ export async function captureEditorSaves(
         // Reports records work from when the task first sees a workspace with Reports on, so
         // earlier saves are not recorded as today's work. Later saves are read next run.
         await moveCursorTo(organizationId, cutoff);
+        await reportingStart(organizationId);
         result.organizationsStarted += 1;
         continue;
       }
@@ -383,6 +388,7 @@ async function recordSaves(
     .select({
       id: schema.projectTranslationKeys.id,
       projectId: schema.projectTranslationKeys.projectId,
+      repositorySourceFileId: schema.projectTranslationKeys.repositorySourceFileId,
       sourceText: schema.projectTranslationKeys.sourceText,
     })
     .from(schema.projectTranslationKeys)
@@ -395,6 +401,7 @@ async function recordSaves(
   const keyById = new Map(keys.map((key) => [key.id, key]));
   const translations = await db
     .select({
+      id: schema.projectTranslations.id,
       translationKeyId: schema.projectTranslations.translationKeyId,
       targetLocale: schema.projectTranslations.targetLocale,
       text: schema.projectTranslations.text,
@@ -410,6 +417,8 @@ async function recordSaves(
   const translationByKey = new Map(
     translations.map((row) => [`${row.translationKeyId}:${row.targetLocale}`, row]),
   );
+  // What each person was given and whether they kept it, from the editor's own history.
+  const origins = await textOrigins(organizationId, translations);
   const projectIds = [...new Set(segments.map((segment) => segment.projectId))];
   const projects = await db
     .select({ id: schema.projects.id, sourceLocale: schema.projects.sourceLocale })
@@ -418,13 +427,36 @@ async function recordSaves(
   const sourceLocaleByProject = new Map(projects.map((row) => [row.id, row.sourceLocale ?? "en"]));
 
   let recorded = 0;
+  // A save made while a task for people covers the string is that task's work; otherwise it
+  // belongs to the task that produced the translation. The tasks are read once per file,
+  // language and step, and each save is matched by its own time.
+  const personTasks = new Map<string, Promise<PersonTaskSpan[]>>();
+  const openTaskFor = async (segment: SavedSegment, repositorySourceFileId: string | null) => {
+    if (!repositorySourceFileId) return undefined;
+    const lookupKey = `${segment.projectId}:${repositorySourceFileId}:${segment.targetLocale}:${segment.step}`;
+    let tasks = personTasks.get(lookupKey);
+    if (!tasks) {
+      tasks = personTasksForString({
+        organizationId,
+        projectId: segment.projectId,
+        repositorySourceFileId,
+        targetLocale: segment.targetLocale,
+        step: segment.step,
+      });
+      personTasks.set(lookupKey, tasks);
+    }
+    return personTaskAt(await tasks, segment.occurredAt);
+  };
   // Group by job, language and step so one analysis call covers every occurrence saved together.
   const groups = new Map<string, { segment: SavedSegment; sourceJobId: string | undefined }[]>();
   for (const segment of segments) {
     const key = keyById.get(segment.translationKeyId);
     const translation = translationByKey.get(`${segment.translationKeyId}:${segment.targetLocale}`);
     if (!key || key.projectId !== segment.projectId || !translation?.text.trim()) continue;
-    const sourceJobId = translation.sourceJobId ?? undefined;
+    const sourceJobId =
+      (await openTaskFor(segment, key.repositorySourceFileId)) ??
+      translation.sourceJobId ??
+      undefined;
     const groupKey = `${segment.projectId}:${sourceJobId ?? ""}:${segment.targetLocale}:${segment.step}:${segment.actorUserId ?? ""}:${segment.automated}`;
     const group = groups.get(groupKey) ?? [];
     group.push({ segment, sourceJobId });
@@ -471,6 +503,15 @@ async function recordSaves(
         keyById.get(segment.translationKeyId)!.sourceText,
       ]),
     );
+    const saved = group.map(({ segment }) => {
+      const translation = translationByKey.get(
+        `${segment.translationKeyId}:${segment.targetLocale}`,
+      );
+      const origin = segment.automated
+        ? { source: "ai" as CompletionSource, unchanged: undefined }
+        : personSave(translation ? origins.get(translation.id) : undefined);
+      return [segment.translationKeyId, origin] as const;
+    });
     const shared = {
       organizationId,
       jobId: sourceJobId,
@@ -481,6 +522,12 @@ async function recordSaves(
         group.map(({ segment }) => [segment.translationKeyId, segment.occurredAt]),
       ),
     };
+    const sources = Object.fromEntries(saved.map(([key, origin]) => [key, origin.source]));
+    const unchanged = Object.fromEntries(
+      saved.flatMap(([key, origin]) =>
+        origin.unchanged === undefined ? [] : [[key, origin.unchanged] as const],
+      ),
+    );
     await recordAnalysis(
       {
         ...shared,
@@ -494,6 +541,8 @@ async function recordSaves(
       ...shared,
       provenance: segment.automated ? "automated" : "human",
       actorUserId: segment.automated ? null : segment.actorUserId,
+      sources,
+      unchanged,
     });
     recorded += group.length;
   }
