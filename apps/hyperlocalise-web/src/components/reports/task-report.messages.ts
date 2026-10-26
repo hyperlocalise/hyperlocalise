@@ -150,6 +150,19 @@ export const taskReportMessages = defineMessages({
       "Reports is still counting this task's strings. They usually show within a minute.",
     description: "Shown on a new task's Report tab until its strings have been counted",
   },
+  countingFailed: {
+    id: 'cj1bitbXno',
+    defaultMessage:
+      "Reports could not count this task's strings. Its words and estimate are missing until a later count succeeds.",
+    description: "Shown on a task's Report tab when counting its strings failed",
+  },
+  bandsMissing: {
+    id: 'Y7IbUoDXiT',
+    defaultMessage:
+      "Some strings have no match band: the translation memory could not be read when they were counted. They are priced as new work.",
+    description:
+      "Note under a task's match analysis when some strings were counted without a match band",
+  },
   timeLogged: {
     id: "G8T1FYb+cF",
     defaultMessage: "Time logged",

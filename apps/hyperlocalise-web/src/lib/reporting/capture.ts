@@ -292,13 +292,22 @@ export async function captureAnalysis(input: AnalysisInput) {
   }
 }
 
+type MemoryOptions = {
+  memoryCache?: MemoryScoreCache;
+  /**
+   * Record the strings without reading the memory, so they have no match band: for a caller that
+   * could not read the memory and wants the strings recorded all the same.
+   */
+  withoutMemory?: boolean;
+};
+
 /**
  * Writes an analysis like `captureAnalysis`, but throws on failure and skips the flag check.
  * Returns the summary days it marked.
  */
 export async function recordAnalysis(
   input: AnalysisInput,
-  options: { memoryCache?: MemoryScoreCache } = {},
+  options: MemoryOptions = {},
 ): Promise<SummaryMark[]> {
   return writeReportingAnalysis(input, { ...options, strict: true });
 }
@@ -306,7 +315,7 @@ export async function recordAnalysis(
 /** Writes the analyses and returns the summary days they marked. */
 async function writeReportingAnalysis(
   input: AnalysisInput,
-  options: StrictWriteOptions & { memoryCache?: MemoryScoreCache } = {},
+  options: StrictWriteOptions & MemoryOptions = {},
 ): Promise<SummaryMark[]> {
   if (!options.strict && !(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
     return [];
@@ -330,11 +339,13 @@ async function writeReportingAnalysis(
   const step = input.step ?? "translation";
   const rate = await resolveReportingRate({ ...input, step });
   let memoryIds: string[] | null = null;
-  try {
-    memoryIds = await listAttachedProjectMemoryIds(input.projectId);
-  } catch (error) {
-    if (options.strict) throw error;
-    console.warn("reporting_match_analysis_unavailable", { jobId: input.jobId });
+  if (!options.withoutMemory) {
+    try {
+      memoryIds = await listAttachedProjectMemoryIds(input.projectId);
+    } catch (error) {
+      if (options.strict) throw error;
+      console.warn("reporting_match_analysis_unavailable", { jobId: input.jobId });
+    }
   }
   const uniqueTexts = [...new Set(Object.values(input.sourceEntries))];
   const scores = new Map<string, number | null>();

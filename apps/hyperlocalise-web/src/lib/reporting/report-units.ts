@@ -27,6 +27,10 @@ export const OPEN_TASK_STATUSES: ReadonlySet<string> = new Set([
   "waiting_for_review",
 ]);
 
+/** How far a task for people's analysis (its strings recorded for Reports) has got. */
+export const TASK_ANALYSIS_STATUSES = ["pending", "done", "failed"] as const;
+export type TaskAnalysisStatus = (typeof TASK_ANALYSIS_STATUSES)[number];
+
 /** What a rate line is charged per: a word, a character without or with spaces, or an hour. */
 export const RATE_BASES = ["word", "character", "character_with_spaces", "hour"] as const;
 export type RateBasis = (typeof RATE_BASES)[number];

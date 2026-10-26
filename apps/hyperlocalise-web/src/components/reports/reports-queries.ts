@@ -323,10 +323,6 @@ export function useTaskReport(
     queryKey: reportsQueryKey(organizationSlug, "task-report", jobId, query),
     placeholderData: keepPreviousData,
     enabled,
-    // While the task's strings are being counted, look again until they show. The argument is
-    // typed here, since inferring it would make the data's type depend on itself.
-    refetchInterval: (current: { state: { data?: { counting: boolean } } }) =>
-      current.state.data?.counting ? COUNTING_POLL_MS : false,
     queryFn: async ({ signal }) => {
       const response = await reportsApi().tasks[":jobId"].report.$get(
         { param: { organizationSlug, jobId }, query },
@@ -340,6 +336,32 @@ export function useTaskReport(
 }
 
 export type TaskReport = NonNullable<ReturnType<typeof useTaskReport>["data"]>;
+
+/**
+ * The state of a task's analysis per step, looked at again every few seconds while a step is
+ * pending, so the Report tab can say its strings are being counted and read them once they are.
+ */
+export function useTaskAnalysis(organizationSlug: string, jobId: string, enabled = true) {
+  const intl = useIntl();
+  return useQuery({
+    queryKey: reportsQueryKey(organizationSlug, "task-analysis", jobId),
+    enabled,
+    // The argument is typed here, since inferring it would make the data's type depend on itself.
+    refetchInterval: (current: { state: { data?: { status: string }[] } }) =>
+      current.state.data?.some((step) => step.status === "pending") ? COUNTING_POLL_MS : false,
+    queryFn: async ({ signal }) => {
+      const response = await reportsApi().tasks[":jobId"].analysis.$get(
+        { param: { organizationSlug, jobId } },
+        { init: { signal } },
+      );
+      if (!response.ok)
+        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
+      return (await response.json()).analysis;
+    },
+  });
+}
+
+export type TaskAnalysisState = NonNullable<ReturnType<typeof useTaskAnalysis>["data"]>[number];
 
 /** A link that downloads a task's words for one step as CSV. */
 export function taskReportDownloadUrl(

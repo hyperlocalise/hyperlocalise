@@ -32,7 +32,9 @@ import { jobs } from "./jobs";
 import {
   COMPLETION_SOURCES,
   RATE_BASES,
+  TASK_ANALYSIS_STATUSES,
   type CompletionSource,
+  type TaskAnalysisStatus,
 } from "@/lib/reporting/report-units";
 import type { MatchBucket } from "@/lib/reporting/word-analysis";
 
@@ -42,7 +44,12 @@ const organizationId = () =>
     .notNull()
     .references(() => organizations.id, { onDelete: "cascade" });
 const projectId = () => text("project_id").references(() => projects.id, { onDelete: "set null" });
-const jobId = () => text("job_id").references(() => jobs.id, { onDelete: "set null" });
+/**
+ * The task a record belongs to, kept when the task is deleted (no link to `jobs`), as analyses
+ * keep theirs: a deleted task's finished work, costs and time stay its own, shown as "Deleted
+ * task", rather than becoming work outside any task.
+ */
+const jobId = () => text("job_id");
 const amount = (name: string) => numeric(name, { precision: 24, scale: 8 });
 
 /**
@@ -117,7 +124,8 @@ export const reportingTaskRates = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     organizationId: organizationId(),
-    jobId: jobId(),
+    /** Pricing is for a task that exists: it goes with the task when the task is deleted. */
+    jobId: text("job_id").references(() => jobs.id, { onDelete: "cascade" }),
     step: text("step", { enum: ["translation", "review"] }).notNull(),
     /** The task's rate card: each language is priced by that card's line for it. */
     rateCardName: text("rate_card_name"),
@@ -197,6 +205,10 @@ export const reportingActivity = pgTable(
   (t) => [
     uniqueIndex("reporting_activity_operation").on(t.organizationId, t.operationKey),
     index("reporting_activity_filter").on(t.organizationId, t.projectId, t.createdAt),
+    /** A task's finished work by step, for whether its pricing can still change. */
+    index("reporting_activity_job_step")
+      .on(t.organizationId, t.jobId, t.step)
+      .where(sql`${t.kind} = 'completion'`),
   ],
 );
 const summaryMeasure = (name: string) => integer(name).notNull().default(0);
@@ -295,8 +307,9 @@ export const reportingDailyByProject = pgTable(
 );
 /**
  * The strings each project holds now, by language, step and match band: the daily rows'
- * arrivals summed over every day, rewritten with them, so a whole project can be estimated
- * without reading its days. The project's own source language stands for every row's.
+ * arrivals summed over every day, so a whole project can be estimated without reading its days.
+ * Rewritten by the scheduled run only, once per project per run, from each string's newest
+ * current analysis, with that analysis's own source language.
  */
 export const reportingCurrentByProject = pgTable(
   "reporting_current_by_project",
@@ -320,6 +333,30 @@ export const reportingCurrentByProject = pgTable(
     arrivedDoneCharactersWithSpaces: summaryMeasure("arrived_done_characters_with_spaces"),
   },
   (t) => [index("reporting_current_by_project_project").on(t.organizationId, t.projectId)],
+);
+/**
+ * The state of a task for people's analysis, per step: its strings are recorded for Reports in
+ * the background when the task is created, and this is pending until that is done or has failed,
+ * so the task's Report tab can say which rather than guess. Deleted with the task.
+ */
+export const reportingTaskAnalyses = pgTable(
+  "reporting_task_analyses",
+  {
+    organizationId: organizationId(),
+    jobId: text("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    step: text("step", { enum: ["translation", "review"] }).notNull(),
+    status: text("status", { enum: TASK_ANALYSIS_STATUSES }).$type<TaskAnalysisStatus>().notNull(),
+    /** Some strings were recorded without a match band, so the task's quote is not exact. */
+    incomplete: boolean("incomplete").notNull().default(false),
+    /** The task's strings in each language, once a language has been recorded. */
+    strings: integer("strings"),
+    /** Why the last attempt failed, when one did. */
+    error: text("error"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.organizationId, t.jobId, t.step] })],
 );
 /**
  * Workspace, project and day whose summary rows need working out again. A write bumps
@@ -401,6 +438,8 @@ export const reportingCosts = pgTable(
   (t) => [
     uniqueIndex("reporting_cost_operation").on(t.organizationId, t.operationKey),
     index("reporting_cost_filter").on(t.organizationId, t.projectId, t.createdAt),
+    /** A task's costs, for whether its pricing can still change. */
+    index("reporting_cost_job").on(t.organizationId, t.jobId),
   ],
 );
 export const reportingAudit = pgTable("reporting_audit", {

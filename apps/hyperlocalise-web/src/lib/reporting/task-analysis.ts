@@ -17,6 +17,7 @@ import { db, schema } from "@/lib/database/client";
 import { recordAnalysis } from "./capture";
 import { OPEN_TASK_STATUSES, type ReportStep } from "./report-units";
 import { refreshSummaryDays } from "./summary";
+import { touchTaskAnalysis } from "./task-analysis-status";
 
 /**
  * A task for people (a proofread task, a visual workflow's translate, post-edit or proofread
@@ -37,13 +38,23 @@ export type TaskAnalysisInput = {
   repositorySourceFileId: string;
 };
 
+export type TaskLanguageAnalysisInput = Omit<TaskAnalysisInput, "targetLocales"> & {
+  targetLocale: string;
+  /**
+   * Record the strings without match bands: for a language whose memory could not be read or
+   * scored after every retry, so the task still has its strings and its quote, marked not exact.
+   */
+  withoutMemory?: boolean;
+};
+
 /**
- * Records the task's strings as arrived for each of its languages. Returns how many strings, and
- * the summary days the records marked. Throws when a write or the memory read fails, so the
- * caller can retry; running again records nothing twice.
+ * Records the task's strings as arrived for one of its languages, and notes the progress on the
+ * task's analysis state. Returns how many strings, and the summary days the records marked.
+ * Throws when a write or the memory read fails, so the caller can retry; running again records
+ * nothing twice.
  */
-export async function analyseTaskStrings(
-  input: TaskAnalysisInput,
+export async function analyseTaskLanguage(
+  input: TaskLanguageAnalysisInput,
 ): Promise<{ strings: number; days: string[] }> {
   const keys = await db
     .select({
@@ -59,79 +70,68 @@ export async function analyseTaskStrings(
         eq(schema.projectTranslationKeys.isHidden, false),
       ),
     );
-  if (keys.length === 0) return { strings: 0, days: [] };
+  const progress = { organizationId: input.organizationId, jobId: input.jobId, step: input.step };
+  if (keys.length === 0) {
+    await touchTaskAnalysis({ ...progress, strings: 0 });
+    return { strings: 0, days: [] };
+  }
   // The key's id is the segment id, as editor saves record it, so a save finishes the same row.
   const sourceEntries = Object.fromEntries(keys.map((key) => [key.id, key.sourceText]));
-  const days = new Set<string>();
-  for (const targetLocale of new Set(input.targetLocales)) {
-    const marks = await recordAnalysis({
+  const marks = await recordAnalysis(
+    {
       organizationId: input.organizationId,
       projectId: input.projectId,
       jobId: input.jobId,
       sourceLocale: input.sourceLocale,
-      targetLocale,
+      targetLocale: input.targetLocale,
       sourceEntries,
       step: input.step,
       // Work people do is paid work: it counts in "still to come" whether or not an assignee is set.
       billable: true,
-    });
-    for (const mark of marks) days.add(mark.day);
+    },
+    { withoutMemory: input.withoutMemory },
+  );
+  await touchTaskAnalysis({ ...progress, strings: keys.length });
+  return { strings: keys.length, days: [...new Set(marks.map((mark) => mark.day))] };
+}
+
+/** `analyseTaskLanguage` for every language of the task, one after another. */
+export async function analyseTaskStrings(
+  input: TaskAnalysisInput,
+): Promise<{ strings: number; days: string[] }> {
+  const days = new Set<string>();
+  let strings = 0;
+  for (const targetLocale of new Set(input.targetLocales)) {
+    const result = await analyseTaskLanguage({ ...input, targetLocale });
+    strings = Math.max(strings, result.strings);
+    for (const day of result.days) days.add(day);
   }
-  return { strings: keys.length, days: [...days] };
+  return { strings, days: [...days] };
 }
 
 /**
  * Works out the task's days in the summary straight away, rather than at the next scheduled run,
- * so its Report tab and the estimate show its strings moments after the task is created. Throws
- * while a scheduled run holds the project, so the caller retries once that run has finished.
+ * so its Report tab and the estimate show its strings moments after the task is created. Waits a
+ * few seconds for a scheduled run that holds the project, skips days that run did meanwhile, and
+ * leaves the project's current rows to the scheduled run (rewriting them costs seconds for a
+ * large project, which a burst of new tasks would each pay). Throws when the project stays held,
+ * so the caller retries later.
  */
 export async function refreshTaskDays(input: {
   organizationId: string;
   projectId: string;
   days: string[];
 }) {
-  if ((await refreshSummaryDays(input)) === "busy") throw new Error("reporting_summary_busy");
+  const outcome = await refreshSummaryDays({
+    ...input,
+    waitForLock: true,
+    onlyMarked: true,
+    skipCurrentRows: true,
+  });
+  if (outcome === "busy") throw new Error("reporting_summary_busy");
 }
 
-/** How long after a task is created its Report tab says the task's strings are being counted. */
-const COUNTING_WAIT_MS = 10 * 60_000;
-
-/**
- * Whether a task's strings for a step are on their way to its Report tab, which has nothing for
- * the step yet: they are recorded but not yet in the summary, or the task is new enough that its
- * background count may not have run. The tab then says the strings are being counted, not that
- * there are none.
- */
-export async function taskStillBeingCounted(input: {
-  organizationId: string;
-  job: { id: string; kind: string; createdAt: Date };
-  step: ReportStep;
-  now?: Date;
-}): Promise<boolean> {
-  const ownStep =
-    input.job.kind === "proofread"
-      ? "review"
-      : input.job.kind === "translation"
-        ? "translation"
-        : null;
-  const age = (input.now ?? new Date()).getTime() - input.job.createdAt.getTime();
-  if (ownStep === input.step && age < COUNTING_WAIT_MS) return true;
-  const [recorded] = await db
-    .select({ id: schema.reportingAnalyses.id })
-    .from(schema.reportingAnalyses)
-    .where(
-      and(
-        eq(schema.reportingAnalyses.organizationId, input.organizationId),
-        eq(schema.reportingAnalyses.jobId, input.job.id),
-        eq(schema.reportingAnalyses.step, input.step),
-        eq(schema.reportingAnalyses.isCurrent, true),
-      ),
-    )
-    .limit(1);
-  return Boolean(recorded);
-}
-
-export type PersonTaskLookup = {
+type PersonTaskLookup = {
   organizationId: string;
   projectId: string;
   repositorySourceFileId: string;

@@ -14,7 +14,8 @@
 
 import { ArrowSquareOutIcon } from "@phosphor-icons/react";
 import Link from "next/link";
-import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 
 import { buildOrganizationPath, buildProjectPath } from "@/components/app-shell/navigation-config";
@@ -47,10 +48,13 @@ import { ReportStatCard, ReportStatCards } from "./report-stat-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
 import { reportsPageMessages as pageMessages } from "./reports-page.messages";
 import {
+  reportsQueryKey,
   taskReportDownloadUrl,
   useReportSettings,
+  useTaskAnalysis,
   useTaskReport,
   type ReportSettings,
+  type TaskAnalysisState,
   type TaskReport as TaskReportData,
 } from "./reports-queries";
 import { buildReportsHref, DEFAULT_REPORTS_STATE } from "./reports-url-state";
@@ -128,6 +132,20 @@ export function TaskReport({
     { unit, step, rateCard },
     Boolean(settings.data),
   );
+  // Whether the task's strings for the step are still being counted, or could not be. Looked at
+  // again every few seconds while pending; when the count ends, the report is read again.
+  const analysis = useTaskAnalysis(organizationSlug, jobId, Boolean(settings.data));
+  const state = analysis.data?.find((row) => row.step === step);
+  const queryClient = useQueryClient();
+  const status = state?.status;
+  const previousStatus = useRef(status);
+  useEffect(() => {
+    if (previousStatus.current === "pending" && status !== undefined && status !== "pending")
+      void queryClient.invalidateQueries({
+        queryKey: reportsQueryKey(organizationSlug, "task-report", jobId),
+      });
+    previousStatus.current = status;
+  }, [status, queryClient, organizationSlug, jobId]);
   // Until settings load the report waits, which TanStack Query counts as pending too.
   const loading = !settings.isError && (settings.isPending || report.isPending);
   const query = {
@@ -155,7 +173,10 @@ export function TaskReport({
           {/* Words, match bands and money are for the roles that see Reports; others see their time. */}
           {data.words ? (
             <>
-              <TaskCards data={data} words={data.words} step={step} />
+              {/* Nothing to add up while the step's strings are being counted. */}
+              {analysisOutcome(data.words, step, state) === "counting" ? null : (
+                <TaskCards data={data} words={data.words} step={step} />
+              )}
               <ReportSection
                 title={intl.formatMessage(messages.matchAnalysis)}
                 description={intl.formatMessage(messages.matchAnalysisDetail)}
@@ -181,7 +202,7 @@ export function TaskReport({
                   </>
                 }
               >
-                <MatchAnalysis data={data} words={data.words} step={step} />
+                <MatchAnalysis data={data} words={data.words} step={step} state={state} />
               </ReportSection>
             </>
           ) : null}
@@ -269,6 +290,23 @@ function TaskCards({
 
 type AnalysisRow = WordRow & { weighted: number | null; costUsd: string | null; fixed: boolean };
 
+/**
+ * What a step with no rows in the report means: its strings are being counted (the analysis is
+ * pending, or done and recorded but not yet in the summary), the count failed, or there is
+ * nothing. "shown" when the step has rows.
+ */
+function analysisOutcome(
+  words: TaskWords,
+  step: ReportStep,
+  state: TaskAnalysisState | undefined,
+): "shown" | "counting" | "failed" | "nothing" {
+  if (words.rows.some((row) => row.step === step)) return "shown";
+  if (!state) return "nothing";
+  if (state.status === "pending") return "counting";
+  if (state.status === "failed") return "failed";
+  return (state.strings ?? 0) > 0 ? "counting" : "nothing";
+}
+
 /** The step's rows by language, with the estimate's weighted units and cost beside them. */
 function analysisRows(data: TaskReportData, words: TaskWords, step: ReportStep): AnalysisRow[] {
   return words.rows
@@ -299,19 +337,29 @@ function MatchAnalysis({
   data,
   words,
   step,
+  state,
 }: {
   data: TaskReportData;
   words: TaskWords;
   step: ReportStep;
+  state: TaskAnalysisState | undefined;
 }) {
   const intl = useIntl();
   const rows = analysisRows(data, words, step);
-  if (rows.length === 0)
+  if (rows.length === 0) {
+    const outcome = analysisOutcome(words, step, state);
     return (
       <ReportEmpty
-        description={intl.formatMessage(data.counting ? messages.counting : messages.noWords)}
+        description={intl.formatMessage(
+          outcome === "counting"
+            ? messages.counting
+            : outcome === "failed"
+              ? messages.countingFailed
+              : messages.noWords,
+        )}
       />
     );
+  }
   const bandTotals: BandCounts = {};
   for (const row of rows)
     for (const [bucket, units] of Object.entries(row.bands))
@@ -332,6 +380,7 @@ function MatchAnalysis({
     ...(uncounted > 0 && data.unit !== "strings"
       ? [intl.formatMessage(pageMessages.notCounted, { count: uncounted })]
       : []),
+    ...(state?.incomplete ? [intl.formatMessage(messages.bandsMissing)] : []),
   ];
   return (
     <div className="flex flex-col gap-3">

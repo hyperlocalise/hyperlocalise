@@ -120,10 +120,15 @@ const MAX_DAYS_PER_REFRESH = 400;
  */
 const SCAN_COMPLETIONS_ABOVE = 2_000;
 
+/** How long a refresh asked to wait tries for the project's lock, and how often it asks. */
+const LOCK_WAIT_MS = 5_000;
+const LOCK_POLL_MS = 250;
+
 /**
  * Works out the summary rows of one workspace and project again for the given UTC days, from the
  * raw rows, in one statement per table, and removes each day's mark unless a write marked it
- * again meanwhile. Returns "busy" without waiting when another refresh of the project holds it.
+ * again meanwhile. Returns "busy" when another refresh of the project holds it: at once, or
+ * after a few seconds' wait when asked to wait.
  */
 export async function refreshSummaryDays(
   input: {
@@ -132,20 +137,33 @@ export async function refreshSummaryDays(
     days: string[];
     /** Overrides `SCAN_COMPLETIONS_ABOVE`, so tests can check both ways give the same rows. */
     scanCompletionsAbove?: number;
+    /** Wait a few seconds for another refresh of the project rather than answering "busy" at once. */
+    waitForLock?: boolean;
+    /** Refresh only the days still marked: a task's refresh skips days a scheduled run did meanwhile. */
+    onlyMarked?: boolean;
+    /** Leave the project's current rows to the scheduled run, which rewrites them once per project. */
+    skipCurrentRows?: boolean;
   },
   database: DatabaseClient = db,
 ): Promise<"refreshed" | "busy"> {
   const { organizationId, projectId } = input;
-  const days = [...new Set(input.days)].sort();
-  if (days.length === 0) return "refreshed";
+  const askedDays = [...new Set(input.days)].sort();
+  if (askedDays.length === 0) return "refreshed";
   return database.transaction(async (tx) => {
     const lockKey = `reporting-summary:${organizationId}:${projectId}`;
-    const [lock] = (
-      await tx.execute<{ locked: boolean }>(
-        sql`select pg_try_advisory_xact_lock(hashtextextended(${lockKey}, 0)) as locked`,
-      )
-    ).rows;
-    if (!lock?.locked) return "busy";
+    const tryLock = async () =>
+      (
+        await tx.execute<{ locked: boolean }>(
+          sql`select pg_try_advisory_xact_lock(hashtextextended(${lockKey}, 0)) as locked`,
+        )
+      ).rows[0]?.locked === true;
+    const waitUntil = Date.now() + (input.waitForLock ? LOCK_WAIT_MS : 0);
+    let locked = await tryLock();
+    while (!locked && Date.now() < waitUntil) {
+      await new Promise((resolve) => setTimeout(resolve, LOCK_POLL_MS));
+      locked = await tryLock();
+    }
+    if (!locked) return "busy";
     const queued = await tx
       .select({
         day: schema.reportingSummaryQueue.day,
@@ -156,11 +174,13 @@ export async function refreshSummaryDays(
         and(
           eq(schema.reportingSummaryQueue.organizationId, organizationId),
           eq(schema.reportingSummaryQueue.projectId, projectId),
-          inArray(schema.reportingSummaryQueue.day, days),
+          inArray(schema.reportingSummaryQueue.day, askedDays),
         ),
       )
       // Day order, as writers lock them, so a refresh and a write cannot deadlock.
       .orderBy(asc(schema.reportingSummaryQueue.day));
+    const days = input.onlyMarked ? queued.map((mark) => mark.day) : askedDays;
+    if (days.length === 0) return "refreshed";
     const dayList = sql`${`{${days.join(",")}}`}::date[]`;
     // The index covers the range from the first to the last day; the list then picks the
     // marked days inside it.
@@ -216,7 +236,7 @@ export async function refreshSummaryDays(
       firsts as (
         select distinct on (o.job_id, o.segment_id, o.source_revision, o.step) o.id
         from reporting_analyses o
-        where o.organization_id = ${organizationId} and o.is_current and o.project_id is not null
+        where o.organization_id = ${organizationId} and o.project_id = ${projectId} and o.is_current
           and o.segment_id in (select segment_id from arrivals)
         order by o.job_id, o.segment_id, o.source_revision, o.step, o.created_at, o.target_locale, o.id
       ),
@@ -271,7 +291,7 @@ export async function refreshSummaryDays(
         and day = any(${dayList})
       group by organization_id, project_id, target_locale, step, bucket, source, day
     `);
-    await refreshCurrentByProject(tx, organizationId, projectId);
+    if (!input.skipCurrentRows) await refreshCurrentByProject(tx, organizationId, projectId);
     // A write that marked a day while this ran bumped its generation: keep that mark.
     for (const mark of queued) {
       await tx
@@ -300,8 +320,9 @@ const CURRENT_COLUMNS = [
 /**
  * Rewrites a project's current strings from the raw analyses: each string once per language
  * and step, by its newest current analysis, however many tasks hold it (a task for people on a
- * file a job already translated holds every string of it again). Reads the project's current
- * analyses whole, so a large project's refresh pays for this once per run.
+ * file a job already translated holds every string of it again), with that analysis's own
+ * source language. Reads the project's current analyses and completions whole, so only the
+ * scheduled run does this, once per project per run.
  */
 async function refreshCurrentByProject(
   tx: DatabaseClient,
@@ -319,12 +340,11 @@ async function refreshCurrentByProject(
   await tx.execute(sql`
     insert into reporting_current_by_project (organization_id, project_id, source_locale,
       target_locale, step, bucket, ${sql.raw(CURRENT_COLUMNS.join(", "))})
-    select ${organizationId}, ${projectId}, coalesce(p.source_locale, 'en'), a.target_locale,
-      a.step, a.bucket,
+    select ${organizationId}, ${projectId}, a.source_locale, a.target_locale, a.step, a.bucket,
       ${sql.join(
         UNITS.flatMap(([, value]) => [
           sql`sum(${sql.raw(value)})::integer`,
-          sql`sum(case when d.done then ${sql.raw(value)} else 0 end)::integer`,
+          sql`sum(case when d.analysis_id is not null then ${sql.raw(value)} else 0 end)::integer`,
         ]),
         sql`, `,
       )},
@@ -335,13 +355,12 @@ async function refreshCurrentByProject(
       where a.organization_id = ${organizationId} and a.project_id = ${projectId} and a.is_current
       order by a.segment_id, a.target_locale, a.step, a.created_at desc, a.id desc
     ) a
-    join projects p on p.id = a.project_id
-    left join lateral (
-      select true as done from reporting_activity d
-      where d.organization_id = ${organizationId}
-        and d.operation_key = 'completion:' || a.id || ':' || a.step
-      limit 1
-    ) d on true
+    -- The project's completions in one pass, rather than one lookup for each current string.
+    left join (
+      select distinct d.analysis_id from reporting_activity d
+      where d.organization_id = ${organizationId} and d.project_id = ${projectId}
+        and d.kind = 'completion'
+    ) d on d.analysis_id = a.id
     group by 3, 4, 5, 6
   `);
 }

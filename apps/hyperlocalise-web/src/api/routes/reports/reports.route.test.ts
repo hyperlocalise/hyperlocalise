@@ -50,6 +50,7 @@ import { db, schema } from "@/lib/database/client";
 import { isOk } from "@/lib/primitives/result/results";
 import { saveRateCard } from "@/lib/reporting/rate-cards";
 import { createReportingTestFixture } from "@/lib/reporting/reporting.fixture";
+import { setTaskAnalysisStatus } from "@/lib/reporting/task-analysis-status";
 import { ensureDefaultWorkspaceTeamMembership } from "@/lib/teams/default-workspace-team";
 
 const app = createApp();
@@ -322,6 +323,31 @@ describe("reports routes", () => {
     });
   });
 
+  it("tells the task's Report tab how far its analysis has got", async () => {
+    const workspace = await reporting.createWorkspace();
+    const { identity, organization, createJob } = workspace;
+    const headers = await reporting.authHeadersFor(identity);
+    const slug = identity.organization.slug ?? "missing-slug";
+    const job = await createJob({ title: "Proofread strings" });
+    // A task never analysed has no state.
+    const none = await app.request(reportsUrl(slug, `/tasks/${job.id}/analysis`), { headers });
+    await expect(none.json()).resolves.toEqual({ analysis: [] });
+
+    await setTaskAnalysisStatus({
+      organizationId: organization.id,
+      jobId: job.id,
+      step: "review",
+      status: "pending",
+    });
+    const pending = await app.request(reportsUrl(slug, `/tasks/${job.id}/analysis`), { headers });
+    expect(pending.status).toBe(200);
+    await expect(pending.json()).resolves.toMatchObject({
+      analysis: [{ step: "review", status: "pending", incomplete: false, strings: null }],
+    });
+    const missing = await app.request(reportsUrl(slug, "/tasks/job_missing/analysis"), { headers });
+    expect(missing.status).toBe(404);
+  });
+
   it("reports one task's words, money and time, and hides a task the viewer cannot open", async () => {
     const workspace = await reporting.createWorkspace();
     const { identity, organization, user, project, createJob, addSummary } = workspace;
@@ -384,8 +410,6 @@ describe("reports routes", () => {
     const { taskReport } = await response.json();
     expect(taskReport).toMatchObject({
       task: { id: job.id, title: "Release strings", status: "running" },
-      // The summary has the step's strings, so nothing is still being counted.
-      counting: false,
       words: {
         totals: {
           translation: { source: 10, arrived: 10, arrivedDone: 4 },

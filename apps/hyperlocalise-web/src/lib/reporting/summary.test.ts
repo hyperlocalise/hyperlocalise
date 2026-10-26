@@ -26,6 +26,7 @@ import {
   markSummaryDays,
   refreshPendingSummary,
   refreshSummaryDay,
+  refreshSummaryDays,
   SUMMARY_VERSION,
 } from "./summary";
 
@@ -160,14 +161,14 @@ async function expectSummaryMatchesRecount(organizationId: string, scanCompletio
     group by 1, 2, 3, 4, 5 order by 1, 2, 3, 4, 5`);
   expect(byProject.rows).toEqual(fromTasks.rows);
   // The current rows hold each string once per language and step, by its newest current
-  // analysis whatever task holds it, with the project's source language.
+  // analysis whatever task holds it, with that analysis's own source language.
   const current = await db.execute(sql`
     select project_id, source_locale, target_locale, step, bucket,
       arrived_words, arrived_strings, arrived_done_words, arrived_done_strings, arrived_uncounted
     from reporting_current_by_project where organization_id = ${organizationId}
     order by 1, 2, 3, 4, 5`);
   const fromAnalyses = await db.execute(sql`
-    select a.project_id, coalesce(p.source_locale, 'en') as source_locale, a.target_locale,
+    select a.project_id, a.source_locale, a.target_locale,
       a.step, a.bucket, sum(coalesce(a.words, 0))::integer as arrived_words,
       count(*)::integer as arrived_strings,
       sum(case when a.done then coalesce(a.words, 0) else 0 end)::integer as arrived_done_words,
@@ -180,7 +181,7 @@ async function expectSummaryMatchesRecount(organizationId: string, scanCompletio
       from reporting_analyses a
       where a.organization_id = ${organizationId} and a.is_current and a.project_id is not null
       order by a.segment_id, a.target_locale, a.step, a.created_at desc, a.id desc
-    ) a join projects p on p.id = a.project_id
+    ) a
     group by 1, 2, 3, 4, 5 order by 1, 2, 3, 4, 5`);
   expect(current.rows).toEqual(fromAnalyses.rows);
 }
@@ -444,8 +445,12 @@ describe("reporting daily summary", () => {
     });
     await lockedPromise;
     expect(await refreshSummaryDay(mark)).toBe("busy");
+    // Asked to wait, a refresh gets the project once the other lets go.
+    const waiting = refreshSummaryDays({ ...mark, days: [mark.day], waitForLock: true });
+    await new Promise((resolve) => setTimeout(resolve, 600));
     release();
     await holder;
+    expect(await waiting).toBe("refreshed");
     expect(await refreshSummaryDay(mark)).toBe("refreshed");
   });
 

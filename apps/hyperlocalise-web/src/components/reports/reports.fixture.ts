@@ -422,7 +422,6 @@ export const reportsTaskReport: TaskReport = {
   },
   unit: "words",
   step: "translation",
-  counting: false,
   words: {
     rows: [
       {
@@ -575,6 +574,8 @@ export function reportsResponseBodies(settings = createReportsSettings()) {
     "rate-cards": { rateCards: reportsRateCards, canManage: settings.canManage },
     jobs: { jobs: reportsTasks },
     "task-report": { taskReport: settings.financial ? reportsTaskReport : memberTaskReport() },
+    // The task's analysis is done; a test sets a pending or failed step itself.
+    "task-analysis": { analysis: [] },
     "task-rates": { taskRate: {} },
     "time-entry": { timeEntry: { id: "time_mina" } },
   };
@@ -635,7 +636,9 @@ export function reportsApiClient(state: ReportsApiState) {
   const reports: Record<string, unknown> = Object.fromEntries(
     ENDPOINTS.map((name) => [name, endpoint(name)]),
   );
-  reports.tasks = { ":jobId": { report: endpoint("task-report") } };
+  reports.tasks = {
+    ":jobId": { report: endpoint("task-report"), analysis: endpoint("task-analysis") },
+  };
   reports["time-entries"] = { ...endpoint("time-entries"), ":id": endpoint("time-entry") };
   return { api: { orgs: { ":organizationSlug": { reports } } } };
 }
