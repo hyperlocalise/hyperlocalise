@@ -15,7 +15,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/database/client";
 
 import { attributedUsage } from "./ai-attribution";
-import { hourlyCost, unitCost, usdString, usdUnits } from "./money";
+import { hourlyCost, paidPercent, unitCost, usdString, usdUnits } from "./money";
 import { liveRateRows, type BandPercentages } from "./rate-cards";
 import type { ReportPeriod } from "./report-period";
 import {
@@ -261,12 +261,6 @@ async function pricedUnits(input: {
         as languages
   `);
   return result.rows[0];
-}
-
-/** The share of a band a rate line pays; the unavailable band is paid as new work. */
-function paidPercent(percentages: BandPercentages | null, bucket: MatchBucket): number {
-  const band = bucket === "unavailable" ? "new" : bucket;
-  return percentages?.[band] ?? 100;
 }
 
 type HourlyCost = { cost: bigint; known: boolean; unestimated: boolean };

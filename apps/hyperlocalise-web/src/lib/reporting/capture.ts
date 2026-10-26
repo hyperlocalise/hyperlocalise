@@ -14,15 +14,10 @@ import { createHash } from "node:crypto";
 import { and, asc, eq, desc, gt, inArray, isNull, lte, sql, type SQL } from "drizzle-orm";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { listAttachedProjectMemoryIds } from "@/lib/memory/ensure-default-native-project-memory";
-import {
-  countSourceCharacters,
-  countSourceWords,
-  matchBucket,
-  type MatchBucket,
-} from "./word-analysis";
+import { countSourceCharacters, countSourceWords, matchBucket } from "./word-analysis";
 import { OPEN_TASK_STATUSES, type CompletionSource } from "./report-units";
 import { MemoryMatchIndex, MemorySourceScan, sourceSimilarity } from "./memory-match-index";
-import { unitCost } from "./money";
+import { paidPercent, unitCost } from "./money";
 import { memoryUnavailable } from "./memory-unavailable";
 import { markSummaryDays, summaryDay, type SummaryMark } from "./summary";
 import { reportingStart } from "./reporting-start";
@@ -115,17 +110,6 @@ export async function resolveReportingRate(
     );
   if (!budget?.rateCardName) return null;
   return rateLine(database, input, budget.rateCardName, null);
-}
-
-/**
- * The share of a band a rate line pays. The unavailable band (the memory could not be read when
- * the string arrived) is paid as new work, as the estimate prices it.
- */
-export function paidPercent(
-  rate: { percentages: Partial<Record<MatchBucket, number>> },
-  bucket: MatchBucket,
-): number {
-  return rate.percentages[bucket === "unavailable" ? "new" : bucket] ?? 100;
 }
 
 /** A card's line for a language pair and step, as of the time `asOf` reads (now when null). */
@@ -425,9 +409,11 @@ async function writeReportingAnalysis(
         sql`, `,
       );
     const marks: SummaryMark[] = [];
-    // Versions whose earliest current analysis, the one their source counts sit on, may have
-    // moved: an old version that stopped being current here, a version current again, or one
-    // recorded at a past time (an editor save), which can now be the earliest.
+    // Versions whose other current analyses' days must be worked out again: the earliest one
+    // carries the text's source counts and, for the project, the string's arrival, and whether
+    // any of them is open or done decides if the string is abandoned. So every version written
+    // moves them (a new task taking on a string a cancelled task left unfinished makes it open
+    // again), as does an old version that stopped being current here.
     const moved: { segmentId: string; sourceRevision: string }[] = [];
     for (let offset = 0; offset < rows.length; offset += REPORTING_BATCH_SIZE) {
       const batch = rows.slice(offset, offset + REPORTING_BATCH_SIZE);
@@ -508,7 +494,7 @@ async function writeReportingAnalysis(
         marks.push({ projectId: row.projectId, day: summaryDay(row.createdAt) });
       }
       moved.push(...superseded);
-      moved.push(...written.filter((row) => row.existed || input.occurredAt));
+      moved.push(...written);
     }
     // In any task of the project: the project's rows count a string once, on its earliest
     // current analysis across tasks, so a change here can move another task's day too.
@@ -860,7 +846,9 @@ async function writeReportingCompletions(
           step,
           targetLocale: input.targetLocale,
           rateId: rate?.id,
-          amountUsd: priced ? unitCost(rate.rate, units, paidPercent(rate, analysis.bucket)) : null,
+          amountUsd: priced
+            ? unitCost(rate.rate, units, paidPercent(rate.percentages, analysis.bucket))
+            : null,
           basis: priced ? "rate" : "unpriced",
           createdAt: input.occurredAt?.[analysis.segmentId],
         })

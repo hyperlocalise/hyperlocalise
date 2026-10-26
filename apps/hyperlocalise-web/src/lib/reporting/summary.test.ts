@@ -658,15 +658,14 @@ describe("reporting daily summary", () => {
     await expectSummaryMatchesRecount(organization.id);
     expect((await project_rows()).rows[0]).toEqual({ arrived: 2, done: 0, abandoned: 2 });
 
-    // Another task takes the string on and finishes it: done for the project, abandoned no more.
+    // Another task takes the string on, now: open again for the project as soon as it arrives,
+    // before anyone finishes it.
     const next = await createJob();
-    await save({
-      segment: "greeting",
-      text: "Hello world",
-      locale: "fr-FR",
-      jobId: next.id,
-      on: "2026-06-05",
-    });
+    await save({ segment: "greeting", text: "Hello world", locale: "fr-FR", jobId: next.id });
+    await expectSummaryMatchesRecount(organization.id);
+    expect((await project_rows()).rows[0]).toEqual({ arrived: 2, done: 0, abandoned: 0 });
+
+    // It finishes it: done for the project.
     await finish({
       segment: "greeting",
       text: "Hello world",

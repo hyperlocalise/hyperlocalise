@@ -377,7 +377,9 @@ function savedSegments(events: SaveEvent[]): SavedSegment[] {
       actorUserId: event.actorUserId,
       automated: event.actorKind === "agent",
       occurredAt: new Date(event.createdAt),
-      ...(typeof event.payload.revisionId === "string"
+      // Only a uuid: anything else would fail the whole batch's lookup, every run.
+      ...(typeof event.payload.revisionId === "string" &&
+      NATIVE_STRING_ID.test(event.payload.revisionId)
         ? { revisionId: event.payload.revisionId }
         : {}),
     } as const;
@@ -489,6 +491,7 @@ async function recordSaves(
             targetLocale: segment.targetLocale,
             step: segment.step,
             savedAt: segment.occurredAt,
+            byPerson: !segment.automated,
           },
           tasksFor,
         )

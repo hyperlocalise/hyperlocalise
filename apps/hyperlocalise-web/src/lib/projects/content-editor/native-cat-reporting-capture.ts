@@ -86,6 +86,7 @@ export async function captureNativeCatTranslationReporting(input: {
         repositorySourceFileId: sourceFile.id,
         targetLocale: input.targetLocale,
         step: savedStep,
+        byPerson: provenance === "manual",
       });
   const sourceJobId = input.sourceJobId ?? task?.jobId ?? existing?.sourceJobId ?? undefined;
   const step = task?.step ?? savedStep;

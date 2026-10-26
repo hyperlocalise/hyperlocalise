@@ -392,20 +392,25 @@ describe("openPersonTaskForString", () => {
 });
 
 describe("personTaskForSave", () => {
-  it("counts an edit inside a proofread task as its review work, unless a translate task covers it", async () => {
+  it("counts a person's edit inside a proofread task as its review work, unless a translate task covers it", async () => {
     const { organization, project, sourceFile, createPersonTask } = await createFileWithStrings();
-    const lookup = (step: "translation" | "review") =>
+    const lookup = (step: "translation" | "review", byPerson = true) =>
       personTaskForSave({
         organizationId: organization.id,
         projectId: project.id,
         repositorySourceFileId: sourceFile.id,
         targetLocale: "fr-FR",
         step,
+        byPerson,
       });
     await expect(lookup("translation")).resolves.toBeUndefined();
     const proofread = await createPersonTask({ kind: "proofread" });
     await expect(lookup("translation")).resolves.toEqual({ jobId: proofread.id, step: "review" });
     await expect(lookup("review")).resolves.toEqual({ jobId: proofread.id, step: "review" });
+    // An agent's or an import's edit stays translation work on the job that produced the text;
+    // its approval is still the task's.
+    await expect(lookup("translation", false)).resolves.toBeUndefined();
+    await expect(lookup("review", false)).resolves.toEqual({ jobId: proofread.id, step: "review" });
     // A translate task for people takes the edits made while it is open.
     const translate = await createPersonTask({ kind: "translation" });
     await expect(lookup("translation")).resolves.toEqual({

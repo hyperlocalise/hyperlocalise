@@ -136,6 +136,7 @@ describe("captureNativeCatTranslationReporting", () => {
       repositorySourceFileId: "file_1",
       targetLocale: "fr-FR",
       step: "review",
+      byPerson: true,
     });
     // The open task wins over the task that produced the translation.
     expect(captureAnalysis).toHaveBeenCalledWith(
@@ -157,9 +158,10 @@ describe("captureNativeCatTranslationReporting", () => {
 
     await expect(captureNativeCatTranslationReporting(baseInput)).resolves.toBe(true);
 
-    // Looked up as the translation-step save it is; recorded at the step the task gives it.
+    // Looked up as the translation-step save it is, by a person; recorded at the step the task
+    // gives it.
     expect(personTaskForSaveMock).toHaveBeenCalledWith(
-      expect.objectContaining({ step: "translation" }),
+      expect.objectContaining({ step: "translation", byPerson: true }),
     );
     expect(captureAnalysis).toHaveBeenCalledWith(
       expect.objectContaining({ jobId: "job_proofread", step: "review" }),
@@ -255,6 +257,10 @@ describe("captureNativeCatTranslationReporting", () => {
         provenance: "automated",
         step: "translation",
       }),
+    );
+    // An agent's edit is looked up as not a person's, so a proofread task does not take it.
+    expect(personTaskForSaveMock).toHaveBeenCalledWith(
+      expect.objectContaining({ step: "translation", byPerson: false }),
     );
   });
 });

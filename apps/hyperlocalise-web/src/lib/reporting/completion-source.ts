@@ -93,8 +93,10 @@ export async function textOrigins(
     left join lateral (
       select r.id, r.text, r.created_at from project_translation_revisions r
       where r.organization_id = ${organizationId} and r.translation_id = s.translation_id
+        -- The save's time arrives cut to the millisecond, while a revision's has microseconds:
+        -- compared whole, a revision written in the save's own millisecond would look later.
         and case when s.revision_id is not null then r.id = s.revision_id
-          else s.at is null or r.created_at <= s.at end
+          else s.at is null or date_trunc('milliseconds', r.created_at) <= s.at end
       order by r.created_at desc, r.id desc limit 1
     ) saved on true
     left join lateral (

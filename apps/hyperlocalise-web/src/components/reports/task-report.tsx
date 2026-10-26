@@ -263,7 +263,10 @@ function TaskCards({
         const lines = estimate.rows.filter((row) => row.step === costStep);
         const fees = estimate.fixedFees.filter((fee) => fee.step === costStep);
         if (lines.length === 0 && fees.length === 0) return [];
-        const priced = lines.some((row) => row.pricing !== "none") || fees.length > 0;
+        // A line counts as priced only when it gave a cost: an hourly line with no time estimate
+        // gives none.
+        const priced =
+          lines.some((row) => row.pricing !== "none" && row.costUsd !== null) || fees.length > 0;
         const cost =
           lines.reduce((sum, row) => sum + Number(row.costUsd ?? 0), 0) +
           fees.reduce((sum, fee) => sum + Number(fee.amountUsd), 0);

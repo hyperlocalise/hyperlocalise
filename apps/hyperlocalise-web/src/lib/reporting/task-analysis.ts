@@ -212,13 +212,18 @@ export async function personTaskForSave(
   input: PersonTaskLookup & {
     /** When the save was made; now when left out. */
     savedAt?: Date;
+    /**
+     * A person made the save. Only a person's edit inside a proofread task is its review work;
+     * an agent's or an import's edit stays translation work on the job that produced the text.
+     */
+    byPerson: boolean;
   },
   tasks: (lookup: PersonTaskLookup) => Promise<PersonTaskSpan[]> = personTasksForString,
 ): Promise<PersonTaskSave | undefined> {
-  const { savedAt, ...lookup } = input;
+  const { savedAt, byPerson, ...lookup } = input;
   const own = personTaskAt(await tasks(lookup), savedAt);
   if (own) return { jobId: own, step: lookup.step };
-  if (lookup.step !== "translation") return undefined;
+  if (lookup.step !== "translation" || !byPerson) return undefined;
   const review = personTaskAt(await tasks({ ...lookup, step: "review" }), savedAt);
   return review ? { jobId: review, step: "review" } : undefined;
 }

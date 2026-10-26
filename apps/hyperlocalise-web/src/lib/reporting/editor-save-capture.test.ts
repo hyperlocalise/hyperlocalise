@@ -691,6 +691,59 @@ describe("captureEditorSaves", () => {
     });
   });
 
+  it("finds the version an approval saved in the approval's own millisecond", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    const [translation] = await db
+      .select({ id: schema.projectTranslations.id })
+      .from(schema.projectTranslations)
+      .where(eq(schema.projectTranslations.translationKeyId, keyIds[0]));
+    await db
+      .update(schema.projectTranslations)
+      .set({ text: "Salut" })
+      .where(eq(schema.projectTranslations.id, translation!.id));
+    const revision = (text: string, actor: "agent" | "user", at: ReturnType<typeof sql>) =>
+      db.execute(sql`
+        insert into project_translation_revisions (organization_id, project_id, translation_id,
+          translation_key_id, target_locale, text, status, provenance, actor_kind, created_at)
+        values (${organization.id}, ${project.id}, ${translation!.id}, ${keyIds[0]}, 'fr-FR',
+          ${text}, 'approved', ${actor === "agent" ? "translation_job" : "manual"}, ${actor}, ${at})
+      `);
+    const event = await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+      eventType: "string_segment_approved",
+      nextStatus: "approved",
+      createdAt: minutesFromNow(2),
+    });
+    // The approval's time has microseconds the capture reads only to the millisecond; the person's
+    // version was written 0.4 ms into that millisecond, before the event's own 0.9 ms.
+    const eventAt = sql`(select created_at from organization_activity_events where id = ${event!.id})`;
+    await revision("Bonjour le monde", "agent", sql`${eventAt} - interval '1 minute'`);
+    await revision("Salut", "user", sql`${eventAt} + interval '400 microseconds'`);
+    await db.execute(sql`
+      update organization_activity_events set created_at = created_at + interval '900 microseconds'
+      where id = ${event!.id}
+    `);
+    await captureEditorSaves({ now: minutesFromNow(10), organizationIds: [organization.id] });
+
+    const [completion] = await db
+      .select({
+        source: schema.reportingActivity.source,
+        unchanged: schema.reportingActivity.unchanged,
+      })
+      .from(schema.reportingActivity)
+      .where(
+        and(
+          eq(schema.reportingActivity.organizationId, organization.id),
+          eq(schema.reportingActivity.kind, "completion"),
+        ),
+      );
+    // The person rewrote the job's text before approving it.
+    expect(completion).toEqual({ source: "person", unchanged: false });
+  });
+
   it("records an approval as the review step", async () => {
     const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
     await insertSaveEvent({

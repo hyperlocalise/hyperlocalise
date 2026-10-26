@@ -17,7 +17,12 @@
  * workflow bundler refuses Node modules in workflow code.
  */
 
-/** Starts the error's message. */
+/**
+ * Starts the error's message: a stable code, matched on the message because a step's error
+ * reaches its workflow through the runtime's serialisation, which keeps an error's message but
+ * is not documented to keep other fields. A thrown error is needed so the runtime retries the
+ * step first.
+ */
 export const MEMORY_UNAVAILABLE = "reporting_memory_unavailable";
 
 export function isMemoryUnavailableError(error: unknown): boolean {
