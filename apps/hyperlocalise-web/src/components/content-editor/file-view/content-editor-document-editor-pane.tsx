@@ -561,7 +561,7 @@ export function ContentEditorDocumentEditorPane({
                 })}
               </p>
               {codeMode ? (
-                <div className="px-6 pb-2">
+                <div className="px-6">
                   <Textarea
                     value={load.status === "ready" ? load.sourceBody : ""}
                     readOnly
@@ -641,22 +641,32 @@ export function ContentEditorDocumentEditorPane({
               </Collapsible>
             ) : null}
             {codeMode ? (
-              <div className="mx-auto w-full max-w-[46rem] px-6 pb-16">
-                {splitView ? (
+              splitView ? (
+                <div className="rounded-xl bg-muted/30 px-6 py-4">
                   <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                     {intl.formatMessage(contentEditorFileViewMessages.targetHeading, {
                       locale: targetLocale,
                     })}
                   </p>
-                ) : null}
-                <Textarea
-                  value={body}
-                  onChange={(event) => setBody(event.currentTarget.value)}
-                  aria-label={intl.formatMessage(messages.codeAria)}
-                  spellCheck={false}
-                  className="min-h-[40rem] resize-y font-mono text-[13px] leading-relaxed"
-                />
-              </div>
+                  <Textarea
+                    value={body}
+                    onChange={(event) => setBody(event.currentTarget.value)}
+                    aria-label={intl.formatMessage(messages.codeAria)}
+                    spellCheck={false}
+                    className="min-h-[40rem] resize-y font-mono text-[13px] leading-relaxed"
+                  />
+                </div>
+              ) : (
+                <div className="mx-auto w-full max-w-[46rem] px-6 pb-16">
+                  <Textarea
+                    value={body}
+                    onChange={(event) => setBody(event.currentTarget.value)}
+                    aria-label={intl.formatMessage(messages.codeAria)}
+                    spellCheck={false}
+                    className="min-h-[40rem] resize-y font-mono text-[13px] leading-relaxed"
+                  />
+                </div>
+              )
             ) : null}
             <div hidden={codeMode} inert={codeMode || undefined}>
               <DocumentEditor
