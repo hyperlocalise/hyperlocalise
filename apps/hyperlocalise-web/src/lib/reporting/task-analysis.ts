@@ -148,7 +148,10 @@ export async function openPersonTaskForString(input: {
   savedAt?: Date;
 }): Promise<string | undefined> {
   const kind = input.step === "review" ? "proofread" : "translation";
-  const savedAt = input.savedAt ?? new Date();
+  // A save time from JavaScript has no microseconds, so the task's creation is compared to the
+  // millisecond: otherwise a task created in the same millisecond as the save would come after
+  // it. "Now" is the database's own, the clock that dated the task.
+  const savedAt = input.savedAt ? sql`${input.savedAt}` : sql`now()`;
   const result = await db.execute<{ id: string }>(sql`
     select j.id from jobs j
     join translation_job_details d on d.job_id = j.id
@@ -156,7 +159,7 @@ export async function openPersonTaskForString(input: {
     where j.organization_id = ${input.organizationId} and j.project_id = ${input.projectId}
       and j.kind = ${kind} and j.workflow_run_id is null
       and (j.assignee_type is null or j.assignee_type = 'user')
-      and j.created_at <= ${savedAt}
+      and date_trunc('milliseconds', j.created_at) <= ${savedAt}
       and (j.status = 'waiting_for_review' or j.updated_at >= ${savedAt})
       and v.repository_source_file_id = ${input.repositorySourceFileId}
       and j.input_payload -> 'targetLocales' ? ${input.targetLocale}
