@@ -119,7 +119,20 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         working-directory: ${{ github.workspace }}
-        run: git fetch --no-tags --depth=2 origin "${BASE_SHA}"
+        # HEAD is a shallow graft and the base may have moved since the merge
+        # commit was computed. Deepen both sides until they share a merge-base
+        # so `git diff BASE...HEAD` (vitest --changed) works.
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=100 origin "${BASE_SHA}"
+          for _ in 1 2 3 4 5 6 7 8; do
+            if git merge-base "${BASE_SHA}" HEAD >/dev/null 2>&1; then
+              exit 0
+            fi
+            git fetch --no-tags --deepen=100 origin "${BASE_SHA}"
+            git fetch --no-tags --deepen=100
+          done
+          git merge-base "${BASE_SHA}" HEAD >/dev/null
 
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
