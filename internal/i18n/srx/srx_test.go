@@ -254,6 +254,23 @@ func TestJoinSpanValuesPrefersFullyTranslatedSentences(t *testing.T) {
 	}
 }
 
+func TestJoinSpanValuesKeepsWhitespaceOnlySpans(t *testing.T) {
+	t.Parallel()
+	sourceSpans := map[string]string{
+		"intro#srx.0": "Hello.",
+		"intro#srx.1": " Bye.",
+		"intro#srx.2": "\n",
+	}
+	got := JoinSpanValues(map[string]string{
+		"intro#srx.0": "Bonjour.",
+		"intro#srx.1": "Au revoir.",
+	}, sourceSpans)
+
+	if got["intro"] != "Bonjour. Au revoir.\n" {
+		t.Fatalf("joined = %#v", got)
+	}
+}
+
 func TestJoinSpanValuesLeavesValuesAloneWithoutSourceSpans(t *testing.T) {
 	t.Parallel()
 	values := map[string]string{"note#srx.0": "Bonjour."}

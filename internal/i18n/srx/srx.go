@@ -648,6 +648,10 @@ func JoinSpanValues(values, sourceSpans map[string]string) map[string]string {
 		for index := range spans {
 			sourceText, hasSource := sourceByIndex[index]
 			translation := values[SpanKey(fileKey, index)]
+			// A whitespace-only span (the trailing "\n" of a block) has nothing to translate.
+			if translation == "" && hasSource && strings.TrimSpace(sourceText) == "" {
+				translation = sourceText
+			}
 			if !hasSource || translation == "" {
 				complete = false
 				break

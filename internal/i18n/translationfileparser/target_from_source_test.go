@@ -450,6 +450,25 @@ func TestMarshalTargetFromSourceKeepsTheFilesOwnSourceLanguage(t *testing.T) {
 	if !strings.Contains(string(out), `source-language="en"`) || !strings.Contains(string(out), `target-language="de"`) {
 		t.Fatalf("got:\n%s", out)
 	}
+
+	qt := `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" sourcelanguage="en_GB"><context><name>Main</name><message><source>Hello</source><translation type="unfinished"></translation></message></context></TS>`
+	entries, err = NewDefaultStrategy().ParseIngestEntriesWithSourceLocale("app_en.ts", []byte(qt), "en", "en")
+	if err != nil {
+		t.Fatalf("parse qt: %v", err)
+	}
+	values = map[string]string{}
+	for key := range entries {
+		values[key] = "Hallo"
+	}
+	out, err = MarshalTargetFromSource("app_en.ts", []byte(qt), values, "en", "de")
+	if err != nil {
+		t.Fatalf("marshal qt: %v", err)
+	}
+	if !strings.Contains(string(out), `sourcelanguage="en_GB"`) || !strings.Contains(string(out), "Hallo") {
+		t.Fatalf("got:\n%s", out)
+	}
 }
 
 func TestMarshalTargetFromSourceAddsAColumnForANewLocale(t *testing.T) {

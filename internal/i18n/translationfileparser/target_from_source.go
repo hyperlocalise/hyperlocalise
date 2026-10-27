@@ -25,7 +25,8 @@ func MarshalTargetFromSource(sourcePath string, source []byte, values map[string
 	case ".yaml", ".yml":
 		return MarshalYAML(source, values)
 	case ".xlf", ".xlif", ".xliff":
-		// The file's own source language stays: the project may spell it differently.
+		// Here and for xcstrings and Qt, the file's own source language stays: the project
+		// may spell it differently.
 		return MarshalXLIFF(source, values, "", targetLocale)
 	case ".po", ".pot":
 		return MarshalPOFileForLocale(source, values, targetLocale)
@@ -73,7 +74,7 @@ func MarshalTargetFromSource(sourcePath string, source []byte, values map[string
 		return MarshalSVG(source, values)
 	}
 	if ext == ".ts" && LooksLikeQtLinguistTS(source) {
-		return MarshalQtLinguist(source, values, sourceLocale, targetLocale)
+		return MarshalQtLinguist(source, values, "", targetLocale)
 	}
 	if slices.Contains(JSTSLocaleModuleExts, ext) {
 		return MarshalJSTSLocaleModule(source, values)
