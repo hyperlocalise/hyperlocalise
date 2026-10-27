@@ -24,6 +24,7 @@ export type CustomerIoPipesError =
   | { code: "customer_io_pipes_unavailable"; message: string }
   | { code: "customer_io_not_connected"; message: string }
   | { code: "customer_io_pipes_needs_reauthorization"; message: string }
+  | { code: "customer_io_pipes_provider_missing"; message: string }
   | { code: "customer_io_api_key_required"; message: string };
 
 export type CustomerIoSettingsError =

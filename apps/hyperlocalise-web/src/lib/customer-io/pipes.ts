@@ -39,6 +39,12 @@ const NEEDS_REAUTHORIZATION: CustomerIoPipesError = {
   message: "Reconnect Customer.io in Integrations, then try again.",
 };
 
+const PIPES_PROVIDER_MISSING: CustomerIoPipesError = {
+  code: "customer_io_pipes_provider_missing",
+  message:
+    "WorkOS Pipes does not have the Customer.io provider yet. Enable it in the WorkOS Dashboard, then save again.",
+};
+
 function mapPipesError(code: string): CustomerIoPipesError {
   if (code === "pipes_not_connected") {
     return NOT_CONNECTED;
@@ -117,6 +123,11 @@ export async function saveCustomerIoPipesApiKey(input: {
     secret: input.apiKey,
   });
   if (isErr(result)) {
+    // At save time the key was already validated, so "not connected" means
+    // WorkOS itself does not know the customer-io provider yet.
+    if (result.error.code === "pipes_not_connected") {
+      return err(PIPES_PROVIDER_MISSING);
+    }
     return err(mapPipesError(result.error.code));
   }
   return ok(result.value);

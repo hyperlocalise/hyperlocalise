@@ -56,7 +56,8 @@ function mapCustomerIoError(
 ) {
   if (
     error.code === "customer_io_pipes_unavailable" ||
-    error.code === "customer_io_temporarily_unavailable"
+    error.code === "customer_io_temporarily_unavailable" ||
+    error.code === "customer_io_pipes_provider_missing"
   ) {
     return serviceUnavailableResponse(c, error.code, error.message);
   }
