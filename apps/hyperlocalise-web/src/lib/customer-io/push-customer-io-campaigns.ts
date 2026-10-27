@@ -281,7 +281,7 @@ function customerIoResourcePath(resource: CustomerIoImportResource): string {
   }
 }
 
-function buildCustomerIoResourceSourcePath(
+export function buildCustomerIoResourceSourcePath(
   resource: CustomerIoImportResource,
   actionId: string,
 ): string {
@@ -300,7 +300,7 @@ function buildCustomerIoResourceSourcePath(
   }
 }
 
-async function listCustomerIoResourceActions(
+export async function listCustomerIoResourceActions(
   client: CustomerIoAutomationClient,
   resource: CustomerIoImportResource,
 ): Promise<CustomerIoAction[]> {
