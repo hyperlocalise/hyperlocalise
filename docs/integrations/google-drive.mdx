@@ -61,7 +61,7 @@ Drive skips unsupported rows (<span style="color: #ef4444; font-weight: 600">✗
 
 ## Write-back
 
-For each target locale (defaults to the project’s target locales), Hyperlocalise creates or updates files using the automation **Translation output**. Google Docs, Sheets, and Slides are uploaded back as native Google file types when the source was a Google app file. Push writes Office, PDF, JSON/ARB, Lottie, plain text (`.txt`), and subtitles (`.srt`, `.vtt`, `.sbv`) in the original format. Other keyed formats (Markdown, HTML, CSV, PO, YAML, and similar) are skipped rather than written as JSON with the source extension.
+For each target locale (defaults to the project’s target locales), Hyperlocalise creates or updates files using the automation **Translation output**. Google Docs, Sheets, and Slides are uploaded back as native Google file types when the source was a Google app file. Push writes Office, PDF, JSON/ARB, Lottie, plain text (`.txt`), and subtitles (`.srt`, `.vtt`, `.sbv`) in the original format. Other keyed formats (Markdown, HTML, CSV, PO, YAML, and similar) are skipped rather than written as JSON with the source extension. Plain text pushes the approved translated file from File view: approving segments alone is not enough, approve the file for each locale first. Locales skipped during a push are listed with reasons in the automation run history.
 
 ### Creating and updating Drive files
 

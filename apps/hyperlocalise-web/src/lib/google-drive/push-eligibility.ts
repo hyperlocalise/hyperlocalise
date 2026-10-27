@@ -23,6 +23,7 @@ import {
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 import { resolveGoogleDrivePushTargetLocales } from "./push-google-drive-translations";
+import { isTxtPushReady, isTxtPushSource } from "./txt-push-readiness";
 
 export type GoogleDrivePushFile = {
   driveFileId: string;
@@ -115,9 +116,23 @@ export async function getGoogleDrivePushEligibility(input: {
   for (const mapping of mappings) {
     const eligibleLocales: string[] = [];
     const locales: PushLocaleProgressRow[] = [];
+    // TXT pushes from approved file variants, not from segments: a locale with
+    // approved segments is only eligible when its variant is push-ready too.
+    const requiresVariantApproval = isTxtPushSource(mapping.sourcePath, mapping.ingestFormat);
     const loadPrefilled = (
       request: Parameters<typeof translationService.loadAsPrefilledEntries>[0],
     ) => translationService.loadAsPrefilledEntries(request);
+    const isLocalePushReady = async (targetLocale: string): Promise<boolean> => {
+      if (!requiresVariantApproval) {
+        return true;
+      }
+      return isTxtPushReady({
+        organizationId: input.organizationId,
+        projectId,
+        sourcePath: mapping.sourcePath,
+        targetLocale,
+      });
+    };
     for (const projectLocale of targetLocales) {
       const localeInput = {
         organizationId: input.organizationId,
@@ -128,12 +143,15 @@ export async function getGoogleDrivePushEligibility(input: {
       if (includeLocaleProgress) {
         const localeProgress = await loadPushLocaleTranslationProgress(loadPrefilled, localeInput);
         locales.push(toPushLocaleProgressRow(projectLocale, localeProgress));
-        if (localeProgress.approvedKeyCount > 0) {
+        if (localeProgress.approvedKeyCount > 0 && (await isLocalePushReady(projectLocale))) {
           eligibleLocales.push(projectLocale);
         }
         continue;
       }
-      if (await pushLocaleHasApprovedTranslations(loadPrefilled, localeInput)) {
+      if (
+        (await pushLocaleHasApprovedTranslations(loadPrefilled, localeInput)) &&
+        (await isLocalePushReady(projectLocale))
+      ) {
         eligibleLocales.push(projectLocale);
       }
     }
