@@ -712,7 +712,11 @@ describe("AI usage", () => {
       });
     await db
       .insert(schema.usageEvents)
-      .values([call("2026-06-10T11:59:00Z"), call("2026-06-10T12:01:00Z")]);
+      .values([
+        call("2026-06-10T11:59:00Z"),
+        call("2026-06-10T12:00:00Z"),
+        call("2026-06-10T12:01:00Z"),
+      ]);
     const scope = {
       organizationId: organization.id,
       projectIds: [project.id],
@@ -720,16 +724,19 @@ describe("AI usage", () => {
       includeUnattributed: false,
       groupBy: "area" as const,
     };
-    // Before Reports has started, nothing.
+    // Before Reports has started, nothing, in Costs either.
     await expect(queryAiUsage(scope)).resolves.toMatchObject({ totals: { calls: 0 } });
+    await expect(queryCosts({ ...scope, includeUnattributed: true })).resolves.toMatchObject({
+      totals: { aiUsd: "0.00000000" },
+    });
 
-    // From the moment it started, to the minute.
+    // From the moment it started, that moment included.
     await startReportingForTest(organization.id, new Date("2026-06-10T12:00:00Z"));
     await expect(queryAiUsage(scope)).resolves.toMatchObject({
-      totals: { calls: 1, chargeUsd: "1.00000000" },
+      totals: { calls: 2, chargeUsd: "2.00000000" },
     });
     const costs = await queryCosts({ ...scope, includeUnattributed: true });
-    expect(costs.totals.aiUsd).toBe("1.00000000");
+    expect(costs.totals.aiUsd).toBe("2.00000000");
   });
 
   it("reads a fractional or unreadable token count without failing", async () => {

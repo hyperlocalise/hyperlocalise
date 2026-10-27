@@ -18,7 +18,7 @@ import {
   AI_USAGE_MEASURES,
   type AiUsageDimension,
 } from "@/lib/reporting/ai-usage-origins";
-import { addDays, REPORT_PRESET_DAYS } from "@/lib/reporting/report-period";
+import { addDays } from "@/lib/reporting/report-period";
 import {
   REPORT_STEPS,
   REPORT_UNITS,
@@ -50,7 +50,10 @@ export const MEMBER_TABS: readonly ReportsTab[] = ["time"];
  * Months and quarters are UTC calendar months, as Reports' days are.
  */
 export const REPORTS_RANGES = [
-  ...REPORT_PRESET_DAYS.map(String),
+  // The last 7, 28 or 90 days (`REPORT_PRESET_DAYS`), spelled out so the type keeps each value.
+  "7",
+  "28",
+  "90",
   "month",
   "last_month",
   "quarter",
@@ -61,14 +64,26 @@ export type ReportsRange = (typeof REPORTS_RANGES)[number];
 export type ReportsPreset = Exclude<ReportsRange, "custom">;
 
 /**
- * The UTC days a ready-made range covers, inclusive, as of `today`. "all" starts on the day
- * Reports started for the workspace, or today when it has not.
+ * The UTC days a ready-made range covers, inclusive, as of `today`, never before the day Reports
+ * started for the workspace: nothing is counted before it. "all" starts on that day, or today
+ * when Reports has not started.
  */
 export function presetDates(
   range: ReportsPreset,
   today: string,
   startedDay: string | null,
 ): { from: string; to: string } {
+  if (range === "all")
+    return { from: startedDay && startedDay < today ? startedDay : today, to: today };
+  const span = calendarSpan(range, today);
+  // A span wholly before the start keeps its own days (nothing shows); otherwise it begins there.
+  return startedDay && span.from < startedDay && startedDay <= span.to
+    ? { from: startedDay, to: span.to }
+    : span;
+}
+
+/** A ready-made range's days by the calendar alone, before the Reports start applies. */
+function calendarSpan(range: Exclude<ReportsPreset, "all">, today: string) {
   const [year, month] = today.split("-").map(Number) as [number, number];
   const monthStart = (y: number, m: number) =>
     new Date(Date.UTC(y, m - 1, 1)).toISOString().slice(0, 10);
@@ -79,8 +94,6 @@ export function presetDates(
       return { from: monthStart(year, month - 1), to: addDays(monthStart(year, month), -1) };
     case "quarter":
       return { from: monthStart(year, month - ((month - 1) % 3)), to: today };
-    case "all":
-      return { from: startedDay && startedDay < today ? startedDay : today, to: today };
     default:
       return { from: addDays(today, -(Number(range) - 1)), to: today };
   }

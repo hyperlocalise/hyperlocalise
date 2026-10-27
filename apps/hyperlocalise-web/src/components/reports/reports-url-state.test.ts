@@ -111,6 +111,16 @@ describe("Reports URL state", () => {
       from: "2026-10-21",
       to: "2026-10-21",
     });
+    // Nothing is counted before Reports started, so a range begins there at the earliest...
+    expect(presetDates("28", "2026-10-27", "2026-10-19")).toEqual({
+      from: "2026-10-19",
+      to: "2026-10-27",
+    });
+    // ...but one wholly before the start keeps its own days.
+    expect(presetDates("last_month", "2026-10-27", "2026-10-19")).toEqual({
+      from: "2026-09-01",
+      to: "2026-09-30",
+    });
     expect(parseReportsSearchParams(new URLSearchParams("range=last_month")).range).toBe(
       "last_month",
     );
