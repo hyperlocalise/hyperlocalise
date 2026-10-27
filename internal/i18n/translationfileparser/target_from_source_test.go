@@ -447,6 +447,21 @@ func TestMarshalTargetFromSourceIgnoresKeysTheSourceDoesNotHave(t *testing.T) {
 	}
 }
 
+func TestMarshalTargetFromSourceReplacesStringsdictTextWithEntities(t *testing.T) {
+	source := `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict><key>files</key><dict><key>NSStringLocalizedFormatKey</key><string>%#@n@</string><key>n</key><dict><key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string><key>NSStringFormatValueTypeKey</key><string>d</string><key>one</key><string>Tom &amp; Jerry</string><key>other</key><string>Tom &amp; Jerry &#x2026;</string></dict></dict></dict></plist>`
+
+	out, err := MarshalTargetFromSource("Localizable.stringsdict", []byte(source), map[string]string{"files.n.one": "Tom und Jerry", "files.n.other": "Tom und Jerry …"}, "en", "de")
+	if err != nil {
+		t.Fatalf("marshal target: %v", err)
+	}
+
+	rendered := string(out)
+	if strings.Contains(rendered, "&amp;") || !strings.Contains(rendered, "<string>Tom und Jerry</string>") || !strings.Contains(rendered, "<string>Tom und Jerry …</string>") {
+		t.Fatalf("got:\n%s", rendered)
+	}
+}
+
 func translatedValuesForSource(t *testing.T, path, source string, translate map[string]string) map[string]string {
 	t.Helper()
 	ingested, err := NewDefaultStrategy().ParseIngestEntriesWithSourceLocale(path, []byte(source), "en", "en")
