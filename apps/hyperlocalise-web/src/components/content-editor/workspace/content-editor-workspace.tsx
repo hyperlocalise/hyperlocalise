@@ -668,7 +668,8 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
     });
     const fileViewSegment = overlayCatDocumentFileViewSegment(editorSegment, shell.fileContext);
     // The target Office file is generated from segment translations, so edits go to segments.
-    const isGeneratedFileView = capabilities.family === "office-segments";
+    const isGeneratedFileView =
+      capabilities.family === "office-segments" || capabilities.family === "pdf-segments";
     const canEditFileView = canApprove && !fileViewSegment.isLocked && !isGeneratedFileView;
     const saveDraft = review.onSaveDraft;
     const officeSegments = isGeneratedFileView

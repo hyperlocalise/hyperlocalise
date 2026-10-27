@@ -18,12 +18,13 @@ import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
+// Long assistant stories stream several replies before their checks finish.
+const STORY_TEST_TIMEOUT_MS = 60_000;
 
 export default defineConfig({
   resolve: {
-    alias: {
-      "@": path.join(rootDir, "src"),
-    },
+    // A top-level "@" alias would be merged ahead of the mock aliases in .storybook/main.ts.
+    tsconfigPaths: true,
   },
   test: {
     projects: [
@@ -32,6 +33,7 @@ export default defineConfig({
         plugins: [storybookTest({ configDir: path.join(rootDir, ".storybook") })],
         test: {
           name: "storybook",
+          testTimeout: STORY_TEST_TIMEOUT_MS,
           browser: {
             enabled: true,
             headless: true,

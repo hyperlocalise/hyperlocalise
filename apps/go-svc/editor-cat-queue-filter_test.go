@@ -185,6 +185,7 @@ func TestEditorCatAdvancedFilterSQLBranches(t *testing.T) {
 func TestEditorCatQueueKindAndDownloadPath(t *testing.T) {
 	require.Equal(t, "all_files", editorCatQueueKind("*"))
 	require.Equal(t, "office", editorCatQueueKind("brief.docx"))
+	require.Equal(t, "pdf", editorCatQueueKind("docs/Handbook.PDF"))
 	require.Equal(t, "whole_file", editorCatQueueKind("hero.png"))
 	require.Equal(t, "document", editorCatQueueKind("guide.md"))
 	require.Equal(t, "text", editorCatQueueKind("locales/en.json"))

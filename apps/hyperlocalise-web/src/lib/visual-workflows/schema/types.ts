@@ -44,6 +44,7 @@ export type VisualCatalogType =
   | "logic.merge_objects"
   | "logic.select_path"
   | "logic.coalesce"
+  | "logic.compare"
   | "ai.agent"
   | "logic.for_each"
   | "logic.retry"
@@ -62,6 +63,26 @@ export type VisualCatalogCategory = "trigger" | "action" | "localization" | "log
 export type VisualTaskStep = "translate" | "edit" | "proofread";
 
 export type VisualCrowdinTaskType = "translate" | "proofread";
+
+export type VisualComparisonOperator =
+  | "equal"
+  | "not_equal"
+  | "greater_than"
+  | "greater_than_or_equal"
+  | "less_than"
+  | "less_than_or_equal"
+  | "contains"
+  | "starts_with"
+  | "ends_with"
+  | "and"
+  | "or"
+  | "not";
+
+export type VisualComparisonOperand = {
+  id: string;
+  name: string;
+  type: WorkflowValueType;
+};
 
 /**
  * How Pick assignee chooses among the people of the matched rule: the first one listed, each in
@@ -357,6 +378,13 @@ export type VisualNodeConfig =
       treatEmptyStringAsMissing: boolean;
       treatEmptyArrayAsMissing: boolean;
       treatEmptyObjectAsMissing: boolean;
+    }
+  | {
+      kind: "logic.compare";
+      operator: VisualComparisonOperator;
+      operands: VisualComparisonOperand[];
+      locale?: string;
+      sensitivity?: "base" | "accent" | "case" | "variant";
     }
   | { kind: "ai.agent"; prompt: string; onError?: VisualNodeErrorBehavior }
   | { kind: "logic.for_each"; collection: string }

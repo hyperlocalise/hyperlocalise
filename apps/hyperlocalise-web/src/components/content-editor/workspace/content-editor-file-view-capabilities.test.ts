@@ -73,9 +73,24 @@ describe("cat-file-view-capabilities", () => {
     expect(capabilities.defaultView).toBe("file");
   });
 
-  it("keeps segment views for PDF paths without a file preview", () => {
+  it("offers file view for native PDF paths with block segments", () => {
     const capabilities = resolveCatFileViewCapabilities({
       sourcePath: "docs/handbook.pdf",
+    });
+
+    expect(capabilities).toEqual({
+      family: "pdf-segments",
+      availableViews: ["comfortable", "side-by-side", "file"],
+      defaultView: "side-by-side",
+      viewerId: "pdf",
+    });
+    expect(isCatFileViewAvailable(capabilities)).toBe(true);
+  });
+
+  it("keeps segment-only views for provider PDF paths", () => {
+    const capabilities = resolveCatFileViewCapabilities({
+      sourcePath: "docs/handbook.pdf",
+      providerKind: "crowdin",
     });
 
     expect(capabilities).toEqual({

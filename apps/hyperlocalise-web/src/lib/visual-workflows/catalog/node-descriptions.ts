@@ -110,6 +110,10 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     title: "Default value",
     purpose: "Return the first available value from an ordered list.",
   },
+  "logic.compare": {
+    title: "Compare",
+    purpose: "Compare typed values or combine boolean predicates without implicit coercion.",
+  },
   "ai.agent": { title: "AI Agent", purpose: "Placeholder agent step with tools." },
   "logic.for_each": { title: "Loop", purpose: "Iterate over a collection sequentially." },
   "logic.retry": { title: "Retry", purpose: "Re-run a body region with backoff." },

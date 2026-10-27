@@ -639,6 +639,43 @@ func TestEditorCatQueueOfficeKeysAndGeneratedFileView(t *testing.T) {
 	}
 }
 
+func TestEditorCatQueuePdfKeysAndGeneratedFileView(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	sourcePath := "docs/handbook.pdf"
+	fileID := mustEditorCatSourceFile(t, scope, sourcePath)
+	keyID := mustEditorCatKey(t, scope, fileID, "page-1#1", "Annual report")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath="+sourcePath+"&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Len(t, body.ContentEditorQueue.Segments, 1)
+	require.Equal(t, keyID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+	require.NotNil(t, body.ContentEditorQueue.DocumentView)
+	require.Equal(t, fileID, body.ContentEditorQueue.DocumentView.ExternalStringID)
+	require.NotNil(t, body.ContentEditorQueue.DocumentView.TargetAssetURL)
+	require.Equal(t,
+		"/api/orgs/"+scope.Slug+"/projects/"+scope.ProjectID+"/files/translations/download?sourcePath="+url.QueryEscape(sourcePath)+"&locale=fr",
+		*body.ContentEditorQueue.DocumentView.TargetAssetURL)
+
+	target := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/segments/"+keyID+"/target?sourcePath="+sourcePath+"&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, target.Code, target.Body.String())
+}
+
+func TestEditorCatQueuePdfWithoutKeysHasNoFileView(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	mustEditorCatSourceFile(t, scope, "docs/handbook.pdf")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=docs/handbook.pdf&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Empty(t, body.ContentEditorQueue.Segments)
+	require.Nil(t, body.ContentEditorQueue.DocumentView)
+}
+
 func TestEditorCatQueueOfficeWithoutKeysStaysWholeFile(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "translator")
 	fileID := mustEditorCatSourceFile(t, scope, "docs/brief.docx")

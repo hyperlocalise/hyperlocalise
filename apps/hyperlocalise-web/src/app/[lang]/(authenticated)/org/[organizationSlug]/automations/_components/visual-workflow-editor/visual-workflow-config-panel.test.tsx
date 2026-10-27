@@ -1453,6 +1453,59 @@ describe("VisualWorkflowConfigPanel", () => {
     );
   });
 
+  it("configures Compare operators while preserving stable operand ids", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+
+    function StatefulComparePanel() {
+      const [config, setConfig] = useState<Extract<VisualNodeConfig, { kind: "logic.compare" }>>({
+        kind: "logic.compare",
+        operator: "equal",
+        operands: [
+          { id: "left", name: "Left", type: "string" },
+          { id: "right", name: "Right", type: "string" },
+        ],
+      });
+      const node: VisualWorkflowRfNode = {
+        id: "compare",
+        type: "logic.compare",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("logic.compare"),
+        data: { catalogType: "logic.compare", config, runStatus: "idle" },
+      };
+      return (
+        <VisualWorkflowConfigPanel
+          node={node}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={(next) => {
+            onChangeConfig(next);
+            if (next.kind === "logic.compare") setConfig(next);
+          }}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+        />
+      );
+    }
+
+    renderPanel(<StatefulComparePanel />);
+    expect(screen.getByRole("textbox", { name: "Value 1 name" })).toHaveValue("Left");
+    expect(screen.getAllByText("Connect this on the canvas.")).toHaveLength(2);
+    await user.click(screen.getByRole("combobox", { name: "Operator" }));
+    await user.click(await screen.findByRole("option", { name: "AND" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        operator: "and",
+        operands: [
+          expect.objectContaining({ id: "left", type: "boolean" }),
+          expect.objectContaining({ id: "right", type: "boolean" }),
+        ],
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Add condition" }));
+    expect(screen.getByRole("textbox", { name: "Value 3 name" })).toHaveValue("Condition 3");
+  });
+
   it("resets Crowdin people IDs when the saved value or selected step changes", () => {
     const first = pickAssigneeCrowdinNode("pick-a", ["12", "14"]);
     const { rerender } = renderPanel(

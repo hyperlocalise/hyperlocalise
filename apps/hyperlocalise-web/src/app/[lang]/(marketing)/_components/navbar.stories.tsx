@@ -20,6 +20,12 @@ const meta = {
   component: NavbarView,
   parameters: {
     layout: "fullscreen",
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: "/en/pricing",
+      },
+    },
   },
   args: {
     auth: {

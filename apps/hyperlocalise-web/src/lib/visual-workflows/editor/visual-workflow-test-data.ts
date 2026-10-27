@@ -106,6 +106,7 @@ const MOCKABLE: Record<VisualCatalogType, boolean> = {
   "logic.merge_objects": false,
   "logic.select_path": false,
   "logic.coalesce": false,
+  "logic.compare": false,
   "logic.for_each": false,
   "logic.retry": false,
   "logic.sequence": false,

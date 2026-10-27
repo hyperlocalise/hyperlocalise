@@ -14,6 +14,7 @@ import { getWorkflowInputFields, getWorkflowOutputFields } from "../catalog/node
 import type {
   CanonicalVisualWorkflowNode,
   VisualWorkflowIssueReason,
+  VisualNodeConfig,
   VisualWorkflowV3Definition,
   VisualWorkflowV3Edge,
   WorkflowBinding,
@@ -49,6 +50,41 @@ export type CompiledVisualWorkflowV3Definition = {
   executionEdges: Extract<VisualWorkflowV3Edge, { kind: "execution" }>[];
   issues: VisualWorkflowV3CompilationIssue[];
 };
+
+function comparisonOperandTypesAreCompatible(
+  config: Extract<VisualNodeConfig, { kind: "logic.compare" }>,
+): boolean {
+  const types = config.operands.map((operand) => operand.type);
+  if (config.locale && !types.every((type) => type === "string")) return false;
+  if (types.includes("unknown")) return true;
+
+  switch (config.operator) {
+    case "and":
+    case "or":
+    case "not":
+      return types.every((type) => type === "boolean");
+    case "starts_with":
+    case "ends_with":
+      return types.length === 2 && types.every((type) => type === "string");
+    case "greater_than":
+    case "greater_than_or_equal":
+    case "less_than":
+    case "less_than_or_equal":
+      return (
+        types.length === 2 &&
+        types[0] === types[1] &&
+        (types[0] === "string" || types[0] === "number")
+      );
+    case "contains":
+      return (
+        types.length === 2 &&
+        ((types[0] === "string" && types[1] === "string") || types[0] === "array")
+      );
+    case "equal":
+    case "not_equal":
+      return types.length === 2 && types[0] === types[1];
+  }
+}
 
 function hasDataSourcePort(node: CanonicalVisualWorkflowNode, portId: string): boolean {
   const fields = getWorkflowOutputFields(node);
@@ -398,7 +434,8 @@ export function compileVisualWorkflowV3Definition(
       node.config.kind !== "logic.create_object" &&
       node.config.kind !== "logic.merge_objects" &&
       node.config.kind !== "logic.select_path" &&
-      node.config.kind !== "logic.coalesce"
+      node.config.kind !== "logic.coalesce" &&
+      node.config.kind !== "logic.compare"
     )
       continue;
 
@@ -423,6 +460,13 @@ export function compileVisualWorkflowV3Definition(
         nodeId: node.id,
         field: "path",
         reason: "required",
+      });
+    }
+
+    if (node.config.kind === "logic.compare" && !comparisonOperandTypesAreCompatible(node.config)) {
+      issues.push({
+        code: "incompatible_data_types",
+        nodeId: node.id,
       });
     }
   }

@@ -67,6 +67,7 @@ import { TypographyP } from "@/components/ui/typography";
 import {
   createAssignmentRule,
   createCoalesceInputId,
+  createComparisonOperandId,
   createMergeInputId,
   createObjectPortId,
   createReturnOutputId,
@@ -85,6 +86,8 @@ import type {
   VisualAssigneeSource,
   VisualAssignmentStrategy,
   VisualCatalogType,
+  VisualComparisonOperand,
+  VisualComparisonOperator,
   VisualKeyValuePair,
   VisualNodeConfig,
   VisualNodeErrorBehavior,
@@ -328,7 +331,8 @@ export function VisualWorkflowConfigPanel({
     (field) =>
       field.name.startsWith("value.") &&
       config.kind !== "logic.create_object" &&
-      config.kind !== "logic.merge_objects",
+      config.kind !== "logic.merge_objects" &&
+      config.kind !== "logic.compare",
   );
 
   // The tab stays as chosen from step to step, and starts over when the panel is opened again.
@@ -1806,6 +1810,186 @@ export function VisualWorkflowConfigPanel({
                 }
               />
             </div>
+          </div>
+        ) : null}
+        {config.kind === "logic.compare" ? (
+          <div className="grid gap-3">
+            <SelectField
+              id="vw-compare-operator"
+              label={intl.formatMessage(messages.compareOperator)}
+              value={config.operator}
+              items={COMPARISON_OPERATORS.map((operator) => ({
+                value: operator,
+                label: intl.formatMessage(COMPARISON_OPERATOR_MESSAGES[operator]),
+              }))}
+              onValueChange={(value) => {
+                if (!isComparisonOperator(value)) return;
+                onChangeConfig({
+                  ...config,
+                  operator: value,
+                  operands: comparisonOperandsForOperator(config.operands, value),
+                  ...(["and", "or", "not"].includes(value)
+                    ? { locale: undefined, sensitivity: undefined }
+                    : {}),
+                });
+              }}
+            />
+            <Label>
+              <FormattedMessage {...messages.compareOperands} />
+            </Label>
+            {config.operands.map((operand, index) => {
+              const portId = `value.${operand.id}`;
+              const connected = connectedInputProps(portId);
+              const booleanOperator = ["and", "or", "not"].includes(config.operator);
+              return (
+                <div key={operand.id} className="grid gap-2 rounded-md border border-border p-2">
+                  <div className="grid grid-cols-[1fr_7rem] gap-2">
+                    <Input
+                      aria-label={intl.formatMessage(messages.compareOperandName, {
+                        index: index + 1,
+                      })}
+                      value={operand.name}
+                      aria-invalid={invalidFields.has(portId) || undefined}
+                      onChange={(event) =>
+                        onChangeConfig({
+                          ...config,
+                          operands: config.operands.map((entry, operandIndex) =>
+                            operandIndex === index ? { ...entry, name: event.target.value } : entry,
+                          ),
+                        })
+                      }
+                    />
+                    <Select
+                      value={operand.type}
+                      disabled={booleanOperator}
+                      onValueChange={(type) => {
+                        if (!isWorkflowValueType(type)) return;
+                        onChangeConfig({
+                          ...config,
+                          operands: config.operands.map((entry, operandIndex) =>
+                            operandIndex === index ? { ...entry, type } : entry,
+                          ),
+                          ...(type !== "string"
+                            ? { locale: undefined, sensitivity: undefined }
+                            : {}),
+                        });
+                      }}
+                    >
+                      <SelectTrigger
+                        aria-label={intl.formatMessage(messages.compareOperandType, {
+                          index: index + 1,
+                        })}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WORKFLOW_VALUE_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <WorkflowBoundField
+                    id={`vw-compare-value-${operand.id}`}
+                    label={operand.name}
+                    value=""
+                    onChange={() => {}}
+                    editable={false}
+                    invalid={connected.invalid}
+                    port={connected.port}
+                  />
+                  {["and", "or"].includes(config.operator) ? (
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={config.operands.length <= 2}
+                        aria-label={intl.formatMessage(messages.removeCompareOperand, {
+                          index: index + 1,
+                        })}
+                        onClick={() =>
+                          onChangeConfig({
+                            ...config,
+                            operands: config.operands.filter(
+                              (_, operandIndex) => operandIndex !== index,
+                            ),
+                          })
+                        }
+                      >
+                        <TrashIcon className="size-4" />
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+            {["and", "or"].includes(config.operator) ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={config.operands.length >= 12}
+                onClick={() =>
+                  onChangeConfig({
+                    ...config,
+                    operands: [
+                      ...config.operands,
+                      {
+                        id: createComparisonOperandId(),
+                        name: `Condition ${config.operands.length + 1}`,
+                        type: "boolean",
+                      },
+                    ],
+                  })
+                }
+              >
+                <PlusIcon className="size-4" />
+                <FormattedMessage {...messages.addCompareOperand} />
+              </Button>
+            ) : null}
+            {!(["and", "or", "not"] as string[]).includes(config.operator) ? (
+              <div className="grid gap-2 border-t border-border pt-3">
+                <CheckboxField
+                  id="vw-compare-locale-enabled"
+                  label={intl.formatMessage(messages.compareLocaleEnabled)}
+                  checked={config.locale !== undefined}
+                  onCheckedChange={(enabled) =>
+                    onChangeConfig({
+                      ...config,
+                      locale: enabled ? "en" : undefined,
+                      sensitivity: enabled ? "variant" : undefined,
+                    })
+                  }
+                />
+                {config.locale !== undefined ? (
+                  <>
+                    <TextField
+                      id="vw-compare-locale"
+                      label={intl.formatMessage(messages.compareLocale)}
+                      value={config.locale}
+                      invalid={invalidFields.has("locale")}
+                      onChange={(locale) => onChangeConfig({ ...config, locale })}
+                    />
+                    <SelectField
+                      id="vw-compare-sensitivity"
+                      label={intl.formatMessage(messages.compareSensitivity)}
+                      value={config.sensitivity ?? "variant"}
+                      items={COMPARISON_SENSITIVITIES.map((sensitivity) => ({
+                        value: sensitivity,
+                        label: sensitivity,
+                      }))}
+                      onValueChange={(sensitivity) => {
+                        if (!isComparisonSensitivity(sensitivity)) return;
+                        onChangeConfig({ ...config, sensitivity });
+                      }}
+                    />
+                  </>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : null}
         {config.kind === "logic.for_each" ? (
@@ -3833,6 +4017,70 @@ const WORKFLOW_VALUE_TYPES: readonly WorkflowValueType[] = [
   "array",
   "unknown",
 ];
+
+const COMPARISON_OPERATORS: readonly VisualComparisonOperator[] = [
+  "equal",
+  "not_equal",
+  "greater_than",
+  "greater_than_or_equal",
+  "less_than",
+  "less_than_or_equal",
+  "contains",
+  "starts_with",
+  "ends_with",
+  "and",
+  "or",
+  "not",
+];
+
+const COMPARISON_OPERATOR_MESSAGES: Record<VisualComparisonOperator, MessageDescriptor> = {
+  equal: messages.compareEqual,
+  not_equal: messages.compareNotEqual,
+  greater_than: messages.compareGreaterThan,
+  greater_than_or_equal: messages.compareGreaterThanOrEqual,
+  less_than: messages.compareLessThan,
+  less_than_or_equal: messages.compareLessThanOrEqual,
+  contains: messages.compareContains,
+  starts_with: messages.compareStartsWith,
+  ends_with: messages.compareEndsWith,
+  and: messages.compareAnd,
+  or: messages.compareOr,
+  not: messages.compareNot,
+};
+
+const COMPARISON_SENSITIVITIES = ["base", "accent", "case", "variant"] as const;
+
+function isComparisonOperator(value: string | null): value is VisualComparisonOperator {
+  return COMPARISON_OPERATORS.includes(value as VisualComparisonOperator);
+}
+
+function isComparisonSensitivity(
+  value: string | null,
+): value is (typeof COMPARISON_SENSITIVITIES)[number] {
+  return COMPARISON_SENSITIVITIES.includes(value as (typeof COMPARISON_SENSITIVITIES)[number]);
+}
+
+function comparisonOperandsForOperator(
+  operands: readonly VisualComparisonOperand[],
+  operator: VisualComparisonOperator,
+): VisualComparisonOperand[] {
+  const count = operator === "not" ? 1 : 2;
+  const booleanOperator = ["and", "or", "not"].includes(operator);
+  const next = operands.slice(0, operator === "and" || operator === "or" ? operands.length : count);
+  while (next.length < count) {
+    next.push({
+      id: createComparisonOperandId(),
+      name: booleanOperator ? `Condition ${next.length + 1}` : next.length === 0 ? "Left" : "Right",
+      type: booleanOperator ? "boolean" : "unknown",
+    });
+  }
+  return next.map((operand, index) => ({
+    ...operand,
+    name:
+      operand.name || (booleanOperator ? `Condition ${index + 1}` : index === 0 ? "Left" : "Right"),
+    ...(booleanOperator ? { type: "boolean" as const } : {}),
+  }));
+}
 
 function isWorkflowValueType(value: string | null): value is WorkflowValueType {
   return WORKFLOW_VALUE_TYPES.includes(value as WorkflowValueType);

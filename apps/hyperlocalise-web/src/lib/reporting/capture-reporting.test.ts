@@ -31,6 +31,7 @@ import {
   captureAnalysis,
   captureCompletions,
   captureJobStatus,
+  captureTaskOverrides,
   isMemoryUnavailableError,
   MemoryScoreCache,
   recordAnalysis,
@@ -783,6 +784,89 @@ describe("reporting capture", () => {
         outputTokens: 4,
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it("posts a fixed task fee once when the job has succeeded", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    const [running] = await db
+      .insert(schema.jobs)
+      .values({
+        id: `job_${randomUUID()}`,
+        organizationId: organization.id,
+        projectId: project.id,
+        createdByUserId: user.id,
+        kind: "translation",
+        status: "running",
+        inputPayload: {},
+      })
+      .returning();
+    const [succeeded] = await db
+      .insert(schema.jobs)
+      .values({
+        id: `job_${randomUUID()}`,
+        organizationId: organization.id,
+        projectId: project.id,
+        createdByUserId: user.id,
+        kind: "translation",
+        status: "succeeded",
+        completedAt: new Date("2026-06-02T12:00:00Z"),
+        inputPayload: {},
+      })
+      .returning();
+    const [runningRate, succeededRate] = await db
+      .insert(schema.reportingTaskRates)
+      .values([
+        {
+          organizationId: organization.id,
+          jobId: running!.id,
+          step: "translation",
+          overrideUsd: "80",
+        },
+        {
+          organizationId: organization.id,
+          jobId: succeeded!.id,
+          step: "translation",
+          overrideUsd: "250",
+        },
+        {
+          organizationId: organization.id,
+          jobId: succeeded!.id,
+          step: "review",
+        },
+      ])
+      .returning();
+
+    await captureTaskOverrides(running!.id);
+    await captureTaskOverrides(succeeded!.id);
+    await captureTaskOverrides(succeeded!.id);
+    await captureJobStatus({
+      jobId: succeeded!.id,
+      status: "succeeded",
+      operationKey: `status:${succeeded!.id}:succeeded`,
+    });
+
+    const costs = await db
+      .select({
+        jobId: schema.reportingCosts.jobId,
+        operationKey: schema.reportingCosts.operationKey,
+        amountUsd: schema.reportingCosts.amountUsd,
+        kind: schema.reportingCosts.kind,
+        basis: schema.reportingCosts.basis,
+        step: schema.reportingCosts.step,
+      })
+      .from(schema.reportingCosts)
+      .where(eq(schema.reportingCosts.organizationId, organization.id));
+    expect(costs).toEqual([
+      {
+        jobId: succeeded!.id,
+        operationKey: `task-override:${succeededRate!.id}`,
+        amountUsd: "250.00000000",
+        kind: "human",
+        basis: "manual",
+        step: "translation",
+      },
+    ]);
+    expect(runningRate).toBeDefined();
   });
 
   it("keeps job status capture from failing the caller", async () => {

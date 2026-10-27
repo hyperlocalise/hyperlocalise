@@ -8,6 +8,11 @@ go_library(
     ),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser",
     visibility = ["//visibility:public"],
+    embedsrcs = [
+        "fonts/NotoSansLao.ttf",
+        "fonts/NotoSansThai.ttf",
+        "fonts/wqy-microhei.ttf",
+    ],
     deps = [
         "@com_github_klippa_app_go_pdfium//:go-pdfium",
         "@com_github_klippa_app_go_pdfium//enums",
@@ -27,6 +32,7 @@ go_library(
         "@com_github_yuin_goldmark_v2//parser",
         "@com_github_yuin_goldmark_v2//text",
         "@in_gopkg_yaml_v3//:yaml_v3",
+        "@org_golang_x_image//font/sfnt",
         "@org_golang_x_net//html",
         "@org_golang_x_text//language",
     ],

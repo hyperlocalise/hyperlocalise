@@ -17,22 +17,18 @@ const (
 	// framing sit outside that budget so a 25 MiB PDF can still be exported.
 	maxPdfApplyTemplateBytes          = 25 << 20
 	maxPdfApplyValuesBytes            = 4 << 20
-	maxPdfApplyLocaleBytes            = 128
 	maxPdfApplyMultipartOverheadBytes = 1 << 20
 	maxPdfApplyBodyBytes              = maxPdfApplyTemplateBytes +
 		maxPdfApplyValuesBytes +
-		maxPdfApplyLocaleBytes +
 		maxPdfApplyMultipartOverheadBytes
 	pdfOverflowKeysHeader    = "X-Hyperlocalise-Overflow-Keys"
 	pdfApplyTemplateFormName = "template"
 	pdfApplyValuesFormName   = "values"
-	pdfApplyLocaleFormName   = "targetLocale"
 )
 
 type pdfApplyRequest struct {
-	template     []byte
-	values       map[string]string
-	targetLocale string
+	template []byte
+	values   map[string]string
 }
 
 func (h *handler) applyPdf(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +50,7 @@ func (h *handler) applyPdf(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content, overflow, err := translationfileparser.MarshalPDF(req.template, req.values, req.targetLocale)
+	content, overflow, err := translationfileparser.MarshalPDF(req.template, req.values)
 	if err != nil {
 		writePdfApplyError(w, r, err)
 		return
@@ -141,12 +137,6 @@ func readPdfApplyPart(part *multipart.Part, req *pdfApplyRequest, seenTemplate *
 			return pdfApplyClientError{code: "invalid_values", message: "Translation values must be a JSON object"}
 		}
 		req.values = values
-	case pdfApplyLocaleFormName:
-		raw, err := io.ReadAll(io.LimitReader(part, maxPdfApplyLocaleBytes))
-		if err != nil {
-			return err
-		}
-		req.targetLocale = strings.TrimSpace(string(raw))
 	default:
 		// Ignore unknown fields for forward compatibility.
 	}

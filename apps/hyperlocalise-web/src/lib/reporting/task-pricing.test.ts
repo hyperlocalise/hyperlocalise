@@ -16,54 +16,151 @@ import { randomUUID } from "node:crypto";
 
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
-import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
 
+import { createReportingTestFixture } from "./reporting.fixture";
 import { lockedPricingSteps } from "./task-pricing";
 
-const projectFixture = createProjectTestFixture();
+const reporting = createReportingTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
 afterEach(async () => {
-  await projectFixture.cleanup();
+  await reporting.cleanup();
 });
 
 describe("lockedPricingSteps", () => {
-  it("locks a step at a person's first cost of work, not at an agent job's AI calls", async () => {
-    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
-    const [job] = await db
-      .insert(schema.jobs)
-      .values({
-        id: `job_${randomUUID()}`,
+  it("locks every step once a task has ended, and only worked steps while it is open", async () => {
+    const { organization, project, user, createJob } = await reporting.createWorkspace();
+    const open = await createJob({ status: "queued" });
+    const ended = await createJob({ status: "succeeded" });
+
+    expect([
+      ...(await lockedPricingSteps({
         organizationId: organization.id,
-        projectId: project.id,
-        createdByUserId: user.id,
-        kind: "translation",
-        status: "running",
-        inputPayload: {},
-      })
-      .returning();
-    const cost = (kind: "ai" | "human" | "expense", step: "translation" | "review") => ({
+        jobId: open.id,
+        status: open.status,
+      })),
+    ]).toEqual([]);
+    expect(
+      await lockedPricingSteps({
+        organizationId: organization.id,
+        jobId: ended.id,
+        status: ended.status,
+      }),
+    ).toEqual(new Set(["translation", "review"]));
+
+    await db.insert(schema.reportingTimeEntries).values({
       organizationId: organization.id,
       projectId: project.id,
-      jobId: job!.id,
-      operationKey: `${kind}:${randomUUID()}`,
-      kind,
-      step,
-      basis: "unpriced" as const,
+      jobId: open.id,
+      contributorId: user.id,
+      step: "translation",
+      targetLocale: "fr-FR",
+      workDate: new Date("2026-06-01T00:00:00Z"),
+      minutes: 15,
     });
-    const locked = () =>
-      lockedPricingSteps({ organizationId: organization.id, jobId: job!.id, status: job!.status });
+    expect(
+      await lockedPricingSteps({
+        organizationId: organization.id,
+        jobId: open.id,
+        status: open.status,
+      }),
+    ).toEqual(new Set(["translation"]));
 
-    // The job's first AI call, and an expense, are not work the task's pricing prices.
-    await db
-      .insert(schema.reportingCosts)
-      .values([cost("ai", "translation"), cost("expense", "review")]);
-    expect(await locked()).toEqual(new Set());
-    await db.insert(schema.reportingCosts).values(cost("human", "review"));
-    expect(await locked()).toEqual(new Set(["review"]));
+    await db.insert(schema.reportingCosts).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: open.id,
+      operationKey: `expense:${randomUUID()}`,
+      kind: "expense",
+      step: "review",
+      amountUsd: "20",
+      basis: "manual",
+    });
+    expect(
+      await lockedPricingSteps({
+        organizationId: organization.id,
+        jobId: open.id,
+        status: open.status,
+      }),
+    ).toEqual(new Set(["translation"]));
+
+    await db.insert(schema.reportingCosts).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: open.id,
+      operationKey: `human:${randomUUID()}`,
+      kind: "human",
+      step: "review",
+      amountUsd: "40",
+      basis: "manual",
+    });
+    expect(
+      await lockedPricingSteps({
+        organizationId: organization.id,
+        jobId: open.id,
+        status: open.status,
+      }),
+    ).toEqual(new Set(["translation", "review"]));
+  });
+
+  it("ignores voided time and costs when deciding that work has started", async () => {
+    const { organization, project, user, createJob } = await reporting.createWorkspace();
+    const job = await createJob({ status: "running" });
+    await db.insert(schema.reportingTimeEntries).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: job.id,
+      contributorId: user.id,
+      step: "translation",
+      targetLocale: "fr-FR",
+      workDate: new Date("2026-06-01T00:00:00Z"),
+      minutes: 15,
+      voided: true,
+    });
+    await db.insert(schema.reportingCosts).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: job.id,
+      operationKey: `human:${randomUUID()}`,
+      kind: "human",
+      step: "review",
+      amountUsd: "40",
+      basis: "manual",
+      voided: true,
+    });
+
+    expect([
+      ...(await lockedPricingSteps({
+        organizationId: organization.id,
+        jobId: job.id,
+        status: job.status,
+      })),
+    ]).toEqual([]);
+  });
+
+  it("does not lock a step at an agent job's AI calls", async () => {
+    const { organization, project, createJob } = await reporting.createWorkspace();
+    const job = await createJob({ status: "running" });
+    await db.insert(schema.reportingCosts).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: job.id,
+      operationKey: `ai:${randomUUID()}`,
+      kind: "ai",
+      step: "translation",
+      basis: "unpriced",
+    });
+
+    expect([
+      ...(await lockedPricingSteps({
+        organizationId: organization.id,
+        jobId: job.id,
+        status: job.status,
+      })),
+    ]).toEqual([]);
   });
 });
