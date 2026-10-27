@@ -127,7 +127,12 @@ export async function loadProjectSourceFormatTranslationDownload(input: {
   }
   const fallBack = (reason: string, details: Record<string, unknown> = {}) => {
     logger.warn(
-      { projectId: input.projectId, reason, ...details },
+      {
+        projectId: input.projectId,
+        format: inferSupportedTranslationFileFormat(input.sourcePath),
+        reason,
+        ...details,
+      },
       "translation file not written in its own format; downloading JSON",
     );
     return JSON_FALLBACK;
