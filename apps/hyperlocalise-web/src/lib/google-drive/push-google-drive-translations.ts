@@ -24,16 +24,16 @@ import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { isErr } from "@/lib/primitives/result/results";
-import { getImageVariant } from "@/lib/projects/files/image-variant-service";
-import { loadProjectFileVariant } from "@/lib/projects/files/file-variant-download";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import { loadProjectOfficeTranslationDownload } from "@/lib/projects/files/office-translation-download";
 import { loadProjectPdfTranslationDownload } from "@/lib/projects/files/pdf-translation-download";
+import { loadProjectTxtTranslationDownload } from "@/lib/projects/files/txt-translation-download";
 import { loadProjectSubtitleTranslationDownload } from "@/lib/projects/files/subtitle-translation-download";
 import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 import {
   inferSupportedOfficeTranslationFileFormat,
   inferSupportedPdfTranslationFileFormat,
+  inferSupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
 import { GOOGLE_EXPORT_MIME, GOOGLE_MIME } from "./constants";
@@ -45,7 +45,6 @@ import {
 } from "./drive-api";
 import { loadGoogleDrivePipesAccessToken } from "./pipes";
 import { relativePathFromGoogleDriveSourcePath } from "./source-path";
-import { isTxtPushSource } from "./txt-push-readiness";
 import {
   buildTranslatedDriveName,
   formatDriveLocaleTag,
@@ -214,7 +213,6 @@ async function ensureFolderPath(input: {
 
 export type GoogleDrivePushSkipReason =
   | "no_approved_translations"
-  | "variant_not_approved"
   | "unsupported_format"
   | "unchanged";
 
@@ -281,33 +279,25 @@ export async function resolveTranslatedBytes(input: {
     };
   }
 
-  const isPlainTextSource = isTxtPushSource(input.sourcePath, input.ingestFormat);
+  const isPlainTextSource =
+    inferSupportedTranslationFileFormat(input.sourcePath) === "txt" || input.ingestFormat === "txt";
   if (isPlainTextSource) {
-    const variant = await getImageVariant({
+    const txt = await loadProjectTxtTranslationDownload({
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
       targetLocale: input.targetLocale,
+      approvedTranslationsOnly: true,
     });
-    if (variant?.status !== "approved") {
-      return { status: "skipped", reason: "variant_not_approved" };
-    }
-    const fileVariant = await loadProjectFileVariant({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      sourcePath: input.sourcePath,
-      locale: input.targetLocale,
-    });
-    if (!fileVariant) {
-      return { status: "skipped", reason: "variant_not_approved" };
+    if (isErr(txt) || !txt.value) {
+      return { status: "skipped", reason: "no_approved_translations" };
     }
     const fileName = input.sourcePath.split("/").pop() ?? "file";
-    const buffer = Buffer.from(await new Response(fileVariant.body).arrayBuffer());
     return {
       status: "ready",
-      buffer,
+      buffer: txt.value.content,
       fileName,
-      mimeType: "text/plain; charset=utf-8",
+      mimeType: txt.value.contentType,
     };
   }
 

@@ -28,11 +28,10 @@ import {
 const mocks = vi.hoisted(() => ({
   loadProjectOfficeTranslationDownload: vi.fn(),
   loadProjectPdfTranslationDownload: vi.fn(),
+  loadProjectTxtTranslationDownload: vi.fn(),
   loadProjectTranslationsAsPrefilledEntries: vi.fn(),
   loadProjectLottieTranslationDownload: vi.fn(),
   loadProjectSubtitleTranslationDownload: vi.fn(),
-  getImageVariant: vi.fn(),
-  loadProjectFileVariant: vi.fn(),
   loadGoogleDrivePipesAccessToken: vi.fn(),
   getGoogleDriveFile: vi.fn(),
   uploadGoogleDriveFile: vi.fn(),
@@ -50,6 +49,11 @@ vi.mock("@/lib/projects/files/pdf-translation-download", () => ({
     mocks.loadProjectPdfTranslationDownload(...args),
 }));
 
+vi.mock("@/lib/projects/files/txt-translation-download", () => ({
+  loadProjectTxtTranslationDownload: (...args: unknown[]) =>
+    mocks.loadProjectTxtTranslationDownload(...args),
+}));
+
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
   loadProjectTranslationsAsPrefilledEntries: (...args: unknown[]) =>
     mocks.loadProjectTranslationsAsPrefilledEntries(...args),
@@ -63,14 +67,6 @@ vi.mock("@/lib/projects/files/lottie-translation-download", () => ({
 vi.mock("@/lib/projects/files/subtitle-translation-download", () => ({
   loadProjectSubtitleTranslationDownload: (...args: unknown[]) =>
     mocks.loadProjectSubtitleTranslationDownload(...args),
-}));
-
-vi.mock("@/lib/projects/files/image-variant-service", () => ({
-  getImageVariant: (...args: unknown[]) => mocks.getImageVariant(...args),
-}));
-
-vi.mock("@/lib/projects/files/file-variant-download", () => ({
-  loadProjectFileVariant: (...args: unknown[]) => mocks.loadProjectFileVariant(...args),
 }));
 
 vi.mock("./pipes", () => ({
@@ -201,18 +197,16 @@ describe("loadTranslatedBytes", () => {
   beforeEach(() => {
     mocks.loadProjectOfficeTranslationDownload.mockReset();
     mocks.loadProjectPdfTranslationDownload.mockReset();
+    mocks.loadProjectTxtTranslationDownload.mockReset();
     mocks.loadProjectTranslationsAsPrefilledEntries.mockReset();
     mocks.loadProjectLottieTranslationDownload.mockReset();
     mocks.loadProjectSubtitleTranslationDownload.mockReset();
-    mocks.getImageVariant.mockReset();
-    mocks.loadProjectFileVariant.mockReset();
     mocks.loadGoogleDrivePipesAccessToken.mockReset();
     mocks.getGoogleDriveFile.mockReset();
     mocks.uploadGoogleDriveFile.mockReset();
     mocks.dbSelect.mockReset();
     mocks.dbUpdate.mockReset();
     mocks.loadProjectSubtitleTranslationDownload.mockResolvedValue({ ok: true, value: null });
-    mocks.getImageVariant.mockResolvedValue(null);
   });
 
   it("returns the office download for docx sources", async () => {
@@ -342,17 +336,14 @@ describe("loadTranslatedBytes", () => {
     ).resolves.toBeNull();
   });
 
-  it("returns approved plain text document variants as text/plain", async () => {
-    mocks.getImageVariant.mockResolvedValue({ status: "approved" });
-    mocks.loadProjectFileVariant.mockResolvedValue({
-      body: new ReadableStream({
-        start(controller) {
-          controller.enqueue(new TextEncoder().encode("Translated notes"));
-          controller.close();
-        },
-      }),
-      contentType: "text/plain; charset=utf-8",
-      storedFilename: "notes.txt",
+  it("returns the txt download for txt sources", async () => {
+    mocks.loadProjectTxtTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: {
+        content: Buffer.from("Translated notes"),
+        contentType: "text/plain; charset=utf-8",
+        extension: ".txt",
+      },
     });
 
     await expect(
@@ -366,11 +357,16 @@ describe("loadTranslatedBytes", () => {
       fileName: "notes.txt",
       mimeType: "text/plain; charset=utf-8",
     });
+    expect(mocks.loadProjectTxtTranslationDownload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        approvedTranslationsOnly: true,
+      }),
+    );
     expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
   });
 
-  it("returns null for plain text when the variant is missing or not approved", async () => {
-    mocks.getImageVariant.mockResolvedValue({ status: "needs_review" });
+  it("returns null for txt when the download has no ready translations", async () => {
+    mocks.loadProjectTxtTranslationDownload.mockResolvedValue({ ok: true, value: null });
 
     await expect(
       loadTranslatedBytes({
@@ -379,10 +375,11 @@ describe("loadTranslatedBytes", () => {
         ingestFormat: "txt",
       }),
     ).resolves.toBeNull();
-    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
 
-    mocks.getImageVariant.mockResolvedValue({ status: "approved" });
-    mocks.loadProjectFileVariant.mockResolvedValue(null);
+    mocks.loadProjectTxtTranslationDownload.mockResolvedValue({
+      ok: false,
+      error: { code: "plaintext_export_failed", message: "Could not write translations." },
+    });
 
     await expect(
       loadTranslatedBytes({
@@ -394,16 +391,13 @@ describe("loadTranslatedBytes", () => {
   });
 
   it("treats ingestFormat txt as plain text when the path has no extension", async () => {
-    mocks.getImageVariant.mockResolvedValue({ status: "approved" });
-    mocks.loadProjectFileVariant.mockResolvedValue({
-      body: new ReadableStream({
-        start(controller) {
-          controller.enqueue(new TextEncoder().encode("Translated readme"));
-          controller.close();
-        },
-      }),
-      contentType: "text/plain; charset=utf-8",
-      storedFilename: "readme.txt",
+    mocks.loadProjectTxtTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: {
+        content: Buffer.from("Translated readme"),
+        contentType: "text/plain; charset=utf-8",
+        extension: ".txt",
+      },
     });
 
     await expect(
@@ -487,8 +481,8 @@ describe("resolveTranslatedBytes", () => {
     ingestFormat: "json",
   };
 
-  it("reports variant_not_approved for txt without an approved file variant", async () => {
-    mocks.getImageVariant.mockResolvedValue({ status: "needs_review" });
+  it("reports no_approved_translations for txt without ready translations", async () => {
+    mocks.loadProjectTxtTranslationDownload.mockResolvedValue({ ok: true, value: null });
 
     await expect(
       resolveTranslatedBytes({
@@ -496,7 +490,7 @@ describe("resolveTranslatedBytes", () => {
         sourcePath: "google-drive/folder/notes.txt",
         ingestFormat: "txt",
       }),
-    ).resolves.toEqual({ status: "skipped", reason: "variant_not_approved" });
+    ).resolves.toEqual({ status: "skipped", reason: "no_approved_translations" });
   });
 
   it("reports unsupported_format for keyed formats without a writer", async () => {
@@ -577,7 +571,7 @@ describe("runPushGoogleDriveTranslations", () => {
       ok: true,
       value: { parents: ["parent-1"], driveId: null },
     });
-    mocks.getImageVariant.mockResolvedValue({ status: "needs_review" });
+    mocks.loadProjectTxtTranslationDownload.mockResolvedValue({ ok: true, value: null });
 
     await expect(
       runPushGoogleDriveTranslations({
@@ -592,7 +586,7 @@ describe("runPushGoogleDriveTranslations", () => {
         {
           sourcePath: "google-drive/folder/notes.txt",
           driveFileId: "drive-1",
-          locales: [{ locale: "vi-VN", reason: "variant_not_approved" }],
+          locales: [{ locale: "vi-VN", reason: "no_approved_translations" }],
         },
       ],
     });
