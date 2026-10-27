@@ -76,6 +76,12 @@ import {
   serializeCustomerIoTranslationMap,
   type CustomerIoTranslationMap,
 } from "./translation-map";
+import {
+  buildCustomerIoEmailSourcePath,
+  hashCustomerIoEmailEnvelope,
+  seedEntriesForCustomerIoEmailFields,
+  serializeCustomerIoEmailEnvelope,
+} from "./html-envelope";
 
 const logger = createLogger("import-customer-io-campaigns");
 const jobQueue = createTranslationJobEventQueue();
@@ -419,28 +425,56 @@ async function importCustomerIoAction(input: {
     };
   }
 
-  const sourcePath =
+  // Email actions store as HTML envelopes (body as HTML, other fields as
+  // field blocks); every other localizable type keeps the JSON map.
+  const isEmail = input.action.type.trim().toLowerCase() === "email";
+  const emailHtml = isEmail
+    ? serializeCustomerIoEmailEnvelope({
+        subject: sourceMap.subject ?? "",
+        preheader_text: sourceMap.preheader_text,
+        body: sourceMap.body ?? "",
+      })
+    : null;
+
+  const emailKind =
     input.resource.kind === "broadcast"
-      ? buildCustomerIoBroadcastSourcePath({
-          broadcastId: input.resource.id,
+      ? ("broadcasts" as const)
+      : input.resource.kind === "campaign"
+        ? ("campaigns" as const)
+        : input.resource.kind === "newsletter"
+          ? ("newsletters" as const)
+          : ("transactional" as const);
+  const sourcePath =
+    isEmail && emailHtml
+      ? buildCustomerIoEmailSourcePath({
+          kind: emailKind,
+          resourceId: input.resource.id,
           actionId: input.action.id,
         })
-      : input.resource.kind === "campaign"
-        ? buildCustomerIoCampaignSourcePath({
-            campaignId: input.resource.id,
+      : input.resource.kind === "broadcast"
+        ? buildCustomerIoBroadcastSourcePath({
+            broadcastId: input.resource.id,
             actionId: input.action.id,
           })
-        : input.resource.kind === "newsletter"
-          ? buildCustomerIoNewsletterSourcePath({
-              newsletterId: input.resource.id,
+        : input.resource.kind === "campaign"
+          ? buildCustomerIoCampaignSourcePath({
+              campaignId: input.resource.id,
               actionId: input.action.id,
             })
-          : buildCustomerIoTransactionalSourcePath({
-              transactionalMessageId: input.resource.id,
-              actionId: input.action.id,
-            });
+          : input.resource.kind === "newsletter"
+            ? buildCustomerIoNewsletterSourcePath({
+                newsletterId: input.resource.id,
+                actionId: input.action.id,
+              })
+            : buildCustomerIoTransactionalSourcePath({
+                transactionalMessageId: input.resource.id,
+                actionId: input.action.id,
+              });
 
-  const hash = hashCustomerIoTranslationMap(sourceMap);
+  const hash =
+    isEmail && emailHtml
+      ? hashCustomerIoEmailEnvelope(emailHtml)
+      : hashCustomerIoTranslationMap(sourceMap);
   const latest = await getLatestRepositorySourceFileVersion({
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -527,12 +561,19 @@ async function importCustomerIoAction(input: {
     if (action === "skip") {
       continue;
     }
+    // Email bodies hold many HTML text nodes that cannot map to a whole-body
+    // remote string, so only single-text fields seed; the body always goes
+    // through Jobs.
+    const seedEntries =
+      isEmail && emailHtml
+        ? seedEntriesForCustomerIoEmailFields({ sourceHtml: emailHtml, sourceMap, remoteMap })
+        : remoteMap;
     const result = await importApprovedProjectTranslationsFromEntries({
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath,
       targetLocale: projectLocale,
-      entries: remoteMap,
+      entries: seedEntries,
     });
     if (
       isCustomerIoLocaleImportComplete({
@@ -553,14 +594,16 @@ async function importCustomerIoAction(input: {
     ),
   );
 
-  const sourceFileId = await writeCustomerIoJsonSource({
+  const sourceFileId = await writeCustomerIoActionSource({
     organizationId: input.organizationId,
     projectId: input.projectId,
     sourcePath,
     hash,
     sourceUnchanged,
     sourceLocale: input.sourceLocale,
-    json: serializeCustomerIoTranslationMap(sourceMap),
+    content: isEmail && emailHtml ? emailHtml : serializeCustomerIoTranslationMap(sourceMap),
+    contentType: isEmail ? "text/html" : "application/json",
+    filename: isEmail ? "message.html" : "message.json",
     workflowRunId: input.workflowRunId,
   });
   if (!sourceFileId) {
@@ -581,6 +624,7 @@ async function importCustomerIoAction(input: {
     sourceFileId,
     sourceLocale: input.sourceLocale,
     targetLocales: leftover,
+    fileFormat: isEmail ? "html" : "json",
     openJobs: input.openJobs,
   });
 
@@ -594,14 +638,16 @@ async function importCustomerIoAction(input: {
   };
 }
 
-async function writeCustomerIoJsonSource(input: {
+async function writeCustomerIoActionSource(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
   hash: string;
   sourceUnchanged?: boolean;
   sourceLocale: string;
-  json: string;
+  content: string;
+  contentType: "application/json" | "text/html";
+  filename: string;
   workflowRunId?: string;
 }): Promise<string | null> {
   const latest = await getLatestRepositorySourceFileVersion({
@@ -645,9 +691,9 @@ async function writeCustomerIoJsonSource(input: {
     uploadSurface: "customer_io_automation",
     workflowRunId: input.workflowRunId,
     file: {
-      filename: input.sourcePath.split("/").pop() ?? "message.json",
-      contentType: "application/json",
-      content: new TextEncoder().encode(input.json),
+      filename: input.filename,
+      contentType: input.contentType,
+      content: new TextEncoder().encode(input.content),
     },
   });
   if (!uploaded.ok || uploaded.value.destination !== "native") {
@@ -670,6 +716,7 @@ async function maybeCreateCustomerIoJob(input: {
   sourceFileId: string;
   sourceLocale: string;
   targetLocales: string[];
+  fileFormat: "json" | "html";
   openJobs: Array<{ sourceFileId: string | null; targetLocales: readonly string[] }>;
 }): Promise<string | undefined> {
   const createJob = input.automation.toolConfig.createNativeTmsJob;
@@ -691,7 +738,7 @@ async function maybeCreateCustomerIoJob(input: {
     sourceFileId: input.sourceFileId,
     sourceLocale: input.sourceLocale,
     targetLocales,
-    fileFormat: "json",
+    fileFormat: input.fileFormat,
     metadata: { uploadSurface: "customer_io_automation" },
   });
   if (!created.ok) {

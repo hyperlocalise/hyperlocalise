@@ -8,7 +8,7 @@ Connect Customer.io once in workspace **Integrations**, then run the **Translate
 ## Supported content
 
 - Campaigns, newsletters (one-time sends), broadcasts, and transactional messages.
-- Message types: email (rich-text or code editor), push notifications, Twilio SMS, and Slack messages.
+- Message types: email (saved as HTML, opens in HTML File view), push notifications, Twilio SMS, and Slack messages (saved as JSON).
 - Out of scope in v1: drag-and-drop emails, transactional SMS, in-app messages, and multilingual A/B variants. Newsletter and transactional messages with several default variants (A/B tests) import each variant but are skipped on push, because their translations share one per-language slot.
 - Configure locales on each Customer.io action before pushing translations. Customer.io cannot create or match a locale it does not have.
 
@@ -43,7 +43,6 @@ Add a language variant for each locale you plan to translate into before you cre
 A message with no language variants imports the default copy only. Push skips any locale that is not configured on the message.
 
 ### Step 2: Match project locales
-
 Create or choose a [native project](/platform/projects/create-project) whose locale tags match Customer.io.
 
 1. Set the project **source locale** to the language of the default copy in Customer.io.

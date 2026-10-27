@@ -10,8 +10,9 @@ category: popular
 Import changed Customer.io campaign, broadcast, newsletter, and transactional message actions into the attached native project and open translation jobs for mapped target locales.
 
 - Import runs on schedule, when an operator clicks **Run now**, or from Content Editor **Ingest**.
-- Write one JSON source file per broadcast action at `customer-io/broadcasts/{broadcast-slug}/actions/{action-slug}.json`.
-- Write one JSON source file per campaign action at `customer-io/campaigns/{campaign-slug}/{action-slug}.json`.
+- Write one JSON source file per broadcast action at `customer-io/broadcasts/{broadcast-slug}/actions/{action-slug}.json` — except email actions, which save as HTML (see below).
+- Write one JSON source file per campaign action at `customer-io/campaigns/{campaign-slug}/{action-slug}.json` — except email actions.
+- Write one HTML source file per email action at `customer-io/{broadcasts|campaigns|newsletters|transactional}/{slug}/{actions|contents}/{action-slug}.html`, with the body as HTML and subject/preheader as field blocks. Email files open in HTML File view.
 - Write one JSON source file per newsletter content variant at `customer-io/newsletters/{newsletter-slug}/contents/{content-slug}.json`.
 - Write one JSON source file per transactional message content variant at `customer-io/transactional/{message-slug}/contents/{content-slug}.json`.
 - Only email (rich-text/code editor), push, Twilio SMS, and Slack actions are eligible. Skip drag-and-drop emails, transactional SMS, in-app messages, and multilingual A/B variants. Newsletter and transactional messages with several default variants (A/B tests) import each variant but are skipped on push.

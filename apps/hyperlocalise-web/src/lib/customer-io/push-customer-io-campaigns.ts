@@ -59,7 +59,10 @@ import {
   isCustomerIoLocalizableActionType,
   mergeCustomerIoTranslationMap,
   parseCustomerIoTranslationMapJson,
+  type CustomerIoTranslationMap,
 } from "./translation-map";
+import { parseCustomerIoEmailEnvelope } from "./html-envelope";
+import { applyHtmlIngestTranslations } from "@/lib/projects/files/html-ingest-entries";
 
 const logger = createLogger("push-customer-io-campaigns");
 export const CUSTOMER_IO_PUSH_CONCURRENCY = 3;
@@ -82,6 +85,24 @@ export type PushCustomerIoCampaignsResult = {
   failedLocales: number;
   itemsProcessed: number;
 };
+
+function envelopeFieldsToMap(envelope: {
+  subject: string;
+  preheader_text?: string;
+  body: string;
+}): CustomerIoTranslationMap {
+  const map: CustomerIoTranslationMap = {};
+  if (envelope.subject) {
+    map.subject = envelope.subject;
+  }
+  if (envelope.preheader_text) {
+    map.preheader_text = envelope.preheader_text;
+  }
+  if (envelope.body) {
+    map.body = envelope.body;
+  }
+  return map;
+}
 
 function permissionErrorMessage(error: unknown): string {
   if (error instanceof CustomerIoApiError && error.code === "customer_io_forbidden") {
@@ -407,7 +428,13 @@ async function pushCustomerIoAction(input: {
     projectId: input.projectId,
     fileId: latest.storedFileId,
   });
-  const sourceMap = parseCustomerIoTranslationMapJson(stored.content.toString("utf8"));
+  const storedText = stored.content.toString("utf8");
+  const isEmail = input.action.type.trim().toLowerCase() === "email";
+  // Email actions store as HTML envelopes; approved translations arrive keyed
+  // by hashed HTML entry and merge back into the stored HTML before push.
+  const sourceMap: CustomerIoTranslationMap = isEmail
+    ? envelopeFieldsToMap(parseCustomerIoEmailEnvelope(storedText))
+    : parseCustomerIoTranslationMapJson(storedText);
   if (Object.keys(sourceMap).length === 0) {
     return { pushedLocales, skippedLocales: input.targetLocales.length, failedLocales };
   }
@@ -459,10 +486,21 @@ async function pushCustomerIoAction(input: {
         continue;
       }
       const remoteMap = customerIoTranslationMapFromRemote({ type: details.type, ...remote });
+      // Email approvals arrive keyed by hashed HTML entry; substitute them
+      // into the stored envelope first so the merge below works per field.
+      // Unapproved entries keep stored (source-language) text, matching the
+      // JSON flow's source fallback.
+      const approvedFields = isEmail
+        ? envelopeFieldsToMap(
+            parseCustomerIoEmailEnvelope(
+              applyHtmlIngestTranslations(storedText, approved.prefilled),
+            ),
+          )
+        : approved.prefilled;
       const translationMap = mergeCustomerIoTranslationMap({
         source: sourceMap,
         remote: remoteMap,
-        approved: approved.prefilled,
+        approved: approvedFields,
       });
       const contentHash = hashCustomerIoTranslationMap(translationMap);
       const remoteHash = hashCustomerIoTranslationMap(remoteMap);
