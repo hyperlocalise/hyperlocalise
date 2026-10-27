@@ -204,7 +204,7 @@ overrides:
   brace-expansion@^5.0.0: 5.0.12
   mermaid: 12.2.0
   valibot: 1.5.0
-  '@unicode/unicode-17.0.0': 2.0.8
+  '@unicode/unicode-17.0.0': 2.0.4
   prosemirror-model: 1.25.12
   prosemirror-view: 1.42.7
   vite@*: npm:@voidzero-dev/vite-plus-core@1.4.0
@@ -266,8 +266,8 @@ importers:
         specifier: ^4.2.1
         version: 4.2.1
       '@formatjs/intl-localematcher':
-        specifier: ^0.9.0
-        version: 0.9.0
+        specifier: ^0.8.14
+        version: 0.8.14
       '@formkit/auto-animate':
         specifier: ^0.10.0
         version: 0.10.0
@@ -1510,8 +1510,8 @@ packages:
   '@formatjs/icu-skeleton-parser@2.1.12':
     resolution: {integrity: sha512-ca7tZMLpfHX3sUD7hP6gE/qr6Iq89EDd3ZLeRhbsB7r0UD55DGJq+tmFLzrGrnx5StahUevQmQQVtbDRHsfDHA==}
 
-  '@formatjs/intl-localematcher@0.9.0':
-    resolution: {integrity: sha512-Z7TD3ssNry1Av1dVDoq/mzpxGyxqWwU0ClWEo+BB3k0JQTeQvUGmeK9WZGYvlqStS0UqkaKXk3dfjsb6NaHAxw==}
+  '@formatjs/intl-localematcher@0.8.14':
+    resolution: {integrity: sha512-8O7V38QmbB11+ryJ3KM/znrzXtiqgpXzqNoqDsndHZZ5/zDKTTL+cf5F0mzXkQEwhx8IlWnqYvEovf2S5EwLTw==}
 
   '@formatjs/intl@4.2.1':
     resolution: {integrity: sha512-GiL0cReencWQkhfJedNLMe0Aorb/wyTRJdi+hLgG9gsDPy4yw2N+EkMcijf5+oGKd5jde75tr5nujsPg78bUTw==}
@@ -5038,8 +5038,8 @@ packages:
   '@ungap/structured-clone@1.4.0':
     resolution: {integrity: sha512-1mEZtMKPM09vDmQt5y7YvmN2+DFTP7Tg0EWXdic8/C6VRnpb33e4ghisCIE3WZjsE2N8mf+QV1Zqh7ZFYLWInQ==}
 
-  '@unicode/unicode-17.0.0@2.0.8':
-    resolution: {integrity: sha512-rI+Lk/laEQS43kKDcr04z3xxiybHq79uYDVQoCnr2yOwfVW5DS+vYBv5Iizj/vJxIjLEBOoIie6FZF0uUx276Q==}
+  '@unicode/unicode-17.0.0@2.0.4':
+    resolution: {integrity: sha512-NUVRlL3Ig+2pt6jCbqYsZkcaU6xdLnBdquhoKvfKPqL2Q6IpQoLq9hrCwHXVM1PKrPOk9npns6LtQg6ooUnHpA==}
 
   '@univerjs/core@1.2.0':
     resolution: {integrity: sha512-/WMj0exhgGJ7HrNs0J9pqDCfdvy/AUbFCb6eafdz6T4sqnS0Q7MlBs6izJahoGTC58qLAQPBtqIOztYkY48jHw==}
@@ -12292,7 +12292,7 @@ snapshots:
 
   '@formatjs/icu-skeleton-parser@2.1.12': {}
 
-  '@formatjs/intl-localematcher@0.9.0':
+  '@formatjs/intl-localematcher@0.8.14':
     dependencies:
       '@formatjs/fast-memoize': 3.1.7
 
@@ -15446,7 +15446,7 @@ snapshots:
 
   '@ungap/structured-clone@1.4.0': {}
 
-  '@unicode/unicode-17.0.0@2.0.8': {}
+  '@unicode/unicode-17.0.0@2.0.4': {}
 
   '@univerjs/core@1.2.0(react@19.3.1)(rxjs@7.8.2)':
     dependencies:
@@ -18001,7 +18001,7 @@ snapshots:
       '@formatjs/ts-transformer': 4.4.20
       '@types/estree-jsx': 1.0.5
       '@types/picomatch': 4.0.3
-      '@unicode/unicode-17.0.0': 2.0.8
+      '@unicode/unicode-17.0.0': 2.0.4
       eslint: 10.13.0(jiti@2.7.0)(supports-color@8.1.1)
       magic-string: 1.4.3
       picomatch: 4.0.7
