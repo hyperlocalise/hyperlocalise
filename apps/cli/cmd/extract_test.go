@@ -1860,7 +1860,7 @@ func TestParseJSXAttributeValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, _, ok, err := parseJSXAttributeValue(tt.src, 0, len(tt.src))
+			got, _, ok, err := parseJSXAttributeValue(tt.src, 0, len(tt.src), true)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got (%q, %t)", got, ok)
@@ -1880,7 +1880,7 @@ func TestParseJSXAttributeValue(t *testing.T) {
 
 func TestParseJSXAttributeValueClonesPlainQuotedText(t *testing.T) {
 	src := `xx"plain"yy`
-	got, end, ok, err := parseJSXAttributeValue(src, 2, len(src))
+	got, end, ok, err := parseJSXAttributeValue(src, 2, len(src), true)
 	if err != nil {
 		t.Fatalf("parseJSXAttributeValue: %v", err)
 	}
