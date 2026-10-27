@@ -22,6 +22,11 @@ import { getBrazePipesConnectionStatus, resolveBrazePipesWorkosUserId } from "@/
 import { loadBrazeRestEndpoint } from "@/lib/braze/settings";
 import { areBrazeSourceLocalesCompatible } from "@/lib/braze/locale";
 import {
+  getCustomerIoPipesConnectionStatus,
+  resolveCustomerIoPipesWorkosUserId,
+} from "@/lib/customer-io/pipes";
+import { areCustomerIoSourceLocalesCompatible } from "@/lib/customer-io/locale";
+import {
   getIntercomPipesConnectionStatus,
   resolveIntercomPipesWorkosUserId,
 } from "@/lib/intercom/pipes";
@@ -1240,6 +1245,73 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
+  if (input.toolConfig.customerIo?.enabled) {
+    const customerIo = input.toolConfig.customerIo;
+    const workosUserId = customerIo.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "customer_io_not_connected",
+        message: "Connect Customer.io in Integrations before using it.",
+      });
+    }
+
+    const status = await getCustomerIoPipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "customer_io_pipes_unavailable",
+        message: "WorkOS is not configured, so Customer.io cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "customer_io_pipes_needs_reauthorization",
+        message: "Reconnect Customer.io in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "customer_io_not_connected",
+        message: "Connect Customer.io in Integrations before using it.",
+      });
+    }
+
+    const projectId = readOptionalProjectId(input.projectId);
+    if (projectId) {
+      const [project] = await database
+        .select({
+          sourceLocale: schema.projects.sourceLocale,
+        })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, input.organizationId),
+            eq(schema.projects.id, projectId),
+          ),
+        )
+        .limit(1);
+
+      if (project) {
+        const projectSourceLocale = project.sourceLocale ?? "en";
+        const configuredSourceLocale = customerIo.sourceLocale?.trim();
+        if (
+          configuredSourceLocale &&
+          !areCustomerIoSourceLocalesCompatible(configuredSourceLocale, projectSourceLocale)
+        ) {
+          return err({
+            code: "customer_io_source_locale_mismatch",
+            message:
+              "The Customer.io source locale must be the same language as the project source locale.",
+          });
+        }
+      }
+    }
+  }
+
   if (input.toolConfig.crowdin?.enabled) {
     const projectId = readOptionalProjectId(input.toolConfig.crowdin.projectId);
     if (!projectId) {
@@ -1514,6 +1586,22 @@ async function stampPipesUsersOnToolConfig(input: {
       ...toolConfig,
       braze: {
         ...toolConfig.braze,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.customerIo?.enabled) {
+    const workosUserId = await resolveCustomerIoPipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      customerIo: {
+        ...toolConfig.customerIo,
         enabled: true,
         ...(workosUserId ? { workosUserId } : {}),
       },

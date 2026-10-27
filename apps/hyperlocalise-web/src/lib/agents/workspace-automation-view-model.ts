@@ -146,6 +146,12 @@ export type WorkspaceAutomationFormState = {
   sanityExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   brazeEnabled: boolean;
   brazeCampaignsEnabled: boolean;
+  customerIoEnabled: boolean;
+  customerIoSourceLocale: string;
+  customerIoBroadcastIds: string[];
+  customerIoCampaignIds: string[];
+  customerIoExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  customerIoOverwriteWhenRemoteNewer: boolean;
   brazeSourceLocale: string;
   brazeTemplateIds: string[];
   brazeContentBlockIds: string[];
@@ -180,7 +186,8 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
     form.googleDriveEnabled ||
     form.sanityEnabled ||
     form.brazeEnabled ||
-    form.brazeCampaignsEnabled
+    form.brazeCampaignsEnabled ||
+    form.customerIoEnabled
   ) {
     return true;
   }
@@ -227,6 +234,8 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "sanityTargetLocales"
     | "braze"
     | "brazeSourceLocale"
+    | "customerIo"
+    | "customerIoSourceLocale"
     | "crowdinProjectId"
     | "scheduledTimezone"
     | "skills"
@@ -291,6 +300,11 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
     "The Braze source locale must be the same language as the project source locale.",
   braze_skills_exclusive:
     "Choose either Braze Email Templates or Braze Campaigns & Canvas, not both.",
+  customer_io_not_connected: "Connect Customer.io in Integrations before using it.",
+  customer_io_pipes_needs_reauthorization: "Reconnect Customer.io in Integrations, then try again.",
+  customer_io_pipes_unavailable: "Customer.io is unavailable until WorkOS Pipes is configured.",
+  customer_io_source_locale_mismatch:
+    "The Customer.io source locale must be the same language as the project source locale.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -437,6 +451,12 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     sanityExistingTranslationPolicy: "seed_empty",
     brazeEnabled: false,
     brazeCampaignsEnabled: false,
+    customerIoEnabled: false,
+    customerIoSourceLocale: "en",
+    customerIoBroadcastIds: [],
+    customerIoCampaignIds: [],
+    customerIoExistingTranslationPolicy: "seed_empty",
+    customerIoOverwriteWhenRemoteNewer: true,
     brazeSourceLocale: "en",
     brazeTemplateIds: [],
     brazeContentBlockIds: [],
@@ -483,6 +503,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const sanity = automation.toolConfig.sanity;
   const braze = automation.toolConfig.braze;
   const brazeCampaigns = automation.toolConfig.brazeCampaigns;
+  const customerIo = automation.toolConfig.customerIo;
   const crowdin = automation.toolConfig.crowdin;
   const webSearch = automation.toolConfig.webSearch;
 
@@ -598,6 +619,16 @@ export function createWorkspaceAutomationFormStateFromRecord(
         : "seed_empty",
     brazeEnabled: Boolean(braze?.enabled),
     brazeCampaignsEnabled: Boolean(brazeCampaigns?.enabled),
+    customerIoEnabled: Boolean(customerIo?.enabled),
+    customerIoSourceLocale: customerIo?.sourceLocale ?? "en",
+    customerIoBroadcastIds: customerIo?.broadcastIds ? [...customerIo.broadcastIds] : [],
+    customerIoCampaignIds: customerIo?.campaignIds ? [...customerIo.campaignIds] : [],
+    customerIoExistingTranslationPolicy:
+      customerIo?.existingTranslationPolicy === "refresh_imported" ||
+      customerIo?.existingTranslationPolicy === "overwrite_all"
+        ? customerIo.existingTranslationPolicy
+        : "seed_empty",
+    customerIoOverwriteWhenRemoteNewer: customerIo?.overwriteWhenRemoteNewer !== false,
     brazeSourceLocale: brazeCampaigns?.sourceLocale ?? braze?.sourceLocale ?? "en",
     brazeTemplateIds: braze?.templateIds ? [...braze.templateIds] : [],
     brazeContentBlockIds: braze?.contentBlockIds ? [...braze.contentBlockIds] : [],
@@ -872,6 +903,18 @@ export function formStateToWorkspaceAutomationPayload(
             canvasIds: form.brazeCanvasIds,
             existingTranslationPolicy: form.brazeExistingTranslationPolicy,
             overwriteWhenRemoteNewer: form.brazeOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
+    ...(form.customerIoEnabled
+      ? {
+          customerIo: {
+            enabled: true,
+            sourceLocale: form.customerIoSourceLocale.trim() || "en",
+            broadcastIds: form.customerIoBroadcastIds,
+            campaignIds: form.customerIoCampaignIds,
+            existingTranslationPolicy: form.customerIoExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.customerIoOverwriteWhenRemoteNewer,
           },
         }
       : {}),
@@ -1383,6 +1426,12 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
       return { braze: message };
     case "braze_source_locale_mismatch":
       return { brazeSourceLocale: message };
+    case "customer_io_not_connected":
+    case "customer_io_pipes_needs_reauthorization":
+    case "customer_io_pipes_unavailable":
+      return { customerIo: message };
+    case "customer_io_source_locale_mismatch":
+      return { customerIoSourceLocale: message };
     case "crowdin_project_required":
     case "crowdin_project_not_found":
     case "crowdin_project_not_linked":
@@ -1455,6 +1504,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.sanityEnabled ||
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
+    form.customerIoEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
     form.listIssuesEnabled ||

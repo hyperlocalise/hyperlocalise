@@ -247,6 +247,35 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "translate-customer-io-campaigns",
+    category: "popular",
+    extraCategories: ["marketing"],
+    name: "Translate Customer.io Campaigns & Broadcasts",
+    description:
+      "Import Customer.io campaign and broadcast message actions as JSON, localise in Jobs, then push approved locales back to Customer.io.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Customer.io campaign and broadcast localisation connector",
+      capabilities: [
+        "Import campaign and broadcast message actions as JSON translation maps",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push translations automatically on import — operators enqueue Push to Customer.io separately",
+      ],
+      goal: "Keep Customer.io campaigns and broadcasts in sync for localisation and write approved locales back without publishing.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-customer-io-campaigns"],
+      name: "Translate Customer.io campaigns and broadcasts",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      customerIoEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-contentful-article",
     category: "popular",
     name: "Translate Contentful article",
@@ -1125,6 +1154,10 @@ export function getWorkspaceAutomationTemplateFlow(
 
   if (form.brazeEnabled || form.brazeCampaignsEnabled) {
     tools.push({ id: "braze", label: "Braze" });
+  }
+
+  if (form.customerIoEnabled) {
+    tools.push({ id: "customer-io", label: "Customer.io" });
   }
 
   if (form.createNativeTmsJobEnabled) {

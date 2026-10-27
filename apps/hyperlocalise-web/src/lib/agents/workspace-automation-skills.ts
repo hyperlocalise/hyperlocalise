@@ -32,6 +32,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOLS = [
   "push_braze_templates",
   "import_braze_campaigns",
   "push_braze_campaigns",
+  "import_customer_io_campaigns",
+  "push_customer_io_campaigns",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -292,6 +294,22 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     },
   },
   {
+    id: "translate-customer-io-campaigns",
+    name: "Translate Customer.io Campaigns & Broadcasts",
+    category: "translate",
+    description:
+      "Import Customer.io campaign and broadcast message actions as JSON, then push approved locales back to Customer.io.",
+    grants:
+      "Reads Customer.io campaigns and broadcasts through Pipes, writes JSON translation maps and native jobs. Push writes approved locales only and never publishes.",
+    tools: ["import_customer_io_campaigns", "push_customer_io_campaigns"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["customer.io", "customerio", "broadcast", "newsletter"],
+      weak: ["campaign", "transactional", "import", "translate"],
+    },
+  },
+  {
     id: "translate-contentful-entries",
     name: "Translate Contentful entries",
     category: "translate",
@@ -387,6 +405,7 @@ export const CMS_TRANSLATION_SKILL_IDS = [
   "translate-intercom-articles",
   "translate-braze-email-templates",
   "translate-braze-campaigns",
+  "translate-customer-io-campaigns",
   "translate-contentful-entries",
 ] as const;
 
@@ -430,6 +449,7 @@ export type WorkspaceAutomationSkillIntegration =
   | "google_drive"
   | "sanity"
   | "braze"
+  | "customer_io"
   | "slack"
   | "email";
 
@@ -451,6 +471,8 @@ const SKILL_TOOL_INTEGRATIONS: Record<
   push_braze_templates: "braze",
   import_braze_campaigns: "braze",
   push_braze_campaigns: "braze",
+  import_customer_io_campaigns: "customer_io",
+  push_customer_io_campaigns: "customer_io",
   create_native_tms_job: null,
   assign_translate_with_agent: null,
   list_issues: null,
@@ -569,6 +591,9 @@ export function workspaceAutomationSkillToolEnabled(
     case "import_braze_campaigns":
     case "push_braze_campaigns":
       return Boolean(toolConfig.brazeCampaigns?.enabled);
+    case "import_customer_io_campaigns":
+    case "push_customer_io_campaigns":
+      return Boolean(toolConfig.customerIo?.enabled);
     case "create_native_tms_job":
       return Boolean(toolConfig.createNativeTmsJob?.enabled);
     case "assign_translate_with_agent":

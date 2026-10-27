@@ -1,0 +1,47 @@
+---
+title: "Localize Customer.io"
+description: "Connect Customer.io, import campaign and broadcast message actions, translate in Jobs, then push approved locales back."
+---
+
+Connect Customer.io once in workspace **Integrations**, then run the **Translate Customer.io Campaigns & Broadcasts** automation template on a schedule. Import never changes Customer.io. **Push to Customer.io** is a separate action and never publishes.
+
+## Supported content
+
+- Campaigns, newsletters, broadcasts, and transactional messages.
+- Message types: email (rich-text or code editor), push notifications, Twilio SMS, and Slack messages.
+- Out of scope in v1: drag-and-drop emails, transactional SMS, in-app messages, and multilingual A/B variants.
+- Configure locales on each Customer.io action before pushing translations. Customer.io cannot create or match a locale it does not have.
+
+## Prerequisites
+
+| Requirement | Description |
+| --- | --- |
+| Native project | A [native project](/platform/projects/create-project) whose source and target locales map onto Customer.io locale keys. |
+| Customer.io App API key | Created in Customer.io **Settings → API Credentials**. It needs read/write access to campaigns, newsletters, broadcasts, and transactional messages. |
+| Customer.io region | `US` (`https://api.customer.io/v1`) or `EU` (`https://api-eu.customer.io/v1`). The region must match the workspace that issued the key. |
+| Locale mapping | Hyperlocalise maps project locale tags to Customer.io locales by exact key or name. Keep locked pairs separate: `en-US` is not `en-GB`, `zh-CN` is not `zh-TW`, and `pt` is not `pt-BR`. Locales without a match are reported as unmapped. |
+
+## Connect Customer.io
+
+1. Open workspace **Integrations** and find **Customer.io**.
+2. Paste the App API key and choose the region for that workspace.
+3. Save. Hyperlocalise pings the Customer.io App API in that region to confirm the key can list broadcasts. A rejected key or unreachable region is not stored.
+4. Confirm the connection shows as connected.
+
+The API key is stored in WorkOS Pipes. Hyperlocalise stores only the region.
+
+## Translate campaigns and broadcasts
+
+1. Open workspace **Automations** and select **New Automation**.
+2. Apply the **Translate Customer.io Campaigns & Broadcasts** template, or add the **Translate Customer.io Campaigns & Broadcasts** skill from **Add Skill**.
+3. Attach the native project.
+4. Choose a **scheduled** or **manual** trigger. A schedule imports changed message actions. It does not push translations.
+5. Under **Customer.io**, set:
+   - **Source locale** (usually the project source)
+   - Optional **Broadcasts** and **Campaigns** to limit import. Leave both empty to discover everything
+   - **Existing translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**
+6. Save the automation.
+
+## Push approved locales
+
+Enqueue **Push to Customer.io** from the automation run. It writes approved locales for actions that already have the locale configured. It never rewrites message content and never publishes.

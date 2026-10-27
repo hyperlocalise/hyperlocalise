@@ -210,6 +210,7 @@
                       "platform/connections/sanity",
                       "platform/connections/sanity-studio-plugin",
                       "platform/connections/braze",
+                      "platform/connections/customer-io",
                       "platform/connections/canva",
                       "platform/connections/figma",
                       "platform/connections/design-tools"

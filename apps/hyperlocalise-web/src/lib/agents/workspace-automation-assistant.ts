@@ -93,6 +93,7 @@ const INTEGRATIONS: readonly WorkspaceAutomationSkillIntegration[] = [
   "sanity",
   "google_drive",
   "braze",
+  "customer_io",
   "slack",
   "email",
 ];
@@ -137,6 +138,7 @@ export const automationSetupChangeLineSchema = z.discriminatedUnion("kind", [
         "sanity",
         "google_drive",
         "braze",
+        "customer_io",
         "slack",
         "email",
       ]),

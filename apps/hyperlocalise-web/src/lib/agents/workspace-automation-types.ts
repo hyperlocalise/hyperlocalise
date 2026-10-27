@@ -356,6 +356,27 @@ const brazeCampaignsToolConfigSchema = z
     overwriteWhenRemoteNewer: true,
   });
 
+const customerIoToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    broadcastIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    campaignIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+    overwriteWhenRemoteNewer: z.boolean().default(true),
+  })
+  .default({
+    enabled: false,
+    sourceLocale: "en",
+    broadcastIds: [],
+    campaignIds: [],
+    existingTranslationPolicy: "seed_empty",
+    overwriteWhenRemoteNewer: true,
+  });
+
 const sanityDocumentTypeModeSchema = z.enum(["document", "field"]);
 
 const sanityDocumentTypeModesSchema = z
@@ -564,6 +585,7 @@ const toolConfigObjectSchema = z
     sanity: sanityToolConfigSchema.optional(),
     braze: brazeToolConfigSchema.optional(),
     brazeCampaigns: brazeCampaignsToolConfigSchema.optional(),
+    customerIo: customerIoToolConfigSchema.optional(),
     crowdin: crowdinToolConfigSchema.optional(),
     webSearch: webSearchToolConfigSchema.optional(),
   })
@@ -631,6 +653,7 @@ export type WorkspaceAutomationBrazeToolConfig = z.infer<typeof brazeToolConfigS
 export type WorkspaceAutomationBrazeCampaignsToolConfig = z.infer<
   typeof brazeCampaignsToolConfigSchema
 >;
+export type WorkspaceAutomationCustomerIoToolConfig = z.infer<typeof customerIoToolConfigSchema>;
 export type WorkspaceAutomationCrowdinToolConfig = z.infer<typeof crowdinToolConfigSchema>;
 export type WorkspaceAutomationWebSearchProvider = z.infer<
   typeof workspaceAutomationWebSearchProviderSchema
@@ -774,6 +797,22 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "braze_skills_exclusive";
       message: "Choose either Braze Email Templates or Braze Campaigns & Canvas, not both.";
+    }
+  | {
+      code: "customer_io_not_connected";
+      message: "Connect Customer.io in Integrations before using it.";
+    }
+  | {
+      code: "customer_io_pipes_needs_reauthorization";
+      message: "Reconnect Customer.io in Integrations, then try again.";
+    }
+  | {
+      code: "customer_io_pipes_unavailable";
+      message: "WorkOS is not configured, so Customer.io cannot connect through Pipes.";
+    }
+  | {
+      code: "customer_io_source_locale_mismatch";
+      message: "The Customer.io source locale must be the same language as the project source locale.";
     }
   | {
       code: "cms_translation_skills_exclusive";
@@ -1043,6 +1082,10 @@ export function hasWorkspaceAutomationBrazeCampaignsTool(
   toolConfig: WorkspaceAutomationToolConfig,
 ) {
   return Boolean(toolConfig.brazeCampaigns?.enabled);
+}
+
+export function hasWorkspaceAutomationCustomerIoTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.customerIo?.enabled);
 }
 
 export function hasWorkspaceAutomationCrowdinTool(toolConfig: WorkspaceAutomationToolConfig) {

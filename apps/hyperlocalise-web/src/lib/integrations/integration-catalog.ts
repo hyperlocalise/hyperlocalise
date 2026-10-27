@@ -280,7 +280,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
   {
     slug: "customer-io",
     category: "customer-engagement",
-    status: "coming-soon",
+    status: "available",
     type: "partner",
     marketing: false,
     workspace: true,
