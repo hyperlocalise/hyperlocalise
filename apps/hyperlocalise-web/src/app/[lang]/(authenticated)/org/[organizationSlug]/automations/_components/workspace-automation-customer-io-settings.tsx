@@ -23,7 +23,11 @@ import {
 } from "@/components/ui/select";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 
-import { CustomerIoResourceTree, toggleCustomerIoTreeSelection } from "./customer-io-resource-tree";
+import {
+  CustomerIoResourceTree,
+  toggleCustomerIoTreeActionSelection,
+  toggleCustomerIoTreeSelection,
+} from "./customer-io-resource-tree";
 
 type ExistingTranslationPolicy = "seed_empty" | "refresh_imported" | "overwrite_all";
 
@@ -65,14 +69,31 @@ export function WorkspaceAutomationCustomerIoSettings({
             newsletter: form.customerIoNewsletterIds,
             transactional: form.customerIoTransactionalMessageIds,
           }}
+          actionSelection={{
+            broadcast: form.customerIoBroadcastActions,
+            campaign: form.customerIoCampaignActions,
+            newsletter: form.customerIoNewsletterActions,
+            transactional: form.customerIoTransactionalMessageActions,
+          }}
           onToggle={(kind, id) => {
             onChange(toggleCustomerIoTreeSelection(form, kind, id));
+          }}
+          onToggleAction={(kind, resourceId, actionId, visibleActionIds) => {
+            onChange(
+              toggleCustomerIoTreeActionSelection(
+                form,
+                kind,
+                resourceId,
+                actionId,
+                visibleActionIds,
+              ),
+            );
           }}
         />
         <p className="text-xs text-muted-foreground">
           Leave everything unchecked to discover all broadcasts, campaigns, newsletters, and
-          transactional messages. Expand a resource to preview its message actions. Push only
-          updates content — it never sends.
+          transactional messages. Tick a resource for all its actions, or expand it to pick
+          individual actions. Push only updates content — it never sends.
         </p>
       </div>
 

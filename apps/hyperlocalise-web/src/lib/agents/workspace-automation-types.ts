@@ -356,6 +356,10 @@ const brazeCampaignsToolConfigSchema = z
     overwriteWhenRemoteNewer: true,
   });
 
+const customerIoResourceActionsSchema = z
+  .record(z.string().trim().min(1).max(128), z.array(z.string().trim().min(1).max(128)).max(100))
+  .default({});
+
 const customerIoToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -365,6 +369,10 @@ const customerIoToolConfigSchema = z
     campaignIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
     newsletterIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
     transactionalMessageIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    broadcastActions: customerIoResourceActionsSchema,
+    campaignActions: customerIoResourceActionsSchema,
+    newsletterActions: customerIoResourceActionsSchema,
+    transactionalMessageActions: customerIoResourceActionsSchema,
     existingTranslationPolicy: z
       .enum(["seed_empty", "refresh_imported", "overwrite_all"])
       .default("seed_empty"),
@@ -372,11 +380,14 @@ const customerIoToolConfigSchema = z
   })
   .default({
     enabled: false,
-    sourceLocale: "en",
     broadcastIds: [],
     campaignIds: [],
     newsletterIds: [],
     transactionalMessageIds: [],
+    broadcastActions: {},
+    campaignActions: {},
+    newsletterActions: {},
+    transactionalMessageActions: {},
     existingTranslationPolicy: "seed_empty",
     overwriteWhenRemoteNewer: true,
   });

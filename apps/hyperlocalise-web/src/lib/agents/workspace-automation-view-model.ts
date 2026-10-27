@@ -151,6 +151,10 @@ export type WorkspaceAutomationFormState = {
   customerIoCampaignIds: string[];
   customerIoNewsletterIds: string[];
   customerIoTransactionalMessageIds: string[];
+  customerIoBroadcastActions: Record<string, string[]>;
+  customerIoCampaignActions: Record<string, string[]>;
+  customerIoNewsletterActions: Record<string, string[]>;
+  customerIoTransactionalMessageActions: Record<string, string[]>;
   customerIoExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   customerIoOverwriteWhenRemoteNewer: boolean;
   brazeSourceLocale: string;
@@ -454,6 +458,10 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     customerIoCampaignIds: [],
     customerIoNewsletterIds: [],
     customerIoTransactionalMessageIds: [],
+    customerIoBroadcastActions: {},
+    customerIoCampaignActions: {},
+    customerIoNewsletterActions: {},
+    customerIoTransactionalMessageActions: {},
     customerIoExistingTranslationPolicy: "seed_empty",
     customerIoOverwriteWhenRemoteNewer: true,
     brazeSourceLocale: "en",
@@ -625,6 +633,10 @@ export function createWorkspaceAutomationFormStateFromRecord(
     customerIoTransactionalMessageIds: customerIo?.transactionalMessageIds
       ? [...customerIo.transactionalMessageIds]
       : [],
+    customerIoBroadcastActions: { ...customerIo?.broadcastActions },
+    customerIoCampaignActions: { ...customerIo?.campaignActions },
+    customerIoNewsletterActions: { ...customerIo?.newsletterActions },
+    customerIoTransactionalMessageActions: { ...customerIo?.transactionalMessageActions },
     customerIoExistingTranslationPolicy:
       customerIo?.existingTranslationPolicy === "refresh_imported" ||
       customerIo?.existingTranslationPolicy === "overwrite_all"
@@ -916,6 +928,10 @@ export function formStateToWorkspaceAutomationPayload(
             campaignIds: form.customerIoCampaignIds,
             newsletterIds: form.customerIoNewsletterIds,
             transactionalMessageIds: form.customerIoTransactionalMessageIds,
+            broadcastActions: form.customerIoBroadcastActions,
+            campaignActions: form.customerIoCampaignActions,
+            newsletterActions: form.customerIoNewsletterActions,
+            transactionalMessageActions: form.customerIoTransactionalMessageActions,
             existingTranslationPolicy: form.customerIoExistingTranslationPolicy,
             overwriteWhenRemoteNewer: form.customerIoOverwriteWhenRemoteNewer,
           },

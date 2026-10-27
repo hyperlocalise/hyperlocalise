@@ -34,6 +34,7 @@ const MAX_GITHUB_EVENTS = 8;
 const flag = z.boolean();
 const text = z.string().max(MAX_TEXT_CHARS);
 const textList = z.array(text).max(MAX_LIST_ITEMS);
+const resourceActionMap = z.record(text, z.array(text).max(MAX_LIST_ITEMS)).default({});
 
 const formStateShape = {
   kind: workspaceAutomationKindSchema,
@@ -106,6 +107,10 @@ const formStateShape = {
   customerIoCampaignIds: textList,
   customerIoNewsletterIds: textList,
   customerIoTransactionalMessageIds: textList,
+  customerIoBroadcastActions: resourceActionMap,
+  customerIoCampaignActions: resourceActionMap,
+  customerIoNewsletterActions: resourceActionMap,
+  customerIoTransactionalMessageActions: resourceActionMap,
   customerIoExistingTranslationPolicy: z.enum(["seed_empty", "refresh_imported", "overwrite_all"]),
   customerIoOverwriteWhenRemoteNewer: flag,
   brazeSourceLocale: text,

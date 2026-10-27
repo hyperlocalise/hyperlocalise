@@ -41,9 +41,11 @@ import {
   type CustomerIoActionTranslation,
   type CustomerIoActionTranslationPayload,
 } from "./client";
+import type { CustomerIoResourceKind } from "./constants";
 import { loadCustomerIoAutomationClient, type CustomerIoAutomationClient } from "./credentials";
 import {
   resolveCustomerIoImportResources,
+  selectedCustomerIoActionIds,
   selectedCustomerIoResourceIds,
   type CustomerIoImportResource,
 } from "./import-customer-io-campaigns";
@@ -182,11 +184,30 @@ export async function runPushCustomerIoCampaigns(input: {
     return { pushedLocales: 0, skippedLocales: 0, failedLocales: 0, itemsProcessed: 0 };
   }
 
+  const actionSelections: Record<CustomerIoResourceKind, Record<string, string[]>> = {
+    broadcast: config.broadcastActions ?? {},
+    campaign: config.campaignActions ?? {},
+    newsletter: config.newsletterActions ?? {},
+    transactional: config.transactionalMessageActions ?? {},
+  };
+
   const resources = await resolveCustomerIoImportResources(loaded.value, {
-    broadcastIds: selectedCustomerIoResourceIds(config.broadcastIds),
-    campaignIds: selectedCustomerIoResourceIds(config.campaignIds),
-    newsletterIds: selectedCustomerIoResourceIds(config.newsletterIds ?? []),
-    transactionalMessageIds: selectedCustomerIoResourceIds(config.transactionalMessageIds ?? []),
+    broadcastIds: selectedCustomerIoResourceIds([
+      ...config.broadcastIds,
+      ...Object.keys(actionSelections.broadcast),
+    ]),
+    campaignIds: selectedCustomerIoResourceIds([
+      ...config.campaignIds,
+      ...Object.keys(actionSelections.campaign),
+    ]),
+    newsletterIds: selectedCustomerIoResourceIds([
+      ...(config.newsletterIds ?? []),
+      ...Object.keys(actionSelections.newsletter),
+    ]),
+    transactionalMessageIds: selectedCustomerIoResourceIds([
+      ...(config.transactionalMessageIds ?? []),
+      ...Object.keys(actionSelections.transactional),
+    ]),
   });
 
   const translationService = new ProjectTranslationService();
@@ -199,8 +220,12 @@ export async function runPushCustomerIoCampaigns(input: {
 
   for (const resource of resources) {
     const actions = await listCustomerIoResourceActions(loaded.value, resource);
+    const selectedIds = selectedCustomerIoActionIds(actionSelections[resource.kind], resource.id);
     const defaultActions = actions.filter(
-      (action) => isCustomerIoLocalizableActionType(action.type) && action.language.trim() === "",
+      (action) =>
+        isCustomerIoLocalizableActionType(action.type) &&
+        action.language.trim() === "" &&
+        (!selectedIds || selectedIds.includes(action.id)),
     );
     if (
       (resource.kind === "newsletter" || resource.kind === "transactional") &&

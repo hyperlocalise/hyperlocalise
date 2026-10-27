@@ -91,6 +91,14 @@ export function selectedCustomerIoResourceIds(ids: readonly string[]): string[] 
   return [...new Set(ids.map((id) => id.trim()).filter((id) => id.length > 0))];
 }
 
+export function selectedCustomerIoActionIds(
+  entries: Record<string, string[]>,
+  resourceId: string,
+): string[] | null {
+  const ids = selectedCustomerIoResourceIds(entries[resourceId.trim()] ?? []);
+  return ids.length > 0 ? ids : null;
+}
+
 export function shouldListAllCustomerIoResources(ids: readonly string[]): boolean {
   return selectedCustomerIoResourceIds(ids).length === 0;
 }
@@ -229,11 +237,30 @@ export async function runImportCustomerIoCampaigns(input: {
     projectId,
   });
 
+  const actionSelections: Record<CustomerIoResourceKind, Record<string, string[]>> = {
+    broadcast: config.broadcastActions ?? {},
+    campaign: config.campaignActions ?? {},
+    newsletter: config.newsletterActions ?? {},
+    transactional: config.transactionalMessageActions ?? {},
+  };
+
   const resources = await resolveCustomerIoImportResources(loaded.value, {
-    broadcastIds: selectedCustomerIoResourceIds(config.broadcastIds),
-    campaignIds: selectedCustomerIoResourceIds(config.campaignIds),
-    newsletterIds: selectedCustomerIoResourceIds(config.newsletterIds ?? []),
-    transactionalMessageIds: selectedCustomerIoResourceIds(config.transactionalMessageIds ?? []),
+    broadcastIds: selectedCustomerIoResourceIds([
+      ...config.broadcastIds,
+      ...Object.keys(actionSelections.broadcast),
+    ]),
+    campaignIds: selectedCustomerIoResourceIds([
+      ...config.campaignIds,
+      ...Object.keys(actionSelections.campaign),
+    ]),
+    newsletterIds: selectedCustomerIoResourceIds([
+      ...(config.newsletterIds ?? []),
+      ...Object.keys(actionSelections.newsletter),
+    ]),
+    transactionalMessageIds: selectedCustomerIoResourceIds([
+      ...(config.transactionalMessageIds ?? []),
+      ...Object.keys(actionSelections.transactional),
+    ]),
   });
 
   let imported = 0;
@@ -258,6 +285,7 @@ export async function runImportCustomerIoCampaigns(input: {
           openJobs,
           resource,
           sourceLocale: sourceSuffix,
+          actionIds: selectedCustomerIoActionIds(actionSelections[resource.kind], resource.id),
         });
         return { ...totals, name: resource.name };
       } catch (error) {
@@ -345,6 +373,7 @@ async function importCustomerIoResource(input: {
   openJobs: Array<{ sourceFileId: string | null; targetLocales: readonly string[] }>;
   resource: CustomerIoImportResource;
   sourceLocale: string;
+  actionIds: string[] | null;
 }): Promise<ImportCustomerIoCampaignsResult> {
   const actions =
     input.resource.kind === "broadcast"
@@ -382,6 +411,10 @@ async function importCustomerIoResource(input: {
 
   for (const action of actions) {
     if (!isCustomerIoLocalizableActionType(action.type)) {
+      totals.skipped += 1;
+      continue;
+    }
+    if (input.actionIds && !input.actionIds.includes(action.id)) {
       totals.skipped += 1;
       continue;
     }

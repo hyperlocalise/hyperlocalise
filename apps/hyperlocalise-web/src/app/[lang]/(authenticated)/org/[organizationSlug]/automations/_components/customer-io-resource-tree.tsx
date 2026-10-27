@@ -38,6 +38,11 @@ export type CustomerIoTreeResourceKind = "broadcast" | "campaign" | "newsletter"
 
 export type CustomerIoTreeSelection = Record<CustomerIoTreeResourceKind, string[]>;
 
+export type CustomerIoTreeActionSelection = Record<
+  CustomerIoTreeResourceKind,
+  Record<string, string[]>
+>;
+
 type LibraryItem = { id: string; name: string };
 type ActionItem = { id: string; name: string; type: string; language: string };
 
@@ -98,16 +103,87 @@ export const CUSTOMER_IO_TREE_FIELDS: Record<
   transactional: "customerIoTransactionalMessageIds",
 };
 
+export const CUSTOMER_IO_TREE_ACTION_FIELDS: Record<
+  CustomerIoTreeResourceKind,
+  | "customerIoBroadcastActions"
+  | "customerIoCampaignActions"
+  | "customerIoNewsletterActions"
+  | "customerIoTransactionalMessageActions"
+> = {
+  broadcast: "customerIoBroadcastActions",
+  campaign: "customerIoCampaignActions",
+  newsletter: "customerIoNewsletterActions",
+  transactional: "customerIoTransactionalMessageActions",
+};
 export function toggleCustomerIoTreeSelection(
   form: WorkspaceAutomationFormState,
   kind: CustomerIoTreeResourceKind,
   id: string,
 ): WorkspaceAutomationFormState {
   const field = CUSTOMER_IO_TREE_FIELDS[kind];
+  const actionField = CUSTOMER_IO_TREE_ACTION_FIELDS[kind];
   const ids = form[field];
+  if (ids.includes(id)) {
+    const nextEntries = { ...form[actionField] };
+    delete nextEntries[id];
+    return {
+      ...form,
+      [field]: ids.filter((value) => value !== id),
+      [actionField]: nextEntries,
+    };
+  }
   return {
     ...form,
-    [field]: ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id],
+    [field]: [...ids, id],
+  };
+}
+
+export function isCustomerIoTreeActionSelected(
+  form: WorkspaceAutomationFormState,
+  kind: CustomerIoTreeResourceKind,
+  resourceId: string,
+  actionId: string,
+): boolean {
+  if (!form[CUSTOMER_IO_TREE_FIELDS[kind]].includes(resourceId)) {
+    return false;
+  }
+  const entry = form[CUSTOMER_IO_TREE_ACTION_FIELDS[kind]][resourceId];
+  return !entry || entry.includes(actionId);
+}
+
+export function toggleCustomerIoTreeActionSelection(
+  form: WorkspaceAutomationFormState,
+  kind: CustomerIoTreeResourceKind,
+  resourceId: string,
+  actionId: string,
+  visibleActionIds: string[],
+): WorkspaceAutomationFormState {
+  const resourceField = CUSTOMER_IO_TREE_FIELDS[kind];
+  const actionField = CUSTOMER_IO_TREE_ACTION_FIELDS[kind];
+  const resources = form[resourceField];
+  const entries = form[actionField];
+  const entry = entries[resourceId];
+  const selected = resources.includes(resourceId) && (!entry || entry.includes(actionId));
+  if (selected) {
+    const remaining = (entry ?? visibleActionIds).filter((id) => id !== actionId);
+    if (remaining.length === 0) {
+      const nextEntries = { ...entries };
+      delete nextEntries[resourceId];
+      return {
+        ...form,
+        [resourceField]: resources.filter((id) => id !== resourceId),
+        [actionField]: nextEntries,
+      };
+    }
+    return {
+      ...form,
+      [actionField]: { ...entries, [resourceId]: remaining },
+    };
+  }
+  return {
+    ...form,
+    [resourceField]: resources.includes(resourceId) ? resources : [...resources, resourceId],
+    [actionField]: { ...entries, [resourceId]: entry ? [...entry, actionId] : [actionId] },
   };
 }
 
@@ -126,10 +202,18 @@ function CustomerIoTreeActions({
   organizationSlug,
   kind,
   resourceId,
+  resourceSelected,
+  selectedActionIds,
+  disabled,
+  onToggle,
 }: {
   organizationSlug: string;
   kind: CustomerIoTreeResourceKind;
   resourceId: string;
+  resourceSelected: boolean;
+  selectedActionIds: string[] | undefined;
+  disabled: boolean;
+  onToggle: (actionId: string, visibleActionIds: string[]) => void;
 }) {
   const actionsQuery = useQuery({
     queryKey: ["customer-io-actions", organizationSlug, kind, resourceId],
@@ -169,7 +253,13 @@ function CustomerIoTreeActions({
   }
 
   const actions = actionsQuery.data ?? [];
-  if (actions.length === 0) {
+  // Only default-language actions are selectable: import/push skip translated
+  // variants, so showing them as tickable rows would be misleading.
+  const sourceActions = actions.filter(
+    (action) => typeof action.language !== "string" || action.language.trim() === "",
+  );
+  const hiddenTranslations = actions.length - sourceActions.length;
+  if (sourceActions.length === 0) {
     return (
       <TypographyP size="small" tone="subtle" className="py-1 pl-12">
         No localizable actions.
@@ -179,20 +269,35 @@ function CustomerIoTreeActions({
 
   return (
     <>
-      {actions.map((action) => (
+      {sourceActions.map((action) => (
         <div key={action.id} className="flex items-center gap-2 py-1 pl-12">
           <span className="inline-flex size-6 shrink-0" aria-hidden />
-          <Checkbox checked={false} disabled aria-label={`${action.name} (details only)`} />
+          <Checkbox
+            checked={
+              resourceSelected && (!selectedActionIds || selectedActionIds.includes(action.id))
+            }
+            disabled={disabled}
+            onCheckedChange={() =>
+              onToggle(
+                action.id,
+                sourceActions.map((item) => item.id),
+              )
+            }
+            aria-label={`Select ${action.name || action.id}`}
+          />
           <ActionTypeIcon type={action.type} />
           <span className="min-w-0 truncate text-sm text-muted-foreground">
             {action.name || action.id}
           </span>
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {action.type}
-            {action.language.trim() ? ` · ${action.language}` : " · Default"}
-          </span>
+          <span className="shrink-0 text-xs text-muted-foreground">{action.type} · Default</span>
         </div>
       ))}
+      {hiddenTranslations > 0 ? (
+        <TypographyP size="small" tone="subtle" className="py-1 pl-12">
+          {hiddenTranslations} translated {hiddenTranslations === 1 ? "variant" : "variants"}{" "}
+          hidden.
+        </TypographyP>
+      ) : null}
     </>
   );
 }
@@ -203,16 +308,20 @@ function CustomerIoTreeGroup({
   enabled,
   connected,
   selectedIds,
+  actionSelection,
   disabled,
   onToggle,
+  onToggleAction,
 }: {
   organizationSlug: string;
   group: (typeof GROUPS)[number];
   enabled: boolean;
   connected: boolean;
   selectedIds: string[];
+  actionSelection: Record<string, string[]>;
   disabled?: boolean;
   onToggle: (id: string) => void;
+  onToggleAction: (resourceId: string, actionId: string, visibleActionIds: string[]) => void;
 }) {
   const [expandedGroups, setExpandedGroups] = useState(false);
   const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set());
@@ -320,6 +429,12 @@ function CustomerIoTreeGroup({
                       organizationSlug={organizationSlug}
                       kind={group.kind}
                       resourceId={resource.id}
+                      resourceSelected={checked}
+                      selectedActionIds={actionSelection[resource.id]}
+                      disabled={disabled || !connected}
+                      onToggle={(actionId, visibleActionIds) =>
+                        onToggleAction(resource.id, actionId, visibleActionIds)
+                      }
                     />
                   ) : null}
                 </div>
@@ -337,15 +452,24 @@ export function CustomerIoResourceTree({
   enabled,
   connected,
   selection,
+  actionSelection,
   disabled,
   onToggle,
+  onToggleAction,
 }: {
   organizationSlug: string;
   enabled: boolean;
   connected: boolean;
   selection: CustomerIoTreeSelection;
+  actionSelection: CustomerIoTreeActionSelection;
   disabled?: boolean;
   onToggle: (kind: CustomerIoTreeResourceKind, id: string) => void;
+  onToggleAction: (
+    kind: CustomerIoTreeResourceKind,
+    resourceId: string,
+    actionId: string,
+    visibleActionIds: string[],
+  ) => void;
 }) {
   return (
     <div className="max-h-72 overflow-y-auto rounded-lg border bg-canvas py-1">
@@ -357,8 +481,12 @@ export function CustomerIoResourceTree({
             enabled={enabled}
             connected={connected}
             selectedIds={selection[group.kind]}
+            actionSelection={actionSelection[group.kind]}
             disabled={disabled}
             onToggle={(id) => onToggle(group.kind, id)}
+            onToggleAction={(resourceId, actionId, visibleActionIds) =>
+              onToggleAction(group.kind, resourceId, actionId, visibleActionIds)
+            }
           />
         </div>
       ))}
