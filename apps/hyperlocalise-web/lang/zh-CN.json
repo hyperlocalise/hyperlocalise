@@ -266,6 +266,9 @@
   "+ReDnUGTh8": {
     "defaultMessage": "读取文件"
   },
+  "+Rnh2zxLNj": {
+    "defaultMessage": "{step} {amount}"
+  },
   "+S1jk6jfe8": {
     "defaultMessage": "显示了集成凭据"
   },
@@ -343,6 +346,9 @@
   },
   "+Yz1meRR5E": {
     "defaultMessage": "AI 智能体"
+  },
+  "+ZMg3bOljT": {
+    "defaultMessage": "有些工作没有费率、时间预估或匹配区间，因此费用并不准确。"
   },
   "+aCQ19Fp2o": {
     "defaultMessage": "准备中"
@@ -887,6 +893,9 @@
   "/X6DitE9lx": {
     "defaultMessage": "所有同步状态"
   },
+  "/XGJylRSFv": {
+    "defaultMessage": "部分工作没有费率、时间预估或匹配区间，因此费用并不准确。"
+  },
   "/Xo8nQrLMv": {
     "defaultMessage": "在下方添加区块"
   },
@@ -1219,6 +1228,9 @@
   },
   "0B4ezwZ7oK": {
     "defaultMessage": "来自 Google 云端硬盘"
+  },
+  "0C/YKQiT4r": {
+    "defaultMessage": "大于或等于"
   },
   "0DSwLmDrDB": {
     "defaultMessage": "还没有文件"
@@ -1585,6 +1597,9 @@
   },
   "0qhb2tQ4rM": {
     "defaultMessage": "New"
+  },
+  "0qxrXQK9Co": {
+    "defaultMessage": "在整个 {step} 步骤中，此价格将取代卡片价格；任务完成后收费。"
   },
   "0r2uyKvHbT": {
     "defaultMessage": "正在加载分支…"
@@ -2537,11 +2552,17 @@
   "2c+GvUZLgD": {
     "defaultMessage": "查看职位"
   },
+  "2chGT4Q88W": {
+    "defaultMessage": "比较"
+  },
   "2d92l/sm+5": {
     "defaultMessage": "打开工作 {name}"
   },
   "2dSop4YkE1": {
     "defaultMessage": "无论是人员还是 AI 代理创建内容，都应遵循经批准的术语、品牌规范、市场要求和合规护栏。"
+  },
+  "2dc0ntrChe": {
+    "defaultMessage": "剩余（尚未扣除后续支出）"
   },
   "2eSDKs0tvs": {
     "defaultMessage": "至少选择一个发现"
@@ -3106,6 +3127,9 @@
   },
   "3hB61fmVx/": {
     "defaultMessage": "交换报告"
+  },
+  "3hPd/lObFe": {
+    "defaultMessage": "已取消"
   },
   "3hTiwfSSe8": {
     "defaultMessage": "输入 Ahrefs MCP API 密钥。"
@@ -3691,6 +3715,9 @@
   },
   "4lhHg5n2pX": {
     "defaultMessage": "智能体上下文"
+  },
+  "4m7wCtv70C": {
+    "defaultMessage": "完成"
   },
   "4mAN6mkTxq": {
     "defaultMessage": "Delete"
@@ -4463,6 +4490,9 @@
   "6DeonnLXWl": {
     "defaultMessage": "此 Figma 授权请求缺失或已过期。请从 Figma 重新开始。"
   },
+  "6DgBNntVln": {
+    "defaultMessage": "未定价"
+  },
   "6DqYm4cuZL": {
     "defaultMessage": "Webhook"
   },
@@ -4955,6 +4985,9 @@
   "79OV0Q8xnc": {
     "defaultMessage": "最高可享 Growth 标准价格 8 折优惠。最终金额取决于发展阶段、项目范围和匹配度。我们会在演示中明确告知具体金额——在您同意之前不会收取任何费用。"
   },
+  "79o/n4x4B7": {
+    "defaultMessage": "总支出（全部时间）"
+  },
   "79wF7UTpnH": {
     "defaultMessage": "Drift"
   },
@@ -4987,6 +5020,9 @@
   },
   "7BNesLRShh": {
     "defaultMessage": "无法更新所选条目。"
+  },
+  "7CPlHFJKgc": {
+    "defaultMessage": "每周"
   },
   "7CPu6D68D+": {
     "defaultMessage": "本地化评分"
@@ -6077,6 +6113,9 @@
   "9FwyT8SR/5": {
     "defaultMessage": "新建查询"
   },
+  "9FyMwA//m0": {
+    "defaultMessage": "部分未完成的工作没有费率、时间估算或匹配档位，因此“尚待完成”的金额并不准确。"
+  },
   "9GZfIBGhFw": {
     "defaultMessage": "发现了严重差距。创建一个工作区，以运行更深入的注册审计，或预约我们的团队进行审核。"
   },
@@ -6722,6 +6761,9 @@
   "ARpiURdPaK": {
     "defaultMessage": "轮班"
   },
+  "AS1Jb1Fn/X": {
+    "defaultMessage": "移除条件 {index}"
+  },
   "ASS0MwMBvQ": {
     "defaultMessage": "发布门槛"
   },
@@ -6860,6 +6902,9 @@
   "Ajr/yjqPyf": {
     "defaultMessage": "Body"
   },
+  "AkRNBWljz9": {
+    "defaultMessage": "添加条件"
+  },
   "AkuhSH8rwy": {
     "defaultMessage": "代码块渲染失败"
   },
@@ -6946,6 +6991,9 @@
   },
   "B/1vDLGgys": {
     "defaultMessage": "检查"
+  },
+  "B/d0rdoVJ/": {
+    "defaultMessage": "区块 {number}"
   },
   "B/sHkRyWmP": {
     "defaultMessage": "Experiment"
@@ -7226,6 +7274,9 @@
   "BWdxr7XQ2f": {
     "defaultMessage": "上传图片"
   },
+  "BWn4lTVOW+": {
+    "defaultMessage": "比较带类型的值，或组合布尔谓词。"
+  },
   "BX0DlJwbY+": {
     "defaultMessage": "断开连接 {providerName}？"
   },
@@ -7351,6 +7402,9 @@
   },
   "BlXinWb00f": {
     "defaultMessage": "设置工作流程。见证下一场营销活动遵循它。"
+  },
+  "Bmh0Lmd2wi": {
+    "defaultMessage": "尚无翻译后的 PDF。正在显示源文件。"
   },
   "Bn0C5KWma3": {
     "defaultMessage": "在集成中连接 GitHub 以选择仓库。"
@@ -7886,6 +7940,9 @@
   "CkFkjy7fQ+": {
     "defaultMessage": "使用测试数据"
   },
+  "CkGJqwlYH7": {
+    "defaultMessage": "以……开头"
+  },
   "CkQ3yx9NoL": {
     "defaultMessage": "Knowledge"
   },
@@ -8230,6 +8287,9 @@
   },
   "DMziALn6m4": {
     "defaultMessage": "02 检查每种语言"
+  },
+  "DN1I9bj4t4": {
+    "defaultMessage": "在这些日期获批 · 审核步骤"
   },
   "DN35BCM/UE": {
     "defaultMessage": "CMS 草稿"
@@ -9062,6 +9122,9 @@
   "Eu5Sh1lJHw": {
     "defaultMessage": "导出字幕"
   },
+  "EuDRqs/vI3": {
+    "defaultMessage": "不等于"
+  },
   "EuTWCTh8wL": {
     "defaultMessage": "浏览连接的 TMS 提供商中的源文件，然后在支持的情况下在 CAT 工作区中打开其中一个文件。"
   },
@@ -9364,6 +9427,9 @@
   },
   "FNmh/WsutT": {
     "defaultMessage": "失败"
+  },
+  "FP74d1HjBN": {
+    "defaultMessage": "已审核词数"
   },
   "FPj5rPYXJV": {
     "defaultMessage": "Unassigned"
@@ -10826,6 +10892,9 @@
   "IDmuYPzcIE": {
     "defaultMessage": "Sunday"
   },
+  "IFClcgFpBl": {
+    "defaultMessage": "等待审核"
+  },
   "IFRCTnWoxJ": {
     "defaultMessage": "所有事件类型"
   },
@@ -10867,6 +10936,9 @@
   },
   "IJLHOUOMZJ": {
     "defaultMessage": "源错误"
+  },
+  "IJXB3q7bIj": {
+    "defaultMessage": "此估算中的{unit}"
   },
   "IJZ5NzBvzc": {
     "defaultMessage": "按事件类型筛选"
@@ -11021,6 +11093,9 @@
   "Ij4qN1o4kr": {
     "defaultMessage": "超本地化原生"
   },
+  "IjB6PL5Pbn": {
+    "defaultMessage": "与"
+  },
   "Ik3lLiqJti": {
     "defaultMessage": "双击文件或使用“打开编辑器”来编辑 {targetLocale}。"
   },
@@ -11104,6 +11179,9 @@
   },
   "IpZ9FS/utY": {
     "defaultMessage": "由记忆库节省"
+  },
+  "IpkrdzOV2Q": {
+    "defaultMessage": "Failed"
   },
   "IqLI+2o8dz": {
     "defaultMessage": "获支持于"
@@ -11465,6 +11543,9 @@
   "JSylA1G/ba": {
     "defaultMessage": "公开分数，并列对比。查看你的分数，了解自己的排名。"
   },
+  "JTOY/bF8Zd": {
+    "defaultMessage": "此任务中提交审核的字符串"
+  },
   "JTdejUyr0G": {
     "defaultMessage": "连接 Anthropic 密钥，并在措辞需要格外斟酌时使用 Opus。此用量由 Anthropic 计费，不会消耗您的每月 AI 额度。"
   },
@@ -11584,6 +11665,9 @@
   },
   "JkzEXub4WI": {
     "defaultMessage": "Ship-safe"
+  },
+  "JlI/Chw0Gc": {
+    "defaultMessage": "{count, plural, one {# 个块被缩小或裁剪以适应布局。} other {# 个块被缩小或裁剪以适应布局。}}"
   },
   "JlYoa6li0M": {
     "defaultMessage": "译后编辑"
@@ -12322,6 +12406,9 @@
   },
   "LH5KuNV+zy": {
     "defaultMessage": "Files"
+  },
+  "LHcvKTa2yT": {
+    "defaultMessage": "{units} {step}"
   },
   "LHjP+HTMcQ": {
     "defaultMessage": "Locales"
@@ -13184,6 +13271,9 @@
   "Mt2FErfqOi": {
     "defaultMessage": "取消"
   },
+  "MtHbnOz2HY": {
+    "defaultMessage": "数据大约每 15 分钟更新一次。"
+  },
   "MtSPbgepa5": {
     "defaultMessage": "We could not load project files."
   },
@@ -13765,6 +13855,9 @@
   },
   "NzYmU9Xvq7": {
     "defaultMessage": "无法更新内容编辑器行为"
+  },
+  "O+MFwwsPPs": {
+    "defaultMessage": "Locale"
   },
   "O+Rhddgv8v": {
     "defaultMessage": "Descending"
@@ -16382,6 +16475,9 @@
   "TBagRGINiT": {
     "defaultMessage": "定时触发和由 GitHub 触发的确定性工作流"
   },
+  "TBfAG1U1q6": {
+    "defaultMessage": "尚无翻译文件 — 当前显示源文本作为起始内容。请编辑并保存后再批准。"
+  },
   "TC3oIavSPO": {
     "defaultMessage": "增长不应带来额外的琐事需求"
   },
@@ -18068,6 +18164,9 @@
   "WNUkfqHAtJ": {
     "defaultMessage": "Manage"
   },
+  "WNvJxgRGRU": {
+    "defaultMessage": "非"
+  },
   "WO7W6p2kV8": {
     "defaultMessage": "术语表名称为必填项。"
   },
@@ -18344,6 +18443,9 @@
   "WuOMg44dT2": {
     "defaultMessage": "申请演示褰"
   },
+  "WvlADP+aHH": {
+    "defaultMessage": "由用户撰写"
+  },
   "Ww6hf/sreW": {
     "defaultMessage": "翻译记忆加载失败。"
   },
@@ -18538,6 +18640,9 @@
   },
   "XIxg/0r3Uo": {
     "defaultMessage": "Ranked by impact across current release checks"
+  },
+  "XJR0C7/H1v": {
+    "defaultMessage": "{index} 名称"
   },
   "XJe/aHS1LC": {
     "defaultMessage": "加载成员失败"
@@ -18965,6 +19070,9 @@
   "Y75fqcWKkh": {
     "defaultMessage": "打开"
   },
+  "Y7IbUoDXiT": {
+    "defaultMessage": "有些字符串没有匹配档位：统计时无法读取翻译记忆库。它们按新内容计价。"
+  },
   "Y7XT7zpg39": {
     "defaultMessage": "配置 {providerLabel}"
   },
@@ -19210,6 +19318,9 @@
   },
   "YbMmg9p0CC": {
     "defaultMessage": "请输入名称。"
+  },
+  "YbYXjpZ0kP": {
+    "defaultMessage": "按周"
   },
   "YbphJVYBTz": {
     "defaultMessage": "费用估算"
@@ -20047,6 +20158,9 @@
   },
   "a5wP5u9Iqr": {
     "defaultMessage": "推理"
+  },
+  "a6JR5uFWOp": {
+    "defaultMessage": "步骤"
   },
   "a6VlArjU8i": {
     "defaultMessage": "None"
@@ -21407,6 +21521,9 @@
   "ciwH2j2J/2": {
     "defaultMessage": "扩展此领域市场中某个查询的创意。"
   },
+  "cj1bitbXno": {
+    "defaultMessage": "报告无法统计此任务的字符串数。在之后成功统计之前，其字数和预估值将缺失。"
+  },
   "cjBFGkHog4": {
     "defaultMessage": "当本地化检查报告错误时，使自动化运行失败。"
   },
@@ -21671,6 +21788,9 @@
   "dAoVLkrJwN": {
     "defaultMessage": "Created"
   },
+  "dAqONPnRrf": {
+    "defaultMessage": "使用符合区域设置的字符串比较"
+  },
   "dAs6p/cC9Z": {
     "defaultMessage": "市场测试如何运作"
   },
@@ -21685,6 +21805,9 @@
   },
   "dC80UX3i75": {
     "defaultMessage": "{hours} 小时"
+  },
+  "dCCEY6kz9i": {
+    "defaultMessage": "运算符"
   },
   "dCGRsZA2+G": {
     "defaultMessage": "瑞典语（瑞典）"
@@ -21980,6 +22103,9 @@
   "dgawo2bDGy": {
     "defaultMessage": "扫描失败。这些结果不完整。请重试扫描。"
   },
+  "dhCHuarVuj": {
+    "defaultMessage": "敏感度"
+  },
   "dhHPq13vex": {
     "defaultMessage": "检查翻译时，扫描已停止。"
   },
@@ -22021,6 +22147,9 @@
   },
   "dn9Ff93vY2": {
     "defaultMessage": "Choose a project above to pick target locales."
+  },
+  "dnUl0UTxhs": {
+    "defaultMessage": "整个任务均适用，不受日期限制。天数按 UTC 计算。计数约每 15 分钟更新一次。"
   },
   "dnuXZ5sBJ3": {
     "defaultMessage": "任务失败"
@@ -22108,6 +22237,9 @@
   },
   "dwl+X67Kqo": {
     "defaultMessage": "关闭助手"
+  },
+  "dwmJPhGlWT": {
+    "defaultMessage": "此 PDF 预览暂时无法渲染目标文字。"
   },
   "dwrrquikgT": {
     "defaultMessage": "Profile"
@@ -22478,6 +22610,9 @@
   "eXGK8mxaRF": {
     "defaultMessage": "2.1 健康声明"
   },
+  "eXV1+dyKel": {
+    "defaultMessage": "值 {index} 类型"
+  },
   "eXkQXUV5Ys": {
     "defaultMessage": "错误代码"
   },
@@ -22603,6 +22738,9 @@
   },
   "enrIL8oTbj": {
     "defaultMessage": "问题"
+  },
+  "eoEHqDK2SZ": {
+    "defaultMessage": "第 {number} 页"
   },
   "eoZk//4FTc": {
     "defaultMessage": "选择标签"
@@ -22801,6 +22939,9 @@
   },
   "f7G04QgkqV": {
     "defaultMessage": "GPT-5.6 Sol"
+  },
+  "f8G+byGKq6": {
+    "defaultMessage": "包含"
   },
   "f8Qa8QmhOi": {
     "defaultMessage": "该市场目前还没有排名关键词。"
@@ -23120,6 +23261,9 @@
   "fj5dhgmhYc": {
     "defaultMessage": "无法验证凭据。"
   },
+  "fjFA+QFK7I": {
+    "defaultMessage": "仅适用于按小时计价的语言：费用按此时长和小时费率计算，由这些语言共同分摊。"
+  },
   "fjjjlNCOer": {
     "defaultMessage": "输入内容，或输入 / 以添加区块…"
   },
@@ -23136,7 +23280,7 @@
     "defaultMessage": "先在日本进行测试，然后保留可行的版本。您的开发者只需连接网站一次。"
   },
   "flylKYuIkP": {
-    "defaultMessage": "{images} · {videos}"
+    "defaultMessage": "{images} 张图片 · {videos} 个视频"
   },
   "fmDOQaEtb/": {
     "defaultMessage": "文档"
@@ -23158,6 +23302,9 @@
   },
   "fnnzeRJcnZ": {
     "defaultMessage": "Edit"
+  },
+  "fntWWIAzLn": {
+    "defaultMessage": "大于彩票娱乐"
   },
   "fnuHA5r7aQ": {
     "defaultMessage": "每月 20 美元的 AI 额度"
@@ -23251,6 +23398,9 @@
   },
   "fyihAjDSvB": {
     "defaultMessage": "添加源路径和区域设置，以便在内容编辑器中打开此问题。"
+  },
+  "fymXCpx8Nq": {
+    "defaultMessage": "或"
   },
   "fyzfb0jEn1": {
     "defaultMessage": "展开文件面板"
@@ -23854,6 +24004,9 @@
   },
   "h/oYoN5Oui": {
     "defaultMessage": "新市场。100 倍势能。"
+  },
+  "h/ydXnWprX": {
+    "defaultMessage": "要查看项目当前的状态，请前往项目页面上的“语言”面板。"
   },
   "h01zk4uF/7": {
     "defaultMessage": "网站端点"
@@ -24610,6 +24763,9 @@
   },
   "iNt/60shfS": {
     "defaultMessage": "让错过的本地化更难被错过。"
+  },
+  "iO1SSVXmtH": {
+    "defaultMessage": "运行中"
   },
   "iOJxHuvYs1": {
     "defaultMessage": "自动处理繁琐工作"
@@ -25429,6 +25585,9 @@
   },
   "jwJxvtEYDr": {
     "defaultMessage": "点击卡片以选择市场赢家。"
+  },
+  "jwMRWjUt93": {
+    "defaultMessage": "费率"
   },
   "jwTdsyTe54": {
     "defaultMessage": "CAT Tool"
@@ -27083,6 +27242,9 @@
   "mvgKs5lzcT": {
     "defaultMessage": "无法保存字符限制。请重试。"
   },
+  "mw+3bBcOfH": {
+    "defaultMessage": "未定价"
+  },
   "mwCo4y1n7b": {
     "defaultMessage": "Learn more"
   },
@@ -27535,6 +27697,9 @@
   },
   "njR/Tp8zi7": {
     "defaultMessage": "为此工作区保存共享的提供商密钥。保存时会验证密钥，并对静态存储的密钥进行加密。"
+  },
+  "njxiURMl+2": {
+    "defaultMessage": "值"
   },
   "nkAooS6hll": {
     "defaultMessage": "Sort"
@@ -28712,6 +28877,9 @@
   "pv3y8oySTJ": {
     "defaultMessage": "Glossary"
   },
+  "pvRSTX9opI": {
+    "defaultMessage": "小于或等于"
+  },
   "pw9PHi/ZLr": {
     "defaultMessage": "隐藏不适用项"
   },
@@ -29105,6 +29273,9 @@
   "qaa1Bmj1zG": {
     "defaultMessage": "请选择其他组织，或退出登录后使用其他账号重试。"
   },
+  "qb04+Om/Pt": {
+    "defaultMessage": "结尾为"
+  },
   "qb5M/SMiFT": {
     "defaultMessage": "查看 Google 上次抓取此资源中页面的时间。"
   },
@@ -29401,6 +29572,9 @@
   },
   "r90dkDmgjO": {
     "defaultMessage": "Marking…"
+  },
+  "r99fAqUjlQ": {
+    "defaultMessage": "某种语言按小时计价，而该任务没有时间估算，因此缺少费用。"
   },
   "r9CtFkZBBj": {
     "defaultMessage": "连接 GitHub 和 Slack，让代理能够验证更改并自动通知您的团队。"
@@ -29948,6 +30122,9 @@
   "s8SWNwR/wk": {
     "defaultMessage": "发布阻塞"
   },
+  "s97IP+3F+5": {
+    "defaultMessage": "人们在第{step}步完成了{people}个词；其中有{share}的人保留了收到的文本原样。"
+  },
   "s9KpNEg6/X": {
     "defaultMessage": "{label}：{count}"
   },
@@ -29992,6 +30169,9 @@
   },
   "sGkYArMEbA": {
     "defaultMessage": "Teams"
+  },
+  "sH5sdN1MjD": {
+    "defaultMessage": "未定价"
   },
   "sHACVcApZT": {
     "defaultMessage": "新请求"
@@ -31718,6 +31898,9 @@
   "vZsNkmllED": {
     "defaultMessage": "已批准的事实依据"
   },
+  "va2mte2j4z": {
+    "defaultMessage": "小于"
+  },
   "vaMfx7eOmi": {
     "defaultMessage": "上一条建议"
   },
@@ -31735,6 +31918,9 @@
   },
   "vb7EOrZY7c": {
     "defaultMessage": "QA 错误"
+  },
+  "vbFd3KgPqU": {
+    "defaultMessage": "Queued"
   },
   "vbYpX59SOe": {
     "defaultMessage": "没有已映射的文件"
@@ -31810,6 +31996,9 @@
   },
   "vkuQguUble": {
     "defaultMessage": "使用 1–10 个字母或数字，且必须以字母开头（例如 HL）。"
+  },
+  "vlAdHtlrgV": {
+    "defaultMessage": "无费率"
   },
   "vlJmij48Pk": {
     "defaultMessage": "词典已创建"
@@ -32095,6 +32284,9 @@
   },
   "wE0HX7UKYn": {
     "defaultMessage": "Markdown/文本"
+  },
+  "wE6tyGO5i/": {
+    "defaultMessage": "从{date}开始的一周"
   },
   "wEBG0EIifq": {
     "defaultMessage": "应用"
@@ -32386,6 +32578,9 @@
   },
   "wp2BMLIVDu": {
     "defaultMessage": "Saving..."
+  },
+  "wpuQiD83P6": {
+    "defaultMessage": "根据此卡片当前对应的行，为 {step} 步骤中的每种语言定价。无：使用项目预算卡片。"
   },
   "wq110jUHyr": {
     "defaultMessage": "种子关键词"
@@ -32938,6 +33133,9 @@
   },
   "xkvxbuC9Tn": {
     "defaultMessage": "Total"
+  },
+  "xlj1vkYPSY": {
+    "defaultMessage": "等于"
   },
   "xlxoUp+bTs": {
     "defaultMessage": "非任务类 AI"

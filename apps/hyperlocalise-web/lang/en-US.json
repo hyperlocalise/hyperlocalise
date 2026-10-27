@@ -143,10 +143,6 @@
     "defaultMessage": "Which words",
     "description": "Accessible name of the switch between words that arrived and words finished"
   },
-  "+AdPwtLE3T": {
-    "defaultMessage": "People finished {people} words; {share} of those were approved without changing the text they were given.",
-    "description": "Note under the finished words chart: how much people approved unchanged"
-  },
   "+BP6ejutVt": {
     "defaultMessage": "No Overview snapshot yet. Refresh to capture this market.",
     "description": "Overview has no cached provider snapshot"
@@ -291,6 +287,10 @@
     "defaultMessage": "You",
     "description": "Badge marking the current user in the members list"
   },
+  "+Rnh2zxLNj": {
+    "defaultMessage": "{amount} {step}",
+    "description": "Part of the estimated cost card's detail: one step's cost, e.g. '$12.86 translation'"
+  },
   "+S1jk6jfe8": {
     "defaultMessage": "revealed an integration credential",
     "description": "Action for an integration credential reveal activity"
@@ -378,6 +378,10 @@
   "+Yz1meRR5E": {
     "defaultMessage": "AI agents",
     "description": "Activity filter option that shows changes made by AI agents"
+  },
+  "+ZMg3bOljT": {
+    "defaultMessage": "Some work has no rate, no time estimate or no match band, so the cost is not exact.",
+    "description": "Detail under the estimated cost card when some prices are missing"
   },
   "+aCQ19Fp2o": {
     "defaultMessage": "Preparing",
@@ -1031,6 +1035,10 @@
     "defaultMessage": "All sync states",
     "description": "Workspace files sync filter option to show every sync state"
   },
+  "/XGJylRSFv": {
+    "defaultMessage": "Some work has no rate, no time estimate or no match band, so the cost is not exact.",
+    "description": "Warning when an estimate is missing some prices"
+  },
   "/Xo8nQrLMv": {
     "defaultMessage": "Add a block below",
     "description": "Document editor: block handle button that inserts a block"
@@ -1046,10 +1054,6 @@
   "/Z40OYzdZ/": {
     "defaultMessage": "Approved project",
     "description": "Origin for entries promoted from approved project translations"
-  },
-  "/ZTRO0/2FX": {
-    "defaultMessage": "This whole task, whatever its dates. Days use UTC.",
-    "description": "Line at the top of a task's Report tab"
   },
   "/ZyYtiK1Js": {
     "defaultMessage": "Filters",
@@ -1787,6 +1791,10 @@
     "defaultMessage": "New",
     "description": "Match band: no useful translation memory match"
   },
+  "0qxrXQK9Co": {
+    "defaultMessage": "Replaces the card's prices for the whole {step} step; charged when the task is done.",
+    "description": "Help under the fixed fee field of the task pricing dialog"
+  },
   "0r2uyKvHbT": {
     "defaultMessage": "Loading branches…",
     "description": "Loading state while provider project branches are fetched"
@@ -1950,10 +1958,6 @@
   "1A3oOwAeXf": {
     "defaultMessage": "{language} (source)",
     "description": "Multilingual table source label"
-  },
-  "1AD7GTm5qZ": {
-    "defaultMessage": "Of what was translated",
-    "description": "Detail under the approved card"
   },
   "1B4aT4LjmI": {
     "defaultMessage": "Access",
@@ -2859,6 +2863,10 @@
     "defaultMessage": "Apply approved terminology, brand rules, market requirements, and compliance guardrails wherever people or AI agents create content.",
     "description": "Capability carousel card 05 body"
   },
+  "2dc0ntrChe": {
+    "defaultMessage": "Remaining (before still to come)",
+    "description": "Column heading: budget minus spent"
+  },
   "2eU5akyXs2": {
     "defaultMessage": "You’re all caught up",
     "description": "Dashboard hero title when there are no pending actions"
@@ -3458,6 +3466,10 @@
   "3hB61fmVx/": {
     "defaultMessage": "Interchange report",
     "description": "Glossary interchange report page title"
+  },
+  "3hPd/lObFe": {
+    "defaultMessage": "Cancelled",
+    "description": "A task's state in the task picker"
   },
   "3hgvf7DCgl": {
     "defaultMessage": "Cancel intentionally",
@@ -4130,6 +4142,10 @@
   "4lhHg5n2pX": {
     "defaultMessage": "Agent context",
     "description": "Accessible label for agent-discovered context markdown content"
+  },
+  "4m7wCtv70C": {
+    "defaultMessage": "Done",
+    "description": "A task's state in the task picker"
   },
   "4mAN6mkTxq": {
     "defaultMessage": "Delete",
@@ -5011,6 +5027,10 @@
     "defaultMessage": "This Figma authorization request is missing or expired. Start again from Figma.",
     "description": "Error when the Figma OAuth request cookie is missing"
   },
+  "6DgBNntVln": {
+    "defaultMessage": "Not priced",
+    "description": "Still to come cell when unfinished work has no rate at all"
+  },
   "6DqYm4cuZL": {
     "defaultMessage": "Webhook",
     "description": "Heading for Contentful webhook status section"
@@ -5571,6 +5591,10 @@
     "defaultMessage": "The maximum discount is 80% off Growth list pricing. The final amount depends on stage, scope, and fit. We share a clear number on the demo — nothing is charged until you agree.",
     "description": "Startups FAQ answer about the discount amount"
   },
+  "79o/n4x4B7": {
+    "defaultMessage": "Spent (all time)",
+    "description": "Column heading: what has been spent"
+  },
   "7A+LIW8RCQ": {
     "defaultMessage": "Translation memory entry",
     "description": "Title of the translation memory entry detail sheet"
@@ -5602,6 +5626,10 @@
   "7BNesLRShh": {
     "defaultMessage": "Unable to update the selected entries.",
     "description": "Error shown when bulk translation memory review fails"
+  },
+  "7CPlHFJKgc": {
+    "defaultMessage": "Week",
+    "description": "Column heading: the week, by its first day"
   },
   "7CPu6D68D+": {
     "defaultMessage": "Localisation score",
@@ -6842,6 +6870,10 @@
   "9FwyT8SR/5": {
     "defaultMessage": "New query",
     "description": "Title of the create query dialog"
+  },
+  "9FyMwA//m0": {
+    "defaultMessage": "Some unfinished work has no rate, no time estimate or no match band, so still to come is not exact.",
+    "description": "Note on a budget whose still to come is incomplete"
   },
   "9GZvF1K90w": {
     "defaultMessage": "View files",
@@ -8783,10 +8815,6 @@
     "defaultMessage": "{count, plural, one {# project} other {# projects}}",
     "description": "Workspace project attachment count for a translation memory"
   },
-  "CTYBUBZ8WJ": {
-    "defaultMessage": "Some work has no rate or no time estimate, so the cost is too low.",
-    "description": "Detail under the estimated cost card when some prices are missing"
-  },
   "CUMVPg+yCv": {
     "defaultMessage": "How it works",
     "description": "Use case page workflow section label"
@@ -9326,6 +9354,10 @@
   "DMziALn6m4": {
     "defaultMessage": "02 Check every language",
     "description": "Domains workflow step 2"
+  },
+  "DN1I9bj4t4": {
+    "defaultMessage": "Approved in these dates · review step",
+    "description": "Detail under the words reviewed card"
   },
   "DN35BCM/UE": {
     "defaultMessage": "CMS draft",
@@ -10611,6 +10643,10 @@
     "defaultMessage": "Failed",
     "description": "Status label for a failed job on project overview"
   },
+  "FP74d1HjBN": {
+    "defaultMessage": "Words reviewed",
+    "description": "Activity card: words approved in the period, at the review step"
+  },
   "FPj5rPYXJV": {
     "defaultMessage": "Unassigned",
     "description": "Issue list assignee filter option for issues with no assignee"
@@ -11567,10 +11603,6 @@
     "defaultMessage": "New headline",
     "description": "Hyperlab mock UI experiment variant label"
   },
-  "H1SZ9MK9eU": {
-    "defaultMessage": "Approved",
-    "description": "Activity card: share of translated words that were reviewed"
-  },
   "H1kAb9fqeL": {
     "defaultMessage": "Ignore",
     "description": "QA review: ignore"
@@ -11915,10 +11947,6 @@
     "defaultMessage": "{count, plural, one {# warning} other {# warnings}}",
     "description": "QA run summary: warning count"
   },
-  "HfKaBbYViW": {
-    "defaultMessage": "Remaining",
-    "description": "Column heading: budget minus spent"
-  },
   "HhB3zV2KR/": {
     "defaultMessage": "Web chat",
     "description": "AI channel: the public web chat"
@@ -12207,10 +12235,6 @@
     "defaultMessage": "WorkOS is not configured, so Search Console cannot connect through Pipes.",
     "description": "Empty state description when WorkOS Pipes is unavailable"
   },
-  "IBAwfyPf94": {
-    "defaultMessage": "{unit} to translate",
-    "description": "Estimate card: the units of the chosen tasks, such as Words to translate"
-  },
   "IBYpVWNrJA": {
     "defaultMessage": "Document properties",
     "description": "Heading for YAML metadata fields at the top of a Markdown/MDX document in CAT file view"
@@ -12238,6 +12262,10 @@
   "IDmuYPzcIE": {
     "defaultMessage": "Sunday",
     "description": "Sunday option for weekly schedule"
+  },
+  "IFClcgFpBl": {
+    "defaultMessage": "Waiting for review",
+    "description": "A task's state in the task picker"
   },
   "IFRCTnWoxJ": {
     "defaultMessage": "All event types",
@@ -12290,6 +12318,10 @@
   "IJLHOUOMZJ": {
     "defaultMessage": "Source mistake",
     "description": "Unresolved issue submenu: source mistake"
+  },
+  "IJXB3q7bIj": {
+    "defaultMessage": "{unit} in this estimate",
+    "description": "Cost estimate card: every unit of the chosen tasks or project, finished or not, at every step"
   },
   "IJZ5NzBvzc": {
     "defaultMessage": "Filter by event type",
@@ -12554,6 +12586,10 @@
   "IpZ9FS/utY": {
     "defaultMessage": "Saved by the memory",
     "description": "Estimate card: share saved by translation memory matches"
+  },
+  "IpkrdzOV2Q": {
+    "defaultMessage": "Failed",
+    "description": "A task's state in the task picker"
   },
   "IqLI+2o8dz": {
     "defaultMessage": "Backed by",
@@ -12859,10 +12895,6 @@
     "defaultMessage": "Issue",
     "description": "Button to open the create issue dialog on the Issue Sheet page"
   },
-  "JKl1MjPESe": {
-    "defaultMessage": "Some work has no rate or no time estimate, so the cost is too low.",
-    "description": "Warning when an estimate is missing some prices"
-  },
   "JKmR2EOv2K": {
     "defaultMessage": "Models",
     "description": "Accessible label for the pricing model list"
@@ -12966,6 +12998,10 @@
   "JSylA1G/ba": {
     "defaultMessage": "Public scores, side by side. Check yours to see where you stand.",
     "description": "Supporting copy for the public localisation audit leaderboard"
+  },
+  "JTOY/bF8Zd": {
+    "defaultMessage": "Of this task's strings sent for review",
+    "description": "Detail under the approved card"
   },
   "JTdejUyr0G": {
     "defaultMessage": "Connect an Anthropic key and use Opus when the wording needs extra attention. Anthropic bills this usage. It does not draw down your monthly AI credit.",
@@ -13894,6 +13930,10 @@
   "LH5KuNV+zy": {
     "defaultMessage": "Files",
     "description": "Group label for selectable project files"
+  },
+  "LHcvKTa2yT": {
+    "defaultMessage": "{units} {step}",
+    "description": "Part of the detail under the units card: units at one step, e.g. '204 translation'"
   },
   "LHjP+HTMcQ": {
     "defaultMessage": "Locales",
@@ -14902,6 +14942,10 @@
   "Mt2FErfqOi": {
     "defaultMessage": "Cancel",
     "description": "Closes the filtered export dialog without downloading"
+  },
+  "MtHbnOz2HY": {
+    "defaultMessage": "Counts update about every 15 minutes.",
+    "description": "Note on the Reports page: how recent its figures are"
   },
   "MtaQi7PiPN": {
     "defaultMessage": "General",
@@ -20739,6 +20783,10 @@
     "defaultMessage": "Request a Demo",
     "description": "Call-to-action to request a Content Studio demo"
   },
+  "WvlADP+aHH": {
+    "defaultMessage": "Written by people",
+    "description": "Chart series: finished text that people wrote themselves"
+  },
   "Ww6hf/sreW": {
     "defaultMessage": "Translation memories failed to load.",
     "description": "Error heading when translation memories fail to load"
@@ -21407,6 +21455,10 @@
     "defaultMessage": "Open",
     "description": "Link to open the project guideline page"
   },
+  "Y7IbUoDXiT": {
+    "defaultMessage": "Some strings have no match band: the translation memory could not be read when they were counted. They are priced as new work.",
+    "description": "Note under a task's match analysis when some strings were counted without a match band"
+  },
   "Y7XT7zpg39": {
     "defaultMessage": "Configure {providerLabel}",
     "description": "Title for the BYOK model provider configuration dialog"
@@ -21679,6 +21731,10 @@
     "defaultMessage": "Enter a name.",
     "description": "Validation error for an empty dictionary name"
   },
+  "YbYXjpZ0kP": {
+    "defaultMessage": "By week",
+    "description": "Switch option: one row per week, project and language"
+  },
   "YbphJVYBTz": {
     "defaultMessage": "Cost estimate",
     "description": "Accessible name of the estimate table"
@@ -21694,10 +21750,6 @@
   "YcomzE3n8l": {
     "defaultMessage": "branches required",
     "description": "Placeholder in GitHub push summary when no branch patterns are set"
-  },
-  "YdTHQQdCSW": {
-    "defaultMessage": "Of the words translated in these dates",
-    "description": "Detail under the approved card"
   },
   "Ye4i9DEFBz": {
     "defaultMessage": "Untranslated",
@@ -21794,10 +21846,6 @@
   "YlQ8SQ7Hob": {
     "defaultMessage": "Scale your content. Keep control.",
     "description": "Title for the homepage trust and control section"
-  },
-  "YlTd/jJl/v": {
-    "defaultMessage": "Some unfinished work has no rate or no time estimate, so still to come may be low.",
-    "description": "Note on a budget whose still to come is incomplete"
   },
   "YlkCv2/Rn6": {
     "defaultMessage": "Delete this query?",
@@ -22134,10 +22182,6 @@
   "ZM4eC/SiqK": {
     "defaultMessage": "Unable to verify this channel right now. Try again.",
     "description": "Error when Slack channel verification fails unexpectedly"
-  },
-  "ZMfSUtV6Zv": {
-    "defaultMessage": "People",
-    "description": "Chart series: work done by people"
   },
   "ZMuADiRtdx": {
     "defaultMessage": "Writing",
@@ -22606,6 +22650,10 @@
   "a5wP5u9Iqr": {
     "defaultMessage": "Reasoning",
     "description": "Label for reasoning token usage in the context hover card"
+  },
+  "a6JR5uFWOp": {
+    "defaultMessage": "Step",
+    "description": "Label of the switch choosing which step the finished words chart shows"
   },
   "a6VlArjU8i": {
     "defaultMessage": "None",
@@ -24123,6 +24171,10 @@
     "defaultMessage": "Expand ideas from a query in this domain’s market.",
     "description": "Seed keywords dialog description"
   },
+  "cj1bitbXno": {
+    "defaultMessage": "Reports could not count this task's strings. Its words and estimate are missing until a later count succeeds.",
+    "description": "Shown on a task's Report tab when counting its strings failed"
+  },
   "cjBFGkHog4": {
     "defaultMessage": "Fail the automation run when the localization check reports errors.",
     "description": "Description for blocking automation when localization check fails"
@@ -24862,6 +24914,10 @@
   "dmWGvUNewd": {
     "defaultMessage": "Choose push or scheduled triggers when workflows are enabled.",
     "description": "Validation error when workflows are enabled but no trigger mode is selected"
+  },
+  "dnUl0UTxhs": {
+    "defaultMessage": "This whole task, whatever its dates. Days use UTC. Counts update about every 15 minutes.",
+    "description": "Line at the top of a task's Report tab"
   },
   "dnuXZ5sBJ3": {
     "defaultMessage": "Job Failed",
@@ -26103,6 +26159,10 @@
     "defaultMessage": "Unable to validate the credential.",
     "description": "Generic error when provider credential validation fails during onboarding"
   },
+  "fjFA+QFK7I": {
+    "defaultMessage": "Counts only for languages priced by the hour: their cost is this time at the hourly rate, shared between them.",
+    "description": "Help under the time estimate field of the task pricing dialog"
+  },
   "fjjjlNCOer": {
     "defaultMessage": "Write, or type / for blocks…",
     "description": "Placeholder shown in an empty markdown description editor"
@@ -26958,6 +27018,10 @@
   "h/oYoN5Oui": {
     "defaultMessage": "New markets. 100x momentum.",
     "description": "Primary headline on the marketing startups page"
+  },
+  "h/ydXnWprX": {
+    "defaultMessage": "For the project's state now, see Languages on the project page",
+    "description": "Link from a project's Reports page to the Languages panel on its overview"
   },
   "h01zk4uF/7": {
     "defaultMessage": "Website endpoint",
@@ -27822,6 +27886,10 @@
   "iNWvPHt1s5": {
     "defaultMessage": "Translation mistake",
     "description": "Unresolved issue submenu: translation mistake"
+  },
+  "iO1SSVXmtH": {
+    "defaultMessage": "Running",
+    "description": "A task's state in the task picker"
   },
   "iOJxHuvYs1": {
     "defaultMessage": "Automate the busywork",
@@ -28714,6 +28782,10 @@
   "jwJxvtEYDr": {
     "defaultMessage": "Click a card to pick a market winner.",
     "description": "Hint under the Hyperlab comparison mock"
+  },
+  "jwMRWjUt93": {
+    "defaultMessage": "Rate",
+    "description": "Column heading: the rate that prices a language's work on the task"
   },
   "jxJKm8SzyI": {
     "defaultMessage": "File not found",
@@ -30542,6 +30614,10 @@
   "mvgKs5lzcT": {
     "defaultMessage": "Could not save the character limit. Try again.",
     "description": "Error shown when saving a native segment max length fails"
+  },
+  "mw+3bBcOfH": {
+    "defaultMessage": "Not priced",
+    "description": "Shown instead of a cost when no rate applies to any of the work"
   },
   "myA+eLggC8": {
     "defaultMessage": "Save",
@@ -33175,6 +33251,10 @@
     "defaultMessage": "Marking…",
     "description": "Confirm button label while marking a job as failed"
   },
+  "r99fAqUjlQ": {
+    "defaultMessage": "A language is priced by the hour and the task has no time estimate, so its cost is missing.",
+    "description": "Note under a task's match analysis when an hourly line has no time estimate"
+  },
   "r9CtFkZBBj": {
     "defaultMessage": "Connect GitHub and Slack to let the agent validate changes and notify your team automatically.",
     "description": "Step 4 description"
@@ -33519,10 +33599,6 @@
     "defaultMessage": "Workspace connection",
     "description": "Label for the Figma connection picker on the OAuth consent page"
   },
-  "rhk1ttNY83": {
-    "defaultMessage": "Spent",
-    "description": "Column heading: what has been spent"
-  },
   "riG8529T+y": {
     "defaultMessage": "General",
     "description": "Heading for the general project settings section"
@@ -33795,6 +33871,10 @@
     "defaultMessage": "Request failed",
     "description": "Fallback error when the create issue API request fails"
   },
+  "s97IP+3F+5": {
+    "defaultMessage": "People finished {people} words at the {step} step; {share} of those kept the text they were given as it was.",
+    "description": "Note under the finished words chart: how much of what people finished was kept as given"
+  },
   "s9vKrtKT/S": {
     "defaultMessage": "Open in Content Editor",
     "description": "Link label to open the related Content Editor segment for an issue"
@@ -33846,6 +33926,10 @@
   "sGkYArMEbA": {
     "defaultMessage": "Teams",
     "description": "Teams page title"
+  },
+  "sH5sdN1MjD": {
+    "defaultMessage": "Not priced",
+    "description": "Shown instead of a cost when no rate applies to any of the task's work"
   },
   "sHACVcApZT": {
     "defaultMessage": "New Request",
@@ -35775,6 +35859,10 @@
     "defaultMessage": "QA errors",
     "description": "Short label for the QA errors notification type in the inbox list"
   },
+  "vbFd3KgPqU": {
+    "defaultMessage": "Queued",
+    "description": "A task's state in the task picker"
+  },
   "vbYpX59SOe": {
     "defaultMessage": "No mapped files",
     "description": "Empty state when a Google Drive automation has no mapped files"
@@ -35850,6 +35938,10 @@
   "vkuQguUble": {
     "defaultMessage": "Use 1–10 letters or numbers, starting with a letter (e.g. HL).",
     "description": "Validation error when the project issue identifier is invalid"
+  },
+  "vlAdHtlrgV": {
+    "defaultMessage": "No rate",
+    "description": "Rate cell of a language the task's card and its budget's card have no line for"
   },
   "vlJmij48Pk": {
     "defaultMessage": "Dictionary Created",
@@ -36154,6 +36246,10 @@
   "wE0HX7UKYn": {
     "defaultMessage": "Markdown/Text",
     "description": "Button to start a blank markdown knowledge memory document"
+  },
+  "wE6tyGO5i/": {
+    "defaultMessage": "Week of {date}",
+    "description": "A week in the word counts table, by its first day (a Monday)"
   },
   "wEBG0EIifq": {
     "defaultMessage": "Apply",
@@ -36502,6 +36598,10 @@
   "wp2BMLIVDu": {
     "defaultMessage": "Saving…",
     "description": "Document editor: autosave in progress"
+  },
+  "wpuQiD83P6": {
+    "defaultMessage": "Prices each language of the {step} step by this card's line for it, as the card is now. None: the project budget's card.",
+    "description": "Help under the rate card field of the task pricing dialog"
   },
   "wq110jUHyr": {
     "defaultMessage": "Seed keywords",
