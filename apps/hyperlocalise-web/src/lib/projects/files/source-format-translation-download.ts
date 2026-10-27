@@ -16,7 +16,7 @@ import { db, schema } from "@/lib/database/client";
 import { getStoredFileContent } from "@/lib/file-storage/records";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
-import type { RenderTranslationFileBody } from "@/lib/go-svc/go-svc-client.types";
+import type { RenderTranslationFileRequest } from "@/lib/go-svc/go-svc-client.types";
 import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { findLatestReconciledVersionForFile } from "@/lib/projects/files/source-file-segmentation";
@@ -97,10 +97,14 @@ async function loadSpanSourceTexts(input: {
   }
 }
 
-async function renderWithGoSvc(body: RenderTranslationFileBody): Promise<Uint8Array> {
-  const rendered = await createGoSvcServerClient().translationFile.render(body, {
-    signal: AbortSignal.timeout(RENDER_TIMEOUT_MS),
-  });
+async function renderWithGoSvc(
+  source: Uint8Array,
+  request: RenderTranslationFileRequest,
+): Promise<Uint8Array> {
+  const rendered = await createGoSvcServerClient().translationFile.render(
+    { source, request },
+    { signal: AbortSignal.timeout(RENDER_TIMEOUT_MS) },
+  );
   return new Uint8Array(await rendered.blob.arrayBuffer());
 }
 
@@ -191,11 +195,10 @@ export async function loadProjectSourceFormatTranslationDownload(input: {
     : {};
 
   const rendered = await fromThrowableAsync(
-    renderWithGoSvc({
+    renderWithGoSvc(source.value.content, {
       sourcePath: input.sourcePath,
       sourceLocale: project?.sourceLocale ?? "",
       targetLocale: input.targetLocale,
-      source: source.value.content.toString("base64"),
       values: translations.prefilled,
       sourceSpans,
     }),

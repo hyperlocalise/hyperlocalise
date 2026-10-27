@@ -368,12 +368,14 @@ describe("project file translation download route", () => {
     // Untranslated keys are left out so the writer keeps what the source has for them.
     expect(renderTranslationFileMock).toHaveBeenCalledWith(
       {
-        sourcePath: "locales/messages.csv",
-        sourceLocale: "en-US",
-        targetLocale: LOCALE,
-        source: Buffer.from(source).toString("base64"),
-        values: { greeting: "Bonjour" },
-        sourceSpans: {},
+        source: Buffer.from(source),
+        request: {
+          sourcePath: "locales/messages.csv",
+          sourceLocale: "en-US",
+          targetLocale: LOCALE,
+          values: { greeting: "Bonjour" },
+          sourceSpans: {},
+        },
       },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
@@ -421,7 +423,7 @@ describe("project file translation download route", () => {
     expect(response.headers.get("content-security-policy")).toBe("default-src 'none'; sandbox;");
     expect(await response.text()).toBe("title: Bonjour\n");
     expect(renderTranslationFileMock.mock.calls[0]?.[0]).toMatchObject({
-      source: Buffer.from("title: Hello\n").toString("base64"),
+      source: Buffer.from("title: Hello\n"),
     });
   });
 
@@ -442,8 +444,10 @@ describe("project file translation download route", () => {
 
     expect(response.status).toBe(200);
     expect(renderTranslationFileMock.mock.calls[0]?.[0]).toMatchObject({
-      values: { "intro#srx.0": "Bonjour.", title: "Accueil" },
-      sourceSpans: { "intro#srx.0": "Hello.", "intro#srx.1": " World." },
+      request: {
+        values: { "intro#srx.0": "Bonjour.", title: "Accueil" },
+        sourceSpans: { "intro#srx.0": "Hello.", "intro#srx.1": " World." },
+      },
     });
   });
 
@@ -489,15 +493,15 @@ describe("project file translation download route", () => {
     await expect(response.json()).resolves.toMatchObject({ error: code });
   });
 
-  it("fails when the source file's content is not stored", async () => {
+  it("asks for the source file again when its content is not stored", async () => {
     const fixture = await sourceFileFixture("locales/messages.csv");
     await saveStringKeys(fixture, [{ key: "greeting", text: "Hello", translation: "Bonjour" }]);
 
     const response = await fixture.download();
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(404);
     await expect(response.json()).resolves.toMatchObject({
-      error: "translation_file_export_failed",
+      error: "source_file_not_found",
     });
     expect(renderTranslationFileMock).not.toHaveBeenCalled();
   });

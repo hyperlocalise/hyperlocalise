@@ -689,12 +689,11 @@ export type ValidateSegmentResult = {
   skippedModes?: string[];
 };
 
-export type RenderTranslationFileBody = {
+/** The "request" part of a render; the source file's bytes go in their own part. */
+export type RenderTranslationFileRequest = {
   sourcePath: string;
   sourceLocale: string;
   targetLocale: string;
-  /** The source file's bytes, base64-encoded. */
-  source: string;
   /** Translated text by key. Untranslated keys are left out. */
   values: Record<string, string>;
   /** Source text of every SRX span key the file has. */

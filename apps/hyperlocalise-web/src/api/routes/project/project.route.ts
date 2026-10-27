@@ -4027,6 +4027,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
                 "Translated files cannot be written right now. Try again shortly.",
               );
             case "source_content_not_found":
+              return notFoundResponse(
+                c,
+                "source_file_not_found",
+                "The source file's content is missing. Upload the source file again.",
+              );
             case "render_rejected":
               return internalErrorResponse(
                 c,
