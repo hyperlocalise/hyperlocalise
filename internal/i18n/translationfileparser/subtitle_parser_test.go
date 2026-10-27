@@ -284,6 +284,20 @@ func TestSubtitleParserAcceptsDotMillisecondsAndPositioning(t *testing.T) {
 	}
 }
 
+func TestSubtitleParserAcceptsTrailingWhitespaceOnTimestampLine(t *testing.T) {
+	content := []byte("1\n00:00:01,000 --> 00:00:03,000   \nHi\n")
+	values, ctx, err := (SubtitleParser{Kind: SubtitleSRT}).ParseWithContext(content)
+	if err != nil {
+		t.Fatalf("parse srt with trailing space: %v", err)
+	}
+	if values["srt.0001"] != "Hi" {
+		t.Fatalf("unexpected value: %#v", values)
+	}
+	if ctx["srt.0001"] != "00:00:01,000 --> 00:00:03,000" {
+		t.Fatalf("unexpected context: %q", ctx["srt.0001"])
+	}
+}
+
 func TestSubtitleParserAcceptsWebVTTHoursBeyond99(t *testing.T) {
 	content := []byte("WEBVTT\n\n100:00:00.000 --> 100:00:01.000\nHello\n")
 	values, ctx, err := (SubtitleParser{Kind: SubtitleVTT}).ParseWithContext(content)
