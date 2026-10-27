@@ -2917,10 +2917,7 @@ function ToolsSettings({
             <WorkspaceAutomationCustomerIoSettings
               organizationSlug={organizationSlug}
               form={form}
-              errors={errors}
               customerIoConnected={customerIoConnected}
-              projectSourceLocale={selectedProject?.sourceLocale}
-              projectTargetLocales={selectedProject?.targetLocales}
               onChange={onChange}
             />
             <FieldError message={errors.customerIo} />

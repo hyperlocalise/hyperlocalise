@@ -177,7 +177,6 @@ export async function runPushCustomerIoCampaigns(input: {
   const localeMapping = mapProjectLocalesToCustomerIo({
     projectSourceLocale: project.sourceLocale ?? "en",
     projectTargetLocales,
-    configuredSourceLocale: config.sourceLocale,
   });
   if (!localeMapping.sourceSuffix) {
     return { pushedLocales: 0, skippedLocales: 0, failedLocales: 0, itemsProcessed: 0 };

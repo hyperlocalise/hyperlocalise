@@ -25,7 +25,6 @@ import {
   getCustomerIoPipesConnectionStatus,
   resolveCustomerIoPipesWorkosUserId,
 } from "@/lib/customer-io/pipes";
-import { areCustomerIoSourceLocalesCompatible } from "@/lib/customer-io/locale";
 import {
   getIntercomPipesConnectionStatus,
   resolveIntercomPipesWorkosUserId,
@@ -1278,37 +1277,6 @@ export async function validateWorkspaceAutomationIntegrations(input: {
         code: "customer_io_not_connected",
         message: "Connect Customer.io in Integrations before using it.",
       });
-    }
-
-    const projectId = readOptionalProjectId(input.projectId);
-    if (projectId) {
-      const [project] = await database
-        .select({
-          sourceLocale: schema.projects.sourceLocale,
-        })
-        .from(schema.projects)
-        .where(
-          and(
-            eq(schema.projects.organizationId, input.organizationId),
-            eq(schema.projects.id, projectId),
-          ),
-        )
-        .limit(1);
-
-      if (project) {
-        const projectSourceLocale = project.sourceLocale ?? "en";
-        const configuredSourceLocale = customerIo.sourceLocale?.trim();
-        if (
-          configuredSourceLocale &&
-          !areCustomerIoSourceLocalesCompatible(configuredSourceLocale, projectSourceLocale)
-        ) {
-          return err({
-            code: "customer_io_source_locale_mismatch",
-            message:
-              "The Customer.io source locale must be the same language as the project source locale.",
-          });
-        }
-      }
     }
   }
 

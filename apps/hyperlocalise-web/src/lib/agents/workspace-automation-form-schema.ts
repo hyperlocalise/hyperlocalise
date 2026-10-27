@@ -102,7 +102,6 @@ const formStateShape = {
   brazeEnabled: flag,
   brazeCampaignsEnabled: flag,
   customerIoEnabled: flag,
-  customerIoSourceLocale: text,
   customerIoBroadcastIds: textList,
   customerIoCampaignIds: textList,
   customerIoNewsletterIds: textList,

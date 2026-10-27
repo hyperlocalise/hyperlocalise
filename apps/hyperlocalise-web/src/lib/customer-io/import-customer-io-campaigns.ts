@@ -207,7 +207,6 @@ export async function runImportCustomerIoCampaigns(input: {
   const localeMapping = mapProjectLocalesToCustomerIo({
     projectSourceLocale: project.sourceLocale ?? "en",
     projectTargetLocales,
-    configuredSourceLocale: config.sourceLocale,
   });
   const sourceSuffix = localeMapping.sourceSuffix;
   if (!sourceSuffix) {

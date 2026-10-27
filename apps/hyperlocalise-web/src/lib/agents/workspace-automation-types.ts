@@ -360,7 +360,7 @@ const customerIoToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
     workosUserId: z.string().trim().min(1).max(128).optional(),
-    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    sourceLocale: z.string().trim().min(1).max(32).optional(),
     broadcastIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
     campaignIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
     newsletterIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
@@ -813,10 +813,6 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "customer_io_pipes_unavailable";
       message: "WorkOS is not configured, so Customer.io cannot connect through Pipes.";
-    }
-  | {
-      code: "customer_io_source_locale_mismatch";
-      message: "The Customer.io source locale must be the same language as the project source locale.";
     }
   | {
       code: "cms_translation_skills_exclusive";

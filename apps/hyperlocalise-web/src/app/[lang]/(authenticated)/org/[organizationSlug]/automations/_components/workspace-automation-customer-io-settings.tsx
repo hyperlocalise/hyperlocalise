@@ -12,8 +12,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useIntl } from "react-intl";
-
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,11 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type {
-  WorkspaceAutomationFieldErrors,
-  WorkspaceAutomationFormState,
-} from "@/lib/agents/workspace-automation-view-model";
-import { formatLocaleOptionLabel } from "@/lib/i18n/locale-display-names.messages";
+import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 
 import { CustomerIoResourceTree, toggleCustomerIoTreeSelection } from "./customer-io-resource-tree";
 
@@ -39,44 +33,18 @@ const POLICY_LABELS: Record<ExistingTranslationPolicy, string> = {
   overwrite_all: "Overwrite all locales",
 };
 
-function uniqueLocales(values: Array<string | null | undefined>): string[] {
-  const locales: string[] = [];
-  const seen = new Set<string>();
-  for (const value of values) {
-    const locale = value?.trim();
-    if (!locale || seen.has(locale)) {
-      continue;
-    }
-    seen.add(locale);
-    locales.push(locale);
-  }
-  return locales;
-}
-
 export function WorkspaceAutomationCustomerIoSettings({
   organizationSlug,
   form,
-  errors,
   customerIoConnected,
-  projectSourceLocale,
-  projectTargetLocales,
   onChange,
 }: {
   organizationSlug: string;
   form: WorkspaceAutomationFormState;
-  errors: WorkspaceAutomationFieldErrors;
   customerIoConnected: boolean;
-  projectSourceLocale?: string | null;
-  projectTargetLocales?: string[];
   onChange: (next: WorkspaceAutomationFormState) => void;
 }) {
-  const intl = useIntl();
   const pickersEnabled = form.customerIoEnabled && customerIoConnected;
-  const sourceLocaleOptions = uniqueLocales([
-    projectSourceLocale,
-    form.customerIoSourceLocale,
-    ...(projectTargetLocales ?? []),
-  ]);
 
   return (
     <div className="space-y-4">
@@ -85,33 +53,6 @@ export function WorkspaceAutomationCustomerIoSettings({
         Drag-and-drop emails, transactional SMS, in-app messages, and multilingual A/B variants are
         skipped. Locales must already exist on the Customer.io action.
       </p>
-      <div className="space-y-2">
-        <Label htmlFor="customer-io-source-locale">Source locale</Label>
-        <Select
-          value={form.customerIoSourceLocale}
-          onValueChange={(locale) => {
-            if (typeof locale === "string") {
-              onChange({ ...form, customerIoSourceLocale: locale });
-            }
-          }}
-        >
-          <SelectTrigger id="customer-io-source-locale" className="w-full">
-            <SelectValue>
-              {form.customerIoSourceLocale
-                ? formatLocaleOptionLabel(intl, form.customerIoSourceLocale)
-                : "Choose a source locale"}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {sourceLocaleOptions.map((locale) => (
-              <SelectItem key={locale} value={locale} label={formatLocaleOptionLabel(intl, locale)}>
-                {formatLocaleOptionLabel(intl, locale)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
       <div className="space-y-2">
         <span className="text-sm font-medium">Content to translate (optional)</span>
         <CustomerIoResourceTree
@@ -178,9 +119,6 @@ export function WorkspaceAutomationCustomerIoSettings({
         />
         Overwrite translations when the remote locale is newer
       </label>
-      {errors.customerIoSourceLocale ? (
-        <p className="text-sm text-destructive">{errors.customerIoSourceLocale}</p>
-      ) : null}
     </div>
   );
 }

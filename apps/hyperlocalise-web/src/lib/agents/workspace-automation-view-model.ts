@@ -147,7 +147,6 @@ export type WorkspaceAutomationFormState = {
   brazeEnabled: boolean;
   brazeCampaignsEnabled: boolean;
   customerIoEnabled: boolean;
-  customerIoSourceLocale: string;
   customerIoBroadcastIds: string[];
   customerIoCampaignIds: string[];
   customerIoNewsletterIds: string[];
@@ -237,7 +236,6 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "braze"
     | "brazeSourceLocale"
     | "customerIo"
-    | "customerIoSourceLocale"
     | "crowdinProjectId"
     | "scheduledTimezone"
     | "skills"
@@ -305,8 +303,6 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   customer_io_not_connected: "Connect Customer.io in Integrations before using it.",
   customer_io_pipes_needs_reauthorization: "Reconnect Customer.io in Integrations, then try again.",
   customer_io_pipes_unavailable: "Customer.io is unavailable until WorkOS Pipes is configured.",
-  customer_io_source_locale_mismatch:
-    "The Customer.io source locale must be the same language as the project source locale.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -454,7 +450,6 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     brazeEnabled: false,
     brazeCampaignsEnabled: false,
     customerIoEnabled: false,
-    customerIoSourceLocale: "en",
     customerIoBroadcastIds: [],
     customerIoCampaignIds: [],
     customerIoNewsletterIds: [],
@@ -624,7 +619,6 @@ export function createWorkspaceAutomationFormStateFromRecord(
     brazeEnabled: Boolean(braze?.enabled),
     brazeCampaignsEnabled: Boolean(brazeCampaigns?.enabled),
     customerIoEnabled: Boolean(customerIo?.enabled),
-    customerIoSourceLocale: customerIo?.sourceLocale ?? "en",
     customerIoBroadcastIds: customerIo?.broadcastIds ? [...customerIo.broadcastIds] : [],
     customerIoCampaignIds: customerIo?.campaignIds ? [...customerIo.campaignIds] : [],
     customerIoNewsletterIds: customerIo?.newsletterIds ? [...customerIo.newsletterIds] : [],
@@ -918,7 +912,6 @@ export function formStateToWorkspaceAutomationPayload(
       ? {
           customerIo: {
             enabled: true,
-            sourceLocale: form.customerIoSourceLocale.trim() || "en",
             broadcastIds: form.customerIoBroadcastIds,
             campaignIds: form.customerIoCampaignIds,
             newsletterIds: form.customerIoNewsletterIds,
@@ -1440,8 +1433,6 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "customer_io_pipes_needs_reauthorization":
     case "customer_io_pipes_unavailable":
       return { customerIo: message };
-    case "customer_io_source_locale_mismatch":
-      return { customerIoSourceLocale: message };
     case "crowdin_project_required":
     case "crowdin_project_not_found":
     case "crowdin_project_not_linked":
