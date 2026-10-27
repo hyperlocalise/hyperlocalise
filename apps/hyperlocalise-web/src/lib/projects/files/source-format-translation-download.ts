@@ -36,12 +36,19 @@ const SPAN_SOURCE_PAGE_SIZE = 2_000;
 /** Key suffix of one sentence of a string that SRX segmentation split at ingest. */
 const SRX_SPAN_KEY_PATTERN = /#srx\.\d+$/;
 
-/** JSON-syntax catalogs download as key/value JSON, and Lottie has its own writer. */
-const KEY_VALUE_JSON_FORMATS: ReadonlySet<SupportedTranslationFileFormat> = new Set([
+/**
+ * JSON-syntax catalogs download as key/value JSON; Lottie, subtitles and PDF have their
+ * own writers.
+ */
+const OWN_DOWNLOAD_FORMATS: ReadonlySet<SupportedTranslationFileFormat> = new Set([
   "json",
   "jsonc",
   "arb",
   "lottie",
+  "srt",
+  "vtt",
+  "sbv",
+  "pdf",
 ]);
 
 /** go-svc answers with these when it cannot write the file it was given. */
@@ -63,7 +70,7 @@ function isWrittenInSourceFormat(sourcePath: string): boolean {
   return (
     format !== null &&
     !isWholeFileTranslationFileFormat(format) &&
-    !KEY_VALUE_JSON_FORMATS.has(format)
+    !OWN_DOWNLOAD_FORMATS.has(format)
   );
 }
 

@@ -4092,6 +4092,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           projectId: params.projectId,
           sourcePath: query.sourcePath,
           prefilled: result.prefilled,
+          fileStorageAdapter: options.fileStorageAdapter,
         });
         if (isErr(subtitleDownload)) {
           return internalErrorResponse(

@@ -14,6 +14,7 @@ import {
   getLatestRepositorySourceFileVersion,
   getStoredFileContent,
 } from "@/lib/file-storage/records";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import {
   marshalSubtitles,
@@ -31,6 +32,7 @@ export async function loadProjectSubtitleTranslationDownload(input: {
   projectId: string;
   sourcePath: string;
   prefilled: Readonly<Record<string, string>>;
+  fileStorageAdapter?: FileStorageAdapter;
 }): Promise<Result<SubtitleTranslationExport | null, ProjectSubtitleTranslationDownloadError>> {
   const kind = resolveSubtitleKind(input.sourcePath);
   if (!kind) {
@@ -51,6 +53,7 @@ export async function loadProjectSubtitleTranslationDownload(input: {
       organizationId: input.organizationId,
       projectId: input.projectId,
       fileId: version.storedFileId,
+      adapter: input.fileStorageAdapter,
     }),
   );
   if (isErr(stored)) {

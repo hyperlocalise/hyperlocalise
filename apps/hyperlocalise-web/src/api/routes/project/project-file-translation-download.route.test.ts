@@ -379,6 +379,23 @@ describe("project file translation download route", () => {
     );
   });
 
+  it("leaves subtitle downloads to the subtitle writer", async () => {
+    const source = "1\n00:00:01,000 --> 00:00:02,000\nHello\n";
+    const fixture = await sourceFileFixture("media/intro.srt");
+    await storeSourceVersion(fixture, "media/intro.srt", {
+      contentType: "application/x-subrip",
+      content: source,
+    });
+    await saveStringKeys(fixture, [{ key: "srt.0001", text: "Hello", translation: "Bonjour" }]);
+
+    const response = await fixture.download();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/x-subrip");
+    expect(await response.text()).toBe("1\n00:00:01,000 --> 00:00:02,000\nBonjour\n");
+    expect(renderTranslationFileMock).not.toHaveBeenCalled();
+  });
+
   it("writes a YAML download from the source version its strings were read from", async () => {
     const fixture = await sourceFileFixture("locales/messages.yml");
     const ingested = await storeSourceVersion(fixture, "locales/messages.yml", {
