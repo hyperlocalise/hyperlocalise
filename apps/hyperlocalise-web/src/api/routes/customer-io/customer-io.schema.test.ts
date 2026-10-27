@@ -12,7 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { upsertCustomerIoConnectionBodySchema } from "./customer-io.schema";
+import {
+  customerIoActionsQuerySchema,
+  upsertCustomerIoConnectionBodySchema,
+} from "./customer-io.schema";
 
 describe("upsertCustomerIoConnectionBodySchema", () => {
   it("accepts an allowlisted region", () => {
@@ -39,5 +42,23 @@ describe("upsertCustomerIoConnectionBodySchema", () => {
       upsertCustomerIoConnectionBodySchema.safeParse({ region: "https://api.customer.io/v1" })
         .success,
     ).toBe(false);
+  });
+});
+
+describe("customerIoActionsQuerySchema", () => {
+  it("accepts every resource kind with an id", () => {
+    for (const kind of ["broadcast", "campaign", "newsletter", "transactional"] as const) {
+      expect(customerIoActionsQuerySchema.parse({ kind, id: "12" })).toEqual({ kind, id: "12" });
+    }
+  });
+
+  it("rejects unknown kinds and blank ids", () => {
+    expect(customerIoActionsQuerySchema.safeParse({ kind: "template", id: "12" }).success).toBe(
+      false,
+    );
+    expect(customerIoActionsQuerySchema.safeParse({ kind: "broadcast", id: "  " }).success).toBe(
+      false,
+    );
+    expect(customerIoActionsQuerySchema.safeParse({ kind: "broadcast" }).success).toBe(false);
   });
 });

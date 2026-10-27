@@ -12,22 +12,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -35,13 +23,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
-import { apiClient } from "@/lib/api-client-instance";
 import type {
   WorkspaceAutomationFieldErrors,
   WorkspaceAutomationFormState,
 } from "@/lib/agents/workspace-automation-view-model";
 import { formatLocaleOptionLabel } from "@/lib/i18n/locale-display-names.messages";
+
+import { CustomerIoResourceTree, toggleCustomerIoTreeSelection } from "./customer-io-resource-tree";
 
 type ExistingTranslationPolicy = "seed_empty" | "refresh_imported" | "overwrite_all";
 
@@ -50,127 +38,6 @@ const POLICY_LABELS: Record<ExistingTranslationPolicy, string> = {
   refresh_imported: "Refresh imported locales",
   overwrite_all: "Overwrite all locales",
 };
-
-type LibraryItem = { id: string; name: string };
-
-function toggleId(ids: string[], id: string): string[] {
-  return ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id];
-}
-
-function CustomerIoLibraryPicker({
-  organizationSlug,
-  endpoint,
-  label,
-  emptyLabel,
-  helperText,
-  enabled,
-  connected,
-  selectedIds,
-  onToggle,
-}: {
-  organizationSlug: string;
-  endpoint: "broadcasts" | "newsletters" | "transactional";
-  label: string;
-  emptyLabel: string;
-  helperText: string;
-  enabled: boolean;
-  connected: boolean;
-  selectedIds: string[];
-  onToggle: (id: string) => void;
-}) {
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const libraryQuery = useQuery({
-    queryKey: [`customer-io-${endpoint}`, organizationSlug],
-    enabled,
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["customer-io"][endpoint].$get({
-        param: { organizationSlug },
-        query: {},
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to load Customer.io ${endpoint}`);
-      }
-      const body = await response.json();
-      const items =
-        endpoint === "transactional"
-          ? (body as { transactionalMessages?: unknown }).transactionalMessages
-          : (body as { broadcasts?: unknown; newsletters?: unknown })[endpoint];
-      if (!Array.isArray(items)) {
-        throw new Error(`Failed to load Customer.io ${endpoint}`);
-      }
-      return { items: items as LibraryItem[] };
-    },
-  });
-
-  const items = useMemo(() => {
-    const loaded = libraryQuery.data?.items ?? [];
-    const byId = new Map(loaded.map((item) => [item.id, item]));
-    const extras = selectedIds.filter((id) => !byId.has(id)).map((id) => ({ id, name: id }));
-    return [...loaded, ...extras];
-  }, [selectedIds, libraryQuery.data?.items]);
-  const selectedNames = items
-    .filter((item) => selectedIds.includes(item.id))
-    .map((item) => item.name);
-
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={`customer-io-${endpoint}`}>{label}</Label>
-      {libraryQuery.isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Spinner />
-          Loading {emptyLabel.toLowerCase()}…
-        </div>
-      ) : libraryQuery.isError ? (
-        <p className="text-sm text-destructive">
-          Failed to load Customer.io {emptyLabel.toLowerCase()}.
-        </p>
-      ) : (
-        <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
-          <PopoverTrigger
-            render={
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!connected || items.length === 0}
-                className="w-full justify-between font-normal"
-                id={`customer-io-${endpoint}`}
-              />
-            }
-          >
-            <span className="truncate text-left">
-              {selectedNames.length > 0 ? selectedNames.join(", ") : emptyLabel}
-            </span>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-[var(--anchor-width)] p-0">
-            <Command>
-              <CommandInput placeholder="Search" />
-              <CommandList label={label} aria-multiselectable={true}>
-                <CommandEmpty>No items found.</CommandEmpty>
-                <CommandGroup>
-                  {items.map((item) => {
-                    const checked = selectedIds.includes(item.id);
-                    return (
-                      <CommandItem
-                        key={item.id}
-                        value={`${item.id} ${item.name}`}
-                        data-checked={checked || undefined}
-                        aria-checked={checked}
-                        onSelect={() => onToggle(item.id)}
-                      >
-                        <span className="truncate">{item.name}</span>
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-      )}
-      <p className="text-xs text-muted-foreground">{helperText}</p>
-    </div>
-  );
-}
 
 function uniqueLocales(values: Array<string | null | undefined>): string[] {
   const locales: string[] = [];
@@ -245,50 +112,28 @@ export function WorkspaceAutomationCustomerIoSettings({
         </Select>
       </div>
 
-      <CustomerIoLibraryPicker
-        organizationSlug={organizationSlug}
-        endpoint="broadcasts"
-        label="Broadcasts (optional)"
-        emptyLabel="All broadcasts"
-        helperText="Leave empty to discover every broadcast. Limit by campaign in the skill when needed."
-        enabled={pickersEnabled}
-        connected={customerIoConnected}
-        selectedIds={form.customerIoBroadcastIds}
-        onToggle={(id) =>
-          onChange({ ...form, customerIoBroadcastIds: toggleId(form.customerIoBroadcastIds, id) })
-        }
-      />
-
-      <CustomerIoLibraryPicker
-        organizationSlug={organizationSlug}
-        endpoint="newsletters"
-        label="Newsletters (optional)"
-        emptyLabel="All newsletters"
-        helperText="Leave empty to discover every one-time send."
-        enabled={pickersEnabled}
-        connected={customerIoConnected}
-        selectedIds={form.customerIoNewsletterIds}
-        onToggle={(id) =>
-          onChange({ ...form, customerIoNewsletterIds: toggleId(form.customerIoNewsletterIds, id) })
-        }
-      />
-
-      <CustomerIoLibraryPicker
-        organizationSlug={organizationSlug}
-        endpoint="transactional"
-        label="Transactional messages (optional)"
-        emptyLabel="All transactional messages"
-        helperText="Leave empty to discover every transactional template. Push only updates content — it never sends."
-        enabled={pickersEnabled}
-        connected={customerIoConnected}
-        selectedIds={form.customerIoTransactionalMessageIds}
-        onToggle={(id) =>
-          onChange({
-            ...form,
-            customerIoTransactionalMessageIds: toggleId(form.customerIoTransactionalMessageIds, id),
-          })
-        }
-      />
+      <div className="space-y-2">
+        <span className="text-sm font-medium">Content to translate (optional)</span>
+        <CustomerIoResourceTree
+          organizationSlug={organizationSlug}
+          enabled={pickersEnabled}
+          connected={customerIoConnected}
+          selection={{
+            broadcast: form.customerIoBroadcastIds,
+            campaign: form.customerIoCampaignIds,
+            newsletter: form.customerIoNewsletterIds,
+            transactional: form.customerIoTransactionalMessageIds,
+          }}
+          onToggle={(kind, id) => {
+            onChange(toggleCustomerIoTreeSelection(form, kind, id));
+          }}
+        />
+        <p className="text-xs text-muted-foreground">
+          Leave everything unchecked to discover all broadcasts, campaigns, newsletters, and
+          transactional messages. Expand a resource to preview its message actions. Push only
+          updates content — it never sends.
+        </p>
+      </div>
 
       <div className="space-y-2">
         <Label htmlFor="customer-io-existing-translation-policy">Existing translations</Label>

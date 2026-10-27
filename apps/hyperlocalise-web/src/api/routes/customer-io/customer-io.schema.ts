@@ -22,3 +22,15 @@ export const upsertCustomerIoConnectionBodySchema = z.object({
 export const customerIoLibraryQuerySchema = z.object({
   projectId: z.string().trim().min(1).max(128).optional(),
 });
+
+export const CUSTOMER_IO_ACTION_RESOURCE_KINDS = [
+  "broadcast",
+  "campaign",
+  "newsletter",
+  "transactional",
+] as const;
+
+export const customerIoActionsQuerySchema = z.object({
+  kind: z.enum(CUSTOMER_IO_ACTION_RESOURCE_KINDS),
+  id: z.string().trim().min(1).max(128),
+});

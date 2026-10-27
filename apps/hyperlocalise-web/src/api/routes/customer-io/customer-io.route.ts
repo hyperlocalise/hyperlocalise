@@ -22,8 +22,13 @@ import {
   serviceUnavailableResponse,
 } from "@/api/response.schema";
 import {
+  listCustomerIoBroadcastActions,
   listCustomerIoBroadcasts,
+  listCustomerIoCampaignActions,
+  listCustomerIoCampaigns,
+  listCustomerIoNewsletterActions,
   listCustomerIoNewsletters,
+  listCustomerIoTransactionalActions,
   listCustomerIoTransactionalMessages,
 } from "@/lib/customer-io/client";
 import { isCustomerIoRegion, type CustomerIoRegion } from "@/lib/customer-io/constants";
@@ -42,6 +47,7 @@ import type { CustomerIoPipesError, CustomerIoSettingsError } from "@/lib/custom
 import { isErr } from "@/lib/primitives/result/results";
 
 import {
+  customerIoActionsQuerySchema,
   customerIoLibraryQuerySchema,
   upsertCustomerIoConnectionBodySchema,
 } from "./customer-io.schema";
@@ -101,10 +107,18 @@ const validateLibraryQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
+const validateActionsQuery = validator("query", (value, c) => {
+  const parsed = customerIoActionsQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(c, "invalid_query_params", "Query parameters are invalid.");
+  }
+  return parsed.data;
+});
+
 export function createCustomerIoRoutes() {
   const libraryList = async (
     c: Context<{ Variables: AuthVariables }>,
-    key: "broadcasts" | "newsletters" | "transactionalMessages",
+    key: "broadcasts" | "campaigns" | "newsletters" | "transactionalMessages" | "actions",
     list: (input: { apiKey: string; region: CustomerIoRegion }) => Promise<
       Array<{
         id: string;
@@ -181,11 +195,30 @@ export function createCustomerIoRoutes() {
     .get("/broadcasts", validateLibraryQuery, async (c) => {
       return libraryList(c, "broadcasts", listCustomerIoBroadcasts);
     })
+    .get("/campaigns", validateLibraryQuery, async (c) => {
+      return libraryList(c, "campaigns", listCustomerIoCampaigns);
+    })
     .get("/newsletters", validateLibraryQuery, async (c) => {
       return libraryList(c, "newsletters", listCustomerIoNewsletters);
     })
     .get("/transactional", validateLibraryQuery, async (c) => {
       return libraryList(c, "transactionalMessages", listCustomerIoTransactionalMessages);
+    })
+    .get("/actions", validateActionsQuery, async (c) => {
+      const { kind, id } = c.req.valid("query");
+      const list =
+        kind === "broadcast"
+          ? (input: { apiKey: string; region: CustomerIoRegion }) =>
+              listCustomerIoBroadcastActions({ ...input, broadcastId: id })
+          : kind === "campaign"
+            ? (input: { apiKey: string; region: CustomerIoRegion }) =>
+                listCustomerIoCampaignActions({ ...input, campaignId: id })
+            : kind === "newsletter"
+              ? (input: { apiKey: string; region: CustomerIoRegion }) =>
+                  listCustomerIoNewsletterActions({ ...input, newsletterId: id })
+              : (input: { apiKey: string; region: CustomerIoRegion }) =>
+                  listCustomerIoTransactionalActions({ ...input, transactionalMessageId: id });
+      return libraryList(c, "actions", list);
     })
     .put("/", validateUpsertBody, async (c) => {
       if (!canWriteCustomerIo(c.var.auth.membership.role)) {
