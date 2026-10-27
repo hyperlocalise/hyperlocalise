@@ -2,7 +2,6 @@ package translationfileparser
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -44,13 +43,6 @@ type subtitleLine struct {
 	end   int
 	text  string
 }
-
-// SRT hours are 1-2 digits. WebVTT hours may be two or more digits (100:00:00.000).
-var (
-	srtTimestampPattern = regexp.MustCompile(`^(?:\d{1,2}:)?\d{1,2}:\d{2}[,.]\d{1,3}\s+-->\s+(?:\d{1,2}:)?\d{1,2}:\d{2}[,.]\d{1,3}(?:\s+\S.*)?$`)
-	vttTimestampPattern = regexp.MustCompile(`^(?:\d{2,}:)?\d{1,2}:\d{2}[,.]\d{1,3}\s+-->\s+(?:\d{2,}:)?\d{1,2}:\d{2}[,.]\d{1,3}(?:\s+\S.*)?$`)
-	sbvTimestampPattern = regexp.MustCompile(`^\d+:\d{2}:\d{2}\.\d{1,3},\d+:\d{2}:\d{2}\.\d{1,3}$`)
-)
 
 func (p SubtitleParser) Parse(content []byte) (map[string]string, error) {
 	values, _, err := p.ParseWithContext(content)
