@@ -28,10 +28,12 @@ import { getImageVariant } from "@/lib/projects/files/image-variant-service";
 import { loadProjectFileVariant } from "@/lib/projects/files/file-variant-download";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import { loadProjectOfficeTranslationDownload } from "@/lib/projects/files/office-translation-download";
+import { loadProjectPdfTranslationDownload } from "@/lib/projects/files/pdf-translation-download";
 import { loadProjectSubtitleTranslationDownload } from "@/lib/projects/files/subtitle-translation-download";
 import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 import {
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedPdfTranslationFileFormat,
   inferSupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
@@ -235,6 +237,28 @@ export async function loadTranslatedBytes(input: {
       buffer: office.value.content,
       fileName: `${base}${ext}`,
       mimeType: uploadMime,
+    };
+  }
+
+  const isPdfSource =
+    inferSupportedPdfTranslationFileFormat(input.sourcePath) !== null ||
+    input.ingestFormat === "pdf";
+  if (isPdfSource) {
+    const pdf = await loadProjectPdfTranslationDownload({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      targetLocale: input.targetLocale,
+      approvedTranslationsOnly: true,
+    });
+    if (isErr(pdf) || !pdf.value) {
+      return null;
+    }
+    const fileName = input.sourcePath.split("/").pop() ?? "file";
+    return {
+      buffer: pdf.value.content,
+      fileName,
+      mimeType: pdf.value.contentType,
     };
   }
 

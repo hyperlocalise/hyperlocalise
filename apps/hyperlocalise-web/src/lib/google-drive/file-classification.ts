@@ -15,7 +15,6 @@ import path from "node:path";
 
 import {
   inferSupportedSourceUploadFormat,
-  isPdfTranslationFileFormat,
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
@@ -182,10 +181,6 @@ export function classifyGoogleDriveItem(input: {
 
   const format = inferSupportedSourceUploadFormat(name);
   if (!format) {
-    return { kind: "skipped", reason: "unsupported_extension" };
-  }
-
-  if (isPdfTranslationFileFormat(format)) {
     return { kind: "skipped", reason: "unsupported_extension" };
   }
 

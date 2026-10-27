@@ -25,6 +25,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   loadProjectOfficeTranslationDownload: vi.fn(),
+  loadProjectPdfTranslationDownload: vi.fn(),
   loadProjectTranslationsAsPrefilledEntries: vi.fn(),
   loadProjectLottieTranslationDownload: vi.fn(),
   loadProjectSubtitleTranslationDownload: vi.fn(),
@@ -35,6 +36,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/projects/files/office-translation-download", () => ({
   loadProjectOfficeTranslationDownload: (...args: unknown[]) =>
     mocks.loadProjectOfficeTranslationDownload(...args),
+}));
+
+vi.mock("@/lib/projects/files/pdf-translation-download", () => ({
+  loadProjectPdfTranslationDownload: (...args: unknown[]) =>
+    mocks.loadProjectPdfTranslationDownload(...args),
 }));
 
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
@@ -162,6 +168,7 @@ describe("loadTranslatedBytes", () => {
 
   beforeEach(() => {
     mocks.loadProjectOfficeTranslationDownload.mockReset();
+    mocks.loadProjectPdfTranslationDownload.mockReset();
     mocks.loadProjectTranslationsAsPrefilledEntries.mockReset();
     mocks.loadProjectLottieTranslationDownload.mockReset();
     mocks.loadProjectSubtitleTranslationDownload.mockReset();
@@ -193,6 +200,61 @@ describe("loadTranslatedBytes", () => {
         approvedTranslationsOnly: true,
       }),
     );
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+  });
+
+  it("returns the pdf download for pdf sources", async () => {
+    mocks.loadProjectPdfTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: {
+        content: Buffer.from("pdf-bytes"),
+        contentType: "application/pdf",
+        extension: ".pdf",
+      },
+    });
+
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/report.pdf",
+        ingestFormat: "pdf",
+      }),
+    ).resolves.toEqual({
+      buffer: Buffer.from("pdf-bytes"),
+      fileName: "report.pdf",
+      mimeType: "application/pdf",
+    });
+    expect(mocks.loadProjectPdfTranslationDownload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        approvedTranslationsOnly: true,
+      }),
+    );
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+  });
+
+  it("skips pdf sources when the download fails or has no ready translations", async () => {
+    mocks.loadProjectPdfTranslationDownload.mockResolvedValue({
+      ok: false,
+      error: { code: "pdf_script_unsupported", message: "unsupported script" },
+    });
+
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/report.pdf",
+        ingestFormat: "pdf",
+      }),
+    ).resolves.toBeNull();
+
+    mocks.loadProjectPdfTranslationDownload.mockResolvedValue({ ok: true, value: null });
+
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/report.pdf",
+        ingestFormat: "pdf",
+      }),
+    ).resolves.toBeNull();
     expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
   });
 
