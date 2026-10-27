@@ -16,10 +16,10 @@ Connect Customer.io once in workspace **Integrations**, then run the **Translate
 
 | Requirement | Description |
 | --- | --- |
-| Native project | A [native project](/platform/projects/create-project) whose source and target locales map onto Customer.io locale keys. |
+| Native project | A [native project](/platform/projects/create-project) whose source and target locales map onto Customer.io locale keys. See [Match project locales](#step-2-match-project-locales). |
 | Customer.io App API key | Created in Customer.io **Settings → API Credentials**. It needs read/write access to campaigns, newsletters, broadcasts, and transactional messages. |
 | Customer.io region | `US` (`https://api.customer.io/v1`) or `EU` (`https://api-eu.customer.io/v1`). The region must match the workspace that issued the key. |
-| Locale mapping | Hyperlocalise maps project locale tags to Customer.io locales by exact key or name. Keep locked pairs separate: `en-US` is not `en-GB`, `zh-CN` is not `zh-TW`, and `pt` is not `pt-BR`. Locales without a match are reported as unmapped. |
+| Locale mapping | Hyperlocalise matches project locale tags to Customer.io locale keys or names exactly (after hyphen/underscore normalization). Keep locked pairs separate: `en-US` is not `en-GB`, `zh-CN` is not `zh-TW`, and `pt` is not `pt-BR`. Locales without a match are reported as unmapped. |
 
 ## Connect Customer.io
 
@@ -32,12 +32,35 @@ The API key is stored in WorkOS Pipes. Hyperlocalise stores only the region.
 
 ## Translate campaigns and broadcasts
 
+### Step 1: Set up locales in Customer.io
+
+Add a language variant for each locale you plan to translate into before you create the automation. Hyperlocalise can only import and push locales that already exist on the message — the Customer.io API cannot create language variants.
+
+1. In Customer.io, open the broadcast or campaign message.
+2. Add each target language to the message. Note the locale key shown for each language (for example `en`, `fr-FR`).
+3. Save the message as a **draft**.
+
+A message with no language variants imports the default copy only. Push skips any locale that is not configured on the message.
+
+### Step 2: Match project locales
+
+Create or choose a [native project](/platform/projects/create-project) whose locale tags match Customer.io.
+
+1. Set the project **source locale** to the language of the default copy in Customer.io.
+2. Add a project target locale for each Customer.io language you will write back.
+3. Use the same tag as the Customer.io locale **key** or **name** (`fr-FR` matches `fr-FR`). Matching is exact after hyphen/underscore normalization. There is no language fallback: `es` does not map to `es-MX`, and `fr` does not map to `fr-FR`.
+4. Keep locked pairs on separate projects or omit the unused tag: `en-US` is not `en-GB`, `zh-CN` is not `zh-TW`, and `pt` is not `pt-BR`.
+
+Unmapped project locales are reported as unmapped and skipped on import and push.
+
+### Step 3: Create the automation
+
 1. Open workspace **Automations** and select **New Automation**.
 2. Apply the **Translate Customer.io Campaigns & Broadcasts** template, or add the **Translate Customer.io Campaigns & Broadcasts** skill from **Add Skill**.
-3. Attach the native project.
+3. Attach the native project from Step 2.
 4. Choose a **scheduled** or **manual** trigger. A schedule imports changed message actions. It does not push translations.
 5. Under **Customer.io**, set:
-   - **Source locale** (usually the project source)
+   - **Source locale** (usually the project source). It must be the same language as the project source locale.
    - Optional **Broadcasts** and **Campaigns** to limit import. Leave both empty to discover everything
    - **Existing translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**
 6. Save the automation.
