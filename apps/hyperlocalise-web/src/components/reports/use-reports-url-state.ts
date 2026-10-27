@@ -12,8 +12,8 @@
  */
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useMemo } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import {
   applyReportsChange,
@@ -22,38 +22,30 @@ import {
   type ReportsUrlState,
 } from "./reports-url-state";
 
-/** The Reports page's state, read from the URL and written back to it as it changes. */
+/**
+ * The Reports page's state, read from the URL and written back to it as it changes. The URL is
+ * the only copy: a change goes through the browser's `history.replaceState`, which Next follows
+ * at once, so quick changes in a row each build on the last and none is undone by an earlier
+ * navigation landing late.
+ */
 export function useReportsUrlState() {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
-  const searchParamsKeyRef = useRef(searchParamsKey);
-  const [state, setState] = useState(() =>
-    parseReportsSearchParams(new URLSearchParams(searchParamsKey)),
+  const state = useMemo(
+    () => parseReportsSearchParams(new URLSearchParams(searchParamsKey)),
+    [searchParamsKey],
   );
-  const skipNextUrlSync = useRef(false);
 
-  useEffect(() => {
-    searchParamsKeyRef.current = searchParamsKey;
-    skipNextUrlSync.current = true;
-    setState(parseReportsSearchParams(new URLSearchParams(searchParamsKey)));
-  }, [searchParamsKey]);
-
-  useEffect(() => {
-    if (skipNextUrlSync.current) {
-      skipNextUrlSync.current = false;
-      return;
-    }
-    const href = buildReportsHref(pathname, state);
-    const currentKey = searchParamsKeyRef.current;
-    const current = currentKey ? `${pathname}?${currentKey}` : pathname;
-    if (href !== current) router.replace(href, { scroll: false });
-  }, [pathname, router, state]);
-
-  const update = useCallback((change: Partial<ReportsUrlState>) => {
-    setState((current) => applyReportsChange(current, change));
-  }, []);
+  const update = useCallback(
+    (change: Partial<ReportsUrlState>) => {
+      // The URL as it is now, which a change made since the last render has already updated.
+      const current = parseReportsSearchParams(new URLSearchParams(window.location.search));
+      const href = buildReportsHref(pathname, applyReportsChange(current, change));
+      window.history.replaceState(null, "", `${href}${window.location.hash}`);
+    },
+    [pathname],
+  );
 
   return { state, update };
 }

@@ -31,16 +31,57 @@ import {
 
 const mocks = vi.hoisted(() => ({
   search: "",
-  replace: vi.fn(),
   calls: [] as ReportsApiCall[],
   bodies: {} as Record<string, unknown>,
 }));
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: mocks.replace }),
-  usePathname: () => "/en/org/acme/reports",
-  useSearchParams: () => new URLSearchParams(mocks.search),
-}));
+const PATHNAME = "/en/org/acme/reports";
+
+/**
+ * The address as Next keeps it: the router's navigations land a moment later, as they do in
+ * the app, while the browser's own `history.replaceState` changes it at once; both re-render
+ * what reads `useSearchParams`.
+ */
+const address = vi.hoisted(() => {
+  const listeners = new Set<() => void>();
+  let search = "";
+  const set = (href: string) => {
+    search = new URL(href, "http://localhost").search.replace(/^\?/, "");
+    for (const listener of listeners) listener();
+  };
+  return {
+    get: () => search,
+    set,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+});
+
+vi.mock("next/navigation", async () => {
+  const { useSyncExternalStore } = await import("react");
+  return {
+    useRouter: () => ({
+      replace: (href: string) => setTimeout(() => address.set(href), 30),
+    }),
+    usePathname: () => PATHNAME,
+    useSearchParams: () =>
+      new URLSearchParams(useSyncExternalStore(address.subscribe, address.get, address.get)),
+  };
+});
+
+const replaceState = window.history.replaceState.bind(window.history);
+window.history.replaceState = (data, unused, url) => {
+  replaceState(data, unused, url);
+  if (url) address.set(String(url));
+};
+
+/** The address the page ends up on. */
+function currentHref() {
+  const search = address.get();
+  return search ? `${PATHNAME}?${search}` : PATHNAME;
+}
 
 vi.mock("@/components/ui/chart", () => ({
   ChartContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -60,6 +101,8 @@ vi.mock("@/lib/api-client-instance", async () => ({
 }));
 
 function renderPage(projectId?: string) {
+  replaceState(null, "", mocks.search ? `${PATHNAME}?${mocks.search}` : PATHNAME);
+  address.set(mocks.search ? `${PATHNAME}?${mocks.search}` : PATHNAME);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <IntlProvider locale="en" messages={{}}>
@@ -78,7 +121,6 @@ const filterLabels = () =>
 
 beforeEach(() => {
   mocks.search = "";
-  mocks.replace.mockClear();
   mocks.calls.length = 0;
   mocks.bodies = reportsResponseBodies();
 });
@@ -104,6 +146,17 @@ describe("Reports page", () => {
     // Activity changes are neutral sentences against the previous 28 days.
     expect(screen.getByText("+12% vs previous 28 days")).toBeInTheDocument();
     expect(screen.getAllByText(/points vs previous 28 days/).length).toBeGreaterThan(0);
+  });
+
+  it("ends on the last tab chosen when tabs are switched faster than the address updates", async () => {
+    renderPage();
+    await screen.findByText("48,210");
+    // Time, then straight back to Activity before the first change has reached the address.
+    await userEvent.click(screen.getByRole("tab", { name: "Time" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Activity" }));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(screen.getByRole("tab", { name: "Activity" })).toHaveAttribute("aria-selected", "true");
+    expect(currentHref()).toBe(PATHNAME);
   });
 
   it("shows other roles only their own time, even when the URL asks for another tab", async () => {
@@ -165,17 +218,11 @@ describe("Reports page", () => {
     });
     await userEvent.click(screen.getByRole("button", { name: "Strings" }));
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenLastCalledWith(
-        "/en/org/acme/reports?tab=words&range=7&unit=strings&group=task",
-        { scroll: false },
-      ),
+      expect(currentHref()).toBe("/en/org/acme/reports?tab=words&range=7&unit=strings&group=task"),
     );
     await userEvent.click(screen.getByRole("tab", { name: "Time" }));
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenLastCalledWith(
-        "/en/org/acme/reports?tab=time&range=7&unit=strings&group=task",
-        { scroll: false },
-      ),
+      expect(currentHref()).toBe("/en/org/acme/reports?tab=time&range=7&unit=strings&group=task"),
     );
   });
 
@@ -219,10 +266,7 @@ describe("Reports page", () => {
     // A group narrows the tab to it and shows its second-level groups next.
     await userEvent.click(within(table).getByRole("button", { name: "Show only Translation" }));
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenLastCalledWith(
-        "/en/org/acme/reports?tab=ai&ai=model&area=translation",
-        { scroll: false },
-      ),
+      expect(currentHref()).toBe("/en/org/acme/reports?tab=ai&ai=model&area=translation"),
     );
     await userEvent.click(
       within(table).getByRole("button", {
@@ -230,9 +274,8 @@ describe("Reports page", () => {
       }),
     );
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenLastCalledWith(
+      expect(currentHref()).toBe(
         "/en/org/acme/reports?tab=ai&ai=model&area=translation&model=openai%2Fgpt-6-luna",
-        { scroll: false },
       ),
     );
   });
@@ -291,9 +334,8 @@ describe("Reports page", () => {
       within(table).getByRole("button", { name: "Show only openai/gpt-6-luna under Web app" }),
     );
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenLastCalledWith(
+      expect(currentHref()).toBe(
         "/en/org/acme/reports?tab=ai&project=project_web&task=job_release&ai=model&model=openai%2Fgpt-6-luna",
-        { scroll: false },
       ),
     );
     unmount();
@@ -301,9 +343,8 @@ describe("Reports page", () => {
     renderPage();
     await userEvent.click(await screen.findByRole("button", { name: "Show only Web app" }));
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenLastCalledWith(
+      expect(currentHref()).toBe(
         "/en/org/acme/reports?tab=ai&project=project_web&task=job_release&ai=model",
-        { scroll: false },
       ),
     );
     // With a project chosen, project rows narrow no further.
@@ -355,11 +396,7 @@ describe("Reports page", () => {
 
     await userEvent.click(await screen.findByRole("combobox", { name: "Key" }));
     await userEvent.click(await screen.findByRole("option", { name: "Your own key" }));
-    await waitFor(() =>
-      expect(mocks.replace).toHaveBeenLastCalledWith("/en/org/acme/reports?tab=ai&key=own_key", {
-        scroll: false,
-      }),
-    );
+    await waitFor(() => expect(currentHref()).toBe("/en/org/acme/reports?tab=ai&key=own_key"));
   });
 
   it("keeps a row whose filter is already set as text, and narrows the rows under it", async () => {
@@ -373,9 +410,8 @@ describe("Reports page", () => {
       }),
     );
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenLastCalledWith(
+      expect(currentHref()).toBe(
         "/en/org/acme/reports?tab=ai&ai=model&area=translation&model=openai%2Fgpt-6-luna",
-        { scroll: false },
       ),
     );
   });
@@ -408,10 +444,7 @@ describe("Reports page", () => {
       within(table).getByRole("button", { name: "Show only openai/gpt-6-luna under Web app" }),
     );
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenLastCalledWith(
-        "/en/org/acme/reports?tab=ai&ai=model&model=openai%2Fgpt-6-luna",
-        { scroll: false },
-      ),
+      expect(currentHref()).toBe("/en/org/acme/reports?tab=ai&ai=model&model=openai%2Fgpt-6-luna"),
     );
   });
 
@@ -431,10 +464,7 @@ describe("Reports page", () => {
     });
     await userEvent.click(screen.getByRole("button", { name: "Remove filter: Model" }));
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenLastCalledWith(
-        "/en/org/acme/reports?tab=ai&automation=auto_1",
-        { scroll: false },
-      ),
+      expect(currentHref()).toBe("/en/org/acme/reports?tab=ai&automation=auto_1"),
     );
   });
 
