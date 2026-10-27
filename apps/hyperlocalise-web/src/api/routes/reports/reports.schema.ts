@@ -84,7 +84,7 @@ export const wordsQuerySchema = z
     unit,
     step: step.default("translation"),
     mode: z.enum(["arrived", "finished"]).default("arrived"),
-    groupBy: z.enum(["project", "task"]).default("project"),
+    groupBy: z.enum(["project", "task", "week"]).default("project"),
     page,
     format,
   })

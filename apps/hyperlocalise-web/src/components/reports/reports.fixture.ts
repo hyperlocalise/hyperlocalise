@@ -52,6 +52,7 @@ const current: ActivityTotals = {
   source: 48_210,
   arrived: 412_900,
   arrivedDone: 355_094,
+  abandoned: 1_200,
   finished: 389_450,
   reviewed: 159_675,
   uncounted: 0,
@@ -63,6 +64,7 @@ const previous: ActivityTotals = {
   source: 43_045,
   arrived: 378_807,
   arrivedDone: 310_620,
+  abandoned: 0,
   finished: 330_042,
   reviewed: 145_216,
   uncounted: 0,
@@ -155,6 +157,7 @@ export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): Wo
     period: reportsPeriod,
     rows: [
       {
+        week: null,
         projectId: "project_web",
         projectName: "Web app",
         jobId: null,
@@ -164,6 +167,7 @@ export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): Wo
         total: 18_420,
       },
       {
+        week: null,
         projectId: "project_help",
         projectName: "Help centre",
         jobId: null,
@@ -188,6 +192,7 @@ export function createReportsTaskWordCounts() {
   return createReportsWordCounts({
     rows: [
       {
+        week: null,
         projectId: "project_help",
         projectName: "Help centre",
         jobId: "job_billing",
@@ -197,6 +202,7 @@ export function createReportsTaskWordCounts() {
         total: 20_980,
       },
       {
+        week: null,
         projectId: "project_web",
         projectName: "Web app",
         jobId: null,
@@ -323,6 +329,7 @@ export const reportsCostEstimate: CostEstimate = {
     costUsd: "1358.40000000",
     unpricedUnits: 8_270,
     uncounted: 0,
+    unavailableUnits: 0,
     memorySavings: 0.2,
     tasks: 3,
     languages: 2,
@@ -421,7 +428,6 @@ export const reportsTaskReport: TaskReport = {
   },
   unit: "words",
   step: "translation",
-  counting: false,
   words: {
     rows: [
       {
@@ -574,6 +580,8 @@ export function reportsResponseBodies(settings = createReportsSettings()) {
     "rate-cards": { rateCards: reportsRateCards, canManage: settings.canManage },
     jobs: { jobs: reportsTasks },
     "task-report": { taskReport: settings.financial ? reportsTaskReport : memberTaskReport() },
+    // The task's analysis is done; a test sets a pending or failed step itself.
+    "task-analysis": { analysis: [] },
     "task-rates": { taskRate: {} },
     "time-entry": { timeEntry: { id: "time_mina" } },
   };
@@ -634,7 +642,9 @@ export function reportsApiClient(state: ReportsApiState) {
   const reports: Record<string, unknown> = Object.fromEntries(
     ENDPOINTS.map((name) => [name, endpoint(name)]),
   );
-  reports.tasks = { ":jobId": { report: endpoint("task-report") } };
+  reports.tasks = {
+    ":jobId": { report: endpoint("task-report"), analysis: endpoint("task-analysis") },
+  };
   reports["time-entries"] = { ...endpoint("time-entries"), ":id": endpoint("time-entry") };
   return { api: { orgs: { ":organizationSlug": { reports } } } };
 }

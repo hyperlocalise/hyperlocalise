@@ -40,6 +40,8 @@ export type SummaryRowInput = {
   source?: Counts;
   arrived?: Counts;
   arrivedDone?: Counts;
+  /** Unfinished units held by no open task, which Progress leaves out. */
+  abandoned?: Counts;
   finished?: Counts;
   finishedByPerson?: Counts;
   finishedUnchanged?: Counts;
@@ -53,6 +55,7 @@ const MEASURES = [
   "source",
   "arrived",
   "arrived_done",
+  "abandoned",
   "finished",
   "finished_by_person",
   "finished_unchanged",
@@ -139,6 +142,7 @@ export function createReportingTestFixture() {
           source: row.source,
           arrived: row.arrived,
           arrived_done: row.arrivedDone,
+          abandoned: row.abandoned,
           finished: row.finished,
           finished_by_person: row.finishedByPerson,
           finished_unchanged: row.finishedUnchanged,

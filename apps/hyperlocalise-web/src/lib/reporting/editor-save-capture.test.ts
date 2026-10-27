@@ -389,7 +389,9 @@ describe("captureEditorSaves", () => {
       userId: user.id,
     });
 
-    // An approval is the proofread task's work; a translation has no open task of its own.
+    // An approval is the proofread task's work, and so is an edit made while it covers the file:
+    // the reviewer's edit counts as the task's review work, not as translation work on the job
+    // that produced the text. A later approval of the edited string adds no second completion.
     await insertSaveEvent({
       organizationId: organization.id,
       projectId: project.id,
@@ -405,14 +407,29 @@ describe("captureEditorSaves", () => {
       segmentId: keyIds[1],
     });
     await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[1],
+      eventType: "string_segment_approved",
+      nextStatus: "approved",
+      createdAt: minutesFromNow(1),
+    });
+    await captureEditorSaves({ now: minutesFromNow(10), organizationIds: [organization.id] });
 
     const completions = await db
       .select({
         jobId: schema.reportingActivity.jobId,
         step: schema.reportingActivity.step,
-        analysisId: schema.reportingActivity.analysisId,
+        segmentId: schema.reportingAnalyses.segmentId,
+        unchanged: schema.reportingActivity.unchanged,
       })
       .from(schema.reportingActivity)
+      .innerJoin(
+        schema.reportingAnalyses,
+        eq(schema.reportingAnalyses.id, schema.reportingActivity.analysisId),
+      )
       .where(
         and(
           eq(schema.reportingActivity.organizationId, organization.id),
@@ -420,13 +437,19 @@ describe("captureEditorSaves", () => {
         ),
       );
     expect(completions).toHaveLength(2);
-    expect(completions.find((row) => row.step === "review")?.jobId).toBe(task.id);
-    expect(completions.find((row) => row.step === "translation")?.jobId).toBeNull();
+    for (const segmentId of keyIds)
+      expect(completions.find((row) => row.segmentId === segmentId)).toMatchObject({
+        jobId: task.id,
+        step: "review",
+      });
+    // The edit, not the approval after it, is what the task's work records for the second string.
+    expect(completions.find((row) => row.segmentId === keyIds[1])?.unchanged).toBe(false);
     const analyses = await db
       .select({ jobId: schema.reportingAnalyses.jobId, step: schema.reportingAnalyses.step })
       .from(schema.reportingAnalyses)
       .where(eq(schema.reportingAnalyses.organizationId, organization.id));
-    expect(analyses.find((row) => row.step === "review")?.jobId).toBe(task.id);
+    expect(analyses).toHaveLength(2);
+    expect(analyses.every((row) => row.jobId === task.id && row.step === "review")).toBe(true);
   });
 
   it("matches each save in a run to the task open at that save's own time", async () => {
@@ -505,6 +528,20 @@ describe("captureEditorSaves", () => {
         createdAt: minutesFromNow(-10),
       });
     }
+    // The rewrite is a version of its own in the editor's history, as every save of a person is.
+    await db.insert(schema.projectTranslationRevisions).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      translationId: translationOf(keyIds[1]).id,
+      translationKeyId: keyIds[1],
+      targetLocale: "fr-FR",
+      text: "Bonjour le monde",
+      status: "draft",
+      provenance: "manual",
+      actorKind: "user",
+      actorUserId: user.id,
+      createdAt: minutesFromNow(-5),
+    });
     for (const segmentId of keyIds) {
       await insertSaveEvent({
         organizationId: organization.id,
@@ -540,6 +577,149 @@ describe("captureEditorSaves", () => {
     );
     expect(bySegment.get(keyIds[0])).toMatchObject({ source: "ai", unchanged: true });
     expect(bySegment.get(keyIds[1])).toMatchObject({ source: "person", unchanged: false });
+  });
+
+  it("judges whether a person kept the text by the version they saved, not the text now", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    const translations = await db
+      .select({
+        id: schema.projectTranslations.id,
+        keyId: schema.projectTranslations.translationKeyId,
+      })
+      .from(schema.projectTranslations)
+      .where(eq(schema.projectTranslations.projectId, project.id));
+    const revision = async (
+      keyId: string,
+      text: string,
+      actor: "agent" | "user",
+      minutes: number,
+      status: "draft" | "approved" = "draft",
+    ) => {
+      const [row] = await db
+        .insert(schema.projectTranslationRevisions)
+        .values({
+          organizationId: organization.id,
+          projectId: project.id,
+          translationId: translations.find((row) => row.keyId === keyId)!.id,
+          translationKeyId: keyId,
+          targetLocale: "fr-FR",
+          text,
+          status,
+          provenance: actor === "agent" ? "translation_job" : "manual",
+          actorKind: actor,
+          createdAt: minutesFromNow(minutes),
+        })
+        .returning({ id: schema.projectTranslationRevisions.id });
+      return row!.id;
+    };
+    // A task wrote the first string; the person rewrote it; a later run of the task put its own
+    // text back, which is the text now ("Bonjour le monde"). Judged against the text now, the
+    // person's save would look like the task's text kept unchanged.
+    await revision(keyIds[0], "Bonjour le monde", "agent", 1);
+    const rewrite = await revision(keyIds[0], "Salut", "user", 2);
+    await revision(keyIds[0], "Bonjour le monde", "agent", 3);
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+      createdAt: minutesFromNow(2),
+      extraPayload: { revisionId: rewrite },
+    });
+    // The second string was approved as the task wrote it, then overwritten by the later run. An
+    // approval names no version, so the version at its time is the one judged.
+    await revision(keyIds[1], "Salut tout le monde", "agent", 1);
+    await revision(keyIds[1], "Salut tout le monde", "user", 2, "approved");
+    await revision(keyIds[1], "Bonjour le monde", "agent", 3);
+    await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[1],
+      eventType: "string_segment_approved",
+      nextStatus: "approved",
+      createdAt: minutesFromNow(2),
+    });
+    await captureEditorSaves({ now: minutesFromNow(10), organizationIds: [organization.id] });
+
+    const completions = await db
+      .select({
+        segmentId: schema.reportingAnalyses.segmentId,
+        source: schema.reportingActivity.source,
+        unchanged: schema.reportingActivity.unchanged,
+      })
+      .from(schema.reportingActivity)
+      .innerJoin(
+        schema.reportingAnalyses,
+        eq(schema.reportingAnalyses.id, schema.reportingActivity.analysisId),
+      )
+      .where(
+        and(
+          eq(schema.reportingActivity.organizationId, organization.id),
+          eq(schema.reportingActivity.kind, "completion"),
+        ),
+      );
+    expect(completions.find((row) => row.segmentId === keyIds[0])).toMatchObject({
+      source: "person",
+      unchanged: false,
+    });
+    expect(completions.find((row) => row.segmentId === keyIds[1])).toMatchObject({
+      source: "ai",
+      unchanged: true,
+    });
+  });
+
+  it("finds the version an approval saved in the approval's own millisecond", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    const [translation] = await db
+      .select({ id: schema.projectTranslations.id })
+      .from(schema.projectTranslations)
+      .where(eq(schema.projectTranslations.translationKeyId, keyIds[0]));
+    await db
+      .update(schema.projectTranslations)
+      .set({ text: "Salut" })
+      .where(eq(schema.projectTranslations.id, translation!.id));
+    const revision = (text: string, actor: "agent" | "user", at: ReturnType<typeof sql>) =>
+      db.execute(sql`
+        insert into project_translation_revisions (organization_id, project_id, translation_id,
+          translation_key_id, target_locale, text, status, provenance, actor_kind, created_at)
+        values (${organization.id}, ${project.id}, ${translation!.id}, ${keyIds[0]}, 'fr-FR',
+          ${text}, 'approved', ${actor === "agent" ? "translation_job" : "manual"}, ${actor}, ${at})
+      `);
+    const event = await insertSaveEvent({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      segmentId: keyIds[0],
+      eventType: "string_segment_approved",
+      nextStatus: "approved",
+      createdAt: minutesFromNow(2),
+    });
+    // The approval's time has microseconds the capture reads only to the millisecond; the person's
+    // version was written 0.4 ms into that millisecond, before the event's own 0.9 ms.
+    const eventAt = sql`(select created_at from organization_activity_events where id = ${event!.id})`;
+    await revision("Bonjour le monde", "agent", sql`${eventAt} - interval '1 minute'`);
+    await revision("Salut", "user", sql`${eventAt} + interval '400 microseconds'`);
+    await db.execute(sql`
+      update organization_activity_events set created_at = created_at + interval '900 microseconds'
+      where id = ${event!.id}
+    `);
+    await captureEditorSaves({ now: minutesFromNow(10), organizationIds: [organization.id] });
+
+    const [completion] = await db
+      .select({
+        source: schema.reportingActivity.source,
+        unchanged: schema.reportingActivity.unchanged,
+      })
+      .from(schema.reportingActivity)
+      .where(
+        and(
+          eq(schema.reportingActivity.organizationId, organization.id),
+          eq(schema.reportingActivity.kind, "completion"),
+        ),
+      );
+    // The person rewrote the job's text before approving it.
+    expect(completion).toEqual({ source: "person", unchanged: false });
   });
 
   it("records an approval as the review step", async () => {

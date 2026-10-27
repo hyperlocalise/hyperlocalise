@@ -34,6 +34,7 @@ type SummaryMeasure =
   | "source"
   | "arrived"
   | "arrived_done"
+  | "abandoned"
   | "finished"
   | "finished_by_person"
   | "finished_unchanged";
@@ -43,12 +44,9 @@ function measure(name: SummaryMeasure, unit: ReportUnit): SQL {
   return sql.raw(`s.${name}_${unit}`);
 }
 
-/**
- * Rows whose finished text came from a source. A summary built before sources were recorded
- * holds finished units on rows keyed "", which count as not recorded.
- */
+/** Rows whose finished text came from a source; rows keyed "" hold arrivals only. */
 function sourceIs(name: SummarySource): SQL {
-  return name === "unknown" ? sql`s.source in ('unknown', '')` : sql`s.source = ${name}`;
+  return sql`s.source = ${name}`;
 }
 
 /**
@@ -69,19 +67,27 @@ function summarySource(scope: ReportScope): { table: SQL; where: SQL } | null {
 }
 
 export type ActivityTotals = {
-  /** Source units that arrived, each text counted once however many languages it goes into. */
+  /**
+   * Source units that arrived, each text counted once however many languages it goes into; under
+   * a language filter, the units that arrived in that language.
+   */
   source: number;
   /** Units that arrived to translate: the current version of each string, per language. */
   arrived: number;
   /** The part of `arrived` finished since. */
   arrivedDone: number;
+  /**
+   * The part of `arrived` not finished and held by no open task (its task failed, was cancelled
+   * or deleted): work that will not happen, which Progress leaves out of what it divides by.
+   */
+  abandoned: number;
   /** Units translated (every finished record). */
   finished: number;
   /** Units reviewed (every finished review record). */
   reviewed: number;
   /** Strings that arrived whose units could not be counted. */
   uncounted: number;
-  /** The part of `finished` a person did. */
+  /** The part of `finished` at `step` a person did. */
   finishedByPerson: number;
   /** The part of `finishedByPerson` where the person kept the text they were given. */
   finishedUnchanged: number;
@@ -101,6 +107,7 @@ const NO_ACTIVITY: ActivityTotals = {
   source: 0,
   arrived: 0,
   arrivedDone: 0,
+  abandoned: 0,
   finished: 0,
   reviewed: 0,
   uncounted: 0,
@@ -109,28 +116,37 @@ const NO_ACTIVITY: ActivityTotals = {
   finishedBySource: NO_SOURCES,
 };
 
-/** The Activity tab's headline totals for a period and the period before it, in one scan. */
+/**
+ * The Activity tab's headline totals for a period and the period before it, in one scan. The
+ * cards are about translation, apart from what was reviewed; what people finished, and kept as
+ * given, follows `step`, the step the chart shows.
+ */
 export async function queryActivity(
-  input: ReportScope & { period: ReportPeriod; unit: ReportUnit },
+  input: ReportScope & { period: ReportPeriod; unit: ReportUnit; step?: ReportStep },
 ): Promise<{ current: ActivityTotals; previous: ActivityTotals }> {
   const source = summarySource(input);
   if (!source) return { current: NO_ACTIVITY, previous: NO_ACTIVITY };
+  const chartStep = input.step ?? "translation";
   const totals = (current: boolean) => {
     const inPeriod = current
       ? sql`s.day >= ${input.period.from}`
       : sql`s.day <= ${input.period.previousTo}`;
     const translation = sql`s.step = 'translation' and ${inPeriod}`;
+    const shown = sql`s.step = ${chartStep} and ${inPeriod}`;
     const column = (name: SummaryMeasure, filter: SQL) =>
       sql`coalesce(sum(${measure(name, input.unit)}) filter (where ${filter}), 0)::float8`;
     return sql`json_build_object(
-      'source', ${column("source", translation)},
+      -- Source words sit on each text's first language only, so under a language filter the
+      -- language's arrivals are its source words.
+      'source', ${column(input.targetLocale ? "arrived" : "source", translation)},
       'arrived', ${column("arrived", translation)},
       'arrivedDone', ${column("arrived_done", translation)},
+      'abandoned', ${column("abandoned", translation)},
       'finished', ${column("finished", translation)},
       'reviewed', ${column("finished", sql`s.step = 'review' and ${inPeriod}`)},
       'uncounted', coalesce(sum(s.arrived_uncounted) filter (where ${translation}), 0)::float8,
-      'finishedByPerson', ${column("finished_by_person", translation)},
-      'finishedUnchanged', ${column("finished_unchanged", translation)},
+      'finishedByPerson', ${column("finished_by_person", shown)},
+      'finishedUnchanged', ${column("finished_unchanged", shown)},
       -- The names are a fixed list, never user text; as literals, since a parameter has no type a JSON key can take.
       'finishedBySource', json_build_object(${sql.join(
         SUMMARY_SOURCES.map(
@@ -220,6 +236,8 @@ export async function queryFinishedByLanguage(
 export type BandCounts = Partial<Record<MatchBucket, number>>;
 
 export type WordCountRow = {
+  /** The Monday of the week, as a date, when grouped by week; null otherwise. */
+  week: string | null;
   projectId: string | null;
   projectName: string | null;
   /** Null for work saved in the content editor outside any task. */
@@ -237,7 +255,7 @@ export type WordCounts = {
   total: number;
   /** Strings that arrived whose units could not be counted (only for `mode: "arrived"`). */
   uncounted: number;
-  /** Tasks across every page when grouped by task; projects when grouped by project. */
+  /** Tasks across every page when grouped by task; projects or weeks for the other groupings. */
   groupCount: number;
   page: number;
   pageSize: number;
@@ -247,8 +265,8 @@ export const WORD_COUNT_PAGE_SIZE = 50;
 
 /**
  * Units that arrived, or were finished, in a period, by match band and target language, grouped
- * by project or by task. Tasks come largest first, a page of 50 at a time; totals cover every
- * page.
+ * by project, by task, or by week and project (the volume each week, as the old report showed
+ * it). Tasks come largest first, a page of 50 at a time; totals cover every page.
  */
 export async function queryWordCounts(
   input: ReportScope & {
@@ -256,7 +274,7 @@ export async function queryWordCounts(
     unit: ReportUnit;
     step: ReportStep;
     mode: "arrived" | "finished";
-    groupBy: "project" | "task";
+    groupBy: "project" | "task" | "week";
     page: number;
     /** Every task on one page, for a download. */
     all?: boolean;
@@ -292,11 +310,14 @@ export async function queryWordCounts(
   const pageLimit = input.all
     ? sql``
     : sql`limit ${WORD_COUNT_PAGE_SIZE} offset ${(input.page - 1) * WORD_COUNT_PAGE_SIZE}`;
+  // By project, or by week and project: one grouping over the totals table.
+  const weekly = input.groupBy === "week";
   const result = await db.execute<{
     groupCount: number;
     bandTotals: BandCounts | null;
     uncounted: number;
     rows: {
+      week: string | null;
       projectId: string | null;
       jobId: string | null;
       targetLocale: string;
@@ -304,22 +325,23 @@ export async function queryWordCounts(
       units: number;
     }[];
   }>(
-    input.groupBy === "project"
+    input.groupBy !== "task"
       ? sql`
         with grouped as (
-          select s.project_id, s.target_locale, s.bucket, sum(${column}) as units,
+          select ${weekly ? sql`date_trunc('week', s.day)::date` : sql`null::date`} as week,
+            s.project_id, s.target_locale, s.bucket, sum(${column}) as units,
             sum(s.arrived_uncounted) as uncounted
           from ${totalsTable} where ${filters}
-          group by 1, 2, 3
+          group by 1, 2, 3, 4
         ), bands as (
           select bucket, sum(units) as units, sum(uncounted) as uncounted from grouped group by 1
         )
         select (select count(*) from (
-            select project_id from grouped group by 1 having sum(units) > 0
-          ) projects)::integer as "groupCount", ${bandColumns},
+            select ${weekly ? sql`week` : sql`project_id`} from grouped group by 1 having sum(units) > 0
+          ) groups)::integer as "groupCount", ${bandColumns},
           (select coalesce(json_agg(json_build_object(
-              'projectId', g.project_id, 'jobId', null, 'targetLocale', g.target_locale,
-              'bucket', g.bucket, 'units', g.units::float8
+              'week', g.week::text, 'projectId', g.project_id, 'jobId', null,
+              'targetLocale', g.target_locale, 'bucket', g.bucket, 'units', g.units::float8
             )), '[]') from grouped g where g.units > 0) as rows`
       : // Tasks are ranked by a total each, and only the page's tasks are read in full, task by
         // task through the summary's task index.
@@ -347,8 +369,8 @@ export async function queryWordCounts(
         )
         select (select count(*) from task_totals)::integer as "groupCount", ${bandColumns},
           (select coalesce(json_agg(json_build_object(
-              'projectId', r.project_id, 'jobId', r.job_id, 'targetLocale', r.target_locale,
-              'bucket', r.bucket, 'units', r.units::float8
+              'week', null, 'projectId', r.project_id, 'jobId', r.job_id,
+              'targetLocale', r.target_locale, 'bucket', r.bucket, 'units', r.units::float8
             ) order by p.total desc, p.job_id nulls first), '[]')
             from page_rows r join page p on p.job_id is not distinct from r.job_id
             where r.units > 0) as rows`,
@@ -357,10 +379,11 @@ export async function queryWordCounts(
   const names = await groupNames(rows);
   const merged = new Map<string, WordCountRow>();
   for (const row of rows) {
-    const key = `${row.jobId ?? ""}\u0000${row.projectId}\u0000${row.targetLocale}`;
+    const key = `${row.week ?? ""}\u0000${row.jobId ?? ""}\u0000${row.projectId}\u0000${row.targetLocale}`;
     let entry = merged.get(key);
     if (!entry) {
       entry = {
+        week: row.week,
         projectId: row.projectId,
         projectName: null,
         jobId: row.jobId,
@@ -378,9 +401,10 @@ export async function queryWordCounts(
     ...row,
     projectName: row.projectId ? (names.projectNames.get(row.projectId) ?? null) : null,
   }));
-  if (input.groupBy === "project")
+  if (input.groupBy !== "task")
     ordered.sort(
       (left, right) =>
+        (left.week ?? "").localeCompare(right.week ?? "") ||
         (left.projectName ?? "").localeCompare(right.projectName ?? "") ||
         left.targetLocale.localeCompare(right.targetLocale),
     );

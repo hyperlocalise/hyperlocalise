@@ -25,8 +25,14 @@ import {
   reportingStart,
 } from "./capture";
 import { personSave, textOrigins } from "./completion-source";
-import type { CompletionSource } from "./report-units";
-import { personTaskAt, personTasksForString, type PersonTaskSpan } from "./task-analysis";
+import type { CompletionSource, ReportStep } from "./report-units";
+import {
+  personTaskForSave,
+  personTasksForString,
+  type PersonTaskLookup,
+  type PersonTaskSave,
+  type PersonTaskSpan,
+} from "./task-analysis";
 
 const logger = createLogger("reporting-editor-save-capture");
 
@@ -339,6 +345,8 @@ type SavedSegment = {
   automated: boolean;
   /** When the save was made: Reports dates the work by it, not by when this task ran. */
   occurredAt: Date;
+  /** The version saved, in the editor's history, when the save names it. */
+  revisionId?: string;
 };
 
 /** One record per saved occurrence, language and step; the latest event wins. */
@@ -369,6 +377,11 @@ function savedSegments(events: SaveEvent[]): SavedSegment[] {
       actorUserId: event.actorUserId,
       automated: event.actorKind === "agent",
       occurredAt: new Date(event.createdAt),
+      // Only a uuid: anything else would fail the whole batch's lookup, every run.
+      ...(typeof event.payload.revisionId === "string" &&
+      NATIVE_STRING_ID.test(event.payload.revisionId)
+        ? { revisionId: event.payload.revisionId }
+        : {}),
     } as const;
     latest.set(`${projectId}:${event.targetId}:${targetLocale}:${step}`, segment);
   }
@@ -417,8 +430,33 @@ async function recordSaves(
   const translationByKey = new Map(
     translations.map((row) => [`${row.translationKeyId}:${row.targetLocale}`, row]),
   );
-  // What each person was given and whether they kept it, from the editor's own history.
-  const origins = await textOrigins(organizationId, translations);
+  // What each person was given and whether they kept it, from the editor's own history at the
+  // time of their save: the translation now may have been overwritten since.
+  const segmentKey = (segment: SavedSegment) =>
+    `${segment.projectId}:${segment.translationKeyId}:${segment.targetLocale}:${segment.step}`;
+  // The saves that will be recorded: a person's, of a string in its project with text saved.
+  const personSaves = segments.flatMap((segment) => {
+    const key = keyById.get(segment.translationKeyId);
+    const translation = translationByKey.get(`${segment.translationKeyId}:${segment.targetLocale}`);
+    return segment.automated ||
+      !key ||
+      key.projectId !== segment.projectId ||
+      !translation?.text.trim()
+      ? []
+      : [{ segment, translation }];
+  });
+  const origins = await textOrigins(
+    organizationId,
+    personSaves.map(({ segment, translation }) => ({
+      translationId: translation.id,
+      revisionId: segment.revisionId,
+      at: segment.occurredAt,
+      text: translation.text,
+    })),
+  );
+  const originOf = new Map(
+    personSaves.map(({ segment }, index) => [segmentKey(segment), origins[index]]),
+  );
   const projectIds = [...new Set(segments.map((segment) => segment.projectId))];
   const projects = await db
     .select({ id: schema.projects.id, sourceLocale: schema.projects.sourceLocale })
@@ -427,39 +465,50 @@ async function recordSaves(
   const sourceLocaleByProject = new Map(projects.map((row) => [row.id, row.sourceLocale ?? "en"]));
 
   let recorded = 0;
-  // A save made while a task for people covers the string is that task's work; otherwise it
-  // belongs to the task that produced the translation. The tasks are read once per file,
-  // language and step, and each save is matched by its own time.
+  // A save made while a task for people covers the string is that task's work, at the step
+  // `personTaskForSave` says; otherwise it belongs to the task that produced the translation.
+  // The tasks are read once per file, language and step, and each save is matched by its own time.
   const personTasks = new Map<string, Promise<PersonTaskSpan[]>>();
-  const openTaskFor = async (segment: SavedSegment, repositorySourceFileId: string | null) => {
-    if (!repositorySourceFileId) return undefined;
-    const lookupKey = `${segment.projectId}:${repositorySourceFileId}:${segment.targetLocale}:${segment.step}`;
+  const tasksFor = (lookup: PersonTaskLookup) => {
+    const lookupKey = `${lookup.projectId}:${lookup.repositorySourceFileId}:${lookup.targetLocale}:${lookup.step}`;
     let tasks = personTasks.get(lookupKey);
     if (!tasks) {
-      tasks = personTasksForString({
-        organizationId,
-        projectId: segment.projectId,
-        repositorySourceFileId,
-        targetLocale: segment.targetLocale,
-        step: segment.step,
-      });
+      tasks = personTasksForString(lookup);
       personTasks.set(lookupKey, tasks);
     }
-    return personTaskAt(await tasks, segment.occurredAt);
+    return tasks;
   };
+  const taskFor = (
+    segment: SavedSegment,
+    repositorySourceFileId: string | null,
+  ): Promise<PersonTaskSave | undefined> =>
+    repositorySourceFileId
+      ? personTaskForSave(
+          {
+            organizationId,
+            projectId: segment.projectId,
+            repositorySourceFileId,
+            targetLocale: segment.targetLocale,
+            step: segment.step,
+            savedAt: segment.occurredAt,
+            byPerson: !segment.automated,
+          },
+          tasksFor,
+        )
+      : Promise.resolve(undefined);
   // Group by job, language and step so one analysis call covers every occurrence saved together.
-  const groups = new Map<string, { segment: SavedSegment; sourceJobId: string | undefined }[]>();
+  type Save = { segment: SavedSegment; sourceJobId: string | undefined; step: ReportStep };
+  const groups = new Map<string, Save[]>();
   for (const segment of segments) {
     const key = keyById.get(segment.translationKeyId);
     const translation = translationByKey.get(`${segment.translationKeyId}:${segment.targetLocale}`);
     if (!key || key.projectId !== segment.projectId || !translation?.text.trim()) continue;
-    const sourceJobId =
-      (await openTaskFor(segment, key.repositorySourceFileId)) ??
-      translation.sourceJobId ??
-      undefined;
-    const groupKey = `${segment.projectId}:${sourceJobId ?? ""}:${segment.targetLocale}:${segment.step}:${segment.actorUserId ?? ""}:${segment.automated}`;
+    const task = await taskFor(segment, key.repositorySourceFileId);
+    const sourceJobId = task?.jobId ?? translation.sourceJobId ?? undefined;
+    const step = task?.step ?? segment.step;
+    const groupKey = `${segment.projectId}:${sourceJobId ?? ""}:${segment.targetLocale}:${step}:${segment.actorUserId ?? ""}:${segment.automated}`;
     const group = groups.get(groupKey) ?? [];
-    group.push({ segment, sourceJobId });
+    group.push({ segment, sourceJobId, step });
     groups.set(groupKey, group);
   }
   // Groups of one project and language share a memory, so keeping them together lets the cache
@@ -496,7 +545,7 @@ async function recordSaves(
   }
   for (const group of ordered) {
     if (signal?.aborted) throw new TimeBudgetReached();
-    const { segment, sourceJobId } = group[0];
+    const { segment, sourceJobId, step } = group[0];
     const sourceEntries = Object.fromEntries(
       group.map(({ segment }) => [
         segment.translationKeyId,
@@ -504,12 +553,9 @@ async function recordSaves(
       ]),
     );
     const saved = group.map(({ segment }) => {
-      const translation = translationByKey.get(
-        `${segment.translationKeyId}:${segment.targetLocale}`,
-      );
       const origin = segment.automated
         ? { source: "ai" as CompletionSource, unchanged: undefined }
-        : personSave(translation ? origins.get(translation.id) : undefined);
+        : personSave(originOf.get(segmentKey(segment)));
       return [segment.translationKeyId, origin] as const;
     });
     const shared = {
@@ -517,7 +563,7 @@ async function recordSaves(
       jobId: sourceJobId,
       targetLocale: segment.targetLocale,
       sourceEntries,
-      step: segment.step,
+      step,
       occurredAt: Object.fromEntries(
         group.map(({ segment }) => [segment.translationKeyId, segment.occurredAt]),
       ),

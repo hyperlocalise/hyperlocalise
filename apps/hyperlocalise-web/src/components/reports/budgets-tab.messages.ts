@@ -31,8 +31,8 @@ export const budgetsTabMessages = defineMessages({
     description: "Column heading: the project's budget",
   },
   spentColumn: {
-    id: "rhk1ttNY83",
-    defaultMessage: "Spent",
+    id: "79o/n4x4B7",
+    defaultMessage: "Spent (all time)",
     description: "Column heading: what has been spent",
   },
   toComeColumn: {
@@ -46,8 +46,8 @@ export const budgetsTabMessages = defineMessages({
     description: "Column heading: spent plus still to come",
   },
   remainingColumn: {
-    id: "HfKaBbYViW",
-    defaultMessage: "Remaining",
+    id: "2dc0ntrChe",
+    defaultMessage: "Remaining (before still to come)",
     description: "Column heading: budget minus spent",
   },
   statusColumn: {
@@ -75,10 +75,15 @@ export const budgetsTabMessages = defineMessages({
     defaultMessage: "Over budget",
     description: "Budget status: more than the budget is spent",
   },
+  notPriced: {
+    id: "6DgBNntVln",
+    defaultMessage: "Not priced",
+    description: "Still to come cell when unfinished work has no rate at all",
+  },
   incomplete: {
-    id: "YlTd/jJl/v",
+    id: "9FyMwA//m0",
     defaultMessage:
-      "Some unfinished work has no rate or no time estimate, so still to come may be low.",
+      "Some unfinished work has no rate, no time estimate or no match band, so still to come is not exact.",
     description: "Note on a budget whose still to come is incomplete",
   },
   note: {

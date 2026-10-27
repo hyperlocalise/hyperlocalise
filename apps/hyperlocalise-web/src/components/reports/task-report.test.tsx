@@ -77,17 +77,20 @@ beforeEach(() => {
 });
 
 describe("Task report", () => {
-  it("shows the task's words, cost and match analysis, priced last by the workspace's first card", async () => {
+  it("shows the task's words, cost and match analysis, priced by its own card or its budget's only", async () => {
     renderReport();
     const table = await screen.findByRole("table", { name: "Task match analysis" });
+    // No card chosen on the page stands in: a language neither card prices shows "No rate".
     expect(callsTo("task-report")[0].args).toMatchObject({
       param: { organizationSlug: "acme", jobId: "job_release" },
-      query: { unit: "words", step: "translation", rateCard: "Standard 2026" },
+      query: { unit: "words", step: "translation" },
     });
+    expect(callsTo("task-report")[0].args.query).not.toHaveProperty("rateCard");
     expect(card("Words to translate")?.textContent).toContain("8,890");
     expect(card("Words to translate")?.textContent).toContain("4,445 unique · 2 languages");
     expect(card("Progress")?.textContent).toContain("85%");
-    expect(card("Approved")?.textContent).toContain("26%");
+    // A snapshot of the task's own strings sent for review: 2,000 of 4,100.
+    expect(card("Approved")?.textContent).toContain("49%");
     expect(card("Estimated cost")?.textContent).toContain("$432.60");
     expect(rowOf(table, "de-DE")?.textContent).toContain("3,605");
     expect(rowOf(table, "de-DE")?.textContent).toContain("$432.60");
@@ -109,31 +112,86 @@ describe("Task report", () => {
   });
 
   it("says a new task's strings are being counted, and shows them once they are", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const words = reportsTaskReport.words!;
+      mocks.bodies["task-report"] = {
+        taskReport: {
+          ...reportsTaskReport,
+          words: { ...words, rows: words.rows.filter((row) => row.step !== "translation") },
+        },
+      };
+      const state = (status: "pending" | "done") => ({
+        analysis: [
+          {
+            step: "translation",
+            status,
+            incomplete: false,
+            strings: null,
+            error: null,
+            updatedAt: "",
+          },
+        ],
+      });
+      mocks.bodies["task-analysis"] = state("pending");
+      renderReport();
+      expect(
+        await screen.findByText(
+          "Reports is still counting this task's strings. They usually show within a minute.",
+        ),
+      ).toBeInTheDocument();
+      // Nothing is added up while counting.
+      expect(screen.queryByText("Words to translate")).not.toBeInTheDocument();
+
+      // The tab looks at the state again every few seconds; once the count is done it reads the
+      // report again and shows the strings.
+      mocks.bodies["task-analysis"] = state("done");
+      mocks.bodies["task-report"] = { taskReport: reportsTaskReport };
+      await vi.advanceTimersByTimeAsync(5_000);
+      const table = await screen.findByRole("table", { name: "Task match analysis" });
+      expect(rowOf(table, "de-DE")?.textContent).toContain("3,605");
+      expect(callsTo("task-analysis").length).toBeGreaterThan(1);
+      expect(callsTo("task-report").length).toBeGreaterThan(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("says when the count of a task's strings failed, and when some have no match band", async () => {
     const words = reportsTaskReport.words!;
     mocks.bodies["task-report"] = {
       taskReport: {
         ...reportsTaskReport,
-        counting: true,
         words: { ...words, rows: words.rows.filter((row) => row.step !== "translation") },
       },
     };
+    mocks.bodies["task-analysis"] = {
+      analysis: [
+        {
+          step: "translation",
+          status: "failed",
+          incomplete: false,
+          strings: null,
+          error: "memory_unavailable",
+          updatedAt: "",
+        },
+        {
+          step: "review",
+          status: "done",
+          incomplete: true,
+          strings: 2,
+          error: null,
+          updatedAt: "",
+        },
+      ],
+    };
     renderReport();
     expect(
-      await screen.findByText(
-        "Reports is still counting this task's strings. They usually show within a minute.",
-      ),
+      await screen.findByText(/Reports could not count this task's strings/),
     ).toBeInTheDocument();
-
-    // The tab looks again while counting, and shows the strings once they have been counted.
-    mocks.bodies["task-report"] = { taskReport: reportsTaskReport };
-    const table = await screen.findByRole(
-      "table",
-      { name: "Task match analysis" },
-      { timeout: 8_000 },
-    );
-    expect(rowOf(table, "de-DE")?.textContent).toContain("3,605");
-    expect(callsTo("task-report").length).toBeGreaterThan(1);
-  }, 10_000);
+    await userEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(await screen.findByText(/Some strings have no match band/)).toBeInTheDocument();
+  });
 
   it("shows a step's fixed fee, which no language's row holds, and says the task ended", async () => {
     const estimate = reportsTaskReport.estimate!;

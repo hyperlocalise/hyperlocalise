@@ -15,10 +15,11 @@ import { and, asc, eq, desc, gt, inArray, isNull, lte, sql, type SQL } from "dri
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { listAttachedProjectMemoryIds } from "@/lib/memory/ensure-default-native-project-memory";
 import { countSourceCharacters, countSourceWords, matchBucket } from "./word-analysis";
-import type { CompletionSource } from "./report-units";
+import { OPEN_TASK_STATUSES, type CompletionSource } from "./report-units";
 import { MemoryMatchIndex, MemorySourceScan, sourceSimilarity } from "./memory-match-index";
-import { unitCost } from "./money";
-import { markSummaryDays, refreshMarkedDays, summaryDay, type SummaryMark } from "./summary";
+import { paidPercent, unitCost } from "./money";
+import { memoryUnavailable } from "./memory-unavailable";
+import { markSummaryDays, summaryDay, type SummaryMark } from "./summary";
 import { reportingStart } from "./reporting-start";
 
 export { getReportingStart, reportingStart } from "./reporting-start";
@@ -44,12 +45,21 @@ const MEMORY_INDEX_MIN_QUERIES = 4;
  */
 export const MATCH_ALGORITHM_VERSION = 3;
 
+/**
+ * Whether Reports records work for the workspace. A failed lookup is tried once more, then read
+ * as off and logged as an error: the write that asked is then dropped, which must be visible,
+ * while recording anyway would record work for workspaces with Reports off.
+ */
 export async function isWorkspaceReportsCaptureEnabled(organizationId: string): Promise<boolean> {
-  try {
-    const { resolveWorkspaceReportsFlag } = await import("@/lib/flags/workspace-flags");
-    return await resolveWorkspaceReportsFlag({ organizationId });
-  } catch {
-    return false;
+  const { resolveWorkspaceReportsFlag } = await import("@/lib/flags/workspace-flags");
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await resolveWorkspaceReportsFlag({ organizationId });
+    } catch (error) {
+      if (attempt === 0) continue;
+      console.error("reporting_flag_lookup_failed", { organizationId, error });
+      return false;
+    }
   }
 }
 
@@ -261,11 +271,22 @@ type StrictWriteOptions = { strict?: boolean };
 
 export async function captureAnalysis(input: AnalysisInput) {
   try {
-    await refreshMarkedDays(input.organizationId, await writeReportingAnalysis(input));
+    await writeReportingAnalysis(input);
   } catch (error) {
     console.warn("reporting_analysis_failed", { jobId: input.jobId, error });
   }
 }
+
+export { isMemoryUnavailableError, MEMORY_UNAVAILABLE } from "./memory-unavailable";
+
+type MemoryOptions = {
+  memoryCache?: MemoryScoreCache;
+  /**
+   * Record the strings without reading the memory, so they have no match band: for a caller that
+   * could not read the memory and wants the strings recorded all the same.
+   */
+  withoutMemory?: boolean;
+};
 
 /**
  * Writes an analysis like `captureAnalysis`, but throws on failure and skips the flag check.
@@ -273,7 +294,7 @@ export async function captureAnalysis(input: AnalysisInput) {
  */
 export async function recordAnalysis(
   input: AnalysisInput,
-  options: { memoryCache?: MemoryScoreCache } = {},
+  options: MemoryOptions = {},
 ): Promise<SummaryMark[]> {
   return writeReportingAnalysis(input, { ...options, strict: true });
 }
@@ -281,7 +302,7 @@ export async function recordAnalysis(
 /** Writes the analyses and returns the summary days they marked. */
 async function writeReportingAnalysis(
   input: AnalysisInput,
-  options: StrictWriteOptions & { memoryCache?: MemoryScoreCache } = {},
+  options: StrictWriteOptions & MemoryOptions = {},
 ): Promise<SummaryMark[]> {
   if (!options.strict && !(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
     return [];
@@ -305,11 +326,13 @@ async function writeReportingAnalysis(
   const step = input.step ?? "translation";
   const rate = await resolveReportingRate({ ...input, step });
   let memoryIds: string[] | null = null;
-  try {
-    memoryIds = await listAttachedProjectMemoryIds(input.projectId);
-  } catch (error) {
-    if (options.strict) throw error;
-    console.warn("reporting_match_analysis_unavailable", { jobId: input.jobId });
+  if (!options.withoutMemory) {
+    try {
+      memoryIds = await listAttachedProjectMemoryIds(input.projectId);
+    } catch (error) {
+      if (options.strict) throw memoryUnavailable(error);
+      console.warn("reporting_match_analysis_unavailable", { jobId: input.jobId });
+    }
   }
   const uniqueTexts = [...new Set(Object.values(input.sourceEntries))];
   const scores = new Map<string, number | null>();
@@ -326,7 +349,7 @@ async function writeReportingAnalysis(
       );
       for (const [sourceText, score] of memoryScores) scores.set(sourceText, score);
     } catch (error) {
-      if (options.strict) throw error;
+      if (options.strict) throw memoryUnavailable(error);
       console.warn("reporting_match_analysis_unavailable", { jobId: input.jobId });
     }
   }
@@ -348,12 +371,13 @@ async function writeReportingAnalysis(
       },
       tx,
     );
+    // A copy is a repetition by the same key within this call as across runs: the hash of the
+    // raw text, which is also the row's identity. A string that differs only in spacing is not one.
     const seen = new Set<string>();
     const rows = Object.entries(input.sourceEntries).map(([segmentId, sourceText]) => {
-      const normalized = sourceText.normalize("NFC").trim();
       const sourceRevision = revisionOf(sourceText);
-      const repetition = seen.has(normalized) || recordedEarlier.has(sourceRevision);
-      seen.add(normalized);
+      const repetition = seen.has(sourceRevision) || recordedEarlier.has(sourceRevision);
+      seen.add(sourceRevision);
       const score = memoryIds ? (scores.get(sourceText) ?? null) : null;
       const characters = countSourceCharacters(sourceText, input.sourceLocale);
       return {
@@ -385,9 +409,11 @@ async function writeReportingAnalysis(
         sql`, `,
       );
     const marks: SummaryMark[] = [];
-    // Versions whose earliest current analysis, the one their source counts sit on, may have
-    // moved: an old version that stopped being current here, a version current again, or one
-    // recorded at a past time (an editor save), which can now be the earliest.
+    // Versions whose other current analyses' days must be worked out again: the earliest one
+    // carries the text's source counts and, for the project, the string's arrival, and whether
+    // any of them is open or done decides if the string is abandoned. So every version written
+    // moves them (a new task taking on a string a cancelled task left unfinished makes it open
+    // again), as does an old version that stopped being current here.
     const moved: { segmentId: string; sourceRevision: string }[] = [];
     for (let offset = 0; offset < rows.length; offset += REPORTING_BATCH_SIZE) {
       const batch = rows.slice(offset, offset + REPORTING_BATCH_SIZE);
@@ -468,8 +494,10 @@ async function writeReportingAnalysis(
         marks.push({ projectId: row.projectId, day: summaryDay(row.createdAt) });
       }
       moved.push(...superseded);
-      moved.push(...written.filter((row) => row.existed || input.occurredAt));
+      moved.push(...written);
     }
+    // In any task of the project: the project's rows count a string once, on its earliest
+    // current analysis across tasks, so a change here can move another task's day too.
     for (let offset = 0; offset < moved.length; offset += REPORTING_BATCH_SIZE) {
       const others = await tx
         .select({
@@ -480,7 +508,7 @@ async function writeReportingAnalysis(
         .where(
           and(
             eq(schema.reportingAnalyses.organizationId, input.organizationId),
-            jobScope,
+            eq(schema.reportingAnalyses.projectId, input.projectId),
             eq(schema.reportingAnalyses.step, step),
             eq(schema.reportingAnalyses.isCurrent, true),
             sql`(${schema.reportingAnalyses.segmentId}, ${schema.reportingAnalyses.sourceRevision}) in (${versions(moved.slice(offset, offset + REPORTING_BATCH_SIZE))})`,
@@ -579,7 +607,7 @@ type CompletionsInput = {
 
 export async function captureCompletions(input: CompletionsInput, database: DatabaseClient = db) {
   try {
-    await refreshMarkedDays(input.organizationId, await writeReportingCompletions(input, database));
+    await writeReportingCompletions(input, database);
   } catch (error) {
     console.warn("reporting_completions_failed", { jobId: input.jobId, error });
   }
@@ -632,6 +660,31 @@ async function writeReportingCompletions(
   };
   return database.transaction(async (tx) => {
     const marks: SummaryMark[] = [];
+    // A person's work is priced when it is finished, at the rate in force then, as the estimate
+    // prices it: the task's own card as it was when the task was priced, else its project
+    // budget's card now. A task for people has its strings recorded before it is priced, so the
+    // rate stored with each string when it arrived is not the one that applies.
+    const rates = new Map<string, Awaited<ReturnType<typeof resolveReportingRate>>>();
+    const rateFor = async (analysis: { projectId: string | null; sourceLocale: string }) => {
+      if (!analysis.projectId) return null;
+      const key = `${analysis.projectId}\u0000${analysis.sourceLocale}`;
+      let rate = rates.get(key);
+      if (rate === undefined) {
+        rate = await resolveReportingRate(
+          {
+            organizationId: input.organizationId,
+            projectId: analysis.projectId,
+            jobId: input.jobId,
+            sourceLocale: analysis.sourceLocale,
+            targetLocale: input.targetLocale,
+            step,
+          },
+          tx,
+        );
+        rates.set(key, rate);
+      }
+      return rate;
+    };
     const markCompletion = (completion: {
       analysisId: string | null;
       projectId: string | null;
@@ -642,6 +695,33 @@ async function writeReportingCompletions(
       const analysis = completion.analysisId ? analysisById.get(completion.analysisId) : undefined;
       if (analysis)
         marks.push({ projectId: analysis.projectId, day: summaryDay(analysis.createdAt) });
+    };
+    // The project's rows count a string once, on its earliest current analysis across tasks, so
+    // finishing it here changes the day that analysis arrived on, whichever task holds it.
+    const markSiblingDays = async () => {
+      for (let offset = 0; offset < finishedAnalyses.length; offset += REPORTING_BATCH_SIZE) {
+        const batch = finishedAnalyses.slice(offset, offset + REPORTING_BATCH_SIZE);
+        const siblings = await tx
+          .select({
+            projectId: schema.reportingAnalyses.projectId,
+            createdAt: schema.reportingAnalyses.createdAt,
+          })
+          .from(schema.reportingAnalyses)
+          .where(
+            and(
+              eq(schema.reportingAnalyses.organizationId, input.organizationId),
+              eq(schema.reportingAnalyses.targetLocale, input.targetLocale),
+              eq(schema.reportingAnalyses.step, step),
+              eq(schema.reportingAnalyses.isCurrent, true),
+              sql`(${schema.reportingAnalyses.segmentId}, ${schema.reportingAnalyses.sourceRevision}) in (${sql.join(
+                batch.map((analysis) => sql`(${analysis.segmentId}, ${analysis.sourceRevision})`),
+                sql`, `,
+              )})`,
+            ),
+          );
+        for (const row of siblings)
+          marks.push({ projectId: row.projectId, day: summaryDay(row.createdAt) });
+      }
     };
     if (input.provenance === "automated") {
       const rows = finishedAnalyses.map((analysis) => ({
@@ -665,8 +745,33 @@ async function writeReportingCompletions(
           .returning(returnedCompletion);
         inserted.forEach(markCompletion);
       }
+      if (marks.length > 0) await markSiblingDays();
       await markSummaryDays(tx, input.organizationId, marks);
       return marks;
+    }
+    // A person's save moves a completion a job made to the person's day (below), so the day it
+    // leaves must be worked out again too.
+    const earlier = new Map<string, { projectId: string | null; createdAt: Date }>();
+    for (let offset = 0; offset < finishedAnalyses.length; offset += REPORTING_BATCH_SIZE) {
+      const rows = await tx
+        .select({
+          operationKey: schema.reportingActivity.operationKey,
+          projectId: schema.reportingActivity.projectId,
+          createdAt: schema.reportingActivity.createdAt,
+        })
+        .from(schema.reportingActivity)
+        .where(
+          and(
+            eq(schema.reportingActivity.organizationId, input.organizationId),
+            inArray(
+              schema.reportingActivity.operationKey,
+              finishedAnalyses
+                .slice(offset, offset + REPORTING_BATCH_SIZE)
+                .map((analysis) => `completion:${analysis.id}:${step}`),
+            ),
+          ),
+        );
+      for (const row of rows) earlier.set(row.operationKey, row);
     }
     for (const analysis of finishedAnalyses) {
       const operationKey = `completion:${analysis.id}:${step}`;
@@ -687,20 +792,25 @@ async function writeReportingCompletions(
           createdAt: input.occurredAt?.[analysis.segmentId],
         })
         // One completion per analysis and step: when a person finishes a string a job already
-        // completed (a post-edit), the person is added to that completion rather than dropped.
-        // The source becomes what the person's save says: the job's when they kept its text,
-        // their own when they rewrote it; the job's stays only when the save does not know.
+        // completed (a post-edit), the person is added to that completion rather than dropped,
+        // and it is dated by the person's save: the work is theirs, done then, not on the job's
+        // day. The source becomes what the person's save says: the job's when they kept its
+        // text, their own when they rewrote it; the job's stays only when the save does not know.
         .onConflictDoUpdate({
           target: [schema.reportingActivity.organizationId, schema.reportingActivity.operationKey],
           set: {
             actorUserId: sql`excluded.actor_user_id`,
             source: sql`coalesce(excluded.source, ${schema.reportingActivity.source})`,
             unchanged: sql`excluded.unchanged`,
+            createdAt: sql`excluded.created_at`,
           },
           where: sql`${schema.reportingActivity.actorUserId} is null and excluded.actor_user_id is not null`,
         })
         .returning(returnedCompletion);
       written.forEach(markCompletion);
+      const before = earlier.get(operationKey);
+      if (written.length > 0 && before)
+        marks.push({ projectId: before.projectId, day: summaryDay(before.createdAt) });
       if (input.provenance !== "human") continue;
       if (input.jobId) {
         const [taskRate] = await tx
@@ -714,12 +824,8 @@ async function writeReportingCompletions(
           );
         if (taskRate?.overrideUsd !== null && taskRate?.overrideUsd !== undefined) continue;
       }
-      const [rate] = analysis.rateId
-        ? await tx
-            .select()
-            .from(schema.reportingRates)
-            .where(eq(schema.reportingRates.id, analysis.rateId))
-        : [];
+      const rate = await rateFor(analysis);
+      // An hourly line prices the time logged on the task, not its strings.
       if (rate?.basis === "hour") continue;
       // Priced in the rate's own unit, whatever unit a report later shows.
       const units =
@@ -728,7 +834,7 @@ async function writeReportingCompletions(
           : rate?.basis === "character_with_spaces"
             ? analysis.charactersWithSpaces
             : analysis.words;
-      const priced = rate && units !== null && analysis.bucket !== "unavailable";
+      const priced = rate && units !== null;
       await tx
         .insert(schema.reportingCosts)
         .values({
@@ -741,18 +847,18 @@ async function writeReportingCompletions(
           targetLocale: input.targetLocale,
           rateId: rate?.id,
           amountUsd: priced
-            ? unitCost(rate.rate, units, rate.percentages[analysis.bucket] ?? 100)
+            ? unitCost(rate.rate, units, paidPercent(rate.percentages, analysis.bucket))
             : null,
           basis: priced ? "rate" : "unpriced",
           createdAt: input.occurredAt?.[analysis.segmentId],
         })
         .onConflictDoNothing();
     }
+    if (marks.length > 0) await markSiblingDays();
     await markSummaryDays(tx, input.organizationId, marks);
     return marks;
   });
 }
-
 export async function captureJobStatus(input: {
   jobId: string;
   status: string;
@@ -783,6 +889,11 @@ async function writeJobStatus(input: {
 
   await reportingStart(ownedJob.organizationId);
   if (input.status === "succeeded") await captureTaskOverrides(input.jobId);
+  // A task that is no longer open holds its unfinished strings no more: the days they arrived
+  // on are worked out again, so Progress leaves them out. Status changes are not Reports writes,
+  // so nothing else would mark those days.
+  if (!OPEN_TASK_STATUSES.has(input.status))
+    await markTaskDays(ownedJob.organizationId, input.jobId);
   const [job] = await db
     .select({
       organizationId: schema.jobs.organizationId,
@@ -805,6 +916,30 @@ async function writeJobStatus(input: {
       durationMs: input.durationMs,
     })
     .onConflictDoNothing();
+}
+
+/**
+ * Marks the days of a task's current strings, and of the same strings in other tasks, for their
+ * project's summary to be worked out again: the project counts a string on its earliest current
+ * analysis, which may be another task's, and whether it is abandoned depends on every task that
+ * holds it.
+ */
+async function markTaskDays(organizationId: string, jobId: string) {
+  await db.transaction(async (tx) => {
+    // The task's strings by the identity index's first two columns, their siblings by the segment
+    // index.
+    const rows = await tx.execute<{ projectId: string; day: string }>(sql`
+      select distinct s.project_id as "projectId",
+        (s.created_at at time zone 'UTC')::date::text as day
+      from reporting_analyses a
+      join reporting_analyses s on s.organization_id = a.organization_id
+        and s.segment_id = a.segment_id and s.target_locale = a.target_locale
+        and s.step = a.step and s.source_revision = a.source_revision and s.is_current
+      where a.organization_id = ${organizationId} and a.job_id = ${jobId} and a.is_current
+        and s.project_id is not null
+    `);
+    await markSummaryDays(tx, organizationId, rows.rows);
+  });
 }
 
 /** Fixed task fees are recognized once, at job success, never at quote creation. */

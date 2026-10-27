@@ -45,6 +45,7 @@ export function LogTimeDialog({
   projectId,
   jobId: fixedJobId,
   languages: fixedLanguages,
+  step: initialStep = "translation",
   onClose,
 }: {
   organizationSlug: string;
@@ -54,12 +55,14 @@ export function LogTimeDialog({
   jobId?: string;
   /** The fixed task's languages, which its project's may not all be; its project's when none. */
   languages?: string[];
+  /** The step the dialog opens on: the fixed task's own step, so time lands on the right line. */
+  step?: ReportStep;
   onClose: () => void;
 }) {
   const intl = useIntl();
   const logTime = useLogTime(organizationSlug);
   const [jobId, setJobId] = useState<string | null>(fixedJobId ?? null);
-  const [step, setStep] = useState<ReportStep>("translation");
+  const [step, setStep] = useState<ReportStep>(initialStep);
   const [targetLocale, setTargetLocale] = useState<string | null>(null);
   const [workDate, setWorkDate] = useState(settings.today);
   const [hours, setHours] = useState("1");

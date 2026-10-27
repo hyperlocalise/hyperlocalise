@@ -117,7 +117,9 @@ export function BudgetsTab({
                         <TableCell className={numeric}>{formatUsd(intl, row.budgetUsd)}</TableCell>
                         <TableCell className={numeric}>{formatUsd(intl, row.spentUsd)}</TableCell>
                         <TableCell className={numeric}>
-                          {formatUsd(intl, row.stillToComeUsd)}
+                          {Number(row.stillToComeUsd) === 0 && row.incomplete
+                            ? intl.formatMessage(messages.notPriced)
+                            : formatUsd(intl, row.stillToComeUsd)}
                           {row.incomplete ? (
                             <span
                               title={intl.formatMessage(messages.incomplete)}

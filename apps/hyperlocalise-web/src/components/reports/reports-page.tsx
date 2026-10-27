@@ -13,8 +13,11 @@
 "use client";
 
 import { WarningCircleIcon } from "@phosphor-icons/react";
+import Link from "next/link";
 import { useState } from "react";
 import { useIntl } from "react-intl";
+
+import { buildProjectPath } from "@/components/app-shell/navigation-config";
 
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -106,6 +109,21 @@ export function ReportsPage({
               }),
             })
           : intl.formatMessage(messages.notStarted)}
+      </p>
+      {/* How recent the figures are, and where the project's state now is: not counted here. */}
+      <p className="text-[13px] text-muted-foreground">
+        {intl.formatMessage(messages.freshness)}
+        {projectId ? (
+          <>
+            {" · "}
+            <Link
+              className="underline underline-offset-4"
+              href={buildProjectPath(organizationSlug, projectId)}
+            >
+              {intl.formatMessage(messages.languagesLink)}
+            </Link>
+          </>
+        ) : null}
       </p>
       {data.summary.pendingDays > 0 ? (
         <p className="text-[13px] text-muted-foreground">

@@ -24,7 +24,8 @@ export type ReportJobOption = {
 
 /**
  * Tasks that have Reports data, newest first, for the task picker: optionally only open ones,
- * those whose title or id contains `q`, or the given ids.
+ * those whose title or id contains `q`, or the given ids. A failed task is offered only when
+ * asked for by id (a filter already set): it has no work to estimate or to log time on.
  */
 export async function listReportJobs(input: {
   organizationId: string;
@@ -48,6 +49,7 @@ export async function listReportJobs(input: {
       )})
       ${input.projectId ? sql`and j.project_id = ${input.projectId}` : sql``}
       ${input.open ? sql`and j.status in ('queued', 'running', 'waiting_for_review')` : sql``}
+      ${input.ids?.length ? sql`` : sql`and j.status <> 'failed'`}
       ${pattern ? sql`and (${title} ilike ${pattern} or j.id ilike ${pattern})` : sql``}
       ${
         input.ids?.length

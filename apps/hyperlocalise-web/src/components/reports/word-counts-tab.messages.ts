@@ -45,6 +45,21 @@ export const wordCountsTabMessages = defineMessages({
     defaultMessage: "By task",
     description: "Switch option: one row per task and language",
   },
+  byWeek: {
+    id: "YbYXjpZ0kP",
+    defaultMessage: "By week",
+    description: "Switch option: one row per week, project and language",
+  },
+  weekColumn: {
+    id: "7CPlHFJKgc",
+    defaultMessage: "Week",
+    description: "Column heading: the week, by its first day",
+  },
+  weekOf: {
+    id: "wE6tyGO5i/",
+    defaultMessage: "Week of {date}",
+    description: "A week in the word counts table, by its first day (a Monday)",
+  },
   projectColumn: {
     id: "awb3jIA7pt",
     defaultMessage: "Project",

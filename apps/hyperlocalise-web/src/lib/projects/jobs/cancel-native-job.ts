@@ -16,6 +16,7 @@ import { enqueueJobCancelledActivity } from "@/lib/activity-log/job-automation-e
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { recordJobEvents } from "@/lib/job-events/job-events-writer";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { captureJobStatus } from "@/lib/reporting/capture";
 
 // waiting_for_review is included so native proofread jobs (and review-gated
 // translation jobs) can be cancelled — they count toward the open-job budget
@@ -88,6 +89,13 @@ export async function cancelNativeJob(input: {
     kind: cancelled.kind,
     organizationId: input.organizationId,
     status: "cancelled",
+  });
+
+  // Reports: the task's unfinished strings leave its project's Progress. Never throws.
+  await captureJobStatus({
+    jobId: cancelled.id,
+    status: "cancelled",
+    operationKey: `cancel:${cancelled.id}`,
   });
 
   return ok({ id: cancelled.id });

@@ -141,4 +141,26 @@ describe("lockedPricingSteps", () => {
       })),
     ]).toEqual([]);
   });
+
+  it("does not lock a step at an agent job's AI calls", async () => {
+    const { organization, project, createJob } = await reporting.createWorkspace();
+    const job = await createJob({ status: "running" });
+    await db.insert(schema.reportingCosts).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: job.id,
+      operationKey: `ai:${randomUUID()}`,
+      kind: "ai",
+      step: "translation",
+      basis: "unpriced",
+    });
+
+    expect([
+      ...(await lockedPricingSteps({
+        organizationId: organization.id,
+        jobId: job.id,
+        status: job.status,
+      })),
+    ]).toEqual([]);
+  });
 });

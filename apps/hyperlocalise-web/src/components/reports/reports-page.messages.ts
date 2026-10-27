@@ -53,6 +53,16 @@ export const reportsPageMessages = defineMessages({
     description:
       "Note on the Reports page for roles that cannot see what work costs: they only see their own time",
   },
+  freshness: {
+    id: "MtHbnOz2HY",
+    defaultMessage: "Counts update about every 15 minutes.",
+    description: "Note on the Reports page: how recent its figures are",
+  },
+  languagesLink: {
+    id: "h/ydXnWprX",
+    defaultMessage: "For the project's state now, see Languages on the project page",
+    description: "Link from a project's Reports page to the Languages panel on its overview",
+  },
   summaryPending: {
     id: "c3j6tppku4",
     defaultMessage:
@@ -163,6 +173,36 @@ export const reportsPageMessages = defineMessages({
     id: "ES1w+nf4mo",
     defaultMessage: "Remove {task}",
     description: "Accessible name of the button that removes a chosen task",
+  },
+  taskStatusQueued: {
+    id: "vbFd3KgPqU",
+    defaultMessage: "Queued",
+    description: "A task's state in the task picker",
+  },
+  taskStatusRunning: {
+    id: "iO1SSVXmtH",
+    defaultMessage: "Running",
+    description: "A task's state in the task picker",
+  },
+  taskStatusWaitingForReview: {
+    id: "IFClcgFpBl",
+    defaultMessage: "Waiting for review",
+    description: "A task's state in the task picker",
+  },
+  taskStatusSucceeded: {
+    id: "4m7wCtv70C",
+    defaultMessage: "Done",
+    description: "A task's state in the task picker",
+  },
+  taskStatusCancelled: {
+    id: "3hPd/lObFe",
+    defaultMessage: "Cancelled",
+    description: "A task's state in the task picker",
+  },
+  taskStatusFailed: {
+    id: "IpkrdzOV2Q",
+    defaultMessage: "Failed",
+    description: "A task's state in the task picker",
   },
   clearTask: {
     id: "d9GlPy5r0y",
