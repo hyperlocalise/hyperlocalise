@@ -25,6 +25,7 @@ import {
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationContentfulWorkflow,
   hasWorkspaceAutomationCrowdinTool,
+  hasWorkspaceAutomationCustomerIoTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
   hasWorkspaceAutomationSemrushTool,
@@ -173,6 +174,7 @@ export const AUTOMATION_LIST_TOOL_IDS = [
   "intercom",
   "sanity",
   "braze",
+  "customerIo",
   "crowdin",
   "webSearch",
   "semrush",
@@ -278,6 +280,13 @@ export function resolveAutomationTools(
     hasWorkspaceAutomationBrazeCampaignsTool(toolConfig)
   ) {
     addTool(tools, "braze", intl.formatMessage(automationsPageViewModelMessages.toolBraze));
+  }
+  if (hasWorkspaceAutomationCustomerIoTool(toolConfig)) {
+    addTool(
+      tools,
+      "customerIo",
+      intl.formatMessage(automationsPageViewModelMessages.toolCustomerIo),
+    );
   }
   if (hasWorkspaceAutomationCrowdinTool(toolConfig)) {
     addTool(tools, "crowdin", intl.formatMessage(automationsPageViewModelMessages.toolCrowdin));

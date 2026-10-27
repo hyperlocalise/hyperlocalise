@@ -145,6 +145,31 @@ describe("resolveAutomationTools", () => {
       ),
     ).toEqual([{ id: "braze", label: "Braze" }]);
   });
+
+  it("shows Customer.io with its brand badge", () => {
+    const base = createAutomationSummary();
+
+    expect(
+      resolveAutomationTools(
+        intl,
+        createAutomationSummary({
+          toolConfig: {
+            ...base.toolConfig,
+            github: { ...base.toolConfig.github!, enabled: false },
+            slack: { enabled: false },
+            customerIo: {
+              enabled: true,
+              sourceLocale: "en",
+              broadcastIds: [],
+              campaignIds: [],
+              existingTranslationPolicy: "seed_empty",
+              overwriteWhenRemoteNewer: true,
+            },
+          },
+        }),
+      ),
+    ).toEqual([{ id: "customerIo", label: "Customer.io" }]);
+  });
 });
 
 describe("resolveTemplateCategoryTabs", () => {
