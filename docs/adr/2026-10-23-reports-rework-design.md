@@ -28,7 +28,7 @@ Reports (behind the `workspace-reports` flag, no customer users yet) records wor
 - `refreshSummaryDays` rebuilds a project's marked days from the raw records in one statement per table, under an advisory lock that is skipped when busy (or waited for a few seconds when asked), and clears a mark only if its generation did not change meanwhile.
 - The summary refreshes at the end of each capture cron run: capture starts no new work after three minutes, and the refresh uses the time left up to four. A write never refreshes the summary itself.
 - `ensureSummaryBuilt` queues every day of a workspace whose `reporting_workspaces.summary_version` is not `SUMMARY_VERSION`, for the first build and any later rebuild. `vp run reporting:summary rebuild` and `time` do the same locally.
-- `reporting_workspaces.started_at` is each workspace's own Reports start, replacing `reporting_rollout` in the web app. Dates on the page start there. The `reporting_rollout` table itself stays, because go-svc's reporting routes still read it.
+- `reporting_workspaces.started_at` is each workspace's own Reports start, replacing `reporting_rollout` in the web app, set the first time Reports records anything for the workspace (and, since [the AI usage tab](./2026-10-27-reports-ai-usage-tab-design.md), at its first AI token row). Dates on the page start there. The `reporting_rollout` table itself stays, because go-svc's reporting routes still read it.
 - Each analysis stores characters with and without spaces (grapheme clusters, from `countSourceCharacters`). Rows from before have none and show as "not counted".
 
 ### Reading
