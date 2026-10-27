@@ -199,6 +199,24 @@ export function buildCustomerIoCampaignSourcePath(input: {
   );
 }
 
+export function buildCustomerIoNewsletterSourcePath(input: {
+  newsletterId: string;
+  actionId: string;
+}): string {
+  return normalizeSourcePath(
+    `customer-io/newsletters/${input.newsletterId.trim() || "newsletter"}/contents/${input.actionId.trim() || "content"}.json`,
+  );
+}
+
+export function buildCustomerIoTransactionalSourcePath(input: {
+  transactionalMessageId: string;
+  actionId: string;
+}): string {
+  return normalizeSourcePath(
+    `customer-io/transactional/${input.transactionalMessageId.trim() || "message"}/contents/${input.actionId.trim() || "content"}.json`,
+  );
+}
+
 export function isCustomerIoSourcePath(sourcePath: string): boolean {
   return normalizeSourcePath(sourcePath).startsWith("customer-io/");
 }

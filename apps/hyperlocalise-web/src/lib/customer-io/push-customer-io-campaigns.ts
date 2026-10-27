@@ -26,12 +26,20 @@ import {
   CustomerIoApiError,
   getCustomerIoBroadcastActionTranslation,
   getCustomerIoCampaignActionTranslation,
+  getCustomerIoNewsletterActionTranslation,
   getCustomerIoResourceAction,
+  getCustomerIoTransactionalActionTranslation,
   listCustomerIoBroadcastActions,
   listCustomerIoCampaignActions,
+  listCustomerIoNewsletterActions,
+  listCustomerIoTransactionalActions,
   updateCustomerIoBroadcastActionTranslation,
   updateCustomerIoCampaignActionTranslation,
+  updateCustomerIoNewsletterActionTranslation,
+  updateCustomerIoTransactionalActionTranslation,
   type CustomerIoAction,
+  type CustomerIoActionTranslation,
+  type CustomerIoActionTranslationPayload,
 } from "./client";
 import { loadCustomerIoAutomationClient, type CustomerIoAutomationClient } from "./credentials";
 import {
@@ -44,6 +52,8 @@ import {
   buildCustomerIoActionTranslationPayload,
   buildCustomerIoBroadcastSourcePath,
   buildCustomerIoCampaignSourcePath,
+  buildCustomerIoNewsletterSourcePath,
+  buildCustomerIoTransactionalSourcePath,
   customerIoTranslationMapFromRemote,
   hashCustomerIoTranslationMap,
   isCustomerIoLocalizableActionType,
@@ -155,6 +165,8 @@ export async function runPushCustomerIoCampaigns(input: {
   const resources = await resolveCustomerIoImportResources(loaded.value, {
     broadcastIds: selectedCustomerIoResourceIds(config.broadcastIds),
     campaignIds: selectedCustomerIoResourceIds(config.campaignIds),
+    newsletterIds: selectedCustomerIoResourceIds(config.newsletterIds ?? []),
+    transactionalMessageIds: selectedCustomerIoResourceIds(config.transactionalMessageIds ?? []),
   });
 
   const translationService = new ProjectTranslationService();
@@ -167,14 +179,25 @@ export async function runPushCustomerIoCampaigns(input: {
 
   for (const resource of resources) {
     const actions = await listCustomerIoResourceActions(loaded.value, resource);
-    for (const action of actions) {
-      if (!isCustomerIoLocalizableActionType(action.type) || action.language.trim() !== "") {
-        continue;
-      }
-      const sourcePath =
-        resource.kind === "broadcast"
-          ? buildCustomerIoBroadcastSourcePath({ broadcastId: resource.id, actionId: action.id })
-          : buildCustomerIoCampaignSourcePath({ campaignId: resource.id, actionId: action.id });
+    const defaultActions = actions.filter(
+      (action) => isCustomerIoLocalizableActionType(action.type) && action.language.trim() === "",
+    );
+    if (
+      (resource.kind === "newsletter" || resource.kind === "transactional") &&
+      defaultActions.length > 1
+    ) {
+      // Newsletter/transactional translations share one per-language slot, so
+      // pushing several default variants of the same message would overwrite
+      // each other (last wins). Skip A/B-tested messages until variant-level
+      // targeting exists.
+      logger.warn(
+        { resourceKind: resource.kind, resourceId: resource.id },
+        "customer.io push skipped resource with multiple default variants",
+      );
+      continue;
+    }
+    for (const action of defaultActions) {
+      const sourcePath = buildCustomerIoResourceSourcePath(resource, action.id);
       if (sourceFilter && !sourceFilter.has(sourcePath)) {
         continue;
       }
@@ -200,21 +223,159 @@ export async function runPushCustomerIoCampaigns(input: {
   return { pushedLocales, skippedLocales, failedLocales, itemsProcessed };
 }
 
+function customerIoResourcePath(resource: CustomerIoImportResource): string {
+  switch (resource.kind) {
+    case "broadcast":
+      return `/broadcasts/${resource.id}`;
+    case "campaign":
+      return `/campaigns/${resource.id}`;
+    case "newsletter":
+      return `/newsletters/${resource.id}`;
+    case "transactional":
+      return `/transactional/${resource.id}`;
+  }
+}
+
+function buildCustomerIoResourceSourcePath(
+  resource: CustomerIoImportResource,
+  actionId: string,
+): string {
+  switch (resource.kind) {
+    case "broadcast":
+      return buildCustomerIoBroadcastSourcePath({ broadcastId: resource.id, actionId });
+    case "campaign":
+      return buildCustomerIoCampaignSourcePath({ campaignId: resource.id, actionId });
+    case "newsletter":
+      return buildCustomerIoNewsletterSourcePath({ newsletterId: resource.id, actionId });
+    case "transactional":
+      return buildCustomerIoTransactionalSourcePath({
+        transactionalMessageId: resource.id,
+        actionId,
+      });
+  }
+}
+
 async function listCustomerIoResourceActions(
   client: CustomerIoAutomationClient,
   resource: CustomerIoImportResource,
 ): Promise<CustomerIoAction[]> {
-  return resource.kind === "broadcast"
-    ? listCustomerIoBroadcastActions({
+  switch (resource.kind) {
+    case "broadcast":
+      return listCustomerIoBroadcastActions({
         apiKey: client.apiKey,
         region: client.region,
         broadcastId: resource.id,
-      })
-    : listCustomerIoCampaignActions({
+      });
+    case "campaign":
+      return listCustomerIoCampaignActions({
         apiKey: client.apiKey,
         region: client.region,
         campaignId: resource.id,
       });
+    case "newsletter":
+      return listCustomerIoNewsletterActions({
+        apiKey: client.apiKey,
+        region: client.region,
+        newsletterId: resource.id,
+      });
+    case "transactional":
+      return listCustomerIoTransactionalActions({
+        apiKey: client.apiKey,
+        region: client.region,
+        transactionalMessageId: resource.id,
+      });
+  }
+}
+
+async function getCustomerIoResourceTranslation(input: {
+  client: CustomerIoAutomationClient;
+  resource: CustomerIoImportResource;
+  actionId: string;
+  language: string;
+}): Promise<CustomerIoActionTranslation | null> {
+  const { client, resource, actionId, language } = input;
+  switch (resource.kind) {
+    case "broadcast":
+      return getCustomerIoBroadcastActionTranslation({
+        apiKey: client.apiKey,
+        region: client.region,
+        broadcastId: resource.id,
+        actionId,
+        language,
+      });
+    case "campaign":
+      return getCustomerIoCampaignActionTranslation({
+        apiKey: client.apiKey,
+        region: client.region,
+        campaignId: resource.id,
+        actionId,
+        language,
+      });
+    case "newsletter":
+      return getCustomerIoNewsletterActionTranslation({
+        apiKey: client.apiKey,
+        region: client.region,
+        newsletterId: resource.id,
+        actionId,
+        language,
+      });
+    case "transactional":
+      return getCustomerIoTransactionalActionTranslation({
+        apiKey: client.apiKey,
+        region: client.region,
+        transactionalMessageId: resource.id,
+        actionId,
+        language,
+      });
+  }
+}
+
+async function updateCustomerIoResourceTranslation(input: {
+  client: CustomerIoAutomationClient;
+  resource: CustomerIoImportResource;
+  actionId: string;
+  language: string;
+  payload: CustomerIoActionTranslationPayload;
+}): Promise<void> {
+  const { client, resource, actionId, language, payload } = input;
+  switch (resource.kind) {
+    case "broadcast":
+      return updateCustomerIoBroadcastActionTranslation({
+        apiKey: client.apiKey,
+        region: client.region,
+        broadcastId: resource.id,
+        actionId,
+        language,
+        payload,
+      });
+    case "campaign":
+      return updateCustomerIoCampaignActionTranslation({
+        apiKey: client.apiKey,
+        region: client.region,
+        campaignId: resource.id,
+        actionId,
+        language,
+        payload,
+      });
+    case "newsletter":
+      return updateCustomerIoNewsletterActionTranslation({
+        apiKey: client.apiKey,
+        region: client.region,
+        newsletterId: resource.id,
+        actionId,
+        language,
+        payload,
+      });
+    case "transactional":
+      return updateCustomerIoTransactionalActionTranslation({
+        apiKey: client.apiKey,
+        region: client.region,
+        transactionalMessageId: resource.id,
+        actionId,
+        language,
+        payload,
+      });
+  }
 }
 
 async function pushCustomerIoAction(input: {
@@ -254,11 +415,12 @@ async function pushCustomerIoAction(input: {
   const details = await getCustomerIoResourceAction({
     apiKey: input.client.apiKey,
     region: input.client.region,
-    resourcePath:
-      input.resource.kind === "broadcast"
-        ? `/broadcasts/${input.resource.id}`
-        : `/campaigns/${input.resource.id}`,
+    resourcePath: customerIoResourcePath(input.resource),
     actionId: input.action.id,
+    collectionKey:
+      input.resource.kind === "newsletter" || input.resource.kind === "transactional"
+        ? "contents"
+        : "actions",
   });
   if (!details) {
     return { pushedLocales, skippedLocales: input.targetLocales.length, failedLocales };
@@ -284,22 +446,12 @@ async function pushCustomerIoAction(input: {
         continue;
       }
 
-      const remote =
-        input.resource.kind === "broadcast"
-          ? await getCustomerIoBroadcastActionTranslation({
-              apiKey: input.client.apiKey,
-              region: input.client.region,
-              broadcastId: input.resource.id,
-              actionId: input.action.id,
-              language,
-            })
-          : await getCustomerIoCampaignActionTranslation({
-              apiKey: input.client.apiKey,
-              region: input.client.region,
-              campaignId: input.resource.id,
-              actionId: input.action.id,
-              language,
-            });
+      const remote = await getCustomerIoResourceTranslation({
+        client: input.client,
+        resource: input.resource,
+        actionId: input.action.id,
+        language,
+      });
       if (!remote) {
         // Language variants are enabled in the Customer.io UI; the API only
         // updates existing variants, so there is nothing to push into yet.
@@ -328,25 +480,13 @@ async function pushCustomerIoAction(input: {
 
       const payload = buildCustomerIoActionTranslationPayload(details.type, translationMap);
       try {
-        if (input.resource.kind === "broadcast") {
-          await updateCustomerIoBroadcastActionTranslation({
-            apiKey: input.client.apiKey,
-            region: input.client.region,
-            broadcastId: input.resource.id,
-            actionId: input.action.id,
-            language,
-            payload,
-          });
-        } else {
-          await updateCustomerIoCampaignActionTranslation({
-            apiKey: input.client.apiKey,
-            region: input.client.region,
-            campaignId: input.resource.id,
-            actionId: input.action.id,
-            language,
-            payload,
-          });
-        }
+        await updateCustomerIoResourceTranslation({
+          client: input.client,
+          resource: input.resource,
+          actionId: input.action.id,
+          language,
+          payload,
+        });
         pushedLocales += 1;
       } catch (error) {
         if (isMissingTranslation(error)) {

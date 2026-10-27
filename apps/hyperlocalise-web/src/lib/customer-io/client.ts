@@ -72,6 +72,31 @@ export type CustomerIoCampaignSummary = {
   updatedAt?: string | null;
 };
 
+/**
+ * Spike findings (Customer.io App API docs, Oct 2026):
+ * - Newsletters ("one-time sends"): `GET /v1/newsletters` returns `{newsletters: [...]}`;
+ *   list items carry `updated` (not `updated_at`). Message variants (translations or
+ *   A/B tests) list via `GET /v1/newsletters/{id}/contents` (`{contents: [...]}`) with
+ *   the same action fields (`id`, `name`, `type`, `language`, `subject`,
+ *   `preheader_text`, `body`). Per-language read/write mirrors broadcasts:
+ *   `GET|PUT /v1/newsletters/{id}/language/{language}`.
+ * - Transactional: `GET /v1/transactional` lists message templates; variants list via
+ *   `GET /v1/transactional/{id}/contents`; per-language read/write mirrors broadcasts:
+ *   `GET|PUT /v1/transactional/{id}/language/{language}`. Push only ever updates
+ *   message content — it never triggers a send (`POST /v1/send/...` is not used).
+ */
+export type CustomerIoNewsletterSummary = {
+  id: string;
+  name: string;
+  updatedAt?: string | null;
+};
+
+export type CustomerIoTransactionalMessageSummary = {
+  id: string;
+  name: string;
+  updatedAt?: string | null;
+};
+
 /** Message action inside a broadcast or campaign (automation). */
 export type CustomerIoAction = {
   id: string;
@@ -113,42 +138,73 @@ async function customerIoFetch(input: {
   });
 }
 
-export async function listCustomerIoBroadcasts(input: {
-  apiKey: string;
-  region: CustomerIoRegion;
-  fetchImpl?: typeof fetch;
-}): Promise<CustomerIoBroadcastSummary[]> {
-  const fetchImpl = input.fetchImpl ?? fetch;
-  const response = await customerIoFetch({
-    apiKey: input.apiKey,
-    region: input.region,
-    path: "/broadcasts?limit=100",
-    fetchImpl,
-  });
-  if (!response.ok) {
-    throw new Error(`customer_io_broadcasts_list_failed:${response.status}`);
+type CustomerIoSummaryItem = {
+  id?: unknown;
+  name?: unknown;
+  updated_at?: unknown;
+  updated?: unknown;
+};
+
+function readCustomerIoSummaries(
+  body: unknown,
+  collectionKeys: readonly string[],
+): Array<{ id: string; name: string; updatedAt: string | null }> {
+  if (!body || typeof body !== "object") {
+    return [];
   }
-  const body = (await response.json().catch(() => null)) as {
-    broadcasts?: Array<{ id?: unknown; name?: unknown; updated_at?: unknown }>;
-  } | null;
-  const broadcasts = Array.isArray(body?.broadcasts) ? body.broadcasts : [];
-  return broadcasts.flatMap((item) => {
+  const record = body as Record<string, unknown>;
+  const items: unknown = collectionKeys
+    .map((key) => record[key])
+    .find((value) => Array.isArray(value));
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  return (items as CustomerIoSummaryItem[]).flatMap((item) => {
     const id =
       typeof item.id === "number" ? String(item.id) : typeof item.id === "string" ? item.id : "";
     const name = typeof item.name === "string" ? item.name : "";
     if (!id || !name) {
       return [];
     }
-    return [
-      {
-        id,
-        name,
-        updatedAt:
-          typeof item.updated_at === "number"
-            ? new Date(item.updated_at * 1000).toISOString()
-            : null,
-      },
-    ];
+    const updatedAt =
+      typeof item.updated_at === "number"
+        ? new Date(item.updated_at * 1000).toISOString()
+        : typeof item.updated === "number"
+          ? new Date(item.updated * 1000).toISOString()
+          : null;
+    return [{ id, name, updatedAt }];
+  });
+}
+
+async function listCustomerIoSummaries(input: {
+  apiKey: string;
+  region: CustomerIoRegion;
+  path: string;
+  collectionKeys: readonly string[];
+  fetchImpl?: typeof fetch;
+}): Promise<Array<{ id: string; name: string; updatedAt: string | null }>> {
+  const fetchImpl = input.fetchImpl ?? fetch;
+  const response = await customerIoFetch({
+    apiKey: input.apiKey,
+    region: input.region,
+    path: input.path,
+    fetchImpl,
+  });
+  if (!response.ok) {
+    throw customerIoErrorForStatus(response.status, input.path);
+  }
+  return readCustomerIoSummaries(await response.json().catch(() => null), input.collectionKeys);
+}
+
+export async function listCustomerIoBroadcasts(input: {
+  apiKey: string;
+  region: CustomerIoRegion;
+  fetchImpl?: typeof fetch;
+}): Promise<CustomerIoBroadcastSummary[]> {
+  return listCustomerIoSummaries({
+    ...input,
+    path: "/broadcasts?limit=100",
+    collectionKeys: ["broadcasts"],
   });
 }
 
@@ -157,37 +213,34 @@ export async function listCustomerIoCampaigns(input: {
   region: CustomerIoRegion;
   fetchImpl?: typeof fetch;
 }): Promise<CustomerIoCampaignSummary[]> {
-  const fetchImpl = input.fetchImpl ?? fetch;
-  const response = await customerIoFetch({
-    apiKey: input.apiKey,
-    region: input.region,
+  return listCustomerIoSummaries({
+    ...input,
     path: "/campaigns?limit=100",
-    fetchImpl,
+    collectionKeys: ["campaigns"],
   });
-  if (!response.ok) {
-    throw customerIoErrorForStatus(response.status, "/campaigns");
-  }
-  const body = (await response.json().catch(() => null)) as {
-    campaigns?: Array<{ id?: unknown; name?: unknown; updated_at?: unknown }>;
-  } | null;
-  const campaigns = Array.isArray(body?.campaigns) ? body.campaigns : [];
-  return campaigns.flatMap((item) => {
-    const id =
-      typeof item.id === "number" ? String(item.id) : typeof item.id === "string" ? item.id : "";
-    const name = typeof item.name === "string" ? item.name : "";
-    if (!id || !name) {
-      return [];
-    }
-    return [
-      {
-        id,
-        name,
-        updatedAt:
-          typeof item.updated_at === "number"
-            ? new Date(item.updated_at * 1000).toISOString()
-            : null,
-      },
-    ];
+}
+
+export async function listCustomerIoNewsletters(input: {
+  apiKey: string;
+  region: CustomerIoRegion;
+  fetchImpl?: typeof fetch;
+}): Promise<CustomerIoNewsletterSummary[]> {
+  return listCustomerIoSummaries({
+    ...input,
+    path: "/newsletters?limit=100",
+    collectionKeys: ["newsletters"],
+  });
+}
+
+export async function listCustomerIoTransactionalMessages(input: {
+  apiKey: string;
+  region: CustomerIoRegion;
+  fetchImpl?: typeof fetch;
+}): Promise<CustomerIoTransactionalMessageSummary[]> {
+  return listCustomerIoSummaries({
+    ...input,
+    path: "/transactional?limit=100",
+    collectionKeys: ["messages", "transactional"],
   });
 }
 
@@ -229,10 +282,15 @@ async function listCustomerIoResourceActions(input: {
   apiKey: string;
   region: CustomerIoRegion;
   resourcePath: string;
+  collectionKey?: string;
   fetchImpl?: typeof fetch;
 }): Promise<CustomerIoAction[]> {
   const fetchImpl = input.fetchImpl ?? fetch;
-  const path = `${input.resourcePath}/actions`;
+  const collectionKey = input.collectionKey ?? "actions";
+  const path =
+    collectionKey === "actions"
+      ? `${input.resourcePath}/actions`
+      : `${input.resourcePath}/contents`;
   const response = await customerIoFetch({
     apiKey: input.apiKey,
     region: input.region,
@@ -244,8 +302,10 @@ async function listCustomerIoResourceActions(input: {
   }
   const body = (await response.json().catch(() => null)) as {
     actions?: CustomerIoRawAction[];
+    contents?: CustomerIoRawAction[];
   } | null;
-  const actions = Array.isArray(body?.actions) ? body.actions : [];
+  const items = collectionKey === "actions" ? body?.actions : body?.contents;
+  const actions = Array.isArray(items) ? items : [];
   return actions.flatMap((item) => {
     const action = readCustomerIoAction(item);
     return action ? [action] : [];
@@ -276,15 +336,46 @@ export async function listCustomerIoCampaignActions(input: {
   });
 }
 
+export async function listCustomerIoNewsletterActions(input: {
+  apiKey: string;
+  region: CustomerIoRegion;
+  newsletterId: string;
+  fetchImpl?: typeof fetch;
+}): Promise<CustomerIoAction[]> {
+  return listCustomerIoResourceActions({
+    ...input,
+    resourcePath: `/newsletters/${input.newsletterId}`,
+    collectionKey: "contents",
+  });
+}
+
+export async function listCustomerIoTransactionalActions(input: {
+  apiKey: string;
+  region: CustomerIoRegion;
+  transactionalMessageId: string;
+  fetchImpl?: typeof fetch;
+}): Promise<CustomerIoAction[]> {
+  return listCustomerIoResourceActions({
+    ...input,
+    resourcePath: `/transactional/${input.transactionalMessageId}`,
+    collectionKey: "contents",
+  });
+}
+
 export async function getCustomerIoResourceAction(input: {
   apiKey: string;
   region: CustomerIoRegion;
   resourcePath: string;
   actionId: string;
+  collectionKey?: string;
   fetchImpl?: typeof fetch;
 }): Promise<CustomerIoAction | null> {
   const fetchImpl = input.fetchImpl ?? fetch;
-  const path = `${input.resourcePath}/actions/${input.actionId}`;
+  const collectionKey = input.collectionKey ?? "actions";
+  const path =
+    collectionKey === "actions"
+      ? `${input.resourcePath}/actions/${input.actionId}`
+      : `${input.resourcePath}/contents/${input.actionId}`;
   const response = await customerIoFetch({
     apiKey: input.apiKey,
     region: input.region,
@@ -326,11 +417,13 @@ async function getCustomerIoResourceActionTranslation(input: {
   resourcePath: string;
   actionId: string;
   language: string;
+  translationBasePath?: string;
   fetchImpl?: typeof fetch;
 }): Promise<CustomerIoActionTranslation | null> {
   const fetchImpl = input.fetchImpl ?? fetch;
   const encodedLanguage = encodeURIComponent(input.language);
-  const path = `${input.resourcePath}/actions/${input.actionId}/language/${encodedLanguage}`;
+  const basePath = input.translationBasePath ?? `${input.resourcePath}/actions/${input.actionId}`;
+  const path = `${basePath}/language/${encodedLanguage}`;
   const response = await customerIoFetch({
     apiKey: input.apiKey,
     region: input.region,
@@ -374,6 +467,40 @@ export async function getCustomerIoCampaignActionTranslation(input: {
   });
 }
 
+export async function getCustomerIoNewsletterActionTranslation(input: {
+  apiKey: string;
+  region: CustomerIoRegion;
+  newsletterId: string;
+  actionId: string;
+  language: string;
+  fetchImpl?: typeof fetch;
+}): Promise<CustomerIoActionTranslation | null> {
+  return getCustomerIoResourceActionTranslation({
+    ...input,
+    resourcePath: `/newsletters/${input.newsletterId}`,
+    // Newsletter variants are addressed by language directly; there is no
+    // per-action segment on the translation endpoints.
+    translationBasePath: `/newsletters/${input.newsletterId}`,
+  });
+}
+
+export async function getCustomerIoTransactionalActionTranslation(input: {
+  apiKey: string;
+  region: CustomerIoRegion;
+  transactionalMessageId: string;
+  actionId: string;
+  language: string;
+  fetchImpl?: typeof fetch;
+}): Promise<CustomerIoActionTranslation | null> {
+  return getCustomerIoResourceActionTranslation({
+    ...input,
+    resourcePath: `/transactional/${input.transactionalMessageId}`,
+    // Transactional translations are addressed by language directly; there is
+    // no per-action segment on the translation endpoints.
+    translationBasePath: `/transactional/${input.transactionalMessageId}`,
+  });
+}
+
 export type CustomerIoActionTranslationPayload = {
   type: string;
   subject?: string;
@@ -389,11 +516,13 @@ async function updateCustomerIoResourceActionTranslation(input: {
   actionId: string;
   language: string;
   payload: CustomerIoActionTranslationPayload;
+  translationBasePath?: string;
   fetchImpl?: typeof fetch;
 }): Promise<void> {
   const fetchImpl = input.fetchImpl ?? fetch;
   const encodedLanguage = encodeURIComponent(input.language);
-  const path = `${input.resourcePath}/actions/${input.actionId}/language/${encodedLanguage}`;
+  const basePath = input.translationBasePath ?? `${input.resourcePath}/actions/${input.actionId}`;
+  const path = `${basePath}/language/${encodedLanguage}`;
   const response = await customerIoFetch({
     apiKey: input.apiKey,
     region: input.region,
@@ -434,5 +563,39 @@ export async function updateCustomerIoCampaignActionTranslation(input: {
   return updateCustomerIoResourceActionTranslation({
     ...input,
     resourcePath: `/campaigns/${input.campaignId}`,
+  });
+}
+
+export async function updateCustomerIoNewsletterActionTranslation(input: {
+  apiKey: string;
+  region: CustomerIoRegion;
+  newsletterId: string;
+  actionId: string;
+  language: string;
+  payload: CustomerIoActionTranslationPayload;
+  fetchImpl?: typeof fetch;
+}): Promise<void> {
+  return updateCustomerIoResourceActionTranslation({
+    ...input,
+    resourcePath: `/newsletters/${input.newsletterId}`,
+    translationBasePath: `/newsletters/${input.newsletterId}`,
+  });
+}
+
+export async function updateCustomerIoTransactionalActionTranslation(input: {
+  apiKey: string;
+  region: CustomerIoRegion;
+  transactionalMessageId: string;
+  actionId: string;
+  language: string;
+  payload: CustomerIoActionTranslationPayload;
+  fetchImpl?: typeof fetch;
+}): Promise<void> {
+  // Content-only update. Never sends: the send endpoints (`POST /v1/send/...`)
+  // are not called anywhere in this integration.
+  return updateCustomerIoResourceActionTranslation({
+    ...input,
+    resourcePath: `/transactional/${input.transactionalMessageId}`,
+    translationBasePath: `/transactional/${input.transactionalMessageId}`,
   });
 }

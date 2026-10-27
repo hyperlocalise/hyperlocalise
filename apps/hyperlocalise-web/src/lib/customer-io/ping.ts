@@ -57,26 +57,37 @@ export async function pingCustomerIoCredentials(input: {
   fetchImpl?: typeof fetch;
 }): Promise<Result<true, CustomerIoPingError>> {
   const fetchImpl = input.fetchImpl ?? fetch;
-  let response: Response;
-  try {
-    response = await fetchImpl(`${resolveCustomerIoBaseUrl(input.region)}/broadcasts?limit=1`, {
-      headers: {
-        Authorization: `Bearer ${input.apiKey.trim()}`,
-        Accept: "application/json",
-      },
-    });
-  } catch {
+  // The key needs read access to every localizable resource kind. Check each
+  // list endpoint; a rejected key or unreachable region fails closed.
+  const paths = [
+    "/broadcasts?limit=1",
+    "/campaigns?limit=1",
+    "/newsletters?limit=1",
+    "/transactional?limit=1",
+  ];
+  for (const path of paths) {
+    let response: Response;
+    try {
+      response = await fetchImpl(`${resolveCustomerIoBaseUrl(input.region)}${path}`, {
+        headers: {
+          Authorization: `Bearer ${input.apiKey.trim()}`,
+          Accept: "application/json",
+        },
+      });
+    } catch {
+      return err(CUSTOMER_IO_REGION_UNREACHABLE);
+    }
+
+    if (response.status >= 200 && response.status < 300) {
+      continue;
+    }
+    if (isAuthFailure(response.status)) {
+      return err(CUSTOMER_IO_CREDENTIALS_INVALID);
+    }
+    if (response.status === 429 || response.status >= 500) {
+      return err(CUSTOMER_IO_TEMPORARILY_UNAVAILABLE);
+    }
     return err(CUSTOMER_IO_REGION_UNREACHABLE);
   }
-
-  if (response.status >= 200 && response.status < 300) {
-    return ok(true);
-  }
-  if (isAuthFailure(response.status)) {
-    return err(CUSTOMER_IO_CREDENTIALS_INVALID);
-  }
-  if (response.status === 429 || response.status >= 500) {
-    return err(CUSTOMER_IO_TEMPORARILY_UNAVAILABLE);
-  }
-  return err(CUSTOMER_IO_REGION_UNREACHABLE);
+  return ok(true);
 }

@@ -53,6 +53,25 @@ describe("pingCustomerIoCredentials", () => {
     );
   });
 
+  it("checks every localizable resource kind", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response("{}", { status: 200 }));
+
+    const result = await pingCustomerIoCredentials({
+      apiKey: "cio-app-key",
+      region: "us",
+      fetchImpl,
+    });
+
+    expect(isOk(result)).toBe(true);
+    const urls = fetchImpl.mock.calls.map(([url]) => url);
+    expect(urls).toEqual([
+      "https://api.customer.io/v1/broadcasts?limit=1",
+      "https://api.customer.io/v1/campaigns?limit=1",
+      "https://api.customer.io/v1/newsletters?limit=1",
+      "https://api.customer.io/v1/transactional?limit=1",
+    ]);
+  });
+
   it("rejects an unauthorized key", async () => {
     const result = await pingCustomerIoCredentials({
       apiKey: "bad-key",

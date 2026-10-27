@@ -150,6 +150,8 @@ export type WorkspaceAutomationFormState = {
   customerIoSourceLocale: string;
   customerIoBroadcastIds: string[];
   customerIoCampaignIds: string[];
+  customerIoNewsletterIds: string[];
+  customerIoTransactionalMessageIds: string[];
   customerIoExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   customerIoOverwriteWhenRemoteNewer: boolean;
   brazeSourceLocale: string;
@@ -455,6 +457,8 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     customerIoSourceLocale: "en",
     customerIoBroadcastIds: [],
     customerIoCampaignIds: [],
+    customerIoNewsletterIds: [],
+    customerIoTransactionalMessageIds: [],
     customerIoExistingTranslationPolicy: "seed_empty",
     customerIoOverwriteWhenRemoteNewer: true,
     brazeSourceLocale: "en",
@@ -623,6 +627,10 @@ export function createWorkspaceAutomationFormStateFromRecord(
     customerIoSourceLocale: customerIo?.sourceLocale ?? "en",
     customerIoBroadcastIds: customerIo?.broadcastIds ? [...customerIo.broadcastIds] : [],
     customerIoCampaignIds: customerIo?.campaignIds ? [...customerIo.campaignIds] : [],
+    customerIoNewsletterIds: customerIo?.newsletterIds ? [...customerIo.newsletterIds] : [],
+    customerIoTransactionalMessageIds: customerIo?.transactionalMessageIds
+      ? [...customerIo.transactionalMessageIds]
+      : [],
     customerIoExistingTranslationPolicy:
       customerIo?.existingTranslationPolicy === "refresh_imported" ||
       customerIo?.existingTranslationPolicy === "overwrite_all"
@@ -913,6 +921,8 @@ export function formStateToWorkspaceAutomationPayload(
             sourceLocale: form.customerIoSourceLocale.trim() || "en",
             broadcastIds: form.customerIoBroadcastIds,
             campaignIds: form.customerIoCampaignIds,
+            newsletterIds: form.customerIoNewsletterIds,
+            transactionalMessageIds: form.customerIoTransactionalMessageIds,
             existingTranslationPolicy: form.customerIoExistingTranslationPolicy,
             overwriteWhenRemoteNewer: form.customerIoOverwriteWhenRemoteNewer,
           },

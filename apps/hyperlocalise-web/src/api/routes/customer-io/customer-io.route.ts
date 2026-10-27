@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { validator } from "hono/validator";
 
 import { hasCapability } from "@/api/auth/policy";
@@ -21,8 +21,12 @@ import {
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/response.schema";
-import { listCustomerIoBroadcasts } from "@/lib/customer-io/client";
-import { isCustomerIoRegion } from "@/lib/customer-io/constants";
+import {
+  listCustomerIoBroadcasts,
+  listCustomerIoNewsletters,
+  listCustomerIoTransactionalMessages,
+} from "@/lib/customer-io/client";
+import { isCustomerIoRegion, type CustomerIoRegion } from "@/lib/customer-io/constants";
 import { pingCustomerIoCredentials } from "@/lib/customer-io/ping";
 import {
   getCustomerIoPipesConnectionStatus,
@@ -98,6 +102,54 @@ const validateLibraryQuery = validator("query", (value, c) => {
 });
 
 export function createCustomerIoRoutes() {
+  const libraryList = async (
+    c: Context<{ Variables: AuthVariables }>,
+    key: "broadcasts" | "newsletters" | "transactionalMessages",
+    list: (input: { apiKey: string; region: CustomerIoRegion }) => Promise<
+      Array<{
+        id: string;
+        name: string;
+        updatedAt?: string | null;
+      }>
+    >,
+  ) => {
+    if (!canReadCustomerIo(c.var.auth.membership.role)) {
+      return forbiddenResponse(c, "forbidden");
+    }
+
+    const localOrganizationId = c.var.auth.organization.localOrganizationId;
+    const workosUserId = c.var.auth.user.workosUserId;
+    const settings = await getCustomerIoConnectionSettings({
+      localOrganizationId,
+      workosUserId,
+    });
+    if (!settings || !isCustomerIoRegion(settings.region)) {
+      return badRequestResponse(
+        c,
+        "customer_io_region_missing",
+        "Save a Customer.io region in Integrations before using it.",
+      );
+    }
+    const keyResult = await loadCustomerIoPipesApiKey({ localOrganizationId, workosUserId });
+    if (isErr(keyResult)) {
+      return mapCustomerIoError(c, keyResult.error);
+    }
+
+    try {
+      const items = await list({
+        apiKey: keyResult.value,
+        region: settings.region,
+      });
+      return c.json({ [key]: items }, 200);
+    } catch {
+      return serviceUnavailableResponse(
+        c,
+        "customer_io_temporarily_unavailable",
+        "Customer.io did not accept the request. Wait a moment and try again.",
+      );
+    }
+  };
+
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
@@ -127,41 +179,13 @@ export function createCustomerIoRoutes() {
       return c.json({ customerIo: settings }, 200);
     })
     .get("/broadcasts", validateLibraryQuery, async (c) => {
-      if (!canReadCustomerIo(c.var.auth.membership.role)) {
-        return forbiddenResponse(c, "forbidden");
-      }
-
-      const localOrganizationId = c.var.auth.organization.localOrganizationId;
-      const workosUserId = c.var.auth.user.workosUserId;
-      const settings = await getCustomerIoConnectionSettings({
-        localOrganizationId,
-        workosUserId,
-      });
-      if (!settings || !isCustomerIoRegion(settings.region)) {
-        return badRequestResponse(
-          c,
-          "customer_io_region_missing",
-          "Save a Customer.io region in Integrations before using it.",
-        );
-      }
-      const keyResult = await loadCustomerIoPipesApiKey({ localOrganizationId, workosUserId });
-      if (isErr(keyResult)) {
-        return mapCustomerIoError(c, keyResult.error);
-      }
-
-      try {
-        const broadcasts = await listCustomerIoBroadcasts({
-          apiKey: keyResult.value,
-          region: settings.region,
-        });
-        return c.json({ broadcasts }, 200);
-      } catch {
-        return serviceUnavailableResponse(
-          c,
-          "customer_io_temporarily_unavailable",
-          "Customer.io did not accept the request. Wait a moment and try again.",
-        );
-      }
+      return libraryList(c, "broadcasts", listCustomerIoBroadcasts);
+    })
+    .get("/newsletters", validateLibraryQuery, async (c) => {
+      return libraryList(c, "newsletters", listCustomerIoNewsletters);
+    })
+    .get("/transactional", validateLibraryQuery, async (c) => {
+      return libraryList(c, "transactionalMessages", listCustomerIoTransactionalMessages);
     })
     .put("/", validateUpsertBody, async (c) => {
       if (!canWriteCustomerIo(c.var.auth.membership.role)) {

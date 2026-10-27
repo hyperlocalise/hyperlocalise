@@ -162,6 +162,8 @@ describe("resolveAutomationTools", () => {
               sourceLocale: "en",
               broadcastIds: [],
               campaignIds: [],
+              newsletterIds: [],
+              transactionalMessageIds: [],
               existingTranslationPolicy: "seed_empty",
               overwriteWhenRemoteNewer: true,
             },

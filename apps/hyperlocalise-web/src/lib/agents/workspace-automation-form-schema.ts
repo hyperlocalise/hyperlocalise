@@ -105,6 +105,8 @@ const formStateShape = {
   customerIoSourceLocale: text,
   customerIoBroadcastIds: textList,
   customerIoCampaignIds: textList,
+  customerIoNewsletterIds: textList,
+  customerIoTransactionalMessageIds: textList,
   customerIoExistingTranslationPolicy: z.enum(["seed_empty", "refresh_imported", "overwrite_all"]),
   customerIoOverwriteWhenRemoteNewer: flag,
   brazeSourceLocale: text,

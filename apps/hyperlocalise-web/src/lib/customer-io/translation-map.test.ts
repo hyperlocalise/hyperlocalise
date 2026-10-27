@@ -17,6 +17,8 @@ import {
   buildCustomerIoActionTranslationPayload,
   buildCustomerIoBroadcastSourcePath,
   buildCustomerIoCampaignSourcePath,
+  buildCustomerIoNewsletterSourcePath,
+  buildCustomerIoTransactionalSourcePath,
   customerIoTranslationMapFromRemote,
   extractCustomerIoActionStrings,
   hashCustomerIoTranslationMap,
@@ -155,6 +157,15 @@ describe("customer-io source paths", () => {
     expect(buildCustomerIoCampaignSourcePath({ campaignId: "7", actionId: "42" })).toBe(
       "customer-io/campaigns/7/actions/42.json",
     );
+  });
+
+  it("builds newsletter and transactional content paths", () => {
+    expect(buildCustomerIoNewsletterSourcePath({ newsletterId: "10", actionId: "101" })).toBe(
+      "customer-io/newsletters/10/contents/101.json",
+    );
+    expect(
+      buildCustomerIoTransactionalSourcePath({ transactionalMessageId: "5", actionId: "201" }),
+    ).toBe("customer-io/transactional/5/contents/201.json");
   });
 
   it("detects customer-io source paths", () => {

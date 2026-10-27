@@ -15,9 +15,17 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import {
   CustomerIoApiError,
   getCustomerIoBroadcastActionTranslation,
+  getCustomerIoNewsletterActionTranslation,
+  getCustomerIoTransactionalActionTranslation,
   listCustomerIoBroadcastActions,
   listCustomerIoCampaigns,
+  listCustomerIoNewsletterActions,
+  listCustomerIoNewsletters,
+  listCustomerIoTransactionalActions,
+  listCustomerIoTransactionalMessages,
   updateCustomerIoBroadcastActionTranslation,
+  updateCustomerIoNewsletterActionTranslation,
+  updateCustomerIoTransactionalActionTranslation,
 } from "./client";
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -129,6 +137,154 @@ describe("broadcast action translations", () => {
 
     expect(fetchImpl).toHaveBeenCalledWith(
       "https://api.customer.io/v1/broadcasts/2/actions/96/language/fr",
+      expect.objectContaining({ method: "PUT" }),
+    );
+  });
+});
+
+describe("listCustomerIoNewsletters", () => {
+  it("lists newsletters with the updated timestamp variant", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      jsonResponse({ newsletters: [{ id: 10, name: "Weekly", updated: 1552341937 }] }),
+    );
+
+    const newsletters = await listCustomerIoNewsletters({ apiKey: "key", region: "us", fetchImpl });
+
+    expect(newsletters).toEqual([{ id: "10", name: "Weekly", updatedAt: expect.any(String) }]);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://api.customer.io/v1/newsletters?limit=100",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer key" }),
+      }),
+    );
+  });
+});
+
+describe("listCustomerIoTransactionalMessages", () => {
+  it("lists transactional templates", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      jsonResponse({ messages: [{ id: 5, name: "Receipt", updated_at: 1552341937 }] }),
+    );
+
+    const messages = await listCustomerIoTransactionalMessages({
+      apiKey: "key",
+      region: "eu",
+      fetchImpl,
+    });
+
+    expect(messages).toEqual([{ id: "5", name: "Receipt", updatedAt: expect.any(String) }]);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://api-eu.customer.io/v1/transactional?limit=100",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer key" }),
+      }),
+    );
+  });
+});
+
+describe("newsletter and transactional variants", () => {
+  it("reads newsletter contents as actions", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      jsonResponse({
+        contents: [
+          { id: 101, name: "Default", type: "email", language: "", subject: "Hi", body: "Hello" },
+        ],
+      }),
+    );
+
+    const actions = await listCustomerIoNewsletterActions({
+      apiKey: "key",
+      region: "us",
+      newsletterId: "10",
+      fetchImpl,
+    });
+
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toMatchObject({ id: "101", type: "email", subject: "Hi" });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://api.customer.io/v1/newsletters/10/contents",
+      expect.anything(),
+    );
+  });
+
+  it("reads transactional contents as actions", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      jsonResponse({
+        contents: [{ id: 201, name: "Default", type: "email", language: "", subject: "Receipt" }],
+      }),
+    );
+
+    const actions = await listCustomerIoTransactionalActions({
+      apiKey: "key",
+      region: "us",
+      transactionalMessageId: "5",
+      fetchImpl,
+    });
+
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toMatchObject({ id: "201", type: "email" });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://api.customer.io/v1/transactional/5/contents",
+      expect.anything(),
+    );
+  });
+
+  it("gets and updates newsletter and transactional translations by language", async () => {
+    const getImpl = vi.fn<typeof fetch>(async () =>
+      jsonResponse({ subject: "Sujet", body: "Corps" }),
+    );
+
+    const newsletterTranslation = await getCustomerIoNewsletterActionTranslation({
+      apiKey: "key",
+      region: "us",
+      newsletterId: "10",
+      actionId: "101",
+      language: "fr",
+      fetchImpl: getImpl,
+    });
+    expect(newsletterTranslation).toMatchObject({ language: "fr", subject: "Sujet" });
+    expect(getImpl).toHaveBeenCalledWith(
+      "https://api.customer.io/v1/newsletters/10/language/fr",
+      expect.anything(),
+    );
+
+    const putImpl = vi.fn<typeof fetch>(async () => jsonResponse({}));
+
+    await updateCustomerIoNewsletterActionTranslation({
+      apiKey: "key",
+      region: "us",
+      newsletterId: "10",
+      actionId: "101",
+      language: "fr",
+      payload: { type: "email", subject: "Sujet", body: "Corps" },
+      fetchImpl: putImpl,
+    });
+    expect(putImpl).toHaveBeenCalledWith(
+      "https://api.customer.io/v1/newsletters/10/language/fr",
+      expect.objectContaining({ method: "PUT" }),
+    );
+
+    const transactionalTranslation = await getCustomerIoTransactionalActionTranslation({
+      apiKey: "key",
+      region: "us",
+      transactionalMessageId: "5",
+      actionId: "201",
+      language: "fr",
+      fetchImpl: getImpl,
+    });
+    expect(transactionalTranslation).toMatchObject({ language: "fr" });
+
+    await updateCustomerIoTransactionalActionTranslation({
+      apiKey: "key",
+      region: "us",
+      transactionalMessageId: "5",
+      actionId: "201",
+      language: "fr",
+      payload: { type: "email", subject: "Sujet", body: "Corps" },
+      fetchImpl: putImpl,
+    });
+    expect(putImpl).toHaveBeenCalledWith(
+      "https://api.customer.io/v1/transactional/5/language/fr",
       expect.objectContaining({ method: "PUT" }),
     );
   });

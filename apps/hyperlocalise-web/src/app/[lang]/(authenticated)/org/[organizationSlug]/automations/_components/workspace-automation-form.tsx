@@ -1334,7 +1334,7 @@ function AddToolMenu({
               }
             >
               <CustomerIoToolIcon />
-              Customer.io Campaigns & Broadcasts
+              Customer.io Campaigns, Broadcasts, Newsletters & Transactional
               {form.customerIoEnabled ? (
                 <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
@@ -2896,7 +2896,7 @@ function ToolsSettings({
             icon={<CustomerIoToolIcon />}
             title={
               <>
-                <span>Customer.io Campaigns & Broadcasts</span>
+                <span>Customer.io Campaigns, Broadcasts, Newsletters & Transactional</span>
                 {!customerIoConnected ? (
                   <Badge variant="secondary">
                     <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
@@ -2904,7 +2904,7 @@ function ToolsSettings({
                 ) : null}
               </>
             }
-            description="Import campaigns and broadcasts as JSON, translate in Jobs, then push approved locales back to Customer.io."
+            description="Import campaigns, broadcasts, newsletters, and transactional messages as JSON, translate in Jobs, then push approved locales back to Customer.io."
             action={
               <DeleteToolButton
                 disabled={disabled}

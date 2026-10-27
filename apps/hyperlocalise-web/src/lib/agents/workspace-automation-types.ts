@@ -363,6 +363,8 @@ const customerIoToolConfigSchema = z
     sourceLocale: z.string().trim().min(1).max(32).default("en"),
     broadcastIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
     campaignIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    newsletterIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    transactionalMessageIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
     existingTranslationPolicy: z
       .enum(["seed_empty", "refresh_imported", "overwrite_all"])
       .default("seed_empty"),
@@ -373,6 +375,8 @@ const customerIoToolConfigSchema = z
     sourceLocale: "en",
     broadcastIds: [],
     campaignIds: [],
+    newsletterIds: [],
+    transactionalMessageIds: [],
     existingTranslationPolicy: "seed_empty",
     overwriteWhenRemoteNewer: true,
   });

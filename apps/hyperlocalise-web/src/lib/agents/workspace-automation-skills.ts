@@ -295,12 +295,12 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   },
   {
     id: "translate-customer-io-campaigns",
-    name: "Translate Customer.io Campaigns & Broadcasts",
+    name: "Translate Customer.io Campaigns, Broadcasts, Newsletters & Transactional",
     category: "translate",
     description:
-      "Import Customer.io campaign and broadcast message actions as JSON, then push approved locales back to Customer.io.",
+      "Import Customer.io campaign, broadcast, newsletter, and transactional message actions as JSON, then push approved locales back to Customer.io.",
     grants:
-      "Reads Customer.io campaigns and broadcasts through Pipes, writes JSON translation maps and native jobs. Push writes approved locales only and never publishes.",
+      "Reads Customer.io campaigns, broadcasts, newsletters, and transactional messages through Pipes, writes JSON translation maps and native jobs. Push writes approved locales only and never publishes or sends.",
     tools: ["import_customer_io_campaigns", "push_customer_io_campaigns"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],
