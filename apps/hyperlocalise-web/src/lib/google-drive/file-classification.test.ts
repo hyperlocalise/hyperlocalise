@@ -46,13 +46,29 @@ describe("classifyGoogleDriveItem", () => {
     ).toMatchObject({ kind: "supported", ingestKind: "google_slide", ingestFormat: "pptx" });
   });
 
-  it("skips PDF because it is not a Hyperlocalise source format", () => {
+  it("imports PDF files as binary downloads", () => {
     expect(
       classifyGoogleDriveItem({
         name: "brief.pdf",
         mimeType: "application/pdf",
       }),
-    ).toMatchObject({ kind: "skipped", reason: "unsupported_extension" });
+    ).toMatchObject({
+      kind: "supported",
+      ingestKind: "binary",
+      ingestFormat: "pdf",
+      ingestExtension: ".pdf",
+    });
+    expect(
+      classifyGoogleDriveItem({
+        name: "report.pdf",
+        mimeType: "application/octet-stream",
+      }),
+    ).toMatchObject({
+      kind: "supported",
+      ingestKind: "binary",
+      ingestFormat: "pdf",
+      ingestExtension: ".pdf",
+    });
   });
 
   it("imports uploaded Office files as binary downloads", () => {

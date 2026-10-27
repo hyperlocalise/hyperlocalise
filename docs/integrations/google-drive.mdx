@@ -55,13 +55,13 @@ Google Workspace files are exported before import. Other files are downloaded wi
 | Images | `.png`, `.jpg`, `.jpeg`, `.webp` | <span style="color: #22c55e; font-weight: 600">✓</span> |
 | Video | `.mp4` | <span style="color: #22c55e; font-weight: 600">✓</span> |
 | Plain text | `.txt` | <span style="color: #22c55e; font-weight: 600">✓</span> |
-| PDF | `.pdf` | <span style="color: #ef4444; font-weight: 600">✗</span> |
+| PDF | `.pdf` | <span style="color: #22c55e; font-weight: 600">✓</span> |
 
 Drive skips unsupported rows (<span style="color: #ef4444; font-weight: 600">✗</span>) and any other file that is not a Hyperlocalise source format. For the full extension list, see [Supported formats](/platform/file-formats).
 
 ## Write-back
 
-For each target locale (defaults to the project’s target locales), Hyperlocalise creates or updates files using the automation **Translation output**. Google Docs, Sheets, and Slides are uploaded back as native Google file types when the source was a Google app file. Push writes Office, JSON/ARB, Lottie, plain text (`.txt`), and subtitles (`.srt`, `.vtt`, `.sbv`) in the original format. Other keyed formats (Markdown, HTML, CSV, PO, YAML, and similar) are skipped rather than written as JSON with the source extension.
+For each target locale (defaults to the project’s target locales), Hyperlocalise creates or updates files using the automation **Translation output**. Google Docs, Sheets, and Slides are uploaded back as native Google file types when the source was a Google app file. Push writes Office, PDF, JSON/ARB, Lottie, plain text (`.txt`), and subtitles (`.srt`, `.vtt`, `.sbv`) in the original format. Other keyed formats (Markdown, HTML, CSV, PO, YAML, and similar) are skipped rather than written as JSON with the source extension. Plain text is rendered from approved segment translations against the source layout, so approving segments is enough to push. A locale is skipped when it has no approved translations yet, so a push never overwrites an already-translated Drive file with source-language content. Locales skipped during a push are listed with reasons in the automation run history. PDF pushes whose approved translations overflow a text block keep the source text in that block and are listed as partial files with the overflowing block keys in the run history. Locales whose script the PDF exporter cannot shape are skipped as unsupported, while export failures are recorded as failures with the error code so operators can see the actual problem.
 
 ### Creating and updating Drive files
 
@@ -130,9 +130,9 @@ Source files:                         Translations:
 - If Google Drive auto-converts an upload to a Google Doc, export returns DOCX and the original format (for example `.md`) cannot be recovered.
 - Google Apps Script, Drawings, Forms, and Sites are not translated.
 - ZIP and other archive files are skipped.
-- PDF is skipped.
+- Scanned PDFs without a selectable text layer cannot be ingested. PDF export skips locales whose script needs complex shaping (Arabic, Hebrew, Indic, Khmer, Myanmar).
 - Media and other files that are not Hyperlocalise source formats are skipped.
-- Push skips keyed formats that do not yet have a format-aware writer (Markdown, HTML, CSV, PO, YAML, and similar). JSON, ARB, Lottie, Office, plain text, and subtitle files are written in the original format.
+- Push skips keyed formats that do not yet have a format-aware writer (Markdown, HTML, CSV, PO, YAML, and similar). JSON, ARB, Lottie, Office, PDF, plain text, and subtitle files are written in the original format.
 
 ## Limits
 

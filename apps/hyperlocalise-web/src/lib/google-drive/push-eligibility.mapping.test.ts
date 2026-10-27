@@ -221,6 +221,57 @@ describe("getGoogleDrivePushEligibility mapping", () => {
     });
   });
 
+  it("counts txt locales eligible on approved segments alone", async () => {
+    mockSelectQueue([
+      [{ targetLocales: ["vi-VN", "ja-JP"] }],
+      [
+        {
+          driveFileId: "file-notes",
+          sourcePath: "drive/notes.txt",
+          ingestFormat: "txt",
+          status: "active",
+          lastPushedAt: null,
+          lastError: null,
+        },
+      ],
+    ]);
+    mocks.loadAsPrefilledEntries.mockImplementation(
+      async (request: { sourcePath: string; targetLocale: string }) => {
+        if (request.sourcePath === "drive/notes.txt" && request.targetLocale === "vi-VN") {
+          return {
+            translatedKeyCount: 1,
+            loadedKeyCount: 1,
+            prefilled: { "txt.0001": "xin chào" },
+          };
+        }
+        return { translatedKeyCount: 0, loadedKeyCount: 1, prefilled: {} };
+      },
+    );
+
+    await expect(
+      getGoogleDrivePushEligibility({
+        organizationId: "org-1",
+        automation: automation(),
+      }),
+    ).resolves.toEqual({
+      eligibleLocaleCount: 1,
+      mappedFileCount: 1,
+      files: [
+        {
+          driveFileId: "file-notes",
+          sourcePath: "drive/notes.txt",
+          status: "active",
+          eligibleLocaleCount: 1,
+          targetLocaleCount: 2,
+          eligibleLocales: ["vi-VN"],
+          locales: [],
+          lastPushedAt: null,
+          lastError: null,
+        },
+      ],
+    });
+  });
+
   it("attaches per-locale progress when includeLocaleProgress is true", async () => {
     mockSelectQueue([
       [{ targetLocales: ["vi-VN", "ja-JP"] }],
