@@ -4032,6 +4032,12 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
                 "source_file_not_found",
                 "The source file's content is missing. Upload the source file again.",
               );
+            case "source_too_large":
+              return badRequestResponse(
+                c,
+                "source_file_too_large",
+                "This file is too large to download in its own format.",
+              );
             case "render_rejected":
               return internalErrorResponse(
                 c,

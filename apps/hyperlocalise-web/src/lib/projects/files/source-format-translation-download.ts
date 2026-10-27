@@ -51,8 +51,11 @@ const OWN_DOWNLOAD_FORMATS: ReadonlySet<SupportedTranslationFileFormat> = new Se
   "pdf",
 ]);
 
+/** go-svc's limit for the source file, the same as the project upload limit. */
+const RENDER_SOURCE_MAX_BYTES = 25 * 1024 * 1024;
+
 /** go-svc answers with these when it cannot write the file it was given. */
-const RENDER_REJECTED_STATUSES: ReadonlySet<number> = new Set([400, 413, 422]);
+const RENDER_REJECTED_STATUSES: ReadonlySet<number> = new Set([400, 422]);
 
 export type ProjectSourceFormatTranslationDownload = {
   content: Uint8Array;
@@ -62,6 +65,7 @@ export type ProjectSourceFormatTranslationDownload = {
 export type ProjectSourceFormatTranslationDownloadError =
   | { code: "translation_keys_not_found" }
   | { code: "source_content_not_found" }
+  | { code: "source_too_large" }
   | { code: "render_rejected" }
   | { code: "render_unavailable" };
 
@@ -171,6 +175,9 @@ export async function loadProjectSourceFormatTranslationDownload(input: {
   if (isErr(source)) {
     return err({ code: "source_content_not_found" });
   }
+  if (source.value.content.byteLength > RENDER_SOURCE_MAX_BYTES) {
+    return err({ code: "source_too_large" });
+  }
 
   const [project] = await db
     .select({ sourceLocale: schema.projects.sourceLocale })
@@ -205,6 +212,13 @@ export async function loadProjectSourceFormatTranslationDownload(input: {
   );
   if (isErr(rendered)) {
     const status = rendered.error instanceof GoSvcClientError ? rendered.error.status : null;
+    // A go-svc without this route yet (mid-deploy or rolled back) keeps the JSON download.
+    if (status === 404) {
+      return ok(null);
+    }
+    if (status === 413) {
+      return err({ code: "source_too_large" });
+    }
     return err({
       code:
         status !== null && RENDER_REJECTED_STATUSES.has(status)

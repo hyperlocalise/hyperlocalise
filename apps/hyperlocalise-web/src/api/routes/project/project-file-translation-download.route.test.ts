@@ -478,6 +478,12 @@ describe("project file translation download route", () => {
       status: 500,
       code: "translation_file_export_failed",
     },
+    {
+      failure: "the file writer refuses the source file's size",
+      error: new GoSvcClientError({ code: "payload_too_large", message: "too large", status: 413 }),
+      status: 400,
+      code: "source_file_too_large",
+    },
   ])("fails instead of downloading JSON when $failure", async ({ error, status, code }) => {
     const fixture = await sourceFileFixture("locales/messages.csv");
     await storeSourceVersion(fixture, "locales/messages.csv", {
@@ -491,6 +497,38 @@ describe("project file translation download route", () => {
 
     expect(response.status).toBe(status);
     await expect(response.json()).resolves.toMatchObject({ error: code });
+  });
+
+  it("keeps the JSON download while the file writer does not have its route yet", async () => {
+    const fixture = await sourceFileFixture("locales/messages.csv");
+    await storeSourceVersion(fixture, "locales/messages.csv", {
+      contentType: "text/csv",
+      content: "key,value\ngreeting,Hello\n",
+    });
+    await saveStringKeys(fixture, [{ key: "greeting", text: "Hello", translation: "Bonjour" }]);
+    renderTranslationFileMock.mockRejectedValue(
+      new GoSvcClientError({ code: "not_found", message: "not found", status: 404 }),
+    );
+
+    const response = await fixture.download();
+
+    expect(response.status).toBe(200);
+    expect(JSON.parse(await response.text())).toEqual({ greeting: "Bonjour" });
+  });
+
+  it("does not send a source file over the file writer's limit", async () => {
+    const fixture = await sourceFileFixture("locales/messages.csv");
+    await storeSourceVersion(fixture, "locales/messages.csv", {
+      contentType: "text/csv",
+      content: `key,value\ngreeting,Hello\n${"#".repeat(25 * 1024 * 1024)}\n`,
+    });
+    await saveStringKeys(fixture, [{ key: "greeting", text: "Hello", translation: "Bonjour" }]);
+
+    const response = await fixture.download();
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: "source_file_too_large" });
+    expect(renderTranslationFileMock).not.toHaveBeenCalled();
   });
 
   it("asks for the source file again when its content is not stored", async () => {
