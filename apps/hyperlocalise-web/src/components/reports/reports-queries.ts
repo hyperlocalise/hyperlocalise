@@ -502,22 +502,6 @@ export function useLogTime(organizationSlug: string) {
   });
 }
 
-type ExpenseBody = Parameters<ReturnType<typeof reportsApi>["expenses"]["$post"]>[0]["json"];
-
-export function useAddExpense(organizationSlug: string) {
-  const intl = useIntl();
-  const invalidate = useInvalidateReports(organizationSlug);
-  return useMutation({
-    mutationFn: async (json: ExpenseBody) => {
-      const response = await reportsApi().expenses.$post({ param: { organizationSlug }, json });
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
-      return response.json();
-    },
-    onSuccess: invalidate,
-  });
-}
-
 type BudgetBody = Parameters<ReturnType<typeof reportsApi>["budgets"]["$put"]>[0]["json"];
 
 export function useSetBudget(organizationSlug: string) {

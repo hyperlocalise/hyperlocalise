@@ -239,8 +239,8 @@ describe("reports routes", () => {
     // AI charged outside any project is a row with no project.
     const costs = await app.request(reportsUrl(slug, "/costs?format=csv"), { headers });
     expect((await costs.text()).split("\r\n")).toEqual([
-      '"projectName","projectId","peopleUsd","aiOnTasksUsd","aiOutsideTasksUsd","aiUsd","expensesUsd","totalUsd"',
-      '"","","","0.00000000","0.00000000","0.00000000","","0.00000000"',
+      '"projectName","projectId","peopleUsd","aiOnTasksUsd","aiOutsideTasksUsd","aiUsd","totalUsd"',
+      '"","","","0.00000000","0.00000000","0.00000000","0.00000000"',
     ]);
   });
 
@@ -977,82 +977,6 @@ describe("reports routes", () => {
       headers: adminHeaders,
     });
     expect(missing.status).toBe(404);
-  });
-
-  it("lets only billing write add an expense, and only on an accessible project", async () => {
-    const workspace = await reporting.createWorkspace();
-    const { identity, organization, project, createJob, createProject } = workspace;
-    const slug = identity.organization.slug ?? "missing-slug";
-    const job = await createJob();
-    const other = await createProject("Help centre");
-    const otherJob = await createJob({ projectId: other.id });
-    const managerIdentity = reporting.createWorkosIdentityForOrganization(
-      identity.organization,
-      "localization_manager",
-    );
-    const { user: manager } = await reporting.createLocalWorkosIdentity(managerIdentity);
-    await ensureDefaultWorkspaceTeamMembership({
-      organizationId: organization.id,
-      userId: manager.id,
-    });
-    const adminHeaders = {
-      ...(await reporting.authHeadersFor(identity)),
-      "Content-Type": "application/json",
-    };
-    const managerHeaders = {
-      ...(await reporting.authHeadersFor(managerIdentity)),
-      "Content-Type": "application/json",
-    };
-    const expense = {
-      projectId: project.id,
-      jobId: job.id,
-      step: "translation",
-      amountUsd: "12.5",
-      note: "Vendor invoice",
-      operationKey: randomUUID(),
-    };
-
-    const forbidden = await app.request(reportsUrl(slug, "/expenses"), {
-      method: "POST",
-      headers: managerHeaders,
-      body: JSON.stringify(expense),
-    });
-    expect(forbidden.status).toBe(403);
-    await expect(forbidden.json()).resolves.toMatchObject({ error: "report_costs_forbidden" });
-
-    const created = await app.request(reportsUrl(slug, "/expenses"), {
-      method: "POST",
-      headers: adminHeaders,
-      body: JSON.stringify(expense),
-    });
-    expect(created.status).toBe(201);
-    await expect(created.json()).resolves.toMatchObject({
-      expense: { amountUsd: "12.50000000", kind: "expense", jobId: job.id },
-    });
-
-    const unknownProject = await app.request(reportsUrl(slug, "/expenses"), {
-      method: "POST",
-      headers: adminHeaders,
-      body: JSON.stringify({
-        ...expense,
-        projectId: `project_${randomUUID()}`,
-        operationKey: randomUUID(),
-      }),
-    });
-    expect(unknownProject.status).toBe(404);
-    await expect(unknownProject.json()).resolves.toMatchObject({ error: "project_not_found" });
-
-    const mismatchedJob = await app.request(reportsUrl(slug, "/expenses"), {
-      method: "POST",
-      headers: adminHeaders,
-      body: JSON.stringify({
-        ...expense,
-        jobId: otherJob.id,
-        operationKey: randomUUID(),
-      }),
-    });
-    expect(mismatchedJob.status).toBe(404);
-    await expect(mismatchedJob.json()).resolves.toMatchObject({ error: "job_not_found" });
   });
 
   it("denies report access when the feature flag is disabled", async () => {

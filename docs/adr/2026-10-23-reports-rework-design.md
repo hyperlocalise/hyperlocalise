@@ -40,7 +40,7 @@ Reports (behind the `workspace-reports` flag, no customer users yet) records wor
 
 ### Who sees and changes what
 
-- Reports are for `billing:read`: admins and localization managers. Every report, the public endpoint and the MCP tool refuse other roles. Changing rate cards, budgets, expenses and task pricing needs `billing:write`: admins.
+- Reports are for `billing:read`: admins and localization managers. Every report, the public endpoint and the MCP tool refuse other roles. Changing rate cards, budgets and task pricing needs `billing:write`: admins.
 - Other members keep their own time: the Reports page shows them only the Time tab with their own entries (no automated time), and a task's Report tab only the time logged on it; they can log, edit and delete their own entries.
 
 ### AI
@@ -51,7 +51,7 @@ Reports (behind the `workspace-reports` flag, no customer users yet) records wor
 
 ### Money
 
-- **Spent** is people's work and expenses as recorded plus billed AI. A person's work is priced when it is finished, at the rate in force then: the task's own card as it was when the task was priced, else its project budget's card now, the same rule as the estimate, so pricing set on a task's Report tab after its strings arrived reaches what is spent; the unavailable band (the memory could not be read) is paid as new work, and the estimate says such a quote is not exact. A person's rewrite of text a job produced is dated by their save, not the job's day. Each charge counts once: on a task, outside tasks in a project, or, on the workspace's view only, outside any project. A budget's spent is all time, and says so.
+- **Spent** is people's work as recorded plus billed AI (expenses added by hand were removed on 2026-10-27; see the volume and steps record). A person's work is priced when it is finished, at the rate in force then: the task's own card as it was when the task was priced, else its project budget's card now, the same rule as the estimate, so pricing set on a task's Report tab after its strings arrived reaches what is spent; the unavailable band (the memory could not be read) is paid as new work, and the estimate says such a quote is not exact. A person's rewrite of text a job produced is dated by their save, not the job's day. Each charge counts once: on a task, outside tasks in a project, or, on the workspace's view only, outside any project. A budget's spent is all time, and says so.
 - **Cost estimate** prices every current string of the chosen tasks (1 to 50) when the page reads it; nothing priced is stored.
 - **Still to come** is the unfinished part of open tasks (queued, running, waiting for review) assigned to a person or marked payable, plus payable work outside any task.
 - **Rate cards** are named sets of lines, one per language pair and step. Each line has its own basis (per word, per character, per character with spaces or per hour) and paid share per match band; the card has a default basis for new lines. Saving a card adds rows for changed lines and retired rows for removed ones, under a lock per card, so work already recorded keeps its rate. The unavailable band is paid as new.

@@ -312,7 +312,6 @@ export const reportsCosts: { period: typeof reportsPeriod } & Costs = {
       aiUsd: "612.40000000",
       aiOnTasksUsd: "540.40000000",
       aiOutsideTasksUsd: "72.00000000",
-      expensesUsd: "0.00000000",
       totalUsd: "4022.40000000",
     },
   ],
@@ -326,7 +325,6 @@ export const reportsCosts: { period: typeof reportsPeriod } & Costs = {
     aiUsd: "630.60000000",
     aiOnTasksUsd: "540.40000000",
     aiOutsideTasksUsd: "90.20000000",
-    expensesUsd: "0.00000000",
     totalUsd: "4040.60000000",
   },
   previousTotalUsd: "3800.00000000",
@@ -672,7 +670,6 @@ const ENDPOINTS = [
   "rate-cards",
   "jobs",
   "time-entries",
-  "expenses",
   "task-rates",
 ] as const;
 

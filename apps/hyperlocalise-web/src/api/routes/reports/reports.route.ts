@@ -82,7 +82,6 @@ import {
   taskRateSchema,
   timeSchema,
   timeUpdateSchema,
-  expenseSchema,
 } from "./reports.schema";
 
 /** A query string as the typed API client sends it: every parameter optional, as text. */
@@ -802,31 +801,6 @@ export function createReportsRoutes() {
           });
         });
         return c.body(null, 204);
-      })
-      .post("/expenses", billingWrite, reportBody(expenseSchema, "invalid_expense"), async (c) => {
-        const body = c.req.valid("json");
-        const organizationId = c.var.auth.organization.localOrganizationId;
-        if (!(await getAccessibleProjectIds(c.var.auth)).includes(body.projectId))
-          return notFoundResponse(c, "project_not_found");
-        if (body.jobId) {
-          const [job] = await db
-            .select()
-            .from(schema.jobs)
-            .where(
-              and(
-                eq(schema.jobs.id, body.jobId),
-                eq(schema.jobs.projectId, body.projectId),
-                eq(schema.jobs.organizationId, organizationId),
-              ),
-            );
-          if (!job) return notFoundResponse(c, "job_not_found");
-        }
-        const [expense] = await db
-          .insert(schema.reportingCosts)
-          .values({ ...body, organizationId, kind: "expense", basis: "manual" })
-          .onConflictDoNothing()
-          .returning();
-        return c.json({ expense: expense ?? null }, 201);
       })
   );
 }

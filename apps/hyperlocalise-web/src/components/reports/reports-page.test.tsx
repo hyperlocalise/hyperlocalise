@@ -632,7 +632,7 @@ describe("Reports page", () => {
       within(table)
         .getAllByRole("columnheader")
         .map((cell) => cell.textContent),
-    ).toEqual(["Project", "People", "AI on tasks", "AI outside tasks", "Expenses", "Total"]);
+    ).toEqual(["Project", "People", "AI on tasks", "AI outside tasks", "Total"]);
     const cells = (name: string) =>
       within(table)
         .getAllByRole("row")
@@ -643,7 +643,6 @@ describe("Reports page", () => {
       "—",
       "$0.00",
       "$18.20",
-      "—",
       "$18.20",
     ]);
     expect(Array.from(cells("Total") ?? [], (cell) => cell.textContent)).toEqual([
@@ -651,7 +650,6 @@ describe("Reports page", () => {
       "$3,410.00",
       "$540.40",
       "$90.20",
-      "$0.00",
       "$4,040.60",
     ]);
     expect(screen.getByText("Charged AI calls, on tasks and outside them")).toBeInTheDocument();

@@ -46,15 +46,6 @@ export const timeSchema = z.object({
   minutes: z.number().int().min(1).max(1440),
   note: z.string().max(2000).optional(),
 });
-export const expenseSchema = z.object({
-  projectId: z.string().min(1),
-  jobId: z.string().optional(),
-  step,
-  amountUsd: usd,
-  note: z.string().trim().min(1).max(2000),
-  operationKey: z.uuid(),
-});
-
 export const timeUpdateSchema = timeSchema.pick({ minutes: true, workDate: true, note: true });
 
 const unit = z.enum(REPORT_UNITS).default("words");

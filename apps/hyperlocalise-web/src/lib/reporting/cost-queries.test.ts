@@ -455,7 +455,8 @@ describe("still to come and budgets", () => {
     // that ended will do no more work.
     expect(toCome.get(project.id)).toEqual({ amountUsd: "12.00000000", incomplete: false });
 
-    // Spent: people's work, expenses and billed AI in the project, on its tasks or not.
+    // Spent: people's work and billed AI in the project, on its tasks or not. An expense row (the
+    // old API's) is left out.
     const cost = (
       kind: "human" | "expense" | "ai",
       amountUsd: string | null,
@@ -504,11 +505,11 @@ describe("still to come and budgets", () => {
     expect(budget).toMatchObject({
       projectId: project.id,
       projectName: "Docs",
-      spentUsd: "81.50000000",
+      spentUsd: "76.50000000",
       stillToComeUsd: "12.00000000",
-      forecastUsd: "93.50000000",
-      remainingUsd: "18.50000000",
-      status: "over_80",
+      forecastUsd: "88.50000000",
+      remainingUsd: "23.50000000",
+      status: "on_track",
       incomplete: false,
     });
   });
@@ -835,15 +836,14 @@ describe("costs", () => {
       createdAt: at(day),
       ...extra,
     });
-    await db
-      .insert(schema.reportingCosts)
-      .values([
-        cost("human", "10.5", "2026-06-10"),
-        cost("human", null, "2026-06-10", { basis: "unpriced" }),
-        cost("expense", "3", "2026-06-11", { targetLocale: null }),
-        cost("expense", "4", "2026-06-12", { projectId: other.id }),
-        cost("human", "8", "2026-06-03"),
-      ]);
+    await db.insert(schema.reportingCosts).values([
+      cost("human", "10.5", "2026-06-10"),
+      cost("human", null, "2026-06-10", { basis: "unpriced" }),
+      // Expense rows, which the old API wrote, are left out.
+      cost("expense", "3", "2026-06-11", { targetLocale: null }),
+      cost("expense", "4", "2026-06-12", { projectId: other.id }),
+      cost("human", "8", "2026-06-03"),
+    ]);
     type UsageRow = typeof schema.usageEvents.$inferInsert;
     const billed = (amountUsd: string | null, credentialSource: string, day: string): UsageRow => ({
       organizationId: organization.id,
@@ -961,8 +961,7 @@ describe("costs", () => {
         aiUsd: "2.05000000",
         aiOnTasksUsd: "1.60000000",
         aiOutsideTasksUsd: "0.45000000",
-        expensesUsd: "3.00000000",
-        totalUsd: "15.55000000",
+        totalUsd: "12.55000000",
       },
       {
         projectId: other.id,
@@ -971,8 +970,7 @@ describe("costs", () => {
         aiUsd: "0.30000000",
         aiOnTasksUsd: "0.00000000",
         aiOutsideTasksUsd: "0.30000000",
-        expensesUsd: "4.00000000",
-        totalUsd: "4.30000000",
+        totalUsd: "0.30000000",
       },
     ]);
     // AI outside any project is its own line, split the same way, and in the totals.
@@ -986,7 +984,7 @@ describe("costs", () => {
         aiUsd: "2.52000000",
         aiOnTasksUsd: "1.67000000",
         aiOutsideTasksUsd: "0.85000000",
-        totalUsd: "20.02000000",
+        totalUsd: "13.02000000",
       },
       previousTotalUsd: "8.00000000",
       unpriced: 1,
@@ -994,14 +992,14 @@ describe("costs", () => {
     });
     const projectsOnly = await queryCosts({ ...scope, includeUnattributed: false });
     expect(projectsOnly.outsideProjects).toBeNull();
-    expect(projectsOnly.totals.totalUsd).toBe("19.85000000");
+    expect(projectsOnly.totals.totalUsd).toBe("12.85000000");
     const oneProject = await queryCosts({
       ...scope,
       projectId: other.id,
       includeUnattributed: true,
     });
     expect(oneProject.outsideProjects).toBeNull();
-    expect(oneProject.totals.totalUsd).toBe("4.30000000");
+    expect(oneProject.totals.totalUsd).toBe("0.30000000");
 
     // AI charges have no language, so a language filter leaves them out, and says so.
     const french = await queryCosts({
@@ -1017,7 +1015,6 @@ describe("costs", () => {
         aiUsd: null,
         aiOnTasksUsd: null,
         aiOutsideTasksUsd: null,
-        expensesUsd: "0.00000000",
       }),
     ]);
     expect(french.totals.aiUsd).toBeNull();

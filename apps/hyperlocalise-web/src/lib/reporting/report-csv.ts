@@ -154,7 +154,6 @@ export function costsCsv(costs: Costs): string {
       "aiOnTasksUsd",
       "aiOutsideTasksUsd",
       "aiUsd",
-      "expensesUsd",
       "totalUsd",
     ],
     [
@@ -165,7 +164,6 @@ export function costsCsv(costs: Costs): string {
         row.aiOnTasksUsd,
         row.aiOutsideTasksUsd,
         row.aiUsd,
-        row.expensesUsd,
         row.totalUsd,
       ]),
       // AI charged outside any project: a row with no project.
@@ -178,7 +176,6 @@ export function costsCsv(costs: Costs): string {
               costs.outsideProjects.aiOnTasksUsd,
               costs.outsideProjects.aiOutsideTasksUsd,
               costs.outsideProjects.aiUsd,
-              null,
               costs.outsideProjects.aiUsd,
             ],
           ]

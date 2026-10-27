@@ -79,9 +79,6 @@ export function createReportsMswHandlers({
     http.post("*/api/orgs/:organizationSlug/reports/time-entries", () =>
       HttpResponse.json({ timeEntry: { id: "time_new" } }, { status: 201 }),
     ),
-    http.post("*/api/orgs/:organizationSlug/reports/expenses", () =>
-      HttpResponse.json({ expense: null }, { status: 201 }),
-    ),
     http.put("*/api/orgs/:organizationSlug/reports/budgets", () =>
       HttpResponse.json({ budget: {} }),
     ),
