@@ -93,8 +93,13 @@ export function ReportsDateRange({
     settings.startedDay && settings.startedDay < settings.today
       ? settings.startedDay
       : settings.today;
-  const applyCustom = (from: string, to: string) =>
+  const applyCustom = (from: string, to: string) => {
+    setPickedFrom(null);
     onChange(from <= to ? { range: "custom", from, to } : { range: "custom", from: to, to: from });
+  };
+  // Two months, the range's last on the right; the calendar stops at the first month allowed.
+  const [toYear, toMonth] = dates.to.split("-").map(Number) as [number, number];
+  const leftMonth = new Date(Date.UTC(toYear, toMonth - 2, 1));
 
   return (
     <Field className="w-auto">
@@ -112,12 +117,12 @@ export function ReportsDateRange({
             <Button
               variant="outline"
               aria-labelledby={`${labelId} ${valueId}`}
-              className="justify-start font-normal"
+              className="max-w-full min-w-0 shrink justify-start font-normal"
             />
           }
         >
           <CalendarBlankIcon aria-hidden />
-          <span id={valueId} className="tabular-nums">
+          <span id={valueId} className="truncate tabular-nums">
             {state.range === "custom"
               ? range
               : intl.formatMessage(messages.presetRange, {
@@ -127,7 +132,11 @@ export function ReportsDateRange({
           </span>
           <CaretDownIcon aria-hidden className="text-muted-foreground" />
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-auto max-w-[calc(100vw-1rem)] gap-0 p-0">
+        <PopoverContent
+          align="start"
+          aria-label={intl.formatMessage(messages.dates)}
+          className="max-h-(--available-height) w-auto max-w-[calc(100vw-1rem)] gap-0 overflow-y-auto p-0"
+        >
           <div className="flex flex-col sm:flex-row">
             <ul
               aria-label={intl.formatMessage(messages.readyRanges)}
@@ -170,10 +179,10 @@ export function ReportsDateRange({
               <Calendar
                 mode="range"
                 timeZone="UTC"
+                // Monday, as the charts' weeks start.
                 weekStartsOn={1}
                 numberOfMonths={2}
-                // The range's last month on the right.
-                defaultMonth={toDate(`${dates.to.slice(0, 7)}-01`)}
+                defaultMonth={leftMonth}
                 startMonth={toDate(first)}
                 endMonth={toDate(settings.today)}
                 disabled={[{ before: toDate(first) }, { after: toDate(settings.today) }]}
@@ -193,7 +202,7 @@ export function ReportsDateRange({
                   setOpen(false);
                 }}
               />
-              <p className="text-xs text-muted-foreground">
+              <p aria-live="polite" className="text-xs text-muted-foreground">
                 {intl.formatMessage(pickedFrom ? messages.pickLastDay : messages.pickFirstDay)}
               </p>
             </div>
@@ -218,11 +227,15 @@ function DateField({
   onChange: (value: string) => void;
 }) {
   const id = useId();
-  // Typing a date passes through dates out of range (a year starts 0002), so the field keeps
-  // what is typed and only a whole date in range reaches the report.
+  // A typed date applies when the field is left or Enter is pressed: while typing, the browser
+  // passes through whole dates on the way (the day "15" is "1" first), which would move the range.
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
-  const inRange = (day: string) => /^\d{4}-\d{2}-\d{2}$/.test(day) && day >= min && day <= max;
+  const commit = () => {
+    if (draft !== value && /^\d{4}-\d{2}-\d{2}$/.test(draft) && draft >= min && draft <= max)
+      onChange(draft);
+    else setDraft(value);
+  };
   return (
     <Field className="w-auto">
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
@@ -232,12 +245,12 @@ function DateField({
         value={draft}
         min={min}
         max={max}
-        className="w-40"
-        onChange={(event) => {
-          setDraft(event.target.value);
-          if (inRange(event.target.value)) onChange(event.target.value);
+        className="w-36 sm:w-40"
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") commit();
         }}
-        onBlur={() => setDraft(value)}
       />
     </Field>
   );

@@ -20,6 +20,16 @@ export const calendarMessages = defineMessages({
     id: "TmsxbZMIfi",
     description: "Accessible name of the calendar button that shows the month before",
   },
+  today: {
+    defaultMessage: "Today, {date}",
+    id: "Xsh+x2oIBp",
+    description: "What a screen reader hears for today's day in a calendar; date is the full date",
+  },
+  selected: {
+    defaultMessage: "{date}, selected",
+    id: "j9LmfBHPxj",
+    description: "What a screen reader hears for a chosen day in a calendar; date is the full date",
+  },
   nextMonth: {
     defaultMessage: "Next month",
     id: "s1vMAssL4M",

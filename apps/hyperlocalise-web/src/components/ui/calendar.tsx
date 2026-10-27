@@ -23,9 +23,9 @@ import { cn } from "@/lib/primitives/cn";
 import { calendarMessages as messages } from "./calendar.messages";
 
 /**
- * A month calendar for picking days (react-day-picker), in the app's styles and with month and
- * weekday names in the viewer's language. Pass `timeZone` when the days are not the viewer's
- * own, such as Reports' UTC days.
+ * A month calendar for picking days (react-day-picker), in the app's styles, with its names and
+ * what screen readers hear in the viewer's language. Pass `timeZone` when the days are not the
+ * viewer's own, such as Reports' UTC days.
  */
 function Calendar({
   className,
@@ -35,8 +35,17 @@ function Calendar({
   ...props
 }: React.ComponentProps<typeof DayPicker>) {
   const intl = useIntl();
+  const longDate = (date: Date) =>
+    intl.formatDate(date, {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone,
+    });
   return (
     <DayPicker
+      lang={intl.locale}
       showOutsideDays={showOutsideDays}
       timeZone={timeZone}
       className={cn("w-fit text-sm", className)}
@@ -48,6 +57,15 @@ function Calendar({
       labels={{
         labelPrevious: () => intl.formatMessage(messages.previousMonth),
         labelNext: () => intl.formatMessage(messages.nextMonth),
+        labelGrid: (month) => intl.formatDate(month, { month: "long", year: "numeric", timeZone }),
+        labelWeekday: (day) => intl.formatDate(day, { weekday: "long", timeZone }),
+        labelDayButton: (day, modifiers) => {
+          const date = longDate(day);
+          const named = modifiers.today ? intl.formatMessage(messages.today, { date }) : date;
+          return modifiers.selected
+            ? intl.formatMessage(messages.selected, { date: named })
+            : named;
+        },
       }}
       classNames={{
         root: "relative",
@@ -56,8 +74,15 @@ function Calendar({
         month_caption: "flex h-8 items-center justify-center font-medium",
         caption_label: "text-sm",
         nav: "absolute inset-x-0 top-0 z-10 flex items-center justify-between",
-        button_previous: buttonVariants({ variant: "ghost", size: "icon-sm" }),
-        button_next: buttonVariants({ variant: "ghost", size: "icon-sm" }),
+        // At the first or last month allowed the arrows are only marked aria-disabled.
+        button_previous: cn(
+          buttonVariants({ variant: "ghost", size: "icon-sm" }),
+          "aria-disabled:pointer-events-none aria-disabled:opacity-40",
+        ),
+        button_next: cn(
+          buttonVariants({ variant: "ghost", size: "icon-sm" }),
+          "aria-disabled:pointer-events-none aria-disabled:opacity-40",
+        ),
         month_grid: "border-collapse",
         weekdays: "flex",
         weekday: "w-8 text-xs font-normal text-muted-foreground",

@@ -174,7 +174,11 @@ describe("Reports page", () => {
     // The first day, then the last, on the calendar.
     await userEvent.click(screen.getByRole("button", { name: /^Dates This month/ }));
     const october = screen.getAllByRole("grid")[1]!;
-    await userEvent.click(within(october).getByText("5"));
+    // Each day is named in full for screen readers, in the page's language.
+    // (inside this month, so already in the chosen range).
+    await userEvent.click(
+      within(october).getByRole("button", { name: "Monday, October 5, 2026, selected" }),
+    );
     expect(screen.getByText("Now choose the last day.")).toBeInTheDocument();
     await userEvent.click(within(october).getByText("12"));
     await waitFor(() =>
@@ -188,6 +192,9 @@ describe("Reports page", () => {
 
     // A typed day keeps the other end.
     fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-10-01" } });
+    // Applied when the field is left, not on each change made while typing.
+    expect(currentHref()).toBe(`${PATHNAME}?range=custom&from=2026-10-05&to=2026-10-12`);
+    fireEvent.blur(screen.getByLabelText("From"));
     await waitFor(() =>
       expect(currentHref()).toBe(`${PATHNAME}?range=custom&from=2026-10-01&to=2026-10-12`),
     );
