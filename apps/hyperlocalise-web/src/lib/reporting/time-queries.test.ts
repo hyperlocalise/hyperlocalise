@@ -47,7 +47,9 @@ describe("time queries", () => {
       fixture.createWorkosIdentityForOrganization(identity.organization, "translator"),
     );
     const release = await createJob({ title: "Release strings" });
-    const help = await createJob({ title: "Help articles" });
+    // A post-edit task from a visual workflow, and a proofread task made in the app.
+    const help = await createJob({ title: "Help articles", taskStep: "edit" });
+    const legal = await createJob({ title: "Legal pages", kind: "proofread" });
     const entry = (
       jobId: string,
       contributorId: string,
@@ -74,6 +76,7 @@ describe("time queries", () => {
         entry(help.id, user.id, 20, "2026-06-10", { targetLocale: "de-DE" }),
         entry(help.id, user.id, 500, "2026-06-10", { voided: true }),
         entry(help.id, user.id, 15, "2026-06-01"),
+        entry(legal.id, colleague.id, 10, "2026-06-12", { step: "review" }),
       ]);
     const scope = { organizationId: organization.id, projectIds: [project.id], period };
 
@@ -83,25 +86,34 @@ describe("time queries", () => {
         jobId: release.id,
         jobTitle: "Release strings",
         projectId: project.id,
+        taskStep: "translate",
         step: "translation",
         targetLocale: "fr-FR",
         minutes: 90,
         people: 2,
       },
       expect.objectContaining({ jobId: release.id, step: "review", minutes: 45, people: 1 }),
-      expect.objectContaining({ jobId: help.id, targetLocale: "de-DE", minutes: 20 }),
+      expect.objectContaining({
+        jobId: help.id,
+        taskStep: "post_edit",
+        targetLocale: "de-DE",
+        minutes: 20,
+      }),
+      expect.objectContaining({ jobId: legal.id, taskStep: "proofread", minutes: 10 }),
     ]);
     expect(time).toMatchObject({
-      rowCount: 3,
-      totals: { minutes: 155, people: 2, tasks: 2 },
+      rowCount: 4,
+      totals: { minutes: 165, people: 2, tasks: 3 },
       previousMinutes: 15,
     });
     await expect(
       queryLoggedTime({ ...scope, page: 1, targetLocale: "de-DE" }),
     ).resolves.toMatchObject({ totals: { minutes: 20, people: 1, tasks: 1 } });
+    // By what each task is for: the review-step entry on the translate task is translate work.
     await expect(queryLoggedTimeBySteps(scope)).resolves.toEqual([
-      { step: "translation", minutes: 110, people: 2 },
-      { step: "review", minutes: 45, people: 1 },
+      { taskStep: "translate", minutes: 135, people: 2 },
+      { taskStep: "post_edit", minutes: 20, people: 1 },
+      { taskStep: "proofread", minutes: 10, people: 1 },
     ]);
   });
 

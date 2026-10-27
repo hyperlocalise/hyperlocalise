@@ -15,7 +15,7 @@
 import type { IntlShape } from "react-intl";
 
 import type { ReportChange } from "@/lib/reporting/report-period";
-import type { ReportStep, ReportUnit } from "@/lib/reporting/report-units";
+import type { ReportStep, ReportUnit, TaskStep } from "@/lib/reporting/report-units";
 import type { MatchBucket } from "@/lib/reporting/word-analysis";
 
 import { reportsPageMessages as messages } from "./reports-page.messages";
@@ -134,4 +134,14 @@ export function stepLabel(intl: IntlShape, step: ReportStep) {
   return intl.formatMessage(
     step === "translation" ? messages.stepTranslation : messages.stepReview,
   );
+}
+
+const TASK_STEP_MESSAGES = {
+  translate: messages.taskStepTranslate,
+  post_edit: messages.taskStepPostEdit,
+  proofread: messages.taskStepProofread,
+} as const satisfies Record<TaskStep, unknown>;
+
+export function taskStepLabel(intl: IntlShape, step: TaskStep) {
+  return intl.formatMessage(TASK_STEP_MESSAGES[step]);
 }

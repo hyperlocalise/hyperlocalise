@@ -108,8 +108,9 @@ export const reportsStepTimes: {
 } = {
   period: reportsPeriod,
   logged: [
-    { step: "translation", minutes: 2_490, people: 5 },
-    { step: "review", minutes: 1_380, people: 3 },
+    { taskStep: "translate", minutes: 2_490, people: 5 },
+    { taskStep: "post_edit", minutes: 900, people: 2 },
+    { taskStep: "proofread", minutes: 480, people: 3 },
   ],
   automated: {
     workflowSteps: [{ nodeType: "action.http", milliseconds: 1_260_000, runs: 980 }],
@@ -321,6 +322,7 @@ export const reportsLoggedTime: {
         jobId: "job_release",
         jobTitle: "Release 4.2 strings",
         projectId: "project_web",
+        taskStep: "translate",
         step: "translation",
         targetLocale: "ja-JP",
         minutes: 555,

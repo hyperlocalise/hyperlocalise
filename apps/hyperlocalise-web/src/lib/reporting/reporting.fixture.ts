@@ -133,8 +133,15 @@ export function createReportingTestFixture() {
         title?: string;
         status?: typeof schema.jobs.$inferInsert.status;
         assigned?: boolean;
+        kind?: typeof schema.jobs.$inferInsert.kind;
+        /** A task a visual workflow made for people, with the step it is for. */
+        taskStep?: "translate" | "edit" | "proofread";
       } = {},
     ) => {
+      const metadata = {
+        ...(input.title ? { title: input.title } : {}),
+        ...(input.taskStep ? { workflowTaskStep: input.taskStep } : {}),
+      };
       const [job] = await db
         .insert(schema.jobs)
         .values({
@@ -144,9 +151,11 @@ export function createReportingTestFixture() {
           createdByUserId: user.id,
           ownerUserId: input.assigned ? user.id : null,
           assigneeType: input.assigned ? "user" : "agent",
-          kind: "translation",
+          kind:
+            input.kind ??
+            (input.taskStep && input.taskStep !== "translate" ? "proofread" : "translation"),
           status: input.status ?? "running",
-          inputPayload: input.title ? { metadata: { title: input.title } } : {},
+          inputPayload: Object.keys(metadata).length ? { metadata } : {},
         })
         .returning();
       return job!;

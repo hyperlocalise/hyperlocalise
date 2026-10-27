@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { describeChange } from "@/lib/reporting/report-period";
 
 import { LogTimeDialog } from "./log-time-dialog";
-import { formatChange, formatDuration, stepLabel } from "./report-format";
+import { formatChange, formatDuration, stepLabel, taskStepLabel } from "./report-format";
 import { DownloadCsvButton, ReportEmpty, ReportPager, ReportSectionState } from "./report-section";
 import { ReportStatCard, ReportStatCards, ReportStatCardsSkeleton } from "./report-stat-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
@@ -121,6 +121,7 @@ export function TimeTab({
                 <TableHeader>
                   <TableRow>
                     <TableHead>{intl.formatMessage(messages.taskColumn)}</TableHead>
+                    <TableHead>{intl.formatMessage(messages.taskStepColumn)}</TableHead>
                     <TableHead>{intl.formatMessage(messages.stepColumn)}</TableHead>
                     <TableHead>{intl.formatMessage(messages.languageColumn)}</TableHead>
                     <TableHead className="text-right">
@@ -137,6 +138,7 @@ export function TimeTab({
                       <TableCell>
                         {row.jobTitle ?? intl.formatMessage(messages.deletedTask)}
                       </TableCell>
+                      <TableCell>{taskStepLabel(intl, row.taskStep)}</TableCell>
                       <TableCell>{stepLabel(intl, row.step)}</TableCell>
                       <TableCell className="text-muted-foreground">{row.targetLocale}</TableCell>
                       <TableCell className="text-right tabular-nums">

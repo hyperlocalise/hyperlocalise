@@ -23,18 +23,32 @@ import {
   scopedProjectIds,
   type ReportScope,
 } from "./report-scope";
-import type { ReportStep } from "./report-units";
+import { TASK_STEPS, type ReportStep, type TaskStep } from "./report-units";
 
 /**
  * Time for the Reports page: time people logged on tasks, and how long automated work ran.
  * Logged time counts each entry on its work date; automated time on the day the work finished.
  */
 
+/**
+ * What a task is for: post-edit when a visual workflow made it so, proofread for the other tasks
+ * that review (a person's proofread task, an AI review), translate otherwise. `job` is the alias
+ * of a `jobs` row, which may be missing (a deleted task): then translate.
+ */
+export function taskStepSql(job: string): SQL {
+  const j = sql.raw(job);
+  return sql`case when ${j}.input_payload->'metadata'->>'workflowTaskStep' = 'edit' then 'post_edit'
+    when ${j}.kind in ('proofread', 'review') then 'proofread' else 'translate' end`;
+}
+
 export type LoggedTimeRow = {
   jobId: string;
   /** Null when the task was deleted. */
   jobTitle: string | null;
   projectId: string;
+  /** What the task is for: translate, post-edit or proofread. */
+  taskStep: TaskStep;
+  /** The step the time is costed as: translation or review. */
   step: ReportStep;
   targetLocale: string;
   minutes: number;
@@ -107,7 +121,7 @@ export async function queryLoggedTime(
     select
       (select coalesce(json_agg(json_build_object(
           'jobId', p.job_id, 'jobTitle', ${jobTitle("j")}, 'projectId', p.project_id,
-          'step', p.step, 'targetLocale', p.target_locale,
+          'taskStep', ${taskStepSql("j")}, 'step', p.step, 'targetLocale', p.target_locale,
           'minutes', p.minutes::float8, 'people', p.people
         ) order by p.minutes desc, p.job_id, p.step, p.target_locale), '[]')
         from page p left join jobs j on j.id = p.job_id) as rows,
@@ -187,19 +201,22 @@ export async function queryAutomatedTime(
   return { workflowSteps: steps.rows, taskRuns: runs.rows[0] };
 }
 
-export type StepTime = { step: ReportStep; minutes: number; people: number };
+export type StepTime = { taskStep: TaskStep; minutes: number; people: number };
 
-/** Time people logged in a period, by step. */
+/** Time people logged in a period, by what the task was for, in the order of the steps. */
 export async function queryLoggedTimeBySteps(
   input: ReportScope & { period: ReportPeriod },
 ): Promise<StepTime[]> {
   const projectIds = scopedProjectIds(input);
   if (projectIds.length === 0) return [];
   const result = await db.execute<StepTime>(sql`
-    select e.step, sum(e.minutes)::float8 as minutes, count(distinct e.contributor_id)::integer as people
-    from reporting_time_entries e
+    select ${taskStepSql("j")} as "taskStep", sum(e.minutes)::float8 as minutes,
+      count(distinct e.contributor_id)::integer as people
+    from reporting_time_entries e left join jobs j on j.id = e.job_id
     where ${loggedTimeWhere(input, projectIds, input.period.from, input.period.to)}
-    group by 1 order by 1 desc
+    group by 1
   `);
-  return result.rows;
+  return result.rows.sort(
+    (left, right) => TASK_STEPS.indexOf(left.taskStep) - TASK_STEPS.indexOf(right.taskStep),
+  );
 }

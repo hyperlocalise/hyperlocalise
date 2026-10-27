@@ -63,10 +63,11 @@ export function wordCountsCsv(counts: WordCounts, groupBy: "project" | "task" | 
 
 export function loggedTimeCsv(time: LoggedTime): string {
   return toCsv(
-    ["jobTitle", "jobId", "step", "targetLocale", "minutes", "people"],
+    ["jobTitle", "jobId", "taskStep", "step", "targetLocale", "minutes", "people"],
     time.rows.map((row) => [
       row.jobTitle,
       row.jobId,
+      row.taskStep,
       row.step,
       row.targetLocale,
       row.minutes,
@@ -79,7 +80,7 @@ export function stepTimesCsv(logged: StepTime[], automated: AutomatedTime): stri
   return toCsv(
     ["kind", "name", "minutes", "people", "runs"],
     [
-      ...logged.map((row) => ["logged", row.step, row.minutes, row.people, null]),
+      ...logged.map((row) => ["logged", row.taskStep, row.minutes, row.people, null]),
       [
         "task_runs",
         "translation",

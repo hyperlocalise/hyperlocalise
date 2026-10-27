@@ -20,6 +20,13 @@ export type ReportUnit = (typeof REPORT_UNITS)[number];
 export const REPORT_STEPS = ["translation", "review"] as const;
 export type ReportStep = (typeof REPORT_STEPS)[number];
 
+/**
+ * What a task is for, as people see it. Reports prices translate work as `translation` and the
+ * other two as `review`; time views tell post-edit and proofread apart by the task.
+ */
+export const TASK_STEPS = ["translate", "post_edit", "proofread"] as const;
+export type TaskStep = (typeof TASK_STEPS)[number];
+
 /** Task statuses in which a task can still be worked on. */
 export const OPEN_TASK_STATUSES: ReadonlySet<string> = new Set([
   "queued",

@@ -26,7 +26,14 @@ import { REPORT_STEPS, SUMMARY_SOURCES } from "@/lib/reporting/report-units";
 import { VISUAL_NODE_DESCRIPTIONS } from "@/lib/visual-workflows/catalog/node-descriptions";
 
 import { activityTabMessages as messages } from "./activity-tab.messages";
-import { formatChange, formatCount, formatDuration, formatShare, stepLabel } from "./report-format";
+import {
+  formatChange,
+  formatCount,
+  formatDuration,
+  formatShare,
+  stepLabel,
+  taskStepLabel,
+} from "./report-format";
 import { ReportSection, ReportSectionState, DownloadCsvButton } from "./report-section";
 import { ReportStatCard, ReportStatCards, ReportStatCardsSkeleton } from "./report-stat-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
@@ -349,9 +356,11 @@ function StepTimesSection({ input }: { input: SectionInput }) {
             </TableHeader>
             <TableBody>
               {data.logged.map((row) => (
-                <TableRow key={row.step}>
+                <TableRow key={row.taskStep}>
                   <TableCell>
-                    {intl.formatMessage(messages.loggedStep, { step: stepLabel(intl, row.step) })}
+                    {intl.formatMessage(messages.loggedStep, {
+                      step: taskStepLabel(intl, row.taskStep),
+                    })}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatDuration(intl, row.minutes)}
