@@ -27,6 +27,22 @@ export type ReportStep = (typeof REPORT_STEPS)[number];
 export const TASK_STEPS = ["translate", "post_edit", "proofread"] as const;
 export type TaskStep = (typeof TASK_STEPS)[number];
 
+/**
+ * The stages of a translation task's run, from the events the file translation workflow
+ * records: preparing (glossary, guidelines and memory read), extracting strings, reusing the
+ * memory, translating, finishing (writing the files). `other` is a run's time outside those,
+ * for runs that lack a stage boundary (an old run, a failed one).
+ */
+export const TASK_RUN_STAGES = [
+  "preparing",
+  "extracting",
+  "reusing_memory",
+  "translating",
+  "finishing",
+  "other",
+] as const;
+export type TaskRunStage = (typeof TASK_RUN_STAGES)[number];
+
 /** Task statuses in which a task can still be worked on. */
 export const OPEN_TASK_STATUSES: ReadonlySet<string> = new Set([
   "queued",

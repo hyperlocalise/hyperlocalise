@@ -324,7 +324,7 @@ function StepTimesSection({ input }: { input: SectionInput }) {
       title={intl.formatMessage(messages.stepTimes)}
       description={
         narrowedBeyondProject(input)
-          ? `${intl.formatMessage(messages.stepTimesDetail)}. ${intl.formatMessage(messages.automatedFiltersNote)}`
+          ? `${intl.formatMessage(messages.stepTimesDetail)}. ${intl.formatMessage(messages.stepTimesFiltersNote)}`
           : intl.formatMessage(messages.stepTimesDetail)
       }
       actions={
@@ -371,17 +371,39 @@ function StepTimesSection({ input }: { input: SectionInput }) {
                 </TableRow>
               ))}
               {data.automated.taskRuns.runs > 0 ? (
-                <TableRow>
-                  <TableCell>{intl.formatMessage(messages.taskRuns)}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatDuration(intl, data.automated.taskRuns.milliseconds / 60_000)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {intl.formatMessage(messages.runsCount, {
-                      count: data.automated.taskRuns.runs,
-                    })}
-                  </TableCell>
-                </TableRow>
+                <>
+                  <TableRow>
+                    <TableCell>{intl.formatMessage(messages.taskRuns)}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatDuration(intl, data.automated.taskRuns.milliseconds / 60_000)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {intl.formatMessage(messages.runsCount, {
+                        count: data.automated.taskRuns.runs,
+                      })}
+                    </TableCell>
+                  </TableRow>
+                  {/* The run's stages; "Other" only when some run lacked a stage boundary. */}
+                  {data.automated.taskRuns.stages
+                    .filter((row) => row.stage !== "other" || row.milliseconds > 0)
+                    .map((row) => (
+                      <TableRow key={row.stage}>
+                        <TableCell className="pl-8 text-muted-foreground">
+                          {intl.formatMessage(messages.taskRunStage, {
+                            stage: intl.formatMessage(messages[`stage_${row.stage}`]),
+                          })}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatDuration(intl, row.milliseconds / 60_000)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {intl.formatMessage(messages.runsCount, {
+                            count: data.automated.taskRuns.runs,
+                          })}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </>
               ) : null}
               {data.automated.workflowSteps.map((row) => (
                 <TableRow key={row.nodeType}>

@@ -165,25 +165,51 @@ describe("time queries", () => {
     ]);
 
     const job = await createJob({ status: "succeeded" });
-    const event = (workflowRunId: string, type: string, time: string, day = "2026-06-10") => ({
+    const staged = await createJob({ status: "succeeded" });
+    const event = (
+      workflowRunId: string,
+      type: string,
+      time: string,
+      day = "2026-06-10",
+      extra: Partial<typeof schema.jobEvents.$inferInsert> = {},
+    ) => ({
       jobId: job.id,
       organizationId: organization.id,
       workflowRunId,
       type: type as typeof schema.jobEvents.$inferInsert.type,
       createdAt: at(day, time),
+      ...extra,
     });
+    const stagedEvent = (type: string, time: string, locale?: string) =>
+      event("run-3", type, time, "2026-06-10", { jobId: staged.id, locale: locale ?? null });
     await db.insert(schema.jobEvents).values([
-      // A first run that failed before the period, then a retry that took ten minutes.
+      // A first run that failed before the period, then a retry that took ten minutes and
+      // recorded no stage boundaries but one.
       event("run-1", "job_started", "09:00:00", "2026-06-01"),
       event("run-1", "job_failed", "09:05:00", "2026-06-01"),
       event("run-2", "job_started", "23:55:00", "2026-06-09"),
       event("run-2", "strings_extracted", "23:58:00", "2026-06-09"),
       event("run-2", "job_succeeded", "00:05:00"),
+      // A run with every stage: 30 s preparing, 30 s extracting, 20 s reusing the memory,
+      // then two languages side by side until 10:04:00, and 30 s finishing.
+      stagedEvent("job_started", "10:00:00"),
+      stagedEvent("context_ready", "10:00:30"),
+      stagedEvent("strings_extracted", "10:01:00"),
+      stagedEvent("translations_reused", "10:01:10", "fr-FR"),
+      stagedEvent("translations_reused", "10:01:20", "de-DE"),
+      stagedEvent("locale_progress", "10:02:00", "fr-FR"),
+      stagedEvent("locale_completed", "10:03:00", "de-DE"),
+      stagedEvent("locale_completed", "10:04:00", "fr-FR"),
+      stagedEvent("job_succeeded", "10:04:30"),
     ]);
     await db
       .update(schema.jobs)
       .set({ completedAt: at("2026-06-10", "00:05:00") })
       .where(eq(schema.jobs.id, job.id));
+    await db
+      .update(schema.jobs)
+      .set({ completedAt: at("2026-06-10", "10:04:30") })
+      .where(eq(schema.jobs.id, staged.id));
 
     const scope = { organizationId: organization.id, projectIds: [project.id], period };
     const time = await queryAutomatedTime({ ...scope, includeUnattributed: false });
@@ -192,7 +218,37 @@ describe("time queries", () => {
         { nodeType: "action.http", milliseconds: 5000, runs: 2 },
         { nodeType: "action.notify_slack", milliseconds: 1000, runs: 1 },
       ],
-      taskRuns: { milliseconds: 600_000, runs: 1 },
+      taskRuns: {
+        milliseconds: 870_000,
+        runs: 2,
+        // The run without boundaries puts its ten minutes in "other".
+        stages: [
+          { stage: "preparing", milliseconds: 30_000 },
+          { stage: "extracting", milliseconds: 30_000 },
+          { stage: "reusing_memory", milliseconds: 20_000 },
+          { stage: "translating", milliseconds: 160_000 },
+          { stage: "finishing", milliseconds: 30_000 },
+          { stage: "other", milliseconds: 600_000 },
+        ],
+      },
+    });
+    // With a language chosen: runs that had it, memory reuse and translating for it alone.
+    const german = await queryAutomatedTime({
+      ...scope,
+      targetLocale: "de-DE",
+      includeUnattributed: false,
+    });
+    expect(german.taskRuns).toEqual({
+      milliseconds: 270_000,
+      runs: 1,
+      stages: [
+        { stage: "preparing", milliseconds: 30_000 },
+        { stage: "extracting", milliseconds: 30_000 },
+        { stage: "reusing_memory", milliseconds: 20_000 },
+        { stage: "translating", milliseconds: 100_000 },
+        { stage: "finishing", milliseconds: 30_000 },
+        { stage: "other", milliseconds: 0 },
+      ],
     });
     const withWorkspace = await queryAutomatedTime({ ...scope, includeUnattributed: true });
     expect(withWorkspace.workflowSteps[0]).toEqual({

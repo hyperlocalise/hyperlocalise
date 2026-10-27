@@ -114,7 +114,18 @@ export const reportsStepTimes: {
   ],
   automated: {
     workflowSteps: [{ nodeType: "action.http", milliseconds: 1_260_000, runs: 980 }],
-    taskRuns: { milliseconds: 22_320_000, runs: 212 },
+    taskRuns: {
+      milliseconds: 22_320_000,
+      runs: 212,
+      stages: [
+        { stage: "preparing", milliseconds: 1_200_000 },
+        { stage: "extracting", milliseconds: 600_000 },
+        { stage: "reusing_memory", milliseconds: 300_000 },
+        { stage: "translating", milliseconds: 18_000_000 },
+        { stage: "finishing", milliseconds: 1_500_000 },
+        { stage: "other", milliseconds: 720_000 },
+      ],
+    },
   },
 };
 

@@ -88,6 +88,13 @@ export function stepTimesCsv(logged: StepTime[], automated: AutomatedTime): stri
         null,
         automated.taskRuns.runs,
       ],
+      ...automated.taskRuns.stages.map((row) => [
+        "task_run_stage",
+        row.stage,
+        Math.round(row.milliseconds / 60_000),
+        null,
+        automated.taskRuns.runs,
+      ]),
       ...automated.workflowSteps.map((row) => [
         "workflow_step",
         row.nodeType,

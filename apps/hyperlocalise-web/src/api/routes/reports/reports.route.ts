@@ -286,6 +286,7 @@ export function createReportsRoutes() {
           queryAutomatedTime({
             ...context,
             projectId: filters.projectId,
+            targetLocale: filters.targetLocale,
             period,
             includeUnattributed: context.financial,
           }),

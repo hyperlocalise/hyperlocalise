@@ -23,7 +23,13 @@ import {
   scopedProjectIds,
   type ReportScope,
 } from "./report-scope";
-import { TASK_STEPS, type ReportStep, type TaskStep } from "./report-units";
+import {
+  TASK_RUN_STAGES,
+  TASK_STEPS,
+  type ReportStep,
+  type TaskRunStage,
+  type TaskStep,
+} from "./report-units";
 
 /**
  * Time for the Reports page: time people logged on tasks, and how long automated work ran.
@@ -142,8 +148,16 @@ export async function queryLoggedTime(
 export type AutomatedTime = {
   /** Visual workflow steps, by step type. */
   workflowSteps: { nodeType: string; milliseconds: number; runs: number }[];
-  /** Runs of translation tasks, from start to finish. */
-  taskRuns: { milliseconds: number; runs: number };
+  /**
+   * Runs of translation tasks, from start to finish, and the same time by stage (every stage,
+   * in order, `other` included). With a language chosen, `translating` and `reusing_memory`
+   * count that language only, the other stages the whole run, and `other` is 0.
+   */
+  taskRuns: {
+    milliseconds: number;
+    runs: number;
+    stages: { stage: TaskRunStage; milliseconds: number }[];
+  };
 };
 
 /**
@@ -151,7 +165,7 @@ export type AutomatedTime = {
  * counted only when `includeUnattributed` is set; test runs with mock data never are.
  */
 export async function queryAutomatedTime(
-  input: Omit<ReportScope, "jobIds" | "targetLocale"> & {
+  input: Omit<ReportScope, "jobIds"> & {
     period: ReportPeriod;
     includeUnattributed: boolean;
   },
@@ -179,26 +193,93 @@ export async function queryAutomatedTime(
         and r.mode = 'live' and ${workflowProjects}
       group by 1 order by 2 desc, 1
     `),
-    projectIds.length
-      ? db.execute<AutomatedTime["taskRuns"]>(sql`
-          with runs as (
-            select e.workflow_run_id, max(e.created_at) - min(e.created_at) as took,
-              max(e.created_at) filter (where e.type in ('job_succeeded', 'job_failed')) as ended
-            from jobs j join job_events e on e.job_id = j.id
-            where j.organization_id = ${input.organizationId}
-              and j.project_id in (${idList(projectIds)}) and j.kind = 'translation'
-              -- A run that ended in the period leaves the task completed then or later.
-              and (j.completed_at is null or j.completed_at >= ${start})
-              and e.workflow_run_id is not null and e.created_at < ${end}
-            group by e.job_id, e.workflow_run_id
-          )
-          select coalesce(sum(extract(epoch from took)) * 1000, 0)::float8 as milliseconds,
-            count(*)::integer as runs
-          from runs where ended >= ${start} and ended < ${end}
-        `)
-      : Promise.resolve({ rows: [{ milliseconds: 0, runs: 0 }] }),
+    projectIds.length ? queryTaskRuns(input, projectIds, start, end) : Promise.resolve(NO_RUNS),
   ]);
-  return { workflowSteps: steps.rows, taskRuns: runs.rows[0] };
+  return { workflowSteps: steps.rows, taskRuns: runs };
+}
+
+const NO_RUNS: AutomatedTime["taskRuns"] = {
+  milliseconds: 0,
+  runs: 0,
+  stages: TASK_RUN_STAGES.map((stage) => ({ stage, milliseconds: 0 })),
+};
+
+/**
+ * Translation task runs that ended in the period: the run from its first event to its last,
+ * and the time between the stage boundaries the file translation workflow records
+ * (`job_started`, `context_ready`, `strings_extracted`, `translations_reused` and
+ * `locale_completed` per language, `job_succeeded` or `job_failed`). Languages run side by
+ * side, so translating runs from the last memory reuse to the last language done.
+ */
+async function queryTaskRuns(
+  input: Omit<ReportScope, "jobIds">,
+  projectIds: string[],
+  start: SQL,
+  end: SQL,
+): Promise<AutomatedTime["taskRuns"]> {
+  const locale = input.targetLocale;
+  const forLocale = locale ? sql`and e.locale = ${locale}` : sql``;
+  const ms = (value: SQL) => sql`coalesce(sum(extract(epoch from ${value})) * 1000, 0)::float8`;
+  const result = await db.execute<{
+    milliseconds: number;
+    runs: number;
+    preparing: number;
+    extracting: number;
+    reusing_memory: number;
+    translating: number;
+    finishing: number;
+    other: number;
+  }>(sql`
+    with runs as (
+      select max(e.created_at) - min(e.created_at) as took,
+        max(e.created_at) filter (where e.type in ('job_succeeded', 'job_failed')) as ended,
+        min(e.created_at) filter (where e.type = 'job_started') as started,
+        min(e.created_at) filter (where e.type = 'context_ready') as context_ready,
+        min(e.created_at) filter (where e.type = 'strings_extracted') as extracted,
+        max(e.created_at) filter (where e.type = 'translations_reused' ${forLocale}) as reused,
+        max(e.created_at) filter (where e.type in ('locale_completed', 'locale_failed') ${forLocale})
+          as languages_done,
+        max(e.created_at) filter (where e.type in ('locale_completed', 'locale_failed'))
+          as all_languages_done
+        ${locale ? sql`, bool_or(e.locale = ${locale}) as has_language` : sql``}
+      from jobs j join job_events e on e.job_id = j.id
+      where j.organization_id = ${input.organizationId}
+        and j.project_id in (${idList(projectIds)}) and j.kind = 'translation'
+        -- A run that ended in the period leaves the task completed then or later.
+        and (j.completed_at is null or j.completed_at >= ${start})
+        and e.workflow_run_id is not null and e.created_at < ${end}
+      group by e.job_id, e.workflow_run_id
+    ), staged as (
+      select took,
+        greatest(context_ready - started, interval '0') as preparing,
+        greatest(extracted - context_ready, interval '0') as extracting,
+        greatest(reused - extracted, interval '0') as reusing_memory,
+        greatest(languages_done - coalesce(reused, extracted), interval '0') as translating,
+        greatest(ended - all_languages_done, interval '0') as finishing
+      from runs
+      where ended >= ${start} and ended < ${end} ${locale ? sql`and has_language` : sql``}
+    )
+    select ${ms(sql`took`)} as milliseconds, count(*)::integer as runs,
+      ${ms(sql`preparing`)} as preparing, ${ms(sql`extracting`)} as extracting,
+      ${ms(sql`reusing_memory`)} as reusing_memory, ${ms(sql`translating`)} as translating,
+      ${ms(sql`finishing`)} as finishing,
+      ${
+        locale
+          ? sql`0::float8`
+          : ms(
+              sql`took - coalesce(preparing, interval '0') - coalesce(extracting, interval '0')
+                - coalesce(reusing_memory, interval '0') - coalesce(translating, interval '0')
+                - coalesce(finishing, interval '0')`,
+            )
+      } as other
+    from staged
+  `);
+  const row = result.rows[0]!;
+  return {
+    milliseconds: row.milliseconds,
+    runs: row.runs,
+    stages: TASK_RUN_STAGES.map((stage) => ({ stage, milliseconds: row[stage] })),
+  };
 }
 
 export type StepTime = { taskStep: TaskStep; minutes: number; people: number };

@@ -178,6 +178,47 @@ export const activityTabMessages = defineMessages({
     defaultMessage: "Translation task runs",
     description: "Automated time: translation tasks from start to finish",
   },
+  taskRunStage: {
+    id: "7XXCrjRu4V",
+    defaultMessage: "{stage} (task runs)",
+    description: "Automated time: one stage of translation task runs, such as Translating",
+  },
+  stage_preparing: {
+    id: "uqtok3NDWE",
+    defaultMessage: "Preparing",
+    description: "Task run stage: reading the glossary, guidelines and memory before translating",
+  },
+  stage_extracting: {
+    id: "01VF6345b7",
+    defaultMessage: "Extracting strings",
+    description: "Task run stage: taking the strings out of the file",
+  },
+  stage_reusing_memory: {
+    id: "Nh0Fmco1Vb",
+    defaultMessage: "Reusing memory",
+    description: "Task run stage: filling strings from the translation memory",
+  },
+  stage_translating: {
+    id: "Lx93ycVSAl",
+    defaultMessage: "Translating",
+    description: "Task run stage: the AI translating each language",
+  },
+  stage_finishing: {
+    id: "gInJLILdKB",
+    defaultMessage: "Finishing",
+    description: "Task run stage: writing the translated files",
+  },
+  stage_other: {
+    id: "75iAO2KBsB",
+    defaultMessage: "Other",
+    description: "Task run stage: time not in any stage, for runs missing a stage boundary",
+  },
+  stepTimesFiltersNote: {
+    id: "O8GFkU0jcA",
+    defaultMessage:
+      "Automated run time follows the dates and project only, not the task or step chosen; with a language chosen, memory reuse and translating count that language.",
+    description: "Note on the time on each step table while a task, language or step filter is set",
+  },
   workflowStep: {
     id: "LMZ8bk3MgG",
     defaultMessage: "Workflow: {step}",
