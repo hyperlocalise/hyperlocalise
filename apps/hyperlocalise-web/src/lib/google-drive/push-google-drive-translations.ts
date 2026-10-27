@@ -72,6 +72,7 @@ export type PushGoogleDriveTranslationsResult = {
   failed: number;
   skippedFiles: GoogleDrivePushSkippedFile[];
   partialFiles: GoogleDrivePushPartialFile[];
+  failedFiles: GoogleDrivePushFailedFile[];
 };
 
 export function resolveGoogleDrivePushTargetLocales(
@@ -221,7 +222,14 @@ async function ensureFolderPath(input: {
 export type GoogleDrivePushSkipReason =
   | "no_approved_translations"
   | "unsupported_format"
+  | "unsupported_script"
   | "unchanged";
+
+export type GoogleDrivePushFailedFile = {
+  sourcePath: string;
+  driveFileId: string;
+  locales: Array<{ locale: string; code: string }>;
+};
 
 export type TranslatedBytesResolution =
   | {
@@ -231,7 +239,8 @@ export type TranslatedBytesResolution =
       mimeType: string;
       pdfOverflowKeys?: readonly string[];
     }
-  | { status: "skipped"; reason: Exclude<GoogleDrivePushSkipReason, "unchanged"> };
+  | { status: "skipped"; reason: Exclude<GoogleDrivePushSkipReason, "unchanged"> }
+  | { status: "failed"; code: string };
 
 export async function resolveTranslatedBytes(input: {
   organizationId: string;
@@ -249,7 +258,10 @@ export async function resolveTranslatedBytes(input: {
       targetLocale: input.targetLocale,
       approvedTranslationsOnly: true,
     });
-    if (isErr(office) || !office.value) {
+    if (isErr(office)) {
+      return { status: "failed", code: office.error.code };
+    }
+    if (!office.value || !office.value.translatedKeyCount) {
       return { status: "skipped", reason: "no_approved_translations" };
     }
     const ext = `.${officeFormat}`;
@@ -280,7 +292,13 @@ export async function resolveTranslatedBytes(input: {
       targetLocale: input.targetLocale,
       approvedTranslationsOnly: true,
     });
-    if (isErr(pdf) || !pdf.value || !pdf.value.translatedKeyCount) {
+    if (isErr(pdf)) {
+      if (pdf.error.code === "pdf_script_unsupported") {
+        return { status: "skipped", reason: "unsupported_script" };
+      }
+      return { status: "failed", code: pdf.error.code };
+    }
+    if (!pdf.value || !pdf.value.translatedKeyCount) {
       return { status: "skipped", reason: "no_approved_translations" };
     }
     const fileName = input.sourcePath.split("/").pop() ?? "file";
@@ -303,7 +321,10 @@ export async function resolveTranslatedBytes(input: {
       targetLocale: input.targetLocale,
       approvedTranslationsOnly: true,
     });
-    if (isErr(txt) || !txt.value || !txt.value.translatedKeyCount) {
+    if (isErr(txt)) {
+      return { status: "failed", code: txt.error.code };
+    }
+    if (!txt.value || !txt.value.translatedKeyCount) {
       return { status: "skipped", reason: "no_approved_translations" };
     }
     const fileName = input.sourcePath.split("/").pop() ?? "file";
@@ -467,6 +488,7 @@ export async function runPushGoogleDriveTranslations(input: {
   let failed = 0;
   const skippedFiles: GoogleDrivePushSkippedFile[] = [];
   const partialFiles: GoogleDrivePushPartialFile[] = [];
+  const failedFiles: GoogleDrivePushFailedFile[] = [];
   const folderPromises = new Map<string, Promise<string>>();
 
   await mapWithConcurrency(mappings, 4, async (mapping) => {
@@ -490,6 +512,7 @@ export async function runPushGoogleDriveTranslations(input: {
       const lastPushContentHash = { ...mapping.lastPushContentHash };
       const mappingSkips: Array<{ locale: string; reason: GoogleDrivePushSkipReason }> = [];
       const mappingPartials: Array<{ locale: string; overflowKeys: string[] }> = [];
+      const mappingFailures: Array<{ locale: string; code: string }> = [];
 
       for (const locale of targetLocales) {
         const translated = await resolveTranslatedBytes({
@@ -499,6 +522,11 @@ export async function runPushGoogleDriveTranslations(input: {
           targetLocale: locale,
           ingestFormat: mapping.ingestFormat,
         });
+        if (translated.status === "failed") {
+          failed += 1;
+          mappingFailures.push({ locale, code: translated.code });
+          continue;
+        }
         if (translated.status !== "ready") {
           skipped += 1;
           mappingSkips.push({ locale, reason: translated.reason });
@@ -591,6 +619,13 @@ export async function runPushGoogleDriveTranslations(input: {
           locales: mappingPartials,
         });
       }
+      if (mappingFailures.length > 0) {
+        failedFiles.push({
+          sourcePath: mapping.sourcePath,
+          driveFileId: mapping.driveFileId,
+          locales: mappingFailures,
+        });
+      }
     } catch (error) {
       failed += 1;
       logger.warn("google_drive_push_failed", {
@@ -600,5 +635,5 @@ export async function runPushGoogleDriveTranslations(input: {
     }
   });
 
-  return { pushed, skipped, failed, skippedFiles, partialFiles };
+  return { pushed, skipped, failed, skippedFiles, partialFiles, failedFiles };
 }

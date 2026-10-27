@@ -212,7 +212,11 @@ describe("loadTranslatedBytes", () => {
   it("returns the office download for docx sources", async () => {
     mocks.loadProjectOfficeTranslationDownload.mockResolvedValue({
       ok: true,
-      value: { content: Buffer.from("docx-bytes"), extension: ".docx" },
+      value: {
+        content: Buffer.from("docx-bytes"),
+        extension: ".docx",
+        translatedKeyCount: 2,
+      },
     });
 
     await expect(
@@ -537,6 +541,85 @@ describe("resolveTranslatedBytes", () => {
     ).resolves.toEqual({ status: "skipped", reason: "no_approved_translations" });
   });
 
+  it("reports failed when the txt export errors", async () => {
+    mocks.loadProjectTxtTranslationDownload.mockResolvedValue({
+      ok: false,
+      error: { code: "plaintext_export_failed", message: "Could not write translations." },
+    });
+
+    await expect(
+      resolveTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/notes.txt",
+        ingestFormat: "txt",
+      }),
+    ).resolves.toEqual({ status: "failed", code: "plaintext_export_failed" });
+  });
+
+  it("reports unsupported_script when the pdf script cannot be shaped", async () => {
+    mocks.loadProjectPdfTranslationDownload.mockResolvedValue({
+      ok: false,
+      error: { code: "pdf_script_unsupported", message: "unsupported script" },
+    });
+
+    await expect(
+      resolveTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/report.pdf",
+        ingestFormat: "pdf",
+      }),
+    ).resolves.toEqual({ status: "skipped", reason: "unsupported_script" });
+  });
+
+  it("reports failed when the pdf export errors", async () => {
+    mocks.loadProjectPdfTranslationDownload.mockResolvedValue({
+      ok: false,
+      error: { code: "pdf_export_failed", message: "Could not write translations." },
+    });
+
+    await expect(
+      resolveTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/report.pdf",
+        ingestFormat: "pdf",
+      }),
+    ).resolves.toEqual({ status: "failed", code: "pdf_export_failed" });
+  });
+
+  it("reports failed when the office export errors", async () => {
+    mocks.loadProjectOfficeTranslationDownload.mockResolvedValue({
+      ok: false,
+      error: { code: "office_export_failed", message: "Could not write translations." },
+    });
+
+    await expect(
+      resolveTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/overview.docx",
+        ingestFormat: "docx",
+      }),
+    ).resolves.toEqual({ status: "failed", code: "office_export_failed" });
+  });
+
+  it("reports no_approved_translations for office without approved keys", async () => {
+    mocks.loadProjectOfficeTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: {
+        content: Buffer.from("docx-bytes"),
+        extension: ".docx",
+        translatedKeyCount: 0,
+      },
+    });
+
+    await expect(
+      resolveTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/overview.docx",
+        ingestFormat: "docx",
+      }),
+    ).resolves.toEqual({ status: "skipped", reason: "no_approved_translations" });
+  });
+
   it("reports unsupported_format for keyed formats without a writer", async () => {
     mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
       prefilled: { hello: "xin chào" },
@@ -634,6 +717,7 @@ describe("runPushGoogleDriveTranslations", () => {
         },
       ],
       partialFiles: [],
+      failedFiles: [],
     });
     expect(mocks.uploadGoogleDriveFile).not.toHaveBeenCalled();
   });
@@ -697,6 +781,62 @@ describe("runPushGoogleDriveTranslations", () => {
           locales: [{ locale: "vi-VN", overflowKeys: ["block-7"] }],
         },
       ],
+      failedFiles: [],
     });
+  });
+
+  it("records failedFiles when the export errors", async () => {
+    selectQueue([
+      [{ id: "project-1", source: "native", targetLocales: ["vi-VN"] }],
+      [
+        {
+          id: "map-1",
+          automationId: "automation-1",
+          projectId: "project-1",
+          folderId: "folder-1",
+          driveFileId: "drive-1",
+          mimeType: "text/plain",
+          ingestFormat: "txt",
+          sourcePath: "google-drive/folder/notes.txt",
+          localeFolderIds: {},
+          translatedFileIds: {},
+          lastPushContentHash: {},
+          status: "active",
+        },
+      ],
+    ]);
+    mocks.dbUpdate.mockImplementation(() => ({
+      set: () => ({ where: async () => [] }),
+    }));
+    mocks.loadGoogleDrivePipesAccessToken.mockResolvedValue({ ok: true, value: "token" });
+    mocks.getGoogleDriveFile.mockResolvedValue({
+      ok: true,
+      value: { parents: ["parent-1"], driveId: null },
+    });
+    mocks.loadProjectTxtTranslationDownload.mockResolvedValue({
+      ok: false,
+      error: { code: "plaintext_export_failed", message: "Could not write translations." },
+    });
+
+    await expect(
+      runPushGoogleDriveTranslations({
+        organizationId: "org-1",
+        automation: driveAutomation([]),
+      }),
+    ).resolves.toEqual({
+      pushed: 0,
+      skipped: 0,
+      failed: 1,
+      skippedFiles: [],
+      partialFiles: [],
+      failedFiles: [
+        {
+          sourcePath: "google-drive/folder/notes.txt",
+          driveFileId: "drive-1",
+          locales: [{ locale: "vi-VN", code: "plaintext_export_failed" }],
+        },
+      ],
+    });
+    expect(mocks.uploadGoogleDriveFile).not.toHaveBeenCalled();
   });
 });
