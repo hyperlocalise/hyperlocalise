@@ -23,13 +23,16 @@ import { db, schema } from "@/lib/database/client";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
 
+import { markSummaryDays, refreshPendingSummary } from "./summary";
 import {
+  analyseTaskLanguage,
   analyseTaskStrings,
   openPersonTaskForString,
   personTaskAt,
+  personTaskForSave,
   refreshTaskDays,
-  taskStillBeingCounted,
 } from "./task-analysis";
+import { readTaskAnalysis, setTaskAnalysisStatus } from "./task-analysis-status";
 import { queryTaskWords } from "./word-queries";
 
 vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
@@ -171,34 +174,105 @@ describe("analyseTaskStrings", () => {
       queryTaskWords({ organizationId: organization.id, jobId: task.id, unit: "words" });
     // Recorded, but the summary the report reads does not have it yet.
     expect((await words()).totals.review.arrived).toBe(0);
-    expect(
-      await taskStillBeingCounted({
-        organizationId: organization.id,
-        job: { ...task, createdAt: new Date(Date.now() - 60 * 60_000) },
-        step: "review",
-      }),
-    ).toBe(true);
 
+    await refreshTaskDays({ organizationId: organization.id, projectId: project.id, days });
+    expect((await words()).totals.review.arrived).toBe(5);
+    // The task's refresh leaves the project's current rows, and the days' marks, to the
+    // scheduled run, which then rewrites both.
+    const current = () =>
+      db
+        .select({ strings: schema.reportingCurrentByProject.arrivedStrings })
+        .from(schema.reportingCurrentByProject)
+        .where(eq(schema.reportingCurrentByProject.projectId, project.id));
+    expect(await current()).toEqual([]);
+    const marks = await db
+      .select({ day: schema.reportingSummaryQueue.day })
+      .from(schema.reportingSummaryQueue)
+      .where(eq(schema.reportingSummaryQueue.projectId, project.id));
+    expect(marks.map((mark) => mark.day)).toEqual(days);
+    await refreshPendingSummary({ organizationIds: [organization.id] });
+    expect(await current()).toEqual([{ strings: 2 }]);
+  });
+
+  it("refreshes only the days still marked, so a run that did them meanwhile is not repeated", async () => {
+    const { organization, project, sourceFile, createPersonTask } = await createFileWithStrings();
+    const task = await createPersonTask({ kind: "proofread" });
+    const { days } = await analyseTaskStrings({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: task.id,
+      step: "review",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      repositorySourceFileId: sourceFile.id,
+    });
+    // A scheduled run refreshed the day already and cleared its mark.
+    await db
+      .delete(schema.reportingSummaryQueue)
+      .where(eq(schema.reportingSummaryQueue.organizationId, organization.id));
+    await refreshTaskDays({ organizationId: organization.id, projectId: project.id, days });
+    const words = () =>
+      queryTaskWords({ organizationId: organization.id, jobId: task.id, unit: "words" });
+    // Nothing was written, as the refresh found no day to do.
+    expect((await words()).totals.review.arrived).toBe(0);
+    // A day marked again is refreshed.
+    await db.transaction((tx) =>
+      markSummaryDays(tx, organization.id, [{ projectId: project.id, day: days[0] }]),
+    );
     await refreshTaskDays({ organizationId: organization.id, projectId: project.id, days });
     expect((await words()).totals.review.arrived).toBe(5);
   });
 });
 
-describe("taskStillBeingCounted", () => {
-  it("expects strings for a new task's own step, and for a step with strings recorded", async () => {
+describe("analyseTaskLanguage", () => {
+  it("notes its progress on the task's analysis, and records without bands when asked", async () => {
+    const { organization, project, sourceFile, createPersonTask } = await createFileWithStrings();
+    const task = await createPersonTask({ kind: "proofread", targetLocales: ["fr-FR", "de-DE"] });
+    const state = { organizationId: organization.id, jobId: task.id, step: "review" as const };
+    await setTaskAnalysisStatus({ ...state, status: "pending" });
+    const input = {
+      ...state,
+      projectId: project.id,
+      sourceLocale: "en-US",
+      repositorySourceFileId: sourceFile.id,
+    };
+    await analyseTaskLanguage({ ...input, targetLocale: "fr-FR" });
+    expect(await readTaskAnalysis(state)).toMatchObject([
+      { step: "review", status: "pending", strings: 2, incomplete: false },
+    ]);
+
+    // The memory could not be read for the second language: its strings still arrive, without a band.
+    await analyseTaskLanguage({ ...input, targetLocale: "de-DE", withoutMemory: true });
+    const buckets = await db
+      .select({
+        targetLocale: schema.reportingAnalyses.targetLocale,
+        bucket: schema.reportingAnalyses.bucket,
+      })
+      .from(schema.reportingAnalyses)
+      .where(eq(schema.reportingAnalyses.jobId, task.id));
+    const bucketsOf = (locale: string) =>
+      buckets.filter((row) => row.targetLocale === locale).map((row) => row.bucket);
+    expect(bucketsOf("de-DE")).toEqual(["unavailable", "unavailable"]);
+    expect(bucketsOf("fr-FR")).toEqual(["new", "new"]);
+  });
+});
+
+describe("readTaskAnalysis", () => {
+  it("reads a pending analysis left alone for an hour as failed", async () => {
     const { organization, createPersonTask } = await createFileWithStrings();
     const task = await createPersonTask({ kind: "proofread" });
-    const counting = (step: "translation" | "review", minutesOld: number) =>
-      taskStillBeingCounted({
-        organizationId: organization.id,
-        job: { ...task, createdAt: new Date(Date.now() - minutesOld * 60_000) },
-        step,
-      });
-    // A proofread task's strings are review work; nothing will come for translation.
-    await expect(counting("review", 1)).resolves.toBe(true);
-    await expect(counting("translation", 1)).resolves.toBe(false);
-    // Long after creation with nothing recorded, the task has no strings for Reports.
-    await expect(counting("review", 60)).resolves.toBe(false);
+    const state = { organizationId: organization.id, jobId: task.id, step: "review" as const };
+    await setTaskAnalysisStatus({ ...state, status: "pending" });
+    const inAnHour = new Date(Date.now() + 61 * 60_000);
+    expect(await readTaskAnalysis(state)).toMatchObject([{ status: "pending" }]);
+    expect(await readTaskAnalysis(state, inAnHour)).toMatchObject([
+      { status: "failed", error: "reporting_task_analysis_stopped" },
+    ]);
+    // A finished analysis is never stale, and its outcome is kept whole.
+    await setTaskAnalysisStatus({ ...state, status: "done", incomplete: true, strings: 2 });
+    expect(await readTaskAnalysis(state, inAnHour)).toMatchObject([
+      { status: "done", incomplete: true, strings: 2, error: null },
+    ]);
   });
 });
 
@@ -283,6 +357,35 @@ describe("openPersonTaskForString", () => {
       });
     await expect(savedAt(-60_000)).resolves.toBe(task.id);
     await expect(savedAt(60_000)).resolves.toBeUndefined();
+  });
+});
+
+describe("personTaskForSave", () => {
+  it("counts a person's edit inside a proofread task as its review work, unless a translate task covers it", async () => {
+    const { organization, project, sourceFile, createPersonTask } = await createFileWithStrings();
+    const lookup = (step: "translation" | "review", byPerson = true) =>
+      personTaskForSave({
+        organizationId: organization.id,
+        projectId: project.id,
+        repositorySourceFileId: sourceFile.id,
+        targetLocale: "fr-FR",
+        step,
+        byPerson,
+      });
+    await expect(lookup("translation")).resolves.toBeUndefined();
+    const proofread = await createPersonTask({ kind: "proofread" });
+    await expect(lookup("translation")).resolves.toEqual({ jobId: proofread.id, step: "review" });
+    await expect(lookup("review")).resolves.toEqual({ jobId: proofread.id, step: "review" });
+    // An agent's or an import's edit stays translation work on the job that produced the text;
+    // its approval is still the task's.
+    await expect(lookup("translation", false)).resolves.toBeUndefined();
+    await expect(lookup("review", false)).resolves.toEqual({ jobId: proofread.id, step: "review" });
+    // A translate task for people takes the edits made while it is open.
+    const translate = await createPersonTask({ kind: "translation" });
+    await expect(lookup("translation")).resolves.toEqual({
+      jobId: translate.id,
+      step: "translation",
+    });
   });
 });
 

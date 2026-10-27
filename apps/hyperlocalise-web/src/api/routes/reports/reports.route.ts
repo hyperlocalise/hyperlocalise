@@ -59,7 +59,7 @@ import {
 } from "@/lib/reporting/report-reads";
 import { scopedProjectIds } from "@/lib/reporting/report-scope";
 import { REPORT_STEPS } from "@/lib/reporting/report-units";
-import { taskStillBeingCounted } from "@/lib/reporting/task-analysis";
+import { readTaskAnalysis } from "@/lib/reporting/task-analysis-status";
 import { lockedPricingSteps } from "@/lib/reporting/task-pricing";
 import { getReportingStart } from "@/lib/reporting/reporting-start";
 import { queryAutomatedTime, queryLoggedTimeBySteps } from "@/lib/reporting/time-queries";
@@ -420,12 +420,12 @@ export function createReportsRoutes() {
           where e.organization_id = ${organizationId} and e.job_id = ${job.id} and not e.voided
           order by e.work_date desc, e.created_at desc
         `),
+          // The whole task, both steps: the card shows the task's cost, the table one step of it.
           money
             ? queryCostEstimate({
                 organizationId,
                 projectIds: [job.projectId!],
                 jobIds: [job.id],
-                step: query.step,
                 unit: query.unit,
                 rateCardName: query.rateCard ?? null,
               })
@@ -435,7 +435,6 @@ export function createReportsRoutes() {
                 organizationId,
                 projectIds: [job.projectId!],
                 jobIds: [job.id],
-                step: query.step,
                 rateCardName: query.rateCard ?? null,
               })
             : null,
@@ -456,10 +455,6 @@ export function createReportsRoutes() {
         ]);
         if (query.format === "csv" && words)
           return csv(c, "task-report.csv", taskWordsCsv(words, estimate, query.step));
-        const counting =
-          words && !words.rows.some((row) => row.step === query.step)
-            ? await taskStillBeingCounted({ organizationId, job, step: query.step })
-            : false;
         const payload = job.inputPayload as {
           sourceLocale?: string;
           targetLocales?: string[];
@@ -488,7 +483,6 @@ export function createReportsRoutes() {
             unit: query.unit,
             step: query.step,
             words,
-            counting,
             estimate,
             stillToCome: stillToCome
               ? (stillToCome.get(job.projectId!) ?? { amountUsd: "0.00000000", incomplete: false })
@@ -519,6 +513,30 @@ export function createReportsRoutes() {
               : null,
             canSetPricing: canEditAll,
           },
+        });
+      })
+      // The state of the task's analysis per step (pending, done or failed): read by the Report
+      // tab, every few seconds while a step is pending, so it says what is happening rather than
+      // running the whole report again.
+      .get("/tasks/:jobId/analysis", async (c) => {
+        const organizationId = c.var.auth.organization.localOrganizationId;
+        const [job] = await db
+          .select({ id: schema.jobs.id })
+          .from(schema.jobs)
+          .where(
+            and(
+              eq(schema.jobs.id, c.req.param("jobId")),
+              await buildAccessibleJobsWhere(c.var.auth),
+            ),
+          );
+        if (!job) return notFoundResponse(c, "job_not_found");
+        const states = await readTaskAnalysis({ organizationId, jobId: job.id });
+        // The task's string counts and failure details are for the roles that see its words.
+        const financial = hasCapability(c.var.auth.membership.role, "billing:read");
+        return c.json({
+          analysis: financial
+            ? states
+            : states.map((state) => ({ ...state, strings: null, error: null })),
         });
       })
       .put("/budgets", billingWrite, reportBody(budgetSchema, "invalid_budget"), async (c) => {

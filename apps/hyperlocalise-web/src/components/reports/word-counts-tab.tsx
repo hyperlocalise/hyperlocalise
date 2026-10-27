@@ -84,6 +84,7 @@ export function WordCountsTab({
             options={[
               { value: "project", label: intl.formatMessage(messages.byProject) },
               { value: "task", label: intl.formatMessage(messages.byTask) },
+              { value: "week", label: intl.formatMessage(messages.byWeek) },
             ]}
             onChange={(groupBy) => onChange({ groupBy })}
           />
@@ -100,7 +101,17 @@ export function WordCountsTab({
         {(data) => {
           // Labels follow the counts on screen, which stay while the next ones load.
           const byTask = data.groupBy === "task";
+          const byWeek = data.groupBy === "week";
           const unitName = unitLabel(intl, data.unit);
+          const weekOf = (week: string) =>
+            intl.formatMessage(messages.weekOf, {
+              date: intl.formatDate(`${week}T00:00:00Z`, {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                timeZone: "UTC",
+              }),
+            });
           return (
             <>
               <p className="text-[13px] text-muted-foreground">
@@ -115,9 +126,20 @@ export function WordCountsTab({
               <MatchBandTable
                 label={intl.formatMessage(messages.tableLabel)}
                 rows={data.rows}
-                rowKey={(row) => `${row.jobId ?? ""}:${row.projectId}:${row.targetLocale}`}
+                rowKey={(row) =>
+                  `${row.week ?? ""}:${row.jobId ?? ""}:${row.projectId}:${row.targetLocale}`
+                }
                 bands={visibleBands(data.bandTotals)}
                 leading={[
+                  ...(byWeek
+                    ? [
+                        {
+                          key: "week",
+                          header: intl.formatMessage(messages.weekColumn),
+                          cell: (row: WordCountRow) => (row.week ? weekOf(row.week) : "—"),
+                        },
+                      ]
+                    : []),
                   byTask
                     ? {
                         key: "task",

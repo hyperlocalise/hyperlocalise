@@ -19,7 +19,8 @@ import { OPEN_TASK_STATUSES, REPORT_STEPS, type ReportStep } from "./report-unit
 /**
  * A task's own pricing for a step (its rate card, time estimate or fixed fee) can change only
  * before work on that step starts, so the work already recorded keeps one price. Work has
- * started once Reports holds a string, a cost of work (not an expense) or logged time for the
+ * started once Reports holds a string, a person's cost of work (not an expense, and not an AI
+ * call: an agent job's first call is not work the task's pricing prices) or logged time for the
  * task and step, deleted ones aside, or the task has ended. Tasks people work on from the start
  * are never queued, so the task's status alone cannot say.
  */
@@ -37,7 +38,7 @@ export async function lockedPricingSteps(
     where exists(select 1 from reporting_activity d where d.organization_id = ${input.organizationId}
         and d.job_id = ${input.jobId} and d.step = s.step and d.kind = 'completion')
       or exists(select 1 from reporting_costs c where c.organization_id = ${input.organizationId}
-        and c.job_id = ${input.jobId} and c.step = s.step and c.kind <> 'expense' and not c.voided)
+        and c.job_id = ${input.jobId} and c.step = s.step and c.kind = 'human' and not c.voided)
       or exists(select 1 from reporting_time_entries e where e.organization_id = ${input.organizationId}
         and e.job_id = ${input.jobId} and e.step = s.step and not e.voided)
   `);

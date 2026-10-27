@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/chart";
 import { AI_ORIGINS, type AiChannel, type AiOrigin } from "@/lib/reporting/ai-usage-origins";
 import { describeChange, shareOf } from "@/lib/reporting/report-period";
-import { SUMMARY_SOURCES } from "@/lib/reporting/report-units";
+import { REPORT_STEPS, SUMMARY_SOURCES } from "@/lib/reporting/report-units";
 import { VISUAL_NODE_DESCRIPTIONS } from "@/lib/visual-workflows/catalog/node-descriptions";
 
 import { activityTabMessages as messages } from "./activity-tab.messages";
@@ -78,7 +78,7 @@ export function ActivityTab({
       )}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <ReportSectionState query={activity} skeletonHeight={280}>
-          {(data) => <FinishedWordsChart data={data} />}
+          {(data) => <FinishedWordsChart data={data} onChange={onChange} />}
         </ReportSectionState>
         <ReportSectionState query={activity} skeletonHeight={280}>
           {(data) => <FinishedByLanguage data={data} />}
@@ -104,8 +104,11 @@ function ActivityCards({ data }: { data: ActivityData }) {
       }),
       period.days,
     );
-  const progress = shareOf(current.arrivedDone, current.arrived);
-  const approved = shareOf(current.reviewed, current.finished);
+  // Strings no open task holds any more (their task failed, was cancelled or deleted) will not be
+  // finished, so Progress leaves them out of what it divides by.
+  const progressOf = (totals: typeof current) =>
+    shareOf(totals.arrivedDone, totals.arrived - totals.abandoned);
+  const progress = progressOf(current);
   return (
     <div className="flex flex-col gap-2">
       <ReportStatCards>
@@ -130,14 +133,14 @@ function ActivityCards({ data }: { data: ActivityData }) {
         <ReportStatCard
           label={intl.formatMessage(messages.progress)}
           value={formatShare(intl, progress)}
-          change={change(progress, shareOf(previous.arrivedDone, previous.arrived), true)}
+          change={change(progress, progressOf(previous), true)}
           detail={intl.formatMessage(messages.progressDetail)}
         />
         <ReportStatCard
-          label={intl.formatMessage(messages.approved)}
-          value={formatShare(intl, approved)}
-          change={change(approved, shareOf(previous.reviewed, previous.finished), true)}
-          detail={intl.formatMessage(messages.approvedDetail)}
+          label={intl.formatMessage(messages.wordsReviewed)}
+          value={formatCount(intl, current.reviewed)}
+          change={change(current.reviewed, previous.reviewed)}
+          detail={intl.formatMessage(messages.wordsReviewedDetail)}
         />
       </ReportStatCards>
       {current.uncounted > 0 ? (
@@ -158,7 +161,13 @@ function formatChartDay(intl: Intl, day: string, weekly: boolean) {
   return weekly ? intl.formatMessage(messages.weekOf, { date }) : date;
 }
 
-function FinishedWordsChart({ data }: { data: ActivityData }) {
+function FinishedWordsChart({
+  data,
+  onChange,
+}: {
+  data: ActivityData;
+  onChange: (change: Partial<ReportsUrlState>) => void;
+}) {
   const intl = useIntl();
   const weekly = data.period.interval === "week";
   // Where the finished text came from, bottom to top of each bar; "unknown" only shows when it occurs.
@@ -189,18 +198,27 @@ function FinishedWordsChart({ data }: { data: ActivityData }) {
         step: stepLabel(intl, data.step),
       })}
       actions={
-        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-          {shown.map((key) => (
-            <span key={key} className="inline-flex items-center gap-1.5">
-              <span
-                aria-hidden
-                className="size-2.5 rounded-[3px]"
-                style={{ background: config[key].color }}
-              />
-              {config[key].label}
-            </span>
-          ))}
-        </div>
+        <>
+          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+            {shown.map((key) => (
+              <span key={key} className="inline-flex items-center gap-1.5">
+                <span
+                  aria-hidden
+                  className="size-2.5 rounded-[3px]"
+                  style={{ background: config[key].color }}
+                />
+                {config[key].label}
+              </span>
+            ))}
+          </div>
+          {/* The step the chart and the list by language show; the cards are about translation. */}
+          <SegmentedSwitch
+            label={intl.formatMessage(messages.chartStep)}
+            value={data.step}
+            options={REPORT_STEPS.map((step) => ({ value: step, label: stepLabel(intl, step) }))}
+            onChange={(step) => onChange({ step })}
+          />
+        </>
       }
     >
       <ChartContainer
@@ -236,11 +254,12 @@ function FinishedWordsChart({ data }: { data: ActivityData }) {
           ))}
         </BarChart>
       </ChartContainer>
-      {/* How much of what people finished was the text they were given, kept as it was. */}
+      {/* How much of what people finished at this step was the text they were given, kept as it was. */}
       {data.current.finishedByPerson > 0 ? (
         <p className="mt-3 text-[13px] text-muted-foreground">
           {intl.formatMessage(messages.unchangedNote, {
             people: formatCount(intl, data.current.finishedByPerson),
+            step: stepLabel(intl, data.step),
             share: formatShare(intl, unchangedShare),
           })}
         </p>

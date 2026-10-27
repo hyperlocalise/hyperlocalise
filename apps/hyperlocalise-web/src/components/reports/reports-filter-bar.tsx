@@ -45,6 +45,7 @@ import { stepLabel } from "./report-format";
 import { reportsPageMessages as messages } from "./reports-page.messages";
 import {
   reportDates,
+  useReportSettings,
   useReportTasks,
   type ReportSettings,
   type ReportTask,
@@ -62,7 +63,7 @@ const TAB_FILTERS: Record<
   ReportsTab,
   { dates?: true; task?: "one" | "many"; language?: true; step?: true; rateCard?: true }
 > = {
-  activity: { dates: true, task: "one", language: true, step: true },
+  activity: { dates: true, task: "one", language: true },
   words: { dates: true, task: "one", language: true, step: true },
   time: { dates: true, task: "one", language: true },
   costs: { dates: true, language: true },
@@ -338,6 +339,46 @@ function useTaskSearch() {
 
 const sameTask = (left: ReportTask, right: ReportTask) => left.id === right.id;
 
+/** The task's project, state and creation day, so two tasks named alike can be told apart. */
+function TaskDetails({
+  task,
+  settings,
+}: {
+  task: ReportTask;
+  settings: ReportSettings | undefined;
+}) {
+  const intl = useIntl();
+  const project = settings?.projects.find((candidate) => candidate.id === task.projectId);
+  return (
+    <span className="flex min-w-0 flex-col">
+      <span className="truncate">{task.title}</span>
+      <span className="truncate text-xs text-muted-foreground">
+        {[
+          project?.name,
+          taskStatusLabel(intl, task.status),
+          intl.formatDate(task.createdAt, { dateStyle: "medium" }),
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </span>
+    </span>
+  );
+}
+
+const TASK_STATUS_LABELS: Partial<Record<string, keyof typeof messages>> = {
+  queued: "taskStatusQueued",
+  running: "taskStatusRunning",
+  waiting_for_review: "taskStatusWaitingForReview",
+  succeeded: "taskStatusSucceeded",
+  cancelled: "taskStatusCancelled",
+  failed: "taskStatusFailed",
+};
+
+function taskStatusLabel(intl: ReturnType<typeof useIntl>, status: string) {
+  const key = TASK_STATUS_LABELS[status];
+  return key ? intl.formatMessage(messages[key]) : status;
+}
+
 function TaskPicker({
   organizationSlug,
   projectId,
@@ -358,6 +399,7 @@ function TaskPicker({
   const intl = useIntl();
   const id = useId();
   const { search, setDraft } = useTaskSearch();
+  const settings = useReportSettings(organizationSlug);
   const chosen = useReportTasks({
     organizationSlug,
     projectId: null,
@@ -397,7 +439,7 @@ function TaskPicker({
           <ComboboxList>
             {(task: ReportTask) => (
               <ComboboxItem key={task.id} value={task}>
-                <span className="truncate">{task.title}</span>
+                <TaskDetails task={task} settings={settings.data} />
               </ComboboxItem>
             )}
           </ComboboxList>
@@ -421,6 +463,7 @@ function TasksPicker({
   const intl = useIntl();
   const id = useId();
   const { search, setDraft } = useTaskSearch();
+  const settings = useReportSettings(organizationSlug);
   const found = useReportTasks({ organizationSlug, projectId, search });
   const chosen = useReportTasks({
     organizationSlug,
@@ -477,7 +520,7 @@ function TasksPicker({
           <ComboboxList>
             {(task: ReportTask) => (
               <ComboboxItem key={task.id} value={task}>
-                <span className="truncate">{task.title}</span>
+                <TaskDetails task={task} settings={settings.data} />
               </ComboboxItem>
             )}
           </ComboboxList>

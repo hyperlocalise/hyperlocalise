@@ -66,6 +66,11 @@ describe("Compare node executor", () => {
 
   it("orders only values of the same supported primitive type", () => {
     expect(compare("greater_than", 10, 2)).toEqual({ ok: true, output: { result: true } });
+    expect(compare("greater_than_or_equal", 10, 10)).toEqual({
+      ok: true,
+      output: { result: true },
+    });
+    expect(compare("less_than", 2, 10)).toEqual({ ok: true, output: { result: true } });
     expect(compare("less_than_or_equal", "alpha", "beta")).toEqual({
       ok: true,
       output: { result: true },
@@ -73,6 +78,68 @@ describe("Compare node executor", () => {
     expect(compare("greater_than", 10, "2")).toMatchObject({
       ok: false,
       error: { code: "invalid_comparison" },
+    });
+  });
+
+  it("treats not_equal as the inverse of structural equal", () => {
+    expect(compare("not_equal", { a: 1 }, { a: 2 })).toEqual({
+      ok: true,
+      output: { result: true },
+    });
+    expect(compare("not_equal", { a: 1, nested: [true] }, { nested: [true], a: 1 })).toEqual({
+      ok: true,
+      output: { result: false },
+    });
+  });
+
+  it("orders locale-aware strings and rejects an invalid locale", () => {
+    expect(compare("less_than", "cote", "coté", { locale: "fr" })).toEqual({
+      ok: true,
+      output: { result: true },
+    });
+    expect(compare("greater_than_or_equal", "ä", "z", { locale: "sv" })).toEqual({
+      ok: true,
+      output: { result: true },
+    });
+    expect(compare("equal", "a", "a", { locale: "not_a_real_locale_tag_xyz" })).toMatchObject({
+      ok: false,
+      error: { code: "invalid_comparison_locale" },
+    });
+  });
+
+  it("rejects values that are not bounded JSON-compatible data", () => {
+    expect(compare("equal", Number.NaN, 1)).toMatchObject({
+      ok: false,
+      error: { code: "comparison_value_not_supported" },
+    });
+    expect(compare("equal", Number.POSITIVE_INFINITY, 1)).toMatchObject({
+      ok: false,
+      error: { code: "comparison_value_not_supported" },
+    });
+    expect(compare("equal", new Date("2026-01-01T00:00:00.000Z"), "2026-01-01")).toMatchObject({
+      ok: false,
+      error: { code: "comparison_value_not_supported" },
+    });
+    const cyclic: { self?: unknown } = {};
+    cyclic.self = cyclic;
+    expect(compare("equal", cyclic, cyclic)).toMatchObject({
+      ok: false,
+      error: { code: "comparison_value_not_supported" },
+    });
+    expect(compare("equal", { __proto__: { polluted: true } }, { polluted: true })).toMatchObject({
+      ok: false,
+      error: { code: "comparison_value_not_supported" },
+    });
+  });
+
+  it("treats array contains as membership and empty string needles as contained", () => {
+    expect(compare("contains", [{ id: 1 }, { id: 2 }], { id: 3 })).toEqual({
+      ok: true,
+      output: { result: false },
+    });
+    expect(compare("contains", "translation memory", "")).toEqual({
+      ok: true,
+      output: { result: true },
     });
   });
 

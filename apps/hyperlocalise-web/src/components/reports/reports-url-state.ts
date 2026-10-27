@@ -33,7 +33,7 @@ export const REPORTS_RANGES = [...REPORT_PRESET_DAYS.map(String), "custom"] as c
 export type ReportsRange = (typeof REPORTS_RANGES)[number];
 
 export const WORD_COUNT_MODES = ["arrived", "finished"] as const;
-export const WORD_COUNT_GROUPINGS = ["project", "task"] as const;
+export const WORD_COUNT_GROUPINGS = ["project", "task", "week"] as const;
 export const AI_USAGE_GROUPINGS = ["origin", "model"] as const;
 
 /** The most tasks an estimate can be made for at once. */

@@ -12,19 +12,32 @@
  */
 import { isWorkspaceReportsCaptureEnabled } from "./capture";
 import type { TaskAnalysisInput } from "./task-analysis";
+import { setTaskAnalysisStatus } from "./task-analysis-status";
 
 /**
  * Starts a task's analysis in the background, as its own workflow, so creating the task does not
- * wait for the project's memory to be read. Nothing starts while Reports is off for the
+ * wait for the project's memory to be read, and marks the analysis pending for the task's Report
+ * tab (failed, if the workflow cannot start). Nothing starts while Reports is off for the
  * workspace. Never throws: a task is created whether or not Reports can analyse it.
  */
 export async function startTaskAnalysis(input: TaskAnalysisInput): Promise<void> {
   try {
     if (input.targetLocales.length === 0) return;
     if (!(await isWorkspaceReportsCaptureEnabled(input.organizationId))) return;
-    const { start } = await import("workflow/api");
-    const { taskAnalysisWorkflow } = await import("@/workflows/task-analysis");
-    await start(taskAnalysisWorkflow, [input]);
+    const state = { organizationId: input.organizationId, jobId: input.jobId, step: input.step };
+    await setTaskAnalysisStatus({ ...state, status: "pending" });
+    try {
+      const { start } = await import("workflow/api");
+      const { taskAnalysisWorkflow } = await import("@/workflows/task-analysis");
+      await start(taskAnalysisWorkflow, [input]);
+    } catch (error) {
+      await setTaskAnalysisStatus({
+        ...state,
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   } catch (error) {
     console.warn("reporting_task_analysis_start_failed", { jobId: input.jobId, error });
   }

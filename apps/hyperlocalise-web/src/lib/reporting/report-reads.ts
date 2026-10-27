@@ -56,7 +56,7 @@ export type WordsReadQuery = Dates &
     unit: ReportUnit;
     step: ReportStep;
     mode: "arrived" | "finished";
-    groupBy: "project" | "task";
+    groupBy: "project" | "task" | "week";
     page: number;
     /** Every row, for a download. */
     all?: boolean;
@@ -84,7 +84,7 @@ export async function readActivity(context: ReportReadContext, query: ActivityRe
   const read = scope(context, rest);
   // The headline totals cover both steps; the charts show the chosen one.
   const [totals, series, byLanguage] = await Promise.all([
-    queryActivity(read),
+    queryActivity({ ...read, step }),
     queryFinishedSeries({ ...read, step }),
     queryFinishedByLanguage({ ...read, step }),
   ]);

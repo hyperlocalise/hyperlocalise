@@ -724,6 +724,47 @@ describe("uncounted and word-less strings", () => {
     }
   });
 
+  it("prices work whose match band could not be worked out as new, and says the quote is not exact", async () => {
+    const workspace = await fixture.createWorkspace();
+    const { organization, project, createJob, addSummary } = workspace;
+    await createCard(workspace, "Standard", [line("fr-FR", "1", "word", { new: 50 })]);
+    await db.insert(schema.reportingBudgets).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      budget: "100",
+      rateCardName: "Standard",
+    });
+    const task = await createJob({ assigned: true });
+    await addSummary([
+      { jobId: task.id, targetLocale: "fr-FR", day: "2026-06-01", arrived: 10 },
+      {
+        jobId: task.id,
+        targetLocale: "fr-FR",
+        day: "2026-06-01",
+        bucket: "unavailable",
+        arrived: 10,
+      },
+    ]);
+    const estimate = await queryCostEstimate({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      jobIds: [task.id],
+      unit: "words",
+      rateCardName: null,
+    });
+    // 20 words, all paid at the new band's 50%; the unavailable half makes the quote inexact.
+    expect(estimate.totals).toMatchObject({
+      costUsd: "10.00000000",
+      unavailableUnits: 10,
+      incomplete: true,
+    });
+    const toCome = await queryStillToCome({
+      organizationId: organization.id,
+      projectIds: [project.id],
+    });
+    expect(toCome.get(project.id)).toEqual({ amountUsd: "10.00000000", incomplete: true });
+  });
+
   it("marks still to come incomplete only for uncounted strings that must still be open", async () => {
     const workspace = await fixture.createWorkspace();
     const { organization, project, createProject, createJob, addSummary } = workspace;

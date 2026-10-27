@@ -152,9 +152,11 @@ const mcpGetReportInputSchema = z.object({
     .optional()
     .describe("Words only: strings that arrived (default) or were finished in the dates."),
   groupBy: z
-    .enum(["project", "task"])
+    .enum(["project", "task", "week"])
     .optional()
-    .describe("Words only: rows per project (default) or per task, 50 tasks a page."),
+    .describe(
+      "Words only: rows per project (default), per task (50 tasks a page), or per week and project.",
+    ),
   page: z.number().int().min(1).max(10_000).optional().describe("Page of rows, from 1."),
 });
 

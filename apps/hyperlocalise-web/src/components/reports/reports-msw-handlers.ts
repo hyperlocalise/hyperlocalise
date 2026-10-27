@@ -85,6 +85,9 @@ export function createReportsMswHandlers({
     http.put("*/api/orgs/:organizationSlug/reports/budgets", () =>
       HttpResponse.json({ budget: {} }),
     ),
+    http.get("*/api/orgs/:organizationSlug/reports/tasks/:jobId/analysis", () =>
+      HttpResponse.json(bodies["task-analysis"]),
+    ),
     http.get("*/api/orgs/:organizationSlug/reports/tasks/:jobId/report", async () => {
       if (wait) await delay("infinite");
       if (failing.includes("task-report"))

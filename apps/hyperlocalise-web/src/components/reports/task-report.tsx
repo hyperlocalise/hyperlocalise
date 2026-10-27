@@ -14,7 +14,8 @@
 
 import { ArrowSquareOutIcon } from "@phosphor-icons/react";
 import Link from "next/link";
-import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 
 import { buildOrganizationPath, buildProjectPath } from "@/components/app-shell/navigation-config";
@@ -26,6 +27,7 @@ import {
   type ReportUnit,
 } from "@/lib/reporting/report-units";
 
+import { rateText } from "./cost-estimate-tab";
 import { EditTimeDialog } from "./edit-time-dialog";
 import { LogTimeDialog } from "./log-time-dialog";
 import { MatchBandTable, visibleBands, type BandCounts } from "./match-band-table";
@@ -47,10 +49,13 @@ import { ReportStatCard, ReportStatCards } from "./report-stat-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
 import { reportsPageMessages as pageMessages } from "./reports-page.messages";
 import {
+  reportsQueryKey,
   taskReportDownloadUrl,
   useReportSettings,
+  useTaskAnalysis,
   useTaskReport,
   type ReportSettings,
+  type TaskAnalysisState,
   type TaskReport as TaskReportData,
 } from "./reports-queries";
 import { buildReportsHref, DEFAULT_REPORTS_STATE } from "./reports-url-state";
@@ -120,14 +125,36 @@ export function TaskReport({
   const settings = useReportSettings(organizationSlug);
   const [unit, setUnit] = useState<ReportUnit>("words");
   const [step, setStep] = useState<ReportStep>(defaultStep);
-  // The card chosen on the Reports page by default prices what neither the task nor its budget does.
-  const rateCard = settings.data?.rateCardNames[0] ?? null;
+  // Only the task's own card or its project budget's prices the task: a language neither has a
+  // line for shows "No rate", never a guess from another card.
+  const rateCard = null;
+  // Whether the task's strings for the step are still being counted, or could not be. Looked at
+  // again every few seconds while pending; when the count ends, the report is read again. Only
+  // the roles that see the task's words see this.
+  const analysis = useTaskAnalysis(organizationSlug, jobId, Boolean(settings.data?.financial));
+  const state = analysis.data?.find((row) => row.step === step);
   const report = useTaskReport(
     organizationSlug,
     jobId,
     { unit, step, rateCard },
     Boolean(settings.data),
+    // Counted, but not yet in the summary (a scheduled run held the project): read again in a
+    // while, since the state will not change again to say when the strings have arrived.
+    (last) =>
+      state?.status === "done" &&
+      last.words !== null &&
+      analysisOutcome(last.words, step, state) === "counting",
   );
+  const queryClient = useQueryClient();
+  const status = state?.status;
+  const previousStatus = useRef(status);
+  useEffect(() => {
+    if (previousStatus.current === "pending" && status !== undefined && status !== "pending")
+      void queryClient.invalidateQueries({
+        queryKey: reportsQueryKey(organizationSlug, "task-report", jobId),
+      });
+    previousStatus.current = status;
+  }, [status, queryClient, organizationSlug, jobId]);
   // Until settings load the report waits, which TanStack Query counts as pending too.
   const loading = !settings.isError && (settings.isPending || report.isPending);
   const query = {
@@ -155,7 +182,10 @@ export function TaskReport({
           {/* Words, match bands and money are for the roles that see Reports; others see their time. */}
           {data.words ? (
             <>
-              <TaskCards data={data} words={data.words} step={step} />
+              {/* Nothing to add up while the step's strings are being counted. */}
+              {analysisOutcome(data.words, step, state) === "counting" ? null : (
+                <TaskCards data={data} words={data.words} step={step} />
+              )}
               <ReportSection
                 title={intl.formatMessage(messages.matchAnalysis)}
                 description={intl.formatMessage(messages.matchAnalysisDetail)}
@@ -181,7 +211,7 @@ export function TaskReport({
                   </>
                 }
               >
-                <MatchAnalysis data={data} words={data.words} step={step} />
+                <MatchAnalysis data={data} words={data.words} step={step} state={state} />
               </ReportSection>
             </>
           ) : null}
@@ -216,7 +246,38 @@ function TaskCards({
   const languages = new Set(
     words.rows.filter((row) => row.step === step).map((row) => row.targetLocale),
   ).size;
-  const translated = words.totals.translation.arrivedDone;
+  // The task's approved share is a snapshot of its own strings sent for review.
+  const review = words.totals.review;
+  const estimate = data.estimate;
+  // Nothing could be priced: every unit has no rate, or the only priced lines are hourly with no
+  // time estimate, so the cost is not $0 but unknown.
+  const nothingPriced =
+    estimate !== null &&
+    estimate.totals.units > 0 &&
+    Number(estimate.totals.costUsd) === 0 &&
+    (estimate.totals.unpricedUnits === estimate.totals.units ||
+      estimate.rows.every((row) => row.pricing === "none" || row.unestimated));
+  // The task's cost by step, when it has work at both: "$12.86 translation · No rate review".
+  const stepCosts = estimate
+    ? REPORT_STEPS.flatMap((costStep) => {
+        const lines = estimate.rows.filter((row) => row.step === costStep);
+        const fees = estimate.fixedFees.filter((fee) => fee.step === costStep);
+        if (lines.length === 0 && fees.length === 0) return [];
+        // A line counts as priced only when it gave a cost: an hourly line with no time estimate
+        // gives none.
+        const priced =
+          lines.some((row) => row.pricing !== "none" && row.costUsd !== null) || fees.length > 0;
+        const cost =
+          lines.reduce((sum, row) => sum + Number(row.costUsd ?? 0), 0) +
+          fees.reduce((sum, fee) => sum + Number(fee.amountUsd), 0);
+        return [
+          intl.formatMessage(messages.stepCost, {
+            step: stepLabel(intl, costStep),
+            amount: priced ? formatUsd(intl, cost.toFixed(8)) : intl.formatMessage(messages.noRate),
+          }),
+        ];
+      })
+    : [];
   return (
     <ReportStatCards>
       <ReportStatCard
@@ -242,35 +303,69 @@ function TaskCards({
       />
       <ReportStatCard
         label={intl.formatMessage(messages.approved)}
-        value={formatShare(
-          intl,
-          translated > 0 ? words.totals.review.arrivedDone / translated : null,
-        )}
+        value={formatShare(intl, review.arrived > 0 ? review.arrivedDone / review.arrived : null)}
         detail={intl.formatMessage(messages.approvedDetail)}
       />
-      {data.estimate ? (
+      {estimate ? (
         <ReportStatCard
           label={intl.formatMessage(messages.estimatedCost)}
-          value={formatUsd(intl, data.estimate.totals.costUsd)}
-          detail={
-            data.estimate.totals.incomplete || data.stillToCome?.incomplete
+          value={
+            nothingPriced
+              ? intl.formatMessage(messages.notPriced)
+              : formatUsd(intl, estimate.totals.costUsd)
+          }
+          detail={[
+            ...(stepCosts.length > 1 ? [intl.formatList(stepCosts, { type: "unit" })] : []),
+            estimate.totals.incomplete || data.stillToCome?.incomplete
               ? intl.formatMessage(messages.incomplete)
-              : data.stillToCome
+              : data.stillToCome && !nothingPriced
                 ? intl.formatMessage(messages.stillToCome, {
                     amount: formatUsd(intl, data.stillToCome.amountUsd),
                   })
-                : undefined
-          }
+                : null,
+          ]
+            .filter((part): part is string => part !== null)
+            .join(" · ")}
         />
       ) : null}
     </ReportStatCards>
   );
 }
 
-type AnalysisRow = WordRow & { weighted: number | null; costUsd: string | null; fixed: boolean };
+type AnalysisRow = WordRow & {
+  weighted: number | null;
+  costUsd: string | null;
+  fixed: boolean;
+  /** The rate that priced the row, as the estimate shows it: "$0.04 / word", "No rate", "Fixed fee". */
+  rate: string | null;
+  /** An hourly line with no time estimate on the task, so the row's cost is missing. */
+  unestimated: boolean;
+};
 
-/** The step's rows by language, with the estimate's weighted units and cost beside them. */
-function analysisRows(data: TaskReportData, words: TaskWords, step: ReportStep): AnalysisRow[] {
+/**
+ * What a step with no rows in the report means: its strings are being counted (the analysis is
+ * pending, or done and recorded but not yet in the summary), the count failed, or there is
+ * nothing. "shown" when the step has rows.
+ */
+function analysisOutcome(
+  words: { rows: { step: string }[] },
+  step: ReportStep,
+  state: TaskAnalysisState | undefined,
+): "shown" | "counting" | "failed" | "nothing" {
+  if (words.rows.some((row) => row.step === step)) return "shown";
+  if (!state) return "nothing";
+  if (state.status === "pending") return "counting";
+  if (state.status === "failed") return "failed";
+  return (state.strings ?? 0) > 0 ? "counting" : "nothing";
+}
+
+/** The step's rows by language, with the estimate's rate, weighted units and cost beside them. */
+function analysisRows(
+  intl: Intl,
+  data: TaskReportData,
+  words: TaskWords,
+  step: ReportStep,
+): AnalysisRow[] {
   return words.rows
     .filter((row) => row.step === step)
     .map((row) => {
@@ -291,6 +386,8 @@ function analysisRows(data: TaskReportData, words: TaskWords, step: ReportStep):
         costUsd: cost === null || cost === undefined ? null : cost.toFixed(8),
         // Its step has a fixed fee for the whole task, listed below the table.
         fixed: Boolean(priced?.some((line) => line.pricing === "fixed")),
+        rate: priced?.[0] ? rateText(intl, priced[0]) : null,
+        unestimated: Boolean(priced?.some((line) => line.unestimated)),
       };
     });
 }
@@ -299,19 +396,29 @@ function MatchAnalysis({
   data,
   words,
   step,
+  state,
 }: {
   data: TaskReportData;
   words: TaskWords;
   step: ReportStep;
+  state: TaskAnalysisState | undefined;
 }) {
   const intl = useIntl();
-  const rows = analysisRows(data, words, step);
-  if (rows.length === 0)
+  const rows = analysisRows(intl, data, words, step);
+  if (rows.length === 0) {
+    const outcome = analysisOutcome(words, step, state);
     return (
       <ReportEmpty
-        description={intl.formatMessage(data.counting ? messages.counting : messages.noWords)}
+        description={intl.formatMessage(
+          outcome === "counting"
+            ? messages.counting
+            : outcome === "failed"
+              ? messages.countingFailed
+              : messages.noWords,
+        )}
       />
     );
+  }
   const bandTotals: BandCounts = {};
   for (const row of rows)
     for (const [bucket, units] of Object.entries(row.bands))
@@ -322,16 +429,27 @@ function MatchAnalysis({
     rows.reduce((total, row) => total + pick(row), 0);
   const uncounted = words.totals[step].uncounted;
   const fees = data.estimate?.fixedFees.filter((fee) => fee.step === step) ?? [];
+  // The step's own totals: the estimate's cover the whole task.
+  const weightedTotal = rows.some((row) => row.weighted !== null)
+    ? sum((row) => row.weighted ?? 0)
+    : null;
+  const costTotal =
+    rows.some((row) => row.costUsd !== null) || fees.length > 0
+      ? sum((row) => Number(row.costUsd ?? 0)) +
+        fees.reduce((total, fee) => total + Number(fee.amountUsd), 0)
+      : null;
   const notes = [
     ...fees.map((fee) =>
       intl.formatMessage(messages.fixedFeeNote, { amount: formatUsd(intl, fee.amountUsd) }),
     ),
+    ...(rows.some((row) => row.unestimated) ? [intl.formatMessage(messages.noEstimateNote)] : []),
     ...(data.unit === "characters" || data.unit === "characters_with_spaces"
       ? [intl.formatMessage(wordMessages.charactersNote)]
       : []),
     ...(uncounted > 0 && data.unit !== "strings"
       ? [intl.formatMessage(pageMessages.notCounted, { count: uncounted })]
       : []),
+    ...(state?.incomplete ? [intl.formatMessage(messages.bandsMissing)] : []),
   ];
   return (
     <div className="flex flex-col gap-3">
@@ -363,6 +481,13 @@ function MatchAnalysis({
           ...(money
             ? [
                 {
+                  key: "rate",
+                  header: intl.formatMessage(messages.rateColumn),
+                  cell: (row: AnalysisRow) => row.rate ?? intl.formatMessage(messages.noRate),
+                  numeric: true,
+                  muted: true,
+                },
+                {
                   key: "weighted",
                   header: intl.formatMessage(messages.weightedColumn),
                   cell: (row: AnalysisRow) =>
@@ -392,12 +517,13 @@ function MatchAnalysis({
               intl,
               sum((row) => row.finished),
             ),
-            ...(money && data.estimate
+            ...(money
               ? [
-                  data.estimate.totals.weighted === null
-                    ? "—"
-                    : formatCount(intl, data.estimate.totals.weighted),
-                  formatUsd(intl, data.estimate.totals.costUsd),
+                  null,
+                  weightedTotal === null ? "—" : formatCount(intl, weightedTotal),
+                  costTotal === null
+                    ? intl.formatMessage(messages.notPriced)
+                    : formatUsd(intl, costTotal.toFixed(8)),
                 ]
               : []),
           ],
@@ -498,6 +624,7 @@ function TimeSection({
           projectId={data.task.projectId}
           jobId={data.task.id}
           languages={data.task.targetLocales}
+          step={data.task.kind === "proofread" ? "review" : "translation"}
           onClose={() => setLogging(false)}
         />
       ) : null}
