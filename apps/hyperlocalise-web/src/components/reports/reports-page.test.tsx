@@ -13,7 +13,7 @@
 // @vitest-environment happy-dom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { IntlProvider } from "react-intl";
@@ -157,6 +157,40 @@ describe("Reports page", () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(screen.getByRole("tab", { name: "Activity" })).toHaveAttribute("aria-selected", "true");
     expect(currentHref()).toBe(PATHNAME);
+  });
+
+  it("picks dates from one button: a ready-made range, two days on the calendar, or typed", async () => {
+    renderPage();
+    const dates = await screen.findByRole("button", {
+      name: /^Dates Last 28 days · Sep 24\s–\sOct 21, 2026$/,
+    });
+    await userEvent.click(dates);
+    await userEvent.click(await screen.findByRole("button", { name: "This month" }));
+    await waitFor(() => expect(currentHref()).toBe(`${PATHNAME}?range=month`));
+    expect(
+      screen.getByRole("button", { name: /^Dates This month · Oct 1\s–\s21, 2026$/ }),
+    ).toBeInTheDocument();
+
+    // The first day, then the last, on the calendar.
+    await userEvent.click(screen.getByRole("button", { name: /^Dates This month/ }));
+    const october = screen.getAllByRole("grid")[1]!;
+    await userEvent.click(within(october).getByText("5"));
+    expect(screen.getByText("Now choose the last day.")).toBeInTheDocument();
+    await userEvent.click(within(october).getByText("12"));
+    await waitFor(() =>
+      expect(currentHref()).toBe(`${PATHNAME}?range=custom&from=2026-10-05&to=2026-10-12`),
+    );
+    // Days after today cannot be chosen.
+    await userEvent.click(screen.getByRole("button", { name: /^Dates Oct 5\s–\s12, 2026$/ }));
+    expect(
+      within(screen.getAllByRole("grid")[1]!).getByText("22").closest("button"),
+    ).toBeDisabled();
+
+    // A typed day keeps the other end.
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-10-01" } });
+    await waitFor(() =>
+      expect(currentHref()).toBe(`${PATHNAME}?range=custom&from=2026-10-01&to=2026-10-12`),
+    );
   });
 
   it("shows other roles only their own time, even when the URL asks for another tab", async () => {

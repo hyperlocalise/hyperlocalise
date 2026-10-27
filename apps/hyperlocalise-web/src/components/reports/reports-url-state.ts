@@ -18,7 +18,7 @@ import {
   AI_USAGE_MEASURES,
   type AiUsageDimension,
 } from "@/lib/reporting/ai-usage-origins";
-import { REPORT_PRESET_DAYS } from "@/lib/reporting/report-period";
+import { addDays, REPORT_PRESET_DAYS } from "@/lib/reporting/report-period";
 import {
   REPORT_STEPS,
   REPORT_UNITS,
@@ -45,8 +45,46 @@ export type ReportsTab = (typeof REPORTS_TABS)[number];
 /** The tabs for roles that cannot see what work costs: only their own time. */
 export const MEMBER_TABS: readonly ReportsTab[] = ["time"];
 
-export const REPORTS_RANGES = [...REPORT_PRESET_DAYS.map(String), "custom"] as const;
+/**
+ * The ready-made date ranges, which move with today, and "custom" for dates chosen by hand.
+ * Months and quarters are UTC calendar months, as Reports' days are.
+ */
+export const REPORTS_RANGES = [
+  ...REPORT_PRESET_DAYS.map(String),
+  "month",
+  "last_month",
+  "quarter",
+  "all",
+  "custom",
+] as const;
 export type ReportsRange = (typeof REPORTS_RANGES)[number];
+export type ReportsPreset = Exclude<ReportsRange, "custom">;
+
+/**
+ * The UTC days a ready-made range covers, inclusive, as of `today`. "all" starts on the day
+ * Reports started for the workspace, or today when it has not.
+ */
+export function presetDates(
+  range: ReportsPreset,
+  today: string,
+  startedDay: string | null,
+): { from: string; to: string } {
+  const [year, month] = today.split("-").map(Number) as [number, number];
+  const monthStart = (y: number, m: number) =>
+    new Date(Date.UTC(y, m - 1, 1)).toISOString().slice(0, 10);
+  switch (range) {
+    case "month":
+      return { from: monthStart(year, month), to: today };
+    case "last_month":
+      return { from: monthStart(year, month - 1), to: addDays(monthStart(year, month), -1) };
+    case "quarter":
+      return { from: monthStart(year, month - ((month - 1) % 3)), to: today };
+    case "all":
+      return { from: startedDay && startedDay < today ? startedDay : today, to: today };
+    default:
+      return { from: addDays(today, -(Number(range) - 1)), to: today };
+  }
+}
 
 export const WORD_COUNT_MODES = ["arrived", "finished"] as const;
 export const WORD_COUNT_GROUPINGS = ["project", "task", "week"] as const;

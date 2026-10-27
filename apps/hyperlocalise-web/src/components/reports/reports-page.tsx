@@ -94,7 +94,12 @@ export function ReportsPage({
   const tabs = data.financial ? REPORTS_TABS : MEMBER_TABS;
   const tab = tabs.includes(state.tab) ? state.tab : tabs[0];
   const effective = { ...state, tab, projectId: projectId ?? state.projectId };
-  const input = { organizationSlug, state: effective, today: data.today };
+  const input = {
+    organizationSlug,
+    state: effective,
+    today: data.today,
+    startedDay: data.startedDay,
+  };
   const rateCardName = chosenRateCard(effective, data);
 
   return (

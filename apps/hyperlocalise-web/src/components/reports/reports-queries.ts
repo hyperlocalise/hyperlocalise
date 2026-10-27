@@ -17,11 +17,10 @@ import { useIntl } from "react-intl";
 
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
-import { addDays } from "@/lib/reporting/report-period";
 import type { ReportStep, ReportUnit } from "@/lib/reporting/report-units";
 
 import { reportsPageMessages as messages } from "./reports-page.messages";
-import type { ReportsUrlState } from "./reports-url-state";
+import { presetDates, type ReportsUrlState } from "./reports-url-state";
 
 /** Loading for every section of the Reports page, through the typed API client. */
 
@@ -42,14 +41,13 @@ function compact(query: Query): Record<string, string> {
 const optional = (value: string | null) => value ?? undefined;
 
 /** The UTC days the dates filter covers, inclusive. */
-export function reportDates(state: ReportsUrlState, today: string) {
+export function reportDates(state: ReportsUrlState, today: string, startedDay: string | null) {
   if (state.range === "custom" && state.from && state.to) {
     return state.from <= state.to
       ? { from: state.from, to: state.to }
       : { from: state.to, to: state.from };
   }
-  const days = state.range === "custom" ? 28 : Number(state.range);
-  return { from: addDays(today, -(days - 1)), to: today };
+  return presetDates(state.range === "custom" ? "28" : state.range, today, startedDay);
 }
 
 export function reportsQueryKey(organizationSlug: string, ...parts: unknown[]) {
@@ -79,11 +77,13 @@ export type SectionInput = {
   organizationSlug: string;
   state: ReportsUrlState;
   today: string;
+  /** The day Reports started for the workspace, which "since Reports started" begins on. */
+  startedDay: string | null;
 };
 
-function scope({ state, today }: SectionInput) {
+function scope({ state, today, startedDay }: SectionInput) {
   return {
-    ...reportDates(state, today),
+    ...reportDates(state, today, startedDay),
     projectId: optional(state.projectId),
     targetLocale: optional(state.targetLocale),
     jobId: optional(state.jobId),

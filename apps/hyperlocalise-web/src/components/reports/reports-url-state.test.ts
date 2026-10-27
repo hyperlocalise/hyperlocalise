@@ -17,6 +17,7 @@ import {
   buildReportsHref,
   DEFAULT_REPORTS_STATE,
   parseReportsSearchParams,
+  presetDates,
 } from "./reports-url-state";
 
 describe("Reports URL state", () => {
@@ -84,5 +85,34 @@ describe("Reports URL state", () => {
       page: 1,
     });
     expect(applyReportsChange(custom, { page: 5 }).page).toBe(5);
+  });
+
+  it("works out each ready-made range from today, in UTC calendar months", () => {
+    expect(presetDates("7", "2026-10-21", null)).toEqual({ from: "2026-10-15", to: "2026-10-21" });
+    expect(presetDates("month", "2026-10-21", null)).toEqual({
+      from: "2026-10-01",
+      to: "2026-10-21",
+    });
+    // Last month from January is December of the year before.
+    expect(presetDates("last_month", "2026-01-09", null)).toEqual({
+      from: "2025-12-01",
+      to: "2025-12-31",
+    });
+    expect(presetDates("quarter", "2026-11-03", null)).toEqual({
+      from: "2026-10-01",
+      to: "2026-11-03",
+    });
+    expect(presetDates("all", "2026-10-21", "2026-03-03")).toEqual({
+      from: "2026-03-03",
+      to: "2026-10-21",
+    });
+    // Before Reports has started, "since Reports started" is today.
+    expect(presetDates("all", "2026-10-21", null)).toEqual({
+      from: "2026-10-21",
+      to: "2026-10-21",
+    });
+    expect(parseReportsSearchParams(new URLSearchParams("range=last_month")).range).toBe(
+      "last_month",
+    );
   });
 });

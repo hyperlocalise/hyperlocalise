@@ -45,6 +45,16 @@ export const Activity: Story = {
   },
 };
 
+export const DatesPicker: Story = {
+  play: async ({ canvas }) => {
+    await userEvent.click(await canvas.findByRole("button", { name: /^Dates Last 28 days/ }));
+    // The popover draws outside the story's own element.
+    const page = within(document.body);
+    await expect(await page.findByRole("list", { name: "Ready-made ranges" })).toBeInTheDocument();
+    await expect(page.getAllByRole("grid")).toHaveLength(2);
+  },
+};
+
 export const AiUsage: Story = {
   parameters: {
     nextjs: {

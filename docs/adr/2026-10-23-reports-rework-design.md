@@ -62,7 +62,7 @@ Reports (behind the `workspace-reports` flag, no customer users yet) records wor
 
 ### Pages
 
-- The Reports page, for the workspace and for each project, has six tabs: Activity, Word counts, Time, Costs, Cost estimate and Budgets (seven since [the AI usage tab](./2026-10-27-reports-ai-usage-tab-design.md)). The tab, dates and filters are kept in the address.
+- The Reports page, for the workspace and for each project, has six tabs: Activity, Word counts, Time, Costs, Cost estimate and Budgets (seven since [the AI usage tab](./2026-10-27-reports-ai-usage-tab-design.md)). The tab, dates and filters are kept in the address. The dates are one button that opens ready-made ranges (the last 7, 28 or 90 days, this month, last month, this quarter, since Reports started), which move with today, beside a two-month calendar (`react-day-picker`) and two typed boxes for fixed dates; days are UTC, from the day Reports started to today.
 - Native tasks get a Report tab: their words, match analysis, time logged and, for `billing:read`, their cost and pricing. Native projects get a Reports link in their sidebar.
 
 ## Consequences
