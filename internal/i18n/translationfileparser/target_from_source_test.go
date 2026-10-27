@@ -390,11 +390,72 @@ func TestMarshalTargetFromSourceRejectsUnknownFileTypes(t *testing.T) {
 	}
 }
 
+// translatedValuesForSource keys translations the way ingest stores them: read by the
+// ingest parser, with keys trimmed.
+func TestMarshalTargetFromSourceWritesThePOHeaderForTheTargetLocale(t *testing.T) {
+	source := "msgid \"\"\nmsgstr \"\"\n\"Language: en\\n\"\n\"Plural-Forms: nplurals=2; plural=(n != 1);\\n\"\n\nmsgid \"one file\"\nmsgid_plural \"%d files\"\nmsgstr[0] \"\"\nmsgstr[1] \"\"\n"
+	values := map[string]string{"one file||one": "jeden plik", "one file||other": "%d plików"}
+
+	out, err := MarshalTargetFromSource("messages.pot", []byte(source), values, "en", "pl-PL")
+	if err != nil {
+		t.Fatalf("marshal target: %v", err)
+	}
+
+	rendered := string(out)
+	for _, want := range []string{"Language: pl_PL", "nplurals=4", "msgstr[3]", "jeden plik"} {
+		if !strings.Contains(rendered, want) {
+			t.Errorf("target is missing %q:\n%s", want, rendered)
+		}
+	}
+}
+
+func TestMarshalTargetFromSourceAddsAColumnForANewLocale(t *testing.T) {
+	source := "key,en-US,de-DE\ngreeting,Hello,Hallo\nfarewell,Goodbye,Tschüss\n"
+
+	out, err := MarshalTargetFromSource("catalog.csv", []byte(source), map[string]string{"greeting": "Bonjour"}, "en-US", "fr-FR")
+	if err != nil {
+		t.Fatalf("marshal target: %v", err)
+	}
+
+	want := "key,en-US,de-DE,fr-FR\ngreeting,Hello,Hallo,Bonjour\nfarewell,Goodbye,Tschüss,\n"
+	if string(out) != want {
+		t.Fatalf("got:\n%s\nwant:\n%s", out, want)
+	}
+}
+
+func TestMarshalTargetFromSourceFindsKeysTrimmedAtIngest(t *testing.T) {
+	source := "msgid \"Usage: foo\\n\"\nmsgstr \"\"\n"
+
+	out, err := MarshalTargetFromSource("messages.po", []byte(source), map[string]string{"Usage: foo": "Utilisation : foo\n"}, "en", "fr")
+	if err != nil {
+		t.Fatalf("marshal target: %v", err)
+	}
+
+	if !strings.Contains(string(out), `msgstr "Utilisation : foo\n"`) {
+		t.Fatalf("translation of a trimmed key was not written:\n%s", out)
+	}
+}
+
+func TestMarshalTargetFromSourceIgnoresKeysTheSourceDoesNotHave(t *testing.T) {
+	out, err := MarshalTargetFromSource("messages.toml", []byte("title = \"Hello\"\n"), map[string]string{"title": "Hallo", "removed.key": "Stale"}, "en", "de")
+	if err != nil {
+		t.Fatalf("marshal target: %v", err)
+	}
+
+	if strings.Contains(string(out), "Stale") || !strings.Contains(string(out), "Hallo") {
+		t.Fatalf("got:\n%s", out)
+	}
+}
+
 func translatedValuesForSource(t *testing.T, path, source string, translate map[string]string) map[string]string {
 	t.Helper()
-	entries, err := NewDefaultStrategy().Parse(path, []byte(source))
+	ingested, err := NewDefaultStrategy().ParseIngestEntriesWithSourceLocale(path, []byte(source), "en", "en")
 	if err != nil {
 		t.Fatalf("parse source: %v", err)
+	}
+	entries := make(map[string]string, len(ingested))
+	for key, entry := range ingested {
+		entries[strings.TrimSpace(key)] = entry.Text
 	}
 	values := map[string]string{}
 	for key, text := range entries {

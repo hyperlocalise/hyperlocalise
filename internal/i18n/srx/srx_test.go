@@ -236,6 +236,23 @@ func TestJoinSpanValuesDropsPartlyTranslatedKeys(t *testing.T) {
 	}
 }
 
+func TestJoinSpanValuesKeepsAWholeStringTranslation(t *testing.T) {
+	t.Parallel()
+	sourceSpans := map[string]string{
+		"intro#srx.0": "Hello.",
+		"intro#srx.1": " World.",
+	}
+	got := JoinSpanValues(map[string]string{
+		"intro":       "Salut tout le monde.",
+		"intro#srx.0": "Bonjour.",
+		"intro#srx.1": "Monde.",
+	}, sourceSpans)
+
+	if len(got) != 1 || got["intro"] != "Salut tout le monde." {
+		t.Fatalf("joined = %#v", got)
+	}
+}
+
 func TestJoinSpanValuesLeavesValuesAloneWithoutSourceSpans(t *testing.T) {
 	t.Parallel()
 	values := map[string]string{"note#srx.0": "Bonjour."}
