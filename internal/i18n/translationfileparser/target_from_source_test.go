@@ -340,6 +340,8 @@ func TestMarshalTargetFromSourceCoversEveryParsedFileType(t *testing.T) {
 		".docx":     "MarshalDOCX",
 		".pptx":     "MarshalPPTX",
 		".xlsx":     "MarshalXLSX",
+		".pdf":      "MarshalPDF, which also reports text that overflows its box",
+		".txt":      "MarshalPlainText",
 	}
 
 	covered := map[string]struct{}{}
@@ -374,7 +376,7 @@ func TestMarshalTargetFromSourceCoversEveryParsedFileType(t *testing.T) {
 // Extensions that reach the same writer as an extension with its own case.
 func sharesWriterWithCoveredExtension(ext string) bool {
 	switch ext {
-	case ".yaml", ".xlif", ".xliff", ".htm", ".jsx", ".mjs", ".cjs", ".tsx", ".mts", ".cts":
+	case ".yaml", ".pot", ".xlif", ".xliff", ".htm", ".jsx", ".mjs", ".cjs", ".tsx", ".mts", ".cts":
 		return true
 	default:
 		return false
@@ -382,7 +384,7 @@ func sharesWriterWithCoveredExtension(ext string) bool {
 }
 
 func TestMarshalTargetFromSourceRejectsUnknownFileTypes(t *testing.T) {
-	_, err := MarshalTargetFromSource("notes.txt", []byte("Hello"), map[string]string{"a": "b"}, "en", "de")
+	_, err := MarshalTargetFromSource("notes.bin", []byte("Hello"), map[string]string{"a": "b"}, "en", "de")
 	if !errors.Is(err, ErrTargetFormatUnsupported) {
 		t.Fatalf("want ErrTargetFormatUnsupported, got %v", err)
 	}

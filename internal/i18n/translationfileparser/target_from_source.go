@@ -22,7 +22,7 @@ func MarshalTargetFromSource(sourcePath string, source []byte, values map[string
 		return MarshalYAML(source, values)
 	case ".xlf", ".xlif", ".xliff":
 		return MarshalXLIFF(source, values, sourceLocale, targetLocale)
-	case ".po":
+	case ".po", ".pot":
 		return MarshalPOFile(source, values)
 	case ".html", ".htm":
 		content, _ := MarshalHTML(source, values)
