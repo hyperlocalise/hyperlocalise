@@ -918,15 +918,25 @@ async function writeJobStatus(input: {
     .onConflictDoNothing();
 }
 
-/** Marks the days of a task's current strings for its project's summary to be worked out again. */
+/**
+ * Marks the days of a task's current strings, and of the same strings in other tasks, for their
+ * project's summary to be worked out again: the project counts a string on its earliest current
+ * analysis, which may be another task's, and whether it is abandoned depends on every task that
+ * holds it.
+ */
 async function markTaskDays(organizationId: string, jobId: string) {
   await db.transaction(async (tx) => {
-    // By workspace and task, the identity index's first two columns.
+    // The task's strings by the identity index's first two columns, their siblings by the segment
+    // index.
     const rows = await tx.execute<{ projectId: string; day: string }>(sql`
-      select distinct project_id as "projectId", (created_at at time zone 'UTC')::date::text as day
-      from reporting_analyses
-      where organization_id = ${organizationId} and job_id = ${jobId} and is_current
-        and project_id is not null
+      select distinct s.project_id as "projectId",
+        (s.created_at at time zone 'UTC')::date::text as day
+      from reporting_analyses a
+      join reporting_analyses s on s.organization_id = a.organization_id
+        and s.segment_id = a.segment_id and s.target_locale = a.target_locale
+        and s.step = a.step and s.source_revision = a.source_revision and s.is_current
+      where a.organization_id = ${organizationId} and a.job_id = ${jobId} and a.is_current
+        and s.project_id is not null
     `);
     await markSummaryDays(tx, organizationId, rows.rows);
   });

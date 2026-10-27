@@ -677,6 +677,48 @@ describe("reporting daily summary", () => {
     expect((await project_rows()).rows[0]).toEqual({ arrived: 2, done: 2, abandoned: 0 });
   });
 
+  it("leaves a string out of Progress on the day it first arrived when the last task holding it ends", async () => {
+    const { organization, project, save, createJob } = await createWorkspace();
+    const first = await createJob();
+    const last = await createJob();
+    await save({
+      segment: "greeting",
+      text: "Hello world",
+      locale: "fr-FR",
+      jobId: first.id,
+      on: "2026-06-01",
+    });
+    await save({
+      segment: "greeting",
+      text: "Hello world",
+      locale: "fr-FR",
+      jobId: last.id,
+      on: "2026-06-02",
+    });
+    const cancel = async (jobId: string) => {
+      await db
+        .update(schema.jobs)
+        .set({ status: "cancelled", completedAt: new Date() })
+        .where(eq(schema.jobs.id, jobId));
+      await captureJobStatus({ jobId, status: "cancelled", operationKey: `cancel:${jobId}` });
+      await expectSummaryMatchesRecount(organization.id);
+    };
+    const projectRows = async () =>
+      (
+        await db.execute<{ day: string; abandoned: number }>(sql`
+          select day::text, sum(abandoned_words)::integer as abandoned
+          from reporting_daily_by_project where project_id = ${project.id} and source = ''
+          group by 1 order by 1`)
+      ).rows;
+
+    // The later task still holds the string, so it stays open for the project.
+    await cancel(first.id);
+    expect(await projectRows()).toEqual([{ day: "2026-06-01", abandoned: 0 }]);
+    // Ending the later task changes the row of the earlier task's day, where the string counts.
+    await cancel(last.id);
+    expect(await projectRows()).toEqual([{ day: "2026-06-01", abandoned: 2 }]);
+  });
+
   it("counts a deleted task's unfinished strings as abandoned once their days are worked out again", async () => {
     const { organization, project, save, createJob } = await createWorkspace();
     const task = await createJob();
