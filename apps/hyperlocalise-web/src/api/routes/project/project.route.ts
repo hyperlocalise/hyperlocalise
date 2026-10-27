@@ -4030,13 +4030,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               return notFoundResponse(
                 c,
                 "source_file_not_found",
-                "The source file's content is missing. Upload the source file again.",
-              );
-            case "source_too_large":
-              return badRequestResponse(
-                c,
-                "source_file_too_large",
-                "This file is too large to download in its own format.",
+                "The source file's content could not be read. Try again, or upload the source file again.",
               );
             case "render_rejected":
               return internalErrorResponse(
@@ -4049,9 +4043,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           }
         }
         if (sourceFormatDownload.value) {
+          // A filled-in gettext template is a catalog, so it downloads as .po.
+          const sourceFormatFilename = filename.replace(/\.pot$/i, ".po");
           return c.body(new Uint8Array(sourceFormatDownload.value.content), 200, {
             "Content-Type": sourceFormatDownload.value.contentType,
-            "Content-Disposition": contentDisposition,
+            "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(sourceFormatFilename)}`,
             "Content-Security-Policy": "default-src 'none'; sandbox;",
             "X-Content-Type-Options": "nosniff",
             "Cache-Control": "no-store",

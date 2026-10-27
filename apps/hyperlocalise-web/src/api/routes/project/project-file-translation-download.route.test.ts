@@ -398,6 +398,23 @@ describe("project file translation download route", () => {
     expect(renderTranslationFileMock).not.toHaveBeenCalled();
   });
 
+  it("names a filled-in gettext template as a catalog", async () => {
+    const fixture = await sourceFileFixture("locales/messages.pot");
+    await storeSourceVersion(fixture, "locales/messages.pot", {
+      contentType: "text/x-gettext-translation-template",
+      content: 'msgid "Hello"\nmsgstr ""\n',
+    });
+    await saveStringKeys(fixture, [{ key: "Hello", text: "Hello", translation: "Bonjour" }]);
+    renderTranslationFileMock.mockResolvedValue(renderedFile('msgid "Hello"\nmsgstr "Bonjour"\n'));
+
+    const response = await fixture.download();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-disposition")).toBe(
+      "attachment; filename*=UTF-8''messages-fr-FR.po",
+    );
+  });
+
   it("writes a YAML download from the source version its strings were read from", async () => {
     const fixture = await sourceFileFixture("locales/messages.yml");
     const ingested = await storeSourceVersion(fixture, "locales/messages.yml", {
@@ -478,12 +495,6 @@ describe("project file translation download route", () => {
       status: 500,
       code: "translation_file_export_failed",
     },
-    {
-      failure: "the file writer refuses the source file's size",
-      error: new GoSvcClientError({ code: "payload_too_large", message: "too large", status: 413 }),
-      status: 400,
-      code: "source_file_too_large",
-    },
   ])("fails instead of downloading JSON when $failure", async ({ error, status, code }) => {
     const fixture = await sourceFileFixture("locales/messages.csv");
     await storeSourceVersion(fixture, "locales/messages.csv", {
@@ -499,7 +510,10 @@ describe("project file translation download route", () => {
     await expect(response.json()).resolves.toMatchObject({ error: code });
   });
 
-  it("keeps the JSON download while the file writer does not have its route yet", async () => {
+  it.each([
+    { reason: "does not have its route yet", status: 404 },
+    { reason: "refuses the source file's size", status: 413 },
+  ])("keeps the JSON download when the file writer $reason", async ({ status }) => {
     const fixture = await sourceFileFixture("locales/messages.csv");
     await storeSourceVersion(fixture, "locales/messages.csv", {
       contentType: "text/csv",
@@ -507,7 +521,7 @@ describe("project file translation download route", () => {
     });
     await saveStringKeys(fixture, [{ key: "greeting", text: "Hello", translation: "Bonjour" }]);
     renderTranslationFileMock.mockRejectedValue(
-      new GoSvcClientError({ code: "not_found", message: "not found", status: 404 }),
+      new GoSvcClientError({ code: "go_svc_error", message: "refused", status }),
     );
 
     const response = await fixture.download();
@@ -516,7 +530,7 @@ describe("project file translation download route", () => {
     expect(JSON.parse(await response.text())).toEqual({ greeting: "Bonjour" });
   });
 
-  it("does not send a source file over the file writer's limit", async () => {
+  it("downloads JSON without calling the file writer for a source over its limit", async () => {
     const fixture = await sourceFileFixture("locales/messages.csv");
     await storeSourceVersion(fixture, "locales/messages.csv", {
       contentType: "text/csv",
@@ -526,8 +540,8 @@ describe("project file translation download route", () => {
 
     const response = await fixture.download();
 
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toMatchObject({ error: "source_file_too_large" });
+    expect(response.status).toBe(200);
+    expect(JSON.parse(await response.text())).toEqual({ greeting: "Bonjour" });
     expect(renderTranslationFileMock).not.toHaveBeenCalled();
   });
 

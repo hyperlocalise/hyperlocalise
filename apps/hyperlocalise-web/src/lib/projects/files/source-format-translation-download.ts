@@ -18,6 +18,7 @@ import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import type { RenderTranslationFileRequest } from "@/lib/go-svc/go-svc-client.types";
 import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
+import { createLogger } from "@/lib/log";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { findLatestReconciledVersionForFile } from "@/lib/projects/files/source-file-segmentation";
 import {
@@ -29,6 +30,8 @@ import {
   isWholeFileTranslationFileFormat,
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
+
+const logger = createLogger("source-format-translation-download");
 
 const RENDER_TIMEOUT_MS = 30_000;
 const SPAN_SOURCE_PAGE_SIZE = 2_000;
@@ -65,7 +68,6 @@ export type ProjectSourceFormatTranslationDownload = {
 export type ProjectSourceFormatTranslationDownloadError =
   | { code: "translation_keys_not_found" }
   | { code: "source_content_not_found" }
-  | { code: "source_too_large" }
   | { code: "render_rejected" }
   | { code: "render_unavailable" };
 
@@ -176,7 +178,11 @@ export async function loadProjectSourceFormatTranslationDownload(input: {
     return err({ code: "source_content_not_found" });
   }
   if (source.value.content.byteLength > RENDER_SOURCE_MAX_BYTES) {
-    return err({ code: "source_too_large" });
+    logger.info(
+      { projectId: input.projectId, bytes: source.value.content.byteLength },
+      "source file too large to render; downloading JSON",
+    );
+    return ok(null);
   }
 
   const [project] = await db
@@ -212,12 +218,14 @@ export async function loadProjectSourceFormatTranslationDownload(input: {
   );
   if (isErr(rendered)) {
     const status = rendered.error instanceof GoSvcClientError ? rendered.error.status : null;
-    // A go-svc without this route yet (mid-deploy or rolled back) keeps the JSON download.
-    if (status === 404) {
+    // A go-svc without this route yet (mid-deploy or rolled back), or one that refuses the
+    // size, leaves the JSON download in place.
+    if (status === 404 || status === 413) {
+      logger.warn(
+        { projectId: input.projectId, status },
+        "go-svc could not render the translation file; downloading JSON",
+      );
       return ok(null);
-    }
-    if (status === 413) {
-      return err({ code: "source_too_large" });
     }
     return err({
       code:
