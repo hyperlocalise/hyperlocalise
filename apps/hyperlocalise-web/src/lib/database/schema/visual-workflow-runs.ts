@@ -12,6 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   index,
   integer,
   jsonb,
@@ -37,6 +38,11 @@ export const visualWorkflowRuns = pgTable(
   "visual_workflow_runs",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    traceId: uuid("trace_id").defaultRandom().notNull(),
+    parentRunId: uuid("parent_run_id").references((): AnyPgColumn => visualWorkflowRuns.id, {
+      onDelete: "cascade",
+    }),
+    parentNodeId: text("parent_node_id"),
     visualWorkflowId: uuid("visual_workflow_id")
       .notNull()
       .references(() => visualWorkflows.id, { onDelete: "cascade" }),
@@ -44,6 +50,8 @@ export const visualWorkflowRuns = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     mode: text("mode").notNull().default("live"),
+    /** In a mock run, the steps that ran for real instead of using their test data. */
+    realNodeIds: jsonb("real_node_ids").$type<string[]>(),
     encryptedPayload: jsonb("encrypted_payload").$type<Record<string, unknown>>(),
     leaseToken: text("lease_token"),
     leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
@@ -71,6 +79,8 @@ export const visualWorkflowRuns = pgTable(
   },
   (table) => [
     index("idx_visual_workflow_runs_workflow_created").on(table.visualWorkflowId, table.createdAt),
+    index("idx_visual_workflow_runs_parent").on(table.parentRunId),
+    index("idx_visual_workflow_runs_trace").on(table.organizationId, table.traceId),
     index("idx_visual_workflow_runs_org_status").on(table.organizationId, table.status),
     uniqueIndex("idx_visual_workflow_runs_idempotency_key")
       .on(table.organizationId, table.visualWorkflowId, table.idempotencyKey)
@@ -116,6 +126,8 @@ export const visualWorkflowNodeRuns = pgTable(
   },
   (table) => [
     index("idx_visual_workflow_node_runs_run").on(table.runId, table.createdAt),
+    /** Reports reads a workspace's step run times by when they finished. */
+    index("idx_visual_workflow_node_runs_org_finished").on(table.organizationId, table.finishedAt),
     uniqueIndex("idx_visual_workflow_node_runs_run_node").on(
       table.runId,
       table.nodeId,

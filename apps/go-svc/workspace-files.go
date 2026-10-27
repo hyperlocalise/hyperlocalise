@@ -109,6 +109,7 @@ func (api *projectAPI) workspaceFiles(ctx context.Context, actor projectActor, q
 		ranked as (
 			select v.id as version_id, v.project_id, v.source_path, v.source_hash, v.commit_sha,
 				v.workflow_run_id, v.created_at as uploaded_at, v.stored_file_id,
+				v.ingest_state, v.ingest_error,
 				f.metadata, f.filename, f.byte_size,
 				row_number() over (
 					partition by v.project_id, v.source_path
@@ -167,6 +168,8 @@ func (api *projectAPI) workspaceFiles(ctx context.Context, actor projectActor, q
 				'metadata', s.metadata,
 				'filename', s.filename,
 				'byteSize', s.byte_size,
+				'ingestState', s.ingest_state,
+				'ingestError', s.ingest_error,
 				'provider', null,
 				'projectId', p.id,
 				'projectName', p.name,

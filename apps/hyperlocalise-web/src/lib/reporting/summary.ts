@@ -1,0 +1,567 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { and, asc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
+
+import { reportingStart } from "./reporting-start";
+
+/**
+ * The version of the daily summary's rules. A workspace whose summary was built under another
+ * version is rebuilt in full, so raising this is how a change to the rules reaches old days.
+ */
+export const SUMMARY_VERSION = 3;
+
+export type SummaryMark = { projectId: string | null; day: string };
+
+/** The UTC day a recorded time falls on, as the summary stores it. */
+export function summaryDay(at: Date): string {
+  return at.toISOString().slice(0, 10);
+}
+
+/**
+ * Marks workspace, project and day for its summary rows to be worked out again. Called last
+ * inside the transaction of the write it follows, so the mark commits with the write.
+ */
+export async function markSummaryDays(
+  database: DatabaseClient,
+  organizationId: string,
+  marks: SummaryMark[],
+) {
+  const unique = new Map<string, { projectId: string; day: string }>();
+  for (const { projectId, day } of marks) {
+    if (projectId) unique.set(`${projectId}\u0000${day}`, { projectId, day });
+  }
+  if (unique.size === 0) return;
+  // A stable order, so two writes marking the same days lock the queue rows in the same order.
+  const rows = [...unique.values()].sort(
+    (left, right) =>
+      left.projectId.localeCompare(right.projectId) || left.day.localeCompare(right.day),
+  );
+  await database
+    .insert(schema.reportingSummaryQueue)
+    .values(rows.map((row) => ({ organizationId, projectId: row.projectId, day: row.day })))
+    .onConflictDoUpdate({
+      target: [
+        schema.reportingSummaryQueue.organizationId,
+        schema.reportingSummaryQueue.projectId,
+        schema.reportingSummaryQueue.day,
+      ],
+      set: {
+        generation: sql`${schema.reportingSummaryQueue.generation} + 1`,
+        markedAt: sql`now()`,
+      },
+    });
+}
+
+const UNITS = [
+  ["words", "coalesce(words, 0)"],
+  ["strings", "1"],
+  ["characters", "coalesce(characters, 0)"],
+  ["characters_with_spaces", "coalesce(characters_with_spaces, 0)"],
+] as const;
+
+/**
+ * Every summary measure, with how an arrival (a current analysis) and a finished string (a
+ * completion) count towards it. Arrivals see `representative`, `done`, `abandoned` and the
+ * analysis's counts; finished strings see `by_person` and the counts of the analysis they finished.
+ */
+const MEASURES: { column: string; arrival: string; finished: string }[] = [
+  ...UNITS.map(([unit, value]) => ({
+    column: `source_${unit}`,
+    arrival: `case when representative then ${value} else 0 end`,
+    finished: "0",
+  })),
+  ...UNITS.map(([unit, value]) => ({ column: `arrived_${unit}`, arrival: value, finished: "0" })),
+  {
+    column: "arrived_uncounted",
+    arrival: "case when words is null then 1 else 0 end",
+    finished: "0",
+  },
+  ...UNITS.map(([unit, value]) => ({
+    column: `arrived_done_${unit}`,
+    arrival: `case when done then ${value} else 0 end`,
+    finished: "0",
+  })),
+  ...UNITS.map(([unit, value]) => ({
+    column: `abandoned_${unit}`,
+    arrival: `case when abandoned then ${value} else 0 end`,
+    finished: "0",
+  })),
+  ...UNITS.map(([unit, value]) => ({ column: `finished_${unit}`, arrival: "0", finished: value })),
+  ...UNITS.map(([unit, value]) => ({
+    column: `finished_by_person_${unit}`,
+    arrival: "0",
+    finished: `case when by_person then ${value} else 0 end`,
+  })),
+  ...UNITS.map(([unit, value]) => ({
+    column: `finished_unchanged_${unit}`,
+    arrival: "0",
+    finished: `case when unchanged then ${value} else 0 end`,
+  })),
+];
+const MEASURE_COLUMNS = MEASURES.map((measure) => measure.column).join(", ");
+const MEASURE_SUMS = MEASURES.map((measure) => `sum(${measure.column})::integer`).join(", ");
+const ARRIVAL_MEASURES = MEASURES.map((m) => `${m.arrival} as ${m.column}`).join(", ");
+const FINISHED_MEASURES = MEASURES.map((m) => `${m.finished} as ${m.column}`).join(", ");
+
+/** Days refreshed in one statement for one project: a first build is a year at most. */
+const MAX_DAYS_PER_REFRESH = 400;
+/**
+ * Above this many strings arriving in the refreshed days, their completions are found by scanning
+ * the project's completions rather than one key lookup each (measured: 380,000 strings, 1.6 s
+ * against 2.1 s; 43,000, 0.28 s against 0.42 s; 6,200, 47 ms against 65 ms; 429, 300 ms against
+ * 18 ms).
+ */
+const SCAN_COMPLETIONS_ABOVE = 2_000;
+
+/** How long a refresh asked to wait tries for the project's lock, and how often it asks. */
+const LOCK_WAIT_MS = 5_000;
+const LOCK_POLL_MS = 250;
+
+/**
+ * Works out the summary rows of one workspace and project again for the given UTC days, from the
+ * raw rows, in one statement per table, and removes each day's mark unless a write marked it
+ * again meanwhile. Returns "busy" when another refresh of the project holds it: at once, or
+ * after a few seconds' wait when asked to wait.
+ */
+export async function refreshSummaryDays(
+  input: {
+    organizationId: string;
+    projectId: string;
+    days: string[];
+    /** Overrides `SCAN_COMPLETIONS_ABOVE`, so tests can check both ways give the same rows. */
+    scanCompletionsAbove?: number;
+    /** Wait a few seconds for another refresh of the project rather than answering "busy" at once. */
+    waitForLock?: boolean;
+    /** Refresh only the days still marked: a task's refresh skips days a scheduled run did meanwhile. */
+    onlyMarked?: boolean;
+    /**
+     * Leave the project's current rows to the scheduled run, which rewrites them once per project.
+     * The days' marks are kept too, so that run still comes: a refresh that clears them would
+     * leave the current rows behind until some other write to the project.
+     */
+    skipCurrentRows?: boolean;
+  },
+  database: DatabaseClient = db,
+): Promise<"refreshed" | "busy"> {
+  const { organizationId, projectId } = input;
+  const askedDays = [...new Set(input.days)].sort();
+  if (askedDays.length === 0) return "refreshed";
+  return database.transaction(async (tx) => {
+    const lockKey = `reporting-summary:${organizationId}:${projectId}`;
+    const tryLock = async () =>
+      (
+        await tx.execute<{ locked: boolean }>(
+          sql`select pg_try_advisory_xact_lock(hashtextextended(${lockKey}, 0)) as locked`,
+        )
+      ).rows[0]?.locked === true;
+    const waitUntil = Date.now() + (input.waitForLock ? LOCK_WAIT_MS : 0);
+    let locked = await tryLock();
+    while (!locked && Date.now() < waitUntil) {
+      await new Promise((resolve) => setTimeout(resolve, LOCK_POLL_MS));
+      locked = await tryLock();
+    }
+    if (!locked) return "busy";
+    const queued = await tx
+      .select({
+        day: schema.reportingSummaryQueue.day,
+        generation: schema.reportingSummaryQueue.generation,
+      })
+      .from(schema.reportingSummaryQueue)
+      .where(
+        and(
+          eq(schema.reportingSummaryQueue.organizationId, organizationId),
+          eq(schema.reportingSummaryQueue.projectId, projectId),
+          inArray(schema.reportingSummaryQueue.day, askedDays),
+        ),
+      )
+      // Day order, as writers lock them, so a refresh and a write cannot deadlock.
+      .orderBy(asc(schema.reportingSummaryQueue.day));
+    const days = input.onlyMarked ? queued.map((mark) => mark.day) : askedDays;
+    if (days.length === 0) return "refreshed";
+    const dayList = sql`${`{${days.join(",")}}`}::date[]`;
+    // The index covers the range from the first to the last day; the list then picks the
+    // marked days inside it.
+    const inDays = (column: string) => {
+      const at = sql.raw(column);
+      return sql`${at} >= (${days[0]}::date::timestamp at time zone 'UTC')
+        and ${at} < ((${days[days.length - 1]}::date + 1)::timestamp at time zone 'UTC')
+        and (${at} at time zone 'UTC')::date = any(${dayList})`;
+    };
+    await tx
+      .delete(schema.reportingDailyByTask)
+      .where(
+        and(
+          eq(schema.reportingDailyByTask.organizationId, organizationId),
+          eq(schema.reportingDailyByTask.projectId, projectId),
+          inArray(schema.reportingDailyByTask.day, days),
+        ),
+      );
+    // The day's arrivals go into a table of their own and are measured: work arrives in bursts
+    // (a first import puts hundreds of thousands of strings on one day), which the planner's
+    // estimates for a date range miss by orders of magnitude, and a plan made for one row that
+    // meets thousands rereads a whole subquery for each.
+    await tx.execute(sql`drop table if exists pg_temp.reporting_summary_arrivals`);
+    await tx.execute(sql`
+      create temp table reporting_summary_arrivals on commit drop as
+      select a.id, a.job_id, a.segment_id, a.source_revision, a.step, a.source_locale,
+        a.target_locale, a.bucket, a.billable, a.words, a.characters, a.characters_with_spaces,
+        a.created_at
+      from reporting_analyses a
+      where a.organization_id = ${organizationId} and a.project_id = ${projectId}
+        and a.is_current and ${inDays("a.created_at")}
+    `);
+    await tx.execute(sql`analyze reporting_summary_arrivals`);
+    const [arrivalCount] = (
+      await tx.execute<{ rows: number }>(
+        sql`select count(*)::integer as rows from reporting_summary_arrivals`,
+      )
+    ).rows;
+    // Looking each completion up by its key is fastest for an ordinary day; for a burst,
+    // scanning the project's completions once is.
+    const completionsOf = (rows: string) =>
+      (arrivalCount?.rows ?? 0) > (input.scanCompletionsAbove ?? SCAN_COMPLETIONS_ABOVE)
+        ? sql`select d.analysis_id from reporting_activity d
+            where d.organization_id = ${organizationId} and d.project_id = ${projectId}
+              and d.kind = 'completion' and d.analysis_id in (select id from ${sql.raw(rows)})`
+        : sql`select d.analysis_id from reporting_activity d
+            where d.organization_id = ${organizationId}
+              and d.operation_key in (select 'completion:' || id || ':' || step from ${sql.raw(rows)})`;
+    // Every current analysis of the strings arriving in these days, in any task of the project:
+    // which is each text's earliest (its source and, for the project, its arrival count once),
+    // which have been finished, and which are held by an open task.
+    await tx.execute(sql`drop table if exists pg_temp.reporting_summary_siblings`);
+    await tx.execute(sql`
+      create temp table reporting_summary_siblings on commit drop as
+      with base as (
+        select o.id, o.job_id, o.segment_id, o.source_revision, o.target_locale, o.step,
+          o.created_at,
+          -- A deleted task has no status: it is closed, not open.
+          (o.job_id is null or coalesce(j.status in ('queued', 'running', 'waiting_for_review'), false))
+            as open
+        from reporting_analyses o
+        left join jobs j on j.id = o.job_id
+        where o.organization_id = ${organizationId} and o.project_id = ${projectId}
+          and o.is_current and o.segment_id in (select segment_id from reporting_summary_arrivals)
+      )
+      select b.*, b.id in (${completionsOf("base")}) as done from base b
+    `);
+    await tx.execute(sql`analyze reporting_summary_siblings`);
+    const finishedRows = sql`
+      select s.job_id, s.source_locale, c.target_locale, c.step, s.bucket,
+        coalesce(c.source, 'unknown') as source, s.billable as payable,
+        (c.created_at at time zone 'UTC')::date as day, s.words, s.characters,
+        s.characters_with_spaces, c.actor_user_id is not null as by_person,
+        coalesce(c.unchanged, false) as unchanged
+      from reporting_activity c join reporting_analyses s on s.id = c.analysis_id
+      where c.organization_id = ${organizationId} and c.project_id = ${projectId}
+        and c.kind = 'completion' and ${inDays("c.created_at")}`;
+    await tx.execute(sql`drop table if exists pg_temp.reporting_summary_finished`);
+    await tx.execute(
+      sql`create temp table reporting_summary_finished on commit drop as ${finishedRows}`,
+    );
+    await tx.execute(sql`
+      with arrivals as (select * from reporting_summary_arrivals),
+      siblings as (select * from reporting_summary_siblings),
+      -- Source counts each text once however many languages it goes into: only on the earliest
+      -- current analysis of the same task, string, text and step.
+      firsts as (
+        select distinct on (job_id, segment_id, source_revision, step) id from siblings
+        order by job_id, segment_id, source_revision, step, created_at, target_locale, id
+      )
+      insert into reporting_daily_by_task (organization_id, project_id, job_id, source_locale,
+        target_locale, step, bucket, source, payable, day, ${sql.raw(MEASURE_COLUMNS)})
+      select ${organizationId}, ${projectId}, job_id, source_locale, target_locale, step, bucket,
+        source, payable, day, ${sql.raw(MEASURE_SUMS)}
+      from (
+        -- An arrival has no source of its own: it keys on "" and the finished rows on theirs.
+        select a.job_id, a.source_locale, a.target_locale, a.step, a.bucket, '' as source,
+          a.billable as payable, (a.created_at at time zone 'UTC')::date as day,
+          ${sql.raw(ARRIVAL_MEASURES)}
+        from (
+          -- A task's unfinished string is abandoned once the task is no longer open: failed,
+          -- cancelled, deleted, or marked done with the string left over, since no more work
+          -- will come from a task that has ended.
+          select a.*, s.done, f.id is not null as representative, not s.done and not s.open as abandoned
+          from arrivals a
+          join siblings s on s.id = a.id
+          left join firsts f on f.id = a.id
+        ) a
+        union all
+        select f.job_id, f.source_locale, f.target_locale, f.step, f.bucket, f.source, f.payable,
+          f.day, ${sql.raw(FINISHED_MEASURES)}
+        from reporting_summary_finished f
+      ) facts
+      group by job_id, source_locale, target_locale, step, bucket, source, payable, day
+    `);
+    await tx
+      .delete(schema.reportingDailyByProject)
+      .where(
+        and(
+          eq(schema.reportingDailyByProject.organizationId, organizationId),
+          eq(schema.reportingDailyByProject.projectId, projectId),
+          inArray(schema.reportingDailyByProject.day, days),
+        ),
+      );
+    // The project's rows count each string once per text, language and step however many tasks
+    // hold it: on its earliest current analysis, done if any task finished it, abandoned if no
+    // open task holds it. Its source counts each text once across tasks and languages too.
+    await tx.execute(sql`
+      with arrivals as (select * from reporting_summary_arrivals),
+      siblings as (select * from reporting_summary_siblings),
+      strings as (
+        select segment_id, source_revision, target_locale, step,
+          (array_agg(id order by created_at, id))[1] as first_id,
+          bool_or(done) as done, bool_or(open) as open
+        from siblings group by 1, 2, 3, 4
+      ),
+      texts as (
+        select distinct on (segment_id, source_revision, step) id from siblings
+        order by segment_id, source_revision, step, created_at, target_locale, id
+      )
+      insert into reporting_daily_by_project (organization_id, project_id, target_locale, step,
+        bucket, source, day, ${sql.raw(MEASURE_COLUMNS)})
+      select ${organizationId}, ${projectId}, target_locale, step, bucket, source, day,
+        ${sql.raw(MEASURE_SUMS)}
+      from (
+        select a.target_locale, a.step, a.bucket, '' as source,
+          (a.created_at at time zone 'UTC')::date as day, ${sql.raw(ARRIVAL_MEASURES)}
+        from (
+          select a.*, g.done, t.id is not null as representative, not g.done and not g.open as abandoned
+          from arrivals a
+          join strings g on g.first_id = a.id
+          left join texts t on t.id = a.id
+        ) a
+        union all
+        select f.target_locale, f.step, f.bucket, f.source, f.day, ${sql.raw(FINISHED_MEASURES)}
+        from reporting_summary_finished f
+      ) facts
+      group by target_locale, step, bucket, source, day
+    `);
+    if (input.skipCurrentRows) return "refreshed";
+    await refreshCurrentByProject(tx, organizationId, projectId);
+    // A write that marked a day while this ran bumped its generation: keep that mark.
+    for (const mark of queued) {
+      await tx
+        .delete(schema.reportingSummaryQueue)
+        .where(
+          and(
+            eq(schema.reportingSummaryQueue.organizationId, organizationId),
+            eq(schema.reportingSummaryQueue.projectId, projectId),
+            eq(schema.reportingSummaryQueue.day, mark.day),
+            eq(schema.reportingSummaryQueue.generation, mark.generation),
+          ),
+        );
+    }
+    return "refreshed";
+  });
+}
+
+const CURRENT_COLUMNS = [
+  ...["words", "strings", "characters", "characters_with_spaces"].flatMap((unit) => [
+    `arrived_${unit}`,
+    `arrived_done_${unit}`,
+  ]),
+  "arrived_uncounted",
+];
+
+/**
+ * Rewrites a project's current strings from the raw analyses: each string once per language
+ * and step, by its newest current analysis, however many tasks hold it (a task for people on a
+ * file a job already translated holds every string of it again), with that analysis's own
+ * source language. Reads the project's current analyses and completions whole, so only the
+ * scheduled run does this, once per project per run.
+ */
+async function refreshCurrentByProject(
+  tx: DatabaseClient,
+  organizationId: string,
+  projectId: string,
+) {
+  await tx
+    .delete(schema.reportingCurrentByProject)
+    .where(
+      and(
+        eq(schema.reportingCurrentByProject.organizationId, organizationId),
+        eq(schema.reportingCurrentByProject.projectId, projectId),
+      ),
+    );
+  await tx.execute(sql`
+    insert into reporting_current_by_project (organization_id, project_id, source_locale,
+      target_locale, step, bucket, ${sql.raw(CURRENT_COLUMNS.join(", "))})
+    select ${organizationId}, ${projectId}, a.source_locale, a.target_locale, a.step, a.bucket,
+      ${sql.join(
+        UNITS.flatMap(([, value]) => [
+          sql`sum(${sql.raw(value)})::integer`,
+          sql`sum(case when d.analysis_id is not null then ${sql.raw(value)} else 0 end)::integer`,
+        ]),
+        sql`, `,
+      )},
+      sum(case when a.words is null then 1 else 0 end)::integer
+    from (
+      select distinct on (a.segment_id, a.target_locale, a.step) a.*
+      from reporting_analyses a
+      where a.organization_id = ${organizationId} and a.project_id = ${projectId} and a.is_current
+      order by a.segment_id, a.target_locale, a.step, a.created_at desc, a.id desc
+    ) a
+    -- The project's completions in one pass, rather than one lookup for each current string.
+    left join (
+      select distinct d.analysis_id from reporting_activity d
+      where d.organization_id = ${organizationId} and d.project_id = ${projectId}
+        and d.kind = 'completion'
+    ) d on d.analysis_id = a.id
+    group by 3, 4, 5, 6
+  `);
+}
+
+/** `refreshSummaryDays` for a single day. */
+export async function refreshSummaryDay(
+  input: { organizationId: string; projectId: string; day: string },
+  database: DatabaseClient = db,
+): Promise<"refreshed" | "busy"> {
+  return refreshSummaryDays({ ...input, days: [input.day] }, database);
+}
+
+export type SummaryRefreshResult = {
+  daysRefreshed: number;
+  projectsSkipped: number;
+  daysPending: number;
+  workspacesQueuedForBuild: number;
+};
+
+/**
+ * Refreshes marked days until none are left or `signal` fires: the project with the oldest mark
+ * first, all of its marked days at once (up to `MAX_DAYS_PER_REFRESH`).
+ */
+export async function refreshPendingSummary(
+  input: { signal?: AbortSignal; organizationIds?: string[]; scanCompletionsAbove?: number } = {},
+): Promise<Omit<SummaryRefreshResult, "workspacesQueuedForBuild">> {
+  let daysRefreshed = 0;
+  const skipped = new Set<string>();
+  const scope = input.organizationIds
+    ? sql`and organization_id in (${sql.join(
+        input.organizationIds.map((id) => sql`${id}`),
+        sql`, `,
+      )})`
+    : sql``;
+  for (;;) {
+    if (input.signal?.aborted) break;
+    const projects = (
+      await db.execute<{ organizationId: string; projectId: string }>(sql`
+        select organization_id as "organizationId", project_id as "projectId"
+        from reporting_summary_queue where true ${scope}
+        group by organization_id, project_id order by min(marked_at)
+        limit ${skipped.size + 1}
+      `)
+    ).rows.filter((project) => !skipped.has(`${project.organizationId}:${project.projectId}`));
+    const next = projects[0];
+    if (!next) break;
+    const marks = await db
+      .select({ day: schema.reportingSummaryQueue.day })
+      .from(schema.reportingSummaryQueue)
+      .where(
+        and(
+          eq(schema.reportingSummaryQueue.organizationId, next.organizationId),
+          eq(schema.reportingSummaryQueue.projectId, next.projectId),
+        ),
+      )
+      .orderBy(asc(schema.reportingSummaryQueue.markedAt))
+      .limit(MAX_DAYS_PER_REFRESH);
+    const outcome = await refreshSummaryDays({
+      ...next,
+      days: marks.map((mark) => mark.day),
+      scanCompletionsAbove: input.scanCompletionsAbove,
+    });
+    if (outcome === "refreshed") daysRefreshed += marks.length;
+    else skipped.add(`${next.organizationId}:${next.projectId}`);
+  }
+  const [pending] = (
+    await db.execute<{ count: number }>(
+      sql`select count(*)::integer as count from reporting_summary_queue`,
+    )
+  ).rows;
+  return { daysRefreshed, projectsSkipped: skipped.size, daysPending: pending?.count ?? 0 };
+}
+
+/**
+ * Queues every day of a workspace whose summary was never built, or was built under another
+ * `SUMMARY_VERSION`, so the refresh builds it. A workspace gets its `reporting_workspaces` row
+ * the first time Reports records anything for it.
+ */
+export async function ensureSummaryBuilt(input: { organizationIds?: string[] } = {}) {
+  // A workspace with records from before the start was kept per workspace may not have written
+  // anything since; the capture task's own list of workspaces finds those it records saves for.
+  const unstarted = await db.execute<{ organizationId: string }>(sql`
+    select c.organization_id as "organizationId" from reporting_capture_cursors c
+    where not exists (
+      select 1 from reporting_workspaces w where w.organization_id = c.organization_id
+    )
+    ${
+      input.organizationIds
+        ? sql`and c.organization_id in (${sql.join(
+            input.organizationIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})`
+        : sql``
+    }
+  `);
+  for (const { organizationId } of unstarted.rows) await reportingStart(organizationId);
+  const workspaces = await db
+    .select({ organizationId: schema.reportingWorkspaces.organizationId })
+    .from(schema.reportingWorkspaces)
+    .where(
+      and(
+        or(
+          isNull(schema.reportingWorkspaces.summaryVersion),
+          ne(schema.reportingWorkspaces.summaryVersion, SUMMARY_VERSION),
+        ),
+        input.organizationIds
+          ? sql`${schema.reportingWorkspaces.organizationId} in (${sql.join(
+              input.organizationIds.map((id) => sql`${id}`),
+              sql`, `,
+            )})`
+          : undefined,
+      ),
+    );
+  for (const { organizationId } of workspaces) {
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`
+        insert into reporting_summary_queue (organization_id, project_id, day)
+        select ${organizationId}, project_id, day from (
+          select project_id, (created_at at time zone 'UTC')::date as day from reporting_analyses
+          where organization_id = ${organizationId} and project_id is not null
+          union
+          select project_id, (created_at at time zone 'UTC')::date from reporting_activity
+          where organization_id = ${organizationId} and kind = 'completion' and project_id is not null
+        ) days
+        order by project_id, day
+        on conflict (organization_id, project_id, day) do update
+          set generation = reporting_summary_queue.generation + 1, marked_at = now()
+      `);
+      await tx
+        .update(schema.reportingWorkspaces)
+        .set({ summaryVersion: SUMMARY_VERSION })
+        .where(eq(schema.reportingWorkspaces.organizationId, organizationId));
+    });
+  }
+  return workspaces.length;
+}
+
+/** Builds what is missing, then refreshes marked days, within `signal`'s time. */
+export async function refreshReportingSummary(
+  input: { signal?: AbortSignal } = {},
+): Promise<SummaryRefreshResult> {
+  const workspacesQueuedForBuild = await ensureSummaryBuilt();
+  const refreshed = await refreshPendingSummary({ signal: input.signal });
+  return { ...refreshed, workspacesQueuedForBuild };
+}

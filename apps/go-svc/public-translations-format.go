@@ -243,6 +243,15 @@ func publicTranslationContentDisposition(filename string) string {
 
 var lottieTextKeyPattern = regexp.MustCompile(`^(?:layers|assets\[\d+\]\.layers)\[\d+\]\.t\.d\.k\[\d+\]\.s\.t$`)
 
+func isOfficeTranslationSource(sourcePath string) bool {
+	switch strings.ToLower(nodePathExtname(sourcePath)) {
+	case ".xlsx", ".xls", ".docx", ".pptx":
+		return true
+	default:
+		return false
+	}
+}
+
 func isLottieTranslationSource(sourcePath string, keys []string) bool {
 	dot := strings.LastIndexByte(sourcePath, '.')
 	if dot == -1 {

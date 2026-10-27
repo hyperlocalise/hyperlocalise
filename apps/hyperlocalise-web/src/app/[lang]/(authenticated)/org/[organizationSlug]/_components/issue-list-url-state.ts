@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { OrganizationIssuesListQuery } from "@/lib/go-svc/go-svc-client.types";
 import {
   ISSUE_LIST_SORT_DIRECTIONS,
   ISSUE_LIST_SORT_FIELDS,
@@ -216,13 +217,13 @@ export function defaultSortDirForField(sort: IssueListSortField): IssueListSortD
 export function issueListStateToApiQuery(
   state: IssueListUrlState,
   options?: { includeProject?: boolean; limit?: number; offset?: number },
-) {
-  const query: Record<string, string> = {
+): OrganizationIssuesListQuery {
+  const query: OrganizationIssuesListQuery = {
     view: state.view,
     sort: state.sort,
     sortDir: state.sortDir,
-    limit: String(options?.limit ?? 50),
-    offset: String(options?.offset ?? 0),
+    limit: options?.limit ?? 50,
+    offset: options?.offset ?? 0,
   };
   if (state.status) {
     query.status = state.status;

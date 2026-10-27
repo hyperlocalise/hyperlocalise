@@ -22,7 +22,10 @@ var checkTypes = []string{
 	"not_localized", "whitespace_only", "same_as_source", "escaped_char_mismatch",
 	"length", "placeholder_mismatch", "glossary_violation", "format", "spelling",
 	"numbers_mismatch", "punctuation_mismatch", "character_case_mismatch",
+	"unreachable_plural_case",
 }
+
+const checkUnreachablePlural = "unreachable_plural_case"
 
 type Setting struct {
 	Enabled  bool   `json:"enabled"`
@@ -51,6 +54,8 @@ type Segment struct {
 	SourcePath   string `json:"sourcePath,omitempty"`
 	TargetLocale string `json:"targetLocale"`
 	MaxLength    int    `json:"maxLength,omitempty"`
+	// MessageFormat is auto, icu, or i18next. Empty means auto.
+	MessageFormat string `json:"messageFormat,omitempty"`
 }
 
 type Finding struct {
@@ -85,16 +90,32 @@ func DefaultPolicy() Policy {
 		"numbers_mismatch":        {false, "warning"},
 		"punctuation_mismatch":    {false, "warning"},
 		"character_case_mismatch": {false, "warning"},
+		checkUnreachablePlural:    {true, "error"},
 	}
 	return Policy{Version: PolicyVersion, Checks: checks}
+}
+
+func (p *Policy) applyDefaults() {
+	if p.Checks == nil {
+		p.Checks = map[string]Setting{}
+	}
+	if _, ok := p.Checks[checkUnreachablePlural]; !ok {
+		p.Checks[checkUnreachablePlural] = Setting{true, "error"}
+	}
 }
 
 func (p Policy) Validate() error {
 	if p.Version != PolicyVersion {
 		return fmt.Errorf("unsupported QA policy version %d", p.Version)
 	}
-	if len(p.Checks) != len(checkTypes) {
-		return errors.New("QA policy must contain all 12 checks")
+	known := make(map[string]struct{}, len(checkTypes))
+	for _, name := range checkTypes {
+		known[name] = struct{}{}
+	}
+	for name := range p.Checks {
+		if _, ok := known[name]; !ok {
+			return fmt.Errorf("unknown QA check %s", name)
+		}
 	}
 	for _, name := range checkTypes {
 		setting, ok := p.Checks[name]
@@ -119,6 +140,7 @@ func LoadPolicy(path string) (Policy, error) {
 	if err := decoder.Decode(&policy); err != nil {
 		return Policy{}, fmt.Errorf("decode QA policy: %w", err)
 	}
+	policy.applyDefaults()
 	if err := policy.Validate(); err != nil {
 		return Policy{}, err
 	}
@@ -126,6 +148,7 @@ func LoadPolicy(path string) (Policy, error) {
 }
 
 func ValidateBatch(ctx context.Context, segments []Segment, policy Policy) (Report, error) {
+	policy.applyDefaults()
 	if err := policy.Validate(); err != nil {
 		return Report{}, err
 	}
@@ -138,7 +161,7 @@ func ValidateBatch(ctx context.Context, segments []Segment, policy Policy) (Repo
 		if segment.TargetLocale == "" {
 			return Report{}, errors.New("targetLocale is required")
 		}
-		modes := make([]string, 0, 7)
+		modes := make([]string, 0, 8)
 		for _, mode := range segmentvalidate.KnownQAModes() {
 			if policy.Checks[mode].Enabled {
 				modes = append(modes, mode)
@@ -148,6 +171,7 @@ func ValidateBatch(ctx context.Context, segments []Segment, policy Policy) (Repo
 			SourceText: segment.SourceText, TargetText: segment.TargetText,
 			SourcePath: segment.SourcePath, TargetLocale: segment.TargetLocale,
 			MaxLength: segment.MaxLength, Modes: modes,
+			MessageFormat: segmentvalidate.ParseMessageFormat(segment.MessageFormat),
 		})
 		result := Result{ID: segment.ID, Checks: []Finding{}}
 		for _, check := range checks {
@@ -210,6 +234,8 @@ func typeForCheck(check segmentvalidate.Check) string {
 		return "punctuation_mismatch"
 	case "qa-character-case-mismatch":
 		return "character_case_mismatch"
+	case "qa-unreachable-plural-case":
+		return checkUnreachablePlural
 	case "length":
 		return "length"
 	}

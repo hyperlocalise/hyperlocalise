@@ -25,6 +25,8 @@ import { memo, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import { ConversationEmptyState } from "@/components/ai-elements/conversation";
+import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
+import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
 import { AgentTodoProgress, getAgentTodoItems } from "@/components/ai-elements/agent-todo-progress";
 import { AiElementErrorBoundary } from "@/components/ai-elements/ai-element-error-boundary";
 import { MessageResponse } from "@/components/ai-elements/message";
@@ -94,6 +96,7 @@ export function ConversationMessageList({
   isLoading,
   isStreaming,
   messages,
+  organizationSlug,
   streamedAssistant,
 }: {
   conversationId: string;
@@ -101,12 +104,13 @@ export function ConversationMessageList({
   isLoading: boolean;
   isStreaming: boolean;
   messages: ConversationMessage[];
+  /** Offers a plan change next to a reply refused for used-up AI credit. */
+  organizationSlug?: string;
   streamedAssistant: StreamedAssistantMessage | null;
 }) {
   const intl = useIntl();
   const activeStream =
     streamedAssistant?.conversationId === conversationId ? streamedAssistant : null;
-  let renderedStream = false;
 
   return (
     <MessageScrollerProvider
@@ -130,49 +134,13 @@ export function ConversationMessageList({
                 />
               </MessageScrollerItem>
             ) : (
-              <>
-                {messages.map((message, index) => {
-                  const previousMessage = messages[index - 1];
-                  const shouldRenderStream =
-                    message.senderType === "agent" &&
-                    activeStream?.responseToMessageId === previousMessage?.id;
-
-                  if (shouldRenderStream && activeStream) {
-                    renderedStream = true;
-                    return (
-                      <MessageScrollerItem key={message.id} messageId={message.id}>
-                        <AssistantStreamMessage
-                          message={activeStream.message}
-                          isStreaming={isStreaming && activeStream.status === "streaming"}
-                          createdAt={message.createdAt}
-                        />
-                      </MessageScrollerItem>
-                    );
-                  }
-
-                  return (
-                    <MessageScrollerItem
-                      key={message.id}
-                      messageId={message.id}
-                      scrollAnchor={message.senderType === "user"}
-                    >
-                      <PersistedMessage currentUser={currentUser} message={message} />
-                    </MessageScrollerItem>
-                  );
-                })}
-
-                {activeStream &&
-                !renderedStream &&
-                messages.at(-1)?.id === activeStream.responseToMessageId ? (
-                  <MessageScrollerItem messageId={activeStream.message.id}>
-                    <AssistantStreamMessage
-                      message={activeStream.message}
-                      isStreaming={isStreaming && activeStream.status === "streaming"}
-                      createdAt={null}
-                    />
-                  </MessageScrollerItem>
-                ) : null}
-              </>
+              renderMessageItems({
+                activeStream,
+                currentUser,
+                isStreaming,
+                messages,
+                organizationSlug,
+              })
             )}
           </MessageScrollerContent>
         </MessageScrollerViewport>
@@ -180,6 +148,92 @@ export function ConversationMessageList({
       </MessageScroller>
     </MessageScrollerProvider>
   );
+}
+
+// The scroller re-anchors to an unseen user message whenever the item count stays the same
+// but children change, so a streamed reply must keep its DOM node when it becomes persisted.
+// Rows must stay in one keyed array for React to carry that node across.
+function renderMessageItems({
+  activeStream,
+  currentUser,
+  isStreaming,
+  messages,
+  organizationSlug,
+}: {
+  activeStream: StreamedAssistantMessage | null;
+  currentUser: InboxCurrentUser;
+  isStreaming: boolean;
+  messages: ConversationMessage[];
+  organizationSlug?: string;
+}) {
+  let renderedStream = false;
+  const isActiveStreamStreaming = isStreaming && activeStream?.status === "streaming";
+
+  const items = messages.map((message, index) => {
+    const previousMessage = messages[index - 1];
+    const itemKey = getMessageItemKey(message, previousMessage);
+
+    if (
+      activeStream &&
+      message.senderType === "agent" &&
+      activeStream.responseToMessageId === previousMessage?.id
+    ) {
+      renderedStream = true;
+      return (
+        <MessageScrollerItem key={itemKey} messageId={message.id}>
+          <AssistantStreamMessage
+            message={activeStream.message}
+            isStreaming={isActiveStreamStreaming}
+            createdAt={message.createdAt}
+            aiCreditExhausted={activeStream.aiCreditExhausted}
+            organizationSlug={organizationSlug}
+          />
+        </MessageScrollerItem>
+      );
+    }
+
+    return (
+      <MessageScrollerItem
+        key={itemKey}
+        messageId={message.id}
+        scrollAnchor={message.senderType === "user"}
+      >
+        <PersistedMessage currentUser={currentUser} message={message} />
+      </MessageScrollerItem>
+    );
+  });
+
+  if (activeStream && !renderedStream && messages.at(-1)?.id === activeStream.responseToMessageId) {
+    items.push(
+      <MessageScrollerItem
+        key={replyItemKey(activeStream.responseToMessageId)}
+        messageId={activeStream.message.id}
+      >
+        <AssistantStreamMessage
+          message={activeStream.message}
+          isStreaming={isActiveStreamStreaming}
+          createdAt={null}
+          aiCreditExhausted={activeStream.aiCreditExhausted}
+          organizationSlug={organizationSlug}
+        />
+      </MessageScrollerItem>,
+    );
+  }
+
+  return items;
+}
+
+function replyItemKey(userMessageId: string) {
+  return `reply-${userMessageId}`;
+}
+
+function getMessageItemKey(
+  message: ConversationMessage,
+  previousMessage: ConversationMessage | undefined,
+) {
+  return message.senderType === "agent" && previousMessage?.senderType === "user"
+    ? replyItemKey(previousMessage.id)
+    : message.id;
 }
 
 function MessageListSkeleton() {
@@ -315,17 +369,32 @@ function isImageAttachment(attachment: ConversationMessageAttachment) {
 }
 
 function AssistantStreamMessage({
+  aiCreditExhausted,
   createdAt,
   isStreaming,
   message,
+  organizationSlug,
 }: {
+  aiCreditExhausted?: boolean;
   createdAt: string | null;
   isStreaming: boolean;
   message: UIMessage;
+  organizationSlug?: string;
 }) {
   return (
     <MessageFrame role="assistant" createdAt={createdAt}>
-      <AssistantMessageParts message={message} isStreaming={isStreaming} />
+      {aiCreditExhausted ? (
+        <div className="flex flex-col items-start gap-2">
+          <p role="alert" className="text-sm text-destructive">
+            <FormattedMessage {...aiCreditExhaustedMessages.exhausted} />
+          </p>
+          {organizationSlug ? (
+            <UpgradePlanButton organizationSlug={organizationSlug} variant="outline" size="xs" />
+          ) : null}
+        </div>
+      ) : (
+        <AssistantMessageParts message={message} isStreaming={isStreaming} />
+      )}
     </MessageFrame>
   );
 }

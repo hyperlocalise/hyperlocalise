@@ -207,8 +207,8 @@ describe("runLocalisationAuditCredits", () => {
     expect(result.credits.find((credit) => credit.id === "visual-hierarchy")).toEqual({
       id: "visual-hierarchy",
       dimension: "visual",
-      score: null,
-      method: "na",
+      score: 100,
+      method: "heuristic",
     });
     expect(result.credits.find((credit) => credit.id === "component-consistency")).toEqual({
       id: "component-consistency",

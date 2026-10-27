@@ -35,6 +35,7 @@ import { getJobStatusMessage, jobsPageViewMessages } from "./jobs-page-view.mess
 import {
   buildJobDetailHref,
   isKanbanStatus,
+  jobDueDate,
   kanbanStatusColumns,
   type KanbanStatus,
 } from "./jobs-view-helpers";
@@ -167,6 +168,7 @@ function JobListRow({
   const intl = useIntl();
   const detailHref = buildDetailHref(organizationSlug, projectId ?? job.projectId, job.id);
   const summary = taskDetailSummary(job, intl);
+  const dueDate = jobDueDate(job);
 
   return (
     <div className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted/30">
@@ -206,18 +208,16 @@ function JobListRow({
       </span>
       <time
         className="min-w-[4.75rem] shrink-0 text-end text-muted-foreground tabular-nums"
-        dateTime={job.externalDueDate ?? job.updatedAt}
+        dateTime={dueDate ?? job.updatedAt}
         title={
-          job.externalDueDate
+          dueDate
             ? intl.formatMessage(jobsPageViewMessages.dueMeta, {
-                due: formatRelativeTime(job.externalDueDate, now),
+                due: formatRelativeTime(dueDate, now),
               })
             : formatRelativeTime(job.updatedAt, now)
         }
       >
-        {job.externalDueDate
-          ? formatRelativeTime(job.externalDueDate, now)
-          : formatRelativeTime(job.updatedAt, now)}
+        {dueDate ? formatRelativeTime(dueDate, now) : formatRelativeTime(job.updatedAt, now)}
       </time>
       <div className="shrink-0">
         <JobRowActions

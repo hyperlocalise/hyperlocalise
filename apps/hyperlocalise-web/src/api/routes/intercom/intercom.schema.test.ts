@@ -12,19 +12,22 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { intercomHelpCentersQuerySchema } from "./intercom.schema";
+import { intercomHelpCenterIdParamSchema, intercomHelpCentersQuerySchema } from "./intercom.schema";
 
 describe("intercomHelpCentersQuerySchema", () => {
-  it("defaults the Help Center picker to the US Intercom region", () => {
-    expect(intercomHelpCentersQuerySchema.parse({})).toEqual({ restEndpoint: "us" });
+  it("does not require a region because the connected account is probed", () => {
+    expect(intercomHelpCentersQuerySchema.parse({})).toEqual({});
   });
 
-  it("accepts allowlisted regional endpoints", () => {
+  it("accepts an optional allowlisted regional endpoint from older clients", () => {
     expect(intercomHelpCentersQuerySchema.parse({ restEndpoint: "eu" })).toEqual({
       restEndpoint: "eu",
     });
     expect(intercomHelpCentersQuerySchema.parse({ restEndpoint: "au" })).toEqual({
       restEndpoint: "au",
+    });
+    expect(intercomHelpCentersQuerySchema.parse({ restEndpoint: "us" })).toEqual({
+      restEndpoint: "us",
     });
   });
 
@@ -36,5 +39,15 @@ describe("intercomHelpCentersQuerySchema", () => {
       }).success,
     ).toBe(false);
     expect(intercomHelpCentersQuerySchema.safeParse({ restEndpoint: "jp" }).success).toBe(false);
+  });
+});
+
+describe("intercomHelpCenterIdParamSchema", () => {
+  it("requires a Help Center id for collection listing", () => {
+    expect(intercomHelpCenterIdParamSchema.parse({ helpCenterId: "123" })).toEqual({
+      helpCenterId: "123",
+    });
+    expect(intercomHelpCenterIdParamSchema.safeParse({ helpCenterId: "" }).success).toBe(false);
+    expect(intercomHelpCenterIdParamSchema.safeParse({}).success).toBe(false);
   });
 });

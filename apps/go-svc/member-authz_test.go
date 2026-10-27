@@ -32,6 +32,8 @@ func TestMemberAuthz(t *testing.T) {
 	require.Equal(t, "invited", resolveMemberStatus(nil))
 	replacing := replacingWorkosMembershipID
 	require.Equal(t, "invited", resolveMemberStatus(&replacing))
+	replacingPerMembership := replacingWorkosMembershipMarker("11111111-1111-4111-8111-111111111111")
+	require.Equal(t, "invited", resolveMemberStatus(&replacingPerMembership))
 	active := "om_live"
 	require.Equal(t, "active", resolveMemberStatus(&active))
 	require.True(t, shouldCleanupPlaceholderUserOnMemberRemoval(invitedWorkosUserIDPrefix+"abc"))

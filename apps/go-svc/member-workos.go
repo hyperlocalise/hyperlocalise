@@ -128,6 +128,12 @@ func (c *liveMemberWorkos) DeleteOrganizationMembership(ctx context.Context, mem
 	return c.doJSON(ctx, http.MethodDelete, "/user_management/organization_memberships/"+url.PathEscape(membershipID), nil, nil)
 }
 
+func (c *liveMemberWorkos) UpdateOrganizationName(ctx context.Context, workosOrganizationID, name string) error {
+	return c.doJSON(ctx, http.MethodPut, "/organizations/"+url.PathEscape(workosOrganizationID), map[string]string{
+		"name": name,
+	}, nil)
+}
+
 func (c *liveMemberWorkos) doJSON(ctx context.Context, method, path string, payload any, out any) error {
 	if c == nil || c.apiKey == "" {
 		return memberFailure(503, "workos_server_not_configured", "WorkOS server integration is not configured")
@@ -226,7 +232,7 @@ func (api *memberAPI) markPendingMembershipReplacingInvitation(ctx context.Conte
         update organization_memberships
         set workos_membership_id=$2
         where id=$1 and workos_membership_id is null`,
-		membershipID, replacingWorkosMembershipID)
+		membershipID, replacingWorkosMembershipMarker(membershipID))
 	if err != nil {
 		return false, err
 	}
@@ -237,7 +243,7 @@ func (api *memberAPI) clearPendingMembershipReplacingInvitation(ctx context.Cont
 	_, err := api.pool.Exec(ctx, `
         update organization_memberships
         set workos_membership_id=null
-        where id=$1 and workos_membership_id=$2`,
-		membershipID, replacingWorkosMembershipID)
+        where id=$1 and (workos_membership_id=$2 or workos_membership_id=$3)`,
+		membershipID, replacingWorkosMembershipID, replacingWorkosMembershipMarker(membershipID))
 	return err
 }

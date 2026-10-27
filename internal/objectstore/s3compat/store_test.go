@@ -93,6 +93,14 @@ func TestPresignedRequests(t *testing.T) {
 	require.Equal(t, "*", signed.Headers.Get("If-None-Match"))
 	require.Equal(t, http.MethodPut, signed.Method)
 	require.WithinDuration(t, time.Now().Add(5*time.Minute), signed.ExpiresAt, time.Second)
+	signed, err = store.PresignUpload(t.Context(), objectstore.Upload{Key: "shot.png", ContentType: "image/png", ContentLength: 1234}, 5*time.Minute)
+	require.NoError(t, err)
+	u, err = url.Parse(signed.URL)
+	require.NoError(t, err)
+	require.Contains(t, u.Query().Get("X-Amz-SignedHeaders"), "content-length")
+	require.Equal(t, "1234", signed.Headers.Get("Content-Length"))
+	_, err = store.PresignUpload(t.Context(), objectstore.Upload{Key: "shot.png", ContentType: "image/png", ContentLength: -1}, 5*time.Minute)
+	require.ErrorIs(t, err, objectstore.ErrInvalidInput)
 	signed, err = store.PresignDownload(t.Context(), "file.json", time.Minute)
 	require.NoError(t, err)
 	require.Equal(t, http.MethodGet, signed.Method)
@@ -144,4 +152,31 @@ func TestConditionalErrorAndCancellation(t *testing.T) {
 	cancel()
 	_, err = store.Stat(ctx, "key")
 	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestIfMatchAndList(t *testing.T) {
+	var putIfMatch string
+	store := testStore(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			putIfMatch = r.Header.Get("If-Match")
+			w.Header().Set("ETag", `"next"`)
+			return
+		}
+		if r.URL.Query().Get("list-type") == "2" {
+			require.Equal(t, "iris/generation/pending/", r.URL.Query().Get("prefix"))
+			w.Header().Set("Content-Type", "application/xml")
+			_, err := io.WriteString(w, `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>iris/generation/pending/job-a.json</Key></Contents></ListBucketResult>`)
+			require.NoError(t, err)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
+	_, err := store.Put(t.Context(), objectstore.PutInput{
+		Key: "iris/generation/pending-index.json", Body: strings.NewReader("{}"), Size: 2, ContentType: "application/json", IfMatch: `"opaque"`,
+	})
+	require.NoError(t, err)
+	require.Equal(t, `"opaque"`, putIfMatch)
+	keys, err := store.List(t.Context(), "iris/generation/pending/")
+	require.NoError(t, err)
+	require.Equal(t, []string{"iris/generation/pending/job-a.json"}, keys)
 }

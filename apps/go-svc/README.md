@@ -1,6 +1,6 @@
 # go-svc
 
-Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, native CAT editor APIs, personal API key management, database-backed public translation download and job reads, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
+Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, workspace billing (Autumn snapshot, checkout, portal, invoices, resource-usage) and session account (`/v1/me`), native job list/detail/status reads, native CAT editor APIs, personal API key management, database-backed public translation download and job reads, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
 
 Public browser routes are served at `https://api.hyperlocalise.com/v1/...` from `GoSvcClient` callers (Bearer token, CORS). The Next.js server calls `/v1/...` or `/ofrep/...` at the same origin via `GO_SVC_URL` (typically `https://api.hyperlocalise.com` in production).
 
@@ -63,7 +63,7 @@ Callers that need commands beyond `Ping` should use `Inner()` and the valkey-go 
 
 ### DataForSEO (Domains research)
 
-Used by `internal/dataforseo` for keyword research, live SERPs, and rank tracking. Required for `/v1/domains/research/*`. Not required for segment validation.
+Used by `internal/dataforseo` for keyword research, live SERPs, and rank tracking. Required for the Domains research routes under `/v1/orgs/{slug}/domains`. Not required for segment validation.
 
 | Variable | Description |
 |----------|-------------|
@@ -101,6 +101,37 @@ GSC API calls are free and do not consume DataForSEO credits.
 go-svc, including the `Engine` interface, request and response types,
 configuration, and typed errors. Vendor MT integrations use this package as
 library clients; it does not expose an HTTP route.
+
+### ElevenLabs and fal.ai clients
+
+Iris generation uses native vendor clients when those models are selected.
+Google, OpenAI, xAI, and Gemini models still go through AI Gateway.
+
+`internal/elevenlabs` calls ElevenLabs speech, music, and sound-effect APIs.
+`internal/fal` submits work to the fal.ai queue, polls until the job finishes,
+and reads the result. Neither package exposes an HTTP route.
+
+| Variable | Description |
+|----------|-------------|
+| `ELEVENLABS_API_KEY` | ElevenLabs API key sent as `xi-api-key`. Required for native `elevenlabs-*` Iris models. |
+| `ELEVENLABS_BASE_URL` | Optional. Defaults to `https://api.elevenlabs.io`. |
+| `FAL_KEY` | fal.ai API key sent as `Authorization: Key ...`. Required for native Flux, Kling, Seedance, Wan, MiniMax, Krea, Seedream, Bria, SeedVR, and ByteDance upscaler Iris models. |
+| `FAL_QUEUE_URL` | Optional. Defaults to `https://queue.fal.run`. |
+
+Example Go usage:
+
+```go
+speech, err := elevenlabs.NewClient(elevenlabs.Config{
+    APIKey: os.Getenv("ELEVENLABS_API_KEY"),
+})
+
+queue, err := fal.NewClient(fal.Config{
+    APIKey: os.Getenv("FAL_KEY"),
+})
+```
+
+When a native client is unset, Iris falls back to `AI_GATEWAY_API_KEY` for that
+model. If no generation backend is configured, jobs fail with `PROVIDER_ERROR`.
 
 ### Datadog tracing
 
@@ -153,25 +184,72 @@ IDs are emitted using Datadog's native trace context and are available to both O
 
 ## Local development
 
+### Dependencies
+
+From the **repository root** (not `apps/hyperlocalise-web`):
+
+```bash
+docker compose up -d
+```
+
+`vp run db:migrate` reads `DATABASE_URL` from the environment or from `apps/hyperlocalise-web/.env`. Configure that file first ([web setup](../hyperlocalise-web/README.md#setup)), or pass the Compose URL on the command:
+
+```bash
+(cd apps/hyperlocalise-web && DATABASE_URL='postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise' vp run db:migrate)
+```
+
+Postgres and Valkey URLs match `docker-compose.yml`. go-svc fails at startup when `VALKEY_URL` is set but Valkey is unreachable.
+
+### Environment
+
+Copy the same `WORKOS_*` values as the web app (`WORKOS_COOKIE_PASSWORD`, `WORKOS_API_KEY`, `WORKOS_CLIENT_ID`). Minimum local `.env` in `apps/go-svc/` (or export before `go run`):
+
+```bash
+WORKOS_COOKIE_PASSWORD='this-is-a-test-cookie-password-at-least-32-characters'
+WORKOS_API_KEY='sk_test_...'
+WORKOS_CLIENT_ID='client_...'
+DATABASE_URL='postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise'
+VALKEY_URL='redis://localhost:6379'
+GO_SVC_CORS_ORIGINS='http://localhost:3000'
+```
+
+Optional:
+
+```bash
+# Publishes glossary activity events and checks the queue in /health.
+ACTIVITY_LOG_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../activity-log'
+# Enables asynchronous glossary import/export publishing and checks the queue in /health.
+GLOSSARY_INTERCHANGE_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../glossary-interchange'
+# Accept Agent Registration JWTs on the public translation download.
+WORKOS_AUTHKIT_DOMAIN='your-app.authkit.app'
+HYPERLOCALISE_PUBLIC_APP_URL='http://localhost:3000'
+DATAFORSEO_API_KEY='...'   # Domains research routes
+```
+
+### Run
+
 From the repository root:
 
 ```bash
 # Build check (requires libhunspell-dev for spelling support)
 make check-build-go-svc-cgo
 
-# Run locally
-export WORKOS_COOKIE_PASSWORD='this-is-a-test-cookie-password-at-least-32-characters'
-export WORKOS_API_KEY='sk_test_...'
-export WORKOS_CLIENT_ID='client_...'
-# Optional: publishes glossary activity events and checks the queue in /health.
-export ACTIVITY_LOG_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../activity-log'
-# Optional: enables asynchronous glossary import/export publishing and checks the queue in /health.
-export GLOSSARY_INTERCHANGE_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../glossary-interchange'
-# Optional: accept Agent Registration JWTs on the public translation download.
-export WORKOS_AUTHKIT_DOMAIN='your-app.authkit.app'
-export HYPERLOCALISE_PUBLIC_APP_URL='http://localhost:3000'
+set -a && source apps/go-svc/.env && set +a
 go run ./apps/go-svc
 ```
+
+Listens on `http://localhost:8080` by default (`PORT` overrides).
+
+### Web app
+
+In `apps/hyperlocalise-web/.env`:
+
+```bash
+GO_SVC_URL=http://127.0.0.1:8080
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8080
+```
+
+Browser `GoSvcClient` calls go-svc directly with the WorkOS access token. Loopback origins are allowed; Chrome private-network preflights need `Access-Control-Allow-Private-Network` when the page is on `localhost:3000` and the API is on `127.0.0.1:8080`.
 
 Health check:
 
@@ -185,7 +263,7 @@ When configured, Valkey and PostgreSQL health objects report `status` as
 dependency is not configured, its status is `disabled` and no timing is
 reported. The endpoint remains an HTTP 200 liveness check.
 
-The web app reaches go-svc through `GO_SVC_URL`. Domains research handlers require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js server computes and sends that header. In production, ECS injects queue URLs from infrastructure outputs; the service does not resolve SSM parameters itself. A configured queue publisher reports `ok` or `unavailable` in `/health`; a missing queue URL is reported as `disabled`.
+The web app reaches go-svc through `GO_SVC_URL`. Server-call routes (`/internal/*`, object storage and guideline search) require a service token (`X-Go-Svc-Research-Token`) in addition to the WorkOS session cookie. The Next.js server computes and sends that header. In production, ECS injects queue URLs from infrastructure outputs; the service does not resolve SSM parameters itself. A configured queue publisher reports `ok` or `unavailable` in `/health`; a missing queue URL is reported as `disabled`.
 
 Application deploys use the infra-owned task-definition ARN in
 `/hyperlocalise/prod/ecs/go-svc/task_definition_arn` as their base revision.
@@ -214,14 +292,6 @@ For tracing, the ECS task definition sets `DD_TRACE_AGENT_URL`, `DD_TRACE_ENABLE
 |--------|------|------|-------------|
 | `GET` | `/health` | No | Liveness probe with activity-log queue, Valkey, and PostgreSQL connectivity status and round-trip times |
 | `POST` | `/v1/validate/segment` | WorkOS session cookie or Bearer access token | Validate a CAT segment (format, length, spelling) |
-| `POST` | `/v1/domains/research/keywords` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Expand a seed keyword + market through DataForSEO Labs |
-| `POST` | `/v1/domains/research/market-visibility` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Check one domain market through DataForSEO Labs; one market per request |
-| `POST` | `/v1/domains/research/serp` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Fetch a live organic SERP snapshot |
-| `POST` | `/v1/domains/research/rank-check` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Live rank check for one keyword against a hostname |
-| `POST` | `/v1/domains/research/rank-check/batch` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Live rank check for up to 20 keywords |
-| `POST` | `/v1/domains/gsc/sites` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | List verified Search Console properties for a minted access token |
-| `POST` | `/v1/domains/gsc/performance` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Query Search Analytics clicks, impressions, CTR, and position |
-| `POST` | `/v1/domains/gsc/inspect` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Inspect one URL against a Search Console property |
 | `GET` | `/v1/projects/{projectId}/translations/download` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `files:read` | Download one source file's translations for a locale as JSON |
 | `GET` | `/v1/jobs/latest` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `jobs:read` | Latest succeeded file translation job for a project source path |
 | `GET` | `/v1/jobs/{jobId}` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `jobs:read` | One job with its stored output file metadata |
@@ -256,6 +326,7 @@ read-side preview.
 | PATCH | `/projects/{projectId}/content-editor-behavior` | Toggle identical-string grouping (`admin`/`localization_manager` only) |
 | GET | `/projects/{projectId}/content-editor-behavior/preview` | Preview of identical-string grouping (`admin`/`localization_manager` only) |
 | GET | `/projects/{projectId}/files` | Native repository files for one project |
+| GET | `/projects/{projectId}/file-progress?locale=` | Per-file translation and approval progress for one locale |
 | GET | `/workspace-files` | Native repository files across every accessible project |
 
 **Native projects only.** Every route above filters to `projects.source = 'native'`
@@ -315,7 +386,7 @@ JSON body while retaining their original file extension.
 | 404 | `project_not_found` | Project id is invalid or the project is not accessible |
 | 404 | `source_file_not_found` | No source file exists at the requested path |
 | 404 | `translations_not_found` | The source file has no translation keys |
-| 501 | `not_implemented` | Lottie translation download is not supported |
+| 501 | `not_implemented` | Lottie or Excel translation download is not supported |
 | 503 | `workos_membership_lookup_failed` | WorkOS membership could not be verified |
 
 Lottie sources (`.lottie`, or `.json` containing only Lottie text keys) are not
@@ -349,6 +420,62 @@ Responses are wrapped in a `job` object. Timestamps use UTC ISO-8601 with millis
 
 Responses include `Cache-Control: no-store`.
 
+## Native job reads
+
+Session-authenticated job reads under `/v1/orgs/{organizationSlug}/...` (also `/api/go-svc/...` on the web host).
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/projects/{projectId}/jobs` | List project jobs |
+| GET | `/projects/{projectId}/jobs/{jobId}` | Get job details |
+| GET | `/projects/{projectId}/jobs/{jobId}/status` | Get job status |
+| GET | `/jobs` | List organization jobs |
+| GET | `/jobs/{jobId}` | Get native job details |
+| GET | `/jobs/{jobId}/events` | List a job's progress events, oldest first (newest 500) |
+
+**Access:** Admins and localization managers can read all organization jobs. Other roles are restricted to accessible project teams, with unassigned projects belonging to the default team. `relationship=assigned` allows organization-wide discovery of assigned jobs.
+
+**Filtering:** Lists support `kind`, `type`, `status`, `open`, `triage`, `relationship` (`assigned`/`created`), and `limit` (1–100, default 50). `triage` takes precedence over `open`, then `status`. Boolean query values use non-empty-string coercion (`open=false` evaluates to true). Results are ordered by `updated_at DESC, id DESC`, with status priority for triage. Pagination is limit-only.
+
+**Provider boundaries:** Project-scoped routes accept native projects only; external projects return `404 project_not_found`. Organization job lists include persisted provider mirrors, but `/jobs/{jobId}` returns `404 job_not_found` for mirrored jobs. No provider credentials or live integrations are accessed.
+
+**Responses:** Lists return `{jobs: [...]}`; details return `{job: {...}}`. Project-scoped details omit `projectName`; other records include it. Status responses contain job identifiers, kind, type, status, timestamps, and `lastError`. Timestamps use UTC ISO-8601 with milliseconds. Missing detail fields are `null`; source-file metadata is resolved from stored records.
+
+**Errors:** Invalid list queries return `400 invalid_job_query` with `details.issues`. Missing or inaccessible projects/jobs return `404 project_not_found` or `404 job_not_found`. Invalid project IDs on detail/status routes return `job_not_found`. Responses set `Cache-Control: no-store`.
+
+## Conversation reads
+
+Read-only conversation and message endpoints are available under `/v1/orgs/{organizationSlug}`.
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/conversations` | List conversations with participant and last-message metadata |
+| GET | `/conversations/{conversationId}` | Conversation detail with all messages, oldest first |
+| GET | `/conversations/{conversationId}/messages` | The newest 50 messages, oldest first |
+| GET | `/conversations/{conversationId}/jobs` | Jobs linked to the conversation, newest first |
+
+**Access:**
+- Admins and localization managers can read every conversation in the organization.
+- Other roles can read conversations whose project belongs to one of their teams. Projects with no team count as the default team, and project source or active state does not matter.
+- They can also read `chat_ui` threads they authored, either with no project or on a live provider (`ext:`) project.
+- Conversations without an inbox item are hidden.
+
+**Lists:**
+- `status` (`active`/`archived`), `projectId`, `limit` (1–100, default 50), and `cursor`.
+- `cursor` is an ISO date. It returns conversations whose `lastMessageAt` is strictly earlier, at millisecond precision.
+- An unparseable cursor is ignored.
+
+**Messages:** Members who lack `ai_actions:run` only see the `text` and `source-*` parts of agent messages. `text` is rebuilt from the visible text parts. Parts whose `type` is not a string are dropped, and non-array `parts` are returned as `[]` with empty `text`. Agent messages stored without parts (Slack, GitHub, and email thread posts) keep their `text` unchanged. Attachments are returned as stored metadata; storage is never read.
+
+**Errors:**
+
+| Response | When |
+|----------|------|
+| `400 {"error":"invalid_query"}` | Invalid list query |
+| `404 {"error":"not_found"}` | Invalid or inaccessible conversation ID |
+
+Auth failures follow the standard service behavior.
+
 ## Content editor (CAT)
 
 Parallel native CAT API. Hono routes under `/api/orgs/{organizationSlug}/projects/{projectId}/files/detail/cat` remain the live browser path. go-svc exposes the same JSON contracts at `/api/go-svc/v1/orgs/{organizationSlug}/projects/{projectId}/files/detail/cat` for a later cutover. Auth matches dictionary routes. Native projects only; connected TMS CAT stays on Hono (`501 provider_cat_deferred`).
@@ -363,10 +490,19 @@ All paths below are relative to `/v1/orgs/{organizationSlug}/projects/{projectId
 | GET | `/files/detail/cat/segments/{id}/target` | Segment translation |
 | GET | `/files/detail/cat/segments/{id}/comments` | Segment comments |
 | POST | `/files/detail/cat/translations` | Save draft or approved translation |
+| POST | `/files/detail/cat/document/parse-back` | Map an edited Markdown or HTML document to changed segment targets |
 | POST, PATCH | `/files/detail/cat/translations/status` | Update translation status |
 | POST | `/files/detail/cat/comments` | Add a comment |
 | PATCH | `/files/detail/cat/comments/{id}/resolve` | Resolve a legacy native issue comment |
 | POST | `/files/detail/cat/concordance` | Native glossary + TM lookup |
+| POST | `/files/detail/cat/visual-context` | Native screenshots bound to a string |
+| POST | `/files/detail/cat/visual-context/screenshots` | Presign a screenshot upload, optionally bind a string |
+| POST | `/files/detail/cat/visual-context/screenshots/{id}/finalize` | Persist an uploaded screenshot as stored visual context; optional `match` queues OCR binding |
+| POST | `/files/detail/cat/visual-context/screenshots/{id}/match` | Queue an async OCR match that binds strings to the screenshot (`202`) |
+| GET | `/files/detail/cat/visual-context/processes/{id}` | Poll a match process and its auto bindings |
+| POST | `/files/detail/cat/visual-context/screenshots/{id}/bindings` | Bind a screenshot to a native string |
+| DELETE | `/files/detail/cat/visual-context/screenshots/{id}/bindings/{bindingId}` | Remove a string binding |
+| DELETE | `/files/detail/cat/visual-context/screenshots/{id}` | Delete a screenshot and its bindings |
 | POST | `/files/detail/cat/strings/hidden` | Hide or unhide keys |
 | POST | `/files/detail/cat/strings/locked` | Lock or unlock segments |
 | POST | `/files/detail/cat/segments/{id}/max-length` | Set key max length |
@@ -384,13 +520,13 @@ These return `501` with a stable error code. Browser clients keep calling Hono.
 | POST | `/files/detail/cat/images/regenerate` | `image_regenerate_deferred` | Vercel Workflow + Blob-backed stored files |
 | POST | `/files/detail/cat/images/upload` | `image_upload_deferred` | Vercel Blob file adapter |
 | POST | `/files/detail/cat/recommendation` | `ai_recommendation_deferred` | Vercel AI Gateway / AI SDK |
-| POST | `/files/detail/cat/visual-context` | `visual_context_deferred` | Live TMS screenshot adapters |
+| POST | `/files/detail/cat/visual-context` on TMS projects | `visual_context_deferred` | Live TMS screenshot adapters |
 | POST | `/files/string-context` without `cachedOnly` | `string_context_deferred` | Vercel Workflow repository agent |
 | * | Provider/TMS CAT (`projects.source != native`) | `provider_cat_deferred` | TypeScript TMS provider adapters |
 
 Authenticated CAT requests use the same WorkOS session cookie or Bearer access token as dictionary routes. They do not need `X-Go-Svc-Research-Token`.
 
-Authenticated requests must include either the `wos-session` cookie from a signed-in Hyperlocalise user or `Authorization: Bearer` with that session's WorkOS access-token JWT. go-svc verifies Bearer tokens against the WorkOS JWKS for `WORKOS_CLIENT_ID` (`sub` is the user, `sid` is required). Agent JWTs are not accepted. If both a cookie and a Bearer token are present, the cookie wins. Research routes also require `X-Go-Svc-Research-Token`, an HMAC-SHA256 hex digest of `go-svc-research` keyed by `WORKOS_COOKIE_PASSWORD`. The browser cannot mint that header; only the web app should call these endpoints via `GO_SVC_URL`.
+Authenticated requests must include either the `wos-session` cookie from a signed-in Hyperlocalise user or `Authorization: Bearer` with that session's WorkOS access-token JWT. go-svc verifies Bearer tokens against the WorkOS JWKS for `WORKOS_CLIENT_ID` (`sub` is the user, `sid` is required). Agent JWTs are not accepted. If both a cookie and a Bearer token are present, the cookie wins. Server-call routes also require `X-Go-Svc-Research-Token`, an HMAC-SHA256 hex digest of `go-svc-research` keyed by `WORKOS_COOKIE_PASSWORD`. The browser cannot mint that header; only the web app should call these endpoints via `GO_SVC_URL`.
 
 Browser callers from `https://hyperlocalise.com` and `https://hyperlocalize.com` (and `www`) may call session-auth `/v1` routes on `https://api.hyperlocalise.com`. Those origins receive CORS headers; mutating requests from other origins are rejected. Same-host `/api/go-svc` rewrites still pass the origin guard. Extra origins can be listed in `GO_SVC_CORS_ORIGINS`. CORS does not allow credentials: the web `GoSvcClient` sends a Bearer token and omits cookies.
 
@@ -477,7 +613,7 @@ To enable guideline search, set `DATABASE_URL`, `TURBOPUFFER_API_KEY`,
 The prefix keeps development/staging/production indexes separate and must
 change if the embedding model or vector size changes. Use a US region;
 `google/gemini-embedding-2` inference is US-only. The PostgreSQL source reads
-the existing workspace/project guideline tables without a migration.
+the workspace/project knowledge memory notes and ready `guideline_documents` rows.
 
 - `POST /v1/guidelines/sync`: `{organizationId, projectId?, locale?}`.
   Reindexes current canonical revisions. Call explicitly during adoption/rebuilds.
@@ -485,9 +621,37 @@ the existing workspace/project guideline tables without a migration.
   Limit is 1–32. Returns mandatory canonical documents, verified passages, and
   `searchAvailable`. Search is hybrid BM25 plus native Gemini Embedding 2; indexing and retrieval are separate.
 
-The app's existing lexical guideline selection is unchanged. Transactional outbox
-integration and deletion-event delivery remain application adoption work. An index
-must never be the only retained copy of guideline content.
+The app's existing lexical guideline selection is unchanged. An index must never
+be the only retained copy of guideline content.
+
+Guideline documents are uploaded under `/v1/orgs/{org}/guidelines/documents` and
+`/v1/orgs/{org}/projects/{projectId}/guidelines/documents` (PDF, DOCX, Markdown,
+or text up to 25 MB; PNG/JPEG only when `GUIDELINE_IMAGE_UPLOADS_ENABLED=true`).
+`GET` list supports `limit` (default 50, max 200) and opaque `cursor` pagination
+via `nextCursor`.
+Uploads need object storage and `GUIDELINE_INGEST_SQS_QUEUE_URL`; without the
+queue they return 503. The `guideline-ingest` Lambda extracts and indexes each
+document, and `POST /internal/guidelines/sweep` republishes lost messages.
+
+Guideline checks need `AI_GATEWAY_API_KEY` (`AI_GATEWAY_BASE_URL` defaults to
+`https://ai-gateway.vercel.sh/v1`). `GUIDELINE_CHECK_MODEL` defaults to
+`openai/gpt-6-luna` and must support strict `json_schema` output. The same key
+enables reranking search hits with `voyage/rerank-3-lite`. Without turbopuffer,
+checks use mandatory guidelines only.
+
+- `POST /v1/orgs/{org}/guidelines/check`:
+  `{projectId?, sourceLocale?, targetLocale?, segments: [{id, source?, target?}], checks?}`.
+  Up to 50 segments and 16,000 characters. Returns cited `findings` with UTF-16
+  offsets and the cited `passages`. Metered per segment on Autumn `guideline_checks`.
+- `POST /internal/guidelines/check`: the same body plus `organizationId`, for
+  service-token callers that already enforced access.
+- `POST /internal/guidelines/retrieve`:
+  `{organizationId, projectId?, locales?, query, limit?}` for translation prompts.
+  Retrieves once per locale (at most 8; none means locale-independent documents
+  only) and returns uploaded documents only: mandatory ones whole in `documents`,
+  others as up to `limit` (default 8, max 16) search `passages`. Typed workspace
+  and project guidelines are excluded because the web app already selects them.
+  Service-token only.
 
 ## Activity logs
 
@@ -502,6 +666,122 @@ Read API for the workspace settings activity log at
 Query parameters match Hono: `actor`, `cursor`, `eventTypes`, `limit` (1–100,
 default 50), `range` (`24h` \| `7d` \| `30d` \| `all`). Response:
 `{ activityLogs, actors, nextCursor }`.
+
+## Session account
+
+Signed-in WorkOS user profile at `/v1/me`. Notification preferences reuse
+`user_notification_preferences` (`emailEnabled`, `emailFormat` digest|immediate).
+`DELETE /v1/me` does not remove WorkOS users or workspaces; it returns
+`409 account_deletion_not_supported`.
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/v1/me` | Local user row plus notification preferences |
+| PATCH | `/v1/me/notification-preferences` | Replace the caller's email preferences |
+| DELETE | `/v1/me` | Refuse destructive delete (`409`) |
+
+## Billing
+
+Workspace Autumn customer snapshot, checkout, portal, invoices, and
+organization-wide resource usage at `/v1/orgs/{organizationSlug}/billing`.
+Customer ID is the local `organizations.id`. Checkout only attaches `growth` or
+`enterprise`. Topup opens the Stripe portal; it does not sell fake credit packs.
+
+Requires WorkOS session authentication and `DATABASE_URL`. Reads require
+`billing:read` (`admin` or `localization_manager`); other roles receive
+`403 billing_read_forbidden`. Checkout, portal, topup, and usage sync require
+`billing:write` (`admin` only); other roles receive `403 billing_write_forbidden`.
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/billing` | Autumn workspace snapshot (plan, AI credit, payment method) |
+| GET | `/billing/invoices` | Autumn invoices (major currency units, `createdAt` unix ms). Pass `cursor` for the next page; response includes `nextCursor` |
+| POST | `/billing/checkout` | Attach `growth` or `enterprise` and return a checkout URL |
+| POST | `/billing/portal` | Open the Stripe customer portal |
+| POST | `/billing/topup` | Same as portal — add AI credit in Stripe, not fake credit packs |
+| GET | `/billing/resource-usage` | Count organization-wide workspace resources |
+| POST | `/billing/resource-usage/sync` | Push local resource usage deltas to Autumn |
+
+Response: `{ resourceUsage: { seats, projects, automations, integrations } }`.
+
+Counts are calculated from PostgreSQL:
+
+- `seats`: all `organization_memberships` rows, including pending invitations.
+- `projects`: projects where `is_active = true`.
+- `automations`: non-archived `workspace_automations`, including paused automations.
+- `integrations`: TMS provider credentials, GitHub installations, enabled Contentful connections, and enabled connectors.
+
+### Sync
+
+`POST /v1/orgs/{organizationSlug}/billing/resource-usage/sync` synchronizes organization resource usage with Autumn.
+
+The endpoint requires `billing:write` and uses the server's `AUTUMN_API_KEY`. Resource counts are calculated from PostgreSQL.
+
+- Counts resources once, then synchronizes the four features concurrently, each in its own transaction protected by `pg_advisory_xact_lock`.
+- Calculates `delta = localUsage - synced_usage` and sends it to Autumn `balances.track` with the idempotency key `workspace_resource_usage_sync:{org}:{feature}:{sync_sequence+1}`.
+- A zero delta records `up_to_date` without calling Autumn.
+- HTTP 2xx or 409 records `synced` and advances `synced_usage` and `sync_sequence`. Other failures record `failed` without advancing either.
+- Without `AUTUMN_API_KEY`, returns `200` with `skipped` and `error: "autumn_not_configured"` for each feature, without writing sync state.
+
+Response: `{ syncResult: { status, resourceUsage, results } }`.
+
+Each result contains `featureId`, `localUsage`, `previousSyncedUsage`, `delta`, `status` (`synced` | `up_to_date` | `failed` | `skipped`), `operationKey`,
+and `error`.
+
+If any feature fails, the endpoint returns `502 billing_resource_usage_sync_partial_failed` with `details: { syncResult }`.
+
+Autumn HTTP errors use `Autumn resource usage sync failed with HTTP {status}`. Transport errors use sanitized categories to avoid exposing connection details
+or credentials.
+
+Each Autumn request has a 20-second timeout, and the overall sync has a 60-second timeout. Synchronization continues if the caller disconnects.
+
+Cross-origin browser mutations are rejected with `403 forbidden`.
+
+```bash
+go test ./apps/go-svc -run 'BillingResourceUsage|WorkspaceResourceSync'
+go test ./apps/go-svc/internal/autumn -run HTTPStatus
+```
+
+## Reports (financial)
+
+Financial reporting APIs under `/v1/orgs/{organizationSlug}/reports`, covering word and time reports, costs, budgets, rates, time entries, and expenses.
+
+Requires workspace authentication, `DATABASE_URL`, and the `workspace-reports` feature flag. A disabled or unavailable flag returns `403 feature_unavailable`.
+
+| Method | Path | Capability | Description |
+|--------|------|------------|-------------|
+| GET | `/reports` | Member | Reports in JSON or CSV; cost view requires `billing:read` |
+| GET | `/reports/settings` | Member | Accessible projects, rates, and budget summaries |
+| GET | `/reports/tasks/{jobId}` | Member | Job analyses and time entries |
+| POST | `/reports/rates` | `billing:write` | Create a rate |
+| PUT | `/reports/budgets` | `billing:write` | Upsert a project budget |
+| PUT | `/reports/task-rates` | `billing:write` | Configure a job's rate before work starts |
+| POST | `/reports/time-entries` | `jobs:write` | Log time on a native job |
+| PATCH | `/reports/time-entries/{id}` | `jobs:write` | Edit own time entry; `billing:write` can edit others |
+| DELETE | `/reports/time-entries/{id}` | Owner or `billing:write` | Void a time entry and its costs |
+| POST | `/reports/expenses` | `billing:write` | Record an expense; idempotent by `operationKey` |
+
+**Access control:** `billing:read` allows admins and localization managers to view financial data; `billing:write` is admin-only. `jobs:write` excludes members. Project and job visibility follows team membership, with organization-wide access for admins and localization managers. Inaccessible resources return `404`.
+
+Non-financial users cannot access the cost view or financial settings, and see only their own time entries in task reports.
+
+**Money and dates:** USD amounts use 8-decimal fixed-point strings, with `big.Int` arithmetic. Reporting dates use UTC, with weeks starting Monday.
+
+### CSV export
+
+`GET /reports?format=csv` exports all matching rows without pagination.
+
+- Content type: `text/csv; charset=utf-8`
+- Filename: `translation-report.csv`
+- Financial users receive an additional `amountUsd` column.
+- All cells are quoted, with formula-injection protection.
+- Rows use CRLF separators, without a trailing newline or BOM.
+
+### Testing
+
+```bash
+GO_SVC_INTEGRATION=1 go test ./apps/go-svc -run 'Report|JSNumberString|ReadReportingBody|LoadReportingJob'
+```
 
 ## Members
 
@@ -524,6 +804,61 @@ Invite and pending-role updates send WorkOS invitations. Active memberships
 sync role and removal through WorkOS organization memberships. Successful
 mutations write `member_invited`, `member_invite_resent`, `member_role_changed`,
 and `member_removed` events to `organization_activity_events`.
+
+## Workspace settings
+
+Organization-scoped workspace endpoints:
+
+| Method | Path | Authorization | Response |
+|--------|------|---------------|----------|
+| GET | `/workspace` | Active member | `200 {"workspace": {...}}` |
+| PATCH | `/workspace` | `workspace:update` (admin, localization_manager) | `200 {"workspace": {...}, "redirectTo": "..."}` |
+| DELETE | `/workspace` | `workspace:update` | `204`, empty body |
+
+The workspace response includes `id`, `workosOrganizationId`, `name`, `slug`, `lifecycleStatus`, `archivedAt`, and `identityProvider`. Slug and archive timestamp are nullable.
+
+### Validation and errors
+
+PATCH accepts optional `name` and `slug` fields, with at least one required. Validation enforces length, slug format, reserved words, and profanity restrictions using an embedded English dictionary.
+
+- `400 invalid_workspace_payload`: Invalid workspace settings.
+- `403 forbidden`: Insufficient permissions.
+- `409 workspace_slug_conflict`: Slug already exists, including concurrent conflicts.
+- `413 payload_too_large`: Request exceeds 1 MiB.
+- `500 workspace_identity_unavailable`: WorkOS name synchronization fails.
+
+Malformed or empty JSON currently returns `500 internal_error`.
+
+The profanity dictionary is embedded at build time. Regenerate it with:
+
+`node scripts/generate-workspace-profanity-list.mjs`
+
+Shared fixtures verify validation consistency across implementations.
+
+### Updates and lifecycle
+
+PATCH updates the workspace within a PostgreSQL transaction, holding a row lock during WorkOS name synchronization (20s timeout). Failed synchronization rolls back database changes.
+
+WorkOS and PostgreSQL are not atomically committed. If the database commit fails after WorkOS succeeds, the failure is logged for investigation. Subsequent successful name updates resynchronize WorkOS.
+
+DELETE soft-archives the workspace without deleting its data.
+
+Successful changes publish `workspace_updated` or `workspace_archived` activity events after commit. Publishing is best-effort and does not affect the API response.
+
+### Session handling
+
+PATCH returns `redirectTo` after a slug change. The Go API does not update browser cookies; active-organization cookie and session synchronization belong to the web application.
+
+### Integration tests
+
+PostgreSQL integration tests require explicit configuration:
+
+```bash
+GO_SVC_INTEGRATION=1 \
+DATABASE_URL=postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise \
+VALKEY_URL=redis://localhost:6379 \
+go test ./apps/go-svc -run 'TestWorkspaceSettings|TestWorkspaceIdentity' -v
+```
 
 ## Personal API keys
 
@@ -555,9 +890,10 @@ also list and revoke other members' tokens through `api_keys:read` and
 - **Listing.** Tokens are ordered by `created_at`, then `id`. Ownerless legacy
   tokens are reported as revoked.
 
-Create and revoke publish `personal_access_token_created` and
-`personal_access_token_revoked` activity events. Publishing failures are logged
-without failing the request.
+Create and revoke publish `organization_api_key_created` and
+`organization_api_key_revoked` activity events. Publishing failures are logged
+without failing the request. Historical rows may still use the personal-access-token
+event names.
 
 Tests cover authorization, validation, audit failure, log hygiene, concurrent
 revocation, and membership-removal races:
@@ -641,13 +977,13 @@ Required for integration tests:
 | `VALKEY_URL` | Valkey/Redis URL (`redis://127.0.0.1:6379` locally). |
 | `GO_SVC_INTEGRATION` | Set to `1` in CI / `make test-go-svc` so missing deps fail instead of skip. |
 
-Local loop with Compose:
+Local loop with Compose. Export `DATABASE_URL` before migrating so Drizzle can reach Postgres:
 
 ```bash
 docker compose up -d
-(cd apps/hyperlocalise-web && vp run db:migrate)
 export DATABASE_URL='postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable'
 export VALKEY_URL='redis://127.0.0.1:6379'
+(cd apps/hyperlocalise-web && vp run db:migrate)
 make test-go-svc
 ```
 
@@ -727,6 +1063,14 @@ go test ./apps/go-svc -run '^$' -bench 'BenchmarkGlossary|BenchmarkMemory|Benchm
 
 They cover CSV/TBX/XLSX serialize and parse, TMX/CSV memory interchange,
 source-text normalization, and page-cursor decode at 100–5,000 units.
+
+Hot-path benches for Iris validation, CAT queue filters, reporting money,
+public translation marshal, native word count, knowledge-memory selection,
+and conversation sanitization:
+
+```bash
+go test ./apps/go-svc -run '^$' -bench 'Benchmark(ValidateIris|AppendEditorCatQueue|ParseEditorCatAdvanced|WordCost|PublicTranslationMarshal|CountNative|SelectKnowledgeMemory|SanitizeConversation)' -benchmem
+```
 
 All paths below are relative to `/v1/orgs/{organizationSlug}`:
 

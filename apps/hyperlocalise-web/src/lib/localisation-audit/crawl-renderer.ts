@@ -10,12 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { LocalisationAuditPageLayout } from "./types";
 
 export type RenderedHtmlPage = {
   requestedUrl: string;
   url: string;
   status: number;
   html: string;
+  layout?: LocalisationAuditPageLayout | null;
 };
 
 export type HtmlPageRenderer = {

@@ -25,7 +25,7 @@ import type { ContentEditorWorkspaceViewMode } from "./content-editor-workspace-
  * Derives the personas that make sense for the current file's content family.
  *
  * - Text files (string queues) → Translator, Reviewer
- * - Native markdown/document files with segment views → Translator, Designer, Reviewer
+ * - Native markdown/document and segmented spreadsheet files → Translator, Designer, Reviewer
  * - Visual/office files → Designer only (no string queue)
  *
  * Designer-only files suppress the switcher entirely (single persona →
@@ -38,7 +38,10 @@ export function availablePersonasForFamily(
   const hasSegmentViews = availableViews?.some(
     (view) => view === "comfortable" || view === "side-by-side",
   );
-  if (family === "document" && hasSegmentViews) {
+  if (
+    (family === "document" || family === "office-segments" || family === "pdf-segments") &&
+    hasSegmentViews
+  ) {
     return ["translator", "designer", "reviewer"];
   }
   if (DESIGNER_PERSONA_FILE_FAMILIES.has(family as never)) {

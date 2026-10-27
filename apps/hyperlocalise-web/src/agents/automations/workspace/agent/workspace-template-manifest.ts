@@ -42,8 +42,8 @@ export function mergeWorkspaceTemplateSkills(
         skill.frontmatter.description?.trim() ||
         skill.body
           .split("\n")
-          .find((line) => line.trim().length > 0)
-          ?.trim() ||
+          .map((line) => line.trim())
+          .find((line) => line.length > 0 && !/^#{1,6}\s/.test(line)) ||
         template.description,
       instructions: skill.body.trim() || template.instructions,
       activatable: skill.frontmatter.activatable !== "false" ? template.activatable : false,

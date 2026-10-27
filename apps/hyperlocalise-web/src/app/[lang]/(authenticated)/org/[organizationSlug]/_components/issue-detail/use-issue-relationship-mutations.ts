@@ -14,8 +14,8 @@
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { issueFeedQueryKey } from "./use-issue-feed";
 import { ISSUE_RELATIONSHIPS_QUERY_PREFIX } from "./use-issue-relationships-query";
@@ -32,10 +32,8 @@ export function useIssueRelationshipMutations({
   issueId: string;
 }) {
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const feedKey = issueFeedQueryKey(organizationSlug, projectId, issueId);
-  const relationships =
-    apiClient.api.orgs[":organizationSlug"].projects[":projectId"]["issue-sheet"][":issueId"]
-      .relationships;
 
   const invalidate = () => {
     // A relationship is visible from both endpoint issues, but only this issue's
@@ -52,12 +50,17 @@ export function useIssueRelationshipMutations({
 
   const createRelationship = useMutation({
     mutationFn: async (input: { relatedIssueId: string; kind: IssueRelationshipRequestKind }) => {
-      const response = await relationships.$post({
-        param: { organizationSlug, projectId, issueId },
-        json: input,
-      } as never);
-      if (response.status !== 201) {
-        throw await readApiResponseError(response, "Failed to create relationship");
+      try {
+        await goSvcClient.issueSheet.relationships.create(
+          organizationSlug,
+          projectId,
+          issueId,
+          input,
+        );
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to create relationship"), {
+          cause: error,
+        });
       }
     },
     onSuccess: invalidate,
@@ -65,11 +68,17 @@ export function useIssueRelationshipMutations({
 
   const deleteRelationship = useMutation({
     mutationFn: async (relationshipId: string) => {
-      const response = await relationships[":relationshipId"].$delete({
-        param: { organizationSlug, projectId, issueId, relationshipId },
-      } as never);
-      if (response.status !== 204) {
-        throw await readApiResponseError(response, "Failed to remove relationship");
+      try {
+        await goSvcClient.issueSheet.relationships.delete(
+          organizationSlug,
+          projectId,
+          issueId,
+          relationshipId,
+        );
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to remove relationship"), {
+          cause: error,
+        });
       }
     },
     onSuccess: invalidate,

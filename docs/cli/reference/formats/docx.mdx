@@ -1,0 +1,80 @@
+---
+title: "Translate Word documents with Hyperlocalise"
+sidebarTitle: "Word documents"
+description: "Translate Word .docx documents paragraph by paragraph while keeping styles, links, images, and fields."
+---
+
+Hyperlocalise translates Word documents one paragraph at a time and writes the
+translations into a copy of the source document, so styles, images, and layout
+are kept.
+
+Supported extension: `.docx`. Legacy `.doc` files are not parsed; save them as
+`.docx` first.
+
+## What is translated
+
+- Paragraphs in the document body, table cells, and text boxes, then headers,
+  footers, footnotes, and endnotes.
+- Tracked insertions are read as text and tracked deletions are left out, so
+  the translated document has its tracked changes accepted.
+- Paragraphs without letters, such as page numbers or lone symbols, are skipped.
+
+Each paragraph is keyed by its part and its position among that part's
+paragraphs, for example `word/document.xml#12` or `word/footer1.xml#0`. Empty
+paragraphs count toward the position, so editing one paragraph does not change
+later keys. Adding or removing paragraphs does.
+
+## Formatting placeholders
+
+A paragraph is translated in the formatting that covers most of its text. Text
+in other formatting, such as one bold word, links, and objects such as images,
+fields, and footnote marks, are sent to the model as placeholders. The model is
+told to keep them, and the writer puts the original formatting back around the
+translated text.
+
+Each entry's context names its location and paragraph style, for example
+`Word body, style Heading1` or `Word table cell`.
+
+## Configure your files
+
+Write one document per locale with a [path template](/cli/configuration/path-templates):
+
+```yaml
+locales:
+    source: en
+    targets:
+        - fr
+        - de
+
+buckets:
+    docs:
+        files:
+            - from: docs/en/guide.docx
+              to: docs/{{target}}/guide.docx
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+## Behavior and limitations
+
+- An existing target document is updated in place: paragraphs already
+  translated are kept, and a run fills only entries that are missing or
+  changed.
+- Untranslated paragraphs keep their source text.
+- Comments, charts, SmartArt, and embedded objects are copied unchanged.
+- `hl entries guide.docx` prints each paragraph with its key and context.

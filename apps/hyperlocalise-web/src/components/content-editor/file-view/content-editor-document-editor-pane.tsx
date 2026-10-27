@@ -54,6 +54,7 @@ import {
   isLossyDocumentRoundTrip,
   isAsciidocFilename,
   isMdxFilename,
+  isPlainTextFilename,
   serializeDocumentBlock,
 } from "@/components/document-editor/document-editor-extensions";
 import { getDocumentSuggestions } from "@/components/document-editor/document-editor-suggestions";
@@ -81,7 +82,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
 
-export const CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT = ".md,.markdown,.mdx,.adoc,.asciidoc,.asc";
+export const CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT =
+  ".md,.markdown,.mdx,.adoc,.asciidoc,.asc,.txt";
 
 type LoadedDocument = { status: "missing" } | { status: "ok"; text: string } | { status: "error" };
 
@@ -110,7 +112,7 @@ type LoadedTarget = {
 type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; sourceBody: string; target: LoadedTarget };
+  | { status: "ready"; sourceBody: string; target: LoadedTarget; isTargetMissing: boolean };
 
 const EMPTY_TRANSLATE_COUNTS: Record<DocumentTranslateScope, number> = { untranslated: 0, all: 0 };
 
@@ -150,11 +152,14 @@ export function ContentEditorDocumentEditorPane({
   const isMac = useIsMac();
   const syntax = isMdxFilename(filename) ? "mdx" : "markdown";
   const isAsciidoc = isAsciidocFilename(filename);
+  const isPlainText = isPlainTextFilename(filename);
+  const isRawDocument = isAsciidoc || isPlainText;
   const editable = canEdit && Boolean(onSave);
   const [load, setLoad] = useState<LoadState>({ status: "loading" });
   const [fields, setFields] = useState<ContentEditorDocumentFrontmatterField[]>([]);
   const [body, setBody] = useState("");
   const [baseline, setBaseline] = useState<string | null>(null);
+  const [hasSavedTarget, setHasSavedTarget] = useState(false);
   const [parseLossy, setParseLossy] = useState(false);
   const [codeMode, setCodeMode] = useState(false);
   const [restoreSaveError, setRestoreSaveError] = useState(false);
@@ -189,8 +194,10 @@ export function ContentEditorDocumentEditorPane({
       openedKeyRef.current = documentKey;
       setLoad({ status: "loading" });
       setBaseline(null);
+      setHasSavedTarget(false);
       setRestoreSaveError(false);
-      setCodeMode(isAsciidocFilename(filename));
+      const rawDocument = isAsciidocFilename(filename) || isPlainTextFilename(filename);
+      setCodeMode(rawDocument);
       setParseLossy(false);
       setPendingSuggestionCount(0);
       const [source, target] = await Promise.all([
@@ -212,14 +219,23 @@ export function ContentEditorDocumentEditorPane({
         });
         return;
       }
-      const sourceSplit = splitContentEditorDocument(source.text);
-      const targetSplit = splitContentEditorDocument(
-        target.status === "ok" ? target.text : source.text,
-      );
+      const sourceSplit = rawDocument
+        ? { fields: [], body: source.text, hasFrontmatter: false, rawFrontmatter: "" }
+        : splitContentEditorDocument(source.text);
+      const targetSplit = rawDocument
+        ? {
+            fields: [],
+            body: target.status === "ok" ? target.text : source.text,
+            hasFrontmatter: false,
+            rawFrontmatter: "",
+          }
+        : splitContentEditorDocument(target.status === "ok" ? target.text : source.text);
       const serverText = joinContentEditorDocument(targetSplit);
       const draft = peekDocumentAutosaveDraft(documentKey);
       if (draft) {
-        const split = splitContentEditorDocument(draft.value);
+        const split = rawDocument
+          ? { fields: [], body: draft.value, hasFrontmatter: false, rawFrontmatter: "" }
+          : splitContentEditorDocument(draft.value);
         setFields(split.fields);
         setBody(split.body);
         setBaseline(serverText);
@@ -227,8 +243,16 @@ export function ContentEditorDocumentEditorPane({
       } else {
         setFields(targetSplit.fields);
         setBody(targetSplit.body);
+        if (rawDocument) {
+          setBaseline(serverText);
+        }
       }
-      setLoad({ status: "ready", sourceBody: sourceSplit.body, target: targetSplit });
+      setLoad({
+        status: "ready",
+        sourceBody: sourceSplit.body,
+        target: targetSplit,
+        isTargetMissing: target.status !== "ok",
+      });
     })();
     return () => {
       cancelled = true;
@@ -250,10 +274,12 @@ export function ContentEditorDocumentEditorPane({
   const save = useCallback(
     async (text: string) => {
       await onSave?.(
-        new File([text], filename, { type: isAsciidoc ? "text/asciidoc" : "text/markdown" }),
+        new File([text], filename, {
+          type: isPlainText ? "text/plain" : isAsciidoc ? "text/asciidoc" : "text/markdown",
+        }),
       );
     },
-    [filename, isAsciidoc, onSave],
+    [filename, isAsciidoc, isPlainText, onSave],
   );
   const autosave = useDocumentAutosave({
     id: documentKey,
@@ -270,7 +296,7 @@ export function ContentEditorDocumentEditorPane({
 
   const handleInitialValue = useCallback(
     (normalized: string) => {
-      if (!target) return;
+      if (!target || isRawDocument) return;
       const original = target.body;
       const lossy = isLossyDocumentRoundTrip(syntax, original, normalized);
       setParseLossy(lossy);
@@ -300,7 +326,7 @@ export function ContentEditorDocumentEditorPane({
           }),
       );
     },
-    [syntax, target],
+    [syntax, target, isRawDocument],
   );
 
   const sourceManager = useMemo(() => createDocumentMarkdownManager(syntax), [syntax]);
@@ -432,9 +458,15 @@ export function ContentEditorDocumentEditorPane({
     return () => root.removeEventListener("keydown", onKeyDown);
   });
 
+  const showUntranslatedBanner =
+    isRawDocument && load.status === "ready" && load.isTargetMissing && !hasSavedTarget;
+  const untranslatedBlocked =
+    showUntranslatedBanner && load.status === "ready" && body === load.sourceBody;
+
   const reviewBlocked =
     load.status !== "ready" ||
     baseline === null ||
+    untranslatedBlocked ||
     autosave.hasUnsavedChanges ||
     autosave.status.kind === "saving" ||
     autosave.status.kind === "error" ||
@@ -443,6 +475,12 @@ export function ContentEditorDocumentEditorPane({
   useEffect(() => {
     onReviewBlockedChange?.(reviewBlocked);
   }, [onReviewBlockedChange, reviewBlocked]);
+
+  useEffect(() => {
+    if (autosave.status.kind === "saved") {
+      setHasSavedTarget(true);
+    }
+  }, [autosave.status]);
 
   const saveStatus =
     editable && load.status === "ready" && baseline !== null ? (
@@ -494,7 +532,7 @@ export function ContentEditorDocumentEditorPane({
                 {intl.formatMessage(messages.assistant)}
               </Button>
             ) : null}
-            {editable && !isAsciidoc ? (
+            {editable && !isRawDocument ? (
               <Button
                 size="xs"
                 variant="ghost"
@@ -532,33 +570,54 @@ export function ContentEditorDocumentEditorPane({
 
         <div
           className={cn(
-            "mx-auto grid w-full items-start gap-8 px-2 pt-10 sm:px-6",
-            splitView && !codeMode ? "max-w-[100rem] xl:grid-cols-2" : "max-w-[60rem]",
+            "mx-auto grid w-full items-start gap-8 px-2 sm:px-6",
+            splitView && codeMode ? "pt-6" : "pt-10",
+            splitView ? "max-w-[100rem] xl:grid-cols-2" : "max-w-[60rem]",
           )}
         >
-          {splitView && !codeMode ? (
+          {splitView ? (
             <section
-              className="min-w-0 rounded-xl bg-muted/30 py-6"
+              className={cn("min-w-0 rounded-xl bg-muted/30", codeMode ? "py-4" : "py-6")}
               aria-label={intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
                 locale: sourceLocale,
               })}
             >
-              <p className="mb-4 ps-14 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              <p
+                className={cn(
+                  "text-xs font-medium tracking-wide text-muted-foreground",
+                  codeMode ? "mb-2 ps-6" : "mb-4 ps-14",
+                )}
+              >
                 {intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
                   locale: sourceLocale,
                 })}
               </p>
-              <DocumentEditor
-                key={`source-${documentKey}`}
-                value={load.sourceBody}
-                syntax={syntax}
-                editable={false}
-                showOutline={false}
-                ariaLabel={intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
-                  locale: sourceLocale,
-                })}
-                onChange={() => undefined}
-              />
+              {codeMode ? (
+                <div className="px-6">
+                  <Textarea
+                    value={load.status === "ready" ? load.sourceBody : ""}
+                    readOnly
+                    tabIndex={-1}
+                    aria-label={intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
+                      locale: sourceLocale,
+                    })}
+                    spellCheck={false}
+                    className="min-h-[40rem] resize-y bg-muted/20 font-mono text-[13px] leading-relaxed"
+                  />
+                </div>
+              ) : (
+                <DocumentEditor
+                  key={`source-${documentKey}`}
+                  value={load.status === "ready" ? load.sourceBody : ""}
+                  syntax={syntax}
+                  editable={false}
+                  showOutline={false}
+                  ariaLabel={intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
+                    locale: sourceLocale,
+                  })}
+                  onChange={() => undefined}
+                />
+              )}
             </section>
           ) : null}
           <section
@@ -567,6 +626,14 @@ export function ContentEditorDocumentEditorPane({
               locale: targetLocale,
             })}
           >
+            {showUntranslatedBanner ? (
+              <div className="mx-auto mb-4 flex max-w-[46rem] items-start gap-2 rounded-lg border border-sky-500/30 bg-sky-500/5 px-3 py-2 text-sm">
+                <WarningIcon className="mt-0.5 size-4 shrink-0 text-sky-600" />
+                <p className="flex-1">
+                  {intl.formatMessage(contentEditorFileViewMessages.targetUntranslatedHint)}
+                </p>
+              </div>
+            ) : null}
             {target?.hasFrontmatter && fields.length > 0 ? (
               <Collapsible
                 open={propertiesOpen}
@@ -614,15 +681,32 @@ export function ContentEditorDocumentEditorPane({
               </Collapsible>
             ) : null}
             {codeMode ? (
-              <div className="mx-auto max-w-[46rem] px-6 pb-16">
-                <Textarea
-                  value={body}
-                  onChange={(event) => setBody(event.currentTarget.value)}
-                  aria-label={intl.formatMessage(messages.codeAria)}
-                  spellCheck={false}
-                  className="min-h-[40rem] resize-y font-mono text-[13px] leading-relaxed"
-                />
-              </div>
+              splitView ? (
+                <div className="rounded-xl bg-muted/30 px-6 py-4">
+                  <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground">
+                    {intl.formatMessage(contentEditorFileViewMessages.targetHeading, {
+                      locale: targetLocale,
+                    })}
+                  </p>
+                  <Textarea
+                    value={body}
+                    onChange={(event) => setBody(event.currentTarget.value)}
+                    aria-label={intl.formatMessage(messages.codeAria)}
+                    spellCheck={false}
+                    className="min-h-[40rem] resize-y font-mono text-[13px] leading-relaxed"
+                  />
+                </div>
+              ) : (
+                <div className="mx-auto w-full max-w-[46rem] px-6 pb-16">
+                  <Textarea
+                    value={body}
+                    onChange={(event) => setBody(event.currentTarget.value)}
+                    aria-label={intl.formatMessage(messages.codeAria)}
+                    spellCheck={false}
+                    className="min-h-[40rem] resize-y font-mono text-[13px] leading-relaxed"
+                  />
+                </div>
+              )
             ) : null}
             <div hidden={codeMode} inert={codeMode || undefined}>
               <DocumentEditor

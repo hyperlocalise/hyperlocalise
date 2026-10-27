@@ -18,7 +18,16 @@ import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+
 import { ProjectIssueTemplatesPanel } from "./project-issue-templates-panel";
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: new GoSvcClient({ getAccessToken: () => "access-token" }),
+    loading: false,
+  }),
+}));
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },

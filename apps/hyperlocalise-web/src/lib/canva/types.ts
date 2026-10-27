@@ -11,18 +11,62 @@
  * Version 2.0 or later.
  */
 export type CanvaDesignSegment = {
-  key: string;
   pageIndex: number;
-  contentIndex: number;
-  regionIndex: number;
   text: string;
+  key?: string;
+  contentIndex?: number;
+  regionIndex?: number;
+};
+
+export type CanvaPullEntry = {
+  key: string;
+  source: string;
+  target: string | null;
+  knownTexts: string[];
+};
+
+export type CanvaPullPage = {
+  pageIndex: number;
+  sourcePath: string;
+  needsReupload: boolean;
+  entries: CanvaPullEntry[];
+};
+
+export type CanvaLocalePullResult = {
+  locale: string;
+  projectId: string;
+  designId?: string;
+  pages: CanvaPullPage[];
+};
+
+export type CanvaSessionProject = {
+  id: string;
+  name: string;
+  sourceLocale: string;
+  targetLocales: string[];
+};
+
+export type CanvaConnectionSession = {
+  organization: {
+    id: string;
+    name: string;
+    slug: string | null;
+  };
+  project: CanvaSessionProject | null;
+  projects: CanvaSessionProject[];
+  connection: {
+    id: string;
+    displayName: string;
+    sourceLocale: string;
+    targetLocales: string[];
+  };
 };
 
 export type CanvaConnectionSummary = {
   id: string;
   organizationId: string;
   apiKeyId: string;
-  projectId: string;
+  projectId: string | null;
   displayName: string;
   sourceLocale: string;
   targetLocales: string[];
@@ -49,9 +93,58 @@ export type CanvaJobStatusName =
 
 export type StartCanvaLocalizationResult = {
   jobId: string;
+  jobIds: string[];
   generated: boolean;
   projectId: string;
   sourcePath: string;
+};
+
+export type CollectedCanvaPageFile = {
+  pageIndex: number;
+  sourcePath: string;
+  sourceFileId: string;
+  segmentCount: number;
+  wordCount: number;
+};
+
+export type CollectCanvaDesignResult = {
+  designSlug: string;
+  projectId: string;
+  pages: CollectedCanvaPageFile[];
+};
+
+export type GenerateCanvaLocaleResult = {
+  locale: string;
+  projectId: string;
+  jobIds: string[];
+};
+
+export type CanvaLocalePageStatus = {
+  pageIndex: number;
+  sourcePath: string;
+  jobId: string | null;
+  status: CanvaJobStatusName | "idle";
+  translated: number;
+  total: number;
+  translatedWords: number;
+  wordCount: number;
+  approved: number;
+  needsReupload: boolean;
+};
+
+export type CanvaLocaleStatus = {
+  locale: string;
+  isSource?: boolean;
+  status: CanvaJobStatusName | "idle";
+  translated: number;
+  total: number;
+  translatedWords: number;
+  wordCount: number;
+  percent: number;
+  approved: number;
+  approvedPercent: number;
+  canAdd: boolean;
+  pages: CanvaLocalePageStatus[];
 };
 
 export type CanvaDesignJob = {

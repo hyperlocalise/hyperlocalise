@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/text/language"
 )
 
 // ErrInvalidInput identifies invalid or inconsistent guideline identities.
@@ -69,14 +71,37 @@ type Result struct {
 	SearchAvailable bool       `json:"searchAvailable"`
 }
 
+// Reranker returns up to topN indexes into passages, most relevant first.
+type Reranker interface {
+	Rerank(ctx context.Context, query string, passages []string, topN int) ([]int, error)
+}
+
+// rerankCandidates is how many index hits are reranked down to the caller's limit.
+const rerankCandidates = 32
+
 // Service combines a canonical source with an optional search index.
 type Service struct {
-	source Source
-	index  Index
+	source   Source
+	index    Index
+	reranker Reranker
+}
+
+// Option configures optional Service dependencies.
+type Option func(*Service)
+
+// WithReranker reorders search hits. A reranker failure keeps index order.
+func WithReranker(reranker Reranker) Option {
+	return func(s *Service) { s.reranker = reranker }
 }
 
 // NewService wires dependencies without creating a new process or database.
-func NewService(source Source, index Index) *Service { return &Service{source: source, index: index} }
+func NewService(source Source, index Index, opts ...Option) *Service {
+	s := &Service{source: source, index: index}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
 
 // ValidateDocument enforces the same limits as canonical guideline content.
 func ValidateDocument(doc Document) error {
@@ -144,6 +169,49 @@ func (s *Service) Sync(ctx context.Context, scope Scope) error {
 	return nil
 }
 
+// IndexDocument indexes one canonical revision loaded by the caller. Workers use
+// it for documents scoped to a locale, which a scope-wide Sync does not load.
+func (s *Service) IndexDocument(ctx context.Context, doc Document) error {
+	if s.index == nil {
+		return errors.New("guideline index not configured")
+	}
+	if err := ValidateDocument(doc); err != nil {
+		return err
+	}
+	if err := s.index.Upsert(ctx, doc); err != nil {
+		return fmt.Errorf("index guideline: %w", err)
+	}
+	return nil
+}
+
+// Delete removes indexed passages for documentID up to and including version.
+func (s *Service) Delete(ctx context.Context, scope Scope, documentID string, version int64) error {
+	if s.index == nil {
+		return errors.New("guideline index not configured")
+	}
+	if strings.TrimSpace(scope.OrganizationID) == "" || strings.TrimSpace(documentID) == "" || version < 1 {
+		return ErrInvalidInput
+	}
+	if err := s.index.DeleteThrough(ctx, scope, documentID, version); err != nil {
+		return fmt.Errorf("delete guideline: %w", err)
+	}
+	return nil
+}
+
+// NormalizeLocale returns the canonical BCP 47 form so stored and requested
+// locales compare equal. An empty locale stays empty.
+func NormalizeLocale(locale string) (string, error) {
+	trimmed := strings.TrimSpace(strings.ReplaceAll(locale, "_", "-"))
+	if trimmed == "" {
+		return "", nil
+	}
+	tag, err := language.Parse(trimmed)
+	if err != nil || len(trimmed) > 35 {
+		return "", ErrInvalidInput
+	}
+	return tag.String(), nil
+}
+
 // Retrieve rechecks revision/scope after search and returns canonical passages.
 // An index outage preserves mandatory instructions and marks search unavailable.
 func (s *Service) Retrieve(ctx context.Context, scope Scope, text string, limit int) (Result, error) {
@@ -156,8 +224,12 @@ func (s *Service) Retrieve(ctx context.Context, scope Scope, text string, limit 
 		return result, err
 	}
 	var hits []Chunk
+	candidates := limit
+	if s.reranker != nil {
+		candidates = max(limit, rerankCandidates)
+	}
 	if s.index != nil && strings.TrimSpace(text) != "" && len(docs) > 0 {
-		hits, err = s.index.Search(ctx, Query{Scope: scope, Text: text, Documents: docs, Limit: limit})
+		hits, err = s.index.Search(ctx, Query{Scope: scope, Text: text, Documents: docs, Limit: candidates})
 		if ctx.Err() != nil {
 			return result, ctx.Err()
 		}
@@ -188,9 +260,45 @@ func (s *Service) Retrieve(ctx context.Context, scope Scope, text string, limit 
 		}
 		result.Passages = append(result.Passages, chunk)
 		delete(canonical, hit.ID)
-		if len(result.Passages) == limit {
+		if len(result.Passages) == candidates {
 			break
 		}
 	}
+	passages, err := s.rerank(ctx, text, result.Passages, limit)
+	if err != nil {
+		return result, err
+	}
+	result.Passages = passages
 	return result, nil
+}
+
+// rerank only returns an error when ctx ends; provider failures keep index order.
+func (s *Service) rerank(ctx context.Context, text string, passages []Chunk, limit int) ([]Chunk, error) {
+	if s.reranker == nil || len(passages) < 2 {
+		return passages[:min(len(passages), limit)], nil
+	}
+	texts := make([]string, len(passages))
+	for i, passage := range passages {
+		texts[i] = passage.Text
+	}
+	order, err := s.reranker.Rerank(ctx, text, texts, limit)
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if err != nil || len(order) == 0 {
+		return passages[:min(len(passages), limit)], nil
+	}
+	ranked := make([]Chunk, 0, min(len(order), limit))
+	seen := make(map[int]bool, len(order))
+	for _, index := range order {
+		if index < 0 || index >= len(passages) || seen[index] {
+			return passages[:min(len(passages), limit)], nil
+		}
+		seen[index] = true
+		ranked = append(ranked, passages[index])
+		if len(ranked) == limit {
+			break
+		}
+	}
+	return ranked, nil
 }

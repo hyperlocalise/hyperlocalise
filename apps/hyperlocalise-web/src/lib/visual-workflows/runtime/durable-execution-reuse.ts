@@ -23,3 +23,21 @@ export function shouldReuseDurableExecution(
   if (!("error" in value) || !value.error || typeof value.error !== "object") return false;
   return "terminal" in value.error && value.error.terminal === true;
 }
+
+export function shouldReuseTryCatchBodyFailure(
+  status: VisualWorkflowNodeRunStatus,
+  value: unknown,
+): value is VisualWorkflowNodeExecutionResult {
+  if (status !== "failed") return false;
+  if (!value || typeof value !== "object" || !("ok" in value) || value.ok !== false) return false;
+  if (!("error" in value) || !value.error || typeof value.error !== "object") return false;
+  const code = "code" in value.error ? value.error.code : null;
+  return ![
+    "yield_execution",
+    "needs_attention",
+    "cancelled",
+    "retry_backoff",
+    "wait_suspended",
+    "merge_suspended",
+  ].includes(typeof code === "string" ? code : "");
+}

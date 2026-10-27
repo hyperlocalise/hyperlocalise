@@ -31,9 +31,14 @@ export const automationsPageViewMessages = defineMessages({
     description: "Automations page heading",
   },
   newAutomation: {
-    defaultMessage: "New Automation",
-    id: "1um5cM9poq",
+    defaultMessage: "New automation",
+    id: "RkEdGugJ9D",
     description: "Button to create a new workspace automation",
+  },
+  visualWorkflows: {
+    defaultMessage: "Visual workflows",
+    id: "zK2bwfb+JP",
+    description: "Link from automations list to visual workflows",
   },
   loadingAutomations: {
     defaultMessage: "Loading automations",
@@ -104,6 +109,27 @@ export const automationsPageViewMessages = defineMessages({
     defaultMessage: "Paused",
     id: "+5c87/Ii+m",
     description: "Badge label when an automation is paused",
+  },
+  newAutomationSectionTitle: {
+    defaultMessage: "New automation",
+    id: "aHvMV2aQQN",
+    description: "Heading of the section of the automations page where a new automation is started",
+  },
+  newAutomationSectionDescription: {
+    defaultMessage:
+      "Describe what you want done and the assistant sets it up for you. Nothing is saved until you create it.",
+    id: "sxoIk5o3gz",
+    description: "Text under the heading of the section where a new automation is started",
+  },
+  startFromScratch: {
+    defaultMessage: "Start from scratch",
+    id: "RuPE0YKwSS",
+    description: "Button that opens an empty automation editor without the assistant",
+  },
+  orPickTemplate: {
+    defaultMessage: "or pick a template",
+    id: "QiMU0qq2o+",
+    description: "Divider between the assistant prompt box and the list of automation templates",
   },
   templatesTitle: {
     defaultMessage: "Templates",

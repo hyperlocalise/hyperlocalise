@@ -64,6 +64,7 @@ const jobWithProjectSelect = {
   externalStatus: schema.externalJobDetails.externalStatus,
   externalTitle: schema.externalJobDetails.title,
   externalDueDate: schema.externalJobDetails.dueDate,
+  dueAt: schema.jobs.dueAt,
   externalTargetLocales: schema.externalJobDetails.targetLocales,
   externalAssignedUsers: schema.externalJobDetails.assignedUsers,
   externalUrl: schema.externalJobDetails.externalUrl,

@@ -12,8 +12,11 @@
  */
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
-import { Suspense } from "react";
 
+import {
+  getAgentsAutomationFaqItems,
+  getAgentsAutomationFaqSectionCopy,
+} from "@/components/marketing/product/agents-automation-faq-content";
 import { ProductPage } from "@/components/marketing/product/product-page";
 import { DomainsPage } from "@/components/marketing/product/domains-page";
 import { GuidelinesPage } from "@/components/marketing/product/guidelines-page";
@@ -22,17 +25,21 @@ import { MultilingualContentStudioPage } from "@/components/marketing/product/mu
 import {
   productPagesBySlug,
   productSlugs,
+  type ProductPageSlug,
 } from "@/components/marketing/product/product-page-content";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import {
   DEFAULT_APP_LOCALE,
   normalizeAppLocale,
   SUPPORTED_APP_LOCALES,
 } from "@/lib/app-i18n/locales";
+import { JsonLd } from "@/components/seo/json-ld";
 import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
+import { buildProductJsonLd } from "./build-product-json-ld";
 import { getProductRouteMetadata } from "./product-route-metadata";
+
+const productJsonLdSlugs = new Set<string>(productSlugs);
 
 type ProductRouteParams = {
   lang: string;
@@ -82,25 +89,7 @@ export async function generateMetadata({ params }: ProductRouteProps): Promise<M
   };
 }
 
-export default function ProductRoutePage({ params }: ProductRouteProps) {
-  return (
-    <Suspense fallback={<ProductRouteFallback />}>
-      <ProductRouteContent params={params} />
-    </Suspense>
-  );
-}
-
-async function ProductRouteContent({ params }: ProductRouteProps) {
-  const { lang, slug } = await params;
-
-  if (slug === "next-gen-cat-tool") {
-    permanentRedirect(`/${lang}/product/multilingual-content-studio`);
-  }
-
-  if (slug === "self-evolving-knowledge") {
-    permanentRedirect(`/${lang}/product/guidelines`);
-  }
-
+function renderProductPage(slug: string, locale: string) {
   if (slug === "multilingual-content-studio") {
     return <MultilingualContentStudioPage />;
   }
@@ -116,30 +105,49 @@ async function ProductRouteContent({ params }: ProductRouteProps) {
   if (slug === "hyperlab") {
     return <HyperlabPage />;
   }
+
   const content = productPagesBySlug[slug as keyof typeof productPagesBySlug];
 
   if (!content) {
     notFound();
   }
 
+  if (slug === "agents-automation") {
+    const faqCopy = getAgentsAutomationFaqSectionCopy(locale);
+    return (
+      <ProductPage
+        content={content}
+        faqItems={getAgentsAutomationFaqItems(locale)}
+        faqHeading={faqCopy.heading}
+        faqSubheading={faqCopy.subheading}
+      />
+    );
+  }
+
   return <ProductPage content={content} />;
 }
 
-function ProductRouteFallback() {
+export default async function ProductRoutePage({ params }: ProductRouteProps) {
+  const { lang, slug } = await params;
+
+  if (slug === "next-gen-cat-tool") {
+    permanentRedirect(`/${lang}/product/multilingual-content-studio`);
+  }
+
+  if (slug === "self-evolving-knowledge") {
+    permanentRedirect(`/${lang}/product/guidelines`);
+  }
+
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+  const page = renderProductPage(slug, locale);
+  const jsonLd = productJsonLdSlugs.has(slug)
+    ? buildProductJsonLd(slug as ProductPageSlug, locale)
+    : null;
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto max-w-7xl">
-        <section className="px-5 py-20 sm:px-8 sm:py-24 lg:px-10 lg:py-20">
-          <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-8">
-            <Skeleton className="h-16 w-3/4 max-w-2xl" />
-            <Skeleton className="h-8 w-1/2 max-w-md" />
-            <Skeleton className="h-11 w-40" />
-          </div>
-        </section>
-        <section className="px-3 pb-20 sm:px-6 lg:px-8">
-          <Skeleton className="mx-auto h-[28rem] w-full max-w-6xl" />
-        </section>
-      </div>
-    </div>
+    <>
+      {jsonLd ? <JsonLd data={jsonLd} /> : null}
+      {page}
+    </>
   );
 }

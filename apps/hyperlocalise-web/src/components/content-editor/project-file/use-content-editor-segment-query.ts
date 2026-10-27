@@ -12,6 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { ContentEditorProjectSource } from "@/components/content-editor/shared/content-editor-native-project";
+import { canUseGoSvcCat } from "@/components/content-editor/shared/content-editor-native-project";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
 import {
@@ -56,6 +58,10 @@ import {
   type ProjectFileContentEditorQueuePage,
   type ProjectFileContentEditorQueuePageParam,
 } from "./project-file-content-editor-api";
+import {
+  isSourceFileIngestInProgress,
+  sourceFileIngestPollIntervalMs,
+} from "@/lib/projects/files/source-file-ingest-state";
 
 type ContentEditorFilePagination = NonNullable<
   ProjectFileContentEditorResponse["contentEditorFile"]["pagination"]
@@ -144,6 +150,7 @@ export function useContentEditorSegmentQuery(input: {
   /** Native only: one row per identical source string. */
   grouped?: boolean;
   goSvcClient?: GoSvcClient;
+  projectSource?: ContentEditorProjectSource | null;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -162,6 +169,11 @@ export function useContentEditorSegmentQuery(input: {
   const [queueAdvanced, setQueueAdvanced] = useState<ContentEditorAdvancedQueueFilter | undefined>(
     restoredQueue.queueAdvanced,
   );
+  const useGoSvcCat = canUseGoSvcCat({
+    projectId: input.projectId,
+    projectSource: input.projectSource,
+    externalResourceId: input.externalResourceId,
+  });
   const fileIdentity = `${input.projectId}\0${input.sourcePath}`;
   const [appliedFileIdentity, setAppliedFileIdentity] = useState(fileIdentity);
   if (appliedFileIdentity !== fileIdentity) {
@@ -256,11 +268,18 @@ export function useContentEditorSegmentQuery(input: {
 
       return previousData;
     },
+    refetchInterval: (query) => {
+      const page = query.state.data?.pages[0];
+      if (!page) {
+        return false;
+      }
+      return isSourceFileIngestInProgress(page.ingestState)
+        ? sourceFileIngestPollIntervalMs
+        : false;
+    },
     gcTime: CAT_CACHE_GC_TIME,
     maxPages:
-      input.goSvcClient &&
-      !input.externalResourceId &&
-      !providerFallback.current.has(input.projectId)
+      input.goSvcClient && useGoSvcCat && !providerFallback.current.has(input.projectId)
         ? CAT_QUEUE_MAX_PAGES
         : undefined,
     getPreviousPageParam: (firstPage) =>
@@ -296,11 +315,7 @@ export function useContentEditorSegmentQuery(input: {
         ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
         ...(input.grouped ? { grouped: "true" as const } : {}),
       };
-      if (
-        input.goSvcClient &&
-        !input.externalResourceId &&
-        !providerFallback.current.has(input.projectId)
-      ) {
+      if (input.goSvcClient && useGoSvcCat && !providerFallback.current.has(input.projectId)) {
         try {
           const { contentEditorQueue: page } = await input.goSvcClient.cat.queue(
             input.organizationSlug,

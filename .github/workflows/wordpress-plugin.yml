@@ -1,0 +1,127 @@
+name: WordPress Plugin CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - apps/hyperlocalise-wp/**
+      - .github/workflows/wordpress-plugin.yml
+      - .github/workflows/wordpress-plugin-release.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wordpress-plugin-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wordpress-plugin-test:
+    name: WordPress Plugin Test (PHP ${{ matrix.php }})
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    strategy:
+      fail-fast: false
+      matrix:
+        # Lowest supported version (plugin header) and current stable.
+        php: ["7.4", "8.4"]
+    defaults:
+      run:
+        working-directory: apps/hyperlocalise-wp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+
+      - name: Lint
+        run: composer lint
+
+      - name: Unit tests
+        run: composer test
+
+  wordpress-plugin-analyse:
+    name: WordPress Plugin Static Analysis
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    defaults:
+      run:
+        working-directory: apps/hyperlocalise-wp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+
+      - name: PHPStan
+        run: composer analyse -- --no-progress --error-format=github
+
+  wordpress-plugin-smoke:
+    name: WordPress Plugin Smoke (Playground + Polylang)
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    defaults:
+      run:
+        working-directory: apps/hyperlocalise-wp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "22.23.4"
+
+      - name: Run smoke blueprint
+        run: |
+          npx --yes @wp-playground/cli@3.1.60 run-blueprint \
+            --blueprint=tests/playground/smoke.blueprint.json \
+            --mount=.:/wordpress/wp-content/plugins/hyperlocalise-wp
+
+      - name: Verify smoke output
+        if: always()
+        run: |
+          set -euo pipefail
+          cat tests/playground/smoke-output.txt
+          grep -q '^SMOKE OK' tests/playground/smoke-output.txt
+
+  wordpress-plugin-package:
+    name: WordPress Plugin Package
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    defaults:
+      run:
+        working-directory: apps/hyperlocalise-wp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Build plugin zip
+        id: build
+        run: bin/build-zip.sh
+
+      - name: Upload plugin zip
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hyperlocalise-wordpress-plugin
+          path: ${{ steps.build.outputs.zip-path }}
+          if-no-files-found: error
+          retention-days: 14

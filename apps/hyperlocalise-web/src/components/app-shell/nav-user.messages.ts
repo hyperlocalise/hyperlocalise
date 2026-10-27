@@ -45,21 +45,6 @@ export const navUserMessages = defineMessages({
     id: "36gU2d3aFl",
     description: "Billing settings link in the user menu",
   },
-  switchWorkspace: {
-    defaultMessage: "Switch workspace",
-    id: "TG1FpMpW2X",
-    description: "Submenu trigger to switch between workspaces",
-  },
-  workspaces: {
-    defaultMessage: "Workspaces",
-    id: "JpSMiCgbq5",
-    description: "Label above the list of workspaces in the switch submenu",
-  },
-  viewAllWorkspaces: {
-    defaultMessage: "View all workspaces",
-    id: "do0p3JfCkF",
-    description: "Link to the organization selection page from the user menu",
-  },
   logOut: {
     defaultMessage: "Log out",
     id: "TbfAHmBI7l",

@@ -20,7 +20,7 @@ import {
 import { createStoredFile } from "@/lib/file-storage/records";
 import {
   inferSupportedFileTranslationFileFormat,
-  supportedFileTranslationFileFormats,
+  availableFileTranslationFileFormats,
 } from "@/lib/translation/file-formats";
 
 type SlackAttachment = NonNullable<Message["attachments"]>[number];
@@ -49,9 +49,10 @@ function attachmentContentType(attachment: SlackAttachment) {
   return attachment.mimeType?.trim() || "application/octet-stream";
 }
 
-async function attachmentData(attachment: SlackAttachment) {
+async function attachmentData(attachment: SlackAttachment): Promise<Buffer> {
   if (attachment.fetchData) {
-    return attachment.fetchData();
+    const data = await attachment.fetchData();
+    return Buffer.isBuffer(data) ? data : Buffer.from(data);
   }
 
   const { data } = attachment;
@@ -147,7 +148,9 @@ export function buildUnsupportedSlackFilesMessage(attachments: SlackAttachment[]
     "I received the file upload, but it is not a supported text translation source yet.",
     "",
     "Supported file formats:",
-    supportedFileTranslationFileFormats.map((format) => `\`${format}\``).join(", "),
+    availableFileTranslationFileFormats()
+      .map((format) => `\`${format}\``)
+      .join(", "),
     "",
     "Unsupported files:",
     ...filenames,

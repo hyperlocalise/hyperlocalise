@@ -30,6 +30,8 @@ export type ChatDockStreamSnapshot = {
   responseToMessageId: string;
   message: UIMessage;
   status: Exclude<ChatDockStreamStatus, "idle">;
+  /** Set when the server refused the reply because the workspace's AI credit is used up. */
+  aiCreditExhausted?: boolean;
 };
 
 export type ChatDockTab = {
@@ -84,7 +86,10 @@ const STREAM_ERROR_MESSAGE = "Sorry, I encountered an error while generating a r
 function applyStreamSnapshotToTab(tab: ChatDockTab, snapshot: ChatDockStreamSnapshot | null) {
   tab.streamSnapshot = snapshot;
   tab.isStreaming = snapshot?.status === "streaming";
-  if (snapshot?.status === "error") {
+  if (snapshot?.aiCreditExhausted) {
+    // The refusal is shown in the conversation, where the reply would have been.
+    tab.lastError = null;
+  } else if (snapshot?.status === "error") {
     tab.lastError = STREAM_ERROR_MESSAGE;
   } else if (snapshot?.status === "complete") {
     tab.lastError = null;

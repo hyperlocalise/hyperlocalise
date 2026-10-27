@@ -13,6 +13,7 @@
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import {
+  cmsTranslationSkillConflictsWith,
   getWorkspaceAutomationSkill,
   listWorkspaceAutomationSkillTools,
   resolveWorkspaceAutomationSkills,
@@ -21,7 +22,10 @@ import {
   type WorkspaceAutomationSkillTool,
   type WorkspaceAutomationSkillTrigger,
 } from "./workspace-automation-skills";
-import type { WorkspaceAutomationFormState } from "./workspace-automation-view-model";
+import type {
+  WorkspaceAutomationFieldErrors,
+  WorkspaceAutomationFormState,
+} from "./workspace-automation-view-model";
 
 /** Settings a skill cannot know, used only where the form has no value yet. */
 export type WorkspaceAutomationSkillDefaults = {
@@ -30,7 +34,66 @@ export type WorkspaceAutomationSkillDefaults = {
   contentfulConnectionId?: string;
 };
 
-export type WorkspaceAutomationSkillAvailability = "available" | "attached" | "trigger_mismatch";
+export type WorkspaceAutomationSkillAvailability =
+  | "available"
+  | "attached"
+  | "trigger_mismatch"
+  | "skill_exclusive";
+
+export type WorkspaceAutomationSetupField = keyof WorkspaceAutomationFieldErrors;
+
+/**
+ * The settings each skill tool owns: what the person fills in once the tool is on. A field owned
+ * by no skill tool, such as the name or the trigger, belongs to the setup as a whole.
+ */
+export const WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS: Record<
+  WorkspaceAutomationSkillTool,
+  readonly WorkspaceAutomationSetupField[]
+> = {
+  use_github_repository: ["githubRepository"],
+  notify_github_comment: ["githubRepository"],
+  use_crowdin: ["crowdinProjectId"],
+  use_web_search: [],
+  run_contentful_translation: [
+    "contentfulConnectionId",
+    "contentfulTargetLocales",
+    "contentfulEntryId",
+    "projectId",
+  ],
+  create_native_tms_job: ["projectId", "createNativeTmsJobTargetLocales"],
+  assign_translate_with_agent: ["projectId"],
+  list_issues: ["projectId"],
+  create_issue: ["projectId"],
+  notify_slack: ["slackChannelId"],
+  notify_email: ["emailRecipients", "emailFrom"],
+  import_intercom_articles: ["intercomHelpCenterId", "projectId"],
+  push_intercom_translations: ["intercomHelpCenterId", "projectId"],
+  import_sanity_documents: ["sanityProjectId", "sanityDataset", "sanityDocumentTypes", "projectId"],
+  push_sanity_translations: [
+    "sanityProjectId",
+    "sanityDataset",
+    "sanityDocumentTypes",
+    "projectId",
+  ],
+  import_google_drive_files: ["googleDrive", "projectId"],
+  push_google_drive_translations: ["googleDrive", "projectId"],
+  import_braze_templates: ["projectId"],
+  push_braze_templates: ["projectId"],
+  import_braze_campaigns: ["projectId"],
+  push_braze_campaigns: ["projectId"],
+};
+
+/** Ids of the given skills whose tools own the field, in the order given. */
+export function listWorkspaceAutomationSetupFieldOwners(
+  skillIds: readonly string[],
+  field: WorkspaceAutomationSetupField,
+): string[] {
+  return resolveWorkspaceAutomationSkills(skillIds)
+    .filter((skill) =>
+      skill.tools.some((tool) => WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS[tool].includes(field)),
+    )
+    .map((skill) => skill.id);
+}
 
 function enableSkillTool(
   form: WorkspaceAutomationFormState,
@@ -87,6 +150,32 @@ function enableSkillTool(
         ...form,
         intercomEnabled: true,
       };
+    case "import_sanity_documents":
+    case "push_sanity_translations":
+      return {
+        ...form,
+        sanityEnabled: true,
+      };
+    case "import_google_drive_files":
+    case "push_google_drive_translations":
+      return {
+        ...form,
+        googleDriveEnabled: true,
+      };
+    case "import_braze_templates":
+    case "push_braze_templates":
+      return {
+        ...form,
+        brazeEnabled: true,
+        brazeCampaignsEnabled: false,
+      };
+    case "import_braze_campaigns":
+    case "push_braze_campaigns":
+      return {
+        ...form,
+        brazeCampaignsEnabled: true,
+        brazeEnabled: false,
+      };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: true };
     case "assign_translate_with_agent":
@@ -139,6 +228,18 @@ function disableSkillTool(
     case "import_intercom_articles":
     case "push_intercom_translations":
       return { ...form, intercomEnabled: false };
+    case "import_sanity_documents":
+    case "push_sanity_translations":
+      return { ...form, sanityEnabled: false };
+    case "import_google_drive_files":
+    case "push_google_drive_translations":
+      return { ...form, googleDriveEnabled: false };
+    case "import_braze_templates":
+    case "push_braze_templates":
+      return { ...form, brazeEnabled: false };
+    case "import_braze_campaigns":
+    case "push_braze_campaigns":
+      return { ...form, brazeCampaignsEnabled: false };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: false };
     case "assign_translate_with_agent":
@@ -196,6 +297,9 @@ export function resolveWorkspaceAutomationSkillAvailability(
   if (form.skillIds.includes(skill.id)) {
     return "attached";
   }
+  if (cmsTranslationSkillConflictsWith(form.skillIds, skill.id)) {
+    return "skill_exclusive";
+  }
   return resolveTriggerWithSkill(form, skill) === null ? "trigger_mismatch" : "available";
 }
 
@@ -217,6 +321,9 @@ export function addSkillToWorkspaceAutomationForm(
 ): WorkspaceAutomationFormState {
   const skill = getWorkspaceAutomationSkill(skillId);
   if (!skill || form.skillIds.includes(skill.id)) {
+    return form;
+  }
+  if (resolveWorkspaceAutomationSkillAvailability(form, skill) !== "available") {
     return form;
   }
   const triggerMode = resolveTriggerWithSkill(form, skill);

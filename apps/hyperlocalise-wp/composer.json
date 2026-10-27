@@ -1,0 +1,30 @@
+{
+    "name": "hyperlocalise/hyperlocalise-wp",
+    "description": "Hyperlocalise translation plugin for WordPress with WPML and Polylang support.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "phpstan/extension-installer": "^1.4",
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^9.6",
+        "szepeviktor/phpstan-wordpress": "^2.0"
+    },
+    "scripts": {
+        "lint": "bin/lint.sh",
+        "analyse": "phpstan analyse --memory-limit=1G",
+        "test": "phpunit",
+        "build": "bin/build-zip.sh"
+    },
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "7.4.33"
+        },
+        "allow-plugins": {
+            "phpstan/extension-installer": true
+        }
+    }
+}

@@ -37,6 +37,7 @@ const { enqueueActivityLogEventMock, resolveApiAuthContextFromSessionMock } = vi
 
 vi.mock("@/lib/activity-log/activity-log-writer", () => ({
   enqueueActivityLogEvent: enqueueActivityLogEventMock,
+  enqueueActivityLogEvents: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -292,6 +293,8 @@ describe("providerCredentialRoutes", () => {
       defaultModel: "gpt-5.5",
     });
 
+    enqueueActivityLogEventMock.mockClear();
+
     const revealResponse = await client.api.orgs[":organizationSlug"]["provider-credential"][
       "reveal"
     ].$post(
@@ -314,5 +317,12 @@ describe("providerCredentialRoutes", () => {
         },
       },
     });
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "integration_credential_revealed",
+        payload: expect.objectContaining({ integrationKind: "openai" }),
+        targetKind: "integration",
+      }),
+    );
   });
 });

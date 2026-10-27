@@ -17,6 +17,8 @@ import {
   repositoryTargetSchema,
   toolConfigSchema,
   triggerConfigSchema,
+  WORKSPACE_AUTOMATION_INSTRUCTIONS_MAX_CHARS,
+  WORKSPACE_AUTOMATION_NAME_MAX_CHARS,
   workspaceAutomationConfigSchema,
   workspaceAutomationModelSchema,
   workspaceAutomationSkillIdsSchema,
@@ -26,6 +28,10 @@ import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/identit
 
 export const workspaceAutomationIdParamSchema = z.object({
   automationId: z.string().uuid(),
+});
+
+export const getWorkspaceAutomationQuerySchema = z.object({
+  includePushArticles: z.string().optional(),
 });
 
 export const workspaceAutomationKnowledgeFileIdParamSchema = z.object({
@@ -42,8 +48,8 @@ export const listWorkspaceAutomationsQuerySchema = z.object({
 
 const agentAutomationCreateFields = {
   status: workspaceAutomationStatusSchema.optional(),
-  name: z.string().trim().min(1).max(120),
-  instructions: z.string().trim().max(20_000).default(""),
+  name: z.string().trim().min(1).max(WORKSPACE_AUTOMATION_NAME_MAX_CHARS),
+  instructions: z.string().trim().max(WORKSPACE_AUTOMATION_INSTRUCTIONS_MAX_CHARS).default(""),
   skillIds: workspaceAutomationSkillIdsSchema.optional(),
   model: workspaceAutomationModelSchema.optional(),
   nextRunAt: z.string().datetime().nullable().optional(),
@@ -53,8 +59,8 @@ export const createWorkspaceAutomationBodySchema = z.union([
   z
     .object({
       status: workspaceAutomationStatusSchema.optional(),
-      name: z.string().trim().min(1).max(120),
-      instructions: z.string().trim().max(20_000).optional(),
+      name: z.string().trim().min(1).max(WORKSPACE_AUTOMATION_NAME_MAX_CHARS),
+      instructions: z.string().trim().max(WORKSPACE_AUTOMATION_INSTRUCTIONS_MAX_CHARS).optional(),
       model: workspaceAutomationModelSchema.optional(),
       nextRunAt: z.string().datetime().nullable().optional(),
       kind: z.literal("content_sync"),
@@ -82,8 +88,8 @@ export const updateWorkspaceAutomationBodySchema = workspaceAutomationConfigSche
   .partial()
   .extend({
     status: workspaceAutomationStatusSchema.optional(),
-    name: z.string().trim().min(1).max(120).optional(),
-    instructions: z.string().trim().max(20_000).optional(),
+    name: z.string().trim().min(1).max(WORKSPACE_AUTOMATION_NAME_MAX_CHARS).optional(),
+    instructions: z.string().trim().max(WORKSPACE_AUTOMATION_INSTRUCTIONS_MAX_CHARS).optional(),
     skillIds: workspaceAutomationSkillIdsSchema.optional(),
     model: workspaceAutomationModelSchema.optional(),
     nextRunAt: z.string().datetime().nullable().optional(),

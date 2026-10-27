@@ -1,12 +1,18 @@
 # Hyperlocalise sync config for the web app (react-intl / FormatJS).
-version: hyperlocalise@1.13.3
+version: hyperlocalise@1.13.6
 locales:
   source: en-US
   targets:
     - zh-CN
-    - vi-VN
-    - de-DE
+    - da-DK
+    - nl-NL
+    - fil-PH
     - fr-FR
+    - de-DE
+    - ja-JP
+    - ko-KR
+    - th-TH
+    - vi-VN
 
 buckets:
   web:

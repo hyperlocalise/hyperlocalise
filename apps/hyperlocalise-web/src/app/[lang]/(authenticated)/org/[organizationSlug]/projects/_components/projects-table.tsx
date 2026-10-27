@@ -227,7 +227,7 @@ function ProjectRow({
                       projectName: project.name,
                     })}
                     disabled={isDeletingProject || isSavingProject}
-                    className="text-muted-foreground hover:text-foreground"
+                    className="shrink-0 text-muted-foreground hover:text-foreground"
                   />
                 }
               >

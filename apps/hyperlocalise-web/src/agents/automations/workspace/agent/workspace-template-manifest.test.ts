@@ -41,6 +41,23 @@ describe("workspace template manifest", () => {
     expect(validateTemplate?.instructions).toContain("You are a localisation quality reviewer");
   });
 
+  it("merges translate-intercom-articles skill onto the gallery template", () => {
+    const [template] = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE).filter(
+      (entry) => entry.id === "translate-intercom-articles",
+    );
+
+    expect(template).toMatchObject({
+      name: "Translate Intercom Help Center articles",
+      category: "popular",
+      activatable: true,
+    });
+    expect(template?.description).toBe(
+      "Import Intercom Help Center articles into a native project on a schedule, localise in Jobs, then push approved translations when you are ready.",
+    );
+    expect(template?.description).not.toMatch(/^#/);
+    expect(template?.instructions).toContain("## Translate Intercom Help Center articles");
+  });
+
   it("merges translate-on-source-upload skill onto the gallery template", () => {
     const [template] = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE).filter(
       (entry) => entry.id === "translate-on-source-upload",
@@ -67,6 +84,9 @@ describe("workspace template manifest", () => {
     expect(getTemplateExecutorAgent("translate-on-source-upload")).toBeNull();
     expect(getTemplateCategoryFromSkill("validate-localisation-on-push")).toBe("quality");
     expect(getTemplateCategoryFromSkill("translate-on-source-upload")).toBe("popular");
+    expect(getTemplateCategoryFromSkill("translate-intercom-articles")).toBe("popular");
+    expect(getTemplateCategoryFromSkill("translate-braze-email-templates")).toBe("popular");
+    expect(getTemplateCategoryFromSkill("translate-braze-campaigns")).toBe("popular");
   });
 
   it("merges summarize changes daily skill onto the gallery template", () => {
@@ -147,6 +167,10 @@ describe("workspace template manifest", () => {
     expect(activatableIds).toEqual([
       "translate-on-source-upload",
       "translate-intercom-articles",
+      "translate-sanity-documents",
+      "translate-google-drive-files",
+      "translate-braze-email-templates",
+      "translate-braze-campaigns",
       "translate-contentful-article",
       "summarize-changes-daily",
       "review-code-daily",

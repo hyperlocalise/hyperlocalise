@@ -15,15 +15,42 @@
 import { useEffect, useMemo, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { Extension, type Extensions } from "@tiptap/core";
+import { Extension, type Extensions, type JSONContent } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
+import type { MessageFormat } from "@/lib/i18n/message-format";
 import { cn } from "@/lib/primitives/cn";
 
+import { inferSupportedDocumentTranslationFileFormat } from "@/lib/translation/file-formats";
+
+import {
+  canUseMarkdownCatEditor,
+  isStructuralMarkdownMarkupToken,
+  markdownDisplayDocFromModel,
+  markdownDisplayModel,
+  persistMarkdownCatTarget,
+  serializeMarkdownEditorDoc,
+  shouldUseMarkdownCatDisplay,
+  sourceHeadingIdLiteral,
+} from "@/components/content-editor/message-format/content-editor-markdown-display";
+import {
+  stripInternalMarkupSentinels,
+  stripLeakedInternalMarkupFromStoredMessage,
+} from "@/components/content-editor/message-format/content-editor-internal-markup";
+import {
+  joinOfficeTarget,
+  officeRunDisplayLines,
+  officeRunDocFromLines,
+  officeRunLayout,
+  serializeOfficeRunDoc,
+  splitOfficeTarget,
+  type OfficeRunLayout,
+} from "@/components/content-editor/message-format/content-editor-office-runs";
+import { formatMarkdownMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-markdown-markup";
 import {
   analyzeCatMessageFormat,
   contentEditorMessageTokenSignature,
@@ -40,6 +67,10 @@ import {
 } from "@/components/content-editor/message-format/content-editor-message-token-styles";
 import { glossaryTermRanges } from "@/components/content-editor/intelligence/content-editor-glossary-checks";
 import { ContentEditorCharacterMeter } from "@/components/content-editor/segment/content-editor-character-meter";
+import {
+  markContentEditorTargetInsertFocused,
+  registerContentEditorTargetInsert,
+} from "@/components/content-editor/editor/content-editor-target-insert";
 import { contentEditorTargetEditorMessages } from "@/components/content-editor/shared/content-editor.messages";
 
 const TEXT_BLOCK_SEPARATOR = "\n";
@@ -105,6 +136,46 @@ function textDocFromValue(value: string) {
       content: line ? [{ type: "text", text: line }] : undefined,
     })),
   };
+}
+
+function createOfficeRunKeyboardExtension(isActive: () => boolean) {
+  return Extension.create({
+    name: "contentEditorOfficeRunKeyboard",
+    addKeyboardShortcuts() {
+      return {
+        Enter: ({ editor }) => {
+          if (!isActive()) {
+            return false;
+          }
+          const { state } = editor;
+          const { $from } = state.selection;
+          if (!$from.parent.isTextblock) {
+            return false;
+          }
+          const paragraphIndex = $from.index(0);
+          if (paragraphIndex >= state.doc.childCount - 1) {
+            return false;
+          }
+          let pos = 0;
+          for (let index = 0; index <= paragraphIndex; index += 1) {
+            pos += state.doc.child(index).nodeSize;
+          }
+          editor.commands.setTextSelection(pos + 1);
+          return true;
+        },
+        Backspace: ({ editor }) => {
+          if (!isActive()) {
+            return false;
+          }
+          const { $from } = editor.state.selection;
+          if ($from.parentOffset !== 0) {
+            return false;
+          }
+          return $from.index(0) > 0;
+        },
+      };
+    },
+  });
 }
 
 function editorText(editor: NonNullable<ReturnType<typeof useEditor>>) {
@@ -255,9 +326,18 @@ function createCatMessageFormatExtension() {
   });
 }
 
+const officeRunKeyboardRef = { current: () => false };
+
 const contentEditorTargetEditorExtensions = [
-  StarterKit.configure({ heading: false }),
+  StarterKit.configure({
+    heading: false,
+    link: {
+      openOnClick: false,
+      HTMLAttributes: { class: "text-primary underline", target: null },
+    },
+  }),
   createCatMessageFormatExtension(),
+  createOfficeRunKeyboardExtension(() => officeRunKeyboardRef.current()),
 ] as unknown as Extensions;
 
 function tokenLabel(token: ContentEditorMessageToken) {
@@ -361,22 +441,27 @@ function renderHighlightedPlainText(
   );
 }
 
-export function ContentEditorMessagePreview({
+function ContentEditorMessageFormatParts({
   message,
-  className,
-  highlightTokens = [],
-  highlightStatus = "warn",
-  highlightWholeTerm = false,
+  companionMessage,
+  highlightTokens,
+  highlightStatus,
+  highlightWholeTerm,
 }: {
   message: string;
-  className?: string;
-  highlightTokens?: string[];
-  highlightStatus?: "warn" | "fail";
-  highlightWholeTerm?: boolean;
+  companionMessage?: string;
+  highlightTokens: string[];
+  highlightStatus: "warn" | "fail";
+  highlightWholeTerm: boolean;
 }) {
-  const analysis = useMemo(() => analyzeCatMessageFormat(message), [message]);
+  const analysis = analyzeCatMessageFormat(message);
+  const displayMessage = analysis.message;
   const ranges = analysis.tokens
-    .filter((token) => token.kind !== "pound")
+    .filter(
+      (token) =>
+        token.kind !== "pound" &&
+        !isStructuralMarkdownMarkupToken(token, message, companionMessage),
+    )
     .toSorted((first, second) => first.start - second.start)
     .reduce<ContentEditorMessageToken[]>((items, token) => {
       const previous = items.at(-1);
@@ -387,16 +472,12 @@ export function ContentEditorMessagePreview({
     }, []);
 
   if (ranges.length === 0) {
-    return (
-      <span className={className}>
-        {renderHighlightedPlainText(
-          message,
-          highlightTokens,
-          highlightStatus,
-          "plain",
-          highlightWholeTerm,
-        )}
-      </span>
+    return renderHighlightedPlainText(
+      displayMessage,
+      highlightTokens,
+      highlightStatus,
+      "plain",
+      highlightWholeTerm,
     );
   }
 
@@ -404,49 +485,139 @@ export function ContentEditorMessagePreview({
   const parts: Array<{ text: string; token?: ContentEditorMessageToken; key: string }> = [];
   ranges.forEach((token) => {
     if (cursor < token.start) {
-      parts.push({ key: `text-${cursor}`, text: message.slice(cursor, token.start) });
+      parts.push({ key: `text-${cursor}`, text: displayMessage.slice(cursor, token.start) });
     }
     parts.push({
       key: token.id,
       text:
         token.kind === "markup"
           ? (token.displayLabel ?? token.name)
-          : message.slice(token.start, token.end),
+          : displayMessage.slice(token.start, token.end),
       token,
     });
     cursor = token.end;
   });
 
-  if (cursor < message.length) {
-    parts.push({ key: `text-${cursor}`, text: message.slice(cursor) });
+  if (cursor < displayMessage.length) {
+    parts.push({ key: `text-${cursor}`, text: displayMessage.slice(cursor) });
+  }
+
+  return parts.map((part) =>
+    part.token ? (
+      <span
+        key={part.key}
+        className={cn(
+          "rounded-md border px-1 py-0.5 font-mono text-[0.9em]",
+          contentEditorMessageTokenToneClass(tokenVisualKind(part.token)),
+        )}
+        title={part.token.kind === "markup" ? part.token.literal : undefined}
+      >
+        {part.text}
+      </span>
+    ) : (
+      <span key={part.key}>
+        {renderHighlightedPlainText(
+          part.text,
+          highlightTokens,
+          highlightStatus,
+          part.key,
+          highlightWholeTerm,
+        )}
+      </span>
+    ),
+  );
+}
+
+export function ContentEditorMessagePreview({
+  message,
+  companionMessage,
+  className,
+  highlightTokens = [],
+  highlightStatus = "warn",
+  highlightWholeTerm = false,
+}: {
+  message: string;
+  companionMessage?: string;
+  className?: string;
+  highlightTokens?: string[];
+  highlightStatus?: "warn" | "fail";
+  highlightWholeTerm?: boolean;
+}) {
+  const markdown = useMemo(() => {
+    if (!shouldUseMarkdownCatDisplay(message, companionMessage)) {
+      return null;
+    }
+    return markdownDisplayModel(message, companionMessage);
+  }, [companionMessage, message]);
+  const displayMessage = useMemo(
+    () => formatMarkdownMarkupForDisplay(message, companionMessage),
+    [companionMessage, message],
+  );
+
+  const officeLines = useMemo(() => officeRunDisplayLines(message), [message]);
+
+  if (officeLines) {
+    return (
+      <span className={cn("block whitespace-pre-wrap", className)}>
+        {officeLines.map((line, index) => (
+          <span key={index} className="block">
+            {renderHighlightedPlainText(
+              line,
+              highlightTokens,
+              highlightStatus,
+              `office-run-${index}`,
+              highlightWholeTerm,
+            )}
+          </span>
+        ))}
+      </span>
+    );
+  }
+
+  if (markdown) {
+    return (
+      <span className={className}>
+        {markdown.spans.map((span, index) =>
+          span.type === "link" ? (
+            <a
+              key={`link-${index}`}
+              href={span.href || undefined}
+              title={span.href}
+              className="text-primary underline"
+              onClick={(event) => event.preventDefault()}
+            >
+              <ContentEditorMessageFormatParts
+                message={span.label}
+                companionMessage={companionMessage}
+                highlightTokens={highlightTokens}
+                highlightStatus={highlightStatus}
+                highlightWholeTerm={highlightWholeTerm}
+              />
+            </a>
+          ) : (
+            <span key={`text-${index}`}>
+              <ContentEditorMessageFormatParts
+                message={span.text}
+                companionMessage={companionMessage}
+                highlightTokens={highlightTokens}
+                highlightStatus={highlightStatus}
+                highlightWholeTerm={highlightWholeTerm}
+              />
+            </span>
+          ),
+        )}
+      </span>
+    );
   }
 
   return (
     <span className={className}>
-      {parts.map((part) =>
-        part.token ? (
-          <span
-            key={part.key}
-            className={cn(
-              "rounded-md border px-1 py-0.5 font-mono text-[0.9em]",
-              contentEditorMessageTokenToneClass(tokenVisualKind(part.token)),
-            )}
-            title={part.token.kind === "markup" ? part.token.literal : undefined}
-          >
-            {part.text}
-          </span>
-        ) : (
-          <span key={part.key}>
-            {renderHighlightedPlainText(
-              part.text,
-              highlightTokens,
-              highlightStatus,
-              part.key,
-              highlightWholeTerm,
-            )}
-          </span>
-        ),
-      )}
+      <ContentEditorMessageFormatParts
+        message={displayMessage}
+        highlightTokens={highlightTokens}
+        highlightStatus={highlightStatus}
+        highlightWholeTerm={highlightWholeTerm}
+      />
     </span>
   );
 }
@@ -505,6 +676,7 @@ export function ContentEditorIcuStructureSummary({
 
 export function ContentEditorTargetEditor({
   sourceText,
+  sourcePath,
   value,
   maxLength,
   disabled = false,
@@ -515,11 +687,14 @@ export function ContentEditorTargetEditor({
   highlightTokens,
   highlightStatus = "warn",
   highlightWholeTerm = false,
+  messageFormat,
   onChange,
 }: {
   sourceText: string;
+  sourcePath?: string;
   value: string;
   maxLength?: number;
+  messageFormat?: MessageFormat | null;
   disabled?: boolean;
   compact?: boolean;
   inline?: boolean;
@@ -533,6 +708,19 @@ export function ContentEditorTargetEditor({
   const intl = useIntl();
   const valueRef = useRef(value);
   valueRef.current = value;
+  const markdownMode =
+    inferSupportedDocumentTranslationFileFormat(sourcePath ?? "") !== "txt" &&
+    canUseMarkdownCatEditor(value, sourceText);
+  const headingLiteral = useMemo(
+    () => sourceHeadingIdLiteral(sourceText, value),
+    [sourceText, value],
+  );
+  const sourceTextRef = useRef(sourceText);
+  sourceTextRef.current = sourceText;
+  const headingLiteralRef = useRef(headingLiteral);
+  headingLiteralRef.current = headingLiteral;
+  const markdownModeRef = useRef(markdownMode);
+  markdownModeRef.current = markdownMode;
   const highlightRef = useRef({
     tokens: highlightTokens ?? [],
     status: highlightStatus,
@@ -543,8 +731,14 @@ export function ContentEditorTargetEditor({
     status: highlightStatus,
     wholeTerm: highlightWholeTerm,
   };
-  const sourceAnalysis = useMemo(() => analyzeCatMessageFormat(sourceText), [sourceText]);
-  const targetAnalysis = useMemo(() => analyzeCatMessageFormat(value), [value]);
+  const sourceAnalysis = useMemo(
+    () => analyzeCatMessageFormat(sourceText, { messageFormat }),
+    [messageFormat, sourceText],
+  );
+  const targetAnalysis = useMemo(
+    () => analyzeCatMessageFormat(value, { messageFormat }),
+    [messageFormat, value],
+  );
   const parityIssues = useMemo(
     () => compareCatMessageFormats(sourceAnalysis, targetAnalysis),
     [sourceAnalysis, targetAnalysis],
@@ -554,20 +748,80 @@ export function ContentEditorTargetEditor({
     [sourceAnalysis, targetAnalysis],
   );
   const targetSignatures = useMemo(() => presentTokenSignatures(targetAnalysis), [targetAnalysis]);
-  const sourceTokens = sourceAnalysis.tokens.filter((token) => token.kind !== "pound");
-  const characterCount = value.length;
+  const officeLayout = useMemo(() => officeRunLayout(sourceText), [sourceText]);
+  const officeRunMode = useMemo(() => {
+    if (!officeLayout || markdownMode) {
+      return false;
+    }
+    const cleaned = stripLeakedInternalMarkupFromStoredMessage(value);
+    if (!cleaned.trim()) {
+      return true;
+    }
+    return splitOfficeTarget(value, officeLayout) !== null;
+  }, [officeLayout, markdownMode, value]);
+  const officeRunLines = useMemo(() => {
+    if (!officeLayout) {
+      return null;
+    }
+    const cleaned = stripLeakedInternalMarkupFromStoredMessage(value);
+    if (!cleaned.trim()) {
+      return officeLayout.runs.map(() => "");
+    }
+    return splitOfficeTarget(value, officeLayout);
+  }, [officeLayout, value]);
+  const officeLayoutRef = useRef<OfficeRunLayout | null>(null);
+  officeLayoutRef.current = officeRunMode ? officeLayout : null;
+  officeRunKeyboardRef.current = () => officeRunMode;
+
+  const sourceTokens = sourceAnalysis.tokens.filter(
+    (token) => token.kind !== "pound" && !isStructuralMarkdownMarkupToken(token, sourceText, value),
+  );
+  const characterCount = markdownMode
+    ? markdownDisplayModel(value, sourceText).visibleText.length
+    : stripInternalMarkupSentinels(value).length;
   const isOverMaxLength = maxLength !== undefined && characterCount > maxLength;
+
+  function editorContentFromValue(): JSONContent {
+    if (markdownMode) {
+      return markdownDisplayDocFromModel(
+        markdownDisplayModel(stripLeakedInternalMarkupFromStoredMessage(value), sourceText),
+      ) as JSONContent;
+    }
+    if (officeRunMode && officeRunLines) {
+      return officeRunDocFromLines(officeRunLines.map((line) => line.trim())) as JSONContent;
+    }
+    return textDocFromValue(stripLeakedInternalMarkupFromStoredMessage(value)) as JSONContent;
+  }
+
+  function persistedEditorValue(activeEditor: NonNullable<ReturnType<typeof useEditor>>) {
+    const layout = officeLayoutRef.current;
+    if (layout && officeRunKeyboardRef.current()) {
+      return stripLeakedInternalMarkupFromStoredMessage(
+        joinOfficeTarget(serializeOfficeRunDoc(activeEditor.state.doc), layout),
+      );
+    }
+    if (!markdownModeRef.current) {
+      return stripLeakedInternalMarkupFromStoredMessage(editorText(activeEditor));
+    }
+    return stripLeakedInternalMarkupFromStoredMessage(
+      persistMarkdownCatTarget(
+        sourceTextRef.current,
+        serializeMarkdownEditorDoc(activeEditor.getJSON()),
+        headingLiteralRef.current,
+      ),
+    );
+  }
 
   const editor = useEditor({
     extensions: [
       ...contentEditorTargetEditorExtensions,
       createQaHighlightExtension(() => highlightRef.current),
     ],
-    content: textDocFromValue(value),
+    content: editorContentFromValue(),
     editable: !disabled,
     immediatelyRender: false,
     onUpdate: ({ editor: activeEditor }) => {
-      const nextValue = editorText(activeEditor);
+      const nextValue = persistedEditorValue(activeEditor);
       // Ignore no-op updates (e.g. mount/focus round-trips) so focusing a loaded
       // translation does not mark the segment as an unsaved draft.
       if (nextValue === valueRef.current) {
@@ -608,16 +862,38 @@ export function ContentEditorTargetEditor({
       return;
     }
 
-    if (editorText(editor) === value) {
+    if (persistedEditorValue(editor) === value) {
       return;
     }
 
-    editor.commands.setContent(textDocFromValue(value), { emitUpdate: false });
-  }, [editor, value]);
+    editor.commands.setContent(editorContentFromValue(), { emitUpdate: false });
+  }, [editor, markdownMode, officeRunLines, officeRunMode, sourceText, value]);
 
   useEffect(() => {
     if (autoFocus && editor) editor.commands.focus("end");
   }, [autoFocus, editor]);
+
+  useEffect(() => {
+    if (!editor || disabled) {
+      return;
+    }
+
+    const insert = (text: string) => {
+      if (!editor.isEditable) {
+        return false;
+      }
+      editor.chain().focus().insertContent(text).run();
+      return true;
+    };
+
+    const unregister = registerContentEditorTargetInsert(insert);
+    const onFocus = () => markContentEditorTargetInsertFocused(insert);
+    editor.on("focus", onFocus);
+    return () => {
+      editor.off("focus", onFocus);
+      unregister();
+    };
+  }, [disabled, editor]);
 
   const highlightTokenKey = (highlightTokens ?? []).join("\0");
 
@@ -656,7 +932,7 @@ export function ContentEditorTargetEditor({
           "focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50",
           "[&_.cat-mf-token]:rounded-md [&_.cat-mf-token]:px-1 [&_.cat-mf-token]:py-0.5 [&_.cat-mf-token]:font-mono [&_.cat-mf-token]:text-[0.9em]",
           // Collapse raw HL*PH sentinel glyphs; ::before paints the short MD#n / HT#n / LQ#n chip.
-          "[&_.cat-mf-markup-chip]:text-[0px] [&_.cat-mf-markup-chip]:leading-none",
+          "[&_.cat-mf-token.cat-mf-markup-chip]:text-[0px] [&_.cat-mf-token.cat-mf-markup-chip]:leading-none",
           "[&_.cat-mf-markup-chip::before]:content-[attr(data-cat-label)] [&_.cat-mf-markup-chip::before]:text-[0.9rem]",
           "[&_.cat-mf-markup-chip::before]:font-mono [&_.cat-mf-markup-chip::before]:leading-normal",
           "[&_.tiptap_p.is-editor-empty:first-child::before]:text-muted-foreground",
@@ -689,7 +965,7 @@ export function ContentEditorTargetEditor({
         <div className="flex justify-end px-1">{characterCountLabel}</div>
       ) : null}
 
-      {sourceTokens.length > 0 && !inline ? (
+      {sourceTokens.length > 0 && !inline && !officeRunMode ? (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="me-1 text-xs font-medium text-muted-foreground">
             <FormattedMessage {...contentEditorTargetEditorMessages.requiredTokens} />

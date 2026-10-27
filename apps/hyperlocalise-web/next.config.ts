@@ -45,9 +45,6 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/*": [AGENT_MARKDOWN_TRACE_GLOB, "_posts/**/*.md", "datadog-init.mjs"],
   },
-  // Crowdin App frame-ancestors CSP is set at runtime in `src/proxy.ts`
-  // (defaults ∪ CROWDIN_APP_FRAME_ANCESTORS). Do not also set CSP here —
-  // multiple CSP headers intersect and would block Enterprise custom domains.
 };
 
 // BotID Deep Analysis must also be enabled in the Vercel Firewall dashboard.

@@ -51,10 +51,55 @@ export const automationDetailPageContentMessages = defineMessages({
     id: "YGyu9mb0BB",
     description: "Loading state while an automation detail page is fetching",
   },
+  loadFailed: {
+    defaultMessage: "Could not load this automation.",
+    id: "Vnwufq/GzB",
+    description: "Shown on an automation detail page when the automation fails to load",
+  },
+  loadFailedNotFound: {
+    defaultMessage: "This automation does not exist or you cannot open it.",
+    id: "5PlJwiMwv6",
+    description:
+      "Shown on an automation detail page when the automation is missing or not visible to the person",
+  },
+  retryLoad: {
+    defaultMessage: "Try again",
+    id: "WphJEETLKL",
+    description: "Button that loads an automation again after it failed to load",
+  },
   runNow: {
     defaultMessage: "Run now",
     id: "P5eC/nlEOZ",
     description: "Button to queue a manual automation run",
+  },
+  runUnsavedTitle: {
+    defaultMessage: "You have unsaved changes",
+    id: "++7FbawqhB",
+    description:
+      "Title of the dialog shown when a run is started while the automation has unsaved changes",
+  },
+  runUnsavedDescription: {
+    defaultMessage:
+      "A run uses the automation as it was last saved. Save your changes to run with them, or discard them and run the saved automation.",
+    id: "zpXEO84HvX",
+    description:
+      "Body of the dialog shown when a run is started while the automation has unsaved changes",
+  },
+  runUnsavedCancel: {
+    defaultMessage: "Cancel",
+    id: "moIVxRz2ih",
+    description:
+      "Button that closes the unsaved changes run dialog without running or changing anything",
+  },
+  discardAndRun: {
+    defaultMessage: "Discard changes and run",
+    id: "loFFcMBn8p",
+    description: "Button that throws away the unsaved automation changes and then queues a run",
+  },
+  saveAndRun: {
+    defaultMessage: "Save and run",
+    id: "efAi5lrO4s",
+    description: "Button that saves the unsaved automation changes and then queues a run",
   },
   selectSourceFiles: {
     defaultMessage: "Select source files to run this automation",
@@ -127,9 +172,40 @@ export const automationDetailPageContentMessages = defineMessages({
     description: "Save button label while the automation update request is pending",
   },
   saveChanges: {
-    defaultMessage: "Save changes",
-    id: "F6jskX12It",
+    defaultMessage: "Save",
+    id: "bsLwr0ECfl",
     description: "Button to save automation detail changes",
+  },
+  discardChanges: {
+    defaultMessage: "Discard",
+    id: "xC6Oep4Mv6",
+    description: "Button that throws away the unsaved changes to an automation",
+  },
+  moreActions: {
+    defaultMessage: "More actions",
+    id: "M0Sc0iJFfe",
+    description: "Accessible label for the automation detail overflow menu",
+  },
+  discardTitle: {
+    defaultMessage: "Discard changes?",
+    id: "otc1s9Zhhk",
+    description: "Title of the dialog that confirms throwing away unsaved automation changes",
+  },
+  discardDescription: {
+    defaultMessage:
+      "The automation goes back to how it was last saved. Your unsaved changes will be lost.",
+    id: "UsLxkyzDYE",
+    description: "Body of the dialog that confirms throwing away unsaved automation changes",
+  },
+  discardCancel: {
+    defaultMessage: "Keep editing",
+    id: "aYK9Ws6gX4",
+    description: "Button that closes the discard changes dialog and keeps the unsaved changes",
+  },
+  discardConfirm: {
+    defaultMessage: "Discard changes",
+    id: "FKZ67TsL+4",
+    description: "Confirm button that throws away the unsaved changes to an automation",
   },
   backToAutomations: {
     defaultMessage: "Back to automations",

@@ -40,4 +40,9 @@ export const projectFileTreeContextMenuMessages = defineMessages({
     id: "e8kT8ygAwT",
     description: "Context menu action to configure SRX segmentation for a native file",
   },
+  messageFormatSettings: {
+    defaultMessage: "Placeholder format",
+    id: "wJXdRoVqtA",
+    description: "Context menu action to choose the placeholder syntax used to validate a file",
+  },
 });

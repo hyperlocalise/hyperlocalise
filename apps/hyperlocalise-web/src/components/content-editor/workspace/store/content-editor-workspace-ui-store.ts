@@ -13,6 +13,11 @@
 import { makeAutoObservable } from "mobx";
 
 import { sameSegmentIdList } from "@/components/content-editor/side-by-side/content-editor-side-by-side-visible-range";
+import type { ContentEditorFileViewerId } from "@/components/content-editor/workspace/content-editor-file-view-capabilities";
+import {
+  readCatFileViewSourcePaneVisible,
+  writeCatFileViewSourcePaneVisible,
+} from "@/components/content-editor/file-view/content-editor-file-view-source-pane";
 import {
   contentEditorPageLimitForViewMode,
   readCatWorkspaceViewMode,
@@ -22,9 +27,11 @@ import {
 import {
   readCatDetailsPanelCollapsed,
   readCatFilesPanelCollapsed,
+  readCatHiddenFilesHidden,
   readCatShortcutHintsHidden,
   writeCatDetailsPanelCollapsed,
   writeCatFilesPanelCollapsed,
+  writeCatHiddenFilesHidden,
   writeCatShortcutHintsHidden,
 } from "@/components/content-editor/workspace/content-editor-workspace-panel-state";
 import {
@@ -60,10 +67,25 @@ export class ContentEditorWorkspaceUiStore {
   detailsPanelCollapsed = readCatDetailsPanelCollapsed();
   /** Keyboard shortcut strip under the editor is turned off. */
   shortcutHintsHidden = readCatShortcutHintsHidden();
+  /** Files whose strings are all hidden are left out of the file tree and picker. */
+  hiddenFilesHidden = readCatHiddenFilesHidden();
   /** Toolbar dialog currently open, if any. Only one can be open at a time. */
   chromeDialog: ContentEditorChromeDialog | null = null;
   /** Format picked in the filtered export dialog; kept across openings. */
   exportFormat: ContentEditorFilteredExportFormat = contentEditorFilteredExportFormats[0];
+  /** Image layer editor has unsaved edits that should block approve. */
+  fileViewImageLayersDirty = false;
+  /** Video editor has unsaved edits that should block approve. */
+  fileViewVideoDirty = false;
+  /** Document/HTML editor has unsaved edits that should block approve. */
+  fileViewDocumentReviewBlocked = true;
+  /** Generate/regenerate instructions dialog is open. */
+  fileViewGenerateDialogOpen = false;
+  /** AI context drawer is open in file view. */
+  fileViewAiDrawerOpen = false;
+  /** Source/original pane is visible next to the target. */
+  fileViewSourcePaneVisible = readCatFileViewSourcePaneVisible(true);
+  #fileViewViewerId: ContentEditorFileViewerId | null | undefined;
   // Explicit initial modes (e.g. marketing demos) must not overwrite the
   // visitor's real CAT workspace preference.
   #persistViewMode: boolean;
@@ -285,6 +307,15 @@ export class ContentEditorWorkspaceUiStore {
     writeCatShortcutHintsHidden(hidden);
   }
 
+  setHiddenFilesHidden(hidden: boolean) {
+    if (this.hiddenFilesHidden === hidden) {
+      return;
+    }
+
+    this.hiddenFilesHidden = hidden;
+    writeCatHiddenFilesHidden(hidden);
+  }
+
   openChromeDialog(dialog: ContentEditorChromeDialog) {
     this.chromeDialog = dialog;
   }
@@ -338,5 +369,50 @@ export class ContentEditorWorkspaceUiStore {
         this.setViewMode("multilingual", { persistViewMode: false });
       }
     }
+  }
+
+  applyFileViewViewer(viewerId: ContentEditorFileViewerId | null) {
+    if (this.#fileViewViewerId === viewerId) {
+      return;
+    }
+    this.#fileViewViewerId = viewerId;
+    const isDocumentViewer = viewerId === "markdown" || viewerId === "html";
+    this.fileViewSourcePaneVisible = readCatFileViewSourcePaneVisible(!isDocumentViewer);
+    this.fileViewImageLayersDirty = false;
+    this.fileViewVideoDirty = false;
+    this.fileViewDocumentReviewBlocked = true;
+    this.fileViewGenerateDialogOpen = false;
+    this.fileViewAiDrawerOpen = false;
+  }
+
+  setFileViewImageLayersDirty(dirty: boolean) {
+    this.fileViewImageLayersDirty = dirty;
+  }
+
+  setFileViewVideoDirty(dirty: boolean) {
+    this.fileViewVideoDirty = dirty;
+  }
+
+  setFileViewDocumentReviewBlocked(blocked: boolean) {
+    this.fileViewDocumentReviewBlocked = blocked;
+  }
+
+  setFileViewGenerateDialogOpen(open: boolean) {
+    this.fileViewGenerateDialogOpen = open;
+  }
+
+  setFileViewAiDrawerOpen(open: boolean) {
+    this.fileViewAiDrawerOpen = open;
+  }
+
+  setFileViewSourcePaneVisible(visible: boolean, options?: { persist?: boolean }) {
+    this.fileViewSourcePaneVisible = visible;
+    if (options?.persist ?? true) {
+      writeCatFileViewSourcePaneVisible(visible);
+    }
+  }
+
+  toggleFileViewSourcePane() {
+    this.setFileViewSourcePaneVisible(!this.fileViewSourcePaneVisible);
   }
 }

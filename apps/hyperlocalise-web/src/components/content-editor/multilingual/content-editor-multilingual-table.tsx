@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useNearEndPagination } from "../project-file/content-editor-near-end-pagination";
 import { useEditorPageWindow } from "../project-file/content-editor-page-window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { reaction } from "mobx";
@@ -199,8 +200,10 @@ const TranslationCell = observer(function TranslationCell({
       >
         <ContentEditorTargetEditor
           sourceText={segment.sourceText}
+          sourcePath={segment.sourcePath}
           value={draft.text}
           maxLength={segment.maxLength}
+          messageFormat={segment.messageFormat}
           onChange={(text) => draft.change(text)}
           compact
           inline
@@ -368,20 +371,16 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
   const rows = rowVirtualizer.getVirtualItems();
   const virtualColumns = columnVirtualizer.getVirtualItems();
   const lastRow = rows.at(-1)?.index ?? -1;
-  const requestedLength = useRef<string | null>(null);
-  const pageEnd = segments.at(-1)?.id ?? "";
+  const checkForNearEnd = useNearEndPagination({
+    hasMore,
+    isLoadingMore: isLoading || isLoadingMore,
+    itemCount: segments.length,
+    prefetchDistance: 12,
+    onNearEnd: onLoadMore,
+  });
   useEffect(() => {
-    if (
-      hasMore &&
-      !isLoading &&
-      !isLoadingMore &&
-      lastRow >= segments.length - 12 &&
-      requestedLength.current !== pageEnd
-    ) {
-      requestedLength.current = pageEnd;
-      onLoadMore?.();
-    }
-  }, [hasMore, isLoading, isLoadingMore, lastRow, segments.length, pageEnd, onLoadMore]);
+    checkForNearEnd(lastRow < 0 ? [] : [{ index: lastRow }]);
+  }, [checkForNearEnd, lastRow]);
   const width = columnVirtualizer.getTotalSize();
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
@@ -419,7 +418,7 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
       </div>
       <div
         ref={scrollRef}
-        className="min-h-0 flex-1 overflow-auto"
+        className="min-h-0 flex-1 overflow-auto [overflow-anchor:none]"
         tabIndex={0}
         role="region"
         aria-label={intl.formatMessage(messages.title)}

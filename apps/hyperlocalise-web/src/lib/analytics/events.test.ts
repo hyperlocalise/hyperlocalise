@@ -19,6 +19,7 @@ import {
   productUsageEventForAutumnEventName,
   productUsageJobFeature,
   productUsageSourceForActorKind,
+  productUsageSourceForAutomationEditorMode,
   productUsageSourceForAutumnEventName,
   productUsageSourceForConversation,
   productUsageSourceForMeterSource,
@@ -121,6 +122,9 @@ describe("analytics sanitization", () => {
     expect(productUsageSourceForConversation("github_agent")).toBe("github");
     expect(productUsageSourceForConversation("slack_agent")).toBe("slack");
     expect(productUsageSourceForConversation("unknown")).toBe("other");
+    expect(productUsageSourceForAutomationEditorMode("create")).toBe("new_automation");
+    expect(productUsageSourceForAutomationEditorMode("detail")).toBe("saved_automation");
+    expect(productUsageSourceForAutomationEditorMode("unknown")).toBe("other");
     expect(productUsageJobFeature("translation")).toBe("translation");
     expect(productUsageJobFeature("proofread")).toBe("proofread");
     expect(productUsageJobFeature("research")).toBe("research");

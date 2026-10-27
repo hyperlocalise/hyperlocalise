@@ -9,9 +9,14 @@ generated files. From the repository root:
 node scripts/add-bsl-headers.mjs apps/hyperlocalise-web
 ```
 
+# Client state
+
+Follow [`MOBX.md`](./MOBX.md) when adding or changing MobX stores, controllers, or
+observer views.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
@@ -73,6 +78,7 @@ Several Cloud surfaces call the Go service directly from the browser (CAT segmen
 - Requests use `Authorization: Bearer` and `credentials: "omit"`. Do not send the `wos-session` cookie to `api.hyperlocalise.com`.
 - Add new resource methods on dedicated `go-svc-*-api.ts` modules composed by `GoSvcClient`; map failures with `GoSvcClientError` and [`go-svc-error.ts`](src/lib/go-svc/go-svc-error.ts) where transport errors need user-facing copy.
 - Native project list, create, detail, update, delete, locale progress, open-job count, content-editor behavior, and native file list use browser `GoSvcClient` on `/v1/orgs/{slug}/projects...`. Encoded TMS project IDs stay on Hono.
+- Conversation list, conversation detail, recent messages, and linked jobs use browser `GoSvcClient` on `/v1/orgs/{slug}/conversations...`. Conversation create, reply, and chat streams stay on Hono. Do not re-add those GET routes to Hono. Crowdin embed inbox reads still use the embed-session header against same-origin Hono and need a follow-up because go-svc does not accept that header.
 - Personal access token list, create, and revoke use browser `GoSvcClient` on `/v1/orgs/{slug}/api-keys`. Incoming public-API `x-api-key` auth stays on Hono.
 - Public job reads (`GET /v1/jobs/latest`, `/v1/jobs/{jobId}`, `/v1/jobs/{jobId}/status`) are served only by go-svc on `https://api.hyperlocalise.com`. Do not re-add them to Hono. `POST /api/v1/jobs` stays on Hono.
 - Domains research, Search Console, linked-domain lifecycle management, and Hyperlab use browser `GoSvcClient` on org-scoped `/v1/orgs/{slug}/domains/...` and `/v1/orgs/{slug}/hyperlab/...` routes with the WorkOS session Bearer token. Linked-domain management uses `/domains/linked-domains`.
@@ -203,7 +209,8 @@ For predictable error handling, prefer the Go-like `Result<T, E>` pattern for ex
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 type ProviderCredentialError =
-  { code: "unsupported_provider_model" } | { code: "provider_validation_failed"; message: string };
+  | { code: "unsupported_provider_model" }
+  | { code: "provider_validation_failed"; message: string };
 
 async function validateCredential(
   input: CredentialInput,
@@ -359,4 +366,5 @@ For GitHub Actions, consider using [`voidzero-dev/setup-vp`](https://github.com/
 - Base UI `DropdownMenuItem` handlers use `onClick`, not Radix-style `onSelect`; menu actions silently no-op if `onSelect` is used.
 - Browser E2E loads `.env` then overrides with `.env.e2e` (WorkOS emulator). Placeholder `AUTUMN_API_KEY` from `.env.e2e.example` causes project creation to fail with 503; seed test data via DB in E2E fixtures instead of UI project create when billing is not configured.
 - When `vp` is unavailable in agent shells, run E2E with `vp run test:e2e` after fixing PATH, or invoke vitest through the project's `vite-plus` dependency with `--config vite.e2e.config.ts`.
+- Reports: any write to `reporting_analyses` or `reporting_activity` must mark its days for the daily summary in the same transaction (`markSummaryDays`), or the Reports page silently goes stale. See [`docs/adr/2026-10-23-reports-rework-design.md`](../../docs/adr/2026-10-23-reports-rework-design.md).
 - `next build` / Vercel type-check omit `*.test.*`, `*.fixture.ts`, `*.stories.*`, `*-msw-handlers.ts`, and `*.story-view.*` (see `.vercelignore` and `tsconfig.build.json`). Never import a fixture from a file that is not one of those suffixes.

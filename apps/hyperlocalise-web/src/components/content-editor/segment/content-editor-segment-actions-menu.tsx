@@ -15,10 +15,8 @@
 import {
   ClockCounterClockwiseIcon,
   LinkIcon,
-  LockIcon,
   ChatTextIcon,
   DotsThreeIcon,
-  LockOpenIcon,
 } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -39,22 +37,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/primitives/cn";
-import { createElement } from "react";
 
 export function ContentEditorSegmentActionsMenu({
   segmentShareUrl = null,
   onAddToIssueSheet,
   isAddToIssueSheetDisabled = false,
-  isLocked = false,
-  onToggleLocked,
   activity,
   className,
 }: {
   segmentShareUrl?: string | null;
   onAddToIssueSheet?: () => void;
   isAddToIssueSheetDisabled?: boolean;
-  isLocked?: boolean;
-  onToggleLocked?: () => void;
   activity?: SegmentActivitySelection;
   className?: string;
 }) {
@@ -62,9 +55,8 @@ export function ContentEditorSegmentActionsMenu({
   const openActivity = useSegmentActivityOpener();
   const canOpenActivity = Boolean(openActivity && activity);
   const hasShareOrIssue = Boolean(segmentShareUrl || onAddToIssueSheet);
-  const hasStateOrHistory = Boolean(onToggleLocked || canOpenActivity);
 
-  if (!hasShareOrIssue && !hasStateOrHistory) {
+  if (!hasShareOrIssue && !canOpenActivity) {
     return null;
   }
 
@@ -113,24 +105,13 @@ export function ContentEditorSegmentActionsMenu({
             ) : null}
           </DropdownMenuGroup>
         ) : null}
-        {hasShareOrIssue && hasStateOrHistory ? <DropdownMenuSeparator /> : null}
-        {hasStateOrHistory ? (
+        {hasShareOrIssue && canOpenActivity ? <DropdownMenuSeparator /> : null}
+        {canOpenActivity && openActivity && activity ? (
           <DropdownMenuGroup>
-            {onToggleLocked ? (
-              <DropdownMenuItem onClick={onToggleLocked}>
-                {createElement(isLocked ? LockOpenIcon : LockIcon, {
-                  className: "size-4",
-                  "aria-hidden": true,
-                })}
-                <FormattedMessage {...(isLocked ? messages.unlock : messages.lock)} />
-              </DropdownMenuItem>
-            ) : null}
-            {canOpenActivity && openActivity && activity ? (
-              <DropdownMenuItem onClick={() => openActivity(activity)}>
-                <ClockCounterClockwiseIcon className="size-4" aria-hidden />
-                <FormattedMessage {...messages.activity} />
-              </DropdownMenuItem>
-            ) : null}
+            <DropdownMenuItem onClick={() => openActivity(activity)}>
+              <ClockCounterClockwiseIcon className="size-4" aria-hidden />
+              <FormattedMessage {...messages.activity} />
+            </DropdownMenuItem>
           </DropdownMenuGroup>
         ) : null}
       </DropdownMenuContent>

@@ -21,7 +21,16 @@ import type {
 } from "@/api/routes/project/project.schema";
 import { legacyNativeContentEditorSegmentLimit } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database/client";
-import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
+import { createLogger } from "@/lib/log";
+import {
+  getLatestRepositorySourceFileVersion,
+  getStoredFileContent,
+} from "@/lib/file-storage/records";
+import {
+  isHashedHtmlEntryKey,
+  isHtmlTranslationSourcePath,
+  rewriteHashedHtmlSegmentKeys,
+} from "@/lib/projects/files/html-ingest-entries";
 import { NativeContentEditorCommentService } from "@/lib/projects/content-editor/native-content-editor-comment-service";
 import {
   CAT_ALL_FILES_FILENAME,
@@ -43,22 +52,34 @@ import {
   isImageUrlContentKind,
 } from "@/lib/projects/files/image-url-translation-service";
 import { getVideoVariant, projectVideoAssetPath } from "@/lib/projects/files/video-variant-service";
+import { requeueKeylessOfficeSourceIngest } from "@/lib/projects/files/office-legacy-reingest";
+import { projectOfficeTranslationDownloadPath } from "@/lib/projects/files/office-translation-download";
 import {
   VIDEO_URL_CONTENT_KIND,
   isVideoUrlContentKind,
 } from "@/lib/projects/files/video-url-translation-service";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
+import {
+  projectTranslationRevisionColumns,
+  recordProjectTranslationRevisions,
+  revisionActorForProvenance,
+  writeProjectTranslations,
+  type TranslationRevisionActor,
+} from "@/lib/projects/translations/project-translation-revisions";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedPdfTranslationFileFormat,
   inferSupportedVideoTranslationFileFormat,
   inferSupportedWholeFileTranslationFileFormat,
   looksLikeImageUrl,
   looksLikeVideoUrl,
 } from "@/lib/translation/file-formats";
 import { resolveLottieSourceKind } from "@/lib/translation/lottie/lottie-translation-export";
+
+const logger = createLogger("native-content-editor-service");
 
 function filenameFromSourcePath(sourcePath: string) {
   return sourcePath.split("/").at(-1) ?? sourcePath;
@@ -251,30 +272,66 @@ export class NativeContentEditorService extends ProjectServiceBase {
     };
 
     if (inferSupportedImageTranslationFileFormat(input.sourcePath)) {
-      return this.buildImageCatFileResponse({
+      return this.withSourceIngest(
         input,
-        sourceFileId: sourceFile.id,
-        ...wholeFileFilter,
-      });
+        await this.buildImageCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
     }
 
     if (inferSupportedVideoTranslationFileFormat(input.sourcePath)) {
-      return this.buildVideoCatFileResponse({
+      return this.withSourceIngest(
         input,
-        sourceFileId: sourceFile.id,
-        ...wholeFileFilter,
-      });
+        await this.buildVideoCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
     }
 
-    if (inferSupportedOfficeTranslationFileFormat(input.sourcePath)) {
-      return this.buildOfficeCatFileResponse({
-        input,
-        sourceFileId: sourceFile.id,
-        ...wholeFileFilter,
+    const isOffice = Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
+    if (
+      isOffice &&
+      !(await this.hasKeysForFile({ ...input, repositorySourceFileId: sourceFile.id }))
+    ) {
+      await requeueKeylessOfficeSourceIngest({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+      }).catch((error: unknown) => {
+        logger.warn(
+          {
+            repositorySourceFileId: sourceFile.id,
+            errorName: error instanceof Error ? error.name : "unknown",
+          },
+          "failed to requeue Office ingest",
+        );
       });
+      return this.withSourceIngest(
+        input,
+        await this.buildOfficeCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
     }
 
     const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
+    const isPdf = Boolean(inferSupportedPdfTranslationFileFormat(input.sourcePath));
+    const loadKeyedFileDocumentView = async () =>
+      isDocument
+        ? publicDocumentView(await this.loadDocumentView({ input, sourceFileId: sourceFile.id }))
+        : isOffice || isPdf
+          ? await this.loadGeneratedTranslationFileDocumentView({
+              input,
+              sourceFileId: sourceFile.id,
+            })
+          : undefined;
     const paginationInput = input.pagination ?? {
       offset: 0,
       limit: legacyNativeContentEditorSegmentLimit,
@@ -293,30 +350,29 @@ export class NativeContentEditorService extends ProjectServiceBase {
       });
 
       if (isDocument && keys.length === 0 && isUnfilteredCatKeyQuery(paginationInput)) {
-        return this.buildDocumentCatFileResponse({
+        return this.withSourceIngest(
           input,
-          sourceFileId: sourceFile.id,
-          ...wholeFileFilter,
-        });
+          await this.buildDocumentCatFileResponse({
+            input,
+            sourceFileId: sourceFile.id,
+            ...wholeFileFilter,
+          }),
+        );
       }
 
       const truncated = keys.length > legacyNativeContentEditorSegmentLimit;
       const visibleKeys = truncated ? keys.slice(0, legacyNativeContentEditorSegmentLimit) : keys;
 
-      return this.buildCatFileResponse({
+      return this.withSourceIngest(
         input,
-        visibleKeys,
-        truncated,
-        pagination: undefined,
-        documentView: isDocument
-          ? publicDocumentView(
-              await this.loadDocumentView({
-                input,
-                sourceFileId: sourceFile.id,
-              }),
-            )
-          : undefined,
-      });
+        await this.buildCatFileResponse({
+          input,
+          visibleKeys,
+          truncated,
+          pagination: undefined,
+          documentView: await loadKeyedFileDocumentView(),
+        }),
+      );
     }
 
     const [totalCount, keys] = await Promise.all([
@@ -353,27 +409,51 @@ export class NativeContentEditorService extends ProjectServiceBase {
     });
 
     if (isDocument && totalCount === 0 && isUnfilteredCatKeyQuery(paginationInput)) {
-      return this.buildDocumentCatFileResponse({
+      return this.withSourceIngest(
         input,
-        sourceFileId: sourceFile.id,
-        ...wholeFileFilter,
-      });
+        await this.buildDocumentCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
     }
 
-    return this.buildCatFileResponse({
+    return this.withSourceIngest(
       input,
-      visibleKeys: keys,
-      truncated: pagination.hasMore,
-      pagination,
-      documentView: isDocument
-        ? publicDocumentView(
-            await this.loadDocumentView({
-              input,
-              sourceFileId: sourceFile.id,
-            }),
-          )
-        : undefined,
+      await this.buildCatFileResponse({
+        input,
+        visibleKeys: keys,
+        truncated: pagination.hasMore,
+        pagination,
+        documentView: await loadKeyedFileDocumentView(),
+      }),
+    );
+  }
+
+  private async withSourceIngest(
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+    },
+    file: ProjectFileContentEditorQueueFile,
+  ): Promise<ProjectFileContentEditorQueueFile> {
+    const latestVersion = await getLatestRepositorySourceFileVersion({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      db: this.database,
     });
+    if (!latestVersion) {
+      return file;
+    }
+
+    return {
+      ...file,
+      ingestState: latestVersion.ingestState,
+      ...(latestVersion.ingestError ? { ingestError: latestVersion.ingestError } : {}),
+    };
   }
 
   private async buildImageCatFileResponse(input: {
@@ -677,6 +757,57 @@ export class NativeContentEditorService extends ProjectServiceBase {
     };
   }
 
+  private async hasKeysForFile(input: {
+    organizationId: string;
+    projectId: string;
+    repositorySourceFileId: string;
+  }) {
+    const keys = await this.translations.listKeysForFile({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      repositorySourceFileId: input.repositorySourceFileId,
+      limit: 1,
+    });
+    return keys.length > 0;
+  }
+
+  /** Segmented Office files have no stored target; File view previews the generated download. */
+  private async loadGeneratedTranslationFileDocumentView(input: {
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+      targetLocale: string;
+      organizationSlug: string;
+    };
+    sourceFileId: string;
+  }): Promise<NonNullable<ProjectFileContentEditorQueueFile["documentView"]>> {
+    const latestVersion = await getLatestRepositorySourceFileVersion({
+      organizationId: input.input.organizationId,
+      projectId: input.input.projectId,
+      sourcePath: input.input.sourcePath,
+      db: this.database,
+    });
+
+    return {
+      externalStringId: documentFileExternalStringId(input.sourceFileId, input.input.sourcePath),
+      sourceAssetUrl: latestVersion
+        ? projectImageAssetPath({
+            organizationSlug: input.input.organizationSlug,
+            projectId: input.input.projectId,
+            fileId: latestVersion.storedFileId,
+          })
+        : null,
+      targetAssetUrl: projectOfficeTranslationDownloadPath({
+        organizationSlug: input.input.organizationSlug,
+        projectId: input.input.projectId,
+        sourcePath: input.input.sourcePath,
+        targetLocale: input.input.targetLocale,
+      }),
+      imageVariantId: null,
+    };
+  }
+
   private async buildDocumentCatFileResponse(input: {
     input: {
       organizationId: string;
@@ -831,8 +962,46 @@ export class NativeContentEditorService extends ProjectServiceBase {
       pagination: input.pagination,
       ...(lottieSourceUrl ? { lottieSourceUrl } : {}),
       ...(input.documentView ? { documentView: input.documentView } : {}),
-      segments: input.visibleKeys.map((key) => mapTextSegment(key)),
+      segments: (await this.rewriteHtmlCatKeys(input.input, input.visibleKeys)).map((key) =>
+        mapTextSegment(key),
+      ),
     };
+  }
+
+  private async rewriteHtmlCatKeys<T extends { key: string; sourceText: string }>(
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+    },
+    keys: T[],
+  ): Promise<T[]> {
+    const needsRewrite =
+      isHtmlTranslationSourcePath(input.sourcePath) &&
+      keys.some((key) => isHashedHtmlEntryKey(key.key));
+    if (!needsRewrite) {
+      return keys;
+    }
+    const version = await getLatestRepositorySourceFileVersion({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      db: this.database,
+    });
+    if (!version?.storedFileId) {
+      return keys;
+    }
+    try {
+      const stored = await getStoredFileContent({
+        fileId: version.storedFileId,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+      });
+      const rewritten = rewriteHashedHtmlSegmentKeys(stored.content.toString("utf8"), keys);
+      return keys.map((key, index) => ({ ...key, key: rewritten[index] ?? key.key }));
+    } catch {
+      return keys;
+    }
   }
 
   private async resolveLottieSourceUrl(input: {
@@ -942,6 +1111,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
     actorUserId?: string;
     provenance?: "manual" | "translation_job" | "import" | "agent";
     sourceJobId?: string;
+    actor?: TranslationRevisionActor;
   }): Promise<(ProjectFileContentEditorTranslation & { updatedAt: Date }) | null> {
     const sourceFile = await this.translations.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
@@ -972,17 +1142,74 @@ export class NativeContentEditorService extends ProjectServiceBase {
       return null;
     }
 
-    const [existing] = await this.database
-      .select({ sourceJobId: schema.projectTranslations.sourceJobId })
-      .from(schema.projectTranslations)
-      .where(
-        and(
-          eq(schema.projectTranslations.translationKeyId, key.id),
-          eq(schema.projectTranslations.targetLocale, input.targetLocale),
-        ),
-      )
-      .limit(1);
-    const sourceJobId = input.sourceJobId ?? existing?.sourceJobId ?? undefined;
+    const status = input.approve ? "approved" : "draft";
+    const provenance = input.provenance ?? "manual";
+    const reviewedAt = input.approve ? new Date() : null;
+    const reviewedByUserId = input.approve ? (input.actorUserId ?? null) : null;
+
+    const { saved, sourceJobId } = await writeProjectTranslations(
+      this.database,
+      {
+        organizationId: input.organizationId,
+        translationKeyIds: [key.id],
+        targetLocales: [input.targetLocale],
+      },
+      async (tx, before) => {
+        const [existing] = before.values();
+        const sourceJobId = input.sourceJobId ?? existing?.sourceJobId ?? undefined;
+        const [saved] = await tx
+          .insert(schema.projectTranslations)
+          .values({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            translationKeyId: key.id,
+            targetLocale: input.targetLocale,
+            text: input.text,
+            status,
+            provenance,
+            sourceJobId: sourceJobId ?? null,
+            reviewedByUserId,
+            reviewedAt,
+          })
+          .onConflictDoUpdate({
+            target: [
+              schema.projectTranslations.translationKeyId,
+              schema.projectTranslations.targetLocale,
+            ],
+            set: {
+              text: input.text,
+              status,
+              provenance,
+              sourceJobId: sourceJobId ?? existing?.sourceJobId ?? null,
+              reviewedByUserId,
+              reviewedAt,
+              updatedAt: new Date(),
+            },
+          })
+          .returning({
+            ...projectTranslationRevisionColumns,
+            updatedAt: schema.projectTranslations.updatedAt,
+          });
+        if (saved) {
+          await recordProjectTranslationRevisions(tx, {
+            before,
+            saved: [saved],
+            actor: input.actor ?? {
+              actorKind: revisionActorForProvenance(provenance).actorKind,
+              actorUserId: input.actorUserId ?? null,
+            },
+          });
+        }
+        return { saved, sourceJobId };
+      },
+    );
+
+    if (!saved) {
+      return null;
+    }
+
+    // This path writes no activity event, so Reports is recorded here, after the translation
+    // is stored. Go-service saves are recorded from their events by the reporting-capture cron.
     await captureNativeCatTranslationReporting({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -993,51 +1220,8 @@ export class NativeContentEditorService extends ProjectServiceBase {
       approve: input.approve,
       provenance: input.provenance,
       sourceJobId,
+      actorUserId: input.actorUserId,
     });
-    const status = input.approve ? "approved" : "draft";
-    const provenance = input.provenance ?? "manual";
-    const reviewedAt = input.approve ? new Date() : null;
-    const reviewedByUserId = input.approve ? (input.actorUserId ?? null) : null;
-
-    const [saved] = await this.database
-      .insert(schema.projectTranslations)
-      .values({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        translationKeyId: key.id,
-        targetLocale: input.targetLocale,
-        text: input.text,
-        status,
-        provenance,
-        sourceJobId: sourceJobId ?? null,
-        reviewedByUserId,
-        reviewedAt,
-      })
-      .onConflictDoUpdate({
-        target: [
-          schema.projectTranslations.translationKeyId,
-          schema.projectTranslations.targetLocale,
-        ],
-        set: {
-          text: input.text,
-          status,
-          provenance,
-          sourceJobId: sourceJobId ?? existing?.sourceJobId ?? null,
-          reviewedByUserId,
-          reviewedAt,
-          updatedAt: new Date(),
-        },
-      })
-      .returning({
-        id: schema.projectTranslations.id,
-        text: schema.projectTranslations.text,
-        status: schema.projectTranslations.status,
-        updatedAt: schema.projectTranslations.updatedAt,
-      });
-
-    if (!saved) {
-      return null;
-    }
 
     this.log.debug(
       {
@@ -1062,6 +1246,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
     targetLocale: string;
     status: "needs_review" | "approved" | "rejected";
     actorUserId?: string;
+    actor?: TranslationRevisionActor;
   }) {
     const reviewedAt =
       input.status === "approved" || input.status === "rejected" ? new Date() : null;
@@ -1070,26 +1255,43 @@ export class NativeContentEditorService extends ProjectServiceBase {
         ? (input.actorUserId ?? null)
         : null;
 
-    const [updated] = await this.database
-      .update(schema.projectTranslations)
-      .set({
-        status: input.status,
-        reviewedAt,
-        reviewedByUserId,
-      })
-      .where(
-        and(
-          eq(schema.projectTranslations.organizationId, input.organizationId),
-          eq(schema.projectTranslations.projectId, input.projectId),
-          eq(schema.projectTranslations.translationKeyId, input.translationKeyId),
-          eq(schema.projectTranslations.targetLocale, input.targetLocale),
-        ),
-      )
-      .returning({
-        id: schema.projectTranslations.id,
-        text: schema.projectTranslations.text,
-        status: schema.projectTranslations.status,
-      });
+    const updated = await writeProjectTranslations(
+      this.database,
+      {
+        organizationId: input.organizationId,
+        translationKeyIds: [input.translationKeyId],
+        targetLocales: [input.targetLocale],
+      },
+      async (tx, before) => {
+        const [updated] = await tx
+          .update(schema.projectTranslations)
+          .set({
+            status: input.status,
+            reviewedAt,
+            reviewedByUserId,
+          })
+          .where(
+            and(
+              eq(schema.projectTranslations.organizationId, input.organizationId),
+              eq(schema.projectTranslations.projectId, input.projectId),
+              eq(schema.projectTranslations.translationKeyId, input.translationKeyId),
+              eq(schema.projectTranslations.targetLocale, input.targetLocale),
+            ),
+          )
+          .returning(projectTranslationRevisionColumns);
+        if (updated) {
+          await recordProjectTranslationRevisions(tx, {
+            before,
+            saved: [updated],
+            actor: input.actor ?? {
+              actorKind: input.actorUserId ? "user" : "system",
+              actorUserId: input.actorUserId ?? null,
+            },
+          });
+        }
+        return updated;
+      },
+    );
 
     if (updated) {
       this.log.debug(
@@ -1188,12 +1390,14 @@ export class NativeContentEditorService extends ProjectServiceBase {
       }
 
       const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
+      const hasKeyedSegments =
+        isDocument || Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
       const fileBacked = isFileBackedCatSegmentId(
         input.externalStringId,
         sourceFile.id,
         input.sourcePath,
       );
-      if (fileBacked || !isDocument) {
+      if (fileBacked || !hasKeyedSegments) {
         if (!fileBacked) {
           return "not_found";
         }
@@ -1339,8 +1543,10 @@ export class NativeContentEditorService extends ProjectServiceBase {
       !isContentEditorAllFilesSourcePath(input.sourcePath) &&
       inferSupportedWholeFileTranslationFileFormat(input.sourcePath)
     ) {
-      const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
-      if (!isDocument) {
+      const hasKeyedSegments =
+        Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath)) ||
+        Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
+      if (!hasKeyedSegments) {
         return [];
       }
 

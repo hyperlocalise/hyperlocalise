@@ -17,6 +17,23 @@ export type DocumentCalloutKind = (typeof DOCUMENT_CALLOUT_KINDS)[number];
 
 const ALERT_PATTERN =
   /^ {0,3}> ?\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*\n((?: {0,3}>[^\n]*(?:\n|$))*)/i;
+const INTERCOM_CALLOUT_PATTERN = /^ {0,3}:::callout\b([^\n]*)\n([\s\S]*?)^ {0,3}:::[ \t]*(?:\n|$)/m;
+
+function readQuotedAttr(source: string, name: string) {
+  const match = new RegExp(`\\b${name}="([^"]*)"`).exec(source);
+  return match?.[1] ?? null;
+}
+
+function firstTokenizerIndex(src: string, patterns: readonly RegExp[]) {
+  let earliest = -1;
+  for (const pattern of patterns) {
+    const match = pattern.exec(src);
+    if (match && (earliest === -1 || match.index < earliest)) {
+      earliest = match.index;
+    }
+  }
+  return earliest;
+}
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -40,6 +57,18 @@ export const DocumentCallout = Node.create({
         default: "note",
         parseHTML: (element) => element.getAttribute("data-callout") ?? "note",
       },
+      format: {
+        default: "alert",
+        parseHTML: (element) => element.getAttribute("data-callout-format") ?? "alert",
+      },
+      backgroundColor: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-background-color"),
+      },
+      borderColor: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-border-color"),
+      },
     };
   },
 
@@ -48,7 +77,18 @@ export const DocumentCallout = Node.create({
   },
 
   renderHTML({ node }) {
-    return ["aside", { "data-callout": node.attrs.kind }, 0];
+    return [
+      "aside",
+      {
+        "data-callout": node.attrs.kind,
+        "data-callout-format": node.attrs.format ?? "alert",
+        ...(node.attrs.backgroundColor
+          ? { "data-background-color": node.attrs.backgroundColor }
+          : {}),
+        ...(node.attrs.borderColor ? { "data-border-color": node.attrs.borderColor } : {}),
+      },
+      0,
+    ];
   },
 
   addCommands() {
@@ -65,13 +105,23 @@ export const DocumentCallout = Node.create({
   markdownTokenizer: {
     name: "callout",
     level: "block",
-    start: (src: string) => {
-      const match = /^ {0,3}> ?\[!/m.exec(src);
-      return match ? match.index : -1;
-    },
+    start: (src: string) => firstTokenizerIndex(src, [/^ {0,3}> ?\[!/m, /^ {0,3}:::callout\b/m]),
     tokenize: (src: string, _tokens, lexer) => {
+      const intercom = INTERCOM_CALLOUT_PATTERN.exec(src);
+      if (intercom && intercom.index === 0) {
+        const body = (intercom[2] ?? "").replace(/\n$/, "").trim();
+        return {
+          type: "callout",
+          raw: intercom[0],
+          kind: "note",
+          format: "intercom",
+          backgroundColor: readQuotedAttr(intercom[1] ?? "", "backgroundColor"),
+          borderColor: readQuotedAttr(intercom[1] ?? "", "borderColor"),
+          tokens: body ? lexer.blockTokens(body) : [],
+        };
+      }
       const match = ALERT_PATTERN.exec(src);
-      if (!match) {
+      if (!match || match.index !== 0) {
         return undefined;
       }
       const body = match[2]
@@ -83,6 +133,7 @@ export const DocumentCallout = Node.create({
         type: "callout",
         raw: match[0],
         kind: match[1].toLowerCase(),
+        format: "alert",
         tokens: body ? lexer.blockTokens(body) : [],
       };
     },
@@ -92,19 +143,35 @@ export const DocumentCallout = Node.create({
     const children = helpers.parseChildren(token.tokens ?? []);
     return helpers.createNode(
       "callout",
-      { kind: token.kind },
+      {
+        kind: token.kind ?? "note",
+        format: token.format === "intercom" ? "intercom" : "alert",
+        backgroundColor: token.backgroundColor ?? null,
+        borderColor: token.borderColor ?? null,
+      },
       children.length > 0 ? children : [{ type: "paragraph" }],
     );
   },
 
   renderMarkdown: (node: JSONContent, helpers) => {
+    const body = helpers.renderChildren(node.content ?? [], "\n\n").trim();
+    const backgroundColor =
+      typeof node.attrs?.backgroundColor === "string" ? node.attrs.backgroundColor : "";
+    const borderColor = typeof node.attrs?.borderColor === "string" ? node.attrs.borderColor : "";
+    if (node.attrs?.format === "intercom" || backgroundColor || borderColor) {
+      const attrs = [
+        backgroundColor ? `backgroundColor="${backgroundColor}"` : "",
+        borderColor ? `borderColor="${borderColor}"` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return attrs ? `:::callout ${attrs}\n${body}\n:::` : `:::callout\n${body}\n:::`;
+    }
     const kind = String(node.attrs?.kind ?? "note").toUpperCase();
-    const body = helpers
-      .renderChildren(node.content ?? [], "\n\n")
-      .trim()
+    const quoted = body
       .split("\n")
       .map((line) => (line ? `> ${line}` : ">"))
       .join("\n");
-    return `> [!${kind}]\n${body}`;
+    return `> [!${kind}]\n${quoted}`;
   },
 });

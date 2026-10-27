@@ -463,6 +463,7 @@ export async function replaceImageVariantBytes(input: {
   force?: boolean;
   provenance?: (typeof schema.projectImageVariants.$inferSelect)["provenance"];
   sourceJobId?: string | null;
+  status?: ProjectImageVariantStatus;
 }): Promise<Result<typeof schema.projectImageVariants.$inferSelect, ImageVariantError>> {
   const existing = await getImageVariant(input);
   if (existing?.status === "approved" && !input.force) {
@@ -494,15 +495,19 @@ export async function replaceImageVariantBytes(input: {
     targetLocales: [input.targetLocale],
   });
 
+  const status = input.status ?? "needs_review";
+  const reviewedAt = status === "approved" || status === "rejected" ? new Date() : null;
+
   const [updated] = await db
     .update(schema.projectImageVariants)
     .set({
       storedFileId: stored.id,
-      status: "needs_review",
+      status,
       provenance: input.provenance ?? "manual",
       sourceJobId: input.sourceJobId ?? null,
-      reviewedByUserId: null,
-      reviewedAt: null,
+      reviewedByUserId:
+        status === "approved" || status === "rejected" ? (input.createdByUserId ?? null) : null,
+      reviewedAt,
       updatedAt: new Date(),
     })
     .where(

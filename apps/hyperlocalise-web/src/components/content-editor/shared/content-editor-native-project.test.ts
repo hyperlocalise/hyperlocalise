@@ -13,10 +13,73 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  canUseGoSvcCat,
   isContentEditorGroupingAvailable,
+  isExternalTmsContentEditorProject,
   isNativeContentEditorFile,
   isNativeContentEditorProviderKind,
 } from "./content-editor-native-project";
+
+describe("isExternalTmsContentEditorProject", () => {
+  it("treats encoded provider ids and explicit source as external", () => {
+    expect(
+      isExternalTmsContentEditorProject({
+        projectId: "ext:crowdin:902807",
+      }),
+    ).toBe(true);
+    expect(
+      isExternalTmsContentEditorProject({
+        projectId: "project_123",
+        projectSource: "external_tms",
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps native uuids on the go-svc path until source says otherwise", () => {
+    expect(
+      isExternalTmsContentEditorProject({
+        projectId: "project_123",
+      }),
+    ).toBe(false);
+    expect(
+      isExternalTmsContentEditorProject({
+        projectId: "project_123",
+        projectSource: "native",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("canUseGoSvcCat", () => {
+  it("skips go-svc for connected TMS projects and provider file identities", () => {
+    expect(
+      canUseGoSvcCat({
+        projectId: "ext:crowdin:902807",
+      }),
+    ).toBe(false);
+    expect(
+      canUseGoSvcCat({
+        projectId: "project_123",
+        projectSource: "external_tms",
+      }),
+    ).toBe(false);
+    expect(
+      canUseGoSvcCat({
+        projectId: "project_123",
+        externalResourceId: "101",
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps native projects on go-svc", () => {
+    expect(
+      canUseGoSvcCat({
+        projectId: "project_123",
+        projectSource: "native",
+      }),
+    ).toBe(true);
+  });
+});
 
 describe("isNativeContentEditorProviderKind", () => {
   it("treats missing and native kinds as native", () => {
@@ -58,10 +121,15 @@ describe("isContentEditorGroupingAvailable", () => {
     );
   });
 
-  it("keeps grouping off for native media and office files", () => {
+  it("keeps grouping off for native media files", () => {
     expect(isContentEditorGroupingAvailable(nativeFile, "hero.png")).toBe(false);
     expect(isContentEditorGroupingAvailable(nativeFile, "clip.mp4")).toBe(false);
-    expect(isContentEditorGroupingAvailable(nativeFile, "brief.docx")).toBe(false);
+  });
+
+  it("enables grouping for segmented office files", () => {
+    expect(isContentEditorGroupingAvailable(nativeFile, "brief.docx")).toBe(true);
+    expect(isContentEditorGroupingAvailable(nativeFile, "deck.pptx")).toBe(true);
+    expect(isContentEditorGroupingAvailable(nativeFile, "legacy.xls")).toBe(true);
   });
 
   it("enables grouping for native markdown files that also have segment view", () => {

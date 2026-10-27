@@ -22,8 +22,6 @@ import type { LunaCreditInput } from "./types";
 
 const logger = createLogger("localisation-audit-credits-luna");
 
-const VISUAL_PROXY_IDS = new Set(["text-overflow", "layout-breakage", "responsive-localisation"]);
-
 const lunaFindingSchema = z.object({
   severity: z.enum(["critical", "high", "medium", "low", "info"]),
   title: z.string().trim().min(1),
@@ -101,11 +99,11 @@ export async function scoreCreditsWithLuna(input: {
     const { output } = await generateText({
       model: getHyperlocaliseAgentModel(),
       output: Output.object({ schema: lunaOutputSchema }),
+      temperature: 0,
       prompt: [
         "You are scoring website localisation credits from 0 to 100.",
         "Only use the provided evidence. Do not invent pages or quotes.",
         "Return one result per credit id. Prefer fewer, concrete findings (max 3 per credit).",
-        "For visual credits without screenshots, treat overflow/layout/responsive as informed estimates and keep confidence at or below 74.",
         "High-confidence only when the evidence is explicit.",
         "Locale-prefixed URLs that share the same path after the locale, including homepages such as /de/ and /es/, are equivalent pages. Do not treat that as dropping the current path.",
         "If the evidence has no dates, numbers, currency, addresses, accessible names, long headings, or component drift, do not invent a finding or lower the score for those credits.",
@@ -123,8 +121,7 @@ export async function scoreCreditsWithLuna(input: {
     const credits: LunaCreditScore[] = [];
     for (const credit of output.credits) {
       if (!allowed.has(credit.id)) continue;
-      const confidenceCap = VISUAL_PROXY_IDS.has(credit.id) ? 74 : 100;
-      const confidence = Math.min(credit.confidence, confidenceCap);
+      const confidence = credit.confidence;
       const dimension =
         input.credits.find((item) => item.id === credit.id)?.dimension ?? "linguistic";
       credits.push({

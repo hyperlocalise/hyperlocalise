@@ -24,7 +24,9 @@ Create an automation when the same translation task should run more than once. B
 
 GitHub triggers require a connected and enabled repository. A Contentful event trigger does not imply that Contentful file sync is available.
 
-To localize Intercom Help Center articles, apply the **Translate Intercom Help Center articles** template. Intercom is not a trigger. Use a scheduled or manual trigger to import articles. After you approve locales, use **Push to Intercom**. See [Localize Intercom Help Center articles](/platform/connections/intercom).
+To localize Intercom Help Center articles, apply the **Translate Intercom Help Center articles** template. Intercom is not a trigger. Use a scheduled or manual trigger to import articles. After you approve every visible string for a mapped locale, use **Push to Intercom**. See [Localize Intercom Help Center articles](/platform/connections/intercom).
+
+To localize Braze email templates and Content Blocks, apply the **Translate Braze email templates** template. To localize tagged campaign and Canvas drafts, apply **Translate Braze Campaigns & Canvas**. Do not attach both skills on one automation. Braze is not a trigger. Use a scheduled or manual trigger to import sources. After you approve mapped locales, use **Push to Braze**. Email Templates writes locale-suffixed library copies. Campaigns & Canvas writes Translation API locale maps. Neither action publishes. See [Localize Braze](/platform/connections/braze).
 
 ## Example: translate after upload
 
@@ -43,3 +45,27 @@ Upload a small file through Platform or [CLI sync push](/platform/cli), then con
 Pause the automation when new events should stop starting work. Inspect already-started runs separately. Review triggers after changing repository access, branch names, project locales, or language resources.
 
 If no run starts, follow [Automation troubleshooting](/platform/help/automations). For fixed execution order and explicit branches, use [Visual workflows](/platform/visual-workflows).
+
+## Keyboard shortcuts
+
+Hold **Alt** (Option on a Mac) to see each action's shortcut on the page. Press **?** for the full list.
+
+| Action | Shortcut |
+| --- | --- |
+| Save, or create on the new page | Ctrl+S (⌘S on a Mac) |
+| Run now, or create on the new page | Ctrl+Enter (⌘↵ on a Mac) |
+| Configure with assistant | Ctrl+/ (⌘/ on a Mac) |
+| Undo / Redo | Ctrl+Z / Ctrl+Shift+Z (⌘Z / ⌘⇧Z on a Mac) |
+| Shortcut list | ? |
+
+Save and run still work while you type in a field. **?** does not, so you can type a question mark in a name or instruction.
+
+## Undo edits and unsaved changes
+
+On the new and saved automation pages, **Undo** and **Redo** in the header walk back through your edits in order. Each step covers the whole form (name, trigger, tools, instructions, and related fields), not just the field that had focus. Typing in one text field is grouped into a single step until you leave the field.
+
+- Use **Discard changes** on a saved automation to revert to the last saved configuration. Confirm in the dialog; you can undo that discard from the stack.
+- Leaving the page while the form differs from the saved configuration prompts you to stay, save, or discard.
+- **Run now** with unsaved edits asks whether to save and run or discard and run.
+
+Running the automation or pushing to an external service no longer reloads the form over edits in progress. If someone else saves while you are editing, the page applies their version as a **system** undo step so you can review or undo it.

@@ -33,6 +33,7 @@ describe("product page content", () => {
       "/product/domains",
       "/product/hyperlab",
       "/product/guidelines",
+      "/iris",
     ]);
   });
 });

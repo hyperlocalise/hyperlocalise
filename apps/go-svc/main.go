@@ -15,7 +15,11 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
 	"github.com/hyperlocalise/hyperlocalise/internal/dataforseo"
+	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
+	"github.com/hyperlocalise/hyperlocalise/internal/guidelines/check"
+	guidelinepg "github.com/hyperlocalise/hyperlocalise/internal/guidelines/postgres"
 	"github.com/hyperlocalise/hyperlocalise/internal/postgres"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/workos/workos-go/v10"
 )
 
@@ -93,21 +97,35 @@ func main() {
 		log.Printf("configure memory interchange publisher: %v", memoryInterchangeErr)
 	}
 	h.spellChecker = spellChecker
-	h.dictionaries = &dictionaryAPI{}
+	h.dictionaries = &dictionaryAPI{activityLog: activityLogPublisher}
 	h.glossaries = &glossaryAPI{activityLog: activityLogPublisher, interchange: interchangePublisher}
-	h.memories = &memoryAPI{interchange: memoryInterchangePublisher}
-	h.qaReports = &qaReportAPI{}
+	h.memories = &memoryAPI{
+		activityLog: activityLogPublisher,
+		interchange: memoryInterchangePublisher,
+		analytics:   newGAProductUsageTrackerFromEnv(),
+	}
+	h.qaReports = &qaReportAPI{activityLog: activityLogPublisher}
 	h.teams = &teamAPI{}
 	h.members = &memberAPI{
 		seats:     fallbackMemberSeats{limit: localSeatFallbackLimit},
 		analytics: newGAProductUsageTrackerFromEnv(),
 	}
+	h.workspaceSettings = &workspaceSettingsAPI{activityLog: activityLogPublisher}
+	h.sessionOrganizations = &sessionOrganizationsAPI{}
+	h.sessionAccount = &sessionAccountAPI{}
+	h.irisGeneration = &irisGenerationAPI{provider: newIrisGenerationProvider()}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
-	h.issueSheets = &issueSheetAPI{}
+	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}
 	h.activityLogs = &activityLogAPI{}
-	h.contentEditor = &editorCatAPI{}
+	h.billing = &billingAPI{}
+	visualContextMatchPublisher, visualContextMatchErr := newVisualContextMatchPublisher(context.Background())
+	if visualContextMatchErr != nil {
+		log.Printf("configure visual context match publisher: %v", visualContextMatchErr)
+	}
+	h.contentEditor = &editorCatAPI{matchPublisher: visualContextMatchPublisher}
 	h.projects = &projectAPI{activityLog: activityLogPublisher}
+	h.conversations = &conversationAPI{}
 	h.overview = &overviewAPI{}
 	h.publicTranslations = &publicTranslationsAPI{auth: newPublicAPIAuthFromEnv(nil, nil)}
 	h.publicJobs = &publicJobsAPI{auth: h.publicTranslations.auth}
@@ -119,6 +137,7 @@ func main() {
 			h.issueSheets.autumn = autumnClientChecker{client: client}
 			h.members.seats = autumnMemberSeats{client: client}
 			h.projects.autumn = client
+			h.billing.autumn = client
 		}
 	}
 	var membershipLookup organizationMembershipLookup
@@ -129,8 +148,14 @@ func main() {
 			return workosClient.OrganizationMembership().Get(ctx, id)
 		}
 		h.members.workos = newLiveMemberWorkos(key, workosAPIBaseURL())
+		if identity := newLiveMemberWorkos(key, workosAPIBaseURL()); identity != nil {
+			h.workspaceSettings.workos = identity
+		}
 	}
-	h.workspace = &workspaceAPI{membership: membershipLookup}
+	h.workspace = &workspaceAPI{membership: membershipLookup, activityLog: activityLogPublisher}
+	if h.irisGeneration != nil {
+		h.irisGeneration.membership = membershipLookup
+	}
 	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
 	if workosClient != nil {
 		h.workspace.flags = workosWorkspaceFlags{client: workosClient}
@@ -146,6 +171,7 @@ func main() {
 		}
 	}
 
+	var guidelinePool *pgxpool.Pool
 	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
 		pool, err := postgres.NewPool(context.Background(), databaseURL)
 		if err != nil {
@@ -153,6 +179,7 @@ func main() {
 		}
 		defer pool.Close()
 		h.postgres = pool
+		guidelinePool = pool
 		traced := tracedPool{inner: pool}
 		h.dictionaries.pool = traced
 		h.glossaries.pool = traced
@@ -162,10 +189,18 @@ func main() {
 		h.notifications.pool = traced
 		h.teams.pool = traced
 		h.members.pool = traced
+		h.workspaceSettings.pool = traced
+		h.sessionOrganizations.pool = traced
+		h.sessionAccount.pool = traced
+		if h.irisGeneration != nil {
+			h.irisGeneration.pool = traced
+		}
 		h.apiKeys.pool = traced
 		h.activityLogs.pool = traced
+		h.billing.pool = traced
 		h.contentEditor.pool = traced
 		h.projects.pool = traced
+		h.conversations.pool = traced
 		h.overview.pool = traced
 		h.publicTranslations.auth.pool = traced
 		h.workspace.pool = traced
@@ -185,6 +220,21 @@ func main() {
 	}
 	h.glossaries.objects = h.objects
 	h.memories.objects = h.objects
+	h.contentEditor.objects = h.objects
+	if h.irisGeneration != nil {
+		h.irisGeneration.objects = h.objects
+		if h.objects != nil {
+			h.irisGeneration.StartRecovery(context.Background())
+		}
+	}
+	guidelineIngestPublisher, guidelineIngestErr := newGuidelineIngestPublisher(context.Background())
+	if guidelineIngestErr != nil {
+		log.Printf("configure guideline ingest publisher: %v", guidelineIngestErr)
+	}
+	if guidelineIngestPublisher != nil {
+		h.knowledgeMemories.guidelineIngest = guidelineIngestPublisher
+	}
+	h.guidelineDocuments = newGuidelineDocumentAPI(h.knowledgeMemories, h.objects, guidelineIngestPublisher)
 
 	guidelinesCtx, cancelGuidelines := context.WithTimeout(context.Background(), 15*time.Second)
 	guidelineSearch, closeGuidelines, err := configureGuidelineSearch(guidelinesCtx)
@@ -194,6 +244,28 @@ func main() {
 	}
 	defer closeGuidelines()
 	h.guidelines = guidelineSearch
+	h.guidelineCheck = &guidelineCheckAPI{knowledge: h.knowledgeMemories}
+	if h.autumn != nil {
+		h.guidelineCheck.meter = h.autumn
+		if h.irisGeneration != nil {
+			h.irisGeneration.meter = h.autumn
+		}
+	}
+	checkModel, err := newGuidelineCheckModel()
+	if err != nil {
+		log.Fatalf("configure guideline check model: %v", err)
+	}
+	// Without a search index, checks still apply mandatory guidelines.
+	checkRetriever := guidelineSearch
+	if checkRetriever == nil && guidelinePool != nil {
+		checkRetriever = guidelines.NewService(guidelinepg.NewWithPool(guidelinePool), nil)
+	}
+	if checkModel != nil && checkRetriever != nil {
+		h.guidelineCheck.checker = check.New(checkRetriever, checkModel)
+	}
+	if checkRetriever != nil && guidelinePool != nil {
+		h.guidelineRetrieve = &guidelineRetrieveAPI{retriever: checkRetriever, pool: guidelinePool}
+	}
 
 	valkeyCtx, cancelValkey := context.WithTimeout(context.Background(), 5*time.Second)
 	valkeyClient, err := configureValkey(valkeyCtx)
@@ -216,12 +288,15 @@ func main() {
 	h.qaReports.membership = membershipLookup
 	h.teams.membership = membershipLookup
 	h.members.membership = membershipLookup
+	h.workspaceSettings.membership = membershipLookup
 	h.apiKeys.membership = membershipLookup
 	h.issueSheets.membership = membershipLookup
 	h.notifications.membership = membershipLookup
 	h.activityLogs.membership = membershipLookup
+	h.billing.membership = membershipLookup
 	h.contentEditor.membership = membershipLookup
 	h.projects.membership = membershipLookup
+	h.conversations.membership = membershipLookup
 	h.overview.membership = membershipLookup
 	h.overview.flags = h.workspace.flags
 	h.publicTranslations.auth.membership = membershipLookup

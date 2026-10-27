@@ -33,6 +33,12 @@ func TestKindForSourcePath(t *testing.T) {
 		{"/notes/README.MDOWN", FormatMarkdown},
 		{"/docs/guide.adoc", FormatAsciiDoc},
 		{"/docs/GUIDE.ASC", FormatAsciiDoc},
+		{"/docs/brief.docx", FormatOffice},
+		{"/decks/LAUNCH.PPTX", FormatOffice},
+		{"/docs/handbook.pdf", FormatOffice},
+		{"word/document.xml#12", FormatOffice},
+		{"ppt/slides/slide1.xml#0", FormatOffice},
+		{"page-2#3", FormatOffice},
 		{"  spaced.md  ", FormatMarkdown},
 		{"noext", FormatICUInvariant},
 		{"", FormatICUInvariant},
@@ -280,6 +286,35 @@ func TestFirstValidationErrorMatrix(t *testing.T) {
 			wantErr:     true,
 			errContains: "unreal",
 		},
+		{
+			name:       "json_i18next_placeholder_ok",
+			path:       "/pkg/en.json",
+			source:     "Hello {{name}}",
+			translated: "Bonjour {{name}}",
+			wantErr:    false,
+		},
+		{
+			name:       "json_i18next_format_ok",
+			path:       "/pkg/en.json",
+			source:     "Hello {{name, uppercase}}",
+			translated: "Bonjour {{name, uppercase}}",
+			wantErr:    false,
+		},
+		{
+			name:        "json_i18next_placeholder_mismatch",
+			path:        "/pkg/en.json",
+			source:      "Hello {{name}}",
+			translated:  "Bonjour",
+			wantErr:     true,
+			errContains: "placeholder parity",
+		},
+		{
+			name:       "json_i18next_nesting_ok",
+			path:       "/pkg/en.json",
+			source:     "See $t(help.link)",
+			translated: "Voir $t(help.link)",
+			wantErr:    false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -371,5 +406,52 @@ func TestValidateForKindDispatches(t *testing.T) {
 	}
 	if err := validateForKind(FormatICUInvariant, "x {n}", "y {n}"); err != nil {
 		t.Fatalf("unexpected %v", err)
+	}
+}
+
+func TestFirstValidationErrorOfficePlaceholders(t *testing.T) {
+	open := "\x1eHLOXPH_6F30_0\x1f"
+	closeToken := "\x1eHLOXPH_6330_1\x1f"
+	source := "Read the " + open + "terms" + closeToken
+	if err := FirstValidationError("docs/brief.docx", source, "Lisez les "+open+"conditions"+closeToken); err != nil {
+		t.Fatalf("expected valid office translation, got %v", err)
+	}
+	err := FirstValidationError("docs/brief.docx", source, "Lisez les conditions")
+	if err == nil || !strings.Contains(err.Error(), "office placeholder mismatch") {
+		t.Fatalf("expected office placeholder mismatch, got %v", err)
+	}
+}
+
+func TestValidateSegmentIgnoresTrailingRegularSpace(t *testing.T) {
+	source := "Lorem ipsum dolor sit amet consectetuer adipiscing elit sed do tempor incididunt ut labore et dolore magna aliqua. "
+	target := "Lorem ipsum dolor sit amet consectetuer adipiscing elit sed do tempor incididunt ut labore et dolore magna aliqua."
+	checks := ValidateSegment(Request{
+		SourceText: source,
+		TargetText: target,
+		SourcePath: "messages.json",
+	})
+	for _, check := range checks {
+		if check.Status == StatusFail {
+			t.Fatalf("unexpected fail %+v", check)
+		}
+	}
+}
+
+func TestValidateSegmentOfficeIgnoresTrailingWhitespace(t *testing.T) {
+	open := "\x1eHLOXPH_6F30_0\x1f"
+	closeToken := "\x1eHLOXPH_6330_1\x1f"
+	source := open + "Lorem ipsum dolor sit amet" + closeToken + " consectetuer adipiscing elit. "
+	target := open + "Lorem ipsum dolor sit amet" + closeToken + " エリートの成長を促し、労働と大きな苦痛を伴う時間を費やす。"
+	for _, path := range []string{"docs/brief.docx", "word/document.xml#12"} {
+		checks := ValidateSegment(Request{
+			SourceText: source,
+			TargetText: target,
+			SourcePath: path,
+		})
+		for _, check := range checks {
+			if check.Status == StatusFail {
+				t.Fatalf("%s: unexpected fail %+v", path, check)
+			}
+		}
 	}
 }

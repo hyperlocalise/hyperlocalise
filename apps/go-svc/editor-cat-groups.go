@@ -263,16 +263,30 @@ func editorCatLockedKeyIDs(r *http.Request, tx pgx.Tx, actor editorCatActor, pro
 	return locked, rows.Err()
 }
 
-func editorCatValidateTargetText(sourceText, sourcePath, targetText, targetLocale string, maxLength *int) error {
+type editorCatValidationInput struct {
+	sourceText    string
+	sourcePath    string
+	targetText    string
+	targetLocale  string
+	maxLength     *int
+	messageFormat string
+}
+
+func editorCatValidateTargetText(input editorCatValidationInput) error {
 	limit := 0
-	if maxLength != nil && *maxLength > 0 {
-		limit = *maxLength
+	if input.maxLength != nil && *input.maxLength > 0 {
+		limit = *input.maxLength
 	}
 	for _, check := range segmentvalidate.ValidateSegment(segmentvalidate.Request{
-		SourceText: sourceText, TargetText: targetText, SourcePath: sourcePath, MaxLength: limit, TargetLocale: targetLocale,
+		SourceText:    input.sourceText,
+		TargetText:    input.targetText,
+		SourcePath:    input.sourcePath,
+		MaxLength:     limit,
+		TargetLocale:  input.targetLocale,
+		MessageFormat: segmentvalidate.ParseMessageFormat(input.messageFormat),
 	}) {
 		if check.Status == segmentvalidate.StatusFail {
-			return editorCatFailure(422, "group_member_validation_failed", sourcePath+": "+check.Message)
+			return editorCatFailure(422, "group_member_validation_failed", input.sourcePath+": "+check.Message)
 		}
 	}
 	return nil

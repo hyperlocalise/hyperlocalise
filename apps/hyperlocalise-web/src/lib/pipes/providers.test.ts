@@ -17,7 +17,9 @@ import { isPipesProviderSlug, pipesProvidersForCategory } from "./providers";
 describe("pipes providers", () => {
   it("accepts catalog API-key slugs and rejects unknown ones", () => {
     expect(isPipesProviderSlug("ahrefs")).toBe(true);
+    expect(isPipesProviderSlug("braze")).toBe(true);
     expect(isPipesProviderSlug("intercom")).toBe(true);
+    expect(isPipesProviderSlug("google-drive")).toBe(true);
     expect(isPipesProviderSlug("unknown-provider")).toBe(false);
   });
 
@@ -28,10 +30,10 @@ describe("pipes providers", () => {
       "similarweb",
     ]);
     expect(pipesProvidersForCategory("customer-engagement")).toEqual(
-      expect.arrayContaining(["hubspot", "intercom", "mailchimp", "resend", "sendgrid"]),
+      expect.arrayContaining(["braze", "hubspot", "intercom", "mailchimp", "resend", "sendgrid"]),
     );
     expect(pipesProvidersForCategory("cms")).toEqual(expect.arrayContaining(["sanity", "webflow"]));
-    expect(pipesProvidersForCategory("guidelines")).toEqual(["notion"]);
+    expect(pipesProvidersForCategory("guidelines")).toEqual(["google-drive", "notion"]);
     expect(pipesProvidersForCategory("collaboration")).toEqual(["atlassian"]);
     expect(pipesProvidersForCategory("source-control")).toEqual(["gitlab"]);
   });

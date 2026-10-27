@@ -22,14 +22,22 @@ type fakeIndex struct {
 	err      error
 	onSearch func()
 	writes   []Document
+	deletes  []string
+	limit    int
 }
 
 func (s *fakeIndex) Upsert(_ context.Context, doc Document) error {
 	s.writes = append(s.writes, doc)
 	return s.err
 }
-func (s *fakeIndex) DeleteThrough(context.Context, Scope, string, int64) error { return s.err }
-func (s *fakeIndex) Search(context.Context, Query) ([]Chunk, error) {
+
+func (s *fakeIndex) DeleteThrough(_ context.Context, _ Scope, id string, _ int64) error {
+	s.deletes = append(s.deletes, id)
+	return s.err
+}
+
+func (s *fakeIndex) Search(_ context.Context, query Query) ([]Chunk, error) {
+	s.limit = query.Limit
 	if s.onSearch != nil {
 		s.onSearch()
 	}
@@ -100,6 +108,61 @@ func TestRetrievalFailureAndRevisionChange(t *testing.T) {
 	}
 }
 
+type fakeReranker struct {
+	order    []int
+	err      error
+	passages []string
+	topN     int
+}
+
+func (r *fakeReranker) Rerank(_ context.Context, _ string, passages []string, topN int) ([]int, error) {
+	r.passages, r.topN = passages, topN
+	return r.order, r.err
+}
+
+func rerankFixture() (Document, []Chunk) {
+	doc := fixtureDocument()
+	doc.Content = "First rule.\n\nSecond rule.\n\nThird rule."
+	return doc, Chunks(doc)
+}
+
+func TestRetrieveReranksCandidates(t *testing.T) {
+	doc, chunks := rerankFixture()
+	index := &fakeIndex{hits: chunks}
+	reranker := &fakeReranker{order: []int{2, 0}}
+	result, err := NewService(&fakeSource{docs: []Document{doc}}, index, WithReranker(reranker)).Retrieve(t.Context(), doc.Scope, "rules", 2)
+	require.NoError(t, err)
+	require.Equal(t, rerankCandidates, index.limit)
+	require.Equal(t, []string{"First rule.", "Second rule.", "Third rule."}, reranker.passages)
+	require.Equal(t, 2, reranker.topN)
+	require.Equal(t, []Chunk{chunks[2], chunks[0]}, result.Passages)
+}
+
+func TestRetrieveKeepsIndexOrderWhenRerankFails(t *testing.T) {
+	for name, reranker := range map[string]*fakeReranker{
+		"error":           {err: errors.New("unavailable")},
+		"empty":           {},
+		"out of range":    {order: []int{5}},
+		"duplicate index": {order: []int{1, 1}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			doc, chunks := rerankFixture()
+			result, err := NewService(&fakeSource{docs: []Document{doc}}, &fakeIndex{hits: chunks}, WithReranker(reranker)).Retrieve(t.Context(), doc.Scope, "rules", 2)
+			require.NoError(t, err)
+			require.Equal(t, chunks[:2], result.Passages)
+		})
+	}
+}
+
+func TestRetrieveWithoutRerankerUsesCallerLimit(t *testing.T) {
+	doc, chunks := rerankFixture()
+	index := &fakeIndex{hits: chunks}
+	result, err := NewService(&fakeSource{docs: []Document{doc}}, index).Retrieve(t.Context(), doc.Scope, "rules", 2)
+	require.NoError(t, err)
+	require.Equal(t, 2, index.limit)
+	require.Equal(t, chunks[:2], result.Passages)
+}
+
 func TestChunksAndSync(t *testing.T) {
 	doc := fixtureDocument()
 	doc.Content = strings.Repeat("日本語", 1000) + "\n\nFinal rule."
@@ -121,4 +184,40 @@ func TestChunksAndSync(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []Document{doc}, result.Mandatory)
 	require.False(t, result.SearchAvailable)
+}
+
+func TestIndexDocumentAndDelete(t *testing.T) {
+	doc := fixtureDocument()
+	doc.Scope.Locale = "fr-FR"
+	index := &fakeIndex{}
+	service := NewService(&fakeSource{}, index)
+	require.NoError(t, service.IndexDocument(t.Context(), doc))
+	require.Equal(t, []Document{doc}, index.writes)
+
+	invalid := doc
+	invalid.Version = 0
+	require.ErrorIs(t, service.IndexDocument(t.Context(), invalid), ErrInvalidInput)
+
+	require.NoError(t, service.Delete(t.Context(), doc.Scope, doc.ID, 3))
+	require.Equal(t, []string{doc.ID}, index.deletes)
+	require.ErrorIs(t, service.Delete(t.Context(), doc.Scope, "", 3), ErrInvalidInput)
+	require.ErrorIs(t, service.Delete(t.Context(), Scope{}, doc.ID, 3), ErrInvalidInput)
+
+	index.err = errors.New("unavailable")
+	require.Error(t, service.IndexDocument(t.Context(), doc))
+	require.Error(t, service.Delete(t.Context(), doc.Scope, doc.ID, 3))
+
+	unconfigured := NewService(&fakeSource{}, nil)
+	require.Error(t, unconfigured.IndexDocument(t.Context(), doc))
+	require.Error(t, unconfigured.Delete(t.Context(), doc.Scope, doc.ID, 3))
+}
+
+func TestNormalizeLocale(t *testing.T) {
+	for input, want := range map[string]string{"": "", "  ": "", "fr_fr": "fr-FR", "EN-us": "en-US", "zh-hans-cn": "zh-Hans-CN"} {
+		got, err := NormalizeLocale(input)
+		require.NoError(t, err, input)
+		require.Equal(t, want, got, input)
+	}
+	_, err := NormalizeLocale("not a locale!")
+	require.ErrorIs(t, err, ErrInvalidInput)
 }

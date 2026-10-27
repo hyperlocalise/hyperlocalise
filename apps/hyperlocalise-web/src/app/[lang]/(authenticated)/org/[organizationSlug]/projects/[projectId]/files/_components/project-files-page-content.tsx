@@ -14,6 +14,7 @@
  */
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { observer } from "mobx-react-lite";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FileIcon, UploadSimpleIcon } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -53,11 +54,19 @@ import { ProjectFilesTree } from "./project-files-tree";
 import { formatBytes } from "./project-files-shared";
 import { projectFilesPageContentMessages as messages } from "./project-files-page-content.messages";
 import { useProjectFileActions } from "./use-project-file-actions";
+import {
+  PROJECT_FILES_MAX_UPLOAD,
+  fileKey,
+  sourcePathForFile,
+  type ProjectFileDialogAction,
+} from "../store/project-files-page-store";
+import {
+  ProjectFilesPageStoreProvider,
+  useProjectFilesPageStore,
+} from "../store/project-files-store-context";
 
 const FILE_ACCEPT = getSupportedSourceUploadAccept();
-const MAX_UPLOAD_FILES = 10;
-
-type PendingFileDialogAction = "translate" | "import" | "download" | "segmentation";
+const MAX_UPLOAD_FILES = PROJECT_FILES_MAX_UPLOAD;
 
 function ProjectFileDialogHost({
   file,
@@ -72,7 +81,7 @@ function ProjectFileDialogHost({
   onClose,
 }: {
   file: ProjectFileRecord;
-  initialAction: PendingFileDialogAction;
+  initialAction: ProjectFileDialogAction;
   organizationSlug: string;
   projectId: string;
   highlightLocale: string | null;
@@ -95,9 +104,11 @@ function ProjectFileDialogHost({
   const {
     downloadDialogOpen,
     importDialogOpen,
+    messageFormatDialogOpen,
     segmentationDialogOpen,
     setDownloadDialogOpen,
     setImportDialogOpen,
+    setMessageFormatDialogOpen,
     setSegmentationDialogOpen,
     setTranslateDialogOpen,
     translateDialogOpen,
@@ -113,6 +124,7 @@ function ProjectFileDialogHost({
       import: () => setImportDialogOpen(true),
       download: () => setDownloadDialogOpen(true),
       segmentation: () => setSegmentationDialogOpen(true),
+      messageFormat: () => setMessageFormatDialogOpen(true),
     }[initialAction];
     openDialog();
     setHasOpened(true);
@@ -121,6 +133,7 @@ function ProjectFileDialogHost({
     initialAction,
     setDownloadDialogOpen,
     setImportDialogOpen,
+    setMessageFormatDialogOpen,
     setSegmentationDialogOpen,
     setTranslateDialogOpen,
   ]);
@@ -131,7 +144,11 @@ function ProjectFileDialogHost({
     }
 
     const anyOpen =
-      translateDialogOpen || importDialogOpen || downloadDialogOpen || segmentationDialogOpen;
+      translateDialogOpen ||
+      importDialogOpen ||
+      downloadDialogOpen ||
+      segmentationDialogOpen ||
+      messageFormatDialogOpen;
     if (!anyOpen) {
       onClose();
     }
@@ -139,6 +156,7 @@ function ProjectFileDialogHost({
     downloadDialogOpen,
     hasOpened,
     importDialogOpen,
+    messageFormatDialogOpen,
     onClose,
     segmentationDialogOpen,
     translateDialogOpen,
@@ -149,15 +167,6 @@ function ProjectFileDialogHost({
 
 function apiPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files`;
-}
-
-function sourcePathForFile(file: File) {
-  const fileWithPath = file as File & { webkitRelativePath?: string };
-  return fileWithPath.webkitRelativePath || file.name;
-}
-
-function fileKey(file: File) {
-  return `${sourcePathForFile(file)}:${file.size}:${file.lastModified}`;
 }
 
 export type ProjectFilesTreeRenderer = (props: {
@@ -224,13 +233,24 @@ export function ProjectFilesPageContent({
   organizationSlug: string;
   projectId: string;
 }) {
+  return (
+    <ProjectFilesPageStoreProvider organizationSlug={organizationSlug} projectId={projectId}>
+      <ProjectFilesPageContentInner />
+    </ProjectFilesPageStoreProvider>
+  );
+}
+
+const ProjectFilesPageContentInner = observer(function ProjectFilesPageContentInner() {
   const intl = useIntl();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [loadedFiles, setLoadedFiles] = useState<ProjectFileRecord[]>([]);
+  const pageStore = useProjectFilesPageStore();
+  const organizationSlug = pageStore.organizationSlug;
+  const projectId = pageStore.projectId;
+  const selectedFiles = pageStore.selectedFiles;
+  const loadedFiles = pageStore.loadedFiles;
 
   const selectedSourcePath = searchParams.get("sourcePath");
   const highlightLocale = searchParams.get("locale");
@@ -289,7 +309,7 @@ export function ProjectFilesPageContent({
     },
     onSuccess: async (_, files) => {
       const lastUploadedPath = files.at(-1) ? sourcePathForFile(files.at(-1) as File) : null;
-      setSelectedFiles([]);
+      pageStore.clearSelectedFiles();
       await queryClient.invalidateQueries({
         queryKey: projectFilesQueryKey(organizationSlug, projectId),
       });
@@ -305,19 +325,26 @@ export function ProjectFilesPageContent({
     },
   });
 
-  const addSelectedFiles = useCallback((nextFiles: File[]) => {
-    setSelectedFiles((currentFiles) => {
-      const existing = new Set(currentFiles.map(fileKey));
-      return [...currentFiles, ...nextFiles.filter((file) => !existing.has(fileKey(file)))].slice(
-        0,
-        MAX_UPLOAD_FILES,
-      );
-    });
-  }, []);
+  const addSelectedFiles = useCallback(
+    (nextFiles: File[]) => {
+      pageStore.addSelectedFiles(nextFiles);
+    },
+    [pageStore],
+  );
 
-  const removeSelectedFile = useCallback((file: File) => {
-    setSelectedFiles((currentFiles) => currentFiles.filter((item) => item !== file));
-  }, []);
+  const removeSelectedFile = useCallback(
+    (file: File) => {
+      pageStore.removeSelectedFile(file);
+    },
+    [pageStore],
+  );
+
+  const setLoadedFiles = useCallback(
+    (files: ProjectFileRecord[]) => {
+      pageStore.setLoadedFiles(files);
+    },
+    [pageStore],
+  );
 
   const resolvedFiles = useMemo(() => sortFilesByPath(loadedFiles), [loadedFiles]);
   const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
@@ -420,18 +447,18 @@ export function ProjectFilesPageContent({
       })()
     : null;
 
-  const [dialogRequest, setDialogRequest] = useState<{
-    file: ProjectFileRecord;
-    action: PendingFileDialogAction;
-  } | null>(null);
+  const dialogRequest = pageStore.dialogRequest;
 
   const closeFileDialog = useCallback(() => {
-    setDialogRequest(null);
-  }, []);
+    pageStore.closeAll();
+  }, [pageStore]);
 
-  const openFileDialog = useCallback((file: ProjectFileRecord, action: PendingFileDialogAction) => {
-    setDialogRequest({ file, action });
-  }, []);
+  const openFileDialog = useCallback(
+    (file: ProjectFileRecord, action: ProjectFileDialogAction) => {
+      pageStore.openAction(file, action);
+    },
+    [pageStore],
+  );
 
   const treeFileActions = useMemo<ProjectFileTreeActionsConfig>(
     () => ({
@@ -447,6 +474,7 @@ export function ProjectFilesPageContent({
       onImportFile: (file) => openFileDialog(file, "import"),
       onDownloadFile: (file) => openFileDialog(file, "download"),
       onSegmentationSettings: (file) => openFileDialog(file, "segmentation"),
+      onMessageFormatSettings: (file) => openFileDialog(file, "messageFormat"),
     }),
     [
       highlightLocale,
@@ -524,7 +552,7 @@ export function ProjectFilesPageContent({
       />
     </>
   );
-}
+});
 
 export function ProjectFilesPageContentView({
   organizationSlug,

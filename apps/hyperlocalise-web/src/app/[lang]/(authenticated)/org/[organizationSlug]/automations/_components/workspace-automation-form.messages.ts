@@ -556,6 +556,12 @@ export const workspaceAutomationFormMessages = defineMessages({
     description:
       "Hint on a skill that cannot be added because it does not work with the selected trigger",
   },
+  skillExclusiveHint: {
+    defaultMessage: "Use only one CMS translation skill on this automation",
+    id: "+bTQr9RSSt",
+    description:
+      "Hint on a CMS translation skill that cannot be added because another is already attached",
+  },
   requiredForSkillBadge: {
     defaultMessage: "{count, plural, one {Required for skill} other {Required for # skills}}",
     id: "CwUciV9/fZ",
@@ -592,6 +598,22 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Intercom",
     id: "8GHkIAG5lJ",
     description: "Name of the Intercom integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationSanity: {
+    defaultMessage: "Sanity",
+    id: "G9eQqJWzlH",
+    description: "Name of the Sanity integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationGoogleDrive: {
+    defaultMessage: "Google Drive",
+    id: "mCZ6rjBj9L",
+    description:
+      "Name of the Google Drive integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationBraze: {
+    defaultMessage: "Braze",
+    id: "o0HXRhjJ+T",
+    description: "Name of the Braze integration in the hint on a skill that needs it connected",
   },
   skillIntegrationSlack: {
     defaultMessage: "Slack",
@@ -1025,6 +1047,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Run History",
     id: "GERghL+Meu",
     description: "Tab label for automation run history",
+  },
+  refreshRunHistory: {
+    defaultMessage: "Refresh",
+    id: "WnA8ZhP3C6",
+    description: "Button to reload the automation run history list",
   },
   agentInstructionsSection: {
     defaultMessage: "Agent Instructions",

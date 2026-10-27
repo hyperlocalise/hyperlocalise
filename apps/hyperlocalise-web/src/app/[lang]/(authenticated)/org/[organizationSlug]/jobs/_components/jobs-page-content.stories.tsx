@@ -154,6 +154,7 @@ export const ProjectJobs: Story = {
   args: {
     organizationSlug: "acme",
     projectId: "project_website",
+    isProviderProjectScope: true,
     nativeJobs: [],
     tmsJobs: tmsJobs.slice(0, 2),
     hasActiveTmsConnection: true,
@@ -161,20 +162,92 @@ export const ProjectJobs: Story = {
     isTmsLoading: false,
     now: fixedNow,
   },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByRole("button", { name: "Row" })).toBeInTheDocument();
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole("button", { name: "Row" }));
     await expect(canvas.getByRole("button", { name: "Board" })).toBeInTheDocument();
     await expect(canvas.getAllByRole("link", { name: "Open Editor" }).length).toBeGreaterThan(0);
     await expect(canvas.getAllByRole("link", { name: "Details" }).length).toBeGreaterThan(0);
   },
 };
 
+const boardJobs: JobRow[] = [
+  createJob({
+    id: "job_queued_legal",
+    status: "queued",
+    externalTitle: "Translate legal terms update",
+    externalTaskId: "CR-1210",
+    externalTargetLocales: ["fr-FR", "de-DE", "es-ES", "it-IT", "pt-BR"],
+    externalAssignedUsers: ["Lena Fischer"],
+    externalDueDate: iso(5 * 86_400_000),
+  }),
+  createJob({
+    id: "job_queued_undated",
+    status: "queued",
+    externalTitle: "Localize onboarding emails",
+    externalTaskId: "CR-1211",
+    externalTargetLocales: ["ja-JP"],
+    externalAssignedUsers: null,
+    externalDueDate: null,
+  }),
+  ...tmsJobs,
+  createJob({
+    id: "job_running_overdue",
+    status: "running",
+    externalTitle: "Pricing page refresh for Q3 launch campaign across all regions",
+    externalTaskId: "CR-1199",
+    externalTargetLocales: ["ko-KR", "zh-CN"],
+    externalAssignedUsers: ["Jun", "Mei", "Sora"],
+    externalDueDate: iso(-2 * 86_400_000),
+  }),
+  createJob({
+    id: "job_review_soon",
+    kind: "review",
+    type: null,
+    status: "waiting_for_review",
+    externalTitle: "Review release notes 4.2",
+    externalTaskId: "CR-1207",
+    externalTargetLocales: ["nl-NL"],
+    externalAssignedUsers: ["Daan"],
+    externalDueDate: iso(3 * 3_600_000),
+  }),
+  createJob({
+    id: "job_failed_agent",
+    status: "failed",
+    assigneeType: "agent",
+    externalTitle: "Translate help center articles",
+    externalTaskId: "CR-1190",
+    externalTargetLocales: ["th-TH", "vi-VN"],
+    externalAssignedUsers: null,
+    lastError: "provider rate limit exceeded while uploading translations",
+    externalDueDate: iso(86_400_000),
+  }),
+  ...Array.from({ length: 3 }, (_, index) =>
+    createJob({
+      id: `job_done_${index}`,
+      status: "succeeded",
+      externalTitle: `Translate blog post #${index + 41}`,
+      externalTaskId: `CR-11${70 + index}`,
+      externalTargetLocales: ["fr-FR"],
+      externalAssignedUsers: ["Mina"],
+      externalDueDate: iso(-(index + 1) * 86_400_000),
+      completedAt: iso(-(index + 1) * 3_600_000),
+    }),
+  ),
+  createJob({
+    id: "job_cancelled",
+    status: "cancelled",
+    externalTitle: "Translate deprecated FAQ",
+    externalTaskId: "CR-1150",
+  }),
+];
+
 export const ProjectJobsKanban: Story = {
   args: {
     organizationSlug: "acme",
     projectId: "project_website",
+    isProviderProjectScope: true,
     nativeJobs: [],
-    tmsJobs,
+    tmsJobs: boardJobs,
     hasActiveTmsConnection: true,
     isNativeLoading: false,
     isTmsLoading: false,
@@ -182,9 +255,12 @@ export const ProjectJobsKanban: Story = {
   },
   play: async ({ canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole("button", { name: "Board" }));
-    await expect(canvas.getByText("Queued")).toBeInTheDocument();
-    await expect(canvas.getByText("Running")).toBeInTheDocument();
-    await expect(canvas.getByText("Waiting for review")).toBeInTheDocument();
+    await expect(canvas.getByRole("region", { name: "Queued, 2 jobs" })).toBeInTheDocument();
+    await expect(canvas.getByRole("region", { name: "Failed, 1 job" })).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: "Expand Cancelled column" }),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Filter" })).toBeNull();
   },
 };
 

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/jackc/pgx/v5"
 	"github.com/workos/workos-go/v10"
 )
@@ -30,6 +31,9 @@ const (
 type editorCatAPI struct {
 	pool       dictionaryPool
 	membership func(context.Context, string) (*workos.UserOrganizationMembership, error)
+	objects    *objectstore.Registry
+	// matchPublisher is nil when automatic visual-context matching is not configured.
+	matchPublisher visualContextMatchPublisher
 }
 
 type editorCatActor struct {
@@ -160,13 +164,27 @@ func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 	route("GET "+cat+"/segments/{externalStringId}/target", api.getSegmentTarget)
 	route("GET "+cat+"/segments/{externalStringId}/variants", api.getSegmentGroupVariants)
 	route("GET "+cat+"/segments/{externalStringId}/comments", api.getSegmentComments)
+	route("GET "+cat+"/segments/{externalStringId}/revisions", api.listSegmentRevisions)
+	route("POST "+cat+"/segments/{externalStringId}/revisions/{revisionId}/restore", api.restoreSegmentRevision)
+	route("POST "+cat+"/operations/{operationId}/undo", api.undoOperation)
 	route("POST "+cat+"/translations", api.saveTranslation)
+	route("POST "+cat+"/document/parse-back", api.parseBackDocument)
 	route("PATCH "+cat+"/translations/status", api.updateTranslationStatus)
 	route("POST "+cat+"/translations/status", api.updateTranslationStatus)
 	route("POST "+cat+"/comments", api.saveComment)
 	route("PATCH "+cat+"/comments/{commentId}/resolve", api.resolveComment)
 	route("POST "+cat+"/concordance", api.loadConcordance)
-	route("POST "+cat+"/visual-context", api.skipVisualContext)
+	route("GET "+cat+"/tm-segments/{entryId}", api.getTmSegment)
+	route("PATCH "+cat+"/tm-segments/{entryId}", api.patchTmSegment)
+	route("DELETE "+cat+"/tm-segments/{entryId}/records/{recordId}", api.deleteTmSegmentRecord)
+	route("POST "+cat+"/visual-context", api.loadVisualContext)
+	route("POST "+cat+"/visual-context/screenshots", api.createVisualContextScreenshot)
+	route("POST "+cat+"/visual-context/screenshots/{screenshotId}/finalize", api.finalizeVisualContextScreenshot)
+	route("POST "+cat+"/visual-context/screenshots/{screenshotId}/match", api.matchVisualContextScreenshot)
+	route("GET "+cat+"/visual-context/processes/{processId}", api.loadVisualContextMatchProcess)
+	route("POST "+cat+"/visual-context/screenshots/{screenshotId}/bindings", api.bindVisualContextScreenshot)
+	route("DELETE "+cat+"/visual-context/screenshots/{screenshotId}/bindings/{bindingId}", api.unbindVisualContextScreenshot)
+	route("DELETE "+cat+"/visual-context/screenshots/{screenshotId}", api.deleteVisualContextScreenshot)
 	route("POST "+cat+"/recommendation", api.skipRecommendation)
 	route("POST "+cat+"/strings/hidden", api.setHidden)
 	route("POST "+cat+"/strings/locked", api.setLocked)
@@ -366,6 +384,11 @@ func editorCatGroupIdentitySQL(alias string) string {
 	return "case when " + editorCatGroupSeparatesMediaSQL(alias) + " then 'media:' || " + alias + ".id::text else 'text:' || " + alias + ".source_text end"
 }
 
+func editorCatExcludeCalloutFenceSQL(alias string) string {
+	col := alias + ".source_text"
+	return "(trim(" + col + ") <> ':::' and trim(" + col + ") not like ':::callout%')"
+}
+
 type editorCatFileKind string
 
 const (
@@ -385,7 +408,7 @@ func editorCatSourceKind(sourcePath string) editorCatFileKind {
 		return editorCatKindVideo
 	case ".docx", ".xlsx", ".xls", ".pptx":
 		return editorCatKindOffice
-	case ".md", ".mdx", ".adoc", ".asciidoc", ".asc":
+	case ".html", ".htm", ".md", ".mdx", ".adoc", ".asciidoc", ".asc", ".txt":
 		return editorCatKindDocument
 	default:
 		return editorCatKindText
@@ -395,6 +418,24 @@ func editorCatSourceKind(sourcePath string) editorCatFileKind {
 func isEditorCatBinaryWholeFile(sourcePath string) bool {
 	kind := editorCatSourceKind(sourcePath)
 	return kind == editorCatKindImage || kind == editorCatKindVideo || kind == editorCatKindOffice
+}
+
+// Office files ingested as paragraph or cell segments queue like documents.
+// Legacy uploads without keys stay whole-file on the source-file UUID.
+func isEditorCatOffice(sourcePath string) bool {
+	return editorCatSourceKind(sourcePath) == editorCatKindOffice
+}
+
+// isEditorCatSegmentedFile reports kinds whose segment UUIDs resolve as text
+// while the source-file UUID still addresses the whole file.
+func isEditorCatSegmentedFile(sourcePath string) bool {
+	kind := editorCatSourceKind(sourcePath)
+	return kind == editorCatKindDocument || kind == editorCatKindOffice
+}
+
+// PDF block keys queue as text; File view previews the generated download.
+func isEditorCatPdf(sourcePath string) bool {
+	return strings.ToLower(path.Ext(sourcePath)) == ".pdf"
 }
 
 func isEditorCatDocument(sourcePath string) bool {
@@ -411,7 +452,7 @@ func looksLikeEditorCatFileBackedAlias(id, sourcePath string) bool {
 
 func editorCatTargetKind(sourcePath, id string) editorCatFileKind {
 	kind := editorCatSourceKind(sourcePath)
-	if kind == editorCatKindDocument && !looksLikeEditorCatFileBackedAlias(id, sourcePath) {
+	if isEditorCatSegmentedFile(sourcePath) && !looksLikeEditorCatFileBackedAlias(id, sourcePath) {
 		return editorCatKindText
 	}
 	return kind

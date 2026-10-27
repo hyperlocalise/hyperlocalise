@@ -21,6 +21,8 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "canvaClaim",
   "connectCanva",
   "connectCanvaOauth",
+  "connectFigmaOauth",
+  "connectSanityOauth",
   "dashboard",
   "dictionaries",
   "dictionaryDetail",
@@ -196,6 +198,30 @@ const AUTHENTICATED_ROUTE_COPY = {
       defaultMessage: "Finish connecting Canva.",
       id: "pF8BH1qY5J",
       description: "Document description for the Canva OAuth callback page",
+    },
+  },
+  connectFigmaOauth: {
+    title: {
+      defaultMessage: "Figma authorization",
+      id: "qH0DJ3sA7L",
+      description: "Document title for the Figma OAuth consent page",
+    },
+    description: {
+      defaultMessage: "Finish connecting the Figma plugin.",
+      id: "rI1EK4tB8M",
+      description: "Document description for the Figma OAuth consent page",
+    },
+  },
+  connectSanityOauth: {
+    title: {
+      defaultMessage: "Sanity Studio authorization",
+      id: "sJ2FL5uC9N",
+      description: "Document title for the Sanity Studio OAuth consent page",
+    },
+    description: {
+      defaultMessage: "Finish connecting the Sanity Studio plugin.",
+      id: "tK3GM6vD0O",
+      description: "Document description for the Sanity Studio OAuth consent page",
     },
   },
   dashboard: {

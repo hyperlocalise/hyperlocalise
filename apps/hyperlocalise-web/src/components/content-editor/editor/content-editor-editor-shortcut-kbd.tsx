@@ -16,7 +16,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 
 import {
   getCatShortcutKeys,
-  type ContentEditorEditorShortcut,
+  type ContentEditorShortcutId,
 } from "./content-editor-keyboard-shortcuts";
 
 export function ContentEditorEditorShortcutKbd({
@@ -24,7 +24,7 @@ export function ContentEditorEditorShortcutKbd({
   isMac,
   className,
 }: {
-  shortcut: ContentEditorEditorShortcut;
+  shortcut: ContentEditorShortcutId;
   isMac: boolean;
   className?: string;
 }) {

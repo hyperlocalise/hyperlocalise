@@ -23,7 +23,14 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { ContentEditorWorkspaceSkeleton } from "@/components/content-editor/workspace/content-editor-workspace-skeleton";
+import { ContentEditorBrazeIngestButton } from "@/components/content-editor/page/content-editor-braze-ingest-button";
+import { ContentEditorBrazePushButton } from "@/components/content-editor/page/content-editor-braze-push-button";
+import { ContentEditorGoogleDriveIngestButton } from "@/components/content-editor/page/content-editor-google-drive-ingest-button";
+import { ContentEditorGoogleDrivePushButton } from "@/components/content-editor/page/content-editor-google-drive-push-button";
+import { ContentEditorIntercomIngestButton } from "@/components/content-editor/page/content-editor-intercom-ingest-button";
 import { ContentEditorIntercomPushButton } from "@/components/content-editor/page/content-editor-intercom-push-button";
+import { ContentEditorSanityIngestButton } from "@/components/content-editor/page/content-editor-sanity-ingest-button";
+import { ContentEditorSanityPushButton } from "@/components/content-editor/page/content-editor-sanity-push-button";
 import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
 import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
@@ -34,6 +41,7 @@ import {
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { apiClient } from "@/lib/api-client-instance";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { supportsProviderContentEditorFile } from "@/lib/providers/capabilities/provider-content-editor-capabilities";
 import { CONTENT_EDITOR_ALL_FILES_SOURCE_PATH } from "@/lib/projects/content-editor-all-files";
 import {
@@ -73,11 +81,15 @@ import {
 } from "../../jobs/[jobId]/strings/_components/select-job-content-editor-repository";
 import {
   fetchProjectFiles,
+  fetchProjectHiddenFileIds,
   findCachedProjectFiles,
+  markHiddenProjectFiles,
   PROJECT_FILES_MAX_LIMIT,
   projectFilesQueryKey,
+  projectHiddenFilesQueryKey,
   sortFilesByPath,
 } from "./project-files-tree-panel";
+import { ContentEditorFileProgressSync } from "./content-editor-file-progress-sync";
 import { projectFileCatPageContentMessages as messages } from "./project-file-content-editor-page-content.messages";
 
 type ProjectFileContentEditorGithubRepository = {
@@ -202,6 +214,11 @@ function ProjectFileContentEditorPageContentInner({
     enabled: hasFileReference,
     placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId, branch),
   });
+  const hiddenFilesQuery = useQuery({
+    queryKey: projectHiddenFilesQueryKey(organizationSlug, projectId),
+    queryFn: () => fetchProjectHiddenFileIds(organizationSlug, projectId),
+    enabled: hasFileReference && Boolean(parseProviderProjectId(projectId)),
+  });
 
   const repositoriesQuery = useQuery({
     queryKey: githubInstallationRepositoriesQueryKey(organizationSlug),
@@ -227,10 +244,13 @@ function ProjectFileContentEditorPageContentInner({
 
   const contentEditorFiles = useMemo(
     () =>
-      sortFilesByPath(filesQuery.data ?? []).filter((entry) =>
-        canOpenProjectFileContentEditor(entry),
+      markHiddenProjectFiles(
+        sortFilesByPath(filesQuery.data ?? []).filter((entry) =>
+          canOpenProjectFileContentEditor(entry),
+        ),
+        hiddenFilesQuery.data,
       ),
-    [filesQuery.data],
+    [filesQuery.data, hiddenFilesQuery.data],
   );
 
   const canUseAllFiles = contentEditorAllFilesEnabled;
@@ -707,12 +727,64 @@ function ProjectFileContentEditorPageContentInner({
       actions={pageActions}
       headerTrailing={
         canManageAutomations ? (
-          <ContentEditorIntercomPushButton
-            organizationSlug={organizationSlug}
-            projectId={projectId}
-            canManageAutomations={canManageAutomations}
-            pageNavigationGuardRef={pageNavigationGuardRef}
-          />
+          <>
+            <ContentEditorIntercomIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorIntercomPushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorSanityIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorSanityPushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorBrazeIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorBrazePushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorGoogleDriveIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorGoogleDrivePushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+          </>
         ) : null
       }
       banners={
@@ -728,9 +800,11 @@ function ProjectFileContentEditorPageContentInner({
         </>
       }
     >
+      <ContentEditorFileProgressSync organizationSlug={organizationSlug} projectId={projectId} />
       <ProjectFileContentEditorWorkspace
         organizationSlug={organizationSlug}
         projectId={projectId}
+        projectSource={projectQuery.data?.source}
         sourceLocale={sourceLocale}
         sourcePath={resolvedSourcePath}
         externalResourceId={allFiles ? null : resolvedExternalResourceId}

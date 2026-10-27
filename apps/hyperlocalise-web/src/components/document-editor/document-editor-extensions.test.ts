@@ -11,9 +11,12 @@
  * Version 2.0 or later.
  */
 // @vitest-environment happy-dom
-import { Editor } from "@tiptap/core";
+import { Editor, type JSONContent } from "@tiptap/core";
 import { marked } from "marked";
 import { afterEach, describe, expect, it } from "vite-plus/test";
+
+import { splitContentEditorDocument } from "@/components/content-editor/file-view/content-editor-document-frontmatter";
+import { INTERCOM_ARTICLE_BODY_MARKDOWN } from "@/lib/intercom/intercom-article-markdown.fixture";
 
 import {
   createDocumentSchemaExtensions,
@@ -83,6 +86,16 @@ afterEach(() => {
   editor = null;
 });
 
+function jsonText(node: JSONContent | undefined): string {
+  if (!node) {
+    return "";
+  }
+  if (typeof node.text === "string") {
+    return node.text;
+  }
+  return (node.content ?? []).map(jsonText).join("");
+}
+
 function roundTrip(markdown: string, syntax: DocumentEditorSyntax) {
   editor = new Editor({
     element: document.createElement("div"),
@@ -100,6 +113,54 @@ describe("document Markdown round trip", () => {
 
   it("keeps an unedited Markdown document as written", () => {
     expect(roundTrip(MARKDOWN_FIXTURE, "markdown")).toBe(MARKDOWN_FIXTURE);
+  });
+
+  it("round-trips Markdown that starts with a blank line without forcing code mode", () => {
+    const original = "\nAI has made translation faster.\n\n## Heading\n\nSee [docs](/blog/x).";
+    const normalized = roundTrip(original, "markdown");
+
+    expect(normalized).toBe(
+      "AI has made translation faster.\n\n## Heading\n\nSee [docs](/blog/x).",
+    );
+    expect(isLossyDocumentRoundTrip("markdown", original, normalized)).toBe(false);
+  });
+
+  it("does not force code mode for a Markdown body after YAML frontmatter", () => {
+    const { body } = splitContentEditorDocument(`---
+title: "AI Translation Is Not Enough"
+---
+
+AI has made translation faster. But for global teams, faster translation does not always mean better localisation.
+
+## Translation quality is no longer just a language problem
+
+See [translation intelligence](/blog/what-is-translation-intelligence).
+`);
+    const normalized = roundTrip(body, "markdown");
+
+    expect(body.startsWith("\n")).toBe(true);
+    expect(isLossyDocumentRoundTrip("markdown", body, normalized)).toBe(false);
+  });
+
+  it("round-trips formatted headings and GitHub callouts without Intercom syntax", () => {
+    const source = `## Hello **world** and [docs](https://example.com)
+
+> [!NOTE]
+> Keep this note.
+
+See {name} in the heading {#not-an-id-here}.`;
+
+    const serialized = roundTrip(source, "markdown");
+    expect(serialized).toContain("## Hello **world** and [docs](https://example.com)");
+    expect(serialized).toContain("> [!NOTE]");
+    expect(serialized).not.toContain(":::callout");
+    expect(serialized).toContain("See {name} in the heading {#not-an-id-here}.");
+
+    const heading = parseDocumentMarkdown(source, "markdown").content?.find(
+      (node) => node.type === "heading",
+    );
+    expect(heading?.attrs?.id ?? null).toBeNull();
+    expect(jsonText(heading)).toBe("Hello world and docs");
   });
 
   it("drops raw HTML wrappers from Markdown documents", () => {
@@ -137,6 +198,53 @@ describe("document Markdown round trip", () => {
     ]);
   });
 
+  it("hides Intercom heading ids and keeps the real article body", () => {
+    const doc = parseDocumentMarkdown(INTERCOM_ARTICLE_BODY_MARKDOWN, "markdown");
+    const headings = (doc.content ?? [])
+      .filter((node) => node.type === "heading")
+      .map((node) => ({
+        level: node.attrs?.level,
+        id: node.attrs?.id,
+        text: jsonText(node),
+      }));
+
+    expect(headings).toEqual([
+      { level: 1, id: "h_61bff2dd7a", text: "Build a comprehensive knowledge base" },
+      {
+        level: 3,
+        id: "h_bb4813e5c6",
+        text: "To make your content easy to find, you need to:",
+      },
+      {
+        level: 1,
+        id: "h_8b76258d80",
+        text: "Use Articles to power Fin AI Agent and Fin AI Copilot",
+      },
+    ]);
+    expect(jsonText(doc)).toContain("To make your content easy to find, you need to:");
+    expect(jsonText(doc)).not.toContain("{#h_");
+    expect(jsonText(doc)).toContain("part of a live Help Center and in a collection.");
+  });
+
+  it("round-trips an uncolored Intercom callout", () => {
+    const source = ":::callout\nKeep this note.\n:::";
+    expect(roundTrip(source, "markdown")).toContain(":::callout");
+    expect(roundTrip(source, "markdown")).not.toContain("[!NOTE]");
+  });
+
+  it("round-trips Intercom body_markdown for draft push", () => {
+    const serialized = roundTrip(INTERCOM_ARTICLE_BODY_MARKDOWN, "markdown");
+    expect(serialized).toContain("{#h_61bff2dd7a}");
+    expect(serialized).toContain("{#h_bb4813e5c6}");
+    expect(serialized).toContain("{#h_8b76258d80}");
+    expect(serialized).toContain(':::callout backgroundColor="#feedaf80" borderColor="#fbc91633"');
+    expect(serialized).toContain(
+      "[collection.](https://www.intercom.com/help/en/articles/56647-create-collections-in-your-help-center)",
+    );
+    expect(serialized).toContain("To make your content easy to find, you need to:");
+    expect(serialized).not.toContain("[!NOTE]");
+  });
+
   it("does not register MDX syntax on the shared marked instance", () => {
     roundTrip(MDX_FIXTURE, "mdx");
 
@@ -169,6 +277,9 @@ describe("isLossyDocumentRoundTrip", () => {
     expect(isLossyDocumentRoundTrip("mdx", "<Tabs>\n  <Tab />\n</Tabs>", "# Tabs")).toBe(true);
     expect(isLossyDocumentRoundTrip("mdx", "# Hello", "# Hello")).toBe(false);
     expect(isLossyDocumentRoundTrip("markdown", "# Hello\n\n\nWorld", "# Hello\n\nWorld")).toBe(
+      false,
+    );
+    expect(isLossyDocumentRoundTrip("markdown", "\n# Hello\n\nWorld", "# Hello\n\nWorld")).toBe(
       false,
     );
     expect(

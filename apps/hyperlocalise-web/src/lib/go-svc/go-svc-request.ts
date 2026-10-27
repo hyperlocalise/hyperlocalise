@@ -86,7 +86,9 @@ export class GoSvcRequest {
       headers.set("Authorization", `Bearer ${token}`);
     }
     let body: BodyInit | undefined;
-    if (request.body !== undefined) {
+    if (request.body instanceof FormData) {
+      body = request.body;
+    } else if (request.body !== undefined) {
       headers.set("Content-Type", "application/json");
       body = JSON.stringify(request.body);
     }
@@ -184,6 +186,10 @@ export function issueSheetPath(
   ...segments: string[]
 ): string {
   return orgPath(organizationSlug, "projects", projectId, "issue-sheet", ...segments);
+}
+
+export function orgIssueSheetPath(organizationSlug: string, ...segments: string[]): string {
+  return orgPath(organizationSlug, "issue-sheet", ...segments);
 }
 
 export function catPath(

@@ -13,13 +13,18 @@
 import { getWorkflowInputFields, getWorkflowOutputFields } from "../catalog/node-contracts";
 import type {
   CanonicalVisualWorkflowNode,
+  VisualWorkflowIssueReason,
+  VisualNodeConfig,
   VisualWorkflowV3Definition,
   VisualWorkflowV3Edge,
   WorkflowBinding,
   VisualWorkflowDefinition,
 } from "../schema/types";
 import { isTriggerType } from "../catalog/node-catalog";
-import { computeForEachBodyNodeIdsFromV3Edges } from "../editor/for-each-body-membership";
+import {
+  computeForEachBodyNodeIdsFromV3Edges,
+  computeTryCatchBodyNodeIdsFromV3Edges,
+} from "../editor/for-each-body-membership";
 
 export type VisualWorkflowV3CompilationIssue = {
   code:
@@ -30,9 +35,14 @@ export type VisualWorkflowV3CompilationIssue = {
     | "incompatible_data_types"
     | "execution_cycle"
     | "terminal_node_outgoing_edge"
-    | "missing_required_input";
+    | "missing_required_input"
+    | "invalid_try_catch_region"
+    | "overlapping_try_catch_region";
   edgeId?: string;
   nodeId?: string;
+  /** The input of the step that is at fault, by its name, when the issue is about one. */
+  field?: string;
+  reason?: VisualWorkflowIssueReason;
 };
 
 export type CompiledVisualWorkflowV3Definition = {
@@ -40,6 +50,41 @@ export type CompiledVisualWorkflowV3Definition = {
   executionEdges: Extract<VisualWorkflowV3Edge, { kind: "execution" }>[];
   issues: VisualWorkflowV3CompilationIssue[];
 };
+
+function comparisonOperandTypesAreCompatible(
+  config: Extract<VisualNodeConfig, { kind: "logic.compare" }>,
+): boolean {
+  const types = config.operands.map((operand) => operand.type);
+  if (config.locale && !types.every((type) => type === "string")) return false;
+  if (types.includes("unknown")) return true;
+
+  switch (config.operator) {
+    case "and":
+    case "or":
+    case "not":
+      return types.every((type) => type === "boolean");
+    case "starts_with":
+    case "ends_with":
+      return types.length === 2 && types.every((type) => type === "string");
+    case "greater_than":
+    case "greater_than_or_equal":
+    case "less_than":
+    case "less_than_or_equal":
+      return (
+        types.length === 2 &&
+        types[0] === types[1] &&
+        (types[0] === "string" || types[0] === "number")
+      );
+    case "contains":
+      return (
+        types.length === 2 &&
+        ((types[0] === "string" && types[1] === "string") || types[0] === "array")
+      );
+    case "equal":
+    case "not_equal":
+      return types.length === 2 && types[0] === types[1];
+  }
+}
 
 function hasDataSourcePort(node: CanonicalVisualWorkflowNode, portId: string): boolean {
   const fields = getWorkflowOutputFields(node);
@@ -109,6 +154,10 @@ function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> 
 
   if (node.config.kind === "logic.sequence") {
     return new Set(node.config.outputs.map((output) => output.id));
+  }
+
+  if (node.type === "logic.try_catch") {
+    return new Set(["try", "success", "catch", "finally"]);
   }
 
   return portIds;
@@ -248,6 +297,38 @@ export function compileVisualWorkflowV3Definition(
     });
   }
 
+  const tryCatchRegions = nodes
+    .filter((node) => node.type === "logic.try_catch")
+    .map((node) => ({
+      nodeId: node.id,
+      bodyNodeIds: computeTryCatchBodyNodeIdsFromV3Edges(node.id, executionEdges),
+    }));
+
+  for (const region of tryCatchRegions) {
+    if (region.bodyNodeIds.length === 0) {
+      issues.push({ code: "invalid_try_catch_region", nodeId: region.nodeId });
+    }
+  }
+
+  for (const [index, left] of tryCatchRegions.entries()) {
+    const leftIds = new Set(left.bodyNodeIds);
+
+    for (const right of tryCatchRegions.slice(index + 1)) {
+      const rightIds = new Set(right.bodyNodeIds);
+      const intersects = [...leftIds].some((nodeId) => rightIds.has(nodeId));
+      if (!intersects) continue;
+
+      const leftStrictlyContainsRight =
+        leftIds.size > rightIds.size && [...rightIds].every((nodeId) => leftIds.has(nodeId));
+      const rightStrictlyContainsLeft =
+        rightIds.size > leftIds.size && [...leftIds].every((nodeId) => rightIds.has(nodeId));
+
+      if (!leftStrictlyContainsRight && !rightStrictlyContainsLeft) {
+        issues.push({ code: "overlapping_try_catch_region", nodeId: right.nodeId });
+      }
+    }
+  }
+
   for (const edge of dataEdges) {
     const source = nodesById.get(edge.source);
     const target = nodesById.get(edge.target);
@@ -338,22 +419,55 @@ export function compileVisualWorkflowV3Definition(
       kind: "reference",
       nodeId: source.id,
       path: edge.sourcePortId.split("."),
-      ...(target.config.kind === "logic.merge" ? { optional: true } : {}),
+      ...(target.config.kind === "logic.merge" || target.config.kind === "logic.coalesce"
+        ? { optional: true }
+        : {}),
     };
 
     target.inputs = inputs;
   }
 
   for (const node of nodes) {
-    if (node.config.kind !== "flow.return") continue;
+    if (
+      node.config.kind !== "flow.return" &&
+      node.config.kind !== "flow.call_workflow" &&
+      node.config.kind !== "logic.create_object" &&
+      node.config.kind !== "logic.merge_objects" &&
+      node.config.kind !== "logic.select_path" &&
+      node.config.kind !== "logic.coalesce" &&
+      node.config.kind !== "logic.compare"
+    )
+      continue;
 
     for (const field of getWorkflowInputFields(node)) {
       if (field.required && !Object.hasOwn(node.inputs ?? {}, field.name)) {
         issues.push({
           code: "missing_required_input",
           nodeId: node.id,
+          field: field.name,
+          reason: "required",
         });
       }
+    }
+
+    if (
+      node.config.kind === "logic.select_path" &&
+      node.config.path.length === 0 &&
+      !Object.hasOwn(node.inputs ?? {}, "path")
+    ) {
+      issues.push({
+        code: "missing_required_input",
+        nodeId: node.id,
+        field: "path",
+        reason: "required",
+      });
+    }
+
+    if (node.config.kind === "logic.compare" && !comparisonOperandTypesAreCompatible(node.config)) {
+      issues.push({
+        code: "incompatible_data_types",
+        nodeId: node.id,
+      });
     }
   }
 
@@ -370,6 +484,12 @@ export function compileVisualWorkflowV3Definition(
 export function toVisualWorkflowExecutionDefinition(
   compiled: CompiledVisualWorkflowV3Definition,
 ): VisualWorkflowDefinition {
+  const tryCatchNodeIds = new Set(
+    compiled.definition.nodes
+      .filter((node) => node.type === "logic.try_catch")
+      .map((node) => node.id),
+  );
+
   return {
     schemaVersion: 2,
     name: compiled.definition.name,
@@ -379,13 +499,24 @@ export function toVisualWorkflowExecutionDefinition(
             ...node,
             bodyNodeIds: computeForEachBodyNodeIdsFromV3Edges(node.id, compiled.definition.edges),
           }
-        : node,
+        : node.type === "logic.try_catch"
+          ? {
+              ...node,
+              bodyNodeIds: computeTryCatchBodyNodeIdsFromV3Edges(
+                node.id,
+                compiled.definition.edges,
+              ),
+            }
+          : node,
     ),
     edges: compiled.executionEdges.map((edge) => ({
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      sourceHandle: edge.sourcePortId === "success" ? null : edge.sourcePortId,
+      sourceHandle:
+        edge.sourcePortId === "success" && !tryCatchNodeIds.has(edge.source)
+          ? null
+          : edge.sourcePortId,
       targetHandle: edge.targetPortId === "input" ? null : edge.targetPortId,
     })),
     editor: compiled.definition.editor,

@@ -3,14 +3,19 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 	"github.com/jackc/pgx/v5"
 )
+
+var hashedHTMLSegmentKey = regexp.MustCompile(`^html\.[0-9a-f]{16}(?:\.\d+)?(?:#srx\.\d+)?$`)
 
 type editorCatSegment struct {
 	ExternalStringID  string  `json:"externalStringId"`
@@ -28,6 +33,8 @@ type editorCatSegment struct {
 	LooksLikeImageURL *bool   `json:"looksLikeImageUrl,omitempty"`
 	LooksLikeVideoURL *bool   `json:"looksLikeVideoUrl,omitempty"`
 	SourcePath        *string `json:"sourcePath,omitempty"`
+	// Set in all-files queues, where segments come from files with different settings.
+	MessageFormat *string `json:"messageFormat,omitempty"`
 	// Set in grouped queues: identical source strings in scope, including this one.
 	OccurrenceCount *int `json:"occurrenceCount,omitempty"`
 	// Set on grouped rows with several occurrences. The least complete status among the
@@ -62,6 +69,7 @@ type editorCatQueueFile struct {
 	SourcePath                string                     `json:"sourcePath"`
 	Filename                  string                     `json:"filename"`
 	Provider                  any                        `json:"provider"`
+	MessageFormat             string                     `json:"messageFormat,omitempty"`
 	TargetLocale              string                     `json:"targetLocale"`
 	CanEditTranslations       bool                       `json:"canEditTranslations"`
 	Truncated                 bool                       `json:"truncated"`
@@ -72,6 +80,8 @@ type editorCatQueueFile struct {
 	TeamName                  *string                    `json:"teamName,omitempty"`
 	ProjectTeamSlug           *string                    `json:"projectTeamSlug,omitempty"`
 	DocumentView              *editorCatDocumentView     `json:"documentView,omitempty"`
+	IngestState               *string                    `json:"ingestState,omitempty"`
+	IngestError               *string                    `json:"ingestError,omitempty"`
 	Segments                  []editorCatSegment         `json:"segments"`
 	Pagination                *editorCatPagination       `json:"pagination,omitempty"`
 }
@@ -197,6 +207,10 @@ func (api *editorCatAPI) loadQueue(r *http.Request, actor editorCatActor, projec
 	var queue editorCatQueueFile
 	if isEditorCatAllFiles(query.sourcePath) {
 		queue, err = api.loadAllFilesQueue(r, actor, project, query)
+	} else if isEditorCatOffice(query.sourcePath) {
+		queue, err = api.loadOfficeQueue(r, actor, project, query)
+	} else if isEditorCatPdf(query.sourcePath) {
+		queue, err = api.loadPdfQueue(r, actor, project, query)
 	} else if isEditorCatBinaryWholeFile(query.sourcePath) {
 		queue, err = api.loadWholeFileQueue(r, actor, project, query)
 	} else {
@@ -232,6 +246,12 @@ func editorCatQueueKind(sourcePath string) string {
 	if isEditorCatAllFiles(sourcePath) {
 		return "all_files"
 	}
+	if isEditorCatOffice(sourcePath) {
+		return "office"
+	}
+	if isEditorCatPdf(sourcePath) {
+		return "pdf"
+	}
 	if isEditorCatBinaryWholeFile(sourcePath) {
 		return "whole_file"
 	}
@@ -250,6 +270,11 @@ func (api *editorCatAPI) loadTextFileQueue(r *http.Request, actor editorCatActor
 	if err != nil {
 		return editorCatQueueFile{}, err
 	}
+	keys = api.rewriteHashedHTMLQueueKeys(r, actor, project, query.sourcePath, keys)
+	var messageFormat string
+	if err := api.pool.QueryRow(r.Context(), `select message_format from repository_source_files where id=$1`, sourceFileID).Scan(&messageFormat); err != nil {
+		return editorCatQueueFile{}, err
+	}
 	pagination := editorCatPagination{
 		Offset:        query.offset,
 		Limit:         query.limit,
@@ -261,6 +286,7 @@ func (api *editorCatAPI) loadTextFileQueue(r *http.Request, actor editorCatActor
 		SourcePath:          query.sourcePath,
 		Filename:            filenameFromSourcePath(query.sourcePath),
 		Provider:            nil,
+		MessageFormat:       messageFormat,
 		TargetLocale:        query.targetLocale,
 		CanEditTranslations: actor.canEdit(),
 		Truncated:           pagination.HasMore,
@@ -403,6 +429,99 @@ func (api *editorCatAPI) loadDocumentView(r *http.Request, actor editorCatActor,
 	}, nil
 }
 
+// loadOfficeQueue serves segmented Office files as text segments with a File view
+// on the generated download. Files without keys keep the whole-file queue.
+func (api *editorCatAPI) loadOfficeQueue(r *http.Request, actor editorCatActor, project editorCatProject, query editorCatQueueQuery) (editorCatQueueFile, error) {
+	sourceFileID, err := api.sourceFileID(r, actor, project, query.sourcePath)
+	if err != nil {
+		return editorCatQueueFile{}, err
+	}
+	keyed, err := api.sourceFileHasKeys(r, actor, project, sourceFileID)
+	if err != nil {
+		return editorCatQueueFile{}, err
+	}
+	if !keyed {
+		return api.loadWholeFileQueue(r, actor, project, query)
+	}
+	queue, err := api.loadTextFileQueue(r, actor, project, query)
+	if err != nil {
+		return editorCatQueueFile{}, err
+	}
+	view, err := api.generatedFileDocumentView(r, actor, project, query, sourceFileID)
+	if err != nil {
+		return editorCatQueueFile{}, err
+	}
+	queue.DocumentView = view
+	return queue, nil
+}
+
+// loadPdfQueue serves PDF block keys as text segments with a File view on the
+// generated download. PDFs without keys keep the plain text queue.
+func (api *editorCatAPI) loadPdfQueue(r *http.Request, actor editorCatActor, project editorCatProject, query editorCatQueueQuery) (editorCatQueueFile, error) {
+	sourceFileID, err := api.sourceFileID(r, actor, project, query.sourcePath)
+	if err != nil {
+		return editorCatQueueFile{}, err
+	}
+	queue, err := api.loadTextFileQueue(r, actor, project, query)
+	if err != nil {
+		return editorCatQueueFile{}, err
+	}
+	keyed, err := api.sourceFileHasKeys(r, actor, project, sourceFileID)
+	if err != nil {
+		return editorCatQueueFile{}, err
+	}
+	if !keyed {
+		return queue, nil
+	}
+	view, err := api.generatedFileDocumentView(r, actor, project, query, sourceFileID)
+	if err != nil {
+		return editorCatQueueFile{}, err
+	}
+	queue.DocumentView = view
+	return queue, nil
+}
+
+func (api *editorCatAPI) sourceFileHasKeys(r *http.Request, actor editorCatActor, project editorCatProject, sourceFileID string) (bool, error) {
+	var keyed bool
+	err := api.pool.QueryRow(r.Context(), `
+        select exists(select 1 from project_translation_keys
+        where organization_id=$1 and project_id=$2 and repository_source_file_id=$3)`,
+		actor.organizationID, project.ID, sourceFileID).Scan(&keyed)
+	return keyed, err
+}
+
+// generatedFileDocumentView points File view at the latest source upload and
+// the translations download the web app generates from segment translations.
+func (api *editorCatAPI) generatedFileDocumentView(r *http.Request, actor editorCatActor, project editorCatProject, query editorCatQueueQuery, sourceFileID string) (*editorCatDocumentView, error) {
+	var sourceStored *string
+	err := api.pool.QueryRow(r.Context(), `
+        select v.stored_file_id
+        from repository_source_file_versions v
+        where v.organization_id=$1 and v.project_id=$2 and v.source_path=$3
+        order by v.created_at desc
+        limit 1`, actor.organizationID, project.ID, query.sourcePath).Scan(&sourceStored)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+	var sourceURL *string
+	if sourceStored != nil && *sourceStored != "" {
+		url := editorCatAssetPath(actor.organizationSlug, project.ID, *sourceStored)
+		sourceURL = &url
+	}
+	targetURL := editorCatGeneratedDownloadPath(actor.organizationSlug, project.ID, query.sourcePath, query.targetLocale)
+	return &editorCatDocumentView{
+		ExternalStringID: binaryEditorCatStringID(sourceFileID, query.sourcePath),
+		SourceAssetURL:   sourceURL,
+		TargetAssetURL:   &targetURL,
+	}, nil
+}
+
+// editorCatGeneratedDownloadPath matches projectOfficeTranslationDownloadPath in the web app.
+func editorCatGeneratedDownloadPath(organizationSlug, projectID, sourcePath, targetLocale string) string {
+	return "/api/orgs/" + url.PathEscape(organizationSlug) + "/projects/" + url.PathEscape(projectID) +
+		"/files/translations/download?sourcePath=" + url.QueryEscape(sourcePath) + "&locale=" + url.QueryEscape(targetLocale)
+}
+
 func (api *editorCatAPI) sourceFileID(r *http.Request, actor editorCatActor, project editorCatProject, sourcePath string) (string, error) {
 	var id string
 	err := api.pool.QueryRow(r.Context(), `
@@ -422,7 +541,7 @@ func escapeEditorCatIlike(value string) string {
 
 func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project editorCatProject, query editorCatQueueQuery, sourceFileID *string, includeSourcePath bool) ([]editorCatSegment, int, error) {
 	args := []any{actor.organizationID, project.ID}
-	where := `k.organization_id=$1 and k.project_id=$2`
+	where := `k.organization_id=$1 and k.project_id=$2 and ` + editorCatExcludeCalloutFenceSQL("k")
 	if sourceFileID != nil {
 		args = append(args, *sourceFileID)
 		where += ` and k.repository_source_file_id=$` + strconv.Itoa(len(args))
@@ -498,7 +617,7 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 	listArgs = append(listArgs, query.limit, query.offset)
 	selectCols := `k.id, k.key, k.source_text, k.context, k.type, k.max_length, k.metadata, k.is_hidden`
 	if includeSourcePath {
-		selectCols += `, f.source_path`
+		selectCols += `, f.source_path, f.message_format`
 	}
 	limitN := strconv.Itoa(len(listArgs) - 1)
 	offsetN := strconv.Itoa(len(listArgs))
@@ -543,11 +662,11 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		var maxLength *int
 		var metadata []byte
 		var hidden bool
-		var sourcePath *string
+		var sourcePath, messageFormat *string
 		var occurrenceCount int
 		dest := []any{&segment.ExternalStringID, &segment.Key, &segment.SourceText, &context, &keyType, &maxLength, &metadata, &hidden}
 		if includeSourcePath {
-			dest = append(dest, &sourcePath)
+			dest = append(dest, &sourcePath, &messageFormat)
 		}
 		if query.grouped {
 			dest = append(dest, &occurrenceCount)
@@ -582,6 +701,7 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		}
 		if includeSourcePath && sourcePath != nil {
 			segment.SourcePath = sourcePath
+			segment.MessageFormat = messageFormat
 		}
 		segments = append(segments, segment)
 	}
@@ -695,6 +815,9 @@ func editorCatMetadataContentKind(raw []byte) string {
 }
 
 func (api *editorCatAPI) withQueueContext(r *http.Request, actor editorCatActor, project editorCatProject, queue editorCatQueueFile) (editorCatQueueFile, error) {
+	if err := api.attachSourceIngest(r, actor, project, &queue); err != nil {
+		return editorCatQueueFile{}, err
+	}
 	if err := api.attachLocks(r, actor, project, &queue); err != nil {
 		return editorCatQueueFile{}, err
 	}
@@ -713,6 +836,29 @@ func (api *editorCatAPI) withQueueContext(r *http.Request, actor editorCatActor,
 	queue.TeamName = project.TeamName
 	queue.ProjectTeamSlug = project.TeamSlug
 	return queue, nil
+}
+
+func (api *editorCatAPI) attachSourceIngest(r *http.Request, actor editorCatActor, project editorCatProject, queue *editorCatQueueFile) error {
+	if isEditorCatAllFiles(queue.SourcePath) {
+		return nil
+	}
+	var state string
+	var ingestError *string
+	err := api.pool.QueryRow(r.Context(), `
+        select v.ingest_state, v.ingest_error
+        from repository_source_file_versions v
+        where v.organization_id=$1 and v.project_id=$2 and v.source_path=$3
+        order by v.created_at desc, v.id desc
+        limit 1`, actor.organizationID, project.ID, queue.SourcePath).Scan(&state, &ingestError)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	queue.IngestState = &state
+	queue.IngestError = ingestError
+	return nil
 }
 
 func (api *editorCatAPI) attachLocks(r *http.Request, actor editorCatActor, project editorCatProject, queue *editorCatQueueFile) error {
@@ -807,4 +953,102 @@ func (api *editorCatAPI) listContributorTeams(r *http.Request, actor editorCatAc
 		result = append(result, item)
 	}
 	return result, rows.Err()
+}
+
+func rewriteHashedHTMLSegmentKeys(content []byte, segments []editorCatSegment) {
+	if len(content) == 0 || len(segments) == 0 {
+		return
+	}
+	mapping := translationfileparser.LegacyHTMLKeyToPathKey(content)
+	if len(mapping) == 0 {
+		return
+	}
+	for i := range segments {
+		if pathKey, ok := mapping[segments[i].Key]; ok {
+			segments[i].Key = pathKey
+		}
+	}
+}
+
+func hasHashedHTMLSegmentKey(segments []editorCatSegment) bool {
+	for _, segment := range segments {
+		if hashedHTMLSegmentKey.MatchString(segment.Key) {
+			return true
+		}
+	}
+	return false
+}
+
+func (api *editorCatAPI) rewriteHashedHTMLQueueKeys(
+	r *http.Request,
+	actor editorCatActor,
+	project editorCatProject,
+	sourcePath string,
+	segments []editorCatSegment,
+) []editorCatSegment {
+	if api == nil || api.pool == nil || !hasHashedHTMLSegmentKey(segments) {
+		return segments
+	}
+	lower := strings.ToLower(sourcePath)
+	if !strings.HasSuffix(lower, ".html") && !strings.HasSuffix(lower, ".htm") {
+		return segments
+	}
+	content := api.loadLatestHTMLSourceBytes(r, actor, project, sourcePath)
+	rewriteHashedHTMLSegmentKeys(content, segments)
+	return segments
+}
+
+func (api *editorCatAPI) loadLatestHTMLSourceBytes(
+	r *http.Request,
+	actor editorCatActor,
+	project editorCatProject,
+	sourcePath string,
+) []byte {
+	var downloadURL, storageURL *string
+	err := api.pool.QueryRow(r.Context(), `
+        select f.download_url, f.storage_url
+        from repository_source_file_versions v
+        join stored_files f on f.id = v.stored_file_id
+        where v.organization_id=$1 and v.project_id=$2 and v.source_path=$3
+        order by v.created_at desc, v.id desc
+        limit 1`, actor.organizationID, project.ID, sourcePath).Scan(&downloadURL, &storageURL)
+	if err != nil {
+		return nil
+	}
+	candidates := make([]string, 0, 2)
+	if downloadURL != nil {
+		candidates = append(candidates, *downloadURL)
+	}
+	if storageURL != nil {
+		candidates = append(candidates, *storageURL)
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	for _, raw := range candidates {
+		if !isTrustedStoredFileURL(raw) {
+			continue
+		}
+		req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, raw, nil)
+		if err != nil {
+			continue
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			continue
+		}
+		body, readErr := io.ReadAll(io.LimitReader(resp.Body, editorCatBodyLimit))
+		_ = resp.Body.Close()
+		if readErr != nil || resp.StatusCode >= 400 || len(body) == 0 {
+			continue
+		}
+		return body
+	}
+	return nil
+}
+
+func isTrustedStoredFileURL(raw string) bool {
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" {
+		return false
+	}
+	return storageKeyPrefixPattern.MatchString(parsed.Path) || storageKeyPrefixPattern.MatchString(raw)
 }

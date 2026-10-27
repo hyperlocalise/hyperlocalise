@@ -10,6 +10,16 @@ on:
       - apps/hyperlocalise-web/**
       - "!apps/hyperlocalise-web/drizzle/**"
       - .github/workflows/web.yml
+      - apps/canva-app/**
+      - .github/workflows/canva-app.yml
+      - apps/figma-plugin/**
+      - .github/workflows/figma-plugin.yml
+      - apps/sanity-studio-plugin/**
+      - .github/workflows/sanity-studio-plugin.yml
+      - .github/workflows/sanity-studio-plugin-publish.yml
+      - apps/hyperlocalise-wp/**
+      - .github/workflows/wordpress-plugin.yml
+      - .github/workflows/wordpress-plugin-release.yml
 
 permissions:
   contents: read
@@ -102,7 +112,7 @@ jobs:
       - name: Install Hyperlocalise
         uses: ./install
         with:
-          version: 1.13.3
+          version: 1.13.6
 
       - name: Dry-run sync push
         run: hl sync push --dry-run
@@ -171,6 +181,7 @@ jobs:
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
         with:
+          node-version: "24.22.1"
           working-directory: apps/hyperlocalise-web
           cache: true
           run-install: false

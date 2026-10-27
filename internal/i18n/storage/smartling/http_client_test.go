@@ -31,7 +31,24 @@ func TestNewHTTPClientUsesDefaultTimeout(t *testing.T) {
 			if got := c.http.Timeout; got != 30*time.Second {
 				t.Fatalf("default timeout: got %v want %v", got, 30*time.Second)
 			}
+			if got := c.fileUploadTimeout(); got != defaultFileUploadTimeout {
+				t.Fatalf("file upload timeout: got %v want %v", got, defaultFileUploadTimeout)
+			}
 		})
+	}
+}
+
+func TestHTTPClientFileUploadTimeoutHonorsLongerConfig(t *testing.T) {
+	client, err := NewHTTPClient(Config{
+		TimeoutSeconds: 7200,
+		UserIdentifier: "id",
+		UserSecret:     "secret",
+	})
+	if err != nil {
+		t.Fatalf("NewHTTPClient: %v", err)
+	}
+	if got := client.fileUploadTimeout(); got != 2*time.Hour {
+		t.Fatalf("file upload timeout: got %v want %v", got, 2*time.Hour)
 	}
 }
 

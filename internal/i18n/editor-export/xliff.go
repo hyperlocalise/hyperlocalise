@@ -1,6 +1,7 @@
 package editor_export
 
 import (
+	"strconv"
 	"strings"
 )
 
@@ -21,29 +22,9 @@ func SerializeXLIFF(rows []Row) []byte {
 		}
 	}
 
-	var units strings.Builder
-	for i, row := range rows {
-		id := row.Key
-		if id == "" {
-			id = "unit-" + itoa(i+1)
-		}
-		units.WriteString("    <trans-unit id=\"")
-		units.WriteString(escapeXML(id))
-		units.WriteString("\">\n")
-		units.WriteString("      <source xml:lang=\"")
-		units.WriteString(escapeXML(row.SourceLocale))
-		units.WriteString("\">")
-		units.WriteString(escapeXML(row.SourceText))
-		units.WriteString("</source>\n")
-		units.WriteString("      <target xml:lang=\"")
-		units.WriteString(escapeXML(row.TargetLocale))
-		units.WriteString("\">")
-		units.WriteString(escapeXML(row.TargetText))
-		units.WriteString("</target>\n")
-		units.WriteString("    </trans-unit>\n")
-	}
-
 	var doc strings.Builder
+	doc.Grow(XMLDocumentOverheadBytes + len(rows)*XMLTranslationUnitBytes)
+
 	doc.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
 	doc.WriteString("<xliff version=\"1.2\" xmlns=\"urn:oasis:names:tc:xliff:document:1.2\">\n")
 	doc.WriteString("  <file original=\"")
@@ -54,21 +35,30 @@ func SerializeXLIFF(rows []Row) []byte {
 	doc.WriteString(escapeXML(targetLocale))
 	doc.WriteString("\" datatype=\"plaintext\">\n")
 	doc.WriteString("    <body>\n")
-	doc.WriteString(units.String())
+
+	for i, row := range rows {
+		id := row.Key
+		if id == "" {
+			id = "unit-" + strconv.Itoa(i+1)
+		}
+		doc.WriteString("    <trans-unit id=\"")
+		doc.WriteString(escapeXML(id))
+		doc.WriteString("\">\n")
+		doc.WriteString("      <source xml:lang=\"")
+		doc.WriteString(escapeXML(row.SourceLocale))
+		doc.WriteString("\">")
+		doc.WriteString(escapeXML(row.SourceText))
+		doc.WriteString("</source>\n")
+		doc.WriteString("      <target xml:lang=\"")
+		doc.WriteString(escapeXML(row.TargetLocale))
+		doc.WriteString("\">")
+		doc.WriteString(escapeXML(row.TargetText))
+		doc.WriteString("</target>\n")
+		doc.WriteString("    </trans-unit>\n")
+	}
+
 	doc.WriteString("    </body>\n")
 	doc.WriteString("  </file>\n")
 	doc.WriteString("</xliff>\n")
 	return []byte(doc.String())
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var digits []byte
-	for n > 0 {
-		digits = append([]byte{byte('0' + n%10)}, digits...)
-		n /= 10
-	}
-	return string(digits)
 }

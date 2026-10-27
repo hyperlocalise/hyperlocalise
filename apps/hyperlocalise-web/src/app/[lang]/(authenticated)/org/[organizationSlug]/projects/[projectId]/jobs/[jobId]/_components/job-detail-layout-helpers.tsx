@@ -261,6 +261,7 @@ export function jobDetailTaskProperties(
         ) : null,
     },
     {
+      id: "due-date",
       label: intl.formatMessage(messages.labelDueDate),
       value: formatJobDetailDate(input.externalDueDate),
     },
@@ -318,7 +319,7 @@ export function jobDetailTaskLayoutFromRecord(
     updatedAt: job.updatedAt,
     externalProviderKind: job.externalProviderKind,
     externalStatus: job.externalStatus,
-    externalDueDate: job.externalDueDate,
+    externalDueDate: job.externalDueDate ?? job.dueAt ?? null,
     externalTargetLocales: job.externalTargetLocales,
     externalAssignedUsers: job.externalAssignedUsers,
     externalJobId: job.externalJobId,

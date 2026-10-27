@@ -44,7 +44,14 @@ import {
   sortJobContentEditorProviderFiles,
 } from "./select-job-content-editor-repository";
 import { jobCatPageContentMessages } from "./job-content-editor-page-content.messages";
+import { ContentEditorBrazeIngestButton } from "@/components/content-editor/page/content-editor-braze-ingest-button";
+import { ContentEditorBrazePushButton } from "@/components/content-editor/page/content-editor-braze-push-button";
+import { ContentEditorGoogleDriveIngestButton } from "@/components/content-editor/page/content-editor-google-drive-ingest-button";
+import { ContentEditorGoogleDrivePushButton } from "@/components/content-editor/page/content-editor-google-drive-push-button";
+import { ContentEditorIntercomIngestButton } from "@/components/content-editor/page/content-editor-intercom-ingest-button";
 import { ContentEditorIntercomPushButton } from "@/components/content-editor/page/content-editor-intercom-push-button";
+import { ContentEditorSanityIngestButton } from "@/components/content-editor/page/content-editor-sanity-ingest-button";
+import { ContentEditorSanityPushButton } from "@/components/content-editor/page/content-editor-sanity-push-button";
 import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
 import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
@@ -224,12 +231,64 @@ export function JobContentEditorPageContent({
   const pageNavigationGuardRef = useRef<ContentEditorPageNavigationGuardRef["current"]>(null);
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
   const intercomPushHeaderTrailing = canManageAutomations ? (
-    <ContentEditorIntercomPushButton
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      canManageAutomations={canManageAutomations}
-      pageNavigationGuardRef={pageNavigationGuardRef}
-    />
+    <>
+      <ContentEditorIntercomIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorIntercomPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorSanityIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorSanityPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorBrazeIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorBrazePushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorGoogleDriveIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorGoogleDrivePushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+    </>
   ) : null;
   const canUseAllFiles = contentEditorAllFilesEnabled;
   const requestedAllFiles = isContentEditorAllFilesSourcePath(sourcePath) && Boolean(sourcePath);
@@ -247,6 +306,7 @@ export function JobContentEditorPageContent({
     enabled: !hasFileReference || allFiles,
     queryFn: async () => {
       const files = await loadJobContentEditorJobSourceFiles({
+        goSvcClient,
         organizationSlug,
         projectId,
         jobId,
@@ -286,14 +346,25 @@ export function JobContentEditorPageContent({
     queryKey: projectJobContentEditorProviderFilesQueryKey(organizationSlug, projectId, jobId),
     enabled: (hasFileReference && !isNativeJob) || allFiles,
     queryFn: () =>
-      loadJobContentEditorProviderJobFiles({ organizationSlug, projectId, jobId, targetLocale }),
+      loadJobContentEditorProviderJobFiles({
+        goSvcClient,
+        organizationSlug,
+        projectId,
+        jobId,
+        targetLocale,
+      }),
   });
 
   const jobLocalesQuery = useQuery({
     queryKey: projectJobContentEditorSelectableLocalesQueryKey(organizationSlug, projectId, jobId),
     enabled: hasFileReference || allFiles,
     queryFn: () =>
-      loadJobContentEditorSelectableTargetLocales({ organizationSlug, projectId, jobId }),
+      loadJobContentEditorSelectableTargetLocales({
+        goSvcClient,
+        organizationSlug,
+        projectId,
+        jobId,
+      }),
   });
 
   const repositoriesQuery = useQuery({
@@ -692,6 +763,7 @@ export function JobContentEditorPageContent({
         <ProjectFileContentEditorWorkspace
           organizationSlug={organizationSlug}
           projectId={projectId}
+          projectSource={projectQuery.data?.source}
           sourceLocale={sourceLocale}
           sourcePath={CONTENT_EDITOR_ALL_FILES_SOURCE_PATH}
           targetLocale={selectedTargetLocale}
@@ -868,6 +940,7 @@ export function JobContentEditorPageContent({
         <ProjectFileContentEditorWorkspace
           organizationSlug={organizationSlug}
           projectId={projectId}
+          projectSource={projectQuery.data?.source}
           sourceLocale={sourceLocale}
           sourcePath={selectedFile.sourcePath}
           targetLocale={activeTargetLocale}
@@ -996,6 +1069,7 @@ export function JobContentEditorPageContent({
       <ProjectFileContentEditorWorkspace
         organizationSlug={organizationSlug}
         projectId={projectId}
+        projectSource={projectQuery.data?.source}
         sourceLocale={sourceLocale}
         sourcePath={selectedFile.sourcePath}
         externalResourceId={selectedFile.provider.externalResourceId}

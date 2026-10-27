@@ -14,6 +14,7 @@
  */
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { CheckCircleIcon, CopyIcon, InfoIcon } from "@phosphor-icons/react";
+import { observer } from "mobx-react-lite";
 import { useIntl } from "react-intl";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -42,21 +43,21 @@ import {
   type DomainResearchDomain,
 } from "@/lib/domains/research-prototype";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
-import type { LinkedDomainVerificationMethod } from "@/lib/database/schema/linked-domains";
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 import { cn } from "@/lib/primitives/cn";
+
+import {
+  DomainsPageStore,
+  type AddDomainDialogStep,
+  type AddDomainMarketRecommendation,
+} from "../store/domains-page-store";
+import { useOptionalDomainsPageStore } from "../store/domains-store-context";
 
 import { addDomainDialogMessages as messages } from "./add-domain-dialog.messages";
 
 type Project = { id: string; name: string };
-type Step = "details" | "project" | "connect" | "markets";
-type MarketRecommendation = {
-  marketId: string;
-  organicCount: number;
-  organicEtv: number;
-  top10Count: number;
-  hasOrganicVisibility: boolean;
-};
+type Step = AddDomainDialogStep;
+type MarketRecommendation = AddDomainMarketRecommendation;
 type MarketTier = "strong" | "emerging" | "discovery";
 function getMarketTier(market: MarketRecommendation): MarketTier {
   if (market.top10Count >= 10) return "strong";
@@ -81,7 +82,13 @@ const supportedMarketRecommendations = DOMAIN_RESEARCH_MARKETS.map((market) =>
 );
 const MAX_MARKET_SELECTIONS = 16;
 
-export function AddDomainDialog({
+function useAddDomainDialogStore(organizationSlug: string) {
+  const pageStore = useOptionalDomainsPageStore();
+  const [localStore] = useState(() => new DomainsPageStore(organizationSlug));
+  return pageStore ?? localStore;
+}
+
+export const AddDomainDialog = observer(function AddDomainDialog({
   open,
   onOpenChange,
   organizationSlug,
@@ -115,44 +122,37 @@ export function AddDomainDialog({
   const intl = useIntl();
   const { client: goSvcClient } = useGoSvcClient();
   const domainId = useId();
-  const [step, setStep] = useState<Step>(initialStep);
-  const [domain, setDomain] = useState(initialLinkedDomain?.domainKey ?? "");
-  const [claimDomainSlug, setClaimDomainSlug] = useState(initialDomainSlug ?? null);
-  const [linkedDomain, setLinkedDomain] = useState<LinkedDomainPublic | null>(
-    initialLinkedDomain ?? null,
-  );
-  const [projectMode, setProjectMode] = useState<"create" | "existing" | "unassigned">("create");
-  const [projectId, setProjectId] = useState("");
-  const [method, setMethod] = useState<LinkedDomainVerificationMethod>("dns_txt");
-  const [recommendations, setRecommendations] =
-    useState<MarketRecommendation[]>(initialRecommendations);
-  const [selectedMarketIds, setSelectedMarketIds] = useState<string[]>(initialSelectedMarketIds);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const store = useAddDomainDialogStore(organizationSlug);
+  const step = store.addDomainStep;
+  const domain = store.addDomainKey;
+  const claimDomainSlug = store.addDomainClaimSlug;
+  const linkedDomain = store.addDomainLinked;
+  const projectMode = store.addDomainProjectMode;
+  const projectId = store.addDomainProjectId;
+  const method = store.addDomainMethod;
+  const recommendations = store.addDomainRecommendations;
+  const selectedMarketIds = store.addDomainSelectedMarketIds;
+  const pending = store.addDomainPending;
+  const error = store.addDomainError;
   const [copied, setCopied] = useState(false);
   const allowsEmptyMarkets = Boolean(claimDomainSlug || linkedDomain?.localisationAuditId);
 
   useEffect(() => {
     if (!open) return;
-    setStep(initialStep);
-    setDomain(initialLinkedDomain?.domainKey ?? "");
-    setClaimDomainSlug(initialDomainSlug ?? null);
-    setLinkedDomain(initialLinkedDomain ?? null);
-    setMethod("dns_txt");
-    setProjectMode("create");
-    setProjectId("");
-    setRecommendations(
-      initialRecommendations.length || mode !== "edit"
-        ? initialRecommendations
-        : supportedMarketRecommendations,
-    );
-    setSelectedMarketIds(
-      initialSelectedMarketIds.length || !initialLinkedDomain
-        ? initialSelectedMarketIds
-        : initialLinkedDomain.marketIds,
-    );
-    setPending(false);
-    setError(null);
+    store.hydrateAddDomainDialog({
+      step: initialStep,
+      domain: initialLinkedDomain?.domainKey ?? "",
+      claimDomainSlug: initialDomainSlug ?? null,
+      linkedDomain: initialLinkedDomain ?? null,
+      recommendations:
+        initialRecommendations.length || mode !== "edit"
+          ? initialRecommendations
+          : supportedMarketRecommendations,
+      selectedMarketIds:
+        initialSelectedMarketIds.length || !initialLinkedDomain
+          ? initialSelectedMarketIds
+          : initialLinkedDomain.marketIds,
+    });
     setCopied(false);
     if (initialDomainSlug) void startClaimRequest({ domainSlug: initialDomainSlug });
   }, [open]);
@@ -172,35 +172,37 @@ export function AddDomainDialog({
       (!normalized ||
         !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(normalized))
     ) {
-      setError(intl.formatMessage(messages.invalidDomain));
+      store.setAddDomainError(intl.formatMessage(messages.invalidDomain));
       return;
     }
     if (
       normalized &&
       existingDomains.some((item) => item.domainKey === normalized && item.status === "verified")
     ) {
-      setError(intl.formatMessage(messages.duplicateDomain));
+      store.setAddDomainError(intl.formatMessage(messages.duplicateDomain));
       return;
     }
-    setPending(true);
-    setError(null);
+    store.setAddDomainPending(true);
+    store.setAddDomainError(null);
     try {
       const body = await goSvcClient.domains.createLinkedDomain(organizationSlug, {
         ...(input.domainSlug ? { domainSlug: input.domainSlug } : { domain: normalized }),
         marketIds: [],
       });
-      setDomain(body.linkedDomain.domainKey);
-      setLinkedDomain(body.linkedDomain);
+      store.setAddDomainKey(body.linkedDomain.domainKey);
+      store.setAddDomainLinked(body.linkedDomain);
       if (body.linkedDomain.status === "verified") {
         onVerified?.(body.linkedDomain);
         onOpenChange(false);
         return;
       }
-      setStep("connect");
+      store.setAddDomainStep("connect");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : intl.formatMessage(messages.startError));
+      store.setAddDomainError(
+        reason instanceof Error ? reason.message : intl.formatMessage(messages.startError),
+      );
     } finally {
-      setPending(false);
+      store.setAddDomainPending(false);
     }
   }
 
@@ -228,48 +230,50 @@ export function AddDomainDialog({
 
   async function loadRecommendations() {
     if (!linkedDomain) return;
-    setPending(true);
-    setError(null);
+    store.setAddDomainPending(true);
+    store.setAddDomainError(null);
     try {
       const body = await goSvcClient.domains.recommendLinkedDomainMarkets(
         organizationSlug,
         linkedDomain.id,
         { method },
       );
-      setStep("markets");
+      store.setAddDomainStep("markets");
       const candidates = body.marketRecommendations.candidates ?? [];
       const candidatesById = new Map(candidates.map((market) => [market.marketId, market]));
       const supportedMarkets = DOMAIN_RESEARCH_MARKETS.map(
         (market): MarketRecommendation =>
           candidatesById.get(market.id) ?? emptyMarketRecommendation(market.id),
       );
-      setRecommendations(supportedMarkets);
-      setSelectedMarketIds(
+      store.setAddDomainRecommendations(supportedMarkets);
+      store.setAddDomainSelectedMarketIds(
         (body.marketRecommendations.recommended ?? []).map((market) => market.marketId),
       );
     } catch (reason) {
-      setRecommendations((current) =>
-        current.length > 0 ? current : supportedMarketRecommendations,
+      store.setAddDomainRecommendations(
+        store.addDomainRecommendations.length > 0
+          ? store.addDomainRecommendations
+          : supportedMarketRecommendations,
       );
-      setStep("markets");
-      setError(
+      store.setAddDomainStep("markets");
+      store.setAddDomainError(
         reason instanceof Error
           ? reason.message
           : intl.formatMessage(messages.recommendationsError),
       );
     } finally {
-      setPending(false);
+      store.setAddDomainPending(false);
     }
   }
 
   async function saveMarkets() {
     if (!linkedDomain) return;
     if (selectedMarketIds.length === 0 && !allowsEmptyMarkets) {
-      setError(intl.formatMessage(messages.marketSelectionRequired));
+      store.setAddDomainError(intl.formatMessage(messages.marketSelectionRequired));
       return;
     }
-    setPending(true);
-    setError(null);
+    store.setAddDomainPending(true);
+    store.setAddDomainError(null);
     try {
       if (mode === "edit") {
         const body = await goSvcClient.domains.updateLinkedDomainMarkets(
@@ -301,11 +305,11 @@ export function AddDomainDialog({
       onComplete?.(body.linkedDomain);
       onOpenChange(false);
     } catch (reason) {
-      setError(
+      store.setAddDomainError(
         reason instanceof Error ? reason.message : intl.formatMessage(messages.saveMarketsError),
       );
     } finally {
-      setPending(false);
+      store.setAddDomainPending(false);
     }
   }
 
@@ -381,8 +385,8 @@ export function AddDomainDialog({
                   id={domainId}
                   value={domain}
                   onChange={(event) => {
-                    setDomain(event.target.value);
-                    setError(null);
+                    store.setAddDomainKey(event.target.value);
+                    store.setAddDomainError(null);
                   }}
                   placeholder={intl.formatMessage(messages.domainPlaceholder)}
                   autoComplete="url"
@@ -434,9 +438,9 @@ export function AddDomainDialog({
                       aria-pressed={method === value}
                       className="h-auto min-h-16 justify-start whitespace-normal px-3 py-2 text-start"
                       onClick={() => {
-                        setMethod(value);
+                        store.setAddDomainMethod(value);
                         setCopied(false);
-                        setError(null);
+                        store.setAddDomainError(null);
                       }}
                     >
                       <span className="grid gap-0.5">
@@ -537,7 +541,11 @@ export function AddDomainDialog({
                       : intl.formatMessage(messages.homepageReachable)}
               </p>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setStep("details")}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => store.setAddDomainStep("details")}
+                >
                   {intl.formatMessage(messages.back)}
                 </Button>
                 <Button type="button" disabled={pending} onClick={() => void loadRecommendations()}>
@@ -594,11 +602,7 @@ export function AddDomainDialog({
                               !selected && selectedMarketIds.length >= MAX_MARKET_SELECTIONS
                             }
                             onCheckedChange={(checked) =>
-                              setSelectedMarketIds((current) =>
-                                checked
-                                  ? [...current, market.marketId]
-                                  : current.filter((id) => id !== market.marketId),
-                              )
+                              store.toggleAddDomainMarket(market.marketId, checked === true)
                             }
                           />
                           <span className="grid gap-1 text-sm">
@@ -646,13 +650,17 @@ export function AddDomainDialog({
                 </p>
               ) : null}
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setStep("connect")}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => store.setAddDomainStep("connect")}
+                >
                   {intl.formatMessage(messages.back)}
                 </Button>
                 <Button
                   type="button"
                   disabled={pending || (selectedMarketIds.length === 0 && !allowsEmptyMarkets)}
-                  onClick={() => setStep("project")}
+                  onClick={() => store.setAddDomainStep("project")}
                 >
                   {intl.formatMessage(messages.continueToProject)}
                 </Button>
@@ -681,8 +689,8 @@ export function AddDomainDialog({
                     aria-pressed={projectMode === "create"}
                     className="h-auto min-h-16 flex-1 justify-start whitespace-normal px-3 py-3 text-start sm:min-w-44"
                     onClick={() => {
-                      setProjectMode("create");
-                      setError(null);
+                      store.setAddDomainProjectMode("create");
+                      store.setAddDomainError(null);
                     }}
                   >
                     <span className="grid gap-0.5">
@@ -699,8 +707,8 @@ export function AddDomainDialog({
                     aria-pressed={projectMode === "existing"}
                     className="h-auto min-h-16 flex-1 justify-start whitespace-normal px-3 py-3 text-start sm:min-w-44"
                     onClick={() => {
-                      setProjectMode("existing");
-                      setError(null);
+                      store.setAddDomainProjectMode("existing");
+                      store.setAddDomainError(null);
                     }}
                   >
                     <span className="grid gap-0.5">
@@ -722,8 +730,8 @@ export function AddDomainDialog({
                     aria-pressed={projectMode === "unassigned"}
                     className="h-auto min-h-16 flex-1 justify-start whitespace-normal px-3 py-3 text-start sm:min-w-44"
                     onClick={() => {
-                      setProjectMode("unassigned");
-                      setError(null);
+                      store.setAddDomainProjectMode("unassigned");
+                      store.setAddDomainError(null);
                     }}
                   >
                     <span className="grid gap-0.5">
@@ -745,8 +753,8 @@ export function AddDomainDialog({
                       className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
                       value={projectId}
                       onChange={(event) => {
-                        setProjectId(event.target.value);
-                        setError(null);
+                        store.setAddDomainProjectId(event.target.value);
+                        store.setAddDomainError(null);
                       }}
                     >
                       <option value="">{intl.formatMessage(messages.selectExisting)}</option>
@@ -761,7 +769,11 @@ export function AddDomainDialog({
                 ) : null}
               </FieldSet>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setStep("markets")}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => store.setAddDomainStep("markets")}
+                >
                   {intl.formatMessage(messages.back)}
                 </Button>
                 <Button
@@ -784,4 +796,4 @@ export function AddDomainDialog({
       </DialogContent>
     </Dialog>
   );
-}
+});

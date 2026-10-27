@@ -39,7 +39,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { cn } from "@/lib/primitives/cn";
 
@@ -610,6 +610,7 @@ export function IssueCommentThread({
   issueId: string;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const feedQuery = useIssueFeedQuery({ organizationSlug, projectId, issueId });
   const { createComment } = useIssueCommentMutations({
     organizationSlug,
@@ -622,14 +623,17 @@ export function IssueCommentThread({
     usersSectionLabel: intl.formatMessage(markdownEditorMessages.mentionUsersSection),
     issuesSectionLabel: intl.formatMessage(markdownEditorMessages.mentionIssuesSection),
     search: async (query) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].mentions.$get({
-        param: { organizationSlug },
-        query: { q: query, projectId, issueId, limit: "5" },
-      } as never);
-      if (response.status !== 200) {
+      const body = await goSvcClient.inbox
+        .mentions(organizationSlug, {
+          q: query,
+          projectId,
+          issueId,
+          limit: 5,
+        })
+        .catch(() => null);
+      if (!body) {
         return { users: [], issues: [] };
       }
-      const body = await response.json();
       return {
         users: body.mentionSuggestions.users.map((user) => ({
           kind: "user" as const,

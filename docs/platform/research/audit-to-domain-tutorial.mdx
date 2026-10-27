@@ -1,0 +1,127 @@
+---
+title: "Tutorial: from audit to verified domain"
+description: "Run a free localisation audit, fix the first issues, then claim and verify the domain in your workspace."
+---
+
+This tutorial takes you from a public localisation audit to a verified domain in Hyperlocalise Platform. You will:
+
+1. Run an audit and read the score.
+2. Pick and fix the issues that matter most.
+3. Claim the domain and prove you own it.
+4. Choose research markets and attach the domain to a project.
+5. Use the domain views to plan the next round of work.
+
+It takes about 20 minutes, plus the time your DNS provider takes to publish a record.
+
+## Before you start
+
+You need:
+
+- A website you can change, such as `example.com`.
+- Access to its DNS settings, its web server files, or its homepage HTML. You need one of the three to verify ownership.
+- A Hyperlocalise account, or permission to create one. You only need it from step 3.
+
+## Step 1: Run the audit
+
+1. Open [hyperlocalise.com/localisation-audit](https://hyperlocalise.com/localisation-audit).
+2. In **Website**, enter your homepage URL, such as `https://example.com`.
+3. Optional: in **Languages to look at (optional)**, enter up to two languages you care most about, such as `French, German`.
+4. Select **See my score**.
+
+The audit renders up to 15 pages and usually finishes within a few minutes. You can leave the page and come back. Use **Email me a summary when ready** if you want the result sent to you.
+
+If the result says your site was blocked, allow `HyperlocaliseAuditBot/1.0 (+https://hyperlocalise.com)` through your firewall or bot protection, then run it again.
+
+## Step 2: Read the score
+
+Start at the top of the report.
+
+- **Overall score and rating.** If the report says the score was reduced for locale coverage, the audit found fewer than four locales. That reduction is expected for sites with few languages. It is not a defect to fix.
+- **Dimension scores.** Look for the lowest of Technical, Linguistic, Contextual, and Visual. That is usually where the biggest wins are.
+- **Detected locales.** Check that every language you publish is listed. A missing locale usually means the audit could not find links to it. Add hreflang or a language switcher link, and it will be found next time.
+
+[About the localisation audit](/platform/research/localisation-audit) explains how the score is calculated.
+
+## Step 3: Choose what to fix first
+
+Open **Fix first**. These are the highest-severity findings from scored checks. Then open **Needs attention** under **Audit criteria**.
+
+Fix checks in this order. Heavier checks move the score more, and technical fixes are often one template change that repairs every page:
+
+1. **Translation completeness** (weight 5). Untranslated buttons and links on localized pages.
+2. **hreflang**, **Locale detection**, and **Locale routing** (weight 3 each). These decide whether search engines show the right language.
+3. **Text overflow** and **Layout breakage** (weight 3 each). Translations that break the layout.
+4. Everything else under **Needs attention**, then **Worth a look**.
+
+Each finding shows the page, the HTML element, the evidence, and a suggested fix. For example:
+
+| Finding | Typical fix |
+| --- | --- |
+| Invalid hreflang language or region code | Use `en-GB`, not `en-UK`. Use ISO language and region codes, such as `pt-BR` or `es-419`. |
+| hreflang is not reciprocal | Output the same full set of alternates, including a self-reference, on every language version of the page. |
+| URL locale and html lang disagree | Set `<html lang="fr">` on pages under `/fr/`. |
+| Localized text is clipped | Remove fixed widths or `overflow: hidden` from the button, or shorten the translation. |
+
+Read the **AI-assessed, not scored** checks last. They point to pages worth a human review, such as copy that may sound machine-translated, but they do not change the score.
+
+## Step 4: Claim the domain
+
+Claiming moves the domain into your workspace, so you can research keywords and rankings for each market.
+
+1. On the report, select **Claim this domain**.
+2. Sign in or create an account. Hyperlocalise brings you back to the domain setup afterwards.
+
+You can also start from the app. Open **Domains** and select **Add a domain**, then enter the hostname without a path, such as `example.com`.
+
+## Step 5: Verify ownership
+
+Pick one method. Copy the value shown in the app exactly; the examples below only show where it goes.
+
+| Method | What to do | Best when |
+| --- | --- | --- |
+| **DNS TXT** (recommended) | Add a TXT record at `_hyperlocalise.example.com` with the value shown. | You manage DNS. Works for every page on the hostname. |
+| **HTML file** | Upload the file contents to the exact path shown, at your site root. | You can deploy static files. |
+| **Meta tag** | Add the meta tag inside the `<head>` of your homepage. | You can edit the homepage template or CMS head. |
+
+Select **I've added it — Verify**. DNS changes can take a few minutes to publish. If verification fails, wait and try again. Check that redirects or bot protection do not hide the file or homepage.
+
+The first organization to verify a hostname owns it. If another workspace already owns it, [contact support](/platform/help/contact-support).
+
+## Step 6: Choose markets and a project
+
+1. Review the recommended markets. Each one shows a signal strength, such as **Strong signal** or **New opportunity**, with ranking keywords and estimated visits. Select up to 16.
+2. Select **Continue to project**.
+3. Choose where the domain lives:
+   - **Create new project**, named after the domain.
+   - **Use existing project**, to keep it with the content you already translate.
+   - **Leave unassigned**, to decide later from the domain page.
+
+When setup finishes, the audit is attached to the domain, and its score appears in the **Score** column of the **Domains** list.
+
+## Step 7: Plan the next round
+
+Open the domain and use the locale selector in the header to pick a market. The selection applies to every view.
+
+- **Overview:** ranking keywords, top pages, and estimated traffic for the market. Select **Refresh data** to capture a new snapshot.
+- **Keyword research:** find how people in that market search for your topic, and save keywords.
+- **Rank tracking:** track positions for saved keywords over time.
+- **AI visibility:** compare how often AI engines mention you and your competitors.
+- **Prompt explorer:** run a buyer question and compare engine answers.
+- **Search Console:** connect Google Search Console to see real clicks and queries, and inspect how Google last crawled a page.
+
+Combine them with the audit. For example, if the German pages fail translation completeness and Search Console shows they get traffic, fix those pages first. Add the keywords you find to your project's [language resources](/platform/knowledge) so translators use them.
+
+## Step 8: Measure the fix
+
+After you ship fixes, run the audit again from the landing page. A completed report can be refreshed once every 24 hours. Compare the new score and the failing checks with the previous run.
+
+<Note>
+The audit samples up to 15 pages. A check that passes in the sample may still fail on pages that were not sampled. Spot-check other templates in each language after you fix an issue.
+</Note>
+
+## Next steps
+
+- [About the localisation audit](/platform/research/localisation-audit)
+- [Localisation audit checks](/platform/research/localisation-audit-checks)
+- [About Domains](/platform/domains)
+- [Research keywords and track rankings](/platform/research/keywords-and-ranks)

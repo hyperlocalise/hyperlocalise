@@ -53,6 +53,7 @@ var (
 		"not_localized": {}, "whitespace_only": {}, "same_as_source": {}, "escaped_char_mismatch": {},
 		"length": {}, "placeholder_mismatch": {}, "glossary_violation": {}, "format": {}, "spelling": {},
 		"numbers_mismatch": {}, "punctuation_mismatch": {}, "character_case_mismatch": {},
+		"unreachable_plural_case": {},
 	}
 	translationQaSeverities = map[string]struct{}{"error": {}, "warning": {}}
 )

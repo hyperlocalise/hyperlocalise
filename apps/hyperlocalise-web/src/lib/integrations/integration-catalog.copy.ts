@@ -969,7 +969,8 @@ export const integrationCatalogCopy = {
       description: "Braze integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Localize campaigns, in-app messages, and customer journeys in Braze.",
+      defaultMessage:
+        "Localize Braze email templates and Content Blocks. Campaigns and Canvas are upcoming.",
       id: "eENPAn2kRY",
       description: "Braze integration description on the integrations page",
     },

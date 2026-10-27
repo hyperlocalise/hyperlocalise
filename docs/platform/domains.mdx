@@ -1,26 +1,123 @@
 ---
-title: "Website and market research"
-description: "Verify your website and research keywords and rankings for each target market."
+title: "About Domains"
+description: "Verify your website, then research search demand, rankings, AI visibility, and localisation health for each target market."
 ---
 
-Use **Domains** to connect keyword research and ranking checks to a website you control. Research is scoped to a hostname and market, so you can compare the wording people search for in each region.
-
-## Start with your website
-
-1. [Link and verify your domain](/platform/research/verify-domain).
-2. Choose the markets relevant to your content.
-3. [Research keywords and track rankings](/platform/research/keywords-and-ranks).
+**Domains** connects a website you own to your Hyperlocalise workspace. Once the hostname is verified, you can see how each market searches for your topic, where you rank, how AI engines talk about you, and how healthy your localisation is. Then you can feed what you learn back into translation.
 
 If **Domains** is not available in your workspace, ask your administrator or [support](/platform/help/contact-support) about access.
 
+New to Domains? Follow the [tutorial: from audit to verified domain](/platform/research/audit-to-domain-tutorial).
+
+## How Domains fits together
+
+| Concept | What it is |
+| --- | --- |
+| Domain | A hostname, such as `example.com`. Verification proves you control it. |
+| Market | A language and location pair used for research, such as German in Germany. Select up to 16 per domain. Markets are separate from a translation project's target locales. |
+| Project | The workspace project the domain is attached to, so research sits next to the content you translate. Optional. |
+| Localisation audit | The free audit of the hostname. A claimed domain keeps its audit, and the score shows in the domain list. |
+
+## Add a domain
+
+There are two ways to start:
+
+- **From a localisation audit.** Select **Claim this domain** on the audit report, then sign in.
+- **From the app.** Open **Domains** and select **Add a domain**.
+
+Setup has four steps:
+
+1. **Domain details.** Enter the root hostname without a path, such as `example.com`.
+2. **Connect.** Verify ownership with a DNS TXT record, an HTML file, or a meta tag. See [verify a website domain](/platform/research/verify-domain).
+3. **Research markets.** Hyperlocalise recommends markets where the domain already has search signals. Each recommendation shows its strength, ranking keywords, estimated visits, and top-10 rankings. Select at least one.
+4. **Project.** Create a project named after the domain, attach an existing project, or leave it unassigned and decide later.
+
+A hostname can be verified by only one organization at a time. The first organization to verify it owns it.
+
+## The domain list
+
+**Domains** lists every domain you can access, with:
+
+- **Locales:** the research markets selected for the domain.
+- **Keywords:** ranking keywords in the captured data.
+- **Traffic:** estimated organic traffic.
+- **Score:** the localisation audit score, when an audit is attached.
+
+Select **Edit locales** to change a domain's markets.
+
 ## Choose a market
 
-Open the domain and use the locale selector in the page header. The selected market applies as you move between **Overview**, **Keyword research**, and **Rank tracking**. An empty market view means no data is saved for that market; it does not substitute another market’s metrics.
+Open a domain and use the locale selector in the header. The selected market applies to every research view as you move between them.
 
-Use the markets offered in the selector. A research market combines language and location and is separate from a translation project’s target locales.
+An empty view means no data is saved for that market. Hyperlocalise does not fill it with another market's data. Research results do not guarantee future rankings.
 
-## Use research in localization
+## Domain views
 
-Research the local search intent before changing translated titles or headings. Save promising keywords, inspect their search results, and add approved terminology or market context to the project’s [language resources](/platform/knowledge).
+### Overview
 
-Research does not automatically rewrite or publish your website. Review and deliver the content through your normal translation and publishing workflow.
+A snapshot of the domain's organic search presence in the selected market:
+
+- Ranking keywords with position, search volume, and estimated traffic.
+- Top-10 rankings.
+- Pages that rank, and how many keywords each one ranks for.
+
+Snapshots are captured on demand. Select **Refresh data** to capture the market again. The capture date is shown next to the data. Estimated traffic is a DataForSEO estimate, not measured visits. Use Search Console for real clicks.
+
+### Keyword research
+
+Find the words people in a market use for your topic. Enter a seed keyword, expand ideas, inspect search-result snapshots, and save the terms worth keeping. Saved keywords belong to the domain and market.
+
+See [research keywords and track rankings](/platform/research/keywords-and-ranks).
+
+### Rank tracking
+
+Track positions for saved keywords over time. Refresh up to 20 keywords at a time, and compare snapshots within one market.
+
+### AI visibility
+
+See how AI answer engines mention your brand next to competitors in the selected market.
+
+1. Select **Add competitors**.
+2. Enter one brand name per line.
+3. Review **Mentions by engine**, with each brand's mention count and sentiment: positive, mixed, or negative.
+
+### Prompt explorer
+
+Ask the kind of question a buyer would ask, such as "best tools for managing translations", and compare how each engine answers in the selected market. Enter a prompt and select **Run prompt**. Use the answers to see which brands and wording each market's engines favour.
+
+### Search Console
+
+Import the clicks, impressions, and queries Google already recorded for the domain.
+
+1. Select **Connect Search Console**, and authorize the Google account that owns the property. The connection is managed in **Integrations**.
+2. Pick a date range, from the last 7 days to the last 12 months.
+3. Review clicks, impressions, CTR, and average position, then switch between **Queries** and **Pages**.
+
+The country filter follows the selected market. To see how Google last crawled a page, enter its URL under **Inspect URL**. The result shows the verdict, coverage, indexing state, last crawl time, and the canonical Google chose.
+
+If the view says the domain is not in Search Console, add and verify the property in Google Search Console, or reconnect with a different Google account. If it asks you to reconnect, the authorization expired.
+
+## Use research in localisation
+
+Research is most useful when it changes what you translate and how:
+
+- **Fix the right pages first.** Combine audit findings with Search Console traffic. A failing German pricing page that gets clicks matters more than an untranslated footer link.
+- **Use the market's own words.** When keyword research shows people search for a different term than your translation uses, add the approved term to the project's glossary and [language resources](/platform/knowledge).
+- **Brief translators.** Add market context from AI visibility and prompt answers to your [guidelines](/platform/knowledge/guidelines).
+
+Domains does not rewrite or publish your website. Review and deliver content through your normal translation and publishing workflow.
+
+## Who can see a domain
+
+- Organization admins and localization managers can see every domain.
+- A member who added an unassigned domain can see it.
+- Members of the team that owns the attached project can see it.
+
+Pending claims can be cancelled from the domain list. To move an already verified domain to another organization, [contact support](/platform/help/contact-support).
+
+## Related
+
+- [About the localisation audit](/platform/research/localisation-audit)
+- [Localisation audit checks](/platform/research/localisation-audit-checks)
+- [Verify a website domain](/platform/research/verify-domain)
+- [Research keywords and track rankings](/platform/research/keywords-and-ranks)

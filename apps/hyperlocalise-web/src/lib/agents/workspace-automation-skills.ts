@@ -24,6 +24,14 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOLS = [
   "run_contentful_translation",
   "import_intercom_articles",
   "push_intercom_translations",
+  "import_sanity_documents",
+  "push_sanity_translations",
+  "import_google_drive_files",
+  "push_google_drive_translations",
+  "import_braze_templates",
+  "push_braze_templates",
+  "import_braze_campaigns",
+  "push_braze_campaigns",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -204,19 +212,83 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     },
   },
   {
+    id: "translate-sanity-documents",
+    name: "Translate Sanity documents",
+    category: "translate",
+    description:
+      "Import Sanity documents into a project, open native translation jobs, and push approved translations on demand.",
+    grants:
+      "Reads Sanity documents through Pipes, writes JSON source files and native jobs. Push writes Sanity drafts when you run Push to Sanity.",
+    tools: ["import_sanity_documents", "push_sanity_translations"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["sanity", "headless cms"],
+      weak: ["document", "documents", "cms", "import", "translate"],
+    },
+  },
+  {
+    id: "translate-google-drive-files",
+    name: "Translate Google Drive files",
+    category: "translate",
+    description:
+      "Import Google Docs, Sheets, Slides, and other Hyperlocalise source files from connected Drive folders or files into a project and push translations back using the chosen Translation output.",
+    grants:
+      "Reads and writes Google Drive files through Pipes for connected folders. Imports source files into the Content editor and writes copies as [vi-VN] overview.docx, overview [vi-VN].docx, overview_vi-VN.docx, or vi-VN/overview.docx.",
+    tools: ["import_google_drive_files", "push_google_drive_translations"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["google drive", "drive folder", "google docs"],
+      weak: ["docx", "sheet", "slides", "import", "translate"],
+    },
+  },
+  {
     id: "translate-intercom-articles",
     name: "Translate Intercom Help Center articles",
     category: "translate",
     description:
       "Import Intercom Help Center articles into a project, open native translation jobs, and push approved translations on demand.",
     grants:
-      "Reads Intercom articles through Pipes, writes JSON source files and native jobs. Push writes Intercom drafts when you run Push to Intercom.",
+      "Reads Intercom articles through Pipes, writes markdown source files and native jobs. Push writes Intercom drafts when you run Push to Intercom.",
     tools: ["import_intercom_articles", "push_intercom_translations"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],
     keywords: {
       strong: ["intercom", "help center", "help centre"],
       weak: ["article", "articles", "knowledge base", "import", "translate"],
+    },
+  },
+  {
+    id: "translate-braze-email-templates",
+    name: "Translate Braze Email Templates",
+    category: "translate",
+    description:
+      "Import Braze email templates and Content Blocks into a native project, translate HTML, and push locale-suffixed library copies.",
+    grants:
+      "Reads Braze templates through Pipes, writes HTML source files and native jobs. Push creates locale-suffixed copies and never changes the source template.",
+    tools: ["import_braze_templates", "push_braze_templates"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["braze", "email template", "content block"],
+      weak: ["template", "email", "import", "translate"],
+    },
+  },
+  {
+    id: "translate-braze-campaigns",
+    name: "Translate Braze Campaigns & Canvas",
+    category: "translate",
+    description:
+      "Import tagged draft campaign and Canvas message variations as JSON, then push approved locales through the Braze Translation API.",
+    grants:
+      "Reads Braze campaigns and Canvas through Pipes, writes JSON translation maps and native jobs. Push writes approved locales only and never publishes.",
+    tools: ["import_braze_campaigns", "push_braze_campaigns"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["braze campaign", "braze canvas", "translation tag", "canvas step"],
+      weak: ["campaign", "canvas", "import", "translate"],
     },
   },
   {
@@ -308,6 +380,34 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
 
 export const MAX_WORKSPACE_AUTOMATION_SKILLS = WORKSPACE_AUTOMATION_SKILLS.length;
 
+/** Document/CMS translation skills that each take over the orchestrator plan. */
+export const CMS_TRANSLATION_SKILL_IDS = [
+  "translate-sanity-documents",
+  "translate-google-drive-files",
+  "translate-intercom-articles",
+  "translate-braze-email-templates",
+  "translate-braze-campaigns",
+  "translate-contentful-entries",
+] as const;
+
+export function isCmsTranslationSkillId(skillId: string): boolean {
+  return (CMS_TRANSLATION_SKILL_IDS as readonly string[]).includes(skillId);
+}
+
+export function hasConflictingCmsTranslationSkills(skillIds: readonly string[]): boolean {
+  return new Set(skillIds.filter(isCmsTranslationSkillId)).size > 1;
+}
+
+export function cmsTranslationSkillConflictsWith(
+  skillIds: readonly string[],
+  skillId: string,
+): boolean {
+  if (!isCmsTranslationSkillId(skillId)) {
+    return false;
+  }
+  return skillIds.some((attached) => attached !== skillId && isCmsTranslationSkillId(attached));
+}
+
 export function getWorkspaceAutomationSkill(skillId: string): WorkspaceAutomationSkill | null {
   return WORKSPACE_AUTOMATION_SKILLS.find((skill) => skill.id === skillId) ?? null;
 }
@@ -327,6 +427,9 @@ export type WorkspaceAutomationSkillIntegration =
   | "crowdin"
   | "contentful"
   | "intercom"
+  | "google_drive"
+  | "sanity"
+  | "braze"
   | "slack"
   | "email";
 
@@ -340,6 +443,14 @@ const SKILL_TOOL_INTEGRATIONS: Record<
   run_contentful_translation: "contentful",
   import_intercom_articles: "intercom",
   push_intercom_translations: "intercom",
+  import_sanity_documents: "sanity",
+  push_sanity_translations: "sanity",
+  import_google_drive_files: "google_drive",
+  push_google_drive_translations: "google_drive",
+  import_braze_templates: "braze",
+  push_braze_templates: "braze",
+  import_braze_campaigns: "braze",
+  push_braze_campaigns: "braze",
   create_native_tms_job: null,
   assign_translate_with_agent: null,
   list_issues: null,
@@ -401,7 +512,8 @@ export function listWorkspaceAutomationSkillTools(
 export type WorkspaceAutomationSkillValidationCode =
   | "skill_not_found"
   | "skill_trigger_incompatible"
-  | "skill_tools_required";
+  | "skill_tools_required"
+  | "cms_translation_skills_exclusive";
 
 /** First problem with the attached skills, or null when they fit the trigger and tool config. */
 export function validateWorkspaceAutomationSkills(input: {
@@ -409,6 +521,10 @@ export function validateWorkspaceAutomationSkills(input: {
   triggerMode: WorkspaceAutomationSkillTrigger;
   toolConfig: WorkspaceAutomationToolConfig;
 }): WorkspaceAutomationSkillValidationCode | null {
+  if (hasConflictingCmsTranslationSkills(input.skillIds)) {
+    return "cms_translation_skills_exclusive";
+  }
+
   for (const skillId of input.skillIds) {
     const skill = getWorkspaceAutomationSkill(skillId);
     if (!skill) {
@@ -441,6 +557,18 @@ export function workspaceAutomationSkillToolEnabled(
     case "import_intercom_articles":
     case "push_intercom_translations":
       return Boolean(toolConfig.intercom?.enabled);
+    case "import_sanity_documents":
+    case "push_sanity_translations":
+      return Boolean(toolConfig.sanity?.enabled);
+    case "import_google_drive_files":
+    case "push_google_drive_translations":
+      return Boolean(toolConfig.googleDrive?.enabled);
+    case "import_braze_templates":
+    case "push_braze_templates":
+      return Boolean(toolConfig.braze?.enabled);
+    case "import_braze_campaigns":
+    case "push_braze_campaigns":
+      return Boolean(toolConfig.brazeCampaigns?.enabled);
     case "create_native_tms_job":
       return Boolean(toolConfig.createNativeTmsJob?.enabled);
     case "assign_translate_with_agent":

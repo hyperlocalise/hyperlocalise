@@ -476,7 +476,7 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "arb"
 	case ".xlf", ".xlif", ".xliff":
 		return "xliff"
-	case ".po":
+	case ".po", ".pot":
 		return "po"
 	case ".ts":
 		return "qt-ts"
@@ -837,7 +837,7 @@ func contentTypeForPath(path string) string {
 		return "text/markdown"
 	case ".adoc", ".asciidoc", ".asc":
 		return "text/asciidoc"
-	case ".po", ".strings", ".stringsdict", ".ftl", ".properties", ".ini", ".sbv":
+	case ".po", ".pot", ".strings", ".stringsdict", ".ftl", ".properties", ".ini", ".sbv":
 		return "text/plain"
 	case ".toml":
 		return "application/toml"

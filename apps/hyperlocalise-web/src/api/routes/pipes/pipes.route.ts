@@ -20,6 +20,10 @@ import {
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/response.schema";
+import { BRAZE_PIPES_SLUG } from "@/lib/braze/constants";
+import { deleteBrazeConnectionSettings } from "@/lib/braze/settings";
+import { createPipesAuthorizeUrl, deletePipesConnectedAccount } from "@/lib/pipes/accounts";
+import { getWorkosPipesProviderAvailability, supportsPipesOAuth } from "@/lib/pipes/availability";
 import { getPipesConnectionStatus } from "@/lib/pipes/status";
 import type { PipesStatus } from "@/lib/pipes/types";
 import { isErr } from "@/lib/primitives/result/results";
@@ -28,6 +32,10 @@ import { pipesProviderParamSchema } from "./pipes.schema";
 
 function canReadPipes(role: AuthVariables["auth"]["membership"]["role"]) {
   return hasCapability(role, "integrations:read");
+}
+
+function canWritePipes(role: AuthVariables["auth"]["membership"]["role"]) {
+  return hasCapability(role, "integrations:write");
 }
 
 const validateProviderParams = validator("param", (value, c) => {
@@ -41,6 +49,95 @@ const validateProviderParams = validator("param", (value, c) => {
 export function createPipesRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
+    .get("/:provider/authorize-url", validateProviderParams, async (c) => {
+      if (!canWritePipes(c.var.auth.membership.role)) {
+        return forbiddenResponse(c, "forbidden");
+      }
+
+      const { provider } = c.req.valid("param");
+      const availabilityResult = await getWorkosPipesProviderAvailability(provider, {
+        workosUserId: c.var.auth.user.workosUserId,
+        workosOrganizationId: c.var.auth.organization.workosOrganizationId,
+      });
+      if (isErr(availabilityResult)) {
+        return serviceUnavailableResponse(
+          c,
+          availabilityResult.error.code,
+          availabilityResult.error.message,
+        );
+      }
+      if (!supportsPipesOAuth(availabilityResult.value)) {
+        return serviceUnavailableResponse(
+          c,
+          "pipes_oauth_unavailable",
+          "This integration only supports API key authentication in WorkOS Pipes.",
+        );
+      }
+
+      const organizationSlug = c.var.auth.organization.slug;
+      const requestUrl = new URL(c.req.url);
+      const result = await createPipesAuthorizeUrl({
+        provider,
+        localOrganizationId: c.var.auth.organization.localOrganizationId,
+        workosUserId: c.var.auth.user.workosUserId,
+        ...(organizationSlug
+          ? {
+              returnTo: `${requestUrl.origin}/org/${organizationSlug}/integrations?pipesCallback=${encodeURIComponent(provider)}`,
+            }
+          : {}),
+      });
+
+      if (isErr(result)) {
+        return serviceUnavailableResponse(c, result.error.code, result.error.message);
+      }
+
+      return c.json({ url: result.value.url }, 200);
+    })
+    .delete("/:provider", validateProviderParams, async (c) => {
+      if (!canWritePipes(c.var.auth.membership.role)) {
+        return forbiddenResponse(c, "forbidden");
+      }
+
+      const { provider } = c.req.valid("param");
+      const result = await deletePipesConnectedAccount({
+        provider,
+        localOrganizationId: c.var.auth.organization.localOrganizationId,
+        workosUserId: c.var.auth.user.workosUserId,
+      });
+
+      if (isErr(result)) {
+        if (result.error.code === "pipes_not_connected") {
+          return notFoundResponse(c, result.error.code, result.error.message);
+        }
+
+        return serviceUnavailableResponse(c, result.error.code, result.error.message);
+      }
+
+      if (provider === BRAZE_PIPES_SLUG) {
+        await deleteBrazeConnectionSettings({
+          localOrganizationId: c.var.auth.organization.localOrganizationId,
+          workosUserId: c.var.auth.user.workosUserId,
+        });
+      }
+
+      return c.body(null, 204);
+    })
+    .get("/:provider/availability", validateProviderParams, async (c) => {
+      if (!canReadPipes(c.var.auth.membership.role)) {
+        return forbiddenResponse(c, "forbidden");
+      }
+
+      const { provider } = c.req.valid("param");
+      const result = await getWorkosPipesProviderAvailability(provider, {
+        workosUserId: c.var.auth.user.workosUserId,
+        workosOrganizationId: c.var.auth.organization.workosOrganizationId,
+      });
+      if (isErr(result)) {
+        return serviceUnavailableResponse(c, result.error.code, result.error.message);
+      }
+
+      return c.json({ availability: result.value }, 200);
+    })
     .get("/:provider", validateProviderParams, async (c) => {
       if (!canReadPipes(c.var.auth.membership.role)) {
         return forbiddenResponse(c, "forbidden");
@@ -51,6 +148,7 @@ export function createPipesRoutes() {
         provider,
         localOrganizationId: c.var.auth.organization.localOrganizationId,
         workosUserId: c.var.auth.user.workosUserId,
+        workosOrganizationId: c.var.auth.organization.workosOrganizationId,
       });
 
       if (isErr(result)) {

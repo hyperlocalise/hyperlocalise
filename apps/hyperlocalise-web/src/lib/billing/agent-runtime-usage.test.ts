@@ -14,17 +14,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 
 import "dotenv/config";
 
-const { completeAndTrackBillableUsageMock, reserveUsageEventMock, ensureAiFeaturesAllowedMock } =
-  vi.hoisted(() => ({
-    completeAndTrackBillableUsageMock: vi.fn(),
-    reserveUsageEventMock: vi.fn(),
-    ensureAiFeaturesAllowedMock: vi.fn(),
-  }));
+const {
+  completeAndTrackBillableUsageMock,
+  reserveUsageEventMock,
+  ensureAiFeaturesAllowedMock,
+  trackAiCreditUsageInAutumnMock,
+} = vi.hoisted(() => ({
+  completeAndTrackBillableUsageMock: vi.fn(),
+  reserveUsageEventMock: vi.fn(),
+  ensureAiFeaturesAllowedMock: vi.fn(),
+  trackAiCreditUsageInAutumnMock: vi.fn(),
+}));
 
 vi.mock("@/lib/billing/usage-control", () => ({
   completeAndTrackBillableUsage: completeAndTrackBillableUsageMock,
   formatUsageControlError: (error: { code: string }) => error.code,
   reserveUsageEvent: reserveUsageEventMock,
+  trackAiCreditUsageInAutumn: trackAiCreditUsageInAutumnMock,
   usageFeatureIds: {
     agentRuns: "agent_runs",
   },
@@ -36,13 +42,17 @@ vi.mock("@/lib/billing/ai-features", () => ({
 }));
 
 import {
+  agentTurnTokenBilling,
+  credentialSourceForLanguageModel,
   extractAiSdkTokenUsage,
   extractGenerateResultTokenUsage,
   reserveAgentRuntimeUsage,
+  trackAiCallTokenUsage,
+  trackStringTranslationTokenUsage,
   trackSucceededAgentRuntimeUsage,
   withAgentRuntimeUsageMetering,
 } from "@/lib/billing/agent-runtime-usage";
-import { ok } from "@/lib/primitives/result/results";
+import { err, ok } from "@/lib/primitives/result/results";
 
 describe("agent-runtime-usage", () => {
   beforeEach(() => {
@@ -302,5 +312,201 @@ describe("agent-runtime-usage", () => {
     ).resolves.toEqual({ text: "done" });
 
     expect(consoleError).toHaveBeenCalled();
+  });
+
+  it("passes a caller's source to the AI Credit row of an agent run", async () => {
+    completeAndTrackBillableUsageMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
+
+    await trackSucceededAgentRuntimeUsage({
+      organizationId: "org_123",
+      operationKey: "slack-agent-turn:msg:agent_runs",
+      tokenUsage: { inputTokens: 1, outputTokens: 2, totalTokens: 3 },
+      aiCreditModelId: "openai/gpt-6-luna",
+      aiCreditCredentialSource: "gateway",
+      aiCreditSource: "slack_agent_turn",
+    });
+
+    expect(completeAndTrackBillableUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ aiCreditSource: "slack_agent_turn" }),
+    );
+  });
+
+  it("records a single AI call's tokens as AI Credit under a fresh reference", async () => {
+    trackAiCreditUsageInAutumnMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
+    const tokenUsage = { inputTokens: 100, outputTokens: 20, totalTokens: 120 };
+
+    await trackAiCallTokenUsage({
+      organizationId: "org_123",
+      source: "content_editor_ai_suggestion",
+      tokenUsage,
+      modelId: "openai/gpt-6-luna",
+      credentialSource: "gateway",
+    });
+    await trackAiCallTokenUsage({
+      organizationId: "org_123",
+      source: "content_editor_ai_suggestion",
+      tokenUsage,
+      modelId: "openai/gpt-6-luna",
+      credentialSource: "gateway",
+    });
+
+    expect(trackAiCreditUsageInAutumnMock).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      parentOperationKey: expect.stringMatching(/^ai-call:content_editor_ai_suggestion:/),
+      tokenUsage,
+      source: "content_editor_ai_suggestion",
+      modelId: "openai/gpt-6-luna",
+      credentialSource: "gateway",
+      interactionId: undefined,
+    });
+    const [first, second] = trackAiCreditUsageInAutumnMock.mock.calls.map(
+      ([input]) => input.parentOperationKey,
+    );
+    expect(first).not.toBe(second);
+  });
+
+  it("records nothing for a call that reported no tokens", async () => {
+    await trackAiCallTokenUsage({
+      organizationId: "org_123",
+      source: "chat_translate_string",
+      tokenUsage: null,
+      modelId: "openai/gpt-6-luna",
+      credentialSource: "gateway",
+    });
+
+    expect(trackAiCreditUsageInAutumnMock).not.toHaveBeenCalled();
+  });
+
+  it("logs and continues when AI call token tracking fails or throws", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const input = {
+      organizationId: "org_123",
+      source: "content_editor_document_regenerate",
+      tokenUsage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
+      modelId: "openai/gpt-6-luna",
+      credentialSource: "gateway" as const,
+    };
+
+    trackAiCreditUsageInAutumnMock.mockResolvedValueOnce(
+      err({ code: "ai_credit_pricing_not_configured", surface: "x" }),
+    );
+    await expect(trackAiCallTokenUsage(input)).resolves.toBeUndefined();
+    trackAiCreditUsageInAutumnMock.mockRejectedValueOnce(new Error("database down"));
+    await expect(trackAiCallTokenUsage(input)).resolves.toBeUndefined();
+
+    expect(consoleError).toHaveBeenCalledTimes(2);
+  });
+
+  it("charges a deferred AI call only when the deferred task runs", async () => {
+    trackAiCreditUsageInAutumnMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
+    const deferred: Array<() => Promise<unknown>> = [];
+
+    await trackAiCallTokenUsage(
+      {
+        organizationId: "org_123",
+        source: "content_editor_ai_suggestion",
+        tokenUsage: { inputTokens: 10, outputTokens: 2, totalTokens: 12 },
+        modelId: "openai/gpt-6-luna",
+        credentialSource: "gateway",
+      },
+      { defer: (task) => deferred.push(task) },
+    );
+
+    expect(trackAiCreditUsageInAutumnMock).not.toHaveBeenCalled();
+    expect(deferred).toHaveLength(1);
+    await deferred[0]!();
+    expect(trackAiCreditUsageInAutumnMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("bills an agent turn's classifier and turn tokens at the resolved model", () => {
+    const classification = { inputTokens: 100, outputTokens: 10, totalTokens: 110 };
+    const turn = { inputTokens: 1000, outputTokens: 200, totalTokens: 1200 };
+
+    expect(
+      agentTurnTokenBilling({
+        classificationTokenUsage: classification,
+        turnTokenUsage: turn,
+        languageModel: { modelId: "openai/gpt-6-luna", source: "gateway" },
+      }),
+    ).toEqual({
+      tokenUsage: expect.objectContaining({
+        inputTokens: 1100,
+        outputTokens: 210,
+        totalTokens: 1310,
+      }),
+      aiCreditModelId: "openai/gpt-6-luna",
+      aiCreditCredentialSource: "gateway",
+    });
+    expect(
+      agentTurnTokenBilling({
+        classificationTokenUsage: null,
+        turnTokenUsage: turn,
+        languageModel: { modelId: "anthropic/claude-sonnet-4.5", source: "anthropic" },
+      }),
+    ).toMatchObject({
+      aiCreditModelId: "anthropic/claude-sonnet-4.5",
+      aiCreditCredentialSource: "byok",
+    });
+    expect(
+      agentTurnTokenBilling({
+        classificationTokenUsage: null,
+        turnTokenUsage: null,
+        languageModel: { modelId: "openai/gpt-6-luna", source: "gateway" },
+      }),
+    ).toEqual({
+      tokenUsage: null,
+      aiCreditModelId: undefined,
+      aiCreditCredentialSource: undefined,
+    });
+  });
+
+  it("treats only the gateway source as our AI Gateway", () => {
+    expect(credentialSourceForLanguageModel({ source: "gateway" })).toBe("gateway");
+    expect(credentialSourceForLanguageModel({ source: "openai" })).toBe("byok");
+  });
+
+  it("bills a string translation at the model its token usage names", async () => {
+    trackAiCreditUsageInAutumnMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
+
+    await trackStringTranslationTokenUsage({
+      organizationId: "org_123",
+      source: "chat_translate_string",
+      tokenUsage: {
+        inputTokens: 300,
+        outputTokens: 40,
+        totalTokens: 340,
+        modelId: "openai/gpt-6-luna",
+        credentialSource: "gateway",
+      },
+    });
+    await trackStringTranslationTokenUsage({
+      organizationId: "org_123",
+      source: "chat_translate_string",
+      tokenUsage: { inputTokens: 300, outputTokens: 40, totalTokens: 340 },
+    });
+
+    expect(trackAiCreditUsageInAutumnMock).toHaveBeenCalledTimes(1);
+    expect(trackAiCreditUsageInAutumnMock).toHaveBeenCalledWith(
+      expect.objectContaining({ modelId: "openai/gpt-6-luna", credentialSource: "gateway" }),
+    );
+  });
+
+  it("stores the call's project on its token row for Reports", async () => {
+    trackAiCreditUsageInAutumnMock.mockResolvedValue(ok({ status: "tracking_succeeded" }));
+    const call = {
+      organizationId: "org_123",
+      source: "content_editor_ai_suggestion",
+      tokenUsage: { inputTokens: 10, outputTokens: 2, totalTokens: 12 },
+      modelId: "openai/gpt-6-luna",
+      credentialSource: "gateway" as const,
+    };
+
+    await trackAiCallTokenUsage({ ...call, projectId: "proj_1" });
+    await trackAiCallTokenUsage(call);
+
+    expect(trackAiCreditUsageInAutumnMock.mock.calls.map(([input]) => input.dimensions)).toEqual([
+      { project_id: "proj_1" },
+      undefined,
+    ]);
   });
 });

@@ -317,6 +317,31 @@ describe("applyVisualWorkflowGraphConnection", () => {
     expect(restored.nodes.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual(["body"]);
   });
 
+  it("tracks Try body membership without claiming exit branches", () => {
+    const nodes = [
+      node("trigger", "trigger.manual"),
+      node("boundary", "logic.try_catch"),
+      node("work", "logic.set"),
+      node("caught", "logic.set"),
+    ];
+    const withTry = applyVisualWorkflowGraphConnection(nodes, [], {
+      source: "boundary",
+      target: "work",
+      sourceHandle: "try",
+      targetHandle: "input",
+    });
+    const withCatch = applyVisualWorkflowGraphConnection(withTry.nodes, withTry.edges, {
+      source: "boundary",
+      target: "caught",
+      sourceHandle: "catch",
+      targetHandle: "input",
+    });
+
+    expect(withCatch.nodes.find((entry) => entry.id === "boundary")?.data.bodyNodeIds).toEqual([
+      "work",
+    ]);
+  });
+
   it("does not commit an invalid reconnection", () => {
     const nodes = [
       node("trigger", "trigger.manual"),
@@ -430,6 +455,239 @@ describe("applyNodeConfigUpdate", () => {
     );
     expect(next.edges.map((edge) => edge.id)).toEqual(["e0", "e2"]);
     expect(next.edges.find((edge) => edge.id === "e2")?.sourceHandle).toBe("case-ready");
+  });
+
+  it("keeps Create Object data edges when fields are renamed or reordered", () => {
+    const createObject = node("create", "logic.create_object", {
+      config: {
+        kind: "logic.create_object",
+        fields: [
+          { id: "customer", name: "customerId", type: "string" },
+          { id: "locale", name: "locale", type: "string" },
+        ],
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "customer-edge",
+        source: "source",
+        target: "create",
+        sourceHandle: "value",
+        targetHandle: "value.customer",
+        data: { kind: "data" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [node("source", "logic.set"), createObject],
+      edges,
+      "create",
+      {
+        kind: "logic.create_object",
+        fields: [
+          { id: "locale", name: "localeCode", type: "string" },
+          { id: "customer", name: "renamedCustomer", type: "string" },
+        ],
+      },
+    );
+
+    expect(result.edges).toEqual(edges);
+  });
+
+  it("removes data edges for deleted Create Object fields", () => {
+    const createObject = node("create", "logic.create_object", {
+      config: {
+        kind: "logic.create_object",
+        fields: [
+          { id: "customer", name: "customerId", type: "string" },
+          { id: "locale", name: "locale", type: "string" },
+        ],
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "customer-edge",
+        source: "source",
+        target: "create",
+        sourceHandle: "value",
+        targetHandle: "value.customer",
+        data: { kind: "data" },
+      },
+      {
+        id: "locale-edge",
+        source: "source",
+        target: "create",
+        sourceHandle: "value",
+        targetHandle: "value.locale",
+        data: { kind: "data" },
+      },
+      {
+        id: "execution-edge",
+        source: "source",
+        target: "create",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [node("source", "logic.set"), createObject],
+      edges,
+      "create",
+      {
+        kind: "logic.create_object",
+        fields: [{ id: "locale", name: "locale", type: "string" }],
+      },
+    );
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["locale-edge", "execution-edge"]);
+  });
+
+  it("keeps Merge Objects data edges when inputs are renamed or reordered", () => {
+    const mergeObjects = node("merge-objects", "logic.merge_objects", {
+      config: {
+        kind: "logic.merge_objects",
+        inputs: [
+          { id: "base", name: "Base" },
+          { id: "override", name: "Override" },
+        ],
+        conflictPolicy: "reject",
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "base-edge",
+        source: "source",
+        target: "merge-objects",
+        sourceHandle: "value",
+        targetHandle: "value.base",
+        data: { kind: "data" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [node("source", "logic.set"), mergeObjects],
+      edges,
+      "merge-objects",
+      {
+        kind: "logic.merge_objects",
+        inputs: [
+          { id: "override", name: "Overrides" },
+          { id: "base", name: "Base context" },
+        ],
+        conflictPolicy: "last_wins",
+      },
+    );
+
+    expect(result.edges).toEqual(edges);
+  });
+
+  it("removes data edges for deleted Merge Objects inputs", () => {
+    const mergeObjects = node("merge-objects", "logic.merge_objects", {
+      config: {
+        kind: "logic.merge_objects",
+        inputs: [
+          { id: "base", name: "Base" },
+          { id: "override", name: "Override" },
+          { id: "audit", name: "Audit" },
+        ],
+        conflictPolicy: "reject",
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "base-edge",
+        source: "source",
+        target: "merge-objects",
+        sourceHandle: "value",
+        targetHandle: "value.base",
+        data: { kind: "data" },
+      },
+      {
+        id: "audit-edge",
+        source: "source",
+        target: "merge-objects",
+        sourceHandle: "value",
+        targetHandle: "value.audit",
+        data: { kind: "data" },
+      },
+      {
+        id: "execution-edge",
+        source: "source",
+        target: "merge-objects",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [node("source", "logic.set"), mergeObjects],
+      edges,
+      "merge-objects",
+      {
+        kind: "logic.merge_objects",
+        inputs: [
+          { id: "base", name: "Base" },
+          { id: "override", name: "Override" },
+        ],
+        conflictPolicy: "reject",
+      },
+    );
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["base-edge", "execution-edge"]);
+  });
+
+  it("removes data edges for deleted Compare operands", () => {
+    const compare = node("compare", "logic.compare", {
+      config: {
+        kind: "logic.compare",
+        operator: "and",
+        operands: [
+          { id: "first", name: "First", type: "boolean" },
+          { id: "second", name: "Second", type: "boolean" },
+          { id: "third", name: "Third", type: "boolean" },
+        ],
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "first-data",
+        source: "source",
+        target: "compare",
+        sourceHandle: "value",
+        targetHandle: "value.first",
+        data: { kind: "data" },
+      },
+      {
+        id: "third-data",
+        source: "source",
+        target: "compare",
+        sourceHandle: "value",
+        targetHandle: "value.third",
+        data: { kind: "data" },
+      },
+      {
+        id: "execution-edge",
+        source: "source",
+        target: "compare",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate([node("source", "logic.set"), compare], edges, "compare", {
+      kind: "logic.compare",
+      operator: "equal",
+      operands: [
+        { id: "first", name: "Left", type: "boolean" },
+        { id: "second", name: "Right", type: "boolean" },
+      ],
+    });
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["first-data", "execution-edge"]);
   });
 });
 

@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
+import { observer } from "mobx-react-lite";
 import { CheckCircleIcon } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
@@ -29,14 +30,15 @@ import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { createProjectQaReportClient } from "@/lib/qa/qa-report-client";
 import { workspaceQaReportsQueryKey } from "@/lib/qa/use-workspace-qa-reports";
-import { DEFAULT_QA_POLICY, type QaCheckPolicy } from "@/lib/qa/qa-policy";
+import { DEFAULT_QA_POLICY, resolveQaPolicy, type QaCheckPolicy } from "@/lib/qa/qa-policy";
 import { translationQaCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
 import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
+import { QA_FILTER_ALL } from "@/components/qa/qa-filters-store";
+import { QaProjectUiStoreProvider, useQaProjectUiStore } from "../store/qa-project-store-context";
 import { qaProjectMessages as messages } from "../qa-project.messages";
 import { QaProjectOverview } from "./qa-project-overview";
 
 const PAGE_SIZE = 100;
-const DEFAULT_STATUS = "open";
 type QaScanStartErrorCode = "qa_scan_in_progress" | "qa_scan_start_failed";
 
 class QaScanStartError extends Error {
@@ -55,17 +57,32 @@ export function QaProjectPageContent({
   projectId: string;
   canPromoteFindings: boolean;
 }) {
+  return (
+    <QaProjectUiStoreProvider organizationSlug={organizationSlug} projectId={projectId}>
+      <QaProjectPageContentView canPromoteFindings={canPromoteFindings} />
+    </QaProjectUiStoreProvider>
+  );
+}
+
+const QaProjectPageContentView = observer(function QaProjectPageContentView({
+  canPromoteFindings,
+}: {
+  canPromoteFindings: boolean;
+}) {
   const intl = useIntl();
   const queryClient = useQueryClient();
   const { client } = useGoSvcClient();
   const api = useMemo(() => createProjectQaReportClient(client), [client]);
-  const [tab, setTab] = useState("findings");
-  const [locale, setLocale] = useState("all");
-  const [checkType, setCheckType] = useState("all");
-  const [severity, setSeverity] = useState("all");
-  const [status, setStatus] = useState(DEFAULT_STATUS);
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [draftPolicy, setDraftPolicy] = useState<QaCheckPolicy | null>(null);
+  const pageStore = useQaProjectUiStore();
+  const organizationSlug = pageStore.organizationSlug;
+  const projectId = pageStore.projectId;
+  const tab = pageStore.tab;
+  const locale = pageStore.locale;
+  const checkType = pageStore.checkType;
+  const severity = pageStore.severity;
+  const status = pageStore.status;
+  const selectedRunId = pageStore.selectedRunId;
+  const draftPolicy = pageStore.draftPolicy;
   const listKey = ["project-qa-reports", organizationSlug, projectId];
   const param = { organizationSlug, projectId };
   const list = useQuery({
@@ -118,9 +135,9 @@ export function QaProjectPageContent({
       api.getRun({
         param: { ...param, runId: report!.id },
         query: {
-          locale: locale === "all" ? undefined : locale,
-          checkType: checkType === "all" ? undefined : checkType,
-          severity: severity === "all" ? undefined : severity,
+          locale: locale === QA_FILTER_ALL ? undefined : locale,
+          checkType: checkType === QA_FILTER_ALL ? undefined : checkType,
+          severity: severity === QA_FILTER_ALL ? undefined : severity,
           status,
           limit: String(PAGE_SIZE),
           offset: String(pageParam),
@@ -143,8 +160,7 @@ export function QaProjectPageContent({
       return response.json();
     },
     onSuccess: async () => {
-      setSelectedRunId(null);
-      setTab("findings");
+      pageStore.resetAfterScanStart();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: listKey }),
         queryClient.invalidateQueries({ queryKey: workspaceQaReportsQueryKey(organizationSlug) }),
@@ -160,30 +176,23 @@ export function QaProjectPageContent({
     mutationFn: (json: { cadence?: "off" | "daily"; checks?: QaCheckPolicy }) =>
       api.updateSettings({ param, json }),
     onSuccess: async () => {
-      setDraftPolicy(null);
+      pageStore.clearDraftPolicy();
       await queryClient.invalidateQueries({ queryKey: listKey });
     },
   });
-  const policy = draftPolicy ?? settings?.checks ?? DEFAULT_QA_POLICY;
+  const policy = resolveQaPolicy(draftPolicy ?? settings?.checks ?? DEFAULT_QA_POLICY);
   const updateRule = (
     check: TranslationQaCheckType,
     change: Partial<QaCheckPolicy[TranslationQaCheckType]>,
   ) => {
-    setDraftPolicy({ ...policy, [check]: { ...policy[check], ...change } });
+    pageStore.updateRule(policy, check, change);
   };
   const canReview =
     canPromoteFindings &&
     report?.status === "succeeded" &&
     report.id === reports.find((row) => row.status === "succeeded")?.id;
   const all = { value: "all", label: intl.formatMessage(m.all) };
-  const filtered =
-    locale !== "all" || checkType !== "all" || severity !== "all" || status !== DEFAULT_STATUS;
-  const resetFilters = () => {
-    setLocale("all");
-    setCheckType("all");
-    setSeverity("all");
-    setStatus(DEFAULT_STATUS);
-  };
+  const filtered = pageStore.isFiltered;
   const unsupported =
     list.error instanceof GoSvcClientError && list.error.code === "qa_scan_not_supported";
   return (
@@ -233,23 +242,17 @@ export function QaProjectPageContent({
           report={report}
           reports={reports}
           cadence={settings?.cadence}
-          onSelectLocale={(value) => {
-            setLocale(value);
-            setTab("findings");
-          }}
-          onSelectCheck={(value) => {
-            setCheckType(value);
-            setTab("findings");
-          }}
-          onSelectRun={(runId) => {
-            setSelectedRunId(runId === reports[0]?.id ? null : runId);
-            resetFilters();
-            setTab("findings");
-          }}
+          onSelectLocale={(value) => pageStore.showFindingsFor({ locale: value })}
+          onSelectCheck={(value) => pageStore.showFindingsFor({ checkType: value })}
+          onSelectRun={(runId) => pageStore.selectRun(runId, reports[0]?.id)}
         />
       ) : null}
       {list.isSuccess ? (
-        <Tabs value={tab} onValueChange={(value) => setTab(String(value))} className="gap-6">
+        <Tabs
+          value={tab}
+          onValueChange={(value) => pageStore.setTab(String(value))}
+          className="gap-6"
+        >
           <TabsList variant="line">
             <TabsTrigger value="findings">{intl.formatMessage(m.findings)}</TabsTrigger>
             <TabsTrigger value="settings">{intl.formatMessage(m.settings)}</TabsTrigger>
@@ -259,7 +262,7 @@ export function QaProjectPageContent({
             {selectedRunId && report?.id !== reports[0]?.id ? (
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm">{intl.formatMessage(m.older)}</p>
-                <Button variant="outline" size="sm" onClick={() => setSelectedRunId(null)}>
+                <Button variant="outline" size="sm" onClick={() => pageStore.selectLatestRun()}>
                   {intl.formatMessage(m.latest)}
                 </Button>
               </div>
@@ -274,7 +277,7 @@ export function QaProjectPageContent({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setSelectedRunId(lastSuccessfulReport.id)}
+                    onClick={() => pageStore.viewRun(lastSuccessfulReport.id)}
                   >
                     {intl.formatMessage(messages.viewLastCompleted)}
                   </Button>
@@ -288,7 +291,7 @@ export function QaProjectPageContent({
                   <QaFilter
                     label={intl.formatMessage(m.language)}
                     value={locale}
-                    onChange={setLocale}
+                    onChange={(value) => pageStore.setLocale(value)}
                     options={[
                       all,
                       ...Object.keys(report.summary.byLocale).map((value) => ({
@@ -300,7 +303,7 @@ export function QaProjectPageContent({
                   <QaFilter
                     label={intl.formatMessage(m.check)}
                     value={checkType}
-                    onChange={setCheckType}
+                    onChange={(value) => pageStore.setCheckType(value)}
                     options={[
                       all,
                       ...translationQaCheckTypes.map((value) => ({
@@ -312,7 +315,7 @@ export function QaProjectPageContent({
                   <QaFilter
                     label={intl.formatMessage(m.severity)}
                     value={severity}
-                    onChange={setSeverity}
+                    onChange={(value) => pageStore.setSeverity(value)}
                     options={[
                       all,
                       ...(["error", "warning"] as const).map((value) => ({
@@ -324,7 +327,7 @@ export function QaProjectPageContent({
                   <QaFilter
                     label={intl.formatMessage(m.status)}
                     value={status}
-                    onChange={setStatus}
+                    onChange={(value) => pageStore.setStatus(value)}
                     options={[
                       all,
                       ...(["open", "ignored", "resolved"] as const).map((value) => ({
@@ -353,7 +356,11 @@ export function QaProjectPageContent({
                       )}
                     </p>
                     {filtered ? (
-                      <Button variant="outline" size="sm" onClick={resetFilters}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => pageStore.clearFindingFilters()}
+                      >
                         {intl.formatMessage(m.clearFilters)}
                       </Button>
                     ) : null}
@@ -473,11 +480,7 @@ export function QaProjectPageContent({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setSelectedRunId(row.id);
-                    resetFilters();
-                    setTab("findings");
-                  }}
+                  onClick={() => pageStore.selectRun(row.id, reports[0]?.id)}
                 >
                   {intl.formatMessage(
                     row.status === "failed"
@@ -494,4 +497,4 @@ export function QaProjectPageContent({
       ) : null}
     </ProjectPageShell>
   );
-}
+});

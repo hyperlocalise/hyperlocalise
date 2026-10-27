@@ -39,9 +39,9 @@ function scoreBarClass(score: number) {
 
 function scoreTextClass(score: number) {
   const tone = leaderboardScoreTone(score);
-  if (tone === "safe") return "text-success";
-  if (tone === "watch") return "text-warning";
-  return "text-destructive";
+  if (tone === "safe") return "text-grove-900 dark:text-grove-300";
+  if (tone === "watch") return "text-beam-900";
+  return "text-red-900";
 }
 
 function siteLabel(entry: LocalisationAuditLeaderboardEntry) {

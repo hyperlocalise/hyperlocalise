@@ -1,6 +1,6 @@
 projectname?=hyperlocalise
 version?=$(shell git describe --abbrev=0 --tags 2>/dev/null || echo dev)
-golangci_lint_version?=v2.12.2
+golangci_lint_version?=v2.14.0
 gobin?=$(shell go env GOPATH)/bin
 golangci_lint_bin?=$(gobin)/golangci-lint
 default: help
@@ -36,6 +36,16 @@ build-glossary-interchange-lambda: ## build the glossary-interchange Lambda boot
 build-memory-interchange-lambda: ## build the memory-interchange Lambda bootstrap binary
 	@mkdir -p dist/memory-interchange-lambda
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/memory-interchange-lambda/bootstrap ./apps/memory-interchange-lambda
+
+.PHONY: build-visual-context-match-lambda
+build-visual-context-match-lambda: ## build the visual-context-match Lambda bootstrap binary
+	@mkdir -p dist/visual-context-match-lambda
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/visual-context-match-lambda/bootstrap ./apps/visual-context-match-lambda
+
+.PHONY: build-guideline-ingest-lambda
+build-guideline-ingest-lambda: ## build the guideline-ingest Lambda bootstrap binary
+	@mkdir -p dist/guideline-ingest-lambda
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/guideline-ingest-lambda/bootstrap ./apps/guideline-ingest-lambda
 
 .PHONY: check-build-public-api
 check-build-public-api: ## check standalone public API service build

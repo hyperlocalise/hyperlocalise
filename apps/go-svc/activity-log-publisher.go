@@ -256,6 +256,151 @@ func (api *glossaryAPI) publishActivity(ctx context.Context, input activityLogEv
 	}
 }
 
+func (api *issueSheetAPI) publishActivity(ctx context.Context, input activityLogEventInput) {
+	if api.activityLog == nil {
+		slog.WarnContext(ctx, "issue_sheet_activity_log_publish_skipped",
+			"reason", "publisher_disabled",
+			"environment_variable", activityLogQueueURLEnv,
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+		)
+		return
+	}
+	publishCtx, cancel := context.WithTimeout(ctx, activityLogPublishTimeout)
+	defer cancel()
+	if err := api.activityLog.Publish(publishCtx, input); err != nil {
+		slog.ErrorContext(ctx, "issue_sheet_activity_log_publish_failed",
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+			"error", err,
+		)
+	}
+}
+
+func (api *qaReportAPI) publishActivity(ctx context.Context, input activityLogEventInput) {
+	if api.activityLog == nil {
+		slog.WarnContext(ctx, "qa_report_activity_log_publish_skipped",
+			"reason", "publisher_disabled",
+			"environment_variable", activityLogQueueURLEnv,
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+		)
+		return
+	}
+	publishCtx, cancel := context.WithTimeout(ctx, activityLogPublishTimeout)
+	defer cancel()
+	if err := api.activityLog.Publish(publishCtx, input); err != nil {
+		slog.ErrorContext(ctx, "qa_report_activity_log_publish_failed",
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+			"error", err,
+		)
+	}
+}
+
+func (api *qaReportAPI) publishQueryCreated(ctx context.Context, actor qaReportActor, projectID string, result promoteFindingResult) {
+	if !result.Created {
+		return
+	}
+	api.publishActivity(ctx, activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "query_created",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"identifier": result.Identifier,
+			"name":       result.Identifier,
+			"projectId":  projectID,
+			"queryId":    result.IssueID,
+			"source":     "qa_promote",
+		},
+		TargetID:   result.IssueID,
+		TargetKind: "query",
+	})
+}
+
+func (api *dictionaryAPI) publishActivity(ctx context.Context, input activityLogEventInput) {
+	if api.activityLog == nil {
+		slog.WarnContext(ctx, "dictionary_activity_log_publish_skipped",
+			"reason", "publisher_disabled",
+			"environment_variable", activityLogQueueURLEnv,
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+		)
+		return
+	}
+	publishCtx, cancel := context.WithTimeout(ctx, activityLogPublishTimeout)
+	defer cancel()
+	if err := api.activityLog.Publish(publishCtx, input); err != nil {
+		slog.ErrorContext(ctx, "dictionary_activity_log_publish_failed",
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+			"error", err,
+		)
+	}
+}
+
+func (api *workspaceAPI) publishActivity(ctx context.Context, input activityLogEventInput) {
+	if api.activityLog == nil {
+		slog.WarnContext(ctx, "workspace_activity_log_publish_skipped",
+			"reason", "publisher_disabled",
+			"environment_variable", activityLogQueueURLEnv,
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+		)
+		return
+	}
+	publishCtx, cancel := context.WithTimeout(ctx, activityLogPublishTimeout)
+	defer cancel()
+	if err := api.activityLog.Publish(publishCtx, input); err != nil {
+		slog.ErrorContext(ctx, "workspace_activity_log_publish_failed",
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+			"error", err,
+		)
+	}
+}
+
+func (api *workspaceSettingsAPI) publishActivity(ctx context.Context, input activityLogEventInput) {
+	if api.activityLog == nil {
+		slog.WarnContext(ctx, "workspace_settings_activity_log_publish_skipped",
+			"reason", "publisher_disabled",
+			"environment_variable", activityLogQueueURLEnv,
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+		)
+		return
+	}
+	publishCtx, cancel := context.WithTimeout(ctx, activityLogPublishTimeout)
+	defer cancel()
+	if err := api.activityLog.Publish(publishCtx, input); err != nil {
+		slog.ErrorContext(ctx, "workspace_settings_activity_log_publish_failed",
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+			"error", err,
+		)
+	}
+}
+
 func (api *projectAPI) publishActivity(ctx context.Context, input activityLogEventInput) {
 	if api.activityLog == nil {
 		slog.WarnContext(ctx, "project_activity_log_publish_skipped",
@@ -278,6 +423,37 @@ func (api *projectAPI) publishActivity(ctx context.Context, input activityLogEve
 	defer cancel()
 	if err := api.activityLog.Publish(publishCtx, input); err != nil {
 		slog.ErrorContext(ctx, "project_activity_log_publish_failed",
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+			"error", err,
+		)
+	}
+}
+
+func (api *memoryAPI) publishActivity(ctx context.Context, input activityLogEventInput) {
+	if api.activityLog == nil {
+		slog.WarnContext(ctx, "memory_activity_log_publish_skipped",
+			"reason", "publisher_disabled",
+			"environment_variable", activityLogQueueURLEnv,
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+		)
+		return
+	}
+	slog.InfoContext(ctx, "memory_activity_log_publish_requested",
+		"event_type", input.EventType,
+		"organization_id", input.OrganizationID,
+		"target_id", input.TargetID,
+		"target_kind", input.TargetKind,
+	)
+	publishCtx, cancel := context.WithTimeout(ctx, activityLogPublishTimeout)
+	defer cancel()
+	if err := api.activityLog.Publish(publishCtx, input); err != nil {
+		slog.ErrorContext(ctx, "memory_activity_log_publish_failed",
 			"event_type", input.EventType,
 			"organization_id", input.OrganizationID,
 			"target_id", input.TargetID,

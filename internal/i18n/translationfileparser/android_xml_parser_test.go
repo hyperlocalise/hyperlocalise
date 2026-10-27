@@ -39,6 +39,39 @@ func TestAndroidXMLResourcesParserParsesStringsAndPlurals(t *testing.T) {
 	}
 }
 
+func TestAndroidXMLResourcesParserParseWithContextUsesPrecedingComments(t *testing.T) {
+	content := []byte(`<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- skip this -->
+  <string name="debug_only" translatable="false">Do not translate</string>
+  <!-- Login greeting -->
+  <!-- Shown on the splash screen -->
+  <string name="hello">Hello</string>
+  <!-- Cart quantity -->
+  <plurals name="item_count">
+    <item quantity="one">%d item</item>
+    <item quantity="other">%d items</item>
+  </plurals>
+</resources>`)
+
+	got, contextByKey, err := (AndroidXMLResourcesParser{}).ParseWithContext(content)
+	if err != nil {
+		t.Fatalf("parse android resources: %v", err)
+	}
+	if got["hello"] != "Hello" {
+		t.Fatalf("unexpected hello value: %q", got["hello"])
+	}
+	if contextByKey["hello"] != "Login greeting\nShown on the splash screen" {
+		t.Fatalf("unexpected hello context: %q", contextByKey["hello"])
+	}
+	if contextByKey["item_count.one"] != "Cart quantity" || contextByKey["item_count.other"] != "Cart quantity" {
+		t.Fatalf("unexpected plural context: %#v", contextByKey)
+	}
+	if _, ok := contextByKey["debug_only"]; ok {
+		t.Fatalf("translatable=false string should not keep comment context")
+	}
+}
+
 func TestMarshalAndroidXMLResourcesPreservesCommentsMetadataAndPlaceholders(t *testing.T) {
 	template := []byte(`<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">

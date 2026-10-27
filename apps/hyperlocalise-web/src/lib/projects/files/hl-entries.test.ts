@@ -70,6 +70,28 @@ describe("entriesFromHlOutput", () => {
     ]);
   });
 
+  it("maps enriched hl entries output with FormatJS context", () => {
+    expect(
+      entriesFromHlOutput({
+        "checkout.submit": { text: "Submit", context: "Checkout CTA" },
+        "home.title": "Home",
+      }),
+    ).toEqual([
+      {
+        key: "checkout.submit",
+        text: "Submit",
+        context: "Checkout CTA",
+        type: "string",
+      },
+      {
+        key: "home.title",
+        text: "Home",
+        context: null,
+        type: "string",
+      },
+    ]);
+  });
+
   it("maps enriched hl entries output with maxLength metadata", () => {
     expect(
       entriesFromHlOutput({
@@ -87,6 +109,39 @@ describe("entriesFromHlOutput", () => {
       {
         key: "plain",
         text: "No limit",
+        context: null,
+        type: "string",
+      },
+    ]);
+  });
+
+  it("keeps ordinary resource strings that look like callout fences", () => {
+    expect(
+      entriesFromHlOutput({
+        "examples.callout": ":::callout examples",
+      }),
+    ).toEqual([
+      {
+        key: "examples.callout",
+        text: ":::callout examples",
+        context: null,
+        type: "string",
+      },
+    ]);
+  });
+
+  it("drops Intercom callout fence lines", () => {
+    expect(
+      entriesFromHlOutput({
+        "md.Paragraph[4]/line[0]":
+          ':::callout backgroundColor="#feedaf80"\nborderColor="#fbc91633"',
+        "md.Paragraph[4]/line[1]": "For a public article to be enabled for Fin",
+        "md.Paragraph[4]/line[2]": ":::",
+      }),
+    ).toEqual([
+      {
+        key: "md.Paragraph[4]/line[1]",
+        text: "For a public article to be enabled for Fin",
         context: null,
         type: "string",
       },
@@ -111,6 +166,21 @@ describe("entriesFromHlOutput", () => {
       {
         key: "limited.key",
         text: "Short",
+        context: null,
+        type: "string",
+      },
+    ]);
+  });
+
+  it("preserves HTML inline placeholders through JSON", () => {
+    const sourceText =
+      "This paragraph has \u001eHLHTPH_AABBCCDDEEFF_0\u001fbold text\u001eHLHTPH_AABBCCDDEEFF_1\u001f.";
+    const payload = parseHlEntriesJson(JSON.parse(JSON.stringify({ "html.p[0]": sourceText })));
+
+    expect(entriesFromHlOutput(payload)).toEqual([
+      {
+        key: "html.p[0]",
+        text: sourceText,
         context: null,
         type: "string",
       },

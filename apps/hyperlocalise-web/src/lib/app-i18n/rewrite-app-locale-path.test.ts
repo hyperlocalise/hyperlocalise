@@ -73,8 +73,14 @@ describe("getAppLocaleFlagEmoji", () => {
   it("returns a country flag for each supported locale", () => {
     expect(getAppLocaleFlagEmoji("en")).toBe("🇺🇸");
     expect(getAppLocaleFlagEmoji("zh-CN")).toBe("🇨🇳");
+    expect(getAppLocaleFlagEmoji("da-DK")).toBe("🇩🇰");
+    expect(getAppLocaleFlagEmoji("nl-NL")).toBe("🇳🇱");
+    expect(getAppLocaleFlagEmoji("fil-PH")).toBe("🇵🇭");
     expect(getAppLocaleFlagEmoji("vi-VN")).toBe("🇻🇳");
     expect(getAppLocaleFlagEmoji("de-DE")).toBe("🇩🇪");
     expect(getAppLocaleFlagEmoji("fr-FR")).toBe("🇫🇷");
+    expect(getAppLocaleFlagEmoji("ja-JP")).toBe("🇯🇵");
+    expect(getAppLocaleFlagEmoji("ko-KR")).toBe("🇰🇷");
+    expect(getAppLocaleFlagEmoji("th-TH")).toBe("🇹🇭");
   });
 });

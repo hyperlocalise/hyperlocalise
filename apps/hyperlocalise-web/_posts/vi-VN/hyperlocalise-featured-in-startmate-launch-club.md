@@ -1,7 +1,7 @@
 ---
 title: "Hyperlocalise được giới thiệu trên Startmate: Nói ngôn ngữ của mọi người"
 date: 2026-07-17T00:00:00.000Z
-excerpt: Startmate đã trò chuyện cùng nhà sáng lập Hyperlocalise, Minh Cung, về sắc thái văn hóa, bản địa hóa bằng AI và lý do tại sao việc dịch từng từ một không bao giờ là đủ.
+excerpt: Startmate đã trò chuyện với Minh Cung, nhà sáng lập Hyperlocalise, về sắc thái văn hóa, bản địa hóa bằng AI và lý do dịch từng từ một chưa bao giờ là đủ.
 category: Công ty
 coverImage: /images/blog/startmate-speaking-everyones-language-minh-cung.png
 tags:
@@ -18,32 +18,32 @@ tags:
   - product localisation
 ---
 
-Chúng tôi rất vui mừng chia sẻ rằng Hyperlocalise đã được [Startmate](https://startmate.com/) giới thiệu trong _[Nói ngôn ngữ của mọi người: Trò chuyện với Minh Cung, Hyperlocalise](https://startmate.com/writing/speaking-everyones-language-in-conversation-with-minh-cung-hyperlocalise)_ — một cuộc phỏng vấn với nhà sáng lập của chúng tôi, [Minh Cung](https://www.linkedin.com/in/minhcung/).
+Chúng tôi rất vui mừng chia sẻ rằng Hyperlocalise đã được [Startmate](https://startmate.com/) giới thiệu trong bài viết _[Nói ngôn ngữ của mọi người: Trò chuyện với Minh Cung, Hyperlocalise](https://startmate.com/writing/speaking-everyones-language-in-conversation-with-minh-cung-hyperlocalise)_ — cuộc phỏng vấn với nhà sáng lập của chúng tôi, [Minh Cung](https://www.linkedin.com/in/minhcung/).
 
-Bài viết do Taylor Jackson chấp bút nêu bật vấn đề mà chúng ta chứng kiến hằng ngày: các công ty mở rộng sang những thị trường mới, và thông điệp của họ không còn tạo được sức hút. Một câu chữ hiệu quả ở Úc có thể hoàn toàn không phù hợp ở châu Á. Bản dịch phớt lờ yếu tố văn hóa không chỉ nghe thiếu tự nhiên — mà còn có thể làm thay đổi ý nghĩa theo những cách mà các đội ngũ chưa bao giờ chủ ý.
+Bài viết của Taylor Jackson nêu bật vấn đề mà chúng ta chứng kiến mỗi ngày: các công ty mở rộng sang thị trường mới, và thông điệp của họ không còn chạm đến người nghe. Một cụm từ hiệu quả ở Úc có thể hoàn toàn không phù hợp ở châu Á. Bản dịch bỏ qua yếu tố văn hóa không chỉ nghe thiếu tự nhiên — mà còn có thể làm thay đổi ý nghĩa theo những cách mà các nhóm chưa bao giờ chủ đích.
 
-## Khoảng trống mà Startmate nêu bật
+## Khoảng cách mà Startmate đã nêu bật
 
-Cuộc phỏng vấn của Startmate tập trung vào một vấn đề mà các đội ngũ bản địa hóa đều hiểu rõ. Tuyển dụng nhân sự tại địa phương ở mọi thị trường vừa tốn kém vừa chậm chạp. Giao công việc cho các đội ngũ vốn đã quá tải và phải xử lý hàng loạt bảng tính cũng chẳng khá hơn là bao.
+Buổi phỏng vấn của Startmate tập trung vào một vấn đề mà các nhóm bản địa hóa đều rất quen thuộc. Tuyển dụng nhân sự tại địa phương ở từng thị trường vừa tốn kém vừa mất thời gian. Giao công việc này cho các nhóm vốn đã quá tải và đang ngập trong bảng tính cũng chẳng khá hơn là bao.
 
-Như Minh đã nói trong cuộc trò chuyện: các nhóm bản địa hóa thường không có đủ năng lực để phát triển. Họ đang sống trong Excel. Hyperlocalise ra đời để giải phóng năng lực đó — để mọi người có thể dành ít thời gian hơn cho những công việc máy móc và nhiều thời gian hơn cho việc đánh giá sáng tạo, mang tính văn hóa.
+Như Minh đã nói trong cuộc trò chuyện: các nhóm bản địa hóa thường không có đủ nguồn lực để phát triển. Họ đang làm việc trên Excel. Hyperlocalise ra đời để giải phóng nguồn lực đó — giúp mọi người dành ít thời gian hơn cho công việc máy móc và nhiều thời gian hơn cho việc đưa ra những đánh giá sáng tạo, phù hợp với văn hóa.
 
-Đó là cốt lõi của những gì chúng tôi đang xây dựng. Các tác nhân AI của chúng tôi tiếp nhận nội dung tiếp thị, sản phẩm và kinh doanh bằng một ngôn ngữ, rồi chuyển thể sang ngôn ngữ khác תוך khi vẫn duy trì sắc thái văn hóa, tính nhất quán của thương hiệu và các ràng buộc của những công cụ mà các nhóm đang sử dụng — bao gồm Canva, PDF và Photoshop.
+Đó chính là cốt lõi của những gì chúng tôi đang xây dựng. Các tác nhân AI của chúng tôi chuyển thể nội dung tiếp thị, sản phẩm và kinh doanh từ ngôn ngữ này sang ngôn ngữ khác, đồng thời giữ nguyên sắc thái văn hóa, tính nhất quán của thương hiệu và các giới hạn của những công cụ mà các nhóm hiện đang sử dụng — bao gồm Canva, PDF và Photoshop.
 
-## Vì sao câu chuyện gây đồng cảm
+## Vì sao câu chuyện gây được tiếng vang
 
-Cuộc phỏng vấn cũng đề cập đến một khía cạnh cá nhân. Trải nghiệm của chính Minh khi thích nghi với ngôn ngữ và văn hóa ở Úc đã định hình cách anh nhìn nhận vấn đề này. Ý nghĩa không thể truyền tải trọn vẹn qua biên giới. Những công cụ giúp các nhóm duy trì trọn vẹn ý nghĩa đó vẫn chưa thực sự hoàn thiện.
+Cuộc phỏng vấn cũng đề cập đến một khía cạnh cá nhân. Chính trải nghiệm của Minh khi thích nghi với ngôn ngữ và văn hóa ở Australia đã định hình cách anh nhìn nhận vấn đề. Ý nghĩa không thể được truyền tải trọn vẹn qua biên giới. Những công cụ giúp các nhóm giữ nguyên ý nghĩa ấy vẫn chưa thật sự hoàn thiện.
 
-Minh đã tham gia chương trình [Launch Club](https://startmate.com/) của Startmate, chương trình đã mang lại cơ cấu, nhịp độ và sự sẵn sàng trước nhà đầu tư ngay từ đầu trong quá trình ý tưởng đó hình thành. Bài viết cũng cho biết chúng tôi đang ở đâu hiện nay: triển khai các chương trình thí điểm, xây dựng mối quan tâm trong danh sách chờ trên khắp Hoa Kỳ, Israel và châu Âu, đồng thời hướng tới tầm nhìn dài hạn hơn về thông tin kinh doanh phục vụ toàn cầu hóa — giúp các công ty hiểu về ngôn ngữ cùng với bối cảnh pháp lý, văn hóa và thị trường của mọi thị trường mới mà họ gia nhập.
+Minh đã tham gia chương trình [Launch Club của Startmate](https://startmate.com/), chương trình này giúp định hình cấu trúc, nhịp độ ban đầu và sự sẵn sàng tiếp cận nhà đầu tư trong khi ý tưởng đó thành hình. Bài viết cũng đề cập đến tình hình hiện tại của chúng tôi: đang triển khai các chương trình thí điểm, thu hút sự quan tâm đăng ký vào danh sách chờ tại Mỹ, Israel và châu Âu, đồng thời hướng tới tầm nhìn dài hạn hơn về thông tin kinh doanh toàn cầu hóa — giúp các công ty hiểu ngôn ngữ cùng bối cảnh pháp lý, văn hóa và thị trường tại mỗi thị trường mới mà họ thâm nhập.
 
-Một ví dụ trong cuộc phỏng vấn vẫn luôn khiến chúng tôi ấn tượng: học sinh dịch bài tập về nhà để cha mẹ là người di cư có thể giúp các em học tập. Phá bỏ rào cản ngôn ngữ và văn hóa không chỉ là vấn đề của doanh nghiệp. Đó là vấn đề về cơ hội bình đẳng.
+Một ví dụ trong buổi phỏng vấn vẫn luôn đọng lại trong chúng tôi: học sinh dịch bài tập về nhà để cha mẹ nhập cư có thể giúp các em học. Phá bỏ rào cản ngôn ngữ và văn hóa không chỉ là vấn đề của doanh nghiệp. Đó còn là vấn đề về cơ hội bình đẳng.
 
 ## Đọc toàn bộ cuộc trò chuyện
 
-Bạn có thể đọc toàn bộ bài phỏng vấn Startmate tại đây:
+Bạn có thể đọc toàn bộ bài phỏng vấn của Startmate tại đây:
 
 [Nói ngôn ngữ của mọi người: Trò chuyện với Minh Cung, Hyperlocalise](https://startmate.com/writing/speaking-everyones-language-in-conversation-with-minh-cung-hyperlocalise)
 
-Cảm ơn [Startmate](https://startmate.com/) và Taylor Jackson vì cuộc trò chuyện, cũng như tất cả mọi người đang ủng hộ Hyperlocalise khi chúng tôi xây dựng hoạt động bản địa hoá hiểu được văn hoá, chứ không chỉ ngôn từ.
+Xin cảm ơn [Startmate](https://startmate.com/) và Taylor Jackson vì cuộc trò chuyện, cũng như tất cả mọi người đã ủng hộ Hyperlocalise khi chúng tôi xây dựng giải pháp bản địa hóa thấu hiểu văn hóa, chứ không chỉ là từ ngữ.
 
-Nếu bạn đang tìm hiểu cách điều chỉnh nội dung sản phẩm và thương hiệu cho các thị trường toàn cầu mà không làm mất đi ý nghĩa, [hãy tham gia danh sách chờ](/) hoặc [đọc thêm về trí tuệ dịch thuật](/blog/what-is-translation-intelligence).
+Nếu bạn đang tìm hiểu cách điều chỉnh nội dung sản phẩm và thương hiệu cho các thị trường toàn cầu mà không làm mất đi ý nghĩa, [hãy đăng ký vào danh sách chờ](/) hoặc [đọc thêm về công nghệ dịch thuật thông minh](/blog/what-is-translation-intelligence).

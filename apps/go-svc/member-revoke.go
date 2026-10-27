@@ -56,23 +56,44 @@ func (api *memberAPI) revokeOrganizationMembershipAccess(ctx context.Context, ac
 		member.localUserID, actor.organizationID); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(ctx, `
+        update figma_oauth_tokens
+        set revoked_at=now(), updated_at=now()
+        where user_id=$1 and organization_id=$2 and revoked_at is null`,
+		member.localUserID, actor.organizationID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+        update canva_oauth_tokens
+        set revoked_at=now(), updated_at=now()
+        where user_id=$1 and organization_id=$2 and revoked_at is null`,
+		member.localUserID, actor.organizationID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+        update sanity_plugin_oauth_tokens
+        set revoked_at=now(), updated_at=now()
+        where user_id=$1 and organization_id=$2 and revoked_at is null`,
+		member.localUserID, actor.organizationID); err != nil {
+		return err
+	}
 
 	rows, err := tx.Query(ctx, `
         update organization_api_keys
         set revoked_at=now()
         where organization_id=$1 and created_by_user_id=$2 and revoked_at is null
-        returning id, key_prefix`,
+        returning id, key_prefix, name`,
 		actor.organizationID, member.localUserID)
 	if err != nil {
 		return err
 	}
 	type revokedKey struct {
-		id, keyPrefix string
+		id, keyPrefix, name string
 	}
 	var revoked []revokedKey
 	for rows.Next() {
 		var key revokedKey
-		if err := rows.Scan(&key.id, &key.keyPrefix); err != nil {
+		if err := rows.Scan(&key.id, &key.keyPrefix, &key.name); err != nil {
 			rows.Close()
 			return err
 		}
@@ -96,10 +117,11 @@ func (api *memberAPI) revokeOrganizationMembershipAccess(ctx context.Context, ac
 			reason:         patRevokeReasonMembershipRemoved,
 		})
 		logPatAuditFailure(ctx, patRevokedAuditAction, actor.organizationID, key.id, err)
-		api.enqueueMemberActivity(ctx, actor, "personal_access_token_revoked", "personal_access_token", key.id, map[string]any{
+		api.enqueueMemberActivity(ctx, actor, "organization_api_key_revoked", "organization_api_key", key.id, map[string]any{
+			"apiKeyId":  key.id,
 			"keyPrefix": key.keyPrefix,
+			"name":      key.name,
 			"reason":    patRevokeReasonMembershipRemoved,
-			"tokenId":   key.id,
 		})
 	}
 	return nil

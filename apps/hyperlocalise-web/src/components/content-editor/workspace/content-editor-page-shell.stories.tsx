@@ -213,6 +213,7 @@ export const IntercomPushInHeader: Story = {
         organizationSlug="story"
         projectId="story"
         canManageAutomations
+        sourcePath="intercom/customer-support/reset-your-password.md"
       />
     ),
   },

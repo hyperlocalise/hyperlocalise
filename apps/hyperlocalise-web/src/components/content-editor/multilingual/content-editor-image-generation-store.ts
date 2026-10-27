@@ -12,6 +12,8 @@
  */
 import { makeAutoObservable, observable, runInAction } from "mobx";
 
+import { isAiCreditExhaustedError } from "@/lib/billing/ai-credit-refusal";
+
 export type ContentEditorImageGenerationStatus = "running" | "failed";
 
 export type ContentEditorImageGenerationWork = (signal: AbortSignal) => Promise<void>;
@@ -26,6 +28,8 @@ function contentEditorImageGenerationKey(segmentId: string, locale: string) {
  */
 export class ContentEditorImageGeneration {
   status: ContentEditorImageGenerationStatus = "running";
+  /** The attempt was refused because the workspace's AI credit is used up. */
+  aiCreditExhausted = false;
   readonly startedAt = Date.now();
   readonly #abort = new AbortController();
 
@@ -48,8 +52,9 @@ export class ContentEditorImageGeneration {
     return this.status === "running";
   }
 
-  fail() {
+  fail(error?: unknown) {
     this.status = "failed";
+    this.aiCreditExhausted = isAiCreditExhaustedError(error);
   }
 
   cancel() {
@@ -95,11 +100,13 @@ export class ContentEditorImageGenerationStore {
     this.#generations.set(key, generation);
 
     let succeeded: boolean;
+    let failure: unknown;
     try {
       await work(generation.signal);
       succeeded = true;
-    } catch {
+    } catch (error) {
       succeeded = false;
+      failure = error;
     }
 
     runInAction(() => {
@@ -109,7 +116,7 @@ export class ContentEditorImageGenerationStore {
       if (succeeded) {
         this.#generations.delete(key);
       } else {
-        generation.fail();
+        generation.fail(failure);
       }
     });
   }
@@ -120,5 +127,14 @@ export class ContentEditorImageGenerationStore {
       generation.cancel();
     }
     this.#generations.clear();
+  }
+
+  /** Aborts rather than orphans attempts, so returning to the file cannot start a second one. */
+  resetForFileScope() {
+    this.cancelAll();
+  }
+
+  dispose() {
+    this.cancelAll();
   }
 }

@@ -224,6 +224,23 @@ export type MemoryRecord = {
   updatedAt: string;
 } & GoSvcRecord;
 
+export type MemoryEntryListQuery = GoSvcPageQuery & {
+  cursor?: string;
+  search?: string;
+  sourceLocale?: string;
+  targetLocale?: string;
+  reviewStatus?: "approved" | "pending" | "rejected";
+  sameAsSource?: "true";
+  origin?: string;
+  provider?: string;
+  createdByUserId?: string;
+  modifiedFrom?: string;
+  modifiedTo?: string;
+  importBatchId?: string;
+  sort?: "created_at" | "updated_at";
+  sortDir?: "asc" | "desc";
+};
+
 export type MemoryEntry = {
   id: string;
   memoryId: string;
@@ -236,11 +253,68 @@ export type MemoryEntry = {
   reviewStatus: string;
   version: number;
   externalKey: string | null;
+  createdByUserId?: string | null;
+  modifiedByUserId?: string | null;
+  reviewedByUserId?: string | null;
+  importBatchId?: string | null;
   metadata: GoSvcRecord;
   createdAt: string;
   updatedAt: string;
   reviewedAt: string | null;
 } & GoSvcRecord;
+
+export type MemoryEntryActor = {
+  userId: string | null;
+  displayName: string | null;
+  at: string | null;
+  source: "created" | "modified" | "reviewed" | "imported" | "provider";
+};
+
+export type MemoryEntryDetail = {
+  memoryEntry: MemoryEntry;
+  provenance: {
+    origin: string;
+    provider: string | null;
+    importBatchId: string | null;
+    context: string | null;
+    created: MemoryEntryActor;
+    modified: MemoryEntryActor;
+    reviewed: MemoryEntryActor;
+    imported: MemoryEntryActor;
+    providerSupplied: MemoryEntryActor;
+  };
+  variants: Array<{
+    id: string;
+    sourceLocale: string;
+    targetLocale: string;
+    sourceText: string;
+    targetText: string;
+    context: string | null;
+    reviewStatus: string;
+  }>;
+  auditEvents: Array<{
+    id: string;
+    eventType: "created" | "updated" | "reviewed" | "imported" | "synced";
+    actorKind: "user" | "import" | "provider" | "system";
+    actorUserId: string | null;
+    actorDisplayName: string | null;
+    version: number;
+    changedFields: string[];
+    attributes: GoSvcRecord;
+    occurredAt: string;
+  }>;
+  capabilities: {
+    canEdit: boolean;
+    readOnlyReason: "external_tms" | "reference_only" | null;
+  };
+};
+
+export type MemoryEntryPage = {
+  memoryEntries: MemoryEntry[];
+  total: number;
+  nextCursor: string | null;
+  pagination: { limit: number; returned: number; hasMore: boolean };
+};
 
 export type MemoryProject = {
   projectId: string;
@@ -434,6 +508,91 @@ export type CreateApiKeyBody = {
   permissions?: ApiKeyPermission[];
 };
 
+export type GoSvcIssueSheetColumn = {
+  id: string;
+  key: string;
+  label: string;
+  layer: string;
+  type: string;
+  config: { options?: { id: string; label: string; color?: string }[] };
+  sortOrder: number;
+  hidden: boolean;
+  icon: string | null;
+};
+
+export type GoSvcIssueSheetIssue = {
+  id: string;
+  identifier: string;
+  number?: number;
+  projectId?: string;
+  projectName?: string;
+  title: string;
+  description: string;
+  issueType: string;
+  status: string;
+  targetLocale: string | null;
+  sourcePath: string | null;
+  segmentId: string | null;
+  translationKeyId: string | null;
+  linkedCommentId: string | null;
+  linkedAgentRunId: string | null;
+  linkKind: string | null;
+  linkLabel: string | null;
+  linkUrl: string | null;
+  templateKey: string | null;
+  assigneeUserId: string | null;
+  reporter: string | null;
+  assignee: string | null;
+  key: string | null;
+  sourceText: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+  values: Record<string, unknown>;
+  isWatching: boolean;
+  priority?: string | null;
+};
+
+export type GoSvcOrganizationIssue = GoSvcIssueSheetIssue & {
+  projectId: string;
+  projectName: string;
+};
+
+export type GoSvcIssueListSummary = {
+  total: number;
+  open: number;
+  inProgress: number;
+  resolved: number;
+  wontFix: number;
+};
+
+export type GoSvcIssueSearchResult = {
+  issueId: string;
+  projectId: string;
+  title: string;
+  status: string;
+};
+
+export type GoSvcAssignableIssueMember = {
+  userId: string;
+  workosUserId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  displayName: string;
+  avatarUrl: string | null;
+  isCurrentUser: boolean;
+};
+
+export type GoSvcIssueSheetTemplateConfig = {
+  defaultTemplateKey: string | null;
+  assigneeByTemplate: {
+    templateKey: string;
+    userId: string;
+    assignable: boolean;
+  }[];
+};
+
 export type IssueSheetListQuery = GoSvcPageQuery & {
   view?: "my_work" | "qa_triage" | "source_context" | "all_open";
   status?: "open" | "in_progress" | "resolved" | "wont_fix" | "all";
@@ -453,6 +612,47 @@ export type IssueSheetListQuery = GoSvcPageQuery & {
   search?: string;
   sort?: "updated_at" | "created_at" | "priority" | "status";
   sortDir?: "asc" | "desc";
+};
+
+export type OrganizationIssuesListQuery = IssueSheetListQuery & {
+  projectId?: string;
+};
+
+export type OrganizationIssueSearchQuery = {
+  q?: string;
+  excludeIssueId?: string;
+  limit?: number;
+};
+
+export type IssueBulkActionTarget = {
+  issueId: string;
+  projectId: string;
+};
+
+export type IssueBulkActionBody =
+  | { action: "assign"; assigneeUserId: string; issues: IssueBulkActionTarget[] }
+  | { action: "unassign"; issues: IssueBulkActionTarget[] }
+  | { action: "set_status"; status: string; issues: IssueBulkActionTarget[] }
+  | { action: "set_priority"; priority: string; issues: IssueBulkActionTarget[] }
+  | { action: "set_issue_type"; issueType: string; issues: IssueBulkActionTarget[] };
+
+export type IssueBulkActionResult = {
+  issueId: string;
+  projectId: string;
+  outcome: "updated" | "unchanged" | "failed";
+  issue?: GoSvcRecord;
+  error?: { code: string; message: string };
+};
+
+export type IssueBulkActionResponse = {
+  bulkAction: {
+    action: string;
+    requested: number;
+    succeeded: number;
+    failed: number;
+    unchanged: number;
+    results: IssueBulkActionResult[];
+  };
 };
 
 export type ActivityLogQuery = {
@@ -477,6 +677,8 @@ export type ValidateSegmentBody = {
   targetText: string;
   sourcePath: string;
   maxLength?: number;
+  /** auto | icu | i18next; omitted means auto. */
+  messageFormat?: string;
   modes?: readonly string[];
   targetLocale?: string;
   acceptedWords?: readonly string[];

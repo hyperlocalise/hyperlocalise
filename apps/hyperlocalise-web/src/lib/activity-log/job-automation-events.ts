@@ -114,6 +114,38 @@ type AutomationActivityInput = ActivityActor & {
   organizationId: string;
 };
 
+export async function enqueueAutomationCreatedActivity(
+  input: AutomationActivityInput & { status: "active" | "archived" | "paused" },
+) {
+  return enqueueActivityLogEvent({
+    ...activityActor(input),
+    eventType: "automation_created",
+    organizationId: input.organizationId,
+    payload: {
+      automationId: input.automationId,
+      name: input.name,
+      status: input.status,
+    },
+    targetId: input.automationId,
+    targetKind: "automation",
+  });
+}
+
+export async function enqueueAutomationDeletedActivity(input: AutomationActivityInput) {
+  return enqueueActivityLogEvent({
+    ...activityActor(input),
+    eventType: "automation_deleted",
+    organizationId: input.organizationId,
+    payload: {
+      automationId: input.automationId,
+      name: input.name,
+      status: "archived",
+    },
+    targetId: input.automationId,
+    targetKind: "automation",
+  });
+}
+
 export async function enqueueAutomationRunStartedActivity(
   input: AutomationActivityInput & { runId: string; triggerSource: string },
 ) {

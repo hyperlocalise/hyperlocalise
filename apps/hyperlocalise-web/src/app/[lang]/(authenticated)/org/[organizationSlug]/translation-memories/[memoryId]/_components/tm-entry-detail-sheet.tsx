@@ -43,8 +43,9 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
-import { ApiResponseError, readApiResponseError } from "@/lib/api-error";
-import { apiClient } from "@/lib/api-client-instance";
+import { ApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { formatLocaleOptionLabel } from "@/lib/i18n/locale-display-names.messages";
 
 import { tmEntryDetailMessages as messages } from "./tm-entry-detail.messages";
@@ -56,6 +57,7 @@ import {
 import { TmEntryLocaleField } from "./tm-entry-locale-field";
 import { buildTmEntryLocaleOptions } from "./tm-entry-list-state";
 import { TM_ENTRY_SEARCH_QUERY_KEY } from "./tm-entry-search";
+import { tmEntryReviewSummaryQueryKey } from "./tm-entry-review";
 
 type EntryForm = {
   sourceLocale: string;
@@ -168,6 +170,7 @@ export function TmEntryDetailSheet({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const [isEditing, setIsEditing] = useState(startInEditMode);
   const [staleConflict, setStaleConflict] = useState(false);
   const [form, setForm] = useState<EntryForm | null>(null);
@@ -177,6 +180,7 @@ export function TmEntryDetailSheet({
     enabled: Boolean(open && entryId),
     queryFn: ({ signal }) =>
       fetchTmEntryDetail({
+        client: goSvcClient,
         organizationSlug,
         memoryId,
         entryId: entryId ?? "",
@@ -226,11 +230,8 @@ export function TmEntryDetailSheet({
         ...detail.memoryEntry.metadata,
         ...(values.context.trim() ? { context: values.context.trim() } : { context: undefined }),
       };
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ].entries[":entryId"].$patch({
-        param: { organizationSlug, memoryId, entryId },
-        json: {
+      try {
+        return (await goSvcClient.memory.entries.update(organizationSlug, memoryId, entryId, {
           expectedVersion: detail.memoryEntry.version,
           sourceLocale: values.sourceLocale.trim(),
           targetLocale: values.targetLocale.trim(),
@@ -240,20 +241,28 @@ export function TmEntryDetailSheet({
           metadata: Object.fromEntries(
             Object.entries(nextMetadata).filter(([, value]) => value !== undefined),
           ),
-        },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
+        })) as MemoryEntryDetailResponse;
+      } catch (error) {
+        if (isStaleMemoryEntryError(error)) {
+          throw error;
+        }
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.saveFailed)), {
+          cause: error,
+        });
       }
-      return (await response.json()) as MemoryEntryDetailResponse;
     },
     onSuccess: async (body) => {
       if (entryId) {
         queryClient.setQueryData(tmEntryDetailQueryKey(organizationSlug, memoryId, entryId), body);
       }
-      await queryClient.invalidateQueries({
-        queryKey: [TM_ENTRY_SEARCH_QUERY_KEY, organizationSlug, memoryId],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [TM_ENTRY_SEARCH_QUERY_KEY, organizationSlug, memoryId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: tmEntryReviewSummaryQueryKey(organizationSlug, memoryId),
+        }),
+      ]);
       setIsEditing(false);
       setStaleConflict(false);
       toast.success(intl.formatMessage(messages.saved));

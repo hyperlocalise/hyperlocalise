@@ -18,8 +18,9 @@ import { ContentEditorImageWorkspace } from "./content-editor-image-workspace";
 
 import type { MarkdownSelectionAiConfig } from "@/components/markdown-editor/markdown-selection-ai.types";
 import type { DocumentAssistantServices } from "@/components/document-editor/document-editor-assistant.types";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { observer } from "mobx-react-lite";
 import {
   PaintBrushIcon,
   ArrowLeftIcon,
@@ -69,12 +70,14 @@ import { Row } from "@/components/ui/layout/row";
 import { Spinner } from "@/components/ui/spinner";
 import { Title } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
+import { useAiCreditRefusalToast } from "@/components/billing/use-ai-credit-refusal-toast";
+
+import { ContentEditorPanelErrorBoundary } from "@/components/content-editor/workspace/content-editor-panel-error-boundary";
+import { ContentEditorSectionErrorBoundary } from "@/components/content-editor/workspace/content-editor-section-error-boundary";
+import { useOptionalCatWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
+import { ContentEditorWorkspaceUiStore } from "@/components/content-editor/workspace/store/content-editor-workspace-ui-store";
 
 import { contentEditorFileViewMessages } from "./content-editor-file-view.messages";
-import {
-  readCatFileViewSourcePaneVisible,
-  writeCatFileViewSourcePaneVisible,
-} from "./content-editor-file-view-source-pane";
 import { ContentEditorFileGenerateDialog } from "./content-editor-file-generate-dialog";
 import {
   FileViewHeader,
@@ -97,7 +100,15 @@ import {
   CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT,
   ContentEditorDocumentEditorPane,
 } from "./content-editor-document-editor-pane";
+import {
+  CONTENT_EDITOR_HTML_FILE_UPLOAD_ACCEPT,
+  ContentEditorHtmlEditorPane,
+} from "./content-editor-html-editor-pane";
 import { contentEditorOfficeUploadAccept } from "./content-editor-office-mime";
+import {
+  ContentEditorOfficeSegmentFieldsPane,
+  type ContentEditorOfficeSegmentFieldsConfig,
+} from "./content-editor-office-segment-fields-pane";
 import type { ContentEditorOfficeKind } from "./content-editor-office-convert";
 
 const ContentEditorOfficeFileViewerPane = dynamic(
@@ -115,13 +126,42 @@ const ContentEditorOfficeFileViewerPane = dynamic(
   },
 );
 
+const ContentEditorPdfFileViewerPane = dynamic(
+  () =>
+    import("./content-editor-pdf-file-viewer").then((module) => ({
+      default: module.ContentEditorPdfFileViewerPane,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-56 items-center justify-center border border-dashed border-border">
+        <Spinner className="size-5 text-muted-foreground" />
+      </div>
+    ),
+  },
+);
+
 function isOfficeViewerId(
   viewerId: ContentEditorFileViewerId | null,
 ): viewerId is ContentEditorOfficeKind {
   return viewerId === "docx" || viewerId === "xlsx" || viewerId === "pptx";
 }
 
-export function ContentEditorFileViewPanel({
+/** Generated Office downloads are rebuilt on request, so a new query forces a fresh copy. */
+function withPreviewRevision(src: string | null, revision: number) {
+  if (!src || revision === 0) {
+    return src;
+  }
+  return `${src}${src.includes("?") ? "&" : "?"}revision=${revision}`;
+}
+
+function useFileViewUiStore() {
+  const workspace = useOptionalCatWorkspace();
+  const [localStore] = useState(() => new ContentEditorWorkspaceUiStore());
+  return workspace?.ui ?? localStore;
+}
+
+export const ContentEditorFileViewPanel = observer(function ContentEditorFileViewPanel({
   segment,
   viewerId,
   filename,
@@ -145,6 +185,7 @@ export function ContentEditorFileViewPanel({
   adaptiveWorkspaceEnabled = false,
   isDesignerPersona = false,
   intelligence,
+  officeSegments,
 }: {
   segment: ContentEditorSegment;
   viewerId: ContentEditorFileViewerId | null;
@@ -169,23 +210,33 @@ export function ContentEditorFileViewPanel({
   adaptiveWorkspaceEnabled?: boolean;
   isDesignerPersona?: boolean;
   intelligence?: ContentEditorSegmentIntelligence;
+  /** Edits a generated Office file through its segments instead of the file itself. */
+  officeSegments?: ContentEditorOfficeSegmentFieldsConfig;
 }) {
   const intl = useIntl();
+  const notifyAiCreditRefusal = useAiCreditRefusalToast();
+  const [previewRevision, setPreviewRevision] = useState(0);
   const uploadInputRef = useRef<HTMLInputElement>(null);
-  const [imageLayersDirty, setImageLayersDirty] = useState(false);
-  const [videoDirty, setVideoDirty] = useState(false);
-  const [documentReviewBlocked, setDocumentReviewBlocked] = useState(true);
-  const [saveActionsContainer, setSaveActionsContainer] = useState<HTMLDivElement | null>(null);
-  const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
-  const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
-  const [sourcePaneVisible, setSourcePaneVisible] = useState(() =>
-    readCatFileViewSourcePaneVisible(viewerId !== "markdown"),
+  const ui = useFileViewUiStore();
+  ui.applyFileViewViewer(viewerId);
+  const setImageLayersDirty = useCallback(
+    (dirty: boolean) => ui.setFileViewImageLayersDirty(dirty),
+    [ui],
   );
-  const [sourcePaneViewerId, setSourcePaneViewerId] = useState(viewerId);
-  if (sourcePaneViewerId !== viewerId) {
-    setSourcePaneViewerId(viewerId);
-    setSourcePaneVisible(readCatFileViewSourcePaneVisible(viewerId !== "markdown"));
-  }
+  const setVideoDirty = useCallback((dirty: boolean) => ui.setFileViewVideoDirty(dirty), [ui]);
+  const setDocumentReviewBlocked = useCallback(
+    (blocked: boolean) => ui.setFileViewDocumentReviewBlocked(blocked),
+    [ui],
+  );
+  const imageLayersDirty = ui.fileViewImageLayersDirty;
+  const videoDirty = ui.fileViewVideoDirty;
+  const documentReviewBlocked = ui.fileViewDocumentReviewBlocked;
+  const [saveActionsContainer, setSaveActionsContainer] = useState<HTMLDivElement | null>(null);
+  const generateDialogOpen = ui.fileViewGenerateDialogOpen;
+  const aiDrawerOpen = ui.fileViewAiDrawerOpen;
+  const isDocumentViewer = viewerId === "markdown" || viewerId === "html";
+  const isPdfViewer = viewerId === "pdf";
+  const sourcePaneVisible = ui.fileViewSourcePaneVisible;
   const agentBadges = [
     intelligence?.locationBreadcrumb,
     intelligence?.componentName,
@@ -201,9 +252,9 @@ export function ContentEditorFileViewPanel({
 
   useEffect(() => {
     if (!hasAiContext && aiDrawerOpen) {
-      setAiDrawerOpen(false);
+      ui.setFileViewAiDrawerOpen(false);
     }
-  }, [hasAiContext, aiDrawerOpen]);
+  }, [hasAiContext, aiDrawerOpen, ui]);
 
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(contentEditorFileViewMessages.approve);
@@ -216,7 +267,9 @@ export function ContentEditorFileViewPanel({
         ? CAT_VIDEO_FILE_UPLOAD_ACCEPT
         : viewerId === "markdown"
           ? CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT
-          : contentEditorOfficeUploadAccept(viewerId);
+          : viewerId === "html"
+            ? CONTENT_EDITOR_HTML_FILE_UPLOAD_ACCEPT
+            : contentEditorOfficeUploadAccept(viewerId);
   const displayName = segment.sourcePath || filename || segment.key;
   const assetFormatLabel = viewerId
     ? viewerId.toUpperCase()
@@ -225,12 +278,13 @@ export function ContentEditorFileViewPanel({
       : "ASSET";
   const officeKind = isOfficeViewerId(viewerId) ? viewerId : null;
   const isMediaViewer = viewerId === "image" || viewerId === "video";
-  const isDocumentViewer = viewerId === "markdown";
 
   const sourceSrc =
-    isMediaViewer || officeKind || isDocumentViewer ? (segment.sourceAssetUrl ?? null) : null;
+    isMediaViewer || officeKind || isDocumentViewer || isPdfViewer
+      ? (segment.sourceAssetUrl ?? null)
+      : null;
   const targetSrc =
-    isMediaViewer || officeKind || isDocumentViewer
+    isMediaViewer || officeKind || isDocumentViewer || isPdfViewer
       ? (segment.targetAssetUrl ??
         (/^https?:\/\//i.test(segment.targetText) ? segment.targetText : null))
       : null;
@@ -243,18 +297,15 @@ export function ContentEditorFileViewPanel({
 
     try {
       await onRegenerate({ instructions: instructions || undefined });
-      setGenerateDialogOpen(false);
-    } catch {
+      ui.setFileViewGenerateDialogOpen(false);
+    } catch (error) {
       // Keep the dialog open so the user can retry after a failed generation.
+      notifyAiCreditRefusal(error);
     }
   }
 
   function toggleSourcePane() {
-    setSourcePaneVisible((current) => {
-      const next = !current;
-      writeCatFileViewSourcePaneVisible(next);
-      return next;
-    });
+    ui.toggleFileViewSourcePane();
   }
 
   const targetFileActions = (
@@ -316,6 +367,12 @@ export function ContentEditorFileViewPanel({
           src={sourceSrc}
           filename={displayName}
           canEdit={false}
+        />
+      ) : isPdfViewer ? (
+        <ContentEditorPdfFileViewerPane
+          role="source"
+          src={sourceSrc}
+          isLoading={isSegmentTargetLoading}
         />
       ) : (
         <FileViewUnsupportedPreview />
@@ -406,7 +463,7 @@ export function ContentEditorFileViewPanel({
                   type="button"
                   variant="outline"
                   size="xs"
-                  onClick={() => setAiDrawerOpen(true)}
+                  onClick={() => ui.setFileViewAiDrawerOpen(true)}
                   className={cn(
                     "gap-1",
                     aiDrawerOpen &&
@@ -451,7 +508,7 @@ export function ContentEditorFileViewPanel({
                       {onRegenerate ? (
                         <DropdownMenuItem
                           disabled={!canEdit || isImageBusy}
-                          onClick={() => setGenerateDialogOpen(true)}
+                          onClick={() => ui.setFileViewGenerateDialogOpen(true)}
                         >
                           <FormattedMessage
                             {...(hasTarget
@@ -516,109 +573,234 @@ export function ContentEditorFileViewPanel({
         </div>
       ) : null}
 
-      {viewerId === "image" ? (
-        <ContentEditorImageWorkspace
-          key={`${segment.id}:${sourceSrc}:${segment.targetLocale}`}
-          sourceSrc={sourceSrc}
-          targetSrc={targetSrc}
-          sourceLocale={segment.sourceLocale}
-          targetLocale={segment.targetLocale}
-          sourcePaneVisible={sourcePaneVisible}
-          canEdit={canEdit}
-          isBusy={isImageBusy}
-          isGenerating={isImageGenerating}
-          isLoading={isSegmentTargetLoading}
-          actions={hasTargetFileActions ? targetFileActions : null}
-          onDirtyChange={setImageLayersDirty}
-          onRegenerate={onRegenerate}
-        />
-      ) : viewerId === "video" ? (
-        <ContentEditorVideoWorkspace
-          key={`${segment.id}:${sourceSrc}:${segment.targetLocale}`}
-          sourceSrc={sourceSrc}
-          targetSrc={targetSrc}
-          sourceLocale={segment.sourceLocale}
-          targetLocale={segment.targetLocale}
-          sourcePaneVisible={sourcePaneVisible}
-          canEdit={canEdit}
-          isBusy={isImageBusy}
-          isLoading={isSegmentTargetLoading}
-          actions={hasTargetFileActions ? targetFileActions : null}
-          onDirtyChange={setVideoDirty}
-          onRegenerate={onRegenerate}
-        />
-      ) : isDocumentViewer ? (
-        <ContentEditorDocumentEditorPane
-          key={segment.id}
-          documentKey={`${segment.id}:${segment.targetLocale}`}
-          sourceSrc={sourceSrc}
-          targetSrc={targetSrc}
-          filename={displayName}
-          sourceLocale={segment.sourceLocale}
-          targetLocale={segment.targetLocale}
-          isLoading={isSegmentTargetLoading}
-          canEdit={canEdit}
-          splitView={sourcePaneVisible}
-          onSave={onUpload}
-          saveActionsContainer={saveActionsContainer}
-          onReviewBlockedChange={setDocumentReviewBlocked}
-          selectionAi={selectionAi}
-          assistant={documentAssistant}
-        />
-      ) : (
-        <FileViewWorkspace>
-          <FileViewWorkspaceContent
-            layout={sourcePaneVisible ? "split" : officeKind ? "wide" : "single"}
-          >
-            <div className="flex min-h-0 flex-1 flex-col">
-              <Columns
-                spacing="3u"
-                height="full"
-                alignY="stretch"
-                align={sourcePaneVisible || officeKind ? "start" : "center"}
-                collapseBelow="large"
-              >
-                {sourcePaneVisible ? (
-                  <Column width="1/2">
-                    <FileViewPaneColumn>{sourcePane}</FileViewPaneColumn>
-                  </Column>
-                ) : null}
-                <Column
-                  width={sourcePaneVisible ? "1/2" : officeKind ? "fluid" : "containedContent"}
+      <ContentEditorPanelErrorBoundary
+        scope="editor"
+        className="flex-1"
+        resetKeys={[segment.id, segment.targetLocale, viewerId]}
+      >
+        {viewerId === "image" ? (
+          <ContentEditorImageWorkspace
+            key={`${segment.id}:${sourceSrc}:${segment.targetLocale}`}
+            sourceSrc={sourceSrc}
+            targetSrc={targetSrc}
+            sourceLocale={segment.sourceLocale}
+            targetLocale={segment.targetLocale}
+            sourcePaneVisible={sourcePaneVisible}
+            canEdit={canEdit}
+            isBusy={isImageBusy}
+            isGenerating={isImageGenerating}
+            isLoading={isSegmentTargetLoading}
+            actions={hasTargetFileActions ? targetFileActions : null}
+            onDirtyChange={setImageLayersDirty}
+            onRegenerate={onRegenerate}
+          />
+        ) : viewerId === "video" ? (
+          <ContentEditorVideoWorkspace
+            key={`${segment.id}:${sourceSrc}:${segment.targetLocale}`}
+            sourceSrc={sourceSrc}
+            targetSrc={targetSrc}
+            sourceLocale={segment.sourceLocale}
+            targetLocale={segment.targetLocale}
+            sourcePaneVisible={sourcePaneVisible}
+            canEdit={canEdit}
+            isBusy={isImageBusy}
+            isLoading={isSegmentTargetLoading}
+            actions={hasTargetFileActions ? targetFileActions : null}
+            onDirtyChange={setVideoDirty}
+            onRegenerate={onRegenerate}
+          />
+        ) : viewerId === "html" ? (
+          <ContentEditorHtmlEditorPane
+            key={segment.id}
+            documentKey={`${segment.id}:${segment.targetLocale}`}
+            sourceSrc={sourceSrc}
+            targetSrc={targetSrc}
+            filename={displayName}
+            sourceLocale={segment.sourceLocale}
+            targetLocale={segment.targetLocale}
+            isLoading={isSegmentTargetLoading}
+            canEdit={canEdit}
+            splitView={sourcePaneVisible}
+            onSave={onUpload}
+            saveActionsContainer={saveActionsContainer}
+            onReviewBlockedChange={setDocumentReviewBlocked}
+          />
+        ) : isDocumentViewer ? (
+          <ContentEditorDocumentEditorPane
+            key={segment.id}
+            documentKey={`${segment.id}:${segment.targetLocale}`}
+            sourceSrc={sourceSrc}
+            targetSrc={targetSrc}
+            filename={displayName}
+            sourceLocale={segment.sourceLocale}
+            targetLocale={segment.targetLocale}
+            isLoading={isSegmentTargetLoading}
+            canEdit={canEdit}
+            splitView={sourcePaneVisible}
+            onSave={onUpload}
+            saveActionsContainer={saveActionsContainer}
+            onReviewBlockedChange={setDocumentReviewBlocked}
+            selectionAi={selectionAi}
+            assistant={documentAssistant}
+          />
+        ) : isPdfViewer && officeSegments ? (
+          <FileViewWorkspace>
+            <FileViewWorkspaceContent layout="split">
+              <div className="flex min-h-0 flex-1 flex-col">
+                <Columns
+                  spacing="3u"
+                  height="full"
+                  alignY="stretch"
+                  align="start"
+                  collapseBelow="large"
                 >
-                  <FileViewPaneColumn>
-                    <FileViewPane
-                      title={
-                        <FormattedMessage
-                          {...contentEditorFileViewMessages.targetHeading}
-                          values={{ locale: segment.targetLocale }}
-                        />
-                      }
-                    >
-                      {officeKind ? (
-                        <ContentEditorOfficeFileViewerPane
-                          kind={officeKind}
-                          role="target"
-                          src={targetSrc}
-                          seedSrc={sourceSrc}
-                          filename={displayName}
-                          isLoading={isSegmentTargetLoading}
-                          canEdit={canEdit}
-                          isBusy={isImageBusy}
-                          onSave={onUpload}
-                          saveActionsContainer={saveActionsContainer}
-                        />
+                  <Column width="1/2">
+                    <FileViewPaneColumn>
+                      <ContentEditorOfficeSegmentFieldsPane
+                        {...officeSegments}
+                        onSaveDrafts={async (segmentIds) => {
+                          await officeSegments.onSaveDrafts(segmentIds);
+                          setPreviewRevision((revision) => revision + 1);
+                        }}
+                      />
+                    </FileViewPaneColumn>
+                  </Column>
+                  <Column width="1/2">
+                    <FileViewPaneColumn>
+                      {sourcePaneVisible ? (
+                        sourcePane
                       ) : (
-                        <FileViewUnsupportedPreview />
+                        <FileViewPane
+                          title={
+                            <FormattedMessage
+                              {...contentEditorFileViewMessages.targetHeading}
+                              values={{ locale: segment.targetLocale }}
+                            />
+                          }
+                        >
+                          <ContentEditorPdfFileViewerPane
+                            key={previewRevision}
+                            role="target"
+                            src={withPreviewRevision(targetSrc, previewRevision)}
+                            seedSrc={sourceSrc}
+                            isLoading={isSegmentTargetLoading}
+                          />
+                        </FileViewPane>
                       )}
-                    </FileViewPane>
-                  </FileViewPaneColumn>
-                </Column>
-              </Columns>
-            </div>
-          </FileViewWorkspaceContent>
-        </FileViewWorkspace>
-      )}
+                    </FileViewPaneColumn>
+                  </Column>
+                </Columns>
+              </div>
+            </FileViewWorkspaceContent>
+          </FileViewWorkspace>
+        ) : officeKind && officeSegments ? (
+          <FileViewWorkspace>
+            <FileViewWorkspaceContent layout="split">
+              <div className="flex min-h-0 flex-1 flex-col">
+                <Columns
+                  spacing="3u"
+                  height="full"
+                  alignY="stretch"
+                  align="start"
+                  collapseBelow="large"
+                >
+                  <Column width="1/2">
+                    <FileViewPaneColumn>
+                      <ContentEditorOfficeSegmentFieldsPane
+                        {...officeSegments}
+                        onSaveDrafts={async (segmentIds) => {
+                          await officeSegments.onSaveDrafts(segmentIds);
+                          setPreviewRevision((revision) => revision + 1);
+                        }}
+                      />
+                    </FileViewPaneColumn>
+                  </Column>
+                  <Column width="1/2">
+                    <FileViewPaneColumn>
+                      {sourcePaneVisible ? (
+                        sourcePane
+                      ) : (
+                        <FileViewPane
+                          title={
+                            <FormattedMessage
+                              {...contentEditorFileViewMessages.targetHeading}
+                              values={{ locale: segment.targetLocale }}
+                            />
+                          }
+                        >
+                          <ContentEditorOfficeFileViewerPane
+                            key={previewRevision}
+                            kind={officeKind}
+                            role="target"
+                            src={withPreviewRevision(targetSrc, previewRevision)}
+                            seedSrc={sourceSrc}
+                            filename={displayName}
+                            isLoading={isSegmentTargetLoading}
+                            canEdit={false}
+                          />
+                        </FileViewPane>
+                      )}
+                    </FileViewPaneColumn>
+                  </Column>
+                </Columns>
+              </div>
+            </FileViewWorkspaceContent>
+          </FileViewWorkspace>
+        ) : (
+          <FileViewWorkspace>
+            <FileViewWorkspaceContent
+              layout={sourcePaneVisible ? "split" : officeKind ? "wide" : "single"}
+            >
+              <div className="flex min-h-0 flex-1 flex-col">
+                <Columns
+                  spacing="3u"
+                  height="full"
+                  alignY="stretch"
+                  align={sourcePaneVisible || officeKind ? "start" : "center"}
+                  collapseBelow="large"
+                >
+                  {sourcePaneVisible ? (
+                    <Column width="1/2">
+                      <FileViewPaneColumn>{sourcePane}</FileViewPaneColumn>
+                    </Column>
+                  ) : null}
+                  <Column
+                    width={sourcePaneVisible ? "1/2" : officeKind ? "fluid" : "containedContent"}
+                  >
+                    <FileViewPaneColumn>
+                      <FileViewPane
+                        title={
+                          <FormattedMessage
+                            {...contentEditorFileViewMessages.targetHeading}
+                            values={{ locale: segment.targetLocale }}
+                          />
+                        }
+                      >
+                        {officeKind ? (
+                          <ContentEditorOfficeFileViewerPane
+                            kind={officeKind}
+                            role="target"
+                            src={targetSrc}
+                            seedSrc={sourceSrc}
+                            filename={displayName}
+                            isLoading={isSegmentTargetLoading}
+                            canEdit={canEdit}
+                            isBusy={isImageBusy}
+                            onSave={onUpload}
+                            saveActionsContainer={saveActionsContainer}
+                          />
+                        ) : (
+                          <FileViewUnsupportedPreview />
+                        )}
+                      </FileViewPane>
+                    </FileViewPaneColumn>
+                  </Column>
+                </Columns>
+              </div>
+            </FileViewWorkspaceContent>
+          </FileViewWorkspace>
+        )}
+      </ContentEditorPanelErrorBoundary>
       {!isMediaViewer && onUpload && uploadAccept ? (
         <input
           ref={uploadInputRef}
@@ -637,7 +819,7 @@ export function ContentEditorFileViewPanel({
       {onRegenerate && !isMediaViewer ? (
         <ContentEditorFileGenerateDialog
           open={generateDialogOpen}
-          onOpenChange={setGenerateDialogOpen}
+          onOpenChange={(open) => ui.setFileViewGenerateDialogOpen(open)}
           mode={generateMode}
           viewerId={viewerId}
           isSubmitting={isImageBusy}
@@ -645,7 +827,7 @@ export function ContentEditorFileViewPanel({
         />
       ) : null}
       {adaptiveWorkspaceEnabled && hasAiContext ? (
-        <Sheet open={aiDrawerOpen} onOpenChange={setAiDrawerOpen}>
+        <Sheet open={aiDrawerOpen} onOpenChange={(open) => ui.setFileViewAiDrawerOpen(open)}>
           <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-md">
             <SheetHeader className="border-b border-border px-6 py-4">
               <div className="flex items-center gap-2">
@@ -667,68 +849,73 @@ export function ContentEditorFileViewPanel({
               </SheetDescription>
             </SheetHeader>
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
-              {intelligence?.productMeaning?.trim() ? (
-                <div className="space-y-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    <FormattedMessage
-                      defaultMessage="Product Meaning & Intent"
-                      id="wEsY0WRe0u"
-                      description="Section title for product meaning in AI drawer"
-                    />
-                  </h4>
-                  <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-xs leading-relaxed text-foreground">
-                    <MarkdownContent value={intelligence.productMeaning} />
+              <ContentEditorSectionErrorBoundary
+                section="fileView.aiContext"
+                resetKeys={[segment.id]}
+              >
+                {intelligence?.productMeaning?.trim() ? (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      <FormattedMessage
+                        defaultMessage="Product Meaning & Intent"
+                        id="wEsY0WRe0u"
+                        description="Section title for product meaning in AI drawer"
+                      />
+                    </h4>
+                    <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-xs leading-relaxed text-foreground">
+                      <MarkdownContent value={intelligence.productMeaning} />
+                    </div>
                   </div>
-                </div>
-              ) : null}
+                ) : null}
 
-              {intelligence?.agentContext?.trim() ? (
-                <div className="space-y-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    <FormattedMessage
-                      defaultMessage="Repository & Code Context"
-                      id="N6HeARlaSS"
-                      description="Section title for code context in AI drawer"
-                    />
-                  </h4>
-                  <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-xs leading-relaxed text-foreground">
-                    <MarkdownContent value={intelligence.agentContext} />
+                {intelligence?.agentContext?.trim() ? (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      <FormattedMessage
+                        defaultMessage="Repository & Code Context"
+                        id="N6HeARlaSS"
+                        description="Section title for code context in AI drawer"
+                      />
+                    </h4>
+                    <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-xs leading-relaxed text-foreground">
+                      <MarkdownContent value={intelligence.agentContext} />
+                    </div>
                   </div>
-                </div>
-              ) : null}
+                ) : null}
 
-              {agentBadges.length > 0 ? (
-                <div className="space-y-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    <FormattedMessage
-                      defaultMessage="Asset Placement"
-                      id="gTSRgtU4sZ"
-                      description="Section title for placement in AI drawer"
-                    />
-                  </h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {intelligence?.locationBreadcrumb ? (
-                      <Badge variant="outline" className="text-xs font-normal">
-                        {intelligence.locationBreadcrumb}
-                      </Badge>
-                    ) : null}
-                    {intelligence?.componentName ? (
-                      <Badge variant="outline" className="text-xs font-normal">
-                        {intelligence.componentName}
-                      </Badge>
-                    ) : null}
-                    {intelligence?.filePath ? (
-                      <Badge variant="outline" className="font-mono text-xs font-normal">
-                        {intelligence.filePath}
-                      </Badge>
-                    ) : null}
+                {agentBadges.length > 0 ? (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      <FormattedMessage
+                        defaultMessage="Asset Placement"
+                        id="gTSRgtU4sZ"
+                        description="Section title for placement in AI drawer"
+                      />
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {intelligence?.locationBreadcrumb ? (
+                        <Badge variant="outline" className="text-xs font-normal">
+                          {intelligence.locationBreadcrumb}
+                        </Badge>
+                      ) : null}
+                      {intelligence?.componentName ? (
+                        <Badge variant="outline" className="text-xs font-normal">
+                          {intelligence.componentName}
+                        </Badge>
+                      ) : null}
+                      {intelligence?.filePath ? (
+                        <Badge variant="outline" className="font-mono text-xs font-normal">
+                          {intelligence.filePath}
+                        </Badge>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              ) : null}
+                ) : null}
+              </ContentEditorSectionErrorBoundary>
             </div>
           </SheetContent>
         </Sheet>
       ) : null}
     </div>
   );
-}
+});

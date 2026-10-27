@@ -12,18 +12,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { CaretDownIcon } from "@phosphor-icons/react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { siIntercom } from "simple-icons";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import {
   attemptCatPageNavigation,
@@ -32,38 +28,64 @@ import {
 import { queueIntercomPushRun } from "@/lib/intercom/queue-intercom-push-run";
 import { buildAutomationsDetailHref } from "@/lib/navigation/workspace-automation-editor-tab";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
+import { isIntercomSourcePath } from "@/lib/intercom/source-path";
+import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
+import { ContentEditorIntercomPushDialog } from "./content-editor-intercom-push-dialog";
 import { contentEditorIntercomPushButtonMessages as messages } from "./content-editor-intercom-push-button.messages";
 import {
+  contentEditorPushDialogCandidates,
+  contentEditorToolbarShowsIntegration,
+} from "./content-editor-integration-toolbar-visibility";
+import {
+  contentEditorIntercomIngestQueryKey,
   contentEditorIntercomPushQueryKey,
+  fetchContentEditorIntercomIngestCandidates,
   fetchContentEditorIntercomPushCandidates,
   invalidateContentEditorIntercomPushQueries,
-  type ContentEditorIntercomPushCandidate,
 } from "./content-editor-intercom-push-queries";
 
 export function ContentEditorIntercomPushButton({
   organizationSlug,
   projectId,
   canManageAutomations,
+  sourcePath = null,
   pageNavigationGuardRef,
 }: {
   organizationSlug: string;
   projectId: string;
   canManageAutomations: boolean;
+  sourcePath?: string | null;
   pageNavigationGuardRef?: ContentEditorPageNavigationGuardRef;
 }) {
   const intl = useIntl();
   const router = useOrgRouter();
   const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const openSourcePath = isContentEditorAllFilesSourcePath(sourcePath) ? null : sourcePath;
+  const pathQueryEnabled =
+    canManageAutomations && Boolean(openSourcePath && isIntercomSourcePath(openSourcePath));
 
-  const candidatesQuery = useQuery({
-    queryKey: contentEditorIntercomPushQueryKey(organizationSlug, projectId),
+  const ingestCandidatesQuery = useQuery({
+    queryKey: contentEditorIntercomIngestQueryKey(organizationSlug, projectId, openSourcePath),
+    queryFn: () =>
+      fetchContentEditorIntercomIngestCandidates({
+        organizationSlug,
+        projectId,
+        sourcePath: openSourcePath,
+      }),
+    enabled: pathQueryEnabled,
+  });
+
+  const pushCandidatesQuery = useQuery({
+    queryKey: contentEditorIntercomPushQueryKey(organizationSlug, projectId, openSourcePath),
     queryFn: () =>
       fetchContentEditorIntercomPushCandidates({
         organizationSlug,
         projectId,
+        sourcePath: openSourcePath,
       }),
-    enabled: canManageAutomations,
+    enabled: pathQueryEnabled,
   });
 
   const navigateToPushRunHistory = (automationId: string) => {
@@ -81,6 +103,7 @@ export function ContentEditorIntercomPushButton({
     mutationFn: queueIntercomPushRun,
     onSuccess: (_data, variables) => {
       toast.success(intl.formatMessage(messages.pushQueued));
+      setDialogOpen(false);
       invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
       void queryClient.invalidateQueries({
         queryKey: ["workspace-automation", organizationSlug, variables.automationId],
@@ -96,90 +119,62 @@ export function ContentEditorIntercomPushButton({
     return null;
   }
 
-  const candidates = (candidatesQuery.data ?? []).filter(
-    (candidate) => !candidate.pushRunInProgress,
-  );
-
-  if (candidates.length === 0) {
+  if (!contentEditorToolbarShowsIntegration(ingestCandidatesQuery.data)) {
     return null;
   }
 
+  const dialogCandidates = contentEditorPushDialogCandidates({
+    ingestCandidates: ingestCandidatesQuery.data,
+    pushCandidates: pushCandidatesQuery.data,
+    pushQueryFailed: pushCandidatesQuery.isError,
+  });
+
   const pushLabel = intl.formatMessage(messages.pushButton);
   const isPending = pushMutation.isPending;
+  const isDisabled = isPending || pushCandidatesQuery.isLoading || dialogCandidates.length === 0;
+  const pushIcon = isPending ? (
+    <Spinner data-icon="inline-start" />
+  ) : (
+    <SimpleBrandIcon
+      icon={siIntercom}
+      colored={false}
+      className="size-4"
+      data-icon="inline-start"
+      opacity={1}
+    />
+  );
 
-  if (candidates.length === 1) {
-    const candidate = candidates[0]!;
-    return (
+  return (
+    <>
       <Button
         type="button"
-        variant="outline"
         size="sm"
         className="h-8 shrink-0"
-        disabled={isPending}
-        onClick={() =>
-          pushMutation.mutate({
-            organizationSlug,
-            automationId: candidate.automationId,
-          })
-        }
+        disabled={isDisabled}
+        onClick={() => {
+          if (!isDisabled) {
+            setDialogOpen(true);
+          }
+        }}
       >
-        {isPending ? <Spinner data-icon="inline-start" /> : null}
+        {pushIcon}
         {pushLabel}
       </Button>
-    );
-  }
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 shrink-0"
-            disabled={isPending}
-          />
+      <ContentEditorIntercomPushDialog
+        open={dialogOpen}
+        organizationSlug={organizationSlug}
+        sourcePath={openSourcePath}
+        candidates={dialogCandidates}
+        pending={isPending}
+        onOpenChange={setDialogOpen}
+        onConfirm={(input) =>
+          pushMutation.mutate({
+            organizationSlug,
+            automationId: input.automationId,
+            sourcePaths: input.sourcePaths,
+          })
         }
-      >
-        {isPending ? <Spinner data-icon="inline-start" /> : null}
-        {pushLabel}
-        <CaretDownIcon data-icon="inline-end" className="size-4" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {candidates.map((candidate) => (
-          <IntercomPushMenuItem
-            key={candidate.automationId}
-            candidate={candidate}
-            disabled={isPending}
-            onSelect={() =>
-              pushMutation.mutate({
-                organizationSlug,
-                automationId: candidate.automationId,
-              })
-            }
-          />
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function IntercomPushMenuItem({
-  candidate,
-  disabled,
-  onSelect,
-}: {
-  candidate: ContentEditorIntercomPushCandidate;
-  disabled: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <DropdownMenuItem disabled={disabled} onClick={onSelect}>
-      <span className="min-w-0 truncate">{candidate.name}</span>
-      <span className="ms-auto ps-2 text-xs tabular-nums text-muted-foreground">
-        {candidate.eligibleLocaleCount}
-      </span>
-    </DropdownMenuItem>
+      />
+    </>
   );
 }

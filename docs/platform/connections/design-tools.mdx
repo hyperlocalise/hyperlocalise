@@ -1,27 +1,31 @@
 ---
 title: "Connect design tools"
-description: "Use Canva connections and Figma personal tokens for design translation workflows."
+description: "Use Canva, Figma, and Sanity Studio connections for in-context translation workflows."
 ---
 
-Design tools use a personal access token to work with Platform files and translation jobs. Your token inherits your workspace role and project access; selecting scopes does not grant permissions your account lacks.
+Design and CMS tool connections store a personal access token on the workspace. The Canva app, Figma plugin, and Sanity Studio plugin authenticate with OAuth access tokens (and Figma localhost connection tokens for development). Effective access is the token's scopes intersected with your membership, role, and project access.
 
 ## Canva
 
-1. Create a [personal access token](/platform/settings#personal-access-tokens) with `files:read`, `files:write`, `jobs:read`, and `jobs:write`.
-2. Open **Integrations** → **Canva** and create a connection.
-3. Select the token, default project, and locales.
-4. Copy the connection token shown once after creation.
-5. In the Hyperlocalise Canva app, enter the connection token and any project or locale overrides.
+Follow the step-by-step guide: [Localize Canva](/platform/connections/canva).
 
-The app uploads design text, runs a file translation job, and brings completed translations into selected pages. Inspect layout after applying another language, especially for longer text.
+Create a Canva connection with a token. In the Canva app, pick a native project, collect one JSON file per page, then apply existing translations to the selected pages.
 
 ## Figma
 
-If your team has access to the Hyperlocalise Figma plugin, create a personal token with `files:read` and `jobs:read`. Add `files:write` and `jobs:write` to create translation work.
+Follow the step-by-step guide: [Localize Figma](/platform/connections/figma).
 
-Enter the token in the plugin, select a native project, and use its extraction, job creation, generation, and pull workflow. Review the result on the target page after completion.
+Create a Figma connection with a token. In the plugin, pick a native project, **Upload** source JSON (no job), **Translate** when you want a job, and **Apply** one locale at a time. Apply uses stored source stamps (`figma.k.*`); missing strings reset to source instead of leaving a previous language on the canvas.
 
 Plugin installation depends on how it is distributed to your team. If you do not have the plugin, [contact support](/platform/help/contact-support) for availability and installation guidance.
+
+## Sanity Studio
+
+Follow the step-by-step guide: [Localize Sanity Studio documents](/platform/connections/sanity-studio-plugin).
+
+Create a **Sanity Studio plugin** connection with a token. In the Studio Hyperlocalise editor view or bulk tool, pick a native project, then choose target locales from that project's configured list (`sourceLocale` and `targetLocales` from [project languages](/platform/projects/languages)). **Upload (locale)**, **Translate**, and **Write {locale} version** operate on those tags only. OAuth grants are scoped to the Studio origin where the editor signed in.
+
+Batch import and Content editor **Push to Sanity** use the separate **Sanity** automation connection. See [Localize Sanity documents (automation)](/platform/connections/sanity).
 
 ## Resolve access or job failures
 

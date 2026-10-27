@@ -11,14 +11,11 @@ import {
 describe("figma plugin settings", () => {
   it("normalizes the app URL and fills defaults", () => {
     expect(normalizeAppUrl("https://app.hyperlocalise.com/")).toBe("https://app.hyperlocalise.com");
-    expect(mergeSettings({ appUrl: "https://example.test/", targetLocales: ["fr"] })).toMatchObject(
-      {
-        appUrl: "https://example.test",
-        sourceLocale: "en",
-        targetLocales: ["fr"],
-        personalAccessToken: null,
-      },
-    );
+    expect(mergeSettings({ appUrl: "https://example.test/", selectedLocale: "fr" })).toMatchObject({
+      appUrl: DEFAULT_APP_URL,
+      selectedLocale: "fr",
+      personalAccessToken: null,
+    });
     expect(mergeSettings(null).appUrl).toBe(DEFAULT_APP_URL);
   });
 

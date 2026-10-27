@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { observer } from "mobx-react-lite";
 import { ArrowUpRightIcon, XIcon } from "@phosphor-icons/react";
@@ -36,6 +36,7 @@ import { Row } from "@/components/ui/layout/row";
 import { TypographyMuted } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { ChatDockEmptyState } from "./chat-dock-empty-state";
 import { chatDockMessages } from "./chat-dock.messages";
@@ -44,7 +45,6 @@ import { resolveChatDockMessageProjectId, type ChatDockStore } from "./chat-dock
 import { getChatStreamManager } from "./chat-stream-manager";
 
 const COLLAPSE_GLYPH = "−";
-const inboxApi = createInboxApi(apiClient);
 
 function messagesQueryKey(conversationId: string) {
   return ["conversation-messages", conversationId] as const;
@@ -83,6 +83,11 @@ export const ChatDockPanel = observer(function ChatDockPanel({
   store: ChatDockStore;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
+  const inboxApi = useMemo(
+    () => createInboxApi(apiClient, goSvcClient.conversation),
+    [goSvcClient],
+  );
   const aiFeaturesAccess = useAiFeaturesAccess();
   const tab = store.activeTab;
   const queryClient = useQueryClient();
@@ -283,6 +288,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
       responseToMessageId: snapshot.responseToMessageId,
       message: snapshot.message,
       status: snapshot.status,
+      aiCreditExhausted: snapshot.aiCreditExhausted,
     };
   })();
 
@@ -374,6 +380,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
             isLoading={messagesQuery.isLoading}
             isStreaming={isTabStreaming}
             messages={messages as ConversationMessage[]}
+            organizationSlug={organizationSlug}
             streamedAssistant={streamedAssistant}
           />
         )}

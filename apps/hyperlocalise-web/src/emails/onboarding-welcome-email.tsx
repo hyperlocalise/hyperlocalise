@@ -25,7 +25,7 @@ import {
   Row,
   Section,
   Text,
-} from "@react-email/components";
+} from "react-email";
 
 export type OnboardingWelcomeEmailProps = {
   firstName?: string | null;

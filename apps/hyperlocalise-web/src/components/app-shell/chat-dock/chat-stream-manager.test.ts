@@ -204,6 +204,49 @@ describe("ChatStreamManager", () => {
     consoleError.mockRestore();
   });
 
+  it("keeps a reply refused for used-up AI credit on screen, without the error banner", async () => {
+    const store = new ChatDockStore();
+    store.setOrganizationSlug("acme");
+    store.openTab({ id: "conv_no_credit", title: "No credit" });
+    const manager = new ChatStreamManager("acme", store);
+    const finished: string[] = [];
+    manager.setOnStreamFinished((conversationId) => {
+      finished.push(conversationId);
+      store.clearStreamSnapshot(conversationId);
+    });
+
+    // The AI SDK chat transport keeps the refused response's body on its call error.
+    sendMessagesMock.mockRejectedValueOnce(
+      Object.assign(new Error("refused"), {
+        statusCode: 402,
+        responseBody: JSON.stringify({
+          error: "ai_credit_exhausted",
+          message: "Your workspace has used all of its AI credit.",
+        }),
+      }),
+    );
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const result = await manager.start({
+      conversationId: "conv_no_credit",
+      responseToMessageId: "msg_1",
+      text: "hello",
+    });
+
+    expect(result).toEqual({ started: true });
+    expect(finished).toEqual([]);
+    expect(store.getStreamSnapshot("conv_no_credit")).toMatchObject({
+      status: "error",
+      aiCreditExhausted: true,
+      message: { parts: [] },
+    });
+    expect(store.tabs[0]?.lastError).toBeNull();
+    expect(consoleError).not.toHaveBeenCalled();
+    expect(manager.shouldAutoTriggerResponse("conv_no_credit", "msg_1")).toBe(false);
+
+    consoleError.mockRestore();
+  });
+
   it("calls onStreamFinished after a successful stream so callers can refresh and clear", async () => {
     const store = new ChatDockStore();
     store.setOrganizationSlug("acme");

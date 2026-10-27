@@ -278,6 +278,17 @@ export function createWorkspaceRoutes() {
         return notFoundResponse(c, "workspace_not_found", "Workspace not found");
       }
 
+      await enqueueActivityLogEvent({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        eventType: "workspace_archived",
+        organizationId: archivedOrganization.id,
+        payload: { lifecycleStatus: "archived" },
+        targetId: archivedOrganization.id,
+        targetKind: "organization",
+      });
+
       return c.body(null, 204);
     });
 }

@@ -40,6 +40,72 @@ export function isKanbanStatus(status: string): status is KanbanStatus {
   return (kanbanStatusColumns as readonly string[]).includes(status);
 }
 
+export const boardStatusColumns = [
+  "queued",
+  "running",
+  "waiting_for_review",
+  "failed",
+  "succeeded",
+  "cancelled",
+] as const satisfies readonly KanbanStatus[];
+
+const terminalBoardStatuses = new Set<KanbanStatus>(["succeeded", "cancelled"]);
+
+export function isTerminalBoardStatus(status: KanbanStatus) {
+  return terminalBoardStatuses.has(status);
+}
+
+type DatedJob = { externalDueDate: string | null; dueAt?: string | null };
+
+/** The provider's due date for a job mirrored from a TMS, or a native job's own. */
+export function jobDueDate(job: DatedJob): string | null {
+  return job.externalDueDate ?? job.dueAt ?? null;
+}
+
+type BoardSortableJob = DatedJob & {
+  updatedAt: string;
+  completedAt: string | null;
+};
+
+function toTimestamp(value: string | null) {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+function compareRecentFirst(a: BoardSortableJob, b: BoardSortableJob) {
+  const aTime = toTimestamp(a.completedAt) ?? toTimestamp(a.updatedAt) ?? 0;
+  const bTime = toTimestamp(b.completedAt) ?? toTimestamp(b.updatedAt) ?? 0;
+  return bTime - aTime;
+}
+
+function compareDueSoonestFirst(a: BoardSortableJob, b: BoardSortableJob) {
+  const aDue = toTimestamp(jobDueDate(a));
+  const bDue = toTimestamp(jobDueDate(b));
+  if (aDue !== null && bDue !== null && aDue !== bDue) return aDue - bDue;
+  if (aDue !== null && bDue === null) return -1;
+  if (aDue === null && bDue !== null) return 1;
+  return compareRecentFirst(a, b);
+}
+
+/** Open work is ordered by due date; closed and failed work by most recent activity. */
+export function sortBoardJobs<T extends BoardSortableJob>(status: KanbanStatus, jobs: T[]): T[] {
+  const byRecency = isTerminalBoardStatus(status) || status === "failed";
+  return jobs.toSorted(byRecency ? compareRecentFirst : compareDueSoonestFirst);
+}
+
+export type DueUrgency = "overdue" | "soon" | "upcoming";
+
+const DUE_SOON_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export function getDueUrgency(dueDate: string | null, now = Date.now()): DueUrgency | null {
+  const due = toTimestamp(dueDate);
+  if (due === null) return null;
+  if (due < now) return "overdue";
+  if (due - now <= DUE_SOON_WINDOW_MS) return "soon";
+  return "upcoming";
+}
+
 export { buildJobContentEditorHref, canOpenJobContentEditor, type JobContentEditorTarget };
 
 export function readJobsViewMode(): JobsViewMode {

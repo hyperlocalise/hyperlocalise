@@ -5,6 +5,43 @@ import (
 	"testing"
 )
 
+func TestHTMLParserSegmentKeysUseTagPath(t *testing.T) {
+	content := []byte(`<html><head><title>Page Title</title></head><body>
+<h1>Welcome</h1>
+<p>First</p>
+<p>Second</p>
+<img alt="A red cat">
+<table><tr><th>Name</th><td>Value</td></tr></table>
+</body></html>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	want := map[string]string{
+		"html.body.h1":          "Welcome",
+		"html.body.p":           "First",
+		"html.body.p.2":         "Second",
+		"html.body.img.alt":     "A red cat",
+		"html.body.table.tr.th": "Name",
+		"html.body.table.tr.td": "Value",
+	}
+	if _, ok := got["html.head.title"]; ok {
+		t.Fatal("head/title must stay untranslated")
+	}
+	for key, text := range want {
+		if got[key] != text {
+			t.Fatalf("key %q: got %q, want %q (entries=%v)", key, got[key], text, got)
+		}
+	}
+	for key := range got {
+		if strings.HasPrefix(key, "html.") && len(key) == 5+16 && !strings.Contains(key[5:], ".") {
+			t.Fatalf("expected tag-path keys, still hashed: %q", key)
+		}
+	}
+}
+
 func TestHTMLParserParseExtractsBlockTextContent(t *testing.T) {
 	content := []byte(`<html><body><h1>Welcome</h1><p>Hello world.</p></body></html>`)
 
@@ -73,7 +110,36 @@ func TestHTMLParserParseExcludesHeadContent(t *testing.T) {
 	}
 }
 
-func TestHTMLParserParseProtectsInlineTagsAsPlaceholders(t *testing.T) {
+func TestHTMLParserSplitsInlineTagsIntoPathKeys(t *testing.T) {
+	content := []byte(`<p>This page tests <strong>tables</strong>, <strong>bullet lists</strong>, numbered lists, and basic HTML styling.</p>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if !strings.Contains(got["html.p"], "This page tests ") {
+		t.Fatalf("expected html.p leading text, got %q", got["html.p"])
+	}
+	if !strings.Contains(got["html.p.strong"], "tables") {
+		t.Fatalf("expected html.p.strong tables, got %q", got["html.p.strong"])
+	}
+	if !strings.Contains(got["html.p.strong.2"], "bullet lists") {
+		t.Fatalf("expected html.p.strong.2 bullet lists, got %q", got["html.p.strong.2"])
+	}
+	if !strings.Contains(got["html.p.2"], "numbered lists, and basic HTML styling.") {
+		t.Fatalf("expected html.p.2 trailing text, got %q", got["html.p.2"])
+	}
+	if _, ok := got["html.p.strong"]; !ok {
+		t.Fatalf("expected html.p.strong, got %v", got)
+	}
+	for _, text := range got {
+		if strings.Contains(text, "<strong>") {
+			t.Fatalf("expected tags as literals, not segment text, got %q", text)
+		}
+	}
+}
+
+func TestHTMLParserParseSplitsInlineTagsAsPathKeys(t *testing.T) {
 	content := []byte(`<p>Hello <strong>world</strong>!</p>`)
 
 	got, err := HTMLParser{}.Parse(content)
@@ -81,25 +147,18 @@ func TestHTMLParserParseProtectsInlineTagsAsPlaceholders(t *testing.T) {
 		t.Fatalf("parse: %v", err)
 	}
 
-	if len(got) != 1 {
-		t.Fatalf("expected 1 entry, got %d: %v", len(got), got)
+	if got["html.p"] != "Hello " {
+		t.Fatalf("expected html.p leading text, got %q", got["html.p"])
 	}
-
-	for _, v := range got {
-		if strings.Contains(v, "<strong>") || strings.Contains(v, "</strong>") {
-			t.Fatalf("expected inline tags replaced by placeholders, got entry %q", v)
-		}
-		// Placeholder sentinel characters must be present.
-		if !strings.Contains(v, "\x1e") {
-			t.Fatalf("expected placeholder sentinels in entry, got %q", v)
-		}
-		if !strings.Contains(v, "world") {
-			t.Fatalf("expected text content preserved around placeholders, got %q", v)
-		}
+	if got["html.p.strong"] != "world" {
+		t.Fatalf("expected html.p.strong world, got %q", got["html.p.strong"])
+	}
+	if _, ok := got["html.p.2"]; ok {
+		t.Fatalf("expected punctuation-only trailing text skipped, got %v", got)
 	}
 }
 
-func TestHTMLParserParseProtectsNestedInlineTags(t *testing.T) {
+func TestHTMLParserParseSplitsNestedInlineTags(t *testing.T) {
 	content := []byte(`<p>Text with <em><strong>nested</strong></em> tags.</p>`)
 
 	got, err := HTMLParser{}.Parse(content)
@@ -107,17 +166,14 @@ func TestHTMLParserParseProtectsNestedInlineTags(t *testing.T) {
 		t.Fatalf("parse: %v", err)
 	}
 
-	if len(got) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(got))
+	if got["html.p"] != "Text with " {
+		t.Fatalf("expected html.p leading text, got %q", got["html.p"])
 	}
-
-	for _, v := range got {
-		if strings.Contains(v, "<em>") || strings.Contains(v, "<strong>") {
-			t.Fatalf("expected all nested tags placeholdered, got %q", v)
-		}
-		if !strings.Contains(v, "nested") {
-			t.Fatalf("expected inner text preserved, got %q", v)
-		}
+	if got["html.p.em.strong"] != "nested" {
+		t.Fatalf("expected html.p.em.strong nested, got %q", got["html.p.em.strong"])
+	}
+	if got["html.p.2"] != " tags." {
+		t.Fatalf("expected html.p.2 trailing text, got %q", got["html.p.2"])
 	}
 }
 
@@ -329,6 +385,60 @@ func TestHTMLParserParseFixture(t *testing.T) {
 	// Body text must be present.
 	if !strings.Contains(combined, "Welcome") {
 		t.Fatalf("expected heading text in entries, got %q", combined)
+	}
+}
+
+func TestHTMLParserParseFormattingFixtureExtractsTablesAndLists(t *testing.T) {
+	content := readFixture(t, "tests/html/formatting-test.html")
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse fixture: %v", err)
+	}
+
+	if len(got) < 30 {
+		t.Fatalf("expected at least 30 entries from formatting fixture, got %d: %v", len(got), got)
+	}
+
+	combined := strings.Join(mapValues(got), "\n")
+	for _, want := range []string{
+		"HTML Formatting Test",
+		"Feature",
+		"Complete",
+		"Nested bullet item A",
+		"bold text",
+		"Note:",
+	} {
+		if !strings.Contains(combined, want) {
+			t.Fatalf("expected %q in entries, got %q", want, combined)
+		}
+	}
+	if strings.Contains(combined, "HTML Table and List Test") {
+		t.Fatalf("expected head/title content excluded, got %q", combined)
+	}
+	if strings.Contains(combined, "font-family") {
+		t.Fatalf("expected style content excluded, got %q", combined)
+	}
+	if strings.Contains(combined, "\x1e") {
+		t.Fatalf("expected no inline-tag placeholders in entries, got %q", combined)
+	}
+	if !strings.Contains(got["html.body.p"], "This page tests ") {
+		t.Fatalf("expected html.body.p leading text, got %q", got["html.body.p"])
+	}
+	if !strings.Contains(got["html.body.p.strong"], "tables") {
+		t.Fatalf("expected html.body.p.strong tables, got %q", got["html.body.p.strong"])
+	}
+	if !strings.Contains(got["html.body.p.strong.2"], "bullet lists") {
+		t.Fatalf("expected html.body.p.strong.2 bullet lists, got %q", got["html.body.p.strong.2"])
+	}
+	if got["html.body.h1"] != "HTML Formatting Test" {
+		t.Fatalf("expected html.body.h1 heading, got %q", got["html.body.h1"])
+	}
+	if _, ok := got["html.body.table.thead.tr.th"]; !ok {
+		t.Fatalf("expected table header path key, got %v", got)
+	}
+	if _, ok := got["html.body.ul.li.ul.li"]; !ok {
+		t.Fatalf("expected nested list path key, got %v", got)
 	}
 }
 
@@ -788,5 +898,86 @@ func TestMarshalHTMLAllowsLiteralLessThanComparisons(t *testing.T) {
 	}
 	if !strings.Contains(string(output), "2 < 3 and 5 > 4") {
 		t.Fatalf("expected literal comparison text preserved, got %q", string(output))
+	}
+}
+
+func TestLegacyHTMLKeyToPathKeyMapsContentHashOntoTagPath(t *testing.T) {
+	content := []byte("<html><body><h1>Welcome</h1><p>Hello world.</p></body></html>")
+	got := LegacyHTMLKeyToPathKey(content)
+	if got["html.body.h1"] != "" {
+		t.Fatalf("legacy map should be keyed by hashes, got %v", got)
+	}
+	foundH1 := false
+	foundP := false
+	for legacy, path := range got {
+		if !strings.HasPrefix(legacy, "html.") || len(legacy) != 5+16 {
+			t.Fatalf("expected hashed legacy key, got %q -> %q", legacy, path)
+		}
+		switch path {
+		case "html.body.h1":
+			foundH1 = true
+		case "html.body.p":
+			foundP = true
+		}
+	}
+	if !foundH1 || !foundP {
+		t.Fatalf("expected path keys in legacy map, got %v", got)
+	}
+}
+
+func TestMarshalHTMLAcceptsLegacyHashedKeys(t *testing.T) {
+	template := []byte("<html><body><p>Hello world.</p></body></html>")
+	mapping := LegacyHTMLKeyToPathKey(template)
+	values := map[string]string{}
+	for legacy := range mapping {
+		values[legacy] = "Bonjour le monde."
+	}
+
+	output, diags := MarshalHTML(template, values)
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("unexpected fallbacks: %v", diags.SourceFallbackKeys)
+	}
+	if !strings.Contains(string(output), "Bonjour le monde.") {
+		t.Fatalf("expected legacy hashed values applied, got %q", string(output))
+	}
+}
+
+func TestLegacyHTMLKeyToPathKeyHashesFoldedPlaceholderedParagraph(t *testing.T) {
+	content := []byte("<p>Hello <strong>world</strong>!</p>")
+	got := LegacyHTMLKeyToPathKey(content)
+	if len(got) != 1 {
+		t.Fatalf("expected one folded hash, got %v", got)
+	}
+	for legacy, path := range got {
+		if !strings.HasPrefix(legacy, "html.") || len(legacy) != 5+16 {
+			t.Fatalf("expected hashed legacy key, got %q -> %q", legacy, path)
+		}
+		if path != "html.p" {
+			t.Fatalf("expected folded hash to map to html.p, got %q", path)
+		}
+	}
+}
+
+func TestMarshalHTMLAcceptsLegacyHashedKeysForInlineTags(t *testing.T) {
+	template := []byte("<p>Hello <strong>world</strong>!</p>")
+	doc, _, err := parseHTMLDocumentFoldingInline(template)
+	if err != nil {
+		t.Fatal(err)
+	}
+	occurrences := map[string]int{}
+	values := map[string]string{}
+	for _, part := range doc.parts {
+		if part.key == "" {
+			continue
+		}
+		values[htmlSegmentKey(part.source, occurrences)] = strings.Replace(part.source, "Hello", "Bonjour", 1)
+	}
+
+	output, diags := MarshalHTML(template, values)
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("unexpected fallbacks: %v", diags.SourceFallbackKeys)
+	}
+	if !strings.Contains(string(output), "Bonjour") || !strings.Contains(string(output), "<strong>world</strong>") {
+		t.Fatalf("expected folded legacy values applied, got %q", string(output))
 	}
 }

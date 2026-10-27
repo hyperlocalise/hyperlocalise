@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useRef, type MutableRefObject } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useIntl, type IntlShape } from "react-intl";
 
 import {
@@ -21,11 +21,13 @@ import {
   maxNativeContentEditorHiddenStringBatch,
   type ProjectFileContentEditorQueueFile,
 } from "@/api/routes/project/project.schema";
-import { readApiError } from "@/lib/api-error";
+import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
 
+import type { ContentEditorProjectSource } from "@/components/content-editor/shared/content-editor-native-project";
+import { canUseGoSvcCat } from "@/components/content-editor/shared/content-editor-native-project";
 import type {
   ContentEditorIssueType,
   ContentEditorQueueSegment,
@@ -111,11 +113,39 @@ function chunkItems<T>(items: T[], size: number): T[][] {
   return chunks;
 }
 
+/** File-tree `isHidden` and per-file progress both change when strings are hidden. */
+function invalidateContentEditorFileMetadata(
+  queryClient: QueryClient,
+  organizationSlug: string,
+  projectId: string,
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: ["project-files", organizationSlug, projectId],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["project-file-progress", organizationSlug, projectId],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["project-hidden-files", organizationSlug, projectId],
+    }),
+  ]);
+}
+
 function prefersGoSvcCat(input: {
   goSvcClient?: GoSvcClient;
+  projectId: string;
+  projectSource?: ContentEditorProjectSource | null;
   contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
 }) {
-  return Boolean(input.goSvcClient) && !input.contentEditorFile?.provider;
+  return (
+    Boolean(input.goSvcClient) &&
+    canUseGoSvcCat({
+      projectId: input.projectId,
+      projectSource: input.projectSource,
+    }) &&
+    !input.contentEditorFile?.provider
+  );
 }
 
 async function captureNativeCatTranslationSideEffectsViaApp(input: {
@@ -201,6 +231,7 @@ async function runNativeCat<T>(
 export function useContentEditorMutations(input: {
   organizationSlug: string;
   projectId: string;
+  projectSource?: ContentEditorProjectSource | null;
   sourcePath: string;
   targetLocale: string;
   contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
@@ -277,7 +308,9 @@ export function useContentEditorMutations(input: {
               ...(group ? { group } : {}),
             },
           );
-          await captureNativeCatTranslationSideEffectsViaApp({
+          // Product analytics only; Reports learns of the save from the Go service's activity
+          // event through the reporting-capture cron, so the save does not wait on this.
+          void captureNativeCatTranslationSideEffectsViaApp({
             organizationSlug: input.organizationSlug,
             projectId: input.projectId,
             sourcePath,
@@ -645,11 +678,9 @@ export function useContentEditorMutations(input: {
       );
 
       if (response.status !== 200) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(useContentEditorMutationsMessages.failedToRegenerateImage),
-          ),
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(useContentEditorMutationsMessages.failedToRegenerateImage),
         );
       }
 
@@ -861,7 +892,10 @@ export function useContentEditorMutations(input: {
       return { updatedCount, isHidden: mutationInput.isHidden };
     },
     onSuccess: async () => {
-      await input.invalidateQueue();
+      await Promise.all([
+        input.invalidateQueue(),
+        invalidateContentEditorFileMetadata(queryClient, input.organizationSlug, input.projectId),
+      ]);
     },
   });
 

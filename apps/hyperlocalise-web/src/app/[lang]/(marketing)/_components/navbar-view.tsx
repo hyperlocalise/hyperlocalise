@@ -247,7 +247,8 @@ function useHomeHeroNavTone() {
   const pathSegments = pathname.split("/").filter(Boolean);
   const isMarketingHome = pathSegments.length === 1;
   const isStartupsPage = pathSegments.length === 2 && pathSegments[1] === "startups";
-  const usesFullBleedHero = isMarketingHome || isStartupsPage;
+  const isIrisPage = pathSegments.length === 2 && pathSegments[1] === "iris";
+  const usesFullBleedHero = isMarketingHome || isStartupsPage || isIrisPage;
   const [onHero, setOnHero] = useState(usesFullBleedHero);
 
   useEffect(() => {

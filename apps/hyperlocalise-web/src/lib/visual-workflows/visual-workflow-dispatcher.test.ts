@@ -13,7 +13,19 @@
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+
+vi.mock("@/lib/activity-log/visual-workflow-events", () => ({
+  enqueueVisualWorkflowRunStartedActivity: vi.fn(),
+}));
+
+const { isAutumnBooleanFeatureEnabledMock } = vi.hoisted(() => ({
+  isAutumnBooleanFeatureEnabledMock: vi.fn(async () => true),
+}));
+
+vi.mock("@/lib/billing/autumn-boolean-feature-access", () => ({
+  isAutumnBooleanFeatureEnabled: isAutumnBooleanFeatureEnabledMock,
+}));
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
@@ -26,9 +38,11 @@ import {
   buildVisualWorkflowSourceUploadIdempotencyKey,
 } from "./dispatch/idempotency";
 import type { VisualWorkflowDefinition, VisualWorkflowGithubTriggerEvent } from "./schema/types";
+import { createVisualWorkflowWebhookToken } from "./dispatch/webhook-token";
 import {
   dispatchDueScheduledVisualWorkflows,
   dispatchVisualWorkflowForScheduleAndAdvance,
+  dispatchVisualWorkflowForWebhook,
   dispatchVisualWorkflowsForGithubPullRequest,
   dispatchVisualWorkflowsForGithubPush,
   dispatchVisualWorkflowsForSourceUpload,
@@ -48,6 +62,8 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  isAutumnBooleanFeatureEnabledMock.mockReset();
+  isAutumnBooleanFeatureEnabledMock.mockResolvedValue(true);
   await fixture.cleanup();
 });
 
@@ -205,6 +221,22 @@ async function createActiveWorkflow(input: {
   });
   if (isErr(published)) throw new Error(published.error.code);
   return published.value;
+}
+
+function webhookDefinition(name = "Webhook ping"): VisualWorkflowDefinition {
+  return {
+    schemaVersion: 2,
+    name,
+    nodes: [
+      {
+        id: "t",
+        type: "trigger.webhook",
+        config: { kind: "trigger.webhook", tokenVersion: 1 },
+      },
+    ],
+    edges: [],
+    editor: { positions: {} },
+  };
 }
 
 function trackingQueue() {
@@ -685,5 +717,107 @@ describe("visual workflow dispatcher", () => {
 
     expect(okAfter?.nextRunAt).not.toBe(dueAt.toISOString());
     expect(failAfter?.nextRunAt).toBe(dueAt.toISOString());
+  });
+
+  it("starts a webhook run once per delivery and rejects a bad token", async () => {
+    const scope = await seedOrgScope();
+    const workflow = await createActiveWorkflow({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Inbound webhook",
+      definition: webhookDefinition(),
+    });
+    const token = createVisualWorkflowWebhookToken({
+      visualWorkflowId: workflow.id,
+      tokenVersion: 1,
+    });
+    const { queue, enqueued } = trackingQueue();
+
+    const first = await dispatchVisualWorkflowForWebhook({
+      visualWorkflowId: workflow.id,
+      token,
+      deliveryId: "delivery-1",
+      body: { event: "issue.opened" },
+      query: { ref: "12" },
+      queue,
+    });
+    const replay = await dispatchVisualWorkflowForWebhook({
+      visualWorkflowId: workflow.id,
+      token,
+      deliveryId: "delivery-1",
+      body: { event: "issue.opened" },
+      query: { ref: "12" },
+      queue,
+    });
+
+    expect(first).toMatchObject({ outcome: "enqueued", inserted: true });
+    expect(replay).toMatchObject({ outcome: "enqueued", inserted: false });
+    expect(enqueued).toHaveLength(1);
+
+    const runs = await listVisualWorkflowRuns({
+      organizationId: scope.organizationId,
+      visualWorkflowId: workflow.id,
+      limit: 10,
+    });
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.inputSnapshot).toEqual(
+      expect.objectContaining({
+        body: { event: "issue.opened" },
+        query: { ref: "12" },
+        deliveryId: "delivery-1",
+      }),
+    );
+
+    await expect(
+      dispatchVisualWorkflowForWebhook({
+        visualWorkflowId: workflow.id,
+        token: `${token}x`,
+        deliveryId: "delivery-2",
+        body: null,
+        query: {},
+        queue,
+      }),
+    ).resolves.toEqual({ outcome: "unauthorized" });
+  });
+
+  it("hides a webhook that is not published or whose plan does not include workflows", async () => {
+    const scope = await seedOrgScope();
+    const githubWorkflow = await createActiveWorkflow({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Not a webhook",
+      definition: githubDefinition(scope.repositoryId),
+    });
+    const webhookWorkflow = await createActiveWorkflow({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Gated webhook",
+      definition: webhookDefinition("Gated webhook"),
+    });
+    const token = createVisualWorkflowWebhookToken({
+      visualWorkflowId: webhookWorkflow.id,
+      tokenVersion: 1,
+    });
+
+    await expect(
+      dispatchVisualWorkflowForWebhook({
+        visualWorkflowId: githubWorkflow.id,
+        token,
+        deliveryId: "delivery-gh",
+        body: null,
+        query: {},
+      }),
+    ).resolves.toEqual({ outcome: "not_found" });
+
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValueOnce(false);
+    await expect(
+      dispatchVisualWorkflowForWebhook({
+        visualWorkflowId: webhookWorkflow.id,
+        token,
+        deliveryId: "delivery-gated",
+        body: null,
+        query: {},
+      }),
+    ).resolves.toEqual({ outcome: "feature_unavailable" });
   });
 });

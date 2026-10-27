@@ -19,7 +19,7 @@ import { CheckIcon } from "@phosphor-icons/react";
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TypographyH2, TypographyP } from "@/components/ui/typography";
+import { TypographyH3, TypographyP } from "@/components/ui/typography";
 import { trackMarketingCtaClick } from "@/lib/analytics/marketing-cta";
 import { cn } from "@/lib/primitives/cn";
 
@@ -75,13 +75,17 @@ export function PricingPlansSection({ plans, popularBadge }: PricingPlansSection
           )}
         >
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-sm font-semibold text-foreground">{plan.name}</h2>
+            <TypographyH3 className="pb-0 text-sm font-semibold text-foreground">
+              {plan.cardHeading}
+            </TypographyH3>
             {plan.badge ? <Badge variant="secondary">{plan.badge}</Badge> : null}
             {plan.popular ? <Badge variant="outline">{popularBadge}</Badge> : null}
           </div>
 
-          <div className="mt-5 flex items-baseline gap-1.5">
-            <TypographyH2 className="pb-0 text-5xl md:text-5xl">{plan.price}</TypographyH2>
+          <div className="mt-5 flex items-baseline gap-1.5" aria-hidden="true">
+            <TypographyP className="m-0 font-heading text-5xl leading-none font-semibold tracking-tight text-foreground md:text-5xl">
+              {plan.price}
+            </TypographyP>
             {plan.priceSuffix ? (
               <span className="text-sm text-muted-foreground">{plan.priceSuffix}</span>
             ) : null}

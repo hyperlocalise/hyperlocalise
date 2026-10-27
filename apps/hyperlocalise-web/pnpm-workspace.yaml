@@ -10,10 +10,10 @@ allowBuilds:
   protobufjs: false
   sharp: false
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@1.0.0
-  vite-plus: 1.0.0
-  vitest: 5.0.1
-  '@vitest/browser-playwright': 5.0.1
+  vite: npm:@voidzero-dev/vite-plus-core@1.4.0
+  vite-plus: 1.4.0
+  vitest: 5.0.5
+  '@vitest/browser-playwright': 5.0.5
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
@@ -31,46 +31,46 @@ minimumReleaseAgeExclude:
   - "@ai-sdk/workflow@2.0.59"
 overrides:
   # Pin each undici major independently (transitive deps use 6/7/8).
-  "undici@^6.0.0": "6.28.0"
-  "undici@^7.0.0": "7.29.0"
-  "undici@^8.0.0": "8.10.2"
-  devalue: "6.0.2"
-  qs: "6.16.0"
-  "@anthropic-ai/sdk": "0.123.0"
-  postcss: "8.5.28"
-  postcss-selector-parser: "7.1.6"
+  "undici@^6.0.0": "6.29.1"
+  "undici@^7.0.0": "7.30.1"
+  "undici@^8.0.0": "8.12.3"
+  devalue: "6.0.3"
+  qs: "6.16.1"
+  "@anthropic-ai/sdk": "0.137.0"
+  postcss: "8.5.31"
+  postcss-selector-parser: "7.1.7"
   esbuild: "0.28.2"
-  "ip-address": "10.7.0"
-  hono: "4.13.5"
-  "@hono/node-server": "2.1.1"
+  "ip-address": "10.7.4"
+  hono: "4.13.13"
+  "@hono/node-server": "2.1.5"
   form-data: "4.0.6"
   "axios@^1.0.0": "1.20.0"
-  fast-uri: "3.1.7"
+  fast-uri: "3.1.9"
   # mammoth is built for the 0.8 line; 0.9 rejects parseFromString without a mimeType.
-  "@xmldom/xmldom": "0.8.15"
-  browserslist: "4.28.8"
+  "@xmldom/xmldom": "0.9.12"
+  browserslist: "4.29.4"
   linkify-it: "5.0.2"
   # exceljs uses CommonJS require('uuid'); keep v11 only on that path.
   "@zwight/exceljs>uuid": "11.1.1"
-  "mermaid>uuid": "14.0.2"
-  dompurify: "3.4.14"
+  "mermaid>uuid": "14.0.3"
+  dompurify: "3.4.17"
   "js-yaml@^3.0.0": "3.15.2"
   "js-yaml@^4.0.0": "4.3.2"
-  "nanoid@^3.0.0": "6.0.1"
-  "nanoid@^5.0.0": "6.0.1"
-  "brace-expansion@^2.0.0": "2.1.4"
-  "brace-expansion@^5.0.0": "5.0.9"
-  mermaid: "12.1.0"
-  valibot: "1.4.2"
+  "nanoid@^3.0.0": "6.0.2"
+  "nanoid@^5.0.0": "6.0.2"
+  "brace-expansion@^2.0.0": "2.1.7"
+  "brace-expansion@^5.0.0": "5.0.12"
+  mermaid: "12.2.0"
+  valibot: "1.5.0"
   # eslint-plugin-formatjs imports Binary_Property/*/regex.js; @unicode 2.0.5+ ships .mjs only.
   "@unicode/unicode-17.0.0": "2.0.4"
   # TipTap 3.28 pulls prosemirror-model ^1.25.9 while nested PM packages
   # still resolve 1.25.8; dual copies break editor Fragment identity.
-  prosemirror-model: "1.25.11"
+  prosemirror-model: "1.25.12"
   # @tiptap/pm 3.31.2 pulls prosemirror-view 1.42.3 while nested PM packages
   # still resolve 1.42.2; dual copies make DecorationSet unassignable to
   # Plugin props.decorations (DecorationSource).
-  prosemirror-view: "1.42.3"
+  prosemirror-view: "1.42.7"
   vite@*: 'catalog:'
   vitest@*: 'catalog:'
 peerDependencyRules:

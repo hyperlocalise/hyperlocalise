@@ -18,6 +18,7 @@ import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
 import {
   enqueueIntegrationConnectedActivity,
+  enqueueIntegrationCredentialRotatedActivity,
   enqueueIntegrationDisconnectedActivity,
 } from "@/lib/activity-log/integration-events";
 import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
@@ -111,6 +112,12 @@ function mapCreateError(c: Parameters<typeof badRequestResponse>[0], error: unkn
       );
     case "canva_project_not_found":
       return notFoundResponse(c, error.message, "Project was not found for this workspace.");
+    case "canva_project_source_locale_missing":
+      return badRequestResponse(
+        c,
+        error.message,
+        "The selected project must have a source locale.",
+      );
     default:
       return badRequestResponse(c, "canva_connection_create_failed");
   }
@@ -144,8 +151,6 @@ export function createCanvaConnectionRoutes() {
           displayName: payload.displayName,
           apiKeyId: payload.apiKeyId,
           projectId: payload.projectId,
-          sourceLocale: payload.sourceLocale,
-          targetLocales: payload.targetLocales,
           enabled: payload.enabled,
         });
 
@@ -252,6 +257,13 @@ export function createCanvaConnectionRoutes() {
       if (!result) {
         return notFoundResponse(c, "canva_connection_not_found");
       }
+
+      await enqueueIntegrationCredentialRotatedActivity({
+        ...sessionActivityActor(c.var.auth.user.localUserId),
+        connectionId: params.connectionId,
+        integrationKind: "canva",
+        organizationId: c.var.auth.organization.localOrganizationId,
+      });
 
       return c.json(
         {

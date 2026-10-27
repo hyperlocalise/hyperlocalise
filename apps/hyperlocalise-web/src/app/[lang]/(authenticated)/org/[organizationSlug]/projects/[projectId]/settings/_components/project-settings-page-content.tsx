@@ -52,6 +52,7 @@ import {
   type ProjectFormValues,
   type ProjectSettingsSection,
 } from "../../../_components/project-form";
+import { useUnsavedChangesLeaveGuard } from "../../../../_components/unsaved-changes-leave-guard";
 import type { ProjectListRow } from "../../../_components/project-list";
 import {
   ProjectSourceLocalePicker,
@@ -441,6 +442,24 @@ export function ProjectSettingsPageContent({
     };
   }
 
+  const identifierOnly = !metadataEditable;
+  const generalDirty =
+    values !== null &&
+    baseline !== null &&
+    projectSettingsSectionIsDirty("general", values, baseline, { identifierOnly });
+  const styleGuideDirty =
+    values !== null &&
+    baseline !== null &&
+    projectSettingsSectionIsDirty("styleGuide", values, baseline);
+  const localesDirty =
+    values !== null &&
+    baseline !== null &&
+    projectSettingsSectionIsDirty("locales", values, baseline);
+  // One guard for the page: only one can be active at a time.
+  const { leaveGuardDialog } = useUnsavedChangesLeaveGuard(
+    generalDirty || styleGuideDirty || localesDirty || issueTemplatesDirty,
+  );
+
   if (projectQuery.isLoading || !values || !baseline) {
     return (
       <ProjectPageShell>
@@ -462,12 +481,6 @@ export function ProjectSettingsPageContent({
   }
 
   const localesEditable = project.source === "native";
-  const identifierOnly = !metadataEditable;
-  const generalDirty = projectSettingsSectionIsDirty("general", values, baseline, {
-    identifierOnly,
-  });
-  const styleGuideDirty = projectSettingsSectionIsDirty("styleGuide", values, baseline);
-  const localesDirty = projectSettingsSectionIsDirty("locales", values, baseline);
 
   // Live (unsynced) external-TMS projects have no row in `projects` — id is an encoded
   // "ext:provider:externalId" string — so issue templates and CAT policy have nowhere to persist.
@@ -748,6 +761,8 @@ export function ProjectSettingsPageContent({
           ) : null}
         </div>
       </div>
+
+      {leaveGuardDialog}
     </ProjectPageShell>
   );
 }

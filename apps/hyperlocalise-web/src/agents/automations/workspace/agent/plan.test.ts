@@ -73,6 +73,7 @@ describe("buildWorkspaceOrchestratorPlan", () => {
             collectionIds: [],
             includeDrafts: false,
             overwriteIntercomDrafts: false,
+            existingTranslationPolicy: "seed_empty",
           },
         },
       }),
@@ -96,6 +97,7 @@ describe("buildWorkspaceOrchestratorPlan", () => {
             collectionIds: [],
             includeDrafts: false,
             overwriteIntercomDrafts: false,
+            existingTranslationPolicy: "seed_empty",
           },
           slack: { enabled: true, channelId: "C123" },
         },
@@ -120,6 +122,7 @@ describe("buildWorkspaceOrchestratorPlan", () => {
             collectionIds: [],
             includeDrafts: false,
             overwriteIntercomDrafts: false,
+            existingTranslationPolicy: "seed_empty",
           },
         },
       }),
@@ -144,6 +147,7 @@ describe("buildWorkspaceOrchestratorPlan", () => {
             collectionIds: [],
             includeDrafts: false,
             overwriteIntercomDrafts: false,
+            existingTranslationPolicy: "seed_empty",
           },
           slack: { enabled: true, channelId: "C123" },
         },
@@ -152,6 +156,113 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     );
 
     expect(plan.tools).toEqual(["push_intercom_translations", "notify_slack"]);
+  });
+
+  it("plans import-only tools for Sanity automations", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          sanity: {
+            enabled: true,
+            projectId: "proj-1",
+            dataset: "production",
+            documentTypes: ["article"],
+            documentTypeModes: {},
+            localeCatalog: {
+              documentType: "locale",
+              tagField: "tag",
+              titleField: "name",
+            },
+            languages: ["en", "de"],
+            languagesByType: {},
+            sourceLocale: "en",
+            targetLocales: ["de"],
+            includeDrafts: true,
+            overwriteSanityDrafts: true,
+            existingTranslationPolicy: "seed_empty",
+          },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["import_sanity_documents"]);
+  });
+
+  it("plans push-only tools for Sanity when operation is push_approved", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          sanity: {
+            enabled: true,
+            projectId: "proj-1",
+            dataset: "production",
+            documentTypes: ["article"],
+            documentTypeModes: {},
+            localeCatalog: {
+              documentType: "locale",
+              tagField: "tag",
+              titleField: "name",
+            },
+            languages: ["en", "de"],
+            languagesByType: {},
+            sourceLocale: "en",
+            targetLocales: ["de"],
+            includeDrafts: true,
+            overwriteSanityDrafts: true,
+            existingTranslationPolicy: "seed_empty",
+          },
+        },
+      }),
+      { operation: "push_approved" },
+    );
+
+    expect(plan.tools).toEqual(["push_sanity_translations"]);
+  });
+
+  it("plans Braze push-only tools when operation is push_approved", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          braze: {
+            enabled: true,
+            sourceLocale: "en",
+            templateIds: [],
+            contentBlockIds: [],
+            existingTranslationPolicy: "seed_empty",
+            overwriteWhenRemoteNewer: true,
+          },
+        },
+      }),
+      { operation: "push_approved" },
+    );
+
+    expect(plan.tools).toEqual(["push_braze_templates"]);
+  });
+
+  it("plans Braze campaign import by default and push when operation is push_approved", () => {
+    const automationConfig = automation({
+      projectId: "project-1",
+      toolConfig: {
+        brazeCampaigns: {
+          enabled: true,
+          sourceLocale: "en",
+          campaignIds: [],
+          canvasIds: [],
+          existingTranslationPolicy: "seed_empty",
+          overwriteWhenRemoteNewer: true,
+        },
+      },
+    });
+
+    expect(buildWorkspaceOrchestratorPlan(automationConfig).tools).toEqual([
+      "import_braze_campaigns",
+    ]);
+    expect(
+      buildWorkspaceOrchestratorPlan(automationConfig, { operation: "push_approved" }).tools,
+    ).toEqual(["push_braze_campaigns"]);
   });
 
   it("puts contentful before github when template skill targets contentful", () => {

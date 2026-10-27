@@ -12,7 +12,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ReportsWorkspace } from "@/components/reports/reports-workspace";
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -36,8 +35,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
+import { TaskReport } from "@/components/reports/task-report";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   buildJobContentEditorHref,
   canOpenJobContentEditor,
@@ -50,6 +52,12 @@ import {
 import { getProviderPayloadString } from "../../../../../jobs/_components/provider-crowdin-job-display";
 import { buildJobDetailHref } from "../../../../../jobs/_components/jobs-view-helpers";
 
+import { isJobStatusActive } from "./build-job-activity";
+import {
+  hasJobActivityFeed,
+  JOB_ACTIVITY_POLL_INTERVAL_MS,
+  JobActivitySection,
+} from "./job-activity-section";
 import { NativeJobOwnerField } from "./job-detail-assignee-field";
 import { JobDetailEditableTitle } from "./job-detail-editable-title";
 import {
@@ -61,6 +69,7 @@ import type { JobDetailRecord } from "./job-detail-types";
 import { JobFailureNotice } from "./job-failure-notice";
 import { JobProviderDetailSection } from "./job-provider-detail-section";
 import { NativeJobDescriptionField } from "./native-job-description-field";
+import { NativeJobDueDateField } from "./native-job-due-date-field";
 import {
   isNativeFileTranslationJob,
   NativeJobSourceFilesSection,
@@ -102,12 +111,24 @@ export function NativeJobDetailContent({
   const [markFailedDialogOpen, setMarkFailedDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const queryClient = useQueryClient();
   const jobQueryKey = ["job", organizationSlug, projectId, jobId] as const;
 
   const jobQuery = useQuery({
     queryKey: jobQueryKey,
     queryFn: async () => {
+      try {
+        const body = await goSvcClient.job.get<JobDetailRecord>(organizationSlug, jobId);
+        if (body.job.projectId !== projectId) {
+          throw new Error(intl.formatMessage(messages.jobWrongProject));
+        }
+        return body.job;
+      } catch (error) {
+        if (!(error instanceof GoSvcClientError) || error.status !== 404) {
+          throw error;
+        }
+      }
       const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].$get({
         param: { organizationSlug, jobId },
       });
@@ -121,6 +142,12 @@ export function NativeJobDetailContent({
         throw new Error(intl.formatMessage(messages.jobWrongProject));
       }
       return body.job;
+    },
+    refetchInterval: (query) => {
+      const current = query.state.data;
+      return current && hasJobActivityFeed(current) && isJobStatusActive(current.status)
+        ? JOB_ACTIVITY_POLL_INTERVAL_MS
+        : false;
     },
   });
 
@@ -251,8 +278,27 @@ export function NativeJobDetailContent({
     },
   });
 
+  const propertyEditDisabled =
+    retryJob.isPending || markJobFailed.isPending || cancelJob.isPending || saveTitle.isPending;
   const properties = (layout?.properties ?? []).map((property) => {
-    if (property.id !== "assignees" || !isNativeEditable || !job) {
+    if (!isNativeEditable || !job) {
+      return property;
+    }
+    if (property.id === "due-date") {
+      return {
+        ...property,
+        value: (
+          <NativeJobDueDateField
+            organizationSlug={organizationSlug}
+            jobId={jobId}
+            dueAt={job.dueAt}
+            queryKey={jobQueryKey}
+            disabled={propertyEditDisabled}
+          />
+        ),
+      };
+    }
+    if (property.id !== "assignees") {
       return property;
     }
     return {
@@ -265,12 +311,7 @@ export function NativeJobDetailContent({
           ownerUserId={job.ownerUserId}
           assigneeType={job.assigneeType}
           queryKey={jobQueryKey}
-          disabled={
-            retryJob.isPending ||
-            markJobFailed.isPending ||
-            cancelJob.isPending ||
-            saveTitle.isPending
-          }
+          disabled={propertyEditDisabled}
         />
       ),
     };
@@ -401,8 +442,19 @@ export function NativeJobDetailContent({
               )
             : undefined
         }
+        renderReportSection={
+          reportsEnabled && job && !isProviderBackedJob(job)
+            ? () => (
+                <TaskReport
+                  organizationSlug={organizationSlug}
+                  jobId={jobId}
+                  defaultStep={job.kind === "proofread" ? "review" : "translation"}
+                />
+              )
+            : undefined
+        }
         renderExtraMain={
-          showFailureNotice || (job && isProviderBackedJob(job)) || reportsEnabled
+          showFailureNotice || (job && (isProviderBackedJob(job) || hasJobActivityFeed(job)))
             ? () => (
                 <>
                   {showFailureNotice && failureDetails ? (
@@ -410,6 +462,13 @@ export function NativeJobDetailContent({
                       details={failureDetails}
                       followUpHref={followUpHref}
                       variant={job?.status === "failed" ? "failed" : "partial"}
+                    />
+                  ) : null}
+                  {job && hasJobActivityFeed(job) ? (
+                    <JobActivitySection
+                      organizationSlug={organizationSlug}
+                      projectId={projectId}
+                      job={job}
                     />
                   ) : null}
                   {job && isProviderBackedJob(job) ? (
@@ -420,12 +479,6 @@ export function NativeJobDetailContent({
                       projectId={projectId}
                       showProviderMetadata={false}
                       showAgentActions={false}
-                    />
-                  ) : reportsEnabled ? (
-                    <ReportsWorkspace
-                      organizationSlug={organizationSlug}
-                      projectId={projectId}
-                      jobId={jobId}
                     />
                   ) : null}
                 </>

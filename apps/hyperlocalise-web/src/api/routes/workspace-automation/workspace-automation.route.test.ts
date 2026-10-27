@@ -17,10 +17,14 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 const {
+  enqueueAutomationCreatedActivityMock,
+  enqueueAutomationDeletedActivityMock,
   enqueueAutomationStatusActivityMock,
   resolveApiAuthContextFromSessionMock,
   workspaceAutomationExecutionEnqueueMock,
 } = vi.hoisted(() => ({
+  enqueueAutomationCreatedActivityMock: vi.fn(),
+  enqueueAutomationDeletedActivityMock: vi.fn(),
   enqueueAutomationStatusActivityMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
@@ -32,6 +36,8 @@ const {
 }));
 
 vi.mock("@/lib/activity-log/job-automation-events", () => ({
+  enqueueAutomationCreatedActivity: enqueueAutomationCreatedActivityMock,
+  enqueueAutomationDeletedActivity: enqueueAutomationDeletedActivityMock,
   enqueueAutomationRunStartedActivity: vi.fn(),
   enqueueAutomationStatusActivity: enqueueAutomationStatusActivityMock,
 }));
@@ -184,6 +190,14 @@ describe("workspace automation routes", () => {
         status: "paused",
       }),
     );
+    expect(enqueueAutomationCreatedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        automationId: created.automation.id,
+        name: "Daily localization check",
+        status: "active",
+      }),
+    );
     expect(enqueueAutomationStatusActivityMock).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
@@ -261,7 +275,10 @@ describe("workspace automation routes", () => {
 
     const readResponse = await client.api.orgs[":organizationSlug"].automations[
       ":automationId"
-    ].$get({ param: { organizationSlug, automationId: createdBody.automation.id } }, { headers });
+    ].$get(
+      { param: { organizationSlug, automationId: createdBody.automation.id }, query: {} },
+      { headers },
+    );
     expect(readResponse.status).toBe(200);
     await expect(readResponse.json()).resolves.toMatchObject({
       automation: { id: createdBody.automation.id },
@@ -276,6 +293,21 @@ describe("workspace automation routes", () => {
     );
     expect(deletedResponse.status).toBe(204);
     await expect(deletedResponse.text()).resolves.toBe("");
+    expect(enqueueAutomationCreatedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        automationId: createdBody.automation.id,
+        name: "Repository translation check",
+        status: "active",
+      }),
+    );
+    expect(enqueueAutomationDeletedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        automationId: createdBody.automation.id,
+        name: "Repository translation check",
+      }),
+    );
   });
 
   it("creates and updates the selected automation model without versioning config", async () => {
@@ -387,7 +419,10 @@ describe("workspace automation routes", () => {
 
     const missingResponse = await client.api.orgs[":organizationSlug"].automations[
       ":automationId"
-    ].$get({ param: { organizationSlug, automationId: crypto.randomUUID() } }, { headers });
+    ].$get(
+      { param: { organizationSlug, automationId: crypto.randomUUID() }, query: {} },
+      { headers },
+    );
 
     expect(missingResponse.status).toBe(404);
     await expect(missingResponse.json()).resolves.toMatchObject({

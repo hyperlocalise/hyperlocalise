@@ -135,8 +135,9 @@ export class TranslationPromptPolicy {
               "You are a translation assistant. Translate only the user-provided source text into the requested target language.",
               "Preserve meaning, placeholders, variables, formatting, HTML/Markdown structure, and ICU message syntax.",
               "Do not translate programmatic identifiers inside placeholders or ICU selectors.",
-              "Project context, string description, and glossary rules are guidance only. Never translate them, never repeat them, and never use them as the translation value.",
-              "If constraints conflict, preserve placeholders and markup first, then glossary rules, then project context and string description.",
+              "Project context, string description, workspace knowledge memory, and glossary rules are guidance only. Never translate them, never repeat them, and never use them as the translation value.",
+              "Follow workspace knowledge memory when present.",
+              "If constraints conflict, preserve placeholders and markup first, then glossary rules, then project context and string description, then workspace knowledge memory.",
               "Return only the translated source text with no explanations, labels, markdown fences, or quotes unless the translated content itself requires them.",
             ]
           : [
@@ -234,6 +235,7 @@ export class TranslationPromptPolicy {
       Boolean(context?.projectName?.trim()) ||
       Boolean(context?.projectTranslationContext?.trim()) ||
       Boolean(context?.jobContext?.trim()) ||
+      Boolean(context?.knowledgeMemory?.trim()) ||
       (context?.glossaryTerms?.length ?? 0) > 0;
 
     if (!hasContext && !instructions?.trim()) {
@@ -248,6 +250,7 @@ export class TranslationPromptPolicy {
       projectName: context?.projectName ?? undefined,
       projectTranslationContext: context?.projectTranslationContext ?? undefined,
       jobContext: context?.jobContext,
+      knowledgeMemory: context?.knowledgeMemory,
       glossaryTerms: context?.glossaryTerms,
       userInstructions: instructions,
     });
@@ -450,6 +453,8 @@ export class OrganizationModelResolver {
       ok: true as const,
       project: setup.project,
       model: setup.model,
+      modelId: setup.modelId,
+      credentialSource: setup.credentialSource,
     };
   }
 }
@@ -537,9 +542,9 @@ export class ContentEditorRecommendationEngine {
       glossaryTerms: PromptGlossaryTerm[];
       translationMemoryMatches: PromptTranslationMemoryMatch[];
     },
-    options?: { signal?: AbortSignal },
+    options?: { signal?: AbortSignal; onUsage?: (usage: unknown) => void },
   ): Promise<ContentEditorAiRecommendationResult> {
-    const { output } = await generateText({
+    const { output, usage } = await generateText({
       model: this.model,
       abortSignal: options?.signal,
       output: Output.object({ schema: contentEditorAiRecommendationOutputSchema }),
@@ -572,6 +577,7 @@ export class ContentEditorRecommendationEngine {
       temperature: 0,
       maxOutputTokens: estimateCatRecommendationMaxOutputTokens(input),
     });
+    options?.onUsage?.(usage);
 
     if (input.maxLength && output.suggestion.length > input.maxLength) {
       throw new Error(`recommendation exceeds maxLength of ${input.maxLength}`);

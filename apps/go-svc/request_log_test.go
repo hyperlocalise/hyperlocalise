@@ -3,14 +3,85 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+type writeDeadlineRecorder struct {
+	http.ResponseWriter
+	deadline time.Time
+}
+
+func (w *writeDeadlineRecorder) SetWriteDeadline(deadline time.Time) error {
+	w.deadline = deadline
+	return nil
+}
+
+func TestStatusRecorderUnwrapsWriteDeadline(t *testing.T) {
+	inner := &writeDeadlineRecorder{}
+	wrapped := &statusRecorder{ResponseWriter: &statusRecorder{ResponseWriter: inner}}
+	deadline := time.Now().Add(time.Minute)
+
+	require.NoError(t, http.NewResponseController(wrapped).SetWriteDeadline(deadline))
+	require.Equal(t, deadline, inner.deadline)
+}
+
+func TestStatusRecorderWriteDeadlineSurvivesServerTimeout(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		extend bool
+		wantOK bool
+	}{
+		{name: "extends past server write timeout", extend: true, wantOK: true},
+		{name: "keeps server write timeout", extend: false, wantOK: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := tracingMiddleware(requestLogMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if tc.extend {
+					require.NoError(t, http.NewResponseController(w).SetWriteDeadline(time.Now().Add(2*time.Second)))
+				}
+				time.Sleep(400 * time.Millisecond)
+				_, err := w.Write([]byte("ok"))
+				if tc.wantOK {
+					require.NoError(t, err)
+				}
+			})))
+
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			require.NoError(t, err)
+			srv := &http.Server{Handler: handler, WriteTimeout: 150 * time.Millisecond}
+			serveErr := make(chan error, 1)
+			go func() {
+				serveErr <- srv.Serve(listener)
+			}()
+			t.Cleanup(func() {
+				_ = srv.Close()
+				<-serveErr
+			})
+
+			client := &http.Client{Timeout: 3 * time.Second}
+			resp, err := client.Get("http://" + listener.Addr().String() + "/v1/validate/segment")
+			if !tc.wantOK {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			defer func() { _ = resp.Body.Close() }()
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			require.Equal(t, "ok", string(body))
+		})
+	}
+}
 
 func TestRequestLogMiddlewareRecordsStatus(t *testing.T) {
 	var buf bytes.Buffer

@@ -14,6 +14,7 @@ import type { LocalisationAuditFinding } from "../../types";
 import {
   clampScore,
   clipFindingEvidence,
+  comparableUrl,
   creditFinding,
   dominantScript,
   formatFindingWhere,
@@ -26,6 +27,8 @@ import {
   looksLikeUrlOrEmail,
   looksPrimarilyEnglish,
   pageLocale,
+  passingShareScore,
+  pathWithoutLocale,
   sourceLanguage,
 } from "../shared";
 import type { HeuristicCreditOutcome, HeuristicScorer } from "../types";
@@ -59,8 +62,13 @@ function ctaCandidates(page: { buttons: string[]; anchors: Array<{ text: string 
 const scoreTranslationCompleteness: HeuristicScorer = (context) => {
   const source = sourceLanguage(context.detectedLocales);
   const findings: LocalisationAuditFinding[] = [];
-  let score = 100;
+  const failingPages = new Set<string>();
+  let inspected = 0;
   let latinAmbiguous = false;
+  const sourcePages = groupPagesByLanguage(context.pages).get(source) ?? [];
+  const sourceCtas = new Set(
+    sourcePages.flatMap((item) => ctaCandidates(item).map((cta) => cta.text)),
+  );
 
   for (const page of context.pages) {
     if (page.status < 200 || page.status >= 400) continue;
@@ -74,6 +82,7 @@ const scoreTranslationCompleteness: HeuristicScorer = (context) => {
       isRtlLanguage(locale) ||
       ["ru", "uk", "bg", "el", "th"].includes(languageOf(locale))
     ) {
+      inspected += 1;
       const script = dominantScript(text);
       const expected = isCjkLanguage(locale)
         ? "cjk"
@@ -85,7 +94,7 @@ const scoreTranslationCompleteness: HeuristicScorer = (context) => {
             ? "thai"
             : "cyrillic";
       if (script === "latin" && looksPrimarilyEnglish(text)) {
-        score -= 28;
+        failingPages.add(page.url);
         findings.push(
           creditFinding({
             id: `completeness-untranslated-${findings.length}`,
@@ -102,7 +111,7 @@ const scoreTranslationCompleteness: HeuristicScorer = (context) => {
           }),
         );
       } else if (script !== expected && script === "latin") {
-        score -= 20;
+        failingPages.add(page.url);
         findings.push(
           creditFinding({
             id: `completeness-script-${findings.length}`,
@@ -122,14 +131,17 @@ const scoreTranslationCompleteness: HeuristicScorer = (context) => {
     }
 
     if (isLatinScriptLanguage(locale)) {
-      const sourcePages = groupPagesByLanguage(context.pages).get(source) ?? [];
-      const sourceCtas = new Set(
-        sourcePages.flatMap((item) => ctaCandidates(item).map((cta) => cta.text)),
-      );
-      const overlap = ctaCandidates(page).filter((cta) => sourceCtas.has(cta.text));
+      const pageCtas = ctaCandidates(page);
+      // Latin-script copy cannot be judged by script; compare CTAs against the source instead.
+      if (sourceCtas.size === 0 || pageCtas.length === 0) {
+        latinAmbiguous = true;
+        continue;
+      }
+      inspected += 1;
+      const overlap = pageCtas.filter((cta) => sourceCtas.has(cta.text));
       if (overlap.length > 0) {
         const primary = overlap[0]!;
-        score -= 22;
+        failingPages.add(page.url);
         findings.push(
           creditFinding({
             id: `completeness-cta-${findings.length}`,
@@ -148,83 +160,156 @@ const scoreTranslationCompleteness: HeuristicScorer = (context) => {
             confidence: 92,
           }),
         );
-      } else {
-        latinAmbiguous = true;
       }
     }
   }
 
-  if (latinAmbiguous) {
-    return {
-      status: "inconclusive",
-      findings,
-      evidence: { reason: "latin_script_locale_needs_review" },
-    };
+  if (inspected === 0) {
+    return latinAmbiguous
+      ? {
+          status: "inconclusive",
+          findings,
+          evidence: { reason: "latin_script_locale_needs_review" },
+        }
+      : { status: "na" };
   }
-  return scored(score, findings);
+  return scored(passingShareScore(inspected, failingPages.size), findings);
 };
 
+/** Global chrome labels (nav, footer, buttons) must repeat on this many source pages. */
+const TERMINOLOGY_MIN_PAGES = 2;
+/** Pages with fewer links than this are landing pages without the shared chrome. */
+const TERMINOLOGY_MIN_CHROME_LINKS = 5;
+
+function normalizeChromeLabel(label: string): string | null {
+  const normalized = label.replace(/\s+/g, " ").trim();
+  if (normalized.length < 4 || normalized.length > 40 || !/\p{L}/u.test(normalized)) {
+    return null;
+  }
+  return normalized;
+}
+
+function chromeLabels(page: { buttons: string[]; anchors: Array<{ text: string }> }): Set<string> {
+  return new Set(
+    [...page.buttons, ...page.anchors.map((anchor) => anchor.text)]
+      .map(normalizeChromeLabel)
+      .filter((label): label is string => label != null),
+  );
+}
+
+function chromeHrefKey(href: string, pageUrl: string): string | null {
+  const absolute = comparableUrl(href, pageUrl);
+  if (!absolute) return null;
+  return pathWithoutLocale(absolute) ?? absolute;
+}
+
+function chromeHrefKeysForLabel(
+  page: { url: string; anchors: Array<{ href: string; text: string }> },
+  label: string,
+): Set<string> {
+  const keys = new Set<string>();
+  for (const anchor of page.anchors) {
+    if (normalizeChromeLabel(anchor.text) !== label) continue;
+    const key = chromeHrefKey(anchor.href, page.url);
+    if (key) keys.add(key);
+  }
+  return keys;
+}
+
+function translatedCounterpartLabel(
+  page: { url: string; anchors: Array<{ href: string; text: string }> },
+  sourceLabel: string,
+  hrefKeys: Set<string>,
+): string | null {
+  for (const anchor of page.anchors) {
+    const label = normalizeChromeLabel(anchor.text);
+    if (!label || label === sourceLabel) continue;
+    const key = chromeHrefKey(anchor.href, page.url);
+    if (key && hrefKeys.has(key)) return label;
+  }
+  return null;
+}
+
+/**
+ * A label shown on every sampled source page is site chrome. If a target locale
+ * shows that exact source label on some pages and a translated label on the
+ * same control (matched by href) on others, terminology is inconsistent.
+ * A label that is simply omitted on another template is not a translation.
+ * Brand names stay consistent everywhere, so they do not trigger this.
+ */
 const scoreTerminologyConsistency: HeuristicScorer = (context) => {
   const source = sourceLanguage(context.detectedLocales);
-  const sourceTerms = new Set<string>();
-  for (const page of groupPagesByLanguage(context.pages).get(source) ?? []) {
-    for (const term of [...page.buttons, ...page.headings, ...page.anchors.map((a) => a.text)]) {
-      const normalized = term.trim();
-      if (normalized.length >= 4 && normalized.length <= 40) {
-        sourceTerms.add(normalized);
-      }
-    }
+  const grouped = groupPagesByLanguage(
+    context.pages.filter(
+      (page) =>
+        page.status >= 200 &&
+        page.status < 400 &&
+        page.anchors.length >= TERMINOLOGY_MIN_CHROME_LINKS,
+    ),
+  );
+  const sourcePages = grouped.get(source) ?? [];
+  if (sourcePages.length < TERMINOLOGY_MIN_PAGES) {
+    return { status: "na" };
   }
-  if (sourceTerms.size === 0) {
-    return { status: "inconclusive", evidence: { reason: "no_source_terms" } };
-  }
+  const [firstSource, ...restSource] = sourcePages.map(chromeLabels);
+  const sharedSourceLabels = [...firstSource!].filter((label) =>
+    restSource.every((labels) => labels.has(label)),
+  );
 
   const findings: LocalisationAuditFinding[] = [];
-  for (const [language, pages] of groupPagesByLanguage(context.pages)) {
-    if (language === source) continue;
-    const seen = new Map<string, Set<string>>();
-    for (const page of pages) {
-      for (const term of [...page.buttons, ...page.headings]) {
-        for (const sourceTerm of sourceTerms) {
-          if (term === sourceTerm) {
-            const variants = seen.get(sourceTerm) ?? new Set();
-            variants.add(term);
-            seen.set(sourceTerm, variants);
-          }
+  let inspectedLanguages = 0;
+  for (const [language, pages] of grouped) {
+    if (language === source || pages.length < TERMINOLOGY_MIN_PAGES) continue;
+    inspectedLanguages += 1;
+    const labelsByPage = pages.map((page) => ({ page, labels: chromeLabels(page) }));
+    for (const label of sharedSourceLabels) {
+      const withLabel = labelsByPage.filter((entry) => entry.labels.has(label));
+      const without = labelsByPage.filter((entry) => !entry.labels.has(label));
+      if (withLabel.length === 0 || without.length === 0) continue;
+      const hrefKeys = new Set<string>();
+      for (const entry of withLabel) {
+        for (const key of chromeHrefKeysForLabel(entry.page, label)) {
+          hrefKeys.add(key);
         }
       }
-    }
-    for (const [sourceTerm, variants] of seen) {
-      const translatedSomewhere = pages.some((page) =>
-        [...page.buttons, ...page.headings].some(
-          (term) =>
-            term !== sourceTerm &&
-            term.toLowerCase().includes(sourceTerm.toLowerCase().slice(0, 4)),
-        ),
-      );
-      if (variants.has(sourceTerm) && translatedSomewhere) {
-        findings.push(
-          creditFinding({
-            id: `terminology-${findings.length}`,
-            creditId: "terminology-consistency",
-            category: "linguistic",
-            severity: "medium",
-            title: "Terminology inconsistency",
-            summary: `"${sourceTerm}" appears both untranslated and translated across ${language} pages.`,
-            where: formatFindingWhere({ section: "Header", tag: "<nav> or <button>" }),
-            url: pages[0]?.url,
-            evidence: `"${sourceTerm}" appears untranslated on some ${language} pages and translated on others`,
-            advice: `Use one translated label for "${sourceTerm}" across ${language} pages.`,
+      if (hrefKeys.size === 0) continue;
+      const translated = without
+        .map((entry) => ({
+          page: entry.page,
+          label: translatedCounterpartLabel(entry.page, label, hrefKeys),
+        }))
+        .find((entry) => entry.label != null);
+      if (!translated?.label) continue;
+      findings.push(
+        creditFinding({
+          id: `terminology-${findings.length}`,
+          creditId: "terminology-consistency",
+          category: "linguistic",
+          severity: "medium",
+          title: "Terminology inconsistency",
+          summary: `"${label}" stays in the source language on ${withLabel.length} of ${labelsByPage.length} ${language} pages and is translated on the rest.`,
+          where: formatFindingWhere({
+            section: "Site chrome",
+            tag: "<nav>, <footer>, or <button>",
           }),
-        );
-      }
+          url: withLabel[0]?.page.url,
+          evidence: clipFindingEvidence(
+            `"${label}" on ${withLabel[0]?.page.url}; "${translated.label}" on ${translated.page.url}`,
+          ),
+          advice: `Use one translated label for "${label}" across all ${language} pages.`,
+          confidence: 85,
+        }),
+      );
     }
   }
 
-  if (findings.length === 0) {
-    return { status: "inconclusive", evidence: { reason: "no_clear_term_clusters" } };
+  if (inspectedLanguages === 0) {
+    return { status: "na" };
   }
-  return scored(Math.max(40, 88 - findings.length * 12), findings);
+  return scored(
+    passingShareScore(Math.max(sharedSourceLabels.length * inspectedLanguages, 1), findings.length),
+    findings,
+  );
 };
 
 const scoreCrossPageConsistency: HeuristicScorer = () => {

@@ -1,0 +1,479 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { describe, expect, it, vi } from "vite-plus/test";
+
+import { err, ok } from "@/lib/primitives/result/results";
+
+// Mock environment and database before importing tools
+vi.mock("@/lib/env", () => ({
+  env: {
+    DATABASE_URL: "postgres://localhost:5432/test",
+    OPENAI_API_KEY: "test-openai-api-key",
+  },
+}));
+
+vi.mock("@/lib/billing/usage-control", () => ({
+  reserveUsageEvent: vi.fn(async () => ({ ok: true, value: { id: "usage_123" } })),
+  usageFeatureIds: {
+    translationJobs: "translation_jobs",
+    agentRuns: "agent_runs",
+  },
+}));
+
+const { assertOrganizationCanEnqueueTranslationJobInTransactionMock } = vi.hoisted(() => ({
+  assertOrganizationCanEnqueueTranslationJobInTransactionMock: vi.fn(async () => ok(undefined)),
+}));
+
+vi.mock("@/lib/security/organization-operation-budget", () => ({
+  assertOrganizationCanEnqueueTranslationJobInTransaction:
+    assertOrganizationCanEnqueueTranslationJobInTransactionMock,
+}));
+
+vi.mock("@/lib/file-storage/records", () => ({
+  ensureRepositorySourceFileVersionForStoredFile: vi.fn(),
+  getStoredFileForJobScope: vi.fn(),
+}));
+
+vi.mock("@/lib/database/client", () => ({
+  db: {
+    transaction: vi.fn(),
+    insert: vi.fn(() => ({
+      values: vi.fn(() => ({
+        returning: vi.fn(() => [{ id: "job_123", status: "queued" }]),
+      })),
+    })),
+  },
+  schema: {
+    jobs: { id: "jobs" },
+    translationJobDetails: { jobId: "jobId" },
+    reviewJobDetails: { jobId: "reviewJobId" },
+    syncJobDetails: { jobId: "syncJobId" },
+    assetManagementJobDetails: { jobId: "assetJobId" },
+    projects: { id: "id", organizationId: "organizationId", teamId: "teamId" },
+  },
+}));
+
+vi.mock("@/lib/workflow/queues", () => ({
+  createTranslationJobEventQueue: () => ({
+    enqueue: vi.fn(async () => ({ ids: ["run_translation_1"] })),
+  }),
+  createReviewJobEventQueue: () => ({
+    enqueue: vi.fn(async () => ({ ids: ["run_review_1"] })),
+  }),
+}));
+
+vi.mock("@/lib/agent-runtime/tools/tool-access", () => ({
+  toolCanAccessProject: vi.fn(async () => ({ id: "project_123" })),
+  toolCanAccessStoredFileProject: vi.fn(async () => true),
+  toolAccessibleJobsWhere: vi.fn(async () => ({})),
+}));
+
+import {
+  createAssetManagementJobTool,
+  createGetJobStatusTool,
+  createListJobsTool,
+  createResearchJobTool,
+  createReviewJobTool,
+  createSyncJobTool,
+  createTranslationJobTool,
+} from "@/lib/agent-runtime/tools/translation-tools";
+import { getStoredFileForJobScope } from "@/lib/file-storage/records";
+import {
+  toolAccessibleJobsWhere,
+  toolCanAccessProject,
+  toolCanAccessStoredFileProject,
+} from "@/lib/agent-runtime/tools/tool-access";
+import type { OrganizationMembershipRole } from "@/lib/database/types";
+import type { ToolContext } from "@/lib/tools/types";
+
+const JOB_CREATE_DENIED_ROLES = ["member"] as const satisfies readonly OrganizationMembershipRole[];
+
+const JOB_CREATE_ALLOWED_ROLES = [
+  "admin",
+  "localization_manager",
+  "developer",
+  "reviewer",
+  "translator",
+] as const satisfies readonly OrganizationMembershipRole[];
+
+describe("Agent Tools RBAC", () => {
+  const mockCtx = (role: OrganizationMembershipRole): ToolContext => ({
+    conversationId: "conv_123",
+    organizationId: "org_123",
+    localUserId: "user_123",
+    membershipRole: role,
+    projectId: "project_123",
+    db: {
+      transaction: vi.fn(async (cb) =>
+        cb({
+          execute: vi.fn(async () => undefined),
+          insert: vi.fn(() => ({
+            values: vi.fn(() => ({
+              returning: vi.fn(() => [{ id: "mutated_123", status: "queued" }]),
+              onConflictDoNothing: vi.fn(() => ({
+                returning: vi.fn(() => [{ id: "mutated_123", status: "queued" }]),
+              })),
+            })),
+          })),
+          select: vi.fn(() => ({
+            from: vi.fn(() => ({
+              where: vi.fn(() => {
+                const rows = [{ workflowRunId: null }];
+                const limitResult = Promise.resolve(rows);
+                return {
+                  limit: vi.fn(() =>
+                    Object.assign(limitResult, {
+                      for: vi.fn(async () => rows),
+                    }),
+                  ),
+                };
+              }),
+            })),
+          })),
+          update: vi.fn(() => ({
+            set: vi.fn(() => ({
+              where: vi.fn(() => ({
+                returning: vi.fn(() => [
+                  { id: "mutated_123", status: "queued", workflowRunId: "run_translation_1" },
+                ]),
+              })),
+            })),
+          })),
+          delete: vi.fn(() => ({
+            where: vi.fn(() => ({
+              returning: vi.fn(() => [{ id: "mutated_123" }]),
+            })),
+          })),
+        }),
+      ),
+      insert: vi.fn(() => ({
+        values: vi.fn(() => ({
+          returning: vi.fn(() => [{ id: "mutated_123", status: "queued" }]),
+          onConflictDoNothing: vi.fn(() => ({
+            returning: vi.fn(() => [{ id: "mutated_123" }]),
+          })),
+        })),
+      })),
+      update: vi.fn(() => ({
+        set: vi.fn(() => ({
+          where: vi.fn(() => ({
+            returning: vi.fn(() => [{ id: "mutated_123", status: "queued" }]),
+          })),
+        })),
+      })),
+      delete: vi.fn(() => ({
+        where: vi.fn(() => ({
+          returning: vi.fn(() => [{ id: "mutated_123" }]),
+        })),
+      })),
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => []),
+          })),
+        })),
+      })),
+    } as any,
+  });
+
+  const toolCallInfo = { toolCallId: "test-tool-call", messages: [], context: {} };
+
+  async function executeTool(tool: any, input: any) {
+    if (!tool.execute) {
+      throw new Error("Tool is missing execute");
+    }
+    return tool.execute(input, toolCallInfo);
+  }
+
+  function dbSpy(
+    ctx: ToolContext,
+    method: "insert" | "select" | "update" | "delete" | "transaction",
+  ) {
+    return ctx.db[method] as ReturnType<typeof vi.fn>;
+  }
+
+  describe("Translation Job Tools", () => {
+    it.each(JOB_CREATE_DENIED_ROLES)("denies translation job create for %s", async (role) => {
+      const ctx = mockCtx(role);
+      const tool = createTranslationJobTool(ctx);
+      const result = await executeTool(tool, {
+        type: "string",
+        sourceText: "hello",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("permission");
+      expect(dbSpy(ctx, "transaction")).not.toHaveBeenCalled();
+    });
+
+    it.each(JOB_CREATE_ALLOWED_ROLES)(
+      "allows translation job create past the capability gate for %s",
+      async (role) => {
+        const tool = createTranslationJobTool(mockCtx(role));
+        const result = await executeTool(tool, {
+          type: "string",
+          sourceText: "hello",
+          sourceLocale: "en",
+          targetLocales: ["fr"],
+        });
+        expect(result.success).toBe(true);
+        expect(result.error).toBeUndefined();
+      },
+    );
+
+    it("denies job creation when the organization job budget is exceeded", async () => {
+      assertOrganizationCanEnqueueTranslationJobInTransactionMock.mockResolvedValueOnce(
+        err({
+          code: "organization_job_budget_exceeded",
+          message: "Organization job creation rate limit exceeded. Try again later.",
+        }),
+      );
+
+      const tool = createTranslationJobTool(mockCtx("admin"));
+      const result = await executeTool(tool, {
+        type: "string",
+        sourceText: "hello",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+      });
+
+      expect(assertOrganizationCanEnqueueTranslationJobInTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        "org_123",
+      );
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("rate limit exceeded");
+    });
+
+    it("denies file translation jobs for inaccessible workspace source files", async () => {
+      vi.mocked(getStoredFileForJobScope).mockResolvedValueOnce({
+        id: "file_private",
+        organizationId: "org_123",
+        projectId: null,
+        createdByUserId: "user_other",
+        filename: "private.json",
+      } as any);
+      vi.mocked(toolCanAccessStoredFileProject).mockResolvedValueOnce(false);
+
+      const tool = createTranslationJobTool(mockCtx("admin"));
+      const result = await executeTool(tool, {
+        type: "file",
+        sourceFileId: "file_private",
+        fileFormat: "json",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+      });
+
+      expect(toolCanAccessStoredFileProject).toHaveBeenCalledWith(
+        expect.objectContaining({ localUserId: "user_123" }),
+        null,
+        "user_other",
+      );
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Source file was not found");
+    });
+  });
+
+  describe("List / Get Job Tools access filtering", () => {
+    it("returns no jobs when list_jobs projectId is outside tool access", async () => {
+      vi.mocked(toolCanAccessProject).mockResolvedValueOnce(null as never);
+
+      const ctx = mockCtx("translator");
+      const tool = createListJobsTool(ctx);
+      const result = await executeTool(tool, {
+        projectId: "project_outside_access",
+        limit: 20,
+      });
+
+      expect(toolCanAccessProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: "org_123",
+          localUserId: "user_123",
+        }),
+        "project_outside_access",
+      );
+      expect(result).toEqual({ jobs: [] });
+      expect(dbSpy(ctx, "select")).not.toHaveBeenCalled();
+    });
+
+    it("hides get_job_status details when the job is outside accessible jobs", async () => {
+      const limitMock = vi.fn(async () => []);
+      const whereMock = vi.fn(() => ({ limit: limitMock }));
+      const leftJoinMock = vi.fn(() => ({
+        leftJoin: leftJoinMock,
+        where: whereMock,
+      }));
+      const fromMock = vi.fn(() => ({
+        leftJoin: leftJoinMock,
+      }));
+      const selectMock = vi.fn(() => ({
+        from: fromMock,
+      }));
+
+      const ctx = mockCtx("translator");
+      (ctx.db as any).select = selectMock;
+
+      const tool = createGetJobStatusTool(ctx);
+      const result = await executeTool(tool, { jobId: "job_hidden" });
+
+      expect(toolAccessibleJobsWhere).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: "org_123",
+          localUserId: "user_123",
+        }),
+      );
+      expect(result).toEqual({
+        job: null,
+        error: "Job job_hidden not found.",
+      });
+      expect(limitMock).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe("Review / Research / Sync / Asset Job Tools", () => {
+    it.each(JOB_CREATE_DENIED_ROLES)("denies review job create for %s", async (role) => {
+      const ctx = mockCtx(role);
+      const tool = createReviewJobTool(ctx);
+      const result = await executeTool(tool, {
+        criteria: "tone and consistency",
+        targetLocale: "ja",
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("permission");
+      expect(dbSpy(ctx, "transaction")).not.toHaveBeenCalled();
+    });
+
+    it.each(JOB_CREATE_ALLOWED_ROLES)(
+      "allows review job create past the capability gate for %s",
+      async (role) => {
+        const tool = createReviewJobTool(mockCtx(role));
+        const result = await executeTool(tool, {
+          criteria: "tone and consistency",
+          targetLocale: "ja",
+        });
+        expect(result.success).toBe(true);
+        expect(result.jobId).toBe("mutated_123");
+        expect(result.error).toBeUndefined();
+      },
+    );
+
+    it("requires a project before creating a review job", async () => {
+      const ctx = mockCtx("admin");
+      ctx.projectId = null;
+      const tool = createReviewJobTool(ctx);
+      const result = await executeTool(tool, {
+        criteria: "terminology compliance",
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Attach a project");
+      expect(dbSpy(ctx, "transaction")).not.toHaveBeenCalled();
+    });
+
+    it.each(JOB_CREATE_DENIED_ROLES)("denies research job create for %s", async (role) => {
+      const ctx = mockCtx(role);
+      const tool = createResearchJobTool(ctx);
+      const result = await executeTool(tool, {
+        scope: "cultural reference viability",
+        targetLocales: ["pt-BR"],
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("permission");
+      expect(dbSpy(ctx, "transaction")).not.toHaveBeenCalled();
+    });
+
+    it.each(JOB_CREATE_ALLOWED_ROLES)(
+      "allows research job create past the capability gate for %s",
+      async (role) => {
+        const tool = createResearchJobTool(mockCtx(role));
+        const result = await executeTool(tool, {
+          scope: "cultural reference viability",
+          targetLocales: ["pt-BR"],
+        });
+        expect(result.success).toBe(true);
+        expect(result.jobId).toBe("mutated_123");
+        expect(result.status).toBe("queued");
+      },
+    );
+
+    it.each(JOB_CREATE_DENIED_ROLES)("denies sync job create for %s", async (role) => {
+      const ctx = mockCtx(role);
+      const tool = createSyncJobTool(ctx);
+      const result = await executeTool(tool, {
+        connectorKind: "github",
+        direction: "pull",
+        externalIdentifiers: { repository: "owner/repo" },
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("permission");
+      expect(dbSpy(ctx, "transaction")).not.toHaveBeenCalled();
+    });
+
+    it.each(JOB_CREATE_ALLOWED_ROLES)(
+      "allows sync job create past the capability gate for %s",
+      async (role) => {
+        const tool = createSyncJobTool(mockCtx(role));
+        const result = await executeTool(tool, {
+          connectorKind: "github",
+          direction: "pull",
+          externalIdentifiers: { repository: "owner/repo" },
+        });
+        expect(result.success).toBe(true);
+        expect(result.jobId).toBe("mutated_123");
+      },
+    );
+
+    it.each(JOB_CREATE_DENIED_ROLES)("denies asset-management job create for %s", async (role) => {
+      const ctx = mockCtx(role);
+      const tool = createAssetManagementJobTool(ctx);
+      const result = await executeTool(tool, {
+        assetType: "glossary",
+        operation: "import",
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("permission");
+      expect(dbSpy(ctx, "transaction")).not.toHaveBeenCalled();
+    });
+
+    it.each(JOB_CREATE_ALLOWED_ROLES)(
+      "allows asset-management job create past the capability gate for %s",
+      async (role) => {
+        const tool = createAssetManagementJobTool(mockCtx(role));
+        const result = await executeTool(tool, {
+          assetType: "glossary",
+          operation: "import",
+        });
+        expect(result.success).toBe(true);
+        expect(result.jobId).toBe("mutated_123");
+      },
+    );
+
+    it("denies research job creation when the organization job budget is exceeded", async () => {
+      assertOrganizationCanEnqueueTranslationJobInTransactionMock.mockResolvedValueOnce(
+        err({
+          code: "organization_job_budget_exceeded",
+          message: "Organization job creation rate limit exceeded. Try again later.",
+        }),
+      );
+
+      const tool = createResearchJobTool(mockCtx("developer"));
+      const result = await executeTool(tool, {
+        scope: "competitor wording",
+        targetLocales: ["ja-JP"],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("rate limit exceeded");
+    });
+  });
+});

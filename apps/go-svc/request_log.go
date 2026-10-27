@@ -19,6 +19,10 @@ func (r *statusRecorder) WriteHeader(code int) {
 	r.ResponseWriter.WriteHeader(code)
 }
 
+func (r *statusRecorder) Unwrap() http.ResponseWriter {
+	return r.ResponseWriter
+}
+
 func requestID(r *http.Request) string {
 	if id := strings.TrimSpace(r.Header.Get("X-Vercel-Id")); id != "" {
 		return id
@@ -233,11 +237,20 @@ func requestLogPath(path string) string {
 	if parts[4] == "notification-preferences" {
 		return "/v1/orgs/{organizationSlug}/notification-preferences"
 	}
+	if parts[4] == "billing" {
+		if len(parts) >= 6 {
+			return "/v1/orgs/{organizationSlug}/billing/{resource}"
+		}
+		return "/v1/orgs/{organizationSlug}/billing"
+	}
 	if parts[4] == "mentions" {
 		return "/v1/orgs/{organizationSlug}/mentions"
 	}
 	if parts[4] == "overview" {
 		return "/v1/orgs/{organizationSlug}/overview/{resource}"
+	}
+	if parts[4] == "conversations" {
+		return "/v1/orgs/{organizationSlug}/conversations/{resource}"
 	}
 	return path
 }

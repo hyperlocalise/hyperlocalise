@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -65,10 +66,10 @@ func (api *editorCatAPI) usesEditorCatWholeFileTarget(r *http.Request, actor edi
 	if isEditorCatAllFiles(sourcePath) {
 		return false
 	}
-	if isEditorCatBinaryWholeFile(sourcePath) {
+	if isEditorCatBinaryWholeFile(sourcePath) && !isEditorCatOffice(sourcePath) {
 		return true
 	}
-	if !isEditorCatDocument(sourcePath) {
+	if !isEditorCatSegmentedFile(sourcePath) {
 		return false
 	}
 	if looksLikeEditorCatFileBackedAlias(externalStringID, sourcePath) {
@@ -349,30 +350,39 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		if lockedIDs[canonicalEditorCatID(occurrenceID)] {
 			continue
 		}
-		var occurrenceSourceText, occurrencePath string
+		var occurrenceSourceText, occurrencePath, occurrenceMessageFormat string
 		var occurrenceMaxLength *int
 		err = tx.QueryRow(r.Context(), `
-            select k.source_text, coalesce(f.source_path, $4), k.max_length
+            select k.source_text, coalesce(f.source_path, $4), k.max_length, coalesce(f.message_format, 'auto')
             from project_translation_keys k
             left join repository_source_files f on f.id=k.repository_source_file_id
                 and f.organization_id=k.organization_id and f.project_id=k.project_id
             where k.organization_id=$1 and k.project_id=$2 and k.id=$3`,
 			actor.organizationID, project.ID, occurrenceID, sourcePath,
-		).Scan(&occurrenceSourceText, &occurrencePath, &occurrenceMaxLength)
+		).Scan(&occurrenceSourceText, &occurrencePath, &occurrenceMaxLength, &occurrenceMessageFormat)
 		if err != nil {
 			return nil, 0, err
 		}
 		if body.Group != nil {
-			if err = editorCatValidateTargetText(occurrenceSourceText, occurrencePath, body.Text, targetLocale, occurrenceMaxLength); err != nil {
+			if err = editorCatValidateTargetText(editorCatValidationInput{
+				sourceText:    occurrenceSourceText,
+				sourcePath:    occurrencePath,
+				targetText:    body.Text,
+				targetLocale:  targetLocale,
+				maxLength:     occurrenceMaxLength,
+				messageFormat: occurrenceMessageFormat,
+			}); err != nil {
 				return nil, 0, err
 			}
 		}
-		var beforeRevision string
-		err = tx.QueryRow(r.Context(), `select xmin::text from project_translations where translation_key_id=$1 and target_locale=$2 for update`, occurrenceID, targetLocale).Scan(&beforeRevision)
-		if errors.Is(err, pgx.ErrNoRows) {
-			beforeRevision = "missing"
-		} else if err != nil {
+		var before *editorCatTranslationSnapshot
+		before, err = lockEditorCatTranslation(r.Context(), tx, actor.organizationID, occurrenceID, targetLocale)
+		if err != nil {
 			return nil, 0, err
+		}
+		beforeRevision := "missing"
+		if before != nil {
+			beforeRevision = before.revision
 		}
 		var id, text, savedStatus, afterRevision string
 		err = tx.QueryRow(r.Context(), `
@@ -399,9 +409,24 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		if err != nil {
 			return nil, 0, err
 		}
+		var revisionID string
+		revisionID, err = recordEditorCatRevision(r.Context(), tx, actor.organizationID, editorCatRevisionWrite{
+			translationID: id,
+			before:        before,
+			afterText:     text,
+			afterStatus:   savedStatus,
+			actorUserID:   actor.userID,
+			operationID:   operationID,
+		})
+		if err != nil {
+			return nil, 0, err
+		}
 		payload := map[string]any{
 			"projectId": project.ID, "segmentId": occurrenceID, "sourcePath": occurrencePath, "targetLocale": targetLocale,
 			"groupId": groupID, "beforeRevision": beforeRevision, "afterRevision": afterRevision, "nextStatus": savedStatus,
+		}
+		if revisionID != "" {
+			payload["revisionId"] = revisionID
 		}
 		if operationID != "" {
 			payload["operationId"] = operationID
@@ -475,8 +500,17 @@ func (api *editorCatAPI) updateTranslationStatus(r *http.Request, actor editorCa
 		reviewedAt = &now
 		reviewedBy = &actor.userID
 	}
+	tx, err := api.pool.Begin(r.Context())
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+	before, err := lockEditorCatTranslation(r.Context(), tx, actor.organizationID, keyID, trimEditorCat(body.TargetLocale))
+	if err != nil {
+		return nil, 0, err
+	}
 	var id, text, status string
-	err = api.pool.QueryRow(r.Context(), `
+	err = tx.QueryRow(r.Context(), `
         update project_translations
         set status=$5, reviewed_at=$6, reviewed_by_user_id=$7, updated_at=now()
         where organization_id=$1 and project_id=$2 and translation_key_id=$3 and target_locale=$4
@@ -487,6 +521,18 @@ func (api *editorCatAPI) updateTranslationStatus(r *http.Request, actor editorCa
 		return nil, 0, editorCatFailure(400, "translation_key_not_found", "Translation key not found")
 	}
 	if err != nil {
+		return nil, 0, err
+	}
+	if _, err = recordEditorCatRevision(r.Context(), tx, actor.organizationID, editorCatRevisionWrite{
+		translationID: id,
+		before:        before,
+		afterText:     text,
+		afterStatus:   status,
+		actorUserID:   actor.userID,
+	}); err != nil {
+		return nil, 0, err
+	}
+	if err = tx.Commit(r.Context()); err != nil {
 		return nil, 0, err
 	}
 	sourcePath := trimEditorCat(body.SourcePath)
@@ -665,10 +711,42 @@ func (api *editorCatAPI) setHidden(r *http.Request, actor editorCatActor, projec
 	api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
 		eventType:  eventType,
 		segmentID:  ids[0],
+		segmentIDs: ids,
 		sourcePath: trimEditorCat(body.SourcePath),
 		itemCount:  int(tag.RowsAffected()),
 	})
 	return map[string]any{"updatedCount": tag.RowsAffected(), "isHidden": body.IsHidden}, 200, nil
+}
+
+// deleteEditorCatSegmentLocks removes existing locks and returns the requested ids that were deleted, in request order.
+func deleteEditorCatSegmentLocks(ctx context.Context, tx pgx.Tx, organizationID, projectID, targetLocale string, ids []string) ([]string, error) {
+	rows, err := tx.Query(ctx, `
+        delete from project_cat_segment_locks
+        where organization_id=$1 and project_id=$2 and target_locale=$3 and external_string_id = any($4::text[])
+        returning external_string_id`,
+		organizationID, projectID, targetLocale, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	deleted := make(map[string]struct{}, len(ids))
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		deleted[id] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	unlocked := make([]string, 0, len(deleted))
+	for _, id := range ids {
+		if _, ok := deleted[id]; ok {
+			unlocked = append(unlocked, id)
+		}
+	}
+	return unlocked, nil
 }
 
 func (api *editorCatAPI) setLocked(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
@@ -700,24 +778,24 @@ func (api *editorCatAPI) setLocked(r *http.Request, actor editorCatActor, projec
 		}
 	}
 	if !body.IsLocked {
-		tag, err := tx.Exec(r.Context(), `
-            delete from project_cat_segment_locks
-            where organization_id=$1 and project_id=$2 and target_locale=$3 and external_string_id = any($4::text[])`,
-			actor.organizationID, project.ID, targetLocale, ids)
+		unlocked, err := deleteEditorCatSegmentLocks(r.Context(), tx, actor.organizationID, project.ID, targetLocale, ids)
 		if err != nil {
 			return nil, 0, err
 		}
 		if err = tx.Commit(r.Context()); err != nil {
 			return nil, 0, err
 		}
-		api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
-			eventType:    "string_segment_unlocked",
-			segmentID:    ids[0],
-			sourcePath:   trimEditorCat(body.SourcePath),
-			targetLocale: targetLocale,
-			itemCount:    int(tag.RowsAffected()),
-		})
-		return map[string]any{"contentEditorSegmentLock": map[string]any{"updatedCount": tag.RowsAffected(), "isLocked": false}}, 200, nil
+		if len(unlocked) > 0 {
+			api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
+				eventType:    "string_segment_unlocked",
+				segmentID:    unlocked[0],
+				segmentIDs:   unlocked,
+				sourcePath:   trimEditorCat(body.SourcePath),
+				targetLocale: targetLocale,
+				itemCount:    len(unlocked),
+			})
+		}
+		return map[string]any{"contentEditorSegmentLock": map[string]any{"updatedCount": len(unlocked), "isLocked": false}}, 200, nil
 	}
 	_, err = tx.Exec(r.Context(), `
         insert into project_cat_segment_locks (
@@ -737,6 +815,7 @@ func (api *editorCatAPI) setLocked(r *http.Request, actor editorCatActor, projec
 	api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
 		eventType:    "string_segment_locked",
 		segmentID:    ids[0],
+		segmentIDs:   ids,
 		sourcePath:   trimEditorCat(body.SourcePath),
 		targetLocale: targetLocale,
 		itemCount:    len(ids),
@@ -956,6 +1035,7 @@ func (api *editorCatAPI) rejectIfLocked(r *http.Request, actor editorCatActor, p
 type editorCatSegmentActivity struct {
 	eventType    string
 	segmentID    string
+	segmentIDs   []string
 	sourcePath   string
 	targetLocale string
 	itemCount    int
@@ -977,6 +1057,9 @@ func (api *editorCatAPI) recordEditorCatSegmentActivity(r *http.Request, actor e
 	}
 	if activity.itemCount > 1 {
 		payload["itemCount"] = activity.itemCount
+	}
+	if len(activity.segmentIDs) > 1 {
+		payload["segmentIds"] = activity.segmentIDs
 	}
 	for key, value := range activity.extra {
 		payload[key] = value

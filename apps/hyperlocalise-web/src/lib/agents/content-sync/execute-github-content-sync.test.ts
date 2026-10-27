@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   uploadRepositorySourceFilesFromSandbox: vi.fn(),
   canPushToGitHubRepository: vi.fn(),
   loadProjectTranslationsAsPrefilledEntries: vi.fn(),
+  loadProjectOfficeTranslationDownload: vi.fn(),
   hasDiffAgainstBase: vi.fn(),
   commitPushAndCreatePullTranslationsPullRequest: vi.fn(),
 }));
@@ -85,6 +86,12 @@ vi.mock("@/lib/agents/repository-write-gate", () => ({
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
   loadProjectTranslationsAsPrefilledEntries: (...args: unknown[]) =>
     mocks.loadProjectTranslationsAsPrefilledEntries(...args),
+}));
+
+vi.mock("@/lib/projects/files/office-translation-download", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/projects/files/office-translation-download")>()),
+  loadProjectOfficeTranslationDownload: (...args: unknown[]) =>
+    mocks.loadProjectOfficeTranslationDownload(...args),
 }));
 
 vi.mock("@/lib/agents/github/github-repository-automation-pull-translations-pr", () => ({
@@ -409,5 +416,90 @@ describe("executeGithubContentSync", () => {
       }),
     );
     expect(mocks.stopGithubRepositoryAutomationSandbox).toHaveBeenCalledWith("sbx-1");
+  });
+
+  it("pushes generated Excel workbooks only for locales with ready translations", async () => {
+    const workbook = Buffer.from("PK\x03\x04xlsx");
+    mocks.loadProjectOfficeTranslationDownload.mockImplementation(
+      async (input: { targetLocale: string }) => ({
+        ok: true,
+        value: {
+          contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          content: workbook,
+          extension: ".xlsx",
+          translatedKeyCount: input.targetLocale === "fr" ? 2 : 0,
+        },
+      }),
+    );
+
+    const result = await pullThenPush({
+      targetLocales: ["fr", "de"],
+      sourceFiles: [{ sourcePath: "github/acme/web/strings.xlsx" }],
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.pushed).toMatchObject({ written: 1 });
+    }
+    expect(mocks.loadProjectOfficeTranslationDownload).toHaveBeenCalledWith({
+      organizationId: ORG_ID,
+      projectId: PROJECT_ID,
+      sourcePath: "github/acme/web/strings.xlsx",
+      targetLocale: "fr",
+    });
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+    expect(mocks.commitPushAndCreatePullTranslationsPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        candidates: [
+          expect.objectContaining({ targetPath: "locales/strings-fr.xlsx", content: workbook }),
+        ],
+      }),
+    );
+  });
+
+  it("skips Excel exports that fail to generate instead of falling back to JSON", async () => {
+    mocks.loadProjectOfficeTranslationDownload.mockResolvedValue({
+      ok: false,
+      error: { code: "invalid_xlsx" },
+    });
+
+    const result = await pullThenPush({
+      targetLocales: ["fr"],
+      sourceFiles: [{ sourcePath: "github/acme/web/strings.xlsx" }],
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.pushed).toEqual({ written: 0 });
+    }
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+    expect(mocks.commitPushAndCreatePullTranslationsPullRequest).not.toHaveBeenCalled();
+  });
+
+  it("pushes legacy .xls sources as generated .xlsx workbooks", async () => {
+    const workbook = Buffer.from("PK\x03\x04xlsx");
+    mocks.loadProjectOfficeTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: {
+        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        content: workbook,
+        extension: ".xlsx",
+        translatedKeyCount: 1,
+      },
+    });
+
+    const result = await pullThenPush({
+      targetLocales: ["fr"],
+      sourceFiles: [{ sourcePath: "github/acme/web/strings.xls" }],
+    });
+
+    expect(isOk(result)).toBe(true);
+    expect(mocks.commitPushAndCreatePullTranslationsPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        candidates: [
+          expect.objectContaining({ targetPath: "locales/strings-fr.xlsx", content: workbook }),
+        ],
+      }),
+    );
   });
 });

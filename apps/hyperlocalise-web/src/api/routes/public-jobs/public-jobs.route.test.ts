@@ -38,7 +38,12 @@ import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { err, ok } from "@/lib/primitives/result/results";
-import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
+import {
+  AI_CREDIT_EXHAUSTED_CODE,
+  AI_CREDIT_EXHAUSTED_MESSAGE,
+  AI_FEATURES_REQUIRED_CODE,
+  AI_FEATURES_REQUIRED_MESSAGE,
+} from "@/lib/billing/ai-features";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 import {
@@ -104,6 +109,37 @@ describe("publicJobRoutes", () => {
     expect(ensureAiFeaturesAllowedMock).toHaveBeenCalledWith({
       organizationId: project.organizationId,
     });
+  });
+  it("rejects job creation with 402 when the AI credit is used up", async () => {
+    ensureAiFeaturesAllowedMock.mockResolvedValue(
+      err({
+        code: AI_CREDIT_EXHAUSTED_CODE,
+        message: AI_CREDIT_EXHAUSTED_MESSAGE,
+      }),
+    );
+    const { apiKey, project } = await createPublicApiFixture();
+
+    const response = await client.api.v1.jobs.$post(
+      {
+        json: {
+          type: "string",
+          projectId: project.id,
+          stringInput: {
+            sourceText: "Hello world",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(402);
+    await expect(response.json()).resolves.toMatchObject({
+      error: AI_CREDIT_EXHAUSTED_CODE,
+      message: AI_CREDIT_EXHAUSTED_MESSAGE,
+    });
+    expect(enqueueJob).not.toHaveBeenCalled();
   });
   it("creates a string job for a double-encoded external project id", async () => {
     const { apiKey, project } = await createPublicApiFixture();

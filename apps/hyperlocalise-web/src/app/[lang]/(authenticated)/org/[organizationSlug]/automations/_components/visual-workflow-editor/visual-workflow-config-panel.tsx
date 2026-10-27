@@ -12,25 +12,44 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { WorkflowCredentialField } from "./workflow-credential-field";
 import { WorkflowDataPanel } from "./workflow-data-panel";
+import { WorkflowBoundField, type BoundPort } from "./workflow-bound-field";
+import { WorkflowTestDataPanel } from "./workflow-test-data-panel";
 import type {
+  WorkflowBinding,
   WorkflowNodeContract,
   VisualWorkflowRfEdge,
 } from "@/lib/visual-workflows/schema/types";
 import {
+  ArrowsClockwiseIcon,
   CaretDownIcon,
+  CopyIcon,
   ArrowLeftIcon,
   CaretUpIcon,
   TrashIcon,
   PlusIcon,
+  CaretRightIcon,
 } from "@phosphor-icons/react";
-import { FormattedMessage, useIntl } from "react-intl";
+import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+} from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -40,10 +59,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyP } from "@/components/ui/typography";
 import {
+  createAssignmentRule,
+  createCoalesceInputId,
+  createComparisonOperandId,
   createMergeInputId,
+  createObjectPortId,
   createReturnOutputId,
   createSequenceOutputId,
   isTriggerType,
@@ -56,13 +82,21 @@ import {
 import type {
   HttpAuthType,
   HttpMethod,
+  VisualAssignmentRule,
+  VisualAssigneeSource,
+  VisualAssignmentStrategy,
   VisualCatalogType,
+  VisualComparisonOperand,
+  VisualComparisonOperator,
   VisualKeyValuePair,
   VisualNodeConfig,
   VisualNodeErrorBehavior,
+  VisualSubworkflowField,
+  VisualTaskStep,
   VisualWorkflowGithubTriggerEvent,
   VisualWorkflowRfNode,
   VisualWorkflowValidationIssue,
+  WorkflowValueType,
 } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowV3ValidationIssue } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 
@@ -73,21 +107,49 @@ import {
 } from "@/lib/agents/content-sync/content-sync-types";
 
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
+import { VisualWorkflowIssueList } from "./visual-workflow-issue-list";
 import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
-import { useVisualWorkflowResourceOptions } from "./visual-workflow-resource-options";
+import {
+  listUpstreamFields,
+  upstreamNodeIds,
+} from "@/lib/visual-workflows/editor/visual-workflow-upstream-fields";
+import { getWorkflowInputFields } from "@/lib/visual-workflows/catalog/node-contracts";
+import { cn } from "@/lib/primitives/cn";
+import { visualWorkflowNodeTitleMessage } from "./visual-workflow-node-picker";
+import {
+  canRunForReal,
+  isMockable,
+  type MissingTestValue,
+  type VisualWorkflowTestData,
+  type VisualWorkflowTestFailure,
+} from "@/lib/visual-workflows/editor/visual-workflow-test-data";
+import {
+  useVisualWorkflowResourceOptions,
+  type VisualWorkflowMemberOption,
+  type VisualWorkflowProjectOption,
+} from "./visual-workflow-resource-options";
+import { getVisualWorkflowWebhookUrl } from "../visual-workflows-api";
+import { deriveReusableWorkflowContract } from "@/lib/visual-workflows/validation/subworkflow-validation";
 
 const ANY_PROJECT_VALUE = "__any_project__";
-const CONTENT_SYNC_PROVIDERS: ContentSyncProvider[] = [
-  "github",
-  "gitlab",
-  "contentful",
-  "intercom",
-];
+const UNASSIGNED_VALUE = "__unassigned__";
+const KEEP_ASSIGNEE_VALUE = "__keep_assignee__";
+// Content sync runs for GitHub only; other providers fail at run time.
+const CONTENT_SYNC_PROVIDERS: ContentSyncProvider[] = ["github"];
 
 const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 const ERROR_BEHAVIORS: VisualNodeErrorBehavior[] = ["stop", "continue", "branch"];
 const GITHUB_EVENTS: VisualWorkflowGithubTriggerEvent[] = ["push", "pull_request"];
 const TIMEZONES = ["UTC", "America/New_York", "America/Los_Angeles", "Europe/London", "Asia/Tokyo"];
+
+/** The parts of a step's settings, one shown at a time. */
+export type StepSettingsTab = "configuration" | "outputs" | "test";
+
+const STEP_SETTINGS_TABS = [
+  { value: "configuration", message: messages.configurationTab },
+  { value: "outputs", message: messages.outputsTab },
+  { value: "test", message: messages.testTab },
+] as const;
 
 export function VisualWorkflowConfigPanel({
   node,
@@ -95,69 +157,299 @@ export function VisualWorkflowConfigPanel({
   edges = [],
   onChangeContract,
   organizationSlug,
+  visualWorkflowId,
   issues,
+  onSelectNode,
+  onShowNode,
   onBack,
   onChangeConfig,
   onChangeNodeType,
   onDeleteNode,
+  testData,
+  allTestData,
+  missingTestValues = [],
+  onChangeTestData,
+  testRunsForReal,
+  onChangeTestRunsForReal,
+  testFailure,
+  onChangeTestFailure,
+  requestedTab,
+  onDisconnectInput,
+  onPointStep,
 }: {
   node: VisualWorkflowRfNode;
   organizationSlug?: string;
+  /** The saved workflow, which a webhook trigger's URL belongs to. */
+  visualWorkflowId?: string;
   nodes?: readonly VisualWorkflowRfNode[];
   edges?: readonly VisualWorkflowRfEdge[];
   onChangeContract?: (patch: WorkflowNodeContract) => void;
   issues: readonly (VisualWorkflowValidationIssue | VisualWorkflowV3ValidationIssue)[];
+  /** Called with the step an issue is about when its line is clicked. */
+  onSelectNode?: (nodeId: string) => void;
+  /** Called with the step an issue is about when it is asked to be shown on the canvas. */
+  onShowNode?: (nodeId: string) => void;
   onBack: () => void;
   onChangeConfig: (config: VisualNodeConfig) => void;
   onChangeNodeType: (type: VisualCatalogType) => void;
   onDeleteNode: () => void;
+  /** The step's test data, shown on its Test tab with `onChangeTestData`. */
+  testData?: Record<string, unknown>;
+  /** Every step's test data, so a source field of an earlier step can be picked before a run. */
+  allTestData?: VisualWorkflowTestData;
+  /** The values of this step a test run needs and does not have. */
+  missingTestValues?: readonly MissingTestValue[];
+  onChangeTestData?: (value: Record<string, unknown>) => void;
+  /** Whether test runs run this step for real; the choice is offered with its handler. */
+  testRunsForReal?: boolean;
+  onChangeTestRunsForReal?: (real: boolean) => void;
+  /** The error this step fails with in a test run, or undefined when it succeeds. */
+  testFailure?: VisualWorkflowTestFailure;
+  onChangeTestFailure?: (failure: VisualWorkflowTestFailure | undefined) => void;
+  /** Opens a tab from outside the panel; a new `key` opens it again. */
+  requestedTab?: { tab: StepSettingsTab; key: number };
+  /** Removes the data wire that feeds one of this step's settings. */
+  onDisconnectInput?: (portId: string) => void;
+  /** Called with the step a value under the pointer comes from, and with null when it leaves. */
+  onPointStep?: (nodeId: string | null) => void;
 }) {
   const intl = useIntl();
   const { config } = node.data;
   const resources = useVisualWorkflowResourceOptions(organizationSlug);
   const isTrigger = isTriggerType(node.data.catalogType);
-  const isInputConnected = (portId: string) =>
-    getVisualWorkflowDataEdgeBinding({
-      nodeId: node.id,
-      portId,
-      edges,
-    }) !== undefined;
-
-  const connectedInputDescription = intl.formatMessage({
-    id: "uwi6wLAbuv",
-    defaultMessage:
-      "This value is supplied by a connected data port. Remove the data wire to edit it here.",
-    description: "Description for an inline workflow value overridden by a data connection",
+  // The settings and inputs of this step that an issue names.
+  const invalidFields = new Set(
+    issues.flatMap((issue) => (issue.nodeId === node.id && issue.field ? [issue.field] : [])),
+  );
+  const inputFields = getWorkflowInputFields({
+    id: node.id,
+    type: node.data.catalogType,
+    config: node.data.config,
+    inputs: node.data.inputs,
+    outputFields: node.data.outputFields,
   });
-  const connectedInputProps = (portId: string) => {
-    const disabled = isInputConnected(portId);
+  const upstreamFields = listUpstreamFields({ node, nodes, edges, testData: allTestData });
+  const upstreamIds = upstreamNodeIds(node.id, edges);
+  const triggerId = nodes.find((step) => isTriggerType(step.data.catalogType))?.id;
+  const stepTitle = (nodeId: string) => {
+    const step = nodes.find((entry) => entry.id === nodeId);
+    return step
+      ? intl.formatMessage(visualWorkflowNodeTitleMessage(step.data.catalogType))
+      : nodeId;
+  };
+  const removeBinding = (portId: string) => {
+    const inputs = { ...node.data.inputs };
+    delete inputs[portId];
+    onChangeContract?.({ inputs });
+  };
+  /** Puts a fixed value or template stored by an older version into the setting's own box. */
+  const adoptBinding = (portId: string, binding: WorkflowBinding) => {
+    const text =
+      binding.kind === "template"
+        ? binding.template
+        : binding.kind === "literal"
+          ? typeof binding.value === "string" || typeof binding.value === "number"
+            ? binding.value
+            : JSON.stringify(binding.value)
+          : undefined;
+    if (text !== undefined) {
+      onChangeConfig({ ...config, [portId]: text } as VisualNodeConfig);
+    }
+    removeBinding(portId);
+  };
+  /** A setting's port and what feeds it: a wire on the canvas, or a binding stored earlier. */
+  const portFor = (portId: string): BoundPort => {
+    const field = inputFields.find((entry) => entry.name === portId);
+    const wired = getVisualWorkflowDataEdgeBinding({ nodeId: node.id, portId, edges });
+    const binding = node.data.inputs?.[portId];
+    const source = wired
+      ? {
+          nodeId: wired.nodeId,
+          label: stepTitle(wired.nodeId),
+          detail: wired.path.join(" › "),
+          removeLabel: intl.formatMessage(messages.disconnectInput),
+          onRemove: onDisconnectInput ? () => onDisconnectInput(portId) : undefined,
+        }
+      : binding
+        ? {
+            nodeId:
+              binding.kind === "reference"
+                ? binding.nodeId === "$trigger"
+                  ? triggerId
+                  : binding.nodeId
+                : undefined,
+            label:
+              binding.kind === "reference"
+                ? stepTitle(
+                    binding.nodeId === "$trigger" ? (triggerId ?? binding.nodeId) : binding.nodeId,
+                  )
+                : binding.kind === "literal"
+                  ? intl.formatMessage(messages.fixedValueSource)
+                  : binding.kind === "template"
+                    ? intl.formatMessage(messages.templateSource)
+                    : intl.formatMessage(messages.credentialSource),
+            detail:
+              binding.kind === "reference"
+                ? binding.path.join(" › ")
+                : binding.kind === "literal"
+                  ? JSON.stringify(binding.value)
+                  : binding.kind === "template"
+                    ? binding.template
+                    : undefined,
+            // A fixed value or template is typed into the box since this version of the panel.
+            ...((binding.kind === "literal" || binding.kind === "template") &&
+            !portId.startsWith("value.")
+              ? {
+                  removeLabel: intl.formatMessage(messages.editBindingAsText),
+                  onRemove: onChangeContract ? () => adoptBinding(portId, binding) : undefined,
+                }
+              : {
+                  removeLabel: intl.formatMessage(messages.removeBinding),
+                  onRemove: onChangeContract ? () => removeBinding(portId) : undefined,
+                }),
+          }
+        : undefined;
     return {
-      disabled,
-      description: disabled ? connectedInputDescription : undefined,
+      id: portId,
+      type: field?.type ?? "string",
+      required: field?.required ?? false,
+      source,
+      fields: upstreamFields,
+      stepTitle,
+      runsBefore: (nodeId) => upstreamIds.has(nodeId),
+      triggerId,
+      onPoint: onPointStep,
     };
   };
+  const connectedInputProps = (portId: string) => ({
+    port: portFor(portId),
+    invalid: invalidFields.has(portId),
+  });
+  // Inputs that only a wire can feed, such as a Call workflow's or a Return's values.
+  // Create/Merge object ports are shown with their field editors, not again at the bottom.
+  const wireOnlyInputs = inputFields.filter(
+    (field) =>
+      field.name.startsWith("value.") &&
+      config.kind !== "logic.create_object" &&
+      config.kind !== "logic.merge_objects" &&
+      config.kind !== "logic.compare",
+  );
+
+  // The tab stays as chosen from step to step, and starts over when the panel is opened again.
+  const [tab, setTab] = useState<StepSettingsTab>("configuration");
+  useEffect(() => {
+    if (requestedTab) setTab(requestedTab.tab);
+  }, [requestedTab]);
+  const hasTestTab = Boolean(onChangeTestData) && isMockable(node.data.catalogType);
+  const canRunStepForReal = canRunForReal(node.data.catalogType);
+  // A step without a Test tab shows its own form while that tab is the chosen one.
+  const shownTab = tab === "test" && !hasTestTab ? "configuration" : tab;
+  /** Shows the step's own form, where its issues are marked, whichever tab was open. */
+  const showIssueTab = () => setTab("configuration");
+  const [failOpen, setFailOpen] = useState(false);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <Tabs
+      value={shownTab}
+      onValueChange={(value) => setTab(value as StepSettingsTab)}
+      className="h-full min-h-0 gap-0"
+    >
+      {/* Back and Delete step are icons, so the tabs fit beside them in the panel's one header row. */}
       <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-        <Button type="button" variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeftIcon className="size-4" />
-          <FormattedMessage {...messages.backToPicker} />
-        </Button>
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-        {onChangeContract ? (
-          <WorkflowDataPanel
-            node={node}
-            nodes={nodes}
-            edges={edges}
-            organizationSlug={organizationSlug}
-            onChange={onChangeContract}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={intl.formatMessage(messages.backToPicker)}
+                onClick={onBack}
+              >
+                <ArrowLeftIcon />
+              </Button>
+            }
           />
+          <TooltipContent side="bottom">
+            <FormattedMessage {...messages.backToPicker} />
+          </TooltipContent>
+        </Tooltip>
+        {onChangeContract ? (
+          <TabsList
+            aria-label={intl.formatMessage(messages.stepSettingsTabs)}
+            className="min-w-0 flex-1 group-data-horizontal/tabs:h-8"
+          >
+            {STEP_SETTINGS_TABS.filter((entry) => entry.value !== "test" || hasTestTab).map(
+              (entry) => (
+                // A tab is as wide as its name and gives way only when the row runs out of room.
+                <TabsTrigger key={entry.value} value={entry.value} className="min-w-0 flex-auto">
+                  <span className="truncate">
+                    <FormattedMessage {...entry.message} />
+                  </span>
+                </TabsTrigger>
+              ),
+            )}
+          </TabsList>
         ) : null}
-        <h2 className="text-sm font-medium">
-          <FormattedMessage {...messages.configTitle} />
-        </h2>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon-sm"
+                className="ms-auto"
+                aria-label={intl.formatMessage(messages.deleteStep)}
+                onClick={onDeleteNode}
+              >
+                <TrashIcon />
+              </Button>
+            }
+          />
+          <TooltipContent side="bottom">
+            <FormattedMessage {...messages.deleteStep} />
+          </TooltipContent>
+        </Tooltip>
+      </div>
+      {onChangeContract ? (
+        <>
+          {hasTestTab && onChangeTestData ? (
+            <TabsContent value="test" className="min-h-0 overflow-y-auto p-4">
+              <WorkflowTestDataPanel
+                node={node}
+                value={testData}
+                missing={missingTestValues}
+                projects={resources.projects}
+                onChange={onChangeTestData}
+                runsForReal={testRunsForReal}
+                onRunsForRealChange={canRunStepForReal ? onChangeTestRunsForReal : undefined}
+                failure={testFailure}
+                onFailureChange={canRunStepForReal ? onChangeTestFailure : undefined}
+              />
+            </TabsContent>
+          ) : null}
+          <TabsContent value="outputs" className="min-h-0 overflow-y-auto p-4">
+            <WorkflowDataPanel
+              section="outputs"
+              node={node}
+              nodes={nodes}
+              edges={edges}
+              organizationSlug={organizationSlug}
+              onChange={onChangeContract}
+            />
+          </TabsContent>
+        </>
+      ) : null}
+      <TabsContent
+        value="configuration"
+        className="flex min-h-0 flex-col gap-4 overflow-y-auto p-4"
+      >
+        {/* Without the tabs nothing else names this part. */}
+        {onChangeContract ? null : (
+          <h2 className="text-sm font-medium">
+            <FormattedMessage {...messages.configTitle} />
+          </h2>
+        )}
         {isTrigger ? (
           <SelectField
             id="vw-trigger-type"
@@ -165,7 +457,7 @@ export function VisualWorkflowConfigPanel({
             value={node.data.catalogType}
             items={VISUAL_TRIGGER_TYPES.map((type) => ({
               value: type,
-              label: intl.formatMessage(titleForTrigger(type)),
+              label: intl.formatMessage(visualWorkflowNodeTitleMessage(type)),
             }))}
             onValueChange={(value) => {
               if (!value || !isVisualTriggerCatalogType(value)) {
@@ -308,18 +600,6 @@ export function VisualWorkflowConfigPanel({
               onCheckedChange={(checked) =>
                 onChangeConfig({ ...config, parseJsonBody: checked === true })
               }
-            />
-            <CheckboxField
-              id="vw-http-fail-on-error"
-              label={intl.formatMessage(messages.httpFailOnError)}
-              checked={config.failOnHttpError ?? true}
-              onCheckedChange={(checked) =>
-                onChangeConfig({ ...config, failOnHttpError: checked === true })
-              }
-            />
-            <ErrorBehaviorField
-              value={config.onError ?? "stop"}
-              onChange={(onError) => onChangeConfig({ ...config, onError })}
             />
           </>
         ) : null}
@@ -707,6 +987,76 @@ export function VisualWorkflowConfigPanel({
             />
           </>
         ) : null}
+        {config.kind === "flow.call_workflow" ? (
+          <div className="grid gap-4">
+            <SelectField
+              id="vw-call-workflow"
+              label={intl.formatMessage({
+                defaultMessage: "Published workflow",
+                id: "zMLRlSi4TO",
+                description: "Workflow selected by a Call Workflow node",
+              })}
+              value={config.workflowId}
+              placeholder={intl.formatMessage({
+                defaultMessage: "Select a reusable workflow",
+                id: "UbCGk5WHRG",
+                description: "Placeholder for selecting a reusable workflow",
+              })}
+              items={resources.workflows
+                .filter(
+                  (workflow) =>
+                    workflow.publishedDefinition !== null &&
+                    deriveReusableWorkflowContract(workflow.publishedDefinition) !== null,
+                )
+                .map((workflow) => ({
+                  value: workflow.id,
+                  label: `${workflow.name} · v${workflow.publishedVersion}`,
+                }))}
+              onValueChange={(workflowId) => {
+                const workflow = resources.workflows.find((entry) => entry.id === workflowId);
+                if (!workflow?.publishedDefinition || workflow.publishedVersion === null) return;
+                const contract = deriveReusableWorkflowContract(workflow.publishedDefinition);
+                if (!contract) return;
+                onChangeConfig({
+                  ...config,
+                  workflowId: workflow.id,
+                  version: workflow.publishedVersion,
+                  inputFields: contract.inputs,
+                  outputFields: contract.outputs,
+                });
+              }}
+            />
+            <div className="grid gap-1.5">
+              <Label htmlFor="vw-call-version">
+                {intl.formatMessage({
+                  defaultMessage: "Immutable version",
+                  id: "6NfqQj4VJh",
+                  description: "Pinned immutable workflow version",
+                })}
+              </Label>
+              <Input
+                id="vw-call-version"
+                type="number"
+                min={1}
+                value={config.version}
+                onChange={(event) =>
+                  onChangeConfig({
+                    ...config,
+                    version: Math.max(1, Number.parseInt(event.target.value, 10) || 1),
+                  })
+                }
+              />
+            </div>
+            <ContractFieldList
+              label={intl.formatMessage({
+                defaultMessage: "Outputs",
+                id: "xhGJ7UWFLE",
+                description: "Snapshotted Call Workflow outputs",
+              })}
+              fields={config.outputFields}
+            />
+          </div>
+        ) : null}
         {config.kind === "flow.return" ? (
           <div className="grid gap-2">
             <Label>
@@ -829,6 +1179,818 @@ export function VisualWorkflowConfigPanel({
             pairs={config.assignments}
             onChange={(assignments) => onChangeConfig({ ...config, assignments })}
           />
+        ) : null}
+        {config.kind === "logic.create_object" ? (
+          <div className="grid gap-3">
+            <Label>
+              <FormattedMessage {...messages.createObjectFields} />
+            </Label>
+            {config.fields.length === 0 ? (
+              <TypographyP className="text-sm text-muted-foreground">
+                <FormattedMessage {...messages.createObjectFieldsEmpty} />
+              </TypographyP>
+            ) : null}
+            {config.fields.map((field, index) => {
+              const portId = `value.${field.id}`;
+              const connected = connectedInputProps(portId);
+              const wired = connected.port.source !== undefined;
+              const hasDefault = Object.hasOwn(field, "defaultValue");
+              return (
+                <div key={field.id} className="grid gap-2 rounded-md border border-border p-2">
+                  <div className="grid grid-cols-[1fr_7rem] gap-2">
+                    <Input
+                      aria-label={intl.formatMessage(messages.createObjectFieldName, {
+                        index: index + 1,
+                      })}
+                      value={field.name}
+                      aria-invalid={invalidFields.has(portId) || undefined}
+                      onChange={(event) =>
+                        onChangeConfig({
+                          ...config,
+                          fields: config.fields.map((entry, fieldIndex) =>
+                            fieldIndex === index ? { ...entry, name: event.target.value } : entry,
+                          ),
+                        })
+                      }
+                    />
+                    <Select
+                      value={field.type}
+                      onValueChange={(type) => {
+                        if (!isWorkflowValueType(type)) return;
+                        onChangeConfig({
+                          ...config,
+                          fields: config.fields.map((entry, fieldIndex) =>
+                            fieldIndex === index
+                              ? {
+                                  ...entry,
+                                  type,
+                                  ...(Object.hasOwn(entry, "defaultValue")
+                                    ? { defaultValue: defaultValueForType(type) }
+                                    : {}),
+                                }
+                              : entry,
+                          ),
+                        });
+                      }}
+                    >
+                      <SelectTrigger
+                        aria-label={intl.formatMessage(messages.createObjectFieldType, {
+                          index: index + 1,
+                        })}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WORKFLOW_VALUE_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id={`vw-object-default-${field.id}`}
+                      checked={hasDefault}
+                      disabled={wired}
+                      onCheckedChange={(checked) =>
+                        onChangeConfig({
+                          ...config,
+                          fields: config.fields.map((entry, fieldIndex) => {
+                            if (fieldIndex !== index) return entry;
+                            if (checked === true)
+                              return { ...entry, defaultValue: defaultValueForType(entry.type) };
+                            const { defaultValue: _removed, ...withoutDefault } = entry;
+                            return withoutDefault;
+                          }),
+                        })
+                      }
+                    />
+                    <Label htmlFor={`vw-object-default-${field.id}`}>
+                      <FormattedMessage {...messages.createObjectUseDefault} />
+                    </Label>
+                  </div>
+                  {wired || !hasDefault ? (
+                    <WorkflowBoundField
+                      id={`vw-object-value-${field.id}`}
+                      label={field.name}
+                      value=""
+                      onChange={() => {}}
+                      editable={false}
+                      invalid={connected.invalid}
+                      port={connected.port}
+                    />
+                  ) : (
+                    <ObjectDefaultInput
+                      key={`${field.id}:${field.type}`}
+                      ariaLabel={intl.formatMessage(messages.createObjectFieldDefault, {
+                        index: index + 1,
+                      })}
+                      value={field.defaultValue}
+                      type={field.type}
+                      invalid={connected.invalid}
+                      onChange={(defaultValue) =>
+                        onChangeConfig({
+                          ...config,
+                          fields: config.fields.map((entry, fieldIndex) =>
+                            fieldIndex === index ? { ...entry, defaultValue } : entry,
+                          ),
+                        })
+                      }
+                    />
+                  )}
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={index === 0}
+                      aria-label={intl.formatMessage(messages.moveCreateObjectFieldUp, {
+                        index: index + 1,
+                      })}
+                      onClick={() => {
+                        const fields = [...config.fields];
+                        [fields[index - 1], fields[index]] = [fields[index]!, fields[index - 1]!];
+                        onChangeConfig({ ...config, fields });
+                      }}
+                    >
+                      <CaretUpIcon className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={index === config.fields.length - 1}
+                      aria-label={intl.formatMessage(messages.moveCreateObjectFieldDown, {
+                        index: index + 1,
+                      })}
+                      onClick={() => {
+                        const fields = [...config.fields];
+                        [fields[index], fields[index + 1]] = [fields[index + 1]!, fields[index]!];
+                        onChangeConfig({ ...config, fields });
+                      }}
+                    >
+                      <CaretDownIcon className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={intl.formatMessage(messages.removeCreateObjectField, {
+                        index: index + 1,
+                      })}
+                      onClick={() =>
+                        onChangeConfig({
+                          ...config,
+                          fields: config.fields.filter((_, fieldIndex) => fieldIndex !== index),
+                        })
+                      }
+                    >
+                      <TrashIcon className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={config.fields.length >= 100}
+              onClick={() =>
+                onChangeConfig({
+                  ...config,
+                  fields: [
+                    ...config.fields,
+                    {
+                      id: createObjectPortId(),
+                      name: `field${config.fields.length + 1}`,
+                      type: "unknown",
+                    },
+                  ],
+                })
+              }
+            >
+              <PlusIcon className="size-4" />
+              <FormattedMessage {...messages.addCreateObjectField} />
+            </Button>
+          </div>
+        ) : null}
+        {config.kind === "logic.merge_objects" ? (
+          <div className="grid gap-3">
+            <SelectField
+              id="vw-object-conflict-policy"
+              label={intl.formatMessage(messages.mergeObjectsConflictPolicy)}
+              value={config.conflictPolicy}
+              items={[
+                {
+                  value: "reject",
+                  label: intl.formatMessage(messages.mergeObjectsConflictReject),
+                },
+                {
+                  value: "first_wins",
+                  label: intl.formatMessage(messages.mergeObjectsConflictFirstWins),
+                },
+                {
+                  value: "last_wins",
+                  label: intl.formatMessage(messages.mergeObjectsConflictLastWins),
+                },
+              ]}
+              onValueChange={(conflictPolicy) => {
+                if (
+                  conflictPolicy === "reject" ||
+                  conflictPolicy === "first_wins" ||
+                  conflictPolicy === "last_wins"
+                )
+                  onChangeConfig({ ...config, conflictPolicy });
+              }}
+            />
+            <Label>
+              <FormattedMessage {...messages.mergeObjectsInputs} />
+            </Label>
+            {config.inputs.map((objectInput, index) => (
+              <div key={objectInput.id} className="grid gap-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    aria-label={intl.formatMessage(messages.mergeObjectsInputName, {
+                      index: index + 1,
+                    })}
+                    value={objectInput.name}
+                    aria-invalid={invalidFields.has(`value.${objectInput.id}`) || undefined}
+                    onChange={(event) =>
+                      onChangeConfig({
+                        ...config,
+                        inputs: config.inputs.map((entry, inputIndex) =>
+                          inputIndex === index ? { ...entry, name: event.target.value } : entry,
+                        ),
+                      })
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={index === 0}
+                    aria-label={intl.formatMessage(messages.moveMergeObjectsInputUp, {
+                      index: index + 1,
+                    })}
+                    onClick={() => {
+                      const inputs = [...config.inputs];
+                      [inputs[index - 1], inputs[index]] = [inputs[index]!, inputs[index - 1]!];
+                      onChangeConfig({ ...config, inputs });
+                    }}
+                  >
+                    <CaretUpIcon className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={index === config.inputs.length - 1}
+                    aria-label={intl.formatMessage(messages.moveMergeObjectsInputDown, {
+                      index: index + 1,
+                    })}
+                    onClick={() => {
+                      const inputs = [...config.inputs];
+                      [inputs[index], inputs[index + 1]] = [inputs[index + 1]!, inputs[index]!];
+                      onChangeConfig({ ...config, inputs });
+                    }}
+                  >
+                    <CaretDownIcon className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={config.inputs.length <= 2}
+                    aria-label={intl.formatMessage(messages.removeMergeObjectsInput, {
+                      index: index + 1,
+                    })}
+                    onClick={() =>
+                      onChangeConfig({
+                        ...config,
+                        inputs: config.inputs.filter((_, inputIndex) => inputIndex !== index),
+                      })
+                    }
+                  >
+                    <TrashIcon className="size-4" />
+                  </Button>
+                </div>
+                <WorkflowBoundField
+                  id={`vw-merge-object-${objectInput.id}`}
+                  label={objectInput.name}
+                  value=""
+                  onChange={() => {}}
+                  editable={false}
+                  invalid={invalidFields.has(`value.${objectInput.id}`)}
+                  port={portFor(`value.${objectInput.id}`)}
+                />
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={config.inputs.length >= 32}
+              onClick={() =>
+                onChangeConfig({
+                  ...config,
+                  inputs: [
+                    ...config.inputs,
+                    {
+                      id: createObjectPortId(),
+                      name: `Object ${config.inputs.length + 1}`,
+                    },
+                  ],
+                })
+              }
+            >
+              <PlusIcon className="size-4" />
+              <FormattedMessage {...messages.addMergeObjectsInput} />
+            </Button>
+          </div>
+        ) : null}
+        {config.kind === "logic.select_path" ? (
+          <div className="grid gap-3">
+            <SelectPathField
+              key={node.id}
+              label={intl.formatMessage(messages.selectPathPath)}
+              description={intl.formatMessage(messages.selectPathPathDescription)}
+              path={config.path}
+              {...connectedInputProps("path")}
+              onChange={(path) => onChangeConfig({ ...config, path })}
+            />
+            <SelectField
+              id="vw-select-path-output-type"
+              label={intl.formatMessage(messages.selectPathOutputType)}
+              value={config.outputType}
+              items={WORKFLOW_VALUE_TYPES.map((type) => ({ value: type, label: type }))}
+              onValueChange={(outputType) => {
+                if (!isWorkflowValueType(outputType)) return;
+                onChangeConfig({
+                  ...config,
+                  outputType,
+                  ...(config.missingBehavior === "default"
+                    ? { defaultValue: defaultValueForType(outputType) }
+                    : {}),
+                });
+              }}
+            />
+            <SelectField
+              id="vw-select-path-missing"
+              label={intl.formatMessage(messages.selectPathMissingBehavior)}
+              value={config.missingBehavior}
+              items={[
+                { value: "error", label: intl.formatMessage(messages.selectPathMissingError) },
+                {
+                  value: "optional",
+                  label: intl.formatMessage(messages.selectPathMissingOptional),
+                },
+                {
+                  value: "default",
+                  label: intl.formatMessage(messages.selectPathMissingDefault),
+                },
+              ]}
+              onValueChange={(missingBehavior) => {
+                if (missingBehavior === "default") {
+                  onChangeConfig({
+                    ...config,
+                    missingBehavior,
+                    defaultValue: defaultValueForType(config.outputType),
+                  });
+                } else if (missingBehavior === "error" || missingBehavior === "optional") {
+                  const { defaultValue: _removed, ...withoutDefault } = config;
+                  onChangeConfig({ ...withoutDefault, missingBehavior });
+                }
+              }}
+            />
+            {config.missingBehavior === "default" ? (
+              <div className="grid gap-1.5">
+                <Label htmlFor="vw-select-path-default">
+                  <FormattedMessage {...messages.selectPathDefaultValue} />
+                </Label>
+                <ObjectDefaultInput
+                  key={config.outputType}
+                  ariaLabel={intl.formatMessage(messages.selectPathDefaultValue)}
+                  value={config.defaultValue}
+                  type={config.outputType}
+                  invalid={invalidFields.has("defaultValue")}
+                  onChange={(defaultValue) => onChangeConfig({ ...config, defaultValue })}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {config.kind === "logic.coalesce" ? (
+          <div className="grid gap-3">
+            <Label>
+              <FormattedMessage {...messages.coalesceInputs} />
+            </Label>
+            {config.inputs.map((input, index) => {
+              const portId = `value.${input.id}`;
+              const connected = connectedInputProps(portId);
+              const wired = connected.port.source !== undefined;
+              const hasDefault = Object.hasOwn(input, "defaultValue");
+              return (
+                <div key={input.id} className="grid gap-2 rounded-md border border-border p-2">
+                  <div className="grid grid-cols-[1fr_7rem] gap-2">
+                    <Input
+                      aria-label={intl.formatMessage(messages.coalesceInputName, {
+                        index: index + 1,
+                      })}
+                      value={input.name}
+                      aria-invalid={invalidFields.has(portId) || undefined}
+                      onChange={(event) =>
+                        onChangeConfig({
+                          ...config,
+                          inputs: config.inputs.map((entry, inputIndex) =>
+                            inputIndex === index ? { ...entry, name: event.target.value } : entry,
+                          ),
+                        })
+                      }
+                    />
+                    <Select
+                      value={input.type}
+                      onValueChange={(type) => {
+                        if (!isWorkflowValueType(type)) return;
+                        onChangeConfig({
+                          ...config,
+                          inputs: config.inputs.map((entry, inputIndex) =>
+                            inputIndex === index
+                              ? {
+                                  ...entry,
+                                  type,
+                                  ...(Object.hasOwn(entry, "defaultValue")
+                                    ? { defaultValue: defaultValueForType(type) }
+                                    : {}),
+                                }
+                              : entry,
+                          ),
+                        });
+                      }}
+                    >
+                      <SelectTrigger
+                        aria-label={intl.formatMessage(messages.coalesceInputType, {
+                          index: index + 1,
+                        })}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WORKFLOW_VALUE_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id={`vw-coalesce-default-${input.id}`}
+                      checked={hasDefault}
+                      disabled={wired}
+                      onCheckedChange={(checked) =>
+                        onChangeConfig({
+                          ...config,
+                          inputs: config.inputs.map((entry, inputIndex) => {
+                            if (inputIndex !== index) return entry;
+                            if (checked === true)
+                              return { ...entry, defaultValue: defaultValueForType(entry.type) };
+                            const { defaultValue: _removed, ...withoutDefault } = entry;
+                            return withoutDefault;
+                          }),
+                        })
+                      }
+                    />
+                    <Label htmlFor={`vw-coalesce-default-${input.id}`}>
+                      <FormattedMessage {...messages.coalesceUseDefault} />
+                    </Label>
+                  </div>
+                  {wired || !hasDefault ? (
+                    <WorkflowBoundField
+                      id={`vw-coalesce-value-${input.id}`}
+                      label={input.name}
+                      value=""
+                      onChange={() => {}}
+                      editable={false}
+                      invalid={connected.invalid}
+                      port={connected.port}
+                    />
+                  ) : (
+                    <ObjectDefaultInput
+                      key={`${input.id}:${input.type}`}
+                      ariaLabel={intl.formatMessage(messages.coalesceInputDefault, {
+                        index: index + 1,
+                      })}
+                      value={input.defaultValue}
+                      type={input.type}
+                      invalid={connected.invalid}
+                      onChange={(defaultValue) =>
+                        onChangeConfig({
+                          ...config,
+                          inputs: config.inputs.map((entry, inputIndex) =>
+                            inputIndex === index ? { ...entry, defaultValue } : entry,
+                          ),
+                        })
+                      }
+                    />
+                  )}
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={index === 0}
+                      aria-label={intl.formatMessage(messages.moveCoalesceInputUp, {
+                        index: index + 1,
+                      })}
+                      onClick={() => {
+                        const inputs = [...config.inputs];
+                        [inputs[index - 1], inputs[index]] = [inputs[index]!, inputs[index - 1]!];
+                        onChangeConfig({ ...config, inputs });
+                      }}
+                    >
+                      <CaretUpIcon className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={index === config.inputs.length - 1}
+                      aria-label={intl.formatMessage(messages.moveCoalesceInputDown, {
+                        index: index + 1,
+                      })}
+                      onClick={() => {
+                        const inputs = [...config.inputs];
+                        [inputs[index], inputs[index + 1]] = [inputs[index + 1]!, inputs[index]!];
+                        onChangeConfig({ ...config, inputs });
+                      }}
+                    >
+                      <CaretDownIcon className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={config.inputs.length <= 2}
+                      aria-label={intl.formatMessage(messages.removeCoalesceInput, {
+                        index: index + 1,
+                      })}
+                      onClick={() =>
+                        onChangeConfig({
+                          ...config,
+                          inputs: config.inputs.filter((_, inputIndex) => inputIndex !== index),
+                        })
+                      }
+                    >
+                      <TrashIcon className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={config.inputs.length >= 32}
+              onClick={() =>
+                onChangeConfig({
+                  ...config,
+                  inputs: [
+                    ...config.inputs,
+                    {
+                      id: createCoalesceInputId(),
+                      name: `Value ${config.inputs.length + 1}`,
+                      type: "unknown",
+                    },
+                  ],
+                })
+              }
+            >
+              <PlusIcon className="size-4" />
+              <FormattedMessage {...messages.addCoalesceInput} />
+            </Button>
+            <div className="grid gap-2 border-t border-border pt-3">
+              <Label>
+                <FormattedMessage {...messages.coalesceMissingValues} />
+              </Label>
+              <CheckboxField
+                id="vw-coalesce-null"
+                label={intl.formatMessage(messages.coalesceTreatNullAsMissing)}
+                checked={config.treatNullAsMissing}
+                onCheckedChange={(treatNullAsMissing) =>
+                  onChangeConfig({ ...config, treatNullAsMissing })
+                }
+              />
+              <CheckboxField
+                id="vw-coalesce-empty-string"
+                label={intl.formatMessage(messages.coalesceTreatEmptyStringAsMissing)}
+                checked={config.treatEmptyStringAsMissing}
+                onCheckedChange={(treatEmptyStringAsMissing) =>
+                  onChangeConfig({ ...config, treatEmptyStringAsMissing })
+                }
+              />
+              <CheckboxField
+                id="vw-coalesce-empty-array"
+                label={intl.formatMessage(messages.coalesceTreatEmptyArrayAsMissing)}
+                checked={config.treatEmptyArrayAsMissing}
+                onCheckedChange={(treatEmptyArrayAsMissing) =>
+                  onChangeConfig({ ...config, treatEmptyArrayAsMissing })
+                }
+              />
+              <CheckboxField
+                id="vw-coalesce-empty-object"
+                label={intl.formatMessage(messages.coalesceTreatEmptyObjectAsMissing)}
+                checked={config.treatEmptyObjectAsMissing}
+                onCheckedChange={(treatEmptyObjectAsMissing) =>
+                  onChangeConfig({ ...config, treatEmptyObjectAsMissing })
+                }
+              />
+            </div>
+          </div>
+        ) : null}
+        {config.kind === "logic.compare" ? (
+          <div className="grid gap-3">
+            <SelectField
+              id="vw-compare-operator"
+              label={intl.formatMessage(messages.compareOperator)}
+              value={config.operator}
+              items={COMPARISON_OPERATORS.map((operator) => ({
+                value: operator,
+                label: intl.formatMessage(COMPARISON_OPERATOR_MESSAGES[operator]),
+              }))}
+              onValueChange={(value) => {
+                if (!isComparisonOperator(value)) return;
+                onChangeConfig({
+                  ...config,
+                  operator: value,
+                  operands: comparisonOperandsForOperator(config.operands, value),
+                  ...(["and", "or", "not"].includes(value)
+                    ? { locale: undefined, sensitivity: undefined }
+                    : {}),
+                });
+              }}
+            />
+            <Label>
+              <FormattedMessage {...messages.compareOperands} />
+            </Label>
+            {config.operands.map((operand, index) => {
+              const portId = `value.${operand.id}`;
+              const connected = connectedInputProps(portId);
+              const booleanOperator = ["and", "or", "not"].includes(config.operator);
+              return (
+                <div key={operand.id} className="grid gap-2 rounded-md border border-border p-2">
+                  <div className="grid grid-cols-[1fr_7rem] gap-2">
+                    <Input
+                      aria-label={intl.formatMessage(messages.compareOperandName, {
+                        index: index + 1,
+                      })}
+                      value={operand.name}
+                      aria-invalid={invalidFields.has(portId) || undefined}
+                      onChange={(event) =>
+                        onChangeConfig({
+                          ...config,
+                          operands: config.operands.map((entry, operandIndex) =>
+                            operandIndex === index ? { ...entry, name: event.target.value } : entry,
+                          ),
+                        })
+                      }
+                    />
+                    <Select
+                      value={operand.type}
+                      disabled={booleanOperator}
+                      onValueChange={(type) => {
+                        if (!isWorkflowValueType(type)) return;
+                        onChangeConfig({
+                          ...config,
+                          operands: config.operands.map((entry, operandIndex) =>
+                            operandIndex === index ? { ...entry, type } : entry,
+                          ),
+                          ...(type !== "string"
+                            ? { locale: undefined, sensitivity: undefined }
+                            : {}),
+                        });
+                      }}
+                    >
+                      <SelectTrigger
+                        aria-label={intl.formatMessage(messages.compareOperandType, {
+                          index: index + 1,
+                        })}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WORKFLOW_VALUE_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <WorkflowBoundField
+                    id={`vw-compare-value-${operand.id}`}
+                    label={operand.name}
+                    value=""
+                    onChange={() => {}}
+                    editable={false}
+                    invalid={connected.invalid}
+                    port={connected.port}
+                  />
+                  {["and", "or"].includes(config.operator) ? (
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={config.operands.length <= 2}
+                        aria-label={intl.formatMessage(messages.removeCompareOperand, {
+                          index: index + 1,
+                        })}
+                        onClick={() =>
+                          onChangeConfig({
+                            ...config,
+                            operands: config.operands.filter(
+                              (_, operandIndex) => operandIndex !== index,
+                            ),
+                          })
+                        }
+                      >
+                        <TrashIcon className="size-4" />
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+            {["and", "or"].includes(config.operator) ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={config.operands.length >= 12}
+                onClick={() =>
+                  onChangeConfig({
+                    ...config,
+                    operands: [
+                      ...config.operands,
+                      {
+                        id: createComparisonOperandId(),
+                        name: `Condition ${config.operands.length + 1}`,
+                        type: "boolean",
+                      },
+                    ],
+                  })
+                }
+              >
+                <PlusIcon className="size-4" />
+                <FormattedMessage {...messages.addCompareOperand} />
+              </Button>
+            ) : null}
+            {!(["and", "or", "not"] as string[]).includes(config.operator) ? (
+              <div className="grid gap-2 border-t border-border pt-3">
+                <CheckboxField
+                  id="vw-compare-locale-enabled"
+                  label={intl.formatMessage(messages.compareLocaleEnabled)}
+                  checked={config.locale !== undefined}
+                  onCheckedChange={(enabled) =>
+                    onChangeConfig({
+                      ...config,
+                      locale: enabled ? "en" : undefined,
+                      sensitivity: enabled ? "variant" : undefined,
+                    })
+                  }
+                />
+                {config.locale !== undefined ? (
+                  <>
+                    <TextField
+                      id="vw-compare-locale"
+                      label={intl.formatMessage(messages.compareLocale)}
+                      value={config.locale}
+                      invalid={invalidFields.has("locale")}
+                      onChange={(locale) => onChangeConfig({ ...config, locale })}
+                    />
+                    <SelectField
+                      id="vw-compare-sensitivity"
+                      label={intl.formatMessage(messages.compareSensitivity)}
+                      value={config.sensitivity ?? "variant"}
+                      items={COMPARISON_SENSITIVITIES.map((sensitivity) => ({
+                        value: sensitivity,
+                        label: sensitivity,
+                      }))}
+                      onValueChange={(sensitivity) => {
+                        if (!isComparisonSensitivity(sensitivity)) return;
+                        onChangeConfig({ ...config, sensitivity });
+                      }}
+                    />
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         ) : null}
         {config.kind === "logic.for_each" ? (
           <TextAreaField
@@ -1043,10 +2205,6 @@ export function VisualWorkflowConfigPanel({
               {...connectedInputProps("message")}
               onChange={(value) => onChangeConfig({ ...config, message: value })}
             />
-            <ErrorBehaviorField
-              value={config.onError ?? "stop"}
-              onChange={(onError) => onChangeConfig({ ...config, onError })}
-            />
           </>
         ) : null}
         {config.kind === "action.notify_email" ? (
@@ -1110,10 +2268,6 @@ export function VisualWorkflowConfigPanel({
               value={config.message}
               {...connectedInputProps("message")}
               onChange={(value) => onChangeConfig({ ...config, message: value })}
-            />
-            <ErrorBehaviorField
-              value={config.onError ?? "stop"}
-              onChange={(onError) => onChangeConfig({ ...config, onError })}
             />
           </>
         ) : null}
@@ -1292,12 +2446,347 @@ export function VisualWorkflowConfigPanel({
             }}
           />
         ) : null}
+        {config.kind === "trigger.webhook" ? (
+          <WebhookTriggerFields
+            config={config}
+            organizationSlug={organizationSlug}
+            visualWorkflowId={visualWorkflowId}
+            onChangeConfig={onChangeConfig}
+          />
+        ) : null}
         {config.kind === "action.content_sync" ? (
           <ContentSyncConfigFields
             config={config}
             organizationSlug={organizationSlug}
             onChangeConfig={onChangeConfig}
           />
+        ) : null}
+        {config.kind === "action.machine_translate" ||
+        config.kind === "action.create_task" ||
+        config.kind === "action.check_progress" ||
+        config.kind === "action.run_qa" ||
+        config.kind === "action.list_source_files" ? (
+          <ProjectIdField
+            projects={resources.projects}
+            value={config.projectId}
+            {...connectedInputProps("projectId")}
+            onChange={(value) => onChangeConfig({ ...config, projectId: value })}
+          />
+        ) : null}
+        {config.kind === "action.list_source_files" ? (
+          <TextField
+            id="vw-list-files-path-prefix"
+            label={intl.formatMessage(messages.listFilesPathPrefix)}
+            description={intl.formatMessage(messages.listFilesPathPrefixHint)}
+            value={config.pathPrefix}
+            {...connectedInputProps("pathPrefix")}
+            onChange={(value) => onChangeConfig({ ...config, pathPrefix: value })}
+            placeholder="locales/en/"
+          />
+        ) : null}
+        {config.kind === "action.update_job" ? (
+          <>
+            <TypographyP className="text-xs text-muted-foreground">
+              <FormattedMessage {...messages.updateJobHint} />
+            </TypographyP>
+            <TextField
+              id="vw-update-job-id"
+              label={intl.formatMessage(messages.updateJobJobId)}
+              value={config.jobId}
+              {...connectedInputProps("jobId")}
+              onChange={(value) => onChangeConfig({ ...config, jobId: value })}
+              placeholder="{{ nodes.create_task.jobId }}"
+            />
+            <SelectField
+              id="vw-update-job-assignee"
+              label={intl.formatMessage(messages.updateJobAssignee)}
+              value={config.assigneeWorkosUserId || KEEP_ASSIGNEE_VALUE}
+              items={[
+                {
+                  value: KEEP_ASSIGNEE_VALUE,
+                  label: intl.formatMessage(messages.updateJobKeepAssignee),
+                },
+                ...resources.members.map((member) => ({
+                  value: member.workosUserId,
+                  label: member.label,
+                })),
+              ]}
+              onValueChange={(value) => {
+                if (!value) {
+                  return;
+                }
+                onChangeConfig({
+                  ...config,
+                  assigneeWorkosUserId: value === KEEP_ASSIGNEE_VALUE ? "" : value,
+                });
+              }}
+            />
+            <TextField
+              id="vw-update-job-title"
+              label={intl.formatMessage(messages.updateJobTitle)}
+              value={config.title}
+              {...connectedInputProps("title")}
+              onChange={(value) => onChangeConfig({ ...config, title: value })}
+            />
+          </>
+        ) : null}
+        {config.kind === "action.pick_assignee" ? (
+          <PickAssigneeFields
+            key={node.id}
+            config={config}
+            members={resources.members}
+            connectedInputProps={connectedInputProps}
+            onChangeConfig={onChangeConfig}
+          />
+        ) : null}
+        {config.kind === "action.machine_translate" ||
+        config.kind === "action.create_task" ||
+        config.kind === "action.check_progress" ? (
+          <>
+            <TextField
+              id="vw-localization-source-file"
+              label={intl.formatMessage(
+                config.kind === "action.check_progress"
+                  ? messages.localizationSourceFileIdOptional
+                  : messages.localizationSourceFileId,
+              )}
+              value={config.sourceFileId}
+              {...connectedInputProps("sourceFileId")}
+              onChange={(value) => onChangeConfig({ ...config, sourceFileId: value })}
+              placeholder="{{ trigger.sourceFileId }}"
+            />
+            <TextField
+              id="vw-localization-target-locales"
+              label={intl.formatMessage(messages.localizationTargetLocales)}
+              description={intl.formatMessage(messages.localizationTargetLocalesHint)}
+              value={config.targetLocales}
+              {...connectedInputProps("targetLocales")}
+              onChange={(value) => onChangeConfig({ ...config, targetLocales: value })}
+              placeholder="fr-FR, de-DE"
+            />
+          </>
+        ) : null}
+        {config.kind === "action.machine_translate" ? (
+          <CheckboxField
+            id="vw-machine-translate-memory"
+            label={intl.formatMessage(messages.machineTranslateUseMemory)}
+            checked={config.useTranslationMemory !== false}
+            onCheckedChange={(checked) =>
+              onChangeConfig({ ...config, useTranslationMemory: checked })
+            }
+          />
+        ) : null}
+        {config.kind === "action.create_task" ? (
+          <>
+            <SelectField
+              id="vw-create-task-step"
+              label={intl.formatMessage(messages.createTaskStep)}
+              value={config.step}
+              items={[
+                { value: "translate", label: intl.formatMessage(messages.createTaskStepTranslate) },
+                { value: "edit", label: intl.formatMessage(messages.createTaskStepEdit) },
+                { value: "proofread", label: intl.formatMessage(messages.createTaskStepProofread) },
+              ]}
+              onValueChange={(value) => {
+                if (value !== "translate" && value !== "edit" && value !== "proofread") {
+                  return;
+                }
+                onChangeConfig({ ...config, step: value });
+              }}
+            />
+            <SelectField
+              id="vw-create-task-assignee"
+              label={intl.formatMessage(messages.createTaskAssignee)}
+              value={config.assigneeWorkosUserId || UNASSIGNED_VALUE}
+              items={[
+                {
+                  value: UNASSIGNED_VALUE,
+                  label: intl.formatMessage(messages.createTaskUnassigned),
+                },
+                ...resources.members.map((member) => ({
+                  value: member.workosUserId,
+                  label: member.label,
+                })),
+              ]}
+              onValueChange={(value) => {
+                if (!value) {
+                  return;
+                }
+                onChangeConfig({
+                  ...config,
+                  assigneeWorkosUserId: value === UNASSIGNED_VALUE ? "" : value,
+                });
+              }}
+            />
+            <TextField
+              id="vw-create-task-title"
+              label={intl.formatMessage(messages.createTaskTitle)}
+              value={config.title}
+              {...connectedInputProps("title")}
+              onChange={(value) => onChangeConfig({ ...config, title: value })}
+            />
+          </>
+        ) : null}
+        {config.kind === "action.check_progress" ? (
+          <TextField
+            id="vw-check-progress-job"
+            label={intl.formatMessage(messages.checkProgressJobId)}
+            description={intl.formatMessage(messages.checkProgressHint)}
+            value={config.jobId}
+            {...connectedInputProps("jobId")}
+            onChange={(value) => onChangeConfig({ ...config, jobId: value })}
+            placeholder="{{ nodes.machine_translate.jobId }}"
+          />
+        ) : null}
+        {config.kind === "action.crowdin_pre_translate" ||
+        config.kind === "action.crowdin_create_task" ||
+        config.kind === "action.crowdin_check_progress" ? (
+          <>
+            <TextField
+              id="vw-crowdin-project"
+              label={intl.formatMessage(messages.crowdinProjectId)}
+              description={intl.formatMessage(messages.crowdinConnectionHint)}
+              value={config.crowdinProjectId}
+              {...connectedInputProps("crowdinProjectId")}
+              onChange={(value) => onChangeConfig({ ...config, crowdinProjectId: value })}
+              placeholder="123456"
+            />
+            <TextField
+              id="vw-crowdin-files"
+              label={intl.formatMessage(
+                config.kind === "action.crowdin_check_progress"
+                  ? messages.crowdinFileIdsOptional
+                  : messages.crowdinFileIds,
+              )}
+              value={config.fileIds}
+              {...connectedInputProps("fileIds")}
+              onChange={(value) => onChangeConfig({ ...config, fileIds: value })}
+              placeholder="12, 14"
+            />
+            <TextField
+              id="vw-crowdin-languages"
+              label={intl.formatMessage(messages.crowdinLanguageIds)}
+              description={intl.formatMessage(messages.crowdinLanguageIdsHint)}
+              value={config.languageIds}
+              {...connectedInputProps("languageIds")}
+              onChange={(value) => onChangeConfig({ ...config, languageIds: value })}
+              placeholder="fr, de"
+            />
+          </>
+        ) : null}
+        {config.kind === "action.crowdin_pre_translate" ? (
+          <>
+            <SelectField
+              id="vw-crowdin-method"
+              label={intl.formatMessage(messages.crowdinPreTranslateMethod)}
+              value={config.method}
+              items={[
+                { value: "tm", label: intl.formatMessage(messages.crowdinMethodTm) },
+                { value: "mt", label: intl.formatMessage(messages.crowdinMethodMt) },
+                { value: "ai", label: intl.formatMessage(messages.crowdinMethodAi) },
+              ]}
+              onValueChange={(value) => {
+                if (value !== "tm" && value !== "mt" && value !== "ai") {
+                  return;
+                }
+                onChangeConfig({ ...config, method: value });
+              }}
+            />
+            {config.method === "mt" ? (
+              <TextField
+                id="vw-crowdin-engine"
+                label={intl.formatMessage(messages.crowdinEngineId)}
+                value={config.engineId}
+                onChange={(value) => onChangeConfig({ ...config, engineId: value })}
+              />
+            ) : null}
+            {config.method === "ai" ? (
+              <TextField
+                id="vw-crowdin-prompt"
+                label={intl.formatMessage(messages.crowdinAiPromptId)}
+                value={config.aiPromptId}
+                onChange={(value) => onChangeConfig({ ...config, aiPromptId: value })}
+              />
+            ) : null}
+          </>
+        ) : null}
+        {config.kind === "action.crowdin_create_task" ? (
+          <>
+            <SelectField
+              id="vw-crowdin-task-type"
+              label={intl.formatMessage(messages.crowdinTaskType)}
+              value={config.taskType}
+              items={[
+                { value: "translate", label: intl.formatMessage(messages.createTaskStepTranslate) },
+                { value: "proofread", label: intl.formatMessage(messages.createTaskStepProofread) },
+              ]}
+              onValueChange={(value) => {
+                if (value !== "translate" && value !== "proofread") {
+                  return;
+                }
+                onChangeConfig({ ...config, taskType: value });
+              }}
+            />
+            <TextField
+              id="vw-crowdin-assignees"
+              label={intl.formatMessage(messages.crowdinAssigneeIds)}
+              value={config.assigneeIds}
+              {...connectedInputProps("assigneeIds")}
+              onChange={(value) => onChangeConfig({ ...config, assigneeIds: value })}
+            />
+            <TextField
+              id="vw-crowdin-task-title"
+              label={intl.formatMessage(messages.crowdinTaskTitle)}
+              value={config.title}
+              {...connectedInputProps("title")}
+              onChange={(value) => onChangeConfig({ ...config, title: value })}
+            />
+            <TextAreaField
+              id="vw-crowdin-task-description"
+              label={intl.formatMessage(messages.crowdinTaskDescription)}
+              value={config.description}
+              {...connectedInputProps("description")}
+              onChange={(value) => onChangeConfig({ ...config, description: value })}
+            />
+          </>
+        ) : null}
+        {config.kind === "action.create_task" ||
+        config.kind === "action.update_job" ||
+        config.kind === "action.crowdin_create_task" ? (
+          <TextField
+            id="vw-task-due-at"
+            label={intl.formatMessage(messages.taskDueAt)}
+            description={intl.formatMessage(
+              config.kind === "action.update_job"
+                ? messages.updateJobDueAtHint
+                : messages.taskDueAtHint,
+            )}
+            value={config.dueAt ?? ""}
+            {...connectedInputProps("dueAt")}
+            onChange={(value) => onChangeConfig({ ...config, dueAt: value })}
+            placeholder="{{ trigger.body.dueAt }}"
+          />
+        ) : null}
+        {config.kind === "action.crowdin_check_progress" ? (
+          <>
+            <TextField
+              id="vw-crowdin-tasks"
+              label={intl.formatMessage(messages.crowdinTaskIds)}
+              description={intl.formatMessage(messages.crowdinProgressHint)}
+              value={config.taskIds}
+              {...connectedInputProps("taskIds")}
+              onChange={(value) => onChangeConfig({ ...config, taskIds: value })}
+              placeholder="{{ nodes.crowdin_create_task.taskIds }}"
+            />
+            <TextField
+              id="vw-crowdin-pre-translation"
+              label={intl.formatMessage(messages.crowdinPreTranslationId)}
+              value={config.preTranslationId}
+              {...connectedInputProps("preTranslationId")}
+              onChange={(value) => onChangeConfig({ ...config, preTranslationId: value })}
+              placeholder="{{ nodes.crowdin_pre_translate.preTranslationId }}"
+            />
+          </>
         ) : null}
         {config.kind === "ai.agent" ? (
           <>
@@ -1308,16 +2797,78 @@ export function VisualWorkflowConfigPanel({
               {...connectedInputProps("prompt")}
               onChange={(value) => onChangeConfig({ ...config, prompt: value })}
             />
-            <ErrorBehaviorField
-              value={config.onError ?? "stop"}
-              onChange={(onError) => onChangeConfig({ ...config, onError })}
-            />
           </>
         ) : null}
-        {config.kind === "trigger.manual" ? (
-          <TypographyP size="small" tone="subtle">
-            <FormattedMessage {...messages.noConfig} />
+        {config.kind === "trigger.manual" || config.kind === "logic.try_catch" ? (
+          <TypographyP size="small" tone="subtle" className="py-6 text-center text-balance">
+            <FormattedMessage
+              {...(config.kind === "trigger.manual" ? messages.noConfig : messages.noSettings)}
+            />
           </TypographyP>
+        ) : null}
+        {wireOnlyInputs.map((field) => (
+          <WorkflowBoundField
+            key={field.name}
+            id={`vw-port-${field.name}`}
+            label={field.name.slice("value.".length)}
+            value=""
+            onChange={() => {}}
+            editable={false}
+            invalid={invalidFields.has(field.name)}
+            port={portFor(field.name)}
+          />
+        ))}
+        {onChangeContract ? (
+          <WorkflowDataPanel
+            section="settings"
+            node={node}
+            nodes={nodes}
+            edges={edges}
+            organizationSlug={organizationSlug}
+            onChange={onChangeContract}
+          />
+        ) : null}
+        {"onError" in config ? (
+          <Collapsible
+            open={failOpen}
+            onOpenChange={setFailOpen}
+            className="border-t border-border pt-2"
+          >
+            <CollapsibleTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-between px-1"
+                />
+              }
+            >
+              <span className="flex items-center gap-1.5">
+                <CaretRightIcon className={cn("size-3.5", failOpen && "rotate-90")} />
+                <FormattedMessage {...messages.ifStepFails} />
+              </span>
+              <span className="text-xs font-normal text-muted-foreground">
+                {intl.formatMessage(errorBehaviorMessage(config.onError ?? "stop"))}
+              </span>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="grid gap-4 pt-3">
+              <ErrorBehaviorField
+                value={config.onError ?? "stop"}
+                onChange={(onError) => onChangeConfig({ ...config, onError })}
+              />
+              {config.kind === "action.http" ? (
+                <CheckboxField
+                  id="vw-http-fail-on-error"
+                  label={intl.formatMessage(messages.httpFailOnError)}
+                  checked={config.failOnHttpError ?? true}
+                  onCheckedChange={(checked) =>
+                    onChangeConfig({ ...config, failOnHttpError: checked === true })
+                  }
+                />
+              ) : null}
+            </CollapsibleContent>
+          </Collapsible>
         ) : null}
         {node.data.lastOutput || node.data.lastError ? (
           <div className="grid gap-1.5 border-t border-border pt-4">
@@ -1329,26 +2880,29 @@ export function VisualWorkflowConfigPanel({
             </pre>
           </div>
         ) : null}
-      </div>
-      <div className="border-t border-border px-4 py-3">
-        <Button type="button" variant="outline" className="w-full" onClick={onDeleteNode}>
-          <TrashIcon className="size-4" />
-          <FormattedMessage {...messages.deleteStep} />
-        </Button>
-      </div>
-      {issues.length > 0 ? (
-        <div
-          data-testid="visual-workflow-validation-issues"
-          className="border-t border-border px-4 py-3 text-sm text-destructive"
-        >
-          {issues.map((issue) => (
-            <p key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? "all"}`}>
-              {intl.formatMessage(issueMessage(issue.code))}
-            </p>
-          ))}
-        </div>
-      ) : null}
-    </div>
+      </TabsContent>
+      <VisualWorkflowIssueList
+        issues={issues}
+        nodes={nodes}
+        selectedNodeId={node.id}
+        onSelectNode={
+          onSelectNode
+            ? (nodeId) => {
+                showIssueTab();
+                onSelectNode(nodeId);
+              }
+            : undefined
+        }
+        onShowNode={
+          onShowNode
+            ? (nodeId) => {
+                showIssueTab();
+                onShowNode(nodeId);
+              }
+            : undefined
+        }
+      />
+    </Tabs>
   );
 }
 
@@ -1417,6 +2971,489 @@ function KeyValueEditor({
         <PlusIcon className="size-4" />
         <FormattedMessage {...messages.addKeyValuePair} />
       </Button>
+    </div>
+  );
+}
+
+type PickAssigneeConfig = Extract<VisualNodeConfig, { kind: "action.pick_assignee" }>;
+
+const ASSIGNMENT_STRATEGIES: { value: VisualAssignmentStrategy; message: MessageDescriptor }[] = [
+  { value: "least_busy", message: messages.pickAssigneeStrategyLeastBusy },
+  { value: "round_robin", message: messages.pickAssigneeStrategyRoundRobin },
+  { value: "first", message: messages.pickAssigneeStrategyFirst },
+];
+
+const TASK_STEPS: { value: VisualTaskStep; message: MessageDescriptor }[] = [
+  { value: "translate", message: messages.createTaskStepTranslate },
+  { value: "edit", message: messages.createTaskStepEdit },
+  { value: "proofread", message: messages.createTaskStepProofread },
+];
+
+function PickAssigneeFields({
+  config,
+  members,
+  connectedInputProps,
+  onChangeConfig,
+}: {
+  config: PickAssigneeConfig;
+  members: readonly VisualWorkflowMemberOption[];
+  connectedInputProps: (portId: string) => { port?: BoundPort; invalid?: boolean };
+  onChangeConfig: (config: VisualNodeConfig) => void;
+}) {
+  const intl = useIntl();
+  const peopleSource = config.peopleSource ?? "workspace";
+  const setRules = (rules: VisualAssignmentRule[]) => onChangeConfig({ ...config, rules });
+  const setPeopleSource = (next: VisualAssigneeSource) => {
+    if (next === peopleSource) return;
+    onChangeConfig({
+      ...config,
+      peopleSource: next,
+      rules: config.rules.map((rule) => ({ ...rule, assigneeIds: [] })),
+      fallbackAssigneeIds: [],
+    });
+  };
+  const moveRule = (from: number, to: number) => {
+    const rules = [...config.rules];
+    const [rule] = rules.splice(from, 1);
+    rules.splice(to, 0, rule!);
+    setRules(rules);
+  };
+
+  return (
+    <>
+      <TypographyP className="text-xs text-muted-foreground">
+        <FormattedMessage {...messages.pickAssigneeHint} />
+      </TypographyP>
+      <SelectField
+        id="vw-pick-assignee-people-source"
+        label={intl.formatMessage(messages.pickAssigneePeopleSource)}
+        description={intl.formatMessage(messages.pickAssigneePeopleSourceHint)}
+        value={peopleSource}
+        items={[
+          { value: "workspace", label: intl.formatMessage(messages.pickAssigneePeopleWorkspace) },
+          { value: "crowdin", label: intl.formatMessage(messages.pickAssigneePeopleCrowdin) },
+        ]}
+        onValueChange={(value) => {
+          if (value === "workspace" || value === "crowdin") setPeopleSource(value);
+        }}
+      />
+      {peopleSource === "crowdin" ? (
+        <TextField
+          id="vw-pick-assignee-crowdin-project"
+          label={intl.formatMessage(messages.crowdinProjectId)}
+          description={intl.formatMessage(messages.crowdinConnectionHint)}
+          value={config.crowdinProjectId ?? ""}
+          onChange={(value) => onChangeConfig({ ...config, crowdinProjectId: value })}
+          placeholder="123456"
+        />
+      ) : null}
+      <TextField
+        id="vw-pick-assignee-locale"
+        label={intl.formatMessage(messages.pickAssigneeLocale)}
+        description={intl.formatMessage(messages.pickAssigneeLocaleHint)}
+        value={config.locale}
+        {...connectedInputProps("locale")}
+        onChange={(value) => onChangeConfig({ ...config, locale: value })}
+        placeholder="{{ nodes.for_each.item }}"
+      />
+      <TextField
+        id="vw-pick-assignee-job-type"
+        label={intl.formatMessage(messages.pickAssigneeJobType)}
+        description={intl.formatMessage(messages.pickAssigneeJobTypeHint)}
+        value={config.jobType}
+        {...connectedInputProps("jobType")}
+        onChange={(value) => onChangeConfig({ ...config, jobType: value })}
+        placeholder="proofread"
+      />
+      <TextField
+        id="vw-pick-assignee-size"
+        label={intl.formatMessage(messages.pickAssigneeSize)}
+        description={intl.formatMessage(messages.pickAssigneeSizeHint)}
+        value={config.size}
+        {...connectedInputProps("size")}
+        onChange={(value) => onChangeConfig({ ...config, size: value })}
+        placeholder="{{ nodes.check_progress.untranslated }}"
+      />
+      <TextField
+        id="vw-pick-assignee-due-at"
+        label={intl.formatMessage(messages.pickAssigneeDueAt)}
+        description={intl.formatMessage(messages.pickAssigneeDueAtHint)}
+        value={config.dueAt}
+        {...connectedInputProps("dueAt")}
+        onChange={(value) => onChangeConfig({ ...config, dueAt: value })}
+        placeholder="{{ trigger.body.dueAt }}"
+      />
+      <SelectField
+        id="vw-pick-assignee-strategy"
+        label={intl.formatMessage(messages.pickAssigneeStrategy)}
+        value={config.strategy}
+        items={ASSIGNMENT_STRATEGIES.map((strategy) => ({
+          value: strategy.value,
+          label: intl.formatMessage(strategy.message),
+        }))}
+        onValueChange={(value) => {
+          const strategy = ASSIGNMENT_STRATEGIES.find((entry) => entry.value === value);
+          if (strategy) {
+            onChangeConfig({ ...config, strategy: strategy.value });
+          }
+        }}
+      />
+      <div className="grid gap-2">
+        <Label>{intl.formatMessage(messages.pickAssigneeRules)}</Label>
+        {config.rules.map((rule, index) => (
+          <AssignmentRuleCard
+            key={rule.id}
+            rule={rule}
+            number={index + 1}
+            members={members}
+            peopleSource={peopleSource}
+            canMoveUp={index > 0}
+            canMoveDown={index < config.rules.length - 1}
+            onMoveUp={() => moveRule(index, index - 1)}
+            onMoveDown={() => moveRule(index, index + 1)}
+            onRemove={() => setRules(config.rules.filter((entry) => entry.id !== rule.id))}
+            onChange={(next) =>
+              setRules(config.rules.map((entry) => (entry.id === rule.id ? next : entry)))
+            }
+          />
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setRules([...config.rules, createAssignmentRule()])}
+        >
+          <PlusIcon className="size-4" />
+          <FormattedMessage {...messages.pickAssigneeAddRule} />
+        </Button>
+      </div>
+      <AssigneePeopleField
+        id="vw-pick-assignee-fallback"
+        label={intl.formatMessage(messages.pickAssigneeFallback)}
+        description={intl.formatMessage(messages.pickAssigneeFallbackHint)}
+        source={peopleSource}
+        members={members}
+        value={config.fallbackAssigneeIds}
+        onChange={(ids) => onChangeConfig({ ...config, fallbackAssigneeIds: ids })}
+      />
+    </>
+  );
+}
+
+function AssignmentRuleCard({
+  rule,
+  number,
+  members,
+  peopleSource,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
+  onRemove,
+  onChange,
+}: {
+  rule: VisualAssignmentRule;
+  number: number;
+  members: readonly VisualWorkflowMemberOption[];
+  peopleSource: VisualAssigneeSource;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onRemove: () => void;
+  onChange: (rule: VisualAssignmentRule) => void;
+}) {
+  const intl = useIntl();
+  const idPrefix = `vw-assignment-rule-${rule.id}`;
+  const readCount = (value: string) => {
+    const count = Number.parseInt(value, 10);
+    return Number.isFinite(count) && count >= 0 ? count : undefined;
+  };
+
+  return (
+    <div className="grid gap-3 rounded-md border border-border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium">
+          <FormattedMessage {...messages.pickAssigneeRuleTitle} values={{ number }} />
+        </span>
+        <div className="flex items-center">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            disabled={!canMoveUp}
+            aria-label={intl.formatMessage(messages.pickAssigneeMoveRuleUp, { number })}
+            onClick={onMoveUp}
+          >
+            <CaretUpIcon className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            disabled={!canMoveDown}
+            aria-label={intl.formatMessage(messages.pickAssigneeMoveRuleDown, { number })}
+            onClick={onMoveDown}
+          >
+            <CaretDownIcon className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={intl.formatMessage(messages.pickAssigneeRemoveRule, { number })}
+            onClick={onRemove}
+          >
+            <TrashIcon className="size-4" />
+          </Button>
+        </div>
+      </div>
+      <TextField
+        id={`${idPrefix}-name`}
+        label={intl.formatMessage(messages.pickAssigneeRuleName)}
+        value={rule.name}
+        placeholder={intl.formatMessage(messages.pickAssigneeRuleNamePlaceholder)}
+        onChange={(name) => onChange({ ...rule, name })}
+      />
+      <TextField
+        id={`${idPrefix}-locales`}
+        label={intl.formatMessage(messages.pickAssigneeRuleLocales)}
+        description={intl.formatMessage(messages.pickAssigneeRuleLocalesHint)}
+        value={rule.locales}
+        placeholder="fr, de-DE"
+        onChange={(locales) => onChange({ ...rule, locales })}
+      />
+      <fieldset className="grid gap-1.5">
+        <legend className="mb-1.5 text-sm font-medium">
+          {intl.formatMessage(messages.pickAssigneeRuleJobTypes)}
+        </legend>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {TASK_STEPS.map((step) => (
+            <CheckboxField
+              key={step.value}
+              id={`${idPrefix}-type-${step.value}`}
+              label={intl.formatMessage(step.message)}
+              checked={rule.jobTypes.includes(step.value)}
+              onCheckedChange={(checked) =>
+                onChange({
+                  ...rule,
+                  jobTypes: checked
+                    ? TASK_STEPS.map((entry) => entry.value).filter(
+                        (value) => value === step.value || rule.jobTypes.includes(value),
+                      )
+                    : rule.jobTypes.filter((value) => value !== step.value),
+                })
+              }
+            />
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {intl.formatMessage(messages.pickAssigneeRuleJobTypesHint)}
+        </p>
+      </fieldset>
+      <div className="grid grid-cols-2 gap-2">
+        <NumberField
+          id={`${idPrefix}-min-size`}
+          label={intl.formatMessage(messages.pickAssigneeRuleMinSize)}
+          value={rule.minSize}
+          onChange={(value) => onChange({ ...rule, minSize: readCount(value) })}
+        />
+        <NumberField
+          id={`${idPrefix}-max-size`}
+          label={intl.formatMessage(messages.pickAssigneeRuleMaxSize)}
+          value={rule.maxSize}
+          onChange={(value) => onChange({ ...rule, maxSize: readCount(value) })}
+        />
+      </div>
+      <NumberField
+        id={`${idPrefix}-due-within`}
+        label={intl.formatMessage(messages.pickAssigneeRuleDueWithin)}
+        description={intl.formatMessage(messages.pickAssigneeRuleDueWithinHint)}
+        value={rule.dueWithinHours}
+        onChange={(value) => onChange({ ...rule, dueWithinHours: readCount(value) })}
+      />
+      <AssigneePeopleField
+        id={`${idPrefix}-people`}
+        label={intl.formatMessage(messages.pickAssigneeRulePeople)}
+        source={peopleSource}
+        members={members}
+        value={rule.assigneeIds}
+        onChange={(ids) => onChange({ ...rule, assigneeIds: ids })}
+      />
+    </div>
+  );
+}
+
+function NumberField({
+  id,
+  label,
+  value,
+  onChange,
+  description,
+}: {
+  id: string;
+  label: string;
+  value: number | undefined;
+  onChange: (value: string) => void;
+  description?: string;
+}) {
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        type="number"
+        inputMode="numeric"
+        min={0}
+        value={value ?? ""}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+    </div>
+  );
+}
+
+function AssigneePeopleField({
+  source,
+  description,
+  ...props
+}: {
+  id: string;
+  label: string;
+  description?: string;
+  source: VisualAssigneeSource;
+  members: readonly VisualWorkflowMemberOption[];
+  value: readonly string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const intl = useIntl();
+  if (source === "crowdin") {
+    const crowdinHint = intl.formatMessage(messages.pickAssigneeCrowdinIds);
+    return (
+      <CrowdinUserIdsField
+        id={props.id}
+        label={props.label}
+        description={description ? `${description} ${crowdinHint}` : crowdinHint}
+        value={props.value}
+        onChange={props.onChange}
+      />
+    );
+  }
+  return <MemberPickerField {...props} description={description} />;
+}
+
+function parseCrowdinUserIds(text: string): string[] {
+  return [
+    ...new Set(
+      text
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function sameCrowdinUserIds(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+}
+
+/** Crowdin users by id; the draft keeps what is typed, such as a trailing comma, between edits. */
+function CrowdinUserIdsField({
+  id,
+  label,
+  description,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  description: string;
+  value: readonly string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [draft, setDraft] = useState(() => value.join(", "));
+  if (!sameCrowdinUserIds(parseCrowdinUserIds(draft), value)) {
+    setDraft(value.join(", "));
+  }
+  return (
+    <TextField
+      id={id}
+      label={label}
+      description={description}
+      value={draft}
+      placeholder="12, 14"
+      onChange={(next) => {
+        setDraft(next);
+        onChange(parseCrowdinUserIds(next));
+      }}
+    />
+  );
+}
+
+/** Picks workspace members, keeping people who have since left so the list is not silently cut. */
+function MemberPickerField({
+  id,
+  label,
+  description,
+  members,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  description?: string;
+  members: readonly VisualWorkflowMemberOption[];
+  value: readonly string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const intl = useIntl();
+  const selected = value.map(
+    (workosUserId) =>
+      members.find((member) => member.workosUserId === workosUserId) ?? {
+        workosUserId,
+        label: workosUserId,
+      },
+  );
+
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Combobox
+        items={members}
+        multiple
+        value={selected}
+        onValueChange={(next: VisualWorkflowMemberOption[]) =>
+          onChange(next.map((member) => member.workosUserId))
+        }
+        itemToStringValue={(member: VisualWorkflowMemberOption) => member.label}
+        isItemEqualToValue={(item, current) => item.workosUserId === current.workosUserId}
+      >
+        <ComboboxChips id={id} className="w-full">
+          <ComboboxValue>
+            {selected.map((member) => (
+              <ComboboxChip key={member.workosUserId}>{member.label}</ComboboxChip>
+            ))}
+          </ComboboxValue>
+          <ComboboxChipsInput
+            placeholder={
+              selected.length === 0
+                ? intl.formatMessage(messages.pickAssigneeSearchPeople)
+                : undefined
+            }
+          />
+        </ComboboxChips>
+        <ComboboxContent>
+          <ComboboxEmpty>{intl.formatMessage(messages.pickAssigneeNoPeople)}</ComboboxEmpty>
+          <ComboboxList>
+            {(member: VisualWorkflowMemberOption) => (
+              <ComboboxItem key={member.workosUserId} value={member}>
+                {member.label}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+      {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
     </div>
   );
 }
@@ -1545,10 +3582,7 @@ function ContentSyncConfigFields({
         label={intl.formatMessage(messages.contentSyncProvider)}
         value={config.provider}
         placeholder={intl.formatMessage(messages.selectProvider)}
-        items={(resources.availableProviders.length > 0
-          ? resources.availableProviders
-          : CONTENT_SYNC_PROVIDERS
-        ).map((provider) => ({
+        items={CONTENT_SYNC_PROVIDERS.map((provider) => ({
           value: provider,
           label: intl.formatMessage(contentSyncProviderMessage(provider)),
         }))}
@@ -1598,11 +3632,181 @@ function ContentSyncConfigFields({
         value={config.projectFolder}
         onChange={(value) => onChangeConfig({ ...config, projectFolder: value })}
       />
-      <ErrorBehaviorField
-        value={config.onError ?? "stop"}
-        onChange={(onError) => onChangeConfig({ ...config, onError })}
-      />
     </>
+  );
+}
+
+function WebhookTriggerFields({
+  config,
+  organizationSlug,
+  visualWorkflowId,
+  onChangeConfig,
+}: {
+  config: Extract<VisualNodeConfig, { kind: "trigger.webhook" }>;
+  organizationSlug?: string;
+  visualWorkflowId?: string;
+  onChangeConfig: (config: VisualNodeConfig) => void;
+}) {
+  const intl = useIntl();
+  const urlQuery = useQuery({
+    queryKey: [
+      "visual-workflow-webhook-url",
+      organizationSlug,
+      visualWorkflowId,
+      config.tokenVersion,
+    ],
+    enabled: Boolean(organizationSlug && visualWorkflowId),
+    queryFn: () =>
+      getVisualWorkflowWebhookUrl(organizationSlug!, visualWorkflowId!, config.tokenVersion),
+    staleTime: Infinity,
+  });
+  const url = urlQuery.data;
+
+  async function copyUrl() {
+    if (!url) {
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+    toast.success(intl.formatMessage(messages.webhookCopied));
+  }
+
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor="vw-webhook-url">{intl.formatMessage(messages.webhookUrl)}</Label>
+      {!organizationSlug || !visualWorkflowId ? (
+        <p className="text-xs text-muted-foreground">
+          <FormattedMessage {...messages.webhookUrlUnsaved} />
+        </p>
+      ) : urlQuery.isError ? (
+        <p className="text-xs text-destructive">
+          <FormattedMessage {...messages.webhookUrlLoadFailed} />
+        </p>
+      ) : (
+        <>
+          <div className="flex items-center gap-1.5">
+            <Input
+              id="vw-webhook-url"
+              readOnly
+              value={url ?? ""}
+              className="font-mono text-xs"
+              onFocus={(event) => event.currentTarget.select()}
+            />
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    disabled={!url}
+                    aria-label={intl.formatMessage(messages.webhookCopy)}
+                    onClick={() => void copyUrl()}
+                  >
+                    <CopyIcon />
+                  </Button>
+                }
+              />
+              <TooltipContent side="bottom">
+                <FormattedMessage {...messages.webhookCopy} />
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            <FormattedMessage {...messages.webhookUrlHint} />
+          </p>
+          <p className="text-xs text-muted-foreground">
+            <FormattedMessage {...messages.webhookIdempotencyHint} />
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onChangeConfig({ ...config, tokenVersion: config.tokenVersion + 1 })}
+            >
+              <ArrowsClockwiseIcon />
+              <FormattedMessage {...messages.webhookRotate} />
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            <FormattedMessage {...messages.webhookRotateHint} />
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+const PICK_PROJECT_VALUE = "__pick_project__";
+
+/**
+ * A project setting typed or fed by an earlier step, with a picker that fills in a project's ID
+ * and the name of the project a typed ID belongs to.
+ */
+function ProjectIdField({
+  projects,
+  value,
+  onChange,
+  port,
+  invalid,
+}: {
+  projects: readonly VisualWorkflowProjectOption[];
+  value: string;
+  onChange: (value: string) => void;
+  port?: BoundPort;
+  invalid?: boolean;
+}) {
+  const intl = useIntl();
+  const project = projects.find((entry) => entry.id === value.trim());
+  return (
+    <div className="grid gap-1.5">
+      <TextField
+        id="vw-localization-project"
+        label={intl.formatMessage(messages.localizationProjectId)}
+        description={
+          project
+            ? intl.formatMessage(messages.localizationProjectName, { name: project.name })
+            : undefined
+        }
+        value={value}
+        port={port}
+        invalid={invalid}
+        onChange={onChange}
+        placeholder="{{ trigger.projectId }}"
+      />
+      {projects.length > 0 && !port?.source ? (
+        <Select
+          value={PICK_PROJECT_VALUE}
+          items={[
+            {
+              value: PICK_PROJECT_VALUE,
+              label: intl.formatMessage(messages.localizationPickProject),
+            },
+            ...projects.map((entry) => ({ value: entry.id, label: entry.name })),
+          ]}
+          onValueChange={(next) => {
+            if (next && next !== PICK_PROJECT_VALUE) {
+              onChange(next);
+            }
+          }}
+        >
+          <SelectTrigger
+            size="sm"
+            className="w-full"
+            aria-label={intl.formatMessage(messages.localizationPickProject)}
+          >
+            <SelectValue>{intl.formatMessage(messages.localizationPickProject)}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {projects.map((entry) => (
+              <SelectItem key={entry.id} value={entry.id} label={entry.name}>
+                {entry.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : null}
+    </div>
   );
 }
 
@@ -1613,6 +3817,7 @@ function SelectField({
   items,
   onValueChange,
   placeholder,
+  description,
 }: {
   id: string;
   label: string;
@@ -1620,6 +3825,7 @@ function SelectField({
   items: { value: string; label: string }[];
   onValueChange: (value: string | null) => void;
   placeholder?: string;
+  description?: string;
 }) {
   const selected = items.find((item) => item.value === value);
   return (
@@ -1637,6 +3843,36 @@ function SelectField({
           ))}
         </SelectContent>
       </Select>
+      {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+    </div>
+  );
+}
+
+function ContractFieldList({
+  label,
+  fields,
+}: {
+  label: string;
+  fields: readonly VisualSubworkflowField[];
+}) {
+  return (
+    <div className="grid gap-1.5">
+      <Label>{label}</Label>
+      {fields.length === 0 ? (
+        <p className="text-xs text-muted-foreground">None</p>
+      ) : (
+        <ul className="grid gap-1 rounded-md border border-border p-2 text-xs">
+          {fields.map((field) => (
+            <li key={field.id ?? field.name} className="flex items-center justify-between gap-2">
+              <span className="truncate font-mono">{field.name}</span>
+              <span className="text-muted-foreground">
+                {field.type}
+                {field.required === false ? " · optional" : " · required"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -1649,6 +3885,8 @@ function TextField({
   placeholder,
   disabled = false,
   description,
+  invalid = false,
+  port,
 }: {
   id: string;
   label: string;
@@ -1657,7 +3895,24 @@ function TextField({
   placeholder?: string;
   disabled?: boolean;
   description?: string;
+  invalid?: boolean;
+  /** Set for a setting that a wire or an earlier step's field can feed. */
+  port?: BoundPort;
 }) {
+  if (port) {
+    return (
+      <WorkflowBoundField
+        id={id}
+        label={label}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        invalid={invalid}
+        description={description}
+        port={port}
+      />
+    );
+  }
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
@@ -1665,6 +3920,7 @@ function TextField({
         id={id}
         value={value}
         disabled={disabled}
+        aria-invalid={invalid || undefined}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
       />
@@ -1681,6 +3937,8 @@ function TextAreaField({
   placeholder,
   disabled = false,
   description,
+  invalid = false,
+  port,
 }: {
   id: string;
   label: string;
@@ -1689,7 +3947,25 @@ function TextAreaField({
   placeholder?: string;
   disabled?: boolean;
   description?: string;
+  invalid?: boolean;
+  /** Set for a setting that a wire or an earlier step's field can feed. */
+  port?: BoundPort;
 }) {
+  if (port) {
+    return (
+      <WorkflowBoundField
+        id={id}
+        label={label}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        invalid={invalid}
+        description={description}
+        multiline
+        port={port}
+      />
+    );
+  }
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
@@ -1697,6 +3973,7 @@ function TextAreaField({
         id={id}
         value={value}
         disabled={disabled}
+        aria-invalid={invalid || undefined}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
       />
@@ -1732,6 +4009,239 @@ function isHttpMethod(value: string): value is HttpMethod {
   return HTTP_METHODS.includes(value as HttpMethod);
 }
 
+const WORKFLOW_VALUE_TYPES: readonly WorkflowValueType[] = [
+  "string",
+  "number",
+  "boolean",
+  "object",
+  "array",
+  "unknown",
+];
+
+const COMPARISON_OPERATORS: readonly VisualComparisonOperator[] = [
+  "equal",
+  "not_equal",
+  "greater_than",
+  "greater_than_or_equal",
+  "less_than",
+  "less_than_or_equal",
+  "contains",
+  "starts_with",
+  "ends_with",
+  "and",
+  "or",
+  "not",
+];
+
+const COMPARISON_OPERATOR_MESSAGES: Record<VisualComparisonOperator, MessageDescriptor> = {
+  equal: messages.compareEqual,
+  not_equal: messages.compareNotEqual,
+  greater_than: messages.compareGreaterThan,
+  greater_than_or_equal: messages.compareGreaterThanOrEqual,
+  less_than: messages.compareLessThan,
+  less_than_or_equal: messages.compareLessThanOrEqual,
+  contains: messages.compareContains,
+  starts_with: messages.compareStartsWith,
+  ends_with: messages.compareEndsWith,
+  and: messages.compareAnd,
+  or: messages.compareOr,
+  not: messages.compareNot,
+};
+
+const COMPARISON_SENSITIVITIES = ["base", "accent", "case", "variant"] as const;
+
+function isComparisonOperator(value: string | null): value is VisualComparisonOperator {
+  return COMPARISON_OPERATORS.includes(value as VisualComparisonOperator);
+}
+
+function isComparisonSensitivity(
+  value: string | null,
+): value is (typeof COMPARISON_SENSITIVITIES)[number] {
+  return COMPARISON_SENSITIVITIES.includes(value as (typeof COMPARISON_SENSITIVITIES)[number]);
+}
+
+function comparisonOperandsForOperator(
+  operands: readonly VisualComparisonOperand[],
+  operator: VisualComparisonOperator,
+): VisualComparisonOperand[] {
+  const count = operator === "not" ? 1 : 2;
+  const booleanOperator = ["and", "or", "not"].includes(operator);
+  const next = operands.slice(0, operator === "and" || operator === "or" ? operands.length : count);
+  while (next.length < count) {
+    next.push({
+      id: createComparisonOperandId(),
+      name: booleanOperator ? `Condition ${next.length + 1}` : next.length === 0 ? "Left" : "Right",
+      type: booleanOperator ? "boolean" : "unknown",
+    });
+  }
+  return next.map((operand, index) => ({
+    ...operand,
+    name:
+      operand.name || (booleanOperator ? `Condition ${index + 1}` : index === 0 ? "Left" : "Right"),
+    ...(booleanOperator ? { type: "boolean" as const } : {}),
+  }));
+}
+
+function isWorkflowValueType(value: string | null): value is WorkflowValueType {
+  return WORKFLOW_VALUE_TYPES.includes(value as WorkflowValueType);
+}
+
+function formatSelectPath(path: readonly (string | number)[]): string {
+  return path
+    .map((segment, index) =>
+      typeof segment === "number" ? `[${segment}]` : `${index === 0 ? "" : "."}${segment}`,
+    )
+    .join("");
+}
+
+function parseSelectPath(value: string): (string | number)[] | null {
+  const path: (string | number)[] = [];
+  const matcher = /(?:^|\.)([^.[\]]+)|\[(\d+)\]/g;
+  let consumed = 0;
+  for (const match of value.matchAll(matcher)) {
+    if (match.index !== consumed) return null;
+    if (match[1] !== undefined) path.push(match[1]);
+    else if (match[2] !== undefined) path.push(Number(match[2]));
+    consumed = match.index + match[0].length;
+  }
+  return consumed === value.length ? path : null;
+}
+
+function SelectPathField({
+  label,
+  description,
+  path,
+  invalid,
+  port,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  path: readonly (string | number)[];
+  invalid?: boolean;
+  port?: BoundPort;
+  onChange: (path: (string | number)[]) => void;
+}) {
+  const formatted = formatSelectPath(path);
+  // Partial text such as `customer.` or `items[` cannot be stored as a path yet, so the
+  // draft is kept until it parses. It is dropped when the stored path changes elsewhere.
+  const [draft, setDraft] = useState<{ text: string; basePath: string } | null>(null);
+  const display = draft && draft.basePath === formatted ? draft.text : formatted;
+  const draftInvalid = parseSelectPath(display) === null;
+
+  return (
+    <TextField
+      id="vw-select-path"
+      label={label}
+      value={display}
+      description={description}
+      port={port}
+      invalid={invalid || draftInvalid}
+      onChange={(text) => {
+        const parsed = parseSelectPath(text);
+        if (parsed === null) {
+          setDraft({ text, basePath: formatted });
+          return;
+        }
+        setDraft({ text, basePath: formatSelectPath(parsed) });
+        onChange(parsed);
+      }}
+    />
+  );
+}
+
+function defaultValueForType(type: WorkflowValueType): unknown {
+  if (type === "number") return 0;
+  if (type === "boolean") return false;
+  if (type === "object") return {};
+  if (type === "array") return [];
+  return "";
+}
+
+function formatObjectDefault(value: unknown, type: WorkflowValueType): string {
+  if (type === "string") return typeof value === "string" ? value : "";
+  if (type === "number" || type === "boolean") return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "";
+  }
+}
+
+function parseObjectDefault(value: string, type: WorkflowValueType): unknown {
+  if (type === "string") return value;
+  if (type === "number") return Number(value);
+  if (type === "boolean") return value === "true";
+  return JSON.parse(value);
+}
+
+function usesJsonObjectDefault(type: WorkflowValueType): boolean {
+  return type === "object" || type === "array";
+}
+
+function tryParseJson(value: string): { ok: true; value: unknown } | { ok: false } {
+  try {
+    return { ok: true, value: JSON.parse(value) };
+  } catch {
+    return { ok: false };
+  }
+}
+
+function ObjectDefaultInput({
+  ariaLabel,
+  value,
+  type,
+  disabled,
+  invalid,
+  onChange,
+}: {
+  ariaLabel: string;
+  value: unknown;
+  type: WorkflowValueType;
+  disabled?: boolean;
+  invalid?: boolean;
+  onChange: (value: unknown) => void;
+}) {
+  const formatted = formatObjectDefault(value, type);
+  const [draft, setDraft] = useState<string | null>(null);
+  const display = draft ?? formatted;
+  const jsonDraftInvalid = usesJsonObjectDefault(type) && draft !== null && !tryParseJson(draft).ok;
+
+  return (
+    <Input
+      aria-label={ariaLabel}
+      value={display}
+      disabled={disabled}
+      aria-invalid={invalid || jsonDraftInvalid || undefined}
+      onChange={(event) => {
+        const next = event.target.value;
+        if (!usesJsonObjectDefault(type)) {
+          setDraft(null);
+          onChange(parseObjectDefault(next, type));
+          return;
+        }
+
+        setDraft(next);
+        const parsed = tryParseJson(next);
+        if (parsed.ok) {
+          onChange(parsed.value);
+        }
+      }}
+      onBlur={() => {
+        if (!usesJsonObjectDefault(type)) {
+          return;
+        }
+
+        const parsed = tryParseJson(draft ?? formatted);
+        if (parsed.ok) {
+          onChange(parsed.value);
+          setDraft(null);
+        }
+      }}
+    />
+  );
+}
+
 function isHttpAuthType(value: string): value is HttpAuthType {
   return value === "none" || value === "bearer" || value === "api_key";
 }
@@ -1765,53 +4275,5 @@ function errorBehaviorMessage(behavior: VisualNodeErrorBehavior) {
       return messages.onErrorContinue;
     case "branch":
       return messages.onErrorBranch;
-  }
-}
-
-function titleForTrigger(type: VisualCatalogType) {
-  switch (type) {
-    case "trigger.manual":
-      return messages.nodeManualTrigger;
-    case "trigger.scheduled":
-      return messages.nodeScheduledTrigger;
-    case "trigger.github":
-      return messages.nodeGithubTrigger;
-    case "trigger.source_upload":
-      return messages.nodeSourceUploadTrigger;
-    default:
-      return messages.triggerType;
-  }
-}
-
-function issueMessage(
-  code: VisualWorkflowValidationIssue["code"] | VisualWorkflowV3ValidationIssue["code"],
-) {
-  switch (code) {
-    case "missing_trigger":
-      return messages.missingTrigger;
-    case "multiple_triggers":
-      return messages.multipleTriggers;
-    case "orphan_node":
-      return messages.orphanNode;
-    case "invalid_edge":
-      return messages.invalidEdge;
-    case "invalid_trigger_config":
-      return messages.invalidTriggerConfig;
-    case "invalid_node_config":
-      return messages.invalidNodeConfig;
-    case "nested_for_each":
-      return messages.nestedForEach;
-    case "nested_retry":
-      return messages.nestedRetry;
-    case "invalid_retry":
-      return messages.invalidRetry;
-    case "retry_foreach_nesting":
-      return messages.retryForEachNesting;
-    case "non_idempotent_retry":
-      return messages.nonIdempotentRetry;
-    case "invalid_retry_policy":
-      return messages.invalidRetryPolicy;
-    default:
-      return messages.invalidNodeConfig;
   }
 }

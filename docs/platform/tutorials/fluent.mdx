@@ -1,0 +1,198 @@
+---
+title: "Fluent localization"
+description: "Keep Mozilla Fluent .ftl catalogs in git, review messages and attributes in Platform, and load approved locales in Fluent.js or fluent-react."
+---
+
+This tutorial connects an app that uses [Mozilla Fluent](https://projectfluent.org/) `.ftl` files to Hyperlocalise Platform. You keep message and attribute values in the repository, review them in Platform, and load the approved files with `@fluent/bundle` or `@fluent/react`.
+
+Hyperlocalise supports a subset of Fluent. Message IDs become keys. Attributes become dotted keys such as `login.title`. Term definitions (`-brand`) and term references (`{ -brand }`) are rejected.
+
+## Prerequisites
+
+You need:
+
+- an app that loads `.ftl` catalogs with Fluent.js or another Fluent runtime;
+- the [Hyperlocalise CLI](/cli/getting-started/install);
+- a Platform project with `en-US` as source and `fr-FR` and `de-DE` as targets; and
+- `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` in your environment.
+
+The example uses:
+
+```text
+.
+├── src/messages.tsx
+├── locales/
+│   ├── en-US/
+│   │   └── messages.ftl
+│   ├── fr-FR/
+│   │   └── messages.ftl
+│   └── de-DE/
+│       └── messages.ftl
+└── i18n.yml
+```
+
+## 1. Keep copy in Fluent
+
+`locales/en-US/messages.ftl`:
+
+```ftl
+# Heading on the saved filters screen
+saved-filters-title = Saved filters
+
+# Confirmation after the user saves a filter
+filter-saved = Saved { $name }
+
+saved-filter-count =
+    { $count ->
+        [one] { $count } saved filter
+       *[other] { $count } saved filters
+    }
+
+login = Sign in
+    .title = Open your account
+```
+
+Use those messages from React:
+
+```tsx
+import { Localized } from "@fluent/react";
+
+export function SavedFilters({
+  name,
+  count,
+}: {
+  name: string;
+  count: number;
+}) {
+  return (
+    <section>
+      <Localized id="saved-filters-title">
+        <h1>Saved filters</h1>
+      </Localized>
+      <Localized id="filter-saved" vars={{ name }}>
+        <p>{"Saved { $name }"}</p>
+      </Localized>
+      <Localized id="saved-filter-count" vars={{ count }}>
+        <p>{"{ $count } saved filters"}</p>
+      </Localized>
+    </section>
+  );
+}
+```
+
+Comments above a message become CAT context. `#` comments attach to the next message. `##` group comments and `###` file comments do not.
+
+<Warning>
+Do not put `-brand = Hyperlocalise` or `{ -brand }` in a mapped `.ftl` file. Hyperlocalise rejects terms so they are not silently dropped. Inline the brand name, or keep terms in a file outside this bucket.
+</Warning>
+
+## 2. Map the catalogs
+
+Create `i18n.yml`:
+
+```yaml
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+    - de-DE
+
+buckets:
+  fluent:
+    files:
+      - from: locales/{{source}}/messages.ftl
+        to: locales/{{target}}/messages.ftl
+
+hyperlocalise:
+  project_id_env: HYPERLOCALISE_PROJECT_ID
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+```
+
+## 3. Load approved files
+
+```ts
+import { FluentBundle, FluentResource } from "@fluent/bundle";
+import { readFileSync } from "node:fs";
+
+export function loadMessages(locale: string) {
+  const source = readFileSync(`locales/${locale}/messages.ftl`, "utf8");
+  const bundle = new FluentBundle(locale);
+  const errors = bundle.addResource(new FluentResource(source));
+  if (errors.length > 0) {
+    throw new Error(errors.map((error) => error.message).join("\n"));
+  }
+  return bundle;
+}
+```
+
+Wrap the tree in `LocalizationProvider` when you use `@fluent/react`.
+
+## 4. Push and review
+
+After the source pull request merges:
+
+```bash
+hl sync push
+```
+
+Start generation through a **Source upload** automation or **New Request**. In **Content Editor**, review:
+
+- variables such as `{ $name }` and `{ $count }`;
+- select variants, including the `*` default;
+- attributes such as `login.title`;
+- message comments that explain where the copy appears.
+
+Approve the translations before pulling them back.
+
+A select pattern stays one value. Translators may change the words inside `[one]` and `*[other]`. They must keep the variable names and a default variant.
+
+## 5. Pull and validate translations
+
+Run:
+
+```bash
+hl sync pull
+hl check --bucket fluent --quiet
+```
+
+`hl check` reports missing target keys and placeholder mismatches on `{ $name }`. Fluent selectors are not ICU plural blocks, so do not expect `icu_shape_mismatch` or `unreachable_plural_case` to understand `[one]` / `*[other]`. Cover `0`, `1`, and several items in runtime tests:
+
+```ts
+const bundle = loadMessages("fr-FR");
+
+expect(bundle.getMessage("filter-saved")).toBeDefined();
+expect(
+  bundle.formatPattern(
+    bundle.getMessage("filter-saved")!.value!,
+    { name: "Inbox" },
+  ),
+).toMatch(/Inbox/);
+```
+
+Open a translation pull request containing the pulled `.ftl` files.
+
+## Troubleshooting
+
+### Upload fails on a term
+
+Remove `-brand` definitions and `{ -brand }` references from the mapped file. Fluent terms are unsupported.
+
+### A new `.title` attribute disappeared on writeback
+
+Hyperlocalise cannot append a new attribute to a parent that already exists in the target template. Add the attribute to the source and target files together, or start from a target that does not yet contain that parent.
+
+### The app shows the message id
+
+Confirm `locales/en-US/messages.ftl` contains the id, `FluentBundle.addResource` loaded that file without errors, and `Localized` uses the same id.
+
+### Placeholders are flagged after a natural translation
+
+Restore `{ $name }` exactly, including the dollar sign and spacing your source uses. Do not rewrite Fluent variables to ICU `{name}`.
+
+## Next
+
+- [GitHub localisation workflow](/platform/tutorials/github-localisation-workflow)
+- [gettext POT and PO](/platform/tutorials/gettext-pot-po)
+- [Translate Fluent localization](/cli/reference/formats/fluent)
+- [`check` reference](/cli/commands/check)

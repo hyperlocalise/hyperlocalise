@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   prepareSourceIngestSandboxStep: vi.fn(),
   writeSourceIngestFileStep: vi.fn(),
   extractSourceIngestEntriesStep: vi.fn(),
+  extractOfficeSourceEntriesStep: vi.fn(),
   loadSourceFileSegmentationStep: vi.fn(),
   writeSourceFileSegmentationSrxStep: vi.fn(),
   parseHlEntriesStep: vi.fn(),
@@ -29,10 +30,16 @@ const mocks = vi.hoisted(() => ({
   ensureImageVariantsForSourceFileStep: vi.fn(),
   ensureVideoVariantsForSourceFileStep: vi.fn(),
   getProjectTargetLocalesStep: vi.fn(),
+  getProjectSourceLocaleStep: vi.fn(),
 }));
+const cliRelease = vi.hoisted(() => ({ parsesOffice: false }));
 vi.mock("workflow", () => ({ getWorkflowMetadata: () => ({ workflowRunId: "run" }) }));
 vi.mock("./steps/source-file-ingest", () => mocks);
 vi.mock("./steps/translation-job", () => ({ getStoredFileContentStep: vi.fn(async () => "{}") }));
+vi.mock("@/lib/translation/sandbox-cli-version", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/translation/sandbox-cli-version")>()),
+  sandboxCliParsesOffice: () => cliRelease.parsesOffice,
+}));
 
 import { sourceFileIngestWorkflow } from "./source-file-ingest";
 
@@ -46,6 +53,7 @@ const event = {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  cliRelease.parsesOffice = false;
   mocks.claimSourceFileIngestStep.mockResolvedValue({
     repositorySourceFileId: "file",
     sourceHash: "hash",
@@ -127,6 +135,24 @@ describe("sourceFileIngestWorkflow documents", () => {
     expect(mocks.ensureVideoVariantsForSourceFileStep).not.toHaveBeenCalled();
   });
 
+  it("passes HTML source text so ingest can assign tag-path keys", async () => {
+    mocks.getProjectTargetLocalesStep.mockResolvedValue(["fr"]);
+    mocks.parseHlEntriesStep.mockResolvedValue([
+      { key: "html.body.p", text: "Hello", context: null, type: "string" },
+    ]);
+
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "pages/home.html" }),
+    ).resolves.toEqual({
+      status: "ingested",
+      importedKeyCount: 1,
+    });
+    expect(mocks.parseHlEntriesStep).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ sourcePath: "pages/home.html", sourceContent: "{}" }),
+    );
+  });
+
   it("does not extract keys for binary image files", async () => {
     mocks.getProjectTargetLocalesStep.mockResolvedValue(["fr"]);
     await expect(sourceFileIngestWorkflow({ ...event, sourcePath: "hero.png" })).resolves.toEqual({
@@ -136,5 +162,144 @@ describe("sourceFileIngestWorkflow documents", () => {
     expect(mocks.ensureImageVariantsForSourceFileStep).toHaveBeenCalled();
     expect(mocks.extractSourceIngestEntriesStep).not.toHaveBeenCalled();
     expect(mocks.reconcileSourceFileTranslationKeysStep).not.toHaveBeenCalled();
+  });
+});
+
+describe("sourceFileIngestWorkflow Office files", () => {
+  const xlsxEntry = { key: "home.title", text: "Home", context: null, type: "string" };
+
+  it("extracts Excel segments in-process and reconciles them without a sandbox", async () => {
+    mocks.getProjectTargetLocalesStep.mockResolvedValue(["fr"]);
+    mocks.extractOfficeSourceEntriesStep.mockResolvedValue([xlsxEntry]);
+
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "copy/strings.xlsx" }),
+    ).resolves.toEqual({ status: "ingested", importedKeyCount: 1 });
+    expect(mocks.extractOfficeSourceEntriesStep).toHaveBeenCalledWith({
+      organizationId: "org",
+      projectId: "project",
+      storedFileId: "stored",
+      sourcePath: "copy/strings.xlsx",
+    });
+    expect(mocks.reconcileSourceFileTranslationKeysStep).toHaveBeenCalledWith(
+      expect.objectContaining({ entries: [xlsxEntry] }),
+    );
+    expect(mocks.dispatchSourceUploadAutomationsStep).toHaveBeenCalledOnce();
+    expect(mocks.createSourceIngestSandboxStep).not.toHaveBeenCalled();
+    expect(mocks.markSourceFileIngestStateStep).not.toHaveBeenCalled();
+  });
+
+  it("re-keys a legacy Office upload without firing upload automations again", async () => {
+    mocks.getProjectTargetLocalesStep.mockResolvedValue(["fr"]);
+    mocks.extractOfficeSourceEntriesStep.mockResolvedValue([xlsxEntry]);
+
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "copy/strings.xlsx", reingest: true }),
+    ).resolves.toEqual({ status: "ingested", importedKeyCount: 1 });
+    expect(mocks.reconcileSourceFileTranslationKeysStep).toHaveBeenCalledOnce();
+    expect(mocks.dispatchSourceUploadAutomationsStep).not.toHaveBeenCalled();
+  });
+
+  it("marks the version failed when the workbook cannot be read", async () => {
+    mocks.getProjectTargetLocalesStep.mockResolvedValue(["fr"]);
+    mocks.extractOfficeSourceEntriesStep.mockRejectedValue(
+      new Error("failed to extract entries from the Office file: invalid_xlsx"),
+    );
+
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "copy/strings.xlsx" }),
+    ).rejects.toThrow("invalid_xlsx");
+    expect(mocks.reconcileSourceFileTranslationKeysStep).not.toHaveBeenCalled();
+    expect(mocks.markSourceFileIngestStateStep).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ingestState: "failed",
+        ingestError: "the file format could not be parsed into translation keys",
+      }),
+    );
+  });
+
+  it("parses Excel segments with hl entries once the sandbox CLI reads workbooks", async () => {
+    cliRelease.parsesOffice = true;
+    mocks.getStoredFileMetadataStep.mockResolvedValue({ filename: "strings.xlsx" });
+    mocks.getProjectSourceLocaleStep.mockResolvedValue("en-US");
+    mocks.parseHlEntriesStep.mockResolvedValue([xlsxEntry]);
+
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "copy/strings.xlsx" }),
+    ).resolves.toEqual({ status: "ingested", importedKeyCount: 1 });
+    expect(mocks.extractSourceIngestEntriesStep).toHaveBeenCalledWith("sandbox", "strings.xlsx", {
+      sourceLocale: "en-US",
+      locale: "en-US",
+    });
+    expect(mocks.loadSourceFileSegmentationStep).not.toHaveBeenCalled();
+    expect(mocks.extractOfficeSourceEntriesStep).not.toHaveBeenCalled();
+    expect(mocks.markSourceFileIngestStateStep).not.toHaveBeenCalled();
+    expect(mocks.reconcileSourceFileTranslationKeysStep).toHaveBeenCalledWith(
+      expect.objectContaining({ entries: [xlsxEntry] }),
+    );
+    expect(mocks.stopSourceIngestSandboxStep).toHaveBeenCalledWith("sandbox");
+  });
+
+  it("always keys legacy .xls workbooks in-process", async () => {
+    cliRelease.parsesOffice = true;
+    mocks.getProjectTargetLocalesStep.mockResolvedValue(["fr"]);
+    mocks.extractOfficeSourceEntriesStep.mockResolvedValue([xlsxEntry]);
+
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "copy/strings.xls" }),
+    ).resolves.toEqual({ status: "ingested", importedKeyCount: 1 });
+    expect(mocks.extractOfficeSourceEntriesStep).toHaveBeenCalledWith(
+      expect.objectContaining({ sourcePath: "copy/strings.xls" }),
+    );
+    expect(mocks.createSourceIngestSandboxStep).not.toHaveBeenCalled();
+  });
+
+  it("keys Word and PowerPoint files in-process until the sandbox CLI parses them", async () => {
+    mocks.getProjectTargetLocalesStep.mockResolvedValue(["fr"]);
+    const paragraph = { key: "word/document.xml#0", text: "Launch plan", context: null };
+    mocks.extractOfficeSourceEntriesStep.mockResolvedValue([paragraph]);
+
+    for (const sourcePath of ["docs/report.docx", "decks/launch.pptx"]) {
+      await expect(sourceFileIngestWorkflow({ ...event, sourcePath })).resolves.toEqual({
+        status: "ingested",
+        importedKeyCount: 1,
+      });
+      expect(mocks.extractOfficeSourceEntriesStep).toHaveBeenCalledWith(
+        expect.objectContaining({ sourcePath }),
+      );
+    }
+    expect(mocks.createSourceIngestSandboxStep).not.toHaveBeenCalled();
+  });
+
+  it("parses PDF blocks with hl entries and no SRX", async () => {
+    mocks.getStoredFileMetadataStep.mockResolvedValue({ filename: "handbook.pdf" });
+    const block = { key: "page-1#1", text: "Welcome", context: "Page 1, block 1" };
+    mocks.parseHlEntriesStep.mockResolvedValue([block]);
+
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "docs/handbook.pdf" }),
+    ).resolves.toEqual({ status: "ingested", importedKeyCount: 1 });
+    expect(mocks.extractSourceIngestEntriesStep).toHaveBeenCalledWith(
+      "sandbox",
+      "handbook.pdf",
+      {},
+    );
+    expect(mocks.loadSourceFileSegmentationStep).not.toHaveBeenCalled();
+    expect(mocks.extractOfficeSourceEntriesStep).not.toHaveBeenCalled();
+  });
+
+  it("parses Word paragraphs with hl entries and no SRX once the CLI reads them", async () => {
+    cliRelease.parsesOffice = true;
+    const paragraph = { key: "word/document.xml#0", text: "Launch plan", context: null };
+    mocks.getStoredFileMetadataStep.mockResolvedValue({ filename: "report.docx" });
+    mocks.parseHlEntriesStep.mockResolvedValue([paragraph]);
+
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "docs/report.docx" }),
+    ).resolves.toEqual({ status: "ingested", importedKeyCount: 1 });
+    expect(mocks.extractSourceIngestEntriesStep).toHaveBeenCalledWith("sandbox", "report.docx", {});
+    expect(mocks.loadSourceFileSegmentationStep).not.toHaveBeenCalled();
+    expect(mocks.getProjectSourceLocaleStep).not.toHaveBeenCalled();
+    expect(mocks.extractOfficeSourceEntriesStep).not.toHaveBeenCalled();
   });
 });

@@ -20,10 +20,12 @@ import { FormattedMessage } from "react-intl";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/primitives/cn";
+import { useAiCreditRefusalToast } from "@/components/billing/use-ai-credit-refusal-toast";
 
 import { ContentEditorEditorPanel } from "@/components/content-editor/editor/content-editor-editor-panel";
 import { isContentEditorImageGenerating } from "@/components/content-editor/project-file/content-editor-image-generation-state";
 import { ContentEditorFileViewPanel } from "@/components/content-editor/file-view/content-editor-file-view-panel";
+import { ContentEditorGlossaryGuidance } from "@/components/content-editor/intelligence/content-editor-glossary-guidance";
 import { ContentEditorIntelligencePanel } from "@/components/content-editor/intelligence/content-editor-intelligence-panel";
 import { resolveCatLinkedIssueTranslationKeyId } from "@/components/content-editor/issues/content-editor-linked-issue-translation-key";
 import { ContentEditorEditorIssuesSection } from "@/components/content-editor/issues/content-editor-editor-issues-section";
@@ -35,6 +37,7 @@ import {
 } from "@/components/content-editor/side-by-side/content-editor-side-by-side-panel";
 import type { ContentEditorWorkspaceViewProps } from "@/components/content-editor/shared/dependencies";
 import { contentEditorWorkspaceMessages } from "@/components/content-editor/shared/content-editor.messages";
+import { isContentEditorAssetContentKind } from "@/components/content-editor/shared/content-editor-content-kind";
 import { isNativeContentEditorProviderKind } from "@/components/content-editor/shared/content-editor-native-project";
 
 import {
@@ -57,6 +60,8 @@ import { resolveSegmentIntelligenceForDisplay } from "./store/content-editor-wor
 const COMPACT_WORKSPACE_QUERY = "(max-width: 1023px)";
 
 type ContentEditorWorkspacePanel = "edit" | "queue" | "ai";
+
+const OFFICE_DRAFT_SAVE_CONCURRENCY = 4;
 
 function useIsCompactWorkspace(viewMode: string) {
   const [isCompact, setIsCompact] = useState(false);
@@ -88,32 +93,14 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   queueSegments,
   selectedSegment,
   dependencies,
-  isValidating: _isValidating = false,
-  isApproving = false,
-  isSavingDraft = false,
-  isPostingComment = false,
-  isResolvingComment = false,
-  resolvingCommentId = null,
-  commentPostError,
-  isLookingUpContext = false,
-  isConcordanceLoading = false,
-  isVisualContextLoading = false,
-  isAiSuggestionLoading = false,
-  isFormatChecksLoading = false,
   canLookupContext = false,
   canUseAiRecommendation = false,
-  showAgentContext = false,
   showVisualContext = false,
-  revealedAgentContextSegmentIds,
-  dirtySegmentIds,
   className,
   queueSearch,
   isQueueFetchingPage = false,
   isQueueListLoading = false,
   isQueueDataPending = false,
-  isTranslationViewLoading = false,
-  isCommentsLoading = false,
-  isSegmentTargetLoading = false,
   isImageBusy = false,
   isImageGenerating = false,
   generatingImageSegmentId,
@@ -122,16 +109,35 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   hasMoreQueue = false,
   onLoadMoreQueue,
   queueFilter,
-  checkedSegmentIds,
-  onToggleSegmentChecked,
   buildSegmentShareUrl,
   onIntelligencePanelVisible,
+  onLoadSegmentConcordance,
   organizationSlug,
   projectId,
   nativeIssuesEnabled = false,
   onReloadConcordance,
 }: ContentEditorWorkspaceViewProps) {
   const store = useContentEditorWorkspace();
+  const notifyAiCreditRefusal = useAiCreditRefusalToast();
+  const isApproving = store.isApproving;
+  const isSavingDraft = store.isSavingDraft;
+  const isPostingComment = store.isPostingComment;
+  const isResolvingComment = store.isResolvingComment;
+  const resolvingCommentId = store.resolvingCommentId;
+  const commentPostError = store.commentPostError;
+  const isLookingUpContext = store.isLookingUpContext;
+  const isConcordanceLoading = store.isLoadingConcordance;
+  const isVisualContextLoading = store.isLoadingVisualContext;
+  const isAiSuggestionLoading = store.isGeneratingAiRecommendation && canUseAiRecommendation;
+  const isFormatChecksLoading = store.isRunningFormatChecks || store.isValidating;
+  const revealedAgentContextSegmentIds = store.revealedAgentContextSegmentIds;
+  const showAgentContext = revealedAgentContextSegmentIds.has(store.selectedSegmentId);
+  const dirtySegmentIds = store.dirtySegmentIds;
+  const isCommentsLoading = store.isCommentsLoading;
+  const isSegmentTargetLoading = store.isSegmentTargetLoading;
+  const checkedSegmentIds = store.checkedSegmentIds;
+  const onToggleSegmentChecked = (segmentId: string, checked: boolean) =>
+    store.toggleSegmentChecked(segmentId, checked);
   const viewMode = store.ui.viewMode;
   const isAdaptiveEnabled = store.ui.adaptiveWorkspaceEnabled;
   const isReviewerPersona = isAdaptiveEnabled && store.ui.isReviewerPersona;
@@ -181,11 +187,17 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   const isFileView = viewMode === "file";
   const selectedSegmentIdForIntelligence = intelligenceSegmentId;
   const [isIssuePanelOpen, setIsIssuePanelOpen] = useState(false);
+  const [uploadingVisualContextSegmentIds, setUploadingVisualContextSegmentIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   const isIntelligencePanelVisible = Boolean(
     selectedSegmentIdForIntelligence &&
     (!isCompact || activePanel === "ai") &&
     !isSideBySideDesktop &&
     viewMode !== "multilingual",
+  );
+  const shouldLoadGlossaryConcordance = Boolean(
+    selectedSegmentIdForIntelligence && viewMode !== "multilingual",
   );
 
   useEffect(() => {
@@ -205,7 +217,15 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
     selectedSegmentIdForIntelligence,
   ]);
 
-  const showTranslationViewSkeleton = isTranslationViewLoading || store.ui.translationViewLoading;
+  useEffect(() => {
+    if (!shouldLoadGlossaryConcordance) {
+      return;
+    }
+
+    onLoadSegmentConcordance?.(selectedSegmentIdForIntelligence);
+  }, [onLoadSegmentConcordance, selectedSegmentIdForIntelligence, shouldLoadGlossaryConcordance]);
+
+  const showTranslationViewSkeleton = store.ui.translationViewLoading;
 
   if (viewMode === "multilingual" && multilingual) {
     const isImageFile =
@@ -273,6 +293,8 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           pagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
+          ingestState={store.fileContext.ingestState}
+          ingestError={store.fileContext.ingestError}
         />
       </ContentEditorPanelErrorBoundary>
     );
@@ -385,9 +407,11 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   );
   const selectedSegmentFormatChecks =
     shell.segmentFormatChecks?.[editorSegment.id] ?? shell.formatChecks;
-  const aiRecommendationError = selectedSegmentFormatChecks.find(
+  const aiRecommendationFailure = selectedSegmentFormatChecks.find(
     (check) => check.id === `ai-recommendation-failed-${editorSegment.id}`,
-  )?.message;
+  );
+  const aiRecommendationError = aiRecommendationFailure?.message;
+  const aiRecommendationCreditExhausted = aiRecommendationFailure?.aiCreditExhausted === true;
   const isEditorBusy = isApproving || isSavingDraft;
   const canApprove = shell.fileContext.canEditTranslations !== false;
   const canAddComment = shell.fileContext.canAddComments === true;
@@ -410,6 +434,25 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
     : null;
   const supportsIssueComments = shell.fileContext.providerKind === "crowdin" && canAddComment;
   const isNativeProject = isNativeContentEditorProviderKind(shell.fileContext.providerKind);
+  const canUploadVisualContext =
+    isNativeProject &&
+    Boolean(editing.onUploadVisualContext) &&
+    shell.fileContext.canEditTranslations !== false;
+  const onUploadVisualContext = editing.onUploadVisualContext;
+  const uploadVisualContext = onUploadVisualContext
+    ? async (segmentId: string, file: File) => {
+        setUploadingVisualContextSegmentIds((current) => new Set(current).add(segmentId));
+        try {
+          await onUploadVisualContext(segmentId, file);
+        } finally {
+          setUploadingVisualContextSegmentIds((current) => {
+            const next = new Set(current);
+            next.delete(segmentId);
+            return next;
+          });
+        }
+      }
+    : undefined;
   const showNativeIssues = nativeIssuesEnabled && isNativeProject;
   const issueTargetLocale = showNativeIssues ? shell.fileContext.targetLocale : null;
   const editorTranslationKeyId = showNativeIssues
@@ -452,6 +495,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
     ? intelligenceTranslationKeyId
     : editorTranslationKeyId;
   const issueStringLink = isSideBySideDesktop ? intelligenceIssueStringLink : editorIssueStringLink;
+  const glossarySegment = isSideBySideDesktop ? intelligenceSegment : editorSegment;
+  const glossaryIntelligence = isSideBySideDesktop
+    ? intelligenceSegmentIntelligence
+    : selectedSegmentIntelligence;
 
   function renderSideBySidePanel() {
     if (!selectedSegment) {
@@ -490,6 +537,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           canUseAiRecommendation={canUseAiRecommendation}
           focusedIntelligence={selectedSegmentIntelligence}
           aiRecommendationError={aiRecommendationError}
+          aiRecommendationCreditExhausted={aiRecommendationCreditExhausted}
           formatChecks={selectedSegmentFormatChecks}
           segmentFormatChecks={shell.segmentFormatChecks}
           formatCheckLoadingSegmentIds={store.formatCheckLoadingSegmentIds}
@@ -499,6 +547,9 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
             revealedAgentContextSegmentIds?.has(intelligenceSegmentId) ?? showAgentContext
           }
           showVisualContext={showVisualContext}
+          canUploadVisualContext={canUploadVisualContext}
+          isUploadingVisualContext={uploadingVisualContextSegmentIds.has(intelligenceSegmentId)}
+          onUploadVisualContext={uploadVisualContext}
           canLookupFreshContext={canLookupContext}
           search={queueSearch}
           queueFilter={queueFilter}
@@ -554,12 +605,21 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           }
           onRegenerateImage={
             editing.onRegenerateImage
-              ? (segmentId) => void editing.onRegenerateImage?.(segmentId)
+              ? (segmentId) =>
+                  void Promise.resolve(editing.onRegenerateImage?.(segmentId)).catch((error) => {
+                    if (!notifyAiCreditRefusal(error)) throw error;
+                  })
               : undefined
           }
           onUploadImage={
             editing.onUploadImage
               ? (segmentId, file) => void editing.onUploadImage?.(segmentId, file)
+              : undefined
+          }
+          onToggleLocked={
+            review.onSetLocked
+              ? (segmentId) =>
+                  review.onSetLocked?.([segmentId], !store.getSegmentView(segmentId)?.isLocked)
               : undefined
           }
           onAskQuestion={
@@ -592,7 +652,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           segmentShareUrl={segmentShareUrl}
           organizationSlug={organizationSlug}
           projectId={projectId}
-          onGlossaryTermAdded={
+          onTmSegmentMutated={
             intelligenceSegment ? () => onReloadConcordance?.(intelligenceSegment.id) : undefined
           }
         />
@@ -607,15 +667,51 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       providerKind: shell.fileContext.providerKind,
     });
     const fileViewSegment = overlayCatDocumentFileViewSegment(editorSegment, shell.fileContext);
+    // The target Office file is generated from segment translations, so edits go to segments.
+    const isGeneratedFileView =
+      capabilities.family === "office-segments" || capabilities.family === "pdf-segments";
+    const canEditFileView = canApprove && !fileViewSegment.isLocked && !isGeneratedFileView;
+    const saveDraft = review.onSaveDraft;
+    const officeSegments = isGeneratedFileView
+      ? {
+          segments: queueSegments.flatMap((queueSegment) => {
+            const view = store.getSegmentView(queueSegment.id);
+            return view ? [view] : [];
+          }),
+          dirtySegmentIds: dirtySegmentIds ?? new Set<string>(),
+          canEdit: canApprove && Boolean(saveDraft),
+          hasMore: hasMoreQueue,
+          onLoadMore: onLoadMoreQueue,
+          onChange: (segmentId: string, value: string) => editing.onTargetChange(segmentId, value),
+          onSaveDrafts: async (segmentIds: string[]) => {
+            if (!saveDraft) {
+              return;
+            }
+            for (let start = 0; start < segmentIds.length; start += OFFICE_DRAFT_SAVE_CONCURRENCY) {
+              await Promise.allSettled(
+                segmentIds
+                  .slice(start, start + OFFICE_DRAFT_SAVE_CONCURRENCY)
+                  .map(async (segmentId) => {
+                    const targetText = store.getSegmentView(segmentId)?.targetText;
+                    if (targetText !== undefined) {
+                      await saveDraft(segmentId, targetText);
+                    }
+                  }),
+              );
+            }
+          },
+        }
+      : undefined;
 
     return (
       <ContentEditorPanelErrorBoundary scope="editor" resetKeys={[viewMode, fileViewSegment.id]}>
         <ContentEditorFileViewPanel
           segment={fileViewSegment}
           viewerId={capabilities.viewerId}
+          officeSegments={officeSegments}
           filename={shell.fileContext.filename}
-          canEdit={canApprove && !fileViewSegment.isLocked}
-          canApprove={canApprove && !fileViewSegment.isLocked}
+          canEdit={canEditFileView}
+          canApprove={canEditFileView}
           isApproving={isApproving}
           isImageBusy={isImageBusy}
           isImageGenerating={isSelectedImageGenerating}
@@ -625,9 +721,13 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           hasNextSegment={hasNextSegment}
           onPrevious={navigation.onPreviousSegment}
           onNext={navigation.onNextSegment}
-          onApprove={() => void review.onApprove(fileViewSegment.id, fileViewSegment.targetText)}
+          onApprove={
+            isGeneratedFileView
+              ? undefined
+              : () => void review.onApprove(fileViewSegment.id, fileViewSegment.targetText)
+          }
           onUpload={
-            editing.onUploadImage
+            editing.onUploadImage && !isGeneratedFileView
               ? (file) => editing.onUploadImage?.(fileViewSegment.id, file)
               : undefined
           }
@@ -724,7 +824,8 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           onRegenerate={
             (capabilities.viewerId === "image" ||
               capabilities.viewerId === "video" ||
-              capabilities.viewerId === "markdown") &&
+              capabilities.viewerId === "markdown" ||
+              capabilities.viewerId === "html") &&
             editing.onRegenerateImage
               ? (input) => editing.onRegenerateImage?.(fileViewSegment.id, input)
               : undefined
@@ -818,7 +919,12 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           }
           onRegenerateImage={
             editing.onRegenerateImage
-              ? () => void editing.onRegenerateImage?.(editorSegment.id)
+              ? () =>
+                  void Promise.resolve(editing.onRegenerateImage?.(editorSegment.id)).catch(
+                    (error) => {
+                      if (!notifyAiCreditRefusal(error)) throw error;
+                    },
+                  )
               : undefined
           }
           onUploadImage={
@@ -828,12 +934,15 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           }
           onToggleLocked={
             review.onSetLocked
-              ? () => void review.onSetLocked?.([editorSegment.id], !editorSegment.isLocked)
+              ? () => review.onSetLocked?.([editorSegment.id], !editorSegment.isLocked)
               : undefined
           }
           aiRecommendationError={aiRecommendationError}
+          aiRecommendationCreditExhausted={aiRecommendationCreditExhausted}
           onPrevious={navigation.onPreviousSegment}
           onNext={navigation.onNextSegment}
+          onPreviousUntranslated={navigation.onPreviousUntranslatedSegment}
+          onNextUntranslated={navigation.onNextUntranslatedSegment}
           hasPreviousSegment={hasPreviousSegment}
           hasNextSegment={hasNextSegment}
           showKeyboardHints={!store.ui.shortcutHintsHidden}
@@ -868,6 +977,8 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           pagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
+          ingestState={store.fileContext.ingestState}
+          ingestError={store.fileContext.ingestError}
         />
       </ContentEditorPanelErrorBoundary>
     );
@@ -883,25 +994,23 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           intelligence={selectedSegmentIntelligence}
           segmentId={editorSegment.id}
           segmentKey={editorSegment.key}
-          sourceText={editorSegment.sourceText}
+          contentKind={editorSegment.contentKind}
           targetText={editorSegment.targetText}
           sourceLocale={editorSegment.sourceLocale}
-          targetLocale={editorSegment.targetLocale}
           organizationSlug={organizationSlug}
           projectId={projectId}
-          teamGlossaries={shell.fileContext.teamGlossaries ?? []}
-          contributorTeams={shell.fileContext.contributorTeams ?? []}
-          projectTeamId={shell.fileContext.projectTeamId}
-          canContributeTeamGlossary={
-            Boolean(shell.fileContext.canContributeTeamGlossary) && isNativeProject
-          }
-          teamName={shell.fileContext.teamName}
-          projectTeamSlug={shell.fileContext.projectTeamSlug}
           isLookingUpContext={isLookingUpContext}
           isConcordanceLoading={isConcordanceLoading}
           isVisualContextLoading={isVisualContextLoading}
           showAgentContext={showAgentContext}
           showVisualContext={showVisualContext}
+          canUploadVisualContext={canUploadVisualContext && !editorSegment.isLocked}
+          isUploadingVisualContext={uploadingVisualContextSegmentIds.has(editorSegment.id)}
+          onUploadVisualContext={
+            uploadVisualContext
+              ? (file: File) => uploadVisualContext(editorSegment.id, file)
+              : undefined
+          }
           showMaxLengthEditor={isNativeProject}
           isMaxLengthSaving={isMaxLengthSaving}
           canEditTranslations={shell.fileContext.canEditTranslations !== false}
@@ -917,12 +1026,22 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           onFindContext={() => review.onAskQuestion(editorSegment.id)}
           onRefreshContext={() => review.onAskQuestion(editorSegment.id, { forceRefresh: true })}
           onUseTmMatch={(match) => editing.onUseTmMatch(editorSegment.id, match)}
+          onInsertCharacter={
+            isContentEditorAssetContentKind(editorSegment.contentKind)
+              ? undefined
+              : (character) => {
+                  editing.onTargetChange(
+                    editorSegment.id,
+                    `${editorSegment.targetText}${character}`,
+                  );
+                }
+          }
           onSetMaxLength={
             editing.onSetMaxLength
               ? (maxLength) => editing.onSetMaxLength!(editorSegment.id, maxLength)
               : undefined
           }
-          onGlossaryTermAdded={() => onReloadConcordance?.(editorSegment.id)}
+          onTmSegmentMutated={() => onReloadConcordance?.(editorSegment.id)}
           scrollToTm={isAdaptiveEnabled && store.ui.isTranslatorPersona}
         />
       </ContentEditorPanelErrorBoundary>
@@ -1023,6 +1142,30 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           }
         />
       )}
+      {glossarySegment ? (
+        <ContentEditorGlossaryGuidance
+          intelligence={glossaryIntelligence}
+          isLoading={isConcordanceLoading}
+          segmentId={glossarySegment.id}
+          sourceText={glossarySegment.sourceText}
+          targetText={glossarySegment.targetText}
+          sourceLocale={glossarySegment.sourceLocale}
+          targetLocale={glossarySegment.targetLocale}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          teamGlossaries={shell.fileContext.teamGlossaries}
+          contributorTeams={shell.fileContext.contributorTeams}
+          projectTeamId={shell.fileContext.projectTeamId}
+          canContributeTeamGlossary={
+            Boolean(shell.fileContext.canContributeTeamGlossary) && isNativeProject
+          }
+          teamName={shell.fileContext.teamName}
+          projectTeamSlug={shell.fileContext.projectTeamSlug}
+          canEditTranslations={shell.fileContext.canEditTranslations !== false}
+          isTranslationLocked={Boolean(glossarySegment.isLocked)}
+          onGlossaryTermAdded={() => onReloadConcordance?.(glossarySegment.id)}
+        />
+      ) : null}
       {showNativeIssues && organizationSlug && projectId && issueSegment ? (
         <ContentEditorEditorIssuesSection
           organizationSlug={organizationSlug}

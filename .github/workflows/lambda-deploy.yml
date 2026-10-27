@@ -1,28 +1,11 @@
 name: Lambda Deploy
 
+# Every push to prod deploys every Lambda. Do not add path filters: they drift from the
+# real Go import graph and silently skip deploys.
 on:
   push:
     branches:
-      - main
-    paths:
-      - Makefile
-      - go.mod
-      - go.sum
-      - MODULE.bazel
-      - internal/activitylog/**
-      - internal/secretsmanager/**
-      - apps/activity-log-lambda/**
-      - apps/glossary-interchange-lambda/**
-      - apps/memory-interchange-lambda/**
-      - internal/i18n/memoryinterchange/**
-      - internal/i18n/editor-export/**
-      - internal/objectstore/**
-      - .github/actions/go-bootstrap/**
-      - .github/actions/provision-lambda/**
-      - .github/actions/upload-lambda-artifact/**
-      - .github/actions/deploy-lambda-artifact/**
-      - .github/actions/ensure-deploy-main-tip/**
-      - .github/workflows/lambda-deploy.yml
+      - prod
   workflow_dispatch:
 
 permissions:
@@ -37,75 +20,10 @@ env:
   LAMBDA_ARTIFACT_KEY: activity-log/bootstrap.zip
 
 jobs:
-  changed_paths:
-    name: Detect changed Lambda paths
-    runs-on: ubuntu-26.04
-    outputs:
-      activity-log: ${{ steps.paths.outputs.activity-log }}
-      glossary-interchange: ${{ steps.paths.outputs.glossary-interchange }}
-      memory-interchange: ${{ steps.paths.outputs.memory-interchange }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
-
-      - name: Detect changed paths
-        id: paths
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        with:
-          filters: |
-            activity-log:
-              - 'apps/activity-log-lambda/**'
-              - 'Makefile'
-              - 'go.mod'
-              - 'go.sum'
-              - 'MODULE.bazel'
-              - 'internal/activitylog/**'
-              - 'internal/secretsmanager/**'
-              - '.github/actions/go-bootstrap/**'
-              - '.github/actions/provision-lambda/**'
-              - '.github/actions/upload-lambda-artifact/**'
-              - '.github/actions/deploy-lambda-artifact/**'
-              - '.github/actions/ensure-deploy-main-tip/**'
-              - '.github/workflows/lambda-deploy.yml'
-            glossary-interchange:
-              - 'apps/glossary-interchange-lambda/**'
-              - 'Makefile'
-              - 'go.mod'
-              - 'go.sum'
-              - 'MODULE.bazel'
-              - 'internal/activitylog/**'
-              - 'internal/secretsmanager/**'
-              - '.github/actions/go-bootstrap/**'
-              - '.github/actions/provision-lambda/**'
-              - '.github/actions/upload-lambda-artifact/**'
-              - '.github/actions/deploy-lambda-artifact/**'
-              - '.github/actions/ensure-deploy-main-tip/**'
-              - '.github/workflows/lambda-deploy.yml'
-            memory-interchange:
-              - 'apps/memory-interchange-lambda/**'
-              - 'internal/i18n/memoryinterchange/**'
-              - 'internal/i18n/editor-export/**'
-              - 'internal/objectstore/**'
-              - 'Makefile'
-              - 'go.mod'
-              - 'go.sum'
-              - 'MODULE.bazel'
-              - 'internal/secretsmanager/**'
-              - '.github/actions/go-bootstrap/**'
-              - '.github/actions/provision-lambda/**'
-              - '.github/actions/upload-lambda-artifact/**'
-              - '.github/actions/deploy-lambda-artifact/**'
-              - '.github/actions/ensure-deploy-main-tip/**'
-              - '.github/workflows/lambda-deploy.yml'
-
-  # Per-lambda concurrency only — see docs/contributing/lambda-deploy.mdx. Workflow-wide
-  # cancel-in-progress can leave a function stale when a later run skips its deploy job.
+  # Per-lambda concurrency only — see docs/contributing/lambda-deploy.mdx.
   activity_log_deploy:
     name: Build and deploy activity-log Lambda
-    needs: changed_paths
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.activity-log == 'true')
+    if: github.ref == 'refs/heads/prod'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
     concurrency:
@@ -122,21 +40,6 @@ jobs:
         uses: ./.github/actions/ensure-deploy-main-tip
         with:
           event-name: ${{ github.event_name }}
-          filters: |
-            superseding:
-              - 'apps/activity-log-lambda/**'
-              - 'Makefile'
-              - 'go.mod'
-              - 'go.sum'
-              - 'MODULE.bazel'
-              - 'internal/activitylog/**'
-              - 'internal/secretsmanager/**'
-              - '.github/actions/go-bootstrap/**'
-              - '.github/actions/provision-lambda/**'
-              - '.github/actions/upload-lambda-artifact/**'
-              - '.github/actions/deploy-lambda-artifact/**'
-              - '.github/actions/ensure-deploy-main-tip/**'
-              - '.github/workflows/lambda-deploy.yml'
 
       - name: Bootstrap Go toolchain
         uses: ./.github/actions/go-bootstrap
@@ -183,8 +86,7 @@ jobs:
 
   glossary_interchange_deploy:
     name: Build and deploy glossary-interchange Lambda
-    needs: changed_paths
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.glossary-interchange == 'true')
+    if: github.ref == 'refs/heads/prod'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
     concurrency:
@@ -201,21 +103,6 @@ jobs:
         uses: ./.github/actions/ensure-deploy-main-tip
         with:
           event-name: ${{ github.event_name }}
-          filters: |
-            superseding:
-              - 'apps/glossary-interchange-lambda/**'
-              - 'Makefile'
-              - 'go.mod'
-              - 'go.sum'
-              - 'MODULE.bazel'
-              - 'internal/activitylog/**'
-              - 'internal/secretsmanager/**'
-              - '.github/actions/go-bootstrap/**'
-              - '.github/actions/provision-lambda/**'
-              - '.github/actions/upload-lambda-artifact/**'
-              - '.github/actions/deploy-lambda-artifact/**'
-              - '.github/actions/ensure-deploy-main-tip/**'
-              - '.github/workflows/lambda-deploy.yml'
 
       - name: Bootstrap Go toolchain
         uses: ./.github/actions/go-bootstrap
@@ -262,8 +149,7 @@ jobs:
 
   memory_interchange_deploy:
     name: Build and deploy memory-interchange Lambda
-    needs: changed_paths
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.memory-interchange == 'true')
+    if: github.ref == 'refs/heads/prod'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
     concurrency:
@@ -280,23 +166,6 @@ jobs:
         uses: ./.github/actions/ensure-deploy-main-tip
         with:
           event-name: ${{ github.event_name }}
-          filters: |
-            superseding:
-              - 'apps/memory-interchange-lambda/**'
-              - 'internal/i18n/memoryinterchange/**'
-              - 'internal/i18n/editor-export/**'
-              - 'internal/objectstore/**'
-              - 'Makefile'
-              - 'go.mod'
-              - 'go.sum'
-              - 'MODULE.bazel'
-              - 'internal/secretsmanager/**'
-              - '.github/actions/go-bootstrap/**'
-              - '.github/actions/provision-lambda/**'
-              - '.github/actions/upload-lambda-artifact/**'
-              - '.github/actions/deploy-lambda-artifact/**'
-              - '.github/actions/ensure-deploy-main-tip/**'
-              - '.github/workflows/lambda-deploy.yml'
 
       - name: Bootstrap Go toolchain
         uses: ./.github/actions/go-bootstrap
@@ -333,6 +202,132 @@ jobs:
         run: |
           {
             echo "## Memory-interchange Lambda deployed"
+            echo
+            echo "- Function: \`${FUNCTION_NAME}\`"
+            echo "- Object: \`${S3_URI}\`"
+            echo "- Version: \`${VERSION_ID}\`"
+            echo "- Update: \`${UPDATE}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  visual_context_match_deploy:
+    name: Build and deploy visual-context-match Lambda
+    if: github.ref == 'refs/heads/prod'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    concurrency:
+      group: lambda-deploy-visual-context-match-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Ensure push deploy is not superseded
+        uses: ./.github/actions/ensure-deploy-main-tip
+        with:
+          event-name: ${{ github.event_name }}
+
+      - name: Bootstrap Go toolchain
+        uses: ./.github/actions/go-bootstrap
+        with:
+          go-version-file: go.mod
+
+      - name: Test visual-context-match Lambda
+        run: go test ./apps/visual-context-match-lambda ./internal/objectstore/...
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-lambda-deploy
+
+      - name: Build and deploy visual-context-match Lambda artifact
+        id: deploy
+        uses: ./.github/actions/deploy-lambda-artifact
+        with:
+          bucket-parameter-name: ${{ env.LAMBDA_ARTIFACT_BUCKET_PARAMETER_NAME }}
+          function-parameter-name: /hyperlocalise/prod/lambda/visual-context-match/function_name
+          build-command: make build-visual-context-match-lambda
+          binary-path: dist/visual-context-match-lambda/bootstrap
+          s3-key: visual-context-match/bootstrap.zip
+
+      - name: Summarize visual-context-match deployment
+        shell: bash
+        env:
+          S3_URI: ${{ steps.deploy.outputs.s3-uri }}
+          VERSION_ID: ${{ steps.deploy.outputs.version-id }}
+          FUNCTION_NAME: ${{ steps.deploy.outputs.function-name }}
+          UPDATE: ${{ steps.deploy.outputs.update }}
+        run: |
+          {
+            echo "## Visual-context-match Lambda deployed"
+            echo
+            echo "- Function: \`${FUNCTION_NAME}\`"
+            echo "- Object: \`${S3_URI}\`"
+            echo "- Version: \`${VERSION_ID}\`"
+            echo "- Update: \`${UPDATE}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  guideline_ingest_deploy:
+    name: Build and deploy guideline-ingest Lambda
+    if: github.ref == 'refs/heads/prod'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    concurrency:
+      group: lambda-deploy-guideline-ingest-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Ensure push deploy is not superseded
+        uses: ./.github/actions/ensure-deploy-main-tip
+        with:
+          event-name: ${{ github.event_name }}
+
+      - name: Bootstrap Go toolchain
+        uses: ./.github/actions/go-bootstrap
+        with:
+          go-version-file: go.mod
+
+      - name: Test guideline-ingest Lambda
+        run: go test ./apps/guideline-ingest-lambda ./internal/guidelines/... ./internal/textextract
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-lambda-deploy
+
+      - name: Build and deploy guideline-ingest Lambda artifact
+        id: deploy
+        uses: ./.github/actions/deploy-lambda-artifact
+        with:
+          bucket-parameter-name: ${{ env.LAMBDA_ARTIFACT_BUCKET_PARAMETER_NAME }}
+          function-parameter-name: /hyperlocalise/prod/lambda/guideline-ingest/function_name
+          build-command: make build-guideline-ingest-lambda
+          binary-path: dist/guideline-ingest-lambda/bootstrap
+          s3-key: guideline-ingest/bootstrap.zip
+
+      - name: Summarize guideline-ingest deployment
+        shell: bash
+        env:
+          S3_URI: ${{ steps.deploy.outputs.s3-uri }}
+          VERSION_ID: ${{ steps.deploy.outputs.version-id }}
+          FUNCTION_NAME: ${{ steps.deploy.outputs.function-name }}
+          UPDATE: ${{ steps.deploy.outputs.update }}
+        run: |
+          {
+            echo "## Guideline-ingest Lambda deployed"
             echo
             echo "- Function: \`${FUNCTION_NAME}\`"
             echo "- Object: \`${S3_URI}\`"

@@ -38,7 +38,8 @@ export type IntercomConnectionError =
   | { code: "intercom_connection_not_found"; message: string }
   | { code: "intercom_connection_decrypt_failed"; message: string }
   | { code: "intercom_connection_validation_failed"; message: string }
-  | { code: "intercom_validation_timeout"; message: string };
+  | { code: "intercom_validation_timeout"; message: string }
+  | { code: "intercom_region_unresolved"; message: string };
 
 export type IntercomPipesConnectionStatus = {
   connected: boolean;

@@ -66,6 +66,11 @@ func parseMarkdownASTDocument(content []byte) (markdownDocument, map[string]stri
 		}
 
 		raw := string(content[candidate.start:candidate.stop])
+		if isIntercomCalloutFence(raw) {
+			doc.parts = append(doc.parts, markdownPart{literal: raw})
+			cursor = candidate.stop
+			continue
+		}
 		placeholdered, placeholders, plainText := protectStandardMarkdownInlineSyntax(raw)
 		if !isTranslatableChunk(plainText) {
 			doc.parts = append(doc.parts, markdownPart{literal: raw})
@@ -440,6 +445,10 @@ func protectStandardMarkdownInlineSyntax(segment string) (string, map[string]str
 			end := idx + 2 + closeIdx + 1
 			appendPlaceholder(segment[idx:end])
 			idx = end
+		case intercomHeadingIDEnd(segment, idx) > idx:
+			end := intercomHeadingIDEnd(segment, idx)
+			appendPlaceholder(segment[idx:end])
+			idx = end
 		case strings.HasPrefix(segment[idx:], "<http://") || strings.HasPrefix(segment[idx:], "<https://") || strings.HasPrefix(segment[idx:], "<mailto:"):
 			end := strings.IndexByte(segment[idx:], '>')
 			if end < 0 {
@@ -517,6 +526,36 @@ func markdownPlaceholderToken(idx int, literal string) string {
 	sb.WriteString(strconv.Itoa(idx))
 	sb.WriteByte('\x1f')
 	return sb.String()
+}
+
+func isIntercomCalloutFence(raw string) bool {
+	trimmed := strings.TrimSpace(raw)
+	return trimmed == ":::" || strings.HasPrefix(trimmed, ":::callout")
+}
+
+func intercomHeadingIDEnd(segment string, idx int) int {
+	if idx+3 >= len(segment) || !strings.HasPrefix(segment[idx:], "{#") {
+		return -1
+	}
+	if !isIntercomHeadingIDStart(segment[idx+2]) {
+		return -1
+	}
+	end := idx + 3
+	for end < len(segment) && isIntercomHeadingIDChar(segment[end]) {
+		end++
+	}
+	if end < len(segment) && segment[end] == '}' {
+		return end + 1
+	}
+	return -1
+}
+
+func isIntercomHeadingIDStart(ch byte) bool {
+	return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')
+}
+
+func isIntercomHeadingIDChar(ch byte) bool {
+	return isIntercomHeadingIDStart(ch) || (ch >= '0' && ch <= '9') || ch == '_' || ch == '-' || ch == ':'
 }
 
 func markdownPlaceholderHash(idx int, literal string) [32]byte {

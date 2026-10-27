@@ -20,6 +20,7 @@ import type {
 } from "@/lib/localisation-audit/types";
 
 import { LocalisationAuditResult } from "./localisation-audit-result";
+import { LocalisationAuditResultErrorBoundary } from "./localisation-audit-result-error-boundary";
 
 type LocalisationAuditResultPageProps = {
   locale: string;
@@ -55,12 +56,17 @@ export function LocalisationAuditResultPage({
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-7xl">
-        <LocalisationAuditResult
-          locale={locale}
-          domainSlug={domainSlug}
-          initialAudit={audit}
-          standing={standing}
-        />
+        <LocalisationAuditResultErrorBoundary
+          scope="report"
+          resetKeys={[domainSlug, audit.id, audit.status]}
+        >
+          <LocalisationAuditResult
+            locale={locale}
+            domainSlug={domainSlug}
+            initialAudit={audit}
+            standing={standing}
+          />
+        </LocalisationAuditResultErrorBoundary>
         <MarketingFooter columns={footerColumns} />
       </div>
     </div>

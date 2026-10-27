@@ -297,6 +297,41 @@ describe("ContentEditorSideBySideRow", () => {
     expect(onUseAiSuggestion).toHaveBeenCalledTimes(1);
   });
 
+  it("shows a suggestion refused for used-up AI credit once, without Regenerate", async () => {
+    const user = userEvent.setup();
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const refusal =
+      "Your workspace has used all of its AI credit. Change your plan on the Billing page, or wait for your AI credit to renew.";
+    const failure = {
+      id: "ai-recommendation-failed-seg-02",
+      label: "AI recommendation",
+      status: "fail" as const,
+      message: refusal,
+      category: "qa" as const,
+    };
+    const props = {
+      canUseAiRecommendation: true,
+      intelligence: { ...state.intelligence!, aiSuggestion: undefined },
+      onUseAiSuggestion: vi.fn(),
+      onGenerateAiRecommendation: vi.fn(),
+      aiRecommendationError: refusal,
+    };
+
+    const refused = renderRow({
+      ...props,
+      aiRecommendationCreditExhausted: true,
+      formatChecks: [{ ...failure, aiCreditExhausted: true }],
+    });
+    await user.click(screen.getByRole("button", { name: /Generate AI suggestion/i }));
+    expect(screen.getAllByText(/used all of its AI credit/)).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /Regenerate/i })).not.toBeInTheDocument();
+    refused.unmount();
+
+    renderRow({ ...props, aiRecommendationError: "Model unavailable", formatChecks: [failure] });
+    await user.click(screen.getByRole("button", { name: /Generate AI suggestion/i }));
+    expect(screen.getByRole("button", { name: /Regenerate/i })).toBeInTheDocument();
+  });
+
   it("hides the AI suggestion action when not focused", () => {
     const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
 
@@ -715,6 +750,46 @@ describe("ContentEditorSideBySideRow", () => {
     expect(screen.queryByText(/ICU structure/i)).not.toBeInTheDocument();
   });
 
+  it("omits structural markdown tokens from the required-token strip", async () => {
+    const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
+    const md1 = "\u001eHLMDPH_0EB5FD589564_1\u001f";
+    const md2 = "\u001eHLMDPH_AAAAAAAAAAAA_2\u001f";
+    const md3 = "\u001eHLMDPH_BBBBBBBBBBBB_3\u001f";
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      key: "md.List[0]/ListItem[2]/Paragraph[0]/line[0]",
+      sourceText: `${md0}Customize your Help Center${md1} or use ${md2}Multi Help Center${md3}`,
+      targetText:
+        "[Hilfe-Center](https://www.intercom.com/help/en/articles/56644) oder [Multi](https://www.intercom.com/help/en/articles/8170953)",
+    };
+
+    renderRow({ segment });
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: "Hilfe-Center" })).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Required tokens")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "MD#0" })).not.toBeInTheDocument();
+  });
+
+  it("still shows ICU required tokens on markdown rows", async () => {
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      key: "md.Paragraph[0]/line[0]",
+      sourceText: "Hello {name}, see [docs](https://example.com/docs)",
+      targetText: "Hallo {name}, siehe [docs](https://example.com/docs)",
+    };
+
+    renderRow({ segment });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "{name}" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: "MD#0" })).not.toBeInTheDocument();
+  });
+
   it("shows required tokens and ICU structure for focused ICU rows", () => {
     const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
     const segment = {
@@ -848,5 +923,46 @@ describe("ContentEditorSideBySideRow", () => {
     renderRow(busyState);
 
     expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
+  });
+
+  it("locks the focused row from the target toolbar", async () => {
+    const user = userEvent.setup();
+    const onToggleLocked = vi.fn();
+    renderRow({ onToggleLocked });
+
+    const lockButton = screen.getByRole("button", { name: "Lock string to prevent edits" });
+    expect(lockButton).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(lockButton);
+
+    expect(onToggleLocked).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a locked row read-only and offers unlock", async () => {
+    const user = userEvent.setup();
+    const onToggleLocked = vi.fn();
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = { ...state.segments!.find((item) => item.id === "seg-02")!, isLocked: true };
+
+    renderRow({ segment, isDirty: false, onToggleLocked });
+
+    expect(screen.getByText("This string is locked. Unlock it to edit.")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Approve/i })).not.toBeInTheDocument();
+
+    const unlockButton = screen.getByRole("button", { name: "Unlock string to allow edits" });
+    expect(unlockButton).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(unlockButton);
+
+    expect(onToggleLocked).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the lock toggle when the user cannot edit", () => {
+    renderRow({ canEdit: false, onToggleLocked: vi.fn() });
+
+    expect(
+      screen.queryByRole("button", { name: "Lock string to prevent edits" }),
+    ).not.toBeInTheDocument();
   });
 });

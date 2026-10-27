@@ -56,12 +56,17 @@ func (a projectActor) canManageContentEditorBehavior() bool {
 type projectError struct {
 	status        int
 	code, message string
+	details       map[string]any
 }
 
 func (e *projectError) Error() string { return e.code }
 
 func projectFailure(status int, code, message string) error {
 	return &projectError{status: status, code: code, message: message}
+}
+
+func projectFailureDetails(status int, code, message string, details map[string]any) error {
+	return &projectError{status: status, code: code, message: message, details: details}
 }
 
 func projectNotFound() error {
@@ -88,10 +93,11 @@ func writeProjectError(w http.ResponseWriter, r *http.Request, phase string, err
 	} else {
 		logRequestFailure(r, "project_request_failed", phase, err, "status", failure.status, "code", failure.code)
 	}
-	projectJSON(r.Context(), w, failure.status, map[string]string{
-		"error":   failure.code,
-		"message": failure.message,
-	})
+	body := map[string]any{"error": failure.code, "message": failure.message}
+	if len(failure.details) > 0 {
+		body["details"] = failure.details
+	}
+	projectJSON(r.Context(), w, failure.status, body)
 }
 
 func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
@@ -111,7 +117,14 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("PATCH "+project+"/content-editor-behavior", bindActor(api, (*projectAPI).updateContentEditorBehaviorHandler))
 	route("GET "+project+"/content-editor-behavior/preview", bindActor(api, (*projectAPI).contentEditorBehaviorPreviewHandler))
 	route("GET "+project+"/files", bindActor(api, (*projectAPI).filesHandler))
+	route("GET "+project+"/file-progress", bindActor(api, (*projectAPI).fileProgressHandler))
+	route("GET "+project+"/jobs", bindActor(api, (*projectAPI).projectJobsListHandler))
+	route("GET "+project+"/jobs/{jobId}", bindActor(api, (*projectAPI).projectJobDetailHandler))
+	route("GET "+project+"/jobs/{jobId}/status", bindActor(api, (*projectAPI).projectJobStatusHandler))
 	route("GET "+orgRoutePrefix+"/workspace-files", bindActor(api, (*projectAPI).workspaceFilesHandler))
+	route("GET "+orgRoutePrefix+"/jobs", bindActor(api, (*projectAPI).orgJobsListHandler))
+	route("GET "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobDetailHandler))
+	route("GET "+orgRoutePrefix+"/jobs/{jobId}/events", bindActor(api, (*projectAPI).orgJobEventsHandler))
 }
 
 func (api *projectAPI) actor(ctx context.Context, claims AuthClaims, slug string) (projectActor, error) {
@@ -376,8 +389,9 @@ func (api *projectAPI) files(ctx context.Context, actor projectActor, projectID 
 				and ` + formatQaProjectTeamAccessSQL(3, 4, 2) + `
 		),
 		ranked as (
-			select v.id as version_id, v.source_path, v.source_hash, v.commit_sha,
+			select v.id as version_id, v.repository_source_file_id, v.source_path, v.source_hash, v.commit_sha,
 				v.workflow_run_id, v.created_at as uploaded_at, v.stored_file_id,
+				v.ingest_state, v.ingest_error,
 				f.metadata, f.filename, f.byte_size,
 				row_number() over (
 					partition by v.source_path
@@ -422,6 +436,15 @@ func (api *projectAPI) files(ctx context.Context, actor projectActor, projectID 
 			) locale(value)
 			where j.organization_id = $2 and j.project_id = $1
 			order by d.source_file_version_id, locale.value, j.created_at desc, j.id desc
+		),
+		hidden_files as (
+			select k.repository_source_file_id
+			from project_translation_keys k
+			join selected s on s.repository_source_file_id = k.repository_source_file_id
+			where k.organization_id = $2 and k.project_id = $1
+				and ` + editorCatExcludeCalloutFenceSQL("k") + `
+			group by k.repository_source_file_id
+			having bool_and(k.is_hidden)
 		)
 		select exists(select 1 from project),
 			coalesce((
@@ -437,6 +460,12 @@ func (api *projectAPI) files(ctx context.Context, actor projectActor, projectID 
 						'metadata', s.metadata,
 						'filename', s.filename,
 						'byteSize', s.byte_size,
+						'ingestState', s.ingest_state,
+						'ingestError', s.ingest_error,
+						'isHidden', exists(
+							select 1 from hidden_files h
+							where h.repository_source_file_id = s.repository_source_file_id
+						),
 						'provider', null,
 						'latestJob', case when j.id is null then null else jsonb_build_object(
 							'id', j.id,

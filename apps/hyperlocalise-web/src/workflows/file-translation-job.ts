@@ -19,19 +19,26 @@ import {
   inferSupportedFileTranslationFileFormat,
   isImageTranslationFileFormat,
   isOfficeTranslationFileFormat,
+  isPdfTranslationFileFormat,
   isDocumentTranslationFileFormat,
   isVideoTranslationFileFormat,
   isSupportedFileTranslationFileFormat,
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
+import {
+  isSandboxFileTranslationFormat,
+  sandboxEntriesLocaleOptions,
+} from "@/lib/translation/sandbox-cli-release";
 import { addCliTokenUsage, type CliTokenUsage } from "@/lib/translation/cli-token-usage";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
+import type { JobEventInput } from "@/lib/job-events/job-events-contract";
 import {
   captureFileAnalysisStep,
   captureFileCompletionsStep,
   claimTranslationJobStep,
   completeFileTranslationJobStep,
+  convertXlsSourceForSandboxStep,
   ensureAiFeaturesAllowedStep,
   failTranslationJobStep,
   getProjectOrganizationStep,
@@ -44,6 +51,7 @@ import {
   persistFileProjectTranslationsStep,
   persistFileTranslationMemoryEntriesStep,
   persistDocumentVariantBytesStep,
+  recordJobEventsStep,
   resolveWorkspaceReportsFlagStep,
   reuseFileTranslationMemoryEntriesStep,
   storeOutputFileStep,
@@ -62,12 +70,22 @@ import {
   countPendingFileTranslations,
   nextFileTranslationPageDecision,
 } from "./file-translation-pagination";
+import { resolveFileTranslationSourceTexts } from "./file-translation-source-texts";
 
 import {
   collectFileTranslationPageStep,
   fileTranslationReportSchema,
   isFileTranslationCliHardFailure,
+  materializeSandboxLockfileCommand,
 } from "./file-translation-progress";
+import {
+  pdfHlSourceContent,
+  pdfHlSourceFilename,
+  renderPdfTranslationStep,
+} from "./file-translation-pdf";
+
+const PDF_SCRIPT_UNSUPPORTED_MESSAGE = "pdf script unsupported";
+const PDF_RENDER_FAILED_MESSAGE = "pdf render failed";
 
 function shellSingleQuote(value: string) {
   return value.replaceAll("'", "'\\''");
@@ -103,6 +121,10 @@ function getSandboxOutputFilenamePattern(attachmentFilename: string): string {
   const name = inputFilename.slice(0, lastDot);
   const ext = inputFilename.slice(lastDot);
   return `${name}-{{target}}${ext}`;
+}
+
+function xlsxFilename(filename: string): string {
+  return filename.replace(/\.xls$/i, ".xlsx");
 }
 
 function fileExtension(filename: string): string | null {
@@ -314,6 +336,14 @@ function userFacingFailureReason(
     return userFacingTranslationFailureReason(message, detection);
   }
 
+  if (message.startsWith(PDF_SCRIPT_UNSUPPORTED_MESSAGE)) {
+    return "the translated text uses a script the PDF writer can't render yet, such as Arabic, Hebrew, or Indic scripts.";
+  }
+
+  if (message.startsWith(PDF_RENDER_FAILED_MESSAGE)) {
+    return "the translations finished, but they couldn't be written back into the PDF.";
+  }
+
   if (message.includes("failed to read translated file")) {
     return "the translation finished, but the output file couldn't be read back. This is usually temporary.";
   }
@@ -323,6 +353,24 @@ function userFacingFailureReason(
   }
 
   return "the translation failed before it could finish. This is usually temporary.";
+}
+
+function localeOutcomeEvents(
+  outputFiles: ReadonlyArray<{ fileId: string; locale: string }>,
+  failedLocales: readonly string[],
+): JobEventInput[] {
+  return [
+    ...outputFiles.map((file): JobEventInput => ({
+      type: "locale_completed",
+      locale: file.locale,
+      payload: { fileId: file.fileId },
+    })),
+    ...failedLocales.map((locale): JobEventInput => ({
+      type: "locale_failed",
+      locale,
+      payload: {},
+    })),
+  ];
 }
 
 async function createSandboxStep() {
@@ -343,16 +391,20 @@ async function prepareSandboxStep(sandboxId: string) {
   return prepareSandbox(sandboxId);
 }
 
-async function writeSourceFileStep(sandboxId: string, filename: string, content: Buffer) {
+async function writeSourceFileStep(sandboxId: string, filename: string, content: Buffer | string) {
   "use step";
   const { writeFileToSandbox } = await import("@/lib/translation/sandbox");
-  return writeFileToSandbox(sandboxId, filename, content);
+  return writeFileToSandbox(
+    sandboxId,
+    filename,
+    typeof content === "string" ? Buffer.from(content, "utf8") : content,
+  );
 }
 
 async function recreateSandboxWithSourceStep(input: {
   previousSandboxId: string | null;
   filename: string;
-  content: Buffer;
+  content: Buffer | string;
   timeoutMs: number;
 }) {
   "use step";
@@ -369,7 +421,11 @@ async function recreateSandboxWithSourceStep(input: {
 
   const { sandboxId } = await createTranslationSandbox(input.timeoutMs);
   await prepareSandbox(sandboxId);
-  await writeFileToSandbox(sandboxId, input.filename, input.content);
+  await writeFileToSandbox(
+    sandboxId,
+    input.filename,
+    typeof input.content === "string" ? Buffer.from(input.content, "utf8") : input.content,
+  );
   return { sandboxId };
 }
 
@@ -398,6 +454,7 @@ async function runTranslationStep(
     getSandboxTranslationEnv,
     isSandboxDisconnectError,
     readSandboxCliTokenUsage,
+    readTranslatedFile,
     recoverTranslationSandboxSession,
     runSandboxCommand,
     sandboxI18nConfigPath,
@@ -436,8 +493,16 @@ async function runTranslationStep(
   );
   if (localesWithPrefill.length > 0) {
     const nested: Record<string, Record<string, string>> = {};
+    const {
+      htmlCliPrefillsFromPathEntries,
+      isHtmlTranslationSourcePath,
+      utf8FromStoredFileContent,
+    } = await import("@/lib/projects/files/html-ingest-entries");
+    const sourceHtml = isHtmlTranslationSourcePath(inputFile)
+      ? utf8FromStoredFileContent(await readTranslatedFile(sandboxId, inputFile))
+      : "";
     for (const [locale, entries] of localesWithPrefill) {
-      nested[locale] = entries;
+      nested[locale] = sourceHtml ? htmlCliPrefillsFromPathEntries(sourceHtml, entries) : entries;
     }
     const prefilledPath = "/tmp/prefilled-by-locale.json";
     await writeFileToSandbox(sandboxId, prefilledPath, Buffer.from(JSON.stringify(nested), "utf8"));
@@ -469,9 +534,19 @@ async function runTranslationStep(
         timeoutMs: sandboxTranslationCommandTimeoutMs,
       },
     );
+    try {
+      await runSandboxCommand(sandboxId, "bash", ["-lc", materializeSandboxLockfileCommand()]);
+    } catch (error) {
+      console.warn("[file-translation-workflow] lockfile materialize failed", {
+        jobId: options?.jobId,
+        sandboxId,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }
     const { readTranslatedFile } = await import("@/lib/translation/sandbox");
     const report = (await readTranslatedFile(sandboxId, reportPath)).toString("utf8");
-    const progress = fileTranslationReportSchema.parse(JSON.parse(report));
+    const reportPayload = JSON.parse(report) as unknown;
+    const progress = fileTranslationReportSchema.parse(reportPayload);
     if (options?.reportsEnabled && options.organizationId && options.projectId && options.jobId) {
       try {
         const { captureSandboxUsage } = await import("@/lib/reporting/sandbox-usage");
@@ -518,19 +593,23 @@ runTranslationStep.maxRetries = 0;
 async function extractEntriesStep(
   sandboxId: string,
   path: string,
-  options?: { sourcePath?: string },
+  options?: { sourcePath?: string; sourceLocale?: string; locale?: string },
 ) {
   "use step";
   // Use extractSandboxEntries so UTF-8 entries are read via binary file IO,
   // not sandbox stdout string capture (which can turn multi-byte chars into �).
-  const { extractSandboxEntries } = await import("@/lib/translation/sandbox");
-  const result = await extractSandboxEntries(sandboxId, path, {
-    sourcePath: options?.sourcePath,
-  });
+  const { extractSandboxEntries, readTranslatedFile } = await import("@/lib/translation/sandbox");
+  const result = await extractSandboxEntries(sandboxId, path, options);
   if (!result.ok) {
     throw new Error(
       `failed to extract entries: exitCode=${result.exitCode} kind=${classifyCliFailureKind(result.output)}`,
     );
+  }
+  const { applyHtmlIngestEntryKeys, isHtmlTranslationSourcePath, utf8FromStoredFileContent } =
+    await import("@/lib/projects/files/html-ingest-entries");
+  if (isHtmlTranslationSourcePath(path)) {
+    const sourceText = utf8FromStoredFileContent(await readTranslatedFile(sandboxId, path));
+    return hlEntriesPayloadToStringMap(applyHtmlIngestEntryKeys(path, sourceText, result.entries));
   }
   return hlEntriesPayloadToStringMap(result.entries);
 }
@@ -572,6 +651,8 @@ async function assembleFileTranslationContextStep(input: {
   sourceLocale: string;
   targetLocales: string[];
   sourceContent: Buffer;
+  /** Text to match glossary terms against when the file bytes are not text. */
+  sourceText?: string;
   metadata?: Record<string, string>;
 }) {
   "use step";
@@ -598,33 +679,77 @@ async function assembleFileTranslationContextStep(input: {
     throw new Error(`project ${input.projectId} not found`);
   }
 
-  const sourceText = input.sourceContent.toString("utf8").slice(0, 500_000);
-  const attachedTerms = await listGlossaryTermsForProject({
-    organizationId: project.organizationId,
-    projectId: input.projectId,
-    sourceLocale: input.sourceLocale,
-    targetLocales: input.targetLocales,
-    maxPairs: FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT,
-  });
+  const { resolveWorkspaceKnowledgeFlag } = await import("@/lib/flags/workspace-flags");
+  const { loadTranslationGuidelines } = await import("@/lib/translation/context");
+  const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
+  const { resolveSandboxLlmProfile } = await import("@/lib/translation/sandbox-llm");
+  const { env } = await import("@/lib/env");
+  const { generationModelFromGatewayId, glossaryUses } =
+    await import("@/lib/translation/generation-provenance");
+  const { recordJobGenerationProvenance } =
+    await import("@/lib/translation/generation-provenance-store");
 
-  const glossaryTerms = attachedTerms
-    .filter((term) => sourceContainsTerm(sourceText, term))
-    .slice(0, 50)
-    .map(({ sourceTerm, targetTerm, targetLocale, description, forbidden, caseSensitive }) => ({
+  const { glossarySourceText, guidelineSourceText } = resolveFileTranslationSourceTexts(
+    input.sourceText ?? input.sourceContent.toString("utf8"),
+  );
+  const knowledgeMemoryEnabled = await resolveWorkspaceKnowledgeFlag({
+    organizationId: project.organizationId,
+  }).catch(() => false);
+  const [attachedTerms, guidelines, byok] = await Promise.all([
+    listGlossaryTermsForProject({
+      organizationId: project.organizationId,
+      projectId: input.projectId,
+      sourceLocale: input.sourceLocale,
+      targetLocales: input.targetLocales,
+      maxPairs: FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT,
+    }),
+    knowledgeMemoryEnabled
+      ? loadTranslationGuidelines({
+          project,
+          sourceLocale: input.sourceLocale,
+          targetLocales: input.targetLocales,
+          sourceText: guidelineSourceText,
+          context: input.metadata?.context,
+          metadata: input.metadata,
+        })
+      : null,
+    loadSandboxByokCredential(project.organizationId),
+  ]);
+
+  const matchedTerms = attachedTerms
+    .filter((term) => sourceContainsTerm(glossarySourceText, term))
+    .slice(0, 50);
+  const glossaryTerms = matchedTerms.map(
+    ({ sourceTerm, targetTerm, targetLocale, description, forbidden, caseSensitive }) => ({
       sourceTerm,
       targetTerm,
       targetLocale,
       description,
       forbidden,
       caseSensitive,
-    }));
+    }),
+  );
 
   const context = {
     projectName: project.name,
     projectTranslationContext: project.translationContext,
     jobContext: input.metadata?.context ?? null,
+    knowledgeMemory: guidelines?.text || null,
     glossaryTerms,
   } satisfies SandboxTranslationContext;
+
+  const llmProfile = resolveSandboxLlmProfile(env, byok);
+  await recordJobGenerationProvenance(input.jobId, {
+    model: byok
+      ? { provider: llmProfile.provider, model: llmProfile.model, credentialSource: "byok" }
+      : llmProfile.provider === "ai_gateway"
+        ? generationModelFromGatewayId(llmProfile.model, "gateway")
+        : { provider: llmProfile.provider, model: llmProfile.model, credentialSource: "gateway" },
+    guidelines: guidelines?.used ?? { documents: [] },
+    glossaries: glossaryUses(matchedTerms),
+    translationMemories: [],
+    customInstructions: Boolean(input.metadata?.instructions?.trim()),
+  });
 
   await db
     .update(schema.jobs)
@@ -682,6 +807,18 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     throw new Error("invalid file job input");
   }
 
+  const recordEvents = async (events: JobEventInput[]) => {
+    if (events.length === 0) return;
+    await recordJobEventsStep({
+      jobId: claim.job.id,
+      workflowRunId: claim.job.workflowRunId,
+      events,
+    });
+  };
+  await recordEvents([
+    { type: "job_started", payload: { targetLocales: parsedInput.targetLocales } },
+  ]);
+
   let organizationId: string;
   try {
     organizationId = await getProjectOrganizationStep(claim.job.projectId);
@@ -708,14 +845,20 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     return { status: "failed" as const, reason: aiFeatures.error.code };
   }
 
-  if (isOfficeTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat)) {
+  const sourceIsOffice = isOfficeTranslationFileFormat(
+    parsedInput.fileFormat as SupportedTranslationFileFormat,
+  );
+  const sourceIsPdf = isPdfTranslationFileFormat(
+    parsedInput.fileFormat as SupportedTranslationFileFormat,
+  );
+  if (sourceIsOffice && !isSandboxFileTranslationFormat(parsedInput.fileFormat)) {
     await failTranslationJobStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,
       workflowRunId: claim.job.workflowRunId,
       code: "office_file_manual_cat",
       message:
-        "Office files are localized in CAT File view. Upload or edit the translated file there.",
+        "Office files are translated as segments. Upload the file to the project and translate its segments in CAT.",
     });
     return { status: "failed" as const, reason: "office_file_manual_cat" };
   }
@@ -752,6 +895,9 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           sourceJobId: claim.job.id,
         });
         outputFiles.push(output);
+        await recordEvents([
+          { type: "locale_completed", locale: targetLocale, payload: { fileId: output.fileId } },
+        ]);
       }
 
       await completeFileTranslationJobStep({
@@ -807,6 +953,9 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           sourceJobId: claim.job.id,
         });
         outputFiles.push(output);
+        await recordEvents([
+          { type: "locale_completed", locale: targetLocale, payload: { fileId: output.fileId } },
+        ]);
       }
 
       await completeFileTranslationJobStep({
@@ -901,17 +1050,48 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       });
     }
   };
-  const inputFilename = getSandboxInputFilename(sourceFile.filename);
+  // The CLI reads legacy .xls workbooks only after conversion, and writes them as .xlsx.
+  let sandboxSourceFilename = sourceFile.filename;
+  let sandboxContentType = sourceFile.contentType;
+  if (parsedInput.fileFormat === "xls") {
+    const converted = await convertXlsSourceForSandboxStep(sourceContent);
+    if (!converted) {
+      await failTranslationJobStep({
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
+        code: "invalid_source_file",
+        message: "The Excel workbook could not be read.",
+      });
+      return { status: "failed" as const, reason: "invalid_source_file" };
+    }
+    sourceContent = converted.content;
+    sandboxSourceFilename = xlsxFilename(sourceFile.filename);
+    sandboxContentType = converted.contentType;
+  }
+  const inputFilename = getSandboxInputFilename(sandboxSourceFilename);
   const instructions = parsedInput.metadata?.instructions ?? null;
-  try {
-    const context = await assembleFileTranslationContextStep({
+  const assembleContext = async (sourceText?: string) => {
+    const assembled = await assembleFileTranslationContextStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,
       sourceLocale: parsedInput.sourceLocale,
       targetLocales: parsedInput.targetLocales,
       sourceContent,
+      sourceText,
       metadata: parsedInput.metadata,
     });
+    await recordEvents([
+      {
+        type: "context_ready",
+        payload: { glossaryTermCount: assembled.glossaryTerms?.length ?? 0 },
+      },
+    ]);
+    return assembled;
+  };
+  try {
+    // Office and PDF bytes are not plain text, so glossary terms are matched against segment text.
+    const contextFromFile = sourceIsOffice || sourceIsPdf ? null : await assembleContext();
 
     ({ sandboxId } = await createSandboxStep());
     await prepareSandboxStep(sandboxId);
@@ -930,7 +1110,42 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       sandboxId,
     });
 
-    const sourceEntries = await extractEntriesStep(sandboxId, inputFilename);
+    const sourceEntries = await extractEntriesStep(
+      sandboxId,
+      inputFilename,
+      sandboxEntriesLocaleOptions(inputFilename, parsedInput.sourceLocale),
+    );
+    // PDF block keys are layout positions that a rewritten PDF renumbers, so hl
+    // translates a JSON copy and the PDF is rendered from its output.
+    const hlSourceFilename = sourceIsPdf ? pdfHlSourceFilename(inputFilename) : inputFilename;
+    const hlSourceContent = sourceIsPdf ? pdfHlSourceContent(sourceEntries) : sourceContent;
+    if (sourceIsPdf) {
+      await writeSourceFileStep(sandboxId, hlSourceFilename, hlSourceContent);
+    }
+    const hlOutputBaseFilename = sourceIsPdf ? hlSourceFilename : sandboxSourceFilename;
+    const context =
+      contextFromFile ?? (await assembleContext(Object.values(sourceEntries).join("\n")));
+    const translatableKeys = Object.keys(sourceEntries).filter((key) => sourceEntries[key]?.trim());
+    const sourceEntryCount = translatableKeys.length;
+    const prefilledByLocale: Record<string, Record<string, string>> = {};
+    // Strings filled from the translation memory, so Reports can tell them from the model's.
+    const memoryKeysByLocale: Record<string, string[]> = {};
+    const confirmedByLocale: Record<string, Record<string, string>> = {};
+    const lastReportedProgressByLocale: Record<string, number> = {};
+    const countTranslated = (locale: string) =>
+      translatableKeys.filter(
+        (key) =>
+          key in (confirmedByLocale[locale] ?? {}) || key in (prefilledByLocale[locale] ?? {}),
+      ).length;
+    await recordEvents([
+      {
+        type: "strings_extracted",
+        payload: {
+          stringCount: sourceEntryCount,
+          localeCount: parsedInput.targetLocales.length,
+        },
+      },
+    ]);
     let translationSandboxTimeoutMs = calculateFileTranslationSandboxTimeoutMs(
       Object.keys(sourceEntries).length * parsedInput.targetLocales.length,
     );
@@ -938,8 +1153,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     let translationMaxPages = calculateFileTranslationMaxPages(
       Object.keys(sourceEntries).length * parsedInput.targetLocales.length,
     );
-    const outputPattern = getSandboxOutputFilenamePattern(sourceFile.filename);
-    const prefilledByLocale: Record<string, Record<string, string>> = {};
+    const outputPattern = getSandboxOutputFilenamePattern(hlOutputBaseFilename);
     const reportsEnabled = sourceEntries
       ? await resolveWorkspaceReportsFlagStep(organizationId)
       : false;
@@ -974,6 +1188,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
                   sourceEntries,
                 });
                 tmPrefilled = tmReuse.prefilled;
+                memoryKeysByLocale[targetLocale] = Object.keys(tmPrefilled);
                 if (Object.keys(tmPrefilled).length > 0) {
                   console.info(
                     "[file-translation-workflow] matched reusable translation memory entries",
@@ -1068,6 +1283,19 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       });
     }
 
+    const reusedEvents: JobEventInput[] = [];
+    for (const locale of Object.keys(prefilledByLocale)) {
+      const reusedCount = countTranslated(locale);
+      if (reusedCount === 0) continue;
+      lastReportedProgressByLocale[locale] = reusedCount;
+      reusedEvents.push({
+        type: "translations_reused",
+        locale,
+        payload: { reusedCount, totalCount: sourceEntryCount },
+      });
+    }
+    await recordEvents(reusedEvents);
+
     const prefilledLocaleCount = Object.keys(prefilledByLocale).length;
     const prefilledEntryCount = Object.values(prefilledByLocale).reduce(
       (sum, entries) => sum + Object.keys(entries).length,
@@ -1088,7 +1316,6 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       sandboxId,
     });
 
-    const confirmedByLocale: Record<string, Record<string, string>> = {};
     const retryFeedbackByLocale: Record<string, string> = {};
     const runHlForLocales = async (
       locales: string[],
@@ -1113,7 +1340,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       const runOnce = async (runForce: boolean) =>
         runTranslationStep(
           sandboxId,
-          inputFilename,
+          hlSourceFilename,
           outputPattern,
           parsedInput.sourceLocale,
           locales,
@@ -1171,8 +1398,8 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           });
           const recreated = await recreateSandboxWithSourceStep({
             previousSandboxId: sandboxId,
-            filename: inputFilename,
-            content: sourceContent,
+            filename: hlSourceFilename,
+            content: hlSourceContent,
             timeoutMs: translationSandboxTimeoutMs,
           });
           sandboxId = recreated.sandboxId;
@@ -1264,16 +1491,18 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         cliTokenUsage = addCliTokenUsage(cliTokenUsage, result.tokenUsage);
         const delta = await collectFileTranslationPageStep({
           sandboxId,
-          inputFilename,
+          inputFilename: hlSourceFilename,
           outputFilenames: Object.fromEntries(
             locales.map((locale) => [
               locale,
-              getSandboxOutputFilename(sourceFile.filename, locale),
+              getSandboxOutputFilename(hlOutputBaseFilename, locale),
             ]),
           ),
           sourceEntries,
+          sourceLocale: parsedInput.sourceLocale,
           prefills: prefilledByLocale,
           confirmed: confirmedByLocale,
+          hlRunFingerprint: `${page}:${attempt}:${result.succeeded}:${result.failed}:${result.exitCode ?? "na"}`,
         });
         let acceptedCount = 0;
         let invalidCount = 0;
@@ -1338,11 +1567,24 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
               targetLocale,
               sourceEntries: deltaSource,
               targetEntries: accepted,
+              memoryKeys: memoryKeysByLocale[targetLocale],
             });
           confirmedByLocale[targetLocale] = { ...confirmedByLocale[targetLocale], ...accepted };
           prefilledByLocale[targetLocale] = { ...prefilledByLocale[targetLocale], ...accepted };
           acceptedCount += Object.keys(accepted).length;
         }
+        const progressEvents: JobEventInput[] = [];
+        for (const locale of locales) {
+          const translatedCount = countTranslated(locale);
+          if (lastReportedProgressByLocale[locale] === translatedCount) continue;
+          lastReportedProgressByLocale[locale] = translatedCount;
+          progressEvents.push({
+            type: "locale_progress",
+            locale,
+            payload: { translatedCount, totalCount: sourceEntryCount },
+          });
+        }
+        await recordEvents(progressEvents);
         const pageDecision = nextFileTranslationPageDecision({
           cliHardFailure: !result.ok,
           invalidCount,
@@ -1386,6 +1628,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     const failedLocales: string[] = [];
     if (!batchSucceeded) {
       for (const targetLocale of parsedInput.targetLocales) {
+        await recordEvents([{ type: "locale_retrying", locale: targetLocale, payload: {} }]);
         try {
           // Even a readable output may contain pending source fallbacks. A retry
           // uses only validated prefills, including work saved before recreation.
@@ -1467,8 +1710,35 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     for (const targetLocale of parsedInput.targetLocales) {
       if (failedLocales.includes(targetLocale)) continue;
       try {
-        const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
-        const translatedContent = await readOutputStep(sandboxId, outputFilename, 2);
+        const outputFilename = getSandboxOutputFilename(sandboxSourceFilename, targetLocale);
+        let translatedContent: Buffer;
+        if (sourceIsPdf) {
+          const rendered = await renderPdfTranslationStep({
+            sandboxId,
+            valuesFilename: getSandboxOutputFilename(hlOutputBaseFilename, targetLocale),
+            template: sourceContent,
+            targetLocale,
+          });
+          if (!rendered.ok) {
+            throw new FileTranslationWorkflowError(
+              rendered.code,
+              rendered.code === "pdf_script_unsupported"
+                ? PDF_SCRIPT_UNSUPPORTED_MESSAGE
+                : PDF_RENDER_FAILED_MESSAGE,
+            );
+          }
+          if (rendered.overflowKeyCount > 0) {
+            console.warn("[file-translation-workflow] pdf text overflow", {
+              jobId: claim.job.id,
+              projectId: claim.job.projectId,
+              targetLocale,
+              overflowKeyCount: rendered.overflowKeyCount,
+            });
+          }
+          translatedContent = rendered.content;
+        } else {
+          translatedContent = await readOutputStep(sandboxId, outputFilename, 2);
+        }
         await logDiagnosticsStep(
           claim.job.id,
           sourceFile.filename,
@@ -1481,7 +1751,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           projectId: claim.job.projectId,
           jobId: claim.job.id,
           filename: outputFilename,
-          contentType: sourceFile.contentType,
+          contentType: sandboxContentType,
           content: translatedContent,
         });
         if (
@@ -1520,6 +1790,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     }
 
     const leftoverLocales = uniqueFileTranslationLocales(failedLocales);
+    await recordEvents(localeOutcomeEvents(outputFiles, leftoverLocales));
     await enqueueFollowUpForLocales(leftoverLocales);
     const leftoverDetection = {
       fileFormat: parsedInput.fileFormat,
@@ -1573,6 +1844,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         targetLocales: parsedInput.targetLocales,
         completedLocales: outputFiles.map((file) => file.locale),
       });
+      await recordEvents(localeOutcomeEvents(outputFiles, leftoverLocales));
       await enqueueFollowUpForLocales(leftoverLocales);
       console.warn("[file-translation-workflow] completing after interrupt with stored locales", {
         jobId: claim.job.id,

@@ -14,9 +14,13 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { createDefaultConfig } from "../catalog/node-catalog";
 import {
+  getVisualWorkflowTriggerNode,
   resolveVisualWorkflowTriggerFingerprint,
   validateActiveVisualWorkflowTrigger,
+  validateVisualWorkflowTriggerConfig,
+  visualWorkflowShouldDispatchOnGithubPullRequest,
   visualWorkflowShouldDispatchOnGithubPush,
+  visualWorkflowShouldDispatchOnSourceUpload,
 } from "./trigger-matching";
 import type { VisualWorkflowDefinition } from "../schema/types";
 import { parseVisualWorkflowV3Definition } from "../schema/definition-migration";
@@ -137,5 +141,131 @@ describe("visual workflow trigger matching", () => {
     if (!result.ok) {
       expect(result.message).toContain("timezone");
     }
+  });
+
+  it("fingerprints a webhook trigger and allows it on an active workflow", () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Webhook",
+      nodes: [
+        {
+          id: "t",
+          type: "trigger.webhook",
+          config: createDefaultConfig("trigger.webhook"),
+        },
+      ],
+      edges: [],
+      editor: { positions: {} },
+    };
+
+    expect(resolveVisualWorkflowTriggerFingerprint({ id: "wf-webhook", definition })).toBe(
+      "webhook:wf-webhook",
+    );
+    expect(validateActiveVisualWorkflowTrigger(definition)).toEqual({ ok: true });
+    expect(
+      validateVisualWorkflowTriggerConfig({ kind: "trigger.webhook", tokenVersion: 0 }),
+    ).toEqual({ ok: false, message: "Webhook token version is invalid." });
+    expect(
+      validateVisualWorkflowTriggerConfig({ kind: "trigger.webhook", tokenVersion: 1.5 }),
+    ).toEqual({ ok: false, message: "Webhook token version is invalid." });
+  });
+
+  it("returns no trigger when a definition has zero or two trigger nodes", () => {
+    expect(getVisualWorkflowTriggerNode({ nodes: [] })).toBeNull();
+    expect(
+      getVisualWorkflowTriggerNode({
+        nodes: [
+          { id: "a", type: "trigger.webhook", config: createDefaultConfig("trigger.webhook") },
+          { id: "b", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        ],
+      }),
+    ).toBeNull();
+  });
+
+  it("matches source upload for the chosen project and skips other projects", () => {
+    const scoped: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Upload",
+      nodes: [
+        {
+          id: "t",
+          type: "trigger.source_upload",
+          config: { kind: "trigger.source_upload", projectId: "proj-1" },
+        },
+      ],
+      edges: [],
+      editor: { positions: {} },
+    };
+    const anyProject: VisualWorkflowDefinition = {
+      ...scoped,
+      nodes: [
+        { id: "t", type: "trigger.source_upload", config: { kind: "trigger.source_upload" } },
+      ],
+    };
+
+    expect(
+      visualWorkflowShouldDispatchOnSourceUpload(workflowRecord(scoped), { projectId: "proj-1" }),
+    ).toBe(true);
+    expect(
+      visualWorkflowShouldDispatchOnSourceUpload(workflowRecord(scoped), { projectId: "proj-2" }),
+    ).toBe(false);
+    expect(
+      visualWorkflowShouldDispatchOnSourceUpload(workflowRecord(anyProject), {
+        projectId: "proj-2",
+      }),
+    ).toBe(true);
+    expect(
+      visualWorkflowShouldDispatchOnSourceUpload(
+        { ...workflowRecord(scoped), status: "draft" },
+        { projectId: "proj-1" },
+      ),
+    ).toBe(false);
+    expect(resolveVisualWorkflowTriggerFingerprint({ id: "wf-up", definition: scoped })).toBe(
+      "source_upload:wf-up:proj-1",
+    );
+  });
+
+  it("matches github pull requests independently of push", () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "PR only",
+      nodes: [
+        {
+          id: "t",
+          type: "trigger.github",
+          config: {
+            kind: "trigger.github",
+            githubInstallationRepositoryId: "00000000-0000-4000-8000-000000000099",
+            branches: ["main"],
+            events: ["pull_request"],
+          },
+        },
+      ],
+      edges: [],
+      editor: { positions: {} },
+    };
+    const record = workflowRecord(definition);
+    const repo = {
+      githubInstallationRepositoryId: "00000000-0000-4000-8000-000000000099",
+    };
+
+    expect(
+      visualWorkflowShouldDispatchOnGithubPullRequest(record, {
+        ...repo,
+        baseBranch: "main",
+      }),
+    ).toBe(true);
+    expect(
+      visualWorkflowShouldDispatchOnGithubPullRequest(record, {
+        ...repo,
+        baseBranch: "develop",
+      }),
+    ).toBe(false);
+    expect(
+      visualWorkflowShouldDispatchOnGithubPush(record, {
+        ...repo,
+        branch: "main",
+      }),
+    ).toBe(false);
   });
 });

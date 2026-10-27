@@ -16,6 +16,7 @@ import {
   NODE_CONTRACTS,
 } from "../catalog/node-contracts";
 import type {
+  VisualWorkflowCanvasEdge,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
   WorkflowBinding,
@@ -44,7 +45,14 @@ function getInputFields(node: VisualWorkflowRfNode) {
     }));
   }
 
-  if (node.data.config.kind === "flow.return") {
+  if (
+    node.data.config.kind === "flow.return" ||
+    node.data.config.kind === "flow.call_workflow" ||
+    node.data.config.kind === "logic.create_object" ||
+    node.data.config.kind === "logic.merge_objects" ||
+    node.data.config.kind === "logic.coalesce" ||
+    node.data.config.kind === "logic.compare"
+  ) {
     return getWorkflowInputFields({
       id: node.id,
       type: node.data.catalogType,
@@ -72,18 +80,38 @@ function getInputFields(node: VisualWorkflowRfNode) {
     }));
 }
 
+function getInputLabel(node: VisualWorkflowRfNode, portId: string): string {
+  if (node.data.config.kind === "logic.create_object" && portId.startsWith("value.")) {
+    const id = portId.slice("value.".length);
+    return node.data.config.fields.find((field) => field.id === id)?.name ?? portId;
+  }
+  if (node.data.config.kind === "logic.merge_objects" && portId.startsWith("value.")) {
+    const id = portId.slice("value.".length);
+    return node.data.config.inputs.find((input) => input.id === id)?.name ?? portId;
+  }
+  if (node.data.config.kind === "logic.coalesce" && portId.startsWith("value.")) {
+    const id = portId.slice("value.".length);
+    return node.data.config.inputs.find((input) => input.id === id)?.name ?? portId;
+  }
+  if (node.data.config.kind === "logic.compare" && portId.startsWith("value.")) {
+    const id = portId.slice("value.".length);
+    return node.data.config.operands.find((operand) => operand.id === id)?.name ?? portId;
+  }
+  return portId;
+}
+
 export function getVisualWorkflowDataPorts({
   node,
   edges,
 }: {
   node: VisualWorkflowRfNode;
-  edges: readonly VisualWorkflowRfEdge[];
+  edges: readonly VisualWorkflowCanvasEdge[];
 }): VisualWorkflowDataPorts {
   const dataEdges = edges.filter((edge) => edge.data?.kind === "data");
 
   const inputs = getInputFields(node).map((field) => ({
     id: field.name,
-    label: field.name,
+    label: getInputLabel(node, field.name),
     type: field.type,
     optional: field.required !== true,
     connectionCount: dataEdges.filter(

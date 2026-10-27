@@ -30,9 +30,30 @@ export class ContentEditorQueueStore {
   selectionMode = readCatQueueSelectionModePreference();
   checkedSegmentIds = new Set<string>();
   segmentMeta = new Map<string, ContentEditorQueueSegment>();
+  /**
+   * Ids in the server's current queue page. With lazily loaded targets the store also
+   * retains rows outside it (selected or dirty), which the queue must not list.
+   */
+  windowIds: ReadonlySet<string> | undefined = undefined;
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
+  }
+
+  /** Drops everything that belonged to the previous file or locale. */
+  resetForFileScope() {
+    this.segmentMeta.clear();
+    this.checkedSegmentIds.clear();
+    this.selectedSegmentId = "";
+    this.windowIds = undefined;
+  }
+
+  upsert(segment: ContentEditorQueueSegment) {
+    this.segmentMeta.set(segment.id, segment);
+  }
+
+  setWindow(segmentIds: ReadonlySet<string> | undefined) {
+    this.windowIds = segmentIds;
   }
 
   get segments(): ContentEditorQueueSegment[] {

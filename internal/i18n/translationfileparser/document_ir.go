@@ -13,9 +13,10 @@ const DocumentEntriesMetaKey = "__hl_document"
 type DocumentFormat string
 
 const (
-	DocumentFormatMarkdown DocumentFormat = "markdown"
-	DocumentFormatMDX      DocumentFormat = "mdx"
-	DocumentFormatAsciiDoc DocumentFormat = "asciidoc"
+	DocumentFormatMarkdown  DocumentFormat = "markdown"
+	DocumentFormatMDX       DocumentFormat = "mdx"
+	DocumentFormatAsciiDoc  DocumentFormat = "asciidoc"
+	DocumentFormatPlainText DocumentFormat = "txt"
 )
 
 // DocumentBlockKind distinguishes CMS fields (frontmatter) from body blocks.
@@ -67,6 +68,29 @@ func IsMarkdownDocumentMDX(path string) bool {
 func ParseMarkdownDocumentIR(content []byte, mdx bool) ParsedDocument {
 	doc, _ := parseMarkdownDocument(stripBOM(content), mdx)
 	return parsedDocumentFromMarkdown(doc, mdx)
+}
+
+func markdownIngestEntries(content []byte, mdx bool) map[string]IngestEntry {
+	doc, _ := parseMarkdownDocument(stripBOM(content), mdx)
+	return applyContextByKey(parsedDocumentFromMarkdown(doc, mdx).ingestEntries(), markdownEntryContext(doc, mdx))
+}
+
+func markdownEntryContext(doc markdownDocument, mdx bool) map[string]string {
+	ctx := make(map[string]string, len(doc.parts))
+	for _, kc := range doc.keyContexts() {
+		if kc.partIndex < 0 || kc.partIndex >= len(doc.parts) {
+			continue
+		}
+		part := doc.parts[kc.partIndex]
+		if part.key == "" {
+			continue
+		}
+		ctx[part.key] = buildMarkdownSegmentContext(mdx, kc.path, kc.prevLiteral, kc.nextLiteral)
+	}
+	if len(ctx) == 0 {
+		return nil
+	}
+	return ctx
 }
 
 func parsedDocumentFromMarkdown(doc markdownDocument, mdx bool) ParsedDocument {

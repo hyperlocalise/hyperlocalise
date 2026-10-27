@@ -27,6 +27,7 @@ import { InboxPageContent } from "./inbox-page-content";
 import type { InboxIssueNotification, InboxNotificationsApi } from "./inbox-notifications-api";
 import {
   conversationsFixture,
+  createConversation,
   currentUserFixture,
   issueNotificationsFixture,
   messagesFixture,
@@ -90,17 +91,41 @@ vi.mock("@/lib/billing/use-ai-features-access", () => ({
   useAiFeaturesAccess: () => ({ status: "allowed" }),
 }));
 
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: {
+      conversation: {
+        list: vi.fn(),
+        listMessages: vi.fn(),
+        listJobs: vi.fn(),
+      },
+    },
+    loading: false,
+  }),
+}));
+
 vi.mock("./reply-composer", () => ({
   ReplyComposer: ({
     disabled,
+    draft,
+    onDraftChange,
     onSend,
   }: {
     disabled: boolean;
+    draft?: string;
+    onDraftChange?: (draft: string) => void;
     onSend: (text: string, files: File[]) => void | Promise<void>;
   }) => (
-    <button disabled={disabled} onClick={() => void onSend("Follow-up reply", [])} type="button">
-      Send reply
-    </button>
+    <>
+      <textarea
+        aria-label="Reply draft"
+        value={draft ?? ""}
+        onChange={(event) => onDraftChange?.(event.currentTarget.value)}
+      />
+      <button disabled={disabled} onClick={() => void onSend("Follow-up reply", [])} type="button">
+        Send reply
+      </button>
+    </>
   ),
 }));
 
@@ -477,5 +502,36 @@ describe("InboxPageContent item switching", () => {
       );
     });
     expect(createConversation).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a reply draft when switching between conversations", async () => {
+    const user = userEvent.setup();
+    const secondChat = createConversation({
+      id: "44444444-4444-4444-8444-444444444444",
+      title: "Localize checkout",
+      projectId: null,
+      lastMessage: {
+        text: "Please translate the checkout flow.",
+        senderType: "user",
+        createdAt: "2026-06-07T11:00:00.000Z",
+      },
+    });
+    const inboxApi = createInboxApi(async () => messagesFixture);
+    inboxApi.listConversations = async () => [firstConversation, secondChat];
+
+    renderInbox(inboxApi, {
+      ...notificationsApi,
+      list: async () => ({ notifications: [], total: 0 }),
+    });
+
+    const draftField = await screen.findByLabelText("Reply draft");
+    await user.type(draftField, "Keep this follow-up");
+    expect(draftField).toHaveValue("Keep this follow-up");
+
+    await user.click(screen.getByRole("link", { name: /Localize checkout/ }));
+    expect(screen.getByLabelText("Reply draft")).toHaveValue("");
+
+    await user.click(screen.getByRole("link", { name: /Translate homepage hero copy/ }));
+    expect(screen.getByLabelText("Reply draft")).toHaveValue("Keep this follow-up");
   });
 });

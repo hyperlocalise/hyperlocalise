@@ -15,6 +15,11 @@
 import { defineMessages } from "react-intl";
 
 export const visualWorkflowEditorMessages = defineMessages({
+  executionChildRuns: {
+    defaultMessage: "Child workflow executions",
+    id: "TIDKg7QM0N",
+    description: "Heading for child workflow runs launched by the selected parent run",
+  },
   untitledName: {
     defaultMessage: "Untitled workflow",
     id: "dfVzkj5hWL",
@@ -95,11 +100,6 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "86k8CEUaJ5",
     description: "Column header for node status in execution detail",
   },
-  share: {
-    defaultMessage: "Share",
-    id: "LwRsugxcAC",
-    description: "Disabled share button in visual workflow chrome",
-  },
   save: {
     defaultMessage: "Save",
     id: "U87kn4cxmh",
@@ -109,6 +109,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Saving…",
     id: "4JSF3BIeDZ",
     description: "Save button label while a visual workflow is being saved",
+  },
+  exportMenu: {
+    defaultMessage: "Export",
+    id: "besNXCgM6P",
+    description: "Button that opens the menu for copying or downloading the workflow JSON",
   },
   exportJson: {
     defaultMessage: "Export JSON",
@@ -165,6 +170,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "YTpu1j7/Q4",
     description: "Node picker category for action nodes",
   },
+  categoryLocalization: {
+    defaultMessage: "Localization",
+    id: "06r9h28Hou",
+    description: "Node picker category for translation, review, and QA nodes",
+  },
   categoryLogic: {
     defaultMessage: "Logic",
     id: "tSRJft1T5O",
@@ -210,6 +220,106 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "CBccpuuEIS",
     description: "Catalog description for the content sync action node",
   },
+  nodeMachineTranslate: {
+    defaultMessage: "Machine translate",
+    id: "33i7nt5B7g",
+    description: "Catalog title for the machine translate node",
+  },
+  nodeMachineTranslateHint: {
+    defaultMessage: "Pre-translate a source file with translation memory and AI.",
+    id: "AjGg25iGEm",
+    description: "Catalog description for the machine translate node",
+  },
+  nodeCreateTask: {
+    defaultMessage: "Assign task",
+    id: "xfQ3fcFvbJ",
+    description: "Catalog title for the node that assigns translation work to a person",
+  },
+  nodeCreateTaskHint: {
+    defaultMessage: "Give a person a translate, post-edit, or proofread task.",
+    id: "mFMIBafAUJ",
+    description: "Catalog description for the assign task node",
+  },
+  nodeCheckProgress: {
+    defaultMessage: "Check progress",
+    id: "Lkk5mrUKMb",
+    description: "Catalog title for the translation progress node",
+  },
+  nodeCheckProgressHint: {
+    defaultMessage: "Count translated and approved strings, or wait until they are done.",
+    id: "etloN+Y7Fr",
+    description: "Catalog description for the translation progress node",
+  },
+  nodeRunQa: {
+    defaultMessage: "Run QA checks",
+    id: "gkhaBkZ+GM",
+    description: "Catalog title for the translation QA node",
+  },
+  nodeRunQaHint: {
+    defaultMessage: "Check a project's translations for errors and warnings.",
+    id: "srA8Bg6NQQ",
+    description: "Catalog description for the translation QA node",
+  },
+  nodeListSourceFiles: {
+    defaultMessage: "List source files",
+    id: "GowAdbMOGm",
+    description: "Catalog title for the list source files node",
+  },
+  nodeListSourceFilesHint: {
+    defaultMessage: "Get a project's source files so later steps can loop over them.",
+    id: "LSAb8ph9tQ",
+    description: "Catalog description for the list source files node",
+  },
+  nodeUpdateJob: {
+    defaultMessage: "Update job",
+    id: "QqqMJ6Bi0e",
+    description: "Catalog title for the update job node",
+  },
+  nodeUpdateJobHint: {
+    defaultMessage: "Reassign or rename a translation job.",
+    id: "/GRdyQXYQY",
+    description: "Catalog description for the update job node",
+  },
+  nodePickAssignee: {
+    defaultMessage: "Pick assignee",
+    id: "5V5XZ84WTf",
+    description: "Catalog title for the step that chooses who does a piece of work",
+  },
+  nodePickAssigneeHint: {
+    defaultMessage: "Choose who does the work by locale, job type, size or due date.",
+    id: "XcM+L9PS+A",
+    description: "Catalog description for the pick assignee step",
+  },
+  nodeCrowdinPreTranslate: {
+    defaultMessage: "Crowdin pre-translate",
+    id: "FjC75ZSZ0M",
+    description: "Catalog title for the Crowdin pre-translate node",
+  },
+  nodeCrowdinPreTranslateHint: {
+    defaultMessage: "Pre-translate Crowdin files with translation memory, MT, or AI.",
+    id: "8vUA93J/PV",
+    description: "Catalog description for the Crowdin pre-translate node",
+  },
+  nodeCrowdinCreateTask: {
+    defaultMessage: "Crowdin task",
+    id: "4cSF1gEJIK",
+    description: "Catalog title for the node that creates Crowdin tasks",
+  },
+  nodeCrowdinCreateTaskHint: {
+    defaultMessage: "Create a Crowdin translate or proofread task for each language.",
+    id: "vgEORG2zYO",
+    description: "Catalog description for the Crowdin task node",
+  },
+  nodeCrowdinCheckProgress: {
+    defaultMessage: "Crowdin progress",
+    id: "NFtE+2yAq9",
+    description: "Catalog title for the Crowdin progress node",
+  },
+  nodeCrowdinCheckProgressHint: {
+    defaultMessage: "Check Crowdin progress and tasks, or wait until they are done.",
+    id: "AIftE8iyYl",
+    description: "Catalog description for the Crowdin progress node",
+  },
   nodeIf: {
     defaultMessage: "If",
     id: "5ECVkGCnpd",
@@ -239,6 +349,356 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Assign values into the workflow context.",
     id: "ZXPdUvtPkF",
     description: "Catalog description for the set fields node",
+  },
+  nodeCreateObject: {
+    defaultMessage: "Create object",
+    id: "RHGI6JYY/i",
+    description: "Catalog title for the create object node",
+  },
+  nodeCreateObjectHint: {
+    defaultMessage: "Construct an object from named typed values.",
+    id: "TfUCgJttWd",
+    description: "Catalog description for the create object node",
+  },
+  nodeMergeObjects: {
+    defaultMessage: "Merge objects",
+    id: "Wj5eGg6F2i",
+    description: "Catalog title for the merge objects node",
+  },
+  nodeMergeObjectsHint: {
+    defaultMessage: "Combine objects with an explicit conflict policy.",
+    id: "EFqMJ3jrZJ",
+    description: "Catalog description for the merge objects node",
+  },
+  nodeSelectPath: {
+    defaultMessage: "Get field",
+    id: "jWbeH4RHvb",
+    description: "Catalog title for the select path node",
+  },
+  nodeSelectPathHint: {
+    defaultMessage: "Read a typed value from an object or array using a safe path.",
+    id: "ODA33nKLhj",
+    description: "Catalog description for the select path node",
+  },
+  nodeCoalesce: {
+    defaultMessage: "Default value",
+    id: "JCapINfSoY",
+    description: "Catalog title for the coalesce node",
+  },
+  nodeCoalesceHint: {
+    defaultMessage: "Return the first available value from an ordered list.",
+    id: "Y6e1UDu/Ic",
+    description: "Catalog description for the coalesce node",
+  },
+  nodeCompare: {
+    defaultMessage: "Compare",
+    id: "2chGT4Q88W",
+    description: "Catalog title for the compare and boolean operators node",
+  },
+  nodeCompareHint: {
+    defaultMessage: "Compare typed values or combine boolean predicates.",
+    id: "BWn4lTVOW+",
+    description: "Catalog description for the compare and boolean operators node",
+  },
+  compareOperator: {
+    defaultMessage: "Operator",
+    id: "dCCEY6kz9i",
+    description: "Compare node operator label",
+  },
+  compareOperands: {
+    defaultMessage: "Values",
+    id: "njxiURMl+2",
+    description: "Compare node operand list heading",
+  },
+  compareOperandName: {
+    defaultMessage: "Value {index} name",
+    id: "XJR0C7/H1v",
+    description: "Compare operand name",
+  },
+  compareOperandType: {
+    defaultMessage: "Value {index} type",
+    id: "eXV1+dyKel",
+    description: "Compare operand type",
+  },
+  addCompareOperand: {
+    defaultMessage: "Add condition",
+    id: "AkRNBWljz9",
+    description: "Add a boolean condition to Compare",
+  },
+  removeCompareOperand: {
+    defaultMessage: "Remove condition {index}",
+    id: "AS1Jb1Fn/X",
+    description: "Remove a boolean condition from Compare",
+  },
+  compareLocaleEnabled: {
+    defaultMessage: "Use locale-aware string comparison",
+    id: "dAqONPnRrf",
+    description: "Enable locale-aware comparison",
+  },
+  compareLocale: {
+    defaultMessage: "Locale",
+    id: "O+MFwwsPPs",
+    description: "Compare locale input label",
+  },
+  compareSensitivity: {
+    defaultMessage: "Sensitivity",
+    id: "dhCHuarVuj",
+    description: "Compare collation sensitivity label",
+  },
+  compareEqual: { defaultMessage: "Equals", id: "xlj1vkYPSY", description: "Equals operator" },
+  compareNotEqual: {
+    defaultMessage: "Does not equal",
+    id: "EuDRqs/vI3",
+    description: "Not equal operator",
+  },
+  compareGreaterThan: {
+    defaultMessage: "Greater than",
+    id: "fntWWIAzLn",
+    description: "Greater than operator",
+  },
+  compareGreaterThanOrEqual: {
+    defaultMessage: "Greater than or equal",
+    id: "0C/YKQiT4r",
+    description: "Greater than or equal operator",
+  },
+  compareLessThan: {
+    defaultMessage: "Less than",
+    id: "va2mte2j4z",
+    description: "Less than operator",
+  },
+  compareLessThanOrEqual: {
+    defaultMessage: "Less than or equal",
+    id: "pvRSTX9opI",
+    description: "Less than or equal operator",
+  },
+  compareContains: {
+    defaultMessage: "Contains",
+    id: "f8G+byGKq6",
+    description: "Contains operator",
+  },
+  compareStartsWith: {
+    defaultMessage: "Starts with",
+    id: "CkGJqwlYH7",
+    description: "Starts with operator",
+  },
+  compareEndsWith: {
+    defaultMessage: "Ends with",
+    id: "qb04+Om/Pt",
+    description: "Ends with operator",
+  },
+  compareAnd: { defaultMessage: "AND", id: "IjB6PL5Pbn", description: "Boolean AND operator" },
+  compareOr: { defaultMessage: "OR", id: "fymXCpx8Nq", description: "Boolean OR operator" },
+  compareNot: { defaultMessage: "NOT", id: "WNvJxgRGRU", description: "Boolean NOT operator" },
+  coalesceInputs: {
+    defaultMessage: "Ordered values",
+    id: "MkbQjfMTez",
+    description: "Coalesce input list heading",
+  },
+  coalesceInputName: {
+    defaultMessage: "Value {index} name",
+    id: "D/faoWI8RU",
+    description: "Coalesce input name",
+  },
+  coalesceInputType: {
+    defaultMessage: "Value {index} type",
+    id: "MIg3Z6IKsj",
+    description: "Coalesce input type",
+  },
+  coalesceUseDefault: {
+    defaultMessage: "Use an inline default when this value is missing",
+    id: "DoLTEHWiIY",
+    description: "Coalesce inline default toggle",
+  },
+  coalesceInputDefault: {
+    defaultMessage: "Value {index} default",
+    id: "kvULP2fnaS",
+    description: "Coalesce inline default input",
+  },
+  moveCoalesceInputUp: {
+    defaultMessage: "Move value {index} up",
+    id: "rBsLPnxGVI",
+    description: "Move a Coalesce input earlier",
+  },
+  moveCoalesceInputDown: {
+    defaultMessage: "Move value {index} down",
+    id: "5Hth+Ot9Y5",
+    description: "Move a Coalesce input later",
+  },
+  removeCoalesceInput: {
+    defaultMessage: "Remove value {index}",
+    id: "+YutChOmrJ",
+    description: "Remove a Coalesce input",
+  },
+  addCoalesceInput: {
+    defaultMessage: "Add value",
+    id: "4qQ8w1wkBs",
+    description: "Add a Coalesce input",
+  },
+  coalesceMissingValues: {
+    defaultMessage: "Treat as missing",
+    id: "qz5T3p0D5s",
+    description: "Coalesce missing value policies heading",
+  },
+  coalesceTreatNullAsMissing: {
+    defaultMessage: "Null",
+    id: "UzoZZwyTmn",
+    description: "Treat null as missing",
+  },
+  coalesceTreatEmptyStringAsMissing: {
+    defaultMessage: "Empty strings",
+    id: "Epdqy+744r",
+    description: "Treat empty strings as missing",
+  },
+  coalesceTreatEmptyArrayAsMissing: {
+    defaultMessage: "Empty arrays",
+    id: "G/w7K4ugTL",
+    description: "Treat empty arrays as missing",
+  },
+  coalesceTreatEmptyObjectAsMissing: {
+    defaultMessage: "Empty objects",
+    id: "kPeBr6eZSu",
+    description: "Treat empty objects as missing",
+  },
+  selectPathPath: {
+    defaultMessage: "Path",
+    id: "DIXy7xfZhs",
+    description: "Select Path path setting",
+  },
+  selectPathPathDescription: {
+    defaultMessage:
+      "Use dots for object keys and brackets for array indexes, for example customer.orders[0].id.",
+    id: "/9bgfNfWmW",
+    description: "Help for Select Path path syntax",
+  },
+  selectPathOutputType: {
+    defaultMessage: "Output type",
+    id: "S6w+8rFpja",
+    description: "Select Path declared output type setting",
+  },
+  selectPathMissingBehavior: {
+    defaultMessage: "When the path is missing",
+    id: "qG8OM8M72u",
+    description: "Select Path missing value behavior setting",
+  },
+  selectPathMissingError: {
+    defaultMessage: "Fail the step",
+    id: "oRNiCCPUi7",
+    description: "Select Path missing path error option",
+  },
+  selectPathMissingOptional: {
+    defaultMessage: "Return an optional value",
+    id: "aKysXi8qyT",
+    description: "Select Path optional missing value option",
+  },
+  selectPathMissingDefault: {
+    defaultMessage: "Use a default value",
+    id: "dTqGntxrW3",
+    description: "Select Path default missing value option",
+  },
+  selectPathDefaultValue: {
+    defaultMessage: "Default value",
+    id: "tt72kIaGyn",
+    description: "Select Path default value input",
+  },
+  createObjectFields: {
+    defaultMessage: "Create object fields",
+    id: "XmEYDXugqn",
+    description: "Create Object field list heading",
+  },
+  createObjectFieldsEmpty: {
+    defaultMessage: "Add a named field to construct an object.",
+    id: "kO17DbZxuG",
+    description: "Empty Create Object field list help",
+  },
+  createObjectFieldName: {
+    defaultMessage: "Object field {index} name",
+    id: "Ha0TLn977I",
+    description: "Create Object field name input",
+  },
+  createObjectFieldType: {
+    defaultMessage: "Object field {index} type",
+    id: "rh2+BteZ5e",
+    description: "Create Object field type selector",
+  },
+  createObjectFieldDefault: {
+    defaultMessage: "Object field {index} default",
+    id: "qOKUAtOaFb",
+    description: "Create Object field default value input",
+  },
+  createObjectUseDefault: {
+    defaultMessage: "Use inline default",
+    id: "VoaTgvMGb7",
+    description: "Create Object checkbox to store an inline default value",
+  },
+  addCreateObjectField: {
+    defaultMessage: "Add object field",
+    id: "KdJvt1B/0f",
+    description: "Add a Create Object field",
+  },
+  removeCreateObjectField: {
+    defaultMessage: "Remove object field {index}",
+    id: "BHHt9+y7Na",
+    description: "Remove a Create Object field",
+  },
+  moveCreateObjectFieldUp: {
+    defaultMessage: "Move object field {index} up",
+    id: "8bubQShwFP",
+    description: "Move a Create Object field upward",
+  },
+  moveCreateObjectFieldDown: {
+    defaultMessage: "Move object field {index} down",
+    id: "nB3IXQfE4i",
+    description: "Move a Create Object field downward",
+  },
+  mergeObjectsConflictPolicy: {
+    defaultMessage: "Conflict policy",
+    id: "Z3cwlcqzDt",
+    description: "Merge Objects conflict policy field",
+  },
+  mergeObjectsConflictReject: {
+    defaultMessage: "Reject conflicts",
+    id: "JlldqkR4C6",
+    description: "Merge Objects policy that fails when keys overlap",
+  },
+  mergeObjectsConflictFirstWins: {
+    defaultMessage: "First object wins",
+    id: "GaqidMa6rb",
+    description: "Merge Objects policy that keeps the earlier overlapping value",
+  },
+  mergeObjectsConflictLastWins: {
+    defaultMessage: "Last object wins",
+    id: "nWyqpLBFh/",
+    description: "Merge Objects policy that keeps the later overlapping value",
+  },
+  mergeObjectsInputs: {
+    defaultMessage: "Objects to merge",
+    id: "Dx5wD+SCfe",
+    description: "Merge Objects input list",
+  },
+  mergeObjectsInputName: {
+    defaultMessage: "Merge object {index} name",
+    id: "f/XNJ63dud",
+    description: "Merge Objects input name field",
+  },
+  addMergeObjectsInput: {
+    defaultMessage: "Add object input",
+    id: "3PWsvMVfTw",
+    description: "Add a Merge Objects input",
+  },
+  removeMergeObjectsInput: {
+    defaultMessage: "Remove merge object {index}",
+    id: "PV2k2eiaiP",
+    description: "Remove a Merge Objects input",
+  },
+  moveMergeObjectsInputUp: {
+    defaultMessage: "Move merge object {index} up",
+    id: "gO4ZluW8Rk",
+    description: "Move a Merge Objects input upward",
+  },
+  moveMergeObjectsInputDown: {
+    defaultMessage: "Move merge object {index} down",
+    id: "gBrgYSI8np",
+    description: "Move a Merge Objects input downward",
   },
   nodeAi: {
     defaultMessage: "AI Agent",
@@ -290,6 +750,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "96dcZwdhGc",
     description: "Catalog description for the source upload trigger node",
   },
+  nodeWebhookTrigger: {
+    defaultMessage: "Webhook",
+    id: "2kMmbwiZt+",
+    description: "Catalog title for the webhook trigger node",
+  },
+  nodeWebhookTriggerHint: {
+    defaultMessage: "Start when another system sends a request to the workflow's URL.",
+    id: "me7VnT9zcz",
+    description: "Catalog description for the webhook trigger node",
+  },
   nodeNotifySlack: {
     defaultMessage: "Notify Slack",
     id: "t2I2Yj3t0M",
@@ -329,6 +799,199 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Configure step",
     id: "t4mVRTnKLW",
     description: "Right panel heading when a node is selected",
+  },
+  stepSettingsTabs: {
+    defaultMessage: "Step settings",
+    id: "kzH21n29Rp",
+    description:
+      "Accessible name of the tabs that switch between the parts of a workflow step's settings",
+  },
+  ifStepFails: {
+    defaultMessage: "If this step fails",
+    id: "wBBk0AbwLo",
+    description:
+      "Heading of the collapsed part of a workflow step's settings that holds its error behaviour",
+  },
+  insertField: {
+    defaultMessage: "Insert a field into {label}",
+    id: "7zsudhIRfP",
+    description:
+      "Accessible name of the button that puts a field of an earlier workflow step into a setting's text; {label} is the setting",
+  },
+  insertFieldTitle: {
+    defaultMessage: "Insert a field from an earlier step",
+    id: "it+CxLEVkH",
+    description:
+      "Tooltip of the button that puts a field of an earlier workflow step into a setting's text",
+  },
+  insertFieldSearch: {
+    defaultMessage: "Find a field",
+    id: "V2whWmooom",
+    description: "Search box of the menu that lists the fields of earlier workflow steps",
+  },
+  insertFieldEmpty: {
+    defaultMessage: "No fields from earlier steps.",
+    id: "u9Qg5J09WM",
+    description: "Shown when the menu of fields from earlier workflow steps has nothing to list",
+  },
+  fieldReferenceUnavailable: {
+    defaultMessage: "{reference} cannot be read here: that step does not run before this one.",
+    id: "WYSFWtMM/n",
+    description:
+      "Tooltip of a field pill in a workflow step's setting whose step is gone or runs later; reference is the step and field, such as 'HTTP request › status'",
+  },
+  connectOnCanvas: {
+    defaultMessage: "Connect this on the canvas.",
+    id: "hLqs+EeEG8",
+    description:
+      "Shown in place of the editor of a workflow step setting that only a data wire can feed",
+  },
+  disconnectInput: {
+    defaultMessage: "Disconnect",
+    id: "kEhYEqOX8G",
+    description: "Button that removes the data wire feeding a workflow step's setting",
+  },
+  removeBinding: {
+    defaultMessage: "Remove",
+    id: "cRhF5oMlHA",
+    description: "Button that removes the stored binding feeding a workflow step's setting",
+  },
+  fixedValueSource: {
+    defaultMessage: "Fixed value",
+    id: "Dhw0m5NXT1",
+    description:
+      "Name of a stored literal binding shown as the source of a workflow step's setting",
+  },
+  templateSource: {
+    defaultMessage: "Template",
+    id: "2+el5hYSzQ",
+    description:
+      "Name of a stored template binding shown as the source of a workflow step's setting",
+  },
+  credentialSource: {
+    defaultMessage: "Saved credential",
+    id: "FWjftu2kiI",
+    description:
+      "Name of a stored credential binding shown as the source of a workflow step's setting",
+  },
+  configurationTab: {
+    defaultMessage: "Configuration",
+    id: "GxutMPC4gp",
+    description: "Tab of a workflow step's settings that holds the step's own form",
+  },
+  outputsTab: {
+    defaultMessage: "Outputs",
+    id: "mqq6dTwRZM",
+    description: "Visual workflow editor control",
+  },
+  testTab: {
+    defaultMessage: "Test",
+    id: "VjG0Zt9Hr8",
+    description:
+      "Tab of a workflow step's settings that holds the values the step uses in a test run",
+  },
+  testDataTriggerDescription: {
+    defaultMessage:
+      "The event this trigger passes on when you test the workflow. Real runs use the real event.",
+    id: "kC1soSUZq7",
+    description: "Explains the Test tab of a workflow trigger",
+  },
+  testDataActionDescription: {
+    defaultMessage:
+      "What this step returns in a test run while it uses its test data, in place of doing its work. Nothing is made up: a value left empty stops the test.",
+    id: "kHvyGVv5TJ",
+    description: "Explains the Test tab of a workflow step that calls out to another service",
+  },
+  testDataFillExamples: {
+    defaultMessage: "Fill with examples",
+    id: "kN6qwzFh/5",
+    description:
+      "Button on a workflow step's Test tab that writes example values into its empty fields",
+  },
+  testDataUseLastRun: {
+    defaultMessage: "Use last run",
+    id: "JVogogkuBP",
+    description:
+      "Button on a workflow step's Test tab that copies the step's output from the last run",
+  },
+  testDataClear: {
+    defaultMessage: "Clear",
+    id: "1U9PZ5VcN2",
+    description: "Button on a workflow step's Test tab that removes all its test values",
+  },
+  testDataOptional: {
+    defaultMessage: "optional",
+    id: "Bb2iyK74xB",
+    description: "Marks a test value a workflow step can do without",
+  },
+  testDataNeeded: {
+    defaultMessage: "Needed for a test run.",
+    id: "zRCtWtCl4W",
+    description: "Under an empty required test value of a workflow step",
+  },
+  testDataReadByStep: {
+    defaultMessage: "Another step reads this, so a test run needs it.",
+    id: "NbAZVkN3TH",
+    description: "Under an empty optional test value that another workflow step uses",
+  },
+  testDataNotSet: {
+    defaultMessage: "Not set",
+    id: "wQGnFQYS2q",
+    description: "Placeholder of a true or false test value that has no value yet",
+  },
+  testDataChooseProject: {
+    defaultMessage: "Choose a project",
+    id: "zDoKlB01Q1",
+    description: "Placeholder of the project picker on a workflow trigger's Test tab",
+  },
+  testDataJson: {
+    defaultMessage: "All test data (JSON)",
+    id: "T17lvAfQL0",
+    description: "Label of the box that shows all of a workflow step's test values as JSON",
+  },
+  testDataInvalidJson: {
+    defaultMessage: "Enter valid JSON.",
+    id: "JQuMZXhBtU",
+    description: "Under a test value of a workflow step whose JSON cannot be read",
+  },
+  testRunMissingData: {
+    defaultMessage:
+      "{count, plural, one {A test value is missing} other {# test values are missing}}",
+    id: "c43lsobCtO",
+    description: "Toast when a workflow test run is not started because test values are not set",
+  },
+  testRunMissingDataFirst: {
+    defaultMessage: "Set {path} on the Test tab of {step}.",
+    id: "ch9gwSSThi",
+    description:
+      "Under the missing test values toast: the first one to set. {path} is a field name, {step} a step's name",
+  },
+  testRunMissingDataShow: {
+    defaultMessage: "Show",
+    id: "mqYq/LYRBZ",
+    description: "Action of the missing test values toast that opens the step's Test tab",
+  },
+  testRunCouldNotStart: {
+    defaultMessage: "The test run could not start.",
+    id: "94INRlGgGA",
+    description: "Toast when the request that starts a workflow test run fails",
+  },
+  testSettingsHint: {
+    defaultMessage:
+      "Each trigger and each step that calls out has a Test tab in its settings for the values a test run uses.",
+    id: "0pyGkDDDgZ",
+    description: "In the test settings popover of the workflow editor, where test values are set",
+  },
+  useRunAsTestData: {
+    defaultMessage: "Use as test data",
+    id: "CQU1/0C8er",
+    description: "Button on a past workflow run that copies its values into the steps' test data",
+  },
+  usedRunAsTestData: {
+    defaultMessage:
+      "Test data taken from this run for {count, plural, one {# step} other {# steps}}.",
+    id: "1Dpcm8IxPm",
+    description: "Toast after a past workflow run's values were copied into the steps' test data",
   },
   triggerType: {
     defaultMessage: "Trigger",
@@ -590,6 +1253,26 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "4cYBnVImbP",
     description: "Sequence node picker hint",
   },
+  nodeTryCatch: {
+    defaultMessage: "Try / Catch",
+    id: "F5g64/zxdN",
+    description: "Visual workflow Try / Catch node title",
+  },
+  nodeTryCatchHint: {
+    defaultMessage: "Handle failures from a bounded execution region",
+    id: "X5HXzEgA4e",
+    description: "Visual workflow Try / Catch node picker hint",
+  },
+  nodeCallWorkflow: {
+    defaultMessage: "Call workflow",
+    id: "AX4bE25lbf",
+    description: "Visual workflow Call Workflow node title",
+  },
+  nodeCallWorkflowHint: {
+    defaultMessage: "Run a pinned version of a reusable workflow.",
+    id: "EIF7eE+7GJ",
+    description: "Visual workflow Call Workflow node picker hint",
+  },
   sequenceOutputs: {
     defaultMessage: "Execution outputs",
     id: "y+ijUpauzH",
@@ -755,6 +1438,36 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "gJ4nnkkpNU",
     description: "Retry exhaustion exit",
   },
+  tryHandle: {
+    defaultMessage: "Try",
+    id: "rpDF9CZYBO",
+    description: "Try / Catch protected region connection",
+  },
+  successHandle: {
+    defaultMessage: "Success",
+    id: "J3yZ0R6Av/",
+    description: "Try / Catch success exit",
+  },
+  catchHandle: {
+    defaultMessage: "Catch",
+    id: "RwXMampnc5",
+    description: "Try / Catch handled failure exit",
+  },
+  finallyHandle: {
+    defaultMessage: "Finally",
+    id: "0T2mAMiIVh",
+    description: "Try / Catch final exit",
+  },
+  invalidTryCatchRegion: {
+    defaultMessage: "Connect a valid, bounded Try region.",
+    id: "HafJerv4wF",
+    description: "Validation issue for an invalid Try / Catch region",
+  },
+  overlappingTryCatchRegion: {
+    defaultMessage: "Try / Catch regions cannot overlap ambiguously.",
+    id: "aB/GAdDVH3",
+    description: "Validation issue for overlapping Try / Catch regions",
+  },
   retryMaxAttempts: {
     defaultMessage: "Max attempts",
     id: "+fsq3dqMqp",
@@ -896,9 +1609,27 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Hint under disabled AI agent configuration slots",
   },
   noConfig: {
-    defaultMessage: "Provide sample event data in Test settings.",
-    id: "HrEbvbWkeA",
-    description: "Config panel empty copy for nodes without fields",
+    defaultMessage:
+      "This step has nothing to set up. Its outputs are on the Outputs tab, and its sample event on the Test tab.",
+    id: "iUENcP8UXx",
+    description: "Config panel empty copy for a manual trigger, which has no fields",
+  },
+  noSettings: {
+    defaultMessage: "This step has nothing to set up. Its outputs are on the Outputs tab.",
+    id: "KbaeWqdfEa",
+    description: "Config panel empty copy for a step without fields",
+  },
+  editBindingAsText: {
+    defaultMessage: "Edit as text",
+    id: "X+6eLCg8p5",
+    description:
+      "Button that turns a stored fixed value or template of a workflow step's setting into the setting's own text",
+  },
+  testSettings: {
+    defaultMessage: "Test settings",
+    id: "mhtqPj5f5v",
+    description:
+      "Name of the button and popover beside Test workflow that holds the live test switch",
   },
   testWorkflow: {
     defaultMessage: "Test workflow",
@@ -909,6 +1640,17 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Workflow test run failed.",
     id: "z5dStQCLpf",
     description: "Toast when a server-backed visual workflow test run fails",
+  },
+  testRunNeedsAttention: {
+    defaultMessage: "Workflow test run needs attention.",
+    id: "dP/o6eq7W6",
+    description:
+      "Toast when a server-backed visual workflow test run stops and needs a person to look at it",
+  },
+  testRunCancelled: {
+    defaultMessage: "Workflow test run was cancelled.",
+    id: "4HsKuM+mjb",
+    description: "Toast when a server-backed visual workflow test run is cancelled",
   },
   testingWorkflow: {
     defaultMessage: "Testing…",
@@ -950,6 +1692,52 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "2963Vncu1b",
     description: "Validation message when a non-trigger node config is invalid",
   },
+  issueFieldRequired: {
+    defaultMessage: "{field} is required.",
+    id: "5PqiPGaWW/",
+    description:
+      "Validation message when a setting or input of a step is empty. {field} is the setting's key, such as channelId",
+  },
+  issueFieldInvalid: {
+    defaultMessage: "{field} is not valid.",
+    id: "q6TvmN/FEl",
+    description:
+      "Validation message when a setting or input of a step has a value that cannot be used. {field} is the setting's key, such as timezone",
+  },
+  issuePosition: {
+    defaultMessage: "Issue {current} of {total}",
+    id: "2fPK5TW6va",
+    description:
+      "Which of the workflow's validation issues is shown, above the issue. {current} and {total} are numbers",
+  },
+  previousIssue: {
+    defaultMessage: "Previous issue",
+    id: "GSFsE42qE6",
+    description: "Button that shows the previous validation issue of a visual workflow",
+  },
+  nextIssue: {
+    defaultMessage: "Next issue",
+    id: "We3SJU9IT4",
+    description: "Button that shows the next validation issue of a visual workflow",
+  },
+  stepHasIssue: {
+    defaultMessage: "This step has a problem",
+    id: "22szuz+pVL",
+    description: "Label of the warning mark on a canvas step that a validation issue is about",
+  },
+  showStepOnCanvas: {
+    defaultMessage: "Show on canvas",
+    id: "1oDvFz2774",
+    description:
+      "Button beside a validation issue that selects its step and moves the canvas to it",
+  },
+  issueLiteralCredential: {
+    defaultMessage:
+      "Use a saved credential for secret values instead of typing them into the step.",
+    id: "mCqI44HE9m",
+    description:
+      "Validation message when an HTTP step holds a token or secret header as plain text",
+  },
   trueHandle: {
     defaultMessage: "true",
     id: "76uDSBNqg0",
@@ -970,10 +1758,32 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "vZgNJeOOdN",
     description: "Toast when saving a visual workflow fails",
   },
-  activateFailed: {
-    defaultMessage: "Could not update workflow status. Use a production trigger before activating.",
-    id: "SyXUY/R958",
-    description: "Toast when activating a visual workflow fails",
+  statusConflict: {
+    defaultMessage: "This workflow was changed somewhere else. Reload to get the latest version.",
+    id: "9Z4RmfuZsn",
+    description:
+      "Toast when publishing or pausing a visual workflow fails because another save happened first",
+  },
+  statusReload: {
+    defaultMessage: "Reload",
+    id: "94Z/BEkYHW",
+    description: "Toast action that reloads the visual workflow after a conflicting save",
+  },
+  statusInvalidGraph: {
+    defaultMessage: "Fix the issues in the workflow before publishing.",
+    id: "b8ye1senrU",
+    description: "Toast when publishing a visual workflow fails because its graph has issues",
+  },
+  statusInvalidTrigger: {
+    defaultMessage: "Use a schedule, GitHub, source upload, or webhook trigger before activating.",
+    id: "TxnR8+WWRE",
+    description:
+      "Toast when activating a visual workflow fails because its trigger only runs manually",
+  },
+  statusUpdateFailed: {
+    defaultMessage: "Could not update workflow status.",
+    id: "h9YbborQ5w",
+    description: "Toast when publishing or pausing a visual workflow fails for another reason",
   },
   activated: {
     defaultMessage: "Workflow activated",
@@ -1091,9 +1901,9 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Weekly schedule cadence option",
   },
   scheduleHour: {
-    defaultMessage: "Hour (UTC)",
-    id: "f30lOJsKLX",
-    description: "Label for schedule hour field",
+    defaultMessage: "Hour (in the schedule's time zone)",
+    id: "+j42r84I4Z",
+    description: "Label for schedule hour field; the hour is read in the time zone picked below it",
   },
   scheduleDayOfWeek: {
     defaultMessage: "Day of week",
@@ -1180,6 +1990,493 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "8R777UILAL",
     description: "Folder inside the Hyperlocalise project for content sync",
   },
+  localizationProjectId: {
+    defaultMessage: "Project ID",
+    id: "7qPJACmQFj",
+    description: "Project setting on the translation, task, progress, and QA steps",
+  },
+  localizationPickProject: {
+    defaultMessage: "Choose a project",
+    id: "oxzB/oMCuE",
+    description: "Placeholder of the project picker that fills a step's project setting",
+  },
+  localizationProjectName: {
+    defaultMessage: "Project: {name}",
+    id: "RosMC3V8af",
+    description: "Help text under a project setting naming the project its ID belongs to",
+  },
+  localizationSourceFileId: {
+    defaultMessage: "Source file ID",
+    id: "bEFIj9nf+a",
+    description: "Source file setting on the translation, task, and progress steps",
+  },
+  localizationSourceFileIdOptional: {
+    defaultMessage: "Source file ID (optional)",
+    id: "IT9fuYzCqC",
+    description:
+      "Optional source file setting on the progress step; empty checks the whole project",
+  },
+  localizationTargetLocales: {
+    defaultMessage: "Target locales",
+    id: "fPRMssSpBS",
+    description: "Comma-separated target locales on the translation, task, and progress steps",
+  },
+  localizationTargetLocalesHint: {
+    defaultMessage:
+      "Separate locales with commas. Leave empty for every target locale of the project.",
+    id: "o6AEWOMRJB",
+    description: "Help text under the target locales setting",
+  },
+  machineTranslateUseMemory: {
+    defaultMessage: "Reuse translation memory matches",
+    id: "tfNftmyIRC",
+    description: "Checkbox on the machine translate step",
+  },
+  createTaskStep: {
+    defaultMessage: "Task",
+    id: "iVBQQpasX9",
+    description: "Picker for the kind of work on the assign task step",
+  },
+  createTaskStepTranslate: {
+    defaultMessage: "Translate",
+    id: "iE7kZbhfQJ",
+    description: "Assign task step option: a person translates from scratch",
+  },
+  createTaskStepEdit: {
+    defaultMessage: "Post-edit",
+    id: "JlYoa6li0M",
+    description: "Assign task step option: a person edits machine or AI output",
+  },
+  createTaskStepProofread: {
+    defaultMessage: "Proofread",
+    id: "wEo1jzylG4",
+    description: "Assign task step option: a person proofreads edited translations",
+  },
+  createTaskAssignee: {
+    defaultMessage: "Assignee",
+    id: "qlnfAQRHov",
+    description: "Member picker on the assign task step",
+  },
+  createTaskUnassigned: {
+    defaultMessage: "Unassigned",
+    id: "z6CwBj1X+C",
+    description: "Assign task option that leaves the task without an assignee",
+  },
+  createTaskTitle: {
+    defaultMessage: "Task title (optional)",
+    id: "wFfOIZj5wX",
+    description: "Title of the job the assign task step creates",
+  },
+  taskDueAt: {
+    defaultMessage: "Due date",
+    id: "upV29iL/j6",
+    description:
+      "Label for the due date setting of the Assign task, Update job and Crowdin task workflow steps",
+  },
+  taskDueAtHint: {
+    defaultMessage:
+      "A date such as 2026-05-01T17:00Z, or a value from an earlier step. Leave empty for no due date.",
+    id: "SQUPAVRD+K",
+    description:
+      "Help text for the due date setting of the Assign task and Crowdin task workflow steps",
+  },
+  listFilesPathPrefix: {
+    defaultMessage: "Path starts with (optional)",
+    id: "g2jirHyvIY",
+    description: "Setting on the list source files step that keeps only files under a folder",
+  },
+  listFilesPathPrefixHint: {
+    defaultMessage: "For example locales/en/. Up to 100 files are listed.",
+    id: "ijFxeRDSFN",
+    description: "Help text under the path setting of the list source files step",
+  },
+  updateJobJobId: {
+    defaultMessage: "Job ID",
+    id: "DIN/SkRphQ",
+    description: "Job setting on the update job step",
+  },
+  updateJobAssignee: {
+    defaultMessage: "New assignee",
+    id: "TWlwUYYnne",
+    description: "Member picker on the update job step",
+  },
+  updateJobKeepAssignee: {
+    defaultMessage: "Keep current assignee",
+    id: "jA5QKi/1uK",
+    description: "Update job option that leaves the job's assignee as it is",
+  },
+  updateJobTitle: {
+    defaultMessage: "New title (optional)",
+    id: "FUNWRUio8t",
+    description: "Title setting on the update job step",
+  },
+  updateJobDueAtHint: {
+    defaultMessage:
+      "A date such as 2026-05-01T17:00Z, or a value from an earlier step. Leave empty to keep the current due date.",
+    id: "Yn8fBlm1d2",
+    description: "Help text for the due date setting of the Update job workflow step",
+  },
+  updateJobHint: {
+    defaultMessage: "Set a new assignee, a new title, or both.",
+    id: "iJtjQD5vxd",
+    description: "Help text on the update job step",
+  },
+  pickAssigneeHint: {
+    defaultMessage:
+      "Rules are checked from the top. The first rule whose conditions all match picks the people. An empty condition matches anything.",
+    id: "YD/Pm5BFb6",
+    description: "Help text at the top of the pick assignee step",
+  },
+  pickAssigneeLocale: {
+    defaultMessage: "Locale",
+    id: "KZChIBQMpx",
+    description: "Pick assignee input: the locale of the work being routed",
+  },
+  pickAssigneeLocaleHint: {
+    defaultMessage: "One locale, or several for a job in many locales.",
+    id: "LAxJwBLxhc",
+    description: "Help text under the pick assignee locale input",
+  },
+  pickAssigneeJobType: {
+    defaultMessage: "Job type",
+    id: "i6KGawBB4l",
+    description: "Pick assignee input: the kind of work being routed",
+  },
+  pickAssigneeJobTypeHint: {
+    defaultMessage: "translate, post-edit or proofread.",
+    id: "fVpiXJn1r7",
+    description: "Help text under the pick assignee job type input; the values are typed as shown",
+  },
+  pickAssigneeSize: {
+    defaultMessage: "Size",
+    id: "oppq51uTAm",
+    description: "Pick assignee input: how big the work is",
+  },
+  pickAssigneeSizeHint: {
+    defaultMessage: "A number, such as the strings to do from Check progress.",
+    id: "hqP31ZL7Z3",
+    description: "Help text under the pick assignee size input",
+  },
+  pickAssigneeDueAt: {
+    defaultMessage: "Due date",
+    id: "qM5M7uefMN",
+    description: "Pick assignee input: when the work is due",
+  },
+  pickAssigneeDueAtHint: {
+    defaultMessage: "A date such as 2026-05-01T17:00Z.",
+    id: "NZzRyXT4yV",
+    description: "Help text under the pick assignee due date input",
+  },
+  pickAssigneeStrategy: {
+    defaultMessage: "Spread the work",
+    id: "irUmb1b+Lz",
+    description:
+      "Pick assignee setting: how one person is chosen from the people of the matched rule",
+  },
+  pickAssigneeStrategyFirst: {
+    defaultMessage: "First person listed",
+    id: "aG9F7kz7hO",
+    description: "Pick assignee strategy option: always the first person of the rule",
+  },
+  pickAssigneeStrategyRoundRobin: {
+    defaultMessage: "Round-robin: each person in turn",
+    id: "0M8Sl6Ht7N",
+    description: "Pick assignee strategy option: rotate through the rule's people across runs",
+  },
+  pickAssigneeStrategyLeastBusy: {
+    defaultMessage: "Least busy: fewest open jobs",
+    id: "7cvXshAN8y",
+    description: "Pick assignee strategy option: the person with the fewest unfinished jobs",
+  },
+  pickAssigneeRules: {
+    defaultMessage: "Rules",
+    id: "CrKQ6bHGwY",
+    description: "Heading of the pick assignee rule table",
+  },
+  pickAssigneeRuleTitle: {
+    defaultMessage: "Rule {number}",
+    id: "KkcOv6JUBC",
+    description:
+      "Heading of one pick assignee rule, numbered from 1 in the order rules are checked",
+  },
+  pickAssigneeRuleName: {
+    defaultMessage: "Name",
+    id: "QV3HwBd3kC",
+    description: "Pick assignee rule field: a label for the rule, shown in run results",
+  },
+  pickAssigneeRuleNamePlaceholder: {
+    defaultMessage: "French reviewers",
+    id: "1rKbsS6oj6",
+    description: "Example name for a pick assignee rule",
+  },
+  pickAssigneeRuleLocales: {
+    defaultMessage: "Locales",
+    id: "rqq/u0FFP+",
+    description: "Pick assignee rule condition: the locales the rule covers",
+  },
+  pickAssigneeRuleLocalesHint: {
+    defaultMessage: "Empty matches any locale. A language such as fr also matches fr-FR and fr-CA.",
+    id: "eKHIVZMNbd",
+    description: "Help text under a pick assignee rule's locales condition",
+  },
+  pickAssigneeRuleJobTypes: {
+    defaultMessage: "Job types",
+    id: "78ldX7a/ys",
+    description: "Pick assignee rule condition: the kinds of work the rule covers",
+  },
+  pickAssigneeRuleJobTypesHint: {
+    defaultMessage: "None ticked matches any job type.",
+    id: "6k1Uxt2vS8",
+    description: "Help text under a pick assignee rule's job type condition",
+  },
+  pickAssigneeRuleMinSize: {
+    defaultMessage: "Min size",
+    id: "4r4mzKbKI8",
+    description: "Pick assignee rule condition: the smallest work the rule covers",
+  },
+  pickAssigneeRuleMaxSize: {
+    defaultMessage: "Max size",
+    id: "ElumubpTh/",
+    description: "Pick assignee rule condition: the largest work the rule covers",
+  },
+  pickAssigneeRuleDueWithin: {
+    defaultMessage: "Due within (hours)",
+    id: "k3fkqe32vX",
+    description: "Pick assignee rule condition: how soon the work is due",
+  },
+  pickAssigneeRuleDueWithinHint: {
+    defaultMessage:
+      "Matches work due within this many hours, or overdue. Work without a due date does not match.",
+    id: "1r8n45NXR9",
+    description: "Help text under a pick assignee rule's due date condition",
+  },
+  pickAssigneeRulePeople: {
+    defaultMessage: "People",
+    id: "dH/K/1BGAq",
+    description: "Pick assignee rule field: the workspace members the rule assigns to",
+  },
+  pickAssigneeAddRule: {
+    defaultMessage: "Add rule",
+    id: "+MVU0imCkb",
+    description: "Button that adds a rule to the pick assignee rule table",
+  },
+  pickAssigneeRemoveRule: {
+    defaultMessage: "Remove rule {number}",
+    id: "w5MQavc77w",
+    description: "Button that removes a pick assignee rule",
+  },
+  pickAssigneeMoveRuleUp: {
+    defaultMessage: "Move rule {number} up",
+    id: "xDzNX/iyQu",
+    description: "Button that checks a pick assignee rule earlier",
+  },
+  pickAssigneeMoveRuleDown: {
+    defaultMessage: "Move rule {number} down",
+    id: "6kuZ6kPWkr",
+    description: "Button that checks a pick assignee rule later",
+  },
+  pickAssigneeFallback: {
+    defaultMessage: "If no rule matches",
+    id: "dsdp+o3xfS",
+    description: "Pick assignee setting: the people used when no rule matches",
+  },
+  pickAssigneeFallbackHint: {
+    defaultMessage: "Leave empty to fail the step instead, so an error branch can handle it.",
+    id: "seYyiQfs+8",
+    description: "Help text under the pick assignee fallback people",
+  },
+  pickAssigneeSearchPeople: {
+    defaultMessage: "Search members",
+    id: "ElbbeOt+Ym",
+    description: "Placeholder of the pick assignee people search",
+  },
+  pickAssigneeNoPeople: {
+    defaultMessage: "No matching members.",
+    id: "bQ/4aoAdlV",
+    description: "Shown when the pick assignee people search finds nobody",
+  },
+  pickAssigneePeopleSource: {
+    defaultMessage: "People from",
+    id: "Y9DpFK1RSa",
+    description:
+      "Label for choosing whether the Pick assignee step routes work to workspace members or Crowdin project members",
+  },
+  pickAssigneePeopleWorkspace: {
+    defaultMessage: "Workspace members",
+    id: "nK8qHkBuTE",
+    description: "Option: Pick assignee chooses among members of the Hyperlocalise workspace",
+  },
+  pickAssigneePeopleCrowdin: {
+    defaultMessage: "Crowdin project members",
+    id: "lIJ53mbvOG",
+    description: "Option: Pick assignee chooses among members of a Crowdin project",
+  },
+  pickAssigneePeopleSourceHint: {
+    defaultMessage:
+      "Crowdin people are listed by user ID, and least busy counts their open Crowdin tasks. Switching clears the people in every rule.",
+    id: "A9OqXwnNJP",
+    description: "Help text under the Pick assignee people source setting",
+  },
+  pickAssigneeCrowdinIds: {
+    defaultMessage: "Comma-separated Crowdin user IDs, such as 12, 14.",
+    id: "hLM5fvNoUn",
+    description: "Help text for a list of Crowdin user IDs in the Pick assignee step",
+  },
+  webhookUrl: {
+    defaultMessage: "Webhook URL",
+    id: "ERM4Ah2Swk",
+    description: "Label of the URL that starts a workflow with a webhook trigger",
+  },
+  webhookUrlHint: {
+    defaultMessage:
+      "Send a POST request to this URL. Its JSON body is the trigger's body field. Anyone with the URL can start the workflow, so keep it secret.",
+    id: "+EERKzwOLN",
+    description: "Help text under a workflow's webhook URL",
+  },
+  webhookUrlUnsaved: {
+    defaultMessage: "Save the workflow to get its webhook URL.",
+    id: "QeTm6cGbAa",
+    description: "Shown instead of the webhook URL before the workflow is saved",
+  },
+  webhookUrlLoadFailed: {
+    defaultMessage: "Could not load the webhook URL.",
+    id: "ZT2jyG9aex",
+    description: "Shown when the webhook URL fails to load",
+  },
+  webhookCopy: {
+    defaultMessage: "Copy webhook URL",
+    id: "egYJEaDvf/",
+    description: "Button that copies a workflow's webhook URL",
+  },
+  webhookCopied: {
+    defaultMessage: "Webhook URL copied",
+    id: "TPcontIwO2",
+    description: "Toast after the webhook URL is copied",
+  },
+  webhookRotate: {
+    defaultMessage: "Reset URL",
+    id: "JJe6JcgNwt",
+    description: "Button that replaces a workflow's webhook URL with a new one",
+  },
+  webhookRotateHint: {
+    defaultMessage: "The old URL keeps working until you publish the workflow again.",
+    id: "mCaWPrAH2w",
+    description: "Help text under the button that resets a workflow's webhook URL",
+  },
+  webhookIdempotencyHint: {
+    defaultMessage:
+      "Send an Idempotency-Key header to make sure a retried request starts only one run.",
+    id: "34vtfR8v8B",
+    description: "Help text about avoiding duplicate runs from a webhook",
+  },
+  checkProgressJobId: {
+    defaultMessage: "Job ID (optional)",
+    id: "KnQWJg+k9n",
+    description: "Job setting on the check progress step",
+  },
+  checkProgressHint: {
+    defaultMessage:
+      "To wait for people to finish, put this step in a Wait step's condition, for example isApproved.",
+    id: "3kHwpx5fUv",
+    description: "Help text on the check progress step",
+  },
+  crowdinProjectId: {
+    defaultMessage: "Crowdin project ID",
+    id: "t8uH650RAY",
+    description: "Numeric Crowdin project setting on the Crowdin steps",
+  },
+  crowdinConnectionHint: {
+    defaultMessage: "Runs with your Crowdin connection once you save the workflow.",
+    id: "CuAE1UAURF",
+    description: "Help text on Crowdin steps explaining whose Crowdin account they use",
+  },
+  crowdinFileIds: {
+    defaultMessage: "Crowdin file IDs",
+    id: "eM7fvx+kZE",
+    description: "Comma-separated Crowdin file IDs on the Crowdin steps",
+  },
+  crowdinFileIdsOptional: {
+    defaultMessage: "Crowdin file IDs (optional)",
+    id: "yI2t/LpKKW",
+    description: "Optional Crowdin file IDs on the Crowdin progress step; empty checks the project",
+  },
+  crowdinLanguageIds: {
+    defaultMessage: "Crowdin language IDs",
+    id: "rCZ7pu/N/u",
+    description: "Comma-separated Crowdin language IDs on the Crowdin steps",
+  },
+  crowdinLanguageIdsHint: {
+    defaultMessage:
+      "Separate IDs with commas, for example fr, de. Leave empty for every target language of the project.",
+    id: "bLUZ8jecPz",
+    description: "Help text under the Crowdin language IDs setting",
+  },
+  crowdinPreTranslateMethod: {
+    defaultMessage: "Method",
+    id: "4lAOeUm1kD",
+    description: "Picker for how the Crowdin pre-translate step translates",
+  },
+  crowdinMethodTm: {
+    defaultMessage: "Translation memory",
+    id: "Iz/vRg7yYf",
+    description: "Crowdin pre-translate method option",
+  },
+  crowdinMethodMt: {
+    defaultMessage: "Machine translation",
+    id: "KGh/pkMCst",
+    description: "Crowdin pre-translate method option",
+  },
+  crowdinMethodAi: {
+    defaultMessage: "AI prompt",
+    id: "d6RsWnHN5O",
+    description: "Crowdin pre-translate method option",
+  },
+  crowdinEngineId: {
+    defaultMessage: "MT engine ID",
+    id: "apAI8tlflI",
+    description: "Crowdin machine translation engine ID on the pre-translate step",
+  },
+  crowdinAiPromptId: {
+    defaultMessage: "AI prompt ID",
+    id: "o9f1rqFEpE",
+    description: "Crowdin AI prompt ID on the pre-translate step",
+  },
+  crowdinTaskType: {
+    defaultMessage: "Task type",
+    id: "9Dyjsfw5UG",
+    description: "Picker for the kind of Crowdin task",
+  },
+  crowdinAssigneeIds: {
+    defaultMessage: "Assignee user IDs (optional)",
+    id: "lOZKIlYzYj",
+    description: "Comma-separated Crowdin user IDs to assign the task to",
+  },
+  crowdinTaskTitle: {
+    defaultMessage: "Task title",
+    id: "/uTD7y2d2Z",
+    description: "Title of the Crowdin task",
+  },
+  crowdinTaskDescription: {
+    defaultMessage: "Description (optional)",
+    id: "JCMhEdFEIr",
+    description: "Description of the Crowdin task",
+  },
+  crowdinTaskIds: {
+    defaultMessage: "Crowdin task IDs (optional)",
+    id: "tG8dpOeDYA",
+    description: "Crowdin task IDs whose status the progress step reports",
+  },
+  crowdinPreTranslationId: {
+    defaultMessage: "Pre-translation ID (optional)",
+    id: "tsR11hdac9",
+    description: "Crowdin pre-translation whose status the progress step reports",
+  },
+  crowdinProgressHint: {
+    defaultMessage:
+      "To wait for Crowdin, put this step in a Wait step's condition, for example tasksDone or isApproved.",
+    id: "2CRZfybkI6",
+    description: "Help text on the Crowdin progress step",
+  },
   selectProject: {
     defaultMessage: "Select a project",
     id: "vFjxVFIzmT",
@@ -1219,5 +2516,218 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Trigger",
     id: "vwVyosrRNf",
     description: "Accessible label for the lightning badge on trigger nodes",
+  },
+  undoTooltip: {
+    defaultMessage: "Undo {action}",
+    id: "h9hqEywbg6",
+    description:
+      "Tooltip of the visual editor's undo button; {action} is what the step did, such as 'adding a step'",
+  },
+  redoTooltip: {
+    defaultMessage: "Redo {action}",
+    id: "zfWAg4fbJG",
+    description:
+      "Tooltip of the visual editor's redo button; {action} is what the step did, such as 'adding a step'",
+  },
+  undoNothing: {
+    defaultMessage: "Nothing to undo",
+    id: "bwvCqV1CkU",
+    description: "Tooltip of the visual editor's undo button when there is no step to take back",
+  },
+  redoNothing: {
+    defaultMessage: "Nothing to redo",
+    id: "2Gc1+aVeLn",
+    description: "Tooltip of the visual editor's redo button when there is no step to put back",
+  },
+  undoActionAdd: {
+    defaultMessage: "{count, plural, one {adding a step} other {adding # steps}}",
+    id: "+HijiNTvvx",
+    description: "What an undo step did, after 'Undo' or 'Redo': nodes were added to the workflow",
+  },
+  undoActionRemove: {
+    defaultMessage: "{count, plural, one {removing a step} other {removing # steps}}",
+    id: "mcpumDgw0v",
+    description:
+      "What an undo step did, after 'Undo' or 'Redo': nodes were removed from the workflow",
+  },
+  undoActionConnect: {
+    defaultMessage: "connecting steps",
+    id: "Fm7MxbuOiN",
+    description: "What an undo step did, after 'Undo' or 'Redo': an edge was added",
+  },
+  undoActionDisconnect: {
+    defaultMessage: "disconnecting steps",
+    id: "t5xBIlTLwl",
+    description: "What an undo step did, after 'Undo' or 'Redo': an edge was removed",
+  },
+  undoActionMove: {
+    defaultMessage: "{count, plural, one {moving a step} other {moving # steps}}",
+    id: "ZZerbQkD+z",
+    description: "What an undo step did, after 'Undo' or 'Redo': nodes were moved on the canvas",
+  },
+  undoActionConfigure: {
+    defaultMessage: "changing a step's settings",
+    id: "gl6BIyGKNo",
+    description: "What an undo step did, after 'Undo' or 'Redo': a node's settings were changed",
+  },
+  undoActionRetype: {
+    defaultMessage: "changing a step's type",
+    id: "enQcoq4887",
+    description: "What an undo step did, after 'Undo' or 'Redo': a node was given another type",
+  },
+  undoActionRename: {
+    defaultMessage: "renaming the workflow",
+    id: "WdGY58H2dj",
+    description: "What an undo step did, after 'Undo' or 'Redo': the workflow's name was changed",
+  },
+  undoActionEdit: {
+    defaultMessage: "the last change",
+    id: "8MkwvIyeaM",
+    description:
+      "What an undo step did, after 'Undo' or 'Redo', when it changed several things at once",
+  },
+  undoActionAssistant: {
+    defaultMessage: "the assistant's changes",
+    id: "5dSB/hCLGx",
+    description:
+      "What an undo step did, after 'Undo' or 'Redo': the assistant changed the workflow",
+  },
+  stepRunsForReal: {
+    defaultMessage: "Runs for real in test runs",
+    id: "YkGSzDTzNH",
+    description:
+      "Label of the mark on a canvas step that a test run runs for real, not on its test data",
+  },
+  testRunModeLabel: {
+    defaultMessage: "In a test run",
+    id: "u0c5HG4JX/",
+    description:
+      "Label of the choice on a workflow step's Test tab between its test data and running it for real",
+  },
+  testRunModeMocked: {
+    defaultMessage: "Use test data",
+    id: "CkFkjy7fQ+",
+    description: "Choice on a workflow step's Test tab: a test run uses the step's test data",
+  },
+  testRunModeReal: {
+    defaultMessage: "Run for real",
+    id: "xsPz0jjx3+",
+    description:
+      "Choice on a workflow step's Test tab: a test run calls out for real for this step",
+  },
+  testRunModeRealDescription: {
+    defaultMessage:
+      "Test runs call out for real for this step: requests are sent, content is generated and messages are delivered. Its test data is kept for when it uses test data again.",
+    id: "iUhV4+Yq09",
+    description: "On a workflow step's Test tab, when a test run runs the step for real",
+  },
+  testOutcomeLabel: {
+    defaultMessage: "Outcome",
+    id: "ElvzqUrelV",
+    description:
+      "Label of the choice on a workflow step's Test tab of whether the step succeeds or fails in a test run",
+  },
+  testOutcomeSucceeds: {
+    defaultMessage: "Succeeds",
+    id: "JuzH9vR7ay",
+    description: "Outcome on a workflow step's Test tab: the step returns its test data",
+  },
+  testOutcomeFails: {
+    defaultMessage: "Fails",
+    id: "qo0d24Hw+8",
+    description:
+      "Outcome on a workflow step's Test tab: the step fails with an error in a test run",
+  },
+  testFailureCode: {
+    defaultMessage: "Error code",
+    id: "Q7NvaWMPza",
+    description: "Box on a workflow step's Test tab for the code of the error the step fails with",
+  },
+  testFailureMessage: {
+    defaultMessage: "Error message",
+    id: "MK78Fh8i76",
+    description:
+      "Box on a workflow step's Test tab for the message of the error the step fails with",
+  },
+  testFailureStops: {
+    defaultMessage: "On error is set to Stop, so the test run stops at this step.",
+    id: "M9MtJAsUOq",
+    description:
+      "On a workflow step's Test tab, what a failure does when the step's On error setting is Stop",
+  },
+  testFailureContinues: {
+    defaultMessage: "On error is set to Continue, so the test run goes on past this step.",
+    id: "HtVUcSTMS/",
+    description:
+      "On a workflow step's Test tab, what a failure does when the step's On error setting is Continue",
+  },
+  testFailureBranches: {
+    defaultMessage: "On error is set to Branch, so the test run takes this step's error path.",
+    id: "OiJHVksWWK",
+    description:
+      "On a workflow step's Test tab, what a failure does when the step's On error setting is Branch",
+  },
+  testSettingsRealCount: {
+    defaultMessage:
+      "{count, plural, =0 {Every step uses its test data.} one {# step runs for real.} other {# steps run for real.}}",
+    id: "FhxuAfxzUP",
+    description:
+      "In the test settings popover, how many steps a test run runs for real instead of using test data",
+  },
+  testSettingsUseTestDataEverywhere: {
+    defaultMessage: "Use test data everywhere",
+    id: "we+P5cHH+C",
+    description:
+      "Button in the test settings popover that sets every step to use its test data in test runs",
+  },
+  testSettingsRunEverythingForReal: {
+    defaultMessage: "Run every step for real",
+    id: "0dFZxKMyvL",
+    description:
+      "Button in the test settings popover that sets every step that calls out to run for real in test runs",
+  },
+  testSettingsAllRealNote: {
+    defaultMessage:
+      "When every step runs for real, a test run is a live run: Wait steps really wait. It never publishes.",
+    id: "m3elLgug6H",
+    description: "In the test settings popover, what a test run does when every step runs for real",
+  },
+  confirmRealTestTitle: {
+    defaultMessage: "Run {count, plural, one {# step} other {# steps}} for real?",
+    id: "VElAUDjdAE",
+    description: "Title of the dialog before a test run in which some steps call out for real",
+  },
+  confirmRealTestDescription: {
+    defaultMessage:
+      "These steps call out for real in this test run. What they do happens and cannot be undone.",
+    id: "HmXZYnVvj0",
+    description: "In the dialog before a test run with steps that run for real",
+  },
+  confirmRealTestFedBy: {
+    defaultMessage: "Uses test data from {steps}",
+    id: "XZ5ZBfMizx",
+    description:
+      "In the dialog before a test run, under a step that runs for real: the mocked steps whose test data it reads",
+  },
+  confirmRealTestRun: {
+    defaultMessage: "Run test",
+    id: "GcIOfZ18Z9",
+    description: "Button that starts a test run in which some steps call out for real",
+  },
+  confirmRealTestCancel: {
+    defaultMessage: "Cancel",
+    id: "4fBLqa8Qde",
+    description:
+      "Button that closes the dialog before a test run with steps that run for real, without running",
+  },
+  executionRealStepCount: {
+    defaultMessage: "{count, plural, one {# step ran for real} other {# steps ran for real}}",
+    id: "HVa66T0BGY",
+    description: "In a workflow's run history, how many steps of a test run called out for real",
+  },
+  executionRanForReal: {
+    defaultMessage: "Ran for real",
+    id: "r/zdhHnzwh",
+    description: "Mark beside a step in a test run's step list: the step called out for real",
   },
 });

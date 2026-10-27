@@ -128,6 +128,7 @@ func TestResolveOrganizationActorByID(t *testing.T) {
 	}{
 		{name: "archived organization", sql: `update organizations set lifecycle_status='archived' where id=$1`},
 		{name: "replacing membership", sql: `update organization_memberships set workos_membership_id='replacing' where organization_id=$1`},
+		{name: "per-membership replacing marker", sql: `update organization_memberships set workos_membership_id='replacing:' || id::text where organization_id=$1`},
 		{name: "missing membership id", sql: `update organization_memberships set workos_membership_id=null where organization_id=$1`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

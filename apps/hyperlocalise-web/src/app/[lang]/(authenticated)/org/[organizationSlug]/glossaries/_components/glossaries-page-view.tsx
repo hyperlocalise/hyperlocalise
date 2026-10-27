@@ -56,6 +56,7 @@ import {
   WorkspacePageShell,
   workspaceFilterTriggerClassName,
 } from "../../_components/workspace-resource-shared";
+import type { GlossaryCreateForm } from "../store/glossaries-page-store";
 import type { GlossaryListRow } from "./glossary-list";
 import {
   GlossariesEmptyAction,
@@ -68,12 +69,7 @@ import { ProjectSourceLocalePicker } from "../../projects/_components/project-lo
 
 export const GLOSSARIES_PAGE_SIZE = 100;
 
-export type GlossaryCreateForm = {
-  name: string;
-  description: string;
-  sourceLocale: string;
-  projectIds: string[];
-};
+export type { GlossaryCreateForm } from "../store/glossaries-page-store";
 
 export function GlossariesPageView({
   organizationSlug,

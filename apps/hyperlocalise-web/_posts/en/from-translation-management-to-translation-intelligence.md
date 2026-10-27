@@ -289,6 +289,7 @@ It will make the organisation more intelligent about how it communicates across 
 ## Further reading
 
 - [What Is Translation Intelligence?](/blog/what-is-translation-intelligence)
+- [How to Choose a Continuous Localisation Workflow](/blog/how-to-choose-a-continuous-localisation-workflow)
 - [Hyperlocalise](/)
 - [Translation management overview — RWS](https://www.rws.com/glossary/translation-management/)
 - [Context-aware machine translation research — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)

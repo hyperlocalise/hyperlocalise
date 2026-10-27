@@ -12,9 +12,10 @@
  */
 // @vitest-environment happy-dom
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import type { Editor } from "@tiptap/core";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -23,7 +24,11 @@ import {
   createDefaultConfig,
   getVisualNodeDimensions,
 } from "@/lib/visual-workflows/catalog/node-catalog";
-import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
+import type {
+  VisualNodeConfig,
+  VisualObjectField,
+  VisualWorkflowRfNode,
+} from "@/lib/visual-workflows/schema/types";
 
 import { VisualWorkflowConfigPanel } from "./visual-workflow-config-panel";
 
@@ -34,20 +39,74 @@ const resourceOptionsMock = vi.hoisted(() => ({
 vi.mock("./visual-workflow-resource-options", () => ({
   useVisualWorkflowResourceOptions: () => ({
     projects: [{ id: "project-1", name: "Acme" }],
-    availableProviders: ["github"],
+    members: [{ workosUserId: "user_1", label: "Ana" }],
+    workflows: [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Enrich customer",
+        publishedVersion: 3,
+        publishedDefinition: {
+          version: 3,
+          nodes: [
+            {
+              id: "trigger",
+              type: "trigger.manual",
+              position: { x: 0, y: 0 },
+              config: { kind: "trigger.manual" },
+              outputFields: [{ path: "customerId", type: "string" }],
+            },
+            {
+              id: "return",
+              type: "flow.return",
+              position: { x: 320, y: 0 },
+              config: {
+                kind: "flow.return",
+                outputs: [{ id: "result-id", name: "result", type: "object" }],
+              },
+            },
+          ],
+          edges: [],
+        },
+      },
+    ],
     resourceOptionsFor: resourceOptionsMock.resourceOptionsFor,
   }),
 }));
+
+/** Replaces the text of a setting's rich text box, as typing over all of it would. */
+function replaceText(textbox: HTMLElement, text: string) {
+  const editor = (textbox as HTMLElement & { editor?: Editor }).editor;
+  if (!editor) throw new Error("not a rich text box");
+  act(() => {
+    editor.chain().selectAll().insertContent(text).run();
+  });
+}
 
 function renderPanel(ui: ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
-    <IntlProvider locale="en" messages={{}}>
-      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-    </IntlProvider>,
-  );
+  return render(ui, {
+    wrapper: ({ children }) => (
+      <IntlProvider locale="en" messages={{}}>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      </IntlProvider>
+    ),
+  });
+}
+
+function slackNode(id = "slack"): VisualWorkflowRfNode {
+  return {
+    id,
+    type: "action.notify_slack",
+    position: { x: 0, y: 0 },
+    ...getVisualNodeDimensions("action.notify_slack"),
+    data: {
+      catalogType: "action.notify_slack",
+      config: createDefaultConfig("action.notify_slack"),
+      runStatus: "idle",
+    },
+  };
 }
 
 function triggerNode(type: VisualWorkflowRfNode["type"] = "trigger.manual"): VisualWorkflowRfNode {
@@ -141,6 +200,49 @@ function terminalNode(
   };
 }
 
+function pickAssigneeCrowdinNode(id: string, fallbackAssigneeIds: string[]): VisualWorkflowRfNode {
+  const config = createDefaultConfig("action.pick_assignee");
+  if (config.kind !== "action.pick_assignee") {
+    throw new Error("expected pick assignee config");
+  }
+  return {
+    id,
+    type: "action.pick_assignee",
+    position: { x: 0, y: 0 },
+    ...getVisualNodeDimensions("action.pick_assignee"),
+    data: {
+      catalogType: "action.pick_assignee",
+      config: {
+        ...config,
+        peopleSource: "crowdin",
+        fallbackAssigneeIds,
+      },
+      runStatus: "idle",
+    },
+  };
+}
+
+function callWorkflowNode(): VisualWorkflowRfNode {
+  return {
+    id: "call",
+    type: "flow.call_workflow",
+    position: { x: 0, y: 0 },
+    ...getVisualNodeDimensions("flow.call_workflow"),
+    data: {
+      catalogType: "flow.call_workflow",
+      config: {
+        kind: "flow.call_workflow",
+        workflowId: "11111111-1111-4111-8111-111111111111",
+        version: 3,
+        inputFields: [{ id: "customerId", name: "customerId", type: "string", required: true }],
+        outputFields: [{ id: "result-id", name: "result", type: "object", required: true }],
+        onError: "stop",
+      },
+      runStatus: "idle",
+    },
+  };
+}
+
 describe("VisualWorkflowConfigPanel", () => {
   it("lets operators change the trigger type and delete the step", async () => {
     const user = userEvent.setup();
@@ -162,7 +264,15 @@ describe("VisualWorkflowConfigPanel", () => {
     await user.click(await screen.findByRole("option", { name: "GitHub" }));
     expect(onChangeNodeType).toHaveBeenCalledWith("trigger.github");
 
-    await user.click(screen.getByRole("button", { name: "Delete step" }));
+    // Delete sits in the panel's header beside Back, in the destructive style. Both are icons
+    // that keep their names.
+    const deleteStep = screen.getByRole("button", { name: "Delete step" });
+    const back = screen.getByRole("button", { name: "Back" });
+    expect(deleteStep.parentElement).toContainElement(back);
+    expect(deleteStep).toHaveClass("text-destructive");
+    expect(deleteStep).toHaveTextContent("");
+    expect(back).toHaveTextContent("");
+    await user.click(deleteStep);
     expect(onDeleteNode).toHaveBeenCalledOnce();
   });
 
@@ -273,7 +383,7 @@ describe("VisualWorkflowConfigPanel", () => {
       />,
     );
 
-    expect(screen.getByRole("textbox", { name: "Duration (ms)" })).toHaveValue("60000");
+    expect(screen.getByRole("textbox", { name: "Duration (ms)" })).toHaveTextContent("60000");
 
     await user.click(screen.getByRole("combobox", { name: "Wait mode" }));
     await user.click(await screen.findByRole("option", { name: "Until condition" }));
@@ -307,13 +417,14 @@ describe("VisualWorkflowConfigPanel", () => {
       />,
     );
 
-    expect(screen.getByRole("textbox", { name: "Condition" })).toHaveValue("status === 'ready'");
-    expect(screen.getByRole("textbox", { name: "Polling interval (ms)" })).toHaveValue("5000");
-    expect(screen.getByRole("textbox", { name: "Timeout (ms)" })).toHaveValue("300000");
-    const timeout = screen.getByRole("textbox", { name: "Timeout (ms)" });
-    fireEvent.change(timeout, {
-      target: { value: "600000" },
-    });
+    expect(screen.getByRole("textbox", { name: "Condition" })).toHaveTextContent(
+      "status === 'ready'",
+    );
+    expect(screen.getByRole("textbox", { name: "Polling interval (ms)" })).toHaveTextContent(
+      "5000",
+    );
+    expect(screen.getByRole("textbox", { name: "Timeout (ms)" })).toHaveTextContent("300000");
+    replaceText(screen.getByRole("textbox", { name: "Timeout (ms)" }), "600000");
 
     expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
       kind: "flow.wait",
@@ -343,9 +454,9 @@ describe("VisualWorkflowConfigPanel", () => {
     );
 
     const timestamp = screen.getByRole("textbox", { name: "Timestamp" });
-    expect(timestamp).toHaveValue("2026-10-01T10:00:00.000Z");
+    expect(timestamp).toHaveTextContent("2026-10-01T10:00:00.000Z");
 
-    fireEvent.change(timestamp, { target: { value: "2026-10-02T12:30:00.000Z" } });
+    replaceText(timestamp, "2026-10-02T12:30:00.000Z");
 
     expect(onChangeConfig.mock.calls.at(-1)?.[0]).toEqual({
       kind: "flow.wait",
@@ -577,6 +688,349 @@ describe("VisualWorkflowConfigPanel", () => {
     });
   });
 
+  it("marks the settings an issue names", () => {
+    const slack = slackNode();
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={slack}
+        nodes={[slack]}
+        issues={[
+          { code: "invalid_node_config", nodeId: "slack", field: "channelId", reason: "required" },
+          { code: "invalid_node_config", nodeId: "other", field: "message", reason: "required" },
+        ]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeContract={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(document.getElementById("vw-slack-channel")).toHaveAttribute("aria-invalid", "true");
+    // An issue about another step's setting of the same name marks nothing here.
+    expect(document.getElementById("vw-slack-message")).not.toHaveAttribute("aria-invalid");
+  });
+
+  describe("tabs", () => {
+    function panel(
+      node: VisualWorkflowRfNode,
+      props: Partial<Parameters<typeof VisualWorkflowConfigPanel>[0]> = {},
+    ) {
+      return (
+        <VisualWorkflowConfigPanel
+          node={node}
+          nodes={[node]}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={vi.fn()}
+          onChangeContract={vi.fn()}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+          {...props}
+        />
+      );
+    }
+
+    it("opens on the step's own form, with its outputs on a tab of their own", async () => {
+      const user = userEvent.setup();
+      renderPanel(panel(slackNode()));
+
+      expect(screen.getByRole("tab", { name: "Configuration" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      expect(screen.queryByRole("tab", { name: "Inputs" })).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Slack channel ID")).toBeInTheDocument();
+      expect(screen.queryByText("Output fields (path, type, optional)")).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("tab", { name: "Outputs" }));
+      expect(screen.getByText("Output fields (path, type, optional)")).toBeInTheDocument();
+      // The tab names the part, so the part has no heading of its own.
+      expect(screen.queryByRole("heading", { name: "Outputs" })).not.toBeInTheDocument();
+    });
+
+    it("keeps the chosen tab when another step is selected", async () => {
+      const user = userEvent.setup();
+      const { rerender } = renderPanel(panel(slackNode("first")));
+
+      await user.click(screen.getByRole("tab", { name: "Outputs" }));
+      rerender(panel(slackNode("second")));
+
+      expect(screen.getByRole("tab", { name: "Outputs" })).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("shows the step's own form when an issue about a setting is picked", async () => {
+      const user = userEvent.setup();
+      const slack = slackNode();
+      renderPanel(
+        panel(slack, {
+          issues: [
+            {
+              code: "invalid_node_config",
+              nodeId: "slack",
+              field: "channelId",
+              reason: "required",
+            },
+          ],
+          onSelectNode: vi.fn(),
+        }),
+      );
+
+      await user.click(screen.getByRole("tab", { name: "Outputs" }));
+      await user.click(screen.getByText("channelId is required."));
+
+      expect(screen.getByRole("tab", { name: "Configuration" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      expect(screen.getByLabelText("Slack channel ID")).toHaveAttribute("aria-invalid", "true");
+    });
+
+    it("shows which step feeds a wired setting, and can disconnect it", async () => {
+      const user = userEvent.setup();
+      const onDisconnectInput = vi.fn();
+      const http: VisualWorkflowRfNode = {
+        id: "http",
+        type: "action.http",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("action.http"),
+        data: {
+          catalogType: "action.http",
+          config: createDefaultConfig("action.http"),
+          runStatus: "idle",
+        },
+      };
+      renderPanel(
+        panel(slackNode(), {
+          nodes: [http, slackNode()],
+          edges: [
+            {
+              id: "wire",
+              source: "http",
+              target: "slack",
+              sourceHandle: "json.reviewers",
+              targetHandle: "message",
+              data: { kind: "data" },
+            },
+          ],
+          onDisconnectInput,
+        }),
+      );
+
+      expect(screen.queryByRole("textbox", { name: "Message" })).not.toBeInTheDocument();
+      expect(screen.getByText("HTTP Request")).toBeInTheDocument();
+      expect(screen.getByText("› json › reviewers")).toBeInTheDocument();
+      // The channel is still typed, and still has its port.
+      expect(screen.getByRole("textbox", { name: "Slack channel ID" })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Disconnect" }));
+      expect(onDisconnectInput).toHaveBeenCalledWith("message");
+    });
+
+    it("puts a field of an earlier step into a setting's text from the Insert menu", async () => {
+      const user = userEvent.setup();
+      const onChangeConfig = vi.fn();
+      const http: VisualWorkflowRfNode = {
+        id: "http",
+        type: "action.http",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("action.http"),
+        data: {
+          catalogType: "action.http",
+          config: createDefaultConfig("action.http"),
+          runStatus: "idle",
+        },
+      };
+      const slack = slackNode();
+      slack.data.config = { ...slack.data.config, message: "Hi " } as typeof slack.data.config;
+      renderPanel(
+        panel(slack, {
+          nodes: [http, slack],
+          edges: [{ id: "e", source: "http", target: "slack", data: { kind: "execution" } }],
+          allTestData: { http: { json: { reviewers: "ana@acme.dev" } } },
+          onChangeConfig,
+        }),
+      );
+
+      await user.click(screen.getByRole("button", { name: "Insert a field into Message" }));
+      // The menu's contents are hidden from the test DOM's accessibility tree, as the app's other
+      // pickers are.
+      await user.type(
+        await screen.findByRole("combobox", { name: "Find a field", hidden: true }),
+        "review",
+      );
+      await user.click(
+        await screen.findByRole("option", { name: /json\.reviewers/, hidden: true }),
+      );
+
+      expect(onChangeConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Hi {{ nodes.http.json.reviewers }}" }),
+      );
+    });
+
+    it("shows the fields a setting reads as pills inside its text, and points at their steps", async () => {
+      const user = userEvent.setup();
+      const onPointStep = vi.fn();
+      const onChangeConfig = vi.fn();
+      const http: VisualWorkflowRfNode = {
+        id: "http",
+        type: "action.http",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("action.http"),
+        data: {
+          catalogType: "action.http",
+          config: createDefaultConfig("action.http"),
+          runStatus: "idle",
+        },
+      };
+      const slack = slackNode();
+      slack.data.config = {
+        ...slack.data.config,
+        message: "{{ nodes.http.json.count }} new strings",
+      } as typeof slack.data.config;
+      renderPanel(
+        panel(slack, {
+          nodes: [http, slack],
+          edges: [{ id: "e", source: "http", target: "slack", data: { kind: "execution" } }],
+          onPointStep,
+          onChangeConfig,
+        }),
+      );
+
+      const message = screen.getByRole("textbox", { name: "Message" });
+      await waitFor(() => expect(message).toHaveTextContent("HTTP Request›json.count new strings"));
+      const pill = screen.getByText("json.count").closest<HTMLElement>('[data-slot="field-pill"]')!;
+      expect(pill).toHaveAttribute("title", "HTTP Request › json › count");
+      expect(pill).not.toHaveAttribute("data-broken");
+
+      await user.hover(pill);
+      expect(onPointStep).toHaveBeenLastCalledWith("http");
+      await user.unhover(pill);
+      expect(onPointStep).toHaveBeenLastCalledWith(null);
+
+      // Editing the text around a pill keeps the reference as it was written.
+      const editor = (message as HTMLElement & { editor?: Editor }).editor!;
+      act(() => {
+        editor.chain().focus("end").insertContent(" today").run();
+      });
+      expect(onChangeConfig).toHaveBeenLastCalledWith(
+        expect.objectContaining({ message: "{{ nodes.http.json.count }} new strings today" }),
+      );
+    });
+
+    it("marks a pill whose step does not run before this one", async () => {
+      const http: VisualWorkflowRfNode = {
+        id: "http",
+        type: "action.http",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("action.http"),
+        data: {
+          catalogType: "action.http",
+          config: createDefaultConfig("action.http"),
+          runStatus: "idle",
+        },
+      };
+      const slack = slackNode();
+      slack.data.config = {
+        ...slack.data.config,
+        message: "{{ nodes.http.json.count }} and {{ nodes.gone.status }}",
+      } as typeof slack.data.config;
+      renderPanel(panel(slack, { nodes: [http, slack], edges: [] }));
+
+      const message = screen.getByRole("textbox", { name: "Message" });
+      await waitFor(() =>
+        expect(message.querySelectorAll('[data-slot="field-pill"]')).toHaveLength(2),
+      );
+      const pills = message.querySelectorAll('[data-slot="field-pill"]');
+      expect(pills[0]).toHaveAttribute("data-broken", "true");
+      expect(pills[0]).toHaveAttribute(
+        "title",
+        "HTTP Request › json › count cannot be read here: that step does not run before this one.",
+      );
+      expect(pills[1]).toHaveAttribute("data-broken", "true");
+      expect(pills[1]).toHaveTextContent("gone›status");
+    });
+
+    it("turns a fixed value stored by an older version into the setting's own text", async () => {
+      const user = userEvent.setup();
+      const onChangeContract = vi.fn();
+      const onChangeConfig = vi.fn();
+      const slack = slackNode();
+      slack.data.inputs = { channelId: { kind: "literal", value: "C123" } };
+      renderPanel(panel(slack, { onChangeContract, onChangeConfig }));
+
+      expect(screen.getByText("Fixed value")).toBeInTheDocument();
+      expect(screen.getByText('› "C123"')).toBeInTheDocument();
+      expect(screen.queryByRole("textbox", { name: "Slack channel ID" })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Edit as text" }));
+      expect(onChangeConfig).toHaveBeenCalledWith(expect.objectContaining({ channelId: "C123" }));
+      expect(onChangeContract).toHaveBeenCalledWith({ inputs: {} });
+    });
+
+    it("says so when a step has no settings", () => {
+      const tryCatch: VisualWorkflowRfNode = {
+        id: "tc",
+        type: "logic.try_catch",
+        position: { x: 0, y: 0 },
+        data: {
+          catalogType: "logic.try_catch",
+          config: createDefaultConfig("logic.try_catch"),
+          runStatus: "idle",
+        },
+      };
+      renderPanel(panel(tryCatch));
+
+      expect(
+        screen.getByText("This step has nothing to set up. Its outputs are on the Outputs tab."),
+      ).toBeInTheDocument();
+    });
+
+    it("keeps what happens on failure under its own heading", async () => {
+      const user = userEvent.setup();
+      renderPanel(panel(slackNode()));
+
+      expect(screen.queryByRole("combobox", { name: "On error" })).not.toBeInTheDocument();
+      const heading = screen.getByRole("button", { name: /If this step fails/ });
+      expect(heading).toHaveTextContent("Stop workflow");
+
+      await user.click(heading);
+      expect(screen.getByRole("combobox", { name: "On error" })).toBeInTheDocument();
+    });
+
+    it("lists a step's wire-only inputs and asks for a wire", () => {
+      const call: VisualWorkflowRfNode = {
+        id: "call",
+        type: "flow.call_workflow",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("flow.call_workflow"),
+        data: {
+          catalogType: "flow.call_workflow",
+          config: {
+            kind: "flow.call_workflow",
+            workflowId: "11111111-1111-4111-8111-111111111111",
+            version: 3,
+            inputFields: [{ id: "customerId", name: "customerId", type: "string" }],
+            outputFields: [],
+          },
+          runStatus: "idle",
+        },
+      };
+      renderPanel(panel(call));
+
+      expect(screen.getByText("Connect this on the canvas.")).toBeInTheDocument();
+      expect(screen.getByText("customerId", { selector: "label" })).toBeInTheDocument();
+    });
+
+    it("has no tabs when the step's inputs and outputs cannot be changed", () => {
+      renderPanel(panel(slackNode(), { onChangeContract: undefined }));
+
+      expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Configure step" })).toBeInTheDocument();
+      expect(screen.getByLabelText("Slack channel ID")).toBeInTheDocument();
+    });
+  });
+
   it("configures a controlled Fail code and message", () => {
     const onChangeConfig = vi.fn();
     renderPanel(
@@ -602,5 +1056,602 @@ describe("VisualWorkflowConfigPanel", () => {
       errorCode: "ORDER_REJECTED",
       message: "Workflow failed",
     });
+  });
+
+  it("configures a published workflow and its immutable contract", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={callWorkflowNode()}
+        organizationSlug="acme"
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("customerId")).toBeInTheDocument();
+    expect(screen.getByText("result")).toBeInTheDocument();
+    expect(screen.getAllByText("object · required")).toHaveLength(1);
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Immutable version" }), {
+      target: { value: "4" },
+    });
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kind: "flow.call_workflow", version: 4 }),
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Published workflow" }));
+    await user.click(await screen.findByRole("option", { name: "Enrich customer · v3" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith({
+      kind: "flow.call_workflow",
+      workflowId: "11111111-1111-4111-8111-111111111111",
+      version: 3,
+      inputFields: [{ id: "customerId", name: "customerId", type: "string", required: true }],
+      outputFields: [{ id: "result-id", name: "result", type: "object", required: true }],
+      onError: "stop",
+    });
+  });
+
+  it("edits Create Object fields without changing their stable IDs", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+    const node: VisualWorkflowRfNode = {
+      id: "create-object",
+      type: "logic.create_object",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.create_object"),
+      data: {
+        catalogType: "logic.create_object",
+        config: {
+          kind: "logic.create_object",
+          fields: [
+            { id: "customer", name: "customerId", type: "string" },
+            { id: "locale", name: "locale", type: "string", defaultValue: "en" },
+          ],
+        },
+        runStatus: "idle",
+      },
+    };
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        issues={[
+          {
+            code: "missing_required_input",
+            nodeId: node.id,
+            field: "value.customer",
+            reason: "required",
+          },
+        ]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    const firstName = screen.getByRole("textbox", { name: "Object field 1 name" });
+    expect(firstName).toHaveAttribute("aria-invalid", "true");
+    fireEvent.change(firstName, { target: { value: "renamedCustomer" } });
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fields: [
+          expect.objectContaining({ id: "customer", name: "renamedCustomer" }),
+          expect.objectContaining({ id: "locale" }),
+        ],
+      }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Move object field 2 up" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fields: [
+          expect.objectContaining({ id: "locale" }),
+          expect.objectContaining({ id: "customer" }),
+        ],
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Add object field" }));
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      fields: [
+        expect.objectContaining({ id: "customer" }),
+        expect.objectContaining({ id: "locale" }),
+        expect.objectContaining({ name: "field3", type: "unknown" }),
+      ],
+    });
+  });
+
+  it("shows a wired Create Object field as a bound source and disables its default", () => {
+    const source: VisualWorkflowRfNode = {
+      id: "source",
+      type: "logic.set",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.set"),
+      data: {
+        catalogType: "logic.set",
+        config: createDefaultConfig("logic.set"),
+        runStatus: "idle",
+      },
+    };
+    const node: VisualWorkflowRfNode = {
+      id: "create-object",
+      type: "logic.create_object",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.create_object"),
+      data: {
+        catalogType: "logic.create_object",
+        config: {
+          kind: "logic.create_object",
+          fields: [{ id: "customer", name: "customerId", type: "string" }],
+        },
+        runStatus: "idle",
+      },
+    };
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        nodes={[source, node]}
+        edges={[
+          {
+            id: "wire",
+            source: "source",
+            target: "create-object",
+            sourceHandle: "value",
+            targetHandle: "value.customer",
+            data: { kind: "data" },
+          },
+        ]}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Set fields")).toBeInTheDocument();
+    expect(screen.getByText("› value")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Use inline default" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(
+      screen.queryByRole("textbox", { name: "Object field 1 default" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("configures Merge Objects ordering and conflict policy", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+    const node: VisualWorkflowRfNode = {
+      id: "merge-objects",
+      type: "logic.merge_objects",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.merge_objects"),
+      data: {
+        catalogType: "logic.merge_objects",
+        config: {
+          kind: "logic.merge_objects",
+          inputs: [
+            { id: "base", name: "Base" },
+            { id: "override", name: "Override" },
+          ],
+          conflictPolicy: "reject",
+        },
+        runStatus: "idle",
+      },
+    };
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Conflict policy" }));
+    await user.click(await screen.findByRole("option", { name: "Last object wins" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ conflictPolicy: "last_wins" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Move merge object 2 up" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        inputs: [
+          expect.objectContaining({ id: "override" }),
+          expect.objectContaining({ id: "base" }),
+        ],
+      }),
+    );
+    expect(screen.getByRole("button", { name: "Remove merge object 1" })).toBeDisabled();
+  });
+
+  it("keeps incomplete JSON object defaults while typing", () => {
+    const onChangeConfig = vi.fn();
+
+    function StatefulCreateObjectPanel() {
+      const [config, setConfig] = useState<
+        Extract<VisualNodeConfig, { kind: "logic.create_object" }>
+      >({
+        kind: "logic.create_object",
+        fields: [{ id: "metadata", name: "metadata", type: "object", defaultValue: {} }],
+      });
+      const node: VisualWorkflowRfNode = {
+        id: "create-object",
+        type: "logic.create_object",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("logic.create_object"),
+        data: {
+          catalogType: "logic.create_object",
+          config,
+          runStatus: "idle",
+        },
+      };
+
+      return (
+        <VisualWorkflowConfigPanel
+          node={node}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={(next) => {
+            onChangeConfig(next);
+            if (next.kind === "logic.create_object") {
+              setConfig(next);
+            }
+          }}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+        />
+      );
+    }
+
+    renderPanel(<StatefulCreateObjectPanel />);
+
+    const defaultInput = screen.getByRole("textbox", { name: "Object field 1 default" });
+    expect(defaultInput).toHaveValue("{}");
+
+    fireEvent.change(defaultInput, { target: { value: "{" } });
+    expect(defaultInput).toHaveValue("{");
+    expect(
+      onChangeConfig.mock.calls.some(
+        ([next]) =>
+          next.kind === "logic.create_object" &&
+          (next.fields[0] as VisualObjectField | undefined)?.defaultValue === "{",
+      ),
+    ).toBe(false);
+
+    fireEvent.change(defaultInput, { target: { value: '{"locale":"en"}' } });
+    expect(defaultInput).toHaveValue('{"locale":"en"}');
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fields: [expect.objectContaining({ defaultValue: { locale: "en" } })],
+      }),
+    );
+  });
+
+  it("configures a Select Path and converts object and array path segments", () => {
+    const onChangeConfig = vi.fn();
+    const node: VisualWorkflowRfNode = {
+      id: "select-path",
+      type: "logic.select_path",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.select_path"),
+      data: {
+        catalogType: "logic.select_path",
+        config: {
+          kind: "logic.select_path",
+          path: ["customer", "orders", 0, "id"],
+          outputType: "string",
+          missingBehavior: "error",
+        },
+        runStatus: "idle",
+      },
+    };
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    const path = screen.getByRole("textbox", { name: "Path" });
+    expect(path).toHaveTextContent("customer.orders[0].id");
+    replaceText(path, "items[2].locale");
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ path: ["items", 2, "locale"] }),
+    );
+    expect(screen.getByLabelText("Output type")).toHaveTextContent("string");
+    expect(screen.getByLabelText("When the path is missing")).toHaveTextContent("Fail the step");
+
+    onChangeConfig.mockClear();
+    replaceText(path, "items[");
+    expect(path).toHaveTextContent("items[");
+    expect(onChangeConfig).not.toHaveBeenCalled();
+    replaceText(path, "customer.");
+    expect(path).toHaveTextContent("customer.");
+    expect(onChangeConfig).not.toHaveBeenCalled();
+    replaceText(path, "customer.locale");
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ path: ["customer", "locale"] }),
+    );
+  });
+
+  it("configures ordered Coalesce inputs without changing their stable ids", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+
+    function StatefulCoalescePanel() {
+      const [config, setConfig] = useState<Extract<VisualNodeConfig, { kind: "logic.coalesce" }>>({
+        kind: "logic.coalesce",
+        inputs: [
+          { id: "primary", name: "Primary", type: "string" },
+          { id: "fallback", name: "Fallback", type: "string", defaultValue: "en" },
+        ],
+        treatNullAsMissing: true,
+        treatEmptyStringAsMissing: false,
+        treatEmptyArrayAsMissing: false,
+        treatEmptyObjectAsMissing: false,
+      });
+      const node: VisualWorkflowRfNode = {
+        id: "coalesce",
+        type: "logic.coalesce",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("logic.coalesce"),
+        data: {
+          catalogType: "logic.coalesce",
+          config,
+          runStatus: "idle",
+        },
+      };
+
+      return (
+        <VisualWorkflowConfigPanel
+          node={node}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={(next) => {
+            onChangeConfig(next);
+            if (next.kind === "logic.coalesce") setConfig(next);
+          }}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+        />
+      );
+    }
+
+    renderPanel(<StatefulCoalescePanel />);
+
+    await user.click(screen.getByRole("button", { name: "Move value 2 up" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        inputs: [
+          expect.objectContaining({ id: "fallback" }),
+          expect.objectContaining({ id: "primary" }),
+        ],
+      }),
+    );
+    expect(screen.getByRole("textbox", { name: "Value 1 name" })).toHaveValue("Fallback");
+
+    await user.click(screen.getByRole("button", { name: "Add value" }));
+    expect(screen.getByRole("textbox", { name: "Value 3 name" })).toHaveValue("Value 3");
+
+    await user.click(screen.getByRole("checkbox", { name: "Empty arrays" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ treatEmptyArrayAsMissing: true }),
+    );
+  });
+
+  it("configures Compare operators while preserving stable operand ids", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+
+    function StatefulComparePanel() {
+      const [config, setConfig] = useState<Extract<VisualNodeConfig, { kind: "logic.compare" }>>({
+        kind: "logic.compare",
+        operator: "equal",
+        operands: [
+          { id: "left", name: "Left", type: "string" },
+          { id: "right", name: "Right", type: "string" },
+        ],
+      });
+      const node: VisualWorkflowRfNode = {
+        id: "compare",
+        type: "logic.compare",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("logic.compare"),
+        data: { catalogType: "logic.compare", config, runStatus: "idle" },
+      };
+      return (
+        <VisualWorkflowConfigPanel
+          node={node}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={(next) => {
+            onChangeConfig(next);
+            if (next.kind === "logic.compare") setConfig(next);
+          }}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+        />
+      );
+    }
+
+    renderPanel(<StatefulComparePanel />);
+    expect(screen.getByRole("textbox", { name: "Value 1 name" })).toHaveValue("Left");
+    expect(screen.getAllByText("Connect this on the canvas.")).toHaveLength(2);
+    await user.click(screen.getByRole("combobox", { name: "Operator" }));
+    await user.click(await screen.findByRole("option", { name: "AND" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        operator: "and",
+        operands: [
+          expect.objectContaining({ id: "left", type: "boolean" }),
+          expect.objectContaining({ id: "right", type: "boolean" }),
+        ],
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Add condition" }));
+    expect(screen.getByRole("textbox", { name: "Value 3 name" })).toHaveValue("Condition 3");
+  });
+
+  it("resets Crowdin people IDs when the saved value or selected step changes", () => {
+    const first = pickAssigneeCrowdinNode("pick-a", ["12", "14"]);
+    const { rerender } = renderPanel(
+      <VisualWorkflowConfigPanel
+        node={first}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    const fallback = () => document.getElementById("vw-pick-assignee-fallback");
+    expect(fallback()).toHaveValue("12, 14");
+
+    const firstConfig = first.data.config;
+    if (firstConfig.kind !== "action.pick_assignee") {
+      throw new Error("expected pick assignee config");
+    }
+    rerender(
+      <VisualWorkflowConfigPanel
+        node={{
+          ...first,
+          data: {
+            ...first.data,
+            config: {
+              ...firstConfig,
+              fallbackAssigneeIds: ["99", "100"],
+            },
+          },
+        }}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+    expect(fallback()).toHaveValue("99, 100");
+
+    rerender(
+      <VisualWorkflowConfigPanel
+        node={pickAssigneeCrowdinNode("pick-b", ["7"])}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+    expect(fallback()).toHaveValue("7");
+  });
+});
+
+describe("Test tab", () => {
+  function panel(
+    node: VisualWorkflowRfNode,
+    props: Partial<Parameters<typeof VisualWorkflowConfigPanel>[0]> = {},
+  ) {
+    return (
+      <VisualWorkflowConfigPanel
+        node={node}
+        nodes={[node]}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeContract={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+        onChangeTestData={vi.fn()}
+        {...props}
+      />
+    );
+  }
+
+  it("is offered on triggers and steps that call out, not on steps that compute", () => {
+    const { rerender } = renderPanel(panel(slackNode()));
+    expect(screen.getByRole("tab", { name: "Test" })).toBeInTheDocument();
+
+    const set: VisualWorkflowRfNode = {
+      ...slackNode("set"),
+      type: "logic.set",
+      data: {
+        catalogType: "logic.set",
+        config: createDefaultConfig("logic.set"),
+        runStatus: "idle",
+      },
+    };
+    rerender(panel(set));
+    expect(screen.queryByRole("tab", { name: "Test" })).not.toBeInTheDocument();
+  });
+
+  it("opens when asked from outside, with a box per output and the missing ones marked", async () => {
+    renderPanel(
+      panel(slackNode(), {
+        testData: { sent: true },
+        missingTestValues: [{ nodeId: "slack", path: "channelId", reason: "required" }],
+        requestedTab: { tab: "test", key: 1 },
+      }),
+    );
+
+    expect(await screen.findByRole("tab", { name: "Test" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("textbox", { name: /channelId/ })).toHaveValue("");
+    expect(screen.getByText("Needed for a test run.")).toBeInTheDocument();
+  });
+
+  it("sets a value as it is typed and fills the rest with visible examples", async () => {
+    const user = userEvent.setup();
+    const onChangeTestData = vi.fn();
+    renderPanel(panel(slackNode(), { onChangeTestData, requestedTab: { tab: "test", key: 1 } }));
+
+    await user.type(await screen.findByRole("textbox", { name: /channelId/ }), "C");
+    expect(onChangeTestData).toHaveBeenLastCalledWith({ channelId: "C" });
+
+    await user.click(screen.getByRole("button", { name: "Fill with examples" }));
+    expect(onChangeTestData).toHaveBeenLastCalledWith({ sent: true, channelId: "mock-channel" });
+  });
+
+  it("copies the step's output from the last run, and is off when there was none", async () => {
+    const user = userEvent.setup();
+    const onChangeTestData = vi.fn();
+    const ran = slackNode();
+    ran.data.lastOutput = { sent: true, channelId: "C9", simulated: true };
+    const { rerender } = renderPanel(
+      panel(slackNode(), { onChangeTestData, requestedTab: { tab: "test", key: 1 } }),
+    );
+    expect(await screen.findByRole("button", { name: "Use last run" })).toBeDisabled();
+
+    rerender(panel(ran, { onChangeTestData, requestedTab: { tab: "test", key: 1 } }));
+    await user.click(screen.getByRole("button", { name: "Use last run" }));
+    expect(onChangeTestData).toHaveBeenLastCalledWith({ sent: true, channelId: "C9" });
+  });
+
+  it("offers the workspace's projects for a source upload trigger's project", async () => {
+    renderPanel(
+      panel(triggerNode("trigger.source_upload"), { requestedTab: { tab: "test", key: 1 } }),
+    );
+
+    expect(await screen.findByRole("combobox", { name: /projectId/ })).toHaveTextContent(
+      "Choose a project",
+    );
+    expect(screen.getByRole("textbox", { name: /sourceFileId/ })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /triggeredAt/ })).not.toBeInTheDocument();
   });
 });

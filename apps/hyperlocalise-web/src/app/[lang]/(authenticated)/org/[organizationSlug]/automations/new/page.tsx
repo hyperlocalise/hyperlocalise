@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import { hasCapability } from "@/api/auth/policy";
+import { canUseWorkspaceAutomationAssistant } from "@/lib/agents/workspace-automation-assistant-access";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import {
   createDefaultWorkspaceAutomationFormState,
@@ -57,7 +58,10 @@ async function NewAutomationPageLoader({
     return <FeatureTeaserPage feature="automations" scope="workspace" />;
   }
 
-  const flags = await evaluateWorkspaceFeatureFlags(auth);
+  const [flags, assistantEnabled] = await Promise.all([
+    evaluateWorkspaceFeatureFlags(auth),
+    canUseWorkspaceAutomationAssistant(auth),
+  ]);
   const templates = getMergedWorkspaceAutomationTemplates();
   const initialForm = template
     ? (createWorkspaceAutomationFormStateFromTemplate(template, templates) ??
@@ -69,6 +73,8 @@ async function NewAutomationPageLoader({
       organizationSlug={organizationSlug}
       initialForm={initialForm}
       knowledgeAvailable={flags.knowledge}
+      assistantEnabled={assistantEnabled}
+      startsFromTemplate={Boolean(template)}
       canUpdateKnowledgeMemory={hasCapability(auth.membership.role, "workspace:update")}
     />
   );

@@ -7,6 +7,8 @@ go_library(
         "extra_placeholders.go",
         "invariant.go",
         "kinds.go",
+        "message_format.go",
+        "plural.go",
         "profile.go",
         "qa.go",
         "qa_locale.go",
@@ -18,6 +20,7 @@ go_library(
     deps = [
         "//internal/i18n/htmltagparity",
         "//internal/i18n/icuparser",
+        "//internal/i18n/pluralrules",
         "//internal/i18n/translationfileparser",
     ],
 )
@@ -25,6 +28,8 @@ go_library(
 go_test(
     name = "segmentvalidate_test",
     srcs = [
+        "message_format_test.go",
+        "plural_test.go",
         "profile_test.go",
         "qa_test.go",
         "validate_test.go",

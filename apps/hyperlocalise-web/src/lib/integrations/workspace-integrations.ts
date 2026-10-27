@@ -30,10 +30,9 @@ import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external
 
 export const workspaceComingSoonCollaborationSlugs = ["microsoft-teams", "jira", "linear"] as const;
 
-export const workspaceComingSoonGuidelineSlugs = ["google-drive", "sharepoint"] as const;
+export const workspaceComingSoonGuidelineSlugs = ["sharepoint"] as const;
 
 export const workspaceComingSoonCustomerEngagementSlugs = [
-  "braze",
   "iterable",
   "customer-io",
   "loops",
@@ -55,16 +54,14 @@ export const workspacePipesGuidelineSlugs = [
 
 export const workspacePipesCustomerEngagementSlugs = [
   "intercom",
+  "braze",
   "hubspot",
   "mailchimp",
   "sendgrid",
   "resend",
 ] as const satisfies readonly PipesProviderSlug[];
 
-export const workspacePipesCmsSlugs = [
-  "webflow",
-  "sanity",
-] as const satisfies readonly PipesProviderSlug[];
+export const workspacePipesCmsSlugs = ["webflow"] as const satisfies readonly PipesProviderSlug[];
 
 export const workspacePipesSeoToolSlugs = [
   "google-search-console",

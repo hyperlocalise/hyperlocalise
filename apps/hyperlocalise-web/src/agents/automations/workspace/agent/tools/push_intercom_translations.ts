@@ -14,7 +14,10 @@ import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { updateWorkspaceAutomationRun } from "@/lib/agents/workspace-automations";
-import { runPushIntercomTranslations } from "@/lib/intercom/push-intercom-translations";
+import {
+  readIntercomPushSourcePaths,
+  runPushIntercomTranslations,
+} from "@/lib/intercom/push-intercom-translations";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import {
@@ -47,6 +50,7 @@ export function createPushIntercomTranslationsTool(session: WorkspaceOrchestrato
       const result = await runPushIntercomTranslations({
         organizationId: session.organizationId,
         automation: session.automation,
+        sourcePaths: readIntercomPushSourcePaths(session.run.inputSnapshot),
       });
 
       const output = {

@@ -10,7 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createDefaultConfig, getVisualNodeDimensions } from "../catalog/node-catalog";
+import {
+  createDefaultConfig,
+  getVisualNodeDimensions,
+  VISUAL_NODE_CATALOG,
+} from "../catalog/node-catalog";
 import type {
   VisualCatalogType,
   VisualWorkflowDefinition,
@@ -20,45 +24,34 @@ import type {
   VisualWorkflowV3Definition,
 } from "./types";
 import { VISUAL_WORKFLOW_SCHEMA_VERSION } from "./types";
-import { computeForEachBodyNodeIds } from "../editor/for-each-body-membership";
+import {
+  computeForEachBodyNodeIds,
+  computeTryCatchBodyNodeIds,
+} from "../editor/for-each-body-membership";
 
-const ENABLED_TYPES = new Set<VisualCatalogType>([
-  "trigger.manual",
-  "trigger.scheduled",
-  "trigger.github",
-  "trigger.source_upload",
-  "action.http",
-  "action.content_sync",
-  "action.notify_slack",
-  "action.notify_email",
-  "logic.if",
-  "logic.switch",
-  "logic.set",
-  "ai.agent",
-  "logic.for_each",
-  "flow.wait",
-  "flow.stop",
-  "flow.return",
-  "flow.fail",
-  "logic.merge",
-  "logic.sequence",
-]);
+const ENABLED_TYPES = new Set<VisualCatalogType>(
+  VISUAL_NODE_CATALOG.filter((item) => item.enabled).map((item) => item.type),
+);
 
 function deriveFlowBodyMembership(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
 ): VisualWorkflowRfNode[] {
-  return nodes.map((node) =>
-    node.data.catalogType === "logic.for_each"
+  return nodes.map((node) => {
+    const compute =
+      node.data.catalogType === "logic.for_each"
+        ? computeForEachBodyNodeIds
+        : node.data.catalogType === "logic.try_catch"
+          ? computeTryCatchBodyNodeIds
+          : null;
+
+    return compute
       ? {
           ...node,
-          data: {
-            ...node.data,
-            bodyNodeIds: computeForEachBodyNodeIds(node.id, edges),
-          },
+          data: { ...node.data, bodyNodeIds: compute(node.id, edges) },
         }
-      : node,
-  );
+      : node;
+  });
 }
 
 export function toVisualWorkflowDefinition(

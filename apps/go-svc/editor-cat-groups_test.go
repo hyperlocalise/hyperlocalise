@@ -235,6 +235,28 @@ func TestEditorCatGroupVariantsListDivergentTranslationsAndSaveOneVariant(t *tes
 	require.Empty(t, grouped.DivergentLocales)
 }
 
+func TestEditorCatGroupedSaveHonorsFileMessageFormat(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	file := mustEditorCatSourceFile(t, scope, "a.json")
+	icuArg := mustEditorCatKey(t, scope, file, "icu.arg", "Hello {name}")
+	interpolation := mustEditorCatKey(t, scope, file, "i18n.arg", "Hello {{name}}")
+	_, err := scope.Pool.Exec(t.Context(), `update repository_source_files set message_format='i18next' where id=$1`, file)
+	require.NoError(t, err)
+
+	allowed := `{"sourcePath":"a.json","targetLocale":"fr","externalStringId":"` + icuArg + `","text":"Bonjour","group":{"sourcePath":"a.json","occurrenceIds":["` + icuArg + `"]}}`
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/translations"), allowed)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	rejected := `{"sourcePath":"a.json","targetLocale":"fr","externalStringId":"` + interpolation + `","text":"Bonjour","group":{"sourcePath":"a.json","occurrenceIds":["` + interpolation + `"]}}`
+	rec = editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/translations"), rejected)
+	require.Equal(t, http.StatusUnprocessableEntity, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "group_member_validation_failed")
+
+	var saved int
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select count(*) from project_translations where translation_key_id=$1`, interpolation).Scan(&saved))
+	require.Zero(t, saved)
+}
+
 func TestEditorCatGroupedSaveValidatesEachOccurrenceMaxLength(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "translator")
 	file := mustEditorCatSourceFile(t, scope, "a.json")

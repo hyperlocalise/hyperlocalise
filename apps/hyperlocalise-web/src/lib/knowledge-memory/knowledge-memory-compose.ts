@@ -14,18 +14,24 @@
 export function composeScopedKnowledgeMemory(input: {
   projectGuideline?: string | null;
   workspaceGuideline?: string | null;
+  uploadedGuidelines?: string | null;
 }): string {
   const projectGuideline = input.projectGuideline?.trim() ?? "";
   const workspaceGuideline = input.workspaceGuideline?.trim() ?? "";
+  const uploadedGuidelines = input.uploadedGuidelines?.trim() ?? "";
 
-  if (projectGuideline && workspaceGuideline) {
-    return [
-      "## Project guideline",
-      projectGuideline,
-      "## Workspace guideline",
-      workspaceGuideline,
-    ].join("\n\n");
+  const typed =
+    projectGuideline && workspaceGuideline
+      ? [
+          "## Project guideline",
+          projectGuideline,
+          "## Workspace guideline",
+          workspaceGuideline,
+        ].join("\n\n")
+      : projectGuideline || workspaceGuideline;
+
+  if (!uploadedGuidelines) {
+    return typed;
   }
-
-  return projectGuideline || workspaceGuideline;
+  return [typed, "## Uploaded guidelines", uploadedGuidelines].filter(Boolean).join("\n\n");
 }

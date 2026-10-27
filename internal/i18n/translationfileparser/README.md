@@ -32,10 +32,13 @@
 - `.svg` via `SVGParser` (`text`, `tspan`, `textPath`, `title`, and `desc`)
 - `.json` Lottie animations via `JSONParser` content detection (editable text layers only)
 - `.lottie` via `DotLottieParser` (dotLottie zip archives)
+- `.xlsx` via `XLSXParser` (Excel workbooks, multilingual and cell layouts)
+- `.docx` via `DOCXParser` (Word paragraphs)
+- `.pptx` via `PPTXParser` (PowerPoint slide paragraphs)
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, Qt Linguist TS, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, TSV, TOML, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX/RESW, Java properties, INI, SubRip/WebVTT/SBV subtitle, and SVG text parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, Qt Linguist TS, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, TSV, TOML, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX/RESW, Java properties, INI, SubRip/WebVTT/SBV subtitle, SVG text, Lottie, Excel, Word, and PowerPoint parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -47,6 +50,7 @@
 - Nested objects are flattened with dotted keys.
   - Example: `{ "home": { "title": "Accueil" } }` -> `home.title=Accueil`
 - Non-string leaf values are rejected.
+- Strict FormatJS-style objects are supported when each top-level key has a static `defaultMessage`. `description` is returned as entry context by `ParseWithContext` and `ParseIngestEntries`.
 
 ### Lottie (`.json`)
 
@@ -63,6 +67,24 @@
 - Keys are prefixed with the entry path: `a/promo.json#layers[1].t.d.k[0].s.t`.
 - `MarshalDotLottie(template, values)` rebuilds the archive, rewriting only animations with changed text. Other entries (manifest, images, themes, state machines) are copied without recompression, and entry order, compression method, and timestamps are preserved.
 - Theme and slot overrides are not extracted. Animation entries larger than 64 MiB decompressed are rejected.
+
+### Excel (`.xlsx`)
+
+- Reads each visible sheet in one of two layouts, chosen from the first row and the source locale. Hidden sheets are skipped.
+- Multilingual sheets have a header naming the source locale (`English`, `en-US`, `en`). Each later row is one entry keyed by its key column (`key`, `id`, `context`), or `Sheet!N:N` when the key is empty or repeats an earlier one. Comment columns become entry context and length columns become `IngestEntry.MaxLength`.
+- Cell-layout sheets have no source column. Every text cell, including row 1, is one entry keyed `Sheet!B3`.
+- Formulas, numbers, dates, booleans, and text without letters are never entries.
+- `ParseSource`, `ParseWithLocale`, and `ParseIngestEntries` read the locale column. `ReadXLSXEntries(content, sourceLocale, locale)` reads a target column with source-derived keys.
+- `MarshalXLSX(template, values, sourceLocale, targetLocale)` writes into a copy of the template. A missing target column is appended with the locale code as header and the source column's width and styles. Empty values, unknown keys, and formula cells are skipped.
+- Header rules are mirrored in `apps/hyperlocalise-web/src/lib/translation/xlsx/xlsx-columns.ts`; keep both in sync.
+
+### Word and PowerPoint (`.docx`, `.pptx`)
+
+- One entry per paragraph, keyed `<part>#<index>`: `word/document.xml#12`, `ppt/slides/slide3.xml#4`. The index counts every paragraph in the part, including empty ones.
+- Word reads the main document, then headers, footers, footnotes, and endnotes. Tracked deletions are dropped and tracked insertions are kept. PowerPoint reads slides in presentation order; notes, layouts, masters, charts, and diagrams are not entries.
+- An entry's text uses the formatting that covers most of the paragraph. Other formatting, links, and non-text objects become `\x1eHLOXPH_<hex>_<n>\x1f` placeholders, and the entry context asks the model to keep them.
+- `MarshalDOCX(template, values)` and `MarshalPPTX(template, values)` rebuild only paragraphs whose value differs from the source, reading formatting from the template. Other parts are copied without recompression.
+- Rules are mirrored in `apps/hyperlocalise-web/src/lib/translation/ooxml`; `testdata/ooxml` goldens are shared by both test suites.
 
 ### JSONC
 
@@ -97,6 +119,7 @@
 - ICU plural/select messages and placeholders are treated as ordinary string values.
 - Mapping keys cannot contain `.`, `[`, or `]` because those characters are reserved for flattened dotted/index paths.
 - Non-string scalar leaves such as numbers, booleans, nulls, timestamps, anchors, and aliases are rejected with clear errors.
+- Immediate key/value `#` comments (`HeadComment` and `LineComment`) are returned as entry context by `ParseWithContext` and `ParseIngestEntries`. Ancestor mapping comments are not copied onto nested leaves.
 - `MarshalYAML(template, values)` rewrites only existing string leaves. It preserves key order and comments carried by `yaml.v3` nodes where possible, but YAML formatting and scalar style may be normalized during writeback.
 
 ### ARB
@@ -111,25 +134,27 @@
 - Reads keys from `id` first, then `name`, then `resname`.
 - Supports `<trans-unit>` (1.2) and `<unit>` (2.x).
 - Uses `<target>` when present, falls back to `<source>` when target is empty.
+- Unit and segment `<note>` / `<notes>` text is returned as entry context by `ParseWithContext` and `ParseIngestEntries`.
 
 ### PO
 
-- Reads `msgid` -> `msgstr` mappings.
-- Supports multiline quoted continuations.
-- For plural forms, uses `msgstr[0]` as the mapped value.
-- Skips header entry (`msgid ""`).
-- Ignores comments and `msgctxt` for now.
+- Reads `.po` and `.pot` catalogs.
+- Singular entries use `msgid` as the key. `msgctxt` is prefixed as `context||msgid` (Phrase Strings). Translator comments (`#`) and extracted comments (`#.`) are entry context. References (`#:`), flags, previous values (`#|`), and obsolete entries (`#~`) stay in the file and are not separate keys.
+- A non-empty `msgstr` is the translatable value. An empty `msgstr` falls back to `msgid` (and `msgid_plural` for plural slots other than `one`), which is how POT templates and Crowdin's default source are read. Header field `X-Crowdin-SourceKey: msgstr` disables that fallback.
+- Plural entries become one key per CLDR category in gettext index order: `msgid||one`, `msgid||other`, and, with context, `context||msgid||few`. Categories come from the `Plural-Forms` header when it matches a known rule, otherwise from the `Language` header. Two-form catalogs without a header use `one` and `other`.
+- `MarshalPOFileForLocale` writes every plural slot for the target locale, fills missing categories from `other`, removes `fuzzy` from entries it replaces, and rewrites header `Language` and `Plural-Forms`. A bare msgid key still fills the `one` slot so older lockfiles keep working.
+- The header entry (`msgid ""`) is not a translatable string.
 - Unreal Engine rich-text tags in `msgstr` (`<Style>text</>`, `<{name}>text</>`, and self-closing decorators such as `<img id="Health"/>`) become `\x1eHLUEPH_…\x1f` placeholders during parse. `MarshalPOFile` restores the original markup. Named HTML closes, unclosed openings, and prose in angle brackets stay ordinary text. See `docs/cli/reference/formats/gettext.mdx`.
 
 ### HTML
 
 - Extracts text content from elements bounded by open/close tags (e.g. `<p>`, `<h1>`–`<h6>`, `<li>`, `<td>`, `<button>`, etc.).
-- Keys are stable SHA-256 hashes of the segment source: `html.a1b2c3d4e5f6g7h8`.
-- Inline tags within a translatable segment (`<strong>`, `<em>`, `<a>`, `<span>`, etc.) are replaced with sentinel placeholders so the LLM translates clean prose; placeholders are restored on marshal.
-- `<script>`, `<style>`, and `<head>` content is never extracted.
+- Keys are dotted tag paths, like markdown slot keys: `html.body.h1`, `html.p`, `html.p.strong`, `html.p.strong.2`, `html.body.img.alt`.
+- Inline tags (`<strong>`, `<em>`, `<a>`, `<span>`, etc.) join the path and flush the current text node. Markup is a literal between segments. `MarshalHTML` writes those literals back around the translated text.
+- `<script>`, `<style>`, `<pre>`, and `<head>` content is never extracted, including `<title>`.
 - HTML comments and whitespace-only text nodes are emitted verbatim.
 - HTML entities (`&amp;`, `&lt;`, `&#39;`, etc.) are preserved as-is through the translation round-trip.
-- `MarshalHTML(template, values)` reconstructs the file using the source template as the structural scaffold, substituting translated values and restoring all inline-tag placeholders.
+- `MarshalHTML(template, values)` reconstructs the file using the source template as the structural scaffold and substituting translated text nodes. Legacy hashed keys (`html.<16 hex>`) are accepted on writeback.
 
 ### Liquid
 
@@ -146,22 +171,25 @@
 - Preserves frontmatter blocks (`---`) unchanged.
 - Preserves fenced code blocks (``` and ~~~) unchanged.
 - Preserves Markdown syntax tokens and link destinations while extracting text segments.
+- Structural path and adjacent literal hints are returned as entry context by `ParseWithContext` and `ParseIngestEntries`.
 
 ### AsciiDoc
 
 - Extracts structural keys (`adoc.title`, `adoc.heading`, `adoc.paragraph`, ...).
 - Translates document titles, headings, paragraphs, list items, description lists, table cells, admonitions, and block titles.
 - Preserves YAML front matter, comments, attribute definitions, block macros, preprocessor directives, and verbatim blocks.
+- Structural path and adjacent literal hints are returned as entry context by `ParseWithContext` and `ParseIngestEntries`.
 - Protects inline code, links, cross references, attribute references, bare URLs, anchors, passthroughs, and issue references as placeholders.
 - Writes translated paragraphs as a single line.
 
 ### Apple Strings (`.strings`)
 
 - Parses `"key" = "value";` entries into `map[string]string`.
-- Ignores line comments (`// ...`) and block comments (`/* ... */`).
+- Ignores line comments (`// ...`) and block comments (`/* ... */`) during value extraction.
 - Decodes escaped sequences (`\n`, `\r`, `\t`, `\"`, `\\`) and unicode escapes (`\u`, `\Uhhhh`, surrogate pairs).
 - Supports multiline quoted value content.
 - Extracts optional max-length limits from leading entry comments using `hl:max-length=`, `max.length:`, `max length:`, or `character limit:` conventions.
+- Adjacent leading comments are returned as entry context by `ParseWithContext` and `ParseIngestEntries`.
 - `MarshalAppleStrings(template, values)` preserves template layout/comments/spacing and replaces only value literals.
 
 ### Apple Stringsdict (`.stringsdict`)
@@ -203,6 +231,7 @@
 - Flattens variation and substitution leaves using stable `::` paths.
   - Examples: `item_count::plural.one`, `search_label::device.mac`, `count_label::substitution.total::plural.other`.
 - Extracts optional max-length limits from entry-level `maxLength` / `characterLimit` JSON fields or from the entry `comment` using the same comment conventions as `.strings`.
+- Entry `comment` and variation context are returned as entry context by `ParseWithContext` and `ParseIngestEntries`.
 - Preserves comments, extraction state, string-unit state, substitutions metadata, and unrelated JSON fields on marshal.
 - `MarshalXCStrings(template, sourceTemplate, values, sourceLocale, targetLocale)` writes translated values under `localizations[targetLocale]` and emits deterministic, pretty-printed JSON.
 - Original whitespace and object ordering are normalized during writeback.
@@ -214,6 +243,7 @@
 - Parses `<string name="...">` values by resource name.
 - Parses `<plurals name="..."><item quantity="...">` values as `name.quantity`.
 - Skips resources marked `translatable="false"`.
+- Preceding XML comments at `<resources>` depth are returned as entry context by `ParseWithContext` and `ParseIngestEntries`. Comments immediately before `translatable="false"` resources are discarded.
 - Preserves comments, resource attributes such as `formatted`, namespace declarations, and unrelated whitespace when marshalling.
 - Preserves Android printf placeholders such as `%1$s` and `%d` as normal resource text.
 - Rejects unsupported translatable resource constructs such as `<string-array>` with clear errors.
@@ -228,6 +258,7 @@
   - Example: `<home><title>Welcome</title></home>` -> `home.title=Welcome`
 - `.resx` and `.resw` entries are supported.
   - Example: `<data name="home.title"><value>Welcome</value></data>` -> `home.title=Welcome`
+- Sibling `<comment>`, `<note>`, and similar metadata elements are returned as entry context by `ParseWithContext` and `ParseIngestEntries`.
 - Comments, attributes, and metadata elements such as `<metadata>`, `<comment>`, and `<resheader>` are preserved.
 - Android `<resources>`, XLIFF `<xliff>`, plist `<plist>`, and mixed-content XML values are rejected with clear errors rather than rewritten as generic XML.
 - CDATA values can be parsed, but changed translations are written back as escaped XML text rather than preserving the CDATA wrapper.

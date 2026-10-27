@@ -23,6 +23,7 @@ export type WorkspaceAutomationTemplateCategory =
 export type WorkspaceAutomationTemplate = {
   id: string;
   category: WorkspaceAutomationTemplateCategory;
+  extraCategories?: readonly WorkspaceAutomationTemplateCategory[];
   name: string;
   description: string;
   instructions: string;
@@ -103,14 +104,14 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
   },
   {
     id: "translate-intercom-articles",
-    category: "source-content",
+    category: "popular",
     name: "Translate Intercom Help Center articles",
     description:
       "Import Intercom Help Center articles into a native project on a schedule, localise in Jobs, then push approved translations when you are ready.",
     instructions: formatWorkspaceAutomationTemplateInstructions({
       role: "an Intercom Help Center localisation connector",
       capabilities: [
-        "Import changed public articles as JSON source files in the attached project",
+        "Import changed public articles as markdown source files in the attached project",
         "Open native translation jobs for mapped target locales after ingest",
         "Never push translations automatically on import — operators enqueue push separately",
       ],
@@ -125,6 +126,121 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       scheduledCadence: "daily",
       intercomEnabled: true,
       intercomRestEndpoint: "us",
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
+    id: "translate-sanity-documents",
+    category: "popular",
+    name: "Translate Sanity documents",
+    description:
+      "Import Sanity documents into a native project on a schedule, localise in Jobs, then push approved translations when you are ready.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Sanity document localisation connector",
+      capabilities: [
+        "Import changed documents as JSON source files in the attached project",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push translations automatically on import — operators enqueue push separately",
+      ],
+      goal: "Keep Sanity documents in sync for localisation and write approved translations back as Sanity drafts.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-sanity-documents"],
+      name: "Translate Sanity documents",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      sanityEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
+    id: "translate-google-drive-files",
+    category: "popular",
+    name: "Translate Google Drive files",
+    description:
+      "Import Docs, Sheets, Slides, PDF, and plain files from connected Drive folders into a native project on a schedule, localise in Jobs, then push approved translations when you are ready.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Google Drive file localisation connector",
+      capabilities: [
+        "Import supported files from connected Drive folders into the attached project",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push translations automatically on import — operators enqueue push separately",
+        "Write approved translations using the automation Translation output setting",
+      ],
+      goal: "Keep Drive source files in sync for localisation and write approved translations back with the chosen name or folder pattern.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-google-drive-files"],
+      name: "Translate Google Drive files",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      googleDriveEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
+    id: "translate-braze-email-templates",
+    category: "popular",
+    extraCategories: ["marketing"],
+    name: "Translate Braze Email Templates",
+    description:
+      "Import Braze email templates and Content Blocks as HTML, localise in Jobs, then push locale-suffixed library copies.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Braze email template localisation connector",
+      capabilities: [
+        "Import email templates and Content Blocks as HTML source files in the attached project",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push copies automatically on import — operators enqueue Push to Braze separately",
+      ],
+      goal: "Keep Braze templates in sync for localisation and write approved locales as suffixed library copies without changing the source.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-braze-email-templates"],
+      name: "Translate Braze email templates",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      brazeEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
+    id: "translate-braze-campaigns",
+    category: "popular",
+    extraCategories: ["marketing"],
+    name: "Translate Braze Campaigns & Canvas",
+    description:
+      "Import tagged draft campaign and Canvas message variations as JSON, localise in Jobs, then push approved locales through the Braze Translation API.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Braze campaign and Canvas localisation connector",
+      capabilities: [
+        "Import tagged draft campaign and Canvas message variations as JSON translation maps",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push translations automatically on import — operators enqueue Push to Braze separately",
+      ],
+      goal: "Keep Braze campaign and Canvas drafts in sync for localisation and write approved locales back through the Translation API without publishing.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-braze-campaigns"],
+      name: "Translate Braze campaigns and Canvas",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      brazeCampaignsEnabled: true,
       createNativeTmsJobEnabled: true,
       createNativeTmsJobUseProjectTargetLocales: true,
       assignTranslateWithAgentEnabled: true,
@@ -995,6 +1111,22 @@ export function getWorkspaceAutomationTemplateFlow(
     }
   }
 
+  if (form.intercomEnabled) {
+    tools.push({ id: "intercom", label: "Intercom" });
+  }
+
+  if (form.sanityEnabled) {
+    tools.push({ id: "sanity", label: "Sanity" });
+  }
+
+  if (form.googleDriveEnabled) {
+    tools.push({ id: "google-drive", label: "Google Drive" });
+  }
+
+  if (form.brazeEnabled || form.brazeCampaignsEnabled) {
+    tools.push({ id: "braze", label: "Braze" });
+  }
+
   if (form.createNativeTmsJobEnabled) {
     tools.push({ id: "create-job", label: "Create job" });
   }
@@ -1045,6 +1177,19 @@ export function getWorkspaceAutomationTemplateCategoryLabel(
   );
 }
 
+export function listWorkspaceAutomationTemplateCategories(
+  template: WorkspaceAutomationTemplate,
+): WorkspaceAutomationTemplateCategory[] {
+  return [template.category, ...(template.extraCategories ?? [])];
+}
+
+export function workspaceAutomationTemplateMatchesCategory(
+  template: WorkspaceAutomationTemplate,
+  category: WorkspaceAutomationTemplateCategory,
+) {
+  return listWorkspaceAutomationTemplateCategories(template).includes(category);
+}
+
 export function listWorkspaceAutomationTemplates(
   category?: WorkspaceAutomationTemplateCategory,
   templates: WorkspaceAutomationTemplate[] = WORKSPACE_AUTOMATION_TEMPLATES,
@@ -1053,5 +1198,7 @@ export function listWorkspaceAutomationTemplates(
     return templates;
   }
 
-  return templates.filter((template) => template.category === category);
+  return templates.filter((template) =>
+    workspaceAutomationTemplateMatchesCategory(template, category),
+  );
 }

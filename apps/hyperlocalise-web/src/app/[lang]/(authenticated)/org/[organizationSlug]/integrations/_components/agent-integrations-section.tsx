@@ -23,6 +23,9 @@ import { SimpleBrandIcon } from "./simple-brand-icon";
 import { EmailIntegrationRow } from "./email-integration-row";
 import { GitHubIntegrationRow } from "./github-integration-row";
 import { integrationsPageContentMessages } from "./integrations-page-content.messages";
+import { BrazeConnectionPanel } from "./braze-connection-panel";
+import { IntercomConnectionPanel } from "./intercom-connection-panel";
+import { GoogleDriveConnectionPanel } from "./google-drive-connection-panel";
 import { PipesConnectionPanel } from "./pipes-connection-panel";
 import { SlackIntegrationRow } from "./slack-integration-row";
 import {
@@ -159,6 +162,7 @@ export function GuidelineIntegrationsSection({
 
   return (
     <>
+      <GoogleDriveConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
       <PipesIntegrationList
         organizationSlug={organizationSlug}
         slugs={workspacePipesGuidelineSlugs}
@@ -191,12 +195,18 @@ export function CustomerEngagementIntegrationsSection({
   return (
     <>
       {showPipes ? (
-        <PipesIntegrationList
-          organizationSlug={organizationSlug}
-          slugs={workspacePipesCustomerEngagementSlugs}
-          disabled={!userIsAdmin}
-          isLast={comingSoonCustomerEngagementAgents.length === 0}
-        />
+        <>
+          <IntercomConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+          <BrazeConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+          <PipesIntegrationList
+            organizationSlug={organizationSlug}
+            slugs={workspacePipesCustomerEngagementSlugs.filter(
+              (slug) => slug !== "intercom" && slug !== "braze",
+            )}
+            disabled={!userIsAdmin}
+            isLast={comingSoonCustomerEngagementAgents.length === 0}
+          />
+        </>
       ) : null}
       {comingSoonCustomerEngagementAgents.map((agent, index) => (
         <ComingSoonIntegrationRow

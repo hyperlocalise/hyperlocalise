@@ -30,9 +30,13 @@ import { createSlackConnectRoutes } from "./routes/slack-connect/slack-connect.r
 import { authRoutes } from "./routes/auth/auth.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
 import { createCanvaConnectionRoutes } from "./routes/canva-connection/canva-connection.route";
+import { createFigmaConnectionRoutes } from "./routes/figma-connection/figma-connection.route";
+import { createSanityConnectionRoutes } from "./routes/sanity-connection/sanity-connection.route";
+import { createGoogleDriveRoutes } from "./routes/google-drive/google-drive.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
+import { createBrazeRoutes } from "./routes/braze/braze.route";
 import { createPipesRoutes } from "./routes/pipes/pipes.route";
 import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
 import { createZernioConnectionRoutes } from "./routes/zernio-connection/zernio-connection.route";
@@ -40,14 +44,10 @@ import { createIntercomConnectionRoutes } from "./routes/intercom-connection/int
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
-import { createOrganizationIssueSheetRoutes } from "./routes/issues/organization-issue-sheet.route";
-import { createOrganizationIssuesRoutes } from "./routes/issues/issues.route";
-import { createMentionSuggestionsRoutes } from "./routes/mentions/mention-suggestions.route";
-import { createIssueNotificationsRoutes } from "./routes/notifications/notifications.route";
-import { createNotificationPreferencesRoutes } from "./routes/notification-preferences/notification-preferences.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
 import { createGitlabRoutes } from "./routes/gitlab/gitlab.route";
 import { createIntercomRoutes } from "./routes/intercom/intercom.route";
+import { createSanityRoutes } from "./routes/sanity/sanity.route";
 import { createWorkspaceJobRoutes } from "./routes/project/job.route";
 import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
@@ -57,7 +57,7 @@ import { createPublicJobRoutes } from "./routes/public-jobs/public-jobs.route";
 import { createPublicTranslationRoutes } from "./routes/public-translations/public-translations.route";
 import { createSlackOAuthRoutes } from "./routes/slack-oauth/slack-oauth.route";
 import { createFileRoutes } from "./routes/file/file.route";
-import { createWorkspaceFilesRoutes } from "./routes/workspace-files/workspace-files.route";
+import { createAutomationAssistantRoutes } from "./routes/workspace-automation/automation-assistant.route";
 import { createWorkspaceAutomationRoutes } from "./routes/workspace-automation/workspace-automation.route";
 import { createVisualWorkflowRoutes } from "./routes/visual-workflow/visual-workflow.route";
 import { createExternalTmsProviderCredentialRoutes } from "./routes/external-tms-provider-credential/external-tms-provider-credential.route";
@@ -77,6 +77,7 @@ export type OrgScopedRouteOptions = {
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
   translationQaScanQueue?: TranslationQaScanQueue;
+  deferAfterResponse?: (task: () => Promise<unknown>) => void;
 };
 
 export type PublicApiRouteOptions = {
@@ -107,16 +108,10 @@ export function createPublicApiRoutes(options: PublicApiRouteOptions) {
 }
 
 export function createOrgInboxRoutes(options: OrgScopedRouteOptions) {
-  return new Hono()
-    .route("/issues", createOrganizationIssuesRoutes())
-    .route("/issue-sheet", createOrganizationIssueSheetRoutes())
-    .route("/notifications", createIssueNotificationsRoutes())
-    .route("/notification-preferences", createNotificationPreferencesRoutes())
-    .route("/mentions", createMentionSuggestionsRoutes())
-    .route(
-      "/conversations",
-      createConversationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
-    );
+  return new Hono().route(
+    "/conversations",
+    createConversationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+  );
 }
 
 export function createOrgKnowledgeRoutes(
@@ -142,7 +137,7 @@ export function createOrgProjectsRoutes(options: OrgScopedRouteOptions) {
       }),
     )
     .route("/files", createFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
-    .route("/workspace-files", createWorkspaceFilesRoutes())
+    .route("/automations/assistant", createAutomationAssistantRoutes())
     .route(
       "/automations",
       createWorkspaceAutomationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
@@ -172,8 +167,12 @@ export function createOrgIntegrationsRoutes() {
     .route("/zernio-connections", createZernioConnectionRoutes())
     .route("/ahrefs-connections", createAhrefsConnectionRoutes())
     .route("/pipes", createPipesRoutes())
+    .route("/braze", createBrazeRoutes())
     .route("/intercom-connections", createIntercomConnectionRoutes())
-    .route("/canva-connections", createCanvaConnectionRoutes());
+    .route("/canva-connections", createCanvaConnectionRoutes())
+    .route("/figma-connections", createFigmaConnectionRoutes())
+    .route("/sanity-connections", createSanityConnectionRoutes())
+    .route("/google-drive", createGoogleDriveRoutes());
 }
 
 export function createOrgAgentsRoutes() {
@@ -183,7 +182,8 @@ export function createOrgAgentsRoutes() {
     .route("/slack-connect", createSlackConnectRoutes())
     .route("/github-installation", createGithubInstallationRoutes())
     .route("/gitlab", createGitlabRoutes())
-    .route("/intercom", createIntercomRoutes());
+    .route("/intercom", createIntercomRoutes())
+    .route("/sanity", createSanityRoutes());
 }
 
 export function createOrgWorkspaceRoutes() {

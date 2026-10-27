@@ -10,14 +10,20 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { PlayIcon, FloppyDiskIcon } from "@phosphor-icons/react/ssr";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fireEvent, fn, waitFor, within } from "storybook/test";
 
 import { Button } from "@/components/ui/button";
 import { addSkillToWorkspaceAutomationForm } from "@/lib/agents/workspace-automation-skill-form";
+import {
+  workspaceAutomationUndoStackOptions,
+  type WorkspaceAutomationFormChange,
+} from "@/lib/agents/workspace-automation-undo";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
+import { useUndoShortcuts } from "@/lib/undo-stack/use-undo-shortcuts";
+import { useUndoStack } from "@/lib/undo-stack/use-undo-stack";
 
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import {
@@ -36,6 +42,7 @@ import {
   automationEditorDisconnectedMswHandlers,
   automationEditorMswHandlers,
 } from "./automation-msw-handlers";
+import { AutomationUndoRedoButtons, useAutomationUndoNotice } from "./automation-undo-controls";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 function WorkspaceAutomationEditorStory({
@@ -47,7 +54,9 @@ function WorkspaceAutomationEditorStory({
   knowledgeAvailable = true,
   mode,
   organizationSlug = "acme",
+  onRefreshRunHistory,
   runHistory,
+  runHistoryRefreshing,
 }: {
   actions?: ReactNode;
   canUpdateKnowledgeMemory?: boolean;
@@ -56,8 +65,10 @@ function WorkspaceAutomationEditorStory({
   form: WorkspaceAutomationFormState;
   knowledgeAvailable?: boolean;
   mode: "create" | "detail";
+  onRefreshRunHistory?: () => void;
   organizationSlug?: string;
   runHistory?: typeof automationRunsFixture;
+  runHistoryRefreshing?: boolean;
 }) {
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState(initialErrors);
@@ -77,7 +88,66 @@ function WorkspaceAutomationEditorStory({
           setErrors({});
         }}
         organizationSlug={organizationSlug}
+        onRefreshRunHistory={onRefreshRunHistory}
         runHistory={runHistory}
+        runHistoryRefreshing={runHistoryRefreshing}
+      />
+    </WorkspacePageShell>
+  );
+}
+
+/** The editor on an undo stack, as the automation pages mount it. */
+function WorkspaceAutomationUndoStory({
+  form: initialForm,
+  mode,
+}: {
+  form: WorkspaceAutomationFormState;
+  mode: "create" | "detail";
+}) {
+  const history = useUndoStack<
+    WorkspaceAutomationFormState | null,
+    WorkspaceAutomationFormChange | null
+  >(initialForm, workspaceAutomationUndoStackOptions);
+  const form = history.form ?? initialForm;
+  const { notifyUndo, notifyRedo } = useAutomationUndoNotice();
+  const historyRef = useRef(history);
+  historyRef.current = history;
+  const runRedo = () => {
+    const step = historyRef.current.redoStep;
+    if (step) {
+      historyRef.current.redo();
+      notifyRedo(step, runUndo);
+    }
+  };
+  const runUndo = () => {
+    const step = historyRef.current.undoStep;
+    if (step) {
+      historyRef.current.undo();
+      notifyUndo(step, runRedo);
+    }
+  };
+  const { rootRef } = useUndoShortcuts({ onUndo: runUndo, onRedo: runRedo, onSeal: history.seal });
+
+  return (
+    <WorkspacePageShell ref={rootRef} className="max-w-5xl">
+      <WorkspaceAutomationEditor
+        actions={
+          <AutomationUndoRedoButtons
+            canUndo={history.canUndo}
+            canRedo={history.canRedo}
+            undoStep={history.undoStep}
+            redoStep={history.redoStep}
+            onUndo={runUndo}
+            onRedo={runRedo}
+          />
+        }
+        canUpdateKnowledgeMemory
+        errors={{}}
+        form={form}
+        knowledgeAvailable
+        mode={mode}
+        onChange={history.change}
+        organizationSlug="acme"
       />
     </WorkspacePageShell>
   );
@@ -135,8 +205,9 @@ type Story = StoryObj<typeof meta>;
 export const CreateEmpty: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByPlaceholderText("Untitled automation")).toBeInTheDocument();
-    await expect(canvas.getByRole("tab", { name: "Settings" })).toBeInTheDocument();
-    await expect(canvas.queryByRole("tab", { name: "Run History" })).not.toBeInTheDocument();
+    // A new automation has settings only, so no tabs are offered.
+    await expect(canvas.queryByRole("tablist")).not.toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Trigger" })).toBeInTheDocument();
     await expect(
       canvas.getByText("Add at least one supported tool to activate this automation."),
     ).toBeInTheDocument();
@@ -245,10 +316,32 @@ export const CreateFromIntercomTemplate: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByText("Intercom Help Center")).toBeInTheDocument();
     await expect(await canvas.findByText("Customer Support")).toBeInTheDocument();
-    await expect(canvas.getByText("Locales: en, de, fr")).toBeInTheDocument();
-    await expect(canvas.getByLabelText("Intercom source locale")).toHaveValue("en");
-    await expect(canvas.getByLabelText("Collection IDs (optional)")).toHaveValue("38");
+    await expect(canvas.queryByText(/^Locales:/)).not.toBeInTheDocument();
+    await expect(canvas.getByLabelText("Intercom source locale")).toHaveTextContent("English (en)");
+    await expect(canvas.getByLabelText("Collections (optional)")).toHaveTextContent(
+      "Getting started",
+    );
     await expect(canvas.getByText("Include draft articles on import")).toBeInTheDocument();
+  },
+};
+
+export const CreateIntercomAutopicksHelpCenter: Story = {
+  args: {
+    form: {
+      ...createIntercomAutomationFormFixture(),
+      projectId: "project_mobile",
+      intercomHelpCenterId: "",
+      intercomHelpCenterLocales: [],
+      intercomCollectionIds: [],
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByText("Customer Support")).toBeInTheDocument();
+    await expect(canvas.queryByText(/^Locales:/)).not.toBeInTheDocument();
+    await expect(canvas.getByLabelText("Intercom source locale")).toHaveTextContent("English (en)");
+    await expect(
+      await canvas.findByText("Spanish (Spain) (es-ES) → Unmapped, skipped"),
+    ).toBeInTheDocument();
   },
 };
 
@@ -428,7 +521,7 @@ export const DetailDefault: Story = {
     actions: (
       <Button type="button" disabled>
         <FloppyDiskIcon data-icon="inline-start" />
-        Save changes
+        Save
       </Button>
     ),
   },
@@ -436,7 +529,7 @@ export const DetailDefault: Story = {
     await expect(canvas.getByDisplayValue("Validate localisation on push")).toBeInTheDocument();
     await expect(canvas.getByRole("tab", { name: "Run History" })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Run now" })).not.toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
   },
 };
 
@@ -452,7 +545,7 @@ export const DetailScheduled: Story = {
         </Button>
         <Button type="button" disabled>
           <FloppyDiskIcon data-icon="inline-start" />
-          Save changes
+          Save
         </Button>
       </>
     ),
@@ -460,7 +553,7 @@ export const DetailScheduled: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByDisplayValue("Weekly translation sync")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Run now" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
   },
 };
 
@@ -476,7 +569,7 @@ export const DetailManual: Story = {
         </Button>
         <Button type="button" disabled>
           <FloppyDiskIcon data-icon="inline-start" />
-          Save changes
+          Save
         </Button>
       </>
     ),
@@ -484,7 +577,7 @@ export const DetailManual: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByDisplayValue("Manual release checklist")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Run now" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
   },
 };
 
@@ -498,7 +591,7 @@ export const DetailPaused: Story = {
     actions: (
       <Button type="button" disabled>
         <FloppyDiskIcon data-icon="inline-start" />
-        Save changes
+        Save
       </Button>
     ),
   },
@@ -511,16 +604,19 @@ export const DetailRunHistory: Story = {
   args: {
     mode: "detail",
     form: createDetailAutomationFormFixture(),
+    onRefreshRunHistory: fn(),
     runHistory: automationRunsFixture,
     actions: (
       <Button type="button" disabled>
         <FloppyDiskIcon data-icon="inline-start" />
-        Save changes
+        Save
       </Button>
     ),
   },
-  play: async ({ canvas, userEvent }) => {
+  play: async ({ canvas, userEvent, args }) => {
     await userEvent.click(canvas.getByRole("tab", { name: "Run History" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Refresh" }));
+    await expect(args.onRefreshRunHistory).toHaveBeenCalledOnce();
     await expect(canvas.getByText("Succeeded")).toBeInTheDocument();
     await expect(canvas.getByText("Failed")).toBeInTheDocument();
     await expect(canvas.getByText("Running")).toBeInTheDocument();
@@ -538,6 +634,7 @@ export const DetailIntercomRunHistory: Story = {
   args: {
     mode: "detail",
     form: createIntercomAutomationFormFixture(),
+    onRefreshRunHistory: fn(),
     runHistory: intercomAutomationRunsFixture,
     actions: (
       <>
@@ -547,7 +644,7 @@ export const DetailIntercomRunHistory: Story = {
         </Button>
         <Button type="button" disabled>
           <FloppyDiskIcon data-icon="inline-start" />
-          Save changes
+          Save
         </Button>
       </>
     ),
@@ -568,17 +665,20 @@ export const DetailRunHistoryEmpty: Story = {
   args: {
     mode: "detail",
     form: createDetailAutomationFormFixture(),
+    onRefreshRunHistory: fn(),
     runHistory: [],
     actions: (
       <Button type="button" disabled>
         <FloppyDiskIcon data-icon="inline-start" />
-        Save changes
+        Save
       </Button>
     ),
   },
-  play: async ({ canvas, userEvent }) => {
+  play: async ({ canvas, userEvent, args }) => {
     await userEvent.click(canvas.getByRole("tab", { name: "Run History" }));
     await expect(canvas.getByText("No runs yet.")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Refresh" }));
+    await expect(args.onRefreshRunHistory).toHaveBeenCalledOnce();
   },
 };
 
@@ -590,12 +690,57 @@ export const ReadOnly: Story = {
     actions: (
       <Button type="button" disabled>
         <FloppyDiskIcon data-icon="inline-start" />
-        Save changes
+        Save
       </Button>
     ),
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByPlaceholderText("Untitled automation")).toBeDisabled();
-    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
+  },
+};
+
+export const UndoTyping: Story = {
+  args: {
+    mode: "detail",
+    form: createScheduledAutomationFormFixture(),
+  },
+  render: (args) => <WorkspaceAutomationUndoStory form={args.form} mode={args.mode} />,
+  play: async ({ canvas, userEvent }) => {
+    const name = canvas.getByPlaceholderText("Untitled automation");
+    const original = (name as HTMLInputElement).value;
+    await expect(canvas.getByRole("button", { name: "Undo" })).toBeDisabled();
+
+    await userEvent.type(name, " extra");
+    await expect(name).toHaveValue(`${original} extra`);
+    await expect(canvas.getByRole("button", { name: "Undo" })).toBeEnabled();
+
+    // A burst of typing is one step.
+    await userEvent.click(canvas.getByRole("button", { name: "Undo" }));
+    await expect(name).toHaveValue(original);
+    await expect(canvas.getByRole("button", { name: "Undo" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Redo" })).toBeEnabled();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Redo" }));
+    await expect(name).toHaveValue(`${original} extra`);
+  },
+};
+
+export const UndoSwitch: Story = {
+  args: {
+    mode: "detail",
+    form: createScheduledAutomationFormFixture(),
+  },
+  render: (args) => <WorkspaceAutomationUndoStory form={args.form} mode={args.mode} />,
+  play: async ({ canvas, userEvent }) => {
+    const status = canvas.getByRole("switch");
+    const wasChecked = status.getAttribute("aria-checked");
+
+    await userEvent.click(status);
+    await waitFor(() => expect(status).not.toHaveAttribute("aria-checked", wasChecked));
+
+    await userEvent.click(canvas.getByRole("button", { name: "Undo" }));
+    await waitFor(() => expect(status).toHaveAttribute("aria-checked", wasChecked));
+    await expect(canvas.getByRole("button", { name: "Redo" })).toBeEnabled();
   },
 };

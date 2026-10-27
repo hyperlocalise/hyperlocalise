@@ -25,6 +25,12 @@ export const projectOverviewPageContentMessages = defineMessages({
     id: "LPgS5mUnwV",
     description: "Button on project overview linking to the project Content Editor page",
   },
+  translateLocaleWithAgent: {
+    defaultMessage: "Translate with agent",
+    id: "Mxs48RKo9T",
+    description:
+      "Button on a locale progress row that queues the AI agent for untranslated strings",
+  },
   projectOverviewFallbackTitle: {
     defaultMessage: "Project overview",
     id: "mehTxJuesM",

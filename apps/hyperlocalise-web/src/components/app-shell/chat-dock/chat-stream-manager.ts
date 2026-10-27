@@ -12,6 +12,8 @@
  */
 import { DefaultChatTransport, readUIMessageStream, type UIMessage } from "ai";
 
+import { isAiCreditExhaustedError } from "@/lib/billing/ai-credit-refusal";
+
 import { CHAT_DOCK_MAX_CONCURRENT_STREAMS } from "./chat-dock-persistence";
 import type { ChatDockStore, ChatDockStreamSnapshot } from "./chat-dock-store";
 
@@ -195,13 +197,23 @@ export class ChatStreamManager {
         return { started: true };
       }
 
-      console.error("Chat stream error:", error);
-      this.store.setStreamSnapshot(conversationId, {
-        conversationId,
-        responseToMessageId,
-        message: createAssistantMessage(messageId, streamErrorMessage),
-        status: "error",
-      });
+      if (isAiCreditExhaustedError(error)) {
+        this.store.setStreamSnapshot(conversationId, {
+          conversationId,
+          responseToMessageId,
+          message: createAssistantMessage(messageId),
+          status: "error",
+          aiCreditExhausted: true,
+        });
+      } else {
+        console.error("Chat stream error:", error);
+        this.store.setStreamSnapshot(conversationId, {
+          conversationId,
+          responseToMessageId,
+          message: createAssistantMessage(messageId, streamErrorMessage),
+          status: "error",
+        });
+      }
     } finally {
       const active = this.activeStreams.get(conversationId);
       if (active?.controller === controller) {
@@ -209,9 +221,10 @@ export class ChatStreamManager {
       }
 
       // Success and error both need query invalidation + snapshot clear. Abort is handled by
-      // stop()/clearStreamSnapshot and must not re-enter onStreamFinished here.
+      // stop()/clearStreamSnapshot and must not re-enter onStreamFinished here. A refusal keeps
+      // its snapshot so the conversation goes on showing it; nothing was saved to refetch.
       const snapshot = this.store.getStreamSnapshot(conversationId);
-      if (finishedSuccessfully || snapshot?.status === "error") {
+      if (finishedSuccessfully || (snapshot?.status === "error" && !snapshot.aiCreditExhausted)) {
         await this.onStreamFinished?.(conversationId);
       }
     }

@@ -136,6 +136,28 @@ describe("useDocumentAutosave", () => {
     expect(peekDocumentAutosaveDraft("doc-1")).toBeUndefined();
   });
 
+  it("forgets a draft when the value returns to the saved baseline", async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = renderHook(
+      ({ value }: { value: string }) =>
+        useDocumentAutosave({
+          id: "doc-1",
+          value,
+          baseline: "a",
+          save,
+          delayMs: DELAY,
+        }),
+      { initialProps: { value: "a" } },
+    );
+
+    rerender({ value: "ab" });
+    expect(peekDocumentAutosaveDraft("doc-1")).toEqual({ value: "ab", failed: false });
+    rerender({ value: "a" });
+    expect(peekDocumentAutosaveDraft("doc-1")).toBeUndefined();
+    await act(() => vi.advanceTimersByTimeAsync(DELAY * 2));
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("keeps a newer failed draft when an older in-flight save succeeds after leaving", async () => {
     let finishOlder: () => void = () => {};
     const save = vi

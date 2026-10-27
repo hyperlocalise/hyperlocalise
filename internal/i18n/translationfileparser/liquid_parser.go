@@ -139,7 +139,7 @@ func parseLiquidDocument(filePath string, content []byte) (liquidDocument, map[s
 
 	liquidReplacer := newLiquidReplacer(liquidPlaceholders)
 
-	htmlDoc, _, err := parseHTMLDocument(masked)
+	htmlDoc, _, err := parseHTMLDocumentFoldingInline(masked)
 	if err != nil {
 		return liquidDocument{}, nil, err
 	}

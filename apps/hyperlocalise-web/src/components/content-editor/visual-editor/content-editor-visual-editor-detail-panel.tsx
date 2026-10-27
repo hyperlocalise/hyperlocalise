@@ -20,6 +20,7 @@ import { ContentEditorEditorCommentsSection } from "@/components/content-editor/
 import { ContentEditorEditorShortcutKbd } from "@/components/content-editor/editor/content-editor-editor-shortcut-kbd";
 import { ContentEditorEditorSourceSection } from "@/components/content-editor/editor/content-editor-editor-source-section";
 import { ContentEditorEditorTargetSection } from "@/components/content-editor/editor/content-editor-editor-target-section";
+import { ContentEditorGlossaryGuidance } from "@/components/content-editor/intelligence/content-editor-glossary-guidance";
 import { ContentEditorIntelligencePanel } from "@/components/content-editor/intelligence/content-editor-intelligence-panel";
 import { ContentEditorHiddenStringBadge } from "@/components/content-editor/segment/content-editor-hidden-string-badge";
 import { ContentEditorLockedStringBadge } from "@/components/content-editor/segment/content-editor-locked-string-badge";
@@ -27,6 +28,7 @@ import {
   SegmentStatusBadge,
   shouldShowSegmentStatusBadge,
 } from "@/components/content-editor/segment/content-editor-segment-status";
+import { isContentEditorAssetContentKind } from "@/components/content-editor/shared/content-editor-content-kind";
 import { contentEditorEditorPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type {
   ContentEditorSegmentCommentInput,
@@ -171,6 +173,7 @@ export function ContentEditorVisualEditorDetailPanel({
         <div className="space-y-5 px-4 py-4">
           <ContentEditorEditorSourceSection
             sourceText={segment.sourceText}
+            targetText={segment.targetText}
             sourceLocale={segment.sourceLocale}
             segmentKey={segment.key}
             sourcePath={segment.sourcePath}
@@ -194,7 +197,7 @@ export function ContentEditorVisualEditorDetailPanel({
         <div className="border-t border-border [&>div]:lg:border-l-0">
           <ContentEditorIntelligencePanel
             intelligence={intelligence}
-            sourceText={segment.sourceText}
+            contentKind={segment.contentKind}
             targetText={segment.targetText}
             showAgentContext={false}
             showVisualContext={false}
@@ -202,6 +205,21 @@ export function ContentEditorVisualEditorDetailPanel({
             isTranslationLocked={Boolean(segment.isLocked)}
             canLookupFreshContext={false}
             onUseTmMatch={onUseTmMatch}
+            onInsertCharacter={
+              isContentEditorAssetContentKind(segment.contentKind)
+                ? undefined
+                : (character) => onTargetChange(`${segment.targetText}${character}`)
+            }
+          />
+          <ContentEditorGlossaryGuidance
+            intelligence={intelligence}
+            segmentId={segment.id}
+            sourceText={segment.sourceText}
+            targetText={segment.targetText}
+            sourceLocale={segment.sourceLocale}
+            targetLocale={segment.targetLocale}
+            canEditTranslations={canEditTranslations}
+            isTranslationLocked={Boolean(segment.isLocked)}
           />
         </div>
 

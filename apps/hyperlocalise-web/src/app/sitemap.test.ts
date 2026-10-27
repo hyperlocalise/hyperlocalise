@@ -27,11 +27,9 @@ describe("sitemap", () => {
     const homeEn = entries.find((entry) => entry.url === `${SITE_URL}/en`);
 
     expect(homeEn?.alternates?.languages).toEqual({
-      en: `${SITE_URL}/en`,
-      "zh-CN": `${SITE_URL}/zh-CN`,
-      "vi-VN": `${SITE_URL}/vi-VN`,
-      "de-DE": `${SITE_URL}/de-DE`,
-      "fr-FR": `${SITE_URL}/fr-FR`,
+      ...Object.fromEntries(
+        SUPPORTED_APP_LOCALES.map((locale) => [locale, `${SITE_URL}/${locale}`]),
+      ),
       "x-default": `${SITE_URL}/en`,
     });
 
@@ -77,6 +75,16 @@ describe("sitemap", () => {
       const startups = entries.find((entry) => entry.url === `${SITE_URL}/${locale}/startups`);
       expect(startups).toBeDefined();
       expect(startups?.alternates?.languages?.["x-default"]).toBe(`${SITE_URL}/en/startups`);
+    }
+  });
+
+  it("includes the Iris waitlist page for each locale", async () => {
+    const entries = await sitemap();
+
+    for (const locale of SUPPORTED_APP_LOCALES) {
+      const iris = entries.find((entry) => entry.url === `${SITE_URL}/${locale}/iris`);
+      expect(iris).toBeDefined();
+      expect(iris?.alternates?.languages?.["x-default"]).toBe(`${SITE_URL}/en/iris`);
     }
   });
 

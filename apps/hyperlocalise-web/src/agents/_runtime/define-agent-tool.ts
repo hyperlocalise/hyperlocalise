@@ -15,6 +15,8 @@ import type { z } from "zod";
 
 export type AgentToolExecuteOptions = {
   abortSignal?: AbortSignal;
+  /** The model's id for this tool call, passed through by the AI SDK. */
+  toolCallId?: string;
 };
 
 type DefineAgentToolInput<INPUT, OUTPUT> = {

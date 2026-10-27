@@ -17,7 +17,9 @@ type Request struct {
 	SourcePath   string
 	MaxLength    int
 	TargetLocale string
-	Modes        []string `json:"modes,omitempty"`
+	// MessageFormat is the file's placeholder syntax. Empty means auto.
+	MessageFormat MessageFormat `json:"messageFormat,omitempty"`
+	Modes         []string      `json:"modes,omitempty"`
 }
 
 type Check struct {
@@ -53,11 +55,14 @@ func ValidateSegment(req Request) []Check {
 	}
 
 	kind := KindForSourcePath(req.SourcePath)
-	hasICUTokens, formatErr := validateForKindWithTokens(kind, req.SourceText, req.TargetText)
+	format := ParseMessageFormat(string(req.MessageFormat))
+	hasICUTokens, formatErr := validateForKindWithTokens(kind, format, req.SourceText, req.TargetText)
 	var hasProfileTokens bool
 	var profileErr error
-	if formatErr == nil && kind != FormatMarkdown {
-		hasProfileTokens, profileErr = validateProfileParityWithTokens(req.SourceText, req.TargetText)
+	// Office restores layout from the source file. A trailing space on a Word
+	// paragraph is not a translation invariant — CJK targets drop it.
+	if formatErr == nil && kind != FormatOffice {
+		hasProfileTokens, profileErr = validateProfileParityWithTokens(format, req.SourceText, req.TargetText)
 	}
 
 	switch {
@@ -68,9 +73,9 @@ func ValidateSegment(req Request) []Check {
 	default:
 		hasTokens := false
 		if kind == FormatMarkdown {
-			hasTokens = strings.Contains(req.SourceText, "\x1eHLMDPH_") || hasICUTokens || profileHasFormatTokens(req.SourceText)
+			hasTokens = strings.Contains(req.SourceText, "\x1eHLMDPH_") || hasICUTokens || profileHasFormatTokens(format, req.SourceText)
 		} else {
-			hasTokens = hasICUTokens || hasProfileTokens || strings.Contains(req.SourceText, "\x1eHLUEPH_")
+			hasTokens = hasICUTokens || hasProfileTokens || strings.Contains(req.SourceText, "\x1eHLUEPH_") || strings.Contains(req.SourceText, "\x1eHLOXPH_")
 		}
 		label := "Format"
 		message := "No placeholders or ICU blocks detected."
@@ -97,11 +102,11 @@ func FirstValidationError(sourcePath, source, target string) error {
 }
 
 func validateForKind(kind FormatKind, source, translated string) error {
-	_, err := validateForKindWithTokens(kind, source, translated)
+	_, err := validateForKindWithTokens(kind, MessageFormatAuto, source, translated)
 	return err
 }
 
-func validateForKindWithTokens(kind FormatKind, source, translated string) (bool, error) {
+func validateForKindWithTokens(kind FormatKind, format MessageFormat, source, translated string) (bool, error) {
 	var err error
 	var hasICUTokens bool
 	switch kind {
@@ -115,7 +120,7 @@ func validateForKindWithTokens(kind FormatKind, source, translated string) (bool
 		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
 			return false, fmt.Errorf("raw HTML syntax introduced in translated markdown")
 		}
-		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
+		hasICUTokens, err = validateICUInvariantWithTokens(format, source, translated)
 	case FormatHTML:
 		if htmltagparity.Mismatch(source, translated) {
 			return false, fmt.Errorf("html tag structure differs from source | %s", formatInvariantDebugContext(source, translated))
@@ -123,7 +128,7 @@ func validateForKindWithTokens(kind FormatKind, source, translated string) (bool
 		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
 			return false, fmt.Errorf("raw HTML syntax introduced in translated html")
 		}
-		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
+		hasICUTokens, err = validateICUInvariantWithTokens(format, source, translated)
 	case FormatWebVTT:
 		if webvttCueMarkupMismatch(source, translated) {
 			return false, fmt.Errorf("webvtt cue markup differs from source | %s", formatInvariantDebugContext(source, translated))
@@ -131,7 +136,7 @@ func validateForKindWithTokens(kind FormatKind, source, translated string) (bool
 		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
 			return false, fmt.Errorf("raw HTML syntax introduced in translated html")
 		}
-		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
+		hasICUTokens, err = validateICUInvariantWithTokens(format, source, translated)
 	case FormatLiquid:
 		if err = translationfileparser.ValidateLiquidInternalPlaceholders(source, translated); err != nil {
 			return false, err
@@ -139,17 +144,22 @@ func validateForKindWithTokens(kind FormatKind, source, translated string) (bool
 		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
 			return false, fmt.Errorf("raw HTML syntax introduced in translated liquid")
 		}
-		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
+		hasICUTokens, err = validateICUInvariantWithTokens(format, source, translated)
 	case FormatAsciiDoc:
 		if err = translationfileparser.ValidateAsciiDocInternalPlaceholders(source, translated); err != nil {
 			return false, err
 		}
-		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
+		hasICUTokens, err = validateICUInvariantWithTokens(format, source, translated)
+	case FormatOffice:
+		if err = translationfileparser.ValidateOOXMLPlaceholders(source, translated); err != nil {
+			return false, err
+		}
+		hasICUTokens, err = validateICUInvariantWithTokens(format, source, translated)
 	default:
 		if err = translationfileparser.ValidateUnrealRichTextPlaceholders(source, translated); err != nil {
 			return false, err
 		}
-		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
+		hasICUTokens, err = validateICUInvariantWithTokens(format, source, translated)
 	}
 	if err != nil {
 		return false, err

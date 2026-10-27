@@ -3,6 +3,7 @@ package editor_export
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -19,18 +20,22 @@ func SerializeXLSX(rows []Row) ([]byte, error) {
 		return nil, err
 	}
 
-	for col, header := range csvHeader {
-		cell, err := excelize.CoordinatesToCellName(col+1, 1)
-		if err != nil {
-			return nil, err
-		}
-		if err := f.SetCellValue(xlsxSheetName, cell, header); err != nil {
-			return nil, err
-		}
+	sw, err := f.NewStreamWriter(xlsxSheetName)
+	if err != nil {
+		return nil, err
+	}
+
+	headerRow := make([]any, len(csvHeader))
+	for i, h := range csvHeader {
+		headerRow[i] = h
+	}
+	if err := sw.SetRow("A1", headerRow); err != nil {
+		return nil, err
 	}
 
 	for rowIndex, row := range rows {
-		values := []string{
+		cell := "A" + strconv.Itoa(rowIndex+2)
+		rowData := []any{
 			row.Key,
 			row.SourceLocale,
 			row.TargetLocale,
@@ -38,15 +43,13 @@ func SerializeXLSX(rows []Row) ([]byte, error) {
 			row.TargetText,
 			row.SourcePath,
 		}
-		for col, value := range values {
-			cell, err := excelize.CoordinatesToCellName(col+1, rowIndex+2)
-			if err != nil {
-				return nil, err
-			}
-			if err := f.SetCellValue(xlsxSheetName, cell, value); err != nil {
-				return nil, err
-			}
+		if err := sw.SetRow(cell, rowData); err != nil {
+			return nil, err
 		}
+	}
+
+	if err := sw.Flush(); err != nil {
+		return nil, err
 	}
 
 	var buf bytes.Buffer

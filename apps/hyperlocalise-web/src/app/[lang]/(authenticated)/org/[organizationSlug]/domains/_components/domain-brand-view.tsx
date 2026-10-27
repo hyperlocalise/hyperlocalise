@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
+import { observer } from "mobx-react-lite";
 import { PlusIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -29,6 +29,7 @@ import { DomainResearchEmpty } from "./domain-research-empty";
 import { formatBrandEngine } from "./domain-research-format";
 import { DomainResearchTextareaDialog } from "./domain-research-textarea-dialog";
 import { domainBrandViewMessages as messages } from "./domain-brand-view.messages";
+import { useDomainResearchShellStore } from "../store/domains-store-context";
 
 const ENGINES: BrandEngine[] = ["chatgpt", "claude", "gemini", "perplexity"];
 const COMPETITOR_GRID =
@@ -45,10 +46,14 @@ function sentimentMessage(sentiment: BrandSentiment) {
   }
 }
 
-export function DomainBrandView({ linkedDomainId }: { linkedDomainId: string }) {
+export const DomainBrandView = observer(function DomainBrandView({
+  linkedDomainId,
+}: {
+  linkedDomainId: string;
+}) {
   const intl = useIntl();
   const catalog = useDomainResearchCatalog(linkedDomainId);
-  const [addOpen, setAddOpen] = useState(false);
+  const { ui } = useDomainResearchShellStore();
 
   if (!catalog) {
     return null;
@@ -57,7 +62,7 @@ export function DomainBrandView({ linkedDomainId }: { linkedDomainId: string }) 
   return (
     <div className="grid gap-6">
       <div className="flex justify-end">
-        <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
+        <Button size="sm" variant="outline" onClick={() => ui.setBrandAddOpen(true)}>
           <PlusIcon />
           <FormattedMessage {...messages.addCta} />
         </Button>
@@ -94,7 +99,7 @@ export function DomainBrandView({ linkedDomainId }: { linkedDomainId: string }) 
           title={<FormattedMessage {...messages.emptyTitle} />}
           description={<FormattedMessage {...messages.emptyDescription} />}
           action={
-            <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Button size="sm" onClick={() => ui.setBrandAddOpen(true)}>
               <FormattedMessage {...messages.addCta} />
             </Button>
           }
@@ -142,17 +147,17 @@ export function DomainBrandView({ linkedDomainId }: { linkedDomainId: string }) 
       )}
 
       <DomainResearchTextareaDialog
-        open={addOpen}
+        open={ui.brandAddOpen}
         title={intl.formatMessage(messages.addTitle)}
         description={intl.formatMessage(messages.addDescription)}
         label={intl.formatMessage(messages.addLabel)}
         placeholder={intl.formatMessage(messages.addPlaceholder)}
         submitLabel={intl.formatMessage(messages.addSubmit)}
-        onOpenChange={setAddOpen}
+        onOpenChange={(open) => ui.setBrandAddOpen(open)}
         onSubmit={() => {
           toast.success(intl.formatMessage(messages.addSuccess));
         }}
       />
     </div>
   );
-}
+});

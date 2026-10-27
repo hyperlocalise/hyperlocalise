@@ -82,6 +82,82 @@ describe("compileVisualWorkflowV3Definition", () => {
     });
   });
 
+  it("compiles compatible Call Workflow data bindings", () => {
+    const workflow = definition([]);
+    workflow.nodes[0]!.outputFields = [{ path: "customerId", type: "string" }];
+    workflow.nodes.push({
+      id: "call",
+      type: "flow.call_workflow",
+      config: {
+        kind: "flow.call_workflow",
+        workflowId: "11111111-1111-4111-8111-111111111111",
+        version: 1,
+        inputFields: [{ id: "customerId", name: "customerId", type: "string", required: true }],
+        outputFields: [],
+      },
+    });
+    workflow.edges.push({
+      id: "customer-binding",
+      kind: "data",
+      source: "trigger",
+      target: "call",
+      sourcePortId: "customerId",
+      targetPortId: "value.customerId",
+    });
+
+    const result = compileVisualWorkflowV3Definition(workflow);
+
+    expect(result.issues).toEqual([]);
+    expect(result.definition.nodes.at(-1)?.inputs).toEqual({
+      "value.customerId": {
+        kind: "reference",
+        nodeId: "trigger",
+        path: ["customerId"],
+      },
+    });
+  });
+
+  it("rejects missing and incompatible Call Workflow inputs", () => {
+    const workflow = definition([]);
+    workflow.nodes[0]!.outputFields = [{ path: "customerId", type: "number" }];
+    workflow.nodes.push({
+      id: "call",
+      type: "flow.call_workflow",
+      config: {
+        kind: "flow.call_workflow",
+        workflowId: "11111111-1111-4111-8111-111111111111",
+        version: 1,
+        inputFields: [
+          { id: "customerId", name: "customerId", type: "string", required: true },
+          { id: "locale", name: "locale", type: "string", required: true },
+        ],
+        outputFields: [],
+      },
+    });
+    workflow.edges.push({
+      id: "customer-binding",
+      kind: "data",
+      source: "trigger",
+      target: "call",
+      sourcePortId: "customerId",
+      targetPortId: "value.customerId",
+    });
+
+    const result = compileVisualWorkflowV3Definition(workflow);
+
+    expect(result.issues).toContainEqual({
+      code: "incompatible_data_types",
+      edgeId: "customer-binding",
+      nodeId: "call",
+    });
+    expect(result.issues).toContainEqual({
+      code: "missing_required_input",
+      field: "value.locale",
+      nodeId: "call",
+      reason: "required",
+    });
+  });
+
   it("does not include data edges in the execution graph", () => {
     const result = compileVisualWorkflowV3Definition(
       definition([
@@ -654,6 +730,32 @@ it("accepts stable Merge execution target ports", () => {
   expect(result.executionEdges).toEqual(input.edges);
 });
 
+it("preserves the Try / Catch Success execution handle", () => {
+  const input = definition([
+    {
+      id: "boundary-success",
+      kind: "execution",
+      source: "boundary",
+      target: "set",
+      sourcePortId: "success",
+      targetPortId: "input",
+    },
+  ]);
+  input.nodes[0] = {
+    id: "boundary",
+    type: "logic.try_catch",
+    config: { kind: "logic.try_catch" },
+  };
+  input.editor.positions.boundary = { x: 0, y: 0 };
+  delete input.editor.positions.trigger;
+
+  const executionDefinition = toVisualWorkflowExecutionDefinition(
+    compileVisualWorkflowV3Definition(input),
+  );
+
+  expect(executionDefinition.edges[0]?.sourceHandle).toBe("success");
+});
+
 it("rejects removed Merge execution target ports", () => {
   const input = definition([
     {
@@ -842,6 +944,8 @@ it("rejects missing and incompatible Return inputs", () => {
   expect(compileVisualWorkflowV3Definition(missing).issues).toContainEqual({
     code: "missing_required_input",
     nodeId: "return",
+    field: "value.count",
+    reason: "required",
   });
 
   const incompatible = definition([

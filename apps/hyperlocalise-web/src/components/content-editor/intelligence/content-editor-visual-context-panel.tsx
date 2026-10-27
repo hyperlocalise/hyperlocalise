@@ -12,21 +12,26 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { ImagesIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { ImageLightbox } from "@/components/ui/image-lightbox/image-lightbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UploadDropzone } from "@/components/ui/upload-dropzone";
 import type {
   ContentEditorVisualContext,
   ContentEditorVisualContextScreenshot,
 } from "@/lib/translation/content-editor-visual-context";
-import { cn } from "@/lib/primitives/cn";
+import { VISUAL_CONTEXT_SCREENSHOT_MAX_BYTES } from "@/lib/translation/content-editor-visual-context";
 
 import { contentEditorVisualContextPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 
+const VISUAL_CONTEXT_UPLOAD_ACCEPT = "image/png,image/jpeg,image/webp";
+const VISUAL_CONTEXT_UPLOAD_MAX_MB = VISUAL_CONTEXT_SCREENSHOT_MAX_BYTES / (1024 * 1024);
+
 function VisualContextSkeleton() {
   return (
-    <div className="space-y-3 rounded-2xl bg-muted p-3.5">
+    <div className="space-y-3">
       <Skeleton className="h-3 w-32 rounded-full bg-skeleton" />
       <Skeleton className="aspect-[9/16] w-full rounded-xl bg-skeleton" />
     </div>
@@ -53,10 +58,7 @@ function VisualContextScreenshotPreview({
       {screenshot.markers.map((marker, index) => (
         <span
           key={`${screenshot.id}-${index}`}
-          className={cn(
-            "pointer-events-none absolute rounded-sm border-2 border-grove-300/80 bg-grove-300/15",
-            "shadow-[0_0_0_1px_rgba(255,255,255,0.35)_inset]",
-          )}
+          className="pointer-events-none absolute rounded-sm border-2 border-grove-300/80 bg-grove-300/15 shadow-[0_0_0_1px_rgba(255,255,255,0.35)_inset]"
           style={{
             left: `${marker.left}%`,
             top: `${marker.top}%`,
@@ -106,41 +108,70 @@ export function ContentEditorVisualContextPanel({
   visualContext,
   isLoading = false,
   showPanel = false,
+  canUpload = false,
+  isUploading = false,
+  onUpload,
 }: {
   visualContext?: ContentEditorVisualContext;
   isLoading?: boolean;
   showPanel?: boolean;
+  canUpload?: boolean;
+  isUploading?: boolean;
+  onUpload?: (file: File) => void | Promise<void>;
 }) {
+  const intl = useIntl();
+
   if (!showPanel) {
     return null;
   }
 
   const screenshots = visualContext?.screenshots ?? [];
+  const showDropzone = Boolean(canUpload && onUpload);
 
   return (
-    <section className="space-y-3">
-      <div>
-        <h3 className="text-xs font-medium text-muted-foreground">
+    <section className="overflow-hidden rounded-xl border border-border bg-background">
+      <div className="flex items-center gap-2 border-b border-border px-3.5 py-2.5">
+        <ImagesIcon className="size-3.5 shrink-0 text-muted-foreground" />
+        <h3 className="min-w-0 flex-1 text-sm font-medium text-foreground">
           <FormattedMessage {...contentEditorVisualContextPanelMessages.title} />
         </h3>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+      </div>
+      <div className="space-y-3 px-3.5 py-3">
+        <p className="text-xs leading-relaxed text-muted-foreground">
           <FormattedMessage {...contentEditorVisualContextPanelMessages.description} />
         </p>
-      </div>
 
-      {isLoading ? (
-        <VisualContextSkeleton />
-      ) : screenshots.length > 0 ? (
-        <div className="space-y-3">
-          {screenshots.map((screenshot) => (
-            <VisualContextScreenshotCard key={screenshot.id} screenshot={screenshot} />
-          ))}
-        </div>
-      ) : (
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          <FormattedMessage {...contentEditorVisualContextPanelMessages.empty} />
-        </p>
-      )}
+        {isLoading ? (
+          <VisualContextSkeleton />
+        ) : screenshots.length > 0 ? (
+          <div className="space-y-3">
+            {screenshots.map((screenshot) => (
+              <VisualContextScreenshotCard key={screenshot.id} screenshot={screenshot} />
+            ))}
+          </div>
+        ) : showDropzone ? null : (
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            <FormattedMessage {...contentEditorVisualContextPanelMessages.empty} />
+          </p>
+        )}
+
+        {showDropzone && onUpload ? (
+          <UploadDropzone
+            accept={VISUAL_CONTEXT_UPLOAD_ACCEPT}
+            compact={screenshots.length > 0}
+            disabled={isUploading}
+            dropTitle={intl.formatMessage(contentEditorVisualContextPanelMessages.dropOver)}
+            failedTitle={intl.formatMessage(contentEditorVisualContextPanelMessages.uploadFailed)}
+            hint={intl.formatMessage(contentEditorVisualContextPanelMessages.dropHint)}
+            idleTitle={intl.formatMessage(contentEditorVisualContextPanelMessages.dropIdle)}
+            invalidTitle={intl.formatMessage(contentEditorVisualContextPanelMessages.invalidFile)}
+            maxMb={VISUAL_CONTEXT_UPLOAD_MAX_MB}
+            tooBigTitle={intl.formatMessage(contentEditorVisualContextPanelMessages.fileTooLarge)}
+            wide
+            onUpload={onUpload}
+          />
+        ) : null}
+      </div>
     </section>
   );
 }

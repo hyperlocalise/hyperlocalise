@@ -37,6 +37,7 @@ import {
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
+import { startTaskAnalysis } from "@/lib/reporting/task-analysis-start";
 import {
   ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
@@ -49,19 +50,15 @@ import {
 } from "@/lib/billing/usage-control";
 import { isErr } from "@/lib/primitives/result/results";
 import {
-  enqueueJobCancelledActivity,
   enqueueJobCreatedActivity,
   enqueueJobFailedActivity,
 } from "@/lib/activity-log/job-automation-events";
+import { recordJobEvents } from "@/lib/job-events/job-events-writer";
 import {
   assertOrganizationCanEnqueueTranslationJobInTransaction,
   OrganizationJobBudgetExceededError,
 } from "@/lib/security/organization-operation-budget";
-import {
-  getOrganizationJobById,
-  listOrganizationJobs,
-  listOrganizationProjectJobs,
-} from "@/lib/projects/jobs/organization-job-query-service";
+import { getOrganizationJobById } from "@/lib/projects/jobs/organization-job-query-service";
 import { mergeNativeFileTranslationJobMetadata } from "@/lib/projects/jobs/enqueue-file-translation-job";
 import { enrichJobWithSourceFileDisplay } from "@/lib/projects/jobs/enrich-jobs-with-source-file-names";
 import type {
@@ -77,11 +74,8 @@ import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales
 
 import {
   projectForbiddenResponse,
-  getOwnedProject,
   getOwnedProjectRecord,
   projectNotFoundResponse,
-  providerProjectUnavailableResponse,
-  resolveProjectResourceTarget,
   scheduleProjectNotFoundDiagnostics,
 } from "./project.shared";
 import {
@@ -111,13 +105,12 @@ import {
 } from "./agent-run.schema";
 import {
   createJobBodySchema,
-  jobListQuerySchema,
-  jobParamsSchema,
   jobProjectParamsSchema,
   updateJobBodySchema,
   workspaceJobParamsSchema,
 } from "./job.schema";
 import { updateNativeJob } from "@/lib/projects/jobs/update-native-job";
+import { cancelNativeJob } from "@/lib/projects/jobs/cancel-native-job";
 
 type CreateJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
@@ -165,6 +158,7 @@ const jobSelect = {
   externalStatus: schema.externalJobDetails.externalStatus,
   externalTitle: schema.externalJobDetails.title,
   externalDueDate: schema.externalJobDetails.dueDate,
+  dueAt: schema.jobs.dueAt,
   externalTargetLocales: schema.externalJobDetails.targetLocales,
   externalAssignedUsers: schema.externalJobDetails.assignedUsers,
   externalUrl: schema.externalJobDetails.externalUrl,
@@ -241,16 +235,6 @@ const validateProjectParams = validator("param", (value, c) => {
 
   if (!parsed.success) {
     return projectNotFoundResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateJobParams = validator("param", (value, c) => {
-  const parsed = jobParamsSchema.safeParse(value);
-
-  if (!parsed.success) {
-    return notFoundResponse(c, "job_not_found", "Job not found");
   }
 
   return parsed.data;
@@ -380,48 +364,12 @@ const validateCreateJobBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-const validateJobListQuery = validator("query", (value, c) => {
-  const parsed = jobListQuerySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return validationErrorResponse(
-      c,
-      "invalid_job_query",
-      "Invalid job query parameters",
-      parsed.error.issues,
-    );
-  }
-
-  return parsed.data;
-});
-
 export function createJobRoutes(options: CreateJobRoutesOptions) {
-  return new Hono<{ Variables: AuthVariables }>()
-    .get("/", validateProjectParams, validateJobListQuery, async (c) => {
-      const params = c.req.valid("param");
-      const query = c.req.valid("query");
-      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
-      if (target.kind === "provider_unavailable") {
-        return providerProjectUnavailableResponse(c, target);
-      }
-
-      if (target.kind === "native") {
-        const project = await getOwnedProject(c.var.auth, params.projectId);
-
-        if (!project) {
-          scheduleProjectNotFoundDiagnostics({
-            auth: c.var.auth,
-            projectId: params.projectId,
-            route: "project.jobs.list",
-          });
-          return projectNotFoundResponse(c);
-        }
-      }
-
-      const jobs = await listOrganizationProjectJobs(c.var.auth, params.projectId, query);
-      return c.json({ jobs }, 200);
-    })
-    .post("/", validateProjectParams, validateCreateJobBody, async (c) => {
+  return new Hono<{ Variables: AuthVariables }>().post(
+    "/",
+    validateProjectParams,
+    validateCreateJobBody,
+    async (c) => {
       if (!isJobCreateAllowed(c.var.auth.membership.role)) {
         return projectForbiddenResponse(c);
       }
@@ -589,6 +537,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
               kind: jobKind,
               status: isProofreadJob ? "waiting_for_review" : "queued",
               inputPayload: enrichedInputPayload,
+              dueAt: payload.dueAt ? new Date(payload.dueAt) : null,
             })
             .returning();
 
@@ -616,7 +565,13 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             }
           }
 
-          return [{ ...createdJob, type: details.type }];
+          return [
+            {
+              ...createdJob,
+              type: details.type,
+              repositorySourceFileId: sourceFileVersion?.repositorySourceFileId ?? null,
+            },
+          ];
         });
       } catch (error) {
         if (error instanceof OrganizationJobBudgetExceededError) {
@@ -635,6 +590,19 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         projectId: job.projectId,
         status: job.status,
       });
+
+      // A proofread task runs no agent, so Reports records its strings now, in the background.
+      if (isProofreadJob && job.repositorySourceFileId) {
+        await startTaskAnalysis({
+          organizationId: job.organizationId,
+          projectId: params.projectId,
+          jobId: job.id,
+          step: "review",
+          sourceLocale: enrichedInputPayload.sourceLocale,
+          targetLocales: enrichedInputPayload.targetLocales,
+          repositorySourceFileId: job.repositorySourceFileId,
+        });
+      }
 
       if (!isProofreadJob) {
         try {
@@ -676,82 +644,22 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       return c.json({ job: createdJob }, 201);
-    })
-    .get("/:jobId", validateJobParams, async (c) => {
-      const params = c.req.valid("param");
-      const project = await getOwnedProject(c.var.auth, params.projectId);
-
-      if (!project) {
-        scheduleProjectNotFoundDiagnostics({
-          auth: c.var.auth,
-          projectId: params.projectId,
-          route: "project.jobs.detail",
-        });
-        return projectNotFoundResponse(c);
-      }
-
-      const job = await getOwnedJob(params.projectId, params.jobId);
-
-      if (!job) {
-        return notFoundResponse(c, "job_not_found", "Job not found");
-      }
-
-      return c.json({ job }, 200);
-    })
-    .get("/:jobId/status", validateJobParams, async (c) => {
-      const params = c.req.valid("param");
-      const project = await getOwnedProject(c.var.auth, params.projectId);
-
-      if (!project) {
-        scheduleProjectNotFoundDiagnostics({
-          auth: c.var.auth,
-          projectId: params.projectId,
-          route: "project.jobs.status",
-        });
-        return projectNotFoundResponse(c);
-      }
-
-      const [job] = await db
-        .select({
-          id: schema.jobs.id,
-          projectId: schema.jobs.projectId,
-          kind: schema.jobs.kind,
-          type: schema.translationJobDetails.type,
-          status: schema.jobs.status,
-          createdAt: schema.jobs.createdAt,
-          updatedAt: schema.jobs.updatedAt,
-          completedAt: schema.jobs.completedAt,
-          lastError: schema.jobs.lastError,
-        })
-        .from(schema.jobs)
-        .leftJoin(
-          schema.translationJobDetails,
-          eq(schema.translationJobDetails.jobId, schema.jobs.id),
-        )
-        .where(and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, params.jobId)))
-        .limit(1);
-
-      if (!job) {
-        return notFoundResponse(c, "job_not_found", "Job not found");
-      }
-
-      return c.json({ job }, 200);
-    });
+    },
+  );
 }
 
 export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOptions) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
-    .get("/", validateJobListQuery, async (c) => {
-      const query = c.req.valid("query");
-      const jobs = await listOrganizationJobs(c.var.auth, query);
-      return c.json({ jobs }, 200);
-    })
     .get("/:jobId", validateWorkspaceJobParams, async (c) => {
       const params = c.req.valid("param");
       const job = await getOrganizationJobById(c.var.auth, params.jobId);
 
       if (!job) {
+        return notFoundResponse(c, "job_not_found", "Job not found");
+      }
+
+      if (!job.externalProviderKind) {
         return notFoundResponse(c, "job_not_found", "Job not found");
       }
 
@@ -1331,6 +1239,14 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return conflictResponse(c, "job_action_unavailable", "Job action is not available");
       }
 
+      const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(
+        c,
+        c.var.auth.organization.localOrganizationId,
+      );
+      if (aiFeaturesDenied) {
+        return aiFeaturesDenied;
+      }
+
       const projectId = job.projectId;
       const type = job.type;
 
@@ -1362,6 +1278,12 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       if (!retriedJob) {
         return conflictResponse(c, "job_action_unavailable", "Job action is not available");
       }
+
+      await recordJobEvents({
+        jobId: retriedJob.id,
+        actorUserId: c.var.auth.user.localUserId,
+        events: [{ type: "job_retried", payload: {} }],
+      });
 
       try {
         await options.jobQueue.enqueue({
@@ -1480,6 +1402,12 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           : notFoundResponse(c, "job_not_found", "Job not found");
       }
 
+      await recordJobEvents({
+        jobId: updatedJob.id,
+        actorUserId: c.var.auth.user.localUserId,
+        events: [{ type: "job_marked_failed", payload: {} }],
+      });
+
       await enqueueJobFailedActivity({
         actorCredentialId: null,
         actorKind: "user",
@@ -1582,46 +1510,18 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       }
 
       const params = c.req.valid("param");
-      const updatedJob = await db.transaction(async (tx) => {
-        const [job] = await tx
-          .update(schema.jobs)
-          .set({
-            status: "cancelled",
-            workflowRunId: null,
-            lastError: null,
-            outcomePayload: {
-              code: "cancelled_by_user",
-              message: "Cancelled by user",
-            },
-            completedAt: new Date(),
-          })
-          .where(await activeJobWhere(c.var.auth, params.jobId))
-          .returning({ id: schema.jobs.id, kind: schema.jobs.kind });
-
-        return job;
+      const cancelled = await cancelNativeJob({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        jobId: params.jobId,
+        actorUserId: c.var.auth.user.localUserId,
+        accessWhere: await buildAccessibleJobsWhere(c.var.auth),
       });
 
-      if (!updatedJob) {
-        const [existingJob] = await db
-          .select({ id: schema.jobs.id })
-          .from(schema.jobs)
-          .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
-          .limit(1);
-
-        return existingJob
+      if (isErr(cancelled)) {
+        return cancelled.error.code === "job_action_unavailable"
           ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
           : notFoundResponse(c, "job_not_found", "Job not found");
       }
-
-      await enqueueJobCancelledActivity({
-        actorCredentialId: null,
-        actorKind: "user",
-        actorUserId: c.var.auth.user.localUserId,
-        jobId: updatedJob.id,
-        kind: updatedJob.kind,
-        organizationId: c.var.auth.organization.localOrganizationId,
-        status: "cancelled",
-      });
 
       const [job] = await db
         .select(jobWithProjectSelect)

@@ -42,13 +42,37 @@ export function workflowAncestors(
   }
   return result;
 }
+
+function isValidSelectPath(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.length <= 32 &&
+    value.every(
+      (segment) =>
+        (typeof segment === "string" &&
+          segment.length > 0 &&
+          segment.length <= 256 &&
+          !["__proto__", "constructor", "prototype"].includes(segment)) ||
+        (typeof segment === "number" &&
+          Number.isInteger(segment) &&
+          segment >= 0 &&
+          segment <= 1_000_000),
+    )
+  );
+}
+
 export function compileWorkflowIssues(
   definition: VisualWorkflowDefinition,
 ): VisualWorkflowValidationIssue[] {
   const issues: VisualWorkflowValidationIssue[] = [];
   const nodes = new Map(definition.nodes.map((node) => [node.id, node]));
-  const add = (code: VisualWorkflowValidationIssue["code"], nodeId?: string, edgeId?: string) =>
-    issues.push({ code, nodeId, edgeId });
+  const add = (
+    code: VisualWorkflowValidationIssue["code"],
+    nodeId?: string,
+    edgeId?: string,
+    detail?: Pick<VisualWorkflowValidationIssue, "field" | "reason">,
+  ) => issues.push({ code, nodeId, edgeId, ...detail });
   if (
     nodes.size !== definition.nodes.length ||
     new Set(definition.edges.map((edge) => edge.id)).size !== definition.edges.length
@@ -164,6 +188,43 @@ export function compileWorkflowIssues(
       add("non_idempotent_retry", node.id);
     }
   }
+  const tryCatchRegions = definition.nodes
+    .filter((node) => node.type === "logic.try_catch")
+    .map((node) => ({ node, body: new Set(node.bodyNodeIds ?? []) }));
+  for (const { node, body } of tryCatchRegions) {
+    if (!body.size || body.has(node.id) || body.size !== (node.bodyNodeIds ?? []).length) {
+      add("invalid_try_catch_region", node.id);
+    }
+    for (const id of body) {
+      if (!nodes.has(id) || !workflowAncestors(definition, id).has(node.id)) {
+        add("invalid_try_catch_region", id);
+      }
+    }
+    for (const edge of definition.edges) {
+      if (edge.source === node.id && (edge.sourceHandle === "try") !== body.has(edge.target)) {
+        add("invalid_try_catch_region", undefined, edge.id);
+      }
+      if (body.has(edge.target) && !body.has(edge.source) && edge.source !== node.id) {
+        add("invalid_try_catch_region", undefined, edge.id);
+      }
+      if (body.has(edge.source) && !body.has(edge.target)) {
+        add("invalid_try_catch_region", undefined, edge.id);
+      }
+    }
+  }
+  for (const [index, left] of tryCatchRegions.entries()) {
+    for (const right of tryCatchRegions.slice(index + 1)) {
+      const intersects = [...left.body].some((id) => right.body.has(id));
+      if (!intersects) continue;
+      const leftContainsRight =
+        left.body.size > right.body.size && [...right.body].every((id) => left.body.has(id));
+      const rightContainsLeft =
+        right.body.size > left.body.size && [...left.body].every((id) => right.body.has(id));
+      if (!leftContainsRight && !rightContainsLeft) {
+        add("overlapping_try_catch_region", right.node.id);
+      }
+    }
+  }
   const checkReference = (
     node: CanonicalVisualWorkflowNode,
     binding: Extract<WorkflowBinding, { kind: "reference" }>,
@@ -207,12 +268,11 @@ export function compileWorkflowIssues(
           ["unknown", "object", "array"].includes(field.type) && path.startsWith(field.path + "."),
       );
     if (!field && !dynamic && binding.path.length) return false;
+    // An output declared optional may be missing when the source has run, as a field read in a
+    // setting's text may be; the step reading it then stops with `missing_workflow_input`. Only a
+    // source that may not have run at all needs the binding to be optional or have a fallback.
     const conditional = !collect && !dominators.get(node.id)?.has(source.id);
-    return (
-      !(field?.optional || conditional) ||
-      Boolean(binding.optional) ||
-      Object.hasOwn(binding, "fallback")
-    );
+    return !conditional || Boolean(binding.optional) || Object.hasOwn(binding, "fallback");
   };
   for (const node of definition.nodes) {
     const config = node.config as unknown as Record<string, unknown>;
@@ -234,6 +294,16 @@ export function compileWorkflowIssues(
     for (const [name, value] of Object.entries(config))
       if (!node.inputs?.[name]) checkTemplates(value);
     const inputFields = getWorkflowInputFields(node);
+    if (node.config.kind === "logic.create_object") {
+      for (const field of node.config.fields) {
+        if (["__proto__", "prototype", "constructor"].includes(field.name)) {
+          add("invalid_node_config", node.id, undefined, {
+            field: `value.${field.id}`,
+            reason: "invalid",
+          });
+        }
+      }
+    }
     for (const field of inputFields)
       if (
         field.required &&
@@ -242,7 +312,13 @@ export function compileWorkflowIssues(
           config[field.name] === null ||
           config[field.name] === "")
       )
-        add("invalid_node_config", node.id);
+        add("invalid_node_config", node.id, undefined, { field: field.name, reason: "required" });
+    if (
+      node.config.kind === "logic.select_path" &&
+      node.config.path.length === 0 &&
+      !node.inputs?.path
+    )
+      add("invalid_node_config", node.id, undefined, { field: "path", reason: "required" });
     for (const field of node.outputFields ?? [])
       if (
         field.path.split(".").some((key) => ["__proto__", "constructor", "prototype"].includes(key))
@@ -264,6 +340,10 @@ export function compileWorkflowIssues(
         invalid = true;
       if (binding.kind === "literal" && field && !matchesWorkflowType(binding.value, field.type))
         invalid = true;
+      if (node.config.kind === "logic.select_path" && name === "path") {
+        if (binding.kind === "literal" && !isValidSelectPath(binding.value)) invalid = true;
+        if (binding.kind !== "literal" && binding.kind !== "reference") invalid = true;
+      }
       if (binding.kind === "reference") {
         if (!checkReference(node, binding)) invalid = true;
         const source = nodes.get(binding.nodeId);
@@ -294,7 +374,7 @@ export function compileWorkflowIssues(
             })
           )
             invalid = true;
-      if (invalid) add("invalid_binding", node.id);
+      if (invalid) add("invalid_binding", node.id, undefined, { field: name, reason: "invalid" });
     }
     for (const binding of Object.values(node.collect ?? {}))
       if (
@@ -305,10 +385,12 @@ export function compileWorkflowIssues(
     if (
       node.type !== "logic.for_each" &&
       node.type !== "logic.retry" &&
+      node.type !== "logic.try_catch" &&
       (node.bodyNodeIds || node.collect)
     )
       add("invalid_loop", node.id);
-    if (hasLiteralHttpCredentials(node)) add("invalid_node_config", node.id);
+    if (hasLiteralHttpCredentials(node))
+      add("invalid_node_config", node.id, undefined, { reason: "literal_credential" });
   }
   return issues;
 }

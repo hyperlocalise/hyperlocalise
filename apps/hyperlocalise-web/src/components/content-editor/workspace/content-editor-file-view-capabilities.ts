@@ -14,15 +14,31 @@ import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedPdfTranslationFileFormat,
   inferSupportedVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
 import type { ContentEditorContentKind } from "@/components/content-editor/shared/types";
 import type { ContentEditorWorkspaceViewMode } from "./content-editor-workspace-view-mode";
 
-export type ContentEditorFileViewFamily = "image" | "video" | "text" | "office" | "document";
+export type ContentEditorFileViewFamily =
+  | "image"
+  | "video"
+  | "text"
+  | "office"
+  | "document"
+  | "office-segments"
+  | "pdf-segments";
 
-export type ContentEditorFileViewerId = "image" | "video" | "docx" | "xlsx" | "pptx" | "markdown";
+export type ContentEditorFileViewerId =
+  | "image"
+  | "video"
+  | "docx"
+  | "xlsx"
+  | "pptx"
+  | "markdown"
+  | "html"
+  | "pdf";
 
 export type ContentEditorFileViewCapabilities = {
   family: ContentEditorFileViewFamily;
@@ -118,7 +134,44 @@ export function resolveCatFileViewCapabilities(input: {
     };
   }
 
+  if (inferSupportedPdfTranslationFileFormat(sourcePath)) {
+    if (!nativeProject) {
+      return {
+        family: "text",
+        availableViews: segmentViews(input.multilingualViewAvailable),
+        defaultView: "side-by-side",
+        viewerId: null,
+      };
+    }
+    return {
+      family: "pdf-segments",
+      availableViews: documentAndSegmentViews(input.multilingualViewAvailable),
+      defaultView: "side-by-side",
+      viewerId: "pdf",
+    };
+  }
+
   const extension = extensionOf(sourcePath);
+  // Office files ingested as keyed segments. Legacy uploads with no keys keep `office_file`
+  // segments and the stored-file viewer below.
+  if (contentKind !== "office_file" && inferSupportedOfficeTranslationFileFormat(sourcePath)) {
+    if (!nativeProject) {
+      return {
+        family: "text",
+        availableViews: segmentViews(input.multilingualViewAvailable),
+        defaultView: "side-by-side",
+        viewerId: null,
+      };
+    }
+
+    return {
+      family: "office-segments",
+      availableViews: documentAndSegmentViews(input.multilingualViewAvailable),
+      defaultView: "side-by-side",
+      viewerId: officeViewerIdForExtension(extension) ?? "docx",
+    };
+  }
+
   const officeFormat =
     contentKind === "office_file" || inferSupportedOfficeTranslationFileFormat(sourcePath);
   if (officeFormat) {
@@ -144,7 +197,8 @@ export function resolveCatFileViewCapabilities(input: {
       family: "document",
       availableViews: documentAndSegmentViews(input.multilingualViewAvailable),
       defaultView: "file",
-      viewerId: "markdown",
+      viewerId:
+        inferSupportedDocumentTranslationFileFormat(sourcePath) === "html" ? "html" : "markdown",
     };
   }
 
@@ -186,7 +240,7 @@ export function isCatDocumentFileViewSegmentId(
   return documentView != null && documentView.externalStringId === segmentId;
 }
 
-/** File view for native markdown should edit the stored document, not the selected key. */
+/** File view for native documents should edit the stored file, not the selected key. */
 export function overlayCatDocumentFileViewSegment<
   T extends {
     id: string;

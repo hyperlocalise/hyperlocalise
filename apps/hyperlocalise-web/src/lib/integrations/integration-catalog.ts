@@ -217,7 +217,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
   {
     slug: "google-drive",
     category: "guidelines",
-    status: "coming-soon",
+    status: "available",
     type: "partner",
     marketing: false,
     workspace: true,
@@ -261,7 +261,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
   {
     slug: "braze",
     category: "customer-engagement",
-    status: "coming-soon",
+    status: "available",
     type: "partner",
     marketing: false,
     workspace: true,

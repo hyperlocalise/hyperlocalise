@@ -26,6 +26,8 @@ import {
   readHyperlabJson,
   type HyperlabFlag,
 } from "./hyperlab-api";
+import { HyperlabWorkspaceProvider } from "../store/hyperlab-workspace-context";
+
 import { HyperlabCreateFlagDialog } from "./hyperlab-create-dialogs";
 import { HyperlabPageShell } from "./hyperlab-page-shell";
 import {
@@ -38,6 +40,20 @@ import {
 } from "./hyperlab-ui";
 
 export function HyperlabFlagsPage({
+  organizationSlug,
+  canWrite,
+}: {
+  organizationSlug: string;
+  canWrite: boolean;
+}) {
+  return (
+    <HyperlabWorkspaceProvider>
+      <HyperlabFlagsPageView organizationSlug={organizationSlug} canWrite={canWrite} />
+    </HyperlabWorkspaceProvider>
+  );
+}
+
+function HyperlabFlagsPageView({
   organizationSlug,
   canWrite,
 }: {

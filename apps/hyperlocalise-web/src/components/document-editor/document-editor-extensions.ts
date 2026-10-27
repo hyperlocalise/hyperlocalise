@@ -20,6 +20,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { Marked } from "marked";
 
 import { DocumentCallout } from "./document-editor-callout";
+import { DocumentHeading } from "./document-editor-heading";
 import { MdxComponent, MdxInline, MdxRaw } from "./document-editor-mdx";
 
 export type DocumentEditorSyntax = "markdown" | "mdx";
@@ -31,6 +32,10 @@ export function isMdxFilename(filename: string) {
 export function isAsciidocFilename(filename: string) {
   const lower = filename.toLowerCase();
   return lower.endsWith(".adoc") || lower.endsWith(".asciidoc") || lower.endsWith(".asc");
+}
+
+export function isPlainTextFilename(filename: string) {
+  return filename.toLowerCase().endsWith(".txt");
 }
 
 /**
@@ -59,9 +64,10 @@ export function createDocumentSchemaExtensions(
   return [
     StarterKit.configure({
       underline: false,
+      heading: false,
       link: { openOnClick: false, linkOnPaste: true, HTMLAttributes: { target: null } },
-      heading: { levels: [1, 2, 3, 4] },
     }),
+    DocumentHeading.configure({ levels: [1, 2, 3, 4] }),
     TaskList.configure({ HTMLAttributes: { class: "document-task-list" } }),
     TaskItem.configure({ nested: true, HTMLAttributes: { class: "document-task-item" } }),
     Image.configure({ inline: false, allowBase64: false }),
@@ -189,7 +195,7 @@ export function isLossyDocumentRoundTrip(
   return true;
 }
 
-/** Collapses runs of blank lines that renderers leave around blocks, outside code fences. */
+/** Collapses extra blank lines around blocks, including a leading blank, outside code fences. */
 export function normalizeDocumentMarkdown(markdown: string) {
   const lines = markdown.split("\n");
   const output: string[] = [];
@@ -204,7 +210,7 @@ export function normalizeDocumentMarkdown(markdown: string) {
         fence = null;
       }
     }
-    if (fence === null && !line.trim() && output.length > 0 && !output.at(-1)?.trim()) {
+    if (fence === null && !line.trim() && (output.length === 0 || !output.at(-1)?.trim())) {
       continue;
     }
     output.push(fence === null && !line.trim() ? "" : line);

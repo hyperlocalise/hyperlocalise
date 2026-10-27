@@ -19,6 +19,18 @@ Secrets are shown once. If you lost one, create a replacement, update the client
 
 Confirm **Integrations** → **Intercom** is connected for the workspace that owns the Help Center. Reauthorize if Platform asks you to. Check the automation’s **Intercom region** (`United States`, `European Union`, or `Australia`) and selected Help Center. Project locales must match Intercom locale codes exactly. See [Localize Intercom Help Center articles](/platform/connections/intercom).
 
+## Sanity Studio shows no target locales or Upload stays disabled
+
+The plugin does not define its own language list. After OAuth, it loads each native project's `sourceLocale` and `targetLocales` from the session API—the same tags as [project Settings → Locales](/platform/projects/languages). **Translate to** (document view and bulk tool) only lists project targets (and, when set, the intersection with `supportedLanguages` in `sanity.config`). Pick tags from that list and align Sanity `language` / Locales `tag` values with those project tags. After you change project locales in Hyperlocalise, use **Change** on the project line in the plugin to reload the session. See [Project locales list](/platform/connections/sanity-studio-plugin#project-locales-list) and [Localize Sanity Studio documents](/platform/connections/sanity-studio-plugin).
+
+## A Canva job rejects the source locale
+
+The Canva app does not keep its own language list. Pick a native project in the app, then upload, apply, or translate. The job source is that project's source locale, and targets must already belong to that project. `en` is not `en-US`. Upload writes a new batch of page files after a preview confirm; apply uses that batch only. **Translate** uploads, runs the agent job, and applies the result. Open [project languages](/platform/projects/languages), then pick the project again in Canva so the app reloads the list. See [Localize Canva](/platform/connections/canva).
+
+## Braze library is missing or import fails
+
+Confirm **Integrations** → **Braze** has a REST API key and the REST cluster for that instance. Save pings Braze before it stores the pair; a rejected key, missing permission, or wrong cluster is not saved. The key needs `templates.email`, `content_blocks`, `campaigns`, and `canvas` list access. Reconnect if Platform asks you to. Check that the automation’s source locale matches the project source language. Email Templates maps project locales onto copy suffixes. Campaigns & Canvas maps those tags to Braze locale UUIDs. Keep locked pairs such as `en-US` and `en-GB` separate. Apply **Translate Braze Email Templates** or **Translate Braze Campaigns & Canvas**, not both. See [Localize Braze](/platform/connections/braze).
+
 ## An external service asks to reconnect
 
 Reconnect the intended provider account from **Integrations** and inspect the permissions granted. Check whether the automation depends on a particular user’s connection. After reconnecting, test one small read or task before resuming a large batch.

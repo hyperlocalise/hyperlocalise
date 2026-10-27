@@ -23,6 +23,8 @@ const mocks = vi.hoisted(() => ({
       null,
   ),
   getPipesConnectionStatus: vi.fn(),
+  createPipesAuthorizeUrl: vi.fn(),
+  deletePipesConnectedAccount: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -37,11 +39,16 @@ vi.mock("@/lib/pipes/status", () => ({
   getPipesConnectionStatus: (...args: unknown[]) => mocks.getPipesConnectionStatus(...args),
 }));
 
+vi.mock("@/lib/pipes/accounts", () => ({
+  createPipesAuthorizeUrl: (...args: unknown[]) => mocks.createPipesAuthorizeUrl(...args),
+  deletePipesConnectedAccount: (...args: unknown[]) => mocks.deletePipesConnectedAccount(...args),
+}));
+
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db } from "@/lib/database/client";
-import { ok } from "@/lib/primitives/result/results";
+import { err, ok } from "@/lib/primitives/result/results";
 
 const client = testClient<AppType>(createApp());
 const fixture = createAuthTestFixture();
@@ -53,6 +60,8 @@ describe("pipesRoutes", () => {
 
   beforeEach(() => {
     mocks.getPipesConnectionStatus.mockClear();
+    mocks.createPipesAuthorizeUrl.mockClear();
+    mocks.deletePipesConnectedAccount.mockClear();
     mocks.getPipesConnectionStatus.mockResolvedValue(
       ok({
         connected: true,
@@ -60,6 +69,10 @@ describe("pipesRoutes", () => {
         apiKeyLast4: "wxyz",
       }),
     );
+    mocks.createPipesAuthorizeUrl.mockResolvedValue(
+      ok({ url: "https://api.workos.com/data-integrations/intercom/authorize-redirect" }),
+    );
+    mocks.deletePipesConnectedAccount.mockResolvedValue(ok(undefined));
   });
 
   afterEach(async () => {
@@ -89,6 +102,7 @@ describe("pipesRoutes", () => {
     expect(mocks.getPipesConnectionStatus).toHaveBeenCalledWith({
       provider: "ahrefs",
       localOrganizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
+      workosOrganizationId: globalThis.__testApiAuthContext!.organization.workosOrganizationId,
       workosUserId: identity.user.workosUserId,
     });
   });
@@ -119,6 +133,7 @@ describe("pipesRoutes", () => {
     expect(mocks.getPipesConnectionStatus).toHaveBeenCalledWith({
       provider: "google-search-console",
       localOrganizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
+      workosOrganizationId: globalThis.__testApiAuthContext!.organization.workosOrganizationId,
       workosUserId: identity.user.workosUserId,
     });
   });
@@ -146,6 +161,7 @@ describe("pipesRoutes", () => {
     expect(mocks.getPipesConnectionStatus).toHaveBeenCalledWith({
       provider: "notion",
       localOrganizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
+      workosOrganizationId: globalThis.__testApiAuthContext!.organization.workosOrganizationId,
       workosUserId: identity.user.workosUserId,
     });
   });
@@ -167,5 +183,189 @@ describe("pipesRoutes", () => {
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "unknown_pipes_provider" });
     expect(mocks.getPipesConnectionStatus).not.toHaveBeenCalled();
+  });
+
+  it("returns an authorize URL for an admin", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].pipes[":provider"][
+      "authorize-url"
+    ].$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "", provider: "intercom" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      url: "https://api.workos.com/data-integrations/intercom/authorize-redirect",
+    });
+    expect(mocks.createPipesAuthorizeUrl).toHaveBeenCalledWith({
+      provider: "intercom",
+      localOrganizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
+      workosUserId: identity.user.workosUserId,
+      returnTo: expect.stringMatching(/\/org\/.+\/integrations\?pipesCallback=intercom$/),
+    });
+  });
+
+  it("forbids authorize-url for a developer", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("developer");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].pipes[":provider"][
+      "authorize-url"
+    ].$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "", provider: "intercom" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "forbidden" });
+    expect(mocks.createPipesAuthorizeUrl).not.toHaveBeenCalled();
+  });
+
+  it("returns not found for an unknown authorize-url provider", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].pipes[":provider"][
+      "authorize-url"
+    ].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "",
+          provider: "unknown-provider" as "intercom",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "unknown_pipes_provider" });
+    expect(mocks.createPipesAuthorizeUrl).not.toHaveBeenCalled();
+  });
+
+  it("returns the current user's Pipes connection status for Braze", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].pipes[":provider"].$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "", provider: "braze" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      pipe: {
+        provider: "braze",
+        connected: true,
+        needsReauthorization: false,
+        apiKeyLast4: "wxyz",
+      },
+    });
+  });
+
+  it("clears Braze cluster settings when disconnecting Braze", async () => {
+    const { upsertBrazeConnectionSettings, getBrazeConnectionSettings } =
+      await import("@/lib/braze/settings");
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const localOrganizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const workosUserId = identity.user.workosUserId;
+
+    const saved = await upsertBrazeConnectionSettings({
+      localOrganizationId,
+      workosUserId,
+      restEndpoint: "iad-03",
+    });
+    expect(saved.ok).toBe(true);
+
+    const response = await client.api.orgs[":organizationSlug"].pipes[":provider"].$delete(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "", provider: "braze" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(204);
+    expect(await getBrazeConnectionSettings({ localOrganizationId, workosUserId })).toBeNull();
+  });
+
+  it("disconnects a Pipes provider for an admin", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].pipes[":provider"].$delete(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "", provider: "intercom" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(204);
+    expect(mocks.deletePipesConnectedAccount).toHaveBeenCalledWith({
+      provider: "intercom",
+      localOrganizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
+      workosUserId: identity.user.workosUserId,
+    });
+  });
+
+  it("forbids disconnect for a developer", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("developer");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].pipes[":provider"].$delete(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "", provider: "intercom" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "forbidden" });
+    expect(mocks.deletePipesConnectedAccount).not.toHaveBeenCalled();
+  });
+
+  it("returns not found when disconnecting an unknown Pipes provider", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].pipes[":provider"].$delete(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "",
+          provider: "unknown-provider" as "intercom",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "unknown_pipes_provider" });
+    expect(mocks.deletePipesConnectedAccount).not.toHaveBeenCalled();
+  });
+
+  it("returns not found when the connected account is missing", async () => {
+    mocks.deletePipesConnectedAccount.mockResolvedValue(
+      err({ code: "pipes_not_connected", message: "Connect this provider in Integrations first." }),
+    );
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].pipes[":provider"].$delete(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "", provider: "intercom" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ error: "pipes_not_connected" });
   });
 });

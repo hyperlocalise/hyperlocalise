@@ -31,11 +31,20 @@ import { readApiResponseError } from "@/lib/api-error";
 import {
   getSupportedFileTranslationAccept,
   inferSupportedFileTranslationFileFormat,
+  inferSupportedOfficeTranslationFileFormat,
+  type SupportedOfficeTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
 import { importTranslationsDialogMessages as messages } from "./import-translations-dialog.messages";
 
 const FILE_ACCEPT = getSupportedFileTranslationAccept();
+// .xls sources download as .xlsx, so translated workbooks come back in either format.
+const OFFICE_FILE_ACCEPT: Record<SupportedOfficeTranslationFileFormat, string> = {
+  docx: ".docx",
+  xlsx: ".xlsx",
+  xls: ".xlsx,.xls",
+  pptx: ".pptx",
+};
 
 type ImportTranslationsDialogProps = {
   open: boolean;
@@ -63,6 +72,7 @@ export function ImportTranslationsDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const [locale, setLocale] = useState<string>(targetLocales[0] ?? "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const officeFormat = inferSupportedOfficeTranslationFileFormat(sourcePath);
 
   useEffect(() => {
     if (open) {
@@ -79,7 +89,7 @@ export function ImportTranslationsDialog({
       if (!selectedFile) {
         throw new Error(intl.formatMessage(messages.chooseFileRequired));
       }
-      if (!inferSupportedFileTranslationFileFormat(sourcePath)) {
+      if (!officeFormat && !inferSupportedFileTranslationFileFormat(sourcePath)) {
         throw new Error(intl.formatMessage(messages.unsupportedFormat));
       }
 
@@ -167,7 +177,7 @@ export function ImportTranslationsDialog({
               <input
                 ref={inputRef}
                 type="file"
-                accept={FILE_ACCEPT}
+                accept={officeFormat ? OFFICE_FILE_ACCEPT[officeFormat] : FILE_ACCEPT}
                 className="sr-only"
                 onChange={(event) => {
                   setSelectedFile(event.target.files?.[0] ?? null);

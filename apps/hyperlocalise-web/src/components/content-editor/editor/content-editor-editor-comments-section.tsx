@@ -27,6 +27,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
+import { ContentEditorShortcutHint } from "@/components/content-editor/editor/content-editor-shortcut-hints";
 import { isOpenIssueStatus } from "@/components/content-editor/queue/content-editor-queue-filter";
 import { contentEditorEditorPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type {
@@ -269,14 +270,17 @@ export function ContentEditorEditorCommentsSection({
         resolvingCommentId={resolvingCommentId}
         onResolveComment={onResolveComment}
       />
-      <Textarea
-        value={commentDraft}
-        onChange={(event) => handleCommentDraftChange(event.currentTarget.value)}
-        className="min-h-20 resize-y rounded-lg border-border bg-background px-3 py-3 text-sm leading-relaxed text-foreground placeholder:text-subtle-foreground"
-        placeholder={intl.formatMessage(contentEditorEditorPanelMessages.commentPlaceholder)}
-        disabled={!canAddComment || isPostingComment || isResolvingComment}
-        data-cat-comment-input="true"
-      />
+      <div className="relative">
+        <Textarea
+          value={commentDraft}
+          onChange={(event) => handleCommentDraftChange(event.currentTarget.value)}
+          className="min-h-20 resize-y rounded-lg border-border bg-background px-3 py-3 text-sm leading-relaxed text-foreground placeholder:text-subtle-foreground"
+          placeholder={intl.formatMessage(contentEditorEditorPanelMessages.commentPlaceholder)}
+          disabled={!canAddComment || isPostingComment || isResolvingComment}
+          data-cat-comment-input="true"
+        />
+        {canAddComment ? <ContentEditorShortcutHint shortcut="addComment" /> : null}
+      </div>
       {supportsIssueComments ? (
         <div className="flex flex-wrap items-center gap-3">
           <Tabs value={commentInputType} onValueChange={handleCommentInputTypeChange}>

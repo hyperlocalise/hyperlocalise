@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,7 +26,13 @@ func memoryTestAPI(t *testing.T, role string) (*memoryAPI, *testenv.Scope) {
 	return &memoryAPI{
 		pool:       scope.Pool,
 		membership: scope.Membership(role),
+		analytics:  &recordingMemberAnalytics{},
 	}, scope
+}
+
+func memoryTestAnalytics(api *memoryAPI) *recordingMemberAnalytics {
+	rec, _ := api.analytics.(*recordingMemberAnalytics)
+	return rec
 }
 
 func memoryRequest(api *memoryAPI, scope *testenv.Scope, method, path, body string) *httptest.ResponseRecorder {
@@ -69,6 +76,60 @@ func mustAttachMemory(t *testing.T, scope *testenv.Scope, projectID, memoryID st
         values ($1, $2, $3, 0)`,
 		scope.OrganizationID, projectID, memoryID)
 	require.NoError(t, err)
+}
+
+func TestNativeMemoryListEntryDerivedStats(t *testing.T) {
+	api, scope := memoryTestAPI(t, "admin")
+	emptyID := scope.MustMemory(t, "", "Empty TM")
+	withEntriesID := scope.MustMemory(t, "", "Filled TM")
+	mustMemoryEntry(t, scope, withEntriesID, "en-US", "fr-FR", "Hello", "Bonjour")
+	mustMemoryEntry(t, scope, withEntriesID, "en-US", "de-DE", "World", "Welt")
+
+	_, err := scope.Pool.Exec(t.Context(), `
+		update memories
+		set segment_count = 999, locale_coverage = '["ja-JP"]'::jsonb
+		where id = $1`, withEntriesID)
+	require.NoError(t, err)
+
+	rec := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories")+"?source=native", "")
+	require.Equal(t, 200, rec.Code, rec.Body.String())
+	var body struct {
+		Memories []struct {
+			ID             string   `json:"id"`
+			SegmentCount   int      `json:"segmentCount"`
+			LocaleCoverage []string `json:"localeCoverage"`
+		} `json:"memories"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+
+	byID := map[string]struct {
+		SegmentCount   int
+		LocaleCoverage []string
+	}{}
+	for _, memory := range body.Memories {
+		byID[memory.ID] = struct {
+			SegmentCount   int
+			LocaleCoverage []string
+		}{memory.SegmentCount, memory.LocaleCoverage}
+	}
+
+	require.Equal(t, 0, byID[emptyID].SegmentCount)
+	require.Empty(t, byID[emptyID].LocaleCoverage)
+	require.Equal(t, 2, byID[withEntriesID].SegmentCount)
+	require.ElementsMatch(t, []string{"de-DE", "en-US", "fr-FR"}, byID[withEntriesID].LocaleCoverage)
+
+	get := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories/"+withEntriesID), "")
+	require.Equal(t, 200, get.Code, get.Body.String())
+	var detail struct {
+		Memory struct {
+			SegmentCount   int      `json:"segmentCount"`
+			LocaleCoverage []string `json:"localeCoverage"`
+			ProjectCount   int      `json:"projectCount"`
+		} `json:"memory"`
+	}
+	require.NoError(t, json.Unmarshal(get.Body.Bytes(), &detail))
+	require.Equal(t, 2, detail.Memory.SegmentCount)
+	require.ElementsMatch(t, []string{"de-DE", "en-US", "fr-FR"}, detail.Memory.LocaleCoverage)
 }
 
 func TestMemoryUnavailableWithoutPool(t *testing.T) {
@@ -207,6 +268,93 @@ func TestMemoryCreateListEntryConflict(t *testing.T) {
 		require.Equal(t, 201, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"memoryEntry"`)
 	})
+}
+
+func TestMemoryListCountsAccessibleProjects(t *testing.T) {
+	api, scope := memoryTestAPI(t, "member")
+	accessibleTeam := scope.MustTeam(t, "accessible", "Accessible", "member")
+	restrictedTeam := scope.MustTeam(t, "restricted", "Restricted", "")
+	accessibleProject := scope.MustProject(t, uniqueProjectID("paccess"), "Accessible")
+	restrictedProject := scope.MustProject(t, uniqueProjectID("prestrict"), "Restricted")
+	_, err := scope.Pool.Exec(t.Context(), `
+		update projects set team_id = case id when $1 then $2::uuid else $4::uuid end
+		where id in ($1, $3)`,
+		accessibleProject, accessibleTeam, restrictedProject, restrictedTeam)
+	require.NoError(t, err)
+
+	memoryID := scope.MustMemory(t, "", "Shared TM")
+	mustAttachMemory(t, scope, accessibleProject, memoryID)
+	mustAttachMemory(t, scope, restrictedProject, memoryID)
+
+	list := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories"), "")
+	require.Equal(t, 200, list.Code, list.Body.String())
+	var body struct {
+		Memories []struct {
+			ID           string `json:"id"`
+			ProjectCount int    `json:"projectCount"`
+		} `json:"memories"`
+	}
+	require.NoError(t, json.Unmarshal(list.Body.Bytes(), &body))
+	require.Len(t, body.Memories, 1)
+	require.Equal(t, memoryID, body.Memories[0].ID)
+	require.Equal(t, 1, body.Memories[0].ProjectCount)
+
+	detail := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories/"+memoryID+"/projects"), "")
+	require.Equal(t, 200, detail.Code, detail.Body.String())
+	var projects struct {
+		Projects []struct {
+			ProjectID string `json:"projectId"`
+		} `json:"projects"`
+	}
+	require.NoError(t, json.Unmarshal(detail.Body.Bytes(), &projects))
+	require.Len(t, projects.Projects, 1)
+	require.Equal(t, accessibleProject, projects.Projects[0].ProjectID)
+}
+
+func TestMemoryListCountsUnassignedProjectsViaDefaultTeam(t *testing.T) {
+	api, scope := memoryTestAPI(t, "member")
+	_ = scope.MustTeam(t, "default", "Default", "member")
+	restrictedTeam := scope.MustTeam(t, "restricted", "Restricted", "")
+	unassignedProject := scope.MustProject(t, uniqueProjectID("punassign"), "Unassigned")
+	restrictedProject := scope.MustProject(t, uniqueProjectID("prestrict2"), "Restricted")
+	_, err := scope.Pool.Exec(t.Context(), `
+		update projects set team_id = $2
+		where id = $1`,
+		restrictedProject, restrictedTeam)
+	require.NoError(t, err)
+
+	var unassignedTeamID *string
+	err = scope.Pool.QueryRow(t.Context(), `select team_id from projects where id=$1`, unassignedProject).Scan(&unassignedTeamID)
+	require.NoError(t, err)
+	require.Nil(t, unassignedTeamID)
+
+	memoryID := scope.MustMemory(t, "", "Unassigned TM")
+	mustAttachMemory(t, scope, unassignedProject, memoryID)
+	mustAttachMemory(t, scope, restrictedProject, memoryID)
+
+	list := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories"), "")
+	require.Equal(t, 200, list.Code, list.Body.String())
+	var body struct {
+		Memories []struct {
+			ID           string `json:"id"`
+			ProjectCount int    `json:"projectCount"`
+		} `json:"memories"`
+	}
+	require.NoError(t, json.Unmarshal(list.Body.Bytes(), &body))
+	require.Len(t, body.Memories, 1)
+	require.Equal(t, memoryID, body.Memories[0].ID)
+	require.Equal(t, 1, body.Memories[0].ProjectCount)
+
+	detail := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories/"+memoryID+"/projects"), "")
+	require.Equal(t, 200, detail.Code, detail.Body.String())
+	var projects struct {
+		Projects []struct {
+			ProjectID string `json:"projectId"`
+		} `json:"projects"`
+	}
+	require.NoError(t, json.Unmarshal(detail.Body.Bytes(), &projects))
+	require.Len(t, projects.Projects, 1)
+	require.Equal(t, unassignedProject, projects.Projects[0].ProjectID)
 }
 
 func TestMemoryRequestLogPath(t *testing.T) {

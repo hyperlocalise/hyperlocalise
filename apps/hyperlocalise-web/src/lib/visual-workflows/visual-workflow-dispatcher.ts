@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { isAutumnBooleanFeatureEnabled } from "@/lib/billing/autumn-boolean-feature-access";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import { createLogger } from "@/lib/log";
 import type { VisualWorkflowExecutionQueue } from "@/lib/workflow/types";
 import { createVisualWorkflowExecutionQueue } from "@/workflows/adapters";
@@ -18,14 +20,18 @@ import {
   buildVisualWorkflowGithubIdempotencyKey,
   buildVisualWorkflowScheduledIdempotencyKey,
   buildVisualWorkflowSourceUploadIdempotencyKey,
+  buildVisualWorkflowWebhookIdempotencyKey,
 } from "./dispatch/idempotency";
 import {
+  getVisualWorkflowTriggerNode,
   visualWorkflowShouldDispatchOnGithubPullRequest,
   visualWorkflowShouldDispatchOnGithubPush,
   visualWorkflowShouldDispatchOnSourceUpload,
 } from "./dispatch/trigger-matching";
+import { verifyVisualWorkflowWebhookToken } from "./dispatch/webhook-token";
 import {
   advanceVisualWorkflowNextRun,
+  getActivePublishedVisualWorkflowById,
   listDueScheduledVisualWorkflows,
   listVisualWorkflows,
 } from "./visual-workflows";
@@ -378,6 +384,63 @@ export async function dispatchVisualWorkflowsForSourceUpload(input: {
   }
 
   return results;
+}
+
+export type VisualWorkflowWebhookDispatchResult =
+  | { outcome: "not_found" }
+  | { outcome: "unauthorized" }
+  | { outcome: "feature_unavailable" }
+  | VisualWorkflowDispatchResult;
+
+/** Starts a run of the workflow a webhook URL belongs to, once per delivery id. */
+export async function dispatchVisualWorkflowForWebhook(input: {
+  visualWorkflowId: string;
+  token: string;
+  deliveryId: string;
+  body: unknown;
+  query: Record<string, string>;
+  queue?: VisualWorkflowExecutionQueue;
+}): Promise<VisualWorkflowWebhookDispatchResult> {
+  const workflow = await getActivePublishedVisualWorkflowById({
+    visualWorkflowId: input.visualWorkflowId,
+  });
+  const trigger = workflow ? getVisualWorkflowTriggerNode(workflow.definition) : undefined;
+  if (!workflow || trigger?.config.kind !== "trigger.webhook") {
+    return { outcome: "not_found" };
+  }
+  if (
+    !verifyVisualWorkflowWebhookToken({
+      visualWorkflowId: workflow.id,
+      tokenVersion: trigger.config.tokenVersion,
+      token: input.token,
+    })
+  ) {
+    return { outcome: "unauthorized" };
+  }
+  if (
+    !(await isAutumnBooleanFeatureEnabled({
+      organizationId: workflow.organizationId,
+      featureId: autumnFeatureIds.automationWorkflow,
+    }))
+  ) {
+    return { outcome: "feature_unavailable" };
+  }
+
+  return dispatchVisualWorkflowRun({
+    workflow,
+    triggerSource: "webhook",
+    idempotencyKey: buildVisualWorkflowWebhookIdempotencyKey({
+      visualWorkflowId: workflow.id,
+      definitionVersion: workflow.definitionVersion,
+      deliveryId: input.deliveryId,
+    }),
+    inputSnapshot: {
+      body: input.body,
+      query: input.query,
+      deliveryId: input.deliveryId,
+    },
+    queue: input.queue,
+  });
 }
 
 export async function dispatchDueScheduledVisualWorkflows(input?: {

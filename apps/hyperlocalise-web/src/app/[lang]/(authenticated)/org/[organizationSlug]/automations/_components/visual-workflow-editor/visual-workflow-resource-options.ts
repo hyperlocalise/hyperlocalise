@@ -17,12 +17,19 @@ import { useQuery } from "@tanstack/react-query";
 import { createApiClient } from "@/lib/api-client";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import type { ContentSyncProvider } from "@/lib/agents/content-sync/content-sync-types";
+import { createVisualWorkflowsApi } from "../visual-workflows-api";
 
 const api = createApiClient();
+const visualWorkflowsApi = createVisualWorkflowsApi();
 
 export type VisualWorkflowProjectOption = {
   id: string;
   name: string;
+};
+
+export type VisualWorkflowMemberOption = {
+  workosUserId: string;
+  label: string;
 };
 
 export type VisualWorkflowGithubRepositoryOption = {
@@ -54,6 +61,20 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
     queryFn: async () => {
       const body = await goSvcClient.project.list(organizationSlug!);
       return (body.projects ?? []) as VisualWorkflowProjectOption[];
+    },
+  });
+
+  const membersQuery = useQuery({
+    queryKey: ["org-members", organizationSlug, "visual-workflow"],
+    enabled: enabled && !accessTokenLoading,
+    queryFn: async (): Promise<VisualWorkflowMemberOption[]> => {
+      const body = await goSvcClient.member.list(organizationSlug!);
+      return body.members
+        .filter((member) => member.status === "active")
+        .map((member) => ({
+          workosUserId: member.workosUserId,
+          label: member.displayName || member.email,
+        }));
     },
   });
 
@@ -103,6 +124,12 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
     },
   });
 
+  const workflowsQuery = useQuery({
+    queryKey: ["visual-workflows", organizationSlug, "call-options"],
+    enabled,
+    queryFn: () => visualWorkflowsApi.listVisualWorkflows(organizationSlug!),
+  });
+
   const githubConnected = Boolean(githubQuery.data);
   const repositories = (repositoriesQuery.data ?? []).filter(
     (repository) => repository.enabled && !repository.archived,
@@ -112,13 +139,13 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
 
   return {
     projects,
+    members: membersQuery.data ?? [],
     repositories,
     contentfulConnections,
+    workflows: (workflowsQuery.data ?? []).filter(
+      (workflow) => workflow.publishedVersion !== null && workflow.publishedDefinition !== null,
+    ),
     githubConnected,
-    availableProviders: [
-      ...(githubConnected ? (["github"] as const) : []),
-      ...(contentfulConnections.length > 0 ? (["contentful"] as const) : []),
-    ] satisfies ContentSyncProvider[],
     resourceOptionsFor(provider: ContentSyncProvider): VisualWorkflowResourceOption[] {
       if (provider === "github") {
         return repositories.map((repository) => ({

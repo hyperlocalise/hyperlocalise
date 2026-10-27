@@ -52,4 +52,31 @@ describe("HomepageFaqSection", () => {
     expect(screen.getByText(items[0].answer)).toBeVisible();
     expect(screen.getByRole("link", { name: "Contact us" })).toHaveAttribute("href", "/en/contact");
   });
+
+  it("emits FAQPage JSON-LD from the same items as the accordion", () => {
+    render(
+      <IntlProvider locale="en" messages={{}}>
+        <HomepageFaqSection items={items} />
+      </IntlProvider>,
+    );
+
+    const script = document.querySelector('script[type="application/ld+json"]');
+    expect(script).not.toBeNull();
+
+    const jsonLd = JSON.parse(script!.textContent ?? "");
+    expect(jsonLd).toMatchObject({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      inLanguage: "en",
+    });
+    expect(jsonLd.mainEntity).toHaveLength(items.length);
+    expect(jsonLd.mainEntity[0]).toMatchObject({
+      "@type": "Question",
+      name: items[0].question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: items[0].answer,
+      },
+    });
+  });
 });

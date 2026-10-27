@@ -130,6 +130,8 @@ export async function runContentfulAgent(
     });
 
     const tools = buildContentfulAgentTools(session);
+    // Stays on Hyperlocalise's model: step 0 requires the translation tool, which some
+    // workspace models refuse. The field translations themselves use the workspace's key.
     const agent = new ToolLoopAgent({
       model: getHyperlocaliseAgentModel(),
       instructions: composedInstructions,

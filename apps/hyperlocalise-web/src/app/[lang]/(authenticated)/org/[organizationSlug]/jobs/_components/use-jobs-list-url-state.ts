@@ -12,77 +12,49 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-import {
-  buildJobsListHref,
-  clearJobsListFilters,
-  parseJobsListSearchParams,
-  type JobsListUrlState,
-} from "./jobs-list-url-state";
+import { buildJobsListHref } from "./jobs-list-url-state";
+import { JobsPageStore } from "./jobs-page-store";
 
-export function useJobsListUrlState() {
+export function useJobsListUrlState(projectId?: string) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
   const searchParamsKeyRef = useRef(searchParamsKey);
-
-  const [state, setState] = useState(() =>
-    parseJobsListSearchParams(new URLSearchParams(searchParamsKey)),
+  const [store] = useState(
+    () => new JobsPageStore(projectId, new URLSearchParams(searchParamsKey)),
   );
-  const [searchDraft, setSearchDraft] = useState(state.search);
-  const skipNextUrlSync = useRef(false);
 
   useEffect(() => {
     searchParamsKeyRef.current = searchParamsKey;
-    const next = parseJobsListSearchParams(new URLSearchParams(searchParamsKey));
-    skipNextUrlSync.current = true;
-    setState(next);
-    setSearchDraft(next.search);
-  }, [searchParamsKey]);
+    store.applyUrl(new URLSearchParams(searchParamsKey));
+    const href = buildJobsListHref(pathname, store.state, new URLSearchParams(searchParamsKey));
+    const current = searchParamsKey ? `${pathname}?${searchParamsKey}` : pathname;
+    if (href !== current) router.replace(href, { scroll: false });
+  }, [pathname, router, searchParamsKey, store]);
 
   useEffect(() => {
-    if (skipNextUrlSync.current) {
-      skipNextUrlSync.current = false;
-      return;
-    }
+    store.restoreViewMode();
+  }, [store]);
+
+  useEffect(() => {
     const href = buildJobsListHref(
       pathname,
-      state,
+      store.state,
       new URLSearchParams(searchParamsKeyRef.current),
     );
     const currentKey = searchParamsKeyRef.current;
     const current = currentKey ? `${pathname}?${currentKey}` : pathname;
-    if (href !== current) {
-      router.replace(href, { scroll: false });
-    }
-  }, [pathname, router, state]);
+    if (href !== current) router.replace(href, { scroll: false });
+  }, [pathname, router, store, store.state.search, store.state.status]);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      setState((current) =>
-        current.search === searchDraft ? current : { ...current, search: searchDraft },
-      );
-    }, 250);
+    const timeout = window.setTimeout(() => store.commitSearchDraft(), 250);
     return () => window.clearTimeout(timeout);
-  }, [searchDraft]);
+  }, [store, store.searchDraft]);
 
-  const updateState = useCallback((patch: Partial<JobsListUrlState>) => {
-    setState((current) => ({ ...current, ...patch }));
-  }, []);
-
-  const clearFilters = useCallback(() => {
-    setState((current) => clearJobsListFilters(current));
-    setSearchDraft("");
-  }, []);
-
-  return {
-    state,
-    searchDraft,
-    setSearchDraft,
-    updateState,
-    clearFilters,
-  };
+  return store;
 }

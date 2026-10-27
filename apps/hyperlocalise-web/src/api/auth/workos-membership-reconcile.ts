@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, isNotNull, ne } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import type { OrganizationMembership } from "@workos-inc/node";
 
 import {
@@ -26,9 +26,9 @@ import * as schema from "@/lib/database/schema";
 import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";
 import {
+  excludeReplacingWorkosMembershipSql,
   isInvitedPlaceholderWorkosUserId,
   isLiveWorkosApiKey,
-  REPLACING_WORKOS_MEMBERSHIP_ID,
 } from "@/lib/workos/constants";
 import { membershipRoleFromUnknownRoleField } from "@/lib/workos/membership-role";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
@@ -338,24 +338,28 @@ export async function reconcileWorkosMembershipsForUser(
       workosOrganizationId: remoteMembership.organizationId,
     });
 
-    await syncWorkosIdentity(database, {
-      user: {
-        workosUserId: input.workosUserId,
-        email: input.email,
-        firstName: input.firstName,
-        lastName: input.lastName,
-        avatarUrl: input.avatarUrl,
+    await syncWorkosIdentity(
+      database,
+      {
+        user: {
+          workosUserId: input.workosUserId,
+          email: input.email,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          avatarUrl: input.avatarUrl,
+        },
+        organization: {
+          workosOrganizationId: remoteMembership.organizationId,
+          name: organization.name,
+          slug: organization.slug ?? undefined,
+        },
+        membership: {
+          workosMembershipId: remoteMembership.id,
+          role,
+        },
       },
-      organization: {
-        workosOrganizationId: remoteMembership.organizationId,
-        name: organization.name,
-        slug: organization.slug ?? undefined,
-      },
-      membership: {
-        workosMembershipId: remoteMembership.id,
-        role,
-      },
-    });
+      { recordActivity: true },
+    );
 
     if (!existingMembership) {
       added += 1;
@@ -386,7 +390,7 @@ export async function reconcileWorkosMembershipsForUser(
   const localMembershipConditions = [
     eq(schema.organizationMemberships.userId, localUser.id),
     isNotNull(schema.organizationMemberships.workosMembershipId),
-    ne(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
+    excludeReplacingWorkosMembershipSql(schema.organizationMemberships.workosMembershipId),
   ];
 
   if (input.workosOrganizationId) {

@@ -78,6 +78,26 @@ func TestAppleStringsParserExtractsMaxLengthFromLeadingComments(t *testing.T) {
 	}
 }
 
+func TestAppleStringsParserParseIngestEntriesKeepsLeadingComments(t *testing.T) {
+	content := []byte(`/* Login greeting */
+"hello" = "Hello";
+
+// Checkout CTA
+"cta" = "Continue";
+`)
+
+	entries, err := (AppleStringsParser{}).ParseIngestEntries(content)
+	if err != nil {
+		t.Fatalf("parse strings ingest entries: %v", err)
+	}
+	if entries["hello"].Context != "Login greeting" {
+		t.Fatalf("unexpected hello context: %#v", entries["hello"])
+	}
+	if entries["cta"].Context != "Checkout CTA" {
+		t.Fatalf("unexpected cta context: %#v", entries["cta"])
+	}
+}
+
 func TestMarshalAppleStringsPreservesTemplateFormatting(t *testing.T) {
 	template := []byte(`/* App title */
 "title"   =   "Welcome";

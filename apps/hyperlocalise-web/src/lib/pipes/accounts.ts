@@ -51,6 +51,17 @@ async function loadWorkosOrganizationId(
   return ok(organization.workosOrganizationId);
 }
 
+async function resolveWorkosOrganizationId(input: {
+  localOrganizationId: string;
+  workosOrganizationId?: string | null;
+}): Promise<Result<string, PipesStatusError>> {
+  const explicit = input.workosOrganizationId?.trim();
+  if (explicit) {
+    return ok(explicit);
+  }
+  return loadWorkosOrganizationId(input.localOrganizationId);
+}
+
 function isNotFound(error: unknown): boolean {
   return error instanceof NotFoundException;
 }
@@ -59,13 +70,17 @@ export async function getPipesAccountStatus(input: {
   provider: PipesProviderSlug;
   localOrganizationId: string;
   workosUserId: string;
+  workosOrganizationId?: string | null;
 }): Promise<Result<PipesConnectionStatus, PipesStatusError>> {
   const workos = getWorkosServerClient();
   if (!workos) {
     return err(PIPES_UNAVAILABLE);
   }
 
-  const organizationIdResult = await loadWorkosOrganizationId(input.localOrganizationId);
+  const organizationIdResult = await resolveWorkosOrganizationId({
+    localOrganizationId: input.localOrganizationId,
+    workosOrganizationId: input.workosOrganizationId,
+  });
   if (isErr(organizationIdResult)) {
     return organizationIdResult;
   }
@@ -105,6 +120,61 @@ export async function getPipesAccountStatus(input: {
         needsReauthorization: false,
         apiKeyLast4: null,
       });
+    }
+
+    return err(PIPES_UNAVAILABLE);
+  }
+}
+
+export async function upsertPipesApiKey(input: {
+  provider: PipesProviderSlug;
+  localOrganizationId: string;
+  workosUserId: string;
+  workosOrganizationId?: string | null;
+  secret: string;
+}): Promise<Result<PipesConnectionStatus, PipesCredentialError>> {
+  const secret = input.secret.trim();
+  if (!secret) {
+    return err(PIPES_NOT_CONNECTED);
+  }
+
+  const workos = getWorkosServerClient();
+  if (!workos) {
+    return err(PIPES_UNAVAILABLE);
+  }
+
+  const organizationIdResult = await resolveWorkosOrganizationId({
+    localOrganizationId: input.localOrganizationId,
+    workosOrganizationId: input.workosOrganizationId,
+  });
+  if (isErr(organizationIdResult)) {
+    return organizationIdResult;
+  }
+
+  try {
+    const account = await workos.pipes.updateDataIntegrationApiKey({
+      slug: input.provider,
+      userId: input.workosUserId,
+      organizationId: organizationIdResult.value,
+      secret,
+    });
+
+    if (account.state === "needs_reauthorization") {
+      return err(PIPES_NEEDS_REAUTHORIZATION);
+    }
+
+    if (account.state !== "connected") {
+      return err(PIPES_NOT_CONNECTED);
+    }
+
+    return ok({
+      connected: true,
+      needsReauthorization: false,
+      apiKeyLast4: account.apiKeyLast4 ?? null,
+    });
+  } catch (error) {
+    if (isNotFound(error)) {
+      return err(PIPES_NOT_CONNECTED);
     }
 
     return err(PIPES_UNAVAILABLE);
@@ -164,6 +234,71 @@ function pipesCredentialErrorFromVendError(error: unknown): PipesCredentialError
   }
 
   return PIPES_NOT_CONNECTED;
+}
+
+export async function createPipesAuthorizeUrl(input: {
+  provider: PipesProviderSlug;
+  localOrganizationId: string;
+  workosUserId: string;
+  returnTo?: string;
+}): Promise<Result<{ url: string }, PipesStatusError>> {
+  const workos = getWorkosServerClient();
+  if (!workos) {
+    return err(PIPES_UNAVAILABLE);
+  }
+
+  const organizationIdResult = await loadWorkosOrganizationId(input.localOrganizationId);
+  if (isErr(organizationIdResult)) {
+    return organizationIdResult;
+  }
+
+  try {
+    const result = await workos.pipes.authorizeDataIntegration({
+      slug: input.provider,
+      userId: input.workosUserId,
+      organizationId: organizationIdResult.value,
+      ...(input.returnTo ? { returnTo: input.returnTo } : {}),
+    });
+    const url = result.url?.trim();
+    if (!url) {
+      return err(PIPES_UNAVAILABLE);
+    }
+
+    return ok({ url });
+  } catch {
+    return err(PIPES_UNAVAILABLE);
+  }
+}
+
+export async function deletePipesConnectedAccount(input: {
+  provider: PipesProviderSlug;
+  localOrganizationId: string;
+  workosUserId: string;
+}): Promise<Result<void, PipesCredentialError>> {
+  const workos = getWorkosServerClient();
+  if (!workos) {
+    return err(PIPES_UNAVAILABLE);
+  }
+
+  const organizationIdResult = await loadWorkosOrganizationId(input.localOrganizationId);
+  if (isErr(organizationIdResult)) {
+    return organizationIdResult;
+  }
+
+  try {
+    await workos.pipes.deleteUserConnectedAccount({
+      slug: input.provider,
+      userId: input.workosUserId,
+      organizationId: organizationIdResult.value,
+    });
+    return ok(undefined);
+  } catch (error) {
+    if (isNotFound(error)) {
+      return err(PIPES_NOT_CONNECTED);
+    }
+
+    return err(PIPES_UNAVAILABLE);
+  }
 }
 
 export async function loadPipesAccessToken(input: {

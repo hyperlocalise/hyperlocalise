@@ -150,7 +150,7 @@ values stay in Secrets Manager; Lambda receives only ARN, JSON-key, and cache
 metadata through environment variables.
 
 All Postgres-backed SQS Lambdas (activity-log, glossary-interchange,
-memory-interchange) use the same database secret metadata and Go bootstrap:
+memory-interchange, visual-context-match) use the same database secret metadata and Go bootstrap:
 
 - `DATABASE_URL_SECRET_ARN`, `DATABASE_SECRET_KEY`, and optionally
   `DATABASE_URL_SECRET_CACHE_TTL_SECONDS`
@@ -178,6 +178,20 @@ apply, and exports become downloadable after the worker records a completed
 run. The infrastructure queue must be provisioned before enabling the
 publisher; deploy the real artifact before redriving placeholder or DLQ
 messages.
+
+The visual-context match worker binds native strings to CAT screenshots with
+OCR, modelled on Smartling's context match processes. go-svc publishes
+`{schemaVersion, processId}` messages when `VISUAL_CONTEXT_MATCH_QUEUE_URL` is
+set; without it the match API returns `visual_context_matching_unavailable`.
+Its artifact is `visual-context-match/bootstrap.zip`, built by
+`make build-visual-context-match-lambda`, and its function handoff is
+`/hyperlocalise/prod/lambda/visual-context-match/function_name`. Besides the
+database secret variables, the Lambda reads `OBJECT_STORAGE_S3_FILES_BUCKET`,
+`OBJECT_STORAGE_S3_FILES_REGION`, optional `OBJECT_STORAGE_S3_FILES_ENDPOINT`,
+`OBJECT_STORAGE_DEFAULT_LOCATION`, and optional `TEXTRACT_REGION`. Its role
+needs `s3:GetObject` on the files bucket and `textract:DetectDocumentText`.
+Use a function timeout of at least 3 minutes and a queue visibility timeout
+above it.
 
 ### GitHub Action settings
 

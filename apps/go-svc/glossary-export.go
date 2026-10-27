@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/xml"
-	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -196,30 +197,62 @@ func unescapeGlossaryCSVFormula(value string) string {
 }
 
 func serializeGlossaryCSV(concepts []glossaryExportConcept) ([]byte, error) {
+	termCount := 0
+	for _, c := range concepts {
+		termCount += len(c.Terms)
+	}
+
 	var buf bytes.Buffer
+	// BOLT OPTIMIZATION: Pre-grow buffer based on estimated CSV size per term.
+	buf.Grow(300 + termCount*250)
 	buf.WriteString("\ufeff")
+
 	w := csv.NewWriter(&buf)
 	w.UseCRLF = true
 	if err := w.Write(glossaryCSVHeaders); err != nil {
 		return nil, err
 	}
+
+	// BOLT OPTIMIZATION: Reuse a single 25-element row slice and replace fmt.Sprintf
+	// with boolToString to eliminate per-term slice and formatting allocations.
+	row := make([]string, 25)
 	for _, concept := range concepts {
+		translatableStr := boolToString(concept.Translatable)
+		conceptID := escapeGlossaryCSVFormula(concept.ID)
+		primaryTerm := escapeGlossaryCSVFormula(concept.PrimaryTerm)
+		subject := escapeGlossaryCSVFormula(concept.Subject)
+		definition := escapeGlossaryCSVFormula(concept.Definition)
+		conceptNote := escapeGlossaryCSVFormula(concept.Note)
+		conceptURL := escapeGlossaryCSVFormula(stringOrEmpty(concept.URL))
+		conceptFigure := escapeGlossaryCSVFormula(stringOrEmpty(concept.Figure))
+
 		for _, term := range concept.Terms {
-			row := []string{
-				escapeGlossaryCSVFormula(concept.ID), escapeGlossaryCSVFormula(term.ID),
-				escapeGlossaryCSVFormula(term.Locale), escapeGlossaryCSVFormula(term.Term),
-				escapeGlossaryCSVFormula(concept.PrimaryTerm), escapeGlossaryCSVFormula(concept.Subject),
-				escapeGlossaryCSVFormula(concept.Definition),
-				fmt.Sprintf("%t", concept.Translatable), escapeGlossaryCSVFormula(concept.Note),
-				escapeGlossaryCSVFormula(stringOrEmpty(concept.URL)), escapeGlossaryCSVFormula(stringOrEmpty(concept.Figure)),
-				escapeGlossaryCSVFormula(term.Description), escapeGlossaryCSVFormula(term.Note),
-				escapeGlossaryCSVFormula(term.PartOfSpeech), escapeGlossaryCSVFormula(stringOrEmpty(term.Gender)),
-				escapeGlossaryCSVFormula(stringOrEmpty(term.TermType)), escapeGlossaryCSVFormula(stringOrEmpty(term.URL)),
-				escapeGlossaryCSVFormula(stringOrEmpty(term.Lemma)), escapeGlossaryCSVFormula(term.Status),
-				fmt.Sprintf("%t", term.CaseSensitive), fmt.Sprintf("%t", term.Forbidden),
-				escapeGlossaryCSVFormula(term.Provenance), escapeGlossaryCSVFormula(term.ReviewStatus),
-				formatGlossaryTime(term.CreatedAt), formatGlossaryTime(term.UpdatedAt),
-			}
+			row[0] = conceptID
+			row[1] = escapeGlossaryCSVFormula(term.ID)
+			row[2] = escapeGlossaryCSVFormula(term.Locale)
+			row[3] = escapeGlossaryCSVFormula(term.Term)
+			row[4] = primaryTerm
+			row[5] = subject
+			row[6] = definition
+			row[7] = translatableStr
+			row[8] = conceptNote
+			row[9] = conceptURL
+			row[10] = conceptFigure
+			row[11] = escapeGlossaryCSVFormula(term.Description)
+			row[12] = escapeGlossaryCSVFormula(term.Note)
+			row[13] = escapeGlossaryCSVFormula(term.PartOfSpeech)
+			row[14] = escapeGlossaryCSVFormula(stringOrEmpty(term.Gender))
+			row[15] = escapeGlossaryCSVFormula(stringOrEmpty(term.TermType))
+			row[16] = escapeGlossaryCSVFormula(stringOrEmpty(term.URL))
+			row[17] = escapeGlossaryCSVFormula(stringOrEmpty(term.Lemma))
+			row[18] = escapeGlossaryCSVFormula(term.Status)
+			row[19] = boolToString(term.CaseSensitive)
+			row[20] = boolToString(term.Forbidden)
+			row[21] = escapeGlossaryCSVFormula(term.Provenance)
+			row[22] = escapeGlossaryCSVFormula(term.ReviewStatus)
+			row[23] = formatGlossaryTime(term.CreatedAt)
+			row[24] = formatGlossaryTime(term.UpdatedAt)
+
 			if err := w.Write(row); err != nil {
 				return nil, err
 			}
@@ -227,6 +260,13 @@ func serializeGlossaryCSV(concepts []glossaryExportConcept) ([]byte, error) {
 	}
 	w.Flush()
 	return buf.Bytes(), w.Error()
+}
+
+func boolToString(v bool) string {
+	if v {
+		return "true"
+	}
+	return "false"
 }
 
 func stringOrEmpty(v *string) string {
@@ -237,7 +277,13 @@ func stringOrEmpty(v *string) string {
 }
 
 func serializeGlossaryTBX(g glossaryRecord, concepts []glossaryExportConcept) ([]byte, error) {
+	termCount := 0
+	for _, c := range concepts {
+		termCount += len(c.Terms)
+	}
 	var b strings.Builder
+	b.Grow(len(concepts)*250 + termCount*150 + 300)
+
 	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
 	b.WriteString(`<tbx xmlns="urn:iso:std:iso:30042:ed-2" style="dca" type="TBX-Basic" xml:lang="`)
 	b.WriteString(xmlEscape(g.SourceLocale))
@@ -260,13 +306,14 @@ func serializeGlossaryTBX(g glossaryRecord, concepts []glossaryExportConcept) ([
 			b.WriteString(xmlEscape(concept.Definition))
 			b.WriteString(`</descrip>` + "\n")
 		}
-		byLocale := map[string][]glossaryExportTerm{}
-		order := []string{}
+		byLocale := make(map[string][]glossaryExportTerm, len(concept.Terms))
+		order := make([]string, 0, len(concept.Terms))
 		for _, term := range concept.Terms {
-			if _, ok := byLocale[term.Locale]; !ok {
+			terms, ok := byLocale[term.Locale]
+			if !ok {
 				order = append(order, term.Locale)
 			}
-			byLocale[term.Locale] = append(byLocale[term.Locale], term)
+			byLocale[term.Locale] = append(terms, term)
 		}
 		for _, locale := range order {
 			b.WriteString(`      <langSec xml:lang="`)
@@ -288,11 +335,59 @@ func serializeGlossaryTBX(g glossaryRecord, concepts []glossaryExportConcept) ([
 }
 
 func xmlEscape(s string) string {
+	if isXMLPlainText(s) {
+		return s
+	}
 	var b strings.Builder
 	if err := xml.EscapeText(&b, []byte(s)); err != nil {
 		return s
 	}
 	return b.String()
+}
+
+// isXMLPlainText reports whether s can be copied into TBX without escaping.
+// Markup characters and code points outside the XML 1.0 Char production
+// (including invalid UTF-8) take the xml.EscapeText path so illegal
+// controls become U+FFFD.
+func isXMLPlainText(s string) bool {
+	if strings.ContainsAny(s, "<>&'\"\r") {
+		return false
+	}
+	for i := 0; i < len(s); {
+		size := xmlCharSize(s, i)
+		if size <= 0 {
+			return false
+		}
+		i += size
+	}
+	return true
+}
+
+func xmlCharSize(s string, i int) int {
+	c := s[i]
+	if c < utf8.RuneSelf {
+		if c == '\t' || c == '\n' || c >= 0x20 {
+			return 1
+		}
+		return 0
+	}
+	r, size := utf8.DecodeRuneInString(s[i:])
+	if r == utf8.RuneError && size == 1 {
+		return 0
+	}
+	if !isXMLCharacterRange(r) {
+		return 0
+	}
+	return size
+}
+
+func isXMLCharacterRange(r rune) bool {
+	return r == 0x09 ||
+		r == 0x0A ||
+		r == 0x0D ||
+		r >= 0x20 && r <= 0xD7FF ||
+		r >= 0xE000 && r <= 0xFFFD ||
+		r >= 0x10000 && r <= 0x10FFFF
 }
 
 func serializeGlossaryXLSX(concepts []glossaryExportConcept) ([]byte, error) {
@@ -301,34 +396,55 @@ func serializeGlossaryXLSX(concepts []glossaryExportConcept) ([]byte, error) {
 	conceptsSheet := "Concepts"
 	termsSheet := "Terms"
 	_ = f.SetSheetName("Sheet1", conceptsSheet)
-	_, _ = f.NewSheet(termsSheet)
-	conceptHeaders := []string{"conceptId", "primaryTerm", "subject", "definition", "translatable", "note", "url", "figure"}
-	termHeaders := []string{"conceptId", "termId", "locale", "term", "description", "note", "partOfSpeech", "gender", "termType", "status", "caseSensitive", "forbidden", "provenance", "reviewStatus"}
-	for i, h := range conceptHeaders {
-		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
-		_ = f.SetCellValue(conceptsSheet, cell, h)
+	if _, err := f.NewSheet(termsSheet); err != nil {
+		return nil, err
 	}
-	for i, h := range termHeaders {
-		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
-		_ = f.SetCellValue(termsSheet, cell, h)
+
+	conceptsWriter, err := f.NewStreamWriter(conceptsSheet)
+	if err != nil {
+		return nil, err
 	}
+	termsWriter, err := f.NewStreamWriter(termsSheet)
+	if err != nil {
+		return nil, err
+	}
+
+	conceptHeaders := []any{"conceptId", "primaryTerm", "subject", "definition", "translatable", "note", "url", "figure"}
+	termHeaders := []any{"conceptId", "termId", "locale", "term", "description", "note", "partOfSpeech", "gender", "termType", "status", "caseSensitive", "forbidden", "provenance", "reviewStatus"}
+
+	if err := conceptsWriter.SetRow("A1", conceptHeaders); err != nil {
+		return nil, err
+	}
+	if err := termsWriter.SetRow("A1", termHeaders); err != nil {
+		return nil, err
+	}
+
 	termRow := 2
 	for i, concept := range concepts {
 		row := i + 2
-		values := []any{concept.ID, concept.PrimaryTerm, concept.Subject, concept.Definition, concept.Translatable, concept.Note, stringOrEmpty(concept.URL), stringOrEmpty(concept.Figure)}
-		for col, value := range values {
-			cell, _ := excelize.CoordinatesToCellName(col+1, row)
-			_ = f.SetCellValue(conceptsSheet, cell, value)
+		conceptCell := "A" + strconv.Itoa(row)
+		conceptValues := []any{concept.ID, concept.PrimaryTerm, concept.Subject, concept.Definition, concept.Translatable, concept.Note, stringOrEmpty(concept.URL), stringOrEmpty(concept.Figure)}
+		if err := conceptsWriter.SetRow(conceptCell, conceptValues); err != nil {
+			return nil, err
 		}
+
 		for _, term := range concept.Terms {
+			termCell := "A" + strconv.Itoa(termRow)
 			termValues := []any{concept.ID, term.ID, term.Locale, term.Term, term.Description, term.Note, term.PartOfSpeech, stringOrEmpty(term.Gender), stringOrEmpty(term.TermType), term.Status, term.CaseSensitive, term.Forbidden, term.Provenance, term.ReviewStatus}
-			for col, value := range termValues {
-				cell, _ := excelize.CoordinatesToCellName(col+1, termRow)
-				_ = f.SetCellValue(termsSheet, cell, value)
+			if err := termsWriter.SetRow(termCell, termValues); err != nil {
+				return nil, err
 			}
 			termRow++
 		}
 	}
+
+	if err := conceptsWriter.Flush(); err != nil {
+		return nil, err
+	}
+	if err := termsWriter.Flush(); err != nil {
+		return nil, err
+	}
+
 	buf, err := f.WriteToBuffer()
 	if err != nil {
 		return nil, err

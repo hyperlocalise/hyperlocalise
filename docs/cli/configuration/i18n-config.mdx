@@ -28,10 +28,10 @@ The sections below are the complete field reference. Add advanced settings only 
 Pin the Hyperlocalise CLI version at the top of `i18n.yml`, similar to `packageManager` in `package.json`:
 
 ```yaml
-version: hyperlocalise@1.13.3
+version: hyperlocalise@1.13.6
 ```
 
-When set, commands that load the config (`run`, `check`, `status`, `pack`, `sync`, and others) fail if the running CLI version does not match the pinned value. The `hl` alias is also accepted (`hl@1.13.3`).
+When set, commands that load the config (`run`, `check`, `status`, `pack`, `sync`, and others) fail if the running CLI version does not match the pinned value. The `hl` alias is also accepted (`hl@1.13.6`).
 
 In GitHub Actions, set `hyperlocalise-version: config` to install the version declared in your i18n config file.
 
@@ -599,7 +599,7 @@ qa:
   policy_file: qa-policy.json
 ```
 
-A relative path is resolved from the directory that contains the config file. The JSON file must be policy version `1` and list all 12 checks. See [validate](/cli/commands/validate) for the file shape, severities, glossary terms, and accepted spelling words.
+A relative path is resolved from the directory that contains the config file. The JSON file must be policy version `1`. See [validate](/cli/commands/validate) for the file shape, severities, glossary terms, and accepted spelling words.
 
 ## Generate a starter
 

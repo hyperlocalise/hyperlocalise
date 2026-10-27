@@ -14,6 +14,7 @@ import type { AiFeaturesError } from "@/lib/billing/ai-features";
 import type { StringTranslationJobResult } from "@/lib/translation/domain";
 import type { CliTokenUsage } from "@/lib/translation/cli-token-usage";
 import type { ClaimedTranslationJob } from "@/lib/translation/jobs";
+import type { RecordJobEventsInput } from "@/lib/job-events/job-events-writer";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 export async function claimTranslationJobStep(input: {
@@ -71,7 +72,29 @@ export async function failTranslationJobStep(input: {
 }) {
   "use step";
   const { failTranslationJob } = await import("@/lib/translation/jobs");
-  return failTranslationJob(input);
+  const failedJob = await failTranslationJob(input);
+  const { recordJobEvents } = await import("@/lib/job-events/job-events-writer");
+  await recordJobEvents({
+    jobId: input.jobId,
+    workflowRunId: input.workflowRunId,
+    events: [
+      {
+        type: "job_failed",
+        payload: {
+          code: input.code,
+          failedLocales: input.failedLocales ?? [],
+          followUpJobId: input.followUpJobId ?? null,
+        },
+      },
+    ],
+  });
+  return failedJob;
+}
+
+export async function recordJobEventsStep(input: RecordJobEventsInput) {
+  "use step";
+  const { recordJobEvents } = await import("@/lib/job-events/job-events-writer");
+  await recordJobEvents(input);
 }
 
 export async function markEmailTranslationJobRunning(input: {
@@ -309,6 +332,19 @@ export async function getRepositorySourcePathForStoredFileStep(
   });
 
   return version?.sourcePath ?? null;
+}
+
+/** `.xlsx` bytes for a legacy `.xls` source, or `null` when the workbook cannot be read. */
+export async function convertXlsSourceForSandboxStep(
+  content: Buffer,
+): Promise<{ content: Buffer; contentType: string } | null> {
+  "use step";
+  const { convertXlsToXlsx } = await import("@/lib/translation/xlsx/xls-workbook");
+  const { XLSX_CONTENT_TYPE } = await import("@/lib/translation/xlsx/xlsx-workbook");
+  const converted = convertXlsToXlsx(content);
+  return converted.ok
+    ? { content: Buffer.from(converted.value), contentType: XLSX_CONTENT_TYPE }
+    : null;
 }
 
 export async function getStoredFileContentStep(fileId: string, organizationId: string) {
@@ -572,6 +608,22 @@ export async function completeFileTranslationJobStep(input: {
     );
   }
 
+  const { recordJobEvents } = await import("@/lib/job-events/job-events-writer");
+  await recordJobEvents({
+    jobId: input.jobId,
+    workflowRunId: input.workflowRunId,
+    events: [
+      {
+        type: "job_succeeded",
+        payload: {
+          completedLocales: input.outputFiles.map((file) => file.locale),
+          failedLocales: input.failedLocales ?? [],
+          followUpJobId: input.followUpJobId ?? null,
+        },
+      },
+    ],
+  });
+
   const { captureJobStatus } = await import("@/lib/reporting/capture");
   await captureJobStatus({
     jobId: input.jobId,
@@ -797,12 +849,23 @@ export async function captureFileCompletionsStep(input: {
   targetLocale: string;
   sourceEntries: Record<string, string>;
   targetEntries: Record<string, string>;
+  /** Strings whose text was taken from the translation memory; the rest came from the model. */
+  memoryKeys?: string[];
 }) {
   "use step";
   const { captureCompletions } = await import("@/lib/reporting/capture");
+  const memoryKeys = new Set(input.memoryKeys ?? []);
   await captureCompletions({
-    ...input,
+    organizationId: input.organizationId,
+    jobId: input.jobId,
+    targetLocale: input.targetLocale,
     provenance: "automated",
+    source: "ai",
+    sources: Object.fromEntries(
+      Object.keys(input.targetEntries)
+        .filter((key) => memoryKeys.has(key))
+        .map((key) => [key, "memory" as const]),
+    ),
     sourceEntries: Object.fromEntries(
       Object.entries(input.sourceEntries).filter(([key]) => input.targetEntries[key]?.trim()),
     ),

@@ -1,12 +1,12 @@
 ---
 title: "Translate gettext PO files with Hyperlocalise"
 sidebarTitle: "Gettext PO"
-description: "Translate gettext PO messages, including Unreal Engine rich-text tags, and understand context and plural limitations."
+description: "Translate gettext PO and POT messages, including context, plural forms, and Unreal Engine rich-text tags."
 ---
 
-gettext uses POT files as source message templates and PO files as locale catalogs. These catalogs can include message context and plural forms. For CLI generation, prepare a source-language `.po` with populated `msgstr` values. Direct `.pot` translation is not supported.
+gettext uses POT files as source message templates and PO files as locale catalogs. These catalogs can include message context and plural forms. Hyperlocalise reads both `.po` and `.pot`.
 
-Supported extensions: `.po`. Unreal Engine localization catalogs that export gettext `.po` files use the same parser.
+Supported extensions: `.po`, `.pot`. Unreal Engine localization catalogs that export gettext `.po` files use the same parser.
 
 ## Source file
 
@@ -103,15 +103,52 @@ Converts at most 1000 Unreal tags in one entry. Further tags stay plain text and
 round-trip unchanged. Do not nest Unreal tags. The engine renders nested markup
 as literal text.
 
+## Keys, context, and comments
+
+A singular entry's key is its `msgid`. When `msgctxt` is set, the key is `msgctxt||msgid`, the same join Phrase Strings uses. Identical `msgid` values in different contexts stay separate entries.
+
+```text
+msgctxt "nav"
+msgid "Open"
+msgstr "Open"
+
+msgctxt "forum"
+msgid "Open"
+msgstr "Open"
+```
+
+Those two entries are `nav||Open` and `forum||Open`. Translator comments (`#`) and extracted comments (`#.`) are sent with the string as context. Reference comments (`#:`), flag comments (`#,`), and previous-string comments (`#|`) stay in the file. Obsolete entries (`#~`) are kept and are not translated. Replacing a translation removes a `fuzzy` flag and leaves other flags, such as `c-format`, in place.
+
+The header entry (`msgid ""`) is metadata, not a string. `Language` and `Plural-Forms` in that header select plural categories. On writeback for a target locale, Hyperlocalise sets `Language` to that locale (hyphens become underscores) and writes the matching gettext `Plural-Forms` rule.
+
+## Plural forms
+
+A plural entry becomes one string per category, in gettext index order. English (`nplurals=2`) produces `msgid||one` and `msgid||other`. Polish produces `one`, `few`, `many`, and `other`. Arabic produces `zero`, `one`, `two`, `few`, `many`, and `other`. Russian uses `one`, `few`, and `many`. Croatian, Serbian, and Bosnian use `one`, `few`, and `other` for the same formula. With context, the key is `msgctxt||msgid||one`.
+
+```text
+msgid "%d file"
+msgid_plural "%d files"
+msgstr[0] "%d file"
+msgstr[1] "%d files"
+```
+
+Writeback emits `msgstr[0]` through `msgstr[n-1]` for the target language and fills a category that has no translation from `other`. A lockfile entry that still uses the bare `msgid` fills the `one` slot.
+
+An empty `msgstr` falls back to `msgid`. An empty plural slot other than `one` falls back to `msgid_plural`. That is how `.pot` templates and Crowdin's default source text are read. A source catalog that already stores the English text in `msgstr` keeps using `msgstr`. Add this header field when an empty `msgstr` must stay empty instead of falling back to `msgid`:
+
+```text
+"X-Crowdin-SourceKey: msgstr\n"
+```
+
 ## Behavior and limitations
 
-- Uses `msgid` as the entry key and `msgstr` as its value; multiline quoted continuations are supported.
+- Multiline quoted continuations are supported. Leading and trailing spaces in `msgid` are significant.
 
-- Use a source-language PO with populated `msgstr` values for generation, as shown here. `.pot` is not a registered translation file extension.
+- Map `.pot` templates directly, or keep a source-language `.po` whose `msgstr` values hold the source text.
 
-- The header entry is skipped. Context (`msgctxt`) does not distinguish keys, so avoid duplicate IDs distinguished only by context.
+- Plural categories follow GNU gettext rules for the languages Hyperlocalise knows (English, French, German, Spanish, Polish, Russian, Czech, Arabic, Japanese, Chinese, and the usual neighbors). An unknown `Plural-Forms` formula with two slots is treated as `one` and `other`. Other unknown formulas use `plural0`, `plural1`, and so on.
 
-- Plural handling maps only `msgstr[0]`; this is not full locale-specific plural generation. Writeback preserves PO structure and replaces mapped values. Unreal tags in `msgstr[0]` follow the same rules as other entries.
+- Strings that gain translator comments, extracted comments, or `msgctxt` are new work on the next run. Plural keys change from a bare `msgid` to `msgid||category`, so existing plural lockfile entries are translated again once.
 
 - Unreal Engine rich-text tags in `.po` messages become placeholders during translation and return to the original markup on writeback. See [Unreal Engine rich text](#unreal-engine-rich-text).
 

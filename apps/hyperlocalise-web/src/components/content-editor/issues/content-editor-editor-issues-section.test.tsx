@@ -18,6 +18,7 @@ import { IntlProvider } from "react-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { patchIssueSheetListCacheForAssignee } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/issue-detail/patch-organization-issue-list-caches";
+import type { IssueSheetListQuery } from "@/lib/go-svc/go-svc-client.types";
 import {
   EMPTY_CAT_ISSUE_GUIDANCE_STATUS,
   getCatIssueGuidanceStatus,
@@ -31,12 +32,59 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
+type IssueListCall = {
+  organizationSlug: string;
+  projectId: string;
+  query: IssueSheetListQuery;
+};
+
+const goSvcMocks = vi.hoisted(() => {
+  const listCalls: IssueListCall[] = [];
+  let listHandler: (
+    query: IssueSheetListQuery,
+  ) => Promise<{ issues: unknown[]; total: number }> = async () => ({ issues: [], total: 0 });
+
+  return {
+    listCalls,
+    setListHandler(
+      handler: (query: IssueSheetListQuery) => Promise<{ issues: unknown[]; total: number }>,
+    ) {
+      listHandler = handler;
+    },
+    issueSheetList: async (
+      organizationSlug: string,
+      projectId: string,
+      query: IssueSheetListQuery,
+    ) => {
+      listCalls.push({ organizationSlug, projectId, query });
+      return listHandler(query);
+    },
+    reset() {
+      listCalls.length = 0;
+      listHandler = async () => ({ issues: [], total: 0 });
+    },
+  };
+});
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: {
+      issueSheet: {
+        list: goSvcMocks.issueSheetList,
+        assignableMembers: async () => ({ members: [] }),
+      },
+    },
+    loading: false,
+  }),
+}));
+
 const ORGANIZATION_SLUG = "acme";
 const PROJECT_ID = "proj_1";
 const TRANSLATION_KEY_ID = "11111111-1111-4111-8111-111111111111";
 
 const frenchIssue = {
   id: "22222222-2222-4222-8222-222222222222",
+  identifier: "HL-1",
   title: "Wrong tone",
   status: "open",
   targetLocale: "fr-FR",
@@ -72,61 +120,49 @@ function renderSection(
   return { ...view, queryClient };
 }
 
-/** List requests only; the assignee cell separately loads assignable members. */
-function listRequestUrls() {
-  return (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls
-    .map(([input]) => String(input))
-    .filter((url) => !url.includes("/assignable-members"));
-}
-
-function jsonResponse(body: unknown) {
-  return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+function listRequestQueries() {
+  return goSvcMocks.listCalls.map((call) => call.query);
 }
 
 /** Serves `issues` in pages of `pageSize`, mirroring the list endpoint's paging. */
 function stubPagedIssueSheet(issues: (typeof frenchIssue)[], pageSize: number) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockImplementation((input: string) => {
-      if (String(input).includes("/assignable-members")) {
-        return jsonResponse({ members: [] });
-      }
-      const offset = Number(new URL(input, "https://app.test").searchParams.get("offset") ?? "0");
-      return jsonResponse({
-        issues: issues.slice(offset, offset + pageSize),
-        total: issues.length,
-      });
-    }),
-  );
+  goSvcMocks.setListHandler(async (query) => {
+    const offset = query.offset ?? 0;
+    const slice = issues.slice(offset, offset + pageSize);
+    return {
+      issues: slice,
+      total: issues.length,
+    };
+  });
 }
 
 describe("ContentEditorEditorIssuesSection", () => {
   beforeEach(() => {
+    goSvcMocks.reset();
     stubPagedIssueSheet([frenchIssue], 100);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
     setCatIssueGuidanceStatus(EMPTY_CAT_ISSUE_GUIDANCE_STATUS);
   });
 
   it("scopes the request to the translation key and the active target locale", async () => {
     renderSection();
 
-    await waitFor(() => expect(listRequestUrls()).toHaveLength(1));
+    await waitFor(() => expect(listRequestQueries()).toHaveLength(1));
 
-    const url = new URL(listRequestUrls()[0]!, "https://app.test");
-    expect(url.searchParams.get("translationKeyId")).toBe(TRANSLATION_KEY_ID);
-    expect(url.searchParams.get("locale")).toBe("fr-FR");
-    expect(url.searchParams.get("status")).toBe("all");
+    const query = listRequestQueries()[0]!;
+    expect(query.translationKeyId).toBe(TRANSLATION_KEY_ID);
+    expect(query.locale).toBe("fr-FR");
+    expect(query.status).toBe("all");
   });
 
   it("refetches when the edited locale changes", async () => {
     const onOpenIssueCountChange = vi.fn();
     const { rerender, queryClient } = renderSection({ onOpenIssueCountChange });
 
-    await waitFor(() => expect(listRequestUrls()).toHaveLength(1));
+    await waitFor(() => expect(listRequestQueries()).toHaveLength(1));
     await waitFor(() => expect(onOpenIssueCountChange).toHaveBeenLastCalledWith(1));
 
     rerender(
@@ -146,10 +182,8 @@ describe("ContentEditorEditorIssuesSection", () => {
       </QueryClientProvider>,
     );
 
-    await waitFor(() => expect(listRequestUrls()).toHaveLength(2));
-    expect(new URL(listRequestUrls()[1]!, "https://app.test").searchParams.get("locale")).toBe(
-      "ja-JP",
-    );
+    await waitFor(() => expect(listRequestQueries()).toHaveLength(2));
+    expect(listRequestQueries()[1]!.locale).toBe("ja-JP");
     await waitFor(() => expect(onOpenIssueCountChange).toHaveBeenLastCalledWith(1));
     expect(getCatIssueGuidanceStatus()).toEqual({ available: true, openIssueCount: 1 });
   });
@@ -196,10 +230,8 @@ describe("ContentEditorEditorIssuesSection", () => {
   it("stops after one request when the segment fits on a single page", async () => {
     renderSection();
 
-    await waitFor(() => expect(listRequestUrls()).toHaveLength(1));
-    expect(new URL(listRequestUrls()[0]!, "https://app.test").searchParams.get("limit")).toBe(
-      "100",
-    );
+    await waitFor(() => expect(listRequestQueries()).toHaveLength(1));
+    expect(listRequestQueries()[0]!.limit).toBe(100);
   });
 
   it("pages past the first response so counts cover every issue on the segment", async () => {
@@ -214,10 +246,8 @@ describe("ContentEditorEditorIssuesSection", () => {
     renderSection({ onOpenIssueCountChange });
 
     await waitFor(() => expect(onOpenIssueCountChange).toHaveBeenLastCalledWith(120));
-    expect(listRequestUrls()).toHaveLength(2);
-    expect(new URL(listRequestUrls()[1]!, "https://app.test").searchParams.get("offset")).toBe(
-      "100",
-    );
+    expect(listRequestQueries()).toHaveLength(2);
+    expect(listRequestQueries()[1]!.offset).toBe(100);
 
     const openHeader = await screen.findByRole("button", { name: /collapse.*open/i });
     expect(openHeader).toHaveTextContent("120");
@@ -225,21 +255,15 @@ describe("ContentEditorEditorIssuesSection", () => {
 
   it("gives up paging instead of looping when total never gets covered", async () => {
     // A page that never advances toward `total` would spin forever unbounded.
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockImplementation(() =>
-          Promise.resolve(
-            new Response(JSON.stringify({ issues: [frenchIssue], total: 10_000 }), { status: 200 }),
-          ),
-        ),
-    );
+    goSvcMocks.setListHandler(async () => ({
+      issues: [frenchIssue],
+      total: 10_000,
+    }));
 
     renderSection();
 
-    await waitFor(() => expect(listRequestUrls()).toHaveLength(5));
-    expect(listRequestUrls()).toHaveLength(5);
+    await waitFor(() => expect(listRequestQueries()).toHaveLength(5));
+    expect(listRequestQueries()).toHaveLength(5);
   });
 
   it("shows status counts from the segment rows rather than a project-wide summary", async () => {

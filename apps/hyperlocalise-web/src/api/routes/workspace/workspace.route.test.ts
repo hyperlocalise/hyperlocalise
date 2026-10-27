@@ -16,7 +16,15 @@ import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { resolveApiAuthContextFromSessionMock, updateOrganizationMock } = vi.hoisted(() => ({
+const {
+  enqueueActivityLogEventMock,
+  resolveApiAuthContextFromSessionMock,
+  updateOrganizationMock,
+} = vi.hoisted(() => ({
+  enqueueActivityLogEventMock: vi.fn().mockResolvedValue({
+    ok: true,
+    value: { createdAt: new Date(), id: "activity-event-1" },
+  }),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -33,6 +41,11 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
   };
 });
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvent: enqueueActivityLogEventMock,
+  enqueueActivityLogEvents: vi.fn().mockResolvedValue([]),
+}));
 
 vi.mock("@/lib/workos/server-client", () => ({
   getWorkosServerClient: () => ({
@@ -237,5 +250,13 @@ describe("workspaceRoutes", () => {
       .limit(1);
     expect(storedOrganization?.lifecycleStatus).toBe("archived");
     expect(storedOrganization?.archivedAt).toBeInstanceOf(Date);
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        eventType: "workspace_archived",
+        payload: { lifecycleStatus: "archived" },
+        targetKind: "organization",
+      }),
+    );
   });
 });

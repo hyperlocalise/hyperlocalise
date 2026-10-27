@@ -9,11 +9,11 @@ description: "Validate one source and target segment, or a JSON batch, with a Cl
 hyperlocalise validate [flags]
 ```
 
-`validate` checks source and target text with the same 12-check policy as Hyperlocalise Cloud QA. Pass `--policy-file` for a custom policy, or omit it to use the built-in defaults. The `qa.policy_file` key in `i18n.yml` applies to [`check`](/cli/commands/check). Pass text on the command line, point at files, or send a JSON batch with `--input-file`.
+`validate` checks source and target text with the same Cloud QA policy as Hyperlocalise Platform. Pass `--policy-file` for a custom policy, or omit it to use the built-in defaults. The `qa.policy_file` key in `i18n.yml` applies to [`check`](/cli/commands/check). Pass text on the command line, point at files, or send a JSON batch with `--input-file`.
 
 ## Checks
 
-Each check is enabled or disabled and has severity `error` or `warning`. The default policy enables the first nine checks. Numbers, ending punctuation, and capitalization stay off until a policy file turns them on.
+Each check is enabled or disabled and has severity `error` or `warning`. The default policy enables every check except numbers, ending punctuation, and capitalization. Those three stay off until a policy file turns them on.
 
 | Check | Default | What it reports |
 | --- | --- | --- |
@@ -29,6 +29,7 @@ Each check is enabled or disabled and has severity `error` or `warning`. The def
 | `numbers_mismatch` | warning, disabled | Digits in the target differ from the source |
 | `punctuation_mismatch` | warning, disabled | Ending punctuation differs from the source |
 | `character_case_mismatch` | warning, disabled | The first letter's capitalization differs from the source for Latin-script locales `en`, `de`, `es`, `fr`, `it`, `nl`, `pt`, `sv`, `no`, and `da` |
+| `unreachable_plural_case` | error | The target keeps a `plural` or `selectordinal` category that the locale never selects |
 
 Spelling runs when `hunspell` is on `PATH` and the locale dictionary is installed. Set `DICPATH` to the dictionary directory, or install the dictionaries under `/usr/share/hunspell`. Otherwise the result lists `spelling` under `skippedChecks`, and text output prints a `skipped spelling` line. Skipped checks leave the exit code unchanged. Each segment reports up to five distinct misspelled words.
 
@@ -38,7 +39,7 @@ Spelling runs when `hunspell` is on `PATH` and the locale dictionary is installe
 
 `--policy-file` loads a JSON policy. Omit it to use the defaults in the table above.
 
-The file must set `"version": 1` and include every check. Severity is `error` or `warning`. Unknown fields are rejected.
+The file must set `"version": 1` and include the checks in the table above. `unreachable_plural_case` may be omitted; the command then enables it as an error. Severity is `error` or `warning`. Unknown fields are rejected.
 
 ```json
 {
@@ -55,7 +56,8 @@ The file must set `"version": 1` and include every check. Severity is `error` or
     "spelling": { "enabled": true, "severity": "warning" },
     "numbers_mismatch": { "enabled": false, "severity": "warning" },
     "punctuation_mismatch": { "enabled": false, "severity": "warning" },
-    "character_case_mismatch": { "enabled": false, "severity": "warning" }
+    "character_case_mismatch": { "enabled": false, "severity": "warning" },
+    "unreachable_plural_case": { "enabled": true, "severity": "error" }
   },
   "glossaryTerms": [
     {

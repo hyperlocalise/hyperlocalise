@@ -10,7 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
+import {
+  inferSupportedOfficeTranslationFileFormat,
+  inferSupportedTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 
 const JSON_COMPATIBLE_EXPORT_FORMATS = new Set(["json", "jsonc", "arb"]);
 
@@ -21,6 +24,10 @@ export function isContentSyncJsonCompatiblePath(path: string): boolean {
 
 export function isContentSyncLottieCompatiblePath(path: string): boolean {
   return inferSupportedTranslationFileFormat(path) === "lottie";
+}
+
+export function isContentSyncOfficeCompatiblePath(path: string): boolean {
+  return inferSupportedOfficeTranslationFileFormat(path) !== null;
 }
 
 export function buildContentSyncLocalePath(providerPath: string, locale: string): string {

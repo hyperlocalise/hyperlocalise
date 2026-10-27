@@ -36,9 +36,10 @@ Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<cod
 | `query_glossary`           | Ranked concept-linked hits for a source string and locale pair                                                                                                          |
 | `create_glossary_concept`  | Create concept-linked source and target terms in a native glossary                                                                                                      |
 | `upload_sources`           | Upload a source file to a project using UTF-8 `content` or binary `contentBase64`                                                                                       |
-| `download_translations`    | Download a reconstructed UTF-8 target file (`projectId`, `sourcePath`, `locale`)                                                                                        |
+| `download_translations`    | Download a reconstructed target file (`projectId`, `sourcePath`, `locale`); JSON as UTF-8, Office/PDF/dotLottie as base64                                                                                        |
 | `query_translation_memory` | Search approved translation-memory entries for exact and lexical matches, optionally scoped by project or memory                                                        |
 | `get_knowledge_memory`     | Read organization-wide or project-specific `Memory.md` guidelines                                                                                                       |
+| `check_guidelines`         | Check source or translated segments against workspace and project guidelines, with cited passages                                                                       |
 
 `list_files` returns metadata only: `id` (stored file or source-file id), `sourcePath`, `filename`, `contentType`, `byteSize`, `updatedAt`, and `sourceLocale` when known. Pagination includes `total`, `limit`, `offset`, `hasMore`, and `nextOffset`. The tool does not return file contents. Inaccessible projects return `project_not_found`. Use the listed `sourcePath` values for later upload, download, or `run_workflow` calls.
 
@@ -48,7 +49,7 @@ Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<cod
 
 `upload_sources` uploads one source file using the same native or external TMS path as `POST /v1/files`. Provide exactly one of `content` or `contentBase64`. Native uploads are queued for background ingestion so their keys become available to `list_translations`. The maximum payload size is 25 MiB. This tool does not create a translation job; use `run_workflow` for that.
 
-`download_translations` reconstructs a JSON-compatible target file using the same native translation data as the public API and CLI `sync pull`. The response includes `filename`, `contentType`, `locale`, `sourcePath`, and UTF-8 `content`. Keys without a target translation use their source text as a fallback. Formats without a supported UTF-8 reconstruction path return `unsupported_binary_download` instead of JSON content with an incorrect extension.
+`download_translations` reconstructs a target file using the same native translation data as the public API and CLI `sync pull`. The response includes `filename`, `contentType`, `locale`, `sourcePath`, and `content`. JSON-compatible sources set `contentEncoding` to `utf8`. Segmented Office files, PDFs, and dotLottie archives set `contentEncoding` to `base64` and put encoded bytes in `content`. PDF responses may include `overflowKeys` when block text could not fit after wrapping. Keys without a ready target translation use their source text as a fallback where the export path supports it. Formats without a supported reconstruction path return `unsupported_binary_download` instead of JSON content with an incorrect extension. PDF export failures return `pdf_export_failed`; scripts that need complex shaping (Arabic, Hebrew, Indic, Khmer, Myanmar) return `pdf_script_unsupported`, as does text no bundled font covers. Latin, Chinese, Japanese, Korean, Vietnamese, Thai, and Lao targets are supported.
 
 Optional filters match the Content Editor queue:
 
@@ -131,6 +132,26 @@ The response includes `scope`, `content`, `updatedAt`, `truncated`, and `project
 
 Project reads use the authenticated member's normal project access. Missing or inaccessible projects return `project_not_found` without exposing whether the project exists.
 
+### Guideline checks
+
+`check_guidelines` reviews up to 50 segments against the workspace guideline, uploaded guideline documents, and, when `projectId` is set, the project's guidelines. Use it before saving a translation or to audit source copy.
+
+```json
+{
+  "projectId": "project-id",
+  "sourceLocale": "en-US",
+  "targetLocale": "fr-FR",
+  "segments": [{ "id": "welcome", "source": "Can you help?", "target": "Peux-tu aider ?" }],
+  "checks": ["target"]
+}
+```
+
+Each segment needs an `id` and at least one of `source` or `target`. Segments may contain up to 16,000 characters in total. `checks` defaults to every field present. `targetLocale` also selects any locale-specific guideline documents.
+
+The response contains `findings`, `passages`, `searchAvailable`, and `model`. Each finding has `segmentId`, `field`, `severity` (`error`, `warning`, or `info`), `start` and `end` offsets into the checked text in UTF-16 code units, `message`, an optional `suggestion`, and the `passageId` it cites. `passages` contains only the cited guideline text. Findings that do not cite a guideline are dropped, so an empty `findings` array means no guideline violation was found, not that the text is correct.
+
+`searchAvailable: false` means only always-applied guidelines were considered because guideline search was unavailable. Each checked segment counts toward the organization's guideline check usage.
+
 ### Board (issues)
 
 | Tool                  | Description                                                       |
@@ -151,11 +172,14 @@ Project reads use the authenticated member's normal project access. Missing or i
 
 ### Jobs
 
-| Tool           | Description                                                                                        |
-| -------------- | -------------------------------------------------------------------------------------------------- |
-| `run_workflow` | Create and enqueue a string or file translation job                                                |
-| `list_jobs`    | Recent translation jobs (`projectId`, `sourcePath`, `status`, `limit` default 20 max 50, `offset`) |
-| `get_job`      | Job status by `jobId`. Poll after `run_workflow` until the job is terminal.                        |
+| Tool              | Description                                                                                        |
+| ----------------- | -------------------------------------------------------------------------------------------------- |
+| `run_workflow`    | Create and enqueue a string or file translation job                                                |
+| `list_jobs`       | Recent translation jobs (`projectId`, `sourcePath`, `status`, `limit` default 20 max 50, `offset`) |
+| `list_open_jobs`  | Open native jobs (queued, running, waiting for review, optionally failed) with owner, due date, and overdue flag; sorted soonest due first |
+| `get_job`         | Job status by `jobId`. Poll after `run_workflow` until the job is terminal.                        |
+| `update_job`      | Rename, re-describe, reassign, or set/clear the due date on one native job (`dueAt` ISO 8601 or `null`) |
+| `cancel_job`      | Cancel one active native job                                                                       |
 
 `run_workflow` starts durable Platform translation work and returns without waiting for translation to finish. Use `type: "string"` with `sourceText`, or `type: "file"` with exactly one of `sourceFileId` and `sourcePath` plus `fileFormat`. Both variants require `projectId`, the project's `sourceLocale`, and one or more configured `targetLocales`. String jobs also accept optional `context` and `maxLength`; both variants accept optional `metadata`.
 
@@ -178,6 +202,12 @@ Each job is compact: `id`, `projectId`, `type`, `status`, `createdAt`, `complete
 `get_job` returns the public job envelope: `id`, `projectId`, `type`, `kind`, `status`, timestamps, and `lastError`. Status values include `queued`, `running`, `succeeded`, and `failed`. Completed file jobs also include `outputFiles` with `{ fileId, locale, filename }` so you can pass those ids to `download_translations` or file reads.
 
 Missing or inaccessible jobs, including jobs from another organization, return `job_not_found`.
+
+`list_open_jobs` filters by optional `projectId`, `owner` (`me`, `unassigned`, or a member `userId` from `list_project_members`), and `includeFailed`. Use it for workload and overdue questions; use `list_jobs` to find translation jobs by source file.
+
+`update_job` requires at least one of `title`, `description`, `ownerUserId`, or `dueAt`. Pass `ownerUserId` from `list_project_members`. Jobs mirrored from an external TMS must be updated in that provider. Insufficient role returns `forbidden`; unknown owner returns `owner_not_found`.
+
+`cancel_job` stops a queued, running, or waiting-for-review native job. It does not undo output that already completed.
 
 ### Zernio ads
 
@@ -215,7 +245,8 @@ See [Integrations](/platform/integrations#other-external-services).
 | `idempotency_conflict`                         | The supplied idempotency key is already associated with a different workflow payload                                                 |
 | `ai_features_required`                         | AI translation features are not available for the organization                                                                       |
 | `ai_features_check_failed`                     | Hyperlocalise could not verify AI feature availability                                                                               |
-| `project_not_found`                            | Wrong `projectId` or missing project access on project-scoped tools, including `query_translation_memory` and `get_knowledge_memory` |
+| `ai_credit_exhausted`                          | The organization has used all of its AI credit; change the plan or wait for the credit to renew                                      |
+| `project_not_found`                            | Wrong `projectId` or missing project access on project-scoped tools, such as `query_translation_memory` and `check_guidelines`       |
 | `glossary_not_found`                           | Wrong `glossaryId`, missing glossary access, or a provider glossary on `query_glossary`                                              |
 | `glossary_read_only`                           | `create_glossary_concept` targeted a provider-synced glossary                                                                        |
 | `duplicate_glossary_concept_term`              | A source or target term already exists for the same locale in the native glossary                                                    |
@@ -232,6 +263,9 @@ See [Integrations](/platform/integrations#other-external-services).
 | `source_file_too_large`                        | The translation reconstruction exceeds the public API key limit                                                                      |
 | `unsupported_binary_download`                  | The reconstructed file cannot be returned as UTF-8 text                                                                              |
 | `memory_not_found`                             | `query_translation_memory` targeted a missing, inaccessible, malformed, or project-unlinked translation memory                       |
+| `invalid_guideline_check`                      | `check_guidelines` received no segments, duplicate segment IDs, too much text, or an invalid locale                                  |
+| `guideline_check_limit_reached`                | The organization has used its guideline check allowance                                                                              |
+| `guideline_check_unavailable`                  | Guideline checks are not configured for this deployment                                                                              |
 
 
 ## Next

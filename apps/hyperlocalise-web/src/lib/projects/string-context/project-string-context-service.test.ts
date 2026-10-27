@@ -203,24 +203,28 @@ describe("lookupProjectFileStringRepositoryContext", () => {
           }),
         }),
       }),
+      { usageSource: "project_file_string_context_lookup" },
     );
     expect(runSubagentMock).toHaveBeenCalledWith(
       "repository",
       expect.objectContaining({
         instructions: expect.stringContaining("Repository tools"),
       }),
+      { usageSource: "project_file_string_context_lookup" },
     );
     expect(runSubagentMock).toHaveBeenCalledWith(
       "repository",
       expect.objectContaining({
         instructions: expect.stringContaining("String key: home.hero.title"),
       }),
+      { usageSource: "project_file_string_context_lookup" },
     );
     expect(runSubagentMock).toHaveBeenCalledWith(
       "repository",
       expect.objectContaining({
         instructions: expect.stringContaining("Source text: Ship localized product experiences"),
       }),
+      { usageSource: "project_file_string_context_lookup" },
     );
     expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sandbox-test");
     expect(reserveAgentRuntimeUsageMock).toHaveBeenCalledWith(
@@ -341,6 +345,7 @@ describe("lookupProjectFileStringRepositoryContext", () => {
           }),
         }),
       }),
+      { usageSource: "project_file_string_context_lookup" },
     );
     expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sandbox-test");
   });

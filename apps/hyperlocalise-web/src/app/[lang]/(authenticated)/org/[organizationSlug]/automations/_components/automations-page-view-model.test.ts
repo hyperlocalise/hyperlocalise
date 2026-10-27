@@ -13,9 +13,12 @@
 import { createIntl } from "@formatjs/intl";
 import { describe, expect, it } from "vite-plus/test";
 
-import { createAutomationSummary } from "./automations.fixture";
+import { automationTemplatesFixture, createAutomationSummary } from "./automations.fixture";
 import {
   resolveAutomationCreatorName,
+  resolveAutomationTools,
+  resolveSortedAutomationTemplates,
+  resolveTemplateCategoryTabs,
   resolveVisibleAutomations,
 } from "./automations-page-view-model";
 
@@ -53,5 +56,115 @@ describe("resolveVisibleAutomations", () => {
     expect(
       resolveVisibleAutomations([matching, other, unscoped], "project-1").map((item) => item.id),
     ).toEqual(["matching"]);
+  });
+});
+
+describe("resolveSortedAutomationTemplates", () => {
+  function usableFlagsByCategory(options?: { usableFirst?: boolean }) {
+    const flags = new Map<string, boolean[]>();
+    for (const template of resolveSortedAutomationTemplates(automationTemplatesFixture, options)) {
+      flags.set(template.category, [...(flags.get(template.category) ?? []), template.activatable]);
+    }
+    return [...flags.values()];
+  }
+
+  it("puts the templates that can be used today first in each category, on request", () => {
+    const categories = usableFlagsByCategory({ usableFirst: true });
+
+    expect(categories.some((flags) => flags.includes(true) && flags.includes(false))).toBe(true);
+    for (const flags of categories) {
+      expect(flags).toEqual(flags.toSorted((left, right) => Number(right) - Number(left)));
+    }
+  });
+
+  it("orders each category by name alone otherwise", () => {
+    const sorted = resolveSortedAutomationTemplates(automationTemplatesFixture);
+    const popular = sorted.filter((template) => template.category === "popular");
+
+    expect(popular.map((template) => template.name)).toEqual(
+      popular.map((template) => template.name).toSorted((left, right) => left.localeCompare(right)),
+    );
+  });
+});
+
+describe("resolveAutomationTools", () => {
+  it("returns GitHub and Slack with stable ids for the list badges", () => {
+    expect(resolveAutomationTools(intl, createAutomationSummary())).toEqual([
+      { id: "github", label: "GitHub" },
+      { id: "slack", label: "Slack" },
+    ]);
+  });
+
+  it("shows Contentful when that workflow is enabled", () => {
+    const base = createAutomationSummary();
+
+    expect(
+      resolveAutomationTools(
+        intl,
+        createAutomationSummary({
+          toolConfig: {
+            ...base.toolConfig,
+            github: { ...base.toolConfig.github!, enabled: false },
+            slack: { enabled: false },
+            contentful: { ...base.toolConfig.contentful!, enabled: true },
+          },
+        }),
+      ),
+    ).toEqual([{ id: "contentful", label: "Contentful" }]);
+  });
+
+  it("collapses Braze templates and campaigns into one badge", () => {
+    const base = createAutomationSummary();
+
+    expect(
+      resolveAutomationTools(
+        intl,
+        createAutomationSummary({
+          toolConfig: {
+            ...base.toolConfig,
+            github: { ...base.toolConfig.github!, enabled: false },
+            slack: { enabled: false },
+            braze: {
+              enabled: true,
+              sourceLocale: "en",
+              templateIds: [],
+              contentBlockIds: [],
+              existingTranslationPolicy: "seed_empty",
+              overwriteWhenRemoteNewer: true,
+            },
+            brazeCampaigns: {
+              enabled: true,
+              sourceLocale: "en",
+              campaignIds: [],
+              canvasIds: [],
+              existingTranslationPolicy: "seed_empty",
+              overwriteWhenRemoteNewer: true,
+            },
+          },
+        }),
+      ),
+    ).toEqual([{ id: "braze", label: "Braze" }]);
+  });
+});
+
+describe("resolveTemplateCategoryTabs", () => {
+  it("shows extra categories for dual-listed templates", () => {
+    const emailTemplates = automationTemplatesFixture.find(
+      (template) => template.id === "translate-braze-email-templates",
+    );
+    const campaigns = automationTemplatesFixture.find(
+      (template) => template.id === "translate-braze-campaigns",
+    );
+    expect(emailTemplates).toBeDefined();
+    expect(campaigns).toBeDefined();
+
+    expect(resolveTemplateCategoryTabs([emailTemplates!]).map((tab) => tab.id)).toEqual([
+      "popular",
+      "marketing",
+    ]);
+    expect(resolveTemplateCategoryTabs([campaigns!]).map((tab) => tab.id)).toEqual([
+      "popular",
+      "marketing",
+    ]);
   });
 });

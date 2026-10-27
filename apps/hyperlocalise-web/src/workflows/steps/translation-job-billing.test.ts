@@ -320,6 +320,46 @@ describe("translation job workflow billing", () => {
     );
   });
 
+  it("persists leftover locales and follow-up metadata on a succeeded file job", async () => {
+    stubAutumnFetch();
+    const { project, user } = await projectFixture.createStoredProjectFixture();
+    const workflowRunId = `run_${randomUUID()}`;
+    const { job } = await insertRunningTranslationJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      workflowRunId,
+      type: "file",
+      usageSource: "translation_job_create",
+    });
+
+    await completeFileTranslationJobStep({
+      jobId: job.id,
+      projectId: project.id,
+      workflowRunId,
+      outputFiles: [{ fileId: "file_de", locale: "de-DE", filename: "messages.de.json" }],
+      failedLocales: ["ja-JP", "ko-KR"],
+      followUpJobId: "job_retry",
+      message:
+        "the translation environment disconnected mid-run. This is usually temporary — try again.",
+      code: "sandbox_timeout",
+    });
+
+    await expect(getJobState(job.id)).resolves.toMatchObject({
+      status: "succeeded",
+      outcomeKind: "file_result",
+      lastError: null,
+      outcomePayload: {
+        outputFiles: [{ fileId: "file_de", locale: "de-DE", filename: "messages.de.json" }],
+        failedLocales: ["ja-JP", "ko-KR"],
+        followUpJobId: "job_retry",
+        message:
+          "the translation environment disconnected mid-run. This is usually temporary — try again.",
+        code: "sandbox_timeout",
+      },
+    });
+  });
+
   it("meters sandbox CLI token pools against ai_tokens after a file job succeeds", async () => {
     const fetchMock = stubAutumnFetch();
     const { project, user } = await projectFixture.createStoredProjectFixture();

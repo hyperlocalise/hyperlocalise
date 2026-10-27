@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { CaretDownIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -55,6 +55,8 @@ export type ProjectLocaleProgressListProps = {
   isError?: boolean;
   settingsHref: string;
   stringsHref?: string | null;
+  /** Rendered in an expanded row that still has untranslated work. */
+  renderAgentAction?: (row: ProjectLocaleProgressRow) => ReactNode;
 };
 
 function LocaleBadge({ locale }: { locale: string }) {
@@ -77,19 +79,36 @@ function LocaleBadge({ locale }: { locale: string }) {
   );
 }
 
-function LocaleProgressBar({ value, label }: { value: number; label: string }) {
+const TRANSLATED_TONE_CLASS = "bg-[var(--ds-blue-700)]";
+const APPROVED_TONE_CLASS = "bg-[var(--ds-green-700)]";
+const TRANSLATED_TEXT_CLASS = "text-[var(--ds-blue-900)]";
+const APPROVED_TEXT_CLASS = "text-[var(--ds-green-900)]";
+
+function LocaleProgressBar({
+  translated,
+  approved,
+  label,
+}: {
+  translated: number;
+  approved: number;
+  label: string;
+}) {
   return (
     <div
       role="progressbar"
       aria-label={label}
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-valuenow={value}
-      className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+      aria-valuenow={translated}
+      className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted"
     >
       <div
-        className="h-full rounded-full bg-primary transition-[width]"
-        style={{ width: `${value}%` }}
+        className={cn("absolute inset-y-0 start-0 transition-[width]", TRANSLATED_TONE_CLASS)}
+        style={{ width: `${translated}%` }}
+      />
+      <div
+        className={cn("absolute inset-y-0 start-0 transition-[width]", APPROVED_TONE_CLASS)}
+        style={{ width: `${Math.min(approved, translated)}%` }}
       />
     </div>
   );
@@ -114,7 +133,7 @@ function ProgressDetailRow({
         <span
           className={cn(
             "size-1.5 shrink-0 rounded-full",
-            tone === "translated" ? "bg-primary" : "bg-emerald-600 dark:bg-emerald-500",
+            tone === "translated" ? TRANSLATED_TONE_CLASS : APPROVED_TONE_CLASS,
           )}
           aria-hidden
         />
@@ -136,11 +155,13 @@ function LocaleProgressDetails({
   unit,
   onUnitChange,
   stringsHref,
+  renderAgentAction,
 }: {
   row: ProjectLocaleProgressRow;
   unit: LocaleProgressUnit;
   onUnitChange: (unit: LocaleProgressUnit) => void;
   stringsHref: string | null | undefined;
+  renderAgentAction: ProjectLocaleProgressListProps["renderAgentAction"];
 }) {
   const intl = useIntl();
   const counts = localeProgressCounts(row, unit);
@@ -166,6 +187,8 @@ function LocaleProgressDetails({
         queueFilter: "needs_review",
       })
     : null;
+  const agentAction =
+    renderAgentAction && remainingLocaleWork(row) > 0 ? renderAgentAction(row) : null;
 
   return (
     <Rows spacing="2u">
@@ -222,29 +245,34 @@ function LocaleProgressDetails({
         />
       </Rows>
 
-      <Row spacing="1.5u" align="spaceBetween" alignY="center">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-xs text-muted-foreground">{lastActivity}</span>
-        {translateHref && proofreadHref ? (
-          <Row spacing="1u" alignY="center">
-            <Button
-              nativeButton={false}
-              render={<Link href={translateHref} />}
-              size="sm"
-              variant="outline"
-            >
-              <FormattedMessage {...messages.translate} />
-            </Button>
-            <Button
-              nativeButton={false}
-              render={<Link href={proofreadHref} />}
-              size="sm"
-              variant="outline"
-            >
-              <FormattedMessage {...messages.proofread} />
-            </Button>
-          </Row>
+        {(translateHref && proofreadHref) || agentAction ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {translateHref && proofreadHref ? (
+              <>
+                <Button
+                  nativeButton={false}
+                  render={<Link href={translateHref} />}
+                  size="sm"
+                  variant="outline"
+                >
+                  <FormattedMessage {...messages.translate} />
+                </Button>
+                <Button
+                  nativeButton={false}
+                  render={<Link href={proofreadHref} />}
+                  size="sm"
+                  variant="outline"
+                >
+                  <FormattedMessage {...messages.proofread} />
+                </Button>
+              </>
+            ) : null}
+            {agentAction}
+          </div>
         ) : null}
-      </Row>
+      </div>
     </Rows>
   );
 }
@@ -252,9 +280,11 @@ function LocaleProgressDetails({
 function LocaleProgressItem({
   row,
   stringsHref,
+  renderAgentAction,
 }: {
   row: ProjectLocaleProgressRow;
   stringsHref: string | null | undefined;
+  renderAgentAction: ProjectLocaleProgressListProps["renderAgentAction"];
 }) {
   const intl = useIntl();
   const [open, setOpen] = useState(false);
@@ -288,22 +318,27 @@ function LocaleProgressItem({
             </span>
             <div className="hidden min-w-0 flex-1 sm:block">
               <LocaleProgressBar
-                value={row.translationProgress}
+                translated={row.translationProgress}
+                approved={row.approvalProgress}
                 label={intl.formatMessage(messages.progressLabel, {
                   locale: localeLabel,
                 })}
               />
             </div>
             <span className="shrink-0 font-mono text-[13px] tabular-nums text-muted-foreground">
-              <FormattedMessage
-                {...messages.translationPercent}
-                values={{ percent: row.translationProgress }}
-              />
+              <span className={cn(row.translationProgress > 0 && TRANSLATED_TEXT_CLASS)}>
+                <FormattedMessage
+                  {...messages.translationPercent}
+                  values={{ percent: row.translationProgress }}
+                />
+              </span>
               <span aria-hidden> · </span>
-              <FormattedMessage
-                {...messages.approvalPercent}
-                values={{ percent: row.approvalProgress }}
-              />
+              <span className={cn(row.approvalProgress > 0 && APPROVED_TEXT_CLASS)}>
+                <FormattedMessage
+                  {...messages.approvalPercent}
+                  values={{ percent: row.approvalProgress }}
+                />
+              </span>
             </span>
             <span className="hidden w-20 shrink-0 text-end font-mono text-[13px] tabular-nums text-muted-foreground sm:block">
               <FormattedMessage {...remainingMessage} values={{ count: remaining }} />
@@ -317,7 +352,8 @@ function LocaleProgressItem({
           </div>
           <div className="sm:hidden">
             <LocaleProgressBar
-              value={row.translationProgress}
+              translated={row.translationProgress}
+              approved={row.approvalProgress}
               label={intl.formatMessage(messages.progressLabel, {
                 locale: localeLabel,
               })}
@@ -331,6 +367,7 @@ function LocaleProgressItem({
               unit={unit}
               onUnitChange={setUnit}
               stringsHref={stringsHref}
+              renderAgentAction={renderAgentAction}
             />
           </Box>
         </CollapsibleContent>
@@ -346,6 +383,7 @@ export function ProjectLocaleProgressList({
   isError = false,
   settingsHref,
   stringsHref,
+  renderAgentAction,
 }: ProjectLocaleProgressListProps) {
   const intl = useIntl();
   const [query, setQuery] = useState("");
@@ -436,7 +474,12 @@ export function ProjectLocaleProgressList({
           ) : (
             <Rows spacing="1u">
               {visibleLocales.map((row) => (
-                <LocaleProgressItem key={row.locale} row={row} stringsHref={stringsHref} />
+                <LocaleProgressItem
+                  key={row.locale}
+                  row={row}
+                  stringsHref={stringsHref}
+                  renderAgentAction={renderAgentAction}
+                />
               ))}
             </Rows>
           )}

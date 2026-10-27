@@ -38,6 +38,45 @@ function node(
 }
 
 describe("getVisualWorkflowDataPorts", () => {
+  it("exposes typed optional Try / Catch error outputs", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("boundary", "logic.try_catch"),
+      edges: [],
+    });
+
+    expect(ports.inputs).toEqual([]);
+    expect(ports.outputs).toEqual([
+      {
+        id: "errorCode",
+        label: "errorCode",
+        type: "string",
+        optional: true,
+        connectionCount: 0,
+      },
+      {
+        id: "errorMessage",
+        label: "errorMessage",
+        type: "string",
+        optional: true,
+        connectionCount: 0,
+      },
+      {
+        id: "failedNodeId",
+        label: "failedNodeId",
+        type: "string",
+        optional: true,
+        connectionCount: 0,
+      },
+      {
+        id: "attempt",
+        label: "attempt",
+        type: "object",
+        optional: true,
+        connectionCount: 0,
+      },
+    ]);
+  });
+
   it("returns typed contract inputs and outputs", () => {
     const ports = getVisualWorkflowDataPorts({
       node: node("request", "action.http"),
@@ -76,6 +115,121 @@ describe("getVisualWorkflowDataPorts", () => {
       optional: false,
       connectionCount: 0,
     });
+  });
+
+  it("returns dynamic Call Workflow inputs and outputs by stable field ID", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("call", "flow.call_workflow", {
+        config: {
+          kind: "flow.call_workflow",
+          workflowId: "22222222-2222-4222-8222-222222222222",
+          version: 3,
+          inputFields: [{ id: "customer-id", name: "Customer", type: "string", required: true }],
+          outputFields: [{ id: "result-id", name: "Result", type: "object", required: false }],
+        },
+      }),
+      edges: [],
+    });
+
+    expect(ports.inputs).toEqual([
+      {
+        id: "value.customer-id",
+        label: "value.customer-id",
+        type: "string",
+        optional: false,
+        connectionCount: 0,
+      },
+    ]);
+    expect(ports.outputs).toEqual([
+      {
+        id: "value.result-id",
+        label: "value.result-id",
+        type: "object",
+        optional: true,
+        connectionCount: 0,
+      },
+    ]);
+  });
+
+  it("exposes dynamic Coalesce inputs with configured labels and stable IDs", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("coalesce", "logic.coalesce", {
+        config: {
+          kind: "logic.coalesce",
+          inputs: [
+            { id: "primary", name: "Requested locale", type: "string" },
+            { id: "fallback", name: "Default locale", type: "string", defaultValue: "en" },
+          ],
+          treatNullAsMissing: true,
+          treatEmptyStringAsMissing: true,
+          treatEmptyArrayAsMissing: false,
+          treatEmptyObjectAsMissing: false,
+        },
+      }),
+      edges: [
+        {
+          id: "primary-data",
+          source: "trigger",
+          target: "coalesce",
+          sourceHandle: "triggeredAt",
+          targetHandle: "value.primary",
+          data: { kind: "data" },
+        },
+      ],
+    });
+
+    expect(ports.inputs).toEqual([
+      {
+        id: "value.primary",
+        label: "Requested locale",
+        type: "string",
+        optional: true,
+        connectionCount: 1,
+      },
+      {
+        id: "value.fallback",
+        label: "Default locale",
+        type: "string",
+        optional: true,
+        connectionCount: 0,
+      },
+    ]);
+  });
+
+  it("exposes typed Compare operands and boolean output", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("compare", "logic.compare", {
+        config: {
+          kind: "logic.compare",
+          operator: "equal",
+          operands: [
+            { id: "left", name: "Current locale", type: "string" },
+            { id: "right", name: "Requested locale", type: "string" },
+          ],
+        },
+      }),
+      edges: [],
+    });
+
+    expect(ports.inputs).toEqual([
+      {
+        id: "value.left",
+        label: "Current locale",
+        type: "string",
+        optional: false,
+        connectionCount: 0,
+      },
+      {
+        id: "value.right",
+        label: "Requested locale",
+        type: "string",
+        optional: false,
+        connectionCount: 0,
+      },
+    ]);
+    expect(ports.outputs).toEqual([
+      { id: "result", label: "result", type: "boolean", optional: false, connectionCount: 0 },
+    ]);
   });
 
   it("returns dynamic Set ports without duplicates", () => {

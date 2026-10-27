@@ -59,6 +59,36 @@ describe("readJobFailureDetails", () => {
     });
   });
 
+  it("ignores malformed payloads and trims leftover locale values", () => {
+    expect(
+      readJobFailureDetails({
+        lastError: "   ",
+        outcomePayload: ["not-an-object"],
+      }),
+    ).toEqual({
+      reason: null,
+      failedLocales: [],
+      followUpJobId: null,
+      code: null,
+    });
+    expect(
+      readJobFailureDetails({
+        lastError: "",
+        outcomePayload: {
+          message: "  leftover locales remain  ",
+          failedLocales: ["", " ja-JP ", "ja-JP", 12, null],
+          followUpJobId: "   ",
+          code: " leftover_locales ",
+        },
+      }),
+    ).toEqual({
+      reason: "leftover locales remain",
+      failedLocales: [" ja-JP ", "ja-JP"],
+      followUpJobId: null,
+      code: "leftover_locales",
+    });
+  });
+
   it("reads a leftover-locale reason from the outcome when lastError was cleared", () => {
     expect(
       readJobFailureDetails({
@@ -95,6 +125,28 @@ describe("job failure display helpers", () => {
     expect(formatJobFailureMessage("translating the json file failed.", ["ja-JP", "th-TH"])).toBe(
       "translating the json file failed. Failed locales: ja-JP, th-TH.",
     );
+  });
+
+  it("treats a follow-up job id as visible failure details", () => {
+    expect(
+      hasJobFailureDetails({
+        reason: null,
+        failedLocales: [],
+        followUpJobId: "job_retry",
+        code: null,
+      }),
+    ).toBe(true);
+    expect(
+      shouldShowJobFailureDetails(
+        { assigneeType: "agent" },
+        {
+          reason: null,
+          failedLocales: [],
+          followUpJobId: "job_retry",
+          code: null,
+        },
+      ),
+    ).toBe(true);
   });
 
   it("treats leftover locales as visible failure details", () => {

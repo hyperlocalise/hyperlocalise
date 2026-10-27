@@ -31,6 +31,8 @@ import type {
   ContentEditorSegmentCommentInput,
   ContentEditorSegmentStatus,
 } from "@/components/content-editor/shared/types";
+import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
+import { isAiCreditExhaustedError } from "@/lib/billing/ai-credit-refusal";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { mergeLiveAndScanFormatChecks } from "@/lib/qa/merge-format-checks";
 
@@ -50,6 +52,61 @@ export interface ContentEditorReviewControllerPorts {
   usesServerQueueFilter: boolean;
 }
 
+/** Workspace surface the review controller may read and change. */
+export type ContentEditorReviewWorkspace = Pick<
+  ContentEditorWorkspaceOrchestrator,
+  | "addSaveFailureCheck"
+  | "beginCommentPost"
+  | "beginCommentResolve"
+  | "beginReview"
+  | "beginValidation"
+  | "beginWrite"
+  | "bulk"
+  | "checkedSegmentIds"
+  | "clearChecked"
+  | "clearFormatCheckLoading"
+  | "completeValidation"
+  | "drafts"
+  | "endCommentPost"
+  | "endCommentResolve"
+  | "endWrite"
+  | "failComment"
+  | "fileScopeGeneration"
+  | "getFilteredQueueSegments"
+  | "getSegmentView"
+  | "hasHydratedTarget"
+  | "intelligence"
+  | "isBulkActionPending"
+  | "isFileScopeCurrent"
+  | "isReviewCurrent"
+  | "isValidationCurrent"
+  | "loadingSegmentIds"
+  | "markSegmentSaved"
+  | "matchesQueueFilter"
+  | "mergeSegmentIntelligence"
+  | "queueSegments"
+  | "rememberLocalStatusOverride"
+  | "removeQueueSegmentIfClean"
+  | "segmentIntelligence"
+  | "segmentMeta"
+  | "selectedSegmentId"
+  | "setFormatCheckLoading"
+  | "setFormatChecks"
+  | "setReviewPhaseLoading"
+  | "setSegmentStatus"
+  | "setSegmentsHidden"
+  | "setSegmentsLocked"
+  | "setSelectedSegmentId"
+  | "setTargetText"
+  | "shellState"
+  | "toggleSegmentChecked"
+> & {
+  readonly ui: Pick<
+    ContentEditorWorkspaceOrchestrator["ui"],
+    "isSideBySideView" | "visibleSideBySideSegmentIds"
+  >;
+};
+
 export class ContentEditorReviewController {
   private ports: ContentEditorReviewControllerPorts;
   private selectedSegmentDisposer?: IReactionDisposer;
@@ -61,7 +118,7 @@ export class ContentEditorReviewController {
   private lastVisibleCheckFingerprint = new Map<string, string>();
 
   constructor(
-    private readonly workspace: ContentEditorWorkspaceOrchestrator,
+    private readonly workspace: ContentEditorReviewWorkspace,
     ports: ContentEditorReviewControllerPorts,
   ) {
     this.ports = ports;
@@ -376,19 +433,22 @@ export class ContentEditorReviewController {
           if (this.disposed || !this.workspace.isReviewCurrent(sequence)) {
             return;
           }
+          const aiCreditExhausted = isAiCreditExhaustedError(error);
           aiFailureCheck = {
             id: `ai-recommendation-failed-${segmentId}`,
             label: this.ports.intl.formatMessage(
               contentEditorWorkspaceContainerMessages.aiRecommendationLabel,
             ),
             status: "fail",
-            message:
-              error instanceof Error
+            message: aiCreditExhausted
+              ? this.ports.intl.formatMessage(aiCreditExhaustedMessages.exhausted)
+              : error instanceof Error
                 ? error.message
                 : this.ports.intl.formatMessage(
                     contentEditorWorkspaceContainerMessages.aiRecommendationFailed,
                   ),
             category: "qa",
+            ...(aiCreditExhausted ? { aiCreditExhausted } : {}),
           };
         }
       }
@@ -463,8 +523,7 @@ export class ContentEditorReviewController {
 
   async approve(segmentId: string, targetText: string) {
     const fileScopeGeneration = this.workspace.fileScopeGeneration;
-    if (this.workspace.pendingWrites.has(segmentId)) return;
-    this.workspace.pendingWrites.set(segmentId, "approve");
+    if (!this.workspace.beginWrite(segmentId, "approve")) return;
     const draftAtSubmission = this.workspace.drafts.get(segmentId)?.targetText;
     try {
       // Resolve the next row before the status change so Needs Review (and other
@@ -525,7 +584,7 @@ export class ContentEditorReviewController {
       );
     } finally {
       if (this.isCurrentFileScope(fileScopeGeneration)) {
-        this.workspace.pendingWrites.delete(segmentId);
+        this.workspace.endWrite(segmentId);
       }
     }
   }
@@ -536,8 +595,7 @@ export class ContentEditorReviewController {
       return;
     }
     const fileScopeGeneration = this.workspace.fileScopeGeneration;
-    if (this.workspace.pendingWrites.has(segmentId)) return;
-    this.workspace.pendingWrites.set(segmentId, "draft");
+    if (!this.workspace.beginWrite(segmentId, "draft")) return;
     const draftAtSubmission = this.workspace.drafts.get(segmentId)?.targetText;
     try {
       const nextStatus = (await saveDraft(segmentId, targetText)) ?? "needs_review";
@@ -568,7 +626,7 @@ export class ContentEditorReviewController {
       );
     } finally {
       if (this.isCurrentFileScope(fileScopeGeneration)) {
-        this.workspace.pendingWrites.delete(segmentId);
+        this.workspace.endWrite(segmentId);
       }
     }
   }
@@ -579,22 +637,22 @@ export class ContentEditorReviewController {
       return;
     }
     const fileScopeGeneration = this.workspace.fileScopeGeneration;
-    this.workspace.commentPostError = undefined;
-    this.workspace.isPostingComment = true;
+    this.workspace.beginCommentPost();
     try {
       await addComment(segmentId, input);
     } catch (error) {
       if (!this.isCurrentFileScope(fileScopeGeneration)) {
         return;
       }
-      this.workspace.commentPostError =
+      this.workspace.failComment(
         error instanceof Error
           ? error.message
-          : this.ports.intl.formatMessage(contentEditorEditorPanelMessages.commentPostFailed);
+          : this.ports.intl.formatMessage(contentEditorEditorPanelMessages.commentPostFailed),
+      );
       throw error;
     } finally {
       if (this.isCurrentFileScope(fileScopeGeneration)) {
-        this.workspace.isPostingComment = false;
+        this.workspace.endCommentPost();
       }
     }
   }
@@ -605,24 +663,22 @@ export class ContentEditorReviewController {
       return;
     }
     const fileScopeGeneration = this.workspace.fileScopeGeneration;
-    this.workspace.commentPostError = undefined;
-    this.workspace.resolvingCommentId = commentId;
-    this.workspace.isResolvingComment = true;
+    this.workspace.beginCommentResolve(commentId);
     try {
       await resolveComment(segmentId, commentId);
     } catch (error) {
       if (!this.isCurrentFileScope(fileScopeGeneration)) {
         return;
       }
-      this.workspace.commentPostError =
+      this.workspace.failComment(
         error instanceof Error
           ? error.message
-          : this.ports.intl.formatMessage(contentEditorEditorPanelMessages.commentResolveFailed);
+          : this.ports.intl.formatMessage(contentEditorEditorPanelMessages.commentResolveFailed),
+      );
       throw error;
     } finally {
       if (this.isCurrentFileScope(fileScopeGeneration)) {
-        this.workspace.isResolvingComment = false;
-        this.workspace.resolvingCommentId = null;
+        this.workspace.endCommentResolve();
       }
     }
   }
@@ -656,9 +712,7 @@ export class ContentEditorReviewController {
     const segmentIds = [...this.workspace.checkedSegmentIds];
     if (segmentIds.length === 0 || this.workspace.isBulkActionPending) return;
     const fileScopeGeneration = this.workspace.fileScopeGeneration;
-    this.workspace.isBulkActionPending = true;
-    this.workspace.bulkCompletedCount = 0;
-    this.workspace.bulkTotalCount = segmentIds.length;
+    this.workspace.bulk.begin(segmentIds.length);
     try {
       if (this.ports.review?.onBulkApprove) {
         await this.ports.review.onBulkApprove(segmentIds);
@@ -667,8 +721,8 @@ export class ContentEditorReviewController {
         await mapWithConcurrency(segmentIds, 3, async (segmentId) => {
           if (!this.isCurrentFileScope(fileScopeGeneration)) return;
           const segment = this.workspace.getSegmentView(segmentId);
-          if (!segment || segment.isLocked || this.workspace.pendingWrites.has(segmentId)) return;
-          this.workspace.pendingWrites.set(segmentId, "approve");
+          if (!segment || segment.isLocked || !this.workspace.beginWrite(segmentId, "approve"))
+            return;
           const targetText = segment.targetText;
           try {
             const status =
@@ -703,15 +757,15 @@ export class ContentEditorReviewController {
             }
           } finally {
             if (this.isCurrentFileScope(fileScopeGeneration)) {
-              this.workspace.pendingWrites.delete(segmentId);
-              this.workspace.bulkCompletedCount += 1;
+              this.workspace.endWrite(segmentId);
+              this.workspace.bulk.recordCompleted();
             }
           }
         });
       }
     } finally {
       if (this.isCurrentFileScope(fileScopeGeneration)) {
-        this.workspace.isBulkActionPending = false;
+        this.workspace.bulk.end();
         if (!this.workspace.segmentMeta.has(this.workspace.selectedSegmentId)) {
           this.workspace.setSelectedSegmentId(this.workspace.queueSegments[0]?.id ?? "");
         }
@@ -727,7 +781,7 @@ export class ContentEditorReviewController {
       return;
     }
     const fileScopeGeneration = this.workspace.fileScopeGeneration;
-    this.workspace.isBulkActionPending = true;
+    this.workspace.bulk.begin();
     try {
       if (this.ports.review?.onBulkSkip) {
         await this.ports.review.onBulkSkip(segmentIds);
@@ -738,7 +792,7 @@ export class ContentEditorReviewController {
       }
     } finally {
       if (this.isCurrentFileScope(fileScopeGeneration)) {
-        this.workspace.isBulkActionPending = false;
+        this.workspace.bulk.end();
         this.workspace.clearChecked();
       }
     }
@@ -785,7 +839,7 @@ export class ContentEditorReviewController {
     }
 
     const fileScopeGeneration = this.workspace.fileScopeGeneration;
-    this.workspace.isBulkActionPending = true;
+    this.workspace.bulk.begin();
     try {
       await handler(segmentIds);
       if (!this.isCurrentFileScope(fileScopeGeneration)) {
@@ -794,7 +848,7 @@ export class ContentEditorReviewController {
       this.workspace.setSegmentsHidden(segmentIds, isHidden);
     } finally {
       if (this.isCurrentFileScope(fileScopeGeneration)) {
-        this.workspace.isBulkActionPending = false;
+        this.workspace.bulk.end();
         this.workspace.clearChecked();
       }
     }
@@ -812,7 +866,7 @@ export class ContentEditorReviewController {
     }
 
     const fileScopeGeneration = this.workspace.fileScopeGeneration;
-    this.workspace.isBulkActionPending = true;
+    this.workspace.bulk.begin();
     try {
       await handler(segmentIds);
       if (!this.isCurrentFileScope(fileScopeGeneration)) {
@@ -821,7 +875,7 @@ export class ContentEditorReviewController {
       this.workspace.setSegmentsLocked(segmentIds, isLocked);
     } finally {
       if (this.isCurrentFileScope(fileScopeGeneration)) {
-        this.workspace.isBulkActionPending = false;
+        this.workspace.bulk.end();
         this.workspace.clearChecked();
       }
     }

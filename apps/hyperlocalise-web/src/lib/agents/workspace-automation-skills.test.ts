@@ -10,21 +10,31 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it } from "vite-plus/test";
+import { beforeEach, describe, expect, it } from "vite-plus/test";
 
-import { getAgentManifest, loadSharedSkill } from "@/agents/_runtime/loader";
+import {
+  clearAgentManifestCache,
+  getAgentManifest,
+  loadSharedSkill,
+} from "@/agents/_runtime/loader";
 import { WORKSPACE_ORCHESTRATOR_TOOL_NAMES } from "@/agents/automations/workspace/agent/plan";
 
 import {
+  hasConflictingCmsTranslationSkills,
   listMissingWorkspaceAutomationSkillIntegrations,
   listWorkspaceAutomationSkillNamesByTool,
   listWorkspaceAutomationSkillTools,
   resolveWorkspaceAutomationSkills,
+  validateWorkspaceAutomationSkills,
   WORKSPACE_AUTOMATION_SKILLS,
   workspaceAutomationSkillToolEnabled,
 } from "./workspace-automation-skills";
 
 describe("workspace automation skills", () => {
+  beforeEach(() => {
+    clearAgentManifestCache();
+  });
+
   it("has unique ids", () => {
     const ids = WORKSPACE_AUTOMATION_SKILLS.map((skill) => skill.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -101,6 +111,15 @@ describe("workspace automation skills", () => {
     expect(listMissingWorkspaceAutomationSkillIntegrations(intercom, { intercom: true })).toEqual(
       [],
     );
+
+    const [braze] = resolveWorkspaceAutomationSkills(["translate-braze-email-templates"]);
+    if (!braze) {
+      throw new Error("missing skill");
+    }
+    expect(listMissingWorkspaceAutomationSkillIntegrations(braze, { braze: false })).toEqual([
+      "braze",
+    ]);
+    expect(listMissingWorkspaceAutomationSkillIntegrations(braze, { braze: true })).toEqual([]);
   });
 
   it("offers research, Crowdin and issue skills on every orchestrated trigger", () => {
@@ -136,6 +155,25 @@ describe("workspace automation skills", () => {
         "post-to-slack",
       ]),
     ).toEqual(["use_github_repository", "notify_slack"]);
+  });
+
+  it("rejects more than one CMS translation skill on the same automation", () => {
+    expect(
+      hasConflictingCmsTranslationSkills([
+        "translate-intercom-articles",
+        "translate-sanity-documents",
+      ]),
+    ).toBe(true);
+    expect(
+      hasConflictingCmsTranslationSkills(["translate-sanity-documents", "post-to-slack"]),
+    ).toBe(false);
+    expect(
+      validateWorkspaceAutomationSkills({
+        skillIds: ["translate-intercom-articles", "translate-sanity-documents"],
+        triggerMode: "manual",
+        toolConfig: {},
+      }),
+    ).toBe("cms_translation_skills_exclusive");
   });
 
   it("treats the GitHub repository tool as enabled only in agent mode", () => {

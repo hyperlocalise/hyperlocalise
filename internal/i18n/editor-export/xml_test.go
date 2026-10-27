@@ -2,6 +2,7 @@ package editor_export
 
 import (
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/require"
 )
@@ -30,6 +31,19 @@ func TestEscapeXMLEmptyAndPlaceholderOnly(t *testing.T) {
 func TestSanitizeInvalidXMLCharactersLeavesValidText(t *testing.T) {
 	require.Equal(t, "café", sanitizeInvalidXMLCharacters("café"))
 	require.Equal(t, "", sanitizeInvalidXMLCharacters(""))
+	require.Equal(t, "ok\uFFFDend", sanitizeInvalidXMLCharacters("ok\uFFFDend"))
+}
+
+func TestSanitizeInvalidXMLCharactersNormalizesMalformedUTF8(t *testing.T) {
+	malformed := "ok" + string([]byte{0xff}) + "end"
+	sanitized := sanitizeInvalidXMLCharacters(malformed)
+	require.Equal(t, "ok\uFFFDend", sanitized)
+	require.True(t, utf8.ValidString(sanitized))
+}
+
+func TestEscapeXMLNormalizesMalformedUTF8(t *testing.T) {
+	malformed := "ok" + string([]byte{0xff}) + "&end"
+	require.Equal(t, "ok\uFFFD&amp;end", escapeXML(malformed))
 }
 
 func TestStripInternalSegmentPlaceholdersLeavesLookalikes(t *testing.T) {

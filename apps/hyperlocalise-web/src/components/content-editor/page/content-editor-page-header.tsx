@@ -22,7 +22,9 @@ import {
   ContentEditorFileTreePicker,
   ContentEditorLocaleSelect,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/content-editor-header-pickers";
+import { resolveVisibleContentEditorFiles } from "@/components/content-editor/files/content-editor-visible-files";
 import { ContentEditorActivityLogButton } from "@/components/content-editor/activity-log/content-editor-activity-log-dialog";
+import { ContentEditorShortcutHint } from "@/components/content-editor/editor/content-editor-shortcut-hints";
 import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
 import { contentEditorWorkspaceViewMessages } from "@/components/content-editor/workspace/content-editor-workspace.messages";
@@ -66,7 +68,7 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="hidden size-8 shrink-0 lg:inline-flex"
+            className="relative hidden size-8 shrink-0 lg:inline-flex"
             aria-pressed={!ui.filesPanelCollapsed}
             aria-label={intl.formatMessage(
               ui.filesPanelCollapsed
@@ -76,13 +78,19 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
             onClick={() => ui.toggleFilesPanel()}
           >
             <SidebarIcon className="size-4 text-foreground" />
+            <ContentEditorShortcutHint shortcut="toggleFilesPanel" placement="below" />
           </Button>
         ) : null}
 
         {showFilePicker ? (
           <div className={isFileViewOrDesigner ? "inline-flex" : "lg:hidden"}>
             <ContentEditorFileTreePicker
-              files={page.files}
+              files={resolveVisibleContentEditorFiles(
+                page.files,
+                ui.hiddenFilesHidden,
+                page.allFiles ? null : page.selectedSourcePath,
+              )}
+              fileProgress={page.fileProgress}
               selectedSourcePath={page.selectedSourcePath ?? ""}
               onSelectFile={actions.onSelectFile}
               allFilesSelected={page.allFiles}

@@ -1,0 +1,639 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+
+import { createHash } from "node:crypto";
+
+import { and, eq } from "drizzle-orm";
+
+import {
+  isContentSyncJsonCompatiblePath,
+  serializeContentSyncJsonExport,
+} from "@/lib/agents/content-sync/content-sync-export";
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
+import { db, schema } from "@/lib/database/client";
+import { createLogger } from "@/lib/log";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+import { isErr } from "@/lib/primitives/result/results";
+import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
+import { loadProjectOfficeTranslationDownload } from "@/lib/projects/files/office-translation-download";
+import { loadProjectPdfTranslationDownload } from "@/lib/projects/files/pdf-translation-download";
+import { loadProjectTxtTranslationDownload } from "@/lib/projects/files/txt-translation-download";
+import { loadProjectSubtitleTranslationDownload } from "@/lib/projects/files/subtitle-translation-download";
+import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
+import {
+  inferSupportedOfficeTranslationFileFormat,
+  inferSupportedPdfTranslationFileFormat,
+  inferSupportedTranslationFileFormat,
+} from "@/lib/translation/file-formats";
+
+import { GOOGLE_EXPORT_MIME, GOOGLE_MIME } from "./constants";
+import {
+  createGoogleDriveFolder,
+  findGoogleDriveChildByName,
+  getGoogleDriveFile,
+  uploadGoogleDriveFile,
+} from "./drive-api";
+import { loadGoogleDrivePipesAccessToken } from "./pipes";
+import { relativePathFromGoogleDriveSourcePath } from "./source-path";
+import {
+  buildTranslatedDriveName,
+  formatDriveLocaleTag,
+  resolveGoogleDriveTranslationOutput,
+  stripExtension,
+} from "./translation-filename";
+
+const logger = createLogger("push-google-drive-translations");
+
+export type GoogleDrivePushSkippedFile = {
+  sourcePath: string;
+  driveFileId: string;
+  locales: Array<{ locale: string; reason: GoogleDrivePushSkipReason }>;
+};
+
+export type GoogleDrivePushPartialFile = {
+  sourcePath: string;
+  driveFileId: string;
+  locales: Array<{ locale: string; overflowKeys: string[] }>;
+};
+
+export type PushGoogleDriveTranslationsResult = {
+  pushed: number;
+  skipped: number;
+  failed: number;
+  skippedFiles: GoogleDrivePushSkippedFile[];
+  partialFiles: GoogleDrivePushPartialFile[];
+  failedFiles: GoogleDrivePushFailedFile[];
+};
+
+export function resolveGoogleDrivePushTargetLocales(
+  automation: WorkspaceAutomationRecord,
+  projectTargets: string[],
+): string[] {
+  const configured = automation.toolConfig.googleDrive?.targetLocales ?? [];
+  if (configured.length === 0) {
+    return projectTargets;
+  }
+  const allowed = new Set(projectTargets.map((locale) => locale.toLowerCase()));
+  return configured.filter((locale) => allowed.has(locale.toLowerCase()));
+}
+
+export function readGoogleDrivePushSourcePaths(
+  inputSnapshot: Record<string, unknown> | null | undefined,
+): string[] | undefined {
+  const raw = inputSnapshot?.sourcePaths;
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  return raw.filter(
+    (value): value is string => typeof value === "string" && value.trim().length > 0,
+  );
+}
+
+export function selectGoogleDrivePushMappings<T extends { sourcePath: string }>(
+  mappings: T[],
+  sourcePaths?: readonly string[],
+): T[] {
+  if (!sourcePaths) {
+    return mappings;
+  }
+  const selected = new Set(sourcePaths.filter((path) => path.trim().length > 0));
+  return mappings.filter((mapping) => selected.has(mapping.sourcePath));
+}
+
+function namedFolderCacheKey(input: {
+  parentId: string;
+  name: string;
+  driveId: string | null;
+}): string {
+  return `${input.parentId}\0${input.name}\0${input.driveId ?? ""}`;
+}
+
+async function resolveNamedFolder(input: {
+  accessToken: string;
+  parentId: string;
+  name: string;
+  driveId: string | null;
+}): Promise<string> {
+  const existing = await findGoogleDriveChildByName({
+    accessToken: input.accessToken,
+    parentId: input.parentId,
+    name: input.name,
+    mimeType: GOOGLE_MIME.folder,
+    driveId: input.driveId,
+  });
+  if (!isErr(existing) && existing.value) {
+    return existing.value.id;
+  }
+
+  const created = await createGoogleDriveFolder({
+    accessToken: input.accessToken,
+    parentId: input.parentId,
+    name: input.name,
+    driveId: input.driveId,
+  });
+  if (isErr(created)) {
+    throw new Error(created.error.code);
+  }
+  return created.value.id;
+}
+
+async function ensureNamedFolder(input: {
+  accessToken: string;
+  parentId: string;
+  name: string;
+  driveId: string | null;
+  folderPromises?: Map<string, Promise<string>>;
+}): Promise<string> {
+  const cache = input.folderPromises;
+  if (!cache) {
+    return resolveNamedFolder(input);
+  }
+  const key = namedFolderCacheKey(input);
+  const pending = cache.get(key);
+  if (pending) {
+    return pending;
+  }
+  const promise = resolveNamedFolder(input);
+  cache.set(key, promise);
+  return promise;
+}
+
+async function ensureLocaleFolder(input: {
+  accessToken: string;
+  parentId: string;
+  locale: string;
+  driveId: string | null;
+  cached: Record<string, string>;
+  folderPromises?: Map<string, Promise<string>>;
+}): Promise<string> {
+  const cached = input.cached[input.locale];
+  if (cached) {
+    const cachedMeta = await getGoogleDriveFile({
+      accessToken: input.accessToken,
+      fileId: cached,
+    });
+    if (!isErr(cachedMeta) && cachedMeta.value.parents.includes(input.parentId)) {
+      return cached;
+    }
+    delete input.cached[input.locale];
+  }
+
+  const folderId = await ensureNamedFolder({
+    accessToken: input.accessToken,
+    parentId: input.parentId,
+    name: input.locale,
+    driveId: input.driveId,
+    folderPromises: input.folderPromises,
+  });
+  input.cached[input.locale] = folderId;
+  return folderId;
+}
+
+async function ensureFolderPath(input: {
+  accessToken: string;
+  parentId: string;
+  segments: string[];
+  driveId: string | null;
+  folderPromises?: Map<string, Promise<string>>;
+}): Promise<string> {
+  let parentId = input.parentId;
+  for (const segment of input.segments) {
+    parentId = await ensureNamedFolder({
+      accessToken: input.accessToken,
+      parentId,
+      name: segment,
+      driveId: input.driveId,
+      folderPromises: input.folderPromises,
+    });
+  }
+  return parentId;
+}
+
+export type GoogleDrivePushSkipReason =
+  | "no_approved_translations"
+  | "unsupported_format"
+  | "unsupported_script"
+  | "unchanged";
+
+export type GoogleDrivePushFailedFile = {
+  sourcePath: string;
+  driveFileId: string;
+  locales: Array<{ locale: string; code: string }>;
+};
+
+export type TranslatedBytesResolution =
+  | {
+      status: "ready";
+      buffer: Buffer;
+      fileName: string;
+      mimeType: string;
+      pdfOverflowKeys?: readonly string[];
+    }
+  | { status: "skipped"; reason: Exclude<GoogleDrivePushSkipReason, "unchanged"> }
+  | { status: "failed"; code: string };
+
+export async function resolveTranslatedBytes(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+  ingestFormat: string;
+}): Promise<TranslatedBytesResolution> {
+  const officeFormat = inferSupportedOfficeTranslationFileFormat(input.sourcePath);
+  if (officeFormat) {
+    const office = await loadProjectOfficeTranslationDownload({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      targetLocale: input.targetLocale,
+      approvedTranslationsOnly: true,
+    });
+    if (isErr(office)) {
+      return { status: "failed", code: office.error.code };
+    }
+    if (!office.value || !office.value.translatedKeyCount) {
+      return { status: "skipped", reason: "no_approved_translations" };
+    }
+    const ext = `.${officeFormat}`;
+    const baseName = input.sourcePath.split("/").pop() ?? "file";
+    const { base } = stripExtension(baseName);
+    const uploadMime =
+      officeFormat === "docx"
+        ? GOOGLE_EXPORT_MIME.docx
+        : officeFormat === "pptx"
+          ? GOOGLE_EXPORT_MIME.pptx
+          : GOOGLE_EXPORT_MIME.xlsx;
+    return {
+      status: "ready",
+      buffer: office.value.content,
+      fileName: `${base}${ext}`,
+      mimeType: uploadMime,
+    };
+  }
+
+  const isPdfSource =
+    inferSupportedPdfTranslationFileFormat(input.sourcePath) !== null ||
+    input.ingestFormat === "pdf";
+  if (isPdfSource) {
+    const pdf = await loadProjectPdfTranslationDownload({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      targetLocale: input.targetLocale,
+      approvedTranslationsOnly: true,
+    });
+    if (isErr(pdf)) {
+      if (pdf.error.code === "pdf_script_unsupported") {
+        return { status: "skipped", reason: "unsupported_script" };
+      }
+      return { status: "failed", code: pdf.error.code };
+    }
+    if (!pdf.value || !pdf.value.translatedKeyCount) {
+      return { status: "skipped", reason: "no_approved_translations" };
+    }
+    const fileName = input.sourcePath.split("/").pop() ?? "file";
+    return {
+      status: "ready",
+      buffer: pdf.value.content,
+      fileName,
+      mimeType: pdf.value.contentType,
+      pdfOverflowKeys: pdf.value.overflowKeys,
+    };
+  }
+
+  const isPlainTextSource =
+    inferSupportedTranslationFileFormat(input.sourcePath) === "txt" || input.ingestFormat === "txt";
+  if (isPlainTextSource) {
+    const txt = await loadProjectTxtTranslationDownload({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      targetLocale: input.targetLocale,
+      approvedTranslationsOnly: true,
+    });
+    if (isErr(txt)) {
+      return { status: "failed", code: txt.error.code };
+    }
+    if (!txt.value || !txt.value.translatedKeyCount) {
+      return { status: "skipped", reason: "no_approved_translations" };
+    }
+    const fileName = input.sourcePath.split("/").pop() ?? "file";
+    return {
+      status: "ready",
+      buffer: txt.value.content,
+      fileName,
+      mimeType: txt.value.contentType,
+    };
+  }
+
+  const prefilled = await loadProjectTranslationsAsPrefilledEntries({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    targetLocale: input.targetLocale,
+    includeAllSourceKeys: true,
+    readyTranslationsOnly: true,
+    approvedTranslationsOnly: true,
+  });
+  if (prefilled.loadedKeyCount === 0 || prefilled.truncated) {
+    return { status: "skipped", reason: "no_approved_translations" };
+  }
+
+  const fileName = input.sourcePath.split("/").pop() ?? "file";
+  const lottie = await loadProjectLottieTranslationDownload({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    prefilled: prefilled.prefilled,
+  });
+  if (isErr(lottie)) {
+    return { status: "skipped", reason: "no_approved_translations" };
+  }
+  if (lottie.value) {
+    return {
+      status: "ready",
+      buffer: lottie.value.content,
+      fileName,
+      mimeType: lottie.value.contentType,
+    };
+  }
+
+  const subtitle = await loadProjectSubtitleTranslationDownload({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    prefilled: prefilled.prefilled,
+  });
+  if (isErr(subtitle)) {
+    return { status: "skipped", reason: "no_approved_translations" };
+  }
+  if (subtitle.value) {
+    return {
+      status: "ready",
+      buffer: subtitle.value.content,
+      fileName,
+      mimeType: subtitle.value.contentType,
+    };
+  }
+
+  if (!isContentSyncJsonCompatiblePath(input.sourcePath)) {
+    return { status: "skipped", reason: "unsupported_format" };
+  }
+
+  return {
+    status: "ready",
+    buffer: serializeContentSyncJsonExport(prefilled.prefilled),
+    fileName,
+    mimeType: "application/json",
+  };
+}
+
+export async function loadTranslatedBytes(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+  ingestFormat: string;
+}): Promise<{ buffer: Buffer; fileName: string; mimeType: string } | null> {
+  const resolved = await resolveTranslatedBytes(input);
+  if (resolved.status !== "ready") {
+    return null;
+  }
+  return { buffer: resolved.buffer, fileName: resolved.fileName, mimeType: resolved.mimeType };
+}
+
+function nativeUploadMime(sourceMimeType: string, fileMimeType: string): string {
+  if (sourceMimeType === GOOGLE_MIME.document) {
+    return GOOGLE_MIME.document;
+  }
+  if (sourceMimeType === GOOGLE_MIME.spreadsheet) {
+    return GOOGLE_MIME.spreadsheet;
+  }
+  if (sourceMimeType === GOOGLE_MIME.presentation) {
+    return GOOGLE_MIME.presentation;
+  }
+  return fileMimeType;
+}
+
+export async function runPushGoogleDriveTranslations(input: {
+  organizationId: string;
+  automation: WorkspaceAutomationRecord;
+  sourcePaths?: string[];
+}): Promise<PushGoogleDriveTranslationsResult> {
+  const config = input.automation.toolConfig.googleDrive;
+  if (!config?.enabled || !config.workosUserId) {
+    throw new Error("google_drive_not_configured");
+  }
+
+  const projectId = input.automation.projectId?.trim();
+  if (!projectId) {
+    throw new Error("project_not_found");
+  }
+  const [project] = await db
+    .select()
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.id, projectId),
+        eq(schema.projects.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+  if (!project || project.source !== "native") {
+    throw new Error("google_drive_native_project_required");
+  }
+
+  const tokenResult = await loadGoogleDrivePipesAccessToken({
+    localOrganizationId: input.organizationId,
+    workosUserId: config.workosUserId,
+  });
+  if (isErr(tokenResult)) {
+    throw new Error(tokenResult.error.code);
+  }
+
+  const translationOutput = resolveGoogleDriveTranslationOutput(config.translationOutput);
+  const targetLocales = resolveGoogleDrivePushTargetLocales(
+    input.automation,
+    (project.targetLocales as string[]) ?? [],
+  );
+  if (targetLocales.length === 0) {
+    throw new Error("google_drive_target_locales_required");
+  }
+
+  const mappings = selectGoogleDrivePushMappings(
+    await db
+      .select()
+      .from(schema.googleDriveFileSyncStates)
+      .where(
+        and(
+          eq(schema.googleDriveFileSyncStates.automationId, input.automation.id),
+          eq(schema.googleDriveFileSyncStates.status, "active"),
+        ),
+      ),
+    input.sourcePaths,
+  );
+
+  let pushed = 0;
+  let skipped = 0;
+  let failed = 0;
+  const skippedFiles: GoogleDrivePushSkippedFile[] = [];
+  const partialFiles: GoogleDrivePushPartialFile[] = [];
+  const failedFiles: GoogleDrivePushFailedFile[] = [];
+  const folderPromises = new Map<string, Promise<string>>();
+
+  await mapWithConcurrency(mappings, 4, async (mapping) => {
+    try {
+      const fileMeta = await getGoogleDriveFile({
+        accessToken: tokenResult.value,
+        fileId: mapping.driveFileId,
+      });
+      if (isErr(fileMeta)) {
+        failed += 1;
+        return;
+      }
+      const parentId = fileMeta.value.parents[0];
+      if (!parentId) {
+        failed += 1;
+        return;
+      }
+
+      const localeFolderCache = { ...mapping.localeFolderIds };
+      const translatedFileIds = { ...mapping.translatedFileIds };
+      const lastPushContentHash = { ...mapping.lastPushContentHash };
+      const mappingSkips: Array<{ locale: string; reason: GoogleDrivePushSkipReason }> = [];
+      const mappingPartials: Array<{ locale: string; overflowKeys: string[] }> = [];
+      const mappingFailures: Array<{ locale: string; code: string }> = [];
+
+      for (const locale of targetLocales) {
+        const translated = await resolveTranslatedBytes({
+          organizationId: input.organizationId,
+          projectId: project.id,
+          sourcePath: mapping.sourcePath,
+          targetLocale: locale,
+          ingestFormat: mapping.ingestFormat,
+        });
+        if (translated.status === "failed") {
+          failed += 1;
+          mappingFailures.push({ locale, code: translated.code });
+          continue;
+        }
+        if (translated.status !== "ready") {
+          skipped += 1;
+          mappingSkips.push({ locale, reason: translated.reason });
+          continue;
+        }
+
+        const pushHash = createHash("sha256").update(translated.buffer).digest("hex");
+        if (lastPushContentHash[locale] === pushHash) {
+          skipped += 1;
+          mappingSkips.push({ locale, reason: "unchanged" });
+          continue;
+        }
+
+        const driveName = buildTranslatedDriveName({
+          output: translationOutput,
+          locale,
+          fileName: translated.fileName,
+        });
+        const localeFolderId =
+          translationOutput === "folder"
+            ? await ensureFolderPath({
+                accessToken: tokenResult.value,
+                parentId: await ensureLocaleFolder({
+                  accessToken: tokenResult.value,
+                  parentId: mapping.folderId,
+                  locale: formatDriveLocaleTag(locale),
+                  driveId: fileMeta.value.driveId,
+                  cached: localeFolderCache,
+                  folderPromises,
+                }),
+                segments: relativePathFromGoogleDriveSourcePath(
+                  mapping.sourcePath,
+                  mapping.folderId,
+                )
+                  .split("/")
+                  .filter(Boolean),
+                driveId: fileMeta.value.driveId,
+                folderPromises,
+              })
+            : parentId;
+        const officeFormat = inferSupportedOfficeTranslationFileFormat(mapping.sourcePath);
+        const uploadMime =
+          officeFormat && mapping.mimeType.startsWith("application/vnd.google-apps.")
+            ? nativeUploadMime(mapping.mimeType, translated.mimeType)
+            : translated.mimeType;
+
+        const uploaded = await uploadGoogleDriveFile({
+          accessToken: tokenResult.value,
+          parentId: localeFolderId,
+          name: driveName,
+          mimeType: uploadMime,
+          content: translated.buffer,
+          existingFileId: translatedFileIds[locale] ?? null,
+        });
+        if (isErr(uploaded)) {
+          failed += 1;
+          continue;
+        }
+
+        translatedFileIds[locale] = uploaded.value.id;
+        lastPushContentHash[locale] = pushHash;
+        pushed += 1;
+        if (translated.pdfOverflowKeys && translated.pdfOverflowKeys.length > 0) {
+          mappingPartials.push({ locale, overflowKeys: [...translated.pdfOverflowKeys] });
+        }
+      }
+
+      await db
+        .update(schema.googleDriveFileSyncStates)
+        .set({
+          translatedFileIds,
+          localeFolderIds: localeFolderCache,
+          lastPushContentHash,
+          lastPushedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.googleDriveFileSyncStates.id, mapping.id));
+
+      if (mappingSkips.length > 0) {
+        skippedFiles.push({
+          sourcePath: mapping.sourcePath,
+          driveFileId: mapping.driveFileId,
+          locales: mappingSkips,
+        });
+      }
+      if (mappingPartials.length > 0) {
+        partialFiles.push({
+          sourcePath: mapping.sourcePath,
+          driveFileId: mapping.driveFileId,
+          locales: mappingPartials,
+        });
+      }
+      if (mappingFailures.length > 0) {
+        failedFiles.push({
+          sourcePath: mapping.sourcePath,
+          driveFileId: mapping.driveFileId,
+          locales: mappingFailures,
+        });
+      }
+    } catch (error) {
+      failed += 1;
+      logger.warn("google_drive_push_failed", {
+        driveFileId: mapping.driveFileId,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }
+  });
+
+  return { pushed, skipped, failed, skippedFiles, partialFiles, failedFiles };
+}

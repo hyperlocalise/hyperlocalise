@@ -305,6 +305,8 @@ export type ListCrowdinTasksOptions = {
   offset?: number;
   orderBy?: string;
   fetchAll?: boolean;
+  /** Only tasks in these statuses, such as "todo" and "in_progress". */
+  statuses?: readonly string[];
 };
 
 export type ListCrowdinGlossariesOptions = {
@@ -394,12 +396,20 @@ export interface CrowdinSourceString {
   fileId: number | null;
   branchId: number | null;
   directoryId: number | null;
-  identifier: string;
+  /** Null or empty for HTML/document strings that have no key. */
+  identifier: string | null;
   text: string | Record<string, string>;
   type: string;
   context: string | null;
   isHidden: boolean;
   labelIds: number[] | null;
+}
+
+export function crowdinSourceStringKey(
+  sourceString: Pick<CrowdinSourceString, "id" | "identifier">,
+): string {
+  const identifier = sourceString.identifier?.trim();
+  return identifier ? identifier : String(sourceString.id);
 }
 
 export interface CrowdinLabel {
@@ -476,6 +486,10 @@ export interface CrowdinLanguageProgress {
   approvalProgress: number;
 }
 
+export interface CrowdinFileProgress extends Omit<CrowdinLanguageProgress, "languageId"> {
+  fileId: number;
+}
+
 export interface CrowdinTaskDetails extends CrowdinTask {
   stringIds?: number[] | null;
 }
@@ -504,6 +518,22 @@ export interface CrowdinCreateTaskRequest {
   startedAt?: string;
   dateFrom?: string;
   dateTo?: string;
+}
+
+export interface CrowdinPreTranslationRequest {
+  languageIds: string[];
+  fileIds: number[];
+  method: "tm" | "mt" | "ai";
+  engineId?: number;
+  aiPromptId?: number;
+  autoApproveOption?: "all" | "exceptAutoSubstituted" | "perfectMatchOnly" | "none";
+  translateUntranslatedOnly?: boolean;
+}
+
+export interface CrowdinPreTranslation {
+  identifier: string;
+  status: "created" | "inProgress" | "canceled" | "failed" | "finished" | (string & {});
+  progress: number;
 }
 
 export interface CrowdinProjectMember {
@@ -780,6 +810,17 @@ export type CrowdinPatchOperation = {
   path: string;
   value?: unknown;
 };
+
+export function crowdinTmSegmentReplaceTextOperation(
+  recordId: number,
+  text: string,
+): CrowdinPatchOperation {
+  return { op: "replace", path: `/records/${recordId}/text`, value: text };
+}
+
+export function crowdinTmSegmentRemoveRecordOperation(recordId: number): CrowdinPatchOperation {
+  return { op: "remove", path: `/records/${recordId}` };
+}
 
 export interface CrowdinTmConcordanceSearchRequest {
   sourceLanguageId: string;
@@ -1489,11 +1530,14 @@ export class CrowdinApiClient {
     const orderBy = options?.orderBy ?? (fetchAll ? undefined : CROWDIN_LIVE_TASK_LIST_ORDER_BY);
     const tasks: CrowdinTask[] = [];
     let offset = options?.offset ?? 0;
+    const statusParam = options?.statuses?.length
+      ? `&status=${encodeURIComponent(options.statuses.join(","))}`
+      : "";
 
     while (true) {
       const orderParam = orderBy ? `&orderBy=${encodeURIComponent(orderBy)}` : "";
       const response = await this.get<CrowdinListResponse<CrowdinTask>>(
-        `/projects/${projectId}/tasks?limit=${limit}&offset=${offset}${orderParam}`,
+        `/projects/${projectId}/tasks?limit=${limit}&offset=${offset}${orderParam}${statusParam}`,
       );
       const page = response.data.map((item) => item.data);
       tasks.push(...page);
@@ -2083,6 +2127,31 @@ export class CrowdinApiClient {
   }
 
   /**
+   * Start an async pre-translation of files with translation memory, a machine translation
+   * engine, or an AI prompt.
+   */
+  async applyPreTranslation(
+    projectId: number,
+    request: CrowdinPreTranslationRequest,
+  ): Promise<CrowdinPreTranslation> {
+    const response = await this.post<CrowdinGetResponse<CrowdinPreTranslation>>(
+      `/projects/${projectId}/pre-translations`,
+      request,
+    );
+    return response.data;
+  }
+
+  async getPreTranslationStatus(
+    projectId: number,
+    preTranslationId: string,
+  ): Promise<CrowdinPreTranslation> {
+    const response = await this.get<CrowdinGetResponse<CrowdinPreTranslation>>(
+      `/projects/${projectId}/pre-translations/${encodeURIComponent(preTranslationId)}`,
+    );
+    return response.data;
+  }
+
+  /**
    * Check status of an async translation build.
    */
   async getTranslationBuildStatus(
@@ -2233,6 +2302,22 @@ export class CrowdinApiClient {
     return this.listTranslationProgress(
       `/projects/${projectId}/files/${fileId}/languages/progress`,
       options,
+    );
+  }
+
+  /**
+   * Get translation progress for every file in one target language.
+   * Rows for branches and directories are dropped.
+   */
+  async listLanguageFileProgress(
+    projectId: number,
+    languageId: string,
+  ): Promise<CrowdinFileProgress[]> {
+    const rows = await this.listPaginated<
+      Omit<CrowdinFileProgress, "fileId"> & { fileId?: number }
+    >(`/projects/${projectId}/languages/${encodeURIComponent(languageId)}/progress`);
+    return rows.flatMap((row) =>
+      typeof row.fileId === "number" ? [row as CrowdinFileProgress] : [],
     );
   }
 
@@ -2446,6 +2531,11 @@ export class CrowdinApiClient {
     return this.listPaginated<CrowdinTranslationMemory>("/tms");
   }
 
+  async getTranslationMemory(tmId: number): Promise<CrowdinTranslationMemory> {
+    const response = await this.get<CrowdinGetResponse<CrowdinTranslationMemory>>(`/tms/${tmId}`);
+    return response.data;
+  }
+
   async listTranslationMemorySegments(
     tmId: number,
     options?: {
@@ -2453,6 +2543,45 @@ export class CrowdinApiClient {
     },
   ): Promise<CrowdinTranslationMemorySegment[]> {
     return this.listPaginated<CrowdinTranslationMemorySegment>(`/tms/${tmId}/segments`, options);
+  }
+
+  async getTranslationMemorySegment(
+    tmId: number,
+    segmentId: number,
+  ): Promise<CrowdinTranslationMemorySegment> {
+    const response = await this.get<CrowdinGetResponse<CrowdinTranslationMemorySegment>>(
+      `/tms/${tmId}/segments/${segmentId}`,
+    );
+    return response.data;
+  }
+
+  async findTranslationMemorySegmentByRecordId(
+    tmId: number,
+    recordId: number,
+  ): Promise<CrowdinTranslationMemorySegment | null> {
+    const segments = await this.listTranslationMemorySegments(tmId, {
+      shouldStop: (items) =>
+        items.some((segment) => segment.records.some((record) => record.id === recordId)),
+    });
+    return (
+      segments.find((segment) => segment.records.some((record) => record.id === recordId)) ?? null
+    );
+  }
+
+  async updateTranslationMemorySegment(
+    tmId: number,
+    segmentId: number,
+    operations: CrowdinPatchOperation[],
+  ): Promise<CrowdinTranslationMemorySegment> {
+    const response = await this.patch<CrowdinGetResponse<CrowdinTranslationMemorySegment>>(
+      `/tms/${tmId}/segments/${segmentId}`,
+      operations,
+    );
+    return response.data;
+  }
+
+  async deleteTranslationMemorySegment(tmId: number, segmentId: number): Promise<void> {
+    await this.delete(`/tms/${tmId}/segments/${segmentId}`);
   }
 
   async listWebhooks(projectId: number): Promise<CrowdinWebhook[]> {

@@ -12,15 +12,33 @@
  */
 import "dotenv/config";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+
+const { enqueueVisualWorkflowRunStartedActivityMock, withPublicHttpFetchMock } = vi.hoisted(() => ({
+  enqueueVisualWorkflowRunStartedActivityMock: vi.fn(),
+  withPublicHttpFetchMock: vi.fn(),
+}));
+
+vi.mock("@/lib/activity-log/visual-workflow-events", () => ({
+  enqueueVisualWorkflowRunStartedActivity: enqueueVisualWorkflowRunStartedActivityMock,
+}));
+
+vi.mock("@/lib/security/public-http-fetch", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/security/public-http-fetch")>();
+  return {
+    ...actual,
+    withPublicHttpFetch: (...args: unknown[]) => withPublicHttpFetchMock(...args),
+  };
+});
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database/client";
 import { isErr } from "@/lib/primitives/result/results";
 
-import type { VisualWorkflowDefinition } from "./schema/types";
+import { createDefaultConfig } from "./catalog/node-catalog";
+import type { VisualWorkflowDefinition, VisualWorkflowV3Definition } from "./schema/types";
 import {
   createVisualWorkflowRun,
   dispatchManualVisualWorkflowRun,
@@ -44,6 +62,8 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  enqueueVisualWorkflowRunStartedActivityMock.mockClear();
+  withPublicHttpFetchMock.mockReset();
   await fixture.cleanup();
 });
 
@@ -64,6 +84,46 @@ function scheduledWorkflowDefinition(name = "Run coverage"): VisualWorkflowDefin
     edges: [],
     editor: { positions: { t: { x: 0, y: 0 } } },
   };
+}
+
+/** A manual trigger, then two GET requests, `a` and then `b`. */
+function twoRequestWorkflowDefinition(): VisualWorkflowDefinition {
+  const request = (id: string) => ({
+    id,
+    type: "action.http" as const,
+    config: {
+      ...createDefaultConfig("action.http"),
+      method: "GET",
+      url: `https://example.com/${id}`,
+    } as VisualWorkflowDefinition["nodes"][number]["config"],
+  });
+  return {
+    schemaVersion: 2,
+    name: "Two requests",
+    nodes: [
+      { id: "t", type: "trigger.manual", config: { kind: "trigger.manual" } },
+      request("a"),
+      request("b"),
+    ],
+    edges: [
+      { id: "t-a", source: "t", target: "a", sourceHandle: null, targetHandle: null },
+      { id: "a-b", source: "a", target: "b", sourceHandle: null, targetHandle: null },
+    ],
+    editor: { positions: {} },
+  };
+}
+
+/** Runs a run's durable slices until it settles. */
+async function executeUntilSettled(input: {
+  runId: string;
+  organizationId: string;
+  visualWorkflowId: string;
+}) {
+  let run = await executeVisualWorkflowRun(input);
+  for (let slice = 0; slice < 5 && run && ["queued", "running"].includes(run.status); slice++) {
+    run = await executeVisualWorkflowRun(input);
+  }
+  return run;
 }
 
 function terminalWorkflowDefinition(
@@ -93,6 +153,94 @@ function terminalWorkflowDefinition(
       },
     ],
     editor: { positions: {} },
+  };
+}
+
+function tryCatchWaitWorkflowDefinition(): VisualWorkflowDefinition {
+  return {
+    schemaVersion: 2,
+    name: "Try catch finally wait",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.scheduled",
+        config: {
+          kind: "trigger.scheduled",
+          schedule: { cadence: "daily", hourUtc: 9, timezone: "UTC" },
+        },
+      },
+      {
+        id: "boundary",
+        type: "logic.try_catch",
+        config: { kind: "logic.try_catch" },
+        bodyNodeIds: ["work"],
+      },
+      {
+        id: "work",
+        type: "flow.fail",
+        config: {
+          kind: "flow.fail",
+          errorCode: "HTTP_FAILED",
+          message: "The request failed.",
+        },
+      },
+      {
+        id: "recover",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [{ key: "result", value: "caught" }],
+        },
+      },
+      {
+        id: "wait",
+        type: "flow.wait",
+        config: {
+          kind: "flow.wait",
+          mode: "timestamp",
+          timestamp: "2099-01-01T00:00:00.000Z",
+        },
+      },
+    ],
+    edges: [
+      {
+        id: "start",
+        source: "trigger",
+        target: "boundary",
+        sourceHandle: null,
+        targetHandle: null,
+      },
+      {
+        id: "try",
+        source: "boundary",
+        target: "work",
+        sourceHandle: "try",
+        targetHandle: null,
+      },
+      {
+        id: "catch",
+        source: "boundary",
+        target: "recover",
+        sourceHandle: "catch",
+        targetHandle: null,
+      },
+      {
+        id: "finally",
+        source: "boundary",
+        target: "wait",
+        sourceHandle: "finally",
+        targetHandle: null,
+      },
+    ],
+    editor: {
+      positions: {
+        trigger: { x: 0, y: 0 },
+        boundary: { x: 200, y: 0 },
+        work: { x: 400, y: -80 },
+        recover: { x: 400, y: 80 },
+        wait: { x: 600, y: 0 },
+      },
+    },
   };
 }
 
@@ -230,6 +378,86 @@ function conditionWaitWorkflowDefinition(): VisualWorkflowDefinition {
   };
 }
 
+function reusableChildDefinition(result: "input" | "new-version"): VisualWorkflowV3Definition {
+  return {
+    schemaVersion: 3,
+    name: "Reusable child",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.manual",
+        config: { kind: "trigger.manual" },
+        outputFields: [{ path: "customerId", type: "string" }],
+      },
+      {
+        id: "return",
+        type: "flow.return",
+        config: {
+          kind: "flow.return",
+          outputs: [{ id: "result", name: "result", type: "string" }],
+        },
+        inputs: {
+          "value.result":
+            result === "input"
+              ? { kind: "reference", nodeId: "trigger", path: ["customerId"] }
+              : { kind: "literal", value: result },
+        },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-return",
+        kind: "execution",
+        source: "trigger",
+        target: "return",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+    ],
+    editor: { positions: {} },
+  };
+}
+
+function parentDefinition(childWorkflowId: string): VisualWorkflowV3Definition {
+  return {
+    schemaVersion: 3,
+    name: "Parent workflow",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.scheduled",
+        config: {
+          kind: "trigger.scheduled",
+          schedule: { cadence: "daily", hourUtc: 9, timezone: "UTC" },
+        },
+      },
+      {
+        id: "call",
+        type: "flow.call_workflow",
+        config: {
+          kind: "flow.call_workflow",
+          workflowId: childWorkflowId,
+          version: 1,
+          inputFields: [{ id: "customerId", name: "customerId", type: "string", required: true }],
+          outputFields: [{ id: "result", name: "result", type: "string", required: true }],
+        },
+        inputs: { "value.customerId": { kind: "literal", value: "customer-123" } },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-call",
+        kind: "execution",
+        source: "trigger",
+        target: "call",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+    ],
+    editor: { positions: {} },
+  };
+}
+
 async function seedWorkflow(input?: { definition?: VisualWorkflowDefinition }) {
   const identity = fixture.createWorkosIdentityWithRole("admin");
   const { user, organization } = await syncWorkosIdentity(db, identity);
@@ -283,6 +511,168 @@ describe("visual workflow runs", () => {
 
     expect(second.id).toBe(first.id);
     expect(second.inputSnapshot).toMatchObject({ lead: "Ada" });
+    expect(enqueueVisualWorkflowRunStartedActivityMock).toHaveBeenCalledTimes(1);
+    expect(enqueueVisualWorkflowRunStartedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "system",
+        runId: first.id,
+        triggerSource: "manual",
+        visualWorkflowId: workflow.id,
+      }),
+    );
+  });
+
+  it("skips activity for mock and test runs", async () => {
+    const { organizationId, workflow } = await seedWorkflow();
+
+    await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      mode: "mock",
+      testDefinition: scheduledWorkflowDefinition("Test run"),
+    });
+
+    expect(enqueueVisualWorkflowRunStartedActivityMock).not.toHaveBeenCalled();
+  });
+
+  it("in a mock run, calls out only for the steps listed to run for real", async () => {
+    withPublicHttpFetchMock.mockResolvedValue({
+      status: 200,
+      statusText: "OK",
+      ok: true,
+      headers: {},
+      body: "real",
+      json: {},
+    });
+    const { organizationId, workflow } = await seedWorkflow();
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      mode: "mock",
+      testDefinition: twoRequestWorkflowDefinition(),
+      mockOutputs: { t: {}, a: { status: 200, ok: true, headers: {}, body: "mocked" } },
+      // A trigger and a step the workflow does not have cannot run for real.
+      realNodeIds: ["b", "t", "missing"],
+    });
+    expect(run.realNodeIds).toEqual(["b"]);
+
+    const settled = await executeUntilSettled({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+    expect(settled?.status).toBe("succeeded");
+    expect(withPublicHttpFetchMock).toHaveBeenCalledTimes(1);
+    expect(String(withPublicHttpFetchMock.mock.calls[0]?.[0])).toBe("https://example.com/b");
+    expect(settled?.outputSummary).toMatchObject({
+      nodeResults: { a: { body: "mocked" }, b: { body: "real" } },
+    });
+  });
+
+  it("fails a mocked step with the error it was given, without calling out", async () => {
+    const { organizationId, workflow } = await seedWorkflow();
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      mode: "mock",
+      testDefinition: twoRequestWorkflowDefinition(),
+      mockOutputs: { t: {}, a: {}, b: {} },
+      mockFailures: { a: { code: "timeout", message: "Too slow" } },
+    });
+
+    const settled = await executeUntilSettled({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+    expect(settled?.status).toBe("failed");
+    expect(withPublicHttpFetchMock).not.toHaveBeenCalled();
+    const withNodes = await getVisualWorkflowRunById({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      runId: run.id,
+      includeNodeRuns: true,
+    });
+    expect(withNodes?.nodeRuns?.find((nodeRun) => nodeRun.nodeId === "a")?.error).toMatchObject({
+      code: "timeout",
+      message: "Too slow",
+    });
+    expect(withNodes?.nodeRuns?.find((nodeRun) => nodeRun.nodeId === "b")?.status).not.toBe(
+      "succeeded",
+    );
+  });
+
+  it("keeps no steps to run for real outside a mock run", async () => {
+    const { organizationId, workflow } = await seedWorkflow();
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      mode: "live",
+      testDefinition: twoRequestWorkflowDefinition(),
+      realNodeIds: ["a"],
+    });
+    expect(run.realNodeIds).toBeUndefined();
+  });
+
+  it("propagates cancellation from a parent run to child runs", async () => {
+    const { organizationId, workflow } = await seedWorkflow();
+    const parent = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      idempotencyKey: "cancel-parent",
+    });
+    const child = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      idempotencyKey: "cancel-child",
+      parentRunId: parent.id,
+      parentNodeId: "call",
+      traceId: parent.traceId,
+      immutableDefinitionVersion: workflow.publishedVersion!,
+      enqueue: false,
+    });
+
+    await requestWorkflowCancellation({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      runId: parent.id,
+    });
+
+    const cancelled = await db
+      .select({ id: schema.visualWorkflowRuns.id, at: schema.visualWorkflowRuns.cancelRequestedAt })
+      .from(schema.visualWorkflowRuns)
+      .where(eq(schema.visualWorkflowRuns.traceId, parent.traceId));
+    expect(cancelled.map((run) => run.id).sort()).toEqual([child.id, parent.id].sort());
+    expect(cancelled.every((run) => run.at instanceof Date)).toBe(true);
+  });
+
+  it("does not cancel a run when the requested workflow ID does not own it", async () => {
+    const { organizationId, workflow } = await seedWorkflow();
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      idempotencyKey: "cancel-wrong-workflow",
+    });
+
+    const cancelled = await requestWorkflowCancellation({
+      organizationId,
+      visualWorkflowId: "00000000-0000-4000-8000-000000000001",
+      runId: run.id,
+    });
+    const [stored] = await db
+      .select({ cancelRequestedAt: schema.visualWorkflowRuns.cancelRequestedAt })
+      .from(schema.visualWorkflowRuns)
+      .where(eq(schema.visualWorkflowRuns.id, run.id));
+
+    expect(cancelled).toBeNull();
+    expect(stored?.cancelRequestedAt).toBeNull();
   });
 
   it("enqueues at most once and clears the marker when enqueue fails", async () => {
@@ -448,6 +838,134 @@ describe("visual workflow runs", () => {
     });
   });
 
+  it("runs a pinned child version with shared trace and durable lineage", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const { user, organization } = await syncWorkosIdentity(db, identity);
+    const child = await createVisualWorkflow({
+      organizationId: organization.id,
+      authorUserId: user.id,
+      name: "Reusable child",
+      definition: reusableChildDefinition("input"),
+    });
+    if (isErr(child)) throw new Error(child.error.code);
+    const childV1 = await publishVisualWorkflow({
+      organizationId: organization.id,
+      visualWorkflowId: child.value.id,
+      expectedRevision: child.value.revision,
+    });
+    if (isErr(childV1)) throw new Error(childV1.error.code);
+
+    const parent = await createVisualWorkflow({
+      organizationId: organization.id,
+      authorUserId: user.id,
+      name: "Parent workflow",
+      definition: parentDefinition(child.value.id),
+    });
+    if (isErr(parent)) throw new Error(parent.error.code);
+    const publishedParent = await publishVisualWorkflow({
+      organizationId: organization.id,
+      visualWorkflowId: parent.value.id,
+      expectedRevision: parent.value.revision,
+    });
+    if (isErr(publishedParent)) throw new Error(publishedParent.error.code);
+
+    const updatedChild = await updateVisualWorkflow({
+      organizationId: organization.id,
+      visualWorkflowId: child.value.id,
+      expectedRevision: childV1.value.revision,
+      definition: reusableChildDefinition("new-version"),
+    });
+    if (isErr(updatedChild)) throw new Error(updatedChild.error.code);
+    const childV2 = await publishVisualWorkflow({
+      organizationId: organization.id,
+      visualWorkflowId: child.value.id,
+      expectedRevision: updatedChild.value.revision,
+    });
+    if (isErr(childV2)) throw new Error(childV2.error.code);
+
+    const parentRun = await createVisualWorkflowRun({
+      organizationId: organization.id,
+      visualWorkflowId: parent.value.id,
+      triggerSource: "manual",
+      idempotencyKey: "parent-child-runtime",
+    });
+    const executed = await executeVisualWorkflowRun({
+      runId: parentRun.id,
+      organizationId: organization.id,
+      visualWorkflowId: parent.value.id,
+    });
+
+    expect(executed).toMatchObject({
+      status: "succeeded",
+      outputSummary: {
+        nodeResults: { call: { value: { result: "customer-123" } } },
+      },
+    });
+    const [childRun] = await db
+      .select()
+      .from(schema.visualWorkflowRuns)
+      .where(eq(schema.visualWorkflowRuns.parentRunId, parentRun.id))
+      .limit(1);
+    expect(childRun).toMatchObject({
+      visualWorkflowId: child.value.id,
+      parentNodeId: "call",
+      traceId: parentRun.traceId,
+      definitionVersion: 1,
+      status: "succeeded",
+    });
+
+    // Simulate a worker crash after the child committed but before the parent
+    // Call node result was durably recorded. Recovery must reuse the same child.
+    await db
+      .delete(schema.visualWorkflowNodeRuns)
+      .where(
+        and(
+          eq(schema.visualWorkflowNodeRuns.runId, parentRun.id),
+          eq(schema.visualWorkflowNodeRuns.nodeId, "call"),
+        ),
+      );
+    await db
+      .update(schema.visualWorkflowRuns)
+      .set({
+        status: "queued",
+        leaseToken: null,
+        leaseExpiresAt: null,
+        completedAt: null,
+        outputSummary: {},
+      })
+      .where(eq(schema.visualWorkflowRuns.id, parentRun.id));
+
+    const recovered = await executeVisualWorkflowRun({
+      runId: parentRun.id,
+      organizationId: organization.id,
+      visualWorkflowId: parent.value.id,
+    });
+    const childRuns = await db
+      .select({ id: schema.visualWorkflowRuns.id })
+      .from(schema.visualWorkflowRuns)
+      .where(eq(schema.visualWorkflowRuns.parentRunId, parentRun.id));
+    const detailedParent = await getVisualWorkflowRunById({
+      organizationId: organization.id,
+      visualWorkflowId: parent.value.id,
+      runId: parentRun.id,
+      includeNodeRuns: true,
+    });
+
+    expect(recovered).toMatchObject({
+      status: "succeeded",
+      outputSummary: { nodeResults: { call: { value: { result: "customer-123" } } } },
+    });
+    expect(childRuns).toEqual([{ id: childRun!.id }]);
+    expect(detailedParent?.childRuns).toEqual([
+      expect.objectContaining({
+        id: childRun!.id,
+        parentNodeId: "call",
+        traceId: parentRun.traceId,
+        nodeRuns: expect.any(Array),
+      }),
+    ]);
+  });
+
   it("persists controlled terminal failure details in the run summary", async () => {
     const definition = terminalWorkflowDefinition({
       id: "fail",
@@ -552,6 +1070,56 @@ describe("visual workflow runs", () => {
       limit: 10,
     });
     expect(listed.map((row) => row.id)).toEqual([newer.id, older.id]);
+  });
+
+  it("reuses a Try body failure across slices while Finally waits", async () => {
+    const { organizationId, workflow } = await seedWorkflow({
+      definition: tryCatchWaitWorkflowDefinition(),
+    });
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      idempotencyKey: "try-catch-finally-wait",
+    });
+
+    const paused = await executeVisualWorkflowRun({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+
+    expect(paused?.status).toBe("running");
+    expect(paused?.executionPausedUntil).toBe("2099-01-01T00:00:00.000Z");
+
+    const first = await getVisualWorkflowRunById({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      runId: run.id,
+      includeNodeRuns: true,
+    });
+    const workRuns = first?.nodeRuns?.filter((nodeRun) => nodeRun.nodeId === "work") ?? [];
+    expect(workRuns).toHaveLength(1);
+    expect(workRuns[0]?.status).toBe("failed");
+    expect(workRuns[0]?.error).toMatchObject({ code: "HTTP_FAILED" });
+
+    const stillPaused = await executeVisualWorkflowRun({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+    expect(stillPaused?.status).toBe("running");
+
+    const second = await getVisualWorkflowRunById({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      runId: run.id,
+      includeNodeRuns: true,
+    });
+    expect(second?.nodeRuns?.filter((nodeRun) => nodeRun.nodeId === "work")).toHaveLength(1);
+    expect(second?.nodeRuns?.find((nodeRun) => nodeRun.nodeId === "work")?.attempt).toBe(
+      workRuns[0]?.attempt,
+    );
   });
 
   it("persists a Wait wakeup and resumes through the completed branch", async () => {

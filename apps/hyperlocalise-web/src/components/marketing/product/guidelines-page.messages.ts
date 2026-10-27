@@ -466,6 +466,12 @@ export const guidelinesPageMessages = defineMessages({
     id: "TUhxc0TwuH",
     description: "Guidelines FAQ answer about ownership",
   },
+  howItWorksNarrative: {
+    defaultMessage:
+      "Guidelines take effect when you connect the documents your team already maintains — brand books in Google Drive, voice pages in Notion, legal standards in SharePoint, or rules typed directly in Hyperlocalise. You choose which collections apply to which workspaces and languages, and the system keeps them indexed as sources change. New hires and agents read the same corpus instead of hunting for the latest PDF. Inside every draft, Guidelines run as a continuous check rather than a one-time import. Agents pull relevant passages for the content type and market, compare proposed copy against tone, terminology, and compliance rules, and surface mismatches with citations to the source doc. Reviewers see why a phrase was flagged and can accept a fix, override with a note, or update the underlying rule when the brand evolves. Outputs show up where people already write. Flagged segments appear in Content Studio and Automation Workflow runs, blocking publish steps until critical issues clear or an owner approves an exception. Over time, accepted decisions feed back into the knowledge base so the next campaign starts closer to on-brand, and leadership can audit which rules fire most often across locales.",
+    id: "+Hatz1jNOF",
+    description: "Long-form how-it-works narrative for the Guidelines product page",
+  },
   ctaHeadline: {
     defaultMessage: "Leave the guidelines where they are.\nLet agents read them.",
     id: "G94O+ZUEet",

@@ -69,6 +69,8 @@ export type StreamedAssistantMessage = {
   responseToMessageId: string;
   message: UIMessage;
   status: "streaming" | "complete" | "error";
+  /** The server refused the reply because the workspace's AI credit is used up. */
+  aiCreditExhausted?: boolean;
 };
 
 export type InboxCurrentUser = {

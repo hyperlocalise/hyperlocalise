@@ -15,8 +15,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
-import { readApiResponseError } from "@/lib/api-error";
-import { apiClient } from "@/lib/api-client-instance";
+import type { OrganizationIssuesListQuery } from "@/lib/go-svc/go-svc-client.types";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
@@ -30,7 +29,7 @@ import { useIssueListUrlState } from "../../_components/use-issue-list-url-state
 import { IssuesActions } from "./issues-actions";
 import { ISSUES_PAGE_SIZE, IssuesPageView, type OrganizationIssue } from "./issues-page-view";
 
-const issuesQueryKey = (organizationSlug: string, query: Record<string, string>) =>
+const issuesQueryKey = (organizationSlug: string, query: OrganizationIssuesListQuery) =>
   ["organization-issues", organizationSlug, query] as const;
 
 export function IssuesPageContent({
@@ -77,16 +76,11 @@ export function IssuesPageContent({
         limit: ISSUES_PAGE_SIZE,
         offset: pageParam,
       });
-      const response = await apiClient.api.orgs[":organizationSlug"].issues.$get({
-        param: { organizationSlug },
-        query,
-      } as never);
-
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load issues");
+      try {
+        return await goSvcClient.issueSheet.listOrg(organizationSlug, query);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load issues"), { cause: error });
       }
-
-      return response.json();
     },
     getNextPageParam: (lastPage, pages) => {
       const loaded = pages.reduce((sum, page) => sum + page.issues.length, 0);

@@ -12,11 +12,16 @@
  */
 import "dotenv/config";
 
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
+import { loadUploadedGuidelinesContext } from "@/lib/knowledge-memory/uploaded-guidelines-context";
 import { assembleStringTranslationContextSnapshot } from "@/lib/translation/context";
+
+vi.mock("@/lib/knowledge-memory/uploaded-guidelines-context", () => ({
+  loadUploadedGuidelinesContext: vi.fn(async () => ({ text: "", documents: [] })),
+}));
 
 const fixture = createProjectTestFixture();
 
@@ -195,6 +200,49 @@ describe("assembleStringTranslationContextSnapshot", () => {
       expect(result.snapshot.knowledgeMemory).toContain("Checkout buttons stay short.");
       expect(result.snapshot.knowledgeMemory).toContain("## Workspace guideline");
       expect(result.snapshot.knowledgeMemory).toContain("Workspace voice is calm.");
+    }
+  });
+
+  it("appends uploaded guideline documents after typed guidelines", async () => {
+    const { organization, user, project } = await fixture.createStoredProjectFixture();
+    await db.insert(schema.knowledgeMemories).values({
+      organizationId: organization.id,
+      updatedByUserId: user.id,
+      content: "Workspace voice is calm.",
+    });
+    vi.mocked(loadUploadedGuidelinesContext).mockResolvedValueOnce({
+      text: "### Brand guide\nNever translate Acme.",
+      documents: [],
+    });
+
+    const result = await assembleStringTranslationContextSnapshot(
+      project.id,
+      {
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+        sourceText: "Acme checkout",
+        context: "",
+        metadata: {},
+      },
+      undefined,
+      { knowledgeMemoryEnabled: true },
+    );
+
+    expect(loadUploadedGuidelinesContext).toHaveBeenCalledWith({
+      organizationId: organization.id,
+      projectId: project.id,
+      targetLocales: ["fr-FR"],
+      sourceText: "Acme checkout",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.snapshot.knowledgeMemory).toBe(
+        [
+          "Workspace voice is calm.",
+          "## Uploaded guidelines",
+          "### Brand guide\nNever translate Acme.",
+        ].join("\n\n"),
+      );
     }
   });
 });

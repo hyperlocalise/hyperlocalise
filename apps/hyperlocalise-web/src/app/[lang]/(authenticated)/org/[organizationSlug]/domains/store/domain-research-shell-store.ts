@@ -22,12 +22,19 @@ import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 
 import { buildDomainPath } from "@/components/app-shell/navigation-config";
 
+import { DomainKeywordsUiStore } from "./domain-keywords-ui-store";
+import { DomainResearchUiStore } from "./domain-research-ui-store";
+import { DomainSearchConsoleUiStore } from "./domain-search-console-ui-store";
+
 export type DomainResearchShellLoadStatus = "idle" | "loading" | "error" | "success";
 
 export class DomainResearchShellStore {
   readonly organizationSlug: string;
   readonly linkedDomainId: string;
   readonly surface: DomainResearchNavId;
+  readonly keywords = new DomainKeywordsUiStore();
+  readonly searchConsole = new DomainSearchConsoleUiStore();
+  readonly ui = new DomainResearchUiStore();
   requestedLocaleId: string | null = null;
   search = "";
   catalog: DomainResearchCatalog | null = null;
@@ -46,7 +53,15 @@ export class DomainResearchShellStore {
     this.surface = input.surface;
     this.requestedLocaleId = input.requestedLocaleId ?? null;
     this.search = input.search ?? "";
-    makeAutoObservable(this, {}, { autoBind: true });
+    makeAutoObservable(
+      this,
+      {
+        keywords: false,
+        searchConsole: false,
+        ui: false,
+      },
+      { autoBind: true },
+    );
   }
 
   get domain() {

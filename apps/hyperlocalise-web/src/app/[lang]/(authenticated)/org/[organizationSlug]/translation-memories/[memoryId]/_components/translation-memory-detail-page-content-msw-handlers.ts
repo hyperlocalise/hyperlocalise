@@ -88,6 +88,15 @@ export function createTranslationMemoryDetailMswHandlers({
   let currentAttachedProjects = [...attachedProjects];
 
   return [
+    http.get("*/v1/orgs/:organizationSlug/translation-memories/:memoryId", async () => {
+      if (memoryLoading) {
+        await delay("infinite");
+      }
+      if (memoryMissing) {
+        return HttpResponse.json({ error: "memory_not_found" }, { status: 404 });
+      }
+      return HttpResponse.json({ memory });
+    }),
     http.get("/api/orgs/:organizationSlug/translation-memories/:memoryId", async () => {
       if (memoryLoading) {
         await delay("infinite");
@@ -97,11 +106,11 @@ export function createTranslationMemoryDetailMswHandlers({
       }
       return HttpResponse.json({ memory });
     }),
-    http.get("/api/orgs/:organizationSlug/translation-memories/:memoryId/projects", () =>
+    http.get("*/v1/orgs/:organizationSlug/translation-memories/:memoryId/projects", () =>
       HttpResponse.json({ projects: currentAttachedProjects }),
     ),
     http.post(
-      "/api/orgs/:organizationSlug/translation-memories/:memoryId/projects",
+      "*/v1/orgs/:organizationSlug/translation-memories/:memoryId/projects",
       async ({ request }) => {
         const body = (await request.json()) as { projectId: string };
         const project = projects.find((item) => item.id === body.projectId);
@@ -121,7 +130,7 @@ export function createTranslationMemoryDetailMswHandlers({
       },
     ),
     http.delete(
-      "/api/orgs/:organizationSlug/translation-memories/:memoryId/projects/:projectId",
+      "*/v1/orgs/:organizationSlug/translation-memories/:memoryId/projects/:projectId",
       ({ params }) => {
         currentAttachedProjects = currentAttachedProjects.filter(
           (project) => project.projectId !== String(params.projectId),
@@ -137,7 +146,7 @@ export function createTranslationMemoryDetailMswHandlers({
         })),
       }),
     ),
-    http.get("/api/orgs/:organizationSlug/translation-memories/:memoryId/entries", async () => {
+    http.get("*/v1/orgs/:organizationSlug/translation-memories/:memoryId/entries", async () => {
       if (entriesLoading) {
         await delay("infinite");
       }
@@ -153,7 +162,7 @@ export function createTranslationMemoryDetailMswHandlers({
       });
     }),
     http.get(
-      "/api/orgs/:organizationSlug/translation-memories/:memoryId/entries/:entryId",
+      "*/v1/orgs/:organizationSlug/translation-memories/:memoryId/entries/:entryId",
       ({ params }) => {
         const entry = currentEntries.find((item) => item.id === String(params.entryId));
         if (!entry) {
@@ -162,8 +171,31 @@ export function createTranslationMemoryDetailMswHandlers({
         return HttpResponse.json(createEntryDetail(entry));
       },
     ),
+    http.patch(
+      "*/v1/orgs/:organizationSlug/translation-memories/:memoryId/entries/:entryId",
+      async ({ params, request }) => {
+        const entry = currentEntries.find((item) => item.id === String(params.entryId));
+        if (!entry) {
+          return HttpResponse.json({ error: "memory_entry_not_found" }, { status: 404 });
+        }
+        const body = (await request.json()) as Partial<MemoryEntryRecord> & {
+          expectedVersion?: number;
+        };
+        if (body.expectedVersion !== undefined && body.expectedVersion !== entry.version) {
+          return HttpResponse.json({ error: "stale_memory_entry" }, { status: 409 });
+        }
+        const updated = {
+          ...entry,
+          ...body,
+          version: entry.version + 1,
+          updatedAt: new Date().toISOString(),
+        };
+        currentEntries = currentEntries.map((item) => (item.id === updated.id ? updated : item));
+        return HttpResponse.json(createEntryDetail(updated));
+      },
+    ),
     http.post(
-      "/api/orgs/:organizationSlug/translation-memories/:memoryId/entries",
+      "*/v1/orgs/:organizationSlug/translation-memories/:memoryId/entries",
       async ({ request }) => {
         const body = (await request.json()) as {
           sourceLocale: string;
@@ -197,7 +229,7 @@ export function createTranslationMemoryDetailMswHandlers({
       },
     ),
     http.delete(
-      "/api/orgs/:organizationSlug/translation-memories/:memoryId/entries/:entryId",
+      "*/v1/orgs/:organizationSlug/translation-memories/:memoryId/entries/:entryId",
       ({ params }) => {
         currentEntries = currentEntries.filter((entry) => entry.id !== String(params.entryId));
         return new HttpResponse(null, { status: 204 });

@@ -59,13 +59,12 @@ worker, or a new Lambda artifact under `apps/`.
    `.github/actions/deploy-lambda-artifact` with the build command, binary path,
    artifact key, artifact-bucket SSM parameter, and function-name SSM parameter.
    Follow the existing `.github/workflows/lambda-deploy.yml` pattern: copy an
-   existing deploy job and make the smallest possible change—new path filters,
-   test command, build command, binary path, artifact key, function SSM
-   parameter, job-level `concurrency` group, and `ensure-deploy-main-tip`
-   filters. Do not refactor upload/provision structure. Never reintroduce
-   workflow-wide `concurrency` with `cancel-in-progress: true` while deploy
-   jobs are path-skipped.    Set `role-session-name: github-actions-lambda-deploy` on
-   `configure-aws-credentials` (required for every deploy job on `main`; do
+   existing deploy job and make the smallest possible change—test command,
+   build command, binary path, artifact key, function SSM parameter, and
+   job-level `concurrency` group. Do not add path filters; every push to
+   `prod` deploys every Lambda. Do not refactor upload/provision structure.
+   Set `role-session-name: github-actions-lambda-deploy` on
+   `configure-aws-credentials` (required for every deploy job on `prod`; do
    not introduce per-worker session names). Do not change concurrency groups
    or deploy steps on existing Lambda jobs when adding a worker. See
    [docs/contributing/lambda-deploy.mdx](../../../docs/contributing/lambda-deploy.mdx)

@@ -27,6 +27,7 @@ import {
   createWorkspaceAutomationFormStateFromTemplate,
   formStateToWorkspaceAutomationPayload,
   mapWorkspaceAutomationApiErrorToFieldErrors,
+  pruneWorkspaceAutomationFieldErrors,
   selectableAutomationRepositories,
   type WorkspaceAutomationFormState,
   validateWorkspaceAutomationFormState,
@@ -243,6 +244,146 @@ describe("workspace automation view model", () => {
     expect(state.webSearchProvider).toBe("exa");
   });
 
+  it("prefills the Google Drive files template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "translate-google-drive-files",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Translate Google Drive files",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      googleDriveEnabled: true,
+      createNativeTmsJobEnabled: true,
+      assignTranslateWithAgentEnabled: true,
+    });
+    expect(form?.skillIds).toEqual(["translate-google-drive-files"]);
+    expect(form?.googleDriveTranslationOutput).toBe("folder");
+  });
+
+  it("hydrates Google Drive translation output from an existing automation record", () => {
+    const state = createWorkspaceAutomationFormStateFromRecord({
+      ...createAutomationSummary(),
+      toolConfig: {
+        googleDrive: {
+          enabled: true,
+          folderIds: [],
+          fileIds: [],
+          targetLocales: [],
+          includeTranslatedFiles: false,
+          translationOutput: "prefix",
+          existingTranslationPolicy: "seed_empty",
+        },
+      },
+    });
+
+    expect(state.googleDriveEnabled).toBe(true);
+    expect(state.googleDriveTranslationOutput).toBe("prefix");
+    expect(formStateToWorkspaceAutomationPayload(state).toolConfig.googleDrive).toMatchObject({
+      translationOutput: "prefix",
+    });
+  });
+
+  it("prefills the Sanity documents template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "translate-sanity-documents",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Translate Sanity documents",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      sanityEnabled: true,
+      createNativeTmsJobEnabled: true,
+      assignTranslateWithAgentEnabled: true,
+    });
+    expect(form?.skillIds).toEqual(["translate-sanity-documents"]);
+    expect(form?.sanityIncludeDrafts).toBe(true);
+    expect(form?.sanityOverwriteSanityDrafts).toBe(true);
+    expect(form?.sanityExistingTranslationPolicy).toBe("seed_empty");
+    expect(form?.sanityTargetLocales).toEqual([]);
+    expect(
+      workspaceAutomationFormCanActivate({
+        ...form!,
+        sanityProjectId: "abc123",
+        sanityDataset: "production",
+        sanityDocumentTypes: ["article"],
+        sanityLanguages: ["en", "de"],
+      }),
+    ).toBe(true);
+    expect(
+      formStateToWorkspaceAutomationPayload({
+        ...form!,
+        name: "Translate Sanity documents",
+        instructions: "Import Sanity documents.",
+        projectId: "project-1",
+        sanityProjectId: "abc123",
+        sanityDataset: "production",
+        sanityDocumentTypes: ["article"],
+        sanityLanguages: ["en", "de"],
+        sanitySourceLocale: "en",
+        sanityTargetLocales: ["de"],
+      }).toolConfig.sanity,
+    ).toMatchObject({
+      enabled: true,
+      sourceLocale: "en",
+      targetLocales: [],
+      languages: ["en", "de"],
+      localeCatalog: {
+        documentType: "locale",
+        tagField: "tag",
+        titleField: "name",
+      },
+    });
+  });
+
+  it("serializes Sanity locale catalog and per-type languages", () => {
+    const form = createDefaultWorkspaceAutomationFormState();
+    const payload = formStateToWorkspaceAutomationPayload({
+      ...form,
+      name: "Sanity",
+      instructions: "Import.",
+      projectId: "project-1",
+      sanityEnabled: true,
+      sanityProjectId: "abc",
+      sanityDataset: "production",
+      sanityDocumentTypes: ["post", "author"],
+      sanityLocaleCatalogDocumentType: "language",
+      sanityLocaleCatalogTagField: "code",
+      sanityLocaleCatalogTitleField: "label",
+      sanityLanguages: ["en", "de"],
+      sanityLanguagesByType: { post: ["en", "de"], author: ["de"] },
+      sanitySourceLocale: "en",
+    });
+    expect(payload.toolConfig.sanity).toMatchObject({
+      localeCatalog: {
+        documentType: "language",
+        tagField: "code",
+        titleField: "label",
+      },
+      languagesByType: { post: ["en", "de"], author: ["de"] },
+    });
+  });
+
+  it("blocks save when the Sanity source locale is missing on a selected type", () => {
+    const errors = validateWorkspaceAutomationFormState({
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Sanity",
+      instructions: "Import.",
+      projectId: "project-1",
+      sanityEnabled: true,
+      sanityProjectId: "abc",
+      sanityDataset: "production",
+      sanityDocumentTypes: ["post", "author"],
+      sanityLanguages: ["en", "de"],
+      sanityLanguagesByType: { post: ["en", "de"], author: ["de"] },
+      sanitySourceLocale: "en",
+    });
+    expect(errors.sanitySourceLocale).toMatch(/not available for/i);
+  });
+
   it("prefills the Intercom Help Center template", () => {
     const form = createWorkspaceAutomationFormStateFromTemplate(
       "translate-intercom-articles",
@@ -259,6 +400,9 @@ describe("workspace automation view model", () => {
       assignTranslateWithAgentEnabled: true,
     });
     expect(form?.skillIds).toEqual(["translate-intercom-articles"]);
+    expect(form?.intercomIncludeDrafts).toBe(true);
+    expect(form?.intercomOverwriteIntercomDrafts).toBe(true);
+    expect(form?.intercomExistingTranslationPolicy).toBe("seed_empty");
     expect(
       workspaceAutomationFormCanActivate({
         ...form!,
@@ -266,6 +410,87 @@ describe("workspace automation view model", () => {
         intercomHelpCenterLocales: ["en", "de"],
       }),
     ).toBe(true);
+  });
+
+  it("prefills the Braze email templates template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "translate-braze-email-templates",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Translate Braze email templates",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      brazeEnabled: true,
+      createNativeTmsJobEnabled: true,
+      assignTranslateWithAgentEnabled: true,
+    });
+    expect(form?.skillIds).toEqual(["translate-braze-email-templates"]);
+    expect(form?.brazeExistingTranslationPolicy).toBe("seed_empty");
+    expect(form?.brazeOverwriteWhenRemoteNewer).toBe(true);
+    expect(workspaceAutomationFormCanActivate(form!)).toBe(true);
+  });
+
+  it("prefills the Braze campaigns template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "translate-braze-campaigns",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Translate Braze campaigns and Canvas",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      brazeCampaignsEnabled: true,
+      brazeEnabled: false,
+      createNativeTmsJobEnabled: true,
+      assignTranslateWithAgentEnabled: true,
+    });
+    expect(form?.skillIds).toEqual(["translate-braze-campaigns"]);
+    expect(workspaceAutomationFormCanActivate(form!)).toBe(true);
+    expect(formStateToWorkspaceAutomationPayload(form!).toolConfig.brazeCampaigns).toMatchObject({
+      enabled: true,
+      campaignIds: [],
+      canvasIds: [],
+    });
+  });
+
+  it("persists the Intercom existing-translation policy on the automation payload", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Translate Intercom articles",
+      instructions: "Import Help Center articles.",
+      intercomEnabled: true,
+      intercomHelpCenterId: "hc-1",
+      intercomHelpCenterLocales: ["en", "de"],
+      intercomExistingTranslationPolicy: "refresh_imported" as const,
+      projectId: "project-1",
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(form).toolConfig.intercom).toMatchObject({
+      existingTranslationPolicy: "refresh_imported",
+    });
+
+    const hydrated = createWorkspaceAutomationFormStateFromRecord({
+      ...createAutomationSummary(),
+      toolConfig: {
+        intercom: {
+          enabled: true,
+          restEndpoint: "us",
+          helpCenterId: "hc-1",
+          helpCenterLocales: ["en", "de"],
+          collectionIds: [],
+          sourceLocale: "en",
+          targetLocales: [],
+          includeDrafts: false,
+          overwriteIntercomDrafts: false,
+          existingTranslationPolicy: "overwrite_all",
+        },
+      },
+    });
+    expect(hydrated.intercomExistingTranslationPolicy).toBe("overwrite_all");
   });
 
   it("prefills the Contentful translation template", () => {
@@ -638,6 +863,36 @@ describe("workspace automation view model", () => {
     });
   });
 
+  it("requires a schedule to have a tool that produces work", () => {
+    const deliveryOnly = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Daily note",
+      instructions: "Post a note.",
+      triggerMode: "scheduled" as const,
+      slackEnabled: true,
+      slackChannelId: "C0123456789",
+    };
+
+    expect(validateWorkspaceAutomationFormState(deliveryOnly)).toEqual({
+      trigger:
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Google Drive, Braze, Queries, Web Search, or Crowdin workflow tool.",
+    });
+    expect(
+      validateWorkspaceAutomationFormState({ ...deliveryOnly, webSearchEnabled: true }),
+    ).toEqual({});
+    expect(
+      validateWorkspaceAutomationFormState({
+        ...deliveryOnly,
+        projectId: "11111111-1111-4111-8111-111111111111",
+        googleDriveEnabled: true,
+        googleDriveFolderIds: ["11111111-1111-4111-8111-111111111111"],
+      }).trigger,
+    ).toBeUndefined();
+    expect(
+      validateWorkspaceAutomationFormState({ ...deliveryOnly, triggerMode: "manual" }),
+    ).toEqual({});
+  });
+
   it("requires Semrush connection IDs when that tool is enabled", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),
@@ -835,5 +1090,70 @@ describe("workspace automation view model", () => {
     );
     expect(viewModelSource).not.toMatch(/from ["']\.\/workspace-automations["']/);
     expect(formSource).not.toMatch(/from ["']@\/lib\/agents\/workspace-automations["']/);
+  });
+});
+
+describe("Slack channel in the saved configuration", () => {
+  it("stores a pasted channel link as the channel ID it names", () => {
+    const payload = formStateToWorkspaceAutomationPayload({
+      ...createDefaultWorkspaceAutomationFormState(),
+      slackEnabled: true,
+      slackChannelId: "https://acme.slack.com/archives/C01234567",
+    });
+
+    expect(payload.toolConfig.slack).toEqual({ enabled: true, channelId: "C01234567" });
+  });
+});
+
+describe("workspaceAutomationFormHasChanges with a Slack channel link", () => {
+  const saved: WorkspaceAutomationFormState = {
+    ...createDefaultWorkspaceAutomationFormState(),
+    slackEnabled: true,
+    slackChannelId: "C01234567",
+  };
+
+  it("takes a link for the channel ID it is saved as", () => {
+    expect(
+      workspaceAutomationFormHasChanges(
+        { ...saved, slackChannelId: "https://acme.slack.com/archives/C01234567" },
+        saved,
+      ),
+    ).toBe(false);
+  });
+
+  it("still sees a link to another channel as a change", () => {
+    expect(
+      workspaceAutomationFormHasChanges(
+        { ...saved, slackChannelId: "https://acme.slack.com/archives/C07654321" },
+        saved,
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("pruneWorkspaceAutomationFieldErrors", () => {
+  const invalidForm: WorkspaceAutomationFormState = {
+    ...createDefaultWorkspaceAutomationFormState(),
+    name: "",
+    slackEnabled: true,
+    slackChannelId: "general",
+  };
+
+  it("keeps the errors the form still earns and drops the rest", () => {
+    const errors = {
+      name: "Name is required.",
+      slackChannelId: "Enter a valid Slack channel ID.",
+      githubRepository: "This repository is archived.",
+    };
+
+    expect(
+      pruneWorkspaceAutomationFieldErrors(errors, { ...invalidForm, slackChannelId: "C01234567" }),
+    ).toEqual({ name: "Name is required." });
+  });
+
+  it("returns the same object when nothing is dropped", () => {
+    const errors = { name: "Name is required.", slackChannelId: "Enter a valid Slack channel ID." };
+
+    expect(pruneWorkspaceAutomationFieldErrors(errors, invalidForm)).toBe(errors);
   });
 });

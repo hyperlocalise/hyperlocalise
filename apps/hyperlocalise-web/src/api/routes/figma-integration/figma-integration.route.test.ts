@@ -17,20 +17,34 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
+  collectFigmaPageMock: vi.fn(),
+  listFigmaPageLocaleStatusesMock: vi.fn(),
   startFigmaLocalizationMock: vi.fn(),
   getFigmaLocalizationStatusMock: vi.fn(),
   getCurrentFigmaPageJobMock: vi.fn(),
   generateFigmaLocalizationMock: vi.fn(),
-  pullLatestFigmaTranslationsMock: vi.fn(),
+  generateFigmaLocaleJobsMock: vi.fn(),
+  pullFigmaPageLocaleContentMock: vi.fn(),
+  getAccessibleFigmaProjectMock: vi.fn(),
   reconcileWorkosMembershipsForUserMock: vi.fn(),
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
 }));
 
 vi.mock("@/lib/figma/localize-file", () => ({
+  collectFigmaPage: mocks.collectFigmaPageMock,
+  listFigmaPageLocaleStatuses: mocks.listFigmaPageLocaleStatusesMock,
   startFigmaLocalization: mocks.startFigmaLocalizationMock,
   getFigmaLocalizationStatus: mocks.getFigmaLocalizationStatusMock,
   getCurrentFigmaPageJob: mocks.getCurrentFigmaPageJobMock,
   generateFigmaLocalization: mocks.generateFigmaLocalizationMock,
-  pullLatestFigmaTranslations: mocks.pullLatestFigmaTranslationsMock,
+  generateFigmaLocaleJobs: mocks.generateFigmaLocaleJobsMock,
+  pullFigmaPageLocaleContent: mocks.pullFigmaPageLocaleContentMock,
+  getAccessibleFigmaProject: mocks.getAccessibleFigmaProjectMock,
 }));
 
 vi.mock("@/api/auth/workos-membership-reconcile", async (importOriginal) => {
@@ -42,53 +56,89 @@ vi.mock("@/api/auth/workos-membership-reconcile", async (importOriginal) => {
   };
 });
 
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: mocks.resolveApiAuthContextFromSessionMock,
+  };
+});
+
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
-import { INVALID_OR_REVOKED_API_KEY_MESSAGE } from "@/api/auth/api-key";
-import { FIGMA_API_KEY_HEADER } from "@/api/auth/figma-cors";
-import {
-  cleanupPublicApiFixture,
-  createPublicApiFixture,
-} from "@/api/routes/public-jobs/public-jobs.fixture";
+import { createApiKeyTestFixture } from "@/api/routes/api-key/api-key.fixture";
+import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
+import { createFigmaConnection } from "@/lib/figma/connections";
 import { db, schema } from "@/lib/database/client";
+import { env } from "@/lib/env";
 
 const client = testClient<AppType>(createApp());
+const apiKeyFixture = createApiKeyTestFixture();
+const projectFixture = createProjectTestFixture(client);
 
-const FIGMA_PERMISSIONS = ["files:read", "files:write", "jobs:read", "jobs:write"];
-
-function apiKeyHeaders(apiKey: string) {
-  return {
-    headers: {
-      [FIGMA_API_KEY_HEADER]: apiKey,
-    },
-  };
-}
-
-beforeAll(async () => {
-  await db.$client.query("select 1");
-});
-
-beforeEach(() => {
-  mocks.reconcileWorkosMembershipsForUserMock.mockResolvedValue({ status: "skipped" });
-});
-
-afterEach(async () => {
-  vi.clearAllMocks();
-  await cleanupPublicApiFixture();
-});
+const sampleSegment = {
+  key: "figma.k.01TESTSEGMENTKEY",
+  nodeId: "1:2",
+  regionIndex: 0,
+  text: "Hello",
+};
 
 describe("figmaIntegrationRoutes", () => {
+  beforeAll(async () => {
+    await db.$client.query("select 1");
+  });
+
+  beforeEach(() => {
+    mocks.reconcileWorkosMembershipsForUserMock.mockResolvedValue({ status: "skipped" });
+  });
+
+  afterEach(async () => {
+    vi.clearAllMocks();
+    await apiKeyFixture.cleanup();
+    await projectFixture.cleanup();
+  });
+
   it("returns health without auth", async () => {
     const response = await client.api.integrations.figma.health.$get();
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ ok: true });
+    const figmaOauthConfigured = Boolean(env.FIGMA_OAUTH_CLIENT_ID);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      figmaOauthConfigured,
+      ...(figmaOauthConfigured && env.FIGMA_OAUTH_CLIENT_ID
+        ? { figmaOauthClientId: env.FIGMA_OAUTH_CLIENT_ID }
+        : {}),
+    });
   });
 
-  it("rejects session requests without an API key", async () => {
+  it("allows Figma plugin origins on OPTIONS", async () => {
+    const figmaOrigin = "https://www.figma.com";
+    const allowed = await createApp().request("http://localhost/api/integrations/figma/session", {
+      method: "OPTIONS",
+      headers: { Origin: figmaOrigin },
+    });
+    expect(allowed.status).toBe(204);
+    expect(allowed.headers.get("Access-Control-Allow-Origin")).toBe(figmaOrigin);
+    expect(allowed.headers.get("Access-Control-Allow-Headers")?.toLowerCase()).toContain(
+      "x-hyperlocalise-connection-token",
+    );
+    expect(allowed.headers.get("Access-Control-Allow-Headers")?.toLowerCase()).toContain(
+      "x-hyperlocalise-access-token",
+    );
+
+    const denied = await createApp().request("http://localhost/api/integrations/figma/health", {
+      method: "GET",
+      headers: { Origin: "https://evil.example" },
+    });
+    expect(denied.status).toBe(200);
+    expect(denied.headers.get("Access-Control-Allow-Origin")).toBeNull();
+  });
+
+  it("rejects session requests without a connection or access token", async () => {
     const response = await client.api.integrations.figma.session.$get();
     expect(response.status).toBe(401);
     const body = await response.json();
-    expect(body).toMatchObject({ error: "unauthorized" });
+    expect(body).toMatchObject({ error: "figma_connection_token_required" });
   });
 
   it("rejects legacy sealed-session and bearer authentication", async () => {
@@ -108,516 +158,635 @@ describe("figmaIntegrationRoutes", () => {
     expect(bearer.status).toBe(401);
   });
 
-  it("returns the same 401 for unknown, malformed, and revoked tokens", async () => {
-    const { apiKey, apiKeyId } = await createPublicApiFixture({
-      permissions: FIGMA_PERMISSIONS,
+  it("rejects unknown connection tokens", async () => {
+    const response = await client.api.integrations.figma.session.$get(undefined, {
+      headers: {
+        "X-Hyperlocalise-Connection-Token": "hl_figma_unknown_token_value",
+      },
+    });
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({ error: "figma_connection_not_found" });
+  });
+
+  it("returns the workspace session and lists accessible projects", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma session key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma session",
+      apiKeyId: apiKey.id,
     });
 
-    const unknown = await client.api.integrations.figma.session.$get(
-      undefined,
-      apiKeyHeaders("hl_unknown_token"),
-    );
-    expect(unknown.status).toBe(401);
-    const unknownBody = await unknown.json();
-    expect(unknownBody).toEqual({
-      error: "unauthorized",
-      message: INVALID_OR_REVOKED_API_KEY_MESSAGE,
+    const response = await client.api.integrations.figma.session.$get(undefined, {
+      headers: {
+        "X-Hyperlocalise-Connection-Token": created.connectionToken,
+      },
     });
-    expect(JSON.stringify(unknownBody)).not.toContain("hl_unknown_token");
 
-    const malformed = await client.api.integrations.figma.session.$get(
-      undefined,
-      apiKeyHeaders("not-a-pat"),
-    );
-    expect(malformed.status).toBe(401);
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      session: { projects: Array<{ id: string }>; connection: { id: string } };
+    };
+    expect(body.session.projects.map((project) => project.id)).toContain(projectBody.project.id);
+    expect(body.session.connection.id).toBe(created.connection.id);
+  });
+
+  it("rejects session when the backing API key was revoked", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma revoked key",
+    });
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma revoked",
+      apiKeyId: apiKey.id,
+    });
 
     await db
       .update(schema.organizationApiKeys)
       .set({ revokedAt: new Date() })
-      .where(eq(schema.organizationApiKeys.id, apiKeyId));
+      .where(eq(schema.organizationApiKeys.id, apiKey.id));
 
-    const revoked = await client.api.integrations.figma.session.$get(
-      undefined,
-      apiKeyHeaders(apiKey),
-    );
-    expect(revoked.status).toBe(401);
-    const revokedBody = await revoked.json();
-    expect(revokedBody).toMatchObject({
-      error: "unauthorized",
-      message: INVALID_OR_REVOKED_API_KEY_MESSAGE,
+    const response = await client.api.integrations.figma.session.$get(undefined, {
+      headers: {
+        "X-Hyperlocalise-Connection-Token": created.connectionToken,
+      },
     });
-    expect(JSON.stringify(revokedBody)).not.toContain(apiKey);
+
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body).toMatchObject({ error: "figma_api_key_not_found" });
   });
 
-  it("rejects API keys for archived workspaces", async () => {
-    const { apiKey, project } = await createPublicApiFixture({
-      permissions: FIGMA_PERMISSIONS,
+  it("rejects session when the backing API key is missing required permissions", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma scoped key",
+    });
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma scoped",
+      apiKeyId: apiKey.id,
     });
 
     await db
-      .update(schema.organizations)
-      .set({ lifecycleStatus: "archived", archivedAt: new Date() })
-      .where(eq(schema.organizations.id, project.organizationId));
+      .update(schema.organizationApiKeys)
+      .set({ permissions: ["files:read", "jobs:read"] })
+      .where(eq(schema.organizationApiKeys.id, apiKey.id));
 
-    const response = await client.api.integrations.figma.session.$get(
-      undefined,
-      apiKeyHeaders(apiKey),
-    );
+    const response = await client.api.integrations.figma.session.$get(undefined, {
+      headers: {
+        "X-Hyperlocalise-Connection-Token": created.connectionToken,
+      },
+    });
+
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
-      error: "workspace_archived",
+      error: "figma_api_key_missing_permissions",
     });
   });
 
-  it("allows Figma plugin origins and x-api-key on OPTIONS", async () => {
-    const allowed = await createApp().request("http://localhost/api/integrations/figma/health", {
-      method: "OPTIONS",
-      headers: { Origin: "https://www.figma.com" },
+  it("lists org projects on session without binding a connection to one", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma unbound key",
     });
-    expect(allowed.status).toBe(204);
-    expect(allowed.headers.get("Access-Control-Allow-Origin")).toBe("https://www.figma.com");
-    expect(allowed.headers.get("Access-Control-Allow-Methods")).toContain("POST");
-    expect(allowed.headers.get("Access-Control-Allow-Headers")?.toLowerCase()).toContain(
-      "x-api-key",
-    );
-    expect(allowed.headers.get("Access-Control-Allow-Headers")?.toLowerCase()).not.toContain(
-      "authorization",
-    );
-
-    const denied = await createApp().request("http://localhost/api/integrations/figma/health", {
-      method: "GET",
-      headers: { Origin: "https://evil.example" },
-    });
-    expect(denied.status).toBe(200);
-    expect(denied.headers.get("Access-Control-Allow-Origin")).toBeNull();
-  });
-
-  it("returns the PAT owner session and accessible projects", async () => {
-    const { apiKey, project, user } = await createPublicApiFixture({
-      permissions: FIGMA_PERMISSIONS,
-    });
-
-    const sessionResponse = await client.api.integrations.figma.session.$get(
-      undefined,
-      apiKeyHeaders(apiKey),
-    );
-    expect(sessionResponse.status).toBe(200);
-    const sessionBody = await sessionResponse.json();
-    expect(sessionBody).toMatchObject({
-      session: {
-        user: { email: user.email, localUserId: user.id },
-        organization: { id: project.organizationId },
-      },
-    });
-    expect(sessionBody).not.toHaveProperty("session.organizations");
-    expect(JSON.stringify(sessionBody)).not.toContain(apiKey);
-
-    const projectsResponse = await client.api.integrations.figma.projects.$get(
-      undefined,
-      apiKeyHeaders(apiKey),
-    );
-    expect(projectsResponse.status).toBe(200);
-    await expect(projectsResponse.json()).resolves.toEqual({
-      projects: [
-        {
-          id: project.id,
-          name: project.name,
-          sourceLocale: project.sourceLocale ?? "en",
-          targetLocales: project.targetLocales ?? [],
-        },
-      ],
-    });
-  });
-
-  it("isolates projects to the PAT owner's organization and team access", async () => {
-    const owner = await createPublicApiFixture({ permissions: FIGMA_PERMISSIONS });
-    const other = await createPublicApiFixture({ permissions: FIGMA_PERMISSIONS });
-
-    const response = await client.api.integrations.figma.projects.$get(
-      undefined,
-      apiKeyHeaders(owner.apiKey),
-    );
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { projects: Array<{ id: string }> };
-    expect(body.projects.map((project) => project.id)).toEqual([owner.project.id]);
-    expect(body.projects.map((project) => project.id)).not.toContain(other.project.id);
-  });
-
-  it("enforces least-required PAT permissions", async () => {
-    const readOnly = await createPublicApiFixture({
-      permissions: ["files:read", "jobs:read"],
-    });
-    const jobsOnly = await createPublicApiFixture({
-      permissions: ["jobs:read", "jobs:write"],
-    });
-    const jobsWithoutFileWrite = await createPublicApiFixture({
-      permissions: ["files:read", "jobs:read", "jobs:write"],
-    });
-    const noScopes = await createPublicApiFixture({
-      permissions: [],
-    });
-
-    const sessionDenied = await client.api.integrations.figma.session.$get(
-      undefined,
-      apiKeyHeaders(noScopes.apiKey),
-    );
-    expect(sessionDenied.status).toBe(403);
-    await expect(sessionDenied.json()).resolves.toMatchObject({ error: "forbidden" });
-
-    const jobsOnlySessionDenied = await client.api.integrations.figma.session.$get(
-      undefined,
-      apiKeyHeaders(jobsOnly.apiKey),
-    );
-    expect(jobsOnlySessionDenied.status).toBe(403);
-
-    const projectsDenied = await client.api.integrations.figma.projects.$get(
-      undefined,
-      apiKeyHeaders(jobsOnly.apiKey),
-    );
-    expect(projectsDenied.status).toBe(403);
-    await expect(projectsDenied.json()).resolves.toMatchObject({ error: "forbidden" });
-
-    mocks.startFigmaLocalizationMock.mockResolvedValue({
-      jobId: "job_figma",
-      generated: true,
-      projectId: readOnly.project.id,
-      sourcePath: "figma/files/fileKey123/pages/12:34.json",
-    });
-
-    const createJobJson = {
-      projectId: readOnly.project.id,
-      fileKey: "fileKey123",
-      pageId: "12:34",
-      sourceLocale: "en",
-      targetLocales: ["es"],
-      generate: true,
-      segments: [
-        {
-          key: "figma.segment.1:1.0",
-          nodeId: "1:1",
-          regionIndex: 0,
-          text: "Hello",
-        },
-      ],
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as {
+      project: { id: string; name: string };
     };
 
-    const createDenied = await client.api.integrations.figma.jobs.$post(
-      { json: createJobJson },
-      apiKeyHeaders(readOnly.apiKey),
-    );
-    expect(createDenied.status).toBe(403);
-    expect(mocks.startFigmaLocalizationMock).not.toHaveBeenCalled();
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma unbound",
+      apiKeyId: apiKey.id,
+    });
 
-    const createWithoutFileWrite = await client.api.integrations.figma.jobs.$post(
-      {
-        json: {
-          ...createJobJson,
-          projectId: jobsWithoutFileWrite.project.id,
-        },
+    const response = await client.api.integrations.figma.session.$get(undefined, {
+      headers: {
+        "X-Hyperlocalise-Connection-Token": created.connectionToken,
       },
-      apiKeyHeaders(jobsWithoutFileWrite.apiKey),
-    );
-    expect(createWithoutFileWrite.status).toBe(403);
-    expect(mocks.startFigmaLocalizationMock).not.toHaveBeenCalled();
+    });
 
-    const currentDenied = await client.api.integrations.figma.jobs.current.$get(
-      { query: { fileKey: "fileKey123", pageId: "12:34" } },
-      apiKeyHeaders(jobsOnly.apiKey),
-    );
-    expect(currentDenied.status).toBe(403);
-    expect(mocks.getCurrentFigmaPageJobMock).not.toHaveBeenCalled();
-
-    const statusDenied = await client.api.integrations.figma.jobs[":jobId"].$get(
-      { param: { jobId: "job_figma" } },
-      apiKeyHeaders(jobsOnly.apiKey),
-    );
-    expect(statusDenied.status).toBe(403);
-    expect(mocks.getFigmaLocalizationStatusMock).not.toHaveBeenCalled();
-
-    const translationsDenied = await client.api.integrations.figma.translations.$get(
-      { query: { projectId: jobsOnly.project.id, fileKey: "fileKey123", pageId: "12:34" } },
-      apiKeyHeaders(jobsOnly.apiKey),
-    );
-    expect(translationsDenied.status).toBe(403);
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      session: {
+        projects: Array<{ id: string; name: string }>;
+      };
+    };
+    expect(body.session.projects.map((project) => project.id)).toContain(projectBody.project.id);
   });
 
-  it("intersects token scopes with the owner's current role", async () => {
-    const { apiKey, project } = await createPublicApiFixture({
-      permissions: FIGMA_PERMISSIONS,
-      role: "member",
+  it("collects a page file without creating a job", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma collect key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma collect",
+      apiKeyId: apiKey.id,
     });
 
-    const projectsAllowed = await client.api.integrations.figma.projects.$get(
-      undefined,
-      apiKeyHeaders(apiKey),
-    );
-    expect(projectsAllowed.status).toBe(200);
-
-    mocks.startFigmaLocalizationMock.mockResolvedValue({
-      jobId: "job_figma",
-      generated: true,
-      projectId: project.id,
-      sourcePath: "figma/files/fileKey123/pages/12:34.json",
+    mocks.collectFigmaPageMock.mockResolvedValue({
+      projectId: projectBody.project.id,
+      sourceFileId: "file_collected",
+      sourcePath: "figma/files/file-key/page-id.json",
+      segmentCount: 3,
     });
 
-    const createDenied = await client.api.integrations.figma.jobs.$post(
+    const response = await client.api.integrations.figma.collect.$post(
       {
         json: {
-          projectId: project.id,
-          fileKey: "fileKey123",
-          pageId: "12:34",
-          sourceLocale: "en",
-          targetLocales: ["es"],
-          generate: true,
-          segments: [
-            {
-              key: "figma.segment.1:1.0",
-              nodeId: "1:1",
-              regionIndex: 0,
-              text: "Hello",
-            },
-          ],
+          projectId: projectBody.project.id,
+          fileKey: "file-key",
+          pageId: "page-id",
+          segments: [sampleSegment],
         },
       },
-      apiKeyHeaders(apiKey),
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+        },
+      },
     );
-    expect(createDenied.status).toBe(403);
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({
+      projectId: projectBody.project.id,
+      sourceFileId: "file_collected",
+      sourcePath: "figma/files/file-key/page-id.json",
+      segmentCount: 3,
+    });
+    expect(mocks.collectFigmaPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKeyId: apiKey.id,
+        fileKey: "file-key",
+        pageId: "page-id",
+      }),
+    );
     expect(mocks.startFigmaLocalizationMock).not.toHaveBeenCalled();
   });
 
-  it("creates a job from extracted Figma segments", async () => {
-    const { apiKey, project } = await createPublicApiFixture({
-      permissions: FIGMA_PERMISSIONS,
+  it("lists locale status from collected pages and jobs", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma locales key",
     });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma locales",
+      apiKeyId: apiKey.id,
+    });
+
+    mocks.listFigmaPageLocaleStatusesMock.mockResolvedValue({
+      locales: [
+        {
+          locale: "en",
+          isSource: true,
+          pages: [{ pageId: "page-id", status: "succeeded" }],
+        },
+      ],
+      pages: [
+        {
+          pageId: "page-id",
+          sourcePath: "figma/files/file-key/page-id.json",
+          sourceFileId: "file_collected",
+          segmentCount: 3,
+        },
+      ],
+    });
+
+    const response = await client.api.integrations.figma.locales.$get(
+      {
+        query: {
+          fileKey: "file-key",
+          pageIds: "page-id",
+          projectId: projectBody.project.id,
+        },
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      locales: expect.any(Array),
+      pages: expect.any(Array),
+    });
+    expect(mocks.listFigmaPageLocaleStatusesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileKey: "file-key",
+        pageIds: ["page-id"],
+      }),
+    );
+  });
+
+  it("creates a job when the connection token is valid and projectId is supplied", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma jobs key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma jobs",
+      apiKeyId: apiKey.id,
+    });
+
+    mocks.getAccessibleFigmaProjectMock.mockResolvedValue({
+      id: projectBody.project.id,
+      name: "Test project",
+      source: "native",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR", "de-DE"],
+    });
+
     mocks.startFigmaLocalizationMock.mockResolvedValue({
-      jobId: "job_figma",
-      generated: true,
-      projectId: project.id,
-      sourcePath: "figma/files/fileKey123/pages/12:34.json",
+      jobId: "job_created",
+      generated: false,
+      projectId: projectBody.project.id,
+      sourcePath: "figma/file-key/page-id.json",
     });
 
     const response = await client.api.integrations.figma.jobs.$post(
       {
         json: {
-          projectId: project.id,
-          fileKey: "fileKey123",
-          pageId: "12:34",
-          sourceLocale: "en",
-          targetLocales: ["es"],
-          generate: true,
-          segments: [
-            {
-              key: "figma.segment.1:1.0",
-              nodeId: "1:1",
-              regionIndex: 0,
-              text: "Hello",
-            },
-          ],
+          projectId: projectBody.project.id,
+          fileKey: "file-key",
+          pageId: "page-id",
+          targetLocales: ["fr-FR"],
+          generate: false,
+          segments: [sampleSegment],
         },
       },
-      apiKeyHeaders(apiKey),
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+        },
+      },
     );
 
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual({
       job: {
-        jobId: "job_figma",
-        generated: true,
-        projectId: project.id,
-        sourcePath: "figma/files/fileKey123/pages/12:34.json",
+        jobId: "job_created",
+        generated: false,
+        projectId: projectBody.project.id,
+        sourcePath: "figma/file-key/page-id.json",
       },
     });
     expect(mocks.startFigmaLocalizationMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        projectId: project.id,
-        fileKey: "fileKey123",
-        pageId: "12:34",
-        generate: true,
-        auth: expect.objectContaining({
-          user: expect.objectContaining({ localUserId: expect.any(String) }),
-          organization: expect.objectContaining({ localOrganizationId: project.organizationId }),
-        }),
+        generate: false,
+        projectId: projectBody.project.id,
+        fileKey: "file-key",
+        pageId: "page-id",
       }),
     );
   });
 
-  it("polls job status and pulls latest translations", async () => {
-    const { apiKey, project } = await createPublicApiFixture({
-      permissions: FIGMA_PERMISSIONS,
+  it("generates a new-locale job from the collected page when segments are omitted", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma generate key",
     });
-    mocks.getFigmaLocalizationStatusMock.mockResolvedValue({
-      jobId: "job_figma",
-      status: "succeeded",
-      projectId: project.id,
-      sourcePath: "figma/files/fileKey123/pages/12:34.json",
-      targetLocales: ["es"],
-      lastError: null,
-      translationsByLocale: { es: { "figma.segment.1:1.0": "Hola" } },
-    });
-    mocks.generateFigmaLocalizationMock.mockResolvedValue({ jobId: "job_figma" });
-    mocks.pullLatestFigmaTranslationsMock.mockResolvedValue({
-      jobId: "job_figma",
-      status: "waiting_for_review",
-      projectId: project.id,
-      sourcePath: "figma/files/fileKey123/pages/12:34.json",
-      targetLocales: ["es"],
-      lastError: null,
-      translationsByLocale: { es: { "figma.segment.1:1.0": "Hola" } },
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma generate",
+      apiKeyId: apiKey.id,
     });
 
-    const statusResponse = await client.api.integrations.figma.jobs[":jobId"].$get(
-      { param: { jobId: "job_figma" } },
-      apiKeyHeaders(apiKey),
-    );
-    expect(statusResponse.status).toBe(200);
-    await expect(statusResponse.json()).resolves.toMatchObject({
-      job: { status: "succeeded" },
+    mocks.getAccessibleFigmaProjectMock.mockResolvedValue({
+      id: projectBody.project.id,
+      name: "Test project",
+      source: "native",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR", "de-DE"],
     });
 
-    const generateResponse = await client.api.integrations.figma.jobs[":jobId"].generate.$post(
-      { param: { jobId: "job_figma" } },
-      apiKeyHeaders(apiKey),
-    );
-    expect(generateResponse.status).toBe(202);
-
-    const pullResponse = await client.api.integrations.figma.translations.$get(
-      { query: { projectId: project.id, fileKey: "fileKey123", pageId: "12:34" } },
-      apiKeyHeaders(apiKey),
-    );
-    expect(pullResponse.status).toBe(200);
-    await expect(pullResponse.json()).resolves.toMatchObject({
-      translations: { status: "waiting_for_review" },
+    mocks.generateFigmaLocaleJobsMock.mockResolvedValue({
+      jobId: "job_generated",
+      generated: true,
+      projectId: projectBody.project.id,
+      sourcePath: "figma/files/file-key/page-id.json",
     });
-    expect(mocks.pullLatestFigmaTranslationsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectId: project.id,
-        fileKey: "fileKey123",
-        pageId: "12:34",
-      }),
-    );
-  });
 
-  it("returns the current page job for a Figma file and page", async () => {
-    const { apiKey, project } = await createPublicApiFixture({
-      permissions: FIGMA_PERMISSIONS,
-    });
-    mocks.getCurrentFigmaPageJobMock.mockResolvedValue({
+    const response = await client.api.integrations.figma.jobs.$post(
+      {
+        json: {
+          projectId: projectBody.project.id,
+          fileKey: "file-key",
+          pageId: "page-id",
+          targetLocales: ["vi"],
+          generate: true,
+        },
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+        },
+      },
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({
       job: {
-        jobId: "job_figma",
-        status: "queued",
-        projectId: project.id,
-        sourcePath: "figma/files/fileKey123/pages/12:34.json",
-        targetLocales: ["es"],
-        lastError: null,
-        translationsByLocale: {},
+        jobId: "job_generated",
+        generated: true,
+        projectId: projectBody.project.id,
+        sourcePath: "figma/files/file-key/page-id.json",
+      },
+    });
+    expect(mocks.startFigmaLocalizationMock).not.toHaveBeenCalled();
+    expect(mocks.generateFigmaLocaleJobsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: projectBody.project.id,
+        fileKey: "file-key",
+        pageId: "page-id",
+        targetLocales: ["vi"],
+      }),
+    );
+  });
+
+  it("rejects job creation without projectId", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma unbound jobs key",
+    });
+
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma unbound jobs",
+      apiKeyId: apiKey.id,
+    });
+
+    const response = await client.api.integrations.figma.jobs.$post(
+      {
+        json: {
+          fileKey: "file-key",
+          pageId: "page-id",
+          generate: true,
+          segments: [sampleSegment],
+        } as never,
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+        },
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: "invalid_figma_job_payload" });
+  });
+
+  it("pulls translations for a project", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma pull key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma pull",
+      apiKeyId: apiKey.id,
+    });
+
+    mocks.pullFigmaPageLocaleContentMock.mockResolvedValue({
+      kind: "job",
+      translations: {
+        jobId: "job_pull",
+        status: "completed",
+        translationsByLocale: { "fr-FR": { [sampleSegment.key]: "Bonjour" } },
       },
     });
 
-    const response = await client.api.integrations.figma.jobs.current.$get(
-      { query: { projectId: project.id, fileKey: "fileKey123", pageId: "12:34" } },
-      apiKeyHeaders(apiKey),
+    const response = await client.api.integrations.figma.translations.$get(
+      {
+        query: {
+          projectId: projectBody.project.id,
+          fileKey: "file-key",
+          pageId: "page-id",
+        },
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+        },
+      },
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      job: { jobId: "job_figma", status: "queued" },
+    await expect(response.json()).resolves.toEqual({
+      translations: {
+        jobId: "job_pull",
+        status: "completed",
+        translationsByLocale: { "fr-FR": { [sampleSegment.key]: "Bonjour" } },
+      },
     });
-    expect(mocks.getCurrentFigmaPageJobMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectId: project.id,
-        fileKey: "fileKey123",
-        pageId: "12:34",
-      }),
-    );
   });
 
-  it("looks up the current page job across the org when projectId is omitted", async () => {
-    const { apiKey } = await createPublicApiFixture({
-      permissions: FIGMA_PERMISSIONS,
-    });
-    mocks.getCurrentFigmaPageJobMock.mockResolvedValue({ job: null });
+  it("pulls source page content when locale matches project source", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
 
-    const response = await client.api.integrations.figma.jobs.current.$get(
-      { query: { fileKey: "fileKey123", pageId: "12:34" } },
-      apiKeyHeaders(apiKey),
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma source pull key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma source pull",
+      apiKeyId: apiKey.id,
+    });
+
+    mocks.pullFigmaPageLocaleContentMock.mockResolvedValue({
+      kind: "source",
+      sourcePage: {
+        locale: "en-US",
+        sourcePath: "figma/files/file-key/page-1.json",
+        needsReupload: false,
+        entries: [{ key: sampleSegment.key, source: "Hello", knownTexts: ["Hola"] }],
+      },
+    });
+
+    const response = await client.api.integrations.figma.translations.$get(
+      {
+        query: {
+          projectId: projectBody.project.id,
+          fileKey: "file-key",
+          pageId: "page-id",
+          locale: "en-US",
+        },
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+        },
+      },
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ job: null });
-    expect(mocks.getCurrentFigmaPageJobMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fileKey: "fileKey123",
-        pageId: "12:34",
-      }),
-    );
-    expect(mocks.getCurrentFigmaPageJobMock.mock.calls[0]?.[0].projectId).toBeUndefined();
-  });
-
-  it("returns failed Figma jobs as a 200 status body", async () => {
-    const { apiKey, project } = await createPublicApiFixture({
-      permissions: FIGMA_PERMISSIONS,
-    });
-    mocks.getFigmaLocalizationStatusMock.mockResolvedValue({
-      jobId: "job_figma",
-      status: "failed",
-      projectId: project.id,
-      sourcePath: "figma/files/fileKey123/pages/12:34.json",
-      targetLocales: ["es"],
-      lastError: "provider_timeout",
-      translationsByLocale: {},
-    });
-
-    const response = await client.api.integrations.figma.jobs[":jobId"].$get(
-      { param: { jobId: "job_figma" } },
-      apiKeyHeaders(apiKey),
-    );
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      job: { status: "failed", lastError: "provider_timeout" },
+    await expect(response.json()).resolves.toEqual({
+      sourcePage: {
+        locale: "en-US",
+        sourcePath: "figma/files/file-key/page-1.json",
+        needsReupload: false,
+        entries: [{ key: sampleSegment.key, source: "Hello", knownTexts: ["Hola"] }],
+      },
     });
   });
 
-  it("updates lastUsedAt after a successful Figma request", async () => {
-    const { apiKey, apiKeyId } = await createPublicApiFixture({
-      permissions: FIGMA_PERMISSIONS,
-    });
+  it("updates lastUsedAt on the Figma connection after a successful request", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
 
-    const rejected = await client.api.integrations.figma.session.$get(
-      undefined,
-      apiKeyHeaders("hl_unknown_token_does_not_exist"),
-    );
-    expect(rejected.status).toBe(401);
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma usage key",
+    });
+    await projectFixture.createProjectViaApi(identity);
+
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma usage",
+      apiKeyId: apiKey.id,
+    });
 
     const [untouched] = await db
-      .select({ lastUsedAt: schema.organizationApiKeys.lastUsedAt })
-      .from(schema.organizationApiKeys)
-      .where(eq(schema.organizationApiKeys.id, apiKeyId))
-      .limit(1);
+      .select({ lastUsedAt: schema.figmaConnections.lastUsedAt })
+      .from(schema.figmaConnections)
+      .where(eq(schema.figmaConnections.id, created.connection.id));
     expect(untouched?.lastUsedAt).toBeNull();
 
-    const allowed = await client.api.integrations.figma.session.$get(
-      undefined,
-      apiKeyHeaders(apiKey),
-    );
-    expect(allowed.status).toBe(200);
-
-    await vi.waitFor(async () => {
-      const [touched] = await db
-        .select({ lastUsedAt: schema.organizationApiKeys.lastUsedAt })
-        .from(schema.organizationApiKeys)
-        .where(eq(schema.organizationApiKeys.id, apiKeyId))
-        .limit(1);
-      expect(touched?.lastUsedAt).toBeInstanceOf(Date);
+    await client.api.integrations.figma.session.$get(undefined, {
+      headers: {
+        "X-Hyperlocalise-Connection-Token": created.connectionToken,
+      },
     });
+
+    const [touched] = await db
+      .select({ lastUsedAt: schema.figmaConnections.lastUsedAt })
+      .from(schema.figmaConnections)
+      .where(eq(schema.figmaConnections.id, created.connection.id));
+    expect(touched?.lastUsedAt).toBeInstanceOf(Date);
   });
 
-  it("does not expose the Figma OAuth authorize path", async () => {
-    const response = await createApp().request("http://localhost/api/auth/figma/authorize");
-    expect(response.status).not.toBe(200);
-    const body = (await response.json().catch(() => null)) as {
-      authorization?: { url?: string };
-    } | null;
-    expect(body?.authorization?.url).toBeUndefined();
+  it("rejects disabled connections", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    const headers = await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma disabled key",
+    });
+    await projectFixture.createProjectViaApi(identity);
+
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma disabled",
+      apiKeyId: apiKey.id,
+    });
+
+    const disableResponse = await client.api.orgs[":organizationSlug"]["figma-connections"][
+      ":connectionId"
+    ].$patch(
+      {
+        param: { organizationSlug, connectionId: created.connection.id },
+        json: { enabled: false },
+      },
+      { headers },
+    );
+    expect(disableResponse.status).toBe(200);
+
+    const response = await client.api.integrations.figma.session.$get(undefined, {
+      headers: {
+        "X-Hyperlocalise-Connection-Token": created.connectionToken,
+      },
+    });
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ error: "figma_connection_disabled" });
   });
 });

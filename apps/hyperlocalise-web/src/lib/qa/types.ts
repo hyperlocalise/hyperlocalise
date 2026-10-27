@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { MessageFormat } from "@/lib/i18n/message-format";
+
 export const translationQaCheckTypes = [
   "not_localized",
   "whitespace_only",
@@ -23,6 +25,7 @@ export const translationQaCheckTypes = [
   "numbers_mismatch",
   "punctuation_mismatch",
   "character_case_mismatch",
+  "unreachable_plural_case",
 ] as const;
 
 export type TranslationQaCheckType = (typeof translationQaCheckTypes)[number];
@@ -58,6 +61,7 @@ export type TranslationQaSegmentInput = {
   maxLength?: number | null;
   targetLocale: string;
   glossaryTerms?: readonly TranslationQaGlossaryTerm[];
+  messageFormat?: MessageFormat | null;
 };
 
 export type TranslationQaCheck = {

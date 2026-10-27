@@ -25,11 +25,24 @@ import {
   UploadSimpleIcon,
   BracketsCurlyIcon,
   GitMergeIcon,
+  TranslateIcon,
+  UserCheckIcon,
+  ChartBarIcon,
+  SealCheckIcon,
+  WebhooksLogoIcon,
+  FilesIcon,
+  UserSwitchIcon,
+  UsersThreeIcon,
 } from "@phosphor-icons/react/ssr";
 
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
-import type { VisualCatalogCategory, VisualCatalogType, VisualNodeConfig } from "../schema/types";
+import type {
+  VisualAssignmentRule,
+  VisualCatalogCategory,
+  VisualCatalogType,
+  VisualNodeConfig,
+} from "../schema/types";
 import { createSwitchCaseId } from "../schema/switch-cases";
 
 export type CatalogIcon = Icon;
@@ -67,6 +80,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: UploadSimpleIcon,
   },
   {
+    type: "trigger.webhook",
+    category: "trigger",
+    enabled: true,
+    icon: WebhooksLogoIcon,
+  },
+  {
     type: "action.http",
     category: "action",
     enabled: true,
@@ -91,6 +110,66 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: EnvelopeIcon,
   },
   {
+    type: "action.machine_translate",
+    category: "localization",
+    enabled: true,
+    icon: TranslateIcon,
+  },
+  {
+    type: "action.create_task",
+    category: "localization",
+    enabled: true,
+    icon: UserCheckIcon,
+  },
+  {
+    type: "action.check_progress",
+    category: "localization",
+    enabled: true,
+    icon: ChartBarIcon,
+  },
+  {
+    type: "action.run_qa",
+    category: "localization",
+    enabled: true,
+    icon: SealCheckIcon,
+  },
+  {
+    type: "action.list_source_files",
+    category: "localization",
+    enabled: true,
+    icon: FilesIcon,
+  },
+  {
+    type: "action.update_job",
+    category: "localization",
+    enabled: true,
+    icon: UserSwitchIcon,
+  },
+  {
+    type: "action.pick_assignee",
+    category: "localization",
+    enabled: true,
+    icon: UsersThreeIcon,
+  },
+  {
+    type: "action.crowdin_pre_translate",
+    category: "localization",
+    enabled: true,
+    icon: TranslateIcon,
+  },
+  {
+    type: "action.crowdin_create_task",
+    category: "localization",
+    enabled: true,
+    icon: UserCheckIcon,
+  },
+  {
+    type: "action.crowdin_check_progress",
+    category: "localization",
+    enabled: true,
+    icon: ChartBarIcon,
+  },
+  {
     type: "logic.if",
     category: "logic",
     enabled: true,
@@ -107,6 +186,36 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     category: "logic",
     enabled: true,
     icon: BracketsCurlyIcon,
+  },
+  {
+    type: "logic.create_object",
+    category: "logic",
+    enabled: true,
+    icon: BracketsCurlyIcon,
+  },
+  {
+    type: "logic.merge_objects",
+    category: "logic",
+    enabled: true,
+    icon: GitMergeIcon,
+  },
+  {
+    type: "logic.select_path",
+    category: "logic",
+    enabled: true,
+    icon: PathIcon,
+  },
+  {
+    type: "logic.coalesce",
+    category: "logic",
+    enabled: true,
+    icon: GitMergeIcon,
+  },
+  {
+    type: "logic.compare",
+    category: "logic",
+    enabled: true,
+    icon: CheckSquareIcon,
   },
   {
     type: "ai.agent",
@@ -162,11 +271,24 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     enabled: true,
     icon: PathIcon,
   },
+  {
+    type: "logic.try_catch",
+    category: "flow",
+    enabled: true,
+    icon: GitBranchIcon,
+  },
+  {
+    type: "flow.call_workflow",
+    category: "flow",
+    enabled: true,
+    icon: PathIcon,
+  },
 ];
 
 export const VISUAL_CATALOG_CATEGORY_ORDER: readonly VisualCatalogCategory[] = [
   "trigger",
   "action",
+  "localization",
   "logic",
   "ai",
   "flow",
@@ -192,6 +314,8 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       };
     case "trigger.source_upload":
       return { kind: "trigger.source_upload" };
+    case "trigger.webhook":
+      return { kind: "trigger.webhook", tokenVersion: 1 };
     case "action.http":
       return {
         kind: "action.http",
@@ -228,6 +352,97 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         message: "",
         onError: "stop",
       };
+    case "action.machine_translate":
+      return {
+        kind: "action.machine_translate",
+        projectId: "",
+        sourceFileId: "",
+        targetLocales: "",
+        useTranslationMemory: true,
+        onError: "stop",
+      };
+    case "action.create_task":
+      return {
+        kind: "action.create_task",
+        projectId: "",
+        sourceFileId: "",
+        targetLocales: "",
+        step: "edit",
+        assigneeWorkosUserId: "",
+        title: "",
+        dueAt: "",
+        onError: "stop",
+      };
+    case "action.check_progress":
+      return {
+        kind: "action.check_progress",
+        projectId: "",
+        sourceFileId: "",
+        targetLocales: "",
+        jobId: "",
+        onError: "stop",
+      };
+    case "action.run_qa":
+      return { kind: "action.run_qa", projectId: "", onError: "stop" };
+    case "action.list_source_files":
+      return { kind: "action.list_source_files", projectId: "", pathPrefix: "", onError: "stop" };
+    case "action.update_job":
+      return {
+        kind: "action.update_job",
+        jobId: "",
+        assigneeWorkosUserId: "",
+        title: "",
+        dueAt: "",
+        onError: "stop",
+      };
+    case "action.pick_assignee":
+      return {
+        kind: "action.pick_assignee",
+        locale: "",
+        jobType: "",
+        size: "",
+        dueAt: "",
+        rules: [createAssignmentRule()],
+        fallbackAssigneeIds: [],
+        strategy: "least_busy",
+        peopleSource: "workspace",
+        crowdinProjectId: "",
+        onError: "stop",
+      };
+    case "action.crowdin_pre_translate":
+      return {
+        kind: "action.crowdin_pre_translate",
+        crowdinProjectId: "",
+        fileIds: "",
+        languageIds: "",
+        method: "mt",
+        engineId: "",
+        aiPromptId: "",
+        onError: "stop",
+      };
+    case "action.crowdin_create_task":
+      return {
+        kind: "action.crowdin_create_task",
+        crowdinProjectId: "",
+        fileIds: "",
+        languageIds: "",
+        taskType: "proofread",
+        assigneeIds: "",
+        title: "",
+        description: "",
+        dueAt: "",
+        onError: "stop",
+      };
+    case "action.crowdin_check_progress":
+      return {
+        kind: "action.crowdin_check_progress",
+        crowdinProjectId: "",
+        fileIds: "",
+        languageIds: "",
+        taskIds: "",
+        preTranslationId: "",
+        onError: "stop",
+      };
     case "logic.if":
       return { kind: "logic.if", condition: "" };
     case "logic.switch":
@@ -241,6 +456,45 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       };
     case "logic.set":
       return { kind: "logic.set", assignments: [{ key: "", value: "" }] };
+    case "logic.create_object":
+      return { kind: "logic.create_object", fields: [] };
+    case "logic.merge_objects":
+      return {
+        kind: "logic.merge_objects",
+        inputs: [
+          { id: createObjectPortId(), name: "Object 1" },
+          { id: createObjectPortId(), name: "Object 2" },
+        ],
+        conflictPolicy: "reject",
+      };
+    case "logic.select_path":
+      return {
+        kind: "logic.select_path",
+        path: [],
+        outputType: "unknown",
+        missingBehavior: "error",
+      };
+    case "logic.coalesce":
+      return {
+        kind: "logic.coalesce",
+        inputs: [
+          { id: createCoalesceInputId(), name: "Value 1", type: "unknown" },
+          { id: createCoalesceInputId(), name: "Value 2", type: "unknown" },
+        ],
+        treatNullAsMissing: true,
+        treatEmptyStringAsMissing: false,
+        treatEmptyArrayAsMissing: false,
+        treatEmptyObjectAsMissing: false,
+      };
+    case "logic.compare":
+      return {
+        kind: "logic.compare",
+        operator: "equal",
+        operands: [
+          { id: createComparisonOperandId(), name: "Left", type: "unknown" },
+          { id: createComparisonOperandId(), name: "Right", type: "unknown" },
+        ],
+      };
     case "ai.agent":
       return { kind: "ai.agent", prompt: "", onError: "stop" };
     case "logic.for_each":
@@ -287,6 +541,17 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
           { id: createSequenceOutputId(), label: "Output 2" },
         ],
       };
+    case "logic.try_catch":
+      return { kind: "logic.try_catch" };
+    case "flow.call_workflow":
+      return {
+        kind: "flow.call_workflow",
+        workflowId: "",
+        version: 1,
+        inputFields: [],
+        outputFields: [],
+        onError: "stop",
+      };
     default:
       return assertNever(type);
   }
@@ -327,6 +592,12 @@ export function getVisualNodeDimensions(
     const outputCount = config?.kind === "logic.sequence" ? config.outputs.length : 2;
     return { width: 280, height: Math.max(140, 56 + outputCount * 32) };
   }
+  if (type === "logic.try_catch") {
+    return { width: 280, height: 156 };
+  }
+  if (type === "flow.call_workflow") {
+    return { width: 280, height: 140 };
+  }
   return { width: 280, height: 104 };
 }
 
@@ -352,6 +623,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.branches[0] ?? "GitHub";
     case "trigger.source_upload":
       return config.projectId ? "Project upload" : "Any project";
+    case "trigger.webhook":
+      return "Incoming HTTP POST";
     case "action.http":
       return config.method;
     case "action.content_sync":
@@ -360,6 +633,36 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.channelId ? "Slack" : "Slack channel";
     case "action.notify_email":
       return config.from ? config.provider : "Email";
+    case "action.machine_translate":
+      return config.targetLocales.trim() || "All target locales";
+    case "action.create_task":
+      return config.step === "translate"
+        ? "Translate"
+        : config.step === "edit"
+          ? "Post-edit"
+          : "Proofread";
+    case "action.check_progress":
+      return config.jobId.trim() ? "Job and strings" : "Strings";
+    case "action.run_qa":
+      return config.projectId ? "Project QA" : "Select project";
+    case "action.list_source_files":
+      return config.pathPrefix.trim() || "All source files";
+    case "action.update_job":
+      return config.assigneeWorkosUserId.trim() ? "Reassign job" : "Update job";
+    case "action.pick_assignee":
+      return `${config.rules.length === 1 ? "1 rule" : `${config.rules.length} rules`} · ${
+        config.strategy === "first"
+          ? "first listed"
+          : config.strategy === "round_robin"
+            ? "round-robin"
+            : "least busy"
+      }${config.peopleSource === "crowdin" ? " · Crowdin" : ""}`;
+    case "action.crowdin_pre_translate":
+      return config.method === "tm" ? "Translation memory" : config.method === "mt" ? "MT" : "AI";
+    case "action.crowdin_create_task":
+      return config.taskType === "translate" ? "Translate" : "Proofread";
+    case "action.crowdin_check_progress":
+      return config.taskIds.trim() ? "Tasks and strings" : "Strings";
     case "logic.if":
       return config.condition.trim() ? "1 condition" : "No condition";
     case "logic.switch":
@@ -368,6 +671,18 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.assignments.length > 0
         ? `${config.assignments.length} fields`
         : "No assignments";
+    case "logic.create_object":
+      return config.fields.length === 1 ? "1 field" : `${config.fields.length} fields`;
+    case "logic.merge_objects":
+      return `${config.inputs.length} objects · ${config.conflictPolicy.replace("_", " ")}`;
+    case "logic.select_path":
+      return config.path.length > 0
+        ? config.path.map((segment) => String(segment)).join(" › ")
+        : "No path selected";
+    case "logic.coalesce":
+      return `${config.inputs.length} ordered values`;
+    case "logic.compare":
+      return config.operator.replaceAll("_", " ");
     case "ai.agent":
       return "Tools agent";
     case "logic.for_each":
@@ -376,7 +691,7 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.maxAttempts ? `${config.maxAttempts} attempts` : "Retry policy";
     case "flow.wait":
       if (config.mode === "duration") {
-        return `${config.durationMs ?? 0} ms`;
+        return formatWaitDuration(config.durationMs ?? 0);
       }
 
       if (config.mode === "timestamp") {
@@ -394,9 +709,29 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return `${config.inputs.length} inputs · ${config.mode.replace("_", " ")}`;
     case "logic.sequence":
       return config.outputs.length === 1 ? "1 output" : `${config.outputs.length} outputs`;
+    case "logic.try_catch":
+      return "Try / Catch boundary";
+    case "flow.call_workflow":
+      return config.workflowId ? `Version ${config.version}` : "Select workflow";
     default:
       return assertNever(config);
   }
+}
+
+const WAIT_DURATION_UNITS: readonly (readonly [ms: number, unit: string])[] = [
+  [86_400_000, "d"],
+  [3_600_000, "h"],
+  [60_000, "min"],
+  [1000, "s"],
+];
+
+export function formatWaitDuration(durationMs: number): string {
+  for (const [unitMs, unit] of WAIT_DURATION_UNITS) {
+    if (durationMs >= unitMs && durationMs % unitMs === 0) {
+      return `Wait ${durationMs / unitMs} ${unit}`;
+    }
+  }
+  return `Wait ${durationMs} ms`;
 }
 
 export function createMergeInputId(): string {
@@ -409,4 +744,26 @@ export function createSequenceOutputId(): string {
 
 export function createReturnOutputId(): string {
   return crypto.randomUUID();
+}
+
+export function createObjectPortId(): string {
+  return crypto.randomUUID();
+}
+
+export function createCoalesceInputId(): string {
+  return crypto.randomUUID();
+}
+
+export function createComparisonOperandId(): string {
+  return crypto.randomUUID();
+}
+
+export function createAssignmentRule(): VisualAssignmentRule {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    locales: "",
+    jobTypes: [],
+    assigneeIds: [],
+  };
 }

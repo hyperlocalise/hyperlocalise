@@ -572,6 +572,11 @@ export class ContentEditorGroupVariantsRegistry {
     this.services = services;
   }
 
+  /** Mounted groups unregister themselves on unmount; only text held for them is file-scoped. */
+  resetForFileScope() {
+    this.heldText.clear();
+  }
+
   /** The single-target editor is hidden while this row's variant editors load or stay mounted. */
   expect(segmentId: string, locale: string) {
     const key = registryKey(segmentId, locale);

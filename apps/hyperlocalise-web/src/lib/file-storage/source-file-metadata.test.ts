@@ -43,6 +43,7 @@ describe("sourceContentType", () => {
     expect(sourceContentType("captions/en.sbv")).toBe("text/plain");
     expect(sourceContentType("assets/mark.svg")).toBe("image/svg+xml");
     expect(sourceContentType("docs/guide.adoc")).toBe("text/asciidoc");
+    expect(sourceContentType("docs/notes.txt")).toBe("text/plain; charset=utf-8");
     expect(sourceContentType("res/values/strings.xml")).toBe("application/xml");
     expect(sourceContentType("messages_en.properties")).toBe("text/plain");
     expect(sourceContentType("lang/en/messages.php")).toBe("application/x-httpd-php");
@@ -56,5 +57,9 @@ describe("sourceContentType", () => {
 
   it("maps dotLottie archives to the zip+dotlottie MIME type", () => {
     expect(sourceContentType("animations/hero.lottie")).toBe("application/zip+dotlottie");
+  });
+
+  it("maps PDF sources to application/pdf", () => {
+    expect(sourceContentType("docs/handbook.pdf")).toBe("application/pdf");
   });
 });

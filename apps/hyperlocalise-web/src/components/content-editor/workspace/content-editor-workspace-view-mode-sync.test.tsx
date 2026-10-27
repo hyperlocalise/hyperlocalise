@@ -98,6 +98,47 @@ describe("ContentEditorWorkspaceViewModeSync", () => {
     expect(localStorage.getItem("content-editor-workspace-persona:v1:text")).toBe("translator");
   });
 
+  it("defaults native HTML to document file view", () => {
+    localStorage.clear();
+
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: "seg-html-1",
+        fileContext: {
+          sourcePath: "pages/home.html",
+          filename: "home.html",
+          sourceLocale: "en-US",
+          targetLocale: "fr",
+          providerKind: null,
+          canEditTranslations: true,
+          canAddComments: true,
+        },
+        segments: [
+          {
+            id: "seg-html-1",
+            index: 1,
+            key: "html.p[0]",
+            sourceText: "Hello",
+            targetText: "Bonjour",
+            status: "reviewed",
+            sourcePath: "pages/home.html",
+            sourceLocale: "en-US",
+            targetLocale: "fr",
+          },
+        ],
+      }),
+    );
+    store.ui.setAdaptiveWorkspaceEnabled(true);
+
+    render(
+      <ContentEditorWorkspaceContext.Provider value={store}>
+        <ContentEditorWorkspaceViewModeSync onPageLimitChange={vi.fn()} />
+      </ContentEditorWorkspaceContext.Provider>,
+    );
+
+    expect(store.ui.viewMode).toBe("file");
+  });
+
   it("keeps Crowdin markdown in segment view instead of native document file view", () => {
     localStorage.clear();
 

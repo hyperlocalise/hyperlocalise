@@ -39,3 +39,4 @@ declare module "*.svg" {
 }
 
 declare const BACKEND_HOST: string;
+declare const IS_LOCAL_DEVELOPMENT: boolean;

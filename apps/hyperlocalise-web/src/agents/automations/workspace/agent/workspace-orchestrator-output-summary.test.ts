@@ -14,8 +14,16 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   buildWorkspaceOrchestratorOutputSummary,
+  readImportBrazeCampaigns,
+  readImportBrazeTemplates,
+  readImportGoogleDriveFiles,
   readImportIntercomArticles,
+  readImportSanityDocuments,
+  readPushBrazeCampaigns,
+  readPushBrazeTemplates,
+  readPushGoogleDriveTranslations,
   readPushIntercomTranslations,
+  readPushSanityTranslations,
 } from "./workspace-orchestrator-output-summary";
 
 describe("buildWorkspaceOrchestratorOutputSummary", () => {
@@ -182,6 +190,35 @@ describe("buildWorkspaceOrchestratorOutputSummary", () => {
       status: "succeeded",
     });
   });
+
+  it("preserves Sanity import and push results from the current step", () => {
+    const outputSummary = buildWorkspaceOrchestratorOutputSummary(
+      { orchestratorEnqueuedAt: "2026-10-07T00:00:00.000Z" },
+      {
+        import_sanity_documents: {
+          imported: 2,
+          failed: 0,
+          status: "succeeded",
+        },
+        push_sanity_translations: {
+          pushedLocales: 1,
+          failedLocales: 0,
+          status: "succeeded",
+        },
+      },
+    );
+
+    expect(outputSummary.importSanityDocuments).toEqual({
+      imported: 2,
+      failed: 0,
+      status: "succeeded",
+    });
+    expect(outputSummary.pushSanityTranslations).toEqual({
+      pushedLocales: 1,
+      failedLocales: 0,
+      status: "succeeded",
+    });
+  });
 });
 
 describe("readImportIntercomArticles", () => {
@@ -221,6 +258,115 @@ describe("readImportIntercomArticles", () => {
   });
 });
 
+describe("readImportBrazeCampaigns", () => {
+  it("prefers the current step, then the persisted summary, then prior step results", () => {
+    expect(
+      readImportBrazeCampaigns(
+        { importBrazeCampaigns: { imported: 4, status: "stale" } },
+        { import_braze_campaigns: { imported: 0, failed: 2 } },
+      ),
+    ).toEqual({ imported: 0, failed: 2 });
+    expect(
+      readImportBrazeCampaigns({ importBrazeCampaigns: { imported: 3, skipped: 1 } }, {}),
+    ).toEqual({ imported: 3, skipped: 1 });
+    expect(
+      readImportBrazeCampaigns(
+        {
+          orchestratorStepResults: {
+            import_braze_campaigns: { imported: 2, status: "succeeded" },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ imported: 2, status: "succeeded" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportBrazeCampaigns(
+        { importBrazeCampaigns: { status: "succeeded", failed: 0 } },
+        { import_braze_campaigns: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readImportBrazeTemplates", () => {
+  it("treats imported 0 as a completed idempotent result", () => {
+    expect(
+      readImportBrazeTemplates({}, { import_braze_templates: { imported: 0, failed: 0 } }),
+    ).toEqual({ imported: 0, failed: 0 });
+  });
+});
+
+describe("readPushBrazeCampaigns", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushBrazeCampaigns({}, { push_braze_campaigns: { pushedLocales: 0, failedLocales: 1 } }),
+    ).toEqual({ pushedLocales: 0, failedLocales: 1 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(readPushBrazeCampaigns({ pushBrazeCampaigns: { status: "succeeded" } }, {})).toBeNull();
+  });
+});
+
+describe("readPushBrazeTemplates", () => {
+  it("reads prior orchestrator step results when the current step is empty", () => {
+    expect(
+      readPushBrazeTemplates(
+        {
+          orchestratorStepResults: {
+            push_braze_templates: { pushedLocales: 2, failedLocales: 0 },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ pushedLocales: 2, failedLocales: 0 });
+  });
+});
+
+describe("readImportSanityDocuments", () => {
+  it("prefers the current step over a persisted summary", () => {
+    expect(
+      readImportSanityDocuments(
+        {
+          importSanityDocuments: { imported: 4, status: "stale" },
+        },
+        {
+          import_sanity_documents: { imported: 0, failed: 2, status: "partial" },
+        },
+      ),
+    ).toEqual({ imported: 0, failed: 2, status: "partial" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportSanityDocuments(
+        { importSanityDocuments: { status: "succeeded", failed: 0 } },
+        { import_sanity_documents: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushSanityTranslations", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushSanityTranslations(
+        {},
+        { push_sanity_translations: { pushedLocales: 0, failedLocales: 0 } },
+      ),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(
+      readPushSanityTranslations({ pushSanityTranslations: { status: "succeeded" } }, {}),
+    ).toBeNull();
+  });
+});
+
 describe("readPushIntercomTranslations", () => {
   it("treats pushedLocales 0 as a completed idempotent result", () => {
     expect(
@@ -234,6 +380,56 @@ describe("readPushIntercomTranslations", () => {
   it("rejects a persisted object missing pushedLocales", () => {
     expect(
       readPushIntercomTranslations({ pushIntercomTranslations: { status: "succeeded" } }, {}),
+    ).toBeNull();
+  });
+});
+
+describe("readImportGoogleDriveFiles", () => {
+  it("prefers the current step, then the persisted summary, then prior step results", () => {
+    expect(
+      readImportGoogleDriveFiles(
+        { importGoogleDriveFiles: { imported: 4, status: "stale" } },
+        { import_google_drive_files: { imported: 0, failed: 2 } },
+      ),
+    ).toEqual({ imported: 0, failed: 2 });
+    expect(
+      readImportGoogleDriveFiles({ importGoogleDriveFiles: { imported: 3, skipped: 1 } }, {}),
+    ).toEqual({ imported: 3, skipped: 1 });
+    expect(
+      readImportGoogleDriveFiles(
+        {
+          orchestratorStepResults: {
+            import_google_drive_files: { imported: 2, status: "succeeded" },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ imported: 2, status: "succeeded" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportGoogleDriveFiles(
+        { importGoogleDriveFiles: { status: "succeeded", failed: 0 } },
+        { import_google_drive_files: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushGoogleDriveTranslations", () => {
+  it("treats pushed 0 as a completed idempotent result", () => {
+    expect(
+      readPushGoogleDriveTranslations(
+        {},
+        { push_google_drive_translations: { pushed: 0, failed: 1 } },
+      ),
+    ).toEqual({ pushed: 0, failed: 1 });
+  });
+
+  it("rejects a persisted object missing pushed", () => {
+    expect(
+      readPushGoogleDriveTranslations({ pushGoogleDriveTranslations: { status: "succeeded" } }, {}),
     ).toBeNull();
   });
 });

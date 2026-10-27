@@ -73,9 +73,14 @@ func (s *Service) translateWithRetry(ctx context.Context, task Task) (string, er
 		RuntimeContext: runtimeContext,
 	}
 
-	return s.translateWithValidationStrategy(ctx, request, func(_, translated string) error {
-		return validateTranslatedOutput(task, translated)
+	translated, err := s.translateWithValidationStrategy(ctx, request, func(_, candidate string) error {
+		_, verr := acceptTranslatedOutput(task, candidate)
+		return verr
 	})
+	if err != nil {
+		return "", err
+	}
+	return acceptTranslatedOutput(task, translated)
 }
 
 func (s *Service) translateRequestWithRetry(ctx context.Context, request translator.Request) (string, error) {
@@ -219,7 +224,9 @@ func sanitizePromptContext(value string, maxLen int) string {
 		if trimmed == "" {
 			return ""
 		}
-		if maxLen == 0 || utf8.RuneCountInString(trimmed) <= maxLen {
+		// BOLT OPTIMIZATION: len(trimmed) <= maxLen guarantees utf8.RuneCountInString(trimmed) <= maxLen
+		// since UTF-8 byte length is always >= rune count.
+		if maxLen == 0 || len(trimmed) <= maxLen || utf8.RuneCountInString(trimmed) <= maxLen {
 			return trimmed
 		}
 	}
@@ -257,7 +264,8 @@ func sanitizePromptContext(value string, maxLen int) string {
 	}
 
 	joined := b.String()
-	if maxLen > 0 && utf8.RuneCountInString(joined) > maxLen {
+	// BOLT OPTIMIZATION: len(joined) <= maxLen guarantees rune count <= maxLen.
+	if maxLen > 0 && len(joined) > maxLen && utf8.RuneCountInString(joined) > maxLen {
 		if maxLen <= 1 {
 			return "…"
 		}

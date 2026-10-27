@@ -661,18 +661,13 @@ func firstObjectArgument(src string, callOpen int) int {
 }
 
 func collectNestedMessageDescriptors(src, file string, objectStart, objectEnd int) ([]extractMessage, error) {
-	message, ok, err := extractMessageDescriptor(src, file, objectStart, objectEnd)
-	if err != nil || ok {
-		if !ok {
-			return nil, err
-		}
-
-		return []extractMessage{message}, nil
-	}
-
 	properties, err := parseObjectProperties(src, objectStart, objectEnd)
 	if err != nil {
 		return nil, err
+	}
+
+	if message, ok := extractMessageDescriptorFromProperties(properties, file, objectStart); ok {
+		return []extractMessage{message}, nil
 	}
 
 	messages := make([]extractMessage, 0)
@@ -697,6 +692,11 @@ func extractMessageDescriptor(src, file string, objectStart, objectEnd int) (ext
 		return extractMessage{}, false, err
 	}
 
+	msg, ok := extractMessageDescriptorFromProperties(properties, file, objectStart)
+	return msg, ok, nil
+}
+
+func extractMessageDescriptorFromProperties(properties []extractObjectProperty, file string, objectStart int) (extractMessage, bool) {
 	var id, defaultMessage, description string
 	var hasID, hasDefaultMessage bool
 	for _, property := range properties {
@@ -716,7 +716,7 @@ func extractMessageDescriptor(src, file string, objectStart, objectEnd int) (ext
 	}
 
 	if !hasDefaultMessage || strings.TrimSpace(defaultMessage) == "" {
-		return extractMessage{}, false, nil
+		return extractMessage{}, false
 	}
 	if !hasID || strings.TrimSpace(id) == "" {
 		id = generatedFormatJSMessageID(defaultMessage, description)
@@ -728,7 +728,7 @@ func extractMessageDescriptor(src, file string, objectStart, objectEnd int) (ext
 		Description:    description,
 		sourcePath:     file,
 		sourcePos:      objectStart,
-	}, true, nil
+	}, true
 }
 
 func parseObjectProperties(src string, objectStart, objectEnd int) ([]extractObjectProperty, error) {
@@ -995,7 +995,7 @@ func findJSXTagEnd(src string, index int) (int, bool) {
 }
 
 func parseJSXAttributes(src string, index, tagEnd int) (map[string]string, error) {
-	attrs := make(map[string]string, 4)
+	var attrs map[string]string
 	for i := index; i < tagEnd; {
 		i = skipWhitespaceAndComments(src, i)
 		if i >= tagEnd || src[i] == '/' {
@@ -1014,11 +1014,16 @@ func parseJSXAttributes(src string, index, tagEnd int) (map[string]string, error
 			continue
 		}
 
-		value, valueEnd, ok, err := parseJSXAttributeValue(src, skipWhitespaceAndComments(src, valueStart+1), tagEnd)
+		capture := isReactIntlMessageAttribute(name)
+		value, valueEnd, ok, err := parseJSXAttributeValue(src, skipWhitespaceAndComments(src, valueStart+1), tagEnd, capture)
 		if err != nil {
 			return nil, err
 		}
-		if ok && isReactIntlMessageAttribute(name) {
+		if ok && capture {
+			if attrs == nil {
+				// BOLT OPTIMIZATION: Lazy-allocate map only when a React Intl attribute is matched.
+				attrs = make(map[string]string, 3)
+			}
 			attrs[name] = value
 		}
 		i = valueEnd
@@ -1040,7 +1045,7 @@ func readJSXAttributeName(src string, index int) (string, int, bool) {
 	return src[index:i], i, true
 }
 
-func parseJSXAttributeValue(src string, index, tagEnd int) (string, int, bool, error) {
+func parseJSXAttributeValue(src string, index, tagEnd int, capture bool) (string, int, bool, error) {
 	if index >= tagEnd {
 		return "", index, false, nil
 	}
@@ -1051,6 +1056,9 @@ func parseJSXAttributeValue(src string, index, tagEnd int) (string, int, bool, e
 		if end > tagEnd {
 			return "", index, false, fmt.Errorf("unterminated JSX attribute at line %d", sourceLine(src, index))
 		}
+		if !capture {
+			return "", end, false, nil
+		}
 		raw := src[index+1 : end-1]
 		if strings.IndexByte(raw, '&') >= 0 {
 			return html.UnescapeString(raw), end, true, nil
@@ -1060,6 +1068,9 @@ func parseJSXAttributeValue(src string, index, tagEnd int) (string, int, bool, e
 		end, ok := findMatchingDelimiter(src, index, '{', '}')
 		if !ok || end > tagEnd {
 			return "", index, false, fmt.Errorf("unterminated JSX expression at line %d", sourceLine(src, index))
+		}
+		if !capture {
+			return "", end + 1, false, nil
 		}
 		value, ok := parseStaticJSXExpression(src[index+1 : end])
 		return value, end + 1, ok, nil
@@ -1237,7 +1248,6 @@ func readStaticJSXTextChildren(src string, start int, name string) (string, bool
 }
 
 func findJSXClosingTag(src string, start int, name string) (int, bool) {
-	close := "</" + name
 	depth := 1
 	for i := start; i < len(src); {
 		if next, ok := skipIgnoredToken(src, i); ok {
@@ -1248,8 +1258,8 @@ func findJSXClosingTag(src string, start int, name string) (int, bool) {
 			i++
 			continue
 		}
-		if strings.HasPrefix(src[i:], close) {
-			j := i + len(close)
+		if i+1 < len(src) && src[i+1] == '/' && strings.HasPrefix(src[i+2:], name) {
+			j := i + 2 + len(name)
 			if j < len(src) && isJSXNamePart(src[j]) {
 				i++
 				continue
@@ -1339,7 +1349,7 @@ func readStringLiteralContent(src string, index int) (string, int, bool) {
 	case '`':
 		target = "`\\"
 	default:
-		target = string(quote) + "\\"
+		return "", index, false
 	}
 
 	i := index + 1
@@ -1707,6 +1717,9 @@ func skipWhitespaceAndComments(src string, index int) int {
 		for i < len(src) && isWhitespaceByte(src[i]) {
 			i++
 		}
+		if i >= len(src) || src[i] != '/' {
+			return i
+		}
 
 		next, ok := skipComment(src, i)
 		if !ok {
@@ -1726,12 +1739,35 @@ func readIdentifier(src string, index int) (string, int) {
 	if index >= len(src) {
 		return "", index
 	}
-	r, size := utf8.DecodeRuneInString(src[index:])
-	if !isIdentifierStartRune(r) {
-		return "", index
+	ch := src[index]
+	if ch < 0x80 {
+		if !isASCIIIdentifierStart(ch) {
+			return "", index
+		}
+		i := index + 1
+		for i < len(src) {
+			c := src[i]
+			if c < 0x80 {
+				if !isASCIIIdentifierPart(c) {
+					break
+				}
+				i++
+			} else {
+				return readIdentifierUnicode(src, index, i)
+			}
+		}
+		return src[index:i], i
+	}
+	return readIdentifierUnicode(src, index, index)
+}
+
+func readIdentifierUnicode(src string, startIndex, startScan int) (string, int) {
+	r, size := utf8.DecodeRuneInString(src[startScan:])
+	if startScan == startIndex && !isIdentifierStartRune(r) {
+		return "", startIndex
 	}
 
-	i := index + size
+	i := startScan + size
 	for i < len(src) {
 		r, size = utf8.DecodeRuneInString(src[i:])
 		if r == utf8.RuneError && size == 1 {
@@ -1743,7 +1779,15 @@ func readIdentifier(src string, index int) (string, int) {
 		i += size
 	}
 
-	return src[index:i], i
+	return src[startIndex:i], i
+}
+
+func isASCIIIdentifierStart(ch byte) bool {
+	return ch == '_' || ch == '$' || ('A' <= ch && ch <= 'Z') || ('a' <= ch && ch <= 'z')
+}
+
+func isASCIIIdentifierPart(ch byte) bool {
+	return isASCIIIdentifierStart(ch) || ('0' <= ch && ch <= '9')
 }
 
 func isDecimalDigit(ch byte) bool {

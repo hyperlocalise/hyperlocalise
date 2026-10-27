@@ -70,6 +70,59 @@ function contentEditorFile(
 }
 
 describe("projectFileCatToWorkspaceState", () => {
+  it("omits Intercom callout fence segments from the queue", () => {
+    const state = projectFileCatToWorkspaceState(
+      contentEditorFile({
+        sourcePath: "intercom/help/article.md",
+        filename: "article.md",
+        provider: null,
+        segments: [
+          {
+            externalStringId: "fence",
+            key: "md.Paragraph[4]/line[0]",
+            sourceText: ':::callout backgroundColor="#feedaf80"\nborderColor="#fbc91633"',
+            context: null,
+            type: "text",
+          },
+          {
+            externalStringId: "body",
+            key: "md.Paragraph[4]/line[1]",
+            sourceText: "For a public article to be enabled for Fin",
+            context: null,
+            type: "text",
+          },
+        ],
+      }),
+      "en",
+      testIntl,
+    );
+
+    expect(state.queueSegments.map((segment) => segment.id)).toEqual(["body"]);
+    expect(state.selectedSegmentId).toBe("body");
+  });
+
+  it("keeps Crowdin HTML strings whose key is missing", () => {
+    const state = projectFileCatToWorkspaceState(
+      contentEditorFile({
+        sourcePath: "home.html",
+        filename: "home.html",
+        segments: [
+          {
+            externalStringId: "1001",
+            key: null as unknown as string,
+            sourceText: "<p>Hello</p>",
+            context: null,
+            type: "text",
+          },
+        ],
+      }),
+      "en",
+      testIntl,
+    );
+
+    expect(state.queueSegments.map((segment) => segment.id)).toEqual(["1001"]);
+  });
+
   it("maps CAT content into workspace state without eager format checks", () => {
     const state = projectFileCatToWorkspaceState(contentEditorFile(), "en-GB", testIntl);
 
@@ -119,6 +172,73 @@ describe("projectFileCatToWorkspaceState", () => {
       targetAssetUrl: "/target.md",
       imageVariantId: "variant_md",
     });
+  });
+
+  it("maps native HTML documentView into file context", () => {
+    const state = projectFileCatToWorkspaceState(
+      contentEditorFile({
+        provider: null,
+        sourcePath: "pages/formatting-test.html",
+        filename: "formatting-test.html",
+        documentView: {
+          externalStringId: "file_html",
+          sourceAssetUrl: "/source.html",
+          targetAssetUrl: "/target.html",
+          imageVariantId: "variant_html",
+        },
+      }),
+      "en-US",
+      testIntl,
+    );
+
+    expect(state.fileContext.documentView).toEqual({
+      externalStringId: "file_html",
+      sourceAssetUrl: "/source.html",
+      targetAssetUrl: "/target.html",
+      imageVariantId: "variant_html",
+    });
+  });
+
+  it("maps source-file ingest state into file context", () => {
+    const state = projectFileCatToWorkspaceState(
+      contentEditorFile({
+        provider: null,
+        ingestState: "failed",
+        ingestError: "sandbox install failed",
+        segments: [],
+      }),
+      "en-US",
+      testIntl,
+    );
+
+    expect(state.fileContext.ingestState).toBe("failed");
+    expect(state.fileContext.ingestError).toBe("sandbox install failed");
+    expect(state.queueSegments).toEqual([]);
+  });
+
+  it("keeps HTML inline placeholders on mapped queue segments", () => {
+    const sourceText =
+      "This paragraph has \u001eHLHTPH_AABBCCDDEEFF_0\u001fbold text\u001eHLHTPH_AABBCCDDEEFF_1\u001f.";
+    const state = projectFileCatToWorkspaceState(
+      contentEditorFile({
+        provider: null,
+        sourcePath: "pages/formatting-test.html",
+        filename: "formatting-test.html",
+        segments: [
+          {
+            externalStringId: "html_p",
+            key: "html.p[0]",
+            sourceText,
+            context: null,
+            type: "text",
+          },
+        ],
+      }),
+      "en-US",
+      testIntl,
+    );
+
+    expect(state.queueSegments[0]?.sourceText).toBe(sourceText);
   });
 
   it("maps the project team name into file context", () => {
@@ -495,6 +615,35 @@ describe("formatCheckForSegment", () => {
         }),
       ]),
     );
+  });
+
+  it("treats raw markdown links as the same tokens as source MD sentinels", () => {
+    const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
+    const md1 = "\u001eHLMDPH_0EB5FD589564_1\u001f";
+    const segment = {
+      id: "seg-md",
+      index: 1,
+      key: "md.Paragraph[5]/line[0]",
+      sourceText: `visit our ${md0}Help Center.${md1}`,
+      targetText:
+        "besuchen Sie unser [Hilfe-Center.](https://www.intercom.com/help/en/articles/56641-create-an-article)",
+      sourceLocale: "en-US",
+      targetLocale: "de-DE",
+      status: "reviewed" as const,
+    };
+
+    const checks = formatCheckForSegment(segment, segment.targetText, testIntl);
+
+    expect(checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "format-parity",
+          status: "pass",
+          category: "placeholder",
+        }),
+      ]),
+    );
+    expect(checks.some((check) => check.id.startsWith("format-missing-token"))).toBe(false);
   });
 });
 

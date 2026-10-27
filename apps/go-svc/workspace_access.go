@@ -21,10 +21,11 @@ const (
 )
 
 type workspaceAPI struct {
-	pool       dictionaryPool
-	membership organizationMembershipLookup
-	flags      workspaceFlagChecker
-	pipes      pipeTokenSource
+	pool        dictionaryPool
+	membership  organizationMembershipLookup
+	flags       workspaceFlagChecker
+	pipes       pipeTokenSource
+	activityLog activityLogPublisher
 }
 
 type workspaceActor struct {
@@ -154,6 +155,10 @@ func (h *handler) workspaceHandle(
 		}
 		if status == http.StatusNoContent {
 			w.WriteHeader(status)
+			return
+		}
+		if download, ok := value.(reportingCSV); ok {
+			writeReportingCSV(w, status, download)
 			return
 		}
 		writeJSON(w, status, value)

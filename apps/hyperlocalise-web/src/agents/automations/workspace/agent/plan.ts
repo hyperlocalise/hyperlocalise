@@ -20,7 +20,11 @@ import {
   hasWorkspaceAutomationContentfulWorkflow,
   hasWorkspaceAutomationCreateIssueTool,
   hasWorkspaceAutomationCreateNativeTmsJobTool,
+  hasWorkspaceAutomationBrazeTool,
+  hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationIntercomTool,
+  hasWorkspaceAutomationGoogleDriveTool,
+  hasWorkspaceAutomationSanityTool,
   hasWorkspaceAutomationListIssuesTool,
   hasWorkspaceAutomationWebSearchTool,
   type WorkspaceAutomationRecord,
@@ -36,6 +40,14 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "run_contentful_translation",
   "import_intercom_articles",
   "push_intercom_translations",
+  "import_sanity_documents",
+  "push_sanity_translations",
+  "import_google_drive_files",
+  "push_google_drive_translations",
+  "import_braze_templates",
+  "push_braze_templates",
+  "import_braze_campaigns",
+  "push_braze_campaigns",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -70,6 +82,10 @@ const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
   "run_contentful_translation",
   "import_intercom_articles",
   "push_intercom_translations",
+  "import_sanity_documents",
+  "push_sanity_translations",
+  "import_google_drive_files",
+  "push_google_drive_translations",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -109,6 +125,18 @@ function workflowToolEnabled(
     case "import_intercom_articles":
     case "push_intercom_translations":
       return hasWorkspaceAutomationIntercomTool(toolConfig);
+    case "import_sanity_documents":
+    case "push_sanity_translations":
+      return hasWorkspaceAutomationSanityTool(toolConfig);
+    case "import_google_drive_files":
+    case "push_google_drive_translations":
+      return hasWorkspaceAutomationGoogleDriveTool(toolConfig);
+    case "import_braze_templates":
+    case "push_braze_templates":
+      return hasWorkspaceAutomationBrazeTool(toolConfig);
+    case "import_braze_campaigns":
+    case "push_braze_campaigns":
+      return hasWorkspaceAutomationBrazeCampaignsTool(toolConfig);
     case "create_native_tms_job":
       return hasWorkspaceAutomationCreateNativeTmsJobTool(toolConfig);
     case "assign_translate_with_agent":
@@ -215,6 +243,50 @@ export function buildWorkspaceOrchestratorPlan(
       notificationToolEnabled(tool, automation.toolConfig),
     );
     return { tools: [intercomTool, ...notificationTools] };
+  }
+
+  if (hasWorkspaceAutomationSanityTool(automation.toolConfig)) {
+    const sanityTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_sanity_translations"
+        : "import_sanity_documents";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [sanityTool, ...notificationTools] };
+  }
+
+  if (hasWorkspaceAutomationGoogleDriveTool(automation.toolConfig)) {
+    const googleDriveTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_google_drive_translations"
+        : "import_google_drive_files";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [googleDriveTool, ...notificationTools] };
+  }
+
+  if (hasWorkspaceAutomationBrazeCampaignsTool(automation.toolConfig)) {
+    const brazeTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_braze_campaigns"
+        : "import_braze_campaigns";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [brazeTool, ...notificationTools] };
+  }
+
+  if (hasWorkspaceAutomationBrazeTool(automation.toolConfig)) {
+    const brazeTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_braze_templates"
+        : "import_braze_templates";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [brazeTool, ...notificationTools] };
   }
 
   const workflowTools = orderWorkflowTools({

@@ -108,6 +108,7 @@ func (api *projectAPI) nativeProjectSourceWordCounts(
 		select k.id, k.source_text
 		from project_translation_keys k
 		where k.organization_id = $1 and k.project_id = $2 and k.is_hidden = false
+		  and trim(k.source_text) <> ':::' and trim(k.source_text) not like ':::callout%'
 		`, organizationID, projectID)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("list native project translation keys: %w", err)
@@ -143,6 +144,7 @@ func (api *projectAPI) nativeProjectLocaleStats(
 		from project_translations t
 		join project_translation_keys k on k.id = t.translation_key_id
 		where t.organization_id = $1 and t.project_id = $2 and k.is_hidden = false
+		  and trim(k.source_text) <> ':::' and trim(k.source_text) not like ':::callout%'
 		`, organizationID, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("list native project translations: %w", err)

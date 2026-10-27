@@ -36,7 +36,7 @@ func NewDefaultStrategy() *Strategy {
 	// BOLT OPTIMIZATION: Use a pre-allocated map to avoid re-allocations
 	// during initialization. We use assignments for static extensions and
 	// a loop for JSTSLocaleModuleExts to maintain correctness and DRY.
-	parsers := make(map[string]Parser, 39+len(JSTSLocaleModuleExts))
+	parsers := make(map[string]Parser, 40+len(JSTSLocaleModuleExts))
 	parsers[".json"] = JSONParser{}
 	parsers[".jsonc"] = JSONCParser{}
 	parsers[".yaml"] = YAMLParser{}
@@ -46,6 +46,7 @@ func NewDefaultStrategy() *Strategy {
 	parsers[".xlif"] = XLIFFParser{}
 	parsers[".xliff"] = XLIFFParser{}
 	parsers[".po"] = POFileParser{}
+	parsers[".pot"] = POFileParser{}
 	parsers[".html"] = HTMLParser{}
 	parsers[".htm"] = HTMLParser{}
 	parsers[".liquid"] = LiquidParser{}
@@ -77,6 +78,11 @@ func NewDefaultStrategy() *Strategy {
 	parsers[".sbv"] = SubtitleParser{Kind: SubtitleSBV}
 	parsers[".svg"] = SVGParser{}
 	parsers[".lottie"] = DotLottieParser{}
+	parsers[".xlsx"] = XLSXParser{}
+	parsers[".docx"] = DOCXParser{}
+	parsers[".pptx"] = PPTXParser{}
+	parsers[".pdf"] = PDFParser{}
+	parsers[".txt"] = PlainTextParser{}
 
 	for _, ext := range JSTSLocaleModuleExts {
 		parsers[ext] = JSTSLocaleModuleParser{}
@@ -98,8 +104,7 @@ func (p XMLParser) parseWithPath(path string, content []byte) (map[string]string
 	if IsAndroidStringResourcePath(path) {
 		return AndroidXMLResourcesParser{}.parseWithPath(path, content)
 	}
-	values, err := GenericXMLParser{}.Parse(content)
-	return values, nil, err
+	return GenericXMLParser{}.ParseWithContext(content)
 }
 
 // Register binds a parser to a file extension.
@@ -130,10 +135,18 @@ func (s *Strategy) Parse(path string, content []byte) (map[string]string, error)
 }
 
 // ParseSource parses a source catalog. Multi-column CSV/TSV files use
-// sourceLocale to select the matching header instead of the first value column.
+// sourceLocale to select the matching header instead of the first value column,
+// and Excel workbooks use it to find multilingual sheets.
 func (s *Strategy) ParseSource(path string, content []byte, sourceLocale string) (map[string]string, map[string]string, error) {
 	sourceLocale = strings.TrimSpace(sourceLocale)
 	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(path)))
+	if ext == ".xlsx" {
+		values, entryContext, err := ParseXLSXLocaleWithContext(content, sourceLocale, sourceLocale)
+		if err != nil {
+			return nil, nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return values, entryContext, nil
+	}
 	if sourceLocale != "" && (ext == ".csv" || ext == ".tsv") {
 		values, err := s.ParseWithLocale(path, content, sourceLocale)
 		if err != nil {
@@ -174,6 +187,13 @@ func (s *Strategy) ParseWithLocale(path string, content []byte, locale string) (
 		}
 		return values, nil
 	}
+	if ext == ".xlsx" {
+		values, err := ParseXLSXLocale(content, locale, locale)
+		if err != nil {
+			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return values, nil
+	}
 
 	return s.Parse(path, content)
 }
@@ -186,8 +206,15 @@ func (s *Strategy) ParseWithContext(path string, content []byte) (map[string]str
 }
 
 // ParseIngestEntries resolves a parser from the file path extension and returns entries
-// enriched with optional import metadata such as max-length limits.
+// enriched with optional import metadata such as max-length limits and parser context.
 func (s *Strategy) ParseIngestEntries(path string, content []byte, locale string) (map[string]IngestEntry, error) {
+	return s.ParseIngestEntriesWithSourceLocale(path, content, "", locale)
+}
+
+// ParseIngestEntriesWithSourceLocale is ParseIngestEntries for formats that
+// read a locale column relative to a source column, such as .xlsx. An empty
+// sourceLocale treats locale as the source locale.
+func (s *Strategy) ParseIngestEntriesWithSourceLocale(path string, content []byte, sourceLocale, locale string) (map[string]IngestEntry, error) {
 	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(path)))
 	if ext == "" {
 		return nil, fmt.Errorf("translation file parser: file %q has no extension", path)
@@ -195,16 +222,21 @@ func (s *Strategy) ParseIngestEntries(path string, content []byte, locale string
 
 	if IsMarkdownDocumentExtension(path) {
 		mdx := IsMarkdownDocumentMDX(path)
-		doc := ParseMarkdownDocumentIR(content, mdx)
-		entries := doc.ingestEntries()
+		entries := markdownIngestEntries(content, mdx)
 		if entries == nil {
 			entries = map[string]IngestEntry{}
 		}
 		return entries, nil
 	}
 	if IsAsciiDocDocumentExtension(path) {
-		doc := ParseAsciiDocDocumentIR(content)
-		entries := doc.ingestEntries()
+		entries := asciiDocIngestEntries(content)
+		if entries == nil {
+			entries = map[string]IngestEntry{}
+		}
+		return entries, nil
+	}
+	if IsPlainTextDocumentExtension(path) {
+		entries := plainTextIngestEntries(content)
 		if entries == nil {
 			entries = map[string]IngestEntry{}
 		}
@@ -222,6 +254,28 @@ func (s *Strategy) ParseIngestEntries(path string, content []byte, locale string
 			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
 		}
 		return entries, nil
+	case ".xlsx":
+		entries, err := ParseXLSXIngestEntries(content, sourceLocale, locale)
+		if err != nil {
+			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return entries, nil
+	case ".docx", ".pptx":
+		read := ReadDOCXEntries
+		if ext == ".pptx" {
+			read = ReadPPTXEntries
+		}
+		entries, err := read(content)
+		if err != nil {
+			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return ooxmlIngestEntries(entries), nil
+	case ".pdf":
+		entries, err := ReadPDFEntries(content)
+		if err != nil {
+			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return pdfIngestEntries(entries), nil
 	case ".xcstrings":
 		parser, ok := s.parsersByExt[ext].(XCStringsParser)
 		if !ok {
@@ -234,11 +288,19 @@ func (s *Strategy) ParseIngestEntries(path string, content []byte, locale string
 		return entries, nil
 	}
 
-	values, err := s.ParseWithLocale(path, content, locale)
+	if locale != "" && (ext == ".csv" || ext == ".tsv") {
+		values, err := s.ParseWithLocale(path, content, locale)
+		if err != nil {
+			return nil, err
+		}
+		return IngestEntriesFromStringMap(values), nil
+	}
+
+	values, contextByKey, err := s.parseWithContext(path, content)
 	if err != nil {
 		return nil, err
 	}
-	return IngestEntriesFromStringMap(values), nil
+	return applyContextByKey(IngestEntriesFromStringMap(values), contextByKey), nil
 }
 
 func (s *Strategy) parseWithContext(path string, content []byte) (map[string]string, map[string]string, error) {

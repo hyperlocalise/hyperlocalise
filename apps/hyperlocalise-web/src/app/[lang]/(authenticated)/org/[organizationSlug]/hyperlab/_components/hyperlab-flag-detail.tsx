@@ -13,7 +13,6 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { observer } from "mobx-react-lite";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -39,6 +38,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 
+import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { HyperlabFlagQueryBridge } from "../store/hyperlab-query-bridge";
 import {
   HyperlabWorkspaceProvider,
@@ -89,11 +89,11 @@ const HyperlabFlagDetailConnected = observer(function HyperlabFlagDetailConnecte
   canWrite: boolean;
 }) {
   const intl = useIntl();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const client = useHyperlabClient();
   const store = useHyperlabWorkspace();
   const { flag: flagStore } = store;
+  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(flagStore.isDirty);
 
   const detailQuery = useQuery({
     queryKey: hyperlabQueryKeys.flag(organizationSlug, flagId),
@@ -175,7 +175,7 @@ const HyperlabFlagDetailConnected = observer(function HyperlabFlagDetailConnecte
     },
     onSuccess: () => {
       toast.success(intl.formatMessage(messages.deleteSuccess));
-      router.push(`/org/${organizationSlug}/hyperlab/flags`);
+      leaveTo(`/org/${organizationSlug}/hyperlab/flags`);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : intl.formatMessage(messages.loadError));
@@ -188,6 +188,7 @@ const HyperlabFlagDetailConnected = observer(function HyperlabFlagDetailConnecte
   return (
     <>
       <HyperlabFlagQueryBridge flag={flag} config={detailQuery.data?.config} />
+      {leaveGuardDialog}
       <HyperlabPageShell
         title={flag?.key ?? intl.formatMessage(messages.flagsTitle)}
         backHref={`/org/${organizationSlug}/hyperlab/flags`}

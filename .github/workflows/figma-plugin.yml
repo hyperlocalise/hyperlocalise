@@ -1,0 +1,107 @@
+name: Figma Plugin CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - apps/figma-plugin/**
+      - .github/workflows/figma-plugin.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: figma-plugin-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+
+jobs:
+  figma-plugin-check:
+    name: Figma Plugin Check
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    defaults:
+      run:
+        working-directory: apps/figma-plugin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          node-version: "24.22.1"
+          working-directory: apps/figma-plugin
+          cache: true
+          run-install: false
+
+      - name: Install figma-plugin dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Check figma-plugin
+        run: vp check
+
+  figma-plugin-test-build:
+    name: Figma Plugin Test/Build
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    defaults:
+      run:
+        working-directory: apps/figma-plugin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # Vitest --changed uses `git diff BASE...HEAD` and needs a merge-base.
+          # Depth 1 leaves HEAD as a shallow graft that later deepen cannot reconnect.
+          fetch-depth: 2
+
+      - name: Fetch PR base for changed tests
+        if: github.event.pull_request.draft
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        working-directory: ${{ github.workspace }}
+        run: git fetch --no-tags --depth=2 origin "${BASE_SHA}"
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          node-version: "24.22.1"
+          working-directory: apps/figma-plugin
+          cache: true
+          run-install: false
+
+      - name: Install figma-plugin dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Cache Vitest
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            apps/figma-plugin/.cache/vitest
+            apps/figma-plugin/.cache/vite
+          key: ${{ runner.os }}-figma-vitest-${{ hashFiles('apps/figma-plugin/pnpm-lock.yaml', 'apps/figma-plugin/vite.config.ts') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-figma-vitest-${{ hashFiles('apps/figma-plugin/pnpm-lock.yaml', 'apps/figma-plugin/vite.config.ts') }}-
+            ${{ runner.os }}-figma-vitest-
+
+      - name: Test figma-plugin
+        env:
+          VITEST_CHANGED_SINCE: ${{ github.event.pull_request.draft && github.event.pull_request.base.sha || '' }}
+        run: |
+          set -euo pipefail
+          if [ -n "${VITEST_CHANGED_SINCE}" ]; then
+            echo "Draft PR: running tests related to changes since ${VITEST_CHANGED_SINCE}"
+            vp test --changed "${VITEST_CHANGED_SINCE}" --passWithNoTests
+          else
+            vp test
+          fi
+
+      - name: Build figma-plugin
+        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+        env:
+          HYPERLOCALISE_APP_URL: https://app.hyperlocalise.com
+        run: vp run build

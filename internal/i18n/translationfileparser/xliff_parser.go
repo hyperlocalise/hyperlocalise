@@ -177,15 +177,21 @@ func xliffInner(content []byte, node *xliffElement) []byte {
 }
 
 func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
+	values, _, err := p.ParseWithContext(content)
+	return values, err
+}
+
+func (p XLIFFParser) ParseWithContext(content []byte) (map[string]string, map[string]string, error) {
 	elements, err := readXLIFF(content)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	entries, err := xliffEntries(elements)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	out := make(map[string]string, len(entries))
+	var contextByKey map[string]string
 	for _, entry := range entries {
 		value := xliffInner(content, entry.target)
 		if len(bytes.TrimSpace(value)) == 0 {
@@ -194,8 +200,47 @@ func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
 		if len(value) > 0 {
 			out[entry.key] = normalizeXLIFFMarkup(value)
 		}
+		if context := xliffEntryContext(content, entry); context != "" {
+			if contextByKey == nil {
+				contextByKey = make(map[string]string, len(entries))
+			}
+			contextByKey[entry.key] = context
+		}
 	}
-	return out, nil
+	return out, contextByKey, nil
+}
+
+func xliffEntryContext(content []byte, entry xliffEntry) string {
+	context := xliffNotes(content, entry.unit)
+	if entry.source != nil && entry.source.parent != nil && entry.source.parent != entry.unit {
+		context = joinParserContext(context, xliffNotes(content, entry.source.parent))
+	}
+	return context
+}
+
+func xliffNotes(content []byte, node *xliffElement) string {
+	if node == nil {
+		return ""
+	}
+	var parts []string
+	appendNote := func(note *xliffElement) {
+		if note == nil || !isXLIFFElement(note) || note.token.Name.Local != "note" {
+			return
+		}
+		if text := strings.TrimSpace(string(xliffInner(content, note))); text != "" {
+			parts = append(parts, text)
+		}
+	}
+	for _, child := range node.children {
+		if child.token.Name.Local == "notes" && isXLIFFElement(child) {
+			for _, note := range child.children {
+				appendNote(note)
+			}
+			continue
+		}
+		appendNote(child)
+	}
+	return strings.Join(parts, "\n")
 }
 
 // XLIFFSourceStructureEqual reports whether the same entry keys refer to the
@@ -453,7 +498,7 @@ func xliffTargetAttrs(source *xliffElement) string {
 			name = "xml:space"
 		}
 		if name != "" {
-			out.WriteString(" " + name + `="` + escapeXLIFFAttrValue(attr.Value) + `"`)
+			out.WriteString(xliffQuotedAttr(name, attr.Value))
 		}
 	}
 	return out.String()
@@ -553,22 +598,29 @@ func escapeXLIFFText(value string) string {
 }
 
 // escapeXLIFFAttrValue explicitly protects both attribute quote delimiters.
-// xml.EscapeText already escapes them; keep these replacements explicit for
-// static analyzers and to preserve the attribute contract if text escaping changes.
+// xml.EscapeText already escapes them; keep these replacements on every return
+// path so static analyzers treat the result as sanitized, and so the contract
+// holds if text escaping changes.
 func escapeXLIFFAttrValue(value string) string {
 	// Attribute values cannot reuse the text fast path: XML attribute-value
 	// normalization turns literal tabs and newlines into spaces, and forbidden
 	// code points must go through xml.EscapeText (U+FFFD) even without quotes.
-	if !strings.ContainsAny(value, "<>&'\"\r\t\n") && isXMLPlainCharData(value) {
-		return value
+	escaped := value
+	if strings.ContainsAny(value, "<>&'\"\r\t\n") || !isXMLPlainCharData(value) {
+		var out bytes.Buffer
+		out.Grow(len(value) + 16)
+		_ = xml.EscapeText(&out, []byte(value))
+		escaped = out.String()
 	}
-	var out bytes.Buffer
-	out.Grow(len(value) + 16)
-	_ = xml.EscapeText(&out, []byte(value))
-	escaped := out.String()
 	escaped = strings.ReplaceAll(escaped, `"`, "&#34;")
 	escaped = strings.ReplaceAll(escaped, "'", "&#39;")
 	return escaped
+}
+
+// xliffQuotedAttr builds ` name="value"` with quote replacement at the
+// concatenation site so go/unsafe-quoting can see the sanitizer.
+func xliffQuotedAttr(name, value string) string {
+	return " " + name + `="` + strings.ReplaceAll(escapeXLIFFAttrValue(value), `"`, "&#34;") + `"`
 }
 
 // setXLIFFTagAttr edits the value of an unqualified attribute only, preserving
@@ -616,7 +668,7 @@ func setXLIFFTagAttr(tag, name, value string) string {
 	if end > 0 && tag[end-1] == '/' {
 		end--
 	}
-	return tag[:end] + " " + name + `="` + escapeXLIFFAttrValue(value) + `"` + tag[end:]
+	return tag[:end] + xliffQuotedAttr(name, value) + tag[end:]
 }
 
 func isXLIFFWhitespace(c byte) bool {
@@ -670,7 +722,7 @@ func xliffInlineCodes(source *xliffElement, value string) (xliffInlineSignature,
 	var wrapper strings.Builder
 	wrapper.WriteString("<hyperlocalise-root")
 	for name, namespace := range namespaces {
-		wrapper.WriteString(" " + name + `="` + escapeXLIFFAttrValue(namespace) + `"`)
+		wrapper.WriteString(xliffQuotedAttr(name, namespace))
 	}
 	wrapper.WriteString(">" + value + "</hyperlocalise-root>")
 	decoder := xml.NewDecoder(strings.NewReader(wrapper.String()))

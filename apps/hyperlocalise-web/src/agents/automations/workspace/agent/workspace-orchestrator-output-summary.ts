@@ -79,6 +79,34 @@ export function readCreateNativeTmsJob(
   return null;
 }
 
+export function readImportSanityDocuments(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.import_sanity_documents;
+  if (fromCurrentStep && typeof fromCurrentStep.imported === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.importSanityDocuments;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.imported === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "import_sanity_documents",
+  );
+  if (fromPriorStep && typeof fromPriorStep.imported === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
 export function readImportIntercomArticles(
   outputSummary: Record<string, unknown>,
   stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
@@ -101,6 +129,202 @@ export function readImportIntercomArticles(
     "import_intercom_articles",
   );
   if (fromPriorStep && typeof fromPriorStep.imported === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
+export function readImportBrazeTemplates(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.import_braze_templates;
+  if (fromCurrentStep && typeof fromCurrentStep.imported === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.importBrazeTemplates;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.imported === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "import_braze_templates",
+  );
+  if (fromPriorStep && typeof fromPriorStep.imported === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
+export function readImportBrazeCampaigns(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.import_braze_campaigns;
+  if (fromCurrentStep && typeof fromCurrentStep.imported === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.importBrazeCampaigns;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.imported === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "import_braze_campaigns",
+  );
+  if (fromPriorStep && typeof fromPriorStep.imported === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
+export function readPushBrazeCampaigns(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.push_braze_campaigns;
+  if (fromCurrentStep && typeof fromCurrentStep.pushedLocales === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.pushBrazeCampaigns;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.pushedLocales === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "push_braze_campaigns",
+  );
+  if (fromPriorStep && typeof fromPriorStep.pushedLocales === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
+export function readPushBrazeTemplates(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.push_braze_templates;
+  if (fromCurrentStep && typeof fromCurrentStep.pushedLocales === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.pushBrazeTemplates;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.pushedLocales === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "push_braze_templates",
+  );
+  if (fromPriorStep && typeof fromPriorStep.pushedLocales === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
+export function readPushSanityTranslations(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.push_sanity_translations;
+  if (fromCurrentStep && typeof fromCurrentStep.pushedLocales === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.pushSanityTranslations;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.pushedLocales === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "push_sanity_translations",
+  );
+  if (fromPriorStep && typeof fromPriorStep.pushedLocales === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
+export function readImportGoogleDriveFiles(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.import_google_drive_files;
+  if (fromCurrentStep && typeof fromCurrentStep.imported === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.importGoogleDriveFiles;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.imported === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "import_google_drive_files",
+  );
+  if (fromPriorStep && typeof fromPriorStep.imported === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
+export function readPushGoogleDriveTranslations(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.push_google_drive_translations;
+  if (fromCurrentStep && typeof fromCurrentStep.pushed === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.pushGoogleDriveTranslations;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.pushed === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "push_google_drive_translations",
+  );
+  if (fromPriorStep && typeof fromPriorStep.pushed === "number") {
     return fromPriorStep;
   }
 
@@ -209,6 +433,14 @@ export function buildWorkspaceOrchestratorOutputSummary(
   const createIssue = readCreateIssue(base, stepResults);
   const importIntercomArticles = readImportIntercomArticles(base, stepResults);
   const pushIntercomTranslations = readPushIntercomTranslations(base, stepResults);
+  const importSanityDocuments = readImportSanityDocuments(base, stepResults);
+  const pushSanityTranslations = readPushSanityTranslations(base, stepResults);
+  const importBrazeTemplates = readImportBrazeTemplates(base, stepResults);
+  const pushBrazeTemplates = readPushBrazeTemplates(base, stepResults);
+  const importBrazeCampaigns = readImportBrazeCampaigns(base, stepResults);
+  const pushBrazeCampaigns = readPushBrazeCampaigns(base, stepResults);
+  const importGoogleDriveFiles = readImportGoogleDriveFiles(base, stepResults);
+  const pushGoogleDriveTranslations = readPushGoogleDriveTranslations(base, stepResults);
 
   return {
     ...base,
@@ -218,6 +450,14 @@ export function buildWorkspaceOrchestratorOutputSummary(
     ...(createIssue ? { createIssue } : {}),
     ...(importIntercomArticles ? { importIntercomArticles } : {}),
     ...(pushIntercomTranslations ? { pushIntercomTranslations } : {}),
+    ...(importSanityDocuments ? { importSanityDocuments } : {}),
+    ...(pushSanityTranslations ? { pushSanityTranslations } : {}),
+    ...(importBrazeTemplates ? { importBrazeTemplates } : {}),
+    ...(pushBrazeTemplates ? { pushBrazeTemplates } : {}),
+    ...(importBrazeCampaigns ? { importBrazeCampaigns } : {}),
+    ...(pushBrazeCampaigns ? { pushBrazeCampaigns } : {}),
+    ...(importGoogleDriveFiles ? { importGoogleDriveFiles } : {}),
+    ...(pushGoogleDriveTranslations ? { pushGoogleDriveTranslations } : {}),
     orchestratorStepResults: stepResults,
     ...(options?.notificationWarnings && options.notificationWarnings.length > 0
       ? { notificationWarnings: options.notificationWarnings }

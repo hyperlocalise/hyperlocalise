@@ -13,6 +13,7 @@
 import { and, asc, count, eq, gt, inArray, lt, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import type { MessageFormat } from "@/lib/i18n/message-format";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
 import type { TranslationQaScanQueue } from "@/lib/workflow/types";
@@ -27,7 +28,7 @@ import {
 import { QA_CHECK_VERSION, validateScanSegment } from "./scan-segment-validation";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { capResolvedSpellcheckWords } from "@/lib/spellcheck-dictionary/normalize-word";
-import { DEFAULT_QA_POLICY, type QaCheckPolicy } from "./qa-policy";
+import { DEFAULT_QA_POLICY, resolveQaPolicy, type QaCheckPolicy } from "./qa-policy";
 import { notifyQaScanFailed, notifyQaScanSucceeded } from "./qa-scan-notifications";
 import { QaCliUnavailableError, validateQaPageInSandbox } from "./validate-page-in-sandbox";
 
@@ -44,6 +45,7 @@ type QaScanKeyRow = {
   sourceText: string;
   maxLength: number | null;
   sourcePath: string | null;
+  messageFormat: MessageFormat | null;
 };
 
 type NativeQaProject = {
@@ -231,6 +233,7 @@ export async function scanTranslationQaPage(input: {
       sourceText: schema.projectTranslationKeys.sourceText,
       maxLength: schema.projectTranslationKeys.maxLength,
       sourcePath: schema.repositorySourceFiles.sourcePath,
+      messageFormat: schema.repositorySourceFiles.messageFormat,
     })
     .from(schema.projectTranslationKeys)
     .leftJoin(
@@ -315,7 +318,7 @@ export async function scanTranslationQaPage(input: {
   const acceptedWordsByLocale = acceptedSpellcheckWordsByLocale(wordRows.rows);
   const skippedChecksByLocale: Record<string, string[]> = {};
   const requests = keys.flatMap((key) => locales.map((targetLocale) => ({ key, targetLocale })));
-  const policy = run.checkPolicy ?? DEFAULT_QA_POLICY;
+  const policy = resolveQaPolicy(run.checkPolicy ?? DEFAULT_QA_POLICY);
   const segments = requests.map(({ key, targetLocale }, index) => {
     const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
     return {
@@ -353,9 +356,14 @@ export async function scanTranslationQaPage(input: {
       "QA CLI is not available in sandbox",
     );
     const fallbackStartedAt = Date.now();
-    results = await mapWithConcurrency(segments, 8, async (segment) => {
+    const fallbackSegments = segments.map((segment, index) => ({
+      ...segment,
+      glossaryTerms,
+      messageFormat: requests[index]?.key.messageFormat ?? null,
+    }));
+    results = await mapWithConcurrency(fallbackSegments, 8, async (segment) => {
       const { checks, skippedChecks } = await validateScanSegment(
-        { ...segment, glossaryTerms },
+        segment,
         acceptedWordsByLocale.get(normalizeQaSpellcheckLocale(segment.targetLocale)) ?? [],
         policy,
       );
@@ -744,7 +752,7 @@ function uniqueSortedLocales(locales: readonly string[]) {
 }
 
 function disabledQaCheckTypes(policy: QaCheckPolicy | null | undefined) {
-  const resolved = policy ? { ...DEFAULT_QA_POLICY, ...policy } : DEFAULT_QA_POLICY;
+  const resolved = resolveQaPolicy(policy);
   return translationQaCheckTypes.filter((checkType) => !resolved[checkType].enabled);
 }
 

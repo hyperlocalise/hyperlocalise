@@ -30,8 +30,19 @@ import {
   CrowdinApiClient,
   CrowdinApiError,
   CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT,
+  crowdinSourceStringKey,
+  crowdinTmSegmentRemoveRecordOperation,
+  crowdinTmSegmentReplaceTextOperation,
   extractCrowdinApiErrorSummary,
 } from "./crowdin-api";
+
+describe("crowdinSourceStringKey", () => {
+  it("falls back to the numeric string id when Crowdin omits an identifier", () => {
+    expect(crowdinSourceStringKey({ id: 1001, identifier: null })).toBe("1001");
+    expect(crowdinSourceStringKey({ id: 1001, identifier: "   " })).toBe("1001");
+    expect(crowdinSourceStringKey({ id: 1001, identifier: "hero.title" })).toBe("hero.title");
+  });
+});
 
 describe("CrowdinApiClient", () => {
   beforeEach(() => {
@@ -1243,6 +1254,18 @@ describe("CrowdinApiClient", () => {
     await client.listTasks(1, { orderBy: "updatedAt desc" });
   });
 
+  it("filters project tasks by status", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const requestUrl = new URL(String(url));
+      expect(requestUrl.searchParams.get("status")).toBe("todo,in_progress");
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await client.listTasks(1, { statuses: ["todo", "in_progress"] });
+  });
+
   it("lists user tasks with live list defaults", async () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);
@@ -1669,6 +1692,76 @@ describe("CrowdinApiClient", () => {
     expect(memories[0]?.segmentsCount).toBe(100);
   });
 
+  it("loads a translation memory and patches a segment with RFC 6902 operations", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+      if (path.endsWith("/tms/9") && (!init || init.method === "GET")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 9,
+              name: "Product TM",
+              description: null,
+              languageId: "en",
+              languageIds: ["en", "fr"],
+              segmentsCount: 100,
+              projectIds: [42],
+              defaultProjectIds: [],
+              webUrl: "https://crowdin.com/tm/9",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.endsWith("/tms/9/segments/4") && init?.method === "PATCH") {
+        expect(JSON.parse(String(init.body))).toEqual([
+          { op: "replace", path: "/records/12/text", value: "Bonjour !" },
+          { op: "remove", path: "/records/13" },
+        ]);
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 4,
+              records: [{ id: 12, languageId: "fr", text: "Bonjour !" }],
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(null, { status: 204 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await expect(client.getTranslationMemory(9)).resolves.toMatchObject({
+      id: 9,
+      projectIds: [42],
+    });
+    await expect(
+      client.updateTranslationMemorySegment(9, 4, [
+        { op: "replace", path: "/records/12/text", value: "Bonjour !" },
+        { op: "remove", path: "/records/13" },
+      ]),
+    ).resolves.toMatchObject({
+      id: 4,
+      records: [{ id: 12, languageId: "fr", text: "Bonjour !" }],
+    });
+    await expect(client.deleteTranslationMemorySegment(9, 4)).resolves.toBeUndefined();
+  });
+
+  it("builds Crowdin TM segment JSON Patch operations", () => {
+    expect(crowdinTmSegmentReplaceTextOperation(12, "Bonjour !")).toEqual({
+      op: "replace",
+      path: "/records/12/text",
+      value: "Bonjour !",
+    });
+    expect(crowdinTmSegmentRemoveRecordOperation(13)).toEqual({
+      op: "remove",
+      path: "/records/13",
+    });
+  });
+
   it("passes glossary pagination, ordering, user, and filter parameters", async () => {
     let requestedUrl = "";
     const fetchMock = vi.fn(async (url) => {
@@ -1753,6 +1846,30 @@ describe("CrowdinApiClient", () => {
 
     expect(progress[0]?.languageId).toBe("fr");
     expect(progress[0]?.translationProgress).toBe(50);
+  });
+
+  it("lists per-file progress for one language and drops non-file rows", async () => {
+    const counts = {
+      words: { total: 20, translated: 10, approved: 5 },
+      phrases: { total: 10, translated: 5, approved: 2 },
+      translationProgress: 50,
+      approvalProgress: 25,
+    };
+    const fetchMock = vi.fn(async (url: string) => {
+      expect(url).toContain("/projects/1/languages/es-ES/progress");
+
+      return new Response(
+        JSON.stringify({
+          data: [{ data: { fileId: 9, ...counts } }, { data: { branchId: 3, ...counts } }],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const progress = await client.listLanguageFileProgress(1, "es-ES");
+
+    expect(progress).toEqual([{ fileId: 9, ...counts }]);
   });
 
   it("editTaskFields rejects non-canonical Crowdin assignee ids", async () => {

@@ -46,16 +46,37 @@ import {
 } from "@/lib/agents/workspace-automations";
 import { resolveContentSyncRepositoryTarget } from "@/lib/agents/content-sync/content-sync-config";
 import {
+  hasWorkspaceAutomationBrazeCampaignsTool,
+  hasWorkspaceAutomationBrazeTool,
+  hasWorkspaceAutomationGoogleDriveTool,
   hasWorkspaceAutomationIntercomTool,
+  hasWorkspaceAutomationSanityTool,
   type WorkspaceAutomationConfigValidationError,
   type WorkspaceAutomationKind,
   type WorkspaceAutomationRepositoryTarget,
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automation-types";
 import {
+  getBrazeCampaignPushEligibility,
+  getBrazePushEligibility,
+  isBrazePushRunActive,
+  type BrazePushItem,
+} from "@/lib/braze/push-eligibility";
+import {
   getIntercomPushEligibility,
   isIntercomPushRunActive,
+  type IntercomPushArticle,
 } from "@/lib/intercom/push-eligibility";
+import {
+  getGoogleDrivePushEligibility,
+  isGoogleDrivePushRunActive,
+  type GoogleDrivePushFile,
+} from "@/lib/google-drive/push-eligibility";
+import {
+  getSanityPushEligibility,
+  isSanityPushRunActive,
+  type SanityPushDocument,
+} from "@/lib/sanity/push-eligibility";
 import {
   createWorkspaceAutomationKnowledgeFile,
   deleteWorkspaceAutomationKnowledgeFile,
@@ -72,11 +93,16 @@ import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import { isErr } from "@/lib/primitives/result/results";
-import { enqueueAutomationStatusActivity } from "@/lib/activity-log/job-automation-events";
+import {
+  enqueueAutomationCreatedActivity,
+  enqueueAutomationDeletedActivity,
+  enqueueAutomationStatusActivity,
+} from "@/lib/activity-log/job-automation-events";
 
 import {
   createWorkspaceAutomationBodySchema,
   createWorkspaceAutomationRunBodySchema,
+  getWorkspaceAutomationQuerySchema,
   listWorkspaceAutomationRunsQuerySchema,
   listWorkspaceAutomationsQuerySchema,
   updateWorkspaceAutomationBodySchema,
@@ -106,6 +132,23 @@ const validateAutomationParams = validator("param", (value, c) => {
   }
   return parsed.data;
 });
+
+const validateGetAutomationQuery = validator("query", (value, c) => {
+  const parsed = getWorkspaceAutomationQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_query_params",
+      "Query parameters are invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+function readIncludePushArticlesQuery(value: string | undefined) {
+  return value === "true" || value === "1";
+}
 
 const validateCreateBody = validator("json", (value, c) => {
   const parsed = createWorkspaceAutomationBodySchema.safeParse(value);
@@ -533,13 +576,26 @@ export function createWorkspaceAutomationRoutes(
           return mapAutomationConfigValidationError(c, result.error);
         }
 
+        await enqueueAutomationCreatedActivity({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          automationId: result.value.id,
+          name: result.value.name,
+          organizationId,
+          status: result.value.status,
+        });
+
         return c.json({ automation: result.value, recentRuns: [] }, 201);
       } catch (error) {
         return mapAutomationError(c, error);
       }
     })
-    .get("/:automationId", validateAutomationParams, async (c) => {
+    .get("/:automationId", validateAutomationParams, validateGetAutomationQuery, async (c) => {
       const params = c.req.valid("param");
+      const includePushArticles = readIncludePushArticlesQuery(
+        c.req.valid("query").includePushArticles,
+      );
       const organizationId = c.var.auth.organization.localOrganizationId;
       const automation = await getWorkspaceAutomationById({
         automationId: params.automationId,
@@ -560,20 +616,95 @@ export function createWorkspaceAutomationRoutes(
         eligibleLocaleCount: number;
         mappedArticleCount: number;
         pushRunInProgress: boolean;
+        articles?: IntercomPushArticle[];
       } | null = null;
       if (hasWorkspaceAutomationIntercomTool(automation.toolConfig)) {
         const eligibility = await getIntercomPushEligibility({
           organizationId,
           automation,
+          includeLocaleProgress: includePushArticles,
         });
         intercomPush = {
           eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
           mappedArticleCount: eligibility?.mappedArticleCount ?? 0,
           pushRunInProgress: isIntercomPushRunActive(recentRuns),
+          ...(includePushArticles ? { articles: eligibility?.articles ?? [] } : {}),
         };
       }
 
-      return c.json({ automation, recentRuns, intercomPush }, 200);
+      let sanityPush: {
+        eligibleLocaleCount: number;
+        mappedDocumentCount: number;
+        pushRunInProgress: boolean;
+        documents?: SanityPushDocument[];
+      } | null = null;
+      if (hasWorkspaceAutomationSanityTool(automation.toolConfig)) {
+        const eligibility = await getSanityPushEligibility({
+          organizationId,
+          automation,
+          includeLocaleProgress: includePushArticles,
+        });
+        sanityPush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedDocumentCount: eligibility?.mappedDocumentCount ?? 0,
+          pushRunInProgress: isSanityPushRunActive(recentRuns),
+          ...(includePushArticles ? { documents: eligibility?.documents ?? [] } : {}),
+        };
+      }
+
+      let brazePush: {
+        eligibleLocaleCount: number;
+        mappedItemCount: number;
+        pushRunInProgress: boolean;
+        items?: BrazePushItem[];
+      } | null = null;
+      if (
+        hasWorkspaceAutomationBrazeTool(automation.toolConfig) ||
+        hasWorkspaceAutomationBrazeCampaignsTool(automation.toolConfig)
+      ) {
+        const eligibility = hasWorkspaceAutomationBrazeCampaignsTool(automation.toolConfig)
+          ? await getBrazeCampaignPushEligibility({
+              organizationId,
+              automation,
+              includeLocaleProgress: includePushArticles,
+            })
+          : await getBrazePushEligibility({
+              organizationId,
+              automation,
+              includeLocaleProgress: includePushArticles,
+            });
+        brazePush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedItemCount: eligibility?.mappedItemCount ?? 0,
+          pushRunInProgress: isBrazePushRunActive(recentRuns),
+          ...(includePushArticles ? { items: eligibility?.items ?? [] } : {}),
+        };
+      }
+
+      let googleDrivePush: {
+        eligibleLocaleCount: number;
+        mappedFileCount: number;
+        pushRunInProgress: boolean;
+        files?: GoogleDrivePushFile[];
+      } | null = null;
+      if (hasWorkspaceAutomationGoogleDriveTool(automation.toolConfig)) {
+        const eligibility = await getGoogleDrivePushEligibility({
+          organizationId,
+          automation,
+          includeLocaleProgress: includePushArticles,
+        });
+        googleDrivePush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedFileCount: eligibility?.mappedFileCount ?? 0,
+          pushRunInProgress: isGoogleDrivePushRunActive(recentRuns),
+          ...(includePushArticles ? { files: eligibility?.files ?? [] } : {}),
+        };
+      }
+
+      return c.json(
+        { automation, recentRuns, intercomPush, sanityPush, brazePush, googleDrivePush },
+        200,
+      );
     })
     .get("/:automationId/knowledge-files", validateAutomationParams, async (c) => {
       const params = c.req.valid("param");
@@ -798,14 +929,13 @@ export function createWorkspaceAutomationRoutes(
       }
 
       if (existing.status !== "archived") {
-        await enqueueAutomationStatusActivity({
+        await enqueueAutomationDeletedActivity({
           actorCredentialId: null,
           actorKind: "user",
           actorUserId: c.var.auth.user.localUserId,
           automationId: existing.id,
           name: result.value.name,
           organizationId,
-          status: "archived",
         });
       }
 

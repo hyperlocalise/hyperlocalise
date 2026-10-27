@@ -1,0 +1,120 @@
+---
+title: "Canva app OAuth"
+description: "Configure Hyperlocalise as the OAuth authorization server for the Canva design editor app."
+---
+
+Hyperlocalise acts as the OAuth 2.0 authorization server. The Canva app uses `@canva/user` `auth.initOauth()` as the client. Canva’s Developer Portal supplies the **client ID and secret** you copy into `hyperlocalise-web` env vars.
+
+Implementation lives in `apps/hyperlocalise-web` (`/api/oauth/canva/*`) and the Canva UI in `apps/canva-app`. End-user workflow is in [Localize Canva](/platform/connections/canva).
+
+## Flow
+
+1. Designer chooses **Connect Hyperlocalise** in the Canva app.
+2. Canva opens `{ORIGIN}/api/oauth/canva/authorize` (PKCE, scope `canva`).
+3. Hyperlocalise signs the user in with WorkOS if needed, then shows consent at `/en/connect/canva/oauth` to pick a workspace **Canva connection**.
+4. Canva exchanges the authorization code at `{ORIGIN}/api/oauth/canva/token` and stores `hl_canva_at_*` tokens.
+5. The app calls `/api/integrations/canva/*` with header `X-Hyperlocalise-Access-Token`.
+
+Create the Canva connection under workspace **Integrations** before consent can list any option.
+
+## Canva Developer Portal URLs
+
+Replace `{ORIGIN}` with the public Hyperlocalise web origin (same as `HYPERLOCALISE_PUBLIC_APP_URL`, no trailing slash).
+
+| Portal field | URL |
+| --- | --- |
+| Authorization server URL | `{ORIGIN}/api/oauth/canva/authorize` |
+| Token exchange URL | `{ORIGIN}/api/oauth/canva/token` |
+
+Production example (adjust host to your deployment):
+
+- `https://www.hyperlocalise.com/api/oauth/canva/authorize`
+- `https://www.hyperlocalise.com/api/oauth/canva/token`
+
+Optional endpoints:
+
+- Discovery: `{ORIGIN}/api/oauth/canva/.well-known/oauth-authorization-server`
+- Revocation: `{ORIGIN}/api/oauth/canva/revoke`
+
+Verify metadata before saving the portal:
+
+```bash
+curl -s "https://www.hyperlocalise.com/api/oauth/canva/.well-known/oauth-authorization-server" | jq .
+```
+
+The JSON `authorization_endpoint` and `token_endpoint` must match the two portal fields.
+
+Also in the portal:
+
+1. Set **Development URL** to `http://localhost:8080` when running [`apps/canva-app`](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/canva-app/README.md).
+2. Allow redirect URI `https://www.canva.com/apps/oauth/authorized` (Hyperlocalise default allowlist when `CANVA_OAUTH_REDIRECT_URI` is unset).
+3. Copy **App ID** → `CANVA_APP_ID` on web and Canva app env.
+4. Copy **Client ID** and **Client secret** from Canva into `CANVA_OAUTH_CLIENT_ID` and `CANVA_OAUTH_CLIENT_SECRET` on the web app.
+
+See Canva’s guide: [Authenticating users with OAuth](https://www.canva.dev/docs/apps/authenticating-users/oauth/).
+
+## Environment variables
+
+### `apps/hyperlocalise-web`
+
+| Variable | Purpose |
+| --- | --- |
+| `CANVA_OAUTH_CLIENT_ID` | Client ID from Canva Developer Portal |
+| `CANVA_OAUTH_CLIENT_SECRET` | Client secret from the portal |
+| `CANVA_OAUTH_REDIRECT_URI` | Optional comma-separated redirect allowlist; default includes `https://www.canva.com/apps/oauth/authorized` |
+| `HYPERLOCALISE_PUBLIC_APP_URL` | Public origin for consent redirects |
+| `CANVA_APP_ID` | Canva app ID (JWT verification for Canva user tokens) |
+| `CANVA_APP_ORIGIN` | Canva app dev origin, e.g. `http://localhost:8080` |
+| `CANVA_CORS_ORIGINS` | Optional extra origins for `/api/integrations/canva/*` |
+| `PROVIDER_CREDENTIALS_MASTER_KEY` | Signs OAuth request cookies and token lookup digests |
+
+If `CANVA_OAUTH_CLIENT_ID` or `CANVA_OAUTH_CLIENT_SECRET` is missing, OAuth routes return `canva_oauth_unconfigured` (503).
+
+### `apps/canva-app`
+
+| Variable | Purpose |
+| --- | --- |
+| `CANVA_BACKEND_HOST` | Hyperlocalise web origin (`http://localhost:3000` locally) |
+| `CANVA_APP_ID` | Same as Developer Portal |
+| `CANVA_APP_ORIGIN` | App origin from portal **Settings → Security** when required |
+
+## Local development
+
+Canva’s servers POST to `/api/oauth/canva/token`. They cannot reach `http://localhost:3000` unless the web app is on a **public HTTPS tunnel** and `{ORIGIN}` in the portal matches that URL.
+
+Alternatives:
+
+- Test OAuth against **staging or production** Hyperlocalise with portal URLs pointed at that deployment.
+- Use a **connection token** from a locally running Integrations page. The token paste control appears only in the local Canva app, not in the published app.
+
+Run the Canva frontend:
+
+```bash
+cd apps/canva-app
+vp install
+cp .env.template .env
+vp run start
+```
+
+Run the web app with OAuth env set and migrations applied (`vp run db:migrate`).
+
+## Verification
+
+1. Metadata curl returns issuer and endpoints.
+2. Connect from Canva preview reaches consent, not `canva_oauth_unconfigured`.
+3. After connect, the app shows workspace, project, and locale rows.
+4. Automated tests: `apps/hyperlocalise-web/src/api/routes/canva-oauth/canva-oauth.route.test.ts`.
+
+## Troubleshooting
+
+| Symptom | Likely cause |
+| --- | --- |
+| `canva_oauth_unconfigured` | Missing OAuth client env on web app |
+| `invalid_client` | `client_id` on authorize ≠ `CANVA_OAUTH_CLIENT_ID` |
+| `invalid_redirect_uri` | Portal redirect not in allowlist |
+| Empty consent connection list | No Canva connection in Integrations |
+| `access_denied` | Disabled connection or missing `provider_credentials:write` |
+| `canva_access_token_invalid` | Expired or revoked token (access lifetime 1 hour) |
+| CORS from Canva iframe | Set `CANVA_CORS_ORIGINS` or rely on `*.canva-apps.com` matching |
+
+Consent requires an enabled Canva connection and org role capability `provider_credentials:write`.

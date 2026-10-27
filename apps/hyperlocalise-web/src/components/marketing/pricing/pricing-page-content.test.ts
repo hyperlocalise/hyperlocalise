@@ -37,6 +37,12 @@ describe("pricing page content", () => {
 
     expect(plans.map((plan) => plan.id)).toEqual([...pricingPlanOrder]);
     expect(plans.find((plan) => plan.id === "free")?.features).toEqual(["1 project", "1 seat"]);
+    expect(plans.find((plan) => plan.id === "free")?.cardHeading).toBe("Free Plan: Free");
+    expect(plans.find((plan) => plan.id === "starter")?.cardHeading).toBe("Starter: $20 per month");
+    expect(plans.find((plan) => plan.id === "growth")?.cardHeading).toBe(
+      "Growth Plan: $2,000 per month",
+    );
+    expect(plans.find((plan) => plan.id === "enterprise")?.cardHeading).toBe("Enterprise: Custom");
     expect(plans.find((plan) => plan.id === "starter")?.price).toBe("$20");
     expect(plans.find((plan) => plan.id === "growth")?.price).toBe("$2,000");
     expect(plans.find((plan) => plan.id === "growth")?.popular).toBe(true);

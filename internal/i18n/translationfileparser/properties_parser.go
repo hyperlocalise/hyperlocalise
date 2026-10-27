@@ -99,7 +99,9 @@ func parseJavaPropertiesDocument(content []byte) (propertiesDocument, error) {
 		first := firstPropertiesNonWhitespace(rawLine)
 		if first >= len(rawLine) {
 			pendingComments = nil
-			currentLine += countPropertiesLines(text[pos:next])
+			if contentEnd < next {
+				currentLine++
+			}
 			pos = next
 			continue
 		}
@@ -111,12 +113,14 @@ func parseJavaPropertiesDocument(content []byte) (propertiesDocument, error) {
 				comment = comment[1:]
 			}
 			pendingComments = append(pendingComments, comment)
-			currentLine += countPropertiesLines(text[pos:next])
+			if contentEnd < next {
+				currentLine++
+			}
 			pos = next
 			continue
 		}
 
-		logical, nextPos, err := readPropertiesLogicalLine(text, pos, currentLine)
+		logical, nextPos, lineCount, err := readPropertiesLogicalLine(text, pos, contentStart, contentEnd, next, currentLine)
 		if err != nil {
 			return propertiesDocument{}, err
 		}
@@ -131,7 +135,7 @@ func parseJavaPropertiesDocument(content []byte) (propertiesDocument, error) {
 		}
 		seen[entry.key] = entry.line
 		doc.entries = append(doc.entries, entry)
-		currentLine += countPropertiesLines(text[pos:nextPos])
+		currentLine += lineCount
 		pos = nextPos
 	}
 
@@ -296,6 +300,11 @@ func (d propertiesDocument) render(values map[string]string) []byte {
 	}
 	b.WriteString(d.template[cursor:])
 
+	// BOLT OPTIMIZATION: If all keys in values were present in the template, bypass missing slice allocations.
+	if len(seen) == len(values) {
+		return []byte(b.String())
+	}
+
 	missing := make([]string, 0, len(values)-len(seen))
 	for key := range values {
 		if _, ok := seen[key]; ok {
@@ -323,26 +332,30 @@ func (d propertiesDocument) render(values map[string]string) []byte {
 	return []byte(out.String())
 }
 
-func readPropertiesLogicalLine(text string, start int, lineNumber int) (propertiesLogicalLine, int, error) {
-	contentStart, contentEnd, next := readPropertiesPhysicalLine(text, start)
+func readPropertiesLogicalLine(text string, start, contentStart, contentEnd, next int, lineNumber int) (propertiesLogicalLine, int, int, error) {
 	continued := propertiesLineContinues(text[contentStart:contentEnd])
 
 	// Fast-path: Single-line properties without continuations (the common case)
 	// avoid strings.Builder and boundaryRaw slice allocations.
 	if !continued {
+		lineCount := 0
+		if contentEnd < next {
+			lineCount = 1
+		}
 		return propertiesLogicalLine{
 			text:        text[contentStart:contentEnd],
 			rawStart:    contentStart,
 			rawEnd:      contentEnd,
 			boundaryRaw: nil,
 			line:        lineNumber,
-		}, next, nil
+		}, next, lineCount, nil
 	}
 
 	var b strings.Builder
 	boundaryRaw := []int{contentStart}
 	pos := start
 	firstPhysicalLine := true
+	lineCount := 0
 
 	for {
 		// Use the already-calculated physical line bounds for the first iteration
@@ -352,6 +365,10 @@ func readPropertiesLogicalLine(text string, start int, lineNumber int) (properti
 			pStart, pEnd, pNext = contentStart, contentEnd, next
 		} else {
 			pStart, pEnd, pNext = readPropertiesPhysicalLine(text, pos)
+		}
+
+		if pEnd < pNext {
+			lineCount++
 		}
 
 		appendStart := pStart
@@ -372,13 +389,19 @@ func readPropertiesLogicalLine(text string, start int, lineNumber int) (properti
 				rawEnd:      pEnd,
 				boundaryRaw: boundaryRaw,
 				line:        lineNumber,
-			}, pNext, nil
+			}, pNext, lineCount, nil
 		}
 
 		if pNext >= len(text) {
-			// Accurately report the line where the dangling continuation was found.
-			errLine := lineNumber + countPropertiesLines(text[start:pEnd])
-			return propertiesLogicalLine{}, pNext, fmt.Errorf("line %d: continuation escape at end of file", errLine)
+			// lineCount already includes this physical line's terminator when
+			// the dangling backslash is followed by a newline. Report the
+			// source line of the backslash, not the empty line after it.
+			precedingTerminators := lineCount
+			if pEnd < pNext {
+				precedingTerminators--
+			}
+			errLine := lineNumber + precedingTerminators
+			return propertiesLogicalLine{}, pNext, lineCount, fmt.Errorf("line %d: continuation escape at end of file", errLine)
 		}
 
 		pos = pNext
@@ -449,26 +472,6 @@ func skipPropertiesPhysicalWhitespace(s string, start, end int) int {
 
 func isPropertiesWhitespace(ch byte) bool {
 	return ch == ' ' || ch == '\t' || ch == '\f'
-}
-
-func countPropertiesLines(s string) int {
-	// BOLT OPTIMIZATION: Single-pass line counter avoiding redundant full-string scans.
-	if !strings.ContainsAny(s, "\r\n") {
-		return 0
-	}
-	lines := 0
-	for i := 0; i < len(s); i++ {
-		switch s[i] {
-		case '\n':
-			lines++
-		case '\r':
-			if i+1 < len(s) && s[i+1] == '\n' {
-				i++
-			}
-			lines++
-		}
-	}
-	return lines
 }
 
 func decodeJavaPropertiesEscapes(raw string) (string, error) {

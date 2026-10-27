@@ -9,7 +9,8 @@ func ingestEntryNeedsObject(entry IngestEntry) bool {
 		entry.Fingerprint != "" ||
 		entry.Path != "" ||
 		entry.Kind != "" ||
-		entry.Format != ""
+		entry.Format != "" ||
+		entry.Context != ""
 }
 
 func ingestEntryObject(entry IngestEntry) map[string]any {
@@ -30,6 +31,9 @@ func ingestEntryObject(entry IngestEntry) map[string]any {
 	}
 	if entry.Format != "" {
 		payload["format"] = entry.Format
+	}
+	if entry.Context != "" {
+		payload["context"] = entry.Context
 	}
 	return payload
 }

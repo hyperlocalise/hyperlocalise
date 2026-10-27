@@ -274,6 +274,18 @@ const sampledPages: LocalisationAuditReport["pages"] = [
     htmlLang: "de",
     title: "Preise — Acme",
   },
+  {
+    url: "https://acme.example/de/pricing",
+    status: 200,
+    htmlLang: "de",
+    title: "Preise — Acme",
+  },
+  {
+    url: "https://acme.example/ja-JP",
+    status: 403,
+    htmlLang: null,
+    title: null,
+  },
 ];
 
 const detectedLocales: LocalisationAuditTeaser["detectedLocales"] = [
@@ -368,7 +380,7 @@ export function localisationAuditStanding(score: number): LocalisationAuditStand
     rank: 12,
     total: 84,
     score,
-    percentile: 14,
+    ahead: 72,
     averageScore: 61,
   };
 }
@@ -384,6 +396,7 @@ export function localisationAuditLeaderboardEntries(): LocalisationAuditLeaderbo
       completedAt,
       companyName: "Northstar",
       logoUrl: "/images/logo/logomark-dark-mode.png",
+      methodologyVersion: 2,
     },
     {
       rank: 2,
@@ -393,6 +406,7 @@ export function localisationAuditLeaderboardEntries(): LocalisationAuditLeaderbo
       completedAt,
       companyName: "Acme",
       logoUrl: "/images/logo/logomark-dark-mode.png",
+      methodologyVersion: 2,
     },
     {
       rank: 3,
@@ -402,6 +416,7 @@ export function localisationAuditLeaderboardEntries(): LocalisationAuditLeaderbo
       completedAt,
       companyName: "Atlas",
       logoUrl: "/images/logo/logomark-dark-mode.png",
+      methodologyVersion: 2,
     },
     {
       rank: 4,
@@ -411,6 +426,7 @@ export function localisationAuditLeaderboardEntries(): LocalisationAuditLeaderbo
       completedAt,
       companyName: "Harbor",
       logoUrl: null,
+      methodologyVersion: 2,
     },
     {
       rank: 5,
@@ -420,6 +436,7 @@ export function localisationAuditLeaderboardEntries(): LocalisationAuditLeaderbo
       completedAt,
       companyName: null,
       logoUrl: null,
+      methodologyVersion: 2,
     },
   ];
 }

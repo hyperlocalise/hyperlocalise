@@ -24,7 +24,7 @@ import { cn } from "@/lib/primitives/cn";
 import { getLocalisationAuditPageCopy } from "./localisation-audit-page-content";
 
 const MESH_INPUT_CLASS =
-  "h-11 border-white/25 bg-white/15 text-white placeholder:text-white/55 focus-visible:border-white/60 focus-visible:ring-white/30";
+  "h-11 border-white/25 bg-white/15 text-white placeholder:text-white/70 focus-visible:border-white/60 focus-visible:ring-white/30";
 
 type LocalisationAuditFormProps = {
   locale: string;
@@ -46,7 +46,7 @@ export function LocalisationAuditForm({ locale, tone = "default" }: Localisation
 
     try {
       const locales = focusLocales
-        .split(/[,\s]+/)
+        .split(/[,;\n]+/)
         .map((value) => value.trim())
         .filter(Boolean)
         .slice(0, 2);
@@ -110,10 +110,14 @@ export function LocalisationAuditForm({ locale, tone = "default" }: Localisation
           name="focusLocales"
           placeholder={copy.focusPlaceholder}
           value={focusLocales}
+          aria-describedby="localisation-audit-focus-hint"
           onChange={(event) => setFocusLocales(event.target.value)}
           className={onMesh ? MESH_INPUT_CLASS : undefined}
         />
-        <p className={cn("text-sm", onMesh ? "text-white/70" : "text-muted-foreground")}>
+        <p
+          id="localisation-audit-focus-hint"
+          className={cn("text-sm", onMesh ? "text-white/85" : "text-muted-foreground")}
+        >
           {copy.focusHint}
         </p>
       </div>
@@ -131,7 +135,7 @@ export function LocalisationAuditForm({ locale, tone = "default" }: Localisation
         >
           {pending ? copy.submitting : copy.submit}
         </Button>
-        <p className={cn("text-sm", onMesh ? "text-white/70" : "text-muted-foreground")}>
+        <p className={cn("text-sm", onMesh ? "text-white/85" : "text-muted-foreground")}>
           {copy.onePerDomain({ limit: LOCALISATION_AUDIT_DAILY_RUN_LIMIT })}
         </p>
       </div>

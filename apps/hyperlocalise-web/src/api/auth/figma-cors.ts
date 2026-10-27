@@ -30,7 +30,8 @@ function parseAllowedOrigins(): Set<string> {
 
 const allowedOrigins = parseAllowedOrigins();
 
-export const FIGMA_API_KEY_HEADER = "x-api-key";
+export const FIGMA_INTEGRATION_ALLOWED_HEADERS =
+  "Content-Type, X-Hyperlocalise-Access-Token, X-Hyperlocalise-Connection-Token";
 
 export const figmaCorsMiddleware = createMiddleware(async (c, next) => {
   const origin = c.req.header("origin");
@@ -42,7 +43,7 @@ export const figmaCorsMiddleware = createMiddleware(async (c, next) => {
     c.header("Vary", "Origin");
   }
 
-  c.header("Access-Control-Allow-Headers", `Content-Type, ${FIGMA_API_KEY_HEADER}`);
+  c.header("Access-Control-Allow-Headers", FIGMA_INTEGRATION_ALLOWED_HEADERS);
   c.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
 
   if (c.req.method === "OPTIONS") {

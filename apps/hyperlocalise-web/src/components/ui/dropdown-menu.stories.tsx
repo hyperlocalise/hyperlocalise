@@ -47,8 +47,8 @@ export const Overview: Story = {
         Project actions
       </DropdownMenuTrigger>
       <DropdownMenuContent>
-        <DropdownMenuLabel>Project</DropdownMenuLabel>
         <DropdownMenuGroup>
+          <DropdownMenuLabel>Project</DropdownMenuLabel>
           <DropdownMenuItem>
             Sync provider
             <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>

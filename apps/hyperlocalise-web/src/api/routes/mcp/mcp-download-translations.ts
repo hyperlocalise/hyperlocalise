@@ -13,6 +13,15 @@
 import path from "node:path";
 
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
+import {
+  loadProjectOfficeTranslationDownload,
+  officeTranslationDownloadFailure,
+  officeTranslationDownloadFilename,
+} from "@/lib/projects/files/office-translation-download";
+import {
+  loadProjectPdfTranslationDownload,
+  mcpPdfTranslationDownloadErrorCode,
+} from "@/lib/projects/files/pdf-translation-download";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   getRepositorySourceFileByPath,
@@ -30,8 +39,10 @@ export type McpDownloadTranslationsDetail = {
   locale: string;
   sourcePath: string;
   content: string;
-  /** Present when `content` holds base64-encoded binary (dotLottie archives). */
+  /** Present when `content` holds base64-encoded binary (dotLottie archives, Office files, PDF). */
   contentEncoding?: "utf8" | "base64";
+  /** PDF block keys that could not fit after wrapping (PDF downloads only). */
+  overflowKeys?: string[];
 };
 
 export type McpDownloadTranslationsResult =
@@ -45,7 +56,11 @@ export type McpDownloadTranslationsResult =
         | "source_file_not_found"
         | "translations_not_found"
         | "unsupported_binary_download"
-        | "lottie_export_failed";
+        | "lottie_export_failed"
+        | "xlsx_export_failed"
+        | "office_export_failed"
+        | "pdf_export_failed"
+        | "pdf_script_unsupported";
     }
   | {
       ok: false;
@@ -92,6 +107,56 @@ export async function downloadMcpTranslations(input: {
       ok: false,
       error: "source_file_not_found",
     };
+  }
+
+  const officeDownload = await loadProjectOfficeTranslationDownload({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    targetLocale: input.locale,
+  });
+  if (isErr(officeDownload)) {
+    return { ok: false, error: officeTranslationDownloadFailure(input.sourcePath).code };
+  }
+  if (officeDownload.value) {
+    return {
+      ok: true,
+      value: {
+        filename: officeTranslationDownloadFilename(
+          downloadFilename(input.sourcePath, input.locale),
+          officeDownload.value,
+        ),
+        contentType: officeDownload.value.contentType,
+        locale: input.locale,
+        sourcePath: input.sourcePath,
+        contentEncoding: "base64",
+        content: officeDownload.value.content.toString("base64"),
+      },
+    };
+  }
+
+  const pdfDownload = await loadProjectPdfTranslationDownload({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    targetLocale: input.locale,
+  });
+  if (isErr(pdfDownload)) {
+    return { ok: false, error: mcpPdfTranslationDownloadErrorCode(pdfDownload.error) };
+  }
+  if (pdfDownload.value) {
+    const value: McpDownloadTranslationsDetail = {
+      filename: downloadFilename(input.sourcePath, input.locale),
+      contentType: pdfDownload.value.contentType,
+      locale: input.locale,
+      sourcePath: input.sourcePath,
+      contentEncoding: "base64",
+      content: pdfDownload.value.content.toString("base64"),
+    };
+    if (pdfDownload.value.overflowKeys.length > 0) {
+      value.overflowKeys = [...pdfDownload.value.overflowKeys];
+    }
+    return { ok: true, value };
   }
 
   const sourceFormat = inferSupportedTranslationFileFormat(input.sourcePath);
