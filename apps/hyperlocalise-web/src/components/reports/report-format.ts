@@ -66,7 +66,9 @@ export function formatDuration(intl: IntlShape, minutes: number) {
 /**
  * How a headline number changed against the previous period, in a neutral sentence. When the
  * previous value was 0 the change is the plain difference, written with `formatValue` so it is
- * in the card's own unit (hours, dollars); a count by default.
+ * in the card's own unit (hours, dollars); a count by default. Nothing, when Reports was not yet
+ * recording the whole previous period: the card then shows no comparison at all, as Stripe's
+ * dashboards do, rather than a line about missing data.
  */
 export function formatChange(
   intl: IntlShape,
@@ -77,7 +79,7 @@ export function formatChange(
   const previous = intl.formatMessage(messages.previousPeriod, { days });
   switch (change.kind) {
     case "no_earlier_data":
-      return intl.formatMessage(messages.noEarlierData);
+      return undefined;
     case "unavailable":
       return intl.formatMessage(messages.changeUnavailable);
     case "points":

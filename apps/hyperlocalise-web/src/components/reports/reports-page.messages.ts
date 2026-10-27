@@ -381,11 +381,6 @@ export const reportsPageMessages = defineMessages({
     description:
       "Change of a share in percentage points; change is the signed number, count its size, previous the period compared with",
   },
-  noEarlierData: {
-    id: "4S+r62936U",
-    defaultMessage: "No earlier data",
-    description: "Shown instead of a change when the previous period starts before Reports began",
-  },
   changeUnavailable: {
     id: "zyXPWyhbra",
     defaultMessage: "No change to show",
