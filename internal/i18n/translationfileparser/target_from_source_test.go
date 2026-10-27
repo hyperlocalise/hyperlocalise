@@ -409,6 +409,49 @@ func TestMarshalTargetFromSourceWritesThePOHeaderForTheTargetLocale(t *testing.T
 	}
 }
 
+func TestMarshalTargetFromSourceFillsInATemplateHeader(t *testing.T) {
+	source := "#, fuzzy\nmsgid \"\"\nmsgstr \"\"\n\"Language: \\n\"\n\"Content-Type: text/plain; charset=CHARSET\\n\"\n\nmsgid \"Hello\"\nmsgstr \"\"\n"
+
+	out, err := MarshalTargetFromSource("messages.pot", []byte(source), map[string]string{"Hello": "Bonjour"}, "en", "fr")
+	if err != nil {
+		t.Fatalf("marshal target: %v", err)
+	}
+
+	rendered := string(out)
+	if strings.Contains(rendered, "fuzzy") || strings.Contains(rendered, "CHARSET") || !strings.Contains(rendered, "charset=UTF-8") || !strings.Contains(rendered, "Language: fr") {
+		t.Fatalf("got:\n%s", rendered)
+	}
+}
+
+func TestMarshalTargetFromSourceKeepsTheFilesOwnSourceLanguage(t *testing.T) {
+	xcstrings := `{"sourceLanguage":"en","strings":{"files":{"localizations":{"en":{"variations":{"plural":{"one":{"stringUnit":{"state":"translated","value":"%d file"}},"other":{"stringUnit":{"state":"translated","value":"%d files"}}}}}}}},"version":"1.0"}`
+	entries, err := NewDefaultStrategy().ParseIngestEntriesWithSourceLocale("Localizable.xcstrings", []byte(xcstrings), "en-US", "en-US")
+	if err != nil {
+		t.Fatalf("parse source: %v", err)
+	}
+	values := map[string]string{}
+	for key := range entries {
+		values[key] = "%d Datei(en)"
+	}
+
+	out, err := MarshalTargetFromSource("Localizable.xcstrings", []byte(xcstrings), values, "en-US", "de")
+	if err != nil {
+		t.Fatalf("marshal xcstrings with a differently spelled project locale: %v", err)
+	}
+	if !strings.Contains(string(out), "%d Datei(en)") {
+		t.Fatalf("got:\n%s", out)
+	}
+
+	xliff := `<xliff version="1.2"><file source-language="en" datatype="plaintext" original="a"><body><trans-unit id="a"><source>Hello</source></trans-unit></body></file></xliff>`
+	out, err = MarshalTargetFromSource("messages.xlf", []byte(xliff), map[string]string{"a": "Hallo"}, "en-US", "de")
+	if err != nil {
+		t.Fatalf("marshal xliff: %v", err)
+	}
+	if !strings.Contains(string(out), `source-language="en"`) || !strings.Contains(string(out), `target-language="de"`) {
+		t.Fatalf("got:\n%s", out)
+	}
+}
+
 func TestMarshalTargetFromSourceAddsAColumnForANewLocale(t *testing.T) {
 	source := "key,en-US,de-DE\ngreeting,Hello,Hallo\nfarewell,Goodbye,Tschüss\n"
 
@@ -475,10 +518,22 @@ func TestMarshalTargetFromSourceMatchesLocaleColumns(t *testing.T) {
 			want: "key,en,fr,fr-CA\ngreeting,Hello,Bonjour,Bonjour\n",
 		},
 		{
-			name:         "locale columns that name neither locale",
-			source:       "key,english,german\ngreeting,Hello,Hallo\n",
+			name:         "text column beside a notes column",
+			source:       "key,text,description\ngreeting,Hello,Home page\n",
 			sourceLocale: "en-US", targetLocale: "fr-FR",
-			want: "key,english,german,fr-FR\ngreeting,Hello,Hallo,Bonjour\n",
+			want: "key,text,description\ngreeting,Bonjour,Home page\n",
+		},
+		{
+			name:         "key column named like the target locale",
+			source:       "id,en,fr\ngreeting,Hello,Bonjour\n",
+			sourceLocale: "en", targetLocale: "id",
+			want: "id,en,fr,id\ngreeting,Hello,Bonjour,Bonjour\n",
+		},
+		{
+			name:         "key column named like the source locale",
+			source:       "id,value\ngreeting,Halo\n",
+			sourceLocale: "id", targetLocale: "fr",
+			want: "id,value\ngreeting,Bonjour\n",
 		},
 		{
 			name:         "row longer than the header",

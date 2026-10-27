@@ -25,7 +25,8 @@ func MarshalTargetFromSource(sourcePath string, source []byte, values map[string
 	case ".yaml", ".yml":
 		return MarshalYAML(source, values)
 	case ".xlf", ".xlif", ".xliff":
-		return MarshalXLIFF(source, values, sourceLocale, targetLocale)
+		// The file's own source language stays: the project may spell it differently.
+		return MarshalXLIFF(source, values, "", targetLocale)
 	case ".po", ".pot":
 		return MarshalPOFileForLocale(source, values, targetLocale)
 	case ".html", ".htm":
@@ -39,7 +40,8 @@ func MarshalTargetFromSource(sourcePath string, source []byte, values map[string
 	case ".stringsdict":
 		return MarshalAppleStringsdict(source, values)
 	case ".xcstrings":
-		return MarshalXCStrings(source, source, values, sourceLocale, targetLocale)
+		// An empty source locale makes the writer use the file's sourceLanguage.
+		return MarshalXCStrings(source, source, values, "", targetLocale)
 	case ".csv":
 		return marshalDelimitedTargetFromSource(source, values, sourceLocale, targetLocale, 0)
 	case ".tsv":
@@ -117,25 +119,20 @@ func valuesForSourceKeys(sourcePath string, source []byte, values map[string]str
 	return kept
 }
 
-// Header names that mark a CSV laid out as one value column, not one column per locale.
-var genericDelimitedValueHeaders = map[string]struct{}{"value": {}, "target": {}, "source": {}, "translation": {}}
-
 // A catalog with one column per locale gets the target locale's column filled in, and
-// gains that column when it has none. Any other layout has its value column rewritten.
+// gains that column when it has one for the source language but none for the target.
+// Any other layout has its value column rewritten.
 func marshalDelimitedTargetFromSource(source []byte, values map[string]string, sourceLocale, targetLocale string, delimiter rune) ([]byte, error) {
 	parser := CSVParser{Delimiter: delimiter}
 	headers, err := delimitedHeaders(source, delimiter)
 	if err != nil {
 		return nil, err
 	}
-	if column, ok := delimitedLocaleColumn(headers, targetLocale, false); ok {
+	keyIdx := resolveCSVColumn(headers, "", []string{"key", "id"})
+	if column, ok := delimitedLocaleColumn(headers, keyIdx, targetLocale, false); ok {
 		parser.ValueColumn = column
-	} else if isLocaleColumnCatalog(headers, sourceLocale) {
-		source, err = appendDelimitedColumn(source, strings.TrimSpace(targetLocale), len(headers), delimiter)
-		if err != nil {
-			return nil, err
-		}
-		parser.ValueColumn = strings.TrimSpace(targetLocale)
+	} else if _, ok := delimitedLocaleColumn(headers, keyIdx, sourceLocale, true); ok && keyIdx >= 0 {
+		return appendDelimitedColumn(source, strings.TrimSpace(targetLocale), len(headers), keyIdx, values, delimiter)
 	}
 	return MarshalCSV(source, values, parser)
 }
@@ -155,15 +152,19 @@ func normalizeLocaleName(locale string) string {
 	return strings.ReplaceAll(strings.ToLower(strings.TrimSpace(locale)), "_", "-")
 }
 
-// delimitedLocaleColumn finds the header naming locale, ignoring case and "_" versus "-".
-// byLanguage also accepts a header for the same base language ("en" for "en-US").
-func delimitedLocaleColumn(headers []string, locale string, byLanguage bool) (string, bool) {
+// delimitedLocaleColumn finds the header naming locale, ignoring case and "_" versus "-",
+// and never the key column (an "id" key column is not Indonesian). byLanguage also
+// accepts a header for the same base language ("en" for "en-US").
+func delimitedLocaleColumn(headers []string, keyIdx int, locale string, byLanguage bool) (string, bool) {
 	want := normalizeLocaleName(locale)
 	if want == "" {
 		return "", false
 	}
 	language, _, _ := strings.Cut(want, "-")
-	for _, header := range headers {
+	for i, header := range headers {
+		if i == keyIdx {
+			continue
+		}
 		name := normalizeLocaleName(header)
 		if name == want {
 			return header, true
@@ -175,29 +176,10 @@ func delimitedLocaleColumn(headers []string, locale string, byLanguage bool) (st
 	return "", false
 }
 
-func isLocaleColumnCatalog(headers []string, sourceLocale string) bool {
-	if len(headers) == 0 {
-		return false
-	}
-	if _, ok := delimitedLocaleColumn(headers, sourceLocale, true); ok {
-		return true
-	}
-	keyIdx := resolveCSVColumn(headers, "", []string{"key", "id"})
-	valueColumns := 0
-	for i, header := range headers {
-		if i == keyIdx {
-			continue
-		}
-		if _, generic := genericDelimitedValueHeaders[header]; generic {
-			return false
-		}
-		valueColumns++
-	}
-	return valueColumns >= 2
-}
-
-// appendDelimitedColumn adds a column named header after the header row's last column.
-func appendDelimitedColumn(source []byte, header string, width int, delimiter rune) ([]byte, error) {
+// appendDelimitedColumn adds a column named header after the header row's last column
+// and fills it with each row's translation. It writes the cells itself, since the new
+// header can share its name with the key column ("id" for Indonesian).
+func appendDelimitedColumn(source []byte, header string, width, keyIdx int, values map[string]string, delimiter rune) ([]byte, error) {
 	r := newCSVReader(bytes.NewReader(source), delimiter)
 	var buf bytes.Buffer
 	buf.Grow(len(source))
@@ -214,9 +196,13 @@ func appendDelimitedColumn(source []byte, header string, width int, delimiter ru
 		if err != nil {
 			return nil, fmt.Errorf("csv decode: %w", err)
 		}
-		cell := ""
+		cell := header
 		if first {
-			cell, first = header, false
+			first = false
+		} else if keyIdx < len(row) {
+			cell = values[strings.TrimSpace(row[keyIdx])]
+		} else {
+			cell = ""
 		}
 		// Cells past the header's width stay after the new column.
 		row = ensureCSVLen(row, width)

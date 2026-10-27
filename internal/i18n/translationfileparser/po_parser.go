@@ -942,7 +942,7 @@ func rewritePOHeader(lines []poRawLine, entry poBuiltEntry, targetLocale string)
 	}
 	updated := updatePOHeaderFields(header, targetLocale, poPluralSpecForLocale(targetLocale))
 	if updated == header {
-		return lines, nil
+		return clearPOFuzzyLines(lines), nil
 	}
 	indent := ""
 	crlf := false
@@ -969,7 +969,8 @@ func rewritePOHeader(lines []poRawLine, entry poBuiltEntry, targetLocale string)
 	if !inserted {
 		out = append(out, poHeaderValueLines(indent, updated, true, crlf)...)
 	}
-	return out, nil
+	// A template's header is flagged fuzzy until a locale is filled in.
+	return clearPOFuzzyLines(out), nil
 }
 
 func updatePOHeaderFields(header, locale string, spec poPluralSpec) string {
@@ -987,6 +988,10 @@ func updatePOHeaderFields(header, locale string, spec poPluralSpec) string {
 		if strings.HasPrefix(trim, "Plural-Forms:") {
 			lines[i] = plural
 			foundPlural = true
+		}
+		// xgettext leaves the CHARSET placeholder; the writer emits UTF-8.
+		if strings.HasPrefix(trim, "Content-Type:") {
+			lines[i] = strings.Replace(line, "charset=CHARSET", "charset=UTF-8", 1)
 		}
 	}
 	if !foundLanguage {
