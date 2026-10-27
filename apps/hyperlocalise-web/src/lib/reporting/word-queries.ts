@@ -443,6 +443,91 @@ async function groupNames(rows: { projectId: string | null; jobId: string | null
   };
 }
 
+/** How many projects the volume chart shows on their own; the rest are one "Other" series. */
+export const WORD_COUNT_CHART_PROJECTS = 5;
+
+export type WordCountSeries = {
+  /** The largest projects over the period, largest first, then "Other" when there are more. */
+  groups: { projectId: string | null; projectName: string | null; other: boolean }[];
+  /** One point per week (its Monday, as a date), with units in the order of `groups`. */
+  points: { start: string; units: number[] }[];
+};
+
+/**
+ * Units that arrived, or were finished, each week of a period, by project: the largest five
+ * projects over the whole period on their own and the rest as "Other", with a point for every
+ * week even when nothing happened. Weeks start on Monday, in UTC, as the by-week table's do.
+ */
+export async function queryWordCountSeries(
+  input: ReportScope & {
+    period: ReportPeriod;
+    unit: ReportUnit;
+    step: ReportStep;
+    mode: "arrived" | "finished";
+  },
+): Promise<WordCountSeries> {
+  const source = summarySource(input);
+  if (!source) return { groups: [], points: [] };
+  const column = measure(input.mode, input.unit);
+  const result = await db.execute<{
+    start: string;
+    /** 1 to 5 for the largest projects, 0 for the rest, null for a week with nothing. */
+    slot: number | null;
+    projectId: string | null;
+    units: number;
+  }>(sql`
+    with weekly as (
+      select date_trunc('week', s.day)::date as start, s.project_id, sum(${column}) as units
+      from ${source.table}
+      where ${source.where} and s.step = ${input.step}
+        and s.day between ${input.period.from} and ${input.period.to}
+      group by 1, 2 having sum(${column}) > 0
+    ), ranked as (
+      select project_id,
+        (row_number() over (order by sum(units) desc, project_id))::integer as slot
+      from weekly group by 1
+    ), top as (select * from ranked where slot <= ${WORD_COUNT_CHART_PROJECTS})
+    select b.start::date::text as start,
+      case when w.project_id is null then null else coalesce(t.slot, 0) end as slot,
+      t.project_id as "projectId", coalesce(sum(w.units), 0)::float8 as units
+    from generate_series(
+      date_trunc('week', ${input.period.from}::date), ${input.period.to}::date, '7 days'::interval
+    ) b(start)
+    left join weekly w on w.start = b.start::date
+    left join top t on t.project_id = w.project_id
+    group by 1, 2, 3
+    order by 1, 2
+  `);
+  const rows = result.rows;
+  // The largest projects in order, then "Other" (slot 0) when some projects did not make the top.
+  const slots = [...new Set(rows.flatMap((row) => (row.slot === null ? [] : [row.slot])))].sort(
+    (left, right) => (left || Infinity) - (right || Infinity),
+  );
+  const names = await groupNames(
+    slots.map((slot) => ({
+      projectId: rows.find((row) => row.slot === slot)!.projectId,
+      jobId: null,
+    })),
+  );
+  const groups = slots.map((slot) => {
+    const projectId = rows.find((row) => row.slot === slot)!.projectId;
+    return slot === 0 || !projectId
+      ? { projectId: null, projectName: null, other: true }
+      : { projectId, projectName: names.projectNames.get(projectId) ?? null, other: false };
+  });
+  const position = new Map(slots.map((slot, index) => [slot, index]));
+  const points = new Map<string, { start: string; units: number[] }>();
+  for (const row of rows) {
+    let point = points.get(row.start);
+    if (!point) {
+      point = { start: row.start, units: slots.map(() => 0) };
+      points.set(row.start, point);
+    }
+    if (row.slot !== null) point.units[position.get(row.slot)!] = row.units;
+  }
+  return { groups, points: [...points.values()] };
+}
+
 export type TaskWordRow = {
   targetLocale: string;
   step: ReportStep;

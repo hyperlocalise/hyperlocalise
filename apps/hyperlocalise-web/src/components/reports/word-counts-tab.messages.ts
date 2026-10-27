@@ -15,6 +15,35 @@
 import { defineMessages } from "react-intl";
 
 export const wordCountsTabMessages = defineMessages({
+  chartTitle: {
+    id: "GxPcu+zAsz",
+    defaultMessage: "Volume per week",
+    description: "Title of the chart of words per week by project on the Word counts tab",
+  },
+  chartArrivedDetail: {
+    id: "joAVlCwVdU",
+    defaultMessage:
+      "{unit} that arrived each week, by project, past the fifth as Other. Weeks start on Monday, UTC.",
+    description:
+      "Subtitle of the volume chart when it shows words that arrived; unit is Words, Strings or Characters",
+  },
+  chartFinishedDetail: {
+    id: "HlsJtwuwzc",
+    defaultMessage:
+      "{unit} finished each week, by project, past the fifth as Other. Weeks start on Monday, UTC.",
+    description:
+      "Subtitle of the volume chart when it shows words finished; unit is Words, Strings or Characters",
+  },
+  chartSummary: {
+    id: "CU41X22vrO",
+    defaultMessage: "{unit} per week from {from} to {to}: {total}",
+    description: "Accessible summary of the volume chart",
+  },
+  otherProjects: {
+    id: "x8Pmk18eDT",
+    defaultMessage: "Other",
+    description: "Chart series: every project outside the largest five",
+  },
   whichWords: {
     id: "+A4wJ1M5iF",
     defaultMessage: "Which words",

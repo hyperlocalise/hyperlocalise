@@ -22,6 +22,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { ReportsPage } from "./reports-page";
 import {
   createReportsSettings,
+  createReportsWeeklyWordCounts,
   reportsAiUsage,
   reportsCostEstimate,
   reportsCosts,
@@ -264,6 +265,35 @@ describe("Reports page", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Time" }));
     await waitFor(() =>
       expect(currentHref()).toBe("/en/org/acme/reports?tab=time&range=7&unit=strings&group=task"),
+    );
+  });
+
+  it("charts volume per week by project only when word counts are grouped by week", async () => {
+    mocks.search = "tab=words&group=week";
+    mocks.bodies = {
+      ...reportsResponseBodies(),
+      words: {
+        wordCounts: {
+          unit: "words",
+          step: "translation",
+          mode: "arrived",
+          groupBy: "week",
+          ...createReportsWeeklyWordCounts(),
+        },
+      },
+    };
+    renderPage();
+    // The chart itself is mocked away; its section, legend and subtitle are the page's.
+    const section = await screen.findByRole("region", { name: "Volume per week" });
+    expect(section).toHaveTextContent("Help centre");
+    expect(section).toHaveTextContent("Web app");
+    expect(section).toHaveTextContent("Words that arrived each week, by project");
+
+    // Grouped another way, the counts come without a series and the chart goes.
+    mocks.bodies = reportsResponseBodies();
+    await userEvent.click(screen.getByRole("button", { name: "By project" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "Volume per week" })).toBeNull(),
     );
   });
 

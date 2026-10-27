@@ -15,6 +15,7 @@ import { delay, http, HttpResponse } from "msw";
 import {
   createReportsSettings,
   createReportsTaskWordCounts,
+  createReportsWeeklyWordCounts,
   reportsResponseBodies,
   type ReportsEndpoint,
 } from "./reports.fixture";
@@ -55,6 +56,16 @@ export function createReportsMswHandlers({
         if (failing.includes(endpoint))
           return HttpResponse.json({ error: "report_failed" }, { status: 500 });
         const query = new URL(request.url).searchParams;
+        if (endpoint === "words" && query.get("groupBy") === "week")
+          return HttpResponse.json({
+            wordCounts: {
+              unit: query.get("unit") ?? "words",
+              step: "translation",
+              mode: query.get("mode") ?? "arrived",
+              groupBy: "week",
+              ...createReportsWeeklyWordCounts(),
+            },
+          });
         if (endpoint === "words" && query.get("groupBy") === "task")
           return HttpResponse.json({
             wordCounts: {

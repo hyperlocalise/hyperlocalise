@@ -15,7 +15,12 @@ import type { BudgetRow, CostEstimate, Costs } from "@/lib/reporting/cost-querie
 import type { RateCard } from "@/lib/reporting/rate-cards";
 import { resolvePeriod } from "@/lib/reporting/report-period";
 import type { AutomatedTime, LoggedTime, StepTime } from "@/lib/reporting/time-queries";
-import type { ActivityTotals, FinishedSeriesPoint, WordCounts } from "@/lib/reporting/word-queries";
+import type {
+  ActivityTotals,
+  FinishedSeriesPoint,
+  WordCounts,
+  WordCountSeries,
+} from "@/lib/reporting/word-queries";
 
 import type { ReportSettings, TaskReport } from "./reports-queries";
 
@@ -206,11 +211,26 @@ export const reportsAiUsage: AiUsage = {
   automationName: null,
 };
 
-export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): WordCounts & {
-  period: typeof reportsPeriod;
-} {
+/** The volume chart's series for the by-week grouping: two projects, nothing past the fifth. */
+export const reportsWordCountSeries: WordCountSeries = {
+  groups: [
+    { projectId: "project_help", projectName: "Help centre", other: false },
+    { projectId: "project_web", projectName: "Web app", other: false },
+  ],
+  points: [
+    { start: "2026-09-28", units: [12_000, 6_000] },
+    { start: "2026-10-05", units: [10_870, 4_420] },
+    { start: "2026-10-12", units: [9_000, 4_000] },
+    { start: "2026-10-19", units: [8_000, 4_000] },
+  ],
+};
+
+export function createReportsWordCounts(
+  overrides: Partial<WordCounts & { series: WordCountSeries | null }> = {},
+): WordCounts & { period: typeof reportsPeriod; series: WordCountSeries | null } {
   return {
     period: reportsPeriod,
+    series: null,
     rows: [
       {
         week: null,
@@ -244,6 +264,20 @@ export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): Wo
 }
 
 /** Word counts grouped by task, one row per task and language. */
+/** Word counts grouped by week: the two projects over two weeks, with the chart's series. */
+export function createReportsWeeklyWordCounts() {
+  const base = createReportsWordCounts();
+  return createReportsWordCounts({
+    rows: base.rows.flatMap((row) => [
+      { ...row, week: "2026-10-12", bands: { new: 100 }, total: 100 },
+      { ...row, week: "2026-10-19" },
+    ]),
+    groupCount: 2,
+    pageSize: 2,
+    series: reportsWordCountSeries,
+  });
+}
+
 export function createReportsTaskWordCounts() {
   return createReportsWordCounts({
     rows: [

@@ -31,6 +31,7 @@ import {
   queryFinishedByLanguage,
   queryFinishedSeries,
   queryWordCounts,
+  queryWordCountSeries,
 } from "./word-queries";
 
 /**
@@ -121,7 +122,11 @@ export async function readActivity(context: ReportReadContext, query: ActivityRe
 export async function readWords(context: ReportReadContext, query: WordsReadQuery) {
   const { all, ...rest } = query;
   const read = scope(context, rest);
-  const counts = await queryWordCounts({ ...read, all });
+  const [counts, series] = await Promise.all([
+    queryWordCounts({ ...read, all }),
+    // The volume chart goes with the by-week table, which is the same numbers by project.
+    query.groupBy === "week" ? queryWordCountSeries(read) : null,
+  ]);
   return {
     period: read.period,
     unit: query.unit,
@@ -129,6 +134,7 @@ export async function readWords(context: ReportReadContext, query: WordsReadQuer
     mode: query.mode,
     groupBy: query.groupBy,
     ...counts,
+    series,
   };
 }
 
