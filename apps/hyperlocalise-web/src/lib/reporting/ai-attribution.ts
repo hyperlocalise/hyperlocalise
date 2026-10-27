@@ -28,6 +28,9 @@ const UUID_PATTERN = sql.raw(`'${UUID}'`);
  * `credential_source`, `amount_usd`, `quantity`, `dimensions`, `created_at`, `source` (the parent's when there
  * is one), `agent_run_kind`, `automation_id` (the automation its parent ran for, as text),
  * `job_id` (null with no task), `project_id` (null with no project) and `via_api_key`.
+ *
+ * Only rows from when Reports started for the workspace (`reporting_workspaces.started_at`)
+ * on, so AI usage and AI spending begin where Reports' own records do; none before it starts.
  */
 export function attributedUsage(input: { organizationId: string; where: SQL }): SQL {
   return sql`
@@ -62,5 +65,8 @@ export function attributedUsage(input: { organizationId: string; where: SQL }): 
       and own_project.id = u.dimensions ->> 'project_id'
     left join projects parent_project on parent_project.organization_id = u.organization_id
       and parent_project.id = p.dimensions ->> 'project_id'
-    where u.organization_id = ${input.organizationId} and ${input.where}`;
+    where u.organization_id = ${input.organizationId}
+      and u.created_at >= (select rw.started_at from reporting_workspaces rw
+        where rw.organization_id = ${input.organizationId})
+      and ${input.where}`;
 }

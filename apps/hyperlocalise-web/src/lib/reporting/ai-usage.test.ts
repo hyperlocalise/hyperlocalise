@@ -33,8 +33,9 @@ import {
   aiChannel,
   aiOrigin,
 } from "./ai-usage-origins";
+import { queryCosts } from "./cost-queries";
 import { readAi } from "./report-reads";
-import { createReportingTestFixture } from "./reporting.fixture";
+import { createReportingTestFixture, startReportingForTest } from "./reporting.fixture";
 import { resolvePeriod } from "./report-period";
 
 const fixture = createReportingTestFixture();
@@ -161,6 +162,7 @@ describe("AI usage origins", () => {
       "slack_something_new",
       "something_new",
     ];
+    await startReportingForTest(organization.id);
     await db
       .insert(schema.usageEvents)
       .values(
@@ -226,6 +228,7 @@ describe("AI usage", () => {
       source: "workspace_orchestrator",
       dimensions: { automation_id: automation!.id },
     });
+    await startReportingForTest(organization.id);
     await db.insert(schema.usageEvents).values([
       translation,
       hiddenTranslation,
@@ -358,6 +361,7 @@ describe("AI usage", () => {
         dimensions: { project_id: project.id, input_tokens: 100, output_tokens: 10 },
         ...values,
       });
+    await startReportingForTest(organization.id);
     await db.insert(schema.usageEvents).values([
       call({ credentialSource: "gateway", amountUsd: "0.25" }),
       call({ credentialSource: "gateway", amountUsd: "0.5" }),
@@ -409,6 +413,7 @@ describe("AI usage", () => {
   it("counts the tokens billing adds for cache and reasoning, and ranks by the measure chosen", async () => {
     const { organization, project } = await fixture.createWorkspace();
     const { usage } = usageRows(organization.id);
+    await startReportingForTest(organization.id);
     await db.insert(schema.usageEvents).values([
       // Billing's quantity is every token; input and output leave out cache and reasoning.
       usage({
@@ -469,6 +474,7 @@ describe("AI usage", () => {
     ]);
 
     // Two small runs make a third model the largest by runs.
+    await startReportingForTest(organization.id);
     await db.insert(schema.usageEvents).values(
       [1, 2].map(() =>
         usage({
@@ -486,6 +492,7 @@ describe("AI usage", () => {
     const { organization, project } = await fixture.createWorkspace();
     const { usage } = usageRows(organization.id);
     const models = ["a/one", "a/two", "a/three", "a/four", "a/five", "a/six", "a/seven"];
+    await startReportingForTest(organization.id);
     await db.insert(schema.usageEvents).values(
       models.map((modelId, index) =>
         usage({
@@ -554,6 +561,7 @@ describe("AI usage", () => {
     const { usage } = usageRows(organization.id);
     const jobs = [];
     for (let index = 0; index < AI_USAGE_PAGE_SIZE + 2; index += 1) jobs.push(await createJob());
+    await startReportingForTest(organization.id);
     await db.insert(schema.usageEvents).values(
       jobs.flatMap((job, index) =>
         ["openai/gpt-6-luna", "anthropic/claude-haiku-4.5"].map((modelId) =>
@@ -647,6 +655,7 @@ describe("AI usage", () => {
       source: "workspace_github_repository_agent",
       operationKey: `workspace-github-repo:${run!.id}:agent_runs`,
     });
+    await startReportingForTest(organization.id);
     await db
       .insert(schema.usageEvents)
       .values([main, github, tokens(main, 10, 1), tokens(github, 500, 50)]);
@@ -690,8 +699,42 @@ describe("AI usage", () => {
     });
   });
 
+  it("counts billing's rows only from when Reports started, here and in Costs", async () => {
+    const { organization, project } = await fixture.createWorkspace();
+    const { usage } = usageRows(organization.id);
+    const call = (at: string) =>
+      usage({
+        source: "chat_agent_turn",
+        credentialSource: "gateway",
+        amountUsd: "1",
+        createdAt: new Date(at),
+        dimensions: { project_id: project.id, input_tokens: 100 },
+      });
+    await db
+      .insert(schema.usageEvents)
+      .values([call("2026-06-10T11:59:00Z"), call("2026-06-10T12:01:00Z")]);
+    const scope = {
+      organizationId: organization.id,
+      projectIds: [project.id],
+      period: PERIOD,
+      includeUnattributed: false,
+      groupBy: "area" as const,
+    };
+    // Before Reports has started, nothing.
+    await expect(queryAiUsage(scope)).resolves.toMatchObject({ totals: { calls: 0 } });
+
+    // From the moment it started, to the minute.
+    await startReportingForTest(organization.id, new Date("2026-06-10T12:00:00Z"));
+    await expect(queryAiUsage(scope)).resolves.toMatchObject({
+      totals: { calls: 1, chargeUsd: "1.00000000" },
+    });
+    const costs = await queryCosts({ ...scope, includeUnattributed: true });
+    expect(costs.totals.aiUsd).toBe("1.00000000");
+  });
+
   it("reads a fractional or unreadable token count without failing", async () => {
     const { organization, project } = await fixture.createWorkspace();
+    await startReportingForTest(organization.id);
     await db.insert(schema.usageEvents).values(
       [
         { input_tokens: "12.5", output_tokens: 3, project_id: project.id },

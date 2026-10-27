@@ -31,7 +31,7 @@ AI is part of every paid plan, so admins and localization managers need to see w
 - Where a call is placed rests on names other code chooses: prefixes of `source` and, for automation tool steps, the run id in the operation key (a test reads the tool files and checks each key puts the run second). A renamed key or source moves AI on Costs and Budgets too. The way to retire the key parsing is for the tool callers to add `automation_id` to the dimensions they already pass; the parsing would still be needed for older rows.
 - A task's or automation's project is its project now, so moving one to another project moves its past AI with it, as on Costs and Budgets.
 - AI credit here is by UTC day; the billing page shows the billing cycle. A "this billing period" range is not offered yet.
-- The comparison with the period before follows Reports' start, like the other tabs, though billing's rows may go back further.
+- Billing's rows count only from when Reports started for the workspace (`reporting_workspaces.started_at`), in AI usage, Costs and Budgets alike (`attributedUsage` cuts them off). Billing keeps earlier calls, and older ones lack details billing added later (the key before mid-September 2026, the charge before AI credit pricing), but Reports shows none of them, so every tab starts on the date the page gives. Before a workspace's Reports starts, AI usage is empty.
 - Changing a source name in billing's callers, or adding one, needs its area and channel set in `ai-usage-origins.ts` and a plain name on the page; an unknown source shows under "Other" with its raw name.
 
 ## Alternatives considered

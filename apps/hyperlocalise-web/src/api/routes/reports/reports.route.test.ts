@@ -49,7 +49,10 @@ import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 import { isOk } from "@/lib/primitives/result/results";
 import { saveRateCard } from "@/lib/reporting/rate-cards";
-import { createReportingTestFixture } from "@/lib/reporting/reporting.fixture";
+import {
+  createReportingTestFixture,
+  startReportingForTest,
+} from "@/lib/reporting/reporting.fixture";
 import { setTaskAnalysisStatus } from "@/lib/reporting/task-analysis-status";
 import { ensureDefaultWorkspaceTeamMembership } from "@/lib/teams/default-workspace-team";
 
@@ -736,6 +739,7 @@ describe("reports routes", () => {
       { projectId: secret.id, targetLocale: "fr-FR", day: today, arrived: 99 },
     ]);
     // AI used outside any project, and a workflow outside any project.
+    await startReportingForTest(organization.id);
     await db.insert(schema.usageEvents).values({
       organizationId: organization.id,
       featureId: "ai_tokens",

@@ -31,7 +31,7 @@ import {
 } from "./cost-queries";
 import { usdUnits } from "./money";
 import { saveRateCard, type RateLineInput } from "./rate-cards";
-import { createReportingTestFixture } from "./reporting.fixture";
+import { createReportingTestFixture, startReportingForTest } from "./reporting.fixture";
 import { resolvePeriod } from "./report-period";
 
 const fixture = createReportingTestFixture();
@@ -488,6 +488,7 @@ describe("still to come and budgets", () => {
       amountUsd,
       ...extra,
     });
+    await startReportingForTest(organization.id);
     await db.insert(schema.usageEvents).values([
       charge("2.5", { jobId: assigned.id }),
       // Charged in the project outside any task, such as an editor suggestion.
@@ -911,6 +912,7 @@ describe("costs", () => {
       .update(schema.jobs)
       .set({ projectId: null })
       .where(eq(schema.jobs.id, workspaceTask.id));
+    await startReportingForTest(organization.id);
     await db.insert(schema.usageEvents).values([
       billed("1.25", "gateway", "2026-06-10"),
       billed(null, "gateway", "2026-06-11"),
@@ -1045,6 +1047,7 @@ describe("costs of automations", () => {
       .returning();
     // The GitHub step records its run only in its key, not the automation or the project.
     const step = `workspace-github-repo:${run!.id}:agent_runs`;
+    await startReportingForTest(organization.id);
     await db.insert(schema.usageEvents).values([
       {
         organizationId: organization.id,
