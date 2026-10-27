@@ -18,12 +18,7 @@ import Link from "next/link";
 import { useIntl } from "react-intl";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { buildPlanUsageHref } from "@/lib/billing/plan-usage";
 import { AI_USAGE_DIMENSIONS, type AiUsageDimension } from "@/lib/reporting/ai-usage-origins";
 import { describeChange } from "@/lib/reporting/report-period";
@@ -31,6 +26,7 @@ import { describeChange } from "@/lib/reporting/report-period";
 import { activityTabMessages } from "./activity-tab.messages";
 import { aiGroupLabel, dimensionLabel } from "./ai-usage-labels";
 import { aiUsageTabMessages as messages } from "./ai-usage-tab.messages";
+import { ReportChartTooltipContent } from "./report-chart-tooltip";
 import {
   formatChange,
   formatCompact,
@@ -417,23 +413,9 @@ function AiUsageChart({
           <ChartTooltip
             cursor={false}
             content={
-              <ChartTooltipContent
-                indicator="dot"
-                formatter={(value, name) => (
-                  <span className="flex w-full items-center gap-2">
-                    <span
-                      aria-hidden
-                      className="size-2.5 shrink-0 rounded-[2px]"
-                      style={{ background: config[String(name)]?.color }}
-                    />
-                    <span className="flex-1 text-muted-foreground">
-                      {config[String(name)]?.label}
-                    </span>
-                    <span className="font-mono font-medium text-foreground tabular-nums">
-                      {formatMeasure(intl, measure, Number(value))}
-                    </span>
-                  </span>
-                )}
+              <ReportChartTooltipContent
+                config={config}
+                formatValue={(value) => formatMeasure(intl, measure, value)}
               />
             }
           />
