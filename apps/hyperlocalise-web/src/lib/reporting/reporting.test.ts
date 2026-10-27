@@ -18,7 +18,7 @@ import {
   reportingPeriod,
   csvCell,
 } from "./word-analysis";
-import { usdUnits, usdString, hourlyCost, unitCost } from "./money";
+import { usdUnits, usdString, hourlyCost, unitCost, paidPercent } from "./money";
 import {
   activityQuerySchema,
   rateCardSchema,
@@ -85,6 +85,10 @@ describe("prospective translation accounting", () => {
     expect(hourlyCost("60", 15)).toBe("15.00000000");
     expect(unitCost("0.00000001", 1)).toBe("0.00000001");
     expect(() => usdUnits("-1")).toThrow();
+    expect(paidPercent({ new: 50 }, "unavailable")).toBe(50);
+    expect(paidPercent({ new: 50 }, "new")).toBe(50);
+    expect(paidPercent({ "100": 0 }, "unavailable")).toBe(100);
+    expect(paidPercent(null, "new")).toBe(100);
   });
   it("groups UTC weeks on Mondays across year boundaries", () => {
     expect(reportingPeriod(new Date("2026-01-04T23:59:59Z"), "week")).toBe("2025-12-29");
