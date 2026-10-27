@@ -80,8 +80,9 @@ func MarshalTargetFromSource(sourcePath string, source []byte, values map[string
 }
 
 // valuesForSourceKeys keeps only values for keys the source file has. Writers that
-// append unknown keys would otherwise add stale entries, and keys stored trimmed at
-// ingest are mapped back to the file's own key (a gettext msgid often ends in "\n").
+// append unknown keys would otherwise add stale entries. Ingest stores keys trimmed (a
+// gettext msgid often ends in "\n"), so a value is also matched by its trimmed key, but
+// only to the one file key that trims to it and is not itself spelled that way.
 func valuesForSourceKeys(sourcePath string, source []byte, values map[string]string) map[string]string {
 	if len(values) == 0 {
 		return values
@@ -91,49 +92,112 @@ func valuesForSourceKeys(sourcePath string, source []byte, values map[string]str
 		// The writer reports the problem with the file itself.
 		return values
 	}
+	keysByTrimmed := make(map[string]int, len(entries))
+	for key := range entries {
+		keysByTrimmed[strings.TrimSpace(key)]++
+	}
+	valuesByTrimmed := make(map[string]string, len(values))
+	for key, value := range values {
+		valuesByTrimmed[strings.TrimSpace(key)] = value
+	}
 	kept := make(map[string]string, len(values))
 	for key := range entries {
 		if value, ok := values[key]; ok {
 			kept[key] = value
 			continue
 		}
-		if value, ok := values[strings.TrimSpace(key)]; ok {
+		trimmed := strings.TrimSpace(key)
+		if _, spelledTrimmed := entries[trimmed]; spelledTrimmed || keysByTrimmed[trimmed] > 1 {
+			continue
+		}
+		if value, ok := valuesByTrimmed[trimmed]; ok {
 			kept[key] = value
 		}
 	}
 	return kept
 }
 
+// Header names that mark a CSV laid out as one value column, not one column per locale.
+var genericDelimitedValueHeaders = map[string]struct{}{"value": {}, "target": {}, "source": {}, "translation": {}}
+
 // A catalog with one column per locale gets the target locale's column filled in, and
-// gains that column when it has one for the source locale but none for the target. Any
-// other layout has its value column rewritten.
+// gains that column when it has none. Any other layout has its value column rewritten.
 func marshalDelimitedTargetFromSource(source []byte, values map[string]string, sourceLocale, targetLocale string, delimiter rune) ([]byte, error) {
 	parser := CSVParser{Delimiter: delimiter}
-	hasColumn, err := delimitedHasLocaleColumn(source, targetLocale, delimiter)
+	headers, err := delimitedHeaders(source, delimiter)
 	if err != nil {
 		return nil, err
 	}
-	if !hasColumn {
-		hasSourceColumn, err := delimitedHasLocaleColumn(source, sourceLocale, delimiter)
+	if column, ok := delimitedLocaleColumn(headers, targetLocale, false); ok {
+		parser.ValueColumn = column
+	} else if isLocaleColumnCatalog(headers, sourceLocale) {
+		source, err = appendDelimitedColumn(source, strings.TrimSpace(targetLocale), len(headers), delimiter)
 		if err != nil {
 			return nil, err
 		}
-		if hasSourceColumn {
-			source, err = appendDelimitedColumn(source, strings.TrimSpace(targetLocale), delimiter)
-			if err != nil {
-				return nil, err
-			}
-			hasColumn = true
-		}
-	}
-	if hasColumn {
 		parser.ValueColumn = strings.TrimSpace(targetLocale)
 	}
 	return MarshalCSV(source, values, parser)
 }
 
-// appendDelimitedColumn adds an empty column named header to every row.
-func appendDelimitedColumn(source []byte, header string, delimiter rune) ([]byte, error) {
+func delimitedHeaders(source []byte, delimiter rune) ([]string, error) {
+	headers, err := newCSVReader(bytes.NewReader(source), delimiter).Read()
+	if errors.Is(err, io.EOF) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("csv decode: %w", err)
+	}
+	return normalizeCSVHeaders(headers), nil
+}
+
+func normalizeLocaleName(locale string) string {
+	return strings.ReplaceAll(strings.ToLower(strings.TrimSpace(locale)), "_", "-")
+}
+
+// delimitedLocaleColumn finds the header naming locale, ignoring case and "_" versus "-".
+// byLanguage also accepts a header for the same base language ("en" for "en-US").
+func delimitedLocaleColumn(headers []string, locale string, byLanguage bool) (string, bool) {
+	want := normalizeLocaleName(locale)
+	if want == "" {
+		return "", false
+	}
+	language, _, _ := strings.Cut(want, "-")
+	for _, header := range headers {
+		name := normalizeLocaleName(header)
+		if name == want {
+			return header, true
+		}
+		if headerLanguage, _, _ := strings.Cut(name, "-"); byLanguage && headerLanguage == language {
+			return header, true
+		}
+	}
+	return "", false
+}
+
+func isLocaleColumnCatalog(headers []string, sourceLocale string) bool {
+	if len(headers) == 0 {
+		return false
+	}
+	if _, ok := delimitedLocaleColumn(headers, sourceLocale, true); ok {
+		return true
+	}
+	keyIdx := resolveCSVColumn(headers, "", []string{"key", "id"})
+	valueColumns := 0
+	for i, header := range headers {
+		if i == keyIdx {
+			continue
+		}
+		if _, generic := genericDelimitedValueHeaders[header]; generic {
+			return false
+		}
+		valueColumns++
+	}
+	return valueColumns >= 2
+}
+
+// appendDelimitedColumn adds a column named header after the header row's last column.
+func appendDelimitedColumn(source []byte, header string, width int, delimiter rune) ([]byte, error) {
 	r := newCSVReader(bytes.NewReader(source), delimiter)
 	var buf bytes.Buffer
 	buf.Grow(len(source))
@@ -141,7 +205,7 @@ func appendDelimitedColumn(source []byte, header string, delimiter rune) ([]byte
 	if delimiter != 0 {
 		w.Comma = delimiter
 	}
-	width := -1
+	first := true
 	for {
 		row, err := r.Read()
 		if errors.Is(err, io.EOF) {
@@ -150,13 +214,17 @@ func appendDelimitedColumn(source []byte, header string, delimiter rune) ([]byte
 		if err != nil {
 			return nil, fmt.Errorf("csv decode: %w", err)
 		}
-		if width < 0 {
-			width = len(row)
-			row = append(row, header)
-		} else {
-			row = append(ensureCSVLen(row, width), "")
+		cell := ""
+		if first {
+			cell, first = header, false
 		}
-		if err := w.Write(row); err != nil {
+		// Cells past the header's width stay after the new column.
+		row = ensureCSVLen(row, width)
+		withColumn := make([]string, 0, len(row)+1)
+		withColumn = append(withColumn, row[:width]...)
+		withColumn = append(withColumn, cell)
+		withColumn = append(withColumn, row[width:]...)
+		if err := w.Write(withColumn); err != nil {
 			return nil, fmt.Errorf("csv write: %w", err)
 		}
 	}

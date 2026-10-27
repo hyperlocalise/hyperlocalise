@@ -617,7 +617,7 @@ func Join(spans []Span, translations []string) string {
 // sourceSpans holds the source text of every span key the file has. A file key is joined
 // only when each of its spans has a translation, so a joined value never mixes source and
 // target text; the spans of any other file key are dropped. Keys that sourceSpans does not
-// name pass through unchanged, and a file key that values already holds keeps that value.
+// name pass through unchanged.
 func JoinSpanValues(values, sourceSpans map[string]string) map[string]string {
 	if len(sourceSpans) == 0 {
 		return values
@@ -655,7 +655,7 @@ func JoinSpanValues(values, sourceSpans map[string]string) map[string]string {
 			spans[index] = Span{Text: sourceText}
 			translations[index] = translation
 		}
-		if _, exists := joined[fileKey]; complete && !exists {
+		if complete {
 			joined[fileKey] = Join(spans, translations)
 		}
 	}

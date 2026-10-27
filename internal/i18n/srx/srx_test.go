@@ -236,7 +236,8 @@ func TestJoinSpanValuesDropsPartlyTranslatedKeys(t *testing.T) {
 	}
 }
 
-func TestJoinSpanValuesKeepsAWholeStringTranslation(t *testing.T) {
+// Fully translated sentences win over a whole-string value, as in the CLI's join.
+func TestJoinSpanValuesPrefersFullyTranslatedSentences(t *testing.T) {
 	t.Parallel()
 	sourceSpans := map[string]string{
 		"intro#srx.0": "Hello.",
@@ -248,7 +249,7 @@ func TestJoinSpanValuesKeepsAWholeStringTranslation(t *testing.T) {
 		"intro#srx.1": "Monde.",
 	}, sourceSpans)
 
-	if len(got) != 1 || got["intro"] != "Salut tout le monde." {
+	if len(got) != 1 || got["intro"] != "Bonjour. Monde." {
 		t.Fatalf("joined = %#v", got)
 	}
 }

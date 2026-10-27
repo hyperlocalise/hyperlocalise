@@ -436,6 +436,76 @@ func TestMarshalTargetFromSourceFindsKeysTrimmedAtIngest(t *testing.T) {
 	}
 }
 
+func TestMarshalTargetFromSourceKeepsTrimmedKeysToTheirOwnString(t *testing.T) {
+	source := "export default {\n  'a': 'A',\n  'a ': 'A2',\n  ' b ': 'B',\n};\n"
+
+	out, err := MarshalTargetFromSource("locales/en.js", []byte(source), map[string]string{"a": "TA", "b ": "TB"}, "en", "de")
+	if err != nil {
+		t.Fatalf("marshal target: %v", err)
+	}
+
+	rendered := string(out)
+	for _, want := range []string{"'a': 'TA'", "'a ': 'A2'", "' b ': 'TB'"} {
+		if !strings.Contains(rendered, want) {
+			t.Errorf("target is missing %q:\n%s", want, rendered)
+		}
+	}
+}
+
+func TestMarshalTargetFromSourceMatchesLocaleColumns(t *testing.T) {
+	tests := []struct {
+		name, source, sourceLocale, targetLocale, want string
+	}{
+		{
+			name:         "target spelled with an underscore",
+			source:       "key,en_US,fr_FR\ngreeting,Hello,\n",
+			sourceLocale: "en-US", targetLocale: "fr-FR",
+			want: "key,en_US,fr_FR\ngreeting,Hello,Bonjour\n",
+		},
+		{
+			name:         "source column named by its language",
+			source:       "key,en,de\ngreeting,Hello,Hallo\n",
+			sourceLocale: "en-US", targetLocale: "fr-FR",
+			want: "key,en,de,fr-FR\ngreeting,Hello,Hallo,Bonjour\n",
+		},
+		{
+			name:         "regional target beside its base language",
+			source:       "key,en,fr\ngreeting,Hello,Bonjour\n",
+			sourceLocale: "en", targetLocale: "fr-CA",
+			want: "key,en,fr,fr-CA\ngreeting,Hello,Bonjour,Bonjour\n",
+		},
+		{
+			name:         "locale columns that name neither locale",
+			source:       "key,english,german\ngreeting,Hello,Hallo\n",
+			sourceLocale: "en-US", targetLocale: "fr-FR",
+			want: "key,english,german,fr-FR\ngreeting,Hello,Hallo,Bonjour\n",
+		},
+		{
+			name:         "row longer than the header",
+			source:       "key,en\ngreeting,Hello,note\n",
+			sourceLocale: "en", targetLocale: "fr-FR",
+			want: "key,en,fr-FR\ngreeting,Hello,Bonjour,note\n",
+		},
+		{
+			name:         "value column with a comment column",
+			source:       "key,value,comment\ngreeting,Hello,On the home page\n",
+			sourceLocale: "en", targetLocale: "fr-FR",
+			want: "key,value,comment\ngreeting,Bonjour,On the home page\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := MarshalTargetFromSource("catalog.csv", []byte(tc.source), map[string]string{"greeting": "Bonjour"}, tc.sourceLocale, tc.targetLocale)
+			if err != nil {
+				t.Fatalf("marshal target: %v", err)
+			}
+			if string(out) != tc.want {
+				t.Fatalf("got:\n%s\nwant:\n%s", out, tc.want)
+			}
+		})
+	}
+}
+
 func TestMarshalTargetFromSourceIgnoresKeysTheSourceDoesNotHave(t *testing.T) {
 	out, err := MarshalTargetFromSource("messages.toml", []byte("title = \"Hello\"\n"), map[string]string{"title": "Hallo", "removed.key": "Stale"}, "en", "de")
 	if err != nil {
