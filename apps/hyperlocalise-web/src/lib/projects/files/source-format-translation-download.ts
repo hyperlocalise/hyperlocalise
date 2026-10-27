@@ -19,7 +19,7 @@ import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import type { RenderTranslationFileRequest } from "@/lib/go-svc/go-svc-client.types";
 import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
 import { createLogger } from "@/lib/log";
-import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { fromThrowableAsync, isErr } from "@/lib/primitives/result/results";
 import { findLatestReconciledVersionForFile } from "@/lib/projects/files/source-file-segmentation";
 import {
   listProjectTranslationKeysForFile,
@@ -57,19 +57,15 @@ const OWN_DOWNLOAD_FORMATS: ReadonlySet<SupportedTranslationFileFormat> = new Se
 /** go-svc's limit for the source file, the same as the project upload limit. */
 const RENDER_SOURCE_MAX_BYTES = 25 * 1024 * 1024;
 
-/** go-svc answers with these when it cannot write the file it was given. */
-const RENDER_REJECTED_STATUSES: ReadonlySet<number> = new Set([400, 422]);
+/**
+ * A file written in its own format, or `json` when it should have been but could not be:
+ * the caller then downloads the translations as JSON, named as JSON. The reason is logged.
+ */
+export type ProjectSourceFormatTranslationDownload =
+  | { kind: "file"; content: Uint8Array; contentType: string }
+  | { kind: "json" };
 
-export type ProjectSourceFormatTranslationDownload = {
-  content: Uint8Array;
-  contentType: string;
-};
-
-export type ProjectSourceFormatTranslationDownloadError =
-  | { code: "translation_keys_not_found" }
-  | { code: "source_content_not_found" }
-  | { code: "render_rejected" }
-  | { code: "render_unavailable" };
+const JSON_FALLBACK: ProjectSourceFormatTranslationDownload = { kind: "json" };
 
 function isWrittenInSourceFormat(sourcePath: string): boolean {
   const format = inferSupportedTranslationFileFormat(sourcePath);
@@ -125,12 +121,17 @@ export async function loadProjectSourceFormatTranslationDownload(input: {
   sourcePath: string;
   targetLocale: string;
   fileStorageAdapter?: FileStorageAdapter;
-}): Promise<
-  Result<ProjectSourceFormatTranslationDownload | null, ProjectSourceFormatTranslationDownloadError>
-> {
+}): Promise<ProjectSourceFormatTranslationDownload | null> {
   if (!isWrittenInSourceFormat(input.sourcePath)) {
-    return ok(null);
+    return null;
   }
+  const fallBack = (reason: string, details: Record<string, unknown> = {}) => {
+    logger.warn(
+      { projectId: input.projectId, reason, ...details },
+      "translation file not written in its own format; downloading JSON",
+    );
+    return JSON_FALLBACK;
+  };
 
   const translations = await loadProjectTranslationsAsPrefilledEntries({
     organizationId: input.organizationId,
@@ -140,7 +141,8 @@ export async function loadProjectSourceFormatTranslationDownload(input: {
     readyTranslationsOnly: true,
   });
   if (translations.loadedKeyCount === 0) {
-    return err({ code: "translation_keys_not_found" });
+    // The JSON download reports a file without strings.
+    return JSON_FALLBACK;
   }
 
   // The keys were extracted from the reconciled version, so that version is the template.
@@ -150,7 +152,7 @@ export async function loadProjectSourceFormatTranslationDownload(input: {
     sourcePath: input.sourcePath,
   });
   if (!sourceFile?.reconciledSourceFileVersionId) {
-    return err({ code: "source_content_not_found" });
+    return fallBack("source_version_not_found");
   }
   const [version] = await db
     .select({ storedFileId: schema.repositorySourceFileVersions.storedFileId })
@@ -164,7 +166,7 @@ export async function loadProjectSourceFormatTranslationDownload(input: {
     )
     .limit(1);
   if (!version) {
-    return err({ code: "source_content_not_found" });
+    return fallBack("source_version_not_found");
   }
   const source = await fromThrowableAsync(
     getStoredFileContent({
@@ -175,14 +177,10 @@ export async function loadProjectSourceFormatTranslationDownload(input: {
     }),
   );
   if (isErr(source)) {
-    return err({ code: "source_content_not_found" });
+    return fallBack("source_content_unreadable");
   }
   if (source.value.content.byteLength > RENDER_SOURCE_MAX_BYTES) {
-    logger.info(
-      { projectId: input.projectId, bytes: source.value.content.byteLength },
-      "source file too large to render; downloading JSON",
-    );
-    return ok(null);
+    return fallBack("source_too_large", { bytes: source.value.content.byteLength });
   }
 
   const [project] = await db
@@ -217,26 +215,18 @@ export async function loadProjectSourceFormatTranslationDownload(input: {
     }),
   );
   if (isErr(rendered)) {
-    const status = rendered.error instanceof GoSvcClientError ? rendered.error.status : null;
-    // A go-svc without this route yet (mid-deploy or rolled back), or one that refuses the
-    // size, leaves the JSON download in place.
-    if (status === 404 || status === 413) {
-      logger.warn(
-        { projectId: input.projectId, status },
-        "go-svc could not render the translation file; downloading JSON",
-      );
-      return ok(null);
-    }
-    return err({
-      code:
-        status !== null && RENDER_REJECTED_STATUSES.has(status)
-          ? "render_rejected"
-          : "render_unavailable",
+    // Covers a go-svc without this route yet (mid-deploy or rolled back), one that cannot
+    // be reached, and a source file its writer rejects.
+    const error = rendered.error;
+    return fallBack("render_failed", {
+      status: error instanceof GoSvcClientError ? error.status : null,
+      code: error instanceof GoSvcClientError ? error.code : null,
     });
   }
 
-  return ok({
+  return {
+    kind: "file",
     content: rendered.value,
     contentType: source.value.file.contentType || "application/octet-stream",
-  });
+  };
 }

@@ -251,7 +251,6 @@ import {
 } from "./project.schema";
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
 import { normalizeProjectLocalePatch, type ProjectLocalePatchError } from "@/lib/i18n/locales";
-import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import {
   ensureDefaultWorkspaceTeam,
@@ -4016,43 +4015,22 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           targetLocale: query.locale,
           fileStorageAdapter: options.fileStorageAdapter,
         });
-        if (isErr(sourceFormatDownload)) {
-          switch (sourceFormatDownload.error.code) {
-            case "translation_keys_not_found":
-              return translationsNotFoundResponse(c);
-            case "render_unavailable":
-              return serviceUnavailableResponse(
-                c,
-                "translation_file_export_unavailable",
-                "Translated files cannot be written right now. Try again shortly.",
-              );
-            case "source_content_not_found":
-              return notFoundResponse(
-                c,
-                "source_file_not_found",
-                "The source file's content could not be read. Try again, or upload the source file again.",
-              );
-            case "render_rejected":
-              return internalErrorResponse(
-                c,
-                "translation_file_export_failed",
-                "Could not write translations into the source file's format.",
-              );
-            default:
-              return assertNever(sourceFormatDownload.error);
-          }
-        }
-        if (sourceFormatDownload.value) {
+        if (sourceFormatDownload?.kind === "file") {
           // A filled-in gettext template is a catalog, so it downloads as .po.
           const sourceFormatFilename = filename.replace(/\.pot$/i, ".po");
-          return c.body(new Uint8Array(sourceFormatDownload.value.content), 200, {
-            "Content-Type": sourceFormatDownload.value.contentType,
+          return c.body(new Uint8Array(sourceFormatDownload.content), 200, {
+            "Content-Type": sourceFormatDownload.contentType,
             "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(sourceFormatFilename)}`,
             "Content-Security-Policy": "default-src 'none'; sandbox;",
             "X-Content-Type-Options": "nosniff",
             "Cache-Control": "no-store",
           });
         }
+        // A file that could not be written in its own format downloads as JSON, named so.
+        const jsonContentDisposition =
+          sourceFormatDownload?.kind === "json"
+            ? `attachment; filename*=UTF-8''${encodeURIComponent(`${suffix}.json`)}`
+            : contentDisposition;
 
         const result = await loadProjectTranslationsAsPrefilledEntries({
           organizationId,
@@ -4119,7 +4097,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
         return c.body(content, 200, {
           "Content-Type": "application/json; charset=utf-8",
-          "Content-Disposition": contentDisposition,
+          "Content-Disposition": jsonContentDisposition,
         });
       },
     )
