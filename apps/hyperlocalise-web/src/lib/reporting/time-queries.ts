@@ -37,14 +37,19 @@ import {
  */
 
 /**
- * What a task is for: post-edit when a visual workflow made it so, proofread for the other tasks
- * that review (a person's proofread task, an AI review), translate otherwise. `job` is the alias
- * of a `jobs` row, which may be missing (a deleted task): then translate.
+ * What a task is for: post-edit for a proofread-kind task a visual workflow made for editing
+ * machine output, proofread for the other tasks that review (a person's proofread task, an AI
+ * review), translate for translation tasks, other for the rest (research, sync, assets). `job`
+ * is the alias of a `jobs` row, which may be missing (a deleted task): then translate.
  */
 export function taskStepSql(job: string): SQL {
   const j = sql.raw(job);
-  return sql`case when ${j}.input_payload->'metadata'->>'workflowTaskStep' = 'edit' then 'post_edit'
-    when ${j}.kind in ('proofread', 'review') then 'proofread' else 'translate' end`;
+  return sql`case
+    when ${j}.kind = 'proofread' and ${j}.input_payload->'metadata'->>'workflowTaskStep' = 'edit'
+      then 'post_edit'
+    when ${j}.kind in ('proofread', 'review') then 'proofread'
+    when ${j}.kind = 'translation' or ${j}.kind is null then 'translate'
+    else 'other' end`;
 }
 
 export type LoggedTimeRow = {
@@ -150,8 +155,9 @@ export type AutomatedTime = {
   workflowSteps: { nodeType: string; milliseconds: number; runs: number }[];
   /**
    * Runs of translation tasks, from start to finish, and the same time by stage (every stage,
-   * in order, `other` included). With a language chosen, `translating` and `reusing_memory`
-   * count that language only, the other stages the whole run, and `other` is 0.
+   * in order, `other` included). With a language chosen, only runs that reached that language
+   * count; `reusing_memory` and `translating` are that language's own, the other stages and
+   * the total the whole run's, and `other` is 0.
    */
   taskRuns: {
     milliseconds: number;
@@ -207,9 +213,12 @@ const NO_RUNS: AutomatedTime["taskRuns"] = {
 /**
  * Translation task runs that ended in the period: the run from its first event to its last,
  * and the time between the stage boundaries the file translation workflow records
- * (`job_started`, `context_ready`, `strings_extracted`, `translations_reused` and
- * `locale_completed` per language, `job_succeeded` or `job_failed`). Languages run side by
- * side, so translating runs from the last memory reuse to the last language done.
+ * (`job_started`, `strings_extracted`, `translations_reused` and `locale_progress` per
+ * language, `job_succeeded` or `job_failed`). Languages run side by side, so translating runs
+ * from the last memory reuse to the last language's last progress; the languages' finished
+ * events are written together after every file is stored, so they mark nothing per language.
+ * Only runs with a `job_started` event count: a string job's failed run records the failure
+ * alone.
  */
 async function queryTaskRuns(
   input: Omit<ReportScope, "jobIds">,
@@ -224,7 +233,6 @@ async function queryTaskRuns(
     milliseconds: number;
     runs: number;
     preparing: number;
-    extracting: number;
     reusing_memory: number;
     translating: number;
     finishing: number;
@@ -234,13 +242,11 @@ async function queryTaskRuns(
       select max(e.created_at) - min(e.created_at) as took,
         max(e.created_at) filter (where e.type in ('job_succeeded', 'job_failed')) as ended,
         min(e.created_at) filter (where e.type = 'job_started') as started,
-        min(e.created_at) filter (where e.type = 'context_ready') as context_ready,
         min(e.created_at) filter (where e.type = 'strings_extracted') as extracted,
         max(e.created_at) filter (where e.type = 'translations_reused' ${forLocale}) as reused,
-        max(e.created_at) filter (where e.type in ('locale_completed', 'locale_failed') ${forLocale})
-          as languages_done,
-        max(e.created_at) filter (where e.type in ('locale_completed', 'locale_failed'))
-          as all_languages_done
+        max(e.created_at) filter (where e.type = 'translations_reused') as all_reused,
+        max(e.created_at) filter (where e.type = 'locale_progress' ${forLocale}) as translated,
+        max(e.created_at) filter (where e.type = 'locale_progress') as all_translated
         ${locale ? sql`, bool_or(e.locale = ${locale}) as has_language` : sql``}
       from jobs j join job_events e on e.job_id = j.id
       where j.organization_id = ${input.organizationId}
@@ -251,26 +257,22 @@ async function queryTaskRuns(
       group by e.job_id, e.workflow_run_id
     ), staged as (
       select took,
-        greatest(context_ready - started, interval '0') as preparing,
-        greatest(extracted - context_ready, interval '0') as extracting,
+        greatest(extracted - started, interval '0') as preparing,
         greatest(reused - extracted, interval '0') as reusing_memory,
-        greatest(languages_done - coalesce(reused, extracted), interval '0') as translating,
-        greatest(ended - all_languages_done, interval '0') as finishing
+        greatest(translated - coalesce(reused, extracted), interval '0') as translating,
+        greatest(ended - coalesce(all_translated, all_reused, extracted), interval '0') as finishing
       from runs
-      where ended >= ${start} and ended < ${end} ${locale ? sql`and has_language` : sql``}
+      where started is not null and ended >= ${start} and ended < ${end}
+        ${locale ? sql`and has_language` : sql``}
     )
     select ${ms(sql`took`)} as milliseconds, count(*)::integer as runs,
-      ${ms(sql`preparing`)} as preparing, ${ms(sql`extracting`)} as extracting,
-      ${ms(sql`reusing_memory`)} as reusing_memory, ${ms(sql`translating`)} as translating,
+      ${ms(sql`preparing`)} as preparing, ${ms(sql`reusing_memory`)} as reusing_memory,
+      ${ms(sql`translating`)} as translating,
       ${ms(sql`finishing`)} as finishing,
       ${
         locale
           ? sql`0::float8`
-          : ms(
-              sql`took - coalesce(preparing, interval '0') - coalesce(extracting, interval '0')
-                - coalesce(reusing_memory, interval '0') - coalesce(translating, interval '0')
-                - coalesce(finishing, interval '0')`,
-            )
+          : ms(sql`took - preparing - reusing_memory - translating - finishing`)
       } as other
     from staged
   `);

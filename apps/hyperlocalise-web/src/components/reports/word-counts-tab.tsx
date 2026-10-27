@@ -13,17 +13,18 @@
 "use client";
 
 import { useIntl } from "react-intl";
-import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
 import { REPORT_UNITS, type ReportUnit } from "@/lib/reporting/report-units";
 
 import { MatchBandTable, visibleBands } from "./match-band-table";
+import {
+  chartDayLabel,
+  ChartLegend,
+  seriesConfig,
+  seriesValues,
+  spansYears,
+  StackedBarChart,
+} from "./report-chart";
 import { formatCount, unitLabel } from "./report-format";
 import {
   DownloadCsvButton,
@@ -42,27 +43,8 @@ import type { ReportsUrlState } from "./reports-url-state";
 import { SegmentedSwitch } from "./segmented-switch";
 import { wordCountsTabMessages as messages } from "./word-counts-tab.messages";
 
-type Intl = ReturnType<typeof useIntl>;
 type WordCountsData = NonNullable<ReturnType<typeof useWordCounts>["data"]>;
 type WordCountRow = WordCountsData["rows"][number];
-
-const SERIES_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-];
-
-function weekLabel(intl: Intl, monday: string) {
-  return intl.formatMessage(messages.weekOf, {
-    date: intl.formatDate(`${monday}T00:00:00Z`, {
-      day: "numeric",
-      month: "short",
-      timeZone: "UTC",
-    }),
-  });
-}
 
 /** Units per week, one stack per project: the largest five on their own, the rest as Other. */
 function VolumeChart({
@@ -72,31 +54,24 @@ function VolumeChart({
 }) {
   const intl = useIntl();
   const { groups, points } = data.series;
-  const config = Object.fromEntries(
-    groups.map((group, index) => [
-      `s${index}`,
-      {
-        label: group.other
-          ? intl.formatMessage(messages.otherProjects)
-          : (group.projectName ?? group.projectId ?? ""),
-        color: group.other
-          ? "var(--muted-foreground)"
-          : SERIES_COLORS[index % SERIES_COLORS.length],
-      },
-    ]),
-  ) satisfies ChartConfig;
-  const keys = groups.map((_, index) => `s${index}`);
+  const config = seriesConfig(
+    groups.map((group) => ({
+      label: group.other
+        ? intl.formatMessage(messages.otherProjects)
+        : (group.projectName ?? group.projectId ?? ""),
+      other: group.other,
+    })),
+  );
+  const withYear = spansYears(data.period);
   const rows = points.map((point) => ({
-    label: weekLabel(intl, point.start),
-    ...Object.fromEntries(point.units.map((value, index) => [`s${index}`, value])),
+    label: chartDayLabel(intl, point.start, { weekly: true, withYear }),
+    ...seriesValues(point.units),
   }));
   const total = points.reduce(
     (sum, point) => sum + point.units.reduce((part, value) => part + value, 0),
     0,
   );
   const unitName = unitLabel(intl, data.unit);
-  const day = (value: string) =>
-    intl.formatDate(`${value}T00:00:00Z`, { day: "numeric", month: "short", timeZone: "UTC" });
   return (
     <ReportSection
       title={intl.formatMessage(messages.chartTitle)}
@@ -104,62 +79,19 @@ function VolumeChart({
         data.mode === "arrived" ? messages.chartArrivedDetail : messages.chartFinishedDetail,
         { unit: unitName },
       )}
-      actions={
-        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-          {keys.map((key) => (
-            <span key={key} className="inline-flex items-center gap-1.5">
-              <span
-                aria-hidden
-                className="size-2.5 rounded-[3px]"
-                style={{ background: config[key]!.color }}
-              />
-              {config[key]!.label}
-            </span>
-          ))}
-        </div>
-      }
+      actions={<ChartLegend config={config} />}
     >
-      <ChartContainer
+      <StackedBarChart
         config={config}
-        className="aspect-auto h-56 w-full"
-        role="img"
-        aria-label={intl.formatMessage(messages.chartSummary, {
+        rows={rows}
+        summary={intl.formatMessage(messages.chartSummary, {
           unit: unitName,
-          from: day(data.period.from),
-          to: day(data.period.to),
+          from: chartDayLabel(intl, data.period.from, { withYear }),
+          to: chartDayLabel(intl, data.period.to, { withYear }),
           total: formatCount(intl, total),
         })}
-      >
-        <BarChart data={rows} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
-          <XAxis
-            dataKey="label"
-            tickLine={false}
-            axisLine={false}
-            interval="preserveStartEnd"
-            minTickGap={24}
-          />
-          <YAxis hide />
-          <ChartTooltip
-            cursor={false}
-            content={
-              <ChartTooltipContent
-                indicator="dot"
-                formatValue={(value) => formatCount(intl, value)}
-              />
-            }
-          />
-          {keys.map((key, index) => (
-            <Bar
-              key={key}
-              dataKey={key}
-              stackId="volume"
-              fill={`var(--color-${key})`}
-              radius={index === keys.length - 1 ? [4, 4, 0, 0] : undefined}
-              isAnimationActive={false}
-            />
-          ))}
-        </BarChart>
-      </ChartContainer>
+        formatValue={(value) => formatCount(intl, value)}
+      />
     </ReportSection>
   );
 }

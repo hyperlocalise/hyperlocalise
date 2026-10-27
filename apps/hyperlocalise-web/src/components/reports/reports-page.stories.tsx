@@ -83,6 +83,20 @@ export const WordCountsByTask: Story = {
   },
 };
 
+export const WordCountsByWeek: Story = {
+  parameters: {
+    nextjs: {
+      appDirectory: true,
+      navigation: { pathname, query: { tab: "words", group: "week" } },
+    },
+  },
+  play: async ({ canvas }) => {
+    const chart = await canvas.findByRole("region", { name: "Volume per week" });
+    await expect(within(chart).getByText("Help centre")).toBeInTheDocument();
+    await expect(canvas.getByRole("table", { name: "Word counts" })).toBeInTheDocument();
+  },
+};
+
 export const CostEstimate: Story = {
   parameters: {
     nextjs: {

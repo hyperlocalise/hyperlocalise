@@ -21,21 +21,25 @@ export const REPORT_STEPS = ["translation", "review"] as const;
 export type ReportStep = (typeof REPORT_STEPS)[number];
 
 /**
- * What a task is for, as people see it. Reports prices translate work as `translation` and the
- * other two as `review`; time views tell post-edit and proofread apart by the task.
+ * What a task is for, as people see it. Reports prices translate work as `translation` and
+ * post-edit and proofread as `review`; time views tell post-edit and proofread apart by the
+ * task. `other` is a task that is none of those (research, sync, assets) that someone logged
+ * time on.
  */
-export const TASK_STEPS = ["translate", "post_edit", "proofread"] as const;
+export const TASK_STEPS = ["translate", "post_edit", "proofread", "other"] as const;
 export type TaskStep = (typeof TASK_STEPS)[number];
 
 /**
- * The stages of a translation task's run, from the events the file translation workflow
- * records: preparing (glossary, guidelines and memory read), extracting strings, reusing the
- * memory, translating, finishing (writing the files). `other` is a run's time outside those,
- * for runs that lack a stage boundary (an old run, a failed one).
+ * The stages of a translation task's run, between the events the file translation workflow
+ * records: preparing (the sandbox, the file's strings, the glossary, guidelines and memory, in
+ * whichever order the file type needs) up to `strings_extracted`; reusing the memory up to the
+ * last `translations_reused`; translating up to the last `locale_progress`; finishing (writing
+ * and storing the translated files, the follow-up, the status) up to the end. `other` is a
+ * run's time outside those: runs with no stage events, such as image and video runs or runs
+ * from before the events existed.
  */
 export const TASK_RUN_STAGES = [
   "preparing",
-  "extracting",
   "reusing_memory",
   "translating",
   "finishing",

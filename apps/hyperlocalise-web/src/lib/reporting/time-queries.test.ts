@@ -50,6 +50,7 @@ describe("time queries", () => {
     // A post-edit task from a visual workflow, and a proofread task made in the app.
     const help = await createJob({ title: "Help articles", taskStep: "edit" });
     const legal = await createJob({ title: "Legal pages", kind: "proofread" });
+    const sync = await createJob({ title: "Nightly sync", kind: "sync" });
     const entry = (
       jobId: string,
       contributorId: string,
@@ -77,6 +78,7 @@ describe("time queries", () => {
         entry(help.id, user.id, 500, "2026-06-10", { voided: true }),
         entry(help.id, user.id, 15, "2026-06-01"),
         entry(legal.id, colleague.id, 10, "2026-06-12", { step: "review" }),
+        entry(sync.id, user.id, 5, "2026-06-12"),
       ]);
     const scope = { organizationId: organization.id, projectIds: [project.id], period };
 
@@ -100,10 +102,11 @@ describe("time queries", () => {
         minutes: 20,
       }),
       expect.objectContaining({ jobId: legal.id, taskStep: "proofread", minutes: 10 }),
+      expect.objectContaining({ jobId: sync.id, taskStep: "other", minutes: 5 }),
     ]);
     expect(time).toMatchObject({
-      rowCount: 4,
-      totals: { minutes: 165, people: 2, tasks: 3 },
+      rowCount: 5,
+      totals: { minutes: 170, people: 2, tasks: 4 },
       previousMinutes: 15,
     });
     await expect(
@@ -114,6 +117,7 @@ describe("time queries", () => {
       { taskStep: "translate", minutes: 135, people: 2 },
       { taskStep: "post_edit", minutes: 20, people: 1 },
       { taskStep: "proofread", minutes: 10, people: 1 },
+      { taskStep: "other", minutes: 5, people: 1 },
     ]);
   });
 
@@ -166,6 +170,8 @@ describe("time queries", () => {
 
     const job = await createJob({ status: "succeeded" });
     const staged = await createJob({ status: "succeeded" });
+    const image = await createJob({ status: "succeeded" });
+    const strings = await createJob({ status: "failed" });
     const event = (
       workflowRunId: string,
       type: string,
@@ -190,17 +196,29 @@ describe("time queries", () => {
       event("run-2", "job_started", "23:55:00", "2026-06-09"),
       event("run-2", "strings_extracted", "23:58:00", "2026-06-09"),
       event("run-2", "job_succeeded", "00:05:00"),
-      // A run with every stage: 30 s preparing, 30 s extracting, 20 s reusing the memory,
-      // then two languages side by side until 10:04:00, and 30 s finishing.
+      // A run with every stage: 60 s preparing (context and extraction, in either order), 20 s
+      // reusing the memory, two languages translating side by side with German done first,
+      // then the files written and both languages' finished events stored together.
       stagedEvent("job_started", "10:00:00"),
       stagedEvent("context_ready", "10:00:30"),
       stagedEvent("strings_extracted", "10:01:00"),
       stagedEvent("translations_reused", "10:01:10", "fr-FR"),
       stagedEvent("translations_reused", "10:01:20", "de-DE"),
       stagedEvent("locale_progress", "10:02:00", "fr-FR"),
-      stagedEvent("locale_completed", "10:03:00", "de-DE"),
-      stagedEvent("locale_completed", "10:04:00", "fr-FR"),
+      stagedEvent("locale_progress", "10:03:00", "de-DE"),
+      stagedEvent("locale_progress", "10:04:00", "fr-FR"),
+      stagedEvent("locale_completed", "10:04:20", "de-DE"),
+      stagedEvent("locale_completed", "10:04:20", "fr-FR"),
       stagedEvent("job_succeeded", "10:04:30"),
+      // An image run records no stages: two minutes, all "other".
+      event("run-4", "job_started", "11:00:00", "2026-06-10", { jobId: image.id }),
+      event("run-4", "locale_completed", "11:01:00", "2026-06-10", {
+        jobId: image.id,
+        locale: "fr-FR",
+      }),
+      event("run-4", "job_succeeded", "11:02:00", "2026-06-10", { jobId: image.id }),
+      // A string job's failed run records the failure alone, so it is not a run.
+      event("run-5", "job_failed", "12:00:00", "2026-06-10", { jobId: strings.id }),
     ]);
     await db
       .update(schema.jobs)
@@ -210,6 +228,10 @@ describe("time queries", () => {
       .update(schema.jobs)
       .set({ completedAt: at("2026-06-10", "10:04:30") })
       .where(eq(schema.jobs.id, staged.id));
+    await db
+      .update(schema.jobs)
+      .set({ completedAt: at("2026-06-10", "11:02:00") })
+      .where(eq(schema.jobs.id, image.id));
 
     const scope = { organizationId: organization.id, projectIds: [project.id], period };
     const time = await queryAutomatedTime({ ...scope, includeUnattributed: false });
@@ -219,20 +241,21 @@ describe("time queries", () => {
         { nodeType: "action.notify_slack", milliseconds: 1000, runs: 1 },
       ],
       taskRuns: {
-        milliseconds: 870_000,
-        runs: 2,
-        // The run without boundaries puts its ten minutes in "other".
+        milliseconds: 990_000,
+        runs: 3,
+        // The ten-minute run has only an extraction boundary: 3 min preparing, 7 min finishing.
+        // The image run has none: all "other".
         stages: [
-          { stage: "preparing", milliseconds: 30_000 },
-          { stage: "extracting", milliseconds: 30_000 },
+          { stage: "preparing", milliseconds: 240_000 },
           { stage: "reusing_memory", milliseconds: 20_000 },
           { stage: "translating", milliseconds: 160_000 },
-          { stage: "finishing", milliseconds: 30_000 },
-          { stage: "other", milliseconds: 600_000 },
+          { stage: "finishing", milliseconds: 450_000 },
+          { stage: "other", milliseconds: 120_000 },
         ],
       },
     });
-    // With a language chosen: runs that had it, memory reuse and translating for it alone.
+    // With a language chosen: only runs that reached it; memory reuse and translating for it
+    // alone (German's last progress at 10:03:00), the rest of the run whole.
     const german = await queryAutomatedTime({
       ...scope,
       targetLocale: "de-DE",
@@ -242,8 +265,7 @@ describe("time queries", () => {
       milliseconds: 270_000,
       runs: 1,
       stages: [
-        { stage: "preparing", milliseconds: 30_000 },
-        { stage: "extracting", milliseconds: 30_000 },
+        { stage: "preparing", milliseconds: 60_000 },
         { stage: "reusing_memory", milliseconds: 20_000 },
         { stage: "translating", milliseconds: 100_000 },
         { stage: "finishing", milliseconds: 30_000 },

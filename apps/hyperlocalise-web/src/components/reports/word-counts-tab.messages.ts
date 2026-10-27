@@ -21,22 +21,22 @@ export const wordCountsTabMessages = defineMessages({
     description: "Title of the chart of words per week by project on the Word counts tab",
   },
   chartArrivedDetail: {
-    id: "joAVlCwVdU",
+    id: "CD1RIiB61n",
     defaultMessage:
-      "{unit} that arrived each week, by project, past the fifth as Other. Weeks start on Monday, UTC.",
+      "{unit} that arrived each week, by project: the five largest on their own, the rest as Other. Weeks start on Monday, UTC.",
     description:
-      "Subtitle of the volume chart when it shows words that arrived; unit is Words, Strings or Characters",
+      "Subtitle of the volume chart when it shows words that arrived; unit is Words, Strings, Characters or Characters with spaces",
   },
   chartFinishedDetail: {
-    id: "HlsJtwuwzc",
+    id: "4hQ7P5mkNM",
     defaultMessage:
-      "{unit} finished each week, by project, past the fifth as Other. Weeks start on Monday, UTC.",
+      "{unit} finished each week, by project: the five largest on their own, the rest as Other. Weeks start on Monday, UTC.",
     description:
-      "Subtitle of the volume chart when it shows words finished; unit is Words, Strings or Characters",
+      "Subtitle of the volume chart when it shows words finished; unit is Words, Strings, Characters or Characters with spaces",
   },
   chartSummary: {
-    id: "CU41X22vrO",
-    defaultMessage: "{unit} per week from {from} to {to}: {total}",
+    id: "ikD95xrdV0",
+    defaultMessage: "{unit} by week from {from} to {to}, {total} in all",
     description: "Accessible summary of the volume chart",
   },
   otherProjects: {

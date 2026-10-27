@@ -140,6 +140,7 @@ const TASK_STEP_MESSAGES = {
   translate: messages.taskStepTranslate,
   post_edit: messages.taskStepPostEdit,
   proofread: messages.taskStepProofread,
+  other: messages.taskStepOther,
 } as const satisfies Record<TaskStep, unknown>;
 
 export function taskStepLabel(intl: IntlShape, step: TaskStep) {

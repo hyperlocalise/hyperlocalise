@@ -15,7 +15,8 @@ import { describe, expect, it } from "vite-plus/test";
 import type { AiUsage, AiUsageGroup } from "./ai-usage";
 import type { CostEstimate, CostEstimateRow } from "./cost-queries";
 import { resolvePeriod } from "./report-period";
-import { aiUsageCsv, taskWordsCsv } from "./report-csv";
+import { aiUsageCsv, loggedTimeCsv, stepTimesCsv, taskWordsCsv } from "./report-csv";
+import type { AutomatedTime, LoggedTime, StepTime } from "./time-queries";
 
 const row = (targetLocale: string, overrides: Partial<CostEstimateRow>): CostEstimateRow => ({
   targetLocale,
@@ -34,6 +35,70 @@ const row = (targetLocale: string, overrides: Partial<CostEstimateRow>): CostEst
   unestimated: false,
   uncounted: 0,
   ...overrides,
+});
+
+describe("time CSVs", () => {
+  const automated: AutomatedTime = {
+    workflowSteps: [{ nodeType: "action.http", milliseconds: 90_000, runs: 3 }],
+    taskRuns: {
+      milliseconds: 600_000,
+      runs: 2,
+      stages: [
+        { stage: "preparing", milliseconds: 60_000 },
+        { stage: "reusing_memory", milliseconds: 0 },
+        { stage: "translating", milliseconds: 480_000 },
+        { stage: "finishing", milliseconds: 60_000 },
+        { stage: "other", milliseconds: 0 },
+      ],
+    },
+  };
+
+  it("writes logged time with the task's step and the step it is costed as", () => {
+    const time: LoggedTime = {
+      rows: [
+        {
+          jobId: "job_1",
+          jobTitle: "Release",
+          projectId: "project_1",
+          taskStep: "post_edit",
+          step: "review",
+          targetLocale: "fr-FR",
+          minutes: 90,
+          people: 2,
+        },
+      ],
+      rowCount: 1,
+      page: 1,
+      pageSize: 50,
+      totals: { minutes: 90, people: 2, tasks: 1 },
+      previousMinutes: 0,
+    };
+    expect(loggedTimeCsv(time).split("\r\n")).toEqual([
+      '"jobTitle","jobId","taskStep","step","targetLocale","minutes","people"',
+      '"Release","job_1","post_edit","review","fr-FR","90","2"',
+    ]);
+  });
+
+  it("writes time per step: logged by task step, task runs with every stage, workflow steps", () => {
+    const logged: StepTime[] = [{ taskStep: "translate", minutes: 30, people: 1 }];
+    expect(stepTimesCsv(logged, automated).split("\r\n")).toEqual([
+      '"kind","name","minutes","people","runs"',
+      '"logged","translate","30","1",""',
+      '"task_runs","translation","10","","2"',
+      '"task_run_stage","preparing","1","","2"',
+      '"task_run_stage","reusing_memory","0","","2"',
+      '"task_run_stage","translating","8","","2"',
+      '"task_run_stage","finishing","1","","2"',
+      '"task_run_stage","other","0","","2"',
+      '"workflow_step","action.http","2","","3"',
+    ]);
+    // No task runs, no rows for them.
+    const none = { ...automated, taskRuns: { ...automated.taskRuns, runs: 0, milliseconds: 0 } };
+    expect(stepTimesCsv([], none).split("\r\n")).toEqual([
+      '"kind","name","minutes","people","runs"',
+      '"workflow_step","action.http","2","","3"',
+    ]);
+  });
 });
 
 describe("task words CSV", () => {

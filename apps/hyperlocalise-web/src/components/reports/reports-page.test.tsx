@@ -147,6 +147,41 @@ describe("Reports page", () => {
     // Activity changes are neutral sentences against the previous 28 days.
     expect(screen.getByText("+12% vs previous 28 days")).toBeInTheDocument();
     expect(screen.getAllByText(/points vs previous 28 days/).length).toBeGreaterThan(0);
+    // Time on each step: logged time by what each task is for, then task runs and their
+    // stages (the count on the runs' own row only), then workflow steps.
+    const stepTimes = screen.getByRole("table", { name: "Time on each step" });
+    const rows = within(stepTimes)
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => Array.from(row.querySelectorAll("td"), (cell) => cell.textContent));
+    expect(rows.slice(0, 9)).toEqual([
+      ["Translate (logged)", "41 h 30 m", "5 people"],
+      ["Post-edit (logged)", "15 h 00 m", "2 people"],
+      ["Proofread (logged)", "8 h 00 m", "3 people"],
+      ["Translation task runs", "6 h 12 m", "212 runs"],
+      ["Task runs: Preparing", "0 h 30 m", ""],
+      ["Task runs: Reusing memory", "0 h 05 m", ""],
+      ["Task runs: Translating", "5 h 00 m", ""],
+      ["Task runs: Finishing", "0 h 25 m", ""],
+      ["Task runs: Other", "0 h 12 m", ""],
+    ]);
+    expect(rows[9]?.[0]).toMatch(/^Workflow: /);
+  });
+
+  it("shows each task's step beside the step its time is costed as", async () => {
+    mocks.search = "tab=time";
+    renderPage();
+    const table = await screen.findByRole("table", { name: "Time logged by task" });
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((cell) => cell.textContent),
+    ).toEqual(["Task", "Task step", "Step", "Language", "Time logged", "People"]);
+    const cells = Array.from(
+      within(table).getAllByRole("row")[1]!.querySelectorAll("td"),
+      (cell) => cell.textContent,
+    );
+    expect(cells.slice(0, 3)).toEqual(["Release 4.2 strings", "Translate", "Translation"]);
   });
 
   it("ends on the last tab chosen when tabs are switched faster than the address updates", async () => {
@@ -287,6 +322,12 @@ describe("Reports page", () => {
     const section = await screen.findByRole("region", { name: "Volume per week" });
     expect(section).toHaveTextContent("Help centre");
     expect(section).toHaveTextContent("Web app");
+    // Two projects fit, so the legend has no "Other" series.
+    expect(
+      within(section)
+        .getAllByText(/^(Help centre|Web app|Other)$/)
+        .map((name) => name.textContent),
+    ).toEqual(["Help centre", "Web app"]);
     expect(section).toHaveTextContent("Words that arrived each week, by project");
 
     // Grouped another way, the counts come without a series and the chart goes.

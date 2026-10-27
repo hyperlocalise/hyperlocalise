@@ -284,6 +284,12 @@ export const reportsPageMessages = defineMessages({
     defaultMessage: "Proofread",
     description: "What a task is for: proofreading translations",
   },
+  taskStepOther: {
+    id: "4Y+Gg4iSBv",
+    defaultMessage: "Other",
+    description:
+      "What a task is for when it is not translating, post-editing or proofreading, such as research or syncing",
+  },
   rateCard: {
     id: "sYe95jJkmx",
     defaultMessage: "Rate card",

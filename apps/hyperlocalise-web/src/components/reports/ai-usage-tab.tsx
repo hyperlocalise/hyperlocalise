@@ -16,19 +16,11 @@ import { XIcon } from "@phosphor-icons/react";
 import { Fragment } from "react";
 import Link from "next/link";
 import { useIntl } from "react-intl";
-import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
 import { buildPlanUsageHref } from "@/lib/billing/plan-usage";
 import { AI_USAGE_DIMENSIONS, type AiUsageDimension } from "@/lib/reporting/ai-usage-origins";
 import { describeChange } from "@/lib/reporting/report-period";
 
-import { activityTabMessages } from "./activity-tab.messages";
 import { aiGroupLabel, dimensionLabel } from "./ai-usage-labels";
 import { aiUsageTabMessages as messages } from "./ai-usage-tab.messages";
 import {
@@ -38,6 +30,14 @@ import {
   formatRateAmount,
   formatUsd,
 } from "./report-format";
+import {
+  chartDayLabel,
+  ChartLegend,
+  seriesConfig,
+  seriesValues,
+  spansYears,
+  StackedBarChart,
+} from "./report-chart";
 import {
   DownloadCsvButton,
   ReportEmpty,
@@ -297,23 +297,6 @@ function AiUsageCards({ data, organizationSlug }: { data: AiUsageData; organizat
   );
 }
 
-function formatChartDay(intl: Intl, day: string, weekly: boolean) {
-  const date = intl.formatDate(`${day}T00:00:00Z`, {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  });
-  return weekly ? intl.formatMessage(activityTabMessages.weekOf, { date }) : date;
-}
-
-const SERIES_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-];
-
 const MEASURE_FIELDS = { tokens: "tokens", calls: "calls", charge: "chargeUsd" } as const;
 
 function formatMeasure(intl: Intl, measure: Measure, value: number) {
@@ -339,28 +322,23 @@ function AiUsageChart({
   const shown = data.series.groups.flatMap((group, index) =>
     points.some((point) => point[field][index]! > 0) ? [{ group, index }] : [],
   );
-  const config = Object.fromEntries(
-    shown.map(({ group, index }) => [
-      `s${index}`,
-      {
-        label: group.other
-          ? intl.formatMessage(messages.otherGroup)
-          : aiGroupLabel(intl, data.groupBy, group),
-        color: group.other
-          ? "var(--muted-foreground)"
-          : SERIES_COLORS[index % SERIES_COLORS.length],
-      },
-    ]),
-  ) satisfies ChartConfig;
+  const config = seriesConfig(
+    shown.map(({ group }) => ({
+      label: group.other
+        ? intl.formatMessage(messages.otherGroup)
+        : aiGroupLabel(intl, data.groupBy, group),
+      other: group.other,
+    })),
+  );
+  const withYear = spansYears(data.period);
   const rows = points.map((point) => ({
-    label: formatChartDay(intl, point.start, weekly),
-    ...Object.fromEntries(point[field].map((value, index) => [`s${index}`, value])),
+    label: chartDayLabel(intl, point.start, { weekly, withYear }),
+    ...seriesValues(shown.map(({ index }) => point[field][index]!)),
   }));
   const total = points.reduce(
     (sum, point) => sum + point[field].reduce((part, value) => part + value, 0),
     0,
   );
-  const keys = shown.map(({ index }) => `s${index}`);
   return (
     <ReportSection
       title={intl.formatMessage(weekly ? messages.chartPerWeek : messages.chartPerDay)}
@@ -369,18 +347,7 @@ function AiUsageChart({
       })}
       actions={
         <>
-          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-            {keys.map((key) => (
-              <span key={key} className="inline-flex items-center gap-1.5">
-                <span
-                  aria-hidden
-                  className="size-2.5 rounded-[3px]"
-                  style={{ background: config[key]!.color }}
-                />
-                {config[key]!.label}
-              </span>
-            ))}
-          </div>
+          <ChartLegend config={config} />
           <SegmentedSwitch<Measure>
             label={intl.formatMessage(messages.chartMeasure)}
             value={measure}
@@ -394,47 +361,18 @@ function AiUsageChart({
         </>
       }
     >
-      <ChartContainer
+      <StackedBarChart
         config={config}
-        className="aspect-auto h-56 w-full"
-        role="img"
-        aria-label={intl.formatMessage(messages.chartSummary, {
+        rows={rows}
+        summary={intl.formatMessage(messages.chartSummary, {
           measure: intl.formatMessage(messages[`measure_${measure}`]),
-          from: formatChartDay(intl, data.period.from, false),
-          to: formatChartDay(intl, data.period.to, false),
+          from: chartDayLabel(intl, data.period.from, { withYear }),
+          to: chartDayLabel(intl, data.period.to, { withYear }),
           total: formatMeasure(intl, measure, total),
         })}
-      >
-        <BarChart data={rows} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
-          <XAxis
-            dataKey="label"
-            tickLine={false}
-            axisLine={false}
-            interval="preserveStartEnd"
-            minTickGap={24}
-          />
-          <YAxis hide allowDecimals={measure === "charge"} />
-          <ChartTooltip
-            cursor={false}
-            content={
-              <ChartTooltipContent
-                indicator="dot"
-                formatValue={(value) => formatMeasure(intl, measure, value)}
-              />
-            }
-          />
-          {keys.map((key, index) => (
-            <Bar
-              key={key}
-              dataKey={key}
-              stackId="usage"
-              fill={`var(--color-${key})`}
-              radius={index === keys.length - 1 ? [4, 4, 0, 0] : undefined}
-              isAnimationActive={false}
-            />
-          ))}
-        </BarChart>
-      </ChartContainer>
+        formatValue={(value) => formatMeasure(intl, measure, value)}
+        allowDecimals={measure === "charge"}
+      />
     </ReportSection>
   );
 }

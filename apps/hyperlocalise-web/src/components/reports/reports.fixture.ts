@@ -118,8 +118,7 @@ export const reportsStepTimes: {
       milliseconds: 22_320_000,
       runs: 212,
       stages: [
-        { stage: "preparing", milliseconds: 1_200_000 },
-        { stage: "extracting", milliseconds: 600_000 },
+        { stage: "preparing", milliseconds: 1_800_000 },
         { stage: "reusing_memory", milliseconds: 300_000 },
         { stage: "translating", milliseconds: 18_000_000 },
         { stage: "finishing", milliseconds: 1_500_000 },
@@ -275,8 +274,10 @@ export function createReportsWordCounts(
   };
 }
 
-/** Word counts grouped by task, one row per task and language. */
-/** Word counts grouped by week: the two projects over two weeks, with the chart's series. */
+/**
+ * Word counts grouped by week: the two projects over the last two weeks in the table, with the
+ * chart's series over the whole period.
+ */
 export function createReportsWeeklyWordCounts() {
   const base = createReportsWordCounts();
   return createReportsWordCounts({
@@ -290,6 +291,7 @@ export function createReportsWeeklyWordCounts() {
   });
 }
 
+/** Word counts grouped by task, one row per task and language. */
 export function createReportsTaskWordCounts() {
   return createReportsWordCounts({
     rows: [

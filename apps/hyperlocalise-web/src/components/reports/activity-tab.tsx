@@ -383,9 +383,9 @@ function StepTimesSection({ input }: { input: SectionInput }) {
                       })}
                     </TableCell>
                   </TableRow>
-                  {/* The run's stages; "Other" only when some run lacked a stage boundary. */}
+                  {/* The runs' stages, those with any time; the run count stays on the row above. */}
                   {data.automated.taskRuns.stages
-                    .filter((row) => row.stage !== "other" || row.milliseconds > 0)
+                    .filter((row) => row.milliseconds > 0)
                     .map((row) => (
                       <TableRow key={row.stage}>
                         <TableCell className="pl-8 text-muted-foreground">
@@ -396,11 +396,7 @@ function StepTimesSection({ input }: { input: SectionInput }) {
                         <TableCell className="text-right tabular-nums">
                           {formatDuration(intl, row.milliseconds / 60_000)}
                         </TableCell>
-                        <TableCell className="text-right tabular-nums text-muted-foreground">
-                          {intl.formatMessage(messages.runsCount, {
-                            count: data.automated.taskRuns.runs,
-                          })}
-                        </TableCell>
+                        <TableCell />
                       </TableRow>
                     ))}
                 </>
