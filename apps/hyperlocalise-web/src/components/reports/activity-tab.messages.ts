@@ -211,9 +211,9 @@ export const activityTabMessages = defineMessages({
       "Task run stage: time outside every stage, for runs without stage events, such as image and video runs",
   },
   stepTimesFiltersNote: {
-    id: "UPg/3WatvY",
+    id: "v0Xqg0bjFB",
     defaultMessage:
-      "Automated run time follows the dates and project, not the task or step chosen. With a language chosen, only task runs that reached it count; their Reusing memory and Translating are that language's, the rest of each run is whole.",
+      "Automated run time follows the dates and project, not the task or step chosen. With a language chosen, only task runs that reached it count: Reusing memory and Translating show that language's own time, while Preparing, Finishing and the total cover the whole run.",
     description: "Note on the time on each step table while a task, language or step filter is set",
   },
   workflowStep: {

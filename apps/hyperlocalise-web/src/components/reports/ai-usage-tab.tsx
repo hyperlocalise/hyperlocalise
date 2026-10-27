@@ -323,11 +323,12 @@ function AiUsageChart({
     points.some((point) => point[field][index]! > 0) ? [{ group, index }] : [],
   );
   const config = seriesConfig(
-    shown.map(({ group }) => ({
+    shown.map(({ group, index }) => ({
       label: group.other
         ? intl.formatMessage(messages.otherGroup)
         : aiGroupLabel(intl, data.groupBy, group),
       other: group.other,
+      slot: index,
     })),
   );
   const withYear = spansYears(data.period);

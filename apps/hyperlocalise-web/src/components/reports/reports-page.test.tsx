@@ -176,7 +176,7 @@ describe("Reports page", () => {
       within(table)
         .getAllByRole("columnheader")
         .map((cell) => cell.textContent),
-    ).toEqual(["Task", "Task step", "Step", "Language", "Time logged", "People"]);
+    ).toEqual(["Task", "Task step", "Costed as", "Language", "Time logged", "People"]);
     const cells = Array.from(
       within(table).getAllByRole("row")[1]!.querySelectorAll("td"),
       (cell) => cell.textContent,

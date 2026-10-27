@@ -34,8 +34,12 @@ const SERIES_COLORS = [
   "var(--chart-5)",
 ];
 
-/** One stacked series of a report chart: the largest groups by name, then "Other". */
-export type ChartSeries = { label: string; other: boolean };
+/**
+ * One stacked series of a report chart: the largest groups by name, then "Other". `slot` is the
+ * series' place among its chart's groups, which keeps its colour when a series before it has
+ * nothing to show and is left out; by default, its position in the list.
+ */
+export type ChartSeries = { label: string; other: boolean; slot?: number };
 
 /** The chart's colours and labels: one colour per series in order, "Other" in grey. */
 export function seriesConfig(series: ChartSeries[]) {
@@ -46,7 +50,7 @@ export function seriesConfig(series: ChartSeries[]) {
         label: entry.label,
         color: entry.other
           ? "var(--muted-foreground)"
-          : SERIES_COLORS[index % SERIES_COLORS.length],
+          : SERIES_COLORS[(entry.slot ?? index) % SERIES_COLORS.length],
       },
     ]),
   ) satisfies ChartConfig;

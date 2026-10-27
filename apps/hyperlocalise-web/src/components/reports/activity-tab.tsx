@@ -34,6 +34,7 @@ import {
   stepLabel,
   taskStepLabel,
 } from "./report-format";
+import { chartDayLabel, spansYears } from "./report-chart";
 import { ReportSection, ReportSectionState, DownloadCsvButton } from "./report-section";
 import { ReportStatCard, ReportStatCards, ReportStatCardsSkeleton } from "./report-stat-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
@@ -48,7 +49,6 @@ import {
 import type { ReportsUrlState } from "./reports-url-state";
 import { SegmentedSwitch } from "./segmented-switch";
 
-type Intl = ReturnType<typeof useIntl>;
 type ActivityData = NonNullable<ReturnType<typeof useActivityReport>["data"]>;
 
 export function ActivityTab({
@@ -143,15 +143,6 @@ function ActivityCards({ data }: { data: ActivityData }) {
   );
 }
 
-function formatChartDay(intl: Intl, day: string, weekly: boolean) {
-  const date = intl.formatDate(`${day}T00:00:00Z`, {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  });
-  return weekly ? intl.formatMessage(messages.weekOf, { date }) : date;
-}
-
 function FinishedWordsChart({
   data,
   onChange,
@@ -161,6 +152,7 @@ function FinishedWordsChart({
 }) {
   const intl = useIntl();
   const weekly = data.period.interval === "week";
+  const withYear = spansYears(data.period);
   // Where the finished text came from, bottom to top of each bar; "unknown" only shows when it occurs.
   const config = {
     memory: { label: intl.formatMessage(messages.fromMemory), color: "var(--chart-2)" },
@@ -171,7 +163,7 @@ function FinishedWordsChart({
   } satisfies ChartConfig;
   const rows = data.series.map((point) => ({
     ...point,
-    label: formatChartDay(intl, point.start, weekly),
+    label: chartDayLabel(intl, point.start, { weekly, withYear }),
   }));
   const totals = SUMMARY_SOURCES.map(
     (key) => [key, data.series.reduce((sum, point) => sum + point[key], 0)] as const,
@@ -219,8 +211,8 @@ function FinishedWordsChart({
         aria-label={intl.formatMessage(messages.chartSummary, {
           finished: formatCount(intl, finished),
           people: formatCount(intl, totals.find(([name]) => name === "person")?.[1] ?? 0),
-          from: formatChartDay(intl, data.period.from, false),
-          to: formatChartDay(intl, data.period.to, false),
+          from: chartDayLabel(intl, data.period.from, { withYear }),
+          to: chartDayLabel(intl, data.period.to, { withYear }),
         })}
       >
         <BarChart data={rows} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
@@ -383,9 +375,9 @@ function StepTimesSection({ input }: { input: SectionInput }) {
                       })}
                     </TableCell>
                   </TableRow>
-                  {/* The runs' stages, those with any time; the run count stays on the row above. */}
+                  {/* The runs' stages that amount to a minute; the run count stays on the row above. */}
                   {data.automated.taskRuns.stages
-                    .filter((row) => row.milliseconds > 0)
+                    .filter((row) => row.milliseconds >= 30_000)
                     .map((row) => (
                       <TableRow key={row.stage}>
                         <TableCell className="pl-8 text-muted-foreground">

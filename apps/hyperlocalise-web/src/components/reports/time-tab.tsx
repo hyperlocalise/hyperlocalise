@@ -122,7 +122,7 @@ export function TimeTab({
                   <TableRow>
                     <TableHead>{intl.formatMessage(messages.taskColumn)}</TableHead>
                     <TableHead>{intl.formatMessage(messages.taskStepColumn)}</TableHead>
-                    <TableHead>{intl.formatMessage(messages.stepColumn)}</TableHead>
+                    <TableHead>{intl.formatMessage(messages.costedAsColumn)}</TableHead>
                     <TableHead>{intl.formatMessage(messages.languageColumn)}</TableHead>
                     <TableHead className="text-right">
                       {intl.formatMessage(messages.timeColumn)}

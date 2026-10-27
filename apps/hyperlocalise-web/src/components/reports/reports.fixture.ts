@@ -229,7 +229,8 @@ export const reportsWordCountSeries: WordCountSeries = {
     { projectId: "project_web", projectName: "Web app", other: false },
   ],
   points: [
-    { start: "2026-09-28", units: [12_000, 6_000] },
+    { start: "2026-09-21", units: [3_000, 1_000] },
+    { start: "2026-09-28", units: [9_000, 5_000] },
     { start: "2026-10-05", units: [10_870, 4_420] },
     { start: "2026-10-12", units: [9_000, 4_000] },
     { start: "2026-10-19", units: [8_000, 4_000] },

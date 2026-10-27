@@ -259,7 +259,7 @@ async function queryTaskRuns(
       select took,
         greatest(extracted - started, interval '0') as preparing,
         greatest(reused - extracted, interval '0') as reusing_memory,
-        greatest(translated - coalesce(reused, extracted), interval '0') as translating,
+        greatest(translated - coalesce(reused, all_reused, extracted), interval '0') as translating,
         greatest(ended - coalesce(all_translated, all_reused, extracted), interval '0') as finishing
       from runs
       where started is not null and ended >= ${start} and ended < ${end}
@@ -272,7 +272,9 @@ async function queryTaskRuns(
       ${
         locale
           ? sql`0::float8`
-          : ms(sql`took - preparing - reusing_memory - translating - finishing`)
+          : ms(
+              sql`greatest(took - preparing - reusing_memory - translating - finishing, interval '0')`,
+            )
       } as other
     from staged
   `);
