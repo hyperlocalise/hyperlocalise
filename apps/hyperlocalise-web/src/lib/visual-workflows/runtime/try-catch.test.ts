@@ -402,6 +402,12 @@ describe("Try / Catch runtime", () => {
     expect(
       shouldReuseTryCatchBodyFailure("failed", {
         ok: false,
+        error: { code: "http_error", message: "HTTP 500 Internal Server Error" },
+      }),
+    ).toBe(true);
+    expect(
+      shouldReuseTryCatchBodyFailure("failed", {
+        ok: false,
         error: { code: "needs_attention", message: "Check the provider." },
       }),
     ).toBe(false);
