@@ -206,6 +206,8 @@ describe("time queries", () => {
       stagedEvent("translations_reused", "10:01:20", "de-DE"),
       stagedEvent("locale_progress", "10:02:00", "fr-FR"),
       stagedEvent("locale_progress", "10:03:00", "de-DE"),
+      // Spanish had no memory hits, so no reuse event of its own.
+      stagedEvent("locale_progress", "10:03:30", "es-ES"),
       stagedEvent("locale_progress", "10:04:00", "fr-FR"),
       stagedEvent("locale_completed", "10:04:20", "de-DE"),
       stagedEvent("locale_completed", "10:04:20", "fr-FR"),
@@ -272,6 +274,19 @@ describe("time queries", () => {
         { stage: "other", milliseconds: 0 },
       ],
     });
+    // A language with no reuse of its own starts translating at the run's last reuse.
+    const spanish = await queryAutomatedTime({
+      ...scope,
+      targetLocale: "es-ES",
+      includeUnattributed: false,
+    });
+    expect(spanish.taskRuns.stages).toEqual([
+      { stage: "preparing", milliseconds: 60_000 },
+      { stage: "reusing_memory", milliseconds: 0 },
+      { stage: "translating", milliseconds: 130_000 },
+      { stage: "finishing", milliseconds: 30_000 },
+      { stage: "other", milliseconds: 0 },
+    ]);
     const withWorkspace = await queryAutomatedTime({ ...scope, includeUnattributed: true });
     expect(withWorkspace.workflowSteps[0]).toEqual({
       nodeType: "action.http",
