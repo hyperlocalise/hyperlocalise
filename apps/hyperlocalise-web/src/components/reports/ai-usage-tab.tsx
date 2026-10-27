@@ -18,7 +18,12 @@ import Link from "next/link";
 import { useIntl } from "react-intl";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
-import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import { buildPlanUsageHref } from "@/lib/billing/plan-usage";
 import { AI_USAGE_DIMENSIONS, type AiUsageDimension } from "@/lib/reporting/ai-usage-origins";
 import { describeChange } from "@/lib/reporting/report-period";
@@ -26,7 +31,6 @@ import { describeChange } from "@/lib/reporting/report-period";
 import { activityTabMessages } from "./activity-tab.messages";
 import { aiGroupLabel, dimensionLabel } from "./ai-usage-labels";
 import { aiUsageTabMessages as messages } from "./ai-usage-tab.messages";
-import { ReportChartTooltipContent } from "./report-chart-tooltip";
 import {
   formatChange,
   formatCompact,
@@ -413,8 +417,8 @@ function AiUsageChart({
           <ChartTooltip
             cursor={false}
             content={
-              <ReportChartTooltipContent
-                config={config}
+              <ChartTooltipContent
+                indicator="dot"
                 formatValue={(value) => formatMeasure(intl, measure, value)}
               />
             }

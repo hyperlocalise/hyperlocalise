@@ -151,6 +151,7 @@ function ChartTooltipContent({
   color,
   nameKey,
   labelKey,
+  formatValue,
 }: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
   React.ComponentProps<"div"> & {
     hideLabel?: boolean;
@@ -158,6 +159,11 @@ function ChartTooltipContent({
     indicator?: "line" | "dot" | "dashed";
     nameKey?: string;
     labelKey?: string;
+    /**
+     * Writes each numeric value, such as in the page's own locale or unit; the browser's number
+     * format when left out.
+     */
+    formatValue?: (value: number) => React.ReactNode;
   } & Omit<
     RechartsPrimitive.DefaultTooltipContentProps<TooltipValueType, TooltipNameType>,
     "accessibilityLayer"
@@ -248,7 +254,9 @@ function ChartTooltipContent({
                     )}
                     <div
                       className={cn(
-                        "flex flex-1 justify-between leading-none",
+                        // The gap keeps a name and its value apart when the widest row sets the
+                        // tooltip's width.
+                        "flex flex-1 justify-between gap-4 leading-none",
                         nestLabel ? "items-end" : "items-center",
                       )}
                     >
@@ -259,9 +267,9 @@ function ChartTooltipContent({
                         </span>
                       </div>
                       {item.value != null && (
-                        <span className="font-mono font-medium text-foreground tabular-nums">
+                        <span className="font-medium text-foreground tabular-nums">
                           {typeof item.value === "number"
-                            ? NUMBER_FORMATTER.format(item.value)
+                            ? (formatValue?.(item.value) ?? NUMBER_FORMATTER.format(item.value))
                             : String(item.value)}
                         </span>
                       )}

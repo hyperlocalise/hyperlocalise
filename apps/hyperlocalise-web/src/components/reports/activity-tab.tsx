@@ -15,13 +15,17 @@
 import { useIntl } from "react-intl";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
-import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import { describeChange, shareOf } from "@/lib/reporting/report-period";
 import { REPORT_STEPS, SUMMARY_SOURCES } from "@/lib/reporting/report-units";
 import { VISUAL_NODE_DESCRIPTIONS } from "@/lib/visual-workflows/catalog/node-descriptions";
 
 import { activityTabMessages as messages } from "./activity-tab.messages";
-import { ReportChartTooltipContent } from "./report-chart-tooltip";
 import { formatChange, formatCount, formatDuration, formatShare, stepLabel } from "./report-format";
 import { ReportSection, ReportSectionState, DownloadCsvButton } from "./report-section";
 import { ReportStatCard, ReportStatCards, ReportStatCardsSkeleton } from "./report-stat-card";
@@ -224,8 +228,8 @@ function FinishedWordsChart({
           <ChartTooltip
             cursor={false}
             content={
-              <ReportChartTooltipContent
-                config={config}
+              <ChartTooltipContent
+                indicator="dot"
                 formatValue={(value) => formatCount(intl, value)}
               />
             }
