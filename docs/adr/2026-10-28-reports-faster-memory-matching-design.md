@@ -25,9 +25,9 @@ Locally, a proofread task of 2,000 strings into one language, against 303,844 en
 ## Alternatives considered
 
 - **Each bigram's ids in a typed array:** no faster. While the index was built it needed up to twice the memory, enough to fail on made-up Chinese text with very many distinct pairs where the plain lists fit.
-- **Keeping short entries' distinct characters for short strings:** about a third faster on large Japanese memories, but it adds memory and code to save under a second per language. Joined into one string, they also changed scores for text with lone surrogates.
+- **Keeping short entries' distinct characters for short strings:** took about a third less time on large Japanese memories, but it adds memory and code to save under a second per language. Joined into one string, they also changed scores for text with lone surrogates.
 - **A minimum match of 70%** (the Trados default) would allow stronger filters, but it changes what Reports counts.
-- **A bit-parallel edit distance** (Myers) would speed up long segments, now the slowest case (below). It needs about 80 lines that must work on code points, so it is left for later.
+- **A bit-parallel edit distance** (Myers) would speed up long segments, now the slowest case (below). It needs about 80 lines that must work on code points, and is not part of this change.
 
 ## Consequences
 

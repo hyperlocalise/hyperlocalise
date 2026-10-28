@@ -30,9 +30,9 @@ const REPORTING_BATCH_SIZE = 500;
 /**
  * Memory entries loaded and indexed at a time. A larger memory is scored one slice after another,
  * keeping each string's best score. The index takes about 0.5 MB per 1,000 sentence-length
- * entries and up to about 5 MB for paragraphs or Chinese and Japanese documents, and several jobs
- * can share one function instance, so this keeps a few concurrent jobs inside a 2 GB function for
- * most memories.
+ * entries (English or Japanese), about 2.5 MB for paragraphs, and 5 to 10 MB for long document
+ * sections or text with very many distinct character pairs. Several jobs can share one function
+ * instance, so this keeps a few concurrent jobs inside a 2 GB function for most memories.
  */
 const MEMORY_SLICE_ENTRIES = 300_000;
 /**
