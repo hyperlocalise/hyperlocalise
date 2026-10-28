@@ -24,7 +24,7 @@ import {
   CheckSquareIcon,
   UploadSimpleIcon,
 } from "@phosphor-icons/react";
-import { siGithub, siGoogledrive, siIntercom, siSanity } from "simple-icons";
+import { siGithub, siGoogledrive, siIntercom, siSanity, siWebflow } from "simple-icons";
 import Image from "next/image";
 
 import {
@@ -43,6 +43,7 @@ type IconBucket =
   | "contentful"
   | "intercom"
   | "sanity"
+  | "webflow"
   | "google-drive"
   | "braze"
   | "web-search"
@@ -52,7 +53,14 @@ type IconBucket =
   | "translate"
   | "validation";
 
-const BRAND_TOOL_IDS = new Set(["intercom", "sanity", "google-drive", "braze", "contentful"]);
+const BRAND_TOOL_IDS = new Set([
+  "intercom",
+  "sanity",
+  "google-drive",
+  "braze",
+  "contentful",
+  "webflow",
+]);
 
 function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucket {
   switch (node.id) {
@@ -77,6 +85,8 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
       return "intercom";
     case "sanity":
       return "sanity";
+    case "webflow":
+      return "webflow";
     case "google-drive":
       return "google-drive";
     case "braze":
@@ -133,6 +143,8 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
       return <SimpleBrandIcon icon={siIntercom} colored className={iconClassName} />;
     case "sanity":
       return <SimpleBrandIcon icon={siSanity} colored className={iconClassName} />;
+    case "webflow":
+      return <SimpleBrandIcon icon={siWebflow} colored className={iconClassName} />;
     case "google-drive":
       return <SimpleBrandIcon icon={siGoogledrive} colored className={iconClassName} />;
     case "braze":
