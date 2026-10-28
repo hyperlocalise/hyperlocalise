@@ -232,6 +232,45 @@ describe("listCustomerIoNewsletters", () => {
       }),
     );
   });
+
+  it("follows the list next token as start", async () => {
+    const seenPaths: string[] = [];
+    const fetchImpl = vi.fn<typeof fetch>(async (url) => {
+      const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+      const path = href.replace("https://api.customer.io/v1", "");
+      seenPaths.push(path);
+      if (path.includes("start=")) {
+        return jsonResponse({ newsletters: [{ id: 11, name: "Monthly", updated: 1552341937 }] });
+      }
+      return jsonResponse({
+        newsletters: [{ id: 10, name: "Weekly", updated: 1552341937 }],
+        next: "page-two",
+      });
+    });
+
+    const newsletters = await listCustomerIoNewsletters({ apiKey: "key", region: "us", fetchImpl });
+
+    expect(newsletters).toEqual([
+      { id: "10", name: "Weekly", updatedAt: expect.any(String) },
+      { id: "11", name: "Monthly", updatedAt: expect.any(String) },
+    ]);
+    expect(seenPaths).toEqual(["/newsletters?limit=100", "/newsletters?limit=100&start=page-two"]);
+  });
+
+  it("stops when the api repeats the next token", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      jsonResponse({
+        newsletters: [{ id: 10, name: "Weekly", updated: 1552341937 }],
+        next: "stuck",
+      }),
+    );
+
+    const newsletters = await listCustomerIoNewsletters({ apiKey: "key", region: "us", fetchImpl });
+
+    // Both fetched pages accumulate, but the repeated token terminates paging.
+    expect(newsletters).toHaveLength(2);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("listCustomerIoTransactionalMessages", () => {

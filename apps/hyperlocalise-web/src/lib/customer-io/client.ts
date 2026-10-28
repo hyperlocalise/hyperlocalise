@@ -219,6 +219,18 @@ function readCustomerIoSummaries(
   });
 }
 
+/** Follow a Customer.io list `next` token (`{ ..., next: "<token>" }`). */
+function readCustomerIoListNext(body: unknown): string | null {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return null;
+  }
+  const next = (body as Record<string, unknown>).next;
+  return typeof next === "string" && next.trim() ? next : null;
+}
+
+/** Upper bound on list pages fetched (100 items each) so a misbehaving API cannot loop forever. */
+const CUSTOMER_IO_LIST_MAX_PAGES = 50;
+
 async function listCustomerIoSummaries(input: {
   apiKey: string;
   region: CustomerIoRegion;
@@ -227,16 +239,29 @@ async function listCustomerIoSummaries(input: {
   fetchImpl?: typeof fetch;
 }): Promise<Array<{ id: string; name: string; updatedAt: string | null }>> {
   const fetchImpl = input.fetchImpl ?? fetch;
-  const response = await customerIoFetch({
-    apiKey: input.apiKey,
-    region: input.region,
-    path: input.path,
-    fetchImpl,
-  });
-  if (!response.ok) {
-    throw await customerIoErrorForResponse(response, input.path);
+  const summaries: Array<{ id: string; name: string; updatedAt: string | null }> = [];
+  let path: string | null = input.path;
+  let lastNext: string | null = null;
+  for (let page = 0; page < CUSTOMER_IO_LIST_MAX_PAGES && path; page += 1) {
+    const response = await customerIoFetch({
+      apiKey: input.apiKey,
+      region: input.region,
+      path,
+      fetchImpl,
+    });
+    if (!response.ok) {
+      throw await customerIoErrorForResponse(response, path);
+    }
+    const body = await response.json().catch(() => null);
+    summaries.push(...readCustomerIoSummaries(body, input.collectionKeys));
+    const next = readCustomerIoListNext(body);
+    if (!next || next === lastNext) {
+      break;
+    }
+    lastNext = next;
+    path = `${input.path}${input.path.includes("?") ? "&" : "?"}start=${encodeURIComponent(next)}`;
   }
-  return readCustomerIoSummaries(await response.json().catch(() => null), input.collectionKeys);
+  return summaries;
 }
 
 export async function listCustomerIoBroadcasts(input: {

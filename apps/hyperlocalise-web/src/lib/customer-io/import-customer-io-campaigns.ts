@@ -820,6 +820,12 @@ async function importCustomerIoAction(input: {
       projectId: input.projectId,
       sourcePath,
       targetLocale: projectLocale,
+      // `refresh_imported` compares the stored import against the incoming
+      // remote map. JSON maps round-trip through entry keys, so the stored
+      // entries hash like-for-like; HTML emails seed only subject/preheader
+      // while the body lives in Jobs, so a stored subset hash can never
+      // match — keep HTML on the previous skip behavior.
+      includeStoredHash: !isHtml,
     });
     const incomingHash = hashCustomerIoTranslationMap(remoteMap);
     const action = decideCustomerIoExistingTranslationAction({
@@ -1030,7 +1036,8 @@ async function loadCustomerIoLocalePresence(input: {
   projectId: string;
   sourcePath: string;
   targetLocale: string;
-  importedHash?: string;
+  /** Hash the stored entries so `refresh_imported` can detect remote changes. */
+  includeStoredHash?: boolean;
 }) {
   const sourceFile = await input.translationService.getRepositorySourceFileByPath({
     organizationId: input.organizationId,
@@ -1040,7 +1047,6 @@ async function loadCustomerIoLocalePresence(input: {
   if (!sourceFile) {
     return {
       presence: customerIoTranslationPresence({
-        importedHash: input.importedHash,
         translatedKeyCount: 0,
       }),
     };
@@ -1057,9 +1063,21 @@ async function loadCustomerIoLocalePresence(input: {
     translationKeyIds: keys.map((key) => key.id),
     targetLocale: input.targetLocale,
   });
+  const translationByKeyId = new Map(
+    translations.map((row) => [row.translationKeyId, row] as const),
+  );
+  // Rebuild the previously imported map from the stored entries. Hidden keys
+  // are not part of the seeded map.
+  const storedMap: CustomerIoTranslationMap = {};
+  for (const key of keys) {
+    if (key.isHidden) {
+      continue;
+    }
+    storedMap[key.key] = translationByKeyId.get(key.id)?.text ?? "";
+  }
   return {
     presence: customerIoTranslationPresence({
-      importedHash: input.importedHash,
+      importedHash: input.includeStoredHash ? hashCustomerIoTranslationMap(storedMap) : undefined,
       translatedKeyCount: translations.filter((row) => (row.text ?? "").trim().length > 0).length,
       provenances: translations.map((row) => row.provenance),
     }),
