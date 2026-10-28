@@ -189,7 +189,7 @@ export async function getCustomerIoPushEligibility(input: {
     );
     const rows: CustomerIoPushItem[] = [];
     for (const action of actions) {
-      const sourcePath = buildCustomerIoResourceSourcePath(resource, action.id);
+      const sourcePath = buildCustomerIoResourceSourcePath(resource, action.id, action.type);
       const { eligibleLocales, locales } = await collectCustomerIoPushLocales({
         includeLocaleProgress,
         translationService,

@@ -63,7 +63,7 @@ import {
   parseCustomerIoTranslationMapJson,
   type CustomerIoTranslationMap,
 } from "./translation-map";
-import { parseCustomerIoEmailEnvelope } from "./html-envelope";
+import { parseCustomerIoEmailEnvelope, buildCustomerIoEmailSourcePath } from "./html-envelope";
 import { applyHtmlIngestTranslations } from "@/lib/projects/files/html-ingest-entries";
 
 const logger = createLogger("push-customer-io-campaigns");
@@ -242,7 +242,7 @@ export async function runPushCustomerIoCampaigns(input: {
       continue;
     }
     for (const action of defaultActions) {
-      const sourcePath = buildCustomerIoResourceSourcePath(resource, action.id);
+      const sourcePath = buildCustomerIoResourceSourcePath(resource, action.id, action.type);
       if (sourceFilter && !sourceFilter.has(sourcePath)) {
         continue;
       }
@@ -284,7 +284,23 @@ function customerIoResourcePath(resource: CustomerIoImportResource): string {
 export function buildCustomerIoResourceSourcePath(
   resource: CustomerIoImportResource,
   actionId: string,
+  actionType?: string,
 ): string {
+  if (actionType?.trim().toLowerCase() === "email") {
+    const kind =
+      resource.kind === "broadcast"
+        ? ("broadcasts" as const)
+        : resource.kind === "campaign"
+          ? ("campaigns" as const)
+          : resource.kind === "newsletter"
+            ? ("newsletters" as const)
+            : ("transactional" as const);
+    return buildCustomerIoEmailSourcePath({
+      kind,
+      resourceId: resource.id,
+      actionId,
+    });
+  }
   switch (resource.kind) {
     case "broadcast":
       return buildCustomerIoBroadcastSourcePath({ broadcastId: resource.id, actionId });
