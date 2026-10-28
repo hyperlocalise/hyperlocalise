@@ -22,8 +22,10 @@ vi.mock("@/lib/projects/translations/project-translation-service", () => ({
   importApprovedProjectTranslationsFromEntries: importApprovedMock,
 }));
 
-vi.mock("@/lib/database/client", () => {
+vi.mock("@/lib/database/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/database/client")>();
   return {
+    ...actual,
     db: {
       select: vi.fn(() => ({
         from: vi.fn(() => ({
@@ -31,37 +33,8 @@ vi.mock("@/lib/database/client", () => {
         })),
       })),
     },
-    schema: {
-      repositorySourceFiles: {
-        id: "id",
-        organizationId: "organizationId",
-        projectId: "projectId",
-        sourcePath: "sourcePath",
-      },
-      projectTranslationKeys: {
-        id: "id",
-        key: "key",
-        projectId: "projectId",
-        repositorySourceFileId: "repositorySourceFileId",
-      },
-      projectTranslations: {
-        translationKeyId: "translationKeyId",
-        text: "text",
-        status: "status",
-        provenance: "provenance",
-        organizationId: "organizationId",
-        projectId: "projectId",
-        targetLocale: "targetLocale",
-      },
-    },
   };
 });
-
-vi.mock("drizzle-orm", () => ({
-  and: vi.fn((...conditions: unknown[]) => conditions),
-  eq: vi.fn((field: unknown, value: unknown) => [field, value]),
-  inArray: vi.fn((field: unknown, values: unknown) => [field, values]),
-}));
 
 import { importWebflowTargetTranslation } from "./import-webflow-target-translations";
 

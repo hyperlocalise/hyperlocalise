@@ -32,6 +32,9 @@ vi.mock("ai", async () => {
 vi.mock("@/lib/providers/language-model", () => ({
   getManagedImageModel: getManagedImageModelMock,
   hyperlocaliseImageModelId: "openai/gpt-image-2",
+  getManagedLanguageModel: () => "openai/gpt-6-luna",
+  getAgentProviderOptions: () => undefined,
+  hyperlocaliseManagedGatewayModelId: "openai/gpt-6-luna",
 }));
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
