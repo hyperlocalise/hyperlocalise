@@ -37,7 +37,7 @@ The Go service already writes a `string_segment_translation_updated` or `string_
 
 - Editor work appears in Reports 2 to 17 minutes after the save, with every occurrence and the person. Each run records at most 2,000 saves per workspace, so a workspace saving more than 8,000 an hour would fall behind.
 - Saves no longer wait on Reports. Building the index takes about a second for 200,000 entries; since [Reports faster memory matching](./2026-10-28-reports-faster-memory-matching-design.md), each string then takes about 0.002 s.
-- The index takes about 1.5 MB per 1,000 entries, at most about 450 MB per job.
+- The index takes about 0.5 MB per 1,000 sentence-length entries and up to about 5 MB for paragraphs or Chinese and Japanese documents, so one slice of 300,000 such entries can need over 1 GB.
 - Reports depends on the Go save event's fields. `activity-log-contract.ts` types and tests them.
 
 ## Alternatives considered
