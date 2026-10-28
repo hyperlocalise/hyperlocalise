@@ -222,8 +222,9 @@ export function createWebflowConnectionRoutes() {
         return badRequestResponse(c, "webflow_workos_user_required");
       }
 
-      const webflowConnection = await updateWebflowConnection({
-        organizationId: c.var.auth.organization.localOrganizationId,
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const updateInput = {
+        organizationId,
         userId: c.var.auth.user.localUserId,
         workosUserId,
         workosOrganizationId: c.var.auth.organization.workosOrganizationId,
@@ -233,7 +234,36 @@ export function createWebflowConnectionRoutes() {
         collectionIds: payload.collectionIds,
         siteToken: payload.siteToken,
         enabled: payload.enabled,
-      });
+      };
+
+      let webflowConnection;
+      if (payload.enabled === true) {
+        // Activating a connection consumes integration quota, so apply the
+        // same limit check as create. Only check on a disabled -> enabled
+        // transition to avoid rejecting edits to already-enabled rows.
+        const existing = await getWebflowConnection({ organizationId, connectionId });
+        if (!existing) {
+          return notFoundResponse(c, "webflow_connection_not_found");
+        }
+        if (existing.enabled !== true) {
+          const limitResult = await withWorkspaceResourceLimit(
+            {
+              organizationId,
+              featureId: workspaceResourceFeatureIds.integrations,
+              analyticsSource: "webflow",
+            },
+            (tx) => updateWebflowConnection({ ...updateInput, db: tx }),
+          );
+          if (!limitResult.ok) {
+            return mapWorkspaceResourceLimitError(c, limitResult.error);
+          }
+          webflowConnection = limitResult.value;
+        } else {
+          webflowConnection = await updateWebflowConnection(updateInput);
+        }
+      } else {
+        webflowConnection = await updateWebflowConnection(updateInput);
+      }
 
       if (!webflowConnection) {
         return notFoundResponse(c, "webflow_connection_not_found");
