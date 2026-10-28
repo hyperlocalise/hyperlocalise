@@ -76,7 +76,19 @@ export function nextWebflowImportWatermark(input: {
   if (input.failedWithoutTimestamp || input.collectionFailed) {
     return input.previous;
   }
-  const candidates = [...input.succeededAt, ...input.failedAt];
+  if (input.failedAt.length > 0) {
+    // Items are listed oldest-first and filtered with `lastUpdated[gte]`, so
+    // advancing past a failed item would skip it forever once a later item
+    // succeeds. Hold the watermark at the earliest failure to retry it.
+    const earliestFailure = input.failedAt.reduce((earliest, current) =>
+      current.getTime() < earliest.getTime() ? current : earliest,
+    );
+    if (input.previous && earliestFailure.getTime() <= input.previous.getTime()) {
+      return input.previous;
+    }
+    return earliestFailure;
+  }
+  const candidates = [...input.succeededAt];
   if (candidates.length === 0) {
     return input.previous;
   }

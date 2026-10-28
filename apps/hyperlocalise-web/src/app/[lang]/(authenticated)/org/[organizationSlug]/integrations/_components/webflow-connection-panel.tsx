@@ -250,7 +250,12 @@ export function WebflowConnectionPanel({
 
   const collections = discovery?.collections ?? [];
   const sites = discovery?.sites ?? [];
-  const canSave = discovery !== null;
+  // Discovery results are per-site. Only allow saving once the loaded
+  // collections were discovered for the currently selected site, so picking
+  // a different site forces a re-discover before save.
+  const trimmedSiteId = siteId.trim();
+  const canSave =
+    discovery !== null && trimmedSiteId !== "" && discovery.site?.id === trimmedSiteId;
 
   return (
     <CollapsibleIntegrationRow
@@ -347,6 +352,12 @@ export function WebflowConnectionPanel({
                 }
                 setSiteId(value);
                 setCollectionIds([]);
+                // Collections belong to the previously discovered site. Clear
+                // them (keeping the site list) so a stale collection cannot be
+                // saved against the new site before re-discovering.
+                setDiscovery((previous) =>
+                  previous ? { ...previous, site: null, collections: [] } : previous,
+                );
               }}
             >
               <SelectTrigger>

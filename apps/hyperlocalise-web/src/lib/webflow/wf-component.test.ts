@@ -34,4 +34,26 @@ describe("wf-component", () => {
       true,
     );
   });
+
+  it("rejects translated markup that swaps a component property id", () => {
+    const source =
+      '<p>Hi</p><wf-component component-id="abc" data-w-id="inst-1" prop-a1b2c3="Heads up"></wf-component>';
+    const patch =
+      '<p>Bonjour</p><wf-component component-id="abc" data-w-id="inst-1" prop-d4e5f6="Attention"></wf-component>';
+    expect(wfComponentIntegrityMatches(source, patch)).toBe(false);
+    expect(validateSecondaryLocaleComponentWrite({ sourceHtml: source, patchHtml: patch }).ok).toBe(
+      false,
+    );
+  });
+
+  it("rejects translated markup that drops a component property", () => {
+    const source =
+      '<p>Hi</p><wf-component component-id="abc" data-w-id="inst-1" prop-a1b2c3="Heads up" prop-d4e5f6="Sub"></wf-component>';
+    const patch =
+      '<p>Bonjour</p><wf-component component-id="abc" data-w-id="inst-1" prop-a1b2c3="Attention"></wf-component>';
+    expect(wfComponentIntegrityMatches(source, patch)).toBe(false);
+    expect(validateSecondaryLocaleComponentWrite({ sourceHtml: source, patchHtml: patch }).ok).toBe(
+      false,
+    );
+  });
 });

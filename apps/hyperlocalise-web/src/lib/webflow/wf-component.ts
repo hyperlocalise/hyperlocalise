@@ -34,6 +34,18 @@ export function listWfComponentInstances(html: string): WfComponentInstanceMeta[
   return instances;
 }
 
+function sortedPropIds(ids: string[]): string[] {
+  return [...ids].sort((a, b) => a.localeCompare(b));
+}
+
+function propIdsMatch(left: string[], right: string[]): boolean {
+  const sortedLeft = sortedPropIds(left);
+  const sortedRight = sortedPropIds(right);
+  return (
+    sortedLeft.length === sortedRight.length &&
+    sortedLeft.every((id, index) => id === sortedRight[index])
+  );
+}
 function readAttribute(tag: string, name: string): string | null {
   const pattern = new RegExp(`${name}="([^"]*)"`, "i");
   const match = tag.match(pattern);
@@ -62,6 +74,12 @@ export function wfComponentIntegrityMatches(sourceHtml: string, translatedHtml: 
     if ((left.instanceId ?? "") !== (right.instanceId ?? "")) {
       return false;
     }
+    // `prop-<id>` attributes address component properties. A translation that
+    // swaps or drops one would write to the wrong property (or fail), so the
+    // property set must match exactly.
+    if (!propIdsMatch(left.propIds, right.propIds)) {
+      return false;
+    }
   }
   return true;
 }
@@ -82,7 +100,10 @@ export function validateSecondaryLocaleComponentWrite(input: {
       };
     }
     const sourceMatch = sourceInstances.find(
-      (entry) => entry.componentId === patch.componentId && entry.instanceId === patch.instanceId,
+      (entry) =>
+        entry.componentId === patch.componentId &&
+        entry.instanceId === patch.instanceId &&
+        propIdsMatch(entry.propIds, patch.propIds),
     );
     if (!sourceMatch) {
       return {

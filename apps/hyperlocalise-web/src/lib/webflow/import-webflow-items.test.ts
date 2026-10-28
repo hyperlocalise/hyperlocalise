@@ -68,6 +68,21 @@ describe("nextWebflowImportWatermark", () => {
     ).toBe(previous);
   });
 
+  it("holds the watermark at the earliest failure instead of advancing past it", () => {
+    const previous = new Date("2026-10-20T00:00:00.000Z");
+    const failed = new Date("2026-10-21T00:00:00.000Z");
+    const laterSuccess = new Date("2026-10-25T00:00:00.000Z");
+    expect(
+      nextWebflowImportWatermark({
+        previous,
+        succeededAt: [laterSuccess],
+        failedAt: [failed],
+        failedWithoutTimestamp: false,
+        collectionFailed: false,
+      }),
+    ).toEqual(failed);
+  });
+
   it("holds the watermark when a collection fails to load", () => {
     const previous = new Date("2026-10-20T00:00:00.000Z");
     expect(
