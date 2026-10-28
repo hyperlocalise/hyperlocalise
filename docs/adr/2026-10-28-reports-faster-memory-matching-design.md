@@ -35,15 +35,15 @@ Milliseconds per string, before and after, median of three runs on a Mac:
 
 | Memory | Before | After |
 |---|---|---|
-| The app's English UI strings (15,027) | 2.98 | 0.30 |
-| The repo's docs lines (13,883) | 4.23 | 0.56 |
-| The app's Japanese UI strings (6,803) | 0.36 | 0.07 |
-| Made-up English (190,299) | 31.8 | 2.13 |
-| Made-up English (567,827, two slices) | 110 | 8.2 |
-| Made-up Japanese (293,247) | 3.48 | 1.25 |
-| Made-up Chinese with very many distinct pairs (299,924) | 5.5 | 4.9 |
-| Made-up paragraphs (100,000) | 205 | 13.8 |
-| Made-up sections of 600 to 1,700 characters, nothing close (20,000) | 723 | 268 |
+| The app's English UI strings (15,027) | 2.86 | 0.28 |
+| The repo's docs lines (13,883) | 4.06 | 0.52 |
+| The app's Japanese UI strings (6,803) | 0.34 | 0.07 |
+| Made-up English (190,299) | 30.5 | 2.03 |
+| Made-up English (567,827, two slices) | 104 | 7.6 |
+| Made-up Japanese (293,247) | 3.15 | 1.13 |
+| Made-up Chinese with very many distinct pairs (299,924) | 4.4 | 3.95 |
+| Made-up paragraphs (100,000) | 197 | 12.9 |
+| Made-up sections of 600 to 1,700 characters, nothing close (20,000) | 693 | 257 |
 
 - Made-up text follows the word or character frequencies and lengths of the app's strings and docs.
 - The task above takes 15 s instead of 156 s, with the same score for every string.
