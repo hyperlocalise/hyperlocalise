@@ -113,6 +113,32 @@ describe("customer-io html action types", () => {
   });
 });
 
+describe("customer-io email design studio id", () => {
+  it("round-trips the linked email id as a body attribute", () => {
+    const html = serializeCustomerIoEmailEnvelope({
+      subject: "Hi",
+      body: "<x-base><x-paragraph>Body</x-paragraph></x-base>",
+      designStudioEmailId: "31488f77-b1d5-4256-ad6e-c049deff19c5",
+    });
+
+    expect(html).toContain(
+      '<body data-hl-customer-io-design-studio="31488f77-b1d5-4256-ad6e-c049deff19c5">',
+    );
+    expect(parseCustomerIoEmailEnvelope(html)).toEqual({
+      subject: "Hi",
+      preheader_text: undefined,
+      body: "<x-base><x-paragraph>Body</x-paragraph></x-base>",
+      designStudioEmailId: "31488f77-b1d5-4256-ad6e-c049deff19c5",
+    });
+  });
+
+  it("parses envelopes without a linked email id", () => {
+    const html = serializeCustomerIoEmailEnvelope({ subject: "Hi", body: "<p>Body</p>" });
+
+    expect(parseCustomerIoEmailEnvelope(html).designStudioEmailId).toBeUndefined();
+  });
+});
+
 describe("customer-io email source paths", () => {
   it("builds html paths per resource kind", () => {
     expect(

@@ -24,40 +24,80 @@ export class CustomerIoApiError extends Error {
   }
 }
 
-function customerIoErrorForStatus(status: number, path: string): CustomerIoApiError {
+/**
+ * Extract a short human-readable reason from a Customer.io error payload
+ * (`{errors: [{detail}]}` or `{error: string}`). Truncated and free of message
+ * content — validation reasons only.
+ */
+export function readCustomerIoErrorDetail(body: unknown): string | null {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return null;
+  }
+  const record = body as Record<string, unknown>;
+  const errors = record.errors;
+  if (Array.isArray(errors) && errors.length > 0) {
+    const first = errors[0] as Record<string, unknown> | null;
+    const detail = first && typeof first.detail === "string" ? first.detail.trim() : "";
+    if (detail) {
+      return detail.slice(0, 200);
+    }
+  }
+  for (const key of ["error", "message"] as const) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim().slice(0, 200);
+    }
+  }
+  return null;
+}
+
+function customerIoErrorForStatus(
+  status: number,
+  path: string,
+  detail?: string | null,
+): CustomerIoApiError {
+  const suffix = detail ? ` Reason: ${detail}` : "";
   if (status === 401) {
     return new CustomerIoApiError(
       "customer_io_unauthorized",
-      `Customer.io rejected the API key for ${path}.`,
+      `Customer.io rejected the API key for ${path}.${suffix}`,
       status,
     );
   }
   if (status === 403) {
     return new CustomerIoApiError(
       "customer_io_forbidden",
-      `The Customer.io API key is missing permission for ${path}.`,
+      `The Customer.io API key is missing permission for ${path}.${suffix}`,
       status,
     );
   }
   if (status === 404) {
     return new CustomerIoApiError(
       "customer_io_translation_missing",
-      `Customer.io has no translation at ${path}.`,
+      `Customer.io has no translation at ${path}.${suffix}`,
       status,
     );
   }
   if (status === 429) {
     return new CustomerIoApiError(
       "customer_io_rate_limited",
-      `Customer.io rate-limited the request to ${path}.`,
+      `Customer.io rate-limited the request to ${path}.${suffix}`,
       status,
     );
   }
   return new CustomerIoApiError(
     "customer_io_request_failed",
-    `Customer.io request to ${path} failed with status ${status}.`,
+    `Customer.io request to ${path} failed with status ${status}.${suffix}`,
     status,
   );
+}
+
+export async function customerIoErrorForResponse(
+  response: Response,
+  path: string,
+): Promise<CustomerIoApiError> {
+  const body = await response.json().catch(() => null);
+  return customerIoErrorForStatus(response.status, path, readCustomerIoErrorDetail(body));
 }
 
 export type CustomerIoBroadcastSummary = {
@@ -194,7 +234,7 @@ async function listCustomerIoSummaries(input: {
     fetchImpl,
   });
   if (!response.ok) {
-    throw customerIoErrorForStatus(response.status, input.path);
+    throw await customerIoErrorForResponse(response, input.path);
   }
   return readCustomerIoSummaries(await response.json().catch(() => null), input.collectionKeys);
 }
@@ -301,7 +341,7 @@ async function listCustomerIoResourceActions(input: {
     fetchImpl,
   });
   if (!response.ok) {
-    throw customerIoErrorForStatus(response.status, path);
+    throw await customerIoErrorForResponse(response, path);
   }
   const body = (await response.json().catch(() => null)) as {
     actions?: CustomerIoRawAction[];
@@ -386,7 +426,7 @@ export async function getCustomerIoResourceAction(input: {
     fetchImpl,
   });
   if (!response.ok) {
-    throw customerIoErrorForStatus(response.status, path);
+    throw await customerIoErrorForResponse(response, path);
   }
   const body = (await response.json().catch(() => null)) as
     | (CustomerIoRawAction & { action?: unknown; content?: unknown })
@@ -452,7 +492,7 @@ async function getCustomerIoResourceActionTranslation(input: {
     return null;
   }
   if (!response.ok) {
-    throw customerIoErrorForStatus(response.status, path);
+    throw await customerIoErrorForResponse(response, path);
   }
   return readCustomerIoActionTranslation(await response.json().catch(() => null), input.language);
 }
@@ -550,7 +590,7 @@ async function updateCustomerIoResourceActionTranslation(input: {
     fetchImpl,
   });
   if (!response.ok) {
-    throw customerIoErrorForStatus(response.status, path);
+    throw await customerIoErrorForResponse(response, path);
   }
 }
 

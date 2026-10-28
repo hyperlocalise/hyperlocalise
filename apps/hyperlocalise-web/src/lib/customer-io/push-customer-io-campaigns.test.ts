@@ -13,7 +13,9 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  buildCustomerIoDesignStudioTranslationContent,
   buildCustomerIoResourceSourcePath,
+  isCustomerIoDesignStudioManagedError,
   isCustomerIoPushSkippedError,
 } from "./push-customer-io-campaigns";
 import { CustomerIoApiError } from "./client";
@@ -72,5 +74,52 @@ describe("isCustomerIoPushSkippedError", () => {
       isCustomerIoPushSkippedError(new CustomerIoApiError("customer_io_request_failed", "m", 500)),
     ).toBe(false);
     expect(isCustomerIoPushSkippedError(new Error("boom"))).toBe(false);
+  });
+});
+
+describe("isCustomerIoDesignStudioManagedError", () => {
+  it("detects the Design Studio guard on App API writes", () => {
+    expect(
+      isCustomerIoDesignStudioManagedError(
+        new CustomerIoApiError(
+          "customer_io_request_failed",
+          "Customer.io request to /campaigns/1/actions/2/language/zh-CN failed with status 400. Reason: Cannot update content managed by Design Studio. Please use the Design Studio API.",
+          400,
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("ignores other failures", () => {
+    expect(
+      isCustomerIoDesignStudioManagedError(
+        new CustomerIoApiError("customer_io_request_failed", "failed with status 400", 400),
+      ),
+    ).toBe(false);
+    expect(isCustomerIoDesignStudioManagedError(new Error("boom"))).toBe(false);
+  });
+});
+
+describe("buildCustomerIoDesignStudioTranslationContent", () => {
+  it("maps the merged map onto Design Studio content fields", () => {
+    expect(
+      buildCustomerIoDesignStudioTranslationContent({
+        subject: "Sujet",
+        preheader_text: "Aperçu",
+        body: "<x-base><p>Bonjour</p></x-base>",
+      }),
+    ).toEqual({
+      subject: "Sujet",
+      preheader_text: "Aperçu",
+      html: "<x-base><p>Bonjour</p></x-base>",
+    });
+  });
+
+  it("defaults missing fields to empty strings", () => {
+    expect(buildCustomerIoDesignStudioTranslationContent({})).toEqual({
+      subject: "",
+      preheader_text: "",
+      html: "",
+    });
   });
 });

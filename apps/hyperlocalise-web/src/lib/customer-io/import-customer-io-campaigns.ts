@@ -83,6 +83,15 @@ import {
   seedEntriesForCustomerIoEmailFields,
   serializeCustomerIoEmailEnvelope,
 } from "./html-envelope";
+import {
+  getCustomerIoDesignStudioEmail,
+  getCustomerIoDesignStudioTranslation,
+  listCustomerIoDesignStudioEmails,
+  matchCustomerIoDesignStudioLanguage,
+  resolveCustomerIoDesignStudioEmail,
+  type CustomerIoDesignStudioEmail,
+  type CustomerIoDesignStudioEmailSummary,
+} from "./design-studio-client";
 
 const logger = createLogger("import-customer-io-campaigns");
 const jobQueue = createTranslationJobEventQueue();
@@ -466,6 +475,33 @@ async function importCustomerIoResource(input: {
     }
   };
 
+  // Design Studio-linked emails cannot be read for translation writes through
+  // the App API, and their content is component markup rather than the
+  // compiled HTML the App API returns — resolve them once per resource so
+  // email actions ingest (and later push) through the Design Studio API.
+  // A listing failure falls back to the App API path per action below.
+  const needsDesignStudio = actions.some(
+    (action) =>
+      action.type.trim().toLowerCase() === "email" &&
+      action.language.trim() === "" &&
+      (!input.actionIds || input.actionIds.includes(action.id)),
+  );
+  let designStudioEmails: CustomerIoDesignStudioEmailSummary[] | null = null;
+  if (needsDesignStudio) {
+    try {
+      designStudioEmails = await listCustomerIoDesignStudioEmails({
+        apiKey: input.client.apiKey,
+        region: input.client.region,
+        isLinked: true,
+      });
+    } catch (error) {
+      logger.warn(
+        { error: permissionErrorMessage(error) },
+        "customer.io design studio list failed",
+      );
+    }
+  }
+
   for (const action of actions) {
     const label = `${input.resource.kind} ${input.resource.id} action ${action.id}`;
     if (!isCustomerIoLocalizableActionType(action.type)) {
@@ -484,7 +520,7 @@ async function importCustomerIoResource(input: {
       pushWarning(`${label}: skipped (language "${action.language}" is not the default variant)`);
       continue;
     }
-    const result = await importCustomerIoAction({ ...input, action });
+    const result = await importCustomerIoAction({ ...input, action, designStudioEmails });
     totals.imported += result.imported;
     totals.skipped += result.skipped;
     totals.failed += result.failed;
@@ -494,6 +530,57 @@ async function importCustomerIoResource(input: {
     }
   }
   return totals;
+}
+
+/**
+ * Translatable source strings for a Design Studio email: the component
+ * markup is the body (Jobs translate its text nodes), subject and preheader
+ * seed like ordinary email fields.
+ */
+export function customerIoDesignStudioSourceMap(
+  email: CustomerIoDesignStudioEmail,
+): CustomerIoTranslationMap {
+  const map: CustomerIoTranslationMap = { body: email.content.html };
+  if (email.content.subject) {
+    map.subject = email.content.subject;
+  }
+  if (email.content.preheaderText) {
+    map.preheader_text = email.content.preheaderText;
+  }
+  return map;
+}
+
+/** HTML envelope for a Design Studio-linked email action. */
+export function buildCustomerIoDesignStudioEnvelope(email: CustomerIoDesignStudioEmail): string {
+  const sourceMap = customerIoDesignStudioSourceMap(email);
+  return serializeCustomerIoEmailEnvelope({
+    subject: sourceMap.subject ?? "",
+    preheader_text: sourceMap.preheader_text,
+    body: sourceMap.body ?? "",
+    designStudioEmailId: email.id,
+  });
+}
+
+async function resolveCustomerIoDesignStudioSource(input: {
+  client: CustomerIoAutomationClient;
+  resource: CustomerIoImportResource;
+  action: CustomerIoAction;
+  emails: CustomerIoDesignStudioEmailSummary[];
+}): Promise<{ emailId: string; email: CustomerIoDesignStudioEmail } | null> {
+  const match = resolveCustomerIoDesignStudioEmail({
+    resource: input.resource,
+    action: input.action,
+    emails: input.emails,
+  });
+  if (!match) {
+    return null;
+  }
+  const email = await getCustomerIoDesignStudioEmail({
+    apiKey: input.client.apiKey,
+    region: input.client.region,
+    emailId: match.id,
+  });
+  return email ? { emailId: email.id, email } : null;
 }
 
 async function importCustomerIoAction(input: {
@@ -508,8 +595,24 @@ async function importCustomerIoAction(input: {
   resource: CustomerIoImportResource;
   action: CustomerIoAction;
   sourceLocale: string;
+  designStudioEmails?: CustomerIoDesignStudioEmailSummary[] | null;
 }): Promise<ImportCustomerIoCampaignsResult> {
-  const sourceMap = extractCustomerIoActionStrings(input.action);
+  let sourceMap = extractCustomerIoActionStrings(input.action);
+  // Design Studio-linked email: ingest the component markup (plus subject /
+  // preheader) from the linked email instead of the compiled App API body,
+  // and remember the email UUID for push.
+  let designStudio: { emailId: string; email: CustomerIoDesignStudioEmail } | null = null;
+  if (input.action.type.trim().toLowerCase() === "email" && input.designStudioEmails) {
+    designStudio = await resolveCustomerIoDesignStudioSource({
+      client: input.client,
+      resource: input.resource,
+      action: input.action,
+      emails: input.designStudioEmails,
+    });
+    if (designStudio) {
+      sourceMap = customerIoDesignStudioSourceMap(designStudio.email);
+    }
+  }
   if (Object.keys(sourceMap).length === 0) {
     return {
       imported: 0,
@@ -533,6 +636,7 @@ async function importCustomerIoAction(input: {
         subject: sourceMap.subject ?? "",
         preheader_text: sourceMap.preheader_text,
         body: sourceMap.body ?? "",
+        designStudioEmailId: designStudio?.emailId,
       })
     : null;
 
@@ -590,6 +694,41 @@ async function importCustomerIoAction(input: {
       continue;
     }
     try {
+      if (designStudio) {
+        // Design Studio translations live on the linked email, addressed by
+        // the email's own language casing (`zh-cn`). A missing language has
+        // nothing to seed — like the App API path, it stays for Jobs.
+        const remoteTag = matchCustomerIoDesignStudioLanguage(
+          designStudio.email.availableLanguages,
+          suffix,
+        );
+        if (remoteTag) {
+          try {
+            const translation = await getCustomerIoDesignStudioTranslation({
+              apiKey: input.client.apiKey,
+              region: input.client.region,
+              emailId: designStudio.emailId,
+              language: remoteTag,
+            });
+            if (translation) {
+              remoteByLocale.set(
+                projectLocale,
+                customerIoTranslationMapFromRemote({
+                  type: input.action.type,
+                  subject: translation.content.subject,
+                  preheaderText: translation.content.preheaderText,
+                  body: translation.content.html,
+                }),
+              );
+            }
+          } catch (error) {
+            if (!shouldTreatRemoteTranslationAsEmpty(error)) {
+              throw error;
+            }
+          }
+        }
+        continue;
+      }
       const remote =
         input.resource.kind === "broadcast"
           ? await getCustomerIoBroadcastActionTranslation({

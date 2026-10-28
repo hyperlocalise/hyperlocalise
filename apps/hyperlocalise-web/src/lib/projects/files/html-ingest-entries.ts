@@ -460,7 +460,12 @@ function walkHtmlDocument(
   };
 
   const isFoldBoundary = (tag: string) =>
-    HTML_BLOCK_ELEMENTS.has(tag) || HTML_STRUCTURAL_ELEMENTS.has(tag);
+    HTML_BLOCK_ELEMENTS.has(tag) ||
+    HTML_STRUCTURAL_ELEMENTS.has(tag) ||
+    // Customer.io Design Studio component markup (`<x-paragraph>`,
+    // `<x-heading-1>`, `<x-cta>`, …): each component is its own translatable
+    // unit, while inline markup (`<a>`) and Liquid stay folded inside it.
+    tag.startsWith("x-");
 
   for (const token of tokenizeHtml(html)) {
     if (skipDepth > 0) {

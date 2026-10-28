@@ -25,6 +25,7 @@ import {
   listCustomerIoNewsletters,
   listCustomerIoTransactionalActions,
   listCustomerIoTransactionalMessages,
+  readCustomerIoErrorDetail,
   updateCustomerIoBroadcastActionTranslation,
   updateCustomerIoNewsletterActionTranslation,
   updateCustomerIoTransactionalActionTranslation,
@@ -165,6 +166,53 @@ describe("broadcast action translations", () => {
       "https://api.customer.io/v1/broadcasts/2/actions/96/language/fr",
       expect.objectContaining({ method: "PUT" }),
     );
+  });
+
+  it("includes Customer.io's error detail in failures", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      jsonResponse(
+        {
+          errors: [
+            { detail: "content from the drag-and-drop editor cannot be modified", status: "400" },
+          ],
+        },
+        400,
+      ),
+    );
+
+    const error = await updateCustomerIoBroadcastActionTranslation({
+      apiKey: "key",
+      region: "us",
+      broadcastId: "2",
+      actionId: "96",
+      language: "zh-CN",
+      payload: { type: "email", subject: "Sujet", body: "Corps" },
+      fetchImpl,
+    }).catch((cause: unknown) => cause);
+
+    expect(error).toBeInstanceOf(CustomerIoApiError);
+    expect((error as CustomerIoApiError).message).toContain(
+      "content from the drag-and-drop editor cannot be modified",
+    );
+  });
+});
+
+describe("readCustomerIoErrorDetail", () => {
+  it("reads errors array details", () => {
+    expect(readCustomerIoErrorDetail({ errors: [{ detail: "bad tag", status: "400" }] })).toBe(
+      "bad tag",
+    );
+  });
+
+  it("reads error and message shapes", () => {
+    expect(readCustomerIoErrorDetail({ error: "nope" })).toBe("nope");
+    expect(readCustomerIoErrorDetail({ message: "broke" })).toBe("broke");
+  });
+
+  it("returns null for empty or invalid bodies", () => {
+    expect(readCustomerIoErrorDetail(null)).toBeNull();
+    expect(readCustomerIoErrorDetail({})).toBeNull();
+    expect(readCustomerIoErrorDetail({ errors: [] })).toBeNull();
   });
 });
 

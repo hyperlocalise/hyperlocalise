@@ -68,6 +68,17 @@ import {
   buildCustomerIoEmailSourcePath,
   isCustomerIoHtmlActionType,
 } from "./html-envelope";
+import {
+  createCustomerIoDesignStudioTranslation,
+  getCustomerIoDesignStudioEmail,
+  getCustomerIoDesignStudioTranslation,
+  listCustomerIoDesignStudioEmails,
+  matchCustomerIoDesignStudioLanguage,
+  resolveCustomerIoDesignStudioEmail,
+  updateCustomerIoDesignStudioTranslation,
+  type CustomerIoDesignStudioEmailSummary,
+  type CustomerIoDesignStudioTranslationContent,
+} from "./design-studio-client";
 import { applyHtmlIngestTranslations } from "@/lib/projects/files/html-ingest-entries";
 
 const logger = createLogger("push-customer-io-campaigns");
@@ -139,6 +150,26 @@ export function isCustomerIoPushSkippedError(error: unknown): boolean {
   return (
     isMissingTranslation(error) || (error instanceof CustomerIoApiError && error.status === 400)
   );
+}
+
+/**
+ * Whether an App API failure is the Design Studio guard (`Cannot update
+ * content managed by Design Studio`): the action's content must be written
+ * through the Design Studio API instead.
+ */
+export function isCustomerIoDesignStudioManagedError(error: unknown): boolean {
+  return error instanceof CustomerIoApiError && /design studio/i.test(error.message);
+}
+
+/** Design Studio `content` payload for a merged email translation map. */
+export function buildCustomerIoDesignStudioTranslationContent(
+  map: CustomerIoTranslationMap,
+): CustomerIoDesignStudioTranslationContent {
+  return {
+    subject: map.subject ?? "",
+    preheader_text: map.preheader_text ?? "",
+    html: map.body ?? "",
+  };
 }
 
 function isRemoteNewerThanSource(
@@ -275,6 +306,27 @@ export async function runPushCustomerIoCampaigns(input: {
         action.language.trim() === "" &&
         (!selectedIds || selectedIds.includes(action.id)),
     );
+    // Design Studio-linked emails push through the Design Studio API, so
+    // resolve them once per resource. A listing failure falls back to the
+    // App API path per action below.
+    const needsDesignStudio = defaultActions.some(
+      (action) => action.type.trim().toLowerCase() === "email",
+    );
+    let designStudioEmails: CustomerIoDesignStudioEmailSummary[] | null = null;
+    if (needsDesignStudio) {
+      try {
+        designStudioEmails = await listCustomerIoDesignStudioEmails({
+          apiKey: loaded.value.apiKey,
+          region: loaded.value.region,
+          isLinked: true,
+        });
+      } catch (error) {
+        logger.warn(
+          { error: permissionErrorMessage(error) },
+          "customer.io design studio list failed",
+        );
+      }
+    }
     if (
       (resource.kind === "newsletter" || resource.kind === "transactional") &&
       defaultActions.length > 1
@@ -306,6 +358,7 @@ export async function runPushCustomerIoCampaigns(input: {
         targetLocales: localeMapping.jobTargetLocales,
         languageTags: localeMapping.customerIoSuffixes,
         overwriteWhenRemoteNewer: config.overwriteWhenRemoteNewer !== false,
+        designStudioEmails,
       });
       pushedLocales += result.pushedLocales;
       skippedLocales += result.skippedLocales;
@@ -501,6 +554,7 @@ async function pushCustomerIoAction(input: {
   targetLocales: readonly string[];
   languageTags: readonly string[];
   overwriteWhenRemoteNewer: boolean;
+  designStudioEmails?: CustomerIoDesignStudioEmailSummary[] | null;
 }): Promise<{
   pushedLocales: number;
   skippedLocales: number;
@@ -543,6 +597,62 @@ async function pushCustomerIoAction(input: {
   if (Object.keys(sourceMap).length === 0) {
     pushWarning(`${label}: skipped (stored file has no translatable entries)`);
     return { pushedLocales, skippedLocales: input.targetLocales.length, failedLocales, warnings };
+  }
+
+  // Design Studio-linked email: the App API refuses translation writes, so
+  // push through the Design Studio API for the linked email instead.
+  let designStudioEmailId = isHtml
+    ? parseCustomerIoEmailEnvelope(storedText).designStudioEmailId
+    : undefined;
+  if (
+    !designStudioEmailId &&
+    input.action.type.trim().toLowerCase() === "email" &&
+    input.designStudioEmails
+  ) {
+    const resolved = resolveCustomerIoDesignStudioEmail({
+      resource: input.resource,
+      action: input.action,
+      emails: input.designStudioEmails,
+    });
+    if (resolved) {
+      // The stored file still holds compiled App API HTML from before the
+      // Design Studio ingest — the App API would refuse the write, so stop
+      // here instead of failing per locale.
+      pushWarning(
+        `${label}: skipped (content is managed by Design Studio; re-run ingest to switch to Design Studio content)`,
+      );
+      return {
+        pushedLocales,
+        skippedLocales: input.targetLocales.length,
+        failedLocales,
+        warnings,
+      };
+    }
+  }
+  if (designStudioEmailId) {
+    const designStudioResult = await pushCustomerIoDesignStudioAction({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      client: input.client,
+      translationService: input.translationService,
+      resource: input.resource,
+      action: input.action,
+      sourcePath: input.sourcePath,
+      storedText,
+      sourceMap,
+      emailId: designStudioEmailId,
+      sourceCreatedAt: latest.createdAt,
+      targetLocales: input.targetLocales,
+      languageTags: input.languageTags,
+      overwriteWhenRemoteNewer: input.overwriteWhenRemoteNewer,
+    });
+    pushedLocales += designStudioResult.pushedLocales;
+    skippedLocales += designStudioResult.skippedLocales;
+    failedLocales += designStudioResult.failedLocales;
+    for (const warning of designStudioResult.warnings) {
+      pushWarning(warning);
+    }
+    return { pushedLocales, skippedLocales, failedLocales, warnings };
   }
 
   const details = await getCustomerIoResourceAction({
@@ -641,8 +751,17 @@ async function pushCustomerIoAction(input: {
         pushedLocales += 1;
       } catch (error) {
         if (isCustomerIoPushSkippedError(error)) {
+          const reason =
+            error instanceof CustomerIoApiError && /Reason: /.test(error.message)
+              ? ` (${error.message.slice(error.message.indexOf("Reason: "))})`
+              : "";
+          // Design Studio-managed content can only be written through the
+          // Design Studio API: name the fix instead of a generic skip.
+          const designStudioHint = isCustomerIoDesignStudioManagedError(error)
+            ? "; re-run ingest to push through Design Studio"
+            : "";
           pushWarning(
-            `${label}: skipped ${language} (language variant not writable in Customer.io)`,
+            `${label}: skipped ${language} (language variant not writable in Customer.io${reason}${designStudioHint})`,
           );
           skippedLocales += 1;
           continue;
@@ -654,6 +773,185 @@ async function pushCustomerIoAction(input: {
       pushWarning(`${label}: failed (${permissionErrorMessage(error)})`);
       failedLocales += 1;
     }
+  }
+
+  return { pushedLocales, skippedLocales, failedLocales, warnings };
+}
+
+function designStudioContentToMap(content: {
+  subject: string;
+  preheaderText: string;
+  html: string;
+}): CustomerIoTranslationMap {
+  const map: CustomerIoTranslationMap = {};
+  if (content.subject) {
+    map.subject = content.subject;
+  }
+  if (content.preheaderText) {
+    map.preheader_text = content.preheaderText;
+  }
+  if (content.html) {
+    map.body = content.html;
+  }
+  return map;
+}
+
+/**
+ * Push approved translations for a Design Studio-linked email action. Unlike
+ * the App API path, a missing language variant is created automatically, and
+ * writes land as unpublished drafts — the email must still be published in
+ * Customer.io to go live.
+ */
+async function pushCustomerIoDesignStudioAction(input: {
+  organizationId: string;
+  projectId: string;
+  client: CustomerIoAutomationClient;
+  translationService: ProjectTranslationService;
+  resource: CustomerIoImportResource;
+  action: CustomerIoAction;
+  sourcePath: string;
+  storedText: string;
+  sourceMap: CustomerIoTranslationMap;
+  emailId: string;
+  sourceCreatedAt: Date | null;
+  targetLocales: readonly string[];
+  languageTags: readonly string[];
+  overwriteWhenRemoteNewer: boolean;
+}): Promise<{
+  pushedLocales: number;
+  skippedLocales: number;
+  failedLocales: number;
+  warnings: string[];
+}> {
+  let pushedLocales = 0;
+  let skippedLocales = 0;
+  let failedLocales = 0;
+  const warnings: string[] = [];
+  const pushWarning = (message: string) => {
+    if (warnings.length < 20 && !warnings.includes(message)) {
+      warnings.push(message);
+    }
+  };
+  const label = `${input.resource.kind} ${input.resource.id} action ${input.action.id}`;
+
+  const email = await getCustomerIoDesignStudioEmail({
+    apiKey: input.client.apiKey,
+    region: input.client.region,
+    emailId: input.emailId,
+  });
+  if (!email) {
+    pushWarning(`${label}: skipped (linked Design Studio email ${input.emailId} was not found)`);
+    return { pushedLocales, skippedLocales: input.targetLocales.length, failedLocales, warnings };
+  }
+
+  for (let index = 0; index < input.targetLocales.length; index += 1) {
+    const projectLocale = input.targetLocales[index];
+    const language = input.languageTags[index];
+    if (!projectLocale || !language) {
+      continue;
+    }
+    try {
+      const approved = await input.translationService.loadAsPrefilledEntries({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        targetLocale: projectLocale,
+        approvedTranslationsOnly: true,
+        readyTranslationsOnly: true,
+      });
+      if (approved.translatedKeyCount === 0) {
+        pushWarning(`${label}: skipped ${projectLocale} (no approved translations yet)`);
+        skippedLocales += 1;
+        continue;
+      }
+
+      // Address the translation with the email's own language casing
+      // (`zh-cn`, not the project tag `zh-CN`).
+      const remoteTag = matchCustomerIoDesignStudioLanguage(email.availableLanguages, language);
+      let putLanguage: string;
+      let remoteMap: CustomerIoTranslationMap;
+      let remoteUpdatedAt: string | null;
+      if (!remoteTag) {
+        await createCustomerIoDesignStudioTranslation({
+          apiKey: input.client.apiKey,
+          region: input.client.region,
+          emailId: email.id,
+          language,
+        });
+        putLanguage = language;
+        // A fresh translation inherits the default content.
+        remoteMap = designStudioContentToMap(email.content);
+        remoteUpdatedAt = null;
+      } else {
+        putLanguage = remoteTag;
+        const remote = await getCustomerIoDesignStudioTranslation({
+          apiKey: input.client.apiKey,
+          region: input.client.region,
+          emailId: email.id,
+          language: remoteTag,
+        });
+        if (!remote) {
+          await createCustomerIoDesignStudioTranslation({
+            apiKey: input.client.apiKey,
+            region: input.client.region,
+            emailId: email.id,
+            language: remoteTag,
+          });
+          remoteMap = designStudioContentToMap(email.content);
+          remoteUpdatedAt = null;
+        } else {
+          remoteMap = designStudioContentToMap(remote.content);
+          remoteUpdatedAt = remote.updatedAt;
+        }
+      }
+
+      // HTML approvals arrive keyed by hashed HTML entry; substitute them
+      // into the stored envelope first so the merge below works per field.
+      const approvedFields = envelopeFieldsToMap(
+        parseCustomerIoEmailEnvelope(
+          applyHtmlIngestTranslations(input.storedText, approved.prefilled),
+        ),
+      );
+      const translationMap = mergeCustomerIoTranslationMap({
+        source: input.sourceMap,
+        remote: remoteMap,
+        approved: approvedFields,
+      });
+      const contentHash = hashCustomerIoTranslationMap(translationMap);
+      const remoteHash = hashCustomerIoTranslationMap(remoteMap);
+      if (contentHash === remoteHash) {
+        pushWarning(`${label}: skipped ${projectLocale} (already up to date)`);
+        skippedLocales += 1;
+        continue;
+      }
+      if (
+        !input.overwriteWhenRemoteNewer &&
+        isRemoteNewerThanSource(remoteUpdatedAt, input.sourceCreatedAt)
+      ) {
+        pushWarning(`${label}: skipped ${projectLocale} (remote is newer and overwrite is off)`);
+        skippedLocales += 1;
+        continue;
+      }
+
+      await updateCustomerIoDesignStudioTranslation({
+        apiKey: input.client.apiKey,
+        region: input.client.region,
+        emailId: email.id,
+        language: putLanguage,
+        content: buildCustomerIoDesignStudioTranslationContent(translationMap),
+      });
+      pushedLocales += 1;
+    } catch (error) {
+      logger.warn({ error: permissionErrorMessage(error) }, "customer.io push failed");
+      pushWarning(`${label}: failed (${permissionErrorMessage(error)})`);
+      failedLocales += 1;
+    }
+  }
+
+  if (pushedLocales > 0) {
+    pushWarning(
+      `${label}: saved as draft in Design Studio (publish the email in Customer.io to go live)`,
+    );
   }
 
   return { pushedLocales, skippedLocales, failedLocales, warnings };

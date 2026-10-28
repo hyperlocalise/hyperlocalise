@@ -31,6 +31,13 @@ export type CustomerIoEmailEnvelope = {
   subject: string;
   preheader_text?: string;
   body: string;
+  /**
+   * Linked Design Studio email UUID. Present when the action's content is
+   * Design Studio component markup: push writes translations through the
+   * Design Studio API for this email instead of the App API. Stored as a
+   * `<body>` attribute so the HTML text extractor ignores it.
+   */
+  designStudioEmailId?: string;
 };
 
 /**
@@ -44,6 +51,7 @@ export function isCustomerIoHtmlActionType(type: string): boolean {
 }
 
 const FIELD_ATTR = "data-hl-customer-io-field";
+const DESIGN_STUDIO_ATTR = "data-hl-customer-io-design-studio";
 
 function escapeHtml(value: string): string {
   return value
@@ -58,9 +66,11 @@ function fieldBlock(name: string, value: string): string {
 }
 
 export function serializeCustomerIoEmailEnvelope(fields: CustomerIoEmailEnvelope): string {
+  const emailId = fields.designStudioEmailId?.trim() ?? "";
+  const bodyOpen = emailId ? `<body ${DESIGN_STUDIO_ATTR}="${escapeHtml(emailId)}">` : "<body>";
   return [
     "<!doctype html>",
-    "<html><body>",
+    `<html>${bodyOpen}`,
     fieldBlock("subject", escapeHtml(fields.subject)),
     fieldBlock("preheader_text", escapeHtml(fields.preheader_text ?? "")),
     fieldBlock("body", fields.body),
@@ -99,11 +109,22 @@ function decodeHtml(value: string): string {
 }
 
 export function parseCustomerIoEmailEnvelope(html: string): CustomerIoEmailEnvelope {
-  return {
+  const envelope: CustomerIoEmailEnvelope = {
     subject: decodeHtml(readFieldInnerHtml(html, "subject")),
     preheader_text: decodeHtml(readFieldInnerHtml(html, "preheader_text")) || undefined,
     body: readFieldInnerHtml(html, "body"),
   };
+  const emailId = readBodyAttribute(html, DESIGN_STUDIO_ATTR);
+  if (emailId) {
+    envelope.designStudioEmailId = emailId;
+  }
+  return envelope;
+}
+
+function readBodyAttribute(html: string, attribute: string): string | null {
+  const match = new RegExp(`<body[^>]*${attribute}="([^"]*)"`, "i").exec(html);
+  const value = match?.[1]?.trim() ?? "";
+  return value ? decodeHtml(value) : null;
 }
 
 export function hashCustomerIoEmailEnvelope(html: string): string {
