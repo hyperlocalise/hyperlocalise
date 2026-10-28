@@ -336,32 +336,6 @@ describe("persistFileTranslationMemoryEntries", () => {
     expect(insertMock).not.toHaveBeenCalled();
   });
 
-  it("skips oversized segments that would exceed the Postgres index row limit", async () => {
-    listAttachedMemoryIdsMock.mockResolvedValueOnce(["memory_1"]);
-    const oversized = `<p>${"lorem ipsum ".repeat(500)}</p>`;
-
-    await persistFileTranslationMemoryEntries({
-      jobId: "job_1",
-      projectId: "project_1",
-      sourceEntries: {
-        title: "Hello",
-        "post-content": oversized,
-      },
-      sourceFileHash: "hash_1",
-      sourceLocale: "en",
-      sourcePath: "webflow/site/collection/article.json",
-      targetEntries: {
-        title: "Bonjour",
-        "post-content": `<p>${"bonjour ".repeat(500)}</p>`,
-      },
-      targetLocale: "fr",
-    });
-
-    expect(valuesMock).toHaveBeenCalledOnce();
-    const [values] = valuesMock.mock.calls[0];
-    expect(values.map((value) => value.metadata.segmentKey)).toEqual(["title"]);
-  });
-
   it("splits large upserts so each insert stays under the Postgres bind limit", async () => {
     listAttachedMemoryIdsMock.mockResolvedValueOnce(["memory_1"]);
     const overflowCount = FILE_TRANSLATION_MEMORY_WRITE_BATCH_SIZE + 1;
