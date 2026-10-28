@@ -407,6 +407,9 @@ const webflowToolConfigSchema = z
       .enum(["seed_empty", "refresh_imported", "overwrite_all"])
       .default("seed_empty"),
     runQa: z.boolean().default(true),
+    // When false (default), approved translations are written as staged
+    // secondary-locale drafts. When true, pushed locales go live immediately.
+    publishOnPush: z.boolean().default(false),
   })
   .default({
     enabled: false,
@@ -415,6 +418,7 @@ const webflowToolConfigSchema = z
     targetLocales: [],
     existingTranslationPolicy: "seed_empty",
     runQa: true,
+    publishOnPush: false,
   });
 
 const sanityToolConfigSchema = z

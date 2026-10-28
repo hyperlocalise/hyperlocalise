@@ -41,11 +41,13 @@ Create or choose a [native project](/platform/projects/create-project), then set
 
 Import does not write translations to Webflow.
 
+When a secondary locale already has content in Webflow, import seeds it into the project according to **Existing Webflow translations**: **Only empty locales** (default) never overwrites project work, **Refresh imported locales** refreshes locales previously seeded by automation, and **Overwrite all locales** always seeds the remote content.
+
 ## Review and push translations
 
 1. Translate and [approve](/platform/cat) every visible string for a mapped locale.
 2. Open a Webflow item file in the Content editor. The header shows **Push to Webflow** for that file when at least one mapped locale is fully approved and no push is already running.
-3. Confirm the locale content appears in Webflow after you review it.
+3. Confirm the locale content appears in Webflow after you review it. Push writes staged secondary-locale drafts by default; enable **Publish pushed locales live** on the automation to publish them immediately. When an item has no variant in a secondary locale yet, push creates it with the translated content.
 
 ## Change or remove access
 

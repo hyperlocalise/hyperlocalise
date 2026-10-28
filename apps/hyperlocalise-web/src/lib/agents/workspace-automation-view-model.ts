@@ -152,6 +152,7 @@ export type WorkspaceAutomationFormState = {
   webflowTargetLocales: string[];
   webflowExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   webflowRunQa: boolean;
+  webflowPublishOnPush: boolean;
   brazeEnabled: boolean;
   brazeCampaignsEnabled: boolean;
   brazeSourceLocale: string;
@@ -461,6 +462,7 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     webflowTargetLocales: [],
     webflowExistingTranslationPolicy: "seed_empty",
     webflowRunQa: true,
+    webflowPublishOnPush: false,
     brazeEnabled: false,
     brazeCampaignsEnabled: false,
     brazeSourceLocale: "en",
@@ -635,6 +637,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
         ? webflow.existingTranslationPolicy
         : "seed_empty",
     webflowRunQa: webflow?.runQa ?? true,
+    webflowPublishOnPush: webflow?.publishOnPush ?? false,
     brazeEnabled: Boolean(braze?.enabled),
     brazeCampaignsEnabled: Boolean(brazeCampaigns?.enabled),
     brazeSourceLocale: brazeCampaigns?.sourceLocale ?? braze?.sourceLocale ?? "en",
@@ -977,6 +980,7 @@ export function formStateToWorkspaceAutomationPayload(
             targetLocales: form.webflowTargetLocales,
             existingTranslationPolicy: form.webflowExistingTranslationPolicy,
             runQa: form.webflowRunQa,
+            publishOnPush: form.webflowPublishOnPush,
           },
         }
       : {}),

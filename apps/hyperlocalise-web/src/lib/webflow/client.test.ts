@@ -129,4 +129,43 @@ describe("WebflowDataClient", () => {
     expect(url.searchParams.get("lastUpdated[gte]")).toBe("2026-10-01T00:00:00.000Z");
     expect(seenUrls[0]).not.toContain("sort%5BlastUpdated%5D");
   });
+
+  it("creates a missing locale variant with translated field data", async () => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      expect(url).toContain("/v2/collections/col-1/items/insert");
+      expect(init?.method).toBe("POST");
+      if (typeof init?.body !== "string") {
+        throw new Error("expected a JSON string request body");
+      }
+      const body = JSON.parse(init.body) as {
+        items: Array<{ id: string; cmsLocaleIds: string[]; fieldData: Record<string, string> }>;
+      };
+      expect(body.items).toHaveLength(1);
+      expect(body.items[0]).toMatchObject({
+        id: "item-1",
+        cmsLocaleIds: ["cms-fr"],
+        fieldData: { title: "Bonjour" },
+      });
+      return Response.json({
+        items: [{ id: "item-1", cmsLocaleId: "cms-fr", fieldData: body.items[0].fieldData }],
+      });
+    });
+
+    const client = new WebflowDataClient({
+      accessToken: "token",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const created = await client.createCollectionItemVariant({
+      collectionId: "col-1",
+      itemId: "item-1",
+      cmsLocaleId: "cms-fr",
+      fieldData: { title: "Bonjour" },
+    });
+    if (isErr(created)) {
+      throw new Error("expected create");
+    }
+    expect(created.value.cmsLocaleId).toBe("cms-fr");
+    expect(created.value.fieldData.title).toBe("Bonjour");
+  });
 });

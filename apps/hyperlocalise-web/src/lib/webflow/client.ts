@@ -356,6 +356,47 @@ export class WebflowDataClient {
     return ok(parseCollectionItem(result.value));
   }
 
+  /**
+   * Adds a secondary-locale variant to an existing item. PATCH cannot create
+   * variants, so push calls this when the target locale variant is missing
+   * (see `runPushWebflowTranslations`). Translated content rides along in
+   * the same request via `fieldData`.
+   */
+  async createCollectionItemVariant(input: {
+    collectionId: string;
+    itemId: string;
+    cmsLocaleId: string;
+    fieldData: WebflowCollectionItem["fieldData"];
+  }): Promise<Result<WebflowCollectionItem, WebflowClientError>> {
+    const result = await this.request<{ items?: Record<string, unknown>[] }>({
+      path: `/collections/${encodeURIComponent(input.collectionId)}/items/insert`,
+      method: "POST",
+      body: {
+        items: [
+          {
+            id: input.itemId,
+            cmsLocaleIds: [input.cmsLocaleId],
+            fieldData: input.fieldData,
+          },
+        ],
+      },
+      operation: "createCollectionItemVariant",
+    });
+    if (result.ok === false) {
+      return result;
+    }
+    const [first] = result.value.items ?? [];
+    if (!first) {
+      return err({
+        code: "webflow_request_failed",
+        status: 200,
+        message: "Create variant returned no items",
+        operation: "createCollectionItemVariant",
+      });
+    }
+    return ok(parseCollectionItem(first));
+  }
+
   async patchCollectionItem(input: {
     collectionId: string;
     itemId: string;

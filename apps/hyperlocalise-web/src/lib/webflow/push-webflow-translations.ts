@@ -272,29 +272,68 @@ export async function runPushWebflowTranslations(input: {
           continue;
         }
 
-        const patchResult = await client.patchCollectionItem({
+        // PATCH cannot create a secondary-locale variant. When the item has
+        // no variant in the target locale yet, create it with the translated
+        // content in the same request instead of failing the push.
+        const targetVariant = await client.getCollectionItem({
           collectionId: syncState.collectionId,
           itemId: syncState.itemId,
           cmsLocaleId: target.webflowLocale.cmsLocaleId,
-          fieldData: patchFieldData,
         });
-        if (isErr(patchResult)) {
+        if (isErr(targetVariant) && targetVariant.error.status !== 404) {
           result.failedLocales += 1;
           result.outcomes.push({
             itemId: syncState.itemId,
             locale: target.projectLocale,
             status: "failed",
-            reason: patchResult.error.message,
+            reason: targetVariant.error.message,
           });
           continue;
         }
+        if (isErr(targetVariant)) {
+          const createResult = await client.createCollectionItemVariant({
+            collectionId: syncState.collectionId,
+            itemId: syncState.itemId,
+            cmsLocaleId: target.webflowLocale.cmsLocaleId,
+            fieldData: patchFieldData,
+          });
+          if (isErr(createResult)) {
+            result.failedLocales += 1;
+            result.outcomes.push({
+              itemId: syncState.itemId,
+              locale: target.projectLocale,
+              status: "failed",
+              reason: createResult.error.message,
+            });
+            continue;
+          }
+        } else {
+          const patchResult = await client.patchCollectionItem({
+            collectionId: syncState.collectionId,
+            itemId: syncState.itemId,
+            cmsLocaleId: target.webflowLocale.cmsLocaleId,
+            fieldData: patchFieldData,
+          });
+          if (isErr(patchResult)) {
+            result.failedLocales += 1;
+            result.outcomes.push({
+              itemId: syncState.itemId,
+              locale: target.projectLocale,
+              status: "failed",
+              reason: patchResult.error.message,
+            });
+            continue;
+          }
+        }
 
-        const publishResult = await client.publishCollectionItem({
-          collectionId: syncState.collectionId,
-          itemId: syncState.itemId,
-          cmsLocaleIds: [target.webflowLocale.cmsLocaleId],
-        });
-        if (isErr(publishResult)) {
+        const publishResult = webflow.publishOnPush
+          ? await client.publishCollectionItem({
+              collectionId: syncState.collectionId,
+              itemId: syncState.itemId,
+              cmsLocaleIds: [target.webflowLocale.cmsLocaleId],
+            })
+          : null;
+        if (publishResult && isErr(publishResult)) {
           result.failedLocales += 1;
           result.outcomes.push({
             itemId: syncState.itemId,

@@ -365,6 +365,23 @@ export function WorkspaceAutomationWebflowSettings({
           overwrites work already in Hyperlocalise.
         </p>
       </div>
+
+      <div className="space-y-2">
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={form.webflowPublishOnPush}
+            disabled={!webflowConnected}
+            onCheckedChange={(checked) =>
+              onChange({ ...form, webflowPublishOnPush: checked === true })
+            }
+          />
+          <span>Publish pushed locales live</span>
+        </label>
+        <p className="text-xs text-muted-foreground">
+          When off, approved translations are written as staged secondary-locale drafts. When on,
+          pushed locales go live immediately.
+        </p>
+      </div>
     </div>
   );
 }

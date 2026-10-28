@@ -144,7 +144,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
         "Open native translation jobs for mapped target locales after ingest",
         "Never push translations automatically on import — operators enqueue push separately",
       ],
-      goal: "Keep Webflow CMS items in sync for localisation and write approved translations back as secondary-locale drafts.",
+      goal: "Keep Webflow CMS items in sync for localisation and write approved translations back as secondary-locale drafts, optionally publishing them live.",
     }),
     activatable: true,
     defaultForm: {

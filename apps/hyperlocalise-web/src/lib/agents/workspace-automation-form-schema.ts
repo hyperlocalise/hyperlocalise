@@ -141,6 +141,7 @@ const formStateShape = {
   webflowTargetLocales: textList,
   webflowExistingTranslationPolicy: z.enum(["seed_empty", "refresh_imported", "overwrite_all"]),
   webflowRunQa: flag,
+  webflowPublishOnPush: flag,
   googleDriveEnabled: flag,
   googleDriveFolderIds: z.array(z.string().uuid()).max(50),
   googleDriveFileIds: z.array(z.string().trim().min(1).max(128)).max(500),
