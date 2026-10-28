@@ -44,10 +44,11 @@ function plainSimilarity(left: string, right: string): number {
 
 /**
  * The matching rules read plainly: of the entries within half to twice the query's length, the
- * 64 sharing the most bigrams relative to both sizes (Dice, ties to the lowest text) are scored
- * by edit similarity; a short query below the lowest band is also ranked by shared characters.
+ * `limit` sharing the most bigrams relative to both sizes (Dice, ties to the lowest text) are
+ * scored by edit similarity; a short query below the lowest band is also ranked by shared
+ * characters.
  */
-function plainBestScore(sources: string[], sourceText: string): number {
+function plainBestScore(sources: string[], sourceText: string, limit = 64): number {
   if (sources.includes(sourceText)) return 100;
   const query = normalizeTranslationMemorySourceText(sourceText);
   const entries = [...new Set(sources.map(normalizeTranslationMemorySourceText))];
@@ -76,7 +77,7 @@ function plainBestScore(sources: string[], sourceText: string): number {
           right.dice - left.dice ||
           (left.entry < right.entry ? -1 : left.entry > right.entry ? 1 : 0),
       )
-      .slice(0, 64);
+      .slice(0, limit);
     return Math.max(0, ...ranked.map((candidate) => plainSimilarity(query, candidate.entry)));
   };
   let score = best(bigramsOf);
@@ -172,6 +173,18 @@ describe("MemoryMatchIndex", () => {
     }
   });
 
+  it("compares a shorter entry whose length allows just one point more than the best so far", () => {
+    const query = Array.from({ length: 100 }, (_, i) =>
+      String.fromCharCode(97 + ((i * 7) % 26)),
+    ).join("");
+    // The same length, 20 letters changed: 80. The first 81 letters: 19 removed, so 81.
+    const changed = Array.from(query, (char, i) => (i % 5 === 0 ? "0" : char)).join("");
+    const prefix = query.slice(0, 81);
+    expect(sourceSimilarity(query, changed)).toBe(80);
+    expect(new MemoryMatchIndex([changed, prefix]).bestScore(query)).toBe(81);
+    expect(new MemorySourceScan([changed, prefix]).bestScore(query)).toBe(81);
+  });
+
   it("deduplicates entries and reports its size", () => {
     expect(new MemoryMatchIndex(["a b", "A  B", "c"]).size).toBe(2);
   });
@@ -225,14 +238,15 @@ describe("MemorySourceScan", () => {
 });
 
 describe("random memories", () => {
-  // Small alphabets force ties and shared bigrams; the others cover two-unit characters,
-  // combining marks, full-width letters that normalizing changes, and Japanese.
+  // Small alphabets force ties and shared bigrams; the others cover two-unit characters, lone
+  // surrogates, combining marks, full-width letters that normalizing changes, and Japanese.
   const alphabets = [
     ["a", "b"],
     Array.from("abc "),
     Array.from("abcdefghij "),
     Array.from("aAbB  \t"),
     ["😀", "👍", "a", " "],
+    ["\ud83d", "\ude00", "😀", "a"],
     ["e", "́", "é", " "],
     ["Ａ", "A", "ｂ", "b", " "],
     Array.from("日本語の翻訳を確認"),
@@ -250,13 +264,16 @@ describe("random memories", () => {
       else chars.splice(at, 0, pick(alphabet));
       return chars.join("");
     };
+    // Lookups whose score depends on which 64 candidates are kept, so the ranking is tested.
+    let rankingDecides = 0;
     for (let memory = 0; memory < 300; memory++) {
       const alphabet = pick(alphabets);
       const longest = pick([1, 3, 6, 12, 40, 150]);
-      const sources = Array.from({ length: pick([0, 1, 3, 20, 90]) }, () =>
+      const sources = Array.from({ length: pick([0, 1, 3, 20, 90, 300]) }, () =>
         text(alphabet, longest),
       );
-      // More entries than are scored, many tied, once normalizing merges these copies.
+      // Copies that differ only in case and outer spaces: normalizing merges them with their
+      // originals, while only the raw text is an exact match.
       sources.push(...sources.slice(0, 5).map((source) => ` ${source.toUpperCase()} `));
       const index = new MemoryMatchIndex(sources);
       const scan = new MemorySourceScan(sources);
@@ -266,11 +283,16 @@ describe("random memories", () => {
             ? edited(pick(sources), alphabet)
             : text(alphabet, longest);
         const expected = plainBestScore(sources, query);
-        expect(index.bestScore(query), JSON.stringify({ sources, query })).toBe(expected);
-        expect(scan.bestScore(query), JSON.stringify({ sources, query })).toBe(expected);
+        const lookupCase = JSON.stringify({ sources, query });
+        expect(index.bestScore(query), lookupCase).toBe(expected);
+        expect(scan.bestScore(query), lookupCase).toBe(expected);
+        if (sources.length > 64 && plainBestScore(sources, query, Infinity) !== expected) {
+          rankingDecides++;
+        }
         const other = text(alphabet, longest);
         expect(sourceSimilarity(query, other)).toBe(plainSimilarity(query, other));
       }
     }
+    expect(rankingDecides).toBeGreaterThan(0);
   });
 });
