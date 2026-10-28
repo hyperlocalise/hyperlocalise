@@ -23,6 +23,13 @@ export const webflowConnectionPanelMessages = defineMessages({
     defaultMessage: "Could not save the Webflow connection.",
     description: "Error toast when saving the Webflow connection fails.",
   },
+  saveLimitReached: {
+    id: "UkPonG/OHc",
+    defaultMessage:
+      "Integration limit reached for your current plan. Remove an unused integration or upgrade, then try again.",
+    description:
+      "Error toast when saving the Webflow connection fails because the workspace integration limit is reached.",
+  },
   saveSuccess: {
     id: "Xsoxk/Vr1O",
     defaultMessage: "Webflow connection saved.",

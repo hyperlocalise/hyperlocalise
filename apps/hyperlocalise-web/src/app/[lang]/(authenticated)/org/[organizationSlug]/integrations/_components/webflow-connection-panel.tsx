@@ -154,6 +154,20 @@ export function WebflowConnectionPanel({
     },
   });
 
+  const readSaveError = async (res: Response): Promise<never> => {
+    const body: unknown = await res.json().catch(() => null);
+    const record =
+      typeof body === "object" && body !== null ? (body as Record<string, unknown>) : null;
+    if (record?.error === "workspace_resource_limit_reached") {
+      throw new Error(
+        typeof record.message === "string" && record.message.length > 0
+          ? record.message
+          : intl.formatMessage(webflowConnectionPanelMessages.saveLimitReached),
+      );
+    }
+    throw new Error(intl.formatMessage(webflowConnectionPanelMessages.saveFailed));
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const token = siteToken.trim();
@@ -184,7 +198,7 @@ export function WebflowConnectionPanel({
           },
         });
         if (!res.ok) {
-          throw new Error(intl.formatMessage(webflowConnectionPanelMessages.saveFailed));
+          return readSaveError(res);
         }
         return res.json();
       }
@@ -194,7 +208,7 @@ export function WebflowConnectionPanel({
         json: { ...payload, siteToken: token, enabled: true },
       });
       if (!res.ok) {
-        throw new Error(intl.formatMessage(webflowConnectionPanelMessages.saveFailed));
+        return readSaveError(res);
       }
       return res.json();
     },
