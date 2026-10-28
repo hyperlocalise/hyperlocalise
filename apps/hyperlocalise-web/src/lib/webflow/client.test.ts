@@ -101,4 +101,32 @@ describe("WebflowDataClient", () => {
     }
     expect(patched.value.fieldData.title).toBe("Bonjour");
   });
+
+  it("lists collection items with sortBy/sortOrder and lastUpdated filter", async () => {
+    const seenUrls: string[] = [];
+    const fetchImpl = vi.fn(async (url: string) => {
+      seenUrls.push(url);
+      return Response.json({ items: [], pagination: { total: 0, limit: 100, offset: 0 } });
+    });
+
+    const client = new WebflowDataClient({
+      accessToken: "token",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const listed = await client.listCollectionItems({
+      collectionId: "col-1",
+      cmsLocaleId: "cms-primary",
+      lastUpdatedGte: "2026-10-01T00:00:00.000Z",
+      sortLastUpdatedAsc: true,
+    });
+    if (isErr(listed)) {
+      throw new Error("expected list");
+    }
+    const url = new URL(seenUrls[0] ?? "");
+    expect(url.searchParams.get("sortBy")).toBe("lastUpdated");
+    expect(url.searchParams.get("sortOrder")).toBe("asc");
+    expect(url.searchParams.get("lastUpdated[gte]")).toBe("2026-10-01T00:00:00.000Z");
+    expect(seenUrls[0]).not.toContain("sort%5BlastUpdated%5D");
+  });
 });

@@ -311,7 +311,8 @@ export class WebflowDataClient {
       query["lastUpdated[gte]"] = input.lastUpdatedGte;
     }
     if (input.sortLastUpdatedAsc) {
-      query["sort[lastUpdated]"] = "asc";
+      query.sortBy = "lastUpdated";
+      query.sortOrder = "asc";
     }
 
     const result = await this.request<{
