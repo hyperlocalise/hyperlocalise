@@ -28,7 +28,7 @@ import {
 export function createPushCustomerIoCampaignsTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({
     description:
-      "Push approved locales into Customer.io campaign and broadcast messages. Never rewrites message content and never publishes.",
+      "Push approved locales into Customer.io campaign, newsletter, broadcast, and transactional messages. Never rewrites message content and never publishes.",
     inputSchema: z.object({
       summary: z.string().optional().describe("Optional operator note for the run record."),
     }),

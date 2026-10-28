@@ -12,7 +12,11 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildCustomerIoResourceSourcePath } from "./push-customer-io-campaigns";
+import {
+  buildCustomerIoResourceSourcePath,
+  isCustomerIoPushSkippedError,
+} from "./push-customer-io-campaigns";
+import { CustomerIoApiError } from "./client";
 
 describe("buildCustomerIoResourceSourcePath", () => {
   it("builds html paths for email and in_app actions to match the importer", () => {
@@ -48,5 +52,25 @@ describe("buildCustomerIoResourceSourcePath", () => {
     expect(buildCustomerIoResourceSourcePath({ kind: "campaign", id: "7", name: "x" }, "42")).toBe(
       "customer-io/campaigns/7/actions/42.json",
     );
+  });
+});
+
+describe("isCustomerIoPushSkippedError", () => {
+  it("skips missing variants and rejected language tags", () => {
+    expect(
+      isCustomerIoPushSkippedError(
+        new CustomerIoApiError("customer_io_translation_missing", "m", 404),
+      ),
+    ).toBe(true);
+    expect(
+      isCustomerIoPushSkippedError(new CustomerIoApiError("customer_io_request_failed", "m", 400)),
+    ).toBe(true);
+  });
+
+  it("fails on other errors", () => {
+    expect(
+      isCustomerIoPushSkippedError(new CustomerIoApiError("customer_io_request_failed", "m", 500)),
+    ).toBe(false);
+    expect(isCustomerIoPushSkippedError(new Error("boom"))).toBe(false);
   });
 });

@@ -133,6 +133,21 @@ describe("broadcast action translations", () => {
     expect(translation).toBeNull();
   });
 
+  it("returns null when Customer.io rejects the language tag", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => jsonResponse({ errors: [] }, 400));
+
+    const translation = await getCustomerIoBroadcastActionTranslation({
+      apiKey: "key",
+      region: "us",
+      broadcastId: "2",
+      actionId: "96",
+      language: "zh-CN",
+      fetchImpl,
+    });
+
+    expect(translation).toBeNull();
+  });
+
   it("updates a translation with a PUT", async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => jsonResponse({}));
 

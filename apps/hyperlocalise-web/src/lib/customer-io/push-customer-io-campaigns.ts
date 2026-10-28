@@ -90,6 +90,7 @@ export type PushCustomerIoCampaignsResult = {
   skippedLocales: number;
   failedLocales: number;
   itemsProcessed: number;
+  warnings: string[];
 };
 
 function envelopeFieldsToMap(envelope: {
@@ -127,6 +128,19 @@ function isMissingTranslation(error: unknown): boolean {
   return error instanceof CustomerIoApiError && error.code === "customer_io_translation_missing";
 }
 
+/**
+ * Whether a push failure means "nothing to push into" rather than a real
+ * error. The API only updates language variants enabled in the Customer.io
+ * UI: a missing variant is 404, while a rejected/unknown language tag (e.g.
+ * zh-CN when that locale is not enabled) is 400. Both skip the locale instead
+ * of failing the run.
+ */
+export function isCustomerIoPushSkippedError(error: unknown): boolean {
+  return (
+    isMissingTranslation(error) || (error instanceof CustomerIoApiError && error.status === 400)
+  );
+}
+
 function isRemoteNewerThanSource(
   remoteUpdatedAt: string | null | undefined,
   sourceCreatedAt: Date | null,
@@ -145,11 +159,23 @@ export async function runPushCustomerIoCampaigns(input: {
 }): Promise<PushCustomerIoCampaignsResult> {
   const config = input.automation.toolConfig.customerIo;
   if (!config?.enabled) {
-    return { pushedLocales: 0, skippedLocales: 0, failedLocales: 0, itemsProcessed: 0 };
+    return {
+      pushedLocales: 0,
+      skippedLocales: 0,
+      failedLocales: 0,
+      itemsProcessed: 0,
+      warnings: [],
+    };
   }
   const projectId = input.automation.projectId?.trim();
   if (!projectId) {
-    return { pushedLocales: 0, skippedLocales: 0, failedLocales: 0, itemsProcessed: 0 };
+    return {
+      pushedLocales: 0,
+      skippedLocales: 0,
+      failedLocales: 0,
+      itemsProcessed: 0,
+      warnings: [],
+    };
   }
 
   const loaded = await loadCustomerIoAutomationClient({
@@ -174,7 +200,13 @@ export async function runPushCustomerIoCampaigns(input: {
     )
     .limit(1);
   if (!project) {
-    return { pushedLocales: 0, skippedLocales: 0, failedLocales: 0, itemsProcessed: 0 };
+    return {
+      pushedLocales: 0,
+      skippedLocales: 0,
+      failedLocales: 0,
+      itemsProcessed: 0,
+      warnings: [],
+    };
   }
 
   const projectTargetLocales = Array.isArray(project.targetLocales)
@@ -185,7 +217,13 @@ export async function runPushCustomerIoCampaigns(input: {
     projectTargetLocales,
   });
   if (!localeMapping.sourceSuffix) {
-    return { pushedLocales: 0, skippedLocales: 0, failedLocales: 0, itemsProcessed: 0 };
+    return {
+      pushedLocales: 0,
+      skippedLocales: 0,
+      failedLocales: 0,
+      itemsProcessed: 0,
+      warnings: [],
+    };
   }
 
   const actionSelections: Record<CustomerIoResourceKind, Record<string, string[]>> = {
@@ -219,6 +257,12 @@ export async function runPushCustomerIoCampaigns(input: {
   let skippedLocales = 0;
   let failedLocales = 0;
   let itemsProcessed = 0;
+  const warnings: string[] = [];
+  const pushWarning = (message: string) => {
+    if (warnings.length < 20 && !warnings.includes(message)) {
+      warnings.push(message);
+    }
+  };
 
   const sourceFilter = input.sourcePaths ? new Set(input.sourcePaths) : null;
 
@@ -266,10 +310,13 @@ export async function runPushCustomerIoCampaigns(input: {
       pushedLocales += result.pushedLocales;
       skippedLocales += result.skippedLocales;
       failedLocales += result.failedLocales;
+      for (const warning of result.warnings) {
+        pushWarning(warning);
+      }
     }
   }
 
-  return { pushedLocales, skippedLocales, failedLocales, itemsProcessed };
+  return { pushedLocales, skippedLocales, failedLocales, itemsProcessed, warnings };
 }
 
 function customerIoResourcePath(resource: CustomerIoImportResource): string {
@@ -454,10 +501,22 @@ async function pushCustomerIoAction(input: {
   targetLocales: readonly string[];
   languageTags: readonly string[];
   overwriteWhenRemoteNewer: boolean;
-}): Promise<{ pushedLocales: number; skippedLocales: number; failedLocales: number }> {
+}): Promise<{
+  pushedLocales: number;
+  skippedLocales: number;
+  failedLocales: number;
+  warnings: string[];
+}> {
   let pushedLocales = 0;
   let skippedLocales = 0;
   let failedLocales = 0;
+  const warnings: string[] = [];
+  const pushWarning = (message: string) => {
+    if (warnings.length < 20 && !warnings.includes(message)) {
+      warnings.push(message);
+    }
+  };
+  const label = `${input.resource.kind} ${input.resource.id} action ${input.action.id}`;
 
   const latest = await getLatestRepositorySourceFileVersion({
     organizationId: input.organizationId,
@@ -465,7 +524,8 @@ async function pushCustomerIoAction(input: {
     sourcePath: input.sourcePath,
   });
   if (!latest?.storedFileId) {
-    return { pushedLocales, skippedLocales: input.targetLocales.length, failedLocales };
+    pushWarning(`${label}: skipped (no imported file at ${input.sourcePath}; run ingest first)`);
+    return { pushedLocales, skippedLocales: input.targetLocales.length, failedLocales, warnings };
   }
   const stored = await getStoredFileContent({
     organizationId: input.organizationId,
@@ -481,7 +541,8 @@ async function pushCustomerIoAction(input: {
     ? envelopeFieldsToMap(parseCustomerIoEmailEnvelope(storedText))
     : parseCustomerIoTranslationMapJson(storedText);
   if (Object.keys(sourceMap).length === 0) {
-    return { pushedLocales, skippedLocales: input.targetLocales.length, failedLocales };
+    pushWarning(`${label}: skipped (stored file has no translatable entries)`);
+    return { pushedLocales, skippedLocales: input.targetLocales.length, failedLocales, warnings };
   }
 
   const details = await getCustomerIoResourceAction({
@@ -495,7 +556,8 @@ async function pushCustomerIoAction(input: {
         : "actions",
   });
   if (!details) {
-    return { pushedLocales, skippedLocales: input.targetLocales.length, failedLocales };
+    pushWarning(`${label}: skipped (could not read action details from Customer.io)`);
+    return { pushedLocales, skippedLocales: input.targetLocales.length, failedLocales, warnings };
   }
 
   for (let index = 0; index < input.targetLocales.length; index += 1) {
@@ -514,6 +576,7 @@ async function pushCustomerIoAction(input: {
         readyTranslationsOnly: true,
       });
       if (approved.translatedKeyCount === 0) {
+        pushWarning(`${label}: skipped ${projectLocale} (no approved translations yet)`);
         skippedLocales += 1;
         continue;
       }
@@ -527,6 +590,9 @@ async function pushCustomerIoAction(input: {
       if (!remote) {
         // Language variants are enabled in the Customer.io UI; the API only
         // updates existing variants, so there is nothing to push into yet.
+        pushWarning(
+          `${label}: skipped ${projectLocale} (enable language ${language} on the message in Customer.io first)`,
+        );
         skippedLocales += 1;
         continue;
       }
@@ -550,6 +616,7 @@ async function pushCustomerIoAction(input: {
       const contentHash = hashCustomerIoTranslationMap(translationMap);
       const remoteHash = hashCustomerIoTranslationMap(remoteMap);
       if (contentHash === remoteHash) {
+        pushWarning(`${label}: skipped ${projectLocale} (already up to date)`);
         skippedLocales += 1;
         continue;
       }
@@ -557,6 +624,7 @@ async function pushCustomerIoAction(input: {
         !input.overwriteWhenRemoteNewer &&
         isRemoteNewerThanSource(remote.updatedAt, latest.createdAt)
       ) {
+        pushWarning(`${label}: skipped ${projectLocale} (remote is newer and overwrite is off)`);
         skippedLocales += 1;
         continue;
       }
@@ -572,7 +640,10 @@ async function pushCustomerIoAction(input: {
         });
         pushedLocales += 1;
       } catch (error) {
-        if (isMissingTranslation(error)) {
+        if (isCustomerIoPushSkippedError(error)) {
+          pushWarning(
+            `${label}: skipped ${language} (language variant not writable in Customer.io)`,
+          );
           skippedLocales += 1;
           continue;
         }
@@ -580,9 +651,10 @@ async function pushCustomerIoAction(input: {
       }
     } catch (error) {
       logger.warn({ error: permissionErrorMessage(error) }, "customer.io push failed");
+      pushWarning(`${label}: failed (${permissionErrorMessage(error)})`);
       failedLocales += 1;
     }
   }
 
-  return { pushedLocales, skippedLocales, failedLocales };
+  return { pushedLocales, skippedLocales, failedLocales, warnings };
 }

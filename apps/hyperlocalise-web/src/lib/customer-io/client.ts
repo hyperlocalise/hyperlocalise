@@ -444,7 +444,11 @@ async function getCustomerIoResourceActionTranslation(input: {
     path,
     fetchImpl,
   });
-  if (response.status === 404) {
+  if (response.status === 404 || response.status === 400) {
+    // 404 = language variant does not exist. 400 = Customer.io rejected the
+    // language tag (e.g. zh-CN when that locale is not enabled/known).
+    // Either way there is nothing to read — callers leave the locale for Jobs
+    // (import) or skip it (push) instead of failing the whole action.
     return null;
   }
   if (!response.ok) {
