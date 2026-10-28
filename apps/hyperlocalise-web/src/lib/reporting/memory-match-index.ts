@@ -26,24 +26,75 @@ const SHORT_QUERY_LENGTH = 8;
 
 /** Character edit similarity on normalized text; 100 only for identical strings. */
 export function sourceSimilarity(left: string, right: string): number {
-  const a = Array.from(left);
-  const b = Array.from(right);
+  return similarityAbove(codePoints(left), codePoints(right), -1);
+}
+
+/** The score `sourceSimilarity` gives an edit distance between texts of these lengths. */
+function similarityOf(distance: number, longest: number): number {
+  return Math.floor(100 * (1 - distance / longest));
+}
+
+function codePoints(text: string): Int32Array {
+  const points = new Int32Array(text.length);
+  let count = 0;
+  for (let i = 0; i < text.length; i++) {
+    const point = text.codePointAt(i)!;
+    if (point > 0xffff) i++;
+    points[count++] = point;
+  }
+  return points.subarray(0, count);
+}
+
+/** One row of the edit distance table, reused across calls. */
+let distanceRow = new Int32Array(64);
+
+/**
+ * `sourceSimilarity` of two texts' code points when it is above `floor`; otherwise a score no
+ * higher than `floor`, worked out only as far as needed to know that.
+ */
+function similarityAbove(a: Int32Array, b: Int32Array, floor: number): number {
   if (a.length === 0 && b.length === 0) return 100;
   if (a.length === 0 || b.length === 0) return 0;
   const longest = Math.max(a.length, b.length);
-  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 1; i <= a.length; i++) {
-    const current = [i];
-    for (let j = 1; j <= b.length; j++) {
-      current[j] = Math.min(
-        current[j - 1] + 1,
-        previous[j] + 1,
-        previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
-      );
-    }
-    previous = current;
+  // The largest edit distance that still scores above the floor.
+  let limit = Math.max(0, Math.min(longest, Math.floor((longest * (99 - floor)) / 100)));
+  while (limit < longest && similarityOf(limit + 1, longest) > floor) limit++;
+  while (limit >= 0 && similarityOf(limit, longest) <= floor) limit--;
+  if (limit < 0 || Math.abs(a.length - b.length) > limit) return Math.min(floor, 0);
+  // A shared start and end do not change the edit distance.
+  let start = 0;
+  while (start < a.length && start < b.length && a[start] === b[start]) start++;
+  let aEnd = a.length;
+  let bEnd = b.length;
+  while (aEnd > start && bEnd > start && a[aEnd - 1] === b[bEnd - 1]) {
+    aEnd--;
+    bEnd--;
   }
-  return Math.floor(100 * (1 - previous[b.length] / longest));
+  const rows = aEnd - start;
+  const columns = bEnd - start;
+  if (distanceRow.length <= columns) distanceRow = new Int32Array(2 * columns + 2);
+  const row = distanceRow;
+  for (let j = 0; j <= columns; j++) row[j] = j;
+  for (let i = 1; i <= rows; i++) {
+    let diagonal = row[0];
+    row[0] = i;
+    let rowLowest = i;
+    const point = a[start + i - 1];
+    for (let j = 1; j <= columns; j++) {
+      const above = row[j];
+      const value = Math.min(
+        row[j - 1] + 1,
+        above + 1,
+        diagonal + (point === b[start + j - 1] ? 0 : 1),
+      );
+      diagonal = above;
+      row[j] = value;
+      if (value < rowLowest) rowLowest = value;
+    }
+    // Every alignment passes through this row, so the distance is at least its lowest value.
+    if (rowLowest > limit) return Math.min(floor, 0);
+  }
+  return row[columns] <= limit ? similarityOf(row[columns], longest) : Math.min(floor, 0);
 }
 
 /**
@@ -99,7 +150,7 @@ function bestCandidateScore(
   candidates: Candidate[],
 ): number {
   // The CANDIDATE_LIMIT best, kept as a heap whose root is the weakest of them.
-  const heap: { dice: number; text: string }[] = [];
+  const heap: { dice: number; text: string; length: number }[] = [];
   const weaker = (i: number, j: number) => rankAbove(heap[j], heap[i]);
   const swap = (i: number, j: number) => ([heap[i], heap[j]] = [heap[j], heap[i]]);
   for (const candidate of candidates) {
@@ -108,6 +159,7 @@ function bestCandidateScore(
     const entry = {
       dice: (2 * candidate.shared) / (queryGrams + candidate.grams),
       text: candidate.text,
+      length,
     };
     if (heap.length === CANDIDATE_LIMIT) {
       if (!rankAbove(entry, heap[0])) continue;
@@ -132,9 +184,22 @@ function bestCandidateScore(
       }
     }
   }
+  // The edit distance is at least the difference in length, which caps each candidate's score.
+  // Comparing the highest caps first lets a close match rule out the rest early.
+  const queryPoints = codePoints(query);
+  const ranked = heap
+    .map((entry) => ({
+      text: entry.text,
+      cap: similarityOf(
+        Math.abs(entry.length - queryLength),
+        Math.max(entry.length, queryLength, 1),
+      ),
+    }))
+    .sort((left, right) => right.cap - left.cap);
   let best = 0;
-  for (const candidate of heap) {
-    best = Math.max(best, sourceSimilarity(query, candidate.text));
+  for (const candidate of ranked) {
+    if (candidate.cap <= best) break;
+    best = Math.max(best, similarityAbove(queryPoints, codePoints(candidate.text), best));
     if (best === 100) break;
   }
   return best;
