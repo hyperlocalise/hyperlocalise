@@ -12,7 +12,7 @@
  */
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
-/** How many of the entries sharing the most bigrams with a query are scored exactly. */
+/** How many of the entries overlapping a query's bigrams most are compared by edit distance. */
 const CANDIDATE_LIMIT = 64;
 /** A candidate must be at least this fraction of the query's length to reach a 50% score. */
 const MIN_LENGTH_RATIO = 0.5;
@@ -45,22 +45,14 @@ function codePoints(text: string): Int32Array {
   return points.subarray(0, count);
 }
 
-/** One row of the edit distance table, reused across calls. */
-let distanceRow = new Int32Array(64);
-
 /**
- * `sourceSimilarity` of two texts' code points when it is above `floor`; otherwise a score no
- * higher than `floor`, worked out only as far as needed to know that.
+ * `sourceSimilarity` of two texts' code points when it is above `floor`, or 0 as soon as it is
+ * known not to be.
  */
 function similarityAbove(a: Int32Array, b: Int32Array, floor: number): number {
   if (a.length === 0 && b.length === 0) return 100;
   if (a.length === 0 || b.length === 0) return 0;
   const longest = Math.max(a.length, b.length);
-  // The largest edit distance that still scores above the floor.
-  let limit = Math.max(0, Math.min(longest, Math.floor((longest * (99 - floor)) / 100)));
-  while (limit < longest && similarityOf(limit + 1, longest) > floor) limit++;
-  while (limit >= 0 && similarityOf(limit, longest) <= floor) limit--;
-  if (limit < 0 || Math.abs(a.length - b.length) > limit) return Math.min(floor, 0);
   // A shared start and end do not change the edit distance.
   let start = 0;
   while (start < a.length && start < b.length && a[start] === b[start]) start++;
@@ -72,8 +64,7 @@ function similarityAbove(a: Int32Array, b: Int32Array, floor: number): number {
   }
   const rows = aEnd - start;
   const columns = bEnd - start;
-  if (distanceRow.length <= columns) distanceRow = new Int32Array(2 * columns + 2);
-  const row = distanceRow;
+  const row = new Int32Array(columns + 1);
   for (let j = 0; j <= columns; j++) row[j] = j;
   for (let i = 1; i <= rows; i++) {
     let diagonal = row[0];
@@ -92,9 +83,9 @@ function similarityAbove(a: Int32Array, b: Int32Array, floor: number): number {
       if (value < rowLowest) rowLowest = value;
     }
     // Every alignment passes through this row, so the distance is at least its lowest value.
-    if (rowLowest > limit) return Math.min(floor, 0);
+    if (similarityOf(rowLowest, longest) <= floor) return 0;
   }
-  return row[columns] <= limit ? similarityOf(row[columns], longest) : Math.min(floor, 0);
+  return similarityOf(row[columns], longest);
 }
 
 /**
@@ -139,9 +130,10 @@ function rankAbove(
 }
 
 /**
- * Scores exactly the entries whose bigrams overlap the query's most, relative to the size of both
- * (Dice), so many longer entries containing a short query cannot crowd out a near-identical one.
- * Ties go to the lowest text, so the score does not depend on the order the entries were loaded in.
+ * The best edit similarity among the entries whose bigrams overlap the query's most, relative to
+ * the size of both (Dice), so many longer entries containing a short query cannot crowd out a
+ * near-identical one. Ties go to the lowest text, so the score does not depend on the order the
+ * entries were loaded in.
  */
 function bestCandidateScore(
   query: string,
@@ -187,7 +179,7 @@ function bestCandidateScore(
   // The edit distance is at least the difference in length, which caps each candidate's score.
   // Comparing the highest caps first lets a close match rule out the rest early.
   const queryPoints = codePoints(query);
-  const ranked = heap
+  const byCap = heap
     .map((entry) => ({
       text: entry.text,
       cap: similarityOf(
@@ -197,10 +189,9 @@ function bestCandidateScore(
     }))
     .sort((left, right) => right.cap - left.cap);
   let best = 0;
-  for (const candidate of ranked) {
+  for (const candidate of byCap) {
     if (candidate.cap <= best) break;
     best = Math.max(best, similarityAbove(queryPoints, codePoints(candidate.text), best));
-    if (best === 100) break;
   }
   return best;
 }
@@ -211,47 +202,39 @@ function withinLengthRatio(length: number, queryLength: number): boolean {
 
 /**
  * Raises a short query's score from below the lowest band by ranking entries of a comparable
- * length on shared characters instead of bigrams. `entryIds` must cover every entry whose length
- * is within the length ratio of the query.
+ * length on shared characters instead of bigrams. Entries `first` to `end` must include every
+ * entry whose length is within the length ratio of the query.
  */
 function shortQueryScore(
   query: string,
   queryLength: number,
   bigramScore: number,
-  entryIds: Iterable<number>,
   entries: string[],
-  lengths: number[],
-  distinctCharsOf: (id: number) => string,
+  lengths: ArrayLike<number>,
+  first: number,
+  end: number,
 ): number {
   if (bigramScore >= LOWEST_BAND_SCORE || queryLength > SHORT_QUERY_LENGTH) return bigramScore;
   const queryChars = new Set(Array.from(query));
   const candidates: Candidate[] = [];
-  for (const id of entryIds) {
+  for (let id = first; id < end; id++) {
     const length = lengths[id];
     if (!withinLengthRatio(length, queryLength)) continue;
-    let chars = 0;
+    const chars = new Set(Array.from(entries[id]));
     let shared = 0;
-    for (const char of distinctCharsOf(id)) {
-      chars++;
-      if (queryChars.has(char)) shared++;
-    }
-    if (shared > 0) candidates.push({ text: entries[id], length, grams: chars, shared });
+    for (const char of chars) if (queryChars.has(char)) shared++;
+    if (shared > 0) candidates.push({ text: entries[id], length, grams: chars.size, shared });
   }
   return Math.max(bigramScore, bestCandidateScore(query, queryLength, queryChars.size, candidates));
 }
 
-/** The text's characters, each once, in the order they first appear. */
-function distinctChars(text: string): string {
-  return Array.from(new Set(Array.from(text))).join("");
-}
-
-/** The first position in `ids`, sorted ascending, holding an id of at least `id`. */
-function lowerBound(ids: Int32Array, id: number): number {
+/** The first position in `sorted`, ascending, holding a value of at least `value`. */
+function lowerBound(sorted: ArrayLike<number>, value: number): number {
   let low = 0;
-  let high = ids.length;
+  let high = sorted.length;
   while (low < high) {
     const middle = (low + high) >> 1;
-    if (ids[middle] < id) low = middle + 1;
+    if (sorted[middle] < value) low = middle + 1;
     else high = middle;
   }
   return low;
@@ -261,21 +244,18 @@ function lowerBound(ids: Int32Array, id: number): number {
  * Finds the closest of a fixed set of memory source texts to each query without a database
  * round trip per query. Entries are indexed by character bigrams and numbered in length order,
  * so a query counts shared bigrams only for the entries of a length that can reach the lowest
- * band, then scores exactly the entries sharing the most. The cost per query still grows with
- * the set, as most entries share a common bigram with most queries.
+ * band, then compares the entries whose bigrams overlap its own most. The cost per query still
+ * grows with the set, as most entries share a common bigram with most queries.
  */
 export class MemoryMatchIndex {
-  private readonly entries: string[] = [];
-  private readonly lengths: number[] = [];
+  /** Normalized texts, shortest first: an entry's position is its id. */
+  private readonly entries: string[];
+  private readonly lengths: Int32Array;
   private readonly gramCounts: number[] = [];
   /** Raw source texts: only an exact copy is a 100% match. */
   private readonly exact = new Set<string>();
   /** The ids of the entries with each bigram, ascending, so also by length. */
-  private readonly postings = new Map<string, Int32Array>();
-  /** `firstOfLength[n]` is the first id of an entry at least `n` characters long. */
-  private readonly firstOfLength: Int32Array;
-  /** By id, the distinct characters of the entries short enough to compare with a short query. */
-  private readonly shortChars: string[] = [];
+  private readonly postings = new Map<string, number[]>();
   /** Shared bigrams by entry id while a query is counted; all 0 between queries. */
   private readonly sharedCounts: Int32Array;
   /** The ids counted for the current query. */
@@ -288,29 +268,18 @@ export class MemoryMatchIndex {
       const normalized = normalizeTranslationMemorySourceText(text);
       if (!lengthOf.has(normalized)) lengthOf.set(normalized, Array.from(normalized).length);
     }
-    const postings = new Map<string, number[]>();
-    for (const [normalized, length] of [...lengthOf].sort((a, b) => a[1] - b[1])) {
-      const id = this.entries.length;
-      this.entries.push(normalized);
-      this.lengths.push(length);
-      if (length * MIN_LENGTH_RATIO <= SHORT_QUERY_LENGTH) {
-        this.shortChars.push(distinctChars(normalized));
-      }
+    const byLength = [...lengthOf].sort((a, b) => a[1] - b[1]);
+    this.entries = byLength.map(([normalized]) => normalized);
+    this.lengths = Int32Array.from(byLength, ([, length]) => length);
+    this.entries.forEach((normalized, id) => {
       const grams = bigrams(normalized);
       this.gramCounts.push(grams.size);
       for (const gram of grams) {
-        let posting = postings.get(gram);
-        if (!posting) postings.set(gram, (posting = []));
+        let posting = this.postings.get(gram);
+        if (!posting) this.postings.set(gram, (posting = []));
         posting.push(id);
       }
-    }
-    for (const [gram, ids] of postings) this.postings.set(gram, Int32Array.from(ids));
-    const longest = this.lengths.at(-1) ?? 0;
-    this.firstOfLength = new Int32Array(longest + 2);
-    for (let length = 0, id = 0; length <= longest + 1; length++) {
-      while (id < this.lengths.length && this.lengths[id] < length) id++;
-      this.firstOfLength[length] = id;
-    }
+    });
     this.sharedCounts = new Int32Array(this.entries.length);
     this.counted = new Int32Array(this.entries.length);
   }
@@ -326,8 +295,8 @@ export class MemoryMatchIndex {
     const queryGrams = bigrams(query);
     const queryLength = Array.from(query).length;
     // The ids of the entries within the length ratio of the query.
-    const first = this.firstIdOfLength(Math.ceil(queryLength * MIN_LENGTH_RATIO));
-    const end = this.firstIdOfLength(Math.floor(queryLength / MIN_LENGTH_RATIO) + 1);
+    const first = lowerBound(this.lengths, Math.ceil(queryLength * MIN_LENGTH_RATIO));
+    const end = lowerBound(this.lengths, Math.floor(queryLength / MIN_LENGTH_RATIO) + 1);
     const { sharedCounts, counted } = this;
     let countedCount = 0;
     for (const gram of queryGrams) {
@@ -352,27 +321,9 @@ export class MemoryMatchIndex {
     const score = bestCandidateScore(query, queryLength, queryGrams.size, candidates);
     return Math.min(
       99,
-      shortQueryScore(
-        query,
-        queryLength,
-        score,
-        idRange(first, end),
-        this.entries,
-        this.lengths,
-        // A short query's length window holds only short entries.
-        (id) => this.shortChars[id],
-      ),
+      shortQueryScore(query, queryLength, score, this.entries, this.lengths, first, end),
     );
   }
-
-  private firstIdOfLength(length: number): number {
-    if (length <= 0) return 0;
-    return length < this.firstOfLength.length ? this.firstOfLength[length] : this.entries.length;
-  }
-}
-
-function* idRange(first: number, end: number): Generator<number> {
-  for (let id = first; id < end; id++) yield id;
 }
 
 const CODE_POINT_COUNT = 0x110000;
@@ -452,10 +403,10 @@ export class MemorySourceScan {
         query,
         queryLength,
         score,
-        this.entries.keys(),
         this.entries,
         this.lengths,
-        (id) => distinctChars(this.entries[id]),
+        0,
+        this.entries.length,
       ),
     );
   }
