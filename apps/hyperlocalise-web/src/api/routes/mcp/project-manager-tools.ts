@@ -173,7 +173,7 @@ const mcpGetReportInputSchema = z.object({
     .enum(WORD_COUNT_SPLITS)
     .optional()
     .describe(
-      "Words only: what the series splits each point by: project (default) or language, the five largest and Other; band, in tiers: exact (100% and repetitions), high (95-99%), fuzzy (75-94%), low (50-74%), new (new, and memory unavailable); or task_step: translate, post_edit, proofread, other, no_task.",
+      "Words only: what the series splits each point by: project (default) or language, the five largest and Other; band, in tiers: exact (100% and repetitions), high (95-99%), fuzzy (75-94%), low (50-74%), new (new, and memory unavailable); or task_step: translate, post_edit, proofread, other, no_task, where a string in more than one task counts in each, so points can be larger than with the other splits.",
     ),
   per: z
     .enum(WORD_COUNT_INTERVALS)
@@ -192,7 +192,7 @@ const mcpGetReportInputSchema = z.object({
     ])
     .optional()
     .describe(
-      "Words: rows per project (default), per task (50 tasks a page), per week and project, per language, or per task step and language. AI: area (default), feature, model, provider, channel, key, project, task or automation (50 groups a page).",
+      "Words: rows per project (default), per task (50 tasks a page), per week and project, per language, or per task step and language. Rows per task or task step count a string in each task that holds it, so they can add up to more than total and bandTotals, which count it once per project. AI: area (default), feature, model, provider, channel, key, project, task or automation (50 groups a page).",
     ),
   thenBy: z
     .enum(AI_USAGE_DIMENSIONS)
