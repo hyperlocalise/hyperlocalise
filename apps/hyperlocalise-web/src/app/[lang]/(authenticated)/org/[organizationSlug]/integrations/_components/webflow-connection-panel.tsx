@@ -145,6 +145,9 @@ export function WebflowConnectionPanel({
       if (!displayName.trim() && result.site?.displayName) {
         setDisplayName(result.site.displayName);
       }
+      if (!connection) {
+        setCollectionIds(result.collections.map((collection) => collection.id));
+      }
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Discover failed");
@@ -331,7 +334,9 @@ export function WebflowConnectionPanel({
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select site" />
+                <SelectValue placeholder="Select site">
+                  {sites.find((site) => site.id === siteId)?.displayName}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {sites.map((site) => (

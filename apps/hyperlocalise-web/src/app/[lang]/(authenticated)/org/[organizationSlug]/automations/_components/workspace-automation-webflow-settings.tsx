@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
@@ -113,6 +113,23 @@ export function WorkspaceAutomationWebflowSettings({
 
   const collections = discovery?.collections ?? [];
   const primaryTag = discovery?.locales?.primary.tag ?? null;
+
+  // Default to every collection: an empty selection is invalid ("Choose at
+  // least one Webflow collection"), so pre-check all of them once per
+  // connection. The applied key lets the user uncheck everything afterwards
+  // without the default fighting back.
+  const autoSelectedCollectionsKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (collections.length === 0 || form.webflowCollectionIds.length > 0) {
+      return;
+    }
+    const key = `${form.webflowConnectionId ?? ""}|${collections.map((collection) => collection.id).join(",")}`;
+    if (autoSelectedCollectionsKeyRef.current === key) {
+      return;
+    }
+    autoSelectedCollectionsKeyRef.current = key;
+    onChange({ ...form, webflowCollectionIds: collections.map((collection) => collection.id) });
+  }, [collections, form, onChange]);
 
   useEffect(() => {
     if (!form.webflowEnabled || !webflowConnected || form.webflowConnectionId) {
@@ -218,7 +235,7 @@ export function WorkspaceAutomationWebflowSettings({
               aria-invalid={Boolean(errors.webflowConnectionId)}
             >
               <SelectValue placeholder="Select a Webflow connection">
-                {selectedConnection?.displayName ?? form.webflowConnectionId}
+                {selectedConnection?.displayName}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
