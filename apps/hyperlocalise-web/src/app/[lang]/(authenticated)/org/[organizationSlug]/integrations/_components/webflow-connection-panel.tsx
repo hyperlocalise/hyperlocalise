@@ -251,12 +251,6 @@ export function WebflowConnectionPanel({
   const collections = discovery?.collections ?? [];
   const sites = discovery?.sites ?? [];
   const canSave = discovery !== null;
-  const localeTags = discovery?.site?.locales
-    ? [
-        discovery.site.locales.primary.tag,
-        ...discovery.site.locales.secondary.filter((l) => l.enabled).map((l) => l.tag),
-      ]
-    : [];
 
   return (
     <CollapsibleIntegrationRow
@@ -282,9 +276,6 @@ export function WebflowConnectionPanel({
         ) : null}
         {connection?.maskedTokenSuffix ? (
           <p className="text-muted-foreground text-sm">Token {connection.maskedTokenSuffix}</p>
-        ) : null}
-        {localeTags.length > 0 ? (
-          <p className="text-muted-foreground text-sm">Locales: {localeTags.join(", ")}</p>
         ) : null}
 
         <Field>
