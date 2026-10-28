@@ -23,6 +23,7 @@ describe("nextWebflowImportWatermark", () => {
         succeededAt: [],
         failedAt: [],
         failedWithoutTimestamp: false,
+        collectionFailed: false,
       }),
     ).toBe(previous);
   });
@@ -36,6 +37,7 @@ describe("nextWebflowImportWatermark", () => {
         succeededAt: [new Date("2026-10-19T00:00:00.000Z"), newest],
         failedAt: [],
         failedWithoutTimestamp: false,
+        collectionFailed: false,
       }),
     ).toBe(newest);
   });
@@ -48,6 +50,7 @@ describe("nextWebflowImportWatermark", () => {
         succeededAt: [new Date("2026-10-20T00:00:00.000Z")],
         failedAt: [],
         failedWithoutTimestamp: false,
+        collectionFailed: false,
       }),
     ).toBe(previous);
   });
@@ -60,6 +63,20 @@ describe("nextWebflowImportWatermark", () => {
         succeededAt: [new Date("2026-10-25T00:00:00.000Z")],
         failedAt: [],
         failedWithoutTimestamp: true,
+        collectionFailed: false,
+      }),
+    ).toBe(previous);
+  });
+
+  it("holds the watermark when a collection fails to load", () => {
+    const previous = new Date("2026-10-20T00:00:00.000Z");
+    expect(
+      nextWebflowImportWatermark({
+        previous,
+        succeededAt: [new Date("2026-10-25T00:00:00.000Z")],
+        failedAt: [],
+        failedWithoutTimestamp: false,
+        collectionFailed: true,
       }),
     ).toBe(previous);
   });

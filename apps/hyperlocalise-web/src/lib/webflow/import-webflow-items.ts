@@ -35,7 +35,12 @@ import {
   serializeWebflowTranslationMap,
 } from "./document-json";
 import { extractWebflowFieldStrings, listTranslatableWebflowFields } from "./field-detector";
+import { importWebflowTargetTranslation } from "./import-webflow-target-translations";
 import { loadWebflowConnectionWithToken } from "./webflow-connection-access";
+import {
+  DEFAULT_WEBFLOW_EXISTING_TRANSLATION_POLICY,
+  isWebflowExistingTranslationPolicy,
+} from "./webflow-existing-translation-policy";
 import { mapProjectLocalesToWebflow, type WebflowLocaleMappingTarget } from "./webflow-locale";
 
 const logger = createLogger("import-webflow-items");
@@ -48,6 +53,9 @@ export type ImportWebflowItemsResult = {
   jobsCreated: number;
   jobIds: string[];
   skippedTargets: Array<{ locale: string; reason: string }>;
+  translationsImported: number;
+  translationsSkipped: number;
+  translationsFailed: number;
 };
 
 function parseItemUpdatedAt(value: string | null | undefined): Date | null {
@@ -63,8 +71,9 @@ export function nextWebflowImportWatermark(input: {
   succeededAt: Date[];
   failedAt: Date[];
   failedWithoutTimestamp: boolean;
+  collectionFailed: boolean;
 }): Date | null {
-  if (input.failedWithoutTimestamp) {
+  if (input.failedWithoutTimestamp || input.collectionFailed) {
     return input.previous;
   }
   const candidates = [...input.succeededAt, ...input.failedAt];
@@ -93,6 +102,9 @@ export async function runImportWebflowItems(input: {
     jobsCreated: 0,
     jobIds: [],
     skippedTargets: [],
+    translationsImported: 0,
+    translationsSkipped: 0,
+    translationsFailed: 0,
   };
 
   if (!webflow?.enabled || !webflow.connectionId) {
@@ -148,6 +160,12 @@ export async function runImportWebflowItems(input: {
     throw new Error("webflow_source_locale_mismatch");
   }
 
+  const existingTranslationPolicy = isWebflowExistingTranslationPolicy(
+    webflow.existingTranslationPolicy,
+  )
+    ? webflow.existingTranslationPolicy
+    : DEFAULT_WEBFLOW_EXISTING_TRANSLATION_POLICY;
+
   for (const target of localeMapping.targets) {
     if ("skippedReason" in target && target.skippedReason) {
       result.skippedTargets.push({
@@ -172,6 +190,9 @@ export async function runImportWebflowItems(input: {
   const succeededUpdatedAt: Date[] = [];
   const failedUpdatedAt: Date[] = [];
   let failedWithoutTimestamp = false;
+  // A collection that fails to load contributes no item timestamps, so the
+  // watermark must not advance past its unseen items on this run.
+  let collectionFailed = false;
 
   for (const collectionId of collectionIds) {
     const collectionResult = await client.getCollection(collectionId);
@@ -180,6 +201,7 @@ export async function runImportWebflowItems(input: {
         { collectionId, error: collectionResult.error },
         "webflow_collection_load_failed",
       );
+      collectionFailed = true;
       continue;
     }
     const translatableFields = listTranslatableWebflowFields(collectionResult.value);
@@ -275,6 +297,56 @@ export async function runImportWebflowItems(input: {
             throw new Error("webflow_source_ingest_failed");
           }
 
+          // Seed translations that already exist in Webflow secondary
+          // locales, honoring the automation's existing-translation policy.
+          // Source keys exist now that ingest completed, so imported entries
+          // match. Seeding never fails the item import itself.
+          for (const target of localeMapping.targets) {
+            if (!target.webflowLocale) {
+              continue;
+            }
+            const variantResult = await client.getCollectionItem({
+              collectionId,
+              itemId: item.id,
+              cmsLocaleId: target.webflowLocale.cmsLocaleId,
+            });
+            if (isErr(variantResult)) {
+              if (variantResult.error.status === 404) {
+                result.translationsSkipped += 1;
+              } else {
+                logger.warn(
+                  { error: variantResult.error, itemId: item.id },
+                  "webflow_target_variant_load_failed",
+                );
+                result.translationsFailed += 1;
+              }
+              continue;
+            }
+            const incomingEntries = extractWebflowFieldStrings({
+              fields: translatableFields,
+              fieldData: variantResult.value.fieldData,
+            });
+            if (Object.keys(incomingEntries).length === 0) {
+              result.translationsSkipped += 1;
+              continue;
+            }
+            const seed = await importWebflowTargetTranslation({
+              organizationId: input.organizationId,
+              projectId,
+              sourcePath,
+              targetLocale: target.projectLocale,
+              incomingEntries,
+              policy: existingTranslationPolicy,
+            });
+            if (seed.status === "imported") {
+              result.translationsImported += 1;
+            } else if (seed.status === "failed") {
+              result.translationsFailed += 1;
+            } else {
+              result.translationsSkipped += 1;
+            }
+          }
+
           const jobTargetLocales = localeMapping.targets
             .filter((entry): entry is WebflowLocaleMappingTarget => entry.webflowLocale !== null)
             .map((entry) => entry.projectLocale);
@@ -353,6 +425,7 @@ export async function runImportWebflowItems(input: {
     succeededAt: succeededUpdatedAt,
     failedAt: failedUpdatedAt,
     failedWithoutTimestamp,
+    collectionFailed,
   });
 
   await db
