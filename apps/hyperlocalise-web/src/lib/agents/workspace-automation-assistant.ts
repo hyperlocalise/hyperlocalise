@@ -94,6 +94,7 @@ const INTEGRATIONS: readonly WorkspaceAutomationSkillIntegration[] = [
   "webflow",
   "google_drive",
   "braze",
+  "customer_io",
   "slack",
   "email",
 ];
@@ -139,6 +140,7 @@ export const automationSetupChangeLineSchema = z.discriminatedUnion("kind", [
         "webflow",
         "google_drive",
         "braze",
+        "customer_io",
         "slack",
         "email",
       ]),

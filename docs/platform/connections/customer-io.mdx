@@ -1,0 +1,72 @@
+---
+title: "Localize Customer.io"
+description: "Connect Customer.io, import campaign and broadcast message actions, translate in Jobs, then push approved locales back."
+---
+
+Connect Customer.io once in workspace **Integrations**, then run the **Translate Customer.io Campaigns, Broadcasts, Newsletters & Transactional** automation template on a schedule. Import never changes Customer.io. **Push to Customer.io** is a separate action and never publishes — and for transactional messages it never sends.
+
+## Supported content
+
+- Campaigns, newsletters (one-time sends), broadcasts, and transactional messages.
+- Message types: email (saved as HTML, opens in HTML File view), in-app messages (also HTML), push notifications, SMS (including Twilio), WhatsApp, and Slack messages (saved as JSON).
+- Drag-and-drop emails are supported through the linked Design Studio email. Import brings in the component markup, subject, and preheader. Push writes the translated content back through the Design Studio API as an unpublished draft. Publish the email in Customer.io to go live.
+- Out of scope: multilingual A/B variants. Newsletter and transactional messages with several default variants (A/B tests) import each variant but are skipped on push, because their translations share one per-language slot. Webhook actions carry machine config and are always skipped.
+- Configure locales on each Customer.io action before pushing translations. Customer.io cannot create or match a locale it does not have — except on Design Studio emails, where push creates a missing language automatically.
+
+## Prerequisites
+
+| Requirement | Description |
+| --- | --- |
+| Native project | A [native project](/platform/projects/create-project) whose source and target locales map onto Customer.io locale keys. See [Match project locales](#step-2-match-project-locales). |
+| Customer.io App API key | Created in Customer.io **Settings → API Credentials**. It needs read/write access to campaigns, newsletters, broadcasts, and transactional messages. |
+| Customer.io region | `US` (`https://api.customer.io/v1`) or `EU` (`https://api-eu.customer.io/v1`). The region must match the workspace that issued the key. |
+| Locale mapping | Hyperlocalise matches project locale tags to Customer.io locale keys or names exactly (after hyphen/underscore normalization). Keep locked pairs separate: `en-US` is not `en-GB`, `zh-CN` is not `zh-TW`, and `pt` is not `pt-BR`. Locales without a match are reported as unmapped. |
+
+## Connect Customer.io
+
+1. Open workspace **Integrations** and find **Customer.io**.
+2. Paste the App API key and choose the region for that workspace.
+3. Save. Hyperlocalise pings the Customer.io App API in that region to confirm the key can list broadcasts. A rejected key or unreachable region is not stored.
+4. Confirm the connection shows as connected.
+
+The API key is stored in WorkOS Pipes. Hyperlocalise stores only the region.
+
+## Translate campaigns and broadcasts
+
+### Step 1: Set up locales in Customer.io
+
+Add a language variant for each locale you plan to translate into before you create the automation. Hyperlocalise can only import and push locales that already exist on the message — the Customer.io API cannot create language variants. For Design Studio emails you can skip this step: push creates a missing language on the linked email automatically.
+
+1. In Customer.io, open the broadcast or campaign message.
+2. Add each target language to the message. Note the locale key shown for each language (for example `en`, `fr-FR`).
+3. Save the message as a **draft**.
+
+A message with no language variants imports the default copy only. Push skips any locale that is not configured on the message.
+
+### Step 2: Match project locales
+Create or choose a [native project](/platform/projects/create-project) whose locale tags match Customer.io.
+
+1. Set the project **source locale** to the language of the default copy in Customer.io.
+2. Add a project target locale for each Customer.io language you will write back.
+3. Use the same tag as the Customer.io locale **key** or **name** (`fr-FR` matches `fr-FR`). Matching is exact after hyphen/underscore normalization. There is no language fallback: `es` does not map to `es-MX`, and `fr` does not map to `fr-FR`.
+4. Keep locked pairs on separate projects or omit the unused tag: `en-US` is not `en-GB`, `zh-CN` is not `zh-TW`, and `pt` is not `pt-BR`.
+
+Unmapped project locales are reported as unmapped and skipped on import and push.
+
+### Step 3: Create the automation
+
+1. Open workspace **Automations** and select **New Automation**.
+2. Apply the **Translate Customer.io Campaigns, Broadcasts, Newsletters & Transactional** template, or add the **Translate Customer.io Campaigns, Broadcasts, Newsletters & Transactional** skill from **Add Skill**.
+3. Attach the native project from Step 2.
+4. Choose a **scheduled** or **manual** trigger. A schedule imports changed message actions. It does not push translations.
+5. Under **Customer.io**, set:
+   - **Source locale** (usually the project source). It must be the same language as the project source locale.
+   - Optional **Broadcasts**, **Newsletters**, and **Transactional messages** to limit import. Leave all empty to discover everything. Limit by campaign in the skill when needed.
+   - **Existing translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**
+6. Save the automation.
+
+## Push approved locales
+
+Enqueue **Push to Customer.io** from the automation run. It writes approved locales for actions that already have the locale configured. It never rewrites message content and never publishes. For transactional messages it only updates message content — it never sends. Newsletter and transactional messages with several default variants are skipped on push.
+
+Design Studio emails are the exception on locales: push creates a missing language on the linked email automatically. Writes land as unpublished drafts, so publish the email in Customer.io before it can send.

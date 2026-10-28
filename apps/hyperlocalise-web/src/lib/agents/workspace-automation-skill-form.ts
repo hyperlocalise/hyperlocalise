@@ -84,6 +84,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS: Record<
   push_braze_templates: ["projectId"],
   import_braze_campaigns: ["projectId"],
   push_braze_campaigns: ["projectId"],
+  import_customer_io_campaigns: ["projectId"],
+  push_customer_io_campaigns: ["projectId"],
 };
 
 /** Ids of the given skills whose tools own the field, in the order given. */
@@ -185,6 +187,15 @@ function enableSkillTool(
         ...form,
         brazeCampaignsEnabled: true,
         brazeEnabled: false,
+        customerIoEnabled: false,
+      };
+    case "import_customer_io_campaigns":
+    case "push_customer_io_campaigns":
+      return {
+        ...form,
+        customerIoEnabled: true,
+        brazeEnabled: false,
+        brazeCampaignsEnabled: false,
       };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: true };
@@ -253,6 +264,9 @@ function disableSkillTool(
     case "import_braze_campaigns":
     case "push_braze_campaigns":
       return { ...form, brazeCampaignsEnabled: false };
+    case "import_customer_io_campaigns":
+    case "push_customer_io_campaigns":
+      return { ...form, customerIoEnabled: false };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: false };
     case "assign_translate_with_agent":

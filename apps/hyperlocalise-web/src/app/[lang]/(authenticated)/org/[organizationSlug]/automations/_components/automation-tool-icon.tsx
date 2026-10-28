@@ -61,6 +61,8 @@ export function AutomationToolIcon({ toolId }: { toolId: AutomationListToolId })
       return <SimpleBrandIcon icon={siSanity} colored data-icon="inline-start" />;
     case "braze":
       return <BrandLogo src="/images/braze-logo.svg" />;
+    case "customerIo":
+      return <BrandLogo src="/images/customerio-logo.svg" />;
     case "crowdin":
       return <SimpleBrandIcon icon={siCrowdin} colored data-icon="inline-start" />;
     case "semrush":

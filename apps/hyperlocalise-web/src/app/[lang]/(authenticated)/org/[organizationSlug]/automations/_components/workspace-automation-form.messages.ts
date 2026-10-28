@@ -620,6 +620,12 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "o0HXRhjJ+T",
     description: "Name of the Braze integration in the hint on a skill that needs it connected",
   },
+  skillIntegrationCustomerIo: {
+    defaultMessage: "Customer.io",
+    id: "NwFKmyGsjl",
+    description:
+      "Name of the Customer.io integration in the hint on a skill that needs it connected",
+  },
   skillIntegrationSlack: {
     defaultMessage: "Slack",
     id: "SXLP18M0vY",

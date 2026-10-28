@@ -22,6 +22,10 @@ import { getBrazePipesConnectionStatus, resolveBrazePipesWorkosUserId } from "@/
 import { loadBrazeRestEndpoint } from "@/lib/braze/settings";
 import { areBrazeSourceLocalesCompatible } from "@/lib/braze/locale";
 import {
+  getCustomerIoPipesConnectionStatus,
+  resolveCustomerIoPipesWorkosUserId,
+} from "@/lib/customer-io/pipes";
+import {
   getIntercomPipesConnectionStatus,
   resolveIntercomPipesWorkosUserId,
 } from "@/lib/intercom/pipes";
@@ -303,7 +307,7 @@ function validateWorkspaceAutomationConfig(input: {
     return err({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
     });
   }
 
@@ -1340,6 +1344,42 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
+  if (input.toolConfig.customerIo?.enabled) {
+    const customerIo = input.toolConfig.customerIo;
+    const workosUserId = customerIo.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "customer_io_not_connected",
+        message: "Connect Customer.io in Integrations before using it.",
+      });
+    }
+
+    const status = await getCustomerIoPipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "customer_io_pipes_unavailable",
+        message: "WorkOS is not configured, so Customer.io cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "customer_io_pipes_needs_reauthorization",
+        message: "Reconnect Customer.io in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "customer_io_not_connected",
+        message: "Connect Customer.io in Integrations before using it.",
+      });
+    }
+  }
+
   if (input.toolConfig.crowdin?.enabled) {
     const projectId = readOptionalProjectId(input.toolConfig.crowdin.projectId);
     if (!projectId) {
@@ -1614,6 +1654,22 @@ async function stampPipesUsersOnToolConfig(input: {
       ...toolConfig,
       braze: {
         ...toolConfig.braze,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.customerIo?.enabled) {
+    const workosUserId = await resolveCustomerIoPipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      customerIo: {
+        ...toolConfig.customerIo,
         enabled: true,
         ...(workosUserId ? { workosUserId } : {}),
       },

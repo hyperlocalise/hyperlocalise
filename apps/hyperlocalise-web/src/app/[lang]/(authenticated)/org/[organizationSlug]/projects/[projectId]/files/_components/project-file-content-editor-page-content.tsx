@@ -25,6 +25,8 @@ import { TypographyP } from "@/components/ui/typography";
 import { ContentEditorWorkspaceSkeleton } from "@/components/content-editor/workspace/content-editor-workspace-skeleton";
 import { ContentEditorBrazeIngestButton } from "@/components/content-editor/page/content-editor-braze-ingest-button";
 import { ContentEditorBrazePushButton } from "@/components/content-editor/page/content-editor-braze-push-button";
+import { ContentEditorCustomerIoIngestButton } from "@/components/content-editor/page/content-editor-customer-io-ingest-button";
+import { ContentEditorCustomerIoPushButton } from "@/components/content-editor/page/content-editor-customer-io-push-button";
 import { ContentEditorGoogleDriveIngestButton } from "@/components/content-editor/page/content-editor-google-drive-ingest-button";
 import { ContentEditorGoogleDrivePushButton } from "@/components/content-editor/page/content-editor-google-drive-push-button";
 import { ContentEditorIntercomIngestButton } from "@/components/content-editor/page/content-editor-intercom-ingest-button";
@@ -780,6 +782,20 @@ function ProjectFileContentEditorPageContentInner({
               pageNavigationGuardRef={pageNavigationGuardRef}
             />
             <ContentEditorBrazePushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorCustomerIoIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorCustomerIoPushButton
               organizationSlug={organizationSlug}
               projectId={projectId}
               canManageAutomations={canManageAutomations}

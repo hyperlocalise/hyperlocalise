@@ -56,6 +56,7 @@ export const WORKSPACE_AUTOMATION_INTEGRATION_NAMES: Record<
   webflow: "Webflow",
   google_drive: "Google Drive",
   braze: "Braze",
+  customer_io: "Customer.io",
   slack: "Slack",
   email: "an email provider (Resend or SendGrid)",
 };

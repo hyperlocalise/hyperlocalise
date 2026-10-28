@@ -113,6 +113,17 @@ function createIntegrationsGetHandlers({
       return HttpResponse.json({ braze: { restEndpoint: body.restEndpoint ?? "iad-03" } });
     }),
     http.delete("/api/orgs/:organizationSlug/braze", () => new HttpResponse(null, { status: 204 })),
+    http.get("/api/orgs/:organizationSlug/customer-io", () =>
+      HttpResponse.json({ customerIo: null }),
+    ),
+    http.put("/api/orgs/:organizationSlug/customer-io", async ({ request }) => {
+      const body = (await request.json()) as { region?: string };
+      return HttpResponse.json({ customerIo: { region: body.region ?? "us" } });
+    }),
+    http.delete(
+      "/api/orgs/:organizationSlug/customer-io",
+      () => new HttpResponse(null, { status: 204 }),
+    ),
     http.get("/api/orgs/:organizationSlug/pipes/:provider", ({ params }) =>
       HttpResponse.json({
         pipe: {

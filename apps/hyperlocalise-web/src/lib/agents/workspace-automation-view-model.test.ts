@@ -875,7 +875,7 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(deliveryOnly)).toEqual({
       trigger:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
     });
     expect(
       validateWorkspaceAutomationFormState({ ...deliveryOnly, webSearchEnabled: true }),
@@ -891,6 +891,13 @@ describe("workspace automation view model", () => {
     expect(
       validateWorkspaceAutomationFormState({ ...deliveryOnly, triggerMode: "manual" }),
     ).toEqual({});
+    expect(
+      validateWorkspaceAutomationFormState({
+        ...deliveryOnly,
+        projectId: "11111111-1111-4111-8111-111111111111",
+        customerIoEnabled: true,
+      }).trigger,
+    ).toBeUndefined();
   });
 
   it("requires Semrush connection IDs when that tool is enabled", () => {
