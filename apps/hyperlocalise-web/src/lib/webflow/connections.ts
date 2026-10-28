@@ -251,6 +251,7 @@ export async function updateWebflowConnection(input: {
   let validationMessage = existing.validationMessage;
   let maskedSuffix = existing.maskedTokenSuffix;
   let lastValidatedAt = existing.lastValidatedAt ? new Date(existing.lastValidatedAt) : null;
+  let pipesWorkosUserId = existing.pipesWorkosUserId;
 
   if (input.siteToken?.trim()) {
     const saved = await saveWebflowPipesSiteToken({
@@ -263,6 +264,10 @@ export async function updateWebflowConnection(input: {
       throw new Error(saved.error.code);
     }
     maskedSuffix = saved.value.apiKeyLast4 ? `…${saved.value.apiKeyLast4}` : maskedSuffix;
+    // The token is stored under this Pipes user, so only repoint the
+    // reference when a replacement token is saved for them. Otherwise a
+    // metadata-only edit by another admin would orphan the stored token.
+    pipesWorkosUserId = input.workosUserId;
 
     const validation = await validateWebflowAccessToken({
       accessToken: input.siteToken.trim(),
@@ -285,7 +290,7 @@ export async function updateWebflowConnection(input: {
       validationMessage,
       lastValidatedAt,
       maskedTokenSuffix: maskedSuffix,
-      pipesWorkosUserId: input.workosUserId,
+      pipesWorkosUserId,
     })
     .where(
       and(
