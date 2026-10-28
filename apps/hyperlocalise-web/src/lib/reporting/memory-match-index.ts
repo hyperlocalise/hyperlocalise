@@ -239,6 +239,24 @@ function lowerBound(sorted: ArrayLike<number>, value: number): number {
 }
 
 /**
+ * The distinct normalized texts, shortest first, and their lengths; adds each raw text to `exact`.
+ * Its working copies are garbage by the time the bigram lists are built.
+ */
+function entriesByLength(sourceTexts: Iterable<string>, exact: Set<string>) {
+  const lengthOf = new Map<string, number>();
+  for (const text of sourceTexts) {
+    exact.add(text);
+    const normalized = normalizeTranslationMemorySourceText(text);
+    if (!lengthOf.has(normalized)) lengthOf.set(normalized, Array.from(normalized).length);
+  }
+  const byLength = [...lengthOf].sort((a, b) => a[1] - b[1]);
+  return {
+    entries: byLength.map(([normalized]) => normalized),
+    lengths: Int32Array.from(byLength, ([, length]) => length),
+  };
+}
+
+/**
  * Finds the closest of a fixed set of memory source texts to each query without a database
  * round trip per query. Entries are indexed by character bigrams and numbered in length order,
  * so a query counts shared bigrams only for the entries of a length that can reach the lowest
@@ -260,15 +278,7 @@ export class MemoryMatchIndex {
   private readonly counted: Int32Array;
 
   constructor(sourceTexts: Iterable<string>) {
-    const lengthOf = new Map<string, number>();
-    for (const text of sourceTexts) {
-      this.exact.add(text);
-      const normalized = normalizeTranslationMemorySourceText(text);
-      if (!lengthOf.has(normalized)) lengthOf.set(normalized, Array.from(normalized).length);
-    }
-    const byLength = [...lengthOf].sort((a, b) => a[1] - b[1]);
-    this.entries = byLength.map(([normalized]) => normalized);
-    this.lengths = Int32Array.from(byLength, ([, length]) => length);
+    ({ entries: this.entries, lengths: this.lengths } = entriesByLength(sourceTexts, this.exact));
     this.entries.forEach((normalized, id) => {
       const grams = bigrams(normalized);
       this.gramCounts.push(grams.size);
