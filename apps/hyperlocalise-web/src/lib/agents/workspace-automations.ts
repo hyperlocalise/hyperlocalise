@@ -37,6 +37,7 @@ import {
 import { WebflowDataClient } from "@/lib/webflow/client";
 import { loadWebflowConnectionWithToken } from "@/lib/webflow/webflow-connection-access";
 import {
+  areWebflowSourceLocalesCompatible,
   mapProjectLocalesToWebflow,
   normalizeWebflowLocaleTag,
 } from "@/lib/webflow/webflow-locale";
@@ -1134,7 +1135,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
 
         const primaryTag = normalizeWebflowLocaleTag(site.value.locales.primary.tag);
         const projectSource = normalizeWebflowLocaleTag(project.sourceLocale ?? "en");
-        if (primaryTag !== projectSource) {
+        if (!areWebflowSourceLocalesCompatible(primaryTag, projectSource)) {
           return err({
             code: "webflow_source_locale_mismatch",
             message:
