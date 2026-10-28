@@ -64,6 +64,8 @@ import {
   type CustomerIoTranslationMap,
 } from "./translation-map";
 import {
+  applyApprovedCustomerIoHtmlTranslations,
+  customerIoEmailEnvelopeToMap,
   parseCustomerIoEmailEnvelope,
   buildCustomerIoEmailSourcePath,
   isCustomerIoHtmlActionType,
@@ -79,7 +81,6 @@ import {
   type CustomerIoDesignStudioEmailSummary,
   type CustomerIoDesignStudioTranslationContent,
 } from "./design-studio-client";
-import { applyHtmlIngestTranslations } from "@/lib/projects/files/html-ingest-entries";
 
 const logger = createLogger("push-customer-io-campaigns");
 export const CUSTOMER_IO_PUSH_CONCURRENCY = 3;
@@ -103,24 +104,6 @@ export type PushCustomerIoCampaignsResult = {
   itemsProcessed: number;
   warnings: string[];
 };
-
-function envelopeFieldsToMap(envelope: {
-  subject: string;
-  preheader_text?: string;
-  body: string;
-}): CustomerIoTranslationMap {
-  const map: CustomerIoTranslationMap = {};
-  if (envelope.subject) {
-    map.subject = envelope.subject;
-  }
-  if (envelope.preheader_text) {
-    map.preheader_text = envelope.preheader_text;
-  }
-  if (envelope.body) {
-    map.body = envelope.body;
-  }
-  return map;
-}
 
 function permissionErrorMessage(error: unknown): string {
   if (error instanceof CustomerIoApiError && error.code === "customer_io_forbidden") {
@@ -589,10 +572,10 @@ async function pushCustomerIoAction(input: {
   const storedText = stored.content.toString("utf8");
   const isHtml = isCustomerIoHtmlActionType(input.action.type);
   // HTML actions (email, in_app) store as HTML envelopes; approved
-  // translations arrive keyed by hashed HTML entry and merge back into the
-  // stored HTML before push.
+  // translations arrive keyed by HTML ingest path and merge onto the remote
+  // variant so unapproved nodes keep the existing Customer.io copy.
   const sourceMap: CustomerIoTranslationMap = isHtml
-    ? envelopeFieldsToMap(parseCustomerIoEmailEnvelope(storedText))
+    ? customerIoEmailEnvelopeToMap(parseCustomerIoEmailEnvelope(storedText))
     : parseCustomerIoTranslationMapJson(storedText);
   if (Object.keys(sourceMap).length === 0) {
     pushWarning(`${label}: skipped (stored file has no translatable entries)`);
@@ -707,16 +690,15 @@ async function pushCustomerIoAction(input: {
         continue;
       }
       const remoteMap = customerIoTranslationMapFromRemote({ type: details.type, ...remote });
-      // HTML approvals arrive keyed by hashed HTML entry; substitute them
-      // into the stored envelope first so the merge below works per field.
-      // Unapproved entries keep stored (source-language) text, matching the
-      // JSON flow's source fallback.
+      // HTML approvals are path keys from the envelope. Apply them onto the
+      // remote variant so unapproved nodes keep the existing translation,
+      // matching the JSON merge (`approved` wins per key, else remote).
       const approvedFields = isHtml
-        ? envelopeFieldsToMap(
-            parseCustomerIoEmailEnvelope(
-              applyHtmlIngestTranslations(storedText, approved.prefilled),
-            ),
-          )
+        ? applyApprovedCustomerIoHtmlTranslations({
+            storedEnvelopeHtml: storedText,
+            remote: remoteMap,
+            approved: approved.prefilled,
+          })
         : approved.prefilled;
       const translationMap = mergeCustomerIoTranslationMap({
         source: sourceMap,
@@ -905,13 +887,13 @@ async function pushCustomerIoDesignStudioAction(input: {
         }
       }
 
-      // HTML approvals arrive keyed by hashed HTML entry; substitute them
-      // into the stored envelope first so the merge below works per field.
-      const approvedFields = envelopeFieldsToMap(
-        parseCustomerIoEmailEnvelope(
-          applyHtmlIngestTranslations(input.storedText, approved.prefilled),
-        ),
-      );
+      // Apply HTML approvals onto the remote Design Studio draft so
+      // unapproved nodes keep the existing translation.
+      const approvedFields = applyApprovedCustomerIoHtmlTranslations({
+        storedEnvelopeHtml: input.storedText,
+        remote: remoteMap,
+        approved: approved.prefilled,
+      });
       const translationMap = mergeCustomerIoTranslationMap({
         source: input.sourceMap,
         remote: remoteMap,
