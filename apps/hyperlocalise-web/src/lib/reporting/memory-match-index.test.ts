@@ -161,10 +161,17 @@ describe("MemoryMatchIndex", () => {
   });
 
   it("finds a short typo that shares no bigram with the entry", () => {
-    const entries = ["Yes", "Edit", ...Array.from({ length: 200 }, (_, i) => `Yellow ${i}`)];
+    const entries = [
+      "Yes",
+      "Edit",
+      "aybycydy",
+      ...Array.from({ length: 200 }, (_, i) => `Yellow ${i}`),
+    ];
     for (const [query, entry] of [
       ["Yas", "Yes"],
       ["Exot", "Edit"],
+      // Eight characters, the longest query compared by shared characters.
+      ["axbxcxdx", "aybycydy"],
     ]) {
       const expected = sourceSimilarity(query, entry);
       expect(expected).toBeGreaterThanOrEqual(50);
@@ -183,6 +190,21 @@ describe("MemoryMatchIndex", () => {
     expect(sourceSimilarity(query, changed)).toBe(80);
     expect(new MemoryMatchIndex([changed, prefix]).bestScore(query)).toBe(81);
     expect(new MemorySourceScan([changed, prefix]).bestScore(query)).toBe(81);
+  });
+
+  it("compares the 64th of entries tied on shared bigrams, and no more", () => {
+    // 64 entries share the same bigrams with the query; the closest sorts last by text.
+    const letters = Array.from("ijklmnopqrstuvw");
+    const tied = letters
+      .flatMap((first) =>
+        letters.filter((second) => second !== first).map((second) => first + second),
+      )
+      .slice(0, 63)
+      .map((pair) => `abcd${pair}yz`);
+    const entries = [...tied, "abcdxfxh"];
+    expect(sourceSimilarity("abcdefgh", "abcdxfxh")).toBe(75);
+    expect(new MemoryMatchIndex(entries).bestScore("abcdefgh")).toBe(75);
+    expect(new MemorySourceScan(entries).bestScore("abcdefgh")).toBe(75);
   });
 
   it("deduplicates entries and reports its size", () => {
@@ -290,7 +312,9 @@ describe("random memories", () => {
           rankingDecides++;
         }
         const other = text(alphabet, longest);
-        expect(sourceSimilarity(query, other)).toBe(plainSimilarity(query, other));
+        expect(sourceSimilarity(query, other), JSON.stringify({ query, other })).toBe(
+          plainSimilarity(query, other),
+        );
       }
     }
     expect(rankingDecides).toBeGreaterThan(0);
