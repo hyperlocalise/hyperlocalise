@@ -22,8 +22,10 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { ReportsPage } from "./reports-page";
 import {
   createReportsSettings,
-  createReportsWeeklyWordCounts,
+  createReportsWordCounts,
+  createReportsWordSeries,
   reportsAiUsage,
+  reportsBandSeries,
   reportsCostEstimate,
   reportsCosts,
   reportsResponseBodies,
@@ -303,8 +305,62 @@ describe("Reports page", () => {
     );
   });
 
-  it("charts volume per week by project only when word counts are grouped by week", async () => {
-    mocks.search = "tab=words&group=week";
+  it("charts volume over time for every grouping, split and per bar as chosen", async () => {
+    mocks.search = "tab=words";
+    renderPage();
+    // The chart itself is mocked away; its section, legend and subtitle are the page's.
+    const section = await screen.findByRole("region", { name: "Volume over time" });
+    expect(
+      (await within(section).findAllByText(/^(Help centre|Web app|Other)$/)).map(
+        (name) => name.textContent,
+      ),
+    ).toEqual(["Help centre", "Web app"]);
+    expect(section).toHaveTextContent(
+      "Words that arrived. The five largest on their own, the rest as Other. Weeks start on Monday, UTC.",
+    );
+    expect(callsTo("word-series")[0].args.query).toMatchObject({
+      split: "project",
+      mode: "arrived",
+    });
+    expect(callsTo("word-series")[0].args.query).not.toHaveProperty("per");
+
+    // Split by match band: the tiers' own names, and the table is not read again.
+    mocks.bodies = {
+      ...mocks.bodies,
+      "word-series": { wordSeries: createReportsWordSeries(reportsBandSeries) },
+    };
+    await userEvent.click(within(section).getByRole("button", { name: "Match band" }));
+    await waitFor(() => expect(section).toHaveTextContent("100% and repetitions"));
+    expect(section).toHaveTextContent("75–94%");
+    expect(section).toHaveTextContent("New");
+    expect(section).not.toHaveTextContent("The five largest");
+    expect(callsTo("word-series").at(-1)?.args.query).toMatchObject({ split: "band" });
+    expect(callsTo("words")).toHaveLength(1);
+
+    await userEvent.click(within(section).getByRole("button", { name: "Month" }));
+    await waitFor(() =>
+      expect(callsTo("word-series").at(-1)?.args.query).toMatchObject({
+        split: "band",
+        per: "month",
+      }),
+    );
+    expect(currentHref()).toBe("/en/org/acme/reports?tab=words&split=band&per=month");
+    expect(callsTo("words")).toHaveLength(1);
+  });
+
+  it("lists each match band's share of the table", async () => {
+    mocks.search = "tab=words";
+    renderPage();
+    const bands = await screen.findByRole("region", { name: "Match bands" });
+    expect(
+      within(bands)
+        .getAllByRole("listitem")
+        .map((item) => item.getAttribute("aria-label")),
+    ).toEqual(["Repetition: 2,000, 3%", "100%: 4,000, 7%", "New: 52,290, 90%"]);
+  });
+
+  it("groups word counts by language and by task step", async () => {
+    mocks.search = "tab=words&group=language";
     mocks.bodies = {
       ...reportsResponseBodies(),
       words: {
@@ -312,30 +368,54 @@ describe("Reports page", () => {
           unit: "words",
           step: "translation",
           mode: "arrived",
-          groupBy: "week",
-          ...createReportsWeeklyWordCounts(),
+          groupBy: "language",
+          ...createReportsWordCounts({
+            rows: createReportsWordCounts().rows.map((row) => ({
+              ...row,
+              projectId: null,
+              projectName: null,
+            })),
+          }),
         },
       },
     };
     renderPage();
-    // The chart itself is mocked away; its section, legend and subtitle are the page's.
-    const section = await screen.findByRole("region", { name: "Volume per week" });
-    expect(section).toHaveTextContent("Help centre");
-    expect(section).toHaveTextContent("Web app");
-    // Two projects fit, so the legend has no "Other" series.
-    expect(
-      within(section)
-        .getAllByText(/^(Help centre|Web app|Other)$/)
-        .map((name) => name.textContent),
-    ).toEqual(["Help centre", "Web app"]);
-    expect(section).toHaveTextContent("Words that arrived each week, by project");
+    const table = await screen.findByRole("table", { name: "Word counts" });
+    expect(callsTo("words")[0].args.query).toMatchObject({ groupBy: "language" });
+    expect(within(table).queryByRole("columnheader", { name: "Project" })).toBeNull();
+    expect(within(table).getByRole("columnheader", { name: "Language" })).toBeInTheDocument();
 
-    // Grouped another way, the counts come without a series and the chart goes.
-    mocks.bodies = reportsResponseBodies();
-    await userEvent.click(screen.getByRole("button", { name: "By project" }));
+    mocks.bodies = {
+      ...mocks.bodies,
+      words: {
+        wordCounts: {
+          unit: "words",
+          step: "translation",
+          mode: "arrived",
+          groupBy: "task_step",
+          ...createReportsWordCounts({
+            rows: createReportsWordCounts().rows.map((row, index) => ({
+              ...row,
+              projectId: null,
+              projectName: null,
+              taskStep: index === 0 ? "translate" : "no_task",
+            })),
+          }),
+        },
+      },
+    };
+    await userEvent.click(screen.getByRole("button", { name: "By task step" }));
     await waitFor(() =>
-      expect(screen.queryByRole("region", { name: "Volume per week" })).toBeNull(),
+      expect(
+        within(screen.getByRole("table", { name: "Word counts" })).getByRole("columnheader", {
+          name: "Task step",
+        }),
+      ).toBeInTheDocument(),
     );
+    const byStep = screen.getByRole("table", { name: "Word counts" });
+    expect(byStep).toHaveTextContent("Translate");
+    expect(byStep).toHaveTextContent("No task (content editor)");
+    expect(callsTo("words").at(-1)?.args.query).toMatchObject({ groupBy: "task_step" });
   });
 
   it("shows AI usage by area then model, with billing's charge, and narrows to a row", async () => {

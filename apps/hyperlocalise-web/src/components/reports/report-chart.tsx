@@ -67,14 +67,21 @@ export function spansYears(period: { from: string; to: string }) {
 }
 
 /**
- * A day on a chart ("12 Jun"), or a week by its first day ("Week of 12 Jun"); with the year when
- * the chart spans more than one, so no two labels read the same.
+ * A day on a chart ("12 Jun"), a week by its first day ("Week of 12 Jun"), or a month by its
+ * first day ("Jun"); with the year when the chart spans more than one, so no two labels read
+ * the same.
  */
 export function chartDayLabel(
   intl: Intl,
   day: string,
-  options: { weekly?: boolean; withYear?: boolean } = {},
+  options: { weekly?: boolean; monthly?: boolean; withYear?: boolean } = {},
 ) {
+  if (options.monthly)
+    return intl.formatDate(`${day}T00:00:00Z`, {
+      month: "short",
+      ...(options.withYear ? { year: "numeric" } : {}),
+      timeZone: "UTC",
+    });
   const date = intl.formatDate(`${day}T00:00:00Z`, {
     day: "numeric",
     month: "short",

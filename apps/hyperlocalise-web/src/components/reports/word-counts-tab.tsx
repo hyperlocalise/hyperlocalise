@@ -14,7 +14,15 @@
 
 import { useIntl } from "react-intl";
 
-import { REPORT_UNITS, type ReportUnit } from "@/lib/reporting/report-units";
+import {
+  REPORT_UNITS,
+  WORD_COUNT_INTERVALS,
+  WORD_COUNT_SPLITS,
+  type BandTier,
+  type ReportUnit,
+  type TaskStep,
+  type WordTaskStep,
+} from "@/lib/reporting/report-units";
 
 import { MatchBandTable, visibleBands } from "./match-band-table";
 import {
@@ -25,7 +33,7 @@ import {
   spansYears,
   StackedBarChart,
 } from "./report-chart";
-import { formatCount, unitLabel } from "./report-format";
+import { bandLabel, formatCount, formatShare, taskStepLabel, unitLabel } from "./report-format";
 import {
   DownloadCsvButton,
   ReportPager,
@@ -36,6 +44,7 @@ import { reportsPageMessages as pageMessages } from "./reports-page.messages";
 import {
   reportDownloadUrl,
   useWordCounts,
+  useWordSeries,
   wordCountsQuery,
   type SectionInput,
 } from "./reports-queries";
@@ -45,53 +54,224 @@ import { wordCountsTabMessages as messages } from "./word-counts-tab.messages";
 
 type WordCountsData = NonNullable<ReturnType<typeof useWordCounts>["data"]>;
 type WordCountRow = WordCountsData["rows"][number];
+type WordSeriesData = NonNullable<ReturnType<typeof useWordSeries>["data"]>;
 
-/** Units per week, one stack per project: the largest five on their own, the rest as Other. */
-function VolumeChart({
-  data,
-}: {
-  data: WordCountsData & { series: NonNullable<WordCountsData["series"]> };
-}) {
-  const intl = useIntl();
-  const { groups, points } = data.series;
-  const config = seriesConfig(
-    groups.map((group) => ({
+const TIER_MESSAGES = {
+  exact: messages.tierExact,
+  high: messages.tierHigh,
+  fuzzy: messages.tierFuzzy,
+  low: messages.tierLow,
+  new: messages.tierNew,
+} as const satisfies Record<BandTier, unknown>;
+
+/** Band tiers in one hue, closest match darkest; new work, with no match, in grey. */
+const TIER_COLORS: Record<BandTier, string> = {
+  exact: "var(--chart-band-1)",
+  high: "var(--chart-band-2)",
+  fuzzy: "var(--chart-band-3)",
+  low: "var(--chart-band-4)",
+  new: "var(--muted-foreground)",
+};
+
+/** Each task step keeps its colour whichever steps a chart shows. */
+const TASK_STEP_COLORS: Record<WordTaskStep, string> = {
+  translate: "var(--chart-1)",
+  post_edit: "var(--chart-2)",
+  proofread: "var(--chart-3)",
+  other: "var(--chart-4)",
+  no_task: "var(--chart-5)",
+};
+
+const SPLIT_MESSAGES = {
+  project: messages.splitProject,
+  language: messages.splitLanguage,
+  band: messages.splitBand,
+  task_step: messages.splitTaskStep,
+} as const;
+
+const PER_MESSAGES = {
+  day: messages.perDay,
+  week: messages.perWeek,
+  month: messages.perMonth,
+} as const;
+
+type Intl = ReturnType<typeof useIntl>;
+
+function wordTaskStepLabel(intl: Intl, step: WordTaskStep) {
+  return step === "no_task"
+    ? intl.formatMessage(messages.noTask)
+    : taskStepLabel(intl, step as TaskStep);
+}
+
+/**
+ * The chart's series names and colours: projects and languages by rank, "Other" in grey; band
+ * tiers and task steps in colours of their own.
+ */
+function volumeConfig(intl: Intl, data: WordSeriesData) {
+  const fixed = (label: string, color: string) => ({ label, color });
+  if (data.split === "band")
+    return Object.fromEntries(
+      data.groups.map((group, index) => {
+        const tier = group.key as BandTier;
+        return [`s${index}`, fixed(intl.formatMessage(TIER_MESSAGES[tier]), TIER_COLORS[tier])];
+      }),
+    );
+  if (data.split === "task_step")
+    return Object.fromEntries(
+      data.groups.map((group, index) => {
+        const step = group.key as WordTaskStep;
+        return [`s${index}`, fixed(wordTaskStepLabel(intl, step), TASK_STEP_COLORS[step])];
+      }),
+    );
+  return seriesConfig(
+    data.groups.map((group) => ({
       label: group.other
-        ? intl.formatMessage(messages.otherProjects)
-        : (group.projectName ?? group.projectId ?? ""),
+        ? intl.formatMessage(messages.otherSeries)
+        : (group.name ?? group.key ?? ""),
       other: group.other,
     })),
   );
-  const withYear = spansYears(data.period);
-  const rows = points.map((point) => ({
-    label: chartDayLabel(intl, point.start, { weekly: true, withYear }),
-    ...seriesValues(point.units),
-  }));
-  const total = points.reduce(
-    (sum, point) => sum + point.units.reduce((part, value) => part + value, 0),
-    0,
-  );
-  const unitName = unitLabel(intl, data.unit);
+}
+
+/** What the chart counts, whether some series are folded into Other, and how its bars run. */
+function chartDetail(intl: Intl, data: WordSeriesData) {
+  const ranked = data.split === "project" || data.split === "language";
+  return [
+    intl.formatMessage(data.mode === "arrived" ? messages.chartArrived : messages.chartFinished, {
+      unit: unitLabel(intl, data.unit),
+    }),
+    ranked ? intl.formatMessage(messages.chartRanked) : null,
+    intl.formatMessage(
+      { day: messages.chartDays, week: messages.chartWeeks, month: messages.chartMonths }[data.per],
+    ),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** Units each day, week or month, split as chosen, with its own switches for both. */
+function VolumeChart({
+  input,
+  onChange,
+}: {
+  input: SectionInput;
+  onChange: (change: Partial<ReportsUrlState>) => void;
+}) {
+  const intl = useIntl();
+  const series = useWordSeries(input);
+  const data = series.data;
+  const config = data ? volumeConfig(intl, data) : {};
   return (
     <ReportSection
       title={intl.formatMessage(messages.chartTitle)}
-      description={intl.formatMessage(
-        data.mode === "arrived" ? messages.chartArrivedDetail : messages.chartFinishedDetail,
-        { unit: unitName },
-      )}
-      actions={<ChartLegend config={config} />}
+      description={data ? chartDetail(intl, data) : undefined}
+      actions={
+        <>
+          <ChartLegend config={config} />
+          <SegmentedSwitch
+            label={intl.formatMessage(messages.splitBy)}
+            value={input.state.split}
+            options={WORD_COUNT_SPLITS.map((split) => ({
+              value: split,
+              label: intl.formatMessage(SPLIT_MESSAGES[split]),
+            }))}
+            onChange={(split) => onChange({ split })}
+          />
+          <SegmentedSwitch
+            label={intl.formatMessage(messages.barLength)}
+            value={data?.per ?? input.state.per ?? "day"}
+            options={WORD_COUNT_INTERVALS.map((per) => ({
+              value: per,
+              label: intl.formatMessage(PER_MESSAGES[per]),
+            }))}
+            onChange={(per) => onChange({ per })}
+          />
+        </>
+      }
     >
-      <StackedBarChart
-        config={config}
-        rows={rows}
-        summary={intl.formatMessage(messages.chartSummary, {
-          unit: unitName,
-          from: chartDayLabel(intl, data.period.from, { withYear }),
-          to: chartDayLabel(intl, data.period.to, { withYear }),
-          total: formatCount(intl, total),
+      <ReportSectionState
+        query={series}
+        isEmpty={(shown) => shown.groups.length === 0}
+        skeletonHeight={224}
+      >
+        {(shown) => {
+          const withYear = spansYears(shown.period);
+          const label = (start: string) =>
+            chartDayLabel(intl, start, {
+              weekly: shown.per === "week",
+              monthly: shown.per === "month",
+              withYear,
+            });
+          const total = shown.points.reduce(
+            (sum, point) => sum + point.units.reduce((part, value) => part + value, 0),
+            0,
+          );
+          const unitName = unitLabel(intl, shown.unit);
+          return (
+            <StackedBarChart
+              config={volumeConfig(intl, shown)}
+              rows={shown.points.map((point) => ({
+                label: label(point.start),
+                ...seriesValues(point.units),
+              }))}
+              summary={intl.formatMessage(messages.chartSummary, {
+                unit: unitName,
+                from: chartDayLabel(intl, shown.period.from, { withYear }),
+                to: chartDayLabel(intl, shown.period.to, { withYear }),
+                total: formatCount(intl, total),
+              })}
+              formatValue={(value) => formatCount(intl, value)}
+            />
+          );
+        }}
+      </ReportSectionState>
+    </ReportSection>
+  );
+}
+
+/** Each match band's units and share across the whole table, as bars in one colour. */
+function BandSummary({ data }: { data: WordCountsData }) {
+  const intl = useIntl();
+  const bands = visibleBands(data.bandTotals).filter(
+    (bucket) => (data.bandTotals[bucket] ?? 0) > 0,
+  );
+  if (data.total <= 0 || bands.length === 0) return null;
+  return (
+    <ReportSection
+      title={intl.formatMessage(messages.bandsTitle)}
+      description={intl.formatMessage(messages.bandsDetail, { unit: unitLabel(intl, data.unit) })}
+    >
+      <ul className="flex flex-col gap-2">
+        {bands.map((bucket) => {
+          const count = data.bandTotals[bucket] ?? 0;
+          const share = count / data.total;
+          const name = bandLabel(intl, bucket);
+          return (
+            <li
+              key={bucket}
+              className="grid grid-cols-[7rem_1fr_auto] items-center gap-3 text-[13px]"
+              aria-label={intl.formatMessage(messages.bandShare, {
+                band: name,
+                count: formatCount(intl, count),
+                share: formatShare(intl, share),
+              })}
+            >
+              <span className="truncate text-muted-foreground" aria-hidden>
+                {name}
+              </span>
+              <span className="h-2 rounded-full bg-muted" aria-hidden>
+                <span
+                  className="block h-2 rounded-full"
+                  style={{ width: `${Math.max(share * 100, 0.5)}%`, background: "var(--chart-1)" }}
+                />
+              </span>
+              <span className="tabular-nums" aria-hidden>
+                {formatCount(intl, count)} · {formatShare(intl, share)}
+              </span>
+            </li>
+          );
         })}
-        formatValue={(value) => formatCount(intl, value)}
-      />
+      </ul>
     </ReportSection>
   );
 }
@@ -149,6 +329,8 @@ export function WordCountsTab({
               { value: "project", label: intl.formatMessage(messages.byProject) },
               { value: "task", label: intl.formatMessage(messages.byTask) },
               { value: "week", label: intl.formatMessage(messages.byWeek) },
+              { value: "language", label: intl.formatMessage(messages.byLanguage) },
+              { value: "task_step", label: intl.formatMessage(messages.byTaskStep) },
             ]}
             onChange={(groupBy) => onChange({ groupBy })}
           />
@@ -157,6 +339,7 @@ export function WordCountsTab({
           href={reportDownloadUrl(input.organizationSlug, "words", wordCountsQuery(input))}
         />
       </div>
+      <VolumeChart input={input} onChange={onChange} />
       <ReportSectionState
         query={counts}
         isEmpty={(data) => data.rows.length === 0}
@@ -166,6 +349,8 @@ export function WordCountsTab({
           // Labels follow the counts on screen, which stay while the next ones load.
           const byTask = data.groupBy === "task";
           const byWeek = data.groupBy === "week";
+          const byLanguage = data.groupBy === "language";
+          const byTaskStep = data.groupBy === "task_step";
           const unitName = unitLabel(intl, data.unit);
           const weekOf = (week: string) =>
             intl.formatMessage(messages.weekOf, {
@@ -187,14 +372,12 @@ export function WordCountsTab({
                   ? intl.formatMessage(messages.charactersNote)
                   : null}
               </p>
-              {byWeek && data.series && data.series.groups.length > 0 ? (
-                <VolumeChart data={{ ...data, series: data.series }} />
-              ) : null}
+              <BandSummary data={data} />
               <MatchBandTable
                 label={intl.formatMessage(messages.tableLabel)}
                 rows={data.rows}
                 rowKey={(row) =>
-                  `${row.week ?? ""}:${row.jobId ?? ""}:${row.projectId}:${row.targetLocale}`
+                  [row.week, row.jobId, row.projectId, row.taskStep, row.targetLocale].join(":")
                 }
                 bands={visibleBands(data.bandTotals)}
                 leading={[
@@ -207,22 +390,38 @@ export function WordCountsTab({
                         },
                       ]
                     : []),
-                  byTask
-                    ? {
-                        key: "task",
-                        header: intl.formatMessage(messages.taskColumn),
-                        cell: taskName,
-                      }
-                    : {
-                        key: "project",
-                        header: intl.formatMessage(messages.projectColumn),
-                        cell: (row) => row.projectName ?? row.projectId,
-                      },
+                  ...(byTask
+                    ? [
+                        {
+                          key: "task",
+                          header: intl.formatMessage(messages.taskColumn),
+                          cell: taskName,
+                        },
+                      ]
+                    : byTaskStep
+                      ? [
+                          {
+                            key: "taskStep",
+                            header: intl.formatMessage(messages.taskStepColumn),
+                            cell: (row: WordCountRow) =>
+                              row.taskStep ? wordTaskStepLabel(intl, row.taskStep) : "—",
+                          },
+                        ]
+                      : byLanguage
+                        ? []
+                        : [
+                            {
+                              key: "project",
+                              header: intl.formatMessage(messages.projectColumn),
+                              cell: (row: WordCountRow) => row.projectName ?? row.projectId,
+                            },
+                          ]),
                   {
                     key: "language",
                     header: intl.formatMessage(messages.languageColumn),
                     cell: (row) => row.targetLocale,
-                    muted: true,
+                    // The row's own name when grouped by language.
+                    muted: !byLanguage,
                   },
                 ]}
                 trailing={[

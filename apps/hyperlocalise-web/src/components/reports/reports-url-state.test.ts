@@ -38,7 +38,9 @@ describe("Reports URL state", () => {
       step: "review" as const,
       unit: "characters" as const,
       mode: "finished" as const,
-      groupBy: "task" as const,
+      groupBy: "task_step" as const,
+      split: "band" as const,
+      per: "month" as const,
       page: 3,
       rateCard: "Standard 2026",
       aiGroup: "model" as const,
@@ -48,7 +50,7 @@ describe("Reports URL state", () => {
     };
     const href = buildReportsHref("/org/acme/reports", state);
     expect(href).toBe(
-      "/org/acme/reports?tab=estimate&range=custom&from=2026-07-01&to=2026-07-31&project=project_1&tasks=job_a%2Cjob_b&language=ja-JP&step=review&unit=characters&mode=finished&group=task&page=3&card=Standard+2026&ai=model&ai2=task&measure=charge&area=translation&key=own_key&automation=auto_1",
+      "/org/acme/reports?tab=estimate&range=custom&from=2026-07-01&to=2026-07-31&project=project_1&tasks=job_a%2Cjob_b&language=ja-JP&step=review&unit=characters&mode=finished&group=task_step&split=band&per=month&page=3&card=Standard+2026&ai=model&ai2=task&measure=charge&area=translation&key=own_key&automation=auto_1",
     );
     expect(parseReportsSearchParams(new URLSearchParams(href.split("?")[1]))).toEqual(state);
   });
@@ -57,7 +59,7 @@ describe("Reports URL state", () => {
     expect(
       parseReportsSearchParams(
         new URLSearchParams(
-          "tab=secret&range=365&from=yesterday&unit=pages&page=-2&step=qa&ai=origin&area=all&key=mine&measure=money",
+          "tab=secret&range=365&from=yesterday&unit=pages&page=-2&step=qa&ai=origin&area=all&key=mine&measure=money&group=file&split=person&per=quarter",
         ),
       ),
     ).toEqual(DEFAULT_REPORTS_STATE);
@@ -85,6 +87,11 @@ describe("Reports URL state", () => {
       page: 1,
     });
     expect(applyReportsChange(custom, { page: 5 }).page).toBe(5);
+    // A change to Word counts' chart alone leaves the table's page where it is.
+    const paged = { ...DEFAULT_REPORTS_STATE, page: 4 };
+    expect(applyReportsChange(paged, { split: "language" }).page).toBe(4);
+    expect(applyReportsChange(paged, { per: "week" }).page).toBe(4);
+    expect(applyReportsChange(paged, { split: "language", groupBy: "language" }).page).toBe(1);
   });
 
   it("works out each ready-made range from today, in UTC calendar months", () => {

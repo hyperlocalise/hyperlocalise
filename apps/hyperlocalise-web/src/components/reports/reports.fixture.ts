@@ -222,11 +222,13 @@ export const reportsAiUsage: AiUsage = {
   automationName: null,
 };
 
-/** The volume chart's series for the by-week grouping: two projects, nothing past the fifth. */
+/** The volume chart's series by project and week: two projects, nothing past the fifth. */
 export const reportsWordCountSeries: WordCountSeries = {
+  split: "project",
+  per: "week",
   groups: [
-    { projectId: "project_help", projectName: "Help centre", other: false },
-    { projectId: "project_web", projectName: "Web app", other: false },
+    { key: "project_help", name: "Help centre", other: false },
+    { key: "project_web", name: "Web app", other: false },
   ],
   points: [
     { start: "2026-09-21", units: [3_000, 1_000] },
@@ -250,6 +252,7 @@ export function createReportsWordCounts(
         projectName: "Web app",
         jobId: null,
         jobTitle: null,
+        taskStep: null,
         targetLocale: "de-DE",
         bands: { "100": 4_000, new: 14_420 },
         total: 18_420,
@@ -260,6 +263,7 @@ export function createReportsWordCounts(
         projectName: "Help centre",
         jobId: null,
         jobTitle: null,
+        taskStep: null,
         targetLocale: "fr-FR",
         bands: { repetition: 2_000, new: 37_870 },
         total: 39_870,
@@ -275,10 +279,33 @@ export function createReportsWordCounts(
   };
 }
 
-/**
- * Word counts grouped by week: the two projects over the last two weeks in the table, with the
- * chart's series over the whole period.
- */
+/** The volume chart's series by match band tier, per week. */
+export const reportsBandSeries: WordCountSeries = {
+  split: "band",
+  per: "week",
+  groups: [
+    { key: "exact", name: null, other: false },
+    { key: "fuzzy", name: null, other: false },
+    { key: "new", name: null, other: false },
+  ],
+  points: reportsWordCountSeries.points.map((point) => ({
+    start: point.start,
+    units: [point.units[0] / 4, point.units[1] / 2, point.units[0] / 2],
+  })),
+};
+
+/** The volume chart's answer, as the page's own endpoint gives it. */
+export function createReportsWordSeries(series: WordCountSeries = reportsWordCountSeries) {
+  return {
+    period: reportsPeriod,
+    unit: "words" as const,
+    step: "translation" as const,
+    mode: "arrived" as const,
+    ...series,
+  };
+}
+
+/** Word counts grouped by week: the two projects over the last two weeks in the table. */
 export function createReportsWeeklyWordCounts() {
   const base = createReportsWordCounts();
   return createReportsWordCounts({
@@ -288,7 +315,6 @@ export function createReportsWeeklyWordCounts() {
     ]),
     groupCount: 2,
     pageSize: 2,
-    series: reportsWordCountSeries,
   });
 }
 
@@ -302,6 +328,7 @@ export function createReportsTaskWordCounts() {
         projectName: "Help centre",
         jobId: "job_billing",
         jobTitle: "Help centre: billing articles",
+        taskStep: null,
         targetLocale: "fr-FR",
         bands: { repetition: 2_000, new: 18_980 },
         total: 20_980,
@@ -312,6 +339,7 @@ export function createReportsTaskWordCounts() {
         projectName: "Web app",
         jobId: null,
         jobTitle: null,
+        taskStep: null,
         targetLocale: "de-DE",
         bands: { new: 1_200 },
         total: 1_200,
@@ -666,6 +694,7 @@ export function reportsResponseBodies(settings = createReportsSettings()) {
     activity: { activity: reportsActivity },
     "step-times": { stepTimes: reportsStepTimes },
     "ai-usage": { aiUsage: reportsAiUsage },
+    "word-series": { wordSeries: createReportsWordSeries() },
     words: {
       wordCounts: {
         unit: "words",
@@ -749,5 +778,6 @@ export function reportsApiClient(state: ReportsApiState) {
     ":jobId": { report: endpoint("task-report"), analysis: endpoint("task-analysis") },
   };
   reports["time-entries"] = { ...endpoint("time-entries"), ":id": endpoint("time-entry") };
+  reports.words = { ...endpoint("words"), series: endpoint("word-series") };
   return { api: { orgs: { ":organizationSlug": { reports } } } };
 }

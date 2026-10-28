@@ -183,6 +183,37 @@ export function wordCountsQuery(input: SectionInput) {
   });
 }
 
+export function wordSeriesQuery(input: SectionInput) {
+  const { state } = input;
+  return compact({
+    ...scope(input),
+    unit: state.unit,
+    step: state.step,
+    mode: state.mode,
+    split: state.split,
+    per: optional(state.per),
+  });
+}
+
+/** Word counts' volume chart, read apart from the table so changing the chart leaves it be. */
+export function useWordSeries(input: SectionInput) {
+  const intl = useIntl();
+  const query = wordSeriesQuery(input);
+  return useQuery({
+    queryKey: reportsQueryKey(input.organizationSlug, "word-series", query),
+    placeholderData: keepPreviousData,
+    queryFn: async ({ signal }) => {
+      const response = await reportsApi().words.series.$get(
+        { param: { organizationSlug: input.organizationSlug }, query },
+        { init: { signal } },
+      );
+      if (!response.ok)
+        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
+      return (await response.json()).wordSeries;
+    },
+  });
+}
+
 export function useWordCounts(input: SectionInput) {
   const intl = useIntl();
   const query = wordCountsQuery(input);

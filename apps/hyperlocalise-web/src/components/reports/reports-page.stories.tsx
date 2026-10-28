@@ -91,9 +91,24 @@ export const WordCountsByWeek: Story = {
     },
   },
   play: async ({ canvas }) => {
-    const chart = await canvas.findByRole("region", { name: "Volume per week" });
-    await expect(within(chart).getByText("Help centre")).toBeInTheDocument();
+    const chart = await canvas.findByRole("region", { name: "Volume over time" });
+    await expect(await within(chart).findByText("Help centre")).toBeInTheDocument();
     await expect(canvas.getByRole("table", { name: "Word counts" })).toBeInTheDocument();
+  },
+};
+
+export const WordCountsByMatchBand: Story = {
+  parameters: {
+    nextjs: {
+      appDirectory: true,
+      navigation: { pathname, query: { tab: "words", split: "band" } },
+    },
+  },
+  play: async ({ canvas }) => {
+    const chart = await canvas.findByRole("region", { name: "Volume over time" });
+    await expect(await within(chart).findByText("100% and repetitions")).toBeInTheDocument();
+    const bands = canvas.getByRole("region", { name: "Match bands" });
+    await expect(within(bands).getAllByRole("listitem")).toHaveLength(3);
   },
 };
 

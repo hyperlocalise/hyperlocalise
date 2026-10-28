@@ -16,7 +16,10 @@ import {
   createReportsSettings,
   createReportsTaskWordCounts,
   createReportsWeeklyWordCounts,
+  createReportsWordSeries,
+  reportsBandSeries,
   reportsResponseBodies,
+  reportsWordCountSeries,
   type ReportsEndpoint,
 } from "./reports.fixture";
 
@@ -79,6 +82,21 @@ export function createReportsMswHandlers({
         return HttpResponse.json(bodies[endpoint]);
       }),
     ),
+    http.get("*/api/orgs/:organizationSlug/reports/words/series", async ({ request }) => {
+      if (wait) await delay("infinite");
+      if (failing.includes("word-series"))
+        return HttpResponse.json({ error: "report_failed" }, { status: 500 });
+      const query = new URL(request.url).searchParams;
+      const series = query.get("split") === "band" ? reportsBandSeries : reportsWordCountSeries;
+      return HttpResponse.json({
+        wordSeries: {
+          ...createReportsWordSeries(series),
+          unit: query.get("unit") ?? "words",
+          mode: query.get("mode") ?? "arrived",
+          per: query.get("per") ?? series.per,
+        },
+      });
+    }),
     http.put("*/api/orgs/:organizationSlug/reports/rate-cards", async ({ request }) => {
       const body = (await request.json()) as {
         name: string;
