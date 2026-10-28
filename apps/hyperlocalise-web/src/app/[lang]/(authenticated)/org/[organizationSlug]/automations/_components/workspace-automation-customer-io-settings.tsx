@@ -53,9 +53,10 @@ export function WorkspaceAutomationCustomerIoSettings({
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
-        Only email (rich-text/code editor), push, Twilio SMS, and Slack actions are eligible.
-        Drag-and-drop emails, transactional SMS, in-app messages, and multilingual A/B variants are
-        skipped. Locales must already exist on the Customer.io action.
+        Email (including drag-and-drop), in-app, push, SMS (including Twilio), WhatsApp, and Slack
+        actions are eligible. Multilingual A/B variants and webhook actions are skipped. Locales
+        must already exist on the Customer.io action, except on Design Studio emails, where push
+        creates missing languages automatically.
       </p>
       <div className="space-y-2">
         <span className="text-sm font-medium">Content to translate (optional)</span>

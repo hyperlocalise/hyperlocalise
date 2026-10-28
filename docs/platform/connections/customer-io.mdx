@@ -8,9 +8,10 @@ Connect Customer.io once in workspace **Integrations**, then run the **Translate
 ## Supported content
 
 - Campaigns, newsletters (one-time sends), broadcasts, and transactional messages.
-- Message types: email (saved as HTML, opens in HTML File view), push notifications, Twilio SMS, and Slack messages (saved as JSON).
-- Out of scope in v1: drag-and-drop emails, transactional SMS, in-app messages, and multilingual A/B variants. Newsletter and transactional messages with several default variants (A/B tests) import each variant but are skipped on push, because their translations share one per-language slot.
-- Configure locales on each Customer.io action before pushing translations. Customer.io cannot create or match a locale it does not have.
+- Message types: email (saved as HTML, opens in HTML File view), in-app messages (also HTML), push notifications, SMS (including Twilio), WhatsApp, and Slack messages (saved as JSON).
+- Drag-and-drop emails are supported through the linked Design Studio email. Import brings in the component markup, subject, and preheader. Push writes the translated content back through the Design Studio API as an unpublished draft. Publish the email in Customer.io to go live.
+- Out of scope: multilingual A/B variants. Newsletter and transactional messages with several default variants (A/B tests) import each variant but are skipped on push, because their translations share one per-language slot. Webhook actions carry machine config and are always skipped.
+- Configure locales on each Customer.io action before pushing translations. Customer.io cannot create or match a locale it does not have — except on Design Studio emails, where push creates a missing language automatically.
 
 ## Prerequisites
 
@@ -34,7 +35,7 @@ The API key is stored in WorkOS Pipes. Hyperlocalise stores only the region.
 
 ### Step 1: Set up locales in Customer.io
 
-Add a language variant for each locale you plan to translate into before you create the automation. Hyperlocalise can only import and push locales that already exist on the message — the Customer.io API cannot create language variants.
+Add a language variant for each locale you plan to translate into before you create the automation. Hyperlocalise can only import and push locales that already exist on the message — the Customer.io API cannot create language variants. For Design Studio emails you can skip this step: push creates a missing language on the linked email automatically.
 
 1. In Customer.io, open the broadcast or campaign message.
 2. Add each target language to the message. Note the locale key shown for each language (for example `en`, `fr-FR`).
@@ -67,3 +68,5 @@ Unmapped project locales are reported as unmapped and skipped on import and push
 ## Push approved locales
 
 Enqueue **Push to Customer.io** from the automation run. It writes approved locales for actions that already have the locale configured. It never rewrites message content and never publishes. For transactional messages it only updates message content — it never sends. Newsletter and transactional messages with several default variants are skipped on push.
+
+Design Studio emails are the exception on locales: push creates a missing language on the linked email automatically. Writes land as unpublished drafts, so publish the email in Customer.io before it can send.
