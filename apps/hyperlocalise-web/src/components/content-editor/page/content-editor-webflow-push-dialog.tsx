@@ -37,7 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import type { WebflowPushItem } from "@/lib/webflow/push-eligibility";
+import type { WebflowPushItem } from "@/lib/webflow/webflow-push-item";
 
 import { allSelectedPushRowsHaveEligibleLocales } from "./content-editor-integration-toolbar-visibility";
 import {

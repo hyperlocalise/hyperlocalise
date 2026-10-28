@@ -27,18 +27,9 @@ import { ProjectTranslationService } from "@/lib/projects/translations/project-t
 import { sourceKeysMissingApprovedTranslations } from "@/lib/sanity/push-sanity-translations";
 
 import { buildWebflowItemSourcePath, parseWebflowTranslationMapJson } from "./document-json";
+import { isWebflowJsonSourcePath, type WebflowPushItem } from "./webflow-push-item";
 
-export type WebflowPushItem = {
-  documentId: string;
-  sourcePath: string;
-  status: "active" | "push_failed";
-  eligibleLocaleCount: number;
-  targetLocaleCount: number;
-  eligibleLocales: string[];
-  locales: PushLocaleProgressRow[];
-  lastPushedAt: string | null;
-  lastError: string | null;
-};
+export { isWebflowJsonSourcePath, type WebflowPushItem };
 
 export type WebflowPushEligibility = {
   eligibleLocaleCount: number;
@@ -201,8 +192,4 @@ export function isWebflowPushRunActive(
     const operation = (run.inputSnapshot as { operation?: unknown }).operation;
     return operation === "push_approved";
   });
-}
-
-export function isWebflowJsonSourcePath(sourcePath: string): boolean {
-  return sourcePath.startsWith("webflow/") && sourcePath.endsWith(".json");
 }

@@ -16,7 +16,7 @@ import { createAutomationsApi } from "@/app/[lang]/(authenticated)/org/[organiza
 import { apiClient } from "@/lib/api-client-instance";
 import { hasWorkspaceAutomationWebflowTool } from "@/lib/agents/workspace-automation-types";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
-import { isWebflowJsonSourcePath, type WebflowPushItem } from "@/lib/webflow/push-eligibility";
+import { isWebflowJsonSourcePath, type WebflowPushItem } from "@/lib/webflow/webflow-push-item";
 
 export type ContentEditorWebflowPushCandidate = {
   automationId: string;
