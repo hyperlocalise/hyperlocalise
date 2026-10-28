@@ -33,6 +33,16 @@ export type CustomerIoEmailEnvelope = {
   body: string;
 };
 
+/**
+ * Action types stored as HTML envelopes (raw HTML body plus subject/preheader
+ * field blocks for the HTML ingest pipeline). `in_app` carries an HTML body
+ * like email; all other localizable types use the JSON translation map.
+ */
+export function isCustomerIoHtmlActionType(type: string): boolean {
+  const normalized = type.trim().toLowerCase();
+  return normalized === "email" || normalized === "in_app";
+}
+
 const FIELD_ATTR = "data-hl-customer-io-field";
 
 function escapeHtml(value: string): string {

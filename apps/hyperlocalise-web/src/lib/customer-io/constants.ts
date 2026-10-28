@@ -53,7 +53,10 @@ export function customerIoRegionOptionLabel(region: CustomerIoRegion): string {
 
 /**
  * Message/action types eligible for localisation in v1 (Crowdin parity subset).
- * Excluded: drag-and-drop emails, transactional SMS, in-app messages, multilingual A/B variants.
+ * `in_app` carries an HTML body and is stored as an HTML envelope like email;
+ * all other types use the JSON translation map. `webhook` actions carry
+ * machine request config (no human text) and are excluded, as are
+ * multilingual A/B variants.
  */
 export const CUSTOMER_IO_RESOURCE_KINDS = [
   "campaign",
@@ -64,6 +67,13 @@ export const CUSTOMER_IO_RESOURCE_KINDS = [
 
 export type CustomerIoResourceKind = (typeof CUSTOMER_IO_RESOURCE_KINDS)[number];
 
-export const CUSTOMER_IO_MESSAGE_TYPES = ["email", "push", "sms", "slack"] as const;
+export const CUSTOMER_IO_MESSAGE_TYPES = [
+  "email",
+  "push",
+  "sms",
+  "slack",
+  "in_app",
+  "whatsapp",
+] as const;
 
 export type CustomerIoMessageType = (typeof CUSTOMER_IO_MESSAGE_TYPES)[number];

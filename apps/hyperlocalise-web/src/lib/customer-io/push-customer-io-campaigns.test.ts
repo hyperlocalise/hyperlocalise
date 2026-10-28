@@ -15,13 +15,16 @@ import { describe, expect, it } from "vite-plus/test";
 import { buildCustomerIoResourceSourcePath } from "./push-customer-io-campaigns";
 
 describe("buildCustomerIoResourceSourcePath", () => {
-  it("builds html paths for email actions to match the importer", () => {
+  it("builds html paths for email and in_app actions to match the importer", () => {
     expect(
       buildCustomerIoResourceSourcePath({ kind: "campaign", id: "7", name: "x" }, "42", "email"),
     ).toBe("customer-io/campaigns/7/actions/42.html");
     expect(
       buildCustomerIoResourceSourcePath({ kind: "broadcast", id: "2", name: "x" }, "96", "Email"),
     ).toBe("customer-io/broadcasts/2/actions/96.html");
+    expect(
+      buildCustomerIoResourceSourcePath({ kind: "broadcast", id: "2", name: "x" }, "15", "in_app"),
+    ).toBe("customer-io/broadcasts/2/actions/15.html");
     expect(
       buildCustomerIoResourceSourcePath(
         { kind: "newsletter", id: "10", name: "x" },

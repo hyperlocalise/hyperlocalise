@@ -61,6 +61,17 @@ describe("isCustomerIoLocaleSeedComplete", () => {
     ).toBe(false);
   });
 
+  it("never completes for in_app so the HTML body goes through Jobs", () => {
+    expect(
+      isCustomerIoLocaleSeedComplete({
+        actionType: "in_app",
+        sourceMap: { body: "<div>World</div>" },
+        remoteMap: { body: "<div>Monde</div>" },
+        importedCount: 1,
+      }),
+    ).toBe(false);
+  });
+
   it("defers to import completeness for non-email actions", () => {
     expect(
       isCustomerIoLocaleSeedComplete({
@@ -68,6 +79,14 @@ describe("isCustomerIoLocaleSeedComplete", () => {
         sourceMap: { title: "Hello", body: "World" },
         remoteMap: { title: "Bonjour", body: "Monde" },
         importedCount: 2,
+      }),
+    ).toBe(true);
+    expect(
+      isCustomerIoLocaleSeedComplete({
+        actionType: "whatsapp",
+        sourceMap: { body: "Hello" },
+        remoteMap: { body: "Bonjour" },
+        importedCount: 1,
       }),
     ).toBe(true);
     expect(

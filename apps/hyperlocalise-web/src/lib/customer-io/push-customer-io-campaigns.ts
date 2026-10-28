@@ -63,7 +63,11 @@ import {
   parseCustomerIoTranslationMapJson,
   type CustomerIoTranslationMap,
 } from "./translation-map";
-import { parseCustomerIoEmailEnvelope, buildCustomerIoEmailSourcePath } from "./html-envelope";
+import {
+  parseCustomerIoEmailEnvelope,
+  buildCustomerIoEmailSourcePath,
+  isCustomerIoHtmlActionType,
+} from "./html-envelope";
 import { applyHtmlIngestTranslations } from "@/lib/projects/files/html-ingest-entries";
 
 const logger = createLogger("push-customer-io-campaigns");
@@ -286,7 +290,7 @@ export function buildCustomerIoResourceSourcePath(
   actionId: string,
   actionType?: string,
 ): string {
-  if (actionType?.trim().toLowerCase() === "email") {
+  if (isCustomerIoHtmlActionType(actionType ?? "")) {
     const kind =
       resource.kind === "broadcast"
         ? ("broadcasts" as const)
@@ -469,10 +473,11 @@ async function pushCustomerIoAction(input: {
     fileId: latest.storedFileId,
   });
   const storedText = stored.content.toString("utf8");
-  const isEmail = input.action.type.trim().toLowerCase() === "email";
-  // Email actions store as HTML envelopes; approved translations arrive keyed
-  // by hashed HTML entry and merge back into the stored HTML before push.
-  const sourceMap: CustomerIoTranslationMap = isEmail
+  const isHtml = isCustomerIoHtmlActionType(input.action.type);
+  // HTML actions (email, in_app) store as HTML envelopes; approved
+  // translations arrive keyed by hashed HTML entry and merge back into the
+  // stored HTML before push.
+  const sourceMap: CustomerIoTranslationMap = isHtml
     ? envelopeFieldsToMap(parseCustomerIoEmailEnvelope(storedText))
     : parseCustomerIoTranslationMapJson(storedText);
   if (Object.keys(sourceMap).length === 0) {
@@ -526,11 +531,11 @@ async function pushCustomerIoAction(input: {
         continue;
       }
       const remoteMap = customerIoTranslationMapFromRemote({ type: details.type, ...remote });
-      // Email approvals arrive keyed by hashed HTML entry; substitute them
+      // HTML approvals arrive keyed by hashed HTML entry; substitute them
       // into the stored envelope first so the merge below works per field.
       // Unapproved entries keep stored (source-language) text, matching the
       // JSON flow's source fallback.
-      const approvedFields = isEmail
+      const approvedFields = isHtml
         ? envelopeFieldsToMap(
             parseCustomerIoEmailEnvelope(
               applyHtmlIngestTranslations(storedText, approved.prefilled),

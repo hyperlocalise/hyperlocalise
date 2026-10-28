@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   buildCustomerIoEmailSourcePath,
   hashCustomerIoEmailEnvelope,
+  isCustomerIoHtmlActionType,
   parseCustomerIoEmailEnvelope,
   seedEntriesForCustomerIoEmailFields,
   serializeCustomerIoEmailEnvelope,
@@ -96,6 +97,19 @@ describe("customer-io email envelope", () => {
         remoteMap: { subject: "Bonjour", body: "<p>Bonjour</p>" },
       }),
     ).toEqual({});
+  });
+});
+
+describe("customer-io html action types", () => {
+  it("treats email and in_app as html envelope actions", () => {
+    expect(isCustomerIoHtmlActionType("email")).toBe(true);
+    expect(isCustomerIoHtmlActionType("in_app")).toBe(true);
+  });
+
+  it("keeps text actions on the json map", () => {
+    for (const type of ["push", "sms", "twilio", "slack", "whatsapp", "webhook"]) {
+      expect(isCustomerIoHtmlActionType(type)).toBe(false);
+    }
   });
 });
 

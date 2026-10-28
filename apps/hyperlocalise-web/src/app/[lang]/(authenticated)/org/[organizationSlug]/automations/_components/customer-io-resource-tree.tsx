@@ -263,7 +263,7 @@ function CustomerIoTreeActions({
     return (
       <TypographyP size="small" tone="subtle" className="py-1 pl-12">
         No localizable actions. Selecting this item will not import any file until a
-        default-language email, push, SMS, Slack, or Twilio action exists.
+        default-language email, in-app, push, SMS, Slack, Twilio, or WhatsApp action exists.
       </TypographyP>
     );
   }

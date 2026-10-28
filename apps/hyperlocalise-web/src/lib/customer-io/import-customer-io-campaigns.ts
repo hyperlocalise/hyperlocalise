@@ -79,6 +79,7 @@ import {
 import {
   buildCustomerIoEmailSourcePath,
   hashCustomerIoEmailEnvelope,
+  isCustomerIoHtmlActionType,
   seedEntriesForCustomerIoEmailFields,
   serializeCustomerIoEmailEnvelope,
 } from "./html-envelope";
@@ -120,9 +121,10 @@ export function isCustomerIoLocaleImportComplete(input: {
 
 /**
  * Whether a locale needs no translation job after seeding remote entries.
- * Email actions never complete via seeding: only subject/preheader seed as
- * single-text fields, while the HTML body holds many text nodes that cannot
- * map to the whole-body remote string — the body always goes through Jobs.
+ * HTML actions (email, in_app) never complete via seeding: only
+ * subject/preheader seed as single-text fields, while the HTML body holds
+ * many text nodes that cannot map to the whole-body remote string — the body
+ * always goes through Jobs.
  */
 export function isCustomerIoLocaleSeedComplete(input: {
   actionType: string;
@@ -130,7 +132,7 @@ export function isCustomerIoLocaleSeedComplete(input: {
   remoteMap: CustomerIoTranslationMap;
   importedCount: number;
 }): boolean {
-  if (input.actionType.trim().toLowerCase() === "email") {
+  if (isCustomerIoHtmlActionType(input.actionType)) {
     return false;
   }
   return isCustomerIoLocaleImportComplete(input);
@@ -522,10 +524,11 @@ async function importCustomerIoAction(input: {
     };
   }
 
-  // Email actions store as HTML envelopes (body as HTML, other fields as
-  // field blocks); every other localizable type keeps the JSON map.
-  const isEmail = input.action.type.trim().toLowerCase() === "email";
-  const emailHtml = isEmail
+  // HTML actions (email, in_app) store as HTML envelopes (body as HTML,
+  // other fields as field blocks); every other localizable type keeps the
+  // JSON map.
+  const isHtml = isCustomerIoHtmlActionType(input.action.type);
+  const emailHtml = isHtml
     ? serializeCustomerIoEmailEnvelope({
         subject: sourceMap.subject ?? "",
         preheader_text: sourceMap.preheader_text,
@@ -542,7 +545,7 @@ async function importCustomerIoAction(input: {
           ? ("newsletters" as const)
           : ("transactional" as const);
   const sourcePath =
-    isEmail && emailHtml
+    isHtml && emailHtml
       ? buildCustomerIoEmailSourcePath({
           kind: emailKind,
           resourceId: input.resource.id,
@@ -569,7 +572,7 @@ async function importCustomerIoAction(input: {
               });
 
   const hash =
-    isEmail && emailHtml
+    isHtml && emailHtml
       ? hashCustomerIoEmailEnvelope(emailHtml)
       : hashCustomerIoTranslationMap(sourceMap);
   const latest = await getLatestRepositorySourceFileVersion({
@@ -647,9 +650,9 @@ async function importCustomerIoAction(input: {
     hash,
     sourceUnchanged,
     sourceLocale: input.sourceLocale,
-    content: isEmail && emailHtml ? emailHtml : serializeCustomerIoTranslationMap(sourceMap),
-    contentType: isEmail ? "text/html" : "application/json",
-    filename: isEmail ? "message.html" : "message.json",
+    content: isHtml && emailHtml ? emailHtml : serializeCustomerIoTranslationMap(sourceMap),
+    contentType: isHtml ? "text/html" : "application/json",
+    filename: isHtml ? "message.html" : "message.json",
     workflowRunId: input.workflowRunId,
   });
   if (!sourceFileId) {
@@ -688,11 +691,11 @@ async function importCustomerIoAction(input: {
     if (action === "skip") {
       continue;
     }
-    // Email bodies hold many HTML text nodes that cannot map to a whole-body
+    // HTML bodies hold many HTML text nodes that cannot map to a whole-body
     // remote string, so only single-text fields seed; the body always goes
     // through Jobs.
     const seedEntries =
-      isEmail && emailHtml
+      isHtml && emailHtml
         ? seedEntriesForCustomerIoEmailFields({ sourceHtml: emailHtml, sourceMap, remoteMap })
         : remoteMap;
     const result = await importApprovedProjectTranslationsFromEntries({
@@ -729,7 +732,7 @@ async function importCustomerIoAction(input: {
     sourceFileId,
     sourceLocale: input.sourceLocale,
     targetLocales: leftover,
-    fileFormat: isEmail ? "html" : "json",
+    fileFormat: isHtml ? "html" : "json",
     openJobs: input.openJobs,
   });
 

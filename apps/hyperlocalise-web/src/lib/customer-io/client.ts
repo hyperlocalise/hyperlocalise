@@ -388,11 +388,22 @@ export async function getCustomerIoResourceAction(input: {
   if (!response.ok) {
     throw customerIoErrorForStatus(response.status, path);
   }
-  const body = (await response.json().catch(() => null)) as CustomerIoRawAction | null;
+  const body = (await response.json().catch(() => null)) as
+    | (CustomerIoRawAction & { action?: unknown; content?: unknown })
+    | null;
   if (!body || typeof body !== "object") {
     return null;
   }
-  return readCustomerIoAction(body);
+  // Live detail endpoints wrap the payload (`{action: {...}}` for
+  // broadcasts/campaigns, `{content: {...}}` for newsletters/transactional);
+  // tests and list items use the flat shape.
+  const unwrapped =
+    body.action && typeof body.action === "object" && !Array.isArray(body.action)
+      ? (body.action as CustomerIoRawAction)
+      : body.content && typeof body.content === "object" && !Array.isArray(body.content)
+        ? (body.content as CustomerIoRawAction)
+        : body;
+  return readCustomerIoAction(unwrapped);
 }
 
 function readCustomerIoActionTranslation(

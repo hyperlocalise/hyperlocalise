@@ -16,6 +16,7 @@ import {
   CustomerIoApiError,
   getCustomerIoBroadcastActionTranslation,
   getCustomerIoNewsletterActionTranslation,
+  getCustomerIoResourceAction,
   getCustomerIoTransactionalActionTranslation,
   listCustomerIoBroadcastActions,
   listCustomerIoBroadcasts,
@@ -28,6 +29,15 @@ import {
   updateCustomerIoNewsletterActionTranslation,
   updateCustomerIoTransactionalActionTranslation,
 } from "./client";
+import {
+  REAL_BROADCAST_ACTION_DETAIL,
+  REAL_BROADCAST_ACTIONS_LIST,
+  REAL_BROADCASTS_LIST,
+  REAL_NEWSLETTER_CONTENT_DETAIL,
+  REAL_NEWSLETTER_CONTENTS_LIST,
+  REAL_NEWSLETTERS_LIST,
+  REAL_TRANSACTIONAL_LIST,
+} from "./client.real-api.fixture";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -316,5 +326,140 @@ describe("listCustomerIoBroadcasts", () => {
         headers: expect.objectContaining({ Authorization: "Bearer key" }),
       }),
     );
+  });
+});
+
+describe("live Customer.io fixtures (2026-10-28, US region)", () => {
+  it("parses the real broadcasts list", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => jsonResponse(REAL_BROADCASTS_LIST));
+
+    const broadcasts = await listCustomerIoBroadcasts({ apiKey: "key", region: "us", fetchImpl });
+
+    expect(broadcasts).toEqual([
+      { id: "2", name: "Test Broadcase", updatedAt: expect.any(String) },
+    ]);
+  });
+
+  it("reads the real broadcast actions including in_app variants", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => jsonResponse(REAL_BROADCAST_ACTIONS_LIST));
+
+    const actions = await listCustomerIoBroadcastActions({
+      apiKey: "key",
+      region: "us",
+      broadcastId: "2",
+      fetchImpl,
+    });
+
+    expect(actions.map((action) => [action.id, action.type, action.language])).toEqual([
+      ["14", "push", ""],
+      ["15", "in_app", ""],
+      ["16", "in_app", "zh-CN"],
+    ]);
+  });
+
+  it("parses every known action type", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      jsonResponse({
+        actions: [
+          { id: 1, name: "E", type: "email", language: "", subject: "S", body: "<p>B</p>" },
+          { id: 2, name: "I", type: "in_app", language: "", body: "<div>B</div>" },
+          { id: 3, name: "P", type: "push", language: "", title: "T", body: "B" },
+          { id: 4, name: "S", type: "sms", language: "", body: "B" },
+          { id: 5, name: "T", type: "twilio", language: "", body: "B" },
+          { id: 6, name: "S", type: "slack", language: "", body: "B" },
+          { id: 7, name: "W", type: "whatsapp", language: "", body: "B" },
+          { id: 8, name: "H", type: "webhook", language: "" },
+        ],
+      }),
+    );
+
+    const actions = await listCustomerIoBroadcastActions({
+      apiKey: "key",
+      region: "us",
+      broadcastId: "2",
+      fetchImpl,
+    });
+
+    expect(actions.map((action) => [action.id, action.type])).toEqual([
+      ["1", "email"],
+      ["2", "in_app"],
+      ["3", "push"],
+      ["4", "sms"],
+      ["5", "twilio"],
+      ["6", "slack"],
+      ["7", "whatsapp"],
+      ["8", "webhook"],
+    ]);
+  });
+
+  it("parses the real newsletters list and contents", async () => {
+    const listImpl = vi.fn<typeof fetch>(async () => jsonResponse(REAL_NEWSLETTERS_LIST));
+    const newsletters = await listCustomerIoNewsletters({
+      apiKey: "key",
+      region: "us",
+      fetchImpl: listImpl,
+    });
+    expect(newsletters).toEqual([
+      { id: "1", name: "Weekly Update", updatedAt: expect.any(String) },
+    ]);
+
+    const contentsImpl = vi.fn<typeof fetch>(async () =>
+      jsonResponse(REAL_NEWSLETTER_CONTENTS_LIST),
+    );
+    const contents = await listCustomerIoNewsletterActions({
+      apiKey: "key",
+      region: "us",
+      newsletterId: "1",
+      fetchImpl: contentsImpl,
+    });
+    expect(contents).toHaveLength(1);
+    expect(contents[0]).toMatchObject({
+      id: "2",
+      type: "email",
+      language: "",
+      subject: "Weekly Update",
+    });
+  });
+
+  it("parses the real transactional list", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => jsonResponse(REAL_TRANSACTIONAL_LIST));
+
+    const messages = await listCustomerIoTransactionalMessages({
+      apiKey: "key",
+      region: "us",
+      fetchImpl,
+    });
+
+    expect(messages.map((message) => [message.id, message.name])).toEqual([
+      ["1", "All uncategorized email messages"],
+      ["2", "Test"],
+    ]);
+  });
+
+  it("unwraps real detail envelopes", async () => {
+    const broadcastImpl = vi.fn<typeof fetch>(async () =>
+      jsonResponse(REAL_BROADCAST_ACTION_DETAIL),
+    );
+    const broadcastAction = await getCustomerIoResourceAction({
+      apiKey: "key",
+      region: "us",
+      resourcePath: "/broadcasts/2",
+      actionId: "14",
+      fetchImpl: broadcastImpl,
+    });
+    expect(broadcastAction).toMatchObject({ id: "14", type: "push", language: "" });
+
+    const newsletterImpl = vi.fn<typeof fetch>(async () =>
+      jsonResponse(REAL_NEWSLETTER_CONTENT_DETAIL),
+    );
+    const newsletterContent = await getCustomerIoResourceAction({
+      apiKey: "key",
+      region: "us",
+      resourcePath: "/newsletters/1",
+      actionId: "2",
+      collectionKey: "contents",
+      fetchImpl: newsletterImpl,
+    });
+    expect(newsletterContent).toMatchObject({ id: "2", type: "email", subject: "Weekly Update" });
   });
 });

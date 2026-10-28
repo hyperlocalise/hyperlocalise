@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import type { CustomerIoAction } from "./client";
+import { isCustomerIoHtmlActionType } from "./html-envelope";
 import {
   buildCustomerIoActionTranslationPayload,
   buildCustomerIoBroadcastSourcePath,
@@ -44,17 +45,17 @@ function emailAction(overrides: Partial<CustomerIoAction> = {}): CustomerIoActio
 }
 
 describe("isCustomerIoLocalizableActionType", () => {
-  it("accepts email, push, sms, and slack actions", () => {
+  it("accepts email, push, sms, slack, twilio, in_app, and whatsapp actions", () => {
     expect(isCustomerIoLocalizableActionType("email")).toBe(true);
     expect(isCustomerIoLocalizableActionType("push")).toBe(true);
     expect(isCustomerIoLocalizableActionType("twilio")).toBe(true);
     expect(isCustomerIoLocalizableActionType("slack")).toBe(true);
+    expect(isCustomerIoLocalizableActionType("in_app")).toBe(true);
+    expect(isCustomerIoLocalizableActionType("whatsapp")).toBe(true);
   });
 
-  it("rejects webhooks, in-app, and whatsapp actions", () => {
+  it("rejects webhook actions", () => {
     expect(isCustomerIoLocalizableActionType("webhook")).toBe(false);
-    expect(isCustomerIoLocalizableActionType("in_app")).toBe(false);
-    expect(isCustomerIoLocalizableActionType("whatsapp")).toBe(false);
   });
 });
 
@@ -81,6 +82,20 @@ describe("extractCustomerIoActionStrings", () => {
         emailAction({ type: "twilio", subject: undefined, preheaderText: undefined }),
       ),
     ).toEqual({ body: "Hello {{customer.email}}" });
+  });
+
+  it("extracts only the body for in_app actions", () => {
+    expect(
+      extractCustomerIoActionStrings(
+        emailAction({
+          type: "in_app",
+          subject: undefined,
+          preheaderText: undefined,
+          title: undefined,
+          body: "<div>In-app body</div>",
+        }),
+      ),
+    ).toEqual({ body: "<div>In-app body</div>" });
   });
 });
 
@@ -146,6 +161,69 @@ describe("buildCustomerIoActionTranslationPayload", () => {
       type: "twilio",
       body: "SMS",
     });
+  });
+
+  it("sends only the body for in_app and whatsapp actions", () => {
+    expect(
+      buildCustomerIoActionTranslationPayload("in_app", {
+        subject: "Ignored",
+        body: "<div>Hi</div>",
+      }),
+    ).toEqual({ type: "in_app", body: "<div>Hi</div>" });
+    expect(
+      buildCustomerIoActionTranslationPayload("whatsapp", { body: "Hi", title: "Ignored" }),
+    ).toEqual({ type: "whatsapp", body: "Hi" });
+  });
+});
+
+describe("all Customer.io action types", () => {
+  const cases = [
+    {
+      type: "email",
+      action: { subject: "S", preheaderText: "P", body: "<p>B</p>" },
+      map: { subject: "S", preheader_text: "P", body: "<p>B</p>" },
+      html: true,
+    },
+    {
+      type: "in_app",
+      action: { body: "<div>B</div>" },
+      map: { body: "<div>B</div>" },
+      html: true,
+    },
+    {
+      type: "push",
+      action: { title: "T", body: "B" },
+      map: { title: "T", body: "B" },
+      html: false,
+    },
+    { type: "sms", action: { body: "B" }, map: { body: "B" }, html: false },
+    { type: "twilio", action: { body: "B" }, map: { body: "B" }, html: false },
+    { type: "slack", action: { body: "B" }, map: { body: "B" }, html: false },
+    { type: "whatsapp", action: { body: "B" }, map: { body: "B" }, html: false },
+  ] as const;
+
+  it.each(cases)(
+    "classifies, extracts, and envelopes $type correctly",
+    ({ type, action, map, html }) => {
+      expect(isCustomerIoLocalizableActionType(type)).toBe(true);
+      expect(isCustomerIoHtmlActionType(type)).toBe(html);
+      expect(
+        extractCustomerIoActionStrings(
+          emailAction({
+            type,
+            subject: undefined,
+            preheaderText: undefined,
+            title: undefined,
+            ...action,
+          }),
+        ),
+      ).toEqual(map);
+    },
+  );
+
+  it("excludes webhook actions", () => {
+    expect(isCustomerIoLocalizableActionType("webhook")).toBe(false);
+    expect(isCustomerIoHtmlActionType("webhook")).toBe(false);
   });
 });
 

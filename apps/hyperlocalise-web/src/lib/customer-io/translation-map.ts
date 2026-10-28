@@ -62,8 +62,10 @@ export function hashCustomerIoTranslationMap(map: CustomerIoTranslationMap): str
 
 /**
  * Customer.io action types with localizable message content in v1.
- * `twilio` carries SMS bodies; webhooks, in-app, and WhatsApp actions are out
- * of scope (Crowdin parity subset).
+ * `twilio` carries SMS bodies; `in_app` carries an HTML body stored as an
+ * HTML envelope like email; `whatsapp` carries a text body via the JSON map.
+ * `webhook` actions carry machine request config and are out of scope
+ * (Crowdin parity subset).
  */
 export function isCustomerIoLocalizableActionType(
   type: string,
@@ -86,6 +88,7 @@ function actionFieldsForType(type: string): readonly string[] {
   if (normalized === "push") {
     return PUSH_ACTION_FIELDS;
   }
+  // `in_app` and all other text types carry a single HTML/text body.
   return TEXT_ACTION_FIELDS;
 }
 
