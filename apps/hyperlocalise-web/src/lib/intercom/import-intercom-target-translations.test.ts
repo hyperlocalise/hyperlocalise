@@ -36,10 +36,13 @@ vi.mock("@/lib/translation/sandbox", () => ({
   writeFilesToSandbox: vi.fn(),
 }));
 
-vi.mock("@/lib/database/client", () => ({
-  db: {},
-  schema: {},
-}));
+vi.mock("@/lib/database/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/database/client")>();
+  return {
+    ...actual,
+    db: {},
+  };
+});
 
 vi.mock("./push-eligibility", () => ({
   loadApprovedIntercomArticleValuesByPath: vi.fn(),

@@ -14,7 +14,13 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import type { VisualAssignmentRule } from "../schema/types";
 
-vi.mock("@/lib/database/client", () => ({ db: {}, schema: {} }));
+vi.mock("@/lib/database/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/database/client")>();
+  return {
+    ...actual,
+    db: {},
+  };
+});
 vi.mock("@/lib/file-storage/records", () => ({
   getRepositorySourceFileVersionForStoredFile: vi.fn(),
 }));
