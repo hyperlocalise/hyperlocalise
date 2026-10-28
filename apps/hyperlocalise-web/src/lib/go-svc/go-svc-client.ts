@@ -33,6 +33,7 @@ import { createHyperlabGoSvcClient, type HyperlabGoSvcClient } from "./go-svc-hy
 import { GoSvcMemberApi } from "./go-svc-member-api";
 import { GoSvcOverviewApi } from "./go-svc-overview-api";
 import { GoSvcPdfApi } from "./go-svc-pdf-api";
+import { GoSvcPlaintextApi } from "./go-svc-plaintext-api";
 import { GoSvcProjectApi } from "./go-svc-project-api";
 import { GoSvcTeamApi } from "./go-svc-team-api";
 
@@ -57,6 +58,7 @@ export class GoSvcClient {
   readonly memory: GoSvcMemoryApi;
   readonly overview: GoSvcOverviewApi;
   readonly pdf: GoSvcPdfApi;
+  readonly plaintext: GoSvcPlaintextApi;
   readonly project: GoSvcProjectApi;
   readonly qaReport: GoSvcQaReportApi;
   readonly team: GoSvcTeamApi;
@@ -80,6 +82,7 @@ export class GoSvcClient {
     this.memory = new GoSvcMemoryApi(request);
     this.overview = new GoSvcOverviewApi(request);
     this.pdf = new GoSvcPdfApi(request);
+    this.plaintext = new GoSvcPlaintextApi(request);
     this.project = new GoSvcProjectApi(request);
     this.qaReport = new GoSvcQaReportApi(request);
     this.team = new GoSvcTeamApi(request);
