@@ -101,7 +101,7 @@ export function MarketingLocalisationScenario({ content }: Props) {
   return (
     <section className="w-full">
       {/* Section heading */}
-      <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
+      <div className="grid items-end gap-8 lg:grid-cols-2 lg:gap-16">
         <div className="max-w-lg">
           <TypographyP className="mb-5 text-sm" tone="subtle">
             <Message messageKey={content.scenario.labelKey} />
@@ -115,9 +115,11 @@ export function MarketingLocalisationScenario({ content }: Props) {
           </TypographyH2>
         </div>
 
-        <TypographyP className="max-w-2xl leading-relaxed lg:pt-8" tone="subtle">
-          <Message messageKey={content.scenario.narrativeKey} />
-        </TypographyP>
+        <div className="max-w-xl lg:ml-auto lg:pb-2">
+          <TypographyP className="text-sm leading-relaxed sm:text-md" tone="subtle">
+            <Message messageKey={content.scenario.narrativeKey} />
+          </TypographyP>
+        </div>
       </div>
 
       {/* Interactive simulation */}

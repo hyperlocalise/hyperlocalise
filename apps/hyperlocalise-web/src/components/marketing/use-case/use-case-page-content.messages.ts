@@ -866,6 +866,285 @@ export const useCasePageMessages = defineMessages({
     id: "76p0N2h6Ed",
     description: "CTA section description for the help-center-localisation use case",
   },
+  helpCenterWorkflowSourceTitle: {
+    defaultMessage: "Source article",
+    id: "YXzH8qC6Rp",
+    description: "Title of the source article panel in the help center workflow",
+  },
+  helpCenterWorkflowSourceSubtitle: {
+    defaultMessage: "Help center sync",
+    id: "eQTCHac6Hr",
+    description: "Subtitle of the source article panel",
+  },
+  helpCenterWorkflowSourceState: {
+    defaultMessage: "Ready",
+    id: "P7+/CSuhUD",
+    description: "Status of the source article in the help center workflow",
+  },
+  helpCenterWorkflowSourceArticle: {
+    defaultMessage: "Password reset article",
+    id: "74ZBFjwzSh",
+    description: "Sample article title in the help center workflow",
+  },
+  helpCenterWorkflowSourceArticleMeta: {
+    defaultMessage: "Updated in the source workspace and queued for localisation",
+    id: "xPrBa2nk09",
+    description: "Status of the source article awaiting localisation",
+  },
+  helpCenterWorkflowSourceLocaleFr: {
+    defaultMessage: "French locale added",
+    id: "2TfMTBFVq6",
+    description: "French target locale in the source panel",
+  },
+  helpCenterWorkflowSourceLocaleDe: {
+    defaultMessage: "German locale added",
+    id: "PZcFaqy4V9",
+    description: "German target locale in the source panel",
+  },
+  helpCenterWorkflowSourceLocaleJa: {
+    defaultMessage: "Japanese locale added",
+    id: "JDGyX9/EsF",
+    description: "Japanese target locale in the source panel",
+  },
+  helpCenterWorkflowContextTitle: {
+    defaultMessage: "Context pack",
+    id: "tsYmFgHe5T",
+    description: "Title of the help center context panel",
+  },
+  helpCenterWorkflowContextSubtitle: {
+    defaultMessage: "Glossary, tone, and policy",
+    id: "vZDzxnCioC",
+    description: "Subtitle of the help center context panel",
+  },
+  helpCenterWorkflowContextGlossaryLabel: {
+    defaultMessage: "Glossary",
+    id: "hGlR9UF5RP",
+    description: "Glossary field label in the context panel",
+  },
+  helpCenterWorkflowContextGlossaryValue: {
+    defaultMessage: "Support terminology",
+    id: "DD/k2vN8db",
+    description: "Glossary value in the context panel",
+  },
+  helpCenterWorkflowContextToneLabel: {
+    defaultMessage: "Tone",
+    id: "80pIC0TodE",
+    description: "Tone field label in the context panel",
+  },
+  helpCenterWorkflowContextToneValue: {
+    defaultMessage: "Clear and reassuring",
+    id: "6OXnBjnXFl",
+    description: "Selected tone in the context panel",
+  },
+  helpCenterWorkflowContextSourcesLabel: {
+    defaultMessage: "Connected sources",
+    id: "yIGdy9rjnH",
+    description: "Heading for connected context sources",
+  },
+  helpCenterWorkflowContextSourceZendesk: {
+    defaultMessage: "Zendesk",
+    id: "0tRob4vLrj",
+    description: "Zendesk platform name in the context panel",
+  },
+  helpCenterWorkflowContextSourceGlossary: {
+    defaultMessage: "Glossary",
+    id: "ZU7atDsEbV",
+    description: "Glossary source label in the context panel",
+  },
+  helpCenterWorkflowContextSourcePolicy: {
+    defaultMessage: "Support policy",
+    id: "Y1dfscdUUJ",
+    description: "Support policy source label in the context panel",
+  },
+  helpCenterWorkflowContextReady: {
+    defaultMessage: "Context is attached to every locale draft",
+    id: "8xb/5K0KL7",
+    description: "Confirmation that draft context is ready",
+  },
+  helpCenterWorkflowDraftTitle: {
+    defaultMessage: "Locale drafts",
+    id: "L5K3yRw5T6",
+    description: "Title of the translated drafts panel",
+  },
+  helpCenterWorkflowDraftSubtitle: {
+    defaultMessage: "Generated with guardrails",
+    id: "OkUMZaP6g7",
+    description: "Subtitle of the translated drafts panel",
+  },
+  helpCenterWorkflowDraftOriginalLabel: {
+    defaultMessage: "Original",
+    id: "d2FsXFZlna",
+    description: "Source text label in the translated drafts panel",
+  },
+  helpCenterWorkflowDraftOriginalText: {
+    defaultMessage: "Reset your password from the sign-in page and follow the email instructions.",
+    id: "b55WKcjx4a",
+    description: "Example source text in the translated drafts panel",
+  },
+  helpCenterWorkflowDraftLocalisedLabel: {
+    defaultMessage: "Localised draft",
+    id: "yTEsp1QcD6",
+    description: "Translated text label in the drafts panel",
+  },
+  helpCenterWorkflowDraftLocalisedText: {
+    defaultMessage:
+      "Réinitialisez votre mot de passe depuis la page de connexion, puis suivez les instructions envoyées par e-mail.",
+    id: "YqDzw6svNE",
+    description: "Example French translation in the drafts panel",
+  },
+  helpCenterWorkflowReviewTitle: {
+    defaultMessage: "Reviewer queue",
+    id: "DAd+zc//U9",
+    description: "Title of the help center reviewer queue panel",
+  },
+  helpCenterWorkflowReviewSubtitle: {
+    defaultMessage: "Assigned by locale",
+    id: "qzpCFRpBya",
+    description: "Subtitle of the help center reviewer queue panel",
+  },
+  helpCenterWorkflowReviewFrench: {
+    defaultMessage: "French",
+    id: "ZBMwPjQKgR",
+    description: "French language label in the reviewer queue",
+  },
+  helpCenterWorkflowReviewGerman: {
+    defaultMessage: "German",
+    id: "iBKq9UXMyr",
+    description: "German language label in the reviewer queue",
+  },
+  helpCenterWorkflowReviewJapanese: {
+    defaultMessage: "Japanese",
+    id: "xCC43/zpRR",
+    description: "Japanese language label in the reviewer queue",
+  },
+  helpCenterWorkflowReviewAssigned: {
+    defaultMessage: "Reviewer assigned",
+    id: "o+U0ASFBqF",
+    description: "Reviewer assigned status in the reviewer queue",
+  },
+  helpCenterWorkflowReviewReviewing: {
+    defaultMessage: "In review",
+    id: "ZVv1c/tBXG",
+    description: "In-review status in the reviewer queue",
+  },
+  helpCenterWorkflowReviewWaiting: {
+    defaultMessage: "Waiting for review",
+    id: "pnj96Wts3z",
+    description: "Waiting status in the reviewer queue",
+  },
+  helpCenterWorkflowPublishTitle: {
+    defaultMessage: "Publishing",
+    id: "mcTbxPoZ0M",
+    description: "Title of the help center publishing panel",
+  },
+  helpCenterWorkflowPublishSubtitle: {
+    defaultMessage: "Approved content sync",
+    id: "lcVvi96FG6",
+    description: "Subtitle of the help center publishing panel",
+  },
+  helpCenterWorkflowPublishCenter: {
+    defaultMessage: "Help center content synced",
+    id: "vhToqea22F",
+    description: "Help center publishing destination status",
+  },
+  helpCenterWorkflowPublishWidget: {
+    defaultMessage: "Widget answers updated",
+    id: "RxWeIxrNPi",
+    description: "Support widget publishing destination status",
+  },
+  helpCenterWorkflowPublishSearch: {
+    defaultMessage: "Search index refreshed",
+    id: "o6iBHZ/eoc",
+    description: "Search index publishing destination status",
+  },
+  helpCenterWorkflowQaTitle: {
+    defaultMessage: "Quality checks",
+    id: "qehatMEpbK",
+    description: "Title of the help center quality checks panel",
+  },
+  helpCenterWorkflowQaSubtitle: {
+    defaultMessage: "Before publish",
+    id: "2bfWsYN7/o",
+    description: "Subtitle of the help center quality checks panel",
+  },
+  helpCenterWorkflowQaSearch: {
+    defaultMessage: "Search translated article",
+    id: "payY8bEItV",
+    description: "Search placeholder in the quality checks panel",
+  },
+  helpCenterWorkflowQaLinks: {
+    defaultMessage: "Broken links",
+    id: "NZvsOf11nu",
+    description: "Broken links quality check label",
+  },
+  helpCenterWorkflowQaTerms: {
+    defaultMessage: "Terminology",
+    id: "AIC/A7+Kc8",
+    description: "Terminology quality check label",
+  },
+  helpCenterWorkflowQaDrift: {
+    defaultMessage: "Message drift",
+    id: "05ACmS1vNt",
+    description: "Translation drift quality check label",
+  },
+  helpCenterWorkflowQaPass: {
+    defaultMessage: "All checks passed before publish",
+    id: "AUps3e19eM",
+    description: "Passing status in the help center quality checks panel",
+  },
+
+  helpCenterScenarioArticleUpdated: {
+    defaultMessage: "Source article updated",
+    id: "xrrgj5ucgR",
+    description: "Floating card title for a help center article update.",
+  },
+  helpCenterScenarioArticleUpdatedDescription: {
+    defaultMessage: "Hyperlocalise detects the latest billing FAQ changes from your help center.",
+    id: "xGxuDGxg+Z",
+    description: "Details shown when the source update card is selected.",
+  },
+
+  helpCenterScenarioTranslationsReady: {
+    defaultMessage: "Locale drafts generated",
+    id: "roxXVkLUPo",
+    description: "Floating card title for help center translation drafts.",
+  },
+  helpCenterScenarioTranslationsReadyDescription: {
+    defaultMessage: "Drafts are generated with product context and approved terminology.",
+    id: "W+njj3/ewh",
+    description: "Details shown when the translation card is selected.",
+  },
+
+  helpCenterScenarioQualityChecked: {
+    defaultMessage: "Terminology checked",
+    id: "FswXrmNDtF",
+    description: "Floating card title for localisation quality checks.",
+  },
+  helpCenterScenarioQualityCheckedDescription: {
+    defaultMessage: "Glossary and UI terminology checks catch inconsistencies before review.",
+    id: "6ceVPZtzo3",
+    description: "Details shown when the quality card is selected.",
+  },
+
+  helpCenterScenarioContentSynced: {
+    defaultMessage: "Help center synced",
+    id: "pjD6QVo/Nc",
+    description: "Floating card title for synchronising approved translations.",
+  },
+  helpCenterScenarioContentSyncedDescription: {
+    defaultMessage:
+      "Approved articles sync to your existing CMS, with locale freshness tracked after publishing.",
+    id: "C33oVxJPQX",
+    description: "Details shown when the publishing card is selected.",
+  },
+
+  helpCenterScenarioWorkflowSummary: {
+    defaultMessage:
+      "From source update to approved translations, without replacing your existing tools.",
+    id: "Ju/QTE6sWh",
+    description: "Summary below the help center scenario visual.",
+  },
+
   githubReleaseLocalisationMetadataTitle: {
     defaultMessage: "Localisation Checks That Run With Every Pull Request | Hyperlocalise",
     id: "hQHAZFLEs7",
@@ -1135,6 +1414,362 @@ export const useCasePageMessages = defineMessages({
     id: "WHOyA1uTn/",
     description: "CTA section description for the github-release-localisation use case",
   },
+  githubReleaseWorkflowPreviewPrOpen: {
+    defaultMessage: "Open",
+    id: "N9yKlvQo7o",
+    description: "Open pull request status inside the GitHub Release workflow illustration.",
+  },
+  githubReleaseWorkflowPreviewPrChanges: {
+    defaultMessage: "14 changed · 6 added",
+    id: "TbtVjPcn8N",
+    description: "Example number of updated and new strings in a GitHub pull request preview.",
+  },
+  githubReleaseWorkflowPreviewPrDetected: {
+    defaultMessage: "Strings detected",
+    id: "TuBSJ5qXfJ",
+    description: "Confirmation that the GitHub pull request's localisation changes were detected.",
+  },
+  githubReleaseWorkflowPreviewAnalysisTitle: {
+    defaultMessage: "String impact analysis",
+    id: "uGvSq/n5d4",
+    description: "Title of the string-change analysis mini interface.",
+  },
+  githubReleaseWorkflowPreviewAffectedLocales: {
+    defaultMessage: "Affected locales",
+    id: "agMe6h0RL4",
+    description: "Label for the count of locales affected by changed source strings.",
+  },
+  githubReleaseWorkflowPreviewGlossaryImpact: {
+    defaultMessage: "Glossary impact",
+    id: "dUW9AlUsv/",
+    description: "Label for terminology impact in a pull request analysis preview.",
+  },
+  githubReleaseWorkflowPreviewReviewNeeded: {
+    defaultMessage: "Needs review",
+    id: "2v5acvtulZ",
+    description: "Status indicating a terminology change requires human review.",
+  },
+  githubReleaseWorkflowPreviewNewKey: {
+    defaultMessage: "New key",
+    id: "1WcWsw29Gt",
+    description: "Badge indicating a newly introduced translation string key.",
+  },
+  githubReleaseWorkflowPreviewDraftTitle: {
+    defaultMessage: "AI translation draft",
+    id: "t4pzGnwzaP",
+    description: "Heading of the draft translation mock interface.",
+  },
+  githubReleaseWorkflowPreviewDraftReady: {
+    defaultMessage: "Draft ready",
+    id: "L9j/42Ggi3",
+    description: "Status for a generated translation draft.",
+  },
+  githubReleaseWorkflowPreviewSelectLocale: {
+    defaultMessage: "Choose a translation locale",
+    id: "DAAh2gN02H",
+    description: "Accessible label for interactive locale selection in the workflow illustration.",
+  },
+  githubReleaseWorkflowPreviewSourceLabel: {
+    defaultMessage: "Source · EN",
+    id: "HoybWP5X33",
+    description: "Label for the source English string in the translation preview.",
+  },
+  githubReleaseWorkflowPreviewLocalisedLabel: {
+    defaultMessage: "Translated",
+    id: "O0Xd/xU9pg",
+    description: "Label for a generated localised string in the preview.",
+  },
+  githubReleaseWorkflowPreviewSourceText: {
+    defaultMessage: "Change your plan",
+    id: "WtBMJy0Eoa",
+    description: "Example English source interface text in the GitHub release translation preview.",
+  },
+  githubReleaseWorkflowPreviewFrenchText: {
+    defaultMessage: "Changer votre forfait",
+    id: "hLHBXUfASt",
+    description: "Example French translation of Change your plan, displayed when FR is selected.",
+  },
+  githubReleaseWorkflowPreviewGermanText: {
+    defaultMessage: "Tarif wechseln",
+    id: "rI1A07cuJl",
+    description: "Example German translation of Change your plan, displayed when DE is selected.",
+  },
+  githubReleaseWorkflowPreviewJapaneseText: {
+    defaultMessage: "プランを変更",
+    id: "iDRhWJGNEV",
+    description: "Example Japanese translation of Change your plan, displayed when JA is selected.",
+  },
+  githubReleaseWorkflowPreviewReviewTitle: {
+    defaultMessage: "Localisation review queue",
+    id: "0NsaI0RVXB",
+    description: "Title of the review assignments mock interface.",
+  },
+  githubReleaseWorkflowPreviewApproved: {
+    defaultMessage: "Approved",
+    id: "xjeKYd3Shs",
+    description: "State of a completed localisation review.",
+  },
+  githubReleaseWorkflowPreviewInReview: {
+    defaultMessage: "In review",
+    id: "i4mDTd3mIb",
+    description: "State of an active localisation review task.",
+  },
+  githubReleaseWorkflowPreviewWaiting: {
+    defaultMessage: "Waiting for review",
+    id: "Cgz0HJ3b8O",
+    description: "State of a queued localisation review task.",
+  },
+  githubReleaseWorkflowPreviewReviewerAssigned: {
+    defaultMessage: "Reviewer assigned",
+    id: "HQkvVGo6/i",
+    description: "Label next to the selected locale's review assignment.",
+  },
+  githubReleaseWorkflowPreviewChecksPending: {
+    defaultMessage: "2 of 3 passed",
+    id: "Uglt/uu6wd",
+    description: "Example state before all CI localisation checks have completed.",
+  },
+  githubReleaseWorkflowPreviewPassed: {
+    defaultMessage: "All passed",
+    id: "i/UqfswpYK",
+    description: "Example state after all CI localisation checks complete successfully.",
+  },
+  githubReleaseWorkflowPreviewCoverageCheck: {
+    defaultMessage: "Locale coverage",
+    id: "MQdlpvxiGl",
+    description: "Automated GitHub Actions check for the completeness of target locale strings.",
+  },
+  githubReleaseWorkflowPreviewGlossaryCheck: {
+    defaultMessage: "Glossary consistency",
+    id: "xIq57lDmf6",
+    description: "Automated check for terminology consistency.",
+  },
+  githubReleaseWorkflowPreviewRegressionCheck: {
+    defaultMessage: "Translation regression",
+    id: "ACxtEgyl4x",
+    description: "Automated check for translation regressions.",
+  },
+  githubReleaseWorkflowPreviewRunChecks: {
+    defaultMessage: "Run example checks",
+    id: "+hOfMaSjm8",
+    description: "Button to simulate passing CI localisation checks in an illustrative preview.",
+  },
+  githubReleaseWorkflowPreviewResetChecks: {
+    defaultMessage: "Reset example checks",
+    id: "8aoUt05s5G",
+    description: "Button to reset the simulated CI localisation check state.",
+  },
+  githubReleaseWorkflowPreviewGateTitle: {
+    defaultMessage: "Protected merge",
+    id: "Y4TovY+14n",
+    description: "Title of the pull request release gate mini interface.",
+  },
+  githubReleaseWorkflowPreviewGateBlocked: {
+    defaultMessage: "Merge blocked",
+    id: "zNCkUAxchR",
+    description: "Release gate state while required locale reviews are outstanding.",
+  },
+  githubReleaseWorkflowPreviewGateReady: {
+    defaultMessage: "Ready to merge",
+    id: "ZMbfR1qW8n",
+    description: "Release gate state after all example locale reviews have been approved.",
+  },
+  githubReleaseWorkflowPreviewAwaitingLocales: {
+    defaultMessage: "Waiting on DE and JA reviewers",
+    id: "3zh/i4Kkzm",
+    description:
+      "Illustrative release block reason identifying outstanding German and Japanese reviewers.",
+  },
+  githubReleaseWorkflowPreviewAllLocalesApproved: {
+    defaultMessage: "All required locales approved",
+    id: "FKZZUsT4uX",
+    description:
+      "Illustrative release gate reason after all required locale reviews have been approved.",
+  },
+  githubReleaseWorkflowPreviewPreviewApproval: {
+    defaultMessage: "Preview approved state",
+    id: "zy281NSLrv",
+    description:
+      "Button that switches the sample release gate to an approved demo state, without merging code.",
+  },
+  githubReleaseWorkflowPreviewResetGate: {
+    defaultMessage: "Reset preview",
+    id: "bbckDRZZ0+",
+    description: "Button to reset the example release gate to its initial blocked state.",
+  },
+  githubReleaseScenarioPrTitle: {
+    defaultMessage: "Pull request analysed",
+    id: "hYwqULhM1w",
+    description: "GitHub release localisation scenario first stage title.",
+  },
+  githubReleaseScenarioPrDescription: {
+    defaultMessage:
+      "Detect changed strings and identify affected locales before translation begins.",
+    id: "VpBJ7qY4T/",
+    description: "GitHub release scenario first stage description.",
+  },
+  githubReleaseScenarioPrSource: {
+    defaultMessage: "Pricing UI update",
+    id: "aMtAyJ6wIW",
+    description: "Pull request preview heading in GitHub release scenario.",
+  },
+  githubReleaseScenarioPrStatus: {
+    defaultMessage: "Changes detected in PR #128",
+    id: "u5+LpQB/s4",
+    description: "Pull request status in GitHub release scenario.",
+  },
+  githubReleaseScenarioPrBranch: {
+    defaultMessage: "feature/pricing-labels",
+    id: "0yxQlY4DWe",
+    description: "Example Git branch name in GitHub release scenario.",
+  },
+  githubReleaseScenarioRenamed: {
+    defaultMessage: "Strings renamed",
+    id: "nU9TlIS4bC",
+    description: "Label for fourteen renamed UI strings in GitHub release scenario.",
+  },
+  githubReleaseScenarioAdded: {
+    defaultMessage: "New strings",
+    id: "YEiwi1tBQG",
+    description: "Label for six new UI strings in GitHub release scenario.",
+  },
+  githubReleaseScenarioCommentTitle: {
+    defaultMessage: "Hyperlocalise PR comment",
+    id: "fwQli2dKJa",
+    description: "Heading for automatic PR comment preview.",
+  },
+  githubReleaseScenarioCommentDescription: {
+    defaultMessage: "Affected locales and pricing terminology highlighted for reviewers.",
+    id: "xxxestsuSV",
+    description: "Description of automatic PR comment in GitHub release scenario.",
+  },
+  githubReleaseScenarioDraftTitle: {
+    defaultMessage: "Drafts and review tasks",
+    id: "tLjQ071Q8l",
+    description: "GitHub release scenario second stage title.",
+  },
+  githubReleaseScenarioDraftDescription: {
+    defaultMessage:
+      "Generate glossary-aware drafts and open German and Japanese review tasks in Lokalise.",
+    id: "I45m8ceRmP",
+    description: "GitHub release scenario second stage description.",
+  },
+  githubReleaseScenarioDraftSource: {
+    defaultMessage: "Translation review queue",
+    id: "ulN4Y3nMZj",
+    description: "Heading for Lokalise review preview in GitHub release scenario.",
+  },
+  githubReleaseScenarioDraftStatus: {
+    defaultMessage: "Drafts ready · reviewers assigned",
+    id: "TdvqBj4Edm",
+    description: "Status of translation review queue in GitHub release scenario.",
+  },
+  githubReleaseScenarioGlossaryTitle: {
+    defaultMessage: "Linked launch brief",
+    id: "qJA+vR7RYr",
+    description: "Heading for glossary context in GitHub release scenario.",
+  },
+  githubReleaseScenarioGlossaryDescription: {
+    defaultMessage: "Pricing glossary context applied",
+    id: "UrnCnpscZx",
+    description: "Description of glossary context in GitHub release scenario.",
+  },
+  githubReleaseScenarioReviewTasks: {
+    defaultMessage: "Reviewer tasks",
+    id: "Rzd8EvoYsR",
+    description: "Label for assigned review tasks in GitHub release scenario.",
+  },
+  githubReleaseScenarioGerman: {
+    defaultMessage: "German review",
+    id: "Y7Q0LFdd3Q",
+    description: "German localisation reviewer in GitHub release scenario.",
+  },
+  githubReleaseScenarioJapanese: {
+    defaultMessage: "Japanese review",
+    id: "mYvuPuhEYF",
+    description: "Japanese localisation reviewer in GitHub release scenario.",
+  },
+  githubReleaseScenarioGateTitle: {
+    defaultMessage: "Release gate",
+    id: "d42WfTphb0",
+    description: "GitHub release scenario third stage title.",
+  },
+  githubReleaseScenarioGateDescription: {
+    defaultMessage:
+      "GitHub Actions blocks merge until German and Japanese pricing terminology is approved.",
+    id: "Tm3dFk4R/k",
+    description: "GitHub release scenario third stage description.",
+  },
+  githubReleaseScenarioGateSource: {
+    defaultMessage: "GitHub Actions",
+    id: "fS0DVsNcF/",
+    description: "GitHub release scenario CI preview heading.",
+  },
+  githubReleaseScenarioGateStatus: {
+    defaultMessage: "Localisation release check",
+    id: "G0kfmqGfwO",
+    description: "GitHub release scenario CI preview subtitle.",
+  },
+  githubReleaseScenarioMergeGate: {
+    defaultMessage: "Merge gate",
+    id: "WvqS+NrmZR",
+    description: "GitHub release scenario merge gate label.",
+  },
+  githubReleaseScenarioGatePassed: {
+    defaultMessage: "Ready to merge",
+    id: "saPv7ubPZq",
+    description: "Status when all reviewers have approved in GitHub release simulation.",
+  },
+  githubReleaseScenarioGateBlocked: {
+    defaultMessage: "Merge blocked",
+    id: "OA2tOILRy0",
+    description: "Status when reviewers have not approved in GitHub release simulation.",
+  },
+  githubReleaseScenarioCiCheck: {
+    defaultMessage: "String and locale coverage checks passed",
+    id: "Nk/InH4/S2",
+    description: "Successful GitHub Actions coverage check in release simulation.",
+  },
+  githubReleaseScenarioApprovalsHint: {
+    defaultMessage: "After the simulation, approve both reviewers to unlock merge.",
+    id: "XEsmVJY8/y",
+    description: "Instructions for interactive reviewer approvals in GitHub release scenario.",
+  },
+  githubReleaseScenarioReady: {
+    defaultMessage: "Ready to simulate the pull request workflow.",
+    id: "IFqSusj+q8",
+    description: "Idle GitHub release scenario simulation status.",
+  },
+  githubReleaseScenarioRunning: {
+    defaultMessage: "Running pull request, review, and CI checks…",
+    id: "bhJKhPCWD9",
+    description: "In-progress GitHub release scenario simulation status.",
+  },
+  githubReleaseScenarioBlocked: {
+    defaultMessage: "Merge blocked — outstanding reviewer approvals are required.",
+    id: "eCeZLfafvh",
+    description: "Blocked GitHub release scenario status after simulation.",
+  },
+  githubReleaseScenarioComplete: {
+    defaultMessage: "Both reviewers approved — the release gate is clear.",
+    id: "X6O4+fOqk+",
+    description: "Completed GitHub release scenario simulation status.",
+  },
+  githubReleaseScenarioRunButton: {
+    defaultMessage: "Run simulation",
+    id: "9Ey1urdjsS",
+    description: "Button to start GitHub release scenario simulation.",
+  },
+  githubReleaseScenarioRunningButton: {
+    defaultMessage: "Running simulation",
+    id: "O6BkZpjkgn",
+    description: "Button label while GitHub release scenario simulation is running.",
+  },
+  githubReleaseScenarioRerunButton: {
+    defaultMessage: "Run again",
+    id: "6Odq2E3sv8",
+    description: "Button to restart GitHub release scenario simulation.",
+  },
   localisationQualityMonitoringMetadataTitle: {
     defaultMessage: "Catch Translation Drift Before Your Customers Do | Hyperlocalise",
     id: "yB2wsLvc7h",
@@ -1366,6 +2001,7 @@ export const useCasePageMessages = defineMessages({
     id: "lsXD2TTIpU",
     description: "Differentiator point 2 for the localisation-quality-monitoring use case",
   },
+
   localisationQualityMonitoringDifferentiatorPoint2: {
     defaultMessage: "Human-in-the-loop escalation",
     id: "BUP/2Zum32",
@@ -1407,6 +2043,433 @@ export const useCasePageMessages = defineMessages({
       "Start a free workspace, or request a demo, and catch translation drift before it reaches your customers.",
     id: "vFLD5uz9RF",
     description: "CTA section description for the localisation-quality-monitoring use case",
+  },
+  localisationqualityWorkflowSourcesTitle: {
+    defaultMessage: "Connected content sources",
+    id: "QNMRrPkXCN",
+    description: "Header above the source inventory in the quality workflow demo.",
+  },
+  localisationqualityWorkflowConnected: {
+    defaultMessage: "Connected",
+    id: "Mao2Mc+0tD",
+    description: "Badge for connected quality monitoring sources.",
+  },
+  localisationqualityWorkflowProduct: {
+    defaultMessage: "Product strings",
+    id: "HUCubZRiHL",
+    description: "Name of the product strings content source.",
+  },
+  localisationqualityWorkflowMarketing: {
+    defaultMessage: "Marketing pages",
+    id: "xgn6XslrY9",
+    description: "Name of the marketing landing pages source.",
+  },
+  localisationqualityWorkflowHelpCenter: {
+    defaultMessage: "Help center articles",
+    id: "uZuEC8qWBQ",
+    description: "Name of the help center content source.",
+  },
+  localisationqualityWorkflowSourceHint: {
+    defaultMessage: "Select a source to inspect its monitored strings.",
+    id: "HhzsG2iVm5",
+    description: "Help text beneath the quality content source selector.",
+  },
+  localisationqualityWorkflowThreeSources: {
+    defaultMessage: "3 sources monitored",
+    id: "xwdgEmOGDt",
+    description: "Summary badge showing the number of monitored content sources.",
+  },
+  localisationqualityWorkflowAnalysisTitle: {
+    defaultMessage: "Terminology scan",
+    id: "4NWrjDnTnb",
+    description: "Title of the quality analysis mock UI.",
+  },
+  localisationqualityWorkflowIssuesFound: {
+    defaultMessage: "Issues found",
+    id: "cerhAj1Mv3",
+    description: "Warning badge when quality issues are detected.",
+  },
+  localisationqualityWorkflowTermsTab: {
+    defaultMessage: "Terms",
+    id: "dcbPG4gnqt",
+    description: "Tab for glossary terminology analysis.",
+  },
+  localisationqualityWorkflowCoverageTab: {
+    defaultMessage: "Coverage",
+    id: "OLpx/eFuMh",
+    description: "Tab for locale coverage analysis.",
+  },
+  localisationqualityWorkflowTermMismatch: {
+    defaultMessage: "Outdated product terminology",
+    id: "nioEFAXxPa",
+    description: "Warning about obsolete glossary terminology after a rebrand.",
+  },
+  localisationqualityWorkflowOldName: {
+    defaultMessage: "Previous name",
+    id: "b9ObsK0oba",
+    description: "Example obsolete brand terminology.",
+  },
+  localisationqualityWorkflowNewName: {
+    defaultMessage: "Approved name",
+    id: "EkONq5LYSk",
+    description: "Example approved brand terminology.",
+  },
+  localisationqualityWorkflowTermNote: {
+    defaultMessage: "Found in content that predates the updated glossary.",
+    id: "LC4dnrXXGM",
+    description: "Explanation for an obsolete terminology violation.",
+  },
+  localisationqualityWorkflowCoverageLabel: {
+    defaultMessage: "Locale coverage",
+    id: "sPWnbXl+yM",
+    description: "Label for a locale coverage percentage.",
+  },
+  localisationqualityWorkflowCoverageNote: {
+    defaultMessage: "Some locale updates are still missing.",
+    id: "9CP1JtCw0L",
+    description: "Explanation for incomplete locale coverage.",
+  },
+  localisationqualityWorkflowRegressionTitle: {
+    defaultMessage: "Regression evaluation",
+    id: "agfJeI4OxC",
+    description: "Title of the baseline comparison demo.",
+  },
+  localisationqualityWorkflowBelowThreshold: {
+    defaultMessage: "Below threshold",
+    id: "U8awDyo/yN",
+    description: "Quality score failure status.",
+  },
+  localisationqualityWorkflowBaseline: {
+    defaultMessage: "Approved baseline",
+    id: "J/yoJQYuGx",
+    description: "Label for approved baseline quality score.",
+  },
+  localisationqualityWorkflowCurrent: {
+    defaultMessage: "Current evaluation",
+    id: "aDXyNRWArq",
+    description: "Label for current quality score.",
+  },
+  localisationqualityWorkflowMinimumScore: {
+    defaultMessage: "Required score",
+    id: "957V5sQdtG",
+    description: "Label for the minimum acceptable quality score.",
+  },
+  localisationqualityWorkflowRegressionDifference: {
+    defaultMessage: "New translations need terminology corrections before sync.",
+    id: "Gvf/Wt9iyV",
+    description: "Regression comparison note for failed quality evaluation.",
+  },
+  localisationqualityWorkflowHideComparison: {
+    defaultMessage: "Hide comparison",
+    id: "3/gztLgfBv",
+    description: "Button to collapse the regression comparison detail.",
+  },
+  localisationqualityWorkflowCompareBaseline: {
+    defaultMessage: "Compare with baseline",
+    id: "aN8xLqa6T2",
+    description: "Button to show regression comparison detail.",
+  },
+  localisationqualityWorkflowReviewTitle: {
+    defaultMessage: "Flagged review tasks",
+    id: "Cxq9W2eu+U",
+    description: "Title of the reviewer routing example.",
+  },
+  localisationqualityWorkflowReviewRequired: {
+    defaultMessage: "Review required",
+    id: "tHR+Hb5FKC",
+    description: "Badge for quality items requiring human review.",
+  },
+  localisationqualityWorkflowGerman: {
+    defaultMessage: "German terminology",
+    id: "f5CvCsI7e9",
+    description: "Reviewer task for German terminology.",
+  },
+  localisationqualityWorkflowJapanese: {
+    defaultMessage: "Japanese terminology",
+    id: "i0PXfsSb9E",
+    description: "Reviewer task for Japanese terminology.",
+  },
+  localisationqualityWorkflowFrench: {
+    defaultMessage: "French terminology",
+    id: "a7UHmn3FtE",
+    description: "Reviewer task for French terminology.",
+  },
+  localisationqualityWorkflowReviewerNote: {
+    defaultMessage: "Flagged strings are routed to locale reviewers.",
+    id: "KVeOzQA00a",
+    description: "Explanation of routing flagged localisation strings to reviewers.",
+  },
+  localisationqualityWorkflowGateTitle: {
+    defaultMessage: "TMS sync policy",
+    id: "ZmMw7dpEWt",
+    description: "Title of quality threshold release gate mock UI.",
+  },
+  localisationqualityWorkflowGateAllowed: {
+    defaultMessage: "Sync allowed",
+    id: "/hh4qNcY4K",
+    description: "Quality gate status when sync can proceed.",
+  },
+  localisationqualityWorkflowGateBlocked: {
+    defaultMessage: "Sync blocked",
+    id: "cvzhHsPVtE",
+    description: "Quality gate status when the threshold is not met.",
+  },
+  localisationqualityWorkflowPassedQuality: {
+    defaultMessage: "Quality threshold passed",
+    id: "QTYWMIMjne",
+    description: "Quality score pass heading.",
+  },
+  localisationqualityWorkflowFailedQuality: {
+    defaultMessage: "Quality threshold failed",
+    id: "HD4a8TjpUt",
+    description: "Quality score failure heading.",
+  },
+  localisationqualityWorkflowReadyToSync: {
+    defaultMessage: "Corrected translations are eligible for TMS sync.",
+    id: "GAgEnJoGYk",
+    description: "Description when quality fixes are approved.",
+  },
+  localisationqualityWorkflowSyncStopped: {
+    defaultMessage: "Locales below the threshold cannot sync.",
+    id: "bv/UG68PW/",
+    description: "Description of a blocked TMS sync.",
+  },
+  localisationqualityWorkflowPreviewResolved: {
+    defaultMessage: "Preview corrected result",
+    id: "VKdI41zK9D",
+    description: "Demo button showing how a corrected evaluation clears the gate.",
+  },
+  localisationqualityWorkflowResetExample: {
+    defaultMessage: "Reset preview",
+    id: "sq65IivnMC",
+    description: "Button to reset the threshold demo.",
+  },
+  localisationqualityWorkflowMonitorTitle: {
+    defaultMessage: "Published content monitor",
+    id: "w3hdRMZsmN",
+    description: "Title of ongoing quality monitor mock UI.",
+  },
+  localisationqualityWorkflowWatching: {
+    defaultMessage: "Monitoring",
+    id: "kyrA4N24IK",
+    description: "Badge for ongoing monitoring.",
+  },
+  localisationqualityWorkflowDriftAlert: {
+    defaultMessage: "Drift found",
+    id: "8DUw9UCc3g",
+    description: "Badge for a simulated terminology drift alert.",
+  },
+  localisationqualityWorkflowMonitorNote: {
+    defaultMessage: "Track live content for two weeks after publishing.",
+    id: "aR2a7wzqmP",
+    description: "Explanation for the quality monitoring timeline.",
+  },
+  localisationqualityWorkflowDayOne: {
+    defaultMessage: "Day 1",
+    id: "MSMd2L11FS",
+    description: "First day of the post-publish monitoring timeline.",
+  },
+  localisationqualityWorkflowDaySeven: {
+    defaultMessage: "Day 7",
+    id: "Y7q8a3vwCf",
+    description: "Seventh day of the post-publish monitoring timeline.",
+  },
+  localisationqualityWorkflowDayFourteen: {
+    defaultMessage: "Day 14",
+    id: "LuwDILnQm7",
+    description: "Fourteenth day of the post-publish monitoring timeline.",
+  },
+  localisationqualityWorkflowMonitorClear: {
+    defaultMessage: "No new terminology drift detected.",
+    id: "Rb0SErG24z",
+    description: "Monitoring result with no issues.",
+  },
+  localisationqualityWorkflowMonitorAlertDetail: {
+    defaultMessage: "One published article uses outdated terminology.",
+    id: "47DMxdi+0j",
+    description: "Example post-publication terminology drift alert.",
+  },
+
+  // Interactive scenario
+  localisationqualityScenarioScanTitle: {
+    defaultMessage: "Glossary update and scan",
+    id: "6b6QEMuawp",
+    description: "Title of first quality monitoring scenario stage.",
+  },
+  localisationqualityScenarioScanDescription: {
+    defaultMessage: "Scan product, marketing, and help center content after a rebrand.",
+    id: "U0hYxqHYPR",
+    description: "Description of the first scenario stage.",
+  },
+  localisationqualityScenarioScanSource: {
+    defaultMessage: "Cross-channel terminology scan",
+    id: "yYW5DA59BD",
+    description: "Header of source scan simulation panel.",
+  },
+  localisationqualityScenarioScanStatus: {
+    defaultMessage: "Glossary update detected",
+    id: "aOZrX3NutD",
+    description: "Subtitle of source scan simulation panel.",
+  },
+  localisationqualityScenarioGlossaryUpdated: {
+    defaultMessage: "Product glossary updated",
+    id: "v8h9A1VSF2",
+    description: "Banner confirming rebrand glossary update.",
+  },
+  localisationqualityScenarioGlossaryDetail: {
+    defaultMessage: "The approved brand name replaces previous terminology.",
+    id: "nQO6JjVJWB",
+    description: "Explanation of the example glossary change.",
+  },
+  localisationqualityScenarioScannedSources: {
+    defaultMessage: "Sources checked for old terminology",
+    id: "xJ53CG7SIX",
+    description: "Heading for source categories scanned in the scenario.",
+  },
+  localisationqualityScenarioReviewTitle: {
+    defaultMessage: "Regression checks and review",
+    id: "OY838VwZGt",
+    description: "Title of second quality monitoring scenario stage.",
+  },
+  localisationqualityScenarioReviewDescription: {
+    defaultMessage: "Compare with approved baselines and route failing locales to reviewers.",
+    id: "ORq+BvCcvc",
+    description: "Description of regression and reviewer routing scenario stage.",
+  },
+  localisationqualityScenarioReviewSource: {
+    defaultMessage: "Quality evaluation",
+    id: "rWytFAD93D",
+    description: "Header for quality baseline comparison panel.",
+  },
+  localisationqualityScenarioReviewStatus: {
+    defaultMessage: "Terminology regression detected",
+    id: "d7dWqYCmAp",
+    description: "Subtitle for regression evaluation panel.",
+  },
+  localisationqualityScenarioFlaggedLocales: {
+    defaultMessage: "Flagged locale reviews",
+    id: "7SRGsxJsAl",
+    description: "Heading for affected locale review rows.",
+  },
+  localisationqualityScenarioApproveFixes: {
+    defaultMessage: "Approve corrected translations",
+    id: "/pj8an1jGa",
+    description: "Simulation button for applying reviewed fixes and rerunning the quality score.",
+  },
+  localisationqualityScenarioResetFixes: {
+    defaultMessage: "Undo demo approval",
+    id: "fwL4Px0YQW",
+    description: "Button to reset simulated review approval.",
+  },
+  localisationqualityScenarioMonitorTitle: {
+    defaultMessage: "Sync gate and live monitoring",
+    id: "w1rcRG8Wkg",
+    description: "Title of third quality monitoring scenario stage.",
+  },
+  localisationqualityScenarioMonitorDescription: {
+    defaultMessage: "Block failing locales, then watch approved published content for two weeks.",
+    id: "qY2XznRDmS",
+    description: "Description of gate and ongoing monitoring stage.",
+  },
+  localisationqualityScenarioMonitorSource: {
+    defaultMessage: "TMS sync and drift alerts",
+    id: "6w+4CFdFMR",
+    description: "Header of sync gate and monitoring simulation panel.",
+  },
+  localisationqualityScenarioMonitorStatus: {
+    defaultMessage: "Threshold-controlled publishing",
+    id: "zgScmHgZxu",
+    description: "Subtitle of the sync gate panel.",
+  },
+  localisationqualityScenarioSyncAllowed: {
+    defaultMessage: "TMS sync allowed",
+    id: "AJHqPWtw4c",
+    description: "Pass status for TMS sync after approved corrections.",
+  },
+  localisationqualityScenarioSyncBlocked: {
+    defaultMessage: "TMS sync blocked",
+    id: "f4DUXt+XS7",
+    description: "Failure status for TMS sync.",
+  },
+  localisationqualityScenarioSyncApprovedNote: {
+    defaultMessage: "Corrections pass the 90% threshold; publishing can proceed.",
+    id: "+83/i43u2r",
+    description: "Explanation for a passing TMS sync threshold.",
+  },
+  localisationqualityScenarioSyncBlockedNote: {
+    defaultMessage: "German and Japanese are below the 90% quality threshold.",
+    id: "DitPm4Co0V",
+    description: "Explanation for the blocked locale sync.",
+  },
+  localisationqualityScenarioMonitoringWindow: {
+    defaultMessage: "Two-week drift monitoring",
+    id: "Xo7ebfPP+O",
+    description: "Title of the post-publish monitoring timeline.",
+  },
+  localisationqualityScenarioMonitorWaiting: {
+    defaultMessage: "Monitoring begins once sync is approved.",
+    id: "ZCj6KXm+zW",
+    description: "Post-publish monitoring status before approval.",
+  },
+  localisationqualityScenarioMonitorLive: {
+    defaultMessage: "Published content is being checked for drift.",
+    id: "tQyyYFsAbH",
+    description: "Post-publish monitoring status after sync.",
+  },
+  localisationqualityScenarioDriftFound: {
+    defaultMessage: "Day 14: terminology drift flagged in a published article.",
+    id: "A46L35DjrM",
+    description: "Example alert from two-week published content monitoring.",
+  },
+  localisationqualityScenarioScanDayFourteen: {
+    defaultMessage: "Check day 14",
+    id: "MkGFDxpFLf",
+    description: "Simulation button to check for published content drift on the final day.",
+  },
+  localisationqualityScenarioResetMonitoring: {
+    defaultMessage: "Reset monitoring example",
+    id: "a/vUnXZAzy",
+    description: "Button to reset the simulated drift alert.",
+  },
+  localisationqualityScenarioReady: {
+    defaultMessage: "Ready to simulate the rebrand quality workflow.",
+    id: "kFV71Q0hzp",
+    description: "Idle status of the quality scenario simulation.",
+  },
+  localisationqualityScenarioRunning: {
+    defaultMessage: "Scanning content and evaluating translations…",
+    id: "/TXn7wdb0+",
+    description: "Progress message while the quality scenario simulation runs.",
+  },
+  localisationqualityScenarioBlocked: {
+    defaultMessage: "Quality threshold failed — TMS sync is blocked.",
+    id: "oH8Qd1zr0u",
+    description: "Simulation completion status while quality still fails.",
+  },
+  localisationqualityScenarioReleased: {
+    defaultMessage: "Corrections approved — TMS sync can proceed.",
+    id: "/AZrkrUvgh",
+    description: "Simulation status after approved corrections pass the gate.",
+  },
+  localisationqualityScenarioDriftStatus: {
+    defaultMessage: "Published content drift detected on day 14.",
+    id: "mXhGhdt/GZ",
+    description: "Simulation status after detecting a published-content drift alert.",
+  },
+  localisationqualityScenarioRunButton: {
+    defaultMessage: "Run simulation",
+    id: "D/XpI2xQZ6",
+    description: "Button to run the quality scenario simulation.",
+  },
+  localisationqualityScenarioRunningButton: {
+    defaultMessage: "Running simulation",
+    id: "sTD1hkdcfP",
+    description: "Button label while quality simulation is running.",
+  },
+  localisationqualityScenarioRerunButton: {
+    defaultMessage: "Run again",
+    id: "acWnDDZE0s",
+    description: "Button to rerun the quality scenario simulation.",
   },
   localisationOperationsMetadataTitle: {
     defaultMessage: "One Operations Layer Across Your Entire Localisation Stack | Hyperlocalise",
@@ -1678,6 +2741,427 @@ export const useCasePageMessages = defineMessages({
       "Start a free workspace, or request a demo, and see how your operations team can orchestrate localisation without replacing your existing tools.",
     id: "BuyfK8oOrG",
     description: "CTA section description for the localisation-operations use case",
+  },
+  localisationoperationsContextCampaign: {
+    defaultMessage: "Campaign",
+    id: "lzJ3I0pmnw",
+    description: "Context selector tab for marketing campaign.",
+  },
+  localisationoperationsContextCampaignTitle: {
+    defaultMessage: "Launch brief and legal policy",
+    id: "h8+opkZ6U/",
+    description: "Context panel title for the marketing campaign.",
+  },
+  localisationoperationsContextCampaignDetail: {
+    defaultMessage:
+      "Brand voice, locale glossary, approval rules and the launch brief travel together.",
+    id: "auT+0982Bw",
+    description: "Context for marketing campaign localisation.",
+  },
+  localisationoperationsContextProduct: {
+    defaultMessage: "Product",
+    id: "jdtdWRtIKt",
+    description: "Context selector tab for product strings.",
+  },
+  localisationoperationsContextProductTitle: {
+    defaultMessage: "Product release context",
+    id: "9BMqTSrIzu",
+    description: "Context panel title for product string localisation.",
+  },
+  localisationoperationsContextProductDetail: {
+    defaultMessage: "GitHub changes, approved UI terminology and translation history are attached.",
+    id: "fj2VEPRiaM",
+    description: "Context for product release localisation.",
+  },
+  localisationoperationsContextVendor: {
+    defaultMessage: "Vendor",
+    id: "yyFKuILXxZ",
+    description: "Context selector tab for vendor work.",
+  },
+  localisationoperationsContextVendorTitle: {
+    defaultMessage: "Vendor delivery rules",
+    id: "c9nYkgwRaS",
+    description: "Context panel title for vendor work.",
+  },
+  localisationoperationsContextVendorDetail: {
+    defaultMessage: "Translation memory, glossary and minimum quality threshold are applied.",
+    id: "m2NrziyUjc",
+    description: "Context for a vendor translation batch.",
+  },
+  localisationoperationsReviewHuman: {
+    defaultMessage: "Human review",
+    id: "oJK3BCzTkc",
+    description: "Approval queue for LLM-generated product strings.",
+  },
+  localisationoperationsReviewLegal: {
+    defaultMessage: "Legal approval",
+    id: "bX+4NrHU9m",
+    description: "Legal review queue for marketing copy.",
+  },
+  localisationoperationsReviewMarketingNote: {
+    defaultMessage: "Marketing copy waits for legal sign-off before release.",
+    id: "JngWMzwB9f",
+    description: "Description for selected marketing review task.",
+  },
+  localisationoperationsReviewProductNote: {
+    defaultMessage: "An assigned human reviewer checks the product agent’s draft.",
+    id: "6rFoorXF2x",
+    description: "Description for selected product review task.",
+  },
+  localisationoperationsReviewVendor: {
+    defaultMessage: "Vendor QA",
+    id: "j00HRtIJKH",
+    description: "Quality review queue for vendor translations.",
+  },
+  localisationoperationsReviewVendorNote: {
+    defaultMessage: "Vendor work must pass the quality gate before TMS sync.",
+    id: "dXBjj/Jfc3",
+    description: "Description for selected vendor review task.",
+  },
+  localisationoperationsRouteAgent: {
+    defaultMessage: "LLM + reviewer",
+    id: "unRgqIgLn3",
+    description: "Routing destination for product translations.",
+  },
+  localisationoperationsRouteCms: {
+    defaultMessage: "CMS update",
+    id: "QpyXAPuuz7",
+    description: "Routing destination for help center changes.",
+  },
+  localisationoperationsRouteLegal: {
+    defaultMessage: "Legal team",
+    id: "2MPJ0YW1Nu",
+    description: "Routing destination for marketing approvals.",
+  },
+  localisationoperationsRouteTms: {
+    defaultMessage: "TMS + QA",
+    id: "i8VzY5V/nC",
+    description: "Routing destination for vendor translations.",
+  },
+  localisationoperationsScenarioAwaitingApprovals: {
+    defaultMessage: "Waiting for product, legal and vendor approvals.",
+    id: "iYGlYIzlIU",
+    description: "Scenario status after simulated routing when approvals remain outstanding.",
+  },
+  localisationoperationsScenarioComplete: {
+    defaultMessage: "All reviews cleared — dashboard updated.",
+    id: "3Ytpj9hR9D",
+    description: "Scenario status after all demo approvals have been cleared.",
+  },
+  localisationoperationsScenarioDashboardBlocked: {
+    defaultMessage: "Some streams are blocked pending approval.",
+    id: "ua2RO9rQ3Y",
+    description: "Dashboard summary for outstanding approvals.",
+  },
+  localisationoperationsScenarioDashboardClear: {
+    defaultMessage: "All demo streams are cleared to proceed.",
+    id: "ilLB5Boefs",
+    description: "Dashboard summary when the demo clears all approvals.",
+  },
+  localisationoperationsScenarioDashboardDescription: {
+    defaultMessage: "See coverage, review backlog and blocked work in one place.",
+    id: "sLNUiLQQXo",
+    description: "Scenario stage description for operations reporting.",
+  },
+  localisationoperationsScenarioDashboardSource: {
+    defaultMessage: "Operations overview",
+    id: "UsEp/wetSd",
+    description: "Mock dashboard header in scenario.",
+  },
+  localisationoperationsScenarioDashboardTitle: {
+    defaultMessage: "One operations dashboard",
+    id: "RYt3aGB7mu",
+    description: "Scenario stage title for the shared operations dashboard.",
+  },
+  localisationoperationsScenarioDemoData: {
+    defaultMessage: "Illustrative dashboard figures, not live workspace data.",
+    id: "xwn3SRG9q0",
+    description: "Disclaimer for simulated dashboard metrics.",
+  },
+  localisationoperationsScenarioHelpAutoRoute: {
+    defaultMessage: "Help articles follow the CMS workflow.",
+    id: "kQG8VYVko0",
+    description: "Description of the help center stream in the scenario route panel.",
+  },
+  localisationoperationsScenarioIntakeDescription: {
+    defaultMessage: "Capture a product release, campaign, 12 help articles and vendor batch.",
+    id: "DCc7cPImYz",
+    description: "Scenario stage description for operations intake.",
+  },
+  localisationoperationsScenarioIntakeNote: {
+    defaultMessage: "Each request receives a structured brief and a shared intake record.",
+    id: "kAnEO+PNcv",
+    description: "Explanation below the scenario intake list.",
+  },
+  localisationoperationsScenarioIntakeSource: {
+    defaultMessage: "Four incoming streams",
+    id: "ktwa66ViJj",
+    description: "Mock intake panel heading in the operations scenario.",
+  },
+  localisationoperationsScenarioIntakeTitle: {
+    defaultMessage: "All requests, one intake",
+    id: "BO6egHZbgh",
+    description: "Scenario stage title for unified intake.",
+  },
+  localisationoperationsScenarioLegalReview: {
+    defaultMessage: "Marketing · legal approval",
+    id: "zwst2CASBH",
+    description: "Actionable marketing legal approval task in the scenario.",
+  },
+  localisationoperationsScenarioLegalReviewDetail: {
+    defaultMessage: "Confirm campaign copy against launch and legal requirements.",
+    id: "9ZVWNLtsqj",
+    description: "Description of legal sign-off task.",
+  },
+  localisationoperationsScenarioMetricBacklog: {
+    defaultMessage: "Review backlog",
+    id: "4ym1nMVjfX",
+    description: "Label for pending review tasks in scenario dashboard.",
+  },
+  localisationoperationsScenarioMetricBlocked: {
+    defaultMessage: "Blocked",
+    id: "dnlKnYoNl8",
+    description: "Label for blocked workstreams in scenario dashboard.",
+  },
+  localisationoperationsScenarioMetricCoverage: {
+    defaultMessage: "Locale coverage",
+    id: "0vCNXa40pw",
+    description: "Label for covered target locales in scenario dashboard.",
+  },
+  localisationoperationsScenarioMetricLocaleHealth: {
+    defaultMessage: "Illustrative locale readiness",
+    id: "1xLrqbU4wp",
+    description: "Label for the scenario coverage progress bar.",
+  },
+  localisationoperationsScenarioProductReview: {
+    defaultMessage: "Product · human review",
+    id: "I7RJS9A5Lc",
+    description: "Actionable review task for LLM-generated product strings.",
+  },
+  localisationoperationsScenarioProductReviewDetail: {
+    defaultMessage: "Approve product strings drafted by the LLM agent.",
+    id: "0P5Pp8dI90",
+    description: "Description of product human-review task.",
+  },
+  localisationoperationsScenarioReady: {
+    defaultMessage: "Ready to simulate four-stream intake.",
+    id: "k60bPv0ENl",
+    description: "Scenario status before starting.",
+  },
+  localisationoperationsScenarioRerunButton: {
+    defaultMessage: "Rerun simulation",
+    id: "aXpz7EDBZv",
+    description: "Button to restart the operations scenario.",
+  },
+  localisationoperationsScenarioReviewHint: {
+    defaultMessage: "Select each task to approve or reopen it.",
+    id: "sMtZCXlCH+",
+    description: "Instruction for scenario review task interaction.",
+  },
+  localisationoperationsScenarioReviewLocked: {
+    defaultMessage: "Run the simulation to enable review approvals.",
+    id: "krKTddXu2l",
+    description: "Instruction shown before the scenario is ready for approvals.",
+  },
+  localisationoperationsScenarioRouteDescription: {
+    defaultMessage: "Apply the right reviewer, agent and quality gate to each stream.",
+    id: "5vfo0ROXmb",
+    description: "Scenario stage description for routing content.",
+  },
+  localisationoperationsScenarioRouteSource: {
+    defaultMessage: "Routing and approvals",
+    id: "GlCsZA43fO",
+    description: "Mock routing panel header in the operations scenario.",
+  },
+  localisationoperationsScenarioRouteTitle: {
+    defaultMessage: "Each stream follows its own path",
+    id: "4Ifx6guyY5",
+    description: "Scenario stage title for routing and review.",
+  },
+  localisationoperationsScenarioRunButton: {
+    defaultMessage: "Run simulation",
+    id: "ZwneQncCOm",
+    description: "Button to start the operations scenario.",
+  },
+  localisationoperationsScenarioRunning: {
+    defaultMessage: "Orchestrating four content streams…",
+    id: "igFHcuLESl",
+    description: "Scenario status while simulation is running.",
+  },
+  localisationoperationsScenarioRunningButton: {
+    defaultMessage: "Running…",
+    id: "cPtZh9XVmz",
+    description: "Disabled scenario run button label during simulation.",
+  },
+  localisationoperationsScenarioVendorQa: {
+    defaultMessage: "Vendor · quality gate",
+    id: "Segw+aC/cA",
+    description: "Actionable quality review task for vendor work.",
+  },
+  localisationoperationsScenarioVendorQaDetail: {
+    defaultMessage: "Verify that the vendor batch meets the TMS quality threshold.",
+    id: "7s0AIxFTy6",
+    description: "Description of vendor quality gate approval.",
+  },
+  localisationoperationsStreamHelp: {
+    defaultMessage: "Help center articles",
+    id: "4cjhv4zOoj",
+    description: "Label for help center workstream.",
+  },
+  localisationoperationsStreamMarketing: {
+    defaultMessage: "Marketing campaign",
+    id: "MWbGAas9Uk",
+    description: "Label for marketing workstream.",
+  },
+  localisationoperationsStreamProduct: {
+    defaultMessage: "Product release",
+    id: "GnHVwDK7EL",
+    description: "Label for product release workstream.",
+  },
+  localisationoperationsStreamVendor: {
+    defaultMessage: "Vendor translation batch",
+    id: "XD0iGpZXFz",
+    description: "Label for incoming vendor translation work.",
+  },
+  localisationoperationsWorkflowActiveStreams: {
+    defaultMessage: "Active streams",
+    id: "tq9Q7jlwGd",
+    description: "Label for active streams KPI in workflow report.",
+  },
+  localisationoperationsWorkflowAssigned: {
+    defaultMessage: "Routed",
+    id: "71Oc5QIYn0",
+    description: "Status badge showing the workflow has been routed.",
+  },
+  localisationoperationsWorkflowBacklog: {
+    defaultMessage: "Backlog",
+    id: "sdJsZ9tTAO",
+    description: "Tab label for review backlog in operations report.",
+  },
+  localisationoperationsWorkflowBlockedReleases: {
+    defaultMessage: "Blocked releases",
+    id: "fJABaCLSh6",
+    description: "KPI label for releases blocked in illustrative operations report.",
+  },
+  localisationoperationsWorkflowContextReady: {
+    defaultMessage: "Ready",
+    id: "u25BYRbvRm",
+    description: "Context panel status in operations workflow.",
+  },
+  localisationoperationsWorkflowContextTitle: {
+    defaultMessage: "Context package",
+    id: "OROKibpheU",
+    description: "Workflow panel heading for attaching briefs, glossary and history.",
+  },
+  localisationoperationsWorkflowCoverage: {
+    defaultMessage: "Coverage",
+    id: "4RlDKoOp9z",
+    description: "Tab label for locale coverage in operations report.",
+  },
+  localisationoperationsWorkflowDemoData: {
+    defaultMessage: "Illustrative dashboard figures.",
+    id: "+AcSt+y6zn",
+    description: "Disclaimer for non-live figures in workflow preview.",
+  },
+  localisationoperationsWorkflowFourStreams: {
+    defaultMessage: "4 streams",
+    id: "dw+k39lZaW",
+    description: "Badge showing four intake sources in operations workflow.",
+  },
+  localisationoperationsWorkflowGateFailed: {
+    defaultMessage: "Quality check failed",
+    id: "fMehknRRAz",
+    description: "TMS gate text when vendor batch does not pass.",
+  },
+  localisationoperationsWorkflowGatePassed: {
+    defaultMessage: "Quality check passed",
+    id: "Ckkms6v/Ag",
+    description: "TMS gate text when vendor batch passes.",
+  },
+  localisationoperationsWorkflowGlossaryAttached: {
+    defaultMessage: "Approved glossary attached",
+    id: "Pr6CjQekEp",
+    description: "Message confirming glossary context is available.",
+  },
+  localisationoperationsWorkflowIntakeHint: {
+    defaultMessage: "Work captured from GitHub, Slack, CMS and TMS",
+    id: "rXcEr0jm3Z",
+    description: "Workflow intake summary of connected source systems.",
+  },
+  localisationoperationsWorkflowIntakeTitle: {
+    defaultMessage: "Unified work queue",
+    id: "ndBCLITVg5",
+    description: "Title of workflow intake mock interface.",
+  },
+  localisationoperationsWorkflowLiveView: {
+    defaultMessage: "Overview",
+    id: "JTmUhGz542",
+    description: "Badge title for the sample operations report.",
+  },
+  localisationoperationsWorkflowPendingReviews: {
+    defaultMessage: "Pending reviews",
+    id: "Wb/FrBeIxm",
+    description: "KPI label for reviews awaiting action.",
+  },
+  localisationoperationsWorkflowPreviewPass: {
+    defaultMessage: "Preview passing gate",
+    id: "mnLfyBcJvJ",
+    description: "Demo action to show a vendor QA gate passing.",
+  },
+  localisationoperationsWorkflowReportTitle: {
+    defaultMessage: "Portfolio health",
+    id: "tSNB6QXRvB",
+    description: "Workflow reporting panel title.",
+  },
+  localisationoperationsWorkflowResetGate: {
+    defaultMessage: "Reset gate preview",
+    id: "PPPu7Q9F39",
+    description: "Demo action to restore a blocked vendor QA gate.",
+  },
+  localisationoperationsWorkflowReviewPending: {
+    defaultMessage: "Needs approval",
+    id: "ZTE3uMf+sC",
+    description: "Status badge for pending human or legal review.",
+  },
+  localisationoperationsWorkflowReviewTitle: {
+    defaultMessage: "Approval queue",
+    id: "Yc3PoOk0NH",
+    description: "Workflow review panel title.",
+  },
+  localisationoperationsWorkflowRoutingTitle: {
+    defaultMessage: "Routing rules",
+    id: "O1kr31hab9",
+    description: "Workflow routing panel title.",
+  },
+  localisationoperationsWorkflowSyncAllowed: {
+    defaultMessage: "Sync allowed",
+    id: "exaqc+WdNT",
+    description: "Status when approved TMS work can sync.",
+  },
+  localisationoperationsWorkflowSyncBlocked: {
+    defaultMessage: "Sync blocked",
+    id: "7Pr/v/92dk",
+    description: "Status when vendor work fails a quality gate.",
+  },
+  localisationoperationsWorkflowSyncBlockedNote: {
+    defaultMessage: "Vendor work cannot sync while its quality score is below policy.",
+    id: "QiwpHyGZ/N",
+    description: "Description of blocked TMS sync.",
+  },
+  localisationoperationsWorkflowSyncReadyNote: {
+    defaultMessage: "This preview now meets the threshold for TMS sync.",
+    id: "K85G3xZFL6",
+    description: "Description of the passing demo quality gate.",
+  },
+  localisationoperationsWorkflowSyncTitle: {
+    defaultMessage: "TMS quality gate",
+    id: "qBTs06swYV",
+    description: "Workflow TMS sync preview panel title.",
+  },
+  localisationoperationsWorkflowThreshold: {
+    defaultMessage: "Minimum quality",
+    id: "u3a/t7xZZU",
+    description: "Label for the minimum QA score in the TMS gate.",
   },
   productLocalisationScenarioFlowHeaderTitle: {
     defaultMessage: "Onboarding flow",

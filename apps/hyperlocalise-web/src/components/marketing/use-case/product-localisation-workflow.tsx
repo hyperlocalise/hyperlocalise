@@ -89,18 +89,18 @@ function AIDraftVisual({ step, expanded }: WorkflowGlassVisualProps) {
   return (
     <div className="absolute inset-x-[8%] top-[24%] flex flex-col overflow-hidden rounded-xl border border-border/60 bg-background/65 p-4 shadow-lg backdrop-blur-xl sm:p-5">
       <div className="flex items-center gap-2.5">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-          <TranslateIcon className="size-5 text-primary" aria-hidden />
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-foreground/10">
+          <TranslateIcon className="size-5 text-foreground" aria-hidden />
         </span>
-        <span className="min-w-0 flex-1 text-sm font-semibold text-primary">
+        <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
           <Message messageKey={step.labelKey} />
         </span>
-        <SparkleIcon className="size-5 shrink-0 text-primary" aria-hidden />
+        <SparkleIcon className="size-5 shrink-0 text-foreground" aria-hidden />
       </div>
       <div className="mt-4 flex items-start gap-3 rounded-xl border border-border/60 bg-muted/70 p-3">
-        <SparkleIcon className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
+        <SparkleIcon className="mt-0.5 size-5 shrink-0 text-foreground" aria-hidden />
         {step.descriptionKey ? (
-          <p className="line-clamp-3 text-xs leading-relaxed text-primary">
+          <p className="line-clamp-3 text-xs leading-relaxed text-subtle-foreground">
             <Message messageKey={step.descriptionKey} />
           </p>
         ) : null}
@@ -109,7 +109,7 @@ function AIDraftVisual({ step, expanded }: WorkflowGlassVisualProps) {
         {sampleLocales.map((locale) => (
           <span
             key={locale}
-            className="rounded-lg border border-border/70 bg-muted/70 px-3 py-1.5 text-xs font-medium text-foreground"
+            className="rounded-lg border border-border/70 bg-muted/70 px-2 py-1.5 text-xs font-medium text-foreground"
           >
             {locale}
           </span>
@@ -128,23 +128,23 @@ function ReleaseCheckVisual({ step }: WorkflowGlassVisualProps) {
   ];
 
   return (
-    <div className="absolute inset-x-[8%] top-[24%] flex flex-col overflow-hidden rounded-xl bg-background p-4 py-1.5 shadow-lg backdrop-blur-xl sm:p-5">
+    <div className="absolute inset-x-[8%] top-[24%] flex flex-col overflow-hidden rounded-xl bg-background p-2 py-1.5 shadow-lg backdrop-blur-xl sm:p-3">
       <div className="flex items-center gap-2.5">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-          <ShieldCheckIcon className="size-5 text-primary" aria-hidden />
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-foreground/10">
+          <ShieldCheckIcon className="size-5 text-foreground" aria-hidden />
         </span>
         <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
           <Message messageKey={step.labelKey} />
         </span>
-        <CheckCircleIcon className="size-5 shrink-0 text-primary" weight="fill" aria-hidden />
+        <CheckCircleIcon className="size-5 shrink-0 text-foreground" weight="fill" aria-hidden />
       </div>
       <div className="mt-4 space-y-2">
         {checks.map(({ Icon, messageKey }) => (
           <div
             key={messageKey}
-            className="flex items-center gap-2.5 rounded-lg border border-primary/20 bg-muted px-2 py-2"
+            className="flex items-center gap-2.5 rounded-lg border border-foreground/10 px-2 py-2"
           >
-            <Icon className="size-4 shrink-0 text-primary" aria-hidden />
+            <Icon className="size-4 shrink-0 text-foreground" aria-hidden />
             <span className="min-w-0 flex-1 truncate text-xs text-foreground">
               <Message messageKey={messageKey} />
             </span>
@@ -234,8 +234,8 @@ function ProductContextVisual({
   }, [paused, expanded]);
 
   return (
-    <div className="absolute inset-x-[10%] bottom-[-1rem] top-[24%] overflow-hidden rounded-t-xl border border-border bg-background/95 shadow-[0_12px_30px_rgba(0,0,0,0.08)]">
-      <div className="border-b border-border px-4 py-4 sm:px-5">
+    <div className="absolute inset-x-[8%] bottom-[-1rem] top-[24%] overflow-hidden rounded-t-xl border border-border bg-background/95 shadow-[0_12px_30px_rgba(0,0,0,0.08)]">
+      <div className="border-b border-border px-2 py-2 sm:px-3">
         <p className="text-[0.8rem] font-semibold text-foreground">
           <Message messageKey={step.labelKey} />
         </p>
@@ -253,7 +253,7 @@ function ProductContextVisual({
         onPointerLeave={() => setPaused(false)}
         onFocusCapture={() => setPaused(true)}
         onBlurCapture={() => setPaused(false)}
-        className="h-[calc(100%-5rem)] space-y-2 overflow-y-auto overscroll-contain p-3 sm:p-4"
+        className="h-[calc(100%-5rem)] space-y-2 overflow-y-auto overscroll-contain p-2 sm:p-4"
       >
         {PRODUCT_CONTEXT_INTEGRATIONS.map((slug, index) => {
           const entry = getIntegrationCatalogEntry(slug);
@@ -263,7 +263,7 @@ function ProductContextVisual({
             <div
               key={slug}
               className={[
-                "flex items-center gap-3 rounded-xl border px-3 py-2.5",
+                "flex items-center gap-3 rounded-xl border px-2 py-2.5",
                 "bg-background transition-colors",
                 expanded && index === 0 ? "border-pink-500 bg-pink-100/60" : "border-border",
               ].join(" ")}
@@ -322,7 +322,7 @@ function WorkflowCard({
         aria-pressed={selected}
         className="group block w-full cursor-pointer rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
-        <div className="relative aspect-5/6 overflow-hidden rounded-[1rem] bg-[#F4F4F4]">
+        <div className="relative aspect-5/6 overflow-hidden rounded-[1rem] bg-subtle-foreground/20">
           {background === "mesh" ? (
             <Image
               src={meshSources[meshIndex % meshSources.length]}
@@ -337,7 +337,7 @@ function WorkflowCard({
             <div className="absolute inset-0 bg-muted/45" aria-hidden="true" />
           )}
 
-          <span className="absolute left-3 top-3 z-10 flex size-8 items-center justify-center rounded-xl bg-foreground/15 text-sm font-medium text-foreground backdrop-blur-sm">
+          <span className="absolute left-3 top-3 z-10 flex size-8 items-center justify-center rounded-lg bg-foreground/15 text-sm font-medium text-foreground backdrop-blur-sm">
             {number}
           </span>
 
