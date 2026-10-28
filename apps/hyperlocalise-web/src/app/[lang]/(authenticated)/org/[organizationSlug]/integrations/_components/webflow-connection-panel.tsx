@@ -250,6 +250,7 @@ export function WebflowConnectionPanel({
 
   const collections = discovery?.collections ?? [];
   const sites = discovery?.sites ?? [];
+  const canSave = discovery !== null;
   const localeTags = discovery?.site?.locales
     ? [
         discovery.site.locales.primary.tag,
@@ -312,7 +313,10 @@ export function WebflowConnectionPanel({
               value={siteToken}
               disabled={disabled}
               autoComplete="off"
-              onChange={(event) => setSiteToken(event.currentTarget.value)}
+              onChange={(event) => {
+                setSiteToken(event.currentTarget.value);
+                setDiscovery(null);
+              }}
               placeholder={connection ? "Leave blank to keep current token" : undefined}
             />
             <Button
@@ -403,14 +407,16 @@ export function WebflowConnectionPanel({
         ) : null}
 
         <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            disabled={disabled || saveMutation.isPending}
-            onClick={() => saveMutation.mutate()}
-          >
-            <FloppyDiskIcon />
-            <FormattedMessage {...webflowConnectionPanelMessages.saveConnection} />
-          </Button>
+          {canSave ? (
+            <Button
+              type="button"
+              disabled={disabled || saveMutation.isPending}
+              onClick={() => saveMutation.mutate()}
+            >
+              <FloppyDiskIcon />
+              <FormattedMessage {...webflowConnectionPanelMessages.saveConnection} />
+            </Button>
+          ) : null}
           {connection ? (
             <Button
               type="button"
