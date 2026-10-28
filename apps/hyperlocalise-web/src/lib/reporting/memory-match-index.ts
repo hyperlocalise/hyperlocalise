@@ -12,7 +12,7 @@
  */
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
-/** How many of the entries overlapping a query's bigrams most are compared by edit distance. */
+/** At most how many of the entries overlapping a query's bigrams most are compared by edit distance. */
 const CANDIDATE_LIMIT = 64;
 /** A candidate must be at least this fraction of the query's length to reach a 50% score. */
 const MIN_LENGTH_RATIO = 0.5;
@@ -26,14 +26,15 @@ const SHORT_QUERY_LENGTH = 8;
 
 /** Character edit similarity on normalized text; 100 only for identical strings. */
 export function sourceSimilarity(left: string, right: string): number {
-  return similarityAbove(codePoints(left), codePoints(right), -1);
+  return similarityIfAbove(codePoints(left), codePoints(right), -1);
 }
 
-/** The score `sourceSimilarity` gives an edit distance between texts of these lengths. */
+/** The score `sourceSimilarity` gives an edit distance when the longer text has `longest` characters. */
 function similarityOf(distance: number, longest: number): number {
   return Math.floor(100 * (1 - distance / longest));
 }
 
+/** The text's characters as `Array.from` splits it, a lone surrogate counting as one. */
 function codePoints(text: string): Int32Array {
   const points = new Int32Array(text.length);
   let count = 0;
@@ -46,10 +47,10 @@ function codePoints(text: string): Int32Array {
 }
 
 /**
- * `sourceSimilarity` of two texts' code points when it is above `floor`, or 0 as soon as it is
- * known not to be.
+ * `sourceSimilarity` of two texts' code points, or 0 as soon as it is known to be no higher than
+ * `floor`.
  */
-function similarityAbove(a: Int32Array, b: Int32Array, floor: number): number {
+function similarityIfAbove(a: Int32Array, b: Int32Array, floor: number): number {
   if (a.length === 0 && b.length === 0) return 100;
   if (a.length === 0 || b.length === 0) return 0;
   const longest = Math.max(a.length, b.length);
@@ -182,16 +183,13 @@ function bestCandidateScore(
   const byCap = heap
     .map((entry) => ({
       text: entry.text,
-      cap: similarityOf(
-        Math.abs(entry.length - queryLength),
-        Math.max(entry.length, queryLength, 1),
-      ),
+      cap: similarityOf(Math.abs(entry.length - queryLength), Math.max(entry.length, queryLength)),
     }))
     .sort((left, right) => right.cap - left.cap);
   let best = 0;
   for (const candidate of byCap) {
     if (candidate.cap <= best) break;
-    best = Math.max(best, similarityAbove(queryPoints, codePoints(candidate.text), best));
+    best = Math.max(best, similarityIfAbove(queryPoints, codePoints(candidate.text), best));
   }
   return best;
 }
@@ -202,8 +200,8 @@ function withinLengthRatio(length: number, queryLength: number): boolean {
 
 /**
  * Raises a short query's score from below the lowest band by ranking entries of a comparable
- * length on shared characters instead of bigrams. Entries `first` to `end` must include every
- * entry whose length is within the length ratio of the query.
+ * length on shared characters instead of bigrams. Entries from `first` up to, not including,
+ * `end` must include every entry whose length is within the length ratio of the query.
  */
 function shortQueryScore(
   query: string,
@@ -298,17 +296,17 @@ export class MemoryMatchIndex {
     const first = lowerBound(this.lengths, Math.ceil(queryLength * MIN_LENGTH_RATIO));
     const end = lowerBound(this.lengths, Math.floor(queryLength / MIN_LENGTH_RATIO) + 1);
     const { sharedCounts, counted } = this;
-    let countedCount = 0;
+    let countedLength = 0;
     for (const gram of queryGrams) {
       const posting = this.postings.get(gram);
       if (!posting) continue;
       for (let i = lowerBound(posting, first); i < posting.length && posting[i] < end; i++) {
         const id = posting[i];
-        if (sharedCounts[id]++ === 0) counted[countedCount++] = id;
+        if (sharedCounts[id]++ === 0) counted[countedLength++] = id;
       }
     }
     const candidates: Candidate[] = [];
-    for (let i = 0; i < countedCount; i++) {
+    for (let i = 0; i < countedLength; i++) {
       const id = counted[i];
       candidates.push({
         text: this.entries[id],
