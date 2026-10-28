@@ -184,6 +184,16 @@ export function canMarkJobFailed(job: JobDetailRecord) {
   return isNativeActiveJob(job) && job.assigneeType === "agent";
 }
 
+/** An open proofread, post-edit or translation task waiting on a person, not on an agent. */
+export function canMarkTaskDone(job: JobDetailRecord) {
+  return (
+    !isProviderBackedJob(job) &&
+    job.status === "waiting_for_review" &&
+    (job.kind === "proofread" || job.kind === "translation") &&
+    job.assigneeType !== "agent"
+  );
+}
+
 export function canCancelJob(job: JobDetailRecord) {
   return isNativeActiveJob(job);
 }

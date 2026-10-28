@@ -1,0 +1,98 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { and, eq, inArray, isNull, ne, notExists, or, type SQL } from "drizzle-orm";
+
+import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { recordJobEvents } from "@/lib/job-events/job-events-writer";
+import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { captureJobStatus } from "@/lib/reporting/capture";
+
+/** Kinds of task a person works through in the editor; nothing else finishes them. */
+export const PERSON_TASK_KINDS = ["proofread", "translation"] as const;
+
+export type MarkTaskDoneError = { code: "job_not_found" } | { code: "job_action_unavailable" };
+
+/**
+ * Marks a task for people done: an open proofread, post-edit or translation task waiting
+ * on a person. Agent jobs and provider mirrors finish on their own and are excluded.
+ */
+export async function markTaskDone(input: {
+  organizationId: string;
+  jobId: string;
+  actorUserId: string;
+  accessWhere: SQL | undefined;
+  database?: DatabaseClient;
+}): Promise<Result<{ id: string }, MarkTaskDoneError>> {
+  const database = input.database ?? db;
+
+  const [done] = await database
+    .update(schema.jobs)
+    .set({
+      status: "succeeded",
+      lastError: null,
+      outcomePayload: {
+        code: "marked_done_by_user",
+        message: "Marked done by user",
+      },
+      completedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.jobs.id, input.jobId),
+        eq(schema.jobs.organizationId, input.organizationId),
+        input.accessWhere,
+        eq(schema.jobs.status, "waiting_for_review"),
+        inArray(schema.jobs.kind, [...PERSON_TASK_KINDS]),
+        or(isNull(schema.jobs.assigneeType), ne(schema.jobs.assigneeType, "agent")),
+        notExists(
+          database
+            .select({ jobId: schema.externalJobDetails.jobId })
+            .from(schema.externalJobDetails)
+            .where(eq(schema.externalJobDetails.jobId, schema.jobs.id)),
+        ),
+      ),
+    )
+    .returning({ id: schema.jobs.id });
+
+  if (!done) {
+    const [existing] = await database
+      .select({ id: schema.jobs.id })
+      .from(schema.jobs)
+      .where(
+        and(
+          eq(schema.jobs.id, input.jobId),
+          eq(schema.jobs.organizationId, input.organizationId),
+          input.accessWhere,
+        ),
+      )
+      .limit(1);
+
+    return err({ code: existing ? "job_action_unavailable" : "job_not_found" });
+  }
+
+  await recordJobEvents({
+    jobId: done.id,
+    actorUserId: input.actorUserId,
+    events: [{ type: "job_marked_done", payload: {} }],
+  });
+
+  // Reports charges the task's fixed fee and stops matching later saves to it. The status
+  // must already be succeeded when this runs. Never throws.
+  await captureJobStatus({
+    jobId: done.id,
+    status: "succeeded",
+    operationKey: `done:${done.id}`,
+  });
+
+  return ok({ id: done.id });
+}

@@ -620,6 +620,53 @@ describe("project job create", () => {
     expect(proofreadUsage).toEqual([]);
   });
 
+  it("marks a native proofread task done once, and refuses a second time", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const createResponse = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: {
+          type: "file",
+          title: "Proofread mark done",
+          kind: "proofread",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as { job: { id: string; status: string } };
+
+    const markDone = () =>
+      createClient.api.orgs[":organizationSlug"].jobs[":jobId"]["mark-done"].$post(
+        { param: { organizationSlug, jobId: created.job.id } },
+        { headers },
+      );
+
+    const doneResponse = await markDone();
+    expect(doneResponse.status).toBe(200);
+    const done = (await doneResponse.json()) as { job: { status: string } };
+    expect(done.job.status).toBe("succeeded");
+
+    expect((await markDone()).status).toBe(409);
+  });
+
   it("cancels native proofread jobs stuck in waiting_for_review", async () => {
     const { identity, organization, project } = await createFixture.createStoredProjectFixture();
     const headers = await createFixture.authHeadersFor(identity);

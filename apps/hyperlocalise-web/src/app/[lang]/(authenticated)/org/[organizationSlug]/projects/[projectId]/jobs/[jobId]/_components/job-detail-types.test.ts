@@ -12,7 +12,12 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { canCancelJob, canMarkJobFailed, type JobDetailRecord } from "./job-detail-types";
+import {
+  canCancelJob,
+  canMarkJobFailed,
+  canMarkTaskDone,
+  type JobDetailRecord,
+} from "./job-detail-types";
 
 function createJob(overrides: Partial<JobDetailRecord> = {}): JobDetailRecord {
   return {
@@ -78,5 +83,22 @@ describe("canCancelJob / canMarkJobFailed", () => {
     });
     expect(canCancelJob(job)).toBe(false);
     expect(canMarkJobFailed(job)).toBe(false);
+  });
+});
+
+describe("canMarkTaskDone", () => {
+  it("offers mark done on open proofread and translation tasks for people", () => {
+    expect(canMarkTaskDone(createJob({ assigneeType: "user" }))).toBe(true);
+    expect(canMarkTaskDone(createJob({ assigneeType: null }))).toBe(true);
+    expect(canMarkTaskDone(createJob({ kind: "translation", assigneeType: "user" }))).toBe(true);
+  });
+
+  it("does not offer it for agents, AI reviews, provider tasks or finished tasks", () => {
+    expect(canMarkTaskDone(createJob({ assigneeType: "agent" }))).toBe(false);
+    expect(canMarkTaskDone(createJob({ kind: "review" }))).toBe(false);
+    expect(
+      canMarkTaskDone(createJob({ externalProviderKind: "crowdin", externalJobId: "task_1" })),
+    ).toBe(false);
+    expect(canMarkTaskDone(createJob({ status: "succeeded" }))).toBe(false);
   });
 });

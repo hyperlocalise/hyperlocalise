@@ -137,4 +137,40 @@ export const nativeJobDetailContentMessages = defineMessages({
     id: "h1D+z3ez58",
     description: "Confirm button label while cancelling a job",
   },
+  markTaskDone: {
+    defaultMessage: "Mark done",
+    id: "2EZOEE657y",
+    description: "Button that marks a proofread, post-edit or translation task for people as done",
+  },
+  markTaskDoneTitle: {
+    defaultMessage: "Mark this task done?",
+    id: "+7oMmGxk5W",
+    description: "Title of the confirmation dialog for marking a task for people done",
+  },
+  markTaskDoneDescription: {
+    defaultMessage:
+      "The task closes for everyone working on it and cannot be reopened. Strings not yet approved stay as they are.",
+    id: "yqe47wF98S",
+    description: "Body of the confirmation dialog for marking a task for people done",
+  },
+  keepTaskOpen: {
+    defaultMessage: "Keep open",
+    id: "sTc8os2V6k",
+    description: "Dismiss button in the mark task done confirmation dialog",
+  },
+  markingTaskDone: {
+    defaultMessage: "Marking done…",
+    id: "pBSmD5j3RM",
+    description: "Confirm button label while marking a task done",
+  },
+  taskMarkedDone: {
+    defaultMessage: "Task marked done",
+    id: "K3x5cISuVg",
+    description: "Success toast after marking a task for people done",
+  },
+  failedToMarkTaskDone: {
+    defaultMessage: "Failed to mark the task done",
+    id: "wclN4/dKYj",
+    description: "Toast and error fallback when marking a task done fails",
+  },
 });
