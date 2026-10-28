@@ -35,6 +35,7 @@ import { resolveWorkspaceIntegrationSummary } from "@/lib/integrations/workspace
 import { WEBFLOW_PIPES_SLUG } from "@/lib/webflow/constants";
 
 import { IntegrationLogo } from "./integration-logo";
+import { SimpleBrandIcon } from "./simple-brand-icon";
 import { CollapsibleIntegrationRow } from "./integration-row";
 import { webflowConnectionPanelMessages } from "./webflow-connection-panel.messages";
 
@@ -260,7 +261,13 @@ export function WebflowConnectionPanel({
     <CollapsibleIntegrationRow
       name={providerName}
       description={summary?.detail ?? ""}
-      icon={<IntegrationLogo src={summary?.logoSrc ?? "/images/webflow-logo.svg"} />}
+      icon={
+        summary?.logoSrc ? (
+          <IntegrationLogo src={summary.logoSrc} muted={!isConnected} />
+        ) : summary?.icon ? (
+          <SimpleBrandIcon icon={summary.icon} colored={isConnected} />
+        ) : null
+      }
       isConnected={isConnected}
       userIsAdmin={!disabled}
       expanded={expanded}
