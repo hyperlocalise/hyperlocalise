@@ -12,12 +12,87 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
+
 import {
   MemoryMatchIndex,
   MemorySourceScan,
   memoryMatchScore,
   sourceSimilarity,
 } from "./memory-match-index";
+
+/** Edit similarity worked out over the whole table, with no shortcuts. */
+function plainSimilarity(left: string, right: string): number {
+  const a = Array.from(left);
+  const b = Array.from(right);
+  if (a.length === 0 && b.length === 0) return 100;
+  if (a.length === 0 || b.length === 0) return 0;
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j++) {
+      current[j] = Math.min(
+        current[j - 1] + 1,
+        previous[j] + 1,
+        previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+    previous = current;
+  }
+  return Math.floor(100 * (1 - previous[b.length] / Math.max(a.length, b.length)));
+}
+
+/**
+ * The matching rules read plainly: of the entries within half to twice the query's length, the
+ * 64 sharing the most bigrams relative to both sizes (Dice, ties to the lowest text) are scored
+ * by edit similarity; a short query below the lowest band is also ranked by shared characters.
+ */
+function plainBestScore(sources: string[], sourceText: string): number {
+  if (sources.includes(sourceText)) return 100;
+  const query = normalizeTranslationMemorySourceText(sourceText);
+  const entries = [...new Set(sources.map(normalizeTranslationMemorySourceText))];
+  const length = (text: string) => Array.from(text).length;
+  const bigramsOf = (text: string) => {
+    const chars = Array.from(text);
+    if (chars.length === 1) return new Set(chars);
+    return new Set(chars.slice(1).map((char, i) => chars[i] + char));
+  };
+  const charsOf = (text: string) => new Set(Array.from(text));
+  const best = (piecesOf: (text: string) => Set<string>) => {
+    const queryPieces = piecesOf(query);
+    const ranked = entries
+      .filter(
+        (entry) =>
+          Math.min(length(entry), length(query)) >= 0.5 * Math.max(length(entry), length(query)),
+      )
+      .map((entry) => {
+        const pieces = piecesOf(entry);
+        const shared = [...pieces].filter((piece) => queryPieces.has(piece)).length;
+        return { entry, shared, dice: (2 * shared) / (queryPieces.size + pieces.size) };
+      })
+      .filter((candidate) => candidate.shared > 0)
+      .sort(
+        (left, right) =>
+          right.dice - left.dice ||
+          (left.entry < right.entry ? -1 : left.entry > right.entry ? 1 : 0),
+      )
+      .slice(0, 64);
+    return Math.max(0, ...ranked.map((candidate) => plainSimilarity(query, candidate.entry)));
+  };
+  let score = best(bigramsOf);
+  if (score < 50 && length(query) <= 8) score = Math.max(score, best(charsOf));
+  return Math.min(99, score);
+}
+
+/** A seeded generator (mulberry32), so a failure can be run again. */
+function seededRandom(seed: number) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let x = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 describe("memoryMatchScore", () => {
   it("is 100 only for the same text, as translation reuse requires", () => {
@@ -146,5 +221,56 @@ describe("MemorySourceScan", () => {
     expect(new MemoryMatchIndex(reversed).bestScore(query)).toBe(expected);
     expect(new MemorySourceScan(tied).bestScore(query)).toBe(expected);
     expect(new MemorySourceScan(reversed).bestScore(query)).toBe(expected);
+  });
+});
+
+describe("random memories", () => {
+  // Small alphabets force ties and shared bigrams; the others cover two-unit characters,
+  // combining marks, full-width letters that normalizing changes, and Japanese.
+  const alphabets = [
+    ["a", "b"],
+    Array.from("abc "),
+    Array.from("abcdefghij "),
+    Array.from("aAbB  \t"),
+    ["😀", "👍", "a", " "],
+    ["e", "́", "é", " "],
+    ["Ａ", "A", "ｂ", "b", " "],
+    Array.from("日本語の翻訳を確認"),
+  ];
+
+  it("scores as the plain rules do, in the index and the scan", () => {
+    const random = seededRandom(20261028);
+    const pick = <T>(items: T[]) => items[Math.floor(random() * items.length)];
+    const text = (alphabet: string[], longest: number) =>
+      Array.from({ length: Math.floor(random() * (longest + 1)) }, () => pick(alphabet)).join("");
+    const edited = (source: string, alphabet: string[]) => {
+      const chars = Array.from(source);
+      const at = Math.floor(random() * (chars.length + 1));
+      if (random() < 0.5 && chars.length > 0) chars.splice(Math.min(at, chars.length - 1), 1);
+      else chars.splice(at, 0, pick(alphabet));
+      return chars.join("");
+    };
+    for (let memory = 0; memory < 300; memory++) {
+      const alphabet = pick(alphabets);
+      const longest = pick([1, 3, 6, 12, 40, 150]);
+      const sources = Array.from({ length: pick([0, 1, 3, 20, 90]) }, () =>
+        text(alphabet, longest),
+      );
+      // More entries than are scored, many tied, once normalizing merges these copies.
+      sources.push(...sources.slice(0, 5).map((source) => ` ${source.toUpperCase()} `));
+      const index = new MemoryMatchIndex(sources);
+      const scan = new MemorySourceScan(sources);
+      for (let lookup = 0; lookup < 8; lookup++) {
+        const query =
+          sources.length > 0 && random() < 0.6
+            ? edited(pick(sources), alphabet)
+            : text(alphabet, longest);
+        const expected = plainBestScore(sources, query);
+        expect(index.bestScore(query), JSON.stringify({ sources, query })).toBe(expected);
+        expect(scan.bestScore(query), JSON.stringify({ sources, query })).toBe(expected);
+        const other = text(alphabet, longest);
+        expect(sourceSimilarity(query, other)).toBe(plainSimilarity(query, other));
+      }
+    }
   });
 });
