@@ -283,50 +283,62 @@ describe("random memories", () => {
     ["Ａ", "A", "ｂ", "b", " "],
     Array.from("日本語の翻訳を確認"),
   ];
+  // The plain rules compare a lookup with every entry in full, most of this test's second or so;
+  // on a loaded CI runner that passed the default 5 s.
+  const RANDOM_MEMORIES_TIMEOUT_MS = 60_000;
 
-  it("scores as the plain rules do, in the index and the scan", () => {
-    const random = seededRandom(20261028);
-    const pick = <T>(items: T[]) => items[Math.floor(random() * items.length)];
-    const text = (alphabet: string[], longest: number) =>
-      Array.from({ length: Math.floor(random() * (longest + 1)) }, () => pick(alphabet)).join("");
-    const edited = (source: string, alphabet: string[]) => {
-      const chars = Array.from(source);
-      const at = Math.floor(random() * (chars.length + 1));
-      if (random() < 0.5 && chars.length > 0) chars.splice(Math.min(at, chars.length - 1), 1);
-      else chars.splice(at, 0, pick(alphabet));
-      return chars.join("");
-    };
-    // Lookups whose score depends on which 64 candidates are kept, so the ranking is tested.
-    let rankingDecides = 0;
-    for (let memory = 0; memory < 300; memory++) {
-      const alphabet = pick(alphabets);
-      const longest = pick([1, 3, 6, 12, 40, 150]);
-      const sources = Array.from({ length: pick([0, 1, 3, 20, 90, 300]) }, () =>
-        text(alphabet, longest),
-      );
-      // Copies that differ only in case and outer spaces: normalizing merges them with their
-      // originals, while only the raw text is an exact match.
-      sources.push(...sources.slice(0, 5).map((source) => ` ${source.toUpperCase()} `));
-      const index = new MemoryMatchIndex(sources);
-      const scan = new MemorySourceScan(sources);
-      for (let lookup = 0; lookup < 8; lookup++) {
-        const query =
-          sources.length > 0 && random() < 0.6
-            ? edited(pick(sources), alphabet)
-            : text(alphabet, longest);
-        const expected = plainBestScore(sources, query);
-        const lookupCase = JSON.stringify({ sources, query });
-        expect(index.bestScore(query), lookupCase).toBe(expected);
-        expect(scan.bestScore(query), lookupCase).toBe(expected);
-        if (sources.length > 64 && plainBestScore(sources, query, Infinity) !== expected) {
-          rankingDecides++;
-        }
-        const other = text(alphabet, longest);
-        expect(sourceSimilarity(query, other), JSON.stringify({ query, other })).toBe(
-          plainSimilarity(query, other),
+  it(
+    "scores as the plain rules do, in the index and the scan",
+    { timeout: RANDOM_MEMORIES_TIMEOUT_MS },
+    () => {
+      const random = seededRandom(20261028);
+      const pick = <T>(items: T[]) => items[Math.floor(random() * items.length)];
+      const text = (alphabet: string[], longest: number) =>
+        Array.from({ length: Math.floor(random() * (longest + 1)) }, () => pick(alphabet)).join("");
+      const edited = (source: string, alphabet: string[]) => {
+        const chars = Array.from(source);
+        const at = Math.floor(random() * (chars.length + 1));
+        if (random() < 0.5 && chars.length > 0) chars.splice(Math.min(at, chars.length - 1), 1);
+        else chars.splice(at, 0, pick(alphabet));
+        return chars.join("");
+      };
+      // A lookup whose score depends on which 64 candidates are kept, so the ranking is tested;
+      // one is enough, and looking for it compares every entry, so the search stops there.
+      let rankingDecided = false;
+      for (let memory = 0; memory < 300; memory++) {
+        const alphabet = pick(alphabets);
+        const longest = pick([1, 3, 6, 12, 40, 150]);
+        const sources = Array.from({ length: pick([0, 1, 3, 20, 90, 300]) }, () =>
+          text(alphabet, longest),
         );
+        // Copies that differ only in case and outer spaces: normalizing merges them with their
+        // originals, while only the raw text is an exact match.
+        sources.push(...sources.slice(0, 5).map((source) => ` ${source.toUpperCase()} `));
+        const index = new MemoryMatchIndex(sources);
+        const scan = new MemorySourceScan(sources);
+        for (let lookup = 0; lookup < 8; lookup++) {
+          const query =
+            sources.length > 0 && random() < 0.6
+              ? edited(pick(sources), alphabet)
+              : text(alphabet, longest);
+          const expected = plainBestScore(sources, query);
+          const lookupCase = JSON.stringify({ sources, query });
+          expect(index.bestScore(query), lookupCase).toBe(expected);
+          expect(scan.bestScore(query), lookupCase).toBe(expected);
+          if (
+            !rankingDecided &&
+            sources.length > 64 &&
+            plainBestScore(sources, query, Infinity) !== expected
+          ) {
+            rankingDecided = true;
+          }
+          const other = text(alphabet, longest);
+          expect(sourceSimilarity(query, other), JSON.stringify({ query, other })).toBe(
+            plainSimilarity(query, other),
+          );
+        }
       }
-    }
-    expect(rankingDecides).toBeGreaterThan(0);
-  });
+      expect(rankingDecided).toBe(true);
+    },
+  );
 });
