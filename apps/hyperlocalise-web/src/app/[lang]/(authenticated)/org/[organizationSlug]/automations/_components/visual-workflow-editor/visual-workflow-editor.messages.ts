@@ -1133,6 +1133,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "2RORR1xT6r",
     description: "Retry policy node title",
   },
+  nodeHumanApproval: {
+    defaultMessage: "Human approval",
+    id: "49xYhuwsTz",
+    description: "Human Approval node title",
+  },
+  nodeHumanApprovalHint: {
+    defaultMessage: "Pause until an authorized reviewer makes a decision",
+    id: "z9oHNrIi/C",
+    description: "Human Approval node picker hint",
+  },
   nodeWait: {
     defaultMessage: "Wait",
     id: "nncYBDQUwE",
@@ -1368,6 +1378,21 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "w2tot+OYiM",
     description: "Wait completion output",
   },
+  approvedHandle: {
+    defaultMessage: "Approved",
+    id: "wxMPaxWGqe",
+    description: "Human Approval approved execution branch",
+  },
+  rejectedHandle: {
+    defaultMessage: "Rejected",
+    id: "AaJTPoHaG4",
+    description: "Human Approval rejected execution branch",
+  },
+  changesRequestedHandle: {
+    defaultMessage: "Changes requested",
+    id: "hfibk5yUP6",
+    description: "Human Approval changes requested execution branch",
+  },
   timedOutHandle: {
     defaultMessage: "Timed out",
     id: "1XJEkWqFT6",
@@ -1377,6 +1402,46 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Wait mode",
     id: "bUh5gPU+mn",
     description: "Wait node mode field",
+  },
+  humanApprovalReviewerType: {
+    defaultMessage: "Reviewer type",
+    id: "+nKpOXtDzW",
+    description: "Human Approval reviewer type field",
+  },
+  humanApprovalReviewerUser: {
+    defaultMessage: "User",
+    id: "BC+EYtp52c",
+    description: "Human Approval user reviewer option",
+  },
+  humanApprovalReviewerTeam: {
+    defaultMessage: "Team",
+    id: "DgvKFCDcyk",
+    description: "Human Approval team reviewer option",
+  },
+  humanApprovalReviewerId: {
+    defaultMessage: "Reviewer or team ID",
+    id: "yC1DFxWE4z",
+    description: "Human Approval reviewer identifier field",
+  },
+  humanApprovalPrompt: {
+    defaultMessage: "Approval request",
+    id: "vW4Y6bvp8n",
+    description: "Human Approval prompt field",
+  },
+  humanApprovalArtifactReference: {
+    defaultMessage: "Artifact reference (optional)",
+    id: "NCCUCBym5a",
+    description: "Human Approval protected artifact reference field",
+  },
+  humanApprovalJobReference: {
+    defaultMessage: "Job reference (optional)",
+    id: "JHWc0sKhNb",
+    description: "Human Approval job reference field",
+  },
+  humanApprovalDeadline: {
+    defaultMessage: "Deadline (optional)",
+    id: "YvnYXDqwRx",
+    description: "Human Approval deadline field",
   },
   waitModeDuration: {
     defaultMessage: "Duration",

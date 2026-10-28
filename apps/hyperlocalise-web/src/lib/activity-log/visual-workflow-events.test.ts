@@ -22,6 +22,8 @@ vi.mock("./activity-log-writer", () => ({
 
 import {
   enqueueVisualWorkflowCreatedActivity,
+  enqueueVisualWorkflowApprovalDecidedActivity,
+  enqueueVisualWorkflowApprovalRequestedActivity,
   enqueueVisualWorkflowDeletedActivity,
   enqueueVisualWorkflowPublishedActivity,
   enqueueVisualWorkflowRunStartedActivity,
@@ -135,6 +137,65 @@ describe("visual workflow activity events", () => {
         },
       }),
     );
+  });
+
+  it("records approval lifecycle metadata without protected content", async () => {
+    await enqueueVisualWorkflowApprovalRequestedActivity({
+      approvalRequestId: "approval_1",
+      nodeId: "approval-node",
+      organizationId: "org_1",
+      reviewerType: "team",
+      runId: "run_1",
+      visualWorkflowId: "workflow_1",
+    });
+    await enqueueVisualWorkflowApprovalDecidedActivity({
+      approvalRequestId: "approval_1",
+      decision: "approved",
+      nodeId: "approval-node",
+      organizationId: "org_1",
+      runId: "run_1",
+      userId: "user_1",
+      visualWorkflowId: "workflow_1",
+    });
+
+    expect(enqueueActivityLogEventMock).toHaveBeenNthCalledWith(1, {
+      actorCredentialId: null,
+      actorKind: "system",
+      actorUserId: null,
+      eventType: "visual_workflow_approval_requested",
+      organizationId: "org_1",
+      payload: {
+        approvalRequestId: "approval_1",
+        nodeId: "approval-node",
+        reviewerType: "team",
+        runId: "run_1",
+        status: "pending",
+        visualWorkflowId: "workflow_1",
+      },
+      targetId: "workflow_1",
+      targetKind: "visual_workflow",
+    });
+    expect(enqueueActivityLogEventMock).toHaveBeenNthCalledWith(2, {
+      actorCredentialId: null,
+      actorKind: "user",
+      actorUserId: "user_1",
+      eventType: "visual_workflow_approval_decided",
+      organizationId: "org_1",
+      payload: {
+        approvalRequestId: "approval_1",
+        decision: "approved",
+        nodeId: "approval-node",
+        runId: "run_1",
+        visualWorkflowId: "workflow_1",
+      },
+      targetId: "workflow_1",
+      targetKind: "visual_workflow",
+    });
+
+    const serializedCalls = JSON.stringify(enqueueActivityLogEventMock.mock.calls);
+    expect(serializedCalls).not.toContain("prompt");
+    expect(serializedCalls).not.toContain("artifactReference");
+    expect(serializedCalls).not.toContain("jobReference");
   });
 
   it("records enable when status becomes active", async () => {

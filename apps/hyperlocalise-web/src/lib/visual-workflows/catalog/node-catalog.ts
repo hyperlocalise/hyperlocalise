@@ -236,6 +236,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: ArrowClockwiseIcon,
   },
   {
+    type: "flow.human_approval",
+    category: "flow",
+    enabled: true,
+    icon: UserCheckIcon,
+  },
+  {
     type: "flow.wait",
     category: "flow",
     enabled: true,
@@ -508,6 +514,13 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         jitter: true,
         acknowledgeDuplicateRisk: false,
       };
+    case "flow.human_approval":
+      return {
+        kind: "flow.human_approval",
+        reviewerType: "user",
+        reviewerId: "",
+        prompt: "",
+      };
     case "flow.wait":
       return {
         kind: "flow.wait",
@@ -579,7 +592,7 @@ export function getVisualNodeDimensions(
   if (type.startsWith("trigger.")) {
     return { width: 280, height: 120 };
   }
-  if (type === "flow.wait") {
+  if (type === "flow.human_approval" || type === "flow.wait") {
     return { width: 280, height: 140 };
   }
   if (["flow.stop", "flow.return", "flow.fail"].includes(type)) {
@@ -689,6 +702,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return "For each item";
     case "logic.retry":
       return config.maxAttempts ? `${config.maxAttempts} attempts` : "Retry policy";
+    case "flow.human_approval":
+      return config.reviewerId ? `Approval by ${config.reviewerType}` : "Select reviewer or team";
     case "flow.wait":
       if (config.mode === "duration") {
         return formatWaitDuration(config.durationMs ?? 0);

@@ -143,6 +143,25 @@ function waitNode(
   };
 }
 
+function humanApprovalNode(): VisualWorkflowRfNode {
+  return {
+    id: "approval",
+    type: "flow.human_approval",
+    position: { x: 0, y: 0 },
+    ...getVisualNodeDimensions("flow.human_approval"),
+    data: {
+      catalogType: "flow.human_approval",
+      config: {
+        kind: "flow.human_approval",
+        reviewerType: "user",
+        reviewerId: "user_1",
+        prompt: "Approve this translation?",
+      },
+      runStatus: "idle",
+    },
+  };
+}
+
 function mergeNode(): VisualWorkflowRfNode {
   return {
     id: "merge",
@@ -395,6 +414,36 @@ describe("VisualWorkflowConfigPanel", () => {
       pollingIntervalMs: 5_000,
       timeoutMs: 300_000,
     });
+  });
+
+  it("configures a Human Approval reviewer and protected request fields", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={humanApprovalNode()}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("textbox", { name: "Reviewer or team ID" })).toHaveTextContent(
+      "user_1",
+    );
+    expect(screen.getByRole("textbox", { name: "Approval request" })).toHaveTextContent(
+      "Approve this translation?",
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Reviewer type" }));
+    await user.click(await screen.findByRole("option", { name: "Team" }));
+
+    expect(onChangeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "flow.human_approval", reviewerType: "team" }),
+    );
   });
 
   it("edits the bounded condition wait settings", async () => {

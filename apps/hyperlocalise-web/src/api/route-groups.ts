@@ -70,6 +70,7 @@ import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { createBillingRoutes } from "./routes/billing/billing.route";
 import { createReportsRoutes } from "./routes/reports/reports.route";
+import { createHumanApprovalRoutes } from "./routes/human-approval/human-approval.route";
 
 export type OrgScopedRouteOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
@@ -111,10 +112,14 @@ export function createPublicApiRoutes(options: PublicApiRouteOptions) {
 }
 
 export function createOrgInboxRoutes(options: OrgScopedRouteOptions) {
-  return new Hono().route(
-    "/conversations",
-    createConversationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
-  );
+  return new Hono()
+    .route(
+      "/conversations",
+      createConversationRoutes({
+        fileStorageAdapter: options.fileStorageAdapter,
+      }),
+    )
+    .route("/workflow-approvals", createHumanApprovalRoutes());
 }
 
 export function createOrgKnowledgeRoutes(

@@ -91,6 +91,7 @@ export const visualCatalogTypeSchema = z.enum([
   "ai.agent",
   "logic.for_each",
   "logic.retry",
+  "flow.human_approval",
   "flow.wait",
   "flow.stop",
   "flow.return",
@@ -627,6 +628,15 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     jitter: z.boolean().optional(),
     retryableErrorCodes: z.array(z.string().trim().min(1).max(64)).max(32).optional(),
     acknowledgeDuplicateRisk: z.boolean().optional(),
+  }),
+  z.object({
+    kind: z.literal("flow.human_approval"),
+    reviewerType: z.enum(["user", "team"]),
+    reviewerId: z.string().trim().max(256),
+    prompt: z.string().max(4_000),
+    artifactReference: z.string().trim().max(512).optional(),
+    jobReference: z.string().trim().max(256).optional(),
+    deadline: z.string().datetime({ offset: true }).optional(),
   }),
   z
     .object({

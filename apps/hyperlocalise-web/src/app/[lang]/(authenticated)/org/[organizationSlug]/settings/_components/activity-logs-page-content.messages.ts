@@ -300,6 +300,16 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "/jSn20wHsp",
     description: "Activity log event type label for visual workflow runs",
   },
+  visualWorkflowApprovalRequestedEventType: {
+    defaultMessage: "Visual Workflow Approval Requested",
+    id: "tOii2mJ8OS",
+    description: "Activity log event type label for visual workflow approval requests",
+  },
+  visualWorkflowApprovalDecidedEventType: {
+    defaultMessage: "Visual Workflow Approval Decided",
+    id: "0NzbW+DFmc",
+    description: "Activity log event type label for visual workflow approval decisions",
+  },
   queryCreatedEventType: {
     defaultMessage: "Query Created",
     id: "Ds+zJSK1Kp",
@@ -909,6 +919,16 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "started a visual workflow run",
     id: "5lw2B8GGrH",
     description: "Action for starting a visual workflow run",
+  },
+  visualWorkflowApprovalRequestedAction: {
+    defaultMessage: "requested visual workflow approval",
+    id: "TgL4sBNIk6",
+    description: "Action for requesting visual workflow approval",
+  },
+  visualWorkflowApprovalDecidedAction: {
+    defaultMessage: "decided a visual workflow approval",
+    id: "dT3mTxEcVn",
+    description: "Action for deciding visual workflow approval",
   },
   queryCreatedAction: {
     defaultMessage: "created a query",
