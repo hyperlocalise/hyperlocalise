@@ -34,6 +34,7 @@ import { createFigmaConnectionRoutes } from "./routes/figma-connection/figma-con
 import { createSanityConnectionRoutes } from "./routes/sanity-connection/sanity-connection.route";
 import { createGoogleDriveRoutes } from "./routes/google-drive/google-drive.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
+import { createWebflowConnectionRoutes } from "./routes/webflow-connection/webflow-connection.route";
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
 import { createBrazeRoutes } from "./routes/braze/braze.route";
@@ -162,6 +163,7 @@ export function createOrgTmsRoutes(options: OrgScopedRouteOptions) {
 export function createOrgIntegrationsRoutes() {
   return new Hono()
     .route("/contentful-connections", createContentfulConnectionRoutes())
+    .route("/webflow-connections", createWebflowConnectionRoutes())
     .route("/mcp-server-connections", createMcpServerConnectionRoutes())
     .route("/semrush-connections", createSemrushConnectionRoutes())
     .route("/zernio-connections", createZernioConnectionRoutes())

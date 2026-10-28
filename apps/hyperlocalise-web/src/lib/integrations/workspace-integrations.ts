@@ -61,7 +61,8 @@ export const workspacePipesCustomerEngagementSlugs = [
   "resend",
 ] as const satisfies readonly PipesProviderSlug[];
 
-export const workspacePipesCmsSlugs = ["webflow"] as const satisfies readonly PipesProviderSlug[];
+/** Webflow uses a custom connection panel; generic Pipes rows are unused for CMS today. */
+export const workspacePipesCmsSlugs = [] as const satisfies readonly PipesProviderSlug[];
 
 export const workspacePipesSeoToolSlugs = [
   "google-search-console",

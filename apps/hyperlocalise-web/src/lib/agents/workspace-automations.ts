@@ -34,6 +34,12 @@ import {
   areSanitySourceLocalesCompatible,
   mapProjectLocalesToSanity,
 } from "@/lib/sanity/sanity-locale";
+import { WebflowDataClient } from "@/lib/webflow/client";
+import { loadWebflowConnectionWithToken } from "@/lib/webflow/webflow-connection-access";
+import {
+  mapProjectLocalesToWebflow,
+  normalizeWebflowLocaleTag,
+} from "@/lib/webflow/webflow-locale";
 import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/lib/email/pipes";
 import { getGitLabPipesConnectionStatus, resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
 import {
@@ -76,6 +82,7 @@ import {
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
+  hasWorkspaceAutomationWebflowTool,
   hasWorkspaceAutomationListIssuesTool,
   hoistLegacyWorkspaceAutomationProjectId,
   isContentSyncAutomation,
@@ -1055,9 +1062,93 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
+  if (input.toolConfig.webflow?.enabled) {
+    const webflow = input.toolConfig.webflow;
+    if (!webflow.connectionId) {
+      return err({
+        code: "webflow_connection_required",
+        message: "Choose a Webflow connection.",
+      });
+    }
+    if (webflow.collectionIds.length === 0) {
+      return err({
+        code: "webflow_collection_ids_required",
+        message: "Choose at least one Webflow collection.",
+      });
+    }
+
+    const loaded = await loadWebflowConnectionWithToken({
+      organizationId: input.organizationId,
+      connectionId: webflow.connectionId,
+    });
+    if (!loaded?.token) {
+      return err({
+        code: "webflow_not_connected",
+        message: "Connect Webflow in Integrations before using it.",
+      });
+    }
+
+    const projectId = readOptionalProjectId(input.projectId);
+    if (projectId) {
+      const [project] = await database
+        .select({
+          sourceLocale: schema.projects.sourceLocale,
+          targetLocales: schema.projects.targetLocales,
+        })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, input.organizationId),
+            eq(schema.projects.id, projectId),
+          ),
+        )
+        .limit(1);
+
+      if (project) {
+        const client = new WebflowDataClient({ accessToken: loaded.token });
+        const site = await client.getSite(webflow.siteId || loaded.connection.siteId);
+        if (isErr(site)) {
+          return err({
+            code: "webflow_not_connected",
+            message: site.error.message,
+          });
+        }
+
+        const localeMapping = mapProjectLocalesToWebflow({
+          projectSourceLocale: project.sourceLocale ?? "en",
+          projectTargetLocales: Array.isArray(project.targetLocales)
+            ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
+            : [],
+          webflowLocales: site.value.locales,
+          configuredSourceLocale: webflow.sourceLocale,
+          configuredTargetLocales:
+            webflow.targetLocales.length > 0 ? webflow.targetLocales : undefined,
+        });
+
+        const primaryTag = normalizeWebflowLocaleTag(site.value.locales.primary.tag);
+        const projectSource = normalizeWebflowLocaleTag(project.sourceLocale ?? "en");
+        if (primaryTag !== projectSource) {
+          return err({
+            code: "webflow_source_locale_mismatch",
+            message:
+              "The Webflow primary locale must match the project source locale when saving this automation.",
+          });
+        }
+
+        if (!localeMapping.sourceCmsLocaleId) {
+          return err({
+            code: "webflow_source_locale_mismatch",
+            message: "The Webflow primary locale does not map to the configured source locale.",
+          });
+        }
+      }
+    }
+  }
+
   const cmsToolCount = [
     hasWorkspaceAutomationIntercomTool(input.toolConfig),
     hasWorkspaceAutomationSanityTool(input.toolConfig),
+    hasWorkspaceAutomationWebflowTool(input.toolConfig),
     hasWorkspaceAutomationBrazeTool(input.toolConfig),
     hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig),
     hasWorkspaceAutomationContentfulWorkflow(input.toolConfig),
@@ -1068,6 +1159,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig) &&
       !hasWorkspaceAutomationIntercomTool(input.toolConfig) &&
       !hasWorkspaceAutomationSanityTool(input.toolConfig) &&
+      !hasWorkspaceAutomationWebflowTool(input.toolConfig) &&
       !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig);
     if (!brazePairOnly) {
       return err({

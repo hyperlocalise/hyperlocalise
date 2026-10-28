@@ -65,6 +65,7 @@ describe("workspace automation templates", () => {
     ).toEqual([
       "translate-on-source-upload",
       "translate-intercom-articles",
+      "translate-webflow-items",
       "translate-sanity-documents",
       "translate-google-drive-files",
       "translate-braze-email-templates",

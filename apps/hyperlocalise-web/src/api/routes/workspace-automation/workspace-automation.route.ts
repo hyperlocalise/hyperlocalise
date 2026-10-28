@@ -51,6 +51,7 @@ import {
   hasWorkspaceAutomationGoogleDriveTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
+  hasWorkspaceAutomationWebflowTool,
   type WorkspaceAutomationConfigValidationError,
   type WorkspaceAutomationKind,
   type WorkspaceAutomationRepositoryTarget,
@@ -77,6 +78,11 @@ import {
   isSanityPushRunActive,
   type SanityPushDocument,
 } from "@/lib/sanity/push-eligibility";
+import {
+  getWebflowPushEligibility,
+  isWebflowPushRunActive,
+  type WebflowPushItem,
+} from "@/lib/webflow/push-eligibility";
 import {
   createWorkspaceAutomationKnowledgeFile,
   deleteWorkspaceAutomationKnowledgeFile,

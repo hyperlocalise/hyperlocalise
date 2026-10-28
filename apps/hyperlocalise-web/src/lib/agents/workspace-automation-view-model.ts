@@ -144,6 +144,14 @@ export type WorkspaceAutomationFormState = {
   sanityIncludeDrafts: boolean;
   sanityOverwriteSanityDrafts: boolean;
   sanityExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  webflowEnabled: boolean;
+  webflowConnectionId: string;
+  webflowSiteId: string;
+  webflowCollectionIds: string[];
+  webflowSourceLocale: string;
+  webflowTargetLocales: string[];
+  webflowExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  webflowRunQa: boolean;
   brazeEnabled: boolean;
   brazeCampaignsEnabled: boolean;
   brazeSourceLocale: string;
@@ -179,6 +187,7 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
     form.intercomEnabled ||
     form.googleDriveEnabled ||
     form.sanityEnabled ||
+    form.webflowEnabled ||
     form.brazeEnabled ||
     form.brazeCampaignsEnabled
   ) {
@@ -435,6 +444,14 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     sanityIncludeDrafts: true,
     sanityOverwriteSanityDrafts: true,
     sanityExistingTranslationPolicy: "seed_empty",
+    webflowEnabled: false,
+    webflowConnectionId: "",
+    webflowSiteId: "",
+    webflowCollectionIds: [],
+    webflowSourceLocale: "en",
+    webflowTargetLocales: [],
+    webflowExistingTranslationPolicy: "seed_empty",
+    webflowRunQa: true,
     brazeEnabled: false,
     brazeCampaignsEnabled: false,
     brazeSourceLocale: "en",
@@ -481,6 +498,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const intercom = automation.toolConfig.intercom;
   const googleDrive = automation.toolConfig.googleDrive;
   const sanity = automation.toolConfig.sanity;
+  const webflow = automation.toolConfig.webflow;
   const braze = automation.toolConfig.braze;
   const brazeCampaigns = automation.toolConfig.brazeCampaigns;
   const crowdin = automation.toolConfig.crowdin;
@@ -596,6 +614,18 @@ export function createWorkspaceAutomationFormStateFromRecord(
       sanity?.existingTranslationPolicy === "overwrite_all"
         ? sanity.existingTranslationPolicy
         : "seed_empty",
+    webflowEnabled: Boolean(webflow?.enabled),
+    webflowConnectionId: webflow?.connectionId ?? "",
+    webflowSiteId: webflow?.siteId ?? "",
+    webflowCollectionIds: webflow?.collectionIds ? [...webflow.collectionIds] : [],
+    webflowSourceLocale: webflow?.sourceLocale ?? "en",
+    webflowTargetLocales: webflow?.targetLocales ? [...webflow.targetLocales] : [],
+    webflowExistingTranslationPolicy:
+      webflow?.existingTranslationPolicy === "refresh_imported" ||
+      webflow?.existingTranslationPolicy === "overwrite_all"
+        ? webflow.existingTranslationPolicy
+        : "seed_empty",
+    webflowRunQa: webflow?.runQa ?? true,
     brazeEnabled: Boolean(braze?.enabled),
     brazeCampaignsEnabled: Boolean(brazeCampaigns?.enabled),
     brazeSourceLocale: brazeCampaigns?.sourceLocale ?? braze?.sourceLocale ?? "en",
@@ -924,6 +954,20 @@ export function formStateToWorkspaceAutomationPayload(
             includeDrafts: form.sanityIncludeDrafts,
             overwriteSanityDrafts: form.sanityOverwriteSanityDrafts,
             existingTranslationPolicy: form.sanityExistingTranslationPolicy,
+          },
+        }
+      : {}),
+    ...(form.webflowEnabled
+      ? {
+          webflow: {
+            enabled: true,
+            connectionId: form.webflowConnectionId || undefined,
+            siteId: form.webflowSiteId.trim() || undefined,
+            collectionIds: form.webflowCollectionIds,
+            sourceLocale: form.webflowSourceLocale.trim() || "en",
+            targetLocales: form.webflowTargetLocales,
+            existingTranslationPolicy: form.webflowExistingTranslationPolicy,
+            runQa: form.webflowRunQa,
           },
         }
       : {}),
