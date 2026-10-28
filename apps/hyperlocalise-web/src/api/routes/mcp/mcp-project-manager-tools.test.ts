@@ -709,6 +709,17 @@ describe("MCP project manager tools", () => {
       kind?: string;
       wordCounts?: { rows?: unknown[]; groupBy?: string };
     }>(await callMcpTool(adminHeaders, "get_report", { report: "words", groupBy: "task" }));
+    const ai = await readToolResult<{
+      kind?: string;
+      aiUsage?: { rows?: unknown[]; groupBy?: string; thenBy?: string | null };
+    }>(
+      await callMcpTool(adminHeaders, "get_report", {
+        report: "ai",
+        groupBy: "model",
+        thenBy: "area",
+        key: "our_ai",
+      }),
+    );
     const invalid = await readToolResult<{ error?: string }>(
       await callMcpTool(adminHeaders, "get_report", {
         report: "words",
@@ -736,6 +747,10 @@ describe("MCP project manager tools", () => {
     expect(words.output).toMatchObject({
       kind: "words",
       wordCounts: { rows: [], groupBy: "task" },
+    });
+    expect(ai.output).toMatchObject({
+      kind: "ai",
+      aiUsage: { rows: [], groupBy: "model", thenBy: "area" },
     });
     expect(invalid).toMatchObject({ isError: true, output: { error: "invalid_report_query" } });
   });

@@ -11,6 +11,13 @@
  * Version 2.0 or later.
  */
 import { z } from "zod";
+import {
+  AI_CHANNELS,
+  AI_KEY_TYPES,
+  AI_ORIGINS,
+  AI_USAGE_DIMENSIONS,
+  AI_USAGE_MEASURES,
+} from "@/lib/reporting/ai-usage-origins";
 import { REPORT_KINDS } from "@/lib/reporting/report-reads";
 import { RATE_BASES, REPORT_STEPS, REPORT_UNITS } from "@/lib/reporting/report-units";
 import { MATCH_BUCKETS } from "@/lib/reporting/word-analysis";
@@ -69,14 +76,27 @@ export const activityQuerySchema = z
 export const stepTimesQuerySchema = z
   .object({ ...dates, ...scope, format })
   .refine(datesInOrder, { message: "Invalid date range" });
+const aiDimension = z.enum(AI_USAGE_DIMENSIONS);
 export const aiUsageQuerySchema = z
   .object({
     ...dates,
     projectId: id.optional(),
-    groupBy: z.enum(["origin", "model"]).default("origin"),
+    groupBy: aiDimension.default("area"),
+    thenBy: aiDimension.optional(),
+    rankBy: z.enum(AI_USAGE_MEASURES).default("tokens"),
+    area: z.enum(AI_ORIGINS).optional(),
+    feature: id.optional(),
+    model: id.optional(),
+    provider: id.optional(),
+    channel: z.enum(AI_CHANNELS).optional(),
+    key: z.enum(AI_KEY_TYPES).optional(),
+    jobId: id.optional(),
+    automationId: id.optional(),
+    page,
     format,
   })
-  .refine(datesInOrder, { message: "Invalid date range" });
+  .refine(datesInOrder, { message: "Invalid date range" })
+  .refine((value) => value.thenBy !== value.groupBy, { message: "Group by two different details" });
 export const wordsQuerySchema = z
   .object({
     ...dates,
@@ -101,6 +121,7 @@ export const REPORT_QUERY_SCHEMAS = {
   activity: activityQuerySchema,
   words: wordsQuerySchema,
   time: loggedTimeQuerySchema,
+  ai: aiUsageQuerySchema,
   costs: costsQuerySchema,
 } as const;
 /** Up to 50 tasks, as a comma-separated list. */

@@ -50,7 +50,8 @@ describe("Reports formatting", () => {
     expect(formatChange(intl, { kind: "points", value: 1 }, 28)).toBe(
       "+1 point vs previous 28 days",
     );
-    expect(formatChange(intl, { kind: "no_earlier_data" }, 28)).toBe("No earlier data");
+    // No line at all while the previous period is not fully recorded.
+    expect(formatChange(intl, { kind: "no_earlier_data" }, 28)).toBeUndefined();
   });
 
   it("keeps every decimal of a small rate", () => {

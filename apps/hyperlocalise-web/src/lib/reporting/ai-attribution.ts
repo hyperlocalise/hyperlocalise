@@ -25,24 +25,37 @@ const UUID_PATTERN = sql.raw(`'${UUID}'`);
  * no task, it belongs to the project recorded on it or on its parent, or to its automation's
  * project. A recorded id that is not one of the workspace's projects, such as a connected TMS's
  * own project id or a deleted project, counts as none. Columns: `id`, `feature_id`, `model_id`,
- * `credential_source`, `amount_usd`, `dimensions`, `source` (the parent's when there is one),
- * `agent_run_kind`, `job_id` (null with no task), `project_id` (null with no project) and
- * `via_api_key`.
+ * `credential_source`, `amount_usd`, `quantity`, `dimensions`, `created_at`, `source` (the parent's when there
+ * is one), `agent_run_kind`, `automation_id` (the automation its parent ran for, as text),
+ * `job_id` (null with no task), `project_id` (null with no project) and `via_api_key`.
+ *
+ * Only rows from when Reports started for the workspace (`reporting_workspaces.started_at`)
+ * on, so AI usage and AI spending begin where Reports' own records do; none before it starts.
  */
 export function attributedUsage(input: { organizationId: string; where: SQL }): SQL {
   return sql`
-    select u.id, u.feature_id, u.model_id, u.credential_source, u.amount_usd, u.dimensions,
-      coalesce(p.source, u.source) as source, ar.kind as agent_run_kind,
+    select u.id, u.feature_id, u.model_id, u.credential_source, u.amount_usd, u.quantity,
+      u.dimensions,
+      u.created_at, coalesce(p.source, u.source) as source, ar.kind as agent_run_kind,
+      a.id::text as automation_id,
       t.id as job_id, t.api_key_id is not null as via_api_key,
       case when t.id is not null then t.project_id
         else coalesce(own_project.id, parent_project.id, a.project_id) end as project_id
     from usage_events u
-    -- Within the workspace, so the lookup never reaches other workspaces' rows.
+    -- Within the workspace, so the lookup never reaches other workspaces' rows; token rows are
+    -- only ever children (\`<parent>:ai_tokens\`), so the lookup leaves them out.
     left join usage_events p on p.organization_id = u.organization_id
+      and p.feature_id <> 'ai_tokens'
       and p.operation_key = u.dimensions ->> 'parent_operation_key'
-    left join workspace_automations a on a.organization_id = u.organization_id and a.id = case
-      when p.dimensions ->> 'automation_id' ~ ${UUID_PATTERN}
-      then (p.dimensions ->> 'automation_id')::uuid end
+    -- An automation's tool steps record its run in their key (\`workspace-<tool>:<run id>:…\`),
+    -- not the automation itself, which only its main run records.
+    left join workspace_automation_runs wr on wr.organization_id = u.organization_id
+      and wr.id = case when starts_with(p.operation_key, 'workspace-')
+        and split_part(p.operation_key, ':', 2) ~ ${UUID_PATTERN}
+        then split_part(p.operation_key, ':', 2)::uuid end
+    left join workspace_automations a on a.organization_id = u.organization_id
+      and a.id = coalesce(case when p.dimensions ->> 'automation_id' ~ ${UUID_PATTERN}
+        then (p.dimensions ->> 'automation_id')::uuid end, wr.automation_id)
     left join agent_runs ar on ar.organization_id = u.organization_id and ar.id = case
       when p.source = 'agent_run_create' and split_part(p.operation_key, ':', 2) ~ ${UUID_PATTERN}
       then split_part(p.operation_key, ':', 2)::uuid end
@@ -52,5 +65,8 @@ export function attributedUsage(input: { organizationId: string; where: SQL }): 
       and own_project.id = u.dimensions ->> 'project_id'
     left join projects parent_project on parent_project.organization_id = u.organization_id
       and parent_project.id = p.dimensions ->> 'project_id'
-    where u.organization_id = ${input.organizationId} and ${input.where}`;
+    where u.organization_id = ${input.organizationId}
+      and u.created_at >= (select rw.started_at from reporting_workspaces rw
+        where rw.organization_id = ${input.organizationId})
+      and ${input.where}`;
 }

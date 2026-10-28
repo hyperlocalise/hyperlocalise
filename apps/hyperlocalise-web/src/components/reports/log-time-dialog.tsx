@@ -76,7 +76,7 @@ export function LogTimeDialog({
     ids: jobId ? [jobId] : [],
     enabled: Boolean(jobId),
   }).data?.[0];
-  // A task with no Reports strings yet is not found by the lookup, but its project is given.
+  // The task's project, or the one given while the task is still being looked up.
   const taskProject = settings.projects.find(
     (project) => project.id === (task?.projectId ?? projectId),
   );

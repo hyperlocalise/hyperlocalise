@@ -10,7 +10,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { REPORT_PRESET_DAYS } from "@/lib/reporting/report-period";
+import {
+  AI_CHANNELS,
+  AI_KEY_TYPES,
+  AI_ORIGINS,
+  AI_USAGE_DIMENSIONS,
+  AI_USAGE_MEASURES,
+  type AiUsageDimension,
+} from "@/lib/reporting/ai-usage-origins";
+import { addDays } from "@/lib/reporting/report-period";
 import {
   REPORT_STEPS,
   REPORT_UNITS,
@@ -23,18 +31,99 @@ import {
  * returns to it. Values left at their default stay out of the URL.
  */
 
-export const REPORTS_TABS = ["activity", "words", "time", "costs", "estimate", "budgets"] as const;
+export const REPORTS_TABS = [
+  "activity",
+  "words",
+  "time",
+  "ai",
+  "costs",
+  "estimate",
+  "budgets",
+] as const;
 export type ReportsTab = (typeof REPORTS_TABS)[number];
 
 /** The tabs for roles that cannot see what work costs: only their own time. */
 export const MEMBER_TABS: readonly ReportsTab[] = ["time"];
 
-export const REPORTS_RANGES = [...REPORT_PRESET_DAYS.map(String), "custom"] as const;
+/**
+ * The ready-made date ranges, which move with today, and "custom" for dates chosen by hand.
+ * Months and quarters are UTC calendar months, as Reports' days are.
+ */
+export const REPORTS_RANGES = [
+  // The last 7, 28 or 90 days (`REPORT_PRESET_DAYS`), spelled out so the type keeps each value.
+  "7",
+  "28",
+  "90",
+  "month",
+  "last_month",
+  "quarter",
+  "all",
+  "custom",
+] as const;
 export type ReportsRange = (typeof REPORTS_RANGES)[number];
+export type ReportsPreset = Exclude<ReportsRange, "custom">;
+
+/**
+ * The UTC days a ready-made range covers, inclusive, as of `today`, never before the day Reports
+ * started for the workspace: nothing is counted before it. "all" starts on that day, or today
+ * when Reports has not started.
+ */
+export function presetDates(
+  range: ReportsPreset,
+  today: string,
+  startedDay: string | null,
+): { from: string; to: string } {
+  if (range === "all")
+    return { from: startedDay && startedDay < today ? startedDay : today, to: today };
+  const span = calendarSpan(range, today);
+  // A span wholly before the start keeps its own days (nothing shows); otherwise it begins there.
+  return startedDay && span.from < startedDay && startedDay <= span.to
+    ? { from: startedDay, to: span.to }
+    : span;
+}
+
+/** A ready-made range's days by the calendar alone, before the Reports start applies. */
+function calendarSpan(range: Exclude<ReportsPreset, "all">, today: string) {
+  const [year, month] = today.split("-").map(Number) as [number, number];
+  const monthStart = (y: number, m: number) =>
+    new Date(Date.UTC(y, m - 1, 1)).toISOString().slice(0, 10);
+  switch (range) {
+    case "month":
+      return { from: monthStart(year, month), to: today };
+    case "last_month":
+      return { from: monthStart(year, month - 1), to: addDays(monthStart(year, month), -1) };
+    case "quarter":
+      return { from: monthStart(year, month - ((month - 1) % 3)), to: today };
+    default:
+      return { from: addDays(today, -(Number(range) - 1)), to: today };
+  }
+}
 
 export const WORD_COUNT_MODES = ["arrived", "finished"] as const;
 export const WORD_COUNT_GROUPINGS = ["project", "task", "week"] as const;
-export const AI_USAGE_GROUPINGS = ["origin", "model"] as const;
+export { AI_USAGE_MEASURES };
+
+/**
+ * The details AI usage can be narrowed to besides the page's project and task, each kept in the
+ * URL under its own name. Area, channel and key have fixed values; the others come from a row.
+ */
+export const AI_FILTER_DIMENSIONS = [
+  "area",
+  "channel",
+  "key",
+  "feature",
+  "model",
+  "provider",
+  "automation",
+] as const satisfies readonly AiUsageDimension[];
+export type AiFilterDimension = (typeof AI_FILTER_DIMENSIONS)[number];
+export type AiFilters = Partial<Record<AiFilterDimension, string>>;
+
+const AI_FILTER_VALUES: Partial<Record<AiFilterDimension, readonly string[]>> = {
+  area: AI_ORIGINS,
+  channel: AI_CHANNELS,
+  key: AI_KEY_TYPES,
+};
 
 /** The most tasks an estimate can be made for at once. */
 export const MAX_ESTIMATE_TASKS = 50;
@@ -57,7 +146,11 @@ export type ReportsUrlState = {
   groupBy: (typeof WORD_COUNT_GROUPINGS)[number];
   page: number;
   rateCard: string | null;
-  aiGroup: (typeof AI_USAGE_GROUPINGS)[number];
+  /** AI usage: the detail its table and chart group by, and a second one to split each by. */
+  aiGroup: AiUsageDimension;
+  aiThen: AiUsageDimension | null;
+  aiMeasure: (typeof AI_USAGE_MEASURES)[number];
+  aiFilters: AiFilters;
 };
 
 export const DEFAULT_REPORTS_STATE: ReportsUrlState = {
@@ -75,7 +168,10 @@ export const DEFAULT_REPORTS_STATE: ReportsUrlState = {
   groupBy: "project",
   page: 1,
   rateCard: null,
-  aiGroup: "origin",
+  aiGroup: "area",
+  aiThen: null,
+  aiMeasure: "tokens",
+  aiFilters: {},
 };
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -112,7 +208,24 @@ export function parseReportsSearchParams(params: URLSearchParams): ReportsUrlSta
     groupBy: allowed(params.get("group"), WORD_COUNT_GROUPINGS, DEFAULT_REPORTS_STATE.groupBy),
     page: Number.isInteger(page) && page >= 1 && page <= 10_000 ? page : 1,
     rateCard: text(params.get("card"), 100),
-    aiGroup: allowed(params.get("ai"), AI_USAGE_GROUPINGS, DEFAULT_REPORTS_STATE.aiGroup),
+    ...parseAiParams(params),
+  };
+}
+
+function parseAiParams(params: URLSearchParams) {
+  const aiGroup = allowed(params.get("ai"), AI_USAGE_DIMENSIONS, DEFAULT_REPORTS_STATE.aiGroup);
+  const aiThen = allowed<AiUsageDimension | "">(params.get("ai2"), AI_USAGE_DIMENSIONS, "");
+  const aiFilters: AiFilters = {};
+  for (const dimension of AI_FILTER_DIMENSIONS) {
+    const value = text(params.get(dimension));
+    const values = AI_FILTER_VALUES[dimension];
+    if (value && (!values || values.includes(value))) aiFilters[dimension] = value;
+  }
+  return {
+    aiGroup,
+    aiThen: aiThen && aiThen !== aiGroup ? aiThen : null,
+    aiMeasure: allowed(params.get("measure"), AI_USAGE_MEASURES, DEFAULT_REPORTS_STATE.aiMeasure),
+    aiFilters,
   };
 }
 
@@ -138,6 +251,9 @@ export function buildReportsSearchParams(state: ReportsUrlState): URLSearchParam
   if (state.page !== 1) params.set("page", String(state.page));
   put("card", state.rateCard);
   put("ai", state.aiGroup, DEFAULT_REPORTS_STATE.aiGroup);
+  put("ai2", state.aiThen);
+  put("measure", state.aiMeasure, DEFAULT_REPORTS_STATE.aiMeasure);
+  for (const dimension of AI_FILTER_DIMENSIONS) put(dimension, state.aiFilters[dimension] ?? null);
   return params;
 }
 

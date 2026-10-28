@@ -14,6 +14,14 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/lib/database/client";
 
+import { queryAiUsage } from "./ai-usage";
+import type {
+  AiChannel,
+  AiKeyType,
+  AiOrigin,
+  AiUsageDimension,
+  AiUsageMeasure,
+} from "./ai-usage-origins";
 import { queryCosts } from "./cost-queries";
 import { resolvePeriod } from "./report-period";
 import type { ReportStep, ReportUnit } from "./report-units";
@@ -31,7 +39,7 @@ import {
  * same summary.
  */
 
-export const REPORT_KINDS = ["activity", "words", "time", "costs"] as const;
+export const REPORT_KINDS = ["activity", "words", "time", "ai", "costs"] as const;
 export type ReportKind = (typeof REPORT_KINDS)[number];
 
 export type ReportReadContext = {
@@ -63,11 +71,29 @@ export type WordsReadQuery = Dates &
   };
 export type TimeReadQuery = Dates & Scope & { page: number; all?: boolean };
 export type CostsReadQuery = Dates & { projectId?: string; targetLocale?: string };
+export type AiReadQuery = Dates & {
+  projectId?: string;
+  groupBy: AiUsageDimension;
+  thenBy?: AiUsageDimension;
+  rankBy?: AiUsageMeasure;
+  area?: AiOrigin;
+  feature?: string;
+  model?: string;
+  provider?: string;
+  channel?: AiChannel;
+  key?: AiKeyType;
+  jobId?: string;
+  automationId?: string;
+  page: number;
+  /** Every group, for a download. */
+  all?: boolean;
+};
 
 export type ReportReadQuery = {
   activity: ActivityReadQuery;
   words: WordsReadQuery;
   time: TimeReadQuery;
+  ai: AiReadQuery;
   costs: CostsReadQuery;
 };
 
@@ -129,6 +155,35 @@ export async function readTime(context: ReportReadContext, query: TimeReadQuery)
   return { period: read.period, logged, automated };
 }
 
+/**
+ * The AI usage tab: calls, tokens, images, videos and billing's charge, grouped by one detail
+ * and optionally a second. AI used outside any project counts for the roles that see billing.
+ */
+export async function readAi(context: ReportReadContext, query: AiReadQuery) {
+  const period = resolvePeriod({ ...query, ...context });
+  return queryAiUsage({
+    ...context,
+    projectId: query.projectId,
+    period,
+    includeUnattributed: context.financial,
+    groupBy: query.groupBy,
+    thenBy: query.thenBy,
+    rankBy: query.rankBy,
+    page: query.page,
+    all: query.all,
+    filters: {
+      area: query.area,
+      feature: query.feature,
+      model: query.model,
+      provider: query.provider,
+      channel: query.channel,
+      key: query.key,
+      task: query.jobId,
+      automation: query.automationId,
+    },
+  });
+}
+
 /** The Costs tab: what was spent, by project, with AI charged outside any project. */
 export async function readCosts(context: ReportReadContext, query: CostsReadQuery) {
   const period = resolvePeriod({ ...query, ...context });
@@ -140,6 +195,7 @@ export type ReportPayload = {
   activity: Awaited<ReturnType<typeof readActivity>>;
   words: Awaited<ReturnType<typeof readWords>>;
   time: Awaited<ReturnType<typeof readTime>>;
+  ai: Awaited<ReturnType<typeof readAi>>;
   costs: Awaited<ReturnType<typeof readCosts>>;
 };
 
@@ -156,6 +212,8 @@ export async function readReport<K extends ReportKind>(
       return (await readWords(context, query as WordsReadQuery)) as ReportPayload[K];
     case "time":
       return (await readTime(context, query as TimeReadQuery)) as ReportPayload[K];
+    case "ai":
+      return (await readAi(context, query as AiReadQuery)) as ReportPayload[K];
     default:
       return (await readCosts(context, query as CostsReadQuery)) as ReportPayload[K];
   }

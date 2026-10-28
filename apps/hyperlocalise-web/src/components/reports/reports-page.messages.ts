@@ -84,6 +84,11 @@ export const reportsPageMessages = defineMessages({
     defaultMessage: "Time",
     description: "Reports tab: time logged and automated run time",
   },
+  tabAi: {
+    id: "Lfo/HfkA0U",
+    defaultMessage: "AI usage",
+    description: "Reports tab: AI calls, tokens and billing's charge",
+  },
   tabCosts: {
     id: "7Lk6kDvXtT",
     defaultMessage: "Costs",
@@ -109,15 +114,50 @@ export const reportsPageMessages = defineMessages({
     defaultMessage: "Dates",
     description: "Label of the dates filter on the Reports page",
   },
-  lastDays: {
-    id: "UDN6VYj6Ax",
-    defaultMessage: "{days} days",
-    description: "Preset date range: the last N days",
+  presetLastDays: {
+    id: "qoYdUDSxh6",
+    defaultMessage: "Last {days} days",
+    description: "Ready-made date range: the last N days, today included",
   },
-  customRange: {
-    id: "u/eOWVmwsn",
-    defaultMessage: "Custom",
-    description: "Preset that lets the user choose start and end dates",
+  presetMonth: {
+    id: "ZecH2g51/i",
+    defaultMessage: "This month",
+    description: "Ready-made date range: from the first of this month to today",
+  },
+  presetLastMonth: {
+    id: "cTkw9PCgsF",
+    defaultMessage: "Last month",
+    description: "Ready-made date range: the whole of the month before this one",
+  },
+  presetQuarter: {
+    id: "nANfsqdHl+",
+    defaultMessage: "This quarter",
+    description: "Ready-made date range: from the first day of this quarter to today",
+  },
+  presetAll: {
+    id: "h5cYwVNzp2",
+    defaultMessage: "Since Reports started",
+    description: "Ready-made date range: from the day Reports started for the workspace to today",
+  },
+  presetRange: {
+    id: "GANzcDgz1K",
+    defaultMessage: "{preset} · {range}",
+    description: "The dates filter's button: a ready-made range's name, then its dates",
+  },
+  readyRanges: {
+    id: "HZagzO1nt1",
+    defaultMessage: "Ready-made ranges",
+    description: "Accessible name of the list of ready-made date ranges",
+  },
+  pickFirstDay: {
+    id: "nWZHvhQ4eF",
+    defaultMessage: "Choose the first day, then the last.",
+    description: "Hint under the date range calendar before a day is chosen",
+  },
+  pickLastDay: {
+    id: "YfhvSK4Uaq",
+    defaultMessage: "Now choose the last day.",
+    description: "Hint under the date range calendar once the first day is chosen",
   },
   from: {
     id: "Lmv9PfPFW0",
@@ -128,11 +168,6 @@ export const reportsPageMessages = defineMessages({
     id: "sMZ1bcqcwH",
     defaultMessage: "To",
     description: "Label of the end date field",
-  },
-  rangeText: {
-    id: "hqWPlzvpZd",
-    defaultMessage: "{from} – {to}",
-    description: "The dates a report covers, from one day to another",
   },
   project: {
     id: "WCaurzJ1Y5",
@@ -345,11 +380,6 @@ export const reportsPageMessages = defineMessages({
     defaultMessage: "{change} {count, plural, one {point} other {points}} vs {previous}",
     description:
       "Change of a share in percentage points; change is the signed number, count its size, previous the period compared with",
-  },
-  noEarlierData: {
-    id: "4S+r62936U",
-    defaultMessage: "No earlier data",
-    description: "Shown instead of a change when the previous period starts before Reports began",
   },
   changeUnavailable: {
     id: "zyXPWyhbra",

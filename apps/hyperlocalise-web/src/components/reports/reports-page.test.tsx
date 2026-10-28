@@ -13,7 +13,7 @@
 // @vitest-environment happy-dom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { IntlProvider } from "react-intl";
@@ -22,6 +22,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { ReportsPage } from "./reports-page";
 import {
   createReportsSettings,
+  reportsAiUsage,
   reportsCostEstimate,
   reportsCosts,
   reportsResponseBodies,
@@ -30,16 +31,57 @@ import {
 
 const mocks = vi.hoisted(() => ({
   search: "",
-  replace: vi.fn(),
   calls: [] as ReportsApiCall[],
   bodies: {} as Record<string, unknown>,
 }));
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: mocks.replace }),
-  usePathname: () => "/en/org/acme/reports",
-  useSearchParams: () => new URLSearchParams(mocks.search),
-}));
+const PATHNAME = "/en/org/acme/reports";
+
+/**
+ * The address as Next keeps it: the router's navigations land a moment later, as they do in
+ * the app, while the browser's own `history.replaceState` changes it at once; both re-render
+ * what reads `useSearchParams`.
+ */
+const address = vi.hoisted(() => {
+  const listeners = new Set<() => void>();
+  let search = "";
+  const set = (href: string) => {
+    search = new URL(href, "http://localhost").search.replace(/^\?/, "");
+    for (const listener of listeners) listener();
+  };
+  return {
+    get: () => search,
+    set,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+});
+
+vi.mock("next/navigation", async () => {
+  const { useSyncExternalStore } = await import("react");
+  return {
+    useRouter: () => ({
+      replace: (href: string) => setTimeout(() => address.set(href), 30),
+    }),
+    usePathname: () => PATHNAME,
+    useSearchParams: () =>
+      new URLSearchParams(useSyncExternalStore(address.subscribe, address.get, address.get)),
+  };
+});
+
+const replaceState = window.history.replaceState.bind(window.history);
+window.history.replaceState = (data, unused, url) => {
+  replaceState(data, unused, url);
+  if (url) address.set(String(url));
+};
+
+/** The address the page ends up on. */
+function currentHref() {
+  const search = address.get();
+  return search ? `${PATHNAME}?${search}` : PATHNAME;
+}
 
 vi.mock("@/components/ui/chart", () => ({
   ChartContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -59,6 +101,8 @@ vi.mock("@/lib/api-client-instance", async () => ({
 }));
 
 function renderPage(projectId?: string) {
+  replaceState(null, "", mocks.search ? `${PATHNAME}?${mocks.search}` : PATHNAME);
+  address.set(mocks.search ? `${PATHNAME}?${mocks.search}` : PATHNAME);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <IntlProvider locale="en" messages={{}}>
@@ -77,7 +121,6 @@ const filterLabels = () =>
 
 beforeEach(() => {
   mocks.search = "";
-  mocks.replace.mockClear();
   mocks.calls.length = 0;
   mocks.bodies = reportsResponseBodies();
 });
@@ -90,16 +133,71 @@ describe("Reports page", () => {
       "Activity",
       "Word counts",
       "Time",
+      "AI usage",
       "Costs",
       "Cost estimate",
       "Budgets",
     ]);
+    // AI usage has its own tab now: the Activity tab reads none.
+    expect(callsTo("ai-usage")).toEqual([]);
     expect(
       screen.getByText("Reporting started Mar 3, 2026 · Days and weeks use UTC"),
     ).toBeInTheDocument();
     // Activity changes are neutral sentences against the previous 28 days.
     expect(screen.getByText("+12% vs previous 28 days")).toBeInTheDocument();
     expect(screen.getAllByText(/points vs previous 28 days/).length).toBeGreaterThan(0);
+  });
+
+  it("ends on the last tab chosen when tabs are switched faster than the address updates", async () => {
+    renderPage();
+    await screen.findByText("48,210");
+    // Time, then straight back to Activity before the first change has reached the address.
+    await userEvent.click(screen.getByRole("tab", { name: "Time" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Activity" }));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(screen.getByRole("tab", { name: "Activity" })).toHaveAttribute("aria-selected", "true");
+    expect(currentHref()).toBe(PATHNAME);
+  });
+
+  it("picks dates from one button: a ready-made range, two days on the calendar, or typed", async () => {
+    renderPage();
+    const dates = await screen.findByRole("button", {
+      name: /^Dates Last 28 days · Sep 24\s–\sOct 21, 2026$/,
+    });
+    await userEvent.click(dates);
+    await userEvent.click(await screen.findByRole("button", { name: "This month" }));
+    await waitFor(() => expect(currentHref()).toBe(`${PATHNAME}?range=month`));
+    expect(
+      screen.getByRole("button", { name: /^Dates This month · Oct 1\s–\s21, 2026$/ }),
+    ).toBeInTheDocument();
+
+    // The first day, then the last, on the calendar.
+    await userEvent.click(screen.getByRole("button", { name: /^Dates This month/ }));
+    const october = screen.getAllByRole("grid")[1]!;
+    // Each day is named in full for screen readers, in the page's language.
+    // (inside this month, so already in the chosen range).
+    await userEvent.click(
+      within(october).getByRole("button", { name: "Monday, October 5, 2026, selected" }),
+    );
+    expect(screen.getByText("Now choose the last day.")).toBeInTheDocument();
+    await userEvent.click(within(october).getByText("12"));
+    await waitFor(() =>
+      expect(currentHref()).toBe(`${PATHNAME}?range=custom&from=2026-10-05&to=2026-10-12`),
+    );
+    // Days after today cannot be chosen.
+    await userEvent.click(screen.getByRole("button", { name: /^Dates Oct 5\s–\s12, 2026$/ }));
+    expect(
+      within(screen.getAllByRole("grid")[1]!).getByText("22").closest("button"),
+    ).toBeDisabled();
+
+    // A typed day keeps the other end.
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-10-01" } });
+    // Applied when the field is left, not on each change made while typing.
+    expect(currentHref()).toBe(`${PATHNAME}?range=custom&from=2026-10-05&to=2026-10-12`);
+    fireEvent.blur(screen.getByLabelText("From"));
+    await waitFor(() =>
+      expect(currentHref()).toBe(`${PATHNAME}?range=custom&from=2026-10-01&to=2026-10-12`),
+    );
   });
 
   it("shows other roles only their own time, even when the URL asks for another tab", async () => {
@@ -161,17 +259,253 @@ describe("Reports page", () => {
     });
     await userEvent.click(screen.getByRole("button", { name: "Strings" }));
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenLastCalledWith(
-        "/en/org/acme/reports?tab=words&range=7&unit=strings&group=task",
-        { scroll: false },
-      ),
+      expect(currentHref()).toBe("/en/org/acme/reports?tab=words&range=7&unit=strings&group=task"),
     );
     await userEvent.click(screen.getByRole("tab", { name: "Time" }));
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenLastCalledWith(
-        "/en/org/acme/reports?tab=time&range=7&unit=strings&group=task",
-        { scroll: false },
+      expect(currentHref()).toBe("/en/org/acme/reports?tab=time&range=7&unit=strings&group=task"),
+    );
+  });
+
+  it("shows AI usage by area then model, with billing's charge, and narrows to a row", async () => {
+    mocks.search = "tab=ai&ai2=model";
+    renderPage();
+    // The card and the table's total.
+    expect(await screen.findAllByText("$41.25")).toHaveLength(2);
+    // The filter bar's fields, then the table's two groupings.
+    expect(filterLabels()).toEqual([
+      "Dates",
+      "Project",
+      "Task",
+      "Area",
+      "Channel",
+      "Key",
+      "Group by",
+      "Then by",
+    ]);
+    expect(callsTo("ai-usage")[0]?.args.query).toMatchObject({
+      groupBy: "area",
+      thenBy: "model",
+      rankBy: "tokens",
+      page: "1",
+    });
+    expect(
+      screen.getByText(
+        "3 runs, images or videos have no AI credit recorded by billing, so AI credit used leaves them out.",
       ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "260 runs, images or videos used your own provider key, which uses no plan credit.",
+      ),
+    ).toBeInTheDocument();
+    const table = screen.getByRole("table", { name: "Breakdown" });
+    // Calls on the workspace's own key cost no plan credit; a gap in billing is never $0.
+    expect(within(table).getAllByText("Own key")).toHaveLength(2);
+    expect(within(table).getAllByText("3 not recorded").length).toBeGreaterThan(0);
+
+    // A group narrows the tab to it and shows its second-level groups next.
+    await userEvent.click(within(table).getByRole("button", { name: "Show only Translation" }));
+    await waitFor(() =>
+      expect(currentHref()).toBe("/en/org/acme/reports?tab=ai&ai=model&area=translation"),
+    );
+    await userEvent.click(
+      within(table).getByRole("button", {
+        name: "Show only openai/gpt-6-luna under Translation",
+      }),
+    );
+    await waitFor(() =>
+      expect(currentHref()).toBe(
+        "/en/org/acme/reports?tab=ai&ai=model&area=translation&model=openai%2Fgpt-6-luna",
+      ),
+    );
+  });
+
+  it("narrows only where a filter can stand for the row, and keeps the chosen task", async () => {
+    mocks.search = "tab=ai&task=job_release&ai=project&ai2=model";
+    const totals = {
+      calls: 4,
+      inputTokens: 400,
+      outputTokens: 40,
+      cacheAndReasoningTokens: 0,
+      images: 0,
+      videos: 0,
+      chargeUsd: "0.00400000",
+      unrecordedCharges: 0,
+      ownKeyCalls: 0,
+    };
+    mocks.bodies = {
+      ...reportsResponseBodies(),
+      "ai-usage": {
+        aiUsage: {
+          ...reportsAiUsage,
+          groupBy: "project",
+          thenBy: "model",
+          rows: [
+            {
+              key: "project_web",
+              label: "Web app",
+              ...totals,
+              children: [
+                { key: "openai/gpt-6-luna", label: null, ...totals },
+                { key: null, label: null, other: true, ...totals },
+              ],
+            },
+            {
+              key: null,
+              label: null,
+              ...totals,
+              children: [{ key: "openai/gpt-6-luna", label: null, ...totals }],
+            },
+          ],
+        },
+      },
+    };
+    const { unmount } = renderPage();
+    const table = await screen.findByRole("table", { name: "Breakdown" });
+    // A fraction of a cent is not shown as $0.00.
+    expect(within(table).getAllByText("Under $0.01").length).toBeGreaterThan(0);
+    // No filter stands for calls outside any project, nor for "Other", nor for rows under them.
+    expect(
+      within(table)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Web app", "openai/gpt-6-luna"]);
+    await userEvent.click(
+      within(table).getByRole("button", { name: "Show only openai/gpt-6-luna under Web app" }),
+    );
+    await waitFor(() =>
+      expect(currentHref()).toBe(
+        "/en/org/acme/reports?tab=ai&project=project_web&task=job_release&ai=model&model=openai%2Fgpt-6-luna",
+      ),
+    );
+    unmount();
+
+    renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: "Show only Web app" }));
+    await waitFor(() =>
+      expect(currentHref()).toBe(
+        "/en/org/acme/reports?tab=ai&project=project_web&task=job_release&ai=model",
+      ),
+    );
+    // With a project chosen, project rows narrow no further.
+    expect(screen.queryByRole("button", { name: "Show only Web app" })).toBeNull();
+  });
+
+  it("compares AI credit only where billing recorded it, and narrows with the filter bar", async () => {
+    mocks.search = "tab=ai";
+    mocks.bodies = {
+      ...reportsResponseBodies(),
+      "ai-usage": {
+        aiUsage: {
+          ...reportsAiUsage,
+          // The period before: every run on our AI with no credit recorded.
+          previous: {
+            ...reportsAiUsage.previous,
+            chargeUsd: "0.00000000",
+            unrecordedCharges: 2_120,
+          },
+        },
+      },
+    };
+    const { unmount } = renderPage();
+    const card = (await screen.findByText("AI credit used")).parentElement!;
+    expect(within(card).getByText("No change to show")).toBeInTheDocument();
+    expect(within(card).queryByText(/vs previous/)).toBeNull();
+    unmount();
+
+    // Some credit recorded, but more than 5% of the runs on our AI without: still no base.
+    const before = (unrecordedCharges: number) => ({
+      ...reportsAiUsage.previous,
+      chargeUsd: "30.00000000",
+      unrecordedCharges,
+    });
+    for (const [unrecorded, compared] of [
+      [212, false],
+      [100, true],
+    ] as const) {
+      mocks.bodies = {
+        ...reportsResponseBodies(),
+        "ai-usage": { aiUsage: { ...reportsAiUsage, previous: before(unrecorded) } },
+      };
+      const view = renderPage();
+      const shown = (await screen.findByText("AI credit used")).parentElement!;
+      expect(Boolean(within(shown).queryByText(/vs previous/)), String(unrecorded)).toBe(compared);
+      view.unmount();
+    }
+    renderPage();
+
+    await userEvent.click(await screen.findByRole("combobox", { name: "Key" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Your own key" }));
+    await waitFor(() => expect(currentHref()).toBe("/en/org/acme/reports?tab=ai&key=own_key"));
+  });
+
+  it("keeps a row whose filter is already set as text, and narrows the rows under it", async () => {
+    mocks.search = "tab=ai&ai2=model&area=translation";
+    renderPage();
+    const table = await screen.findByRole("table", { name: "Breakdown" });
+    expect(within(table).queryByRole("button", { name: "Show only Translation" })).toBeNull();
+    await userEvent.click(
+      within(table).getByRole("button", {
+        name: "Show only openai/gpt-6-luna under Translation",
+      }),
+    );
+    await waitFor(() =>
+      expect(currentHref()).toBe(
+        "/en/org/acme/reports?tab=ai&ai=model&area=translation&model=openai%2Fgpt-6-luna",
+      ),
+    );
+  });
+
+  it("narrows within a project's own Reports page", async () => {
+    mocks.search = "tab=ai&ai=project&ai2=model";
+    mocks.bodies = {
+      ...reportsResponseBodies(),
+      "ai-usage": {
+        aiUsage: {
+          ...reportsAiUsage,
+          groupBy: "project",
+          thenBy: "model",
+          rows: [
+            {
+              ...reportsAiUsage.rows[0]!,
+              key: "project_web",
+              label: "Web app",
+            },
+          ],
+        },
+      },
+    };
+    renderPage("project_web");
+    const table = await screen.findByRole("table", { name: "Breakdown" });
+    expect(callsTo("ai-usage")[0]?.args.query).toMatchObject({ projectId: "project_web" });
+    // The project is fixed, so its row is not a filter, but the rows under it are.
+    expect(within(table).queryByRole("button", { name: "Show only Web app" })).toBeNull();
+    await userEvent.click(
+      within(table).getByRole("button", { name: "Show only openai/gpt-6-luna under Web app" }),
+    );
+    await waitFor(() =>
+      expect(currentHref()).toBe("/en/org/acme/reports?tab=ai&ai=model&model=openai%2Fgpt-6-luna"),
+    );
+  });
+
+  it("lists the details chosen from a row, each removable", async () => {
+    mocks.search = "tab=ai&model=openai/gpt-6-luna&automation=auto_1";
+    mocks.bodies = {
+      ...reportsResponseBodies(),
+      "ai-usage": { aiUsage: { ...reportsAiUsage, automationName: "Nightly" } },
+    };
+    renderPage();
+    expect(await screen.findByText("Model: openai/gpt-6-luna")).toBeInTheDocument();
+    // The automation's name comes with the usage.
+    expect(await screen.findByText("Automation: Nightly")).toBeInTheDocument();
+    expect(callsTo("ai-usage")[0]?.args.query).toMatchObject({
+      model: "openai/gpt-6-luna",
+      automationId: "auto_1",
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Remove filter: Model" }));
+    await waitFor(() =>
+      expect(currentHref()).toBe("/en/org/acme/reports?tab=ai&automation=auto_1"),
     );
   });
 
