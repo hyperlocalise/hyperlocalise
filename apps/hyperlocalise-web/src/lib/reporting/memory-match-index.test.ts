@@ -192,19 +192,29 @@ describe("MemoryMatchIndex", () => {
     expect(new MemorySourceScan([changed, prefix]).bestScore(query)).toBe(81);
   });
 
-  it("compares the 64th of entries tied on shared bigrams, and no more", () => {
-    // 64 entries share the same bigrams with the query; the closest sorts last by text.
+  it("compares the 64th of entries tied on shared bigrams, and not the 65th", () => {
+    // Every entry shares the same three bigrams with the query, so all tie and the closest sorts
+    // last by text. The query is longer than a short query, so only bigrams rank them.
+    const query = "abcdefghi";
+    const closest = "abcdxfxhx";
     const letters = Array.from("ijklmnopqrstuvw");
-    const tied = letters
-      .flatMap((first) =>
-        letters.filter((second) => second !== first).map((second) => first + second),
-      )
-      .slice(0, 63)
-      .map((pair) => `abcd${pair}yz`);
-    const entries = [...tied, "abcdxfxh"];
-    expect(sourceSimilarity("abcdefgh", "abcdxfxh")).toBe(75);
-    expect(new MemoryMatchIndex(entries).bestScore("abcdefgh")).toBe(75);
-    expect(new MemorySourceScan(entries).bestScore("abcdefgh")).toBe(75);
+    const tied = (count: number) =>
+      letters
+        .flatMap((first) =>
+          letters.filter((second) => second !== first).map((second) => first + second),
+        )
+        .slice(0, count)
+        .map((pair) => `abcd${pair}yzw`);
+    expect(sourceSimilarity(query, closest)).toBe(66);
+    expect(sourceSimilarity(query, tied(1)[0])).toBe(44);
+    for (const [others, expected] of [
+      [63, 66],
+      [64, 44],
+    ]) {
+      const entries = [...tied(others), closest];
+      expect(new MemoryMatchIndex(entries).bestScore(query), `${others} tied`).toBe(expected);
+      expect(new MemorySourceScan(entries).bestScore(query), `${others} tied`).toBe(expected);
+    }
   });
 
   it("deduplicates entries and reports its size", () => {
