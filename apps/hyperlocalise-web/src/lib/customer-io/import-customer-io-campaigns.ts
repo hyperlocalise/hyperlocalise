@@ -118,6 +118,24 @@ export function isCustomerIoLocaleImportComplete(input: {
   return sourceKeys.every((key) => (input.remoteMap[key] ?? "").trim().length > 0);
 }
 
+/**
+ * Whether a locale needs no translation job after seeding remote entries.
+ * Email actions never complete via seeding: only subject/preheader seed as
+ * single-text fields, while the HTML body holds many text nodes that cannot
+ * map to the whole-body remote string — the body always goes through Jobs.
+ */
+export function isCustomerIoLocaleSeedComplete(input: {
+  actionType: string;
+  sourceMap: CustomerIoTranslationMap;
+  remoteMap: CustomerIoTranslationMap;
+  importedCount: number;
+}): boolean {
+  if (input.actionType.trim().toLowerCase() === "email") {
+    return false;
+  }
+  return isCustomerIoLocaleImportComplete(input);
+}
+
 export type ImportCustomerIoCampaignsResult = {
   imported: number;
   skipped: number;
@@ -571,6 +589,33 @@ async function importCustomerIoAction(input: {
   const importedHashes: Record<string, string> = {};
   const leftover: string[] = [];
 
+  // Write (and ingest) the source before seeding locale entries:
+  // `importApprovedProjectTranslationsFromEntries` matches entries against
+  // existing source keys, so seeding first would no-op on first import and
+  // queue locales for jobs even when Customer.io already has translations.
+  const sourceFileId = await writeCustomerIoActionSource({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath,
+    hash,
+    sourceUnchanged,
+    sourceLocale: input.sourceLocale,
+    content: isEmail && emailHtml ? emailHtml : serializeCustomerIoTranslationMap(sourceMap),
+    contentType: isEmail ? "text/html" : "application/json",
+    filename: isEmail ? "message.html" : "message.json",
+    workflowRunId: input.workflowRunId,
+  });
+  if (!sourceFileId) {
+    return {
+      imported: 0,
+      skipped: 0,
+      failed: 1,
+      jobsCreated: 0,
+      broadcasts: [],
+      unmappedProjectTargets: [],
+    };
+  }
+
   for (const projectLocale of input.localeMapping.jobTargetLocales) {
     const remoteMap = remoteByLocale.get(projectLocale);
     if (!remoteMap || Object.keys(remoteMap).length === 0) {
@@ -608,7 +653,8 @@ async function importCustomerIoAction(input: {
       entries: seedEntries,
     });
     if (
-      isCustomerIoLocaleImportComplete({
+      isCustomerIoLocaleSeedComplete({
+        actionType: input.action.type,
         sourceMap,
         remoteMap,
         importedCount: result.imported,
@@ -625,29 +671,6 @@ async function importCustomerIoAction(input: {
       (locale) => !importedHashes[locale] && !leftover.includes(locale),
     ),
   );
-
-  const sourceFileId = await writeCustomerIoActionSource({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    sourcePath,
-    hash,
-    sourceUnchanged,
-    sourceLocale: input.sourceLocale,
-    content: isEmail && emailHtml ? emailHtml : serializeCustomerIoTranslationMap(sourceMap),
-    contentType: isEmail ? "text/html" : "application/json",
-    filename: isEmail ? "message.html" : "message.json",
-    workflowRunId: input.workflowRunId,
-  });
-  if (!sourceFileId) {
-    return {
-      imported: 0,
-      skipped: 0,
-      failed: 1,
-      jobsCreated: 0,
-      broadcasts: [],
-      unmappedProjectTargets: [],
-    };
-  }
 
   const jobId = await maybeCreateCustomerIoJob({
     organizationId: input.organizationId,
