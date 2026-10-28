@@ -52,6 +52,7 @@ import {
   siContentful,
   siIntercom,
   siSanity,
+  siWebflow,
   siGoogledrive,
 } from "simple-icons";
 
@@ -189,6 +190,8 @@ import { WorkspaceAutomationBrazeCampaignsSettings } from "./workspace-automatio
 import { WorkspaceAutomationBrazeSettings } from "./workspace-automation-braze-settings";
 import { WorkspaceAutomationIntercomSettings } from "./workspace-automation-intercom-settings";
 import { WorkspaceAutomationSanitySettings } from "./workspace-automation-sanity-settings";
+import { WorkspaceAutomationWebflowSettings } from "./workspace-automation-webflow-settings";
+import type { WebflowConnectionSummary } from "@/lib/webflow/types";
 import { useScrollToFirstFieldError } from "./use-scroll-to-first-field-error";
 
 const api = createApiClient();
@@ -950,6 +953,7 @@ function AddToolMenu({
   ahrefsConnected,
   intercomConnected,
   sanityConnected,
+  webflowConnected,
   brazeConnected,
   semrushConnected,
   zernioConnected,
@@ -971,6 +975,7 @@ function AddToolMenu({
   ahrefsConnected: boolean;
   intercomConnected: boolean;
   sanityConnected: boolean;
+  webflowConnected: boolean;
   brazeConnected: boolean;
   semrushConnected: boolean;
   zernioConnected: boolean;
@@ -1259,6 +1264,22 @@ function AddToolMenu({
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
                 </DropdownMenuHint>
               ) : !sanityConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.webflowEnabled || !webflowConnected}
+              onClick={() => onChange({ ...form, webflowEnabled: true })}
+            >
+              <AutomationToolMenuIcon icon={siWebflow} />
+              Webflow CMS items
+              {form.webflowEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !webflowConnected ? (
                 <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
                 </DropdownMenuHint>
@@ -1599,6 +1620,7 @@ const SKILL_INTEGRATION_LABELS: Record<WorkspaceAutomationSkillIntegration, Mess
   contentful: workspaceAutomationFormMessages.skillIntegrationContentful,
   intercom: workspaceAutomationFormMessages.skillIntegrationIntercom,
   sanity: workspaceAutomationFormMessages.skillIntegrationSanity,
+  webflow: workspaceAutomationFormMessages.skillIntegrationWebflow,
   google_drive: workspaceAutomationFormMessages.skillIntegrationGoogleDrive,
   braze: workspaceAutomationFormMessages.skillIntegrationBraze,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
@@ -1640,6 +1662,8 @@ const SKILL_BRAND_ICONS: Partial<Record<WorkspaceAutomationSkillTool, SimpleIcon
   push_intercom_translations: siIntercom,
   import_sanity_documents: siSanity,
   push_sanity_translations: siSanity,
+  import_webflow_items: siWebflow,
+  push_webflow_translations: siWebflow,
 };
 
 const SKILL_TOOL_ICONS: Partial<Record<WorkspaceAutomationSkillTool, Icon>> = {
@@ -1969,6 +1993,8 @@ function ToolsSettings({
   intercomConnected,
   googleDriveConnected,
   sanityConnected,
+  webflowConnected,
+  webflowConnections,
   brazeConnected,
   semrushConnections,
   zernioConnections,
@@ -1997,6 +2023,8 @@ function ToolsSettings({
   intercomConnected: boolean;
   googleDriveConnected: boolean;
   sanityConnected: boolean;
+  webflowConnected: boolean;
+  webflowConnections: WebflowConnectionSummary[];
   brazeConnected: boolean;
   semrushConnections: SemrushConnectionOption[];
   zernioConnections: ZernioConnectionOption[];
@@ -2770,6 +2798,44 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.webflowEnabled ? (
+          <EditorRow
+            icon={<AutomationToolMenuIcon icon={siWebflow} />}
+            tone="external"
+            title={
+              <>
+                <span>Webflow CMS items</span>
+                {!webflowConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import collection items on a schedule, translate in Jobs, then push approved translations when you are ready."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_webflow_items")}
+                label="Remove Webflow"
+                onClick={() => onChange({ ...form, webflowEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationWebflowSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              errors={errors}
+              webflowConnected={webflowConnected}
+              connections={webflowConnections}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
+              onChange={onChange}
+            />
+            <FieldError message={errors.webflow} />
+          </EditorRow>
+        ) : null}
+
         {form.brazeEnabled ? (
           <EditorRow
             icon={<BrazeToolIcon />}
@@ -3372,6 +3438,7 @@ function ToolsSettings({
           ahrefsConnected={ahrefsConnected}
           intercomConnected={intercomConnected}
           sanityConnected={sanityConnected}
+          webflowConnected={webflowConnected}
           brazeConnected={brazeConnected}
           semrushConnected={semrushConnected}
           zernioConnected={zernioConnected}
@@ -3605,6 +3672,20 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const webflowConnectionsQuery = useQuery({
+    queryKey: ["webflow-connections", organizationSlug],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"]["webflow-connections"].$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Webflow connections");
+      }
+      const body = await response.json();
+      return body.webflowConnections as WebflowConnectionSummary[];
+    },
+  });
+
   const mcpServerConnectionsQuery = useQuery({
     queryKey: ["mcp-server-connections", organizationSlug],
     queryFn: async () => {
@@ -3785,6 +3866,8 @@ export function WorkspaceAutomationEditor({
     Boolean(resendPipesQuery.data?.connected) || Boolean(sendgridPipesQuery.data?.connected);
   const contentfulConnections = contentfulConnectionsQuery.data ?? [];
   const contentfulConnected = contentfulConnections.length > 0;
+  const webflowConnections = webflowConnectionsQuery.data ?? [];
+  const webflowConnected = webflowConnections.length > 0;
   const mcpServerConnections = mcpServerConnectionsQuery.data ?? [];
   const semrushConnections = semrushConnectionsQuery.data ?? [];
   const zernioConnections = zernioConnectionsQuery.data ?? [];
@@ -3805,6 +3888,7 @@ export function WorkspaceAutomationEditor({
     ),
     contentfulConnectionId:
       contentfulConnections.length === 1 ? contentfulConnections[0]?.id : undefined,
+    webflowConnectionId: webflowConnections.length === 1 ? webflowConnections[0]?.id : undefined,
   };
   const usableSemrushConnections = semrushConnections.filter(
     (connection) => connection.enabled && connection.validationStatus === "valid",
@@ -3819,6 +3903,7 @@ export function WorkspaceAutomationEditor({
     contentful: contentfulConnectionsQuery.isSuccess ? contentfulConnected : undefined,
     intercom: intercomPipesQuery.isSuccess ? intercomConnected : undefined,
     sanity: sanityPipesQuery.isSuccess ? sanityConnected : undefined,
+    webflow: webflowConnectionsQuery.isSuccess ? webflowConnected : undefined,
     google_drive: googleDrivePipesQuery.isSuccess ? googleDriveConnected : undefined,
     braze: brazePipesQuery.isSuccess ? brazeConnected : undefined,
     slack: slackQuery.isSuccess ? slackConnected : undefined,
@@ -3888,6 +3973,7 @@ export function WorkspaceAutomationEditor({
     !sendgridPipesQuery.isPending &&
     !intercomPipesQuery.isPending &&
     !sanityPipesQuery.isPending &&
+    !webflowConnectionsQuery.isPending &&
     !brazePipesQuery.isPending;
 
   const editor = (
@@ -4071,6 +4157,8 @@ export function WorkspaceAutomationEditor({
             intercomConnected={intercomConnected}
             googleDriveConnected={googleDriveConnected}
             sanityConnected={sanityConnected}
+            webflowConnected={webflowConnected}
+            webflowConnections={webflowConnections}
             brazeConnected={brazeConnected}
             semrushConnections={semrushConnections}
             zernioConnections={zernioConnections}

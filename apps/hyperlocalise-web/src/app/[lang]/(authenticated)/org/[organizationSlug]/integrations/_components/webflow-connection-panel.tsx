@@ -188,7 +188,7 @@ export function WebflowConnectionPanel({
 
       const res = await api.api.orgs[":organizationSlug"]["webflow-connections"].$post({
         param: { organizationSlug },
-        json: { ...payload, siteToken: token },
+        json: { ...payload, siteToken: token, enabled: true },
       });
       if (!res.ok) {
         throw new Error(intl.formatMessage(webflowConnectionPanelMessages.saveFailed));
@@ -243,13 +243,7 @@ export function WebflowConnectionPanel({
     <CollapsibleIntegrationRow
       name={providerName}
       description={summary?.detail ?? ""}
-      icon={
-        summary?.logo ? (
-          <IntegrationLogo src={summary.logo} />
-        ) : (
-          <IntegrationLogo src="/images/webflow-logo.svg" />
-        )
-      }
+      icon={<IntegrationLogo src={summary?.logoSrc ?? "/images/webflow-logo.svg"} />}
       isConnected={isConnected}
       userIsAdmin={!disabled}
       expanded={expanded}
@@ -329,6 +323,9 @@ export function WebflowConnectionPanel({
               value={siteId}
               disabled={disabled}
               onValueChange={(value) => {
+                if (!value) {
+                  return;
+                }
                 setSiteId(value);
                 setCollectionIds([]);
               }}

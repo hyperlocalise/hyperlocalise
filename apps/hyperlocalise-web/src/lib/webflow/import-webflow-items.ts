@@ -36,7 +36,7 @@ import {
 } from "./document-json";
 import { extractWebflowFieldStrings, listTranslatableWebflowFields } from "./field-detector";
 import { loadWebflowConnectionWithToken } from "./webflow-connection-access";
-import { mapProjectLocalesToWebflow } from "./webflow-locale";
+import { mapProjectLocalesToWebflow, type WebflowLocaleMappingTarget } from "./webflow-locale";
 
 const logger = createLogger("import-webflow-items");
 const jobQueue = createTranslationJobEventQueue();
@@ -105,10 +105,7 @@ export async function runImportWebflowItems(input: {
   }
 
   const [project] = await db
-    .select({
-      sourceLocale: schema.projects.sourceLocale,
-      targetLocales: schema.projects.targetLocales,
-    })
+    .select()
     .from(schema.projects)
     .where(
       and(
@@ -118,7 +115,7 @@ export async function runImportWebflowItems(input: {
     )
     .limit(1);
 
-  if (!project) {
+  if (!project || project.source !== "native") {
     throw new Error("import_webflow_items_project_required");
   }
 
@@ -254,26 +251,32 @@ export async function runImportWebflowItems(input: {
 
           const uploadResult = await uploadSourceFile({
             organizationId: input.organizationId,
-            projectId,
+            project,
             sourcePath,
-            content: serializeWebflowTranslationMap(fieldStrings),
-            contentType: "application/json",
+            sourceHash: contentHash,
+            workflowRunId: input.workflowRunId ?? null,
+            uploadSurface: "webflow_automation",
+            file: {
+              filename: sourcePath.slice(sourcePath.lastIndexOf("/") + 1),
+              contentType: "application/json",
+              content: Buffer.from(serializeWebflowTranslationMap(fieldStrings), "utf8"),
+            },
           });
-          if (!uploadResult.ok) {
-            throw new Error(uploadResult.code);
+          if (!uploadResult.ok || uploadResult.value.destination !== "native") {
+            throw new Error("webflow_source_upload_failed");
+          }
+          const sourceFileId = uploadResult.value.file.id;
+
+          const ingestOutcome = await waitForSourceFileVersionIngest({
+            organizationId: input.organizationId,
+            sourceFileVersionId: uploadResult.value.file.sourceFileVersionId,
+          });
+          if (ingestOutcome !== "ingested") {
+            throw new Error("webflow_source_ingest_failed");
           }
 
-          await waitForSourceFileVersionIngest({
-            organizationId: input.organizationId,
-            projectId,
-            sourceFileId: uploadResult.sourceFileId,
-            sourceFileVersionId: uploadResult.sourceFileVersionId,
-          });
-
           const jobTargetLocales = localeMapping.targets
-            .filter((entry): entry is { projectLocale: string; webflowLocale: { tag: string } } =>
-              Boolean(entry.webflowLocale),
-            )
+            .filter((entry): entry is WebflowLocaleMappingTarget => entry.webflowLocale !== null)
             .map((entry) => entry.projectLocale);
 
           if (
@@ -283,7 +286,7 @@ export async function runImportWebflowItems(input: {
             const jobResult = await createFileTranslationJob({
               organizationId: input.organizationId,
               projectId,
-              sourceFileId: uploadResult.sourceFileId,
+              sourceFileId,
               sourceLocale: project.sourceLocale?.trim() || "en",
               targetLocales: jobTargetLocales,
             });

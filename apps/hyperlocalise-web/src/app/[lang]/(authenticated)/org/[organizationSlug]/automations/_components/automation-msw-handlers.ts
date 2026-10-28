@@ -179,6 +179,9 @@ export const automationEditorDisconnectedMswHandlers = [
   http.get("/api/orgs/:organizationSlug/contentful-connections", () =>
     HttpResponse.json({ contentfulConnections: [] }),
   ),
+  http.get("/api/orgs/:organizationSlug/webflow-connections", () =>
+    HttpResponse.json({ webflowConnections: [] }),
+  ),
   http.get("/api/orgs/:organizationSlug/gitlab/projects", () =>
     HttpResponse.json({ projects: [] }),
   ),

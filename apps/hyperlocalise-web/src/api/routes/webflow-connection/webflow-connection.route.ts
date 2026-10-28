@@ -47,11 +47,11 @@ import {
   webflowConnectionIdParamSchema,
 } from "./webflow-connection.schema";
 
-function canReadWebflow(role: string) {
+function canReadWebflow(role: AuthVariables["auth"]["membership"]["role"]) {
   return hasCapability(role, "integrations:read");
 }
 
-function canWriteWebflow(role: string) {
+function canWriteWebflow(role: AuthVariables["auth"]["membership"]["role"]) {
   return hasCapability(role, "integrations:write");
 }
 

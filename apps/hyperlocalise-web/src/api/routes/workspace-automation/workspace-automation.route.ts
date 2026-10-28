@@ -687,6 +687,26 @@ export function createWorkspaceAutomationRoutes(
         };
       }
 
+      let webflowPush: {
+        eligibleLocaleCount: number;
+        mappedItemCount: number;
+        pushRunInProgress: boolean;
+        items?: WebflowPushItem[];
+      } | null = null;
+      if (hasWorkspaceAutomationWebflowTool(automation.toolConfig)) {
+        const eligibility = await getWebflowPushEligibility({
+          organizationId,
+          automation,
+          includeLocaleProgress: includePushArticles,
+        });
+        webflowPush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedItemCount: eligibility?.mappedItemCount ?? 0,
+          pushRunInProgress: isWebflowPushRunActive(recentRuns),
+          ...(includePushArticles ? { items: eligibility?.items ?? [] } : {}),
+        };
+      }
+
       let googleDrivePush: {
         eligibleLocaleCount: number;
         mappedFileCount: number;
@@ -708,7 +728,15 @@ export function createWorkspaceAutomationRoutes(
       }
 
       return c.json(
-        { automation, recentRuns, intercomPush, sanityPush, brazePush, googleDrivePush },
+        {
+          automation,
+          recentRuns,
+          intercomPush,
+          sanityPush,
+          webflowPush,
+          brazePush,
+          googleDrivePush,
+        },
         200,
       );
     })

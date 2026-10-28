@@ -35,9 +35,14 @@ export function isWebflowClientError(value: unknown): value is WebflowClientErro
 
 function parseLocale(raw: Record<string, unknown>) {
   return {
-    id: String(raw.id ?? ""),
-    cmsLocaleId: String(raw.cmsLocaleId ?? raw.id ?? ""),
-    tag: String(raw.tag ?? ""),
+    id: typeof raw.id === "string" ? raw.id : "",
+    cmsLocaleId:
+      typeof raw.cmsLocaleId === "string"
+        ? raw.cmsLocaleId
+        : typeof raw.id === "string"
+          ? raw.id
+          : "",
+    tag: typeof raw.tag === "string" ? raw.tag : "",
     enabled: raw.enabled !== false,
     subdirectory: typeof raw.subdirectory === "string" ? raw.subdirectory : null,
   };
@@ -65,8 +70,15 @@ function parseSiteLocales(raw: unknown): WebflowSiteLocales | null {
 
 function parseSiteSummary(raw: Record<string, unknown>): WebflowSiteSummary {
   return {
-    id: String(raw.id ?? ""),
-    displayName: String(raw.displayName ?? raw.shortName ?? raw.name ?? "Site"),
+    id: typeof raw.id === "string" ? raw.id : "",
+    displayName:
+      typeof raw.displayName === "string"
+        ? raw.displayName
+        : typeof raw.shortName === "string"
+          ? raw.shortName
+          : typeof raw.name === "string"
+            ? raw.name
+            : "Site",
     lastPublished: typeof raw.lastPublished === "string" ? raw.lastPublished : null,
     lastUpdated: typeof raw.lastUpdated === "string" ? raw.lastUpdated : null,
   };
@@ -74,9 +86,14 @@ function parseSiteSummary(raw: Record<string, unknown>): WebflowSiteSummary {
 
 function parseCollectionSummary(raw: Record<string, unknown>): WebflowCollectionSummary {
   return {
-    id: String(raw.id ?? ""),
-    displayName: String(raw.displayName ?? raw.name ?? "Collection"),
-    slug: String(raw.slug ?? ""),
+    id: typeof raw.id === "string" ? raw.id : "",
+    displayName:
+      typeof raw.displayName === "string"
+        ? raw.displayName
+        : typeof raw.name === "string"
+          ? raw.name
+          : "Collection",
+    slug: typeof raw.slug === "string" ? raw.slug : "",
     lastUpdated: typeof raw.lastUpdated === "string" ? raw.lastUpdated : null,
   };
 }
@@ -87,7 +104,7 @@ function parseCollectionItem(raw: Record<string, unknown>): WebflowCollectionIte
       ? (raw.fieldData as WebflowCollectionItem["fieldData"])
       : {};
   return {
-    id: String(raw.id ?? ""),
+    id: typeof raw.id === "string" ? raw.id : "",
     cmsLocaleId: typeof raw.cmsLocaleId === "string" ? raw.cmsLocaleId : null,
     lastPublished: typeof raw.lastPublished === "string" ? raw.lastPublished : null,
     lastUpdated: typeof raw.lastUpdated === "string" ? raw.lastUpdated : null,
@@ -261,7 +278,7 @@ export class WebflowDataClient {
           typeof field.displayName === "string" ? field.displayName : slug || "Field";
         const type = typeof field.type === "string" ? field.type : "PlainText";
         return {
-          id: typeof field.id === "string" ? field.id : String(field.id ?? ""),
+          id: typeof field.id === "string" ? field.id : "",
           slug,
           displayName,
           type: type as WebflowCollection["fields"][number]["type"],

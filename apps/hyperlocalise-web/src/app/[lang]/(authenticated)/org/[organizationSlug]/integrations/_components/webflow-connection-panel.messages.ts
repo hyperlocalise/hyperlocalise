@@ -14,60 +14,74 @@ import { defineMessages } from "react-intl";
 
 export const webflowConnectionPanelMessages = defineMessages({
   fetchConnectionsFailed: {
-    id: "bNpDNvwmy6",
+    id: "ma412fpUlF",
     defaultMessage: "Could not load Webflow connections.",
+    description: "Error toast when loading Webflow connections fails.",
   },
   saveFailed: {
-    id: "skVn2H8okl",
+    id: "LbbsOcva1p",
     defaultMessage: "Could not save the Webflow connection.",
+    description: "Error toast when saving the Webflow connection fails.",
   },
   saveSuccess: {
-    id: "d9XnkTiMwa",
+    id: "Xsoxk/Vr1O",
     defaultMessage: "Webflow connection saved.",
+    description: "Success toast when the Webflow connection is saved.",
   },
   deleteFailed: {
-    id: "IrXkRGkNg+",
+    id: "jxHawvN/1R",
     defaultMessage: "Could not remove the Webflow connection.",
+    description: "Error toast when removing the Webflow connection fails.",
   },
   deleteSuccess: {
-    id: "i3W7KzynKY",
+    id: "Oam8wqCN9r",
     defaultMessage: "Webflow connection removed.",
+    description: "Success toast when the Webflow connection is removed.",
   },
   discoverFailed: {
-    id: "cLv7GmUtju",
+    id: "Lcf15eG/dh",
     defaultMessage: "Could not discover Webflow sites for this token.",
+    description: "Error toast when Webflow site discovery fails.",
   },
   displayNameLabel: {
-    id: "dOQCL8n7dZ",
+    id: "RL75YfYQnw",
     defaultMessage: "Display name",
+    description: "Label for the Webflow connection display name field.",
   },
   siteTokenLabel: {
-    id: "BZ46rNugS+",
+    id: "euFZGdCjO7",
     defaultMessage: "Site API token",
+    description: "Label for the Webflow site API token field.",
   },
   siteTokenDescription: {
-    id: "K2bg1r0npM",
+    id: "G2B8B5FmrH",
     defaultMessage:
       "Create a site token in Webflow (Site settings → Apps & integrations → API access) with sites:read and cms:read. Add cms:write and components:read for push writeback.",
+    description: "Help text explaining which Webflow API scopes the site token needs.",
   },
   siteLabel: {
-    id: "pYwSd7GOih",
+    id: "MPyG43fCju",
     defaultMessage: "Site",
+    description: "Label for the Webflow site picker.",
   },
   collectionsLabel: {
-    id: "ulh3kf5ajW",
+    id: "iR67ESPjLG",
     defaultMessage: "Collections",
+    description: "Label for the Webflow collections multi-select.",
   },
   saveConnection: {
-    id: "yOSZPpjJVr",
+    id: "0ffRz2AzJV",
     defaultMessage: "Save connection",
+    description: "Button that saves the Webflow connection.",
   },
   disconnect: {
-    id: "qj1uhzynub",
+    id: "nYssE5uByl",
     defaultMessage: "Disconnect",
+    description: "Button that removes the Webflow connection.",
   },
   testDiscover: {
-    id: "kEIrxxLHQG",
+    id: "oYHNmKX1YV",
     defaultMessage: "Test token",
+    description: "Button that validates the site token and discovers Webflow sites.",
   },
 });

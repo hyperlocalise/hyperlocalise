@@ -777,6 +777,22 @@ export type WorkspaceAutomationConfigValidationError =
       message: "The Sanity source locale must be the same language as the project source locale.";
     }
   | {
+      code: "webflow_not_connected";
+      message: string;
+    }
+  | {
+      code: "webflow_connection_required";
+      message: "Choose a Webflow connection.";
+    }
+  | {
+      code: "webflow_collection_ids_required";
+      message: "Choose at least one Webflow collection.";
+    }
+  | {
+      code: "webflow_source_locale_mismatch";
+      message: string;
+    }
+  | {
       code: "braze_not_connected";
       message: "Connect Braze in Integrations before using it.";
     }

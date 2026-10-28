@@ -72,7 +72,10 @@ describe("WebflowDataClient", () => {
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("/items/item-1") && init?.method === "PATCH") {
         expect(url).toContain("cmsLocaleId=cms-fr");
-        const body = JSON.parse(String(init.body)) as { fieldData: Record<string, string> };
+        if (typeof init.body !== "string") {
+          throw new Error("expected a JSON string request body");
+        }
+        const body = JSON.parse(init.body) as { fieldData: Record<string, string> };
         expect(body.fieldData.title).toBe("Bonjour");
         return Response.json({
           id: "item-1",

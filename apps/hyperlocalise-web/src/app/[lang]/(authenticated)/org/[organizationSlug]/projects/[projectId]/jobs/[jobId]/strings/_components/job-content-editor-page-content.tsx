@@ -52,6 +52,7 @@ import { ContentEditorIntercomIngestButton } from "@/components/content-editor/p
 import { ContentEditorIntercomPushButton } from "@/components/content-editor/page/content-editor-intercom-push-button";
 import { ContentEditorSanityIngestButton } from "@/components/content-editor/page/content-editor-sanity-ingest-button";
 import { ContentEditorSanityPushButton } from "@/components/content-editor/page/content-editor-sanity-push-button";
+import { ContentEditorWebflowPushButton } from "@/components/content-editor/page/content-editor-webflow-push-button";
 import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
 import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
@@ -254,6 +255,13 @@ export function JobContentEditorPageContent({
         pageNavigationGuardRef={pageNavigationGuardRef}
       />
       <ContentEditorSanityPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorWebflowPushButton
         organizationSlug={organizationSlug}
         projectId={projectId}
         canManageAutomations={canManageAutomations}

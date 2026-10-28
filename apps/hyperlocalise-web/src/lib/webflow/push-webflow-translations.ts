@@ -29,7 +29,6 @@ import {
   buildWebflowItemSourcePath,
   hashWebflowTranslationMap,
   parseWebflowTranslationMapJson,
-  serializeWebflowTranslationMap,
 } from "./document-json";
 import { extractWebflowFieldStrings, listTranslatableWebflowFields } from "./field-detector";
 import { loadWebflowConnectionWithToken } from "./webflow-connection-access";
