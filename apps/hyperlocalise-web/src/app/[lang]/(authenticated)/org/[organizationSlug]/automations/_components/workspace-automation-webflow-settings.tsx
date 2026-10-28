@@ -189,16 +189,6 @@ export function WorkspaceAutomationWebflowSettings({
     });
   }
 
-  function toggleTargetLocale(tag: string) {
-    const selected = form.webflowTargetLocales.includes(tag);
-    onChange({
-      ...form,
-      webflowTargetLocales: selected
-        ? form.webflowTargetLocales.filter((locale) => locale !== tag)
-        : [...form.webflowTargetLocales, tag],
-    });
-  }
-
   return (
     <div className="space-y-4 rounded-lg border border-border p-4">
       <div className="space-y-2">
@@ -339,43 +329,6 @@ export function WorkspaceAutomationWebflowSettings({
             ))}
           </ul>
         ) : null}
-      </div>
-
-      <div className="space-y-2">
-        <Label>Target locales (optional)</Label>
-        {(discovery?.locales?.secondary ?? []).length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Secondary locales load after discovery. Leave empty to use every project target that
-            maps to an enabled secondary.
-          </p>
-        ) : (
-          <ul className="space-y-1.5">
-            {(discovery?.locales?.secondary ?? []).map((locale) => {
-              const checked =
-                form.webflowTargetLocales.length === 0 ||
-                form.webflowTargetLocales.includes(locale.tag);
-              return (
-                <li key={locale.cmsLocaleId}>
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={checked}
-                      disabled={!webflowConnected || !locale.enabled}
-                      onCheckedChange={() => toggleTargetLocale(locale.tag)}
-                    />
-                    <span className="truncate">
-                      {formatLocaleOptionLabel(intl, locale.tag)}
-                      {!locale.enabled ? " (disabled on site)" : ""}
-                    </span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        <p className="text-xs text-muted-foreground">
-          Leave empty to import jobs for every mapped project target. Disabled secondaries are
-          always skipped.
-        </p>
       </div>
 
       <div className="space-y-2">
