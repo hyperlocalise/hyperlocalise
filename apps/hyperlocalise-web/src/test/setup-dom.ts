@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { afterAll, afterEach } from "vite-plus/test";
+import { afterAll, afterEach, beforeEach } from "vite-plus/test";
 
 const isDomEnvironment = typeof document !== "undefined";
 
@@ -32,9 +32,19 @@ if (isDomEnvironment) {
   await import("@testing-library/jest-dom/vitest");
   const { cleanup } = await import("@testing-library/react");
 
-  afterEach(() => {
-    cleanup();
-  });
+  // Files in a worker share one document. Testing Library only unmounts
+  // containers it rendered from this module instance, so a leaked render from
+  // another copy stays in `document.body` and the next `getBy*` matches twice.
+  const resetRenderedDom = () => {
+    try {
+      cleanup();
+    } finally {
+      document.body.replaceChildren();
+    }
+  };
+
+  beforeEach(resetRenderedDom);
+  afterEach(resetRenderedDom);
 
   const pristineProperties = capturePristineDomProperties([
     [window, "matchMedia"],
