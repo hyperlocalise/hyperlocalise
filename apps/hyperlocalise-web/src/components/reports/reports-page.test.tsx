@@ -525,11 +525,13 @@ describe("Reports page", () => {
           mode: "arrived",
           groupBy: "task_step",
           ...createReportsWordCounts({
+            // Only a task row holds "Not matched"; the totals, counted once per project, do not.
             rows: createReportsWordCounts().rows.map((row, index) => ({
               ...row,
               projectId: null,
               projectName: null,
               taskStep: index === 0 ? "translate" : "no_task",
+              bands: index === 0 ? { ...row.bands, unavailable: 40 } : row.bands,
             })),
           }),
         },
@@ -546,6 +548,7 @@ describe("Reports page", () => {
     const byStep = screen.getByRole("table", { name: "Word counts" });
     expect(byStep).toHaveTextContent("Translate");
     expect(byStep).toHaveTextContent("No task (content editor)");
+    expect(within(byStep).getByRole("columnheader", { name: "Not matched" })).toBeInTheDocument();
     expect(callsTo("words").at(-1)?.args.query).toMatchObject({ groupBy: "task_step" });
     // Rows count a string in each of its tasks; the total counts it once.
     expect(

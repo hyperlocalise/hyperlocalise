@@ -37,7 +37,14 @@ import {
   spansYears,
   StackedBarChart,
 } from "./report-chart";
-import { bandLabel, formatCount, formatShare, taskStepLabel, unitLabel } from "./report-format";
+import {
+  bandLabel,
+  formatCount,
+  formatShare,
+  joinSentences,
+  taskStepLabel,
+  unitLabel,
+} from "./report-format";
 import {
   DownloadCsvButton,
   ReportPager,
@@ -79,26 +86,17 @@ const TIER_COLORS: Record<BandTier, string> = {
 };
 
 /**
- * Each task step keeps its colour whichever steps a chart shows. Of the series colours, this
- * order keeps every pair of neighbours in the stack apart for colour-blind readers in both
- * modes; post-edit and proofread in green and teal were not.
+ * Each task step keeps its colour whichever steps a chart shows, so any of them can be
+ * neighbours. Four series colours that are apart in every pair, and the grey of "Other" for the
+ * other step; teal was left out, too close to green.
  */
 const TASK_STEP_COLORS: Record<WordTaskStep, string> = {
   translate: "var(--chart-1)",
   post_edit: "var(--chart-5)",
   proofread: "var(--chart-2)",
-  other: "var(--chart-4)",
-  no_task: "var(--chart-3)",
+  other: "var(--muted-foreground)",
+  no_task: "var(--chart-4)",
 };
-
-/**
- * Sentences one after another as a reader expects: with a space between them, but none in
- * Japanese or Chinese, whose sentences end in a full-width stop.
- */
-function sentences(intl: Intl, parts: (string | null)[]) {
-  const spaced = !/^(ja|zh)\b/.test(intl.locale);
-  return parts.filter(Boolean).join(spaced ? " " : "");
-}
 
 const SPLIT_MESSAGES = {
   project: messages.splitProject,
@@ -169,7 +167,7 @@ function chartDetail(intl: Intl, data: WordSeriesData) {
     last !== undefined &&
     (first.start < data.period.from || barEnd(last.start, data.per) > data.period.to);
   const other = data.groups.some((group) => group.other);
-  return sentences(intl, [
+  return joinSentences([
     intl.formatMessage(data.mode === "arrived" ? messages.chartArrived : messages.chartFinished, {
       unit: unitLabel(intl, data.unit),
     }),
@@ -306,16 +304,14 @@ function BandSummary({ data }: { data: WordCountsData }) {
       title={intl.formatMessage(messages.bandsTitle)}
       description={intl.formatMessage(messages.bandsDetail, { unit: unitLabel(intl, data.unit) })}
     >
-      <ul className="flex flex-col gap-2">
+      {/* One grid, so every bar starts and ends at the same place and the figures fit. */}
+      <ul className="grid grid-cols-[7rem_1fr_auto] gap-x-3 gap-y-2">
         {bands.map((bucket) => {
           const count = data.bandTotals[bucket] ?? 0;
           const share = count / data.total;
           const name = bandLabel(intl, bucket);
           return (
-            <li
-              key={bucket}
-              className="grid grid-cols-[7rem_1fr_7rem] items-center gap-3 text-[13px]"
-            >
+            <li key={bucket} className="col-span-3 grid grid-cols-subgrid items-center text-[13px]">
               <span className="sr-only">
                 {intl.formatMessage(messages.bandShare, {
                   band: name,
@@ -436,7 +432,7 @@ export function WordCountsTab({
           return (
             <>
               <p className="text-[13px] text-muted-foreground">
-                {sentences(intl, [
+                {joinSentences([
                   intl.formatMessage(
                     data.mode === "arrived" ? messages.arrivedNote : messages.finishedNote,
                     { unit: unitName },

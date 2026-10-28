@@ -146,3 +146,17 @@ const TASK_STEP_MESSAGES = {
 export function taskStepLabel(intl: IntlShape, step: TaskStep) {
   return intl.formatMessage(TASK_STEP_MESSAGES[step]);
 }
+
+/**
+ * Sentences one after another: with a space between them, but none after a full-width stop, as
+ * Japanese and Chinese end theirs. Decided at each join, since a sentence not yet translated
+ * shows in English.
+ */
+export function joinSentences(parts: (string | null)[]) {
+  return parts
+    .filter((part): part is string => Boolean(part))
+    .reduce(
+      (text, part) => (text ? `${text}${/[。！？]$/.test(text) ? "" : " "}${part}` : part),
+      "",
+    );
+}

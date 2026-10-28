@@ -161,6 +161,10 @@ export function StackedBarChart({
             stackId="stack"
             fill={`var(--color-${key})`}
             radius={index === keys.length - 1 ? [4, 4, 0, 0] : undefined}
+            // A 2px gap in the card's colour between stacked parts, so neighbours that look
+            // alike to some readers stay apart.
+            stroke="var(--card)"
+            strokeWidth={2}
             maxBarSize={maxBarSize}
             isAnimationActive={false}
           />
