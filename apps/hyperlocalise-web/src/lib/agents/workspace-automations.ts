@@ -302,7 +302,7 @@ function validateWorkspaceAutomationConfig(input: {
     return err({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Google Drive, Braze, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Queries, Web Search, or Crowdin workflow tool.",
     });
   }
 
