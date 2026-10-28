@@ -14,7 +14,11 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
   where: vi.fn(),
-  importApproved: vi.fn(async () => ({ matched: 1, imported: 1, skipped: 0 })),
+  importApproved: vi.fn(async (..._args: unknown[]) => ({
+    matched: 1,
+    imported: 1,
+    skipped: 0,
+  })),
 }));
 
 vi.mock("@/lib/database/client", async (importOriginal) => {
@@ -33,7 +37,9 @@ vi.mock("@/lib/database/client", async (importOriginal) => {
 
 vi.mock("@/lib/projects/translations/project-translation-service", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@/lib/projects/translations/project-translation-service")>();
+    await importOriginal<
+      typeof import("@/lib/projects/translations/project-translation-service")
+    >();
   return {
     ...actual,
     importApprovedProjectTranslationsFromEntries: (...args: unknown[]) =>
