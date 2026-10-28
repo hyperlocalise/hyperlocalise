@@ -82,6 +82,43 @@ func TestReadPlaintextApplyRequestValidation(t *testing.T) {
 		require.Equal(t, "missing_template", client.code)
 	})
 
+	t.Run("rejects an empty template", func(t *testing.T) {
+		body := newPlaintextApplyMultipartBody(t, []byte{}, map[string]string{"txt.0001": "x"})
+		req := httptest.NewRequest(http.MethodPost, "/", body)
+		req.Header.Set("Content-Type", body.contentType)
+		_, err := readPlaintextApplyRequest(req)
+		var client plaintextApplyClientError
+		require.ErrorAs(t, err, &client)
+		require.Equal(t, "missing_template", client.code)
+	})
+
+	t.Run("rejects a second template part", func(t *testing.T) {
+		var buffer bytes.Buffer
+		writer := multipart.NewWriter(&buffer)
+		valuesPart, err := writer.CreateFormField(plaintextApplyValuesFormName)
+		require.NoError(t, err)
+		encoded, err := json.Marshal(map[string]string{"txt.0001": "x"})
+		require.NoError(t, err)
+		_, err = valuesPart.Write(encoded)
+		require.NoError(t, err)
+		firstTemplate, err := writer.CreateFormFile(plaintextApplyTemplateFormName, "template.txt")
+		require.NoError(t, err)
+		_, err = firstTemplate.Write([]byte("Hello\n"))
+		require.NoError(t, err)
+		secondTemplate, err := writer.CreateFormFile(plaintextApplyTemplateFormName, "other.txt")
+		require.NoError(t, err)
+		_, err = secondTemplate.Write([]byte("World\n"))
+		require.NoError(t, err)
+		require.NoError(t, writer.Close())
+
+		req := httptest.NewRequest(http.MethodPost, "/", &buffer)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		_, err = readPlaintextApplyRequest(req)
+		var client plaintextApplyClientError
+		require.ErrorAs(t, err, &client)
+		require.Equal(t, "invalid_multipart", client.code)
+	})
+
 	t.Run("rejects a missing values object", func(t *testing.T) {
 		body := newPlaintextApplyMultipartBodyParts(t, []byte("Hello\n"), nil)
 		req := httptest.NewRequest(http.MethodPost, "/", body)
