@@ -32,15 +32,12 @@ const {
   readTranslatedFileMock: vi.fn(),
 }));
 
-vi.mock("@/lib/database/client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/database/client")>();
-  return {
-    ...actual,
-    db: {
-      transaction: dbTransactionMock,
-    },
-  };
-});
+vi.mock("@/lib/database/client", () => ({
+  db: {
+    transaction: dbTransactionMock,
+  },
+  schema: {},
+}));
 
 vi.mock("@/lib/file-storage/get-file-storage-adapter", () => ({
   getFileStorageAdapter: vi.fn(() => ({

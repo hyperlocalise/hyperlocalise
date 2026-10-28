@@ -32,9 +32,6 @@ vi.mock("ai", async () => {
 vi.mock("@/lib/providers/language-model", () => ({
   getManagedVideoModel: getManagedVideoModelMock,
   hyperlocaliseVideoModelId: "bytedance/seedance-2.5",
-  getManagedLanguageModel: () => "openai/gpt-6-luna",
-  getAgentProviderOptions: () => undefined,
-  hyperlocaliseManagedGatewayModelId: "openai/gpt-6-luna",
 }));
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({

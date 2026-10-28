@@ -12,40 +12,56 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const mocks = vi.hoisted(() => ({
-  where: vi.fn(),
-  importApproved: vi.fn(async (..._args: unknown[]) => ({
-    matched: 1,
-    imported: 1,
-    skipped: 0,
-  })),
+const { importApprovedMock, whereMock } = vi.hoisted(() => {
+  const importApprovedMock = vi.fn(async () => ({ matched: 1, imported: 1, skipped: 0 }));
+  const whereMock = vi.fn();
+  return { importApprovedMock, whereMock };
+});
+
+vi.mock("@/lib/projects/translations/project-translation-service", () => ({
+  importApprovedProjectTranslationsFromEntries: importApprovedMock,
 }));
 
-vi.mock("@/lib/database/client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/database/client")>();
+vi.mock("@/lib/database/client", () => {
   return {
-    ...actual,
     db: {
-      select: () => ({
-        from: () => ({
-          where: (...args: unknown[]) => mocks.where(...args),
-        }),
-      }),
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: whereMock,
+        })),
+      })),
+    },
+    schema: {
+      repositorySourceFiles: {
+        id: "id",
+        organizationId: "organizationId",
+        projectId: "projectId",
+        sourcePath: "sourcePath",
+      },
+      projectTranslationKeys: {
+        id: "id",
+        key: "key",
+        projectId: "projectId",
+        repositorySourceFileId: "repositorySourceFileId",
+      },
+      projectTranslations: {
+        translationKeyId: "translationKeyId",
+        text: "text",
+        status: "status",
+        provenance: "provenance",
+        organizationId: "organizationId",
+        projectId: "projectId",
+        targetLocale: "targetLocale",
+      },
     },
   };
 });
 
-vi.mock("@/lib/projects/translations/project-translation-service", async (importOriginal) => {
-  const actual =
-    await importOriginal<
-      typeof import("@/lib/projects/translations/project-translation-service")
-    >();
-  return {
-    ...actual,
-    importApprovedProjectTranslationsFromEntries: (...args: unknown[]) =>
-      mocks.importApproved(...args),
-  };
-});
+vi.mock("drizzle-orm", () => ({
+  and: vi.fn((...conditions: unknown[]) => conditions),
+  eq: vi.fn((field: unknown, value: unknown) => [field, value]),
+  inArray: vi.fn((field: unknown, values: unknown) => [field, values]),
+}));
 
 import { importWebflowTargetTranslation } from "./import-webflow-target-translations";
 
@@ -62,9 +78,9 @@ function queuePresenceQueries(input: {
     provenance: string;
   }>;
 }) {
-  mocks.where.mockReturnValueOnce(rowsWithLimit([{ id: "source-file-1" }]));
-  mocks.where.mockReturnValueOnce(rowsWithLimit(input.keys));
-  mocks.where.mockReturnValueOnce(rowsWithLimit(input.translations));
+  whereMock.mockReturnValueOnce(rowsWithLimit([{ id: "source-file-1" }]));
+  whereMock.mockReturnValueOnce(rowsWithLimit(input.keys));
+  whereMock.mockReturnValueOnce(rowsWithLimit(input.translations));
 }
 
 const baseInput = {
@@ -89,7 +105,7 @@ describe("importWebflowTargetTranslation", () => {
     });
 
     expect(result.status).toBe("imported");
-    expect(mocks.importApproved).toHaveBeenCalledWith(
+    expect(importApprovedMock).toHaveBeenCalledWith(
       expect.objectContaining({
         sourcePath: baseInput.sourcePath,
         targetLocale: "fr",
@@ -113,7 +129,7 @@ describe("importWebflowTargetTranslation", () => {
     });
 
     expect(result.status).toBe("skipped");
-    expect(mocks.importApproved).not.toHaveBeenCalled();
+    expect(importApprovedMock).not.toHaveBeenCalled();
   });
 
   it("overwrites everything under overwrite_all", async () => {
@@ -131,7 +147,7 @@ describe("importWebflowTargetTranslation", () => {
     });
 
     expect(result.status).toBe("imported");
-    expect(mocks.importApproved).toHaveBeenCalledOnce();
+    expect(importApprovedMock).toHaveBeenCalledOnce();
   });
 
   it("refreshes import-provenance translations when remote content changed", async () => {
@@ -149,7 +165,7 @@ describe("importWebflowTargetTranslation", () => {
     });
 
     expect(result.status).toBe("imported");
-    expect(mocks.importApproved).toHaveBeenCalledOnce();
+    expect(importApprovedMock).toHaveBeenCalledOnce();
   });
 
   it("keeps identical import-provenance translations under refresh_imported", async () => {
@@ -167,7 +183,7 @@ describe("importWebflowTargetTranslation", () => {
     });
 
     expect(result.status).toBe("skipped");
-    expect(mocks.importApproved).not.toHaveBeenCalled();
+    expect(importApprovedMock).not.toHaveBeenCalled();
   });
 
   it("skips empty incoming content without touching the database", async () => {
@@ -178,7 +194,7 @@ describe("importWebflowTargetTranslation", () => {
     });
 
     expect(result.status).toBe("skipped");
-    expect(mocks.where).not.toHaveBeenCalled();
-    expect(mocks.importApproved).not.toHaveBeenCalled();
+    expect(whereMock).not.toHaveBeenCalled();
+    expect(importApprovedMock).not.toHaveBeenCalled();
   });
 });

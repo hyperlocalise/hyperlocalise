@@ -46,8 +46,6 @@ vi.mock("@/lib/providers/language-model", () => ({
     source === "openai" || source === "gateway"
       ? { openai: { reasoningSummary: "auto" as const } }
       : undefined,
-  getManagedLanguageModel: () => "openai/gpt-6-luna",
-  hyperlocaliseManagedGatewayModelId: "openai/gpt-6-luna",
 }));
 
 vi.mock("@/lib/providers/organization-language-model", () => ({

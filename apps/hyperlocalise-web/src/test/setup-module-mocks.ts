@@ -108,47 +108,31 @@ function trackMockedModules(target: Mocker): Set<string> {
   return mockedIds;
 }
 
-// Module ids can carry a query or hash. `fileToModulesMap` is keyed by the
-// path with those stripped, while `getModuleById` uses the full id.
-function moduleFilePath(id: string): string {
-  const queryIndex = id.search(/[?#]/);
-  return queryIndex === -1 ? id : id.slice(0, queryIndex);
-}
-
 function findModules(modules: EvaluatedModules, id: string): ModuleNode[] {
-  const nodes = new Set<ModuleNode>();
-  const file = moduleFilePath(id);
-  for (const key of file === id ? [id] : [id, file]) {
-    const matches = modules.fileToModulesMap.get(key);
-    if (!matches) continue;
-    for (const match of matches) nodes.add(match);
-  }
-  const node = modules.getModuleById(id) ?? (file === id ? undefined : modules.getModuleById(file));
+  const nodes = new Set(modules.fileToModulesMap.get(id));
+  const node = modules.getModuleById(id);
   if (node) nodes.add(node);
   return [...nodes];
 }
 
 // Keeps each node's fetched `meta` so this is safe to call while the module
 // runner is fetching, and so re-evaluation does not re-transform the source.
-// Importer ids are resolved through both graph lookups: a query-string mismatch
-// used to skip the node, leaving files such as default-workspace-team.ts bound
-// to a mocked `{ schema: {} }` client.
 function resetImporters(modules: EvaluatedModules, roots: ModuleNode[]) {
-  const visited = new Set<ModuleNode>();
+  const visited = new Set<string>();
   const pending = roots.flatMap((node) => [...node.importers]);
 
   while (pending.length > 0) {
     const id = pending.pop()!;
-    for (const node of findModules(modules, id)) {
-      if (visited.has(node)) continue;
-      visited.add(node);
-      // A pending promise means the module is mid-evaluation in the current import chain.
-      if (node.promise && !node.evaluated) continue;
+    if (visited.has(id)) continue;
+    visited.add(id);
 
-      node.evaluated = false;
-      node.promise = undefined;
-      node.exports = undefined;
-      pending.push(...node.importers);
-    }
+    const node = modules.getModuleById(id);
+    // A pending promise means the module is mid-evaluation in the current import chain.
+    if (!node || (node.promise && !node.evaluated)) continue;
+
+    node.evaluated = false;
+    node.promise = undefined;
+    node.exports = undefined;
+    pending.push(...node.importers);
   }
 }
