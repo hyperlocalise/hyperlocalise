@@ -18,6 +18,7 @@ import {
   getCustomerIoNewsletterActionTranslation,
   getCustomerIoTransactionalActionTranslation,
   listCustomerIoBroadcastActions,
+  listCustomerIoBroadcasts,
   listCustomerIoCampaigns,
   listCustomerIoNewsletterActions,
   listCustomerIoNewsletters,
@@ -286,6 +287,34 @@ describe("newsletter and transactional variants", () => {
     expect(putImpl).toHaveBeenCalledWith(
       "https://api.customer.io/v1/transactional/5/language/fr",
       expect.objectContaining({ method: "PUT" }),
+    );
+  });
+});
+
+describe("listCustomerIoBroadcasts", () => {
+  it("falls back to the id when a broadcast has no name", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      jsonResponse({
+        broadcasts: [
+          { id: 3, name: "Launch", updated_at: 1552341937 },
+          { id: 4, name: "", updated: 1552341937 },
+          { id: 5, updated: 1552341937 },
+        ],
+      }),
+    );
+
+    const broadcasts = await listCustomerIoBroadcasts({ apiKey: "key", region: "us", fetchImpl });
+
+    expect(broadcasts).toEqual([
+      { id: "3", name: "Launch", updatedAt: expect.any(String) },
+      { id: "4", name: "4", updatedAt: expect.any(String) },
+      { id: "5", name: "5", updatedAt: expect.any(String) },
+    ]);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://api.customer.io/v1/broadcasts?limit=100",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer key" }),
+      }),
     );
   });
 });

@@ -162,10 +162,13 @@ function readCustomerIoSummaries(
   return (items as CustomerIoSummaryItem[]).flatMap((item) => {
     const id =
       typeof item.id === "number" ? String(item.id) : typeof item.id === "string" ? item.id : "";
-    const name = typeof item.name === "string" ? item.name : "";
-    if (!id || !name) {
+    if (!id) {
       return [];
     }
+    const rawName = typeof item.name === "string" ? item.name.trim() : "";
+    // Fall back to the id so unnamed/draft resources (notably broadcasts)
+    // still appear in the picker instead of rendering as an empty list.
+    const name = rawName || id;
     const updatedAt =
       typeof item.updated_at === "number"
         ? new Date(item.updated_at * 1000).toISOString()

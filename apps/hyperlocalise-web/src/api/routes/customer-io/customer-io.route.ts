@@ -15,6 +15,7 @@ import { validator } from "hono/validator";
 
 import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { createLogger } from "@/lib/log";
 import {
   badRequestResponse,
   forbiddenResponse,
@@ -59,6 +60,8 @@ function canReadCustomerIo(role: AuthVariables["auth"]["membership"]["role"]) {
 function canWriteCustomerIo(role: AuthVariables["auth"]["membership"]["role"]) {
   return hasCapability(role, "integrations:write");
 }
+
+const logger = createLogger("customer-io-routes");
 
 function mapCustomerIoError(
   c: Parameters<typeof badRequestResponse>[0],
@@ -154,8 +157,15 @@ export function createCustomerIoRoutes() {
         apiKey: keyResult.value,
         region: settings.region,
       });
+      if (items.length === 0) {
+        logger.info({ key, region: settings.region }, "customer.io library list empty");
+      }
       return c.json({ [key]: items }, 200);
-    } catch {
+    } catch (error) {
+      logger.warn(
+        { key, error: error instanceof Error ? error.message : String(error) },
+        "customer.io library list failed",
+      );
       return serviceUnavailableResponse(
         c,
         "customer_io_temporarily_unavailable",

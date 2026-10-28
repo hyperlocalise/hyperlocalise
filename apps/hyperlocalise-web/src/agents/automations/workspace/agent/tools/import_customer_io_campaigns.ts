@@ -25,7 +25,7 @@ import {
 export function createImportCustomerIoCampaignsTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({
     description:
-      "Import Customer.io campaign and broadcast message actions into the attached project as JSON translation maps, wait for ingest, and open native translation jobs when configured.",
+      "Import Customer.io campaign, newsletter, broadcast, and transactional message actions into the attached project as JSON translation maps or HTML email files, wait for ingest, and open native translation jobs when configured.",
     inputSchema: z.object({
       summary: z.string().optional().describe("Optional operator note for the run record."),
     }),

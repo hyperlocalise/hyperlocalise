@@ -143,6 +143,7 @@ export type ImportCustomerIoCampaignsResult = {
   jobsCreated: number;
   broadcasts: string[];
   unmappedProjectTargets: string[];
+  warnings: string[];
 };
 
 export type CustomerIoImportResource = {
@@ -164,7 +165,14 @@ function permissionErrorMessage(error: unknown): string {
 }
 
 function shouldTreatRemoteTranslationAsEmpty(error: unknown): boolean {
-  return error instanceof CustomerIoApiError && error.status === 404;
+  if (!(error instanceof CustomerIoApiError)) {
+    return false;
+  }
+  // 404 = language variant does not exist yet. 400 = Customer.io rejected the
+  // language tag (e.g. zh-CN when that locale is not enabled/known). In both
+  // cases there is nothing to seed — leave the locale for Jobs instead of
+  // failing the whole action before its source file is written.
+  return error.status === 404 || error.status === 400;
 }
 
 export async function runImportCustomerIoCampaigns(input: {
@@ -181,6 +189,7 @@ export async function runImportCustomerIoCampaigns(input: {
       jobsCreated: 0,
       broadcasts: [],
       unmappedProjectTargets: [],
+      warnings: [],
     };
   }
   const projectId = input.automation.projectId?.trim();
@@ -192,6 +201,7 @@ export async function runImportCustomerIoCampaigns(input: {
       jobsCreated: 0,
       broadcasts: [],
       unmappedProjectTargets: [],
+      warnings: [],
     };
   }
 
@@ -224,6 +234,7 @@ export async function runImportCustomerIoCampaigns(input: {
       jobsCreated: 0,
       broadcasts: [],
       unmappedProjectTargets: [],
+      warnings: [],
     };
   }
 
@@ -243,6 +254,7 @@ export async function runImportCustomerIoCampaigns(input: {
       jobsCreated: 0,
       broadcasts: [],
       unmappedProjectTargets: [],
+      warnings: [],
     };
   }
 
@@ -286,6 +298,7 @@ export async function runImportCustomerIoCampaigns(input: {
   let failed = 0;
   let jobsCreated = 0;
   const resourceNames: string[] = [];
+  const warnings: string[] = [];
 
   const results = await mapWithConcurrency(
     resources,
@@ -308,7 +321,18 @@ export async function runImportCustomerIoCampaigns(input: {
         return { ...totals, name: resource.name };
       } catch (error) {
         logger.warn({ error: permissionErrorMessage(error) }, "customer.io import failed");
-        return { imported: 0, skipped: 0, failed: 1, jobsCreated: 0, name: null as string | null };
+        return {
+          imported: 0,
+          skipped: 0,
+          failed: 1,
+          jobsCreated: 0,
+          broadcasts: [] as string[],
+          unmappedProjectTargets: [] as string[],
+          warnings: [
+            `${resource.kind} ${resource.id}: import failed (${permissionErrorMessage(error)})`,
+          ],
+          name: null as string | null,
+        };
       }
     },
   );
@@ -321,6 +345,11 @@ export async function runImportCustomerIoCampaigns(input: {
     if (result.name) {
       resourceNames.push(result.name);
     }
+    for (const warning of result.warnings ?? []) {
+      if (warnings.length < 20 && !warnings.includes(warning)) {
+        warnings.push(warning);
+      }
+    }
   }
 
   return {
@@ -330,6 +359,7 @@ export async function runImportCustomerIoCampaigns(input: {
     jobsCreated,
     broadcasts: resourceNames,
     unmappedProjectTargets: localeMapping.unmappedProjectTargets,
+    warnings,
   };
 }
 
@@ -425,20 +455,31 @@ async function importCustomerIoResource(input: {
     jobsCreated: 0,
     broadcasts: [],
     unmappedProjectTargets: [],
+    warnings: [],
+  };
+
+  const pushWarning = (message: string) => {
+    if (totals.warnings.length < 20 && !totals.warnings.includes(message)) {
+      totals.warnings.push(message);
+    }
   };
 
   for (const action of actions) {
+    const label = `${input.resource.kind} ${input.resource.id} action ${action.id}`;
     if (!isCustomerIoLocalizableActionType(action.type)) {
       totals.skipped += 1;
+      pushWarning(`${label}: skipped (type "${action.type}" is not localizable)`);
       continue;
     }
     if (input.actionIds && !input.actionIds.includes(action.id)) {
       totals.skipped += 1;
+      pushWarning(`${label}: skipped (not in selected actions)`);
       continue;
     }
     // Default-language content only: translated variants import as approved entries.
     if (action.language.trim() !== "") {
       totals.skipped += 1;
+      pushWarning(`${label}: skipped (language "${action.language}" is not the default variant)`);
       continue;
     }
     const result = await importCustomerIoAction({ ...input, action });
@@ -446,6 +487,9 @@ async function importCustomerIoResource(input: {
     totals.skipped += result.skipped;
     totals.failed += result.failed;
     totals.jobsCreated += result.jobsCreated;
+    for (const warning of result.warnings) {
+      pushWarning(warning);
+    }
   }
   return totals;
 }
@@ -472,6 +516,9 @@ async function importCustomerIoAction(input: {
       jobsCreated: 0,
       broadcasts: [],
       unmappedProjectTargets: [],
+      warnings: [
+        `${input.resource.kind} ${input.resource.id} action ${input.action.id}: skipped (no translatable subject/body/title strings)`,
+      ],
     };
   }
 
@@ -613,6 +660,9 @@ async function importCustomerIoAction(input: {
       jobsCreated: 0,
       broadcasts: [],
       unmappedProjectTargets: [],
+      warnings: [
+        `${input.resource.kind} ${input.resource.id} action ${input.action.id}: file was not saved/ingested (${sourcePath})`,
+      ],
     };
   }
 
@@ -690,6 +740,7 @@ async function importCustomerIoAction(input: {
     jobsCreated: jobId ? 1 : 0,
     broadcasts: [],
     unmappedProjectTargets: [],
+    warnings: [],
   };
 }
 
