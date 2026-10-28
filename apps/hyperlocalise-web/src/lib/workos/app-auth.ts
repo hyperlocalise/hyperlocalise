@@ -26,6 +26,7 @@ import {
   setStoredActiveOrganizationSlug,
 } from "@/lib/workos/active-organization";
 import { redirectForMissingOrganizationAccess } from "@/lib/workos/missing-organization-access";
+import { hasPendingInvitationToOrganization } from "@/lib/workos/pending-invitations";
 
 export type AppAuthContext = ApiAuthContext & {
   sessionUser: NonNullable<Awaited<ReturnType<typeof withAuth>>["user"]>;
@@ -60,6 +61,15 @@ export async function requireAppAuthContext(options: RequireAppAuthContextOption
     });
   } catch (error) {
     if (error instanceof StaleOrganizationSlugError) {
+      // A workspace the person is invited to but has not joined yet: offer the invitation
+      // instead of sending them to another workspace.
+      if (
+        options.organizationSlug &&
+        (await hasPendingInvitationToOrganization(sessionUser.id, options.organizationSlug))
+      ) {
+        redirect("/auth/select-organization");
+      }
+
       await setStoredActiveOrganizationSlug(error.currentSlug);
       redirect(
         `/org/${error.currentSlug}/dashboard${options.staleOrganizationRedirectSearch ?? ""}`,

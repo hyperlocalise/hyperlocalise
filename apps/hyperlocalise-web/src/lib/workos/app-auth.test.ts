@@ -21,6 +21,7 @@ const {
   getStoredActiveOrganizationSlugMock,
   setStoredActiveOrganizationSlugMock,
   redirectForMissingOrganizationAccessMock,
+  hasPendingInvitationToOrganizationMock,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((location: string) => {
     throw new Error(`redirect:${location}`);
@@ -32,6 +33,7 @@ const {
   redirectForMissingOrganizationAccessMock: vi.fn(async () => {
     throw new Error("redirect:/auth/onboarding");
   }),
+  hasPendingInvitationToOrganizationMock: vi.fn(async () => false),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -57,6 +59,10 @@ vi.mock("@/lib/workos/active-organization", () => ({
 
 vi.mock("@/lib/workos/missing-organization-access", () => ({
   redirectForMissingOrganizationAccess: redirectForMissingOrganizationAccessMock,
+}));
+
+vi.mock("@/lib/workos/pending-invitations", () => ({
+  hasPendingInvitationToOrganization: hasPendingInvitationToOrganizationMock,
 }));
 
 describe("requireAppAuthContext", () => {
@@ -170,5 +176,30 @@ describe("requireAppAuthContext", () => {
     ).rejects.toThrow("redirect:/org/new-slug/dashboard?error=oauth_callback");
     expect(setStoredActiveOrganizationSlugMock).toHaveBeenCalledWith("new-slug");
     expect(redirectMock).toHaveBeenCalledWith("/org/new-slug/dashboard?error=oauth_callback");
+  });
+
+  it("offers the invitation instead of another workspace for an invited, unjoined workspace", async () => {
+    const session = {
+      user: { id: "user_123", email: "person@example.com" },
+      organizationId: "org_home",
+    };
+    const { StaleOrganizationSlugError } = await import("@/api/auth/workos-session");
+
+    withAuthMock.mockResolvedValue(session);
+    hasPendingInvitationToOrganizationMock.mockResolvedValueOnce(true);
+    resolveApiAuthContextFromSessionMock.mockRejectedValue(
+      new StaleOrganizationSlugError("invited-workspace", "home-workspace"),
+    );
+
+    const { requireAppAuthContext } = await import("./app-auth");
+
+    await expect(requireAppAuthContext({ organizationSlug: "invited-workspace" })).rejects.toThrow(
+      "redirect:/auth/select-organization",
+    );
+    expect(hasPendingInvitationToOrganizationMock).toHaveBeenCalledWith(
+      "user_123",
+      "invited-workspace",
+    );
+    expect(setStoredActiveOrganizationSlugMock).not.toHaveBeenCalled();
   });
 });
