@@ -156,6 +156,7 @@ function shortQueryScore(
   entryIds: Iterable<number>,
   entries: string[],
   lengths: number[],
+  distinctCharsOf: (id: number) => string,
 ): number {
   if (bigramScore >= LOWEST_BAND_SCORE || queryLength > SHORT_QUERY_LENGTH) return bigramScore;
   const queryChars = new Set(Array.from(query));
@@ -163,18 +164,40 @@ function shortQueryScore(
   for (const id of entryIds) {
     const length = lengths[id];
     if (!withinLengthRatio(length, queryLength)) continue;
-    const chars = new Set(Array.from(entries[id]));
+    let chars = 0;
     let shared = 0;
-    for (const char of chars) if (queryChars.has(char)) shared++;
-    if (shared > 0) candidates.push({ text: entries[id], length, grams: chars.size, shared });
+    for (const char of distinctCharsOf(id)) {
+      chars++;
+      if (queryChars.has(char)) shared++;
+    }
+    if (shared > 0) candidates.push({ text: entries[id], length, grams: chars, shared });
   }
   return Math.max(bigramScore, bestCandidateScore(query, queryLength, queryChars.size, candidates));
 }
 
+/** The text's characters, each once, in the order they first appear. */
+function distinctChars(text: string): string {
+  return Array.from(new Set(Array.from(text))).join("");
+}
+
+/** The first position in `ids`, sorted ascending, holding an id of at least `id`. */
+function lowerBound(ids: Int32Array, id: number): number {
+  let low = 0;
+  let high = ids.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (ids[middle] < id) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+
 /**
  * Finds the closest of a fixed set of memory source texts to each query without a database
- * round trip per query. Entries are indexed by character bigrams; a query scores only the
- * entries sharing the most bigrams with it, so the cost per query does not grow with the set.
+ * round trip per query. Entries are indexed by character bigrams and numbered in length order,
+ * so a query counts shared bigrams only for the entries of a length that can reach the lowest
+ * band, then scores exactly the entries sharing the most. The cost per query still grows with
+ * the set, as most entries share a common bigram with most queries.
  */
 export class MemoryMatchIndex {
   private readonly entries: string[] = [];
@@ -182,34 +205,49 @@ export class MemoryMatchIndex {
   private readonly gramCounts: number[] = [];
   /** Raw source texts: only an exact copy is a 100% match. */
   private readonly exact = new Set<string>();
-  private readonly normalizedSeen = new Set<string>();
-  private readonly postings = new Map<string, number[]>();
-  /** Entries short enough to be compared with a short query, by length. */
-  private readonly shortIdsByLength = new Map<number, number[]>();
+  /** The ids of the entries with each bigram, ascending, so also by length. */
+  private readonly postings = new Map<string, Int32Array>();
+  /** `firstOfLength[n]` is the first id of an entry at least `n` characters long. */
+  private readonly firstOfLength: Int32Array;
+  /** By id, the distinct characters of the entries short enough to compare with a short query. */
+  private readonly shortChars: string[] = [];
+  /** Shared bigrams by entry id while a query is counted; all 0 between queries. */
+  private readonly sharedCounts: Int32Array;
+  /** The ids counted for the current query. */
+  private readonly counted: Int32Array;
 
   constructor(sourceTexts: Iterable<string>) {
+    const lengthOf = new Map<string, number>();
     for (const text of sourceTexts) {
       this.exact.add(text);
       const normalized = normalizeTranslationMemorySourceText(text);
-      if (this.normalizedSeen.has(normalized)) continue;
-      this.normalizedSeen.add(normalized);
+      if (!lengthOf.has(normalized)) lengthOf.set(normalized, Array.from(normalized).length);
+    }
+    const postings = new Map<string, number[]>();
+    for (const [normalized, length] of [...lengthOf].sort((a, b) => a[1] - b[1])) {
       const id = this.entries.length;
-      const length = Array.from(normalized).length;
       this.entries.push(normalized);
       this.lengths.push(length);
       if (length * MIN_LENGTH_RATIO <= SHORT_QUERY_LENGTH) {
-        let ids = this.shortIdsByLength.get(length);
-        if (!ids) this.shortIdsByLength.set(length, (ids = []));
-        ids.push(id);
+        this.shortChars.push(distinctChars(normalized));
       }
       const grams = bigrams(normalized);
       this.gramCounts.push(grams.size);
       for (const gram of grams) {
-        let posting = this.postings.get(gram);
-        if (!posting) this.postings.set(gram, (posting = []));
+        let posting = postings.get(gram);
+        if (!posting) postings.set(gram, (posting = []));
         posting.push(id);
       }
     }
+    for (const [gram, ids] of postings) this.postings.set(gram, Int32Array.from(ids));
+    const longest = this.lengths.at(-1) ?? 0;
+    this.firstOfLength = new Int32Array(longest + 2);
+    for (let length = 0, id = 0; length <= longest + 1; length++) {
+      while (id < this.lengths.length && this.lengths[id] < length) id++;
+      this.firstOfLength[length] = id;
+    }
+    this.sharedCounts = new Int32Array(this.entries.length);
+    this.counted = new Int32Array(this.entries.length);
   }
 
   get size(): number {
@@ -220,20 +258,32 @@ export class MemoryMatchIndex {
   bestScore(sourceText: string): number {
     if (this.exact.has(sourceText)) return 100;
     const query = normalizeTranslationMemorySourceText(sourceText);
-    const counts = new Map<number, number>();
     const queryGrams = bigrams(query);
+    const queryLength = Array.from(query).length;
+    // The ids of the entries within the length ratio of the query.
+    const first = this.firstIdOfLength(Math.ceil(queryLength * MIN_LENGTH_RATIO));
+    const end = this.firstIdOfLength(Math.floor(queryLength / MIN_LENGTH_RATIO) + 1);
+    const { sharedCounts, counted } = this;
+    let countedCount = 0;
     for (const gram of queryGrams) {
-      for (const id of this.postings.get(gram) ?? []) {
-        counts.set(id, (counts.get(id) ?? 0) + 1);
+      const posting = this.postings.get(gram);
+      if (!posting) continue;
+      for (let i = lowerBound(posting, first); i < posting.length && posting[i] < end; i++) {
+        const id = posting[i];
+        if (sharedCounts[id]++ === 0) counted[countedCount++] = id;
       }
     }
-    const candidates = Array.from(counts, ([id, shared]) => ({
-      text: this.entries[id],
-      length: this.lengths[id],
-      grams: this.gramCounts[id],
-      shared,
-    }));
-    const queryLength = Array.from(query).length;
+    const candidates: Candidate[] = [];
+    for (let i = 0; i < countedCount; i++) {
+      const id = counted[i];
+      candidates.push({
+        text: this.entries[id],
+        length: this.lengths[id],
+        grams: this.gramCounts[id],
+        shared: sharedCounts[id],
+      });
+      sharedCounts[id] = 0;
+    }
     const score = bestCandidateScore(query, queryLength, queryGrams.size, candidates);
     return Math.min(
       99,
@@ -241,20 +291,23 @@ export class MemoryMatchIndex {
         query,
         queryLength,
         score,
-        this.shortIdsWithin(queryLength),
+        idRange(first, end),
         this.entries,
         this.lengths,
+        // A short query's length window holds only short entries.
+        (id) => this.shortChars[id],
       ),
     );
   }
 
-  private *shortIdsWithin(queryLength: number): Generator<number> {
-    const shortest = Math.ceil(queryLength * MIN_LENGTH_RATIO);
-    const longest = Math.floor(queryLength / MIN_LENGTH_RATIO);
-    for (let length = shortest; length <= longest; length++) {
-      yield* this.shortIdsByLength.get(length) ?? [];
-    }
+  private firstIdOfLength(length: number): number {
+    if (length <= 0) return 0;
+    return length < this.firstOfLength.length ? this.firstOfLength[length] : this.entries.length;
   }
+}
+
+function* idRange(first: number, end: number): Generator<number> {
+  for (let id = first; id < end; id++) yield id;
 }
 
 const CODE_POINT_COUNT = 0x110000;
@@ -330,7 +383,15 @@ export class MemorySourceScan {
     const score = bestCandidateScore(query, queryLength, slots.size, candidates);
     return Math.min(
       99,
-      shortQueryScore(query, queryLength, score, this.entries.keys(), this.entries, this.lengths),
+      shortQueryScore(
+        query,
+        queryLength,
+        score,
+        this.entries.keys(),
+        this.entries,
+        this.lengths,
+        (id) => distinctChars(this.entries[id]),
+      ),
     );
   }
 }
