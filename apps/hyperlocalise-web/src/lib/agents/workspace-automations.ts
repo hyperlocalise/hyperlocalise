@@ -1081,10 +1081,17 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       organizationId: input.organizationId,
       connectionId: webflow.connectionId,
     });
-    if (!loaded?.token) {
+    if (!loaded) {
       return err({
         code: "webflow_not_connected",
-        message: "Connect Webflow in Integrations before using it.",
+        message:
+          "The selected Webflow connection was not found. Choose it again in the automation editor.",
+      });
+    }
+    if (!loaded.token) {
+      return err({
+        code: "webflow_not_connected",
+        message: "Reconnect Webflow in Integrations before using it.",
       });
     }
 
