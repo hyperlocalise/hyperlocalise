@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -104,13 +105,6 @@ export function WorkspaceAutomationWebflowSettings({
   });
 
   const discovery = discoverQuery.data ?? null;
-  const siteLocales = useMemo(() => {
-    if (!discovery?.locales) {
-      return [];
-    }
-    return [discovery.locales.primary, ...discovery.locales.secondary];
-  }, [discovery]);
-
   const collections = discovery?.collections ?? [];
   const primaryTag = discovery?.locales?.primary.tag ?? null;
 
@@ -149,11 +143,10 @@ export function WorkspaceAutomationWebflowSettings({
     onChange({ ...form, webflowSiteId: selectedConnection.siteId });
   }, [form, onChange, selectedConnection]);
 
+  // The source locale is the live site primary locale, never a saved snapshot:
+  // always sync it from discovery so a changed site primary flows through.
   useEffect(() => {
     if (!primaryTag || form.webflowSourceLocale === primaryTag) {
-      return;
-    }
-    if (form.webflowSourceLocale.trim().length > 0) {
       return;
     }
     onChange({ ...form, webflowSourceLocale: primaryTag });
@@ -304,46 +297,32 @@ export function WorkspaceAutomationWebflowSettings({
 
       <div className="space-y-2">
         <Label htmlFor="webflow-source-locale">Webflow source locale</Label>
-        <Select
-          value={form.webflowSourceLocale || undefined}
-          onValueChange={(locale) => {
-            if (!locale) {
-              return;
-            }
-            onChange({ ...form, webflowSourceLocale: locale });
-          }}
-          disabled={!webflowConnected || siteLocales.length === 0}
-        >
-          <SelectTrigger
+        {!form.webflowConnectionId ? (
+          <p className="text-sm text-muted-foreground">Select a connection first.</p>
+        ) : discoverQuery.isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Spinner />
+            Loading site locales…
+          </div>
+        ) : discoverQuery.isError || !primaryTag ? (
+          <p className="text-sm text-destructive">Failed to load the site primary locale.</p>
+        ) : (
+          <Input
             id="webflow-source-locale"
-            className="w-full"
+            value={formatLocaleOptionLabel(intl, primaryTag)}
+            disabled
+            readOnly
             aria-invalid={Boolean(errors.webflowSourceLocale)}
-          >
-            <SelectValue placeholder="Select a source locale">
-              {form.webflowSourceLocale
-                ? formatLocaleOptionLabel(intl, form.webflowSourceLocale)
-                : "Select a source locale"}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {siteLocales.map((locale) => (
-              <SelectItem
-                key={locale.cmsLocaleId}
-                value={locale.tag}
-                label={formatLocaleOptionLabel(intl, locale.tag)}
-              >
-                {formatLocaleOptionLabel(intl, locale.tag)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          />
+        )}
         {errors.webflowSourceLocale ? (
           <p data-slot="field-error" className="text-sm text-destructive">
             {errors.webflowSourceLocale}
           </p>
         ) : (
           <p className="text-xs text-muted-foreground">
-            The site primary locale. It must be the same language as the project source locale.
+            Read live from the site primary locale. It must be the same language as the project
+            source locale.
           </p>
         )}
         {localeMappingRows.length > 0 ? (
