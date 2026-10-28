@@ -22,7 +22,14 @@ export function areWebflowSourceLocalesCompatible(
   configuredSource: string,
   projectSource: string,
 ): boolean {
-  return normalizeWebflowLocaleTag(configuredSource) === normalizeWebflowLocaleTag(projectSource);
+  const configured = normalizeWebflowLocaleTag(configuredSource);
+  const project = normalizeWebflowLocaleTag(projectSource);
+  if (configured === project) {
+    return true;
+  }
+  const configuredLanguage = configured.split("-")[0]?.toLowerCase();
+  const projectLanguage = project.split("-")[0]?.toLowerCase();
+  return Boolean(configuredLanguage) && configuredLanguage === projectLanguage;
 }
 
 export function resolveWebflowLocaleKey(
@@ -39,11 +46,22 @@ export function resolveWebflowLocaleKey(
   if (!language) {
     return null;
   }
-  for (const entry of catalog) {
-    const entryLanguage = normalizeWebflowLocaleTag(entry.tag).split("-")[0]?.toLowerCase();
-    if (entryLanguage === language) {
-      return entry;
-    }
+  const sameLanguage = catalog.filter(
+    (entry) => normalizeWebflowLocaleTag(entry.tag).split("-")[0]?.toLowerCase() === language,
+  );
+  // A language-only Webflow locale covers every regional project locale of
+  // that language (e.g. Webflow `en` serves project `en-US`).
+  const languageOnly = sameLanguage.find(
+    (entry) => !normalizeWebflowLocaleTag(entry.tag).includes("-"),
+  );
+  if (languageOnly) {
+    return languageOnly;
+  }
+  // Otherwise only map when the choice is unambiguous: a single regional
+  // candidate (e.g. project `en` against Webflow `[en-US]`). Multiple
+  // regionals (e.g. `[en-US, en-GB]`) stay unmapped instead of guessing wrong.
+  if (sameLanguage.length === 1) {
+    return sameLanguage[0] ?? null;
   }
   return null;
 }

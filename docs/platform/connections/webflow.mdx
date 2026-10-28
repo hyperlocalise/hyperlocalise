@@ -20,7 +20,7 @@ The automation uses this Webflow connection. Connect Webflow before you add the 
 
 ## Prepare the native project
 
-Create or choose a [native project](/platform/projects/create-project), then set **source** and **target** locales under [project Settings → Locales](/platform/projects/languages). Translation jobs, import, and push only use tags in that list: one `sourceLocale` and one or more `targetLocales`. Map each Webflow locale onto a locale in the project's list; drop or add project targets in Hyperlocalise when Webflow and the project list diverge.
+Create or choose a [native project](/platform/projects/create-project), then set **source** and **target** locales under [project Settings → Locales](/platform/projects/languages). Translation jobs, import, and push only use tags in that list: one `sourceLocale` and one or more `targetLocales`. Locales map automatically: exact tags match first, then a language-only Webflow locale covers every regional project locale of that language (Webflow `en` serves project `en-US`), then a lone regional entry matches its language. When several regional Webflow locales share a language with no language-only entry (for example project `en` against Webflow `en-US` and `en-GB`), the locale stays unmapped and is skipped instead of guessed; drop or add project targets in Hyperlocalise when Webflow and the project list diverge.
 
 ## Create the automation
 

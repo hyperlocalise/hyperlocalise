@@ -41,6 +41,27 @@ const germanDisabled: WebflowLocale = {
   enabled: false,
 };
 
+const americanEnglish: WebflowLocale = {
+  id: "en-us",
+  cmsLocaleId: "cms-en-us",
+  tag: "en-US",
+  enabled: true,
+};
+
+const britishEnglish: WebflowLocale = {
+  id: "en-gb",
+  cmsLocaleId: "cms-en-gb",
+  tag: "en-GB",
+  enabled: true,
+};
+
+const genericEnglish: WebflowLocale = {
+  id: "en-generic",
+  cmsLocaleId: "cms-en-generic",
+  tag: "en",
+  enabled: true,
+};
+
 describe("normalizeWebflowLocaleTag", () => {
   it("canonicalizes regional tags", () => {
     expect(normalizeWebflowLocaleTag("en-US")).toBe(normalizeWebflowLocaleTag("en-us"));
@@ -48,7 +69,8 @@ describe("normalizeWebflowLocaleTag", () => {
 
   it("compares source locales after normalization", () => {
     expect(areWebflowSourceLocalesCompatible("en-US", "en-US")).toBe(true);
-    expect(areWebflowSourceLocalesCompatible("en", "en-US")).toBe(false);
+    expect(areWebflowSourceLocalesCompatible("en", "en-US")).toBe(true);
+    expect(areWebflowSourceLocalesCompatible("en-GB", "en-US")).toBe(true);
     expect(areWebflowSourceLocalesCompatible("en", "fr")).toBe(false);
   });
 });
@@ -60,6 +82,20 @@ describe("resolveWebflowLocaleKey", () => {
 
   it("returns null when nothing matches", () => {
     expect(resolveWebflowLocaleKey("ja", [primary, french])).toBeNull();
+  });
+
+  it("prefers a language-only entry over regional ones", () => {
+    expect(resolveWebflowLocaleKey("en-US", [britishEnglish, genericEnglish])?.cmsLocaleId).toBe(
+      "cms-en-generic",
+    );
+  });
+
+  it("maps a language-only project locale onto the sole regional entry", () => {
+    expect(resolveWebflowLocaleKey("en", [americanEnglish])?.cmsLocaleId).toBe("cms-en-us");
+  });
+
+  it("leaves ambiguous regional entries unmapped instead of guessing", () => {
+    expect(resolveWebflowLocaleKey("en", [americanEnglish, britishEnglish])).toBeNull();
   });
 });
 
@@ -98,6 +134,19 @@ describe("mapProjectLocalesToWebflow", () => {
     expect(mapping.unmappedProjectTargets).toEqual(["ja"]);
     expect(mapping.targets).toEqual([
       { projectLocale: "ja", webflowLocale: null, skippedReason: "target_locale_unmapped" },
+    ]);
+  });
+
+  it("leaves ambiguous regional targets unmapped", () => {
+    const mapping = mapProjectLocalesToWebflow({
+      projectSourceLocale: "fr",
+      projectTargetLocales: ["en"],
+      webflowLocales: { primary: french, secondary: [americanEnglish, britishEnglish] },
+    });
+
+    expect(mapping.unmappedProjectTargets).toEqual(["en"]);
+    expect(mapping.targets).toEqual([
+      { projectLocale: "en", webflowLocale: null, skippedReason: "target_locale_unmapped" },
     ]);
   });
 
