@@ -14,7 +14,7 @@
  */
 import { IntegrationLogo } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/integration-logo";
 import type { ContentEditorPageNavigationGuardRef } from "@/components/content-editor/workspace/content-editor-page-navigation-guard";
-import { isCustomerIoSourcePath } from "@/lib/customer-io/translation-map";
+import { isCustomerIoSourcePath } from "@/lib/customer-io/source-path";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
 import { ContentEditorIngestButton } from "./content-editor-ingest-button";

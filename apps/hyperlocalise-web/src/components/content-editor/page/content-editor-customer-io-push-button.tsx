@@ -25,7 +25,7 @@ import {
   type ContentEditorPageNavigationGuardRef,
 } from "@/components/content-editor/workspace/content-editor-page-navigation-guard";
 import { queueCustomerIoPushRun } from "@/lib/customer-io/queue-customer-io-push-run";
-import { isCustomerIoSourcePath } from "@/lib/customer-io/translation-map";
+import { isCustomerIoSourcePath } from "@/lib/customer-io/source-path";
 import { buildAutomationsDetailHref } from "@/lib/navigation/workspace-automation-editor-tab";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";

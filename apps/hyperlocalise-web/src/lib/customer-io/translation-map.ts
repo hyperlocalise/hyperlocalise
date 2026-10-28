@@ -12,10 +12,10 @@
  */
 import { createHash } from "node:crypto";
 
-import { normalizeSourcePath } from "@/lib/file-storage/records";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 
 import type { CustomerIoAction, CustomerIoActionTranslationPayload } from "./client";
+import { normalizeSourcePath } from "./source-path";
 import { CUSTOMER_IO_MESSAGE_TYPES, type CustomerIoMessageType } from "./constants";
 
 export type CustomerIoTranslationMap = Record<string, string>;
@@ -217,6 +217,4 @@ export function buildCustomerIoTransactionalSourcePath(input: {
   );
 }
 
-export function isCustomerIoSourcePath(sourcePath: string): boolean {
-  return normalizeSourcePath(sourcePath).startsWith("customer-io/");
-}
+export { isCustomerIoSourcePath } from "./source-path";

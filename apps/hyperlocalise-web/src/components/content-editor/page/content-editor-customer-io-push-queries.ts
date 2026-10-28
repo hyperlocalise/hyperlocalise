@@ -16,7 +16,7 @@ import { createAutomationsApi } from "@/app/[lang]/(authenticated)/org/[organiza
 import { apiClient } from "@/lib/api-client-instance";
 import { hasWorkspaceAutomationCustomerIoTool } from "@/lib/agents/workspace-automation-types";
 import type { CustomerIoPushItem } from "@/lib/customer-io/push-eligibility";
-import { isCustomerIoSourcePath } from "@/lib/customer-io/translation-map";
+import { isCustomerIoSourcePath } from "@/lib/customer-io/source-path";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 export type ContentEditorCustomerIoPushCandidate = {

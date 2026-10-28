@@ -12,8 +12,9 @@
  */
 import { createHash } from "node:crypto";
 
-import { normalizeSourcePath } from "@/lib/file-storage/records";
 import { extractHtmlIngestEntries } from "@/lib/projects/files/html-ingest-entries";
+
+import { normalizeSourcePath } from "./source-path";
 
 /**
  * HTML envelope for Customer.io email actions (mirrors the Braze email

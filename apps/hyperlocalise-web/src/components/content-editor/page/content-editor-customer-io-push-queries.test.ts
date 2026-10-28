@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { isCustomerIoSourcePath } from "@/lib/customer-io/translation-map";
+import { isCustomerIoSourcePath } from "@/lib/customer-io/source-path";
 
 import {
   defaultSelectedCustomerIoPushSourcePaths,
