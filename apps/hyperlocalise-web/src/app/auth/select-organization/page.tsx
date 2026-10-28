@@ -70,6 +70,19 @@ export default async function SelectOrganizationPage() {
               </Button>
             ) : null,
           )}
+          <Button
+            variant="ghost"
+            nativeButton={false}
+            className="justify-start"
+            render={<Link href="/auth/new-workspace" />}
+          >
+            {intl.formatMessage({
+              defaultMessage: "Create workspace",
+              id: "lQxXTbs2H9",
+              description:
+                "Link on the workspace picker to the page for creating another workspace",
+            })}
+          </Button>
         </CardContent>
       </Card>
     </main>

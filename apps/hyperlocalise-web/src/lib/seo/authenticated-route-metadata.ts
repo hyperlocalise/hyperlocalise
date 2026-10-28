@@ -59,6 +59,7 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "members",
   "membersPermissions",
   "myJobs",
+  "newWorkspace",
   "onboarding",
   "projectAutomationDetail",
   "projectAutomationNew",
@@ -654,6 +655,19 @@ const AUTHENTICATED_ROUTE_COPY = {
       defaultMessage: "Jobs assigned to you.",
       id: "HX8TZ1IQ5b",
       description: "Document description for the current user’s jobs page",
+    },
+  },
+  newWorkspace: {
+    title: {
+      defaultMessage: "Create workspace",
+      id: "NW4CR8TQ2a",
+      description: "Document title for the page where a signed-in person creates another workspace",
+    },
+    description: {
+      defaultMessage: "Create another Hyperlocalise workspace.",
+      id: "NW5DS9UR3b",
+      description:
+        "Document description for the page where a signed-in person creates another workspace",
     },
   },
   onboarding: {
