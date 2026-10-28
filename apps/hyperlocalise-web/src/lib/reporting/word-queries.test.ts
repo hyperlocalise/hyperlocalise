@@ -290,16 +290,18 @@ describe("word count queries", () => {
     const postEdit = await createJob({ taskStep: "edit" });
     const proofread = await createJob({ taskStep: "proofread" });
     const day = "2026-06-10";
-    // The same 12 words reviewed in two tasks, and 5 more in a task deleted since.
+    // The same 12 words reviewed in two tasks, and 5 more reviewed and 7 translated in a task
+    // deleted since.
     await addSummary([
       { jobId: postEdit.id, targetLocale: "fr-FR", day, step: "review", arrived: 12 },
       { jobId: proofread.id, targetLocale: "fr-FR", day, step: "review", arrived: 12 },
       { jobId: "job_deleted", targetLocale: "fr-FR", day, step: "review", arrived: 5 },
+      { jobId: "job_deleted", targetLocale: "fr-FR", day, arrived: 7 },
     ]);
     // The per-project summary counts the string the two tasks share once.
     await db.execute(sql`
       update reporting_daily_by_project set arrived_words = arrived_words - 12
-      where organization_id = ${organization.id}
+      where organization_id = ${organization.id} and step = 'review'
     `);
     const scope = {
       organizationId: organization.id,
@@ -316,9 +318,24 @@ describe("word count queries", () => {
     ]);
     expect(counts.total).toBe(17);
     expect(counts.bandTotals).toEqual({ new: 17 });
-    // The same total as grouped by project.
+    // The same total as grouped by project; by language and in the charts but by task step,
+    // each string once.
     const byProject = await queryWordCounts({ ...scope, groupBy: "project", page: 1 });
     expect(byProject.total).toBe(counts.total);
+    const byLanguage = await queryWordCounts({ ...scope, groupBy: "language", page: 1 });
+    expect(byLanguage.rows.map((row) => row.total)).toEqual([17]);
+    for (const split of ["project", "language", "band"] as const) {
+      const chart = await queryWordCountSeries({ ...scope, split, per: "day" });
+      expect(chart.points.find((point) => point.start === day)?.units, split).toEqual([17]);
+    }
+    // The deleted task's translation work is translate.
+    const translation = await queryWordCounts({
+      ...scope,
+      step: "translation",
+      groupBy: "task_step",
+      page: 1,
+    });
+    expect(translation.rows.map((row) => [row.taskStep, row.total])).toEqual([["translate", 7]]);
     // A task filter reads that task alone, in the chart too.
     const series = await queryWordCountSeries({
       ...scope,

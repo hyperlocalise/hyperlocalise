@@ -101,14 +101,6 @@ export type AiReadQuery = Dates & {
   all?: boolean;
 };
 
-export type ReportReadQuery = {
-  activity: ActivityReadQuery;
-  words: WordsReadQuery;
-  time: TimeReadQuery;
-  ai: AiReadQuery;
-  costs: CostsReadQuery;
-};
-
 /** The query's filters as the queries take them: a period, and the task as a list of one. */
 function scope<Q extends Dates & Scope>(context: ReportReadContext, query: Q) {
   const period = resolvePeriod({ ...query, ...context });
@@ -225,34 +217,6 @@ export async function readCosts(context: ReportReadContext, query: CostsReadQuer
   const period = resolvePeriod({ ...query, ...context });
   const costs = await queryCosts({ ...context, ...query, period, includeUnattributed: true });
   return { period, ...costs };
-}
-
-export type ReportPayload = {
-  activity: Awaited<ReturnType<typeof readActivity>>;
-  words: Awaited<ReturnType<typeof readWords>>;
-  time: Awaited<ReturnType<typeof readTime>>;
-  ai: Awaited<ReturnType<typeof readAi>>;
-  costs: Awaited<ReturnType<typeof readCosts>>;
-};
-
-/** One report by kind, as its tab shows it. */
-export async function readReport<K extends ReportKind>(
-  kind: K,
-  context: ReportReadContext,
-  query: ReportReadQuery[K],
-): Promise<ReportPayload[K]> {
-  switch (kind) {
-    case "activity":
-      return (await readActivity(context, query as ActivityReadQuery)) as ReportPayload[K];
-    case "words":
-      return (await readWords(context, query as WordsReadQuery)) as ReportPayload[K];
-    case "time":
-      return (await readTime(context, query as TimeReadQuery)) as ReportPayload[K];
-    case "ai":
-      return (await readAi(context, query as AiReadQuery)) as ReportPayload[K];
-    default:
-      return (await readCosts(context, query as CostsReadQuery)) as ReportPayload[K];
-  }
 }
 
 export type SummaryFreshness = {

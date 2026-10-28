@@ -73,7 +73,10 @@ export const WordCountsByTask: Story = {
   parameters: {
     nextjs: {
       appDirectory: true,
-      navigation: { pathname, query: { tab: "words", group: "task", unit: "characters" } },
+      navigation: {
+        pathname,
+        query: { tab: "words", group: "task", unit: "characters", per: "week" },
+      },
     },
   },
   play: async ({ canvas }) => {

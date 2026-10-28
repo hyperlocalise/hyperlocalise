@@ -557,7 +557,6 @@ export async function queryWordCountSeries(
 ): Promise<WordCountSeries> {
   const byTaskStep = input.split === "task_step";
   const source = summarySource(input, { byTask: byTaskStep });
-  if (!source) return { split: input.split, per: input.per, groups: [], points: [] };
   const column = measure(input.mode, input.unit);
   const bars = seriesBars(input.per, input.period);
   const key = {
@@ -568,13 +567,16 @@ export async function queryWordCountSeries(
   }[input.split];
   // Each row's task is joined for its step. Grouping by task first was faster over a year but
   // slower over 90 days, where its sort spilled to disk.
-  const grouped = sql`grouped as (
-    select ${bars.start} as start, ${key} as key, sum(${column}) as units
-    from ${source.table} ${byTaskStep ? TASK_JOIN : sql``}
-    where ${source.where} and s.step = ${input.step}
-      and s.day between ${input.period.from} and ${input.period.to}
-    group by 1, 2 having sum(${column}) > 0
-  )`;
+  const grouped = source
+    ? sql`grouped as (
+        select ${bars.start} as start, ${key} as key, sum(${column}) as units
+        from ${source.table} ${byTaskStep ? TASK_JOIN : sql``}
+        where ${source.where} and s.step = ${input.step}
+          and s.day between ${input.period.from} and ${input.period.to}
+        group by 1, 2 having sum(${column}) > 0
+      )`
+    : // No project the viewer can open: every bar, with nothing in it.
+      sql`grouped as (select null::date as start, null::text as key, 0::numeric as units where false)`;
   // Projects and languages can be many, so the largest are kept and the rest drawn as one.
   const ranks = input.split === "project" || input.split === "language";
   const result = await db.execute<{

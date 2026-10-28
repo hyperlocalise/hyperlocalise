@@ -191,8 +191,13 @@ describe("reports routes", () => {
       wordSeries: { split: "project", per: "day", groups: [], points: expect.any(Array) },
     });
     // Over 45 days, weeks by default, as the page's switch shows.
+    // With no project to read, every bar is still there, empty.
     await expect(read("/words/series?from=2026-04-01&to=2026-06-30")).resolves.toMatchObject({
-      wordSeries: { per: "week" },
+      wordSeries: {
+        per: "week",
+        groups: [],
+        points: expect.arrayContaining([{ start: "2026-03-30", units: [] }]),
+      },
     });
     await expect(
       read("/words/series?split=task_step&per=month&mode=finished"),

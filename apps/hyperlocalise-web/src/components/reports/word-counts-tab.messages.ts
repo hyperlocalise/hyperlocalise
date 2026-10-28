@@ -152,8 +152,8 @@ export const wordCountsTabMessages = defineMessages({
     description: "Chart series: memory matches from 50 to 74 percent",
   },
   tierNew: {
-    id: "a4ePFrRE7N",
-    defaultMessage: "New",
+    id: "SHi/1IAYoy",
+    defaultMessage: "New and not matched",
     description:
       "Chart series: text with no memory match of 50 percent or more, or whose memory could not be read",
   },

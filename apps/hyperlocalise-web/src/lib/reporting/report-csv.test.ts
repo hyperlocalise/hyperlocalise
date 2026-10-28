@@ -146,6 +146,16 @@ describe("word counts CSV", () => {
       '"post_edit","de-DE","5","5","10"',
       '"no_task","fr-FR","0","20","20"',
     ]);
+    // A band only a task row holds still gets its column.
+    expect(
+      wordCountsCsv(
+        { ...counts([row({ jobId: "job_1", bands: { "95-99": 10 } })]), bandTotals: {} },
+        "task",
+      ).split("\r\n"),
+    ).toEqual([
+      '"projectName","jobTitle","jobId","targetLocale","95-99","total"',
+      '"Web app","","job_1","de-DE","10","10"',
+    ]);
     expect(wordCountsCsv(counts([row({ week: "2026-10-12" })]), "week").split("\r\n")).toEqual([
       '"week","projectName","targetLocale","100","new","total"',
       '"2026-10-12","Web app","de-DE","0","10","10"',

@@ -40,7 +40,12 @@ export function activityCsv(activity: { series: FinishedSeriesPoint[] }): string
 }
 
 export function wordCountsCsv(counts: WordCounts, groupBy: WordCountGrouping): string {
-  const bands = bandsIn(counts.bandTotals);
+  // Rows by task or task step can hold a band the totals, counted once per project, do not.
+  const bands = MATCH_BUCKETS.filter(
+    (bucket) =>
+      (counts.bandTotals[bucket] ?? 0) > 0 ||
+      counts.rows.some((row) => (row.bands[bucket] ?? 0) > 0),
+  );
   // By language and by task step, rows span projects, so they name none.
   const byProject = groupBy !== "language" && groupBy !== "task_step";
   return toCsv(

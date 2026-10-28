@@ -78,14 +78,27 @@ const TIER_COLORS: Record<BandTier, string> = {
   new: "var(--chart-band-new)",
 };
 
-/** Each task step keeps its colour whichever steps a chart shows. */
+/**
+ * Each task step keeps its colour whichever steps a chart shows. Of the series colours, this
+ * order keeps every pair of neighbours in the stack apart for colour-blind readers in both
+ * modes; post-edit and proofread in green and teal were not.
+ */
 const TASK_STEP_COLORS: Record<WordTaskStep, string> = {
   translate: "var(--chart-1)",
-  post_edit: "var(--chart-2)",
-  proofread: "var(--chart-3)",
+  post_edit: "var(--chart-5)",
+  proofread: "var(--chart-2)",
   other: "var(--chart-4)",
-  no_task: "var(--chart-5)",
+  no_task: "var(--chart-3)",
 };
+
+/**
+ * Sentences one after another as a reader expects: with a space between them, but none in
+ * Japanese or Chinese, whose sentences end in a full-width stop.
+ */
+function sentences(intl: Intl, parts: (string | null)[]) {
+  const spaced = !/^(ja|zh)\b/.test(intl.locale);
+  return parts.filter(Boolean).join(spaced ? " " : "");
+}
 
 const SPLIT_MESSAGES = {
   project: messages.splitProject,
@@ -155,12 +168,14 @@ function chartDetail(intl: Intl, data: WordSeriesData) {
     first !== undefined &&
     last !== undefined &&
     (first.start < data.period.from || barEnd(last.start, data.per) > data.period.to);
-  return [
+  const other = data.groups.some((group) => group.other);
+  return sentences(intl, [
     intl.formatMessage(data.mode === "arrived" ? messages.chartArrived : messages.chartFinished, {
       unit: unitLabel(intl, data.unit),
     }),
-    data.split === "project" ? intl.formatMessage(messages.chartRankedProjects) : null,
-    data.split === "language" ? intl.formatMessage(messages.chartRankedLanguages) : null,
+    // Said only when some are folded into Other.
+    data.split === "project" && other ? intl.formatMessage(messages.chartRankedProjects) : null,
+    data.split === "language" && other ? intl.formatMessage(messages.chartRankedLanguages) : null,
     data.split === "task_step" && data.mode === "arrived"
       ? intl.formatMessage(messages.chartPerTask)
       : null,
@@ -168,9 +183,7 @@ function chartDetail(intl: Intl, data: WordSeriesData) {
       { day: messages.chartDays, week: messages.chartWeeks, month: messages.chartMonths }[data.per],
     ),
     partial ? intl.formatMessage(messages.chartPartial) : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  ]);
 }
 
 /** Bars no wider than this, so a few months do not fill the chart. */
@@ -227,11 +240,7 @@ function VolumeChart({
         </>
       }
     >
-      <ReportSectionState
-        query={series}
-        isEmpty={(shown) => shown.groups.length === 0}
-        skeletonHeight={224}
-      >
+      <ReportSectionState query={series} skeletonHeight={224}>
         {(shown) => {
           // A first week or month can start in the year before the period does.
           const withYear = spansYears({
@@ -305,7 +314,7 @@ function BandSummary({ data }: { data: WordCountsData }) {
           return (
             <li
               key={bucket}
-              className="grid grid-cols-[7rem_1fr_auto] items-center gap-3 text-[13px]"
+              className="grid grid-cols-[7rem_1fr_7rem] items-center gap-3 text-[13px]"
             >
               <span className="sr-only">
                 {intl.formatMessage(messages.bandShare, {
@@ -317,7 +326,8 @@ function BandSummary({ data }: { data: WordCountsData }) {
               <span className="truncate text-muted-foreground" aria-hidden>
                 {name}
               </span>
-              <span className="h-2 rounded-full bg-gray-200" aria-hidden>
+              {/* No track behind the bar: the lightest tiers and New would fade into it. */}
+              <span aria-hidden>
                 <span
                   className="block h-2 rounded-full"
                   style={{
@@ -326,7 +336,7 @@ function BandSummary({ data }: { data: WordCountsData }) {
                   }}
                 />
               </span>
-              <span className="tabular-nums" aria-hidden>
+              <span className="text-right tabular-nums" aria-hidden>
                 {formatCount(intl, count)} · {formatShare(intl, share)}
               </span>
             </li>
@@ -426,16 +436,18 @@ export function WordCountsTab({
           return (
             <>
               <p className="text-[13px] text-muted-foreground">
-                {intl.formatMessage(
-                  data.mode === "arrived" ? messages.arrivedNote : messages.finishedNote,
-                  { unit: unitName },
-                )}{" "}
-                {data.mode === "arrived" && (byTask || byTaskStep)
-                  ? `${intl.formatMessage(messages.perTaskNote)} `
-                  : null}
-                {data.unit === "characters" || data.unit === "characters_with_spaces"
-                  ? intl.formatMessage(messages.charactersNote)
-                  : null}
+                {sentences(intl, [
+                  intl.formatMessage(
+                    data.mode === "arrived" ? messages.arrivedNote : messages.finishedNote,
+                    { unit: unitName },
+                  ),
+                  data.mode === "arrived" && (byTask || byTaskStep)
+                    ? intl.formatMessage(messages.perTaskNote)
+                    : null,
+                  data.unit === "characters" || data.unit === "characters_with_spaces"
+                    ? intl.formatMessage(messages.charactersNote)
+                    : null,
+                ])}
               </p>
               <MatchBandTable
                 label={intl.formatMessage(messages.tableLabel)}
@@ -443,7 +455,7 @@ export function WordCountsTab({
                 rowKey={(row) =>
                   [row.week, row.jobId, row.projectId, row.taskStep, row.targetLocale].join(":")
                 }
-                bands={visibleBands(data.bandTotals)}
+                bands={visibleBands(data.bandTotals, data.rows)}
                 leading={[
                   ...(byWeek
                     ? [

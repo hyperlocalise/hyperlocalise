@@ -32,6 +32,7 @@ import {
   reportsWordCountSeries,
   type ReportsApiCall,
 } from "./reports.fixture";
+import type { WordCountSeries } from "@/lib/reporting/word-queries";
 
 const mocks = vi.hoisted(() => ({
   search: "",
@@ -329,9 +330,10 @@ describe("Reports page", () => {
         (name) => name.textContent,
       ),
     ).toEqual(["Help centre", "Web app"]);
-    // The first week starts on 21 September, before the period's 24th.
+    // Two projects, so nothing is folded into Other; the first week starts on 21 September,
+    // before the period's 24th.
     expect(section).toHaveTextContent(
-      "Words that arrived. The five largest projects on their own, the rest as Other. Weeks start on Monday, UTC. A bar at either end counts only the days within these dates.",
+      "Words that arrived. Weeks start on Monday, UTC. A bar at either end counts only the days within these dates.",
     );
     expect(within(section).getByRole("img")).toHaveAccessibleName(
       "Words from Sep 24 to Oct 21, 58,290 in all: Help centre: 39,870 and Web app: 18,420",
@@ -353,7 +355,7 @@ describe("Reports page", () => {
     await userEvent.click(within(section).getByRole("button", { name: "Match band" }));
     await waitFor(() => expect(section).toHaveTextContent("100% and repetitions"));
     expect(section).toHaveTextContent("75–94%");
-    expect(section).toHaveTextContent("New");
+    expect(section).toHaveTextContent("New and not matched");
     expect(section).not.toHaveTextContent("The five largest");
     expect(callsTo("word-series").at(-1)?.args.query).toMatchObject({ split: "band" });
     expect(callsTo("words")).toHaveLength(1);
@@ -392,6 +394,77 @@ describe("Reports page", () => {
       "aria-pressed",
       "true",
     );
+  });
+
+  it("says what the chart folds, counts per task and cuts short, as its data has it", async () => {
+    const series = (fields: Partial<WordCountSeries>) => ({
+      "word-series": {
+        wordSeries: createReportsWordSeries({ ...reportsWordCountSeries, ...fields }),
+      },
+    });
+    const subtitle = async () =>
+      (await screen.findByRole("region", { name: "Volume over time" })).querySelector("p")
+        ?.textContent;
+    // Five languages and Other; weeks from the period's first Monday, the last one cut short.
+    mocks.search = "tab=words&split=language&per=week";
+    mocks.bodies = {
+      ...reportsResponseBodies(),
+      ...series({
+        split: "language",
+        groups: [
+          ...["da-DK", "de-DE", "fr-FR", "it-IT", "ja-JP"].map((key) => ({
+            key,
+            name: null,
+            other: false,
+          })),
+          { key: null, name: null, other: true },
+        ],
+        points: [
+          { start: "2026-09-28", units: [6, 5, 4, 3, 2, 1] },
+          { start: "2026-10-19", units: [6, 5, 4, 3, 2, 1] },
+        ],
+      }),
+    };
+    const first = renderPage();
+    await waitFor(async () =>
+      expect(await subtitle()).toBe(
+        "Words that arrived. The five largest languages on their own, the rest as Other. Weeks start on Monday, UTC. A bar at either end counts only the days within these dates.",
+      ),
+    );
+    first.unmount();
+
+    // Task steps: each named, and a string in several tasks counted in each, for arrived work.
+    const steps = series({
+      split: "task_step",
+      per: "day",
+      groups: ["translate", "post_edit", "no_task"].map((key) => ({
+        key,
+        name: null,
+        other: false,
+      })),
+      points: [{ start: "2026-10-01", units: [3, 2, 1] }],
+    });
+    mocks.search = "tab=words&split=task_step";
+    mocks.bodies = { ...reportsResponseBodies(), ...steps };
+    const second = renderPage();
+    const section = await screen.findByRole("region", { name: "Volume over time" });
+    for (const name of ["Translate", "Post-edit", "No task (content editor)"])
+      expect(await within(section).findByText(name)).toBeInTheDocument();
+    expect(await subtitle()).toBe(
+      "Words that arrived. A string in more than one task counts in each. Days are in UTC.",
+    );
+    second.unmount();
+
+    // Finished work is one record per finish, so nothing is said of tasks.
+    mocks.search = "tab=words&split=task_step&mode=finished";
+    mocks.bodies = {
+      ...reportsResponseBodies(),
+      "word-series": {
+        wordSeries: { ...steps["word-series"].wordSeries, mode: "finished" as const },
+      },
+    };
+    renderPage();
+    await waitFor(async () => expect(await subtitle()).toBe("Words finished. Days are in UTC."));
   });
 
   it("hides the chart when nothing happened in the period", async () => {
