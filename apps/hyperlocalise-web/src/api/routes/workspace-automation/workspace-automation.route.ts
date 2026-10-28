@@ -48,6 +48,7 @@ import { resolveContentSyncRepositoryTarget } from "@/lib/agents/content-sync/co
 import {
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationBrazeTool,
+  hasWorkspaceAutomationCustomerIoTool,
   hasWorkspaceAutomationGoogleDriveTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
@@ -56,6 +57,11 @@ import {
   type WorkspaceAutomationRepositoryTarget,
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automation-types";
+import {
+  getCustomerIoPushEligibility,
+  isCustomerIoPushRunActive,
+  type CustomerIoPushItem,
+} from "@/lib/customer-io/push-eligibility";
 import {
   getBrazeCampaignPushEligibility,
   getBrazePushEligibility,
@@ -701,8 +707,36 @@ export function createWorkspaceAutomationRoutes(
         };
       }
 
+      let customerIoPush: {
+        eligibleLocaleCount: number;
+        mappedItemCount: number;
+        pushRunInProgress: boolean;
+        items?: CustomerIoPushItem[];
+      } | null = null;
+      if (hasWorkspaceAutomationCustomerIoTool(automation.toolConfig)) {
+        const eligibility = await getCustomerIoPushEligibility({
+          organizationId,
+          automation,
+          includeLocaleProgress: includePushArticles,
+        });
+        customerIoPush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedItemCount: eligibility?.mappedItemCount ?? 0,
+          pushRunInProgress: isCustomerIoPushRunActive(recentRuns),
+          ...(includePushArticles ? { items: eligibility?.items ?? [] } : {}),
+        };
+      }
+
       return c.json(
-        { automation, recentRuns, intercomPush, sanityPush, brazePush, googleDrivePush },
+        {
+          automation,
+          recentRuns,
+          intercomPush,
+          sanityPush,
+          brazePush,
+          googleDrivePush,
+          customerIoPush,
+        },
         200,
       );
     })

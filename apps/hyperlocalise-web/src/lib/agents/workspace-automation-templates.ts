@@ -247,6 +247,35 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "translate-customer-io-campaigns",
+    category: "popular",
+    extraCategories: ["marketing"],
+    name: "Translate Customer.io Campaigns, Broadcasts, Newsletters & Transactional",
+    description:
+      "Import Customer.io campaign, broadcast, newsletter, and transactional message actions as JSON, localise in Jobs, then push approved locales back to Customer.io.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Customer.io campaign, broadcast, newsletter, and transactional localisation connector",
+      capabilities: [
+        "Import campaign, broadcast, newsletter, and transactional message actions as JSON translation maps",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push translations automatically on import — operators enqueue Push to Customer.io separately",
+      ],
+      goal: "Keep Customer.io campaigns, broadcasts, newsletters, and transactional messages in sync for localisation and write approved locales back without publishing or sending.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-customer-io-campaigns"],
+      name: "Translate Customer.io campaigns, broadcasts, newsletters, and transactional",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      customerIoEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-contentful-article",
     category: "popular",
     name: "Translate Contentful article",
@@ -1125,6 +1154,10 @@ export function getWorkspaceAutomationTemplateFlow(
 
   if (form.brazeEnabled || form.brazeCampaignsEnabled) {
     tools.push({ id: "braze", label: "Braze" });
+  }
+
+  if (form.customerIoEnabled) {
+    tools.push({ id: "customer-io", label: "Customer.io" });
   }
 
   if (form.createNativeTmsJobEnabled) {

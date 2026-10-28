@@ -22,6 +22,8 @@ import {
 } from "@/api/response.schema";
 import { BRAZE_PIPES_SLUG } from "@/lib/braze/constants";
 import { deleteBrazeConnectionSettings } from "@/lib/braze/settings";
+import { CUSTOMER_IO_PIPES_SLUG } from "@/lib/customer-io/constants";
+import { deleteCustomerIoConnectionSettings } from "@/lib/customer-io/settings";
 import { createPipesAuthorizeUrl, deletePipesConnectedAccount } from "@/lib/pipes/accounts";
 import { getWorkosPipesProviderAvailability, supportsPipesOAuth } from "@/lib/pipes/availability";
 import { getPipesConnectionStatus } from "@/lib/pipes/status";
@@ -115,6 +117,13 @@ export function createPipesRoutes() {
 
       if (provider === BRAZE_PIPES_SLUG) {
         await deleteBrazeConnectionSettings({
+          localOrganizationId: c.var.auth.organization.localOrganizationId,
+          workosUserId: c.var.auth.user.workosUserId,
+        });
+      }
+
+      if (provider === CUSTOMER_IO_PIPES_SLUG) {
+        await deleteCustomerIoConnectionSettings({
           localOrganizationId: c.var.auth.organization.localOrganizationId,
           workosUserId: c.var.auth.user.workosUserId,
         });

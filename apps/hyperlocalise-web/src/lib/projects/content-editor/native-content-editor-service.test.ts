@@ -766,8 +766,9 @@ describe("NativeContentEditorService.getCatFile", () => {
     expect(result?.documentView).toEqual({
       externalStringId: "file_1",
       sourceAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_source_html",
-      targetAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_target_html",
-      imageVariantId: "variant_html",
+      targetAssetUrl:
+        "/api/orgs/acme/projects/project_1/files/translations/download?sourcePath=pages%2Fformatting-test.html&locale=fr",
+      imageVariantId: null,
     });
   });
 

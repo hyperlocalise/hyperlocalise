@@ -69,6 +69,7 @@ describe("workspace automation templates", () => {
       "translate-google-drive-files",
       "translate-braze-email-templates",
       "translate-braze-campaigns",
+      "translate-customer-io-campaigns",
       "translate-contentful-article",
       "summarize-changes-daily",
       "review-code-daily",
@@ -142,6 +143,38 @@ describe("workspace automation templates", () => {
       trigger: { id: "scheduled", label: "Daily" },
       tools: [
         { id: "google-drive", label: "Google Drive" },
+        { id: "create-job", label: "Create job" },
+        { id: "translate-with-agent", label: "Translate with agent" },
+      ],
+    });
+  });
+
+  it("lists the Customer.io template under Popular and Marketing", () => {
+    expect(
+      listWorkspaceAutomationTemplates("popular", WORKSPACE_AUTOMATION_TEMPLATES_BASE).map(
+        (template) => template.id,
+      ),
+    ).toContain("translate-customer-io-campaigns");
+    expect(
+      listWorkspaceAutomationTemplates("marketing", WORKSPACE_AUTOMATION_TEMPLATES_BASE).map(
+        (template) => template.id,
+      ),
+    ).toContain("translate-customer-io-campaigns");
+  });
+
+  it("builds the Customer.io template flow with brand, create job, and translate tools", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "translate-customer-io-campaigns",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+    expect(template).not.toBeNull();
+    expect(template?.category).toBe("popular");
+    expect(template?.extraCategories).toEqual(["marketing"]);
+
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "scheduled", label: "Daily" },
+      tools: [
+        { id: "customer-io", label: "Customer.io" },
         { id: "create-job", label: "Create job" },
         { id: "translate-with-agent", label: "Translate with agent" },
       ],

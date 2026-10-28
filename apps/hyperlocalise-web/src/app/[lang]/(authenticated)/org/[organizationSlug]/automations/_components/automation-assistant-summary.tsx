@@ -37,6 +37,7 @@ export const AUTOMATION_ASSISTANT_INTEGRATION_LABELS: Record<
   sanity: workspaceAutomationFormMessages.skillIntegrationSanity,
   google_drive: workspaceAutomationFormMessages.skillIntegrationGoogleDrive,
   braze: workspaceAutomationFormMessages.skillIntegrationBraze,
+  customer_io: workspaceAutomationFormMessages.skillIntegrationCustomerIo,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
 };

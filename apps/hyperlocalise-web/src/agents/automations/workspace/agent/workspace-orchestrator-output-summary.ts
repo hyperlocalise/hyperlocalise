@@ -191,6 +191,61 @@ export function readImportBrazeCampaigns(
   return null;
 }
 
+export function readImportCustomerIoCampaigns(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.import_customer_io_campaigns;
+  if (fromCurrentStep && typeof fromCurrentStep.imported === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.importCustomerIoCampaigns;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.imported === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "import_customer_io_campaigns",
+  );
+  if (fromPriorStep && typeof fromPriorStep.imported === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
+export function readPushCustomerIoCampaigns(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.push_customer_io_campaigns;
+  if (fromCurrentStep && typeof fromCurrentStep.pushedLocales === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.pushCustomerIoCampaigns;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.pushedLocales === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "push_customer_io_campaigns",
+  );
+  if (fromPriorStep && typeof fromPriorStep.pushedLocales === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
 export function readPushBrazeCampaigns(
   outputSummary: Record<string, unknown>,
   stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
@@ -439,6 +494,8 @@ export function buildWorkspaceOrchestratorOutputSummary(
   const pushBrazeTemplates = readPushBrazeTemplates(base, stepResults);
   const importBrazeCampaigns = readImportBrazeCampaigns(base, stepResults);
   const pushBrazeCampaigns = readPushBrazeCampaigns(base, stepResults);
+  const importCustomerIoCampaigns = readImportCustomerIoCampaigns(base, stepResults);
+  const pushCustomerIoCampaigns = readPushCustomerIoCampaigns(base, stepResults);
   const importGoogleDriveFiles = readImportGoogleDriveFiles(base, stepResults);
   const pushGoogleDriveTranslations = readPushGoogleDriveTranslations(base, stepResults);
 
@@ -456,6 +513,8 @@ export function buildWorkspaceOrchestratorOutputSummary(
     ...(pushBrazeTemplates ? { pushBrazeTemplates } : {}),
     ...(importBrazeCampaigns ? { importBrazeCampaigns } : {}),
     ...(pushBrazeCampaigns ? { pushBrazeCampaigns } : {}),
+    ...(importCustomerIoCampaigns ? { importCustomerIoCampaigns } : {}),
+    ...(pushCustomerIoCampaigns ? { pushCustomerIoCampaigns } : {}),
     ...(importGoogleDriveFiles ? { importGoogleDriveFiles } : {}),
     ...(pushGoogleDriveTranslations ? { pushGoogleDriveTranslations } : {}),
     orchestratorStepResults: stepResults,

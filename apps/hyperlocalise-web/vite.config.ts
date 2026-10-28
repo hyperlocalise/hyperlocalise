@@ -118,6 +118,12 @@ export default defineConfig({
           include: [
             "drizzle-orm",
             "drizzle-orm/node-postgres",
+            // The schema mixes `sql` from the package root with builders from
+            // `drizzle-orm/pg-core`. Every drizzle specifier must resolve to
+            // the same bundled copy: two instances break drizzle's `is()`
+            // identity checks and crash schema evaluation with
+            // `SyntaxError: "undefined" is not valid JSON`.
+            "drizzle-orm/pg-core",
             "hono",
             "pg",
             "react",

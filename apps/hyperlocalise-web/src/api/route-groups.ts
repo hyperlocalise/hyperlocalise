@@ -37,6 +37,7 @@ import { createContentfulConnectionRoutes } from "./routes/contentful-connection
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
 import { createBrazeRoutes } from "./routes/braze/braze.route";
+import { createCustomerIoRoutes } from "./routes/customer-io/customer-io.route";
 import { createPipesRoutes } from "./routes/pipes/pipes.route";
 import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
 import { createZernioConnectionRoutes } from "./routes/zernio-connection/zernio-connection.route";
@@ -168,6 +169,7 @@ export function createOrgIntegrationsRoutes() {
     .route("/ahrefs-connections", createAhrefsConnectionRoutes())
     .route("/pipes", createPipesRoutes())
     .route("/braze", createBrazeRoutes())
+    .route("/customer-io", createCustomerIoRoutes())
     .route("/intercom-connections", createIntercomConnectionRoutes())
     .route("/canva-connections", createCanvaConnectionRoutes())
     .route("/figma-connections", createFigmaConnectionRoutes())

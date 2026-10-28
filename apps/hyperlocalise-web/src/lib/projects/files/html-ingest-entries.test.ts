@@ -18,6 +18,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   applyHtmlIngestEntryKeys,
+  applyHtmlIngestTranslations,
   extractHtmlIngestEntries,
   htmlCliPrefillsFromPathEntries,
   htmlCompletedPathKeysFromLock,
@@ -126,6 +127,43 @@ describe("extractHtmlIngestEntries", () => {
       "html.p": "Keep",
       "html.p.2": "After",
     });
+  });
+
+  it("treats Design Studio x- components as fold boundaries", () => {
+    const html =
+      "<x-base><x-section><x-heading-1>Welcome! Confirm your email</x-heading-1></x-section>" +
+      "<x-section><x-paragraph>Hi {{customer.first_name}},</x-paragraph>" +
+      '<x-cta href="https://example.com">Confirm Email Address</x-cta>' +
+      '<x-spacer :size="16" /><x-paragraph>If you did not create an account, ignore this.</x-paragraph>' +
+      "</x-section></x-base>";
+    const got = extractHtmlIngestEntries(html, { foldInline: true });
+
+    const texts = Object.values(got);
+    expect(texts).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Welcome! Confirm your email"),
+        expect.stringContaining("Confirm Email Address"),
+        expect.stringContaining("ignore this."),
+      ]),
+    );
+    // One entry per component: heading, greeting, CTA, and closing paragraph.
+    expect(Object.keys(got)).toHaveLength(4);
+    // Inline markup and Liquid stay folded inside their component.
+    expect(got["html.x-base.x-section.x-paragraph"]).toContain("{{customer.first_name}}");
+  });
+
+  it("round-trips Design Studio markup through applyHtmlIngestTranslations", () => {
+    const html =
+      "<x-base><x-paragraph>Hello</x-paragraph><x-hr /><x-paragraph>Bye</x-paragraph></x-base>";
+    const entries = extractHtmlIngestEntries(html, { foldInline: true });
+    const keys = Object.keys(entries);
+    expect(keys).toHaveLength(2);
+
+    const translated = applyHtmlIngestTranslations(html, { [keys[0] as string]: "Bonjour" });
+    expect(translated).toContain("Bonjour");
+    expect(translated).toContain("Bye");
+    // Void components survive the rewrite unchanged.
+    expect(translated).toContain("<x-hr />");
   });
 });
 

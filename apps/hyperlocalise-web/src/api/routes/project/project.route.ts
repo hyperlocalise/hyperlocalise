@@ -170,6 +170,7 @@ import {
 } from "@/lib/projects/files/video-url-translation-service";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import { loadProjectSubtitleTranslationDownload } from "@/lib/projects/files/subtitle-translation-download";
+import { loadProjectHtmlTranslationDownload } from "@/lib/projects/files/html-translation-download";
 import {
   loadProjectOfficeTranslationDownload,
   officeTranslationDownloadFailure,
@@ -3986,6 +3987,26 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             fileStorageAdapter: options.fileStorageAdapter,
           });
           if (!fileVariant) {
+            const htmlDownload = await loadProjectHtmlTranslationDownload({
+              organizationId,
+              projectId: params.projectId,
+              sourcePath: query.sourcePath,
+              targetLocale: query.locale,
+            });
+            if (isErr(htmlDownload)) {
+              if (htmlDownload.error.code === "source_content_not_found") {
+                return notFoundResponse(c, "source_file_not_found", "Source file not found");
+              }
+              return internalErrorResponse(c, htmlDownload.error.code, htmlDownload.error.message);
+            }
+            if (htmlDownload.value) {
+              return c.body(new Uint8Array(htmlDownload.value.content), 200, {
+                "Content-Type": htmlDownload.value.contentType,
+                "Content-Disposition": contentDisposition,
+                "X-Content-Type-Options": "nosniff",
+                "Cache-Control": "no-store",
+              });
+            }
             return notFoundResponse(
               c,
               "file_variant_not_found",

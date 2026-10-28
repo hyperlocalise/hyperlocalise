@@ -19,6 +19,7 @@ import {
   hasWorkspaceAutomationContentfulWorkflow,
   hasWorkspaceAutomationCreateIssueTool,
   hasWorkspaceAutomationCrowdinTool,
+  hasWorkspaceAutomationCustomerIoTool,
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationGoogleDriveTool,
@@ -43,6 +44,7 @@ export function hasWorkspaceAutomationScheduledWorkflow(
     hasWorkspaceAutomationGoogleDriveTool(toolConfig) ||
     hasWorkspaceAutomationBrazeTool(toolConfig) ||
     hasWorkspaceAutomationBrazeCampaignsTool(toolConfig) ||
+    hasWorkspaceAutomationCustomerIoTool(toolConfig) ||
     hasWorkspaceAutomationListIssuesTool(toolConfig) ||
     hasWorkspaceAutomationCreateIssueTool(toolConfig) ||
     hasWorkspaceAutomationWebSearchTool(toolConfig) ||
