@@ -106,7 +106,6 @@ function calendarSpan(range: Exclude<ReportsPreset, "all">, today: string) {
 }
 
 export const WORD_COUNT_MODES = ["arrived", "finished"] as const;
-export { WORD_COUNT_GROUPINGS, WORD_COUNT_INTERVALS, WORD_COUNT_SPLITS };
 export { AI_USAGE_MEASURES };
 
 /**
@@ -280,20 +279,22 @@ export function buildReportsHref(pathname: string, state: ReportsUrlState): stri
 
 /** The state only Word counts' chart reads, which leaves the table's page where it is. */
 const CHART_ONLY_KEYS: readonly (keyof ReportsUrlState)[] = ["split", "per"];
+const DATE_KEYS: readonly (keyof ReportsUrlState)[] = ["range", "from", "to"];
 
 /**
  * A change to the state. Changing what is counted or grouped goes back to the first page of
- * the table, since the old page may no longer exist; a change to the chart alone keeps it.
+ * the table, since the old page may no longer exist; a change to the chart alone keeps it. New
+ * dates go back to their own bar length, since one chosen for other dates may not suit them.
  */
 export function applyReportsChange(
   state: ReportsUrlState,
   change: Partial<ReportsUrlState>,
 ): ReportsUrlState {
   const next = { ...state, ...change };
-  const chartOnly = Object.keys(change).every((key) =>
-    CHART_ONLY_KEYS.includes(key as keyof ReportsUrlState),
-  );
+  const keys = Object.keys(change) as (keyof ReportsUrlState)[];
+  const chartOnly = keys.length > 0 && keys.every((key) => CHART_ONLY_KEYS.includes(key));
   if (!("page" in change) && !chartOnly) next.page = 1;
+  if (!("per" in change) && keys.some((key) => DATE_KEYS.includes(key))) next.per = null;
   if (change.range && change.range !== "custom") {
     next.from = null;
     next.to = null;

@@ -19,10 +19,9 @@ import { idList, jobTitle, scopedProjectIds, type ReportScope } from "./report-s
 import {
   REPORT_STEPS,
   SUMMARY_SOURCES,
+  BAND_TIER_OF,
   BAND_TIER_ORDER,
-  BAND_TIERS,
   WORD_TASK_STEPS,
-  type BandTier,
   type ReportStep,
   type ReportUnit,
   type SummarySource,
@@ -80,9 +79,32 @@ function summarySource(
   };
 }
 
-/** What a by-task summary row's task is for; rows outside any task are `no_task`. */
-function wordTaskStepSql(): SQL {
-  return sql`case when s.job_id is null then 'no_task' else ${taskStepSql("j")} end`;
+/**
+ * What a by-task summary row's task is for; rows outside any task are `no_task`. A deleted
+ * task's work goes by the pricing step the rows are read for: review as proofread, the plain
+ * review task, and translation as translate.
+ */
+function wordTaskStepSql(step: ReportStep): SQL {
+  const deleted = step === "review" ? "proofread" : "translate";
+  return sql`case when s.job_id is null then 'no_task'
+    when j.id is null then ${deleted}::text else ${taskStepSql("j")} end`;
+}
+
+/**
+ * The bars of a series over a period: each summary row's bar from its day, and every bar's
+ * start, the first on or before the period's first day. Weeks start on Monday and months on
+ * the first. Dates are stepped without a time zone, so the session's cannot move a day.
+ */
+function seriesBars(per: WordCountInterval, period: ReportPeriod) {
+  const truncate = { day: null, week: "week", month: "month" }[per];
+  const step = { day: "1 day", week: "7 days", month: "1 month" }[per];
+  const first = truncate
+    ? sql`date_trunc(${truncate}, ${period.from}::timestamp)`
+    : sql`${period.from}::timestamp`;
+  return {
+    start: truncate ? sql`date_trunc(${truncate}, s.day::timestamp)::date` : sql`s.day`,
+    starts: sql`generate_series(${first}, ${period.to}::timestamp, ${step}::interval)`,
+  };
 }
 
 /** Joins a by-task summary row (`s`) to its task (`j`), for its task step; deleted tasks stay. */
@@ -197,16 +219,12 @@ export type FinishedSeriesPoint = { start: string } & Record<SummarySource, numb
 export async function queryFinishedSeries(
   input: ReportScope & { period: ReportPeriod; unit: ReportUnit; step: ReportStep },
 ): Promise<FinishedSeriesPoint[]> {
-  const weekly = input.period.interval === "week";
-  const bucket = weekly ? sql`date_trunc('week', s.day)::date` : sql`s.day`;
-  const first = weekly
-    ? sql`date_trunc('week', ${input.period.from}::date)`
-    : sql`${input.period.from}::date`;
+  const bars = seriesBars(input.period.interval, input.period);
   const source = summarySource(input);
   const bySource = (name: SummarySource) =>
     sql`sum(${measure("finished", input.unit)}) filter (where ${sourceIs(name)})`;
   const totals = source
-    ? sql`select ${bucket} as start,
+    ? sql`select ${bars.start} as start,
           ${sql.join(
             SUMMARY_SOURCES.map((name) => sql`${bySource(name)} as ${sql.raw(name)}`),
             sql`, `,
@@ -229,7 +247,7 @@ export async function queryFinishedSeries(
         ),
         sql`, `,
       )}
-    from generate_series(${first}, ${input.period.to}::date, ${weekly ? "7 days" : "1 day"}::interval) b(start)
+    from ${bars.starts} b(start)
     left join totals t on t.start = b.start::date
     order by b.start
   `);
@@ -295,7 +313,8 @@ export const WORD_COUNT_PAGE_SIZE = 50;
  * Units that arrived, or were finished, in a period, by match band and target language, grouped
  * by project, by task, by week and project (the volume each week, as the old report showed it),
  * by language alone, or by task step. Tasks come largest first, a page of 50 at a time; totals
- * cover every page.
+ * cover every page. Rows by task or by task step count a string in each task that holds it, so
+ * they can add up to more than the totals, which count it once per project.
  */
 export async function queryWordCounts(
   input: ReportScope & {
@@ -371,14 +390,22 @@ export async function queryWordCounts(
         with grouped as (
           select ${weekly ? sql`date_trunc('week', s.day)::date` : sql`null::date`} as week,
             ${byProject ? sql`s.project_id` : sql`null::text`} as project_id,
-            ${byTaskStep ? wordTaskStepSql() : sql`null::text`} as task_step,
+            ${byTaskStep ? wordTaskStepSql(input.step) : sql`null::text`} as task_step,
             s.target_locale, s.bucket, sum(${column}) as units,
             sum(s.arrived_uncounted) as uncounted
           from ${byTaskStep ? sql`reporting_daily_by_task s ${TASK_JOIN}` : totalsTable}
           where ${filters}
           group by 1, 2, 3, 4, 5
         ), bands as (
-          select bucket, sum(units) as units, sum(uncounted) as uncounted from grouped group by 1
+          -- Task step rows count a string in each task that holds it; the totals, as By task's,
+          -- count it once per project.
+          ${
+            byTaskStep
+              ? sql`select s.bucket, sum(${column}) as units, sum(s.arrived_uncounted) as uncounted
+                from ${totalsTable} where ${filters} group by 1`
+              : sql`select bucket, sum(units) as units, sum(uncounted) as uncounted
+                from grouped group by 1`
+          }
         )
         select (select count(*) from (
             select ${sql.raw(groupKey)} from grouped group by 1
@@ -495,10 +522,6 @@ async function groupNames(rows: { projectId: string | null; jobId: string | null
 /** How many projects or languages the volume chart shows on their own; the rest are one "Other". */
 export const WORD_COUNT_CHART_GROUPS = 5;
 
-function bandTier(bucket: string): BandTier {
-  return BAND_TIER_ORDER.find((tier) => (BAND_TIERS[tier] as readonly string[]).includes(bucket))!;
-}
-
 export type WordCountSeries = {
   split: WordCountSplit;
   per: WordCountInterval;
@@ -519,7 +542,8 @@ export type WordCountSeries = {
  * Units that arrived, or were finished, each day, week or month of a period, split by project,
  * language, band tier or task step, with a point for every day, week or month even when nothing
  * happened. Weeks start on Monday and months on the first, in UTC, as the table's weeks do; the
- * first may begin before the period does.
+ * first may begin before the period does. Split by task step, a string counts in each task that
+ * holds it, as the table grouped by task step counts it.
  */
 export async function queryWordCountSeries(
   input: ReportScope & {
@@ -535,53 +559,58 @@ export async function queryWordCountSeries(
   const source = summarySource(input, { byTask: byTaskStep });
   if (!source) return { split: input.split, per: input.per, groups: [], points: [] };
   const column = measure(input.mode, input.unit);
+  const bars = seriesBars(input.per, input.period);
   const key = {
     project: sql`s.project_id`,
     language: sql`s.target_locale`,
     band: sql`s.bucket`,
-    task_step: wordTaskStepSql(),
+    task_step: wordTaskStepSql(input.step),
   }[input.split];
+  // Each row's task is joined for its step. Grouping by task first was faster over a year but
+  // slower over 90 days, where its sort spilled to disk.
+  const grouped = sql`grouped as (
+    select ${bars.start} as start, ${key} as key, sum(${column}) as units
+    from ${source.table} ${byTaskStep ? TASK_JOIN : sql``}
+    where ${source.where} and s.step = ${input.step}
+      and s.day between ${input.period.from} and ${input.period.to}
+    group by 1, 2 having sum(${column}) > 0
+  )`;
   // Projects and languages can be many, so the largest are kept and the rest drawn as one.
-  const ranked = input.split === "project" || input.split === "language";
-  const truncate = { day: null, week: "week", month: "month" }[input.per];
-  const start = truncate ? sql`date_trunc(${truncate}, s.day)::date` : sql`s.day`;
-  const first = truncate
-    ? sql`date_trunc(${truncate}, ${input.period.from}::date)`
-    : sql`${input.period.from}::date`;
-  const step = { day: "1 day", week: "7 days", month: "1 month" }[input.per];
+  const ranks = input.split === "project" || input.split === "language";
   const result = await db.execute<{
     start: string;
-    /** 1 to 5 for the largest, 0 for the rest, null for a point with nothing. */
+    /** Projects and languages: 1 to 5 for the largest, 0 for the rest; null for an empty bar. */
     slot: number | null;
+    /** The project or language for slots 1 to 5, else the band or task step; null for the rest. */
     key: string | null;
     units: number;
   }>(sql`
-    with grouped as (
-      select ${start} as start, ${key} as key, sum(${column}) as units
-      from ${source.table} ${byTaskStep ? TASK_JOIN : sql``}
-      where ${source.where} and s.step = ${input.step}
-        and s.day between ${input.period.from} and ${input.period.to}
-      group by 1, 2 having sum(${column}) > 0
-    ), ranked as (
-      select key, (row_number() over (order by sum(units) desc, key))::integer as slot
-      from grouped group by 1
-    ), top as (
-      select * from ranked ${ranked ? sql`where slot <= ${WORD_COUNT_CHART_GROUPS}` : sql``}
-    )
+    with ${grouped}${
+      ranks
+        ? sql`, ranked as (
+            select key, (row_number() over (order by sum(units) desc, key))::integer as slot
+            from grouped group by 1
+          )`
+        : sql``
+    }
     select b.start::date::text as start,
-      case when g.key is null then null else coalesce(t.slot, 0) end as slot,
-      t.key, coalesce(sum(g.units), 0)::float8 as units
-    from generate_series(${first}, ${input.period.to}::date, ${step}::interval) b(start)
+      ${
+        ranks
+          ? sql`case when g.key is null then null else coalesce(r.slot, 0) end as slot, r.key`
+          : sql`null::integer as slot, g.key`
+      },
+      coalesce(sum(g.units), 0)::float8 as units
+    from ${bars.starts} b(start)
     left join grouped g on g.start = b.start::date
-    left join top t on t.key = g.key
+    ${ranks ? sql`left join ranked r on r.key = g.key and r.slot <= ${WORD_COUNT_CHART_GROUPS}` : sql``}
     group by 1, 2, 3
     order by 1, 2
   `);
   const rows = result.rows;
   // Each row's series: by rank for projects and languages ("Other" last), else by fixed order.
   let groups: WordCountSeries["groups"];
-  let seriesOf: (row: (typeof rows)[number]) => number;
-  if (ranked) {
+  let seriesOf: (row: (typeof rows)[number]) => number | null;
+  if (ranks) {
     const slots = [...new Set(rows.flatMap((row) => (row.slot === null ? [] : [row.slot])))].sort(
       (left, right) => (left || Infinity) - (right || Infinity),
     );
@@ -597,15 +626,16 @@ export async function queryWordCountSeries(
         : { key: keyOf(slot), name: names.get(keyOf(slot) ?? "") ?? null, other: false },
     );
     const position = new Map(slots.map((slot, index) => [slot, index]));
-    seriesOf = (row) => position.get(row.slot!)!;
+    seriesOf = (row) => (row.slot === null ? null : position.get(row.slot)!);
   } else {
     const order: readonly string[] = input.split === "band" ? BAND_TIER_ORDER : WORD_TASK_STEPS;
-    const seriesKey = (key: string) => (input.split === "band" ? bandTier(key) : key);
+    const seriesKey = (key: string) =>
+      input.split === "band" ? BAND_TIER_OF[key as MatchBucket] : key;
     const present = order.filter((name) =>
       rows.some((row) => row.key !== null && seriesKey(row.key) === name),
     );
     groups = present.map((name) => ({ key: name, name: null, other: false }));
-    seriesOf = (row) => present.indexOf(seriesKey(row.key!));
+    seriesOf = (row) => (row.key === null ? null : present.indexOf(seriesKey(row.key)));
   }
   const points = new Map<string, { start: string; units: number[] }>();
   for (const row of rows) {
@@ -614,7 +644,8 @@ export async function queryWordCountSeries(
       point = { start: row.start, units: groups.map(() => 0) };
       points.set(row.start, point);
     }
-    if (row.slot !== null) point.units[seriesOf(row)] += row.units;
+    const series = seriesOf(row);
+    if (series !== null) point.units[series] += row.units;
   }
   return { split: input.split, per: input.per, groups, points: [...points.values()] };
 }

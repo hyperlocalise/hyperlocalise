@@ -29,6 +29,7 @@ import {
   reportsCostEstimate,
   reportsCosts,
   reportsResponseBodies,
+  reportsWordCountSeries,
   type ReportsApiCall,
 } from "./reports.fixture";
 
@@ -87,7 +88,20 @@ function currentHref() {
 }
 
 vi.mock("@/components/ui/chart", () => ({
-  ChartContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  // The chart's summary sentence is kept, as assistive technology reads it.
+  ChartContainer: ({
+    children,
+    role,
+    "aria-label": label,
+  }: {
+    children: ReactNode;
+    role?: string;
+    "aria-label"?: string;
+  }) => (
+    <div role={role} aria-label={label}>
+      {children}
+    </div>
+  ),
   ChartTooltip: () => null,
   ChartTooltipContent: () => null,
 }));
@@ -306,7 +320,7 @@ describe("Reports page", () => {
   });
 
   it("charts volume over time for every grouping, split and per bar as chosen", async () => {
-    mocks.search = "tab=words";
+    mocks.search = "tab=words&per=week";
     renderPage();
     // The chart itself is mocked away; its section, legend and subtitle are the page's.
     const section = await screen.findByRole("region", { name: "Volume over time" });
@@ -315,14 +329,21 @@ describe("Reports page", () => {
         (name) => name.textContent,
       ),
     ).toEqual(["Help centre", "Web app"]);
+    // The first week starts on 21 September, before the period's 24th.
     expect(section).toHaveTextContent(
-      "Words that arrived. The five largest on their own, the rest as Other. Weeks start on Monday, UTC.",
+      "Words that arrived. The five largest projects on their own, the rest as Other. Weeks start on Monday, UTC. A bar at either end counts only the days within these dates.",
     );
+    expect(within(section).getByRole("img")).toHaveAccessibleName(
+      "Words from Sep 24 to Oct 21, 58,290 in all: Help centre: 39,870 and Web app: 18,420",
+    );
+    const pressed = (name: string) =>
+      within(section).getByRole("button", { name }).getAttribute("aria-pressed");
+    expect([pressed("Project"), pressed("Week")]).toEqual(["true", "true"]);
     expect(callsTo("word-series")[0].args.query).toMatchObject({
       split: "project",
       mode: "arrived",
+      per: "week",
     });
-    expect(callsTo("word-series")[0].args.query).not.toHaveProperty("per");
 
     // Split by match band: the tiers' own names, and the table is not read again.
     mocks.bodies = {
@@ -338,6 +359,7 @@ describe("Reports page", () => {
     expect(callsTo("words")).toHaveLength(1);
 
     await userEvent.click(within(section).getByRole("button", { name: "Month" }));
+    expect(pressed("Month")).toBe("true");
     await waitFor(() =>
       expect(callsTo("word-series").at(-1)?.args.query).toMatchObject({
         split: "band",
@@ -348,15 +370,51 @@ describe("Reports page", () => {
     expect(callsTo("words")).toHaveLength(1);
   });
 
+  it("lets the dates choose the chart's bar length unless one is chosen for them", async () => {
+    mocks.search = "tab=words&range=90";
+    renderPage();
+    const section = await screen.findByRole("region", { name: "Volume over time" });
+    // Over 45 days, weeks, as the server works it out; nothing is sent for it.
+    expect(within(section).getByRole("button", { name: "Week" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await waitFor(() => expect(callsTo("word-series")).toHaveLength(1));
+    expect(callsTo("word-series")[0].args.query).not.toHaveProperty("per");
+
+    await userEvent.click(within(section).getByRole("button", { name: "Day" }));
+    await waitFor(() => expect(currentHref()).toBe(`${PATHNAME}?tab=words&range=90&per=day`));
+    // New dates go back to their own bar length.
+    await userEvent.click(screen.getByRole("button", { name: /^Dates Last 90 days/ }));
+    await userEvent.click(await screen.findByRole("button", { name: "This month" }));
+    await waitFor(() => expect(currentHref()).toBe(`${PATHNAME}?tab=words&range=month`));
+    expect(within(section).getByRole("button", { name: "Day" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("hides the chart when nothing happened in the period", async () => {
+    mocks.search = "tab=words";
+    mocks.bodies = {
+      ...reportsResponseBodies(),
+      "word-series": {
+        wordSeries: createReportsWordSeries({ ...reportsWordCountSeries, groups: [], points: [] }),
+      },
+    };
+    renderPage();
+    await screen.findByRole("table", { name: "Word counts" });
+    expect(screen.queryByRole("region", { name: "Volume over time" })).toBeNull();
+  });
+
   it("lists each match band's share of the table", async () => {
     mocks.search = "tab=words";
     renderPage();
     const bands = await screen.findByRole("region", { name: "Match bands" });
-    expect(
-      within(bands)
-        .getAllByRole("listitem")
-        .map((item) => item.getAttribute("aria-label")),
-    ).toEqual(["Repetition: 2,000, 3%", "100%: 4,000, 7%", "New: 52,290, 90%"]);
+    // Read out as one sentence each; the visible name, bar and figures are hidden from it.
+    for (const text of ["Repetition: 2,000, 3%", "100%: 4,000, 7%", "New: 52,290, 90%"])
+      expect(within(bands).getByText(text)).toHaveClass("sr-only");
+    expect(within(bands).getAllByRole("listitem")).toHaveLength(3);
   });
 
   it("groups word counts by language and by task step", async () => {
@@ -416,6 +474,10 @@ describe("Reports page", () => {
     expect(byStep).toHaveTextContent("Translate");
     expect(byStep).toHaveTextContent("No task (content editor)");
     expect(callsTo("words").at(-1)?.args.query).toMatchObject({ groupBy: "task_step" });
+    // Rows count a string in each of its tasks; the total counts it once.
+    expect(
+      screen.getByText(/A string held by more than one task counts in each task's row/),
+    ).toBeInTheDocument();
   });
 
   it("shows AI usage by area then model, with billing's charge, and narrows to a row", async () => {

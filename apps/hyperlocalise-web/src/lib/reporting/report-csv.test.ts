@@ -15,8 +15,9 @@ import { describe, expect, it } from "vite-plus/test";
 import type { AiUsage, AiUsageGroup } from "./ai-usage";
 import type { CostEstimate, CostEstimateRow } from "./cost-queries";
 import { resolvePeriod } from "./report-period";
-import { aiUsageCsv, loggedTimeCsv, stepTimesCsv, taskWordsCsv } from "./report-csv";
+import { aiUsageCsv, loggedTimeCsv, stepTimesCsv, taskWordsCsv, wordCountsCsv } from "./report-csv";
 import type { AutomatedTime, LoggedTime, StepTime } from "./time-queries";
+import type { WordCountRow, WordCounts } from "./word-queries";
 
 const row = (targetLocale: string, overrides: Partial<CostEstimateRow>): CostEstimateRow => ({
   targetLocale,
@@ -97,6 +98,63 @@ describe("time CSVs", () => {
     expect(stepTimesCsv([], none).split("\r\n")).toEqual([
       '"kind","name","minutes","people","runs"',
       '"workflow_step","action.http","2","","3"',
+    ]);
+  });
+});
+
+describe("word counts CSV", () => {
+  const row = (fields: Partial<WordCountRow>): WordCountRow => ({
+    week: null,
+    projectId: "project_web",
+    projectName: "Web app",
+    jobId: null,
+    jobTitle: null,
+    taskStep: null,
+    targetLocale: "de-DE",
+    bands: { new: 10 },
+    total: 10,
+    ...fields,
+  });
+  const counts = (rows: WordCountRow[]): WordCounts => ({
+    rows,
+    bandTotals: { "100": 5, new: 25 },
+    total: 30,
+    uncounted: 0,
+    groupCount: rows.length,
+    page: 1,
+    pageSize: 50,
+  });
+
+  it("names each row by its grouping, with only the bands that have units", () => {
+    const stepRow = { projectId: null, projectName: null };
+    expect(
+      wordCountsCsv(
+        counts([
+          row({ ...stepRow, taskStep: "post_edit", bands: { "100": 5, new: 5 } }),
+          row({
+            ...stepRow,
+            taskStep: "no_task",
+            targetLocale: "fr-FR",
+            bands: { new: 20 },
+            total: 20,
+          }),
+        ]),
+        "task_step",
+      ).split("\r\n"),
+    ).toEqual([
+      '"taskStep","targetLocale","100","new","total"',
+      '"post_edit","de-DE","5","5","10"',
+      '"no_task","fr-FR","0","20","20"',
+    ]);
+    expect(wordCountsCsv(counts([row({ week: "2026-10-12" })]), "week").split("\r\n")).toEqual([
+      '"week","projectName","targetLocale","100","new","total"',
+      '"2026-10-12","Web app","de-DE","0","10","10"',
+    ]);
+    expect(
+      wordCountsCsv(counts([row({ jobId: "job_1", jobTitle: "Release" })]), "task").split("\r\n"),
+    ).toEqual([
+      '"projectName","jobTitle","jobId","targetLocale","100","new","total"',
+      '"Web app","Release","job_1","de-DE","0","10","10"',
     ]);
   });
 });

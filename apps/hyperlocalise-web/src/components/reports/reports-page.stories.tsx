@@ -87,7 +87,7 @@ export const WordCountsByWeek: Story = {
   parameters: {
     nextjs: {
       appDirectory: true,
-      navigation: { pathname, query: { tab: "words", group: "week" } },
+      navigation: { pathname, query: { tab: "words", group: "week", per: "week" } },
     },
   },
   play: async ({ canvas }) => {
@@ -101,7 +101,7 @@ export const WordCountsByMatchBand: Story = {
   parameters: {
     nextjs: {
       appDirectory: true,
-      navigation: { pathname, query: { tab: "words", split: "band" } },
+      navigation: { pathname, query: { tab: "words", split: "band", per: "week" } },
     },
   },
   play: async ({ canvas }) => {

@@ -506,11 +506,15 @@ html,
   --chart-3: var(--ds-teal-600);
   --chart-4: var(--ds-purple-600);
   --chart-5: var(--ds-pink-600);
-  /* Match band tiers on Reports' charts, closest match darkest: one hue in steps checked apart. */
+  /*
+   * Match band tiers on Reports' charts, closest match darkest: one hue in steps checked apart.
+   * New work, with no match, is a grey lighter than the lightest.
+   */
   --chart-band-1: var(--ds-blue-800);
   --chart-band-2: var(--ds-blue-700);
   --chart-band-3: var(--ds-blue-600);
   --chart-band-4: var(--ds-blue-500);
+  --chart-band-new: var(--ds-gray-300);
   --radius: 0.625rem;
   --sidebar: var(--ds-background-200);
   --sidebar-foreground: var(--ds-gray-1000);
@@ -749,11 +753,16 @@ html,
   --sidebar-accent-foreground: var(--ds-gray-1000);
   --sidebar-border: var(--ds-gray-alpha-400);
   --sidebar-ring: var(--ds-blue-900);
-  /* The dark blue ramp is not in step order, so the tiers name their steps: closest brightest. */
+  /*
+   * The dark blue ramp is not in step order, so the tiers name their steps: closest brightest,
+   * new work a grey as dim as the dimmest.
+   */
   --chart-band-1: var(--ds-blue-900);
   --chart-band-2: #9cb9f7;
+  --chart-band-2: color(display-p3 0.6339 0.72208 0.94891);
   --chart-band-3: var(--ds-blue-600);
   --chart-band-4: var(--ds-blue-700);
+  --chart-band-new: var(--ds-gray-500);
 }
 
 @layer base {

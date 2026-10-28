@@ -12,6 +12,7 @@
  */
 import "dotenv/config";
 
+import { sql } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { db } from "@/lib/database/client";
@@ -282,6 +283,85 @@ describe("word count queries", () => {
       page: 1,
     });
     expect(translation.rows.map((row) => [row.taskStep, row.total])).toEqual([["translate", 30]]);
+  });
+
+  it("totals task step rows once per project, and reads a deleted task by its pricing step", async () => {
+    const { organization, project, createJob, addSummary } = await fixture.createWorkspace();
+    const postEdit = await createJob({ taskStep: "edit" });
+    const proofread = await createJob({ taskStep: "proofread" });
+    const day = "2026-06-10";
+    // The same 12 words reviewed in two tasks, and 5 more in a task deleted since.
+    await addSummary([
+      { jobId: postEdit.id, targetLocale: "fr-FR", day, step: "review", arrived: 12 },
+      { jobId: proofread.id, targetLocale: "fr-FR", day, step: "review", arrived: 12 },
+      { jobId: "job_deleted", targetLocale: "fr-FR", day, step: "review", arrived: 5 },
+    ]);
+    // The per-project summary counts the string the two tasks share once.
+    await db.execute(sql`
+      update reporting_daily_by_project set arrived_words = arrived_words - 12
+      where organization_id = ${organization.id}
+    `);
+    const scope = {
+      organizationId: organization.id,
+      projectIds: [project.id],
+      period,
+      unit: "words" as const,
+      step: "review" as const,
+      mode: "arrived" as const,
+    };
+    const counts = await queryWordCounts({ ...scope, groupBy: "task_step", page: 1 });
+    expect(counts.rows.map((row) => [row.taskStep, row.total])).toEqual([
+      ["post_edit", 12],
+      ["proofread", 17],
+    ]);
+    expect(counts.total).toBe(17);
+    expect(counts.bandTotals).toEqual({ new: 17 });
+    // The same total as grouped by project.
+    const byProject = await queryWordCounts({ ...scope, groupBy: "project", page: 1 });
+    expect(byProject.total).toBe(counts.total);
+    // A task filter reads that task alone, in the chart too.
+    const series = await queryWordCountSeries({
+      ...scope,
+      jobIds: [postEdit.id],
+      split: "task_step",
+      per: "day",
+    });
+    expect(series.groups.map((group) => group.key)).toEqual(["post_edit"]);
+    expect(series.points.find((point) => point.start === day)?.units).toEqual([12]);
+  });
+
+  it("charts months of different lengths, and days from the period's own first day", async () => {
+    const { organization, project, addSummary } = await fixture.createWorkspace();
+    await addSummary([
+      { targetLocale: "fr-FR", day: "2026-05-31", arrived: 1 },
+      { targetLocale: "fr-FR", day: "2026-06-30", arrived: 2 },
+      { targetLocale: "fr-FR", day: "2026-07-01", arrived: 4 },
+    ]);
+    const scope = {
+      organizationId: organization.id,
+      projectIds: [project.id],
+      period: resolvePeriod({
+        from: "2026-05-20",
+        to: "2026-07-02",
+        today: "2026-10-21",
+        startedDay: "2026-01-01",
+      }),
+      unit: "words" as const,
+      step: "translation" as const,
+      mode: "arrived" as const,
+      split: "project" as const,
+    };
+    const monthly = await queryWordCountSeries({ ...scope, per: "month" });
+    expect(monthly.points).toEqual([
+      { start: "2026-05-01", units: [1] },
+      { start: "2026-06-01", units: [2] },
+      { start: "2026-07-01", units: [4] },
+    ]);
+    // The period starts on a Wednesday; days start there, not on its week's Monday.
+    const daily = await queryWordCountSeries({ ...scope, per: "day" });
+    expect(daily.points[0].start).toBe("2026-05-20");
+    expect(daily.points.at(-1)?.start).toBe("2026-07-02");
+    expect(daily.points).toHaveLength(44);
   });
 
   it("groups word counts by language across projects", async () => {

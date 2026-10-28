@@ -32,10 +32,21 @@ export const wordCountsTabMessages = defineMessages({
     description:
       "Start of the volume chart's subtitle; unit is Words, Strings, Characters or Characters with spaces",
   },
-  chartRanked: {
-    id: "n2z25OQZ4/",
-    defaultMessage: "The five largest on their own, the rest as Other.",
-    description: "Part of the volume chart's subtitle when it is split by project or language",
+  chartRankedProjects: {
+    id: "d8cIu66K7q",
+    defaultMessage: "The five largest projects on their own, the rest as Other.",
+    description: "Part of the volume chart's subtitle when it is split by project",
+  },
+  chartRankedLanguages: {
+    id: "0Plddkx1xl",
+    defaultMessage: "The five largest languages on their own, the rest as Other.",
+    description: "Part of the volume chart's subtitle when it is split by language",
+  },
+  chartPerTask: {
+    id: "lmhT0/1nH6",
+    defaultMessage: "A string in more than one task counts in each.",
+    description:
+      "Part of the volume chart's subtitle when it shows work that arrived split by task step",
   },
   chartDays: {
     id: "dSYoXf1ZmK",
@@ -52,10 +63,22 @@ export const wordCountsTabMessages = defineMessages({
     defaultMessage: "Months are in UTC.",
     description: "End of the volume chart's subtitle when each bar is a month",
   },
+  chartPartial: {
+    id: "5fi40yEK9q",
+    defaultMessage: "A bar at either end counts only the days within these dates.",
+    description:
+      "End of the volume chart's subtitle when its first or last week or month is not wholly within the chosen dates",
+  },
   chartSummary: {
-    id: "p2Vp6IJsFD",
-    defaultMessage: "{unit} from {from} to {to}, {total} in all",
-    description: "Accessible summary of the volume chart",
+    id: "PSOebgndAU",
+    defaultMessage: "{unit} from {from} to {to}, {total} in all: {parts}",
+    description:
+      "Accessible summary of the volume chart; parts lists each series with its total, such as 'Translate: 1,200, Proofread: 300'",
+  },
+  chartSummaryPart: {
+    id: "p5c3yRL3tU",
+    defaultMessage: "{name}: {count}",
+    description: "One series in the volume chart's accessible summary: its name and total",
   },
   otherSeries: {
     id: "olyAMClAtW",
@@ -140,8 +163,8 @@ export const wordCountsTabMessages = defineMessages({
     description: "Title of the list of each match band's share of the word counts",
   },
   bandsDetail: {
-    id: "rejQNKMnC3",
-    defaultMessage: "{unit} in each band across every row of the table.",
+    id: "0D0RSYOy2x",
+    defaultMessage: "{unit} in each band, as the table's total counts them.",
     description:
       "Subtitle of the match band list; unit is Words, Strings, Characters or Characters with spaces",
   },
@@ -252,6 +275,13 @@ export const wordCountsTabMessages = defineMessages({
     defaultMessage:
       "{unit} finished in these dates, by match band, each time a string was finished.",
     description: "Note above the word counts table when showing finished work",
+  },
+  perTaskNote: {
+    id: "WJqQdc4moH",
+    defaultMessage:
+      "A string held by more than one task counts in each task's row, so the rows can add up to more than the total.",
+    description:
+      "Note above the word counts table when showing work that arrived grouped by task or by task step",
   },
   charactersNote: {
     id: "i7u8SkwkJO",

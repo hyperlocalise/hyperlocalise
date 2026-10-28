@@ -54,6 +54,7 @@ import {
   readAi,
   readCosts,
   readTime,
+  readWordReport,
   readWords,
   readWordSeries,
   summaryFreshness,
@@ -73,6 +74,7 @@ import {
   activityQuerySchema,
   stepTimesQuerySchema,
   aiUsageQuerySchema,
+  wordReportQuerySchema,
   wordSeriesQuerySchema,
   wordsQuerySchema,
   loggedTimeQuerySchema,
@@ -184,16 +186,16 @@ export function createReportsRoutes() {
             return c.json({ report: { kind: "activity" as const, activity, summary } });
           }
           case "words": {
-            const query = wordsQuerySchema.safeParse(c.req.query());
+            const query = wordReportQuerySchema.safeParse(c.req.query());
             if (!query.success) return badRequestResponse(c, "invalid_report_query");
             const { format, ...rest } = query.data;
-            const wordCounts = await readWords(
-              context,
-              { ...rest, all: format === "csv" },
-              { series: format !== "csv" },
-            );
             if (format === "csv")
-              return csv(c, "word-counts.csv", wordCountsCsv(wordCounts, rest.groupBy));
+              return csv(
+                c,
+                "word-counts.csv",
+                wordCountsCsv(await readWords(context, { ...rest, all: true }), rest.groupBy),
+              );
+            const wordCounts = await readWordReport(context, rest);
             return c.json({ report: { kind: "words" as const, wordCounts, summary } });
           }
           case "time": {

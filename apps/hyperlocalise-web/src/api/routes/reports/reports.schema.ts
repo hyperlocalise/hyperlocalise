@@ -95,25 +95,32 @@ export const aiUsageQuerySchema = z
   })
   .refine(datesInOrder, { message: "Invalid date range" })
   .refine((value) => value.thenBy !== value.groupBy, { message: "Group by two different details" });
-const wordSeries = {
+const wordFilters = {
   ...dates,
   ...scope,
   unit,
   step: step.default("translation"),
   mode: z.enum(["arrived", "finished"]).default("arrived"),
+};
+const wordChart = {
   split: z.enum(WORD_COUNT_SPLITS).optional(),
   per: z.enum(WORD_COUNT_INTERVALS).optional(),
 };
+const wordTable = {
+  ...wordFilters,
+  groupBy: z.enum(WORD_COUNT_GROUPINGS).default("project"),
+  page,
+  format,
+};
 export const wordSeriesQuerySchema = z
-  .object(wordSeries)
+  .object({ ...wordFilters, ...wordChart })
   .refine(datesInOrder, { message: "Invalid date range" });
 export const wordsQuerySchema = z
-  .object({
-    ...wordSeries,
-    groupBy: z.enum(WORD_COUNT_GROUPINGS).default("project"),
-    page,
-    format,
-  })
+  .object(wordTable)
+  .refine(datesInOrder, { message: "Invalid date range" });
+/** The public report and the MCP tool: the table and the volume chart in one answer. */
+export const wordReportQuerySchema = z
+  .object({ ...wordTable, ...wordChart })
   .refine(datesInOrder, { message: "Invalid date range" });
 export const loggedTimeQuerySchema = z
   .object({ ...dates, ...scope, page, format })
@@ -125,7 +132,7 @@ export const costsQuerySchema = z
 export const reportKindSchema = z.enum(REPORT_KINDS);
 export const REPORT_QUERY_SCHEMAS = {
   activity: activityQuerySchema,
-  words: wordsQuerySchema,
+  words: wordReportQuerySchema,
   time: loggedTimeQuerySchema,
   ai: aiUsageQuerySchema,
   costs: costsQuerySchema,

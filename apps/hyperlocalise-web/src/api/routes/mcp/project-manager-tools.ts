@@ -56,7 +56,7 @@ import {
   readAi,
   readCosts,
   readTime,
-  readWords,
+  readWordReport,
   summaryFreshness,
   type ReportReadContext,
 } from "@/lib/reporting/report-reads";
@@ -548,10 +548,9 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
         case "words":
           return mcpToolJson({
             ...shared,
-            wordCounts: await readWords(
+            wordCounts: await readWordReport(
               context,
               parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.words>,
-              { series: true },
             ),
           });
         case "time":

@@ -123,12 +123,15 @@ export function StackedBarChart({
   summary,
   formatValue,
   allowDecimals = false,
+  maxBarSize,
 }: {
   config: ChartConfig;
   rows: ({ label: string } & Record<string, string | number>)[];
   summary: string;
   formatValue: (value: number) => string;
   allowDecimals?: boolean;
+  /** The widest a bar may be, in pixels, so a few bars do not fill the width. */
+  maxBarSize?: number;
 }) {
   const keys = Object.keys(config);
   return (
@@ -158,6 +161,7 @@ export function StackedBarChart({
             stackId="stack"
             fill={`var(--color-${key})`}
             radius={index === keys.length - 1 ? [4, 4, 0, 0] : undefined}
+            maxBarSize={maxBarSize}
             isAnimationActive={false}
           />
         ))}

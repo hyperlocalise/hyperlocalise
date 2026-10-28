@@ -90,16 +90,20 @@ export const WORD_COUNT_INTERVALS = ["day", "week", "month"] as const;
 export type WordCountInterval = (typeof WORD_COUNT_INTERVALS)[number];
 
 /**
- * The match bands the volume chart draws together, closest match first. One hue can only show
- * about four steps apart, so the bands go into four tiers of leverage and new work, which takes
- * work whose memory could not be read too, as it is paid as new.
+ * The tiers the volume chart draws match bands in, strongest memory match first. One hue shows
+ * about four steps apart, so there are four tiers of memory leverage, then new.
  */
-export const BAND_TIERS = {
-  exact: ["repetition", "100"],
-  high: ["95-99"],
-  fuzzy: ["85-94", "75-84"],
-  low: ["50-74"],
-  new: ["new", "unavailable"],
-} as const satisfies Record<string, readonly MatchBucket[]>;
-export type BandTier = keyof typeof BAND_TIERS;
-export const BAND_TIER_ORDER = Object.keys(BAND_TIERS) as BandTier[];
+export const BAND_TIER_ORDER = ["exact", "high", "fuzzy", "low", "new"] as const;
+export type BandTier = (typeof BAND_TIER_ORDER)[number];
+
+/** Each match band's tier; "unavailable" goes with new, since it is paid as new. */
+export const BAND_TIER_OF: Record<MatchBucket, BandTier> = {
+  repetition: "exact",
+  "100": "exact",
+  "95-99": "high",
+  "85-94": "fuzzy",
+  "75-84": "fuzzy",
+  "50-74": "low",
+  new: "new",
+  unavailable: "new",
+};

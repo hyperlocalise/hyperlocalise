@@ -175,8 +175,12 @@ describe("reports routes", () => {
       expect(response.status, query).toBe(400);
     }
     await expect(read("/words?groupBy=task&unit=characters")).resolves.toMatchObject({
-      wordCounts: { rows: [], groupBy: "task", unit: "characters", mode: "arrived", series: null },
+      wordCounts: { rows: [], groupBy: "task", unit: "characters", mode: "arrived" },
     });
+    // The page reads the chart apart, so the table's answer carries none.
+    expect((await read("/words")) as { wordCounts: object }).not.toHaveProperty(
+      "wordCounts.series",
+    );
     for (const groupBy of ["language", "task_step"]) {
       await expect(read(`/words?groupBy=${groupBy}`)).resolves.toMatchObject({
         wordCounts: { rows: [], groupBy },
@@ -185,6 +189,10 @@ describe("reports routes", () => {
     // The chart is its own read: by project and the period's own bar length unless asked.
     await expect(read("/words/series")).resolves.toMatchObject({
       wordSeries: { split: "project", per: "day", groups: [], points: expect.any(Array) },
+    });
+    // Over 45 days, weeks by default, as the page's switch shows.
+    await expect(read("/words/series?from=2026-04-01&to=2026-06-30")).resolves.toMatchObject({
+      wordSeries: { per: "week" },
     });
     await expect(
       read("/words/series?split=task_step&per=month&mode=finished"),

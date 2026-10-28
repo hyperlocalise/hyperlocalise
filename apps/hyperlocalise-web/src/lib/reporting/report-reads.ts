@@ -66,17 +66,16 @@ type Dates = { from?: string; to?: string };
 type Scope = { projectId?: string; jobId?: string; targetLocale?: string };
 
 export type ActivityReadQuery = Dates & Scope & { unit: ReportUnit; step: ReportStep };
-export type WordSeriesReadQuery = Dates &
-  Scope & {
-    unit: ReportUnit;
-    step: ReportStep;
-    mode: "arrived" | "finished";
-    /** What the volume chart splits each bar by; by project when not given. */
-    split?: WordCountSplit;
-    /** How long each bar covers; days, or weeks for a long period, when not given. */
-    per?: WordCountInterval;
-  };
-export type WordsReadQuery = WordSeriesReadQuery & {
+type WordFilters = Dates &
+  Scope & { unit: ReportUnit; step: ReportStep; mode: "arrived" | "finished" };
+type WordChart = {
+  /** What the volume chart splits each bar by; by project when not given. */
+  split?: WordCountSplit;
+  /** How long each bar covers; days, or weeks for a long period, when not given. */
+  per?: WordCountInterval;
+};
+export type WordSeriesReadQuery = WordFilters & WordChart;
+export type WordsReadQuery = WordFilters & {
   groupBy: WordCountGrouping;
   page: number;
   /** Every row, for a download. */
@@ -142,21 +141,11 @@ export async function readWordSeries(context: ReportReadContext, query: WordSeri
   return { period: read.period, unit: query.unit, step: query.step, mode: query.mode, ...series };
 }
 
-/**
- * The Word counts tab: units by match band, grouped as asked, a page of tasks at a time; with
- * the volume chart for readers that take the tab in one answer (the page asks for it apart).
- */
-export async function readWords(
-  context: ReportReadContext,
-  query: WordsReadQuery,
-  options: { series?: boolean } = {},
-) {
-  const { all, split, per, ...rest } = query;
+/** The Word counts tab's table: units by match band, grouped as asked, a page of tasks at a time. */
+export async function readWords(context: ReportReadContext, query: WordsReadQuery) {
+  const { all, ...rest } = query;
   const read = scope(context, rest);
-  const [counts, series] = await Promise.all([
-    queryWordCounts({ ...read, all }),
-    options.series ? readWordSeries(context, { ...rest, split, per }) : null,
-  ]);
+  const counts = await queryWordCounts({ ...read, all });
   return {
     period: read.period,
     unit: query.unit,
@@ -164,8 +153,19 @@ export async function readWords(
     mode: query.mode,
     groupBy: query.groupBy,
     ...counts,
-    series,
   };
+}
+
+/** The Word counts tab in one answer, table and volume chart, for the public report and MCP. */
+export async function readWordReport(
+  context: ReportReadContext,
+  query: WordsReadQuery & WordChart,
+) {
+  const [counts, series] = await Promise.all([
+    readWords(context, query),
+    readWordSeries(context, query),
+  ]);
+  return { ...counts, series };
 }
 
 /** The Time tab: time people logged, and automated run time for the roles that see it. */
