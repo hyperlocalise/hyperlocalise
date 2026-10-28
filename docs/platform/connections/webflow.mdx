@@ -1,0 +1,64 @@
+---
+title: "Localize Webflow CMS items (automation)"
+description: "Use automations to import Webflow CMS items into a native project, translate them in Jobs, and push approved translations back to Webflow."
+---
+
+Use a saved automation to import Webflow CMS items into a native project as JSON, translate them in [Jobs](/platform/translation/jobs), then write approved translations back to Webflow locales. Import never publishes to Webflow. **Push to Webflow** is a separate action.
+
+## Connect Webflow
+
+1. Open workspace **Integrations** and find **Webflow**, then paste a site API token and select **Test token** / **Save**.
+2. Generate the token in Webflow under **Site settings → Apps & integrations → API access → Generate API token**. Use a site token (not an OAuth app or workspace token).
+3. Grant these permissions on the token:
+   - **Sites: read** (`sites:read`) — required. Platform rejects tokens without it.
+   - **CMS: read** (`cms:read`) — required for import.
+   - **CMS: write** (`cms:write`) — required for **Push to Webflow** write-back.
+   - **Components: read** (`components:read`) — recommended for push write-back so component fields resolve.
+4. Confirm the connection shows as connected. If validation reports a missing scope (for example `Missing cms:write scope required for push writeback`), regenerate the token with that permission and paste it again.
+
+The automation uses this Webflow connection. Connect Webflow before you add the **Translate Webflow items** skill.
+
+## Prepare the native project
+
+Create or choose a [native project](/platform/projects/create-project), then set **source** and **target** locales under [project Settings → Locales](/platform/projects/languages). Translation jobs, import, and push only use tags in that list: one `sourceLocale` and one or more `targetLocales`. Map each Webflow locale onto a locale in the project's list; drop or add project targets in Hyperlocalise when Webflow and the project list diverge.
+
+## Create the automation
+
+1. Open workspace **Automations** and select **New Automation**.
+2. Apply the **Translate Webflow items** template, or add that skill from **Add Skill**.
+3. Attach the native project.
+4. Choose a **scheduled** or **manual** trigger. A schedule imports changed items. It does not push translations.
+5. Under **Webflow**, set:
+   - **Webflow connection** and **site**
+   - **Collections** to import
+   - **Webflow source locale** (must match the native project `sourceLocale` or an allowed alias)
+   - **Target locales** to translate
+6. Save the automation.
+
+## Import items
+
+**Run now** or wait for the schedule. Import writes one JSON source file per CMS item under `webflow/{siteId}/{collectionId}/{slug}.json`. Review those files in the project like other source files.
+
+Import does not write translations to Webflow.
+
+## Review and push translations
+
+1. Translate and [approve](/platform/cat) every visible string for a mapped locale.
+2. Open a Webflow item file in the Content editor. The header shows **Push to Webflow** for that file when at least one mapped locale is fully approved and no push is already running.
+3. Confirm the locale content appears in Webflow after you review it.
+
+## Change or remove access
+
+Disconnect Webflow from **Integrations** when this workspace should stop using that token. Inspect automations that depend on the connection before you disconnect. Tokens are stored encrypted and can be rotated by pasting a new token over the existing connection.
+
+If a site or collection is missing, confirm the token's site and that it still has `sites:read` and `cms:read`. See [Connection troubleshooting](/platform/help/connections).
+
+## If import or push does not run
+
+- Confirm Webflow is connected and the automation is **Active**.
+- Confirm the site, collections, and locale mapping match the Webflow site.
+- If **Push to Webflow** is missing, open a Webflow item file. The action stays hidden on other files. Confirm an active Webflow automation is attached to the project and you can manage automations.
+- If push reports a missing scope, regenerate the site token with **CMS: write** (and **Components: read**) and save it again.
+- Open **Run History** for the failed item or locale.
+
+See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).

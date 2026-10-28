@@ -14,7 +14,7 @@ Secondary-locale PATCH must preserve existing `data-w-id` on every `<wf-componen
 
 ## Manual verification checklist
 
-1. Paste a site token with `sites:read`, `cms:read`, `cms:write`.
+1. Generate a site API token in Webflow (**Site settings → Apps & integrations → API access → Generate API token**) with `sites:read`, `cms:read`, `cms:write` (plus `components:read` for component fields), and paste it as the site token.
 2. Pick a collection item with Rich Text containing `<wf-component>`.
 3. PATCH a translated PlainText/RichText field for `cmsLocaleId` of an enabled secondary locale.
 4. Publish that locale only via publish endpoint.

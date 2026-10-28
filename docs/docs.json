@@ -209,6 +209,7 @@
                       "platform/connections/intercom",
                       "platform/connections/sanity",
                       "platform/connections/sanity-studio-plugin",
+                      "platform/connections/webflow",
                       "platform/connections/braze",
                       "platform/connections/canva",
                       "platform/connections/figma",
