@@ -19,7 +19,14 @@ import {
   AI_USAGE_MEASURES,
 } from "@/lib/reporting/ai-usage-origins";
 import { REPORT_KINDS } from "@/lib/reporting/report-reads";
-import { RATE_BASES, REPORT_STEPS, REPORT_UNITS } from "@/lib/reporting/report-units";
+import {
+  RATE_BASES,
+  REPORT_STEPS,
+  REPORT_UNITS,
+  WORD_COUNT_GROUPINGS,
+  WORD_COUNT_INTERVALS,
+  WORD_COUNT_SPLITS,
+} from "@/lib/reporting/report-units";
 import { MATCH_BUCKETS } from "@/lib/reporting/word-analysis";
 const usd = z.string().regex(/^\d{1,12}(\.\d{1,8})?$/);
 const step = z.enum(REPORT_STEPS);
@@ -88,14 +95,22 @@ export const aiUsageQuerySchema = z
   })
   .refine(datesInOrder, { message: "Invalid date range" })
   .refine((value) => value.thenBy !== value.groupBy, { message: "Group by two different details" });
+const wordSeries = {
+  ...dates,
+  ...scope,
+  unit,
+  step: step.default("translation"),
+  mode: z.enum(["arrived", "finished"]).default("arrived"),
+  split: z.enum(WORD_COUNT_SPLITS).optional(),
+  per: z.enum(WORD_COUNT_INTERVALS).optional(),
+};
+export const wordSeriesQuerySchema = z
+  .object(wordSeries)
+  .refine(datesInOrder, { message: "Invalid date range" });
 export const wordsQuerySchema = z
   .object({
-    ...dates,
-    ...scope,
-    unit,
-    step: step.default("translation"),
-    mode: z.enum(["arrived", "finished"]).default("arrived"),
-    groupBy: z.enum(["project", "task", "week"]).default("project"),
+    ...wordSeries,
+    groupBy: z.enum(WORD_COUNT_GROUPINGS).default("project"),
     page,
     format,
   })

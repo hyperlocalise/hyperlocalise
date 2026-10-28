@@ -24,7 +24,13 @@ import type {
 } from "./ai-usage-origins";
 import { queryCosts } from "./cost-queries";
 import { resolvePeriod } from "./report-period";
-import type { ReportStep, ReportUnit } from "./report-units";
+import type {
+  ReportStep,
+  ReportUnit,
+  WordCountGrouping,
+  WordCountInterval,
+  WordCountSplit,
+} from "./report-units";
 import { queryAutomatedTime, queryLoggedTime } from "./time-queries";
 import {
   queryActivity,
@@ -60,16 +66,22 @@ type Dates = { from?: string; to?: string };
 type Scope = { projectId?: string; jobId?: string; targetLocale?: string };
 
 export type ActivityReadQuery = Dates & Scope & { unit: ReportUnit; step: ReportStep };
-export type WordsReadQuery = Dates &
+export type WordSeriesReadQuery = Dates &
   Scope & {
     unit: ReportUnit;
     step: ReportStep;
     mode: "arrived" | "finished";
-    groupBy: "project" | "task" | "week";
-    page: number;
-    /** Every row, for a download. */
-    all?: boolean;
+    /** What the volume chart splits each bar by; by project when not given. */
+    split?: WordCountSplit;
+    /** How long each bar covers; days, or weeks for a long period, when not given. */
+    per?: WordCountInterval;
   };
+export type WordsReadQuery = WordSeriesReadQuery & {
+  groupBy: WordCountGrouping;
+  page: number;
+  /** Every row, for a download. */
+  all?: boolean;
+};
 export type TimeReadQuery = Dates & Scope & { page: number; all?: boolean };
 export type CostsReadQuery = Dates & { projectId?: string; targetLocale?: string };
 export type AiReadQuery = Dates & {
@@ -118,14 +130,32 @@ export async function readActivity(context: ReportReadContext, query: ActivityRe
   return { period: read.period, unit: query.unit, step, ...totals, series, byLanguage };
 }
 
-/** The Word counts tab: units by match band, by project or a page of tasks. */
-export async function readWords(context: ReportReadContext, query: WordsReadQuery) {
-  const { all, ...rest } = query;
+/** The Word counts tab's volume chart: units each day, week or month, split one way. */
+export async function readWordSeries(context: ReportReadContext, query: WordSeriesReadQuery) {
+  const { split, per, ...rest } = query;
+  const read = scope(context, rest);
+  const series = await queryWordCountSeries({
+    ...read,
+    split: split ?? "project",
+    per: per ?? read.period.interval,
+  });
+  return { period: read.period, unit: query.unit, step: query.step, mode: query.mode, ...series };
+}
+
+/**
+ * The Word counts tab: units by match band, grouped as asked, a page of tasks at a time; with
+ * the volume chart for readers that take the tab in one answer (the page asks for it apart).
+ */
+export async function readWords(
+  context: ReportReadContext,
+  query: WordsReadQuery,
+  options: { series?: boolean } = {},
+) {
+  const { all, split, per, ...rest } = query;
   const read = scope(context, rest);
   const [counts, series] = await Promise.all([
     queryWordCounts({ ...read, all }),
-    // The volume chart goes with the by-week table, which is the same numbers by project.
-    query.groupBy === "week" ? queryWordCountSeries(read) : null,
+    options.series ? readWordSeries(context, { ...rest, split, per }) : null,
   ]);
   return {
     period: read.period,

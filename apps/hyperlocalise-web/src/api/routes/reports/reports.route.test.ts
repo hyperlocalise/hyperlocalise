@@ -175,7 +175,21 @@ describe("reports routes", () => {
       expect(response.status, query).toBe(400);
     }
     await expect(read("/words?groupBy=task&unit=characters")).resolves.toMatchObject({
-      wordCounts: { rows: [], groupBy: "task", unit: "characters", mode: "arrived" },
+      wordCounts: { rows: [], groupBy: "task", unit: "characters", mode: "arrived", series: null },
+    });
+    for (const groupBy of ["language", "task_step"]) {
+      await expect(read(`/words?groupBy=${groupBy}`)).resolves.toMatchObject({
+        wordCounts: { rows: [], groupBy },
+      });
+    }
+    // The chart is its own read: by project and the period's own bar length unless asked.
+    await expect(read("/words/series")).resolves.toMatchObject({
+      wordSeries: { split: "project", per: "day", groups: [], points: expect.any(Array) },
+    });
+    await expect(
+      read("/words/series?split=task_step&per=month&mode=finished"),
+    ).resolves.toMatchObject({
+      wordSeries: { split: "task_step", per: "month", mode: "finished", groups: [] },
     });
     await expect(read("/time")).resolves.toMatchObject({ time: { logged: { rows: [] } } });
     await expect(read("/costs")).resolves.toMatchObject({
@@ -196,8 +210,12 @@ describe("reports routes", () => {
         summary: { pendingDays: 0 },
       },
     });
-    await expect(read("?report=words&groupBy=task")).resolves.toMatchObject({
-      report: { kind: "words", wordCounts: { rows: [], groupBy: "task" } },
+    // In one answer, the words report carries its chart too.
+    await expect(read("?report=words&groupBy=task&split=band&per=week")).resolves.toMatchObject({
+      report: {
+        kind: "words",
+        wordCounts: { rows: [], groupBy: "task", series: { split: "band", per: "week" } },
+      },
     });
     await expect(read("?report=time")).resolves.toMatchObject({
       report: { kind: "time", time: { logged: { rows: [] } } },
@@ -236,6 +254,15 @@ describe("reports routes", () => {
     expect((await csv.text()).split("\r\n")[0]).toBe(
       '"projectName","jobTitle","jobId","targetLocale","total"',
     );
+    // By language and by task step, rows span projects and name none.
+    const byStep = await app.request(reportsUrl(slug, "/words?groupBy=task_step&format=csv"), {
+      headers,
+    });
+    expect((await byStep.text()).split("\r\n")[0]).toBe('"taskStep","targetLocale","total"');
+    const byLanguage = await app.request(reportsUrl(slug, "/words?groupBy=language&format=csv"), {
+      headers,
+    });
+    expect((await byLanguage.text()).split("\r\n")[0]).toBe('"targetLocale","total"');
     // AI charged outside any project is a row with no project.
     const costs = await app.request(reportsUrl(slug, "/costs?format=csv"), { headers });
     expect((await costs.text()).split("\r\n")).toEqual([
@@ -251,6 +278,9 @@ describe("reports routes", () => {
     const tooManyTasks = Array.from({ length: 51 }, (_, index) => `job_${index}`).join(",");
     for (const path of [
       "/words?unit=pages",
+      "/words?groupBy=file",
+      "/words/series?split=person",
+      "/words/series?per=quarter",
       "/activity?from=2026-06-10&to=2026-06-01",
       `/cost-estimate?jobIds=${tooManyTasks}`,
       "/cost-estimate",

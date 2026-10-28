@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { MatchBucket } from "./word-analysis";
+
 /**
  * The units Reports counts work in. Words suit most languages; characters suit languages written
  * without spaces, such as Chinese and Japanese.
@@ -28,6 +30,10 @@ export type ReportStep = (typeof REPORT_STEPS)[number];
  */
 export const TASK_STEPS = ["translate", "post_edit", "proofread", "other"] as const;
 export type TaskStep = (typeof TASK_STEPS)[number];
+
+/** A task step for word counts, which also count work saved in the content editor outside any task. */
+export const WORD_TASK_STEPS = [...TASK_STEPS, "no_task"] as const;
+export type WordTaskStep = (typeof WORD_TASK_STEPS)[number];
 
 /**
  * The stages of a translation task's run, between the events the file translation workflow
@@ -70,3 +76,30 @@ export const COMPLETION_SOURCES = ["memory", "ai", "person", "import"] as const;
 export type CompletionSource = (typeof COMPLETION_SOURCES)[number];
 export const SUMMARY_SOURCES = [...COMPLETION_SOURCES, "unknown"] as const;
 export type SummarySource = (typeof SUMMARY_SOURCES)[number];
+
+/** How Word counts groups its table. */
+export const WORD_COUNT_GROUPINGS = ["project", "task", "week", "language", "task_step"] as const;
+export type WordCountGrouping = (typeof WORD_COUNT_GROUPINGS)[number];
+
+/** What the volume chart splits each bar by. */
+export const WORD_COUNT_SPLITS = ["project", "language", "band", "task_step"] as const;
+export type WordCountSplit = (typeof WORD_COUNT_SPLITS)[number];
+
+/** How long each bar of the volume chart covers. */
+export const WORD_COUNT_INTERVALS = ["day", "week", "month"] as const;
+export type WordCountInterval = (typeof WORD_COUNT_INTERVALS)[number];
+
+/**
+ * The match bands the volume chart draws together, closest match first. One hue can only show
+ * about four steps apart, so the bands go into four tiers of leverage and new work, which takes
+ * work whose memory could not be read too, as it is paid as new.
+ */
+export const BAND_TIERS = {
+  exact: ["repetition", "100"],
+  high: ["95-99"],
+  fuzzy: ["85-94", "75-84"],
+  low: ["50-74"],
+  new: ["new", "unavailable"],
+} as const satisfies Record<string, readonly MatchBucket[]>;
+export type BandTier = keyof typeof BAND_TIERS;
+export const BAND_TIER_ORDER = Object.keys(BAND_TIERS) as BandTier[];

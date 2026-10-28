@@ -55,6 +55,7 @@ import {
   readCosts,
   readTime,
   readWords,
+  readWordSeries,
   summaryFreshness,
 } from "@/lib/reporting/report-reads";
 import { scopedProjectIds } from "@/lib/reporting/report-scope";
@@ -72,6 +73,7 @@ import {
   activityQuerySchema,
   stepTimesQuerySchema,
   aiUsageQuerySchema,
+  wordSeriesQuerySchema,
   wordsQuerySchema,
   loggedTimeQuerySchema,
   costsQuerySchema,
@@ -185,7 +187,11 @@ export function createReportsRoutes() {
             const query = wordsQuerySchema.safeParse(c.req.query());
             if (!query.success) return badRequestResponse(c, "invalid_report_query");
             const { format, ...rest } = query.data;
-            const wordCounts = await readWords(context, { ...rest, all: format === "csv" });
+            const wordCounts = await readWords(
+              context,
+              { ...rest, all: format === "csv" },
+              { series: format !== "csv" },
+            );
             if (format === "csv")
               return csv(c, "word-counts.csv", wordCountsCsv(wordCounts, rest.groupBy));
             return c.json({ report: { kind: "words" as const, wordCounts, summary } });
@@ -300,6 +306,10 @@ export function createReportsRoutes() {
         const aiUsage = await readAi(await reportContext(c), { ...query, all: format === "csv" });
         if (format === "csv") return csv(c, "ai-usage.csv", aiUsageCsv(aiUsage));
         return c.json({ aiUsage });
+      })
+      .get("/words/series", billingRead, reportQuery(wordSeriesQuerySchema), async (c) => {
+        const wordSeries = await readWordSeries(await reportContext(c), c.req.valid("query"));
+        return c.json({ wordSeries });
       })
       .get("/words", billingRead, reportQuery(wordsQuerySchema), async (c) => {
         const { format, ...query } = c.req.valid("query");

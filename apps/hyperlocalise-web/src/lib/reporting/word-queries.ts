@@ -19,10 +19,19 @@ import { idList, jobTitle, scopedProjectIds, type ReportScope } from "./report-s
 import {
   REPORT_STEPS,
   SUMMARY_SOURCES,
+  BAND_TIER_ORDER,
+  BAND_TIERS,
+  WORD_TASK_STEPS,
+  type BandTier,
   type ReportStep,
   type ReportUnit,
   type SummarySource,
+  type WordCountGrouping,
+  type WordCountInterval,
+  type WordCountSplit,
+  type WordTaskStep,
 } from "./report-units";
+import { taskStepSql } from "./time-queries";
 import { MATCH_BUCKETS, type MatchBucket } from "./word-analysis";
 
 /**
@@ -50,21 +59,34 @@ function sourceIs(name: SummarySource): SQL {
 }
 
 /**
- * The summary rows a section reads: by project unless a task is chosen, since only the by-task
- * table has tasks. Returns null when the viewer can open none of the chosen projects.
+ * The summary rows a section reads: by project unless a task is chosen or `byTask` is asked for,
+ * since only the by-task table has tasks. Returns null when the viewer can open none of the
+ * chosen projects.
  */
-function summarySource(scope: ReportScope): { table: SQL; where: SQL } | null {
+function summarySource(
+  scope: ReportScope,
+  options: { byTask?: boolean } = {},
+): { table: SQL; where: SQL } | null {
   const projectIds = scopedProjectIds(scope);
   if (projectIds.length === 0) return null;
-  const byTask = (scope.jobIds?.length ?? 0) > 0;
+  const jobIds = scope.jobIds ?? [];
+  const byTask = options.byTask || jobIds.length > 0;
   return {
     table: sql.raw(byTask ? "reporting_daily_by_task s" : "reporting_daily_by_project s"),
     where: sql`s.organization_id = ${scope.organizationId}
       and s.project_id in (${idList(projectIds)})
-      ${byTask ? sql`and s.job_id in (${idList(scope.jobIds!)})` : sql``}
+      ${jobIds.length > 0 ? sql`and s.job_id in (${idList(jobIds)})` : sql``}
       ${scope.targetLocale ? sql`and s.target_locale = ${scope.targetLocale}` : sql``}`,
   };
 }
+
+/** What a by-task summary row's task is for; rows outside any task are `no_task`. */
+function wordTaskStepSql(): SQL {
+  return sql`case when s.job_id is null then 'no_task' else ${taskStepSql("j")} end`;
+}
+
+/** Joins a by-task summary row (`s`) to its task (`j`), for its task step; deleted tasks stay. */
+const TASK_JOIN = sql`left join jobs j on j.id = s.job_id`;
 
 export type ActivityTotals = {
   /**
@@ -238,12 +260,15 @@ export type BandCounts = Partial<Record<MatchBucket, number>>;
 export type WordCountRow = {
   /** The Monday of the week, as a date, when grouped by week; null otherwise. */
   week: string | null;
+  /** Null when grouped by language or by task step. */
   projectId: string | null;
   projectName: string | null;
-  /** Null for work saved in the content editor outside any task. */
+  /** Null for work saved in the content editor outside any task, and unless grouped by task. */
   jobId: string | null;
   /** Null when the task was deleted. */
   jobTitle: string | null;
+  /** What the work's task is for, when grouped by task step; null otherwise. */
+  taskStep: WordTaskStep | null;
   targetLocale: string;
   bands: BandCounts;
   total: number;
@@ -255,7 +280,10 @@ export type WordCounts = {
   total: number;
   /** Strings that arrived whose units could not be counted (only for `mode: "arrived"`). */
   uncounted: number;
-  /** Tasks across every page when grouped by task; projects or weeks for the other groupings. */
+  /**
+   * Tasks across every page when grouped by task; projects, weeks, languages or task steps for
+   * the other groupings.
+   */
   groupCount: number;
   page: number;
   pageSize: number;
@@ -265,8 +293,9 @@ export const WORD_COUNT_PAGE_SIZE = 50;
 
 /**
  * Units that arrived, or were finished, in a period, by match band and target language, grouped
- * by project, by task, or by week and project (the volume each week, as the old report showed
- * it). Tasks come largest first, a page of 50 at a time; totals cover every page.
+ * by project, by task, by week and project (the volume each week, as the old report showed it),
+ * by language alone, or by task step. Tasks come largest first, a page of 50 at a time; totals
+ * cover every page.
  */
 export async function queryWordCounts(
   input: ReportScope & {
@@ -274,7 +303,7 @@ export async function queryWordCounts(
     unit: ReportUnit;
     step: ReportStep;
     mode: "arrived" | "finished";
-    groupBy: "project" | "task" | "week";
+    groupBy: WordCountGrouping;
     page: number;
     /** Every task on one page, for a download. */
     all?: boolean;
@@ -310,8 +339,19 @@ export async function queryWordCounts(
   const pageLimit = input.all
     ? sql``
     : sql`limit ${WORD_COUNT_PAGE_SIZE} offset ${(input.page - 1) * WORD_COUNT_PAGE_SIZE}`;
-  // By project, or by week and project: one grouping over the totals table.
+  // Every grouping but by task is one grouping over a summary table: the totals table, or the
+  // by-task table with each row's task for task steps.
   const weekly = input.groupBy === "week";
+  const byTaskStep = input.groupBy === "task_step";
+  const byProject = input.groupBy === "project" || weekly;
+  // The column that counts as one group, for the group count.
+  const groupKey = {
+    project: "project_id",
+    task: "job_id",
+    week: "week",
+    language: "target_locale",
+    task_step: "task_step",
+  }[input.groupBy];
   const result = await db.execute<{
     groupCount: number;
     bandTotals: BandCounts | null;
@@ -320,6 +360,7 @@ export async function queryWordCounts(
       week: string | null;
       projectId: string | null;
       jobId: string | null;
+      taskStep: WordTaskStep | null;
       targetLocale: string;
       bucket: MatchBucket;
       units: number;
@@ -329,19 +370,24 @@ export async function queryWordCounts(
       ? sql`
         with grouped as (
           select ${weekly ? sql`date_trunc('week', s.day)::date` : sql`null::date`} as week,
-            s.project_id, s.target_locale, s.bucket, sum(${column}) as units,
+            ${byProject ? sql`s.project_id` : sql`null::text`} as project_id,
+            ${byTaskStep ? wordTaskStepSql() : sql`null::text`} as task_step,
+            s.target_locale, s.bucket, sum(${column}) as units,
             sum(s.arrived_uncounted) as uncounted
-          from ${totalsTable} where ${filters}
-          group by 1, 2, 3, 4
+          from ${byTaskStep ? sql`reporting_daily_by_task s ${TASK_JOIN}` : totalsTable}
+          where ${filters}
+          group by 1, 2, 3, 4, 5
         ), bands as (
           select bucket, sum(units) as units, sum(uncounted) as uncounted from grouped group by 1
         )
         select (select count(*) from (
-            select ${weekly ? sql`week` : sql`project_id`} from grouped group by 1 having sum(units) > 0
+            select ${sql.raw(groupKey)} from grouped group by 1
+            having sum(units) > 0
           ) groups)::integer as "groupCount", ${bandColumns},
           (select coalesce(json_agg(json_build_object(
               'week', g.week::text, 'projectId', g.project_id, 'jobId', null,
-              'targetLocale', g.target_locale, 'bucket', g.bucket, 'units', g.units::float8
+              'taskStep', g.task_step, 'targetLocale', g.target_locale, 'bucket', g.bucket,
+              'units', g.units::float8
             )), '[]') from grouped g where g.units > 0) as rows`
       : // Tasks are ranked by a total each, and only the page's tasks are read in full, task by
         // task through the summary's task index.
@@ -369,7 +415,7 @@ export async function queryWordCounts(
         )
         select (select count(*) from task_totals)::integer as "groupCount", ${bandColumns},
           (select coalesce(json_agg(json_build_object(
-              'week', null, 'projectId', r.project_id, 'jobId', r.job_id,
+              'week', null, 'projectId', r.project_id, 'jobId', r.job_id, 'taskStep', null,
               'targetLocale', r.target_locale, 'bucket', r.bucket, 'units', r.units::float8
             ) order by p.total desc, p.job_id nulls first), '[]')
             from page_rows r join page p on p.job_id is not distinct from r.job_id
@@ -379,7 +425,7 @@ export async function queryWordCounts(
   const names = await groupNames(rows);
   const merged = new Map<string, WordCountRow>();
   for (const row of rows) {
-    const key = `${row.week ?? ""}\u0000${row.jobId ?? ""}\u0000${row.projectId}\u0000${row.targetLocale}`;
+    const key = [row.week, row.jobId, row.projectId, row.taskStep, row.targetLocale].join("\u0000");
     let entry = merged.get(key);
     if (!entry) {
       entry = {
@@ -388,6 +434,7 @@ export async function queryWordCounts(
         projectName: null,
         jobId: row.jobId,
         jobTitle: row.jobId ? (names.jobTitles.get(row.jobId) ?? null) : null,
+        taskStep: row.taskStep,
         targetLocale: row.targetLocale,
         bands: {},
         total: 0,
@@ -401,11 +448,13 @@ export async function queryWordCounts(
     ...row,
     projectName: row.projectId ? (names.projectNames.get(row.projectId) ?? null) : null,
   }));
+  const stepOrder = (step: WordTaskStep | null) => (step ? WORD_TASK_STEPS.indexOf(step) : -1);
   if (input.groupBy !== "task")
     ordered.sort(
       (left, right) =>
         (left.week ?? "").localeCompare(right.week ?? "") ||
         (left.projectName ?? "").localeCompare(right.projectName ?? "") ||
+        stepOrder(left.taskStep) - stepOrder(right.taskStep) ||
         left.targetLocale.localeCompare(right.targetLocale),
     );
   const totals = bandTotals ?? {};
@@ -443,20 +492,34 @@ async function groupNames(rows: { projectId: string | null; jobId: string | null
   };
 }
 
-/** How many projects the volume chart shows on their own; the rest are one "Other" series. */
-export const WORD_COUNT_CHART_PROJECTS = 5;
+/** How many projects or languages the volume chart shows on their own; the rest are one "Other". */
+export const WORD_COUNT_CHART_GROUPS = 5;
+
+function bandTier(bucket: string): BandTier {
+  return BAND_TIER_ORDER.find((tier) => (BAND_TIERS[tier] as readonly string[]).includes(bucket))!;
+}
 
 export type WordCountSeries = {
-  /** The largest projects over the period, largest first, then "Other" when there are more. */
-  groups: { projectId: string | null; projectName: string | null; other: boolean }[];
-  /** One point per week (its Monday, as a date), with units in the order of `groups`. */
+  split: WordCountSplit;
+  per: WordCountInterval;
+  /**
+   * The series, bottom to top: the largest projects or languages over the period, largest
+   * first, then "Other" when there are more; or each band tier or task step with units, in
+   * their order. `key` is the project id, language, band tier or task step; `name` a project's.
+   */
+  groups: { key: string | null; name: string | null; other: boolean }[];
+  /**
+   * One point per day, week (its Monday) or month (its first day), as a date, with units in the
+   * order of `groups`.
+   */
   points: { start: string; units: number[] }[];
 };
 
 /**
- * Units that arrived, or were finished, each week of a period, by project: the largest five
- * projects over the whole period on their own and the rest as "Other", with a point for every
- * week even when nothing happened. Weeks start on Monday, in UTC, as the by-week table's do.
+ * Units that arrived, or were finished, each day, week or month of a period, split by project,
+ * language, band tier or task step, with a point for every day, week or month even when nothing
+ * happened. Weeks start on Monday and months on the first, in UTC, as the table's weeks do; the
+ * first may begin before the period does.
  */
 export async function queryWordCountSeries(
   input: ReportScope & {
@@ -464,68 +527,96 @@ export async function queryWordCountSeries(
     unit: ReportUnit;
     step: ReportStep;
     mode: "arrived" | "finished";
+    split: WordCountSplit;
+    per: WordCountInterval;
   },
 ): Promise<WordCountSeries> {
-  const source = summarySource(input);
-  if (!source) return { groups: [], points: [] };
+  const byTaskStep = input.split === "task_step";
+  const source = summarySource(input, { byTask: byTaskStep });
+  if (!source) return { split: input.split, per: input.per, groups: [], points: [] };
   const column = measure(input.mode, input.unit);
+  const key = {
+    project: sql`s.project_id`,
+    language: sql`s.target_locale`,
+    band: sql`s.bucket`,
+    task_step: wordTaskStepSql(),
+  }[input.split];
+  // Projects and languages can be many, so the largest are kept and the rest drawn as one.
+  const ranked = input.split === "project" || input.split === "language";
+  const truncate = { day: null, week: "week", month: "month" }[input.per];
+  const start = truncate ? sql`date_trunc(${truncate}, s.day)::date` : sql`s.day`;
+  const first = truncate
+    ? sql`date_trunc(${truncate}, ${input.period.from}::date)`
+    : sql`${input.period.from}::date`;
+  const step = { day: "1 day", week: "7 days", month: "1 month" }[input.per];
   const result = await db.execute<{
     start: string;
-    /** 1 to 5 for the largest projects, 0 for the rest, null for a week with nothing. */
+    /** 1 to 5 for the largest, 0 for the rest, null for a point with nothing. */
     slot: number | null;
-    projectId: string | null;
+    key: string | null;
     units: number;
   }>(sql`
-    with weekly as (
-      select date_trunc('week', s.day)::date as start, s.project_id, sum(${column}) as units
-      from ${source.table}
+    with grouped as (
+      select ${start} as start, ${key} as key, sum(${column}) as units
+      from ${source.table} ${byTaskStep ? TASK_JOIN : sql``}
       where ${source.where} and s.step = ${input.step}
         and s.day between ${input.period.from} and ${input.period.to}
       group by 1, 2 having sum(${column}) > 0
     ), ranked as (
-      select project_id,
-        (row_number() over (order by sum(units) desc, project_id))::integer as slot
-      from weekly group by 1
-    ), top as (select * from ranked where slot <= ${WORD_COUNT_CHART_PROJECTS})
+      select key, (row_number() over (order by sum(units) desc, key))::integer as slot
+      from grouped group by 1
+    ), top as (
+      select * from ranked ${ranked ? sql`where slot <= ${WORD_COUNT_CHART_GROUPS}` : sql``}
+    )
     select b.start::date::text as start,
-      case when w.project_id is null then null else coalesce(t.slot, 0) end as slot,
-      t.project_id as "projectId", coalesce(sum(w.units), 0)::float8 as units
-    from generate_series(
-      date_trunc('week', ${input.period.from}::date), ${input.period.to}::date, '7 days'::interval
-    ) b(start)
-    left join weekly w on w.start = b.start::date
-    left join top t on t.project_id = w.project_id
+      case when g.key is null then null else coalesce(t.slot, 0) end as slot,
+      t.key, coalesce(sum(g.units), 0)::float8 as units
+    from generate_series(${first}, ${input.period.to}::date, ${step}::interval) b(start)
+    left join grouped g on g.start = b.start::date
+    left join top t on t.key = g.key
     group by 1, 2, 3
     order by 1, 2
   `);
   const rows = result.rows;
-  // The largest projects in order, then "Other" (slot 0) when some projects did not make the top.
-  const slots = [...new Set(rows.flatMap((row) => (row.slot === null ? [] : [row.slot])))].sort(
-    (left, right) => (left || Infinity) - (right || Infinity),
-  );
-  const names = await groupNames(
-    slots.map((slot) => ({
-      projectId: rows.find((row) => row.slot === slot)!.projectId,
-      jobId: null,
-    })),
-  );
-  const groups = slots.map((slot) => {
-    const projectId = rows.find((row) => row.slot === slot)!.projectId;
-    return slot === 0 || !projectId
-      ? { projectId: null, projectName: null, other: true }
-      : { projectId, projectName: names.projectNames.get(projectId) ?? null, other: false };
-  });
-  const position = new Map(slots.map((slot, index) => [slot, index]));
+  // Each row's series: by rank for projects and languages ("Other" last), else by fixed order.
+  let groups: WordCountSeries["groups"];
+  let seriesOf: (row: (typeof rows)[number]) => number;
+  if (ranked) {
+    const slots = [...new Set(rows.flatMap((row) => (row.slot === null ? [] : [row.slot])))].sort(
+      (left, right) => (left || Infinity) - (right || Infinity),
+    );
+    const keyOf = (slot: number) => rows.find((row) => row.slot === slot)!.key;
+    const names =
+      input.split === "project"
+        ? (await groupNames(slots.map((slot) => ({ projectId: keyOf(slot), jobId: null }))))
+            .projectNames
+        : new Map<string, string>();
+    groups = slots.map((slot) =>
+      slot === 0
+        ? { key: null, name: null, other: true }
+        : { key: keyOf(slot), name: names.get(keyOf(slot) ?? "") ?? null, other: false },
+    );
+    const position = new Map(slots.map((slot, index) => [slot, index]));
+    seriesOf = (row) => position.get(row.slot!)!;
+  } else {
+    const order: readonly string[] = input.split === "band" ? BAND_TIER_ORDER : WORD_TASK_STEPS;
+    const seriesKey = (key: string) => (input.split === "band" ? bandTier(key) : key);
+    const present = order.filter((name) =>
+      rows.some((row) => row.key !== null && seriesKey(row.key) === name),
+    );
+    groups = present.map((name) => ({ key: name, name: null, other: false }));
+    seriesOf = (row) => present.indexOf(seriesKey(row.key!));
+  }
   const points = new Map<string, { start: string; units: number[] }>();
   for (const row of rows) {
     let point = points.get(row.start);
     if (!point) {
-      point = { start: row.start, units: slots.map(() => 0) };
+      point = { start: row.start, units: groups.map(() => 0) };
       points.set(row.start, point);
     }
-    if (row.slot !== null) point.units[position.get(row.slot)!] = row.units;
+    if (row.slot !== null) point.units[seriesOf(row)] += row.units;
   }
-  return { groups, points: [...points.values()] };
+  return { split: input.split, per: input.per, groups, points: [...points.values()] };
 }
 
 export type TaskWordRow = {

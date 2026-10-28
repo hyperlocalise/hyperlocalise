@@ -13,7 +13,7 @@
 import type { AiUsage, AiUsageGroup } from "./ai-usage";
 import type { AiUsageDimension } from "./ai-usage-origins";
 import type { BudgetRow, CostEstimate, Costs } from "./cost-queries";
-import { SUMMARY_SOURCES, type ReportStep } from "./report-units";
+import { SUMMARY_SOURCES, type ReportStep, type WordCountGrouping } from "./report-units";
 import type { AutomatedTime, LoggedTime, StepTime } from "./time-queries";
 import { csvCell, MATCH_BUCKETS } from "./word-analysis";
 import type { BandCounts, FinishedSeriesPoint, TaskWordRow, WordCounts } from "./word-queries";
@@ -39,21 +39,25 @@ export function activityCsv(activity: { series: FinishedSeriesPoint[] }): string
   );
 }
 
-export function wordCountsCsv(counts: WordCounts, groupBy: "project" | "task" | "week"): string {
+export function wordCountsCsv(counts: WordCounts, groupBy: WordCountGrouping): string {
   const bands = bandsIn(counts.bandTotals);
+  // By language and by task step, rows span projects, so they name none.
+  const byProject = groupBy !== "language" && groupBy !== "task_step";
   return toCsv(
     [
       ...(groupBy === "week" ? ["week"] : []),
-      "projectName",
+      ...(byProject ? ["projectName"] : []),
       ...(groupBy === "task" ? ["jobTitle", "jobId"] : []),
+      ...(groupBy === "task_step" ? ["taskStep"] : []),
       "targetLocale",
       ...bands,
       "total",
     ],
     counts.rows.map((row) => [
       ...(groupBy === "week" ? [row.week] : []),
-      row.projectName,
+      ...(byProject ? [row.projectName] : []),
       ...(groupBy === "task" ? [row.jobTitle, row.jobId] : []),
+      ...(groupBy === "task_step" ? [row.taskStep] : []),
       row.targetLocale,
       ...bands.map((bucket) => row.bands[bucket] ?? 0),
       row.total,
