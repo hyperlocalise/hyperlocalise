@@ -125,7 +125,7 @@ describe("finishLeavingWorkspaceAction", () => {
     expect(mocks.refreshSession).not.toHaveBeenCalled();
   });
 
-  it("still opens the next workspace when the session cannot be moved", async () => {
+  it("signs out when the session cannot be moved to the next workspace", async () => {
     mocks.withAuth.mockResolvedValue(sessionFor("org_acme"));
     mocks.resolveApiAuthContextFromSession.mockResolvedValue({
       organizations: [workspace("beta")],
@@ -133,8 +133,9 @@ describe("finishLeavingWorkspaceAction", () => {
     mocks.refreshSession.mockRejectedValue(new Error("refresh refused"));
 
     expect(await finishLeavingWorkspaceAction("acme")).toEqual({
-      redirectTo: "/org/beta/dashboard",
+      redirectTo: "/auth/sign-out?returnTo=%2Fdashboard",
     });
+    expect(mocks.setStoredActiveOrganizationSlug).toHaveBeenCalledWith("beta");
   });
 
   it("signs out when the session was for the only workspace left", async () => {

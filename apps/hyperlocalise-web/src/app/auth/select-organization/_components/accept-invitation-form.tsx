@@ -17,6 +17,7 @@ import { useFormStatus } from "react-dom";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import { acceptInvitationAction, type AcceptInvitationActionState } from "../actions";
 import { acceptInvitationFormMessages as messages } from "./accept-invitation-form.messages";
@@ -30,7 +31,9 @@ function AcceptButton({ organizationName }: { organizationName: string }) {
       type="submit"
       size="sm"
       disabled={pending}
-      aria-label={intl.formatMessage(messages.acceptLabel, { name: organizationName })}
+      aria-label={intl.formatMessage(pending ? messages.acceptingLabel : messages.acceptLabel, {
+        name: organizationName,
+      })}
     >
       <FormattedMessage {...(pending ? messages.accepting : messages.accept)} />
     </Button>
@@ -48,6 +51,8 @@ function errorMessage(error: NonNullable<AcceptInvitationActionState["error"]>) 
       return messages.tryAgain;
     case "invitation_not_found":
       return messages.invitationNotFound;
+    default:
+      return assertNever(error);
   }
 }
 

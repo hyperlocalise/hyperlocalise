@@ -154,9 +154,7 @@ describe("LeaveWorkspaceDialog", () => {
     renderDialog({ isOnlyWorkspace: true });
 
     expect(
-      await screen.findByText(
-        /This is your only workspace\. Afterwards you can create a new one or accept an invitation\./,
-      ),
+      await screen.findByText(/This is your only workspace\. You may be asked to sign in again/),
     ).toBeTruthy();
   });
 
@@ -211,6 +209,7 @@ describe("LeaveWorkspaceDialog", () => {
     ).toBeTruthy();
     expect(mocks.finishLeavingWorkspaceAction).not.toHaveBeenCalled();
     expect(assign).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Cancel" }));
   });
 
   it("says when leaving failed", async () => {

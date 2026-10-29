@@ -33,8 +33,8 @@ export const leaveWorkspaceDialogMessages = defineMessages({
   },
   onlyWorkspace: {
     defaultMessage:
-      "This is your only workspace. Afterwards you can create a new one or accept an invitation.",
-    id: "9MMt/YNSGT",
+      "This is your only workspace. You may be asked to sign in again; then you can create a new one or accept an invitation.",
+    id: "6alv0fvJQR",
     description: "Added to the leave workspace dialog when the person has no other workspace",
   },
   moreItems: {

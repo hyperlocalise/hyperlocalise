@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage } from "react-intl";
 
@@ -97,6 +98,14 @@ export function LeaveWorkspaceDialog({
   // Lost access since the menu was opened, for example by leaving in another tab.
   const isNoLongerMember = isAlreadyLeft(preview.error);
   const isLeaving = leave.isPending || leave.isSuccess;
+  // Refused as the last admin: the focused Leave button goes away, so focus moves to Cancel.
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const refusedAsLastAdmin = leave.error instanceof LastAdminError;
+  useEffect(() => {
+    if (refusedAsLastAdmin) {
+      cancelRef.current?.focus();
+    }
+  }, [refusedAsLastAdmin]);
   const canLeave = isNoLongerMember || (Boolean(preview.data) && !preview.isFetching);
   const close = () => {
     if (isLeaving) {
@@ -126,8 +135,8 @@ export function LeaveWorkspaceDialog({
             <FormattedMessage {...messages.title} values={{ name: organizationName }} />
           </DialogTitle>
           <DialogDescription>
-            <FormattedMessage {...messages.description} />
-            {isOnlyWorkspace ? (
+            {isNoLongerMember ? null : <FormattedMessage {...messages.description} />}
+            {isOnlyWorkspace && !isNoLongerMember ? (
               <>
                 {" "}
                 <FormattedMessage {...messages.onlyWorkspace} />
@@ -216,7 +225,13 @@ export function LeaveWorkspaceDialog({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" disabled={isLeaving} onClick={close}>
+          <Button
+            ref={cancelRef}
+            type="button"
+            variant="outline"
+            disabled={isLeaving}
+            onClick={close}
+          >
             <FormattedMessage {...messages.cancel} />
           </Button>
           {/* The only admin is on the Members page already, where they can promote someone. */}

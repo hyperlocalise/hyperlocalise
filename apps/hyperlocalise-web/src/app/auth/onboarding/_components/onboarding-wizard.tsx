@@ -62,7 +62,6 @@ export function OnboardingWizard({
   );
   const organizationNameId = useId();
   const derivedSlug = slugifyOrganizationName(organizationName);
-  const isAnotherWorkspace = createsAnotherWorkspace;
 
   return (
     <main className="dark flex min-h-svh items-center justify-center bg-background px-4 py-10 text-foreground">
@@ -79,14 +78,14 @@ export function OnboardingWizard({
             />
             <h1 className="font-heading text-xl font-semibold text-foreground">
               <FormattedMessage
-                {...(isAnotherWorkspace
+                {...(createsAnotherWorkspace
                   ? onboardingWizardMessages.anotherWorkspaceTitle
                   : onboardingWizardMessages.title)}
               />
             </h1>
             <TypographyP className="leading-6" size="small" tone="subtle">
               <FormattedMessage
-                {...(isAnotherWorkspace
+                {...(createsAnotherWorkspace
                   ? onboardingWizardMessages.anotherWorkspaceDescription
                   : onboardingWizardMessages.description)}
               />
@@ -94,7 +93,7 @@ export function OnboardingWizard({
           </div>
 
           <form action={formAction} className="space-y-6">
-            {isAnotherWorkspace ? <input type="hidden" name="intent" value="another" /> : null}
+            {createsAnotherWorkspace ? <input type="hidden" name="intent" value="another" /> : null}
             {state.error ? (
               <Alert variant="destructive">
                 <AlertDescription>{state.error}</AlertDescription>

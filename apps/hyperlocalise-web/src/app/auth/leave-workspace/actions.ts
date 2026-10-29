@@ -95,10 +95,13 @@ export async function finishLeavingWorkspaceAction(
     try {
       await refreshSession({ organizationId: next.workosOrganizationId });
     } catch (error) {
+      // For example the next workspace needs SSO: signing in again now beats being signed
+      // out at the next renewal. The remembered workspace brings them back to it.
       logger.warn("leave_workspace_session_switch_failed", {
         workosUserId: session.user.id,
         error,
       });
+      return { redirectTo: signOutToDashboard };
     }
   }
   return { redirectTo: `/org/${next.slug}/dashboard` };

@@ -26,6 +26,11 @@ export const acceptInvitationFormMessages = defineMessages({
     id: "0UO1BREBTM",
     description: "Accept invitation button label while the invitation is being accepted",
   },
+  acceptingLabel: {
+    defaultMessage: "Accepting invitation to {name}…",
+    id: "YToRIe9hSd",
+    description: "Screen-reader label for the Accept button while the invitation is being accepted",
+  },
   acceptLabel: {
     defaultMessage: "Accept invitation to {name}",
     id: "n0CHcDaj4y",
