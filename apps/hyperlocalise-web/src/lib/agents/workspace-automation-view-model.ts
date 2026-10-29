@@ -157,6 +157,7 @@ export type WorkspaceAutomationFormState = {
   brazeCampaignsEnabled: boolean;
   customerIoEnabled: boolean;
   loopsEnabled: boolean;
+  loopsSourceLocale: string;
   customerIoBroadcastIds: string[];
   customerIoCampaignIds: string[];
   customerIoNewsletterIds: string[];
@@ -489,6 +490,7 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     brazeCampaignsEnabled: false,
     customerIoEnabled: false,
     loopsEnabled: false,
+    loopsSourceLocale: "en",
     customerIoBroadcastIds: [],
     customerIoCampaignIds: [],
     customerIoNewsletterIds: [],
@@ -678,6 +680,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
     brazeCampaignsEnabled: Boolean(brazeCampaigns?.enabled),
     customerIoEnabled: Boolean(customerIo?.enabled),
     loopsEnabled: Boolean(loops?.enabled),
+    loopsSourceLocale: loops?.sourceLocale ?? "en",
     customerIoBroadcastIds: customerIo?.broadcastIds ? [...customerIo.broadcastIds] : [],
     customerIoCampaignIds: customerIo?.campaignIds ? [...customerIo.campaignIds] : [],
     customerIoNewsletterIds: customerIo?.newsletterIds ? [...customerIo.newsletterIds] : [],
@@ -781,6 +784,10 @@ export function applyWorkspaceAutomationProjectSelection(
       project.targetLocales.length > 0 && form.contentfulTargetLocales.length === 0
         ? [...project.targetLocales]
         : form.contentfulTargetLocales.filter((locale) => project.targetLocales.includes(locale));
+  }
+
+  if (form.loopsEnabled && project) {
+    next.loopsSourceLocale = project.sourceLocale ?? form.loopsSourceLocale;
   }
 
   return next;
@@ -992,7 +999,7 @@ export function formStateToWorkspaceAutomationPayload(
       ? {
           loops: {
             enabled: true,
-            sourceLocale: "en",
+            sourceLocale: form.loopsSourceLocale.trim() || "en",
             transactionalIds: [],
             campaignIds: [],
             workflowIds: [],

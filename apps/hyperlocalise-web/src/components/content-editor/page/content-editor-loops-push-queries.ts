@@ -95,11 +95,36 @@ export async function fetchContentEditorLoopsIngestCandidates(input: {
   sourcePath?: string | null;
 }): Promise<ContentEditorLoopsIngestCandidate[]> {
   const automations = await listActiveLoopsAutomations(input);
-  return automations.map((automation) => ({
-    automationId: automation.id,
-    name: automation.name,
-    runInProgress: false,
-  }));
+  if (automations.length === 0) {
+    return [];
+  }
+
+  const details = await mapWithConcurrency(
+    automations,
+    LOOPS_PUSH_DETAIL_CONCURRENCY,
+    async (automation) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].automations[
+        ":automationId"
+      ].$get({
+        param: {
+          organizationSlug: input.organizationSlug,
+          automationId: automation.id,
+        },
+        query: {},
+      });
+      if (!response.ok) {
+        return null;
+      }
+      const body = await response.json();
+      return {
+        automationId: automation.id,
+        name: automation.name,
+        runInProgress: readRunInProgress(body),
+      } satisfies ContentEditorLoopsIngestCandidate;
+    },
+  );
+
+  return details.filter((entry): entry is ContentEditorLoopsIngestCandidate => entry != null);
 }
 
 export async function fetchContentEditorLoopsPushCandidates(input: {

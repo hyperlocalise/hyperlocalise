@@ -114,6 +114,7 @@ const formStateShape = {
   customerIoTransactionalMessageActions: resourceActionMap,
   customerIoExistingTranslationPolicy: z.enum(["seed_empty", "refresh_imported", "overwrite_all"]),
   customerIoOverwriteWhenRemoteNewer: flag,
+  loopsSourceLocale: text,
   brazeSourceLocale: text,
   brazeTemplateIds: textList,
   brazeContentBlockIds: textList,
