@@ -347,7 +347,66 @@ export function readPushLoopsEmails(
     }
   }
 
-  const fromPriorStep = readStepResult(outputSummary.orchestratorStepResults, "push_loops_emails");
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "push_loops_emails",
+  );
+  if (fromPriorStep && typeof fromPriorStep.pushedLocales === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
+export function readImportWebflowItems(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.import_webflow_items;
+  if (fromCurrentStep && typeof fromCurrentStep.imported === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.importWebflowItems;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.imported === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "import_webflow_items",
+  );
+  if (fromPriorStep && typeof fromPriorStep.imported === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
+export function readPushWebflowTranslations(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.push_webflow_translations;
+  if (fromCurrentStep && typeof fromCurrentStep.pushedLocales === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.pushWebflowTranslations;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.pushedLocales === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "push_webflow_translations",
+  );
   if (fromPriorStep && typeof fromPriorStep.pushedLocales === "number") {
     return fromPriorStep;
   }
@@ -543,6 +602,8 @@ export function buildWorkspaceOrchestratorOutputSummary(
   const pushIntercomTranslations = readPushIntercomTranslations(base, stepResults);
   const importSanityDocuments = readImportSanityDocuments(base, stepResults);
   const pushSanityTranslations = readPushSanityTranslations(base, stepResults);
+  const importWebflowItems = readImportWebflowItems(base, stepResults);
+  const pushWebflowTranslations = readPushWebflowTranslations(base, stepResults);
   const importBrazeTemplates = readImportBrazeTemplates(base, stepResults);
   const pushBrazeTemplates = readPushBrazeTemplates(base, stepResults);
   const importBrazeCampaigns = readImportBrazeCampaigns(base, stepResults);
@@ -562,6 +623,8 @@ export function buildWorkspaceOrchestratorOutputSummary(
     ...(pushIntercomTranslations ? { pushIntercomTranslations } : {}),
     ...(importSanityDocuments ? { importSanityDocuments } : {}),
     ...(pushSanityTranslations ? { pushSanityTranslations } : {}),
+    ...(importWebflowItems ? { importWebflowItems } : {}),
+    ...(pushWebflowTranslations ? { pushWebflowTranslations } : {}),
     ...(importBrazeTemplates ? { importBrazeTemplates } : {}),
     ...(pushBrazeTemplates ? { pushBrazeTemplates } : {}),
     ...(importBrazeCampaigns ? { importBrazeCampaigns } : {}),

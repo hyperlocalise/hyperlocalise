@@ -178,6 +178,44 @@ export const activityTabMessages = defineMessages({
     defaultMessage: "Translation task runs",
     description: "Automated time: translation tasks from start to finish",
   },
+  taskRunStage: {
+    id: "SaUIWMakVt",
+    defaultMessage: "Task runs: {stage}",
+    description: "Automated time: one stage of translation task runs, such as Translating",
+  },
+  stage_preparing: {
+    id: "P+kQwSEjlX",
+    defaultMessage: "Preparing",
+    description:
+      "Task run stage: setting up, reading the file's strings, the glossary, guidelines and memory",
+  },
+  stage_reusing_memory: {
+    id: "Nh0Fmco1Vb",
+    defaultMessage: "Reusing memory",
+    description: "Task run stage: filling strings from the translation memory",
+  },
+  stage_translating: {
+    id: "Lx93ycVSAl",
+    defaultMessage: "Translating",
+    description: "Task run stage: the AI translating each language",
+  },
+  stage_finishing: {
+    id: "Zr+JVX5HFw",
+    defaultMessage: "Finishing",
+    description: "Task run stage: writing and storing the translated files",
+  },
+  stage_other: {
+    id: "klJCqIQ+RC",
+    defaultMessage: "Other",
+    description:
+      "Task run stage: time outside every stage, for runs without stage events, such as image and video runs",
+  },
+  stepTimesFiltersNote: {
+    id: "v0Xqg0bjFB",
+    defaultMessage:
+      "Automated run time follows the dates and project, not the task or step chosen. With a language chosen, only task runs that reached it count: Reusing memory and Translating show that language's own time, while Preparing, Finishing and the total cover the whole run.",
+    description: "Note on the time on each step table while a task, language or step filter is set",
+  },
   workflowStep: {
     id: "LMZ8bk3MgG",
     defaultMessage: "Workflow: {step}",
@@ -192,11 +230,5 @@ export const activityTabMessages = defineMessages({
     id: "DuSuCv67tO",
     defaultMessage: "{count, plural, one {# run} other {# runs}}",
     description: "How many automated runs there were",
-  },
-  automatedFiltersNote: {
-    id: "W7VsUBEm6f",
-    defaultMessage:
-      "Automated run time follows the dates and project only, not the task, language or step chosen.",
-    description: "Note on automated step time while a task or language filter is set",
   },
 });

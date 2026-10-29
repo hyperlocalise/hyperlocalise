@@ -54,7 +54,9 @@ import {
   readAi,
   readCosts,
   readTime,
+  readWordReport,
   readWords,
+  readWordSeries,
   summaryFreshness,
 } from "@/lib/reporting/report-reads";
 import { scopedProjectIds } from "@/lib/reporting/report-scope";
@@ -72,6 +74,8 @@ import {
   activityQuerySchema,
   stepTimesQuerySchema,
   aiUsageQuerySchema,
+  wordReportQuerySchema,
+  wordSeriesQuerySchema,
   wordsQuerySchema,
   loggedTimeQuerySchema,
   costsQuerySchema,
@@ -82,7 +86,6 @@ import {
   taskRateSchema,
   timeSchema,
   timeUpdateSchema,
-  expenseSchema,
 } from "./reports.schema";
 
 /** A query string as the typed API client sends it: every parameter optional, as text. */
@@ -183,12 +186,16 @@ export function createReportsRoutes() {
             return c.json({ report: { kind: "activity" as const, activity, summary } });
           }
           case "words": {
-            const query = wordsQuerySchema.safeParse(c.req.query());
+            const query = wordReportQuerySchema.safeParse(c.req.query());
             if (!query.success) return badRequestResponse(c, "invalid_report_query");
             const { format, ...rest } = query.data;
-            const wordCounts = await readWords(context, { ...rest, all: format === "csv" });
             if (format === "csv")
-              return csv(c, "word-counts.csv", wordCountsCsv(wordCounts, rest.groupBy));
+              return csv(
+                c,
+                "word-counts.csv",
+                wordCountsCsv(await readWords(context, { ...rest, all: true }), rest.groupBy),
+              );
+            const wordCounts = await readWordReport(context, rest);
             return c.json({ report: { kind: "words" as const, wordCounts, summary } });
           }
           case "time": {
@@ -287,6 +294,7 @@ export function createReportsRoutes() {
           queryAutomatedTime({
             ...context,
             projectId: filters.projectId,
+            targetLocale: filters.targetLocale,
             period,
             includeUnattributed: context.financial,
           }),
@@ -300,6 +308,10 @@ export function createReportsRoutes() {
         const aiUsage = await readAi(await reportContext(c), { ...query, all: format === "csv" });
         if (format === "csv") return csv(c, "ai-usage.csv", aiUsageCsv(aiUsage));
         return c.json({ aiUsage });
+      })
+      .get("/words/series", billingRead, reportQuery(wordSeriesQuerySchema), async (c) => {
+        const wordSeries = await readWordSeries(await reportContext(c), c.req.valid("query"));
+        return c.json({ wordSeries });
       })
       .get("/words", billingRead, reportQuery(wordsQuerySchema), async (c) => {
         const { format, ...query } = c.req.valid("query");
@@ -802,31 +814,6 @@ export function createReportsRoutes() {
           });
         });
         return c.body(null, 204);
-      })
-      .post("/expenses", billingWrite, reportBody(expenseSchema, "invalid_expense"), async (c) => {
-        const body = c.req.valid("json");
-        const organizationId = c.var.auth.organization.localOrganizationId;
-        if (!(await getAccessibleProjectIds(c.var.auth)).includes(body.projectId))
-          return notFoundResponse(c, "project_not_found");
-        if (body.jobId) {
-          const [job] = await db
-            .select()
-            .from(schema.jobs)
-            .where(
-              and(
-                eq(schema.jobs.id, body.jobId),
-                eq(schema.jobs.projectId, body.projectId),
-                eq(schema.jobs.organizationId, organizationId),
-              ),
-            );
-          if (!job) return notFoundResponse(c, "job_not_found");
-        }
-        const [expense] = await db
-          .insert(schema.reportingCosts)
-          .values({ ...body, organizationId, kind: "expense", basis: "manual" })
-          .onConflictDoNothing()
-          .returning();
-        return c.json({ expense: expense ?? null }, 201);
       })
   );
 }

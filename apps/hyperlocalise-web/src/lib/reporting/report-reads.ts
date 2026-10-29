@@ -24,13 +24,20 @@ import type {
 } from "./ai-usage-origins";
 import { queryCosts } from "./cost-queries";
 import { resolvePeriod } from "./report-period";
-import type { ReportStep, ReportUnit } from "./report-units";
+import type {
+  ReportStep,
+  ReportUnit,
+  WordCountGrouping,
+  WordCountInterval,
+  WordCountSplit,
+} from "./report-units";
 import { queryAutomatedTime, queryLoggedTime } from "./time-queries";
 import {
   queryActivity,
   queryFinishedByLanguage,
   queryFinishedSeries,
   queryWordCounts,
+  queryWordCountSeries,
 } from "./word-queries";
 
 /**
@@ -59,16 +66,21 @@ type Dates = { from?: string; to?: string };
 type Scope = { projectId?: string; jobId?: string; targetLocale?: string };
 
 export type ActivityReadQuery = Dates & Scope & { unit: ReportUnit; step: ReportStep };
-export type WordsReadQuery = Dates &
-  Scope & {
-    unit: ReportUnit;
-    step: ReportStep;
-    mode: "arrived" | "finished";
-    groupBy: "project" | "task" | "week";
-    page: number;
-    /** Every row, for a download. */
-    all?: boolean;
-  };
+type WordFilters = Dates &
+  Scope & { unit: ReportUnit; step: ReportStep; mode: "arrived" | "finished" };
+type WordChart = {
+  /** What the volume chart splits each bar by; by project when not given. */
+  split?: WordCountSplit;
+  /** How long each bar covers; days, or weeks for a long period, when not given. */
+  per?: WordCountInterval;
+};
+export type WordSeriesReadQuery = WordFilters & WordChart;
+export type WordsReadQuery = WordFilters & {
+  groupBy: WordCountGrouping;
+  page: number;
+  /** Every row, for a download. */
+  all?: boolean;
+};
 export type TimeReadQuery = Dates & Scope & { page: number; all?: boolean };
 export type CostsReadQuery = Dates & { projectId?: string; targetLocale?: string };
 export type AiReadQuery = Dates & {
@@ -87,14 +99,6 @@ export type AiReadQuery = Dates & {
   page: number;
   /** Every group, for a download. */
   all?: boolean;
-};
-
-export type ReportReadQuery = {
-  activity: ActivityReadQuery;
-  words: WordsReadQuery;
-  time: TimeReadQuery;
-  ai: AiReadQuery;
-  costs: CostsReadQuery;
 };
 
 /** The query's filters as the queries take them: a period, and the task as a list of one. */
@@ -117,7 +121,19 @@ export async function readActivity(context: ReportReadContext, query: ActivityRe
   return { period: read.period, unit: query.unit, step, ...totals, series, byLanguage };
 }
 
-/** The Word counts tab: units by match band, by project or a page of tasks. */
+/** The Word counts tab's volume chart: units each day, week or month, split one way. */
+export async function readWordSeries(context: ReportReadContext, query: WordSeriesReadQuery) {
+  const { split, per, ...rest } = query;
+  const read = scope(context, rest);
+  const series = await queryWordCountSeries({
+    ...read,
+    split: split ?? "project",
+    per: per ?? read.period.interval,
+  });
+  return { period: read.period, unit: query.unit, step: query.step, mode: query.mode, ...series };
+}
+
+/** The Word counts tab's table: units by match band, grouped as asked, a page of tasks at a time. */
 export async function readWords(context: ReportReadContext, query: WordsReadQuery) {
   const { all, ...rest } = query;
   const read = scope(context, rest);
@@ -130,6 +146,18 @@ export async function readWords(context: ReportReadContext, query: WordsReadQuer
     groupBy: query.groupBy,
     ...counts,
   };
+}
+
+/** The Word counts tab in one answer, table and volume chart, for the public report and MCP. */
+export async function readWordReport(
+  context: ReportReadContext,
+  query: WordsReadQuery & WordChart,
+) {
+  const [counts, series] = await Promise.all([
+    readWords(context, query),
+    readWordSeries(context, query),
+  ]);
+  return { ...counts, series };
 }
 
 /** The Time tab: time people logged, and automated run time for the roles that see it. */
@@ -189,34 +217,6 @@ export async function readCosts(context: ReportReadContext, query: CostsReadQuer
   const period = resolvePeriod({ ...query, ...context });
   const costs = await queryCosts({ ...context, ...query, period, includeUnattributed: true });
   return { period, ...costs };
-}
-
-export type ReportPayload = {
-  activity: Awaited<ReturnType<typeof readActivity>>;
-  words: Awaited<ReturnType<typeof readWords>>;
-  time: Awaited<ReturnType<typeof readTime>>;
-  ai: Awaited<ReturnType<typeof readAi>>;
-  costs: Awaited<ReturnType<typeof readCosts>>;
-};
-
-/** One report by kind, as its tab shows it. */
-export async function readReport<K extends ReportKind>(
-  kind: K,
-  context: ReportReadContext,
-  query: ReportReadQuery[K],
-): Promise<ReportPayload[K]> {
-  switch (kind) {
-    case "activity":
-      return (await readActivity(context, query as ActivityReadQuery)) as ReportPayload[K];
-    case "words":
-      return (await readWords(context, query as WordsReadQuery)) as ReportPayload[K];
-    case "time":
-      return (await readTime(context, query as TimeReadQuery)) as ReportPayload[K];
-    case "ai":
-      return (await readAi(context, query as AiReadQuery)) as ReportPayload[K];
-    default:
-      return (await readCosts(context, query as CostsReadQuery)) as ReportPayload[K];
-  }
 }
 
 export type SummaryFreshness = {

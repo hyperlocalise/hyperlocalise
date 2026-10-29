@@ -45,6 +45,18 @@ const emptyFileTranslationMemoryReuseResult = (): FileTranslationMemoryReuseResu
 /** Ten bind values per row; stay under PostgreSQL's 65,535-parameter limit. */
 export const FILE_TRANSLATION_MEMORY_WRITE_BATCH_SIZE = 500;
 
+/**
+ * PostgreSQL btree index entries cap near 2,712 bytes. `memory_entries`
+ * carries `normalized_source_text` inside two btree indexes (the
+ * locale-source uniqueness key and the normalized-source lookup), so one
+ * oversized segment — e.g. a full Webflow rich-text article — fails the
+ * entire batch insert with "index row size exceeds maximum", and retries
+ * fail identically. Skip those units for TM persistence: giant blobs never
+ * exact-match reuse anyway, and one bad row must not fail every other
+ * entry in the batch.
+ */
+export const FILE_TRANSLATION_MEMORY_MAX_NORMALIZED_BYTES = 2000;
+
 function chunkItems<T>(items: readonly T[], size: number): T[][] {
   const chunks: T[][] = [];
   const chunkSize = Math.max(size, 1);
@@ -226,8 +238,15 @@ export class FileTranslationMemoryStore {
         key,
         sourceText,
         targetText: input.targetEntries[key] ?? "",
+        normalizedSourceText: normalizeTranslationMemorySourceText(sourceText),
       }))
-      .filter((unit) => unit.sourceText.trim().length > 0 && unit.targetText.trim().length > 0);
+      .filter(
+        (unit) =>
+          unit.sourceText.trim().length > 0 &&
+          unit.targetText.trim().length > 0 &&
+          Buffer.byteLength(unit.normalizedSourceText, "utf8") <=
+            FILE_TRANSLATION_MEMORY_MAX_NORMALIZED_BYTES,
+      );
     if (units.length === 0) {
       return;
     }
@@ -267,7 +286,7 @@ export class FileTranslationMemoryStore {
 
     const valueByConflictKey = new Map<string, typeof schema.memoryEntries.$inferInsert>();
     for (const unit of persistableUnits) {
-      const normalized = normalizeTranslationMemorySourceText(unit.sourceText);
+      const normalized = unit.normalizedSourceText;
       for (const memoryId of memoryIds) {
         valueByConflictKey.set(
           `${memoryId}:${input.sourceLocale}:${input.targetLocale}:${normalized}`,

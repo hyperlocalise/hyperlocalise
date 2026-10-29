@@ -708,7 +708,14 @@ describe("MCP project manager tools", () => {
     const words = await readToolResult<{
       kind?: string;
       wordCounts?: { rows?: unknown[]; groupBy?: string };
-    }>(await callMcpTool(adminHeaders, "get_report", { report: "words", groupBy: "task" }));
+    }>(
+      await callMcpTool(adminHeaders, "get_report", {
+        report: "words",
+        groupBy: "task",
+        split: "band",
+        per: "month",
+      }),
+    );
     const ai = await readToolResult<{
       kind?: string;
       aiUsage?: { rows?: unknown[]; groupBy?: string; thenBy?: string | null };
@@ -744,9 +751,14 @@ describe("MCP project manager tools", () => {
       activity: { current: { arrived: 0 } },
     });
     expect(activity.output.activity?.series?.length).toBeGreaterThan(0);
+    // The table and its chart in one answer.
     expect(words.output).toMatchObject({
       kind: "words",
-      wordCounts: { rows: [], groupBy: "task" },
+      wordCounts: {
+        rows: [],
+        groupBy: "task",
+        series: { split: "band", per: "month", groups: [] },
+      },
     });
     expect(ai.output).toMatchObject({
       kind: "ai",

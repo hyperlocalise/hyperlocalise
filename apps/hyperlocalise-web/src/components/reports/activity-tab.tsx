@@ -26,7 +26,15 @@ import { REPORT_STEPS, SUMMARY_SOURCES } from "@/lib/reporting/report-units";
 import { VISUAL_NODE_DESCRIPTIONS } from "@/lib/visual-workflows/catalog/node-descriptions";
 
 import { activityTabMessages as messages } from "./activity-tab.messages";
-import { formatChange, formatCount, formatDuration, formatShare, stepLabel } from "./report-format";
+import {
+  formatChange,
+  formatCount,
+  formatDuration,
+  formatShare,
+  stepLabel,
+  taskStepLabel,
+} from "./report-format";
+import { chartDayLabel, spansYears } from "./report-chart";
 import { ReportSection, ReportSectionState, DownloadCsvButton } from "./report-section";
 import { ReportStatCard, ReportStatCards, ReportStatCardsSkeleton } from "./report-stat-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
@@ -41,7 +49,6 @@ import {
 import type { ReportsUrlState } from "./reports-url-state";
 import { SegmentedSwitch } from "./segmented-switch";
 
-type Intl = ReturnType<typeof useIntl>;
 type ActivityData = NonNullable<ReturnType<typeof useActivityReport>["data"]>;
 
 export function ActivityTab({
@@ -136,15 +143,6 @@ function ActivityCards({ data }: { data: ActivityData }) {
   );
 }
 
-function formatChartDay(intl: Intl, day: string, weekly: boolean) {
-  const date = intl.formatDate(`${day}T00:00:00Z`, {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  });
-  return weekly ? intl.formatMessage(messages.weekOf, { date }) : date;
-}
-
 function FinishedWordsChart({
   data,
   onChange,
@@ -154,6 +152,7 @@ function FinishedWordsChart({
 }) {
   const intl = useIntl();
   const weekly = data.period.interval === "week";
+  const withYear = spansYears(data.period);
   // Where the finished text came from, bottom to top of each bar; "unknown" only shows when it occurs.
   const config = {
     memory: { label: intl.formatMessage(messages.fromMemory), color: "var(--chart-2)" },
@@ -164,7 +163,7 @@ function FinishedWordsChart({
   } satisfies ChartConfig;
   const rows = data.series.map((point) => ({
     ...point,
-    label: formatChartDay(intl, point.start, weekly),
+    label: chartDayLabel(intl, point.start, { weekly, withYear }),
   }));
   const totals = SUMMARY_SOURCES.map(
     (key) => [key, data.series.reduce((sum, point) => sum + point[key], 0)] as const,
@@ -212,8 +211,8 @@ function FinishedWordsChart({
         aria-label={intl.formatMessage(messages.chartSummary, {
           finished: formatCount(intl, finished),
           people: formatCount(intl, totals.find(([name]) => name === "person")?.[1] ?? 0),
-          from: formatChartDay(intl, data.period.from, false),
-          to: formatChartDay(intl, data.period.to, false),
+          from: chartDayLabel(intl, data.period.from, { withYear }),
+          to: chartDayLabel(intl, data.period.to, { withYear }),
         })}
       >
         <BarChart data={rows} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
@@ -317,7 +316,7 @@ function StepTimesSection({ input }: { input: SectionInput }) {
       title={intl.formatMessage(messages.stepTimes)}
       description={
         narrowedBeyondProject(input)
-          ? `${intl.formatMessage(messages.stepTimesDetail)}. ${intl.formatMessage(messages.automatedFiltersNote)}`
+          ? `${intl.formatMessage(messages.stepTimesDetail)}. ${intl.formatMessage(messages.stepTimesFiltersNote)}`
           : intl.formatMessage(messages.stepTimesDetail)
       }
       actions={
@@ -349,9 +348,11 @@ function StepTimesSection({ input }: { input: SectionInput }) {
             </TableHeader>
             <TableBody>
               {data.logged.map((row) => (
-                <TableRow key={row.step}>
+                <TableRow key={row.taskStep}>
                   <TableCell>
-                    {intl.formatMessage(messages.loggedStep, { step: stepLabel(intl, row.step) })}
+                    {intl.formatMessage(messages.loggedStep, {
+                      step: taskStepLabel(intl, row.taskStep),
+                    })}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatDuration(intl, row.minutes)}
@@ -362,17 +363,35 @@ function StepTimesSection({ input }: { input: SectionInput }) {
                 </TableRow>
               ))}
               {data.automated.taskRuns.runs > 0 ? (
-                <TableRow>
-                  <TableCell>{intl.formatMessage(messages.taskRuns)}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatDuration(intl, data.automated.taskRuns.milliseconds / 60_000)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {intl.formatMessage(messages.runsCount, {
-                      count: data.automated.taskRuns.runs,
-                    })}
-                  </TableCell>
-                </TableRow>
+                <>
+                  <TableRow>
+                    <TableCell>{intl.formatMessage(messages.taskRuns)}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatDuration(intl, data.automated.taskRuns.milliseconds / 60_000)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {intl.formatMessage(messages.runsCount, {
+                        count: data.automated.taskRuns.runs,
+                      })}
+                    </TableCell>
+                  </TableRow>
+                  {/* The runs' stages that amount to a minute; the run count stays on the row above. */}
+                  {data.automated.taskRuns.stages
+                    .filter((row) => row.milliseconds >= 30_000)
+                    .map((row) => (
+                      <TableRow key={row.stage}>
+                        <TableCell className="pl-8 text-muted-foreground">
+                          {intl.formatMessage(messages.taskRunStage, {
+                            stage: intl.formatMessage(messages[`stage_${row.stage}`]),
+                          })}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatDuration(intl, row.milliseconds / 60_000)}
+                        </TableCell>
+                        <TableCell />
+                      </TableRow>
+                    ))}
+                </>
               ) : null}
               {data.automated.workflowSteps.map((row) => (
                 <TableRow key={row.nodeType}>

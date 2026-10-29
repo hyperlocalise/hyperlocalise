@@ -177,6 +177,33 @@ describe("reports routes", () => {
     await expect(read("/words?groupBy=task&unit=characters")).resolves.toMatchObject({
       wordCounts: { rows: [], groupBy: "task", unit: "characters", mode: "arrived" },
     });
+    // The page reads the chart apart, so the table's answer carries none.
+    expect((await read("/words")) as { wordCounts: object }).not.toHaveProperty(
+      "wordCounts.series",
+    );
+    for (const groupBy of ["language", "task_step"]) {
+      await expect(read(`/words?groupBy=${groupBy}`)).resolves.toMatchObject({
+        wordCounts: { rows: [], groupBy },
+      });
+    }
+    // The chart is its own read: by project and the period's own bar length unless asked.
+    await expect(read("/words/series")).resolves.toMatchObject({
+      wordSeries: { split: "project", per: "day", groups: [], points: expect.any(Array) },
+    });
+    // Over 45 days, weeks by default, as the page's switch shows.
+    // With no project to read, every bar is still there, empty.
+    await expect(read("/words/series?from=2026-04-01&to=2026-06-30")).resolves.toMatchObject({
+      wordSeries: {
+        per: "week",
+        groups: [],
+        points: expect.arrayContaining([{ start: "2026-03-30", units: [] }]),
+      },
+    });
+    await expect(
+      read("/words/series?split=task_step&per=month&mode=finished"),
+    ).resolves.toMatchObject({
+      wordSeries: { split: "task_step", per: "month", mode: "finished", groups: [] },
+    });
     await expect(read("/time")).resolves.toMatchObject({ time: { logged: { rows: [] } } });
     await expect(read("/costs")).resolves.toMatchObject({
       costs: {
@@ -196,8 +223,12 @@ describe("reports routes", () => {
         summary: { pendingDays: 0 },
       },
     });
-    await expect(read("?report=words&groupBy=task")).resolves.toMatchObject({
-      report: { kind: "words", wordCounts: { rows: [], groupBy: "task" } },
+    // In one answer, the words report carries its chart too.
+    await expect(read("?report=words&groupBy=task&split=band&per=week")).resolves.toMatchObject({
+      report: {
+        kind: "words",
+        wordCounts: { rows: [], groupBy: "task", series: { split: "band", per: "week" } },
+      },
     });
     await expect(read("?report=time")).resolves.toMatchObject({
       report: { kind: "time", time: { logged: { rows: [] } } },
@@ -236,11 +267,20 @@ describe("reports routes", () => {
     expect((await csv.text()).split("\r\n")[0]).toBe(
       '"projectName","jobTitle","jobId","targetLocale","total"',
     );
+    // By language and by task step, rows span projects and name none.
+    const byStep = await app.request(reportsUrl(slug, "/words?groupBy=task_step&format=csv"), {
+      headers,
+    });
+    expect((await byStep.text()).split("\r\n")[0]).toBe('"taskStep","targetLocale","total"');
+    const byLanguage = await app.request(reportsUrl(slug, "/words?groupBy=language&format=csv"), {
+      headers,
+    });
+    expect((await byLanguage.text()).split("\r\n")[0]).toBe('"targetLocale","total"');
     // AI charged outside any project is a row with no project.
     const costs = await app.request(reportsUrl(slug, "/costs?format=csv"), { headers });
     expect((await costs.text()).split("\r\n")).toEqual([
-      '"projectName","projectId","peopleUsd","aiOnTasksUsd","aiOutsideTasksUsd","aiUsd","expensesUsd","totalUsd"',
-      '"","","","0.00000000","0.00000000","0.00000000","","0.00000000"',
+      '"projectName","projectId","peopleUsd","aiOnTasksUsd","aiOutsideTasksUsd","aiUsd","totalUsd"',
+      '"","","","0.00000000","0.00000000","0.00000000","0.00000000"',
     ]);
   });
 
@@ -251,6 +291,9 @@ describe("reports routes", () => {
     const tooManyTasks = Array.from({ length: 51 }, (_, index) => `job_${index}`).join(",");
     for (const path of [
       "/words?unit=pages",
+      "/words?groupBy=file",
+      "/words/series?split=person",
+      "/words/series?per=quarter",
       "/activity?from=2026-06-10&to=2026-06-01",
       `/cost-estimate?jobIds=${tooManyTasks}`,
       "/cost-estimate",
@@ -977,82 +1020,6 @@ describe("reports routes", () => {
       headers: adminHeaders,
     });
     expect(missing.status).toBe(404);
-  });
-
-  it("lets only billing write add an expense, and only on an accessible project", async () => {
-    const workspace = await reporting.createWorkspace();
-    const { identity, organization, project, createJob, createProject } = workspace;
-    const slug = identity.organization.slug ?? "missing-slug";
-    const job = await createJob();
-    const other = await createProject("Help centre");
-    const otherJob = await createJob({ projectId: other.id });
-    const managerIdentity = reporting.createWorkosIdentityForOrganization(
-      identity.organization,
-      "localization_manager",
-    );
-    const { user: manager } = await reporting.createLocalWorkosIdentity(managerIdentity);
-    await ensureDefaultWorkspaceTeamMembership({
-      organizationId: organization.id,
-      userId: manager.id,
-    });
-    const adminHeaders = {
-      ...(await reporting.authHeadersFor(identity)),
-      "Content-Type": "application/json",
-    };
-    const managerHeaders = {
-      ...(await reporting.authHeadersFor(managerIdentity)),
-      "Content-Type": "application/json",
-    };
-    const expense = {
-      projectId: project.id,
-      jobId: job.id,
-      step: "translation",
-      amountUsd: "12.5",
-      note: "Vendor invoice",
-      operationKey: randomUUID(),
-    };
-
-    const forbidden = await app.request(reportsUrl(slug, "/expenses"), {
-      method: "POST",
-      headers: managerHeaders,
-      body: JSON.stringify(expense),
-    });
-    expect(forbidden.status).toBe(403);
-    await expect(forbidden.json()).resolves.toMatchObject({ error: "report_costs_forbidden" });
-
-    const created = await app.request(reportsUrl(slug, "/expenses"), {
-      method: "POST",
-      headers: adminHeaders,
-      body: JSON.stringify(expense),
-    });
-    expect(created.status).toBe(201);
-    await expect(created.json()).resolves.toMatchObject({
-      expense: { amountUsd: "12.50000000", kind: "expense", jobId: job.id },
-    });
-
-    const unknownProject = await app.request(reportsUrl(slug, "/expenses"), {
-      method: "POST",
-      headers: adminHeaders,
-      body: JSON.stringify({
-        ...expense,
-        projectId: `project_${randomUUID()}`,
-        operationKey: randomUUID(),
-      }),
-    });
-    expect(unknownProject.status).toBe(404);
-    await expect(unknownProject.json()).resolves.toMatchObject({ error: "project_not_found" });
-
-    const mismatchedJob = await app.request(reportsUrl(slug, "/expenses"), {
-      method: "POST",
-      headers: adminHeaders,
-      body: JSON.stringify({
-        ...expense,
-        jobId: otherJob.id,
-        operationKey: randomUUID(),
-      }),
-    });
-    expect(mismatchedJob.status).toBe(404);
-    await expect(mismatchedJob.json()).resolves.toMatchObject({ error: "job_not_found" });
   });
 
   it("denies report access when the feature flag is disabled", async () => {

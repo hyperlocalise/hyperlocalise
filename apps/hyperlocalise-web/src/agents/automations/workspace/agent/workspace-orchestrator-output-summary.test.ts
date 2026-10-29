@@ -19,11 +19,13 @@ import {
   readImportGoogleDriveFiles,
   readImportIntercomArticles,
   readImportSanityDocuments,
+  readImportWebflowItems,
   readPushBrazeCampaigns,
   readPushBrazeTemplates,
   readPushGoogleDriveTranslations,
   readPushIntercomTranslations,
   readPushSanityTranslations,
+  readPushWebflowTranslations,
 } from "./workspace-orchestrator-output-summary";
 
 describe("buildWorkspaceOrchestratorOutputSummary", () => {
@@ -363,6 +365,47 @@ describe("readPushSanityTranslations", () => {
   it("rejects a persisted object missing pushedLocales", () => {
     expect(
       readPushSanityTranslations({ pushSanityTranslations: { status: "succeeded" } }, {}),
+    ).toBeNull();
+  });
+});
+
+describe("readImportWebflowItems", () => {
+  it("prefers the current step over a persisted summary", () => {
+    expect(
+      readImportWebflowItems(
+        {
+          importWebflowItems: { imported: 4, status: "stale" },
+        },
+        {
+          import_webflow_items: { imported: 0, failed: 2, status: "partial" },
+        },
+      ),
+    ).toEqual({ imported: 0, failed: 2, status: "partial" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportWebflowItems(
+        { importWebflowItems: { status: "succeeded", failed: 0 } },
+        { import_webflow_items: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushWebflowTranslations", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushWebflowTranslations(
+        {},
+        { push_webflow_translations: { pushedLocales: 0, failedLocales: 0 } },
+      ),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(
+      readPushWebflowTranslations({ pushWebflowTranslations: { status: "succeeded" } }, {}),
     ).toBeNull();
   });
 });

@@ -35,6 +35,8 @@ import { ContentEditorLoopsIngestButton } from "@/components/content-editor/page
 import { ContentEditorLoopsPushButton } from "@/components/content-editor/page/content-editor-loops-push-button";
 import { ContentEditorSanityIngestButton } from "@/components/content-editor/page/content-editor-sanity-ingest-button";
 import { ContentEditorSanityPushButton } from "@/components/content-editor/page/content-editor-sanity-push-button";
+import { ContentEditorWebflowIngestButton } from "@/components/content-editor/page/content-editor-webflow-ingest-button";
+import { ContentEditorWebflowPushButton } from "@/components/content-editor/page/content-editor-webflow-push-button";
 import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
 import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
@@ -754,6 +756,20 @@ function ProjectFileContentEditorPageContentInner({
               pageNavigationGuardRef={pageNavigationGuardRef}
             />
             <ContentEditorSanityPushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorWebflowIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorWebflowPushButton
               organizationSlug={organizationSlug}
               projectId={projectId}
               canManageAutomations={canManageAutomations}

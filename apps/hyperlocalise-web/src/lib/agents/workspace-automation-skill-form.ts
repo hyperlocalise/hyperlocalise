@@ -32,6 +32,7 @@ export type WorkspaceAutomationSkillDefaults = {
   githubInstallationRepositoryId?: string;
   crowdinProjectId?: string;
   contentfulConnectionId?: string;
+  webflowConnectionId?: string;
 };
 
 export type WorkspaceAutomationSkillAvailability =
@@ -75,6 +76,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS: Record<
     "sanityDocumentTypes",
     "projectId",
   ],
+  import_webflow_items: ["webflowConnectionId", "webflowCollectionIds", "projectId"],
+  push_webflow_translations: ["webflowConnectionId", "webflowCollectionIds", "projectId"],
   import_google_drive_files: ["googleDrive", "projectId"],
   push_google_drive_translations: ["googleDrive", "projectId"],
   import_braze_templates: ["projectId"],
@@ -159,6 +162,13 @@ function enableSkillTool(
       return {
         ...form,
         sanityEnabled: true,
+      };
+    case "import_webflow_items":
+    case "push_webflow_translations":
+      return {
+        ...form,
+        webflowEnabled: true,
+        webflowConnectionId: form.webflowConnectionId || defaults.webflowConnectionId || "",
       };
     case "import_google_drive_files":
     case "push_google_drive_translations":
@@ -257,6 +267,9 @@ function disableSkillTool(
     case "import_sanity_documents":
     case "push_sanity_translations":
       return { ...form, sanityEnabled: false };
+    case "import_webflow_items":
+    case "push_webflow_translations":
+      return { ...form, webflowEnabled: false };
     case "import_google_drive_files":
     case "push_google_drive_translations":
       return { ...form, googleDriveEnabled: false };

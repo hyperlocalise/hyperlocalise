@@ -19,7 +19,8 @@ import { OPEN_TASK_STATUSES, REPORT_STEPS, type ReportStep } from "./report-unit
 /**
  * A task's own pricing for a step (its rate card, time estimate or fixed fee) can change only
  * before work on that step starts, so the work already recorded keeps one price. Work has
- * started once Reports holds a string, a person's cost of work (not an expense, and not an AI
+ * started once Reports holds a string, a person's cost of work (not an expense row the old API
+ * wrote, and not an AI
  * call: an agent job's first call is not work the task's pricing prices) or logged time for the
  * task and step, deleted ones aside, or the task has ended. Tasks people work on from the start
  * are never queued, so the task's status alone cannot say.

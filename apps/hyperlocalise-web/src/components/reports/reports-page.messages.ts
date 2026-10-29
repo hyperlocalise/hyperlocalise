@@ -269,6 +269,27 @@ export const reportsPageMessages = defineMessages({
     defaultMessage: "Review",
     description: "The review step of a task",
   },
+  taskStepTranslate: {
+    id: "1sNrHSCdFv",
+    defaultMessage: "Translate",
+    description: "What a task is for: translating from scratch",
+  },
+  taskStepPostEdit: {
+    id: "xEggMJ8I+h",
+    defaultMessage: "Post-edit",
+    description: "What a task is for: editing machine translation",
+  },
+  taskStepProofread: {
+    id: "cCr/fhUFwD",
+    defaultMessage: "Proofread",
+    description: "What a task is for: proofreading translations",
+  },
+  taskStepOther: {
+    id: "4Y+Gg4iSBv",
+    defaultMessage: "Other",
+    description:
+      "What a task is for when it is not translating, post-editing or proofreading, such as research or syncing",
+  },
   rateCard: {
     id: "sYe95jJkmx",
     defaultMessage: "Rate card",

@@ -73,13 +73,45 @@ export const WordCountsByTask: Story = {
   parameters: {
     nextjs: {
       appDirectory: true,
-      navigation: { pathname, query: { tab: "words", group: "task", unit: "characters" } },
+      navigation: {
+        pathname,
+        query: { tab: "words", group: "task", unit: "characters", per: "week" },
+      },
     },
   },
   play: async ({ canvas }) => {
     const table = await canvas.findByRole("table", { name: "Word counts" });
     await expect(within(table).getByText("Help centre: billing articles")).toBeInTheDocument();
     await expect(within(table).getByText("No task (content editor)")).toBeInTheDocument();
+  },
+};
+
+export const WordCountsByWeek: Story = {
+  parameters: {
+    nextjs: {
+      appDirectory: true,
+      navigation: { pathname, query: { tab: "words", group: "week", per: "week" } },
+    },
+  },
+  play: async ({ canvas }) => {
+    const chart = await canvas.findByRole("region", { name: "Volume over time" });
+    await expect(await within(chart).findByText("Help centre")).toBeInTheDocument();
+    await expect(canvas.getByRole("table", { name: "Word counts" })).toBeInTheDocument();
+  },
+};
+
+export const WordCountsByMatchBand: Story = {
+  parameters: {
+    nextjs: {
+      appDirectory: true,
+      navigation: { pathname, query: { tab: "words", split: "band", per: "week" } },
+    },
+  },
+  play: async ({ canvas }) => {
+    const chart = await canvas.findByRole("region", { name: "Volume over time" });
+    await expect(await within(chart).findByText("100% and repetitions")).toBeInTheDocument();
+    const bands = canvas.getByRole("region", { name: "Match bands" });
+    await expect(within(bands).getAllByRole("listitem")).toHaveLength(3);
   },
 };
 

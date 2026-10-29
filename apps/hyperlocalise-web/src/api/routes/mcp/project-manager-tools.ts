@@ -56,11 +56,16 @@ import {
   readAi,
   readCosts,
   readTime,
-  readWords,
+  readWordReport,
   summaryFreshness,
   type ReportReadContext,
 } from "@/lib/reporting/report-reads";
-import { REPORT_STEPS, REPORT_UNITS } from "@/lib/reporting/report-units";
+import {
+  REPORT_STEPS,
+  REPORT_UNITS,
+  WORD_COUNT_INTERVALS,
+  WORD_COUNT_SPLITS,
+} from "@/lib/reporting/report-units";
 import { getReportingStart } from "@/lib/reporting/reporting-start";
 
 /** A provider job's due date, or a native job's own. Needs externalJobDetails left-joined. */
@@ -138,7 +143,7 @@ const mcpGetReportInputSchema = z.object({
     .enum(REPORT_KINDS)
     .default("activity")
     .describe(
-      "activity (default): words arrived and finished in the dates, by where the text came from, with the previous period; words: word counts by match band, by project or by task; time: time people logged and automated run time; ai: AI calls, tokens, images, videos and billing's charge, grouped by one detail and optionally a second; costs: what was spent, by project.",
+      "activity (default): words arrived and finished in the dates, by where the text came from, with the previous period; words: word counts by match band, by project, task, week, language or task step, with a series over time; time: time people logged and automated run time; ai: AI calls, tokens, images, videos and billing's charge, grouped by one detail and optionally a second; costs: what was spent, by project.",
     ),
   from: mcpDay.optional().describe("Start date (YYYY-MM-DD, UTC). Defaults to 28 days ago."),
   to: mcpDay.optional().describe("End date (YYYY-MM-DD, UTC). Defaults to today."),
@@ -164,16 +169,30 @@ const mcpGetReportInputSchema = z.object({
     .enum(["arrived", "finished"])
     .optional()
     .describe("Words only: strings that arrived (default) or were finished in the dates."),
+  split: z
+    .enum(WORD_COUNT_SPLITS)
+    .optional()
+    .describe(
+      "Words only: what the series splits each point by: project (default) or language, the five largest and Other; band, in tiers: exact (100% and repetitions), high (95-99%), fuzzy (75-94%), low (50-74%), new (new, and memory unavailable); or task_step: translate, post_edit, proofread, other, no_task, where a string in more than one task counts in each, so points can be larger than with the other splits.",
+    ),
+  per: z
+    .enum(WORD_COUNT_INTERVALS)
+    .optional()
+    .describe(
+      "Words only: how long each point of the series covers: day, week or month. By default days, or weeks for periods over 45 days.",
+    ),
   groupBy: z
     .enum([
       "project",
       "task",
       "week",
+      "language",
+      "task_step",
       ...AI_USAGE_DIMENSIONS.filter((dimension) => dimension !== "project" && dimension !== "task"),
     ])
     .optional()
     .describe(
-      "Words: rows per project (default), per task (50 tasks a page), or per week and project. AI: area (default), feature, model, provider, channel, key, project, task or automation (50 groups a page).",
+      "Words: rows per project (default), per task (50 tasks a page), per week and project, per language, or per task step and language. Rows per task or task step count a string in each task that holds it, so they can add up to more than total and bandTotals, which count it once per project. AI: area (default), feature, model, provider, channel, key, project, task or automation (50 groups a page).",
     ),
   thenBy: z
     .enum(AI_USAGE_DIMENSIONS)
@@ -529,7 +548,7 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
         case "words":
           return mcpToolJson({
             ...shared,
-            wordCounts: await readWords(
+            wordCounts: await readWordReport(
               context,
               parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.words>,
             ),

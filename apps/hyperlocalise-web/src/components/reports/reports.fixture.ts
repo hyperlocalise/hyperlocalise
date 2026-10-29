@@ -15,7 +15,12 @@ import type { BudgetRow, CostEstimate, Costs } from "@/lib/reporting/cost-querie
 import type { RateCard } from "@/lib/reporting/rate-cards";
 import { resolvePeriod } from "@/lib/reporting/report-period";
 import type { AutomatedTime, LoggedTime, StepTime } from "@/lib/reporting/time-queries";
-import type { ActivityTotals, FinishedSeriesPoint, WordCounts } from "@/lib/reporting/word-queries";
+import type {
+  ActivityTotals,
+  FinishedSeriesPoint,
+  WordCounts,
+  WordCountSeries,
+} from "@/lib/reporting/word-queries";
 
 import type { ReportSettings, TaskReport } from "./reports-queries";
 
@@ -103,12 +108,23 @@ export const reportsStepTimes: {
 } = {
   period: reportsPeriod,
   logged: [
-    { step: "translation", minutes: 2_490, people: 5 },
-    { step: "review", minutes: 1_380, people: 3 },
+    { taskStep: "translate", minutes: 2_490, people: 5 },
+    { taskStep: "post_edit", minutes: 900, people: 2 },
+    { taskStep: "proofread", minutes: 480, people: 3 },
   ],
   automated: {
     workflowSteps: [{ nodeType: "action.http", milliseconds: 1_260_000, runs: 980 }],
-    taskRuns: { milliseconds: 22_320_000, runs: 212 },
+    taskRuns: {
+      milliseconds: 22_320_000,
+      runs: 212,
+      stages: [
+        { stage: "preparing", milliseconds: 1_800_000 },
+        { stage: "reusing_memory", milliseconds: 300_000 },
+        { stage: "translating", milliseconds: 18_000_000 },
+        { stage: "finishing", milliseconds: 1_500_000 },
+        { stage: "other", milliseconds: 720_000 },
+      ],
+    },
   },
 };
 
@@ -206,11 +222,29 @@ export const reportsAiUsage: AiUsage = {
   automationName: null,
 };
 
-export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): WordCounts & {
-  period: typeof reportsPeriod;
-} {
+/** The volume chart's series by project and week: two projects, nothing past the fifth. */
+export const reportsWordCountSeries: WordCountSeries = {
+  split: "project",
+  per: "week",
+  groups: [
+    { key: "project_help", name: "Help centre", other: false },
+    { key: "project_web", name: "Web app", other: false },
+  ],
+  points: [
+    { start: "2026-09-21", units: [3_000, 1_000] },
+    { start: "2026-09-28", units: [9_000, 5_000] },
+    { start: "2026-10-05", units: [10_870, 4_420] },
+    { start: "2026-10-12", units: [9_000, 4_000] },
+    { start: "2026-10-19", units: [8_000, 4_000] },
+  ],
+};
+
+export function createReportsWordCounts(
+  overrides: Partial<WordCounts & { series: WordCountSeries | null }> = {},
+): WordCounts & { period: typeof reportsPeriod; series: WordCountSeries | null } {
   return {
     period: reportsPeriod,
+    series: null,
     rows: [
       {
         week: null,
@@ -218,6 +252,7 @@ export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): Wo
         projectName: "Web app",
         jobId: null,
         jobTitle: null,
+        taskStep: null,
         targetLocale: "de-DE",
         bands: { "100": 4_000, new: 14_420 },
         total: 18_420,
@@ -228,6 +263,7 @@ export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): Wo
         projectName: "Help centre",
         jobId: null,
         jobTitle: null,
+        taskStep: null,
         targetLocale: "fr-FR",
         bands: { repetition: 2_000, new: 37_870 },
         total: 39_870,
@@ -243,6 +279,45 @@ export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): Wo
   };
 }
 
+/** The volume chart's series by match band tier, per week. */
+export const reportsBandSeries: WordCountSeries = {
+  split: "band",
+  per: "week",
+  groups: [
+    { key: "exact", name: null, other: false },
+    { key: "fuzzy", name: null, other: false },
+    { key: "new", name: null, other: false },
+  ],
+  points: reportsWordCountSeries.points.map((point) => ({
+    start: point.start,
+    units: [point.units[0] / 4, point.units[1] / 2, point.units[0] / 2],
+  })),
+};
+
+/** The volume chart's answer, as the page's own endpoint gives it. */
+export function createReportsWordSeries(series: WordCountSeries = reportsWordCountSeries) {
+  return {
+    period: reportsPeriod,
+    unit: "words" as const,
+    step: "translation" as const,
+    mode: "arrived" as const,
+    ...series,
+  };
+}
+
+/** Word counts grouped by week: the two projects over the last two weeks in the table. */
+export function createReportsWeeklyWordCounts() {
+  const base = createReportsWordCounts();
+  return createReportsWordCounts({
+    rows: base.rows.flatMap((row) => [
+      { ...row, week: "2026-10-12", bands: { new: 100 }, total: 100 },
+      { ...row, week: "2026-10-19" },
+    ]),
+    groupCount: 2,
+    pageSize: 2,
+  });
+}
+
 /** Word counts grouped by task, one row per task and language. */
 export function createReportsTaskWordCounts() {
   return createReportsWordCounts({
@@ -253,6 +328,7 @@ export function createReportsTaskWordCounts() {
         projectName: "Help centre",
         jobId: "job_billing",
         jobTitle: "Help centre: billing articles",
+        taskStep: null,
         targetLocale: "fr-FR",
         bands: { repetition: 2_000, new: 18_980 },
         total: 20_980,
@@ -263,6 +339,7 @@ export function createReportsTaskWordCounts() {
         projectName: "Web app",
         jobId: null,
         jobTitle: null,
+        taskStep: null,
         targetLocale: "de-DE",
         bands: { new: 1_200 },
         total: 1_200,
@@ -287,6 +364,7 @@ export const reportsLoggedTime: {
         jobId: "job_release",
         jobTitle: "Release 4.2 strings",
         projectId: "project_web",
+        taskStep: "translate",
         step: "translation",
         targetLocale: "ja-JP",
         minutes: 555,
@@ -312,7 +390,6 @@ export const reportsCosts: { period: typeof reportsPeriod } & Costs = {
       aiUsd: "612.40000000",
       aiOnTasksUsd: "540.40000000",
       aiOutsideTasksUsd: "72.00000000",
-      expensesUsd: "0.00000000",
       totalUsd: "4022.40000000",
     },
   ],
@@ -326,7 +403,6 @@ export const reportsCosts: { period: typeof reportsPeriod } & Costs = {
     aiUsd: "630.60000000",
     aiOnTasksUsd: "540.40000000",
     aiOutsideTasksUsd: "90.20000000",
-    expensesUsd: "0.00000000",
     totalUsd: "4040.60000000",
   },
   previousTotalUsd: "3800.00000000",
@@ -618,6 +694,7 @@ export function reportsResponseBodies(settings = createReportsSettings()) {
     activity: { activity: reportsActivity },
     "step-times": { stepTimes: reportsStepTimes },
     "ai-usage": { aiUsage: reportsAiUsage },
+    "word-series": { wordSeries: createReportsWordSeries() },
     words: {
       wordCounts: {
         unit: "words",
@@ -672,7 +749,6 @@ const ENDPOINTS = [
   "rate-cards",
   "jobs",
   "time-entries",
-  "expenses",
   "task-rates",
 ] as const;
 
@@ -702,5 +778,6 @@ export function reportsApiClient(state: ReportsApiState) {
     ":jobId": { report: endpoint("task-report"), analysis: endpoint("task-analysis") },
   };
   reports["time-entries"] = { ...endpoint("time-entries"), ":id": endpoint("time-entry") };
+  reports.words = { ...endpoint("words"), series: endpoint("word-series") };
   return { api: { orgs: { ":organizationSlug": { reports } } } };
 }
