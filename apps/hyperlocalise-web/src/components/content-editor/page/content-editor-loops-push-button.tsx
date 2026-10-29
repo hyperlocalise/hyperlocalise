@@ -25,11 +25,17 @@ import {
   type ContentEditorPageNavigationGuardRef,
 } from "@/components/content-editor/workspace/content-editor-page-navigation-guard";
 import { queueLoopsPushRun } from "@/lib/loops/queue-loops-push-run";
+import { isLoopsSourcePath } from "@/lib/loops/source-path";
 import { buildAutomationsDetailHref } from "@/lib/navigation/workspace-automation-editor-tab";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
-import { isLoopsSourcePath } from "@/lib/loops/source-path";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
+import { ContentEditorLoopsPushDialog } from "./content-editor-loops-push-dialog";
+import { contentEditorLoopsPushButtonMessages as messages } from "./content-editor-loops-push-button.messages";
+import {
+  contentEditorPushDialogCandidates,
+  contentEditorToolbarShowsIntegration,
+} from "./content-editor-integration-toolbar-visibility";
 import {
   contentEditorLoopsIngestQueryKey,
   contentEditorLoopsPushQueryKey,
@@ -37,10 +43,6 @@ import {
   fetchContentEditorLoopsPushCandidates,
   invalidateContentEditorLoopsPushQueries,
 } from "./content-editor-loops-push-queries";
-import {
-  contentEditorPushDialogCandidates,
-  contentEditorToolbarShowsIntegration,
-} from "./content-editor-integration-toolbar-visibility";
 
 export function ContentEditorLoopsPushButton({
   organizationSlug,
@@ -59,7 +61,6 @@ export function ContentEditorLoopsPushButton({
   const router = useOrgRouter();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedAutomationId, setSelectedAutomationId] = useState<string | null>(null);
   const openSourcePath = isContentEditorAllFilesSourcePath(sourcePath) ? null : sourcePath;
   const pathQueryEnabled =
     canManageAutomations && Boolean(openSourcePath && isLoopsSourcePath(openSourcePath));
@@ -86,28 +87,30 @@ export function ContentEditorLoopsPushButton({
     enabled: pathQueryEnabled,
   });
 
+  const navigateToPushRunHistory = (automationId: string) => {
+    const href = buildAutomationsDetailHref(organizationSlug, {
+      automationId,
+      projectId,
+      tab: "history",
+    });
+    attemptCatPageNavigation(pageNavigationGuardRef, () => {
+      router.push(href);
+    });
+  };
+
   const pushMutation = useMutation({
     mutationFn: queueLoopsPushRun,
     onSuccess: (_data, variables) => {
-      toast.success("Push to Loops queued.");
+      toast.success(intl.formatMessage(messages.pushQueued));
       setDialogOpen(false);
-      setSelectedAutomationId(null);
       invalidateContentEditorLoopsPushQueries(queryClient, organizationSlug, projectId);
       void queryClient.invalidateQueries({
         queryKey: ["workspace-automation", organizationSlug, variables.automationId],
       });
-      attemptCatPageNavigation(pageNavigationGuardRef, () => {
-        router.push(
-          buildAutomationsDetailHref(organizationSlug, {
-            automationId: variables.automationId,
-            projectId,
-            tab: "history",
-          }),
-        );
-      });
+      navigateToPushRunHistory(variables.automationId);
     },
     onError: () => {
-      toast.error("Failed to queue Push to Loops.");
+      toast.error(intl.formatMessage(messages.pushFailed));
     },
   });
 
@@ -125,6 +128,7 @@ export function ContentEditorLoopsPushButton({
     pushQueryFailed: pushCandidatesQuery.isError,
   });
 
+  const pushLabel = intl.formatMessage(messages.pushButton);
   const isPending = pushMutation.isPending;
   const isDisabled = isPending || pushCandidatesQuery.isLoading || dialogCandidates.length === 0;
   const pushIcon = isPending ? (
@@ -132,8 +136,6 @@ export function ContentEditorLoopsPushButton({
   ) : (
     <IntegrationLogo src="/images/loops-logo.svg" className="size-4" />
   );
-  const candidates = pushCandidatesQuery.data ?? [];
-  const effectiveAutomationId = selectedAutomationId ?? candidates[0]?.automationId ?? null;
 
   return (
     <>
@@ -144,66 +146,28 @@ export function ContentEditorLoopsPushButton({
         disabled={isDisabled}
         onClick={() => {
           if (!isDisabled) {
-            setSelectedAutomationId(candidates[0]?.automationId ?? null);
             setDialogOpen(true);
           }
         }}
       >
         {pushIcon}
-        {intl.formatMessage({ defaultMessage: "Push to Loops", id: "XBySEBTpqM" })}
+        {pushLabel}
       </Button>
-      {dialogOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setDialogOpen(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-lg bg-background p-4 shadow-lg"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h2 className="text-sm font-semibold">Push to Loops</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Creates or updates unpublished locale copies named {"{source} [{locale}]"}. The source
-              email is never changed.
-            </p>
-            <label className="mt-3 block text-xs font-medium">
-              Automation
-              <select
-                className="mt-1 w-full rounded-md border p-2 text-sm"
-                value={effectiveAutomationId ?? ""}
-                onChange={(event) => setSelectedAutomationId(event.target.value || null)}
-              >
-                {candidates.map((candidate) => (
-                  <option key={candidate.automationId} value={candidate.automationId}>
-                    {candidate.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                disabled={!effectiveAutomationId || isPending}
-                onClick={() => {
-                  if (!effectiveAutomationId || !openSourcePath) {
-                    return;
-                  }
-                  pushMutation.mutate({
-                    organizationSlug,
-                    automationId: effectiveAutomationId,
-                    sourcePaths: [openSourcePath],
-                  });
-                }}
-              >
-                {isPending ? "Queuing…" : "Push"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ContentEditorLoopsPushDialog
+        open={dialogOpen}
+        organizationSlug={organizationSlug}
+        sourcePath={openSourcePath}
+        candidates={dialogCandidates}
+        pending={isPending}
+        onOpenChange={setDialogOpen}
+        onConfirm={(input) =>
+          pushMutation.mutate({
+            organizationSlug,
+            automationId: input.automationId,
+            sourcePaths: input.sourcePaths,
+          })
+        }
+      />
     </>
   );
 }
