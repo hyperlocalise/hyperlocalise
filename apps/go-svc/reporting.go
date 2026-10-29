@@ -107,6 +107,12 @@ func (api *reportingAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 	route("GET "+base+"/cost-estimate", "billing:read", "report_costs_forbidden", api.costEstimate)
 	route("GET "+base+"/budgets", "billing:read", "report_costs_forbidden", api.budgets)
 	route("GET "+base+"/rate-cards", "billing:read", "report_costs_forbidden", api.rateCards)
+	route("PUT "+base+"/rate-cards", "billing:write", "report_costs_forbidden", api.saveRateCard)
+	route("PUT "+base+"/budgets", "billing:write", "report_costs_forbidden", api.saveBudget)
+	route("PUT "+base+"/task-rates", "billing:write", "report_costs_forbidden", api.saveTaskRate)
+	route("POST "+base+"/time-entries", "jobs:write", "time_entry_forbidden", api.logTime)
+	route("PATCH "+base+"/time-entries/{id}", "", "", api.editTime)
+	route("DELETE "+base+"/time-entries/{id}", "", "", api.voidTime)
 	route("GET "+base+"/tasks/{jobId}/report", "", "", api.taskReport)
 	route("GET "+base+"/tasks/{jobId}/analysis", "", "", api.taskAnalysis)
 }
@@ -292,6 +298,53 @@ func (b *reportingBody) optionalText(key string, maxLength int) *string {
 	}
 	b.checkLength(value, 0, maxLength)
 	return &value
+}
+
+// nullableTrimmedText is z.string().trim().min(1).max(n).nullable().default(null): absent or
+// null is null, and an empty string after trimming is invalid.
+func (b *reportingBody) nullableTrimmedText(key string, maxLength int) *string {
+	raw, ok := b.field(key)
+	if !ok || isJSONNull(raw) {
+		return nil
+	}
+	value := b.trimmedText(key, 1, maxLength)
+	return &value
+}
+
+func (b *reportingBody) boolean(key string, fallback bool) bool {
+	raw, ok := b.field(key)
+	if !ok {
+		return fallback
+	}
+	var value bool
+	if isJSONNull(raw) || json.Unmarshal(raw, &value) != nil {
+		b.fail()
+		return fallback
+	}
+	return value
+}
+
+// objects is an array of at most maxItems objects, each read with its own body helpers.
+func (b *reportingBody) objects(key string, maxItems int) []*reportingBody {
+	raw, ok := b.field(key)
+	if !ok {
+		b.fail()
+		return nil
+	}
+	var items []map[string]json.RawMessage
+	if isJSONNull(raw) || json.Unmarshal(raw, &items) != nil || len(items) > maxItems {
+		b.fail()
+		return nil
+	}
+	bodies := make([]*reportingBody, 0, len(items))
+	for _, item := range items {
+		if item == nil {
+			b.fail()
+			continue
+		}
+		bodies = append(bodies, &reportingBody{fields: item, valid: true})
+	}
+	return bodies
 }
 
 func (b *reportingBody) nullableText(key string, maxLength int) *string {

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -76,6 +77,27 @@ func (c *cachedWorkspaceFlags) cached(key string) (bool, bool) {
 		return false, false
 	}
 	return entry.enabled, true
+}
+
+// write runs fn in a transaction on one pooled connection, under the same admission limit and
+// statement time limit as a read, and commits when fn returns nil.
+func (api *reportingAPI) write(ctx context.Context, fn func(tx pgx.Tx) error) error {
+	if err := api.queries.Acquire(ctx, 1); err != nil {
+		return errReportingBusy
+	}
+	defer api.queries.Release(1)
+	tx, err := api.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx, fmt.Sprintf("set local statement_timeout = %d", reportingStatementTimeout.Milliseconds())); err != nil {
+		return err
+	}
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 // read runs fn's queries on one pooled connection, in a read-only transaction whose statements

@@ -25,7 +25,7 @@ func seedReportingMoney(t *testing.T) reportingMoneyFixture {
 	scope := testenv.Seed(t, testenv.Options{Role: "admin", WithProject: true})
 	scope.MustTeam(t, "default", "Default", "member")
 	f := reportingMoneyFixture{t: t, scope: scope}
-	f.exec(`update projects set name = 'Docs' where id = $1`, scope.ProjectID)
+	f.exec(`update projects set name = 'Docs', source_locale = 'en-US' where id = $1`, scope.ProjectID)
 	// Billing's rows count from when Reports started.
 	f.exec(`insert into reporting_workspaces (organization_id, started_at) values ($1, '2026-01-01T00:00:00Z')`, scope.OrganizationID)
 	return f

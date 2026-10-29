@@ -10,6 +10,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // Money for the Reports page. Estimates price the daily summary's units at the live rate card,
@@ -22,6 +25,7 @@ import (
 const reportingPricingOrder = "task's rate card, then the project budget's rate card, then the chosen card"
 
 var (
+	reportingRateBases   = []string{"word", "character", "character_with_spaces", "hour"}
 	reportingPricedBy    = []string{"task", "budget", "chosen"}
 	reportingOpenTaskSQL = "j.status in ('queued', 'running', 'waiting_for_review')"
 	reportingLiveTaskSQL = "j.status not in ('failed', 'cancelled')"
@@ -1064,6 +1068,64 @@ func queryReportingBudgets(ctx context.Context, db dictionaryDB, organizationID 
 }
 
 // Routes.
+
+type reportingBudget struct {
+	ID             string  `json:"id"`
+	OrganizationID string  `json:"organizationId"`
+	ProjectID      string  `json:"projectId"`
+	Budget         string  `json:"budget"`
+	RateCardName   *string `json:"rateCardName"`
+	CreatedAt      string  `json:"createdAt"`
+}
+
+// saveBudget sets a project's all-time budget and the card that prices its work.
+func (api *reportingAPI) saveBudget(r *http.Request, actor reportingActor) (any, int, error) {
+	body, err := readReportingBody(r, "invalid_budget")
+	if err != nil {
+		return nil, 0, err
+	}
+	projectID := body.text("projectId", 1, math.MaxInt)
+	budget := body.usd("budget")
+	rateCardName := body.nullableTrimmedText("rateCardName", 100)
+	if !body.valid {
+		return nil, 0, reportingInvalid("invalid_budget")
+	}
+	ctx := r.Context()
+	var saved reportingBudget
+	err = api.write(ctx, func(tx pgx.Tx) error {
+		projectIDs, err := reportingProjectIDs(ctx, tx, actor)
+		if err != nil {
+			return err
+		}
+		if !slices.Contains(projectIDs, projectID) {
+			return reportingFailure(404, "project_not_found", "Resource not found")
+		}
+		if rateCardName != nil {
+			exists, err := reportingRateCardExists(ctx, tx, actor.organizationID, *rateCardName)
+			if err != nil {
+				return err
+			}
+			if !exists {
+				return reportingFailure(400, "rate_card_not_found", "Request payload is invalid")
+			}
+		}
+		var created time.Time
+		if err := tx.QueryRow(ctx, `
+            insert into reporting_budgets (organization_id, project_id, budget, rate_card_name) values ($1, $2, $3::numeric, $4)
+            on conflict (organization_id, project_id) do update set budget = excluded.budget, rate_card_name = excluded.rate_card_name
+            returning id, organization_id, project_id, budget::text, rate_card_name, created_at`,
+			actor.organizationID, projectID, budget, rateCardName).
+			Scan(&saved.ID, &saved.OrganizationID, &saved.ProjectID, &saved.Budget, &saved.RateCardName, &created); err != nil {
+			return fmt.Errorf("save budget: %w", err)
+		}
+		saved.CreatedAt = formatReportingTime(created)
+		return nil
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	return map[string]any{"budget": saved}, http.StatusOK, nil
+}
 
 func (api *reportingAPI) costs(r *http.Request, actor reportingActor) (any, int, error) {
 	q := readReportingQuery(r)

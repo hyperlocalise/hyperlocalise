@@ -764,9 +764,15 @@ Requires workspace authentication, `DATABASE_URL`, and the `workspace-reports` f
 | GET | `/reports/rate-cards` | `billing:read` | Every rate card with its current lines, and whether the viewer may change them |
 | GET | `/reports/tasks/{jobId}/report` | Member | One task's words, estimate, what is still to come, time and pricing; other roles see their own time only; `format=csv` for `billing:read` |
 | GET | `/reports/tasks/{jobId}/analysis` | Member | The state of the task's analysis per step; counts and errors for `billing:read` |
+| PUT | `/reports/rate-cards` | `billing:write` | Save a card's default basis and whole set of lines (`create` makes a new card; `409 rate_card_exists`, `404 rate_card_not_found`, `400 duplicate_rate_line`); only changed lines get a new row, removed ones a retired row |
+| PUT | `/reports/budgets` | `billing:write` | Set a project's budget and the card that prices its work (`404 project_not_found`, `400 rate_card_not_found`) |
+| PUT | `/reports/task-rates` | `billing:write` | A task's own pricing for a step: a rate card (taken as it is at that moment), a time estimate or a fixed fee; `400 task_rate_locked` once work on the step has started |
+| POST | `/reports/time-entries` | `jobs:write` | Log time on a native task; priced by an hourly line only (`400 native_job_required`) |
+| PATCH | `/reports/time-entries/{id}` | Own, or `billing:write` | Change an entry's minutes, day and note; its cost follows |
+| DELETE | `/reports/time-entries/{id}` | Own, or `billing:write` | Void an entry and its cost |
 | POST | `/internal/reports/{kind}` | Service token | The MCP `get_report` tool: `{organizationId, userId, query}` answered as `activity`, `words` (with its chart), `time`, `ai` or `costs` for that member, with `summary` and `stillUpdating` |
 
-**Access control:** `billing:read` (admins and localization managers) sees reports and money; the internal route applies the named member's own access (workspace, flag, billing); `billing:write` (admins) changes rate cards, budgets and pricing; `jobs:write` logs time. Project visibility follows team membership, with organization-wide access for admins and localization managers; a filter for a project the viewer cannot open reads nothing.
+**Access control:** `billing:read` (admins and localization managers) sees reports and money; the internal route applies the named member's own access (workspace, flag, billing); writes hold the web app's locks (the task row, and `pg_advisory_xact_lock(hashtext('reporting-rate-card:<workspace>:<name>'))` for a card) and write the same `reporting_audit` rows; `billing:write` (admins) changes rate cards, budgets and pricing; `jobs:write` logs time. Project visibility follows team membership, with organization-wide access for admins and localization managers; a filter for a project the viewer cannot open reads nothing.
 
 **Dates:** UTC calendar days as `YYYY-MM-DD`, from 2000 on, never past today and never from before Reports started for the workspace; the default period is the last 28 days and is compared with the period of the same length before it; periods over 45 days are charted by week (Monday start).
 
