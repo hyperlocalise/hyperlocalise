@@ -63,6 +63,7 @@ const eventActions = {
   member_joined: messages.memberJoinedAction,
   member_role_changed: messages.memberRoleChangedAction,
   member_removed: messages.memberRemovedAction,
+  member_left: messages.memberLeftAction,
   workspace_updated: messages.workspaceUpdatedAction,
   workspace_archived: messages.workspaceArchivedAction,
   personal_access_token_created: messages.personalAccessTokenCreatedAction,

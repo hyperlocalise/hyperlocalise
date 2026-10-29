@@ -100,6 +100,11 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "zSXHu53J/P",
     description: "Activity log event type label for member removals",
   },
+  memberLeftEventType: {
+    defaultMessage: "Member Left",
+    id: "0sHkme+8tb",
+    description: "Activity log event type label for members who left the workspace themselves",
+  },
   workspaceUpdatedEventType: {
     defaultMessage: "Workspace Updated",
     id: "Q3Ax2I3isM",
@@ -709,6 +714,11 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "removed a member",
     id: "R32W5WVswi",
     description: "Action for a removed member activity",
+  },
+  memberLeftAction: {
+    defaultMessage: "left the workspace",
+    id: "ZVIyFNqsnD",
+    description: "Action for a member who left the workspace themselves",
   },
   workspaceUpdatedAction: {
     defaultMessage: "updated workspace settings",
