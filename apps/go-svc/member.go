@@ -14,7 +14,7 @@ const (
 	memberBodyLimit                   = 64 << 10
 	memberRequestTimeout              = 30 * time.Second
 	memberRevokeReconcileTimeout      = 15 * time.Second
-	memberWorkosRemoveTimeout         = 10 * time.Second
+	memberWorkosRemoveTimeout         = 5 * time.Second
 	memberInviteRollbackTimeout       = 15 * time.Second
 	invitedWorkosUserIDPrefix         = "invited_user_"
 	replacingWorkosMembershipID       = "replacing"
