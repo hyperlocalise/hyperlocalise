@@ -78,8 +78,14 @@ export async function finishLeavingWorkspaceAction(
       Boolean(organization.membership.workosMembershipId),
   );
   const storedSlug = await getStoredActiveOrganizationSlug();
+  // The remembered workspace, then the one the session was issued for, then any.
   const next =
-    remaining.find((organization) => organization.slug === storedSlug) ?? remaining[0] ?? null;
+    remaining.find((organization) => organization.slug === storedSlug) ??
+    remaining.find(
+      (organization) => organization.workosOrganizationId === session.organizationId,
+    ) ??
+    remaining[0] ??
+    null;
 
   if (!next) {
     await clearStoredActiveOrganizationSlug();

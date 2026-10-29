@@ -112,6 +112,19 @@ describe("finishLeavingWorkspaceAction", () => {
     expect(mocks.refreshSession).toHaveBeenCalledWith({ organizationId: "org_gamma" });
   });
 
+  it("prefers the workspace the session was issued for over the first one", async () => {
+    mocks.withAuth.mockResolvedValue(sessionFor("org_gamma"));
+    mocks.getStoredActiveOrganizationSlug.mockResolvedValue("acme");
+    mocks.resolveApiAuthContextFromSession.mockResolvedValue({
+      organizations: [workspace("beta"), workspace("gamma")],
+    });
+
+    expect(await finishLeavingWorkspaceAction("acme")).toEqual({
+      redirectTo: "/org/gamma/dashboard",
+    });
+    expect(mocks.refreshSession).not.toHaveBeenCalled();
+  });
+
   it("still opens the next workspace when the session cannot be moved", async () => {
     mocks.withAuth.mockResolvedValue(sessionFor("org_acme"));
     mocks.resolveApiAuthContextFromSession.mockResolvedValue({

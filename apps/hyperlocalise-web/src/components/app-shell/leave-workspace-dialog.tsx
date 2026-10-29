@@ -108,13 +108,20 @@ export function LeaveWorkspaceDialog({
       return;
     }
     leave.reset();
-    // The next opening loads afresh instead of showing these lists first.
-    queryClient.removeQueries({ queryKey: leaveWorkspacePreviewQueryKey(organizationSlug) });
     onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && close()}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => !next && close()}
+      onOpenChangeComplete={(isOpen) => {
+        // Once it has faded out, so the next opening loads afresh instead of showing these lists.
+        if (!isOpen) {
+          queryClient.removeQueries({ queryKey: leaveWorkspacePreviewQueryKey(organizationSlug) });
+        }
+      }}
+    >
       <DialogContent
         showCloseButton={!isLeaving}
         className="max-h-[min(85dvh,42rem)] overflow-y-auto border-border bg-background text-foreground sm:max-w-md"

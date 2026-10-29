@@ -462,9 +462,18 @@ func (api *memberAPI) updateMemberRole(ctx context.Context, organizationID strin
 // other admin changes in that workspace and nothing else: page loads that rewrite
 // membership rows do not wait on it.
 func lockOrganizationAdminsAndCount(ctx context.Context, tx pgx.Tx, organizationID, departingUserID string) error {
-	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, "organization_admins:"+organizationID); err != nil {
+	if err := lockOrganizationAdmins(ctx, tx, organizationID); err != nil {
 		return err
 	}
+	return requireAnotherAcceptedAdmin(ctx, tx, organizationID, departingUserID)
+}
+
+func lockOrganizationAdmins(ctx context.Context, tx pgx.Tx, organizationID string) error {
+	_, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, "organization_admins:"+organizationID)
+	return err
+}
+
+func requireAnotherAcceptedAdmin(ctx context.Context, tx pgx.Tx, organizationID, departingUserID string) error {
 	count, err := countOtherAcceptedAdmins(ctx, tx, organizationID, departingUserID)
 	if err != nil {
 		return err

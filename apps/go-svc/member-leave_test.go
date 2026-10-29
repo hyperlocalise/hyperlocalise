@@ -218,3 +218,28 @@ func TestMemberLeaveLeavesTheLogToAWebhookThatRemovedTheRowFirst(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, events)
 }
+
+func TestMemberLeaveCountsAPromotionMadeWhileLeaving(t *testing.T) {
+	api, scope, _ := memberTestAPI(t, "admin")
+	leaverUserID, leaverWorkosUserID, _ := mustActiveMember(t, scope, uniqueTestEmail("promoted-leaver"), "member")
+	leaver := memberActor{
+		userID:               leaverUserID,
+		organizationID:       scope.OrganizationID,
+		workosOrganizationID: scope.WorkOSOrganizationID,
+		role:                 "member",
+		workosUserID:         leaverWorkosUserID,
+	}
+	member, err := api.getOrganizationMember(t.Context(), scope.OrganizationID, leaverWorkosUserID)
+	require.NoError(t, err)
+	// Promoted after the leave read the role, before its transaction began.
+	_, err = scope.Pool.Exec(t.Context(), `update organization_memberships set role='admin' where user_id=$1`, leaverUserID)
+	require.NoError(t, err)
+	_, err = scope.Pool.Exec(t.Context(), `update organization_memberships set role='member' where user_id=$1`, scope.UserID)
+	require.NoError(t, err)
+
+	_, err = api.revokeOrganizationMembershipAccessAfter(t.Context(), leaver, member, nil)
+	var failure *memberError
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, "last_admin_protected", failure.code)
+	require.Equal(t, 1, membershipCount(t, scope, leaverWorkosUserID))
+}

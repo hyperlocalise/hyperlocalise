@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // reconcileRevokedMembership removes the membership and everything tied to it, and logs
@@ -45,8 +48,23 @@ func (api *memberAPI) revokeOrganizationMembershipAccessAfter(ctx context.Contex
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	if member.role == "admin" {
-		if err := lockOrganizationAdminsAndCount(ctx, tx, actor.organizationID, member.localUserID); err != nil {
+	// Every removal takes the admin lock and reads the role under it, so someone promoted
+	// to admin while their removal was on its way is still counted as one.
+	if err := lockOrganizationAdmins(ctx, tx, actor.organizationID); err != nil {
+		return false, err
+	}
+	var role string
+	err = tx.QueryRow(ctx, `
+        select role from organization_memberships
+        where organization_id=$1 and user_id=$2`, actor.organizationID, member.localUserID).Scan(&role)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, tx.Commit(ctx)
+	}
+	if err != nil {
+		return false, err
+	}
+	if role == "admin" {
+		if err := requireAnotherAcceptedAdmin(ctx, tx, actor.organizationID, member.localUserID); err != nil {
 			return false, err
 		}
 	}
