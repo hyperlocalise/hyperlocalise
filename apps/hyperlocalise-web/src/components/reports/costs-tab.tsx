@@ -22,7 +22,7 @@ import { DownloadCsvButton, ReportEmpty, ReportSectionState } from "./report-sec
 import { ReportStatCard, ReportStatCards, ReportStatCardsSkeleton } from "./report-stat-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
 import { reportsPageMessages as pageMessages } from "./reports-page.messages";
-import { costsQuery, reportDownloadUrl, useCosts, type SectionInput } from "./reports-queries";
+import { costsQuery, useReportCsv, useCosts, type SectionInput } from "./reports-queries";
 
 /** AI charged outside any project, shown as its own row when there is any. */
 function hasOutsideProjects(data: { outsideProjects: { aiUsd: string } | null }) {
@@ -31,6 +31,7 @@ function hasOutsideProjects(data: { outsideProjects: { aiUsd: string } | null })
 
 export function CostsTab({ input }: { input: SectionInput }) {
   const intl = useIntl();
+  const csv = useReportCsv(input.organizationSlug);
   const costs = useCosts(input);
   const numeric = "text-right tabular-nums";
   return (
@@ -66,9 +67,7 @@ export function CostsTab({ input }: { input: SectionInput }) {
         </ReportStatCards>
       ) : null}
       <div className="flex justify-end">
-        <DownloadCsvButton
-          href={reportDownloadUrl(input.organizationSlug, "costs", costsQuery(input))}
-        />
+        <DownloadCsvButton download={() => csv.section("costs", costsQuery(input))} />
       </div>
       <ReportSectionState query={costs}>
         {(data) => (

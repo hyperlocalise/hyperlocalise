@@ -50,7 +50,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { reportsPageMessages as pageMessages } from "./reports-page.messages";
 import {
   reportsQueryKey,
-  taskReportDownloadUrl,
+  useReportCsv,
   useReportSettings,
   useTaskAnalysis,
   useTaskReport,
@@ -122,6 +122,7 @@ export function TaskReport({
   defaultStep?: ReportStep;
 }) {
   const intl = useIntl();
+  const csv = useReportCsv(organizationSlug);
   const settings = useReportSettings(organizationSlug);
   const [unit, setUnit] = useState<ReportUnit>("words");
   const [step, setStep] = useState<ReportStep>(defaultStep);
@@ -202,11 +203,7 @@ export function TaskReport({
                     />
                     <UnitSwitch value={unit} onChange={setUnit} />
                     <DownloadCsvButton
-                      href={taskReportDownloadUrl(organizationSlug, jobId, {
-                        unit,
-                        step,
-                        rateCard,
-                      })}
+                      download={() => csv.taskReport(jobId, { unit, step, rateCard })}
                     />
                   </>
                 }

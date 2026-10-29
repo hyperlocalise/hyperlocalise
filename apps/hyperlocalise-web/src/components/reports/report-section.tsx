@@ -13,12 +13,15 @@
 "use client";
 
 import { WarningCircleIcon } from "@phosphor-icons/react";
+import { useState } from "react";
 import { FormattedMessage } from "react-intl";
+import { toast } from "sonner";
 
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { GoSvcDownload } from "@/lib/go-svc/go-svc-client.types";
 import { cn } from "@/lib/primitives/cn";
 
 import { reportsPageMessages as messages } from "./reports-page.messages";
@@ -142,11 +145,37 @@ export function ReportPager({
   );
 }
 
-/** A link that downloads a table as CSV, styled as a button. */
-export function DownloadCsvButton({ href }: { href: string }) {
+/**
+ * A button that downloads a table as CSV. The file is fetched with the viewer's sign-in and
+ * then saved, so a report that go-svc refuses or cannot finish in time says so instead.
+ */
+export function DownloadCsvButton({ download }: { download: () => Promise<GoSvcDownload> }) {
+  const [pending, setPending] = useState(false);
+  const run = async () => {
+    setPending(true);
+    try {
+      saveReportDownload(await download());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setPending(false);
+    }
+  };
   return (
-    <Button variant="outline" size="sm" nativeButton={false} render={<a href={href} download />}>
+    <Button variant="outline" size="sm" disabled={pending} onClick={() => void run()}>
       <FormattedMessage {...messages.downloadCsv} />
     </Button>
   );
+}
+
+function saveReportDownload(file: GoSvcDownload) {
+  const url = URL.createObjectURL(file.blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = file.filename ?? "report.csv";
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }

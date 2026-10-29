@@ -22,6 +22,7 @@ import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
 import { insertPublicTranslationJob } from "@/api/routes/public-jobs/public-jobs.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { upsertExternalTmsJobRecords } from "@/lib/projects/external-tms/external-tms-sync-service";
 
 const { resolveApiAuthContextFromSessionMock, workspaceReportsFlagRunMock } = vi.hoisted(() => ({
@@ -49,6 +50,12 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
     workspaceReportsFlag: { run: workspaceReportsFlagRunMock },
   };
 });
+
+const { reportsInternalMock } = vi.hoisted(() => ({ reportsInternalMock: vi.fn() }));
+
+vi.mock("@/lib/go-svc/go-svc-server-client", () => ({
+  createGoSvcServerClient: () => ({ reports: { internal: reportsInternalMock } }),
+}));
 
 const mcpApp = createMcpTestApp();
 const fixture = createProjectTestFixture();
@@ -665,31 +672,28 @@ describe("MCP project manager tools", () => {
     });
   });
 
-  it("gates get_report on the workspace flag and billing, and reads like the page", async () => {
+  it("gates get_report on the workspace flag and billing, then reads through go-svc as the member", async () => {
     const stored = await fixture.createStoredProjectFixture();
     const translator = fixture.createWorkosIdentityForOrganization(
       stored.identity.organization,
       "translator",
     );
-
-    if (!stored.project.teamId) {
-      throw new Error("expected project team");
-    }
-
-    await fixture.authHeadersFor(translator);
-    const translatorAuth = globalThis.__testApiAuthContext;
-    if (!translatorAuth) {
-      throw new Error("expected translator auth context");
-    }
-
-    await db.insert(schema.teamMemberships).values({
-      teamId: stored.project.teamId,
-      userId: translatorAuth.user.localUserId,
-      role: "member",
-    });
+    reportsInternalMock.mockReset();
+    reportsInternalMock.mockImplementation(async (kind: string) => ({
+      kind,
+      summary: { pendingDays: 0, oldestMarkedAt: null },
+      stillUpdating: false,
+      ...(kind === "activity"
+        ? { activity: { current: { arrived: 0 }, series: [{ start: "2026-09-24" }] } }
+        : { wordCounts: { rows: [], groupBy: "task", series: { split: "band", per: "month" } } }),
+    }));
 
     workspaceReportsFlagRunMock.mockResolvedValueOnce(false);
     const adminHeaders = await authenticatedMcpHeaders(stored.identity);
+    const adminAuth = globalThis.__testApiAuthContext;
+    if (!adminAuth) {
+      throw new Error("expected admin auth context");
+    }
     const disabled = await readToolResult<{ error?: string }>(
       await callMcpTool(adminHeaders, "get_report", { report: "activity" }),
     );
@@ -698,6 +702,8 @@ describe("MCP project manager tools", () => {
     const refused = await readToolResult<{ error?: string }>(
       await callMcpTool(translatorHeaders, "get_report", { report: "costs" }),
     );
+    // Neither reached go-svc.
+    expect(reportsInternalMock).not.toHaveBeenCalled();
 
     // The same reads as the page: a kind, that tab's fields, and whether work is still counted.
     const activity = await readToolResult<{
@@ -716,23 +722,22 @@ describe("MCP project manager tools", () => {
         per: "month",
       }),
     );
-    const ai = await readToolResult<{
-      kind?: string;
-      aiUsage?: { rows?: unknown[]; groupBy?: string; thenBy?: string | null };
-    }>(
-      await callMcpTool(adminHeaders, "get_report", {
-        report: "ai",
-        groupBy: "model",
-        thenBy: "area",
-        key: "our_ai",
-      }),
-    );
     const invalid = await readToolResult<{ error?: string }>(
       await callMcpTool(adminHeaders, "get_report", {
         report: "words",
         from: "2026-06-10",
         to: "2026-06-01",
       }),
+    );
+    reportsInternalMock.mockRejectedValueOnce(
+      new GoSvcClientError({
+        code: "report_forbidden",
+        message: "Reports require billing access",
+        status: 403,
+      }),
+    );
+    const refusedByGoSvc = await readToolResult<{ error?: string; message?: string }>(
+      await callMcpTool(adminHeaders, "get_report", { report: "ai", groupBy: "model" }),
     );
 
     expect(disabled).toMatchObject({
@@ -751,19 +756,29 @@ describe("MCP project manager tools", () => {
       activity: { current: { arrived: 0 } },
     });
     expect(activity.output.activity?.series?.length).toBeGreaterThan(0);
-    // The table and its chart in one answer.
     expect(words.output).toMatchObject({
       kind: "words",
-      wordCounts: {
-        rows: [],
-        groupBy: "task",
-        series: { split: "band", per: "month", groups: [] },
-      },
+      wordCounts: { rows: [], groupBy: "task", series: { split: "band", per: "month" } },
     });
-    expect(ai.output).toMatchObject({
-      kind: "ai",
-      aiUsage: { rows: [], groupBy: "model", thenBy: "area" },
+    // go-svc is asked as the member, with the validated query and the page's defaults.
+    expect(reportsInternalMock.mock.calls.map((call) => call[0])).toEqual([
+      "activity",
+      "words",
+      "ai",
+    ]);
+    expect(reportsInternalMock.mock.calls[0][1]).toMatchObject({
+      organizationId: adminAuth.organization.localOrganizationId,
+      userId: adminAuth.user.localUserId,
+      query: { unit: "strings", step: "translation" },
+    });
+    expect(reportsInternalMock.mock.calls[0][1].query).not.toHaveProperty("format");
+    expect(reportsInternalMock.mock.calls[1][1]).toMatchObject({
+      query: { groupBy: "task", split: "band", per: "month", page: 1 },
     });
     expect(invalid).toMatchObject({ isError: true, output: { error: "invalid_report_query" } });
+    expect(refusedByGoSvc).toMatchObject({
+      isError: true,
+      output: { error: "report_forbidden", message: "Reports require billing access" },
+    });
   });
 });

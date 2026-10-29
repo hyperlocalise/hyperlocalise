@@ -45,7 +45,7 @@ const GET_ENDPOINTS: ReportsEndpoint[] = [
   "jobs",
 ];
 
-/** Storybook handlers for the Reports page's endpoints, answering with `reports.fixture.ts`. */
+/** Storybook handlers for the Reports page's go-svc routes, answering with `reports.fixture.ts`. */
 export function createReportsMswHandlers({
   settings = createReportsSettings(),
   wait,
@@ -54,7 +54,7 @@ export function createReportsMswHandlers({
   const bodies = reportsResponseBodies(settings);
   return [
     ...GET_ENDPOINTS.map((endpoint) =>
-      http.get(`*/api/orgs/:organizationSlug/reports/${endpoint}`, async ({ request }) => {
+      http.get(`*/v1/orgs/:organizationSlug/reports/${endpoint}`, async ({ request }) => {
         if (wait) await delay("infinite");
         if (failing.includes(endpoint))
           return HttpResponse.json({ error: "report_failed" }, { status: 500 });
@@ -82,7 +82,7 @@ export function createReportsMswHandlers({
         return HttpResponse.json(bodies[endpoint]);
       }),
     ),
-    http.get("*/api/orgs/:organizationSlug/reports/words/series", async ({ request }) => {
+    http.get("*/v1/orgs/:organizationSlug/reports/words/series", async ({ request }) => {
       if (wait) await delay("infinite");
       if (failing.includes("word-series"))
         return HttpResponse.json({ error: "report_failed" }, { status: 500 });
@@ -97,7 +97,7 @@ export function createReportsMswHandlers({
         },
       });
     }),
-    http.put("*/api/orgs/:organizationSlug/reports/rate-cards", async ({ request }) => {
+    http.put("*/v1/orgs/:organizationSlug/reports/rate-cards", async ({ request }) => {
       const body = (await request.json()) as {
         name: string;
         defaultBasis: string;
@@ -105,29 +105,29 @@ export function createReportsMswHandlers({
       };
       return HttpResponse.json({ rateCard: { ...body, lines: body.lines } });
     }),
-    http.post("*/api/orgs/:organizationSlug/reports/time-entries", () =>
+    http.post("*/v1/orgs/:organizationSlug/reports/time-entries", () =>
       HttpResponse.json({ timeEntry: { id: "time_new" } }, { status: 201 }),
     ),
-    http.put("*/api/orgs/:organizationSlug/reports/budgets", () =>
+    http.put("*/v1/orgs/:organizationSlug/reports/budgets", () =>
       HttpResponse.json({ budget: {} }),
     ),
-    http.get("*/api/orgs/:organizationSlug/reports/tasks/:jobId/analysis", () =>
+    http.get("*/v1/orgs/:organizationSlug/reports/tasks/:jobId/analysis", () =>
       HttpResponse.json(bodies["task-analysis"]),
     ),
-    http.get("*/api/orgs/:organizationSlug/reports/tasks/:jobId/report", async () => {
+    http.get("*/v1/orgs/:organizationSlug/reports/tasks/:jobId/report", async () => {
       if (wait) await delay("infinite");
       if (failing.includes("task-report"))
         return HttpResponse.json({ error: "report_failed" }, { status: 500 });
       return HttpResponse.json(bodies["task-report"]);
     }),
-    http.put("*/api/orgs/:organizationSlug/reports/task-rates", () =>
+    http.put("*/v1/orgs/:organizationSlug/reports/task-rates", () =>
       HttpResponse.json(bodies["task-rates"]),
     ),
-    http.patch("*/api/orgs/:organizationSlug/reports/time-entries/:id", ({ params }) =>
+    http.patch("*/v1/orgs/:organizationSlug/reports/time-entries/:id", ({ params }) =>
       HttpResponse.json({ timeEntry: { id: params.id } }),
     ),
     http.delete(
-      "*/api/orgs/:organizationSlug/reports/time-entries/:id",
+      "*/v1/orgs/:organizationSlug/reports/time-entries/:id",
       () => new HttpResponse(null, { status: 204 }),
     ),
   ];

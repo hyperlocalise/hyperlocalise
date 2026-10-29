@@ -31,8 +31,8 @@ const mocks = vi.hoisted(() => ({
   bodies: {} as Record<string, unknown>,
 }));
 
-vi.mock("@/lib/api-client-instance", async () => ({
-  apiClient: (await import("./reports.fixture")).reportsApiClient(mocks),
+vi.mock("@/lib/go-svc/use-go-svc-client", async () => ({
+  useGoSvcClient: (await import("./reports.fixture")).reportsGoSvcClient(mocks),
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));

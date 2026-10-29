@@ -10,19 +10,33 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { AiUsage, AiUsageTotals } from "@/lib/reporting/ai-usage";
-import type { BudgetRow, CostEstimate, Costs } from "@/lib/reporting/cost-queries";
-import type { RateCard } from "@/lib/reporting/rate-cards";
-import { resolvePeriod } from "@/lib/reporting/report-period";
-import type { AutomatedTime, LoggedTime, StepTime } from "@/lib/reporting/time-queries";
+import { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import type {
+  ActivityReport,
   ActivityTotals,
-  FinishedSeriesPoint,
-  WordCounts,
-  WordCountSeries,
-} from "@/lib/reporting/word-queries";
+  AiUsageReport,
+  AiUsageTotals,
+  AutomatedTime,
+  BudgetRow,
+  CostEstimate,
+  CostsReport,
+  RateCard,
+  ReportSettings,
+  StepTimesReport,
+  TaskReport,
+  TimeReport,
+  WordCountsReport,
+  WordSeriesReport,
+} from "@/lib/go-svc/go-svc-reports-api";
+import { resolvePeriod } from "@/lib/reporting/report-period";
 
-import type { ReportSettings, TaskReport } from "./reports-queries";
+type FinishedSeriesPoint = ActivityReport["series"][number];
+type StepTime = StepTimesReport["logged"][number];
+type LoggedTime = TimeReport["logged"];
+/** The word counts and their chart without the query they echo, which the handlers add. */
+type WordCounts = Omit<WordCountsReport, "period" | "unit" | "step" | "mode" | "groupBy">;
+type WordCountSeries = Omit<WordSeriesReport, "period" | "unit" | "step" | "mode">;
+type AiUsage = AiUsageReport;
 
 /** Sample Reports data for component tests, Storybook and its MSW handlers. */
 
@@ -380,7 +394,7 @@ export const reportsLoggedTime: {
   automated: reportsStepTimes.automated,
 };
 
-export const reportsCosts: { period: typeof reportsPeriod } & Costs = {
+export const reportsCosts: CostsReport = {
   period: reportsPeriod,
   rows: [
     {
@@ -736,48 +750,51 @@ export type ReportsApiState = {
   statuses?: Record<string, number>;
 };
 
-const ENDPOINTS = [
-  "settings",
-  "activity",
-  "step-times",
-  "ai-usage",
-  "words",
-  "time",
-  "costs",
-  "cost-estimate",
-  "budgets",
-  "rate-cards",
-  "jobs",
-  "time-entries",
-  "task-rates",
-] as const;
-
-/** A stand-in for the typed API client's Reports routes, for component tests. */
-export function reportsApiClient(state: ReportsApiState) {
-  const endpoint = (name: string) => {
-    const answer = (method: ReportsApiCall["method"]) => async (args: ReportsApiCall["args"]) => {
-      state.calls.push({ endpoint: name, method, args });
+/**
+ * A stand-in for go-svc's Reports routes, for component tests: `useGoSvcClient` answering with
+ * a client whose requests are recorded by endpoint and answered from `bodies`.
+ */
+export function reportsGoSvcClient(state: ReportsApiState) {
+  const client = new GoSvcClient({
+    baseUrl: "http://localhost",
+    getAccessToken: () => "test-access-token",
+    fetch: async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      const match = /^\/v1\/orgs\/([^/]+)\/reports\/(.+)$/.exec(url.pathname);
+      if (!match) throw new Error(`Unexpected go-svc request: ${url.pathname}`);
+      const param: Record<string, string> = { organizationSlug: decodeURIComponent(match[1]) };
+      const segments = match[2].split("/").map(decodeURIComponent);
+      const name = endpointName(segments, param);
+      const method = (init?.method ?? "GET").toLowerCase() as ReportsApiCall["method"];
+      const query = Object.fromEntries(url.searchParams);
+      const json = typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : undefined;
+      state.calls.push({ endpoint: name, method, args: { param, query, json } });
+      if (query.format === "csv")
+        return new Response("a,b\n1,2\n", {
+          headers: {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": `attachment; filename="${name}.csv"`,
+          },
+        });
       return new Response(JSON.stringify(state.bodies[name] ?? {}), {
         status: state.statuses?.[name] ?? 200,
         headers: { "Content-Type": "application/json" },
       });
-    };
-    return {
-      $get: answer("get"),
-      $put: answer("put"),
-      $post: answer("post"),
-      $patch: answer("patch"),
-      $delete: answer("delete"),
-      $url: () => new URL(`http://localhost/${name}.csv`),
-    };
-  };
-  const reports: Record<string, unknown> = Object.fromEntries(
-    ENDPOINTS.map((name) => [name, endpoint(name)]),
-  );
-  reports.tasks = {
-    ":jobId": { report: endpoint("task-report"), analysis: endpoint("task-analysis") },
-  };
-  reports["time-entries"] = { ...endpoint("time-entries"), ":id": endpoint("time-entry") };
-  reports.words = { ...endpoint("words"), series: endpoint("word-series") };
-  return { api: { orgs: { ":organizationSlug": { reports } } } };
+    },
+  });
+  return () => ({ client, loading: false });
+}
+
+/** The endpoint a path names, as the tests know it, with its path values. */
+function endpointName(segments: string[], param: Record<string, string>) {
+  if (segments[0] === "words" && segments[1] === "series") return "word-series";
+  if (segments[0] === "tasks" && segments.length === 3) {
+    param.jobId = segments[1];
+    return segments[2] === "report" ? "task-report" : "task-analysis";
+  }
+  if (segments[0] === "time-entries" && segments.length === 2) {
+    param.id = segments[1];
+    return "time-entry";
+  }
+  return segments.join("/");
 }

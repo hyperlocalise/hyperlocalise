@@ -49,7 +49,7 @@ import { ReportStatCard, ReportStatCards, ReportStatCardsSkeleton } from "./repo
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
 import { ReportSelect } from "./reports-filter-bar";
 import { reportsPageMessages as pageMessages } from "./reports-page.messages";
-import { aiUsageQuery, reportDownloadUrl, useAiUsage, type SectionInput } from "./reports-queries";
+import { aiUsageQuery, useReportCsv, useAiUsage, type SectionInput } from "./reports-queries";
 import { AI_USAGE_MEASURES, type ReportsUrlState } from "./reports-url-state";
 import { SegmentedSwitch } from "./segmented-switch";
 
@@ -405,6 +405,7 @@ function AiUsageTable({
   onChange: (change: Partial<ReportsUrlState>) => void;
 }) {
   const intl = useIntl();
+  const csv = useReportCsv(input.organizationSlug);
   const { state } = input;
   const numeric = "text-right tabular-nums";
   const options = AI_USAGE_DIMENSIONS.map((dimension) => ({
@@ -439,9 +440,7 @@ function AiUsageTable({
               onChange({ aiThen: value === NONE ? null : (value as AiUsageDimension) })
             }
           />
-          <DownloadCsvButton
-            href={reportDownloadUrl(input.organizationSlug, "ai-usage", aiUsageQuery(input))}
-          />
+          <DownloadCsvButton download={() => csv.section("ai-usage", aiUsageQuery(input))} />
         </>
       }
     >

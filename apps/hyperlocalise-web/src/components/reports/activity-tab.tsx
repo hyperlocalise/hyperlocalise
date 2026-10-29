@@ -40,7 +40,7 @@ import { ReportStatCard, ReportStatCards, ReportStatCardsSkeleton } from "./repo
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
 import { reportsPageMessages as pageMessages } from "./reports-page.messages";
 import {
-  reportDownloadUrl,
+  useReportCsv,
   stepTimesQuery,
   useActivityReport,
   useStepTimes,
@@ -310,6 +310,7 @@ function narrowedBeyondProject(input: SectionInput) {
 
 function StepTimesSection({ input }: { input: SectionInput }) {
   const intl = useIntl();
+  const csv = useReportCsv(input.organizationSlug);
   const stepTimes = useStepTimes(input);
   return (
     <ReportSection
@@ -320,9 +321,7 @@ function StepTimesSection({ input }: { input: SectionInput }) {
           : intl.formatMessage(messages.stepTimesDetail)
       }
       actions={
-        <DownloadCsvButton
-          href={reportDownloadUrl(input.organizationSlug, "step-times", stepTimesQuery(input))}
-        />
+        <DownloadCsvButton download={() => csv.section("step-times", stepTimesQuery(input))} />
       }
     >
       <ReportSectionState

@@ -19,7 +19,6 @@ import { hasCapability } from "@/api/auth/policy";
 import {
   buildAccessibleJobsWhere,
   canAccessProject,
-  getAccessibleProjectIds,
   ownedProjectWhere,
 } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
@@ -35,6 +34,8 @@ import {
   openJobStatusValues,
 } from "@/api/routes/project/job.schema";
 import { REPORT_QUERY_SCHEMAS } from "@/api/routes/reports/reports.schema";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
+import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
 import { db, schema } from "@/lib/database/client";
 import { workspaceReportsFlag } from "@/lib/flags/workspace-flags";
 import { formatMemberDisplayName } from "@/lib/members/member-management";
@@ -50,23 +51,13 @@ import {
   AI_USAGE_DIMENSIONS,
   AI_USAGE_MEASURES,
 } from "@/lib/reporting/ai-usage-origins";
-import {
-  REPORT_KINDS,
-  readActivity,
-  readAi,
-  readCosts,
-  readTime,
-  readWordReport,
-  summaryFreshness,
-  type ReportReadContext,
-} from "@/lib/reporting/report-reads";
+import { REPORT_KINDS } from "@/lib/reporting/report-reads";
 import {
   REPORT_STEPS,
   REPORT_UNITS,
   WORD_COUNT_INTERVALS,
   WORD_COUNT_SPLITS,
 } from "@/lib/reporting/report-units";
-import { getReportingStart } from "@/lib/reporting/reporting-start";
 
 /** A provider job's due date, or a native job's own. Needs externalJobDetails left-joined. */
 const jobDueDateSql =
@@ -525,56 +516,20 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
         });
       }
 
-      const startedAt = await getReportingStart(organizationId);
-      const context: ReportReadContext = {
-        organizationId,
-        projectIds: await getAccessibleProjectIds(apiAuth),
-        startedDay: startedAt ? startedAt.toISOString().slice(0, 10) : null,
-        today: new Date().toISOString().slice(0, 10),
-        financial: true,
-        userId: apiAuth.user.localUserId,
-      };
-      const summary = await summaryFreshness(organizationId);
-      const shared = { kind, summary, stillUpdating: summary.pendingDays > 0 };
-      switch (kind) {
-        case "activity":
-          return mcpToolJson({
-            ...shared,
-            activity: await readActivity(
-              context,
-              parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.activity>,
-            ),
-          });
-        case "words":
-          return mcpToolJson({
-            ...shared,
-            wordCounts: await readWordReport(
-              context,
-              parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.words>,
-            ),
-          });
-        case "time":
-          return mcpToolJson({
-            ...shared,
-            time: await readTime(context, parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.time>),
-          });
-        case "ai":
-          return mcpToolJson({
-            ...shared,
-            stillUpdating: false,
-            aiUsage: await readAi(context, {
-              ...(parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.ai>),
-              all: false,
-            }),
-          });
-        default:
-          return mcpToolJson({
-            ...shared,
-            costs: await readCosts(
-              context,
-              parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.costs>,
-            ),
-          });
+      // go-svc reads the report as the member, with the member's own project access.
+      const { format: _format, ...reportQuery } = parsed.data as Record<string, unknown>;
+      try {
+        return mcpToolJson(
+          await createGoSvcServerClient().reports.internal(kind, {
+            organizationId,
+            userId: apiAuth.user.localUserId,
+            query: reportQuery as Record<string, string | number | boolean | undefined>,
+          }),
+        );
+      } catch (error) {
+        if (error instanceof GoSvcClientError && error.status !== null && error.status < 500)
+          return mcpToolError(error.code, error.message);
+        throw error;
       }
     },
   );

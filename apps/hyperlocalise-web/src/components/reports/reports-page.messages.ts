@@ -25,6 +25,11 @@ export const reportsPageMessages = defineMessages({
     defaultMessage: "This could not be saved.",
     description: "Error shown when saving something on the Reports page fails",
   },
+  downloadFailed: {
+    id: "VGEYYw48AE",
+    defaultMessage: "This could not be downloaded.",
+    description: "Error shown when a CSV download from the Reports page fails",
+  },
   retry: {
     id: "yeQSCFltFQ",
     defaultMessage: "Try again",

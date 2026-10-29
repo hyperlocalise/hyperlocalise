@@ -33,8 +33,8 @@ const mocks = vi.hoisted(() => ({
   statuses: {} as Record<string, number>,
 }));
 
-vi.mock("@/lib/api-client-instance", async () => ({
-  apiClient: (await import("./reports.fixture")).reportsApiClient(mocks),
+vi.mock("@/lib/go-svc/use-go-svc-client", async () => ({
+  useGoSvcClient: (await import("./reports.fixture")).reportsGoSvcClient(mocks),
 }));
 
 vi.mock("next/link", () => ({
