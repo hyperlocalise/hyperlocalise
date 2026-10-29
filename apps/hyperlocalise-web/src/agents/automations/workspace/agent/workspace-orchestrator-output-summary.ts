@@ -347,10 +347,7 @@ export function readPushLoopsEmails(
     }
   }
 
-  const fromPriorStep = readStepResult(
-    outputSummary.orchestratorStepResults,
-    "push_loops_emails",
-  );
+  const fromPriorStep = readStepResult(outputSummary.orchestratorStepResults, "push_loops_emails");
   if (fromPriorStep && typeof fromPriorStep.pushedLocales === "number") {
     return fromPriorStep;
   }
