@@ -122,7 +122,11 @@ export async function acceptPendingInvitation(input: {
     // The newest invitation decides: an older accepted one may be from an earlier membership.
     const [latest] = invitations.data
       .filter((candidate) => candidate.email.trim().toLowerCase() === email)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      .sort(
+        (a, b) =>
+          b.createdAt.localeCompare(a.createdAt) ||
+          Number(b.state === "pending") - Number(a.state === "pending"),
+      );
     if (latest?.state === "pending") {
       await workos.userManagement.acceptInvitation(latest.id);
     } else if (latest?.state !== "accepted") {
