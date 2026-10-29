@@ -240,13 +240,10 @@ describe("Task report", () => {
     expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 
-  it("asks again soon when Reports is busy", async () => {
+  it("asks again soon when go-svc did not answer", async () => {
     const settings = mocks.bodies.settings;
-    mocks.statuses.settings = 503;
-    mocks.bodies.settings = {
-      error: "reports_busy",
-      message: "Reports is busy; try again shortly",
-    };
+    mocks.statuses.settings = 502;
+    mocks.bodies.settings = "<html>Bad gateway</html>";
     renderReport();
     await waitFor(() => expect(callsTo("settings")).toHaveLength(1));
     delete mocks.statuses.settings;
@@ -257,13 +254,16 @@ describe("Task report", () => {
     expect(callsTo("settings")).toHaveLength(2);
   });
 
-  it("does not run a report that took too long again", async () => {
-    mocks.statuses.settings = 503;
-    mocks.bodies.settings = { error: "report_timed_out", message: "The request took too long" };
-    renderReport();
-    expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
-    expect(callsTo("settings")).toHaveLength(1);
-  });
+  it.each(["reports_busy", "report_timed_out"])(
+    "does not ask go-svc again when it answers %s",
+    async (error) => {
+      mocks.statuses.settings = 503;
+      mocks.bodies.settings = { error, message: "Try again shortly" };
+      renderReport();
+      expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
+      expect(callsTo("settings")).toHaveLength(1);
+    },
+  );
 
   describe("Download CSV", () => {
     const saved: { name: string; href: string }[] = [];
@@ -271,16 +271,24 @@ describe("Task report", () => {
     beforeEach(() => {
       saved.length = 0;
       vi.mocked(toast.error).mockClear();
-      URL.createObjectURL = vi.fn(() => "blob:report");
       revoke.mockClear();
-      URL.revokeObjectURL = revoke;
+      vi.stubGlobal(
+        "URL",
+        class extends URL {
+          static createObjectURL = () => "blob:report";
+          static revokeObjectURL = revoke;
+        },
+      );
       vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
         this: HTMLAnchorElement,
       ) {
         saved.push({ name: this.download, href: this.href });
       });
     });
-    afterEach(() => vi.restoreAllMocks());
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    });
 
     it("saves the file under go-svc's name", async () => {
       renderReport();

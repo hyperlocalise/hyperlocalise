@@ -54,13 +54,20 @@ function compact(query: Query): ReportQuery {
 
 const optional = (value: string | null) => value ?? undefined;
 
-/** Codes the client gives a failure that is not go-svc's own answer, and go-svc's internal error. */
+/**
+ * Codes the client gives a failure that is not go-svc's own answer, and go-svc's answers that it
+ * could not read the report (an internal error, its database or WorkOS unavailable, or a sign-in
+ * it could not check), whose own text is not for the person.
+ */
 const UNANSWERED_CODES = new Set([
   "network_error",
   "missing_access_token",
   "http_error",
   "invalid_response",
   "internal_error",
+  "reports_unavailable",
+  "workos_membership_lookup_failed",
+  "unauthorized",
 ]);
 
 /**
@@ -82,18 +89,15 @@ async function reportRequest<T>(fallback: string, run: () => Promise<T>): Promis
 }
 
 /**
- * Whether no report ran, so asking again soon may work: go-svc could not be reached or was
- * restarting behind its load balancer, or Reports was busy. A report that ran and took too long,
- * or failed in any other way, is not run again.
+ * Whether go-svc did not answer, so asking again soon may work: it could not be reached or was
+ * restarting behind its load balancer (a load balancer's error has no CORS headers, so the browser
+ * reports it as unreachable). go-svc's own answers are not asked for again: a busy answer comes
+ * only after the request waited 30 s for a slot, and a report that took too long would take as
+ * long again.
  */
 function worthRetrying(error: unknown) {
   if (!(error instanceof ApiResponseError)) return false;
-  return (
-    error.code === "reports_busy" ||
-    error.code === "network_error" ||
-    error.status === 502 ||
-    error.status === 504
-  );
+  return error.code === "network_error" || error.status === 502 || error.status === 504;
 }
 
 const reportRetry = {
@@ -478,7 +482,10 @@ export function useReportCsv(organizationSlug: string) {
   };
 }
 
-/** Saving anything on the page reads every section again, behind the closed dialog. */
+/**
+ * Saving anything on the page reads every section again, and the save finishes once they have
+ * loaded, so a dialog or the rate card sheet never shows what was there before.
+ */
 function useInvalidateReports(organizationSlug: string) {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: reportsQueryKey(organizationSlug) });
@@ -493,7 +500,7 @@ export function useSaveRateCard(organizationSlug: string) {
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.saveRateCard(organizationSlug, body),
       ),
-    onSuccess: () => void invalidate(),
+    onSuccess: invalidate,
   });
 }
 
@@ -506,7 +513,7 @@ export function useLogTime(organizationSlug: string) {
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.logTime(organizationSlug, body),
       ),
-    onSuccess: () => void invalidate(),
+    onSuccess: invalidate,
   });
 }
 
@@ -519,7 +526,7 @@ export function useSetBudget(organizationSlug: string) {
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.setBudget(organizationSlug, body),
       ),
-    onSuccess: () => void invalidate(),
+    onSuccess: invalidate,
   });
 }
 
@@ -533,7 +540,7 @@ export function useSetTaskPricing(organizationSlug: string) {
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.setTaskPricing(organizationSlug, body),
       ),
-    onSuccess: () => void invalidate(),
+    onSuccess: invalidate,
   });
 }
 
@@ -546,7 +553,7 @@ export function useEditTime(organizationSlug: string) {
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.editTime(organizationSlug, id, body),
       ),
-    onSuccess: () => void invalidate(),
+    onSuccess: invalidate,
   });
 }
 
@@ -559,6 +566,6 @@ export function useDeleteTime(organizationSlug: string) {
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.deleteTime(organizationSlug, id),
       ),
-    onSuccess: () => void invalidate(),
+    onSuccess: invalidate,
   });
 }

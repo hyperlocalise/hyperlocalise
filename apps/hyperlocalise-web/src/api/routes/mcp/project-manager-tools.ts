@@ -67,6 +67,7 @@ const logger = createLogger("mcp-project-manager-tools");
  * Anything else (go-svc unreachable, an internal error, the server call refused) is ours to fix.
  */
 const REPORT_REFUSAL_CODES = new Set([
+  "organization_access_denied",
   "feature_unavailable",
   "report_forbidden",
   "invalid_report_query",
