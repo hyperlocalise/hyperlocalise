@@ -45,8 +45,9 @@ vi.mock("next/link", () => ({
 import { LeaveWorkspaceDialog } from "./leave-workspace-dialog";
 
 const onClose = vi.fn();
+const assign = vi.fn();
 
-function renderDialog() {
+function renderDialog(props: { isOnlyWorkspace?: boolean } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -54,8 +55,10 @@ function renderDialog() {
     <QueryClientProvider client={queryClient}>
       <IntlProvider locale="en" messages={{}}>
         <LeaveWorkspaceDialog
+          open
           organizationSlug="acme"
           organizationName="Acme Localization"
+          isOnlyWorkspace={props.isOnlyWorkspace ?? false}
           onClose={onClose}
         />
       </IntlProvider>
@@ -63,13 +66,20 @@ function renderDialog() {
   );
 }
 
-const emptyPreview = { blockedReason: null, apiKeys: [], automations: [] };
+const emptyPreview = {
+  blockedReason: null,
+  apiKeys: [],
+  automations: [],
+  apiKeyTotal: 0,
+  automationTotal: 0,
+};
 
 describe("LeaveWorkspaceDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.leave.mockResolvedValue(undefined);
-    mocks.finishLeavingWorkspaceAction.mockResolvedValue(undefined);
+    mocks.finishLeavingWorkspaceAction.mockResolvedValue({ redirectTo: "/org/beta/dashboard" });
+    vi.spyOn(window, "location", "get").mockReturnValue({ assign } as unknown as Location);
   });
 
   it("lists what stops working, then leaves and moves on", async () => {
@@ -77,11 +87,13 @@ describe("LeaveWorkspaceDialog", () => {
       blockedReason: null,
       apiKeys: [{ name: "CI key", keyPrefix: "hl_abcd1" }],
       automations: [{ id: "auto-1", name: "Weekly SEO check" }],
+      apiKeyTotal: 1,
+      automationTotal: 1,
     });
     renderDialog();
 
     expect(screen.getByRole("heading", { name: "Leave Acme Localization?" })).toBeTruthy();
-    expect(await screen.findByText("This access key stops working:")).toBeTruthy();
+    expect(await screen.findByText("This API key stops working:")).toBeTruthy();
     expect(screen.getByText("CI key")).toBeTruthy();
     expect(
       screen.getByText("This automation uses an account you connected and may stop working:"),
@@ -90,8 +102,62 @@ describe("LeaveWorkspaceDialog", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Leave workspace" }));
 
-    await waitFor(() => expect(mocks.finishLeavingWorkspaceAction).toHaveBeenCalledWith("acme"));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/org/beta/dashboard"));
     expect(mocks.leave).toHaveBeenCalledWith("acme");
+    expect(mocks.finishLeavingWorkspaceAction).toHaveBeenCalledWith("acme");
+    expect((screen.getByRole("button", { name: "Leaving…" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+
+  it("goes to the dashboard when moving on after leaving fails", async () => {
+    mocks.leavePreview.mockResolvedValue(emptyPreview);
+    mocks.finishLeavingWorkspaceAction.mockRejectedValue(new Error("down"));
+    renderDialog();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Leave workspace" }));
+
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/dashboard"));
+    expect(screen.queryByText("Could not leave the workspace. Try again.")).toBeNull();
+  });
+
+  it("moves on when the person already left in another tab", async () => {
+    mocks.leavePreview.mockResolvedValue(emptyPreview);
+    mocks.leave.mockRejectedValue(
+      new GoSvcClientError({
+        code: "organization_access_denied",
+        message: "Organization access denied",
+        status: 403,
+      }),
+    );
+    renderDialog();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Leave workspace" }));
+
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/org/beta/dashboard"));
+  });
+
+  it("counts what a shortened list leaves out", async () => {
+    mocks.leavePreview.mockResolvedValue({
+      ...emptyPreview,
+      apiKeys: [{ name: "CI key", keyPrefix: "hl_abcd1" }],
+      apiKeyTotal: 53,
+    });
+    renderDialog();
+
+    expect(await screen.findByText("These API keys stop working:")).toBeTruthy();
+    expect(screen.getByText("and 52 more")).toBeTruthy();
+  });
+
+  it("says what happens after leaving the only workspace", async () => {
+    mocks.leavePreview.mockResolvedValue(emptyPreview);
+    renderDialog({ isOnlyWorkspace: true });
+
+    expect(
+      await screen.findByText(
+        /This is your only workspace\. Afterwards you can create a new one or accept an invitation\./,
+      ),
+    ).toBeTruthy();
   });
 
   it("keeps Leave disabled until it knows what stops working", async () => {
@@ -132,7 +198,7 @@ describe("LeaveWorkspaceDialog", () => {
     mocks.leave.mockRejectedValue(
       new GoSvcClientError({
         code: "last_admin_protected",
-        message: "The workspace must have at least one admin",
+        message: "The workspace needs another admin who has accepted their invitation",
         status: 409,
       }),
     );
@@ -146,6 +212,7 @@ describe("LeaveWorkspaceDialog", () => {
       ),
     ).toBeTruthy();
     expect(mocks.finishLeavingWorkspaceAction).not.toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
   });
 
   it("says when leaving failed", async () => {

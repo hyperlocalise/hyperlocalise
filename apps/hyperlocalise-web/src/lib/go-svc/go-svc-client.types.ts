@@ -478,6 +478,9 @@ export type LeaveWorkspacePreview = {
   blockedReason: "last_admin" | null;
   apiKeys: Array<{ name: string; keyPrefix: string }>;
   automations: Array<{ id: string; name: string }>;
+  /** The lists are cut at 50; the totals count every match. */
+  apiKeyTotal: number;
+  automationTotal: number;
 };
 
 export type ApiKeyPermission = "jobs:read" | "jobs:write" | "files:read" | "files:write";

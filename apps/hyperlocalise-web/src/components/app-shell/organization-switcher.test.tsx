@@ -28,9 +28,13 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("./leave-workspace-dialog", () => ({
-  LeaveWorkspaceDialog: ({ organizationName }: { organizationName: string }) => (
-    <div role="dialog" aria-label={`Leave ${organizationName}`} />
-  ),
+  LeaveWorkspaceDialog: ({
+    open,
+    organizationName,
+  }: {
+    open: boolean;
+    organizationName: string;
+  }) => (open ? <div role="dialog" aria-label={`Leave ${organizationName}`} /> : null),
 }));
 
 vi.mock("next/link", () => ({

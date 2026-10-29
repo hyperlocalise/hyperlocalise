@@ -26,8 +26,20 @@ export const leaveWorkspaceDialogMessages = defineMessages({
   },
   checking: {
     defaultMessage: "Checking what changes when you leave…",
-    id: "rXCjp0zR7q",
-    description: "Shown while the leave workspace dialog loads the access keys and automations",
+    id: "lsoHEzfNM1",
+    description: "Shown while the leave workspace dialog loads the API keys and automations",
+  },
+  onlyWorkspace: {
+    defaultMessage:
+      "This is your only workspace. Afterwards you can create a new one or accept an invitation.",
+    id: "9MMt/YNSGT",
+    description: "Added to the leave workspace dialog when the person has no other workspace",
+  },
+  moreItems: {
+    defaultMessage: "and {count} more",
+    id: "Kg5oomFJK7",
+    description:
+      "Last line of a shortened list in the leave workspace dialog, counting the items not shown",
   },
   checkFailed: {
     defaultMessage: "Could not check what changes when you leave.",
@@ -53,9 +65,9 @@ export const leaveWorkspaceDialogMessages = defineMessages({
   },
   apiKeys: {
     defaultMessage:
-      "{count, plural, one {This access key stops working:} other {These access keys stop working:}}",
-    id: "RVRyeQ2zz9",
-    description: "Heading above the person's access keys that leaving the workspace revokes",
+      "{count, plural, one {This API key stops working:} other {These API keys stop working:}}",
+    id: "eIdejZFXxK",
+    description: "Heading above the person's API keys that leaving the workspace revokes",
   },
   automations: {
     defaultMessage:

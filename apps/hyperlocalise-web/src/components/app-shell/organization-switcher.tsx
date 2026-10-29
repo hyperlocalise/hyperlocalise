@@ -19,9 +19,9 @@ import {
   BuildingsIcon,
   CaretUpDownIcon,
   CheckIcon,
+  DoorOpenIcon,
   GearIcon,
   PlusIcon,
-  SignOutIcon,
   UserPlusIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react";
@@ -172,16 +172,6 @@ export function OrganizationSwitcher({
                       )}
                     </DropdownMenuItem>
                   ) : null}
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onClick={() => {
-                      closeMobileSidebar();
-                      setIsLeaveDialogOpen(true);
-                    }}
-                  >
-                    <SignOutIcon className="size-4" />
-                    <FormattedMessage {...organizationSwitcherMessages.leaveWorkspace} />
-                  </DropdownMenuItem>
                 </DropdownMenuGroup>
               </>
             ) : null}
@@ -208,12 +198,24 @@ export function OrganizationSwitcher({
               <BuildingsIcon className="size-4" />
               <FormattedMessage {...organizationSwitcherMessages.viewAllWorkspaces} />
             </DropdownMenuItem>
+            {activeSlug ? (
+              <>
+                <DropdownMenuSeparator />
+                {/* Keeps the mobile sidebar open: closing it would unmount this dialog. */}
+                <DropdownMenuItem variant="destructive" onClick={() => setIsLeaveDialogOpen(true)}>
+                  <DoorOpenIcon className="size-4" />
+                  <FormattedMessage {...organizationSwitcherMessages.leaveWorkspace} />
+                </DropdownMenuItem>
+              </>
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
-        {isLeaveDialogOpen && activeSlug ? (
+        {activeSlug ? (
           <LeaveWorkspaceDialog
+            open={isLeaveDialogOpen}
             organizationSlug={activeSlug}
             organizationName={activeOrganization.name}
+            isOnlyWorkspace={switchableOrganizations.length <= 1}
             onClose={() => setIsLeaveDialogOpen(false)}
           />
         ) : null}

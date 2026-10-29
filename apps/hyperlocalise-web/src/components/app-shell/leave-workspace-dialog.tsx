@@ -38,14 +38,24 @@ export function leaveWorkspacePreviewQueryKey(organizationSlug: string) {
 
 class LastAdminError extends Error {}
 
-/** Mounted only while open: it loads what stops working when the person leaves. */
+function isAlreadyLeft(error: unknown) {
+  // go-svc refuses a caller who is no longer a member, for example after leaving in
+  // another tab.
+  return error instanceof GoSvcClientError && error.code === "organization_access_denied";
+}
+
+/** Loads what stops working when the person leaves, each time it opens. */
 export function LeaveWorkspaceDialog({
+  open,
   organizationSlug,
   organizationName,
+  isOnlyWorkspace,
   onClose,
 }: {
+  open: boolean;
   organizationSlug: string;
   organizationName: string;
+  isOnlyWorkspace: boolean;
   onClose: () => void;
 }) {
   const { client } = useGoSvcClient();
@@ -53,6 +63,7 @@ export function LeaveWorkspaceDialog({
   const preview = useQuery({
     queryKey: leaveWorkspacePreviewQueryKey(organizationSlug),
     queryFn: () => client.member.leavePreview(organizationSlug),
+    enabled: open,
     staleTime: 0,
     gcTime: 0,
     retry: false,
@@ -66,33 +77,51 @@ export function LeaveWorkspaceDialog({
         if (error instanceof GoSvcClientError && error.code === "last_admin_protected") {
           throw new LastAdminError("last_admin_protected", { cause: error });
         }
-        throw error;
+        if (!isAlreadyLeft(error)) {
+          throw error;
+        }
       }
-      // Moves the session to another workspace and navigates there.
-      await finishLeavingWorkspaceAction(organizationSlug);
+      // The person has left; from here on only where they land can go wrong.
+      let redirectTo = "/dashboard";
+      try {
+        ({ redirectTo } = await finishLeavingWorkspaceAction(organizationSlug));
+      } catch {
+        // The dashboard finds the person's next workspace on its own.
+      }
+      // A full load: memberships and the session cookie have changed under this page.
+      window.location.assign(redirectTo);
     },
   });
 
   const isLastAdmin =
     preview.data?.blockedReason === "last_admin" || leave.error instanceof LastAdminError;
-  const leaveDisabled = !preview.data || isLastAdmin || leave.isPending || leave.isSuccess;
+  const isLeaving = leave.isPending || leave.isSuccess;
+  const close = () => {
+    if (isLeaving) {
+      return;
+    }
+    leave.reset();
+    onClose();
+  };
 
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open && !leave.isPending) {
-          onClose();
-        }
-      }}
-    >
-      <DialogContent className="border-border bg-background text-foreground sm:max-w-md">
+    <Dialog open={open} onOpenChange={(next) => !next && close()}>
+      <DialogContent
+        showCloseButton={!isLeaving}
+        className="max-h-[min(85dvh,42rem)] overflow-y-auto border-border bg-background text-foreground sm:max-w-md"
+      >
         <DialogHeader>
           <DialogTitle>
             <FormattedMessage {...messages.title} values={{ name: organizationName }} />
           </DialogTitle>
           <DialogDescription>
             <FormattedMessage {...messages.description} />
+            {isOnlyWorkspace ? (
+              <>
+                {" "}
+                <FormattedMessage {...messages.onlyWorkspace} />
+              </>
+            ) : null}
           </DialogDescription>
         </DialogHeader>
 
@@ -125,7 +154,7 @@ export function LeaveWorkspaceDialog({
               <p className="font-medium">
                 <FormattedMessage
                   {...messages.apiKeys}
-                  values={{ count: preview.data.apiKeys.length }}
+                  values={{ count: preview.data.apiKeyTotal }}
                 />
               </p>
               <ul className="space-y-1 text-muted-foreground">
@@ -135,6 +164,7 @@ export function LeaveWorkspaceDialog({
                     <code className="shrink-0 font-mono text-xs">{key.keyPrefix}…</code>
                   </li>
                 ))}
+                <MoreItems total={preview.data.apiKeyTotal} shown={preview.data.apiKeys.length} />
               </ul>
             </section>
           ) : null}
@@ -144,7 +174,7 @@ export function LeaveWorkspaceDialog({
               <p className="font-medium">
                 <FormattedMessage
                   {...messages.automations}
-                  values={{ count: preview.data.automations.length }}
+                  values={{ count: preview.data.automationTotal }}
                 />
               </p>
               <ul className="space-y-1 text-muted-foreground">
@@ -153,6 +183,10 @@ export function LeaveWorkspaceDialog({
                     {automation.name}
                   </li>
                 ))}
+                <MoreItems
+                  total={preview.data.automationTotal}
+                  shown={preview.data.automations.length}
+                />
               </ul>
             </section>
           ) : null}
@@ -165,14 +199,14 @@ export function LeaveWorkspaceDialog({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" disabled={leave.isPending} onClick={onClose}>
+          <Button type="button" variant="outline" disabled={isLeaving} onClick={close}>
             <FormattedMessage {...messages.cancel} />
           </Button>
           {isLastAdmin ? (
             <Button
               nativeButton={false}
               render={<Link href={buildOrganizationPath(organizationSlug, "members")} />}
-              onClick={onClose}
+              onClick={close}
             >
               <FormattedMessage {...messages.manageMembers} />
             </Button>
@@ -180,14 +214,25 @@ export function LeaveWorkspaceDialog({
             <Button
               type="button"
               variant="destructive"
-              disabled={leaveDisabled}
+              disabled={!preview.data || isLeaving}
               onClick={() => leave.mutate()}
             >
-              <FormattedMessage {...(leave.isPending ? messages.leaving : messages.leave)} />
+              <FormattedMessage {...(isLeaving ? messages.leaving : messages.leave)} />
             </Button>
           )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function MoreItems({ total, shown }: { total: number; shown: number }) {
+  if (total <= shown) {
+    return null;
+  }
+  return (
+    <li>
+      <FormattedMessage {...messages.moreItems} values={{ count: total - shown }} />
+    </li>
   );
 }

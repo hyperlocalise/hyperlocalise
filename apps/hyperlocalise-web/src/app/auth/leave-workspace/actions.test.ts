@@ -75,9 +75,9 @@ describe("finishLeavingWorkspaceAction", () => {
       organizations: [workspace("beta")],
     });
 
-    await expect(finishLeavingWorkspaceAction("acme")).rejects.toThrow(
-      "redirect:/org/beta/dashboard",
-    );
+    expect(await finishLeavingWorkspaceAction("acme")).toEqual({
+      redirectTo: "/org/beta/dashboard",
+    });
     expect(mocks.refreshSession).toHaveBeenCalledWith({ organizationId: "org_beta" });
     expect(mocks.setStoredActiveOrganizationSlug).toHaveBeenCalledWith("beta");
   });
@@ -88,9 +88,9 @@ describe("finishLeavingWorkspaceAction", () => {
       organizations: [workspace("beta")],
     });
 
-    await expect(finishLeavingWorkspaceAction("acme")).rejects.toThrow(
-      "redirect:/org/beta/dashboard",
-    );
+    expect(await finishLeavingWorkspaceAction("acme")).toEqual({
+      redirectTo: "/org/beta/dashboard",
+    });
     expect(mocks.refreshSession).not.toHaveBeenCalled();
   });
 
@@ -106,9 +106,9 @@ describe("finishLeavingWorkspaceAction", () => {
       ],
     });
 
-    await expect(finishLeavingWorkspaceAction("acme")).rejects.toThrow(
-      "redirect:/org/gamma/dashboard",
-    );
+    expect(await finishLeavingWorkspaceAction("acme")).toEqual({
+      redirectTo: "/org/gamma/dashboard",
+    });
     expect(mocks.refreshSession).toHaveBeenCalledWith({ organizationId: "org_gamma" });
   });
 
@@ -119,27 +119,42 @@ describe("finishLeavingWorkspaceAction", () => {
     });
     mocks.refreshSession.mockRejectedValue(new Error("refresh refused"));
 
-    await expect(finishLeavingWorkspaceAction("acme")).rejects.toThrow(
-      "redirect:/org/beta/dashboard",
-    );
+    expect(await finishLeavingWorkspaceAction("acme")).toEqual({
+      redirectTo: "/org/beta/dashboard",
+    });
   });
 
   it("signs out when the session was for the only workspace left", async () => {
     mocks.withAuth.mockResolvedValue(sessionFor("org_acme"));
     mocks.resolveApiAuthContextFromSession.mockResolvedValue(null);
 
-    await expect(finishLeavingWorkspaceAction("acme")).rejects.toThrow(
-      "redirect:/auth/sign-out?returnTo=%2Fdashboard",
-    );
+    expect(await finishLeavingWorkspaceAction("acme")).toEqual({
+      redirectTo: "/auth/sign-out?returnTo=%2Fdashboard",
+    });
     expect(mocks.clearStoredActiveOrganizationSlug).toHaveBeenCalled();
     expect(mocks.refreshSession).not.toHaveBeenCalled();
   });
 
   it("sends a session without a workspace to the dashboard when none is left", async () => {
     mocks.withAuth.mockResolvedValue(sessionFor(undefined));
+    mocks.resolveApiAuthContextFromSession.mockResolvedValue({ organizations: [] });
+
+    expect(await finishLeavingWorkspaceAction("acme")).toEqual({ redirectTo: "/dashboard" });
+    expect(mocks.clearStoredActiveOrganizationSlug).toHaveBeenCalled();
+  });
+
+  it("does not sign out when the remaining workspaces cannot be read", async () => {
+    mocks.withAuth.mockResolvedValue(sessionFor("org_acme"));
     mocks.resolveApiAuthContextFromSession.mockRejectedValue(new Error("lookup failed"));
 
-    await expect(finishLeavingWorkspaceAction("acme")).rejects.toThrow("redirect:/dashboard");
-    expect(mocks.clearStoredActiveOrganizationSlug).toHaveBeenCalled();
+    expect(await finishLeavingWorkspaceAction("acme")).toEqual({ redirectTo: "/dashboard" });
+    expect(mocks.clearStoredActiveOrganizationSlug).not.toHaveBeenCalled();
+    expect(mocks.refreshSession).not.toHaveBeenCalled();
+  });
+
+  it("sends someone who is not signed in to sign in", async () => {
+    mocks.withAuth.mockResolvedValue({ user: null });
+
+    await expect(finishLeavingWorkspaceAction("acme")).rejects.toThrow("redirect:/auth/sign-in");
   });
 });

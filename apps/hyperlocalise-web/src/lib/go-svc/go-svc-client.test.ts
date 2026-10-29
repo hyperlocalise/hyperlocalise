@@ -199,7 +199,15 @@ describe("GoSvcClient", () => {
         }),
       )
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
-      .mockResolvedValueOnce(Response.json({ blockedReason: null, apiKeys: [], automations: [] }))
+      .mockResolvedValueOnce(
+        Response.json({
+          blockedReason: null,
+          apiKeys: [],
+          automations: [],
+          apiKeyTotal: 0,
+          automationTotal: 0,
+        }),
+      )
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     const client = clientWith(fetchMock);
 
@@ -211,6 +219,8 @@ describe("GoSvcClient", () => {
       blockedReason: null,
       apiKeys: [],
       automations: [],
+      apiKeyTotal: 0,
+      automationTotal: 0,
     });
     await client.member.leave("acme");
 

@@ -28,14 +28,19 @@ import { withAuth } from "@/lib/workos/server-auth";
 
 const logger = createLogger("leave-workspace-action");
 
+export type FinishLeavingWorkspaceResult = { redirectTo: string };
+
 /**
- * Runs after the person has left `leftOrganizationSlug`, and sends them to another workspace.
+ * Runs after the person has left `leftOrganizationSlug`, and says where to go next. The
+ * dialog loads that page in full: a redirect here would reach its mutation as an error.
  *
  * AuthKit renews a session for the workspace it was issued for. A session issued for the
  * workspace just left is moved to the next workspace, or ended when none is left, so it
  * is not refused, and the person signed out, a few minutes later.
  */
-export async function finishLeavingWorkspaceAction(leftOrganizationSlug: string): Promise<never> {
+export async function finishLeavingWorkspaceAction(
+  leftOrganizationSlug: string,
+): Promise<FinishLeavingWorkspaceResult> {
   const session = await withAuth({ ensureSignedIn: true });
   if (!session.user) {
     redirect("/auth/sign-in");
@@ -56,10 +61,12 @@ export async function finishLeavingWorkspaceAction(leftOrganizationSlug: string)
   try {
     organizations = (await resolveApiAuthContextFromSession({ session }))?.organizations ?? [];
   } catch (error) {
+    // Unknown, not none: the dashboard sorts out where the person belongs.
     logger.warn("leave_workspace_memberships_unavailable", {
       workosUserId: session.user.id,
       error,
     });
+    return { redirectTo: "/dashboard" };
   }
   // A session can only be issued for a workspace the person has joined in WorkOS.
   const remaining = organizations.filter(
@@ -75,7 +82,9 @@ export async function finishLeavingWorkspaceAction(leftOrganizationSlug: string)
   if (!next) {
     await clearStoredActiveOrganizationSlug();
     // Signing in again starts a session with no workspace, which onboarding then fills.
-    redirect(sessionIsForLeftWorkspace ? "/auth/sign-out?returnTo=%2Fdashboard" : "/dashboard");
+    return {
+      redirectTo: sessionIsForLeftWorkspace ? "/auth/sign-out?returnTo=%2Fdashboard" : "/dashboard",
+    };
   }
 
   await setStoredActiveOrganizationSlug(next.slug);
@@ -89,5 +98,5 @@ export async function finishLeavingWorkspaceAction(leftOrganizationSlug: string)
       });
     }
   }
-  redirect(`/org/${next.slug}/dashboard`);
+  return { redirectTo: `/org/${next.slug}/dashboard` };
 }
