@@ -177,6 +177,35 @@ describe("pending invitations", () => {
     expect(isErr(result) && result.error.code).toBe("membership_not_activated");
   });
 
+  it("finishes joining when the invitation was already accepted elsewhere", async () => {
+    const { invitingIdentity, sessionUser } = await invitedToSecondWorkspace();
+    workosMocks.listInvitations.mockResolvedValue({
+      data: [{ id: "invitation_1", email: sessionUser.email, state: "accepted" }],
+    });
+    workosMocks.listOrganizationMemberships.mockResolvedValue({
+      autoPagination: async () => [
+        {
+          id: `om_${randomUUID()}`,
+          organizationId: invitingIdentity.organization.workosOrganizationId,
+          status: "active",
+          role: { slug: "member" },
+        },
+      ],
+    });
+    workosMocks.getOrganization.mockResolvedValue({
+      id: invitingIdentity.organization.workosOrganizationId,
+      name: invitingIdentity.organization.name,
+    });
+
+    const result = await acceptPendingInvitation({
+      sessionUser,
+      organizationSlug: invitingIdentity.organization.slug!,
+    });
+
+    expect(isOk(result)).toBe(true);
+    expect(workosMocks.acceptInvitation).not.toHaveBeenCalled();
+  });
+
   it("ignores an invitation that is no longer pending", async () => {
     const { invitingIdentity, sessionUser } = await invitedToSecondWorkspace();
     workosMocks.listInvitations.mockResolvedValue({

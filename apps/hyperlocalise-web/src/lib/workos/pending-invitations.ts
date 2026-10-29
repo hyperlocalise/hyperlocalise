@@ -116,15 +116,18 @@ export async function acceptPendingInvitation(input: {
       organizationId: pending.workosOrganizationId,
       email,
     });
-    const invitation = invitations.data.find(
-      (candidate) =>
-        candidate.state === "pending" && candidate.email.trim().toLowerCase() === email,
+    const ownInvitations = invitations.data.filter(
+      (candidate) => candidate.email.trim().toLowerCase() === email,
     );
-    if (!invitation) {
+    const pendingInvitation = ownInvitations.find((candidate) => candidate.state === "pending");
+    // Accepted already (an earlier click, or the email link) but not yet synced here:
+    // the reconcile below picks up the membership WorkOS made.
+    const alreadyAccepted = ownInvitations.some((candidate) => candidate.state === "accepted");
+    if (pendingInvitation) {
+      await workos.userManagement.acceptInvitation(pendingInvitation.id);
+    } else if (!alreadyAccepted) {
       return err({ code: "invitation_not_found" });
     }
-
-    await workos.userManagement.acceptInvitation(invitation.id);
   } catch (error) {
     logger.warn("accept_invitation_failed", {
       workosUserId: sessionUser.id,

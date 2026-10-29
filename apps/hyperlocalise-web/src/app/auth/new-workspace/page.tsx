@@ -10,10 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { redirect } from "next/navigation";
-
 import { OnboardingWizard } from "@/app/auth/onboarding/_components/onboarding-wizard";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
+import { getStoredActiveOrganizationSlug } from "@/lib/workos/active-organization";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { getAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
@@ -25,10 +24,20 @@ export async function generateMetadata() {
 
 export default async function NewWorkspacePage() {
   // Someone with no workspace yet is sent on to onboarding (or their pending invitation).
-  const auth = await requireAppAuthContext();
-  if (!auth.activeOrganization.slug) {
-    redirect("/auth/select-organization");
-  }
+  // The remembered workspace is only a hint for Cancel: it may be one the person has left.
+  const [auth, storedSlug] = await Promise.all([
+    requireAppAuthContext({ ignoreStoredActiveOrganization: true }),
+    getStoredActiveOrganizationSlug(),
+  ]);
+  const cancelSlug =
+    auth.organizations.find((organization) => organization.slug && organization.slug === storedSlug)
+      ?.slug ??
+    auth.activeOrganization.slug ??
+    auth.organizations.find((organization) => organization.slug)?.slug;
 
-  return <OnboardingWizard cancelHref={`/org/${auth.activeOrganization.slug}/dashboard`} />;
+  return (
+    <OnboardingWizard
+      cancelHref={cancelSlug ? `/org/${cancelSlug}/dashboard` : "/auth/select-organization"}
+    />
+  );
 }

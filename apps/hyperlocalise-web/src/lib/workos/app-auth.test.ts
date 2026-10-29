@@ -202,4 +202,25 @@ describe("requireAppAuthContext", () => {
     );
     expect(setStoredActiveOrganizationSlugMock).not.toHaveBeenCalled();
   });
+
+  it("does not reveal invitations to a session whose email is not verified", async () => {
+    const session = {
+      user: { id: "user_123", email: "person@example.com", emailVerified: false },
+      organizationId: "org_home",
+    };
+    const { StaleOrganizationSlugError } = await import("@/api/auth/workos-session");
+
+    withAuthMock.mockResolvedValue(session);
+    hasPendingInvitationToOrganizationMock.mockResolvedValue(true);
+    resolveApiAuthContextFromSessionMock.mockRejectedValue(
+      new StaleOrganizationSlugError("invited-workspace", "home-workspace"),
+    );
+
+    const { requireAppAuthContext } = await import("./app-auth");
+
+    await expect(requireAppAuthContext({ organizationSlug: "invited-workspace" })).rejects.toThrow(
+      "redirect:/org/home-workspace/dashboard",
+    );
+    expect(hasPendingInvitationToOrganizationMock).not.toHaveBeenCalled();
+  });
 });
