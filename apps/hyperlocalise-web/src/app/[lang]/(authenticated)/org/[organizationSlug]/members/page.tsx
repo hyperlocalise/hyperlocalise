@@ -25,7 +25,13 @@ export default function MembersPage({ params }: { params: Promise<{ organization
 
 async function MembersPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
-  await requireAppAuthContext({ organizationSlug });
+  const auth = await requireAppAuthContext({ organizationSlug });
 
-  return <MembersPageContent organizationSlug={organizationSlug} />;
+  return (
+    <MembersPageContent
+      organizationSlug={organizationSlug}
+      organizationName={auth.activeOrganization.name}
+      isOnlyWorkspace={auth.organizations.filter((organization) => organization.slug).length <= 1}
+    />
+  );
 }

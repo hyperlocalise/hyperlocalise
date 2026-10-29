@@ -30,7 +30,7 @@ import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { leaveWorkspaceDialogMessages as messages } from "./leave-workspace-dialog.messages";
-import { buildOrganizationPath } from "./navigation-config";
+import { buildOrganizationPath } from "@/components/app-shell/navigation-config";
 
 export function leaveWorkspacePreviewQueryKey(organizationSlug: string) {
   return ["leave-workspace-preview", organizationSlug] as const;
@@ -51,15 +51,12 @@ export function LeaveWorkspaceDialog({
   organizationName,
   isOnlyWorkspace,
   onClose,
-  onNavigateAway,
 }: {
   open: boolean;
   organizationSlug: string;
   organizationName: string;
   isOnlyWorkspace: boolean;
   onClose: () => void;
-  /** Called when a link in the dialog opens another page, such as Manage members. */
-  onNavigateAway?: () => void;
 }) {
   const { client } = useGoSvcClient();
   const queryClient = useQueryClient();
@@ -228,10 +225,7 @@ export function LeaveWorkspaceDialog({
             <Button
               nativeButton={false}
               render={<Link href={buildOrganizationPath(organizationSlug, "members")} />}
-              onClick={() => {
-                close();
-                onNavigateAway?.();
-              }}
+              onClick={close}
             >
               <FormattedMessage {...messages.manageMembers} />
             </Button>
