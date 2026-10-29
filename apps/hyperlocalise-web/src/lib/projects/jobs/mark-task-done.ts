@@ -20,16 +20,21 @@ import { captureJobStatus } from "@/lib/reporting/capture";
 /** Kinds of task a person works through in the editor; nothing else finishes them. */
 export const PERSON_TASK_KINDS = ["proofread", "translation"] as const;
 
-export type MarkTaskDoneError = { code: "job_not_found" } | { code: "job_action_unavailable" };
+export type MarkTaskDoneError =
+  | { code: "job_not_found" }
+  | { code: "job_action_unavailable" }
+  | { code: "not_task_assignee" };
 
 /**
  * Marks a task for people done: an open proofread, post-edit or translation task waiting
  * on a person. Agent jobs and provider mirrors finish on their own and are excluded.
+ * Reviewers and managers may finish any such task; anyone else only a task assigned to them.
  */
 export async function markTaskDone(input: {
   organizationId: string;
   jobId: string;
   actorUserId: string;
+  actorMayFinishAnyTask: boolean;
   accessWhere: SQL | undefined;
   database?: DatabaseClient;
 }): Promise<Result<{ id: string }, MarkTaskDoneError>> {
@@ -40,10 +45,8 @@ export async function markTaskDone(input: {
     .set({
       status: "succeeded",
       lastError: null,
-      outcomePayload: {
-        code: "marked_done_by_user",
-        message: "Marked done by user",
-      },
+      // No message: lists show an outcome message as a failure reason.
+      outcomePayload: { code: "marked_done_by_user" },
       completedAt: new Date(),
     })
     .where(
@@ -51,6 +54,7 @@ export async function markTaskDone(input: {
         eq(schema.jobs.id, input.jobId),
         eq(schema.jobs.organizationId, input.organizationId),
         input.accessWhere,
+        input.actorMayFinishAnyTask ? undefined : eq(schema.jobs.ownerUserId, input.actorUserId),
         eq(schema.jobs.status, "waiting_for_review"),
         inArray(schema.jobs.kind, [...PERSON_TASK_KINDS]),
         or(isNull(schema.jobs.assigneeType), ne(schema.jobs.assigneeType, "agent")),
@@ -66,7 +70,7 @@ export async function markTaskDone(input: {
 
   if (!done) {
     const [existing] = await database
-      .select({ id: schema.jobs.id })
+      .select({ id: schema.jobs.id, ownerUserId: schema.jobs.ownerUserId })
       .from(schema.jobs)
       .where(
         and(
@@ -77,7 +81,16 @@ export async function markTaskDone(input: {
       )
       .limit(1);
 
-    return err({ code: existing ? "job_action_unavailable" : "job_not_found" });
+    if (!existing) {
+      return err({ code: "job_not_found" });
+    }
+
+    return err({
+      code:
+        !input.actorMayFinishAnyTask && existing.ownerUserId !== input.actorUserId
+          ? "not_task_assignee"
+          : "job_action_unavailable",
+    });
   }
 
   await recordJobEvents({

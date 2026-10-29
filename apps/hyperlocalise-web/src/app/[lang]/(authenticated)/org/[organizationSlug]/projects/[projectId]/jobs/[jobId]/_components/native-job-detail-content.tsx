@@ -102,12 +102,17 @@ export function NativeJobDetailContent({
   organizationSlug,
   projectId,
   canEditJobFields = false,
+  canMarkAnyTaskDone = false,
+  currentUserId,
   reportsEnabled = false,
 }: {
   jobId: string;
   organizationSlug: string;
   projectId: string;
   canEditJobFields?: boolean;
+  /** Reviewers and managers may finish any task for people; others only their own. */
+  canMarkAnyTaskDone?: boolean;
+  currentUserId?: string;
   reportsEnabled?: boolean;
 }) {
   const [markFailedDialogOpen, setMarkFailedDialogOpen] = useState(false);
@@ -262,10 +267,13 @@ export function NativeJobDetailContent({
       setMarkDoneDialogOpen(false);
       toast.success(intl.formatMessage(messages.taskMarkedDone));
     },
-    onError: (error) => {
+    onError: async (error) => {
       toast.error(
         error instanceof Error ? error.message : intl.formatMessage(messages.failedToMarkTaskDone),
       );
+      // Someone else may have finished or cancelled the task meanwhile.
+      setMarkDoneDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: jobQueryKey });
     },
   });
 
@@ -389,12 +397,6 @@ export function NativeJobDetailContent({
           )}
         </Button>
       ) : null}
-      {canEditJobFields && canMarkTaskDone(job) ? (
-        <Button size="sm" disabled={jobActionPending} onClick={() => setMarkDoneDialogOpen(true)}>
-          <CheckCircleIcon />
-          <FormattedMessage {...messages.markTaskDone} />
-        </Button>
-      ) : null}
       {canCancelJob(job) ? (
         <Button
           size="sm"
@@ -416,6 +418,19 @@ export function NativeJobDetailContent({
           <FormattedMessage {...messages.markAsFailed} />
         </Button>
       ) : null}
+      {canEditJobFields &&
+      canMarkTaskDone(job) &&
+      (canMarkAnyTaskDone || (currentUserId !== undefined && job.ownerUserId === currentUserId)) ? (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={jobActionPending}
+          onClick={() => setMarkDoneDialogOpen(true)}
+        >
+          <CheckCircleIcon />
+          <FormattedMessage {...messages.markTaskDone} />
+        </Button>
+      ) : null}
       {showCatAction && contentEditorHref ? (
         <Button size="sm" render={<Link href={contentEditorHref} />}>
           <ListBulletsIcon />
@@ -435,12 +450,7 @@ export function NativeJobDetailContent({
           <JobDetailEditableTitle
             title={layout?.title ?? jobId}
             editable={isNativeEditable}
-            disabled={
-              retryJob.isPending ||
-              markJobFailed.isPending ||
-              cancelJob.isPending ||
-              saveTitle.isPending
-            }
+            disabled={jobActionPending || saveTitle.isPending}
             onSave={async (nextTitle) => {
               await saveTitle.mutateAsync(nextTitle);
             }}

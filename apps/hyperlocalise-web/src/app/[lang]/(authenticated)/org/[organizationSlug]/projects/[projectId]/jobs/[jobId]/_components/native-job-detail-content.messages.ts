@@ -149,8 +149,8 @@ export const nativeJobDetailContentMessages = defineMessages({
   },
   markTaskDoneDescription: {
     defaultMessage:
-      "The task closes for everyone working on it and cannot be reopened. Strings not yet approved stay as they are.",
-    id: "yqe47wF98S",
+      "The task moves to done and can't be reopened. Unfinished strings stay as they are, and later edits no longer count towards this task.",
+    id: "OgcxgmUfpQ",
     description: "Body of the confirmation dialog for marking a task for people done",
   },
   keepTaskOpen: {

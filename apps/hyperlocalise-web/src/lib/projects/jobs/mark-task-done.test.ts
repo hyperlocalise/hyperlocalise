@@ -66,6 +66,7 @@ async function createTask(values: Partial<typeof schema.jobs.$inferInsert> = {})
       organizationId: organization.id,
       jobId: task.id,
       actorUserId: user.id,
+      actorMayFinishAnyTask: true,
       accessWhere: eq(schema.jobs.organizationId, organization.id),
     },
   };
@@ -116,19 +117,46 @@ describe("markTaskDone", () => {
     expect((await readStatus(task.id)).status).toBe("succeeded");
   });
 
-  it.each<[string, Partial<typeof schema.jobs.$inferInsert>]>([
+  it.each<[string, Partial<typeof schema.jobs.$inferInsert>, boolean?]>([
     ["an agent's job", { kind: "translation", assigneeType: "agent" }],
     ["an AI review", { kind: "review" }],
     ["a task already cancelled", { status: "cancelled" }],
     ["a task still queued", { status: "queued" }],
-  ])("leaves %s alone", async (_label, values) => {
+    ["a task mirrored from a provider", {}, true],
+  ])("leaves %s alone", async (_label, values, providerBacked) => {
     const { task, input } = await createTask(values);
+    if (providerBacked) {
+      await db.insert(schema.externalJobDetails).values({
+        jobId: task.id,
+        organizationId: task.organizationId,
+        providerKind: "crowdin",
+        externalJobId: `task_${randomUUID()}`,
+        externalTaskId: `task_${randomUUID()}`,
+        externalStatus: "open",
+      });
+    }
 
     const result = await markTaskDone(input);
 
     expect(isErr(result) && result.error.code).toBe("job_action_unavailable");
     expect((await readStatus(task.id)).status).toBe(values.status ?? "waiting_for_review");
     expect(mocks.captureJobStatus).not.toHaveBeenCalled();
+  });
+
+  it("lets someone without review rights finish only a task assigned to them", async () => {
+    const { task, user, input } = await createTask();
+    const restricted = { ...input, actorMayFinishAnyTask: false };
+
+    const refused = await markTaskDone(restricted);
+    expect(isErr(refused) && refused.error.code).toBe("not_task_assignee");
+    expect((await readStatus(task.id)).status).toBe("waiting_for_review");
+
+    await db
+      .update(schema.jobs)
+      .set({ ownerUserId: user.id, assigneeType: "user" })
+      .where(eq(schema.jobs.id, task.id));
+    expect(isOk(await markTaskDone(restricted))).toBe(true);
+    expect((await readStatus(task.id)).status).toBe("succeeded");
   });
 
   it("does not find a task in another workspace", async () => {

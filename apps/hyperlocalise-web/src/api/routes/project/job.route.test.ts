@@ -620,7 +620,7 @@ describe("project job create", () => {
     expect(proofreadUsage).toEqual([]);
   });
 
-  it("marks a native proofread task done once, and refuses a second time", async () => {
+  it("marks a native proofread task done once, hidden from people outside its teams", async () => {
     const { identity, organization, project } = await createFixture.createStoredProjectFixture();
     const headers = await createFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
@@ -659,10 +659,28 @@ describe("project job create", () => {
         { headers },
       );
 
+    const translator = createFixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    const translatorResponse = await createClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "mark-done"
+    ].$post(
+      { param: { organizationSlug, jobId: created.job.id } },
+      { headers: await createFixture.authHeadersFor(translator) },
+    );
+    // A translator outside the project's teams cannot see the task at all.
+    expect(translatorResponse.status).toBe(404);
+
     const doneResponse = await markDone();
     expect(doneResponse.status).toBe(200);
     const done = (await doneResponse.json()) as { job: { status: string } };
     expect(done.job.status).toBe("succeeded");
+    const events = await db
+      .select({ type: schema.jobEvents.type })
+      .from(schema.jobEvents)
+      .where(eq(schema.jobEvents.jobId, created.job.id));
+    expect(events).toEqual([{ type: "job_marked_done" }]);
 
     expect((await markDone()).status).toBe(409);
   });

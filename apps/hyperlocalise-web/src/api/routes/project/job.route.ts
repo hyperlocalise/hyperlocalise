@@ -112,6 +112,8 @@ import {
 import { updateNativeJob } from "@/lib/projects/jobs/update-native-job";
 import { cancelNativeJob } from "@/lib/projects/jobs/cancel-native-job";
 import { markTaskDone } from "@/lib/projects/jobs/mark-task-done";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
+import { hasCapability } from "@/api/auth/policy";
 
 type CreateJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
@@ -1560,13 +1562,21 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         organizationId: c.var.auth.organization.localOrganizationId,
         jobId: params.jobId,
         actorUserId: c.var.auth.user.localUserId,
+        actorMayFinishAnyTask: hasCapability(c.var.auth.membership.role, "reviews:approve"),
         accessWhere: await buildAccessibleJobsWhere(c.var.auth),
       });
 
       if (isErr(done)) {
-        return done.error.code === "job_action_unavailable"
-          ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
-          : notFoundResponse(c, "job_not_found", "Job not found");
+        switch (done.error.code) {
+          case "job_action_unavailable":
+            return conflictResponse(c, "job_action_unavailable", "Job action is not available");
+          case "not_task_assignee":
+            return projectForbiddenResponse(c);
+          case "job_not_found":
+            return notFoundResponse(c, "job_not_found", "Job not found");
+          default:
+            return assertNever(done.error);
+        }
       }
 
       const [job] = await db
