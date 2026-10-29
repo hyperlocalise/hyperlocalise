@@ -1,0 +1,72 @@
+---
+title: "Localize Loops"
+description: "Connect Loops, import transactional, campaign, and workflow emails as HTML, translate in Jobs, then push approved locales as unpublished copies."
+---
+
+Connect Loops once in workspace **Integrations**, then run the **Translate Loops Emails** automation template on a schedule. Import never changes Loops. **Push to Loops** is a separate action. It creates separate unpublished locale copies and never edits the source email or publishes anything.
+
+## Prerequisites
+
+| Requirement | Description |
+| --- | --- |
+| Native project | A [native project](/platform/projects/create-project) whose source locale matches the language of the default copy in Loops. Add a project target locale for each language you will push back. |
+| Loops API key | Created in Loops **Settings → API**. The key needs permission to read and write transactional emails, campaigns, workflows, and email messages. |
+| Locale mapping | Push sets the Loops `languageCode` from the primary subtag of the project locale (`fr-FR` writes `fr`, `pt-BR` writes `pt`). Enable translation for those languages in Loops, or the copy lands without its language label. |
+
+## Connect Loops
+
+1. Open workspace **Integrations** and find **Loops**.
+2. Paste the API key.
+3. Save. Hyperlocalise pings the Loops API to confirm the key is valid. A rejected key is not stored.
+4. Confirm the connection shows as connected.
+
+Connect Loops before you add the Loops skill. The automation and the Content Editor buttons use the same connection.
+
+## Create the automation
+
+1. Open workspace **Automations** and select **New Automation**.
+2. Apply the **Translate Loops Emails** template, or add the **Translate Loops Emails** skill from **Add Skill**. Do not attach Braze or Customer.io tools to the same automation.
+3. Attach the native project.
+4. Choose a **scheduled** or **manual** trigger. A schedule imports changed emails. It does not push copies.
+5. Under **Loops Transactional, Campaigns & Workflows**, confirm the connection badge shows connected.
+6. Save the automation.
+
+Loops is not a trigger type. Use a schedule or **Run now** for import. Use **Push to Loops** for write-back.
+
+## Import emails
+
+**Run now** or wait for the schedule. Import writes one HTML source file per email:
+
+- Transactional emails at `loops/transactional/{slug}.html`
+- Campaign emails at `loops/campaigns/{slug}.html`
+- Workflow `SendEmailAction` emails at `loops/workflows/{workflow-slug}/{slug}.html`
+
+Each file stores the subject, preview text, and LMX text segments in field blocks. In the Content Editor they open in HTML File view. Review those files like other [HTML sources](/platform/projects/files).
+
+Import skips emails stored in legacy MJML, drafts that cannot be read as LMX, and names that already look like locale copies (`Welcome [fr]`). `{data.*}`, `{contact.*}`, and `{event.*}` variables stay protected so translators do not break personalization.
+
+When **Create native TMS job** is enabled, the run opens a job for mapped locales that still need translation. Import does not write anything to Loops.
+
+Inspect **Run History** for imported, skipped, and failed items, plus jobs created.
+
+## Review and push locale copies
+
+1. Translate and [approve](/platform/cat) the mapped locales you want to write back.
+2. Open a Loops file in the Content editor. The header shows **Ingest** and **Push to Loops** for that file. Choose **Ingest** to import the automation's configured set, or **Push to Loops** when at least one mapped locale is approved and no push is already running. Hyperlocalise then opens the automation **Run History** tab so you can follow the run.
+3. Confirm Loops shows a new copy named `{source} [{locale}]`, for example `Welcome [fr]`. The source email is unchanged and the copy stays unpublished.
+
+Workflow locale copies are created as unpublished transactional copies, since Loops has no duplicate-workflow endpoint. Review and publish each copy in Loops before it can send.
+
+## Change or remove access
+
+Disconnect Loops from **Integrations** when this workspace should stop using that Loops account. Inspect automations that depend on the connection before you disconnect.
+
+## If import or push does not run
+
+- Confirm Loops is connected and the automation is **Active**.
+- Confirm the project source locale matches the language of the default copy in Loops.
+- Confirm translation is enabled in Loops for each target language, or copies land without a language label.
+- If **Push to Loops** or **Ingest** is missing, open a Loops file. Those actions stay hidden on other files. Approve at least one mapped locale, confirm you can manage automations, and wait until any in-progress push finishes.
+- Open **Run History** for the failed email or locale.
+
+See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).
