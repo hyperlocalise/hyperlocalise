@@ -14,11 +14,22 @@ import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
-  requireAppAuthContext: vi.fn(),
+  getAppAuthContextAllowingNoWorkspace: vi.fn(),
   getStoredActiveOrganizationSlug: vi.fn(),
+  listPendingInvitations: vi.fn(),
 }));
 
-vi.mock("@/lib/workos/app-auth", () => ({ requireAppAuthContext: mocks.requireAppAuthContext }));
+vi.mock("next/navigation", () => ({
+  redirect: (path: string) => {
+    throw new Error(`redirect:${path}`);
+  },
+}));
+vi.mock("@/lib/workos/app-auth", () => ({
+  getAppAuthContextAllowingNoWorkspace: mocks.getAppAuthContextAllowingNoWorkspace,
+}));
+vi.mock("@/lib/workos/pending-invitations", () => ({
+  listPendingInvitations: mocks.listPendingInvitations,
+}));
 vi.mock("@/lib/workos/active-organization", () => ({
   getStoredActiveOrganizationSlug: mocks.getStoredActiveOrganizationSlug,
 }));
@@ -28,10 +39,15 @@ vi.mock("@/app/auth/onboarding/_components/onboarding-wizard", () => ({
 
 import NewWorkspacePage from "./page";
 
+const sessionUser = { id: "user_1", emailVerified: true };
+
 function authWith(activeSlug: string | null, slugs: Array<string | null>) {
   return {
-    activeOrganization: { slug: activeSlug },
-    organizations: slugs.map((slug) => ({ slug })),
+    sessionUser,
+    auth: {
+      activeOrganization: { slug: activeSlug },
+      organizations: slugs.map((slug) => ({ slug })),
+    },
   };
 }
 
@@ -48,17 +64,21 @@ describe("NewWorkspacePage", () => {
   });
 
   it("returns Cancel to the workspace the person was last in", async () => {
-    mocks.requireAppAuthContext.mockResolvedValue(authWith("alpha", ["alpha", "beta"]));
+    mocks.getAppAuthContextAllowingNoWorkspace.mockResolvedValue(
+      authWith("alpha", ["alpha", "beta"]),
+    );
     mocks.getStoredActiveOrganizationSlug.mockResolvedValue("beta");
 
     expect(await cancelHref()).toBe("/org/beta/dashboard");
-    expect(mocks.requireAppAuthContext).toHaveBeenCalledWith({
+    expect(mocks.getAppAuthContextAllowingNoWorkspace).toHaveBeenCalledWith({
       ignoreStoredActiveOrganization: true,
     });
   });
 
   it("prefers the workspace the switcher was opened from", async () => {
-    mocks.requireAppAuthContext.mockResolvedValue(authWith("alpha", ["alpha", "beta"]));
+    mocks.getAppAuthContextAllowingNoWorkspace.mockResolvedValue(
+      authWith("alpha", ["alpha", "beta"]),
+    );
     mocks.getStoredActiveOrganizationSlug.mockResolvedValue("alpha");
 
     expect(await cancelHref("beta")).toBe("/org/beta/dashboard");
@@ -66,16 +86,34 @@ describe("NewWorkspacePage", () => {
   });
 
   it("ignores a remembered workspace the person has left", async () => {
-    mocks.requireAppAuthContext.mockResolvedValue(authWith("alpha", ["alpha"]));
+    mocks.getAppAuthContextAllowingNoWorkspace.mockResolvedValue(authWith("alpha", ["alpha"]));
     mocks.getStoredActiveOrganizationSlug.mockResolvedValue("gone");
 
     expect(await cancelHref()).toBe("/org/alpha/dashboard");
   });
 
   it("still offers the form when no workspace has an address", async () => {
-    mocks.requireAppAuthContext.mockResolvedValue(authWith(null, [null]));
+    mocks.getAppAuthContextAllowingNoWorkspace.mockResolvedValue(authWith(null, [null]));
     mocks.getStoredActiveOrganizationSlug.mockResolvedValue(null);
 
     expect(await cancelHref()).toBe("/auth/select-organization");
+  });
+
+  it("offers the form to someone with no workspace and an invitation, returning to the picker", async () => {
+    mocks.getAppAuthContextAllowingNoWorkspace.mockResolvedValue({ sessionUser, auth: null });
+    mocks.getStoredActiveOrganizationSlug.mockResolvedValue("left-workspace");
+    mocks.listPendingInvitations.mockResolvedValue([
+      { organizationName: "Gamma", organizationSlug: "gamma" },
+    ]);
+
+    expect(await cancelHref()).toBe("/auth/select-organization");
+  });
+
+  it("sends someone with no workspace and no invitation to onboarding", async () => {
+    mocks.getAppAuthContextAllowingNoWorkspace.mockResolvedValue({ sessionUser, auth: null });
+    mocks.getStoredActiveOrganizationSlug.mockResolvedValue(null);
+    mocks.listPendingInvitations.mockResolvedValue([]);
+
+    await expect(cancelHref()).rejects.toThrow("redirect:/auth/onboarding");
   });
 });

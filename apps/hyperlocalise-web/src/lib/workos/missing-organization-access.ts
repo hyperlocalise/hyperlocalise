@@ -18,6 +18,7 @@ import { promoteInvitedPlaceholderUser } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import { isReplacingWorkosMembershipSql } from "@/lib/workos/constants";
+import { listPendingInvitations } from "@/lib/workos/pending-invitations";
 
 const logger = createLogger("missing-organization-access");
 
@@ -66,13 +67,16 @@ export async function hasPendingOrganizationMembershipForWorkosUser(
 type RedirectForMissingOrganizationAccessInput = {
   email: string;
   workosUserId?: string;
+  emailVerified?: boolean;
 };
 
 export async function redirectForMissingOrganizationAccess(
   input: RedirectForMissingOrganizationAccessInput | string,
 ): Promise<never> {
-  const { email, workosUserId } =
-    typeof input === "string" ? { email: input, workosUserId: undefined } : input;
+  const { email, workosUserId, emailVerified } =
+    typeof input === "string"
+      ? { email: input, workosUserId: undefined, emailVerified: false }
+      : input;
 
   if (await hasPendingOrganizationMembership(email)) {
     if (workosUserId) {
@@ -102,6 +106,12 @@ export async function redirectForMissingOrganizationAccess(
             }
           : {}),
       });
+    }
+
+    // The picker lists a verified person's invitations with Accept, and lets them create
+    // a workspace instead.
+    if (workosUserId && emailVerified && (await listPendingInvitations(workosUserId)).length > 0) {
+      redirect("/auth/select-organization");
     }
 
     redirect("/auth/access-denied?reason=pending-invite");

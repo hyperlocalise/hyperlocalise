@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
-import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { getAppAuthContextAllowingNoWorkspace } from "@/lib/workos/app-auth";
 import { listPendingInvitations } from "@/lib/workos/pending-invitations";
 import { getAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
@@ -29,11 +29,14 @@ export async function generateMetadata() {
 }
 
 export default async function SelectOrganizationPage() {
-  const auth = await requireAppAuthContext({ ignoreStoredActiveOrganization: true });
+  // Someone with no workspace yet sees their invitations and Create workspace here.
+  const { auth, sessionUser } = await getAppAuthContextAllowingNoWorkspace({
+    ignoreStoredActiveOrganization: true,
+  });
   const intl = getIntlShape(await getAppLocale());
   // Invitations go to an email address, so only a verified address may see them.
-  const pendingInvitations = auth.sessionUser.emailVerified
-    ? await listPendingInvitations(auth.sessionUser.id)
+  const pendingInvitations = sessionUser.emailVerified
+    ? await listPendingInvitations(sessionUser.id)
     : [];
 
   const title = intl.formatMessage({
@@ -55,12 +58,12 @@ export default async function SelectOrganizationPage() {
           <CardDescription className="text-muted-foreground">{description}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          {auth.organizations.map((organization) =>
+          {(auth?.organizations ?? []).map((organization) =>
             organization.slug ? (
               <Button
                 key={organization.localOrganizationId}
                 variant={
-                  organization.localOrganizationId === auth.activeOrganization.localOrganizationId
+                  organization.localOrganizationId === auth?.activeOrganization.localOrganizationId
                     ? "default"
                     : "outline"
                 }

@@ -65,6 +65,35 @@ vi.mock("@/lib/workos/pending-invitations", () => ({
   hasPendingInvitationToOrganization: hasPendingInvitationToOrganizationMock,
 }));
 
+describe("getAppAuthContextAllowingNoWorkspace", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each([
+    ["has no memberships", () => resolveApiAuthContextFromSessionMock.mockResolvedValue(null)],
+    [
+      "is refused access",
+      () =>
+        resolveApiAuthContextFromSessionMock.mockRejectedValue(
+          new Error("organization_access_denied"),
+        ),
+    ],
+  ])("returns no workspace instead of redirecting when the person %s", async (_case, arrange) => {
+    const user = { id: "user_123", email: "person@example.com", emailVerified: true };
+    withAuthMock.mockResolvedValue({ user, organizationId: null });
+    arrange();
+
+    const { getAppAuthContextAllowingNoWorkspace } = await import("./app-auth");
+
+    expect(
+      await getAppAuthContextAllowingNoWorkspace({ ignoreStoredActiveOrganization: true }),
+    ).toEqual({ sessionUser: user, auth: null });
+    expect(redirectForMissingOrganizationAccessMock).not.toHaveBeenCalled();
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("requireAppAuthContext", () => {
   afterEach(() => {
     vi.clearAllMocks();

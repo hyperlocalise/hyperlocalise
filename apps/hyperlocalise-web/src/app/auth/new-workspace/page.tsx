@@ -10,10 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { redirect } from "next/navigation";
+
 import { OnboardingWizard } from "@/app/auth/onboarding/_components/onboarding-wizard";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { getStoredActiveOrganizationSlug } from "@/lib/workos/active-organization";
-import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { getAppAuthContextAllowingNoWorkspace } from "@/lib/workos/app-auth";
+import { listPendingInvitations } from "@/lib/workos/pending-invitations";
 import { getAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 export async function generateMetadata() {
@@ -27,22 +30,29 @@ export default async function NewWorkspacePage({
 }: {
   searchParams: Promise<{ from?: string }>;
 }) {
-  // Someone with no workspace yet is sent on to onboarding (or their pending invitation).
+  // Someone with no workspace yet may get here from the picker, where their invitations are.
   // The remembered workspace is only a hint for Cancel: it may be one the person has left.
-  const [auth, storedSlug, { from }] = await Promise.all([
-    requireAppAuthContext({ ignoreStoredActiveOrganization: true }),
+  const [{ auth, sessionUser }, storedSlug, { from }] = await Promise.all([
+    getAppAuthContextAllowingNoWorkspace({ ignoreStoredActiveOrganization: true }),
     getStoredActiveOrganizationSlug(),
     searchParams,
   ]);
+  // With no workspace and nothing to go back to, this is a first workspace: onboarding.
+  if (
+    !auth &&
+    !(sessionUser.emailVerified && (await listPendingInvitations(sessionUser.id)).length > 0)
+  ) {
+    redirect("/auth/onboarding");
+  }
+  const organizations = auth?.organizations ?? [];
   const memberSlug = (slug: string | null | undefined) =>
-    auth.organizations.find((organization) => organization.slug && organization.slug === slug)
-      ?.slug;
+    organizations.find((organization) => organization.slug && organization.slug === slug)?.slug;
   // The switcher names the workspace the person is in; the remembered one is a fallback.
   const cancelSlug =
     memberSlug(from) ??
     memberSlug(storedSlug) ??
-    auth.activeOrganization.slug ??
-    auth.organizations.find((organization) => organization.slug)?.slug;
+    auth?.activeOrganization.slug ??
+    organizations.find((organization) => organization.slug)?.slug;
 
   return (
     <OnboardingWizard
