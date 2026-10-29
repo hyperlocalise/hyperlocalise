@@ -111,6 +111,7 @@ vi.mock("@/lib/log", () => ({
     warn: vi.fn(),
     debug: vi.fn(),
   }),
+  serializeErrorForLog: vi.fn((error: Error) => ({ error })),
 }));
 
 import { executeGithubContentSync } from "./execute-github-content-sync";
