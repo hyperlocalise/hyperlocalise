@@ -102,6 +102,13 @@ func (api *reportingAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 	route("GET "+base+"/words/series", "billing:read", "report_costs_forbidden", api.wordSeries)
 	route("GET "+base+"/words", "billing:read", "report_costs_forbidden", api.words)
 	route("GET "+base+"/time", "", "", api.time)
+	route("GET "+base+"/ai-usage", "billing:read", "report_costs_forbidden", api.aiUsage)
+	route("GET "+base+"/costs", "billing:read", "report_costs_forbidden", api.costs)
+	route("GET "+base+"/cost-estimate", "billing:read", "report_costs_forbidden", api.costEstimate)
+	route("GET "+base+"/budgets", "billing:read", "report_costs_forbidden", api.budgets)
+	route("GET "+base+"/rate-cards", "billing:read", "report_costs_forbidden", api.rateCards)
+	route("GET "+base+"/tasks/{jobId}/report", "", "", api.taskReport)
+	route("GET "+base+"/tasks/{jobId}/analysis", "", "", api.taskAnalysis)
 }
 
 func (api *reportingAPI) actor(ctx context.Context, claims AuthClaims, slug string) (reportingActor, error) {

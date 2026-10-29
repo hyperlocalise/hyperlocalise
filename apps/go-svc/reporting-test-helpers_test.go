@@ -32,9 +32,11 @@ func reportingRequest(t *testing.T, api *reportingAPI, workosUserID, method, pat
 	t.Helper()
 	mux := http.NewServeMux()
 	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: workosUserID}})
+	api.registerInternal(mux)
 	req := httptest.NewRequest(method, path, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Origin", "http://127.0.0.1")
+	req.Header.Set(serverCallTokenHeader, serverCallToken())
 	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
@@ -202,4 +204,25 @@ func mustReportingSummary(t *testing.T, scope *testenv.Scope, rows []reportingSu
         from reporting_daily_by_task where organization_id = $1
         group by organization_id, project_id, target_locale, step, bucket, source, day`, scope.OrganizationID)
 	require.NoError(t, err)
+}
+
+func some[T any](v T) *T { return &v }
+
+// reportingSendRaw sends a request to a mux with no session and no service token.
+func reportingSendRaw(t *testing.T, mux *http.ServeMux, method, path, body string) (int, map[string]any) {
+	t.Helper()
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return reportingDecode(t, rec.Code, rec.Body.Bytes(), rec.Header().Get("Content-Type"))
+}
+
+func reportingDecode(t *testing.T, status int, body []byte, contentType string) (int, map[string]any) {
+	t.Helper()
+	var decoded map[string]any
+	if strings.HasPrefix(contentType, "application/json") && len(body) > 0 {
+		require.NoError(t, json.Unmarshal(body, &decoded), string(body))
+	}
+	return status, decoded
 }

@@ -43,6 +43,22 @@ func usdString(value *big.Int) string {
 	return sign + whole.String() + "." + strings.Repeat("0", usdFractionDigits-len(digits)) + digits
 }
 
+// reportingPaidPercent is the share of a match band a rate line pays, from its band percentages.
+// The unavailable band (the memory could not be read when the string arrived) is paid as new
+// work. Spent and the estimate both price by this one rule.
+func reportingPaidPercent(raw []byte, bucket string) (int, error) {
+	if bucket == "unavailable" {
+		bucket = "new"
+	}
+	return reportingPayablePercent(raw, bucket)
+}
+
+// unitCost is the cost of a number of units (words or characters) at a per-unit rate and
+// payable share.
+func unitCost(rate string, units, payablePercent int) (*big.Int, error) {
+	return wordCost(rate, units, payablePercent)
+}
+
 func wordCost(rate string, words, payablePercent int) (*big.Int, error) {
 	units, err := usdUnits(rate)
 	if err != nil {

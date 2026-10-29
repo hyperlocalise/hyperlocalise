@@ -757,8 +757,16 @@ Requires workspace authentication, `DATABASE_URL`, and the `workspace-reports` f
 | GET | `/reports/words` | `billing:read` | Units by match band, grouped by project, task (50 a page), week, language or task step; `format=csv` for every row |
 | GET | `/reports/words/series` | `billing:read` | The volume chart: units per day, week or month, split by project, language, band tier or task step |
 | GET | `/reports/time` | Member | Time people logged, 50 rows a page, and automated time for `billing:read`; other roles see their own time only; `format=csv` |
+| GET | `/reports/ai-usage` | `billing:read` | AI calls, tokens, images, videos and billing's charge from `usage_events`, grouped by one detail and optionally a second, with the chart; `format=csv` for every group |
+| GET | `/reports/costs` | `billing:read` | What was spent in the period by project, people and AI, with AI outside any project and the previous period; `format=csv` |
+| GET | `/reports/cost-estimate` | `billing:read` | What chosen tasks (`jobIds`, up to 50) or one whole project (`projectId`) will cost at the live rates, by the task's card, then the project budget's, then `rateCard`; `format=csv` |
+| GET | `/reports/budgets` | `billing:read` | Each project's budget against what was spent and what is still to come; `format=csv` |
+| GET | `/reports/rate-cards` | `billing:read` | Every rate card with its current lines, and whether the viewer may change them |
+| GET | `/reports/tasks/{jobId}/report` | Member | One task's words, estimate, what is still to come, time and pricing; other roles see their own time only; `format=csv` for `billing:read` |
+| GET | `/reports/tasks/{jobId}/analysis` | Member | The state of the task's analysis per step; counts and errors for `billing:read` |
+| POST | `/internal/reports/{kind}` | Service token | The MCP `get_report` tool: `{organizationId, userId, query}` answered as `activity`, `words` (with its chart), `time`, `ai` or `costs` for that member, with `summary` and `stillUpdating` |
 
-**Access control:** `billing:read` (admins and localization managers) sees reports and money; `billing:write` (admins) changes rate cards, budgets and pricing; `jobs:write` logs time. Project visibility follows team membership, with organization-wide access for admins and localization managers; a filter for a project the viewer cannot open reads nothing.
+**Access control:** `billing:read` (admins and localization managers) sees reports and money; the internal route applies the named member's own access (workspace, flag, billing); `billing:write` (admins) changes rate cards, budgets and pricing; `jobs:write` logs time. Project visibility follows team membership, with organization-wide access for admins and localization managers; a filter for a project the viewer cannot open reads nothing.
 
 **Dates:** UTC calendar days as `YYYY-MM-DD`, from 2000 on, never past today and never from before Reports started for the workspace; the default period is the last 28 days and is compared with the period of the same length before it; periods over 45 days are charted by week (Monday start).
 
@@ -769,6 +777,8 @@ Requires workspace authentication, `DATABASE_URL`, and the `workspace-reports` f
 ```bash
 GO_SVC_INTEGRATION=1 go test ./apps/go-svc -run 'Reporting|CachedWorkspaceFlags'
 ```
+
+Money is fixed-point USD at eight decimals (`reporting-money.go`); an estimate prices the daily summary's units at the live rate card line by line in each line's own basis, and spent amounts are the recorded costs plus billing's gateway charges placed by `reporting-ai-attribution.go`.
 
 ## Members
 

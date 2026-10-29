@@ -177,6 +177,7 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.reports != nil {
 		h.reports.register(mux, verifier)
+		h.reports.registerInternal(mux)
 	}
 	if h.knowledgeMemories != nil {
 		h.knowledgeMemories.register(mux, verifier)
