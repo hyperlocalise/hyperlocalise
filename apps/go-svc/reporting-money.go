@@ -10,11 +10,10 @@ import (
 const usdFractionDigits = 8
 
 var (
-	usdScale = big.NewInt(100_000_000)
-	big30    = big.NewInt(30)
-	big60    = big.NewInt(60)
-	big80    = big.NewInt(80)
-	big100   = big.NewInt(100)
+	big30  = big.NewInt(30)
+	big60  = big.NewInt(60)
+	big80  = big.NewInt(80)
+	big100 = big.NewInt(100)
 
 	errInvalidUSD = errors.New("invalid_usd_amount")
 
