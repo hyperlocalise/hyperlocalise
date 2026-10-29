@@ -101,6 +101,8 @@ func (api *memberAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("POST "+m, bindActor(api, (*memberAPI).inviteMemberHandler))
 	route("PATCH "+m+"/{workosUserId}", bindActor(api, (*memberAPI).updateMemberHandler))
 	route("DELETE "+m+"/{workosUserId}", bindActor(api, (*memberAPI).deleteMemberHandler))
+	route("GET "+m+"/leave", bindActor(api, (*memberAPI).leaveWorkspacePreviewHandler))
+	route("POST "+m+"/leave", bindActor(api, (*memberAPI).leaveWorkspaceHandler))
 }
 
 func (api *memberAPI) actor(ctx context.Context, claims AuthClaims, slug string) (memberActor, error) {

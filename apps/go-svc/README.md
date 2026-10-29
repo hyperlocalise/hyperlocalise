@@ -799,11 +799,15 @@ cannot assign or manage the `admin` role. New invites check Autumn `seats` when
 |--------|------|-----------|
 | GET, POST | `/members` | List members or invite a member |
 | PATCH, DELETE | `/members/{workosUserId}` | Update a member role or remove a member |
+| GET, POST | `/members/leave` | List the caller's access keys and automations that stop working, or leave |
 
 Invite and pending-role updates send WorkOS invitations. Active memberships
 sync role and removal through WorkOS organization memberships. Successful
 mutations write `member_invited`, `member_invite_resent`, `member_role_changed`,
-and `member_removed` events to `organization_activity_events`.
+`member_removed` and `member_left` events to `organization_activity_events`.
+Removing or demoting an admin, or an admin leaving, needs another admin who has
+accepted their invitation; the check holds its lock until WorkOS has removed the
+membership.
 
 ## Workspace settings
 

@@ -4,16 +4,19 @@ import (
 	"context"
 )
 
-func (api *memberAPI) reconcileRevokedMembership(ctx context.Context, actor memberActor, member organizationMember) error {
+// reconcileRevokedMembership removes the membership and everything tied to it, and logs
+// eventType. removeFromWorkos, when set, runs while the admin rows are locked, so two
+// admins leaving or removing each other cannot both get past the last-admin check.
+func (api *memberAPI) reconcileRevokedMembership(ctx context.Context, actor memberActor, member organizationMember, eventType string, removeFromWorkos func(context.Context) error) error {
 	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), memberRevokeReconcileTimeout)
 	defer cancel()
-	if err := api.revokeOrganizationMembershipAccess(cleanupCtx, actor, member); err != nil {
+	if err := api.revokeOrganizationMembershipAccessAfter(cleanupCtx, actor, member, removeFromWorkos); err != nil {
 		return err
 	}
 	if shouldCleanupPlaceholderUserOnMemberRemoval(member.workosUserID) {
 		api.cleanupInvitedPlaceholderUser(cleanupCtx, member.localUserID)
 	}
-	api.enqueueMemberActivity(cleanupCtx, actor, "member_removed", "membership", member.membershipID, map[string]any{
+	api.enqueueMemberActivity(cleanupCtx, actor, eventType, "membership", member.membershipID, map[string]any{
 		"memberUserId": member.localUserID,
 		"membershipId": member.membershipID,
 	})
@@ -21,6 +24,10 @@ func (api *memberAPI) reconcileRevokedMembership(ctx context.Context, actor memb
 }
 
 func (api *memberAPI) revokeOrganizationMembershipAccess(ctx context.Context, actor memberActor, member organizationMember) error {
+	return api.revokeOrganizationMembershipAccessAfter(ctx, actor, member, nil)
+}
+
+func (api *memberAPI) revokeOrganizationMembershipAccessAfter(ctx context.Context, actor memberActor, member organizationMember, removeFromWorkos func(context.Context) error) error {
 	tx, err := api.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -28,7 +35,12 @@ func (api *memberAPI) revokeOrganizationMembershipAccess(ctx context.Context, ac
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	if member.role == "admin" {
-		if err := lockOrganizationAdminsAndCount(ctx, tx, actor.organizationID); err != nil {
+		if err := lockOrganizationAdminsAndCount(ctx, tx, actor.organizationID, member.localUserID); err != nil {
+			return err
+		}
+	}
+	if removeFromWorkos != nil {
+		if err := removeFromWorkos(ctx); err != nil {
 			return err
 		}
 	}
