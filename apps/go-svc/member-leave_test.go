@@ -237,9 +237,39 @@ func TestMemberLeaveCountsAPromotionMadeWhileLeaving(t *testing.T) {
 	_, err = scope.Pool.Exec(t.Context(), `update organization_memberships set role='member' where user_id=$1`, scope.UserID)
 	require.NoError(t, err)
 
-	_, err = api.revokeOrganizationMembershipAccessAfter(t.Context(), leaver, member, nil)
+	_, err = api.revokeOrganizationMembershipAccess(t.Context(), leaver, member, nil)
 	var failure *memberError
 	require.ErrorAs(t, err, &failure)
 	require.Equal(t, "last_admin_protected", failure.code)
 	require.Equal(t, 1, membershipCount(t, scope, leaverWorkosUserID))
+}
+
+func TestMemberRemovalStillTellsWorkosWhenTheLocalRowIsGone(t *testing.T) {
+	api, scope, _ := memberTestAPI(t, "admin")
+	userID, workosUserID, _ := mustActiveMember(t, scope, uniqueTestEmail("gone-locally"), "member")
+	member, err := api.getOrganizationMember(t.Context(), scope.OrganizationID, workosUserID)
+	require.NoError(t, err)
+	_, err = scope.Pool.Exec(t.Context(), `delete from organization_memberships where user_id=$1`, userID)
+	require.NoError(t, err)
+
+	told := false
+	deleted, err := api.revokeOrganizationMembershipAccess(t.Context(), scopeMemberActor(scope, "admin"), member,
+		func(context.Context) error {
+			told = true
+			return nil
+		})
+	require.NoError(t, err)
+	require.False(t, deleted)
+	require.True(t, told)
+}
+
+func TestMemberLeaveWithoutWorkosCountsEveryAdmin(t *testing.T) {
+	api, scope, _ := memberTestAPI(t, "admin")
+	api.workos = nil
+	// Without WorkOS no membership records a WorkOS id.
+	mustInvitedMember(t, scope, uniqueTestEmail("local-admin"), "admin")
+
+	status, err := api.leaveWorkspace(t.Context(), scopeMemberActor(scope, "admin"))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusNoContent, status)
 }

@@ -438,7 +438,7 @@ func (api *memberAPI) updateMemberRole(ctx context.Context, organizationID strin
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	if member.role == "admin" && role != "admin" {
-		if err := lockOrganizationAdminsAndCount(ctx, tx, organizationID, member.localUserID); err != nil {
+		if err := lockOrganizationAdminsAndCount(ctx, tx, organizationID, member.localUserID, api.workos != nil); err != nil {
 			return member, err
 		}
 	}
@@ -458,23 +458,30 @@ func (api *memberAPI) updateMemberRole(ctx context.Context, organizationID strin
 
 // lockOrganizationAdminsAndCount refuses a change that would leave no admin who has
 // accepted their invitation once departingUserID is no longer one. The lock is per
-// workspace and taken only by admin changes, so holding it through a WorkOS call delays
-// other admin changes in that workspace and nothing else: page loads that rewrite
-// membership rows do not wait on it.
-func lockOrganizationAdminsAndCount(ctx context.Context, tx pgx.Tx, organizationID, departingUserID string) error {
-	if err := lockOrganizationAdmins(ctx, tx, organizationID); err != nil {
+// workspace and taken only by membership changes, so holding it through a WorkOS call
+// delays other membership changes in that workspace and nothing else: page loads that
+// rewrite membership rows do not wait on it.
+func lockOrganizationAdminsAndCount(ctx context.Context, tx pgx.Tx, organizationID, departingUserID string, workosSynced bool) error {
+	if err := lockOrganizationAdmins(ctx, tx, organizationID, true); err != nil {
 		return err
 	}
-	return requireAnotherAcceptedAdmin(ctx, tx, organizationID, departingUserID)
+	return requireAnotherAcceptedAdmin(ctx, tx, organizationID, departingUserID, workosSynced)
 }
 
-func lockOrganizationAdmins(ctx context.Context, tx pgx.Tx, organizationID string) error {
-	_, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, "organization_admins:"+organizationID)
+// lockOrganizationAdmins takes the workspace's admin lock. Admin changes hold it alone;
+// other removals share it, so they do not queue behind one another, while an admin change
+// waits for them and counts admins after they finish.
+func lockOrganizationAdmins(ctx context.Context, tx pgx.Tx, organizationID string, exclusive bool) error {
+	lock := `select pg_advisory_xact_lock_shared(hashtextextended($1, 0))`
+	if exclusive {
+		lock = `select pg_advisory_xact_lock(hashtextextended($1, 0))`
+	}
+	_, err := tx.Exec(ctx, lock, "organization_admins:"+organizationID)
 	return err
 }
 
-func requireAnotherAcceptedAdmin(ctx context.Context, tx pgx.Tx, organizationID, departingUserID string) error {
-	count, err := countOtherAcceptedAdmins(ctx, tx, organizationID, departingUserID)
+func requireAnotherAcceptedAdmin(ctx context.Context, tx pgx.Tx, organizationID, departingUserID string, workosSynced bool) error {
+	count, err := countOtherAcceptedAdmins(ctx, tx, organizationID, departingUserID, workosSynced)
 	if err != nil {
 		return err
 	}
@@ -486,14 +493,16 @@ func requireAnotherAcceptedAdmin(ctx context.Context, tx pgx.Tx, organizationID,
 
 // countOtherAcceptedAdmins counts admins other than userID who have accepted their
 // invitation. An unaccepted admin invitation cannot run the workspace, so it does not count.
-func countOtherAcceptedAdmins(ctx context.Context, db dictionaryDB, organizationID, userID string) (int, error) {
+// Without WorkOS no membership records a WorkOS id, so every admin counts.
+func countOtherAcceptedAdmins(ctx context.Context, db dictionaryDB, organizationID, userID string, workosSynced bool) (int, error) {
 	var count int
 	err := db.QueryRow(ctx, `
         select count(*)::int from organization_memberships
         where organization_id=$1 and role='admin' and user_id<>$2
-          and nullif(btrim(workos_membership_id), '') is not null
-          and workos_membership_id<>$3 and workos_membership_id not like $4`,
-		organizationID, userID, replacingWorkosMembershipID, replacingWorkosMembershipIDPrefix+"%").Scan(&count)
+          and (not $5 or (
+              nullif(btrim(workos_membership_id), '') is not null
+              and workos_membership_id<>$3 and workos_membership_id not like $4))`,
+		organizationID, userID, replacingWorkosMembershipID, replacingWorkosMembershipIDPrefix+"%", workosSynced).Scan(&count)
 	return count, err
 }
 

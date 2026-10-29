@@ -261,9 +261,9 @@ func TestAPIKeyRevokeRacesMembershipRemovalEmitsOnce(t *testing.T) {
 		wg.Go(func() {
 			<-start
 			members := &memberAPI{pool: env.scope.Pool}
-			removalErr = members.revokeOrganizationMembershipAccess(context.Background(),
+			_, removalErr = members.revokeOrganizationMembershipAccess(context.Background(),
 				memberActor{userID: env.owner.userID, organizationID: env.scope.OrganizationID},
-				organizationMember{localUserID: member.userID, role: "member"})
+				organizationMember{localUserID: member.userID, role: "member"}, nil)
 		})
 		close(start)
 		wg.Wait()
@@ -347,9 +347,10 @@ func TestAPIKeyMembershipRemovalWaitsForCreateAndRevokes(t *testing.T) {
 	removal := make(chan error, 1)
 	go func() {
 		members := &memberAPI{pool: env.scope.Pool}
-		removal <- members.revokeOrganizationMembershipAccess(context.Background(),
+		_, err := members.revokeOrganizationMembershipAccess(context.Background(),
 			memberActor{userID: env.owner.userID, organizationID: env.scope.OrganizationID},
-			organizationMember{localUserID: member.userID, role: "member"})
+			organizationMember{localUserID: member.userID, role: "member"}, nil)
+		removal <- err
 	}()
 	waitForLockWait(t, env, "from organization_memberships")
 	releaseCreate()
@@ -420,9 +421,10 @@ func TestMembershipRemovalReportsPatAuditFailure(t *testing.T) {
 	buf := captureFailingPatRevokedLogs(t)
 
 	members := &memberAPI{pool: env.scope.Pool}
-	require.NoError(t, members.revokeOrganizationMembershipAccess(t.Context(),
+	_, err := members.revokeOrganizationMembershipAccess(t.Context(),
 		memberActor{userID: env.owner.userID, organizationID: env.scope.OrganizationID},
-		organizationMember{localUserID: member.userID, role: "member"}))
+		organizationMember{localUserID: member.userID, role: "member"}, nil)
+	require.NoError(t, err)
 	require.NotNil(t, env.revokedAt(t, created.ID))
 
 	logs := buf.String()

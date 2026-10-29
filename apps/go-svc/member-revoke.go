@@ -17,7 +17,7 @@ func (api *memberAPI) reconcileRevokedMembership(ctx context.Context, actor memb
 	}
 	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
 	defer cancel()
-	deleted, err := api.revokeOrganizationMembershipAccessAfter(cleanupCtx, actor, member, removeFromWorkos)
+	deleted, err := api.revokeOrganizationMembershipAccess(cleanupCtx, actor, member, removeFromWorkos)
 	if err != nil {
 		return err
 	}
@@ -35,39 +35,46 @@ func (api *memberAPI) reconcileRevokedMembership(ctx context.Context, actor memb
 	return nil
 }
 
-func (api *memberAPI) revokeOrganizationMembershipAccess(ctx context.Context, actor memberActor, member organizationMember) error {
-	_, err := api.revokeOrganizationMembershipAccessAfter(ctx, actor, member, nil)
-	return err
-}
-
-// revokeOrganizationMembershipAccessAfter reports whether it removed the membership row.
-func (api *memberAPI) revokeOrganizationMembershipAccessAfter(ctx context.Context, actor memberActor, member organizationMember, removeFromWorkos func(context.Context) error) (bool, error) {
+// revokeOrganizationMembershipAccess removes the membership and what is tied to it, and
+// reports whether it removed the membership row.
+func (api *memberAPI) revokeOrganizationMembershipAccess(ctx context.Context, actor memberActor, member organizationMember, removeFromWorkos func(context.Context) error) (bool, error) {
 	tx, err := api.pool.Begin(ctx)
 	if err != nil {
 		return false, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	// Every removal takes the admin lock and reads the role under it, so someone promoted
-	// to admin while their removal was on its way is still counted as one.
-	if err := lockOrganizationAdmins(ctx, tx, actor.organizationID); err != nil {
+	// The role is read again under the admin lock, so someone promoted to admin while their
+	// removal was on its way still counts as one: a removal that started with a shared lock
+	// takes it alone once it finds an admin.
+	readRole := func() (string, bool, error) {
+		var role string
+		err := tx.QueryRow(ctx, `
+            select role from organization_memberships
+            where organization_id=$1 and user_id=$2`, actor.organizationID, member.localUserID).Scan(&role)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", false, nil
+		}
+		return role, err == nil, err
+	}
+	role, _, err := readRole()
+	if err != nil {
 		return false, err
 	}
-	var role string
-	err = tx.QueryRow(ctx, `
-        select role from organization_memberships
-        where organization_id=$1 and user_id=$2`, actor.organizationID, member.localUserID).Scan(&role)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return false, tx.Commit(ctx)
+	if err := lockOrganizationAdmins(ctx, tx, actor.organizationID, role == "admin"); err != nil {
+		return false, err
 	}
+	role, found, err := readRole()
 	if err != nil {
 		return false, err
 	}
 	if role == "admin" {
-		if err := requireAnotherAcceptedAdmin(ctx, tx, actor.organizationID, member.localUserID); err != nil {
+		if err := lockOrganizationAdminsAndCount(ctx, tx, actor.organizationID, member.localUserID, api.workos != nil); err != nil {
 			return false, err
 		}
 	}
+	// Removed locally already, or never here: WorkOS is still told, or the next sign-in
+	// check would bring the membership back.
 	if removeFromWorkos != nil {
 		workosCtx, cancel := context.WithTimeout(ctx, memberWorkosRemoveTimeout)
 		err := removeFromWorkos(workosCtx)
@@ -75,6 +82,9 @@ func (api *memberAPI) revokeOrganizationMembershipAccessAfter(ctx context.Contex
 		if err != nil {
 			return false, err
 		}
+	}
+	if !found {
+		return false, tx.Commit(ctx)
 	}
 
 	tag, err := tx.Exec(ctx, `

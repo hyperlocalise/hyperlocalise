@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"net/http"
 )
 
@@ -38,12 +37,10 @@ func (api *memberAPI) leaveWorkspacePreviewHandler(r *http.Request, actor member
 }
 
 // leaveWorkspace removes the caller's own membership. Anyone may leave except the last
-// admin who has accepted their invitation.
+// admin who has accepted their invitation. Leaving again is refused when the actor is
+// resolved, as for any non-member, so callers treat organization_access_denied as left.
 func (api *memberAPI) leaveWorkspace(ctx context.Context, actor memberActor) (int, error) {
 	member, err := api.getOrganizationMember(ctx, actor.organizationID, actor.workosUserID)
-	if errors.Is(err, errMemberNotFound) {
-		return http.StatusNoContent, nil
-	}
 	if err != nil {
 		return 0, err
 	}
@@ -71,7 +68,7 @@ func (api *memberAPI) leaveWorkspacePreview(ctx context.Context, actor memberAct
 		Automations: []leaveWorkspaceAutomation{},
 	}
 	if member.role == "admin" {
-		otherAdmins, err := countOtherAcceptedAdmins(ctx, api.pool, actor.organizationID, member.localUserID)
+		otherAdmins, err := countOtherAcceptedAdmins(ctx, api.pool, actor.organizationID, member.localUserID, api.workos != nil)
 		if err != nil {
 			return nil, 0, err
 		}
