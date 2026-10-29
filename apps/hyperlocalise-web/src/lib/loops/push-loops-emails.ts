@@ -132,7 +132,7 @@ function languageLabelDroppedWarning(copyName: string, locale: string, reason?: 
   const suffix = reason ? ` (Loops said: ${reason})` : "";
   return (
     `${copyName}: pushed without a language label because Loops rejected it ` +
-    `for ${locale}; enable translations (and ${locale}) in the Loops dashboard, then re-push${suffix}`
+    `for ${locale}; enable LLM translation in the Loops dashboard (Settings → Sending), then re-push${suffix}`
   );
 }
 

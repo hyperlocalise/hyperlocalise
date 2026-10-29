@@ -11,7 +11,7 @@ Connect Loops once in workspace **Integrations**, then run the **Translate Loops
 | --- | --- |
 | Native project | A [native project](/platform/projects/create-project) whose source locale matches the language of the default copy in Loops. Add a project target locale for each language you will push back. |
 | Loops API key | Created in Loops **Settings → API**. The key needs permission to read and write transactional emails, campaigns, workflows, and email messages. |
-| Locale mapping | Push sets the Loops `languageCode` from the primary subtag of the project locale, because Loops only accepts ISO 639-1 (`fr-FR` writes `fr`, `pt-BR` writes `pt`). The locale copy keeps the full tag in its name (`Welcome [fr-FR]`). Enable translation for those languages in Loops, or the copy lands without its language label. |
+| Locale mapping | Push sets the Loops `languageCode` from the primary subtag of the project locale, because Loops only accepts ISO 639-1 (`fr-FR` writes `fr`, `pt-BR` writes `pt`). The locale copy keeps the full tag in its name (`Welcome [fr-FR]`). Enable LLM translation in Loops (Settings → Sending), or the copy lands without its language label. |
 
 ## Connect Loops
 
@@ -52,7 +52,7 @@ Inspect **Run History** for imported, skipped, and failed items, plus jobs creat
 ## Review and push locale copies
 
 1. Translate and [approve](/platform/cat) the mapped locales you want to write back.
-2. In Loops (**Settings → Sending**), confirm translations are enabled for each target language. The push dialog reminds you of this: copies pushed for a disabled language land without their language label and show EN in the language dropdown.
+2. In Loops (**Settings → Sending**), confirm LLM translation is enabled. The push dialog reminds you of this: copies pushed while it is off land without their language label and show EN in the language dropdown.
 3. Open a Loops file in the Content editor. The header shows **Ingest** and **Push to Loops** for that file. Choose **Ingest** to import the automation's configured set, or **Push to Loops** when at least one mapped locale is approved and no push is already running. Hyperlocalise then opens the automation **Run History** tab so you can follow the run.
 4. Confirm Loops shows a new copy named `{source} [{locale}]`, for example `Welcome [fr]`. The source email is unchanged and the copy stays unpublished.
 
@@ -66,7 +66,7 @@ Disconnect Loops from **Integrations** when this workspace should stop using tha
 
 - Confirm Loops is connected and the automation is **Active**.
 - Confirm the project source locale matches the language of the default copy in Loops.
-- Confirm translation is enabled in Loops for each target language, or copies land without a language label. A push that lands without its label (for example a copy that still shows EN in its language dropdown) now reports a warning in **Run History** naming the copy and locale — enable the language in Loops, then re-push.
+- Confirm LLM translation is enabled in Loops (**Settings → Sending**), or copies land without a language label. A push that lands without its label (for example a copy that still shows EN in its language dropdown) now reports a warning in **Run History** naming the copy and locale — enable it in Loops, then re-push.
 - If **Push to Loops** or **Ingest** is missing, open a Loops file. Those actions stay hidden on other files. Approve at least one mapped locale, confirm you can manage automations, and wait until any in-progress push finishes.
 - Open **Run History** for the failed email or locale.
 
