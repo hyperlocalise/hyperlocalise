@@ -44,7 +44,11 @@ function mapLoopsError(
   c: Parameters<typeof badRequestResponse>[0],
   error: LoopsPipesError | LoopsSettingsError,
 ) {
-  if (error.code === "loops_pipes_unavailable" || error.code === "loops_temporarily_unavailable") {
+  if (
+    error.code === "loops_pipes_unavailable" ||
+    error.code === "loops_temporarily_unavailable" ||
+    error.code === "loops_pipes_provider_missing"
+  ) {
     return serviceUnavailableResponse(c, error.code, error.message);
   }
   if (error.code === "loops_api_key_required" || error.code === "loops_credentials_invalid") {

@@ -70,6 +70,11 @@ Implement one workspace skill, **Translate Loops Emails**
 
 - One **Integrations → Loops** row with an API-key-only connection.
   Save pings `GET /v1/api-key` before the key is stored.
+- Dashboard setup is required: enable Loops as an API-key data
+  integration with slug `loops`. Request a custom slug if WorkOS has
+  no catalog entry. Until then, saving the key answers
+  `loops_pipes_provider_missing` instead of a misleading
+  not-connected error.
 - One automation template, `translate-loops-emails`, mutually
   exclusive with Braze and Customer.io tools on the same automation.
 - `toLoopsLanguageCode` maps via the primary subtag. Regional copy

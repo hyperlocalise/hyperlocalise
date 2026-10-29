@@ -39,6 +39,12 @@ const LOOPS_NEEDS_REAUTHORIZATION: LoopsPipesError = {
   message: "Reconnect Loops in Integrations, then try again.",
 };
 
+const LOOPS_PIPES_PROVIDER_MISSING: LoopsPipesError = {
+  code: "loops_pipes_provider_missing",
+  message:
+    "WorkOS Pipes does not have the Loops provider yet. Enable it in the WorkOS Dashboard, then save again.",
+};
+
 function mapPipesError(code: string): LoopsPipesError {
   if (code === "pipes_not_connected") {
     return LOOPS_NOT_CONNECTED;
@@ -117,6 +123,11 @@ export async function saveLoopsPipesApiKey(input: {
     secret: input.apiKey,
   });
   if (isErr(result)) {
+    // At save time the key was already validated, so "not connected" means
+    // WorkOS itself does not know the loops provider yet.
+    if (result.error.code === "pipes_not_connected") {
+      return err(LOOPS_PIPES_PROVIDER_MISSING);
+    }
     return err(mapPipesError(result.error.code));
   }
   return ok(result.value);

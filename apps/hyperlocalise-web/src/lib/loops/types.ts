@@ -18,6 +18,7 @@ export type LoopsPipesError =
   | { code: "loops_pipes_unavailable"; message: string }
   | { code: "loops_not_connected"; message: string }
   | { code: "loops_pipes_needs_reauthorization"; message: string }
+  | { code: "loops_pipes_provider_missing"; message: string }
   | { code: "loops_api_key_required"; message: string };
 
 export type LoopsSettingsError =
