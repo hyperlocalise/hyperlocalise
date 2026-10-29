@@ -12,10 +12,13 @@ coming-soon catalog until that connection ships.
 
 ## Context
 
-Crowdin’s Iterable app syncs email, push, in-app, and SMS templates, plus
-snippets, then writes translations back onto the project’s locale codes. It
-does not translate campaigns or journeys. Iterable stores a locale as another
-copy of the same template. At send time Iterable picks the copy whose `locale`
+Crowdin’s Iterable app is the content contract for this skill. The store
+listing syncs email, in-app, push, and SMS templates, plus snippets, in two
+manual directions: select Iterable files and sync them in, then select
+translated files and sync them back. In-app sync includes preview fields, and
+the translated in-app message does not keep **Show in mobile inbox** enabled.
+The operator page follows that list. Iterable stores a locale as another copy
+of the same template. At send time Iterable picks the copy whose `locale`
 matches the user profile field `locale`.
 
 The Customer.io automation is the operational model: connect once, import into

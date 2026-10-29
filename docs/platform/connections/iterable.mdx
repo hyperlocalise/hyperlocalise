@@ -1,32 +1,36 @@
 ---
 title: "Localize Iterable"
-description: "Connect Iterable, import email, push, in-app, and SMS templates plus snippets, translate in Jobs, then push approved locales back."
+description: "Connect Iterable and translate the same content Crowdin's Iterable app syncs: email, in-app, push, and SMS templates, plus snippets."
 ---
 
-Iterable is listed as coming soon in **Integrations** until this connection ships. The steps below are the operator contract for that connection.
+Hyperlocalise localizes the same Iterable content as [Crowdin's Iterable app](https://store.crowdin.com/iterable-app): email templates, in-app templates, push templates, SMS templates, and snippets. Connect once, choose what to sync, translate in [Jobs](/platform/translation/jobs), then write the finished locales back.
 
-Connect Iterable once in workspace **Integrations**, then run the **Translate Iterable templates and snippets** automation on a schedule. Import never changes Iterable. **Push to Iterable** is a separate action. It writes approved locales and does not send a campaign.
+**Integrations** still lists Iterable as coming soon until this connection ships.
 
-## Supported content
+Import never changes Iterable. **Push to Iterable** is a separate action. It writes approved locales and does not send a campaign.
 
-- Email, push, in-app, and SMS templates.
-- Snippets.
-- Out of scope: campaigns, journeys, embedded messages, and WhatsApp. A campaign sends a template. Translate the template, then point the campaign at it yourself when push creates a new copy.
+## What Crowdin syncs
 
-WYSIWYG and side-by-side templates keep their Iterable id. Push writes each approved locale onto that template. The next send can use the new copy. Iterable has no draft for that write.
+| Content | Import | Push to Iterable |
+| --- | --- | --- |
+| Email templates | HTML, including subject and preheader | Locale on that template, or a new WYSIWYG template when the source is drag-and-drop |
+| In-app templates | HTML, notification text, and preview fields | Locale on that template. Re-enable **Show in mobile inbox** afterward if you use the mobile inbox |
+| Push templates | Title and message | Locale on that template |
+| SMS templates | Message | Locale on that template |
+| Snippets | Snippet body | A separate snippet named `{name}_{locale}`, such as `Welcome_Banner_fr-FR` |
 
-Drag-and-drop email and in-app templates are not patched. Push creates one new WYSIWYG template from the exported HTML and writes locales onto that copy. The original template stays as it is. Existing campaigns keep pointing at the original until you select the new template in Iterable.
+Crowdin syncs these by hand: select Iterable files, then sync them in; select translated files, then sync them back. Hyperlocalise uses the same two directions. A schedule or **Run now** imports. **Push to Iterable** writes translations back. A later import picks up a small source change, such as a new sentence or a changed word.
 
-Snippets have one body and no locale. Push creates or updates a separate snippet named with the locale tag, such as `Welcome_Banner_fr-FR`. A template that calls `{{ snippet "Welcome_Banner" }}` still renders the original snippet until you change that reference.
+Campaigns, journeys, embedded messages, and WhatsApp are not in Crowdin's Iterable app. They stay out of this workflow. A campaign sends a template. Translate the template, then select it on the campaign yourself when push creates a new copy.
 
 ## Prerequisites
 
 | Requirement | Description |
 | --- | --- |
 | Native project | A [native project](/platform/projects/create-project) whose source and target locales match Iterable locale codes. See [Match project locales](#step-2-match-project-locales). |
-| Iterable server-side API key | Created in Iterable **Integrations → API Keys**. Choose **Server-side**. A read-only key can connect and then fail on push. |
+| Iterable server-side API key | In Iterable, open **Integrations → API Keys**, create a key, and choose **Server-side**. Crowdin's connector uses that key. A read-only key can connect and then fail on push. |
 | Iterable data center | `US` (`https://api.iterable.com`) or `EU` (`https://api.eu.iterable.com`). The host must be the data center that holds the project. |
-| Locale codes | Add each code under Iterable **Project Settings** before you push. Use ISO codes such as `fr-FR`. A code cannot be renamed after you create it. |
+| Locale codes | Add each code under Iterable **Project Settings** before you push. Crowdin recommends standard ISO codes (`en`, `fr-CA`, `fr-FR`). A code cannot be renamed after you create it. |
 
 ## Connect Iterable
 
@@ -35,17 +39,17 @@ Snippets have one body and no locale. Push creates or updates a separate snippet
 3. Save. Hyperlocalise lists templates on that host to confirm the key. A rejected key or unreachable host is not stored.
 4. Confirm the connection shows as connected.
 
-The API key is stored in WorkOS Pipes. Hyperlocalise stores only the data center.
+The API key is stored in WorkOS Pipes. Hyperlocalise stores only the data center. Connect Iterable before you add the skill.
 
 ## Translate templates and snippets
 
 ### Step 1: Set up locales in Iterable
 
 1. Open the Iterable project **Project Settings**.
-2. Add a locale code for each language you will write back. Prefer ISO codes (`en`, `fr-CA`, `fr-FR`).
+2. Add a locale code for each language you will write back.
 3. Leave the project default locale on the language of the template you will import.
 
-Iterable does not translate the copy for you. Hyperlocalise writes the translated HTML or text into the locale you already created.
+Iterable does not translate the copy. Hyperlocalise writes the translated text into a locale you already created.
 
 ### Step 2: Match project locales
 
@@ -58,19 +62,22 @@ Create or choose a [native project](/platform/projects/create-project) whose loc
 
 Unmapped project locales are reported and skipped on import and push.
 
-### Step 3: Create the automation
+### Step 3: Choose what to sync
 
 1. Open workspace **Automations** and select **New Automation**.
 2. Apply the **Translate Iterable templates and snippets** template, or add that skill from **Add Skill**.
 3. Attach the native project from Step 2.
 4. Choose a **scheduled** or **manual** trigger. A schedule imports changed templates and snippets. It does not push translations.
-5. Under **Iterable**, set:
-   - **Source locale** (usually the project source). It must be the same language as the project source locale.
-   - Optional template and snippet limits. Leave them empty to discover email, push, in-app, SMS, and snippets.
-   - **Existing translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**.
-6. Save the automation.
+5. Under **Iterable**, select the email, in-app, push, and SMS templates and the snippets to sync. Leave the lists empty to discover all five. This is the same choice as Crowdin's Iterable panel before **Sync**.
+6. Set **Source locale** (usually the project source). It must be the same language as the project source locale.
+7. Set **Existing translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**.
+8. Save the automation.
 
-Import writes files into the native project:
+Iterable is not a trigger type. Use a schedule, **Run now**, or Content Editor **Ingest** for import. Use **Push to Iterable** for write-back.
+
+### Step 4: Import
+
+**Run now**, wait for the schedule, or choose **Ingest**. Import writes:
 
 ```text
 iterable/templates/email/{slug}.html
@@ -80,18 +87,41 @@ iterable/templates/sms/{slug}.json
 iterable/snippets/{slug}.html
 ```
 
-Email and in-app files open as HTML. Push and SMS files open as JSON. Handlebars in the source, including `{{ snippet "…" }}`, stay protected so a translation does not break personalization.
+Email and in-app files open in HTML File view, which is the translator preview Crowdin provides for these templates. In-app files include the notification text and the preview fields. Push and SMS files open in JSON File view. Handlebars in the source, including `{{ snippet "…" }}`, stay protected so a translation does not break personalization.
 
-## Push approved locales
+**Only empty locales** never overwrites work already in Hyperlocalise. A later import still checks mapped locales when you change a sentence in Iterable.
 
-Enqueue **Push to Iterable** from the automation run or the Content Editor. It writes approved locales and does not send a campaign, send a proof, or delete a template.
+Import does not write to Iterable.
 
-**Only empty locales** writes a locale that has no content in Iterable yet. **Refresh imported locales** updates a locale Hyperlocalise last wrote, when the approved text changed. **Overwrite all locales** replaces the Iterable locale with the approved text, including copy written in Iterable.
+### Step 5: Review and push
 
-For a WYSIWYG or side-by-side template, push updates that template’s locale. The next send can use it.
+1. Translate and [approve](/platform/cat) the mapped locales you want to write back.
+2. Open an Iterable file in the Content editor. The header shows **Ingest** and **Push to Iterable** for that file. **Push to Iterable** is Crowdin's **Sync to Iterable**: it writes the files you select, and the open file is selected by default.
+3. Open **Run History** for imported, skipped, and failed items.
 
-For a drag-and-drop email or in-app template, push creates one WYSIWYG template and writes the locales there. Later pushes update that same copy. In Iterable, open the campaign and select the new template before the localized copy can send. The drag-and-drop original is unchanged.
+What push writes:
 
-For a snippet, push creates or updates `{snippet-name}_{locale}`, for example `Welcome_Banner_fr-FR`. Change the template’s snippet reference if that campaign should render the translated snippet.
+- **WYSIWYG or side-by-side template.** Push updates that template's locale. The next send can use it. Iterable has no draft for that write.
+- **Drag-and-drop email or in-app template.** Crowdin's Iterable setup cannot patch these through the API. The editor JSON and the translated HTML would diverge. Push exports the HTML, creates one new WYSIWYG template, and writes the locales there. Later pushes update that same copy. The drag-and-drop original stays unchanged. In Iterable, select the new template on the campaign before the localized copy can send.
+- **Snippet.** A snippet has one body and no locale. Push creates or updates `{snippet-name}_{locale}`. A template that calls `{{ snippet "Welcome_Banner" }}` still renders the original snippet until you change that reference.
+- **In-app inbox.** After push, open the locale in Iterable and turn **Show in mobile inbox** back on if that option was set on the source. Crowdin documents that the translated import does not keep it on.
 
-After an in-app push, confirm **Show in mobile inbox** is still enabled on that locale if you use the mobile inbox. A content update can clear it.
+Push does not send a campaign, send a proof, or delete a template.
+
+## Change or remove access
+
+Disconnect Iterable from **Integrations** when this workspace should stop using that Iterable project. Inspect automations that depend on the connection before you disconnect. After you reconnect, confirm the data center still matches.
+
+If the template list is empty, confirm the server-side API key, the data center, and that you completed the connection. See [Connection troubleshooting](/platform/help/connections).
+
+## If import or push does not run
+
+- Confirm Iterable is connected and the automation is **Active**.
+- Confirm the data center is the one that hosts the Iterable project.
+- Confirm you added locale codes under **Project Settings**, and that project locale tags match those codes exactly.
+- If **Push to Iterable** or **Ingest** is missing, open an Iterable file. Those actions stay hidden on other files. Approve at least one mapped locale, confirm you can manage automations, and wait until any in-progress push finishes.
+- If an in-app message no longer appears in the mobile inbox, re-enable **Show in mobile inbox** on that locale.
+- If a drag-and-drop campaign still sends the source language, select the new WYSIWYG template on the campaign. Push does not retarget campaigns.
+- Open **Run History** for the failed template, snippet, or locale.
+
+See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).
