@@ -12,9 +12,13 @@
  */
 import { createHash } from "node:crypto";
 
-import { extractHtmlIngestEntries } from "@/lib/projects/files/html-ingest-entries";
+import {
+  applyHtmlIngestTranslations,
+  extractHtmlIngestEntries,
+} from "@/lib/projects/files/html-ingest-entries";
 
 import { normalizeSourcePath } from "./source-path";
+import type { CustomerIoTranslationMap } from "./translation-map";
 
 /**
  * HTML envelope for Customer.io email actions (mirrors the Braze email
@@ -119,6 +123,49 @@ export function parseCustomerIoEmailEnvelope(html: string): CustomerIoEmailEnvel
     envelope.designStudioEmailId = emailId;
   }
   return envelope;
+}
+
+/** Field map used by push merge. Empty strings are omitted so merge can keep remote. */
+export function customerIoEmailEnvelopeToMap(
+  envelope: CustomerIoEmailEnvelope,
+): CustomerIoTranslationMap {
+  const map: CustomerIoTranslationMap = {};
+  if (envelope.subject) {
+    map.subject = envelope.subject;
+  }
+  if (envelope.preheader_text) {
+    map.preheader_text = envelope.preheader_text;
+  }
+  if (envelope.body) {
+    map.body = envelope.body;
+  }
+  return map;
+}
+
+/**
+ * Apply approved HTML ingest keys onto the remote translation envelope, not
+ * the stored source. Unapproved nodes then keep the existing Customer.io
+ * copy instead of falling back to source language and overwriting it.
+ *
+ * Keys come from the envelope structure (subject/preheader/body field
+ * blocks). Rebuilding the remote map as the same envelope keeps those keys
+ * stable when the remote HTML still matches the imported template.
+ */
+export function applyApprovedCustomerIoHtmlTranslations(input: {
+  storedEnvelopeHtml: string;
+  remote: CustomerIoTranslationMap;
+  approved: Record<string, string>;
+}): CustomerIoTranslationMap {
+  const stored = parseCustomerIoEmailEnvelope(input.storedEnvelopeHtml);
+  const remoteEnvelope = serializeCustomerIoEmailEnvelope({
+    subject: input.remote.subject ?? stored.subject,
+    preheader_text: input.remote.preheader_text ?? stored.preheader_text,
+    body: input.remote.body ?? stored.body,
+    designStudioEmailId: stored.designStudioEmailId,
+  });
+  return customerIoEmailEnvelopeToMap(
+    parseCustomerIoEmailEnvelope(applyHtmlIngestTranslations(remoteEnvelope, input.approved)),
+  );
 }
 
 function readBodyAttribute(html: string, attribute: string): string | null {

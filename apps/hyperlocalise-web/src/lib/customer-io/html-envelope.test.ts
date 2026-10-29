@@ -12,7 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { extractHtmlIngestEntries } from "@/lib/projects/files/html-ingest-entries";
+
 import {
+  applyApprovedCustomerIoHtmlTranslations,
   buildCustomerIoEmailSourcePath,
   hashCustomerIoEmailEnvelope,
   isCustomerIoHtmlActionType,
@@ -81,6 +84,53 @@ describe("customer-io email envelope", () => {
     // Subject and preheader seed; the multi-node body never seeds.
     expect(Object.values(seeded)).toEqual(expect.arrayContaining(["Bonjour", "Aperçu"]));
     expect(Object.keys(seeded)).toHaveLength(2);
+  });
+
+  it("keeps remote copy for unapproved HTML nodes instead of source language", () => {
+    const sourceHtml = serializeCustomerIoEmailEnvelope({
+      subject: "Welcome",
+      preheader_text: "Preview",
+      body: "<p>Hello</p><p>World</p>",
+    });
+    const entries = extractHtmlIngestEntries(sourceHtml);
+    const helloKey = Object.keys(entries).find((key) => entries[key] === "Hello");
+    expect(helloKey).toBeDefined();
+
+    const merged = applyApprovedCustomerIoHtmlTranslations({
+      storedEnvelopeHtml: sourceHtml,
+      remote: {
+        subject: "Bienvenue",
+        preheader_text: "Aperçu",
+        body: "<p>Bonjour</p><p>Monde</p>",
+      },
+      approved: { [helloKey!]: "Salut" },
+    });
+
+    expect(merged.subject).toBe("Bienvenue");
+    expect(merged.preheader_text).toBe("Aperçu");
+    expect(merged.body).toContain("Salut");
+    expect(merged.body).toContain("Monde");
+    expect(merged.body).not.toContain("World");
+    expect(merged.body).not.toContain("Welcome");
+  });
+
+  it("falls back to stored source fields when the remote variant has none", () => {
+    const sourceHtml = serializeCustomerIoEmailEnvelope({
+      subject: "Welcome",
+      body: "<p>Hello</p>",
+    });
+    const entries = extractHtmlIngestEntries(sourceHtml);
+    const helloKey = Object.keys(entries).find((key) => entries[key] === "Hello");
+    expect(helloKey).toBeDefined();
+
+    const merged = applyApprovedCustomerIoHtmlTranslations({
+      storedEnvelopeHtml: sourceHtml,
+      remote: {},
+      approved: { [helloKey!]: "Salut" },
+    });
+
+    expect(merged.subject).toBe("Welcome");
+    expect(merged.body).toContain("Salut");
   });
 
   it("skips seeding when the source text is ambiguous or missing remotely", () => {

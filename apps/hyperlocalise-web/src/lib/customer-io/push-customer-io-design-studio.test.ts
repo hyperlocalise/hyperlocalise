@@ -322,6 +322,39 @@ describe("runPushCustomerIoCampaigns with Design Studio emails", () => {
     );
   });
 
+  it("does not overwrite remote copy for unapproved HTML nodes", async () => {
+    const stored = serializeCustomerIoEmailEnvelope({
+      subject: "Welcome",
+      body: "<x-base><x-section><x-paragraph>Hello</x-paragraph><x-paragraph>World</x-paragraph></x-section></x-base>",
+      designStudioEmailId: EMAIL_UUID,
+    });
+    const remoteHtml =
+      "<x-base><x-section><x-paragraph>Bonjour</x-paragraph><x-paragraph>Monde</x-paragraph></x-section></x-base>";
+    const { calls } = setup({
+      availableLanguages: ["zh-cn"],
+      translationHtml: remoteHtml,
+      translationUpdated: 1793115196,
+      storedText: stored,
+      prefilled: paragraphPrefill(stored, "Salut"),
+      sourceCreatedAt: new Date("2026-10-20T00:00:00Z"),
+    });
+
+    const result = await runPushCustomerIoCampaigns({
+      organizationId: "org-1",
+      automation: automation(),
+    });
+
+    expect(result.pushedLocales).toBe(1);
+    expect(result.failedLocales).toBe(0);
+    expect(calls).toHaveLength(1);
+    // Remote subject stays; applying onto the source envelope would have
+    // sent the stored English "Welcome" instead.
+    expect(calls[0]?.body?.content?.subject).toBe(DS_SUBJECT);
+    expect(calls[0]?.body?.content?.html).toContain("Salut");
+    expect(calls[0]?.body?.content?.html).toContain("Monde");
+    expect(calls[0]?.body?.content?.html).not.toContain("World");
+  });
+
   it("skips an up-to-date translation", async () => {
     const stored = storedEnvelope();
     const { calls } = setup({
