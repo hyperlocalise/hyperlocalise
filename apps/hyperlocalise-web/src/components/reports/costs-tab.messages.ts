@@ -55,16 +55,6 @@ export const costsTabMessages = defineMessages({
     defaultMessage: "Outside any project",
     description: "Costs row: AI charged with no project, such as chat with no project",
   },
-  expenses: {
-    id: "E3a9TrP1uE",
-    defaultMessage: "Expenses",
-    description: "Costs card and column: expenses added by hand",
-  },
-  expensesDetail: {
-    id: "tAT7VJda/C",
-    defaultMessage: "Added by hand",
-    description: "Detail under the expenses card",
-  },
   projectColumn: {
     id: "awb3jIA7pt",
     defaultMessage: "Project",
@@ -79,11 +69,6 @@ export const costsTabMessages = defineMessages({
     id: "HGhsIR52do",
     defaultMessage: "Costs by project",
     description: "Accessible name of the costs table",
-  },
-  addExpense: {
-    id: "8cjn2GRSSJ",
-    defaultMessage: "Add expense",
-    description: "Button that opens the dialog for adding an expense",
   },
   unpriced: {
     id: "Whb95x0t2T",
@@ -107,65 +92,5 @@ export const costsTabMessages = defineMessages({
     id: "1qUA3TQ2aW",
     defaultMessage: "Nothing was spent in these dates.",
     description: "Shown when there are no costs",
-  },
-  expenseTitle: {
-    id: "0LdJqJSAJW",
-    defaultMessage: "Add expense",
-    description: "Title of the add expense dialog",
-  },
-  expenseDescription: {
-    id: "pyjtKMfIIw",
-    defaultMessage: "Record a cost that Reports cannot see, such as an agency invoice.",
-    description: "Description of the add expense dialog",
-  },
-  amount: {
-    id: "laNmUs0rc+",
-    defaultMessage: "Amount (USD)",
-    description: "Label of the expense amount",
-  },
-  note: {
-    id: "pbf/8ZXD0X",
-    defaultMessage: "What it was for",
-    description: "Label of the expense note",
-  },
-  chooseProject: {
-    id: "G3ZipyCtAH",
-    defaultMessage: "Choose a project",
-    description: "Placeholder of the project field",
-  },
-  cancel: {
-    id: "5q+QsCb5GP",
-    defaultMessage: "Cancel",
-    description: "Button that closes a dialog without saving",
-  },
-  save: {
-    id: "v/iqKXawFI",
-    defaultMessage: "Add expense",
-    description: "Button that saves the expense",
-  },
-  saving: {
-    id: "labVcE5WnM",
-    defaultMessage: "Saving…",
-    description: "Button text while saving",
-  },
-  saved: {
-    id: "q+IrtJFU3l",
-    defaultMessage: "Expense added.",
-    description: "Message shown after an expense is added",
-  },
-  projectRequired: {
-    id: "gwUFWWEPWF",
-    defaultMessage: "Choose a project.",
-    description: "Error when no project is chosen",
-  },
-  amountInvalid: {
-    id: "ahKQ/Hvzg2",
-    defaultMessage: "Enter an amount in US dollars, such as 120.50.",
-    description: "Error when the amount is not valid",
-  },
-  noteRequired: {
-    id: "iEUqa4wC3Y",
-    defaultMessage: "Say what the expense was for.",
-    description: "Error when the note is empty",
   },
 });

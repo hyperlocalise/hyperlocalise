@@ -13,7 +13,7 @@
 import type { AiUsage, AiUsageGroup } from "./ai-usage";
 import type { AiUsageDimension } from "./ai-usage-origins";
 import type { BudgetRow, CostEstimate, Costs } from "./cost-queries";
-import { SUMMARY_SOURCES, type ReportStep } from "./report-units";
+import { SUMMARY_SOURCES, type ReportStep, type WordCountGrouping } from "./report-units";
 import type { AutomatedTime, LoggedTime, StepTime } from "./time-queries";
 import { csvCell, MATCH_BUCKETS } from "./word-analysis";
 import type { BandCounts, FinishedSeriesPoint, TaskWordRow, WordCounts } from "./word-queries";
@@ -39,21 +39,30 @@ export function activityCsv(activity: { series: FinishedSeriesPoint[] }): string
   );
 }
 
-export function wordCountsCsv(counts: WordCounts, groupBy: "project" | "task" | "week"): string {
-  const bands = bandsIn(counts.bandTotals);
+export function wordCountsCsv(counts: WordCounts, groupBy: WordCountGrouping): string {
+  // Rows by task or task step can hold a band the totals, counted once per project, do not.
+  const bands = MATCH_BUCKETS.filter(
+    (bucket) =>
+      (counts.bandTotals[bucket] ?? 0) > 0 ||
+      counts.rows.some((row) => (row.bands[bucket] ?? 0) > 0),
+  );
+  // By language and by task step, rows span projects, so they name none.
+  const byProject = groupBy !== "language" && groupBy !== "task_step";
   return toCsv(
     [
       ...(groupBy === "week" ? ["week"] : []),
-      "projectName",
+      ...(byProject ? ["projectName"] : []),
       ...(groupBy === "task" ? ["jobTitle", "jobId"] : []),
+      ...(groupBy === "task_step" ? ["taskStep"] : []),
       "targetLocale",
       ...bands,
       "total",
     ],
     counts.rows.map((row) => [
       ...(groupBy === "week" ? [row.week] : []),
-      row.projectName,
+      ...(byProject ? [row.projectName] : []),
       ...(groupBy === "task" ? [row.jobTitle, row.jobId] : []),
+      ...(groupBy === "task_step" ? [row.taskStep] : []),
       row.targetLocale,
       ...bands.map((bucket) => row.bands[bucket] ?? 0),
       row.total,
@@ -63,10 +72,11 @@ export function wordCountsCsv(counts: WordCounts, groupBy: "project" | "task" | 
 
 export function loggedTimeCsv(time: LoggedTime): string {
   return toCsv(
-    ["jobTitle", "jobId", "step", "targetLocale", "minutes", "people"],
+    ["jobTitle", "jobId", "taskStep", "step", "targetLocale", "minutes", "people"],
     time.rows.map((row) => [
       row.jobTitle,
       row.jobId,
+      row.taskStep,
       row.step,
       row.targetLocale,
       row.minutes,
@@ -79,14 +89,26 @@ export function stepTimesCsv(logged: StepTime[], automated: AutomatedTime): stri
   return toCsv(
     ["kind", "name", "minutes", "people", "runs"],
     [
-      ...logged.map((row) => ["logged", row.step, row.minutes, row.people, null]),
-      [
-        "task_runs",
-        "translation",
-        Math.round(automated.taskRuns.milliseconds / 60_000),
-        null,
-        automated.taskRuns.runs,
-      ],
+      ...logged.map((row) => ["logged", row.taskStep, row.minutes, row.people, null]),
+      // Task runs as one row, then each stage, when there were any.
+      ...(automated.taskRuns.runs > 0
+        ? [
+            [
+              "task_runs",
+              "translation",
+              Math.round(automated.taskRuns.milliseconds / 60_000),
+              null,
+              automated.taskRuns.runs,
+            ],
+            ...automated.taskRuns.stages.map((row) => [
+              "task_run_stage",
+              row.stage,
+              Math.round(row.milliseconds / 60_000),
+              null,
+              automated.taskRuns.runs,
+            ]),
+          ]
+        : []),
       ...automated.workflowSteps.map((row) => [
         "workflow_step",
         row.nodeType,
@@ -154,7 +176,6 @@ export function costsCsv(costs: Costs): string {
       "aiOnTasksUsd",
       "aiOutsideTasksUsd",
       "aiUsd",
-      "expensesUsd",
       "totalUsd",
     ],
     [
@@ -165,7 +186,6 @@ export function costsCsv(costs: Costs): string {
         row.aiOnTasksUsd,
         row.aiOutsideTasksUsd,
         row.aiUsd,
-        row.expensesUsd,
         row.totalUsd,
       ]),
       // AI charged outside any project: a row with no project.
@@ -178,7 +198,6 @@ export function costsCsv(costs: Costs): string {
               costs.outsideProjects.aiOnTasksUsd,
               costs.outsideProjects.aiOutsideTasksUsd,
               costs.outsideProjects.aiUsd,
-              null,
               costs.outsideProjects.aiUsd,
             ],
           ]

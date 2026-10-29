@@ -15,7 +15,11 @@ import { delay, http, HttpResponse } from "msw";
 import {
   createReportsSettings,
   createReportsTaskWordCounts,
+  createReportsWeeklyWordCounts,
+  createReportsWordSeries,
+  reportsBandSeries,
   reportsResponseBodies,
+  reportsWordCountSeries,
   type ReportsEndpoint,
 } from "./reports.fixture";
 
@@ -55,6 +59,16 @@ export function createReportsMswHandlers({
         if (failing.includes(endpoint))
           return HttpResponse.json({ error: "report_failed" }, { status: 500 });
         const query = new URL(request.url).searchParams;
+        if (endpoint === "words" && query.get("groupBy") === "week")
+          return HttpResponse.json({
+            wordCounts: {
+              unit: query.get("unit") ?? "words",
+              step: "translation",
+              mode: query.get("mode") ?? "arrived",
+              groupBy: "week",
+              ...createReportsWeeklyWordCounts(),
+            },
+          });
         if (endpoint === "words" && query.get("groupBy") === "task")
           return HttpResponse.json({
             wordCounts: {
@@ -68,6 +82,21 @@ export function createReportsMswHandlers({
         return HttpResponse.json(bodies[endpoint]);
       }),
     ),
+    http.get("*/api/orgs/:organizationSlug/reports/words/series", async ({ request }) => {
+      if (wait) await delay("infinite");
+      if (failing.includes("word-series"))
+        return HttpResponse.json({ error: "report_failed" }, { status: 500 });
+      const query = new URL(request.url).searchParams;
+      const series = query.get("split") === "band" ? reportsBandSeries : reportsWordCountSeries;
+      return HttpResponse.json({
+        wordSeries: {
+          ...createReportsWordSeries(series),
+          unit: query.get("unit") ?? "words",
+          mode: query.get("mode") ?? "arrived",
+          per: query.get("per") ?? series.per,
+        },
+      });
+    }),
     http.put("*/api/orgs/:organizationSlug/reports/rate-cards", async ({ request }) => {
       const body = (await request.json()) as {
         name: string;
@@ -78,9 +107,6 @@ export function createReportsMswHandlers({
     }),
     http.post("*/api/orgs/:organizationSlug/reports/time-entries", () =>
       HttpResponse.json({ timeEntry: { id: "time_new" } }, { status: 201 }),
-    ),
-    http.post("*/api/orgs/:organizationSlug/reports/expenses", () =>
-      HttpResponse.json({ expense: null }, { status: 201 }),
     ),
     http.put("*/api/orgs/:organizationSlug/reports/budgets", () =>
       HttpResponse.json({ budget: {} }),

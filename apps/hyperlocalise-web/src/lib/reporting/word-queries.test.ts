@@ -12,6 +12,7 @@
  */
 import "dotenv/config";
 
+import { sql } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { db } from "@/lib/database/client";
@@ -24,6 +25,7 @@ import {
   queryFinishedSeries,
   queryTaskWords,
   queryWordCounts,
+  queryWordCountSeries,
   WORD_COUNT_PAGE_SIZE,
 } from "./word-queries";
 
@@ -91,6 +93,318 @@ describe("word count queries", () => {
     ]);
     expect(counts.groupCount).toBe(2);
     expect(counts.total).toBe(62);
+  });
+
+  it("charts units per week by project, the largest five then Other, with empty weeks", async () => {
+    const { organization, project, createProject, addSummary } = await fixture.createWorkspace();
+    const names = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"];
+    const others: Awaited<ReturnType<typeof createProject>>[] = [];
+    for (const name of names) others.push(await createProject(name));
+    const [alpha, beta, gamma, delta, epsilon, zeta] = others;
+    const week1 = "2026-06-02";
+    const week3 = "2026-06-17";
+    await addSummary([
+      { targetLocale: "fr-FR", day: week1, arrived: 40 },
+      { projectId: alpha.id, targetLocale: "fr-FR", day: week1, arrived: 30 },
+      { projectId: alpha.id, targetLocale: "de-DE", day: week3, arrived: 5 },
+      { projectId: beta.id, targetLocale: "fr-FR", day: week3, arrived: 20, finished: 9 },
+      { projectId: gamma.id, targetLocale: "fr-FR", day: week1, arrived: 10 },
+      { projectId: delta.id, targetLocale: "fr-FR", day: week3, arrived: 8 },
+      { projectId: epsilon.id, targetLocale: "fr-FR", day: week1, arrived: 3 },
+      { projectId: zeta.id, targetLocale: "fr-FR", day: week3, arrived: 2 },
+      // Outside the period.
+      { projectId: zeta.id, targetLocale: "fr-FR", day: "2026-06-30", arrived: 500 },
+    ]);
+    const scope = {
+      organizationId: organization.id,
+      projectIds: [project.id, ...others.map((other) => other.id)],
+      period: resolvePeriod({
+        from: "2026-06-01",
+        to: "2026-06-21",
+        today: "2026-10-21",
+        startedDay: "2026-01-01",
+      }),
+      unit: "words" as const,
+      step: "translation" as const,
+    };
+    const weekly = { split: "project", per: "week" } as const;
+    const arrived = await queryWordCountSeries({ ...scope, ...weekly, mode: "arrived" });
+    expect(arrived.groups.map((group) => group.name ?? "Other")).toEqual([
+      project.name,
+      "Alpha",
+      "Beta",
+      "Gamma",
+      "Delta",
+      "Other",
+    ]);
+    expect(arrived.groups.at(-1)).toEqual({ key: null, name: null, other: true });
+    // The middle week has nothing and is still a point; Other is Epsilon and Zeta together.
+    expect(arrived.points).toEqual([
+      { start: "2026-06-01", units: [40, 30, 0, 10, 0, 3] },
+      { start: "2026-06-08", units: [0, 0, 0, 0, 0, 0] },
+      { start: "2026-06-15", units: [0, 5, 20, 0, 8, 2] },
+    ]);
+    // Finished work is its own measure, with no Other when every project fits.
+    const finished = await queryWordCountSeries({ ...scope, ...weekly, mode: "finished" });
+    expect(finished.groups).toEqual([{ key: beta.id, name: "Beta", other: false }]);
+    expect(finished.points.map((point) => point.units)).toEqual([[0], [0], [9]]);
+    // A language filter narrows every project; a project with nothing left drops out.
+    const german = await queryWordCountSeries({
+      ...scope,
+      ...weekly,
+      mode: "arrived",
+      targetLocale: "de-DE",
+    });
+    expect(german.groups.map((group) => group.name)).toEqual(["Alpha"]);
+    expect(german.points.map((point) => point.units)).toEqual([[0], [0], [5]]);
+  });
+
+  it("charts units by language per day and per month, the largest five then Other", async () => {
+    const { organization, project, addSummary } = await fixture.createWorkspace();
+    const languages = ["da-DK", "de-DE", "es-ES", "fr-FR", "it-IT", "ja-JP", "nl-NL"];
+    await addSummary(
+      languages.map((targetLocale, index) => ({
+        targetLocale,
+        day: index % 2 ? "2026-06-09" : "2026-06-10",
+        arrived: 70 - index * 10,
+      })),
+    );
+    const scope = {
+      organizationId: organization.id,
+      projectIds: [project.id],
+      period,
+      unit: "words" as const,
+      step: "translation" as const,
+      mode: "arrived" as const,
+      split: "language" as const,
+    };
+    const daily = await queryWordCountSeries({ ...scope, per: "day" });
+    // Languages have no name of their own; Japanese and Dutch are the two smallest.
+    expect(daily.groups.map((group) => group.key ?? "Other")).toEqual([
+      "da-DK",
+      "de-DE",
+      "es-ES",
+      "fr-FR",
+      "it-IT",
+      "Other",
+    ]);
+    expect(daily.groups.every((group) => group.name === null)).toBe(true);
+    expect(daily.points.map((point) => point.start)).toEqual([
+      "2026-06-08",
+      "2026-06-09",
+      "2026-06-10",
+      "2026-06-11",
+      "2026-06-12",
+      "2026-06-13",
+      "2026-06-14",
+    ]);
+    expect(daily.points[1].units).toEqual([0, 60, 0, 40, 0, 20]);
+    expect(daily.points[2].units).toEqual([70, 0, 50, 0, 30, 10]);
+    // A month starts on its first day, before the period here.
+    const monthly = await queryWordCountSeries({ ...scope, per: "month" });
+    expect(monthly.points).toEqual([{ start: "2026-06-01", units: [70, 60, 50, 40, 30, 30] }]);
+  });
+
+  it("charts match bands in tiers, closest first, with repetitions and unavailable work placed", async () => {
+    const { organization, project, addSummary } = await fixture.createWorkspace();
+    const day = "2026-06-10";
+    await addSummary([
+      { targetLocale: "fr-FR", day, bucket: "repetition", arrived: 4 },
+      { targetLocale: "fr-FR", day, bucket: "100", arrived: 6 },
+      { targetLocale: "fr-FR", day, bucket: "85-94", arrived: 3 },
+      { targetLocale: "fr-FR", day, bucket: "75-84", arrived: 2 },
+      { targetLocale: "fr-FR", day, bucket: "new", arrived: 20 },
+      { targetLocale: "fr-FR", day, bucket: "unavailable", arrived: 1 },
+    ]);
+    const series = await queryWordCountSeries({
+      organizationId: organization.id,
+      projectIds: [project.id],
+      period,
+      unit: "words",
+      step: "translation",
+      mode: "arrived",
+      split: "band",
+      per: "week",
+    });
+    // No 95-99% or 50-74% work, so those tiers are left out; the order is fixed, not by size.
+    expect(series.groups.map((group) => group.key)).toEqual(["exact", "fuzzy", "new"]);
+    expect(series.points).toEqual([{ start: "2026-06-08", units: [10, 5, 21] }]);
+  });
+
+  it("charts and groups units by task step, with work outside any task apart", async () => {
+    const { organization, project, createJob, addSummary } = await fixture.createWorkspace();
+    const translate = await createJob({ kind: "translation" });
+    const postEdit = await createJob({ taskStep: "edit" });
+    const proofread = await createJob({ taskStep: "proofread" });
+    const day = "2026-06-10";
+    await addSummary([
+      { jobId: translate.id, targetLocale: "fr-FR", day, arrived: 30 },
+      { jobId: postEdit.id, targetLocale: "fr-FR", day, step: "review", arrived: 12 },
+      { jobId: proofread.id, targetLocale: "de-DE", day, step: "review", arrived: 8 },
+      { jobId: proofread.id, targetLocale: "fr-FR", day, step: "review", arrived: 5 },
+      { jobId: null, targetLocale: "fr-FR", day, step: "review", arrived: 3 },
+    ]);
+    const scope = {
+      organizationId: organization.id,
+      projectIds: [project.id],
+      period,
+      unit: "words" as const,
+      mode: "arrived" as const,
+    };
+    // Review work: post-edit and proofread tasks, and editor work outside any task.
+    const series = await queryWordCountSeries({
+      ...scope,
+      step: "review",
+      split: "task_step",
+      per: "week",
+    });
+    expect(series.groups.map((group) => group.key)).toEqual(["post_edit", "proofread", "no_task"]);
+    expect(series.points).toEqual([{ start: "2026-06-08", units: [12, 13, 3] }]);
+    const counts = await queryWordCounts({
+      ...scope,
+      step: "review",
+      groupBy: "task_step",
+      page: 1,
+    });
+    expect(counts.rows.map((row) => [row.taskStep, row.targetLocale, row.total])).toEqual([
+      ["post_edit", "fr-FR", 12],
+      ["proofread", "de-DE", 8],
+      ["proofread", "fr-FR", 5],
+      ["no_task", "fr-FR", 3],
+    ]);
+    expect(counts.rows.every((row) => row.projectId === null)).toBe(true);
+    expect(counts.groupCount).toBe(3);
+    expect(counts.total).toBe(28);
+    // Translation work is the translate task's alone.
+    const translation = await queryWordCounts({
+      ...scope,
+      step: "translation",
+      groupBy: "task_step",
+      page: 1,
+    });
+    expect(translation.rows.map((row) => [row.taskStep, row.total])).toEqual([["translate", 30]]);
+  });
+
+  it("totals task step rows once per project, and reads a deleted task by its pricing step", async () => {
+    const { organization, project, createJob, addSummary } = await fixture.createWorkspace();
+    const postEdit = await createJob({ taskStep: "edit" });
+    const proofread = await createJob({ taskStep: "proofread" });
+    const day = "2026-06-10";
+    // The same 12 words reviewed in two tasks, and 5 more reviewed and 7 translated in a task
+    // deleted since.
+    await addSummary([
+      { jobId: postEdit.id, targetLocale: "fr-FR", day, step: "review", arrived: 12 },
+      { jobId: proofread.id, targetLocale: "fr-FR", day, step: "review", arrived: 12 },
+      { jobId: "job_deleted", targetLocale: "fr-FR", day, step: "review", arrived: 5 },
+      { jobId: "job_deleted", targetLocale: "fr-FR", day, arrived: 7 },
+    ]);
+    // The per-project summary counts the string the two tasks share once.
+    await db.execute(sql`
+      update reporting_daily_by_project set arrived_words = arrived_words - 12
+      where organization_id = ${organization.id} and step = 'review'
+    `);
+    const scope = {
+      organizationId: organization.id,
+      projectIds: [project.id],
+      period,
+      unit: "words" as const,
+      step: "review" as const,
+      mode: "arrived" as const,
+    };
+    const counts = await queryWordCounts({ ...scope, groupBy: "task_step", page: 1 });
+    expect(counts.rows.map((row) => [row.taskStep, row.total])).toEqual([
+      ["post_edit", 12],
+      ["proofread", 17],
+    ]);
+    expect(counts.total).toBe(17);
+    expect(counts.bandTotals).toEqual({ new: 17 });
+    // The same total as grouped by project; by language and in the charts but by task step,
+    // each string once.
+    const byProject = await queryWordCounts({ ...scope, groupBy: "project", page: 1 });
+    expect(byProject.total).toBe(counts.total);
+    const byLanguage = await queryWordCounts({ ...scope, groupBy: "language", page: 1 });
+    expect(byLanguage.rows.map((row) => row.total)).toEqual([17]);
+    for (const split of ["project", "language", "band"] as const) {
+      const chart = await queryWordCountSeries({ ...scope, split, per: "day" });
+      expect(chart.points.find((point) => point.start === day)?.units, split).toEqual([17]);
+    }
+    // The deleted task's translation work is translate.
+    const translation = await queryWordCounts({
+      ...scope,
+      step: "translation",
+      groupBy: "task_step",
+      page: 1,
+    });
+    expect(translation.rows.map((row) => [row.taskStep, row.total])).toEqual([["translate", 7]]);
+    // A task filter reads that task alone, in the chart too.
+    const series = await queryWordCountSeries({
+      ...scope,
+      jobIds: [postEdit.id],
+      split: "task_step",
+      per: "day",
+    });
+    expect(series.groups.map((group) => group.key)).toEqual(["post_edit"]);
+    expect(series.points.find((point) => point.start === day)?.units).toEqual([12]);
+  });
+
+  it("charts months of different lengths, and days from the period's own first day", async () => {
+    const { organization, project, addSummary } = await fixture.createWorkspace();
+    await addSummary([
+      { targetLocale: "fr-FR", day: "2026-05-31", arrived: 1 },
+      { targetLocale: "fr-FR", day: "2026-06-30", arrived: 2 },
+      { targetLocale: "fr-FR", day: "2026-07-01", arrived: 4 },
+    ]);
+    const scope = {
+      organizationId: organization.id,
+      projectIds: [project.id],
+      period: resolvePeriod({
+        from: "2026-05-20",
+        to: "2026-07-02",
+        today: "2026-10-21",
+        startedDay: "2026-01-01",
+      }),
+      unit: "words" as const,
+      step: "translation" as const,
+      mode: "arrived" as const,
+      split: "project" as const,
+    };
+    const monthly = await queryWordCountSeries({ ...scope, per: "month" });
+    expect(monthly.points).toEqual([
+      { start: "2026-05-01", units: [1] },
+      { start: "2026-06-01", units: [2] },
+      { start: "2026-07-01", units: [4] },
+    ]);
+    // The period starts on a Wednesday; days start there, not on its week's Monday.
+    const daily = await queryWordCountSeries({ ...scope, per: "day" });
+    expect(daily.points[0].start).toBe("2026-05-20");
+    expect(daily.points.at(-1)?.start).toBe("2026-07-02");
+    expect(daily.points).toHaveLength(44);
+  });
+
+  it("groups word counts by language across projects", async () => {
+    const { organization, project, createProject, addSummary } = await fixture.createWorkspace();
+    const other = await createProject("Other");
+    await addSummary([
+      { targetLocale: "fr-FR", day: "2026-06-09", bucket: "100", arrived: 10 },
+      { projectId: other.id, targetLocale: "fr-FR", day: "2026-06-10", arrived: 5 },
+      { projectId: other.id, targetLocale: "de-DE", day: "2026-06-10", arrived: 7 },
+    ]);
+    const counts = await queryWordCounts({
+      organizationId: organization.id,
+      projectIds: [project.id, other.id],
+      period,
+      unit: "words",
+      step: "translation",
+      mode: "arrived",
+      groupBy: "language",
+      page: 1,
+    });
+    expect(counts.rows.map((row) => [row.targetLocale, row.projectId, row.bands])).toEqual([
+      ["de-DE", null, { new: 7 }],
+      ["fr-FR", null, { "100": 10, new: 5 }],
+    ]);
+    expect(counts.groupCount).toBe(2);
+    expect(counts.total).toBe(22);
   });
 
   it("totals a period and the one before it in one read", async () => {
@@ -259,6 +573,7 @@ describe("word count queries", () => {
         projectName: "Docs",
         jobId: null,
         jobTitle: null,
+        taskStep: null,
         targetLocale: "ja-JP",
         bands: { new: 40, "100": 30 },
         total: 70,

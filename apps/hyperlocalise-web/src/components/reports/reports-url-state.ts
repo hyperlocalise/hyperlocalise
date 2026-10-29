@@ -22,8 +22,14 @@ import { addDays } from "@/lib/reporting/report-period";
 import {
   REPORT_STEPS,
   REPORT_UNITS,
+  WORD_COUNT_GROUPINGS,
+  WORD_COUNT_INTERVALS,
+  WORD_COUNT_SPLITS,
   type ReportStep,
   type ReportUnit,
+  type WordCountGrouping,
+  type WordCountInterval,
+  type WordCountSplit,
 } from "@/lib/reporting/report-units";
 
 /**
@@ -100,7 +106,6 @@ function calendarSpan(range: Exclude<ReportsPreset, "all">, today: string) {
 }
 
 export const WORD_COUNT_MODES = ["arrived", "finished"] as const;
-export const WORD_COUNT_GROUPINGS = ["project", "task", "week"] as const;
 export { AI_USAGE_MEASURES };
 
 /**
@@ -143,7 +148,11 @@ export type ReportsUrlState = {
   step: ReportStep;
   unit: ReportUnit;
   mode: (typeof WORD_COUNT_MODES)[number];
-  groupBy: (typeof WORD_COUNT_GROUPINGS)[number];
+  groupBy: WordCountGrouping;
+  /** Word counts' volume chart: what it splits each bar by, and how long a bar covers. */
+  split: WordCountSplit;
+  /** Null for the period's own: days, or weeks for a long period. */
+  per: WordCountInterval | null;
   page: number;
   rateCard: string | null;
   /** AI usage: the detail its table and chart group by, and a second one to split each by. */
@@ -166,6 +175,8 @@ export const DEFAULT_REPORTS_STATE: ReportsUrlState = {
   unit: "words",
   mode: "arrived",
   groupBy: "project",
+  split: "project",
+  per: null,
   page: 1,
   rateCard: null,
   aiGroup: "area",
@@ -206,6 +217,8 @@ export function parseReportsSearchParams(params: URLSearchParams): ReportsUrlSta
     unit: allowed(params.get("unit"), REPORT_UNITS, DEFAULT_REPORTS_STATE.unit),
     mode: allowed(params.get("mode"), WORD_COUNT_MODES, DEFAULT_REPORTS_STATE.mode),
     groupBy: allowed(params.get("group"), WORD_COUNT_GROUPINGS, DEFAULT_REPORTS_STATE.groupBy),
+    split: allowed(params.get("split"), WORD_COUNT_SPLITS, DEFAULT_REPORTS_STATE.split),
+    per: allowed<WordCountInterval | "">(params.get("per"), WORD_COUNT_INTERVALS, "") || null,
     page: Number.isInteger(page) && page >= 1 && page <= 10_000 ? page : 1,
     rateCard: text(params.get("card"), 100),
     ...parseAiParams(params),
@@ -248,6 +261,8 @@ export function buildReportsSearchParams(state: ReportsUrlState): URLSearchParam
   put("unit", state.unit, DEFAULT_REPORTS_STATE.unit);
   put("mode", state.mode, DEFAULT_REPORTS_STATE.mode);
   put("group", state.groupBy, DEFAULT_REPORTS_STATE.groupBy);
+  put("split", state.split, DEFAULT_REPORTS_STATE.split);
+  put("per", state.per);
   if (state.page !== 1) params.set("page", String(state.page));
   put("card", state.rateCard);
   put("ai", state.aiGroup, DEFAULT_REPORTS_STATE.aiGroup);
@@ -262,16 +277,24 @@ export function buildReportsHref(pathname: string, state: ReportsUrlState): stri
   return query ? `${pathname}?${query}` : pathname;
 }
 
+/** The state only Word counts' chart reads, which leaves the table's page where it is. */
+const CHART_ONLY_KEYS: readonly (keyof ReportsUrlState)[] = ["split", "per"];
+const DATE_KEYS: readonly (keyof ReportsUrlState)[] = ["range", "from", "to"];
+
 /**
  * A change to the state. Changing what is counted or grouped goes back to the first page of
- * the table, since the old page may no longer exist.
+ * the table, since the old page may no longer exist; a change to the chart alone keeps it. New
+ * dates go back to their own bar length, since one chosen for other dates may not suit them.
  */
 export function applyReportsChange(
   state: ReportsUrlState,
   change: Partial<ReportsUrlState>,
 ): ReportsUrlState {
   const next = { ...state, ...change };
-  if (!("page" in change)) next.page = 1;
+  const keys = Object.keys(change) as (keyof ReportsUrlState)[];
+  const chartOnly = keys.length > 0 && keys.every((key) => CHART_ONLY_KEYS.includes(key));
+  if (!("page" in change) && !chartOnly) next.page = 1;
+  if (!("per" in change) && keys.some((key) => DATE_KEYS.includes(key))) next.per = null;
   if (change.range && change.range !== "custom") {
     next.from = null;
     next.to = null;

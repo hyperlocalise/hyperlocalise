@@ -12,41 +12,31 @@
  */
 "use client";
 
-import { useState } from "react";
 import { useIntl } from "react-intl";
 
-import { Button } from "@/components/ui/button";
 import { describeChange } from "@/lib/reporting/report-period";
 
-import { AddExpenseDialog } from "./add-expense-dialog";
 import { costsTabMessages as messages } from "./costs-tab.messages";
 import { formatChange, formatUsd } from "./report-format";
 import { DownloadCsvButton, ReportEmpty, ReportSectionState } from "./report-section";
 import { ReportStatCard, ReportStatCards, ReportStatCardsSkeleton } from "./report-stat-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
 import { reportsPageMessages as pageMessages } from "./reports-page.messages";
-import {
-  costsQuery,
-  reportDownloadUrl,
-  useCosts,
-  type ReportSettings,
-  type SectionInput,
-} from "./reports-queries";
+import { costsQuery, reportDownloadUrl, useCosts, type SectionInput } from "./reports-queries";
 
 /** AI charged outside any project, shown as its own row when there is any. */
 function hasOutsideProjects(data: { outsideProjects: { aiUsd: string } | null }) {
   return Number(data.outsideProjects?.aiUsd ?? 0) > 0;
 }
 
-export function CostsTab({ input, settings }: { input: SectionInput; settings: ReportSettings }) {
+export function CostsTab({ input }: { input: SectionInput }) {
   const intl = useIntl();
   const costs = useCosts(input);
-  const [adding, setAdding] = useState(false);
   const numeric = "text-right tabular-nums";
   return (
     <div className="flex flex-col gap-4">
       {costs.isPending && !costs.data ? (
-        <ReportStatCardsSkeleton count={4} />
+        <ReportStatCardsSkeleton count={3} />
       ) : costs.data ? (
         <ReportStatCards>
           <ReportStatCard
@@ -73,21 +63,9 @@ export function CostsTab({ input, settings }: { input: SectionInput; settings: R
             value={formatUsd(intl, costs.data.totals.aiUsd)}
             detail={intl.formatMessage(messages.aiDetail)}
           />
-          <ReportStatCard
-            label={intl.formatMessage(messages.expenses)}
-            value={formatUsd(intl, costs.data.totals.expensesUsd)}
-            detail={intl.formatMessage(messages.expensesDetail)}
-          />
         </ReportStatCards>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {settings.canManage ? (
-          <Button variant="outline" onClick={() => setAdding(true)}>
-            {intl.formatMessage(messages.addExpense)}
-          </Button>
-        ) : (
-          <span />
-        )}
+      <div className="flex justify-end">
         <DownloadCsvButton
           href={reportDownloadUrl(input.organizationSlug, "costs", costsQuery(input))}
         />
@@ -112,9 +90,6 @@ export function CostsTab({ input, settings }: { input: SectionInput; settings: R
                       {intl.formatMessage(messages.aiOutsideTasks)}
                     </TableHead>
                     <TableHead className="text-right">
-                      {intl.formatMessage(messages.expenses)}
-                    </TableHead>
-                    <TableHead className="text-right">
                       {intl.formatMessage(messages.totalColumn)}
                     </TableHead>
                   </TableRow>
@@ -128,7 +103,6 @@ export function CostsTab({ input, settings }: { input: SectionInput; settings: R
                       <TableCell className={numeric}>
                         {formatUsd(intl, row.aiOutsideTasksUsd)}
                       </TableCell>
-                      <TableCell className={numeric}>{formatUsd(intl, row.expensesUsd)}</TableCell>
                       <TableCell className={numeric}>{formatUsd(intl, row.totalUsd)}</TableCell>
                     </TableRow>
                   ))}
@@ -144,7 +118,6 @@ export function CostsTab({ input, settings }: { input: SectionInput; settings: R
                       <TableCell className={numeric}>
                         {formatUsd(intl, data.outsideProjects.aiOutsideTasksUsd)}
                       </TableCell>
-                      <TableCell className={numeric}>{formatUsd(intl, null)}</TableCell>
                       <TableCell className={numeric}>
                         {formatUsd(intl, data.outsideProjects.aiUsd)}
                       </TableCell>
@@ -160,9 +133,6 @@ export function CostsTab({ input, settings }: { input: SectionInput; settings: R
                     </TableCell>
                     <TableCell className={numeric}>
                       {formatUsd(intl, data.totals.aiOutsideTasksUsd)}
-                    </TableCell>
-                    <TableCell className={numeric}>
-                      {formatUsd(intl, data.totals.expensesUsd)}
                     </TableCell>
                     <TableCell className={numeric}>
                       {formatUsd(intl, data.totals.totalUsd)}
@@ -185,14 +155,6 @@ export function CostsTab({ input, settings }: { input: SectionInput; settings: R
           </>
         )}
       </ReportSectionState>
-      {adding ? (
-        <AddExpenseDialog
-          organizationSlug={input.organizationSlug}
-          settings={settings}
-          projectId={input.state.projectId}
-          onClose={() => setAdding(false)}
-        />
-      ) : null}
     </div>
   );
 }

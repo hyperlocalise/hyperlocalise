@@ -592,7 +592,6 @@ export async function queryStillToCome(input: {
 
 type Spending = {
   people: bigint;
-  expenses: bigint;
   /** Billing's AI charges on the project's tasks; null when the costs are filtered by language. */
   aiOnTasks: bigint | null;
   /** Billing's AI charges in the project with no task, such as content editor suggestions. */
@@ -610,7 +609,7 @@ type SpendingResult = {
 };
 
 /**
- * Money spent per project: people's work and expenses as recorded, and billing's charges for AI
+ * Money spent per project: people's work as recorded, and billing's charges for AI
  * through our AI gateway (calls on the workspace's own provider key cost the workspace nothing
  * through us), placed in projects by `attributedUsage`. A charge on a task counts by its task,
  * one with no task by its recorded project, so none counts twice. With no days given,
@@ -637,21 +636,16 @@ async function spending(input: {
     : sql`false`;
   const [recorded, ai] = await Promise.all([
     input.projectIds.length
-      ? db.execute<{
-          projectId: string;
-          kind: "human" | "expense";
-          amount: string;
-          unpriced: number;
-        }>(sql`
-          select c.project_id as "projectId", c.kind, round(coalesce(sum(c.amount_usd), 0), 8)::text as amount,
+      ? db.execute<{ projectId: string; amount: string; unpriced: number }>(sql`
+          select c.project_id as "projectId", round(coalesce(sum(c.amount_usd), 0), 8)::text as amount,
             count(*) filter (where c.amount_usd is null)::integer as unpriced
           from reporting_costs c
           where c.organization_id = ${input.organizationId}
             and c.project_id in (${idList(input.projectIds)})
-            and not c.voided and c.kind in ('human', 'expense')
+            and not c.voided and c.kind = 'human'
             ${input.targetLocale ? sql`and c.target_locale = ${input.targetLocale}` : sql``}
             ${within(sql`c.created_at`)}
-          group by 1, 2
+          group by 1
         `)
       : Promise.resolve({ rows: [] }),
     withAi
@@ -679,7 +673,6 @@ async function spending(input: {
     if (!entry) {
       entry = {
         people: ZERO,
-        expenses: ZERO,
         aiOnTasks: withAi ? ZERO : null,
         aiOutsideTasks: withAi ? ZERO : null,
         unpriced: 0,
@@ -689,15 +682,9 @@ async function spending(input: {
     }
     return entry;
   };
-  for (const row of recorded.rows as {
-    projectId: string;
-    kind: "human" | "expense";
-    amount: string;
-    unpriced: number;
-  }[]) {
+  for (const row of recorded.rows as { projectId: string; amount: string; unpriced: number }[]) {
     const entry = project(row.projectId);
-    if (row.kind === "human") entry.people += usdUnits(row.amount);
-    else entry.expenses += usdUnits(row.amount);
+    entry.people += usdUnits(row.amount);
     entry.unpriced += row.unpriced;
   }
   const outsideProjects = outside ? { aiOnTasks: ZERO, aiOutsideTasks: ZERO, pendingAi: 0 } : null;
@@ -727,7 +714,7 @@ function aiTotal(entry: Spending | undefined) {
 }
 
 function spentTotal(entry: Spending | undefined) {
-  return entry ? entry.people + entry.expenses + aiTotal(entry) : ZERO;
+  return entry ? entry.people + aiTotal(entry) : ZERO;
 }
 
 export type CostRow = {
@@ -738,7 +725,6 @@ export type CostRow = {
   aiUsd: string | null;
   aiOnTasksUsd: string | null;
   aiOutsideTasksUsd: string | null;
-  expensesUsd: string;
   totalUsd: string;
 };
 
@@ -781,14 +767,13 @@ export async function queryCosts(
     projectNames(projectIds),
   ]);
   const languageFiltered = Boolean(input.targetLocale);
-  const sum = { people: ZERO, expenses: ZERO, aiOnTasks: ZERO, aiOutsideTasks: ZERO };
+  const sum = { people: ZERO, aiOnTasks: ZERO, aiOutsideTasks: ZERO };
   let unpriced = 0,
     pendingAi = current.outsideProjects?.pendingAi ?? 0;
   const ai = (amount: bigint | null) => (amount === null ? null : usdString(amount));
   const rows: CostRow[] = [];
   for (const [projectId, entry] of current.byProject) {
     sum.people += entry.people;
-    sum.expenses += entry.expenses;
     sum.aiOnTasks += entry.aiOnTasks ?? ZERO;
     sum.aiOutsideTasks += entry.aiOutsideTasks ?? ZERO;
     unpriced += entry.unpriced;
@@ -800,7 +785,6 @@ export async function queryCosts(
       aiUsd: languageFiltered ? null : usdString(aiTotal(entry)),
       aiOnTasksUsd: ai(entry.aiOnTasks),
       aiOutsideTasksUsd: ai(entry.aiOutsideTasks),
-      expensesUsd: usdString(entry.expenses),
       totalUsd: usdString(spentTotal(entry)),
     });
   }
@@ -828,8 +812,7 @@ export async function queryCosts(
       aiUsd: languageFiltered ? null : usdString(allAi),
       aiOnTasksUsd: languageFiltered ? null : usdString(onTasks),
       aiOutsideTasksUsd: languageFiltered ? null : usdString(outsideTasks),
-      expensesUsd: usdString(sum.expenses),
-      totalUsd: usdString(sum.people + sum.expenses + allAi),
+      totalUsd: usdString(sum.people + allAi),
     },
     previousTotalUsd: usdString(previousTotal),
     unpriced,

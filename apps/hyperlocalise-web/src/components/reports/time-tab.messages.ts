@@ -56,10 +56,21 @@ export const timeTabMessages = defineMessages({
     defaultMessage: "Task",
     description: "Column heading: the task",
   },
+  taskStepColumn: {
+    id: "H8b4xXgp3t",
+    defaultMessage: "Task step",
+    description: "Column heading: what the task is for (translate, post-edit or proofread)",
+  },
   stepColumn: {
     id: "G483RkGMWe",
     defaultMessage: "Step",
     description: "Column heading: the step",
+  },
+  costedAsColumn: {
+    id: "qQFR1rP98w",
+    defaultMessage: "Costed as",
+    description:
+      "Column heading: the step the logged time is priced as, translation or review, beside the task's own step",
   },
   languageColumn: {
     id: "wNTnMH8vtk",

@@ -178,7 +178,7 @@ export function ReportsPage({
               <AiUsageTab input={input} onChange={update} />
             </TabsContent>
             <TabsContent value="costs">
-              <CostsTab input={input} settings={data} />
+              <CostsTab input={input} />
             </TabsContent>
             <TabsContent value="estimate">
               <CostEstimateTab input={input} rateCardName={rateCardName} onChange={update} />

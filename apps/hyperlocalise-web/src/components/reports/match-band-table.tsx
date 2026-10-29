@@ -36,8 +36,16 @@ export type BandTableColumn<Row> = {
 /**
  * The bands shown as columns: all but "not matched", which appears only when some work has it.
  */
-export function visibleBands(totals: BandCounts): MatchBucket[] {
-  return MATCH_BUCKETS.filter((bucket) => bucket !== "unavailable" || (totals[bucket] ?? 0) > 0);
+export function visibleBands(
+  totals: BandCounts,
+  rows: { bands: BandCounts }[] = [],
+): MatchBucket[] {
+  return MATCH_BUCKETS.filter(
+    (bucket) =>
+      bucket !== "unavailable" ||
+      (totals[bucket] ?? 0) > 0 ||
+      rows.some((row) => (row.bands[bucket] ?? 0) > 0),
+  );
 }
 
 /**
