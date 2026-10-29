@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -56,6 +57,25 @@ func TestCachedWorkspaceFlagsRemembersAnswersForAMinute(t *testing.T) {
 	require.Equal(t, 4, live.calls)
 }
 
+func TestCachedWorkspaceFlagsLookupOutlivesTheFirstCaller(t *testing.T) {
+	live := &contextWorkspaceFlags{}
+	cache := newCachedWorkspaceFlags(live)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	// The caller that started the lookup is gone; the lookup still answers for the others.
+	enabled, err := cache.Enabled(ctx, "org_1", "user_1", workspaceReportsFlag)
+	require.NoError(t, err)
+	require.True(t, enabled)
+	require.NoError(t, live.seen)
+}
+
+type contextWorkspaceFlags struct{ seen error }
+
+func (f *contextWorkspaceFlags) Enabled(ctx context.Context, _, _, _ string) (bool, error) {
+	f.seen = ctx.Err()
+	return true, nil
+}
+
 func TestCachedWorkspaceFlagsNeverKeepsAFailedLookup(t *testing.T) {
 	live := &countingWorkspaceFlags{err: errors.New("workos unavailable")}
 	cache := newCachedWorkspaceFlags(live)
@@ -102,6 +122,12 @@ func TestWriteReportingErrorMapsAStatementTimeoutToABusyAnswer(t *testing.T) {
 	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
 	require.Contains(t, rec.Body.String(), "report_timed_out")
 
+	// A request out of its own time answers the same way.
+	rec = httptest.NewRecorder()
+	writeReportingError(rec, httptest.NewRequest(http.MethodGet, "/", nil), "handle", fmt.Errorf("read: %w", context.DeadlineExceeded))
+	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+	require.Contains(t, rec.Body.String(), "report_timed_out")
+
 	rec = httptest.NewRecorder()
 	writeReportingError(rec, httptest.NewRequest(http.MethodGet, "/", nil), "handle", errors.New("boom"))
 	require.Equal(t, http.StatusInternalServerError, rec.Code)
@@ -117,7 +143,7 @@ func TestReportingAdmitsTwoQueriesAtOnce(t *testing.T) {
 
 	// A reader that finds every slot held waits only as long as its request may, then is told so.
 	api.queries = semaphore.NewWeighted(0)
-	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
 	mux := http.NewServeMux()
 	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: scope.WorkOSUserID}})

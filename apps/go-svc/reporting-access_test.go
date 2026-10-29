@@ -66,38 +66,3 @@ func TestReportingProjectIDsMatchHonoTeamAccess(t *testing.T) {
 		}
 	})
 }
-
-func TestLoadReportingJobMatchesHonoJobAccess(t *testing.T) {
-	scope := testenv.Seed(t, testenv.Options{Role: "translator"})
-	mine := scope.MustTeam(t, "mine", "Mine", "member")
-	theirs := scope.MustTeam(t, "theirs", "Theirs", "")
-	visible := mustReportingProject(t, scope, "rp_mine", &mine)
-	hidden := mustReportingProject(t, scope, "rp_theirs", &theirs)
-	visibleJob := mustReportingJob(t, scope, "job_visible", &visible)
-	hiddenJob := mustReportingJob(t, scope, "job_hidden", &hidden)
-	unscopedJob := mustReportingJob(t, scope, "job_unscoped", nil)
-
-	translator := reportingActorFor(scope, "translator")
-	job, err := loadReportingJob(t.Context(), scope.Pool, translator, visibleJob)
-	require.NoError(t, err)
-	require.Equal(t, visibleJob, job.ID)
-	require.Equal(t, visible, *job.ProjectID)
-	for _, id := range []string{hiddenJob, unscopedJob, "job_missing"} {
-		_, err := loadReportingJob(t.Context(), scope.Pool, translator, id)
-		require.True(t, isNoRows(err), id)
-	}
-
-	admin := reportingActorFor(scope, "admin")
-	for _, id := range []string{visibleJob, hiddenJob, unscopedJob} {
-		job, err := loadReportingJob(t.Context(), scope.Pool, admin, id)
-		require.NoError(t, err, id)
-		require.Equal(t, id, job.ID)
-	}
-	unscoped, err := loadReportingJob(t.Context(), scope.Pool, admin, unscopedJob)
-	require.NoError(t, err)
-	require.Nil(t, unscoped.ProjectID)
-
-	other := testenv.Seed(t, testenv.Options{Role: "admin"})
-	_, err = loadReportingJob(t.Context(), other.Pool, reportingActorFor(other, "admin"), visibleJob)
-	require.True(t, isNoRows(err))
-}

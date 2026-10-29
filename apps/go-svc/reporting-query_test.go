@@ -43,6 +43,9 @@ func TestReportingActivityQueryRefusesWhatTheWebSchemaRefuses(t *testing.T) {
 		"targetLocale=f",
 		"targetLocale=" + strings.Repeat("x", 36),
 		"unit=words&unit=strings",
+		// Text the database would refuse: the web answers these two with an empty report or a 500.
+		"projectId=%FF",
+		"targetLocale=fr%00FR",
 	} {
 		_, err := activityQueryFrom(t, rawQuery)
 		var failure *reportingError

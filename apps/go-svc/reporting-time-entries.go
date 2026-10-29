@@ -96,7 +96,8 @@ func resolveReportingRate(ctx context.Context, db dictionaryDB, organizationID, 
 }
 
 // reportingStartRecording records when Reports started for a workspace, the first time it
-// records anything for it: at its earliest record, or now.
+// records anything for it: at its earliest record, or now. The earliest records are looked for
+// only while the workspace has no start, so the lookup runs once per workspace.
 func reportingStartRecording(ctx context.Context, db dictionaryDB, organizationID string) error {
 	_, err := db.Exec(ctx, `
         insert into reporting_workspaces (organization_id, started_at)
@@ -105,6 +106,7 @@ func reportingStartRecording(ctx context.Context, db dictionaryDB, organizationI
             (select min(created_at) from reporting_activity where organization_id = $1),
             (select min(created_at) from reporting_costs where organization_id = $1)
         ), now())
+        where not exists (select 1 from reporting_workspaces where organization_id = $1)
         on conflict (organization_id) do nothing`, organizationID)
 	if err != nil {
 		return fmt.Errorf("start reporting: %w", err)
@@ -159,12 +161,14 @@ func (api *reportingAPI) logTime(r *http.Request, actor reportingActor) (any, in
 			sourceLocale = new(string)
 			*sourceLocale = "en"
 		}
+		// The task lock comes first, so a rate set while this runs (task pricing, which holds the
+		// same lock) cannot slip in between reading the rate and writing the entry.
+		if _, err := tx.Exec(ctx, `select id from jobs where id = $1 for update`, job.ID); err != nil {
+			return fmt.Errorf("lock task: %w", err)
+		}
 		rate, err := resolveReportingRate(ctx, tx, actor.organizationID, *job.ProjectID, job.ID, *sourceLocale, targetLocale, step)
 		if err != nil {
 			return err
-		}
-		if _, err := tx.Exec(ctx, `select id from jobs where id = $1 for update`, job.ID); err != nil {
-			return fmt.Errorf("lock task: %w", err)
 		}
 		var overrideUSD *string
 		if err := tx.QueryRow(ctx, `select override_usd::text from reporting_task_rates where job_id = $1 and step = $2`, job.ID, step).Scan(&overrideUSD); err != nil && !isNoRows(err) {
@@ -199,12 +203,13 @@ func (api *reportingAPI) logTime(r *http.Request, actor reportingActor) (any, in
 				return fmt.Errorf("price time: %w", err)
 			}
 		}
-		return reportingAudit(ctx, tx, actor, entry.ID, "time_created", nil, entry)
+		if err := reportingAudit(ctx, tx, actor, entry.ID, "time_created", nil, entry); err != nil {
+			return err
+		}
+		// With the entry, so a failure leaves neither: the web starts Reports after its commit.
+		return reportingStartRecording(ctx, tx, actor.organizationID)
 	})
 	if err != nil {
-		return nil, 0, err
-	}
-	if err := reportingStartRecording(ctx, api.pool, actor.organizationID); err != nil {
 		return nil, 0, err
 	}
 	return map[string]any{"timeEntry": map[string]string{"id": entry.ID}}, http.StatusCreated, nil
@@ -212,6 +217,9 @@ func (api *reportingAPI) logTime(r *http.Request, actor reportingActor) (any, in
 
 // loadReportingTimeEntry reads one of the workspace's time entries in a project the viewer can open.
 func loadReportingTimeEntry(ctx context.Context, db dictionaryDB, actor reportingActor, id string, includeVoided bool) (reportingTimeEntryRow, error) {
+	if !reportingValidText(id) {
+		return reportingTimeEntryRow{}, reportingFailure(404, "time_entry_not_found", "Resource not found")
+	}
 	voided := " and not voided"
 	if includeVoided {
 		voided = ""

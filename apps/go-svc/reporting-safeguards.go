@@ -14,8 +14,9 @@ import (
 // read at once per copy, and each reads on one pooled connection with a time limit per statement.
 
 const (
-	reportingFlagCacheTTL   = time.Minute
-	reportingFlagCacheLimit = 10_000
+	reportingFlagCacheTTL      = time.Minute
+	reportingFlagCacheLimit    = 10_000
+	reportingFlagLookupTimeout = 10 * time.Second
 )
 
 // cachedWorkspaceFlags remembers each flag answer for a minute, and lets one lookup serve the
@@ -51,7 +52,11 @@ func (c *cachedWorkspaceFlags) Enabled(ctx context.Context, workosOrganizationID
 		if enabled, ok := c.cached(key); ok {
 			return enabled, nil
 		}
-		enabled, err := c.live.Enabled(ctx, workosOrganizationID, workosUserID, slug)
+		// The lookup serves every caller that missed together, so it is not cut short by the
+		// first caller going away.
+		lookup, cancel := context.WithTimeout(context.WithoutCancel(ctx), reportingFlagLookupTimeout)
+		defer cancel()
+		enabled, err := c.live.Enabled(lookup, workosOrganizationID, workosUserID, slug)
 		if err != nil {
 			return false, err
 		}

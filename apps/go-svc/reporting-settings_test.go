@@ -134,4 +134,8 @@ func TestCompareReportingNamesOrdersLikeTheBrowser(t *testing.T) {
 	require.Greater(t, compareReportingNames("A", "a"), 0)
 	require.Equal(t, 0, compareReportingNames("Same", "Same"))
 	require.Less(t, compareReportingNames("ab", "abc"), 0)
+	// Accents and punctuation as localeCompare orders them, not as bytes.
+	require.Less(t, compareReportingNames("Éclair", "Zeta"), 0)
+	require.Less(t, compareReportingNames("résumé", "resumes"), 0)
+	require.Less(t, compareReportingNames("pt_BR", "pt-BR"), 0)
 }

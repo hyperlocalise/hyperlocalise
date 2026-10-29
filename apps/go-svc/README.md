@@ -744,7 +744,7 @@ go test ./apps/go-svc/internal/autumn -run HTTPStatus
 
 ## Reports
 
-The Reports page's reads under `/v1/orgs/{organizationSlug}/reports`, ported from the web app's Hono routes (`apps/hyperlocalise-web/src/api/routes/reports`) one section at a time; the web app keeps recording the work and refreshing the daily summary. Each route answers as the web route does: same query fields, error codes, shapes and permissions, plus a `message` on errors as every go-svc API gives.
+The Reports page's reads and writes under `/v1/orgs/{organizationSlug}/reports`, ported from the web app's Hono routes (`apps/hyperlocalise-web/src/api/routes/reports`) one section at a time; the web app keeps recording the work and refreshing the daily summary. Each route answers as the web route does: same query fields, error codes, shapes and permissions, plus a `message` on errors as every go-svc API gives.
 
 Requires workspace authentication, `DATABASE_URL`, and the `workspace-reports` feature flag. A disabled or unavailable flag returns `403 feature_unavailable`.
 
@@ -768,20 +768,20 @@ Requires workspace authentication, `DATABASE_URL`, and the `workspace-reports` f
 | PUT | `/reports/budgets` | `billing:write` | Set a project's budget and the card that prices its work (`404 project_not_found`, `400 rate_card_not_found`) |
 | PUT | `/reports/task-rates` | `billing:write` | A task's own pricing for a step: a rate card (taken as it is at that moment), a time estimate or a fixed fee; `400 task_rate_locked` once work on the step has started |
 | POST | `/reports/time-entries` | `jobs:write` | Log time on a native task; priced by an hourly line only (`400 native_job_required`) |
-| PATCH | `/reports/time-entries/{id}` | Own, or `billing:write` | Change an entry's minutes, day and note; its cost follows |
+| PATCH | `/reports/time-entries/{id}` | `jobs:write`, and the entry is the caller's own or they have `billing:write` | Change an entry's minutes, day and note; its cost follows |
 | DELETE | `/reports/time-entries/{id}` | Own, or `billing:write` | Void an entry and its cost |
-| POST | `/internal/reports/{kind}` | Service token | The MCP `get_report` tool: `{organizationId, userId, query}` answered as `activity`, `words` (with its chart), `time`, `ai` or `costs` for that member, with `summary` and `stillUpdating` |
+| POST | `/internal/reports/{kind}` | Service token | The MCP `get_report` tool: `{organizationId, userId, query}` (query values as text, or numbers and booleans) answered as `activity`, `words` (with its chart), `time`, `ai` or `costs` for that member, with `summary` and `stillUpdating` |
 
 **Access control:** `billing:read` (admins and localization managers) sees reports and money; the internal route applies the named member's own access (workspace, flag, billing); writes hold the web app's locks (the task row, and `pg_advisory_xact_lock(hashtext('reporting-rate-card:<workspace>:<name>'))` for a card) and write the same `reporting_audit` rows; `billing:write` (admins) changes rate cards, budgets and pricing; `jobs:write` logs time. Project visibility follows team membership, with organization-wide access for admins and localization managers; a filter for a project the viewer cannot open reads nothing.
 
-**Dates:** UTC calendar days as `YYYY-MM-DD`, from 2000 on, never past today and never from before Reports started for the workspace; the default period is the last 28 days and is compared with the period of the same length before it; periods over 45 days are charted by week (Monday start).
+**Dates:** UTC calendar days as `YYYY-MM-DD`, from 2000 on, never past today; the default period is the last 28 days and is compared with the period of the same length before it; periods over 45 days are charted by week (Monday start).
 
-**Safeguards** (`reporting-safeguards.go`), for a service whose size is not pinned down: at most 2 Reports requests query the database at once per copy (`503 reports_busy` beyond that), each request reads on one pooled connection in a read-only transaction with a 10 s statement limit (`503 report_timed_out`), CSVs are written row by row, and the flag answer is cached per workspace and user for a minute (one lookup serves the requests that miss together).
+**Safeguards** (`reporting-safeguards.go`), for a service whose size is not pinned down: at most 2 Reports requests query the database at once per copy (a third waits for a slot, and is refused with `503 reports_busy` when its own 30 s run out; the member lookup runs before admission), each read runs on one pooled connection in a read-only transaction with a 10 s statement limit (a statement, lock wait or request out of time answers `503 report_timed_out`), CSVs are written row by row, and the flag answer is cached per workspace and user for a minute (one lookup serves the requests that miss together).
 
 ### Testing
 
 ```bash
-GO_SVC_INTEGRATION=1 go test ./apps/go-svc -run 'Reporting|CachedWorkspaceFlags'
+GO_SVC_INTEGRATION=1 go test ./apps/go-svc -run 'Reporting|CachedWorkspaceFlags|WriteReporting'
 ```
 
 Money is fixed-point USD at eight decimals (`reporting-money.go`); an estimate prices the daily summary's units at the live rate card line by line in each line's own basis, and spent amounts are the recorded costs plus billing's gateway charges placed by `reporting-ai-attribution.go`.

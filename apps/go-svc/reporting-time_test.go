@@ -88,6 +88,13 @@ func TestReportingTimeTotalsLoggedTimeByTaskStepAndLanguage(t *testing.T) {
 
 func TestReportingTimeShowsOtherRolesOnlyTheirOwnTime(t *testing.T) {
 	scope, _, _ := seedReportingTime(t)
+	// A project the viewer's teams cannot open reads as empty, even by name.
+	secret := scope.MustTeam(t, "secret", "Secret", "")
+	hidden := mustReportingProject(t, scope, "rp_hidden", &secret)
+	_, err := scope.Pool.Exec(t.Context(), `insert into reporting_time_entries (organization_id, project_id, job_id, contributor_id, step, target_locale, work_date, minutes)
+        values ($1, $2, 'job_hidden', $3, 'translation', 'fr-FR', '2026-06-10', 99)`, scope.OrganizationID, hidden, scope.UserID)
+	require.NoError(t, err)
+	require.Equal(t, []any{}, reportingReadJSON(t, scope, "translator", "/reports/time?"+reportingTestWeek+"&projectId="+hidden)["time"].(map[string]any)["logged"].(map[string]any)["rows"])
 	for _, role := range []string{"translator", "member"} {
 		time := reportingReadJSON(t, scope, role, "/reports/time?"+reportingTestWeek)["time"].(map[string]any)
 		// Their own entries only (60 + 45 + 20 + 5), and no automated time: that is workspace activity.
@@ -191,8 +198,11 @@ func TestReportingStepTimesMeasureAutomatedWorkThatFinishedInThePeriod(t *testin
 		}
 		return result
 	}
-	// The workspace's own workflow counts for a billing role; test runs with mock data never do.
+	// The workspace's own workflow counts for a billing role, a localization manager too; test
+	// runs with mock data never do.
 	automated := reportingReadJSON(t, scope, "admin", "/reports/step-times?"+reportingTestWeek)["stepTimes"].(map[string]any)["automated"].(map[string]any)
+	manager := reportingReadJSON(t, scope, "localization_manager", "/reports/step-times?"+reportingTestWeek)["stepTimes"].(map[string]any)["automated"].(map[string]any)
+	require.Equal(t, automated["workflowSteps"], manager["workflowSteps"])
 	require.Equal(t, []any{
 		map[string]any{"nodeType": "action.http", "milliseconds": float64(12_000), "runs": float64(3)},
 		map[string]any{"nodeType": "action.notify_slack", "milliseconds": float64(1000), "runs": float64(1)},

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -923,7 +924,9 @@ func queryReportingCosts(ctx context.Context, db dictionaryDB, scope reportingSc
 		}
 		costs.Rows = append(costs.Rows, row)
 	}
-	slices.SortStableFunc(costs.Rows, func(a, b reportingCostRow) int { return compareReportingNames(a.ProjectName, b.ProjectName) })
+	slices.SortStableFunc(costs.Rows, func(a, b reportingCostRow) int {
+		return cmp.Or(compareReportingNames(a.ProjectName, b.ProjectName), strings.Compare(a.ProjectID, b.ProjectID))
+	})
 	onTasks, outsideTasks := new(big.Int).Set(aiOnTasks), new(big.Int).Set(aiOutsideTasks)
 	if outside != nil {
 		onTasks.Add(onTasks, outside.aiOnTasks)

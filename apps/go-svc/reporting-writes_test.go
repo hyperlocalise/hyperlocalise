@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
 
@@ -248,7 +249,7 @@ func TestReportingTimeEntriesAreEditedAndVoidedByTheirContributorOrBillingWrite(
 	status, body = f.send("member", http.MethodPost, "/reports/time-entries", fmt.Sprintf(`{"jobId": "%s", "step": "translation", "targetLocale": "fr-FR", "workDate": "2026-06-01", "minutes": 30}`, job))
 	require.Equal(t, http.StatusForbidden, status)
 	require.Equal(t, "time_entry_forbidden", body["error"])
-	for _, malformed := range []string{`{"jobId": "x", "step": "translation", "targetLocale": "fr-FR", "workDate": "2026-06-01", "minutes": 0}`, `{"jobId": "x", "step": "translation", "targetLocale": "f", "workDate": "2026-06-01", "minutes": 5}`, `{"jobId": "x", "step": "translation", "targetLocale": "fr-FR", "workDate": "2026-6-1", "minutes": 5}`, `{"jobId": "x", "step": "translation", "targetLocale": "fr-FR", "workDate": "2026-06-01", "minutes": 5, "note": null}`} {
+	for _, malformed := range []string{`{"jobId": "x", "step": "translation", "targetLocale": "fr-FR", "workDate": "2026-06-01", "minutes": 0}`, `{"jobId": "x", "step": "translation", "targetLocale": "fr-FR", "workDate": "0026-06-01", "minutes": 5}`, `{"jobId": "x", "step": "translation", "targetLocale": "fr-FR", "workDate": "2026-06-01", "minutes": 5, "note": "a\u0000b"}`, `{"jobId": "x", "step": "translation", "targetLocale": "f", "workDate": "2026-06-01", "minutes": 5}`, `{"jobId": "x", "step": "translation", "targetLocale": "fr-FR", "workDate": "2026-6-1", "minutes": 5}`, `{"jobId": "x", "step": "translation", "targetLocale": "fr-FR", "workDate": "2026-06-01", "minutes": 5, "note": null}`} {
 		status, body = f.send("admin", http.MethodPost, "/reports/time-entries", malformed)
 		require.Equal(t, http.StatusBadRequest, status, malformed)
 		require.Equal(t, "invalid_time_entry", body["error"], malformed)
@@ -256,30 +257,40 @@ func TestReportingTimeEntriesAreEditedAndVoidedByTheirContributorOrBillingWrite(
 	require.Equal(t, 4, f.count(`select count(*) from reporting_audit where organization_id = $1 and action like 'time_%'`, f.scope.OrganizationID))
 }
 
-func TestReportingTwoTaskPricesSavedTogetherLeaveOne(t *testing.T) {
+func TestReportingTaskPricingRacingLoggedTimeNeverPricesStartedWork(t *testing.T) {
 	f := seedReportingMoney(t)
-	job := f.job("job_raced", f.scope.ProjectID, "waiting_for_review", false, "")
-	f.card("Standard", "2026-03-01T00:00:00Z", line("fr-FR", "0.12"))
-	f.card("Agency", "2026-03-01T00:00:00Z", line("fr-FR", "0.10"))
+	f.card("Hourly", "2026-03-01T00:00:00Z", line("fr-FR", "60", "hour"))
+	f.budget(f.scope.ProjectID, "1000", some("Hourly"))
 	api := reportingTestAPI(f.scope, "admin", stubWorkspaceFlags{enabled: true})
-	var wg sync.WaitGroup
-	statuses := make([]int, 2)
-	for i, card := range []string{"Standard", "Agency"} {
+	// Both hold the task row, so either the pricing lands before the time (and the time keeps
+	// the card's rate), or the time lands first and the pricing is refused as locked.
+	for i := range 6 {
+		job := f.job(fmt.Sprintf("job_raced_%d", i), f.scope.ProjectID, "waiting_for_review", false, "")
+		var wg sync.WaitGroup
+		var priced, logged *httptest.ResponseRecorder
 		wg.Go(func() {
-			rec := reportingRequest(t, api, f.scope.WorkOSUserID, http.MethodPut, f.scope.OrgPath("/reports/task-rates"), fmt.Sprintf(`{"jobId": "%s", "step": "translation", "rateCardName": "%s"}`, job, card))
-			statuses[i] = rec.Code
+			priced = reportingRequest(t, api, f.scope.WorkOSUserID, http.MethodPut, f.scope.OrgPath("/reports/task-rates"), fmt.Sprintf(`{"jobId": "%s", "step": "translation", "overrideUsd": "100"}`, job))
 		})
+		wg.Go(func() {
+			logged = reportingRequest(t, api, f.scope.WorkOSUserID, http.MethodPost, f.scope.OrgPath("/reports/time-entries"), fmt.Sprintf(`{"jobId": "%s", "step": "translation", "targetLocale": "fr-FR", "workDate": "2026-06-01", "minutes": 30}`, job))
+		})
+		wg.Wait()
+		require.Equal(t, http.StatusCreated, logged.Code)
+		costs := f.count(`select count(*) from reporting_costs where job_id = $1`, job)
+		switch priced.Code {
+		case http.StatusOK:
+			// The pricing landed first, so the fee stands in for the time's cost: no cost row.
+			require.Equal(t, 0, costs)
+		case http.StatusBadRequest:
+			require.Contains(t, priced.Body.String(), "task_rate_locked")
+			require.Equal(t, 1, costs)
+		default:
+			t.Fatalf("pricing answered %d: %s", priced.Code, priced.Body.String())
+		}
 	}
-	wg.Wait()
-	require.Equal(t, []int{200, 200}, statuses)
-	// The task row is locked, so the saves run one after the other: one row, the later card.
-	require.Equal(t, 1, f.count(`select count(*) from reporting_task_rates where job_id = $1`, job))
-	require.Equal(t, 2, f.count(`select count(*) from reporting_audit where organization_id = $1 and action = 'task_rate_saved'`, f.scope.OrganizationID))
-	var card string
-	require.NoError(t, f.scope.Pool.QueryRow(t.Context(), `select rate_card_name from reporting_task_rates where job_id = $1`, job).Scan(&card))
-	require.Contains(t, []string{"Standard", "Agency"}, card)
 }
 
+// An edit never clears the void, so the entry ends voided whichever ran first, as on the web.
 func TestReportingAnEditRacingADeleteLeavesTheEntryVoided(t *testing.T) {
 	f := seedReportingMoney(t)
 	job := f.job("job_raced", f.scope.ProjectID, "running", false, "")
@@ -307,6 +318,43 @@ func TestReportingAnEditRacingADeleteLeavesTheEntryVoided(t *testing.T) {
 		require.True(t, entryVoided)
 		require.True(t, costVoided)
 	}
+}
+
+func TestReportingLogTimeStartsReportsWithTheFirstRecord(t *testing.T) {
+	scope := testenv.Seed(t, testenv.Options{Role: "admin", WithProject: true})
+	scope.MustTeam(t, "default", "Default", "member")
+	job := mustReportingTask(t, scope, "job_first", scope.ProjectID, "translation", "running", "", "")
+	// An older record sets the start; with none, the entry's own moment does.
+	_, err := scope.Pool.Exec(t.Context(), `insert into reporting_costs (organization_id, project_id, job_id, operation_key, kind, step, basis, created_at)
+        values ($1, $2, $3, 'old:1', 'ai', 'translation', 'unpriced', '2026-02-01T00:00:00Z')`, scope.OrganizationID, scope.ProjectID, job)
+	require.NoError(t, err)
+	status, _ := reportingSend(t, scope, "admin", http.MethodPost, "/reports/time-entries", fmt.Sprintf(`{"jobId": "%s", "step": "translation", "targetLocale": "fr-FR", "workDate": "2026-06-01", "minutes": 30}`, job))
+	require.Equal(t, http.StatusCreated, status)
+	var started string
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select started_at::text from reporting_workspaces where organization_id = $1`, scope.OrganizationID).Scan(&started))
+	require.Equal(t, "2026-02-01 00:00:00+00", started)
+	// A later record leaves the start alone.
+	status, _ = reportingSend(t, scope, "admin", http.MethodPost, "/reports/time-entries", fmt.Sprintf(`{"jobId": "%s", "step": "translation", "targetLocale": "fr-FR", "workDate": "2026-01-01", "minutes": 30}`, job))
+	require.Equal(t, http.StatusCreated, status)
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select started_at::text from reporting_workspaces where organization_id = $1`, scope.OrganizationID).Scan(&started))
+	require.Equal(t, "2026-02-01 00:00:00+00", started)
+}
+
+func TestReportingRateCardPercentagesAreStoredAsWholeNumbers(t *testing.T) {
+	f := seedReportingMoney(t)
+	status, _ := f.send("admin", http.MethodPut, "/reports/rate-cards", `{"name": "Bands", "lines": [{"sourceLocale": "en-US", "targetLocale": "fr-FR", "step": "translation", "basis": "word", "rate": "0.10", "percentages": {"100": 50.0, "new": 1e2}}], "create": true}`)
+	require.Equal(t, http.StatusOK, status)
+	var stored string
+	require.NoError(t, f.scope.Pool.QueryRow(t.Context(), `select percentages::text from reporting_rates where organization_id = $1 and name = 'Bands'`, f.scope.OrganizationID).Scan(&stored))
+	require.JSONEq(t, `{"100": 50, "new": 100}`, stored)
+	// The same bands written differently are no change: no new row.
+	status, _ = f.send("admin", http.MethodPut, "/reports/rate-cards", `{"name": "Bands", "lines": [{"sourceLocale": "en-US", "targetLocale": "fr-FR", "step": "translation", "basis": "word", "rate": "0.1", "percentages": {"100": 50}}]}`)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 1, f.count(`select count(*) from reporting_rates where organization_id = $1 and name = 'Bands'`, f.scope.OrganizationID))
+	// A changed band is.
+	status, _ = f.send("admin", http.MethodPut, "/reports/rate-cards", `{"name": "Bands", "lines": [{"sourceLocale": "en-US", "targetLocale": "fr-FR", "step": "translation", "basis": "word", "rate": "0.1", "percentages": {"100": 100}}]}`)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 2, f.count(`select count(*) from reporting_rates where organization_id = $1 and name = 'Bands'`, f.scope.OrganizationID))
 }
 
 func TestReportingWritesNeedTheFlag(t *testing.T) {

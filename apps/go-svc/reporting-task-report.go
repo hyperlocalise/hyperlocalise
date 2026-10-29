@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
-	"strings"
 	"time"
 )
 
@@ -30,6 +29,9 @@ type reportingTaskRow struct {
 // loadReportingTaskRow reads a task the viewer can open, by the web app's buildAccessibleJobsWhere.
 func loadReportingTaskRow(ctx context.Context, db dictionaryDB, actor reportingActor, jobID string) (reportingTaskRow, error) {
 	var job reportingTaskRow
+	if !reportingValidText(jobID) {
+		return job, reportingFailure(404, "job_not_found", "Resource not found")
+	}
 	err := db.QueryRow(ctx, `
         select j.id, j.project_id, j.kind, j.status, j.input_payload, j.created_at from jobs j
         where j.id = $1 and j.organization_id = $2
@@ -395,7 +397,7 @@ func reportingTaskWordsCSV(words reportingTaskWords, estimate *reportingCostEsti
 		if err := w.row(header...); err != nil {
 			return err
 		}
-		money := func(targetLocale string) []string {
+		money := func(targetLocale string) ([]string, error) {
 			var lines []reportingCostEstimateRow
 			for _, line := range estimate.Rows {
 				if line.TargetLocale == targetLocale && line.Step == step {
@@ -405,14 +407,18 @@ func reportingTaskWordsCSV(words reportingTaskWords, estimate *reportingCostEsti
 			weighted, cost := "", ""
 			var weightedSum, costSum float64
 			hasWeighted, hasCost := false, false
+			// Summed as doubles in the lines' order, as the web's CSV sums them.
 			for _, line := range lines {
 				if line.Weighted != nil {
 					weightedSum += *line.Weighted
 					hasWeighted = true
 				}
 				if line.CostUSD != nil {
-					value, _ := parseReportingFloat(*line.CostUSD)
-					costSum += value
+					amount, err := usdFloat(*line.CostUSD)
+					if err != nil {
+						return nil, err
+					}
+					costSum += amount
 					hasCost = true
 				}
 			}
@@ -420,7 +426,7 @@ func reportingTaskWordsCSV(words reportingTaskWords, estimate *reportingCostEsti
 				weighted = reportingHundredths(weightedSum)
 			}
 			if hasCost {
-				cost = fmt.Sprintf("%.2f", costSum)
+				cost = jsToFixed2(costSum)
 			}
 			// Empty for a language the estimate has no line for.
 			pricing := ""
@@ -433,7 +439,7 @@ func reportingTaskWordsCSV(words reportingTaskWords, estimate *reportingCostEsti
 			default:
 				pricing = "rate"
 			}
-			return []string{weighted, cost, pricing}
+			return []string{weighted, cost, pricing}, nil
 		}
 		for _, row := range rows {
 			cells := []string{row.TargetLocale}
@@ -442,7 +448,11 @@ func reportingTaskWordsCSV(words reportingTaskWords, estimate *reportingCostEsti
 			}
 			cells = append(cells, reportingNumber(row.Total), reportingNumber(row.Finished))
 			if estimate != nil {
-				cells = append(cells, money(row.TargetLocale)...)
+				priced, err := money(row.TargetLocale)
+				if err != nil {
+					return err
+				}
+				cells = append(cells, priced...)
 			}
 			if err := w.row(cells...); err != nil {
 				return err
@@ -457,20 +467,17 @@ func reportingTaskWordsCSV(words reportingTaskWords, estimate *reportingCostEsti
 				for range bands {
 					cells = append(cells, "")
 				}
-				amount, _ := parseReportingFloat(fee.AmountUSD)
-				if err := w.row(append(cells, "", "", "", fmt.Sprintf("%.2f", amount), "fixed")...); err != nil {
+				amount, err := usdFloat(fee.AmountUSD)
+				if err != nil {
+					return err
+				}
+				if err := w.row(append(cells, "", "", "", jsToFixed2(amount), "fixed")...); err != nil {
 					return err
 				}
 			}
 		}
 		return nil
 	}}
-}
-
-func parseReportingFloat(text string) (float64, error) {
-	var value float64
-	_, err := fmt.Sscanf(strings.TrimSpace(text), "%g", &value)
-	return value, err
 }
 
 type reportingTaskAnalysisState struct {

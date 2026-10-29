@@ -29,7 +29,9 @@ func TestReportingPeriodNeverRunsPastTodayAndChartsLongPeriodsByWeek(t *testing.
 	require.Equal(t, "day", period.Interval)
 	require.False(t, period.HasEarlierData)
 
-	// A start after today is pulled back to today: a one-day period.
+	// A start after today is pulled back to today: a one-day period. A start before Reports
+	// started is kept as asked (D194 stays open): a hand-made link may ask for earlier days.
+	require.Equal(t, "2026-01-01", resolveReportingPeriod("2026-01-01", "2026-03-10", "2026-10-21", "2026-03-01").From)
 	period = resolveReportingPeriod("2026-10-25", "", "2026-10-21", "")
 	require.Equal(t, "2026-10-21", period.From)
 	require.Equal(t, 1, period.Days)

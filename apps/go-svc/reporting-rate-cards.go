@@ -116,26 +116,27 @@ func reportingLineKey(sourceLocale, targetLocale, step string) string {
 }
 
 type reportingRateLineInput struct {
-	SourceLocale string          `json:"sourceLocale"`
-	TargetLocale string          `json:"targetLocale"`
-	Step         string          `json:"step"`
-	Basis        string          `json:"basis"`
-	Rate         string          `json:"rate"`
-	Percentages  map[string]int  `json:"percentages"`
-	percentages  json.RawMessage // as given, for the rows
+	SourceLocale string         `json:"sourceLocale"`
+	TargetLocale string         `json:"targetLocale"`
+	Step         string         `json:"step"`
+	Basis        string         `json:"basis"`
+	Rate         string         `json:"rate"`
+	Percentages  map[string]int `json:"percentages"`
 }
 
 // reportingSamePercentages compares percentages by value: a band left out is paid at 100%.
 func reportingSamePercentages(left json.RawMessage, right map[string]int) bool {
-	var stored map[string]int
-	_ = json.Unmarshal(left, &stored)
+	var stored map[string]float64
+	if err := json.Unmarshal(left, &stored); err != nil {
+		return false
+	}
 	for _, bucket := range reportingMatchBucket {
-		l, r := 100, 100
+		l, r := 100.0, 100.0
 		if v, ok := stored[bucket]; ok {
 			l = v
 		}
 		if v, ok := right[bucket]; ok {
-			r = v
+			r = float64(v)
 		}
 		if l != r {
 			return false
@@ -211,11 +212,6 @@ func (api *reportingAPI) saveRateCard(r *http.Request, actor reportingActor) (an
 			Basis:        item.choice("basis", reportingRateBases...),
 			Rate:         item.usd("rate"),
 			Percentages:  item.percentages("percentages"),
-		}
-		if raw, ok := item.field("percentages"); ok {
-			line.percentages = raw
-		} else {
-			line.percentages = json.RawMessage("{}")
 		}
 		if !item.valid {
 			body.fail()
@@ -296,7 +292,11 @@ func (api *reportingAPI) saveRateCard(r *http.Request, actor reportingActor) (an
 				changed = stored.Cmp(given) != 0
 			}
 			if changed {
-				rows = append(rows, newRow{line.SourceLocale, line.TargetLocale, line.Step, line.Basis, line.Rate, line.percentages, false})
+				percentages, err := json.Marshal(line.Percentages)
+				if err != nil {
+					return err
+				}
+				rows = append(rows, newRow{line.SourceLocale, line.TargetLocale, line.Step, line.Basis, line.Rate, percentages, false})
 			}
 		}
 		for _, row := range before {

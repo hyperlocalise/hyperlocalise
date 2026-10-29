@@ -28,6 +28,26 @@ func TestReportingCSVCellQuotesAndDisarmsFormulas(t *testing.T) {
 	require.Equal(t, `"-3.25"`, reportingCSVCell("-3.25"))
 }
 
+func TestReportingCentsRoundAsJavaScriptsToFixedDoes(t *testing.T) {
+	cents := func(text string) string { value, _ := usdFloat(text); return jsToFixed2(value) }
+	require.Equal(t, "5.00", cents("5"))
+	// A half-cent a double holds exactly rounds up; one it holds slightly under rounds down.
+	require.Equal(t, "12.63", cents("12.625"))
+	require.Equal(t, "0.13", cents("0.125"))
+	require.Equal(t, "1.00", cents("1.005"))
+	require.Equal(t, "0.01", cents("0.015"))
+	require.Equal(t, "2.67", cents("2.675"))
+	require.Equal(t, "0.12", cents("0.1249"))
+	require.Equal(t, "0.62", cents("0.6199"))
+	require.Equal(t, "0.00", cents("0"))
+}
+
+func TestWriteReportingCSVSetsNosniff(t *testing.T) {
+	rec := httptest.NewRecorder()
+	writeReportingCSV(t.Context(), rec, 200, reportingCSV{filename: "x.csv", write: func(w *reportingCSVWriter) error { return w.row("a") }})
+	require.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+}
+
 func TestReportingNumberWritesAsJavaScriptDoes(t *testing.T) {
 	require.Equal(t, "110", reportingNumber(110))
 	require.Equal(t, "0", reportingNumber(0))

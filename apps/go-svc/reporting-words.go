@@ -306,12 +306,15 @@ type reportingGroupNameSet struct {
 func reportingGroupNames[T any](ctx context.Context, db dictionaryDB, rows []T, ids func(T) (projectID, jobID *string)) (reportingGroupNameSet, error) {
 	names := reportingGroupNameSet{jobTitles: map[string]*string{}, projectNames: map[string]*string{}}
 	var jobIDs, projectIDs []string
+	seenJobs, seenProjects := map[string]bool{}, map[string]bool{}
 	for _, row := range rows {
 		projectID, jobID := ids(row)
-		if jobID != nil && !slices.Contains(jobIDs, *jobID) {
+		if jobID != nil && !seenJobs[*jobID] {
+			seenJobs[*jobID] = true
 			jobIDs = append(jobIDs, *jobID)
 		}
-		if projectID != nil && !slices.Contains(projectIDs, *projectID) {
+		if projectID != nil && !seenProjects[*projectID] {
+			seenProjects[*projectID] = true
 			projectIDs = append(projectIDs, *projectID)
 		}
 	}

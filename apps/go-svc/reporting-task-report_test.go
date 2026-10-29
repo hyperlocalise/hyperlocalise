@@ -42,6 +42,8 @@ func TestReportingTaskAnalysisTellsHowFarItHasGot(t *testing.T) {
 	}
 	status, _ := reportingSend(t, f.scope, "admin", http.MethodGet, "/reports/tasks/job_missing/analysis", "")
 	require.Equal(t, http.StatusNotFound, status)
+	status, _ = reportingSend(t, f.scope, "admin", http.MethodGet, "/reports/tasks/job%00x/analysis", "")
+	require.Equal(t, http.StatusNotFound, status)
 
 	// A pending analysis left alone for an hour reads as failed; a finished one is kept whole.
 	f.exec(`update reporting_task_analyses set updated_at = $3::timestamptz - interval '61 minutes' where job_id = $1 and step = $2`, job, "review", reportingTestToday)
@@ -225,6 +227,12 @@ func TestReportingInternalReportServesTheMcpToolForAMember(t *testing.T) {
 		require.Equal(t, http.StatusOK, status, kind)
 		require.Contains(t, body, kind)
 	}
+	// The tool's own numbers and booleans are read as text.
+	status, body = send("admin", "words", payload(`{"groupBy": "task", "page": 2}`), true)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, float64(2), body["wordCounts"].(map[string]any)["page"])
+	status, _ = send("admin", "words", payload(`{"page": {"no": 1}}`), true)
+	require.Equal(t, http.StatusBadRequest, status)
 	status, body = send("admin", "words", payload(`{"from": "2026-06-10", "to": "2026-06-01"}`), true)
 	require.Equal(t, http.StatusBadRequest, status)
 	require.Equal(t, "invalid_report_query", body["error"])

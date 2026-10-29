@@ -31,26 +31,6 @@ func reportingProjectIDs(ctx context.Context, db dictionaryDB, actor reportingAc
 	return ids, nil
 }
 
-type reportingJob struct {
-	ID        string
-	ProjectID *string
-}
-
-func loadReportingJob(ctx context.Context, db dictionaryDB, actor reportingActor, jobID string) (reportingJob, error) {
-	var job reportingJob
-	err := db.QueryRow(ctx, `
-        select j.id, j.project_id from jobs j
-        where j.id = $1 and j.organization_id = $2
-        and ($3::boolean or exists(
-            select 1 from projects p
-            where p.id = j.project_id and p.organization_id = $2
-            and `+formatQaProjectTeamAccessSQL(4, 5, 2)+`
-        ))`,
-		jobID, actor.organizationID, actor.orgWideProjectAccess(), false, actor.userID,
-	).Scan(&job.ID, &job.ProjectID)
-	return job, err
-}
-
 // reportingStart is when Reports started recording for a workspace, nil when it has recorded
 // nothing yet.
 func reportingStart(ctx context.Context, db dictionaryDB, organizationID string) (*time.Time, error) {

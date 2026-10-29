@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strings"
-	"unicode"
+	"sync"
+
+	"golang.org/x/text/collate"
+	"golang.org/x/text/language"
 )
 
 type reportingSettingsProject struct {
@@ -137,21 +139,13 @@ func reportingRateCardNames(ctx context.Context, db dictionaryDB, organizationID
 	return names, nil
 }
 
-// compareReportingNames orders names as the browser's localeCompare does for plain text: by
-// letters regardless of case, then lower case before upper case.
+// reportingCollators order text as the browser's localeCompare does: the root collation, so
+// accents, case and punctuation sort as people expect in any language. A collator keeps its own
+// working state, so each comparison takes one from the pool.
+var reportingCollators = sync.Pool{New: func() any { return collate.New(language.Und) }}
+
 func compareReportingNames(a, b string) int {
-	if folded := strings.Compare(strings.ToLower(a), strings.ToLower(b)); folded != 0 {
-		return folded
-	}
-	ra, rb := []rune(a), []rune(b)
-	for i := 0; i < len(ra) && i < len(rb); i++ {
-		if ra[i] == rb[i] {
-			continue
-		}
-		if unicode.IsLower(ra[i]) {
-			return -1
-		}
-		return 1
-	}
-	return len(ra) - len(rb)
+	collator := reportingCollators.Get().(*collate.Collator)
+	defer reportingCollators.Put(collator)
+	return collator.CompareString(a, b)
 }

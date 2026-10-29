@@ -37,19 +37,14 @@ func reportingDaysBetween(from, to string) int {
 }
 
 // resolveReportingPeriod is the period to report on: the last 28 days by default, never past
-// today and never from before Reports started. startedDay is the UTC day Reports started for
-// the workspace, "" when it has recorded nothing yet. from and to are "" when not asked for.
+// today. startedDay is the UTC day Reports started for the workspace, "" when it has recorded
+// nothing yet. from and to are "" when not asked for.
 func resolveReportingPeriod(from, to, today, startedDay string) reportingPeriod {
 	if to == "" || to >= today {
 		to = today
 	}
 	if from == "" {
 		from = reportingAddDays(to, -(reportingDefaultDays - 1))
-	}
-	// Nothing was counted before Reports started, and a period asked to start long before it
-	// would draw a bar for every day since (D194).
-	if startedDay != "" && from < startedDay {
-		from = startedDay
 	}
 	if from > to {
 		from = to

@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -19,9 +21,28 @@ import (
 var reportingKinds = []string{"activity", "words", "time", "ai", "costs"}
 
 type reportingInternalPayload struct {
-	OrganizationID string            `json:"organizationId"`
-	UserID         string            `json:"userId"`
-	Query          map[string]string `json:"query"`
+	OrganizationID string `json:"organizationId"`
+	UserID         string `json:"userId"`
+	// The report's query as the tool takes it: text, or a number or boolean written as text.
+	Query map[string]json.RawMessage `json:"query"`
+}
+
+// reportingQueryText is a query value as the route reads it: a JSON string as is, a number or
+// boolean as its text, anything else refused.
+func reportingQueryText(raw json.RawMessage) (string, bool) {
+	var text string
+	if json.Unmarshal(raw, &text) == nil {
+		return text, true
+	}
+	var number json.Number
+	if json.Unmarshal(raw, &number) == nil {
+		return number.String(), true
+	}
+	var flag bool
+	if json.Unmarshal(raw, &flag) == nil {
+		return strconv.FormatBool(flag), true
+	}
+	return "", false
 }
 
 func (api *reportingAPI) registerInternal(mux *http.ServeMux) {
@@ -65,7 +86,7 @@ func (api *reportingAPI) internalReport(w http.ResponseWriter, r *http.Request) 
 		writeReportingError(w, r, "handle", reportingFailure(400, "invalid_payload", "Request payload is invalid"))
 		return
 	}
-	actor, err := api.actorByID(ctx, payload.UserID, payload.OrganizationID)
+	actor, err := api.actorByID(ctx, strings.TrimSpace(payload.UserID), strings.TrimSpace(payload.OrganizationID))
 	if err != nil {
 		writeReportingError(w, r, "resolve_actor", err)
 		return
@@ -80,7 +101,12 @@ func (api *reportingAPI) internalReport(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	values := url.Values{}
-	for key, value := range payload.Query {
+	for key, raw := range payload.Query {
+		value, ok := reportingQueryText(raw)
+		if !ok {
+			writeReportingError(w, r, "handle", reportingInvalidQuery())
+			return
+		}
 		values.Set(key, value)
 	}
 	values.Set("format", "json")

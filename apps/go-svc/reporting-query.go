@@ -36,7 +36,7 @@ func (q *reportingQuery) raw(key string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	if len(values) != 1 {
+	if len(values) != 1 || !reportingValidText(values[0]) {
 		q.fail()
 		return "", false
 	}

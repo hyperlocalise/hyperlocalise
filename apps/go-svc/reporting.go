@@ -10,7 +10,9 @@ import (
 	"net/http"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/sync/semaphore"
@@ -209,10 +211,10 @@ func writeReportingError(w http.ResponseWriter, r *http.Request, phase string, e
 	switch {
 	case errors.As(err, &failure):
 		logRequestFailure(r, "reporting_request_failed", phase, err, "status", failure.status, "code", failure.code)
-	case errors.As(err, &pgErr) && pgErr.Code == "57014":
-		// The statement time limit: the report is too wide for the database to answer in time.
+	case (errors.As(err, &pgErr) && pgErr.Code == "57014") || errors.Is(err, context.DeadlineExceeded):
+		// The statement or request time limit: the report is too wide, or a lock was held too long.
 		logRequestFailure(r, "reporting_request_failed", phase, err, "status", 503, "code", "report_timed_out")
-		failure = &reportingError{status: 503, code: "report_timed_out", message: "The report took too long; choose fewer days"}
+		failure = &reportingError{status: 503, code: "report_timed_out", message: "The request took too long; try again, or choose fewer days for a report"}
 	default:
 		logRequestFailure(r, "reporting_request_failed", phase, err)
 		failure = &reportingError{status: 500, code: "internal_error", message: "Internal server error"}
@@ -246,11 +248,16 @@ func (b *reportingBody) field(key string) (json.RawMessage, bool) {
 
 func (b *reportingBody) decodeString(raw json.RawMessage) (string, bool) {
 	var value string
-	if isJSONNull(raw) || json.Unmarshal(raw, &value) != nil {
+	if isJSONNull(raw) || json.Unmarshal(raw, &value) != nil || !reportingValidText(value) {
 		b.fail()
 		return "", false
 	}
 	return value, true
+}
+
+// reportingValidText refuses what the database refuses in text: invalid UTF-8 and NUL bytes.
+func reportingValidText(value string) bool {
+	return utf8.ValidString(value) && !strings.ContainsRune(value, 0)
 }
 
 func (b *reportingBody) checkLength(value string, minLength, maxLength int) {
@@ -384,9 +391,10 @@ func (b *reportingBody) nullableUSD(key string) *string {
 	return &value
 }
 
+// day is a calendar day from 2000 on, as the web schema takes it.
 func (b *reportingBody) day(key string) string {
 	value := b.text(key, 0, math.MaxInt)
-	if !isReportingDay(value) {
+	if !isReportingDay(value) || value < "2000-01-01" {
 		b.fail()
 	}
 	return value

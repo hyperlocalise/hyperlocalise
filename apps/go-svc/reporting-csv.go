@@ -62,6 +62,7 @@ func (w *reportingCSVWriter) row(cells ...string) error {
 
 func writeReportingCSV(ctx context.Context, w http.ResponseWriter, status int, download reportingCSV) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+download.filename+`"`)
 	w.WriteHeader(status)
 	writer := &reportingCSVWriter{out: bufio.NewWriter(w)}

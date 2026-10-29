@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/big"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -57,6 +58,25 @@ func reportingPaidPercent(raw []byte, bucket string) (int, error) {
 // payable share.
 func unitCost(rate string, units, payablePercent int) (*big.Int, error) {
 	return wordCost(rate, units, payablePercent)
+}
+
+// usdFloat is an amount as JavaScript's Number reads it: the nearest double.
+func usdFloat(text string) (float64, error) {
+	if _, err := usdUnits(text); err != nil {
+		return 0, err
+	}
+	return strconv.ParseFloat(text, 64)
+}
+
+// jsToFixed2 writes a non-negative number to two decimals as JavaScript's toFixed(2) does: the
+// closest hundredth of the exact binary value, the larger one when two are equally close.
+func jsToFixed2(value float64) string {
+	exact := new(big.Float).SetPrec(256).SetFloat64(value)
+	exact.Mul(exact, big.NewFloat(100))
+	exact.Add(exact, big.NewFloat(0.5))
+	cents, _ := exact.Int(nil)
+	whole, fraction := new(big.Int).QuoRem(cents, big.NewInt(100), new(big.Int))
+	return fmt.Sprintf("%s.%02d", whole, fraction.Int64())
 }
 
 func wordCost(rate string, words, payablePercent int) (*big.Int, error) {
