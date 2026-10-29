@@ -25,7 +25,11 @@ describe("Human Approval node configuration", () => {
       reviewerType: "user",
       reviewerId: "",
       prompt: "",
+      deadline: expect.any(String),
     });
+    expect(
+      visualNodeConfigSchema.safeParse(createDefaultConfig("flow.human_approval")).success,
+    ).toBe(true);
   });
 
   it("accepts a bounded reviewer, context, and deadline contract", () => {

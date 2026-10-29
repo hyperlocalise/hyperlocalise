@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import type { CanonicalVisualWorkflowEdge } from "../schema/types";
 import { selectNextEdges } from "./graph-index";
+import { createMockWorkflowExecutor } from "./mock-executor";
 
 const outgoing: CanonicalVisualWorkflowEdge[] = [
   "approved",
@@ -54,5 +55,31 @@ describe("Human Approval routing", () => {
         outgoing,
       }),
     ).toEqual([]);
+  });
+
+  it("uses the configured mock decision as its switch case", async () => {
+    const execute = createMockWorkflowExecutor({ approval: { decision: "rejected" } });
+
+    await expect(
+      execute({
+        node: {
+          id: "approval",
+          type: "flow.human_approval",
+          config: {
+            kind: "flow.human_approval",
+            reviewerType: "user",
+            reviewerId: "reviewer-1",
+            prompt: "Approve the release",
+            deadline: "2026-10-31T10:00:00.000Z",
+          },
+        },
+        context: { trigger: {}, nodes: {} },
+        organizationId: "organization-1",
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      output: { decision: "rejected" },
+      switchCase: "rejected",
+    });
   });
 });

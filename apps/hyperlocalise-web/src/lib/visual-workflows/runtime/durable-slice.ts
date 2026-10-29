@@ -346,7 +346,17 @@ export async function executeDurableWorkflowSlice(input: {
               iteration: args.iteration,
               attempt,
               status: "running",
-              inputSnapshot: redactWorkflowSnapshot({ config }, secrets) as Record<string, unknown>,
+              inputSnapshot:
+                resolved.node.config.kind === "flow.human_approval"
+                  ? {
+                      config: {
+                        ...config,
+                        prompt: "[redacted]",
+                        ...(config.artifactReference ? { artifactReference: "[redacted]" } : {}),
+                        ...(config.jobReference ? { jobReference: "[redacted]" } : {}),
+                      },
+                    }
+                  : (redactWorkflowSnapshot({ config }, secrets) as Record<string, unknown>),
               startedAt: new Date(),
             });
 

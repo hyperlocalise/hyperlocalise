@@ -16,6 +16,10 @@ export const humanApprovalRequestParamsSchema = z.object({
   requestId: z.string().uuid(),
 });
 
+export const humanApprovalInteractionParamsSchema = z.object({
+  interactionId: z.string().uuid(),
+});
+
 export const humanApprovalDecisionBodySchema = z
   .object({
     decision: z.enum(["approved", "rejected", "changes_requested"]),

@@ -1439,8 +1439,8 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Human Approval job reference field",
   },
   humanApprovalDeadline: {
-    defaultMessage: "Deadline (optional)",
-    id: "YvnYXDqwRx",
+    defaultMessage: "Deadline",
+    id: "sSzIe3av3r",
     description: "Human Approval deadline field",
   },
   waitModeDuration: {

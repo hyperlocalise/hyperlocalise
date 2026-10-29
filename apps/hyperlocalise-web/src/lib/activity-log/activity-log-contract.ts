@@ -387,6 +387,7 @@ export type ActivityPayloadByEventType = {
   visual_workflow_approval_requested: {
     approvalRequestId: string;
     nodeId: string;
+    reviewerId: string;
     reviewerType: "user" | "team";
     runId: string;
     status: "pending";

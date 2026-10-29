@@ -636,7 +636,7 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     prompt: z.string().max(4_000),
     artifactReference: z.string().trim().max(512).optional(),
     jobReference: z.string().trim().max(256).optional(),
-    deadline: z.string().datetime({ offset: true }).optional(),
+    deadline: z.string().datetime({ offset: true }),
   }),
   z
     .object({

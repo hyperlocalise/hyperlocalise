@@ -12,19 +12,20 @@
  */
 import "server-only";
 
-import { and, eq, gt, lte } from "drizzle-orm";
+import { and, eq, gt, inArray, lte } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
-import { encryptWorkflowPayload } from "./workflow-credentials";
+import { decryptWorkflowPayload, encryptWorkflowPayload } from "./workflow-credentials";
 
 export type HumanApprovalDecision = "approved" | "rejected" | "changes_requested";
 
 type HumanApprovalRequest = typeof schema.visualWorkflowApprovalRequests.$inferSelect;
+type ApprovalTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 async function archiveApprovalInboxItem(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  tx: ApprovalTransaction,
   interactionId: string | null,
   now: Date,
 ): Promise<void> {
@@ -181,79 +182,85 @@ export async function decideHumanApprovalRequest(
 > {
   const now = input.now ?? new Date();
 
-  return db.transaction(async (tx) => {
-    const [decided] = await tx
-      .update(schema.visualWorkflowApprovalRequests)
-      .set({
-        status: input.decision,
-        decidedByUserId: input.decidedByUserId,
-        commentReference: input.commentReference ?? null,
-        decidedAt: now,
-        updatedAt: now,
-      })
+  return db.transaction((tx) => decideHumanApprovalRequestInTransaction(tx, input, now));
+}
+
+async function decideHumanApprovalRequestInTransaction(
+  tx: ApprovalTransaction,
+  input: DecideHumanApprovalRequestInput,
+  now: Date,
+): Promise<Result<HumanApprovalRequest, DecideHumanApprovalRequestError>> {
+  const [decided] = await tx
+    .update(schema.visualWorkflowApprovalRequests)
+    .set({
+      status: input.decision,
+      decidedByUserId: input.decidedByUserId,
+      commentReference: input.commentReference ?? null,
+      decidedAt: now,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(schema.visualWorkflowApprovalRequests.id, input.requestId),
+        eq(schema.visualWorkflowApprovalRequests.organizationId, input.organizationId),
+        eq(schema.visualWorkflowApprovalRequests.status, "pending"),
+        gt(schema.visualWorkflowApprovalRequests.expiresAt, now),
+      ),
+    )
+    .returning();
+
+  if (!decided) {
+    const [existing] = await tx
+      .select()
+      .from(schema.visualWorkflowApprovalRequests)
       .where(
         and(
           eq(schema.visualWorkflowApprovalRequests.id, input.requestId),
           eq(schema.visualWorkflowApprovalRequests.organizationId, input.organizationId),
-          eq(schema.visualWorkflowApprovalRequests.status, "pending"),
-          gt(schema.visualWorkflowApprovalRequests.expiresAt, now),
         ),
       )
-      .returning();
+      .limit(1);
 
-    if (!decided) {
-      const [existing] = await tx
-        .select()
-        .from(schema.visualWorkflowApprovalRequests)
+    if (!existing) return err({ code: "approval_not_found" });
+
+    if (existing.status === "pending" && existing.expiresAt <= now) {
+      const [timedOut] = await tx
+        .update(schema.visualWorkflowApprovalRequests)
+        .set({ status: "timed_out", decidedAt: now, updatedAt: now })
         .where(
           and(
-            eq(schema.visualWorkflowApprovalRequests.id, input.requestId),
-            eq(schema.visualWorkflowApprovalRequests.organizationId, input.organizationId),
+            eq(schema.visualWorkflowApprovalRequests.id, existing.id),
+            eq(schema.visualWorkflowApprovalRequests.status, "pending"),
           ),
         )
-        .limit(1);
+        .returning();
 
-      if (!existing) return err({ code: "approval_not_found" });
-
-      if (existing.status === "pending" && existing.expiresAt <= now) {
-        const [timedOut] = await tx
-          .update(schema.visualWorkflowApprovalRequests)
-          .set({ status: "timed_out", decidedAt: now, updatedAt: now })
-          .where(
-            and(
-              eq(schema.visualWorkflowApprovalRequests.id, existing.id),
-              eq(schema.visualWorkflowApprovalRequests.status, "pending"),
-            ),
-          )
-          .returning();
-
-        if (timedOut) {
-          await archiveApprovalInboxItem(tx, timedOut.interactionId, now);
-          return err({ code: "approval_already_decided", status: "timed_out" });
-        }
-
-        const [concurrentDecision] = await tx
-          .select({ status: schema.visualWorkflowApprovalRequests.status })
-          .from(schema.visualWorkflowApprovalRequests)
-          .where(eq(schema.visualWorkflowApprovalRequests.id, existing.id))
-          .limit(1);
-
-        return err({
-          code: "approval_already_decided",
-          status: concurrentDecision?.status ?? "timed_out",
-        });
+      if (timedOut) {
+        await archiveApprovalInboxItem(tx, timedOut.interactionId, now);
+        return err({ code: "approval_already_decided", status: "timed_out" });
       }
+
+      const [concurrentDecision] = await tx
+        .select({ status: schema.visualWorkflowApprovalRequests.status })
+        .from(schema.visualWorkflowApprovalRequests)
+        .where(eq(schema.visualWorkflowApprovalRequests.id, existing.id))
+        .limit(1);
 
       return err({
         code: "approval_already_decided",
-        status: existing.status,
+        status: concurrentDecision?.status ?? "timed_out",
       });
     }
 
-    await archiveApprovalInboxItem(tx, decided.interactionId, now);
+    return err({
+      code: "approval_already_decided",
+      status: existing.status,
+    });
+  }
 
-    return ok(decided);
-  });
+  await archiveApprovalInboxItem(tx, decided.interactionId, now);
+
+  return ok(decided);
 }
 
 type CloseHumanApprovalRequestInput = {
@@ -304,6 +311,41 @@ export async function cancelHumanApprovalRequest(
   return closePendingHumanApprovalRequest(input, "cancelled");
 }
 
+export async function cancelHumanApprovalRequestsForRuns(input: {
+  organizationId: string;
+  runIds: readonly string[];
+  now?: Date;
+}): Promise<number> {
+  if (input.runIds.length === 0) return 0;
+  const now = input.now ?? new Date();
+
+  return db.transaction(async (tx) => {
+    const cancelled = await tx
+      .update(schema.visualWorkflowApprovalRequests)
+      .set({ status: "cancelled", decidedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(schema.visualWorkflowApprovalRequests.organizationId, input.organizationId),
+          inArray(schema.visualWorkflowApprovalRequests.runId, [...input.runIds]),
+          eq(schema.visualWorkflowApprovalRequests.status, "pending"),
+        ),
+      )
+      .returning({ interactionId: schema.visualWorkflowApprovalRequests.interactionId });
+
+    const interactionIds = cancelled.flatMap(({ interactionId }) =>
+      interactionId ? [interactionId] : [],
+    );
+    if (interactionIds.length > 0) {
+      await tx
+        .update(schema.inboxItems)
+        .set({ status: "archived", updatedAt: now })
+        .where(inArray(schema.inboxItems.interactionId, interactionIds));
+    }
+
+    return cancelled.length;
+  });
+}
+
 export async function getHumanApprovalRequestByNodeRun(input: {
   organizationId: string;
   nodeRunId: string;
@@ -329,12 +371,17 @@ type AuthorizedHumanApprovalDecisionError =
 async function canUserDecideHumanApprovalRequest(input: {
   request: HumanApprovalRequest;
   userId: string;
+  workosUserId?: string;
+  tx?: ApprovalTransaction;
 }): Promise<boolean> {
   if (input.request.reviewerType === "user") {
-    return input.request.reviewerId === input.userId;
+    return (
+      input.request.reviewerId === input.userId || input.request.reviewerId === input.workosUserId
+    );
   }
 
-  const [membership] = await db
+  const database = input.tx ?? db;
+  const [membership] = await database
     .select({ id: schema.teamMemberships.id })
     .from(schema.teamMemberships)
     .innerJoin(schema.teams, eq(schema.teams.id, schema.teamMemberships.teamId))
@@ -350,14 +397,59 @@ async function canUserDecideHumanApprovalRequest(input: {
   return Boolean(membership);
 }
 
-export async function decideAuthorizedHumanApprovalRequest(input: {
+export async function getAuthorizedHumanApprovalRequestByInteraction(input: {
+  interactionId: string;
+  organizationId: string;
+  userId: string;
+  workosUserId?: string;
+}): Promise<
+  Result<
+    HumanApprovalRequest & {
+      context: { prompt: string; artifactReference?: string; jobReference?: string };
+    },
+    { code: "approval_not_found" | "approval_reviewer_forbidden" }
+  >
+> {
+  const [request] = await db
+    .select()
+    .from(schema.visualWorkflowApprovalRequests)
+    .where(
+      and(
+        eq(schema.visualWorkflowApprovalRequests.interactionId, input.interactionId),
+        eq(schema.visualWorkflowApprovalRequests.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (!request) return err({ code: "approval_not_found" });
+  if (
+    !(await canUserDecideHumanApprovalRequest({
+      request,
+      userId: input.userId,
+      workosUserId: input.workosUserId,
+    }))
+  ) {
+    return err({ code: "approval_reviewer_forbidden" });
+  }
+
+  return ok({
+    ...request,
+    context: decryptWorkflowPayload(request.encryptedContext) as {
+      prompt: string;
+      artifactReference?: string;
+      jobReference?: string;
+    },
+  });
+}
+
+export async function getAuthorizedHumanApprovalRequest(input: {
   requestId: string;
   organizationId: string;
   userId: string;
-  decision: HumanApprovalDecision;
-  commentReference?: string;
-  now?: Date;
-}): Promise<Result<HumanApprovalRequest, AuthorizedHumanApprovalDecisionError>> {
+  workosUserId?: string;
+}): Promise<
+  Result<HumanApprovalRequest, { code: "approval_not_found" | "approval_reviewer_forbidden" }>
+> {
   const [request] = await db
     .select()
     .from(schema.visualWorkflowApprovalRequests)
@@ -368,26 +460,63 @@ export async function decideAuthorizedHumanApprovalRequest(input: {
       ),
     )
     .limit(1);
-
-  if (!request) {
-    return err({ code: "approval_not_found" });
-  }
-
-  const authorized = await canUserDecideHumanApprovalRequest({
+  if (!request) return err({ code: "approval_not_found" });
+  return (await canUserDecideHumanApprovalRequest({
     request,
     userId: input.userId,
-  });
+    workosUserId: input.workosUserId,
+  }))
+    ? ok(request)
+    : err({ code: "approval_reviewer_forbidden" });
+}
 
-  if (!authorized) {
-    return err({ code: "approval_reviewer_forbidden" });
-  }
+export async function decideAuthorizedHumanApprovalRequest(input: {
+  requestId: string;
+  organizationId: string;
+  userId: string;
+  workosUserId?: string;
+  decision: HumanApprovalDecision;
+  commentReference?: string;
+  now?: Date;
+}): Promise<Result<HumanApprovalRequest, AuthorizedHumanApprovalDecisionError>> {
+  const now = input.now ?? new Date();
+  return db.transaction(async (tx) => {
+    const [request] = await tx
+      .select()
+      .from(schema.visualWorkflowApprovalRequests)
+      .where(
+        and(
+          eq(schema.visualWorkflowApprovalRequests.id, input.requestId),
+          eq(schema.visualWorkflowApprovalRequests.organizationId, input.organizationId),
+        ),
+      )
+      .limit(1);
 
-  return decideHumanApprovalRequest({
-    requestId: input.requestId,
-    organizationId: input.organizationId,
-    decidedByUserId: input.userId,
-    decision: input.decision,
-    ...(input.commentReference ? { commentReference: input.commentReference } : {}),
-    ...(input.now ? { now: input.now } : {}),
+    if (!request) {
+      return err({ code: "approval_not_found" });
+    }
+
+    const authorized = await canUserDecideHumanApprovalRequest({
+      request,
+      userId: input.userId,
+      workosUserId: input.workosUserId,
+      tx,
+    });
+
+    if (!authorized) {
+      return err({ code: "approval_reviewer_forbidden" });
+    }
+
+    return decideHumanApprovalRequestInTransaction(
+      tx,
+      {
+        requestId: input.requestId,
+        organizationId: input.organizationId,
+        decidedByUserId: input.userId,
+        decision: input.decision,
+        ...(input.commentReference ? { commentReference: input.commentReference } : {}),
+      },
+      now,
+    );
   });
 }

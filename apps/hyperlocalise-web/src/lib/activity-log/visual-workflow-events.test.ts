@@ -144,6 +144,7 @@ describe("visual workflow activity events", () => {
       approvalRequestId: "approval_1",
       nodeId: "approval-node",
       organizationId: "org_1",
+      reviewerId: "team_1",
       reviewerType: "team",
       runId: "run_1",
       visualWorkflowId: "workflow_1",
@@ -167,6 +168,7 @@ describe("visual workflow activity events", () => {
       payload: {
         approvalRequestId: "approval_1",
         nodeId: "approval-node",
+        reviewerId: "team_1",
         reviewerType: "team",
         runId: "run_1",
         status: "pending",

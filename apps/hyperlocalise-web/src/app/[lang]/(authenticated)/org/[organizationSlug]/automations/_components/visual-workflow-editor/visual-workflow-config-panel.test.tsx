@@ -39,7 +39,10 @@ const resourceOptionsMock = vi.hoisted(() => ({
 vi.mock("./visual-workflow-resource-options", () => ({
   useVisualWorkflowResourceOptions: () => ({
     projects: [{ id: "project-1", name: "Acme" }],
-    members: [{ workosUserId: "user_1", label: "Ana" }],
+    members: [
+      { userId: "11111111-1111-4111-8111-111111111111", workosUserId: "user_1", label: "Ana" },
+    ],
+    teams: [{ id: "22222222-2222-4222-8222-222222222222", label: "Reviewers" }],
     workflows: [
       {
         id: "11111111-1111-4111-8111-111111111111",
@@ -431,7 +434,7 @@ describe("VisualWorkflowConfigPanel", () => {
       />,
     );
 
-    expect(screen.getByRole("textbox", { name: "Reviewer or team ID" })).toHaveTextContent(
+    expect(screen.getByRole("combobox", { name: "Reviewer or team ID" })).toHaveTextContent(
       "user_1",
     );
     expect(screen.getByRole("textbox", { name: "Approval request" })).toHaveTextContent(

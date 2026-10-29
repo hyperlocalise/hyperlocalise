@@ -86,6 +86,7 @@ export async function executeHumanApprovalNode(input: {
       approvalRequestId: request.id,
       nodeId: input.node.id,
       organizationId: input.organizationId,
+      reviewerId: config.reviewerId,
       reviewerType: config.reviewerType,
       runId: input.runId,
       visualWorkflowId: input.visualWorkflowId,

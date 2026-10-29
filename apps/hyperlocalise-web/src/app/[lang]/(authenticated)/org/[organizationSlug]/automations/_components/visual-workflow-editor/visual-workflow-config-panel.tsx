@@ -2075,15 +2075,25 @@ export function VisualWorkflowConfigPanel({
               ]}
               onValueChange={(value) => {
                 if (value !== "user" && value !== "team") return;
-                onChangeConfig({ ...config, reviewerType: value });
+                onChangeConfig({ ...config, reviewerType: value, reviewerId: "" });
               }}
             />
-            <TextField
+            <SelectField
               id="vw-human-approval-reviewer-id"
               label={intl.formatMessage(messages.humanApprovalReviewerId)}
               value={config.reviewerId}
-              {...connectedInputProps("reviewerId")}
-              onChange={(value) => onChangeConfig({ ...config, reviewerId: value })}
+              items={
+                config.reviewerType === "user"
+                  ? resources.members.map((member) => ({
+                      value: member.userId ?? member.workosUserId,
+                      label: member.label,
+                    }))
+                  : resources.teams.map((team) => ({
+                      value: team.id,
+                      label: team.label,
+                    }))
+              }
+              onValueChange={(value) => onChangeConfig({ ...config, reviewerId: value ?? "" })}
             />
             <TextAreaField
               id="vw-human-approval-prompt"

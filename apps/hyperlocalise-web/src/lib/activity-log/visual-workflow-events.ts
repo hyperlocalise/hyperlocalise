@@ -137,6 +137,7 @@ export async function enqueueVisualWorkflowApprovalRequestedActivity(input: {
   approvalRequestId: string;
   nodeId: string;
   organizationId: string;
+  reviewerId: string;
   reviewerType: "user" | "team";
   runId: string;
   visualWorkflowId: string;
@@ -150,6 +151,7 @@ export async function enqueueVisualWorkflowApprovalRequestedActivity(input: {
     payload: {
       approvalRequestId: input.approvalRequestId,
       nodeId: input.nodeId,
+      reviewerId: input.reviewerId,
       reviewerType: input.reviewerType,
       runId: input.runId,
       status: "pending",

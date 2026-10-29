@@ -17,6 +17,8 @@ import type { AuthVariables } from "@/api/auth/workos";
 
 const mocks = vi.hoisted(() => ({
   decide: vi.fn(),
+  getAuthorized: vi.fn(),
+  getByInteraction: vi.fn(),
   enqueue: vi.fn(),
   enqueueActivity: vi.fn(),
   selectLimit: vi.fn(),
@@ -51,6 +53,8 @@ vi.mock("@/api/auth/workos", async (importOriginal) => {
 
 vi.mock("@/lib/visual-workflows/human-approval-requests", () => ({
   decideAuthorizedHumanApprovalRequest: mocks.decide,
+  getAuthorizedHumanApprovalRequest: mocks.getAuthorized,
+  getAuthorizedHumanApprovalRequestByInteraction: mocks.getByInteraction,
 }));
 
 vi.mock("@/lib/activity-log/visual-workflow-events", () => ({
@@ -93,6 +97,26 @@ describe("Human Approval routes", () => {
     vi.clearAllMocks();
     mocks.selectLimit.mockResolvedValue([{ id: runId, visualWorkflowId: workflowId }]);
     mocks.updateReturning.mockResolvedValue([{ id: runId }]);
+    mocks.getAuthorized.mockResolvedValue({
+      ok: true,
+      value: { id: requestId, runId },
+    });
+    mocks.getByInteraction.mockResolvedValue({
+      ok: true,
+      value: {
+        id: requestId,
+        status: "pending",
+        reviewerType: "user",
+        reviewerId: "11111111-1111-4111-8111-111111111111",
+        context: {
+          prompt: "Approve the release",
+          artifactReference: "artifact://release",
+          jobReference: "job-1",
+        },
+        expiresAt: new Date("2026-10-31T10:00:00.000Z"),
+        commentReference: null,
+      },
+    });
     mocks.decide.mockResolvedValue({
       ok: true,
       value: {
@@ -103,6 +127,27 @@ describe("Human Approval routes", () => {
         status: "approved",
         commentReference: "comment-1",
         decidedAt: new Date("2026-10-28T10:00:00.000Z"),
+      },
+    });
+  });
+
+  it("returns decrypted approval context to its assigned reviewer", async () => {
+    const interactionId = "66666666-6666-4666-8666-666666666666";
+    const response = await app.request(`/workflow-approvals/interaction/${interactionId}`);
+
+    expect(response.status).toBe(200);
+    expect(mocks.getByInteraction).toHaveBeenCalledWith({
+      interactionId,
+      organizationId: "22222222-2222-4222-8222-222222222222",
+      userId: "11111111-1111-4111-8111-111111111111",
+      workosUserId: "user_test",
+    });
+    await expect(response.json()).resolves.toMatchObject({
+      approval: {
+        id: requestId,
+        prompt: "Approve the release",
+        artifactReference: "artifact://release",
+        jobReference: "job-1",
       },
     });
   });
@@ -119,6 +164,7 @@ describe("Human Approval routes", () => {
       requestId,
       organizationId: "22222222-2222-4222-8222-222222222222",
       userId: "11111111-1111-4111-8111-111111111111",
+      workosUserId: "user_test",
       decision: "approved",
       commentReference: "comment-1",
     });
@@ -136,7 +182,7 @@ describe("Human Approval routes", () => {
     });
   });
 
-  it("returns conflict for a replayed decision without enqueueing again", async () => {
+  it("returns conflict for a replayed decision and retries the resume enqueue", async () => {
     mocks.decide.mockResolvedValue({
       ok: false,
       error: { code: "approval_already_decided", status: "approved" },
@@ -149,7 +195,11 @@ describe("Human Approval routes", () => {
     });
 
     expect(response.status).toBe(409);
-    expect(mocks.enqueue).not.toHaveBeenCalled();
+    expect(mocks.enqueue).toHaveBeenCalledWith({
+      visualWorkflowRunId: runId,
+      visualWorkflowId: workflowId,
+      organizationId: "22222222-2222-4222-8222-222222222222",
+    });
     expect(mocks.enqueueActivity).not.toHaveBeenCalled();
   });
 

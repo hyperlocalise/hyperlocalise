@@ -24,6 +24,7 @@ import { isErr, isOk } from "@/lib/primitives/result/results";
 
 import {
   cancelHumanApprovalRequest,
+  cancelHumanApprovalRequestsForRuns,
   createHumanApprovalRequest,
   decideAuthorizedHumanApprovalRequest,
   decideHumanApprovalRequest,
@@ -504,6 +505,35 @@ describe("Human Approval request persistence", () => {
       .where(eq(schema.inboxItems.interactionId, created.value.interactionId!))
       .limit(1);
 
+    expect(inboxItem?.status).toBe("archived");
+  });
+
+  it("cancels pending requests and archives Inbox items when their run is cancelled", async () => {
+    const seeded = await seedApprovalNodeRun();
+    const created = await createHumanApprovalRequest(requestInput(seeded));
+
+    expect(isOk(created)).toBe(true);
+    if (!isOk(created)) return;
+
+    await expect(
+      cancelHumanApprovalRequestsForRuns({
+        organizationId: seeded.organization.id,
+        runIds: [seeded.run.id],
+      }),
+    ).resolves.toBe(1);
+
+    const [request] = await db
+      .select({ status: schema.visualWorkflowApprovalRequests.status })
+      .from(schema.visualWorkflowApprovalRequests)
+      .where(eq(schema.visualWorkflowApprovalRequests.id, created.value.id))
+      .limit(1);
+    const [inboxItem] = await db
+      .select({ status: schema.inboxItems.status })
+      .from(schema.inboxItems)
+      .where(eq(schema.inboxItems.interactionId, created.value.interactionId!))
+      .limit(1);
+
+    expect(request?.status).toBe("cancelled");
     expect(inboxItem?.status).toBe("archived");
   });
 

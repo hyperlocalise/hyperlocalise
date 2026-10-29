@@ -121,6 +121,7 @@ describe("executeHumanApprovalNode", () => {
       approvalRequestId: "request-1",
       nodeId: "approval",
       organizationId: "organization-1",
+      reviewerId: "user-1",
       reviewerType: "user",
       runId: "run-1",
       visualWorkflowId: "workflow-1",
