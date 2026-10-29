@@ -214,8 +214,29 @@ export function isLoopsLocaleCopyName(name: string): boolean {
   return /\[[^\]]+\]\s*$/.test(name.trim());
 }
 
-/** `languageCode` is ISO 639-1 (`en`, `fr`); project locales map via the primary subtag. */
+/**
+ * Keep the full locale-region tag (`fr-FR`, `pt-BR`) for the Loops
+ * `languageCode`. Underscores are normalized to hyphens and casing follows
+ * BCP-47 (`pt_br` becomes `pt-BR`). When Loops rejects a regional tag it
+ * answers with a `languageCode` error and push retries without the label.
+ */
 export function toLoopsLanguageCode(locale: string): string {
-  const primary = locale.trim().split(/[-_]/)[0] ?? "";
-  return primary.toLowerCase().slice(0, 2) || "en";
+  const subtags = locale
+    .trim()
+    .replaceAll("_", "-")
+    .split("-")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (subtags.length === 0) {
+    return "en";
+  }
+  const [language = "en", ...rest] = subtags;
+  const normalizedRest = rest.map((part) =>
+    part.length === 2 ? part.toUpperCase() : part.length === 4 ? titleCase(part) : part,
+  );
+  return [language.toLowerCase(), ...normalizedRest].join("-");
+}
+
+function titleCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }

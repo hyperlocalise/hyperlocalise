@@ -623,7 +623,7 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   skillIntegrationLoops: {
     defaultMessage: "Loops",
-    id: 'oC6DC5UXTd',
+    id: "oC6DC5UXTd",
     description: "Name of the Loops integration in the hint on a skill that needs it connected",
   },
   skillIntegrationSlack: {

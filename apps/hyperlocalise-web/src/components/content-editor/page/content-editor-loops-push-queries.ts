@@ -108,7 +108,7 @@ export function invalidateContentEditorLoopsPushQueries(
   organizationSlug: string,
   projectId: string,
 ) {
-   queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: contentEditorLoopsPushQueryKey(organizationSlug, projectId),
   });
 }

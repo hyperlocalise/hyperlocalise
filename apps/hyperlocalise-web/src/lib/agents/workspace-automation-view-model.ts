@@ -242,6 +242,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "braze"
     | "brazeSourceLocale"
     | "customerIo"
+    | "loops"
     | "crowdinProjectId"
     | "scheduledTimezone"
     | "skills"
@@ -309,6 +310,9 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   customer_io_not_connected: "Connect Customer.io in Integrations before using it.",
   customer_io_pipes_needs_reauthorization: "Reconnect Customer.io in Integrations, then try again.",
   customer_io_pipes_unavailable: "Customer.io is unavailable until WorkOS Pipes is configured.",
+  loops_not_connected: "Connect Loops in Integrations before using it.",
+  loops_pipes_needs_reauthorization: "Reconnect Loops in Integrations, then try again.",
+  loops_pipes_unavailable: "Loops is unavailable until WorkOS Pipes is configured.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -1467,6 +1471,10 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "customer_io_pipes_needs_reauthorization":
     case "customer_io_pipes_unavailable":
       return { customerIo: message };
+    case "loops_not_connected":
+    case "loops_pipes_needs_reauthorization":
+    case "loops_pipes_unavailable":
+      return { loops: message };
     case "crowdin_project_required":
     case "crowdin_project_not_found":
     case "crowdin_project_not_linked":

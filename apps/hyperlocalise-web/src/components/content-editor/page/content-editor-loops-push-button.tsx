@@ -150,7 +150,7 @@ export function ContentEditorLoopsPushButton({
         }}
       >
         {pushIcon}
-        {intl.formatMessage({ defaultMessage: "Push to Loops", id: 'XBySEBTpqM' })}
+        {intl.formatMessage({ defaultMessage: "Push to Loops", id: "XBySEBTpqM" })}
       </Button>
       {dialogOpen ? (
         <div

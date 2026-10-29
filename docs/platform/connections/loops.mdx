@@ -11,7 +11,7 @@ Connect Loops once in workspace **Integrations**, then run the **Translate Loops
 | --- | --- |
 | Native project | A [native project](/platform/projects/create-project) whose source locale matches the language of the default copy in Loops. Add a project target locale for each language you will push back. |
 | Loops API key | Created in Loops **Settings → API**. The key needs permission to read and write transactional emails, campaigns, workflows, and email messages. |
-| Locale mapping | Push sets the Loops `languageCode` from the primary subtag of the project locale (`fr-FR` writes `fr`, `pt-BR` writes `pt`). Enable translation for those languages in Loops, or the copy lands without its language label. |
+| Locale mapping | Push sets the Loops `languageCode` to the full project locale tag (`fr-FR` stays `fr-FR`, `pt_BR` becomes `pt-BR`). Enable translation for those languages in Loops, or the copy lands without its language label. |
 
 ## Connect Loops
 

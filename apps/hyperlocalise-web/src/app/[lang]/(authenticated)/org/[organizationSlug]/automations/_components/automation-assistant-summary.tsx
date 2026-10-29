@@ -38,6 +38,7 @@ export const AUTOMATION_ASSISTANT_INTEGRATION_LABELS: Record<
   google_drive: workspaceAutomationFormMessages.skillIntegrationGoogleDrive,
   braze: workspaceAutomationFormMessages.skillIntegrationBraze,
   customer_io: workspaceAutomationFormMessages.skillIntegrationCustomerIo,
+  loops: workspaceAutomationFormMessages.skillIntegrationLoops,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
 };

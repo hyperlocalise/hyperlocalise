@@ -17,82 +17,82 @@ import { defineMessages } from "react-intl";
 export const loopsConnectionPanelMessages = defineMessages({
   loadErrorDescription: {
     defaultMessage: "Unable to load the Loops connection right now.",
-    id: 'Db6c2KbVq+',
+    id: "Db6c2KbVq+",
     description: "Loops integration row description when connection status fails to load",
   },
   connectIntro: {
     defaultMessage: "Paste a Loops API key from Settings → API to connect.",
-    id: 'ihyEeCEUTL',
+    id: "ihyEeCEUTL",
     description: "Intro text shown before a Loops API key is saved",
   },
   tokenSuffix: {
     defaultMessage: "Token ending in {suffix}",
-    id: 'vx+yIOnd53',
+    id: "vx+yIOnd53",
     description: "Secondary Loops connection detail showing the stored token suffix",
   },
   apiKeyLabel: {
     defaultMessage: "API key",
-    id: '/mphmqLHCF',
+    id: "/mphmqLHCF",
     description: "Label for the Loops API key field",
   },
   apiKeyHint: {
     defaultMessage: "Create an API key in Loops Settings → API. It needs email content access.",
-    id: 'qnfPUkkJm3',
+    id: "qnfPUkkJm3",
     description: "Hint describing where to create a Loops API key",
   },
   apiKeyRotateHint: {
     defaultMessage: "Leave blank to keep the current key.",
-    id: '8WDtb95za0',
+    id: "8WDtb95za0",
     description: "Hint that a connected Loops key can be rotated by pasting a new value",
   },
   showApiKeyAriaLabel: {
     defaultMessage: "Show API key",
-    id: 'XbLeNEXbTC',
+    id: "XbLeNEXbTC",
     description: "Aria label for revealing the Loops API key field",
   },
   hideApiKeyAriaLabel: {
     defaultMessage: "Hide API key",
-    id: 'Ivn09arh0q',
+    id: "Ivn09arh0q",
     description: "Aria label for hiding the Loops API key field",
   },
   save: {
     defaultMessage: "Save",
-    id: 'JU7dBsiFsd',
+    id: "JU7dBsiFsd",
     description: "Button to save the Loops API key",
   },
   saving: {
     defaultMessage: "Saving…",
-    id: 'nNoQa8f6jF',
+    id: "nNoQa8f6jF",
     description: "Button label while the Loops connection is being saved",
   },
   savedToast: {
     defaultMessage: "Loops connection saved.",
-    id: 'J/EEoW11/3',
+    id: "J/EEoW11/3",
     description: "Toast after the Loops API key is saved",
   },
   saveFailed: {
     defaultMessage: "Failed to save the Loops connection.",
-    id: '+cpm06UYba',
+    id: "+cpm06UYba",
     description: "Error when the Loops connection cannot be saved",
   },
   disconnect: {
     defaultMessage: "Disconnect",
-    id: 'TqW56kj+0X',
+    id: "TqW56kj+0X",
     description: "Button label to disconnect Loops",
   },
   disconnecting: {
     defaultMessage: "Disconnecting…",
-    id: 'x5HXZEeH7B',
+    id: "x5HXZEeH7B",
     description: "Disconnect button label while Loops is being disconnected",
   },
   disconnectedToast: {
     defaultMessage: "Loops disconnected.",
-    id: '1YCrFEJjnL',
+    id: "1YCrFEJjnL",
     description: "Toast after Loops is disconnected",
   },
   disconnectFailed: {
     defaultMessage: "Failed to disconnect Loops.",
-    id: 'qVud/nlb01',
+    id: "qVud/nlb01",
     description: "Toast when Loops disconnect fails",
   },
 });

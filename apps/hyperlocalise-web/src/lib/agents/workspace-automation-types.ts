@@ -851,6 +851,18 @@ export type WorkspaceAutomationConfigValidationError =
       message: "WorkOS is not configured, so Customer.io cannot connect through Pipes.";
     }
   | {
+      code: "loops_not_connected";
+      message: "Connect Loops in Integrations before using it.";
+    }
+  | {
+      code: "loops_pipes_needs_reauthorization";
+      message: "Reconnect Loops in Integrations, then try again.";
+    }
+  | {
+      code: "loops_pipes_unavailable";
+      message: "WorkOS is not configured, so Loops cannot connect through Pipes.";
+    }
+  | {
       code: "cms_translation_skills_exclusive";
       message: "Choose one CMS translation skill per automation.";
     }
