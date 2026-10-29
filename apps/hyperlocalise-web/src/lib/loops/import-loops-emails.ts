@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import type { Theme } from "loops";
 
@@ -43,6 +43,68 @@ import {
 
 const logger = createLogger("import-loops-emails");
 const jobQueue = createTranslationJobEventQueue();
+
+/**
+ * Job statuses whose target locales already have translation coverage for a
+ * given source file. Open jobs will produce translations; succeeded jobs
+ * already did. Failed/cancelled jobs cover nothing, so a retry is still due.
+ */
+const LOOPS_IMPORT_COVERED_JOB_STATUSES = [
+  "queued",
+  "running",
+  "waiting_for_review",
+  "succeeded",
+] as const;
+
+type LoopsCoveredFileTranslationJob = {
+  sourceFileId: string | null;
+  targetLocales: readonly string[];
+};
+
+function readJobSourceFileId(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const sourceFileId = (payload as { sourceFileId?: unknown }).sourceFileId;
+  return typeof sourceFileId === "string" && sourceFileId.trim().length > 0 ? sourceFileId : null;
+}
+
+function readJobTargetLocales(payload: unknown): string[] {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return [];
+  }
+  const targetLocales = (payload as { targetLocales?: unknown }).targetLocales;
+  if (!Array.isArray(targetLocales)) {
+    return [];
+  }
+  return targetLocales.filter(
+    (locale): locale is string => typeof locale === "string" && locale.trim().length > 0,
+  );
+}
+
+async function loadCoveredLoopsFileTranslationJobs(input: {
+  organizationId: string;
+  projectId: string;
+}): Promise<LoopsCoveredFileTranslationJob[]> {
+  const rows = await db
+    .select({
+      inputPayload: schema.jobs.inputPayload,
+    })
+    .from(schema.jobs)
+    .where(
+      and(
+        eq(schema.jobs.organizationId, input.organizationId),
+        eq(schema.jobs.projectId, input.projectId),
+        eq(schema.jobs.kind, "translation"),
+        inArray(schema.jobs.status, [...LOOPS_IMPORT_COVERED_JOB_STATUSES]),
+      ),
+    );
+
+  return rows.map((row) => ({
+    sourceFileId: readJobSourceFileId(row.inputPayload),
+    targetLocales: readJobTargetLocales(row.inputPayload),
+  }));
+}
 
 /**
  * Load themes and components once per import run for File view styling.
@@ -125,10 +187,21 @@ async function upsertSourceFile(input: {
     projectId: input.project.id,
     sourcePath: input.sourcePath,
   });
-  if (latest?.ingestState === "ingested" && latest.storedFileId) {
-    // Re-upload only when content changed; hash comparison happens via stored version lookup.
-    const stored = latest;
-    void stored;
+  if (latest?.sourceHash === input.hash && latest.storedFileId) {
+    // Content unchanged: reuse the stored file instead of creating a new
+    // version, so scheduled re-imports stay idempotent.
+    if (latest.ingestState === "ingested") {
+      return latest.storedFileId;
+    }
+    if (latest.ingestState != null && latest.ingestState !== "failed") {
+      const ingest = await waitForSourceFileVersionIngest({
+        organizationId: input.organizationId,
+        sourceFileVersionId: latest.id,
+      });
+      if (ingest === "ingested") {
+        return latest.storedFileId;
+      }
+    }
   }
 
   const [project] = await db
@@ -415,7 +488,12 @@ export async function runImportLoopsEmails(input: {
     sourceLocale,
   });
 
-  const openJobs: Array<{ sourceFileId: string | null; targetLocales: readonly string[] }> = [];
+  // Preloaded with prior-run coverage (open + succeeded jobs) so scheduled
+  // re-imports only queue translation work for locales lacking coverage.
+  const openJobs = await loadCoveredLoopsFileTranslationJobs({
+    organizationId: input.organizationId,
+    projectId,
+  });
   const { themes, components } = await loadLoopsImportStyling(loaded.value.client);
   const result: ImportLoopsEmailsResult = {
     imported: 0,

@@ -402,7 +402,7 @@ export async function runPushLoopsEmails(input: {
         const parsed = parseLoopsEmailEnvelope(translatedHtml);
         if (parsed.segments.length !== storedSegments) {
           logger.warn(
-            { sourcePath: mapping.sourcePath, locale },
+            { syncStateId: mapping.id, sourceId: mapping.sourceId, locale },
             "loops push skipped: segment count changed, re-run ingest",
           );
           result.skippedLocales += 1;
@@ -443,7 +443,7 @@ export async function runPushLoopsEmails(input: {
       } catch (error) {
         const message = error instanceof Error ? error.message : "push_failed";
         logger.warn(
-          { sourcePath: mapping.sourcePath, locale, error: String(error) },
+          { syncStateId: mapping.id, sourceId: mapping.sourceId, locale, error: String(error) },
           "loops push locale failed",
         );
         result.failedLocales += 1;
