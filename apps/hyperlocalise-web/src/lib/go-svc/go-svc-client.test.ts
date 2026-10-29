@@ -198,6 +198,8 @@ describe("GoSvcClient", () => {
           member: { workosUserId: "user_1", email: "ada@example.com", role: "developer" },
         }),
       )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(Response.json({ blockedReason: null, apiKeys: [], automations: [] }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     const client = clientWith(fetchMock);
 
@@ -205,6 +207,12 @@ describe("GoSvcClient", () => {
     await client.member.invite("acme", { email: "ada@example.com", role: "member" });
     await client.member.update("acme", "user_1", { role: "developer" });
     await client.member.remove("acme", "user_1");
+    await expect(client.member.leavePreview("acme")).resolves.toEqual({
+      blockedReason: null,
+      apiKeys: [],
+      automations: [],
+    });
+    await client.member.leave("acme");
 
     expect(fetchMock.mock.calls[0][0]).toBe(`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/members`);
     expect((fetchMock.mock.calls[1][1] as RequestInit).method).toBe("POST");
@@ -216,6 +224,13 @@ describe("GoSvcClient", () => {
     );
     expect((fetchMock.mock.calls[2][1] as RequestInit).method).toBe("PATCH");
     expect((fetchMock.mock.calls[3][1] as RequestInit).method).toBe("DELETE");
+    expect(fetchMock.mock.calls[4][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/members/leave`,
+    );
+    expect(fetchMock.mock.calls[5][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/members/leave`,
+    );
+    expect((fetchMock.mock.calls[5][1] as RequestInit).method).toBe("POST");
   });
 
   it("accepts successful empty responses", async () => {

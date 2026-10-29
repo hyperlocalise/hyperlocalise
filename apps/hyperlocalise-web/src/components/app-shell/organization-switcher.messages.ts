@@ -46,6 +46,12 @@ export const organizationSwitcherMessages = defineMessages({
     id: "rfsreH4z0t",
     description: "Read-only link to the workspace members list from the sidebar workspace switcher",
   },
+  leaveWorkspace: {
+    defaultMessage: "Leave workspace…",
+    id: "GpWWZD8ObL",
+    description:
+      "Menu item in the sidebar workspace switcher that opens the dialog for leaving the current workspace",
+  },
   createWorkspace: {
     defaultMessage: "Create workspace",
     id: "M95Yl2ZYHn",

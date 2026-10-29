@@ -473,6 +473,13 @@ export type MembersResponse = {
   memberManagement?: MemberManagement;
 };
 
+export type LeaveWorkspacePreview = {
+  /** `last_admin` when the caller is the only admin who has accepted their invitation. */
+  blockedReason: "last_admin" | null;
+  apiKeys: Array<{ name: string; keyPrefix: string }>;
+  automations: Array<{ id: string; name: string }>;
+};
+
 export type ApiKeyPermission = "jobs:read" | "jobs:write" | "files:read" | "files:write";
 
 export type ApiKeyOwner = {

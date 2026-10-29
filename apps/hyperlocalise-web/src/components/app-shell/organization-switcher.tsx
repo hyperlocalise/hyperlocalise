@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -20,6 +21,7 @@ import {
   CheckIcon,
   GearIcon,
   PlusIcon,
+  SignOutIcon,
   UserPlusIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react";
@@ -39,6 +41,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { buildOrganizationSwitchHref } from "@/components/team-switcher";
 import { cn } from "@/lib/primitives/cn";
 
+import { LeaveWorkspaceDialog } from "./leave-workspace-dialog";
 import { buildOrganizationPath } from "./navigation-config";
 import { organizationSwitcherMessages } from "./organization-switcher.messages";
 
@@ -61,6 +64,7 @@ export function OrganizationSwitcher({
   const intl = useIntl();
   const pathname = usePathname();
   const { isMobile, state, setOpenMobile } = useSidebar();
+  const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const activeSlug = activeOrganization.slug ?? "";
   const switchableOrganizations = organizations.filter(
     (organization): organization is { name: string; slug: string } => Boolean(organization.slug),
@@ -168,6 +172,16 @@ export function OrganizationSwitcher({
                       )}
                     </DropdownMenuItem>
                   ) : null}
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => {
+                      closeMobileSidebar();
+                      setIsLeaveDialogOpen(true);
+                    }}
+                  >
+                    <SignOutIcon className="size-4" />
+                    <FormattedMessage {...organizationSwitcherMessages.leaveWorkspace} />
+                  </DropdownMenuItem>
                 </DropdownMenuGroup>
               </>
             ) : null}
@@ -196,6 +210,13 @@ export function OrganizationSwitcher({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        {isLeaveDialogOpen && activeSlug ? (
+          <LeaveWorkspaceDialog
+            organizationSlug={activeSlug}
+            organizationName={activeOrganization.name}
+            onClose={() => setIsLeaveDialogOpen(false)}
+          />
+        ) : null}
       </SidebarMenuItem>
     </SidebarMenu>
   );

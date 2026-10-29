@@ -27,6 +27,12 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/org/acme/glossaries",
 }));
 
+vi.mock("./leave-workspace-dialog", () => ({
+  LeaveWorkspaceDialog: ({ organizationName }: { organizationName: string }) => (
+    <div role="dialog" aria-label={`Leave ${organizationName}`} />
+  ),
+}));
+
 vi.mock("next/link", () => ({
   default: ({ href, ...props }: ComponentProps<"a"> & { href: string }) => (
     <a href={href} {...props} />
@@ -115,5 +121,16 @@ describe("OrganizationSwitcher", () => {
     await screen.findByRole("menuitem", { name: "Workspace settings" });
     expect(screen.queryByRole("menuitem", { name: "Members" })).toBeNull();
     expect(screen.queryByRole("menuitem", { name: "Invite and manage members" })).toBeNull();
+  });
+
+  it("opens the leave dialog for the current workspace", async () => {
+    renderSwitcher();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Current workspace: Acme Localization/ }),
+    );
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Leave workspace…" }));
+
+    expect(await screen.findByRole("dialog", { name: "Leave Acme Localization" })).toBeTruthy();
   });
 });

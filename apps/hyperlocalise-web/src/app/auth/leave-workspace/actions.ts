@@ -1,0 +1,93 @@
+"use server";
+
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { refreshSession } from "@workos-inc/authkit-nextjs";
+import { eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
+
+import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
+import { db, schema } from "@/lib/database/client";
+import { createLogger } from "@/lib/log";
+import {
+  clearStoredActiveOrganizationSlug,
+  getStoredActiveOrganizationSlug,
+  setStoredActiveOrganizationSlug,
+} from "@/lib/workos/active-organization";
+import { withAuth } from "@/lib/workos/server-auth";
+
+const logger = createLogger("leave-workspace-action");
+
+/**
+ * Runs after the person has left `leftOrganizationSlug`, and sends them to another workspace.
+ *
+ * AuthKit renews a session for the workspace it was issued for. A session issued for the
+ * workspace just left is moved to the next workspace, or ended when none is left, so it
+ * is not refused, and the person signed out, a few minutes later.
+ */
+export async function finishLeavingWorkspaceAction(leftOrganizationSlug: string): Promise<never> {
+  const session = await withAuth({ ensureSignedIn: true });
+  if (!session.user) {
+    redirect("/auth/sign-in");
+  }
+
+  const [leftOrganization] = await db
+    .select({ workosOrganizationId: schema.organizations.workosOrganizationId })
+    .from(schema.organizations)
+    .where(eq(schema.organizations.slug, leftOrganizationSlug))
+    .limit(1);
+  const sessionIsForLeftWorkspace =
+    Boolean(session.organizationId) &&
+    session.organizationId === leftOrganization?.workosOrganizationId;
+
+  let organizations: NonNullable<
+    Awaited<ReturnType<typeof resolveApiAuthContextFromSession>>
+  >["organizations"] = [];
+  try {
+    organizations = (await resolveApiAuthContextFromSession({ session }))?.organizations ?? [];
+  } catch (error) {
+    logger.warn("leave_workspace_memberships_unavailable", {
+      workosUserId: session.user.id,
+      error,
+    });
+  }
+  // A session can only be issued for a workspace the person has joined in WorkOS.
+  const remaining = organizations.filter(
+    (organization): organization is typeof organization & { slug: string } =>
+      Boolean(organization.slug) &&
+      organization.slug !== leftOrganizationSlug &&
+      Boolean(organization.membership.workosMembershipId),
+  );
+  const storedSlug = await getStoredActiveOrganizationSlug();
+  const next =
+    remaining.find((organization) => organization.slug === storedSlug) ?? remaining[0] ?? null;
+
+  if (!next) {
+    await clearStoredActiveOrganizationSlug();
+    // Signing in again starts a session with no workspace, which onboarding then fills.
+    redirect(sessionIsForLeftWorkspace ? "/auth/sign-out?returnTo=%2Fdashboard" : "/dashboard");
+  }
+
+  await setStoredActiveOrganizationSlug(next.slug);
+  if (sessionIsForLeftWorkspace) {
+    try {
+      await refreshSession({ organizationId: next.workosOrganizationId });
+    } catch (error) {
+      logger.warn("leave_workspace_session_switch_failed", {
+        workosUserId: session.user.id,
+        error,
+      });
+    }
+  }
+  redirect(`/org/${next.slug}/dashboard`);
+}
