@@ -86,4 +86,19 @@ describe("redirectForMissingOrganizationAccess", () => {
       redirectForMissingOrganizationAccess({ ...invitee, emailVerified: true }),
     ).rejects.toThrow("redirect:/auth/onboarding");
   });
+
+  it("keeps a verified person on the invitation pending page when the picker would list nothing", async () => {
+    mocks.listPendingInvitations.mockResolvedValue([]);
+
+    await expect(
+      redirectForMissingOrganizationAccess({ ...invitee, emailVerified: true }),
+    ).rejects.toThrow("redirect:/auth/access-denied?reason=pending-invite");
+  });
+
+  it("treats an email given alone as unverified", async () => {
+    await expect(redirectForMissingOrganizationAccess(invitee.email)).rejects.toThrow(
+      "redirect:/auth/access-denied?reason=pending-invite",
+    );
+    expect(mocks.listPendingInvitations).not.toHaveBeenCalled();
+  });
 });

@@ -79,6 +79,17 @@ export default async function SelectOrganizationPage() {
               </Button>
             ) : null,
           )}
+          {!sessionUser.emailVerified ? (
+            <p className="text-sm text-muted-foreground">
+              {intl.formatMessage({
+                defaultMessage:
+                  "Verify your email address to see invitations to other workspaces, then reload this page.",
+                id: "KqiLqEGTTZ",
+                description:
+                  "Shown on the workspace picker to someone whose email address is not verified, since invitations are hidden",
+              })}
+            </p>
+          ) : null}
           {pendingInvitations.length > 0 ? (
             <section className="flex flex-col gap-2 pt-3">
               <h2 className="text-sm font-medium text-muted-foreground">

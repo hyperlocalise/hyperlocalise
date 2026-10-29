@@ -51,11 +51,15 @@ function authWith(activeSlug: string | null, slugs: Array<string | null>) {
   };
 }
 
-async function cancelHref(from?: string) {
+async function wizardProps(from?: string) {
   const element = (await NewWorkspacePage({
     searchParams: Promise.resolve({ from }),
-  })) as ReactElement<{ cancelHref: string }>;
-  return element.props.cancelHref;
+  })) as ReactElement<{ cancelHref: string; createsAnotherWorkspace: boolean }>;
+  return element.props;
+}
+
+async function cancelHref(from?: string) {
+  return (await wizardProps(from)).cancelHref;
 }
 
 describe("NewWorkspacePage", () => {
@@ -69,7 +73,10 @@ describe("NewWorkspacePage", () => {
     );
     mocks.getStoredActiveOrganizationSlug.mockResolvedValue("beta");
 
-    expect(await cancelHref()).toBe("/org/beta/dashboard");
+    expect(await wizardProps()).toMatchObject({
+      cancelHref: "/org/beta/dashboard",
+      createsAnotherWorkspace: true,
+    });
     expect(mocks.getAppAuthContextAllowingNoWorkspace).toHaveBeenCalledWith({
       ignoreStoredActiveOrganization: true,
     });
@@ -106,7 +113,10 @@ describe("NewWorkspacePage", () => {
       { organizationName: "Gamma", organizationSlug: "gamma" },
     ]);
 
-    expect(await cancelHref()).toBe("/auth/select-organization");
+    expect(await wizardProps()).toMatchObject({
+      cancelHref: "/auth/select-organization",
+      createsAnotherWorkspace: false,
+    });
   });
 
   it("sends someone with no workspace and no invitation to onboarding", async () => {

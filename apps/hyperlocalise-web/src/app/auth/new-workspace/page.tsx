@@ -57,6 +57,7 @@ export default async function NewWorkspacePage({
   return (
     <OnboardingWizard
       cancelHref={cancelSlug ? `/org/${cancelSlug}/dashboard` : "/auth/select-organization"}
+      createsAnotherWorkspace={Boolean(auth)}
     />
   );
 }

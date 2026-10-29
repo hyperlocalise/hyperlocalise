@@ -140,6 +140,24 @@ describe("requireAppAuthContext", () => {
     });
   });
 
+  it("tells the redirect helper whether the email is verified", async () => {
+    withAuthMock.mockResolvedValue({
+      user: { id: "user_123", email: "person@example.com", emailVerified: true },
+      organizationId: null,
+    });
+    getStoredActiveOrganizationSlugMock.mockResolvedValue(null);
+    resolveApiAuthContextFromSessionMock.mockResolvedValue(null);
+
+    const { requireAppAuthContext } = await import("./app-auth");
+
+    await expect(requireAppAuthContext()).rejects.toThrow("redirect:/auth/onboarding");
+    expect(redirectForMissingOrganizationAccessMock).toHaveBeenCalledWith({
+      email: "person@example.com",
+      workosUserId: "user_123",
+      emailVerified: true,
+    });
+  });
+
   it("routes users without memberships through the shared redirect helper", async () => {
     const session = {
       user: { id: "user_123", email: "person@example.com" },

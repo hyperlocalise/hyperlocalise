@@ -47,9 +47,12 @@ function SubmitButton({
 
 export function OnboardingWizard({
   cancelHref,
+  createsAnotherWorkspace = Boolean(cancelHref),
 }: {
-  /** Set when the person already has a workspace: the form then creates another one. */
+  /** Adds a Cancel button that goes back to this address. */
   cancelHref?: string;
+  /** Set when the person already has a workspace: the form then creates another one. */
+  createsAnotherWorkspace?: boolean;
 }) {
   const intl = useIntl();
   const [organizationName, setOrganizationName] = useState("");
@@ -59,7 +62,7 @@ export function OnboardingWizard({
   );
   const organizationNameId = useId();
   const derivedSlug = slugifyOrganizationName(organizationName);
-  const isAnotherWorkspace = Boolean(cancelHref);
+  const isAnotherWorkspace = createsAnotherWorkspace;
 
   return (
     <main className="dark flex min-h-svh items-center justify-center bg-background px-4 py-10 text-foreground">
