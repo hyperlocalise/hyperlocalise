@@ -36,6 +36,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOLS = [
   "push_braze_campaigns",
   "import_customer_io_campaigns",
   "push_customer_io_campaigns",
+  "import_iterable_templates",
+  "push_iterable_templates",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -312,6 +314,22 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     },
   },
   {
+    id: "translate-iterable-templates",
+    name: "Translate Iterable Templates & Snippets",
+    category: "translate",
+    description:
+      "Import Iterable email, in-app, push, and SMS templates plus snippets, then push approved locales back to Iterable.",
+    grants:
+      "Reads Iterable templates through Pipes, writes source files and native jobs. Push updates template locales or locale-suffixed snippets and never sends campaigns.",
+    tools: ["import_iterable_templates", "push_iterable_templates"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["iterable", "snippet", "in-app template"],
+      weak: ["email template", "push template", "sms", "import", "translate"],
+    },
+  },
+  {
     id: "translate-customer-io-campaigns",
     name: "Translate Customer.io Campaigns, Broadcasts, Newsletters & Transactional",
     category: "translate",
@@ -425,6 +443,7 @@ export const CMS_TRANSLATION_SKILL_IDS = [
   "translate-braze-email-templates",
   "translate-braze-campaigns",
   "translate-customer-io-campaigns",
+  "translate-iterable-templates",
   "translate-contentful-entries",
 ] as const;
 
@@ -470,6 +489,7 @@ export type WorkspaceAutomationSkillIntegration =
   | "webflow"
   | "braze"
   | "customer_io"
+  | "iterable"
   | "slack"
   | "email";
 
@@ -495,6 +515,8 @@ const SKILL_TOOL_INTEGRATIONS: Record<
   push_braze_campaigns: "braze",
   import_customer_io_campaigns: "customer_io",
   push_customer_io_campaigns: "customer_io",
+  import_iterable_templates: "iterable",
+  push_iterable_templates: "iterable",
   create_native_tms_job: null,
   assign_translate_with_agent: null,
   list_issues: null,
@@ -619,6 +641,9 @@ export function workspaceAutomationSkillToolEnabled(
     case "import_customer_io_campaigns":
     case "push_customer_io_campaigns":
       return Boolean(toolConfig.customerIo?.enabled);
+    case "import_iterable_templates":
+    case "push_iterable_templates":
+      return Boolean(toolConfig.iterable?.enabled);
     case "create_native_tms_job":
       return Boolean(toolConfig.createNativeTmsJob?.enabled);
     case "assign_translate_with_agent":

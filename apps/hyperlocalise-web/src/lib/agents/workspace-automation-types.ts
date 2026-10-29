@@ -360,6 +360,25 @@ const customerIoResourceActionsSchema = z
   .record(z.string().trim().min(1).max(128), z.array(z.string().trim().min(1).max(128)).max(100))
   .default({});
 
+const iterableToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    templateIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    snippetIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+  })
+  .default({
+    enabled: false,
+    sourceLocale: "en",
+    templateIds: [],
+    snippetIds: [],
+    existingTranslationPolicy: "seed_empty",
+  });
+
 const customerIoToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -629,6 +648,7 @@ const toolConfigObjectSchema = z
     braze: brazeToolConfigSchema.optional(),
     brazeCampaigns: brazeCampaignsToolConfigSchema.optional(),
     customerIo: customerIoToolConfigSchema.optional(),
+    iterable: iterableToolConfigSchema.optional(),
     crowdin: crowdinToolConfigSchema.optional(),
     webSearch: webSearchToolConfigSchema.optional(),
   })
@@ -698,6 +718,7 @@ export type WorkspaceAutomationBrazeCampaignsToolConfig = z.infer<
   typeof brazeCampaignsToolConfigSchema
 >;
 export type WorkspaceAutomationCustomerIoToolConfig = z.infer<typeof customerIoToolConfigSchema>;
+export type WorkspaceAutomationIterableToolConfig = z.infer<typeof iterableToolConfigSchema>;
 export type WorkspaceAutomationCrowdinToolConfig = z.infer<typeof crowdinToolConfigSchema>;
 export type WorkspaceAutomationWebSearchProvider = z.infer<
   typeof workspaceAutomationWebSearchProviderSchema
@@ -1146,6 +1167,10 @@ export function hasWorkspaceAutomationBrazeCampaignsTool(
 
 export function hasWorkspaceAutomationCustomerIoTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.customerIo?.enabled);
+}
+
+export function hasWorkspaceAutomationIterableTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.iterable?.enabled);
 }
 
 export function hasWorkspaceAutomationCrowdinTool(toolConfig: WorkspaceAutomationToolConfig) {

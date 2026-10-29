@@ -626,6 +626,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     description:
       "Name of the Customer.io integration in the hint on a skill that needs it connected",
   },
+  skillIntegrationIterable: {
+    defaultMessage: "Iterable",
+    id: "C0jp5QUb8B",
+    description: "Name of the Iterable integration in the hint on a skill that needs it connected",
+  },
   skillIntegrationSlack: {
     defaultMessage: "Slack",
     id: "SXLP18M0vY",

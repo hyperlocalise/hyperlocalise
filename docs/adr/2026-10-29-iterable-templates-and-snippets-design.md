@@ -42,7 +42,18 @@ should change when the connection ships.
 
 ## Decision
 
-Ship one workspace skill, `translate-iterable-templates`.
+Ship one workspace skill, `translate-iterable-templates`, and one activatable
+workspace automation template with the same id. Display name **Translate
+Iterable templates and snippets**. Primary category `popular`, also listed under
+Marketing (`extraCategories: ["marketing"]`). Default trigger is scheduled;
+import never pushes. Operators enqueue **Push to Iterable** separately.
+
+Iterable has no Translation API and no locales API. Email, in-app, push, and
+SMS templates each expose a `locale` on one template id; omitting `locale`
+reads or writes the default copy. Snippets have one `content` string and no
+`locale`; push creates or updates `{name}_{locale}`. Campaigns and journeys
+are not imported. The user profile field `locale` is Iterable’s send-time
+preference; this skill does not write it.
 
 Every Iterable call uses the `Api-Key` header and the data-center host stored
 for that connection. US projects use `https://api.iterable.com`. EU projects
@@ -263,6 +274,11 @@ tagline in the same change. This ADR does not do either.
    send a template. The localized strings live on the template and the snippet.
 5. **Set `isDefaultLocale` from the automation source locale** — rejected.
    Changing the template default changes who receives the fallback copy.
+6. **Iterable Web SDK (`@iterable/web-sdk`) instead of REST** — rejected. The
+   Web SDK targets browser apps with JWT-enabled web keys, user identity, and
+   in-app display or event tracking. Template and snippet list/get/update and
+   server-side keys require the REST Templates and Snippets API from Hyperlocalise
+   server code.
 
 ## Consequences
 

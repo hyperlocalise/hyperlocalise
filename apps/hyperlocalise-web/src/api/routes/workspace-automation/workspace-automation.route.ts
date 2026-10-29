@@ -50,6 +50,7 @@ import {
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationCustomerIoTool,
   hasWorkspaceAutomationGoogleDriveTool,
+  hasWorkspaceAutomationIterableTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
   hasWorkspaceAutomationWebflowTool,
@@ -79,6 +80,11 @@ import {
   isGoogleDrivePushRunActive,
   type GoogleDrivePushFile,
 } from "@/lib/google-drive/push-eligibility";
+import {
+  getIterablePushEligibility,
+  isIterablePushRunActive,
+  type IterablePushItem,
+} from "@/lib/iterable/push-eligibility";
 import {
   getSanityPushEligibility,
   isSanityPushRunActive,
@@ -753,6 +759,26 @@ export function createWorkspaceAutomationRoutes(
         };
       }
 
+      let iterablePush: {
+        eligibleLocaleCount: number;
+        mappedItemCount: number;
+        pushRunInProgress: boolean;
+        items?: IterablePushItem[];
+      } | null = null;
+      if (hasWorkspaceAutomationIterableTool(automation.toolConfig)) {
+        const eligibility = await getIterablePushEligibility({
+          organizationId,
+          automation,
+          includeLocaleProgress: includePushArticles,
+        });
+        iterablePush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedItemCount: eligibility?.mappedItemCount ?? 0,
+          pushRunInProgress: isIterablePushRunActive(recentRuns),
+          ...(includePushArticles ? { items: eligibility?.items ?? [] } : {}),
+        };
+      }
+
       return c.json(
         {
           automation,
@@ -763,6 +789,7 @@ export function createWorkspaceAutomationRoutes(
           brazePush,
           googleDrivePush,
           customerIoPush,
+          iterablePush,
         },
         200,
       );

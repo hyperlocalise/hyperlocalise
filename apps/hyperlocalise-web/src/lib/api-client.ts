@@ -73,6 +73,7 @@ function createOrgSlugClient(origin: string) {
       "pipes",
       "braze",
       "customer-io",
+      "iterable",
       "intercom-connections",
       "canva-connections",
       "figma-connections",

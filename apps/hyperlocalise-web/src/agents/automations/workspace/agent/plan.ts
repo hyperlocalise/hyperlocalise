@@ -23,6 +23,7 @@ import {
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationCustomerIoTool,
+  hasWorkspaceAutomationIterableTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationGoogleDriveTool,
   hasWorkspaceAutomationSanityTool,
@@ -54,6 +55,8 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "push_braze_campaigns",
   "import_customer_io_campaigns",
   "push_customer_io_campaigns",
+  "import_iterable_templates",
+  "push_iterable_templates",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -151,6 +154,9 @@ function workflowToolEnabled(
     case "import_customer_io_campaigns":
     case "push_customer_io_campaigns":
       return hasWorkspaceAutomationCustomerIoTool(toolConfig);
+    case "import_iterable_templates":
+    case "push_iterable_templates":
+      return hasWorkspaceAutomationIterableTool(toolConfig);
     case "create_native_tms_job":
       return hasWorkspaceAutomationCreateNativeTmsJobTool(toolConfig);
     case "assign_translate_with_agent":
@@ -312,6 +318,17 @@ export function buildWorkspaceOrchestratorPlan(
       notificationToolEnabled(tool, automation.toolConfig),
     );
     return { tools: [customerIoTool, ...notificationTools] };
+  }
+
+  if (hasWorkspaceAutomationIterableTool(automation.toolConfig)) {
+    const iterableTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_iterable_templates"
+        : "import_iterable_templates";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [iterableTool, ...notificationTools] };
   }
 
   if (hasWorkspaceAutomationBrazeTool(automation.toolConfig)) {

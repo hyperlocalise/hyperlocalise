@@ -173,6 +173,11 @@ export type WorkspaceAutomationFormState = {
   brazeCanvasIds: string[];
   brazeExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   brazeOverwriteWhenRemoteNewer: boolean;
+  iterableEnabled: boolean;
+  iterableSourceLocale: string;
+  iterableTemplateIds: string[];
+  iterableSnippetIds: string[];
+  iterableExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   intercomRestEndpoint: "us" | "eu" | "au";
   intercomHelpCenterId: string;
   intercomHelpCenterLocales: string[];
@@ -202,7 +207,8 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
     form.webflowEnabled ||
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
-    form.customerIoEnabled
+    form.customerIoEnabled ||
+    form.iterableEnabled
   ) {
     return true;
   }
@@ -253,6 +259,8 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "webflowSourceLocale"
     | "braze"
     | "brazeSourceLocale"
+    | "iterable"
+    | "iterableSourceLocale"
     | "customerIo"
     | "crowdinProjectId"
     | "scheduledTimezone"
@@ -499,6 +507,11 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     brazeCanvasIds: [],
     brazeExistingTranslationPolicy: "seed_empty",
     brazeOverwriteWhenRemoteNewer: true,
+    iterableEnabled: false,
+    iterableSourceLocale: "en",
+    iterableTemplateIds: [],
+    iterableSnippetIds: [],
+    iterableExistingTranslationPolicy: "seed_empty",
     intercomRestEndpoint: "us",
     intercomHelpCenterId: "",
     intercomHelpCenterLocales: [],
@@ -540,6 +553,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const braze = automation.toolConfig.braze;
   const brazeCampaigns = automation.toolConfig.brazeCampaigns;
   const customerIo = automation.toolConfig.customerIo;
+  const iterable = automation.toolConfig.iterable;
   const crowdin = automation.toolConfig.crowdin;
   const webSearch = automation.toolConfig.webSearch;
 
@@ -701,6 +715,15 @@ export function createWorkspaceAutomationFormStateFromRecord(
         : "seed_empty",
     brazeOverwriteWhenRemoteNewer:
       (brazeCampaigns?.overwriteWhenRemoteNewer ?? braze?.overwriteWhenRemoteNewer) !== false,
+    iterableEnabled: Boolean(iterable?.enabled),
+    iterableSourceLocale: iterable?.sourceLocale ?? "en",
+    iterableTemplateIds: iterable?.templateIds ? [...iterable.templateIds] : [],
+    iterableSnippetIds: iterable?.snippetIds ? [...iterable.snippetIds] : [],
+    iterableExistingTranslationPolicy:
+      iterable?.existingTranslationPolicy === "refresh_imported" ||
+      iterable?.existingTranslationPolicy === "overwrite_all"
+        ? iterable.existingTranslationPolicy
+        : "seed_empty",
     intercomRestEndpoint: intercom?.restEndpoint ?? "us",
     intercomHelpCenterId: intercom?.helpCenterId ?? "",
     intercomHelpCenterLocales: intercom?.helpCenterLocales ? [...intercom.helpCenterLocales] : [],
@@ -959,6 +982,17 @@ export function formStateToWorkspaceAutomationPayload(
             canvasIds: form.brazeCanvasIds,
             existingTranslationPolicy: form.brazeExistingTranslationPolicy,
             overwriteWhenRemoteNewer: form.brazeOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
+    ...(form.iterableEnabled
+      ? {
+          iterable: {
+            enabled: true,
+            sourceLocale: form.iterableSourceLocale.trim() || "en",
+            templateIds: form.iterableTemplateIds,
+            snippetIds: form.iterableSnippetIds,
+            existingTranslationPolicy: form.iterableExistingTranslationPolicy,
           },
         }
       : {}),
@@ -1601,6 +1635,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
     form.customerIoEnabled ||
+    form.iterableEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
     form.listIssuesEnabled ||
