@@ -16,6 +16,7 @@ import {
   applyLoopsSegmentTranslations,
   buildLoopsEmailSourcePath,
   extractLoopsTextSegments,
+  isLoopsLanguageCodeMismatch,
   isLoopsLocaleCopyName,
   loopsEmailCopyName,
   parseLoopsEmailEnvelope,
@@ -132,7 +133,18 @@ describe("loops paths and locale copies", () => {
     expect(toLoopsLanguageCode("fr-FR")).toBe("fr");
     expect(toLoopsLanguageCode("pt-BR")).toBe("pt");
     expect(toLoopsLanguageCode("pt_br")).toBe("pt");
+    expect(toLoopsLanguageCode("zh-CN")).toBe("zh");
+    expect(toLoopsLanguageCode("zh-TW")).toBe("zh");
     expect(toLoopsLanguageCode("zh_Hant")).toBe("zh");
     expect(toLoopsLanguageCode("")).toBe("en");
+  });
+
+  it("detects a missing or mismatched stored language label", () => {
+    expect(isLoopsLanguageCodeMismatch("zh", "zh")).toBe(false);
+    expect(isLoopsLanguageCodeMismatch("ZH", "zh")).toBe(false);
+    // The reported bug: pushed zh-CN still shows EN in the dashboard picker.
+    expect(isLoopsLanguageCodeMismatch("en", "zh")).toBe(true);
+    expect(isLoopsLanguageCodeMismatch(undefined, "zh")).toBe(true);
+    expect(isLoopsLanguageCodeMismatch(null, "zh")).toBe(true);
   });
 });

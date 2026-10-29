@@ -223,3 +223,24 @@ export function toLoopsLanguageCode(locale: string): string {
   const primary = locale.trim().split(/[-_]/)[0] ?? "";
   return primary.toLowerCase().slice(0, 2) || "en";
 }
+
+/**
+ * Compare the `languageCode` stored on a Loops email message against the
+ * requested code. Loops returns the label verbatim when it sticks; a missing
+ * or different value (e.g. `en` after pushing `zh`) means the copy landed
+ * without its language label and the dashboard picker falls back to EN.
+ */
+export function isLoopsLanguageCodeMismatch(
+  stored: string | null | undefined,
+  requested: string,
+): boolean {
+  const normalizedStored = stored?.trim().toLowerCase();
+  const normalizedRequested = requested.trim().toLowerCase();
+  if (!normalizedRequested) {
+    return false;
+  }
+  if (!normalizedStored) {
+    return true;
+  }
+  return normalizedStored !== normalizedRequested;
+}

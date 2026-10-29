@@ -65,7 +65,7 @@ Disconnect Loops from **Integrations** when this workspace should stop using tha
 
 - Confirm Loops is connected and the automation is **Active**.
 - Confirm the project source locale matches the language of the default copy in Loops.
-- Confirm translation is enabled in Loops for each target language, or copies land without a language label.
+- Confirm translation is enabled in Loops for each target language, or copies land without a language label. A push that lands without its label (for example a copy that still shows EN in its language dropdown) now reports a warning in **Run History** naming the copy and locale — enable the language in Loops, then re-push.
 - If **Push to Loops** or **Ingest** is missing, open a Loops file. Those actions stay hidden on other files. Approve at least one mapped locale, confirm you can manage automations, and wait until any in-progress push finishes.
 - Open **Run History** for the failed email or locale.
 

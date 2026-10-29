@@ -29,6 +29,7 @@ import { resolveCampaignCopy, resolveTransactionalCopy } from "./push-copy-resol
 import {
   applyLoopsSegmentTranslations,
   hashLoopsContent,
+  isLoopsLanguageCodeMismatch,
   loopsEmailCopyName,
   parseLoopsEmailEnvelope,
   toLoopsLanguageCode,
@@ -96,9 +97,10 @@ async function updateCopyEmailMessage(input: {
   previewText?: string;
   languageCode: string;
   lmx: string;
-}): Promise<void> {
+  onLanguageLabelDropped?: () => void;
+}): Promise<{ storedLanguageCode?: string | null; languageLabelDropped: boolean }> {
   try {
-    await input.client.updateEmailMessage({
+    const updated = await input.client.updateEmailMessage({
       emailMessageId: input.draftEmailMessageId,
       expectedRevisionId: input.expectedRevisionId,
       subject: input.subject,
@@ -106,19 +108,47 @@ async function updateCopyEmailMessage(input: {
       languageCode: input.languageCode,
       lmx: input.lmx,
     });
+    return { storedLanguageCode: updated.languageCode, languageLabelDropped: false };
   } catch (error) {
     if (isLoopsLanguageLabelUnsupportedError(error)) {
       // Translation may not be enabled for this team; content still lands, language label does not.
-      await input.client.updateEmailMessage({
+      const updated = await input.client.updateEmailMessage({
         emailMessageId: input.draftEmailMessageId,
         expectedRevisionId: input.expectedRevisionId,
         subject: input.subject,
         previewText: input.previewText,
         lmx: input.lmx,
       });
-      return;
+      input.onLanguageLabelDropped?.();
+      return { storedLanguageCode: updated.languageCode, languageLabelDropped: true };
     }
     throw error;
+  }
+}
+
+function languageLabelDroppedWarning(copyName: string, locale: string): string {
+  return (
+    `${copyName}: pushed without a language label because Loops rejected it ` +
+    `for ${locale}; enable translations (and ${locale}) in the Loops dashboard, then re-push`
+  );
+}
+
+function warnWhenLanguageLabelMissing(input: {
+  storedLanguageCode?: string | null;
+  languageLabelDropped: boolean;
+  languageCode: string;
+  copyName: string;
+  locale: string;
+  pushWarning: (message: string) => void;
+}): void {
+  // The update response echoes the stored label. When Loops accepts the write
+  // but keeps EN (or leaves the label unset), surface it instead of reporting
+  // a clean success — the dashboard picker reads this same field.
+  if (
+    !input.languageLabelDropped &&
+    isLoopsLanguageCodeMismatch(input.storedLanguageCode, input.languageCode)
+  ) {
+    input.pushWarning(languageLabelDroppedWarning(input.copyName, input.locale));
   }
 }
 
@@ -154,7 +184,7 @@ async function pushTransactionalLocale(input: {
   if (!draftEmailMessageId || !expectedRevisionId) {
     throw new Error("loops_draft_unavailable");
   }
-  await updateCopyEmailMessage({
+  const update = await updateCopyEmailMessage({
     client: input.client,
     draftEmailMessageId,
     expectedRevisionId,
@@ -162,6 +192,16 @@ async function pushTransactionalLocale(input: {
     previewText: input.previewText,
     languageCode,
     lmx: input.lmx,
+    onLanguageLabelDropped: () =>
+      input.pushWarning(languageLabelDroppedWarning(copyName, input.locale)),
+  });
+  warnWhenLanguageLabelMissing({
+    storedLanguageCode: update.storedLanguageCode,
+    languageLabelDropped: update.languageLabelDropped,
+    languageCode,
+    copyName,
+    locale: input.locale,
+    pushWarning: input.pushWarning,
   });
   await persistCopySuccess(
     input.mapping,
@@ -196,7 +236,7 @@ async function pushCampaignLocale(input: {
   if (!copyId || !emailMessageId || !expectedRevisionId) {
     throw new Error("loops_copy_create_failed");
   }
-  await updateCopyEmailMessage({
+  const update = await updateCopyEmailMessage({
     client: input.client,
     draftEmailMessageId: emailMessageId,
     expectedRevisionId,
@@ -204,6 +244,16 @@ async function pushCampaignLocale(input: {
     previewText: input.previewText,
     languageCode,
     lmx: input.lmx,
+    onLanguageLabelDropped: () =>
+      input.pushWarning(languageLabelDroppedWarning(copyName, input.locale)),
+  });
+  warnWhenLanguageLabelMissing({
+    storedLanguageCode: update.storedLanguageCode,
+    languageLabelDropped: update.languageLabelDropped,
+    languageCode,
+    copyName,
+    locale: input.locale,
+    pushWarning: input.pushWarning,
   });
   await persistCopySuccess(
     input.mapping,
