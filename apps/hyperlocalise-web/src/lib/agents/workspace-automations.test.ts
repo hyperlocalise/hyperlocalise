@@ -552,7 +552,7 @@ describe("workspace automations", () => {
     expect(notificationOnlySchedule.error).toMatchObject({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
     });
 
     const scheduledWebSearch = expectOk(
@@ -602,7 +602,7 @@ describe("workspace automations", () => {
     expect(scheduledUpdate.error).toMatchObject({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
     });
   });
 

@@ -875,7 +875,7 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(deliveryOnly)).toEqual({
       trigger:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
     });
     expect(
       validateWorkspaceAutomationFormState({ ...deliveryOnly, webSearchEnabled: true }),

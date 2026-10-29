@@ -144,6 +144,15 @@ export type WorkspaceAutomationFormState = {
   sanityIncludeDrafts: boolean;
   sanityOverwriteSanityDrafts: boolean;
   sanityExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  webflowEnabled: boolean;
+  webflowConnectionId: string;
+  webflowSiteId: string;
+  webflowCollectionIds: string[];
+  webflowSourceLocale: string;
+  webflowTargetLocales: string[];
+  webflowExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  webflowRunQa: boolean;
+  webflowPublishOnPush: boolean;
   brazeEnabled: boolean;
   brazeCampaignsEnabled: boolean;
   customerIoEnabled: boolean;
@@ -190,6 +199,7 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
     form.intercomEnabled ||
     form.googleDriveEnabled ||
     form.sanityEnabled ||
+    form.webflowEnabled ||
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
     form.customerIoEnabled
@@ -237,6 +247,10 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "sanityDocumentTypes"
     | "sanitySourceLocale"
     | "sanityTargetLocales"
+    | "webflow"
+    | "webflowConnectionId"
+    | "webflowCollectionIds"
+    | "webflowSourceLocale"
     | "braze"
     | "brazeSourceLocale"
     | "customerIo"
@@ -275,7 +289,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_push_branches_required: "Add at least one branch pattern for GitHub triggers.",
   github_events_required: "Choose at least one GitHub event.",
   scheduled_workflow_required:
-    "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
+    "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
   intercom_not_connected: "Connect Intercom in Integrations before using it.",
   intercom_pipes_needs_reauthorization: "Reconnect Intercom in Integrations, then try again.",
   intercom_pipes_unavailable: "Intercom is unavailable until WorkOS Pipes is configured.",
@@ -296,6 +310,11 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   sanity_source_locale_unmapped: "The source locale does not match a Sanity language tag.",
   sanity_source_locale_mismatch:
     "The Sanity source locale must be the same language as the project source locale.",
+  webflow_not_connected: "Connect Webflow in Integrations before using it.",
+  webflow_connection_required: "Choose a Webflow connection.",
+  webflow_collection_ids_required: "Choose at least one Webflow collection.",
+  webflow_source_locale_mismatch:
+    "The Webflow primary locale must match the project source locale.",
   braze_not_connected: "Connect Braze in Integrations before using it.",
   braze_pipes_needs_reauthorization: "Reconnect Braze in Integrations, then try again.",
   braze_pipes_unavailable: "Braze is unavailable until WorkOS Pipes is configured.",
@@ -451,6 +470,15 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     sanityIncludeDrafts: true,
     sanityOverwriteSanityDrafts: true,
     sanityExistingTranslationPolicy: "seed_empty",
+    webflowEnabled: false,
+    webflowConnectionId: "",
+    webflowSiteId: "",
+    webflowCollectionIds: [],
+    webflowSourceLocale: "en",
+    webflowTargetLocales: [],
+    webflowExistingTranslationPolicy: "seed_empty",
+    webflowRunQa: true,
+    webflowPublishOnPush: false,
     brazeEnabled: false,
     brazeCampaignsEnabled: false,
     customerIoEnabled: false,
@@ -508,6 +536,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const intercom = automation.toolConfig.intercom;
   const googleDrive = automation.toolConfig.googleDrive;
   const sanity = automation.toolConfig.sanity;
+  const webflow = automation.toolConfig.webflow;
   const braze = automation.toolConfig.braze;
   const brazeCampaigns = automation.toolConfig.brazeCampaigns;
   const customerIo = automation.toolConfig.customerIo;
@@ -624,6 +653,19 @@ export function createWorkspaceAutomationFormStateFromRecord(
       sanity?.existingTranslationPolicy === "overwrite_all"
         ? sanity.existingTranslationPolicy
         : "seed_empty",
+    webflowEnabled: Boolean(webflow?.enabled),
+    webflowConnectionId: webflow?.connectionId ?? "",
+    webflowSiteId: webflow?.siteId ?? "",
+    webflowCollectionIds: webflow?.collectionIds ? [...webflow.collectionIds] : [],
+    webflowSourceLocale: webflow?.sourceLocale ?? "en",
+    webflowTargetLocales: webflow?.targetLocales ? [...webflow.targetLocales] : [],
+    webflowExistingTranslationPolicy:
+      webflow?.existingTranslationPolicy === "refresh_imported" ||
+      webflow?.existingTranslationPolicy === "overwrite_all"
+        ? webflow.existingTranslationPolicy
+        : "seed_empty",
+    webflowRunQa: webflow?.runQa ?? true,
+    webflowPublishOnPush: webflow?.publishOnPush ?? false,
     brazeEnabled: Boolean(braze?.enabled),
     brazeCampaignsEnabled: Boolean(brazeCampaigns?.enabled),
     customerIoEnabled: Boolean(customerIo?.enabled),
@@ -989,6 +1031,21 @@ export function formStateToWorkspaceAutomationPayload(
           },
         }
       : {}),
+    ...(form.webflowEnabled
+      ? {
+          webflow: {
+            enabled: true,
+            connectionId: form.webflowConnectionId || undefined,
+            siteId: form.webflowSiteId.trim() || undefined,
+            collectionIds: form.webflowCollectionIds,
+            sourceLocale: form.webflowSourceLocale.trim() || "en",
+            targetLocales: form.webflowTargetLocales,
+            existingTranslationPolicy: form.webflowExistingTranslationPolicy,
+            runQa: form.webflowRunQa,
+            publishOnPush: form.webflowPublishOnPush,
+          },
+        }
+      : {}),
     ...(form.createNativeTmsJobEnabled
       ? {
           createNativeTmsJob: {
@@ -1263,6 +1320,19 @@ export function validateWorkspaceAutomationFormState(
     }
   }
 
+  if (form.webflowEnabled) {
+    if (!form.webflowConnectionId) {
+      errors.webflowConnectionId = "Choose a Webflow connection.";
+    }
+    if (form.webflowCollectionIds.length === 0) {
+      errors.webflowCollectionIds = "Choose at least one Webflow collection.";
+    }
+    if (!form.webflowSourceLocale.trim()) {
+      errors.webflowSourceLocale =
+        "Choose a Webflow source locale that matches the project source language.";
+    }
+  }
+
   if (form.contentfulEnabled) {
     if (!form.contentfulConnectionId) {
       errors.contentfulConnectionId = "Choose a Contentful connection.";
@@ -1437,6 +1507,14 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "sanity_source_locale_unmapped":
     case "sanity_source_locale_mismatch":
       return { sanitySourceLocale: message };
+    case "webflow_not_connected":
+      return { webflow: message };
+    case "webflow_connection_required":
+      return { webflowConnectionId: message };
+    case "webflow_collection_ids_required":
+      return { webflowCollectionIds: message };
+    case "webflow_source_locale_mismatch":
+      return { webflowSourceLocale: message };
     case "braze_not_connected":
     case "braze_pipes_needs_reauthorization":
     case "braze_pipes_unavailable":
@@ -1519,6 +1597,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.intercomEnabled ||
     form.googleDriveEnabled ||
     form.sanityEnabled ||
+    form.webflowEnabled ||
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
     form.customerIoEnabled ||

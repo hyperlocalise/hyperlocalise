@@ -132,6 +132,34 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "translate-webflow-items",
+    category: "popular",
+    name: "Translate Webflow CMS items",
+    description:
+      "Import Webflow CMS collection items into a native project on a schedule, localise in Jobs, then push approved translations when you are ready.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Webflow CMS localisation connector",
+      capabilities: [
+        "Import changed collection items as JSON source files in the attached project",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push translations automatically on import — operators enqueue push separately",
+      ],
+      goal: "Keep Webflow CMS items in sync for localisation and write approved translations back as secondary-locale drafts, optionally publishing them live.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-webflow-items"],
+      name: "Translate Webflow items",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      webflowEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-sanity-documents",
     category: "popular",
     name: "Translate Sanity documents",
@@ -1146,6 +1174,10 @@ export function getWorkspaceAutomationTemplateFlow(
 
   if (form.sanityEnabled) {
     tools.push({ id: "sanity", label: "Sanity" });
+  }
+
+  if (form.webflowEnabled) {
+    tools.push({ id: "webflow", label: "Webflow" });
   }
 
   if (form.googleDriveEnabled) {

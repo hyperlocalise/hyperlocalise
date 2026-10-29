@@ -65,6 +65,7 @@ function createOrgSlugClient(origin: string) {
     ]),
     ...pickClientPaths(integrations, [
       "contentful-connections",
+      "webflow-connections",
       "mcp-server-connections",
       "semrush-connections",
       "zernio-connections",

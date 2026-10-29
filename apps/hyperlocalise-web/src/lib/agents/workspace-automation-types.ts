@@ -430,6 +430,33 @@ const sanityLocaleCatalogSchema = z
     titleField: "name",
   });
 
+const webflowToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    connectionId: z.string().uuid().optional(),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    siteId: z.string().trim().min(1).max(128).optional(),
+    collectionIds: z.array(z.string().trim().min(1).max(128)).max(50).default([]),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+    runQa: z.boolean().default(true),
+    // When false (default), approved translations are written as staged
+    // secondary-locale drafts. When true, pushed locales go live immediately.
+    publishOnPush: z.boolean().default(false),
+  })
+  .default({
+    enabled: false,
+    collectionIds: [],
+    sourceLocale: "en",
+    targetLocales: [],
+    existingTranslationPolicy: "seed_empty",
+    runQa: true,
+    publishOnPush: false,
+  });
+
 const sanityToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -598,6 +625,7 @@ const toolConfigObjectSchema = z
     intercom: intercomToolConfigSchema.optional(),
     googleDrive: googleDriveToolConfigSchema.optional(),
     sanity: sanityToolConfigSchema.optional(),
+    webflow: webflowToolConfigSchema.optional(),
     braze: brazeToolConfigSchema.optional(),
     brazeCampaigns: brazeCampaignsToolConfigSchema.optional(),
     customerIo: customerIoToolConfigSchema.optional(),
@@ -664,6 +692,7 @@ export type WorkspaceAutomationGitlabToolConfig = z.infer<typeof gitlabToolConfi
 export type WorkspaceAutomationIntercomToolConfig = z.infer<typeof intercomToolConfigSchema>;
 export type WorkspaceAutomationGoogleDriveToolConfig = z.infer<typeof googleDriveToolConfigSchema>;
 export type WorkspaceAutomationSanityToolConfig = z.infer<typeof sanityToolConfigSchema>;
+export type WorkspaceAutomationWebflowToolConfig = z.infer<typeof webflowToolConfigSchema>;
 export type WorkspaceAutomationBrazeToolConfig = z.infer<typeof brazeToolConfigSchema>;
 export type WorkspaceAutomationBrazeCampaignsToolConfig = z.infer<
   typeof brazeCampaignsToolConfigSchema
@@ -790,6 +819,22 @@ export type WorkspaceAutomationConfigValidationError =
       message: "The Sanity source locale must be the same language as the project source locale.";
     }
   | {
+      code: "webflow_not_connected";
+      message: string;
+    }
+  | {
+      code: "webflow_connection_required";
+      message: "Choose a Webflow connection.";
+    }
+  | {
+      code: "webflow_collection_ids_required";
+      message: "Choose at least one Webflow collection.";
+    }
+  | {
+      code: "webflow_source_locale_mismatch";
+      message: string;
+    }
+  | {
       code: "braze_not_connected";
       message: "Connect Braze in Integrations before using it.";
     }
@@ -867,7 +912,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "scheduled_workflow_required";
-      message: "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.";
+      message: "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.";
     }
   | {
       code: "invalid_automation_timezone";
@@ -1079,6 +1124,10 @@ export function hasWorkspaceAutomationIntercomTool(toolConfig: WorkspaceAutomati
 
 export function hasWorkspaceAutomationSanityTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.sanity?.enabled);
+}
+
+export function hasWorkspaceAutomationWebflowTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.webflow?.enabled);
 }
 
 export function hasWorkspaceAutomationGoogleDriveTool(toolConfig: WorkspaceAutomationToolConfig) {

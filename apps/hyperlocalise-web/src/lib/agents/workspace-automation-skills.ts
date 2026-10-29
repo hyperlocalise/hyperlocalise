@@ -26,6 +26,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOLS = [
   "push_intercom_translations",
   "import_sanity_documents",
   "push_sanity_translations",
+  "import_webflow_items",
+  "push_webflow_translations",
   "import_google_drive_files",
   "push_google_drive_translations",
   "import_braze_templates",
@@ -211,6 +213,22 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
         "translate with agent",
       ],
       weak: [["upload", "uploaded"], "translate", "target locale"],
+    },
+  },
+  {
+    id: "translate-webflow-items",
+    name: "Translate Webflow CMS items",
+    category: "translate",
+    description:
+      "Import Webflow CMS collection items into a project, open native translation jobs, and push approved translations on demand.",
+    grants:
+      "Reads Webflow CMS items through Pipes, writes JSON source files and native jobs. Push writes staged localized variants when you run Push to Webflow.",
+    tools: ["import_webflow_items", "push_webflow_translations"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["webflow", "cms"],
+      weak: ["collection", "items", "import", "translate"],
     },
   },
   {
@@ -400,6 +418,7 @@ export const MAX_WORKSPACE_AUTOMATION_SKILLS = WORKSPACE_AUTOMATION_SKILLS.lengt
 
 /** Document/CMS translation skills that each take over the orchestrator plan. */
 export const CMS_TRANSLATION_SKILL_IDS = [
+  "translate-webflow-items",
   "translate-sanity-documents",
   "translate-google-drive-files",
   "translate-intercom-articles",
@@ -448,6 +467,7 @@ export type WorkspaceAutomationSkillIntegration =
   | "intercom"
   | "google_drive"
   | "sanity"
+  | "webflow"
   | "braze"
   | "customer_io"
   | "slack"
@@ -465,6 +485,8 @@ const SKILL_TOOL_INTEGRATIONS: Record<
   push_intercom_translations: "intercom",
   import_sanity_documents: "sanity",
   push_sanity_translations: "sanity",
+  import_webflow_items: "webflow",
+  push_webflow_translations: "webflow",
   import_google_drive_files: "google_drive",
   push_google_drive_translations: "google_drive",
   import_braze_templates: "braze",
@@ -582,6 +604,9 @@ export function workspaceAutomationSkillToolEnabled(
     case "import_sanity_documents":
     case "push_sanity_translations":
       return Boolean(toolConfig.sanity?.enabled);
+    case "import_webflow_items":
+    case "push_webflow_translations":
+      return Boolean(toolConfig.webflow?.enabled);
     case "import_google_drive_files":
     case "push_google_drive_translations":
       return Boolean(toolConfig.googleDrive?.enabled);

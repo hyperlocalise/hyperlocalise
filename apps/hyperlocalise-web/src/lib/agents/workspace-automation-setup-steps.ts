@@ -53,6 +53,7 @@ export const WORKSPACE_AUTOMATION_INTEGRATION_NAMES: Record<
   contentful: "Contentful",
   intercom: "Intercom",
   sanity: "Sanity",
+  webflow: "Webflow",
   google_drive: "Google Drive",
   braze: "Braze",
   customer_io: "Customer.io",

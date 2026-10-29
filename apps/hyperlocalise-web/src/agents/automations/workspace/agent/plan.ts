@@ -26,6 +26,7 @@ import {
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationGoogleDriveTool,
   hasWorkspaceAutomationSanityTool,
+  hasWorkspaceAutomationWebflowTool,
   hasWorkspaceAutomationListIssuesTool,
   hasWorkspaceAutomationWebSearchTool,
   type WorkspaceAutomationRecord,
@@ -43,6 +44,8 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "push_intercom_translations",
   "import_sanity_documents",
   "push_sanity_translations",
+  "import_webflow_items",
+  "push_webflow_translations",
   "import_google_drive_files",
   "push_google_drive_translations",
   "import_braze_templates",
@@ -87,6 +90,8 @@ const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
   "push_intercom_translations",
   "import_sanity_documents",
   "push_sanity_translations",
+  "import_webflow_items",
+  "push_webflow_translations",
   "import_google_drive_files",
   "push_google_drive_translations",
   "create_native_tms_job",
@@ -131,6 +136,9 @@ function workflowToolEnabled(
     case "import_sanity_documents":
     case "push_sanity_translations":
       return hasWorkspaceAutomationSanityTool(toolConfig);
+    case "import_webflow_items":
+    case "push_webflow_translations":
+      return hasWorkspaceAutomationWebflowTool(toolConfig);
     case "import_google_drive_files":
     case "push_google_drive_translations":
       return hasWorkspaceAutomationGoogleDriveTool(toolConfig);
@@ -260,6 +268,17 @@ export function buildWorkspaceOrchestratorPlan(
       notificationToolEnabled(tool, automation.toolConfig),
     );
     return { tools: [sanityTool, ...notificationTools] };
+  }
+
+  if (hasWorkspaceAutomationWebflowTool(automation.toolConfig)) {
+    const webflowTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_webflow_translations"
+        : "import_webflow_items";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [webflowTool, ...notificationTools] };
   }
 
   if (hasWorkspaceAutomationGoogleDriveTool(automation.toolConfig)) {

@@ -27,12 +27,14 @@ import { createImportCustomerIoCampaignsTool } from "./tools/import_customer_io_
 import { createImportBrazeTemplatesTool } from "./tools/import_braze_templates";
 import { createImportIntercomArticlesTool } from "./tools/import_intercom_articles";
 import { createImportSanityDocumentsTool } from "./tools/import_sanity_documents";
+import { createImportWebflowItemsTool } from "./tools/import_webflow_items";
 import { createImportGoogleDriveFilesTool } from "./tools/import_google_drive_files";
 import { createPushBrazeCampaignsTool } from "./tools/push_braze_campaigns";
 import { createPushCustomerIoCampaignsTool } from "./tools/push_customer_io_campaigns";
 import { createPushBrazeTemplatesTool } from "./tools/push_braze_templates";
 import { createPushIntercomTranslationsTool } from "./tools/push_intercom_translations";
 import { createPushSanityTranslationsTool } from "./tools/push_sanity_translations";
+import { createPushWebflowTranslationsTool } from "./tools/push_webflow_translations";
 import { createPushGoogleDriveTranslationsTool } from "./tools/push_google_drive_translations";
 import { createRunContentfulTranslationTool } from "./tools/run_contentful_translation";
 import { createRunGithubWorkflowsTool } from "./tools/run_github_workflows";
@@ -57,6 +59,8 @@ const TOOL_BUILDERS: Record<
   push_intercom_translations: createPushIntercomTranslationsTool,
   import_sanity_documents: createImportSanityDocumentsTool,
   push_sanity_translations: createPushSanityTranslationsTool,
+  import_webflow_items: createImportWebflowItemsTool,
+  push_webflow_translations: createPushWebflowTranslationsTool,
   import_google_drive_files: createImportGoogleDriveFilesTool,
   push_google_drive_translations: createPushGoogleDriveTranslationsTool,
   import_braze_templates: createImportBrazeTemplatesTool,
