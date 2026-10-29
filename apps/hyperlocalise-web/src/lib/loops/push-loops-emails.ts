@@ -44,6 +44,7 @@ export type PushLoopsEmailsResult = {
   skippedLocales: number;
   failedLocales: number;
   itemsProcessed: number;
+  warnings: string[];
 };
 
 export function readLoopsPushSourcePaths(
@@ -344,10 +345,17 @@ export async function runPushLoopsEmails(input: {
     skippedLocales: 0,
     failedLocales: 0,
     itemsProcessed: mappings.length,
+    warnings: [],
+  };
+  const pushWarning = (message: string) => {
+    if (result.warnings.length < 20 && !result.warnings.includes(message)) {
+      result.warnings.push(message);
+    }
   };
   const translationService = new ProjectTranslationService();
 
   for (const mapping of mappings) {
+    const label = mapping.sourceName || mapping.sourcePath;
     const sourceHtml = await loadSourceHtml({
       organizationId: input.organizationId,
       projectId,
@@ -355,12 +363,14 @@ export async function runPushLoopsEmails(input: {
     });
     if (!sourceHtml) {
       result.failedLocales += locales.length;
+      pushWarning(`${label}: failed for ${locales.length} locales (no imported source file)`);
       continue;
     }
     const storedSegments = Number(mapping.segmentCount || "0");
     const storedLmx = mapping.sourceLmx || "";
     if (!storedLmx) {
       result.failedLocales += locales.length;
+      pushWarning(`${label}: failed for ${locales.length} locales (no stored email content)`);
       continue;
     }
 
@@ -419,16 +429,18 @@ export async function runPushLoopsEmails(input: {
         }
         result.pushedLocales += 1;
       } catch (error) {
+        const message = error instanceof Error ? error.message : "push_failed";
         logger.warn(
           { sourcePath: mapping.sourcePath, locale, error: String(error) },
           "loops push locale failed",
         );
         result.failedLocales += 1;
+        pushWarning(`${label} [${locale}]: failed (${message})`);
         await db
           .update(schema.loopsEmailSyncStates)
           .set({
             status: "push_failed",
-            lastError: { message: error instanceof Error ? error.message : "push_failed" },
+            lastError: { message },
             updatedAt: new Date(),
           })
           .where(eq(schema.loopsEmailSyncStates.id, mapping.id));
