@@ -41,7 +41,7 @@ Loops is not a trigger type. Use a schedule or **Run now** for import. Use **Pus
 - Campaign emails at `loops/campaigns/{slug}.html`
 - Workflow `SendEmailAction` emails at `loops/workflows/{workflow-slug}/{slug}.html`
 
-Each file stores the subject, preview text, and LMX text segments in field blocks. In the Content Editor they open in HTML File view. Review those files like other [HTML sources](/platform/projects/files).
+Each file stores the subject, preview text, and LMX text segments in field blocks. In the Content Editor they open in HTML File view. Review those files like other [HTML sources](/platform/projects/files). File view renders the email with its Loops theme (resolved from the message `<Style>` tag, falling back to the default theme), including headings, buttons, images, and expanded components.
 
 Import skips emails stored in legacy MJML, drafts that cannot be read as LMX, and names that already look like locale copies (`Welcome [fr]`). `{data.*}`, `{contact.*}`, and `{event.*}` variables stay protected so translators do not break personalization.
 

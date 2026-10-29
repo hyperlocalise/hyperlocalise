@@ -12,6 +12,8 @@
  */
 import { and, eq } from "drizzle-orm";
 
+import type { Theme } from "loops";
+
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 import { db, schema } from "@/lib/database/client";
 import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
@@ -32,11 +34,47 @@ import {
   buildLoopsEmailSourcePath,
   hashLoopsContent,
   isLoopsLocaleCopyName,
-  serializeLoopsEmailEnvelope,
 } from "./html-envelope";
+import {
+  parseLoopsStyleTag,
+  renderLoopsEmailDocument,
+  resolveLoopsThemeStyles,
+} from "./lmx-document";
 
 const logger = createLogger("import-loops-emails");
 const jobQueue = createTranslationJobEventQueue();
+
+/**
+ * Load themes and components once per import run for File view styling.
+ * Styling is best-effort: a failure still imports unstyled files.
+ */
+async function loadLoopsImportStyling(
+  client: LoopsClient,
+): Promise<{ themes: Theme[]; components: Map<string, string> }> {
+  const themes: Theme[] = [];
+  const components = new Map<string, string>();
+  try {
+    themes.push(...(await client.listThemes()));
+  } catch (error) {
+    logger.warn(
+      { error: String(error) },
+      "loops themes unavailable; importing without theme styles",
+    );
+  }
+  try {
+    for (const component of await client.listComponents()) {
+      if (component.id && component.lmx) {
+        components.set(component.id, component.lmx);
+      }
+    }
+  } catch (error) {
+    logger.warn(
+      { error: String(error) },
+      "loops components unavailable; importing without expansion",
+    );
+  }
+  return { themes, components };
+}
 
 export type ImportLoopsEmailsResult = {
   imported: number;
@@ -220,6 +258,8 @@ async function importOneEmail(input: {
   targetLocales: string[];
   workflowRunId?: string | null;
   openJobs: Array<{ sourceFileId: string | null; targetLocales: readonly string[] }>;
+  themes: readonly Theme[];
+  components: ReadonlyMap<string, string>;
 }): Promise<{ status: "imported" | "skipped" | "failed"; jobId?: string }> {
   if (!input.emailMessageId) {
     return { status: "skipped" };
@@ -238,10 +278,15 @@ async function importOneEmail(input: {
     throw error;
   }
 
-  const envelope = serializeLoopsEmailEnvelope({
+  const envelope = renderLoopsEmailDocument({
     subject: message.subject,
     previewText: message.previewText,
     lmx: message.lmx,
+    styles: resolveLoopsThemeStyles({
+      style: parseLoopsStyleTag(message.lmx),
+      themes: input.themes,
+    }),
+    components: input.components,
   });
   const contentHash = hashLoopsContent(`${message.subject}\n${message.lmx}`);
   const sourcePath = buildLoopsEmailSourcePath({
@@ -371,6 +416,7 @@ export async function runImportLoopsEmails(input: {
   });
 
   const openJobs: Array<{ sourceFileId: string | null; targetLocales: readonly string[] }> = [];
+  const { themes, components } = await loadLoopsImportStyling(loaded.value.client);
   const result: ImportLoopsEmailsResult = {
     imported: 0,
     skipped: 0,
@@ -404,6 +450,8 @@ export async function runImportLoopsEmails(input: {
         targetLocales,
         workflowRunId: input.workflowRunId,
         openJobs,
+        themes,
+        components,
       });
       result[outcome.status === "imported" ? "imported" : outcome.status] += 1;
       if (outcome.jobId) {
@@ -437,6 +485,8 @@ export async function runImportLoopsEmails(input: {
         targetLocales,
         workflowRunId: input.workflowRunId,
         openJobs,
+        themes,
+        components,
       });
       result[outcome.status === "imported" ? "imported" : outcome.status] += 1;
       if (outcome.jobId) {
@@ -481,6 +531,8 @@ export async function runImportLoopsEmails(input: {
           targetLocales,
           workflowRunId: input.workflowRunId,
           openJobs,
+          themes,
+          components,
         });
         result[outcome.status === "imported" ? "imported" : outcome.status] += 1;
         if (outcome.jobId) {

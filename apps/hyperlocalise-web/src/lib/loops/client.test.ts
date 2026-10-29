@@ -40,6 +40,36 @@ function paginated<T>(data: T[], nextCursor: string | null = null) {
 }
 
 describe("createLoopsClient", () => {
+  it("lists themes and reads a single theme", async () => {
+    const styled = {
+      id: "st_1",
+      name: "Default",
+      styles: { bodyColor: "#ffffff", buttonBodyColor: "#2b59c3" },
+      isDefault: true,
+      createdAt: "2026-10-29T00:00:00.000Z",
+      updatedAt: "2026-10-29T00:00:00.000Z",
+    };
+    const fetchImpl = async (input: unknown) => {
+      const url = String(input);
+      if (url.includes("/themes/st_1")) {
+        return jsonResponse(styled);
+      }
+      return jsonResponse(paginated([styled]));
+    };
+
+    const client = createLoopsClient({ apiKey: "key", fetchImpl });
+    expect(await client.listThemes()).toEqual([styled]);
+    expect(await client.getTheme("st_1")).toEqual(styled);
+  });
+
+  it("lists components with their LMX", async () => {
+    const header = { id: "cm_1", name: "Header", lmx: "<Paragraph>Header</Paragraph>" };
+    const fetchImpl = async () => jsonResponse(paginated([header]));
+
+    const client = createLoopsClient({ apiKey: "key", fetchImpl });
+    expect(await client.listComponents()).toEqual([header]);
+  });
+
   it("lists transactional emails across pages", async () => {
     const fetchImpl = vi.fn<typeof fetch>(async (input) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;

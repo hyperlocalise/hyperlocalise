@@ -15,9 +15,11 @@ import {
   LoopsClient as SdkLoopsClient,
   RateLimitExceededError,
   type CampaignResponse,
+  type Component,
   type CreateCampaignResponse,
   type EmailMessageResponse,
   type SimplifiedWorkflow,
+  type Theme,
   type TransactionalDraftResponse,
   type TransactionalEmailResource,
   type WorkflowSummary,
@@ -123,6 +125,9 @@ export type LoopsClient = {
   createWorkflow: (name: string) => Promise<SimplifiedWorkflow>;
   ensureTransactionalDraft: (transactionalId: string) => Promise<TransactionalDraftResponse>;
   getCampaign: (campaignId: string) => Promise<CampaignResponse>;
+  listThemes: () => Promise<Theme[]>;
+  getTheme: (themeId: string) => Promise<Theme>;
+  listComponents: () => Promise<Component[]>;
 };
 
 type LoopsFetch = typeof fetch;
@@ -302,6 +307,31 @@ export function createLoopsClient(input: { apiKey: string; fetchImpl?: LoopsFetc
     async getCampaign(campaignId: string) {
       const campaign = await call((sdk) => sdk.getCampaign(campaignId));
       return { ...campaign, id: campaign.id || campaignId };
+    },
+    async listThemes() {
+      const items = await listPaginated({
+        fetchImpl,
+        run: (args) => sdk.listThemes(args),
+      });
+      for (const item of items) {
+        requireId(item, "theme");
+      }
+      return items;
+    },
+    async getTheme(themeId: string) {
+      const theme = await call((sdk) => sdk.getTheme(themeId));
+      requireId(theme, "theme");
+      return theme;
+    },
+    async listComponents() {
+      const items = await listPaginated({
+        fetchImpl,
+        run: (args) => sdk.listComponents(args),
+      });
+      for (const item of items) {
+        requireId(item, "component");
+      }
+      return items;
     },
   };
 }
