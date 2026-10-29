@@ -16,6 +16,7 @@ import {
   createLoopsClient,
   isLoopsLanguageLabelUnsupportedError,
   isLoopsLegacyContentError,
+  isLoopsNotFoundError,
   LoopsApiError,
 } from "./client";
 
@@ -200,5 +201,22 @@ describe("isLoopsLanguageLabelUnsupportedError", () => {
       ),
     ).toBe(false);
     expect(isLoopsLanguageLabelUnsupportedError(new Error("nope"))).toBe(false);
+  });
+});
+
+describe("isLoopsNotFoundError", () => {
+  it("matches 404s from deleted Loops copies", () => {
+    expect(
+      isLoopsNotFoundError(new LoopsApiError({ message: "404 - Campaign not found", status: 404 })),
+    ).toBe(true);
+  });
+
+  it("rejects other statuses and error shapes", () => {
+    expect(
+      isLoopsNotFoundError(
+        new LoopsApiError({ message: "Loops request failed with status 500.", status: 500 }),
+      ),
+    ).toBe(false);
+    expect(isLoopsNotFoundError(new Error("404 - Campaign not found"))).toBe(false);
   });
 });

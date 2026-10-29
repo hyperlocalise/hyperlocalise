@@ -46,6 +46,15 @@ export function isLoopsLegacyContentError(error: unknown): boolean {
 }
 
 /**
+ * The requested Loops object no longer exists — e.g. a locale copy deleted in
+ * the Loops dashboard after a push recorded its id. Callers drop the stale id
+ * and recreate the copy instead of failing.
+ */
+export function isLoopsNotFoundError(error: unknown): boolean {
+  return error instanceof LoopsApiError && error.status === 404;
+}
+
+/**
  * Loops rejects `languageCode` when translations are not enabled for the team
  * (`400 - Translations are not enabled for this team.`). The translated content
  * still lands; only the language label is lost, so callers retry without it.
