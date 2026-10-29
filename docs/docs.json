@@ -268,6 +268,7 @@
                       "platform/settings",
                       "platform/workspace/members",
                       "platform/workspace/roles",
+                      "platform/workspace/reports",
                       "platform/workspace/billing"
                     ],
                     "expanded": false
