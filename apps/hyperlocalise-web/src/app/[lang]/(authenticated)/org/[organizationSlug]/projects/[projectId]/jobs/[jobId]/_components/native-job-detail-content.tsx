@@ -75,6 +75,7 @@ import {
   isNativeFileTranslationJob,
   NativeJobSourceFilesSection,
 } from "./native-job-detail-helpers";
+import { reportsQueryKey } from "@/components/reports/reports-queries";
 import { nativeJobDetailContentMessages as messages } from "./native-job-detail-content.messages";
 import {
   canCancelJob,
@@ -265,6 +266,8 @@ export function NativeJobDetailContent({
       queryClient.setQueryData(jobQueryKey, updatedJob);
       await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
       setMarkDoneDialogOpen(false);
+      // The task's Report tab shows its fee and pricing lock, which marking done changes.
+      await queryClient.invalidateQueries({ queryKey: reportsQueryKey(organizationSlug) });
       toast.success(intl.formatMessage(messages.taskMarkedDone));
     },
     onError: async (error) => {

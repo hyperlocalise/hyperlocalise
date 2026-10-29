@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray, isNull, ne, notExists, or, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, ne, notExists, or, type SQL } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { recordJobEvents } from "@/lib/job-events/job-events-writer";
@@ -64,13 +64,30 @@ export async function markTaskDone(input: {
             .from(schema.externalJobDetails)
             .where(eq(schema.externalJobDetails.jobId, schema.jobs.id)),
         ),
+        // A job that produced files keeps them: its outcome payload is not overwritten.
+        notExists(
+          database
+            .select({ jobId: schema.translationJobDetails.jobId })
+            .from(schema.translationJobDetails)
+            .where(
+              and(
+                eq(schema.translationJobDetails.jobId, schema.jobs.id),
+                isNotNull(schema.translationJobDetails.outcomeKind),
+              ),
+            ),
+        ),
       ),
     )
     .returning({ id: schema.jobs.id });
 
   if (!done) {
     const [existing] = await database
-      .select({ id: schema.jobs.id, ownerUserId: schema.jobs.ownerUserId })
+      .select({
+        ownerUserId: schema.jobs.ownerUserId,
+        status: schema.jobs.status,
+        kind: schema.jobs.kind,
+        assigneeType: schema.jobs.assigneeType,
+      })
       .from(schema.jobs)
       .where(
         and(
@@ -85,9 +102,15 @@ export async function markTaskDone(input: {
       return err({ code: "job_not_found" });
     }
 
+    const isOpenPersonTask =
+      existing.status === "waiting_for_review" &&
+      (PERSON_TASK_KINDS as readonly string[]).includes(existing.kind) &&
+      existing.assigneeType !== "agent";
     return err({
       code:
-        !input.actorMayFinishAnyTask && existing.ownerUserId !== input.actorUserId
+        isOpenPersonTask &&
+        !input.actorMayFinishAnyTask &&
+        existing.ownerUserId !== input.actorUserId
           ? "not_task_assignee"
           : "job_action_unavailable",
     });
