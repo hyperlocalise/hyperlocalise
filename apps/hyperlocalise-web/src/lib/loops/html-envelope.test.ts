@@ -127,12 +127,12 @@ describe("loops paths and locale copies", () => {
     expect(isLoopsLocaleCopyName("Welcome")).toBe(false);
   });
 
-  it("maps project locales to locale-region language codes", () => {
+  it("maps project locales to ISO 639-1 language codes", () => {
     expect(toLoopsLanguageCode("fr")).toBe("fr");
-    expect(toLoopsLanguageCode("fr-FR")).toBe("fr-FR");
-    expect(toLoopsLanguageCode("pt-BR")).toBe("pt-BR");
-    expect(toLoopsLanguageCode("pt_br")).toBe("pt-BR");
-    expect(toLoopsLanguageCode("zh_Hant")).toBe("zh-Hant");
+    expect(toLoopsLanguageCode("fr-FR")).toBe("fr");
+    expect(toLoopsLanguageCode("pt-BR")).toBe("pt");
+    expect(toLoopsLanguageCode("pt_br")).toBe("pt");
+    expect(toLoopsLanguageCode("zh_Hant")).toBe("zh");
     expect(toLoopsLanguageCode("")).toBe("en");
   });
 });
