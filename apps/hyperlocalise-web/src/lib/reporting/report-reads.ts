@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+// Read only by the Hono Reports routes, kept for one release after the page and the MCP tool
+// moved to go-svc (`apps/go-svc/reporting*.go`). Change Reports' reads in go-svc.
 import { sql } from "drizzle-orm";
 
 import { db } from "@/lib/database/client";

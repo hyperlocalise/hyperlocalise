@@ -17,7 +17,8 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { IntlProvider } from "react-intl";
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { toast } from "sonner";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
   createReportsSettings,
@@ -237,6 +238,81 @@ describe("Task report", () => {
     mocks.statuses.settings = 500;
     renderReport();
     expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
+  });
+
+  it("asks again soon when Reports is busy", async () => {
+    const settings = mocks.bodies.settings;
+    mocks.statuses.settings = 503;
+    mocks.bodies.settings = {
+      error: "reports_busy",
+      message: "Reports is busy; try again shortly",
+    };
+    renderReport();
+    await waitFor(() => expect(callsTo("settings")).toHaveLength(1));
+    delete mocks.statuses.settings;
+    mocks.bodies.settings = settings;
+    expect(
+      await screen.findByRole("table", { name: "Task match analysis" }, { timeout: 3_000 }),
+    ).toBeInTheDocument();
+    expect(callsTo("settings")).toHaveLength(2);
+  });
+
+  it("does not run a report that took too long again", async () => {
+    mocks.statuses.settings = 503;
+    mocks.bodies.settings = { error: "report_timed_out", message: "The request took too long" };
+    renderReport();
+    expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(callsTo("settings")).toHaveLength(1);
+  });
+
+  describe("Download CSV", () => {
+    const saved: { name: string; href: string }[] = [];
+    const revoke = vi.fn();
+    beforeEach(() => {
+      saved.length = 0;
+      vi.mocked(toast.error).mockClear();
+      URL.createObjectURL = vi.fn(() => "blob:report");
+      revoke.mockClear();
+      URL.revokeObjectURL = revoke;
+      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+        this: HTMLAnchorElement,
+      ) {
+        saved.push({ name: this.download, href: this.href });
+      });
+    });
+    afterEach(() => vi.restoreAllMocks());
+
+    it("saves the file under go-svc's name", async () => {
+      renderReport();
+      await userEvent.click(await screen.findByRole("button", { name: "Download CSV" }));
+      await waitFor(() =>
+        expect(saved).toEqual([{ name: "task-report.csv", href: "blob:report" }]),
+      );
+      expect(callsTo("task-report").at(-1)?.args.query).toMatchObject({ format: "csv" });
+      await waitFor(() => expect(revoke).toHaveBeenCalledWith("blob:report"));
+    });
+
+    it("says why go-svc refused the download, and nothing technical when it could not answer", async () => {
+      renderReport();
+      const button = await screen.findByRole("button", { name: "Download CSV" });
+      mocks.statuses["task-report"] = 503;
+      mocks.bodies["task-report"] = {
+        error: "report_timed_out",
+        message: "The request took too long; try again, or choose fewer days for a report",
+      };
+      await userEvent.click(button);
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith(
+          "The request took too long; try again, or choose fewer days for a report",
+        ),
+      );
+      mocks.statuses["task-report"] = 502;
+      mocks.bodies["task-report"] = "<html>Bad gateway</html>";
+      await userEvent.click(button);
+      await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(2));
+      expect(vi.mocked(toast.error).mock.calls[1][0]).not.toMatch(/go-svc|status/);
+      expect(saved).toEqual([]);
+    });
   });
 
   it("lets a step's pricing change until its work starts", async () => {

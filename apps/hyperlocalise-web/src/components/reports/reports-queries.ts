@@ -16,7 +16,6 @@ import { useIntl } from "react-intl";
 
 import { ApiResponseError } from "@/lib/api-error";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
-import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import type {
   BudgetBody,
   RateCardBody,
@@ -55,9 +54,19 @@ function compact(query: Query): ReportQuery {
 
 const optional = (value: string | null) => value ?? undefined;
 
+/** Codes the client gives a failure that is not go-svc's own answer, and go-svc's internal error. */
+const UNANSWERED_CODES = new Set([
+  "network_error",
+  "missing_access_token",
+  "http_error",
+  "invalid_response",
+  "internal_error",
+]);
+
 /**
- * A request's failure as the dialogs read it: go-svc's code and message, or the fallback when
- * go-svc could not be reached. A cancelled request stays cancelled.
+ * A request's failure as the dialogs read it: go-svc's code, with go-svc's message when go-svc
+ * refused the request, or the fallback when it could not answer (unreachable, restarting behind
+ * its load balancer, an internal error). A cancelled request stays cancelled.
  */
 async function reportRequest<T>(fallback: string, run: () => Promise<T>): Promise<T> {
   try {
@@ -66,22 +75,29 @@ async function reportRequest<T>(fallback: string, run: () => Promise<T>): Promis
     if (error instanceof Error && error.name === "AbortError") throw error;
     const code = error instanceof GoSvcClientError ? error.code : null;
     const status = error instanceof GoSvcClientError ? (error.status ?? 0) : 0;
-    throw new ApiResponseError(goSvcErrorMessage(error, fallback), { code, status });
+    const refused = error instanceof GoSvcClientError && !UNANSWERED_CODES.has(error.code);
+    if (!refused) console.warn("[go-svc] Reports request failed", error);
+    throw new ApiResponseError(refused ? error.message : fallback, { code, status });
   }
 }
 
-/** Whether go-svc asked for the request again: Reports is busy, or the report took too long. */
-function reportsBusy(error: unknown) {
-  return error instanceof ApiResponseError && error.status === 503;
+/**
+ * Whether no report ran, so asking again soon may work: go-svc could not be reached or was
+ * restarting behind its load balancer, or Reports was busy. A report that ran and took too long,
+ * or failed in any other way, is not run again.
+ */
+function worthRetrying(error: unknown) {
+  if (!(error instanceof ApiResponseError)) return false;
+  return (
+    error.code === "reports_busy" ||
+    error.code === "network_error" ||
+    error.status === 502 ||
+    error.status === 504
+  );
 }
 
-/**
- * Reads try again only when Reports is busy, and soon: go-svc runs a few reports at once and
- * answers 503 for the rest, so a section waits a moment rather than showing a failure, but a
- * report that failed for any other reason is not asked for three more times.
- */
 const reportRetry = {
-  retry: (failureCount: number, error: unknown) => reportsBusy(error) && failureCount < 2,
+  retry: (failureCount: number, error: unknown) => worthRetrying(error) && failureCount < 2,
   retryDelay: (failureCount: number) => 1_000 * (failureCount + 1),
 };
 
@@ -462,7 +478,7 @@ export function useReportCsv(organizationSlug: string) {
   };
 }
 
-/** Saving anything on the page reads every section again. */
+/** Saving anything on the page reads every section again, behind the closed dialog. */
 function useInvalidateReports(organizationSlug: string) {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: reportsQueryKey(organizationSlug) });
@@ -477,7 +493,7 @@ export function useSaveRateCard(organizationSlug: string) {
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.saveRateCard(organizationSlug, body),
       ),
-    onSuccess: invalidate,
+    onSuccess: () => void invalidate(),
   });
 }
 
@@ -490,7 +506,7 @@ export function useLogTime(organizationSlug: string) {
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.logTime(organizationSlug, body),
       ),
-    onSuccess: invalidate,
+    onSuccess: () => void invalidate(),
   });
 }
 
@@ -503,7 +519,7 @@ export function useSetBudget(organizationSlug: string) {
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.setBudget(organizationSlug, body),
       ),
-    onSuccess: invalidate,
+    onSuccess: () => void invalidate(),
   });
 }
 
@@ -517,7 +533,7 @@ export function useSetTaskPricing(organizationSlug: string) {
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.setTaskPricing(organizationSlug, body),
       ),
-    onSuccess: invalidate,
+    onSuccess: () => void invalidate(),
   });
 }
 
@@ -530,7 +546,7 @@ export function useEditTime(organizationSlug: string) {
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.editTime(organizationSlug, id, body),
       ),
-    onSuccess: invalidate,
+    onSuccess: () => void invalidate(),
   });
 }
 
@@ -543,6 +559,6 @@ export function useDeleteTime(organizationSlug: string) {
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.deleteTime(organizationSlug, id),
       ),
-    onSuccess: invalidate,
+    onSuccess: () => void invalidate(),
   });
 }

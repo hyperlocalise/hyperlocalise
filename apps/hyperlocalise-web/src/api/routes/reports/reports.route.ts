@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+// Kept for one release after the Reports page moved to go-svc (`apps/go-svc/reporting*.go`), so
+// an open tab and a rollback keep working. Nothing calls these routes: change Reports in go-svc.
 import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { createMiddleware } from "hono/factory";
 import { validator } from "hono/validator";

@@ -769,7 +769,8 @@ export function reportsGoSvcClient(state: ReportsApiState) {
       const query = Object.fromEntries(url.searchParams);
       const json = typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : undefined;
       state.calls.push({ endpoint: name, method, args: { param, query, json } });
-      if (query.format === "csv")
+      const status = state.statuses?.[name] ?? 200;
+      if (query.format === "csv" && status === 200)
         return new Response("a,b\n1,2\n", {
           headers: {
             "Content-Type": "text/csv; charset=utf-8",
@@ -777,7 +778,7 @@ export function reportsGoSvcClient(state: ReportsApiState) {
           },
         });
       return new Response(JSON.stringify(state.bodies[name] ?? {}), {
-        status: state.statuses?.[name] ?? 200,
+        status,
         headers: { "Content-Type": "application/json" },
       });
     },

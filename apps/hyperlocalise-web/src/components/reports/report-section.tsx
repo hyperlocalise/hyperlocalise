@@ -177,5 +177,6 @@ function saveReportDownload(file: GoSvcDownload) {
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  URL.revokeObjectURL(url);
+  // Released after the click has started the download; some browsers cancel it otherwise.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }

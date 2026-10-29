@@ -38,6 +38,7 @@ import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
 import { db, schema } from "@/lib/database/client";
 import { workspaceReportsFlag } from "@/lib/flags/workspace-flags";
+import { createLogger } from "@/lib/log";
 import { formatMemberDisplayName } from "@/lib/members/member-management";
 import { isErr } from "@/lib/primitives/result/results";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
@@ -58,6 +59,20 @@ import {
   WORD_COUNT_INTERVALS,
   WORD_COUNT_SPLITS,
 } from "@/lib/reporting/report-units";
+
+const logger = createLogger("mcp-project-manager-tools");
+
+/**
+ * go-svc's answers to `get_report` that are about the member's request, passed on as they are.
+ * Anything else (go-svc unreachable, an internal error, the server call refused) is ours to fix.
+ */
+const REPORT_REFUSAL_CODES = new Set([
+  "feature_unavailable",
+  "report_forbidden",
+  "invalid_report_query",
+  "reports_busy",
+  "report_timed_out",
+]);
 
 /** A provider job's due date, or a native job's own. Needs externalJobDetails left-joined. */
 const jobDueDateSql =
@@ -499,7 +514,7 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
         "Get one of the Reports page's reports for accessible projects, with the same fields the page shows: activity (words arrived and finished, by where the text came from), words (word counts by match band), time (logged and automated time), ai (AI calls, tokens and billing's charge) or costs (what was spent). Days are UTC. Figures can lag the latest work by up to about 15 minutes; stillUpdating is true while recent work is still being counted. ai reads billing's records directly, so stillUpdating does not apply to it; calls whose charge billing has not recorded are counted in unrecordedCharges. Needs billing access.",
       inputSchema: mcpGetReportInputSchema,
     },
-    async (input) => {
+    async (input, extra) => {
       if (!(await isWorkspaceFeatureFlagEnabled(workspaceReportsFlag, apiAuth))) {
         return mcpToolError("feature_unavailable", "Reports is not enabled for this workspace");
       }
@@ -520,16 +535,32 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
       const { format: _format, ...reportQuery } = parsed.data as Record<string, unknown>;
       try {
         return mcpToolJson(
-          await createGoSvcServerClient().reports.internal(kind, {
-            organizationId,
-            userId: apiAuth.user.localUserId,
-            query: reportQuery as Record<string, string | number | boolean | undefined>,
-          }),
+          await createGoSvcServerClient().reports.internal(
+            kind,
+            {
+              organizationId,
+              userId: apiAuth.user.localUserId,
+              query: reportQuery as Record<string, string | number | boolean | undefined>,
+            },
+            { signal: extra.signal },
+          ),
         );
       } catch (error) {
-        if (error instanceof GoSvcClientError && error.status !== null && error.status < 500)
+        if (error instanceof GoSvcClientError && REPORT_REFUSAL_CODES.has(error.code))
           return mcpToolError(error.code, error.message);
-        throw error;
+        if (error instanceof Error && error.name === "AbortError") throw error;
+        logger.warn(
+          {
+            error: error instanceof Error ? error.message : String(error),
+            code: error instanceof GoSvcClientError ? error.code : null,
+            status: error instanceof GoSvcClientError ? error.status : null,
+          },
+          "get_report could not read go-svc's Reports",
+        );
+        return mcpToolError(
+          "reports_unavailable",
+          "Reports could not be read just now; try again later",
+        );
       }
     },
   );

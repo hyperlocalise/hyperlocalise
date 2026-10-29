@@ -739,6 +739,32 @@ describe("MCP project manager tools", () => {
     const refusedByGoSvc = await readToolResult<{ error?: string; message?: string }>(
       await callMcpTool(adminHeaders, "get_report", { report: "ai", groupBy: "model" }),
     );
+    reportsInternalMock.mockRejectedValueOnce(
+      new GoSvcClientError({
+        code: "reports_busy",
+        message: "Reports is busy; try again shortly",
+        status: 503,
+      }),
+    );
+    const busy = await readToolResult<{ error?: string; message?: string }>(
+      await callMcpTool(adminHeaders, "get_report", { report: "time" }),
+    );
+    reportsInternalMock.mockRejectedValueOnce(
+      new GoSvcClientError({ code: "network_error", message: "Unable to reach go-svc" }),
+    );
+    const unreachable = await readToolResult<{ error?: string; message?: string }>(
+      await callMcpTool(adminHeaders, "get_report", { report: "costs" }),
+    );
+    reportsInternalMock.mockRejectedValueOnce(
+      new GoSvcClientError({
+        code: "unauthorized",
+        message: "missing server call token",
+        status: 401,
+      }),
+    );
+    const misconfigured = await readToolResult<{ error?: string; message?: string }>(
+      await callMcpTool(adminHeaders, "get_report", { report: "costs" }),
+    );
 
     expect(disabled).toMatchObject({
       isError: true,
@@ -765,6 +791,9 @@ describe("MCP project manager tools", () => {
       "activity",
       "words",
       "ai",
+      "time",
+      "costs",
+      "costs",
     ]);
     expect(reportsInternalMock.mock.calls[0][1]).toMatchObject({
       organizationId: adminAuth.organization.localOrganizationId,
@@ -780,5 +809,17 @@ describe("MCP project manager tools", () => {
       isError: true,
       output: { error: "report_forbidden", message: "Reports require billing access" },
     });
+    expect(reportsInternalMock.mock.calls[2][1]).toMatchObject({
+      query: { groupBy: "model", page: 1 },
+    });
+    // go-svc's answers about the request pass on; its own failures are ours, said plainly.
+    expect(busy).toMatchObject({
+      isError: true,
+      output: { error: "reports_busy", message: "Reports is busy; try again shortly" },
+    });
+    for (const failed of [unreachable, misconfigured]) {
+      expect(failed).toMatchObject({ isError: true, output: { error: "reports_unavailable" } });
+      expect(failed.output.message).not.toMatch(/go-svc|token/);
+    }
   });
 });
