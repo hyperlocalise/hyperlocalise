@@ -113,7 +113,14 @@ describe("pending invitations", () => {
   it("accepts the invitation in WorkOS and activates the membership", async () => {
     const { invitingIdentity, sessionUser } = await invitedToSecondWorkspace();
     workosMocks.listInvitations.mockResolvedValue({
-      data: [{ id: "invitation_1", email: sessionUser.email.toUpperCase(), state: "pending" }],
+      data: [
+        {
+          id: "invitation_1",
+          email: sessionUser.email.toUpperCase(),
+          state: "pending",
+          createdAt: "2026-10-02T00:00:00Z",
+        },
+      ],
     });
     workosMocks.acceptInvitation.mockResolvedValue({ id: "invitation_1", state: "accepted" });
     workosMocks.listOrganizationMemberships.mockResolvedValue({
@@ -148,7 +155,14 @@ describe("pending invitations", () => {
   it("reports a WorkOS failure without touching the membership", async () => {
     const { invitingIdentity, sessionUser } = await invitedToSecondWorkspace();
     workosMocks.listInvitations.mockResolvedValue({
-      data: [{ id: "invitation_1", email: sessionUser.email, state: "pending" }],
+      data: [
+        {
+          id: "invitation_1",
+          email: sessionUser.email,
+          state: "pending",
+          createdAt: "2026-10-02T00:00:00Z",
+        },
+      ],
     });
     workosMocks.acceptInvitation.mockRejectedValue(new Error("WorkOS is down"));
 
@@ -164,7 +178,14 @@ describe("pending invitations", () => {
   it("says so when WorkOS accepted but the membership has not appeared yet", async () => {
     const { invitingIdentity, sessionUser } = await invitedToSecondWorkspace();
     workosMocks.listInvitations.mockResolvedValue({
-      data: [{ id: "invitation_1", email: sessionUser.email, state: "pending" }],
+      data: [
+        {
+          id: "invitation_1",
+          email: sessionUser.email,
+          state: "pending",
+          createdAt: "2026-10-02T00:00:00Z",
+        },
+      ],
     });
     workosMocks.acceptInvitation.mockResolvedValue({ id: "invitation_1", state: "accepted" });
     workosMocks.listOrganizationMemberships.mockResolvedValue({ autoPagination: async () => [] });
@@ -180,7 +201,14 @@ describe("pending invitations", () => {
   it("finishes joining when the invitation was already accepted elsewhere", async () => {
     const { invitingIdentity, sessionUser } = await invitedToSecondWorkspace();
     workosMocks.listInvitations.mockResolvedValue({
-      data: [{ id: "invitation_1", email: sessionUser.email, state: "accepted" }],
+      data: [
+        {
+          id: "invitation_1",
+          email: sessionUser.email,
+          state: "accepted",
+          createdAt: "2026-10-02T00:00:00Z",
+        },
+      ],
     });
     workosMocks.listOrganizationMemberships.mockResolvedValue({
       autoPagination: async () => [
@@ -206,10 +234,45 @@ describe("pending invitations", () => {
     expect(workosMocks.acceptInvitation).not.toHaveBeenCalled();
   });
 
+  it("does not count an older accepted invitation from an earlier membership", async () => {
+    const { invitingIdentity, sessionUser } = await invitedToSecondWorkspace();
+    workosMocks.listInvitations.mockResolvedValue({
+      data: [
+        {
+          id: "invitation_old",
+          email: sessionUser.email,
+          state: "accepted",
+          createdAt: "2026-01-01T00:00:00Z",
+        },
+        {
+          id: "invitation_new",
+          email: sessionUser.email,
+          state: "expired",
+          createdAt: "2026-10-01T00:00:00Z",
+        },
+      ],
+    });
+
+    const result = await acceptPendingInvitation({
+      sessionUser,
+      organizationSlug: invitingIdentity.organization.slug!,
+    });
+
+    expect(isErr(result) && result.error.code).toBe("invitation_not_found");
+    expect(workosMocks.listOrganizationMemberships).not.toHaveBeenCalled();
+  });
+
   it("ignores an invitation that is no longer pending", async () => {
     const { invitingIdentity, sessionUser } = await invitedToSecondWorkspace();
     workosMocks.listInvitations.mockResolvedValue({
-      data: [{ id: "invitation_1", email: sessionUser.email, state: "expired" }],
+      data: [
+        {
+          id: "invitation_1",
+          email: sessionUser.email,
+          state: "expired",
+          createdAt: "2026-10-02T00:00:00Z",
+        },
+      ],
     });
 
     const result = await acceptPendingInvitation({
@@ -236,7 +299,14 @@ describe("pending invitations", () => {
   it("never accepts an invitation addressed to someone else", async () => {
     const { invitingIdentity, sessionUser } = await invitedToSecondWorkspace();
     workosMocks.listInvitations.mockResolvedValue({
-      data: [{ id: "invitation_other", email: "someone-else@example.com", state: "pending" }],
+      data: [
+        {
+          id: "invitation_other",
+          email: "someone-else@example.com",
+          state: "pending",
+          createdAt: "2026-10-02T00:00:00Z",
+        },
+      ],
     });
 
     const result = await acceptPendingInvitation({

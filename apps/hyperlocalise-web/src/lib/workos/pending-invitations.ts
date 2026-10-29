@@ -38,6 +38,9 @@ type InvitedSessionUser = {
   id: string;
   email: string;
   emailVerified?: boolean;
+  firstName?: string | null;
+  lastName?: string | null;
+  profilePictureUrl?: string | null;
 };
 
 function pendingMembershipsForWorkosUser(workosUserId: string) {
@@ -116,16 +119,15 @@ export async function acceptPendingInvitation(input: {
       organizationId: pending.workosOrganizationId,
       email,
     });
-    const ownInvitations = invitations.data.filter(
-      (candidate) => candidate.email.trim().toLowerCase() === email,
-    );
-    const pendingInvitation = ownInvitations.find((candidate) => candidate.state === "pending");
-    // Accepted already (an earlier click, or the email link) but not yet synced here:
-    // the reconcile below picks up the membership WorkOS made.
-    const alreadyAccepted = ownInvitations.some((candidate) => candidate.state === "accepted");
-    if (pendingInvitation) {
-      await workos.userManagement.acceptInvitation(pendingInvitation.id);
-    } else if (!alreadyAccepted) {
+    // The newest invitation decides: an older accepted one may be from an earlier membership.
+    const [latest] = invitations.data
+      .filter((candidate) => candidate.email.trim().toLowerCase() === email)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    if (latest?.state === "pending") {
+      await workos.userManagement.acceptInvitation(latest.id);
+    } else if (latest?.state !== "accepted") {
+      // Accepted already (an earlier click, or the email link) falls through to the
+      // reconcile below, which picks up the membership WorkOS made.
       return err({ code: "invitation_not_found" });
     }
   } catch (error) {
@@ -140,6 +142,9 @@ export async function acceptPendingInvitation(input: {
   await reconcileWorkosMembershipsForUser(db, {
     workosUserId: sessionUser.id,
     email,
+    firstName: sessionUser.firstName ?? undefined,
+    lastName: sessionUser.lastName ?? undefined,
+    avatarUrl: sessionUser.profilePictureUrl ?? undefined,
     force: true,
   });
 

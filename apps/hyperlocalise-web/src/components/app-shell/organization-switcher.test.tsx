@@ -90,7 +90,7 @@ describe("OrganizationSwitcher", () => {
 
     expect(
       (await screen.findByRole("menuitem", { name: "Create workspace" })).getAttribute("href"),
-    ).toBe("/auth/new-workspace");
+    ).toBe("/auth/new-workspace?from=acme");
   });
 
   it("shows a read-only members link to roles that cannot invite", async () => {

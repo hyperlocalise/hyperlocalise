@@ -35,8 +35,10 @@ function authWith(activeSlug: string | null, slugs: Array<string | null>) {
   };
 }
 
-async function cancelHref() {
-  const element = (await NewWorkspacePage()) as ReactElement<{ cancelHref: string }>;
+async function cancelHref(from?: string) {
+  const element = (await NewWorkspacePage({
+    searchParams: Promise.resolve({ from }),
+  })) as ReactElement<{ cancelHref: string }>;
   return element.props.cancelHref;
 }
 
@@ -53,6 +55,14 @@ describe("NewWorkspacePage", () => {
     expect(mocks.requireAppAuthContext).toHaveBeenCalledWith({
       ignoreStoredActiveOrganization: true,
     });
+  });
+
+  it("prefers the workspace the switcher was opened from", async () => {
+    mocks.requireAppAuthContext.mockResolvedValue(authWith("alpha", ["alpha", "beta"]));
+    mocks.getStoredActiveOrganizationSlug.mockResolvedValue("alpha");
+
+    expect(await cancelHref("beta")).toBe("/org/beta/dashboard");
+    expect(await cancelHref("not-mine")).toBe("/org/alpha/dashboard");
   });
 
   it("ignores a remembered workspace the person has left", async () => {

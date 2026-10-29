@@ -912,9 +912,9 @@ const AUTHENTICATED_ROUTE_COPY = {
   },
   selectOrganization: {
     title: {
-      defaultMessage: "Choose an organization",
-      id: "WM9IO2XF6Q",
-      description: "Document title for the organization picker page",
+      defaultMessage: "Choose a workspace",
+      id: "WM9IO2XF7R",
+      description: "Document title for the workspace picker page",
     },
     description: {
       defaultMessage: "Select the workspace you want to open.",

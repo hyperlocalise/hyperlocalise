@@ -22,16 +22,25 @@ export async function generateMetadata() {
   });
 }
 
-export default async function NewWorkspacePage() {
+export default async function NewWorkspacePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string }>;
+}) {
   // Someone with no workspace yet is sent on to onboarding (or their pending invitation).
   // The remembered workspace is only a hint for Cancel: it may be one the person has left.
-  const [auth, storedSlug] = await Promise.all([
+  const [auth, storedSlug, { from }] = await Promise.all([
     requireAppAuthContext({ ignoreStoredActiveOrganization: true }),
     getStoredActiveOrganizationSlug(),
+    searchParams,
   ]);
+  const memberSlug = (slug: string | null | undefined) =>
+    auth.organizations.find((organization) => organization.slug && organization.slug === slug)
+      ?.slug;
+  // The switcher names the workspace the person is in; the remembered one is a fallback.
   const cancelSlug =
-    auth.organizations.find((organization) => organization.slug && organization.slug === storedSlug)
-      ?.slug ??
+    memberSlug(from) ??
+    memberSlug(storedSlug) ??
     auth.activeOrganization.slug ??
     auth.organizations.find((organization) => organization.slug)?.slug;
 
