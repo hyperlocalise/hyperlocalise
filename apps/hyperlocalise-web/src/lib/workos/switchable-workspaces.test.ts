@@ -15,15 +15,9 @@ import { describe, expect, it } from "vite-plus/test";
 import { switchableWorkspaces } from "./switchable-workspaces";
 
 describe("switchableWorkspaces", () => {
-  it("keeps workspaces with an address that the person has joined in WorkOS", () => {
-    const joined = { slug: "acme", membership: { workosMembershipId: "om_1" } };
+  it("keeps workspaces with an address", () => {
+    const acme = { slug: "acme" };
 
-    expect(
-      switchableWorkspaces([
-        joined,
-        { slug: "invited", membership: { workosMembershipId: null } },
-        { slug: null, membership: { workosMembershipId: "om_2" } },
-      ]),
-    ).toEqual([joined]);
+    expect(switchableWorkspaces([acme, { slug: null }, {}])).toEqual([acme]);
   });
 });

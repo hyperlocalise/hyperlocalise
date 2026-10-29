@@ -273,56 +273,19 @@ func TestMemberLeaveWithoutWorkosCountsEveryAdmin(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, status)
 }
 
-// waitForAdvisoryLockWait blocks until another backend waits on an advisory lock.
+// waitForAdvisoryLockWait blocks until another backend waits on this workspace's admin lock.
 func waitForAdvisoryLockWait(t *testing.T, scope *testenv.Scope) {
 	t.Helper()
 	require.Eventually(t, func() bool {
 		var waiting int
 		err := scope.Pool.QueryRow(context.Background(), `
-            select count(*)::int from pg_locks
-            where locktype='advisory' and not granted`).Scan(&waiting)
+            with lock_key as (select hashtextextended($1, 0) as key)
+            select count(*)::int from pg_locks, lock_key
+            where locktype='advisory' and not granted
+              and database=(select oid from pg_database where datname=current_database())
+              and classid=((key >> 32) & 4294967295)::oid
+              and objid=(key & 4294967295)::oid`,
+			organizationAdminsLockKey(scope.OrganizationID)).Scan(&waiting)
 		return err == nil && waiting > 0
-	}, 10*time.Second, 10*time.Millisecond, "no backend waiting on an advisory lock")
-}
-
-func TestMemberRemovalsShareTheAdminLockButAdminChangesWait(t *testing.T) {
-	api, scope, _ := memberTestAPI(t, "admin")
-	mustActiveMember(t, scope, uniqueTestEmail("second-admin"), "admin")
-	_, memberWorkosUserID, _ := mustActiveMember(t, scope, uniqueTestEmail("plain-member"), "member")
-
-	// Another removal in flight holds the lock shared.
-	holder, err := scope.Pool.Begin(t.Context())
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = holder.Rollback(context.Background()) })
-	require.NoError(t, lockOrganizationAdmins(t.Context(), holder, scope.OrganizationID, false))
-
-	member, err := api.getOrganizationMember(t.Context(), scope.OrganizationID, memberWorkosUserID)
-	require.NoError(t, err)
-	removal := make(chan error, 1)
-	go func() {
-		_, err := api.revokeOrganizationMembershipAccess(context.Background(), scopeMemberActor(scope, "admin"), member, nil)
-		removal <- err
-	}()
-	select {
-	case err := <-removal:
-		require.NoError(t, err)
-	case <-time.After(5 * time.Second):
-		t.Fatal("a member removal waited on another removal")
-	}
-
-	self, err := api.getOrganizationMember(t.Context(), scope.OrganizationID, scope.WorkOSUserID)
-	require.NoError(t, err)
-	demotion := make(chan error, 1)
-	go func() {
-		_, err := api.updateMemberRole(context.Background(), scope.OrganizationID, self, "member")
-		demotion <- err
-	}()
-	waitForAdvisoryLockWait(t, scope)
-	require.NoError(t, holder.Rollback(t.Context()))
-	select {
-	case err := <-demotion:
-		require.NoError(t, err)
-	case <-time.After(5 * time.Second):
-		t.Fatal("the demotion did not finish after the removal")
-	}
+	}, 10*time.Second, 10*time.Millisecond, "no backend waiting on the workspace's admin lock")
 }

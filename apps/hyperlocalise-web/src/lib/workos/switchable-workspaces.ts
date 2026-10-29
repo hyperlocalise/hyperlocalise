@@ -10,20 +10,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-type WorkspaceMembership = {
-  slug?: string | null;
-  membership: { workosMembershipId?: string | null };
-};
+type Workspace = { slug?: string | null };
 
 /**
- * The workspaces a person can open, and a session can be issued for: ones with an
- * address that they have joined in WorkOS.
+ * The workspaces a person can open, and a session can be issued for. The session's
+ * workspace list already holds only memberships joined in WorkOS; a workspace with no
+ * address cannot be opened.
  */
-export function switchableWorkspaces<T extends WorkspaceMembership>(
+export function switchableWorkspaces<T extends Workspace>(
   organizations: readonly T[],
 ): Array<T & { slug: string }> {
-  return organizations.filter(
-    (organization): organization is T & { slug: string } =>
-      Boolean(organization.slug) && Boolean(organization.membership.workosMembershipId),
+  return organizations.filter((organization): organization is T & { slug: string } =>
+    Boolean(organization.slug),
   );
 }

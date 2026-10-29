@@ -462,22 +462,22 @@ func (api *memberAPI) updateMemberRole(ctx context.Context, organizationID strin
 // delays other membership changes in that workspace and nothing else: page loads that
 // rewrite membership rows do not wait on it.
 func lockOrganizationAdminsAndCount(ctx context.Context, tx pgx.Tx, organizationID, departingUserID string, workosSynced bool) error {
-	if err := lockOrganizationAdmins(ctx, tx, organizationID, true); err != nil {
+	if err := lockOrganizationAdmins(ctx, tx, organizationID); err != nil {
 		return err
 	}
 	return requireAnotherAcceptedAdmin(ctx, tx, organizationID, departingUserID, workosSynced)
 }
 
-// lockOrganizationAdmins takes the workspace's admin lock. Admin changes hold it alone;
-// other removals share it, so they do not queue behind one another, while an admin change
-// waits for them and counts admins after they finish.
-func lockOrganizationAdmins(ctx context.Context, tx pgx.Tx, organizationID string, exclusive bool) error {
-	lock := `select pg_advisory_xact_lock_shared(hashtextextended($1, 0))`
-	if exclusive {
-		lock = `select pg_advisory_xact_lock(hashtextextended($1, 0))`
-	}
-	_, err := tx.Exec(ctx, lock, "organization_admins:"+organizationID)
+// lockOrganizationAdmins takes the workspace's admin lock, held by every removal and
+// demotion until it commits. Promotions do not take it: they cannot leave a workspace
+// without an admin.
+func lockOrganizationAdmins(ctx context.Context, tx pgx.Tx, organizationID string) error {
+	_, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, organizationAdminsLockKey(organizationID))
 	return err
+}
+
+func organizationAdminsLockKey(organizationID string) string {
+	return "organization_admins:" + organizationID
 }
 
 func requireAnotherAcceptedAdmin(ctx context.Context, tx pgx.Tx, organizationID, departingUserID string, workosSynced bool) error {

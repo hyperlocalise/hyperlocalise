@@ -94,16 +94,11 @@ describe("finishLeavingWorkspaceAction", () => {
     expect(mocks.refreshSession).not.toHaveBeenCalled();
   });
 
-  it("prefers the remembered workspace and skips ones not joined yet", async () => {
+  it("prefers the remembered workspace", async () => {
     mocks.withAuth.mockResolvedValue(sessionFor("org_acme"));
     mocks.getStoredActiveOrganizationSlug.mockResolvedValue("gamma");
     mocks.resolveApiAuthContextFromSession.mockResolvedValue({
-      organizations: [
-        workspace("acme"),
-        workspace("pending", null),
-        workspace("beta"),
-        workspace("gamma"),
-      ],
+      organizations: [workspace("acme"), workspace("beta"), workspace("gamma")],
     });
 
     expect(await finishLeavingWorkspaceAction("acme")).toEqual({

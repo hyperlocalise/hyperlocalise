@@ -39,8 +39,11 @@ class LastAdminError extends Error {}
 
 function isAlreadyLeft(error: unknown) {
   // go-svc refuses a caller who is no longer a member, for example after leaving in
-  // another tab.
-  return error instanceof GoSvcClientError && error.code === "organization_access_denied";
+  // another tab; a leave racing that one finds no membership left to remove.
+  return (
+    error instanceof GoSvcClientError &&
+    (error.code === "organization_access_denied" || error.code === "member_not_found")
+  );
 }
 
 /** Loads what stops working when the person leaves, each time it opens. */
