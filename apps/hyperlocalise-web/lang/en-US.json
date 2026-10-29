@@ -435,6 +435,10 @@
     "defaultMessage": "Nothing else is needed. Click Create automation to save it.",
     "description": "Summary line when the setup is complete on a new automation"
   },
+  "+cpm06UYba": {
+    "defaultMessage": "Failed to save the Loops connection.",
+    "description": "Error when the Loops connection cannot be saved"
+  },
   "+cqoUEt5BX": {
     "defaultMessage": "This glossary is managed by its provider and is read-only here.",
     "description": "Read-only explanation for provider-backed glossary detail"
@@ -470,6 +474,10 @@
   "+gp2sOH/Py": {
     "defaultMessage": "Request failed",
     "description": "Generic fallback when a CAT Queries API request fails"
+  },
+  "+hYYLxqhyj": {
+    "defaultMessage": "Weeks start on Monday, UTC.",
+    "description": "End of the volume chart's subtitle when each bar is a week"
   },
   "+hYvvi6oXu": {
     "defaultMessage": "Cancel",
@@ -1167,6 +1175,10 @@
     "defaultMessage": "Who is Hyperlocalise built for?",
     "description": "Homepage FAQ question about platform topic 11"
   },
+  "/mphmqLHCF": {
+    "defaultMessage": "API key",
+    "description": "Label for the Loops API key field"
+  },
   "/n68ooQLr1": {
     "defaultMessage": "Issue template settings saved",
     "description": "Toast after issue template settings save successfully"
@@ -1411,6 +1423,10 @@
     "defaultMessage": "Greater than or equal",
     "description": "Greater than or equal operator"
   },
+  "0D0RSYOy2x": {
+    "defaultMessage": "{unit} in each band, as the table's total counts them.",
+    "description": "Subtitle of the match band list; unit is Words, Strings, Characters or Characters with spaces"
+  },
   "0DSwLmDrDB": {
     "defaultMessage": "No files yet",
     "description": "Empty-state title when the project has no files"
@@ -1503,10 +1519,6 @@
     "defaultMessage": "Location",
     "description": "Label for the Tourfinder case study location metadata field"
   },
-  "0LdJqJSAJW": {
-    "defaultMessage": "Add expense",
-    "description": "Title of the add expense dialog"
-  },
   "0LvMzIgqHs": {
     "defaultMessage": "75%",
     "description": "Hyperlab experiment mock rollout control for 75 percent"
@@ -1558,6 +1570,10 @@
   "0PkHdvb57G": {
     "defaultMessage": "Show text regions",
     "description": "Image viewer: showLayers"
+  },
+  "0Plddkx1xl": {
+    "defaultMessage": "The five largest languages on their own, the rest as Other.",
+    "description": "Part of the volume chart's subtitle when it is split by language"
   },
   "0PopXaEBoW": {
     "defaultMessage": "Access with clear boundaries",
@@ -1675,6 +1691,10 @@
     "defaultMessage": "Server URL",
     "description": "Label for MCP server URL field"
   },
+  "0aWc+XdUSl": {
+    "defaultMessage": "Choose which mapped collection items to write to staged secondary locales. This publishes the site locales when the automation is configured to publish.",
+    "description": "Description of the Webflow item picker dialog"
+  },
   "0aZjyrf1Pz": {
     "defaultMessage": "Unreachable plural case",
     "description": "QA review: unreachable_plural_case"
@@ -1738,6 +1758,10 @@
   "0eh0U1m44o": {
     "defaultMessage": "Cancel",
     "description": "Cancel the Sanity document picker"
+  },
+  "0ffRz2AzJV": {
+    "defaultMessage": "Save connection",
+    "description": "Button that saves the Webflow connection."
   },
   "0h6ygVHD06": {
     "defaultMessage": "GTM brief",
@@ -2215,6 +2239,10 @@
     "defaultMessage": "Role",
     "description": "Team members table column header for role"
   },
+  "1YCrFEJjnL": {
+    "defaultMessage": "Loops disconnected.",
+    "description": "Toast after Loops is disconnected"
+  },
   "1YE4km/3/U": {
     "defaultMessage": "Group by",
     "description": "Accessible name of the switch between grouping by project and by task"
@@ -2223,9 +2251,17 @@
     "defaultMessage": "Contact us",
     "description": "Contact link label in the FAQ section"
   },
+  "1Z9saVoMiV": {
+    "defaultMessage": "Webflow push queued",
+    "description": "Toast after a Webflow push automation run is queued"
+  },
   "1a4PTsw9D7": {
     "defaultMessage": "Your team just has to ask.",
     "description": "Marketing homepage agentsTitle"
+  },
+  "1aB1xRtprV": {
+    "defaultMessage": "Push {count, plural, one {# email} other {# emails}}",
+    "description": "Confirm pushing the selected Loops emails"
   },
   "1aPQynUfhP": {
     "defaultMessage": "Categories",
@@ -2426,6 +2462,10 @@
   "1rvztL9O9G": {
     "defaultMessage": "Multilingual blog",
     "description": "Flow template pill for multilingual blog publishing"
+  },
+  "1sNrHSCdFv": {
+    "defaultMessage": "Translate",
+    "description": "What a task is for: translating from scratch"
   },
   "1t3wSermT8": {
     "defaultMessage": "Do we have to move our guidelines into Hyperlocalise?",
@@ -2695,6 +2735,10 @@
     "defaultMessage": "ChatGPT",
     "description": "ChatGPT engine label"
   },
+  "2Dmlj5N1gP": {
+    "defaultMessage": "Keep Loops locales that teammates edited after the last push.",
+    "description": "Explains the selected automation keeps newer Loops locales"
+  },
   "2DwX6LeAoB": {
     "defaultMessage": "Add a style guide",
     "description": "Title when the native project style guide is missing"
@@ -2714,6 +2758,10 @@
   "2FJ39S/f6p": {
     "defaultMessage": "Failed",
     "description": "Import failed count"
+  },
+  "2G2BsJhU36": {
+    "defaultMessage": "Search items",
+    "description": "Placeholder for filtering mapped Webflow items"
   },
   "2Gc1+aVeLn": {
     "defaultMessage": "Nothing to redo",
@@ -2842,6 +2890,10 @@
   "2TU1e5TxSn": {
     "defaultMessage": "Could not save Auto-review settings.",
     "description": "Toast when Auto-review settings fail to save"
+  },
+  "2UkCldKrBp": {
+    "defaultMessage": "Language",
+    "description": "Switch option: split the volume chart by target language"
   },
   "2UzN/e58h6": {
     "defaultMessage": "Loading runs…",
@@ -4079,6 +4131,10 @@
     "defaultMessage": "No public scores yet. Be the first.",
     "description": "Empty state for the public localisation audit leaderboard"
   },
+  "4Y+Gg4iSBv": {
+    "defaultMessage": "Other",
+    "description": "What a task is for when it is not translating, post-editing or proofreading, such as research or syncing"
+  },
   "4Y5ejA62oY": {
     "defaultMessage": "Track audit scores and open issues as you expand",
     "description": "Feature teaser benefit for domains"
@@ -4262,6 +4318,10 @@
   "4u1PmCjhti": {
     "defaultMessage": "Check",
     "description": "Project QA check type column"
+  },
+  "4vC24ob+UL": {
+    "defaultMessage": "Last push failed",
+    "description": "Hint that the previous Webflow push for this item failed"
   },
   "4vVKnDID+V": {
     "defaultMessage": "Building automations",
@@ -4766,6 +4826,10 @@
   "5f3K9erV3R": {
     "defaultMessage": "Manage translation examples and assign this memory to projects.",
     "description": "Fallback description when a translation memory has no description"
+  },
+  "5fi40yEK9q": {
+    "defaultMessage": "A bar at either end counts only the days within these dates.",
+    "description": "End of the volume chart's subtitle when its first or last week or month is not wholly within the chosen dates"
   },
   "5fiIL1R9JM": {
     "defaultMessage": "Description",
@@ -6151,6 +6215,10 @@
     "defaultMessage": "{count, plural, one {# file selected} other {# files selected}}",
     "description": "Count of files selected in the knowledge upload dropzone"
   },
+  "81G0AUQjbU": {
+    "defaultMessage": "Clear",
+    "description": "Clear the Loops email selection"
+  },
   "81SMUge/HF": {
     "defaultMessage": "AI drafts miss UI constraints, glossary rules, and what actually changed in the pull request.",
     "description": "Problem pain point 2 for the product-localisation use case"
@@ -6479,6 +6547,10 @@
     "defaultMessage": "Insert {name} ({code})",
     "description": "Accessible label for a unicode character button in the CAT table"
   },
+  "8WDtb95za0": {
+    "defaultMessage": "Leave blank to keep the current key.",
+    "description": "Hint that a connected Loops key can be rotated by pasting a new value"
+  },
   "8Wsdxcak0K": {
     "defaultMessage": "Update role",
     "description": "Confirm button to update a team member’s role"
@@ -6546,10 +6618,6 @@
   "8cIXg7FjMX": {
     "defaultMessage": "Status",
     "description": "Aria label for the status property in the create issue dialog"
-  },
-  "8cjn2GRSSJ": {
-    "defaultMessage": "Add expense",
-    "description": "Button that opens the dialog for adding an expense"
   },
   "8csWRJDI6p": {
     "defaultMessage": "All locales",
@@ -6650,6 +6718,10 @@
   "8o/8VWL1QB": {
     "defaultMessage": "Select text layer {index}",
     "description": "Image viewer: select"
+  },
+  "8oiNLPy05p": {
+    "defaultMessage": "Could not queue Webflow push",
+    "description": "Toast when queuing a Webflow push automation run fails"
   },
   "8pQ21HfI3s": {
     "defaultMessage": "Linked queries could not be loaded.",
@@ -6975,6 +7047,10 @@
     "defaultMessage": "20 automations",
     "description": "Growth plan feature: automation limit"
   },
+  "9J64wUUz8N": {
+    "defaultMessage": "Overwrite Loops locales when the remote locale is newer.",
+    "description": "Explains the selected automation overwrites newer Loops locales on push"
+  },
   "9J9XsqiDxS": {
     "defaultMessage": "Language",
     "description": "Secondary job property row label for language"
@@ -7042,6 +7118,10 @@
   "9QhSK5fRvd": {
     "defaultMessage": "No projects assigned",
     "description": "Projects cell when a workspace translation memory has no project attachments"
+  },
+  "9QlzwaQU4n": {
+    "defaultMessage": "Last push failed",
+    "description": "Hint that the previous Loops push for this email failed"
   },
   "9QrrRor3/1": {
     "defaultMessage": "It runs in every language",
@@ -7979,6 +8059,10 @@
     "defaultMessage": "Block {number}",
     "description": "Label for one editable text block in a PDF file view"
   },
+  "B0/2ASstHC": {
+    "defaultMessage": "No matching items",
+    "description": "Empty state when item search matches nothing"
+  },
   "B0ISyUzO3h": {
     "defaultMessage": "{count} not scanned",
     "description": "Workspace QA count of projects that were never scanned"
@@ -8506,6 +8590,10 @@
   "Bqk3bamIsK": {
     "defaultMessage": "Fit",
     "description": "Image viewer: fit"
+  },
+  "Bqnz/kegRF": {
+    "defaultMessage": "Week",
+    "description": "Switch option: one bar per week"
   },
   "Bqz0aRCBut": {
     "defaultMessage": "Describe a short clip when a market needs motion as well as words. Included on paid plans. Usage comes out of your monthly AI credit.",
@@ -9619,6 +9707,10 @@
     "defaultMessage": "Unable to update team role.",
     "description": "Error updating a team member role"
   },
+  "Db6c2KbVq+": {
+    "defaultMessage": "Unable to load the Loops connection right now.",
+    "description": "Loops integration row description when connection status fails to load"
+  },
   "DbC71eoMLw": {
     "defaultMessage": "Website",
     "description": "External link label to an integration vendor website"
@@ -9918,10 +10010,6 @@
   "E316KXeVHB": {
     "defaultMessage": "Tone, terminology, and formatting rules for translators and agents. Write this as markdown.",
     "description": "Description for the project style guide settings section"
-  },
-  "E3a9TrP1uE": {
-    "defaultMessage": "Expenses",
-    "description": "Costs card and column: expenses added by hand"
   },
   "E451cDD6K/": {
     "defaultMessage": "Intelligence",
@@ -11139,6 +11227,10 @@
     "defaultMessage": "Download all locales",
     "description": "Button to export the full translation memory"
   },
+  "G2B8B5FmrH": {
+    "defaultMessage": "Create a site token in Webflow (Site settings → Apps & integrations → API access) with sites:read and cms:read. Add cms:write and components:read for push writeback.",
+    "description": "Help text explaining which Webflow API scopes the site token needs."
+  },
   "G2WzhHiN3d": {
     "defaultMessage": "{requestedLocale} is not a target locale for this file. Opening {targetLocale} instead.",
     "description": "Warning toast when CAT opens a fallback target locale"
@@ -11146,10 +11238,6 @@
   "G3IbmWT2r1": {
     "defaultMessage": "Click to translate",
     "description": "Placeholder when a side-by-side row has no translation yet"
-  },
-  "G3ZipyCtAH": {
-    "defaultMessage": "Choose a project",
-    "description": "Placeholder of the project field"
   },
   "G3hsgHI8K5": {
     "defaultMessage": "Publish once. Get found everywhere.",
@@ -11827,6 +11915,10 @@
     "defaultMessage": "created a job",
     "description": "Action for job creation"
   },
+  "H8b4xXgp3t": {
+    "defaultMessage": "Task step",
+    "description": "Column heading: what the task is for (translate, post-edit or proofread)"
+  },
   "H8w9IQ1LTK": {
     "defaultMessage": "Translatable",
     "description": "Label for whether the CAT glossary concept can have target-language terms"
@@ -12447,6 +12539,10 @@
     "defaultMessage": "Contact",
     "description": "Marketing navbar link to the contact page"
   },
+  "IGV7fp+8Wg": {
+    "defaultMessage": "Month",
+    "description": "Switch option: one bar per month"
+  },
   "IGfRG2bCrY": {
     "defaultMessage": "Name, project, or external ID...",
     "description": "Placeholder for the glossaries search field"
@@ -12687,6 +12783,10 @@
     "defaultMessage": "{count} open",
     "description": "Badge showing open issue count on the Issue Sheet page"
   },
+  "Il86AJwkAb": {
+    "defaultMessage": "95–99%",
+    "description": "Chart series: memory matches from 95 to 99 percent"
+  },
   "IlhKG5f3r5": {
     "defaultMessage": "Audit details",
     "description": "Accessible label for the expanded activity audit panel"
@@ -12795,6 +12895,10 @@
     "defaultMessage": "Translation job",
     "description": "Origin for entries written by a file translation job"
   },
+  "Is6XLNneen": {
+    "defaultMessage": "Push {count, plural, one {# item} other {# items}}",
+    "description": "Confirm pushing the selected Webflow items to secondary locales"
+  },
   "Is9VBW0Pl3": {
     "defaultMessage": "Key",
     "description": "Key placeholder for key-value editor"
@@ -12830,6 +12934,10 @@
   "IvJHA03tAg": {
     "defaultMessage": "Status: {value}",
     "description": "Active issue filter chip showing the selected status"
+  },
+  "Ivn09arh0q": {
+    "defaultMessage": "Hide API key",
+    "description": "Aria label for hiding the Loops API key field"
   },
   "IwWn3c1LU2": {
     "defaultMessage": "Queued",
@@ -12874,6 +12982,10 @@
   "J/94oLjLEp": {
     "defaultMessage": "The API base URL is saved for this workspace. Each member connects with their own Crowdin personal access token—no OAuth app required.",
     "description": "Status description when Crowdin PAT mode is configured"
+  },
+  "J/EEoW11/3": {
+    "defaultMessage": "Loops connection saved.",
+    "description": "Toast after the Loops API key is saved"
   },
   "J/R20j7EMz": {
     "defaultMessage": "Value",
@@ -13182,6 +13294,10 @@
   "JTdejUyr0G": {
     "defaultMessage": "Connect an Anthropic key and use Opus when the wording needs extra attention. Anthropic bills this usage. It does not draw down your monthly AI credit.",
     "description": "Story for Claude Opus on the pricing page"
+  },
+  "JU7dBsiFsd": {
+    "defaultMessage": "Save",
+    "description": "Button to save the Loops API key"
   },
   "JUWqOD5PWj": {
     "defaultMessage": "Enable this repository to configure translation automation.",
@@ -13919,6 +14035,10 @@
     "defaultMessage": "Usage",
     "description": "Pricing matrix section title for usage quotas"
   },
+  "KyCxU8oF0o": {
+    "defaultMessage": "50–74%",
+    "description": "Chart series: memory matches from 50 to 74 percent"
+  },
   "KzRIFEhp9d": {
     "defaultMessage": "Japanese",
     "description": "Reports mock UI Japanese locale row"
@@ -14303,6 +14423,10 @@
     "defaultMessage": "{trigger} · {branches}",
     "description": "A GitHub trigger followed by the branches it watches, inside a listed change of the assistant"
   },
+  "LbbsOcva1p": {
+    "defaultMessage": "Could not save the Webflow connection.",
+    "description": "Error toast when saving the Webflow connection fails."
+  },
   "LcATF1z/n8": {
     "defaultMessage": "Allowed",
     "description": "Screen-reader label when a role has a permission"
@@ -14310,6 +14434,10 @@
   "LcZxj/pk5J": {
     "defaultMessage": "Hour",
     "description": "Label for scheduled automation hour select"
+  },
+  "Lcf15eG/dh": {
+    "defaultMessage": "Could not discover Webflow sites for this token.",
+    "description": "Error toast when Webflow site discovery fails."
   },
   "Ldg/nc2ZNW": {
     "defaultMessage": "Verified",
@@ -14530,6 +14658,10 @@
   "LwpJvfb74D": {
     "defaultMessage": "Surface added, modified, and removed keys with context from the pull request description and linked issues.",
     "description": "Capability 2 description for the github-release-localisation use case"
+  },
+  "Lx93ycVSAl": {
+    "defaultMessage": "Translating",
+    "description": "Task run stage: the AI translating each language"
   },
   "LxGnP5nmB2": {
     "defaultMessage": "This chat is paused",
@@ -14862,6 +14994,10 @@
   "MPOlaJ9dCq": {
     "defaultMessage": "Guidelines",
     "description": "Knowledge mock UI eyebrow label"
+  },
+  "MPyG43fCju": {
+    "defaultMessage": "Site",
+    "description": "Label for the Webflow site picker."
   },
   "MPyZMdy3Mn": {
     "defaultMessage": "Add keywords",
@@ -15667,6 +15803,10 @@
     "defaultMessage": "Export JSON",
     "description": "Button that downloads the canonical workflow JSON"
   },
+  "Nh0Fmco1Vb": {
+    "defaultMessage": "Reusing memory",
+    "description": "Task run stage: filling strings from the translation memory"
+  },
   "NhoTfXzaHI": {
     "defaultMessage": "Project",
     "description": "Fallback project name when the project title is missing"
@@ -16203,6 +16343,10 @@
     "defaultMessage": "Regenerate image for {language}",
     "description": "Accessible label for the per-language regenerate button in the gallery"
   },
+  "Oam8wqCN9r": {
+    "defaultMessage": "Webflow connection removed.",
+    "description": "Success toast when the Webflow connection is removed."
+  },
   "Obrc0xXXmw": {
     "defaultMessage": "Connected",
     "description": "Heading when Sanity is connected"
@@ -16391,6 +16535,10 @@
     "defaultMessage": "Scheduled and GitHub-triggered agent playbooks (not the visual workflow editor).",
     "description": "Pricing matrix detail for agent automation quota row"
   },
+  "P+kQwSEjlX": {
+    "defaultMessage": "Preparing",
+    "description": "Task run stage: setting up, reading the file's strings, the glossary, guidelines and memory"
+  },
   "P/9I6WaWRN": {
     "defaultMessage": "Updating issues...",
     "description": "Accessible label while a bulk issue action is running"
@@ -16466,6 +16614,10 @@
   "P5PPN7NCNo": {
     "defaultMessage": "Last 7 days",
     "description": "Activity log range option for the last 7 days"
+  },
+  "P5XvEFNu8x": {
+    "defaultMessage": "No mapped emails",
+    "description": "Empty state when a Loops automation has no mapped emails"
   },
   "P5eAlY/2+j": {
     "defaultMessage": "Market experiments and market features in one workspace",
@@ -16686,6 +16838,10 @@
   "PS2MuzEKTM": {
     "defaultMessage": "The checks finished, but the report could not be saved.",
     "description": "QA report finalization failed"
+  },
+  "PSOebgndAU": {
+    "defaultMessage": "{unit} from {from} to {to}, {total} in all: {parts}",
+    "description": "Accessible summary of the volume chart; parts lists each series with its total, such as 'Translate: 1,200, Proofread: 300'"
   },
   "PSWLHzvKF9": {
     "defaultMessage": "Text",
@@ -17247,6 +17403,10 @@
     "defaultMessage": "Name",
     "description": "Pick assignee rule field: a label for the rule, shown in run results"
   },
+  "QVExWhLOpQ": {
+    "defaultMessage": "No mapped items",
+    "description": "Empty state when a Webflow automation has no mapped items"
+  },
   "QVQzu9FFdo": {
     "defaultMessage": "Wednesday",
     "description": "Wednesday option for weekly schedule"
@@ -17675,6 +17835,10 @@
     "defaultMessage": "Work started",
     "description": "Shown instead of the edit button when a step's pricing can no longer change"
   },
+  "RAdEeyvyjj": {
+    "defaultMessage": "No matching emails",
+    "description": "Empty state when email search matches nothing"
+  },
   "RAjERxjtJr": {
     "defaultMessage": "Refinements stay in this workspace until you generate. Generate before leaving to apply them.",
     "description": "Video refinement workspace: draftHint"
@@ -17735,6 +17899,10 @@
     "defaultMessage": "This language already has an approved image. Regenerating replaces it.",
     "description": "Explanation that regenerating an approved gallery image overwrites it"
   },
+  "RIo5f8K5b1": {
+    "defaultMessage": "Months are in UTC.",
+    "description": "End of the volume chart's subtitle when each bar is a month"
+  },
   "RIwi4j2nfJ": {
     "defaultMessage": "Select all",
     "description": "Select every mapped Braze template in the push dialog"
@@ -17762,6 +17930,10 @@
   "RL5AevpFPI": {
     "defaultMessage": "Style guide",
     "description": "Tab label for project style guide in the editor guideline sheet"
+  },
+  "RL75YfYQnw": {
+    "defaultMessage": "Display name",
+    "description": "Label for the Webflow connection display name field."
   },
   "RLPdxshxAq": {
     "defaultMessage": "MCP Server",
@@ -18295,6 +18467,10 @@
     "defaultMessage": "Warning type",
     "description": "Placeholder for the proposal warning-type filter"
   },
+  "SD6Q8vRqh7": {
+    "defaultMessage": "Select all",
+    "description": "Select every mapped Webflow item in the push dialog"
+  },
   "SE8vhhcRvh": {
     "defaultMessage": "Read guideline",
     "description": "Tool name while the agent reads the PDF"
@@ -18310,6 +18486,10 @@
   "SHEAO5sth2": {
     "defaultMessage": "Video Editor",
     "description": "Project sidebar navigation item for the Video Editor"
+  },
+  "SHi/1IAYoy": {
+    "defaultMessage": "New and not matched",
+    "description": "Chart series: text with no memory match of 50 percent or more, or whose memory could not be read"
   },
   "SI44gUPbhn": {
     "defaultMessage": "Dark",
@@ -18475,6 +18655,10 @@
     "defaultMessage": "Translation job",
     "description": "Badge on a version a translation job wrote"
   },
+  "SaUIWMakVt": {
+    "defaultMessage": "Task runs: {stage}",
+    "description": "Automated time: one stage of translation task runs, such as Translating"
+  },
   "SajN+OLrLq": {
     "defaultMessage": "Find context",
     "description": "Shortcut hint label for the find-context action in the editor shortcut hint bar"
@@ -18510,6 +18694,10 @@
   "SeT4t9aRFg": {
     "defaultMessage": "Could not load a live SERP for this keyword.",
     "description": "Error toast when live SERP fetch fails"
+  },
+  "SfsshI7hWn": {
+    "defaultMessage": "Select all",
+    "description": "Select every mapped Loops email in the push dialog"
   },
   "Sg0Mw2ebHp": {
     "defaultMessage": "Test in one market.\nCount what happens.",
@@ -18707,6 +18895,10 @@
     "defaultMessage": "Search by name or email…",
     "description": "Placeholder for assignee picker search input"
   },
+  "Sz1yzMBXB4": {
+    "defaultMessage": "Loops push queued",
+    "description": "Toast after a Loops push automation run is queued"
+  },
   "Sz9XRZR4Jy": {
     "defaultMessage": "Open review tasks in your TMS",
     "description": "Workflow step 4 description for the github-release-localisation use case"
@@ -18842,6 +19034,10 @@
   "TBVtdvWNHo": {
     "defaultMessage": "Delete this experiment?",
     "description": "Confirm dialog title for deleting an experiment"
+  },
+  "TBaptqCzza": {
+    "defaultMessage": "Could not load emails",
+    "description": "Error when mapped Loops emails fail to load"
   },
   "TBfAG1U1q6": {
     "defaultMessage": "No translated file yet — showing the source text as a starting point. Edit and save before approving.",
@@ -19290,6 +19486,10 @@
   "TqRYXSejeY": {
     "defaultMessage": "Loading Slack channel invite",
     "description": "Accessible label while the Slack Connect banner loads"
+  },
+  "TqW56kj+0X": {
+    "defaultMessage": "Disconnect",
+    "description": "Button label to disconnect Loops"
   },
   "Tr1gN4gyGr": {
     "defaultMessage": "QA issues",
@@ -19814,6 +20014,10 @@
   "Ujq7dK2/MZ": {
     "defaultMessage": "Build your AI-native localisation workflow",
     "description": "CTA section headline for the localisation-operations use case"
+  },
+  "UkPonG/OHc": {
+    "defaultMessage": "Integration limit reached for your current plan. Remove an unused integration or upgrade, then try again.",
+    "description": "Error toast when saving the Webflow connection fails because the workspace integration limit is reached."
   },
   "UlnuVlbp4t": {
     "defaultMessage": "No style guide yet. Add one in project settings.",
@@ -20487,6 +20691,10 @@
     "defaultMessage": "New Request",
     "description": "Sidebar navigation item to start a new localisation request"
   },
+  "Vu4J65KA1/": {
+    "defaultMessage": "Push policy",
+    "description": "Label for the selected automation Loops overwrite rule"
+  },
   "VucfHYKoo9": {
     "defaultMessage": "MCP servers",
     "description": "Category label for MCP server connections on Integrations"
@@ -20591,6 +20799,10 @@
     "defaultMessage": "Not connected",
     "description": "Slack agent status title when no workspace is linked"
   },
+  "W4ZKVctAzk": {
+    "defaultMessage": "Loading items",
+    "description": "Shown while mapped Webflow items load"
+  },
   "W5NQLGSL0c": {
     "defaultMessage": "Not approved",
     "description": "Filter option for translations that are not approved"
@@ -20611,9 +20823,9 @@
     "defaultMessage": "Failed to authorize the Canva app.",
     "description": "Error when Canva claim authorization fails"
   },
-  "W7VsUBEm6f": {
-    "defaultMessage": "Automated run time follows the dates and project only, not the task, language or step chosen.",
-    "description": "Note on automated step time while a task or language filter is set"
+  "W7F+qO3UhK": {
+    "defaultMessage": "Loading emails",
+    "description": "Shown while mapped Loops emails load"
   },
   "W8CHLNCqjs": {
     "defaultMessage": "Draft",
@@ -20718,6 +20930,10 @@
   "WIwcX3Fw30": {
     "defaultMessage": "Current translation",
     "description": "Description skeleton heading for the translation mistake issue template"
+  },
+  "WJqQdc4moH": {
+    "defaultMessage": "A string held by more than one task counts in each task's row, so the rows can add up to more than the total.",
+    "description": "Note above the word counts table when showing work that arrived grouped by task or by task step"
   },
   "WJxIf/08vm": {
     "defaultMessage": "Web chat",
@@ -21431,6 +21647,10 @@
     "defaultMessage": "Track which articles are missing translations or lag behind the English source after product changes.",
     "description": "Capability 6 description for the help-center-localisation use case"
   },
+  "XbLeNEXbTC": {
+    "defaultMessage": "Show API key",
+    "description": "Aria label for revealing the Loops API key field"
+  },
   "XbggbCCLjJ": {
     "defaultMessage": "Email",
     "description": "Label for the invite member email field"
@@ -21598,6 +21818,10 @@
   "Xsh+x2oIBp": {
     "defaultMessage": "Today, {date}",
     "description": "What a screen reader hears for today's day in a calendar; date is the full date"
+  },
+  "Xsoxk/Vr1O": {
+    "defaultMessage": "Webflow connection saved.",
+    "description": "Success toast when the Webflow connection is saved."
   },
   "XtlIQmhVDA": {
     "defaultMessage": "Failed to load the Customer.io region.",
@@ -22163,6 +22387,10 @@
     "defaultMessage": "Delete this query?",
     "description": "Title for query delete confirmation"
   },
+  "YmDPiD+yJD": {
+    "defaultMessage": "Task step",
+    "description": "Column heading: what the work's task is for (translate, post-edit, proofread)"
+  },
   "Yn8fBlm1d2": {
     "defaultMessage": "A date such as 2026-05-01T17:00Z, or a value from an earlier step. Leave empty to keep the current due date.",
     "description": "Help text for the due date setting of the Update job workflow step"
@@ -22715,6 +22943,10 @@
     "defaultMessage": "There is no preview research for {locale}. Choose another locale to explore available data.",
     "description": "Missing locale research explanation"
   },
+  "ZlnZc+rg+I": {
+    "defaultMessage": "By task step",
+    "description": "Switch option: one row per task step (translate, post-edit, proofread) and language"
+  },
   "Zm6E60imOZ": {
     "defaultMessage": "Paused",
     "description": "Status toggle label when the automation is paused"
@@ -22774,6 +23006,10 @@
   "Zqf++rV/7O": {
     "defaultMessage": "Automation",
     "description": "Label for choosing which Customer.io automation to push with"
+  },
+  "Zr+JVX5HFw": {
+    "defaultMessage": "Finishing",
+    "description": "Task run stage: writing and storing the translated files"
   },
   "Zr6ABmqsLb": {
     "defaultMessage": "New flag",
@@ -22838,6 +23074,10 @@
   "ZurV/2CmHO": {
     "defaultMessage": "Ongoing monitor",
     "description": "Workflow step 6 label for the localisation-quality-monitoring use case"
+  },
+  "ZvDB2JJIOx": {
+    "defaultMessage": "Clear",
+    "description": "Clear the Webflow item selection"
   },
   "ZvFzVdCf0G": {
     "defaultMessage": "Model context usage",
@@ -23326,10 +23566,6 @@
   "ahBN6E+7kk": {
     "defaultMessage": "Could not load articles",
     "description": "Error when mapped Intercom articles fail to load"
-  },
-  "ahKQ/Hvzg2": {
-    "defaultMessage": "Enter an amount in US dollars, such as 120.50.",
-    "description": "Error when the amount is not valid"
   },
   "ajjoHt03BE": {
     "defaultMessage": "Save {providerName}",
@@ -24255,6 +24491,10 @@
     "defaultMessage": "Try",
     "description": "Sidebar group label for gated features that are not yet enabled"
   },
+  "cCr/fhUFwD": {
+    "defaultMessage": "Proofread",
+    "description": "What a task is for: proofreading translations"
+  },
   "cDM7ee3Tdp": {
     "defaultMessage": "Coming soon",
     "description": "Status badge on coming-soon integration cards"
@@ -24819,6 +25059,10 @@
     "defaultMessage": "This conversation is no longer available.",
     "description": "Toast when a docked conversation returns 404"
   },
+  "d8cIu66K7q": {
+    "defaultMessage": "The five largest projects on their own, the rest as Other.",
+    "description": "Part of the volume chart's subtitle when it is split by project"
+  },
   "d8ge/A9KIW": {
     "defaultMessage": "Translating {done} of {total}…",
     "description": "Document editor: translate document progress"
@@ -24963,6 +25207,10 @@
     "defaultMessage": "Contentful webhook needs attention",
     "description": "Toast title when Contentful webhook registration failed"
   },
+  "dJlHvgegsd": {
+    "defaultMessage": "75–94%",
+    "description": "Chart series: memory matches from 75 to 94 percent"
+  },
   "dKBR5NGh7M": {
     "defaultMessage": "New Request",
     "description": "App shell breadcrumb title for the inbox New Request compose page"
@@ -25054,6 +25302,10 @@
   "dSWTPScGc1": {
     "defaultMessage": "Keep Sanity drafts that teammates edited after the last push. Unchanged approved text is skipped.",
     "description": "Explains the selected automation keeps newer Sanity drafts and skips unchanged locales"
+  },
+  "dSYoXf1ZmK": {
+    "defaultMessage": "Days are in UTC.",
+    "description": "End of the volume chart's subtitle when each bar is a day"
   },
   "dStMwhojOw": {
     "defaultMessage": "08:00 UTC",
@@ -25235,6 +25487,10 @@
     "defaultMessage": "Search: {value}",
     "description": "Active issue filter chip showing the current search query"
   },
+  "dgwwa5fmIa": {
+    "defaultMessage": "Search items",
+    "description": "Accessible label for the Webflow item search field"
+  },
   "dhCHuarVuj": {
     "defaultMessage": "Sensitivity",
     "description": "Compare collation sensitivity label"
@@ -25278,6 +25534,10 @@
   "dmWGvUNewd": {
     "defaultMessage": "Choose push or scheduled triggers when workflows are enabled.",
     "description": "Validation error when workflows are enabled but no trigger mode is selected"
+  },
+  "dmuUuHeEhY": {
+    "defaultMessage": "Match band",
+    "description": "Switch option: split the volume chart by how closely the memory matched"
   },
   "dnUl0UTxhs": {
     "defaultMessage": "This whole task, whatever its dates. Days use UTC. Counts update about every 15 minutes.",
@@ -25418,6 +25678,10 @@
   "dyR32pVyyw": {
     "defaultMessage": "Included",
     "description": "Badge on Hyperlocalise Included model provider cards"
+  },
+  "dyX7Y2arV/": {
+    "defaultMessage": "Automation",
+    "description": "Label for choosing which Loops automation to push with"
   },
   "dz3Vg2TBp6": {
     "defaultMessage": "Enter translation",
@@ -26034,6 +26298,10 @@
   "eu41qAod0a": {
     "defaultMessage": "Updated",
     "description": "Import updated count"
+  },
+  "euFZGdCjO7": {
+    "defaultMessage": "Site API token",
+    "description": "Label for the Webflow site API token field."
   },
   "evNuXp5plG": {
     "defaultMessage": "Hide hidden files",
@@ -26819,6 +27087,10 @@
     "defaultMessage": "Heading 2",
     "description": "Tooltip and accessible label for the level-2 heading toolbar button"
   },
+  "g9CgwTP/g8": {
+    "defaultMessage": "Each bar",
+    "description": "Accessible name of the switch for how long each bar of the volume chart covers"
+  },
   "g9Z7QKCbkk": {
     "defaultMessage": "Loading live SERP results…",
     "description": "Loading state while fetching a live SERP snapshot"
@@ -27370,6 +27642,10 @@
   "h+xR1ab29F": {
     "defaultMessage": "under 1%",
     "description": "A share above zero but under one percent"
+  },
+  "h//olRg5WR": {
+    "defaultMessage": "Volume over time",
+    "description": "Title of the chart of words over time on the Word counts tab"
   },
   "h/TaCp7kf5": {
     "defaultMessage": "The connected file is the source of truth. When Drive or SharePoint changes, the next check uses the updated wording.",
@@ -28147,10 +28423,6 @@
     "defaultMessage": "Updating the setup…",
     "description": "Line in the assistant's reply while its tool is changing the page"
   },
-  "iEUqa4wC3Y": {
-    "defaultMessage": "Say what the expense was for.",
-    "description": "Error when the note is empty"
-  },
   "iEVziBnq7E": {
     "defaultMessage": "Save version split",
     "description": "Button to save all variant rollout percentages"
@@ -28291,6 +28563,10 @@
     "defaultMessage": "Generate locale-aware drafts that respect cultural context while keeping campaign intent aligned.",
     "description": "Capability 3 description for the marketing-localisation use case"
   },
+  "iR67ESPjLG": {
+    "defaultMessage": "Collections",
+    "description": "Label for the Webflow collections multi-select."
+  },
   "iRA8eH3NfJ": {
     "defaultMessage": "End date",
     "description": "Label for experiment end date"
@@ -28306,6 +28582,10 @@
   "iRxIH6lG2y": {
     "defaultMessage": "Perplexity",
     "description": "Perplexity engine label"
+  },
+  "iSa9ttLMLw": {
+    "defaultMessage": "Push to Webflow",
+    "description": "Button that opens the dialog to write approved translations to Webflow"
   },
   "iSkR3k2Z83": {
     "defaultMessage": "Emailed images",
@@ -28467,9 +28747,17 @@
     "defaultMessage": "GitHub Action",
     "description": "Marketing footer resource link label"
   },
+  "ihvxkiqCHV": {
+    "defaultMessage": "Push to Loops",
+    "description": "Title of the Content editor dialog for choosing Loops emails to push"
+  },
   "ihy++kxglc": {
     "defaultMessage": "Choose a language",
     "description": "Title for the locale picker used when adding a concept term"
+  },
+  "ihyEeCEUTL": {
+    "defaultMessage": "Paste a Loops API key from Settings → API to connect.",
+    "description": "Intro text shown before a Loops API key is saved"
   },
   "ij6kzC+n43": {
     "defaultMessage": "Deleted task",
@@ -29163,6 +29451,10 @@
     "defaultMessage": "Navigational",
     "description": "Navigational keyword intent"
   },
+  "jvDgxYw2AM": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel the Webflow item picker"
+  },
   "jwBq0AHFrW": {
     "defaultMessage": "Localization",
     "description": "Placeholder for the team name field"
@@ -29174,6 +29466,10 @@
   "jwMRWjUt93": {
     "defaultMessage": "Rate",
     "description": "Column heading: the rate that prices a language's work on the task"
+  },
+  "jxHawvN/1R": {
+    "defaultMessage": "Could not remove the Webflow connection.",
+    "description": "Error toast when removing the Webflow connection fails."
   },
   "jxJKm8SzyI": {
     "defaultMessage": "File not found",
@@ -29687,6 +29983,10 @@
     "defaultMessage": "A note from the founders",
     "description": "Heading for the founders note section on the company page"
   },
+  "klJCqIQ+RC": {
+    "defaultMessage": "Other",
+    "description": "Task run stage: time outside every stage, for runs without stage events, such as image and video runs"
+  },
   "klx3Z6LqU/": {
     "defaultMessage": "Google Drive files queued",
     "description": "Toast after a Google Drive push automation run is queued"
@@ -30103,6 +30403,10 @@
     "defaultMessage": "Reporting started {date} · Days and weeks use UTC",
     "description": "Subtitle of the Reports page: when Reports began recording for the workspace, and that days are UTC days"
   },
+  "lRSOKRueqF": {
+    "defaultMessage": "Confirm LLM translation is enabled in Loops (Settings → Sending). Copies pushed while it is off land without their language label and show EN.",
+    "description": "Reminder in the Loops push dialog to enable translations before pushing"
+  },
   "lRSf7hxCZ6": {
     "defaultMessage": "See how the five products and your AI agents can work for your team.",
     "description": "Marketing homepage finalBody"
@@ -30118,6 +30422,10 @@
   "lT0LhQ0lGx": {
     "defaultMessage": "Loading content types…",
     "description": "Loading state while fetching Contentful content types"
+  },
+  "lT66MLzS6u": {
+    "defaultMessage": "Could not queue Loops push",
+    "description": "Toast when queuing a Loops push automation run fails"
   },
   "lTJVZLlOrt": {
     "defaultMessage": "Error: resolve the issue before saving or approving.",
@@ -30174,10 +30482,6 @@
   "lZ8dN9JqyV": {
     "defaultMessage": "High-visibility marketing claim — confirm tone and glossary before approve.",
     "description": "Review reason for the hero title segment in the CAT mock"
-  },
-  "laNmUs0rc+": {
-    "defaultMessage": "Amount (USD)",
-    "description": "Label of the expense amount"
   },
   "labVcE5WnM": {
     "defaultMessage": "Saving…",
@@ -30282,6 +30586,10 @@
   "lmNMhLYtR0": {
     "defaultMessage": "Go back",
     "description": "Cancel workflow retry"
+  },
+  "lmhT0/1nH6": {
+    "defaultMessage": "A string in more than one task counts in each.",
+    "description": "Part of the volume chart's subtitle when it shows work that arrived split by task step"
   },
   "lmsnisjyr6": {
     "defaultMessage": "Publish a check run so teams can see localization results on commits and pull requests.",
@@ -30391,6 +30699,10 @@
     "defaultMessage": "String context lookup",
     "description": "AI feature: looking up a string's context in a repository"
   },
+  "m/ztao2VI0": {
+    "defaultMessage": "Match bands",
+    "description": "Title of the list of each match band's share of the word counts"
+  },
   "m0gQ9lgLTM": {
     "defaultMessage": "Chat model",
     "description": "Disabled AI node slot label for a chat model"
@@ -30450,6 +30762,10 @@
   "m4m7Z9SYlx": {
     "defaultMessage": "Optional. We will send a summary of the report to your inbox when the audit completes.",
     "description": "Body for the notify-me form on a running localisation audit"
+  },
+  "m511Tx3pYg": {
+    "defaultMessage": "{unit} that arrived.",
+    "description": "Start of the volume chart's subtitle; unit is Words, Strings, Characters or Characters with spaces"
   },
   "m56uSee40N": {
     "defaultMessage": "Contribute to assigned jobs, run AI actions, and push draft translations. No approvals or org administration.",
@@ -30794,6 +31110,10 @@
   "mZxMVREyg5": {
     "defaultMessage": "Use lowercase letters, numbers, and hyphens only.",
     "description": "Validation error when the team slug has invalid characters"
+  },
+  "ma412fpUlF": {
+    "defaultMessage": "Could not load Webflow connections.",
+    "description": "Error toast when loading Webflow connections fails."
   },
   "maIW2Vhxp8": {
     "defaultMessage": "Imported {count, plural, one {# entry} other {# entries}}",
@@ -31279,6 +31599,10 @@
     "defaultMessage": "Unable to remove member from team.",
     "description": "Error removing a member from a team"
   },
+  "nNoQa8f6jF": {
+    "defaultMessage": "Saving…",
+    "description": "Button label while the Loops connection is being saved"
+  },
   "nOCS+qmeJF": {
     "defaultMessage": "Member",
     "description": "Organization membership role label for members"
@@ -31426,6 +31750,10 @@
   "nYo+gKPcNj": {
     "defaultMessage": "Show translation output files",
     "description": "Toggle to reveal locale-named Drive files and folders such as [vi-VN] overview.docx or vi-VN/"
+  },
+  "nYssE5uByl": {
+    "defaultMessage": "Disconnect",
+    "description": "Button that removes the Webflow connection."
   },
   "nZIGjKiA+J": {
     "defaultMessage": "Early design partner",
@@ -31767,6 +32095,10 @@
     "defaultMessage": "The wording needs extra attention.",
     "description": "Situation for Claude Opus on the pricing page"
   },
+  "oC6DC5UXTd": {
+    "defaultMessage": "Loops",
+    "description": "Name of the Loops integration in the hint on a skill that needs it connected"
+  },
   "oCFslUs6eA": {
     "defaultMessage": "Show bulk selection checkboxes",
     "description": "Accessible label for the CAT queue bulk selection mode toggle"
@@ -32007,6 +32339,10 @@
     "defaultMessage": "Delete",
     "description": "Button to delete a workspace automation"
   },
+  "oYHNmKX1YV": {
+    "defaultMessage": "Test token",
+    "description": "Button that validates the site token and discovers Webflow sites."
+  },
   "oYlQkAtEBG": {
     "defaultMessage": "View report",
     "description": "Open a glossary interchange report"
@@ -32130,6 +32466,10 @@
   "olXGYHoMbg": {
     "defaultMessage": "Source text",
     "description": "Image viewer: sourceText"
+  },
+  "olyAMClAtW": {
+    "defaultMessage": "Other",
+    "description": "Chart series: every project or language outside the largest five"
   },
   "omHOw+4o9P": {
     "defaultMessage": "Demo request: Hyperlab",
@@ -32350,6 +32690,10 @@
   "p5YTxqry+c": {
     "defaultMessage": "Last run · this morning",
     "description": "Last-run label on the daily compliance audit mock card"
+  },
+  "p5c3yRL3tU": {
+    "defaultMessage": "{name}: {count}",
+    "description": "One series in the volume chart's accessible summary: its name and total"
   },
   "p5nI6qGcmh": {
     "defaultMessage": "{count, plural, one {# ready} other {# ready}}",
@@ -32683,10 +33027,6 @@
     "defaultMessage": "Add selected markets",
     "description": "Submit button label"
   },
-  "pbf/8ZXD0X": {
-    "defaultMessage": "What it was for",
-    "description": "Label of the expense note"
-  },
   "pbk0Y3fdPe": {
     "defaultMessage": "{count, plural, one {# file will be queued} other {# files will be queued}}",
     "description": "Number of project files that will get an agent translation job"
@@ -32899,6 +33239,10 @@
     "defaultMessage": "Industry",
     "description": "Label for the Tourfinder case study industry metadata field"
   },
+  "ptKeippc4Q": {
+    "defaultMessage": "Push to Webflow",
+    "description": "Title of the Content editor dialog for choosing Webflow items to push"
+  },
   "puXgWXUT2y": {
     "defaultMessage": "Deleting…",
     "description": "Button label while deleting a live provider task"
@@ -32951,10 +33295,6 @@
     "defaultMessage": "Changed status",
     "description": "Activity action"
   },
-  "pyjtKMfIIw": {
-    "defaultMessage": "Record a cost that Reports cannot see, such as an agency invoice.",
-    "description": "Description of the add expense dialog"
-  },
   "pym2jLFt91": {
     "defaultMessage": "Drive. Notion.\nSharePoint.",
     "description": "Headline for the Guidelines sources section"
@@ -32966,10 +33306,6 @@
   "q+3+ldE+Vn": {
     "defaultMessage": "Service-level agreement",
     "description": "Pricing matrix row label for SLA"
-  },
-  "q+IrtJFU3l": {
-    "defaultMessage": "Expense added.",
-    "description": "Message shown after an expense is added"
   },
   "q+KBl5AglO": {
     "defaultMessage": "Failed to load teams",
@@ -33271,6 +33607,10 @@
     "defaultMessage": "Deleting...",
     "description": "Delete button label while an automation is being deleted"
   },
+  "qQFR1rP98w": {
+    "defaultMessage": "Costed as",
+    "description": "Column heading: the step the logged time is priced as, translation or review, beside the task's own step"
+  },
   "qQRYeCWT2J": {
     "defaultMessage": "Paste a Braze REST API key and choose the REST cluster for that instance.",
     "description": "Intro text shown before a Braze API key is saved"
@@ -33318,6 +33658,10 @@
   "qVnuTIqV5f": {
     "defaultMessage": "Approve",
     "description": "Primary CAT action label when approving a translation in a native project"
+  },
+  "qVud/nlb01": {
+    "defaultMessage": "Failed to disconnect Loops.",
+    "description": "Toast when Loops disconnect fails"
   },
   "qVzcsOoWpu": {
     "defaultMessage": "This project will be permanently deleted. Jobs, files, and shared context linked to it will lose their project association.",
@@ -33478,6 +33822,10 @@
   "qmb/TOVO4K": {
     "defaultMessage": "Images have different proportions. Use the original pane to compare them.",
     "description": "Image viewer: differentSizes"
+  },
+  "qnfPUkkJm3": {
+    "defaultMessage": "Create an API key in Loops Settings → API. It needs email content access.",
+    "description": "Hint describing where to create a Loops API key"
   },
   "qo0d24Hw+8": {
     "defaultMessage": "Fails",
@@ -33983,6 +34331,14 @@
     "defaultMessage": "Active",
     "description": "Active status badge"
   },
+  "rbRL1rS0sb": {
+    "defaultMessage": "Spent includes people's work and billed AI. Still to come is what unfinished paid work in open tasks will cost.",
+    "description": "Note under the budgets table"
+  },
+  "rc40kfyukr": {
+    "defaultMessage": "{band}: {count}, {share}",
+    "description": "Accessible text of one match band in the list: its name, count and share"
+  },
   "rc9DBDztDD": {
     "defaultMessage": "Models your team can use",
     "description": "Heading for the models section on the pricing page"
@@ -34090,6 +34446,10 @@
   "roRELSt0Y8": {
     "defaultMessage": "Copy meta tag",
     "description": "Copy button label"
+  },
+  "roYIPaQdMy": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel the Loops email picker"
   },
   "rpDF9CZYBO": {
     "defaultMessage": "Try",
@@ -34274,6 +34634,10 @@
   "s2nhkcZKAr": {
     "defaultMessage": "Visual Workflow Disabled",
     "description": "Activity log event type label for disabling visual workflows"
+  },
+  "s3/7UeDIEK": {
+    "defaultMessage": "Could not load items",
+    "description": "Error when mapped Webflow items fail to load"
   },
   "s3o6M+OdZX": {
     "defaultMessage": "Remove",
@@ -34879,10 +35243,6 @@
     "defaultMessage": "A lab connected to the bigger picture.",
     "description": "Headline for the Hyperlab connected-products section"
   },
-  "tAT7VJda/C": {
-    "defaultMessage": "Added by hand",
-    "description": "Detail under the expenses card"
-  },
   "tAcLh3kaGY": {
     "defaultMessage": "Put the cursor in a block to see its source, matches, and terms.",
     "description": "Document editor: assistant panel when no block is focused"
@@ -35135,9 +35495,17 @@
     "defaultMessage": "Domain not found",
     "description": "Title when a linked domain id is unknown"
   },
+  "tc7k+8PSRk": {
+    "defaultMessage": "By language",
+    "description": "Switch option: one row per target language, across projects"
+  },
   "tcEBE8+x0p": {
     "defaultMessage": "MB",
     "description": "Megabyte size unit abbreviation"
+  },
+  "tcERRXsJX4": {
+    "defaultMessage": "100% and repetitions",
+    "description": "Chart series: exact memory matches and text repeated within the work"
   },
   "tcR6O6Wybu": {
     "defaultMessage": "{count, plural, one {Deleted # entry} other {Deleted # entries}}",
@@ -35555,6 +35923,10 @@
     "defaultMessage": "Failed to load this dictionary.",
     "description": "Error when a dictionary detail page cannot load"
   },
+  "uM6itDTUoJ": {
+    "defaultMessage": "Search emails",
+    "description": "Accessible label for the Loops email search field"
+  },
   "uNsh7K2ojK": {
     "defaultMessage": "Japan checkout headline · A/B · On",
     "description": "Hyperlab mock UI experiments panel subtitle"
@@ -35819,6 +36191,10 @@
     "defaultMessage": "Project {projectId}",
     "description": "External project id shown in a glossary row source detail"
   },
+  "unxdhGd49z": {
+    "defaultMessage": "Search emails",
+    "description": "Placeholder for filtering mapped Loops emails"
+  },
   "uoCjhyUZ2p": {
     "defaultMessage": "Project files",
     "description": "Title of the project files tree panel"
@@ -35842,6 +36218,10 @@
   "uqGZNAVfVF": {
     "defaultMessage": "Add",
     "description": "Button to add a branch pattern"
+  },
+  "uqPSxjADNC": {
+    "defaultMessage": "Task step",
+    "description": "Switch option: split the volume chart by what each task is for (translate, post-edit, proofread)"
   },
   "uqqnJ1ACdX": {
     "defaultMessage": "linguistic",
@@ -35939,10 +36319,6 @@
     "defaultMessage": "Product teams ship continuously. Localisation teams are left reconciling context across tools after the fact.",
     "description": "Problem section description for the product-localisation use case"
   },
-  "v/iqKXawFI": {
-    "defaultMessage": "Add expense",
-    "description": "Button that saves the expense"
-  },
   "v/lSaCxqUY": {
     "defaultMessage": "Failed to create automation",
     "description": "Error when creating a workspace automation fails without an API message"
@@ -35954,6 +36330,10 @@
   "v0Xmk6UQW5": {
     "defaultMessage": "Review",
     "description": "CTA for a job waiting for review on project overview"
+  },
+  "v0Xqg0bjFB": {
+    "defaultMessage": "Automated run time follows the dates and project, not the task or step chosen. With a language chosen, only task runs that reached it count: Reusing memory and Translating show that language's own time, while Preparing, Finishing and the total cover the whole run.",
+    "description": "Note on the time on each step table while a task, language or step filter is set"
   },
   "v0pahqQ3yE": {
     "defaultMessage": "2 integrations",
@@ -36175,6 +36555,10 @@
     "defaultMessage": "OAuth callback URL",
     "description": "Label for the OAuth callback URL field in TMS provider setup"
   },
+  "vLVJvfg3Po": {
+    "defaultMessage": "Choose which mapped emails to update with approved translations. This creates unpublished locale copies — it never changes the source email.",
+    "description": "Description of the Loops email picker dialog"
+  },
   "vLcCxwUDbQ": {
     "defaultMessage": "Actions for {teamName}",
     "description": "Accessible label for a team row actions menu"
@@ -36258,6 +36642,10 @@
   "vUp2UKH4JW": {
     "defaultMessage": "Translate",
     "description": "Document editor: starts translating the document"
+  },
+  "vUpaRCOaDt": {
+    "defaultMessage": "Day",
+    "description": "Switch option: one bar per day"
   },
   "vVZw2DPBm7": {
     "defaultMessage": "GitHub repositories could not be loaded. Repository context lookup is unavailable.",
@@ -36542,6 +36930,10 @@
   "vwjPgomhSV": {
     "defaultMessage": "created a visual workflow",
     "description": "Action for creating a visual workflow"
+  },
+  "vx+yIOnd53": {
+    "defaultMessage": "Token ending in {suffix}",
+    "description": "Secondary Loops connection detail showing the stored token suffix"
   },
   "vxm9RJy+2w": {
     "defaultMessage": "QA scan started.",
@@ -37287,6 +37679,10 @@
     "defaultMessage": "Content Intelligence",
     "description": "Sidebar group label for content intelligence navigation items"
   },
+  "x5HXZEeH7B": {
+    "defaultMessage": "Disconnecting…",
+    "description": "Disconnect button label while Loops is being disconnected"
+  },
   "x5IFswpz2S": {
     "defaultMessage": "Open Editor",
     "description": "Button to open the selected source file in the Content Editor"
@@ -37426,6 +37822,10 @@
   "xEaoAlugPJ": {
     "defaultMessage": "Included",
     "description": "Accessible label for a checkmark in the pricing matrix"
+  },
+  "xEggMJ8I+h": {
+    "defaultMessage": "Post-edit",
+    "description": "What a task is for: editing machine translation"
   },
   "xEznmg3kZB": {
     "defaultMessage": "Save",
@@ -37787,6 +38187,10 @@
     "defaultMessage": "Select {key}, {locale}, {check}",
     "description": "QA review: select"
   },
+  "xrpEZKmKg+": {
+    "defaultMessage": "Split by",
+    "description": "Accessible name of the switch for what the volume chart splits each bar by"
+  },
   "xrvyWAPhPg": {
     "defaultMessage": "Target must keep source order for markup tokens {tokens}. Swapped openers and closers break export.",
     "description": "CAT format check message when markup sentinel nesting/order is wrong"
@@ -37814,6 +38218,10 @@
   "xuKFsgkvM/": {
     "defaultMessage": "{dimension}: {value}",
     "description": "A filter chip on AI usage: the detail and its chosen value"
+  },
+  "xunumski1w": {
+    "defaultMessage": "Project",
+    "description": "Switch option: split the volume chart by project"
   },
   "xv78aoTwI/": {
     "defaultMessage": "Search concepts",
@@ -38134,6 +38542,10 @@
   "yNQ5cytMyK": {
     "defaultMessage": "This QA scan found {count, plural, one {# more error} other {# more errors}} than the previous scan.",
     "description": "Inbox QA alert panel body when errors increased"
+  },
+  "yPD8+Od4dh": {
+    "defaultMessage": "Push to Loops",
+    "description": "Button that opens the dialog to write approved email translations to Loops"
   },
   "yQ/q3xyZ03": {
     "defaultMessage": "Can each market have a different feature?",
@@ -38563,6 +38975,10 @@
     "defaultMessage": "Current workspace: {name}. Open workspace menu",
     "description": "Screen-reader label for the workspace switcher trigger in the sidebar header"
   },
+  "zC+2fxCHmG": {
+    "defaultMessage": "Webflow",
+    "description": "Name of the Webflow integration in the hint on a skill that needs it connected"
+  },
   "zCGS1KGzqn": {
     "defaultMessage": "Concordance search",
     "description": "Document editor: assistant section heading"
@@ -38799,10 +39215,6 @@
     "defaultMessage": "Before break (regex)",
     "description": "Label for beforebreak pattern"
   },
-  "zWgBXG1Wl8": {
-    "defaultMessage": "Spent includes people's work, billed AI and expenses. Still to come is what unfinished paid work in open tasks will cost.",
-    "description": "Note under the budgets table"
-  },
   "zX3UWO/7lH": {
     "defaultMessage": "This QA scan failed, so QA results may be out of date until a scan completes.",
     "description": "Inbox QA alert panel body when a scan failed"
@@ -38899,6 +39311,10 @@
     "defaultMessage": "Anthropic",
     "description": "Anthropic provider name on the pricing BYOK section"
   },
+  "zh0FmhKnEx": {
+    "defaultMessage": "{unit} finished.",
+    "description": "Start of the volume chart's subtitle; unit is Words, Strings, Characters or Characters with spaces"
+  },
   "zhUOSqs0dW": {
     "defaultMessage": "Segment validation returned an invalid response.",
     "description": "Error when the CAT segment validation response fails schema validation"
@@ -38930,6 +39346,10 @@
   "zjudWIklTn": {
     "defaultMessage": "Strong signal",
     "description": "Market tier"
+  },
+  "zjx5sBHSz8": {
+    "defaultMessage": "Automation",
+    "description": "Label for choosing which Webflow automation to push with"
   },
   "zl55Vhhf0L": {
     "defaultMessage": "Workspace members",
