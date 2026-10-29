@@ -36,6 +36,9 @@ function fakeClient(overrides: Partial<LoopsClient> = {}): LoopsClient {
     createWorkflow: () => missing("createWorkflow"),
     ensureTransactionalDraft: () => missing("ensureTransactionalDraft"),
     getCampaign: () => missing("getCampaign"),
+    listThemes: () => missing("listThemes"),
+    getTheme: () => missing("getTheme"),
+    listComponents: () => missing("listComponents"),
     ...overrides,
   };
 }

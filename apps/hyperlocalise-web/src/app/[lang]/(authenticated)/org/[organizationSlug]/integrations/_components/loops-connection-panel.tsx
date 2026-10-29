@@ -130,7 +130,7 @@ export function LoopsConnectionPanel({
             ? intl.formatMessage(pipesConnectionPanelMessages.reconnectHint, { providerName })
             : (summary?.detail ?? "")
       }
-      icon={<IntegrationLogo src={summary?.logoSrc ?? "/images/loops-logo.svg"} />}
+      icon={<IntegrationLogo src={summary?.logoSrc ?? "/images/loops-logo.png"} />}
       isConnected={isConnected}
       userIsAdmin={userCanManage}
       expanded={expanded}

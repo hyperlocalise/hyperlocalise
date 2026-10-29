@@ -134,7 +134,7 @@ export function ContentEditorLoopsPushButton({
   const pushIcon = isPending ? (
     <Spinner data-icon="inline-start" />
   ) : (
-    <IntegrationLogo src="/images/loops-logo.svg" className="size-4" />
+    <IntegrationLogo src="/images/loops-logo.png" className="size-4" />
   );
 
   return (

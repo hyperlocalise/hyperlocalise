@@ -172,7 +172,7 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
     case "loops":
       return (
         <Image
-          src="/images/loops-logo.svg"
+          src="/images/loops-logo.png"
           alt=""
           width={16}
           height={16}

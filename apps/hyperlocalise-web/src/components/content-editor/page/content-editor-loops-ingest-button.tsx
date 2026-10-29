@@ -56,7 +56,7 @@ export function ContentEditorLoopsIngestButton({
         contentEditorLoopsIngestQueryKey(organizationSlug, projectId),
         contentEditorLoopsPushQueryKey(organizationSlug, projectId),
       ]}
-      icon={<IntegrationLogo src="/images/loops-logo.svg" className="size-4" />}
+      icon={<IntegrationLogo src="/images/loops-logo.png" className="size-4" />}
       pageNavigationGuardRef={pageNavigationGuardRef}
     />
   );

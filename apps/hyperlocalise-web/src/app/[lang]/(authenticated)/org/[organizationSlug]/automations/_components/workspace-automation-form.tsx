@@ -304,7 +304,7 @@ function CustomerIoToolIcon({ className }: { className?: string }) {
 
 function LoopsToolIcon({ className }: { className?: string }) {
   return (
-    <IntegrationLogo src="/images/loops-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
+    <IntegrationLogo src="/images/loops-logo.png" className={cn(BRAND_ICON_CLASS, className)} />
   );
 }
 
