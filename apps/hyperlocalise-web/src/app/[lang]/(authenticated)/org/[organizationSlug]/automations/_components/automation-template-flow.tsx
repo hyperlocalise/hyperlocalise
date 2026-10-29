@@ -46,6 +46,7 @@ type IconBucket =
   | "google-drive"
   | "braze"
   | "customer-io"
+  | "loops"
   | "web-search"
   | "web-chat"
   | "upload"
@@ -60,6 +61,7 @@ const BRAND_TOOL_IDS = new Set([
   "braze",
   "contentful",
   "customer-io",
+  "loops",
 ]);
 
 function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucket {
@@ -91,6 +93,8 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
       return "braze";
     case "customer-io":
       return "customer-io";
+    case "loops":
+      return "loops";
     case "web-search":
       return "web-search";
     case "web-chat":
@@ -159,6 +163,16 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
       return (
         <Image
           src="/images/customerio-logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className={cn(iconClassName, "dark:invert")}
+        />
+      );
+    case "loops":
+      return (
+        <Image
+          src="/images/loops-logo.svg"
           alt=""
           width={16}
           height={16}

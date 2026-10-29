@@ -302,6 +302,59 @@ export function readPushBrazeTemplates(
   return null;
 }
 
+export function readImportLoopsEmails(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.import_loops_emails;
+  if (fromCurrentStep && typeof fromCurrentStep.imported === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.importLoopsEmails;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.imported === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "import_loops_emails",
+  );
+  if (fromPriorStep && typeof fromPriorStep.imported === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
+export function readPushLoopsEmails(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.push_loops_emails;
+  if (fromCurrentStep && typeof fromCurrentStep.pushedLocales === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.pushLoopsEmails;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.pushedLocales === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(outputSummary.orchestratorStepResults, "push_loops_emails");
+  if (fromPriorStep && typeof fromPriorStep.pushedLocales === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
 export function readPushSanityTranslations(
   outputSummary: Record<string, unknown>,
   stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,

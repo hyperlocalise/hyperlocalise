@@ -70,6 +70,7 @@ describe("workspace automation templates", () => {
       "translate-braze-email-templates",
       "translate-braze-campaigns",
       "translate-customer-io-campaigns",
+      "translate-loops-emails",
       "translate-contentful-article",
       "summarize-changes-daily",
       "review-code-daily",

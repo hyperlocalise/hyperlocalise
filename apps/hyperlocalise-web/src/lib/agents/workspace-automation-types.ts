@@ -392,6 +392,29 @@ const customerIoToolConfigSchema = z
     overwriteWhenRemoteNewer: true,
   });
 
+const loopsToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    transactionalIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    campaignIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    workflowIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+    overwriteWhenRemoteNewer: z.boolean().default(true),
+  })
+  .default({
+    enabled: false,
+    sourceLocale: "en",
+    transactionalIds: [],
+    campaignIds: [],
+    workflowIds: [],
+    existingTranslationPolicy: "seed_empty",
+    overwriteWhenRemoteNewer: true,
+  });
+
 const sanityDocumentTypeModeSchema = z.enum(["document", "field"]);
 
 const sanityDocumentTypeModesSchema = z
@@ -601,6 +624,7 @@ const toolConfigObjectSchema = z
     braze: brazeToolConfigSchema.optional(),
     brazeCampaigns: brazeCampaignsToolConfigSchema.optional(),
     customerIo: customerIoToolConfigSchema.optional(),
+    loops: loopsToolConfigSchema.optional(),
     crowdin: crowdinToolConfigSchema.optional(),
     webSearch: webSearchToolConfigSchema.optional(),
   })
@@ -669,6 +693,7 @@ export type WorkspaceAutomationBrazeCampaignsToolConfig = z.infer<
   typeof brazeCampaignsToolConfigSchema
 >;
 export type WorkspaceAutomationCustomerIoToolConfig = z.infer<typeof customerIoToolConfigSchema>;
+export type WorkspaceAutomationLoopsToolConfig = z.infer<typeof loopsToolConfigSchema>;
 export type WorkspaceAutomationCrowdinToolConfig = z.infer<typeof crowdinToolConfigSchema>;
 export type WorkspaceAutomationWebSearchProvider = z.infer<
   typeof workspaceAutomationWebSearchProviderSchema
@@ -1097,6 +1122,10 @@ export function hasWorkspaceAutomationBrazeCampaignsTool(
 
 export function hasWorkspaceAutomationCustomerIoTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.customerIo?.enabled);
+}
+
+export function hasWorkspaceAutomationLoopsTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.loops?.enabled);
 }
 
 export function hasWorkspaceAutomationCrowdinTool(toolConfig: WorkspaceAutomationToolConfig) {

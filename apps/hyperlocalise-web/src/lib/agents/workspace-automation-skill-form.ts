@@ -83,6 +83,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS: Record<
   push_braze_campaigns: ["projectId"],
   import_customer_io_campaigns: ["projectId"],
   push_customer_io_campaigns: ["projectId"],
+  import_loops_emails: ["projectId"],
+  push_loops_emails: ["projectId"],
 };
 
 /** Ids of the given skills whose tools own the field, in the order given. */
@@ -170,6 +172,8 @@ function enableSkillTool(
         ...form,
         brazeEnabled: true,
         brazeCampaignsEnabled: false,
+        customerIoEnabled: false,
+        loopsEnabled: false,
       };
     case "import_braze_campaigns":
     case "push_braze_campaigns":
@@ -178,6 +182,7 @@ function enableSkillTool(
         brazeCampaignsEnabled: true,
         brazeEnabled: false,
         customerIoEnabled: false,
+        loopsEnabled: false,
       };
     case "import_customer_io_campaigns":
     case "push_customer_io_campaigns":
@@ -186,6 +191,16 @@ function enableSkillTool(
         customerIoEnabled: true,
         brazeEnabled: false,
         brazeCampaignsEnabled: false,
+        loopsEnabled: false,
+      };
+    case "import_loops_emails":
+    case "push_loops_emails":
+      return {
+        ...form,
+        loopsEnabled: true,
+        brazeEnabled: false,
+        brazeCampaignsEnabled: false,
+        customerIoEnabled: false,
       };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: true };
@@ -254,6 +269,9 @@ function disableSkillTool(
     case "import_customer_io_campaigns":
     case "push_customer_io_campaigns":
       return { ...form, customerIoEnabled: false };
+    case "import_loops_emails":
+    case "push_loops_emails":
+      return { ...form, loopsEnabled: false };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: false };
     case "assign_translate_with_agent":

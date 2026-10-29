@@ -147,6 +147,7 @@ export type WorkspaceAutomationFormState = {
   brazeEnabled: boolean;
   brazeCampaignsEnabled: boolean;
   customerIoEnabled: boolean;
+  loopsEnabled: boolean;
   customerIoBroadcastIds: string[];
   customerIoCampaignIds: string[];
   customerIoNewsletterIds: string[];
@@ -192,7 +193,8 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
     form.sanityEnabled ||
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
-    form.customerIoEnabled
+    form.customerIoEnabled ||
+    form.loopsEnabled
   ) {
     return true;
   }
@@ -454,6 +456,7 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     brazeEnabled: false,
     brazeCampaignsEnabled: false,
     customerIoEnabled: false,
+    loopsEnabled: false,
     customerIoBroadcastIds: [],
     customerIoCampaignIds: [],
     customerIoNewsletterIds: [],
@@ -511,6 +514,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const braze = automation.toolConfig.braze;
   const brazeCampaigns = automation.toolConfig.brazeCampaigns;
   const customerIo = automation.toolConfig.customerIo;
+  const loops = automation.toolConfig.loops;
   const crowdin = automation.toolConfig.crowdin;
   const webSearch = automation.toolConfig.webSearch;
 
@@ -627,6 +631,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
     brazeEnabled: Boolean(braze?.enabled),
     brazeCampaignsEnabled: Boolean(brazeCampaigns?.enabled),
     customerIoEnabled: Boolean(customerIo?.enabled),
+    loopsEnabled: Boolean(loops?.enabled),
     customerIoBroadcastIds: customerIo?.broadcastIds ? [...customerIo.broadcastIds] : [],
     customerIoCampaignIds: customerIo?.campaignIds ? [...customerIo.campaignIds] : [],
     customerIoNewsletterIds: customerIo?.newsletterIds ? [...customerIo.newsletterIds] : [],
@@ -934,6 +939,19 @@ export function formStateToWorkspaceAutomationPayload(
             transactionalMessageActions: form.customerIoTransactionalMessageActions,
             existingTranslationPolicy: form.customerIoExistingTranslationPolicy,
             overwriteWhenRemoteNewer: form.customerIoOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
+    ...(form.loopsEnabled
+      ? {
+          loops: {
+            enabled: true,
+            sourceLocale: "en",
+            transactionalIds: [],
+            campaignIds: [],
+            workflowIds: [],
+            existingTranslationPolicy: "seed_empty",
+            overwriteWhenRemoteNewer: true,
           },
         }
       : {}),
@@ -1522,6 +1540,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
     form.customerIoEnabled ||
+    form.loopsEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
     form.listIssuesEnabled ||

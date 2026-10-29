@@ -19,6 +19,7 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { getAhrefsPipesConnectionStatus, resolveAhrefsPipesWorkosUserId } from "@/lib/ahrefs/pipes";
 import { getBrazePipesConnectionStatus, resolveBrazePipesWorkosUserId } from "@/lib/braze/pipes";
+import { getLoopsPipesConnectionStatus, resolveLoopsPipesWorkosUserId } from "@/lib/loops/pipes";
 import { loadBrazeRestEndpoint } from "@/lib/braze/settings";
 import { areBrazeSourceLocalesCompatible } from "@/lib/braze/locale";
 import {
@@ -78,6 +79,7 @@ import {
   hasWorkspaceAutomationCreateNativeTmsJobTool,
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationBrazeCampaignsTool,
+  hasWorkspaceAutomationLoopsTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
   hasWorkspaceAutomationListIssuesTool,
@@ -133,7 +135,8 @@ export function workspaceAutomationNeedsProject(input: {
   }
   if (
     hasWorkspaceAutomationBrazeTool(input.toolConfig) ||
-    hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig)
+    hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig) ||
+    hasWorkspaceAutomationLoopsTool(input.toolConfig)
   ) {
     return true;
   }
@@ -1064,6 +1067,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     hasWorkspaceAutomationSanityTool(input.toolConfig),
     hasWorkspaceAutomationBrazeTool(input.toolConfig),
     hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig),
+    hasWorkspaceAutomationLoopsTool(input.toolConfig),
     hasWorkspaceAutomationContentfulWorkflow(input.toolConfig),
   ].filter(Boolean).length;
   if (cmsToolCount > 1) {
@@ -1276,6 +1280,42 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       return err({
         code: "customer_io_not_connected",
         message: "Connect Customer.io in Integrations before using it.",
+      });
+    }
+  }
+
+  if (input.toolConfig.loops?.enabled) {
+    const loops = input.toolConfig.loops;
+    const workosUserId = loops.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "loops_not_connected",
+        message: "Connect Loops in Integrations before using it.",
+      });
+    }
+
+    const status = await getLoopsPipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "loops_pipes_unavailable",
+        message: "WorkOS is not configured, so Loops cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "loops_pipes_needs_reauthorization",
+        message: "Reconnect Loops in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "loops_not_connected",
+        message: "Connect Loops in Integrations before using it.",
       });
     }
   }
@@ -1570,6 +1610,22 @@ async function stampPipesUsersOnToolConfig(input: {
       ...toolConfig,
       customerIo: {
         ...toolConfig.customerIo,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.loops?.enabled) {
+    const workosUserId = await resolveLoopsPipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      loops: {
+        ...toolConfig.loops,
         enabled: true,
         ...(workosUserId ? { workosUserId } : {}),
       },
