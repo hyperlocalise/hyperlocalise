@@ -145,6 +145,53 @@ describe("pending invitations", () => {
     expect(await listPendingInvitations(sessionUser.id)).toEqual([]);
   });
 
+  it("reports a WorkOS failure without touching the membership", async () => {
+    const { invitingIdentity, sessionUser } = await invitedToSecondWorkspace();
+    workosMocks.listInvitations.mockResolvedValue({
+      data: [{ id: "invitation_1", email: sessionUser.email, state: "pending" }],
+    });
+    workosMocks.acceptInvitation.mockRejectedValue(new Error("WorkOS is down"));
+
+    const result = await acceptPendingInvitation({
+      sessionUser,
+      organizationSlug: invitingIdentity.organization.slug!,
+    });
+
+    expect(isErr(result) && result.error.code).toBe("workos_accept_failed");
+    expect(await listPendingInvitations(sessionUser.id)).toHaveLength(1);
+  });
+
+  it("says so when WorkOS accepted but the membership has not appeared yet", async () => {
+    const { invitingIdentity, sessionUser } = await invitedToSecondWorkspace();
+    workosMocks.listInvitations.mockResolvedValue({
+      data: [{ id: "invitation_1", email: sessionUser.email, state: "pending" }],
+    });
+    workosMocks.acceptInvitation.mockResolvedValue({ id: "invitation_1", state: "accepted" });
+    workosMocks.listOrganizationMemberships.mockResolvedValue({ autoPagination: async () => [] });
+
+    const result = await acceptPendingInvitation({
+      sessionUser,
+      organizationSlug: invitingIdentity.organization.slug!,
+    });
+
+    expect(isErr(result) && result.error.code).toBe("membership_not_activated");
+  });
+
+  it("ignores an invitation that is no longer pending", async () => {
+    const { invitingIdentity, sessionUser } = await invitedToSecondWorkspace();
+    workosMocks.listInvitations.mockResolvedValue({
+      data: [{ id: "invitation_1", email: sessionUser.email, state: "expired" }],
+    });
+
+    const result = await acceptPendingInvitation({
+      sessionUser,
+      organizationSlug: invitingIdentity.organization.slug!,
+    });
+
+    expect(isErr(result) && result.error.code).toBe("invitation_not_found");
+    expect(workosMocks.acceptInvitation).not.toHaveBeenCalled();
+  });
+
   it("refuses an unverified email without calling WorkOS", async () => {
     const { invitingIdentity, sessionUser } = await invitedToSecondWorkspace();
 

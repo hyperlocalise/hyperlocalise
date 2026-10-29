@@ -12,7 +12,6 @@
  */
 import Link from "next/link";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getIntlShape } from "@/lib/app-i18n/intl";
@@ -21,7 +20,7 @@ import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { listPendingInvitations } from "@/lib/workos/pending-invitations";
 import { getAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-import { acceptInvitationAction } from "./actions";
+import { AcceptInvitationForm } from "./_components/accept-invitation-form";
 
 export async function generateMetadata() {
   return getAuthenticatedPageMetadata(await getAppLocale(), "selectOrganization", {
@@ -29,28 +28,23 @@ export async function generateMetadata() {
   });
 }
 
-export default async function SelectOrganizationPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ invitationError?: string }>;
-}) {
+export default async function SelectOrganizationPage() {
   const auth = await requireAppAuthContext({ ignoreStoredActiveOrganization: true });
   const intl = getIntlShape(await getAppLocale());
-  const [pendingInvitations, { invitationError }] = await Promise.all([
-    listPendingInvitations(auth.sessionUser.id),
-    searchParams,
-  ]);
+  // Invitations go to an email address, so only a verified address may see them.
+  const pendingInvitations = auth.sessionUser.emailVerified
+    ? await listPendingInvitations(auth.sessionUser.id)
+    : [];
 
   const title = intl.formatMessage({
-    defaultMessage: "Choose an organization",
-    id: "VkNsZOH7xT",
-    description: "Page title for selecting which organization workspace to open",
+    defaultMessage: "Choose a workspace",
+    id: "3xa+IqbvLl",
+    description: "Page title for selecting which workspace to open",
   });
   const description = intl.formatMessage({
-    defaultMessage:
-      "Select the workspace you want to open. Your organization membership still comes from WorkOS.",
-    id: "iaun9okbk5",
-    description: "Page description explaining organization selection and WorkOS membership",
+    defaultMessage: "Open one of your workspaces, accept an invitation, or create a new workspace.",
+    id: "UK7jOz9fV2",
+    description: "Page description on the workspace picker",
   });
 
   return (
@@ -61,27 +55,6 @@ export default async function SelectOrganizationPage({
           <CardDescription className="text-muted-foreground">{description}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          {invitationError ? (
-            <Alert variant="destructive">
-              <AlertDescription>
-                {invitationError === "email_not_verified"
-                  ? intl.formatMessage({
-                      defaultMessage:
-                        "Verify your email address before accepting an invitation, then try again.",
-                      id: "aQIYA/it3y",
-                      description:
-                        "Error on the workspace picker when the person's email address is not verified",
-                    })
-                  : intl.formatMessage({
-                      defaultMessage:
-                        "We could not accept that invitation. It may have expired or been withdrawn; ask the workspace admin to invite you again.",
-                      id: "yJeeK26KYc",
-                      description:
-                        "Error on the workspace picker when accepting a workspace invitation fails",
-                    })}
-              </AlertDescription>
-            </Alert>
-          ) : null}
           {auth.organizations.map((organization) =>
             organization.slug ? (
               <Button
@@ -114,26 +87,11 @@ export default async function SelectOrganizationPage({
                 })}
               </h2>
               {pendingInvitations.map((invitation) => (
-                <form
+                <AcceptInvitationForm
                   key={invitation.organizationSlug}
-                  action={acceptInvitationAction}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
-                >
-                  <input
-                    type="hidden"
-                    name="organizationSlug"
-                    value={invitation.organizationSlug}
-                  />
-                  <span className="min-w-0 truncate text-sm">{invitation.organizationName}</span>
-                  <Button type="submit" size="sm">
-                    {intl.formatMessage({
-                      defaultMessage: "Accept",
-                      id: "X6NUPESd72",
-                      description:
-                        "Button on the workspace picker that accepts an invitation and opens that workspace",
-                    })}
-                  </Button>
-                </form>
+                  organizationName={invitation.organizationName}
+                  organizationSlug={invitation.organizationSlug}
+                />
               ))}
             </section>
           ) : null}

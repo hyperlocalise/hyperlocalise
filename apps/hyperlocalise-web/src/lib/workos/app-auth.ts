@@ -65,6 +65,7 @@ export async function requireAppAuthContext(options: RequireAppAuthContextOption
       // instead of sending them to another workspace.
       if (
         options.organizationSlug &&
+        sessionUser.emailVerified &&
         (await hasPendingInvitationToOrganization(sessionUser.id, options.organizationSlug))
       ) {
         redirect("/auth/select-organization");

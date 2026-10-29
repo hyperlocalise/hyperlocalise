@@ -180,7 +180,7 @@ describe("requireAppAuthContext", () => {
 
   it("offers the invitation instead of another workspace for an invited, unjoined workspace", async () => {
     const session = {
-      user: { id: "user_123", email: "person@example.com" },
+      user: { id: "user_123", email: "person@example.com", emailVerified: true },
       organizationId: "org_home",
     };
     const { StaleOrganizationSlugError } = await import("@/api/auth/workos-session");

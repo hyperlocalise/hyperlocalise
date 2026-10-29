@@ -14,7 +14,7 @@ import { redirect } from "next/navigation";
 
 import { OnboardingWizard } from "@/app/auth/onboarding/_components/onboarding-wizard";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
-import { loadOnboardingContext } from "@/lib/onboarding/context";
+import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { getAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 export async function generateMetadata() {
@@ -24,11 +24,10 @@ export async function generateMetadata() {
 }
 
 export default async function NewWorkspacePage() {
-  const { auth } = await loadOnboardingContext();
-
-  // Someone with no workspace yet creates their first one through onboarding.
-  if (!auth?.activeOrganization.slug) {
-    redirect("/auth/onboarding");
+  // Someone with no workspace yet is sent on to onboarding (or their pending invitation).
+  const auth = await requireAppAuthContext();
+  if (!auth.activeOrganization.slug) {
+    redirect("/auth/select-organization");
   }
 
   return <OnboardingWizard cancelHref={`/org/${auth.activeOrganization.slug}/dashboard`} />;

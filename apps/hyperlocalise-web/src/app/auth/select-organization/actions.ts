@@ -14,15 +14,28 @@
  */
 import { redirect } from "next/navigation";
 
+import { createLogger } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
 import { setStoredActiveOrganizationSlug } from "@/lib/workos/active-organization";
-import { acceptPendingInvitation } from "@/lib/workos/pending-invitations";
+import {
+  acceptPendingInvitation,
+  type AcceptInvitationError,
+} from "@/lib/workos/pending-invitations";
 import { withAuth } from "@/lib/workos/server-auth";
 
-export async function acceptInvitationAction(formData: FormData) {
+const logger = createLogger("accept-invitation-action");
+
+export type AcceptInvitationActionState = {
+  error?: AcceptInvitationError["code"];
+};
+
+export async function acceptInvitationAction(
+  _previousState: AcceptInvitationActionState,
+  formData: FormData,
+): Promise<AcceptInvitationActionState> {
   const organizationSlug = formData.get("organizationSlug");
   if (typeof organizationSlug !== "string" || !organizationSlug) {
-    redirect("/auth/select-organization");
+    return { error: "invitation_not_found" };
   }
 
   const session = await withAuth({ ensureSignedIn: true });
@@ -36,7 +49,11 @@ export async function acceptInvitationAction(formData: FormData) {
   });
 
   if (isErr(result)) {
-    redirect(`/auth/select-organization?invitationError=${result.error.code}`);
+    logger.warn("accept_invitation_refused", {
+      workosUserId: session.user.id,
+      code: result.error.code,
+    });
+    return { error: result.error.code };
   }
 
   await setStoredActiveOrganizationSlug(result.value.organizationSlug);
