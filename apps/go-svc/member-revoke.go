@@ -5,8 +5,8 @@ import (
 )
 
 // reconcileRevokedMembership removes the membership and everything tied to it, and logs
-// eventType. removeFromWorkos, when set, runs while the admin rows are locked, so two
-// admins leaving or removing each other cannot both get past the last-admin check.
+// eventType. removeFromWorkos, when set, runs while the workspace's admin lock is held, so
+// two admins leaving or removing each other cannot both get past the last-admin check.
 func (api *memberAPI) reconcileRevokedMembership(ctx context.Context, actor memberActor, member organizationMember, eventType string, removeFromWorkos func(context.Context) error) error {
 	timeout := memberRevokeReconcileTimeout
 	if removeFromWorkos != nil {
@@ -45,18 +45,10 @@ func (api *memberAPI) revokeOrganizationMembershipAccessAfter(ctx context.Contex
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	// The row stays locked through the WorkOS call, so the WorkOS webhook waits for this
-	// removal instead of racing it. An admin's row is locked with the other admins' rows,
-	// in one statement, so two admins never lock each other's rows in opposite orders.
 	if member.role == "admin" {
 		if err := lockOrganizationAdminsAndCount(ctx, tx, actor.organizationID, member.localUserID); err != nil {
 			return false, err
 		}
-	} else if _, err := tx.Exec(ctx, `
-        select id from organization_memberships
-        where organization_id=$1 and user_id=$2
-        for update`, actor.organizationID, member.localUserID); err != nil {
-		return false, err
 	}
 	if removeFromWorkos != nil {
 		workosCtx, cancel := context.WithTimeout(ctx, memberWorkosRemoveTimeout)

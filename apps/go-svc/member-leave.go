@@ -59,7 +59,7 @@ func (api *memberAPI) leaveWorkspace(ctx context.Context, actor memberActor) (in
 	return http.StatusNoContent, nil
 }
 
-// leaveWorkspacePreview lists what stops working when the caller leaves: their access keys,
+// leaveWorkspacePreview lists what stops working when the caller leaves: their API keys,
 // and automations that sign in to other services with accounts they connected.
 func (api *memberAPI) leaveWorkspacePreview(ctx context.Context, actor memberActor) (any, int, error) {
 	member, err := api.getOrganizationMember(ctx, actor.organizationID, actor.workosUserID)
@@ -71,13 +71,8 @@ func (api *memberAPI) leaveWorkspacePreview(ctx context.Context, actor memberAct
 		Automations: []leaveWorkspaceAutomation{},
 	}
 	if member.role == "admin" {
-		var otherAdmins int
-		if err := api.pool.QueryRow(ctx, `
-            select count(*)::int from organization_memberships
-            where organization_id=$1 and role='admin' and user_id<>$2
-              and nullif(btrim(workos_membership_id), '') is not null
-              and workos_membership_id<>$3 and workos_membership_id not like $4`,
-			actor.organizationID, member.localUserID, replacingWorkosMembershipID, replacingWorkosMembershipIDPrefix+"%").Scan(&otherAdmins); err != nil {
+		otherAdmins, err := countOtherAcceptedAdmins(ctx, api.pool, actor.organizationID, member.localUserID)
+		if err != nil {
 			return nil, 0, err
 		}
 		if otherAdmins == 0 {

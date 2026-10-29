@@ -457,25 +457,35 @@ func (api *memberAPI) updateMemberRole(ctx context.Context, organizationID strin
 }
 
 // lockOrganizationAdminsAndCount refuses a change that would leave no admin who has
-// accepted their invitation once departingUserID is no longer one. An unaccepted admin
-// invitation cannot run the workspace, so it does not count.
+// accepted their invitation once departingUserID is no longer one. The lock is per
+// workspace and taken only by admin changes, so holding it through a WorkOS call delays
+// other admin changes in that workspace and nothing else: page loads that rewrite
+// membership rows do not wait on it.
 func lockOrganizationAdminsAndCount(ctx context.Context, tx pgx.Tx, organizationID, departingUserID string) error {
-	if _, err := tx.Exec(ctx, `select id from organization_memberships where organization_id=$1 and role='admin' for update`, organizationID); err != nil {
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, "organization_admins:"+organizationID); err != nil {
 		return err
 	}
-	var count int
-	if err := tx.QueryRow(ctx, `
-        select count(*)::int from organization_memberships
-        where organization_id=$1 and role='admin' and user_id<>$2
-          and nullif(btrim(workos_membership_id), '') is not null
-          and workos_membership_id<>$3 and workos_membership_id not like $4`,
-		organizationID, departingUserID, replacingWorkosMembershipID, replacingWorkosMembershipIDPrefix+"%").Scan(&count); err != nil {
+	count, err := countOtherAcceptedAdmins(ctx, tx, organizationID, departingUserID)
+	if err != nil {
 		return err
 	}
 	if count < 1 {
 		return memberFailure(409, "last_admin_protected", "The workspace needs another admin who has accepted their invitation")
 	}
 	return nil
+}
+
+// countOtherAcceptedAdmins counts admins other than userID who have accepted their
+// invitation. An unaccepted admin invitation cannot run the workspace, so it does not count.
+func countOtherAcceptedAdmins(ctx context.Context, db dictionaryDB, organizationID, userID string) (int, error) {
+	var count int
+	err := db.QueryRow(ctx, `
+        select count(*)::int from organization_memberships
+        where organization_id=$1 and role='admin' and user_id<>$2
+          and nullif(btrim(workos_membership_id), '') is not null
+          and workos_membership_id<>$3 and workos_membership_id not like $4`,
+		organizationID, userID, replacingWorkosMembershipID, replacingWorkosMembershipIDPrefix+"%").Scan(&count)
+	return count, err
 }
 
 func decodeInviteMemberBody(r *http.Request) (inviteMemberBody, error) {
