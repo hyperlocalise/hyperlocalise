@@ -511,6 +511,9 @@ importers:
       jwks-rsa:
         specifier: ^4.1.0
         version: 4.1.0(supports-color@8.1.1)
+      loops:
+        specifier: 7.3.0
+        version: 7.3.0
       lottie-web:
         specifier: ^5.13.0
         version: 5.13.0
@@ -8630,6 +8633,10 @@ packages:
 
   longest-streak@3.1.0:
     resolution: {integrity: sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==}
+
+  loops@7.3.0:
+    resolution: {integrity: sha512-9IqNv/xIFt2v7hUhtbn0qMadA3F+zzL7ot5XZxDesD0SyCQYX3paKhZdgAadIImPQCG5Sx4iVPL/+0CG4DsCGA==}
+    engines: {node: '>=18'}
 
   lop@0.4.2:
     resolution: {integrity: sha512-RefILVDQ4DKoRZsJ4Pj22TxE3omDO47yFpkIBoDKzkqPRISs5U1cnAdg/5583YPkWPaLIYHOKRMQSvjFsO26cw==}
@@ -19514,6 +19521,8 @@ snapshots:
   long@5.3.2: {}
 
   longest-streak@3.1.0: {}
+
+  loops@7.3.0: {}
 
   lop@0.4.2:
     dependencies:

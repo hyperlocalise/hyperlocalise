@@ -35,6 +35,7 @@ const connectionsSchema = z.object({
   google_drive: z.boolean().optional(),
   braze: z.boolean().optional(),
   customer_io: z.boolean().optional(),
+  loops: z.boolean().optional(),
   slack: z.boolean().optional(),
   email: z.boolean().optional(),
 }) satisfies z.ZodType<WorkspaceAutomationSkillConnections>;

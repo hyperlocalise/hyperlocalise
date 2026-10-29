@@ -156,6 +156,8 @@ export type WorkspaceAutomationFormState = {
   brazeEnabled: boolean;
   brazeCampaignsEnabled: boolean;
   customerIoEnabled: boolean;
+  loopsEnabled: boolean;
+  loopsSourceLocale: string;
   customerIoBroadcastIds: string[];
   customerIoCampaignIds: string[];
   customerIoNewsletterIds: string[];
@@ -202,7 +204,8 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
     form.webflowEnabled ||
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
-    form.customerIoEnabled
+    form.customerIoEnabled ||
+    form.loopsEnabled
   ) {
     return true;
   }
@@ -254,6 +257,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "braze"
     | "brazeSourceLocale"
     | "customerIo"
+    | "loops"
     | "crowdinProjectId"
     | "scheduledTimezone"
     | "skills"
@@ -326,6 +330,9 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   customer_io_not_connected: "Connect Customer.io in Integrations before using it.",
   customer_io_pipes_needs_reauthorization: "Reconnect Customer.io in Integrations, then try again.",
   customer_io_pipes_unavailable: "Customer.io is unavailable until WorkOS Pipes is configured.",
+  loops_not_connected: "Connect Loops in Integrations before using it.",
+  loops_pipes_needs_reauthorization: "Reconnect Loops in Integrations, then try again.",
+  loops_pipes_unavailable: "Loops is unavailable until WorkOS Pipes is configured.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -482,6 +489,8 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     brazeEnabled: false,
     brazeCampaignsEnabled: false,
     customerIoEnabled: false,
+    loopsEnabled: false,
+    loopsSourceLocale: "en",
     customerIoBroadcastIds: [],
     customerIoCampaignIds: [],
     customerIoNewsletterIds: [],
@@ -540,6 +549,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const braze = automation.toolConfig.braze;
   const brazeCampaigns = automation.toolConfig.brazeCampaigns;
   const customerIo = automation.toolConfig.customerIo;
+  const loops = automation.toolConfig.loops;
   const crowdin = automation.toolConfig.crowdin;
   const webSearch = automation.toolConfig.webSearch;
 
@@ -669,6 +679,8 @@ export function createWorkspaceAutomationFormStateFromRecord(
     brazeEnabled: Boolean(braze?.enabled),
     brazeCampaignsEnabled: Boolean(brazeCampaigns?.enabled),
     customerIoEnabled: Boolean(customerIo?.enabled),
+    loopsEnabled: Boolean(loops?.enabled),
+    loopsSourceLocale: loops?.sourceLocale ?? "en",
     customerIoBroadcastIds: customerIo?.broadcastIds ? [...customerIo.broadcastIds] : [],
     customerIoCampaignIds: customerIo?.campaignIds ? [...customerIo.campaignIds] : [],
     customerIoNewsletterIds: customerIo?.newsletterIds ? [...customerIo.newsletterIds] : [],
@@ -772,6 +784,10 @@ export function applyWorkspaceAutomationProjectSelection(
       project.targetLocales.length > 0 && form.contentfulTargetLocales.length === 0
         ? [...project.targetLocales]
         : form.contentfulTargetLocales.filter((locale) => project.targetLocales.includes(locale));
+  }
+
+  if (form.loopsEnabled && project) {
+    next.loopsSourceLocale = project.sourceLocale ?? form.loopsSourceLocale;
   }
 
   return next;
@@ -976,6 +992,19 @@ export function formStateToWorkspaceAutomationPayload(
             transactionalMessageActions: form.customerIoTransactionalMessageActions,
             existingTranslationPolicy: form.customerIoExistingTranslationPolicy,
             overwriteWhenRemoteNewer: form.customerIoOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
+    ...(form.loopsEnabled
+      ? {
+          loops: {
+            enabled: true,
+            sourceLocale: form.loopsSourceLocale.trim() || "en",
+            transactionalIds: [],
+            campaignIds: [],
+            workflowIds: [],
+            existingTranslationPolicy: "seed_empty",
+            overwriteWhenRemoteNewer: true,
           },
         }
       : {}),
@@ -1527,6 +1556,10 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "customer_io_pipes_needs_reauthorization":
     case "customer_io_pipes_unavailable":
       return { customerIo: message };
+    case "loops_not_connected":
+    case "loops_pipes_needs_reauthorization":
+    case "loops_pipes_unavailable":
+      return { loops: message };
     case "crowdin_project_required":
     case "crowdin_project_not_found":
     case "crowdin_project_not_linked":
@@ -1601,6 +1634,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
     form.customerIoEnabled ||
+    form.loopsEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
     form.listIssuesEnabled ||

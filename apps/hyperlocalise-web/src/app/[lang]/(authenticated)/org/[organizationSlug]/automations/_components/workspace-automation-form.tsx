@@ -110,6 +110,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
 import { BRAZE_PIPES_SLUG } from "@/lib/braze/constants";
 import { CUSTOMER_IO_PIPES_SLUG } from "@/lib/customer-io/constants";
+import { LOOPS_PIPES_SLUG } from "@/lib/loops/constants";
 import { INTERCOM_PIPES_SLUG } from "@/lib/intercom/constants";
 import { SANITY_PIPES_SLUG } from "@/lib/sanity/constants";
 import { GOOGLE_DRIVE_PIPES_SLUG } from "@/lib/google-drive/constants";
@@ -301,6 +302,12 @@ function CustomerIoToolIcon({ className }: { className?: string }) {
       src="/images/customerio-logo.svg"
       className={cn(BRAND_ICON_CLASS, className)}
     />
+  );
+}
+
+function LoopsToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/loops-logo.png" className={cn(BRAND_ICON_CLASS, className)} />
   );
 }
 
@@ -967,6 +974,7 @@ function AddToolMenu({
   webflowConnected,
   brazeConnected,
   customerIoConnected,
+  loopsConnected,
   semrushConnected,
   zernioConnected,
   slackConnected,
@@ -990,6 +998,7 @@ function AddToolMenu({
   webflowConnected: boolean;
   brazeConnected: boolean;
   customerIoConnected: boolean;
+  loopsConnected: boolean;
   semrushConnected: boolean;
   zernioConnected: boolean;
   slackConnected: boolean;
@@ -1299,9 +1308,19 @@ function AddToolMenu({
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={form.brazeEnabled || form.brazeCampaignsEnabled || !brazeConnected}
+              disabled={
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.loopsEnabled ||
+                !brazeConnected
+              }
               onClick={() =>
-                onChange({ ...form, brazeEnabled: true, brazeCampaignsEnabled: false })
+                onChange({
+                  ...form,
+                  brazeEnabled: true,
+                  brazeCampaignsEnabled: false,
+                  loopsEnabled: false,
+                })
               }
             >
               <BrazeToolIcon />
@@ -1319,9 +1338,19 @@ function AddToolMenu({
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={form.brazeCampaignsEnabled || form.brazeEnabled || !brazeConnected}
+              disabled={
+                form.brazeCampaignsEnabled ||
+                form.brazeEnabled ||
+                form.loopsEnabled ||
+                !brazeConnected
+              }
               onClick={() =>
-                onChange({ ...form, brazeCampaignsEnabled: true, brazeEnabled: false })
+                onChange({
+                  ...form,
+                  brazeCampaignsEnabled: true,
+                  brazeEnabled: false,
+                  loopsEnabled: false,
+                })
               }
             >
               <BrazeToolIcon />
@@ -1343,6 +1372,7 @@ function AddToolMenu({
                 form.customerIoEnabled ||
                 form.brazeEnabled ||
                 form.brazeCampaignsEnabled ||
+                form.loopsEnabled ||
                 !customerIoConnected
               }
               onClick={() =>
@@ -1351,6 +1381,7 @@ function AddToolMenu({
                   customerIoEnabled: true,
                   brazeEnabled: false,
                   brazeCampaignsEnabled: false,
+                  loopsEnabled: false,
                 })
               }
             >
@@ -1365,6 +1396,38 @@ function AddToolMenu({
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
                 </DropdownMenuHint>
               ) : form.brazeEnabled || form.brazeCampaignsEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.loopsEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                !loopsConnected
+              }
+              onClick={() =>
+                onChange({
+                  ...form,
+                  loopsEnabled: true,
+                  brazeEnabled: false,
+                  brazeCampaignsEnabled: false,
+                  customerIoEnabled: false,
+                })
+              }
+            >
+              <LoopsToolIcon />
+              Loops Transactional, Campaigns & Workflows
+              {form.loopsEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !loopsConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.brazeEnabled || form.brazeCampaignsEnabled || form.customerIoEnabled ? (
                 <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
@@ -1667,6 +1730,7 @@ const SKILL_INTEGRATION_LABELS: Record<WorkspaceAutomationSkillIntegration, Mess
   google_drive: workspaceAutomationFormMessages.skillIntegrationGoogleDrive,
   braze: workspaceAutomationFormMessages.skillIntegrationBraze,
   customer_io: workspaceAutomationFormMessages.skillIntegrationCustomerIo,
+  loops: workspaceAutomationFormMessages.skillIntegrationLoops,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
 };
@@ -1736,6 +1800,9 @@ function SkillIcon({ className, skill }: { className?: string; skill: WorkspaceA
   }
   if (tool === "import_customer_io_campaigns" || tool === "push_customer_io_campaigns") {
     return <CustomerIoToolIcon className={className} />;
+  }
+  if (tool === "import_loops_emails" || tool === "push_loops_emails") {
+    return <LoopsToolIcon className={className} />;
   }
   if (tool === "notify_slack") {
     return <SlackToolIcon className={className} />;
@@ -2047,6 +2114,7 @@ function ToolsSettings({
   semrushConnections,
   zernioConnections,
   slackConnected,
+  loopsConnected,
 }: {
   automationId?: string;
   canUpdateKnowledgeMemory: boolean;
@@ -2075,6 +2143,7 @@ function ToolsSettings({
   webflowConnections: WebflowConnectionSummary[];
   brazeConnected: boolean;
   customerIoConnected: boolean;
+  loopsConnected: boolean;
   semrushConnections: SemrushConnectionOption[];
   zernioConnections: ZernioConnectionOption[];
   slackConnected: boolean;
@@ -2990,6 +3059,33 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.loopsEnabled ? (
+          <EditorRow
+            icon={<LoopsToolIcon />}
+            title={
+              <>
+                <span>Loops Transactional, Campaigns & Workflows</span>
+                {!loopsConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import Loops emails as HTML, translate in Jobs, then push approved locales as separate unpublished Loops copies."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_loops_emails")}
+                label="Remove Loops"
+                onClick={() => onChange({ ...form, loopsEnabled: false })}
+              />
+            }
+          >
+            <FieldError message={errors.loops} />
+          </EditorRow>
+        ) : null}
+
         {form.crowdinEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siCrowdin} />}
@@ -3523,6 +3619,7 @@ function ToolsSettings({
           webflowConnected={webflowConnected}
           brazeConnected={brazeConnected}
           customerIoConnected={customerIoConnected}
+          loopsConnected={loopsConnected}
           semrushConnected={semrushConnected}
           zernioConnected={zernioConnected}
           slackConnected={slackConnected}
@@ -3845,6 +3942,23 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const loopsPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, LOOPS_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: LOOPS_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Loops connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
   const intercomPipesQuery = useQuery({
     queryKey: ["pipes", organizationSlug, INTERCOM_PIPES_SLUG],
     queryFn: async () => {
@@ -3977,6 +4091,7 @@ export function WorkspaceAutomationEditor({
   const googleDriveConnected = Boolean(googleDrivePipesQuery.data?.connected);
   const brazeConnected = Boolean(brazePipesQuery.data?.connected);
   const customerIoConnected = Boolean(customerIoPipesQuery.data?.connected);
+  const loopsConnected = Boolean(loopsPipesQuery.data?.connected);
   const gitlabConnected = Boolean(gitlabPipesQuery.data?.connected);
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
@@ -4008,6 +4123,7 @@ export function WorkspaceAutomationEditor({
     google_drive: googleDrivePipesQuery.isSuccess ? googleDriveConnected : undefined,
     braze: brazePipesQuery.isSuccess ? brazeConnected : undefined,
     customer_io: customerIoPipesQuery.isSuccess ? customerIoConnected : undefined,
+    loops: loopsPipesQuery.isSuccess ? loopsConnected : undefined,
     slack: slackQuery.isSuccess ? slackConnected : undefined,
     email: emailConnected
       ? true
@@ -4077,7 +4193,8 @@ export function WorkspaceAutomationEditor({
     !sanityPipesQuery.isPending &&
     !webflowConnectionsQuery.isPending &&
     !brazePipesQuery.isPending &&
-    !customerIoPipesQuery.isPending;
+    !customerIoPipesQuery.isPending &&
+    !loopsPipesQuery.isPending;
 
   const editor = (
     <div ref={editorRef} className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -4264,6 +4381,7 @@ export function WorkspaceAutomationEditor({
             webflowConnections={webflowConnections}
             brazeConnected={brazeConnected}
             customerIoConnected={customerIoConnected}
+            loopsConnected={loopsConnected}
             semrushConnections={semrushConnections}
             zernioConnections={zernioConnections}
             slackConnected={slackConnected}
