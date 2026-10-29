@@ -471,3 +471,7 @@
 ## 2027-10-22 - Slice buffer field on walker state eliminates PO parsing allocations
 **Learning:** In sequential PO file parsing and entry inspection (`poWalkState`), calling `make([]string, len(s.forms))` on every entry creates thousands of heap slice allocations. Adding a `formsBuf []string` slice buffer field to `poWalkState` allows `poWalkState.build()` to reuse the existing slice capacity across `reset()` calls, dropping `BenchmarkPOParser` heap allocations from 1,014 down to 14 allocs/op (~98.6% reduction) and `BenchmarkPOMarshal` from 4,014 down to 2,014 allocs/op (~50% reduction).
 **Action:** Embed reusable slice buffers inside walker state objects to reuse slice capacity across item resets in parser/inspection loops.
+
+## 2027-10-28 - Hoisting regexp.MustCompile in sort comparators
+**Learning:** Executing `regexp.MustCompile` inside a function that is invoked during slice sorting (such as priority ranking in fallback context selection) causes the regex to be re-parsed and compiled $O(N \log N)$ times per operation. This incurs massive CPU and memory allocation overhead (~10.8 MB and ~43,000 allocs per call).
+**Action:** Always define `regexp.MustCompile` regular expressions at package-level (`var ... = regexp.MustCompile(...)`) when used in functions called repeatedly or within sort comparators.
