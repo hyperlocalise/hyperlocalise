@@ -742,45 +742,32 @@ go test ./apps/go-svc -run 'BillingResourceUsage|WorkspaceResourceSync'
 go test ./apps/go-svc/internal/autumn -run HTTPStatus
 ```
 
-## Reports (financial)
+## Reports
 
-Financial reporting APIs under `/v1/orgs/{organizationSlug}/reports`, covering word and time reports, costs, budgets, rates, time entries, and expenses.
+The Reports page's reads under `/v1/orgs/{organizationSlug}/reports`, ported from the web app's Hono routes (`apps/hyperlocalise-web/src/api/routes/reports`) one section at a time; the web app keeps recording the work and refreshing the daily summary. Each route answers as the web route does: same query fields, error codes, shapes and permissions, plus a `message` on errors as every go-svc API gives.
 
 Requires workspace authentication, `DATABASE_URL`, and the `workspace-reports` feature flag. A disabled or unavailable flag returns `403 feature_unavailable`.
 
 | Method | Path | Capability | Description |
 |--------|------|------------|-------------|
-| GET | `/reports` | Member | Reports in JSON or CSV; cost view requires `billing:read` |
-| GET | `/reports/settings` | Member | Accessible projects, rates, and budget summaries |
-| GET | `/reports/tasks/{jobId}` | Member | Job analyses and time entries |
-| POST | `/reports/rates` | `billing:write` | Create a rate |
-| PUT | `/reports/budgets` | `billing:write` | Upsert a project budget |
-| PUT | `/reports/task-rates` | `billing:write` | Configure a job's rate before work starts |
-| POST | `/reports/time-entries` | `jobs:write` | Log time on a native job |
-| PATCH | `/reports/time-entries/{id}` | `jobs:write` | Edit own time entry; `billing:write` can edit others |
-| DELETE | `/reports/time-entries/{id}` | Owner or `billing:write` | Void a time entry and its costs |
-| POST | `/reports/expenses` | `billing:write` | Record an expense; idempotent by `operationKey` |
+| GET | `/reports/jobs` | Member | The task picker: tasks Reports has counted, newest first; `q`, `open`, `ids`, `projectId`, `limit`; `counted=false` offers any task the viewer can see, for logging time on one not counted yet |
+| GET | `/reports/settings` | Member | The viewer's projects, when Reports started, what they may do, the rate card names (`billing:read`) |
+| GET | `/reports/activity` | `billing:read` | Headline totals for the period and the one before, finished units by source per day or week, and by language; `format=csv` for the chart |
+| GET | `/reports/step-times` | `billing:read` | Time logged by what each task is for, and automated time by workflow step and task run stage; `format=csv` |
+| GET | `/reports/words` | `billing:read` | Units by match band, grouped by project, task (50 a page), week, language or task step; `format=csv` for every row |
+| GET | `/reports/words/series` | `billing:read` | The volume chart: units per day, week or month, split by project, language, band tier or task step |
+| GET | `/reports/time` | Member | Time people logged, 50 rows a page, and automated time for `billing:read`; other roles see their own time only; `format=csv` |
 
-**Access control:** `billing:read` allows admins and localization managers to view financial data; `billing:write` is admin-only. `jobs:write` excludes members. Project and job visibility follows team membership, with organization-wide access for admins and localization managers. Inaccessible resources return `404`.
+**Access control:** `billing:read` (admins and localization managers) sees reports and money; `billing:write` (admins) changes rate cards, budgets and pricing; `jobs:write` logs time. Project visibility follows team membership, with organization-wide access for admins and localization managers; a filter for a project the viewer cannot open reads nothing.
 
-Non-financial users cannot access the cost view or financial settings, and see only their own time entries in task reports.
+**Dates:** UTC calendar days as `YYYY-MM-DD`, from 2000 on, never past today and never from before Reports started for the workspace; the default period is the last 28 days and is compared with the period of the same length before it; periods over 45 days are charted by week (Monday start).
 
-**Money and dates:** USD amounts use 8-decimal fixed-point strings, with `big.Int` arithmetic. Reporting dates use UTC, with weeks starting Monday.
-
-### CSV export
-
-`GET /reports?format=csv` exports all matching rows without pagination.
-
-- Content type: `text/csv; charset=utf-8`
-- Filename: `translation-report.csv`
-- Financial users receive an additional `amountUsd` column.
-- All cells are quoted, with formula-injection protection.
-- Rows use CRLF separators, without a trailing newline or BOM.
+**Safeguards** (`reporting-safeguards.go`), for a service whose size is not pinned down: at most 2 Reports requests query the database at once per copy (`503 reports_busy` beyond that), each request reads on one pooled connection in a read-only transaction with a 10 s statement limit (`503 report_timed_out`), CSVs are written row by row, and the flag answer is cached per workspace and user for a minute (one lookup serves the requests that miss together).
 
 ### Testing
 
 ```bash
-GO_SVC_INTEGRATION=1 go test ./apps/go-svc -run 'Report|JSNumberString|ReadReportingBody|LoadReportingJob'
+GO_SVC_INTEGRATION=1 go test ./apps/go-svc -run 'Reporting|CachedWorkspaceFlags'
 ```
 
 ## Members

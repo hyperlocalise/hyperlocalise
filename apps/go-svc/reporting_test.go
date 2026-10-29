@@ -20,7 +20,7 @@ func reportingBodyFrom(t *testing.T, raw string) *reportingBody {
 func TestReadReportingBodyMapsUnparseableJSONToRouteCode(t *testing.T) {
 	for _, raw := range []string{"{", "[]", "123", `"text"`} {
 		_, err := readReportingBody(httptest.NewRequest(http.MethodPost, "/", strings.NewReader(raw)), "invalid_rate")
-		var failure *workspaceError
+		var failure *reportingError
 		require.True(t, errors.As(err, &failure), raw)
 		require.Equal(t, 400, failure.status)
 		require.Equal(t, "invalid_rate", failure.code)
@@ -141,9 +141,15 @@ func TestReportingBodyPercentages(t *testing.T) {
 
 func TestWriteReportingCSV(t *testing.T) {
 	rec := httptest.NewRecorder()
-	writeReportingCSV(rec, http.StatusOK, reportingCSV{filename: "translation-report.csv", body: []byte(`"period"`)})
+	writeReportingCSV(t.Context(), rec, http.StatusOK, reportingCSV{filename: "activity.csv", write: func(w *reportingCSVWriter) error {
+		if err := w.row("start", "memory"); err != nil {
+			return err
+		}
+		return w.row("2026-06-01", "=1+1", "-3.5", "a\"b")
+	}})
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "text/csv; charset=utf-8", rec.Header().Get("Content-Type"))
-	require.Equal(t, `attachment; filename="translation-report.csv"`, rec.Header().Get("Content-Disposition"))
-	require.Equal(t, `"period"`, rec.Body.String())
+	require.Equal(t, `attachment; filename="activity.csv"`, rec.Header().Get("Content-Disposition"))
+	// CRLF between rows and none after the last; formulas disarmed, negative numbers left alone.
+	require.Equal(t, "\"start\",\"memory\"\r\n\"2026-06-01\",\"'=1+1\",\"-3.5\",\"a\"\"b\"", rec.Body.String())
 }

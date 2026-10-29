@@ -157,6 +157,7 @@ func main() {
 		h.irisGeneration.membership = membershipLookup
 	}
 	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
+	h.reports = newReportingAPI()
 	if workosClient != nil {
 		h.workspace.flags = workosWorkspaceFlags{client: workosClient}
 		h.workspace.pipes = workosPipeTokens{client: workosClient}
@@ -202,6 +203,7 @@ func main() {
 		h.projects.pool = traced
 		h.conversations.pool = traced
 		h.overview.pool = traced
+		h.reports.pool = traced
 		h.publicTranslations.auth.pool = traced
 		h.workspace.pool = traced
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
@@ -299,6 +301,8 @@ func main() {
 	h.conversations.membership = membershipLookup
 	h.overview.membership = membershipLookup
 	h.overview.flags = h.workspace.flags
+	h.reports.membership = membershipLookup
+	h.reports.flags = newCachedWorkspaceFlags(h.workspace.flags)
 	h.publicTranslations.auth.membership = membershipLookup
 	h.workspace.membership = membershipLookup
 

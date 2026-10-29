@@ -2,55 +2,209 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"math"
 	"net/http"
 	"regexp"
 	"slices"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
+	"golang.org/x/sync/semaphore"
 )
 
+var errReportingBusy = reportingFailure(503, "reports_busy", "Reports is busy; try again shortly")
+
+// Reports: the reads behind the Reports page under /v1/orgs/{slug}/reports. The web app records
+// the work (analyses, finished strings, time, costs) and keeps the daily summary; this serves what
+// the page shows from those tables. Answers match the web app's Hono routes field for field.
+
 const (
-	workspaceReportsFlag = "workspace-reports"
-	reportingFlagMessage = "Reports is not enabled for this workspace"
+	workspaceReportsFlag      = "workspace-reports"
+	reportingFlagMessage      = "Reports is not enabled for this workspace"
+	reportingRequestTimeout   = 30 * time.Second
+	reportingStatementTimeout = 10 * time.Second
+	// How many Reports requests may query the database at once per copy of the service, so a
+	// Reports page's dozen requests cannot hold every pooled connection while the editor waits.
+	reportingQueriesAtOnce = 2
 )
 
 var (
-	reportingUSDPattern  = regexp.MustCompile(`^\d{1,12}(\.\d{1,8})?$`)
-	reportingStepOptions = []string{"translation", "review"}
-	reportingMatchBucket = []string{"repetition", "100", "95-99", "85-94", "75-84", "50-74", "new", "unavailable"}
+	reportingUSDPattern     = regexp.MustCompile(`^\d{1,12}(\.\d{1,8})?$`)
+	reportingStepOptions    = []string{"translation", "review"}
+	reportingUnitOptions    = []string{"words", "strings", "characters", "characters_with_spaces"}
+	reportingMatchBucket    = []string{"repetition", "100", "95-99", "85-94", "75-84", "50-74", "new", "unavailable"}
+	reportingSummarySources = []string{"memory", "ai", "person", "import", "unknown"}
 )
 
-func (h *handler) registerReporting(mux *http.ServeMux, verifier SessionVerifier) {
-	base := orgRoutePrefix + "/reports"
-	route := func(pattern string, fn func(*http.Request, workspaceActor) (any, int, error)) {
-		registerAuthenticated(mux, verifier, pattern, h.workspaceHandle(
-			workspaceReportsFlag, reportingFlagMessage, "Insufficient permissions",
-			func(workspaceActor) bool { return true }, fn,
-		))
-	}
-	route("GET "+base, h.getReport)
-	route("GET "+base+"/settings", h.getReportSettings)
-	route("GET "+base+"/tasks/{jobId}", h.getTaskReport)
-	route("POST "+base+"/rates", h.createReportingRate)
-	route("PUT "+base+"/budgets", h.upsertReportingBudget)
-	route("PUT "+base+"/task-rates", h.putTaskRate)
-	route("POST "+base+"/expenses", h.createReportingExpense)
-	route("POST "+base+"/time-entries", h.createTimeEntry)
-	route("PATCH "+base+"/time-entries/{id}", h.updateTimeEntry)
-	route("DELETE "+base+"/time-entries/{id}", h.deleteTimeEntry)
+type reportingAPI struct {
+	pool       dictionaryPool
+	membership organizationMembershipLookup
+	flags      workspaceFlagChecker
+	now        func() time.Time
+	queries    *semaphore.Weighted
+}
+
+func newReportingAPI() *reportingAPI {
+	return &reportingAPI{now: time.Now, queries: semaphore.NewWeighted(reportingQueriesAtOnce)}
+}
+
+type reportingActor struct {
+	userID, organizationID, role       string
+	workosUserID, workosOrganizationID string
+}
+
+func (a reportingActor) can(capability string) bool {
+	return hasOrganizationCapability(a.role, capability)
+}
+
+// orgWideProjectAccess mirrors the web app's hasOrganizationWideProjectAccess: the roles that
+// manage teams can open every project.
+func (a reportingActor) orgWideProjectAccess() bool {
+	return a.can("teams:write")
+}
+
+type reportingError struct {
+	status        int
+	code, message string
+}
+
+func (e *reportingError) Error() string { return e.code }
+
+func reportingFailure(status int, code, message string) error {
+	return &reportingError{status: status, code: code, message: message}
 }
 
 func reportingInvalid(code string) error {
-	return workspaceFailure(400, code, "Request payload is invalid")
+	return reportingFailure(400, code, "Request payload is invalid")
+}
+
+func reportingInvalidQuery() error {
+	return reportingFailure(400, "invalid_report_query", "Report query is invalid")
 }
 
 func reportingForbidden(code string) error {
-	return workspaceFailure(403, code, "Insufficient permissions")
+	return reportingFailure(403, code, "Insufficient permissions")
 }
 
-func reportingNotFound(code string) error {
-	return workspaceFailure(404, code, "Resource not found")
+func (api *reportingAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
+	base := orgRoutePrefix + "/reports"
+	route := func(pattern, capability, deniedCode string, fn func(*http.Request, reportingActor) (any, int, error)) {
+		registerAuthenticated(mux, verifier, pattern, api.handle(capability, deniedCode, fn))
+	}
+	route("GET "+base+"/jobs", "", "", api.tasks)
+	route("GET "+base+"/settings", "", "", api.settings)
+	route("GET "+base+"/activity", "billing:read", "report_costs_forbidden", api.activity)
+	route("GET "+base+"/step-times", "billing:read", "report_costs_forbidden", api.stepTimes)
+	route("GET "+base+"/words/series", "billing:read", "report_costs_forbidden", api.wordSeries)
+	route("GET "+base+"/words", "billing:read", "report_costs_forbidden", api.words)
+	route("GET "+base+"/time", "", "", api.time)
+}
+
+func (api *reportingAPI) actor(ctx context.Context, claims AuthClaims, slug string) (reportingActor, error) {
+	resolved, err := resolveOrganizationActor(ctx, api.pool, api.membership, claims, slug)
+	if err != nil {
+		return reportingActor{}, mapOrganizationAccessError(err, reportingFailure)
+	}
+	var workosOrg string
+	if err := api.pool.QueryRow(ctx, `select workos_organization_id from organizations where id=$1`, resolved.organizationID).Scan(&workosOrg); err != nil {
+		return reportingActor{}, err
+	}
+	return reportingActor{
+		userID:               resolved.userID,
+		organizationID:       resolved.organizationID,
+		role:                 resolved.role,
+		workosUserID:         claims.UserID,
+		workosOrganizationID: workosOrg,
+	}, nil
+}
+
+// handle checks the session, the workspace, the Reports flag and the route's capability, in that
+// order as the web routes do. The database admission limit is in read.
+func (api *reportingAPI) handle(capability, deniedCode string, fn func(*http.Request, reportingActor) (any, int, error)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		if denyBrowserMutation(r) {
+			writeReportingError(w, r, "origin_guard", reportingFailure(403, "forbidden", "Cross-origin request denied"))
+			return
+		}
+		if api.pool == nil {
+			writeReportingError(w, r, "availability", reportingFailure(503, "reports_unavailable", "Reports service unavailable"))
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), reportingRequestTimeout)
+		defer cancel()
+		r = r.WithContext(ctx)
+		claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
+		if !ok {
+			writeReportingError(w, r, "auth", reportingFailure(401, "unauthorized", "Authentication required"))
+			return
+		}
+		actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
+		if err != nil {
+			writeReportingError(w, r, "resolve_actor", err)
+			return
+		}
+		if !api.flagEnabled(ctx, actor) {
+			writeReportingError(w, r, "flag", reportingFailure(403, "feature_unavailable", reportingFlagMessage))
+			return
+		}
+		if capability != "" && !actor.can(capability) {
+			writeReportingError(w, r, "capability", reportingForbidden(deniedCode))
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, workspaceBodyLimit)
+		value, status, err := fn(r, actor)
+		if err != nil {
+			writeReportingError(w, r, "handle", err)
+			return
+		}
+		if status == http.StatusNoContent {
+			w.WriteHeader(status)
+			return
+		}
+		if download, ok := value.(reportingCSV); ok {
+			writeReportingCSV(ctx, w, status, download)
+			return
+		}
+		reportingJSON(ctx, w, status, value)
+	})
+}
+
+func (api *reportingAPI) flagEnabled(ctx context.Context, actor reportingActor) bool {
+	if api.flags == nil {
+		return false
+	}
+	enabled, err := api.flags.Enabled(ctx, actor.workosOrganizationID, actor.workosUserID, workspaceReportsFlag)
+	return err == nil && enabled
+}
+
+func reportingJSON(ctx context.Context, w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(value); err != nil {
+		slog.WarnContext(ctx, "reporting_response_write_failed")
+	}
+}
+
+func writeReportingError(w http.ResponseWriter, r *http.Request, phase string, err error) {
+	var failure *reportingError
+	var pgErr *pgconn.PgError
+	switch {
+	case errors.As(err, &failure):
+		logRequestFailure(r, "reporting_request_failed", phase, err, "status", failure.status, "code", failure.code)
+	case errors.As(err, &pgErr) && pgErr.Code == "57014":
+		// The statement time limit: the report is too wide for the database to answer in time.
+		logRequestFailure(r, "reporting_request_failed", phase, err, "status", 503, "code", "report_timed_out")
+		failure = &reportingError{status: 503, code: "report_timed_out", message: "The report took too long; choose fewer days"}
+	default:
+		logRequestFailure(r, "reporting_request_failed", phase, err)
+		failure = &reportingError{status: 500, code: "internal_error", message: "Internal server error"}
+	}
+	reportingJSON(r.Context(), w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
 }
 
 func formatReportingTime(t time.Time) string {
@@ -248,22 +402,11 @@ func (b *reportingBody) percentages(key string) map[string]int {
 	return result
 }
 
+// isReportingDay accepts a day as the web schema does: YYYY-MM-DD, a real calendar date.
 func isReportingDay(value string) bool {
 	if len(value) != len(time.DateOnly) {
 		return false
 	}
 	_, err := time.Parse(time.DateOnly, value)
 	return err == nil
-}
-
-type reportingCSV struct {
-	filename string
-	body     []byte
-}
-
-func writeReportingCSV(w http.ResponseWriter, status int, download reportingCSV) {
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+download.filename+`"`)
-	w.WriteHeader(status)
-	_, _ = w.Write(download.body)
 }

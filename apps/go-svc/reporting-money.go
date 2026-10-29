@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"math"
 	"math/big"
 	"regexp"
 	"strings"
@@ -78,4 +81,24 @@ func budgetWarning(budget, cost string) (string, error) {
 		return "approaching", nil
 	}
 	return "none", nil
+}
+
+// reportingPayablePercent is the share of a rate paid for a match band, from a rate line's
+// percentages; a band the line does not name is paid in full.
+func reportingPayablePercent(raw []byte, bucket string) (int, error) {
+	if len(raw) == 0 || isJSONNull(raw) {
+		return 100, nil
+	}
+	var percentages map[string]*float64
+	if err := json.Unmarshal(raw, &percentages); err != nil {
+		return 0, fmt.Errorf("decode reporting rate percentages: %w", err)
+	}
+	value, ok := percentages[bucket]
+	if !ok || value == nil {
+		return 100, nil
+	}
+	if *value != math.Trunc(*value) {
+		return 0, fmt.Errorf("reporting rate percentage is not an integer")
+	}
+	return int(*value), nil
 }

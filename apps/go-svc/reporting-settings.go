@@ -4,130 +4,90 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
-	"math/big"
 	"net/http"
-	"time"
-
-	"github.com/jackc/pgx/v5"
+	"sort"
+	"strings"
+	"unicode"
 )
 
-type reportingProject struct {
+type reportingSettingsProject struct {
 	ID            string          `json:"id"`
 	Name          string          `json:"name"`
+	SourceLocale  *string         `json:"sourceLocale"`
 	TargetLocales json.RawMessage `json:"targetLocales"`
 }
 
-type reportingRate struct {
-	ID             string          `json:"id"`
-	OrganizationID string          `json:"organizationId"`
-	Name           string          `json:"name"`
-	SourceLocale   string          `json:"sourceLocale"`
-	TargetLocale   string          `json:"targetLocale"`
-	Step           string          `json:"step"`
-	Basis          string          `json:"basis"`
-	Rate           string          `json:"rate"`
-	Percentages    json.RawMessage `json:"percentages"`
-	CreatedAt      string          `json:"createdAt"`
-}
-
-const reportingRateColumns = `id, organization_id, name, source_locale, target_locale, step, basis, rate::text, percentages, created_at`
-
-func scanReportingRate(row pgx.Row) (reportingRate, error) {
-	var rate reportingRate
-	var created time.Time
-	err := row.Scan(&rate.ID, &rate.OrganizationID, &rate.Name, &rate.SourceLocale, &rate.TargetLocale,
-		&rate.Step, &rate.Basis, &rate.Rate, &rate.Percentages, &created)
-	rate.CreatedAt = formatReportingTime(created)
-	return rate, err
-}
-
-type reportingBudget struct {
-	ID             string  `json:"id"`
-	OrganizationID string  `json:"organizationId"`
-	ProjectID      *string `json:"projectId"`
-	Budget         string  `json:"budget"`
-	RateCardName   *string `json:"rateCardName"`
-	CreatedAt      string  `json:"createdAt"`
-}
-
-const reportingBudgetColumns = `id, organization_id, project_id, budget::text, rate_card_name, created_at`
-
-func scanReportingBudget(row pgx.Row) (reportingBudget, error) {
-	var budget reportingBudget
-	var created time.Time
-	err := row.Scan(&budget.ID, &budget.OrganizationID, &budget.ProjectID, &budget.Budget, &budget.RateCardName, &created)
-	budget.CreatedAt = formatReportingTime(created)
-	return budget, err
-}
-
-type reportingBudgetSummary struct {
-	reportingBudget
-	AccruedUSD      string `json:"accruedUsd"`
-	OutstandingUSD  string `json:"outstandingUsd"`
-	ForecastUSD     string `json:"forecastUsd"`
-	RemainingUSD    string `json:"remainingUsd"`
-	Incomplete      bool   `json:"incomplete"`
-	SpendWarning    string `json:"spendWarning"`
-	ForecastWarning string `json:"forecastWarning"`
+// reportingSummaryFreshness says whether recent work is still being added to the summary.
+type reportingSummaryFreshness struct {
+	// Days of recent work the summary has not counted yet.
+	PendingDays    int     `json:"pendingDays"`
+	OldestMarkedAt *string `json:"oldestMarkedAt"`
 }
 
 type reportingSettings struct {
-	Projects  []reportingProject       `json:"projects"`
-	Rates     []reportingRate          `json:"rates"`
-	Budgets   []reportingBudgetSummary `json:"budgets"`
-	Financial bool                     `json:"financial"`
-	CanManage bool                     `json:"canManage"`
+	Projects      []reportingSettingsProject `json:"projects"`
+	StartedAt     *string                    `json:"startedAt"`
+	StartedDay    *string                    `json:"startedDay"`
+	Today         string                     `json:"today"`
+	CanLogTime    bool                       `json:"canLogTime"`
+	Summary       reportingSummaryFreshness  `json:"summary"`
+	RateCardNames []string                   `json:"rateCardNames"`
+	Financial     bool                       `json:"financial"`
+	CanManage     bool                       `json:"canManage"`
 }
 
-func (h *handler) getReportSettings(r *http.Request, actor workspaceActor) (any, int, error) {
-	ctx, db := r.Context(), h.workspace.pool
-	projectIDs, err := reportingProjectIDs(ctx, db, actor)
-	if err != nil {
-		return nil, 0, err
-	}
-	settings := reportingSettings{Projects: []reportingProject{}, Rates: []reportingRate{}, Budgets: []reportingBudgetSummary{}}
-	if len(projectIDs) > 0 {
-		if settings.Projects, err = loadReportingProjects(ctx, db, projectIDs); err != nil {
-			return nil, 0, err
-		}
-	}
-	if !hasOrganizationCapability(actor.role, "billing:read") {
-		return map[string]any{"settings": settings}, http.StatusOK, nil
-	}
-	rows, err := db.Query(ctx, `select `+reportingRateColumns+` from reporting_rates where organization_id=$1 order by created_at desc`, actor.organizationID)
-	if err != nil {
-		return nil, 0, fmt.Errorf("list reporting rates: %w", err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		rate, err := scanReportingRate(rows)
+// settings is what the Reports page needs before its first report: the viewer's projects, the
+// dates Reports covers, what they may do, and the rate cards they may price with.
+func (api *reportingAPI) settings(r *http.Request, actor reportingActor) (any, int, error) {
+	ctx := r.Context()
+	var settings reportingSettings
+	err := api.read(ctx, func(db dictionaryDB) error {
+		context, err := api.context(ctx, db, actor)
 		if err != nil {
-			return nil, 0, fmt.Errorf("scan reporting rate: %w", err)
+			return err
 		}
-		settings.Rates = append(settings.Rates, rate)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("list reporting rates: %w", err)
-	}
-	if settings.Budgets, err = budgetSummary(ctx, db, actor.organizationID, projectIDs); err != nil {
+		settings = reportingSettings{
+			Projects:      []reportingSettingsProject{},
+			Today:         context.today,
+			CanLogTime:    actor.can("jobs:write"),
+			RateCardNames: []string{},
+		}
+		if context.startedAt != nil {
+			startedAt, startedDay := formatReportingTime(*context.startedAt), context.startedDay
+			settings.StartedAt, settings.StartedDay = &startedAt, &startedDay
+		}
+		if len(context.projectIDs) > 0 {
+			if settings.Projects, err = reportingSettingsProjects(ctx, db, context.projectIDs); err != nil {
+				return err
+			}
+		}
+		if settings.Summary, err = reportingSummaryFreshnessOf(ctx, db, actor.organizationID); err != nil {
+			return err
+		}
+		if !context.financial {
+			return nil
+		}
+		settings.Financial = true
+		settings.CanManage = actor.can("billing:write")
+		settings.RateCardNames, err = reportingRateCardNames(ctx, db, actor.organizationID)
+		return err
+	})
+	if err != nil {
 		return nil, 0, err
 	}
-	settings.Financial = true
-	settings.CanManage = hasOrganizationCapability(actor.role, "billing:write")
 	return map[string]any{"settings": settings}, http.StatusOK, nil
 }
 
-func loadReportingProjects(ctx context.Context, db dictionaryDB, projectIDs []string) ([]reportingProject, error) {
-	rows, err := db.Query(ctx, `select id, name, target_locales from projects where id = any($1::text[])`, projectIDs)
+func reportingSettingsProjects(ctx context.Context, db dictionaryDB, projectIDs []string) ([]reportingSettingsProject, error) {
+	rows, err := db.Query(ctx, `select id, name, source_locale, target_locales from projects where id = any($1::text[])`, projectIDs)
 	if err != nil {
 		return nil, fmt.Errorf("list reporting settings projects: %w", err)
 	}
 	defer rows.Close()
-	projects := []reportingProject{}
+	projects := []reportingSettingsProject{}
 	for rows.Next() {
-		var project reportingProject
-		if err := rows.Scan(&project.ID, &project.Name, &project.TargetLocales); err != nil {
+		var project reportingSettingsProject
+		if err := rows.Scan(&project.ID, &project.Name, &project.SourceLocale, &project.TargetLocales); err != nil {
 			return nil, fmt.Errorf("scan reporting settings project: %w", err)
 		}
 		projects = append(projects, project)
@@ -135,177 +95,63 @@ func loadReportingProjects(ctx context.Context, db dictionaryDB, projectIDs []st
 	return projects, rows.Err()
 }
 
-func budgetSummary(ctx context.Context, db dictionaryDB, organizationID string, projectIDs []string) ([]reportingBudgetSummary, error) {
-	summaries := []reportingBudgetSummary{}
-	if len(projectIDs) == 0 {
-		return summaries, nil
-	}
-	rows, err := db.Query(ctx, `select `+reportingBudgetColumns+` from reporting_budgets where organization_id=$1 and project_id = any($2::text[])`,
-		organizationID, projectIDs)
+func reportingSummaryFreshnessOf(ctx context.Context, db dictionaryDB, organizationID string) (reportingSummaryFreshness, error) {
+	var pending reportingSummaryFreshness
+	err := db.QueryRow(ctx, `
+        select count(*)::integer, min(marked_at)::text
+        from reporting_summary_queue where organization_id = $1`, organizationID).
+		Scan(&pending.PendingDays, &pending.OldestMarkedAt)
 	if err != nil {
-		return nil, fmt.Errorf("list reporting budgets: %w", err)
+		return pending, fmt.Errorf("read reporting summary freshness: %w", err)
 	}
-	budgets, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (reportingBudget, error) { return scanReportingBudget(row) })
-	if err != nil {
-		return nil, fmt.Errorf("list reporting budgets: %w", err)
-	}
-	for _, budget := range budgets {
-		summary, err := summarizeReportingBudget(ctx, db, organizationID, budget)
-		if err != nil {
-			return nil, err
-		}
-		summaries = append(summaries, summary)
-	}
-	return summaries, nil
+	return pending, nil
 }
 
-type reportingPendingWork struct {
-	words       *int
-	bucket      string
-	rate, basis *string
-	percentages []byte
-}
-
-func summarizeReportingBudget(ctx context.Context, db dictionaryDB, organizationID string, budget reportingBudget) (reportingBudgetSummary, error) {
-	var accruedText string
-	var unpriced int
-	if err := db.QueryRow(ctx, `
-        select coalesce(sum(c.amount_usd),0)::text as amount, count(*) filter(where c.amount_usd is null)::integer as unpriced
-        from reporting_costs c where c.organization_id=$1 and c.project_id=$2 and not c.voided`,
-		organizationID, budget.ProjectID).Scan(&accruedText, &unpriced); err != nil {
-		return reportingBudgetSummary{}, fmt.Errorf("sum reporting budget costs: %w", err)
-	}
+// reportingRateCardNames lists every rate card: those with a record of their own, and those from
+// before cards had one whose newest line of any language pair and step is not retired.
+func reportingRateCardNames(ctx context.Context, db dictionaryDB, organizationID string) ([]string, error) {
 	rows, err := db.Query(ctx, `
-        select a.words,a.bucket,r.rate::text,r.basis,r.percentages from reporting_analyses a left join reporting_rates r on r.id=a.rate_id join jobs j on j.id=a.job_id
-        where a.organization_id=$1 and a.project_id=$2 and a.is_current and a.billable and j.status not in ('failed','cancelled')
-        and not exists(select 1 from reporting_activity e where e.organization_id=a.organization_id and e.operation_key='completion:' || a.id || ':' || a.step)
-        and not exists(select 1 from reporting_task_rates t where t.organization_id=a.organization_id and t.job_id=a.job_id and t.step=a.step and t.override_usd is not null)`,
-		organizationID, budget.ProjectID)
+        select name from reporting_rate_cards where organization_id = $1
+        union
+        select name from (
+            select distinct on (name, source_locale, target_locale, step) name, retired
+            from reporting_rates where organization_id = $1
+            order by name, source_locale, target_locale, step, created_at desc, id desc
+        ) live where not retired`, organizationID)
 	if err != nil {
-		return reportingBudgetSummary{}, fmt.Errorf("list reporting pending work: %w", err)
+		return nil, fmt.Errorf("list reporting rate cards: %w", err)
 	}
-	pending, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (reportingPendingWork, error) {
-		var work reportingPendingWork
-		err := row.Scan(&work.words, &work.bucket, &work.rate, &work.basis, &work.percentages)
-		return work, err
-	})
-	if err != nil {
-		return reportingBudgetSummary{}, fmt.Errorf("list reporting pending work: %w", err)
-	}
-	outstanding := new(big.Int)
-	incomplete := unpriced > 0
-	for _, work := range pending {
-		if work.basis != nil && *work.basis == "hour" {
-			continue
+	defer rows.Close()
+	names := []string{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("scan reporting rate card: %w", err)
 		}
-		if work.words == nil || work.rate == nil || *work.rate == "" || work.bucket == "unavailable" {
-			incomplete = true
-			continue
-		}
-		percent, err := reportingPayablePercent(work.percentages, work.bucket)
-		if err != nil {
-			return reportingBudgetSummary{}, err
-		}
-		cost, err := wordCost(*work.rate, *work.words, percent)
-		if err != nil {
-			return reportingBudgetSummary{}, err
-		}
-		outstanding.Add(outstanding, cost)
+		names = append(names, name)
 	}
-
-	type hourlyWork struct {
-		estimated *int
-		logged    int
-		rate      string
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list reporting rate cards: %w", err)
 	}
-	rows, err = db.Query(ctx, `
-        select t.estimated_minutes as estimated, coalesce((select sum(e.minutes) from reporting_time_entries e where e.job_id=a.job_id and e.step=r.step and not e.voided),0)::integer as logged, r.rate::text
-        from (select distinct job_id,rate_id from reporting_analyses where organization_id=$1 and project_id=$2 and is_current and billable) a
-        join reporting_rates r on r.id=a.rate_id join jobs j on j.id=a.job_id
-        left join reporting_task_rates t on t.job_id=a.job_id and t.step=r.step
-        where r.basis='hour' and t.override_usd is null and j.status not in ('succeeded','failed','cancelled')`,
-		organizationID, budget.ProjectID)
-	if err != nil {
-		return reportingBudgetSummary{}, fmt.Errorf("list reporting hourly work: %w", err)
-	}
-	hours, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (hourlyWork, error) {
-		var work hourlyWork
-		err := row.Scan(&work.estimated, &work.logged, &work.rate)
-		return work, err
-	})
-	if err != nil {
-		return reportingBudgetSummary{}, fmt.Errorf("list reporting hourly work: %w", err)
-	}
-	for _, work := range hours {
-		if work.estimated == nil {
-			incomplete = true
-			continue
-		}
-		cost, err := hourlyCost(work.rate, max(0, *work.estimated-work.logged))
-		if err != nil {
-			return reportingBudgetSummary{}, err
-		}
-		outstanding.Add(outstanding, cost)
-	}
-
-	var overridesText string
-	if err := db.QueryRow(ctx, `
-        select coalesce(sum(r.override_usd),0)::text as amount from reporting_task_rates r join jobs j on j.id=r.job_id
-        where r.organization_id=$1 and j.project_id=$2 and r.override_usd is not null
-        and j.status not in ('failed','cancelled')
-        and not exists(select 1 from reporting_costs c where c.organization_id=r.organization_id and c.operation_key='task-override:' || r.id)`,
-		organizationID, budget.ProjectID).Scan(&overridesText); err != nil {
-		return reportingBudgetSummary{}, fmt.Errorf("sum reporting task overrides: %w", err)
-	}
-	overrides, err := usdUnits(overridesText)
-	if err != nil {
-		return reportingBudgetSummary{}, err
-	}
-	outstanding.Add(outstanding, overrides)
-
-	accrued, err := usdUnits(accruedText)
-	if err != nil {
-		return reportingBudgetSummary{}, err
-	}
-	limit, err := usdUnits(budget.Budget)
-	if err != nil {
-		return reportingBudgetSummary{}, err
-	}
-	forecast := new(big.Int).Add(accrued, outstanding)
-	spendWarning, err := budgetWarning(budget.Budget, usdString(accrued))
-	if err != nil {
-		return reportingBudgetSummary{}, err
-	}
-	forecastWarning, err := budgetWarning(budget.Budget, usdString(forecast))
-	if err != nil {
-		return reportingBudgetSummary{}, err
-	}
-	return reportingBudgetSummary{
-		reportingBudget: budget,
-		AccruedUSD:      usdString(accrued),
-		OutstandingUSD:  usdString(outstanding),
-		ForecastUSD:     usdString(forecast),
-		RemainingUSD:    usdString(limit.Sub(limit, accrued)),
-		Incomplete:      incomplete,
-		SpendWarning:    spendWarning,
-		ForecastWarning: forecastWarning,
-	}, nil
+	sort.SliceStable(names, func(i, j int) bool { return compareReportingNames(names[i], names[j]) < 0 })
+	return names, nil
 }
 
-func reportingPayablePercent(raw []byte, bucket string) (int, error) {
-	if len(raw) == 0 || isJSONNull(raw) {
-		return 100, nil
+// compareReportingNames orders names as the browser's localeCompare does for plain text: by
+// letters regardless of case, then lower case before upper case.
+func compareReportingNames(a, b string) int {
+	if folded := strings.Compare(strings.ToLower(a), strings.ToLower(b)); folded != 0 {
+		return folded
 	}
-	var percentages map[string]*float64
-	if err := json.Unmarshal(raw, &percentages); err != nil {
-		return 0, fmt.Errorf("decode reporting rate percentages: %w", err)
+	ra, rb := []rune(a), []rune(b)
+	for i := 0; i < len(ra) && i < len(rb); i++ {
+		if ra[i] == rb[i] {
+			continue
+		}
+		if unicode.IsLower(ra[i]) {
+			return -1
+		}
+		return 1
 	}
-	value, ok := percentages[bucket]
-	if !ok || value == nil {
-		return 100, nil
-	}
-	if *value != math.Trunc(*value) {
-		return 0, fmt.Errorf("reporting rate percentage is not an integer")
-	}
-	return int(*value), nil
+	return len(ra) - len(rb)
 }

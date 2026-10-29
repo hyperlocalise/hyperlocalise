@@ -1,0 +1,30 @@
+# Reports reads and writes in go-svc
+
+**Status:** Accepted
+
+Moves the Reports API ([Reports rework](./2026-10-23-reports-rework-design.md)) from the web app's Hono routes to go-svc, one slice at a time, then switches the page over. Recording (analyses, finished strings, job status, pricing at finish, AI costs), word counting, the memory matcher and the 15-minute capture cron stay in the web app.
+
+## Context
+
+- go-svc held a copy of the old Reports API (`apps/go-svc/reporting*.go`, from before the rework), as step one of the usual move: copy into Go, then switch the page over. The rework replaced the design it copied, so nothing called it.
+- Reports' reads and writes are about 4,200 lines of TypeScript, most of it SQL, which ports line for line. Reports has no customer users yet and sits behind the `workspace-reports` flag.
+- go-svc's size in production (vCPU, memory, pool size) is not stated anywhere in the repo. Its pool is the pgx default, and the glossary routes already work around it running out.
+
+## Decision
+
+- **The Go routes answer as the web routes do:** the same paths under `/v1/orgs/{slug}/reports`, query fields, error codes, answer shapes and permissions, plus a `message` on errors as every go-svc API gives. Each section ports with its web test cases.
+- **Layout.** `reportingAPI` (`reporting.go`) follows the other go-svc areas: its own actor, failure type and `handle` wrapper, registered from `handler.go`, wired in `main.go`. The wrapper checks the session, the workspace, the flag and the route's capability in that order, as the web middleware chain does. Shared files get a few lines each (a field, the registration, the wiring, the request-log path); the old `workspaceHandle` no longer special-cases CSV.
+  - `reporting-access.go`: the viewer's projects by the team rule, when Reports started, the request context.
+  - `reporting-period.go`, `reporting-query.go`, `reporting-scope.go`, `reporting-csv.go`: the dates, query parsing that refuses what the Zod schemas refuse (lengths in UTF-16 units, repeated keys, empty values), the summary rows a section reads, and streamed CSV with the web app's cell quoting.
+  - One file per section: `reporting-settings.go`, `reporting-activity.go`, `reporting-tasks.go` (the task picker), `reporting-time.go` (the Time tab and time by step), `reporting-words.go` (the Word counts table and chart). Kept from the old copy for the later slices: `reporting-money.go` (fixed-point USD arithmetic), the `reportingBody` JSON parser in `reporting.go` (the writes) and `loadReportingJob` (a task's report and time entries).
+- **Safeguards for an unknown service size** (`reporting-safeguards.go`), all inside Reports' own code: at most 2 Reports requests query the database at once per copy; each request reads on one pooled connection in a read-only transaction with a 10 s statement limit; CSVs are written row by row; the flag answer is cached per workspace and user for a minute, requests that miss together share one lookup, and a failed lookup is never cached. Under load this makes the Reports page slower, not editor saves.
+- **Verification.** While both route sets exist, a comparison harness (on the port branch only, never on main: a fixed seed, a request list, both sides answered in-process with the same stubbed session and flag, compared field by field) proves each ported route. Lasting coverage is the ported Go tests.
+- **Defects fixed in the port** (each small, by the plan's rule): the period never starts before the day Reports started, so a hand-edited link cannot ask for thousands of daily bars (D194); the task picker offers tasks Reports has not counted when asked (`counted=false`), so time can be logged on them once the page uses it (D160's server half).
+- **Slices.** Reads first (this record), money reads, writes, then the page switch, then the Hono routes removed one release later; the columns only the old Go copy read (`reporting_task_rates.rate_id`, `reporting_analyses.rate_id`, `reporting_rollout`) are dropped last.
+
+## Consequences
+
+- Nothing calls the Go routes until the page switches, so slices merge as they are reviewed.
+- The web app's Reports routes are unchanged until the switch; changes to them are paused meanwhile, and a Reports change made in TypeScript during the port must be ported too.
+- The harness cannot check cross-workspace access or the flag itself, since both sides stub them; the Go tests cover those.
+- Sorting rate card names as the browser's `localeCompare` does is approximated (letters regardless of case, then lower case first); punctuation and accents may order differently.
