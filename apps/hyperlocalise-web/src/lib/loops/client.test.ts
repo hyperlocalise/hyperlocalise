@@ -18,6 +18,7 @@ import {
   isLoopsLegacyContentError,
   isLoopsNotFoundError,
   LoopsApiError,
+  selectLoopsCopyByName,
 } from "./client";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -218,5 +219,37 @@ describe("isLoopsNotFoundError", () => {
       ),
     ).toBe(false);
     expect(isLoopsNotFoundError(new Error("404 - Campaign not found"))).toBe(false);
+  });
+});
+
+describe("selectLoopsCopyByName", () => {
+  const copy = (id: string, name: string, updatedAt: string) => ({ id, name, updatedAt });
+
+  it("returns null when nothing matches", () => {
+    expect(selectLoopsCopyByName([copy("a", "Other [fr]", "2026-10-29")], "Welcome [fr]")).toEqual({
+      match: null,
+      duplicateCount: 0,
+    });
+  });
+
+  it("matches exactly and reports no duplicates for a single copy", () => {
+    expect(
+      selectLoopsCopyByName(
+        [copy("a", "Other [fr]", "2026-10-29"), copy("b", "Welcome [fr]", "2026-10-29")],
+        "Welcome [fr]",
+      ),
+    ).toEqual({ match: copy("b", "Welcome [fr]", "2026-10-29"), duplicateCount: 0 });
+  });
+
+  it("picks the newest copy and counts the extras", () => {
+    const { match, duplicateCount } = selectLoopsCopyByName(
+      [
+        copy("old", "Welcome [fr]", "2026-10-27T00:00:00.000Z"),
+        copy("new", "Welcome [fr]", "2026-10-28T00:00:00.000Z"),
+      ],
+      "Welcome [fr]",
+    );
+    expect(match?.id).toBe("new");
+    expect(duplicateCount).toBe(1);
   });
 });

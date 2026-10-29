@@ -23,12 +23,9 @@ import { isErr } from "@/lib/primitives/result/results";
 import { applyHtmlIngestTranslations } from "@/lib/projects/files/html-ingest-entries";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
-import {
-  isLoopsLanguageLabelUnsupportedError,
-  isLoopsNotFoundError,
-  type LoopsClient,
-} from "./client";
+import { isLoopsLanguageLabelUnsupportedError, type LoopsClient } from "./client";
 import { loadLoopsAutomationClient } from "./credentials";
+import { resolveCampaignCopy, resolveTransactionalCopy } from "./push-copy-resolution";
 import {
   applyLoopsSegmentTranslations,
   hashLoopsContent,
@@ -132,36 +129,20 @@ async function pushTransactionalLocale(input: {
   subject: string;
   previewText?: string;
   lmx: string;
+  pushWarning: (message: string) => void;
 }): Promise<void> {
   const copyName = loopsEmailCopyName(input.mapping.sourceName, input.locale);
   const languageCode = toLoopsLanguageCode(input.locale);
-  let copyId: string | undefined = input.mapping.localeCopyIds?.[input.locale];
-  let draftEmailMessageId: string | null = null;
-  let expectedRevisionId: string | null = null;
+  const resolved = await resolveTransactionalCopy({
+    client: input.client,
+    storedCopyId: input.mapping.localeCopyIds?.[input.locale],
+    copyName,
+    pushWarning: input.pushWarning,
+  });
+  const copyId = resolved.copyId;
+  let draftEmailMessageId = resolved.draftEmailMessageId;
+  let expectedRevisionId = resolved.expectedRevisionId;
 
-  if (copyId) {
-    try {
-      const draft = await input.client.ensureTransactionalDraft(copyId);
-      draftEmailMessageId = draft.draftEmailMessageId;
-      expectedRevisionId = draft.draftEmailMessageContentRevisionId;
-    } catch (error) {
-      if (!isLoopsNotFoundError(error)) {
-        throw error;
-      }
-      // The locale copy was deleted in Loops; drop the stale id and recreate it below.
-      logger.info(
-        { sourcePath: input.mapping.sourcePath, locale: input.locale, copyId },
-        "loops push recreating deleted transactional copy",
-      );
-      copyId = undefined;
-    }
-  }
-  if (!copyId) {
-    const created = await input.client.createTransactionalEmail(copyName);
-    copyId = created.id;
-    draftEmailMessageId = created.draftEmailMessageId;
-    expectedRevisionId = created.draftEmailMessageContentRevisionId;
-  }
   if (!copyId) {
     throw new Error("loops_copy_create_failed");
   }
@@ -198,44 +179,20 @@ async function pushCampaignLocale(input: {
   subject: string;
   previewText?: string;
   lmx: string;
+  pushWarning: (message: string) => void;
 }): Promise<void> {
   const copyName = loopsEmailCopyName(input.mapping.sourceName, input.locale);
   const languageCode = toLoopsLanguageCode(input.locale);
-  let copyId: string | undefined = input.mapping.localeCopyIds?.[input.locale];
-  let emailMessageId: string | null = null;
-  let expectedRevisionId: string | null = null;
+  const resolved = await resolveCampaignCopy({
+    client: input.client,
+    storedCopyId: input.mapping.localeCopyIds?.[input.locale],
+    copyName,
+    pushWarning: input.pushWarning,
+  });
+  const copyId = resolved.copyId;
+  const emailMessageId = resolved.emailMessageId;
+  const expectedRevisionId = resolved.expectedRevisionId;
 
-  if (!copyId) {
-    const created = await input.client.createCampaign(copyName);
-    copyId = created.id;
-    emailMessageId = created.emailMessageId;
-    expectedRevisionId = created.emailMessageContentRevisionId;
-  } else {
-    try {
-      const campaign = await input.client.getCampaign(copyId);
-      emailMessageId = campaign.emailMessageId;
-      if (emailMessageId) {
-        const message = await input.client.getEmailMessage(emailMessageId);
-        expectedRevisionId = message.contentRevisionId;
-      }
-    } catch (error) {
-      if (!isLoopsNotFoundError(error)) {
-        throw error;
-      }
-      // The locale copy was deleted in Loops; drop the stale id and recreate it below.
-      logger.info(
-        { sourcePath: input.mapping.sourcePath, locale: input.locale, copyId },
-        "loops push recreating deleted campaign copy",
-      );
-      copyId = undefined;
-    }
-  }
-  if (!copyId) {
-    const created = await input.client.createCampaign(copyName);
-    copyId = created.id;
-    emailMessageId = created.emailMessageId;
-    expectedRevisionId = created.emailMessageContentRevisionId;
-  }
   if (!copyId || !emailMessageId || !expectedRevisionId) {
     throw new Error("loops_copy_create_failed");
   }
@@ -413,6 +370,7 @@ export async function runPushLoopsEmails(input: {
             subject: parsed.subject,
             previewText: parsed.previewText,
             lmx: translatedLmx,
+            pushWarning,
           });
         } else {
           // Transactional copies stay unpublished. Workflow sources also land as
@@ -425,6 +383,7 @@ export async function runPushLoopsEmails(input: {
             subject: parsed.subject,
             previewText: parsed.previewText,
             lmx: translatedLmx,
+            pushWarning,
           });
         }
         result.pushedLocales += 1;

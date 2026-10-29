@@ -46,6 +46,34 @@ export function isLoopsLegacyContentError(error: unknown): boolean {
 }
 
 /**
+ * A Loops list item that can be matched to a locale copy by name.
+ */
+export type LoopsCopyCandidate = {
+  id: string;
+  name?: string | null;
+  updatedAt?: string | null;
+};
+
+/**
+ * Find locale copies with an exact name match. Loops allows duplicate names,
+ * so when several copies share a name the newest (by `updatedAt`) wins and the
+ * caller is told how many extras exist via `duplicateCount`.
+ */
+export function selectLoopsCopyByName<T extends LoopsCopyCandidate>(
+  items: readonly T[],
+  name: string,
+): { match: T | null; duplicateCount: number } {
+  const matches = items.filter((item) => item.id && item.name === name);
+  if (matches.length === 0) {
+    return { match: null, duplicateCount: 0 };
+  }
+  const sorted = [...matches].sort((a, b) =>
+    String(b.updatedAt ?? "").localeCompare(String(a.updatedAt ?? "")),
+  );
+  return { match: sorted[0] ?? null, duplicateCount: matches.length - 1 };
+}
+
+/**
  * The requested Loops object no longer exists — e.g. a locale copy deleted in
  * the Loops dashboard after a push recorded its id. Callers drop the stale id
  * and recreate the copy instead of failing.
