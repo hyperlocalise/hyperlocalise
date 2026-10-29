@@ -23,7 +23,7 @@ import { isErr } from "@/lib/primitives/result/results";
 import { applyHtmlIngestTranslations } from "@/lib/projects/files/html-ingest-entries";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
-import { LoopsApiError, type LoopsClient } from "./client";
+import { isLoopsLanguageLabelUnsupportedError, type LoopsClient } from "./client";
 import { loadLoopsAutomationClient } from "./credentials";
 import {
   applyLoopsSegmentTranslations,
@@ -105,7 +105,7 @@ async function updateCopyEmailMessage(input: {
       lmx: input.lmx,
     });
   } catch (error) {
-    if (error instanceof LoopsApiError && error.message.toLowerCase().includes("languagecode")) {
+    if (isLoopsLanguageLabelUnsupportedError(error)) {
       // Translation may not be enabled for this team; content still lands, language label does not.
       await input.client.updateEmailMessage({
         emailMessageId: input.draftEmailMessageId,

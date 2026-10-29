@@ -46,6 +46,19 @@ export function isLoopsLegacyContentError(error: unknown): boolean {
 }
 
 /**
+ * Loops rejects `languageCode` when translations are not enabled for the team
+ * (`400 - Translations are not enabled for this team.`). The translated content
+ * still lands; only the language label is lost, so callers retry without it.
+ */
+export function isLoopsLanguageLabelUnsupportedError(error: unknown): boolean {
+  if (!(error instanceof LoopsApiError)) {
+    return false;
+  }
+  const message = error.message.toLowerCase();
+  return message.includes("languagecode") || message.includes("translations are not enabled");
+}
+
+/**
  * A `SendEmailAction` node inside a workflow graph. The SDK has no dedicated
  * type for this derived read, so it stays local.
  */

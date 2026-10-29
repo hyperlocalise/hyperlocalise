@@ -12,7 +12,12 @@
  */
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { createLoopsClient, isLoopsLegacyContentError, LoopsApiError } from "./client";
+import {
+  createLoopsClient,
+  isLoopsLanguageLabelUnsupportedError,
+  isLoopsLegacyContentError,
+  LoopsApiError,
+} from "./client";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status });
@@ -165,5 +170,35 @@ describe("createLoopsClient", () => {
     expect(
       seen.some((entry) => entry.startsWith("POST") && entry.includes("/email-messages/")),
     ).toBe(true);
+  });
+});
+
+describe("isLoopsLanguageLabelUnsupportedError", () => {
+  it("matches the translations-not-enabled team error", () => {
+    expect(
+      isLoopsLanguageLabelUnsupportedError(
+        new LoopsApiError({
+          message: "400 - Translations are not enabled for this team.",
+          status: 400,
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("matches languageCode validation errors", () => {
+    expect(
+      isLoopsLanguageLabelUnsupportedError(
+        new LoopsApiError({ message: "Invalid languageCode: xx", status: 400 }),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects unrelated API errors", () => {
+    expect(
+      isLoopsLanguageLabelUnsupportedError(
+        new LoopsApiError({ message: "Loops request failed with status 500.", status: 500 }),
+      ),
+    ).toBe(false);
+    expect(isLoopsLanguageLabelUnsupportedError(new Error("nope"))).toBe(false);
   });
 });
