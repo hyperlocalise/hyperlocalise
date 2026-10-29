@@ -370,25 +370,16 @@ func isArrowTimestampLineFast(s string, isVTT bool) bool {
 	if !ok1 {
 		return false
 	}
-	i := consumed1
-	ws1 := 0
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-		ws1++
-		i++
-	}
-	if ws1 == 0 || i >= len(s) {
+	i := skipRegexpWhitespace(s, consumed1)
+	if i == consumed1 || i >= len(s) {
 		return false
 	}
 	if !strings.HasPrefix(s[i:], "-->") {
 		return false
 	}
-	i += 3
-	ws2 := 0
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-		ws2++
-		i++
-	}
-	if ws2 == 0 || i >= len(s) {
+	afterArrow := i + 3
+	i = skipRegexpWhitespace(s, afterArrow)
+	if i == afterArrow || i >= len(s) {
 		return false
 	}
 	consumed2, ok2 := parseTimestampToken(s[i:], isVTT)
@@ -399,13 +390,27 @@ func isArrowTimestampLineFast(s string, isVTT bool) bool {
 	if i == len(s) {
 		return true
 	}
-	if s[i] != ' ' && s[i] != '\t' {
+	afterTimestamp := i
+	i = skipRegexpWhitespace(s, i)
+	// Legacy (?:\s+\S.*)?$ — leftover text needs whitespace then a non-space.
+	return i > afterTimestamp && i < len(s)
+}
+
+// isRegexpWhitespace matches Go regexp \s: [ \t\n\f\r].
+func isRegexpWhitespace(c byte) bool {
+	switch c {
+	case ' ', '\t', '\n', '\f', '\r':
+		return true
+	default:
 		return false
 	}
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+}
+
+func skipRegexpWhitespace(s string, i int) int {
+	for i < len(s) && isRegexpWhitespace(s[i]) {
 		i++
 	}
-	return true
+	return i
 }
 
 func parseTimestampToken(s string, isVTT bool) (int, bool) {
@@ -435,15 +440,14 @@ func parseTimestampToken(s string, isVTT bool) (int, bool) {
 	var minutesDigits, secondsDigits int
 
 	if s[i] == ':' {
+		// SRT hours are 1-2 digits. WebVTT hours are two or more (100:00:00.000).
 		hoursDigits := d1
 		if isVTT {
 			if hoursDigits < 2 {
 				return 0, false
 			}
-		} else {
-			if hoursDigits < 1 || hoursDigits > 2 {
-				return 0, false
-			}
+		} else if hoursDigits < 1 || hoursDigits > 2 {
+			return 0, false
 		}
 		minutesDigits = d2
 		if minutesDigits < 1 || minutesDigits > 2 {
@@ -458,10 +462,8 @@ func parseTimestampToken(s string, isVTT bool) (int, bool) {
 		}
 		secondsDigits = d3
 	} else {
-		if !isVTT {
-			// SRT timestamps require 3 components (HH:MM:SS,mmm) or (H:MM:SS,mmm).
-			return 0, false
-		}
+		// Hours are optional: SRT (?:\d{1,2}:)? and VTT (?:\d{2,}:)? both
+		// accept MM:SS[,.]mmm with 1-2 minute digits.
 		minutesDigits = d1
 		if minutesDigits < 1 || minutesDigits > 2 {
 			return 0, false
