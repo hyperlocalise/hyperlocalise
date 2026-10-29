@@ -116,4 +116,10 @@ export const loopsPushUiMessages = defineMessages({
     defaultMessage: "Push {count, plural, one {# email} other {# emails}}",
     description: "Confirm pushing the selected Loops emails",
   },
+  translationsReminder: {
+    id: "SPP8vt7//x",
+    defaultMessage:
+      "Confirm translations are enabled for each target language in Loops (Settings → Sending). Copies pushed for a disabled language land without their language label and show EN.",
+    description: "Reminder in the Loops push dialog to enable translations before pushing",
+  },
 });

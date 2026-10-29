@@ -163,6 +163,9 @@ export function ContentEditorLoopsPushDialog({
             />
           </p>
           <ContentEditorPushApproveHint />
+          <p className="text-sm text-muted-foreground">
+            <FormattedMessage {...messages.translationsReminder} />
+          </p>
         </DialogHeader>
         {candidates.length > 1 ? (
           <div className="flex flex-col gap-2">

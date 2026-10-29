@@ -52,8 +52,9 @@ Inspect **Run History** for imported, skipped, and failed items, plus jobs creat
 ## Review and push locale copies
 
 1. Translate and [approve](/platform/cat) the mapped locales you want to write back.
-2. Open a Loops file in the Content editor. The header shows **Ingest** and **Push to Loops** for that file. Choose **Ingest** to import the automation's configured set, or **Push to Loops** when at least one mapped locale is approved and no push is already running. Hyperlocalise then opens the automation **Run History** tab so you can follow the run.
-3. Confirm Loops shows a new copy named `{source} [{locale}]`, for example `Welcome [fr]`. The source email is unchanged and the copy stays unpublished.
+2. In Loops (**Settings → Sending**), confirm translations are enabled for each target language. The push dialog reminds you of this: copies pushed for a disabled language land without their language label and show EN in the language dropdown.
+3. Open a Loops file in the Content editor. The header shows **Ingest** and **Push to Loops** for that file. Choose **Ingest** to import the automation's configured set, or **Push to Loops** when at least one mapped locale is approved and no push is already running. Hyperlocalise then opens the automation **Run History** tab so you can follow the run.
+4. Confirm Loops shows a new copy named `{source} [{locale}]`, for example `Welcome [fr]`. The source email is unchanged and the copy stays unpublished.
 
 Workflow locale copies are created as unpublished transactional copies, since Loops has no duplicate-workflow endpoint. Review and publish each copy in Loops before it can send.
 
