@@ -97,7 +97,7 @@ async function updateCopyEmailMessage(input: {
   previewText?: string;
   languageCode: string;
   lmx: string;
-  onLanguageLabelDropped?: () => void;
+  onLanguageLabelDropped?: (reason: string) => void;
 }): Promise<{ storedLanguageCode?: string | null; languageLabelDropped: boolean }> {
   try {
     const updated = await input.client.updateEmailMessage({
@@ -112,6 +112,8 @@ async function updateCopyEmailMessage(input: {
   } catch (error) {
     if (isLoopsLanguageLabelUnsupportedError(error)) {
       // Translation may not be enabled for this team; content still lands, language label does not.
+      // Keep the rejection reason so the warning tells the operator what to fix.
+      const reason = error instanceof Error ? error.message : String(error);
       const updated = await input.client.updateEmailMessage({
         emailMessageId: input.draftEmailMessageId,
         expectedRevisionId: input.expectedRevisionId,
@@ -119,17 +121,18 @@ async function updateCopyEmailMessage(input: {
         previewText: input.previewText,
         lmx: input.lmx,
       });
-      input.onLanguageLabelDropped?.();
+      input.onLanguageLabelDropped?.(reason);
       return { storedLanguageCode: updated.languageCode, languageLabelDropped: true };
     }
     throw error;
   }
 }
 
-function languageLabelDroppedWarning(copyName: string, locale: string): string {
+function languageLabelDroppedWarning(copyName: string, locale: string, reason?: string): string {
+  const suffix = reason ? ` (Loops said: ${reason})` : "";
   return (
     `${copyName}: pushed without a language label because Loops rejected it ` +
-    `for ${locale}; enable translations (and ${locale}) in the Loops dashboard, then re-push`
+    `for ${locale}; enable translations (and ${locale}) in the Loops dashboard, then re-push${suffix}`
   );
 }
 
@@ -192,8 +195,8 @@ async function pushTransactionalLocale(input: {
     previewText: input.previewText,
     languageCode,
     lmx: input.lmx,
-    onLanguageLabelDropped: () =>
-      input.pushWarning(languageLabelDroppedWarning(copyName, input.locale)),
+    onLanguageLabelDropped: (reason) =>
+      input.pushWarning(languageLabelDroppedWarning(copyName, input.locale, reason)),
   });
   warnWhenLanguageLabelMissing({
     storedLanguageCode: update.storedLanguageCode,
@@ -244,8 +247,8 @@ async function pushCampaignLocale(input: {
     previewText: input.previewText,
     languageCode,
     lmx: input.lmx,
-    onLanguageLabelDropped: () =>
-      input.pushWarning(languageLabelDroppedWarning(copyName, input.locale)),
+    onLanguageLabelDropped: (reason) =>
+      input.pushWarning(languageLabelDroppedWarning(copyName, input.locale, reason)),
   });
   warnWhenLanguageLabelMissing({
     storedLanguageCode: update.storedLanguageCode,
