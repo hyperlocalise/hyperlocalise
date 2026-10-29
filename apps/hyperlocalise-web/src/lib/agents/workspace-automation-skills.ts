@@ -38,6 +38,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOLS = [
   "push_customer_io_campaigns",
   "import_iterable_templates",
   "push_iterable_templates",
+  "import_loops_emails",
+  "push_loops_emails",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -346,6 +348,22 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     },
   },
   {
+    id: "translate-loops-emails",
+    name: "Translate Loops Emails",
+    category: "translate",
+    description:
+      "Import Loops transactional, campaign, and workflow emails as HTML, then push approved locales as unpublished locale copies.",
+    grants:
+      "Reads Loops emails through Pipes, writes HTML source files and native jobs. Push creates unpublished locale copies and never changes the source email.",
+    tools: ["import_loops_emails", "push_loops_emails"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["loops", "loops email", "transactional email"],
+      weak: ["campaign", "workflow", "email", "import", "translate"],
+    },
+  },
+  {
     id: "translate-contentful-entries",
     name: "Translate Contentful entries",
     category: "translate",
@@ -444,6 +462,7 @@ export const CMS_TRANSLATION_SKILL_IDS = [
   "translate-braze-campaigns",
   "translate-customer-io-campaigns",
   "translate-iterable-templates",
+  "translate-loops-emails",
   "translate-contentful-entries",
 ] as const;
 
@@ -490,6 +509,7 @@ export type WorkspaceAutomationSkillIntegration =
   | "braze"
   | "customer_io"
   | "iterable"
+  | "loops"
   | "slack"
   | "email";
 
@@ -517,6 +537,8 @@ const SKILL_TOOL_INTEGRATIONS: Record<
   push_customer_io_campaigns: "customer_io",
   import_iterable_templates: "iterable",
   push_iterable_templates: "iterable",
+  import_loops_emails: "loops",
+  push_loops_emails: "loops",
   create_native_tms_job: null,
   assign_translate_with_agent: null,
   list_issues: null,
@@ -644,6 +666,9 @@ export function workspaceAutomationSkillToolEnabled(
     case "import_iterable_templates":
     case "push_iterable_templates":
       return Boolean(toolConfig.iterable?.enabled);
+    case "import_loops_emails":
+    case "push_loops_emails":
+      return Boolean(toolConfig.loops?.enabled);
     case "create_native_tms_job":
       return Boolean(toolConfig.createNativeTmsJob?.enabled);
     case "assign_translate_with_agent":

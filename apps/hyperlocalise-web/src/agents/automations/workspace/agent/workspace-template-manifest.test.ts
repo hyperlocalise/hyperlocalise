@@ -174,6 +174,7 @@ describe("workspace template manifest", () => {
       "translate-braze-campaigns",
       "translate-iterable-templates",
       "translate-customer-io-campaigns",
+      "translate-loops-emails",
       "translate-contentful-article",
       "summarize-changes-daily",
       "review-code-daily",

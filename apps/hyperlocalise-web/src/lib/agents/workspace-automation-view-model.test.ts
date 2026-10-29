@@ -22,6 +22,7 @@ import {
 } from "./workspace-automation-templates";
 import { resolveWorkspaceAutomationModel } from "./workspace-automation-types";
 import {
+  applyWorkspaceAutomationProjectSelection,
   createDefaultWorkspaceAutomationFormState,
   createWorkspaceAutomationFormStateFromRecord,
   createWorkspaceAutomationFormStateFromTemplate,
@@ -1162,5 +1163,34 @@ describe("pruneWorkspaceAutomationFieldErrors", () => {
     const errors = { name: "Name is required.", slackChannelId: "Enter a valid Slack channel ID." };
 
     expect(pruneWorkspaceAutomationFieldErrors(errors, invalidForm)).toBe(errors);
+  });
+});
+
+describe("loops source locale", () => {
+  it("keeps the form loops source locale instead of forcing en", () => {
+    const form: WorkspaceAutomationFormState = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      loopsEnabled: true,
+      loopsSourceLocale: "fr-FR",
+    };
+
+    const payload = formStateToWorkspaceAutomationPayload(form);
+    expect(payload.toolConfig.loops).toMatchObject({
+      enabled: true,
+      sourceLocale: "fr-FR",
+    });
+  });
+
+  it("stamps the project source locale onto loops on project selection", () => {
+    const form = applyWorkspaceAutomationProjectSelection(
+      {
+        ...createDefaultWorkspaceAutomationFormState(),
+        loopsEnabled: true,
+      },
+      "project-1",
+      { sourceLocale: "de-DE", targetLocales: [] },
+    );
+
+    expect(form.loopsSourceLocale).toBe("de-DE");
   });
 });

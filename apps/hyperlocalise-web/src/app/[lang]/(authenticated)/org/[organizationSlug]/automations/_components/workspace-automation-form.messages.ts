@@ -631,6 +631,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "C0jp5QUb8B",
     description: "Name of the Iterable integration in the hint on a skill that needs it connected",
   },
+  skillIntegrationLoops: {
+    defaultMessage: "Loops",
+    id: "oC6DC5UXTd",
+    description: "Name of the Loops integration in the hint on a skill that needs it connected",
+  },
   skillIntegrationSlack: {
     defaultMessage: "Slack",
     id: "SXLP18M0vY",

@@ -23,6 +23,7 @@ import { createNotifyGithubCommentTool } from "./tools/notify_github_comment";
 import { createNotifySlackTool } from "./tools/notify_slack";
 import { createRecallMemoryTool } from "./tools/recall_memory";
 import { createImportBrazeCampaignsTool } from "./tools/import_braze_campaigns";
+import { createImportLoopsEmailsTool } from "./tools/import_loops_emails";
 import { createImportCustomerIoCampaignsTool } from "./tools/import_customer_io_campaigns";
 import { createImportBrazeTemplatesTool } from "./tools/import_braze_templates";
 import { createImportIterableTemplatesTool } from "./tools/import_iterable_templates";
@@ -32,6 +33,7 @@ import { createImportSanityDocumentsTool } from "./tools/import_sanity_documents
 import { createImportWebflowItemsTool } from "./tools/import_webflow_items";
 import { createImportGoogleDriveFilesTool } from "./tools/import_google_drive_files";
 import { createPushBrazeCampaignsTool } from "./tools/push_braze_campaigns";
+import { createPushLoopsEmailsTool } from "./tools/push_loops_emails";
 import { createPushCustomerIoCampaignsTool } from "./tools/push_customer_io_campaigns";
 import { createPushBrazeTemplatesTool } from "./tools/push_braze_templates";
 import { createPushIntercomTranslationsTool } from "./tools/push_intercom_translations";
@@ -73,6 +75,8 @@ const TOOL_BUILDERS: Record<
   push_braze_campaigns: createPushBrazeCampaignsTool,
   import_customer_io_campaigns: createImportCustomerIoCampaignsTool,
   push_customer_io_campaigns: createPushCustomerIoCampaignsTool,
+  import_loops_emails: createImportLoopsEmailsTool,
+  push_loops_emails: createPushLoopsEmailsTool,
   create_native_tms_job: createNativeTmsJobTool,
   assign_translate_with_agent: createAssignTranslateWithAgentTool,
   list_issues: createListIssuesTool,

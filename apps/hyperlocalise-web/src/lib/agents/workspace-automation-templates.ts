@@ -333,6 +333,35 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "translate-loops-emails",
+    category: "popular",
+    extraCategories: ["marketing"],
+    name: "Translate Loops Emails",
+    description:
+      "Import Loops transactional, campaign, and workflow emails as HTML, localise in Jobs, then push approved locales as unpublished locale copies.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Loops email localisation connector",
+      capabilities: [
+        "Import transactional, campaign, and workflow emails as HTML source files in the attached project",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push translations automatically on import — operators enqueue Push to Loops separately",
+      ],
+      goal: "Keep Loops emails in sync for localisation and write approved locales as unpublished locale copies without changing the source.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-loops-emails"],
+      name: "Translate Loops emails",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      loopsEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-contentful-article",
     category: "popular",
     name: "Translate Contentful article",
@@ -1219,6 +1248,10 @@ export function getWorkspaceAutomationTemplateFlow(
 
   if (form.customerIoEnabled) {
     tools.push({ id: "customer-io", label: "Customer.io" });
+  }
+
+  if (form.loopsEnabled) {
+    tools.push({ id: "loops", label: "Loops" });
   }
 
   if (form.createNativeTmsJobEnabled) {
