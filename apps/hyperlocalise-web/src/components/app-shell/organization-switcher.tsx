@@ -217,6 +217,7 @@ export function OrganizationSwitcher({
             organizationName={activeOrganization.name}
             isOnlyWorkspace={switchableOrganizations.length <= 1}
             onClose={() => setIsLeaveDialogOpen(false)}
+            onNavigateAway={closeMobileSidebar}
           />
         ) : null}
       </SidebarMenuItem>

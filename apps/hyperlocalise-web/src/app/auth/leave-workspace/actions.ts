@@ -27,6 +27,7 @@ import {
 import { withAuth } from "@/lib/workos/server-auth";
 
 const logger = createLogger("leave-workspace-action");
+const signOutToDashboard = "/auth/sign-out?returnTo=%2Fdashboard";
 
 export type FinishLeavingWorkspaceResult = { redirectTo: string };
 
@@ -61,12 +62,13 @@ export async function finishLeavingWorkspaceAction(
   try {
     organizations = (await resolveApiAuthContextFromSession({ session }))?.organizations ?? [];
   } catch (error) {
-    // Unknown, not none: the dashboard sorts out where the person belongs.
+    // Unknown, not none: the dashboard sorts out where the person belongs. A session
+    // issued for the workspace just left would be refused at its next renewal, so it ends now.
     logger.warn("leave_workspace_memberships_unavailable", {
       workosUserId: session.user.id,
       error,
     });
-    return { redirectTo: "/dashboard" };
+    return { redirectTo: sessionIsForLeftWorkspace ? signOutToDashboard : "/dashboard" };
   }
   // A session can only be issued for a workspace the person has joined in WorkOS.
   const remaining = organizations.filter(
@@ -82,9 +84,7 @@ export async function finishLeavingWorkspaceAction(
   if (!next) {
     await clearStoredActiveOrganizationSlug();
     // Signing in again starts a session with no workspace, which onboarding then fills.
-    return {
-      redirectTo: sessionIsForLeftWorkspace ? "/auth/sign-out?returnTo=%2Fdashboard" : "/dashboard",
-    };
+    return { redirectTo: sessionIsForLeftWorkspace ? signOutToDashboard : "/dashboard" };
   }
 
   await setStoredActiveOrganizationSlug(next.slug);

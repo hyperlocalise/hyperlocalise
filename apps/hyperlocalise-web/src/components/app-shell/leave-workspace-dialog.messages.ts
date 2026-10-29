@@ -41,6 +41,18 @@ export const leaveWorkspaceDialogMessages = defineMessages({
     description:
       "Last line of a shortened list in the leave workspace dialog, counting the items not shown",
   },
+  noLongerMember: {
+    defaultMessage: "You are no longer a member of this workspace.",
+    id: "d62LeLJXFa",
+    description:
+      "Shown in the leave workspace dialog when the person lost access after opening the menu",
+  },
+  continue: {
+    defaultMessage: "Continue",
+    id: "+u6bMZ2pRz",
+    description:
+      "Button in the leave workspace dialog that moves on to another workspace after access was lost",
+  },
   checkFailed: {
     defaultMessage: "Could not check what changes when you leave.",
     id: "oiJegD5+SZ",

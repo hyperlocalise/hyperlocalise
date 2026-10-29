@@ -143,13 +143,22 @@ describe("finishLeavingWorkspaceAction", () => {
     expect(mocks.clearStoredActiveOrganizationSlug).toHaveBeenCalled();
   });
 
-  it("does not sign out when the remaining workspaces cannot be read", async () => {
-    mocks.withAuth.mockResolvedValue(sessionFor("org_acme"));
+  it("goes to the dashboard when the remaining workspaces cannot be read", async () => {
+    mocks.withAuth.mockResolvedValue(sessionFor("org_beta"));
     mocks.resolveApiAuthContextFromSession.mockRejectedValue(new Error("lookup failed"));
 
     expect(await finishLeavingWorkspaceAction("acme")).toEqual({ redirectTo: "/dashboard" });
     expect(mocks.clearStoredActiveOrganizationSlug).not.toHaveBeenCalled();
     expect(mocks.refreshSession).not.toHaveBeenCalled();
+  });
+
+  it("ends a session for the left workspace when the others cannot be read", async () => {
+    mocks.withAuth.mockResolvedValue(sessionFor("org_acme"));
+    mocks.resolveApiAuthContextFromSession.mockRejectedValue(new Error("lookup failed"));
+
+    expect(await finishLeavingWorkspaceAction("acme")).toEqual({
+      redirectTo: "/auth/sign-out?returnTo=%2Fdashboard",
+    });
   });
 
   it("sends someone who is not signed in to sign in", async () => {

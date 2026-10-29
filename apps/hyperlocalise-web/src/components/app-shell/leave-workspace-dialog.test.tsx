@@ -225,4 +225,21 @@ describe("LeaveWorkspaceDialog", () => {
     expect(await screen.findByText("Could not leave the workspace. Try again.")).toBeTruthy();
     expect(mocks.finishLeavingWorkspaceAction).not.toHaveBeenCalled();
   });
+
+  it("moves on when access was lost before the dialog opened", async () => {
+    const accessDenied = new GoSvcClientError({
+      code: "organization_access_denied",
+      message: "Organization access denied",
+      status: 403,
+    });
+    mocks.leavePreview.mockRejectedValue(accessDenied);
+    mocks.leave.mockRejectedValue(accessDenied);
+    renderDialog();
+
+    expect(await screen.findByText("You are no longer a member of this workspace.")).toBeTruthy();
+    expect(screen.queryByText("Could not check what changes when you leave.")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/org/beta/dashboard"));
+  });
 });

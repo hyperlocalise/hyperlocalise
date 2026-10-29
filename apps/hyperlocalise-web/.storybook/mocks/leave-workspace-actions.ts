@@ -11,4 +11,8 @@
  * Version 2.0 or later.
  */
 /** Stands in for the server action: stories cannot load server-only modules. */
-export async function finishLeavingWorkspaceAction(_leftOrganizationSlug: string): Promise<void> {}
+export async function finishLeavingWorkspaceAction(
+  _leftOrganizationSlug: string,
+): Promise<{ redirectTo: string }> {
+  return { redirectTo: "#left-workspace" };
+}

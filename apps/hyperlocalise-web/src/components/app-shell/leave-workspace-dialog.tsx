@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage } from "react-intl";
 
 import { finishLeavingWorkspaceAction } from "@/app/auth/leave-workspace/actions";
@@ -51,14 +51,18 @@ export function LeaveWorkspaceDialog({
   organizationName,
   isOnlyWorkspace,
   onClose,
+  onNavigateAway,
 }: {
   open: boolean;
   organizationSlug: string;
   organizationName: string;
   isOnlyWorkspace: boolean;
   onClose: () => void;
+  /** Called when a link in the dialog opens another page, such as Manage members. */
+  onNavigateAway?: () => void;
 }) {
   const { client } = useGoSvcClient();
+  const queryClient = useQueryClient();
 
   const preview = useQuery({
     queryKey: leaveWorkspacePreviewQueryKey(organizationSlug),
@@ -95,12 +99,17 @@ export function LeaveWorkspaceDialog({
 
   const isLastAdmin =
     preview.data?.blockedReason === "last_admin" || leave.error instanceof LastAdminError;
+  // Lost access since the menu was opened, for example by leaving in another tab.
+  const isNoLongerMember = isAlreadyLeft(preview.error);
   const isLeaving = leave.isPending || leave.isSuccess;
+  const canLeave = isNoLongerMember || (Boolean(preview.data) && !preview.isFetching);
   const close = () => {
     if (isLeaving) {
       return;
     }
     leave.reset();
+    // The next opening loads afresh instead of showing these lists first.
+    queryClient.removeQueries({ queryKey: leaveWorkspacePreviewQueryKey(organizationSlug) });
     onClose();
   };
 
@@ -132,7 +141,13 @@ export function LeaveWorkspaceDialog({
             </p>
           ) : null}
 
-          {preview.isError ? (
+          {isNoLongerMember ? (
+            <p role="alert">
+              <FormattedMessage {...messages.noLongerMember} />
+            </p>
+          ) : null}
+
+          {preview.isError && !isNoLongerMember ? (
             <div className="flex items-center justify-between gap-3" role="alert">
               <p className="text-destructive">
                 <FormattedMessage {...messages.checkFailed} />
@@ -206,7 +221,10 @@ export function LeaveWorkspaceDialog({
             <Button
               nativeButton={false}
               render={<Link href={buildOrganizationPath(organizationSlug, "members")} />}
-              onClick={close}
+              onClick={() => {
+                close();
+                onNavigateAway?.();
+              }}
             >
               <FormattedMessage {...messages.manageMembers} />
             </Button>
@@ -214,10 +232,16 @@ export function LeaveWorkspaceDialog({
             <Button
               type="button"
               variant="destructive"
-              disabled={!preview.data || isLeaving}
+              disabled={!canLeave || isLeaving}
               onClick={() => leave.mutate()}
             >
-              <FormattedMessage {...(isLeaving ? messages.leaving : messages.leave)} />
+              <FormattedMessage
+                {...(isLeaving
+                  ? messages.leaving
+                  : isNoLongerMember
+                    ? messages.continue
+                    : messages.leave)}
+              />
             </Button>
           )}
         </DialogFooter>

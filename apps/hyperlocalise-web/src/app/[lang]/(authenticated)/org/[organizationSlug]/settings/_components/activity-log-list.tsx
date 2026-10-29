@@ -195,6 +195,8 @@ function relativeTime(
 }
 
 function targetDisplayName(item: ActivityLogItem): string | null {
+  // The person who left is the actor already shown on the row.
+  if (item.eventType === "member_left") return null;
   if (item.target.displayName) return item.target.displayName;
   if (
     item.eventType.startsWith("integration_") &&
