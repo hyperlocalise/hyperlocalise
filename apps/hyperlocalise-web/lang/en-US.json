@@ -139,6 +139,10 @@
     "defaultMessage": "A growth lead shares a launch brief in Slack with positioning, audience segments, and legal disclaimers. Hyperlocalise structures the campaign for localisation, applies brand glossary and tone rules, generates adapted drafts for each locale, routes them through marketing and legal review, syncs approved copy to the CMS and ad platforms, and flags any locale where messaging has drifted from the approved source.",
     "description": "Scenario narrative for the marketing-localisation use case"
   },
+  "+92OE+qwxB": {
+    "defaultMessage": "{input} input · {output} output · {other} cache and reasoning",
+    "description": "Detail under the tokens card: the token counts, already formatted"
+  },
   "+A4wJ1M5iF": {
     "defaultMessage": "Which words",
     "description": "Accessible name of the switch between words that arrived and words finished"
@@ -178,6 +182,10 @@
   "+FcGOPQu9Z": {
     "defaultMessage": "Start for free",
     "description": "Free plan CTA label on the pricing page"
+  },
+  "+Fi3NEta4Y": {
+    "defaultMessage": "Task",
+    "description": "AI usage detail: the task"
   },
   "+G0v8S+Z5x": {
     "defaultMessage": "API key",
@@ -407,6 +415,10 @@
     "defaultMessage": "Use only one CMS translation skill on this automation",
     "description": "Hint on a CMS translation skill that cannot be added because another is already attached"
   },
+  "+c3P6iYr+E": {
+    "defaultMessage": "Failed to save the Customer.io connection.",
+    "description": "Error when the Customer.io connection cannot be saved"
+  },
   "+c45W5hmg7": {
     "defaultMessage": "Strings added:",
     "description": "Label for the date range when source strings were added"
@@ -615,6 +627,10 @@
     "defaultMessage": "Queries Board",
     "description": "Starter plan feature: Queries Board access"
   },
+  "+zda51bOsT": {
+    "defaultMessage": "As billing recorded it, for AI through Hyperlocalise",
+    "description": "Detail under the AI credit used card"
+  },
   "+zez4H8ovm": {
     "defaultMessage": "review",
     "description": "Job kind label for review jobs"
@@ -822,6 +838,10 @@
   "/E/r2gr9Yu": {
     "defaultMessage": "Approve",
     "description": "Primary action label in the marketing hero CAT workspace mock"
+  },
+  "/FgXiegnIL": {
+    "defaultMessage": "Show API key",
+    "description": "Aria label for revealing the Customer.io API key field"
   },
   "/Fi6xT6jqV": {
     "defaultMessage": "Could not start Sanity authorization.",
@@ -1183,6 +1203,10 @@
     "defaultMessage": "Create more",
     "description": "Checkbox label to keep the create query dialog open after submit"
   },
+  "/rXj8VmbsB": {
+    "defaultMessage": "Unable to load the Customer.io connection right now.",
+    "description": "Customer.io integration row description when connection status fails to load"
+  },
   "/rZ4ZyulJi": {
     "defaultMessage": "Linked Domain Created",
     "description": "Activity log event type label for creating a linked domain"
@@ -1226,6 +1250,10 @@
   "/vxavoK/xz": {
     "defaultMessage": "LinkedIn",
     "description": "LinkedIn link label on founder cards"
+  },
+  "/wIWjD2LD2": {
+    "defaultMessage": "Tokens",
+    "description": "AI usage chart option: every token billing counted, input, output, cached and reasoning"
   },
   "/wR0WQz4Yx": {
     "defaultMessage": "Loading keyword research…",
@@ -1723,6 +1751,10 @@
     "defaultMessage": "revoked an API key",
     "description": "Action for an organization API key revocation activity"
   },
+  "0j4Nbqpy8B": {
+    "defaultMessage": "Images made",
+    "description": "AI usage card: images made with AI"
+  },
   "0jS/dbW8Df": {
     "defaultMessage": "Detect added, changed, and removed strings",
     "description": "Workflow step 1 description for the github-release-localisation use case"
@@ -1743,6 +1775,10 @@
     "defaultMessage": "Find your key in the Semrush API settings. Automations authenticate with Authorization: Apikey.",
     "description": "Help text for where to find a Semrush API key"
   },
+  "0l5RN3KDrD": {
+    "defaultMessage": "Translation tasks from email",
+    "description": "AI feature: a task made from an emailed file"
+  },
   "0l7PHiSZRI": {
     "defaultMessage": "Upload sources, create jobs, and pull translations over HTTP.",
     "description": "Developer resources link description for the public HTTP API docs"
@@ -1754,6 +1790,10 @@
   "0lx5E4LTqS": {
     "defaultMessage": "Queries",
     "description": "Dialog title for queries linked to a CAT translation string"
+  },
+  "0mxTGpKz7w": {
+    "defaultMessage": "Your own key",
+    "description": "AI key type: calls on the workspace's own provider key, which use no plan credit"
   },
   "0nEeKtfNhE": {
     "defaultMessage": "HTTP Request",
@@ -2087,10 +2127,6 @@
     "defaultMessage": "Target ({locale})",
     "description": "Section heading for the target translation with locale code"
   },
-  "1PoSOMSmLa": {
-    "defaultMessage": "Model",
-    "description": "Column heading: the AI model"
-  },
   "1QS1K/UCvi": {
     "defaultMessage": "Homepage hero · Desktop",
     "description": "Visual context screenshot label for the hero title segment in the CAT mock"
@@ -2195,6 +2231,10 @@
     "defaultMessage": "Categories",
     "description": "Sidebar heading for integration categories on the detail page"
   },
+  "1aTRVgALBt": {
+    "defaultMessage": "Last push failed",
+    "description": "Hint that the previous Customer.io push for this message failed"
+  },
   "1bCz3MmLs1": {
     "defaultMessage": "Segmentation settings saved. Re-import started.",
     "description": "Toast after saving segmentation settings"
@@ -2286,6 +2326,10 @@
   "1ggu9Tm0ub": {
     "defaultMessage": "Conversation list failed to load",
     "description": "Error boundary title when the inbox list panel crashes"
+  },
+  "1gkCz7B8Qb": {
+    "defaultMessage": "None",
+    "description": "AI usage group for calls without that detail, such as no task or no model"
   },
   "1hnHBtSh2K": {
     "defaultMessage": "Quick drafts",
@@ -3130,6 +3174,10 @@
   "34gyyDcFUG": {
     "defaultMessage": "Provider",
     "description": "Label for the workspace files provider filter"
+  },
+  "34kYQgT6Zf": {
+    "defaultMessage": "Feature",
+    "description": "AI usage detail: the part of the app that called the AI, finer than the area"
   },
   "34vtfR8v8B": {
     "defaultMessage": "Send an Idempotency-Key header to make sure a retried request starts only one run.",
@@ -3991,10 +4039,6 @@
     "defaultMessage": "Title",
     "description": "Label for issue title field"
   },
-  "4S+r62936U": {
-    "defaultMessage": "No earlier data",
-    "description": "Shown instead of a change when the previous period starts before Reports began"
-  },
   "4T/AtweOC2": {
     "defaultMessage": "Filters",
     "description": "Keyword research screen: filters"
@@ -4403,6 +4447,10 @@
     "defaultMessage": "Review QA",
     "description": "Button in the inbox QA alert panel that opens the project QA page"
   },
+  "5AgGRDWIl/": {
+    "defaultMessage": "Disconnect",
+    "description": "Button label to disconnect Customer.io"
+  },
   "5AkeE7XWLR": {
     "defaultMessage": "Branch",
     "description": "Table header for default branch names"
@@ -4663,10 +4711,6 @@
     "defaultMessage": "Pause until a duration, timestamp, or condition",
     "description": "Wait node picker hint"
   },
-  "5ZayxXnoLj": {
-    "defaultMessage": "{count, plural, one {# video} other {# videos}}",
-    "description": "How many videos were made with AI"
-  },
   "5aBQ8ovclg": {
     "defaultMessage": "Export · {timestamp}",
     "description": "Name of a glossary export run identified by its timestamp"
@@ -4867,6 +4911,10 @@
     "defaultMessage": "Coordinate localization reviews from Slack mentions and DMs.",
     "description": "Slack integration description before OAuth connection"
   },
+  "5uG1s/Tj9f": {
+    "defaultMessage": "Document regenerating",
+    "description": "AI feature: regenerating a translated document"
+  },
   "5ug+haPHOx": {
     "defaultMessage": "Key",
     "description": "Label for the string key in the CAT details panel"
@@ -4895,6 +4943,10 @@
     "defaultMessage": "On or off",
     "description": "Experiment type option for a single-variant toggle"
   },
+  "5xBWJwpAdM": {
+    "defaultMessage": "Choose which mapped messages to update with approved translations. This only writes content — it never sends.",
+    "description": "Description of the Customer.io message picker dialog"
+  },
   "5yG0VUhaH4": {
     "defaultMessage": "A site connected to the bigger picture.",
     "description": "Headline for the Domains connected-products section"
@@ -4906,6 +4958,10 @@
   "5yzXr6bGIC": {
     "defaultMessage": "Queries",
     "description": "Submenu label grouping Queries automation tools"
+  },
+  "5zGLoyn2ds": {
+    "defaultMessage": "{count, plural, one {# run, image or video has no AI credit recorded by billing, so AI credit used leaves it out.} other {# runs, images or videos have no AI credit recorded by billing, so AI credit used leaves them out.}}",
+    "description": "Note under the AI usage cards"
   },
   "5zK6mzfMaW": {
     "defaultMessage": "Launch workflow",
@@ -5066,6 +5122,10 @@
   "6HzYk6HNlZ": {
     "defaultMessage": "scroll area",
     "description": "Accessible role description for the touch scroll area container"
+  },
+  "6I1vrUL/ho": {
+    "defaultMessage": "Automation Semrush steps",
+    "description": "AI feature: an automation's Semrush step"
   },
   "6IYfhafec6": {
     "defaultMessage": "name@company.com",
@@ -5575,6 +5635,10 @@
     "defaultMessage": "Could not disconnect Sanity.",
     "description": "Toast when Sanity disconnect fails"
   },
+  "78hTefWIZ0": {
+    "defaultMessage": "Tokens",
+    "description": "AI usage card: every token billing counted, input, output, cached and reasoning"
+  },
   "78ldX7a/ys": {
     "defaultMessage": "Job types",
     "description": "Pick assignee rule condition: the kinds of work the rule covers"
@@ -5818,6 +5882,10 @@
   "7YJ3F1AQei": {
     "defaultMessage": "This takes back everything the assistant changed in that turn, including anything you edited since. Redo brings it back.",
     "description": "Body of the dialog shown before undoing a turn of the assistant"
+  },
+  "7Yw00ajLfm": {
+    "defaultMessage": "Saving…",
+    "description": "Button label while the Customer.io connection is being saved"
   },
   "7ZwRKXo+Jx": {
     "defaultMessage": "No recorded activity for this occurrence and language.",
@@ -6070,10 +6138,6 @@
   "8+43PQyB4j": {
     "defaultMessage": "Context-aware across all content sources",
     "description": "Differentiator point 4 for the localisation-operations use case"
-  },
-  "8+9j1NEhxA": {
-    "defaultMessage": "{count, plural, one {# image} other {# images}}",
-    "description": "How many images were made with AI"
   },
   "8+q5tY0yg1": {
     "defaultMessage": "No proposals match the current filters.",
@@ -6947,6 +7011,10 @@
     "defaultMessage": "Look through every model, or clear the search.",
     "description": "Help text when the recommended pricing models do not match the search"
   },
+  "9NrFFG1rkB": {
+    "defaultMessage": "Create an App API key in Customer.io Settings → API Credentials. It needs read/write access to campaigns, newsletters, broadcasts, and transactional messages.",
+    "description": "Hint describing where to create a Customer.io App API key"
+  },
   "9O5X8+eR3t": {
     "defaultMessage": "Could not finish domain setup.",
     "description": "Domain setup error"
@@ -7106,6 +7174,10 @@
   "9e9a/69ACn": {
     "defaultMessage": "Tone, terminology, and formatting for this project.",
     "description": "Description for the style guide tab in the editor guideline sheet"
+  },
+  "9fW61ulwei": {
+    "defaultMessage": "Area",
+    "description": "AI usage detail: where the AI was called, such as translation or chat"
   },
   "9fd2S51TS6": {
     "defaultMessage": "Units read",
@@ -7363,6 +7435,10 @@
     "defaultMessage": "Target locale",
     "description": "Label for the target locale field on a translation memory entry form"
   },
+  "A25a0/iNnR": {
+    "defaultMessage": "Paste a Customer.io App API key and choose the region for that workspace.",
+    "description": "Intro text shown before a Customer.io API key is saved"
+  },
   "A28XuP7g0c": {
     "defaultMessage": "Contact",
     "description": "Marketing footer resource link label"
@@ -7487,6 +7563,10 @@
     "defaultMessage": "No labels",
     "description": "Empty state when a Crowdin project has no labels to filter by"
   },
+  "AHSytQUJk6": {
+    "defaultMessage": "Search messages",
+    "description": "Placeholder for filtering mapped Customer.io messages"
+  },
   "AHcGbeiVhJ": {
     "defaultMessage": "Can add or remove people and update team membership roles.",
     "description": "Tooltip describing the team manager role"
@@ -7599,6 +7679,10 @@
     "defaultMessage": "Edit code",
     "description": "Open lossless MDX code editor"
   },
+  "AR3GmLE5U8": {
+    "defaultMessage": "Translation tasks",
+    "description": "AI feature: a task translating content"
+  },
   "AR6134JvR2": {
     "defaultMessage": "AI",
     "description": "Chart series: finished text written by an AI model"
@@ -7671,13 +7755,17 @@
     "defaultMessage": "Tourfinder",
     "description": "Alt text for the Tourfinder logo in the case study section"
   },
-  "AYIgoL7Tqr": {
-    "defaultMessage": "Group AI usage by",
-    "description": "Accessible name of the switch between AI usage by origin and by model"
-  },
   "AYfVNcVbT6": {
     "defaultMessage": "When",
     "description": "Label for the activity filter on when a change was made"
+  },
+  "AYzHzw5eZq": {
+    "defaultMessage": "AI usage per week",
+    "description": "Title of the AI usage chart, week by week"
+  },
+  "AZ/EUzNS2q": {
+    "defaultMessage": "Image translations",
+    "description": "AI feature: translated versions of a project's images"
   },
   "AZ/tuZUJoO": {
     "defaultMessage": "Technical Audit",
@@ -7942,6 +8030,10 @@
   "B6FNmz1hFv": {
     "defaultMessage": "Value",
     "description": "Set node field value placeholder"
+  },
+  "B6JWhVWhYA": {
+    "defaultMessage": "Outside any project",
+    "description": "AI usage group: calls tied to no project, such as chat"
   },
   "B6VzK5q3GO": {
     "defaultMessage": "Activity logs",
@@ -8331,6 +8423,10 @@
     "defaultMessage": "All, untranslated first",
     "description": "CAT queue filter that shows every segment with untranslated strings first"
   },
+  "Bi1sMbiLMN": {
+    "defaultMessage": "Contentful images",
+    "description": "AI feature: Contentful image assets"
+  },
   "BiKIjgXcMN": {
     "defaultMessage": "Open integrations",
     "description": "Secondary empty-state action to open provider integrations"
@@ -8450,6 +8546,10 @@
   "BuGVGob/k5": {
     "defaultMessage": "Read workspace, project, team, glossary, memory, and job surfaces.",
     "description": "Description of the member role"
+  },
+  "BuGzwjOJQ6": {
+    "defaultMessage": "Reading text in images",
+    "description": "AI feature: reading the text in an image or a video frame"
   },
   "BuyfK8oOrG": {
     "defaultMessage": "Start a free workspace, or request a demo, and see how your operations team can orchestrate localisation without replacing your existing tools.",
@@ -8598,6 +8698,10 @@
   "C8yvKuxtRj": {
     "defaultMessage": "File preview failed to load.",
     "description": "Error title when the project file detail panel fails"
+  },
+  "C9xyZ9SY4i": {
+    "defaultMessage": "Cache and reasoning",
+    "description": "Column heading: cached input tokens and reasoning tokens billing counted"
   },
   "CACMLylIOq": {
     "defaultMessage": "Apply glossary, tone, and UI constraints before review",
@@ -8815,6 +8919,10 @@
     "defaultMessage": "{count, plural, one {# project} other {# projects}}",
     "description": "Workspace project attachment count for a translation memory"
   },
+  "CTzO+JUWTM": {
+    "defaultMessage": "No automation",
+    "description": "AI usage group: calls made by no automation"
+  },
   "CUMVPg+yCv": {
     "defaultMessage": "How it works",
     "description": "Use case page workflow section label"
@@ -8898,6 +9006,10 @@
   "Cef/Y5xN6Q": {
     "defaultMessage": "Brand Usage Check",
     "description": "Content ops mock tab label for brand governance"
+  },
+  "Celg5IKRG3": {
+    "defaultMessage": "No matching messages",
+    "description": "Empty state when message search matches nothing"
   },
   "CfDiZIokkH": {
     "defaultMessage": "This section could not be shown",
@@ -9167,6 +9279,10 @@
     "defaultMessage": "This Canva connect request is missing or expired.",
     "description": "Error when a Canva claim id is missing"
   },
+  "D1c26aJFHC": {
+    "defaultMessage": "Automation assistant",
+    "description": "AI feature: the assistant that helps build automations"
+  },
   "D25ih6b6HA": {
     "defaultMessage": "What people see",
     "description": "Eyebrow for the Domains search snippet section"
@@ -9291,6 +9407,10 @@
     "defaultMessage": "Charged",
     "description": "Column heading: what the rate is charged per"
   },
+  "DH4SBHdjfp": {
+    "defaultMessage": "Runs",
+    "description": "AI usage chart option: billed uses of AI"
+  },
   "DHd5WNIV7o": {
     "defaultMessage": "Version note (optional)",
     "description": "Label for the optional knowledge memory version note field"
@@ -9335,9 +9455,13 @@
     "defaultMessage": "French (France)",
     "description": "Display name for BCP-47 locale fr-FR"
   },
-  "DJlDyykpu4": {
-    "defaultMessage": "By model",
-    "description": "Switch option: AI usage by model"
+  "DK4GxTemCY": {
+    "defaultMessage": "Choose a row to narrow the tab to it.",
+    "description": "Subtitle of the AI usage table"
+  },
+  "DL2fLswVkH": {
+    "defaultMessage": "Leave blank to keep the current key.",
+    "description": "Hint that a connected Customer.io key can be rotated by pasting a new value"
   },
   "DLAlfojpxi": {
     "defaultMessage": "Turn on",
@@ -9558,6 +9682,10 @@
   "DkGOoD9Ef+": {
     "defaultMessage": "Failed to save Canva connection.",
     "description": "Error when Canva connection save fails"
+  },
+  "DkO/CnntHD": {
+    "defaultMessage": "API key",
+    "description": "Label for the Customer.io App API key field"
   },
   "DkpXUR9fM4": {
     "defaultMessage": "Files failed to load.",
@@ -9847,6 +9975,10 @@
     "defaultMessage": "Hyperlocalise fits into the developer workflow your team already runs — with GitHub Actions and TMS sync built in.",
     "description": "Workflow section description for the github-release-localisation use case"
   },
+  "ECeu9B3gSM": {
+    "defaultMessage": "Hyperlocalise AI",
+    "description": "AI key type: calls through Hyperlocalise, which use plan credit"
+  },
   "ECh2wuwOCJ": {
     "defaultMessage": "Markdown content",
     "description": "Default accessible label for read-only rendered markdown content"
@@ -9938,6 +10070,10 @@
   "EMwUmCsnLL": {
     "defaultMessage": "Create",
     "description": "Submit button for create issue column dialog"
+  },
+  "EN8p7Z3+bb": {
+    "defaultMessage": "Token ending in {suffix}",
+    "description": "Secondary Customer.io connection detail showing the stored token suffix"
   },
   "ENMJl6+UHz": {
     "defaultMessage": "{count, plural, one {# edit was not saved to a segment.} other {# edits were not saved to segments.}}",
@@ -10082,6 +10218,10 @@
   "EZ0iYWNVvs": {
     "defaultMessage": "Reset settings",
     "description": "Button label to reset repository automation settings"
+  },
+  "Ea8ZaaJ1HR": {
+    "defaultMessage": "Search messages",
+    "description": "Accessible label for the Customer.io message search field"
   },
   "EaT7nmsjT2": {
     "defaultMessage": "Automate GTM, review, and research workflows",
@@ -10567,10 +10707,6 @@
     "defaultMessage": "Something else",
     "description": "Option to type a custom audience attribute"
   },
-  "FJBWKJtCOV": {
-    "defaultMessage": "Origin",
-    "description": "Column heading: where AI was called"
-  },
   "FJYljr7sSS": {
     "defaultMessage": "visual",
     "description": "Short dimension label for a visual localisation audit criterion"
@@ -10650,6 +10786,10 @@
   "FPj5rPYXJV": {
     "defaultMessage": "Unassigned",
     "description": "Issue list assignee filter option for issues with no assignee"
+  },
+  "FRI1iIuOU/": {
+    "defaultMessage": "{group}:",
+    "description": "Read before a row within a group, for screen readers; group is the group's name"
   },
   "FRwUYE4HKC": {
     "defaultMessage": "Finnish (Finland)",
@@ -10895,6 +11035,10 @@
     "defaultMessage": "No findings in the latest completed scans.",
     "description": "Workspace QA chart empty state"
   },
+  "FpRpzYXL81": {
+    "defaultMessage": "GitHub commit reviews",
+    "description": "AI feature: automatic localisation reviews of GitHub commits"
+  },
   "FqCBwFx5md": {
     "defaultMessage": "GTM context recalled for JP product launch",
     "description": "Guideline mock UI market knowledge panel subtitle"
@@ -11023,6 +11167,10 @@
     "defaultMessage": "Scroll to end",
     "description": "Accessible label for the message scroller jump-to-end control"
   },
+  "G6Gi/jdmf1": {
+    "defaultMessage": "Video translations",
+    "description": "AI feature: translated versions of a project's videos"
+  },
   "G6UECKdIQ0": {
     "defaultMessage": "Translation mistake",
     "description": "Issue Sheet issue type option for a translation mistake"
@@ -11086,6 +11234,10 @@
   "GAAFtsnydJ": {
     "defaultMessage": "Upload a source file before creating a translation job.",
     "description": "Validation error when creating a job without a stored source file"
+  },
+  "GANzcDgz1K": {
+    "defaultMessage": "{preset} · {range}",
+    "description": "The dates filter's button: a ready-made range's name, then its dates"
   },
   "GBrU/Yf91B": {
     "defaultMessage": "hour",
@@ -11407,6 +11559,10 @@
     "defaultMessage": "Expand chat",
     "description": "Accessible label for expanding the chat dock panel"
   },
+  "GmgO3Kp7gv": {
+    "defaultMessage": "Videos",
+    "description": "Column heading: videos made with AI"
+  },
   "Gndxudt/H7": {
     "defaultMessage": "AEO audit",
     "description": "Domains mock UI AEO audit use case title"
@@ -11534,6 +11690,10 @@
   "GzdUfM35EF": {
     "defaultMessage": "Page",
     "description": "Overview page path column"
+  },
+  "H+501fU+xu": {
+    "defaultMessage": "Customer.io",
+    "description": "Tool badge when an automation uses Customer.io"
   },
   "H+FDeSqW77": {
     "defaultMessage": "Rank positions updated from live SERPs.",
@@ -11866,6 +12026,10 @@
   "HZT9XXFcQC": {
     "defaultMessage": "Use rule set",
     "description": "languagerulename select label"
+  },
+  "HZagzO1nt1": {
+    "defaultMessage": "Ready-made ranges",
+    "description": "Accessible name of the list of ready-made date ranges"
   },
   "HZrRUnuo70": {
     "defaultMessage": "Copy this key now. You will not be able to see it again.",
@@ -12211,6 +12375,10 @@
     "defaultMessage": "Enable email agent to generate inbox address",
     "description": "Placeholder before the email agent is enabled"
   },
+  "I7X9+B7tkF": {
+    "defaultMessage": "Failed to disconnect Customer.io.",
+    "description": "Toast when Customer.io disconnect fails"
+  },
   "I7cGK7f56O": {
     "defaultMessage": "Import website",
     "description": "Button to import knowledge from a website"
@@ -12418,6 +12586,10 @@
   "IarSQrZ6vP": {
     "defaultMessage": "Copy value",
     "description": "Tooltip for copying an environment variable value"
+  },
+  "IauUy2whYL": {
+    "defaultMessage": "Other",
+    "description": "Chart series: every group outside the largest five"
   },
   "Ib0P2u7+iJ": {
     "defaultMessage": "Name the group. You will add the rules on the next screen.",
@@ -12951,6 +13123,10 @@
     "defaultMessage": "Request a demo",
     "description": "Secondary demo CTA on marketing conversion sections"
   },
+  "JOb5Bubrx0": {
+    "defaultMessage": "AI credit used",
+    "description": "AI usage card: plan AI credit billing recorded for the AI used"
+  },
   "JOyIQ9rRB7": {
     "defaultMessage": "Disconnecting…",
     "description": "Button label while disconnecting an AI Engine provider"
@@ -13034,6 +13210,10 @@
   "JXQ6OP7JfI": {
     "defaultMessage": "Search symbols",
     "description": "Placeholder for filtering the CAT unicode character table"
+  },
+  "JY6P7XiHyQ": {
+    "defaultMessage": "Not recorded",
+    "description": "AI key type: billing did not record which key was used, as on rows from before it did"
   },
   "JY9Ed02KEb": {
     "defaultMessage": "Collapse",
@@ -13178,6 +13358,10 @@
   "JpBSOLxq+p": {
     "defaultMessage": "Glossary violation",
     "description": "Label for the glossary violation issue template"
+  },
+  "Jq8P8koF7y": {
+    "defaultMessage": "{count, plural, one {# not recorded} other {# not recorded}}",
+    "description": "Under an AI credit amount: how many runs, images or videos have no credit recorded by billing"
   },
   "JqZe/Pxka2": {
     "defaultMessage": "Sample i18n.yml",
@@ -13622,6 +13806,10 @@
   "Khosn9vbdG": {
     "defaultMessage": "Sample entries",
     "description": "Heading for representative translations on a completed import report"
+  },
+  "KjDlDH4h/B": {
+    "defaultMessage": "Model",
+    "description": "AI usage detail: the AI model"
   },
   "KjJZbmRFki": {
     "defaultMessage": "Unable to load project details. Refresh the page or try again in a moment.",
@@ -14163,6 +14351,14 @@
     "defaultMessage": "None",
     "description": "HTTP node auth none option"
   },
+  "Lfo/HfkA0U": {
+    "defaultMessage": "AI usage",
+    "description": "Reports tab: AI calls, tokens and billing's charge"
+  },
+  "LgOdyUATt4": {
+    "defaultMessage": "No AI was used in these dates with these filters.",
+    "description": "Shown when there is no AI usage"
+  },
   "LgRbsjVF3G": {
     "defaultMessage": "Connect remote MCP servers for automation tools.",
     "description": "Description for the MCP server integrations row"
@@ -14238,6 +14434,10 @@
   "Ln7uhbB78F": {
     "defaultMessage": "Task ended",
     "description": "Shown instead of the edit button when the task has ended, so its pricing can no longer change"
+  },
+  "LnL0pDC7fH": {
+    "defaultMessage": "Automation GitLab steps",
+    "description": "AI feature: an automation's GitLab step"
   },
   "Lnk8Rz0vVt": {
     "defaultMessage": "Unsubscribe",
@@ -14418,6 +14618,10 @@
   "M20HVGjx7C": {
     "defaultMessage": "Dictionary Project Attached",
     "description": "Activity log event type label for attaching a dictionary to a project"
+  },
+  "M2DEz7qDBI": {
+    "defaultMessage": "Editor suggestions",
+    "description": "AI feature: AI suggestions in the content editor"
   },
   "M2MpuB71Nj": {
     "defaultMessage": "Filter by import batch",
@@ -14887,6 +15091,10 @@
     "defaultMessage": "You want one default the whole workspace can share.",
     "description": "Situation for the default writing model on the pricing page"
   },
+  "Mod2wvXZ5N": {
+    "defaultMessage": "Contentful entry translation",
+    "description": "AI feature: translating a Contentful entry"
+  },
   "ModLI3ew1I": {
     "defaultMessage": "No glossaries yet",
     "description": "Empty state title when the workspace has no glossaries"
@@ -14910,6 +15118,10 @@
   "MqGC1CaGM9": {
     "defaultMessage": "Team glossary created",
     "description": "Toast after a team glossary is created from CAT"
+  },
+  "MrMT7zpFGE": {
+    "defaultMessage": "Images from links",
+    "description": "AI feature: images found at a link in a string"
   },
   "MrZ8+8I97E": {
     "defaultMessage": "Score",
@@ -15199,6 +15411,10 @@
     "defaultMessage": "Message",
     "description": "Label for Slack message on notify slack node"
   },
+  "NI3llQMoXS": {
+    "defaultMessage": "Plan credit and allowance",
+    "description": "Link from AI usage to the billing page's plan usage"
+  },
   "NIFt9XMskl": {
     "defaultMessage": "Synced",
     "description": "Workspace files sync state when the file is up to date"
@@ -15274,6 +15490,10 @@
   "NPElj+0/8R": {
     "defaultMessage": "Advanced Filter",
     "description": "Title of the CAT advanced filter dialog"
+  },
+  "NPbgrkRohR": {
+    "defaultMessage": "Push {count, plural, one {# message} other {# messages}}",
+    "description": "Confirm pushing the selected Customer.io messages"
   },
   "NPcxGbshkv": {
     "defaultMessage": "Enable check run",
@@ -15435,6 +15655,10 @@
     "defaultMessage": "Unit {unit, number}",
     "description": "Import diagnostic unit index"
   },
+  "Nfx6HTcwHn": {
+    "defaultMessage": "Automation GitHub steps",
+    "description": "AI feature: an automation's GitHub step"
+  },
   "NglzlEjVxr": {
     "defaultMessage": "Upload translated file",
     "description": "Button to upload a replacement translated file in CAT File view"
@@ -15582,6 +15806,10 @@
   "Nw/qZUdZvV": {
     "defaultMessage": "Owner note",
     "description": "Label for issue owner note field"
+  },
+  "NwFKmyGsjl": {
+    "defaultMessage": "Customer.io",
+    "description": "Name of the Customer.io integration in the hint on a skill that needs it connected"
   },
   "NwknAq8TGX": {
     "defaultMessage": "Live in Contentful or Webflow. A ping in Slack. Help articles in Intercom. Translations into Crowdin, Lokalise, Phrase, or Smartling if you still use them.",
@@ -15778,6 +16006,10 @@
   "OETHn/tWgc": {
     "defaultMessage": "Add queries from keyword research, or paste them here.",
     "description": "Empty rank tracking description"
+  },
+  "OF4drUQGOe": {
+    "defaultMessage": "Push to Customer.io",
+    "description": "Title of the Content editor dialog for choosing Customer.io messages to push"
   },
   "OGfnfxue9S": {
     "defaultMessage": "Search ID, title, description, or source path",
@@ -16103,6 +16335,10 @@
     "defaultMessage": "Time on each step",
     "description": "Title of the table of time spent per step"
   },
+  "OscDGYHTPM": {
+    "defaultMessage": "Disconnecting…",
+    "description": "Disconnect button label while Customer.io is being disconnected"
+  },
   "OsicY6Olwf": {
     "defaultMessage": "Discover, connect, and manage the systems your team uses for source content, translation, and launch workflows.",
     "description": "Supporting copy under the integrations marketplace headline"
@@ -16238,6 +16474,10 @@
   "P5eC/nlEOZ": {
     "defaultMessage": "Run now",
     "description": "Button to queue a manual automation run"
+  },
+  "P6qWY8Gy6F": {
+    "defaultMessage": "Provider",
+    "description": "AI usage detail: the company behind the AI model"
   },
   "P7DyqhOghg": {
     "defaultMessage": "No console output",
@@ -16459,6 +16699,10 @@
     "defaultMessage": "Remove merge object {index}",
     "description": "Remove a Merge Objects input"
   },
+  "PVV5kzeiKe": {
+    "defaultMessage": "Chat string translation",
+    "description": "AI feature: strings the chat assistants translate"
+  },
   "PVXHS+qpRe": {
     "defaultMessage": "Founders",
     "description": "Heading above founder cards on the company page"
@@ -16566,6 +16810,10 @@
   "Pgxv//ij4N": {
     "defaultMessage": "Workspace",
     "description": "Projects page header eyebrow label"
+  },
+  "Ph0FvVI41z": {
+    "defaultMessage": "Chart shows",
+    "description": "Accessible name of the switch for what the AI usage chart measures"
   },
   "PhiMU1WefX": {
     "defaultMessage": "Failed to load TMS jobs",
@@ -17115,6 +17363,10 @@
     "defaultMessage": "Save the workflow to get its webhook URL.",
     "description": "Shown instead of the webhook URL before the workflow is saved"
   },
+  "QfEwz9eSDW": {
+    "defaultMessage": "Slack assistant",
+    "description": "AI feature: the assistant in Slack"
+  },
   "QfmZdcP/TR": {
     "defaultMessage": "Each workspace member connects their own {providerName} account. Projects, jobs, glossaries, and translation memories load live from {providerName} when you open those pages.",
     "description": "Status description when a TMS provider is connected with OAuth"
@@ -17247,10 +17499,6 @@
     "defaultMessage": "revoked a member invitation",
     "description": "Action for a revoked member invitation activity"
   },
-  "QpdOZpNasy": {
-    "defaultMessage": "Calls",
-    "description": "Column heading: number of AI calls"
-  },
   "QqEr64QiAA": {
     "defaultMessage": "Brand",
     "description": "App shell breadcrumb title for domain AI brand lookup"
@@ -17266,10 +17514,6 @@
   "QrUlBs3ARV": {
     "defaultMessage": "No value",
     "description": "Empty state when a long-text custom column has no value"
-  },
-  "QrtyL5iy/N": {
-    "defaultMessage": "Tokens by where the AI was called. Includes calls on your own provider key.",
-    "description": "Subtitle of the AI usage section"
   },
   "Qrwlw6Dfd/": {
     "defaultMessage": "Review and approval",
@@ -17295,6 +17539,10 @@
     "defaultMessage": "Layers saved",
     "description": "Image viewer: saved"
   },
+  "QvlJLJrsTw": {
+    "defaultMessage": "Remove filter: {dimension}",
+    "description": "Accessible name of the button that removes an AI usage filter; dimension is the name of a detail, such as Model"
+  },
   "Qw/ZLtBjN0": {
     "defaultMessage": "Crowdin",
     "description": "Tool badge when an automation uses Crowdin"
@@ -17314,6 +17562,10 @@
   "Qy1pnimpzM": {
     "defaultMessage": "Block merge when locales are unresolved",
     "description": "Workflow step 6 description for the github-release-localisation use case"
+  },
+  "Qy4JOmQ7Ba": {
+    "defaultMessage": "Automation Crowdin steps",
+    "description": "AI feature: an automation's Crowdin step"
   },
   "Qy7zjlJucR": {
     "defaultMessage": "Read the repository and follow your instructions. GitLab skills apply automatically.",
@@ -17450,6 +17702,10 @@
   "RDYoEaU2oe": {
     "defaultMessage": "Contentful",
     "description": "Run history trigger source for Contentful runs"
+  },
+  "RE8GVKKf1W": {
+    "defaultMessage": "Hide API key",
+    "description": "Aria label for hiding the Customer.io API key field"
   },
   "REMUySaHTw": {
     "defaultMessage": "English page has no FAQ for AI answers",
@@ -17927,6 +18183,10 @@
     "defaultMessage": "Chain of Thought",
     "description": "Default header label for the chain-of-thought collapsible section"
   },
+  "S/om+96e8o": {
+    "defaultMessage": "Grouped by {dimension}, largest first, past the fifth as Other. Days are UTC.",
+    "description": "Subtitle of the AI usage chart; dimension is the name of a detail, such as Area or Model"
+  },
   "S1WdU+6z/U": {
     "defaultMessage": "This file is larger than the {maxMegabytes, number} MB import limit. Split the memory into smaller TMX files.",
     "description": "Error when a translation memory import file exceeds the documented size limit"
@@ -18055,6 +18315,10 @@
     "defaultMessage": "Dark",
     "description": "Dark color theme option in the theme toggle menu"
   },
+  "SI78vK8CbA": {
+    "defaultMessage": "{count, plural, one {# run, image or video used your own provider key, which uses no plan credit.} other {# runs, images or videos used your own provider key, which uses no plan credit.}}",
+    "description": "Note under the AI usage cards"
+  },
   "SIFIPtlpE9": {
     "defaultMessage": "Collect work from GitHub, Slack, CMS, and TMS",
     "description": "Workflow step 1 description for the localisation-operations use case"
@@ -18102,6 +18366,10 @@
   "SO48T+V4po": {
     "defaultMessage": "Localize campaigns, journeys, and in-app messages in Iterable.",
     "description": "Iterable integration description on the integrations page"
+  },
+  "SOILzo2Mm+": {
+    "defaultMessage": "Own key",
+    "description": "Charge cell for calls that all used the workspace's own provider key, which costs no plan credit"
   },
   "SOxLTVdmv8": {
     "defaultMessage": "Push policy",
@@ -18303,6 +18571,10 @@
     "defaultMessage": "Copy this Canva connection token",
     "description": "Title for the one-time Canva token reveal dialog"
   },
+  "SkgM3ZpSJX": {
+    "defaultMessage": "Contentful field translation",
+    "description": "AI feature: translating Contentful fields in a Contentful run"
+  },
   "Sl1sz696FJ": {
     "defaultMessage": "Loading projects…",
     "description": "Project option help"
@@ -18458,6 +18730,10 @@
   "T+CONpD3t0": {
     "defaultMessage": "Set rates and budgets before work overruns",
     "description": "Feature teaser benefit for reports"
+  },
+  "T+VDvnW8FQ": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel the Customer.io message picker"
   },
   "T+lSNezp+m": {
     "defaultMessage": "Delete",
@@ -18955,6 +19231,10 @@
     "defaultMessage": "All",
     "description": "All value shown in concept filter triggers"
   },
+  "TmsxbZMIfi": {
+    "defaultMessage": "Previous month",
+    "description": "Accessible name of the calendar button that shows the month before"
+  },
   "TmuH5whY3N": {
     "defaultMessage": "Word counts",
     "description": "Accessible name of the word counts table"
@@ -19231,10 +19511,6 @@
     "defaultMessage": "Content Studio",
     "description": "Link from Hyperlab to the Content Studio product page"
   },
-  "UDN6VYj6Ax": {
-    "defaultMessage": "{days} days",
-    "description": "Preset date range: the last N days"
-  },
   "UDTP3K5J0j": {
     "defaultMessage": "Create a key in Zernio under API keys. Automations authenticate with Authorization: Bearer.",
     "description": "Help text for where to find a Zernio API key"
@@ -19258,6 +19534,10 @@
   "UFkjoS7NyA": {
     "defaultMessage": "Remove element",
     "description": "Video refinement workspace: remove"
+  },
+  "UFniVaKlF7": {
+    "defaultMessage": "Show only {name} under {group}",
+    "description": "Accessible name of a button that narrows AI usage to a row within a group"
   },
   "UGOxWduZf+": {
     "defaultMessage": "Redo",
@@ -19467,6 +19747,10 @@
     "defaultMessage": "Developer",
     "description": "Organization membership role label for developers"
   },
+  "UcFNsQbu4I": {
+    "defaultMessage": "Push to Customer.io",
+    "description": "Button that opens the dialog to write approved message translations to Customer.io"
+  },
   "UdxBZORXpe": {
     "defaultMessage": "All",
     "description": "Integration category filter tab showing every category"
@@ -19666,10 +19950,6 @@
   "UxoXtyoyQB": {
     "defaultMessage": "What can my team do in Content Studio?",
     "description": "Homepage FAQ question about platform topic 2"
-  },
-  "UyCh2vthT/": {
-    "defaultMessage": "AI usage follows the dates and project only, not the task, language or step chosen.",
-    "description": "Note on AI usage while a task or language filter is set"
   },
   "UyR75G1t9n": {
     "defaultMessage": "Undid the assistant's changes",
@@ -19975,6 +20255,10 @@
     "defaultMessage": "Leave without saving",
     "description": "Confirm button to navigate away without saving target edits"
   },
+  "VRF9pR5hpD": {
+    "defaultMessage": "Under {amount}",
+    "description": "Charge shown for an amount above zero but below one cent; amount is one cent, as money"
+  },
   "VRK24of0oE": {
     "defaultMessage": "Open in ChatGPT",
     "description": "Menu item to open the prompt in ChatGPT"
@@ -20002,6 +20286,10 @@
   "VTQVrhBIAm": {
     "defaultMessage": "Open in v0",
     "description": "Menu item to open the prompt in v0"
+  },
+  "VUK+nk/WAD": {
+    "defaultMessage": "Region",
+    "description": "Label for the Customer.io region picker"
   },
   "VUwFgX4OmD": {
     "defaultMessage": "Permissions: {permissions}",
@@ -20122,10 +20410,6 @@
   "Vl/WJ79qHw": {
     "defaultMessage": "Connect Resend or SendGrid in <link>Integrations</link> to use email notifications.",
     "description": "Description for email notifications when email is not enabled"
-  },
-  "VlAhu8wiQm": {
-    "defaultMessage": "Channels",
-    "description": "Column heading: how the AI was reached"
   },
   "VluH2EAHsX": {
     "defaultMessage": "Cleared the workflow's name",
@@ -20250,6 +20534,10 @@
   "VyqM/DHC5Z": {
     "defaultMessage": "Yes",
     "description": "A true value in a run's result details"
+  },
+  "Vz+Pht0RPH": {
+    "defaultMessage": "Automation",
+    "description": "AI usage detail: the automation that ran"
   },
   "Vz9hpPn3p2": {
     "defaultMessage": "Overall score",
@@ -20411,6 +20699,10 @@
     "defaultMessage": "Save",
     "description": "Button to save an edited issue comment"
   },
+  "WGermyRKU2": {
+    "defaultMessage": "Project",
+    "description": "AI usage detail: the project"
+  },
   "WGmc876gab": {
     "defaultMessage": "Use the workspace guideline as guidance for this automation.",
     "description": "Description for the workspace guideline automation tool"
@@ -20426,6 +20718,10 @@
   "WIwcX3Fw30": {
     "defaultMessage": "Current translation",
     "description": "Description skeleton heading for the translation mistake issue template"
+  },
+  "WJxIf/08vm": {
+    "defaultMessage": "Web chat",
+    "description": "AI feature: the public web chat"
   },
   "WKx3yZHQjo": {
     "defaultMessage": "Loading intelligence",
@@ -21227,6 +21523,10 @@
     "defaultMessage": "Release gates depend on manual TMS checks that block deploys unpredictably.",
     "description": "Problem pain point 4 for the github-release-localisation use case"
   },
+  "XjY9jRzAy/": {
+    "defaultMessage": "Key",
+    "description": "AI usage detail: whether a call used Hyperlocalise AI or the workspace's own provider key"
+  },
   "XkO72fy/02": {
     "defaultMessage": "No files found.",
     "description": "Empty state when source path search has no matches"
@@ -21294,6 +21594,14 @@
   "Xs9oX3Pg8i": {
     "defaultMessage": "Assignees: {names}",
     "description": "Accessible label listing every selected Crowdin assignee"
+  },
+  "Xsh+x2oIBp": {
+    "defaultMessage": "Today, {date}",
+    "description": "What a screen reader hears for today's day in a calendar; date is the full date"
+  },
+  "XtlIQmhVDA": {
+    "defaultMessage": "Failed to load the Customer.io region.",
+    "description": "Error when the Customer.io region cannot be loaded"
   },
   "XtzSAMs4em": {
     "defaultMessage": "Chat, Slack, and general workspace questions with project and glossary context.",
@@ -21767,6 +22075,10 @@
     "defaultMessage": "GitHub repository list refreshed",
     "description": "Toast after syncing the GitHub repository list"
   },
+  "YfhvSK4Uaq": {
+    "defaultMessage": "Now choose the last day.",
+    "description": "Hint under the date range calendar once the first day is chosen"
+  },
   "YfmsVkUswA": {
     "defaultMessage": "KB",
     "description": "Kilobyte size unit abbreviation"
@@ -22075,6 +22387,10 @@
     "defaultMessage": "{count} total",
     "description": "Badge showing total issue count on the Issue Sheet page"
   },
+  "ZAH2OIgqxD": {
+    "defaultMessage": "Overwrite Customer.io locales when the remote locale is newer.",
+    "description": "Explains the selected automation overwrites newer Customer.io locales on push"
+  },
   "ZAdSzM16Za": {
     "defaultMessage": "Display name",
     "description": "Label for Zernio display name field"
@@ -22279,6 +22595,10 @@
     "defaultMessage": "Assign values into the workflow context.",
     "description": "Catalog description for the set fields node"
   },
+  "ZYJ/Beaygk": {
+    "defaultMessage": "Customer.io connection saved.",
+    "description": "Toast after the Customer.io API key and region are saved"
+  },
   "ZYSBgdbiSM": {
     "defaultMessage": "Research markets",
     "description": "Stepper label"
@@ -22318,6 +22638,10 @@
   "ZeUNHM/VrO": {
     "defaultMessage": "Could not send your message. Try again.",
     "description": "Error when sending a chat dock reply fails"
+  },
+  "ZecH2g51/i": {
+    "defaultMessage": "This month",
+    "description": "Ready-made date range: from the first of this month to today"
   },
   "Zg7mAl/85b": {
     "defaultMessage": "Open in Content Editor",
@@ -22447,6 +22771,10 @@
     "defaultMessage": "You want quicker replies from this OpenAI model.",
     "description": "Situation for a faster included OpenAI model on the pricing page"
   },
+  "Zqf++rV/7O": {
+    "defaultMessage": "Automation",
+    "description": "Label for choosing which Customer.io automation to push with"
+  },
   "Zr6ABmqsLb": {
     "defaultMessage": "New flag",
     "description": "Dialog title for creating a flag"
@@ -22490,6 +22818,10 @@
   "ZtpmqfuRlV": {
     "defaultMessage": "Extract structure, links, and product terms",
     "description": "Workflow step 2 description for the help-center-localisation use case"
+  },
+  "Zty8d4Y6Q8": {
+    "defaultMessage": "Group by",
+    "description": "Label of the AI usage table's first grouping"
   },
   "ZuWdxYzYaK": {
     "defaultMessage": "Create glossary",
@@ -22554,6 +22886,10 @@
   "ZzPp69g3M2": {
     "defaultMessage": "Know which strings were human-reviewed, machine-translated only, or pending approval per locale.",
     "description": "Capability 4 description for the localisation-quality-monitoring use case"
+  },
+  "ZzV0hKLWlE": {
+    "defaultMessage": "Nothing",
+    "description": "Second grouping option: no second grouping"
   },
   "a+4byYqJMM": {
     "defaultMessage": "Integrations",
@@ -22887,6 +23223,10 @@
     "defaultMessage": "Visual workflows",
     "description": "Activity log event type group for visual workflows"
   },
+  "aVfxD0nSAA": {
+    "defaultMessage": "AI credit",
+    "description": "AI usage chart option: plan AI credit used"
+  },
   "aVyIT73gXH": {
     "defaultMessage": "Get to know each product—and how it contributes to your content operations.",
     "description": "Marketing homepage explorerBody"
@@ -23106,6 +23446,10 @@
   "awnc3dv3Xw": {
     "defaultMessage": "Key",
     "description": "Label for translation key on an issue"
+  },
+  "axWhEFeMZL": {
+    "defaultMessage": "Visual workflow AI step",
+    "description": "AI feature: the AI step of a visual workflow"
   },
   "axtydiBtML": {
     "defaultMessage": "Remove memories tool",
@@ -23398,6 +23742,10 @@
   "bL+wwPFNwO": {
     "defaultMessage": "Input {index}",
     "description": "Merge execution input name placeholder"
+  },
+  "bLPlFAaHJw": {
+    "defaultMessage": "No mapped messages",
+    "description": "Empty state when a Customer.io automation has no mapped messages"
   },
   "bLUZ8jecPz": {
     "defaultMessage": "Separate IDs with commas, for example fr, de. Leave empty for every target language of the project.",
@@ -24055,6 +24403,10 @@
     "defaultMessage": "Sort by",
     "description": "Accessible label for the translation memory entry sort field"
   },
+  "cTkw9PCgsF": {
+    "defaultMessage": "Last month",
+    "description": "Ready-made date range: the whole of the month before this one"
+  },
   "cTokIumPvG": {
     "defaultMessage": "Use workspace guideline",
     "description": "Menu item and tool title for the workspace guideline"
@@ -24078,6 +24430,10 @@
   "cXcTyAvqBj": {
     "defaultMessage": "Import batch",
     "description": "Label for the import batch provenance field"
+  },
+  "cXxIDbMkgJ": {
+    "defaultMessage": "Keep Customer.io locales that teammates edited after the last push.",
+    "description": "Explains the selected automation keeps newer Customer.io locales"
   },
   "cY7ieh5gRY": {
     "defaultMessage": "Assistants and chat",
@@ -24583,6 +24939,10 @@
     "defaultMessage": "The audit could not finish for this domain.",
     "description": "Fallback error when a failed localisation audit has no error message"
   },
+  "dIV5pErGts": {
+    "defaultMessage": "Automation web searches",
+    "description": "AI feature: an automation's web search step"
+  },
   "dIgSyZztAu": {
     "defaultMessage": "Model Selector",
     "description": "Accessible dialog title for the model selector"
@@ -24674,6 +25034,10 @@
   "dQxtOIUn2A": {
     "defaultMessage": "Hyperlocalise agent",
     "description": "Name of the translation agent shown on a job run card"
+  },
+  "dRAnpDEjDR": {
+    "defaultMessage": "Not recorded",
+    "description": "Charge cell when billing has recorded no charge for the calls"
   },
   "dRBR6Rd4hs": {
     "defaultMessage": "Built for engineering and localisation operations",
@@ -25943,10 +26307,6 @@
     "defaultMessage": "How to reproduce",
     "description": "Description skeleton heading for the QA failure issue template"
   },
-  "fMv+rsdxOk": {
-    "defaultMessage": "No AI was used in these dates.",
-    "description": "Shown when there is no AI usage"
-  },
   "fMyeM5BW3s": {
     "defaultMessage": "Custom",
     "description": "Enterprise plan price label on the pricing page"
@@ -25994,6 +26354,10 @@
   "fQnyk9TobX": {
     "defaultMessage": "Domains hosts your multilingual pages and checks that each language, search snippet, and AI answer points to the right place.",
     "description": "Details section summary for the Domains product page"
+  },
+  "fRRpr4ssH/": {
+    "defaultMessage": "Push policy",
+    "description": "Label for the selected automation Customer.io overwrite rule"
   },
   "fRdqS+8PYa": {
     "defaultMessage": "Upload a supported source file before translating with the agent.",
@@ -26178,10 +26542,6 @@
   "flcDp2zUQk": {
     "defaultMessage": "Run a test in Japan first, then keep the version that works. Your developer connects the site once.",
     "description": "Feature teaser early access description for Hyperlab"
-  },
-  "flylKYuIkP": {
-    "defaultMessage": "{images} · {videos}",
-    "description": "Calls column for media: the counts of images and of videos made, already worded"
   },
   "fmDOQaEtb/": {
     "defaultMessage": "Document",
@@ -26967,6 +27327,10 @@
     "defaultMessage": "Show this list",
     "description": "Shortcut label for opening the shortcuts dialog"
   },
+  "gyDBGtZej3": {
+    "defaultMessage": "Automation Crowdin suggestions",
+    "description": "AI feature: suggestions an automation makes for Crowdin strings"
+  },
   "gyGnNuR5md": {
     "defaultMessage": "Required",
     "description": "Badge label for a required environment variable"
@@ -27099,6 +27463,10 @@
     "defaultMessage": "Send",
     "description": "Send button in the guidelines board chat"
   },
+  "h5cYwVNzp2": {
+    "defaultMessage": "Since Reports started",
+    "description": "Ready-made date range: from the day Reports started for the workspace to today"
+  },
   "h6siz+8bqw": {
     "defaultMessage": "No native projects yet.",
     "description": "Workspace QA empty state"
@@ -27210,6 +27578,10 @@
   "hI5mcHlF5p": {
     "defaultMessage": "{count, plural, one {# language has findings} other {# languages have findings}}",
     "description": "Project QA overview metric detail for languages with findings"
+  },
+  "hI8KYvfk45": {
+    "defaultMessage": "Connected TMS tasks",
+    "description": "AI feature: AI runs on tasks from a connected translation management system"
   },
   "hIBcZdGd0e": {
     "defaultMessage": "Token ending in {suffix}",
@@ -27538,10 +27910,6 @@
   "hqP31ZL7Z3": {
     "defaultMessage": "A number, such as the strings to do from Check progress.",
     "description": "Help text under the pick assignee size input"
-  },
-  "hqWPlzvpZd": {
-    "defaultMessage": "{from} – {to}",
-    "description": "The dates a report covers, from one day to another"
   },
   "hqrN/Zh7Ck": {
     "defaultMessage": "How do Guidelines support the work?",
@@ -27939,6 +28307,10 @@
     "defaultMessage": "Perplexity",
     "description": "Perplexity engine label"
   },
+  "iSkR3k2Z83": {
+    "defaultMessage": "Emailed images",
+    "description": "AI feature: images sent by email"
+  },
   "iSz2hKqv1Z": {
     "defaultMessage": "Your next story.\nReady for the world.",
     "description": "Bottom CTA headline on the multilingual Content Studio product page"
@@ -28074,6 +28446,10 @@
   "igXJErVret": {
     "defaultMessage": "Page preview",
     "description": "Label above the Notion guideline preview"
+  },
+  "iggux3qGee": {
+    "defaultMessage": "Could not queue Customer.io push",
+    "description": "Toast when queuing a Customer.io push automation run fails"
   },
   "igisWP9I+4": {
     "defaultMessage": "{confidence}% confidence",
@@ -28307,6 +28683,10 @@
     "defaultMessage": "Queries",
     "description": "Project sidebar navigation item for project Queries"
   },
+  "j3rHI5kUuX": {
+    "defaultMessage": "Automation Zernio steps",
+    "description": "AI feature: an automation's Zernio step"
+  },
   "j3sarok4E/": {
     "defaultMessage": "MCP Server",
     "description": "Menu item and tool title for an external MCP server connection"
@@ -28346,6 +28726,10 @@
   "j8sxjUaev9": {
     "defaultMessage": "Add mapping",
     "description": "Add languagemap row"
+  },
+  "j9LmfBHPxj": {
+    "defaultMessage": "{date}, selected",
+    "description": "What a screen reader hears for a chosen day in a calendar; date is the full date"
   },
   "j9gPf+HUfJ": {
     "defaultMessage": "B",
@@ -28402,6 +28786,10 @@
   "jDzOaWf1E5": {
     "defaultMessage": "Stop with a controlled error code and safe message.",
     "description": "Catalog description for the terminal workflow failure node"
+  },
+  "jE6/WhmKkH": {
+    "defaultMessage": "Clear",
+    "description": "Clear the Customer.io message selection"
   },
   "jEVZfFEPYx": {
     "defaultMessage": "Audiences",
@@ -28931,6 +29319,10 @@
     "defaultMessage": "Move up",
     "description": "Button to move an issue column earlier in sort order"
   },
+  "k9j7R6aLei": {
+    "defaultMessage": "Could not load messages",
+    "description": "Error when mapped Customer.io messages fail to load"
+  },
   "k9uRw1QXC6": {
     "defaultMessage": "No messages yet",
     "description": "Preview text when a conversation in the inbox list has no messages"
@@ -28950,10 +29342,6 @@
   "kAj/pNbn2C": {
     "defaultMessage": "Description",
     "description": "System field mapping label for issue description"
-  },
-  "kAxUWHx06W": {
-    "defaultMessage": "Models",
-    "description": "Column heading: models used"
   },
   "kBB5urcgnt": {
     "defaultMessage": "another issue",
@@ -29623,6 +30011,10 @@
     "defaultMessage": "{sourceTerm} → {targetTerm} ({targetLocale})",
     "description": "Source and target term pair for a glossary match detail row"
   },
+  "lIOUrpz16b": {
+    "defaultMessage": "AI credit",
+    "description": "Column heading: plan AI credit billing recorded"
+  },
   "lIRYmBIWre": {
     "defaultMessage": "For example: adapt the tone for this audience, keep the logo, and preserve the colour palette.",
     "description": "Image viewer: additionalPlaceholder"
@@ -29734,6 +30126,10 @@
   "lUH3RGUMfU": {
     "defaultMessage": "No matching blocks",
     "description": "Empty state when slash command filter matches nothing"
+  },
+  "lV1uls2wmK": {
+    "defaultMessage": "Show only {name}",
+    "description": "Accessible name of a button that narrows AI usage to one row"
   },
   "lV6tIpjosi": {
     "defaultMessage": "Translate",
@@ -29990,6 +30386,10 @@
   "lzHNFV9Hx6": {
     "defaultMessage": "Guessing is expensive. A small market test is not.",
     "description": "Details section headline for the Hyperlab product page"
+  },
+  "m+nKGIs3Va": {
+    "defaultMessage": "String context lookup",
+    "description": "AI feature: looking up a string's context in a repository"
   },
   "m0gQ9lgLTM": {
     "defaultMessage": "Chat model",
@@ -30715,6 +31115,10 @@
     "defaultMessage": "JSON",
     "description": "HTTP node body type json option"
   },
+  "n6TXU+n3nd": {
+    "defaultMessage": "GitHub pull request reviews",
+    "description": "AI feature: automatic localisation reviews of GitHub pull requests"
+  },
   "n7fzXxI33N": {
     "defaultMessage": "Origin",
     "description": "Label for the origin filter"
@@ -30750,6 +31154,10 @@
   "nA1Lv0wxJn": {
     "defaultMessage": "Monitor locale coverage across all content types",
     "description": "Capability 1 title for the localisation-quality-monitoring use case"
+  },
+  "nANfsqdHl+": {
+    "defaultMessage": "This quarter",
+    "description": "Ready-made date range: from the first day of this quarter to today"
   },
   "nAOm8YPSCd": {
     "defaultMessage": "Preferred",
@@ -30887,6 +31295,10 @@
     "defaultMessage": "Back",
     "description": "Button to go to the previous step in the Issue Sheet import dialog"
   },
+  "nP5/XmJ2o7": {
+    "defaultMessage": "Select all",
+    "description": "Select every mapped Customer.io message in the push dialog"
+  },
   "nPBxFBlFGN": {
     "defaultMessage": "Choose a trigger",
     "description": "Step 2 title"
@@ -30979,6 +31391,10 @@
     "defaultMessage": "Download CSV",
     "description": "Button that downloads a table as a CSV file"
   },
+  "nWZHvhQ4eF": {
+    "defaultMessage": "Choose the first day, then the last.",
+    "description": "Hint under the date range calendar before a day is chosen"
+  },
   "nWyqpLBFh/": {
     "defaultMessage": "Last object wins",
     "description": "Merge Objects policy that keeps the later overlapping value"
@@ -31014,6 +31430,10 @@
   "nZIGjKiA+J": {
     "defaultMessage": "Early design partner",
     "description": "Marketing homepage testimonial company label"
+  },
+  "nZweXDCNR/": {
+    "defaultMessage": "Save",
+    "description": "Button to save the Customer.io API key and region"
   },
   "naIxnIgyHB": {
     "defaultMessage": "Review after generation",
@@ -31351,6 +31771,10 @@
     "defaultMessage": "Show bulk selection checkboxes",
     "description": "Accessible label for the CAT queue bulk selection mode toggle"
   },
+  "oCa8hcO5ye": {
+    "defaultMessage": "Loading messages",
+    "description": "Shown while mapped Customer.io messages load"
+  },
   "oD4c197bVX": {
     "defaultMessage": "Version",
     "description": "Label for the variant field when assigning a flag"
@@ -31514,6 +31938,10 @@
   "oQnxh21y9E": {
     "defaultMessage": "Invite member",
     "description": "Title of the invite member dialog"
+  },
+  "oRDtAL/tPw": {
+    "defaultMessage": "Videos from links",
+    "description": "AI feature: videos found at a link in a string"
   },
   "oRNiCCPUi7": {
     "defaultMessage": "Fail the step",
@@ -32219,6 +32647,10 @@
     "defaultMessage": "MCP Server",
     "description": "Name shown for the MCP server integrations row"
   },
+  "pXVDdwBd+I": {
+    "defaultMessage": "Breakdown",
+    "description": "Title of the AI usage table"
+  },
   "pXpP8bdMfG": {
     "defaultMessage": "Generating response",
     "description": "Accessible label for a streaming chat tab indicator"
@@ -32422,6 +32854,10 @@
   "poLxV0+BEN": {
     "defaultMessage": "Search files…",
     "description": "Placeholder for source path file picker search"
+  },
+  "pp9GGJhzXL": {
+    "defaultMessage": "Slack images",
+    "description": "AI feature: images sent in Slack"
   },
   "pp9OzwrBNo": {
     "defaultMessage": "Delete",
@@ -32859,6 +33295,10 @@
     "defaultMessage": "Retry audit",
     "description": "Button to retry a failed or stalled localisation audit"
   },
+  "qTqRADscBS": {
+    "defaultMessage": "Images",
+    "description": "Column heading: images made with AI"
+  },
   "qU7FzWhWvd": {
     "defaultMessage": "Description",
     "description": "Label for the translation memory description field"
@@ -33046,6 +33486,10 @@
   "qoKQfRLzE9": {
     "defaultMessage": "Sampling public pages and locale roots.",
     "description": "Detail text when a localisation audit is crawling"
+  },
+  "qoYdUDSxh6": {
+    "defaultMessage": "Last {days} days",
+    "description": "Ready-made date range: the last N days, today included"
   },
   "qpxWkOMxRR": {
     "defaultMessage": "Name",
@@ -33467,10 +33911,6 @@
     "defaultMessage": "Negative",
     "description": "Negative competitor sentiment"
   },
-  "rS5rFYTVd7": {
-    "defaultMessage": "AI usage",
-    "description": "Title of the AI usage section"
-  },
   "rUIfR5O8Wi": {
     "defaultMessage": "Publish",
     "description": "Publish and activate the current workflow draft"
@@ -33791,6 +34231,10 @@
     "defaultMessage": "Project guideline",
     "description": "Tab label for project Memory.md in the editor guideline sheet"
   },
+  "s0B+f3G8Yz": {
+    "defaultMessage": "Automation runs",
+    "description": "AI feature: the main loop of an automation run"
+  },
   "s0SZ6JCFMT": {
     "defaultMessage": "Project",
     "description": "Feature teaser page label for project guideline"
@@ -33814,6 +34258,10 @@
   "s1stMk8yBo": {
     "defaultMessage": "Add relationship",
     "description": "Button that opens the relationship picker popover"
+  },
+  "s1vMAssL4M": {
+    "defaultMessage": "Next month",
+    "description": "Accessible name of the calendar button that shows the month after"
   },
   "s2RbfpSnxA": {
     "defaultMessage": "Failed to upload image",
@@ -34174,6 +34622,10 @@
   "slNRGSuQyX": {
     "defaultMessage": "{filename} uploaded. Processing has started.",
     "description": "Toast after a guideline document upload is accepted"
+  },
+  "slXSkb5/Gg": {
+    "defaultMessage": "{measure} from {from} to {to}: {total}",
+    "description": "Accessible summary of the AI usage chart"
   },
   "slYILV02yb": {
     "defaultMessage": "Preview",
@@ -34859,6 +35311,10 @@
     "defaultMessage": "Files",
     "description": "View menu section label for file list options"
   },
+  "u+flYkWbmL": {
+    "defaultMessage": "Then by",
+    "description": "Label of the AI usage table's second grouping"
+  },
   "u/BgSogOwb": {
     "defaultMessage": "3.2 German advertising — no superlatives",
     "description": "Highlighted PDF clause in the Google Drive source preview"
@@ -34866,10 +35322,6 @@
   "u/GyZps3MY": {
     "defaultMessage": "{count, plural, one {# block couldn't be translated.} other {# blocks couldn't be translated.}}",
     "description": "Document editor: some blocks failed during translate document"
-  },
-  "u/eOWVmwsn": {
-    "defaultMessage": "Custom",
-    "description": "Preset that lets the user choose start and end dates"
   },
   "u/fBB4HZhM": {
     "defaultMessage": "Figma connection saved.",
@@ -34979,6 +35431,10 @@
     "defaultMessage": "Teams failed to load.",
     "description": "Error heading when teams fail to load"
   },
+  "uBFnquvWXR": {
+    "defaultMessage": "Customer.io push queued",
+    "description": "Toast after a Customer.io push automation run is queued"
+  },
   "uBs3qiwQrd": {
     "defaultMessage": "OAuth client ID",
     "description": "Label for the OAuth client ID field"
@@ -34986,6 +35442,10 @@
   "uC9uH1Yi+P": {
     "defaultMessage": "Could not save the translation.",
     "description": "Error when saving a translation variant fails"
+  },
+  "uCDllPtZvA": {
+    "defaultMessage": "Runs",
+    "description": "Column heading: billed uses of AI"
   },
   "uCFqHd7i8y": {
     "defaultMessage": "Fixed fees",
@@ -35154,6 +35614,10 @@
   "uSp36HVYw0": {
     "defaultMessage": "Loading domains…",
     "description": "Loading state for the workspace domains list"
+  },
+  "uT4xUx84dP": {
+    "defaultMessage": "Customer.io disconnected.",
+    "description": "Toast after Customer.io is disconnected"
   },
   "uT9Dk2E9I0": {
     "defaultMessage": "Current provider target",
@@ -35335,6 +35799,10 @@
     "defaultMessage": "Original",
     "description": "Hyperlab mock UI experiment variant label"
   },
+  "ultNeGfvXw": {
+    "defaultMessage": "GitHub requests",
+    "description": "AI feature: answering a person's mention of Hyperlocalise in a GitHub pull request"
+  },
   "umK6yIapNV": {
     "defaultMessage": "Value",
     "description": "Value placeholder for key-value editor"
@@ -35366,6 +35834,10 @@
   "upsJCx/arg": {
     "defaultMessage": "You want a more careful Google model for harder drafts.",
     "description": "Situation for Gemini Pro on the pricing page"
+  },
+  "uq9xFpQ4IJ": {
+    "defaultMessage": "{area} ({name})",
+    "description": "AI feature without a plain name: its area, then the name billing records"
   },
   "uqGZNAVfVF": {
     "defaultMessage": "Add",
@@ -35574,6 +36046,10 @@
   "v6QIe3eb5N": {
     "defaultMessage": "Failed to load segment comments",
     "description": "Fallback error when loading CAT segment comments fails"
+  },
+  "v6mNRf846Z": {
+    "defaultMessage": "All",
+    "description": "Filter option: no filter on this detail"
   },
   "v8HmqsxSuZ": {
     "defaultMessage": "Ranks",
@@ -35919,6 +36395,10 @@
     "defaultMessage": "Selected string",
     "description": "Fallback right-panel heading when a visual editor string has no context label"
   },
+  "vhU0viUlLj": {
+    "defaultMessage": "Videos made",
+    "description": "AI usage card: videos made with AI"
+  },
   "vhieXbkbZZ": {
     "defaultMessage": "Do prices, dates, buttons, and examples make sense in each market?",
     "description": "Body of the contextual dimension on the localisation audit landing page methodology"
@@ -36235,6 +36715,10 @@
     "defaultMessage": "Video",
     "description": "Filter label for video models on the pricing page"
   },
+  "wCUR6X8Z7Z": {
+    "defaultMessage": "No task",
+    "description": "AI usage group: calls on no task"
+  },
   "wDUtJytI6K": {
     "defaultMessage": "Select all",
     "description": "Action to select every activity log event type"
@@ -36350,6 +36834,10 @@
   "wPaeLzlE/q": {
     "defaultMessage": "Source and workload words by project and locale",
     "description": "Reports mock UI word counts use case description"
+  },
+  "wPhKfd2oCa": {
+    "defaultMessage": "Chat assistant",
+    "description": "AI feature: the in-app chat assistant"
   },
   "wQGnFQYS2q": {
     "defaultMessage": "Not set",
@@ -36911,6 +37399,10 @@
     "defaultMessage": "No runs yet. Test the workflow or activate a production trigger.",
     "description": "Empty state for the visual workflow executions list"
   },
+  "xDMUZiSwLO": {
+    "defaultMessage": "AI usage per day",
+    "description": "Title of the AI usage chart, day by day"
+  },
   "xDMwfqrOb5": {
     "defaultMessage": "Health claims match approved regulatory wording",
     "description": "Guideline mock UI compliance checklist item"
@@ -37035,6 +37527,10 @@
     "defaultMessage": "Email me a summary when ready",
     "description": "Heading for the notify-me form on a running localisation audit"
   },
+  "xTS+QGWoW0": {
+    "defaultMessage": "Automation Ahrefs steps",
+    "description": "AI feature: an automation's Ahrefs step"
+  },
   "xTYiHfPy3g": {
     "defaultMessage": "Workspace",
     "description": "Breadcrumb-style label above the members page title"
@@ -37042,6 +37538,10 @@
   "xTxrHZIjDK": {
     "defaultMessage": "{shortcut} to toggle",
     "description": "Document editor: keyboard shortcut hint"
+  },
+  "xU90Ix6UXE": {
+    "defaultMessage": "Channel",
+    "description": "AI usage detail: how the AI was reached, such as the app, the API or Slack"
   },
   "xUdbOFsZxg": {
     "defaultMessage": "Book an audit review",
@@ -37311,6 +37811,10 @@
     "defaultMessage": "No matching inbox items on this page.",
     "description": "Empty state when inbox filters hide the loaded page but older notifications can still be loaded"
   },
+  "xuKFsgkvM/": {
+    "defaultMessage": "{dimension}: {value}",
+    "description": "A filter chip on AI usage: the detail and its chosen value"
+  },
   "xv78aoTwI/": {
     "defaultMessage": "Search concepts",
     "description": "Placeholder for the concept search input"
@@ -37495,6 +37999,10 @@
     "defaultMessage": "A warm, conversational voice. Leave a short pause after the opening line.",
     "description": "Video refinement workspace: voicePlaceholder"
   },
+  "yAZ3Vc7BoF": {
+    "defaultMessage": "Each a task, automation run, chat turn or single request that used AI",
+    "description": "Detail under the AI runs card"
+  },
   "yB2wsLvc7h": {
     "defaultMessage": "Catch Translation Drift Before Your Customers Do | Hyperlocalise",
     "description": "Page title for the localisation-quality-monitoring use case"
@@ -37619,10 +38127,6 @@
     "defaultMessage": "Could not add that word.",
     "description": "Error when adding a dictionary word fails"
   },
-  "yMrFC+/mC2": {
-    "defaultMessage": "Origins",
-    "description": "Column heading: where a model was called"
-  },
   "yN3IaRAmIM": {
     "defaultMessage": "Saturday",
     "description": "Saturday option for weekly schedule"
@@ -37638,6 +38142,10 @@
   "yQ7T8Cq+ij": {
     "defaultMessage": "Crowdin",
     "description": "Menu item and tool title for Crowdin translation review"
+  },
+  "yQ7tyKyCdt": {
+    "defaultMessage": "AI runs",
+    "description": "AI usage card: billed uses of AI, each a task, automation run, chat turn or single request"
   },
   "yR1mPYr/0l": {
     "defaultMessage": "No task (content editor)",
@@ -37710,6 +38218,10 @@
   "yXOtXZjqsN": {
     "defaultMessage": "Runs <command>hl check</command> against repository translation files.",
     "description": "Description for the localization validation workflow toggle"
+  },
+  "yXPN/zbiRT": {
+    "defaultMessage": "US workspaces use api.customer.io, EU workspaces use api-eu.customer.io. The region must match the workspace that issued the key.",
+    "description": "Hint describing Customer.io regions"
   },
   "yXsvLbPLZX": {
     "defaultMessage": "Regenerate translation",
@@ -37914,10 +38426,6 @@
   "z+yNDK6TMM": {
     "defaultMessage": "Comfortable",
     "description": "CAT workspace view mode with queue, editor, and intelligence panels"
-  },
-  "z/EZ/oiPp3": {
-    "defaultMessage": "By origin",
-    "description": "Switch option: AI usage by where it was called"
   },
   "z/ZDPJKYLB": {
     "defaultMessage": "Translation is close to the button and hero layout limits.",
