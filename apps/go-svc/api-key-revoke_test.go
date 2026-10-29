@@ -351,7 +351,7 @@ func TestAPIKeyMembershipRemovalWaitsForCreateAndRevokes(t *testing.T) {
 			memberActor{userID: env.owner.userID, organizationID: env.scope.OrganizationID},
 			organizationMember{localUserID: member.userID, role: "member"})
 	}()
-	waitForLockWait(t, env, "delete from organization_memberships")
+	waitForLockWait(t, env, "from organization_memberships")
 	releaseCreate()
 
 	rec := <-done

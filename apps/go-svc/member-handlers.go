@@ -473,7 +473,7 @@ func lockOrganizationAdminsAndCount(ctx context.Context, tx pgx.Tx, organization
 		return err
 	}
 	if count < 1 {
-		return memberFailure(409, "last_admin_protected", "The workspace must have at least one admin")
+		return memberFailure(409, "last_admin_protected", "The workspace needs another admin who has accepted their invitation")
 	}
 	return nil
 }

@@ -176,7 +176,9 @@ func TestMemberLeavePreview(t *testing.T) {
 	require.NotNil(t, body.BlockedReason)
 	require.Equal(t, "last_admin", *body.BlockedReason)
 	require.Equal(t, []leaveWorkspaceAPIKey{{Name: "CI key", KeyPrefix: "hl_abcd1"}}, body.APIKeys)
+	require.Equal(t, 1, body.APIKeyTotal)
 	require.Len(t, body.Automations, 1)
+	require.Equal(t, 1, body.AutomationTotal)
 	require.Equal(t, "Mine", body.Automations[0].Name)
 
 	mustActiveMember(t, scope, uniqueTestEmail("second-admin"), "admin")
@@ -185,4 +187,51 @@ func TestMemberLeavePreview(t *testing.T) {
 	body = leaveWorkspacePreview{}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.Nil(t, body.BlockedReason)
+}
+
+func TestMemberLeavePreviewForNonAdmin(t *testing.T) {
+	api, scope, _ := memberTestAPI(t, "member")
+
+	rec := memberRequest(api, scope, http.MethodGet, scope.OrgPath("/members/leave"), "")
+	require.Equal(t, 200, rec.Code, rec.Body.String())
+	var body leaveWorkspacePreview
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Nil(t, body.BlockedReason)
+	require.Empty(t, body.APIKeys)
+	require.Empty(t, body.Automations)
+}
+
+func TestMemberLeaveWaitsForTheWebhookRemoval(t *testing.T) {
+	api, scope, workos := memberTestAPI(t, "member")
+	// WorkOS sends its webhook while the leave is still running; the webhook's delete
+	// waits on the locked row and then finds nothing, so only the leave is logged.
+	webhookDeleted := make(chan int64, 1)
+	workos.afterDelete = func() {
+		go func() {
+			tag, err := scope.Pool.Exec(context.Background(), `delete from organization_memberships where organization_id=$1 and user_id=$2`, scope.OrganizationID, scope.UserID)
+			if err != nil {
+				webhookDeleted <- -1
+				return
+			}
+			webhookDeleted <- tag.RowsAffected()
+		}()
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	status, err := api.leaveWorkspace(t.Context(), scopeMemberActor(scope, "member"))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusNoContent, status)
+	select {
+	case rows := <-webhookDeleted:
+		require.Equal(t, int64(0), rows)
+	case <-time.After(10 * time.Second):
+		t.Fatal("webhook delete did not finish")
+	}
+
+	var events int
+	err = scope.Pool.QueryRow(t.Context(), `
+        select count(*)::int from organization_activity_events
+        where organization_id=$1 and event_type='member_left'`, scope.OrganizationID).Scan(&events)
+	require.NoError(t, err)
+	require.Equal(t, 1, events)
 }

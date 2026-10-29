@@ -23,6 +23,9 @@ type leaveWorkspacePreview struct {
 	BlockedReason *string                    `json:"blockedReason"`
 	APIKeys       []leaveWorkspaceAPIKey     `json:"apiKeys"`
 	Automations   []leaveWorkspaceAutomation `json:"automations"`
+	// The lists stop at leaveWorkspacePreviewLimit; the totals count every match.
+	APIKeyTotal     int `json:"apiKeyTotal"`
+	AutomationTotal int `json:"automationTotal"`
 }
 
 func (api *memberAPI) leaveWorkspaceHandler(r *http.Request, actor memberActor) (any, int, error) {
@@ -84,7 +87,7 @@ func (api *memberAPI) leaveWorkspacePreview(ctx context.Context, actor memberAct
 	}
 
 	keys, err := api.pool.Query(ctx, `
-        select name, key_prefix from organization_api_keys
+        select name, key_prefix, count(*) over ()::int from organization_api_keys
         where organization_id=$1 and created_by_user_id=$2 and revoked_at is null
         order by created_at
         limit $3`, actor.organizationID, member.localUserID, leaveWorkspacePreviewLimit)
@@ -93,7 +96,7 @@ func (api *memberAPI) leaveWorkspacePreview(ctx context.Context, actor memberAct
 	}
 	for keys.Next() {
 		var key leaveWorkspaceAPIKey
-		if err := keys.Scan(&key.Name, &key.KeyPrefix); err != nil {
+		if err := keys.Scan(&key.Name, &key.KeyPrefix, &preview.APIKeyTotal); err != nil {
 			keys.Close()
 			return nil, 0, err
 		}
@@ -107,7 +110,7 @@ func (api *memberAPI) leaveWorkspacePreview(ctx context.Context, actor memberAct
 	// Each tool that signs in through WorkOS Pipes stores the connecting person's WorkOS
 	// user under its own key in tool_config.
 	automations, err := api.pool.Query(ctx, `
-        select a.id::text, a.name from workspace_automations a
+        select a.id::text, a.name, count(*) over ()::int from workspace_automations a
         where a.organization_id=$1 and a.status<>'archived'
           and jsonb_typeof(a.tool_config)='object'
           and exists (
@@ -121,7 +124,7 @@ func (api *memberAPI) leaveWorkspacePreview(ctx context.Context, actor memberAct
 	}
 	for automations.Next() {
 		var automation leaveWorkspaceAutomation
-		if err := automations.Scan(&automation.ID, &automation.Name); err != nil {
+		if err := automations.Scan(&automation.ID, &automation.Name, &preview.AutomationTotal); err != nil {
 			automations.Close()
 			return nil, 0, err
 		}
