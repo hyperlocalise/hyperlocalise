@@ -149,6 +149,14 @@ describe("markTaskDone", () => {
 
     const refused = await markTaskDone(restricted);
     expect(isErr(refused) && refused.error.code).toBe("not_task_assignee");
+
+    const colleague = await projectFixture.createStoredProjectFixture();
+    await db
+      .update(schema.jobs)
+      .set({ ownerUserId: colleague.user.id, assigneeType: "user" })
+      .where(eq(schema.jobs.id, task.id));
+    const refusedForColleague = await markTaskDone(restricted);
+    expect(isErr(refusedForColleague) && refusedForColleague.error.code).toBe("not_task_assignee");
     expect((await readStatus(task.id)).status).toBe("waiting_for_review");
 
     await db
