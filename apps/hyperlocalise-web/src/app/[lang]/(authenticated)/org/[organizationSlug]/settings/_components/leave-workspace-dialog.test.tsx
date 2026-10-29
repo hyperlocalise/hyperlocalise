@@ -188,9 +188,7 @@ describe("LeaveWorkspaceDialog", () => {
       ),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Leave workspace" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Manage members" }).getAttribute("href")).toBe(
-      "/org/acme/members",
-    );
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
   });
 
   it("explains when the last other admin left in the meantime", async () => {

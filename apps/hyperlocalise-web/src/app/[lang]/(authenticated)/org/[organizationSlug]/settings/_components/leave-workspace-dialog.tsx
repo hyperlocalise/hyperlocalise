@@ -12,7 +12,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage } from "react-intl";
 
@@ -30,7 +29,6 @@ import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { leaveWorkspaceDialogMessages as messages } from "./leave-workspace-dialog.messages";
-import { buildOrganizationPath } from "@/components/app-shell/navigation-config";
 
 export function leaveWorkspacePreviewQueryKey(organizationSlug: string) {
   return ["leave-workspace-preview", organizationSlug] as const;
@@ -221,15 +219,8 @@ export function LeaveWorkspaceDialog({
           <Button type="button" variant="outline" disabled={isLeaving} onClick={close}>
             <FormattedMessage {...messages.cancel} />
           </Button>
-          {isLastAdmin ? (
-            <Button
-              nativeButton={false}
-              render={<Link href={buildOrganizationPath(organizationSlug, "members")} />}
-              onClick={close}
-            >
-              <FormattedMessage {...messages.manageMembers} />
-            </Button>
-          ) : (
+          {/* The only admin is on the Members page already, where they can promote someone. */}
+          {isLastAdmin ? null : (
             <Button
               type="button"
               variant="destructive"

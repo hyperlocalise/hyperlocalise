@@ -25,6 +25,7 @@ import {
   setStoredActiveOrganizationSlug,
 } from "@/lib/workos/active-organization";
 import { withAuth } from "@/lib/workos/server-auth";
+import { switchableWorkspaces } from "@/lib/workos/switchable-workspaces";
 
 const logger = createLogger("leave-workspace-action");
 const signOutToDashboard = "/auth/sign-out?returnTo=%2Fdashboard";
@@ -70,12 +71,8 @@ export async function finishLeavingWorkspaceAction(
     });
     return { redirectTo: sessionIsForLeftWorkspace ? signOutToDashboard : "/dashboard" };
   }
-  // A session can only be issued for a workspace the person has joined in WorkOS.
-  const remaining = organizations.filter(
-    (organization): organization is typeof organization & { slug: string } =>
-      Boolean(organization.slug) &&
-      organization.slug !== leftOrganizationSlug &&
-      Boolean(organization.membership.workosMembershipId),
+  const remaining = switchableWorkspaces(organizations).filter(
+    (organization) => organization.slug !== leftOrganizationSlug,
   );
   const storedSlug = await getStoredActiveOrganizationSlug();
   // The remembered workspace, then the one the session was issued for, then any.

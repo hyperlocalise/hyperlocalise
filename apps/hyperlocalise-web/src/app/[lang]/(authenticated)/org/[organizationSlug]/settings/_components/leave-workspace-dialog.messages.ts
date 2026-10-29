@@ -71,12 +71,7 @@ export const leaveWorkspaceDialogMessages = defineMessages({
     id: "rXMDxSDgo4",
     description: "Why the only admin of a workspace cannot leave it",
   },
-  manageMembers: {
-    defaultMessage: "Manage members",
-    id: "jH/ffXiBlp",
-    description:
-      "Link to the members page from the leave workspace dialog, shown to the only admin",
-  },
+
   apiKeys: {
     defaultMessage:
       "{count, plural, one {This API key stops working:} other {These API keys stop working:}}",
