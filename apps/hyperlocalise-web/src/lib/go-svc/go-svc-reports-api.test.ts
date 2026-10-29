@@ -10,7 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-"use client";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { GoSvcReportsApi } from "./go-svc-reports-api";

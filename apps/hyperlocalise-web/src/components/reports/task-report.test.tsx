@@ -243,6 +243,7 @@ describe("Task report", () => {
   it.each([
     ["could not be reached", 0, undefined],
     ["answered through its load balancer", 502, "<html>Bad gateway</html>"],
+    ["hit an internal error", 500, { error: "internal_error", message: "Internal server error" }],
   ])("asks again soon when go-svc %s", async (_, status, body) => {
     const settings = mocks.bodies.settings;
     mocks.statuses.settings = status;

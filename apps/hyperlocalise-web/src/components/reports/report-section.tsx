@@ -164,7 +164,7 @@ export function DownloadCsvButton({ download }: { download: () => Promise<GoSvcD
   };
   return (
     <Button variant="outline" size="sm" disabled={pending} onClick={() => void run()}>
-      {pending ? <Spinner className="size-3.5" /> : null}
+      {pending ? <Spinner data-icon="inline-start" aria-hidden className="size-3.5" /> : null}
       <FormattedMessage {...messages.downloadCsv} />
     </Button>
   );

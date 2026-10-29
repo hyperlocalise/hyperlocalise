@@ -515,7 +515,10 @@ export function useSaveRateCard(organizationSlug: string) {
         (report) =>
           report && {
             ...report,
-            rateCards: [...report.rateCards.filter((card) => card.name !== saved.name), saved],
+            // An edited card keeps its place; a new one goes last until the list reloads.
+            rateCards: report.rateCards.some((card) => card.name === saved.name)
+              ? report.rateCards.map((card) => (card.name === saved.name ? saved : card))
+              : [...report.rateCards, saved],
           },
       );
       return invalidate();
