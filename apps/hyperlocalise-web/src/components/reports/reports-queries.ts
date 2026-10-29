@@ -19,6 +19,7 @@ import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import type {
   BudgetBody,
   RateCardBody,
+  RateCardsReport,
   ReportCsvSection,
   ReportQuery,
   TaskRateBody,
@@ -72,8 +73,8 @@ const UNANSWERED_CODES = new Set([
 
 /**
  * A request's failure as the dialogs read it: go-svc's code, with go-svc's message when go-svc
- * refused the request, or the fallback when it could not answer (unreachable, restarting behind
- * its load balancer, an internal error). A cancelled request stays cancelled.
+ * refused the request, or the fallback when it could not answer (`UNANSWERED_CODES`). A
+ * cancelled request stays cancelled.
  */
 async function reportRequest<T>(fallback: string, run: () => Promise<T>): Promise<T> {
   try {
@@ -89,15 +90,20 @@ async function reportRequest<T>(fallback: string, run: () => Promise<T>): Promis
 }
 
 /**
- * Whether go-svc did not answer, so asking again soon may work: it could not be reached or was
- * restarting behind its load balancer (a load balancer's error has no CORS headers, so the browser
- * reports it as unreachable). go-svc's own answers are not asked for again: a busy answer comes
- * only after the request waited 30 s for a slot, and a report that took too long would take as
- * long again.
+ * Whether asking again soon may work: go-svc could not be reached or was restarting behind its
+ * load balancer (a load balancer's error has no CORS headers, so the browser reports it as
+ * unreachable), or it hit an internal error such as a dropped database connection. go-svc's
+ * other answers are not asked for again: a busy answer comes only after the request waited 30 s
+ * for a slot, and a report that took too long would take as long again.
  */
 function worthRetrying(error: unknown) {
   if (!(error instanceof ApiResponseError)) return false;
-  return error.code === "network_error" || error.status === 502 || error.status === 504;
+  return (
+    error.code === "network_error" ||
+    error.code === "internal_error" ||
+    error.status === 502 ||
+    error.status === 504
+  );
 }
 
 const reportRetry = {
@@ -484,7 +490,7 @@ export function useReportCsv(organizationSlug: string) {
 
 /**
  * Saving anything on the page reads every section again, and the save finishes once they have
- * loaded, so a dialog or the rate card sheet never shows what was there before.
+ * loaded (or failed), so a dialog reopened at once shows what was saved.
  */
 function useInvalidateReports(organizationSlug: string) {
   const queryClient = useQueryClient();
@@ -494,13 +500,26 @@ function useInvalidateReports(organizationSlug: string) {
 export function useSaveRateCard(organizationSlug: string) {
   const intl = useIntl();
   const { client } = useGoSvcClient();
+  const queryClient = useQueryClient();
   const invalidate = useInvalidateReports(organizationSlug);
   return useMutation({
     mutationFn: (body: RateCardBody) =>
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.saveRateCard(organizationSlug, body),
       ),
-    onSuccess: invalidate,
+    // The saved card is in the list at once, so the rate card sheet shows it even when the
+    // list's reload fails.
+    onSuccess: (saved) => {
+      queryClient.setQueryData<RateCardsReport>(
+        reportsQueryKey(organizationSlug, "rate-cards"),
+        (report) =>
+          report && {
+            ...report,
+            rateCards: [...report.rateCards.filter((card) => card.name !== saved.name), saved],
+          },
+      );
+      return invalidate();
+    },
   });
 }
 

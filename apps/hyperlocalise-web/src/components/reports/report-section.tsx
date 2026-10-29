@@ -21,6 +21,7 @@ import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import type { GoSvcDownload } from "@/lib/go-svc/go-svc-client.types";
 import { cn } from "@/lib/primitives/cn";
 
@@ -163,6 +164,7 @@ export function DownloadCsvButton({ download }: { download: () => Promise<GoSvcD
   };
   return (
     <Button variant="outline" size="sm" disabled={pending} onClick={() => void run()}>
+      {pending ? <Spinner className="size-3.5" /> : null}
       <FormattedMessage {...messages.downloadCsv} />
     </Button>
   );

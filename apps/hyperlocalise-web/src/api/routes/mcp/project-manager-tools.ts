@@ -65,10 +65,11 @@ const logger = createLogger("mcp-project-manager-tools");
 /**
  * go-svc's answers to `get_report` that are about the member's request, passed on as they are.
  * Anything else (go-svc unreachable, an internal error, the server call refused) is ours to fix.
+ * The tool checks the flag itself first, so go-svc's `feature_unavailable` means its own lookup
+ * failed or is a minute behind: not passed on as "not enabled".
  */
 const REPORT_REFUSAL_CODES = new Set([
   "organization_access_denied",
-  "feature_unavailable",
   "report_forbidden",
   "invalid_report_query",
   "reports_busy",

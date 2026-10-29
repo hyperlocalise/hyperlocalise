@@ -240,10 +240,13 @@ describe("Task report", () => {
     expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 
-  it("asks again soon when go-svc did not answer", async () => {
+  it.each([
+    ["could not be reached", 0, undefined],
+    ["answered through its load balancer", 502, "<html>Bad gateway</html>"],
+  ])("asks again soon when go-svc %s", async (_, status, body) => {
     const settings = mocks.bodies.settings;
-    mocks.statuses.settings = 502;
-    mocks.bodies.settings = "<html>Bad gateway</html>";
+    mocks.statuses.settings = status;
+    mocks.bodies.settings = body;
     renderReport();
     await waitFor(() => expect(callsTo("settings")).toHaveLength(1));
     delete mocks.statuses.settings;
@@ -320,6 +323,20 @@ describe("Task report", () => {
       await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(2));
       expect(vi.mocked(toast.error).mock.calls[1][0]).not.toMatch(/go-svc|status/);
       expect(saved).toEqual([]);
+    });
+
+    it.each([
+      ["reports_unavailable", 503, "Reports service unavailable"],
+      ["workos_membership_lookup_failed", 503, "Organization membership could not be verified"],
+      ["unauthorized", 401, "token has invalid claims: token is expired"],
+    ])("keeps go-svc's own text out of a %s answer", async (error, status, message) => {
+      renderReport();
+      const button = await screen.findByRole("button", { name: "Download CSV" });
+      mocks.statuses["task-report"] = status;
+      mocks.bodies["task-report"] = { error, message };
+      await userEvent.click(button);
+      await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
+      expect(vi.mocked(toast.error).mock.calls[0][0]).not.toBe(message);
     });
   });
 

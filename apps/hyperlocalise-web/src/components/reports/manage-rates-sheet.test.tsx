@@ -29,6 +29,7 @@ import {
 const mocks = vi.hoisted(() => ({
   calls: [] as ReportsApiCall[],
   bodies: {} as Record<string, unknown>,
+  statuses: {} as Record<string, number>,
 }));
 
 vi.mock("@/lib/go-svc/use-go-svc-client", async () => ({
@@ -64,6 +65,7 @@ const saved = () =>
 
 beforeEach(() => {
   mocks.calls.length = 0;
+  mocks.statuses = {};
 });
 
 describe("Rates panel", () => {
@@ -106,11 +108,15 @@ describe("Rates panel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
     expect(await screen.findByText("Give the rate card a name.")).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText("Name"), "Agency C");
-    mocks.bodies["rate-cards"] = { rateCard: { ...reportsRateCards[0], name: "Agency C" } };
+    mocks.bodies["put rate-cards"] = { rateCard: { ...reportsRateCards[0], name: "Agency C" } };
+    // The list's reload fails: the sheet still shows the card just saved, not another one.
+    mocks.statuses["get rate-cards"] = 503;
+    mocks.bodies["get rate-cards"] = { error: "reports_busy", message: "Reports is busy" };
     await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
     await waitFor(() => expect(saved()).toHaveLength(1));
     expect(saved()[0].args.json).toMatchObject({ name: "Agency C", create: true });
     expect((saved()[0].args.json as { lines: unknown[] }).lines).toHaveLength(2);
     await waitFor(() => expect(onCardChange).toHaveBeenCalledWith("Agency C"));
+    expect(screen.getByRole("combobox", { name: "Rate card" })).toHaveTextContent("Agency C");
   });
 });

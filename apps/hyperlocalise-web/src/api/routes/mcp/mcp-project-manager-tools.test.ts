@@ -765,6 +765,26 @@ describe("MCP project manager tools", () => {
     const misconfigured = await readToolResult<{ error?: string; message?: string }>(
       await callMcpTool(adminHeaders, "get_report", { report: "costs" }),
     );
+    reportsInternalMock.mockRejectedValueOnce(
+      new GoSvcClientError({
+        code: "organization_access_denied",
+        message: "Organization access denied",
+        status: 403,
+      }),
+    );
+    const removed = await readToolResult<{ error?: string }>(
+      await callMcpTool(adminHeaders, "get_report", { report: "costs" }),
+    );
+    reportsInternalMock.mockRejectedValueOnce(
+      new GoSvcClientError({
+        code: "feature_unavailable",
+        message: "Reports is not enabled for this workspace",
+        status: 403,
+      }),
+    );
+    const flagLookupFailed = await readToolResult<{ error?: string; message?: string }>(
+      await callMcpTool(adminHeaders, "get_report", { report: "costs" }),
+    );
 
     expect(disabled).toMatchObject({
       isError: true,
@@ -794,6 +814,8 @@ describe("MCP project manager tools", () => {
       "time",
       "costs",
       "costs",
+      "costs",
+      "costs",
     ]);
     expect(reportsInternalMock.mock.calls[0][1]).toMatchObject({
       organizationId: adminAuth.organization.localOrganizationId,
@@ -817,7 +839,12 @@ describe("MCP project manager tools", () => {
       isError: true,
       output: { error: "reports_busy", message: "Reports is busy; try again shortly" },
     });
-    for (const failed of [unreachable, misconfigured]) {
+    expect(removed).toMatchObject({
+      isError: true,
+      output: { error: "organization_access_denied" },
+    });
+    // The tool found the flag on; go-svc's "off" is its own lookup failing.
+    for (const failed of [unreachable, misconfigured, flagLookupFailed]) {
       expect(failed).toMatchObject({ isError: true, output: { error: "reports_unavailable" } });
       expect(failed.output.message).not.toMatch(/go-svc|token/);
     }

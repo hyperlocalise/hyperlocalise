@@ -769,7 +769,10 @@ export function reportsGoSvcClient(state: ReportsApiState) {
       const query = Object.fromEntries(url.searchParams);
       const json = typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : undefined;
       state.calls.push({ endpoint: name, method, args: { param, query, json } });
-      const status = state.statuses?.[name] ?? 200;
+      // An answer for one method ("put rate-cards") wins over the endpoint's own.
+      const status = state.statuses?.[`${method} ${name}`] ?? state.statuses?.[name] ?? 200;
+      // Status 0 stands for go-svc not answering at all, as fetch fails then.
+      if (status === 0) throw new TypeError("Failed to fetch");
       if (query.format === "csv" && status === 200)
         return new Response("a,b\n1,2\n", {
           headers: {
@@ -777,10 +780,13 @@ export function reportsGoSvcClient(state: ReportsApiState) {
             "Content-Disposition": `attachment; filename="${name}.csv"`,
           },
         });
-      return new Response(JSON.stringify(state.bodies[name] ?? {}), {
-        status,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify(state.bodies[`${method} ${name}`] ?? state.bodies[name] ?? {}),
+        {
+          status,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     },
   });
   return () => ({ client, loading: false });
