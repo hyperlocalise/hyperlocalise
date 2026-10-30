@@ -38,6 +38,16 @@ describe("pingHubspotCredentials", () => {
     expect(isErr(result) && result.error.message).toContain("content or forms");
   });
 
+  it("maps a rejected private-app token to invalid credentials", async () => {
+    const result = await pingHubspotCredentials({
+      accessToken: "pat-1",
+      lookupScopes: async () => {
+        throw { code: 400 };
+      },
+    });
+    expect(isErr(result) && result.error.code).toBe("hubspot_credentials_invalid");
+  });
+
   it("maps 401 to invalid credentials", async () => {
     const result = await pingHubspotCredentials({
       accessToken: "pat-1",

@@ -53,8 +53,20 @@ function readStatus(error: unknown): number | null {
 
 export async function lookupHubspotTokenScopes(accessToken: string): Promise<string[]> {
   const client = new Client({ accessToken });
-  const info = await client.oauth.accessTokensApi.get(accessToken);
-  return info.scopes ?? [];
+  // Generated oauth.accessTokensApi.get only accepts OAuth tokens. Private-app
+  // tokens (pat-) are rejected there, so save uses the SDK request helper.
+  const response = await client.apiRequest({
+    method: "POST",
+    path: "/oauth/v2/private-apps/get/access-token-info",
+    body: { tokenKey: accessToken },
+  });
+  if (!response.ok) {
+    throw { code: response.status };
+  }
+  const info = (await response.json()) as { scopes?: unknown };
+  return Array.isArray(info.scopes)
+    ? info.scopes.filter((scope): scope is string => typeof scope === "string")
+    : [];
 }
 
 export async function pingHubspotCredentials(input: {
@@ -75,7 +87,7 @@ export async function pingHubspotCredentials(input: {
     return ok(true);
   } catch (error) {
     const status = readStatus(error);
-    if (status === 401 || status === 403) {
+    if (status === 400 || status === 401 || status === 403 || status === 404) {
       return err(HUBSPOT_CREDENTIALS_INVALID);
     }
     return err(HUBSPOT_TEMPORARILY_UNAVAILABLE);

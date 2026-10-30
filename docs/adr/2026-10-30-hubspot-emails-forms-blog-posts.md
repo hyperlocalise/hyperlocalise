@@ -89,8 +89,10 @@ token. Do not call `api.hubapi.com` with `fetch`. If a method is
 missing, bump `@hubspot/api-client`. Do not add a REST fallback.
 
 The private app needs `content` for marketing emails, CMS blog posts,
-landing pages, and website pages, and `forms` for forms. Save pings HubSpot through the SDK
-before the token is stored. A rejected token is not stored.
+landing pages, and website pages, and `forms` for forms. Save checks the
+token with `client.apiRequest` `POST /oauth/v2/private-apps/get/access-token-info`
+before the token is stored. `oauth.accessTokensApi.get` is OAuth-only and
+rejects a private-app token. A rejected token is not stored.
 
 | Surface | SDK | Read | Write-back |
 | --- | --- | --- | --- |
