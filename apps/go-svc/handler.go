@@ -84,6 +84,7 @@ type handler struct {
 	publicTranslations   *publicTranslationsAPI
 	publicJobs           *publicJobsAPI
 	workspace            *workspaceAPI
+	reports              *reportingAPI
 	autumn               *autumn.Client
 	knowledgeMemories    *knowledgeMemoryAPI
 	guidelineDocuments   *guidelineDocumentAPI
@@ -172,8 +173,11 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 		h.registerDomainResearch(mux, verifier)
 		h.registerDomainSearchConsole(mux, verifier)
 		h.registerHyperlab(mux, verifier)
-		h.registerReporting(mux, verifier)
 		(&linkedDomainAPI{workspace: h.workspace, research: h.research, autumn: h.autumn}).register(mux, verifier)
+	}
+	if h.reports != nil {
+		h.reports.register(mux, verifier)
+		h.reports.registerInternal(mux)
 	}
 	if h.knowledgeMemories != nil {
 		h.knowledgeMemories.register(mux, verifier)

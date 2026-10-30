@@ -1,9 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"math"
 	"math/big"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -38,6 +42,41 @@ func usdString(value *big.Int) string {
 	whole, fraction := new(big.Int).QuoRem(absolute, usdScale, new(big.Int))
 	digits := fraction.String()
 	return sign + whole.String() + "." + strings.Repeat("0", usdFractionDigits-len(digits)) + digits
+}
+
+// reportingPaidPercent is the share of a match band a rate line pays, from its band percentages.
+// The unavailable band (the memory could not be read when the string arrived) is paid as new
+// work. Spent and the estimate both price by this one rule.
+func reportingPaidPercent(raw []byte, bucket string) (int, error) {
+	if bucket == "unavailable" {
+		bucket = "new"
+	}
+	return reportingPayablePercent(raw, bucket)
+}
+
+// unitCost is the cost of a number of units (words or characters) at a per-unit rate and
+// payable share.
+func unitCost(rate string, units, payablePercent int) (*big.Int, error) {
+	return wordCost(rate, units, payablePercent)
+}
+
+// usdFloat is an amount as JavaScript's Number reads it: the nearest double.
+func usdFloat(text string) (float64, error) {
+	if _, err := usdUnits(text); err != nil {
+		return 0, err
+	}
+	return strconv.ParseFloat(text, 64)
+}
+
+// jsToFixed2 writes a non-negative number to two decimals as JavaScript's toFixed(2) does: the
+// closest hundredth of the exact binary value, the larger one when two are equally close.
+func jsToFixed2(value float64) string {
+	exact := new(big.Float).SetPrec(256).SetFloat64(value)
+	exact.Mul(exact, big.NewFloat(100))
+	exact.Add(exact, big.NewFloat(0.5))
+	cents, _ := exact.Int(nil)
+	whole, fraction := new(big.Int).QuoRem(cents, big.NewInt(100), new(big.Int))
+	return fmt.Sprintf("%s.%02d", whole, fraction.Int64())
 }
 
 func wordCost(rate string, words, payablePercent int) (*big.Int, error) {
@@ -78,4 +117,24 @@ func budgetWarning(budget, cost string) (string, error) {
 		return "approaching", nil
 	}
 	return "none", nil
+}
+
+// reportingPayablePercent is the share of a rate paid for a match band, from a rate line's
+// percentages; a band the line does not name is paid in full.
+func reportingPayablePercent(raw []byte, bucket string) (int, error) {
+	if len(raw) == 0 || isJSONNull(raw) {
+		return 100, nil
+	}
+	var percentages map[string]*float64
+	if err := json.Unmarshal(raw, &percentages); err != nil {
+		return 0, fmt.Errorf("decode reporting rate percentages: %w", err)
+	}
+	value, ok := percentages[bucket]
+	if !ok || value == nil {
+		return 100, nil
+	}
+	if *value != math.Trunc(*value) {
+		return 0, fmt.Errorf("reporting rate percentage is not an integer")
+	}
+	return int(*value), nil
 }
