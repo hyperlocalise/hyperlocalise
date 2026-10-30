@@ -11,9 +11,19 @@
  * Version 2.0 or later.
  */
 
-import { normalizeSourcePath } from "@/lib/file-storage/records";
-
 import type { HubspotResourceKind } from "./constants";
+
+/**
+ * Client-safe path helpers. Do not import `@/lib/file-storage/records` here:
+ * that module pulls in the server-only database client and breaks the content
+ * editor bundle. This matches `normalizeSourcePath` in that module.
+ */
+function normalizeSourcePath(value: string): string {
+  return value
+    .replace(/\\/g, "/")
+    .replace(/^(?:\.\/)+/, "")
+    .replace(/\/+/g, "/");
+}
 
 const HUBSPOT_PATH =
   /^hubspot\/(emails|forms|blog-posts|landing-pages|website-pages)\/([^/]+)\/([^/]+)\.(json|html)$/;
