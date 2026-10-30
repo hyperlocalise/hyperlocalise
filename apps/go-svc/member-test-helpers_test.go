@@ -73,6 +73,8 @@ type stubMemberWorkos struct {
 	revokeErr   error
 	revokeID    string
 	pendingID   string
+	acceptedID  string
+	acceptedErr error
 	findErr     error
 	updateErr   error
 	updateID    string
@@ -127,6 +129,15 @@ func (s *stubMemberWorkos) FindPendingInvitation(_ context.Context, _, _ string)
 		return "", false, nil
 	}
 	return s.pendingID, true, nil
+}
+
+func (s *stubMemberWorkos) FindAcceptedInvitationMembership(_ context.Context, _, _ string) (string, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.acceptedErr != nil {
+		return "", false, s.acceptedErr
+	}
+	return s.acceptedID, s.acceptedID != "", nil
 }
 
 func (s *stubMemberWorkos) UpdateOrganizationMembershipRole(_ context.Context, membershipID, roleSlug string) error {

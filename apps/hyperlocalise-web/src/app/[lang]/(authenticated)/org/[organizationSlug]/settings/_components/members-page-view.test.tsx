@@ -214,4 +214,25 @@ describe("MembersPageView", () => {
 
     expect(screen.queryByRole("button", { name: "Actions for Mina Chen" })).not.toBeInTheDocument();
   });
+
+  it("offers Leave workspace on the person's own row only", async () => {
+    const user = userEvent.setup();
+    const onLeaveWorkspace = vi.fn();
+    renderMembersPage({
+      members: [
+        createMember({ isCurrentUser: true, canUpdateRole: false, canRemove: false }),
+        createMember({ email: "ada@example.com", displayName: "Ada Lovelace" }),
+      ],
+      onLeaveWorkspace,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions for Ada Lovelace" }));
+    expect(screen.queryByText("Leave workspace…")).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByRole("button", { name: "Actions for Mina Chen" }));
+    await user.click(await screen.findByText("Leave workspace…"));
+
+    expect(onLeaveWorkspace).toHaveBeenCalled();
+  });
 });

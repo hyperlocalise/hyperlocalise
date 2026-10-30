@@ -51,6 +51,7 @@ func TestValidateMessageRejectsMismatchedTarget(t *testing.T) {
 
 func TestIsImplementedEventType(t *testing.T) {
 	require.True(t, IsImplementedEventType("project_created"))
+	require.True(t, IsImplementedEventType("member_left"))
 	require.True(t, IsImplementedEventType("string_segment_translation_updated"))
 	require.True(t, IsImplementedEventType("automation_created"))
 	require.True(t, IsImplementedEventType("visual_workflow_published"))

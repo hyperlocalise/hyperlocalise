@@ -721,3 +721,45 @@ func TestMemberListCapabilities(t *testing.T) {
 		}
 	}
 }
+
+func TestMemberRevokeRefusesAnInvitationAlreadyAccepted(t *testing.T) {
+	api, scope, workos := memberTestAPI(t, "admin")
+	_, workosUserID := mustInvitedMember(t, scope, uniqueTestEmail("accepted-unseen"), "member")
+	workos.acceptedID = "om_accepted"
+
+	rec := memberRequest(api, scope, http.MethodDelete, scope.OrgPath("/members/"+workosUserID), "")
+	require.Equal(t, 409, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"invitation_already_accepted"`)
+	require.Empty(t, workos.deleteID)
+
+	var membershipID string
+	err := scope.Pool.QueryRow(t.Context(), `select m.workos_membership_id from organization_memberships m join users u on u.id=m.user_id where u.workos_user_id=$1`, workosUserID).Scan(&membershipID)
+	require.NoError(t, err)
+	require.Equal(t, "om_accepted", membershipID)
+}
+
+func TestLiveWorkosFindsTheMembershipOfTheNewestAcceptedInvitation(t *testing.T) {
+	invitations := `{"data":[
+		{"state":"revoked","created_at":"2026-10-30T00:00:00.000Z"},
+		{"state":"accepted","accepted_user_id":"user_old","created_at":"2026-10-01T00:00:00.000Z"}]}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/user_management/invitations" {
+			_, _ = w.Write([]byte(invitations))
+			return
+		}
+		require.Equal(t, "user_new", r.URL.Query().Get("user_id"))
+		_, _ = w.Write([]byte(`{"data":[{"id":"om_new"}]}`))
+	}))
+	defer server.Close()
+	client := newLiveMemberWorkos("key", server.URL)
+
+	_, found, err := client.FindAcceptedInvitationMembership(t.Context(), "org", "a@example.com")
+	require.NoError(t, err)
+	require.False(t, found, "a newer revoked invitation decides")
+
+	invitations = `{"data":[{"state":"accepted","accepted_user_id":"user_new","created_at":"2026-10-30T00:00:00.000Z"}]}`
+	id, found, err := client.FindAcceptedInvitationMembership(t.Context(), "org", "a@example.com")
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Equal(t, "om_new", id)
+}
