@@ -24,7 +24,13 @@ const sourceFileIdPattern = /\bsourceFileId=/;
 
 type CreateInteractionInput = {
   organizationId: string;
-  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent" | "web_chat";
+  source:
+    | "chat_ui"
+    | "email_agent"
+    | "github_agent"
+    | "slack_agent"
+    | "web_chat"
+    | "workflow_approval";
   title: string;
   projectId?: string;
   sourceThreadId?: string;

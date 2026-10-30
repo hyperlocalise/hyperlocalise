@@ -199,6 +199,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeLoop;
     case "logic.retry":
       return messages.nodeRetry;
+    case "flow.human_approval":
+      return messages.nodeHumanApproval;
     case "flow.wait":
       return messages.nodeWait;
     case "flow.stop":
@@ -280,6 +282,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeLoopHint;
     case "logic.retry":
       return messages.nodeRetryHint;
+    case "flow.human_approval":
+      return messages.nodeHumanApprovalHint;
     case "flow.wait":
       return messages.nodeWaitHint;
     case "flow.stop":
