@@ -84,6 +84,27 @@ func TestReportingPayablePercent(t *testing.T) {
 	}
 }
 
+func TestReportingPaidPercentPricesUnavailableWorkAsNew(t *testing.T) {
+	got, err := reportingPaidPercent([]byte(`{"new":25,"unavailable":0}`), "unavailable")
+	require.NoError(t, err)
+	require.Equal(t, 25, got)
+
+	got, err = reportingPaidPercent(nil, "unavailable")
+	require.NoError(t, err)
+	require.Equal(t, 100, got)
+}
+
+func TestUsdFloatRejectsInvalidAmountsBeforeParsing(t *testing.T) {
+	got, err := usdFloat("1.25")
+	require.NoError(t, err)
+	require.Equal(t, 1.25, got)
+
+	_, err = usdFloat("-1")
+	require.ErrorIs(t, err, errInvalidUSD)
+	_, err = usdFloat("1e3")
+	require.ErrorIs(t, err, errInvalidUSD)
+}
+
 func TestReportingBudgetWarning(t *testing.T) {
 	for _, tc := range []struct{ budget, cost, want string }{
 		{"100", "79.99", "none"},
