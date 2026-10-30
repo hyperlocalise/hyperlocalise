@@ -54,6 +54,7 @@ import {
 } from "../editor/for-each-body-membership";
 import { executeSubworkflowNode } from "./execute-subworkflow-node";
 import { shouldStopAutomaticNodeRetry } from "./subworkflow-resume";
+import { executeHumanApprovalNode } from "./execute-human-approval-node";
 
 const logger = createLogger("visual-workflow-node");
 
@@ -222,7 +223,8 @@ export async function executeDurableWorkflowSlice(input: {
         const isExternal =
           args.node.type.startsWith("action.") ||
           args.node.type === "ai.agent" ||
-          args.node.type === "flow.call_workflow";
+          args.node.type === "flow.call_workflow" ||
+          args.node.type === "flow.human_approval";
         // Condition probes must all refresh in the same slice before the wait
         // re-evaluates; they must not consume the single post-wait external slot.
         const isWaitConditionProbe = waitConditionProbeNodeIds.has(args.node.id);
@@ -256,6 +258,7 @@ export async function executeDurableWorkflowSlice(input: {
           .at(-1);
         const safe =
           args.node.config.kind === "flow.call_workflow" ||
+          args.node.config.kind === "flow.human_approval" ||
           isRepeatableVisualWorkflowAction(args.node.type) ||
           (args.node.config.kind === "action.http" &&
             (args.node.config.method === "GET" || Boolean(args.node.config.idempotencyHeader)));
@@ -300,10 +303,13 @@ export async function executeDurableWorkflowSlice(input: {
             node: args.node,
           }),
         };
-        const firstAttempt =
-          previous?.error?.code === "yield_execution"
-            ? previous.attempt
-            : (previous?.attempt ?? 0) + 1;
+        const resumesSameAttempt =
+          previous?.error?.code === "yield_execution" ||
+          (args.node.config.kind === "flow.human_approval" && previous?.status === "running");
+
+        const firstAttempt = resumesSameAttempt
+          ? (previous?.attempt ?? 1)
+          : (previous?.attempt ?? 0) + 1;
         const currentAttempts = records.filter(
           (record) =>
             key(record.nodeId, record.iteration) === id &&
@@ -328,8 +334,10 @@ export async function executeDurableWorkflowSlice(input: {
         for (let offset = 0; offset < maxAttempts; offset++) {
           const attempt = firstAttempt + offset;
           attempts.set(id, attempt);
-          if (isExternal)
-            await upsertVisualWorkflowNodeRun({
+          let runningNodeRunId: string | null = null;
+
+          if (isExternal) {
+            const runningNodeRun = await upsertVisualWorkflowNodeRun({
               leaseToken: input.leaseToken,
               runId: input.run.id,
               organizationId: input.organizationId,
@@ -338,22 +346,51 @@ export async function executeDurableWorkflowSlice(input: {
               iteration: args.iteration,
               attempt,
               status: "running",
-              inputSnapshot: redactWorkflowSnapshot({ config }, secrets) as Record<string, unknown>,
+              inputSnapshot:
+                resolved.node.config.kind === "flow.human_approval"
+                  ? {
+                      config: {
+                        ...config,
+                        prompt: "[redacted]",
+                        ...(config.artifactReference ? { artifactReference: "[redacted]" } : {}),
+                        ...(config.jobReference ? { jobReference: "[redacted]" } : {}),
+                      },
+                    }
+                  : (redactWorkflowSnapshot({ config }, secrets) as Record<string, unknown>),
               startedAt: new Date(),
             });
+
+            runningNodeRunId = runningNodeRun.id;
+          }
           try {
             execution = !real
               ? await mock(resolved)
-              : resolved.node.config.kind === "flow.call_workflow"
-                ? await executeSubworkflowNode({
-                    node: resolved.node,
-                    organizationId: input.organizationId,
-                    parentRunId: input.run.id,
-                    traceId: input.run.traceId,
-                    iteration: args.iteration,
-                    attempt,
-                  })
-                : await executeVisualWorkflowNode(resolved);
+              : resolved.node.config.kind === "flow.human_approval"
+                ? runningNodeRunId
+                  ? await executeHumanApprovalNode({
+                      node: resolved.node,
+                      organizationId: input.organizationId,
+                      runId: input.run.id,
+                      nodeRunId: runningNodeRunId,
+                      visualWorkflowId: input.run.visualWorkflowId,
+                    })
+                  : {
+                      ok: false,
+                      error: {
+                        code: "approval_node_run_missing",
+                        message: "The Human Approval node run was not created.",
+                      },
+                    }
+                : resolved.node.config.kind === "flow.call_workflow"
+                  ? await executeSubworkflowNode({
+                      node: resolved.node,
+                      organizationId: input.organizationId,
+                      parentRunId: input.run.id,
+                      traceId: input.run.traceId,
+                      iteration: args.iteration,
+                      attempt,
+                    })
+                  : await executeVisualWorkflowNode(resolved);
           } catch {
             execution = {
               ok: false,

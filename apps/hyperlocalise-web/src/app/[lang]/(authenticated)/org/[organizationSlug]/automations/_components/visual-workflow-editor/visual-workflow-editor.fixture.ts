@@ -16,6 +16,7 @@ export { visualWorkflowQuickAddDraft } from "@/lib/visual-workflows/fixtures/qui
 export { visualWorkflowRetryDraft } from "@/lib/visual-workflows/fixtures/retry-draft";
 export { visualWorkflowSwitchDeleteDraft } from "@/lib/visual-workflows/fixtures/switch-delete-draft";
 export { visualWorkflowWaitDraft } from "@/lib/visual-workflows/fixtures/wait-draft";
+export { visualWorkflowHumanApprovalDraft } from "@/lib/visual-workflows/fixtures/human-approval-draft";
 export { visualWorkflowMergeDraft } from "@/lib/visual-workflows/fixtures/merge-draft";
 export { visualWorkflowSequenceDraft } from "@/lib/visual-workflows/fixtures/sequence-draft";
 export { visualWorkflowTerminalNodesDraft } from "@/lib/visual-workflows/fixtures/terminal-nodes-draft";

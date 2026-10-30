@@ -170,6 +170,18 @@ describe("normalizeExecutionSourceHandle", () => {
     expect(getPrimaryExecutionSourceHandle(canonical("flow.wait"))).toBe("completed");
   });
 
+  it("exposes Human Approval decision handles", () => {
+    const approval = canonical("flow.human_approval");
+
+    expect(getAllowedExecutionSourceHandles(approval)).toEqual([
+      "approved",
+      "rejected",
+      "changes_requested",
+      "timed_out",
+    ]);
+    expect(getPrimaryExecutionSourceHandle(approval)).toBe("approved");
+  });
+
   it("exposes Merge completion handles", () => {
     const node = canonical("logic.merge", {
       kind: "logic.merge",

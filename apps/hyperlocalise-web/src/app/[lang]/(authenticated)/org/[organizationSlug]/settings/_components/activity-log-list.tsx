@@ -103,6 +103,8 @@ const eventActions = {
   visual_workflow_enabled: messages.visualWorkflowEnabledAction,
   visual_workflow_disabled: messages.visualWorkflowDisabledAction,
   visual_workflow_run_started: messages.visualWorkflowRunStartedAction,
+  visual_workflow_approval_requested: messages.visualWorkflowApprovalRequestedAction,
+  visual_workflow_approval_decided: messages.visualWorkflowApprovalDecidedAction,
   query_created: messages.queryCreatedAction,
   query_deleted: messages.queryDeletedAction,
   query_imported: messages.queryImportedAction,

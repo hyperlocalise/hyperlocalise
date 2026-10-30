@@ -157,6 +157,8 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
       "visual_workflow_enabled",
       "visual_workflow_disabled",
       "visual_workflow_run_started",
+      "visual_workflow_approval_requested",
+      "visual_workflow_approval_decided",
     ],
   },
   {
@@ -252,6 +254,8 @@ const eventTypeLabels = {
   visual_workflow_enabled: messages.visualWorkflowEnabledEventType,
   visual_workflow_disabled: messages.visualWorkflowDisabledEventType,
   visual_workflow_run_started: messages.visualWorkflowRunStartedEventType,
+  visual_workflow_approval_requested: messages.visualWorkflowApprovalRequestedEventType,
+  visual_workflow_approval_decided: messages.visualWorkflowApprovalDecidedEventType,
   query_created: messages.queryCreatedEventType,
   query_deleted: messages.queryDeletedEventType,
   query_imported: messages.queryImportedEventType,

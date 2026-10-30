@@ -95,6 +95,8 @@ export const VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES = [
   "visual_workflow_enabled",
   "visual_workflow_disabled",
   "visual_workflow_run_started",
+  "visual_workflow_approval_requested",
+  "visual_workflow_approval_decided",
 ] as const;
 export type VisualWorkflowActivityEventType = (typeof VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES)[number];
 
@@ -382,6 +384,22 @@ export type ActivityPayloadByEventType = {
     triggerSource: string;
     visualWorkflowId: string;
   };
+  visual_workflow_approval_requested: {
+    approvalRequestId: string;
+    nodeId: string;
+    reviewerId: string;
+    reviewerType: "user" | "team";
+    runId: string;
+    status: "pending";
+    visualWorkflowId: string;
+  };
+  visual_workflow_approval_decided: {
+    approvalRequestId: string;
+    decision: "approved" | "rejected" | "changes_requested";
+    nodeId: string;
+    runId: string;
+    visualWorkflowId: string;
+  };
   query_created: {
     identifier: string;
     name: string;
@@ -502,6 +520,8 @@ export type ActivityTargetKindByEventType = {
   visual_workflow_enabled: "visual_workflow";
   visual_workflow_disabled: "visual_workflow";
   visual_workflow_run_started: "visual_workflow";
+  visual_workflow_approval_requested: "visual_workflow";
+  visual_workflow_approval_decided: "visual_workflow";
   query_created: "query";
   query_deleted: "query";
   query_imported: "project";

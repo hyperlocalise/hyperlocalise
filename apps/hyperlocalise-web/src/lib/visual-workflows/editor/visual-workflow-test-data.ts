@@ -112,6 +112,7 @@ const MOCKABLE: Record<VisualCatalogType, boolean> = {
   "logic.sequence": false,
   "logic.try_catch": false,
   "logic.merge": false,
+  "flow.human_approval": true,
   "flow.wait": false,
   "flow.stop": false,
   "flow.return": false,
