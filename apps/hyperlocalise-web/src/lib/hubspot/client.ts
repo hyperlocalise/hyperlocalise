@@ -71,6 +71,7 @@ export type HubspotPageRecord = HubspotPageSummary & {
   featuredImageAltText: string;
   widgets: unknown;
   layoutSections: unknown;
+  widgetContainers: unknown;
 };
 
 export type HubspotPageDraft = {
@@ -82,6 +83,7 @@ export type HubspotPageDraft = {
   featuredImageAltText: string;
   widgets: unknown;
   layoutSections: unknown;
+  widgetContainers: unknown;
 };
 
 export type HubspotContentClient = {
@@ -123,6 +125,28 @@ export type HubspotContentClient = {
     language: string;
   }): Promise<{ id: string }>;
   updateWebsitePageDraft(input: HubspotPageDraft): Promise<void>;
+  listMessageTemplates(): Promise<HubspotMessageTemplateSummary[]>;
+  getMessageTemplate(id: string): Promise<HubspotMessageTemplateRecord>;
+  createMessageTemplate(input: HubspotMessageTemplateDraft): Promise<{ id: string }>;
+  updateMessageTemplate(input: HubspotMessageTemplateDraft & { id: string }): Promise<void>;
+};
+
+export type HubspotMessageTemplateSummary = {
+  id: string;
+  name: string;
+};
+
+export type HubspotMessageTemplateRecord = HubspotMessageTemplateSummary & {
+  subject: string;
+  body: string;
+  folderId: string | null;
+};
+
+export type HubspotMessageTemplateDraft = {
+  name: string;
+  subject: string;
+  body: string;
+  folderId?: string | null;
 };
 
 type Page<T> = {
@@ -144,6 +168,7 @@ type BlogLike = {
   name?: string;
   language?: string;
   translatedFromId?: string;
+  contentGroupId?: string;
   htmlTitle?: string;
   metaDescription?: string;
   postBody?: string;
@@ -166,9 +191,22 @@ type PageLike = {
   featuredImageAltText?: string;
   widgets?: unknown;
   layoutSections?: unknown;
+  widgetContainers?: unknown;
+};
+
+type HubspotApiResponse = {
+  ok: boolean;
+  status: number;
+  text: () => Promise<string>;
 };
 
 export type HubspotSdk = {
+  apiRequest?: (opts: {
+    method: string;
+    path: string;
+    body?: Record<string, string>;
+    qs?: Record<string, string>;
+  }) => Promise<HubspotApiResponse>;
   marketing: {
     emails: {
       marketingEmailsApi: {
@@ -308,6 +346,7 @@ function pageRecord(page: PageLike, id: string): HubspotPageRecord {
     featuredImageAltText: page.featuredImageAltText ?? "",
     widgets: page.widgets ?? {},
     layoutSections: page.layoutSections ?? {},
+    widgetContainers: page.widgetContainers ?? {},
   };
 }
 
@@ -351,9 +390,114 @@ function bindCmsPages(api: CmsPageApi, failureCode: string) {
       draft.featuredImageAltText = input.featuredImageAltText;
       draft.widgets = (input.widgets ?? {}) as HubspotPageModel["widgets"];
       draft.layoutSections = (input.layoutSections ?? {}) as HubspotPageModel["layoutSections"];
+      draft.widgetContainers = (input.widgetContainers ??
+        {}) as HubspotPageModel["widgetContainers"];
       await api.updateDraft(input.id, draft);
     },
   };
+}
+
+const MESSAGE_TEMPLATE_COLLECTION = "/automation/email-templates/2026-09";
+
+type MessageTemplateLike = {
+  id?: string | number;
+  name?: string;
+  subject?: string;
+  body?: string;
+  folderId?: string | null;
+};
+
+function messageTemplateId(value: string | number | undefined): string {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  return typeof value === "string" ? value.trim() : "";
+}
+
+async function requestMessageTemplate(
+  sdk: HubspotSdk,
+  opts: {
+    method: string;
+    path: string;
+    body?: Record<string, string>;
+    qs?: Record<string, string>;
+  },
+): Promise<unknown> {
+  if (!sdk.apiRequest) {
+    throw new Error("hubspot_message_template_request_failed");
+  }
+  const response = await sdk.apiRequest(opts);
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`hubspot_message_template_request_failed:${response.status}`);
+  }
+  if (!text) {
+    return {};
+  }
+  return JSON.parse(text) as unknown;
+}
+
+function messageTemplateSummary(template: MessageTemplateLike): HubspotMessageTemplateSummary {
+  return {
+    id: messageTemplateId(template.id),
+    name: template.name ?? "",
+  };
+}
+
+function messageTemplateRecord(
+  template: MessageTemplateLike,
+  id: string,
+): HubspotMessageTemplateRecord {
+  return {
+    ...messageTemplateSummary(template),
+    id: messageTemplateId(template.id) || id,
+    subject: template.subject ?? "",
+    body: template.body ?? "",
+    folderId: template.folderId?.trim() ? template.folderId : null,
+  };
+}
+
+function messageTemplateWriteBody(input: HubspotMessageTemplateDraft): Record<string, string> {
+  const body: Record<string, string> = {
+    name: input.name,
+    subject: input.subject,
+    body: input.body,
+  };
+  if (input.folderId?.trim()) {
+    body.folderId = input.folderId.trim();
+  }
+  return body;
+}
+
+const BLOG_LANGUAGE_VARIATION_PATH =
+  "/cms/blog-settings/2026-09/settings/multi-language/create-language-variation";
+
+async function ensureBlogLanguageVariation(input: {
+  sdk: HubspotSdk;
+  blogId: string;
+  language: string;
+  primaryLanguage?: string;
+}): Promise<void> {
+  if (!input.sdk.apiRequest) {
+    throw new Error("hubspot_blog_language_failed");
+  }
+  const body: Record<string, string> = {
+    id: input.blogId,
+    language: input.language,
+  };
+  if (input.primaryLanguage?.trim()) {
+    body.primaryLanguage = input.primaryLanguage.trim();
+  }
+  const response = await input.sdk.apiRequest({
+    method: "POST",
+    path: BLOG_LANGUAGE_VARIATION_PATH,
+    body,
+  });
+  const text = await response.text();
+  if (response.ok || text.toLowerCase().includes("already")) {
+    return;
+  }
+  throw new Error(`hubspot_blog_language_failed:${response.status}`);
 }
 
 function formSummary(form: FormLike): HubspotFormSummary {
@@ -451,14 +595,36 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
       };
     },
     async createBlogLanguageVariation(input) {
-      const request = new BlogPostLanguageCloneRequestVNext();
-      request.id = input.id;
-      request.language = input.language;
-      const created = await blogs.multiLanguageApi.createLangVariation(request);
-      if (!created.id) {
-        throw new Error("hubspot_blog_variation_failed");
+      const createPostVariation = async () => {
+        const request = new BlogPostLanguageCloneRequestVNext();
+        request.id = input.id;
+        request.language = input.language;
+        const created = await blogs.multiLanguageApi.createLangVariation(request);
+        if (!created.id) {
+          throw new Error("hubspot_blog_variation_failed");
+        }
+        return { id: created.id };
+      };
+      try {
+        return await createPostVariation();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.toLowerCase().includes("does not have a variation for language")) {
+          throw error;
+        }
+        const post = await blogs.basicApi.getById(input.id);
+        const blogId = post.contentGroupId?.trim();
+        if (!blogId) {
+          throw error;
+        }
+        await ensureBlogLanguageVariation({
+          sdk,
+          blogId,
+          language: input.language,
+          primaryLanguage: post.language,
+        });
+        return await createPostVariation();
       }
-      return { id: created.id };
     },
     async updateBlogDraft(input) {
       const draft = new BlogPost();
@@ -498,6 +664,46 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
     getWebsitePage: (id) => websitePages.get(id),
     createWebsitePageLanguageVariation: (input) => websitePages.createLanguageVariation(input),
     updateWebsitePageDraft: (input) => websitePages.updateDraft(input),
+    async listMessageTemplates() {
+      const results = await listPages((after) =>
+        requestMessageTemplate(sdk, {
+          method: "GET",
+          path: MESSAGE_TEMPLATE_COLLECTION,
+          qs: after
+            ? { limit: String(HUBSPOT_LIST_PAGE_SIZE), after }
+            : { limit: String(HUBSPOT_LIST_PAGE_SIZE) },
+        }).then((payload) => payload as Page<MessageTemplateLike>),
+      );
+      return results
+        .filter((template) => messageTemplateId(template.id))
+        .map(messageTemplateSummary);
+    },
+    async getMessageTemplate(id) {
+      const template = (await requestMessageTemplate(sdk, {
+        method: "GET",
+        path: `${MESSAGE_TEMPLATE_COLLECTION}/${encodeURIComponent(id)}`,
+      })) as MessageTemplateLike;
+      return messageTemplateRecord(template, id);
+    },
+    async createMessageTemplate(input) {
+      const created = (await requestMessageTemplate(sdk, {
+        method: "POST",
+        path: MESSAGE_TEMPLATE_COLLECTION,
+        body: messageTemplateWriteBody(input),
+      })) as MessageTemplateLike;
+      const createdId = messageTemplateId(created.id);
+      if (!createdId) {
+        throw new Error("hubspot_message_template_create_failed");
+      }
+      return { id: createdId };
+    },
+    async updateMessageTemplate(input) {
+      await requestMessageTemplate(sdk, {
+        method: "PATCH",
+        path: `${MESSAGE_TEMPLATE_COLLECTION}/${encodeURIComponent(input.id)}`,
+        body: messageTemplateWriteBody(input),
+      });
+    },
   };
 }
 

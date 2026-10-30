@@ -33,7 +33,9 @@ import {
   buildBlogDocument,
   buildEmailDocument,
   buildFormDocument,
+  buildMessageTemplateDocument,
   buildPageDocument,
+  messageTemplateHasCopy,
   hashHubspotContent,
   hubspotDocumentHasCopy,
   serializeHubspotDocument,
@@ -369,6 +371,11 @@ async function importOne(input: {
   }
 }
 
+function noteSkip(result: ImportHubspotContentResult, message: string) {
+  result.skipped += 1;
+  pushWarning(result, message);
+}
+
 function selectedIds(ids: readonly string[] | undefined): Set<string> | null {
   if (!ids || ids.length === 0) {
     return null;
@@ -440,7 +447,14 @@ export async function runImportHubspotContent(input: {
     warnings: [],
   };
 
-  for (const surface of ["email", "form", "blog", "landing-page", "website-page"] as const) {
+  for (const surface of [
+    "email",
+    "form",
+    "blog",
+    "landing-page",
+    "website-page",
+    "message-template",
+  ] as const) {
     const assignment = assignHubspotLocales(targetLocales, surface);
     for (const locale of assignment.unmapped) {
       pushWarning(result, `${surface}: ${locale} has no HubSpot language code`);
@@ -458,6 +472,7 @@ export async function runImportHubspotContent(input: {
   const blogIds = selectedIds(hubspot.blogPostIds);
   const landingPageIds = selectedIds(hubspot.landingPageIds);
   const websitePageIds = selectedIds(hubspot.websitePageIds);
+  const messageTemplateIds = selectedIds(hubspot.messageTemplateIds);
 
   const emails = await client.listEmails();
   for (const summary of emails) {
@@ -465,7 +480,7 @@ export async function runImportHubspotContent(input: {
       continue;
     }
     if (isHubspotLocaleCopyName(summary.name)) {
-      result.skipped += 1;
+      noteSkip(result, `Email "${summary.name}" looks like a locale copy`);
       continue;
     }
     if (
@@ -475,14 +490,17 @@ export async function runImportHubspotContent(input: {
         surface: "email",
       })
     ) {
-      result.skipped += 1;
+      noteSkip(
+        result,
+        `Email "${summary.name}" is ${summary.language}, which does not match the project source ${sourceLocale}`,
+      );
       continue;
     }
     try {
       const email = await client.getEmail(summary.id);
       const document = buildEmailDocument({ subject: email.subject, widgets: email.widgets });
       if (!hubspotDocumentHasCopy(document)) {
-        result.skipped += 1;
+        noteSkip(result, `Email "${summary.name}" has no translatable text`);
         continue;
       }
       await importOne({
@@ -513,7 +531,7 @@ export async function runImportHubspotContent(input: {
       continue;
     }
     if (isHubspotLocaleCopyName(summary.name)) {
-      result.skipped += 1;
+      noteSkip(result, `Form "${summary.name}" looks like a locale copy`);
       continue;
     }
     if (
@@ -523,14 +541,17 @@ export async function runImportHubspotContent(input: {
         surface: "form",
       })
     ) {
-      result.skipped += 1;
+      noteSkip(
+        result,
+        `Form "${summary.name}" is ${summary.language}, which does not match the project source ${sourceLocale}`,
+      );
       continue;
     }
     try {
       const form = await client.getForm(summary.id);
       const document = buildFormDocument(form.definition);
       if (!hubspotDocumentHasCopy(document)) {
-        result.skipped += 1;
+        noteSkip(result, `Form "${summary.name}" has no translatable text`);
         continue;
       }
       await importOne({
@@ -560,8 +581,12 @@ export async function runImportHubspotContent(input: {
     if (blogIds && !blogIds.has(summary.id)) {
       continue;
     }
-    if (summary.translatedFromId || isHubspotLocaleCopyName(summary.name)) {
-      result.skipped += 1;
+    if (summary.translatedFromId) {
+      noteSkip(result, `Blog post "${summary.name}" is already a language variation`);
+      continue;
+    }
+    if (isHubspotLocaleCopyName(summary.name)) {
+      noteSkip(result, `Blog post "${summary.name}" looks like a locale copy`);
       continue;
     }
     if (
@@ -571,7 +596,10 @@ export async function runImportHubspotContent(input: {
         surface: "blog",
       })
     ) {
-      result.skipped += 1;
+      noteSkip(
+        result,
+        `Blog post "${summary.name}" is ${summary.language}, which does not match the project source ${sourceLocale}`,
+      );
       continue;
     }
     try {
@@ -632,6 +660,54 @@ export async function runImportHubspotContent(input: {
     result,
   });
 
+  try {
+    const templates = await client.listMessageTemplates();
+    for (const summary of templates) {
+      if (messageTemplateIds && !messageTemplateIds.has(summary.id)) {
+        continue;
+      }
+      if (isHubspotLocaleCopyName(summary.name)) {
+        noteSkip(result, `Message template "${summary.name}" looks like a locale copy`);
+        continue;
+      }
+      try {
+        const template = await client.getMessageTemplate(summary.id);
+        if (!messageTemplateHasCopy(template)) {
+          noteSkip(result, `Message template "${summary.name}" has no translatable text`);
+          continue;
+        }
+        await importOne({
+          organizationId: input.organizationId,
+          automation: input.automation,
+          projectId,
+          sourceLocale,
+          targetLocales,
+          workflowRunId: input.workflowRunId,
+          openJobs,
+          result,
+          kind: "message-template",
+          sourceId: template.id,
+          sourceName: template.name || summary.name,
+          content: buildMessageTemplateDocument(template),
+          contentType: "text/html",
+          fileFormat: "html",
+        });
+      } catch (error) {
+        logger.warn(
+          { sourceId: summary.id, error: String(error) },
+          "hubspot message template import failed",
+        );
+        result.failed += 1;
+      }
+    }
+  } catch (error) {
+    logger.warn({ error: String(error) }, "hubspot message template list failed");
+    pushWarning(
+      result,
+      "Message templates could not be listed. Reconnect HubSpot if the authorization is missing message template access.",
+    );
+  }
+
   return result;
 }
 
@@ -654,8 +730,13 @@ async function importCmsPages(input: {
     if (input.ids && !input.ids.has(summary.id)) {
       continue;
     }
-    if (summary.translatedFromId || isHubspotLocaleCopyName(summary.name)) {
-      input.result.skipped += 1;
+    const pageLabel = input.kind === "landing-page" ? "Landing page" : "Website page";
+    if (summary.translatedFromId) {
+      noteSkip(input.result, `${pageLabel} "${summary.name}" is already a language variation`);
+      continue;
+    }
+    if (isHubspotLocaleCopyName(summary.name)) {
+      noteSkip(input.result, `${pageLabel} "${summary.name}" looks like a locale copy`);
       continue;
     }
     if (
@@ -665,14 +746,17 @@ async function importCmsPages(input: {
         surface: input.kind,
       })
     ) {
-      input.result.skipped += 1;
+      noteSkip(
+        input.result,
+        `${pageLabel} "${summary.name}" is ${summary.language}, which does not match the project source ${input.sourceLocale}`,
+      );
       continue;
     }
     try {
       const page = await input.get(summary.id);
       const document = buildPageDocument(page);
       if (!hubspotDocumentHasCopy(document)) {
-        input.result.skipped += 1;
+        noteSkip(input.result, `${pageLabel} "${summary.name}" has no translatable text`);
         continue;
       }
       await importOne({

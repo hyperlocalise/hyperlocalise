@@ -35,7 +35,7 @@ export const hubspotContentSyncStates = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     resourceKind: text("resource_kind")
-      .$type<"email" | "form" | "blog" | "landing-page" | "website-page">()
+      .$type<"email" | "form" | "blog" | "landing-page" | "website-page" | "message-template">()
       .notNull(),
     sourceId: text("source_id").notNull(),
     sourceName: text("source_name").notNull(),

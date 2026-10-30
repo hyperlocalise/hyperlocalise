@@ -62,7 +62,23 @@ function isCopyString(value: string): boolean {
 
 export function collectCopyTree(value: unknown): HubspotStringTree {
   const tree: HubspotStringTree = {};
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => {
+      const key = String(index);
+      if (typeof entry === "string") {
+        if (isCopyString(entry)) {
+          tree[key] = entry;
+        }
+        return;
+      }
+      const nested = collectCopyTree(entry);
+      if (Object.keys(nested).length > 0) {
+        tree[key] = nested;
+      }
+    });
+    return tree;
+  }
+  if (!value || typeof value !== "object") {
     return tree;
   }
   for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
@@ -84,7 +100,23 @@ export function collectCopyTree(value: unknown): HubspotStringTree {
 }
 
 export function applyStringTree(target: unknown, tree: HubspotStringTree): void {
-  if (!target || typeof target !== "object" || Array.isArray(target)) {
+  if (Array.isArray(target)) {
+    for (const [key, value] of Object.entries(tree)) {
+      const index = Number(key);
+      if (!Number.isInteger(index) || index < 0 || index >= target.length) {
+        continue;
+      }
+      if (typeof value === "string") {
+        if (typeof target[index] === "string") {
+          target[index] = value;
+        }
+        continue;
+      }
+      applyStringTree(target[index], value);
+    }
+    return;
+  }
+  if (!target || typeof target !== "object") {
     return;
   }
   const record = target as Record<string, unknown>;
@@ -180,6 +212,7 @@ export function buildPageDocument(input: {
   featuredImageAltText: string;
   widgets: unknown;
   layoutSections: unknown;
+  widgetContainers?: unknown;
 }): HubspotStringTree {
   const document: HubspotStringTree = {};
   if (isCopyString(input.htmlTitle)) {
@@ -199,6 +232,10 @@ export function buildPageDocument(input: {
   if (Object.keys(layoutSections).length > 0) {
     document.layoutSections = layoutSections;
   }
+  const widgetContainers = collectCopyTree(input.widgetContainers);
+  if (Object.keys(widgetContainers).length > 0) {
+    document.widgetContainers = widgetContainers;
+  }
   return document;
 }
 
@@ -209,6 +246,7 @@ export function applyPageDocument(
     featuredImageAltText: string;
     widgets: unknown;
     layoutSections: unknown;
+    widgetContainers?: unknown;
   },
   translated: HubspotStringTree,
 ): {
@@ -217,14 +255,19 @@ export function applyPageDocument(
   featuredImageAltText: string;
   widgets: unknown;
   layoutSections: unknown;
+  widgetContainers: unknown;
 } {
   const widgets = structuredClone(live.widgets ?? {});
   const layoutSections = structuredClone(live.layoutSections ?? {});
+  const widgetContainers = structuredClone(live.widgetContainers ?? {});
   if (translated.widgets && typeof translated.widgets !== "string") {
     applyStringTree(widgets, translated.widgets);
   }
   if (translated.layoutSections && typeof translated.layoutSections !== "string") {
     applyStringTree(layoutSections, translated.layoutSections);
+  }
+  if (translated.widgetContainers && typeof translated.widgetContainers !== "string") {
+    applyStringTree(widgetContainers, translated.widgetContainers);
   }
   return {
     htmlTitle: typeof translated.htmlTitle === "string" ? translated.htmlTitle : live.htmlTitle,
@@ -238,6 +281,7 @@ export function applyPageDocument(
         : live.featuredImageAltText,
     widgets,
     layoutSections,
+    widgetContainers,
   };
 }
 
@@ -439,6 +483,44 @@ export function buildBlogDocument(input: {
 <section data-hl-field="postBody">${input.postBody}</section>
 </body></html>
 `;
+}
+
+function visibleTemplateText(value: string): string {
+  return value
+    .replace(/\{\{[\s\S]*?\}\}/g, " ")
+    .replace(/\{%[\s\S]*?%\}/g, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replaceAll("&nbsp;", " ")
+    .trim();
+}
+
+export function messageTemplateHasCopy(input: { subject: string; body: string }): boolean {
+  return isCopyString(input.subject) || visibleTemplateText(input.body).length > 0;
+}
+
+export function buildMessageTemplateDocument(input: { subject: string; body: string }): string {
+  return `<!DOCTYPE html>
+<html><body>
+<section data-hl-field="subject"><p>${escapeHtml(input.subject)}</p></section>
+<section data-hl-field="body">${input.body}</section>
+</body></html>
+`;
+}
+
+export function readMessageTemplateDocument(html: string): {
+  subject: string;
+  body: string;
+  foundSubject: boolean;
+  foundBody: boolean;
+} {
+  const subject = /data-hl-field="subject"[^>]*>\s*<p>([\s\S]*?)<\/p>/i.exec(html);
+  const body = /data-hl-field="body"[^>]*>([\s\S]*?)<\/section>/i.exec(html);
+  return {
+    subject: unescapeHtml(subject?.[1] ?? ""),
+    body: body?.[1] ?? "",
+    foundSubject: Boolean(subject),
+    foundBody: Boolean(body),
+  };
 }
 
 export function readBlogDocument(html: string): {

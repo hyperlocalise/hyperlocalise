@@ -29,6 +29,8 @@ describe("mapProjectLocaleToHubspot", () => {
     expect(mapProjectLocaleToHubspot("en-GB", "blog")).toBe("en-gb");
     expect(mapProjectLocaleToHubspot("en-GB", "form")).toBe("en");
     expect(mapProjectLocaleToHubspot("de-DE", "form")).toBe("de");
+    expect(mapProjectLocaleToHubspot("fr-FR", "message-template")).toBe("fr-fr");
+    expect(mapProjectLocaleToHubspot("fr", "message-template")).toBe("fr");
   });
 
   it("applies HubSpot aliases when the surface does not accept the tag itself", () => {
@@ -46,6 +48,16 @@ describe("assignHubspotLocales", () => {
     const assignment = assignHubspotLocales(["fr-FR", "fr"], "form");
     expect(assignment.mapped).toEqual([{ locale: "fr-FR", code: "fr" }]);
     expect(assignment.collisions).toEqual([{ locale: "fr", code: "fr", keptLocale: "fr-FR" }]);
+  });
+
+  it("keeps fr and fr-FR apart for message templates", () => {
+    const assignment = assignHubspotLocales(["fr-FR", "fr"], "message-template");
+    expect(assignment.mapped).toEqual([
+      { locale: "fr-FR", code: "fr-fr" },
+      { locale: "fr", code: "fr" },
+    ]);
+    expect(assignment.collisions).toEqual([]);
+    expect(assignment.unmapped).toEqual([]);
   });
 });
 

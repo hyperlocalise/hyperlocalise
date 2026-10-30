@@ -33,8 +33,10 @@ import {
   mergeHubspotTranslations,
   readBlogDocument,
   readHubspotStringTree,
+  readMessageTemplateDocument,
 } from "./document";
 import { readHubspotDocumentJson } from "./import-hubspot-content";
+import { formDefinitionForWrite } from "./form-write";
 import { assignHubspotLocales, hubspotCopyName, mapProjectLocaleToHubspot } from "./locale";
 
 const logger = createLogger("push-hubspot-content");
@@ -91,26 +93,6 @@ async function loadSourceText(input: {
   return stored.content.toString("utf8");
 }
 
-function formDefinitionForWrite(
-  definition: Record<string, unknown>,
-  input: { name: string; language: string; create: boolean },
-): Record<string, unknown> {
-  const next = structuredClone(definition);
-  next.name = input.name;
-  const configuration = next.configuration;
-  if (configuration && typeof configuration === "object" && !Array.isArray(configuration)) {
-    (configuration as { language?: string }).language = input.language;
-  }
-  if (input.create) {
-    delete next.id;
-    delete next.createdAt;
-    delete next.updatedAt;
-    delete next.archived;
-    delete next.archivedAt;
-  }
-  return next;
-}
-
 async function rememberCopy(input: {
   id: string;
   locale: string;
@@ -160,6 +142,10 @@ async function findNamedCopy(input: {
   if (input.kind === "website-page") {
     const pages = await input.client.listWebsitePages();
     return pages.find((item) => item.name === input.copyName)?.id ?? null;
+  }
+  if (input.kind === "message-template") {
+    const templates = await input.client.listMessageTemplates();
+    return templates.find((item) => item.name === input.copyName)?.id ?? null;
   }
   const posts = await input.client.listBlogPosts();
   return posts.find((item) => item.name === input.copyName)?.id ?? null;
@@ -248,6 +234,7 @@ export async function runPushHubspotContent(input: {
     blog: assignHubspotLocales(locales, "blog"),
     "landing-page": assignHubspotLocales(locales, "landing-page"),
     "website-page": assignHubspotLocales(locales, "website-page"),
+    "message-template": assignHubspotLocales(locales, "message-template"),
   };
 
   for (const mapping of mappings) {
@@ -326,6 +313,31 @@ export async function runPushHubspotContent(input: {
           } else {
             copyId = (await client.createForm(definition)).id;
           }
+        } else if (mapping.resourceKind === "message-template") {
+          const translatedHtml = applyHtmlIngestTranslations(sourceText, approved.prefilled);
+          const read = readMessageTemplateDocument(translatedHtml);
+          const live = await client.getMessageTemplate(mapping.sourceId);
+          const subject = read.foundSubject ? read.subject : live.subject;
+          const body = read.foundBody ? read.body : live.body;
+          const existingCopyId = copyId && copyId !== mapping.sourceId ? copyId : null;
+          if (existingCopyId) {
+            await client.updateMessageTemplate({
+              id: existingCopyId,
+              name: copyName,
+              subject,
+              body,
+            });
+            copyId = existingCopyId;
+          } else {
+            copyId = (
+              await client.createMessageTemplate({
+                name: copyName,
+                subject,
+                body,
+                folderId: live.folderId,
+              })
+            ).id;
+          }
         } else if (mapping.resourceKind === "blog") {
           const translatedHtml = applyHtmlIngestTranslations(sourceText, approved.prefilled);
           const blog = readBlogDocument(translatedHtml);
@@ -378,6 +390,7 @@ export async function runPushHubspotContent(input: {
             featuredImageAltText: applied.featuredImageAltText,
             widgets: applied.widgets,
             layoutSections: applied.layoutSections,
+            widgetContainers: applied.widgetContainers,
           });
           copyId = targetId;
         }

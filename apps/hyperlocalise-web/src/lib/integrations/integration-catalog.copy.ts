@@ -1007,8 +1007,8 @@ export const integrationCatalogCopy = {
     },
     tagline: {
       defaultMessage:
-        "Localize emails, forms, blog posts, landing pages, and website pages in HubSpot.",
-      id: "bfBd1OoAHf",
+        "Localize emails, forms, blog posts, landing pages, website pages, and message templates in HubSpot.",
+      id: "T2dJzsaKKT",
       description: "HubSpot integration description on the integrations page",
     },
   },

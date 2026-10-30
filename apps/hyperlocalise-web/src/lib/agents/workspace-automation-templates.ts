@@ -367,11 +367,11 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     extraCategories: ["marketing"],
     name: "Translate HubSpot content",
     description:
-      "Import HubSpot marketing emails, forms, blog posts, landing pages, and website pages, localise in Jobs, then push approved locales as unpublished copies.",
+      "Import HubSpot marketing emails, forms, blog posts, landing pages, website pages, and message templates, localise in Jobs, then push approved locales as unpublished copies.",
     instructions: formatWorkspaceAutomationTemplateInstructions({
       role: "a HubSpot localisation connector",
       capabilities: [
-        "Import marketing emails, forms, blog posts, landing pages, and website pages into the attached project",
+        "Import marketing emails, forms, blog posts, landing pages, website pages, and message templates into the attached project",
         "Open native translation jobs for mapped target locales after ingest",
         "Never push translations automatically on import — operators enqueue Push to HubSpot separately",
       ],

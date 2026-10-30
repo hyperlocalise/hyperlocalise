@@ -26,6 +26,8 @@ const ACCEPTED_CODES: Record<HubspotSurface, ReadonlySet<string>> = {
   blog: new Set(Object.values(BlogPostLanguageEnum)),
   "landing-page": new Set(Object.values(PageLanguageEnum)),
   "website-page": new Set(Object.values(PageLanguageEnum)),
+  // Message templates have no language field. Each project locale is its own named copy.
+  "message-template": new Set<string>(),
 };
 
 export function normalizeHubspotLocaleTag(locale: string): string {
@@ -57,11 +59,14 @@ function aliasHubspotCode(code: string, accepted: ReadonlySet<string>): string |
  * Returns null when the surface has no matching code.
  */
 export function mapProjectLocaleToHubspot(locale: string, surface: HubspotSurface): string | null {
-  const accepted = ACCEPTED_CODES[surface];
   const normalized = normalizeHubspotLocaleTag(locale);
   if (!normalized) {
     return null;
   }
+  if (surface === "message-template") {
+    return normalized;
+  }
+  const accepted = ACCEPTED_CODES[surface];
   if (accepted.has(normalized)) {
     return normalized;
   }

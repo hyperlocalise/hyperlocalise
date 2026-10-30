@@ -1077,6 +1077,7 @@ export function formStateToWorkspaceAutomationPayload(
             blogPostIds: [],
             landingPageIds: [],
             websitePageIds: [],
+            messageTemplateIds: [],
             existingTranslationPolicy: "seed_empty",
             overwriteWhenRemoteNewer: true,
           },

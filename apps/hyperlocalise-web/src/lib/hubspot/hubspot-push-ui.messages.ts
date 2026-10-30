@@ -36,9 +36,9 @@ export const hubspotPushUiMessages = defineMessages({
     description: "Title of the Content editor dialog for choosing HubSpot items to push",
   },
   selectItemsDescription: {
-    id: "h+ie5F1ydq",
+    id: "cio6/YsJRi",
     defaultMessage:
-      "Choose which mapped emails, forms, blog posts, landing pages, and website pages to update with approved translations. This creates locale copies and never changes or publishes the source.",
+      "Choose which mapped emails, forms, blog posts, landing pages, website pages, and message templates to update with approved translations. This creates locale copies and never changes or publishes the source.",
     description: "Description of the HubSpot item picker dialog",
   },
   pushPolicyLabel: {

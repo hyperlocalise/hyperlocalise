@@ -420,6 +420,7 @@ const hubspotToolConfigSchema = z
     blogPostIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
     landingPageIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
     websitePageIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    messageTemplateIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
     existingTranslationPolicy: z
       .enum(["seed_empty", "refresh_imported", "overwrite_all"])
       .default("seed_empty"),
@@ -433,6 +434,7 @@ const hubspotToolConfigSchema = z
     blogPostIds: [],
     landingPageIds: [],
     websitePageIds: [],
+    messageTemplateIds: [],
     existingTranslationPolicy: "seed_empty",
     overwriteWhenRemoteNewer: true,
   });

@@ -22,6 +22,7 @@ export const HUBSPOT_RESOURCE_KINDS = [
   "blog",
   "landing-page",
   "website-page",
+  "message-template",
 ] as const;
 export type HubspotResourceKind = (typeof HUBSPOT_RESOURCE_KINDS)[number];
 

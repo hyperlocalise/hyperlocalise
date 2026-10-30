@@ -26,7 +26,7 @@ function normalizeSourcePath(value: string): string {
 }
 
 const HUBSPOT_PATH =
-  /^hubspot\/(emails|forms|blog-posts|landing-pages|website-pages)\/([^/]+)\/([^/]+)\.(json|html)$/;
+  /^hubspot\/(emails|forms|blog-posts|landing-pages|website-pages|message-templates)\/([^/]+)\/([^/]+)\.(json|html)$/;
 
 const HUBSPOT_FOLDERS = {
   email: "emails",
@@ -34,6 +34,7 @@ const HUBSPOT_FOLDERS = {
   blog: "blog-posts",
   "landing-page": "landing-pages",
   "website-page": "website-pages",
+  "message-template": "message-templates",
 } as const;
 
 export function isHubspotSourcePath(sourcePath: string): boolean {
@@ -55,7 +56,7 @@ export function buildHubspotSourcePath(input: {
   name?: string | null;
 }): string {
   const folder = HUBSPOT_FOLDERS[input.kind];
-  const extension = input.kind === "blog" ? "html" : "json";
+  const extension = input.kind === "blog" || input.kind === "message-template" ? "html" : "json";
   const id = encodeURIComponent(input.id.trim());
   const slug = slugifyHubspotPathSegment(input.name ?? "", "item");
   return normalizeSourcePath(`hubspot/${folder}/${id}/${slug}.${extension}`);

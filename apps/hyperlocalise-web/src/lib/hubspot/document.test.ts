@@ -19,9 +19,12 @@ import {
   buildBlogDocument,
   buildEmailDocument,
   buildFormDocument,
+  buildMessageTemplateDocument,
   buildPageDocument,
   mergeHubspotTranslations,
+  messageTemplateHasCopy,
   readBlogDocument,
+  readMessageTemplateDocument,
 } from "./document";
 
 describe("hubspot documents", () => {
@@ -130,6 +133,88 @@ describe("hubspot documents", () => {
     expect(applied.layoutSections).toEqual({ main: { richText: "Bonjour" } });
   });
 
+  it("reads page copy stored in layout rows and widget container lists", () => {
+    const live = {
+      htmlTitle: "",
+      metaDescription: "",
+      featuredImageAltText: "",
+      widgets: {},
+      layoutSections: {
+        dnd_area: {
+          rows: [
+            {
+              "0": {
+                rows: [
+                  {
+                    "0": {
+                      params: {
+                        html: "<h2>Pricing</h2>",
+                        path: "@hubspot/rich_text",
+                      },
+                      type: "custom_widget",
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      widgetContainers: {
+        footer: {
+          widgets: [{ body: { html: "Footer line" }, type: "module", id: "footer-1" }],
+        },
+      },
+    };
+    const document = buildPageDocument(live);
+    expect(document.layoutSections).toEqual({
+      dnd_area: {
+        rows: {
+          "0": {
+            "0": {
+              rows: {
+                "0": {
+                  "0": {
+                    params: { html: "<h2>Pricing</h2>" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(document.widgetContainers).toEqual({
+      footer: { widgets: { "0": { body: { html: "Footer line" } } } },
+    });
+    const translated = mergeHubspotTranslations(document, {
+      "layoutSections.dnd_area.rows.0.0.rows.0.0.params.html": "<h2>Tarifs</h2>",
+      "widgetContainers.footer.widgets.0.body.html": "Pied de page",
+    });
+    const applied = applyPageDocument(live, translated);
+    expect(applied.layoutSections).toMatchObject({
+      dnd_area: {
+        rows: [
+          {
+            "0": {
+              rows: [
+                {
+                  "0": {
+                    params: { html: "<h2>Tarifs</h2>", path: "@hubspot/rich_text" },
+                    type: "custom_widget",
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    expect(applied.widgetContainers).toMatchObject({
+      footer: { widgets: [{ id: "footer-1", body: { html: "Pied de page" } }] },
+    });
+  });
+
   it("round-trips blog title, description, and body", () => {
     const html = buildBlogDocument({
       htmlTitle: "Launch & more",
@@ -140,6 +225,23 @@ describe("hubspot documents", () => {
       htmlTitle: "Launch & more",
       metaDescription: "A <note>",
       postBody: "<p>Body</p>",
+    });
+  });
+
+  it("round-trips message template subject and body and skips token-only copy", () => {
+    expect(messageTemplateHasCopy({ subject: "", body: "<p>{{ contact.firstname }}</p>" })).toBe(
+      false,
+    );
+    expect(messageTemplateHasCopy({ subject: "Hello", body: "" })).toBe(true);
+    const html = buildMessageTemplateDocument({
+      subject: "Hello & welcome",
+      body: "<p>Hi {{ contact.firstname }}</p>",
+    });
+    expect(readMessageTemplateDocument(html)).toEqual({
+      subject: "Hello & welcome",
+      body: "<p>Hi {{ contact.firstname }}</p>",
+      foundSubject: true,
+      foundBody: true,
     });
   });
 });

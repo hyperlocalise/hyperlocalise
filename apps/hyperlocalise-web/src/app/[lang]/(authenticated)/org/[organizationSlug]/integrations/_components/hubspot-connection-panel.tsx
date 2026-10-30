@@ -34,8 +34,30 @@ import { usePipesStatus } from "./pipes-connection-panel";
 const api = createApiClient();
 
 const HUBSPOT_OAUTH_WINDOW_NAME = "hyperlocalise-hubspot-oauth";
-const HUBSPOT_OAUTH_WINDOW_FEATURES = "width=520,height=720,scrollbars=yes,resizable=yes";
+const HUBSPOT_OAUTH_WINDOW_WIDTH = 520;
+const HUBSPOT_OAUTH_WINDOW_HEIGHT = 720;
 const PIPES_CONNECTED_MESSAGE = "hyperlocalise-pipes-connected";
+
+function openHubspotOAuthWindow(url: string): Window | null {
+  const width = HUBSPOT_OAUTH_WINDOW_WIDTH;
+  const height = HUBSPOT_OAUTH_WINDOW_HEIGHT;
+  const left = Math.round(window.screenX + (window.outerWidth - width) / 2);
+  const top = Math.round(window.screenY + (window.outerHeight - height) / 2);
+  const popup = window.open(
+    url,
+    HUBSPOT_OAUTH_WINDOW_NAME,
+    `popup=yes,width=${width},height=${height},left=${left},top=${top},screenX=${left},screenY=${top},scrollbars=yes,resizable=yes`,
+  );
+  if (!popup) {
+    return null;
+  }
+  try {
+    popup.moveTo(left, top);
+  } catch {
+    // A cross-origin authorize page rejects moveTo. left and top are already in the feature string.
+  }
+  return popup;
+}
 
 function isPipesConnectedMessage(data: unknown): data is { type: string; provider: string } {
   return (
@@ -93,7 +115,7 @@ export function HubspotConnectionPanel({
         popup.location.href = url;
         return;
       }
-      const opened = window.open(url, HUBSPOT_OAUTH_WINDOW_NAME, HUBSPOT_OAUTH_WINDOW_FEATURES);
+      const opened = openHubspotOAuthWindow(url);
       if (!opened) {
         toast.error(intl.formatMessage(hubspotConnectionPanelMessages.popupBlockedToast));
         return;
@@ -184,11 +206,7 @@ export function HubspotConnectionPanel({
   }, []);
 
   const handleConnect = useCallback(() => {
-    const popup = window.open(
-      "about:blank",
-      HUBSPOT_OAUTH_WINDOW_NAME,
-      HUBSPOT_OAUTH_WINDOW_FEATURES,
-    );
+    const popup = openHubspotOAuthWindow("about:blank");
     if (!popup) {
       toast.error(intl.formatMessage(hubspotConnectionPanelMessages.popupBlockedToast));
       return;

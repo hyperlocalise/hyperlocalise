@@ -32,6 +32,14 @@ describe("hubspot source paths", () => {
     const website = buildHubspotSourcePath({ kind: "website-page", id: "site-2", name: "About" });
     expect(website).toBe("hubspot/website-pages/site-2/about.json");
     expect(parseHubspotSourcePath(website)).toEqual({ kind: "website-page", id: "site-2" });
+
+    const template = buildHubspotSourcePath({
+      kind: "message-template",
+      id: "tmpl-3",
+      name: "Follow up",
+    });
+    expect(template).toBe("hubspot/message-templates/tmpl-3/follow-up.html");
+    expect(parseHubspotSourcePath(template)).toEqual({ kind: "message-template", id: "tmpl-3" });
     expect(isHubspotSourcePath("projects/welcome.json")).toBe(false);
   });
 });
