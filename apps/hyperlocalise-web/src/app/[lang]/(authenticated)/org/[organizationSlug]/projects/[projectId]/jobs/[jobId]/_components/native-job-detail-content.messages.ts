@@ -173,4 +173,15 @@ export const nativeJobDetailContentMessages = defineMessages({
     id: "wclN4/dKYj",
     description: "Toast and error fallback when marking a task done fails",
   },
+  taskAlreadyClosed: {
+    defaultMessage: "This task was already finished or cancelled.",
+    id: "xkC+jko3kk",
+    description: "Error toast when marking a task done after someone else finished or cancelled it",
+  },
+  taskNotAssignedToYou: {
+    defaultMessage: "You can only mark done a task assigned to you.",
+    id: "aTt1oyDiQ4",
+    description:
+      "Error toast when someone without review rights marks done a task not assigned to them",
+  },
 });

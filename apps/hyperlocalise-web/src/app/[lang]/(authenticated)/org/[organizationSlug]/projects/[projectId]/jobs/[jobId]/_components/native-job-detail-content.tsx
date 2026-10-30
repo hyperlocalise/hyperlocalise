@@ -253,6 +253,12 @@ export function NativeJobDetailContent({
         param: { organizationSlug, jobId },
       });
 
+      if (response.status === 409) {
+        throw new Error(intl.formatMessage(messages.taskAlreadyClosed));
+      }
+      if (response.status === 403) {
+        throw new Error(intl.formatMessage(messages.taskNotAssignedToYou));
+      }
       if (!response.ok) {
         throw new Error(
           await parseActionError(response, intl.formatMessage(messages.failedToMarkTaskDone)),
