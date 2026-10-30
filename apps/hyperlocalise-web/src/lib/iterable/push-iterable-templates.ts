@@ -74,9 +74,9 @@ function isRemoteLocaleEmpty(error: unknown): boolean {
   return error instanceof IterableApiError && error.status === 404;
 }
 
-function isRemoteContentEmpty(value: Record<string, unknown>): boolean {
-  const html = typeof value.html === "string" ? value.html.trim() : "";
-  const message = typeof value.message === "string" ? value.message.trim() : "";
+function isRemoteContentEmpty(value: { html?: string; message?: string }): boolean {
+  const html = value.html?.trim() ?? "";
+  const message = value.message?.trim() ?? "";
   return !html && !message;
 }
 
@@ -314,19 +314,19 @@ async function isIterableRemoteLocaleEmpty(
   try {
     if (mapping.resourceKind === "email") {
       const remote = await client.getEmailTemplate(templateId, suffix);
-      return !remote || isRemoteContentEmpty(remote as Record<string, unknown>);
+      return isRemoteContentEmpty(remote);
     }
     if (mapping.resourceKind === "in_app") {
       const remote = await client.getInAppTemplate(templateId, suffix);
-      return !remote || isRemoteContentEmpty(remote as Record<string, unknown>);
+      return isRemoteContentEmpty(remote);
     }
     if (mapping.resourceKind === "push") {
       const remote = await client.getPushTemplate(templateId, suffix);
-      return !remote || isRemoteContentEmpty(remote as Record<string, unknown>);
+      return isRemoteContentEmpty(remote);
     }
     if (mapping.resourceKind === "sms") {
       const remote = await client.getSmsTemplate(templateId, suffix);
-      return !remote || isRemoteContentEmpty(remote as Record<string, unknown>);
+      return isRemoteContentEmpty(remote);
     }
   } catch (error) {
     if (isRemoteLocaleEmpty(error)) {
@@ -395,7 +395,7 @@ async function pushEmailLocale(input: {
     preheaderText: parsed.preheaderText,
     html: parsed.html,
     plainText: parsed.plainText,
-    ...(remote ? { fromName: (remote as { fromName?: string }).fromName } : {}),
+    fromName: remote.fromName,
   });
 }
 
@@ -443,23 +443,10 @@ async function pushInAppLocale(input: {
     input.mapping.handlebarsTokens ?? {},
   );
   const templateId = await resolveInAppPushTemplateId(input.client, input.mapping, parsed.html);
-  const remote = await input.client.getInAppTemplate(templateId, input.suffix);
-  const inbox = (remote?.inboxMetadata ?? {}) as {
-    saveToInbox?: boolean;
-  };
   await input.client.updateInAppTemplate({
     templateId,
     locale: input.suffix,
     html: parsed.html,
-    title: parsed.title,
-    subtitle: parsed.subtitle,
-    icon: parsed.icon,
-    inboxMetadata: {
-      title: parsed.title,
-      subtitle: parsed.subtitle,
-      icon: parsed.icon,
-      saveToInbox: inbox.saveToInbox,
-    },
   });
 }
 

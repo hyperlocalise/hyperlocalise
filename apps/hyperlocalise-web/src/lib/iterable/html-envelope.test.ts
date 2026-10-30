@@ -36,7 +36,7 @@ import {
 
 describe("iterable html envelopes", () => {
   it("round-trips email fields from sample payload", () => {
-    const template = SAMPLE_EMAIL_TEMPLATE_GET.template;
+    const template = SAMPLE_EMAIL_TEMPLATE_GET;
     const { html, tokensByField } = serializeIterableEmailEnvelope({
       subject: template.subject ?? "",
       preheaderText: template.preheaderText,
@@ -52,24 +52,18 @@ describe("iterable html envelopes", () => {
   });
 
   it("round-trips in-app fields from sample payload", () => {
-    const template = SAMPLE_INAPP_TEMPLATE_GET.template;
+    const template = SAMPLE_INAPP_TEMPLATE_GET;
     const { html } = serializeIterableInAppEnvelope({
-      html: template.html ?? "",
-      title: template.title,
-      subtitle: template.subtitle,
-      icon: template.icon,
+      html: template.html,
     });
     const parsed = parseIterableInAppEnvelope(html);
 
-    expect(parsed.title).toBe(template.title);
-    expect(parsed.subtitle).toBe(template.subtitle);
-    expect(parsed.icon).toBe(template.icon);
     expect(parsed.html).toBe(template.html);
   });
 
   it("round-trips push and sms json envelopes", () => {
-    const push = SAMPLE_PUSH_TEMPLATE_GET.template;
-    const sms = SAMPLE_SMS_TEMPLATE_GET.template;
+    const push = SAMPLE_PUSH_TEMPLATE_GET;
+    const sms = SAMPLE_SMS_TEMPLATE_GET;
 
     expect(
       parseIterablePushEnvelope(
@@ -90,7 +84,7 @@ describe("iterable html envelopes", () => {
   });
 
   it("round-trips snippet html from sample payload", () => {
-    const content = SAMPLE_SNIPPET_GET.content ?? "";
+    const content = SAMPLE_SNIPPET_GET.snippet.content;
     const { html, tokensByField } = serializeIterableSnippetHtml(content);
     const parsed = parseIterableSnippetHtml(html);
     expect(restoreIterableSnippetContent(parsed, tokensByField.content)).toBe(content);

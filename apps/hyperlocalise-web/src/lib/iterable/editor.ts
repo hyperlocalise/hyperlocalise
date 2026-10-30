@@ -13,16 +13,16 @@
 
 import type { IterableEditorKind } from "./types";
 
-function readEditorType(payload: Record<string, unknown>): string {
-  const raw =
-    (typeof payload.editorType === "string" && payload.editorType) ||
-    (typeof payload.editor === "string" && payload.editor) ||
-    "";
-  return raw.trim();
+function readEditorType(payload: { html?: string; editorType?: string; editor?: string }): string {
+  return (payload.editorType ?? payload.editor ?? "").trim();
 }
 
 /** Fail closed: drag-and-drop unless Iterable proves WYSIWYG or side-by-side. */
-export function classifyIterableHtmlEditor(payload: Record<string, unknown>): IterableEditorKind {
+export function classifyIterableHtmlEditor(payload: {
+  html?: string;
+  editorType?: string;
+  editor?: string;
+}): IterableEditorKind {
   const normalized = readEditorType(payload).toLowerCase();
   if (!normalized) {
     return "drag_and_drop";

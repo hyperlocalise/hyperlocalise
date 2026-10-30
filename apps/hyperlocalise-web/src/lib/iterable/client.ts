@@ -29,67 +29,251 @@ export class IterableApiError extends Error {
   }
 }
 
-export type IterableTemplateListItem = {
-  templateId: number;
-  name: string;
-  messageMedium?: string;
-  updatedAt?: string;
+/** JSON object whose sample value is `{}` (push payload, campaign id, action icon type). */
+export type IterableJsonObject = {
+  [key: string]: string | number | boolean | null;
 };
 
-export type IterableSnippetListItem = {
-  id?: number;
+export type IterableTemplateListItem = {
+  templateId: number;
+  createdAt: number;
+  updatedAt: number;
   name: string;
-  updatedAt?: string;
+  creatorUserId: string;
+  messageTypeId: number;
+};
+
+export type IterableListedTemplate = IterableTemplateListItem & {
+  messageMedium: IterableMessageMedium;
+};
+
+export type IterableTemplateListResponse = {
+  templates: IterableTemplateListItem[];
+  nextPageUrl?: string | null;
+  previousPageUrl?: string | null;
 };
 
 export type IterableEmailTemplate = {
   templateId: number;
   name: string;
+  fromName: string;
+  fromEmail: string;
+  replyToEmail: string;
+  subject: string;
+  preheaderText: string;
+  ccEmails: string[];
+  bccEmails: string[];
+  html: string;
+  plainText: string;
+  cacheDataFeed: boolean;
+  mergeDataFeedContext: boolean;
+  messageTypeId: number;
+  creatorUserId: string;
+};
+
+export type IterableEmailTemplateUpsert = {
+  clientTemplateId: string | number;
+  name: string;
+  fromName?: string;
+  fromEmail?: string;
+  replyToEmail?: string;
   subject?: string;
   preheaderText?: string;
   html?: string;
   plainText?: string;
-  editorType?: string;
+};
+
+export type IterableEmailTemplateUpdate = {
+  templateId: number;
   locale?: string;
-  updatedAt?: string;
+  name?: string;
+  fromName?: string;
+  fromEmail?: string;
+  replyToEmail?: string;
+  subject?: string;
+  preheaderText?: string;
+  html?: string;
+  plainText?: string;
+};
+
+export type IterableInAppDisplayEdge = {
+  percentage: number;
+};
+
+export type IterableInAppDisplaySettings = {
+  top: IterableInAppDisplayEdge;
+  right: IterableInAppDisplayEdge;
+  bottom: IterableInAppDisplayEdge;
+  left: IterableInAppDisplayEdge;
+};
+
+export type IterableWebInAppDisplaySettings = {
+  position: string;
 };
 
 export type IterableInAppTemplate = {
   templateId: number;
   name: string;
-  html?: string;
-  title?: string;
-  subtitle?: string;
-  icon?: string;
-  editorType?: string;
+  html: string;
+  inAppDisplaySettings: IterableInAppDisplaySettings;
+  webInAppDisplaySettings: IterableWebInAppDisplaySettings;
+  messageTypeId: number;
+  isDefaultLocale: boolean;
+};
+
+export type IterableInAppTemplateUpsert = {
+  clientTemplateId: string | number;
+  name: string;
+  html: string;
+};
+
+export type IterableInAppTemplateUpdate = {
+  templateId: number;
   locale?: string;
-  inboxMetadata?: { title?: string; subtitle?: string; icon?: string; saveToInbox?: boolean };
-  updatedAt?: string;
+  name?: string;
+  html?: string;
+  inAppDisplaySettings?: IterableInAppDisplaySettings;
+  webInAppDisplaySettings?: IterableWebInAppDisplaySettings;
+  messageTypeId?: number;
+  isDefaultLocale?: boolean;
+};
+
+export type IterablePushButtonAction = {
+  type: string;
+  data: string;
+};
+
+export type IterablePushActionIcon = {
+  iconType: IterableJsonObject;
+  imageName: string;
+};
+
+export type IterablePushButton = {
+  identifier: string;
+  title: string;
+  buttonType: string;
+  action: IterablePushButtonAction;
+  openApp: boolean;
+  requiresUnlock: boolean;
+  inputPlaceholder: string;
+  inputTitle: string;
+  actionIcon: IterablePushActionIcon;
+};
+
+export type IterablePlatformLinks = {
+  ios: string;
+  android: string;
 };
 
 export type IterablePushTemplate = {
   templateId: number;
+  createdAt: string;
+  updatedAt: string;
   name: string;
+  title: string;
+  message: string;
+  payload: IterableJsonObject;
+  badge: string;
+  wake: boolean;
+  relevanceScore: number;
+  interruptionLevel: string;
+  locale: string;
+  messageTypeId: number;
+  sound: string;
+  buttons: IterablePushButton[];
+  deeplink: IterablePlatformLinks;
+  richMedia: IterablePlatformLinks;
+  dataFeedIds: number[];
+  cacheDataFeed: boolean;
+  mergeDataFeedContext: boolean;
+  clientTemplateId: string;
+  campaignId: IterableJsonObject;
+  isSilentPush: boolean;
+};
+
+export type IterablePushTemplateUpdate = {
+  templateId: number;
+  locale?: string;
+  name?: string;
   title?: string;
   message?: string;
-  locale?: string;
+  payload?: IterableJsonObject;
+  badge?: string;
+  sound?: string;
+  wake?: boolean;
+  relevanceScore?: number;
+  interruptionLevel?: string;
+  messageTypeId?: number;
+  buttons?: IterablePushButton[];
+  deeplink?: IterablePlatformLinks;
+  richMedia?: IterablePlatformLinks;
+  dataFeedIds?: number[];
+  cacheDataFeed?: boolean;
+  mergeDataFeedContext?: boolean;
+  clientTemplateId?: string;
+  campaignId?: IterableJsonObject;
+  isSilentPush?: boolean;
+  createdAt?: string;
   updatedAt?: string;
 };
 
 export type IterableSmsTemplate = {
   templateId: number;
   name: string;
+  message: string;
+  locale: string;
+  messageTypeId: number;
+};
+
+export type IterableSmsTemplateUpsert = {
+  clientTemplateId: string | number;
+  name: string;
+  message: string;
+  locale?: string;
+  messageTypeId?: string | number;
+};
+
+export type IterableSmsTemplateUpdate = {
+  templateId: number;
+  name?: string;
   message?: string;
   locale?: string;
-  updatedAt?: string;
+  messageTypeId?: number;
 };
 
 export type IterableSnippet = {
-  id?: number;
+  id: number;
   name: string;
-  content?: string;
+  content: string;
+  description: string;
   variables?: string[];
-  updatedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  updatedBy: string;
+  projectId: number;
+};
+
+export type IterableSnippetListResponse = {
+  snippets: IterableSnippet[];
+};
+
+export type IterableSnippetGetResponse = {
+  snippet: IterableSnippet;
+};
+
+export type IterableSnippetPutRequest = {
+  content?: string;
+  description?: string;
+  variables?: string[];
+};
+
+export type IterableSnippetWriteResponse = {
+  snippetId: number;
+};
+
+export type IterableTemplatesByClientTemplateIdResponse = {
+  templates: IterableEmailTemplate[];
 };
 
 export type IterableClient = ReturnType<typeof createIterableClient>;
@@ -139,16 +323,16 @@ export function createIterableClient(input: { apiKey: string; region: IterableRe
   }
 
   async function listAllTemplates(messageMedium: IterableMessageMedium) {
-    const items: IterableTemplateListItem[] = [];
+    const items: IterableListedTemplate[] = [];
     let page = 1;
     for (;;) {
-      const body = await request<{
-        templates?: IterableTemplateListItem[];
-        nextPageUrl?: string | null;
-      }>(
+      const body = await request<IterableTemplateListResponse>(
         `/api/templates?messageMedium=${encodeURIComponent(messageMedium)}&page=${page}&pageSize=1000`,
       );
-      const batch = body.templates ?? [];
+      const batch = body.templates.map((item): IterableListedTemplate => ({
+        ...item,
+        messageMedium,
+      }));
       items.push(...batch);
       if (!body.nextPageUrl || batch.length === 0) {
         break;
@@ -158,68 +342,60 @@ export function createIterableClient(input: { apiKey: string; region: IterableRe
     return items;
   }
 
+  function templateQuery(templateId: number, locale?: string) {
+    const query = new URLSearchParams({ templateId: String(templateId) });
+    if (locale) {
+      query.set("locale", locale);
+    }
+    return query.toString();
+  }
+
+  function postTemplate<TBody>(path: string, body: TBody) {
+    return request<void>(path, {
+      method: "POST",
+      body: JSON.stringify(body),
+      parseJson: false,
+    });
+  }
+
   return {
     listAllTemplates,
     listSnippets: () =>
-      request<{ snippets?: IterableSnippetListItem[] }>("/api/snippets").then(
-        (body) => body.snippets ?? [],
+      request<IterableSnippetListResponse>("/api/snippets").then((body) => body.snippets),
+    getEmailTemplate: (templateId: number, locale?: string) =>
+      request<IterableEmailTemplate>(
+        `/api/templates/email/get?${templateQuery(templateId, locale)}`,
       ),
-    getEmailTemplate: (templateId: number, locale?: string) => {
-      const query = new URLSearchParams({ templateId: String(templateId) });
-      if (locale) {
-        query.set("locale", locale);
-      }
-      return request<{ template?: IterableEmailTemplate }>(
-        `/api/templates/email/get?${query.toString()}`,
-      ).then((body) => body.template ?? null);
-    },
-    getInAppTemplate: (templateId: number, locale?: string) => {
-      const query = new URLSearchParams({ templateId: String(templateId) });
-      if (locale) {
-        query.set("locale", locale);
-      }
-      return request<{ template?: IterableInAppTemplate }>(
-        `/api/templates/inapp/get?${query.toString()}`,
-      ).then((body) => body.template ?? null);
-    },
-    getPushTemplate: (templateId: number, locale?: string) => {
-      const query = new URLSearchParams({ templateId: String(templateId) });
-      if (locale) {
-        query.set("locale", locale);
-      }
-      return request<{ template?: IterablePushTemplate }>(
-        `/api/templates/push/get?${query.toString()}`,
-      ).then((body) => body.template ?? null);
-    },
-    getSmsTemplate: (templateId: number, locale?: string) => {
-      const query = new URLSearchParams({ templateId: String(templateId) });
-      if (locale) {
-        query.set("locale", locale);
-      }
-      return request<{ template?: IterableSmsTemplate }>(
-        `/api/templates/sms/get?${query.toString()}`,
-      ).then((body) => body.template ?? null);
-    },
+    getInAppTemplate: (templateId: number, locale?: string) =>
+      request<IterableInAppTemplate>(
+        `/api/templates/inapp/get?${templateQuery(templateId, locale)}`,
+      ),
+    getPushTemplate: (templateId: number, locale?: string) =>
+      request<IterablePushTemplate>(`/api/templates/push/get?${templateQuery(templateId, locale)}`),
+    getSmsTemplate: (templateId: number, locale?: string) =>
+      request<IterableSmsTemplate>(`/api/templates/sms/get?${templateQuery(templateId, locale)}`),
     getSnippet: (identifier: string) =>
-      request<IterableSnippet>(`/api/snippets/${encodeURIComponent(identifier)}`),
-    updateEmailTemplate: (body: Record<string, unknown>) =>
-      request("/api/templates/email/update", { method: "POST", body: JSON.stringify(body) }),
-    updateInAppTemplate: (body: Record<string, unknown>) =>
-      request("/api/templates/inapp/update", { method: "POST", body: JSON.stringify(body) }),
-    updatePushTemplate: (body: Record<string, unknown>) =>
-      request("/api/templates/push/update", { method: "POST", body: JSON.stringify(body) }),
-    updateSmsTemplate: (body: Record<string, unknown>) =>
-      request("/api/templates/sms/update", { method: "POST", body: JSON.stringify(body) }),
-    upsertEmailTemplate: (body: Record<string, unknown>) =>
-      request("/api/templates/email/upsert", { method: "POST", body: JSON.stringify(body) }),
-    upsertInAppTemplate: (body: Record<string, unknown>) =>
-      request("/api/templates/inapp/upsert", { method: "POST", body: JSON.stringify(body) }),
+      request<IterableSnippetGetResponse>(`/api/snippets/${encodeURIComponent(identifier)}`).then(
+        (body) => body.snippet,
+      ),
+    updateEmailTemplate: (body: IterableEmailTemplateUpdate) =>
+      postTemplate("/api/templates/email/update", body),
+    updateInAppTemplate: (body: IterableInAppTemplateUpdate) =>
+      postTemplate("/api/templates/inapp/update", body),
+    updatePushTemplate: (body: IterablePushTemplateUpdate) =>
+      postTemplate("/api/templates/push/update", body),
+    updateSmsTemplate: (body: IterableSmsTemplateUpdate) =>
+      postTemplate("/api/templates/sms/update", body),
+    upsertEmailTemplate: (body: IterableEmailTemplateUpsert) =>
+      postTemplate("/api/templates/email/upsert", body),
+    upsertInAppTemplate: (body: IterableInAppTemplateUpsert) =>
+      postTemplate("/api/templates/inapp/upsert", body),
     getByClientTemplateId: (clientTemplateId: string) =>
-      request<{ template?: IterableEmailTemplate }>(
+      request<IterableTemplatesByClientTemplateIdResponse>(
         `/api/templates/getByClientTemplateId?clientTemplateId=${encodeURIComponent(clientTemplateId)}`,
-      ).then((body) => body.template ?? null),
-    putSnippet: (name: string, body: Record<string, unknown>) =>
-      request(`/api/snippets/${encodeURIComponent(name)}`, {
+      ).then((body) => body.templates[0] ?? null),
+    putSnippet: (name: string, body: IterableSnippetPutRequest) =>
+      request<IterableSnippetWriteResponse>(`/api/snippets/${encodeURIComponent(name)}`, {
         method: "PUT",
         body: JSON.stringify(body),
       }),

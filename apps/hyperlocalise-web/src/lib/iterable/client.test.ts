@@ -15,17 +15,22 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { createIterableClient, IterableApiError } from "./client";
 import {
   SAMPLE_EMAIL_TEMPLATE_GET,
-  SAMPLE_EMAIL_TEMPLATE_GET_FR,
+  SAMPLE_EMAIL_TEMPLATE_UPDATE,
+  SAMPLE_EMAIL_TEMPLATE_UPSERT,
   SAMPLE_GET_BY_CLIENT_TEMPLATE_ID,
   SAMPLE_INAPP_TEMPLATE_GET,
   SAMPLE_PUSH_TEMPLATE_GET,
+  SAMPLE_PUSH_TEMPLATE_UPDATE,
   SAMPLE_SNIPPET_GET,
+  SAMPLE_SNIPPET_PUT,
+  SAMPLE_SNIPPET_PUT_RESPONSE,
   SAMPLE_SNIPPETS_LIST,
   SAMPLE_SMS_TEMPLATE_GET,
+  SAMPLE_SMS_TEMPLATE_UPDATE,
   SAMPLE_TEMPLATES_LIST_EMAIL,
 } from "./client.real-api.fixture";
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(body: object, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json" },
@@ -54,7 +59,16 @@ describe("createIterableClient", () => {
     const client = createIterableClient({ apiKey: "server-key", region: "us" });
     const templates = await client.listAllTemplates("Email");
 
-    expect(templates).toEqual(SAMPLE_TEMPLATES_LIST_EMAIL.templates);
+    expect(templates).toEqual(
+      SAMPLE_TEMPLATES_LIST_EMAIL.templates.map((item) => ({
+        ...item,
+        messageMedium: "Email",
+      })),
+    );
+    expect(templates.map((item) => item.name)).toEqual([
+      "Regular editor",
+      "Photography Welcome Message",
+    ]);
     expect(fetchImpl).toHaveBeenCalledOnce();
   });
 
@@ -68,24 +82,35 @@ describe("createIterableClient", () => {
     await createIterableClient({ apiKey: "key", region: "eu" }).listAllTemplates("Email");
   });
 
-  it("gets email template default and locale copies from sample payloads", async () => {
+  it("gets the documented email template, including a locale query", async () => {
     const fetchImpl = vi.fn<typeof fetch>(async (url) => {
       const href = requestUrl(url);
-      if (href.includes("locale=fr-FR")) {
-        return jsonResponse(SAMPLE_EMAIL_TEMPLATE_GET_FR);
+      expect(href).toContain("/api/templates/email/get?templateId=86596");
+      if (href.includes("locale=")) {
+        expect(href).toContain("locale=fr-FR");
       }
       return jsonResponse(SAMPLE_EMAIL_TEMPLATE_GET);
     });
     vi.stubGlobal("fetch", fetchImpl);
 
     const client = createIterableClient({ apiKey: "key", region: "us" });
-    const defaultCopy = await client.getEmailTemplate(938631);
-    const french = await client.getEmailTemplate(938631, "fr-FR");
+    const defaultCopy = await client.getEmailTemplate(86596);
+    const localized = await client.getEmailTemplate(86596, "fr-FR");
 
-    expect(defaultCopy?.subject).toBe("Welcome, {{firstName}}!");
-    expect(defaultCopy?.editorType).toBe("Visual");
-    expect(french?.locale).toBe("fr-FR");
-    expect(french?.subject).toContain("Bienvenue");
+    expect(defaultCopy).toMatchObject({
+      templateId: 86596,
+      name: "My name of template",
+      fromName: "Customer Success",
+      fromEmail: "user@example.com",
+      replyToEmail: "replyTo@example.com",
+      subject: "My Subject of message",
+      preheaderText: "preheader message here",
+      plainText: "Optional plain text message",
+      messageTypeId: 3867,
+    });
+    expect(defaultCopy?.html).toContain("{{userPropertyParameter}}");
+    expect(localized?.subject).toBe("My Subject of message");
+    expect(localized?.templateId).toBe(86596);
   });
 
   it("gets in-app, push, sms templates and snippets", async () => {
@@ -111,17 +136,40 @@ describe("createIterableClient", () => {
     vi.stubGlobal("fetch", fetchImpl);
 
     const client = createIterableClient({ apiKey: "key", region: "us" });
-    const inApp = await client.getInAppTemplate(441022);
-    const push = await client.getPushTemplate(552001);
-    const sms = await client.getSmsTemplate(663002);
+    const inApp = await client.getInAppTemplate(SAMPLE_INAPP_TEMPLATE_GET.templateId);
+    const push = await client.getPushTemplate(SAMPLE_PUSH_TEMPLATE_GET.templateId);
+    const sms = await client.getSmsTemplate(SAMPLE_SMS_TEMPLATE_GET.templateId);
     const snippets = await client.listSnippets();
     const snippet = await client.getSnippet("Welcome_Banner");
 
-    expect(inApp?.inboxMetadata?.saveToInbox).toBe(true);
-    expect(push?.message).toContain("{{orderId}}");
-    expect(sms?.message).toContain("{{code}}");
-    expect(snippets[0]?.name).toBe("Welcome_Banner");
-    expect(snippet.variables).toEqual(["Footer"]);
+    expect(inApp).toMatchObject({
+      templateId: 0,
+      name: "My In-App template",
+      html: SAMPLE_INAPP_TEMPLATE_GET.html,
+      isDefaultLocale: true,
+    });
+    expect(push).toMatchObject({
+      templateId: 0,
+      name: "string",
+      title: "string",
+      message: "string",
+      isSilentPush: true,
+      locale: "string",
+    });
+    expect(sms).toMatchObject({
+      templateId: 100692,
+      name: "SMS testing",
+      message: "Here is example message",
+      locale: "en",
+      messageTypeId: 531,
+    });
+    expect(snippets.map((item) => item.name)).toEqual(["Copyright_year", "Welcome_Banner"]);
+    expect(snippets[1]?.variables).toEqual(["bannerColor", "firstName"]);
+    expect(snippet).toMatchObject({
+      name: "Welcome_Banner",
+      content: SAMPLE_SNIPPET_GET.snippet.content,
+      variables: ["bannerColor", "firstName"],
+    });
   });
 
   it("maps 403 to IterableApiError", async () => {
@@ -144,9 +192,52 @@ describe("createIterableClient", () => {
     );
 
     const client = createIterableClient({ apiKey: "key", region: "us" });
-    const template = await client.getByClientTemplateId("hl-iterable-938631");
+    const template = await client.getByClientTemplateId("112233");
 
-    expect(template?.templateId).toBe(938999);
-    expect(template?.name).toContain("HL localized");
+    expect(template).toMatchObject({
+      templateId: 86596,
+      name: "My name of template",
+      subject: "My Subject of message",
+    });
+  });
+
+  it("sends documented email, push, sms, and snippet write bodies", async () => {
+    const calls: { url: string; body: object | null }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (url, init) => {
+        const rawBody = init?.body;
+        calls.push({
+          url: requestUrl(url),
+          body: typeof rawBody === "string" ? (JSON.parse(rawBody) as object) : null,
+        });
+        if (requestUrl(url).includes("/api/snippets/")) {
+          return jsonResponse(SAMPLE_SNIPPET_PUT_RESPONSE);
+        }
+        return jsonResponse({ msg: "", code: "Success", params: null });
+      }),
+    );
+
+    const client = createIterableClient({ apiKey: "key", region: "us" });
+    await client.updateEmailTemplate({ ...SAMPLE_EMAIL_TEMPLATE_UPDATE });
+    await client.upsertEmailTemplate({ ...SAMPLE_EMAIL_TEMPLATE_UPSERT });
+    await client.updatePushTemplate({ ...SAMPLE_PUSH_TEMPLATE_UPDATE });
+    await client.updateSmsTemplate({ ...SAMPLE_SMS_TEMPLATE_UPDATE });
+    await client.putSnippet("Welcome_Banner", { ...SAMPLE_SNIPPET_PUT });
+
+    expect(calls.map((call) => call.url)).toEqual([
+      "https://api.iterable.com/api/templates/email/update",
+      "https://api.iterable.com/api/templates/email/upsert",
+      "https://api.iterable.com/api/templates/push/update",
+      "https://api.iterable.com/api/templates/sms/update",
+      "https://api.iterable.com/api/snippets/Welcome_Banner",
+    ]);
+    expect(calls.map((call) => call.body)).toEqual([
+      SAMPLE_EMAIL_TEMPLATE_UPDATE,
+      SAMPLE_EMAIL_TEMPLATE_UPSERT,
+      SAMPLE_PUSH_TEMPLATE_UPDATE,
+      SAMPLE_SMS_TEMPLATE_UPDATE,
+      SAMPLE_SNIPPET_PUT,
+    ]);
   });
 });

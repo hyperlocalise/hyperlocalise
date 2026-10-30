@@ -438,7 +438,7 @@ async function importEmailTemplate(input: {
     input.result.skipped += 1;
     return;
   }
-  const editorKind = classifyIterableHtmlEditor(remote as Record<string, unknown>);
+  const editorKind = classifyIterableHtmlEditor(remote);
   const serialized = serializeIterableEmailEnvelope({
     subject: remote.subject ?? "",
     preheaderText: remote.preheaderText,
@@ -528,13 +528,9 @@ async function importInAppTemplate(input: {
     input.result.skipped += 1;
     return;
   }
-  const editorKind = classifyIterableHtmlEditor(remote as Record<string, unknown>);
-  const inbox = remote.inboxMetadata ?? {};
+  const editorKind = classifyIterableHtmlEditor(remote);
   const serialized = serializeIterableInAppEnvelope({
-    html: remote.html ?? "",
-    title: remote.title ?? inbox.title,
-    subtitle: remote.subtitle ?? inbox.subtitle,
-    icon: remote.icon ?? inbox.icon,
+    html: remote.html,
   });
   const sourcePath = buildIterableInAppSourcePath({
     templateId: input.templateId,
@@ -564,12 +560,8 @@ async function importInAppTemplate(input: {
         if (!localeRemote || isRemoteLocaleContentEmpty(localeRemote)) {
           return null;
         }
-        const localeInbox = localeRemote.inboxMetadata ?? {};
         const localeSerialized = serializeIterableInAppEnvelope({
-          html: localeRemote.html ?? "",
-          title: localeRemote.title ?? localeInbox.title,
-          subtitle: localeRemote.subtitle ?? localeInbox.subtitle,
-          icon: localeRemote.icon ?? localeInbox.icon,
+          html: localeRemote.html,
         });
         return {
           hash: hashIterableContent(localeSerialized.html),
