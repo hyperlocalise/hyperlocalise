@@ -14,7 +14,7 @@
  */
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useIntl } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +42,8 @@ import type {
 } from "@/lib/agents/workspace-automation-view-model";
 import type { IterableExistingTranslationPolicy } from "@/lib/iterable/existing-translation-policy";
 import { formatLocaleOptionLabel } from "@/lib/i18n/locale-display-names.messages";
+
+import { workspaceAutomationFormMessages } from "./workspace-automation-form.messages";
 
 const ITERABLE_EXISTING_TRANSLATION_POLICY_LABELS: Record<
   IterableExistingTranslationPolicy,
@@ -136,6 +138,7 @@ export function WorkspaceAutomationIterableSettings({
   const selectedBlockNames = snippets
     .filter((item) => form.iterableSnippetIds.includes(item.id))
     .map((item) => item.name);
+  const hasProject = form.projectId.trim().length > 0;
   const sourceLocaleOptions = uniqueLocales([
     projectSourceLocale,
     form.iterableSourceLocale,
@@ -146,30 +149,42 @@ export function WorkspaceAutomationIterableSettings({
     <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="iterable-source-locale">Source locale</Label>
-        <Select
-          value={form.iterableSourceLocale}
-          onValueChange={(locale) => {
-            if (typeof locale === "string") {
-              onChange({ ...form, iterableSourceLocale: locale });
-            }
-          }}
-        >
-          <SelectTrigger id="iterable-source-locale" className="w-full">
-            <SelectValue>
-              {form.iterableSourceLocale
-                ? formatLocaleOptionLabel(intl, form.iterableSourceLocale)
-                : "Choose a source locale"}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {sourceLocaleOptions.map((locale) => (
-              <SelectItem key={locale} value={locale} label={formatLocaleOptionLabel(intl, locale)}>
-                {formatLocaleOptionLabel(intl, locale)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors.iterableSourceLocale ? (
+        {hasProject ? (
+          <Select
+            value={form.iterableSourceLocale}
+            onValueChange={(locale) => {
+              if (typeof locale === "string") {
+                onChange({ ...form, iterableSourceLocale: locale });
+              }
+            }}
+          >
+            <SelectTrigger id="iterable-source-locale" className="w-full">
+              <SelectValue>
+                {form.iterableSourceLocale
+                  ? formatLocaleOptionLabel(intl, form.iterableSourceLocale)
+                  : "Choose a source locale"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {sourceLocaleOptions.map((locale) => (
+                <SelectItem
+                  key={locale}
+                  value={locale}
+                  label={formatLocaleOptionLabel(intl, locale)}
+                >
+                  {formatLocaleOptionLabel(intl, locale)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            <FormattedMessage
+              {...workspaceAutomationFormMessages.chooseProjectForIterableSourceLocale}
+            />
+          </p>
+        )}
+        {hasProject && errors.iterableSourceLocale ? (
           <p className="text-sm text-destructive">{errors.iterableSourceLocale}</p>
         ) : null}
       </div>

@@ -949,6 +949,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "mzBTNMYPpo",
     description: "Empty state when Create job target locales need a project first",
   },
+  chooseProjectForIterableSourceLocale: {
+    defaultMessage: "Choose a project above to pick a source locale.",
+    id: "Fb6qGloXW4",
+    description: "Empty state when the Iterable source locale needs a project first",
+  },
   noRunsYet: {
     defaultMessage: "No runs yet.",
     id: "kSA5sHlbN9",

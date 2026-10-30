@@ -984,6 +984,7 @@ function AddToolMenu({
   customerIoConnected,
   iterableConnected,
   loopsConnected,
+  projectSourceLocale,
   semrushConnected,
   zernioConnected,
   slackConnected,
@@ -1009,6 +1010,7 @@ function AddToolMenu({
   customerIoConnected: boolean;
   iterableConnected: boolean;
   loopsConnected: boolean;
+  projectSourceLocale?: string | null;
   semrushConnected: boolean;
   zernioConnected: boolean;
   slackConnected: boolean;
@@ -1431,6 +1433,8 @@ function AddToolMenu({
                 onChange({
                   ...form,
                   iterableEnabled: true,
+                  iterableSourceLocale:
+                    form.iterableSourceLocale.trim() || projectSourceLocale?.trim() || "",
                   loopsEnabled: false,
                   brazeEnabled: false,
                   brazeCampaignsEnabled: false,
@@ -3724,6 +3728,7 @@ function ToolsSettings({
           customerIoConnected={customerIoConnected}
           iterableConnected={iterableConnected}
           loopsConnected={loopsConnected}
+          projectSourceLocale={selectedProject?.sourceLocale}
           semrushConnected={semrushConnected}
           zernioConnected={zernioConnected}
           slackConnected={slackConnected}

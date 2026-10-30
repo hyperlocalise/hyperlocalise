@@ -364,7 +364,7 @@ const iterableToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
     workosUserId: z.string().trim().min(1).max(128).optional(),
-    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    sourceLocale: z.string().trim().min(1).max(32).optional(),
     templateIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
     snippetIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
     existingTranslationPolicy: z
@@ -373,7 +373,6 @@ const iterableToolConfigSchema = z
   })
   .default({
     enabled: false,
-    sourceLocale: "en",
     templateIds: [],
     snippetIds: [],
     existingTranslationPolicy: "seed_empty",

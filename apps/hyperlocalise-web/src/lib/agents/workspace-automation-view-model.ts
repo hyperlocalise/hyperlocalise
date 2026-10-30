@@ -517,7 +517,7 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     brazeExistingTranslationPolicy: "seed_empty",
     brazeOverwriteWhenRemoteNewer: true,
     iterableEnabled: false,
-    iterableSourceLocale: "en",
+    iterableSourceLocale: "",
     iterableTemplateIds: [],
     iterableSnippetIds: [],
     iterableExistingTranslationPolicy: "seed_empty",
@@ -728,7 +728,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
     brazeOverwriteWhenRemoteNewer:
       (brazeCampaigns?.overwriteWhenRemoteNewer ?? braze?.overwriteWhenRemoteNewer) !== false,
     iterableEnabled: Boolean(iterable?.enabled),
-    iterableSourceLocale: iterable?.sourceLocale ?? "en",
+    iterableSourceLocale: iterable?.sourceLocale?.trim() || "",
     iterableTemplateIds: iterable?.templateIds ? [...iterable.templateIds] : [],
     iterableSnippetIds: iterable?.snippetIds ? [...iterable.snippetIds] : [],
     iterableExistingTranslationPolicy:
@@ -811,6 +811,10 @@ export function applyWorkspaceAutomationProjectSelection(
 
   if (form.loopsEnabled && project) {
     next.loopsSourceLocale = project.sourceLocale ?? form.loopsSourceLocale;
+  }
+
+  if (form.iterableEnabled && project) {
+    next.iterableSourceLocale = project.sourceLocale ?? "";
   }
 
   return next;
@@ -1005,7 +1009,9 @@ export function formStateToWorkspaceAutomationPayload(
       ? {
           iterable: {
             enabled: true,
-            sourceLocale: form.iterableSourceLocale.trim() || "en",
+            ...(form.iterableSourceLocale.trim()
+              ? { sourceLocale: form.iterableSourceLocale.trim() }
+              : {}),
             templateIds: form.iterableTemplateIds,
             snippetIds: form.iterableSnippetIds,
             existingTranslationPolicy: form.iterableExistingTranslationPolicy,
@@ -1269,6 +1275,12 @@ export function validateWorkspaceAutomationFormState(
 
   if (workspaceAutomationFormNeedsProject(form) && !form.projectId.trim()) {
     errors.projectId = "Choose a Hyperlocalise project.";
+  }
+
+  if (form.iterableEnabled && !form.iterableSourceLocale.trim()) {
+    errors.iterableSourceLocale = form.projectId.trim()
+      ? "Choose a source locale."
+      : "Choose a project above to pick a source locale.";
   }
 
   if (form.githubEnabled) {

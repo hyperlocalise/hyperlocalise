@@ -1166,6 +1166,49 @@ describe("pruneWorkspaceAutomationFieldErrors", () => {
   });
 });
 
+describe("iterable source locale", () => {
+  it("leaves the source locale empty instead of forcing en", () => {
+    const form: WorkspaceAutomationFormState = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Translate Iterable templates",
+      instructions: "Import Iterable templates.",
+      iterableEnabled: true,
+      iterableSourceLocale: "",
+    };
+
+    expect(formStateToWorkspaceAutomationPayload(form).toolConfig.iterable).toMatchObject({
+      enabled: true,
+    });
+    expect(
+      formStateToWorkspaceAutomationPayload(form).toolConfig.iterable?.sourceLocale,
+    ).toBeUndefined();
+    expect(validateWorkspaceAutomationFormState(form).iterableSourceLocale).toBe(
+      "Choose a project above to pick a source locale.",
+    );
+  });
+
+  it("stamps the project source locale onto iterable on project selection", () => {
+    const form = applyWorkspaceAutomationProjectSelection(
+      {
+        ...createDefaultWorkspaceAutomationFormState(),
+        iterableEnabled: true,
+        iterableSourceLocale: "",
+      },
+      "project-1",
+      { sourceLocale: "de-DE", targetLocales: ["fr-FR"] },
+    );
+
+    expect(form.iterableSourceLocale).toBe("de-DE");
+    expect(
+      validateWorkspaceAutomationFormState({
+        ...form,
+        name: "Translate Iterable templates",
+        instructions: "Import Iterable templates.",
+      }).iterableSourceLocale,
+    ).toBeUndefined();
+  });
+});
+
 describe("loops source locale", () => {
   it("keeps the form loops source locale instead of forcing en", () => {
     const form: WorkspaceAutomationFormState = {
