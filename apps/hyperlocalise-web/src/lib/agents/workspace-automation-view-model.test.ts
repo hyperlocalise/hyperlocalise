@@ -976,6 +976,17 @@ describe("workspace automation view model", () => {
     expect(mapWorkspaceAutomationApiErrorToFieldErrors("ahrefs_pipes_unavailable")).toEqual({
       ahrefs: "Ahrefs is unavailable until WorkOS Pipes is configured.",
     });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("iterable_not_connected")).toEqual({
+      iterable: "Connect Iterable in Integrations before using it.",
+    });
+    expect(
+      mapWorkspaceAutomationApiErrorToFieldErrors("iterable_pipes_needs_reauthorization"),
+    ).toEqual({
+      iterable: "Reconnect Iterable in Integrations, then try again.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("iterable_pipes_unavailable")).toEqual({
+      iterable: "Iterable is unavailable until WorkOS Pipes is configured.",
+    });
   });
 
   it("requires a Crowdin project when the Crowdin tool is enabled", () => {

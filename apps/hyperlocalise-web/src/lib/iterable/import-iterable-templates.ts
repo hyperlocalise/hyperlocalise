@@ -106,14 +106,58 @@ function shouldImportAll(ids: readonly string[]): boolean {
 }
 
 function isRemoteLocaleEmpty(error: unknown): boolean {
-  return error instanceof IterableApiError && (error.status === 404 || error.status === 400);
+  return error instanceof IterableApiError && error.status === 404;
 }
 
-function isRemoteLocaleContentEmpty(payload: { html?: string; message?: string; title?: string }) {
-  const html = payload.html?.trim() ?? "";
-  const message = payload.message?.trim() ?? "";
-  const title = payload.title?.trim() ?? "";
-  return !html && !message && !title;
+function noteRejectedIterableLocale(input: {
+  result: ImportIterableTemplatesResult;
+  templateId: number;
+  suffix: string;
+  error: unknown;
+}): boolean {
+  if (!(input.error instanceof IterableApiError) || input.error.status !== 400) {
+    return false;
+  }
+  input.result.warnings.push(
+    `Iterable rejected locale ${input.suffix} for template ${input.templateId}. Check the locale code in Iterable.`,
+  );
+  return true;
+}
+
+function readIterableInAppCopy(remote: {
+  html: string;
+  title?: string;
+  subtitle?: string;
+  icon?: string;
+  inboxMetadata?: { title?: string; subtitle?: string; icon?: string };
+}) {
+  return {
+    html: remote.html,
+    title: remote.title ?? remote.inboxMetadata?.title,
+    subtitle: remote.subtitle ?? remote.inboxMetadata?.subtitle,
+    icon: remote.icon ?? remote.inboxMetadata?.icon,
+  };
+}
+
+function isRemoteLocaleContentEmpty(payload: {
+  html?: string;
+  message?: string;
+  title?: string;
+  subtitle?: string;
+  icon?: string;
+  inboxMetadata?: { title?: string; subtitle?: string; icon?: string };
+}) {
+  const parts = [
+    payload.html,
+    payload.message,
+    payload.title,
+    payload.subtitle,
+    payload.icon,
+    payload.inboxMetadata?.title,
+    payload.inboxMetadata?.subtitle,
+    payload.inboxMetadata?.icon,
+  ];
+  return parts.every((part) => !part?.trim());
 }
 
 async function upsertSyncRow(input: {
@@ -484,7 +528,15 @@ async function importEmailTemplate(input: {
           entries: seedEntriesForIterableHtml(sourcePath, localeSerialized.html),
         };
       } catch (error) {
-        if (isRemoteLocaleEmpty(error)) {
+        if (
+          isRemoteLocaleEmpty(error) ||
+          noteRejectedIterableLocale({
+            result: input.result,
+            templateId: input.templateId,
+            suffix,
+            error,
+          })
+        ) {
           return null;
         }
         throw error;
@@ -529,9 +581,7 @@ async function importInAppTemplate(input: {
     return;
   }
   const editorKind = classifyIterableHtmlEditor(remote);
-  const serialized = serializeIterableInAppEnvelope({
-    html: remote.html,
-  });
+  const serialized = serializeIterableInAppEnvelope(readIterableInAppCopy(remote));
   const sourcePath = buildIterableInAppSourcePath({
     templateId: input.templateId,
     name: remote.name || input.name,
@@ -560,15 +610,23 @@ async function importInAppTemplate(input: {
         if (!localeRemote || isRemoteLocaleContentEmpty(localeRemote)) {
           return null;
         }
-        const localeSerialized = serializeIterableInAppEnvelope({
-          html: localeRemote.html,
-        });
+        const localeSerialized = serializeIterableInAppEnvelope(
+          readIterableInAppCopy(localeRemote),
+        );
         return {
           hash: hashIterableContent(localeSerialized.html),
           entries: seedEntriesForIterableHtml(sourcePath, localeSerialized.html),
         };
       } catch (error) {
-        if (isRemoteLocaleEmpty(error)) {
+        if (
+          isRemoteLocaleEmpty(error) ||
+          noteRejectedIterableLocale({
+            result: input.result,
+            templateId: input.templateId,
+            suffix,
+            error,
+          })
+        ) {
           return null;
         }
         throw error;

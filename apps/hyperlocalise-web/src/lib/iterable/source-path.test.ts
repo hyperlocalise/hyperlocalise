@@ -21,7 +21,10 @@ import {
 describe("iterable source paths", () => {
   it("builds email template paths under iterable/", () => {
     expect(buildIterableEmailSourcePath({ templateId: 42, name: "Welcome Email" })).toBe(
-      "iterable/templates/email/welcome-email.html",
+      "iterable/templates/email/welcome-email-42.html",
+    );
+    expect(buildIterableEmailSourcePath({ templateId: 99, name: "Welcome Email" })).toBe(
+      "iterable/templates/email/welcome-email-99.html",
     );
   });
 

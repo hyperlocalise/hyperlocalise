@@ -341,6 +341,9 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   loops_not_connected: "Connect Loops in Integrations before using it.",
   loops_pipes_needs_reauthorization: "Reconnect Loops in Integrations, then try again.",
   loops_pipes_unavailable: "Loops is unavailable until WorkOS Pipes is configured.",
+  iterable_not_connected: "Connect Iterable in Integrations before using it.",
+  iterable_pipes_needs_reauthorization: "Reconnect Iterable in Integrations, then try again.",
+  iterable_pipes_unavailable: "Iterable is unavailable until WorkOS Pipes is configured.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -1606,6 +1609,10 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "loops_pipes_needs_reauthorization":
     case "loops_pipes_unavailable":
       return { loops: message };
+    case "iterable_not_connected":
+    case "iterable_pipes_needs_reauthorization":
+    case "iterable_pipes_unavailable":
+      return { iterable: message };
     case "crowdin_project_required":
     case "crowdin_project_not_found":
     case "crowdin_project_not_linked":

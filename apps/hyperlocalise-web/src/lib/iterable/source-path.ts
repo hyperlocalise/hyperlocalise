@@ -31,23 +31,28 @@ export function slugifyIterablePathSegment(value: string, fallback: string): str
   return slug || fallback.trim() || "item";
 }
 
+function iterableTemplatePathSegment(name: string, templateId: number): string {
+  const slug = slugifyIterablePathSegment(name, String(templateId));
+  return `${slug}-${templateId}`;
+}
+
 export function buildIterableEmailSourcePath(input: { templateId: number; name: string }): string {
-  const slug = slugifyIterablePathSegment(input.name, String(input.templateId));
+  const slug = iterableTemplatePathSegment(input.name, input.templateId);
   return normalizeIterableSourcePath(`iterable/templates/email/${slug}.html`);
 }
 
 export function buildIterableInAppSourcePath(input: { templateId: number; name: string }): string {
-  const slug = slugifyIterablePathSegment(input.name, String(input.templateId));
+  const slug = iterableTemplatePathSegment(input.name, input.templateId);
   return normalizeIterableSourcePath(`iterable/templates/in-app/${slug}.html`);
 }
 
 export function buildIterablePushSourcePath(input: { templateId: number; name: string }): string {
-  const slug = slugifyIterablePathSegment(input.name, String(input.templateId));
+  const slug = iterableTemplatePathSegment(input.name, input.templateId);
   return normalizeIterableSourcePath(`iterable/templates/push/${slug}.json`);
 }
 
 export function buildIterableSmsSourcePath(input: { templateId: number; name: string }): string {
-  const slug = slugifyIterablePathSegment(input.name, String(input.templateId));
+  const slug = iterableTemplatePathSegment(input.name, input.templateId);
   return normalizeIterableSourcePath(`iterable/templates/sms/${slug}.json`);
 }
 

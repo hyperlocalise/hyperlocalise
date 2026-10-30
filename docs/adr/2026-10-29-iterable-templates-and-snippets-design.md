@@ -125,10 +125,10 @@ project. Keep import concurrency at 3, matching Customer.io.
 Import writes:
 
 ```text
-iterable/templates/email/{slug}.html
-iterable/templates/in-app/{slug}.html
-iterable/templates/push/{slug}.json
-iterable/templates/sms/{slug}.json
+iterable/templates/email/{slug}-{templateId}.html
+iterable/templates/in-app/{slug}-{templateId}.html
+iterable/templates/push/{slug}-{templateId}.json
+iterable/templates/sms/{slug}-{templateId}.json
 iterable/snippets/{slug}.html
 ```
 

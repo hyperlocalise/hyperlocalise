@@ -111,6 +111,13 @@ export type IterableWebInAppDisplaySettings = {
   position: string;
 };
 
+export type IterableInAppInboxMetadata = {
+  title?: string;
+  subtitle?: string;
+  icon?: string;
+  saveToInbox?: boolean;
+};
+
 export type IterableInAppTemplate = {
   templateId: number;
   name: string;
@@ -119,6 +126,10 @@ export type IterableInAppTemplate = {
   webInAppDisplaySettings: IterableWebInAppDisplaySettings;
   messageTypeId: number;
   isDefaultLocale: boolean;
+  title?: string;
+  subtitle?: string;
+  icon?: string;
+  inboxMetadata?: IterableInAppInboxMetadata;
 };
 
 export type IterableInAppTemplateUpsert = {
@@ -132,6 +143,10 @@ export type IterableInAppTemplateUpdate = {
   locale?: string;
   name?: string;
   html?: string;
+  title?: string;
+  subtitle?: string;
+  icon?: string;
+  inboxMetadata?: IterableInAppInboxMetadata;
   inAppDisplaySettings?: IterableInAppDisplaySettings;
   webInAppDisplaySettings?: IterableWebInAppDisplaySettings;
   messageTypeId?: number;

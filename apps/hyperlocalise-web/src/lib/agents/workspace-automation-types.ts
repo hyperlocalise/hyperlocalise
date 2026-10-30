@@ -928,6 +928,18 @@ export type WorkspaceAutomationConfigValidationError =
       message: "WorkOS is not configured, so Loops cannot connect through Pipes.";
     }
   | {
+      code: "iterable_not_connected";
+      message: "Connect Iterable in Integrations before using it.";
+    }
+  | {
+      code: "iterable_pipes_needs_reauthorization";
+      message: "Reconnect Iterable in Integrations, then try again.";
+    }
+  | {
+      code: "iterable_pipes_unavailable";
+      message: "WorkOS is not configured, so Iterable cannot connect through Pipes.";
+    }
+  | {
       code: "cms_translation_skills_exclusive";
       message: "Choose one CMS translation skill per automation.";
     }

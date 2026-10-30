@@ -74,10 +74,27 @@ function isRemoteLocaleEmpty(error: unknown): boolean {
   return error instanceof IterableApiError && error.status === 404;
 }
 
-function isRemoteContentEmpty(value: { html?: string; message?: string }): boolean {
-  const html = value.html?.trim() ?? "";
-  const message = value.message?.trim() ?? "";
-  return !html && !message;
+function isRemoteContentEmpty(value: {
+  html?: string;
+  message?: string;
+  title?: string;
+  subtitle?: string;
+  icon?: string;
+  content?: string;
+  inboxMetadata?: { title?: string; subtitle?: string; icon?: string };
+}): boolean {
+  const parts = [
+    value.html,
+    value.message,
+    value.title,
+    value.subtitle,
+    value.icon,
+    value.content,
+    value.inboxMetadata?.title,
+    value.inboxMetadata?.subtitle,
+    value.inboxMetadata?.icon,
+  ];
+  return parts.every((part) => !part?.trim());
 }
 
 export async function runPushIterableTemplates(input: {
@@ -193,7 +210,12 @@ export async function runPushIterableTemplates(input: {
           applyApprovedIterableHtmlTranslations(sourceHtml, approved.prefilled),
         );
         const lastHash = (mapping.lastPushContentHash ?? {})[suffix];
-        const remoteEmpty = await isIterableRemoteLocaleEmpty(client, mapping, suffix);
+        const remoteEmpty = await isIterableRemoteLocaleEmpty(
+          client,
+          mapping,
+          suffix,
+          projectLocale,
+        );
         const action = decideIterablePushLocaleAction({
           policy,
           remoteEmpty,
@@ -305,12 +327,65 @@ async function loadSourceContent(input: {
   return stored.content.toString("utf8");
 }
 
+async function lookupEmailPushTemplateId(
+  client: IterableClient,
+  mapping: typeof schema.iterableTemplateSyncStates.$inferSelect,
+): Promise<number | null> {
+  if (isIterableInPlaceHtmlEditor(mapping.editorKind)) {
+    return Number(mapping.sourceId);
+  }
+  if (mapping.cloneTemplateId) {
+    return Number(mapping.cloneTemplateId);
+  }
+  const existing = await client.getByClientTemplateId(
+    `${ITERABLE_EMAIL_CLIENT_TEMPLATE_PREFIX}${mapping.sourceId}`,
+  );
+  return existing?.templateId ?? null;
+}
+
+function lookupInAppPushTemplateId(
+  mapping: typeof schema.iterableTemplateSyncStates.$inferSelect,
+): number | null {
+  if (isIterableInPlaceHtmlEditor(mapping.editorKind)) {
+    return Number(mapping.sourceId);
+  }
+  if (mapping.cloneTemplateId) {
+    return Number(mapping.cloneTemplateId);
+  }
+  return null;
+}
+
 async function isIterableRemoteLocaleEmpty(
   client: IterableClient,
   mapping: typeof schema.iterableTemplateSyncStates.$inferSelect,
   suffix: string,
+  projectLocale: string,
 ): Promise<boolean> {
-  const templateId = Number(mapping.sourceId);
+  if (mapping.resourceKind === "snippet") {
+    const copyName = iterableSnippetLocaleCopyName(mapping.sourceName, projectLocale);
+    try {
+      const snippet = await client.getSnippet(copyName);
+      return !(snippet.content ?? "").trim();
+    } catch (error) {
+      if (isRemoteLocaleEmpty(error)) {
+        return true;
+      }
+      throw error;
+    }
+  }
+
+  let templateId: number | null;
+  if (mapping.resourceKind === "email") {
+    templateId = await lookupEmailPushTemplateId(client, mapping);
+  } else if (mapping.resourceKind === "in_app") {
+    templateId = lookupInAppPushTemplateId(mapping);
+  } else {
+    templateId = Number(mapping.sourceId);
+  }
+  if (templateId == null) {
+    return true;
+  }
+
   try {
     if (mapping.resourceKind === "email") {
       const remote = await client.getEmailTemplate(templateId, suffix);
@@ -387,7 +462,7 @@ async function pushEmailLocale(input: {
     input.mapping.handlebarsTokens ?? {},
   );
   const templateId = await resolveEmailPushTemplateId(input.client, input.mapping, parsed);
-  const remote = await input.client.getEmailTemplate(templateId, input.suffix);
+  const fromName = await readEmailFromName(input.client, templateId, input.suffix);
   await input.client.updateEmailTemplate({
     templateId,
     locale: input.suffix,
@@ -395,8 +470,25 @@ async function pushEmailLocale(input: {
     preheaderText: parsed.preheaderText,
     html: parsed.html,
     plainText: parsed.plainText,
-    fromName: remote.fromName,
+    fromName,
   });
+}
+
+async function readEmailFromName(
+  client: IterableClient,
+  templateId: number,
+  suffix: string,
+): Promise<string> {
+  try {
+    const remote = await client.getEmailTemplate(templateId, suffix);
+    return remote.fromName;
+  } catch (error) {
+    if (!isRemoteLocaleEmpty(error)) {
+      throw error;
+    }
+  }
+  const source = await client.getEmailTemplate(templateId);
+  return source.fromName;
 }
 
 async function resolveInAppPushTemplateId(
@@ -443,11 +535,36 @@ async function pushInAppLocale(input: {
     input.mapping.handlebarsTokens ?? {},
   );
   const templateId = await resolveInAppPushTemplateId(input.client, input.mapping, parsed.html);
+  const saveToInbox = await readInAppSaveToInbox(input.client, templateId, input.suffix);
+  const inboxMetadata = {
+    ...(parsed.title?.trim() ? { title: parsed.title } : {}),
+    ...(parsed.subtitle?.trim() ? { subtitle: parsed.subtitle } : {}),
+    ...(parsed.icon?.trim() ? { icon: parsed.icon } : {}),
+    ...(saveToInbox === undefined ? {} : { saveToInbox }),
+  };
   await input.client.updateInAppTemplate({
     templateId,
     locale: input.suffix,
     html: parsed.html,
+    ...(Object.keys(inboxMetadata).length > 0 ? { inboxMetadata } : {}),
   });
+}
+
+async function readInAppSaveToInbox(
+  client: IterableClient,
+  templateId: number,
+  suffix: string,
+): Promise<boolean | undefined> {
+  try {
+    const remote = await client.getInAppTemplate(templateId, suffix);
+    return remote.inboxMetadata?.saveToInbox;
+  } catch (error) {
+    if (!isRemoteLocaleEmpty(error)) {
+      throw error;
+    }
+  }
+  const source = await client.getInAppTemplate(templateId);
+  return source.inboxMetadata?.saveToInbox;
 }
 
 async function pushPushLocale(input: {
