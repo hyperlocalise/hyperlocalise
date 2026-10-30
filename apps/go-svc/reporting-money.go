@@ -3,21 +3,20 @@ package main
 import (
 	"errors"
 	"math/big"
-	"strings"
 )
 
 // Use big.Int because USD amounts scaled to 8 decimal places can exceed int64 during cost calculations.
 const usdFractionDigits = 8
 
 var (
-	big30  = big.NewInt(30)
-	big60  = big.NewInt(60)
-	big80  = big.NewInt(80)
-	big100 = big.NewInt(100)
+	halfMinute     = big.NewInt(30)
+	minutesPerHour = big.NewInt(60)
+	budgetWarnPct  = big.NewInt(80)
+	percentScale   = big.NewInt(100)
 
 	errInvalidUSD = errors.New("invalid_usd_amount")
 
-	// Static zero padding lookup table to avoid heap allocations in string construction.
+	// Static zero padding for 8-decimal fixed-point formatting. Do not mutate.
 	zeroPaddings = [...]string{
 		"",
 		"0",
@@ -31,76 +30,66 @@ var (
 	}
 )
 
-// isValidUSDAmount validates positive decimal amounts with up to 8 decimal places without regex matching.
-func isValidUSDAmount(value string) bool {
-	if len(value) == 0 {
-		return false
+// usdAmountDot reports the decimal-point index in a valid USD amount.
+// A missing decimal point is -1. The amount must be digits, optionally with a 1–8 digit fraction.
+func usdAmountDot(value string) (dot int, ok bool) {
+	n := len(value)
+	if n == 0 {
+		return -1, false
 	}
-	dot := strings.IndexByte(value, '.')
-	if dot == -1 {
-		for i := 0; i < len(value); i++ {
-			if value[i] < '0' || value[i] > '9' {
-				return false
+	dot = -1
+	for i := 0; i < n; i++ {
+		c := value[i]
+		if c == '.' {
+			if dot >= 0 || i == 0 {
+				return -1, false
 			}
+			dot = i
+			continue
 		}
-		return true
-	}
-	if dot == 0 {
-		return false
-	}
-	for i := 0; i < dot; i++ {
-		if value[i] < '0' || value[i] > '9' {
-			return false
+		if c < '0' || c > '9' {
+			return -1, false
 		}
 	}
-	fracLen := len(value) - 1 - dot
+	if dot == -1 {
+		return -1, true
+	}
+	fracLen := n - 1 - dot
 	if fracLen < 1 || fracLen > usdFractionDigits {
-		return false
+		return -1, false
 	}
-	for i := dot + 1; i < len(value); i++ {
-		if value[i] < '0' || value[i] > '9' {
-			return false
-		}
-	}
-	return true
+	return dot, true
 }
 
 func usdUnits(value string) (*big.Int, error) {
-	if !isValidUSDAmount(value) {
+	dot, valid := usdAmountDot(value)
+	if !valid {
 		return nil, errInvalidUSD
 	}
-	dot := strings.IndexByte(value, '.')
-	var digitsStr string
-	if dot == -1 {
-		digitsStr = value + "00000000"
+	var digits string
+	if dot < 0 {
+		digits = value + zeroPaddings[usdFractionDigits]
 	} else {
-		digitsStr = value[:dot] + value[dot+1:] + zeroPaddings[usdFractionDigits-(len(value)-1-dot)]
+		digits = value[:dot] + value[dot+1:] + zeroPaddings[usdFractionDigits-(len(value)-1-dot)]
 	}
-	units, ok := new(big.Int).SetString(digitsStr, 10)
+	units, ok := new(big.Int).SetString(digits, 10)
 	if !ok {
 		return nil, errInvalidUSD
 	}
 	return units, nil
 }
 
-// usdString converts scaled USD units (*big.Int) to a formatted string.
-// Bypasses big.Int.QuoRem division by formatting digits directly from value.String().
 func usdString(value *big.Int) string {
-	if value == nil {
-		return "0.00000000"
-	}
-	str := value.String()
+	digits := value.String()
 	sign := ""
-	digits := str
-	if len(str) > 0 && str[0] == '-' {
+	if digits[0] == '-' {
 		sign = "-"
-		digits = str[1:]
+		digits = digits[1:]
 	}
-	n := len(digits)
-	if n <= usdFractionDigits {
+	if n := len(digits); n <= usdFractionDigits {
 		return sign + "0." + zeroPaddings[usdFractionDigits-n] + digits
 	}
-	return sign + digits[:n-usdFractionDigits] + "." + digits[n-usdFractionDigits:]
+	return sign + digits[:len(digits)-usdFractionDigits] + "." + digits[len(digits)-usdFractionDigits:]
 }
 
 func wordCost(rate string, words, payablePercent int) (*big.Int, error) {
@@ -108,14 +97,9 @@ func wordCost(rate string, words, payablePercent int) (*big.Int, error) {
 	if err != nil {
 		return nil, err
 	}
-	if words != 1 {
-		units.Mul(units, big.NewInt(int64(words)))
-	}
-	if payablePercent != 100 {
-		units.Mul(units, big.NewInt(int64(payablePercent)))
-		units.Quo(units, big100)
-	}
-	return units, nil
+	units.Mul(units, big.NewInt(int64(words)))
+	units.Mul(units, big.NewInt(int64(payablePercent)))
+	return units.Quo(units, percentScale), nil
 }
 
 func hourlyCost(rate string, minutes int) (*big.Int, error) {
@@ -124,8 +108,8 @@ func hourlyCost(rate string, minutes int) (*big.Int, error) {
 		return nil, err
 	}
 	units.Mul(units, big.NewInt(int64(minutes)))
-	units.Add(units, big30)
-	return units.Quo(units, big60), nil
+	units.Add(units, halfMinute)
+	return units.Quo(units, minutesPerHour), nil
 }
 
 func budgetWarning(budget, cost string) (string, error) {
@@ -140,8 +124,8 @@ func budgetWarning(budget, cost string) (string, error) {
 	if accrued.Cmp(limit) >= 0 {
 		return "exceeded", nil
 	}
-	accrued.Mul(accrued, big100)
-	limit.Mul(limit, big80)
+	accrued.Mul(accrued, percentScale)
+	limit.Mul(limit, budgetWarnPct)
 	if accrued.Cmp(limit) >= 0 {
 		return "approaching", nil
 	}
