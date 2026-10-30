@@ -10,17 +10,17 @@ Hyperlocalise translates the copy. HubSpot does not. Import reads primary market
 | Requirement | Description |
 | --- | --- |
 | Native project | A [native project](/platform/projects/create-project) whose source locale matches the language of the HubSpot source. Add a project target locale for each language you will push back. |
-| Private app | A HubSpot private app with scopes `content` and `forms`. `content` covers marketing emails, blog posts, landing pages, and website pages. `forms` covers forms. |
+| HubSpot account | Authorize HubSpot from **Integrations**, or paste a private-app access token. The account needs scopes `content` and `forms`. `content` covers marketing emails, blog posts, landing pages, and website pages. `forms` covers forms. |
 | Locale mapping | HubSpot language codes are lowercase, with a hyphen when they include a region (`fr`, `fr-ca`, `pt-br`, `en-gb`, `zh-cn`). `fr` and `fr-ca` stay different languages. A project tag such as `fr-FR` maps to `fr` when HubSpot has no `fr-fr` code. The locale copy keeps the full tag in its name (`Welcome [fr-FR]`). |
 
 ## Connect HubSpot
 
-1. In HubSpot, create a private app.
-2. Grant `content` and `forms`.
-3. Copy the access token.
-4. Open **Integrations**, expand **HubSpot**, paste the token, and save.
+Open **Integrations** and expand **HubSpot**. Either:
 
-Save checks the token with the HubSpot Node SDK before storing it. A rejected token, or a token missing `content` or `forms`, is not stored. The token is stored through WorkOS Pipes on the existing `hubspot` connection. OAuth is not used for this workflow.
+- Choose **Connect** and authorize the HubSpot account, or
+- Paste a private-app access token. Create that private app in HubSpot with scopes `content` and `forms`, then save.
+
+A pasted token is checked with the HubSpot Node SDK before it is stored. A rejected token, or a token missing `content` or `forms`, is not stored. Both paths use the existing `hubspot` WorkOS Pipes connection. The token is not stored in Hyperlocalise.
 
 ## Translate HubSpot content
 
@@ -69,12 +69,12 @@ HubSpot's own translate actions are not used. Hyperlocalise writes the approved 
 
 ## Change or remove access
 
-Disconnect HubSpot from **Integrations** to stop this workspace using that private app. Inspect automations that depend on the connection before you disconnect.
+Disconnect HubSpot from **Integrations** to stop this workspace using that account. Inspect automations that depend on the connection before you disconnect.
 
 ## If import or push does not run
 
 - Confirm HubSpot is connected and the automation is **Active**.
-- Confirm the private app still has `content` and `forms`.
+- Confirm the HubSpot authorization, or the private app, still has `content` and `forms`.
 - Confirm the project source locale matches the language of the HubSpot source.
 - Confirm each target locale maps to a HubSpot language the account has enabled.
 - Open **Run History** for the failed item or locale.

@@ -14,6 +14,8 @@
  */
 import { useId, useMemo, useState } from "react";
 import { EyeIcon, EyeSlashIcon, FloppyDiskIcon } from "@phosphor-icons/react";
+import { useAccessToken } from "@workos-inc/authkit-nextjs/components";
+import { Pipes, WorkOsWidgets } from "@workos-inc/widgets";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -31,6 +33,9 @@ import { hubspotConnectionPanelMessages } from "./hubspot-connection-panel.messa
 import { pipesConnectionPanelMessages } from "./pipes-connection-panel.messages";
 import { usePipesStatus } from "./pipes-connection-panel";
 
+import "@radix-ui/themes/styles.css";
+import "@workos-inc/widgets/styles.css";
+
 const api = createApiClient();
 
 export function HubspotConnectionPanel({
@@ -44,6 +49,7 @@ export function HubspotConnectionPanel({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { getAccessToken } = useAccessToken();
   const apiKeyFieldId = useId();
   const [expanded, setExpanded] = useState(false);
   const [apiKey, setApiKey] = useState("");
@@ -123,6 +129,16 @@ export function HubspotConnectionPanel({
   const trimmedApiKey = apiKey.trim();
   const canSave = userCanManage && !saveConnection.isPending && trimmedApiKey.length > 0;
 
+  async function resolvePipesAuthToken() {
+    const token = await getAccessToken();
+    if (!token) {
+      throw new Error(
+        intl.formatMessage(pipesConnectionPanelMessages.tokenRequired, { providerName }),
+      );
+    }
+    return token;
+  }
+
   return (
     <CollapsibleIntegrationRow
       name={providerName}
@@ -156,11 +172,23 @@ export function HubspotConnectionPanel({
               suffix: apiKeyLast4,
             })}
           </p>
+        ) : isConnected ? (
+          <p className="text-sm leading-6 text-muted-foreground">
+            <FormattedMessage {...hubspotConnectionPanelMessages.oauthConnected} />
+          </p>
         ) : (
           <p className="text-sm leading-6 text-muted-foreground">
             <FormattedMessage {...hubspotConnectionPanelMessages.connectIntro} />
           </p>
         )}
+        {userCanManage ? (
+          <WorkOsWidgets queryClient={queryClient}>
+            <Pipes authToken={resolvePipesAuthToken} filter={{ slugs: [HUBSPOT_PIPES_SLUG] }} />
+          </WorkOsWidgets>
+        ) : null}
+        <p className="text-sm font-medium text-foreground">
+          <FormattedMessage {...hubspotConnectionPanelMessages.accessTokenHeading} />
+        </p>
         <Field>
           <FieldLabel htmlFor={apiKeyFieldId}>
             <FormattedMessage {...hubspotConnectionPanelMessages.apiKeyLabel} />

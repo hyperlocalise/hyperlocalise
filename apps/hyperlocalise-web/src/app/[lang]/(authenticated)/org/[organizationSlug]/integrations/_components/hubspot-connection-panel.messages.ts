@@ -21,9 +21,19 @@ export const hubspotConnectionPanelMessages = defineMessages({
     description: "HubSpot integration row description when connection status fails to load",
   },
   connectIntro: {
-    defaultMessage: "Paste a HubSpot private-app access token to connect.",
-    id: "PpHaNaY+BU",
-    description: "Intro text shown before a HubSpot access token is saved",
+    defaultMessage: "Authorize HubSpot, or paste a private-app access token.",
+    id: "/sF9qPmV6u",
+    description: "Intro shown before HubSpot is connected",
+  },
+  oauthConnected: {
+    defaultMessage: "Connected with HubSpot.",
+    id: "EkQKYmZw1C",
+    description: "Status when HubSpot is connected with OAuth",
+  },
+  accessTokenHeading: {
+    defaultMessage: "Or paste a private-app access token",
+    id: "RLgvlIgdr6",
+    description: "Heading above the HubSpot private-app token field",
   },
   tokenSuffix: {
     defaultMessage: "Token ending in {suffix}",

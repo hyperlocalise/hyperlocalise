@@ -2,8 +2,9 @@
 
 ## Status
 
-Accepted. The private-app connection, import, push, and
-**Translate HubSpot content** template are implemented. OAuth (HL-906) is still later.
+Accepted. Import, push, and **Translate HubSpot content** are
+implemented. Connect is either WorkOS Pipes OAuth or a private-app
+access token on the same `hubspot` slug.
 
 Tracking lives in Linear project
 [HubSpot Integration](https://linear.app/hyperlocalise/project/hubspot-integration-4fd159902d9b)
@@ -29,8 +30,8 @@ Product docs live on one page,
 ## Context
 
 HubSpot is a customer-engagement catalog row and a WorkOS Pipes slug.
-The connection pane stores a private-app access token on that slug.
-OAuth stays a later step and must not add a second Pipes provider.
+The connection pane offers WorkOS Pipes OAuth and a private-app
+access token on that same slug. Do not add a second Pipes provider.
 
 Operators need five content surfaces:
 
@@ -46,8 +47,8 @@ HubSpot's Breeze and DeepL actions live in the product UI. They are
 not a public translate API. A/B email variations
 (`createAbTestVariation`) are tests, not language copies.
 
-The official client is `@hubspot/api-client`. A private-app access
-token and a later OAuth access token both construct
+The official client is `@hubspot/api-client`. An OAuth access token
+and a private-app access token both construct
 `new Client({ accessToken })`.
 
 ## Decision
@@ -74,8 +75,10 @@ send.
    `{source} [{locale}]`. The name keeps the full project tag.
 3. Map project locales onto HubSpot's lowercase codes. Keep `fr` and
    `fr-ca` distinct. See Locale map.
-4. Call HubSpot only through `@hubspot/api-client`. Store a
-   private-app access token first. Add OAuth later on the same client.
+4. Call HubSpot only through `@hubspot/api-client`. Load an OAuth
+   access token with `loadPipesAccessToken` when HubSpot is
+   authorized. Otherwise load the stored private-app token with
+   `loadPipesApiKey`. Both construct `new Client({ accessToken })`.
 5. Use the orange sprocket at
    `apps/hyperlocalise-web/public/images/hubspot-logo.svg` for the
    catalog row, the connection pane, and the template. Do not use
@@ -84,15 +87,19 @@ send.
 
 ## API usage
 
-Construct `new Client({ accessToken })` with the stored private-app
-token. Do not call `api.hubapi.com` with `fetch`. If a method is
-missing, bump `@hubspot/api-client`. Do not add a REST fallback.
+Construct `new Client({ accessToken })` with the OAuth access token
+or the stored private-app token. Do not call `api.hubapi.com` with
+`fetch`. If a method is missing, bump `@hubspot/api-client`. Do not
+add a REST fallback.
 
-The private app needs `content` for marketing emails, CMS blog posts,
-landing pages, and website pages, and `forms` for forms. Save checks the
-token with `client.apiRequest` `POST /oauth/v2/private-apps/get/access-token-info`
-before the token is stored. `oauth.accessTokensApi.get` is OAuth-only and
-rejects a private-app token. A rejected token is not stored.
+The account needs `content` for marketing emails, CMS blog posts,
+landing pages, and website pages, and `forms` for forms. Saving a
+private-app token checks it with `client.apiRequest`
+`POST /oauth/v2/private-apps/get/access-token-info` before it is
+stored. `oauth.accessTokensApi.get` is OAuth-only and rejects a
+private-app token. A rejected token is not stored. OAuth authorization
+is the WorkOS Pipes widget. A stale OAuth grant is not replaced by a
+stored private-app token.
 
 | Surface | SDK | Read | Write-back |
 | --- | --- | --- | --- |
@@ -152,25 +159,24 @@ strings we write.
 
 ## Connection
 
-Phase 1 is a private-app access token.
+Operators connect from the HubSpot pane on **Integrations**. Take
+`hubspot` off the generic `<Pipes>` list and mount that pane. The pane
+includes the WorkOS `<Pipes>` widget for OAuth and a field for a
+private-app access token.
 
-Operators create a HubSpot private app, grant `content` and `forms`,
-and paste the token into a HubSpot pane on **Integrations**. Take
-`hubspot` off the generic `<Pipes>` list and mount that pane. Store
-the token with `upsertPipesApiKey` on slug `hubspot`, the same path
-as `saveLoopsPipesApiKey`. Do not store the token in Postgres. Do not
-create a second provider that shadows `hubspot`.
+Store a pasted token with `upsertPipesApiKey` on slug `hubspot`. Read
+an OAuth grant with `loadPipesAccessToken` on the same slug. Do not
+store the token in Postgres. Do not create a second provider that
+shadows `hubspot`.
 
 [HL-902](https://linear.app/hyperlocalise/issue/HL-902/enable-an-api-key-install-on-the-hubspot-pipes-slug)
 enables an API-key install on the existing slug in the WorkOS
-Dashboard. Until that exists, saving the token answers a
-provider-missing error.
+Dashboard. Until that exists, saving a pasted token answers a
+provider-missing error. OAuth still uses the same slug.
 
-Phase 2 is [HL-906](https://linear.app/hyperlocalise/issue/HL-906/connect-hubspot-with-oauth).
-`loadPipesAccessToken` feeds the same `Client({ accessToken })`.
-The token pane can stay as a fallback until that cutover. Do not set
-up a HubSpot OAuth app, redirect URI, or catalog OAuth credentials
-in phase 1.
+[HL-906](https://linear.app/hyperlocalise/issue/HL-906/connect-hubspot-with-oauth)
+is the OAuth grant. When that grant needs reconnecting, do not fall
+back to a stored private-app token.
 
 ## Logo
 

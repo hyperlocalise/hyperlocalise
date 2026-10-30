@@ -13,7 +13,7 @@
 
 import type { PipesProviderSlug } from "@/lib/pipes/providers";
 
-/** WorkOS Pipes catalog slug. Phase 1 stores a private-app token on this slug. */
+/** WorkOS Pipes catalog slug. Connect with OAuth or a private-app access token. */
 export const HUBSPOT_PIPES_SLUG = "hubspot" satisfies PipesProviderSlug;
 
 export const HUBSPOT_RESOURCE_KINDS = [

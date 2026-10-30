@@ -13,7 +13,12 @@
 import { eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
-import { getPipesAccountStatus, loadPipesApiKey, upsertPipesApiKey } from "@/lib/pipes/accounts";
+import {
+  getPipesAccountStatus,
+  loadPipesAccessToken,
+  loadPipesApiKey,
+  upsertPipesApiKey,
+} from "@/lib/pipes/accounts";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { HUBSPOT_PIPES_SLUG } from "./constants";
@@ -29,14 +34,14 @@ const HUBSPOT_NOT_CONNECTED: HubspotPipesError = {
   message: "Connect HubSpot in Integrations before using it.",
 };
 
-const HUBSPOT_API_KEY_REQUIRED: HubspotPipesError = {
-  code: "hubspot_api_key_required",
-  message: "Paste a HubSpot private-app access token to connect.",
-};
-
 const HUBSPOT_NEEDS_REAUTHORIZATION: HubspotPipesError = {
   code: "hubspot_pipes_needs_reauthorization",
   message: "Reconnect HubSpot in Integrations, then try again.",
+};
+
+const HUBSPOT_API_KEY_REQUIRED: HubspotPipesError = {
+  code: "hubspot_api_key_required",
+  message: "Paste a HubSpot private-app access token to connect.",
 };
 
 const HUBSPOT_PIPES_PROVIDER_MISSING: HubspotPipesError = {
@@ -92,6 +97,21 @@ export async function getHubspotPipesConnectionStatus(input: {
   return ok(result.value);
 }
 
+export async function loadHubspotPipesAccessToken(input: {
+  localOrganizationId: string;
+  workosUserId: string;
+}): Promise<Result<string, HubspotPipesError>> {
+  const result = await loadPipesAccessToken({
+    provider: HUBSPOT_PIPES_SLUG,
+    localOrganizationId: input.localOrganizationId,
+    workosUserId: input.workosUserId,
+  });
+  if (isErr(result)) {
+    return err(mapPipesError(result.error.code));
+  }
+  return ok(result.value);
+}
+
 export async function loadHubspotPipesApiKey(input: {
   localOrganizationId: string;
   workosUserId: string;
@@ -105,6 +125,29 @@ export async function loadHubspotPipesApiKey(input: {
     return err(mapPipesError(result.error.code));
   }
   return ok(result.value);
+}
+
+/** OAuth access token when HubSpot is authorized, otherwise the stored private-app token. */
+export async function loadHubspotPipesCredential(input: {
+  localOrganizationId: string;
+  workosUserId: string;
+}): Promise<Result<string, HubspotPipesError>> {
+  const oauth = await loadPipesAccessToken({
+    provider: HUBSPOT_PIPES_SLUG,
+    localOrganizationId: input.localOrganizationId,
+    workosUserId: input.workosUserId,
+  });
+  if (!isErr(oauth)) {
+    return ok(oauth.value);
+  }
+  if (oauth.error.code === "pipes_needs_reauthorization") {
+    return err(HUBSPOT_NEEDS_REAUTHORIZATION);
+  }
+  if (oauth.error.code !== "pipes_not_connected") {
+    return err(PIPES_UNAVAILABLE);
+  }
+
+  return loadHubspotPipesApiKey(input);
 }
 
 export async function saveHubspotPipesApiKey(input: {
