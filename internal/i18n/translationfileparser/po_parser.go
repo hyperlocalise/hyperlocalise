@@ -678,7 +678,7 @@ func rewritePOEntry(lines []poRawLine, startLine int, values map[string]string, 
 			return rebuildPOPlural(lines, entry, values, categories, lookupCategories, targetCount)
 		}
 	}
-	return rewritePOSingular(lines, entry, values, categories)
+	return rewritePOSingular(lines, entry, base, values, categories)
 }
 
 func inspectPOEntry(lines []poRawLine, startLine int, state *poWalkState) (poBuiltEntry, bool, error) {
@@ -834,9 +834,9 @@ func poPluralFormLines(indent string, forms []string, newline, crlf bool) []poRa
 	return lines
 }
 
-func rewritePOSingular(lines []poRawLine, entry poBuiltEntry, values map[string]string, categories []string) ([]poRawLine, error) {
+func rewritePOSingular(lines []poRawLine, entry poBuiltEntry, keyBase string, values map[string]string, categories []string) ([]poRawLine, error) {
+	// BOLT OPTIMIZATION: Pass precomputed keyBase to eliminate redundant poMessageKey calls per entry.
 	out := make([]poRawLine, 0, len(lines))
-	keyBase := poMessageKey(entry.msgctxt, entry.msgid)
 	active := ""
 	replacingForm := false
 	replaced := false
@@ -904,20 +904,23 @@ func replacePOFieldLine(raw, field, value string) string {
 }
 
 func clearPOFuzzyLines(lines []poRawLine) []poRawLine {
-	out := make([]poRawLine, 0, len(lines))
+	// BOLT OPTIMIZATION: Filter fuzzy lines on the local entry slice without allocating a second slice.
+	idx := 0
 	for _, line := range lines {
 		rewritten, drop, ok := clearPOFuzzyFlag(line.raw)
 		if !ok {
-			out = append(out, line)
+			lines[idx] = line
+			idx++
 			continue
 		}
 		if drop {
 			continue
 		}
 		line.raw = rewritten
-		out = append(out, line)
+		lines[idx] = line
+		idx++
 	}
-	return out
+	return lines[:idx]
 }
 
 func clearPOFuzzyFlag(raw string) (string, bool, bool) {
