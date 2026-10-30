@@ -86,8 +86,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS: Record<
   push_braze_campaigns: ["projectId"],
   import_customer_io_campaigns: ["projectId"],
   push_customer_io_campaigns: ["projectId"],
-  import_iterable_templates: ["projectId"],
-  push_iterable_templates: ["projectId"],
+  import_iterable_templates: ["projectId", "iterableSourceLocale"],
+  push_iterable_templates: ["projectId", "iterableSourceLocale"],
   import_loops_emails: ["projectId"],
   push_loops_emails: ["projectId"],
 };
