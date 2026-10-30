@@ -976,6 +976,17 @@ describe("workspace automation view model", () => {
     expect(mapWorkspaceAutomationApiErrorToFieldErrors("ahrefs_pipes_unavailable")).toEqual({
       ahrefs: "Ahrefs is unavailable until WorkOS Pipes is configured.",
     });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("iterable_not_connected")).toEqual({
+      iterable: "Connect Iterable in Integrations before using it.",
+    });
+    expect(
+      mapWorkspaceAutomationApiErrorToFieldErrors("iterable_pipes_needs_reauthorization"),
+    ).toEqual({
+      iterable: "Reconnect Iterable in Integrations, then try again.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("iterable_pipes_unavailable")).toEqual({
+      iterable: "Iterable is unavailable until WorkOS Pipes is configured.",
+    });
   });
 
   it("requires a Crowdin project when the Crowdin tool is enabled", () => {
@@ -1163,6 +1174,49 @@ describe("pruneWorkspaceAutomationFieldErrors", () => {
     const errors = { name: "Name is required.", slackChannelId: "Enter a valid Slack channel ID." };
 
     expect(pruneWorkspaceAutomationFieldErrors(errors, invalidForm)).toBe(errors);
+  });
+});
+
+describe("iterable source locale", () => {
+  it("leaves the source locale empty instead of forcing en", () => {
+    const form: WorkspaceAutomationFormState = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Translate Iterable templates",
+      instructions: "Import Iterable templates.",
+      iterableEnabled: true,
+      iterableSourceLocale: "",
+    };
+
+    expect(formStateToWorkspaceAutomationPayload(form).toolConfig.iterable).toMatchObject({
+      enabled: true,
+    });
+    expect(
+      formStateToWorkspaceAutomationPayload(form).toolConfig.iterable?.sourceLocale,
+    ).toBeUndefined();
+    expect(validateWorkspaceAutomationFormState(form).iterableSourceLocale).toBe(
+      "Choose a project above to pick a source locale.",
+    );
+  });
+
+  it("stamps the project source locale onto iterable on project selection", () => {
+    const form = applyWorkspaceAutomationProjectSelection(
+      {
+        ...createDefaultWorkspaceAutomationFormState(),
+        iterableEnabled: true,
+        iterableSourceLocale: "",
+      },
+      "project-1",
+      { sourceLocale: "de-DE", targetLocales: ["fr-FR"] },
+    );
+
+    expect(form.iterableSourceLocale).toBe("de-DE");
+    expect(
+      validateWorkspaceAutomationFormState({
+        ...form,
+        name: "Translate Iterable templates",
+        instructions: "Import Iterable templates.",
+      }).iterableSourceLocale,
+    ).toBeUndefined();
   });
 });
 

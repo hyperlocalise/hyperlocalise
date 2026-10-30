@@ -26,6 +26,7 @@ import { integrationsPageContentMessages } from "./integrations-page-content.mes
 import { BrazeConnectionPanel } from "./braze-connection-panel";
 import { CustomerIoConnectionPanel } from "./customer-io-connection-panel";
 import { HubspotConnectionPanel } from "./hubspot-connection-panel";
+import { IterableConnectionPanel } from "./iterable-connection-panel";
 import { LoopsConnectionPanel } from "./loops-connection-panel";
 import { IntercomConnectionPanel } from "./intercom-connection-panel";
 import { GoogleDriveConnectionPanel } from "./google-drive-connection-panel";
@@ -202,6 +203,7 @@ export function CustomerEngagementIntegrationsSection({
           <IntercomConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
           <BrazeConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
           <CustomerIoConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+          <IterableConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
           <LoopsConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
           <HubspotConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
           <PipesIntegrationList
@@ -211,6 +213,7 @@ export function CustomerEngagementIntegrationsSection({
                 slug !== "intercom" &&
                 slug !== "braze" &&
                 slug !== "customer-io" &&
+                slug !== "iterable" &&
                 slug !== "loops" &&
                 slug !== "hubspot",
             )}

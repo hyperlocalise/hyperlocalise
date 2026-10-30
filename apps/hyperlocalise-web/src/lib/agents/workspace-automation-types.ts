@@ -360,6 +360,24 @@ const customerIoResourceActionsSchema = z
   .record(z.string().trim().min(1).max(128), z.array(z.string().trim().min(1).max(128)).max(100))
   .default({});
 
+const iterableToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).optional(),
+    templateIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    snippetIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+  })
+  .default({
+    enabled: false,
+    templateIds: [],
+    snippetIds: [],
+    existingTranslationPolicy: "seed_empty",
+  });
+
 const customerIoToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -679,6 +697,7 @@ const toolConfigObjectSchema = z
     braze: brazeToolConfigSchema.optional(),
     brazeCampaigns: brazeCampaignsToolConfigSchema.optional(),
     customerIo: customerIoToolConfigSchema.optional(),
+    iterable: iterableToolConfigSchema.optional(),
     loops: loopsToolConfigSchema.optional(),
     hubspot: hubspotToolConfigSchema.optional(),
     crowdin: crowdinToolConfigSchema.optional(),
@@ -750,6 +769,7 @@ export type WorkspaceAutomationBrazeCampaignsToolConfig = z.infer<
   typeof brazeCampaignsToolConfigSchema
 >;
 export type WorkspaceAutomationCustomerIoToolConfig = z.infer<typeof customerIoToolConfigSchema>;
+export type WorkspaceAutomationIterableToolConfig = z.infer<typeof iterableToolConfigSchema>;
 export type WorkspaceAutomationLoopsToolConfig = z.infer<typeof loopsToolConfigSchema>;
 export type WorkspaceAutomationHubspotToolConfig = z.infer<typeof hubspotToolConfigSchema>;
 export type WorkspaceAutomationCrowdinToolConfig = z.infer<typeof crowdinToolConfigSchema>;
@@ -947,6 +967,18 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "hubspot_pipes_unavailable";
       message: "WorkOS is not configured, so HubSpot cannot connect through Pipes.";
+    }
+  | {
+      code: "iterable_not_connected";
+      message: "Connect Iterable in Integrations before using it.";
+    }
+  | {
+      code: "iterable_pipes_needs_reauthorization";
+      message: "Reconnect Iterable in Integrations, then try again.";
+    }
+  | {
+      code: "iterable_pipes_unavailable";
+      message: "WorkOS is not configured, so Iterable cannot connect through Pipes.";
     }
   | {
       code: "cms_translation_skills_exclusive";
@@ -1224,6 +1256,10 @@ export function hasWorkspaceAutomationBrazeCampaignsTool(
 
 export function hasWorkspaceAutomationCustomerIoTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.customerIo?.enabled);
+}
+
+export function hasWorkspaceAutomationIterableTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.iterable?.enabled);
 }
 
 export function hasWorkspaceAutomationLoopsTool(toolConfig: WorkspaceAutomationToolConfig) {

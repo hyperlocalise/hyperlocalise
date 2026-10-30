@@ -31,6 +31,7 @@ export * from "./schema/braze";
 export * from "./schema/loops";
 export * from "./schema/hubspot";
 export * from "./schema/customer-io";
+export * from "./schema/iterable";
 export * from "./schema/intercom";
 export * from "./schema/sanity";
 export * from "./schema/google-drive";

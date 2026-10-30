@@ -46,6 +46,7 @@ type IconBucket =
   | "webflow"
   | "google-drive"
   | "braze"
+  | "iterable"
   | "customer-io"
   | "loops"
   | "hubspot"
@@ -61,6 +62,7 @@ const BRAND_TOOL_IDS = new Set([
   "sanity",
   "google-drive",
   "braze",
+  "iterable",
   "contentful",
   "webflow",
   "customer-io",
@@ -97,6 +99,8 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
       return "google-drive";
     case "braze":
       return "braze";
+    case "iterable":
+      return "iterable";
     case "customer-io":
       return "customer-io";
     case "loops":
@@ -163,6 +167,16 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
       return (
         <Image
           src="/images/braze-logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className={cn(iconClassName, "dark:invert")}
+        />
+      );
+    case "iterable":
+      return (
+        <Image
+          src="/images/iterable-logo.png"
           alt=""
           width={16}
           height={16}

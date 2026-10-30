@@ -23,6 +23,10 @@ import {
   getHubspotPipesConnectionStatus,
   resolveHubspotPipesWorkosUserId,
 } from "@/lib/hubspot/pipes";
+import {
+  getIterablePipesConnectionStatus,
+  resolveIterablePipesWorkosUserId,
+} from "@/lib/iterable/pipes";
 import { getLoopsPipesConnectionStatus, resolveLoopsPipesWorkosUserId } from "@/lib/loops/pipes";
 import { loadBrazeRestEndpoint } from "@/lib/braze/settings";
 import { areBrazeSourceLocalesCompatible } from "@/lib/braze/locale";
@@ -92,6 +96,7 @@ import {
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationLoopsTool,
   hasWorkspaceAutomationHubspotTool,
+  hasWorkspaceAutomationIterableTool,
   hasWorkspaceAutomationCustomerIoTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
@@ -151,7 +156,8 @@ export function workspaceAutomationNeedsProject(input: {
     hasWorkspaceAutomationBrazeTool(input.toolConfig) ||
     hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig) ||
     hasWorkspaceAutomationLoopsTool(input.toolConfig) ||
-    hasWorkspaceAutomationHubspotTool(input.toolConfig)
+    hasWorkspaceAutomationHubspotTool(input.toolConfig) ||
+    hasWorkspaceAutomationIterableTool(input.toolConfig)
   ) {
     return true;
   }
@@ -1175,6 +1181,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig),
     hasWorkspaceAutomationLoopsTool(input.toolConfig),
     hasWorkspaceAutomationHubspotTool(input.toolConfig),
+    hasWorkspaceAutomationIterableTool(input.toolConfig),
     hasWorkspaceAutomationContentfulWorkflow(input.toolConfig),
   ].filter(Boolean).length;
   if (cmsToolCount > 1) {
@@ -1186,6 +1193,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       !hasWorkspaceAutomationWebflowTool(input.toolConfig) &&
       !hasWorkspaceAutomationLoopsTool(input.toolConfig) &&
       !hasWorkspaceAutomationHubspotTool(input.toolConfig) &&
+      !hasWorkspaceAutomationIterableTool(input.toolConfig) &&
       !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig);
     if (!brazePairOnly) {
       return err({
@@ -1472,6 +1480,58 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       return err({
         code: "hubspot_not_connected",
         message: "Connect HubSpot in Integrations before using it.",
+      });
+    }
+  }
+
+  if (input.toolConfig.iterable?.enabled) {
+    const iterable = input.toolConfig.iterable;
+    const workosUserId = iterable.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "iterable_not_connected",
+        message: "Connect Iterable in Integrations before using it.",
+      });
+    }
+
+    const status = await getIterablePipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      if (status.error.code === "iterable_pipes_needs_reauthorization") {
+        return err({
+          code: "iterable_pipes_needs_reauthorization",
+          message: "Reconnect Iterable in Integrations, then try again.",
+        });
+      }
+      if (
+        status.error.code === "iterable_not_connected" ||
+        status.error.code === "iterable_pipes_provider_missing" ||
+        status.error.code === "iterable_api_key_required"
+      ) {
+        return err({
+          code: "iterable_not_connected",
+          message: "Connect Iterable in Integrations before using it.",
+        });
+      }
+      return err({
+        code: "iterable_pipes_unavailable",
+        message: "WorkOS is not configured, so Iterable cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "iterable_pipes_needs_reauthorization",
+        message: "Reconnect Iterable in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "iterable_not_connected",
+        message: "Connect Iterable in Integrations before using it.",
       });
     }
   }
@@ -1798,6 +1858,22 @@ async function stampPipesUsersOnToolConfig(input: {
       ...toolConfig,
       hubspot: {
         ...toolConfig.hubspot,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.iterable?.enabled) {
+    const workosUserId = await resolveIterablePipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      iterable: {
+        ...toolConfig.iterable,
         enabled: true,
         ...(workosUserId ? { workosUserId } : {}),
       },
