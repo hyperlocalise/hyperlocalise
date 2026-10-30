@@ -86,6 +86,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS: Record<
   push_braze_campaigns: ["projectId"],
   import_customer_io_campaigns: ["projectId"],
   push_customer_io_campaigns: ["projectId"],
+  import_iterable_templates: ["projectId", "iterableSourceLocale"],
+  push_iterable_templates: ["projectId", "iterableSourceLocale"],
   import_loops_emails: ["projectId"],
   push_loops_emails: ["projectId"],
 };
@@ -183,6 +185,7 @@ function enableSkillTool(
         brazeEnabled: true,
         brazeCampaignsEnabled: false,
         customerIoEnabled: false,
+        iterableEnabled: false,
         loopsEnabled: false,
       };
     case "import_braze_campaigns":
@@ -192,6 +195,7 @@ function enableSkillTool(
         brazeCampaignsEnabled: true,
         brazeEnabled: false,
         customerIoEnabled: false,
+        iterableEnabled: false,
         loopsEnabled: false,
       };
     case "import_customer_io_campaigns":
@@ -201,13 +205,25 @@ function enableSkillTool(
         customerIoEnabled: true,
         brazeEnabled: false,
         brazeCampaignsEnabled: false,
+        iterableEnabled: false,
         loopsEnabled: false,
+      };
+    case "import_iterable_templates":
+    case "push_iterable_templates":
+      return {
+        ...form,
+        iterableEnabled: true,
+        loopsEnabled: false,
+        brazeEnabled: false,
+        brazeCampaignsEnabled: false,
+        customerIoEnabled: false,
       };
     case "import_loops_emails":
     case "push_loops_emails":
       return {
         ...form,
         loopsEnabled: true,
+        iterableEnabled: false,
         brazeEnabled: false,
         brazeCampaignsEnabled: false,
         customerIoEnabled: false,
@@ -282,6 +298,9 @@ function disableSkillTool(
     case "import_customer_io_campaigns":
     case "push_customer_io_campaigns":
       return { ...form, customerIoEnabled: false };
+    case "import_iterable_templates":
+    case "push_iterable_templates":
+      return { ...form, iterableEnabled: false };
     case "import_loops_emails":
     case "push_loops_emails":
       return { ...form, loopsEnabled: false };

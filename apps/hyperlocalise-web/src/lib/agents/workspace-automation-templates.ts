@@ -275,6 +275,35 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "translate-iterable-templates",
+    category: "popular",
+    extraCategories: ["marketing"],
+    name: "Translate Iterable Templates & Snippets",
+    description:
+      "Import Iterable email, in-app, push, and SMS templates plus snippets, localise in Jobs, then push approved locales back to Iterable.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "an Iterable template and snippet localisation connector",
+      capabilities: [
+        "Import Iterable templates and snippets into native source files",
+        "Respect existing-translation policies on import and push",
+        "Push approved locales only when operators run Push to Iterable",
+      ],
+      goal: "Keep Iterable templates and snippets in sync for localisation without sending campaigns.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-iterable-templates"],
+      name: "Translate Iterable templates and snippets",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      iterableEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-customer-io-campaigns",
     category: "popular",
     extraCategories: ["marketing"],
@@ -1215,6 +1244,10 @@ export function getWorkspaceAutomationTemplateFlow(
 
   if (form.brazeEnabled || form.brazeCampaignsEnabled) {
     tools.push({ id: "braze", label: "Braze" });
+  }
+
+  if (form.iterableEnabled) {
+    tools.push({ id: "iterable", label: "Iterable" });
   }
 
   if (form.customerIoEnabled) {
