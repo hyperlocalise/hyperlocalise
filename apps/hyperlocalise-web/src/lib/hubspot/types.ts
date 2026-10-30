@@ -18,11 +18,6 @@ export type HubspotPipesConnectionStatus = PipesConnectionStatus;
 export type HubspotPipesError =
   | { code: "hubspot_pipes_unavailable"; message: string }
   | { code: "hubspot_not_connected"; message: string }
-  | { code: "hubspot_pipes_needs_reauthorization"; message: string }
-  | { code: "hubspot_pipes_provider_missing"; message: string }
-  | { code: "hubspot_api_key_required"; message: string };
+  | { code: "hubspot_pipes_needs_reauthorization"; message: string };
 
-export type HubspotSettingsError =
-  | HubspotPipesError
-  | { code: "hubspot_credentials_invalid"; message: string }
-  | { code: "hubspot_temporarily_unavailable"; message: string };
+export type HubspotSettingsError = HubspotPipesError;

@@ -13,7 +13,7 @@
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { createHubspotContentClient, type HubspotContentClient } from "./client";
-import { loadHubspotPipesCredential, resolveHubspotPipesWorkosUserId } from "./pipes";
+import { loadHubspotPipesAccessToken, resolveHubspotPipesWorkosUserId } from "./pipes";
 import type { HubspotSettingsError } from "./types";
 
 export async function loadHubspotAutomationClient(input: {
@@ -32,7 +32,7 @@ export async function loadHubspotAutomationClient(input: {
     });
   }
 
-  const accessToken = await loadHubspotPipesCredential({
+  const accessToken = await loadHubspotPipesAccessToken({
     localOrganizationId: input.localOrganizationId,
     workosUserId,
   });

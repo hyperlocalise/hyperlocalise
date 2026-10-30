@@ -73,7 +73,6 @@ function createOrgSlugClient(origin: string) {
       "pipes",
       "braze",
       "loops",
-      "hubspot",
       "customer-io",
       "intercom-connections",
       "canva-connections",

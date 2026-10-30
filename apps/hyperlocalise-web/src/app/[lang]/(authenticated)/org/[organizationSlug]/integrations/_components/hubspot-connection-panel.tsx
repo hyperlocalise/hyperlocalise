@@ -12,31 +12,41 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useId, useMemo, useState } from "react";
-import { EyeIcon, EyeSlashIcon, FloppyDiskIcon } from "@phosphor-icons/react";
-import { useAccessToken } from "@workos-inc/authkit-nextjs/components";
-import { Pipes, WorkOsWidgets } from "@workos-inc/widgets";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Rows } from "@/components/ui/layout/rows";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TypographyP } from "@/components/ui/typography";
 import { createApiClient } from "@/lib/api-client";
 import { HUBSPOT_PIPES_SLUG } from "@/lib/hubspot/constants";
 import { resolveWorkspaceIntegrationSummary } from "@/lib/integrations/workspace-integrations";
 
-import { CollapsibleIntegrationRow } from "./integration-row";
-import { IntegrationLogo } from "./integration-logo";
 import { hubspotConnectionPanelMessages } from "./hubspot-connection-panel.messages";
+import { IntegrationLogo } from "./integration-logo";
+import { IntegrationRow } from "./integration-row";
 import { pipesConnectionPanelMessages } from "./pipes-connection-panel.messages";
 import { usePipesStatus } from "./pipes-connection-panel";
 
-import "@radix-ui/themes/styles.css";
-import "@workos-inc/widgets/styles.css";
-
 const api = createApiClient();
+
+const HUBSPOT_OAUTH_WINDOW_NAME = "hyperlocalise-hubspot-oauth";
+const HUBSPOT_OAUTH_WINDOW_FEATURES = "width=520,height=720,scrollbars=yes,resizable=yes";
+const PIPES_CONNECTED_MESSAGE = "hyperlocalise-pipes-connected";
+
+function isPipesConnectedMessage(data: unknown): data is { type: string; provider: string } {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "type" in data &&
+    data.type === PIPES_CONNECTED_MESSAGE &&
+    "provider" in data &&
+    data.provider === HUBSPOT_PIPES_SLUG
+  );
+}
 
 export function HubspotConnectionPanel({
   organizationSlug,
@@ -49,11 +59,8 @@ export function HubspotConnectionPanel({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
-  const { getAccessToken } = useAccessToken();
-  const apiKeyFieldId = useId();
   const [expanded, setExpanded] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
+  const authWindowRef = useRef<Window | null>(null);
   const statusQuery = usePipesStatus(organizationSlug, HUBSPOT_PIPES_SLUG, expanded);
   const summary = useMemo(
     () => resolveWorkspaceIntegrationSummary(intl, HUBSPOT_PIPES_SLUG),
@@ -63,7 +70,46 @@ export function HubspotConnectionPanel({
   const userCanManage = !disabled;
   const isConnected = Boolean(statusQuery.data?.connected);
   const needsReauthorization = Boolean(statusQuery.data?.needsReauthorization);
-  const apiKeyLast4 = statusQuery.data?.apiKeyLast4 ?? null;
+
+  const connect = useMutation({
+    mutationFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"][
+        "authorize-url"
+      ].$get({
+        param: { organizationSlug, provider: HUBSPOT_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error(intl.formatMessage(hubspotConnectionPanelMessages.authorizeUrlFailedToast));
+      }
+      const body = await response.json();
+      if (!("url" in body) || typeof body.url !== "string" || body.url.length === 0) {
+        throw new Error(intl.formatMessage(hubspotConnectionPanelMessages.authorizeUrlFailedToast));
+      }
+      return body.url;
+    },
+    onSuccess: (url) => {
+      const popup = authWindowRef.current;
+      if (popup && !popup.closed) {
+        popup.location.href = url;
+        return;
+      }
+      const opened = window.open(url, HUBSPOT_OAUTH_WINDOW_NAME, HUBSPOT_OAUTH_WINDOW_FEATURES);
+      if (!opened) {
+        toast.error(intl.formatMessage(hubspotConnectionPanelMessages.popupBlockedToast));
+        return;
+      }
+      authWindowRef.current = opened;
+    },
+    onError: (error) => {
+      authWindowRef.current?.close();
+      authWindowRef.current = null;
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : intl.formatMessage(hubspotConnectionPanelMessages.authorizeUrlFailedToast),
+      );
+    },
+  });
 
   const disconnect = useMutation({
     mutationFn: async () => {
@@ -78,8 +124,6 @@ export function HubspotConnectionPanel({
       await queryClient.invalidateQueries({
         queryKey: ["pipes", organizationSlug, HUBSPOT_PIPES_SLUG],
       });
-      setApiKey("");
-      setShowApiKey(false);
       setExpanded(false);
       toast.success(intl.formatMessage(hubspotConnectionPanelMessages.disconnectedToast));
     },
@@ -92,175 +136,116 @@ export function HubspotConnectionPanel({
     },
   });
 
-  const saveConnection = useMutation({
-    mutationFn: async (payload: { apiKey?: string }) => {
-      const response = await api.api.orgs[":organizationSlug"].hubspot.$put({
-        param: { organizationSlug },
-        json: payload,
-      });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as {
-          message?: unknown;
-        } | null;
-        throw new Error(
-          typeof body?.message === "string" && body.message.trim()
-            ? body.message
-            : intl.formatMessage(hubspotConnectionPanelMessages.saveFailed),
-        );
+  const refreshAfterOAuth = useCallback(async () => {
+    await queryClient.invalidateQueries({
+      queryKey: ["pipes", organizationSlug, HUBSPOT_PIPES_SLUG],
+    });
+    setExpanded(true);
+  }, [organizationSlug, queryClient]);
+
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) {
+        return;
       }
-    },
-    onSuccess: async () => {
-      setApiKey("");
-      setShowApiKey(false);
-      await queryClient.invalidateQueries({
-        queryKey: ["pipes", organizationSlug, HUBSPOT_PIPES_SLUG],
-      });
-      toast.success(intl.formatMessage(hubspotConnectionPanelMessages.savedToast));
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : intl.formatMessage(hubspotConnectionPanelMessages.saveFailed),
-      );
-    },
-  });
+      if (!isPipesConnectedMessage(event.data)) {
+        return;
+      }
+      void refreshAfterOAuth();
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [refreshAfterOAuth]);
 
-  const trimmedApiKey = apiKey.trim();
-  const canSave = userCanManage && !saveConnection.isPending && trimmedApiKey.length > 0;
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const popup = authWindowRef.current;
+      if (!popup || !popup.closed) {
+        return;
+      }
+      authWindowRef.current = null;
+      void refreshAfterOAuth();
+    }, 800);
+    return () => window.clearInterval(timer);
+  }, [refreshAfterOAuth]);
 
-  async function resolvePipesAuthToken() {
-    const token = await getAccessToken();
-    if (!token) {
-      throw new Error(
-        intl.formatMessage(pipesConnectionPanelMessages.tokenRequired, { providerName }),
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("pipesCallback") !== HUBSPOT_PIPES_SLUG) {
+      return;
+    }
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage(
+        { type: PIPES_CONNECTED_MESSAGE, provider: HUBSPOT_PIPES_SLUG },
+        window.location.origin,
       );
     }
-    return token;
-  }
+    window.close();
+  }, []);
+
+  const handleConnect = useCallback(() => {
+    const popup = window.open(
+      "about:blank",
+      HUBSPOT_OAUTH_WINDOW_NAME,
+      HUBSPOT_OAUTH_WINDOW_FEATURES,
+    );
+    if (!popup) {
+      toast.error(intl.formatMessage(hubspotConnectionPanelMessages.popupBlockedToast));
+      return;
+    }
+    authWindowRef.current = popup;
+    connect.mutate();
+  }, [connect, intl]);
+
+  const action = !userCanManage ? "view-only" : isConnected ? "manage" : "connect";
+  const description = statusQuery.isError
+    ? intl.formatMessage(hubspotConnectionPanelMessages.loadErrorDescription)
+    : needsReauthorization
+      ? intl.formatMessage(pipesConnectionPanelMessages.reconnectHint, { providerName })
+      : (summary?.detail ?? "");
 
   return (
-    <CollapsibleIntegrationRow
+    <IntegrationRow
       name={providerName}
-      description={
-        statusQuery.isError
-          ? intl.formatMessage(hubspotConnectionPanelMessages.loadErrorDescription)
-          : needsReauthorization
-            ? intl.formatMessage(pipesConnectionPanelMessages.reconnectHint, { providerName })
-            : (summary?.detail ?? "")
-      }
+      description={description}
       icon={<IntegrationLogo src={summary?.logoSrc ?? "/images/hubspot-logo.svg"} />}
-      isConnected={isConnected}
-      userIsAdmin={userCanManage}
+      action={action}
       expanded={expanded}
       onExpandedChange={setExpanded}
+      onConnect={handleConnect}
+      isConnecting={connect.isPending}
       isLoading={statusQuery.isLoading}
       isLast={isLast}
     >
-      <div className="grid gap-3">
-        {needsReauthorization ? (
-          <p className="text-xs text-muted-foreground">
-            <FormattedMessage
-              {...pipesConnectionPanelMessages.reconnectHint}
-              values={{ providerName }}
-            />
-          </p>
-        ) : null}
-        {isConnected && apiKeyLast4 ? (
-          <p className="text-xs text-muted-foreground">
-            {intl.formatMessage(hubspotConnectionPanelMessages.tokenSuffix, {
-              suffix: apiKeyLast4,
-            })}
-          </p>
-        ) : isConnected ? (
-          <p className="text-sm leading-6 text-muted-foreground">
-            <FormattedMessage {...hubspotConnectionPanelMessages.oauthConnected} />
-          </p>
-        ) : (
-          <p className="text-sm leading-6 text-muted-foreground">
-            <FormattedMessage {...hubspotConnectionPanelMessages.connectIntro} />
-          </p>
-        )}
-        {userCanManage ? (
-          <WorkOsWidgets queryClient={queryClient}>
-            <Pipes authToken={resolvePipesAuthToken} filter={{ slugs: [HUBSPOT_PIPES_SLUG] }} />
-          </WorkOsWidgets>
-        ) : null}
-        <p className="text-sm font-medium text-foreground">
-          <FormattedMessage {...hubspotConnectionPanelMessages.accessTokenHeading} />
-        </p>
-        <Field>
-          <FieldLabel htmlFor={apiKeyFieldId}>
-            <FormattedMessage {...hubspotConnectionPanelMessages.apiKeyLabel} />
-          </FieldLabel>
-          <div className="relative">
-            <Input
-              id={apiKeyFieldId}
-              type={showApiKey ? "text" : "password"}
-              autoComplete="off"
-              value={apiKey}
-              disabled={!userCanManage || saveConnection.isPending}
-              onChange={(event) => setApiKey(event.target.value)}
-              className="pe-9"
-            />
-            <button
-              type="button"
-              onClick={() => setShowApiKey((current) => !current)}
-              disabled={!userCanManage || saveConnection.isPending}
-              className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-              aria-label={intl.formatMessage(
-                showApiKey
-                  ? hubspotConnectionPanelMessages.hideApiKeyAriaLabel
-                  : hubspotConnectionPanelMessages.showApiKeyAriaLabel,
-              )}
-            >
-              {showApiKey ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
-            </button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            <FormattedMessage
-              {...(isConnected
-                ? hubspotConnectionPanelMessages.apiKeyRotateHint
-                : hubspotConnectionPanelMessages.apiKeyHint)}
-            />
-          </p>
-        </Field>
-        {userCanManage ? (
-          <div className="flex flex-wrap justify-end gap-2">
-            {isConnected ? (
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={disconnect.isPending || saveConnection.isPending}
-                onClick={() => disconnect.mutate()}
-              >
-                {disconnect.isPending ? (
-                  <FormattedMessage {...hubspotConnectionPanelMessages.disconnecting} />
-                ) : (
-                  <FormattedMessage {...hubspotConnectionPanelMessages.disconnect} />
-                )}
-              </Button>
-            ) : null}
+      {statusQuery.isLoading ? (
+        <Skeleton className="h-16 rounded-lg" />
+      ) : (
+        <Rows spacing="2u">
+          {needsReauthorization ? (
+            <TypographyP size="small" tone="subtle">
+              <FormattedMessage
+                {...pipesConnectionPanelMessages.reconnectHint}
+                values={{ providerName }}
+              />
+            </TypographyP>
+          ) : null}
+          {isConnected && userCanManage ? (
             <Button
               type="button"
-              disabled={!canSave}
-              onClick={() => {
-                if (!trimmedApiKey) {
-                  return;
-                }
-                saveConnection.mutate({ apiKey: trimmedApiKey });
-              }}
+              variant="outline"
+              size="sm"
+              disabled={disconnect.isPending}
+              onClick={() => disconnect.mutate()}
             >
-              <FloppyDiskIcon />
-              {saveConnection.isPending ? (
-                <FormattedMessage {...hubspotConnectionPanelMessages.saving} />
+              {disconnect.isPending ? (
+                <FormattedMessage {...hubspotConnectionPanelMessages.disconnecting} />
               ) : (
-                <FormattedMessage {...hubspotConnectionPanelMessages.save} />
+                <FormattedMessage {...hubspotConnectionPanelMessages.disconnect} />
               )}
             </Button>
-          </div>
-        ) : null}
-      </div>
-    </CollapsibleIntegrationRow>
+          ) : null}
+        </Rows>
+      )}
+    </IntegrationRow>
   );
 }

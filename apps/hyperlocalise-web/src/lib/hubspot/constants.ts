@@ -13,7 +13,7 @@
 
 import type { PipesProviderSlug } from "@/lib/pipes/providers";
 
-/** WorkOS Pipes catalog slug. Connect with OAuth or a private-app access token. */
+/** WorkOS Pipes catalog slug. Connect is OAuth from the HubSpot pane. */
 export const HUBSPOT_PIPES_SLUG = "hubspot" satisfies PipesProviderSlug;
 
 export const HUBSPOT_RESOURCE_KINDS = [
@@ -24,7 +24,5 @@ export const HUBSPOT_RESOURCE_KINDS = [
   "website-page",
 ] as const;
 export type HubspotResourceKind = (typeof HUBSPOT_RESOURCE_KINDS)[number];
-
-export const HUBSPOT_REQUIRED_SCOPES = ["content", "forms"] as const;
 
 export const HUBSPOT_LIST_PAGE_SIZE = 100;

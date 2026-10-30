@@ -20,61 +20,15 @@ export const hubspotConnectionPanelMessages = defineMessages({
     id: "9mI5GoWd3Q",
     description: "HubSpot integration row description when connection status fails to load",
   },
-  connectIntro: {
-    defaultMessage: "Authorize HubSpot, or paste a private-app access token.",
-    id: "/sF9qPmV6u",
-    description: "Intro shown before HubSpot is connected",
+  authorizeUrlFailedToast: {
+    defaultMessage: "Could not start HubSpot authorization.",
+    id: "tKEC9A/nAh",
+    description: "Toast when HubSpot OAuth URL request fails",
   },
-  oauthConnected: {
-    defaultMessage: "Connected with HubSpot.",
-    id: "EkQKYmZw1C",
-    description: "Status when HubSpot is connected with OAuth",
-  },
-  accessTokenHeading: {
-    defaultMessage: "Or paste a private-app access token",
-    id: "RLgvlIgdr6",
-    description: "Heading above the HubSpot private-app token field",
-  },
-  tokenSuffix: {
-    defaultMessage: "Token ending in {suffix}",
-    id: "B/8rUjOtWy",
-    description: "Secondary HubSpot connection detail showing the stored token suffix",
-  },
-  apiKeyLabel: {
-    defaultMessage: "Access token",
-    id: "0RmdfCp/CN",
-    description: "Label for the HubSpot private-app access token field",
-  },
-  apiKeyHint: {
-    defaultMessage:
-      "Create a private app with the content and forms scopes, then paste its access token.",
-    id: "AuJXCtnhjs",
-    description: "Hint for creating a HubSpot private app before connecting",
-  },
-  apiKeyRotateHint: {
-    defaultMessage: "Paste a new access token to replace the saved one.",
-    id: "nUTl30Eq9t",
-    description: "Hint shown when replacing a saved HubSpot access token",
-  },
-  showApiKeyAriaLabel: {
-    defaultMessage: "Show access token",
-    id: "DmbcvHMMp6",
-    description: "Accessible label for revealing the HubSpot access token",
-  },
-  hideApiKeyAriaLabel: {
-    defaultMessage: "Hide access token",
-    id: "NdH6gnevkW",
-    description: "Accessible label for hiding the HubSpot access token",
-  },
-  save: {
-    defaultMessage: "Save",
-    id: "9t4H29R3uc",
-    description: "Save the HubSpot access token",
-  },
-  saving: {
-    defaultMessage: "Saving",
-    id: "rhvSi//hSX",
-    description: "Shown while the HubSpot access token is saving",
+  popupBlockedToast: {
+    defaultMessage: "Allow pop-ups to connect HubSpot.",
+    id: "JIhKGhe8Ry",
+    description: "Toast when the HubSpot OAuth window is blocked",
   },
   disconnect: {
     defaultMessage: "Disconnect",
@@ -86,20 +40,10 @@ export const hubspotConnectionPanelMessages = defineMessages({
     id: "nx0R7JXLot",
     description: "Shown while HubSpot is disconnecting",
   },
-  savedToast: {
-    defaultMessage: "HubSpot connected",
-    id: "Vn1d/pMrDN",
-    description: "Toast after a HubSpot access token is saved",
-  },
   disconnectedToast: {
     defaultMessage: "HubSpot disconnected",
     id: "CBJCcle41q",
     description: "Toast after HubSpot is disconnected",
-  },
-  saveFailed: {
-    defaultMessage: "Could not save HubSpot",
-    id: "Nwdavggy8l",
-    description: "Toast when saving the HubSpot access token fails",
   },
   disconnectFailed: {
     defaultMessage: "Could not disconnect HubSpot",

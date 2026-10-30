@@ -3,8 +3,8 @@
 ## Status
 
 Accepted. Import, push, and **Translate HubSpot content** are
-implemented. Connect is either WorkOS Pipes OAuth or a private-app
-access token on the same `hubspot` slug.
+implemented. Connect is WorkOS Pipes OAuth on the existing `hubspot`
+slug, from a custom Integrations pane.
 
 Tracking lives in Linear project
 [HubSpot Integration](https://linear.app/hyperlocalise/project/hubspot-integration-4fd159902d9b)
@@ -13,12 +13,12 @@ Tracking lives in Linear project
 | Issue | Work |
 | --- | --- |
 | [HL-900](https://linear.app/hyperlocalise/issue/HL-900/write-the-hubspot-localisation-design) | This design |
-| [HL-901](https://linear.app/hyperlocalise/issue/HL-901/connect-hubspot-with-a-private-app-access-token) | Private-app token connection |
-| [HL-902](https://linear.app/hyperlocalise/issue/HL-902/enable-an-api-key-install-on-the-hubspot-pipes-slug) | API-key install on the `hubspot` Pipes slug |
+| [HL-901](https://linear.app/hyperlocalise/issue/HL-901/connect-hubspot-with-a-private-app-access-token) | Superseded by OAuth |
+| [HL-902](https://linear.app/hyperlocalise/issue/HL-902/enable-an-api-key-install-on-the-hubspot-pipes-slug) | Not used. Connect is OAuth only. |
 | [HL-903](https://linear.app/hyperlocalise/issue/HL-903/import-hubspot-emails-forms-and-blog-posts) | Import |
 | [HL-904](https://linear.app/hyperlocalise/issue/HL-904/push-approved-hubspot-locale-copies) | Push |
 | [HL-905](https://linear.app/hyperlocalise/issue/HL-905/add-the-translate-hubspot-content-template) | Automation template |
-| [HL-906](https://linear.app/hyperlocalise/issue/HL-906/connect-hubspot-with-oauth) | OAuth, later |
+| [HL-906](https://linear.app/hyperlocalise/issue/HL-906/connect-hubspot-with-oauth) | OAuth connection |
 
 Product docs live on one page,
 `docs/platform/connections/hubspot.mdx`.
@@ -30,8 +30,8 @@ Product docs live on one page,
 ## Context
 
 HubSpot is a customer-engagement catalog row and a WorkOS Pipes slug.
-The connection pane offers WorkOS Pipes OAuth and a private-app
-access token on that same slug. Do not add a second Pipes provider.
+Operators connect with OAuth from a custom HubSpot pane. Do not add a
+second Pipes provider.
 
 Operators need five content surfaces:
 
@@ -47,9 +47,8 @@ HubSpot's Breeze and DeepL actions live in the product UI. They are
 not a public translate API. A/B email variations
 (`createAbTestVariation`) are tests, not language copies.
 
-The official client is `@hubspot/api-client`. An OAuth access token
-and a private-app access token both construct
-`new Client({ accessToken })`.
+The official client is `@hubspot/api-client`. The OAuth access token
+constructs `new Client({ accessToken })`.
 
 ## Decision
 
@@ -75,10 +74,9 @@ send.
    `{source} [{locale}]`. The name keeps the full project tag.
 3. Map project locales onto HubSpot's lowercase codes. Keep `fr` and
    `fr-ca` distinct. See Locale map.
-4. Call HubSpot only through `@hubspot/api-client`. Load an OAuth
-   access token with `loadPipesAccessToken` when HubSpot is
-   authorized. Otherwise load the stored private-app token with
-   `loadPipesApiKey`. Both construct `new Client({ accessToken })`.
+4. Call HubSpot only through `@hubspot/api-client`. Load the OAuth
+   access token with `loadPipesAccessToken` and construct
+   `new Client({ accessToken })`.
 5. Use the orange sprocket at
    `apps/hyperlocalise-web/public/images/hubspot-logo.svg` for the
    catalog row, the connection pane, and the template. Do not use
@@ -87,19 +85,13 @@ send.
 
 ## API usage
 
-Construct `new Client({ accessToken })` with the OAuth access token
-or the stored private-app token. Do not call `api.hubapi.com` with
-`fetch`. If a method is missing, bump `@hubspot/api-client`. Do not
-add a REST fallback.
+Construct `new Client({ accessToken })` with the OAuth access token.
+Do not call `api.hubapi.com` with `fetch`. If a method is missing,
+bump `@hubspot/api-client`. Do not add a REST fallback.
 
-The account needs `content` for marketing emails, CMS blog posts,
-landing pages, and website pages, and `forms` for forms. Saving a
-private-app token checks it with `client.apiRequest`
-`POST /oauth/v2/private-apps/get/access-token-info` before it is
-stored. `oauth.accessTokensApi.get` is OAuth-only and rejects a
-private-app token. A rejected token is not stored. OAuth authorization
-is the WorkOS Pipes widget. A stale OAuth grant is not replaced by a
-stored private-app token.
+The OAuth app needs `content` for marketing emails, CMS blog posts,
+landing pages, and website pages, and `forms` for forms. Those scopes
+are granted when the operator authorizes HubSpot.
 
 | Surface | SDK | Read | Write-back |
 | --- | --- | --- | --- |
@@ -160,23 +152,16 @@ strings we write.
 ## Connection
 
 Operators connect from the HubSpot pane on **Integrations**. Take
-`hubspot` off the generic `<Pipes>` list and mount that pane. The pane
-includes the WorkOS `<Pipes>` widget for OAuth and a field for a
-private-app access token.
+`hubspot` off the generic `<Pipes>` list and mount that pane. **Connect**
+opens the WorkOS Pipes authorize URL for slug `hubspot`. Do not embed
+the generic `<Pipes>` widget and do not offer a private-app token field.
 
-Store a pasted token with `upsertPipesApiKey` on slug `hubspot`. Read
-an OAuth grant with `loadPipesAccessToken` on the same slug. Do not
-store the token in Postgres. Do not create a second provider that
-shadows `hubspot`.
+Read the grant with `loadPipesAccessToken` on slug `hubspot`. Do not
+call `loadPipesApiKey` or `upsertPipesApiKey`. Do not store the token
+in Postgres. Do not create a second provider that shadows `hubspot`.
 
-[HL-902](https://linear.app/hyperlocalise/issue/HL-902/enable-an-api-key-install-on-the-hubspot-pipes-slug)
-enables an API-key install on the existing slug in the WorkOS
-Dashboard. Until that exists, saving a pasted token answers a
-provider-missing error. OAuth still uses the same slug.
-
-[HL-906](https://linear.app/hyperlocalise/issue/HL-906/connect-hubspot-with-oauth)
-is the OAuth grant. When that grant needs reconnecting, do not fall
-back to a stored private-app token.
+When the grant needs reconnecting, the pane asks the operator to
+connect again. There is no stored token to fall back to.
 
 ## Logo
 
@@ -197,8 +182,8 @@ the same way Braze uses `/images/braze-logo.svg`.
    those as different languages.
 3. **Raw REST, or a second Pipes provider** — rejected. The Node SDK
    covers the three surfaces. The catalog slug is already `hubspot`.
-4. **OAuth as the first connection** — deferred to HL-906. The token
-   path does not need a HubSpot OAuth app.
+4. **A private-app access token** — rejected. Operators authorize
+   HubSpot. The pane does not ask them to create a private app.
 5. **`siHubspot`** — rejected. The mark is the orange sprocket SVG.
 6. **HubSpot Breeze or DeepL as the translator** — rejected. Those
    actions are not a public API.
@@ -208,11 +193,8 @@ the same way Braze uses `/images/braze-logo.svg`.
 
 ## Consequences
 
-- Import is blocked by the token connection. Push and the template
-  are blocked by import. OAuth is blocked by the token connection
-  and is not an operator step in the connection page.
-- The operator page describes the token workflow and says the pane
-  and the template are not available yet.
+- Connect, import, push, and the template are available. Operators
+  authorize HubSpot from the custom pane.
 - Regional project locales that collapse to one HubSpot code cannot
   both be pushed. The run reports the collision.
 - A new form exists in the portal as soon as push creates it. It is

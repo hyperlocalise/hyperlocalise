@@ -38,7 +38,6 @@ import { createWebflowConnectionRoutes } from "./routes/webflow-connection/webfl
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
 import { createBrazeRoutes } from "./routes/braze/braze.route";
-import { createHubspotRoutes } from "./routes/hubspot/hubspot.route";
 import { createLoopsRoutes } from "./routes/loops/loops.route";
 import { createCustomerIoRoutes } from "./routes/customer-io/customer-io.route";
 import { createPipesRoutes } from "./routes/pipes/pipes.route";
@@ -179,7 +178,6 @@ export function createOrgIntegrationsRoutes() {
     .route("/pipes", createPipesRoutes())
     .route("/braze", createBrazeRoutes())
     .route("/loops", createLoopsRoutes())
-    .route("/hubspot", createHubspotRoutes())
     .route("/customer-io", createCustomerIoRoutes())
     .route("/intercom-connections", createIntercomConnectionRoutes())
     .route("/canva-connections", createCanvaConnectionRoutes())
