@@ -289,3 +289,36 @@ func waitForAdvisoryLockWait(t *testing.T, scope *testenv.Scope) {
 		return err == nil && waiting > 0
 	}, 10*time.Second, 10*time.Millisecond, "no backend waiting on the workspace's admin lock")
 }
+
+func TestMemberDemoteCountsAPromotionTheRequestDidNotSee(t *testing.T) {
+	api, scope, _ := memberTestAPI(t, "admin")
+	userID, workosUserID, _ := mustActiveMember(t, scope, uniqueTestEmail("promoted-demoted"), "member")
+	member, err := api.getOrganizationMember(t.Context(), scope.OrganizationID, workosUserID)
+	require.NoError(t, err)
+	// Promoted after the request read the role, and now the only admin.
+	_, err = scope.Pool.Exec(t.Context(), `update organization_memberships set role='admin' where user_id=$1`, userID)
+	require.NoError(t, err)
+	_, err = scope.Pool.Exec(t.Context(), `update organization_memberships set role='member' where user_id=$1`, scope.UserID)
+	require.NoError(t, err)
+
+	_, err = api.updateMemberRole(t.Context(), scope.OrganizationID, member, "developer")
+	var failure *memberError
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, "last_admin_protected", failure.code)
+}
+
+func TestMemberRevokeClearsItsMarkWhenTheRemovalFails(t *testing.T) {
+	api, scope, _ := memberTestAPI(t, "admin")
+	_, workosUserID := mustInvitedMember(t, scope, uniqueTestEmail("pending-admin"), "admin")
+	// No accepted admin is left, so removing the invited admin is refused after the revoke.
+	_, err := scope.Pool.Exec(t.Context(), `update organization_memberships set role='member' where user_id=$1`, scope.UserID)
+	require.NoError(t, err)
+
+	rec := memberRequest(api, scope, http.MethodDelete, scope.OrgPath("/members/"+workosUserID), "")
+	require.Equal(t, 409, rec.Code, rec.Body.String())
+
+	var membershipID *string
+	err = scope.Pool.QueryRow(t.Context(), `select m.workos_membership_id from organization_memberships m join users u on u.id=m.user_id where u.workos_user_id=$1`, workosUserID).Scan(&membershipID)
+	require.NoError(t, err)
+	require.Nil(t, membershipID)
+}

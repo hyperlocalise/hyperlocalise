@@ -14,7 +14,6 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
   pendingRows: vi.fn(),
-  listPendingInvitations: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -49,9 +48,6 @@ vi.mock("@/api/auth/workos-membership-reconcile", () => ({
   reconcileWorkosMembershipsForUser: vi.fn(async () => ({ status: "skipped" })),
 }));
 vi.mock("@/api/auth/workos-sync", () => ({ promoteInvitedPlaceholderUser: vi.fn() }));
-vi.mock("@/lib/workos/pending-invitations", () => ({
-  listPendingInvitations: mocks.listPendingInvitations,
-}));
 
 import { redirectForMissingOrganizationAccess } from "./missing-organization-access";
 
@@ -61,9 +57,6 @@ describe("redirectForMissingOrganizationAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.pendingRows.mockResolvedValue([{ id: "membership-1" }]);
-    mocks.listPendingInvitations.mockResolvedValue([
-      { organizationName: "Gamma", organizationSlug: "gamma" },
-    ]);
   });
 
   it("sends a verified person with invitations to the picker, where they can accept", async () => {
@@ -76,7 +69,6 @@ describe("redirectForMissingOrganizationAccess", () => {
     await expect(
       redirectForMissingOrganizationAccess({ ...invitee, emailVerified: false }),
     ).rejects.toThrow("redirect:/auth/access-denied?reason=pending-invite");
-    expect(mocks.listPendingInvitations).not.toHaveBeenCalled();
   });
 
   it("sends someone with no invitation to onboarding", async () => {
@@ -87,18 +79,9 @@ describe("redirectForMissingOrganizationAccess", () => {
     ).rejects.toThrow("redirect:/auth/onboarding");
   });
 
-  it("keeps a verified person on the invitation pending page when the picker would list nothing", async () => {
-    mocks.listPendingInvitations.mockResolvedValue([]);
-
-    await expect(
-      redirectForMissingOrganizationAccess({ ...invitee, emailVerified: true }),
-    ).rejects.toThrow("redirect:/auth/access-denied?reason=pending-invite");
-  });
-
   it("treats an email given alone as unverified", async () => {
     await expect(redirectForMissingOrganizationAccess(invitee.email)).rejects.toThrow(
       "redirect:/auth/access-denied?reason=pending-invite",
     );
-    expect(mocks.listPendingInvitations).not.toHaveBeenCalled();
   });
 });

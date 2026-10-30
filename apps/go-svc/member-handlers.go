@@ -343,6 +343,7 @@ func (api *memberAPI) deleteMember(ctx context.Context, actor memberActor, worko
 
 	isPendingInvite := isPendingOrganizationMembership(member.workosMembershipID)
 	var removeFromWorkos func(context.Context) error
+	markedPending := false
 	if shouldSyncMembershipToWorkos(api.workos, member.workosMembershipID) {
 		removeFromWorkos = func(ctx context.Context) error {
 			return api.deleteWorkosMembership(ctx, actor, member)
@@ -354,6 +355,7 @@ func (api *memberAPI) deleteMember(ctx context.Context, actor memberActor, worko
 		if err != nil {
 			return 0, err
 		}
+		markedPending = marked
 		if err := api.revokePendingWorkosInvitation(ctx, actor.workosOrganizationID, member.email); err != nil {
 			if marked {
 				_ = api.clearPendingMembershipReplacingInvitation(context.WithoutCancel(ctx), member.membershipID)
@@ -379,6 +381,11 @@ func (api *memberAPI) deleteMember(ctx context.Context, actor memberActor, worko
 	}
 
 	if err := api.reconcileRevokedMembership(ctx, actor, member, "member_removed", removeFromWorkos); err != nil {
+		// A row left marked is neither listed as an invitation nor cleared by the
+		// invitation.revoked webhook.
+		if markedPending {
+			_ = api.clearPendingMembershipReplacingInvitation(context.WithoutCancel(ctx), member.membershipID)
+		}
 		return 0, err
 	}
 	return http.StatusNoContent, nil
@@ -447,9 +454,21 @@ func (api *memberAPI) updateMemberRole(ctx context.Context, organizationID strin
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	if member.role == "admin" && role != "admin" {
-		if err := lockOrganizationAdminsAndCount(ctx, tx, organizationID, member.localUserID, api.workos != nil); err != nil {
+	// The role is read under the admin lock, so someone promoted since the request read
+	// their membership still counts as an admin.
+	if role != "admin" {
+		if err := lockOrganizationAdmins(ctx, tx, organizationID); err != nil {
 			return member, err
+		}
+		var currentRole string
+		err := tx.QueryRow(ctx, `select role from organization_memberships where id=$1`, member.membershipID).Scan(&currentRole)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return member, err
+		}
+		if currentRole == "admin" {
+			if err := requireAnotherAcceptedAdmin(ctx, tx, organizationID, member.localUserID, api.workos != nil); err != nil {
+				return member, err
+			}
 		}
 	}
 	err = tx.QueryRow(ctx, `
@@ -466,21 +485,11 @@ func (api *memberAPI) updateMemberRole(ctx context.Context, organizationID strin
 	return member, nil
 }
 
-// lockOrganizationAdminsAndCount refuses a change that would leave no admin who has
-// accepted their invitation once departingUserID is no longer one. The lock is per
-// workspace and taken only by membership changes, so holding it through a WorkOS call
-// delays other membership changes in that workspace and nothing else: page loads that
-// rewrite membership rows do not wait on it.
-func lockOrganizationAdminsAndCount(ctx context.Context, tx pgx.Tx, organizationID, departingUserID string, workosSynced bool) error {
-	if err := lockOrganizationAdmins(ctx, tx, organizationID); err != nil {
-		return err
-	}
-	return requireAnotherAcceptedAdmin(ctx, tx, organizationID, departingUserID, workosSynced)
-}
-
 // lockOrganizationAdmins takes the workspace's admin lock, held by every removal and
-// demotion until it commits. Promotions do not take it: they cannot leave a workspace
-// without an admin.
+// demotion until it commits. It is per workspace and taken only by membership changes, so
+// holding it through a WorkOS call delays nothing else: page loads that rewrite membership
+// rows do not wait on it. Promotions do not take it: they cannot leave a workspace without
+// an admin.
 func lockOrganizationAdmins(ctx context.Context, tx pgx.Tx, organizationID string) error {
 	_, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, organizationAdminsLockKey(organizationID))
 	return err
@@ -490,6 +499,8 @@ func organizationAdminsLockKey(organizationID string) string {
 	return "organization_admins:" + organizationID
 }
 
+// requireAnotherAcceptedAdmin refuses a change that would leave no admin who has accepted
+// their invitation once departingUserID is no longer one.
 func requireAnotherAcceptedAdmin(ctx context.Context, tx pgx.Tx, organizationID, departingUserID string, workosSynced bool) error {
 	count, err := countOtherAcceptedAdmins(ctx, tx, organizationID, departingUserID, workosSynced)
 	if err != nil {

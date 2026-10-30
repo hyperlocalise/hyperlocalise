@@ -18,7 +18,6 @@ import { promoteInvitedPlaceholderUser } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import { isReplacingWorkosMembershipSql } from "@/lib/workos/constants";
-import { listPendingInvitations } from "@/lib/workos/pending-invitations";
 
 const logger = createLogger("missing-organization-access");
 
@@ -109,8 +108,8 @@ export async function redirectForMissingOrganizationAccess(
     }
 
     // The picker lists a verified person's invitations with Accept, and lets them create
-    // a workspace instead.
-    if (workosUserId && emailVerified && (await listPendingInvitations(workosUserId)).length > 0) {
+    // a workspace when none can be accepted, such as one being replaced.
+    if (workosUserId && emailVerified) {
       redirect("/auth/select-organization");
     }
 
