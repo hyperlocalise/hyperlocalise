@@ -375,6 +375,20 @@ export function addBranchPattern(
   return { branches: [...branches, pattern] };
 }
 
+/**
+ * Next scheduled run, with its UTC zone named. `dateStyle` and `timeStyle` cannot be combined
+ * with `timeZoneName` (browsers throw), so the fields are listed one by one.
+ */
+const NEXT_RUN_AT_FORMAT: Intl.DateTimeFormatOptions = {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "UTC",
+  timeZoneName: "short",
+};
+
 export function formatAutomationNextRunAt(nextRunAt: string | null) {
   if (!nextRunAt) {
     return null;
@@ -385,10 +399,5 @@ export function formatAutomationNextRunAt(nextRunAt: string | null) {
     return null;
   }
 
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "UTC",
-    timeZoneName: "short",
-  }).format(date);
+  return new Intl.DateTimeFormat(undefined, NEXT_RUN_AT_FORMAT).format(date);
 }
