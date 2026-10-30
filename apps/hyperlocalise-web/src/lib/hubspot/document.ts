@@ -16,6 +16,19 @@ import { createHash } from "node:crypto";
 /** Nested translatable strings. Keys are locked ids; values are copy. */
 export type HubspotStringTree = { [key: string]: string | HubspotStringTree };
 
+/** JSON stored on HubSpot emails and pages. */
+export type HubspotJson =
+  | string
+  | number
+  | boolean
+  | null
+  | HubspotJson[]
+  | { [key: string]: HubspotJson };
+
+export function isHubspotJsonObject(value: HubspotJson): value is { [key: string]: HubspotJson } {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 const LOCKED_KEYS = new Set([
   "id",
   "url",
@@ -45,8 +58,27 @@ const PREVIEW_KEYS = new Set(["preview_text", "previewtext", "preview"]);
 const URL_VALUE = /^(https?:|mailto:|tel:)/i;
 const COLOR_VALUE = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
-function isLockedKey(key: string): boolean {
-  return LOCKED_KEYS.has(key.trim().toLowerCase());
+function isProseValue(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return false;
+  }
+  if (/<[^>]+>/.test(trimmed)) {
+    return true;
+  }
+  return /\s/.test(trimmed) && trimmed.length >= 3;
+}
+
+function isLockedKey(key: string, value: HubspotJson): boolean {
+  const normalized = key.trim().toLowerCase();
+  if (
+    (normalized === "value" || normalized === "defaultvalue") &&
+    typeof value === "string" &&
+    isProseValue(value)
+  ) {
+    return false;
+  }
+  return LOCKED_KEYS.has(normalized);
 }
 
 function isCopyString(value: string): boolean {
@@ -60,7 +92,7 @@ function isCopyString(value: string): boolean {
   return true;
 }
 
-export function collectCopyTree(value: unknown): HubspotStringTree {
+export function collectCopyTree(value: HubspotJson): HubspotStringTree {
   const tree: HubspotStringTree = {};
   if (Array.isArray(value)) {
     value.forEach((entry, index) => {
@@ -78,11 +110,11 @@ export function collectCopyTree(value: unknown): HubspotStringTree {
     });
     return tree;
   }
-  if (!value || typeof value !== "object") {
+  if (!isHubspotJsonObject(value)) {
     return tree;
   }
-  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-    if (isLockedKey(key) || PREVIEW_KEYS.has(key.trim().toLowerCase())) {
+  for (const [key, entry] of Object.entries(value)) {
+    if (isLockedKey(key, entry) || PREVIEW_KEYS.has(key.trim().toLowerCase())) {
       continue;
     }
     if (typeof entry === "string") {
@@ -99,7 +131,7 @@ export function collectCopyTree(value: unknown): HubspotStringTree {
   return tree;
 }
 
-export function applyStringTree(target: unknown, tree: HubspotStringTree): void {
+export function applyStringTree(target: HubspotJson, tree: HubspotStringTree): void {
   if (Array.isArray(target)) {
     for (const [key, value] of Object.entries(tree)) {
       const index = Number(key);
@@ -116,10 +148,10 @@ export function applyStringTree(target: unknown, tree: HubspotStringTree): void 
     }
     return;
   }
-  if (!target || typeof target !== "object") {
+  if (!isHubspotJsonObject(target)) {
     return;
   }
-  const record = target as Record<string, unknown>;
+  const record = target;
   for (const [key, value] of Object.entries(tree)) {
     if (typeof value === "string") {
       if (typeof record[key] === "string") {
@@ -131,20 +163,20 @@ export function applyStringTree(target: unknown, tree: HubspotStringTree): void 
   }
 }
 
-function takePreviewText(widgets: unknown): { previewText: string; widgets: unknown } {
-  const clone = structuredClone(widgets ?? {});
+function takePreviewText(widgets: HubspotJson): { previewText: string; widgets: HubspotJson } {
+  const clone = structuredClone(widgets);
   let previewText = "";
-  const visit = (node: unknown) => {
-    if (!node || typeof node !== "object") {
-      return;
-    }
+  const visit = (node: HubspotJson) => {
     if (Array.isArray(node)) {
       for (const item of node) {
         visit(item);
       }
       return;
     }
-    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    if (!isHubspotJsonObject(node)) {
+      return;
+    }
+    for (const [key, value] of Object.entries(node)) {
       if (
         !previewText &&
         PREVIEW_KEYS.has(key.trim().toLowerCase()) &&
@@ -152,7 +184,7 @@ function takePreviewText(widgets: unknown): { previewText: string; widgets: unkn
         isCopyString(value)
       ) {
         previewText = value;
-        delete (node as Record<string, unknown>)[key];
+        delete node[key];
         continue;
       }
       visit(value);
@@ -162,20 +194,20 @@ function takePreviewText(widgets: unknown): { previewText: string; widgets: unkn
   return { previewText, widgets: clone };
 }
 
-export function writePreviewText(widgets: unknown, previewText: string): void {
-  if (!previewText || !widgets || typeof widgets !== "object") {
+export function writePreviewText(widgets: HubspotJson, previewText: string): void {
+  if (!previewText || !isHubspotJsonObject(widgets)) {
     return;
   }
-  const visit = (node: unknown): boolean => {
-    if (!node || typeof node !== "object") {
-      return false;
-    }
+  const visit = (node: HubspotJson): boolean => {
     if (Array.isArray(node)) {
       return node.some((item) => visit(item));
     }
-    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    if (!isHubspotJsonObject(node)) {
+      return false;
+    }
+    for (const [key, value] of Object.entries(node)) {
       if (PREVIEW_KEYS.has(key.trim().toLowerCase()) && typeof value === "string") {
-        (node as Record<string, unknown>)[key] = previewText;
+        node[key] = previewText;
         return true;
       }
       if (visit(value)) {
@@ -189,7 +221,7 @@ export function writePreviewText(widgets: unknown, previewText: string): void {
 
 export function buildEmailDocument(input: {
   subject: string;
-  widgets: unknown;
+  widgets: HubspotJson;
 }): HubspotStringTree {
   const document: HubspotStringTree = {};
   if (isCopyString(input.subject)) {
@@ -210,9 +242,9 @@ export function buildPageDocument(input: {
   htmlTitle: string;
   metaDescription: string;
   featuredImageAltText: string;
-  widgets: unknown;
-  layoutSections: unknown;
-  widgetContainers?: unknown;
+  widgets: HubspotJson;
+  layoutSections: HubspotJson;
+  widgetContainers?: HubspotJson;
 }): HubspotStringTree {
   const document: HubspotStringTree = {};
   if (isCopyString(input.htmlTitle)) {
@@ -232,7 +264,7 @@ export function buildPageDocument(input: {
   if (Object.keys(layoutSections).length > 0) {
     document.layoutSections = layoutSections;
   }
-  const widgetContainers = collectCopyTree(input.widgetContainers);
+  const widgetContainers = collectCopyTree(input.widgetContainers ?? {});
   if (Object.keys(widgetContainers).length > 0) {
     document.widgetContainers = widgetContainers;
   }
@@ -244,18 +276,18 @@ export function applyPageDocument(
     htmlTitle: string;
     metaDescription: string;
     featuredImageAltText: string;
-    widgets: unknown;
-    layoutSections: unknown;
-    widgetContainers?: unknown;
+    widgets: HubspotJson;
+    layoutSections: HubspotJson;
+    widgetContainers?: HubspotJson;
   },
   translated: HubspotStringTree,
 ): {
   htmlTitle: string;
   metaDescription: string;
   featuredImageAltText: string;
-  widgets: unknown;
-  layoutSections: unknown;
-  widgetContainers: unknown;
+  widgets: HubspotJson;
+  layoutSections: HubspotJson;
+  widgetContainers: HubspotJson;
 } {
   const widgets = structuredClone(live.widgets ?? {});
   const layoutSections = structuredClone(live.layoutSections ?? {});
@@ -286,9 +318,9 @@ export function applyPageDocument(
 }
 
 export function applyEmailDocument(
-  widgets: unknown,
+  widgets: HubspotJson,
   translated: HubspotStringTree,
-): { subject: string; widgets: unknown } {
+): { subject: string; widgets: HubspotJson } {
   const nextWidgets = structuredClone(widgets ?? {});
   const widgetCopy = translated.widgets;
   if (widgetCopy && typeof widgetCopy !== "string") {
@@ -382,7 +414,12 @@ export function buildFormDocument(definition: Record<string, unknown>): HubspotS
   if (Object.keys(groups).length > 0) {
     document.groups = groups;
   }
-  const legal = collectCopyTree(definition.legalConsentOptions);
+  const legalConsentOptions = definition.legalConsentOptions;
+  const legal = collectCopyTree(
+    legalConsentOptions !== null && typeof legalConsentOptions === "object"
+      ? (legalConsentOptions as HubspotJson)
+      : {},
+  );
   if (Object.keys(legal).length > 0) {
     document.legal = legal;
   }
@@ -457,8 +494,9 @@ export function applyFormDocument(
     }
   });
   const legal = translated.legal;
-  if (legal && typeof legal !== "string") {
-    applyStringTree(next.legalConsentOptions, legal);
+  const consent = next.legalConsentOptions;
+  if (legal && typeof legal !== "string" && consent !== null && typeof consent === "object") {
+    applyStringTree(consent as HubspotJson, legal);
   }
   return next;
 }
@@ -562,12 +600,12 @@ export function hashHubspotContent(content: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
 
-export function readHubspotStringTree(value: unknown): HubspotStringTree {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+export function readHubspotStringTree(value: HubspotJson): HubspotStringTree {
+  if (!isHubspotJsonObject(value)) {
     return {};
   }
   const tree: HubspotStringTree = {};
-  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+  for (const [key, entry] of Object.entries(value)) {
     if (typeof entry === "string") {
       tree[key] = entry;
       continue;

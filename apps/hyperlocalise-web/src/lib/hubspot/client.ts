@@ -21,6 +21,12 @@ import { EmailUpdateRequest } from "@hubspot/api-client/lib/codegen/marketing/em
 import { PublicEmailContent } from "@hubspot/api-client/lib/codegen/marketing/emails/models/PublicEmailContent";
 
 import { HUBSPOT_LIST_PAGE_SIZE } from "./constants";
+import {
+  buildPageDocument,
+  hubspotDocumentHasCopy,
+  isHubspotJsonObject,
+  type HubspotJson,
+} from "./document";
 
 export type HubspotEmailSummary = {
   id: string;
@@ -30,7 +36,7 @@ export type HubspotEmailSummary = {
 
 export type HubspotEmailRecord = HubspotEmailSummary & {
   subject: string;
-  widgets: unknown;
+  widgets: HubspotJson;
   updatedAt: string | null;
 };
 
@@ -69,9 +75,9 @@ export type HubspotPageRecord = HubspotPageSummary & {
   htmlTitle: string;
   metaDescription: string;
   featuredImageAltText: string;
-  widgets: unknown;
-  layoutSections: unknown;
-  widgetContainers: unknown;
+  widgets: HubspotJson;
+  layoutSections: HubspotJson;
+  widgetContainers: HubspotJson;
 };
 
 export type HubspotPageDraft = {
@@ -81,10 +87,23 @@ export type HubspotPageDraft = {
   htmlTitle: string;
   metaDescription: string;
   featuredImageAltText: string;
-  widgets: unknown;
-  layoutSections: unknown;
-  widgetContainers: unknown;
+  widgets: HubspotJson;
+  layoutSections: HubspotJson;
+  widgetContainers: HubspotJson;
 };
+
+export type HubspotPageDraftBody = {
+  name: string;
+  language: string;
+  htmlTitle: string;
+  metaDescription: string;
+  featuredImageAltText: string;
+  widgets: HubspotJson;
+  layoutSections: HubspotJson;
+  widgetContainers: HubspotJson;
+};
+
+export type HubspotApiRequestBody = Record<string, string> | HubspotPageDraftBody;
 
 export type HubspotContentClient = {
   listEmails(): Promise<HubspotEmailSummary[]>;
@@ -95,7 +114,7 @@ export type HubspotContentClient = {
     name: string;
     language: string;
     subject: string;
-    widgets: unknown;
+    widgets: HubspotJson;
   }): Promise<void>;
   listBlogPosts(): Promise<HubspotBlogSummary[]>;
   getBlogPost(id: string): Promise<HubspotBlogRecord>;
@@ -159,7 +178,7 @@ type EmailLike = {
   name?: string;
   language?: string;
   subject?: string;
-  content?: { widgets?: unknown };
+  content?: { widgets?: HubspotJson };
   updatedAt?: Date | string;
 };
 
@@ -189,9 +208,9 @@ type PageLike = {
   htmlTitle?: string;
   metaDescription?: string;
   featuredImageAltText?: string;
-  widgets?: unknown;
-  layoutSections?: unknown;
-  widgetContainers?: unknown;
+  widgets?: HubspotJson;
+  layoutSections?: HubspotJson;
+  widgetContainers?: HubspotJson;
 };
 
 type HubspotApiResponse = {
@@ -204,7 +223,7 @@ export type HubspotSdk = {
   apiRequest?: (opts: {
     method: string;
     path: string;
-    body?: Record<string, string>;
+    body?: HubspotApiRequestBody;
     qs?: Record<string, string>;
   }) => Promise<HubspotApiResponse>;
   marketing: {
@@ -337,6 +356,22 @@ function pageSummary(page: PageLike): HubspotPageSummary {
   };
 }
 
+function parseStructuredField(value: HubspotJson | undefined): HubspotJson {
+  if (typeof value !== "string") {
+    return value ?? {};
+  }
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+    return {};
+  }
+  try {
+    const parsed: HubspotJson = JSON.parse(trimmed);
+    return isHubspotJsonObject(parsed) || Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 function pageRecord(page: PageLike, id: string): HubspotPageRecord {
   return {
     ...pageSummary(page),
@@ -344,13 +379,81 @@ function pageRecord(page: PageLike, id: string): HubspotPageRecord {
     htmlTitle: page.htmlTitle ?? "",
     metaDescription: page.metaDescription ?? "",
     featuredImageAltText: page.featuredImageAltText ?? "",
-    widgets: page.widgets ?? {},
-    layoutSections: page.layoutSections ?? {},
-    widgetContainers: page.widgetContainers ?? {},
+    widgets: parseStructuredField(page.widgets),
+    layoutSections: parseStructuredField(page.layoutSections),
+    widgetContainers: parseStructuredField(page.widgetContainers),
   };
 }
 
-function bindCmsPages(api: CmsPageApi, failureCode: string) {
+function pageCopySize(page: PageLike): number {
+  const document = buildPageDocument({
+    htmlTitle: page.htmlTitle ?? "",
+    metaDescription: page.metaDescription ?? "",
+    featuredImageAltText: page.featuredImageAltText ?? "",
+    widgets: parseStructuredField(page.widgets),
+    layoutSections: parseStructuredField(page.layoutSections),
+    widgetContainers: parseStructuredField(page.widgetContainers),
+  });
+  if (!hubspotDocumentHasCopy(document)) {
+    return 0;
+  }
+  return JSON.stringify(document).length;
+}
+
+function jsonString(record: { [key: string]: HubspotJson }, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+async function readRawPage(sdk: HubspotSdk, path: string): Promise<PageLike | null> {
+  if (!sdk.apiRequest) {
+    return null;
+  }
+  const response = await sdk.apiRequest({ method: "GET", path });
+  const text = await response.text();
+  if (!response.ok || !text) {
+    return null;
+  }
+  try {
+    const parsed: HubspotJson = JSON.parse(text);
+    if (!isHubspotJsonObject(parsed)) {
+      return null;
+    }
+    return {
+      id: jsonString(parsed, "id"),
+      name: jsonString(parsed, "name"),
+      language: jsonString(parsed, "language"),
+      translatedFromId: jsonString(parsed, "translatedFromId"),
+      htmlTitle: jsonString(parsed, "htmlTitle"),
+      metaDescription: jsonString(parsed, "metaDescription"),
+      featuredImageAltText: jsonString(parsed, "featuredImageAltText"),
+      widgets: parsed.widgets,
+      layoutSections: parsed.layoutSections,
+      widgetContainers: parsed.widgetContainers,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function withPageContent(base: PageLike, content: PageLike): PageLike {
+  return {
+    ...base,
+    htmlTitle: content.htmlTitle ?? base.htmlTitle,
+    metaDescription: content.metaDescription ?? base.metaDescription,
+    featuredImageAltText: content.featuredImageAltText ?? base.featuredImageAltText,
+    widgets: content.widgets ?? base.widgets,
+    layoutSections: content.layoutSections ?? base.layoutSections,
+    widgetContainers: content.widgetContainers ?? base.widgetContainers,
+  };
+}
+
+function bindCmsPages(
+  api: CmsPageApi,
+  failureCode: string,
+  collectionPath: string,
+  sdk: HubspotSdk,
+) {
   return {
     async list() {
       const results = await listPages((after) =>
@@ -369,6 +472,20 @@ function bindCmsPages(api: CmsPageApi, failureCode: string) {
       return results.filter((page) => page.id).map(pageSummary);
     },
     async get(id: string) {
+      const encodedId = encodeURIComponent(id);
+      const published = await readRawPage(sdk, `${collectionPath}/${encodedId}`);
+      const draft = await readRawPage(sdk, `${collectionPath}/${encodedId}/draft`);
+      if (published || draft) {
+        const base = published ?? draft;
+        if (!base) {
+          return pageRecord(await api.getById(id), id);
+        }
+        const chosen =
+          draft && pageCopySize(draft) > pageCopySize(published ?? draft)
+            ? withPageContent(base, draft)
+            : base;
+        return pageRecord(chosen, id);
+      }
       return pageRecord(await api.getById(id), id);
     },
     async createLanguageVariation(input: { id: string; language: string }) {
@@ -382,17 +499,28 @@ function bindCmsPages(api: CmsPageApi, failureCode: string) {
       return { id: created.id };
     },
     async updateDraft(input: HubspotPageDraft) {
-      const draft = new HubspotPageModel();
-      draft.name = input.name;
-      draft.language = input.language as HubspotPageModel["language"];
-      draft.htmlTitle = input.htmlTitle;
-      draft.metaDescription = input.metaDescription;
-      draft.featuredImageAltText = input.featuredImageAltText;
-      draft.widgets = (input.widgets ?? {}) as HubspotPageModel["widgets"];
-      draft.layoutSections = (input.layoutSections ?? {}) as HubspotPageModel["layoutSections"];
-      draft.widgetContainers = (input.widgetContainers ??
-        {}) as HubspotPageModel["widgetContainers"];
-      await api.updateDraft(input.id, draft);
+      const body = {
+        name: input.name,
+        language: input.language,
+        htmlTitle: input.htmlTitle,
+        metaDescription: input.metaDescription,
+        featuredImageAltText: input.featuredImageAltText,
+        widgets: input.widgets ?? {},
+        layoutSections: input.layoutSections ?? {},
+        widgetContainers: input.widgetContainers ?? {},
+      };
+      if (!sdk.apiRequest) {
+        throw new Error("hubspot_page_draft_failed");
+      }
+      const response = await sdk.apiRequest({
+        method: "PATCH",
+        path: `${collectionPath}/${encodeURIComponent(input.id)}/draft`,
+        body,
+      });
+      await response.text();
+      if (!response.ok) {
+        throw new Error(`hubspot_page_draft_failed:${response.status}`);
+      }
     },
   };
 }
@@ -422,7 +550,7 @@ async function requestMessageTemplate(
     body?: Record<string, string>;
     qs?: Record<string, string>;
   },
-): Promise<unknown> {
+): Promise<HubspotJson> {
   if (!sdk.apiRequest) {
     throw new Error("hubspot_message_template_request_failed");
   }
@@ -434,7 +562,8 @@ async function requestMessageTemplate(
   if (!text) {
     return {};
   }
-  return JSON.parse(text) as unknown;
+  const parsed: HubspotJson = JSON.parse(text);
+  return parsed;
 }
 
 function messageTemplateSummary(template: MessageTemplateLike): HubspotMessageTemplateSummary {
@@ -515,10 +644,14 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
   const landingPages = bindCmsPages(
     sdk.cms.pages.landingPagesApi,
     "hubspot_landing_page_variation_failed",
+    "/cms/v3/pages/landing-pages",
+    sdk,
   );
   const websitePages = bindCmsPages(
     sdk.cms.pages.sitePagesApi,
     "hubspot_website_page_variation_failed",
+    "/cms/v3/pages/site-pages",
+    sdk,
   );
 
   return {

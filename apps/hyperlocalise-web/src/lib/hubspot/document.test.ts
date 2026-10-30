@@ -215,6 +215,54 @@ describe("hubspot documents", () => {
     });
   });
 
+  it("reads module copy stored under value and on layout widgets", () => {
+    const live = {
+      htmlTitle: "",
+      metaDescription: "",
+      featuredImageAltText: "",
+      widgets: {
+        hero: {
+          id: "hero",
+          type: "module",
+          body: {
+            html: { value: "<p>Welcome to the homepage with a lot of text.</p>" },
+            alignment: { value: "left" },
+          },
+        },
+      },
+      layoutSections: {
+        dnd_area: {
+          rows: [
+            {
+              "0": {
+                widgets: [{ body: { html: "<p>Section copy that the editor shows.</p>" } }],
+              },
+            },
+          ],
+        },
+      },
+      widgetContainers: {},
+    };
+    const document = buildPageDocument(live);
+    expect(JSON.stringify(document)).toContain("Welcome to the homepage");
+    expect(JSON.stringify(document)).toContain("Section copy that the editor shows");
+    expect(JSON.stringify(document)).not.toContain("left");
+    const translated = mergeHubspotTranslations(document, {
+      "widgets.hero.body.html.value": "<p>Bienvenue sur la page d'accueil.</p>",
+    });
+    const applied = applyPageDocument(live, translated);
+    expect(applied.widgets).toMatchObject({
+      hero: {
+        id: "hero",
+        type: "module",
+        body: {
+          html: { value: "<p>Bienvenue sur la page d'accueil.</p>" },
+          alignment: { value: "left" },
+        },
+      },
+    });
+  });
+
   it("round-trips blog title, description, and body", () => {
     const html = buildBlogDocument({
       htmlTitle: "Launch & more",

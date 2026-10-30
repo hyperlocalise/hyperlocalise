@@ -15,11 +15,13 @@ Hyperlocalise translates the copy. HubSpot does not. Import reads primary market
 
 ## Connect HubSpot
 
-Open **Integrations** and choose **Connect** on **HubSpot**. Authorize the HubSpot account in the window that opens. The connection uses the existing `hubspot` WorkOS Pipes provider. The token is not stored in Hyperlocalise.
+Open **Integrations** and choose **Connect** on **HubSpot**. Authorize the HubSpot account in the window that opens. The connection uses the existing `hubspot` WorkOS Pipes provider. The token is not stored in Hyperlocalise. The marketplace app source is in `apps/hubspot-app`.
 
 ## Translate HubSpot content
 
 Add the **Translate HubSpot content** template from **Popular** or **Marketing**. It is mutually exclusive with Braze, Customer.io, and Loops. Choose the native project, then activate the automation.
+
+On the HubSpot tool, leave **Content to translate** empty to import every source item. Tick emails, forms, blog posts, landing pages, website pages, or message templates to translate only those. Locale copies stay out of the tree.
 
 A scheduled or manual run imports content. It does not push. Push runs only when you choose **Push to HubSpot** in the Content editor.
 

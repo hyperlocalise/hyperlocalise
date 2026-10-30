@@ -12,15 +12,27 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { createHubspotContentClientFromSdk, type HubspotSdk } from "./client";
+import {
+  createHubspotContentClientFromSdk,
+  type HubspotApiRequestBody,
+  type HubspotSdk,
+} from "./client";
+import { buildPageDocument, hubspotDocumentHasCopy, type HubspotJson } from "./document";
 
-function jsonResponse(status: number, body: unknown) {
+function jsonResponse(status: number, body: HubspotJson) {
   return {
     ok: status >= 200 && status < 300,
     status,
     text: async () => JSON.stringify(body),
   };
 }
+
+type ApiCall = {
+  method: string;
+  path: string;
+  body?: HubspotApiRequestBody;
+  qs?: Record<string, string>;
+};
 
 function sdkWith(apiRequest: HubspotSdk["apiRequest"]): HubspotSdk {
   return {
@@ -32,7 +44,7 @@ function sdkWith(apiRequest: HubspotSdk["apiRequest"]): HubspotSdk {
 
 describe("hubspot message templates", () => {
   it("lists, reads, creates, and updates templates through the SDK request client", async () => {
-    const calls: Array<{ method: string; path: string; body?: Record<string, string> }> = [];
+    const calls: ApiCall[] = [];
     const client = createHubspotContentClientFromSdk(
       sdkWith(async (opts) => {
         calls.push(opts);
@@ -53,7 +65,7 @@ describe("hubspot message templates", () => {
           });
         }
         if (opts.method === "POST") {
-          return jsonResponse(200, { id: "99", name: opts.body?.name });
+          return jsonResponse(200, { id: "99", name: opts.body?.name ?? "" });
         }
         return jsonResponse(200, {});
       }),
@@ -97,7 +109,7 @@ describe("hubspot message templates", () => {
   });
 
   it("creates a blog language variation before cloning a post into that language", async () => {
-    const calls: Array<{ method: string; path: string; body?: Record<string, string> }> = [];
+    const calls: ApiCall[] = [];
     let postVariations = 0;
     const blogs = {
       basicApi: {
@@ -133,6 +145,103 @@ describe("hubspot message templates", () => {
         method: "POST",
         path: "/cms/blog-settings/2026-09/settings/multi-language/create-language-variation",
         body: { id: "blog-1", language: "zh-cn", primaryLanguage: "en" },
+      },
+    ]);
+  });
+
+  it("reads draft module text when the published page is empty", async () => {
+    const client = createHubspotContentClientFromSdk(
+      sdkWith(async (opts) => {
+        if (opts.path === "/cms/v3/pages/site-pages/home") {
+          return jsonResponse(200, {
+            id: "home",
+            name: "Home",
+            language: "en",
+            widgets: {},
+            layoutSections: {},
+            widgetContainers: {},
+          });
+        }
+        if (opts.path === "/cms/v3/pages/site-pages/home/draft") {
+          return jsonResponse(200, {
+            id: "home",
+            name: "Home",
+            widgets: {
+              hero: {
+                id: "hero",
+                type: "module",
+                body: {
+                  html: { value: "<p>Welcome to the homepage with a lot of text.</p>" },
+                },
+              },
+            },
+            layoutSections: {
+              dnd_area: {
+                rows: [
+                  {
+                    "0": {
+                      widgets: [{ body: { html: "<p>Section copy that the editor shows.</p>" } }],
+                    },
+                  },
+                ],
+              },
+            },
+          });
+        }
+        return jsonResponse(404, {});
+      }),
+    );
+    const page = await client.getWebsitePage("home");
+    const document = buildPageDocument(page);
+    expect(hubspotDocumentHasCopy(document)).toBe(true);
+    expect(JSON.stringify(document)).toContain("Welcome to the homepage");
+    expect(JSON.stringify(document)).toContain("Section copy that the editor shows");
+  });
+
+  it("patches the page draft without dropping nested module fields", async () => {
+    const calls: ApiCall[] = [];
+    const layoutSections = {
+      dnd_area: {
+        rows: [
+          {
+            "0": {
+              widgets: [{ body: { html: "<p>Section copy that the editor shows.</p>" } }],
+            },
+          },
+        ],
+      },
+    };
+    const client = createHubspotContentClientFromSdk(
+      sdkWith(async (opts) => {
+        calls.push({ method: opts.method, path: opts.path, body: opts.body });
+        return jsonResponse(200, {});
+      }),
+    );
+    await client.updateLandingPageDraft({
+      id: "page-1",
+      name: "Landing page [zh-CN]",
+      language: "zh-cn",
+      htmlTitle: "Landing",
+      metaDescription: "",
+      featuredImageAltText: "",
+      widgets: {},
+      layoutSections,
+      widgetContainers: {},
+    });
+    expect(calls).toEqual([
+      {
+        method: "PATCH",
+        path: "/cms/v3/pages/landing-pages/page-1/draft",
+        body: {
+          name: "Landing page [zh-CN]",
+          language: "zh-cn",
+          htmlTitle: "Landing",
+          metaDescription: "",
+          featuredImageAltText: "",
+          widgets: {},
+          layoutSections,
+          widgetContainers: {},
+        },
       },
     ]);
   });

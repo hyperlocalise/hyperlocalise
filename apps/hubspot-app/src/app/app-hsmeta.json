@@ -1,0 +1,37 @@
+{
+  "uid": "hl_hubspot_app",
+  "type": "app",
+  "config": {
+    "description": "Localize HubSpot emails, forms, blog posts, landing pages, website pages, and message templates.",
+    "name": "Hyperlocalise",
+    "distribution": "marketplace",
+    "auth": {
+      "type": "oauth",
+      "redirectUrls": [
+        "https://api.workos.com/data-integrations/hubspot/8zTSkHjMsVuTc0gYgn9lrLqzp/callback"
+      ],
+      "requiredScopes": [
+        "oauth",
+        "content",
+        "forms",
+        "automation.email_templates.read",
+        "automation.email_templates.write"
+      ],
+      "optionalScopes": [],
+      "conditionallyRequiredScopes": []
+    },
+    "permittedUrls": {
+      "fetch": [
+        "https://api.hubapi.com"
+      ],
+      "iframe": [],
+      "img": []
+    },
+    "support": {
+      "supportEmail": "minh@hyperlocalise.com",
+      "documentationUrl": "https://www.hyperlocalise.com",
+      "supportUrl": "https://www.hyperlocalise.com",
+      "supportPhone": "+18005555555"
+    }
+  }
+}

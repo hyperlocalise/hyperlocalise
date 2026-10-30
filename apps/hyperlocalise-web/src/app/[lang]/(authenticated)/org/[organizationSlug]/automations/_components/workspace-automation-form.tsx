@@ -193,6 +193,7 @@ import {
 import { WorkspaceAutomationBrazeCampaignsSettings } from "./workspace-automation-braze-campaigns-settings";
 import { WorkspaceAutomationCustomerIoSettings } from "./workspace-automation-customer-io-settings";
 import { WorkspaceAutomationBrazeSettings } from "./workspace-automation-braze-settings";
+import { WorkspaceAutomationHubspotSettings } from "./workspace-automation-hubspot-settings";
 import { WorkspaceAutomationIterableSettings } from "./workspace-automation-iterable-settings";
 import { WorkspaceAutomationIntercomSettings } from "./workspace-automation-intercom-settings";
 import { WorkspaceAutomationSanitySettings } from "./workspace-automation-sanity-settings";
@@ -3276,6 +3277,13 @@ function ToolsSettings({
               />
             }
           >
+            <WorkspaceAutomationHubspotSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              hubspotConnected={hubspotConnected}
+              disabled={disabled}
+              onChange={onChange}
+            />
             <FieldError message={errors.hubspot} />
           </EditorRow>
         ) : null}

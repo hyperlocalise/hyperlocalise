@@ -160,6 +160,12 @@ export type WorkspaceAutomationFormState = {
   loopsSourceLocale: string;
   hubspotEnabled: boolean;
   hubspotSourceLocale: string;
+  hubspotEmailIds: string[];
+  hubspotFormIds: string[];
+  hubspotBlogPostIds: string[];
+  hubspotLandingPageIds: string[];
+  hubspotWebsitePageIds: string[];
+  hubspotMessageTemplateIds: string[];
   customerIoBroadcastIds: string[];
   customerIoCampaignIds: string[];
   customerIoNewsletterIds: string[];
@@ -511,6 +517,12 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     loopsSourceLocale: "en",
     hubspotEnabled: false,
     hubspotSourceLocale: "en",
+    hubspotEmailIds: [],
+    hubspotFormIds: [],
+    hubspotBlogPostIds: [],
+    hubspotLandingPageIds: [],
+    hubspotWebsitePageIds: [],
+    hubspotMessageTemplateIds: [],
     customerIoBroadcastIds: [],
     customerIoCampaignIds: [],
     customerIoNewsletterIds: [],
@@ -710,6 +722,12 @@ export function createWorkspaceAutomationFormStateFromRecord(
     loopsSourceLocale: loops?.sourceLocale ?? "en",
     hubspotEnabled: Boolean(hubspot?.enabled),
     hubspotSourceLocale: hubspot?.sourceLocale ?? "en",
+    hubspotEmailIds: hubspot?.emailIds ? [...hubspot.emailIds] : [],
+    hubspotFormIds: hubspot?.formIds ? [...hubspot.formIds] : [],
+    hubspotBlogPostIds: hubspot?.blogPostIds ? [...hubspot.blogPostIds] : [],
+    hubspotLandingPageIds: hubspot?.landingPageIds ? [...hubspot.landingPageIds] : [],
+    hubspotWebsitePageIds: hubspot?.websitePageIds ? [...hubspot.websitePageIds] : [],
+    hubspotMessageTemplateIds: hubspot?.messageTemplateIds ? [...hubspot.messageTemplateIds] : [],
     customerIoBroadcastIds: customerIo?.broadcastIds ? [...customerIo.broadcastIds] : [],
     customerIoCampaignIds: customerIo?.campaignIds ? [...customerIo.campaignIds] : [],
     customerIoNewsletterIds: customerIo?.newsletterIds ? [...customerIo.newsletterIds] : [],
@@ -1072,12 +1090,12 @@ export function formStateToWorkspaceAutomationPayload(
           hubspot: {
             enabled: true,
             sourceLocale: form.hubspotSourceLocale.trim() || "en",
-            emailIds: [],
-            formIds: [],
-            blogPostIds: [],
-            landingPageIds: [],
-            websitePageIds: [],
-            messageTemplateIds: [],
+            emailIds: form.hubspotEmailIds,
+            formIds: form.hubspotFormIds,
+            blogPostIds: form.hubspotBlogPostIds,
+            landingPageIds: form.hubspotLandingPageIds,
+            websitePageIds: form.hubspotWebsitePageIds,
+            messageTemplateIds: form.hubspotMessageTemplateIds,
             existingTranslationPolicy: "seed_empty",
             overwriteWhenRemoteNewer: true,
           },

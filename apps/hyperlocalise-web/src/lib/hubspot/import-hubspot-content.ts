@@ -38,7 +38,9 @@ import {
   messageTemplateHasCopy,
   hashHubspotContent,
   hubspotDocumentHasCopy,
+  isHubspotJsonObject,
   serializeHubspotDocument,
+  type HubspotJson,
 } from "./document";
 import {
   assignHubspotLocales,
@@ -756,7 +758,10 @@ async function importCmsPages(input: {
       const page = await input.get(summary.id);
       const document = buildPageDocument(page);
       if (!hubspotDocumentHasCopy(document)) {
-        noteSkip(input.result, `${pageLabel} "${summary.name}" has no translatable text`);
+        noteSkip(
+          input.result,
+          `${pageLabel} "${summary.name}" has no module text on the published page or its draft. HubSpot keeps unchanged template copy on the template, not the page.`,
+        );
         continue;
       }
       await importOne({
@@ -785,15 +790,14 @@ async function importCmsPages(input: {
   }
 }
 
-export function readHubspotDocumentJson(content: string) {
+export function readHubspotDocumentJson(content: string): { [key: string]: HubspotJson } | null {
   const parsed = safeJsonParse(content);
-  if (
-    !parsed.ok ||
-    !parsed.value ||
-    typeof parsed.value !== "object" ||
-    Array.isArray(parsed.value)
-  ) {
+  if (!parsed.ok) {
     return null;
   }
-  return parsed.value as Record<string, unknown>;
+  const value: HubspotJson = parsed.value;
+  if (!isHubspotJsonObject(value)) {
+    return null;
+  }
+  return value;
 }

@@ -40,6 +40,7 @@ import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-
 import { createBrazeRoutes } from "./routes/braze/braze.route";
 import { createLoopsRoutes } from "./routes/loops/loops.route";
 import { createCustomerIoRoutes } from "./routes/customer-io/customer-io.route";
+import { createHubspotRoutes } from "./routes/hubspot/hubspot.route";
 import { createIterableRoutes } from "./routes/iterable/iterable.route";
 import { createPipesRoutes } from "./routes/pipes/pipes.route";
 import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
@@ -180,6 +181,7 @@ export function createOrgIntegrationsRoutes() {
     .route("/braze", createBrazeRoutes())
     .route("/loops", createLoopsRoutes())
     .route("/customer-io", createCustomerIoRoutes())
+    .route("/hubspot", createHubspotRoutes())
     .route("/iterable", createIterableRoutes())
     .route("/intercom-connections", createIntercomConnectionRoutes())
     .route("/canva-connections", createCanvaConnectionRoutes())
