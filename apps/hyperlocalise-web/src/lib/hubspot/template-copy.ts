@@ -13,7 +13,9 @@
 
 import type { HubspotJson } from "./document";
 
-const PARTIAL_TAG = /\{%\s*include_dnd_partial\b([\s\S]*?)%\}/g;
+const INCLUDE_TAG =
+  /\{%\s*(include_dnd_partial|global_partial|dnd_partial|include|extends)\b([\s\S]*?)%\}/g;
+const TEXT_TAG = /\{%\s*(?:text|textarea|rich_text)\b([\s\S]*?)%\}/g;
 const MODULE_ATTRIBUTE =
   /\{%\s*module_attribute\s+["']([A-Za-z0-9_]+)["']\s*%\}([\s\S]*?)\{%\s*end_module_attribute\s*%\}/g;
 const FIELD_ATTRIBUTE =
@@ -59,10 +61,10 @@ export function resolveTemplatePath(fromFile: string, includePath: string): stri
 }
 
 export function listDndPartialPaths(source: string): string[] {
-  PARTIAL_TAG.lastIndex = 0;
+  INCLUDE_TAG.lastIndex = 0;
   const paths: string[] = [];
-  for (const match of source.matchAll(PARTIAL_TAG)) {
-    const path = readNamedString(match[1] ?? "", "path");
+  for (const match of source.matchAll(INCLUDE_TAG)) {
+    const path = includePathFromTag(match[1] ?? "", match[2] ?? "");
     if (path) {
       paths.push(path);
     }
@@ -147,9 +149,9 @@ function inlinePartials(
   if (depth > 4) {
     return source;
   }
-  PARTIAL_TAG.lastIndex = 0;
-  return source.replace(PARTIAL_TAG, (_full, body: string) => {
-    const includePath = readNamedString(body, "path");
+  INCLUDE_TAG.lastIndex = 0;
+  return source.replace(INCLUDE_TAG, (_full, tag: string, body: string) => {
+    const includePath = includePathFromTag(tag, body);
     if (!includePath) {
       return "";
     }
@@ -172,6 +174,7 @@ function collectModules(source: string): Array<{ field: string; value: string }>
   MODULE_ATTRIBUTE.lastIndex = 0;
   FIELD_ATTRIBUTE.lastIndex = 0;
   ALT_ATTRIBUTE.lastIndex = 0;
+  TEXT_TAG.lastIndex = 0;
   const modules: Array<{ field: string; value: string }> = [];
   const occupied: Array<{ start: number; end: number }> = [];
   for (const match of source.matchAll(MODULE_ATTRIBUTE)) {
@@ -190,6 +193,9 @@ function collectModules(source: string): Array<{ field: string; value: string }>
       continue;
     }
     pushModule(modules, (match[1] ?? "").toLowerCase(), readAttributeValue(match[2] ?? ""));
+  }
+  for (const match of source.matchAll(TEXT_TAG)) {
+    pushModule(modules, "text", readNamedString(match[1] ?? "", "value") ?? "");
   }
   for (const match of source.matchAll(ALT_ATTRIBUTE)) {
     if (
@@ -270,6 +276,18 @@ function closingBrace(source: string, openIndex: number): number {
     }
   }
   return source.length;
+}
+
+function includePathFromTag(tag: string, body: string): string | null {
+  const named = readNamedString(body, "path");
+  if (named) {
+    return named;
+  }
+  if (tag === "extends" || tag === "include" || tag === "global_partial" || tag === "dnd_partial") {
+    const quoted = /["']([^"']+)["']/.exec(body);
+    return quoted?.[1] ?? null;
+  }
+  return null;
 }
 
 function readNamedString(body: string, name: string): string | null {

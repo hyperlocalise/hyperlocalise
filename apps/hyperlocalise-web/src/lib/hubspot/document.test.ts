@@ -265,6 +265,39 @@ describe("hubspot documents", () => {
     });
   });
 
+  it("reads section html nested inside a value object", () => {
+    const live = {
+      htmlTitle: "Launch",
+      metaDescription: "",
+      featuredImageAltText: "",
+      postBody: "<p>The opening paragraph of the article.</p>",
+      postSummary: "",
+      rssBody:
+        "<h2>Section heading with a lot of text</h2><p>Section body copy that was missing.</p>",
+      rssSummary: "",
+      widgets: {
+        hero: {
+          body: {
+            richtext_field: {
+              value: {
+                content:
+                  "<h2>Section heading with a lot of text</h2><p>Section body copy that was missing.</p>",
+                type: "html",
+              },
+            },
+          },
+        },
+      },
+      layoutSections: {},
+    };
+    const document = buildBlogContentDocument(live);
+    const serialized = JSON.stringify(document);
+    expect(serialized).toContain("The opening paragraph of the article");
+    expect(serialized).toContain("Section body copy that was missing");
+    expect(serialized).not.toContain('"type":"html"');
+    expect(document.rssBody).toBe(live.rssBody);
+  });
+
   it("keeps blog section text with the post body", () => {
     const live = {
       htmlTitle: "Launch",

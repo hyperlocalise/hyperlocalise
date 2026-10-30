@@ -24,6 +24,7 @@ import { HUBSPOT_LIST_PAGE_SIZE } from "./constants";
 import {
   buildBlogContentDocument,
   buildPageDocument,
+  collectCopyTree,
   hubspotDocumentHasCopy,
   isHubspotJsonObject,
   type HubspotJson,
@@ -59,6 +60,7 @@ export type HubspotBlogRecord = HubspotBlogSummary & {
   featuredImageAltText: string;
   postBody: string;
   postSummary: string;
+  rssBody: string;
   rssSummary: string;
   widgets: HubspotJson;
   layoutSections: HubspotJson;
@@ -122,6 +124,7 @@ export type HubspotBlogDraftBody = {
   postBody: string;
   featuredImageAltText?: string;
   postSummary?: string;
+  rssBody?: string;
   rssSummary?: string;
   widgets?: HubspotJson;
   layoutSections?: HubspotJson;
@@ -155,6 +158,7 @@ export type HubspotContentClient = {
     postBody: string;
     featuredImageAltText?: string;
     postSummary?: string;
+    rssBody?: string;
     rssSummary?: string;
     widgets?: HubspotJson;
     layoutSections?: HubspotJson;
@@ -227,6 +231,7 @@ type BlogLike = {
   featuredImageAltText?: string;
   postBody?: string;
   postSummary?: string;
+  rssBody?: string;
   rssSummary?: string;
   widgets?: HubspotJson;
   layoutSections?: HubspotJson;
@@ -399,6 +404,7 @@ function blogRecord(post: BlogLike, id: string): HubspotBlogRecord {
     featuredImageAltText: post.featuredImageAltText ?? "",
     postBody: post.postBody ?? "",
     postSummary: post.postSummary ?? "",
+    rssBody: post.rssBody ?? "",
     rssSummary: post.rssSummary ?? "",
     widgets: parseStructuredField(post.widgets),
     layoutSections: parseStructuredField(post.layoutSections),
@@ -407,14 +413,57 @@ function blogRecord(post: BlogLike, id: string): HubspotBlogRecord {
   };
 }
 
-function blogCopySize(post: BlogLike): number {
-  const document = buildBlogContentDocument(blogRecord(post, post.id ?? ""));
-  return hubspotDocumentHasCopy(document) ? JSON.stringify(document).length : 0;
-}
-
 function blogLayoutHasCopy(post: HubspotBlogRecord): boolean {
   const document = buildBlogContentDocument(post);
-  return Boolean(document.layoutSections || document.widgets || document.widgetContainers);
+  return Boolean(document.layoutSections);
+}
+
+function visibleCopyLength(value: string | undefined): number {
+  return (value ?? "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim().length;
+}
+
+function richerText(primary: string | undefined, secondary: string | undefined): string {
+  const left = primary ?? "";
+  const right = secondary ?? "";
+  return visibleCopyLength(right) > visibleCopyLength(left) ? right : left;
+}
+
+function structuredScore(value: HubspotJson | undefined): number {
+  const tree = collectCopyTree(parseStructuredField(value));
+  return Object.keys(tree).length === 0 ? 0 : JSON.stringify(tree).length;
+}
+
+function mergeBlogBuffers(published: BlogLike, draft: BlogLike): BlogLike {
+  return {
+    ...published,
+    htmlTitle: richerText(published.htmlTitle, draft.htmlTitle),
+    metaDescription: richerText(published.metaDescription, draft.metaDescription),
+    featuredImageAltText: richerText(published.featuredImageAltText, draft.featuredImageAltText),
+    postBody: richerText(published.postBody, draft.postBody),
+    postSummary: richerText(published.postSummary, draft.postSummary),
+    rssBody: richerText(published.rssBody, draft.rssBody),
+    rssSummary: richerText(published.rssSummary, draft.rssSummary),
+    widgets:
+      structuredScore(draft.widgets) > structuredScore(published.widgets)
+        ? draft.widgets
+        : published.widgets,
+    layoutSections:
+      structuredScore(draft.layoutSections) > structuredScore(published.layoutSections)
+        ? draft.layoutSections
+        : published.layoutSections,
+    widgetContainers:
+      structuredScore(draft.widgetContainers) > structuredScore(published.widgetContainers)
+        ? draft.widgetContainers
+        : published.widgetContainers,
+    templatePath: draft.templatePath || published.templatePath,
+    name: draft.name || published.name,
+    language: draft.language || published.language,
+    translatedFromId: published.translatedFromId || draft.translatedFromId,
+    id: published.id || draft.id,
+  };
 }
 
 function pageSummary(page: PageLike): HubspotPageSummary {
@@ -501,6 +550,7 @@ async function readRawBlog(sdk: HubspotSdk, path: string): Promise<BlogLike | nu
       featuredImageAltText: jsonString(parsed, "featuredImageAltText"),
       postBody: jsonString(parsed, "postBody"),
       postSummary: jsonString(parsed, "postSummary"),
+      rssBody: jsonString(parsed, "rssBody"),
       rssSummary: jsonString(parsed, "rssSummary"),
       widgets: parsed.widgets,
       layoutSections: parsed.layoutSections,
@@ -1128,8 +1178,7 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
       if (published || draft) {
         const base = published ?? draft;
         if (base) {
-          const chosen =
-            draft && blogCopySize(draft) > blogCopySize(published ?? draft) ? draft : base;
+          const chosen = published && draft ? mergeBlogBuffers(published, draft) : base;
           return blogWithTemplateSections(sdk, blogRecord(chosen, id), chosen.templatePath);
         }
       }
@@ -1179,6 +1228,9 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
       }
       if (input.postSummary !== undefined) {
         body.postSummary = input.postSummary;
+      }
+      if (input.rssBody !== undefined) {
+        body.rssBody = input.rssBody;
       }
       if (input.rssSummary !== undefined) {
         body.rssSummary = input.rssSummary;

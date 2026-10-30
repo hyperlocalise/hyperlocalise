@@ -71,11 +71,10 @@ function isProseValue(value: string): boolean {
 
 function isLockedKey(key: string, value: HubspotJson): boolean {
   const normalized = key.trim().toLowerCase();
-  if (
-    (normalized === "value" || normalized === "defaultvalue") &&
-    typeof value === "string" &&
-    isProseValue(value)
-  ) {
+  if (normalized === "value" || normalized === "defaultvalue") {
+    if (typeof value === "string") {
+      return !isProseValue(value);
+    }
     return false;
   }
   return LOCKED_KEYS.has(normalized);
@@ -271,12 +270,20 @@ export function buildPageDocument(input: {
   return document;
 }
 
+function visibleCopy(value: string): string {
+  return value
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function buildBlogContentDocument(input: {
   htmlTitle: string;
   metaDescription: string;
   featuredImageAltText: string;
   postBody: string;
   postSummary: string;
+  rssBody?: string;
   rssSummary: string;
   widgets: HubspotJson;
   layoutSections: HubspotJson;
@@ -285,6 +292,14 @@ export function buildBlogContentDocument(input: {
   const document = buildPageDocument(input);
   if (isCopyString(input.postBody)) {
     document.postBody = input.postBody;
+  }
+  const rssBody = input.rssBody ?? "";
+  if (isCopyString(rssBody)) {
+    const rss = visibleCopy(rssBody);
+    const body = visibleCopy(input.postBody);
+    if (rss && !body.includes(rss)) {
+      document.rssBody = rssBody;
+    }
   }
   if (isCopyString(input.postSummary)) {
     document.postSummary = input.postSummary;
@@ -302,6 +317,7 @@ export function applyBlogContentDocument(
     featuredImageAltText: string;
     postBody: string;
     postSummary: string;
+    rssBody?: string;
     rssSummary: string;
     widgets: HubspotJson;
     layoutSections: HubspotJson;
@@ -314,6 +330,7 @@ export function applyBlogContentDocument(
   featuredImageAltText: string;
   postBody: string;
   postSummary: string;
+  rssBody: string;
   rssSummary: string;
   widgets: HubspotJson;
   layoutSections: HubspotJson;
@@ -323,6 +340,7 @@ export function applyBlogContentDocument(
   return {
     ...page,
     postBody: typeof translated.postBody === "string" ? translated.postBody : live.postBody,
+    rssBody: typeof translated.rssBody === "string" ? translated.rssBody : (live.rssBody ?? ""),
     postSummary:
       typeof translated.postSummary === "string" ? translated.postSummary : live.postSummary,
     rssSummary: typeof translated.rssSummary === "string" ? translated.rssSummary : live.rssSummary,

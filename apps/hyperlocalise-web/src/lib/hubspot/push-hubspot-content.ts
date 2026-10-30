@@ -364,6 +364,7 @@ export async function runPushHubspotContent(input: {
               featuredImageAltText: applied.featuredImageAltText,
               postBody: applied.postBody,
               postSummary: applied.postSummary,
+              rssBody: applied.rssBody || undefined,
               rssSummary: applied.rssSummary,
               widgets: applied.widgets,
               layoutSections: applied.layoutSections,

@@ -416,6 +416,49 @@ describe("hubspot message templates", () => {
     expect(document.postBody).toBe("<p>Intro</p>");
   });
 
+  it("keeps the published article and the draft section copy", async () => {
+    const article =
+      "<p>The full article with a lot of section text that only the published post still has.</p>";
+    const client = createHubspotContentClientFromSdk(
+      sdkWith(async (opts) => {
+        if (opts.path.endsWith("/draft")) {
+          return jsonResponse(200, {
+            id: "post-1",
+            name: "Launch",
+            htmlTitle: "Launch",
+            postBody: "<p>Intro</p>",
+            widgets: {
+              hero: {
+                body: {
+                  richtext_field: {
+                    value: {
+                      content:
+                        "<h2>Draft section heading</h2><p>Draft section body with a lot of text.</p>",
+                    },
+                  },
+                },
+              },
+            },
+            layoutSections: {},
+          });
+        }
+        return jsonResponse(200, {
+          id: "post-1",
+          name: "Launch",
+          htmlTitle: "Launch",
+          postBody: article,
+          widgets: {},
+          layoutSections: {},
+        });
+      }),
+    );
+    const post = await client.getBlogPost("post-1");
+    const document = buildBlogContentDocument(post);
+    const serialized = JSON.stringify(document);
+    expect(document.postBody).toBe(article);
+    expect(serialized).toContain("Draft section body with a lot of text");
+  });
+
   it("reads blog template sections when the post layout is empty", async () => {
     const template = `{% dnd_area "dnd_area" %}
       {% dnd_module path="@hubspot/rich_text" %}

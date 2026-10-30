@@ -69,4 +69,32 @@ describe("hubspot template copy", () => {
     expect(serialized).toContain("grayscale mountains");
     expect(serialized).not.toContain("Default headline");
   });
+
+  it("follows extends and text tags", () => {
+    const layout = layoutSectionsFromTemplateFiles(
+      new Map([
+        [
+          "theme/templates/blog-post.html",
+          `{% extends "./layouts/base.html" %}
+           {% text "kicker" label="Kicker" value="From the journal" %}`,
+        ],
+        [
+          "theme/templates/layouts/base.html",
+          `{% dnd_area "dnd_area" %}
+             {% include "../sections/read-on.html" %}
+           {% end_dnd_area %}`,
+        ],
+        [
+          "theme/templates/sections/read-on.html",
+          `{% module_attribute "html" %}
+             <h2>Keep reading this section.</h2>
+           {% end_module_attribute %}`,
+        ],
+      ]),
+      "theme/templates/blog-post.html",
+    );
+    const serialized = JSON.stringify(layout);
+    expect(serialized).toContain("From the journal");
+    expect(serialized).toContain("Keep reading this section");
+  });
 });
