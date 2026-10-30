@@ -97,9 +97,9 @@ func queryReportingPricedUnits(ctx context.Context, db dictionaryDB, in reportin
 	projects := "s.project_id = any(" + args.add(in.projectIDs) + "::text[])"
 	value := func(unit string) string {
 		if in.measure == "toCome" {
-			return "s.arrived_" + unit + " - s.arrived_done_" + unit
+			return reportingMeasure("arrived", unit) + " - " + reportingMeasure("arrived_done", unit)
 		}
-		return "s.arrived_" + unit
+		return reportingMeasure("arrived", unit)
 	}
 	// Still to come counts only the uncounted strings that cannot all be among the done ones.
 	uncounted := "s.arrived_uncounted"

@@ -215,7 +215,8 @@ func (api *reportingAPI) logTime(r *http.Request, actor reportingActor) (any, in
 	return map[string]any{"timeEntry": map[string]string{"id": entry.ID}}, http.StatusCreated, nil
 }
 
-// loadReportingTimeEntry reads one of the workspace's time entries in a project the viewer can open.
+// loadReportingTimeEntry reads and locks one of the workspace's time entries in a project the
+// viewer can open, so an edit waiting on a delete finds the entry gone instead of rewriting it.
 func loadReportingTimeEntry(ctx context.Context, db dictionaryDB, actor reportingActor, id string, includeVoided bool) (reportingTimeEntryRow, error) {
 	if !reportingValidText(id) {
 		return reportingTimeEntryRow{}, reportingFailure(404, "time_entry_not_found", "Resource not found")
@@ -224,7 +225,7 @@ func loadReportingTimeEntry(ctx context.Context, db dictionaryDB, actor reportin
 	if includeVoided {
 		voided = ""
 	}
-	entry, err := scanReportingTimeEntry(db.QueryRow(ctx, `select `+reportingTimeEntryColumns+` from reporting_time_entries where organization_id = $1 and id::text = $2`+voided, actor.organizationID, id))
+	entry, err := scanReportingTimeEntry(db.QueryRow(ctx, `select `+reportingTimeEntryColumns+` from reporting_time_entries where organization_id = $1 and id::text = $2`+voided+` for update`, actor.organizationID, id))
 	if isNoRows(err) {
 		return entry, reportingFailure(404, "time_entry_not_found", "Resource not found")
 	}

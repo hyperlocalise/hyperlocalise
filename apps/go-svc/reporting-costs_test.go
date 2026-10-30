@@ -123,6 +123,16 @@ func estimateRows(e map[string]any) map[string]map[string]any {
 	return rows
 }
 
+func TestReportingPricedUnitsRefuseAnUnvalidatedUnit(t *testing.T) {
+	f := seedReportingMoney(t)
+	require.PanicsWithValue(t, "reporting unit not validated: words; drop table jobs", func() {
+		_, _ = queryReportingPricedUnits(t.Context(), f.scope.Pool, reportingPricingInput{
+			organizationID: f.scope.OrganizationID, projectIDs: []string{f.scope.ProjectID},
+			step: "translation", unit: "words; drop table jobs", measure: "chosen",
+		})
+	})
+}
+
 func TestReportingEstimatePricesEachLineInItsOwnBasisAndDiscountsMatchBands(t *testing.T) {
 	f := seedReportingMoney(t)
 	f.card("Standard", "2026-03-01T00:00:00Z", line("fr-FR", "0.10", "word", `{"100": 20}`), line("ja-JP", "0.02", "character"))

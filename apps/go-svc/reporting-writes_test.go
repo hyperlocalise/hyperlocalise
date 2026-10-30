@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
@@ -318,6 +319,45 @@ func TestReportingAnEditRacingADeleteLeavesTheEntryVoided(t *testing.T) {
 		require.True(t, entryVoided)
 		require.True(t, costVoided)
 	}
+}
+
+func TestReportingAnEditWaitingOnADeleteDoesNotRewriteTheEntry(t *testing.T) {
+	f := seedReportingMoney(t)
+	job := f.job("job_edit_waits", f.scope.ProjectID, "running", false, "")
+	f.card("Hourly", "2026-03-01T00:00:00Z", line("fr-FR", "60", "hour"))
+	f.budget(f.scope.ProjectID, "1000", some("Hourly"))
+	status, body := f.send("admin", http.MethodPost, "/reports/time-entries", fmt.Sprintf(`{"jobId": "%s", "step": "translation", "targetLocale": "fr-FR", "workDate": "2026-06-01", "minutes": 30}`, job))
+	require.Equal(t, http.StatusCreated, status)
+	entryID := body["timeEntry"].(map[string]any)["id"].(string)
+
+	// A delete in progress: the entry is voided but not yet committed when the edit arrives.
+	deleting, err := f.scope.Pool.Begin(t.Context())
+	require.NoError(t, err)
+	defer func() { _ = deleting.Rollback(t.Context()) }()
+	_, err = deleting.Exec(t.Context(), `update reporting_time_entries set voided = true where id = $1`, entryID)
+	require.NoError(t, err)
+
+	api := reportingTestAPI(f.scope, "admin", stubWorkspaceFlags{enabled: true})
+	edited := make(chan int, 1)
+	go func() {
+		edited <- reportingRequest(t, api, f.scope.WorkOSUserID, http.MethodPatch, f.scope.OrgPath("/reports/time-entries/"+entryID), `{"minutes": 45, "workDate": "2026-06-02"}`).Code
+	}()
+	require.Eventually(t, func() bool {
+		var waiting int
+		err := f.scope.Pool.QueryRow(t.Context(), `select count(*) from pg_stat_activity where wait_event_type = 'Lock' and query like '%reporting_time_entries%'`).Scan(&waiting)
+		return err == nil && waiting > 0
+	}, 5*time.Second, 10*time.Millisecond, "the edit waits for the delete")
+	require.NoError(t, deleting.Commit(t.Context()))
+
+	require.Equal(t, http.StatusNotFound, <-edited)
+	var minutes int
+	var workDate string
+	require.NoError(t, f.scope.Pool.QueryRow(t.Context(), `select minutes, work_date::date::text from reporting_time_entries where id = $1`, entryID).Scan(&minutes, &workDate))
+	require.Equal(t, 30, minutes)
+	require.Equal(t, "2026-06-01", workDate)
+	var audits int
+	require.NoError(t, f.scope.Pool.QueryRow(t.Context(), `select count(*) from reporting_audit where resource_id = $1 and action = 'time_updated'`, entryID).Scan(&audits))
+	require.Zero(t, audits)
 }
 
 func TestReportingLogTimeStartsReportsWithTheFirstRecord(t *testing.T) {
