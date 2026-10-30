@@ -403,6 +403,10 @@
     "defaultMessage": "Translation Memory Deleted",
     "description": "Activity log event type label for translation memory deletion"
   },
+  "+aXAY2+kkC": {
+    "defaultMessage": "Iterable",
+    "description": "Tool badge when an automation uses Iterable"
+  },
   "+ag6bbxEOO": {
     "defaultMessage": "Search or paste a REST endpoint",
     "description": "Search field placeholder for filtering Braze REST clusters by key or URL"
@@ -535,6 +539,10 @@
     "defaultMessage": "Summer campaign",
     "description": "Campaign name in the language review mock"
   },
+  "+nKpOXtDzW": {
+    "defaultMessage": "Reviewer type",
+    "description": "Human Approval reviewer type field"
+  },
   "+nZWq6LHzf": {
     "defaultMessage": "Who is Domains for?",
     "description": "Domains FAQ question about audience"
@@ -574,6 +582,10 @@
   "+sdjaNzt1g": {
     "defaultMessage": "Export",
     "description": "Button to export dictionary words for a locale"
+  },
+  "+sgsB9DEsj": {
+    "defaultMessage": "Last push failed",
+    "description": "Hint that the previous Iterable push for this item failed"
   },
   "+sh3FsSzlz": {
     "defaultMessage": "Keep job",
@@ -846,6 +858,10 @@
   "/E/r2gr9Yu": {
     "defaultMessage": "Approve",
     "description": "Primary action label in the marketing hero CAT workspace mock"
+  },
+  "/FSlgf2vD0": {
+    "defaultMessage": "Push to Iterable",
+    "description": "Button that opens the dialog to write approved templates to Iterable"
   },
   "/FgXiegnIL": {
     "defaultMessage": "Show API key",
@@ -1543,6 +1559,10 @@
     "defaultMessage": "Portuguese (Brazil)",
     "description": "Display name for BCP-47 locale pt-BR"
   },
+  "0NzbW+DFmc": {
+    "defaultMessage": "Visual Workflow Approval Decided",
+    "description": "Activity log event type label for visual workflow approval decisions"
+  },
   "0OJc7+rkfv": {
     "defaultMessage": "Reports",
     "description": "Heading of the Reports page"
@@ -1938,6 +1958,10 @@
   "0xs+BR2vTX": {
     "defaultMessage": "Could not save automation settings.",
     "description": "Fallback error when automation settings save fails without a specific message"
+  },
+  "0xu8XkGP+r": {
+    "defaultMessage": "Reject",
+    "description": "Button that rejects a workflow approval request."
   },
   "0yPPbm/1Fr": {
     "defaultMessage": "Same as source",
@@ -2470,6 +2494,10 @@
   "1t3wSermT8": {
     "defaultMessage": "Do we have to move our guidelines into Hyperlocalise?",
     "description": "Guidelines FAQ question about moving files"
+  },
+  "1tmaWw5UnV": {
+    "defaultMessage": "Decision: {status}",
+    "description": "Final status of a workflow approval request."
   },
   "1v2hbAXp/Y": {
     "defaultMessage": "Select all visible",
@@ -3647,6 +3675,10 @@
     "defaultMessage": "Enter URL",
     "description": "Dialog action to switch to entering an image URL"
   },
+  "3q2/mI8JxD": {
+    "defaultMessage": "Push {count, plural, one {# item} other {# items}}",
+    "description": "Confirm pushing the selected Iterable items"
+  },
   "3ql4zcu6fu": {
     "defaultMessage": "{count, plural, one {# issue selected} other {# issues selected}}",
     "description": "Summary of how many issues are selected for bulk actions"
@@ -3883,6 +3915,10 @@
     "defaultMessage": "Block on failure",
     "description": "Label for blocking automation when localization check fails"
   },
+  "47LR6Yvx6z": {
+    "defaultMessage": "US workspaces use api.customer.io, EU workspaces use api-eu.customer.io. The region must match the workspace that issued the key.",
+    "description": "Hint describing Iterable regions"
+  },
   "47f6OyGEXm": {
     "defaultMessage": "Active",
     "description": "Active status badge on a dictionary list row"
@@ -3910,6 +3946,10 @@
   "49YaqKVm8d": {
     "defaultMessage": "Scheduling…",
     "description": "Button label while scheduling subscription cancellation"
+  },
+  "49xYhuwsTz": {
+    "defaultMessage": "Human approval",
+    "description": "Human Approval node title"
   },
   "4Aefl4GjbY": {
     "defaultMessage": "Languages.\nSearch.\nAI answers.",
@@ -4383,6 +4423,10 @@
     "defaultMessage": "Locale: {value}",
     "description": "Active issue filter chip showing the selected locale"
   },
+  "4zcExBLEmu": {
+    "defaultMessage": "No mapped items",
+    "description": "Empty state when an Iterable automation has no mapped items"
+  },
   "4zerueK9Yh": {
     "defaultMessage": "Target locale",
     "description": "Label for the target locale field on a translation memory entry"
@@ -4575,6 +4619,10 @@
     "defaultMessage": "Update role",
     "description": "Confirm button to update a workspace member’s role"
   },
+  "5G+03OcnR5": {
+    "defaultMessage": "Iterable push queued",
+    "description": "Toast after an Iterable push automation run is queued"
+  },
   "5G9CHzXNWL": {
     "defaultMessage": "Privacy",
     "description": "Marketing navbar link to the privacy policy"
@@ -4666,6 +4714,10 @@
   "5PujJrZ8+Q": {
     "defaultMessage": "Current",
     "description": "Badge on the version a translation holds now"
+  },
+  "5QCLOyM73i": {
+    "defaultMessage": "Push policy",
+    "description": "Label for the selected automation Iterable overwrite rule"
   },
   "5QHtbyWfn3": {
     "defaultMessage": "See the world in a different light.",
@@ -4842,6 +4894,10 @@
   "5g8T9JckU6": {
     "defaultMessage": "Choose a CSV or TMX file",
     "description": "Prompt inside the translation memory file upload area"
+  },
+  "5grheSIGTQ": {
+    "defaultMessage": "Could not load items",
+    "description": "Error when mapped Iterable items fail to load"
   },
   "5h52MoVR2a": {
     "defaultMessage": "Only project managers can change this setting.",
@@ -5898,6 +5954,10 @@
   "7SvzEySkCN": {
     "defaultMessage": "Thinking...",
     "description": "Label shown while the model is actively reasoning"
+  },
+  "7UHXRMjl+Y": {
+    "defaultMessage": "Overwrite Iterable locales when the remote locale is newer.",
+    "description": "Explains the selected automation overwrites newer Iterable locales on push"
   },
   "7UoNPs2uZA": {
     "defaultMessage": "Related",
@@ -7539,6 +7599,10 @@
     "defaultMessage": "Translate with agent",
     "description": "Submit button in the translate locale with agent dialog"
   },
+  "A6HUkdtfW1": {
+    "defaultMessage": "Iterable disconnected.",
+    "description": "Toast after Iterable is disconnected"
+  },
   "A6g1n+wasr": {
     "defaultMessage": "Slack",
     "description": "Slack integration name on the integrations page"
@@ -7858,6 +7922,10 @@
   "Aa0lbVkG8M": {
     "defaultMessage": "Connect {provider}",
     "description": "Button label to start connecting a TMS user account"
+  },
+  "AaJTPoHaG4": {
+    "defaultMessage": "Rejected",
+    "description": "Human Approval rejected execution branch"
   },
   "Ab8vwYJKWj": {
     "defaultMessage": "Reviewers",
@@ -8179,6 +8247,10 @@
     "defaultMessage": "created a query",
     "description": "Action for creating a Query"
   },
+  "BAVhY/G3pP": {
+    "defaultMessage": "Approve",
+    "description": "Button that approves a workflow approval request."
+  },
   "BB3vZ37Hlg": {
     "defaultMessage": "Note",
     "description": "Column heading: the note on a time entry"
@@ -8198,6 +8270,10 @@
   "BBrh+7z4Oj": {
     "defaultMessage": "Could not load linked domains.",
     "description": "Error when the domains list fails to load"
+  },
+  "BC+EYtp52c": {
+    "defaultMessage": "User",
+    "description": "Human Approval user reviewer option"
   },
   "BCYAAWW4I+": {
     "defaultMessage": "Update payment methods, review invoices, and manage subscription billing details.",
@@ -8698,6 +8774,10 @@
   "C0LtvlP3Fa": {
     "defaultMessage": "View original issue",
     "description": "Link to the canonical issue this one is a duplicate of"
+  },
+  "C0jp5QUb8B": {
+    "defaultMessage": "Iterable",
+    "description": "Name of the Iterable integration in the hint on a skill that needs it connected"
   },
   "C0s0NtIxgf": {
     "defaultMessage": "Choose an API key.",
@@ -9579,6 +9659,10 @@
     "defaultMessage": "Only approved translations are pushed. Approve translated strings in the Content editor first.",
     "description": "Hint in a Content editor push dialog that translations must be approved first"
   },
+  "DNiUebuhkV": {
+    "defaultMessage": "Hide API key",
+    "description": "Aria label for hiding the Iterable API key field"
+  },
   "DOGd1ZI3w4": {
     "defaultMessage": "Localization PM",
     "description": "Marketing homepage testimonial speaker role"
@@ -9755,6 +9839,10 @@
     "defaultMessage": "Retry",
     "description": "Retry loading import history"
   },
+  "DgvKFCDcyk": {
+    "defaultMessage": "Team",
+    "description": "Human Approval team reviewer option"
+  },
   "DhOP2jRCDv": {
     "defaultMessage": "Every review makes the next one smarter",
     "description": "Knowledge mock UI section heading"
@@ -9866,6 +9954,10 @@
   "DtVOLEpfXB": {
     "defaultMessage": "Long text",
     "description": "Issue column type label for long text"
+  },
+  "DtXtrgUH7z": {
+    "defaultMessage": "Could not load this approval request.",
+    "description": "Error shown when an approval request cannot be loaded in Inbox."
   },
   "Dtr9SPmsqm": {
     "defaultMessage": "Done",
@@ -10974,6 +11066,10 @@
   "Fb4AJ4nGEX": {
     "defaultMessage": "Search by name or job",
     "description": "Placeholder for the pricing model search field"
+  },
+  "Fb6qGloXW4": {
+    "defaultMessage": "Choose a project above to pick a source locale.",
+    "description": "Empty state when the Iterable source locale needs a project first"
   },
   "FcPrCbZm2T": {
     "defaultMessage": "Remove case {index}",
@@ -13154,6 +13250,10 @@
   "JHFSIHw0S8": {
     "defaultMessage": "Custom",
     "description": "Badge for custom issue columns"
+  },
+  "JHWc0sKhNb": {
+    "defaultMessage": "Job reference (optional)",
+    "description": "Human Approval job reference field"
   },
   "JHq50CfofL": {
     "defaultMessage": "Delete",
@@ -15503,6 +15603,10 @@
     "defaultMessage": "Control how source strings are organized in the Content Editor.",
     "description": "Content Editor settings section description"
   },
+  "NCCUCBym5a": {
+    "defaultMessage": "Artifact reference (optional)",
+    "description": "Human Approval protected artifact reference field"
+  },
   "NCfwtZnJJa": {
     "defaultMessage": "Localize marketing emails, landing pages, and CRM messages in HubSpot.",
     "description": "HubSpot integration description on the integrations page"
@@ -15514,6 +15618,10 @@
   "NE7U3TnX7s": {
     "defaultMessage": "Content Editor segment",
     "description": "Issue Sheet link kind for a Content Editor segment"
+  },
+  "NE8upo2g24": {
+    "defaultMessage": "Save",
+    "description": "Button to save the Iterable API key and region"
   },
   "NEC/JxS1Sr": {
     "defaultMessage": "Words to do",
@@ -16542,6 +16650,10 @@
   "P/9I6WaWRN": {
     "defaultMessage": "Updating issues...",
     "description": "Accessible label while a bulk issue action is running"
+  },
+  "P/A+PICJO5": {
+    "defaultMessage": "Artifact: {value}",
+    "description": "Artifact reference attached to a workflow approval request."
   },
   "P/F9NX4KdB": {
     "defaultMessage": "Try again",
@@ -18067,6 +18179,10 @@
     "defaultMessage": "Volume",
     "description": "Keyword research column for search volume"
   },
+  "RYBotpnmvI": {
+    "defaultMessage": "Clear",
+    "description": "Clear the Iterable item selection"
+  },
   "RYfCDsRyCY": {
     "defaultMessage": "We've reached today's limit of {limit} scheduled audits. Try again tomorrow.",
     "description": "Error when the scheduled localisation audit daily quota is exhausted"
@@ -18334,6 +18450,10 @@
   "Rxt6SwzGmb": {
     "defaultMessage": "From a live page to a page people can find.",
     "description": "Caption under the Domains preview"
+  },
+  "Ry2r5dDh9I": {
+    "defaultMessage": "Failed to save the Iterable connection.",
+    "description": "Error when the Iterable connection cannot be saved"
   },
   "RyWMmOUI3f": {
     "defaultMessage": "example.com",
@@ -18710,6 +18830,10 @@
   "SgbEZXiCwZ": {
     "defaultMessage": "Japan can try a new checkout while France keeps the original. Learn what works in one country before every market sees it.",
     "description": "Body copy for the Hyperlab solutions section"
+  },
+  "Sgi+3mXXoM": {
+    "defaultMessage": "Search templates and snippets",
+    "description": "Accessible label for the Iterable item search field"
   },
   "SgpR5Qp/zA": {
     "defaultMessage": "GitHub release localisation",
@@ -19367,6 +19491,10 @@
     "defaultMessage": "French launch",
     "description": "Third breadcrumb in the marketing hero CAT workspace mock"
   },
+  "TgL4sBNIk6": {
+    "defaultMessage": "requested visual workflow approval",
+    "description": "Action for requesting visual workflow approval"
+  },
   "Th3qMjLdD4": {
     "defaultMessage": "Select at least one file.",
     "description": "Validation error when creating a job without files"
@@ -19394,6 +19522,10 @@
   "TjFXSXtMQ3": {
     "defaultMessage": "Timing preserved",
     "description": "Status line in the video format mock"
+  },
+  "Tja6Ch0Bu3": {
+    "defaultMessage": "Token ending in {suffix}",
+    "description": "Secondary Iterable connection detail showing the stored token suffix"
   },
   "TjhkeaKNqh": {
     "defaultMessage": "joined the workspace",
@@ -19831,6 +19963,10 @@
     "defaultMessage": "Added",
     "description": "Shortcut hint when a trigger or tool is already added"
   },
+  "UQPsFLITlV": {
+    "defaultMessage": "Loading approval request…",
+    "description": "Status shown while an approval request is loading in Inbox."
+  },
   "UQT1fdMFbW": {
     "defaultMessage": "Guideline",
     "description": "Feature teaser page title for guideline"
@@ -20158,6 +20294,10 @@
   "UyR75G1t9n": {
     "defaultMessage": "Undid the assistant's changes",
     "description": "Notice after a step made by the AI assistant was undone"
+  },
+  "UydwfJCeri": {
+    "defaultMessage": "Select all",
+    "description": "Select every mapped Iterable item in the push dialog"
   },
   "UznHMJ+o+o": {
     "defaultMessage": "Queries",
@@ -20734,6 +20874,10 @@
   "VxlBCadoU8": {
     "defaultMessage": "Iris by Hyperlocalise",
     "description": "Alternate schema.org name for the Iris product"
+  },
+  "VyFYd54o21": {
+    "defaultMessage": "Iterable connection saved.",
+    "description": "Toast after the Iterable API key and region are saved"
   },
   "VyUTnEU0ZM": {
     "defaultMessage": "Try refreshing the page.",
@@ -22307,6 +22451,10 @@
     "defaultMessage": "KB",
     "description": "Kilobyte size unit abbreviation"
   },
+  "Yg2qF7M7gl": {
+    "defaultMessage": "Loading items",
+    "description": "Shown while mapped Iterable items load"
+  },
   "YgXBEI+WDA": {
     "defaultMessage": "Import localization guidance from SharePoint.",
     "description": "SharePoint integration description on the integrations page"
@@ -22842,6 +22990,10 @@
   "Zb2NG5FzSq": {
     "defaultMessage": "Add entry",
     "description": "Button to add a new translation memory entry"
+  },
+  "Zbyw15pS8D": {
+    "defaultMessage": "Choose which mapped templates and snippets to update with approved translations. This only writes content — it never sends.",
+    "description": "Description of the Iterable item picker dialog"
   },
   "Zc3aO7AdzZ": {
     "defaultMessage": "Organization name",
@@ -23599,6 +23751,10 @@
     "defaultMessage": "Download",
     "description": "Submit button in the download translations dialog footer"
   },
+  "alcSK9nCuh": {
+    "defaultMessage": "Keep Iterable locales that teammates edited after the last push.",
+    "description": "Explains the selected automation keeps newer Iterable locales"
+  },
   "ambL1h5gLQ": {
     "defaultMessage": "How do I apply?",
     "description": "Startups FAQ question about how to apply"
@@ -23874,6 +24030,10 @@
   "bAkdHjBiWF": {
     "defaultMessage": "Technical details",
     "description": "QA failure diagnostic disclosure"
+  },
+  "bCKzjhKq9c": {
+    "defaultMessage": "Workflow approval",
+    "description": "Inbox source label for a workflow approval request"
   },
   "bCzZNsSN41": {
     "defaultMessage": "Hyperlocalise registers a Contentful webhook for entry publish events when you save or validate this connection. Automations with a Contentful trigger use it to start translation runs.",
@@ -25315,6 +25475,10 @@
     "defaultMessage": "Your brand, in every language",
     "description": "Second card title in the homepage trust and control section"
   },
+  "dT3mTxEcVn": {
+    "defaultMessage": "decided a visual workflow approval",
+    "description": "Action for deciding visual workflow approval"
+  },
   "dTKdfkqH71": {
     "defaultMessage": "Create job",
     "description": "Submit button in the create job dialog footer"
@@ -26107,6 +26271,10 @@
     "defaultMessage": "Connect {integrationName} to Hyperlocalise and start running localization workflows with agents, reviewers, and automations in one workspace.",
     "description": "Supporting copy for the bottom CTA on integration detail pages"
   },
+  "eZe13VGOpp": {
+    "defaultMessage": "Unable to load the Iterable connection right now.",
+    "description": "Iterable integration row description when connection status fails to load"
+  },
   "eZwaIz7tNc": {
     "defaultMessage": "4.3 AI features",
     "description": "PDF clause title for AI disclosures"
@@ -26466,6 +26634,10 @@
   "f8cyzFEbV0": {
     "defaultMessage": "Could not load comments.",
     "description": "Error when issue comments fail to load"
+  },
+  "fAAVYLUFbG": {
+    "defaultMessage": "Create an App API key in Iterable Settings → API Credentials. It needs read/write access to campaigns, newsletters, broadcasts, and transactional messages.",
+    "description": "Hint describing where to create a Iterable App API key"
   },
   "fB8k9m+qMa": {
     "defaultMessage": "Hourly",
@@ -28107,6 +28279,10 @@
     "defaultMessage": "All providers",
     "description": "Workspace files provider filter option to show every provider"
   },
+  "hfibk5yUP6": {
+    "defaultMessage": "Changes requested",
+    "description": "Human Approval changes requested execution branch"
+  },
   "hfzLE9ZrP4": {
     "defaultMessage": "Connect a provider",
     "description": "Button linking to integrations to connect a TMS provider"
@@ -28146,6 +28322,10 @@
   "hjMbjSqPe8": {
     "defaultMessage": "Try again",
     "description": "Button to retry rendering the chat dock panel"
+  },
+  "hkJpZEzllE": {
+    "defaultMessage": "Failed to load the Iterable region.",
+    "description": "Error when the Iterable region cannot be loaded"
   },
   "hm9/43e7py": {
     "defaultMessage": "End time",
@@ -28306,6 +28486,10 @@
   "i2gq9AbUIT": {
     "defaultMessage": "Open automations",
     "description": "Link from the Intercom connection panel to workspace automations"
+  },
+  "i3FfM8zpHG": {
+    "defaultMessage": "Paste a Iterable App API key and choose the region for that workspace.",
+    "description": "Intro text shown before a Iterable API key is saved"
   },
   "i4A8tgsl1c": {
     "defaultMessage": "Time estimate",
@@ -28983,6 +29167,10 @@
     "defaultMessage": "Web launch",
     "description": "Inbox issue project label in content ops mock"
   },
+  "j5ubVN2OC1": {
+    "defaultMessage": "Automation",
+    "description": "Label for choosing which Iterable automation to push with"
+  },
   "j6HO+OwVD0": {
     "defaultMessage": "Wall St. Rank",
     "description": "Alt text for the Wall St. Rank logo in the hero trusted-by strip"
@@ -29298,6 +29486,10 @@
   "jbZqr4hs7O": {
     "defaultMessage": "Cancelled",
     "description": "Automation run status badge for cancelled"
+  },
+  "jbhJ/zSXbe": {
+    "defaultMessage": "Decision due {value}",
+    "description": "Deadline for deciding a workflow approval request."
   },
   "jcSSc4wiBK": {
     "defaultMessage": "Filter",
@@ -29971,6 +30163,10 @@
     "defaultMessage": "Customer engagement",
     "description": "Marketing integrations marketplace category label for customer engagement"
   },
+  "kj2WQoWU56": {
+    "defaultMessage": "Import from Iterable",
+    "description": "Button that queues an Iterable import automation run from the Content editor"
+  },
   "kjARwbM4Nd": {
     "defaultMessage": "This path is not in the project file list. It may have been removed or the link is outdated.",
     "description": "Explanation when a requested project file path cannot be found"
@@ -30171,6 +30367,10 @@
     "defaultMessage": "Save",
     "description": "Save MCP server connection button"
   },
+  "l23fz5UzVF": {
+    "defaultMessage": "Disconnect",
+    "description": "Button label to disconnect Iterable"
+  },
   "l2pq2plLde": {
     "defaultMessage": "Issue details",
     "description": "Title for the issue detail drawer"
@@ -30222,6 +30422,10 @@
   "l8JOw0VDJ/": {
     "defaultMessage": "Access until {date}",
     "description": "Renewal copy when the active plan is scheduled to cancel"
+  },
+  "l8ozXVAWsC": {
+    "defaultMessage": "Could not save the approval decision.",
+    "description": "Error shown when an approval decision cannot be saved."
   },
   "l9fbW9HiTx": {
     "defaultMessage": "Use GitHub repo",
@@ -30558,6 +30762,10 @@
   "ljEJGwxPd/": {
     "defaultMessage": "Disconnect",
     "description": "Button label to disconnect GitHub"
+  },
+  "ljGD1pKDpL": {
+    "defaultMessage": "Leave blank to keep the current key.",
+    "description": "Hint that a connected Iterable key can be rotated by pasting a new value"
   },
   "ljM3NRfDH1": {
     "defaultMessage": "Hide pages",
@@ -32371,6 +32579,10 @@
     "defaultMessage": "Run ID",
     "description": "QA run ID label"
   },
+  "oc+DvbN58n": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel the Iterable item picker"
+  },
   "oc3EaT6uAq": {
     "defaultMessage": "Next open",
     "description": "Keyboard shortcut hint for jumping to the next unfinished string"
@@ -32466,6 +32678,10 @@
   "olXGYHoMbg": {
     "defaultMessage": "Source text",
     "description": "Image viewer: sourceText"
+  },
+  "old2jVGL0x": {
+    "defaultMessage": "Could not queue Iterable push",
+    "description": "Toast when queuing an Iterable push automation run fails"
   },
   "olyAMClAtW": {
     "defaultMessage": "Other",
@@ -33975,6 +34191,10 @@
     "defaultMessage": "Part of speech",
     "description": "Label for the part of speech field on a glossary term form"
   },
+  "r2K/PgwYTn": {
+    "defaultMessage": "Search templates and snippets",
+    "description": "Placeholder for filtering mapped Iterable items"
+  },
   "r2k+y+3lqI": {
     "defaultMessage": "Checking for glossary matches",
     "description": "Screen reader text on the glossary guidance footer button while matches for the current string load"
@@ -34415,6 +34635,10 @@
     "defaultMessage": "created a personal access token",
     "description": "Action for a personal access token creation activity"
   },
+  "rkO4qLi0GG": {
+    "defaultMessage": "Saving…",
+    "description": "Button label while the Iterable connection is being saved"
+  },
   "rkQ7AmKMrt": {
     "defaultMessage": "Tell the automation what to do, what to inspect, and what to ignore.",
     "description": "Placeholder for the automation instructions textarea"
@@ -34735,6 +34959,10 @@
     "defaultMessage": "Preview the agent in Slack, Teams, or GitHub",
     "description": "Accessible label for homepage agent channel switcher"
   },
+  "sGJVdftrAn": {
+    "defaultMessage": "Show API key",
+    "description": "Aria label for revealing the Iterable API key field"
+  },
   "sGkYArMEbA": {
     "defaultMessage": "Teams",
     "description": "Teams page title"
@@ -34830,6 +35058,10 @@
   "sQepOjPr4u": {
     "defaultMessage": "Heading 1",
     "description": "Slash menu item for a level-1 heading"
+  },
+  "sSzIe3av3r": {
+    "defaultMessage": "Deadline",
+    "description": "Human Approval deadline field"
   },
   "sT0h9owCog": {
     "defaultMessage": "Content",
@@ -35086,6 +35318,10 @@
   "sxoIk5o3gz": {
     "defaultMessage": "Describe what you want done and the assistant sets it up for you. Nothing is saved until you create it.",
     "description": "Text under the heading of the section where a new automation is started"
+  },
+  "syGH2Yunun": {
+    "defaultMessage": "API key",
+    "description": "Label for the Iterable App API key field"
   },
   "syMBsg2OBf": {
     "defaultMessage": "Source text",
@@ -35379,6 +35615,10 @@
     "defaultMessage": "Retry",
     "description": "Button to retry loading translation memories"
   },
+  "tOii2mJ8OS": {
+    "defaultMessage": "Visual Workflow Approval Requested",
+    "description": "Activity log event type label for visual workflow approval requests"
+  },
   "tP1cicvIzZ": {
     "defaultMessage": "Linguistic notes",
     "description": "Heading for linguistic notes on a localisation audit result"
@@ -35478,6 +35718,10 @@
   "tZkO4BrIat": {
     "defaultMessage": "Inactive",
     "description": "Disabled workflow active-state toggle label"
+  },
+  "ta/VRhWPxR": {
+    "defaultMessage": "Job: {value}",
+    "description": "Job reference attached to a workflow approval request."
   },
   "taC1Y4ZVNm": {
     "defaultMessage": "Open retry job",
@@ -36099,6 +36343,10 @@
     "defaultMessage": "Failed to retry job",
     "description": "Toast and error fallback when retrying a job fails"
   },
+  "udSN+qqsfw": {
+    "defaultMessage": "Failed to disconnect Iterable.",
+    "description": "Toast when Iterable disconnect fails"
+  },
   "udWuegdP+q": {
     "defaultMessage": "GitHub did not return installation_id on the Setup URL callback. Confirm the GitHub App Setup URL points to this app and try connecting again.",
     "description": "GitHub connect error when callback params are missing"
@@ -36110,6 +36358,10 @@
   "ufFJx4vPTD": {
     "defaultMessage": "Reading",
     "description": "Live explore status when the agent is reading a file without a subject"
+  },
+  "ufSIAHa2f9": {
+    "defaultMessage": "Request changes",
+    "description": "Button that requests changes for a workflow approval request."
   },
   "ufjLSLmtEV": {
     "defaultMessage": "GitLab",
@@ -36663,6 +36915,10 @@
     "defaultMessage": "Adapt the messaging, creative, landing pages, and supporting content for each market while keeping the campaign aligned to your brand.",
     "description": "Capability carousel card 02 body"
   },
+  "vW4Y6bvp8n": {
+    "defaultMessage": "Approval request",
+    "description": "Human Approval prompt field"
+  },
   "vW7W3YnMj8": {
     "defaultMessage": "Updated the setup",
     "description": "Line in the assistant's reply where its tool changed the page"
@@ -36854,6 +37110,10 @@
   "vp7tRvtQmV": {
     "defaultMessage": "Sequence",
     "description": "Sequence node title"
+  },
+  "vq7dKGB5o3": {
+    "defaultMessage": "Region",
+    "description": "Label for the Iterable region picker"
   },
   "vq7ib8WdUv": {
     "defaultMessage": "Campaign brief",
@@ -37582,6 +37842,14 @@
   "wx9aaNej3W": {
     "defaultMessage": "Target kind",
     "description": "Audit detail label for the activity target kind"
+  },
+  "wxMPaxWGqe": {
+    "defaultMessage": "Approved",
+    "description": "Human Approval approved execution branch"
+  },
+  "wxpoZbENp1": {
+    "defaultMessage": "Disconnecting…",
+    "description": "Disconnect button label while Iterable is being disconnected"
   },
   "wxyeiQHV02": {
     "defaultMessage": "Connected folders and files",
@@ -38419,6 +38687,10 @@
     "defaultMessage": "Choose a CSV, XLS, or XLSX file",
     "description": "Primary label on the Queries import upload drop zone"
   },
+  "yC1DFxWE4z": {
+    "defaultMessage": "Reviewer or team ID",
+    "description": "Human Approval reviewer identifier field"
+  },
   "yD2L9eM3l9": {
     "defaultMessage": "Select all loaded issues",
     "description": "Accessible label for the select-all-loaded checkbox"
@@ -38650,6 +38922,10 @@
   "ya2E3z8gto": {
     "defaultMessage": "Keep “Daylight” in every language.",
     "description": "Terminology example in the campaign context mock"
+  },
+  "yaIbNX73Wb": {
+    "defaultMessage": "Push to Iterable",
+    "description": "Title of the Content editor dialog for choosing Iterable items to push"
   },
   "ybeD8Dwr0/": {
     "defaultMessage": "You edited the setup · {count, plural, one {# change} other {# changes}}",
@@ -38958,6 +39234,10 @@
   "z9cqkREGyZ": {
     "defaultMessage": "Not included",
     "description": "Accessible label for a dash in the pricing matrix"
+  },
+  "z9oHNrIi/C": {
+    "defaultMessage": "Pause until an authorized reviewer makes a decision",
+    "description": "Human Approval node picker hint"
   },
   "zA2ZC7UBbt": {
     "defaultMessage": "Regenerate image",
