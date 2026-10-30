@@ -22,7 +22,7 @@ describe("hubspot source paths", () => {
     expect(isHubspotSourcePath(email)).toBe(true);
 
     const blog = buildHubspotSourcePath({ kind: "blog", id: "post-9", name: "Launch" });
-    expect(blog).toBe("hubspot/blog-posts/post-9/launch.html");
+    expect(blog).toBe("hubspot/blog-posts/post-9/launch.json");
     expect(parseHubspotSourcePath(blog)).toEqual({ kind: "blog", id: "post-9" });
 
     const landing = buildHubspotSourcePath({ kind: "landing-page", id: "lp-1", name: "Pricing" });

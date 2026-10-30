@@ -17,7 +17,12 @@ import {
   type HubspotApiRequestBody,
   type HubspotSdk,
 } from "./client";
-import { buildPageDocument, hubspotDocumentHasCopy, type HubspotJson } from "./document";
+import {
+  buildBlogContentDocument,
+  buildPageDocument,
+  hubspotDocumentHasCopy,
+  type HubspotJson,
+} from "./document";
 
 function jsonResponse(status: number, body: HubspotJson) {
   return {
@@ -130,6 +135,14 @@ describe("hubspot message templates", () => {
     const content = createHubspotContentClientFromSdk({
       ...sdkWith(async (opts) => {
         calls.push(opts);
+        if (opts.method === "GET") {
+          return jsonResponse(200, {
+            id: "blog-1",
+            slug: "blog",
+            language: "en",
+            domain: "blog.example.com",
+          });
+        }
         return jsonResponse(200, { id: "blog-zh", language: "zh-cn" });
       }),
       cms: {
@@ -142,11 +155,129 @@ describe("hubspot message templates", () => {
     expect(postVariations).toBe(2);
     expect(calls).toEqual([
       {
+        method: "GET",
+        path: "/cms/v3/blog-settings/settings/blog-1",
+      },
+      {
         method: "POST",
-        path: "/cms/blog-settings/2026-09/settings/multi-language/create-language-variation",
-        body: { id: "blog-1", language: "zh-cn", primaryLanguage: "en" },
+        path: "/cms/v3/blog-settings/settings/multi-language/create-language-variation",
+        body: { id: "blog-1", language: "zh-cn", primaryLanguage: "en", slug: "blog-zh-cn" },
       },
     ]);
+  });
+
+  it("sets a blog domain before creating a language variation when the blog has none", async () => {
+    const calls: ApiCall[] = [];
+    let postVariations = 0;
+    const blogs = {
+      basicApi: {
+        getById: async () => ({ id: "post-1", contentGroupId: "blog-1", language: "en" }),
+      },
+      multiLanguageApi: {
+        createLangVariation: async () => {
+          postVariations += 1;
+          if (postVariations === 1) {
+            throw new Error(
+              'HTTP-Code: 400\nBody: {"message":"Blog does not have a variation for language zh-cn"}',
+            );
+          }
+          return { id: "post-zh" };
+        },
+      },
+    };
+    const content = createHubspotContentClientFromSdk({
+      ...sdkWith(async (opts) => {
+        calls.push(opts);
+        if (opts.method === "GET" && opts.path === "/cms/v3/domains/") {
+          return jsonResponse(200, {
+            results: [
+              { domain: "old.hs-sites.com", isUsedForBlogPost: true, isResolving: true },
+              {
+                domain: "247843607.hubspotpagebuilder.com",
+                primaryBlogPost: true,
+                isResolving: true,
+              },
+            ],
+          });
+        }
+        if (opts.method === "GET") {
+          return jsonResponse(200, { id: "blog-1", slug: "blog", language: "en", domain: "" });
+        }
+        return jsonResponse(200, {});
+      }),
+      cms: {
+        blogs: { blogPosts: blogs },
+        pages: { landingPagesApi: {}, sitePagesApi: {} },
+      },
+    } as unknown as HubspotSdk);
+
+    const created = await content.createBlogLanguageVariation({ id: "post-1", language: "zh-cn" });
+    expect(created).toEqual({ id: "post-zh" });
+    expect(calls).toEqual([
+      { method: "GET", path: "/cms/v3/blog-settings/settings/blog-1" },
+      { method: "GET", path: "/cms/v3/domains/" },
+      {
+        method: "PATCH",
+        path: "/cms/v3/blog-settings/settings/blog-1",
+        body: { domain: "247843607.hubspotpagebuilder.com" },
+      },
+      {
+        method: "POST",
+        path: "/cms/v3/blog-settings/settings/multi-language/create-language-variation",
+        body: { id: "blog-1", language: "zh-cn", primaryLanguage: "en", slug: "blog-zh-cn" },
+      },
+    ]);
+  });
+
+  it("uses the blog url host when the domain field is blank", async () => {
+    const calls: ApiCall[] = [];
+    let postVariations = 0;
+    const content = createHubspotContentClientFromSdk({
+      ...sdkWith(async (opts) => {
+        calls.push(opts);
+        if (opts.method === "GET") {
+          return jsonResponse(200, {
+            id: "blog-1",
+            slug: "blog",
+            language: "en",
+            domain: "",
+            absoluteUrl: "https://247843607.hubspotpagebuilder.com/blog",
+          });
+        }
+        return jsonResponse(200, {});
+      }),
+      cms: {
+        blogs: {
+          blogPosts: {
+            basicApi: {
+              getById: async () => ({ id: "post-1", contentGroupId: "blog-1", language: "en" }),
+            },
+            multiLanguageApi: {
+              createLangVariation: async () => {
+                postVariations += 1;
+                if (postVariations === 1) {
+                  throw new Error(
+                    'HTTP-Code: 400\nBody: {"message":"Blog does not have a variation for language zh-cn"}',
+                  );
+                }
+                return { id: "post-zh" };
+              },
+            },
+          },
+        },
+        pages: { landingPagesApi: {}, sitePagesApi: {} },
+      },
+    } as unknown as HubspotSdk);
+
+    await content.createBlogLanguageVariation({ id: "post-1", language: "zh-cn" });
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      "GET /cms/v3/blog-settings/settings/blog-1",
+      "PATCH /cms/v3/blog-settings/settings/blog-1",
+      "POST /cms/v3/blog-settings/settings/multi-language/create-language-variation",
+    ]);
+    expect(calls[1]).toMatchObject({
+      body: { domain: "247843607.hubspotpagebuilder.com" },
+    });
   });
 
   it("reads draft module text when the published page is empty", async () => {
@@ -244,6 +375,107 @@ describe("hubspot message templates", () => {
         },
       },
     ]);
+  });
+
+  it("reads blog section text from the raw post and draft", async () => {
+    const client = createHubspotContentClientFromSdk(
+      sdkWith(async (opts) => {
+        if (opts.path.endsWith("/draft")) {
+          return jsonResponse(200, {
+            id: "post-1",
+            name: "Launch",
+            htmlTitle: "Launch",
+            postBody: "<p>Intro</p>",
+            layoutSections: {
+              dnd_area: {
+                rows: [
+                  {
+                    "0": {
+                      params: {
+                        html: "<h2>Section heading with a lot of text</h2><p>Section body.</p>",
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          });
+        }
+        return jsonResponse(200, {
+          id: "post-1",
+          name: "Launch",
+          htmlTitle: "Launch",
+          postBody: "<p>Intro</p>",
+          layoutSections: {},
+        });
+      }),
+    );
+    const post = await client.getBlogPost("post-1");
+    const document = buildBlogContentDocument(post);
+    expect(JSON.stringify(document)).toContain("Section heading with a lot of text");
+    expect(document.postBody).toBe("<p>Intro</p>");
+  });
+
+  it("reads blog template sections when the post layout is empty", async () => {
+    const template = `{% dnd_area "dnd_area" %}
+      {% dnd_module path="@hubspot/rich_text" %}
+        {% module_attribute "html" %}
+          <h2>Pull quote from the blog template.</h2>
+        {% end_module_attribute %}
+      {% end_dnd_module %}
+    {% end_dnd_area %}`;
+    const client = createHubspotContentClientFromSdk(
+      sdkWith(async (opts) => {
+        if (opts.path.includes("/cms/v3/source-code/")) {
+          return { ok: true, status: 200, text: async () => template };
+        }
+        return jsonResponse(200, {
+          id: "post-1",
+          name: "Launch",
+          htmlTitle: "Launch",
+          postBody: "<p>The article.</p>",
+          templatePath: "theme/templates/blog-post.html",
+          layoutSections: {},
+          widgets: {},
+          widgetContainers: {},
+        });
+      }),
+    );
+    const post = await client.getBlogPost("post-1");
+    const document = buildBlogContentDocument(post);
+    expect(document.postBody).toBe("<p>The article.</p>");
+    expect(JSON.stringify(document)).toContain("Pull quote from the blog template");
+  });
+
+  it("reads template default copy when the page and its draft have none", async () => {
+    const template = `{% dnd_area "dnd_area" %}
+      {% dnd_module path="@hubspot/rich_text" %}
+        {% module_attribute "html" %}
+          <h1>Welcome to the homepage with a lot of text.</h1>
+          <p>This is the template default the editor shows.</p>
+        {% end_module_attribute %}
+      {% end_dnd_module %}
+    {% end_dnd_area %}`;
+    const client = createHubspotContentClientFromSdk(
+      sdkWith(async (opts) => {
+        if (opts.path.includes("/cms/v3/source-code/")) {
+          return { ok: true, status: 200, text: async () => template };
+        }
+        return jsonResponse(200, {
+          id: "home",
+          name: "Home",
+          templatePath: "theme/templates/home.html",
+          widgets: {},
+          layoutSections: {},
+          widgetContainers: {},
+        });
+      }),
+    );
+    const page = await client.getWebsitePage("home");
+    const document = buildPageDocument(page);
+    expect(hubspotDocumentHasCopy(document)).toBe(true);
+    expect(JSON.stringify(document)).toContain("Welcome to the homepage with a lot of text");
+    expect(JSON.stringify(document)).toContain("template default the editor shows");
   });
 
   it("fails the list when HubSpot rejects the request", async () => {

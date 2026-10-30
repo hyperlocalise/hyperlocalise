@@ -30,12 +30,10 @@ import type { HubspotContentClient } from "./client";
 import type { HubspotResourceKind } from "./constants";
 import { loadHubspotAutomationClient } from "./credentials";
 import {
-  buildBlogDocument,
+  buildBlogContentDocument,
   buildEmailDocument,
   buildFormDocument,
-  buildMessageTemplateDocument,
   buildPageDocument,
-  messageTemplateHasCopy,
   hashHubspotContent,
   hubspotDocumentHasCopy,
   isHubspotJsonObject,
@@ -449,14 +447,7 @@ export async function runImportHubspotContent(input: {
     warnings: [],
   };
 
-  for (const surface of [
-    "email",
-    "form",
-    "blog",
-    "landing-page",
-    "website-page",
-    "message-template",
-  ] as const) {
+  for (const surface of ["email", "form", "blog", "landing-page", "website-page"] as const) {
     const assignment = assignHubspotLocales(targetLocales, surface);
     for (const locale of assignment.unmapped) {
       pushWarning(result, `${surface}: ${locale} has no HubSpot language code`);
@@ -474,7 +465,6 @@ export async function runImportHubspotContent(input: {
   const blogIds = selectedIds(hubspot.blogPostIds);
   const landingPageIds = selectedIds(hubspot.landingPageIds);
   const websitePageIds = selectedIds(hubspot.websitePageIds);
-  const messageTemplateIds = selectedIds(hubspot.messageTemplateIds);
 
   const emails = await client.listEmails();
   for (const summary of emails) {
@@ -606,11 +596,11 @@ export async function runImportHubspotContent(input: {
     }
     try {
       const post = await client.getBlogPost(summary.id);
-      const html = buildBlogDocument({
-        htmlTitle: post.htmlTitle,
-        metaDescription: post.metaDescription,
-        postBody: post.postBody,
-      });
+      const document = buildBlogContentDocument(post);
+      if (!hubspotDocumentHasCopy(document)) {
+        noteSkip(result, `Blog post "${summary.name}" has no translatable text`);
+        continue;
+      }
       await importOne({
         organizationId: input.organizationId,
         automation: input.automation,
@@ -623,9 +613,9 @@ export async function runImportHubspotContent(input: {
         kind: "blog",
         sourceId: post.id,
         sourceName: post.name || summary.name,
-        content: html,
-        contentType: "text/html",
-        fileFormat: "html",
+        content: serializeHubspotDocument(document),
+        contentType: "application/json",
+        fileFormat: "json",
       });
     } catch (error) {
       logger.warn({ sourceId: summary.id, error: String(error) }, "hubspot blog import failed");
@@ -661,54 +651,6 @@ export async function runImportHubspotContent(input: {
     openJobs,
     result,
   });
-
-  try {
-    const templates = await client.listMessageTemplates();
-    for (const summary of templates) {
-      if (messageTemplateIds && !messageTemplateIds.has(summary.id)) {
-        continue;
-      }
-      if (isHubspotLocaleCopyName(summary.name)) {
-        noteSkip(result, `Message template "${summary.name}" looks like a locale copy`);
-        continue;
-      }
-      try {
-        const template = await client.getMessageTemplate(summary.id);
-        if (!messageTemplateHasCopy(template)) {
-          noteSkip(result, `Message template "${summary.name}" has no translatable text`);
-          continue;
-        }
-        await importOne({
-          organizationId: input.organizationId,
-          automation: input.automation,
-          projectId,
-          sourceLocale,
-          targetLocales,
-          workflowRunId: input.workflowRunId,
-          openJobs,
-          result,
-          kind: "message-template",
-          sourceId: template.id,
-          sourceName: template.name || summary.name,
-          content: buildMessageTemplateDocument(template),
-          contentType: "text/html",
-          fileFormat: "html",
-        });
-      } catch (error) {
-        logger.warn(
-          { sourceId: summary.id, error: String(error) },
-          "hubspot message template import failed",
-        );
-        result.failed += 1;
-      }
-    }
-  } catch (error) {
-    logger.warn({ error: String(error) }, "hubspot message template list failed");
-    pushWarning(
-      result,
-      "Message templates could not be listed. Reconnect HubSpot if the authorization is missing message template access.",
-    );
-  }
 
   return result;
 }
@@ -760,7 +702,7 @@ async function importCmsPages(input: {
       if (!hubspotDocumentHasCopy(document)) {
         noteSkip(
           input.result,
-          `${pageLabel} "${summary.name}" has no module text on the published page or its draft. HubSpot keeps unchanged template copy on the template, not the page.`,
+          `${pageLabel} "${summary.name}" has no module text on the published page, its draft, or its template.`,
         );
         continue;
       }

@@ -2,7 +2,7 @@
   "uid": "hl_hubspot_app",
   "type": "app",
   "config": {
-    "description": "Localize HubSpot emails, forms, blog posts, landing pages, website pages, and message templates.",
+    "description": "Localize HubSpot emails, forms, blog posts, landing pages, and website pages.",
     "name": "Hyperlocalise",
     "distribution": "marketplace",
     "auth": {

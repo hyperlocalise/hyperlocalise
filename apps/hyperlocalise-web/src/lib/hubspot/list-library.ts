@@ -29,17 +29,9 @@ export type HubspotLibrary = {
   warnings: string[];
 };
 
-const MESSAGE_TEMPLATE_WARNING =
-  "Message templates could not be listed. Reconnect HubSpot if the authorization is missing message template access.";
-
 type LibraryClient = Pick<
   HubspotContentClient,
-  | "listEmails"
-  | "listForms"
-  | "listBlogPosts"
-  | "listLandingPages"
-  | "listWebsitePages"
-  | "listMessageTemplates"
+  "listEmails" | "listForms" | "listBlogPosts" | "listLandingPages" | "listWebsitePages"
 >;
 
 function libraryItem(item: {
@@ -65,17 +57,12 @@ function libraryItems(
 }
 
 export async function listHubspotLibrary(client: LibraryClient): Promise<HubspotLibrary> {
-  const templatesPromise = client.listMessageTemplates().then(
-    (items) => ({ items, warning: null as string | null }),
-    () => ({ items: [] as HubspotLibraryItem[], warning: MESSAGE_TEMPLATE_WARNING }),
-  );
-  const [emails, forms, blogPosts, landingPages, websitePages, templates] = await Promise.all([
+  const [emails, forms, blogPosts, landingPages, websitePages] = await Promise.all([
     client.listEmails(),
     client.listForms(),
     client.listBlogPosts(),
     client.listLandingPages(),
     client.listWebsitePages(),
-    templatesPromise,
   ]);
 
   return {
@@ -84,7 +71,7 @@ export async function listHubspotLibrary(client: LibraryClient): Promise<Hubspot
     blogPosts: libraryItems(blogPosts),
     landingPages: libraryItems(landingPages),
     websitePages: libraryItems(websitePages),
-    messageTemplates: libraryItems(templates.items),
-    warnings: templates.warning ? [templates.warning] : [],
+    messageTemplates: [],
+    warnings: [],
   };
 }

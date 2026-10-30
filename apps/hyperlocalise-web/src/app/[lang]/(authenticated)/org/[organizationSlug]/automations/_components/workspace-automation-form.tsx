@@ -3259,7 +3259,7 @@ function ToolsSettings({
             icon={<HubspotToolIcon />}
             title={
               <>
-                <span>HubSpot emails, forms, pages, blog posts, and message templates</span>
+                <span>HubSpot emails, forms, pages, and blog posts</span>
                 {!hubspotConnected ? (
                   <Badge variant="secondary">
                     <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
@@ -3267,7 +3267,7 @@ function ToolsSettings({
                 ) : null}
               </>
             }
-            description="Import HubSpot marketing emails, forms, blog posts, landing pages, website pages, and message templates, translate in Jobs, then push approved locales as unpublished copies."
+            description="Import HubSpot marketing emails, forms, blog posts, landing pages, and website pages, translate in Jobs, then push approved locales as unpublished copies."
             action={
               <DeleteToolButton
                 disabled={disabled}

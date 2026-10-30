@@ -33,7 +33,6 @@ describe("listHubspotLibrary", () => {
         { id: "site-1", name: "Home", language: "en", translatedFromId: null },
         { id: "site-2", name: "Home [fr-FR]", language: "fr-fr", translatedFromId: null },
       ],
-      listMessageTemplates: async () => [{ id: "tmpl-1", name: "Follow up" }],
     });
 
     expect(library.emails).toEqual([{ id: "email-1", name: "Welcome" }]);
@@ -41,26 +40,7 @@ describe("listHubspotLibrary", () => {
     expect(library.blogPosts).toEqual([{ id: "post-1", name: "Launch" }]);
     expect(library.landingPages).toEqual([{ id: "land-1", name: "Home landing" }]);
     expect(library.websitePages).toEqual([{ id: "site-1", name: "Home" }]);
-    expect(library.messageTemplates).toEqual([{ id: "tmpl-1", name: "Follow up" }]);
-    expect(library.warnings).toEqual([]);
-  });
-
-  it("keeps the rest of the library when message templates cannot be listed", async () => {
-    const library = await listHubspotLibrary({
-      listEmails: async () => [{ id: "email-1", name: "Welcome", language: "en" }],
-      listForms: async () => [],
-      listBlogPosts: async () => [],
-      listLandingPages: async () => [],
-      listWebsitePages: async () => [],
-      listMessageTemplates: async () => {
-        throw new Error("hubspot_message_template_request_failed:403");
-      },
-    });
-
-    expect(library.emails).toEqual([{ id: "email-1", name: "Welcome" }]);
     expect(library.messageTemplates).toEqual([]);
-    expect(library.warnings).toEqual([
-      "Message templates could not be listed. Reconnect HubSpot if the authorization is missing message template access.",
-    ]);
+    expect(library.warnings).toEqual([]);
   });
 });

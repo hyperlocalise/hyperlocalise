@@ -22,11 +22,17 @@ import { PublicEmailContent } from "@hubspot/api-client/lib/codegen/marketing/em
 
 import { HUBSPOT_LIST_PAGE_SIZE } from "./constants";
 import {
+  buildBlogContentDocument,
   buildPageDocument,
   hubspotDocumentHasCopy,
   isHubspotJsonObject,
   type HubspotJson,
 } from "./document";
+import {
+  layoutSectionsFromTemplateFiles,
+  listDndPartialPaths,
+  resolveTemplatePath,
+} from "./template-copy";
 
 export type HubspotEmailSummary = {
   id: string;
@@ -50,7 +56,13 @@ export type HubspotBlogSummary = {
 export type HubspotBlogRecord = HubspotBlogSummary & {
   htmlTitle: string;
   metaDescription: string;
+  featuredImageAltText: string;
   postBody: string;
+  postSummary: string;
+  rssSummary: string;
+  widgets: HubspotJson;
+  layoutSections: HubspotJson;
+  widgetContainers: HubspotJson;
   updatedAt: string | null;
 };
 
@@ -103,7 +115,23 @@ export type HubspotPageDraftBody = {
   widgetContainers: HubspotJson;
 };
 
-export type HubspotApiRequestBody = Record<string, string> | HubspotPageDraftBody;
+export type HubspotBlogDraftBody = {
+  name: string;
+  htmlTitle: string;
+  metaDescription: string;
+  postBody: string;
+  featuredImageAltText?: string;
+  postSummary?: string;
+  rssSummary?: string;
+  widgets?: HubspotJson;
+  layoutSections?: HubspotJson;
+  widgetContainers?: HubspotJson;
+};
+
+export type HubspotApiRequestBody =
+  | Record<string, string>
+  | HubspotPageDraftBody
+  | HubspotBlogDraftBody;
 
 export type HubspotContentClient = {
   listEmails(): Promise<HubspotEmailSummary[]>;
@@ -125,6 +153,12 @@ export type HubspotContentClient = {
     htmlTitle: string;
     metaDescription: string;
     postBody: string;
+    featuredImageAltText?: string;
+    postSummary?: string;
+    rssSummary?: string;
+    widgets?: HubspotJson;
+    layoutSections?: HubspotJson;
+    widgetContainers?: HubspotJson;
   }): Promise<void>;
   listForms(): Promise<HubspotFormSummary[]>;
   getForm(id: string): Promise<HubspotFormRecord>;
@@ -190,7 +224,14 @@ type BlogLike = {
   contentGroupId?: string;
   htmlTitle?: string;
   metaDescription?: string;
+  featuredImageAltText?: string;
   postBody?: string;
+  postSummary?: string;
+  rssSummary?: string;
+  widgets?: HubspotJson;
+  layoutSections?: HubspotJson;
+  widgetContainers?: HubspotJson;
+  templatePath?: string;
   updatedAt?: Date | string;
 };
 
@@ -211,6 +252,7 @@ type PageLike = {
   widgets?: HubspotJson;
   layoutSections?: HubspotJson;
   widgetContainers?: HubspotJson;
+  templatePath?: string;
 };
 
 type HubspotApiResponse = {
@@ -225,6 +267,7 @@ export type HubspotSdk = {
     path: string;
     body?: HubspotApiRequestBody;
     qs?: Record<string, string>;
+    headers?: Record<string, string>;
   }) => Promise<HubspotApiResponse>;
   marketing: {
     emails: {
@@ -347,6 +390,33 @@ function blogSummary(post: BlogLike): HubspotBlogSummary {
   };
 }
 
+function blogRecord(post: BlogLike, id: string): HubspotBlogRecord {
+  return {
+    ...blogSummary(post),
+    id: post.id ?? id,
+    htmlTitle: post.htmlTitle ?? "",
+    metaDescription: post.metaDescription ?? "",
+    featuredImageAltText: post.featuredImageAltText ?? "",
+    postBody: post.postBody ?? "",
+    postSummary: post.postSummary ?? "",
+    rssSummary: post.rssSummary ?? "",
+    widgets: parseStructuredField(post.widgets),
+    layoutSections: parseStructuredField(post.layoutSections),
+    widgetContainers: parseStructuredField(post.widgetContainers),
+    updatedAt: readTimestamp(post.updatedAt),
+  };
+}
+
+function blogCopySize(post: BlogLike): number {
+  const document = buildBlogContentDocument(blogRecord(post, post.id ?? ""));
+  return hubspotDocumentHasCopy(document) ? JSON.stringify(document).length : 0;
+}
+
+function blogLayoutHasCopy(post: HubspotBlogRecord): boolean {
+  const document = buildBlogContentDocument(post);
+  return Boolean(document.layoutSections || document.widgets || document.widgetContainers);
+}
+
 function pageSummary(page: PageLike): HubspotPageSummary {
   return {
     id: page.id ?? "",
@@ -405,6 +475,63 @@ function jsonString(record: { [key: string]: HubspotJson }, key: string): string
   return typeof value === "string" ? value : undefined;
 }
 
+const BLOG_POSTS_PATH = "/cms/v3/blogs/posts";
+
+async function readRawBlog(sdk: HubspotSdk, path: string): Promise<BlogLike | null> {
+  if (!sdk.apiRequest) {
+    return null;
+  }
+  const response = await sdk.apiRequest({ method: "GET", path });
+  const text = await response.text();
+  if (!response.ok || !text) {
+    return null;
+  }
+  try {
+    const parsed: HubspotJson = JSON.parse(text);
+    if (!isHubspotJsonObject(parsed)) {
+      return null;
+    }
+    return {
+      id: jsonString(parsed, "id"),
+      name: jsonString(parsed, "name"),
+      language: jsonString(parsed, "language"),
+      translatedFromId: jsonString(parsed, "translatedFromId"),
+      htmlTitle: jsonString(parsed, "htmlTitle"),
+      metaDescription: jsonString(parsed, "metaDescription"),
+      featuredImageAltText: jsonString(parsed, "featuredImageAltText"),
+      postBody: jsonString(parsed, "postBody"),
+      postSummary: jsonString(parsed, "postSummary"),
+      rssSummary: jsonString(parsed, "rssSummary"),
+      widgets: parsed.widgets,
+      layoutSections: parsed.layoutSections,
+      widgetContainers: parsed.widgetContainers,
+      templatePath: jsonString(parsed, "templatePath"),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function blogWithTemplateSections(
+  sdk: HubspotSdk,
+  post: HubspotBlogRecord,
+  templatePath: string | undefined,
+): Promise<HubspotBlogRecord> {
+  if (blogLayoutHasCopy(post)) {
+    return post;
+  }
+  const path = templatePath?.replace(/^\/+/, "").trim();
+  if (!path) {
+    return post;
+  }
+  const layoutSections = await layoutSectionsForTemplate(sdk, path);
+  if (!layoutSections) {
+    return post;
+  }
+  const withTemplate = { ...post, layoutSections };
+  return blogLayoutHasCopy(withTemplate) ? withTemplate : post;
+}
+
 async function readRawPage(sdk: HubspotSdk, path: string): Promise<PageLike | null> {
   if (!sdk.apiRequest) {
     return null;
@@ -430,10 +557,104 @@ async function readRawPage(sdk: HubspotSdk, path: string): Promise<PageLike | nu
       widgets: parsed.widgets,
       layoutSections: parsed.layoutSections,
       widgetContainers: parsed.widgetContainers,
+      templatePath: jsonString(parsed, "templatePath"),
     };
   } catch {
     return null;
   }
+}
+
+const TEMPLATE_FILE_LIMIT = 12;
+
+function templateSourceText(text: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{")) {
+    return trimmed;
+  }
+  try {
+    const parsed: HubspotJson = JSON.parse(trimmed);
+    if (isHubspotJsonObject(parsed) && typeof parsed.source === "string") {
+      return parsed.source;
+    }
+  } catch {
+    return trimmed;
+  }
+  return null;
+}
+
+async function readTemplateSource(sdk: HubspotSdk, templatePath: string): Promise<string | null> {
+  if (!sdk.apiRequest) {
+    return null;
+  }
+  const path = templatePath.replace(/^\/+/, "");
+  for (const environment of ["published", "draft"]) {
+    const response = await sdk.apiRequest({
+      method: "GET",
+      path: `/cms/v3/source-code/${environment}/content/${encodeURI(path)}`,
+      headers: { Accept: "application/octet-stream" },
+    });
+    const text = await response.text();
+    if (!response.ok || !text.trim()) {
+      continue;
+    }
+    const source = templateSourceText(text);
+    if (source) {
+      return source;
+    }
+  }
+  return null;
+}
+
+async function layoutSectionsForTemplate(
+  sdk: HubspotSdk,
+  templatePath: string,
+): Promise<HubspotJson | null> {
+  const files = new Map<string, string>();
+  const pending = [templatePath];
+  const seen = new Set<string>();
+  while (pending.length > 0 && files.size < TEMPLATE_FILE_LIMIT) {
+    const path = pending.shift();
+    if (!path || seen.has(path)) {
+      continue;
+    }
+    seen.add(path);
+    const source = await readTemplateSource(sdk, path);
+    if (!source) {
+      continue;
+    }
+    files.set(path, source);
+    for (const includePath of listDndPartialPaths(source)) {
+      const resolved = resolveTemplatePath(path, includePath);
+      if (!seen.has(resolved)) {
+        pending.push(resolved);
+      }
+    }
+  }
+  if (!files.has(templatePath)) {
+    return null;
+  }
+  const layout = layoutSectionsFromTemplateFiles(files, templatePath);
+  return isHubspotJsonObject(layout) && Object.keys(layout).length > 0 ? layout : null;
+}
+
+async function pageWithTemplateDefaults(
+  sdk: HubspotSdk,
+  page: HubspotPageRecord,
+  templatePath: string | undefined,
+): Promise<HubspotPageRecord> {
+  if (hubspotDocumentHasCopy(buildPageDocument(page))) {
+    return page;
+  }
+  const path = templatePath?.replace(/^\/+/, "").trim();
+  if (!path) {
+    return page;
+  }
+  const layoutSections = await layoutSectionsForTemplate(sdk, path);
+  if (!layoutSections) {
+    return page;
+  }
+  const withTemplate = { ...page, layoutSections };
+  return hubspotDocumentHasCopy(buildPageDocument(withTemplate)) ? withTemplate : page;
 }
 
 function withPageContent(base: PageLike, content: PageLike): PageLike {
@@ -484,7 +705,7 @@ function bindCmsPages(
           draft && pageCopySize(draft) > pageCopySize(published ?? draft)
             ? withPageContent(base, draft)
             : base;
-        return pageRecord(chosen, id);
+        return pageWithTemplateDefaults(sdk, pageRecord(chosen, id), chosen.templatePath);
       }
       return pageRecord(await api.getById(id), id);
     },
@@ -598,8 +819,181 @@ function messageTemplateWriteBody(input: HubspotMessageTemplateDraft): Record<st
   return body;
 }
 
-const BLOG_LANGUAGE_VARIATION_PATH =
-  "/cms/blog-settings/2026-09/settings/multi-language/create-language-variation";
+const BLOG_SETTINGS_PATH = "/cms/v3/blog-settings/settings";
+
+function blogVariationSlug(slug: string, language: string): string {
+  const base = slug.trim().replace(/^\/+|\/+$/g, "");
+  const stem = base.length > 0 ? base : "blog";
+  const suffix = `-${language}`;
+  return stem.endsWith(suffix) ? stem : `${stem}${suffix}`;
+}
+
+function hubspotFailureDetail(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return "";
+  }
+  try {
+    const parsed: HubspotJson = JSON.parse(trimmed);
+    if (isHubspotJsonObject(parsed) && typeof parsed.message === "string") {
+      return parsed.message.replace(/\s+/g, " ").slice(0, 180);
+    }
+  } catch {
+    return trimmed.replace(/\s+/g, " ").slice(0, 180);
+  }
+  return trimmed.replace(/\s+/g, " ").slice(0, 180);
+}
+
+type BlogSettingsSnapshot = {
+  slug: string;
+  language: string;
+  domainField: string;
+  resolvedDomain: string;
+};
+
+function hostnameFromUrl(value: string): string {
+  try {
+    return new URL(value).hostname.trim();
+  } catch {
+    return "";
+  }
+}
+
+async function readBlogSettings(
+  sdk: HubspotSdk,
+  blogId: string,
+): Promise<BlogSettingsSnapshot | null> {
+  if (!sdk.apiRequest) {
+    return null;
+  }
+  const response = await sdk.apiRequest({
+    method: "GET",
+    path: `${BLOG_SETTINGS_PATH}/${encodeURIComponent(blogId)}`,
+  });
+  const text = await response.text();
+  if (!response.ok || !text) {
+    return null;
+  }
+  try {
+    const parsed: HubspotJson = JSON.parse(text);
+    if (!isHubspotJsonObject(parsed)) {
+      return null;
+    }
+    const domainField = typeof parsed.domain === "string" ? parsed.domain.trim() : "";
+    const absoluteUrl = typeof parsed.absoluteUrl === "string" ? parsed.absoluteUrl : "";
+    return {
+      slug: typeof parsed.slug === "string" ? parsed.slug : "",
+      language: typeof parsed.language === "string" ? parsed.language : "",
+      domainField,
+      resolvedDomain: domainField || hostnameFromUrl(absoluteUrl),
+    };
+  } catch {
+    return null;
+  }
+}
+
+type PublishingDomain = {
+  domain: string;
+  primaryBlogPost: boolean;
+  isUsedForBlogPost: boolean;
+  isResolving: boolean;
+  primarySitePage: boolean;
+};
+
+function publishingDomains(payload: HubspotJson): PublishingDomain[] {
+  if (!isHubspotJsonObject(payload) || !Array.isArray(payload.results)) {
+    return [];
+  }
+  return payload.results.flatMap((item) => {
+    if (!isHubspotJsonObject(item) || typeof item.domain !== "string") {
+      return [];
+    }
+    const domain = item.domain.trim();
+    if (!domain) {
+      return [];
+    }
+    return [
+      {
+        domain,
+        primaryBlogPost: item.primaryBlogPost === true,
+        isUsedForBlogPost: item.isUsedForBlogPost === true,
+        isResolving: item.isResolving !== false,
+        primarySitePage: item.primarySitePage === true,
+      },
+    ];
+  });
+}
+
+function blogDomainScore(domain: PublishingDomain): number {
+  if (!domain.isResolving) {
+    return -1;
+  }
+  let score = 1;
+  if (domain.primaryBlogPost) {
+    score += 100;
+  } else if (domain.isUsedForBlogPost) {
+    score += 50;
+  } else if (domain.primarySitePage) {
+    score += 20;
+  }
+  if (domain.domain.includes("hubspotpagebuilder")) {
+    score += 10;
+  }
+  if (domain.domain.includes("hs-sites")) {
+    score -= 5;
+  }
+  return score;
+}
+
+function chooseBlogDomain(domains: PublishingDomain[]): string {
+  let best: PublishingDomain | null = null;
+  let bestScore = -1;
+  for (const domain of domains) {
+    const score = blogDomainScore(domain);
+    if (score > bestScore) {
+      best = domain;
+      bestScore = score;
+    }
+  }
+  return best?.domain ?? "";
+}
+
+async function primaryBlogDomain(sdk: HubspotSdk): Promise<string> {
+  if (!sdk.apiRequest) {
+    return "";
+  }
+  const response = await sdk.apiRequest({ method: "GET", path: "/cms/v3/domains/" });
+  const text = await response.text();
+  if (!response.ok || !text) {
+    return "";
+  }
+  try {
+    const parsed: HubspotJson = JSON.parse(text);
+    return chooseBlogDomain(publishingDomains(parsed));
+  } catch {
+    return "";
+  }
+}
+
+async function ensureBlogHasDomain(
+  sdk: HubspotSdk,
+  blogId: string,
+  settings: BlogSettingsSnapshot | null,
+): Promise<void> {
+  if (!sdk.apiRequest || settings?.domainField) {
+    return;
+  }
+  const domain = settings?.resolvedDomain || (await primaryBlogDomain(sdk));
+  if (!domain) {
+    return;
+  }
+  const response = await sdk.apiRequest({
+    method: "PATCH",
+    path: `${BLOG_SETTINGS_PATH}/${encodeURIComponent(blogId)}`,
+    body: { domain },
+  });
+  await response.text();
+}
 
 async function ensureBlogLanguageVariation(input: {
   sdk: HubspotSdk;
@@ -610,23 +1004,32 @@ async function ensureBlogLanguageVariation(input: {
   if (!input.sdk.apiRequest) {
     throw new Error("hubspot_blog_language_failed");
   }
+  const blog = await readBlogSettings(input.sdk, input.blogId);
+  await ensureBlogHasDomain(input.sdk, input.blogId, blog);
+  const primaryLanguage = blog?.language.trim() || input.primaryLanguage?.trim() || "";
   const body: Record<string, string> = {
     id: input.blogId,
     language: input.language,
+    slug: blogVariationSlug(blog?.slug ?? "", input.language),
   };
-  if (input.primaryLanguage?.trim()) {
-    body.primaryLanguage = input.primaryLanguage.trim();
+  if (primaryLanguage) {
+    body.primaryLanguage = primaryLanguage;
   }
   const response = await input.sdk.apiRequest({
     method: "POST",
-    path: BLOG_LANGUAGE_VARIATION_PATH,
+    path: `${BLOG_SETTINGS_PATH}/multi-language/create-language-variation`,
     body,
   });
   const text = await response.text();
   if (response.ok || text.toLowerCase().includes("already")) {
     return;
   }
-  throw new Error(`hubspot_blog_language_failed:${response.status}`);
+  const detail = hubspotFailureDetail(text);
+  throw new Error(
+    detail
+      ? `hubspot_blog_language_failed:${response.status}: ${detail}`
+      : `hubspot_blog_language_failed:${response.status}`,
+  );
 }
 
 function formSummary(form: FormLike): HubspotFormSummary {
@@ -717,15 +1120,20 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
       return results.filter((post) => post.id).map(blogSummary);
     },
     async getBlogPost(id) {
-      const post = await blogs.basicApi.getById(id);
-      return {
-        ...blogSummary(post),
-        id: post.id ?? id,
-        htmlTitle: post.htmlTitle ?? "",
-        metaDescription: post.metaDescription ?? "",
-        postBody: post.postBody ?? "",
-        updatedAt: readTimestamp(post.updatedAt),
-      };
+      const encodedId = encodeURIComponent(id);
+      const [published, draft] = await Promise.all([
+        readRawBlog(sdk, `${BLOG_POSTS_PATH}/${encodedId}`),
+        readRawBlog(sdk, `${BLOG_POSTS_PATH}/${encodedId}/draft`),
+      ]);
+      if (published || draft) {
+        const base = published ?? draft;
+        if (base) {
+          const chosen =
+            draft && blogCopySize(draft) > blogCopySize(published ?? draft) ? draft : base;
+          return blogWithTemplateSections(sdk, blogRecord(chosen, id), chosen.templatePath);
+        }
+      }
+      return blogRecord(await blogs.basicApi.getById(id), id);
     },
     async createBlogLanguageVariation(input) {
       const createPostVariation = async () => {
@@ -760,12 +1168,42 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
       }
     },
     async updateBlogDraft(input) {
-      const draft = new BlogPost();
-      draft.name = input.name;
-      draft.htmlTitle = input.htmlTitle;
-      draft.metaDescription = input.metaDescription;
-      draft.postBody = input.postBody;
-      await blogs.basicApi.updateDraft(input.id, draft);
+      const body: HubspotBlogDraftBody = {
+        name: input.name,
+        htmlTitle: input.htmlTitle,
+        metaDescription: input.metaDescription,
+        postBody: input.postBody,
+      };
+      if (input.featuredImageAltText !== undefined) {
+        body.featuredImageAltText = input.featuredImageAltText;
+      }
+      if (input.postSummary !== undefined) {
+        body.postSummary = input.postSummary;
+      }
+      if (input.rssSummary !== undefined) {
+        body.rssSummary = input.rssSummary;
+      }
+      if (input.widgets !== undefined) {
+        body.widgets = input.widgets;
+      }
+      if (input.layoutSections !== undefined) {
+        body.layoutSections = input.layoutSections;
+      }
+      if (input.widgetContainers !== undefined) {
+        body.widgetContainers = input.widgetContainers;
+      }
+      if (!sdk.apiRequest) {
+        throw new Error("hubspot_blog_draft_failed");
+      }
+      const response = await sdk.apiRequest({
+        method: "PATCH",
+        path: `${BLOG_POSTS_PATH}/${encodeURIComponent(input.id)}/draft`,
+        body,
+      });
+      await response.text();
+      if (!response.ok) {
+        throw new Error(`hubspot_blog_draft_failed:${response.status}`);
+      }
     },
     async listForms() {
       const results = await listPages((after) => forms.getPage(after, HUBSPOT_LIST_PAGE_SIZE));

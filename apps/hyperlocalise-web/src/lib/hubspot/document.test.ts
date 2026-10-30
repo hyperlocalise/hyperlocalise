@@ -16,6 +16,8 @@ import {
   applyEmailDocument,
   applyFormDocument,
   applyPageDocument,
+  applyBlogContentDocument,
+  buildBlogContentDocument,
   buildBlogDocument,
   buildEmailDocument,
   buildFormDocument,
@@ -259,6 +261,52 @@ describe("hubspot documents", () => {
           html: { value: "<p>Bienvenue sur la page d'accueil.</p>" },
           alignment: { value: "left" },
         },
+      },
+    });
+  });
+
+  it("keeps blog section text with the post body", () => {
+    const live = {
+      htmlTitle: "Launch",
+      metaDescription: "Notes",
+      featuredImageAltText: "",
+      postBody: "<p>Intro</p>",
+      postSummary: "A short summary",
+      rssSummary: "",
+      widgets: {},
+      layoutSections: {
+        dnd_area: {
+          rows: [
+            {
+              "0": {
+                params: { html: "<h2>Section heading with a lot of text</h2>" },
+              },
+            },
+          ],
+        },
+      },
+    };
+    const document = buildBlogContentDocument(live);
+    expect(document.postBody).toBe("<p>Intro</p>");
+    expect(document.postSummary).toBe("A short summary");
+    expect(document.layoutSections).toEqual({
+      dnd_area: {
+        rows: { "0": { "0": { params: { html: "<h2>Section heading with a lot of text</h2>" } } } },
+      },
+    });
+    const applied = applyBlogContentDocument(live, {
+      ...document,
+      postBody: "<p>Introduction</p>",
+      layoutSections: {
+        dnd_area: {
+          rows: { "0": { "0": { params: { html: "<h2>Titre de section</h2>" } } } },
+        },
+      },
+    });
+    expect(applied.postBody).toBe("<p>Introduction</p>");
+    expect(applied.layoutSections).toMatchObject({
+      dnd_area: {
+        rows: [{ "0": { params: { html: "<h2>Titre de section</h2>" } } }],
       },
     });
   });

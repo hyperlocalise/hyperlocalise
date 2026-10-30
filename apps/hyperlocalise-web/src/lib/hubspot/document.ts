@@ -271,6 +271,64 @@ export function buildPageDocument(input: {
   return document;
 }
 
+export function buildBlogContentDocument(input: {
+  htmlTitle: string;
+  metaDescription: string;
+  featuredImageAltText: string;
+  postBody: string;
+  postSummary: string;
+  rssSummary: string;
+  widgets: HubspotJson;
+  layoutSections: HubspotJson;
+  widgetContainers?: HubspotJson;
+}): HubspotStringTree {
+  const document = buildPageDocument(input);
+  if (isCopyString(input.postBody)) {
+    document.postBody = input.postBody;
+  }
+  if (isCopyString(input.postSummary)) {
+    document.postSummary = input.postSummary;
+  }
+  if (isCopyString(input.rssSummary)) {
+    document.rssSummary = input.rssSummary;
+  }
+  return document;
+}
+
+export function applyBlogContentDocument(
+  live: {
+    htmlTitle: string;
+    metaDescription: string;
+    featuredImageAltText: string;
+    postBody: string;
+    postSummary: string;
+    rssSummary: string;
+    widgets: HubspotJson;
+    layoutSections: HubspotJson;
+    widgetContainers?: HubspotJson;
+  },
+  translated: HubspotStringTree,
+): {
+  htmlTitle: string;
+  metaDescription: string;
+  featuredImageAltText: string;
+  postBody: string;
+  postSummary: string;
+  rssSummary: string;
+  widgets: HubspotJson;
+  layoutSections: HubspotJson;
+  widgetContainers: HubspotJson;
+} {
+  const page = applyPageDocument(live, translated);
+  return {
+    ...page,
+    postBody: typeof translated.postBody === "string" ? translated.postBody : live.postBody,
+    postSummary:
+      typeof translated.postSummary === "string" ? translated.postSummary : live.postSummary,
+    rssSummary: typeof translated.rssSummary === "string" ? translated.rssSummary : live.rssSummary,
+  };
+}
+
 export function applyPageDocument(
   live: {
     htmlTitle: string;

@@ -27,6 +27,7 @@ import type { HubspotContentClient } from "./client";
 import type { HubspotResourceKind } from "./constants";
 import { loadHubspotAutomationClient } from "./credentials";
 import {
+  applyBlogContentDocument,
   applyEmailDocument,
   applyFormDocument,
   applyPageDocument,
@@ -306,7 +307,7 @@ export async function runPushHubspotContent(input: {
           const definition = formDefinitionForWrite(applied, {
             name: copyName,
             language: hubspotCode,
-            create: !copyId,
+            id: copyId ?? undefined,
           });
           if (copyId) {
             await client.replaceForm(copyId, definition);
@@ -339,8 +340,6 @@ export async function runPushHubspotContent(input: {
             ).id;
           }
         } else if (mapping.resourceKind === "blog") {
-          const translatedHtml = applyHtmlIngestTranslations(sourceText, approved.prefilled);
-          const blog = readBlogDocument(translatedHtml);
           const targetId =
             copyId ??
             (
@@ -349,13 +348,38 @@ export async function runPushHubspotContent(input: {
                 language: hubspotCode,
               })
             ).id;
-          await client.updateBlogDraft({
-            id: targetId,
-            name: copyName,
-            htmlTitle: blog.htmlTitle,
-            metaDescription: blog.metaDescription,
-            postBody: blog.postBody,
-          });
+          const sourceJson = readHubspotDocumentJson(sourceText);
+          if (sourceJson) {
+            const translated = mergeHubspotTranslations(
+              readHubspotStringTree(sourceJson),
+              approved.prefilled,
+            );
+            const live = await client.getBlogPost(mapping.sourceId);
+            const applied = applyBlogContentDocument(live, translated);
+            await client.updateBlogDraft({
+              id: targetId,
+              name: copyName,
+              htmlTitle: applied.htmlTitle,
+              metaDescription: applied.metaDescription,
+              featuredImageAltText: applied.featuredImageAltText,
+              postBody: applied.postBody,
+              postSummary: applied.postSummary,
+              rssSummary: applied.rssSummary,
+              widgets: applied.widgets,
+              layoutSections: applied.layoutSections,
+              widgetContainers: applied.widgetContainers,
+            });
+          } else {
+            const translatedHtml = applyHtmlIngestTranslations(sourceText, approved.prefilled);
+            const blog = readBlogDocument(translatedHtml);
+            await client.updateBlogDraft({
+              id: targetId,
+              name: copyName,
+              htmlTitle: blog.htmlTitle,
+              metaDescription: blog.metaDescription,
+              postBody: blog.postBody,
+            });
+          }
           copyId = targetId;
         } else {
           const sourceDocument = readHubspotStringTree(readHubspotDocumentJson(sourceText) ?? {});

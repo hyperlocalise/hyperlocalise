@@ -27,10 +27,11 @@ function dateValue(value: unknown): Date | null {
 /**
  * HubSpot's form create and replace schemas require `createdAt`.
  * The SDK omits the field when it is missing, and HubSpot then rejects the body.
+ * Replace also rejects a body `id` that differs from the form id in the path.
  */
 export function formDefinitionForWrite(
   definition: Record<string, unknown>,
-  input: { name: string; language: string; create: boolean },
+  input: { name: string; language: string; id?: string },
 ): Record<string, unknown> {
   const next = structuredClone(definition);
   next.name = input.name;
@@ -44,7 +45,9 @@ export function formDefinitionForWrite(
   if (typeof next.archived !== "boolean") {
     next.archived = false;
   }
-  if (input.create) {
+  if (input.id) {
+    next.id = input.id;
+  } else {
     delete next.id;
     delete next.archivedAt;
   }

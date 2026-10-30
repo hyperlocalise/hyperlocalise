@@ -370,9 +370,9 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     name: "Translate HubSpot content",
     category: "translate",
     description:
-      "Import HubSpot marketing emails, forms, blog posts, landing pages, website pages, and message templates, then push approved locales as unpublished copies.",
+      "Import HubSpot marketing emails, forms, blog posts, landing pages, and website pages, then push approved locales as unpublished copies.",
     grants:
-      "Reads HubSpot emails, forms, blog posts, landing pages, website pages, and message templates through Pipes, writes source files and native jobs. Push creates locale copies and never changes or publishes the source.",
+      "Reads HubSpot emails, forms, blog posts, landing pages, and website pages through Pipes, writes source files and native jobs. Push creates locale copies and never changes or publishes the source.",
     tools: ["import_hubspot_content", "push_hubspot_content"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],

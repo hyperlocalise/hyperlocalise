@@ -39,10 +39,9 @@ Operators need five content surfaces:
 | --- | --- | --- | --- |
 | Marketing emails | Subject, preview, and widget fields | `clone` with `cloneName`, then `upsertDraft` to set `language` and the translated widgets | No. Clone copies the source widgets. Language is set on the draft. |
 | Forms | Labels, placeholders, help text, submit text, legal copy | `create` a new form | No. `configuration.language` selects built-in chrome only. |
-| Blog posts | `htmlTitle`, `metaDescription`, `postBody` | `createLangVariation`, then patch the draft | No. The call clones an untranslated variant. |
+| Blog posts | Title, meta description, summary, post body, widgets, and layout sections | `createLangVariation`, then patch the draft | No. The call clones an untranslated variant. |
 | Landing pages | Title, meta description, alt text, widgets, layout sections | `createLangVariation`, then `updateDraft` | No. The call clones an untranslated variant. |
 | Website pages | Same fields as landing pages | `createLangVariation`, then `updateDraft` | No. The call clones an untranslated variant. |
-| Message templates | Subject and HTML body. Personalization tokens stay in the text | `POST` a new template named `{source} [{locale}]`, then `PATCH` that copy | No. The API has no language field and does not translate. |
 
 HubSpot's Breeze and DeepL actions live in the product UI. They are
 not a public translate API. A/B email variations
@@ -63,15 +62,13 @@ send.
    - Marketing emails at `hubspot/emails/{slug}.json`.
    - Forms at `hubspot/forms/{slug}.json`. Field names and property
      bindings stay locked.
-   - Blog posts at `hubspot/blog-posts/{slug}.html`. Skip posts with
-     `translatedFromId` set.
+   - Blog posts at `hubspot/blog-posts/{id}/{slug}.json`. Skip posts with
+     `translatedFromId` set. Section text in the layout is included with
+     the post body.
    - Landing pages at `hubspot/landing-pages/{id}/{slug}.json` and
      website pages at `hubspot/website-pages/{id}/{slug}.json`. Skip
      pages with `translatedFromId` set. Widget ids, URLs, and colors
      stay locked.
-   - Message templates at `hubspot/message-templates/{id}/{slug}.html`.
-     The subject and body are the copy. Personalization tokens stay
-     in the HTML.
    - Skip names that already look like locale copies
      (`Welcome [fr-FR]`).
 2. Push approved locales as separate copies named
@@ -95,22 +92,17 @@ bump `@hubspot/api-client`. Do not add a REST fallback.
 
 The OAuth app needs `content` for marketing emails, CMS blog posts,
 landing pages, and website pages, and `forms` for forms. Message
-templates need `automation.email_templates.read` and
-`automation.email_templates.write`. HubSpot only offers those scopes
-to a user-level app, and user-level apps do not support CMS. The
-marketplace app in `apps/hubspot-app` stays account-level and does
-not declare the template scopes, so a deploy can succeed. Import
-still lists templates when a token has the scopes, and warns when it
-does not.
+template import is deferred. Those objects need
+`automation.email_templates.read` and `automation.email_templates.write`,
+which HubSpot will not grant on this account-level app.
 
 | Surface | SDK | Read | Write-back |
 | --- | --- | --- | --- |
 | Marketing emails | `client.marketing.emails.marketingEmailsApi` | `getPage` and `getById` | `clone` with `id` and `cloneName`, then `upsertDraft` to set `language`, `name`, `subject`, and `content.widgets`. The clone request has no `language` field. Do not call `createAbTestVariation` or publish. |
-| Blog posts | `client.cms.blogs.blogPosts.basicApi` and `multiLanguageApi` | List and get. Primaries are `translatedFromId__is_null`. | `createLangVariation({ id, language })`, then patch the draft `name`, `htmlTitle`, `postBody`, and `metaDescription`. If HubSpot reports the blog has no variation for that language, create the blog-settings variation for the post's `contentGroupId`, then retry. Reuse an existing variant in that language. Never call push-live. |
-| Landing pages | `client.cms.pages.landingPagesApi` | `getPage` and `getById`. Skip rows with `translatedFromId`. | `createLangVariation({ id, language })`, then `updateDraft` with `name`, `language`, `htmlTitle`, `metaDescription`, `featuredImageAltText`, `widgets`, and `layoutSections`. Never publish. |
+| Blog posts | `client.cms.blogs.blogPosts.basicApi` and `multiLanguageApi` | List with the SDK. Read the raw published post and its draft so layout section text is not dropped. When the layout has no copy, read `templatePath` through the source-code API, including `include_dnd_partial` sections. | `createLangVariation({ id, language })`, then `PATCH` the draft `name`, `htmlTitle`, `metaDescription`, `postBody`, `postSummary`, `rssSummary`, `featuredImageAltText`, `widgets`, `layoutSections`, and `widgetContainers`. Template defaults are written onto the locale draft, not the template. If HubSpot reports the blog has no variation for that language, `POST /cms/v3/blog-settings/settings/multi-language/create-language-variation` for the post's `contentGroupId` with a slug, then retry. When that blog has no domain, set `domain` from its URL or the account's primary blog domain first. HubSpot rejects the variation when the domain is blank. Reuse an existing variant in that language. Never call push-live. |
+| Landing pages | `client.cms.pages.landingPagesApi` | `getPage` and raw published plus draft JSON. Skip rows with `translatedFromId`. When the page and draft have no module text, read `templatePath` through the source-code API, including `include_dnd_partial` sections, and use that default copy. | `createLangVariation({ id, language })`, then `updateDraft` with `name`, `language`, `htmlTitle`, `metaDescription`, `featuredImageAltText`, `widgets`, and `layoutSections`. Template defaults are written onto the locale draft, not the template. Never publish. |
 | Website pages | `client.cms.pages.sitePagesApi` | Same as landing pages. | Same write-back as landing pages. Never publish. |
-| Forms | `client.marketing.forms.formsApi` | Get the definition | `create` a new form. There is no clone endpoint and no language group. The create body must include `createdAt`; HubSpot rejects the request when that field is omitted. |
-| Message templates | `client.apiRequest` to `/automation/email-templates/2026-09` | `GET` the collection and `GET` one template. `@hubspot/api-client` 14.1.2 has no generated client for this API. `apiRequest` is the SDK HTTP client and sends the OAuth token. Do not call `fetch` against `api.hubapi.com`. | `POST` `{ name, subject, body, folderId }` for a new copy. `PATCH` the copy's `name`, `subject`, and `body`. Never patch the source id. Never send the template. |
+| Forms | `client.marketing.forms.formsApi` | Get the definition | `create` a new form. There is no clone endpoint and no language group. The create body must include `createdAt` and must omit `id`. A later replace puts the locale copy's id in the body so it matches the id in the path. |
 
 Forms `2026-09-beta` is still beta. Stay on the SDK's forms client.
 Do not hand-write that URL.
@@ -149,10 +141,7 @@ the full project tag, so `Welcome [fr-FR]` and a later `Welcome [fr]`
 stay distinct in the name even when they share a code.
 
 The source object's language must map to the project source locale.
-Message templates have no language, so every non-empty project locale
-is eligible. `fr` and `fr-FR` stay separate copies. Only tags that
-normalize to the same string collide. HubSpot rejects a message
-template subject longer than 256 characters.
+Only tags that normalize to the same string collide.
 
 ## Translation
 

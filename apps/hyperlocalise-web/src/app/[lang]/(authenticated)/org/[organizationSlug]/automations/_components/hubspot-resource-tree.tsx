@@ -18,7 +18,6 @@ import {
   ArticleIcon,
   BrowserIcon,
   CaretRightIcon,
-  ChatTextIcon,
   EnvelopeIcon,
   GlobeIcon,
   NoteIcon,
@@ -48,12 +47,6 @@ const GROUPS: Array<{
   { kind: "blog", label: "Blog posts", itemsKey: "blogPosts", icon: ArticleIcon },
   { kind: "landing-page", label: "Landing pages", itemsKey: "landingPages", icon: BrowserIcon },
   { kind: "website-page", label: "Website pages", itemsKey: "websitePages", icon: GlobeIcon },
-  {
-    kind: "message-template",
-    label: "Message templates",
-    itemsKey: "messageTemplates",
-    icon: ChatTextIcon,
-  },
 ];
 
 export const HUBSPOT_TREE_FIELDS: Record<
@@ -94,7 +87,6 @@ export function toggleHubspotTreeSelection(
 function HubspotTreeGroup({
   group,
   items,
-  warning,
   connected,
   selectedIds,
   disabled,
@@ -102,7 +94,6 @@ function HubspotTreeGroup({
 }: {
   group: (typeof GROUPS)[number];
   items: HubspotLibraryItem[];
-  warning?: string;
   connected: boolean;
   selectedIds: string[];
   disabled?: boolean;
@@ -133,11 +124,6 @@ function HubspotTreeGroup({
       </div>
       {expanded ? (
         <div className="pl-4">
-          {warning ? (
-            <TypographyP size="small" tone="subtle" className="py-1 pl-8">
-              {warning}
-            </TypographyP>
-          ) : null}
           {resources.length === 0 ? (
             <TypographyP size="small" tone="subtle" className="py-1 pl-8">
               None yet.
@@ -218,9 +204,6 @@ export function HubspotResourceTree({
   }
 
   const library = libraryQuery.data;
-  const templateWarning = library.warnings.find((warning) =>
-    warning.toLowerCase().includes("message template"),
-  );
 
   return (
     <div className="max-h-72 overflow-y-auto rounded-lg border bg-canvas py-1">
@@ -229,7 +212,6 @@ export function HubspotResourceTree({
           <HubspotTreeGroup
             group={group}
             items={library[group.itemsKey]}
-            warning={group.kind === "message-template" ? templateWarning : undefined}
             connected={connected}
             selectedIds={selection[group.kind]}
             disabled={disabled}

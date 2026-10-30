@@ -23,7 +23,7 @@ describe("formDefinitionForWrite", () => {
         fieldGroups: [],
         configuration: { language: "en" },
       },
-      { name: "Newsletter [zh-CN]", language: "zh-cn", create: true },
+      { name: "Newsletter [zh-CN]", language: "zh-cn" },
     );
 
     expect(definition.id).toBeUndefined();
@@ -32,5 +32,24 @@ describe("formDefinitionForWrite", () => {
     expect(definition.updatedAt).toBeInstanceOf(Date);
     expect(definition.archived).toBe(false);
     expect(definition.configuration).toMatchObject({ language: "zh-cn" });
+  });
+
+  it("sets the body id to the locale copy when replacing a form", () => {
+    const definition = formDefinitionForWrite(
+      {
+        id: "c81caeb1-4cc8-465c-9091-07061ef64b1b",
+        name: "Newsletter",
+        fieldGroups: [],
+        configuration: { language: "en" },
+      },
+      {
+        name: "Newsletter [zh-CN]",
+        language: "zh-cn",
+        id: "7c2accbe-a15b-407b-b5a8-8a376669b540",
+      },
+    );
+
+    expect(definition.id).toBe("7c2accbe-a15b-407b-b5a8-8a376669b540");
+    expect(definition.name).toBe("Newsletter [zh-CN]");
   });
 });
