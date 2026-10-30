@@ -188,7 +188,7 @@ export function IterableConnectionPanel({
             ? intl.formatMessage(pipesConnectionPanelMessages.reconnectHint, { providerName })
             : (summary?.detail ?? "")
       }
-      icon={<IntegrationLogo src={summary?.logoSrc ?? "/images/customerio-logo.svg"} />}
+      icon={<IntegrationLogo src={summary?.logoSrc ?? "/images/iterable-logo.png"} />}
       isConnected={isConnected}
       userIsAdmin={userCanManage}
       expanded={expanded}

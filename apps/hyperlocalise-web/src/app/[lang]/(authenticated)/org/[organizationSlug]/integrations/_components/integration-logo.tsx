@@ -31,7 +31,7 @@ export function IntegrationLogo({ src, muted = false, className }: IntegrationLo
       height={20}
       className={cn(
         "size-5 object-contain",
-        src.includes("braze-logo.svg") && "dark:invert",
+        (src.includes("braze-logo.svg") || src.includes("iterable-logo.png")) && "dark:invert",
         muted && "opacity-75",
         className,
       )}

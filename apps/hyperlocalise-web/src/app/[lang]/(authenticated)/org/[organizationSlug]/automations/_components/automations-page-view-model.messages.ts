@@ -105,6 +105,11 @@ export const automationsPageViewModelMessages = defineMessages({
     id: "h0hMmM+3k4",
     description: "Tool badge when an automation uses Braze",
   },
+  toolIterable: {
+    defaultMessage: "Iterable",
+    id: "+aXAY2+kkC",
+    description: "Tool badge when an automation uses Iterable",
+  },
   toolCustomerIo: {
     defaultMessage: "Customer.io",
     id: "H+501fU+xu",

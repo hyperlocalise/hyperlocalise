@@ -56,7 +56,7 @@ export function ContentEditorIterableIngestButton({
         contentEditorIterableIngestQueryKey(organizationSlug, projectId),
         contentEditorIterablePushQueryKey(organizationSlug, projectId),
       ]}
-      icon={<IntegrationLogo src="/images/braze-logo.svg" className="size-4" />}
+      icon={<IntegrationLogo src="/images/iterable-logo.png" className="size-4" />}
       pageNavigationGuardRef={pageNavigationGuardRef}
     />
   );

@@ -309,15 +309,7 @@ function CustomerIoToolIcon({ className }: { className?: string }) {
 
 function IterableToolIcon({ className }: { className?: string }) {
   return (
-    <span
-      className={cn(
-        "inline-flex size-4 items-center justify-center rounded-sm bg-[#2c3e50] text-[9px] font-bold text-white",
-        className,
-      )}
-      aria-hidden
-    >
-      It
-    </span>
+    <IntegrationLogo src="/images/iterable-logo.png" className={cn(BRAND_ICON_CLASS, className)} />
   );
 }
 

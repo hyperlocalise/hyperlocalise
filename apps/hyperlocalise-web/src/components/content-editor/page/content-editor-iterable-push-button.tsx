@@ -134,7 +134,7 @@ export function ContentEditorIterablePushButton({
   const pushIcon = isPending ? (
     <Spinner data-icon="inline-start" />
   ) : (
-    <IntegrationLogo src="/images/braze-logo.svg" className="size-4" />
+    <IntegrationLogo src="/images/iterable-logo.png" className="size-4" />
   );
 
   return (

@@ -1246,6 +1246,10 @@ export function getWorkspaceAutomationTemplateFlow(
     tools.push({ id: "braze", label: "Braze" });
   }
 
+  if (form.iterableEnabled) {
+    tools.push({ id: "iterable", label: "Iterable" });
+  }
+
   if (form.customerIoEnabled) {
     tools.push({ id: "customer-io", label: "Customer.io" });
   }

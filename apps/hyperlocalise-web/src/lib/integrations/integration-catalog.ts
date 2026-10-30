@@ -275,6 +275,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     type: "partner",
     marketing: false,
     workspace: true,
+    logoSrc: "/images/iterable-logo.png",
     websiteUrl: "https://iterable.com",
   },
   {

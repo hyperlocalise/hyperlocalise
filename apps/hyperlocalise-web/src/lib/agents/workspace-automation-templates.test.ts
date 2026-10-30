@@ -165,6 +165,23 @@ describe("workspace automation templates", () => {
     ).toContain("translate-customer-io-campaigns");
   });
 
+  it("builds the Iterable template flow with brand, create job, and translate tools", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "translate-iterable-templates",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+    expect(template).not.toBeNull();
+
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "scheduled", label: "Daily" },
+      tools: [
+        { id: "iterable", label: "Iterable" },
+        { id: "create-job", label: "Create job" },
+        { id: "translate-with-agent", label: "Translate with agent" },
+      ],
+    });
+  });
+
   it("builds the Customer.io template flow with brand, create job, and translate tools", () => {
     const template = getWorkspaceAutomationTemplate(
       "translate-customer-io-campaigns",
