@@ -96,8 +96,12 @@ bump `@hubspot/api-client`. Do not add a REST fallback.
 The OAuth app needs `content` for marketing emails, CMS blog posts,
 landing pages, and website pages, and `forms` for forms. Message
 templates need `automation.email_templates.read` and
-`automation.email_templates.write`. Those scopes are user-level.
-Reconnect HubSpot when an existing grant does not include them.
+`automation.email_templates.write`. HubSpot only offers those scopes
+to a user-level app, and user-level apps do not support CMS. The
+marketplace app in `apps/hubspot-app` stays account-level and does
+not declare the template scopes, so a deploy can succeed. Import
+still lists templates when a token has the scopes, and warns when it
+does not.
 
 | Surface | SDK | Read | Write-back |
 | --- | --- | --- | --- |

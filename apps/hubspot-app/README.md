@@ -10,9 +10,11 @@ OAuth redirect:
 
 `https://api.workos.com/data-integrations/hubspot/8zTSkHjMsVuTc0gYgn9lrLqzp/callback`
 
-Required scopes: `oauth`, `content`, `forms`, `automation.email_templates.read`, `automation.email_templates.write`.
+Required scopes: `oauth`, `content`, and `forms`.
 
-`content` covers marketing emails, blog posts, landing pages, and website pages. `forms` covers forms. The automation scopes cover CRM message templates.
+`content` covers marketing emails, blog posts, landing pages, and website pages. `forms` covers forms.
+
+CRM message templates need `automation.email_templates.read` and `automation.email_templates.write`. HubSpot only offers those scopes to a user-level app, and a user-level app cannot use CMS. This app stays account-level so emails, forms, and pages deploy. Leave the template scopes off until HubSpot grants them on an account-level app.
 
 ## Upload
 

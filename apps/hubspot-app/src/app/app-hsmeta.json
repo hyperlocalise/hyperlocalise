@@ -13,9 +13,7 @@
       "requiredScopes": [
         "oauth",
         "content",
-        "forms",
-        "automation.email_templates.read",
-        "automation.email_templates.write"
+        "forms"
       ],
       "optionalScopes": [],
       "conditionallyRequiredScopes": []

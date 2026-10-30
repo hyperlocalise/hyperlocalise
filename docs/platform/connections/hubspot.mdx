@@ -10,7 +10,7 @@ Hyperlocalise translates the copy. HubSpot does not. Import reads primary market
 | Requirement | Description |
 | --- | --- |
 | Native project | A [native project](/platform/projects/create-project) whose source locale matches the language of the HubSpot source. Add a project target locale for each language you will push back. |
-| HubSpot account | Connect HubSpot from **Integrations**. The authorization needs scopes `content`, `forms`, `automation.email_templates.read`, and `automation.email_templates.write`. `content` covers marketing emails, blog posts, landing pages, and website pages. `forms` covers forms. The automation scopes cover CRM message templates and require the user-level HubSpot grant. Reconnect HubSpot if message templates do not list. |
+| HubSpot account | Connect HubSpot from **Integrations**. The authorization needs scopes `content` and `forms`. `content` covers marketing emails, blog posts, landing pages, and website pages. `forms` covers forms. CRM message templates need `automation.email_templates.read` and `automation.email_templates.write`, which HubSpot only grants to a user-level app. This connection stays account-level so CMS content keeps working, so message templates may not list. |
 | Locale mapping | HubSpot language codes are lowercase, with a hyphen when they include a region (`fr`, `fr-ca`, `pt-br`, `en-gb`, `zh-cn`). `fr` and `fr-ca` stay different languages. A project tag such as `fr-FR` maps to `fr` when HubSpot has no `fr-fr` code. The locale copy keeps the full tag in its name (`Welcome [fr-FR]`). |
 
 ## Connect HubSpot
@@ -75,7 +75,7 @@ Disconnect HubSpot from **Integrations** to stop this workspace using that accou
 ## If import or push does not run
 
 - Confirm HubSpot is connected and the automation is **Active**.
-- Confirm the HubSpot authorization still has `content`, `forms`, and the message template scopes. Reconnect if message templates were added after the last authorization.
+- Confirm the HubSpot authorization still has `content` and `forms`. Message templates list only when the token also has the user-level template scopes.
 - Confirm the project source locale matches the language of the HubSpot source.
 - Confirm each target locale maps to a HubSpot language the account has enabled.
 - Open **Run History** for the failed item or locale.
