@@ -16,6 +16,8 @@ A person could make one workspace, at sign-up, and could join another only throu
 - **Last admin.** Removing, demoting or an admin leaving needs another admin who has accepted their invitation (a WorkOS membership id that is not a replacement marker), unless go-svc runs without WorkOS. The check takes a per-workspace advisory lock (`organization_admins:<org>`) that every removal and demotion holds until it commits, and the role is read under it; promotions take no lock, as they cannot leave a workspace without an admin. The WorkOS removal runs inside that transaction, so a second admin change waits for it. Row locks were tried and dropped: page loads rewrite membership rows and would wait on WorkOS.
 - **Session.** AuthKit renews a session for the workspace it was issued for, and switching workspaces only changes the address. After leaving, `finishLeavingWorkspaceAction` moves a session issued for the left workspace to the next one (`refreshSession({ organizationId })`), or signs out when none is left or the move fails; it returns where to go and the dialog loads that page in full.
 
+- **Revoking an accepted invitation.** If WorkOS shows the newest invitation as accepted before the app has heard, Revoke is refused (`invitation_already_accepted`, 409), the row is marked as the member it now is, and the list refreshes; ending that access is **Remove member…**.
+
 ## Consequences
 
 - No limit on how many workspaces a person creates; each gets the default plan.

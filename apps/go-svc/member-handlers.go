@@ -358,6 +358,16 @@ func (api *memberAPI) deleteMember(ctx context.Context, actor memberActor, worko
 			if marked {
 				_ = api.clearPendingMembershipReplacingInvitation(context.WithoutCancel(ctx), member.membershipID)
 			}
+			var accepted *workosInvitationAlreadyAcceptedError
+			if errors.As(err, &accepted) {
+				// Shows them as a member from now on, where Remove member is what applies.
+				if _, err := api.pool.Exec(context.WithoutCancel(ctx), `
+                    update organization_memberships set workos_membership_id=$2
+                    where id=$1 and workos_membership_id is null`, member.membershipID, accepted.membershipID); err != nil {
+					return 0, err
+				}
+				return 0, memberFailure(409, "invitation_already_accepted", "This person has already accepted the invitation and is now a member")
+			}
 			slog.ErrorContext(ctx, "workspace pending invitation revoke failed",
 				"organization_id", actor.organizationID,
 				"membership_id", member.membershipID,

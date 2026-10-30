@@ -25,6 +25,7 @@ import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team-constants";
 
 import { membersPageContentMessages } from "./members-page-content.messages";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { LeaveWorkspaceDialog } from "./leave-workspace-dialog";
 import { MembersPageView } from "./members-page-view";
 import {
@@ -175,6 +176,14 @@ export function MembersPageContent({
     },
     onError: (error) => {
       toast.error(error.message);
+      // Refused because the list was out of date: show what is true now.
+      if (
+        error.cause instanceof GoSvcClientError &&
+        error.cause.code === "invitation_already_accepted"
+      ) {
+        setRemovingMember(null);
+        void queryClient.invalidateQueries({ queryKey: membersQueryKey(organizationSlug) });
+      }
     },
   });
 
