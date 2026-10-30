@@ -40,6 +40,7 @@ export const AUTOMATION_ASSISTANT_INTEGRATION_LABELS: Record<
   braze: workspaceAutomationFormMessages.skillIntegrationBraze,
   customer_io: workspaceAutomationFormMessages.skillIntegrationCustomerIo,
   loops: workspaceAutomationFormMessages.skillIntegrationLoops,
+  hubspot: workspaceAutomationFormMessages.skillIntegrationHubspot,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
 };

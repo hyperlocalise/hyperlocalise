@@ -333,6 +333,35 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "translate-hubspot-content",
+    category: "popular",
+    extraCategories: ["marketing"],
+    name: "Translate HubSpot content",
+    description:
+      "Import HubSpot marketing emails, forms, blog posts, landing pages, and website pages, localise in Jobs, then push approved locales as unpublished copies.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a HubSpot localisation connector",
+      capabilities: [
+        "Import marketing emails, forms, blog posts, landing pages, and website pages into the attached project",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push translations automatically on import — operators enqueue Push to HubSpot separately",
+      ],
+      goal: "Write approved locales as HubSpot copies without changing or publishing the source.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-hubspot-content"],
+      name: "Translate HubSpot content",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      hubspotEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-contentful-article",
     category: "popular",
     name: "Translate Contentful article",
@@ -1223,6 +1252,10 @@ export function getWorkspaceAutomationTemplateFlow(
 
   if (form.loopsEnabled) {
     tools.push({ id: "loops", label: "Loops" });
+  }
+
+  if (form.hubspotEnabled) {
+    tools.push({ id: "hubspot", label: "HubSpot" });
   }
 
   if (form.createNativeTmsJobEnabled) {

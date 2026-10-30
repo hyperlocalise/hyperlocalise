@@ -1,0 +1,82 @@
+---
+title: "Localize HubSpot"
+description: "Import HubSpot emails, forms, blog posts, landing pages, and website pages, translate them in Jobs, and push locale copies."
+---
+
+Hyperlocalise translates the copy. HubSpot does not. Import reads primary marketing emails, forms, blog posts, landing pages, and website pages. **Push to HubSpot** creates separate locale copies and leaves the source object unchanged. Nothing is published or sent.
+
+## Prerequisites
+
+| Requirement | Description |
+| --- | --- |
+| Native project | A [native project](/platform/projects/create-project) whose source locale matches the language of the HubSpot source. Add a project target locale for each language you will push back. |
+| Private app | A HubSpot private app with scopes `content` and `forms`. `content` covers marketing emails, blog posts, landing pages, and website pages. `forms` covers forms. |
+| Locale mapping | HubSpot language codes are lowercase, with a hyphen when they include a region (`fr`, `fr-ca`, `pt-br`, `en-gb`, `zh-cn`). `fr` and `fr-ca` stay different languages. A project tag such as `fr-FR` maps to `fr` when HubSpot has no `fr-fr` code. The locale copy keeps the full tag in its name (`Welcome [fr-FR]`). |
+
+## Connect HubSpot
+
+1. In HubSpot, create a private app.
+2. Grant `content` and `forms`.
+3. Copy the access token.
+4. Open **Integrations**, expand **HubSpot**, paste the token, and save.
+
+Save checks the token with the HubSpot Node SDK before storing it. A rejected token, or a token missing `content` or `forms`, is not stored. The token is stored through WorkOS Pipes on the existing `hubspot` connection. OAuth is not used for this workflow.
+
+## Translate HubSpot content
+
+Add the **Translate HubSpot content** template from **Popular** or **Marketing**. It is mutually exclusive with Braze, Customer.io, and Loops. Choose the native project, then activate the automation.
+
+A scheduled or manual run imports content. It does not push. Push runs only when you choose **Push to HubSpot** in the Content editor.
+
+## What import writes
+
+Import reads primary objects and writes source files:
+
+- Marketing emails at `hubspot/emails/{id}/{slug}.json`, with the subject, preview text, and translatable widget fields
+- Forms at `hubspot/forms/{id}/{slug}.json`, with labels, placeholders, help text, submit text, and legal copy
+- Blog posts at `hubspot/blog-posts/{id}/{slug}.html`, with the title, meta description, and post body
+- Landing pages at `hubspot/landing-pages/{id}/{slug}.json`, with the title, meta description, image alt text, and translatable widget and layout fields
+- Website pages at `hubspot/website-pages/{id}/{slug}.json`, with the same fields as landing pages
+
+Import skips blog posts, landing pages, and website pages that are already language variations, and names that already look like locale copies (`Welcome [fr-FR]`). Field names, widget ids, URLs, and colors stay locked. Import does not write anything to HubSpot.
+
+When **Create native TMS job** is enabled, the run opens a job for mapped locales that still need translation.
+
+A project locale maps to a HubSpot code in this order:
+
+1. The same code, lowercased, with `_` written as `-` (`pt-BR` becomes `pt-br`).
+2. A short list of aliases HubSpot uses: `zh-CN` becomes `zh-cn`, `zh-TW` becomes `zh-tw`, `he` becomes `he-il`, and Norwegian tags become `no-no`.
+3. The language alone, when HubSpot accepts that language and has no matching regional code (`fr-FR` becomes `fr`).
+
+When two project locales become the same HubSpot code, the second locale is skipped. The source object's language must match the project source locale. An empty object language is treated as a match.
+
+## What push writes
+
+1. Translate and [approve](/platform/cat) the mapped locales you want to write back.
+2. In the Content editor, choose **Push to HubSpot** and select the mapped items.
+
+Push creates a copy named `{source} [{locale}]`, for example `Welcome [fr-FR]`. A later push updates that copy instead of creating another one.
+
+| Surface | What lands in HubSpot |
+| --- | --- |
+| Marketing email | A cloned email, then a draft with the target language and the translated subject, preview, and widgets. The source email stays as it was. |
+| Blog post | A language variation of the primary post, with the translated title, meta description, and body on the draft. The post stays unpublished. |
+| Landing page | A language variation of the primary landing page, with the translated title, meta description, alt text, widgets, and layout on the draft. The page stays unpublished. |
+| Website page | A language variation of the primary website page, with the same draft fields as a landing page. The page stays unpublished. |
+| Form | A new form with the translated labels and HubSpot's built-in messages for that language. The source form stays on any page that already embeds it. The new form exists in the portal and is not embedded for you. |
+
+HubSpot's own translate actions are not used. Hyperlocalise writes the approved strings onto the copy.
+
+## Change or remove access
+
+Disconnect HubSpot from **Integrations** to stop this workspace using that private app. Inspect automations that depend on the connection before you disconnect.
+
+## If import or push does not run
+
+- Confirm HubSpot is connected and the automation is **Active**.
+- Confirm the private app still has `content` and `forms`.
+- Confirm the project source locale matches the language of the HubSpot source.
+- Confirm each target locale maps to a HubSpot language the account has enabled.
+- Open **Run History** for the failed item or locale.
+
+See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).

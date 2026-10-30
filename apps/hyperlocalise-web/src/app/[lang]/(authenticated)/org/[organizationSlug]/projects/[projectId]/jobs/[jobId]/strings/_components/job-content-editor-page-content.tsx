@@ -52,6 +52,8 @@ import { ContentEditorGoogleDriveIngestButton } from "@/components/content-edito
 import { ContentEditorGoogleDrivePushButton } from "@/components/content-editor/page/content-editor-google-drive-push-button";
 import { ContentEditorIntercomIngestButton } from "@/components/content-editor/page/content-editor-intercom-ingest-button";
 import { ContentEditorIntercomPushButton } from "@/components/content-editor/page/content-editor-intercom-push-button";
+import { ContentEditorHubspotIngestButton } from "@/components/content-editor/page/content-editor-hubspot-ingest-button";
+import { ContentEditorHubspotPushButton } from "@/components/content-editor/page/content-editor-hubspot-push-button";
 import { ContentEditorLoopsIngestButton } from "@/components/content-editor/page/content-editor-loops-ingest-button";
 import { ContentEditorLoopsPushButton } from "@/components/content-editor/page/content-editor-loops-push-button";
 import { ContentEditorSanityIngestButton } from "@/components/content-editor/page/content-editor-sanity-ingest-button";
@@ -316,6 +318,20 @@ export function JobContentEditorPageContent({
         pageNavigationGuardRef={pageNavigationGuardRef}
       />
       <ContentEditorLoopsPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorHubspotIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorHubspotPushButton
         organizationSlug={organizationSlug}
         projectId={projectId}
         canManageAutomations={canManageAutomations}

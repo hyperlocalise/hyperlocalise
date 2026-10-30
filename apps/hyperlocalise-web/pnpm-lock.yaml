@@ -274,6 +274,9 @@ importers:
       '@hookform/resolvers':
         specifier: 5.9.2
         version: 5.9.2(@standard-schema/spec@1.1.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
+      '@hubspot/api-client':
+        specifier: ^14.1.2
+        version: 14.1.2
       '@inno76/univer-import-export':
         specifier: ^0.2.3
         version: 0.2.3(@univerjs/core@1.2.0(react@19.3.1)(rxjs@7.8.2))
@@ -1634,6 +1637,10 @@ packages:
         optional: true
       zod:
         optional: true
+
+  '@hubspot/api-client@14.1.2':
+    resolution: {integrity: sha512-yJVxaKDL3whPKiwca8WywVBL12DurGz1kNQYmmlF7ED/M+Q82T7PqKWmI2YHFHppkS6AjyOZ6k38A9K7GSRmKw==}
+    engines: {node: '>=22.0.0'}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -7135,6 +7142,9 @@ packages:
   es-toolkit@1.52.0:
     resolution: {integrity: sha512-XTNEJQh1tY1ZJVcf6ayP/2n4ZPyaHlW2FWs7xvw5ddPuhUVjLD3olQVQS7kf58JbAB48iL0uL/jerTrjtV3lDA==}
 
+  es6-promise@4.2.8:
+    resolution: {integrity: sha512-HJDGx5daxeIvxdBxvG2cb9g4tEvwIk3i8+nhX0yGrYmZUzbkdg8QbDevheDB8gd0//uPj4c1EQua8Q+MViT0/w==}
+
   esbuild@0.28.2:
     resolution: {integrity: sha512-HKVLS8dvII+xoKW9kmqxbRKrnWEXfJJr/FZhhJmiqIB0e053QNYFqOBouTMO/k5sID4MvCiUCvv8b9M4h32wIA==}
     engines: {node: '>=18'}
@@ -12368,6 +12378,14 @@ snapshots:
       ajv-formats: 2.1.1(ajv@8.20.0)
       valibot: 1.5.0(typescript@7.0.2)
       zod: 4.6.7
+
+  '@hubspot/api-client@14.1.2':
+    dependencies:
+      '@types/node': 24.19.2
+      bottleneck: 2.19.5
+      es6-promise: 4.2.8
+      form-data: 4.0.6
+      lodash.merge: 4.6.2
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -17981,6 +17999,8 @@ snapshots:
       is-symbol: 1.1.1
 
   es-toolkit@1.52.0: {}
+
+  es6-promise@4.2.8: {}
 
   esbuild@0.28.2:
     optionalDependencies:

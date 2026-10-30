@@ -23,6 +23,7 @@ import {
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationLoopsTool,
+  hasWorkspaceAutomationHubspotTool,
   hasWorkspaceAutomationGoogleDriveTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
@@ -49,6 +50,7 @@ export function hasWorkspaceAutomationScheduledWorkflow(
     hasWorkspaceAutomationBrazeCampaignsTool(toolConfig) ||
     hasWorkspaceAutomationCustomerIoTool(toolConfig) ||
     hasWorkspaceAutomationLoopsTool(toolConfig) ||
+    hasWorkspaceAutomationHubspotTool(toolConfig) ||
     hasWorkspaceAutomationListIssuesTool(toolConfig) ||
     hasWorkspaceAutomationCreateIssueTool(toolConfig) ||
     hasWorkspaceAutomationWebSearchTool(toolConfig) ||

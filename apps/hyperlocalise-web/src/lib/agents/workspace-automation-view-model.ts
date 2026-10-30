@@ -158,6 +158,8 @@ export type WorkspaceAutomationFormState = {
   customerIoEnabled: boolean;
   loopsEnabled: boolean;
   loopsSourceLocale: string;
+  hubspotEnabled: boolean;
+  hubspotSourceLocale: string;
   customerIoBroadcastIds: string[];
   customerIoCampaignIds: string[];
   customerIoNewsletterIds: string[];
@@ -205,7 +207,8 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
     form.customerIoEnabled ||
-    form.loopsEnabled
+    form.loopsEnabled ||
+    form.hubspotEnabled
   ) {
     return true;
   }
@@ -258,6 +261,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "brazeSourceLocale"
     | "customerIo"
     | "loops"
+    | "hubspot"
     | "crowdinProjectId"
     | "scheduledTimezone"
     | "skills"
@@ -333,6 +337,9 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   loops_not_connected: "Connect Loops in Integrations before using it.",
   loops_pipes_needs_reauthorization: "Reconnect Loops in Integrations, then try again.",
   loops_pipes_unavailable: "Loops is unavailable until WorkOS Pipes is configured.",
+  hubspot_not_connected: "Connect HubSpot in Integrations before using it.",
+  hubspot_pipes_needs_reauthorization: "Reconnect HubSpot in Integrations, then try again.",
+  hubspot_pipes_unavailable: "HubSpot is unavailable until WorkOS Pipes is configured.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -491,6 +498,8 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     customerIoEnabled: false,
     loopsEnabled: false,
     loopsSourceLocale: "en",
+    hubspotEnabled: false,
+    hubspotSourceLocale: "en",
     customerIoBroadcastIds: [],
     customerIoCampaignIds: [],
     customerIoNewsletterIds: [],
@@ -550,6 +559,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const brazeCampaigns = automation.toolConfig.brazeCampaigns;
   const customerIo = automation.toolConfig.customerIo;
   const loops = automation.toolConfig.loops;
+  const hubspot = automation.toolConfig.hubspot;
   const crowdin = automation.toolConfig.crowdin;
   const webSearch = automation.toolConfig.webSearch;
 
@@ -681,6 +691,8 @@ export function createWorkspaceAutomationFormStateFromRecord(
     customerIoEnabled: Boolean(customerIo?.enabled),
     loopsEnabled: Boolean(loops?.enabled),
     loopsSourceLocale: loops?.sourceLocale ?? "en",
+    hubspotEnabled: Boolean(hubspot?.enabled),
+    hubspotSourceLocale: hubspot?.sourceLocale ?? "en",
     customerIoBroadcastIds: customerIo?.broadcastIds ? [...customerIo.broadcastIds] : [],
     customerIoCampaignIds: customerIo?.campaignIds ? [...customerIo.campaignIds] : [],
     customerIoNewsletterIds: customerIo?.newsletterIds ? [...customerIo.newsletterIds] : [],
@@ -788,6 +800,10 @@ export function applyWorkspaceAutomationProjectSelection(
 
   if (form.loopsEnabled && project) {
     next.loopsSourceLocale = project.sourceLocale ?? form.loopsSourceLocale;
+  }
+
+  if (form.hubspotEnabled && project) {
+    next.hubspotSourceLocale = project.sourceLocale ?? form.hubspotSourceLocale;
   }
 
   return next;
@@ -1003,6 +1019,21 @@ export function formStateToWorkspaceAutomationPayload(
             transactionalIds: [],
             campaignIds: [],
             workflowIds: [],
+            existingTranslationPolicy: "seed_empty",
+            overwriteWhenRemoteNewer: true,
+          },
+        }
+      : {}),
+    ...(form.hubspotEnabled
+      ? {
+          hubspot: {
+            enabled: true,
+            sourceLocale: form.hubspotSourceLocale.trim() || "en",
+            emailIds: [],
+            formIds: [],
+            blogPostIds: [],
+            landingPageIds: [],
+            websitePageIds: [],
             existingTranslationPolicy: "seed_empty",
             overwriteWhenRemoteNewer: true,
           },
@@ -1560,6 +1591,10 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "loops_pipes_needs_reauthorization":
     case "loops_pipes_unavailable":
       return { loops: message };
+    case "hubspot_not_connected":
+    case "hubspot_pipes_needs_reauthorization":
+    case "hubspot_pipes_unavailable":
+      return { hubspot: message };
     case "crowdin_project_required":
     case "crowdin_project_not_found":
     case "crowdin_project_not_linked":
@@ -1635,6 +1670,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.brazeCampaignsEnabled ||
     form.customerIoEnabled ||
     form.loopsEnabled ||
+    form.hubspotEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
     form.listIssuesEnabled ||

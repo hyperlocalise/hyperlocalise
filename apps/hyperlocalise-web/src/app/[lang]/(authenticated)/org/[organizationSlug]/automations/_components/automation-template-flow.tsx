@@ -48,6 +48,7 @@ type IconBucket =
   | "braze"
   | "customer-io"
   | "loops"
+  | "hubspot"
   | "web-search"
   | "web-chat"
   | "upload"
@@ -64,6 +65,7 @@ const BRAND_TOOL_IDS = new Set([
   "webflow",
   "customer-io",
   "loops",
+  "hubspot",
 ]);
 
 function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucket {
@@ -99,6 +101,8 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
       return "customer-io";
     case "loops":
       return "loops";
+    case "hubspot":
+      return "hubspot";
     case "web-search":
       return "web-search";
     case "web-chat":
@@ -183,6 +187,16 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
           width={16}
           height={16}
           className={cn(iconClassName, "dark:invert")}
+        />
+      );
+    case "hubspot":
+      return (
+        <Image
+          src="/images/hubspot-logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className={iconClassName}
         />
       );
     case "web-search":

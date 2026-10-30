@@ -631,6 +631,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "oC6DC5UXTd",
     description: "Name of the Loops integration in the hint on a skill that needs it connected",
   },
+  skillIntegrationHubspot: {
+    defaultMessage: "HubSpot",
+    id: "UT4djK0Z7P",
+    description: "Name of the HubSpot integration in the hint on a skill that needs it connected",
+  },
   skillIntegrationSlack: {
     defaultMessage: "Slack",
     id: "SXLP18M0vY",

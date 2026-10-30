@@ -38,6 +38,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOLS = [
   "push_customer_io_campaigns",
   "import_loops_emails",
   "push_loops_emails",
+  "import_hubspot_content",
+  "push_hubspot_content",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -346,6 +348,29 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     },
   },
   {
+    id: "translate-hubspot-content",
+    name: "Translate HubSpot content",
+    category: "translate",
+    description:
+      "Import HubSpot marketing emails, forms, blog posts, landing pages, and website pages, then push approved locales as unpublished copies.",
+    grants:
+      "Reads HubSpot emails, forms, blog posts, landing pages, and website pages through Pipes, writes source files and native jobs. Push creates locale copies and never changes or publishes the source.",
+    tools: ["import_hubspot_content", "push_hubspot_content"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: [
+        "hubspot",
+        "hubspot email",
+        "hubspot form",
+        "hubspot blog",
+        "landing page",
+        "website page",
+      ],
+      weak: ["email", "form", "blog", "import", "translate"],
+    },
+  },
+  {
     id: "translate-contentful-entries",
     name: "Translate Contentful entries",
     category: "translate",
@@ -490,6 +515,7 @@ export type WorkspaceAutomationSkillIntegration =
   | "braze"
   | "customer_io"
   | "loops"
+  | "hubspot"
   | "slack"
   | "email";
 
@@ -517,6 +543,8 @@ const SKILL_TOOL_INTEGRATIONS: Record<
   push_customer_io_campaigns: "customer_io",
   import_loops_emails: "loops",
   push_loops_emails: "loops",
+  import_hubspot_content: "hubspot",
+  push_hubspot_content: "hubspot",
   create_native_tms_job: null,
   assign_translate_with_agent: null,
   list_issues: null,
@@ -644,6 +672,9 @@ export function workspaceAutomationSkillToolEnabled(
     case "import_loops_emails":
     case "push_loops_emails":
       return Boolean(toolConfig.loops?.enabled);
+    case "import_hubspot_content":
+    case "push_hubspot_content":
+      return Boolean(toolConfig.hubspot?.enabled);
     case "create_native_tms_job":
       return Boolean(toolConfig.createNativeTmsJob?.enabled);
     case "assign_translate_with_agent":

@@ -19,6 +19,10 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { getAhrefsPipesConnectionStatus, resolveAhrefsPipesWorkosUserId } from "@/lib/ahrefs/pipes";
 import { getBrazePipesConnectionStatus, resolveBrazePipesWorkosUserId } from "@/lib/braze/pipes";
+import {
+  getHubspotPipesConnectionStatus,
+  resolveHubspotPipesWorkosUserId,
+} from "@/lib/hubspot/pipes";
 import { getLoopsPipesConnectionStatus, resolveLoopsPipesWorkosUserId } from "@/lib/loops/pipes";
 import { loadBrazeRestEndpoint } from "@/lib/braze/settings";
 import { areBrazeSourceLocalesCompatible } from "@/lib/braze/locale";
@@ -87,6 +91,8 @@ import {
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationLoopsTool,
+  hasWorkspaceAutomationHubspotTool,
+  hasWorkspaceAutomationCustomerIoTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
   hasWorkspaceAutomationWebflowTool,
@@ -144,7 +150,8 @@ export function workspaceAutomationNeedsProject(input: {
   if (
     hasWorkspaceAutomationBrazeTool(input.toolConfig) ||
     hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig) ||
-    hasWorkspaceAutomationLoopsTool(input.toolConfig)
+    hasWorkspaceAutomationLoopsTool(input.toolConfig) ||
+    hasWorkspaceAutomationHubspotTool(input.toolConfig)
   ) {
     return true;
   }
@@ -1167,6 +1174,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     hasWorkspaceAutomationBrazeTool(input.toolConfig),
     hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig),
     hasWorkspaceAutomationLoopsTool(input.toolConfig),
+    hasWorkspaceAutomationHubspotTool(input.toolConfig),
     hasWorkspaceAutomationContentfulWorkflow(input.toolConfig),
   ].filter(Boolean).length;
   if (cmsToolCount > 1) {
@@ -1176,6 +1184,8 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       !hasWorkspaceAutomationIntercomTool(input.toolConfig) &&
       !hasWorkspaceAutomationSanityTool(input.toolConfig) &&
       !hasWorkspaceAutomationWebflowTool(input.toolConfig) &&
+      !hasWorkspaceAutomationLoopsTool(input.toolConfig) &&
+      !hasWorkspaceAutomationHubspotTool(input.toolConfig) &&
       !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig);
     if (!brazePairOnly) {
       return err({
@@ -1416,6 +1426,52 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       return err({
         code: "loops_not_connected",
         message: "Connect Loops in Integrations before using it.",
+      });
+    }
+  }
+
+  if (
+    hasWorkspaceAutomationHubspotTool(input.toolConfig) &&
+    hasWorkspaceAutomationCustomerIoTool(input.toolConfig)
+  ) {
+    return err({
+      code: "cms_translation_skills_exclusive",
+      message: "Choose one CMS translation skill per automation.",
+    });
+  }
+
+  if (input.toolConfig.hubspot?.enabled) {
+    const hubspot = input.toolConfig.hubspot;
+    const workosUserId = hubspot.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "hubspot_not_connected",
+        message: "Connect HubSpot in Integrations before using it.",
+      });
+    }
+
+    const status = await getHubspotPipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "hubspot_pipes_unavailable",
+        message: "WorkOS is not configured, so HubSpot cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "hubspot_pipes_needs_reauthorization",
+        message: "Reconnect HubSpot in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "hubspot_not_connected",
+        message: "Connect HubSpot in Integrations before using it.",
       });
     }
   }
@@ -1726,6 +1782,22 @@ async function stampPipesUsersOnToolConfig(input: {
       ...toolConfig,
       loops: {
         ...toolConfig.loops,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.hubspot?.enabled) {
+    const workosUserId = await resolveHubspotPipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      hubspot: {
+        ...toolConfig.hubspot,
         enabled: true,
         ...(workosUserId ? { workosUserId } : {}),
       },

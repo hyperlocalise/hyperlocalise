@@ -88,6 +88,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS: Record<
   push_customer_io_campaigns: ["projectId"],
   import_loops_emails: ["projectId"],
   push_loops_emails: ["projectId"],
+  import_hubspot_content: ["projectId"],
+  push_hubspot_content: ["projectId"],
 };
 
 /** Ids of the given skills whose tools own the field, in the order given. */
@@ -184,6 +186,7 @@ function enableSkillTool(
         brazeCampaignsEnabled: false,
         customerIoEnabled: false,
         loopsEnabled: false,
+        hubspotEnabled: false,
       };
     case "import_braze_campaigns":
     case "push_braze_campaigns":
@@ -193,6 +196,7 @@ function enableSkillTool(
         brazeEnabled: false,
         customerIoEnabled: false,
         loopsEnabled: false,
+        hubspotEnabled: false,
       };
     case "import_customer_io_campaigns":
     case "push_customer_io_campaigns":
@@ -202,6 +206,7 @@ function enableSkillTool(
         brazeEnabled: false,
         brazeCampaignsEnabled: false,
         loopsEnabled: false,
+        hubspotEnabled: false,
       };
     case "import_loops_emails":
     case "push_loops_emails":
@@ -211,6 +216,17 @@ function enableSkillTool(
         brazeEnabled: false,
         brazeCampaignsEnabled: false,
         customerIoEnabled: false,
+        hubspotEnabled: false,
+      };
+    case "import_hubspot_content":
+    case "push_hubspot_content":
+      return {
+        ...form,
+        hubspotEnabled: true,
+        brazeEnabled: false,
+        brazeCampaignsEnabled: false,
+        customerIoEnabled: false,
+        loopsEnabled: false,
       };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: true };
@@ -285,6 +301,9 @@ function disableSkillTool(
     case "import_loops_emails":
     case "push_loops_emails":
       return { ...form, loopsEnabled: false };
+    case "import_hubspot_content":
+    case "push_hubspot_content":
+      return { ...form, hubspotEnabled: false };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: false };
     case "assign_translate_with_agent":

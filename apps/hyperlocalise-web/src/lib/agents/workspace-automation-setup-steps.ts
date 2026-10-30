@@ -58,6 +58,7 @@ export const WORKSPACE_AUTOMATION_INTEGRATION_NAMES: Record<
   braze: "Braze",
   customer_io: "Customer.io",
   loops: "Loops",
+  hubspot: "HubSpot",
   slack: "Slack",
   email: "an email provider (Resend or SendGrid)",
 };

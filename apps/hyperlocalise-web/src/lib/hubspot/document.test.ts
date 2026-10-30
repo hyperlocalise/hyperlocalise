@@ -1,0 +1,145 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { describe, expect, it } from "vite-plus/test";
+
+import {
+  applyEmailDocument,
+  applyFormDocument,
+  applyPageDocument,
+  buildBlogDocument,
+  buildEmailDocument,
+  buildFormDocument,
+  buildPageDocument,
+  mergeHubspotTranslations,
+  readBlogDocument,
+} from "./document";
+
+describe("hubspot documents", () => {
+  it("lifts preview text and leaves widget ids, urls, and colors out of the tree", () => {
+    const document = buildEmailDocument({
+      subject: "Hello",
+      widgets: {
+        module: {
+          id: "widget-1",
+          body: "Welcome",
+          href: "https://example.com",
+          color: "#ff4800",
+          preview_text: "See you soon",
+        },
+      },
+    });
+
+    expect(document.subject).toBe("Hello");
+    expect(document.previewText).toBe("See you soon");
+    expect(JSON.stringify(document)).not.toContain("widget-1");
+    expect(JSON.stringify(document)).not.toContain("https://example.com");
+    expect(JSON.stringify(document)).not.toContain("#ff4800");
+    expect(document.widgets).toEqual({ module: { body: "Welcome" } });
+  });
+
+  it("writes translations back onto existing widget strings", () => {
+    const source = buildEmailDocument({
+      subject: "Hello",
+      widgets: { module: { body: "Welcome", preview_text: "Soon" } },
+    });
+    const translated = mergeHubspotTranslations(source, {
+      subject: "Bonjour",
+      "widgets.module.body": "Bienvenue",
+      previewText: "Bientot",
+      "widgets.module.missing": "skip",
+    });
+    const applied = applyEmailDocument(
+      { module: { id: "widget-1", body: "Welcome", preview_text: "Soon" } },
+      translated,
+    );
+    expect(applied.subject).toBe("Bonjour");
+    expect(applied.widgets).toMatchObject({
+      module: { id: "widget-1", body: "Bienvenue", preview_text: "Bientot" },
+    });
+  });
+
+  it("keeps form field names locked and updates labels", () => {
+    const definition = {
+      displayOptions: { submitButtonText: "Send" },
+      fieldGroups: [
+        {
+          fields: [
+            {
+              name: "email",
+              label: "Email",
+              placeholder: "you@example.com",
+              options: [{ value: "yes", label: "Yes" }],
+            },
+          ],
+        },
+      ],
+    };
+    const document = buildFormDocument(definition);
+    expect(document.fields).toEqual({
+      email: {
+        label: "Email",
+        placeholder: "you@example.com",
+        options: { yes: "Yes" },
+      },
+    });
+    const translated = mergeHubspotTranslations(document, {
+      submitText: "Envoyer",
+      "fields.email.label": "Courriel",
+      "fields.email.options.yes": "Oui",
+    });
+    const applied = applyFormDocument(definition, translated);
+    const field = (applied.fieldGroups as Array<{ fields: Array<Record<string, unknown>> }>)[0]
+      ?.fields[0];
+    expect(field?.name).toBe("email");
+    expect(field?.label).toBe("Courriel");
+    expect((applied.displayOptions as { submitButtonText: string }).submitButtonText).toBe(
+      "Envoyer",
+    );
+  });
+
+  it("keeps page widget ids locked and writes layout copy back", () => {
+    const live = {
+      htmlTitle: "Pricing",
+      metaDescription: "Plans",
+      featuredImageAltText: "Chart",
+      widgets: { hero: { id: "hero-1", body: "Start", href: "https://example.com" } },
+      layoutSections: { main: { richText: "Hello" } },
+    };
+    const document = buildPageDocument(live);
+    expect(JSON.stringify(document)).not.toContain("hero-1");
+    expect(JSON.stringify(document)).not.toContain("https://example.com");
+    expect(document.layoutSections).toEqual({ main: { richText: "Hello" } });
+    const translated = mergeHubspotTranslations(document, {
+      htmlTitle: "Tarifs",
+      "layoutSections.main.richText": "Bonjour",
+      "widgets.hero.body": "Commencer",
+    });
+    const applied = applyPageDocument(live, translated);
+    expect(applied.htmlTitle).toBe("Tarifs");
+    expect(applied.widgets).toMatchObject({ hero: { id: "hero-1", body: "Commencer" } });
+    expect(applied.layoutSections).toEqual({ main: { richText: "Bonjour" } });
+  });
+
+  it("round-trips blog title, description, and body", () => {
+    const html = buildBlogDocument({
+      htmlTitle: "Launch & more",
+      metaDescription: "A <note>",
+      postBody: "<p>Body</p>",
+    });
+    expect(readBlogDocument(html)).toEqual({
+      htmlTitle: "Launch & more",
+      metaDescription: "A <note>",
+      postBody: "<p>Body</p>",
+    });
+  });
+});

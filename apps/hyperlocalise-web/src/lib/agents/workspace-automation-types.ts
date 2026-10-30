@@ -392,6 +392,33 @@ const customerIoToolConfigSchema = z
     overwriteWhenRemoteNewer: true,
   });
 
+const hubspotToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    emailIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    formIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    blogPostIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    landingPageIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    websitePageIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+    overwriteWhenRemoteNewer: z.boolean().default(true),
+  })
+  .default({
+    enabled: false,
+    sourceLocale: "en",
+    emailIds: [],
+    formIds: [],
+    blogPostIds: [],
+    landingPageIds: [],
+    websitePageIds: [],
+    existingTranslationPolicy: "seed_empty",
+    overwriteWhenRemoteNewer: true,
+  });
+
 const loopsToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -653,6 +680,7 @@ const toolConfigObjectSchema = z
     brazeCampaigns: brazeCampaignsToolConfigSchema.optional(),
     customerIo: customerIoToolConfigSchema.optional(),
     loops: loopsToolConfigSchema.optional(),
+    hubspot: hubspotToolConfigSchema.optional(),
     crowdin: crowdinToolConfigSchema.optional(),
     webSearch: webSearchToolConfigSchema.optional(),
   })
@@ -723,6 +751,7 @@ export type WorkspaceAutomationBrazeCampaignsToolConfig = z.infer<
 >;
 export type WorkspaceAutomationCustomerIoToolConfig = z.infer<typeof customerIoToolConfigSchema>;
 export type WorkspaceAutomationLoopsToolConfig = z.infer<typeof loopsToolConfigSchema>;
+export type WorkspaceAutomationHubspotToolConfig = z.infer<typeof hubspotToolConfigSchema>;
 export type WorkspaceAutomationCrowdinToolConfig = z.infer<typeof crowdinToolConfigSchema>;
 export type WorkspaceAutomationWebSearchProvider = z.infer<
   typeof workspaceAutomationWebSearchProviderSchema
@@ -906,6 +935,18 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "loops_pipes_unavailable";
       message: "WorkOS is not configured, so Loops cannot connect through Pipes.";
+    }
+  | {
+      code: "hubspot_not_connected";
+      message: "Connect HubSpot in Integrations before using it.";
+    }
+  | {
+      code: "hubspot_pipes_needs_reauthorization";
+      message: "Reconnect HubSpot in Integrations, then try again.";
+    }
+  | {
+      code: "hubspot_pipes_unavailable";
+      message: "WorkOS is not configured, so HubSpot cannot connect through Pipes.";
     }
   | {
       code: "cms_translation_skills_exclusive";
@@ -1187,6 +1228,10 @@ export function hasWorkspaceAutomationCustomerIoTool(toolConfig: WorkspaceAutoma
 
 export function hasWorkspaceAutomationLoopsTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.loops?.enabled);
+}
+
+export function hasWorkspaceAutomationHubspotTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.hubspot?.enabled);
 }
 
 export function hasWorkspaceAutomationCrowdinTool(toolConfig: WorkspaceAutomationToolConfig) {
