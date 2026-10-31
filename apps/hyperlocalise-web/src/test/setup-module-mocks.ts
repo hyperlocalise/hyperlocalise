@@ -55,8 +55,8 @@ if (mocker) {
   const mockedIds = trackMockedModules(mocker);
 
   afterAll(() => {
-    const modules = mocker.evaluatedModules;
     if (mockedIds.size > 0) {
+      const modules = mocker.evaluatedModules;
       const roots = [...mockedIds].flatMap((id) => findModules(modules, id));
       for (const id of mockedIds) {
         const mockNode = modules.getModuleById(mocker.getMockPath(id));
@@ -68,18 +68,11 @@ if (mocker) {
       mocker.reset();
     }
 
-    // Incomplete `@/lib/log` or live WorkOS env mocks can survive into the next
-    // file when isolate is false. Always drop these shared singletons.
-    resetModulesMatching(modules, (file) =>
-      [
-        "/src/lib/log.ts",
-        "/src/lib/env.ts",
-        "/src/lib/workos/server-client.ts",
-        "/src/api/auth/workos-membership-reconcile.ts",
-        "/src/lib/memory/memory-entry-lifecycle.ts",
-        "/src/lib/projects/project-service-base.ts",
-      ].some((suffix) => file.endsWith(suffix)),
-    );
+    // Do not also invalidate `@/lib/log` / `@/lib/env` and their importer
+    // trees after every file. That walk includes React and leaves mounted
+    // trees in the shared happy-dom document (`isolate: false`). Incomplete
+    // logger mocks use `createTestLogger`; live WorkOS keys are gated in the
+    // files that enable them.
 
     dropDisconnectedDatabase();
     vi.useRealTimers();
@@ -119,22 +112,6 @@ function trackMockedModules(target: Mocker): Set<string> {
   };
 
   return mockedIds;
-}
-
-function resetModulesMatching(modules: EvaluatedModules, predicate: (file: string) => boolean) {
-  const roots: ModuleNode[] = [];
-  for (const [file, nodes] of modules.fileToModulesMap) {
-    if (predicate(file)) {
-      roots.push(...nodes);
-    }
-  }
-  if (roots.length === 0) {
-    return;
-  }
-  resetImporters(modules, roots);
-  for (const node of roots) {
-    modules.invalidateModule(node);
-  }
 }
 
 function findModules(modules: EvaluatedModules, id: string): ModuleNode[] {
