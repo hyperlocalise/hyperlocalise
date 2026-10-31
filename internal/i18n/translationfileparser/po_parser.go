@@ -675,7 +675,7 @@ func rewritePOEntry(lines []poRawLine, startLine int, values map[string]string, 
 		// one/few/many/other and Slovenian one/two/few/other are both four
 		// forms, and writing the source order under the target header swaps them.
 		if targetCount != len(entry.forms) || !poCategoryOrderEqual(categories, lookupCategories) || poPluralHasCategoryKeys(values, base, lookupCategories, targetCount) {
-			return rebuildPOPlural(lines, entry, values, categories, lookupCategories, targetCount)
+			return rebuildPOPlural(lines, entry, base, values, categories, lookupCategories, targetCount)
 		}
 	}
 	return rewritePOSingular(lines, entry, base, values, categories)
@@ -728,19 +728,18 @@ func lookupPOPlural(values map[string]string, base string, categories []string, 
 	return "", false
 }
 
-func rebuildPOPlural(lines []poRawLine, entry poBuiltEntry, values map[string]string, sourceCategories, categories []string, count int) ([]poRawLine, error) {
+func rebuildPOPlural(lines []poRawLine, entry poBuiltEntry, keyBase string, values map[string]string, sourceCategories, categories []string, count int) ([]poRawLine, error) {
 	if count < 1 {
 		count = 1
 	}
 	if count > poMaxPluralForms {
 		count = poMaxPluralForms
 	}
-	base := poMessageKey(entry.msgctxt, entry.msgid)
 	forms := make([]string, count)
 	replaced := false
-	other, hasOther := values[poPluralFormKey(base, "other")]
+	other, hasOther := values[poPluralFormKey(keyBase, "other")]
 	for i := 0; i < count; i++ {
-		if value, ok := lookupPOPlural(values, base, categories, i); ok {
+		if value, ok := lookupPOPlural(values, keyBase, categories, i); ok {
 			forms[i] = value
 			replaced = true
 			continue
@@ -835,7 +834,6 @@ func poPluralFormLines(indent string, forms []string, newline, crlf bool) []poRa
 }
 
 func rewritePOSingular(lines []poRawLine, entry poBuiltEntry, keyBase string, values map[string]string, categories []string) ([]poRawLine, error) {
-	// BOLT OPTIMIZATION: Pass precomputed keyBase to eliminate redundant poMessageKey calls per entry.
 	out := make([]poRawLine, 0, len(lines))
 	active := ""
 	replacingForm := false
@@ -904,7 +902,8 @@ func replacePOFieldLine(raw, field, value string) string {
 }
 
 func clearPOFuzzyLines(lines []poRawLine) []poRawLine {
-	// BOLT OPTIMIZATION: Filter fuzzy lines on the local entry slice without allocating a second slice.
+	// Mutates lines in place. Callers pass a newly built entry slice, not the
+	// reusable marshal buffer.
 	idx := 0
 	for _, line := range lines {
 		rewritten, drop, ok := clearPOFuzzyFlag(line.raw)
