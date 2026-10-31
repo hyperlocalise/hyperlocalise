@@ -29,6 +29,8 @@ Retry bodies cannot nest another **Retry** or **For each**. When the body calls 
 
 Conditions use true/false connections. Switches use case/default connections. Action failures can stop, continue with a visible handled error, or select an error branch. A merge waits for all incoming connections to settle and runs if any is selected.
 
+**Compare** evaluates typed values and outputs a boolean `result` you can wire into **If**, **Wait**, or other steps. Operators include equality and ordering on strings and numbers (`equal`, `not_equal`, `greater_than`, `less_than`, and related), string checks (`contains`, `starts_with`, `ends_with`), and boolean combinators (`and`, `or`, `not`). Wire `value.left` and `value.right` (or a single operand for `not`) on the canvas; values are compared without implicit type coercion. Deep equality works on plain objects and arrays within documented depth and size limits. Locale-aware string checks use an optional locale when you configure one.
+
 ## End the run on purpose
 
 Use **Stop**, **Return**, and **Fail** when a branch should finish the workflow without running every downstream step.

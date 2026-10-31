@@ -212,6 +212,7 @@
                       "platform/connections/webflow",
                       "platform/connections/braze",
                       "platform/connections/customer-io",
+                      "platform/connections/iterable",
                       "platform/connections/loops",
                       "platform/connections/canva",
                       "platform/connections/figma",
@@ -268,6 +269,7 @@
                       "platform/settings",
                       "platform/workspace/members",
                       "platform/workspace/roles",
+                      "platform/workspace/reports",
                       "platform/workspace/billing"
                     ],
                     "expanded": false

@@ -34,7 +34,7 @@ V1 includes the following event types:
 
 | Area | Event types |
 | --- | --- |
-| Membership | `member_invited`, `member_invite_resent`, `member_role_changed`, `member_removed` |
+| Membership | `member_invited`, `member_invite_resent`, `member_role_changed`, `member_removed`, `member_left` (added 2026-10-29: a member leaving on their own) |
 | Workspace | `workspace_updated` |
 | Credentials | `personal_access_token_created`, `personal_access_token_revoked` |
 | Integrations | `integration_connected`, `integration_disconnected` |

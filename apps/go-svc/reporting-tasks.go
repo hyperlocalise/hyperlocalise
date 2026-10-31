@@ -1,195 +1,121 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"math"
 	"net/http"
-	"time"
-
-	"github.com/jackc/pgx/v5"
+	"strings"
 )
 
-type reportingTaskAnalysis struct {
-	ID             string `json:"id"`
-	SegmentID      string `json:"segmentId"`
-	SourceRevision string `json:"sourceRevision"`
-	TargetLocale   string `json:"targetLocale"`
-	Words          *int   `json:"words"`
-	Bucket         string `json:"bucket"`
-	MatchScore     *int   `json:"matchScore"`
-	CreatedAt      string `json:"createdAt"`
+// The task picker: tasks that have Reports data, newest first.
+
+type reportingTaskOption struct {
+	ID        string  `json:"id"`
+	Title     string  `json:"title"`
+	ProjectID *string `json:"projectId"`
+	Status    string  `json:"status"`
+	// As the database writes it, which is how the web route answers.
+	CreatedAt string `json:"createdAt"`
 }
 
-type reportingTimeEntry struct {
-	ID             string  `json:"id"`
-	OrganizationID string  `json:"organizationId"`
-	ProjectID      *string `json:"projectId"`
-	JobID          *string `json:"jobId"`
-	ContributorID  string  `json:"contributorId"`
-	Step           string  `json:"step"`
-	TargetLocale   string  `json:"targetLocale"`
-	WorkDate       string  `json:"workDate"`
-	Minutes        int     `json:"minutes"`
-	Note           *string `json:"note"`
-	Voided         bool    `json:"voided"`
-	CreatedAt      string  `json:"createdAt"`
+type reportingTaskSearch struct {
+	projectID, q string
+	open         bool
+	ids          []string
+	limit        int
+	// Whether to offer only tasks Reports has counted (a search), or any task the viewer can
+	// see (logging time on a task not analysed yet).
+	counted bool
 }
 
-type reportingTaskReport struct {
-	Analyses    []reportingTaskAnalysis `json:"analyses"`
-	TimeEntries []reportingTimeEntry    `json:"timeEntries"`
-}
-
-func (h *handler) getTaskReport(r *http.Request, actor workspaceActor) (any, int, error) {
-	ctx, db := r.Context(), h.workspace.pool
-	job, err := loadReportingJob(ctx, db, actor, r.PathValue("jobId"))
-	if isNoRows(err) {
-		return nil, 0, reportingNotFound("job_not_found")
+func parseReportingTaskSearch(r *http.Request) (reportingTaskSearch, error) {
+	q := readReportingQuery(r)
+	search := reportingTaskSearch{
+		projectID: q.id("projectId"),
+		q:         q.trimmed("q", 200),
+		open:      q.flag("open", false),
+		ids:       q.idList("ids"),
+		limit:     q.number("limit", 1, 200, 50),
+		counted:   q.flag("counted", true),
 	}
+	return search, q.err()
+}
+
+func (api *reportingAPI) tasks(r *http.Request, actor reportingActor) (any, int, error) {
+	search, err := parseReportingTaskSearch(r)
 	if err != nil {
 		return nil, 0, err
 	}
-	rows, err := db.Query(ctx, `
-        select id, segment_id, source_revision, target_locale, words, bucket, match_score, created_at
-        from reporting_analyses where organization_id=$1 and job_id=$2 and is_current`,
-		actor.organizationID, job.ID)
-	if err != nil {
-		return nil, 0, fmt.Errorf("list task analyses: %w", err)
-	}
-	analyses, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (reportingTaskAnalysis, error) {
-		var analysis reportingTaskAnalysis
-		var created time.Time
-		err := row.Scan(&analysis.ID, &analysis.SegmentID, &analysis.SourceRevision, &analysis.TargetLocale,
-			&analysis.Words, &analysis.Bucket, &analysis.MatchScore, &created)
-		analysis.CreatedAt = formatReportingTime(created)
-		return analysis, err
-	})
-	if err != nil {
-		return nil, 0, fmt.Errorf("list task analyses: %w", err)
-	}
-	rows, err = db.Query(ctx, `
-        select id, organization_id, project_id, job_id, contributor_id, step, target_locale, work_date, minutes, note, voided, created_at
-        from reporting_time_entries where organization_id=$1 and job_id=$2 and voided=false`,
-		actor.organizationID, job.ID)
-	if err != nil {
-		return nil, 0, fmt.Errorf("list task time entries: %w", err)
-	}
-	entries, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (reportingTimeEntry, error) {
-		var entry reportingTimeEntry
-		var workDate, created time.Time
-		err := row.Scan(&entry.ID, &entry.OrganizationID, &entry.ProjectID, &entry.JobID, &entry.ContributorID,
-			&entry.Step, &entry.TargetLocale, &workDate, &entry.Minutes, &entry.Note, &entry.Voided, &created)
-		entry.WorkDate = formatReportingTime(workDate)
-		entry.CreatedAt = formatReportingTime(created)
-		return entry, err
-	})
-	if err != nil {
-		return nil, 0, fmt.Errorf("list task time entries: %w", err)
-	}
-	report := reportingTaskReport{Analyses: analyses, TimeEntries: []reportingTimeEntry{}}
-	financial := hasOrganizationCapability(actor.role, "billing:read")
-	for _, entry := range entries {
-		if financial || entry.ContributorID == actor.userID {
-			report.TimeEntries = append(report.TimeEntries, entry)
-		}
-	}
-	return map[string]any{"taskReport": report}, http.StatusOK, nil
-}
-
-type reportingTaskRate struct {
-	ID               string  `json:"id"`
-	OrganizationID   string  `json:"organizationId"`
-	JobID            *string `json:"jobId"`
-	Step             string  `json:"step"`
-	RateID           *string `json:"rateId"`
-	EstimatedMinutes *int    `json:"estimatedMinutes"`
-	OverrideUSD      *string `json:"overrideUsd"`
-	CreatedAt        string  `json:"createdAt"`
-}
-
-func (h *handler) putTaskRate(r *http.Request, actor workspaceActor) (any, int, error) {
-	if !hasOrganizationCapability(actor.role, "billing:write") {
-		return nil, 0, reportingForbidden("report_costs_forbidden")
-	}
-	body, err := readReportingBody(r, "invalid_task_rate")
-	if err != nil {
-		return nil, 0, err
-	}
-	jobID := body.text("jobId", 1, math.MaxInt)
-	step := body.step("step")
-	rateID := body.nullableUUID("rateId")
-	estimatedMinutes := body.nullableInteger("estimatedMinutes", 0, 525600)
-	overrideUSD := body.nullableUSD("overrideUsd")
-	if !body.valid {
-		return nil, 0, reportingInvalid("invalid_task_rate")
-	}
-	ctx, pool := r.Context(), h.workspace.pool
-	job, err := loadReportingJob(ctx, pool, actor, jobID)
-	if isNoRows(err) {
-		return nil, 0, reportingNotFound("job_not_found")
-	}
-	if err != nil {
-		return nil, 0, err
-	}
-	if rateID != nil {
-		var found string
-		err := pool.QueryRow(ctx, `select id from reporting_rates where id=$1 and organization_id=$2 and step=$3`,
-			*rateID, actor.organizationID, step).Scan(&found)
-		if isNoRows(err) {
-			return nil, 0, reportingInvalid("invalid_rate")
-		}
+	ctx := r.Context()
+	tasks := []reportingTaskOption{}
+	err = api.read(ctx, func(db dictionaryDB) error {
+		projectIDs, err := reportingProjectIDs(ctx, db, actor)
 		if err != nil {
-			return nil, 0, fmt.Errorf("load task rate card: %w", err)
+			return err
 		}
+		tasks, err = listReportingTasks(ctx, db, actor.organizationID, projectIDs, search)
+		return err
+	})
+	if err != nil {
+		return nil, 0, err
 	}
+	return map[string]any{"jobs": tasks}, http.StatusOK, nil
+}
 
-	tx, err := pool.Begin(ctx)
+// reportingTaskTitleSQL is the title of a task, falling back to its id.
+func reportingTaskTitleSQL(alias string) string {
+	return "coalesce(" + alias + ".input_payload -> 'metadata' ->> 'title', " + alias + ".id)"
+}
+
+// listReportingTasks lists tasks with Reports data, newest first: optionally only open ones,
+// those whose title or id contains the search, or the given ids. A failed task is offered only
+// when asked for by id: it has no work to estimate or to log time on.
+func listReportingTasks(ctx context.Context, db dictionaryDB, organizationID string, projectIDs []string, search reportingTaskSearch) ([]reportingTaskOption, error) {
+	tasks := []reportingTaskOption{}
+	if len(projectIDs) == 0 {
+		return tasks, nil
+	}
+	var args reportingArgs
+	title := reportingTaskTitleSQL("j")
+	where := fmt.Sprintf("j.organization_id = %s and j.project_id = any(%s::text[])", args.add(organizationID), args.add(projectIDs))
+	if search.projectID != "" {
+		where += " and j.project_id = " + args.add(search.projectID)
+	}
+	if search.open {
+		where += " and j.status in ('queued', 'running', 'waiting_for_review')"
+	}
+	if len(search.ids) == 0 {
+		where += " and j.status <> 'failed'"
+	}
+	if search.q != "" {
+		// Wildcards in the search are matched as themselves.
+		pattern := args.add("%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(search.q) + "%")
+		where += fmt.Sprintf(" and (%s ilike %s or j.id ilike %s)", title, pattern, pattern)
+	}
+	if len(search.ids) > 0 {
+		where += " and j.id = any(" + args.add(search.ids) + "::text[])"
+	} else if search.counted {
+		// Tasks chosen elsewhere (AI usage lists tasks from billing's records) are named even
+		// with nothing counted; a search offers only tasks Reports has counted.
+		where += ` and exists (
+            select 1 from reporting_analyses a
+            where a.organization_id = j.organization_id and a.job_id = j.id)`
+	}
+	rows, err := db.Query(ctx, fmt.Sprintf(`
+        select j.id, %s as title, j.project_id, j.status, j.created_at::text
+        from jobs j where %s
+        order by j.created_at desc
+        limit %s`, title, where, args.add(search.limit)), args...)
 	if err != nil {
-		return nil, 0, err
+		return nil, fmt.Errorf("list reporting tasks: %w", err)
 	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	var status string
-	if err := tx.QueryRow(ctx, `select status from jobs where id=$1 for update`, job.ID).Scan(&status); err != nil {
-		return nil, 0, fmt.Errorf("lock task rate job: %w", err)
+	defer rows.Close()
+	for rows.Next() {
+		var task reportingTaskOption
+		if err := rows.Scan(&task.ID, &task.Title, &task.ProjectID, &task.Status, &task.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan reporting task: %w", err)
+		}
+		tasks = append(tasks, task)
 	}
-	var started bool
-	if err := tx.QueryRow(ctx, `
-        select exists(select 1 from reporting_analyses where job_id=$1 and step=$2)
-          or exists(select 1 from reporting_costs where job_id=$1 and step=$2)
-          or exists(select 1 from reporting_time_entries where job_id=$1 and step=$2) as started`,
-		job.ID, step).Scan(&started); err != nil {
-		return nil, 0, fmt.Errorf("check task activity: %w", err)
-	}
-	if status != "queued" || started {
-		return nil, 0, workspaceFailure(400, "task_rate_locked", "Task rates can only change before work starts.")
-	}
-	var saved reportingTaskRate
-	var created time.Time
-	if err := tx.QueryRow(ctx, `
-        insert into reporting_task_rates (organization_id, job_id, step, rate_id, estimated_minutes, override_usd)
-        values ($1, $2, $3, $4, $5, $6::text::numeric)
-        on conflict (organization_id, job_id, step) do update
-        set job_id = excluded.job_id, step = excluded.step, rate_id = excluded.rate_id,
-            estimated_minutes = excluded.estimated_minutes, override_usd = excluded.override_usd
-        returning id, organization_id, job_id, step, rate_id, estimated_minutes, override_usd::text, created_at`,
-		actor.organizationID, job.ID, step, rateID, estimatedMinutes, overrideUSD,
-	).Scan(&saved.ID, &saved.OrganizationID, &saved.JobID, &saved.Step, &saved.RateID, &saved.EstimatedMinutes, &saved.OverrideUSD, &created); err != nil {
-		return nil, 0, fmt.Errorf("upsert task rate: %w", err)
-	}
-	saved.CreatedAt = formatReportingTime(created)
-	after, err := json.Marshal(saved)
-	if err != nil {
-		return nil, 0, err
-	}
-	if _, err := tx.Exec(ctx, `
-        insert into reporting_audit (organization_id, actor_id, resource_id, action, after)
-        values ($1, $2, $3, 'task_rate_saved', $4::text::jsonb)`,
-		actor.organizationID, actor.userID, saved.ID, string(after)); err != nil {
-		return nil, 0, fmt.Errorf("audit task rate: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, 0, err
-	}
-	return map[string]any{"taskRate": saved}, http.StatusOK, nil
+	return tasks, rows.Err()
 }

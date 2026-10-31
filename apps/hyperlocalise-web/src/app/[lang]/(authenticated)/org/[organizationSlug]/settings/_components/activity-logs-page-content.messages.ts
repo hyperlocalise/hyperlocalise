@@ -100,6 +100,11 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "zSXHu53J/P",
     description: "Activity log event type label for member removals",
   },
+  memberLeftEventType: {
+    defaultMessage: "Member Left",
+    id: "0sHkme+8tb",
+    description: "Activity log event type label for members who left the workspace themselves",
+  },
   workspaceUpdatedEventType: {
     defaultMessage: "Workspace Updated",
     id: "Q3Ax2I3isM",
@@ -299,6 +304,16 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "Visual Workflow Run Started",
     id: "/jSn20wHsp",
     description: "Activity log event type label for visual workflow runs",
+  },
+  visualWorkflowApprovalRequestedEventType: {
+    defaultMessage: "Visual Workflow Approval Requested",
+    id: "tOii2mJ8OS",
+    description: "Activity log event type label for visual workflow approval requests",
+  },
+  visualWorkflowApprovalDecidedEventType: {
+    defaultMessage: "Visual Workflow Approval Decided",
+    id: "0NzbW+DFmc",
+    description: "Activity log event type label for visual workflow approval decisions",
   },
   queryCreatedEventType: {
     defaultMessage: "Query Created",
@@ -710,6 +725,11 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "R32W5WVswi",
     description: "Action for a removed member activity",
   },
+  memberLeftAction: {
+    defaultMessage: "left the workspace",
+    id: "ZVIyFNqsnD",
+    description: "Action for a member who left the workspace themselves",
+  },
   workspaceUpdatedAction: {
     defaultMessage: "updated workspace settings",
     id: "QJD09qoHFD",
@@ -909,6 +929,16 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "started a visual workflow run",
     id: "5lw2B8GGrH",
     description: "Action for starting a visual workflow run",
+  },
+  visualWorkflowApprovalRequestedAction: {
+    defaultMessage: "requested visual workflow approval",
+    id: "TgL4sBNIk6",
+    description: "Action for requesting visual workflow approval",
+  },
+  visualWorkflowApprovalDecidedAction: {
+    defaultMessage: "decided a visual workflow approval",
+    id: "dT3mTxEcVn",
+    description: "Action for deciding visual workflow approval",
   },
   queryCreatedAction: {
     defaultMessage: "created a query",

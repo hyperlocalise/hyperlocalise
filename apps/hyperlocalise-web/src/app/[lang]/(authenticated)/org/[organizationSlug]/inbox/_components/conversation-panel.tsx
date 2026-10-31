@@ -43,6 +43,7 @@ import {
   type StreamedAssistantMessage,
 } from "./inbox-types";
 import { ReplyComposer } from "./reply-composer";
+import { HumanApprovalPanel } from "./human-approval-panel";
 
 function InboxAiComposer({
   organizationSlug,
@@ -196,6 +197,7 @@ export function ConversationPanel({
   }
 
   const isChatUi = conversation.source === "chat_ui";
+  const isWorkflowApproval = conversation.source === "workflow_approval";
   const composerDisabled = isSending || isStreaming;
 
   return (
@@ -203,21 +205,25 @@ export function ConversationPanel({
       <ConversationHeader conversation={conversation} jobs={jobs} jobsIsLoading={jobsIsLoading} />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <InboxPanelErrorBoundary
-          scope="messages"
-          className="min-h-0 flex-1"
-          resetKeys={[conversation.id, messages, streamedAssistant?.message]}
-        >
-          <ConversationMessageList
-            conversationId={conversation.id}
-            currentUser={currentUser}
-            isLoading={messagesIsLoading}
-            isStreaming={isStreaming}
-            messages={messages}
-            organizationSlug={organizationSlug}
-            streamedAssistant={streamedAssistant}
-          />
-        </InboxPanelErrorBoundary>
+        {isWorkflowApproval ? (
+          <HumanApprovalPanel interactionId={conversation.id} organizationSlug={organizationSlug} />
+        ) : (
+          <InboxPanelErrorBoundary
+            scope="messages"
+            className="min-h-0 flex-1"
+            resetKeys={[conversation.id, messages, streamedAssistant?.message]}
+          >
+            <ConversationMessageList
+              conversationId={conversation.id}
+              currentUser={currentUser}
+              isLoading={messagesIsLoading}
+              isStreaming={isStreaming}
+              messages={messages}
+              organizationSlug={organizationSlug}
+              streamedAssistant={streamedAssistant}
+            />
+          </InboxPanelErrorBoundary>
+        )}
 
         {isChatUi ? (
           <InboxAiComposer organizationSlug={organizationSlug}>

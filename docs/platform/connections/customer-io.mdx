@@ -65,8 +65,49 @@ Unmapped project locales are reported as unmapped and skipped on import and push
    - **Existing translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**
 6. Save the automation.
 
-## Push approved locales
+Customer.io is not a trigger type. Use a schedule or **Run now** for import. Use **Push to Customer.io** for write-back.
 
-Enqueue **Push to Customer.io** from the automation run. It writes approved locales for actions that already have the locale configured. It never rewrites message content and never publishes. For transactional messages it only updates message content — it never sends. Newsletter and transactional messages with several default variants are skipped on push.
+## Import message actions
 
-Design Studio emails are the exception on locales: push creates a missing language on the linked email automatically. Writes land as unpublished drafts, so publish the email in Customer.io before it can send.
+**Run now** or wait for the schedule. Import writes one source file per eligible action:
+
+- Campaign actions at `customer-io/campaigns/{campaign-slug}/{action-slug}.json`, except email actions (HTML below).
+- Broadcast actions at `customer-io/broadcasts/{broadcast-slug}/actions/{action-slug}.json`, except email actions.
+- Email actions at `customer-io/{broadcasts|campaigns|newsletters|transactional}/{slug}/{actions|contents}/{action-slug}.html`, with subject and preheader in field blocks. They open in HTML File view.
+- Newsletter content at `customer-io/newsletters/{newsletter-slug}/contents/{content-slug}.json`.
+- Transactional content at `customer-io/transactional/{message-slug}/contents/{content-slug}.json`.
+- Push, SMS (including Twilio), WhatsApp, Slack, and in-app actions at the matching `.json` paths.
+
+Design Studio–linked email actions import component markup, subject, and preheader from the linked Design Studio email (not only the compiled App API body) and store the Design Studio email id for push.
+
+Import skips webhook actions and multilingual A/B variants. Newsletter and transactional messages with several default variants import each variant but are skipped on push, because their translations share one per-language slot.
+
+When **Create native TMS job** is enabled, the run opens a job for mapped locales that still need translation. Import does not write anything to Customer.io.
+
+Inspect **Run History** for imported, skipped, and failed actions, plus jobs created.
+
+## Review and push locales
+
+1. Translate and [approve](/platform/cat) every visible string for a mapped locale on each action you plan to write back.
+2. Open a Customer.io file in the Content editor. The header shows **Ingest** and **Push to Customer.io** for that file. Choose **Ingest** to import the automation's configured set, or **Push to Customer.io** when at least one mapped locale is fully approved and no push is already running. Hyperlocalise then opens the automation **Run History** tab so you can follow the run.
+3. Confirm Customer.io shows updated draft content for each locale. Push never publishes. For transactional messages it only updates message content — it never sends.
+
+Push writes approved locales for actions that already have the locale configured on the message. Design Studio emails are the exception: push creates a missing language on the linked email automatically. Writes land as unpublished drafts — publish the email in Customer.io before it can send.
+
+For HTML email actions, push merges approved field blocks onto the **remote** Customer.io copy. Segments you have not approved keep their existing Customer.io text instead of reverting to source language, so a partial push does not overwrite copy teammates edited in Customer.io.
+
+Newsletter and transactional messages with several default variants are skipped on push.
+
+## Change or remove access
+
+Disconnect Customer.io from **Integrations** when this workspace should stop using that App API key. Inspect automations that depend on the connection before you disconnect. The key is stored in WorkOS Pipes; Hyperlocalise stores only the region.
+
+## If import or push does not run
+
+- Confirm Customer.io is connected with the correct **US** or **EU** region and the automation is **Active**.
+- Confirm each target locale exists on the message in Customer.io (except Design Studio emails, where push can create a missing language).
+- Confirm project locale tags match Customer.io locale keys or names exactly after hyphen/underscore normalization.
+- If **Push to Customer.io** or **Ingest** is missing, open a Customer.io file. Those actions stay hidden on other files. Approve at least one mapped locale, confirm you can manage automations, and wait until any in-progress push finishes.
+- Open **Run History** for the failed action or locale.
+
+See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).

@@ -982,7 +982,7 @@ export const integrationCatalogCopy = {
       description: "Iterable integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Localize campaigns, journeys, and in-app messages in Iterable.",
+      defaultMessage: "Localize Iterable email, in-app, push, and SMS templates plus snippets.",
       id: "SO48T+V4po",
       description: "Iterable integration description on the integrations page",
     },

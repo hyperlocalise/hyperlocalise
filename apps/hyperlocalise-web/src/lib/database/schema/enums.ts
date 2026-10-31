@@ -300,6 +300,7 @@ export const interactionSourceEnum = pgEnum("interaction_source", [
   "github_agent",
   "slack_agent",
   "web_chat",
+  "workflow_approval",
 ]);
 /**
  * Tracks whether an inbox item is still active for operators or has been archived from the active work queue.
@@ -415,4 +416,23 @@ export const otaDistributionFormatEnum = pgEnum("ota_distribution_format", [
   "json",
   "android_xml",
   "ios_strings",
+]);
+/**
+ * Identifies whether a Human Approval request targets one user or a team.
+ */
+export const visualWorkflowApprovalReviewerTypeEnum = pgEnum(
+  "visual_workflow_approval_reviewer_type",
+  ["user", "team"],
+);
+
+/**
+ * Tracks a Human Approval request from creation through its terminal decision.
+ */
+export const visualWorkflowApprovalStatusEnum = pgEnum("visual_workflow_approval_status", [
+  "pending",
+  "approved",
+  "rejected",
+  "changes_requested",
+  "timed_out",
+  "cancelled",
 ]);

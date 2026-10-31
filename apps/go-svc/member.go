@@ -14,6 +14,7 @@ const (
 	memberBodyLimit                   = 64 << 10
 	memberRequestTimeout              = 30 * time.Second
 	memberRevokeReconcileTimeout      = 15 * time.Second
+	memberWorkosRemoveTimeout         = 5 * time.Second
 	memberInviteRollbackTimeout       = 15 * time.Second
 	invitedWorkosUserIDPrefix         = "invited_user_"
 	replacingWorkosMembershipID       = "replacing"
@@ -101,6 +102,8 @@ func (api *memberAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("POST "+m, bindActor(api, (*memberAPI).inviteMemberHandler))
 	route("PATCH "+m+"/{workosUserId}", bindActor(api, (*memberAPI).updateMemberHandler))
 	route("DELETE "+m+"/{workosUserId}", bindActor(api, (*memberAPI).deleteMemberHandler))
+	route("GET "+m+"/leave", bindActor(api, (*memberAPI).leaveWorkspacePreviewHandler))
+	route("POST "+m+"/leave", bindActor(api, (*memberAPI).leaveWorkspaceHandler))
 }
 
 func (api *memberAPI) actor(ctx context.Context, claims AuthClaims, slug string) (memberActor, error) {

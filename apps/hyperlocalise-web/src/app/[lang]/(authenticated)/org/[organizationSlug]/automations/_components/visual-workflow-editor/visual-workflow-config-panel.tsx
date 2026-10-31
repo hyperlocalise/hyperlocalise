@@ -2057,6 +2057,77 @@ export function VisualWorkflowConfigPanel({
             </div>
           </>
         ) : null}
+        {config.kind === "flow.human_approval" ? (
+          <>
+            <SelectField
+              id="vw-human-approval-reviewer-type"
+              label={intl.formatMessage(messages.humanApprovalReviewerType)}
+              value={config.reviewerType}
+              items={[
+                {
+                  value: "user",
+                  label: intl.formatMessage(messages.humanApprovalReviewerUser),
+                },
+                {
+                  value: "team",
+                  label: intl.formatMessage(messages.humanApprovalReviewerTeam),
+                },
+              ]}
+              onValueChange={(value) => {
+                if (value !== "user" && value !== "team") return;
+                onChangeConfig({ ...config, reviewerType: value, reviewerId: "" });
+              }}
+            />
+            <SelectField
+              id="vw-human-approval-reviewer-id"
+              label={intl.formatMessage(messages.humanApprovalReviewerId)}
+              value={config.reviewerId}
+              items={
+                config.reviewerType === "user"
+                  ? resources.members.map((member) => ({
+                      value: member.userId ?? member.workosUserId,
+                      label: member.label,
+                    }))
+                  : resources.teams.map((team) => ({
+                      value: team.id,
+                      label: team.label,
+                    }))
+              }
+              onValueChange={(value) => onChangeConfig({ ...config, reviewerId: value ?? "" })}
+            />
+            <TextAreaField
+              id="vw-human-approval-prompt"
+              label={intl.formatMessage(messages.humanApprovalPrompt)}
+              value={config.prompt}
+              {...connectedInputProps("prompt")}
+              onChange={(value) => onChangeConfig({ ...config, prompt: value })}
+            />
+            <TextField
+              id="vw-human-approval-artifact-reference"
+              label={intl.formatMessage(messages.humanApprovalArtifactReference)}
+              value={config.artifactReference ?? ""}
+              {...connectedInputProps("artifactReference")}
+              onChange={(value) =>
+                onChangeConfig({ ...config, artifactReference: value || undefined })
+              }
+            />
+            <TextField
+              id="vw-human-approval-job-reference"
+              label={intl.formatMessage(messages.humanApprovalJobReference)}
+              value={config.jobReference ?? ""}
+              {...connectedInputProps("jobReference")}
+              onChange={(value) => onChangeConfig({ ...config, jobReference: value || undefined })}
+            />
+            <TextField
+              id="vw-human-approval-deadline"
+              label={intl.formatMessage(messages.humanApprovalDeadline)}
+              value={config.deadline ?? ""}
+              {...connectedInputProps("deadline")}
+              onChange={(value) => onChangeConfig({ ...config, deadline: value || undefined })}
+              placeholder="2026-10-30T10:00:00.000Z"
+            />
+          </>
+        ) : null}
         {config.kind === "flow.wait" ? (
           <>
             <SelectField

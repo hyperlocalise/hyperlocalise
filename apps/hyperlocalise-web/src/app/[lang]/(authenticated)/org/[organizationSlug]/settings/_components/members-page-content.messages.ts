@@ -166,6 +166,12 @@ export const membersPageContentMessages = defineMessages({
     id: "LeQu4ZEOkJ",
     description: "Menu item to revoke a pending workspace invitation",
   },
+  leaveWorkspaceMenu: {
+    defaultMessage: "Leave workspace…",
+    id: "n+wQ7BXYlc",
+    description:
+      "Menu item on the signed-in person's own row on the members page that opens the dialog for leaving the workspace",
+  },
   removeMemberMenu: {
     defaultMessage: "Remove member...",
     id: "acDR5UQdFA",

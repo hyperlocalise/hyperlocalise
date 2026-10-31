@@ -24,6 +24,7 @@ vi.mock("@/lib/log", () => ({
     error: vi.fn(),
     child: vi.fn(),
   })),
+  serializeErrorForLog: vi.fn((error: Error) => ({ error })),
 }));
 
 import {

@@ -204,6 +204,7 @@ function MemberRowActions({
   isBusy,
   onChangeRole,
   onRemove,
+  onLeave,
 }: {
   member: MembersListMember;
   canUpdateRole: boolean;
@@ -211,11 +212,13 @@ function MemberRowActions({
   isBusy: boolean;
   onChangeRole: (member: MembersListMember) => void;
   onRemove: (member: MembersListMember) => void;
+  /** Set on the signed-in person's own row. */
+  onLeave?: () => void;
 }) {
   const intl = useIntl();
   const isPending = (member.status ?? "active") === "invited";
 
-  if (!canUpdateRole && !canRemove) {
+  if (!canUpdateRole && !canRemove && !onLeave) {
     return null;
   }
 
@@ -258,6 +261,13 @@ function MemberRowActions({
               ) : (
                 <FormattedMessage {...membersPageContentMessages.removeMemberMenu} />
               )}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        ) : null}
+        {onLeave ? (
+          <DropdownMenuGroup>
+            <DropdownMenuItem variant="destructive" onClick={onLeave} disabled={isBusy}>
+              <FormattedMessage {...membersPageContentMessages.leaveWorkspaceMenu} />
             </DropdownMenuItem>
           </DropdownMenuGroup>
         ) : null}
@@ -395,6 +405,7 @@ export function MembersPageView({
   onRemoveMember,
   onEditingMemberChange,
   onUpdateRole,
+  onLeaveWorkspace,
 }: {
   organizationSlug: string;
   members: MembersListMember[];
@@ -424,6 +435,8 @@ export function MembersPageView({
   onRemoveMember: (workosUserId: string) => void;
   onEditingMemberChange: (member: MembersListMember | null) => void;
   onUpdateRole: (input: { workosUserId: string; role: OrganizationMembershipRole }) => void;
+  /** Adds Leave workspace to the signed-in person's own row. */
+  onLeaveWorkspace?: () => void;
 }) {
   const intl = useIntl();
 
@@ -547,6 +560,7 @@ export function MembersPageView({
                       isBusy={isRemoving || isUpdatingRole}
                       onChangeRole={onEditingMemberChange}
                       onRemove={onRemovingMemberChange}
+                      onLeave={member.isCurrentUser ? onLeaveWorkspace : undefined}
                     />
                   </div>
                 </div>

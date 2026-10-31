@@ -29,6 +29,7 @@ vi.mock("@/lib/log", () => ({
     error: loggerErrorMock,
     info: loggerInfoMock,
   })),
+  serializeErrorForLog: vi.fn((error: Error) => ({ error })),
 }));
 
 vi.mock("./github-repository-automation-dispatcher", () => ({
