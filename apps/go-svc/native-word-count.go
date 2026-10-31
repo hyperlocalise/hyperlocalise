@@ -17,13 +17,25 @@ func countNativeSourceWords(sourceText string) int {
 }
 
 func stripNativeWordCountPlaceholders(source string) string {
-	cleaned := nativeWordCountHTMLTagPattern.ReplaceAllString(source, " ")
-	cleaned = nativeWordCountPlaceholderPattern.ReplaceAllString(cleaned, " ")
+	cleaned := source
+	// Fast-path: only invoke regular expression replacements when signal characters are present.
+	if strings.IndexByte(cleaned, '<') >= 0 && strings.IndexByte(cleaned, '>') >= 0 {
+		cleaned = nativeWordCountHTMLTagPattern.ReplaceAllString(cleaned, " ")
+	}
+	if strings.Contains(cleaned, "{{") || strings.IndexByte(cleaned, '%') >= 0 || strings.Contains(cleaned, "${") {
+		cleaned = nativeWordCountPlaceholderPattern.ReplaceAllString(cleaned, " ")
+	}
 	return stripBraceArguments(cleaned)
 }
 
 func stripBraceArguments(source string) string {
+	// Fast-path: if there are no opening braces, no ICU or brace arguments exist.
+	if strings.IndexByte(source, '{') < 0 {
+		return source
+	}
+
 	var out strings.Builder
+	out.Grow(len(source))
 	depth := 0
 	start := -1
 	for i, r := range source {
