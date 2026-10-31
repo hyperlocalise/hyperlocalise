@@ -36,6 +36,9 @@ describe("getConversationListItemVisual", () => {
     expect(getConversationListItemVisual("github_agent", intl).typeIconLabel).toBe("GitHub");
     expect(getConversationListItemVisual("slack_agent", intl).typeIconLabel).toBe("Slack");
     expect(getConversationListItemVisual("web_chat", intl).typeIconLabel).toBe("Web chat");
+    expect(getConversationListItemVisual("workflow_approval", intl).typeIconLabel).toBe(
+      "Workflow approval",
+    );
   });
 });
 

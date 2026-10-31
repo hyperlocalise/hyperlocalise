@@ -742,46 +742,49 @@ go test ./apps/go-svc -run 'BillingResourceUsage|WorkspaceResourceSync'
 go test ./apps/go-svc/internal/autumn -run HTTPStatus
 ```
 
-## Reports (financial)
+## Reports
 
-Financial reporting APIs under `/v1/orgs/{organizationSlug}/reports`, covering word and time reports, costs, budgets, rates, time entries, and expenses.
+The Reports page's reads and writes under `/v1/orgs/{organizationSlug}/reports`, ported from the web app's Hono routes (`apps/hyperlocalise-web/src/api/routes/reports`) one section at a time; the web app keeps recording the work and refreshing the daily summary. Each route answers as the web route does: same query fields, error codes, shapes and permissions, plus a `message` on errors as every go-svc API gives.
 
 Requires workspace authentication, `DATABASE_URL`, and the `workspace-reports` feature flag. A disabled or unavailable flag returns `403 feature_unavailable`.
 
 | Method | Path | Capability | Description |
 |--------|------|------------|-------------|
-| GET | `/reports` | Member | Reports in JSON or CSV; cost view requires `billing:read` |
-| GET | `/reports/settings` | Member | Accessible projects, rates, and budget summaries |
-| GET | `/reports/tasks/{jobId}` | Member | Job analyses and time entries |
-| POST | `/reports/rates` | `billing:write` | Create a rate |
-| PUT | `/reports/budgets` | `billing:write` | Upsert a project budget |
-| PUT | `/reports/task-rates` | `billing:write` | Configure a job's rate before work starts |
-| POST | `/reports/time-entries` | `jobs:write` | Log time on a native job |
-| PATCH | `/reports/time-entries/{id}` | `jobs:write` | Edit own time entry; `billing:write` can edit others |
-| DELETE | `/reports/time-entries/{id}` | Owner or `billing:write` | Void a time entry and its costs |
-| POST | `/reports/expenses` | `billing:write` | Record an expense; idempotent by `operationKey` |
+| GET | `/reports/jobs` | Member | The task picker: tasks Reports has counted, newest first; `q`, `open`, `ids`, `projectId`, `limit`; `counted=false` offers any task the viewer can see, for logging time on one not counted yet |
+| GET | `/reports/settings` | Member | The viewer's projects, when Reports started, what they may do, the rate card names (`billing:read`) |
+| GET | `/reports/activity` | `billing:read` | Headline totals for the period and the one before, finished units by source per day or week, and by language; `format=csv` for the chart |
+| GET | `/reports/step-times` | `billing:read` | Time logged by what each task is for, and automated time by workflow step and task run stage; `format=csv` |
+| GET | `/reports/words` | `billing:read` | Units by match band, grouped by project, task (50 a page), week, language or task step; `format=csv` for every row |
+| GET | `/reports/words/series` | `billing:read` | The volume chart: units per day, week or month, split by project, language, band tier or task step |
+| GET | `/reports/time` | Member | Time people logged, 50 rows a page, and automated time for `billing:read`; other roles see their own time only; `format=csv` |
+| GET | `/reports/ai-usage` | `billing:read` | AI calls, tokens, images, videos and billing's charge from `usage_events`, grouped by one detail and optionally a second, with the chart; `format=csv` for every group |
+| GET | `/reports/costs` | `billing:read` | What was spent in the period by project, people and AI, with AI outside any project and the previous period; `format=csv` |
+| GET | `/reports/cost-estimate` | `billing:read` | What chosen tasks (`jobIds`, up to 50) or one whole project (`projectId`) will cost at the live rates, by the task's card, then the project budget's, then `rateCard`; `format=csv` |
+| GET | `/reports/budgets` | `billing:read` | Each project's budget against what was spent and what is still to come; `format=csv` |
+| GET | `/reports/rate-cards` | `billing:read` | Every rate card with its current lines, and whether the viewer may change them |
+| GET | `/reports/tasks/{jobId}/report` | Member | One task's words, estimate, what is still to come, time and pricing; other roles see their own time only; `format=csv` for `billing:read` |
+| GET | `/reports/tasks/{jobId}/analysis` | Member | The state of the task's analysis per step; counts and errors for `billing:read` |
+| PUT | `/reports/rate-cards` | `billing:write` | Save a card's default basis and whole set of lines (`create` makes a new card; `409 rate_card_exists`, `404 rate_card_not_found`, `400 duplicate_rate_line`); only changed lines get a new row, removed ones a retired row |
+| PUT | `/reports/budgets` | `billing:write` | Set a project's budget and the card that prices its work (`404 project_not_found`, `400 rate_card_not_found`) |
+| PUT | `/reports/task-rates` | `billing:write` | A task's own pricing for a step: a rate card (taken as it is at that moment), a time estimate or a fixed fee; `400 task_rate_locked` once work on the step has started |
+| POST | `/reports/time-entries` | `jobs:write` | Log time on a native task; priced by an hourly line only (`400 native_job_required`) |
+| PATCH | `/reports/time-entries/{id}` | `jobs:write`, and the entry is the caller's own or they have `billing:write` | Change an entry's minutes, day and note; its cost follows |
+| DELETE | `/reports/time-entries/{id}` | Own, or `billing:write` | Void an entry and its cost |
+| POST | `/internal/reports/{kind}` | Service token | The MCP `get_report` tool: `{organizationId, userId, query}` (query values as text, or numbers and booleans) answered as `activity`, `words` (with its chart), `time`, `ai` or `costs` for that member, with `summary` and `stillUpdating` |
 
-**Access control:** `billing:read` allows admins and localization managers to view financial data; `billing:write` is admin-only. `jobs:write` excludes members. Project and job visibility follows team membership, with organization-wide access for admins and localization managers. Inaccessible resources return `404`.
+**Access control:** `billing:read` (admins and localization managers) sees reports and money; the internal route applies the named member's own access (workspace, flag, billing); writes hold the web app's locks (the task row, and `pg_advisory_xact_lock(hashtext('reporting-rate-card:<workspace>:<name>'))` for a card) and write the same `reporting_audit` rows; `billing:write` (admins) changes rate cards, budgets and pricing; `jobs:write` logs time. Project visibility follows team membership, with organization-wide access for admins and localization managers; a filter for a project the viewer cannot open reads nothing.
 
-Non-financial users cannot access the cost view or financial settings, and see only their own time entries in task reports.
+**Dates:** UTC calendar days as `YYYY-MM-DD`, from 2000 on, never past today; the default period is the last 28 days and is compared with the period of the same length before it; periods over 45 days are charted by week (Monday start).
 
-**Money and dates:** USD amounts use 8-decimal fixed-point strings, with `big.Int` arithmetic. Reporting dates use UTC, with weeks starting Monday.
-
-### CSV export
-
-`GET /reports?format=csv` exports all matching rows without pagination.
-
-- Content type: `text/csv; charset=utf-8`
-- Filename: `translation-report.csv`
-- Financial users receive an additional `amountUsd` column.
-- All cells are quoted, with formula-injection protection.
-- Rows use CRLF separators, without a trailing newline or BOM.
+**Safeguards** (`reporting-safeguards.go`), for a service whose size is not pinned down: at most 2 Reports requests query the database at once per copy (a third waits for a slot, and is refused with `503 reports_busy` when its own 30 s run out; the member lookup runs before admission), each read runs on one pooled connection in a read-only transaction with a 10 s statement limit (a statement, lock wait or request out of time answers `503 report_timed_out`), CSVs are written row by row, and the flag answer is cached per workspace and user for a minute (one lookup serves the requests that miss together).
 
 ### Testing
 
 ```bash
-GO_SVC_INTEGRATION=1 go test ./apps/go-svc -run 'Report|JSNumberString|ReadReportingBody|LoadReportingJob'
+GO_SVC_INTEGRATION=1 go test ./apps/go-svc -run 'Reporting|CachedWorkspaceFlags|WriteReporting'
 ```
+
+Money is fixed-point USD at eight decimals (`reporting-money.go`); an estimate prices the daily summary's units at the live rate card line by line in each line's own basis, and spent amounts are the recorded costs plus billing's gateway charges placed by `reporting-ai-attribution.go`.
 
 ## Members
 
@@ -799,11 +802,15 @@ cannot assign or manage the `admin` role. New invites check Autumn `seats` when
 |--------|------|-----------|
 | GET, POST | `/members` | List members or invite a member |
 | PATCH, DELETE | `/members/{workosUserId}` | Update a member role or remove a member |
+| GET, POST | `/members/leave` | List the caller's access keys and automations that stop working, or leave |
 
 Invite and pending-role updates send WorkOS invitations. Active memberships
 sync role and removal through WorkOS organization memberships. Successful
 mutations write `member_invited`, `member_invite_resent`, `member_role_changed`,
-and `member_removed` events to `organization_activity_events`.
+`member_removed` and `member_left` events to `organization_activity_events`.
+Removing or demoting an admin, or an admin leaving, needs another admin who has
+accepted their invitation; the check holds its lock until WorkOS has removed the
+membership.
 
 ## Workspace settings
 

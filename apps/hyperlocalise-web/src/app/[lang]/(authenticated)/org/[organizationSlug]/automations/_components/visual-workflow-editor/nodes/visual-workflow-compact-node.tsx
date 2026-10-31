@@ -440,6 +440,36 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         },
       ];
     }
+    if (data.catalogType === "flow.human_approval") {
+      return [
+        {
+          id: "approved",
+          label: intl.formatMessage(messages.approvedHandle),
+          ariaLabel: "Approved",
+          top: spreadTop(0, 4),
+        },
+        {
+          id: "rejected",
+          label: intl.formatMessage(messages.rejectedHandle),
+          ariaLabel: "Rejected",
+          top: spreadTop(1, 4),
+          className: "text-destructive",
+        },
+        {
+          id: "changes_requested",
+          label: intl.formatMessage(messages.changesRequestedHandle),
+          ariaLabel: "Changes requested",
+          top: spreadTop(2, 4),
+        },
+        {
+          id: "timed_out",
+          label: intl.formatMessage(messages.timedOutHandle),
+          ariaLabel: "Timed out",
+          top: spreadTop(3, 4),
+          className: "text-muted-foreground",
+        },
+      ];
+    }
     if (data.catalogType === "flow.wait" || data.catalogType === "logic.merge") {
       return [
         {

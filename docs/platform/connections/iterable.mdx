@@ -1,0 +1,133 @@
+---
+title: "Localize Iterable"
+description: "Connect Iterable, import email, in-app, push, and SMS templates plus snippets, translate in Jobs, then push approved locales back."
+---
+
+Connect Iterable once in workspace **Integrations**, then run the **Translate Iterable templates and snippets** automation template from **Popular** or **Marketing** on a schedule. Import never changes Iterable. **Push to Iterable** is a separate action. It writes approved locales and does not send a campaign.
+
+## Supported content
+
+| Content | Import | Push to Iterable |
+| --- | --- | --- |
+| Email templates | HTML, including subject and preheader | Locale on that template, or a new WYSIWYG template when the source is drag-and-drop |
+| In-app templates | HTML, notification text, and preview fields | Locale on that template. Re-enable **Show in mobile inbox** afterward if you use the mobile inbox |
+| Push templates | Title and message | Locale on that template |
+| SMS templates | Message | Locale on that template |
+| Snippets | Snippet body | A separate snippet named `{name}_{locale}`, such as `Welcome_Banner_fr-FR` |
+
+## Campaigns and journeys
+
+Hyperlocalise localizes **templates and snippets** in the table above. It does not import campaign or journey definitions, embedded messages, or WhatsApp templates.
+
+When a campaign sends email, in-app, push, or SMS content, the send uses a **template**. Translate that template here, push the approved locales, then in Iterable attach the updated template—or the new WYSIWYG copy after a drag-and-drop push—to the campaign or journey step. Hyperlocalise does not retarget campaigns for you.
+
+## How locales work
+
+Iterable stores each language as a **locale** on the same email, in-app, push, or SMS template. At send time Iterable picks the copy whose locale matches the user profile field named `locale`. Hyperlocalise does not change user profiles.
+
+Snippets have one body and no locale. A translation is a second snippet whose name ends with `_{locale}`.
+
+Add each locale code under Iterable **Project Settings** before you push. Iterable cannot create a locale code for you.
+
+## Prerequisites
+
+| Requirement | Description |
+| --- | --- |
+| Native project | A [native project](/platform/projects/create-project) whose source and target locales match Iterable locale codes. See [Match project locales](#step-2-match-project-locales). |
+| Iterable server-side API key | In Iterable, open **Integrations → API Keys**, create a key, and choose **Server-side**. A read-only key can connect and then fail on push. |
+| Iterable data center | `US` (`https://api.iterable.com`) or `EU` (`https://api.eu.iterable.com`). The host must be the data center that holds the project. |
+| Locale codes | Add each code under Iterable **Project Settings** before you push. Use standard ISO-style codes (`en`, `fr-CA`, `fr-FR`). A code cannot be renamed after you create it. |
+
+## Connect Iterable
+
+1. Open workspace **Integrations** and find **Iterable**.
+2. Paste the server-side API key and choose the data center for that project.
+3. Save. Hyperlocalise lists templates on that host to confirm the key. A rejected key or unreachable host is not stored.
+4. Confirm the connection shows as connected.
+
+The API key is stored in WorkOS Pipes. Hyperlocalise stores only the data center. Connect Iterable before you add the skill.
+
+## Translate templates and snippets
+
+### Step 1: Set up locales in Iterable
+
+1. Open the Iterable project **Project Settings**.
+2. Add a locale code for each language you will write back.
+3. Leave the project default locale on the language of the template you will import.
+
+Hyperlocalise writes translated text into locales you already created. Iterable does not machine-translate copy for you.
+
+### Step 2: Match project locales
+
+Create or choose a [native project](/platform/projects/create-project) whose locale tags match those codes.
+
+1. Set the project **source locale** to the language of the default template copy.
+2. Add a project target locale for each Iterable locale you will write back.
+3. Use the same tag as the Iterable locale code (`fr-FR` matches `fr-FR`). Matching is exact after hyphen and underscore normalization. There is no language fallback: `es` does not map to `es-MX`, and `fr` does not map to `fr-FR`.
+4. Keep locked pairs on separate projects or omit the unused tag: `en-US` is not `en-GB`, `zh-CN` is not `zh-TW`, and `pt` is not `pt-BR`.
+
+Unmapped project locales are reported and skipped on import and push.
+
+### Step 3: Create the automation
+
+1. Open workspace **Automations** and select **New Automation**.
+2. Apply the **Translate Iterable templates and snippets** template from **Popular** or **Marketing**, or add that skill from **Add Skill**.
+3. Attach the native project from Step 2.
+4. Choose a **scheduled** or **manual** trigger. A schedule imports changed templates and snippets. It does not push translations.
+5. Under **Iterable**, select the email, in-app, push, and SMS templates and the snippets to sync. Leave the lists empty to discover all five.
+6. Set **Source locale** (usually the project source). It must be the same language as the project source locale.
+7. Set **Existing translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**.
+8. Save the automation.
+
+Iterable is not a trigger type. Use a schedule, **Run now**, or Content Editor **Ingest** for import. Use **Push to Iterable** for write-back.
+
+### Step 4: Import
+
+**Run now**, wait for the schedule, or choose **Ingest**. Import writes:
+
+```text
+iterable/templates/email/{slug}-{templateId}.html
+iterable/templates/in-app/{slug}-{templateId}.html
+iterable/templates/push/{slug}-{templateId}.json
+iterable/templates/sms/{slug}-{templateId}.json
+iterable/snippets/{slug}.html
+```
+
+Email and in-app files open in HTML File view. In-app files include the notification text and the preview fields. Push and SMS files open in JSON File view. Handlebars in the source, including `{{ snippet "…" }}`, stay protected so a translation does not break personalization.
+
+**Only empty locales** never overwrites work already in Hyperlocalise. A later import still checks mapped locales when you change a sentence in Iterable.
+
+Import does not write to Iterable.
+
+### Step 5: Review and push
+
+1. Translate and [approve](/platform/cat) the mapped locales you want to write back.
+2. Open an Iterable file in the Content editor. The header shows **Ingest** and **Push to Iterable** for that file. **Push to Iterable** writes the files you select, and the open file is selected by default.
+3. Open **Run History** for imported, skipped, and failed items.
+
+What push writes:
+
+- **WYSIWYG or side-by-side template.** Push updates that template's locale. The next send can use it. Iterable has no draft for that write.
+- **Drag-and-drop email or in-app template.** Drag-and-drop templates cannot be updated in place through the API. Hyperlocalise creates one new WYSIWYG template and writes the locales there. Later pushes update that same copy. The drag-and-drop original stays unchanged. In Iterable, select the new template on the campaign before the localized copy can send.
+- **Snippet.** Push creates or updates `{snippet-name}_{locale}`. A template that calls `{{ snippet "Welcome_Banner" }}` still renders the original snippet until you change that reference.
+- **In-app inbox.** After push, open the locale in Iterable and turn **Show in mobile inbox** back on if that option was set on the source.
+
+Push does not send a campaign, send a proof, or delete a template.
+
+## Change or remove access
+
+Disconnect Iterable from **Integrations** when this workspace should stop using that Iterable project. Inspect automations that depend on the connection before you disconnect. After you reconnect, confirm the data center still matches.
+
+If the template list is empty, confirm the server-side API key, the data center, and that you completed the connection. See [Connection troubleshooting](/platform/help/connections).
+
+## If import or push does not run
+
+- Confirm Iterable is connected and the automation is **Active**.
+- Confirm the data center is the one that hosts the Iterable project.
+- Confirm you added locale codes under **Project Settings**, and that project locale tags match those codes exactly.
+- If **Push to Iterable** or **Ingest** is missing, open an Iterable file. Those actions stay hidden on other files. Approve at least one mapped locale, confirm you can manage automations, and wait until any in-progress push finishes.
+- If an in-app message no longer appears in the mobile inbox, re-enable **Show in mobile inbox** on that locale.
+- If a drag-and-drop campaign still sends the source language, select the new WYSIWYG template on the campaign. Push does not retarget campaigns.
+- Open **Run History** for the failed template, snippet, or locale.
+
+See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).

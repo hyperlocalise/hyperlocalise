@@ -53,7 +53,7 @@ function createOrgSlugClient(origin: string) {
   const workspace = hc<OrgWorkspaceRpcAppType>(origin).api.orgs[":organizationSlug"];
 
   return {
-    ...pickClientPaths(inbox, ["conversations"]),
+    ...pickClientPaths(inbox, ["conversations", "workflow-approvals"]),
     ...pickClientPaths(knowledge, ["glossaries", "knowledge-memory", "translation-memories"]),
     ...pickClientPaths(projects, ["projects", "jobs", "files", "automations", "visual-workflows"]),
     ...pickClientPaths(tms, [
@@ -74,6 +74,7 @@ function createOrgSlugClient(origin: string) {
       "braze",
       "loops",
       "customer-io",
+      "iterable",
       "intercom-connections",
       "canva-connections",
       "figma-connections",

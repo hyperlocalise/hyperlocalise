@@ -74,6 +74,7 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
       "member_joined",
       "member_role_changed",
       "member_removed",
+      "member_left",
     ],
   },
   {
@@ -157,6 +158,8 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
       "visual_workflow_enabled",
       "visual_workflow_disabled",
       "visual_workflow_run_started",
+      "visual_workflow_approval_requested",
+      "visual_workflow_approval_decided",
     ],
   },
   {
@@ -212,6 +215,7 @@ const eventTypeLabels = {
   member_joined: messages.memberJoinedEventType,
   member_role_changed: messages.memberRoleChangedEventType,
   member_removed: messages.memberRemovedEventType,
+  member_left: messages.memberLeftEventType,
   workspace_updated: messages.workspaceUpdatedEventType,
   workspace_archived: messages.workspaceArchivedEventType,
   personal_access_token_created: messages.personalAccessTokenCreatedEventType,
@@ -252,6 +256,8 @@ const eventTypeLabels = {
   visual_workflow_enabled: messages.visualWorkflowEnabledEventType,
   visual_workflow_disabled: messages.visualWorkflowDisabledEventType,
   visual_workflow_run_started: messages.visualWorkflowRunStartedEventType,
+  visual_workflow_approval_requested: messages.visualWorkflowApprovalRequestedEventType,
+  visual_workflow_approval_decided: messages.visualWorkflowApprovalDecidedEventType,
   query_created: messages.queryCreatedEventType,
   query_deleted: messages.queryDeletedEventType,
   query_imported: messages.queryImportedEventType,

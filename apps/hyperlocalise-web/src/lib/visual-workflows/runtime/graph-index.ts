@@ -123,6 +123,14 @@ export function selectNextEdges(input: {
     return input.outgoing.filter((edge) => edge.sourceHandle === "error");
   }
 
+  if (input.nodeType === "flow.human_approval") {
+    if (!input.switchCase) {
+      return [];
+    }
+
+    return input.outgoing.filter((edge) => edge.sourceHandle === input.switchCase);
+  }
+
   if (input.nodeType === "logic.if") {
     const handle = input.branchResult ? "true" : "false";
     return input.outgoing.filter((edge) => edge.sourceHandle === handle);

@@ -172,6 +172,7 @@ describe("workspace template manifest", () => {
       "translate-google-drive-files",
       "translate-braze-email-templates",
       "translate-braze-campaigns",
+      "translate-iterable-templates",
       "translate-customer-io-campaigns",
       "translate-loops-emails",
       "translate-contentful-article",

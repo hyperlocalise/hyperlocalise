@@ -117,6 +117,10 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
   "ai.agent": { title: "AI Agent", purpose: "Placeholder agent step with tools." },
   "logic.for_each": { title: "Loop", purpose: "Iterate over a collection sequentially." },
   "logic.retry": { title: "Retry", purpose: "Re-run a body region with backoff." },
+  "flow.human_approval": {
+    title: "Human approval",
+    purpose: "Pause until an authorized reviewer decides or the request expires.",
+  },
   "flow.wait": { title: "Wait", purpose: "Pause until a duration, timestamp, or condition." },
   "flow.stop": {
     title: "Stop workflow",

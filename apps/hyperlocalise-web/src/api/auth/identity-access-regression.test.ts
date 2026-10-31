@@ -16,7 +16,7 @@ import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
@@ -30,11 +30,14 @@ import { setMembershipReplacingSentinelForTest } from "@/api/test-cleanup";
 import { db, schema } from "@/lib/database/client";
 import { INVITED_WORKOS_USER_ID_PREFIX } from "@/lib/workos/constants";
 
-const { withAuthMock, listMembershipsMock, getOrganizationMock } = vi.hoisted(() => ({
-  withAuthMock: vi.fn(),
-  listMembershipsMock: vi.fn(),
-  getOrganizationMock: vi.fn(),
-}));
+const { withAuthMock, listMembershipsMock, getOrganizationMock, liveWorkosApiKey } = vi.hoisted(
+  () => ({
+    withAuthMock: vi.fn(),
+    listMembershipsMock: vi.fn().mockResolvedValue({ autoPagination: async () => [] }),
+    getOrganizationMock: vi.fn(),
+    liveWorkosApiKey: { enabled: true },
+  }),
+);
 
 vi.mock("@workos-inc/authkit-nextjs", () => ({
   withAuth: withAuthMock,
@@ -45,7 +48,7 @@ vi.mock("@/lib/env", async (importOriginal) => {
   return {
     env: new Proxy(actual.env, {
       get(target, property, receiver) {
-        if (property === "WORKOS_API_KEY") {
+        if (property === "WORKOS_API_KEY" && liveWorkosApiKey.enabled) {
           return "sk_test_identity_regression";
         }
 
@@ -114,8 +117,13 @@ beforeAll(async () => {
 afterEach(async () => {
   withAuthMock.mockReset();
   listMembershipsMock.mockReset();
+  listMembershipsMock.mockResolvedValue({ autoPagination: async () => [] });
   getOrganizationMock.mockReset();
   await cleanup();
+});
+
+afterAll(() => {
+  liveWorkosApiKey.enabled = false;
 });
 
 describe("enterprise identity access regression", () => {

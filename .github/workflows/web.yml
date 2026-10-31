@@ -118,8 +118,22 @@ jobs:
         if: github.event.pull_request.draft
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         working-directory: ${{ github.workspace }}
-        run: git fetch --no-tags --depth=2 origin "${BASE_SHA}"
+        run: |
+          set -euo pipefail
+          # fetch-depth: 2 keeps HEAD connected so unshallow can expand it.
+          # A second depth-2 fetch of BASE_SHA is a disjoint graph once the
+          # PR has more than one commit, so `git diff BASE...HEAD` has no
+          # merge-base.
+          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+            git fetch --unshallow --no-tags
+          fi
+          git fetch --no-tags origin "${BASE_REF}"
+          if ! git merge-base "${BASE_SHA}" HEAD >/dev/null; then
+            echo "Unable to find merge-base between ${BASE_SHA} and HEAD" >&2
+            exit 1
+          fi
 
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1

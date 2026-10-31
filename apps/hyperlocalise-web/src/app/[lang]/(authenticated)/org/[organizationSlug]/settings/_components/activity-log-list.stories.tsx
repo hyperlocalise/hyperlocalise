@@ -27,6 +27,7 @@ const targetKindByEventType: Record<V1ActivityEventType, ActivityLogItem["target
   member_joined: "membership",
   member_role_changed: "membership",
   member_removed: "membership",
+  member_left: "membership",
   workspace_updated: "organization",
   workspace_archived: "organization",
   personal_access_token_created: "personal_access_token",

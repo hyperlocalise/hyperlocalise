@@ -342,22 +342,11 @@ func (api *memberAPI) deleteMember(ctx context.Context, actor memberActor, worko
 	}
 
 	isPendingInvite := isPendingOrganizationMembership(member.workosMembershipID)
-	if member.role == "admin" {
-		if err := api.guardLastAdmin(ctx, actor.organizationID); err != nil {
-			return 0, err
-		}
-	}
-
+	var removeFromWorkos func(context.Context) error
+	markedPending := false
 	if shouldSyncMembershipToWorkos(api.workos, member.workosMembershipID) {
-		if err := api.workos.DeleteOrganizationMembership(ctx, derefString(member.workosMembershipID)); err != nil && !isWorkosNotFoundError(err) {
-			slog.ErrorContext(ctx, "workspace member removal sync failed",
-				"organization_id", actor.organizationID,
-				"membership_id", member.membershipID,
-				"workos_membership_id", derefString(member.workosMembershipID),
-				"actor_workos_user_id", actor.workosUserID,
-				"target_workos_user_id", member.workosUserID,
-			)
-			return 0, memberFailure(500, "member_sync_failed", "Failed to sync member removal with identity provider")
+		removeFromWorkos = func(ctx context.Context) error {
+			return api.deleteWorkosMembership(ctx, actor, member)
 		}
 	} else if isPendingInvite && api.workos != nil {
 		// Hides the row from the invitation.revoked webhook so this removal is not
@@ -366,9 +355,20 @@ func (api *memberAPI) deleteMember(ctx context.Context, actor memberActor, worko
 		if err != nil {
 			return 0, err
 		}
+		markedPending = marked
 		if err := api.revokePendingWorkosInvitation(ctx, actor.workosOrganizationID, member.email); err != nil {
 			if marked {
 				_ = api.clearPendingMembershipReplacingInvitation(context.WithoutCancel(ctx), member.membershipID)
+			}
+			var accepted *workosInvitationAlreadyAcceptedError
+			if errors.As(err, &accepted) {
+				// Shows them as a member from now on, where Remove member is what applies.
+				if _, err := api.pool.Exec(context.WithoutCancel(ctx), `
+                    update organization_memberships set workos_membership_id=$2
+                    where id=$1 and workos_membership_id is null`, member.membershipID, accepted.membershipID); err != nil {
+					return 0, err
+				}
+				return 0, memberFailure(409, "invitation_already_accepted", "This person has already accepted the invitation and is now a member")
 			}
 			slog.ErrorContext(ctx, "workspace pending invitation revoke failed",
 				"organization_id", actor.organizationID,
@@ -380,10 +380,30 @@ func (api *memberAPI) deleteMember(ctx context.Context, actor memberActor, worko
 		}
 	}
 
-	if err := api.reconcileRevokedMembership(ctx, actor, member); err != nil {
+	if err := api.reconcileRevokedMembership(ctx, actor, member, "member_removed", removeFromWorkos); err != nil {
+		// A row left marked is neither listed as an invitation nor cleared by the
+		// invitation.revoked webhook.
+		if markedPending {
+			_ = api.clearPendingMembershipReplacingInvitation(context.WithoutCancel(ctx), member.membershipID)
+		}
 		return 0, err
 	}
 	return http.StatusNoContent, nil
+}
+
+func (api *memberAPI) deleteWorkosMembership(ctx context.Context, actor memberActor, member organizationMember) error {
+	err := api.workos.DeleteOrganizationMembership(ctx, derefString(member.workosMembershipID))
+	if err == nil || isWorkosNotFoundError(err) {
+		return nil
+	}
+	slog.ErrorContext(ctx, "workspace member removal sync failed",
+		"organization_id", actor.organizationID,
+		"membership_id", member.membershipID,
+		"workos_membership_id", derefString(member.workosMembershipID),
+		"actor_workos_user_id", actor.workosUserID,
+		"target_workos_user_id", member.workosUserID,
+	)
+	return memberFailure(500, "member_sync_failed", "Failed to sync member removal with identity provider")
 }
 
 var errMemberNotFound = memberFailure(404, "member_not_found", "Workspace member not found")
@@ -434,9 +454,21 @@ func (api *memberAPI) updateMemberRole(ctx context.Context, organizationID strin
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	if member.role == "admin" && role != "admin" {
-		if err := lockOrganizationAdminsAndCount(ctx, tx, organizationID); err != nil {
+	// The role is read under the admin lock, so someone promoted since the request read
+	// their membership still counts as an admin.
+	if role != "admin" {
+		if err := lockOrganizationAdmins(ctx, tx, organizationID); err != nil {
 			return member, err
+		}
+		var currentRole string
+		err := tx.QueryRow(ctx, `select role from organization_memberships where id=$1`, member.membershipID).Scan(&currentRole)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return member, err
+		}
+		if currentRole == "admin" {
+			if err := requireAnotherAcceptedAdmin(ctx, tx, organizationID, member.localUserID, api.workos != nil); err != nil {
+				return member, err
+			}
 		}
 	}
 	err = tx.QueryRow(ctx, `
@@ -453,30 +485,46 @@ func (api *memberAPI) updateMemberRole(ctx context.Context, organizationID strin
 	return member, nil
 }
 
-func (api *memberAPI) guardLastAdmin(ctx context.Context, organizationID string) error {
-	tx, err := api.pool.Begin(ctx)
+// lockOrganizationAdmins takes the workspace's admin lock, held by every removal and
+// demotion until it commits. It is per workspace and taken only by membership changes, so
+// holding it through a WorkOS call delays nothing else: page loads that rewrite membership
+// rows do not wait on it. Promotions do not take it: they cannot leave a workspace without
+// an admin.
+func lockOrganizationAdmins(ctx context.Context, tx pgx.Tx, organizationID string) error {
+	_, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, organizationAdminsLockKey(organizationID))
+	return err
+}
+
+func organizationAdminsLockKey(organizationID string) string {
+	return "organization_admins:" + organizationID
+}
+
+// requireAnotherAcceptedAdmin refuses a change that would leave no admin who has accepted
+// their invitation once departingUserID is no longer one.
+func requireAnotherAcceptedAdmin(ctx context.Context, tx pgx.Tx, organizationID, departingUserID string, workosSynced bool) error {
+	count, err := countOtherAcceptedAdmins(ctx, tx, organizationID, departingUserID, workosSynced)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	if err := lockOrganizationAdminsAndCount(ctx, tx, organizationID); err != nil {
-		return err
-	}
-	return tx.Commit(ctx)
-}
-
-func lockOrganizationAdminsAndCount(ctx context.Context, tx pgx.Tx, organizationID string) error {
-	if _, err := tx.Exec(ctx, `select id from organization_memberships where organization_id=$1 and role='admin' for update`, organizationID); err != nil {
-		return err
-	}
-	var count int
-	if err := tx.QueryRow(ctx, `select count(*)::int from organization_memberships where organization_id=$1 and role='admin'`, organizationID).Scan(&count); err != nil {
-		return err
-	}
-	if count <= 1 {
-		return memberFailure(409, "last_admin_protected", "The workspace must have at least one admin")
+	if count < 1 {
+		return memberFailure(409, "last_admin_protected", "The workspace needs another admin who has accepted their invitation")
 	}
 	return nil
+}
+
+// countOtherAcceptedAdmins counts admins other than userID who have accepted their
+// invitation. An unaccepted admin invitation cannot run the workspace, so it does not count.
+// Without WorkOS no membership records a WorkOS id, so every admin counts.
+func countOtherAcceptedAdmins(ctx context.Context, db dictionaryDB, organizationID, userID string, workosSynced bool) (int, error) {
+	var count int
+	err := db.QueryRow(ctx, `
+        select count(*)::int from organization_memberships
+        where organization_id=$1 and role='admin' and user_id<>$2
+          and (not $5 or (
+              nullif(btrim(workos_membership_id), '') is not null
+              and workos_membership_id<>$3 and workos_membership_id not like $4))`,
+		organizationID, userID, replacingWorkosMembershipID, replacingWorkosMembershipIDPrefix+"%", workosSynced).Scan(&count)
+	return count, err
 }
 
 func decodeInviteMemberBody(r *http.Request) (inviteMemberBody, error) {

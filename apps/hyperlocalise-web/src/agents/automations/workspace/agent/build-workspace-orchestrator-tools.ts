@@ -26,6 +26,8 @@ import { createImportBrazeCampaignsTool } from "./tools/import_braze_campaigns";
 import { createImportLoopsEmailsTool } from "./tools/import_loops_emails";
 import { createImportCustomerIoCampaignsTool } from "./tools/import_customer_io_campaigns";
 import { createImportBrazeTemplatesTool } from "./tools/import_braze_templates";
+import { createImportIterableTemplatesTool } from "./tools/import_iterable_templates";
+import { createPushIterableTemplatesTool } from "./tools/push_iterable_templates";
 import { createImportIntercomArticlesTool } from "./tools/import_intercom_articles";
 import { createImportSanityDocumentsTool } from "./tools/import_sanity_documents";
 import { createImportWebflowItemsTool } from "./tools/import_webflow_items";
@@ -67,6 +69,8 @@ const TOOL_BUILDERS: Record<
   push_google_drive_translations: createPushGoogleDriveTranslationsTool,
   import_braze_templates: createImportBrazeTemplatesTool,
   push_braze_templates: createPushBrazeTemplatesTool,
+  import_iterable_templates: createImportIterableTemplatesTool,
+  push_iterable_templates: createPushIterableTemplatesTool,
   import_braze_campaigns: createImportBrazeCampaignsTool,
   push_braze_campaigns: createPushBrazeCampaignsTool,
   import_customer_io_campaigns: createImportCustomerIoCampaignsTool,

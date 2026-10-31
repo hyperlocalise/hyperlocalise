@@ -68,12 +68,13 @@ vi.mock("@/lib/translation/sandbox", () => ({
   readTranslatedFile: readTranslatedFileMock,
 }));
 
-vi.mock("@/lib/log", () => ({
-  createLogger: vi.fn(() => ({
-    error: vi.fn(),
-    warn: vi.fn(),
-  })),
-}));
+vi.mock("@/lib/log", async () => {
+  const { createTestLogger } = await import("@/test/create-test-logger");
+  return {
+    createLogger: vi.fn(() => createTestLogger()),
+    serializeErrorForLog: vi.fn((error: Error) => ({ error })),
+  };
+});
 
 import { uploadRepositorySourceFilesFromSandbox } from "./upload-repository-source-files";
 import { sha256Hex } from "./records";

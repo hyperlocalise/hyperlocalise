@@ -626,6 +626,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     description:
       "Name of the Customer.io integration in the hint on a skill that needs it connected",
   },
+  skillIntegrationIterable: {
+    defaultMessage: "Iterable",
+    id: "C0jp5QUb8B",
+    description: "Name of the Iterable integration in the hint on a skill that needs it connected",
+  },
   skillIntegrationLoops: {
     defaultMessage: "Loops",
     id: "oC6DC5UXTd",
@@ -943,6 +948,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Choose a project above to pick target locales.",
     id: "mzBTNMYPpo",
     description: "Empty state when Create job target locales need a project first",
+  },
+  chooseProjectForIterableSourceLocale: {
+    defaultMessage: "Choose a project above to pick a source locale.",
+    id: "Fb6qGloXW4",
+    description: "Empty state when the Iterable source locale needs a project first",
   },
   noRunsYet: {
     defaultMessage: "No runs yet.",

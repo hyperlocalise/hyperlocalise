@@ -175,6 +175,11 @@ export type WorkspaceAutomationFormState = {
   brazeCanvasIds: string[];
   brazeExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   brazeOverwriteWhenRemoteNewer: boolean;
+  iterableEnabled: boolean;
+  iterableSourceLocale: string;
+  iterableTemplateIds: string[];
+  iterableSnippetIds: string[];
+  iterableExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   intercomRestEndpoint: "us" | "eu" | "au";
   intercomHelpCenterId: string;
   intercomHelpCenterLocales: string[];
@@ -205,6 +210,7 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
     form.customerIoEnabled ||
+    form.iterableEnabled ||
     form.loopsEnabled
   ) {
     return true;
@@ -256,6 +262,8 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "webflowSourceLocale"
     | "braze"
     | "brazeSourceLocale"
+    | "iterable"
+    | "iterableSourceLocale"
     | "customerIo"
     | "loops"
     | "crowdinProjectId"
@@ -333,6 +341,9 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   loops_not_connected: "Connect Loops in Integrations before using it.",
   loops_pipes_needs_reauthorization: "Reconnect Loops in Integrations, then try again.",
   loops_pipes_unavailable: "Loops is unavailable until WorkOS Pipes is configured.",
+  iterable_not_connected: "Connect Iterable in Integrations before using it.",
+  iterable_pipes_needs_reauthorization: "Reconnect Iterable in Integrations, then try again.",
+  iterable_pipes_unavailable: "Iterable is unavailable until WorkOS Pipes is configured.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -508,6 +519,11 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     brazeCanvasIds: [],
     brazeExistingTranslationPolicy: "seed_empty",
     brazeOverwriteWhenRemoteNewer: true,
+    iterableEnabled: false,
+    iterableSourceLocale: "",
+    iterableTemplateIds: [],
+    iterableSnippetIds: [],
+    iterableExistingTranslationPolicy: "seed_empty",
     intercomRestEndpoint: "us",
     intercomHelpCenterId: "",
     intercomHelpCenterLocales: [],
@@ -549,6 +565,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const braze = automation.toolConfig.braze;
   const brazeCampaigns = automation.toolConfig.brazeCampaigns;
   const customerIo = automation.toolConfig.customerIo;
+  const iterable = automation.toolConfig.iterable;
   const loops = automation.toolConfig.loops;
   const crowdin = automation.toolConfig.crowdin;
   const webSearch = automation.toolConfig.webSearch;
@@ -713,6 +730,15 @@ export function createWorkspaceAutomationFormStateFromRecord(
         : "seed_empty",
     brazeOverwriteWhenRemoteNewer:
       (brazeCampaigns?.overwriteWhenRemoteNewer ?? braze?.overwriteWhenRemoteNewer) !== false,
+    iterableEnabled: Boolean(iterable?.enabled),
+    iterableSourceLocale: iterable?.sourceLocale?.trim() || "",
+    iterableTemplateIds: iterable?.templateIds ? [...iterable.templateIds] : [],
+    iterableSnippetIds: iterable?.snippetIds ? [...iterable.snippetIds] : [],
+    iterableExistingTranslationPolicy:
+      iterable?.existingTranslationPolicy === "refresh_imported" ||
+      iterable?.existingTranslationPolicy === "overwrite_all"
+        ? iterable.existingTranslationPolicy
+        : "seed_empty",
     intercomRestEndpoint: intercom?.restEndpoint ?? "us",
     intercomHelpCenterId: intercom?.helpCenterId ?? "",
     intercomHelpCenterLocales: intercom?.helpCenterLocales ? [...intercom.helpCenterLocales] : [],
@@ -788,6 +814,10 @@ export function applyWorkspaceAutomationProjectSelection(
 
   if (form.loopsEnabled && project) {
     next.loopsSourceLocale = project.sourceLocale ?? form.loopsSourceLocale;
+  }
+
+  if (form.iterableEnabled && project) {
+    next.iterableSourceLocale = project.sourceLocale ?? "";
   }
 
   return next;
@@ -975,6 +1005,19 @@ export function formStateToWorkspaceAutomationPayload(
             canvasIds: form.brazeCanvasIds,
             existingTranslationPolicy: form.brazeExistingTranslationPolicy,
             overwriteWhenRemoteNewer: form.brazeOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
+    ...(form.iterableEnabled
+      ? {
+          iterable: {
+            enabled: true,
+            ...(form.iterableSourceLocale.trim()
+              ? { sourceLocale: form.iterableSourceLocale.trim() }
+              : {}),
+            templateIds: form.iterableTemplateIds,
+            snippetIds: form.iterableSnippetIds,
+            existingTranslationPolicy: form.iterableExistingTranslationPolicy,
           },
         }
       : {}),
@@ -1235,6 +1278,12 @@ export function validateWorkspaceAutomationFormState(
 
   if (workspaceAutomationFormNeedsProject(form) && !form.projectId.trim()) {
     errors.projectId = "Choose a Hyperlocalise project.";
+  }
+
+  if (form.iterableEnabled && !form.iterableSourceLocale.trim()) {
+    errors.iterableSourceLocale = form.projectId.trim()
+      ? "Choose a source locale."
+      : "Choose a project above to pick a source locale.";
   }
 
   if (form.githubEnabled) {
@@ -1560,6 +1609,10 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "loops_pipes_needs_reauthorization":
     case "loops_pipes_unavailable":
       return { loops: message };
+    case "iterable_not_connected":
+    case "iterable_pipes_needs_reauthorization":
+    case "iterable_pipes_unavailable":
+      return { iterable: message };
     case "crowdin_project_required":
     case "crowdin_project_not_found":
     case "crowdin_project_not_linked":
@@ -1634,6 +1687,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
     form.customerIoEnabled ||
+    form.iterableEnabled ||
     form.loopsEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
