@@ -119,6 +119,7 @@ describe("resolveTransactionalCopy", () => {
       copyId: "t1",
       draftEmailMessageId: "draft-t1",
       expectedRevisionId: "rev-1",
+      created: false,
     });
     expect(ensureTransactionalDraft).toHaveBeenCalledWith("t1");
   });
@@ -150,6 +151,7 @@ describe("resolveTransactionalCopy", () => {
     });
 
     expect(resolved.copyId).toBe("t2");
+    expect(resolved.created).toBe(false);
     expect(createTransactionalEmail).not.toHaveBeenCalled();
     expect(warnings).toEqual([]);
   });
@@ -177,6 +179,7 @@ describe("resolveTransactionalCopy", () => {
     });
 
     expect(resolved.copyId).toBe("new");
+    expect(resolved.created).toBe(false);
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toContain("found 2 copies");
   });
@@ -200,6 +203,7 @@ describe("resolveTransactionalCopy", () => {
       copyId: "t9",
       draftEmailMessageId: "draft-t9",
       expectedRevisionId: "rev-0",
+      created: true,
     });
   });
 });
@@ -222,6 +226,7 @@ describe("resolveCampaignCopy", () => {
       copyId: "c1",
       emailMessageId: "message-c1",
       expectedRevisionId: "rev-1",
+      created: false,
     });
   });
 
@@ -249,6 +254,7 @@ describe("resolveCampaignCopy", () => {
     });
 
     expect(resolved.copyId).toBe("c2");
+    expect(resolved.created).toBe(false);
     expect(createCampaign).not.toHaveBeenCalled();
   });
 

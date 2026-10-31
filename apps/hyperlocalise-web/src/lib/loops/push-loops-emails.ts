@@ -20,20 +20,25 @@ import {
 } from "@/lib/file-storage/records";
 import { createLogger } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
-import { applyHtmlIngestTranslations } from "@/lib/projects/files/html-ingest-entries";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
-import { isLoopsLanguageLabelUnsupportedError, type LoopsClient } from "./client";
-import { loadLoopsAutomationClient } from "./credentials";
-import { resolveCampaignCopy, resolveTransactionalCopy } from "./push-copy-resolution";
 import {
-  applyLoopsSegmentTranslations,
+  isLoopsLanguageLabelUnsupportedError,
+  isLoopsLegacyContentError,
+  type LoopsClient,
+} from "./client";
+import { loadLoopsAutomationClient } from "./credentials";
+import {
+  applyApprovedLoopsHtmlTranslations,
+  type LoopsRemoteCopyFields,
+} from "./apply-approved-translations";
+import {
   hashLoopsContent,
   isLoopsLanguageCodeMismatch,
   loopsEmailCopyName,
-  parseLoopsEmailEnvelope,
   toLoopsLanguageCode,
 } from "./html-envelope";
+import { resolveCampaignCopy, resolveTransactionalCopy } from "./push-copy-resolution";
 
 const logger = createLogger("push-loops-emails");
 
@@ -155,15 +160,65 @@ function warnWhenLanguageLabelMissing(input: {
   }
 }
 
-async function pushTransactionalLocale(input: {
+type PushLocaleInput = {
   client: LoopsClient;
   mapping: typeof schema.loopsEmailSyncStates.$inferSelect;
   locale: string;
-  subject: string;
-  previewText?: string;
-  lmx: string;
+  storedEnvelopeHtml: string;
+  storedLmx: string;
+  storedSegments: number;
+  approved: Record<string, string>;
   pushWarning: (message: string) => void;
-}): Promise<void> {
+};
+
+type PushLocaleOutcome = "pushed" | "skipped";
+
+async function loadRemoteCopyFields(
+  client: LoopsClient,
+  emailMessageId: string,
+): Promise<LoopsRemoteCopyFields> {
+  const message = await client.getEmailMessage(emailMessageId);
+  return {
+    subject: message.subject,
+    previewText: message.previewText,
+    lmx: message.lmx,
+  };
+}
+
+function mergeApprovedLoopsCopy(input: {
+  storedEnvelopeHtml: string;
+  storedLmx: string;
+  storedSegments: number;
+  remote: LoopsRemoteCopyFields;
+  approved: Record<string, string>;
+  preferRemote: boolean;
+  copyName: string;
+  pushWarning: (message: string) => void;
+}): { subject: string; previewText?: string; lmx: string } | null {
+  const merged = applyApprovedLoopsHtmlTranslations({
+    storedEnvelopeHtml: input.storedEnvelopeHtml,
+    storedLmx: input.storedLmx,
+    remote: input.remote,
+    approved: input.approved,
+    preferRemote: input.preferRemote,
+  });
+  if ("diverged" in merged) {
+    input.pushWarning(
+      `${input.copyName}: skipped because the Loops copy no longer matches the imported email; re-run ingest`,
+    );
+    return null;
+  }
+  if (merged.segments.length !== input.storedSegments) {
+    return null;
+  }
+  return {
+    subject: merged.subject,
+    previewText: merged.previewText,
+    lmx: merged.lmx,
+  };
+}
+
+async function pushTransactionalLocale(input: PushLocaleInput): Promise<PushLocaleOutcome> {
   const copyName = loopsEmailCopyName(input.mapping.sourceName, input.locale);
   const languageCode = toLoopsLanguageCode(input.locale);
   const resolved = await resolveTransactionalCopy({
@@ -187,14 +242,39 @@ async function pushTransactionalLocale(input: {
   if (!draftEmailMessageId || !expectedRevisionId) {
     throw new Error("loops_draft_unavailable");
   }
+  let remote: LoopsRemoteCopyFields = {};
+  if (!resolved.created) {
+    try {
+      remote = await loadRemoteCopyFields(input.client, draftEmailMessageId);
+    } catch (error) {
+      if (isLoopsLegacyContentError(error)) {
+        input.pushWarning(`${copyName}: skipped because Loops stores this copy in a legacy format`);
+        return "skipped";
+      }
+      throw error;
+    }
+  }
+  const payload = mergeApprovedLoopsCopy({
+    storedEnvelopeHtml: input.storedEnvelopeHtml,
+    storedLmx: input.storedLmx,
+    storedSegments: input.storedSegments,
+    remote,
+    approved: input.approved,
+    preferRemote: !resolved.created,
+    copyName,
+    pushWarning: input.pushWarning,
+  });
+  if (!payload) {
+    return "skipped";
+  }
   const update = await updateCopyEmailMessage({
     client: input.client,
     draftEmailMessageId,
     expectedRevisionId,
-    subject: input.subject,
-    previewText: input.previewText,
+    subject: payload.subject,
+    previewText: payload.previewText,
     languageCode,
-    lmx: input.lmx,
+    lmx: payload.lmx,
     onLanguageLabelDropped: (reason) =>
       input.pushWarning(languageLabelDroppedWarning(copyName, input.locale, reason)),
   });
@@ -211,19 +291,12 @@ async function pushTransactionalLocale(input: {
     input.locale,
     copyId,
     copyName,
-    hashLoopsContent(input.lmx),
+    hashLoopsContent(payload.lmx),
   );
+  return "pushed";
 }
 
-async function pushCampaignLocale(input: {
-  client: LoopsClient;
-  mapping: typeof schema.loopsEmailSyncStates.$inferSelect;
-  locale: string;
-  subject: string;
-  previewText?: string;
-  lmx: string;
-  pushWarning: (message: string) => void;
-}): Promise<void> {
+async function pushCampaignLocale(input: PushLocaleInput): Promise<PushLocaleOutcome> {
   const copyName = loopsEmailCopyName(input.mapping.sourceName, input.locale);
   const languageCode = toLoopsLanguageCode(input.locale);
   const resolved = await resolveCampaignCopy({
@@ -239,14 +312,39 @@ async function pushCampaignLocale(input: {
   if (!copyId || !emailMessageId || !expectedRevisionId) {
     throw new Error("loops_copy_create_failed");
   }
+  let remote: LoopsRemoteCopyFields = {};
+  if (!resolved.created) {
+    try {
+      remote = await loadRemoteCopyFields(input.client, emailMessageId);
+    } catch (error) {
+      if (isLoopsLegacyContentError(error)) {
+        input.pushWarning(`${copyName}: skipped because Loops stores this copy in a legacy format`);
+        return "skipped";
+      }
+      throw error;
+    }
+  }
+  const payload = mergeApprovedLoopsCopy({
+    storedEnvelopeHtml: input.storedEnvelopeHtml,
+    storedLmx: input.storedLmx,
+    storedSegments: input.storedSegments,
+    remote,
+    approved: input.approved,
+    preferRemote: !resolved.created,
+    copyName,
+    pushWarning: input.pushWarning,
+  });
+  if (!payload) {
+    return "skipped";
+  }
   const update = await updateCopyEmailMessage({
     client: input.client,
     draftEmailMessageId: emailMessageId,
     expectedRevisionId,
-    subject: input.subject,
-    previewText: input.previewText,
+    subject: payload.subject,
+    previewText: payload.previewText,
     languageCode,
-    lmx: input.lmx,
+    lmx: payload.lmx,
     onLanguageLabelDropped: (reason) =>
       input.pushWarning(languageLabelDroppedWarning(copyName, input.locale, reason)),
   });
@@ -263,8 +361,9 @@ async function pushCampaignLocale(input: {
     input.locale,
     copyId,
     copyName,
-    hashLoopsContent(input.lmx),
+    hashLoopsContent(payload.lmx),
   );
+  return "pushed";
 }
 
 async function persistCopySuccess(
@@ -398,9 +497,14 @@ export async function runPushLoopsEmails(input: {
           result.skippedLocales += 1;
           continue;
         }
-        const translatedHtml = applyHtmlIngestTranslations(sourceHtml, approved.prefilled);
-        const parsed = parseLoopsEmailEnvelope(translatedHtml);
-        if (parsed.segments.length !== storedSegments) {
+        const preview = applyApprovedLoopsHtmlTranslations({
+          storedEnvelopeHtml: sourceHtml,
+          storedLmx,
+          remote: {},
+          approved: approved.prefilled,
+          preferRemote: false,
+        });
+        if ("diverged" in preview || preview.segments.length !== storedSegments) {
           logger.warn(
             { syncStateId: mapping.id, sourceId: mapping.sourceId, locale },
             "loops push skipped: segment count changed, re-run ingest",
@@ -408,36 +512,27 @@ export async function runPushLoopsEmails(input: {
           result.skippedLocales += 1;
           continue;
         }
-        const tokensBySegment = (mapping.variableTokens ?? []) as string[][];
-        const translatedLmx = applyLoopsSegmentTranslations({
-          lmx: storedLmx,
-          translatedSegments: parsed.segments,
-          tokensBySegment,
-        });
 
-        if (mapping.resourceKind === "campaign") {
-          await pushCampaignLocale({
-            client: loaded.value.client,
-            mapping,
-            locale,
-            subject: parsed.subject,
-            previewText: parsed.previewText,
-            lmx: translatedLmx,
-            pushWarning,
-          });
-        } else {
-          // Transactional copies stay unpublished. Workflow sources also land as
-          // unpublished transactional copies named `{workflow} / {email} [{locale}]`
-          // because Loops has no safe duplicate-workflow endpoint for live triggers.
-          await pushTransactionalLocale({
-            client: loaded.value.client,
-            mapping,
-            locale,
-            subject: parsed.subject,
-            previewText: parsed.previewText,
-            lmx: translatedLmx,
-            pushWarning,
-          });
+        const pushInput = {
+          client: loaded.value.client,
+          mapping,
+          locale,
+          storedEnvelopeHtml: sourceHtml,
+          storedLmx,
+          storedSegments,
+          approved: approved.prefilled,
+          pushWarning,
+        };
+        const outcome =
+          mapping.resourceKind === "campaign"
+            ? await pushCampaignLocale(pushInput)
+            : // Transactional copies stay unpublished. Workflow sources also land as
+              // unpublished transactional copies named `{workflow} / {email} [{locale}]`
+              // because Loops has no safe duplicate-workflow endpoint for live triggers.
+              await pushTransactionalLocale(pushInput);
+        if (outcome === "skipped") {
+          result.skippedLocales += 1;
+          continue;
         }
         result.pushedLocales += 1;
       } catch (error) {
