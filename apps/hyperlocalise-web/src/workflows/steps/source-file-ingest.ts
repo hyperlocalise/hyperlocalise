@@ -97,6 +97,17 @@ export async function loadSourceFileSegmentationStep(input: {
   return loadSegmentationForIngest(input);
 }
 
+export async function loadSourceFileImportSettingsStep(input: {
+  organizationId: string;
+  projectId: string;
+  repositorySourceFileId: string;
+}) {
+  "use step";
+  const { loadImportSettingsForIngest } =
+    await import("@/lib/projects/files/source-file-import-settings");
+  return loadImportSettingsForIngest(input);
+}
+
 export async function writeSourceFileSegmentationSrxStep(
   sandboxId: string,
   settings: import("@/lib/projects/files/source-file-segmentation-schema").RepositorySourceFileSegmentationSettings,
@@ -118,17 +129,40 @@ export async function writeSourceFileSegmentationSrxStep(
 
 export async function parseHlEntriesStep(
   extractedEntries: HlEntriesPayload,
-  options?: { sourcePath?: string; sourceContent?: unknown },
+  options?: {
+    sourcePath?: string;
+    sourceContent?: unknown;
+    importSettings?: import("@/lib/projects/files/source-file-import-settings-schema").RepositorySourceFileImportSettings;
+  },
 ): Promise<ProjectSourceStringEntry[]> {
   "use step";
   const { entriesFromHlOutput } = await import("@/lib/projects/files/source-file-ingest");
   const { applyHtmlIngestEntryKeys, utf8FromStoredFileContent } =
     await import("@/lib/projects/files/html-ingest-entries");
+  const { applyJsonIngestEntries } = await import("@/lib/projects/files/json-ingest-entries");
+  const { importSettingsAreActive, normalizeImportSettings } =
+    await import("@/lib/projects/files/source-file-import-settings-schema");
   const sourceText = utf8FromStoredFileContent(options?.sourceContent);
-  const payload =
-    options?.sourcePath && sourceText
-      ? applyHtmlIngestEntryKeys(options.sourcePath, sourceText, extractedEntries)
-      : extractedEntries;
+  const settings = normalizeImportSettings(options?.importSettings);
+  let payload = extractedEntries;
+  if (options?.sourcePath && sourceText) {
+    payload = applyHtmlIngestEntryKeys(options.sourcePath, sourceText, payload, {
+      excludedElements: settings.html.excludedElements,
+      icuSubfilter: settings.html.icuSubfilter,
+    });
+    if (importSettingsAreActive(settings)) {
+      payload = applyJsonIngestEntries(options.sourcePath, sourceText, payload, settings.json);
+    }
+  }
+  if (options?.sourcePath && options.sourceContent && importSettingsAreActive(settings)) {
+    const { applyXlsxIngestEntries } = await import("@/lib/projects/files/xlsx-ingest-entries");
+    payload = await applyXlsxIngestEntries(
+      options.sourcePath,
+      options.sourceContent,
+      payload,
+      settings.excel,
+    );
+  }
   return entriesFromHlOutput(payload, true);
 }
 
@@ -137,6 +171,7 @@ export async function extractOfficeSourceEntriesStep(input: {
   projectId: string;
   storedFileId: string;
   sourcePath: string;
+  excelImportSettings?: import("@/lib/projects/files/source-file-import-settings-schema").ExcelImportSettings;
 }): Promise<ProjectSourceStringEntry[]> {
   "use step";
   const { loadProjectOfficeSourceEntries } =

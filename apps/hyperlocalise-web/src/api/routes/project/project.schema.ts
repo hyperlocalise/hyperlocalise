@@ -23,6 +23,12 @@ import {
 } from "@/lib/i18n/locales";
 import { messageFormatSchema } from "@/lib/i18n/message-format";
 import { placeholderPatternsSchema } from "@/lib/i18n/placeholder-patterns";
+import {
+  repositorySourceFileImportSettingsSchema,
+  type RepositorySourceFileImportSettings,
+} from "@/lib/projects/files/source-file-import-settings-schema";
+
+export { repositorySourceFileImportSettingsSchema, type RepositorySourceFileImportSettings };
 
 export const projectIdParamsSchema = z.object({
   projectId: projectIdSchema,
@@ -659,6 +665,13 @@ export const updateProjectFileMessageFormatBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   messageFormat: messageFormatSchema,
   placeholderPatterns: placeholderPatternsSchema.optional(),
+});
+
+export const projectFileImportSettingsQuerySchema = projectFileSegmentationQuerySchema;
+
+export const updateProjectFileImportSettingsBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  importSettings: repositorySourceFileImportSettingsSchema,
 });
 
 export const projectFileSegmentationResponseSchema = z.object({

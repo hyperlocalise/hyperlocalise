@@ -1010,3 +1010,125 @@ describe("project file message format", () => {
     expect(invalidResponse.status).toBe(400);
   });
 });
+
+describe("project file import settings", () => {
+  it("returns defaults and persists HTML, JSON, and Excel filters", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+
+    const importSettingsApi =
+      client.api.orgs[":organizationSlug"].projects[":projectId"].files["import-settings"];
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      projectId: project.id,
+    };
+
+    const getResponse = await importSettingsApi.$get(
+      { param, query: { sourcePath: "locales/en.json" } },
+      { headers },
+    );
+    expect(getResponse.status).toBe(200);
+    await expect(getResponse.json()).resolves.toMatchObject({
+      kind: "json",
+      importSettings: {
+        json: { keyPaths: [], htmlSubfilter: false, icuSubfilter: false },
+      },
+    });
+
+    const patchResponse = await importSettingsApi.$patch(
+      {
+        param,
+        json: {
+          sourcePath: "locales/en.json",
+          importSettings: {
+            html: { excludedElements: ["nav"], icuSubfilter: true },
+            json: {
+              keyPaths: ["*.text"],
+              excludeKeyPaths: ["debug.**"],
+              contextFields: ["description"],
+              characterLimitFields: ["maxLength"],
+              htmlSubfilter: true,
+              icuSubfilter: true,
+            },
+            excel: {
+              firstLineContainsHeader: false,
+              columns: { identifier: 0, source: 1, context: 2, maxLength: 3 },
+            },
+          },
+        },
+      },
+      { headers },
+    );
+    expect(patchResponse.status).toBe(200);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      kind: "json",
+      reingest: { queued: false, reason: "no_reconciled_version" },
+      importSettings: {
+        html: { excludedElements: ["nav"], icuSubfilter: true },
+        json: {
+          keyPaths: ["*.text"],
+          excludeKeyPaths: ["debug.**"],
+          contextFields: ["description"],
+          characterLimitFields: ["maxLength"],
+          htmlSubfilter: true,
+          icuSubfilter: true,
+        },
+        excel: {
+          firstLineContainsHeader: false,
+          columns: { identifier: 0, source: 1, context: 2, maxLength: 3 },
+        },
+      },
+    });
+
+    const [row] = await db
+      .select({ importSettings: schema.repositorySourceFiles.importSettings })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.projectId, project.id));
+    expect(row?.importSettings.json.keyPaths).toEqual(["*.text"]);
+    expect(row?.importSettings.excel.firstLineContainsHeader).toBe(false);
+  });
+
+  it("rejects missing files and invalid tag names", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+    const importSettingsApi =
+      client.api.orgs[":organizationSlug"].projects[":projectId"].files["import-settings"];
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      projectId: project.id,
+    };
+
+    const missingResponse = await importSettingsApi.$get(
+      { param, query: { sourcePath: "locales/missing.json" } },
+      { headers },
+    );
+    expect(missingResponse.status).toBe(404);
+
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const invalidResponse = await app.request(
+      `/api/orgs/${organizationSlug}/projects/${project.id}/files/import-settings`,
+      {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          sourcePath: "locales/en.json",
+          importSettings: { html: { excludedElements: ["<script>"] } },
+        }),
+      },
+    );
+    expect(invalidResponse.status).toBe(400);
+  });
+});

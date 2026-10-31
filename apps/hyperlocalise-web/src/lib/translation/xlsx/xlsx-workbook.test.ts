@@ -114,6 +114,34 @@ describe("readXlsxEntries", () => {
     ]);
   });
 
+  it("reads headerless sheets by column position", async () => {
+    const workbook = await load(
+      buildXlsxFixture([
+        {
+          name: "Copy",
+          cells: {
+            A1: "home.title",
+            B1: "Home",
+            C1: "Nav label",
+            D1: 12,
+            A2: "home.cta",
+            B2: "Start now",
+          },
+        },
+      ]),
+    );
+    const entries = readXlsxEntries(workbook, "en", "en", {
+      firstLineContainsHeader: false,
+      columns: { identifier: 0, source: 1, context: 2, maxLength: 3 },
+    });
+    expect(
+      entries.map(({ key, text, comment, maxLength }) => ({ key, text, comment, maxLength })),
+    ).toEqual([
+      { key: "home.title", text: "Home", comment: "Nav label", maxLength: 12 },
+      { key: "home.cta", text: "Start now", comment: "", maxLength: 0 },
+    ]);
+  });
+
   it("rejects content that is not a workbook", async () => {
     const workbook = await loadXlsxWorkbook(new TextEncoder().encode("not a zip"));
     expect(isErr(workbook) && workbook.error).toEqual({ code: "invalid_xlsx" });
