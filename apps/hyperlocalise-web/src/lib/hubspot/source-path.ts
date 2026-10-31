@@ -56,7 +56,7 @@ export function buildHubspotSourcePath(input: {
   name?: string | null;
 }): string {
   const folder = HUBSPOT_FOLDERS[input.kind];
-  const extension = input.kind === "message-template" ? "html" : "json";
+  const extension = input.kind === "message-template" || input.kind === "email" ? "html" : "json";
   const id = encodeURIComponent(input.id.trim());
   const slug = slugifyHubspotPathSegment(input.name ?? "", "item");
   return normalizeSourcePath(`hubspot/${folder}/${id}/${slug}.${extension}`);

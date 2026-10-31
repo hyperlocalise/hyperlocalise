@@ -166,6 +166,8 @@ export type WorkspaceAutomationFormState = {
   hubspotLandingPageIds: string[];
   hubspotWebsitePageIds: string[];
   hubspotMessageTemplateIds: string[];
+  hubspotExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  hubspotOverwriteWhenRemoteNewer: boolean;
   customerIoBroadcastIds: string[];
   customerIoCampaignIds: string[];
   customerIoNewsletterIds: string[];
@@ -523,6 +525,8 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     hubspotLandingPageIds: [],
     hubspotWebsitePageIds: [],
     hubspotMessageTemplateIds: [],
+    hubspotExistingTranslationPolicy: "seed_empty",
+    hubspotOverwriteWhenRemoteNewer: true,
     customerIoBroadcastIds: [],
     customerIoCampaignIds: [],
     customerIoNewsletterIds: [],
@@ -728,6 +732,12 @@ export function createWorkspaceAutomationFormStateFromRecord(
     hubspotLandingPageIds: hubspot?.landingPageIds ? [...hubspot.landingPageIds] : [],
     hubspotWebsitePageIds: hubspot?.websitePageIds ? [...hubspot.websitePageIds] : [],
     hubspotMessageTemplateIds: hubspot?.messageTemplateIds ? [...hubspot.messageTemplateIds] : [],
+    hubspotExistingTranslationPolicy:
+      hubspot?.existingTranslationPolicy === "refresh_imported" ||
+      hubspot?.existingTranslationPolicy === "overwrite_all"
+        ? hubspot.existingTranslationPolicy
+        : "seed_empty",
+    hubspotOverwriteWhenRemoteNewer: hubspot?.overwriteWhenRemoteNewer !== false,
     customerIoBroadcastIds: customerIo?.broadcastIds ? [...customerIo.broadcastIds] : [],
     customerIoCampaignIds: customerIo?.campaignIds ? [...customerIo.campaignIds] : [],
     customerIoNewsletterIds: customerIo?.newsletterIds ? [...customerIo.newsletterIds] : [],
@@ -1096,8 +1106,8 @@ export function formStateToWorkspaceAutomationPayload(
             landingPageIds: form.hubspotLandingPageIds,
             websitePageIds: form.hubspotWebsitePageIds,
             messageTemplateIds: form.hubspotMessageTemplateIds,
-            existingTranslationPolicy: "seed_empty",
-            overwriteWhenRemoteNewer: true,
+            existingTranslationPolicy: form.hubspotExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.hubspotOverwriteWhenRemoteNewer,
           },
         }
       : {}),

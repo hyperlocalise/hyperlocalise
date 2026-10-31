@@ -31,11 +31,25 @@ import {
   applyEmailDocument,
   applyFormDocument,
   applyPageDocument,
+  buildBlogContentDocument,
+  buildEmailDocument,
+  buildEmailHtmlDocument,
+  buildFormDocument,
+  buildPageDocument,
+  extractEmailStyleSettings,
+  hashHubspotContent,
   mergeHubspotTranslations,
   readBlogDocument,
+  readEmailHtmlDocument,
   readHubspotStringTree,
   readMessageTemplateDocument,
+  serializeHubspotDocument,
 } from "./document";
+import {
+  decideHubspotPushLocaleAction,
+  DEFAULT_HUBSPOT_EXISTING_TRANSLATION_POLICY,
+  isHubspotExistingTranslationPolicy,
+} from "./existing-translation-policy";
 import { readHubspotDocumentJson } from "./import-hubspot-content";
 import { formDefinitionForWrite } from "./form-write";
 import { assignHubspotLocales, hubspotCopyName, mapProjectLocaleToHubspot } from "./locale";
@@ -99,17 +113,67 @@ async function rememberCopy(input: {
   locale: string;
   copyId: string;
   localeCopyIds: Record<string, string>;
+  lastPushContentHash: Record<string, string>;
 }): Promise<void> {
   await db
     .update(schema.hubspotContentSyncStates)
     .set({
       localeCopyIds: { ...input.localeCopyIds, [input.locale]: input.copyId },
+      lastPushContentHash: input.lastPushContentHash,
       lastPushedAt: new Date(),
       status: "active",
       lastError: null,
       updatedAt: new Date(),
     })
     .where(eq(schema.hubspotContentSyncStates.id, input.id));
+}
+
+/**
+ * A remote locale copy counts as empty when it carries no translated content
+ * yet: either it does not exist, or it is still identical to the imported
+ * source (e.g. a freshly cloned email). Used by the `seed_empty` push policy
+ * so pushes never overwrite copies that already hold locale content.
+ */
+async function isHubspotRemoteCopyEmpty(input: {
+  client: HubspotContentClient;
+  kind: HubspotResourceKind;
+  copyId: string;
+  sourceText: string;
+  sourceJson: Record<string, unknown> | null;
+}): Promise<boolean> {
+  try {
+    if (input.kind === "email") {
+      const copy = await input.client.getEmail(input.copyId);
+      const document = buildEmailDocument({ subject: copy.subject, widgets: copy.widgets });
+      const copyContent = input.sourceJson
+        ? serializeHubspotDocument(document)
+        : buildEmailHtmlDocument(document, { styleSettings: copy.styleSettings });
+      return hashHubspotContent(copyContent) === hashHubspotContent(input.sourceText);
+    }
+    if (input.kind === "form") {
+      const copy = await input.client.getForm(input.copyId);
+      const copyContent = serializeHubspotDocument(buildFormDocument(copy.definition));
+      return hashHubspotContent(copyContent) === hashHubspotContent(input.sourceText);
+    }
+    if (input.sourceJson) {
+      if (input.kind === "blog") {
+        const copy = await input.client.getBlogPost(input.copyId);
+        const copyContent = serializeHubspotDocument(buildBlogContentDocument(copy));
+        return hashHubspotContent(copyContent) === hashHubspotContent(input.sourceText);
+      }
+      if (input.kind === "landing-page" || input.kind === "website-page") {
+        const copy =
+          input.kind === "landing-page"
+            ? await input.client.getLandingPage(input.copyId)
+            : await input.client.getWebsitePage(input.copyId);
+        const copyContent = serializeHubspotDocument(buildPageDocument(copy));
+        return hashHubspotContent(copyContent) === hashHubspotContent(input.sourceText);
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 async function markPushFailed(id: string, message: string): Promise<void> {
@@ -229,6 +293,9 @@ export async function runPushHubspotContent(input: {
     }
   };
   const translationService = new ProjectTranslationService();
+  const policy = isHubspotExistingTranslationPolicy(hubspot.existingTranslationPolicy)
+    ? hubspot.existingTranslationPolicy
+    : DEFAULT_HUBSPOT_EXISTING_TRANSLATION_POLICY;
   const assignments = {
     email: assignHubspotLocales(locales, "email"),
     form: assignHubspotLocales(locales, "form"),
@@ -252,6 +319,7 @@ export async function runPushHubspotContent(input: {
     }
     const assignment = assignments[mapping.resourceKind];
     const localeCopyIds = { ...mapping.localeCopyIds };
+    const pushHashes = { ...mapping.lastPushContentHash };
 
     for (const { locale, code } of assignment.mapped) {
       try {
@@ -267,6 +335,13 @@ export async function runPushHubspotContent(input: {
           result.skippedLocales += 1;
           continue;
         }
+        const sourceJson = readHubspotDocumentJson(sourceText);
+        const translatedContent = sourceJson
+          ? serializeHubspotDocument(
+              mergeHubspotTranslations(readHubspotStringTree(sourceJson), approved.prefilled),
+            )
+          : applyHtmlIngestTranslations(sourceText, approved.prefilled);
+        const contentHash = hashHubspotContent(translatedContent);
         const copyName = hubspotCopyName(mapping.sourceName, locale);
         const hubspotCode = mapProjectLocaleToHubspot(locale, mapping.resourceKind) ?? code;
         let copyId: string | null = localeCopyIds[locale] ?? null;
@@ -277,10 +352,36 @@ export async function runPushHubspotContent(input: {
           result.skippedLocales += 1;
           continue;
         }
+        const remoteEmpty =
+          copyId == null
+            ? true
+            : await isHubspotRemoteCopyEmpty({
+                client,
+                kind: mapping.resourceKind,
+                copyId,
+                sourceText,
+                sourceJson,
+              });
+        const action = decideHubspotPushLocaleAction({
+          policy,
+          remoteEmpty,
+          lastPushHash: pushHashes[locale],
+          contentHash,
+        });
+        if (action === "skip") {
+          result.skippedLocales += 1;
+          continue;
+        }
 
         if (mapping.resourceKind === "email") {
-          const sourceDocument = readHubspotStringTree(readHubspotDocumentJson(sourceText) ?? {});
-          const translated = mergeHubspotTranslations(sourceDocument, approved.prefilled);
+          const translatedHtml = sourceJson
+            ? null
+            : applyHtmlIngestTranslations(sourceText, approved.prefilled);
+          const translated = sourceJson
+            ? mergeHubspotTranslations(readHubspotStringTree(sourceJson), approved.prefilled)
+            : readEmailHtmlDocument(translatedHtml ?? sourceText);
+          const styleSettings =
+            translatedHtml == null ? undefined : extractEmailStyleSettings(translatedHtml);
           const live = await client.getEmail(mapping.sourceId);
           const applied = applyEmailDocument(live.widgets, translated);
           const targetId =
@@ -297,6 +398,7 @@ export async function runPushHubspotContent(input: {
             language: hubspotCode,
             subject: applied.subject || live.subject,
             widgets: applied.widgets,
+            ...(styleSettings !== undefined ? { styleSettings } : {}),
           });
           copyId = targetId;
         } else if (mapping.resourceKind === "form") {
@@ -348,7 +450,6 @@ export async function runPushHubspotContent(input: {
                 language: hubspotCode,
               })
             ).id;
-          const sourceJson = readHubspotDocumentJson(sourceText);
           if (sourceJson) {
             const translated = mergeHubspotTranslations(
               readHubspotStringTree(sourceJson),
@@ -421,11 +522,13 @@ export async function runPushHubspotContent(input: {
         }
 
         localeCopyIds[locale] = copyId;
+        pushHashes[locale] = contentHash;
         await rememberCopy({
           id: mapping.id,
           locale,
           copyId,
           localeCopyIds,
+          lastPushContentHash: pushHashes,
         });
         result.pushedLocales += 1;
       } catch (error) {

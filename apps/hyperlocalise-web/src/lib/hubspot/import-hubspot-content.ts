@@ -28,10 +28,16 @@ import { createTranslationJobEventQueue } from "@/lib/workflow/queues";
 
 import type { HubspotContentClient } from "./client";
 import type { HubspotResourceKind } from "./constants";
+import {
+  DEFAULT_HUBSPOT_EXISTING_TRANSLATION_POLICY,
+  isHubspotExistingTranslationPolicy,
+  type HubspotExistingTranslationPolicy,
+} from "./existing-translation-policy";
 import { loadHubspotAutomationClient } from "./credentials";
 import {
   buildBlogContentDocument,
   buildEmailDocument,
+  buildEmailHtmlDocument,
   buildFormDocument,
   buildPageDocument,
   hashHubspotContent,
@@ -46,6 +52,12 @@ import {
   isHubspotLocaleCopyName,
 } from "./locale";
 import { buildHubspotSourcePath } from "./source-path";
+import {
+  seedHubspotItemLocales,
+  type HubspotSeedDiscoveryCache,
+  type HubspotSeedableKind,
+} from "./seed-hubspot-translations";
+import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 const logger = createLogger("import-hubspot-content");
 const jobQueue = createTranslationJobEventQueue();
@@ -212,6 +224,27 @@ async function upsertSourceFile(input: {
   return uploaded.value.file.id;
 }
 
+async function loadPreviousSyncState(input: {
+  organizationId: string;
+  automationId: string;
+  resourceKind: HubspotResourceKind;
+  sourceId: string;
+}): Promise<typeof schema.hubspotContentSyncStates.$inferSelect | null> {
+  const [row] = await db
+    .select()
+    .from(schema.hubspotContentSyncStates)
+    .where(
+      and(
+        eq(schema.hubspotContentSyncStates.organizationId, input.organizationId),
+        eq(schema.hubspotContentSyncStates.automationId, input.automationId),
+        eq(schema.hubspotContentSyncStates.resourceKind, input.resourceKind),
+        eq(schema.hubspotContentSyncStates.sourceId, input.sourceId),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
 async function rememberSyncState(input: {
   organizationId: string;
   automationId: string;
@@ -222,6 +255,7 @@ async function rememberSyncState(input: {
   sourcePath: string;
   sourceLocale: string;
   contentHash: string;
+  importedHashes: Record<string, string>;
 }): Promise<void> {
   await db
     .insert(schema.hubspotContentSyncStates)
@@ -235,6 +269,7 @@ async function rememberSyncState(input: {
       sourcePath: input.sourcePath,
       sourceLocale: input.sourceLocale,
       sourceContentHash: input.contentHash,
+      importedTranslationHashes: input.importedHashes,
       lastImportedAt: new Date(),
       status: "active",
       lastError: null,
@@ -251,6 +286,7 @@ async function rememberSyncState(input: {
         sourcePath: input.sourcePath,
         sourceLocale: input.sourceLocale,
         sourceContentHash: input.contentHash,
+        importedTranslationHashes: input.importedHashes,
         lastImportedAt: new Date(),
         status: "active",
         lastError: null,
@@ -268,13 +304,16 @@ async function maybeCreateJob(input: {
   targetLocales: string[];
   fileFormat: "json" | "html";
   openJobs: CoveredJob[];
+  skipLocales?: readonly string[];
 }): Promise<string | null> {
   const createJob = input.automation.toolConfig.createNativeTmsJob;
   if (!createJob?.enabled || input.targetLocales.length === 0) {
     return null;
   }
+  const skipped = new Set((input.skipLocales ?? []).map((locale) => locale.toLowerCase()));
   const uncovered = input.targetLocales.filter(
     (locale) =>
+      !skipped.has(locale.toLowerCase()) &&
       !input.openJobs.some(
         (job) =>
           job.sourceFileId === input.sourceFileId &&
@@ -322,12 +361,22 @@ async function importOne(input: {
   content: string;
   contentType: string;
   fileFormat: "json" | "html";
+  client: HubspotContentClient;
+  policy: HubspotExistingTranslationPolicy;
+  discovery: HubspotSeedDiscoveryCache;
+  translationService: ProjectTranslationService;
 }): Promise<void> {
   const contentHash = hashHubspotContent(input.content);
   const sourcePath = buildHubspotSourcePath({
     kind: input.kind,
     id: input.sourceId,
     name: input.sourceName,
+  });
+  const previous = await loadPreviousSyncState({
+    organizationId: input.organizationId,
+    automationId: input.automation.id,
+    resourceKind: input.kind,
+    sourceId: input.sourceId,
   });
   const sourceFileId = await upsertSourceFile({
     organizationId: input.organizationId,
@@ -343,6 +392,41 @@ async function importOne(input: {
     input.result.failed += 1;
     return;
   }
+  let importedHashes: Record<string, string> = previous?.importedTranslationHashes
+    ? { ...(previous.importedTranslationHashes as Record<string, string>) }
+    : {};
+  let skipLocales: string[] = [];
+  if (input.kind !== "message-template") {
+    const seedableKind = input.kind as HubspotSeedableKind;
+    try {
+      const seed = await seedHubspotItemLocales({
+        client: input.client,
+        discovery: input.discovery,
+        translationService: input.translationService,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        kind: seedableKind,
+        sourceId: input.sourceId,
+        sourceName: input.sourceName,
+        sourcePath,
+        sourceContent: input.content,
+        targetLocales: input.targetLocales,
+        policy: input.policy,
+        previousHashes: importedHashes,
+        previousCopyIds: {},
+      });
+      importedHashes = seed.importedHashes;
+      skipLocales = seed.seededComplete;
+      for (const warning of seed.warnings) {
+        pushWarning(input.result, warning);
+      }
+    } catch (error) {
+      pushWarning(
+        input.result,
+        `${input.sourceName}: translation seeding failed (${String(error)})`,
+      );
+    }
+  }
   await rememberSyncState({
     organizationId: input.organizationId,
     automationId: input.automation.id,
@@ -353,6 +437,7 @@ async function importOne(input: {
     sourcePath,
     sourceLocale: input.sourceLocale,
     contentHash,
+    importedHashes,
   });
   input.result.imported += 1;
   const jobId = await maybeCreateJob({
@@ -364,6 +449,7 @@ async function importOne(input: {
     targetLocales: input.targetLocales,
     fileFormat: input.fileFormat,
     openJobs: input.openJobs,
+    skipLocales,
   });
   if (jobId) {
     input.result.jobsCreated += 1;
@@ -438,6 +524,11 @@ export async function runImportHubspotContent(input: {
     organizationId: input.organizationId,
     projectId,
   });
+  const policy = isHubspotExistingTranslationPolicy(hubspot.existingTranslationPolicy)
+    ? hubspot.existingTranslationPolicy
+    : DEFAULT_HUBSPOT_EXISTING_TRANSLATION_POLICY;
+  const discovery: HubspotSeedDiscoveryCache = {};
+  const translationService = new ProjectTranslationService();
   const result: ImportHubspotContentResult = {
     imported: 0,
     skipped: 0,
@@ -507,9 +598,13 @@ export async function runImportHubspotContent(input: {
         kind: "email",
         sourceId: email.id,
         sourceName: email.name || summary.name,
-        content: serializeHubspotDocument(document),
-        contentType: "application/json",
-        fileFormat: "json",
+        content: buildEmailHtmlDocument(document, { styleSettings: email.styleSettings }),
+        contentType: "text/html",
+        fileFormat: "html",
+        client,
+        policy,
+        discovery,
+        translationService,
       });
     } catch (error) {
       logger.warn({ sourceId: summary.id, error: String(error) }, "hubspot email import failed");
@@ -561,6 +656,10 @@ export async function runImportHubspotContent(input: {
         content: serializeHubspotDocument(document),
         contentType: "application/json",
         fileFormat: "json",
+        client,
+        policy,
+        discovery,
+        translationService,
       });
     } catch (error) {
       logger.warn({ sourceId: summary.id, error: String(error) }, "hubspot form import failed");
@@ -616,6 +715,10 @@ export async function runImportHubspotContent(input: {
         content: serializeHubspotDocument(document),
         contentType: "application/json",
         fileFormat: "json",
+        client,
+        policy,
+        discovery,
+        translationService,
       });
     } catch (error) {
       logger.warn({ sourceId: summary.id, error: String(error) }, "hubspot blog import failed");
@@ -636,6 +739,10 @@ export async function runImportHubspotContent(input: {
     workflowRunId: input.workflowRunId,
     openJobs,
     result,
+    client,
+    policy,
+    discovery,
+    translationService,
   });
   await importCmsPages({
     kind: "website-page",
@@ -650,6 +757,10 @@ export async function runImportHubspotContent(input: {
     workflowRunId: input.workflowRunId,
     openJobs,
     result,
+    client,
+    policy,
+    discovery,
+    translationService,
   });
 
   return result;
@@ -668,6 +779,10 @@ async function importCmsPages(input: {
   workflowRunId?: string | null;
   openJobs: CoveredJob[];
   result: ImportHubspotContentResult;
+  client: HubspotContentClient;
+  policy: HubspotExistingTranslationPolicy;
+  discovery: HubspotSeedDiscoveryCache;
+  translationService: ProjectTranslationService;
 }) {
   const summaries = await input.list();
   for (const summary of summaries) {
@@ -721,6 +836,10 @@ async function importCmsPages(input: {
         content: serializeHubspotDocument(document),
         contentType: "application/json",
         fileFormat: "json",
+        client: input.client,
+        policy: input.policy,
+        discovery: input.discovery,
+        translationService: input.translationService,
       });
     } catch (error) {
       logger.warn(

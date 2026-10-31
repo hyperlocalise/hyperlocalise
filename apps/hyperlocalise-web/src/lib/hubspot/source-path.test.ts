@@ -17,7 +17,7 @@ import { buildHubspotSourcePath, isHubspotSourcePath, parseHubspotSourcePath } f
 describe("hubspot source paths", () => {
   it("round-trips the source id and chooses json or html", () => {
     const email = buildHubspotSourcePath({ kind: "email", id: "email/1", name: "Welcome" });
-    expect(email).toBe("hubspot/emails/email%2F1/welcome.json");
+    expect(email).toBe("hubspot/emails/email%2F1/welcome.html");
     expect(parseHubspotSourcePath(email)).toEqual({ kind: "email", id: "email/1" });
     expect(isHubspotSourcePath(email)).toBe(true);
 

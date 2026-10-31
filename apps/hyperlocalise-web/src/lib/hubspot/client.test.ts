@@ -529,4 +529,54 @@ describe("hubspot message templates", () => {
       "hubspot_message_template_request_failed:403",
     );
   });
+
+  it("reads email style settings and writes them back onto the draft", async () => {
+    let draft: { content?: { styleSettings?: unknown; widgets?: unknown } } | undefined;
+    const base = sdkWith(async () => jsonResponse(200, {}));
+    const client = createHubspotContentClientFromSdk({
+      ...base,
+      marketing: {
+        emails: {
+          marketingEmailsApi: {
+            getPage: async () => ({ results: [] }),
+            getById: async () => ({
+              id: "42",
+              name: "Welcome",
+              language: "en",
+              subject: "Hi",
+              content: {
+                widgets: { module: { body: "Hi" } },
+                styleSettings: { backgroundColor: "#ffffff", emailBodyWidth: "600" },
+              },
+            }),
+            clone: async () => ({ id: "99" }),
+            upsertDraft: async (_id: string, request: typeof draft) => {
+              draft = request;
+              return {};
+            },
+          },
+        },
+        forms: { formsApi: {} },
+      },
+    } as unknown as HubspotSdk);
+
+    const record = await client.getEmail("42");
+    expect(record.styleSettings).toEqual({
+      backgroundColor: "#ffffff",
+      emailBodyWidth: "600",
+    });
+
+    await client.updateEmailDraft({
+      id: "99",
+      name: "Welcome [fr-FR]",
+      language: "fr",
+      subject: "Bonjour",
+      widgets: { module: { body: "Bonjour" } },
+      styleSettings: record.styleSettings,
+    });
+    expect(draft?.content?.styleSettings).toEqual({
+      backgroundColor: "#ffffff",
+      emailBodyWidth: "600",
+    });
+  });
 });

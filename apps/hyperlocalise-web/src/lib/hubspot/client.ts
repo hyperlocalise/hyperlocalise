@@ -44,6 +44,7 @@ export type HubspotEmailSummary = {
 export type HubspotEmailRecord = HubspotEmailSummary & {
   subject: string;
   widgets: HubspotJson;
+  styleSettings: HubspotJson;
   updatedAt: string | null;
 };
 
@@ -146,6 +147,7 @@ export type HubspotContentClient = {
     language: string;
     subject: string;
     widgets: HubspotJson;
+    styleSettings?: HubspotJson;
   }): Promise<void>;
   listBlogPosts(): Promise<HubspotBlogSummary[]>;
   getBlogPost(id: string): Promise<HubspotBlogRecord>;
@@ -216,7 +218,7 @@ type EmailLike = {
   name?: string;
   language?: string;
   subject?: string;
-  content?: { widgets?: HubspotJson };
+  content?: { widgets?: HubspotJson; styleSettings?: HubspotJson };
   updatedAt?: Date | string;
 };
 
@@ -1126,11 +1128,14 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
     },
     async getEmail(id) {
       const email = await emails.getById(id);
+      const styleSettings = email.content?.styleSettings;
       return {
         ...emailSummary(email),
         id: email.id ?? id,
         subject: email.subject ?? "",
         widgets: email.content?.widgets ?? {},
+        styleSettings:
+          styleSettings !== undefined && isHubspotJsonObject(styleSettings) ? styleSettings : {},
         updatedAt: readTimestamp(email.updatedAt),
       };
     },
@@ -1151,6 +1156,9 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
       request.language = input.language as EmailUpdateRequest["language"];
       request.content = new PublicEmailContent();
       request.content.widgets = (input.widgets ?? {}) as PublicEmailContent["widgets"];
+      if (input.styleSettings !== undefined) {
+        request.content.styleSettings = input.styleSettings as PublicEmailContent["styleSettings"];
+      }
       await emails.upsertDraft(input.id, request);
     },
     async listBlogPosts() {

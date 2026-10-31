@@ -123,6 +123,8 @@ const formStateShape = {
   hubspotLandingPageIds: textList,
   hubspotWebsitePageIds: textList,
   hubspotMessageTemplateIds: textList,
+  hubspotExistingTranslationPolicy: z.enum(["seed_empty", "refresh_imported", "overwrite_all"]),
+  hubspotOverwriteWhenRemoteNewer: flag,
   brazeSourceLocale: text,
   brazeTemplateIds: textList,
   brazeContentBlockIds: textList,

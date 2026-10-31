@@ -218,6 +218,42 @@ export function writePreviewText(widgets: HubspotJson, previewText: string): voi
   visit(widgets);
 }
 
+/**
+ * Widget setting leaves on marketing emails. These hold layout enums, units,
+ * and font names (`center`, `none`, `%`, `px`, `Arial, sans-serif`) rather
+ * than rendered copy, so they stay out of the translatable document. Image
+ * `alt` text is kept: it renders when images are blocked and is legitimate
+ * copy. Page, blog, and form documents are unaffected.
+ */
+const EMAIL_SETTING_KEYS = new Set([
+  "align",
+  "alignment",
+  "border_style",
+  "corner_radius",
+  "corner_radius_unit",
+  "font",
+  "line_type",
+  "unsubscribe_link_type",
+  "units",
+]);
+
+function stripEmailSettingKeys(tree: HubspotStringTree): HubspotStringTree {
+  const out: HubspotStringTree = {};
+  for (const [key, entry] of Object.entries(tree)) {
+    if (typeof entry === "string") {
+      if (!EMAIL_SETTING_KEYS.has(key.trim().toLowerCase())) {
+        out[key] = entry;
+      }
+      continue;
+    }
+    const nested = stripEmailSettingKeys(entry);
+    if (Object.keys(nested).length > 0) {
+      out[key] = nested;
+    }
+  }
+  return out;
+}
+
 export function buildEmailDocument(input: {
   subject: string;
   widgets: HubspotJson;
@@ -230,7 +266,7 @@ export function buildEmailDocument(input: {
   if (previewText) {
     document.previewText = previewText;
   }
-  const widgetCopy = collectCopyTree(widgets);
+  const widgetCopy = stripEmailSettingKeys(collectCopyTree(widgets));
   if (Object.keys(widgetCopy).length > 0) {
     document.widgets = widgetCopy;
   }
@@ -621,6 +657,112 @@ export function buildMessageTemplateDocument(input: { subject: string; body: str
 `;
 }
 
+const EMAIL_FIELD_END = "<!--/hl-field-->";
+const EMAIL_HTML_VALUE = /<[A-Za-z]+\b[^>]*>/;
+const EMAIL_HTML_CLOSE = /<\/[A-Za-z]+>/;
+
+function isEmailHtmlValue(value: string): boolean {
+  return EMAIL_HTML_VALUE.test(value) || EMAIL_HTML_CLOSE.test(value);
+}
+
+function escapeEmailFieldAttr(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function unescapeEmailFieldAttr(value: string): string {
+  return value
+    .replaceAll("&quot;", '"')
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&");
+}
+
+export type EmailHtmlKind = "text" | "html";
+
+/** Section kinds for a tree, used to keep locale envelopes structurally identical. */
+export function emailHtmlKinds(tree: HubspotStringTree): Record<string, EmailHtmlKind> {
+  const flat = flattenHubspotDocument(tree);
+  const kinds: Record<string, EmailHtmlKind> = {};
+  for (const [key, value] of Object.entries(flat)) {
+    kinds[key] = isEmailHtmlValue(value) ? "html" : "text";
+  }
+  return kinds;
+}
+
+export function buildEmailHtmlDocument(
+  tree: HubspotStringTree,
+  options?: { styleSettings?: HubspotJson; kinds?: Record<string, EmailHtmlKind> },
+): string {
+  const flat = flattenHubspotDocument(tree);
+  const sections = Object.keys(flat)
+    .toSorted()
+    .map((key) => {
+      const value = flat[key] ?? "";
+      const field = escapeEmailFieldAttr(key);
+      const kind = options?.kinds?.[key] ?? (isEmailHtmlValue(value) ? "html" : "text");
+      if (kind === "html") {
+        return `<section data-hl-field="${field}" data-hl-kind="html">${value}${EMAIL_FIELD_END}</section>`;
+      }
+      return `<section data-hl-field="${field}" data-hl-kind="text"><p>${escapeHtml(value)}</p>${EMAIL_FIELD_END}</section>`;
+    });
+  const styleSettings = options?.styleSettings;
+  const meta =
+    styleSettings !== undefined &&
+    isHubspotJsonObject(styleSettings) &&
+    Object.keys(styleSettings).length > 0
+      ? `<script type="application/json" data-hl-meta="styleSettings">${JSON.stringify(styleSettings)}</script>\n`
+      : "";
+  return `<!DOCTYPE html>
+<html><body>
+${meta}${sections.join("\n")}
+</body></html>
+`;
+}
+
+export function extractEmailStyleSettings(html: string): HubspotJson | undefined {
+  const raw = /<script\b[^>]*data-hl-meta="styleSettings"[^>]*>([\s\S]*?)<\/script>/i.exec(
+    html,
+  )?.[1];
+  if (!raw) {
+    return undefined;
+  }
+  try {
+    const parsed: HubspotJson = JSON.parse(raw);
+    return isHubspotJsonObject(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function readEmailHtmlDocument(html: string): HubspotStringTree {
+  const flat: Record<string, string> = {};
+  const sectionPattern = /<section\b([^>]*)>([\s\S]*?)<!--\/hl-field-->\s*<\/section>/gi;
+  for (const match of html.matchAll(sectionPattern)) {
+    const attrs = match[1] ?? "";
+    const content = match[2] ?? "";
+    const field = /data-hl-field="([^"]*)"/i.exec(attrs)?.[1];
+    const kind = /data-hl-kind="(text|html)"/i.exec(attrs)?.[1];
+    if (!field || !kind) {
+      continue;
+    }
+    const key = unescapeEmailFieldAttr(field);
+    if (!key) {
+      continue;
+    }
+    if (kind === "text") {
+      const text = /<p>([\s\S]*?)<\/p>/i.exec(content)?.[1] ?? "";
+      flat[key] = unescapeHtml(text);
+    } else {
+      flat[key] = content;
+    }
+  }
+  return unflattenHubspotDocument(flat);
+}
+
 export function readMessageTemplateDocument(html: string): {
   subject: string;
   body: string;
@@ -723,7 +865,7 @@ export function flattenHubspotDocument(document: HubspotStringTree): Record<stri
   return flat;
 }
 
-function unflattenHubspotDocument(flat: Record<string, string>): HubspotStringTree {
+export function unflattenHubspotDocument(flat: Record<string, string>): HubspotStringTree {
   const root: HubspotStringTree = {};
   for (const [path, value] of Object.entries(flat)) {
     const parts = path.split(".");

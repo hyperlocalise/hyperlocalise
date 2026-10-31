@@ -20,12 +20,15 @@ import {
   buildBlogContentDocument,
   buildBlogDocument,
   buildEmailDocument,
+  buildEmailHtmlDocument,
   buildFormDocument,
   buildMessageTemplateDocument,
   buildPageDocument,
   mergeHubspotTranslations,
   messageTemplateHasCopy,
+  extractEmailStyleSettings,
   readBlogDocument,
+  readEmailHtmlDocument,
   readMessageTemplateDocument,
 } from "./document";
 
@@ -355,6 +358,82 @@ describe("hubspot documents", () => {
       metaDescription: "A <note>",
       postBody: "<p>Body</p>",
     });
+  });
+
+  it("drops email widget settings but keeps html and alt copy", () => {
+    const document = buildEmailDocument({
+      subject: "Newsletter",
+      widgets: {
+        "module-0-0-0": {
+          body: {
+            alignment: "center",
+            img: { alt: "HubSpot logo white" },
+            style: {
+              alignment: "center",
+              border_style: "none",
+              corner_radius_unit: "%",
+            },
+          },
+        },
+        "module-2-0-0": {
+          body: { html: "<h1>Share your latest news</h1>" },
+        },
+        "module-7-0-0": {
+          body: {
+            align: "center",
+            font: { font: "Arial, sans-serif", size: { units: "px" } },
+            unsubscribe_link_type: "both",
+          },
+        },
+      },
+    });
+    expect(JSON.stringify(document)).not.toContain("center");
+    expect(JSON.stringify(document)).not.toContain("Arial");
+    expect(document.widgets).toEqual({
+      "module-0-0-0": { body: { img: { alt: "HubSpot logo white" } } },
+      "module-2-0-0": { body: { html: "<h1>Share your latest news</h1>" } },
+    });
+    const html = buildEmailHtmlDocument(document);
+    expect(html).not.toContain(">center<");
+    expect(html).toContain("HubSpot logo white");
+    expect(html).toContain("Share your latest news");
+  });
+
+  it("round-trips email text and rich-text widgets through the html envelope", () => {
+    const source = buildEmailDocument({
+      subject: "Hello & welcome",
+      widgets: {
+        header: { body: "Plain greeting" },
+        hero: {
+          body: { html: '<p>Hi <a href="https://example.com">there</a></p>' },
+        },
+        nested: {
+          body: { html: "<section><p>Inner section</p></section><p>{{ contact.firstname }}</p>" },
+        },
+      },
+    });
+    const html = buildEmailHtmlDocument(source);
+    expect(html).toContain('data-hl-kind="text"');
+    expect(html).toContain('data-hl-kind="html"');
+    expect(html).toContain("<!--/hl-field-->");
+    expect(readEmailHtmlDocument(html)).toEqual(source);
+  });
+
+  it("round-trips email style settings without segmenting them", () => {
+    const source = buildEmailDocument({
+      subject: "Hello",
+      widgets: { module: { body: "Welcome" } },
+    });
+    const styleSettings = {
+      backgroundColor: "#ffffff",
+      emailBodyWidth: "600",
+      primaryFont: "Arial",
+    };
+    const html = buildEmailHtmlDocument(source, { styleSettings });
+    expect(html).toContain('data-hl-meta="styleSettings"');
+    expect(extractEmailStyleSettings(html)).toEqual(styleSettings);
+    expect(readEmailHtmlDocument(html)).toEqual(source);
+    expect(extractEmailStyleSettings(buildEmailHtmlDocument(source))).toBeUndefined();
   });
 
   it("round-trips message template subject and body and skips token-only copy", () => {

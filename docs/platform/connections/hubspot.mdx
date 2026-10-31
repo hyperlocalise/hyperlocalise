@@ -21,7 +21,7 @@ Open **Integrations** and choose **Connect** on **HubSpot**. Authorize the HubSp
 
 Add the **Translate HubSpot content** template from **Popular** or **Marketing**. It is mutually exclusive with Braze, Customer.io, and Loops. Choose the native project, then activate the automation.
 
-On the HubSpot tool, leave **Content to translate** empty to import every source item. Tick emails, forms, blog posts, landing pages, or website pages to translate only those. Locale copies stay out of the tree.
+On the HubSpot tool, leave **Content to translate** empty to import every source item. Tick emails, forms, blog posts, landing pages, or website pages to translate only those. Locale copies stay out of the tree. Set **Existing HubSpot translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**. **Overwrite HubSpot copies when the remote copy is newer** is on by default. Uncheck it to keep copies that teammates edited after the last push.
 
 A scheduled or manual run imports content. It does not push. Push runs only when you choose **Push to HubSpot** in the Content editor.
 
@@ -29,7 +29,7 @@ A scheduled or manual run imports content. It does not push. Push runs only when
 
 Import reads primary objects and writes source files:
 
-- Marketing emails at `hubspot/emails/{id}/{slug}.json`, with the subject, preview text, and translatable widget fields
+- Marketing emails at `hubspot/emails/{id}/{slug}.html`, with the subject, preview text, and translatable widget fields
 - Forms at `hubspot/forms/{id}/{slug}.json`, with labels, placeholders, help text, submit text, and legal copy
 - Blog posts at `hubspot/blog-posts/{id}/{slug}.json`, with the title, meta description, summary, post body, and section text
 - Landing pages at `hubspot/landing-pages/{id}/{slug}.json`, with the title, meta description, image alt text, and translatable widget and layout fields
@@ -39,7 +39,9 @@ When a blog post, landing page, or website page has no saved module edits, impor
 
 Import skips blog posts, landing pages, and website pages that are already language variations, and names that already look like locale copies (`Welcome [fr-FR]`). Field names, widget ids, URLs, and colors stay locked. Import does not write anything to HubSpot.
 
-When **Create native TMS job** is enabled, the run opens a job for mapped locales that still need translation.
+A later import still checks mapped target locales when the source has not changed. If HubSpot already has a locale copy or language variation, import can seed that copy as an approved translation. **Only empty locales** never overwrites work already in Hyperlocalise.
+
+When **Create native TMS job** is enabled, the run opens a job for mapped locales that still need translation. Locales just seeded from HubSpot are left out.
 
 A project locale maps to a HubSpot code in this order:
 
@@ -65,6 +67,8 @@ Push creates a copy named `{source} [{locale}]`, for example `Welcome [fr-FR]`. 
 | Form | A new form with the translated labels and HubSpot's built-in messages for that language. The source form stays on any page that already embeds it. The new form exists in the portal and is not embedded for you. |
 
 HubSpot's own translate actions are not used. Hyperlocalise writes the approved strings onto the copy.
+
+A later push skips a locale whose approved content already matches the last successful push. **Only empty locales** pushes only to copies that carry no locale content yet, so it never overwrites a copy that already holds translations. **Refresh imported locales** pushes a locale again only when its approved content changed since the last push.
 
 ## Change or remove access
 
