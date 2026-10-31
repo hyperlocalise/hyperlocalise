@@ -261,7 +261,7 @@ paths:
               required: [key, sourceText]
               properties:
                 key: { type: string, minLength: 1, maxLength: 1000 }
-                sourceText: { type: string, minLength: 1 }
+                sourceText: { type: string, minLength: 1, maxLength: 100000 }
                 context: { type: [string, "null"], maxLength: 10000 }
                 type: { type: [string, "null"], maxLength: 64 }
                 maxLength: { type: [integer, "null"], minimum: 1, maximum: 100000 }
@@ -307,7 +307,7 @@ paths:
       operationId: updateString
       tags: [Strings]
       summary: Update a string
-      description: Requires `strings:write`. Native projects only. Send `null` to clear `context` or `maxLength`.
+      description: Requires `strings:write`. Native projects only. Send `null` to clear `context` or `maxLength`. Changing `sourceText` on a locked segment returns `409`.
       requestBody:
         required: true
         content:
@@ -317,7 +317,7 @@ paths:
               additionalProperties: false
               minProperties: 1
               properties:
-                sourceText: { type: string, minLength: 1 }
+                sourceText: { type: string, minLength: 1, maxLength: 100000 }
                 context: { type: [string, "null"], maxLength: 10000 }
                 maxLength: { type: [integer, "null"], minimum: 1, maximum: 100000 }
                 hidden: { type: boolean }
@@ -339,7 +339,7 @@ paths:
       operationId: deleteString
       tags: [Strings]
       summary: Delete a string and its translations
-      description: Requires `strings:write`. Native projects only.
+      description: Requires `strings:write`. Native projects only. Locked segments return `409`.
       responses:
         "204":
           description: The string was deleted.
@@ -381,7 +381,7 @@ paths:
         in: path
         required: true
         description: A target locale of the project.
-        schema: { type: string, maxLength: 128 }
+        schema: { type: string, maxLength: 64 }
     get:
       operationId: getTranslation
       tags: [Translations]
@@ -414,7 +414,7 @@ paths:
               additionalProperties: false
               required: [text]
               properties:
-                text: { type: string }
+                text: { type: string, maxLength: 100000 }
                 status:
                   type: string
                   enum: [draft, needs_review, approved, rejected]
@@ -443,7 +443,7 @@ paths:
       operationId: listTranslations
       tags: [Translations]
       summary: List project translations
-      description: Requires `strings:read`. Use `locale` to export one language.
+      description: Requires `strings:read`. Use `locale` to export one language. Hidden strings are omitted unless `includeHidden` is true.
       parameters:
         - $ref: "#/components/parameters/ProjectId"
         - name: locale
@@ -452,6 +452,9 @@ paths:
         - name: status
           in: query
           schema: { type: string, enum: [draft, needs_review, approved, rejected] }
+        - name: includeHidden
+          in: query
+          schema: { type: boolean, default: false }
         - $ref: "#/components/parameters/Limit50"
         - $ref: "#/components/parameters/Offset"
       responses:

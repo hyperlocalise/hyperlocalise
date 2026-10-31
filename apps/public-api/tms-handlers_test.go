@@ -74,6 +74,19 @@ func (s *fakeTMSStore) listStringTranslations(_ context.Context, _ principal, pr
 	return s.translations, s.tmsErr
 }
 
+func (s *fakeTMSStore) getStringTranslation(_ context.Context, _ principal, projectID, stringID, locale string) (translationRecord, error) {
+	s.tmsProjectID, s.tmsStringID, s.tmsLocale = projectID, stringID, locale
+	if s.tmsErr != nil {
+		return translationRecord{}, s.tmsErr
+	}
+	for _, item := range s.translations {
+		if item.Locale == locale {
+			return item, nil
+		}
+	}
+	return translationRecord{}, errTranslationNotFound
+}
+
 func (s *fakeTMSStore) putTranslation(_ context.Context, _ principal, projectID, stringID, locale string, input translationWrite) (translationRecord, error) {
 	s.tmsProjectID, s.tmsStringID, s.tmsLocale, s.write = projectID, stringID, locale, input
 	return translationRecord{StringID: stringID, Locale: locale, Text: input.Text, Status: input.Status}, s.tmsErr
@@ -161,9 +174,10 @@ func TestStringRoutes(t *testing.T) {
 	t.Run("create trims input", func(t *testing.T) {
 		store := &fakeResourceStore{}
 		w := sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodPost, "/v1/projects/project-1/strings",
-			`{"key":" home.title ","sourceText":"Welcome","context":"  ","maxLength":40,"filePath":"locales/en.json"}`)
+			`{"key":" home.title ","sourceText":" Welcome ","context":"  ","maxLength":40,"filePath":"locales/en.json"}`)
 		require.Equal(t, http.StatusCreated, w.Code)
 		require.Equal(t, "home.title", store.created.Key)
+		require.Equal(t, "Welcome", store.created.SourceText)
 		require.Nil(t, store.created.Context)
 		require.Equal(t, 40, *store.created.MaxLength)
 		require.Equal(t, "locales/en.json", *store.created.FilePath)
@@ -222,6 +236,21 @@ func TestStringRoutes(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
+	t.Run("writes require write scope", func(t *testing.T) {
+		store := &fakeResourceStore{}
+		for _, tt := range []struct {
+			method, path, body string
+		}{
+			{http.MethodPatch, "/v1/projects/project-1/strings/string-1", `{"hidden":true}`},
+			{http.MethodDelete, "/v1/projects/project-1/strings/string-1", ""},
+			{http.MethodPut, "/v1/projects/project-1/strings/string-1/translations/fr", `{"text":"x"}`},
+		} {
+			w := sendResource(t, resourcePrincipal(readScopes...), store, tt.method, tt.path, tt.body)
+			require.Equal(t, http.StatusForbidden, w.Code, tt.method)
+			require.Contains(t, w.Body.String(), "strings:write")
+		}
+	})
+
 	t.Run("delete returns no content", func(t *testing.T) {
 		store := &fakeResourceStore{}
 		w := sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodDelete, "/v1/projects/project-1/strings/string-1", "")
@@ -257,6 +286,18 @@ func TestTranslationRoutes(t *testing.T) {
 			w := sendResource(t, resourcePrincipal(writeScopes...), &fakeResourceStore{}, http.MethodPut, "/v1/projects/project-1/strings/string-1/translations/fr", body)
 			require.Equal(t, http.StatusBadRequest, w.Code)
 		}
+		w := sendResource(t, resourcePrincipal(writeScopes...), &fakeResourceStore{}, http.MethodPut,
+			"/v1/projects/project-1/strings/string-1/translations/fr",
+			`{"text":"`+strings.Repeat("x", maxTranslationTextBytes+1)+`"}`)
+		require.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("rejects overlong locale", func(t *testing.T) {
+		locale := strings.Repeat("f", maxLocaleLength+1)
+		w := sendResource(t, resourcePrincipal(readScopes...), &fakeResourceStore{}, http.MethodGet,
+			"/v1/projects/project-1/strings/string-1/translations/"+locale, "")
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		require.Contains(t, w.Body.String(), "invalid_locale")
 	})
 
 	t.Run("put maps store rules", func(t *testing.T) {
@@ -287,12 +328,15 @@ func TestTranslationRoutes(t *testing.T) {
 	t.Run("list project translations", func(t *testing.T) {
 		store := &fakeResourceStore{}
 		store.translations = []translationRecord{}
-		w := sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/projects/project-1/translations?locale=fr&status=approved", "")
+		w := sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/projects/project-1/translations?locale=fr&status=approved&includeHidden=true", "")
 		require.Equal(t, http.StatusOK, w.Code)
-		require.Equal(t, translationFilters{Locale: "fr", Status: "approved", Limit: 50}, store.translationQuery)
+		require.Equal(t, translationFilters{Locale: "fr", Status: "approved", IncludeHidden: true, Limit: 50}, store.translationQuery)
 		require.Contains(t, w.Body.String(), `"translations":[]`)
 
 		w = sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/projects/project-1/translations?status=done", "")
+		require.Equal(t, http.StatusBadRequest, w.Code)
+
+		w = sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/projects/project-1/translations?includeHidden=yes", "")
 		require.Equal(t, http.StatusBadRequest, w.Code)
 	})
 

@@ -92,11 +92,14 @@ filters. Missing and inaccessible records both return `404`.
 | Glossaries | `GET /v1/glossaries`, `GET /v1/glossaries/{glossaryId}`, `GET /v1/glossaries/{glossaryId}/terms` | `glossaries:read` |
 | Translation memories | `GET /v1/translation-memories`, `GET /v1/translation-memories/{memoryId}`, `GET /v1/translation-memories/{memoryId}/entries` | `translation-memories:read` |
 
-String and translation writes apply to native projects only; external TMS
-projects return `409 project_not_native`. They take the same key row lock as the
-web app and go-svc editors, skip locked segments with `409 segment_locked`, and
+Project lists and nested string routes treat unassigned projects as belonging to
+the workspace default team, matching go-svc. String and translation writes apply
+to native projects only; external TMS projects return `409 project_not_native`.
+They take the same key row lock as the web app and go-svc editors, skip locked
+segments with `409 segment_locked` (including delete and source-text edits), and
 record a `project_translation_revisions` row attributed to the token owner with
-actor kind `api_key`. Glossary and memory visibility follows go-svc: operators
+actor kind `api_key`. Translation lists omit hidden strings unless
+`includeHidden=true`. Glossary and memory visibility follows go-svc: operators
 see everything, members see organization libraries plus those their teams'
 projects use.
 

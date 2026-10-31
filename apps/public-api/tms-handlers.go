@@ -10,7 +10,12 @@ import (
 	"strings"
 )
 
-const maxRequestBodyBytes = 256 * 1024
+const (
+	maxRequestBodyBytes     = 256 * 1024
+	maxTranslationTextBytes = 100_000
+	maxSourceTextBytes      = 100_000
+	maxLocaleLength         = 64
+)
 
 var translationStatuses = []string{"draft", "needs_review", "approved", "rejected"}
 
@@ -132,14 +137,14 @@ func (s apiServer) createString(w http.ResponseWriter, r *http.Request, projectI
 	}
 	input := stringCreate{
 		Key:        strings.TrimSpace(body.Key),
-		SourceText: body.SourceText,
+		SourceText: strings.TrimSpace(body.SourceText),
 		Context:    trimmedOrNil(body.Context),
 		Type:       trimmedOrNil(body.Type),
 		MaxLength:  body.MaxLength,
 		Hidden:     body.Hidden,
 		FilePath:   trimmedOrNil(body.FilePath),
 	}
-	if input.Key == "" || len(input.Key) > 1000 || strings.TrimSpace(input.SourceText) == "" ||
+	if input.Key == "" || len(input.Key) > 1000 || input.SourceText == "" || len(input.SourceText) > maxSourceTextBytes ||
 		!validOptionalText(input.Context, 10_000) || !validOptionalText(input.Type, 64) ||
 		!validOptionalText(input.FilePath, 2048) || !validMaxLength(input.MaxLength) {
 		writeError(w, http.StatusBadRequest, "invalid_body", "key and sourceText are required; context, type, maxLength, or filePath is invalid")
@@ -194,8 +199,12 @@ func (s apiServer) projectString(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		body.Context.Value = trimmedOrNil(body.Context.Value)
+		if body.SourceText != nil {
+			trimmed := strings.TrimSpace(*body.SourceText)
+			body.SourceText = &trimmed
+		}
 		empty := body.SourceText == nil && !body.Context.Set && !body.MaxLength.Set && body.Hidden == nil
-		if empty || (body.SourceText != nil && strings.TrimSpace(*body.SourceText) == "") ||
+		if empty || (body.SourceText != nil && (*body.SourceText == "" || len(*body.SourceText) > maxSourceTextBytes)) ||
 			!validOptionalText(body.Context.Value, 10_000) || !validMaxLength(body.MaxLength.Value) {
 			writeError(w, http.StatusBadRequest, "invalid_body", "Provide sourceText, context, maxLength, or hidden with valid values")
 			return
@@ -262,25 +271,23 @@ func (s apiServer) stringTranslation(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if len(locale) > maxLocaleLength {
+		writeError(w, http.StatusBadRequest, "invalid_locale", "Locale is not a target locale of the project")
+		return
+	}
 	if r.Method != http.MethodPut {
 		p, ok := s.authenticateWithStore(w, r, "strings:read")
 		if !ok {
 			return
 		}
-		items, err := s.store.listStringTranslations(r.Context(), p, projectID, stringID)
+		item, err := s.store.getStringTranslation(r.Context(), p, projectID, stringID, locale)
 		if err != nil {
 			writeStoreError(w, err, "get translation")
 			return
 		}
-		for _, item := range items {
-			if item.Locale == locale {
-				writeJSON(w, http.StatusOK, struct {
-					Translation translationRecord `json:"translation"`
-				}{item})
-				return
-			}
-		}
-		writeStoreError(w, errTranslationNotFound, "get translation")
+		writeJSON(w, http.StatusOK, struct {
+			Translation translationRecord `json:"translation"`
+		}{item})
 		return
 	}
 	p, ok := s.authenticateWithStore(w, r, "strings:write")
@@ -297,7 +304,7 @@ func (s apiServer) stringTranslation(w http.ResponseWriter, r *http.Request) {
 	if body.Status == "" {
 		body.Status = "draft"
 	}
-	if body.Text == nil || !member(body.Status, translationStatuses...) {
+	if body.Text == nil || len(*body.Text) > maxTranslationTextBytes || !member(body.Status, translationStatuses...) {
 		writeError(w, http.StatusBadRequest, "invalid_body", "text is required and status must be draft, needs_review, approved, or rejected")
 		return
 	}
@@ -334,7 +341,10 @@ func (s apiServer) projectTranslations(w http.ResponseWriter, r *http.Request) {
 		Limit:  page.Limit,
 		Offset: page.Offset,
 	}
-	if len(filters.Locale) > 64 || (filters.Status != "" && !member(filters.Status, translationStatuses...)) {
+	includeHidden := values.Get("includeHidden")
+	filters.IncludeHidden = includeHidden == "true"
+	if !member(includeHidden, "", "true", "false") || len(filters.Locale) > maxLocaleLength ||
+		(filters.Status != "" && !member(filters.Status, translationStatuses...)) {
 		writeError(w, http.StatusBadRequest, "invalid_query", "One or more query filters are invalid")
 		return
 	}
@@ -419,7 +429,7 @@ func (s apiServer) glossaryTerms(w http.ResponseWriter, r *http.Request) {
 		Limit:  page.Limit,
 		Offset: page.Offset,
 	}
-	if len(filters.Locale) > 64 || len(filters.Search) > 200 {
+	if len(filters.Locale) > maxLocaleLength || len(filters.Search) > 200 {
 		writeError(w, http.StatusBadRequest, "invalid_query", "One or more query filters are invalid")
 		return
 	}
@@ -505,7 +515,7 @@ func (s apiServer) memoryEntries(w http.ResponseWriter, r *http.Request) {
 		Limit:        page.Limit,
 		Offset:       page.Offset,
 	}
-	if len(filters.SourceLocale) > 64 || len(filters.TargetLocale) > 64 || len(filters.Search) > 200 {
+	if len(filters.SourceLocale) > maxLocaleLength || len(filters.TargetLocale) > maxLocaleLength || len(filters.Search) > 200 {
 		writeError(w, http.StatusBadRequest, "invalid_query", "One or more query filters are invalid")
 		return
 	}

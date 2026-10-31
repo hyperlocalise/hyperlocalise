@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -78,10 +79,11 @@ type stringFilters struct {
 }
 
 type translationFilters struct {
-	Locale string
-	Status string
-	Limit  int
-	Offset int
+	Locale        string
+	Status        string
+	IncludeHidden bool
+	Limit         int
+	Offset        int
 }
 
 type stringCreate struct {
@@ -353,6 +355,9 @@ func (s *postgresStore) createString(ctx context.Context, actor principal, proje
 			actor.OrganizationID, scope.ID, fileID, input.Key, input.SourceText,
 			normalizeSourceText(input.SourceText), input.Context, input.Type, input.MaxLength, input.Hidden,
 		).Scan(&id); err != nil {
+			if isUniqueViolation(err) {
+				return errStringKeyConflict
+			}
 			return fmt.Errorf("insert string: %w", err)
 		}
 		var err error
@@ -367,6 +372,11 @@ func (s *postgresStore) updateString(ctx context.Context, actor principal, proje
 	err := s.withNativeProject(ctx, actor, projectID, func(tx pgx.Tx, scope projectScope) error {
 		if _, err := lockString(ctx, tx, actor, scope, stringID); err != nil {
 			return err
+		}
+		if patch.SourceText != nil {
+			if err := rejectIfStringLocked(ctx, tx, actor, scope, stringID, ""); err != nil {
+				return err
+			}
 		}
 		set := newSQLFilter("updated_at = now()")
 		if patch.SourceText != nil {
@@ -398,8 +408,11 @@ func (s *postgresStore) updateString(ctx context.Context, actor principal, proje
 
 func (s *postgresStore) deleteString(ctx context.Context, actor principal, projectID, stringID string) error {
 	return s.withNativeProject(ctx, actor, projectID, func(tx pgx.Tx, scope projectScope) error {
-		if _, err := uuid.Parse(stringID); err != nil {
-			return errStringNotFound
+		if _, err := lockString(ctx, tx, actor, scope, stringID); err != nil {
+			return err
+		}
+		if err := rejectIfStringLocked(ctx, tx, actor, scope, stringID, ""); err != nil {
+			return err
 		}
 		tag, err := tx.Exec(ctx, `DELETE FROM project_translation_keys
 			WHERE organization_id = $1 AND project_id = $2 AND id = $3`,
@@ -437,6 +450,9 @@ func (s *postgresStore) listTranslations(ctx context.Context, actor principal, p
 		return nil, 0, err
 	}
 	where := newSQLFilter("t.organization_id = $1 AND t.project_id = $2", actor.OrganizationID, scope.ID)
+	if !filters.IncludeHidden {
+		where.conditions = append(where.conditions, "NOT k.is_hidden")
+	}
 	if filters.Locale != "" {
 		where.add("t.target_locale = ?", filters.Locale)
 	}
@@ -474,6 +490,23 @@ func (s *postgresStore) listStringTranslations(ctx context.Context, actor princi
 	return collectRows(rows, scanTranslation)
 }
 
+func (s *postgresStore) getStringTranslation(ctx context.Context, actor principal, projectID, stringID, locale string) (translationRecord, error) {
+	scope, err := loadProjectScope(ctx, s.pool, actor, projectID)
+	if err != nil {
+		return translationRecord{}, err
+	}
+	if _, err := loadString(ctx, s.pool, actor, scope, stringID); err != nil {
+		return translationRecord{}, err
+	}
+	item, err := scanTranslation(s.pool.QueryRow(ctx, `SELECT `+translationColumns+translationFrom+`
+		WHERE t.organization_id = $1 AND t.project_id = $2 AND t.translation_key_id = $3 AND t.target_locale = $4`,
+		actor.OrganizationID, scope.ID, stringID, locale))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return translationRecord{}, errTranslationNotFound
+	}
+	return item, err
+}
+
 // translationSnapshot is a project_translations row as it was before a write.
 type translationSnapshot struct {
 	id, text, status, provenance string
@@ -494,15 +527,8 @@ func (s *postgresStore) putTranslation(ctx context.Context, actor principal, pro
 		if maxLength != nil && *maxLength > 0 && utf8.RuneCountInString(input.Text) > *maxLength {
 			return errTranslationTooLong
 		}
-		var locked bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS (
-				SELECT 1 FROM project_cat_segment_locks
-				WHERE organization_id = $1 AND project_id = $2 AND target_locale = $3 AND external_string_id = $4
-			)`, actor.OrganizationID, scope.ID, locale, stringID).Scan(&locked); err != nil {
-			return fmt.Errorf("check segment lock: %w", err)
-		}
-		if locked {
-			return errSegmentLocked
+		if err := rejectIfStringLocked(ctx, tx, actor, scope, stringID, locale); err != nil {
+			return err
 		}
 		var before *translationSnapshot
 		var snapshot translationSnapshot
@@ -517,12 +543,11 @@ func (s *postgresStore) putTranslation(ctx context.Context, actor principal, pro
 		case !errors.Is(err, pgx.ErrNoRows):
 			return fmt.Errorf("lock translation: %w", err)
 		}
-		var reviewedBy *string
-		var reviewedAt *time.Time
-		if input.Status == "approved" {
-			now := time.Now().UTC()
-			reviewedBy, reviewedAt = &actor.UserID, &now
+		if translationWriteUnchanged(before, input) {
+			saved, err = scanTranslation(tx.QueryRow(ctx, `SELECT `+translationColumns+translationFrom+` WHERE t.id = $1`, before.id))
+			return err
 		}
+		reviewedBy, reviewedAt := reviewerForTranslationStatus(input.Status, actor.UserID, time.Now().UTC())
 		var translationID string
 		if err := tx.QueryRow(ctx, `INSERT INTO project_translations (
 				organization_id, project_id, translation_key_id, target_locale, text, status, provenance,
@@ -552,10 +577,10 @@ func (s *postgresStore) putTranslation(ctx context.Context, actor principal, pro
 // recordTranslationRevision mirrors go-svc's recordEditorCatRevision: the first change to a
 // translation with no history also keeps its earlier state as a baseline, so it can be undone.
 func recordTranslationRevision(ctx context.Context, tx pgx.Tx, actor principal, translationID string, before *translationSnapshot, input translationWrite) error {
+	if translationWriteUnchanged(before, input) {
+		return nil
+	}
 	if before != nil {
-		if before.text == input.Text && before.status == input.Status {
-			return nil
-		}
 		if _, err := tx.Exec(ctx, `INSERT INTO project_translation_revisions (
 				organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
 				provenance, source_job_id, actor_kind, created_at
@@ -609,6 +634,42 @@ func (f *sqlFilter) sql() string { return strings.Join(f.conditions, " AND ") }
 func (f *sqlFilter) page(limit, offset int) string {
 	f.args = append(f.args, limit, offset)
 	return fmt.Sprintf(" LIMIT $%d OFFSET $%d", len(f.args)-1, len(f.args))
+}
+
+func rejectIfStringLocked(ctx context.Context, tx pgx.Tx, actor principal, scope projectScope, stringID, locale string) error {
+	query := `SELECT EXISTS (
+		SELECT 1 FROM project_cat_segment_locks
+		WHERE organization_id = $1 AND project_id = $2 AND external_string_id = $3`
+	args := []any{actor.OrganizationID, scope.ID, stringID}
+	if locale != "" {
+		query += ` AND target_locale = $4`
+		args = append(args, locale)
+	}
+	query += `)`
+	var locked bool
+	if err := tx.QueryRow(ctx, query, args...).Scan(&locked); err != nil {
+		return fmt.Errorf("check segment lock: %w", err)
+	}
+	if locked {
+		return errSegmentLocked
+	}
+	return nil
+}
+
+func reviewerForTranslationStatus(status, userID string, now time.Time) (*string, *time.Time) {
+	if status == "approved" || status == "rejected" {
+		return &userID, &now
+	}
+	return nil, nil
+}
+
+func translationWriteUnchanged(before *translationSnapshot, input translationWrite) bool {
+	return before != nil && before.text == input.Text && before.status == input.Status
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
 func collectRows[T any](rows pgx.Rows, scan func(rowScanner) (T, error)) ([]T, error) {

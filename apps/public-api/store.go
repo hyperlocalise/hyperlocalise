@@ -89,6 +89,7 @@ type resourceStore interface {
 	deleteString(context.Context, principal, string, string) error
 	listTranslations(context.Context, principal, string, translationFilters) ([]translationRecord, int, error)
 	listStringTranslations(context.Context, principal, string, string) ([]translationRecord, error)
+	getStringTranslation(context.Context, principal, string, string, string) (translationRecord, error)
 	putTranslation(context.Context, principal, string, string, string, translationWrite) (translationRecord, error)
 	listGlossaries(context.Context, principal, int, int) ([]glossary, int, error)
 	getGlossary(context.Context, principal, string) (glossary, error)
@@ -100,21 +101,25 @@ type resourceStore interface {
 
 type postgresStore struct{ pool *pgxpool.Pool }
 
+// workspaceOperatorPredicate matches go-svc's org-wide glossary, memory, and project access roles.
+const workspaceOperatorPredicate = `EXISTS (
+	SELECT 1 FROM organization_memberships om
+	WHERE om.organization_id = $1 AND om.user_id = $2 AND om.role IN ('admin', 'localization_manager')
+)`
+
+// projectTeamMemberPredicate expects a `p` projects alias. Projects without a team belong to
+// the default team, matching go-svc's project, glossary, and memory access rules.
+const projectTeamMemberPredicate = `EXISTS (
+	SELECT 1 FROM team_memberships tm JOIN teams t ON t.id = tm.team_id
+	WHERE tm.user_id = $2 AND t.organization_id = $1
+		AND (t.id = p.team_id OR (p.team_id IS NULL AND t.slug = 'default'))
+)`
+
 const accessibleProjectPredicate = `
 	p.organization_id = $1
 	AND (
-		EXISTS (
-			SELECT 1
-			FROM organization_memberships om
-			WHERE om.organization_id = $1
-				AND om.user_id = $2
-				AND om.role IN ('admin', 'localization_manager')
-		)
-		OR EXISTS (
-			SELECT 1
-			FROM team_memberships tm
-			WHERE tm.user_id = $2 AND tm.team_id = p.team_id
-		)
+		` + workspaceOperatorPredicate + `
+		OR ` + projectTeamMemberPredicate + `
 	)`
 
 const projectColumns = `

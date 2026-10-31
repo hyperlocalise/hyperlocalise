@@ -90,20 +90,6 @@ type memoryEntryFilters struct {
 	Offset       int
 }
 
-// workspaceOperatorPredicate matches go-svc's org-wide glossary and memory access roles.
-const workspaceOperatorPredicate = `EXISTS (
-	SELECT 1 FROM organization_memberships om
-	WHERE om.organization_id = $1 AND om.user_id = $2 AND om.role IN ('admin', 'localization_manager')
-)`
-
-// projectTeamMemberPredicate expects a `p` projects alias. Projects without a team belong to
-// the default team, matching go-svc's glossary and memory access rules.
-const projectTeamMemberPredicate = `EXISTS (
-	SELECT 1 FROM team_memberships tm JOIN teams t ON t.id = tm.team_id
-	WHERE tm.user_id = $2 AND t.organization_id = $1
-		AND (t.id = p.team_id OR (p.team_id IS NULL AND t.slug = 'default'))
-)`
-
 // accessibleGlossaryPredicate mirrors go-svc's glossaryAccessPredicate: org glossaries are
 // visible to every member, team glossaries to their team and to teams of attached projects.
 const accessibleGlossaryPredicate = `
