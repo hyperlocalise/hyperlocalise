@@ -81,6 +81,21 @@ type resourceStore interface {
 	getProject(context.Context, principal, string) (project, error)
 	listQueries(context.Context, principal, queryFilters) ([]queryRecord, int, error)
 	getQuery(context.Context, principal, string) (queryRecord, error)
+	getProjectLocales(context.Context, principal, string) (projectLocales, error)
+	listStrings(context.Context, principal, string, stringFilters) ([]translationString, int, error)
+	getString(context.Context, principal, string, string) (translationString, error)
+	createString(context.Context, principal, string, stringCreate) (translationString, error)
+	updateString(context.Context, principal, string, string, stringPatch) (translationString, error)
+	deleteString(context.Context, principal, string, string) error
+	listTranslations(context.Context, principal, string, translationFilters) ([]translationRecord, int, error)
+	listStringTranslations(context.Context, principal, string, string) ([]translationRecord, error)
+	putTranslation(context.Context, principal, string, string, string, translationWrite) (translationRecord, error)
+	listGlossaries(context.Context, principal, int, int) ([]glossary, int, error)
+	getGlossary(context.Context, principal, string) (glossary, error)
+	listGlossaryTerms(context.Context, principal, string, glossaryTermFilters) ([]glossaryTerm, int, error)
+	listMemories(context.Context, principal, int, int) ([]translationMemory, int, error)
+	getMemory(context.Context, principal, string) (translationMemory, error)
+	listMemoryEntries(context.Context, principal, string, memoryEntryFilters) ([]memoryEntry, int, error)
 }
 
 type postgresStore struct{ pool *pgxpool.Pool }
