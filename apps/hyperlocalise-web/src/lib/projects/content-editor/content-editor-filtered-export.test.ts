@@ -12,7 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildCatFilteredExportFilename } from "./content-editor-filtered-export";
+import {
+  buildCatFilteredExportFilename,
+  inferCatBilingualFormat,
+} from "./content-editor-filtered-export";
 
 describe("buildCatFilteredExportFilename", () => {
   it("uses all-files for wildcard source paths", () => {
@@ -23,5 +26,13 @@ describe("buildCatFilteredExportFilename", () => {
         extension: "csv",
       }),
     ).toBe("all-files-vi.csv");
+  });
+});
+
+describe("inferCatBilingualFormat", () => {
+  it("maps export extensions", () => {
+    expect(inferCatBilingualFormat("queue-fr.xliff")).toBe("xliff");
+    expect(inferCatBilingualFormat("queue-fr.XLF")).toBe("xlf");
+    expect(inferCatBilingualFormat("notes.txt")).toBeNull();
   });
 });

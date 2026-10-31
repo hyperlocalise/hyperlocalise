@@ -88,6 +88,14 @@ Exports include up to **5,000** matching segments. If more segments match your f
 
 If nothing matches the current filters, download fails with a message that no segments match.
 
+### Import a bilingual file
+
+On a native project, use **Import bilingual file…** in the queue **More actions** menu to re-import a CSV, TMX, XLF, XLIFF, or XLSX file you exported from this editor. Matching keys in the current locale are updated. Empty targets are skipped so untranslated strings stay empty.
+
+Use this to repair inline tags or placeholders outside the editor, then bring the corrected targets back. The import is scoped to the open file, or to every file when you are in the all-files queue. Locale must match the current target locale. The same **5,000**-string cap applies.
+
+Provider-backed projects cannot re-import bilingual files.
+
 For complete target files, use the project’s **Download translations** action. See [Download translated files](/platform/translation/download) to choose the correct export.
 
 ## Board

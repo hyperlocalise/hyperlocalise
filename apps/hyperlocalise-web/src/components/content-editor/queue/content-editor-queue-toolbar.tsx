@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import type { CatBilingualImportCounts } from "@/lib/projects/content-editor/content-editor-bilingual-import";
 import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
 import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { isCatQueueFilterEmpty } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
@@ -90,6 +91,8 @@ export function ContentEditorQueueToolbar({
   isQueueLoading = false,
   onDownloadFilteredView,
   isDownloadingFilteredView = false,
+  onImportBilingualFile,
+  isImportingBilingualFile = false,
   adaptiveWorkspaceEnabled = false,
 }: {
   search?: string;
@@ -130,6 +133,8 @@ export function ContentEditorQueueToolbar({
   isQueueLoading?: boolean;
   onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
   isDownloadingFilteredView?: boolean;
+  onImportBilingualFile?: (file: File) => Promise<CatBilingualImportCounts>;
+  isImportingBilingualFile?: boolean;
   /** When true, the View menu offers the adaptive workspace persona switch. Off by default. */
   adaptiveWorkspaceEnabled?: boolean;
 }) {
@@ -304,6 +309,8 @@ export function ContentEditorQueueToolbar({
           filterLabel={intl.formatMessage(filterButtonMessage)}
           onDownloadFilteredView={onDownloadFilteredView}
           isDownloadingFilteredView={isDownloadingFilteredView}
+          onImportBilingualFile={onImportBilingualFile}
+          isImportingBilingualFile={isImportingBilingualFile}
         />
       </div>
     </div>

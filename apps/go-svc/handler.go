@@ -257,6 +257,15 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 		h.applyPlaintext(w, r)
 	})
 	mux.Handle("POST /v1/editor-export/filtered/serialize", editorExport)
+	mux.HandleFunc("POST /internal/editor-export/filtered/parse", func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" || !requireServerCallToken(w, r) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+			}
+			return
+		}
+		h.parseEditorFilteredExport(w, r)
+	})
 	for pattern, route := range map[string]http.HandlerFunc{
 		"PUT /v1/storage/object":         h.putObject,
 		"POST /v1/storage/read":          h.getObject,
