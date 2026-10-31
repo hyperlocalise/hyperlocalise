@@ -1008,13 +1008,16 @@ func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryA
 	}
 	for _, incoming := range concepts {
 		existingID := ""
-		lookupErr := tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and id=$2 and archived_at is null`, g.ID, incoming.ID).Scan(&existingID)
-		exists := lookupErr == nil
-		if lookupErr != nil && !errorsIsNoRows(lookupErr) {
-			return nil, nil, nil, "", lookupErr
+		exists := false
+		if validGlossaryID(incoming.ID) {
+			lookupErr := tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and id=$2 and archived_at is null`, g.ID, incoming.ID).Scan(&existingID)
+			exists = lookupErr == nil
+			if lookupErr != nil && !errorsIsNoRows(lookupErr) {
+				return nil, nil, nil, "", lookupErr
+			}
 		}
 		if !exists && !validGlossaryID(incoming.ID) {
-			lookupErr = tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and lower(primary_term)=lower($2) and archived_at is null limit 1`, g.ID, incoming.PrimaryTerm).Scan(&existingID)
+			lookupErr := tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and lower(primary_term)=lower($2) and archived_at is null limit 1`, g.ID, incoming.PrimaryTerm).Scan(&existingID)
 			exists = lookupErr == nil
 			if lookupErr != nil && !errorsIsNoRows(lookupErr) {
 				return nil, nil, nil, "", lookupErr
@@ -1092,8 +1095,8 @@ func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryA
 					counts["skipped"]++
 					continue
 				}
-				_, err = tx.Exec(ctx, `update glossary_terms set locale=$4, term=$5, source_term=$5, target_term=$5, description=$6, note=$7, part_of_speech=$8, status=$9, modified_by_user_id=$10, version=version+1, updated_at=now() where id=$1 and concept_id=$2 and glossary_id=$3`,
-					termExists, conceptID, g.ID, locale, text, term.Description, term.Note, term.PartOfSpeech, firstNonEmpty(term.Status, "draft"), actor.userID)
+				_, err = tx.Exec(ctx, `update glossary_terms set locale=$4, term=$5, source_term=$5, target_term=$5, description=$6, note=$7, part_of_speech=$8, status=$9, forbidden=$10, modified_by_user_id=$11, version=version+1, updated_at=now() where id=$1 and concept_id=$2 and glossary_id=$3`,
+					termExists, conceptID, g.ID, locale, text, term.Description, term.Note, term.PartOfSpeech, firstNonEmpty(term.Status, "draft"), term.Forbidden, actor.userID)
 				if err != nil {
 					return nil, nil, nil, "", err
 				}
@@ -1101,8 +1104,9 @@ func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryA
 				continue
 			}
 			status := firstNonEmpty(term.Status, "draft")
+			forbidden := term.Forbidden
 			_, err = insertGlossaryTerm(ctx, tx, g, conceptID, actor.userID, glossaryConceptTermInput{
-				Locale: locale, Term: text, Description: &term.Description, Note: &term.Note, PartOfSpeech: &term.PartOfSpeech, Status: &status,
+				Locale: locale, Term: text, Description: &term.Description, Note: &term.Note, PartOfSpeech: &term.PartOfSpeech, Status: &status, Forbidden: &forbidden,
 			})
 			if err != nil {
 				return nil, nil, nil, "", err
