@@ -93,7 +93,7 @@ func (c *AmazonClient) Translate(ctx context.Context, req Request) (Response, er
 	}
 
 	for i, s := range req.Sources {
-		if n := len(s); n == 0 || n > amazonMaxTextBytes {
+		if n := len(s); n > amazonMaxTextBytes {
 			return Response{}, &Error{
 				Code: ErrorCodeValidation,
 				Message: fmt.Sprintf(
@@ -110,6 +110,10 @@ func (c *AmazonClient) Translate(ctx context.Context, req Request) (Response, er
 	for i, s := range req.Sources {
 		if err := ctx.Err(); err != nil {
 			return Response{RequestCount: requestCount}, err
+		}
+		if s == "" {
+			translations[i] = ""
+			continue
 		}
 		translated, err := c.translateOne(ctx, sourceCode, targetCode, s)
 		requestCount++

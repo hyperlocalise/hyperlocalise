@@ -660,6 +660,9 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						}
 						for _, key := range keys {
 							sourceText := sourceEntries[key]
+							if strings.TrimSpace(sourceText) == "" {
+								continue
+							}
 							task := Task{
 								SourceLocale:             cfg.Locales.Source,
 								TargetLocale:             target,
