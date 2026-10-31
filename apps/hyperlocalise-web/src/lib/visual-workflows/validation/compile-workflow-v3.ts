@@ -148,6 +148,10 @@ function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> 
     portIds.add("error");
   }
 
+  if (node.type === "flow.human_approval") {
+    return new Set(["approved", "rejected", "changes_requested", "timed_out"]);
+  }
+
   if (node.type === "flow.wait") {
     return new Set(["completed", "timed_out", "error"]);
   }
@@ -212,6 +216,85 @@ function hasExecutionCycle(
   }
 
   return visitedNodeCount !== definition.nodes.length;
+}
+
+const HUMAN_APPROVAL_REQUIRED_FIELDS = ["reviewerId", "prompt", "deadline"] as const;
+
+function hasConfiguredHumanApprovalField(
+  node: CanonicalVisualWorkflowNode,
+  field: (typeof HUMAN_APPROVAL_REQUIRED_FIELDS)[number],
+): boolean {
+  if (node.config.kind !== "flow.human_approval") return false;
+
+  const configuredValue =
+    field === "reviewerId"
+      ? node.config.reviewerId
+      : field === "prompt"
+        ? node.config.prompt
+        : node.config.deadline;
+
+  if (typeof configuredValue === "string" && configuredValue.trim().length > 0) {
+    return true;
+  }
+
+  const binding = node.inputs?.[field];
+  if (!binding) return false;
+
+  if (binding.kind !== "literal") {
+    return true;
+  }
+
+  return typeof binding.value === "string" && binding.value.trim().length > 0;
+}
+
+function validateHumanApprovalInputs(
+  node: CanonicalVisualWorkflowNode,
+): VisualWorkflowV3CompilationIssue[] {
+  if (node.config.kind !== "flow.human_approval") return [];
+
+  const issues: VisualWorkflowV3CompilationIssue[] = [];
+
+  for (const field of HUMAN_APPROVAL_REQUIRED_FIELDS) {
+    if (!hasConfiguredHumanApprovalField(node, field)) {
+      issues.push({
+        code: "missing_required_input",
+        nodeId: node.id,
+        field,
+        reason: "required",
+      });
+    }
+
+    const binding = node.inputs?.[field];
+    if (
+      binding?.kind === "literal" &&
+      binding.value !== undefined &&
+      typeof binding.value !== "string"
+    ) {
+      issues.push({
+        code: "incompatible_data_types",
+        nodeId: node.id,
+        field,
+      });
+    }
+  }
+
+  for (const field of ["artifactReference", "jobReference"] as const) {
+    const binding = node.inputs?.[field];
+
+    if (
+      binding?.kind === "literal" &&
+      binding.value !== undefined &&
+      typeof binding.value !== "string"
+    ) {
+      issues.push({
+        code: "incompatible_data_types",
+        nodeId: node.id,
+        field,
+      });
+    }
+  }
+
+  return issues;
 }
 
 export function compileVisualWorkflowV3Definition(
@@ -428,6 +511,11 @@ export function compileVisualWorkflowV3Definition(
   }
 
   for (const node of nodes) {
+    if (node.config.kind === "flow.human_approval") {
+      issues.push(...validateHumanApprovalInputs(node));
+      continue;
+    }
+
     if (
       node.config.kind !== "flow.return" &&
       node.config.kind !== "flow.call_workflow" &&

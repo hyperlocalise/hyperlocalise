@@ -36,6 +36,7 @@ vi.mock("@/lib/log", () => ({
     error: vi.fn(),
     debug: vi.fn(),
   }),
+  serializeErrorForLog: vi.fn((error: Error) => ({ error })),
 }));
 
 import { LOCALISATION_AUDIT_CREDITS } from "./catalog";

@@ -21,6 +21,7 @@ import {
   SlackLogoIcon,
   CodeIcon,
   UserIcon,
+  UserCheckIcon,
   UsersIcon,
   type Icon,
 } from "@phosphor-icons/react";
@@ -84,6 +85,12 @@ export function getConversationListItemVisual(
         typeIcon: SlackLogoIcon,
         typeIconLabel,
         badgeClassName: inboxBadgeIconGreen,
+      };
+    case "workflow_approval":
+      return {
+        typeIcon: UserCheckIcon,
+        typeIconLabel,
+        badgeClassName: inboxBadgeIconPrimary,
       };
     default:
       return assertNever(source);

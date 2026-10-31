@@ -73,6 +73,7 @@ vi.mock("@/lib/log", () => ({
     error: vi.fn(),
     warn: vi.fn(),
   })),
+  serializeErrorForLog: vi.fn((error: Error) => ({ error })),
 }));
 
 import { uploadRepositorySourceFilesFromSandbox } from "./upload-repository-source-files";

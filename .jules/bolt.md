@@ -475,3 +475,7 @@
 ## 2027-10-28 - Hoisting regexp.MustCompile in sort comparators
 **Learning:** Executing `regexp.MustCompile` inside a function that is invoked during slice sorting (such as priority ranking in fallback context selection) causes the regex to be re-parsed and compiled $O(N \log N)$ times per operation. This incurs massive CPU and memory allocation overhead (~10.8 MB and ~43,000 allocs per call).
 **Action:** Always define `regexp.MustCompile` regular expressions at package-level (`var ... = regexp.MustCompile(...)`) when used in functions called repeatedly or within sort comparators.
+
+## 2027-10-29 - Bypassing big.Int division and regex validation in USD money calculations
+**Learning:** In scaled currency formatting (`usdString`), bypassing `big.Int.QuoRem` division and formatting digits directly from `value.String()` avoids `big.Int` quotient/remainder allocations and division operations, speeding up string formatting by ~1.7x and cutting allocations from 18 to 7 allocs/op. Furthermore, replacing regular expression string validation (`^\d+(\.\d{1,8})?$`) with zero-allocation byte scanning (`isValidUSDAmount`) speeds up USD parsing by ~1.87x.
+**Action:** Format scaled fixed-point numbers directly from integer digit strings to avoid `big.Int.QuoRem` allocations, and use byte scanners instead of regex for simple decimal string validation.

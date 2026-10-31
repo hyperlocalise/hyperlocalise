@@ -364,6 +364,27 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     ],
     mock: { attemptNumber: 1, exhausted: false },
   },
+  "flow.human_approval": {
+    inputs: [
+      field("reviewerId"),
+      field("prompt"),
+      field("artifactReference", "string", false),
+      field("jobReference", "string", false),
+      field("deadline"),
+    ],
+    outputs: [
+      output("reviewerId"),
+      output("decision"),
+      output("commentReference", "string", true),
+      output("decidedAt"),
+    ],
+    mock: {
+      reviewerId: "user_mock",
+      decision: "approved",
+      commentReference: "comment_mock",
+      decidedAt: "2026-01-01T00:00:00.000Z",
+    },
+  },
   "flow.wait": {
     inputs: [
       field("durationMs", "number", false),

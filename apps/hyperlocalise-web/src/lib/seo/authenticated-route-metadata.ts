@@ -59,6 +59,7 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "members",
   "membersPermissions",
   "myJobs",
+  "newWorkspace",
   "onboarding",
   "projectAutomationDetail",
   "projectAutomationNew",
@@ -656,6 +657,19 @@ const AUTHENTICATED_ROUTE_COPY = {
       description: "Document description for the current user’s jobs page",
     },
   },
+  newWorkspace: {
+    title: {
+      defaultMessage: "Create workspace",
+      id: "NW4CR8TQ2a",
+      description: "Document title for the page where a signed-in person creates another workspace",
+    },
+    description: {
+      defaultMessage: "Create another Hyperlocalise workspace.",
+      id: "NW5DS9UR3b",
+      description:
+        "Document description for the page where a signed-in person creates another workspace",
+    },
+  },
   onboarding: {
     title: {
       defaultMessage: "Onboarding",
@@ -898,9 +912,9 @@ const AUTHENTICATED_ROUTE_COPY = {
   },
   selectOrganization: {
     title: {
-      defaultMessage: "Choose an organization",
-      id: "WM9IO2XF6Q",
-      description: "Document title for the organization picker page",
+      defaultMessage: "Choose a workspace",
+      id: "WM9IO2XF7R",
+      description: "Document title for the workspace picker page",
     },
     description: {
       defaultMessage: "Select the workspace you want to open.",

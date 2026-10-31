@@ -57,6 +57,7 @@ vi.mock("./source-file-ingest", () => ({
 
 vi.mock("@/lib/log", () => ({
   createLogger: vi.fn(() => ({ warn: loggerWarnMock })),
+  serializeErrorForLog: vi.fn((error: Error) => ({ error })),
 }));
 
 import { uploadSourceFile } from "./source-file-upload-service";

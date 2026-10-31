@@ -46,7 +46,9 @@ type IconBucket =
   | "webflow"
   | "google-drive"
   | "braze"
+  | "iterable"
   | "customer-io"
+  | "loops"
   | "web-search"
   | "web-chat"
   | "upload"
@@ -59,9 +61,11 @@ const BRAND_TOOL_IDS = new Set([
   "sanity",
   "google-drive",
   "braze",
+  "iterable",
   "contentful",
   "webflow",
   "customer-io",
+  "loops",
 ]);
 
 function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucket {
@@ -93,8 +97,12 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
       return "google-drive";
     case "braze":
       return "braze";
+    case "iterable":
+      return "iterable";
     case "customer-io":
       return "customer-io";
+    case "loops":
+      return "loops";
     case "web-search":
       return "web-search";
     case "web-chat":
@@ -161,10 +169,30 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
           className={cn(iconClassName, "dark:invert")}
         />
       );
+    case "iterable":
+      return (
+        <Image
+          src="/images/iterable-logo.png"
+          alt=""
+          width={16}
+          height={16}
+          className={cn(iconClassName, "dark:invert")}
+        />
+      );
     case "customer-io":
       return (
         <Image
           src="/images/customerio-logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className={cn(iconClassName, "dark:invert")}
+        />
+      );
+    case "loops":
+      return (
+        <Image
+          src="/images/loops-logo.png"
           alt=""
           width={16}
           height={16}

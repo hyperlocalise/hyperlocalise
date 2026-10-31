@@ -31,6 +31,7 @@ var implementedActivityEventTypes = []string{
 	"member_joined",
 	"member_role_changed",
 	"member_removed",
+	"member_left",
 	"workspace_updated",
 	"workspace_archived",
 	"personal_access_token_created",

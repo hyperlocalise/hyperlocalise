@@ -271,10 +271,11 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
   {
     slug: "iterable",
     category: "customer-engagement",
-    status: "coming-soon",
+    status: "available",
     type: "partner",
     marketing: false,
     workspace: true,
+    logoSrc: "/images/iterable-logo.png",
     websiteUrl: "https://iterable.com",
   },
   {
@@ -310,7 +311,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
   {
     slug: "loops",
     category: "customer-engagement",
-    status: "coming-soon",
+    status: "available",
     type: "partner",
     marketing: false,
     workspace: true,

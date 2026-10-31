@@ -22,6 +22,7 @@ import {
   visualWorkflowRetryDraft,
   visualWorkflowSwitchDeleteDraft,
   visualWorkflowWaitDraft,
+  visualWorkflowHumanApprovalDraft,
   visualWorkflowMergeDraft,
   visualWorkflowSequenceDraft,
   visualWorkflowTerminalNodesDraft,
@@ -930,6 +931,118 @@ export const WaitBranches: Story = {
         name: "Duration (ms)",
       }),
     ).toHaveValue("60000");
+  },
+};
+
+export const HumanApprovalBranches: Story = {
+  name: "Human approval configuration and decisions",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Shows the durable Human Approval node, its typed request and result ports, and every decision branch.",
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowHumanApprovalDraft.name,
+    initialNodes: visualWorkflowHumanApprovalDraft.nodes,
+    initialEdges: visualWorkflowHumanApprovalDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    for (const branch of ["Approved", "Rejected", "Changes requested", "Timed out"]) {
+      await expect(
+        await canvas.findByLabelText(branch, {}, { timeout: 10_000 }),
+      ).toBeInTheDocument();
+    }
+
+    await expect(canvas.getByLabelText("Data input: reviewerId, string")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data input: prompt, string")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: decision, string")).toBeInTheDocument();
+
+    const approvalNode = canvas
+      .getByLabelText("Data input: reviewerId, string")
+      .closest(".react-flow__node");
+    await expect(approvalNode).not.toBeNull();
+    await userEvent.click(approvalNode!);
+
+    await expect(
+      await canvas.findByRole("combobox", { name: "Reviewer type" }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("textbox", { name: "Reviewer or team ID" })).toHaveValue(
+      "localization-reviewers",
+    );
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+  },
+};
+
+const humanApprovalNodesWithStatus = (status: "idle" | "running" | "succeeded" | "failed") =>
+  visualWorkflowHumanApprovalDraft.nodes.map((node) =>
+    node.id === "approval" ? { ...node, data: { ...node.data, runStatus: status } } : node,
+  );
+
+export const HumanApprovalRunning: Story = {
+  name: "Human approval — running",
+  args: {
+    initialName: visualWorkflowHumanApprovalDraft.name,
+    initialNodes: humanApprovalNodesWithStatus("running"),
+    initialEdges: visualWorkflowHumanApprovalDraft.edges,
+    previewMode: true,
+  },
+};
+
+export const HumanApprovalSucceeded: Story = {
+  name: "Human approval — succeeded",
+  args: {
+    initialName: visualWorkflowHumanApprovalDraft.name,
+    initialNodes: humanApprovalNodesWithStatus("succeeded"),
+    initialEdges: visualWorkflowHumanApprovalDraft.edges,
+    previewMode: true,
+  },
+};
+
+export const HumanApprovalFailedNarrow: Story = {
+  name: "Human approval — failed, narrow viewport",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: {
+    initialName: visualWorkflowHumanApprovalDraft.name,
+    initialNodes: humanApprovalNodesWithStatus("failed"),
+    initialEdges: visualWorkflowHumanApprovalDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+};
+
+export const HumanApprovalInvalid: Story = {
+  name: "Human approval — invalid configuration",
+  args: {
+    initialName: "Invalid human approval",
+    initialNodes: visualWorkflowHumanApprovalDraft.nodes.map((node) =>
+      node.id === "approval"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: {
+                kind: "flow.human_approval" as const,
+                reviewerType: "user" as const,
+                reviewerId: "",
+                prompt: "",
+              },
+            },
+          }
+        : node,
+    ),
+    initialEdges: visualWorkflowHumanApprovalDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByTestId("visual-workflow-validation-issues", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
   },
 };
 

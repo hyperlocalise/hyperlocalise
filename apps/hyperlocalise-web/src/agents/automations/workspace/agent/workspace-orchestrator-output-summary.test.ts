@@ -16,14 +16,20 @@ import {
   buildWorkspaceOrchestratorOutputSummary,
   readImportBrazeCampaigns,
   readImportBrazeTemplates,
+  readImportCustomerIoCampaigns,
   readImportGoogleDriveFiles,
   readImportIntercomArticles,
+  readImportIterableTemplates,
+  readImportLoopsEmails,
   readImportSanityDocuments,
   readImportWebflowItems,
   readPushBrazeCampaigns,
   readPushBrazeTemplates,
+  readPushCustomerIoCampaigns,
   readPushGoogleDriveTranslations,
   readPushIntercomTranslations,
+  readPushIterableTemplates,
+  readPushLoopsEmails,
   readPushSanityTranslations,
   readPushWebflowTranslations,
 } from "./workspace-orchestrator-output-summary";
@@ -473,6 +479,142 @@ describe("readPushGoogleDriveTranslations", () => {
   it("rejects a persisted object missing pushed", () => {
     expect(
       readPushGoogleDriveTranslations({ pushGoogleDriveTranslations: { status: "succeeded" } }, {}),
+    ).toBeNull();
+  });
+});
+
+describe("readImportLoopsEmails", () => {
+  it("prefers the current step, then the persisted summary, then prior step results", () => {
+    expect(
+      readImportLoopsEmails(
+        { importLoopsEmails: { imported: 4, status: "stale" } },
+        { import_loops_emails: { imported: 0, failed: 2 } },
+      ),
+    ).toEqual({ imported: 0, failed: 2 });
+    expect(readImportLoopsEmails({ importLoopsEmails: { imported: 3, skipped: 1 } }, {})).toEqual({
+      imported: 3,
+      skipped: 1,
+    });
+    expect(
+      readImportLoopsEmails(
+        {
+          orchestratorStepResults: {
+            import_loops_emails: { imported: 2, status: "succeeded" },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ imported: 2, status: "succeeded" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportLoopsEmails(
+        { importLoopsEmails: { status: "succeeded", failed: 0 } },
+        { import_loops_emails: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushLoopsEmails", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushLoopsEmails({}, { push_loops_emails: { pushedLocales: 0, failedLocales: 0 } }),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(readPushLoopsEmails({ pushLoopsEmails: { status: "succeeded" } }, {})).toBeNull();
+  });
+});
+
+describe("readImportIterableTemplates", () => {
+  it("prefers the current step, then the persisted summary, then prior step results", () => {
+    expect(
+      readImportIterableTemplates(
+        { importIterableTemplates: { imported: 4, status: "stale" } },
+        { import_iterable_templates: { imported: 0, failed: 2 } },
+      ),
+    ).toEqual({ imported: 0, failed: 2 });
+    expect(
+      readImportIterableTemplates({ importIterableTemplates: { imported: 3, skipped: 1 } }, {}),
+    ).toEqual({
+      imported: 3,
+      skipped: 1,
+    });
+    expect(
+      readImportIterableTemplates(
+        {
+          orchestratorStepResults: {
+            import_iterable_templates: { imported: 2, status: "succeeded" },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ imported: 2, status: "succeeded" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportIterableTemplates(
+        { importIterableTemplates: { status: "succeeded", failed: 0 } },
+        { import_iterable_templates: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushIterableTemplates", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushIterableTemplates(
+        {},
+        { push_iterable_templates: { pushedLocales: 0, failedLocales: 0 } },
+      ),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(
+      readPushIterableTemplates({ pushIterableTemplates: { status: "succeeded" } }, {}),
+    ).toBeNull();
+  });
+});
+
+describe("readImportCustomerIoCampaigns", () => {
+  it("prefers the current step over a persisted summary", () => {
+    expect(
+      readImportCustomerIoCampaigns(
+        { importCustomerIoCampaigns: { imported: 4, status: "stale" } },
+        { import_customer_io_campaigns: { imported: 0, failed: 2, status: "partial" } },
+      ),
+    ).toEqual({ imported: 0, failed: 2, status: "partial" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportCustomerIoCampaigns(
+        { importCustomerIoCampaigns: { status: "succeeded", failed: 0 } },
+        { import_customer_io_campaigns: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushCustomerIoCampaigns", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushCustomerIoCampaigns(
+        {},
+        { push_customer_io_campaigns: { pushedLocales: 0, failedLocales: 0 } },
+      ),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(
+      readPushCustomerIoCampaigns({ pushCustomerIoCampaigns: { status: "succeeded" } }, {}),
     ).toBeNull();
   });
 });

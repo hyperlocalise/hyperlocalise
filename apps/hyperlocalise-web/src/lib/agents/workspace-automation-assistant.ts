@@ -95,6 +95,8 @@ const INTEGRATIONS: readonly WorkspaceAutomationSkillIntegration[] = [
   "google_drive",
   "braze",
   "customer_io",
+  "iterable",
+  "loops",
   "slack",
   "email",
 ];
@@ -141,6 +143,8 @@ export const automationSetupChangeLineSchema = z.discriminatedUnion("kind", [
         "google_drive",
         "braze",
         "customer_io",
+        "iterable",
+        "loops",
         "slack",
         "email",
       ]),
@@ -913,7 +917,10 @@ const NOTHING_CONNECTED: WorkspaceAutomationSkillConnections = {
   intercom: false,
   sanity: false,
   webflow: false,
+  google_drive: false,
   braze: false,
+  customer_io: false,
+  iterable: false,
   slack: false,
   email: false,
 };

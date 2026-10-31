@@ -146,6 +146,30 @@ describe("resolveAutomationTools", () => {
     ).toEqual([{ id: "braze", label: "Braze" }]);
   });
 
+  it("shows Iterable with its brand badge", () => {
+    const base = createAutomationSummary();
+
+    expect(
+      resolveAutomationTools(
+        intl,
+        createAutomationSummary({
+          toolConfig: {
+            ...base.toolConfig,
+            github: { ...base.toolConfig.github!, enabled: false },
+            slack: { enabled: false },
+            iterable: {
+              enabled: true,
+              sourceLocale: "en",
+              templateIds: [],
+              snippetIds: [],
+              existingTranslationPolicy: "seed_empty",
+            },
+          },
+        }),
+      ),
+    ).toEqual([{ id: "iterable", label: "Iterable" }]);
+  });
+
   it("shows Customer.io with its brand badge", () => {
     const base = createAutomationSummary();
 

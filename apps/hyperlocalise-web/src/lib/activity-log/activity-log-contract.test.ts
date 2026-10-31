@@ -81,6 +81,8 @@ describe("activity log contract", () => {
       "visual_workflow_enabled",
       "visual_workflow_disabled",
       "visual_workflow_run_started",
+      "visual_workflow_approval_requested",
+      "visual_workflow_approval_decided",
     ]);
     expect(QUERY_ACTIVITY_EVENT_TYPES).toEqual([
       "query_created",

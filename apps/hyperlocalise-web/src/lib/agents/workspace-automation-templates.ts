@@ -275,6 +275,35 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "translate-iterable-templates",
+    category: "popular",
+    extraCategories: ["marketing"],
+    name: "Translate Iterable Templates & Snippets",
+    description:
+      "Import Iterable email, in-app, push, and SMS templates plus snippets, localise in Jobs, then push approved locales back to Iterable.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "an Iterable template and snippet localisation connector",
+      capabilities: [
+        "Import Iterable templates and snippets into native source files",
+        "Respect existing-translation policies on import and push",
+        "Push approved locales only when operators run Push to Iterable",
+      ],
+      goal: "Keep Iterable templates and snippets in sync for localisation without sending campaigns.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-iterable-templates"],
+      name: "Translate Iterable templates and snippets",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      iterableEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-customer-io-campaigns",
     category: "popular",
     extraCategories: ["marketing"],
@@ -298,6 +327,35 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       triggerMode: "scheduled",
       scheduledCadence: "daily",
       customerIoEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
+    id: "translate-loops-emails",
+    category: "popular",
+    extraCategories: ["marketing"],
+    name: "Translate Loops Emails",
+    description:
+      "Import Loops transactional, campaign, and workflow emails as HTML, localise in Jobs, then push approved locales as unpublished locale copies.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Loops email localisation connector",
+      capabilities: [
+        "Import transactional, campaign, and workflow emails as HTML source files in the attached project",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push translations automatically on import — operators enqueue Push to Loops separately",
+      ],
+      goal: "Keep Loops emails in sync for localisation and write approved locales as unpublished locale copies without changing the source.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-loops-emails"],
+      name: "Translate Loops emails",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      loopsEnabled: true,
       createNativeTmsJobEnabled: true,
       createNativeTmsJobUseProjectTargetLocales: true,
       assignTranslateWithAgentEnabled: true,
@@ -1188,8 +1246,16 @@ export function getWorkspaceAutomationTemplateFlow(
     tools.push({ id: "braze", label: "Braze" });
   }
 
+  if (form.iterableEnabled) {
+    tools.push({ id: "iterable", label: "Iterable" });
+  }
+
   if (form.customerIoEnabled) {
     tools.push({ id: "customer-io", label: "Customer.io" });
+  }
+
+  if (form.loopsEnabled) {
+    tools.push({ id: "loops", label: "Loops" });
   }
 
   if (form.createNativeTmsJobEnabled) {

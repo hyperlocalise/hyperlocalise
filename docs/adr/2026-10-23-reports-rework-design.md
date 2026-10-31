@@ -75,7 +75,7 @@ Reports (behind the `workspace-reports` flag, no customer users yet) records wor
 - A change to a project budget's rate card applies to work not yet finished, as the estimate already shows it.
 - A billed AI call that records no project counts only as AI outside any project.
 - `reporting_task_rates.rate_id`, the old single rate line, and `reporting_analyses.rate_id`, the rate when a string arrived, are no longer read by the web app (go-svc's copy reads them) and stay as columns.
-- go-svc's reporting routes (`apps/go-svc/reporting*.go`) follow the Reports API from before this rework: its old routes, one start for every workspace in `reporting_rollout`, and a task's pricing as one rate line (`rate_id`). They need moving to this design, or removing, before anything calls them.
+- go-svc's reporting routes followed the Reports API from before this rework; [Reports reads and writes in go-svc](./2026-10-29-reports-go-svc-design.md) replaces them with a port of this design, section by section.
 - Local databases that applied the rework's interim migrations are brought in line with `bin/mark-migration-applied.sh` in hl-env, which rewrites Drizzle's bookkeeping only.
 
 ## Alternatives considered

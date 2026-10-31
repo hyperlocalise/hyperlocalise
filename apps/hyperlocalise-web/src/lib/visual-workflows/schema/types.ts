@@ -48,6 +48,7 @@ export type VisualCatalogType =
   | "ai.agent"
   | "logic.for_each"
   | "logic.retry"
+  | "flow.human_approval"
   | "flow.wait"
   | "flow.stop"
   | "flow.return"
@@ -396,6 +397,15 @@ export type VisualNodeConfig =
       jitter?: boolean;
       retryableErrorCodes?: string[];
       acknowledgeDuplicateRisk?: boolean;
+    }
+  | {
+      kind: "flow.human_approval";
+      reviewerType: "user" | "team";
+      reviewerId: string;
+      prompt: string;
+      artifactReference?: string;
+      jobReference?: string;
+      deadline?: string;
     }
   | {
       kind: "flow.wait";
