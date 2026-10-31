@@ -607,6 +607,10 @@
     "defaultMessage": "Set the maximum number of characters allowed in the translation.",
     "description": "Helper text for the native segment max length editor"
   },
+  "+u6bMZ2pRz": {
+    "defaultMessage": "Continue",
+    "description": "Button in the leave workspace dialog that moves on to another workspace after access was lost"
+  },
   "+ufsbqnrz9": {
     "defaultMessage": "Agent Activity",
     "description": "Heading for the agent run history list"
@@ -1639,6 +1643,10 @@
     "defaultMessage": "Use different models for different content types while keeping review and sync logic consistent.",
     "description": "Capability 3 description for the localisation-operations use case"
   },
+  "0UO1BREBTM": {
+    "defaultMessage": "Accepting…",
+    "description": "Accept invitation button label while the invitation is being accepted"
+  },
   "0UVlCvBqbT": {
     "defaultMessage": "No messages yet",
     "description": "Empty state title when an inbox conversation has no messages"
@@ -1890,6 +1898,10 @@
   "0roQJLdsUq": {
     "defaultMessage": "Import the pages your GTM team already writes: dos and don'ts, proof points, and the tone that works in each market.",
     "description": "Body for the Notion source panel"
+  },
+  "0sHkme+8tb": {
+    "defaultMessage": "Member Left",
+    "description": "Activity log event type label for members who left the workspace themselves"
   },
   "0su3rYbABy": {
     "defaultMessage": "Latest job · {status}",
@@ -3787,6 +3799,10 @@
     "defaultMessage": "That page is no longer valid. Showing the first page.",
     "description": "Status announced when a translation memory entry cursor can no longer be used"
   },
+  "3xa+IqbvLl": {
+    "defaultMessage": "Choose a workspace",
+    "description": "Page title for selecting which workspace to open"
+  },
   "3xhOvPA3lu": {
     "defaultMessage": "Source upload · {project}",
     "description": "Header summary for a source upload trigger with a project name"
@@ -5414,6 +5430,10 @@
   "6acz11Hecl": {
     "defaultMessage": "Experiments",
     "description": "App shell breadcrumb title for the Hyperlab experiments page"
+  },
+  "6alv0fvJQR": {
+    "defaultMessage": "This is your only workspace. You may be asked to sign in again; then you can create a new one or accept an invitation.",
+    "description": "Added to the leave workspace dialog when the person has no other workspace"
   },
   "6bCLEYenE4": {
     "defaultMessage": "Existing flag",
@@ -12179,6 +12199,10 @@
     "defaultMessage": "Cost estimate",
     "description": "Reports tab: what chosen tasks will cost"
   },
+  "HVWNQgqVcW": {
+    "defaultMessage": "Your invitation was accepted, but the workspace is not ready yet. Reload this page in a moment.",
+    "description": "Error under an invitation when it was accepted but the workspace membership has not appeared yet"
+  },
   "HVa66T0BGY": {
     "defaultMessage": "{count, plural, one {# step ran for real} other {# steps ran for real}}",
     "description": "In a workflow's run history, how many steps of a test run called out for real"
@@ -12710,6 +12734,10 @@
   "IMr6sfD/7/": {
     "defaultMessage": "Files",
     "description": "Project sidebar navigation item for project files"
+  },
+  "IO9ifurzwW": {
+    "defaultMessage": "Cancel",
+    "description": "Link back to the current workspace from the page for creating another workspace"
   },
   "IOmySBLwfP": {
     "defaultMessage": "Retry",
@@ -14007,6 +14035,10 @@
     "defaultMessage": "“{name}” will be removed from this experiment. This cannot be undone.",
     "description": "Confirm dialog body for deleting a variant"
   },
+  "Kg5oomFJK7": {
+    "defaultMessage": "and {count} more",
+    "description": "Last line of a shortened list in the leave workspace dialog, counting the items not shown"
+  },
   "KgPZ5Uqgat": {
     "defaultMessage": "Manager",
     "description": "Team role label for managers"
@@ -14086,6 +14118,10 @@
   "Kph9F7aQfL": {
     "defaultMessage": "Tool",
     "description": "Fallback tool name when the tool type cannot be derived"
+  },
+  "KqiLqEGTTZ": {
+    "defaultMessage": "Verify your email address to see invitations to other workspaces, then reload this page.",
+    "description": "Shown on the workspace picker to someone whose email address is not verified, since invitations are hidden"
   },
   "Ks+Feeoung": {
     "defaultMessage": "{count} characters",
@@ -14246,6 +14282,10 @@
   "L9CYRKrj6S": {
     "defaultMessage": "Admin",
     "description": "Admin role in the workspace access illustration"
+  },
+  "L9HXNtVWvN": {
+    "defaultMessage": "This invitation has expired or was withdrawn. Ask the workspace admin to invite you again.",
+    "description": "Error under an invitation that can no longer be accepted"
   },
   "LAhLwqc2EA": {
     "defaultMessage": "Figma",
@@ -14922,6 +14962,10 @@
   "M8XELItknC": {
     "defaultMessage": "Open in editor",
     "description": "Project QA finding editor link"
+  },
+  "M95Yl2ZYHn": {
+    "defaultMessage": "Create workspace",
+    "description": "Link from the sidebar workspace switcher to the page for creating another workspace"
   },
   "M9MtJAsUOq": {
     "defaultMessage": "On error is set to Stop, so the test run stops at this step.",
@@ -16706,6 +16750,10 @@
   "P3c/gqRJ32": {
     "defaultMessage": "Translation changed — run a scan to recheck.",
     "description": "QA review: needsRecheck"
+  },
+  "P3hJ1/69DS": {
+    "defaultMessage": "Could not leave the workspace. Try again.",
+    "description": "Error in the leave workspace dialog when leaving failed"
   },
   "P4A/eg4+zm": {
     "defaultMessage": "Heading 2",
@@ -18871,6 +18919,10 @@
     "defaultMessage": "Guideline",
     "description": "Title for the workspace guideline management sheet"
   },
+  "Siv+JUHnHq": {
+    "defaultMessage": "Try again",
+    "description": "Button that retries loading what changes when the person leaves a workspace"
+  },
   "SjHx8vM/dA": {
     "defaultMessage": "Scoring",
     "description": "Progress step label when a localisation audit is scoring results"
@@ -19907,6 +19959,10 @@
     "defaultMessage": "Last 6 months",
     "description": "Search Console last 6 months range"
   },
+  "UK7jOz9fV2": {
+    "defaultMessage": "Open one of your workspaces, accept an invitation, or create a new workspace.",
+    "description": "Page description on the workspace picker"
+  },
   "UKiNYTCKL8": {
     "defaultMessage": "commented on a string",
     "description": "Action for a string comment activity"
@@ -20743,10 +20799,6 @@
     "defaultMessage": "Test",
     "description": "Tab of a workflow step's settings that holds the values the step uses in a test run"
   },
-  "VkNsZOH7xT": {
-    "defaultMessage": "Choose an organization",
-    "description": "Page title for selecting which organization workspace to open"
-  },
   "VkWvhhKis5": {
     "defaultMessage": "Translated ({locale})",
     "description": "Heading for the translated file pane in CAT File view"
@@ -20934,6 +20986,10 @@
   "W3I3Xglsup": {
     "defaultMessage": "Filter ({count})",
     "description": "Filter button label when jobs list filters are active"
+  },
+  "W3dD2MKin0": {
+    "defaultMessage": "{count, plural, one {This automation uses an account you connected and may stop working:} other {These automations use accounts you connected and may stop working:}}",
+    "description": "Heading above automations that sign in to other services with the leaving person's accounts"
   },
   "W3kvUxF+V1": {
     "defaultMessage": "Workflow paused",
@@ -21534,6 +21590,10 @@
   "X5Hzy98RDK": {
     "defaultMessage": "Retranslate",
     "description": "Selected text AI action: retranslate"
+  },
+  "X6NUPESd72": {
+    "defaultMessage": "Accept",
+    "description": "Button on the workspace picker that accepts an invitation and opens that workspace"
   },
   "X6g1omP0I1": {
     "defaultMessage": "Notify #compliance when findings need review.",
@@ -22167,6 +22227,10 @@
     "defaultMessage": "Create and adapt text, documents, slides, images, and video. Keep your context, your voice, and your team together.",
     "description": "Hero description for the multilingual Content Studio product page"
   },
+  "Y9y6zTkXYd": {
+    "defaultMessage": "Leave workspace",
+    "description": "Button in the leave workspace dialog that removes the person from the workspace"
+  },
   "YApKomjAhZ": {
     "defaultMessage": "Short label · Avoid ambiguity around reviews",
     "description": "Constraints for the QA banner segment in the hero CAT mock"
@@ -22334,6 +22398,10 @@
   "YTRbiRB1qL": {
     "defaultMessage": "No assigned Hyperlocalise jobs found.",
     "description": "Empty state when the user has no assigned native jobs"
+  },
+  "YToRIe9hSd": {
+    "defaultMessage": "Accepting invitation to {name}…",
+    "description": "Screen-reader label for the Accept button while the invitation is being accepted"
   },
   "YTpu1j7/Q4": {
     "defaultMessage": "Action",
@@ -22951,6 +23019,10 @@
     "defaultMessage": "Published to staging · notified #gtm",
     "description": "Campaign mock step 4"
   },
+  "ZVIyFNqsnD": {
+    "defaultMessage": "left the workspace",
+    "description": "Action for a member who left the workspace themselves"
+  },
   "ZVZIaOT6mh": {
     "defaultMessage": "Competitors",
     "description": "Add competitors textarea label"
@@ -23378,6 +23450,10 @@
   "a5wP5u9Iqr": {
     "defaultMessage": "Reasoning",
     "description": "Label for reasoning token usage in the context hover card"
+  },
+  "a6AWYfXez+": {
+    "defaultMessage": "Leave {name}?",
+    "description": "Title of the dialog confirming that the person leaves a workspace"
   },
   "a6JR5uFWOp": {
     "defaultMessage": "Step",
@@ -24126,6 +24202,10 @@
   "bJPgIG0M7T": {
     "defaultMessage": "Branch",
     "description": "Label next to the project files branch filter select"
+  },
+  "bJQH/XlrZq": {
+    "defaultMessage": "Create another workspace",
+    "description": "Heading of the page where someone who already has a workspace creates a new one"
   },
   "bKPrJiNBf6": {
     "defaultMessage": "Event",
@@ -25187,6 +25267,10 @@
     "defaultMessage": "Lokalise",
     "description": "TMS provider brand name for Lokalise"
   },
+  "d62LeLJXFa": {
+    "defaultMessage": "You are no longer a member of this workspace.",
+    "description": "Shown in the leave workspace dialog when the person lost access after opening the menu"
+  },
   "d6ELhmM7BL": {
     "defaultMessage": "AI helps explain the tradeoffs, but the human reviewer keeps control of the final call.",
     "description": "Proof point 3 body for the next-gen CAT tool product page"
@@ -25350,6 +25434,10 @@
   "dIgSyZztAu": {
     "defaultMessage": "Model Selector",
     "description": "Accessible dialog title for the model selector"
+  },
+  "dInHga4hn8": {
+    "defaultMessage": "Verify your email address before accepting an invitation, then try again.",
+    "description": "Error under an invitation when the person's email address is not verified"
   },
   "dIpX2t1U6p": {
     "defaultMessage": "Refresh context",
@@ -26094,6 +26182,10 @@
   "eI8CB+a2hA": {
     "defaultMessage": "Translation mistake",
     "description": "Issue type filter option for a translation mistake"
+  },
+  "eIdejZFXxK": {
+    "defaultMessage": "{count, plural, one {This API key stops working:} other {These API keys stop working:}}",
+    "description": "Heading above the person's API keys that leaving the workspace revokes"
   },
   "eIzQewHUyw": {
     "defaultMessage": "{format} export",
@@ -28419,6 +28511,10 @@
     "defaultMessage": "Previous",
     "description": "Previous page button"
   },
+  "hxaX4oOeRm": {
+    "defaultMessage": "We could not reach the sign-in service. Try again in a moment.",
+    "description": "Error under an invitation when the sign-in service failed while accepting it"
+  },
   "hxojPYuxF0": {
     "defaultMessage": "Previous",
     "description": "Button to go to the previous proposals page"
@@ -28870,10 +28966,6 @@
   "iaqmpRkx+y": {
     "defaultMessage": "QA triage",
     "description": "Issue list view preset for QA triage issues"
-  },
-  "iaun9okbk5": {
-    "defaultMessage": "Select the workspace you want to open. Your organization membership still comes from WorkOS.",
-    "description": "Page description explaining organization selection and WorkOS membership"
   },
   "ibTu9Z1u2B": {
     "defaultMessage": "Active",
@@ -30179,6 +30271,10 @@
     "defaultMessage": "A note from the founders",
     "description": "Heading for the founders note section on the company page"
   },
+  "klDfkrFdL9": {
+    "defaultMessage": "Invitations",
+    "description": "Heading above the workspaces the person has been invited to on the workspace picker"
+  },
   "klJCqIQ+RC": {
     "defaultMessage": "Other",
     "description": "Task run stage: time outside every stage, for runs without stage events, such as image and video runs"
@@ -30603,6 +30699,10 @@
     "defaultMessage": "{spaceId}/{environmentId}",
     "description": "Badge showing Contentful space and environment IDs"
   },
+  "lQxXTbs2H9": {
+    "defaultMessage": "Create workspace",
+    "description": "Link on the workspace picker to the page for creating another workspace"
+  },
   "lRRxrjNRIO": {
     "defaultMessage": "Reporting started {date} · Days and weeks use UTC",
     "description": "Subtitle of the Reports page: when Reports began recording for the workspace, and that days are UTC days"
@@ -30858,6 +30958,10 @@
   "lsXD2TTIpU": {
     "defaultMessage": "LLM agnostic",
     "description": "Differentiator point 2 for the localisation-quality-monitoring use case"
+  },
+  "lsoHEzfNM1": {
+    "defaultMessage": "Checking what changes when you leave…",
+    "description": "Shown while the leave workspace dialog loads the API keys and automations"
   },
   "lsxAaZycti": {
     "defaultMessage": "GitHub",
@@ -31583,6 +31687,10 @@
     "defaultMessage": "Translations are read from this project before opening the pull request.",
     "description": "Description for the pull translations project select field"
   },
+  "n+wQ7BXYlc": {
+    "defaultMessage": "Leave workspace…",
+    "description": "Menu item on the signed-in person's own row on the members page that opens the dialog for leaving the workspace"
+  },
   "n+ysONBMTA": {
     "defaultMessage": "Delete",
     "description": "Confirm button to delete a query"
@@ -31594,6 +31702,10 @@
   "n/tSL48HZk": {
     "defaultMessage": "CSV or TMX · up to 100 MB",
     "description": "Accepted translation memory import formats"
+  },
+  "n0CHcDaj4y": {
+    "defaultMessage": "Accept invitation to {name}",
+    "description": "Screen-reader label for the button that accepts an invitation to the named workspace"
   },
   "n0l2Kl1EOo": {
     "defaultMessage": "Repository",
@@ -32131,6 +32243,10 @@
     "defaultMessage": "Connect your tools",
     "description": "Step 4 title"
   },
+  "nnVaD4zJuo": {
+    "defaultMessage": "A new workspace has its own projects, members, settings and plan. You stay a member of your other workspaces.",
+    "description": "Summary on the page for creating an additional workspace, explaining what is separate"
+  },
   "nncYBDQUwE": {
     "defaultMessage": "Wait",
     "description": "Wait node title"
@@ -32638,6 +32754,10 @@
   "ohFSHTwja2": {
     "defaultMessage": "Updated",
     "description": "Metadata label for glossary update time"
+  },
+  "oiJegD5+SZ": {
+    "defaultMessage": "Could not check what changes when you leave.",
+    "description": "Shown when the leave workspace dialog could not load what stops working"
   },
   "oiLDAv4P0Y": {
     "defaultMessage": "Match all rules",
@@ -34071,6 +34191,10 @@
     "defaultMessage": "Keep the Docs You Have. Put Them to Work. | Hyperlocalise",
     "description": "Page title for the Guidelines product page"
   },
+  "qr+n6Od9jO": {
+    "defaultMessage": "Cancel",
+    "description": "Button that closes the leave workspace dialog without leaving"
+  },
   "qs2xntPsAx": {
     "defaultMessage": "SEO & AEO",
     "description": "Marketing homepage discoveryMode"
@@ -34514,6 +34638,10 @@
   "rXIITR1I9M": {
     "defaultMessage": "Automations",
     "description": "Eyebrow for the Guidelines daily-audit section"
+  },
+  "rXMDxSDgo4": {
+    "defaultMessage": "You are the only admin of this workspace. Make another member an admin before you leave.",
+    "description": "Why the only admin of a workspace cannot leave it"
   },
   "rXuCG4x28U": {
     "defaultMessage": "Select a resource",
@@ -37539,6 +37667,10 @@
     "defaultMessage": "Works across engineering, product, and localisation workflows",
     "description": "Differentiator point 6 for the product-localisation use case"
   },
+  "wTouXDwM8N": {
+    "defaultMessage": "Leaving…",
+    "description": "Leave workspace button label while the person is being removed"
+  },
   "wU/mAJtu+z": {
     "defaultMessage": "Describe the automation",
     "description": "Accessible label of the box where the user describes the automation they want"
@@ -38546,6 +38678,10 @@
   "xzZ3ZLUqLC": {
     "defaultMessage": "Rate cards are shared by every report. Changes apply to work recorded from now on.",
     "description": "Subtitle of the rates panel for admins"
+  },
+  "xzl3uN35Vr": {
+    "defaultMessage": "You will lose access to this workspace and its projects. To come back, an admin has to invite you again.",
+    "description": "What leaving a workspace means, in the leave workspace dialog"
   },
   "y+0ftMWpAa": {
     "defaultMessage": "URL: {url}",
