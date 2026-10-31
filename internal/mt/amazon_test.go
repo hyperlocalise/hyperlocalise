@@ -183,10 +183,10 @@ func TestAmazonClientTranslateEmptySourceMakesNoRequest(t *testing.T) {
 		_, _ = w.Write([]byte(`{"TranslatedText":"salut"}`))
 	})
 
-	resp, err := client.Translate(t.Context(), Request{SourceLocale: "en", TargetLocale: "fr", Sources: []string{"hi", ""}})
+	resp, err := client.Translate(t.Context(), Request{SourceLocale: "en", TargetLocale: "fr", Sources: []string{"hi", "", " \u00a0 "}})
 	require.NoError(t, err)
 	require.Equal(t, 1, calls)
-	require.Equal(t, []string{"salut", ""}, resp.Translations)
+	require.Equal(t, []string{"salut", "", " \u00a0 "}, resp.Translations)
 	require.Equal(t, 1, resp.RequestCount)
 }
 
