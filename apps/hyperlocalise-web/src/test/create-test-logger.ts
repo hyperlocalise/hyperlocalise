@@ -12,15 +12,24 @@
  */
 import { vi } from "vite-plus/test";
 
-import type { Logger } from "@/lib/log";
+type TestLogger = {
+  child: (bindings?: Record<string, unknown>) => TestLogger;
+  debug: ReturnType<typeof vi.fn>;
+  error: ReturnType<typeof vi.fn>;
+  info: ReturnType<typeof vi.fn>;
+  warn: ReturnType<typeof vi.fn>;
+};
 
 /**
  * Full logger surface for `vi.mock("@/lib/log")`.
  * Tests share one module graph (`isolate: false`); an incomplete mock leaks
  * `logger.warn is not a function` into later files in the same worker.
+ *
+ * Do not import `@/lib/log` here: draft CI uses `vitest --changed`, and that
+ * import would mark every log importer as related.
  */
-export function createTestLogger(overrides: Partial<Logger> = {}): Logger {
-  const logger: Logger = {
+export function createTestLogger(overrides: Partial<TestLogger> = {}): TestLogger {
+  const logger: TestLogger = {
     debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),

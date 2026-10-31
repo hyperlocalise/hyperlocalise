@@ -68,12 +68,6 @@ if (mocker) {
       mocker.reset();
     }
 
-    // Do not also invalidate `@/lib/log` / `@/lib/env` and their importer
-    // trees after every file. That walk includes React and leaves mounted
-    // trees in the shared happy-dom document (`isolate: false`). Incomplete
-    // logger mocks use `createTestLogger`; live WorkOS keys are gated in the
-    // files that enable them.
-
     dropDisconnectedDatabase();
     vi.useRealTimers();
     vi.unstubAllGlobals();
