@@ -65,7 +65,7 @@ Sử dụng môi trường GitHub như `localisation` để lưu thông tin xác
 Tạo `i18n.yml` tại thư mục gốc của kho lưu trữ:
 
 ```yaml
-version: hyperlocalise@1.13.6
+version: hyperlocalise@1.13.7
 
 locales:
   source: en-US

@@ -1,0 +1,39 @@
+---
+title: "v1.13.7"
+description: "Go CLI release notes for v1.13.7."
+---
+
+`hl smartling` can export official glossary CSV, XLSX, and TBX, and can list, create, and import translation memories. PDF writeback keeps the source font when it can render the translation; otherwise it embeds CJK, Thai, or Lao fonts.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.13.7) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.13.6...v1.13.7)
+
+## Breaking changes
+
+None.
+
+## Features
+
+- Add [Smartling official glossary export and TM admin](https://github.com/hyperlocalise/hyperlocalise/pull/2999). `glossary download` still writes Hyperlocalise-shaped CSV by default. Pass `--official` for Smartling's official CSV, or `--format xlsx` / `--format tbx` for spreadsheet and TBX exports (TBX defaults to v3; `--tbx-version v2` selects TBX-Core v2). `glossary import` accepts official `.csv`, `.xlsx`, and `.tbx`, and `--archive-mode` archives entries missing from the file. `tm list`, `tm create`, and `tm import` cover account translation memories; `tm import` uploads TMX (default 30-minute timeout, `--timeout-seconds` to raise it) and prints the accepted job UID. `tm download` still writes Hyperlocalise CSV or TMX from the entries API. `glossary create` now sends the v3 `glossaryName` field. See [Smartling](/cli/commands/smartling).
+- Embed [CJK, Thai, and Lao PDF fonts](https://github.com/hyperlocalise/hyperlocalise/pull/3018) on writeback. A block keeps the source font when that font contains the translated glyphs. Latin WinAnsi text still uses Helvetica. Other Chinese, Japanese, Korean, Vietnamese, Thai, and Lao blocks are redrawn with a bundled font, which increases the file size. Line wrapping measures CJK as full-width and keeps closing punctuation off new lines. Scripts that need shaping (Arabic, Hebrew, Indic, Khmer, Myanmar, Sinhala, Thaana, Syriac) fail instead of writing missing glyphs. See [Translate PDF documents](/cli/reference/formats/pdf).
+
+## Fixes
+
+None.
+
+## Performance
+
+- [React Intl `hl extract`](https://github.com/hyperlocalise/hyperlocalise/pull/3025) skips non-message JSX attribute values, uses an ASCII identifier fast path, and avoids string concatenation when scanning closing tags: about 29% faster extract with about 11% fewer allocations.
+- [Subtitle timestamp checks](https://github.com/hyperlocalise/hyperlocalise/pull/3031) scan SRT, WebVTT, and SBV cue lines as bytes instead of running a regexp on every non-blank line: about 2.5× faster parse and marshal.
+- [Gettext PO writeback](https://github.com/hyperlocalise/hyperlocalise/pull/3053) reuses the precomputed singular key and clears `fuzzy` flags in place, so catalog rewrite allocates less per entry.
+
+## Tests
+
+- Official glossary export format and TBX version flags, TM list/create/import flags, and TMX-only import rejection.
+- PDF CJK and Thai round-trip, font embedding, original-font reuse, CJK wrap width, and rejection of scripts that need shaping.
+- Subtitle timestamp scanners matching the previous regexp, including hourless SRT times and trailing whitespace.
+- PO fuzzy-flag clearing on rewritten singular entries.
+
+## Maintenance
+
+- Bundle WenQuanYi Micro Hei, Noto Sans Thai, and Noto Sans Lao for PDF export ([#3018](https://github.com/hyperlocalise/hyperlocalise/pull/3018)).
+- Bump the `google.golang.org/genproto` replace to `v0.0.0-20261019180522-ce908d29299b` ([#3012](https://github.com/hyperlocalise/hyperlocalise/pull/3012)).
