@@ -12,6 +12,9 @@ var (
 )
 
 func countNativeSourceWords(sourceText string) int {
+	if strings.TrimSpace(sourceText) == "" {
+		return 0
+	}
 	cleaned := stripNativeWordCountPlaceholders(sourceText)
 	return len(nativeWordLikePattern.FindAllString(cleaned, -1))
 }
@@ -49,7 +52,7 @@ func stripBraceArguments(source string) string {
 			depth--
 			if depth == 0 {
 				inner := source[start+1 : i]
-				if strings.ContainsRune(inner, '{') {
+				if strings.IndexByte(inner, '{') >= 0 {
 					out.WriteByte(' ')
 					out.WriteString(extractNestedBraceLiterals(inner))
 					out.WriteByte(' ')
@@ -70,6 +73,7 @@ func stripBraceArguments(source string) string {
 
 func extractNestedBraceLiterals(source string) string {
 	var out strings.Builder
+	out.Grow(len(source))
 	depth := 0
 	start := -1
 	for i, r := range source {
