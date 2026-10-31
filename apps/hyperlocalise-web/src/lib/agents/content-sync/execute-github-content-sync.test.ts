@@ -104,15 +104,13 @@ vi.mock("@/lib/agents/github/github-repository-automation-pull-translations-bran
   buildPullTranslationsBranchName: (runId: string) => `content-sync/${runId}`,
 }));
 
-vi.mock("@/lib/log", () => ({
-  createLogger: () => ({
-    error: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn(),
-  }),
-  serializeErrorForLog: vi.fn((error: Error) => ({ error })),
-}));
+vi.mock("@/lib/log", async () => {
+  const { createTestLogger } = await import("@/test/create-test-logger");
+  return {
+    createLogger: () => createTestLogger(),
+    serializeErrorForLog: vi.fn((error: Error) => ({ error })),
+  };
+});
 
 import { executeGithubContentSync } from "./execute-github-content-sync";
 
