@@ -65,7 +65,7 @@ Verwenden Sie eine GitHub-Umgebung wie `localisation` für Produktionszugangsdat
 Erstellen Sie `i18n.yml` im Stammverzeichnis des Repositorys:
 
 ```yaml
-version: hyperlocalise@1.13.6
+version: hyperlocalise@1.13.7
 
 locales:
   source: en-US
