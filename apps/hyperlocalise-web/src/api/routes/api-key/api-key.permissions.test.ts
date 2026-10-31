@@ -23,17 +23,13 @@ import {
 } from "./api-key.permissions";
 import { defaultApiKeyPermissions } from "./api-key.schema";
 
-const rolesWithFullScopes: OrganizationMembershipRole[] = [
-  "admin",
-  "localization_manager",
-  "developer",
-  "reviewer",
-  "translator",
-];
+const localizationOperators: OrganizationMembershipRole[] = ["admin", "localization_manager"];
+
+const jobContributors: OrganizationMembershipRole[] = ["developer", "reviewer", "translator"];
 
 describe("getGrantableApiKeyPermissions", () => {
-  it("computes grantable scopes from the live capability table", () => {
-    for (const role of rolesWithFullScopes) {
+  it("grants every scope to localization operators", () => {
+    for (const role of localizationOperators) {
       const capabilities = new Set(getCapabilitiesForRole(role));
 
       expect(getGrantableApiKeyPermissions(role)).toEqual([...defaultApiKeyPermissions]);
@@ -45,8 +41,19 @@ describe("getGrantableApiKeyPermissions", () => {
     }
   });
 
+  it("grants memories:read but not memories:write to job contributors", () => {
+    const expected = defaultApiKeyPermissions.filter((scope) => scope !== "memories:write");
+    for (const role of jobContributors) {
+      expect(getGrantableApiKeyPermissions(role)).toEqual(expected);
+    }
+  });
+
   it("limits a member to read scopes", () => {
-    expect(getGrantableApiKeyPermissions("member")).toEqual(["jobs:read", "files:read"]);
+    expect(getGrantableApiKeyPermissions("member")).toEqual([
+      "jobs:read",
+      "files:read",
+      "memories:read",
+    ]);
   });
 
   it("refuses write scopes a member cannot back", () => {
@@ -61,6 +68,9 @@ describe("ownerCanExerciseApiKeyPermission", () => {
     expect(ownerCanExerciseApiKeyPermission("member", "jobs:write")).toBe(false);
     expect(ownerCanExerciseApiKeyPermission("translator", "jobs:write")).toBe(true);
     expect(ownerCanExerciseApiKeyPermission("member", "jobs:read")).toBe(true);
+    expect(ownerCanExerciseApiKeyPermission("translator", "memories:write")).toBe(false);
+    expect(ownerCanExerciseApiKeyPermission("admin", "memories:write")).toBe(true);
+    expect(ownerCanExerciseApiKeyPermission("member", "memories:read")).toBe(true);
   });
 
   it("fails closed for an unknown scope", () => {

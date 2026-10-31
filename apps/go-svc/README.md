@@ -886,9 +886,10 @@ also list and revoke other members' tokens through `api_keys:read` and
 - **Storage.** Tokens use the `hl_` prefix with 32 random bytes encoded as
   base64url. Only the SHA-256 digest and 8-character display prefix are stored.
   Plaintext is returned once on creation and is never logged or persisted.
-- **Scopes.** Tokens support `jobs:read`, `jobs:write`, `files:read`, and
-  `files:write`, capped by the owner's role. Omitting `permissions` grants all
-  scopes available to that role.
+- **Scopes.** Tokens support `jobs:read`, `jobs:write`, `files:read`,
+  `files:write`, `memories:read`, and `memories:write`, capped by the owner's
+  role. Omitting `permissions` grants all scopes available to that role.
+  `memories:write` is limited to `admin` and `localization_manager`.
 - **Issuance.** Creation locks the caller's membership row to serialize against
   membership removal. A token is never committed active unless its
   `pat.created` audit record succeeds.
@@ -1049,8 +1050,13 @@ CRUD, project attachments, glossary concepts/terms, memory entries, and
 CSV/TBX/TMX (plus glossary XLSX export) interchange. Glossary import and export
 are asynchronous: GoSvc creates a run, signs the upload or download, publishes
 an SQS message, and exposes the run report while the existing
-`apps/glossary-interchange-lambda` worker processes it. Replace imports retain a
-TBX backup reference in `glossary_import_runs`.
+`apps/glossary-interchange-lambda` worker processes it. The worker (and the
+Go preview parser) import Phrase TBX 2 termbases, including forbidden terms.
+Replace imports retain a TBX backup reference in `glossary_import_runs`.
+Public PAT/agent TMX import and export live on go-svc at
+`/v1/translation-memories/{memoryId}/entries/export` and
+`/v1/translation-memories/{memoryId}/entries/import` (`memories:read` /
+`memories:write`).
 Auth matches dictionary routes: WorkOS session cookie, live membership verification,
 and role checks (`glossaries:write` / `memories:write` for managers; translators may
 contribute to team-controlled native glossaries).

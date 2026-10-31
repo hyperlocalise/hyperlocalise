@@ -483,7 +483,13 @@ export type LeaveWorkspacePreview = {
   automationTotal: number;
 };
 
-export type ApiKeyPermission = "jobs:read" | "jobs:write" | "files:read" | "files:write";
+export type ApiKeyPermission =
+  | "jobs:read"
+  | "jobs:write"
+  | "files:read"
+  | "files:write"
+  | "memories:read"
+  | "memories:write";
 
 export type ApiKeyOwner = {
   userId: string;

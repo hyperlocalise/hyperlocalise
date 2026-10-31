@@ -104,7 +104,8 @@ export const organizationApiKeys = pgTable(
     keyHash: text("key_hash").notNull(),
     // First 8 characters of the key shown in UI lists.
     keyPrefix: text("key_prefix").notNull(),
-    // Permissions granted to this key, e.g. ["jobs:read", "jobs:write", "files:read", "files:write"].
+    // Permissions granted to this key. Creation writes the owner's grantable
+    // PAT scopes; this default only applies if an insert omits the column.
     permissions: jsonb("permissions")
       .$type<string[]>()
       .notNull()

@@ -83,6 +83,7 @@ type handler struct {
 	overview             *overviewAPI
 	publicTranslations   *publicTranslationsAPI
 	publicJobs           *publicJobsAPI
+	publicMemory         *publicMemoryAPI
 	workspace            *workspaceAPI
 	reports              *reportingAPI
 	autumn               *autumn.Client
@@ -168,6 +169,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.publicJobs != nil {
 		h.publicJobs.register(mux)
+	}
+	if h.publicMemory != nil {
+		h.publicMemory.register(mux)
 	}
 	if h.workspace != nil {
 		h.registerDomainResearch(mux, verifier)
