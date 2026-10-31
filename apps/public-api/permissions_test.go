@@ -11,12 +11,12 @@ import (
 func TestEffectivePermissions(t *testing.T) {
 	t.Run("member read scopes", func(t *testing.T) {
 		perms := effectivePermissions([]string{"jobs:read", "files:read", "jobs:write", "files:write"}, "member")
-		require.Equal(t, []string{"jobs:read", "files:read", "projects:read", "queries:read"}, perms)
+		require.Equal(t, []string{"jobs:read", "files:read", "projects:read", "queries:read", "strings:read", "glossaries:read", "translation-memories:read"}, perms)
 	})
 
 	t.Run("developer keeps write scopes", func(t *testing.T) {
 		perms := effectivePermissions([]string{"jobs:read", "files:read", "jobs:write", "files:write"}, "developer")
-		require.Equal(t, []string{"jobs:read", "files:read", "jobs:write", "files:write", "projects:read", "queries:read"}, perms)
+		require.Equal(t, []string{"jobs:read", "files:read", "jobs:write", "files:write", "projects:read", "queries:read", "strings:read", "glossaries:read", "translation-memories:read", "strings:write"}, perms)
 	})
 }
 

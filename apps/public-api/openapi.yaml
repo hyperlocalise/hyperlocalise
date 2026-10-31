@@ -2,7 +2,9 @@ openapi: 3.1.0
 info:
   title: Hyperlocalise Public API
   version: 1.0.0
-  description: Read projects and Queries from a Hyperlocalise workspace.
+  description: >-
+    Read projects, Queries, glossaries, and translation memories from a Hyperlocalise workspace,
+    and manage the strings and translations of native projects.
 servers:
   - url: https://api.hyperlocalise.com
 security:
@@ -11,6 +13,10 @@ tags:
   - name: Identity
   - name: Projects
   - name: Queries
+  - name: Strings
+  - name: Translations
+  - name: Glossaries
+  - name: Translation memories
 paths:
   /health:
     get:
@@ -171,6 +177,473 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/locales:
+    get:
+      operationId: getProjectLocales
+      tags: [Projects]
+      summary: Get translation progress per target locale
+      description: Requires `strings:read`. Hidden strings are excluded from the totals.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Source locale and progress for each project target locale.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sourceLocale, locales]
+                properties:
+                  sourceLocale: { type: [string, "null"] }
+                  locales:
+                    type: array
+                    items: { $ref: "#/components/schemas/LocaleProgress" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/strings:
+    get:
+      operationId: listStrings
+      tags: [Strings]
+      summary: List project strings
+      description: Requires `strings:read`.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: search
+          in: query
+          description: Case-insensitive match on key or source text.
+          schema: { type: string, maxLength: 200 }
+        - name: filePath
+          in: query
+          description: Only strings from this source file.
+          schema: { type: string, maxLength: 2048 }
+        - name: includeHidden
+          in: query
+          schema: { type: boolean, default: false }
+        - $ref: "#/components/parameters/Limit50"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Project strings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [strings, pagination]
+                properties:
+                  strings:
+                    type: array
+                    items: { $ref: "#/components/schemas/String" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createString
+      tags: [Strings]
+      summary: Create a string
+      description: >-
+        Requires `strings:write`, granted by `files:write` to roles other than member.
+        Native projects only. Keys are unique per source file; omit `filePath` for a string
+        that belongs to no file.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [key, sourceText]
+              properties:
+                key: { type: string, minLength: 1, maxLength: 1000 }
+                sourceText: { type: string, minLength: 1, maxLength: 100000 }
+                context: { type: [string, "null"], maxLength: 10000 }
+                type: { type: [string, "null"], maxLength: 64 }
+                maxLength: { type: [integer, "null"], minimum: 1, maximum: 100000 }
+                hidden: { type: boolean, default: false }
+                filePath:
+                  type: [string, "null"]
+                  maxLength: 2048
+                  description: Path of an existing project source file.
+      responses:
+        "201":
+          description: Created string.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StringResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/strings/{stringId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/StringId"
+    get:
+      operationId: getString
+      tags: [Strings]
+      summary: Get a string
+      description: Requires `strings:read`.
+      responses:
+        "200":
+          description: String detail.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StringResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateString
+      tags: [Strings]
+      summary: Update a string
+      description: Requires `strings:write`. Native projects only. Send `null` to clear `context` or `maxLength`. Changing `sourceText` on a locked segment returns `409`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                sourceText: { type: string, minLength: 1, maxLength: 100000 }
+                context: { type: [string, "null"], maxLength: 10000 }
+                maxLength: { type: [integer, "null"], minimum: 1, maximum: 100000 }
+                hidden: { type: boolean }
+      responses:
+        "200":
+          description: Updated string.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StringResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteString
+      tags: [Strings]
+      summary: Delete a string and its translations
+      description: Requires `strings:write`. Native projects only. Locked segments return `409`.
+      responses:
+        "204":
+          description: The string was deleted.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/strings/{stringId}/translations:
+    get:
+      operationId: listStringTranslations
+      tags: [Translations]
+      summary: List a string's translations in every locale
+      description: Requires `strings:read`.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/StringId"
+      responses:
+        "200":
+          description: Translations of the string.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [translations]
+                properties:
+                  translations:
+                    type: array
+                    items: { $ref: "#/components/schemas/Translation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/strings/{stringId}/translations/{locale}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/StringId"
+      - name: locale
+        in: path
+        required: true
+        description: A target locale of the project.
+        schema: { type: string, maxLength: 64 }
+    get:
+      operationId: getTranslation
+      tags: [Translations]
+      summary: Get a string's translation in one locale
+      description: Requires `strings:read`.
+      responses:
+        "200":
+          description: Translation detail.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TranslationResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    put:
+      operationId: putTranslation
+      tags: [Translations]
+      summary: Save a string's translation in one locale
+      description: >-
+        Requires `strings:write`. Native projects only. Creates or replaces the translation and
+        records a revision attributed to the token owner. Locked segments return `409`, text
+        longer than the string's `maxLength` returns `422`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [text]
+              properties:
+                text: { type: string, maxLength: 100000 }
+                status:
+                  type: string
+                  enum: [draft, needs_review, approved, rejected]
+                  default: draft
+      responses:
+        "200":
+          description: Saved translation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TranslationResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "422":
+          description: The translation breaks a string rule such as its max length.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/translations:
+    get:
+      operationId: listTranslations
+      tags: [Translations]
+      summary: List project translations
+      description: Requires `strings:read`. Use `locale` to export one language. Hidden strings are omitted unless `includeHidden` is true.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: locale
+          in: query
+          schema: { type: string, maxLength: 64 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [draft, needs_review, approved, rejected] }
+        - name: includeHidden
+          in: query
+          schema: { type: boolean, default: false }
+        - $ref: "#/components/parameters/Limit50"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Project translations.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [translations, pagination]
+                properties:
+                  translations:
+                    type: array
+                    items: { $ref: "#/components/schemas/Translation" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/glossaries:
+    get:
+      operationId: listGlossaries
+      tags: [Glossaries]
+      summary: List accessible glossaries
+      description: >-
+        Requires `glossaries:read`. Organization glossaries are visible to every member; team
+        glossaries to their team and to teams of projects they are attached to.
+      parameters:
+        - $ref: "#/components/parameters/Limit25"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Accessible glossaries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [glossaries, pagination]
+                properties:
+                  glossaries:
+                    type: array
+                    items: { $ref: "#/components/schemas/Glossary" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/glossaries/{glossaryId}:
+    get:
+      operationId: getGlossary
+      tags: [Glossaries]
+      summary: Get an accessible glossary
+      parameters:
+        - $ref: "#/components/parameters/GlossaryId"
+      responses:
+        "200":
+          description: Glossary detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [glossary]
+                properties:
+                  glossary: { $ref: "#/components/schemas/Glossary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/glossaries/{glossaryId}/terms:
+    get:
+      operationId: listGlossaryTerms
+      tags: [Glossaries]
+      summary: List glossary terms
+      description: Requires `glossaries:read`. Archived terms and concepts are excluded.
+      parameters:
+        - $ref: "#/components/parameters/GlossaryId"
+        - name: locale
+          in: query
+          schema: { type: string, maxLength: 64 }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 200 }
+        - $ref: "#/components/parameters/Limit50"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Glossary terms ordered by concept.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [terms, pagination]
+                properties:
+                  terms:
+                    type: array
+                    items: { $ref: "#/components/schemas/GlossaryTerm" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/translation-memories:
+    get:
+      operationId: listTranslationMemories
+      tags: [Translation memories]
+      summary: List accessible translation memories
+      description: >-
+        Requires `translation-memories:read`. Unattached memories are visible to every member;
+        attached ones to teams of their projects.
+      parameters:
+        - $ref: "#/components/parameters/Limit25"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Accessible translation memories.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [translationMemories, pagination]
+                properties:
+                  translationMemories:
+                    type: array
+                    items: { $ref: "#/components/schemas/TranslationMemory" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/translation-memories/{memoryId}:
+    get:
+      operationId: getTranslationMemory
+      tags: [Translation memories]
+      summary: Get an accessible translation memory
+      parameters:
+        - $ref: "#/components/parameters/MemoryId"
+      responses:
+        "200":
+          description: Translation memory detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [translationMemory]
+                properties:
+                  translationMemory: { $ref: "#/components/schemas/TranslationMemory" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/translation-memories/{memoryId}/entries:
+    get:
+      operationId: listTranslationMemoryEntries
+      tags: [Translation memories]
+      summary: List translation memory entries
+      description: Requires `translation-memories:read`. `search` matches source or target text.
+      parameters:
+        - $ref: "#/components/parameters/MemoryId"
+        - name: sourceLocale
+          in: query
+          schema: { type: string, maxLength: 64 }
+        - name: targetLocale
+          in: query
+          schema: { type: string, maxLength: 64 }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 200 }
+        - $ref: "#/components/parameters/Limit50"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Entries, most recently updated first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [entries, pagination]
+                properties:
+                  entries:
+                    type: array
+                    items: { $ref: "#/components/schemas/TranslationMemoryEntry" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
 components:
   securitySchemes:
     personalAccessToken:
@@ -190,6 +663,26 @@ components:
       name: offset
       in: query
       schema: { type: integer, minimum: 0, maximum: 1000000, default: 0 }
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, maxLength: 128 }
+    StringId:
+      name: stringId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    GlossaryId:
+      name: glossaryId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    MemoryId:
+      name: memoryId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
   schemas:
     PrincipalResponse:
       type: object
@@ -263,6 +756,123 @@ components:
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         resolvedAt: { type: [string, "null"], format: date-time }
+    LocaleProgress:
+      type: object
+      required: [locale, totalStrings, translatedStrings, approvedStrings, needsReviewStrings, translationProgress, approvalProgress]
+      properties:
+        locale: { type: string }
+        totalStrings: { type: integer, minimum: 0 }
+        translatedStrings: { type: integer, minimum: 0 }
+        approvedStrings: { type: integer, minimum: 0 }
+        needsReviewStrings: { type: integer, minimum: 0 }
+        translationProgress: { type: integer, minimum: 0, maximum: 100, description: Percent of strings with non-rejected text. }
+        approvalProgress: { type: integer, minimum: 0, maximum: 100 }
+    String:
+      type: object
+      required: [id, key, sourceText, context, type, maxLength, hidden, filePath, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        key: { type: string }
+        sourceText: { type: string }
+        context: { type: [string, "null"] }
+        type: { type: [string, "null"] }
+        maxLength: { type: [integer, "null"] }
+        hidden: { type: boolean }
+        filePath: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    StringResponse:
+      type: object
+      required: [string]
+      properties:
+        string: { $ref: "#/components/schemas/String" }
+    Translation:
+      type: object
+      required: [id, stringId, key, locale, text, status, provenance, reviewedByUserId, reviewedAt, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        stringId: { type: string, format: uuid }
+        key: { type: string }
+        locale: { type: string }
+        text: { type: string }
+        status: { type: string, enum: [draft, needs_review, approved, rejected] }
+        provenance: { type: string, enum: [manual, translation_job, import, agent] }
+        reviewedByUserId: { type: [string, "null"], format: uuid }
+        reviewedAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TranslationResponse:
+      type: object
+      required: [translation]
+      properties:
+        translation: { $ref: "#/components/schemas/Translation" }
+    Glossary:
+      type: object
+      required: [id, name, description, sourceLocale, locales, status, source, controlLevel, teamId, externalProviderKind, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        sourceLocale: { type: string }
+        locales:
+          type: array
+          items: { type: string }
+        status: { type: string, enum: [draft, active, archived] }
+        source: { type: string, enum: [native, external_tms] }
+        controlLevel: { type: string, enum: [org, team] }
+        teamId: { type: [string, "null"], format: uuid }
+        externalProviderKind: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    GlossaryTerm:
+      type: object
+      required: [id, conceptId, locale, term, description, note, partOfSpeech, status, caseSensitive, forbidden, reviewStatus, conceptDefinition, conceptSubject, translatable, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        conceptId: { type: string, format: uuid }
+        locale: { type: string }
+        term: { type: string }
+        description: { type: string }
+        note: { type: string }
+        partOfSpeech: { type: string }
+        status: { type: string }
+        caseSensitive: { type: boolean }
+        forbidden: { type: boolean }
+        reviewStatus: { type: string }
+        conceptDefinition: { type: string }
+        conceptSubject: { type: string }
+        translatable: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TranslationMemory:
+      type: object
+      required: [id, name, description, status, source, externalProviderKind, locales, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [draft, active, archived] }
+        source: { type: string, enum: [native, external_tms] }
+        externalProviderKind: { type: [string, "null"] }
+        locales:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TranslationMemoryEntry:
+      type: object
+      required: [id, sourceLocale, targetLocale, sourceText, targetText, matchScore, provenance, reviewStatus, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        sourceLocale: { type: string }
+        targetLocale: { type: string }
+        sourceText: { type: string }
+        targetText: { type: string }
+        matchScore: { type: integer }
+        provenance: { type: string }
+        reviewStatus: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     Error:
       type: object
       required: [error, message]
@@ -271,7 +881,7 @@ components:
         message: { type: string }
   responses:
     BadRequest:
-      description: Invalid query parameters.
+      description: Invalid query parameters or request body.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -292,6 +902,21 @@ components:
           schema: { $ref: "#/components/schemas/Error" }
     Unavailable:
       description: Authentication or resource storage is temporarily unavailable.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: The project is not native, the key already exists, or the segment is locked.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    PayloadTooLarge:
+      description: The request body exceeds 256 KiB.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    UnsupportedMediaType:
+      description: The request body is not `application/json`.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
