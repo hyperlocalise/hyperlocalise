@@ -214,6 +214,7 @@
                       "platform/connections/customer-io",
                       "platform/connections/iterable",
                       "platform/connections/loops",
+                      "platform/connections/hubspot",
                       "platform/connections/canva",
                       "platform/connections/figma",
                       "platform/connections/design-tools"

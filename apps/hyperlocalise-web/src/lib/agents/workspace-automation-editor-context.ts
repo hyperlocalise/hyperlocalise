@@ -37,6 +37,7 @@ const connectionsSchema = z.object({
   customer_io: z.boolean().optional(),
   iterable: z.boolean().optional(),
   loops: z.boolean().optional(),
+  hubspot: z.boolean().optional(),
   slack: z.boolean().optional(),
   email: z.boolean().optional(),
 }) satisfies z.ZodType<WorkspaceAutomationSkillConnections>;

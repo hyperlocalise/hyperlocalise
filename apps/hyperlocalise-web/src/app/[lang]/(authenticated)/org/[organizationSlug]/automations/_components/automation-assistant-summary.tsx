@@ -41,6 +41,7 @@ export const AUTOMATION_ASSISTANT_INTEGRATION_LABELS: Record<
   customer_io: workspaceAutomationFormMessages.skillIntegrationCustomerIo,
   iterable: workspaceAutomationFormMessages.skillIntegrationIterable,
   loops: workspaceAutomationFormMessages.skillIntegrationLoops,
+  hubspot: workspaceAutomationFormMessages.skillIntegrationHubspot,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
 };

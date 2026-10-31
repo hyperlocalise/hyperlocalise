@@ -295,7 +295,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     type: "partner",
     marketing: false,
     workspace: true,
-    iconKey: "hubspot",
+    logoSrc: "/images/hubspot-logo.svg",
     websiteUrl: "https://www.hubspot.com",
   },
   {

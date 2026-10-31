@@ -110,6 +110,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
 import { BRAZE_PIPES_SLUG } from "@/lib/braze/constants";
 import { CUSTOMER_IO_PIPES_SLUG } from "@/lib/customer-io/constants";
+import { HUBSPOT_PIPES_SLUG } from "@/lib/hubspot/constants";
 import { ITERABLE_PIPES_SLUG } from "@/lib/iterable/constants";
 import { LOOPS_PIPES_SLUG } from "@/lib/loops/constants";
 import { INTERCOM_PIPES_SLUG } from "@/lib/intercom/constants";
@@ -192,6 +193,7 @@ import {
 import { WorkspaceAutomationBrazeCampaignsSettings } from "./workspace-automation-braze-campaigns-settings";
 import { WorkspaceAutomationCustomerIoSettings } from "./workspace-automation-customer-io-settings";
 import { WorkspaceAutomationBrazeSettings } from "./workspace-automation-braze-settings";
+import { WorkspaceAutomationHubspotSettings } from "./workspace-automation-hubspot-settings";
 import { WorkspaceAutomationIterableSettings } from "./workspace-automation-iterable-settings";
 import { WorkspaceAutomationIntercomSettings } from "./workspace-automation-intercom-settings";
 import { WorkspaceAutomationSanitySettings } from "./workspace-automation-sanity-settings";
@@ -316,6 +318,12 @@ function IterableToolIcon({ className }: { className?: string }) {
 function LoopsToolIcon({ className }: { className?: string }) {
   return (
     <IntegrationLogo src="/images/loops-logo.png" className={cn(BRAND_ICON_CLASS, className)} />
+  );
+}
+
+function HubspotToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/hubspot-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
   );
 }
 
@@ -984,6 +992,7 @@ function AddToolMenu({
   customerIoConnected,
   iterableConnected,
   loopsConnected,
+  hubspotConnected,
   projectSourceLocale,
   semrushConnected,
   zernioConnected,
@@ -1010,6 +1019,7 @@ function AddToolMenu({
   customerIoConnected: boolean;
   iterableConnected: boolean;
   loopsConnected: boolean;
+  hubspotConnected: boolean;
   projectSourceLocale?: string | null;
   semrushConnected: boolean;
   zernioConnected: boolean;
@@ -1325,6 +1335,7 @@ function AddToolMenu({
                 form.brazeCampaignsEnabled ||
                 form.iterableEnabled ||
                 form.loopsEnabled ||
+                form.hubspotEnabled ||
                 !brazeConnected
               }
               onClick={() =>
@@ -1334,6 +1345,7 @@ function AddToolMenu({
                   brazeCampaignsEnabled: false,
                   iterableEnabled: false,
                   loopsEnabled: false,
+                  hubspotEnabled: false,
                 })
               }
             >
@@ -1357,6 +1369,7 @@ function AddToolMenu({
                 form.brazeEnabled ||
                 form.iterableEnabled ||
                 form.loopsEnabled ||
+                form.hubspotEnabled ||
                 !brazeConnected
               }
               onClick={() =>
@@ -1366,6 +1379,7 @@ function AddToolMenu({
                   brazeEnabled: false,
                   iterableEnabled: false,
                   loopsEnabled: false,
+                  hubspotEnabled: false,
                 })
               }
             >
@@ -1390,6 +1404,7 @@ function AddToolMenu({
                 form.brazeCampaignsEnabled ||
                 form.iterableEnabled ||
                 form.loopsEnabled ||
+                form.hubspotEnabled ||
                 !customerIoConnected
               }
               onClick={() =>
@@ -1400,6 +1415,7 @@ function AddToolMenu({
                   brazeCampaignsEnabled: false,
                   iterableEnabled: false,
                   loopsEnabled: false,
+                  hubspotEnabled: false,
                 })
               }
             >
@@ -1466,6 +1482,7 @@ function AddToolMenu({
                 form.brazeEnabled ||
                 form.brazeCampaignsEnabled ||
                 form.customerIoEnabled ||
+                form.hubspotEnabled ||
                 !loopsConnected
               }
               onClick={() =>
@@ -1476,6 +1493,7 @@ function AddToolMenu({
                   brazeEnabled: false,
                   brazeCampaignsEnabled: false,
                   customerIoEnabled: false,
+                  hubspotEnabled: false,
                 })
               }
             >
@@ -1493,6 +1511,43 @@ function AddToolMenu({
                 form.brazeCampaignsEnabled ||
                 form.customerIoEnabled ||
                 form.iterableEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.hubspotEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.loopsEnabled ||
+                !hubspotConnected
+              }
+              onClick={() =>
+                onChange({
+                  ...form,
+                  hubspotEnabled: true,
+                  brazeEnabled: false,
+                  brazeCampaignsEnabled: false,
+                  customerIoEnabled: false,
+                  loopsEnabled: false,
+                })
+              }
+            >
+              <HubspotToolIcon />
+              HubSpot emails, forms, pages, and blog posts
+              {form.hubspotEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !hubspotConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.loopsEnabled ? (
                 <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
@@ -1797,6 +1852,7 @@ const SKILL_INTEGRATION_LABELS: Record<WorkspaceAutomationSkillIntegration, Mess
   customer_io: workspaceAutomationFormMessages.skillIntegrationCustomerIo,
   iterable: workspaceAutomationFormMessages.skillIntegrationIterable,
   loops: workspaceAutomationFormMessages.skillIntegrationLoops,
+  hubspot: workspaceAutomationFormMessages.skillIntegrationHubspot,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
 };
@@ -1872,6 +1928,9 @@ function SkillIcon({ className, skill }: { className?: string; skill: WorkspaceA
   }
   if (tool === "import_loops_emails" || tool === "push_loops_emails") {
     return <LoopsToolIcon className={className} />;
+  }
+  if (tool === "import_hubspot_content" || tool === "push_hubspot_content") {
+    return <HubspotToolIcon className={className} />;
   }
   if (tool === "notify_slack") {
     return <SlackToolIcon className={className} />;
@@ -2185,6 +2244,7 @@ function ToolsSettings({
   zernioConnections,
   slackConnected,
   loopsConnected,
+  hubspotConnected,
 }: {
   automationId?: string;
   canUpdateKnowledgeMemory: boolean;
@@ -2215,6 +2275,7 @@ function ToolsSettings({
   customerIoConnected: boolean;
   iterableConnected: boolean;
   loopsConnected: boolean;
+  hubspotConnected: boolean;
   semrushConnections: SemrushConnectionOption[];
   zernioConnections: ZernioConnectionOption[];
   slackConnected: boolean;
@@ -3193,6 +3254,40 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.hubspotEnabled ? (
+          <EditorRow
+            icon={<HubspotToolIcon />}
+            title={
+              <>
+                <span>HubSpot emails, forms, pages, and blog posts</span>
+                {!hubspotConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import HubSpot marketing emails, forms, blog posts, landing pages, and website pages, translate in Jobs, then push approved locales as unpublished copies."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_hubspot_content")}
+                label="Remove HubSpot"
+                onClick={() => onChange({ ...form, hubspotEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationHubspotSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              hubspotConnected={hubspotConnected}
+              disabled={disabled}
+              onChange={onChange}
+            />
+            <FieldError message={errors.hubspot} />
+          </EditorRow>
+        ) : null}
+
         {form.crowdinEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siCrowdin} />}
@@ -3728,6 +3823,7 @@ function ToolsSettings({
           customerIoConnected={customerIoConnected}
           iterableConnected={iterableConnected}
           loopsConnected={loopsConnected}
+          hubspotConnected={hubspotConnected}
           projectSourceLocale={selectedProject?.sourceLocale}
           semrushConnected={semrushConnected}
           zernioConnected={zernioConnected}
@@ -4085,6 +4181,23 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const hubspotPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, HUBSPOT_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: HUBSPOT_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load HubSpot connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
   const intercomPipesQuery = useQuery({
     queryKey: ["pipes", organizationSlug, INTERCOM_PIPES_SLUG],
     queryFn: async () => {
@@ -4219,6 +4332,7 @@ export function WorkspaceAutomationEditor({
   const customerIoConnected = Boolean(customerIoPipesQuery.data?.connected);
   const iterableConnected = Boolean(iterablePipesQuery.data?.connected);
   const loopsConnected = Boolean(loopsPipesQuery.data?.connected);
+  const hubspotConnected = Boolean(hubspotPipesQuery.data?.connected);
   const gitlabConnected = Boolean(gitlabPipesQuery.data?.connected);
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
@@ -4252,6 +4366,7 @@ export function WorkspaceAutomationEditor({
     customer_io: customerIoPipesQuery.isSuccess ? customerIoConnected : undefined,
     iterable: iterablePipesQuery.isSuccess ? iterableConnected : undefined,
     loops: loopsPipesQuery.isSuccess ? loopsConnected : undefined,
+    hubspot: hubspotPipesQuery.isSuccess ? hubspotConnected : undefined,
     slack: slackQuery.isSuccess ? slackConnected : undefined,
     email: emailConnected
       ? true
@@ -4323,7 +4438,8 @@ export function WorkspaceAutomationEditor({
     !brazePipesQuery.isPending &&
     !customerIoPipesQuery.isPending &&
     !iterablePipesQuery.isPending &&
-    !loopsPipesQuery.isPending;
+    !loopsPipesQuery.isPending &&
+    !hubspotPipesQuery.isPending;
 
   const editor = (
     <div ref={editorRef} className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -4512,6 +4628,7 @@ export function WorkspaceAutomationEditor({
             customerIoConnected={customerIoConnected}
             iterableConnected={iterableConnected}
             loopsConnected={loopsConnected}
+            hubspotConnected={hubspotConnected}
             semrushConnections={semrushConnections}
             zernioConnections={zernioConnections}
             slackConnected={slackConnected}
