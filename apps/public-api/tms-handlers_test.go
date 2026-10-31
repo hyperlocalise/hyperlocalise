@@ -164,6 +164,34 @@ func TestStringRoutes(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
+	t.Run("list rejects invalid pagination and overlong filters", func(t *testing.T) {
+		store := &fakeResourceStore{}
+		w := sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/projects/project-1/strings?limit=0", "")
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		require.Contains(t, w.Body.String(), "invalid_query")
+
+		w = sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/projects/project-1/strings?offset=-1", "")
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		require.Contains(t, w.Body.String(), "invalid_query")
+
+		w = sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/projects/project-1/strings?search="+strings.Repeat("q", 201), "")
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		require.Contains(t, w.Body.String(), "invalid_query")
+	})
+
+	t.Run("get one string", func(t *testing.T) {
+		store := &fakeResourceStore{}
+		w := sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/projects/project-1/strings/string-1", "")
+		require.Equal(t, http.StatusOK, w.Code)
+		require.Equal(t, "string-1", store.tmsStringID)
+		require.Contains(t, w.Body.String(), `"string":{"id":"string-1"`)
+
+		store.tmsErr = errStringNotFound
+		w = sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/projects/project-1/strings/missing", "")
+		require.Equal(t, http.StatusNotFound, w.Code)
+		require.Contains(t, w.Body.String(), "string_not_found")
+	})
+
 	t.Run("create requires write scope", func(t *testing.T) {
 		store := &fakeResourceStore{}
 		w := sendResource(t, resourcePrincipal(readScopes...), store, http.MethodPost, "/v1/projects/project-1/strings", `{"key":"a","sourceText":"A"}`)
@@ -249,6 +277,14 @@ func TestStringRoutes(t *testing.T) {
 			require.Equal(t, http.StatusForbidden, w.Code, tt.method)
 			require.Contains(t, w.Body.String(), "strings:write")
 		}
+	})
+
+	t.Run("patch maps locked segments", func(t *testing.T) {
+		store := &fakeResourceStore{}
+		store.tmsErr = errSegmentLocked
+		w := sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodPatch, "/v1/projects/project-1/strings/string-1", `{"hidden":true}`)
+		require.Equal(t, http.StatusConflict, w.Code)
+		require.Contains(t, w.Body.String(), "segment_locked")
 	})
 
 	t.Run("delete returns no content", func(t *testing.T) {
@@ -347,6 +383,39 @@ func TestTranslationRoutes(t *testing.T) {
 		require.Equal(t, http.StatusServiceUnavailable, w.Code)
 		require.NotContains(t, w.Body.String(), "connection reset")
 	})
+
+	t.Run("list string translations", func(t *testing.T) {
+		store := &fakeResourceStore{}
+		store.translations = []translationRecord{{Locale: "fr", Text: "Bonjour", Status: "approved"}}
+		w := sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/projects/project-1/strings/string-1/translations", "")
+		require.Equal(t, http.StatusOK, w.Code)
+		require.Equal(t, "string-1", store.tmsStringID)
+		require.Contains(t, w.Body.String(), `"translations":[`)
+		require.Contains(t, w.Body.String(), "Bonjour")
+	})
+}
+
+func TestTMSReadPermissionGates(t *testing.T) {
+	store := &fakeResourceStore{}
+	for _, tt := range []struct {
+		path   string
+		needed string
+	}{
+		{"/v1/projects/project-1/locales", "strings:read"},
+		{"/v1/projects/project-1/strings", "strings:read"},
+		{"/v1/projects/project-1/strings/string-1", "strings:read"},
+		{"/v1/projects/project-1/translations", "strings:read"},
+		{"/v1/glossaries", "glossaries:read"},
+		{"/v1/glossaries/g-1", "glossaries:read"},
+		{"/v1/translation-memories", "translation-memories:read"},
+		{"/v1/translation-memories/m-1", "translation-memories:read"},
+	} {
+		t.Run(tt.path, func(t *testing.T) {
+			w := sendResource(t, resourcePrincipal("projects:read"), store, http.MethodGet, tt.path, "")
+			require.Equal(t, http.StatusForbidden, w.Code)
+			require.Contains(t, w.Body.String(), tt.needed)
+		})
+	}
 }
 
 func TestGlossaryAndMemoryRoutes(t *testing.T) {
