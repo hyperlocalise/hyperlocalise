@@ -122,7 +122,7 @@ Vermeide `--flatten` bei ICU-Nachrichten, die als einzelne react-intl-Einheiten 
 Erstelle `i18n.yml` im Stammverzeichnis des Repositorys (oder in deinem App-Verzeichnis, falls das Monorepo die Konfiguration neben der UI ablegt):
 
 ```yaml
-version: hyperlocalise@1.13.6
+version: hyperlocalise@1.13.7
 
 locales:
   source: en-US
