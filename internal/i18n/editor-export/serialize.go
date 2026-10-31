@@ -53,3 +53,31 @@ func Serialize(format Format, rows []Row) (Result, error) {
 		return Result{}, fmt.Errorf("unsupported export format")
 	}
 }
+
+// Parse reads a bilingual CAT export back into rows.
+func Parse(format Format, body []byte) ([]Row, error) {
+	body = stripBOM(body)
+	var (
+		rows []Row
+		err  error
+	)
+	switch format {
+	case FormatCSV:
+		rows, err = ParseCSV(body)
+	case FormatTMX:
+		rows, err = ParseTMX(body)
+	case FormatXLF, FormatXLIFF:
+		rows, err = ParseXLIFF(body)
+	case FormatXLSX:
+		rows, err = ParseXLSX(body)
+	default:
+		return nil, fmt.Errorf("unsupported export format")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) > MaxRows {
+		return nil, fmt.Errorf("too many rows")
+	}
+	return rows, nil
+}

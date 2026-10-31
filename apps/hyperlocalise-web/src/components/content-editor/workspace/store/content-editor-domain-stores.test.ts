@@ -405,6 +405,9 @@ describe("ContentEditorWorkspaceUiStore", () => {
 
     ui.openChromeDialog("export");
     ui.setExportFormat("xliff");
+    ui.openChromeDialog("import");
+    expect(ui.chromeDialog).toBe("import");
+
     ui.openChromeDialog("shortcuts");
     expect(ui.chromeDialog).toBe("shortcuts");
 

@@ -12,6 +12,7 @@ import (
 )
 
 type fakeResourceStore struct {
+	fakeTMSStore
 	projects     []project
 	project      project
 	queries      []queryRecord
@@ -110,10 +111,24 @@ func TestOpenAPIDocumentCoversImplementedResources(t *testing.T) {
 	}
 	require.NoError(t, yaml.Unmarshal(openAPIDocument, &document))
 	require.Equal(t, "3.1.0", document.OpenAPI)
-	for _, path := range []string{"/health", "/v1/me", "/v1/projects", "/v1/projects/{projectId}", "/v1/queries", "/v1/queries/{queryId}"} {
+	for _, path := range []string{
+		"/health", "/v1/me", "/v1/projects", "/v1/projects/{projectId}", "/v1/queries", "/v1/queries/{queryId}",
+		"/v1/projects/{projectId}/locales", "/v1/projects/{projectId}/strings", "/v1/projects/{projectId}/strings/{stringId}",
+		"/v1/projects/{projectId}/strings/{stringId}/translations", "/v1/projects/{projectId}/strings/{stringId}/translations/{locale}",
+		"/v1/projects/{projectId}/translations", "/v1/glossaries", "/v1/glossaries/{glossaryId}", "/v1/glossaries/{glossaryId}/terms",
+		"/v1/translation-memories", "/v1/translation-memories/{memoryId}", "/v1/translation-memories/{memoryId}/entries",
+	} {
 		require.Contains(t, document.Paths, path)
 		require.Contains(t, document.Paths[path], "get")
 	}
+	for path, method := range map[string]string{
+		"/v1/projects/{projectId}/strings":                                  "post",
+		"/v1/projects/{projectId}/strings/{stringId}":                       "patch",
+		"/v1/projects/{projectId}/strings/{stringId}/translations/{locale}": "put",
+	} {
+		require.Contains(t, document.Paths[path], method)
+	}
+	require.Contains(t, document.Paths["/v1/projects/{projectId}/strings/{stringId}"], "delete")
 
 	w := httptest.NewRecorder()
 	newHandler(authFunc(func(context.Context, string) (principal, error) { return principal{}, nil })).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/openapi.yaml", nil))
