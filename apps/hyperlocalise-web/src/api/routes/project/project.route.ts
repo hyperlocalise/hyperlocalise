@@ -140,8 +140,8 @@ import {
   updateRepositorySourceFileSegmentation,
 } from "@/lib/projects/files/source-file-segmentation";
 import {
-  getRepositorySourceFileMessageFormat,
-  updateRepositorySourceFileMessageFormat,
+  getRepositorySourceFilePlaceholderSettings,
+  updateRepositorySourceFilePlaceholderSettings,
 } from "@/lib/projects/files/source-file-message-format";
 import { localizeAndStoreDocumentVariant } from "@/lib/projects/files/document-variant-service";
 import {
@@ -3724,16 +3724,22 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
-        const messageFormat = await getRepositorySourceFileMessageFormat({
+        const settings = await getRepositorySourceFilePlaceholderSettings({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: query.sourcePath,
         });
-        if (!messageFormat) {
+        if (!settings) {
           return notFoundResponse(c, "source_file_not_found");
         }
 
-        return c.json({ messageFormat }, 200);
+        return c.json(
+          {
+            messageFormat: settings.messageFormat,
+            placeholderPatterns: settings.placeholderPatterns,
+          },
+          200,
+        );
       },
     )
     .patch(
@@ -3761,17 +3767,24 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
-        const messageFormat = await updateRepositorySourceFileMessageFormat({
+        const settings = await updateRepositorySourceFilePlaceholderSettings({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: body.sourcePath,
           messageFormat: body.messageFormat,
+          placeholderPatterns: body.placeholderPatterns,
         });
-        if (!messageFormat) {
+        if (!settings) {
           return notFoundResponse(c, "source_file_not_found");
         }
 
-        return c.json({ messageFormat }, 200);
+        return c.json(
+          {
+            messageFormat: settings.messageFormat,
+            placeholderPatterns: settings.placeholderPatterns,
+          },
+          200,
+        );
       },
     )
     .post(

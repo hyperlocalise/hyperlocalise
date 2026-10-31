@@ -376,3 +376,46 @@ describe("cat message format utilities", () => {
     );
   });
 });
+
+describe("custom placeholder patterns", () => {
+  const placeholderPatterns = ["\\[\\[\\w+\\]\\]", "\\{\\w+\\}"];
+
+  it("adds custom tokens, including inside ICU plural options", () => {
+    const analysis = analyzeCatMessageFormat(
+      "{count, plural, one {[[name]] has # item} other {[[name]] has # items}}",
+      { placeholderPatterns },
+    );
+
+    expect(analysis.placeholders.filter((token) => token.kind === "custom")).toEqual([
+      expect.objectContaining({ literal: "[[name]]", start: 21 }),
+      expect.objectContaining({ literal: "[[name]]", start: 49 }),
+    ]);
+    expect(analysis.icuBlocks).toHaveLength(1);
+  });
+
+  it("leaves built-in placeholders to the ICU parser", () => {
+    const analysis = analyzeCatMessageFormat("Hi {name}", { placeholderPatterns });
+
+    expect(analysis.tokens.map((token) => token.kind)).toEqual(["argument"]);
+  });
+
+  it("reports missing and extra custom tokens", () => {
+    const options = { placeholderPatterns };
+    expect(
+      compareCatMessageFormats(
+        analyzeCatMessageFormat("Hello [[name]]", options),
+        analyzeCatMessageFormat("Bonjour", options),
+      ),
+    ).toEqual([{ kind: "missing-token", tokens: ["[[name]]"] }]);
+    expect(
+      compareCatMessageFormats(
+        analyzeCatMessageFormat("Hello", options),
+        analyzeCatMessageFormat("Bonjour [[name]]", options),
+      ),
+    ).toEqual([{ kind: "extra-token", tokens: ["[[name]]"] }]);
+  });
+
+  it("ignores patterns when none are set", () => {
+    expect(analyzeCatMessageFormat("Hello [[name]]").tokens).toEqual([]);
+  });
+});

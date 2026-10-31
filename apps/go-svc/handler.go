@@ -46,6 +46,8 @@ type validateSegmentRequest struct {
 	TargetLocale  string   `json:"targetLocale,omitempty"`
 	AcceptedWords []string `json:"acceptedWords,omitempty"`
 	MessageFormat string   `json:"messageFormat,omitempty"`
+	// PlaceholderPatterns are the file's custom placeholder regular expressions.
+	PlaceholderPatterns []string `json:"placeholderPatterns,omitempty"`
 }
 
 type validateSegmentResponse struct {

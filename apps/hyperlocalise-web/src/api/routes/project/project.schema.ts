@@ -22,6 +22,7 @@ import {
   projectTargetLocalesSchema,
 } from "@/lib/i18n/locales";
 import { messageFormatSchema } from "@/lib/i18n/message-format";
+import { placeholderPatternsSchema } from "@/lib/i18n/placeholder-patterns";
 
 export const projectIdParamsSchema = z.object({
   projectId: projectIdSchema,
@@ -657,6 +658,7 @@ export const projectFileMessageFormatQuerySchema = projectFileSegmentationQueryS
 export const updateProjectFileMessageFormatBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   messageFormat: messageFormatSchema,
+  placeholderPatterns: placeholderPatternsSchema.optional(),
 });
 
 export const projectFileSegmentationResponseSchema = z.object({
@@ -1065,6 +1067,8 @@ export const projectFileCatSegmentSchema = z.object({
   format: z.string().nullable().optional(),
   /** Placeholder syntax of this segment's file (All Files mode). */
   messageFormat: messageFormatSchema.optional(),
+  /** Custom placeholder regexes of this segment's file (All Files mode). */
+  placeholderPatterns: z.array(z.string()).optional(),
   externalResourceId: z.string().optional(),
   resourceType: z.enum(["file", "key"]).optional(),
   /** Grouped queues only: identical source strings in scope, including this one. */
@@ -1145,6 +1149,8 @@ export const projectFileCatResponseSchema = z.object({
     ingestError: z.string().nullable().optional(),
     /** Placeholder syntax for single-file queues. All Files queues set it per segment. */
     messageFormat: messageFormatSchema.optional(),
+    /** Custom placeholder regexes for single-file queues. All Files queues set them per segment. */
+    placeholderPatterns: z.array(z.string()).optional(),
     segments: z.array(projectFileCatSegmentSchema),
     pagination: projectFileCatPaginationSchema.optional(),
   }),

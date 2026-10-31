@@ -132,6 +132,11 @@ export const repositorySourceFiles = pgTable(
       .default(sql`'{"enabled":false,"template":"default"}'::jsonb`),
     /** Placeholder syntax used by validation: auto, icu, or i18next. */
     messageFormat: text("message_format").$type<MessageFormat>().notNull().default("auto"),
+    /** Custom placeholder regular expressions used by validation and the editor. */
+    placeholderPatterns: jsonb("placeholder_patterns")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     reconciledSourceFileVersionId: uuid("reconciled_source_file_version_id").references(
       (): AnyPgColumn => repositorySourceFileVersions.id,
       { onDelete: "set null" },

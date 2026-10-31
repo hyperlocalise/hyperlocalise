@@ -352,14 +352,15 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		}
 		var occurrenceSourceText, occurrencePath, occurrenceMessageFormat string
 		var occurrenceMaxLength *int
+		var occurrencePlaceholderPatterns []string
 		err = tx.QueryRow(r.Context(), `
-            select k.source_text, coalesce(f.source_path, $4), k.max_length, coalesce(f.message_format, 'auto')
+            select k.source_text, coalesce(f.source_path, $4), k.max_length, coalesce(f.message_format, 'auto'), f.placeholder_patterns
             from project_translation_keys k
             left join repository_source_files f on f.id=k.repository_source_file_id
                 and f.organization_id=k.organization_id and f.project_id=k.project_id
             where k.organization_id=$1 and k.project_id=$2 and k.id=$3`,
 			actor.organizationID, project.ID, occurrenceID, sourcePath,
-		).Scan(&occurrenceSourceText, &occurrencePath, &occurrenceMaxLength, &occurrenceMessageFormat)
+		).Scan(&occurrenceSourceText, &occurrencePath, &occurrenceMaxLength, &occurrenceMessageFormat, &occurrencePlaceholderPatterns)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -371,6 +372,8 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 				targetLocale:  targetLocale,
 				maxLength:     occurrenceMaxLength,
 				messageFormat: occurrenceMessageFormat,
+
+				placeholderPatterns: occurrencePlaceholderPatterns,
 			}); err != nil {
 				return nil, 0, err
 			}

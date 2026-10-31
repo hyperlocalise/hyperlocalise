@@ -783,7 +783,10 @@ describe("project file message format", () => {
     );
 
     expect(getResponse.status).toBe(200);
-    await expect(getResponse.json()).resolves.toEqual({ messageFormat: "auto" });
+    await expect(getResponse.json()).resolves.toEqual({
+      messageFormat: "auto",
+      placeholderPatterns: [],
+    });
 
     const versionsBefore = await db
       .select({ id: schema.repositorySourceFileVersions.id })
@@ -802,7 +805,10 @@ describe("project file message format", () => {
     );
 
     expect(patchResponse.status).toBe(200);
-    await expect(patchResponse.json()).resolves.toEqual({ messageFormat: "i18next" });
+    await expect(patchResponse.json()).resolves.toEqual({
+      messageFormat: "i18next",
+      placeholderPatterns: [],
+    });
 
     const reread = await messageFormatApi.$get(
       {
@@ -815,7 +821,10 @@ describe("project file message format", () => {
       { headers },
     );
     expect(reread.status).toBe(200);
-    await expect(reread.json()).resolves.toEqual({ messageFormat: "i18next" });
+    await expect(reread.json()).resolves.toEqual({
+      messageFormat: "i18next",
+      placeholderPatterns: [],
+    });
 
     const [row] = await db
       .select({ messageFormat: schema.repositorySourceFiles.messageFormat })
@@ -828,6 +837,64 @@ describe("project file message format", () => {
       .from(schema.repositorySourceFileVersions)
       .where(eq(schema.repositorySourceFileVersions.projectId, project.id));
     expect(versionsAfter).toHaveLength(versionsBefore.length);
+  });
+
+  it("saves custom placeholder patterns and keeps them when omitted", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+    const messageFormatApi =
+      client.api.orgs[":organizationSlug"].projects[":projectId"].files["message-format"];
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      projectId: project.id,
+    };
+
+    const saveResponse = await messageFormatApi.$patch(
+      {
+        param,
+        json: {
+          sourcePath: "locales/en.json",
+          messageFormat: "auto",
+          placeholderPatterns: ["\\[\\[\\w+\\]\\]", "", ":\\w+"],
+        },
+      },
+      { headers },
+    );
+    expect(saveResponse.status).toBe(200);
+    await expect(saveResponse.json()).resolves.toEqual({
+      messageFormat: "auto",
+      placeholderPatterns: ["\\[\\[\\w+\\]\\]", ":\\w+"],
+    });
+
+    const keepResponse = await messageFormatApi.$patch(
+      { param, json: { sourcePath: "locales/en.json", messageFormat: "icu" } },
+      { headers },
+    );
+    expect(keepResponse.status).toBe(200);
+    await expect(keepResponse.json()).resolves.toEqual({
+      messageFormat: "icu",
+      placeholderPatterns: ["\\[\\[\\w+\\]\\]", ":\\w+"],
+    });
+
+    for (const pattern of ["[unclosed", "(?<=x)y", "a*"]) {
+      const invalidResponse = await messageFormatApi.$patch(
+        {
+          param,
+          json: {
+            sourcePath: "locales/en.json",
+            messageFormat: "auto",
+            placeholderPatterns: [pattern],
+          },
+        },
+        { headers },
+      );
+      expect(invalidResponse.status).toBe(400);
+    }
   });
 
   it("lets translators read the setting but not change it", async () => {
@@ -869,7 +936,10 @@ describe("project file message format", () => {
       { headers },
     );
     expect(getResponse.status).toBe(200);
-    await expect(getResponse.json()).resolves.toEqual({ messageFormat: "auto" });
+    await expect(getResponse.json()).resolves.toEqual({
+      messageFormat: "auto",
+      placeholderPatterns: [],
+    });
 
     const patchResponse = await messageFormatApi.$patch(
       {

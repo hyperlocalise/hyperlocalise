@@ -689,6 +689,8 @@ export type ValidateSegmentBody = {
   maxLength?: number;
   /** auto | icu | i18next; omitted means auto. */
   messageFormat?: string;
+  /** The file's custom placeholder regular expressions. */
+  placeholderPatterns?: readonly string[];
   modes?: readonly string[];
   targetLocale?: string;
   acceptedWords?: readonly string[];
