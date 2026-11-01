@@ -35,15 +35,11 @@ import {
 } from "./existing-translation-policy";
 import { loadHubspotAutomationClient } from "./credentials";
 import {
-  buildBlogContentDocument,
   buildEmailDocument,
   buildEmailHtmlDocument,
-  buildFormDocument,
-  buildPageDocument,
   hashHubspotContent,
   hubspotDocumentHasCopy,
   isHubspotJsonObject,
-  serializeHubspotDocument,
   type HubspotJson,
 } from "./document";
 import {
@@ -538,7 +534,7 @@ export async function runImportHubspotContent(input: {
     warnings: [],
   };
 
-  for (const surface of ["email", "form", "blog", "landing-page", "website-page"] as const) {
+  for (const surface of ["email"] as const) {
     const assignment = assignHubspotLocales(targetLocales, surface);
     for (const locale of assignment.unmapped) {
       pushWarning(result, `${surface}: ${locale} has no HubSpot language code`);
@@ -552,10 +548,6 @@ export async function runImportHubspotContent(input: {
   }
 
   const emailIds = selectedIds(hubspot.emailIds);
-  const formIds = selectedIds(hubspot.formIds);
-  const blogIds = selectedIds(hubspot.blogPostIds);
-  const landingPageIds = selectedIds(hubspot.landingPageIds);
-  const websitePageIds = selectedIds(hubspot.websitePageIds);
 
   const emails = await client.listEmails();
   for (const summary of emails) {
@@ -612,243 +604,11 @@ export async function runImportHubspotContent(input: {
     }
   }
 
-  const forms = await client.listForms();
-  for (const summary of forms) {
-    if (formIds && !formIds.has(summary.id)) {
-      continue;
-    }
-    if (isHubspotLocaleCopyName(summary.name)) {
-      noteSkip(result, `Form "${summary.name}" looks like a locale copy`);
-      continue;
-    }
-    if (
-      !hubspotLanguageMatchesSource({
-        objectLanguage: summary.language,
-        projectSourceLocale: sourceLocale,
-        surface: "form",
-      })
-    ) {
-      noteSkip(
-        result,
-        `Form "${summary.name}" is ${summary.language}, which does not match the project source ${sourceLocale}`,
-      );
-      continue;
-    }
-    try {
-      const form = await client.getForm(summary.id);
-      const document = buildFormDocument(form.definition);
-      if (!hubspotDocumentHasCopy(document)) {
-        noteSkip(result, `Form "${summary.name}" has no translatable text`);
-        continue;
-      }
-      await importOne({
-        organizationId: input.organizationId,
-        automation: input.automation,
-        projectId,
-        sourceLocale,
-        targetLocales,
-        workflowRunId: input.workflowRunId,
-        openJobs,
-        result,
-        kind: "form",
-        sourceId: form.id,
-        sourceName: form.name || summary.name,
-        content: serializeHubspotDocument(document),
-        contentType: "application/json",
-        fileFormat: "json",
-        client,
-        policy,
-        discovery,
-        translationService,
-      });
-    } catch (error) {
-      logger.warn({ sourceId: summary.id, error: String(error) }, "hubspot form import failed");
-      result.failed += 1;
-    }
-  }
-
-  const posts = await client.listBlogPosts();
-  for (const summary of posts) {
-    if (blogIds && !blogIds.has(summary.id)) {
-      continue;
-    }
-    if (summary.translatedFromId) {
-      noteSkip(result, `Blog post "${summary.name}" is already a language variation`);
-      continue;
-    }
-    if (isHubspotLocaleCopyName(summary.name)) {
-      noteSkip(result, `Blog post "${summary.name}" looks like a locale copy`);
-      continue;
-    }
-    if (
-      !hubspotLanguageMatchesSource({
-        objectLanguage: summary.language,
-        projectSourceLocale: sourceLocale,
-        surface: "blog",
-      })
-    ) {
-      noteSkip(
-        result,
-        `Blog post "${summary.name}" is ${summary.language}, which does not match the project source ${sourceLocale}`,
-      );
-      continue;
-    }
-    try {
-      const post = await client.getBlogPost(summary.id);
-      const document = buildBlogContentDocument(post);
-      if (!hubspotDocumentHasCopy(document)) {
-        noteSkip(result, `Blog post "${summary.name}" has no translatable text`);
-        continue;
-      }
-      await importOne({
-        organizationId: input.organizationId,
-        automation: input.automation,
-        projectId,
-        sourceLocale,
-        targetLocales,
-        workflowRunId: input.workflowRunId,
-        openJobs,
-        result,
-        kind: "blog",
-        sourceId: post.id,
-        sourceName: post.name || summary.name,
-        content: serializeHubspotDocument(document),
-        contentType: "application/json",
-        fileFormat: "json",
-        client,
-        policy,
-        discovery,
-        translationService,
-      });
-    } catch (error) {
-      logger.warn({ sourceId: summary.id, error: String(error) }, "hubspot blog import failed");
-      result.failed += 1;
-    }
-  }
-
-  await importCmsPages({
-    kind: "landing-page",
-    ids: landingPageIds,
-    list: () => client.listLandingPages(),
-    get: (id) => client.getLandingPage(id),
-    organizationId: input.organizationId,
-    automation: input.automation,
-    projectId,
-    sourceLocale,
-    targetLocales,
-    workflowRunId: input.workflowRunId,
-    openJobs,
-    result,
-    client,
-    policy,
-    discovery,
-    translationService,
-  });
-  await importCmsPages({
-    kind: "website-page",
-    ids: websitePageIds,
-    list: () => client.listWebsitePages(),
-    get: (id) => client.getWebsitePage(id),
-    organizationId: input.organizationId,
-    automation: input.automation,
-    projectId,
-    sourceLocale,
-    targetLocales,
-    workflowRunId: input.workflowRunId,
-    openJobs,
-    result,
-    client,
-    policy,
-    discovery,
-    translationService,
-  });
+  // Forms, blog posts, landing pages, and website pages are temporarily
+  // unsupported: skip them entirely (including previously saved selections)
+  // until re-enabled.
 
   return result;
-}
-
-async function importCmsPages(input: {
-  kind: "landing-page" | "website-page";
-  ids: Set<string> | null;
-  list: () => Promise<Awaited<ReturnType<HubspotContentClient["listLandingPages"]>>>;
-  get: (id: string) => Promise<Awaited<ReturnType<HubspotContentClient["getLandingPage"]>>>;
-  organizationId: string;
-  automation: WorkspaceAutomationRecord;
-  projectId: string;
-  sourceLocale: string;
-  targetLocales: string[];
-  workflowRunId?: string | null;
-  openJobs: CoveredJob[];
-  result: ImportHubspotContentResult;
-  client: HubspotContentClient;
-  policy: HubspotExistingTranslationPolicy;
-  discovery: HubspotSeedDiscoveryCache;
-  translationService: ProjectTranslationService;
-}) {
-  const summaries = await input.list();
-  for (const summary of summaries) {
-    if (input.ids && !input.ids.has(summary.id)) {
-      continue;
-    }
-    const pageLabel = input.kind === "landing-page" ? "Landing page" : "Website page";
-    if (summary.translatedFromId) {
-      noteSkip(input.result, `${pageLabel} "${summary.name}" is already a language variation`);
-      continue;
-    }
-    if (isHubspotLocaleCopyName(summary.name)) {
-      noteSkip(input.result, `${pageLabel} "${summary.name}" looks like a locale copy`);
-      continue;
-    }
-    if (
-      !hubspotLanguageMatchesSource({
-        objectLanguage: summary.language,
-        projectSourceLocale: input.sourceLocale,
-        surface: input.kind,
-      })
-    ) {
-      noteSkip(
-        input.result,
-        `${pageLabel} "${summary.name}" is ${summary.language}, which does not match the project source ${input.sourceLocale}`,
-      );
-      continue;
-    }
-    try {
-      const page = await input.get(summary.id);
-      const document = buildPageDocument(page);
-      if (!hubspotDocumentHasCopy(document)) {
-        noteSkip(
-          input.result,
-          `${pageLabel} "${summary.name}" has no module text on the published page, its draft, or its template.`,
-        );
-        continue;
-      }
-      await importOne({
-        organizationId: input.organizationId,
-        automation: input.automation,
-        projectId: input.projectId,
-        sourceLocale: input.sourceLocale,
-        targetLocales: input.targetLocales,
-        workflowRunId: input.workflowRunId,
-        openJobs: input.openJobs,
-        result: input.result,
-        kind: input.kind,
-        sourceId: page.id,
-        sourceName: page.name || summary.name,
-        content: serializeHubspotDocument(document),
-        contentType: "application/json",
-        fileFormat: "json",
-        client: input.client,
-        policy: input.policy,
-        discovery: input.discovery,
-        translationService: input.translationService,
-      });
-    } catch (error) {
-      logger.warn(
-        { sourceId: summary.id, kind: input.kind, error: String(error) },
-        "hubspot page import failed",
-      );
-      input.result.failed += 1;
-    }
-  }
 }
 
 export function readHubspotDocumentJson(content: string): { [key: string]: HubspotJson } | null {

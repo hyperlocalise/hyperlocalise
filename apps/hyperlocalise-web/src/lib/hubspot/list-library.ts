@@ -57,20 +57,17 @@ function libraryItems(
 }
 
 export async function listHubspotLibrary(client: LibraryClient): Promise<HubspotLibrary> {
-  const [emails, forms, blogPosts, landingPages, websitePages] = await Promise.all([
-    client.listEmails(),
-    client.listForms(),
-    client.listBlogPosts(),
-    client.listLandingPages(),
-    client.listWebsitePages(),
-  ]);
+  // Forms, blog posts, landing pages, and website pages are temporarily
+  // unsupported: skip listing them so they stay out of the picker. Keep the
+  // response shape stable.
+  const emails = await client.listEmails();
 
   return {
     emails: libraryItems(emails),
-    forms: libraryItems(forms),
-    blogPosts: libraryItems(blogPosts),
-    landingPages: libraryItems(landingPages),
-    websitePages: libraryItems(websitePages),
+    forms: [],
+    blogPosts: [],
+    landingPages: [],
+    websitePages: [],
     messageTemplates: [],
     warnings: [],
   };

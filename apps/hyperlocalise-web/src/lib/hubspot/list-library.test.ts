@@ -36,10 +36,10 @@ describe("listHubspotLibrary", () => {
     });
 
     expect(library.emails).toEqual([{ id: "email-1", name: "Welcome" }]);
-    expect(library.forms).toEqual([{ id: "form-1", name: "Newsletter" }]);
-    expect(library.blogPosts).toEqual([{ id: "post-1", name: "Launch" }]);
-    expect(library.landingPages).toEqual([{ id: "land-1", name: "Home landing" }]);
-    expect(library.websitePages).toEqual([{ id: "site-1", name: "Home" }]);
+    expect(library.forms).toEqual([]);
+    expect(library.blogPosts).toEqual([]);
+    expect(library.landingPages).toEqual([]);
+    expect(library.websitePages).toEqual([]);
     expect(library.messageTemplates).toEqual([]);
     expect(library.warnings).toEqual([]);
   });

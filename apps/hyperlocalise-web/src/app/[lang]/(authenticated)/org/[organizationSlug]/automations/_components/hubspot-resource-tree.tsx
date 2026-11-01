@@ -14,14 +14,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import {
-  ArticleIcon,
-  BrowserIcon,
-  CaretRightIcon,
-  EnvelopeIcon,
-  GlobeIcon,
-  NoteIcon,
-} from "@phosphor-icons/react";
+import { CaretRightIcon, FileIcon, FolderIcon } from "@phosphor-icons/react";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,14 +33,7 @@ const GROUPS: Array<{
   kind: HubspotResourceKind;
   label: string;
   itemsKey: keyof Omit<HubspotLibrary, "warnings">;
-  icon: typeof EnvelopeIcon;
-}> = [
-  { kind: "email", label: "Emails", itemsKey: "emails", icon: EnvelopeIcon },
-  { kind: "form", label: "Forms", itemsKey: "forms", icon: NoteIcon },
-  { kind: "blog", label: "Blog posts", itemsKey: "blogPosts", icon: ArticleIcon },
-  { kind: "landing-page", label: "Landing pages", itemsKey: "landingPages", icon: BrowserIcon },
-  { kind: "website-page", label: "Website pages", itemsKey: "websitePages", icon: GlobeIcon },
-];
+}> = [{ kind: "email", label: "Emails", itemsKey: "emails" }];
 
 export const HUBSPOT_TREE_FIELDS: Record<
   HubspotResourceKind,
@@ -99,8 +85,7 @@ function HubspotTreeGroup({
   disabled?: boolean;
   onToggle: (id: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const GroupIcon = group.icon;
+  const [expanded, setExpanded] = useState(true);
   const resources = withExtras(items, selectedIds);
   const selectedCount = resources.filter((item) => selectedIds.includes(item.id)).length;
 
@@ -116,7 +101,7 @@ function HubspotTreeGroup({
         >
           <CaretRightIcon className={cn("size-4 transition-transform", expanded && "rotate-90")} />
         </button>
-        <GroupIcon className={TREE_ICON_CLASS} weight="fill" />
+        <FolderIcon className={TREE_ICON_CLASS} weight="fill" />
         <span className="min-w-0 truncate text-sm font-medium">{group.label}</span>
         <span className="shrink-0 text-xs text-muted-foreground">
           {selectedCount > 0 ? `${selectedCount} selected` : `${resources.length}`}
@@ -139,6 +124,7 @@ function HubspotTreeGroup({
                     onCheckedChange={() => onToggle(resource.id)}
                     aria-label={`Select ${resource.name}`}
                   />
+                  <FileIcon className={cn(TREE_ICON_CLASS, "text-muted-foreground")} />
                   <span className="min-w-0 truncate text-sm">{resource.name}</span>
                 </div>
               );
