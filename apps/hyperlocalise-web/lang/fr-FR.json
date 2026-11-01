@@ -260,6 +260,9 @@
   "+Qv1Pt0/I9": {
     "defaultMessage": "{actor} a indiqué qu’il ne s’agissait plus d’un doublon de {relatedIssue}"
   },
+  "+QwpaztRql": {
+    "defaultMessage": "Automatique"
+  },
   "+R091fatkR": {
     "defaultMessage": "Puis-je changer de forfait ultérieurement ?"
   },
@@ -536,6 +539,9 @@
   "+u6bMZ2pRz": {
     "defaultMessage": "Continue"
   },
+  "+uLF/HX2Vk": {
+    "defaultMessage": "Filtres d’importation"
+  },
   "+ufsbqnrz9": {
     "defaultMessage": "Activité de l’agent"
   },
@@ -689,6 +695,9 @@
   "/8/pZ5ze7R": {
     "defaultMessage": "Reconnaissez le risque de doublon ou ajoutez une clé d’idempotence aux actions dans le corps de la nouvelle tentative."
   },
+  "/846Cme9F7": {
+    "defaultMessage": "Annuler"
+  },
   "/8fHPQltQc": {
     "defaultMessage": "Rétablissez le contexte pertinent lorsque cela est nécessaire."
   },
@@ -826,6 +835,9 @@
   },
   "/O89M/pt0V": {
     "defaultMessage": "Les pages de destination et les publicités dérivent d’une locale à l’autre après la première phase de lancement."
+  },
+  "/OlbcrmkUX": {
+    "defaultMessage": "Cochez les chaînes contenant des arguments ICU pour qu’elles soient validées comme des chaînes ICU."
   },
   "/PO5w1JP7C": {
     "defaultMessage": "Comparaison et importation de ressources visuelles en plein écran"
@@ -1109,6 +1121,9 @@
   "/v3eeOYlRS": {
     "defaultMessage": "Une publication. Un foyer sur chaque marché."
   },
+  "/v8UgBZCqG": {
+    "defaultMessage": "Espagnol (Argentine)"
+  },
   "/vkBLbtzp+": {
     "defaultMessage": "Frais fixes (USD)"
   },
@@ -1210,6 +1225,9 @@
   },
   "05cAoYwBUA": {
     "defaultMessage": "Paramètres régionaux cibles"
+  },
+  "05jUvDQjWy": {
+    "defaultMessage": "Champs de même niveau pour la limite de caractères"
   },
   "06V6dOkQzU": {
     "defaultMessage": "Demander une démo"
@@ -1643,6 +1661,9 @@
   "0nNAqN4Vgj": {
     "defaultMessage": "Échec du rendu des sources"
   },
+  "0nNWFudqdb": {
+    "defaultMessage": "Colonne source"
+  },
   "0nWdyNoMtT": {
     "defaultMessage": "Les modifications apportées par les opérateurs de l’espace de travail apparaîtront ici."
   },
@@ -1807,6 +1828,9 @@
   },
   "12tUFj7BbU": {
     "defaultMessage": "{rate} / caractère"
+  },
+  "14fjm7KS5p": {
+    "defaultMessage": "Aucun fichier sélectionné"
   },
   "155ppkZ0rK": {
     "defaultMessage": "Clé"
@@ -4055,6 +4079,9 @@
   "57UDNEMoCB": {
     "defaultMessage": "Note"
   },
+  "57vdPa03Kj": {
+    "defaultMessage": "Impossible d’importer le fichier bilingue."
+  },
   "584/OLp2LZ": {
     "defaultMessage": "les outils"
   },
@@ -5231,6 +5258,9 @@
   "7JjKbhttRR": {
     "defaultMessage": "Page d’origine"
   },
+  "7JjWKwlwGP": {
+    "defaultMessage": "description\ncontexte"
+  },
   "7JjjDkCqaI": {
     "defaultMessage": "Demander"
   },
@@ -5788,6 +5818,9 @@
   },
   "8MJ9Nmrj5j": {
     "defaultMessage": "Basculer"
+  },
+  "8MUhdYT135": {
+    "defaultMessage": "Modèles d’espaces réservés personnalisés"
   },
   "8MkwvIyeaM": {
     "defaultMessage": "la dernière modification"
@@ -6559,6 +6592,9 @@
   },
   "9kDc2CzQHo": {
     "defaultMessage": "Révision automatique"
+  },
+  "9klX4rpx6h": {
+    "defaultMessage": "{count, plural, one {# espace réservé} other {# espaces réservés}} : {matches}"
   },
   "9ks0sE9gB3": {
     "defaultMessage": "Filtres actuels"
@@ -8093,6 +8129,12 @@
   "CbuvPB6HCw": {
     "defaultMessage": "Approuvé"
   },
+  "CcFOw9wq1W": {
+    "defaultMessage": "Impossible d’enregistrer les filtres d’importation."
+  },
+  "CcKgiJARwK": {
+    "defaultMessage": "Colonne de clé"
+  },
   "CcfrzXT5ah": {
     "defaultMessage": "L’historique du glossaire n’a pas pu être chargé"
   },
@@ -9122,6 +9164,9 @@
   "EO0pk2ty3D": {
     "defaultMessage": "{projectName} · {kindLabel} · mis à jour le {updatedAt}"
   },
+  "EOTMIMF/c9": {
+    "defaultMessage": "Fichier bilingue"
+  },
   "EOf0Sf++K3": {
     "defaultMessage": "Quality score over recent runs"
   },
@@ -9187,6 +9232,9 @@
   },
   "ETBYkoWGcl": {
     "defaultMessage": "Afficher les fichiers masqués"
+  },
+  "ETeuBsnEYM": {
+    "defaultMessage": "Un nom de balise par ligne, en plus de head, script, style et pre."
   },
   "ETurL1gTEW": {
     "defaultMessage": "Le contexte de la campagne se trouve dans Notion, Figma, Slack et les présentations de l’agence — pas dans le flux de traduction."
@@ -11129,6 +11177,9 @@
   "I3a2YDu+oy": {
     "defaultMessage": "À utiliser lorsque"
   },
+  "I3jsEhp8EX": {
+    "defaultMessage": "Marquer les chaînes contenant des balises HTML afin qu’elles soient validées en tant que HTML."
+  },
   "I42jTEngJ1": {
     "defaultMessage": "L’IA capture le signal"
   },
@@ -12068,6 +12119,9 @@
   "JpCXnGpMeh": {
     "defaultMessage": "Projet"
   },
+  "JpP4nc8IcB": {
+    "defaultMessage": "Sous-filtre ICU"
+  },
   "JpSMiCgbq5": {
     "defaultMessage": "Espaces de travail"
   },
@@ -12541,6 +12595,9 @@
   },
   "KqiLqEGTTZ": {
     "defaultMessage": "Vérifiez votre adresse e-mail pour voir les invitations à d’autres espaces de travail, puis rechargez cette page."
+  },
+  "KrcMVcci8Z": {
+    "defaultMessage": "Réimportez un fichier CSV, TMX, XLF, XLIFF ou XLSX exporté depuis cette file d’attente pour appliquer les corrections de balises et de traduction pour {locale}. Les clés correspondantes sont mises à jour. Les champs cibles vides sont ignorés."
   },
   "Ks+Feeoung": {
     "defaultMessage": "{count} caractères"
@@ -13724,6 +13781,9 @@
   "MxwNiKLkd6": {
     "defaultMessage": "AI"
   },
+  "MyCHJKVL+S": {
+    "defaultMessage": "Choisir un fichier"
+  },
   "MyG7pe2tfV": {
     "defaultMessage": "Bloqué jusqu’à résolution"
   },
@@ -14663,6 +14723,9 @@
   "Omhk26keD1": {
     "defaultMessage": "Dépôt"
   },
+  "Omjxdb7wIl": {
+    "defaultMessage": "Inclure les chemins d’accès aux clés"
+  },
   "Onn6EwAIjq": {
     "defaultMessage": "Aucune description"
   },
@@ -14755,6 +14818,9 @@
   },
   "P+MaWGCLAB": {
     "defaultMessage": "Playbooks d’agents planifiés et déclenchés par GitHub (et non l’éditeur de workflows visuels)."
+  },
+  "P+ULCdr4tE": {
+    "defaultMessage": "Aucun espace réservé ne correspond."
   },
   "P+kQwSEjlX": {
     "defaultMessage": "Préparation"
@@ -15922,6 +15988,9 @@
   },
   "R6n2logETh": {
     "defaultMessage": "Grille tarifaire"
+  },
+  "R7DirRTdeG": {
+    "defaultMessage": "Aucune traduction correspondante n’a été importée."
   },
   "R7vhxRuwOx": {
     "defaultMessage": "Planifié"
@@ -17258,6 +17327,9 @@
   "Te5Z3Go8As": {
     "defaultMessage": "Rechercher des marchés"
   },
+  "TeRbDN8x03": {
+    "defaultMessage": "Noms des champs du même objet, un par ligne. Ces champs ne sont pas importés comme chaînes."
+  },
   "Tertld8DQl": {
     "defaultMessage": "Hyperlocalise relie les signaux de changement du CMS à la traduction, aux vérifications terminologiques et à la surveillance continue de l’actualité du contenu."
   },
@@ -17311,6 +17383,9 @@
   },
   "Tji75UVkKX": {
     "defaultMessage": "Tarifs"
+  },
+  "Tkf+LdCpRA": {
+    "defaultMessage": "Collez une chaîne source."
   },
   "Tl0CYs/kQf": {
     "defaultMessage": "Exécution planifiée · 1er du mois"
@@ -18530,6 +18605,9 @@
   "VzEu1cp3Je": {
     "defaultMessage": "Glossaire exporté avec {count} avertissements de métadonnées"
   },
+  "VzLClJsLg0": {
+    "defaultMessage": "Importer un fichier bilingue"
+  },
   "VzdHtrwQej": {
     "defaultMessage": "Envoyez une invitation par e-mail. Ils rejoindront votre organisation après l’avoir acceptée via votre fournisseur d’identité."
   },
@@ -19181,11 +19259,17 @@
   "XBIwe6jLdQ": {
     "defaultMessage": "Rechercher dans le texte source et cible"
   },
+  "XBjtqyv7fx": {
+    "defaultMessage": "Longueur maximale\nLimite de caractères"
+  },
   "XBvYNdWRjl": {
     "defaultMessage": "Regrouper par"
   },
   "XCYkEzJaA9": {
     "defaultMessage": "Modèle"
+  },
+  "XD+bIMwUyH": {
+    "defaultMessage": "Une expression régulière par ligne, jusqu’à {max}. Le texte correspondant est traité comme un espace réservé, en plus de la syntaxe ci-dessus. Les assertions de préanalyse et de postanalyse ainsi que les références arrière ne sont pas prises en charge."
   },
   "XDo7GTXYVG": {
     "defaultMessage": "Mots terminés par jour"
@@ -19432,6 +19516,9 @@
   },
   "XgEDOt4cQC": {
     "defaultMessage": "Heure de journalisation"
+  },
+  "XgwWkCr4oC": {
+    "defaultMessage": "\\[\\[\\w+\\]\\]"
   },
   "XhZzwexSlh": {
     "defaultMessage": "Hyperlocalise est en cours…"
@@ -20221,6 +20308,9 @@
   },
   "Z6yIjKdK2x": {
     "defaultMessage": "La modification n’a pas pu être annulée."
+  },
+  "Z73RWKPiOM": {
+    "defaultMessage": "La ligne {line} dépasse {max} caractères."
   },
   "Z7EtcHtkyS": {
     "defaultMessage": "Aucune automatisation pour le moment. Commencez avec l’un des modèles ci-dessous ou créez une nouvelle automatisation."
@@ -21194,6 +21284,9 @@
   "apPctURphV": {
     "defaultMessage": "Save"
   },
+  "aq+Hkv5Fr8": {
+    "defaultMessage": "Azerbaïdjanais"
+  },
   "aqL5Q4cYQs": {
     "defaultMessage": "Ce fichier est trop volumineux pour être traité."
   },
@@ -21694,6 +21787,9 @@
   },
   "bl+DouTlcU": {
     "defaultMessage": "ou"
+  },
+  "bl3sCCu5tP": {
+    "defaultMessage": "Filtres d’importation enregistrés. Le fichier est en cours de relecture."
   },
   "blLcFpSkB4": {
     "defaultMessage": "Invitez des personnes et gérez les rôles dans l’espace de travail"
@@ -22217,6 +22313,9 @@
   "cjv0VAI0+q": {
     "defaultMessage": "Que souhaitez-vous savoir ?"
   },
+  "ck1HBQc2GC": {
+    "defaultMessage": "Testez vos motifs"
+  },
   "clCA8uRLFv": {
     "defaultMessage": "Demande de contexte"
   },
@@ -22336,6 +22435,9 @@
   },
   "cx3+OxbAb3": {
     "defaultMessage": "Télécharger la vue filtrée…"
+  },
+  "cxb+FsoLJb": {
+    "defaultMessage": "Importer un fichier bilingue…"
   },
   "cy9+fmyi91": {
     "defaultMessage": "Exécutez d’abord le test pour les visiteurs en France. S’il fonctionne, ouvrez-le au Japon et en Allemagne. Si ce n’est pas le cas, le reste du monde ne l’a jamais vu."
@@ -23000,6 +23102,9 @@
   "e+PiCZxbnT": {
     "defaultMessage": "Réessayer"
   },
+  "e+RlAlQTGC": {
+    "defaultMessage": "Réessayer"
+  },
   "e+WPqvuP5X": {
     "defaultMessage": "Resolved"
   },
@@ -23215,6 +23320,9 @@
   },
   "eJvMGD1rKZ": {
     "defaultMessage": "Experiments"
+  },
+  "eKC03Z1B9Y": {
+    "defaultMessage": "Filtres d’importation"
   },
   "eKHIVZMNbd": {
     "defaultMessage": "Vide correspond à n’importe quelle locale. Une langue telle que fr correspond aussi à fr-FR et fr-CA."
@@ -24824,6 +24932,9 @@
   "h74mcLmzi5": {
     "defaultMessage": "Clés d’espace de travail pour les tâches et les ressources. Faites-les régulièrement tourner et ne les stockez pas dans le contrôle de version."
   },
+  "h7ecP3kpVa": {
+    "defaultMessage": "{imported, plural, one {# traduction importée.} other {# traductions importées.}}"
+  },
   "h7fFvoKQMq": {
     "defaultMessage": "Nouvelle automatisation"
   },
@@ -25319,6 +25430,9 @@
   "i3FfM8zpHG": {
     "defaultMessage": "Collez une clé API d’application Iterable et choisissez la région de cet espace de travail."
   },
+  "i3xNDFJAo9": {
+    "defaultMessage": "Ce type de fichier ne dispose d’aucun filtre d’importation supplémentaire."
+  },
   "i4A8tgsl1c": {
     "defaultMessage": "Durée estimée"
   },
@@ -25520,6 +25634,9 @@
   "iNWvPHt1s5": {
     "defaultMessage": "Erreur de traduction"
   },
+  "iNrywGyfgn": {
+    "defaultMessage": "La première ligne est un en-tête"
+  },
   "iNt/60shfS": {
     "defaultMessage": "Faites en sorte que les localisations manquées soient encore plus difficiles à manquer."
   },
@@ -25580,6 +25697,9 @@
   "iSkR3k2Z83": {
     "defaultMessage": "Images envoyées par e-mail"
   },
+  "iSuHPJi7Ue": {
+    "defaultMessage": "Impossible de charger les filtres d’importation."
+  },
   "iSz2hKqv1Z": {
     "defaultMessage": "Votre prochaine histoire.  \nPrête pour le monde."
   },
@@ -25618,6 +25738,9 @@
   },
   "iVnVwwFFdq": {
     "defaultMessage": "Locales"
+  },
+  "iWpj/vuBE1": {
+    "defaultMessage": "Désactivez cette option pour les feuilles qui commencent par des données. Les positions des colonnes ci-dessous sont indexées à partir de 0 (A = 0)."
   },
   "iX/gIwfgxF": {
     "defaultMessage": "Blocked"
@@ -25828,6 +25951,9 @@
   },
   "is2cQ1v97u": {
     "defaultMessage": "Ce que nous avons constaté"
+  },
+  "isK0xVIbUs": {
+    "defaultMessage": "Exclure les chemins des clés"
   },
   "isRKrk8w8z": {
     "defaultMessage": "Terme supprimé"
@@ -26105,6 +26231,9 @@
   "jP0mfL7DgW": {
     "defaultMessage": "{planName} : {priceLabel} par mois"
   },
+  "jPLbJdtewx": {
+    "defaultMessage": "Importer"
+  },
   "jPddLz1mvi": {
     "defaultMessage": "Aucun fichier source n’est associé à cette tâche."
   },
@@ -26290,6 +26419,9 @@
   },
   "jhOfPn0iZ0": {
     "defaultMessage": "{name} a annulé le job."
+  },
+  "jhaXEyezy6": {
+    "defaultMessage": "La ligne {line} n’est pas une expression régulière valide."
   },
   "jhwzOupLZL": {
     "defaultMessage": "Articles connexes"
@@ -27023,6 +27155,9 @@
   "kzMTx+wIMg": {
     "defaultMessage": "Propulsé par l’API Google Domain Rank Overview de DataForSEO Labs."
   },
+  "kzjEnGFmtM": {
+    "defaultMessage": "{skipped, plural, one {# ligne non correspondante ou vide ignorée.} other {# lignes non correspondantes ou vides ignorées.}}"
+  },
   "kzwi13YrTF": {
     "defaultMessage": "Facultatif. Ajoutez toute consigne propre à votre équipe : ton, format du rapport, éléments à ignorer."
   },
@@ -27166,6 +27301,9 @@
   },
   "lH4tr3c/1j": {
     "defaultMessage": "{count, plural, one {Fichier de traduction téléchargé.} other {# fichiers de traduction téléchargés.}}"
+  },
+  "lH6AbCkzBn": {
+    "defaultMessage": "Save"
   },
   "lHKw2e6/kS": {
     "defaultMessage": "Sélectionnez un fichier"
@@ -27361,6 +27499,9 @@
   },
   "lfBcHAAQiY": {
     "defaultMessage": "Comparaison de l’image originale et localisée"
+  },
+  "lfDVbUWg2+": {
+    "defaultMessage": "Champs frères pour le contexte"
   },
   "lfPogGpRYm": {
     "defaultMessage": "Moteur d’IA"
@@ -28751,6 +28892,9 @@
   "o4QwHRAiJ4": {
     "defaultMessage": "Règles partagées par tous les projets de cet espace de travail."
   },
+  "o4talEzW4n": {
+    "defaultMessage": "messages.*\n*.text"
+  },
   "o5RLnUXcEq": {
     "defaultMessage": "Startmate"
   },
@@ -29299,6 +29443,9 @@
   },
   "p46MXtZbsQ": {
     "defaultMessage": "Glossaire supprimé"
+  },
+  "p4EP3lBEdG": {
+    "defaultMessage": "La ligne {line} utilise une assertion de recherche avant ou arrière, ou une référence arrière, ce qui n’est pas pris en charge."
   },
   "p4xkAKJ/3y": {
     "defaultMessage": "Projet"
@@ -30275,6 +30422,12 @@
   "qjIfzjBgLQ": {
     "defaultMessage": "Signal de contexte"
   },
+  "qjLg/sUBaB": {
+    "defaultMessage": "Utilisez au maximum {max} motifs."
+  },
+  "qjQww08Liu": {
+    "defaultMessage": "La ligne {line} correspond à une chaîne vide. Modifiez-la pour qu’elle corresponde à au moins un caractère."
+  },
   "qjnIHRqIL8": {
     "defaultMessage": "Rejouer"
   },
@@ -30568,6 +30721,9 @@
   },
   "rEDnl3jroe": {
     "defaultMessage": "Documentation"
+  },
+  "rESRbutFXn": {
+    "defaultMessage": "Contrôlez les chaînes importées par ce fichier. L’enregistrement relit le fichier."
   },
   "rFURovB9j2": {
     "defaultMessage": "Developer"
@@ -32132,6 +32288,9 @@
   "uBs3qiwQrd": {
     "defaultMessage": "ID client OAuth"
   },
+  "uBuX1gN2I5": {
+    "defaultMessage": "Sous-filtre HTML"
+  },
   "uC9uH1Yi+P": {
     "defaultMessage": "Impossible d’enregistrer la traduction."
   },
@@ -32762,6 +32921,9 @@
   "vH/Yb/E0OH": {
     "defaultMessage": "Mémoire de traduction utilisée"
   },
+  "vHbt+8Ajkh": {
+    "defaultMessage": "Colonne de limite de caractères"
+  },
   "vHk0Yz7eWC": {
     "defaultMessage": "Créées : {count, number}"
   },
@@ -32887,6 +33049,9 @@
   },
   "vVbXCgpKIh": {
     "defaultMessage": "Ouvrir dans la boîte de réception"
+  },
+  "vVsJslDQBT": {
+    "defaultMessage": "Un chemin avec des points par ligne. Utilisez * pour un segment et ** pour le reste. Laissez vide pour importer toutes les chaînes."
   },
   "vVscXxYSjv": {
     "defaultMessage": "Balises meta, indexabilité et découvrabilité sur différents marchés"
@@ -33145,6 +33310,9 @@
   },
   "vxPX8Bfa3e": {
     "defaultMessage": "Agents"
+  },
+  "vxWXD/yiTP": {
+    "defaultMessage": "navigation\npied de page"
   },
   "vxm9RJy+2w": {
     "defaultMessage": "Analyse QA démarrée."
@@ -34334,6 +34502,9 @@
   "y+0ftMWpAa": {
     "defaultMessage": "URL : {url}"
   },
+  "y+3an6BQ1Y": {
+    "defaultMessage": "Ignorer ces balises HTML"
+  },
   "y+NaInUKRl": {
     "defaultMessage": "Vos modifications supprimées ont été restaurées."
   },
@@ -34537,6 +34708,9 @@
   },
   "yKFLGCc18p": {
     "defaultMessage": "Guide de style"
+  },
+  "yKk8PSmKHK": {
+    "defaultMessage": "Espagnol (Amérique latine)"
   },
   "yKlYrz3iYw": {
     "defaultMessage": "Modèle"
@@ -34858,6 +35032,9 @@
   },
   "z2bAu9ByVm": {
     "defaultMessage": "Méthode de vérification"
+  },
+  "z3GhOmYfP8": {
+    "defaultMessage": "Annuler"
   },
   "z3bR+/cqxl": {
     "defaultMessage": "{count, plural, one {# chaîne trouvée} other {# chaînes trouvées}} dans le fichier"
@@ -35347,6 +35524,9 @@
   },
   "zvSexbzyTe": {
     "defaultMessage": "Ajouter une compétence pour traduire les entrées Contentful."
+  },
+  "zvnwVPdAGU": {
+    "defaultMessage": "Colonne de contexte"
   },
   "zvokgWLGk/": {
     "defaultMessage": "Accepter toutes les propositions en attente"

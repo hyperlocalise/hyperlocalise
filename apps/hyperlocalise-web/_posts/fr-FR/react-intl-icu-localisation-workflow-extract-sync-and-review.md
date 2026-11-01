@@ -1,7 +1,7 @@
 ---
 title: "Localisation React Intl et ICU : extraire, synchroniser et réviser avec Hyperlocalise"
 date: 2026-09-24T00:00:00.000Z
-excerpt: "\"Intégrez react-intl et la syntaxe des messages ICU à un flux de travail propre au dépôt : extrayez les catalogues avec la CLI Hyperlocalise, validez les pluriels dans les pull requests, révisez-les dans Hyperlocalise et déployez le JSON traduit en production.\""
+excerpt: "\"\\\\\"Intégrez react-intl et la syntaxe des messages ICU à un flux de travail propre au dépôt : extrayez les catalogues avec la CLI Hyperlocalise, validez les pluriels dans les pull requests, révisez-les dans Hyperlocalise et déployez le JSON traduit en production.\\\\\"\""
 category: Ingénierie
 tags:
   - react-intl
