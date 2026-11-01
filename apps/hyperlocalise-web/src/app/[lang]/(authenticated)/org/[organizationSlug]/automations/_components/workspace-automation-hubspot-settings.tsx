@@ -65,8 +65,8 @@ export function WorkspaceAutomationHubspotSettings({
         onToggle={(kind, id) => onChange(toggleHubspotTreeSelection(form, kind, id))}
       />
       <p className="text-xs text-muted-foreground">
-        Leave everything unchecked to import every email that is not already a locale copy. Tick
-        items to translate only those. Push only updates drafts — it never publishes or sends.
+        Tick the emails to translate. Nothing is imported until at least one email is ticked. Push
+        only updates drafts — it never publishes or sends.
       </p>
 
       <div className="space-y-2">

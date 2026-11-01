@@ -458,11 +458,8 @@ function noteSkip(result: ImportHubspotContentResult, message: string) {
   pushWarning(result, message);
 }
 
-function selectedIds(ids: readonly string[] | undefined): Set<string> | null {
-  if (!ids || ids.length === 0) {
-    return null;
-  }
-  return new Set(ids);
+function selectedIds(ids: readonly string[] | undefined): Set<string> {
+  return new Set(ids ?? []);
 }
 
 export async function runImportHubspotContent(input: {
@@ -551,7 +548,7 @@ export async function runImportHubspotContent(input: {
 
   const emails = await client.listEmails();
   for (const summary of emails) {
-    if (emailIds && !emailIds.has(summary.id)) {
+    if (!emailIds.has(summary.id)) {
       continue;
     }
     if (isHubspotLocaleCopyName(summary.name)) {
