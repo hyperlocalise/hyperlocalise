@@ -36,8 +36,10 @@ Missing, invalid, or revoked keys return `401` with `error: "unauthorized"`. An 
 | `files:read` | Download a stored file, reconstructed translation, or image variant |
 | `jobs:write` | Create a translation job |
 | `jobs:read` | Read job status and latest job for a source path |
+| `memories:read` | Export translation memory entries as TMX or CSV |
+| `memories:write` | Import translation memory entries from TMX or CSV |
 
-New keys receive all four permissions.
+Omitting `permissions` grants every scope the key owner can hold. Localization operators receive all six. Job contributors receive every scope except `memories:write`. Members receive `jobs:read`, `files:read`, and `memories:read`.
 
 A key only sees projects the key's creator can access.
 
@@ -213,6 +215,49 @@ Smaller payload with `id`, `projectId`, `kind`, `type`, `status`, timestamps, an
 curl --fail-with-body "https://api.hyperlocalise.com/v1/jobs/$JOB_ID/status" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY"
 ```
+
+## Translation memories
+
+TMX import and export use the same host as job reads:
+
+```
+https://api.hyperlocalise.com/v1
+```
+
+Send the same `x-api-key`. These routes wrap the native workspace memory the owner can already see. They do not create memories or list them.
+
+### Export entries
+
+`GET https://api.hyperlocalise.com/v1/translation-memories/{memoryId}/entries/export?format=tmx`
+
+Permission: `memories:read`
+
+Returns TMX 1.4 bytes (`application/x-tmx+xml`). Pass `format=csv` for the Hyperlocalise row layout. Optional `sourceLocale` and `targetLocale` filter to one language pair.
+
+```bash
+curl --fail-with-body "https://api.hyperlocalise.com/v1/translation-memories/$MEMORY_ID/entries/export?format=tmx" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -o product.tmx
+```
+
+### Import entries
+
+`POST https://api.hyperlocalise.com/v1/translation-memories/{memoryId}/entries/import`
+
+Permission: `memories:write`
+
+JSON body. Inline TMX (or CSV) is applied immediately.
+
+```json
+{
+  "format": "tmx",
+  "content": "<?xml version=\"1.0\"?><tmx version=\"1.4\">...</tmx>"
+}
+```
+
+`201` includes `imported`, `skipped`, and the import report. Units with a stable `tuid` upsert.
+
+Large files can use `POST .../entries/import/uploads` to receive a signed upload URL, then `POST .../entries/import` with `attemptId` to apply. `GET .../import-attempts/{attemptId}` and `GET .../import-attempts/{attemptId}/download` read the attempt and its source file (`memories:read`).
 
 ## Translations and images
 

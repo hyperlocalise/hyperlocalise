@@ -48,6 +48,7 @@ type glossaryImportTerm struct {
 	Note         string
 	PartOfSpeech string
 	Status       string
+	Forbidden    bool
 }
 
 type glossaryImportDiagnostic struct {
@@ -780,7 +781,8 @@ func firstNonEmpty(values ...string) string {
 type tbxEntry struct {
 	ID       string       `xml:"id,attr"`
 	Descrips []tbxDescrip `xml:"descrip"`
-	Langs    []tbxLangSec `xml:"langSec"`
+	LangSecs []tbxLangSec `xml:"langSec"`
+	LangSets []tbxLangSec `xml:"langSet"`
 }
 
 type tbxDescrip struct {
@@ -789,20 +791,35 @@ type tbxDescrip struct {
 }
 
 type tbxLangSec struct {
-	Lang  string       `xml:"lang,attr"`
-	Terms []tbxTermSec `xml:"termSec"`
+	Lang     string       `xml:"lang,attr"`
+	TermSecs []tbxTermSec `xml:"termSec"`
+	Tigs     []tbxTermSec `xml:"tig"`
+	Ntigs    []tbxNtig    `xml:"ntig"`
+}
+
+type tbxTermNote struct {
+	Type  string `xml:"type,attr"`
+	Value string `xml:",chardata"`
 }
 
 type tbxTermSec struct {
-	ID   string `xml:"id,attr"`
-	Term string `xml:"term"`
+	ID        string        `xml:"id,attr"`
+	Term      string        `xml:"term"`
+	TermNotes []tbxTermNote `xml:"termNote"`
+	Descrips  []tbxDescrip  `xml:"descrip"`
+}
+
+type tbxNtig struct {
+	ID        string        `xml:"id,attr"`
+	TermGrp   tbxTermSec    `xml:"termGrp"`
+	TermNotes []tbxTermNote `xml:"termNote"`
+	Descrips  []tbxDescrip  `xml:"descrip"`
 }
 
 func parseGlossaryTBX(content string) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
 	diagnostics := []glossaryImportDiagnostic{}
 	decoder := xml.NewDecoder(strings.NewReader(content))
-	// BOLT OPTIMIZATION: Pre-allocate concepts slice capacity based on XML entry count.
-	concepts := make([]glossaryImportConcept, 0, strings.Count(content, "<conceptEntry"))
+	concepts := make([]glossaryImportConcept, 0, strings.Count(content, "<conceptEntry")+strings.Count(content, "<termEntry"))
 	for {
 		tok, err := decoder.Token()
 		if err == io.EOF {
@@ -812,12 +829,12 @@ func parseGlossaryTBX(content string) ([]glossaryImportConcept, []glossaryImport
 			return nil, []glossaryImportDiagnostic{{Severity: "error", Code: "invalid_tbx", Message: "Unable to parse TBX content"}}
 		}
 		se, ok := tok.(xml.StartElement)
-		if !ok || se.Name.Local != "conceptEntry" {
+		if !ok || (se.Name.Local != "conceptEntry" && se.Name.Local != "termEntry") {
 			continue
 		}
 		var entry tbxEntry
 		if err := decoder.DecodeElement(&entry, &se); err != nil {
-			diagnostics = append(diagnostics, glossaryImportDiagnostic{Severity: "error", Code: "invalid_tbx_concept", Message: "Unable to parse conceptEntry"})
+			diagnostics = append(diagnostics, glossaryImportDiagnostic{Severity: "error", Code: "invalid_tbx_concept", Message: "Unable to parse terminology entry"})
 			continue
 		}
 		conceptID := strings.TrimPrefix(entry.ID, "c-")
@@ -826,16 +843,26 @@ func parseGlossaryTBX(content string) ([]glossaryImportConcept, []glossaryImport
 		}
 		concept := glossaryImportConcept{ID: conceptID}
 		for _, d := range entry.Descrips {
-			switch d.Type {
-			case "subjectField", "subject":
+			switch strings.ToLower(strings.TrimSpace(d.Type)) {
+			case "subjectfield", "subject", "concept_domain", "domain":
 				concept.Subject = strings.TrimSpace(d.Value)
-			case "definition":
+			case "definition", "concept_definition":
 				concept.Definition = strings.TrimSpace(d.Value)
 			}
 		}
-		for _, lang := range entry.Langs {
+		for _, lang := range append(append([]tbxLangSec{}, entry.LangSecs...), entry.LangSets...) {
 			locale := strings.ReplaceAll(attrOr(lang.Lang, seLang(lang)), "_", "-")
-			for _, term := range lang.Terms {
+			bags := append(append([]tbxTermSec{}, lang.TermSecs...), lang.Tigs...)
+			for _, nested := range lang.Ntigs {
+				bag := nested.TermGrp
+				if strings.TrimSpace(bag.ID) == "" {
+					bag.ID = nested.ID
+				}
+				bag.TermNotes = append(append([]tbxTermNote{}, bag.TermNotes...), nested.TermNotes...)
+				bag.Descrips = append(append([]tbxDescrip{}, bag.Descrips...), nested.Descrips...)
+				bags = append(bags, bag)
+			}
+			for _, term := range bags {
 				text := strings.TrimSpace(term.Term)
 				if text == "" || locale == "" {
 					continue
@@ -847,7 +874,9 @@ func parseGlossaryTBX(content string) ([]glossaryImportConcept, []glossaryImport
 				if concept.PrimaryTerm == "" {
 					concept.PrimaryTerm = text
 				}
-				concept.Terms = append(concept.Terms, glossaryImportTerm{ID: termID, Locale: locale, Term: text, Status: "draft"})
+				imported := glossaryImportTerm{ID: termID, Locale: locale, Term: text, Status: "draft"}
+				applyGlossaryTBXTermNotes(&imported, term.TermNotes, term.Descrips)
+				concept.Terms = append(concept.Terms, imported)
 			}
 		}
 		if len(concept.Terms) == 0 {
@@ -855,7 +884,64 @@ func parseGlossaryTBX(content string) ([]glossaryImportConcept, []glossaryImport
 		}
 		concepts = append(concepts, concept)
 	}
+	if len(concepts) == 0 && (strings.Contains(content, "<termEntry") || strings.Contains(content, "<conceptEntry")) {
+		diagnostics = append(diagnostics, glossaryImportDiagnostic{
+			Severity: "error",
+			Code:     "tbx_entries_unreadable",
+			Message:  "TBX document contains term entries that could not be imported",
+		})
+	}
 	return concepts, diagnostics
+}
+
+func applyGlossaryTBXTermNotes(term *glossaryImportTerm, notes []tbxTermNote, descrips []tbxDescrip) {
+	for _, d := range descrips {
+		if strings.EqualFold(strings.TrimSpace(d.Type), "forbidden") && isGlossaryTBXTrue(d.Value) {
+			term.Forbidden = true
+		}
+	}
+	for _, note := range notes {
+		typ := strings.ToLower(strings.TrimSpace(note.Type))
+		value := strings.TrimSpace(note.Value)
+		switch typ {
+		case "partofspeech", "pos":
+			term.PartOfSpeech = value
+		case "forbidden":
+			term.Forbidden = isGlossaryTBXTrue(value) || strings.EqualFold(value, "forbidden")
+		case "preferred":
+			if isGlossaryTBXTrue(value) {
+				term.Status = "preferred"
+			}
+		case "administrativestatus", "normativeauthorization":
+			normalized := strings.ToLower(strings.ReplaceAll(value, " ", ""))
+			if normalized == "forbiddenterm" || normalized == "forbidden" {
+				term.Forbidden = true
+			}
+			if normalized == "preferredterm-admn-sts" || normalized == "preferredterm" {
+				term.Status = "preferred"
+			}
+		case "status":
+			switch strings.ToLower(value) {
+			case "approved":
+				if term.Status != "preferred" {
+					term.Status = "admitted"
+				}
+			case "preferred":
+				term.Status = "preferred"
+			case "forbidden", "forbiddenterm":
+				term.Forbidden = true
+			}
+		}
+	}
+}
+
+func isGlossaryTBXTrue(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "true", "yes", "1":
+		return true
+	default:
+		return false
+	}
 }
 
 func seLang(lang tbxLangSec) string { return lang.Lang }
@@ -922,13 +1008,16 @@ func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryA
 	}
 	for _, incoming := range concepts {
 		existingID := ""
-		lookupErr := tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and id=$2 and archived_at is null`, g.ID, incoming.ID).Scan(&existingID)
-		exists := lookupErr == nil
-		if lookupErr != nil && !errorsIsNoRows(lookupErr) {
-			return nil, nil, nil, "", lookupErr
+		exists := false
+		if validGlossaryID(incoming.ID) {
+			lookupErr := tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and id=$2 and archived_at is null`, g.ID, incoming.ID).Scan(&existingID)
+			exists = lookupErr == nil
+			if lookupErr != nil && !errorsIsNoRows(lookupErr) {
+				return nil, nil, nil, "", lookupErr
+			}
 		}
 		if !exists && !validGlossaryID(incoming.ID) {
-			lookupErr = tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and lower(primary_term)=lower($2) and archived_at is null limit 1`, g.ID, incoming.PrimaryTerm).Scan(&existingID)
+			lookupErr := tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and lower(primary_term)=lower($2) and archived_at is null limit 1`, g.ID, incoming.PrimaryTerm).Scan(&existingID)
 			exists = lookupErr == nil
 			if lookupErr != nil && !errorsIsNoRows(lookupErr) {
 				return nil, nil, nil, "", lookupErr
@@ -1006,8 +1095,8 @@ func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryA
 					counts["skipped"]++
 					continue
 				}
-				_, err = tx.Exec(ctx, `update glossary_terms set locale=$4, term=$5, source_term=$5, target_term=$5, description=$6, note=$7, part_of_speech=$8, status=$9, modified_by_user_id=$10, version=version+1, updated_at=now() where id=$1 and concept_id=$2 and glossary_id=$3`,
-					termExists, conceptID, g.ID, locale, text, term.Description, term.Note, term.PartOfSpeech, firstNonEmpty(term.Status, "draft"), actor.userID)
+				_, err = tx.Exec(ctx, `update glossary_terms set locale=$4, term=$5, source_term=$5, target_term=$5, description=$6, note=$7, part_of_speech=$8, status=$9, forbidden=$10, modified_by_user_id=$11, version=version+1, updated_at=now() where id=$1 and concept_id=$2 and glossary_id=$3`,
+					termExists, conceptID, g.ID, locale, text, term.Description, term.Note, term.PartOfSpeech, firstNonEmpty(term.Status, "draft"), term.Forbidden, actor.userID)
 				if err != nil {
 					return nil, nil, nil, "", err
 				}
@@ -1015,8 +1104,9 @@ func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryA
 				continue
 			}
 			status := firstNonEmpty(term.Status, "draft")
+			forbidden := term.Forbidden
 			_, err = insertGlossaryTerm(ctx, tx, g, conceptID, actor.userID, glossaryConceptTermInput{
-				Locale: locale, Term: text, Description: &term.Description, Note: &term.Note, PartOfSpeech: &term.PartOfSpeech, Status: &status,
+				Locale: locale, Term: text, Description: &term.Description, Note: &term.Note, PartOfSpeech: &term.PartOfSpeech, Status: &status, Forbidden: &forbidden,
 			})
 			if err != nil {
 				return nil, nil, nil, "", err

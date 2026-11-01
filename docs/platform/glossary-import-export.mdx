@@ -15,6 +15,8 @@ Native workspace **glossaries** support interchange through Platform. Provider-l
 
 Exports use Hyperlocalise’s interchange profile: TBX 3 (`TBX-Basic`, DCA style), a concepts/terms CSV layout, and a two-sheet XLSX workbook.
 
+Imports also accept Phrase TBX 2 (`martif` / `termEntry` / `langSet` / `tig` or `ntig`). Forbidden terms come from Phrase `termNote` values (`forbidden`, `status`, or `administrativeStatus=forbiddenTerm`) as well as Hyperlocalise `descrip type="forbidden"`. A TBX file that contains term entries but yields no importable terms returns an error instead of an empty success.
+
 ## Import in Platform
 
 1. Open **Glossaries** and select a **native** glossary (not a provider read-only glossary).
@@ -49,7 +51,7 @@ Use your TMS or the Hyperlocalise **CLI** for provider-native glossary downloads
 
 ## Tips
 
-- **TBX** is the best interchange with other terminology tools.
+- **TBX** is the best interchange with other terminology tools. Phrase TBX 2 exports import as native terms, including forbidden flags.
 - **XLSX** is easiest for manual review and bulk edits in a spreadsheet.
 - **CSV** works well for scripts and narrow column-based tooling.
 - **Crowdin TBX** often uses short language IDs such as `de` while your glossary configures region-qualified locales such as `de-DE`. Platform maps those IDs to a matching configured locale when the mapping is unambiguous; terms are stored under your configured locale code.
