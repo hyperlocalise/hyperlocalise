@@ -137,4 +137,51 @@ export const nativeJobDetailContentMessages = defineMessages({
     id: "h1D+z3ez58",
     description: "Confirm button label while cancelling a job",
   },
+  markTaskDone: {
+    defaultMessage: "Mark done",
+    id: "2EZOEE657y",
+    description: "Button that marks a proofread, post-edit or translation task for people as done",
+  },
+  markTaskDoneTitle: {
+    defaultMessage: "Mark this task done?",
+    id: "+7oMmGxk5W",
+    description: "Title of the confirmation dialog for marking a task for people done",
+  },
+  markTaskDoneDescription: {
+    defaultMessage:
+      "The task moves to done and can't be reopened. Unfinished strings stay as they are, and later edits no longer count towards this task.",
+    id: "OgcxgmUfpQ",
+    description: "Body of the confirmation dialog for marking a task for people done",
+  },
+  keepTaskOpen: {
+    defaultMessage: "Keep open",
+    id: "sTc8os2V6k",
+    description: "Dismiss button in the mark task done confirmation dialog",
+  },
+  markingTaskDone: {
+    defaultMessage: "Marking done…",
+    id: "pBSmD5j3RM",
+    description: "Confirm button label while marking a task done",
+  },
+  taskMarkedDone: {
+    defaultMessage: "Task marked done",
+    id: "K3x5cISuVg",
+    description: "Success toast after marking a task for people done",
+  },
+  failedToMarkTaskDone: {
+    defaultMessage: "Failed to mark the task done",
+    id: "wclN4/dKYj",
+    description: "Toast and error fallback when marking a task done fails",
+  },
+  taskAlreadyClosed: {
+    defaultMessage: "This task was already finished or cancelled.",
+    id: "xkC+jko3kk",
+    description: "Error toast when marking a task done after someone else finished or cancelled it",
+  },
+  taskNotAssignedToYou: {
+    defaultMessage: "You can only mark done a task assigned to you.",
+    id: "aTt1oyDiQ4",
+    description:
+      "Error toast when someone without review rights marks done a task not assigned to them",
+  },
 });

@@ -39,6 +39,7 @@ async function ProjectJobDetailPageLoader({
   const projectId = normalizeProjectId(rawProjectId);
   const auth = await requireAppAuthContext({ organizationSlug });
   const canEditJobFields = hasCapability(auth.membership.role, "jobs:write");
+  const canMarkAnyTaskDone = hasCapability(auth.membership.role, "reviews:approve");
   const canEditSharedCredentialProviderJobFields = isWorkspaceOperatorRole(auth.membership.role);
   const reportsEnabled = await getWorkspaceFeatureFlagEnabled(workspaceReportsFlag, auth);
 
@@ -48,6 +49,8 @@ async function ProjectJobDetailPageLoader({
       organizationSlug={organizationSlug}
       projectId={projectId}
       canEditJobFields={canEditJobFields}
+      canMarkAnyTaskDone={canMarkAnyTaskDone}
+      currentUserId={auth.user.localUserId}
       canEditSharedCredentialProviderJobFields={canEditSharedCredentialProviderJobFields}
       reportsEnabled={reportsEnabled}
     />

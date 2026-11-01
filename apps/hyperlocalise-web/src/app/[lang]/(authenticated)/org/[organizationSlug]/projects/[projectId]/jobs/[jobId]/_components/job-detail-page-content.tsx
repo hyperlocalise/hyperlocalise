@@ -35,6 +35,8 @@ export function JobDetailPageContent({
   organizationSlug,
   projectId,
   canEditJobFields,
+  canMarkAnyTaskDone = false,
+  currentUserId,
   canEditSharedCredentialProviderJobFields = false,
   reportsEnabled = false,
 }: {
@@ -42,6 +44,8 @@ export function JobDetailPageContent({
   organizationSlug: string;
   projectId: string;
   canEditJobFields: boolean;
+  canMarkAnyTaskDone?: boolean;
+  currentUserId?: string;
   canEditSharedCredentialProviderJobFields?: boolean;
   reportsEnabled?: boolean;
 }) {
@@ -121,6 +125,8 @@ export function JobDetailPageContent({
       organizationSlug={organizationSlug}
       projectId={projectId}
       canEditJobFields={canEditJobFields}
+      canMarkAnyTaskDone={canMarkAnyTaskDone}
+      currentUserId={currentUserId}
       reportsEnabled={reportsEnabled}
     />
   );

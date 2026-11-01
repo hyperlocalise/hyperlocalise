@@ -111,6 +111,9 @@ import {
 } from "./job.schema";
 import { updateNativeJob } from "@/lib/projects/jobs/update-native-job";
 import { cancelNativeJob } from "@/lib/projects/jobs/cancel-native-job";
+import { markTaskDone } from "@/lib/projects/jobs/mark-task-done";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
+import { hasCapability } from "@/api/auth/policy";
 
 type CreateJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
@@ -1521,6 +1524,59 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return cancelled.error.code === "job_action_unavailable"
           ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
           : notFoundResponse(c, "job_not_found", "Job not found");
+      }
+
+      const [job] = await db
+        .select(jobWithProjectSelect)
+        .from(schema.jobs)
+        .leftJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
+        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.assetManagementJobDetails,
+          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.projects,
+          and(
+            eq(schema.projects.id, schema.jobs.projectId),
+            eq(schema.projects.organizationId, schema.jobs.organizationId),
+          ),
+        )
+        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
+        .limit(1);
+
+      return c.json({ job }, 200);
+    })
+    .post("/:jobId/mark-done", validateWorkspaceJobParams, async (c) => {
+      if (!isJobMutationAllowed(c.var.auth.membership.role)) {
+        return projectForbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const done = await markTaskDone({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        jobId: params.jobId,
+        actorUserId: c.var.auth.user.localUserId,
+        actorMayFinishAnyTask: hasCapability(c.var.auth.membership.role, "reviews:approve"),
+        accessWhere: await buildAccessibleJobsWhere(c.var.auth),
+      });
+
+      if (isErr(done)) {
+        switch (done.error.code) {
+          case "job_action_unavailable":
+            return conflictResponse(c, "job_action_unavailable", "Job action is not available");
+          case "not_task_assignee":
+            return projectForbiddenResponse(c);
+          case "job_not_found":
+            return notFoundResponse(c, "job_not_found", "Job not found");
+          default:
+            return assertNever(done.error);
+        }
       }
 
       const [job] = await db
