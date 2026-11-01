@@ -296,6 +296,7 @@ For tracing, the ECS task definition sets `DD_TRACE_AGENT_URL`, `DD_TRACE_ENABLE
 | `GET` | `/v1/jobs/latest` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `jobs:read` | Latest succeeded file translation job for a project source path |
 | `GET` | `/v1/jobs/{jobId}` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `jobs:read` | One job with its stored output file metadata |
 | `GET` | `/v1/jobs/{jobId}/status` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `jobs:read` | One job's kind and lifecycle status |
+| `GET` | `/v1/jobs/{jobId}/analysis` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `jobs:read` | One job's units by target locale, step, and translation memory match band |
 | `POST` | `/ofrep/v1/evaluate/flags/{key}` | Publishable `hlk_...` key | Evaluate one Hyperlab flag (OFREP) |
 | `POST` | `/ofrep/v1/evaluate/flags` | Publishable `hlk_...` key | Evaluate all Hyperlab flags (OFREP bulk) |
 
@@ -400,18 +401,22 @@ Read job status and stored result metadata:
 - `GET /v1/jobs/latest?projectId=...&sourcePath=...`
 - `GET /v1/jobs/{jobId}`
 - `GET /v1/jobs/{jobId}/status`
+- `GET /v1/jobs/{jobId}/analysis?unit=words`
 
 These routes replace the former web app reads on `https://hyperlocalise.com/api/v1/jobs/...`. Clients call `https://api.hyperlocalise.com/v1/jobs/...`. Job creation (`POST /api/v1/jobs`) stays on the web app.
 
 All routes require PAT or WorkOS agent authentication with `jobs:read`. Workspace-wide roles can read all jobs in the organization; other roles are limited to projects accessible through their teams.
 
-Responses are wrapped in a `job` object. Timestamps use UTC ISO-8601 with millisecond precision. Job reads return stored PostgreSQL metadata only and never fetch output file contents.
+Responses are wrapped in a `job` object, except `/analysis`, which returns an `analysis` object. Timestamps use UTC ISO-8601 with millisecond precision. Job reads return stored PostgreSQL metadata only and never fetch output file contents.
+
+`/analysis` reads the same Reports rows as the task Report tab (`reporting_daily_by_task` and `reporting_task_analyses`). `unit` is `words` (default), `strings`, `characters`, or `characters_with_spaces`. Every band appears in each locale row, zero when empty. It returns counts only; money stays on the session-authenticated `/v1/orgs/{organizationSlug}/reports/...` routes.
 
 `/v1/jobs/latest` normalizes `sourcePath` and returns the latest successful `file_result` translation job for the newest matching source file version, skipping queued or failed jobs.
 
 | Status | `error` | When |
 |--------|---------|------|
 | 400 | `invalid_job_payload` | Invalid `/latest` query |
+| 400 | `invalid_analysis_query` | Unknown or repeated `unit` on `/analysis` |
 | 401 | `unauthorized` | Missing or invalid credentials |
 | 403 | `forbidden` | Missing `jobs:read` or workspace access |
 | 404 | `job_not_found` | Job is missing, inaccessible, or no latest match exists |

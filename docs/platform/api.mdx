@@ -35,7 +35,7 @@ Missing, invalid, or revoked keys return `401` with `error: "unauthorized"`. An 
 | `files:write` | Upload a source file |
 | `files:read` | Download a stored file, reconstructed translation, or image variant |
 | `jobs:write` | Create a translation job |
-| `jobs:read` | Read job status and latest job for a source path |
+| `jobs:read` | Read job status, latest job for a source path, and match-band analysis |
 | `memories:read` | Export translation memory entries as TMX or CSV |
 | `memories:write` | Import translation memory entries from TMX or CSV |
 
@@ -213,6 +213,51 @@ Smaller payload with `id`, `projectId`, `kind`, `type`, `status`, timestamps, an
 
 ```bash
 curl --fail-with-body "https://api.hyperlocalise.com/v1/jobs/$JOB_ID/status" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY"
+```
+
+### Match-band analysis
+
+`GET https://api.hyperlocalise.com/v1/jobs/{jobId}/analysis`
+
+Permission: `jobs:read`
+
+Returns the job's units by target locale, step, and translation memory match band. These are the same counts as the job's **Report** tab in [Reports](/platform/workspace/reports).
+
+Optional query: `unit` is `words` (default), `strings`, `characters`, or `characters_with_spaces`.
+
+```json
+{
+  "analysis": {
+    "jobId": "job_...",
+    "unit": "words",
+    "bands": ["repetition", "100", "95-99", "85-94", "75-84", "50-74", "new", "unavailable"],
+    "steps": [
+      { "step": "translation", "status": "done", "incomplete": false, "updatedAt": "..." }
+    ],
+    "locales": [
+      {
+        "targetLocale": "fr-FR",
+        "step": "translation",
+        "total": 50,
+        "bands": {
+          "repetition": 0, "100": 12, "95-99": 0, "85-94": 8,
+          "75-84": 0, "50-74": 0, "new": 30, "unavailable": 0
+        }
+      }
+    ]
+  }
+}
+```
+
+- `bands` lists every band in order. Each locale row includes all of them, `0` when empty.
+- `steps[].status` is `pending`, `done`, or `failed`. An analysis that stays `pending` for more than an hour reads as `failed`.
+- `incomplete: true`, or words in `unavailable`, means the translation memory could not be read for some strings, so those strings have no match band.
+- `steps` and `locales` are empty until the job has been analysed.
+- Money, rate cards, and cost estimates are not included.
+
+```bash
+curl --fail-with-body "https://api.hyperlocalise.com/v1/jobs/$JOB_ID/analysis?unit=words" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY"
 ```
 
