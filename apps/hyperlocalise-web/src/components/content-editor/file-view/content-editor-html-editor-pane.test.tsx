@@ -71,6 +71,37 @@ describe("ContentEditorHtmlEditorPane", () => {
     expect(target).toHaveAttribute("sandbox", "");
   });
 
+  it("renders HubSpot email copy in a preview canvas without changing stored bytes", async () => {
+    const emailCopy = `<!DOCTYPE html>
+<html><body>
+<section data-hl-field="subject" data-hl-kind="text"><p>Welcome</p><!--/hl-field--></section>
+</body></html>
+`;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(emailCopy)),
+    );
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorHtmlEditorPane
+          documentKey="html-hubspot:fr"
+          sourceSrc="https://example.com/source.html"
+          targetSrc="https://example.com/target.html"
+          filename="welcome.html"
+          sourceLocale="en"
+          targetLocale="fr"
+          splitView
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    const source = await screen.findByTitle("Source (en)");
+    const srcdoc = source.getAttribute("srcdoc") ?? "";
+    expect(srcdoc).toContain("data-hl-preview-canvas");
+    expect(srcdoc).toContain('data-hl-field="subject"');
+  });
+
   it("keeps the target preview read-only when canEdit is false even with onSave", async () => {
     vi.stubGlobal(
       "fetch",

@@ -15,6 +15,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { isFullHtmlDocument, serializeDesignModeDocument } from "./content-editor-html-design-mode";
+import { HUBSPOT_EMAIL_PREVIEW_STYLE_MARKER } from "./content-editor-hubspot-email-preview";
 
 describe("isFullHtmlDocument", () => {
   it("detects doctype and html roots", () => {
@@ -62,5 +63,22 @@ describe("serializeDesignModeDocument", () => {
     );
     const serialized = serializeDesignModeDocument(doc, true);
     expect(serialized.startsWith('<!DOCTYPE html SYSTEM "about:legacy-compat">')).toBe(true);
+  });
+
+  it("strips preview-only canvas styles from full documents", () => {
+    const doc = new DOMParser().parseFromString(
+      `<html><head><style ${HUBSPOT_EMAIL_PREVIEW_STYLE_MARKER}>body{}</style></head><body><p>Kept</p></body></html>`,
+      "text/html",
+    );
+    const serialized = serializeDesignModeDocument(doc, true);
+    expect(serialized).not.toContain(HUBSPOT_EMAIL_PREVIEW_STYLE_MARKER);
+    expect(serialized).toContain("<p>Kept</p>");
+  });
+
+  it("strips preview-only canvas styles from fragments", () => {
+    const doc = document.implementation.createHTMLDocument("");
+    doc.head.innerHTML = `<style ${HUBSPOT_EMAIL_PREVIEW_STYLE_MARKER}>body{}</style><style>.x{color:red}</style>`;
+    doc.body.innerHTML = "<p>Hi</p>";
+    expect(serializeDesignModeDocument(doc, false)).toBe("<style>.x{color:red}</style><p>Hi</p>");
   });
 });

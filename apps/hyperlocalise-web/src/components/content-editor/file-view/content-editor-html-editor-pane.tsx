@@ -20,6 +20,7 @@ import { toast } from "sonner";
 
 import { FileViewPaneState } from "@/components/content-editor/file-view/content-editor-file-view-layout";
 import { contentEditorFileViewMessages } from "@/components/content-editor/file-view/content-editor-file-view.messages";
+import { hubspotEmailPreviewSrcDoc } from "@/components/content-editor/file-view/content-editor-hubspot-email-preview";
 import {
   isFullHtmlDocument,
   serializeDesignModeDocument,
@@ -296,6 +297,7 @@ export function ContentEditorHtmlEditorPane({
           {splitView && !codeMode ? (
             <HtmlPreviewFrame
               srcDoc={load.sourceText}
+              toPreviewSrcDoc={hubspotEmailPreviewSrcDoc}
               label={intl.formatMessage(contentEditorFileViewMessages.sourceHeading, {
                 locale: sourceLocale,
               })}
@@ -316,6 +318,7 @@ export function ContentEditorHtmlEditorPane({
             <HtmlPreviewFrame
               ref={targetPreviewRef}
               srcDoc={body}
+              toPreviewSrcDoc={hubspotEmailPreviewSrcDoc}
               editable={editable}
               loadedAsFullDocument={isFullHtmlDocument(body)}
               onHtmlChange={setBody}
@@ -340,14 +343,27 @@ const HtmlPreviewFrame = forwardRef<
     loadedAsFullDocument?: boolean;
     onHtmlChange?: (html: string) => void;
     onSaveShortcut?: () => void;
+    /** Maps stored file bytes to display bytes (e.g. a preview-only canvas).
+     * The stored value stays the source of truth; the frame compares display
+     * strings so its own serialized output never triggers a reload. */
+    toPreviewSrcDoc?: (html: string) => string;
   }
 >(function HtmlPreviewFrame(
-  { srcDoc, label, editable = false, loadedAsFullDocument = false, onHtmlChange, onSaveShortcut },
+  {
+    srcDoc,
+    label,
+    editable = false,
+    loadedAsFullDocument = false,
+    onHtmlChange,
+    onSaveShortcut,
+    toPreviewSrcDoc,
+  },
   ref,
 ) {
+  const displaySrcDoc = toPreviewSrcDoc?.(srcDoc) ?? srcDoc;
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const lastEmittedRef = useRef(srcDoc);
-  const paintSrcDocRef = useRef(srcDoc);
+  const lastEmittedRef = useRef(displaySrcDoc);
+  const paintSrcDocRef = useRef(displaySrcDoc);
   const loadedAsFullDocumentRef = useRef(loadedAsFullDocument);
   const onHtmlChangeRef = useRef(onHtmlChange);
   const onSaveShortcutRef = useRef(onSaveShortcut);
@@ -371,9 +387,9 @@ const HtmlPreviewFrame = forwardRef<
     if (html == null) {
       return;
     }
-    lastEmittedRef.current = html;
+    lastEmittedRef.current = toPreviewSrcDoc?.(html) ?? html;
     onHtmlChangeRef.current?.(html);
-  }, [readSerializedHtml]);
+  }, [readSerializedHtml, toPreviewSrcDoc]);
 
   useImperativeHandle(
     ref,
@@ -381,25 +397,25 @@ const HtmlPreviewFrame = forwardRef<
       flush: () => {
         const html = readSerializedHtml();
         if (html != null) {
-          lastEmittedRef.current = html;
+          lastEmittedRef.current = toPreviewSrcDoc?.(html) ?? html;
         }
         return html;
       },
     }),
-    [readSerializedHtml],
+    [readSerializedHtml, toPreviewSrcDoc],
   );
 
   useEffect(() => {
-    if (srcDoc === lastEmittedRef.current) {
+    if (displaySrcDoc === lastEmittedRef.current) {
       return;
     }
-    lastEmittedRef.current = srcDoc;
+    lastEmittedRef.current = displaySrcDoc;
     skipSerializeOnLoadRef.current = true;
     const iframe = iframeRef.current;
     if (iframe) {
-      iframe.srcdoc = srcDoc;
+      iframe.srcdoc = displaySrcDoc;
     }
-  }, [srcDoc]);
+  }, [displaySrcDoc]);
 
   const handleLoad = useCallback(() => {
     teardownRef.current?.();
@@ -457,7 +473,7 @@ const HtmlPreviewFrame = forwardRef<
         title={label}
         sandbox={editable ? "allow-same-origin" : ""}
         // Keep srcDoc stable while typing. Updating it remounts the document and drops the caret.
-        srcDoc={editable ? paintSrcDocRef.current : srcDoc}
+        srcDoc={editable ? paintSrcDocRef.current : displaySrcDoc}
         onLoad={handleLoad}
         className={cn(
           "min-h-[32rem] w-full flex-1 rounded-xl border border-border bg-white",

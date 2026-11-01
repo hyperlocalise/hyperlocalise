@@ -158,6 +158,16 @@ export type WorkspaceAutomationFormState = {
   customerIoEnabled: boolean;
   loopsEnabled: boolean;
   loopsSourceLocale: string;
+  hubspotEnabled: boolean;
+  hubspotSourceLocale: string;
+  hubspotEmailIds: string[];
+  hubspotFormIds: string[];
+  hubspotBlogPostIds: string[];
+  hubspotLandingPageIds: string[];
+  hubspotWebsitePageIds: string[];
+  hubspotMessageTemplateIds: string[];
+  hubspotExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  hubspotOverwriteWhenRemoteNewer: boolean;
   customerIoBroadcastIds: string[];
   customerIoCampaignIds: string[];
   customerIoNewsletterIds: string[];
@@ -211,7 +221,8 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
     form.brazeCampaignsEnabled ||
     form.customerIoEnabled ||
     form.iterableEnabled ||
-    form.loopsEnabled
+    form.loopsEnabled ||
+    form.hubspotEnabled
   ) {
     return true;
   }
@@ -266,6 +277,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "iterableSourceLocale"
     | "customerIo"
     | "loops"
+    | "hubspot"
     | "crowdinProjectId"
     | "scheduledTimezone"
     | "skills"
@@ -341,6 +353,9 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   loops_not_connected: "Connect Loops in Integrations before using it.",
   loops_pipes_needs_reauthorization: "Reconnect Loops in Integrations, then try again.",
   loops_pipes_unavailable: "Loops is unavailable until WorkOS Pipes is configured.",
+  hubspot_not_connected: "Connect HubSpot in Integrations before using it.",
+  hubspot_pipes_needs_reauthorization: "Reconnect HubSpot in Integrations, then try again.",
+  hubspot_pipes_unavailable: "HubSpot is unavailable until WorkOS Pipes is configured.",
   iterable_not_connected: "Connect Iterable in Integrations before using it.",
   iterable_pipes_needs_reauthorization: "Reconnect Iterable in Integrations, then try again.",
   iterable_pipes_unavailable: "Iterable is unavailable until WorkOS Pipes is configured.",
@@ -502,6 +517,16 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     customerIoEnabled: false,
     loopsEnabled: false,
     loopsSourceLocale: "en",
+    hubspotEnabled: false,
+    hubspotSourceLocale: "en",
+    hubspotEmailIds: [],
+    hubspotFormIds: [],
+    hubspotBlogPostIds: [],
+    hubspotLandingPageIds: [],
+    hubspotWebsitePageIds: [],
+    hubspotMessageTemplateIds: [],
+    hubspotExistingTranslationPolicy: "seed_empty",
+    hubspotOverwriteWhenRemoteNewer: true,
     customerIoBroadcastIds: [],
     customerIoCampaignIds: [],
     customerIoNewsletterIds: [],
@@ -567,6 +592,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const customerIo = automation.toolConfig.customerIo;
   const iterable = automation.toolConfig.iterable;
   const loops = automation.toolConfig.loops;
+  const hubspot = automation.toolConfig.hubspot;
   const crowdin = automation.toolConfig.crowdin;
   const webSearch = automation.toolConfig.webSearch;
 
@@ -698,6 +724,20 @@ export function createWorkspaceAutomationFormStateFromRecord(
     customerIoEnabled: Boolean(customerIo?.enabled),
     loopsEnabled: Boolean(loops?.enabled),
     loopsSourceLocale: loops?.sourceLocale ?? "en",
+    hubspotEnabled: Boolean(hubspot?.enabled),
+    hubspotSourceLocale: hubspot?.sourceLocale ?? "en",
+    hubspotEmailIds: hubspot?.emailIds ? [...hubspot.emailIds] : [],
+    hubspotFormIds: hubspot?.formIds ? [...hubspot.formIds] : [],
+    hubspotBlogPostIds: hubspot?.blogPostIds ? [...hubspot.blogPostIds] : [],
+    hubspotLandingPageIds: hubspot?.landingPageIds ? [...hubspot.landingPageIds] : [],
+    hubspotWebsitePageIds: hubspot?.websitePageIds ? [...hubspot.websitePageIds] : [],
+    hubspotMessageTemplateIds: hubspot?.messageTemplateIds ? [...hubspot.messageTemplateIds] : [],
+    hubspotExistingTranslationPolicy:
+      hubspot?.existingTranslationPolicy === "refresh_imported" ||
+      hubspot?.existingTranslationPolicy === "overwrite_all"
+        ? hubspot.existingTranslationPolicy
+        : "seed_empty",
+    hubspotOverwriteWhenRemoteNewer: hubspot?.overwriteWhenRemoteNewer !== false,
     customerIoBroadcastIds: customerIo?.broadcastIds ? [...customerIo.broadcastIds] : [],
     customerIoCampaignIds: customerIo?.campaignIds ? [...customerIo.campaignIds] : [],
     customerIoNewsletterIds: customerIo?.newsletterIds ? [...customerIo.newsletterIds] : [],
@@ -814,6 +854,10 @@ export function applyWorkspaceAutomationProjectSelection(
 
   if (form.loopsEnabled && project) {
     next.loopsSourceLocale = project.sourceLocale ?? form.loopsSourceLocale;
+  }
+
+  if (form.hubspotEnabled && project) {
+    next.hubspotSourceLocale = project.sourceLocale ?? form.hubspotSourceLocale;
   }
 
   if (form.iterableEnabled && project) {
@@ -1048,6 +1092,22 @@ export function formStateToWorkspaceAutomationPayload(
             workflowIds: [],
             existingTranslationPolicy: "seed_empty",
             overwriteWhenRemoteNewer: true,
+          },
+        }
+      : {}),
+    ...(form.hubspotEnabled
+      ? {
+          hubspot: {
+            enabled: true,
+            sourceLocale: form.hubspotSourceLocale.trim() || "en",
+            emailIds: form.hubspotEmailIds,
+            formIds: form.hubspotFormIds,
+            blogPostIds: form.hubspotBlogPostIds,
+            landingPageIds: form.hubspotLandingPageIds,
+            websitePageIds: form.hubspotWebsitePageIds,
+            messageTemplateIds: form.hubspotMessageTemplateIds,
+            existingTranslationPolicy: form.hubspotExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.hubspotOverwriteWhenRemoteNewer,
           },
         }
       : {}),
@@ -1609,6 +1669,10 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "loops_pipes_needs_reauthorization":
     case "loops_pipes_unavailable":
       return { loops: message };
+    case "hubspot_not_connected":
+    case "hubspot_pipes_needs_reauthorization":
+    case "hubspot_pipes_unavailable":
+      return { hubspot: message };
     case "iterable_not_connected":
     case "iterable_pipes_needs_reauthorization":
     case "iterable_pipes_unavailable":
@@ -1689,6 +1753,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.customerIoEnabled ||
     form.iterableEnabled ||
     form.loopsEnabled ||
+    form.hubspotEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
     form.listIssuesEnabled ||

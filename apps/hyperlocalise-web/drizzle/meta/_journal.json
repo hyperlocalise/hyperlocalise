@@ -1184,6 +1184,13 @@
       "when": 1793507751714,
       "tag": "0168_foamy_turbo",
       "breakpoints": true
+    },
+    {
+      "idx": 169,
+      "version": "7",
+      "when": 1793559173253,
+      "tag": "0169_thick_hellcat",
+      "breakpoints": true
     }
   ]
 }

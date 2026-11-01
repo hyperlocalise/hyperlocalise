@@ -53,6 +53,7 @@ import {
   hasWorkspaceAutomationIterableTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationLoopsTool,
+  hasWorkspaceAutomationHubspotTool,
   hasWorkspaceAutomationSanityTool,
   hasWorkspaceAutomationWebflowTool,
   type WorkspaceAutomationConfigValidationError,
@@ -65,6 +66,11 @@ import {
   isCustomerIoPushRunActive,
   type CustomerIoPushItem,
 } from "@/lib/customer-io/push-eligibility";
+import {
+  getHubspotPushEligibility,
+  isHubspotPushRunActive,
+  type HubspotPushItem,
+} from "@/lib/hubspot/push-eligibility";
 import {
   getLoopsPushEligibility,
   isLoopsPushRunActive,
@@ -805,6 +811,26 @@ export function createWorkspaceAutomationRoutes(
         };
       }
 
+      let hubspotPush: {
+        eligibleLocaleCount: number;
+        mappedItemCount: number;
+        pushRunInProgress: boolean;
+        items?: HubspotPushItem[];
+      } | null = null;
+      if (hasWorkspaceAutomationHubspotTool(automation.toolConfig)) {
+        const eligibility = await getHubspotPushEligibility({
+          organizationId,
+          automation,
+          includeLocaleProgress: includePushArticles,
+        });
+        hubspotPush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedItemCount: eligibility?.mappedItemCount ?? 0,
+          pushRunInProgress: isHubspotPushRunActive(recentRuns),
+          ...(includePushArticles ? { items: eligibility?.items ?? [] } : {}),
+        };
+      }
+
       return c.json(
         {
           automation,
@@ -817,6 +843,7 @@ export function createWorkspaceAutomationRoutes(
           customerIoPush,
           iterablePush,
           loopsPush,
+          hubspotPush,
         },
         200,
       );
