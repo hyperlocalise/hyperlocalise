@@ -587,6 +587,24 @@ func TestIrisSyntheticCredit(t *testing.T) {
 			model:  "custom/audio",
 			output: 1,
 		},
+		{
+			name:   "dubbing default input minute",
+			job:    irisJobRecord{ID: "job_dub", OrgID: "org_local", Model: "elevenlabs-dubbing"},
+			model:  "custom/audio",
+			output: 1,
+		},
+		{
+			name:   "lipsync video seconds",
+			job:    irisJobRecord{ID: "job_lipsync", OrgID: "org_local", Model: "sync-lipsync-2", Request: irisGenerateRequest{"duration": float64(15)}},
+			model:  "custom/video",
+			output: 15,
+		},
+		{
+			name:   "image text flat image credit",
+			job:    irisJobRecord{ID: "job_ocr", OrgID: "org_local", Model: "image-text"},
+			model:  "custom/image",
+			output: 1,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

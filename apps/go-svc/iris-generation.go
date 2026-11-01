@@ -53,7 +53,7 @@ type irisGenerationAPI struct {
 	text       irisTextModel
 	meter      irisUsageMeter
 	credits    irisCreditConfig
-	pool       dictionaryDB
+	pool       dictionaryPool
 	membership organizationMembershipLookup
 	resolve    func(context.Context, AuthClaims, string) (irisOrgScope, error)
 	now        func() time.Time

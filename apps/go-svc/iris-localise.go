@@ -209,38 +209,24 @@ func (api *irisGenerationAPI) localiseTranslate(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	byNormalized := map[string]irisMemoryMatch{}
-	for _, match := range memory {
-		key := normalizeMemorySourceText(match.Source)
-		if existing, ok := byNormalized[key]; !ok || (match.Approved && !existing.Approved) {
-			byNormalized[key] = match
-		}
-	}
-	out := make([]irisTranslatedMessage, 0, len(body.Messages))
-	pending := make([]irisLocaliseMessage, 0, len(body.Messages))
-	for _, message := range body.Messages {
-		if match, ok := byNormalized[normalizeMemorySourceText(message.Text)]; ok && match.Approved {
-			out = append(out, irisTranslatedMessage{ID: message.ID, Text: match.Target, Origin: "memory"})
-			continue
-		}
-		pending = append(pending, message)
-	}
-
+	pending := pendingIrisTranslations(body.Messages, memory)
+	var translated []irisTranslatedMessage
 	if len(pending) > 0 {
 		if api.text == nil {
 			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "provider_unavailable", "message": "Translation is not configured (set AI_GATEWAY_API_KEY)"})
 			return
 		}
-		translated, usage, err := api.translateWithModel(r.Context(), source, target, pending, glossary, api.knowledge(r.Context(), scope), body.Guidance)
+		var usage irisChatReply
+		var err error
+		translated, usage, err = api.translateWithModel(r.Context(), source, target, pending, glossary, api.knowledge(r.Context(), scope), body.Guidance)
 		api.trackTranslation(r.Context(), scope, usage)
 		if err != nil {
 			logRequestFailure(r, "iris_localise_translate_failed", "translate", err)
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "provider_error", "message": "The translation model failed: " + truncate(err.Error(), 200)})
 			return
 		}
-		out = append(out, translated...)
 	}
-	writeJSON(w, http.StatusOK, irisTranslateResponse{Messages: out, Glossary: glossary})
+	writeJSON(w, http.StatusOK, irisTranslateResponse{Messages: mergeIrisTranslations(body.Messages, memory, translated), Glossary: glossary})
 }
 
 func (api *irisGenerationAPI) localiseRemember(w http.ResponseWriter, r *http.Request) {
@@ -280,6 +266,13 @@ func (api *irisGenerationAPI) localiseRemember(w http.ResponseWriter, r *http.Re
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal_error", "message": "Could not open the translation memory"})
 		return
 	}
+	tx, err := api.pool.Begin(r.Context())
+	if err != nil {
+		logRequestFailure(r, "iris_localise_memory_insert_failed", "remember", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal_error", "message": "Could not save to the translation memory"})
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
 	saved, skipped := 0, 0
 	for _, entry := range body.Entries {
 		sourceText, targetText := strings.TrimSpace(entry.Source), strings.TrimSpace(entry.Target)
@@ -287,7 +280,7 @@ func (api *irisGenerationAPI) localiseRemember(w http.ResponseWriter, r *http.Re
 			skipped++
 			continue
 		}
-		tag, err := api.pool.Exec(r.Context(), `insert into memory_entries (memory_id, source_locale, target_locale, source_text, normalized_source_text, target_text, match_score, provenance, created_by_user_id)
+		tag, err := tx.Exec(r.Context(), `insert into memory_entries (memory_id, source_locale, target_locale, source_text, normalized_source_text, target_text, match_score, provenance, created_by_user_id)
 select $1,$2,$3,$4,$5,$6,100,'manual',$7
 where not exists (select 1 from memory_entries where memory_id=$1 and source_locale=$2 and target_locale=$3 and normalized_source_text=$5)`,
 			memoryID, source, target, sourceText, normalizeMemorySourceText(sourceText), targetText, actor.userID)
@@ -301,6 +294,11 @@ where not exists (select 1 from memory_entries where memory_id=$1 and source_loc
 		} else {
 			skipped++
 		}
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		logRequestFailure(r, "iris_localise_memory_insert_failed", "remember", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal_error", "message": "Could not save to the translation memory"})
+		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"memoryId": memoryID, "saved": saved, "skipped": skipped})
 }
@@ -407,12 +405,15 @@ join memories m on m.id = e.memory_id
 where `+memoryAccessPredicate("m", 1, 2, 3)+`
   and m.status <> 'archived'
   and lower(e.source_locale) in (lower($4), lower($5))
-  and lower(e.target_locale) = lower($6)
+  and lower(e.target_locale) in (lower($6), lower($7))
   and coalesce(e.review_status, '') <> 'rejected'
-  and e.normalized_source_text = any($7)
-order by (coalesce(e.review_status, '') = 'approved') desc, e.updated_at desc
+  and e.normalized_source_text = any($8)
+order by (coalesce(e.review_status, '') = 'approved') desc,
+         (lower(e.target_locale) = lower($6)) desc,
+         (lower(e.source_locale) = lower($4)) desc,
+         e.updated_at desc
 limit 500`,
-		actor.organizationID, actor.userID, actor.orgWideAccess(), source, irisLanguage(source), target, normalized)
+		actor.organizationID, actor.userID, actor.orgWideAccess(), source, irisLanguage(source), target, irisLanguage(target), normalized)
 	if err != nil {
 		return nil, err
 	}
@@ -527,6 +528,53 @@ func (api *irisGenerationAPI) translateWithModel(ctx context.Context, source, ta
 		out = append(out, irisTranslatedMessage{ID: message.ID, Text: text, Origin: "model"})
 	}
 	return out, reply, nil
+}
+
+// pendingIrisTranslations are the messages with no approved memory match.
+func pendingIrisTranslations(messages []irisLocaliseMessage, memory []irisMemoryMatch) []irisLocaliseMessage {
+	approved := approvedMemoryBySource(memory)
+	pending := make([]irisLocaliseMessage, 0, len(messages))
+	for _, message := range messages {
+		if _, ok := approved[normalizeMemorySourceText(message.Text)]; !ok {
+			pending = append(pending, message)
+		}
+	}
+	return pending
+}
+
+// mergeIrisTranslations keeps each result in request order so a memory hit
+// does not move later model translations.
+func mergeIrisTranslations(messages []irisLocaliseMessage, memory []irisMemoryMatch, model []irisTranslatedMessage) []irisTranslatedMessage {
+	approved := approvedMemoryBySource(memory)
+	byID := make(map[string]irisTranslatedMessage, len(model))
+	for _, item := range model {
+		byID[item.ID] = item
+	}
+	out := make([]irisTranslatedMessage, 0, len(messages))
+	for _, message := range messages {
+		if match, ok := approved[normalizeMemorySourceText(message.Text)]; ok {
+			out = append(out, irisTranslatedMessage{ID: message.ID, Text: match.Target, Origin: "memory"})
+			continue
+		}
+		if translated, ok := byID[message.ID]; ok {
+			out = append(out, translated)
+		}
+	}
+	return out
+}
+
+func approvedMemoryBySource(memory []irisMemoryMatch) map[string]irisMemoryMatch {
+	approved := map[string]irisMemoryMatch{}
+	for _, match := range memory {
+		if !match.Approved {
+			continue
+		}
+		key := normalizeMemorySourceText(match.Source)
+		if _, ok := approved[key]; !ok {
+			approved[key] = match
+		}
+	}
+	return approved
 }
 
 func parseIrisTranslations(reply string) (map[string]string, error) {

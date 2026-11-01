@@ -141,7 +141,7 @@ The Iris editor localises its projects through these routes, all under
 | Method | Path | Operation |
 |--------|------|-----------|
 | POST | `/localise/lookup` | Glossary terms found in `texts` (with their `targetLocale` translation, forbidden flag and note), exact translation-memory matches, and the workspace knowledge memory. Reads only what the member's glossary and memory access allows. |
-| POST | `/localise/translate` | Translates up to 200 `messages` (`id`, `text`, `description`): approved memory matches first, then the translation model with the glossary, knowledge memory and `guidance` in the prompt. Translations that drop an ICU placeholder are left out. Billed as AI tokens. |
+| POST | `/localise/translate` | Translates up to 200 `messages` (`id`, `text`, `description`): approved memory matches first, then the translation model with the glossary, knowledge memory and `guidance` in the prompt. Results stay in request order. Translations that drop an ICU placeholder are left out. Billed as AI tokens. |
 | POST | `/localise/memory` | Saves approved `entries` (`source`, `target`) into `memoryId`, or the oldest native memory, or a new "Iris" memory. Admins and localization managers only; existing pairs are skipped. |
 
 Localisation models on `/generate`: `elevenlabs-dubbing` (ElevenLabs Dubbing:

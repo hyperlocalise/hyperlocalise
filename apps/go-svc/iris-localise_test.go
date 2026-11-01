@@ -116,6 +116,27 @@ func TestTranslateWithModelKeepsOnlySafeTranslations(t *testing.T) {
 	require.Len(t, prompt.Glossary, 1)
 }
 
+func TestMergeIrisTranslationsKeepsRequestOrder(t *testing.T) {
+	messages := []irisLocaliseMessage{
+		{ID: "a", Text: "Hello"},
+		{ID: "b", Text: "Shop now"},
+		{ID: "c", Text: "Goodbye"},
+		{ID: "d", Text: "Missing"},
+	}
+	memory := []irisMemoryMatch{
+		{Source: "Hello", Target: "Bonjour", Approved: true},
+		{Source: "Goodbye", Target: "Au revoir", Approved: true},
+		{Source: "Shop now", Target: "Achetez", Approved: false},
+	}
+	model := []irisTranslatedMessage{{ID: "b", Text: "Acheter maintenant", Origin: "model"}}
+	require.Equal(t, []irisTranslatedMessage{
+		{ID: "a", Text: "Bonjour", Origin: "memory"},
+		{ID: "b", Text: "Acheter maintenant", Origin: "model"},
+		{ID: "c", Text: "Au revoir", Origin: "memory"},
+	}, mergeIrisTranslations(messages, memory, model))
+	require.Equal(t, []irisLocaliseMessage{{ID: "b", Text: "Shop now"}, {ID: "d", Text: "Missing"}}, pendingIrisTranslations(messages, memory))
+}
+
 func TestParseIrisTranslationsRejectsProse(t *testing.T) {
 	_, err := parseIrisTranslations("Sure! Here you go.")
 	require.Error(t, err)

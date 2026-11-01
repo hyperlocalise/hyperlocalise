@@ -229,9 +229,11 @@ func isIrisLocale(value string) bool {
 		}
 		for _, r := range part {
 			isLetter := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
-			if !isLetter && !(i > 0 && r >= '0' && r <= '9') {
-				return false
+			isDigit := i > 0 && r >= '0' && r <= '9'
+			if isLetter || isDigit {
+				continue
 			}
+			return false
 		}
 	}
 	return true
