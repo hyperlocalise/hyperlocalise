@@ -113,9 +113,9 @@ and reads the result. Neither package exposes an HTTP route.
 
 | Variable | Description |
 |----------|-------------|
-| `ELEVENLABS_API_KEY` | ElevenLabs API key sent as `xi-api-key`. Required for native `elevenlabs-*` Iris models. |
+| `ELEVENLABS_API_KEY` | ElevenLabs API key sent as `xi-api-key`. Required for native `elevenlabs-*` Iris models, including `elevenlabs-dubbing`. |
 | `ELEVENLABS_BASE_URL` | Optional. Defaults to `https://api.elevenlabs.io`. |
-| `FAL_KEY` | fal.ai API key sent as `Authorization: Key ...`. Required for native Flux, Kling, Seedance, Wan, MiniMax, Krea, Seedream, Bria, SeedVR, and ByteDance upscaler Iris models. |
+| `FAL_KEY` | fal.ai API key sent as `Authorization: Key ...`. Required for native Flux, Kling, Seedance, Wan, MiniMax, Krea, Seedream, Bria, SeedVR, ByteDance upscaler, and Sync lipsync Iris models. |
 | `FAL_QUEUE_URL` | Optional. Defaults to `https://queue.fal.run`. |
 
 Example Go usage:
@@ -132,6 +132,29 @@ queue, err := fal.NewClient(fal.Config{
 
 When a native client is unset, Iris falls back to `AI_GATEWAY_API_KEY` for that
 model. If no generation backend is configured, jobs fail with `PROVIDER_ERROR`.
+
+### Iris localisation
+
+The Iris editor localises its projects through these routes, all under
+`/v1/orgs/{organizationSlug}/iris` and authenticated like the generation routes:
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| POST | `/localise/lookup` | Glossary terms found in `texts` (with their `targetLocale` translation, forbidden flag and note), exact translation-memory matches, and the workspace knowledge memory. Reads only what the member's glossary and memory access allows. |
+| POST | `/localise/translate` | Translates up to 200 `messages` (`id`, `text`, `description`): approved memory matches first, then the translation model with the glossary, knowledge memory and `guidance` in the prompt. Results stay in request order. Translations that drop an ICU placeholder are left out. Billed as AI tokens. |
+| POST | `/localise/memory` | Saves approved `entries` (`source`, `target`) into `memoryId`, or the oldest native memory, or a new "Iris" memory. Admins and localization managers only; existing pairs are skipped. |
+
+Localisation models on `/generate`: `elevenlabs-dubbing` (ElevenLabs Dubbing:
+`media`, `targetLanguage`, optional `sourceLanguage` and `speakers`; needs
+`ELEVENLABS_API_KEY`), `sync-lipsync-2` (fal `fal-ai/sync-lipsync/v2`: `video`,
+`audio`, optional `syncMode`; needs `FAL_KEY`), `image-localise` (rewrites an
+`image`'s copy for `targetLocale`, optionally with fixed `translations`) and
+`image-text` (reads an `image`'s copy into `text.json`), both on AI Gateway.
+
+| Variable | Description |
+|----------|-------------|
+| `IRIS_TRANSLATE_MODEL` | Optional. AI Gateway model for `/localise/translate`. Defaults to `openai/gpt-6-luna`, the model go-svc and the agents use by default. |
+| `IRIS_VISION_MODEL` | Optional. AI Gateway model for `image-text`. Defaults to `openai/gpt-6-luna`. |
 
 ### Datadog tracing
 

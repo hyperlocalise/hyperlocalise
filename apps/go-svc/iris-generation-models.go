@@ -94,6 +94,12 @@ func irisModels() []irisModelInfo {
 		{ID: "bytedance-upscaler", Name: "ByteDance Upscaler", Kind: irisKindTool, Provider: irisProviderFal, GatewayID: "bytedance/seedance-2.5", NativeID: "fal-ai/bytedance-upscaler/upscale/video", Pricing: irisPricing{Unit: "flat", Credits: 8, Minimum: &min1}, ETASeconds: 60, RequiresRef: true},
 		{ID: "universal-3.5-pro", Name: "Universal 3.5 Pro", Kind: irisKindTool, GatewayID: "google/gemini-3.5-transcribe", Pricing: irisPricing{Unit: "input-minute", Credits: 3, Minimum: &min1}, ETASeconds: 25, RequiresRef: true},
 		{ID: "qwen3.8-omni-flash", Name: "Qwen 3.8 Omni Flash", Kind: irisKindTool, GatewayID: "alibaba/qwen3-omni-flash", Pricing: irisPricing{Unit: "input-minute", Credits: 2, Minimum: &min1}, ETASeconds: 20, RequiresRef: true},
+		// Localisation: dubbing in the speakers' own voices, lip-sync to new
+		// audio, and reading and rewriting the copy baked into an image.
+		{ID: "elevenlabs-dubbing", Name: "ElevenLabs Dubbing", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "dubbing", Pricing: irisPricing{Unit: "input-minute", Credits: 12, Minimum: &min1}, ETASeconds: 240, RequiresRef: true},
+		{ID: "sync-lipsync-2", Name: "Sync Lipsync 2", Kind: irisKindTool, Provider: irisProviderFal, NativeID: "fal-ai/sync-lipsync/v2", Pricing: irisPricing{Unit: "second", Credits: 3, Minimum: &min1}, ETASeconds: 180, RequiresRef: true},
+		{ID: "image-localise", Name: "Image Localise", Kind: irisKindTool, GatewayID: "google/gemini-3-pro-image", Pricing: irisPricing{Unit: "image", Credits: 6, Minimum: &min1}, ETASeconds: 30, RequiresRef: true},
+		{ID: "image-text", Name: "Image Text", Kind: irisKindTool, GatewayID: defaultGuidelineCheckModel, Pricing: irisPricing{Unit: "flat", Credits: 1, Minimum: &min1}, ETASeconds: 15, RequiresRef: true},
 	}
 }
 
@@ -161,6 +167,76 @@ func (req irisGenerateRequest) duration() float64 {
 	default:
 		return 0
 	}
+}
+
+const irisMaxImageTranslations = 100
+
+var irisSyncModes = map[string]bool{"cut_off": true, "loop": true, "bounce": true, "silence": true, "remap": true}
+
+// irisTranslationPair is one source string and the translation an image's
+// copy should carry instead.
+type irisTranslationPair struct {
+	Source string
+	Target string
+}
+
+func (req irisGenerateRequest) translations() []irisTranslationPair {
+	raw, ok := req["translations"].([]any)
+	if !ok {
+		return nil
+	}
+	pairs := make([]irisTranslationPair, 0, len(raw))
+	for _, item := range raw {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		source := strings.TrimSpace(stringFrom(entry["source"]))
+		target := strings.TrimSpace(stringFrom(entry["target"]))
+		if source != "" && target != "" {
+			pairs = append(pairs, irisTranslationPair{Source: source, Target: target})
+		}
+	}
+	return pairs
+}
+
+func (req irisGenerateRequest) intField(name string) int {
+	switch value := req[name].(type) {
+	case float64:
+		return int(value)
+	case int:
+		return value
+	case json.Number:
+		n, _ := value.Int64()
+		return int(n)
+	default:
+		return 0
+	}
+}
+
+// isIrisLocale accepts an ISO 639 language or a BCP 47 tag: fr, pt-BR, zh-Hans.
+func isIrisLocale(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 35 {
+		return false
+	}
+	for i, part := range strings.Split(strings.ReplaceAll(value, "_", "-"), "-") {
+		if i == 0 && (len(part) < 2 || len(part) > 3) {
+			return false
+		}
+		if len(part) < 2 || len(part) > 8 {
+			return false
+		}
+		for _, r := range part {
+			isLetter := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+			isDigit := i > 0 && r >= '0' && r <= '9'
+			if isLetter || isDigit {
+				continue
+			}
+			return false
+		}
+	}
+	return true
 }
 
 func (req irisGenerateRequest) stringField(name string) string {
@@ -240,6 +316,40 @@ func validateIrisGenerateRequest(req irisGenerateRequest) (irisModelInfo, error)
 	case "qwen3.8-omni-flash":
 		if _, ok := req.asset("media"); !ok {
 			return model, fmt.Errorf("media is required")
+		}
+	case "elevenlabs-dubbing":
+		if _, ok := req.asset("media"); !ok {
+			return model, fmt.Errorf("media is required")
+		}
+		if !isIrisLocale(req.stringField("targetLanguage")) {
+			return model, fmt.Errorf("targetLanguage is required (a language like fr or a locale like pt-BR)")
+		}
+		if source := req.stringField("sourceLanguage"); source != "" && !isIrisLocale(source) {
+			return model, fmt.Errorf("sourceLanguage must be a language or locale")
+		}
+	case "sync-lipsync-2":
+		if _, ok := req.asset("video"); !ok {
+			return model, fmt.Errorf("video is required")
+		}
+		if _, ok := req.asset("audio"); !ok {
+			return model, fmt.Errorf("audio is required")
+		}
+		if mode := req.stringField("syncMode"); mode != "" && !irisSyncModes[mode] {
+			return model, fmt.Errorf("syncMode must be cut_off, loop, bounce, silence or remap")
+		}
+	case "image-localise":
+		if _, ok := req.asset("image"); !ok {
+			return model, fmt.Errorf("image is required")
+		}
+		if !isIrisLocale(req.stringField("targetLocale")) {
+			return model, fmt.Errorf("targetLocale is required (a locale like ja-JP)")
+		}
+		if len(req.translations()) > irisMaxImageTranslations {
+			return model, fmt.Errorf("translations takes at most %d pairs", irisMaxImageTranslations)
+		}
+	case "image-text":
+		if _, ok := req.asset("image"); !ok {
+			return model, fmt.Errorf("image is required")
 		}
 	}
 	return model, nil

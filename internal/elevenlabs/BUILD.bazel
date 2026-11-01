@@ -7,6 +7,7 @@ go_library(
         "client.go",
         "config.go",
         "doc.go",
+        "dubbing.go",
         "errors.go",
         "voices.go",
     ],
@@ -16,7 +17,10 @@ go_library(
 
 go_test(
     name = "elevenlabs_test",
-    srcs = ["client_test.go"],
+    srcs = [
+        "client_test.go",
+        "dubbing_test.go",
+    ],
     embed = [":elevenlabs"],
     deps = ["@com_github_stretchr_testify//require"],
 )
