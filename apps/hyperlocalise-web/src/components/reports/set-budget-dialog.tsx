@@ -12,7 +12,7 @@
  */
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useRef, useId, useState } from "react";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 
 import { budgetsTabMessages as messages } from "./budgets-tab.messages";
 import { ReportSelect } from "./reports-filter-bar";
+import { ReportLoadFailed } from "./report-section";
 import { useBudgets, useSetBudget, type ReportSettings } from "./reports-queries";
 
 const USD = /^\d{1,12}(\.\d{1,8})?$/;
@@ -69,8 +70,11 @@ export function SetBudgetDialog({
   // Fill in the chosen project's budget once the budgets are up to date, so a reload still
   // running or failed after a save cannot put the old amount and rate card back.
   const loaded = budgets.isSuccess && !budgets.isFetching;
+  const filled = useRef(false);
   useEffect(() => {
-    if (loaded && chosenProjectId) chooseProject(chosenProjectId);
+    if (!loaded || filled.current) return;
+    filled.current = true;
+    if (chosenProjectId) chooseProject(chosenProjectId);
     // Only when the budgets first arrive; later choices are the person's.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded]);
@@ -134,9 +138,7 @@ export function SetBudgetDialog({
             disabled={!loaded}
           />
           {budgets.isError ? (
-            <FieldError data-slot="field-error">
-              {intl.formatMessage(messages.loadFailed)}
-            </FieldError>
+            <ReportLoadFailed error={budgets.error} retry={budgets.refetch} />
           ) : null}
           {error ? <FieldError data-slot="field-error">{error}</FieldError> : null}
         </div>

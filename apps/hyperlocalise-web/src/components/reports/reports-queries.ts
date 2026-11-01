@@ -512,8 +512,8 @@ export function useReportCsv(organizationSlug: string) {
  */
 const SAVE_OPTIONS = { networkMode: "always" } as const;
 
-/** The longest a save's request is waited for, just past go-svc's own 30 s limit. */
-const SAVE_TIME_LIMIT_MS = 35_000;
+/** The longest a save's request is waited for, past go-svc's own 30 s limit and the way there. */
+const SAVE_TIME_LIMIT_MS = 40_000;
 
 /** A save's request, which fails if a stalled connection never answers, so its dialog can close. */
 function reportSave<T>(fallback: string, run: () => Promise<T>) {

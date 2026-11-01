@@ -220,11 +220,11 @@ export function TaskReport({
             organizationSlug={organizationSlug}
             settings={loaded}
             data={data}
-            reloading={report.isFetching}
+            reloading={report.isFetching || report.isError}
           />
           {data.pricing ? (
             <PricingSection
-              reloading={report.isFetching}
+              reloading={report.isFetching || report.isError}
               organizationSlug={organizationSlug}
               jobId={jobId}
               pricing={data.pricing}
@@ -550,7 +550,7 @@ function TimeSection({
   organizationSlug: string;
   settings: ReportSettings;
   data: TaskReportData;
-  /** Figures are being read again, so a form opened now would start from old ones. */
+  /** Figures are being read again or failed to, so a form opened now would start from old ones. */
   reloading: boolean;
 }) {
   const intl = useIntl();
@@ -667,7 +667,7 @@ function PricingSection({
   /** The task has ended, so nothing about its pricing can change. */
   ended: boolean;
   rateCardNames: string[];
-  /** Figures are being read again, so a form opened now would start from old ones. */
+  /** Figures are being read again or failed to, so a form opened now would start from old ones. */
   reloading: boolean;
 }) {
   const intl = useIntl();
